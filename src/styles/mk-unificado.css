@@ -1,0 +1,331 @@
+/* Contrato compartilhado: ações 36px / ícones 16px; listas 34px / checks 14px. */
+:root {
+  --mk-action-height: 36px;
+  --mk-action-icon: 16px;
+  --mk-list-row-height: 34px;
+  --mk-filter-row-height: 34px;
+  --mk-search-height: 32px;
+  --mk-search-font: 12px;
+  --mk-glass-bg: var(--mk-sup-fundo, #f7f8fa);
+  --mk-glass-border: rgba(255, 255, 255, .8);
+}
+:is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
+  --mk-ui-control-size: var(--mk-action-height);
+  --mk-ui-icon-size: var(--mk-action-icon);
+  --mk-search-height: 32px;
+  --mk-search-font: 12px;
+  --mk-filter-row-height: 34px;
+}
+/* Apenas ações: seletores, chaves e checkboxes conservam seus contratos. */
+:is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) {
+  box-sizing: border-box;
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  gap: 6px;
+}
+:is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mg-rec-pager__btn,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) {
+  width: var(--mk-action-height) !important;
+  min-width: var(--mk-action-height) !important;
+  padding: 0 !important;
+}
+:is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) > svg:not(.mk-al__img) {
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Check quadrado verde: inclui cabeçalhos, linhas e filtros das tabelas. */
+:is(.b1ref .chk, .cadastro-b1 .mg-check, .cadastro-b1 .mg-grid .mg-check,
+ .mg-b1-check:not(.mg-b1-check--radio), button[role="checkbox"][data-state]):not(#mk-padrao) {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+/* Os botões de linha com role=checkbox não são o desenho do check. */
+:is(.fvr, .fpc__item)[role="checkbox"]:not(#mk-padrao) {
+  width: 100%;
+  height: auto;
+  min-height: var(--mk-list-row-height);
+  border: 0;
+  border-radius: 0;
+}
+:is(.b1ref .chk.on, .b1ref .chk.parte, .cadastro-b1 .mg-check.is-checked,
+ .cadastro-b1 .mg-check.is-indeterminate, .mg-b1-check.is-on:not(.mg-b1-check--radio),
+ button[role="checkbox"][data-state="checked"], button[role="checkbox"][data-state="indeterminate"]):not(#mk-padrao) {
+  background: #32d65e;
+  border-color: #32d65e;
+  color: #fff;
+}
+:is(.b1ref .chk, .cadastro-b1 .mg-check):not(#mk-padrao) svg { width: 10px; height: 10px; padding: 0; }
+input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
+
+/* Listas de opções compactas, sem alterar a altura dos dados das tabelas. */
+:is(.fpc__item, .b1ref .fvr, .mgs__op, .mk-co__item, .cmd-option, .mk-sel-op,
+ .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row):not(#mk-padrao) {
+  min-height: 34px;
+  font-size: 12px !important;
+  line-height: 1.35;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.b1ref .fpop .fvr:not(#mk-padrao) { height: 34px; grid-template-columns: 28px minmax(0, 1fr) max-content; }
+.b1ref .fpop .fvr > *:not(#mk-padrao) { height: 34px; }
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb):not(#mk-padrao) {
+  height: 32px !important;
+  min-height: 32px;
+  font-size: 12px !important;
+}
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb) input:not(#mk-padrao) { font-size: 12px !important; }
+
+/* Vidro discreto nas superfícies flutuantes; cards de dados permanecem opacos. */
+:is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop,
+ .mg-b1-glass-pop, .cmd-panel, .mk-select, .mk-map-multi-popup,
+ .mk-map-filter-sheet):not(#mk-padrao) {
+  background: var(--mk-glass-bg);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+  border: 1px solid var(--mk-glass-border);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .1), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.mk-map-filter-host--right > .mk-map-filter-sheet { margin-left: auto; }
+.mk-map-filter-sheet:not(#mk-padrao) { padding: 10px; }
+.mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) { background: transparent; }
+:is(.mk-sheet__body, .mk-config-body, .mk-map-multi-options):not(#mk-padrao) { overscroll-behavior: contain; }
+/* Margem interna constante nas diferentes posições das folhas. */
+.mk-sheet__body:not(#mk-padrao) { padding-left: 10px; padding-right: 10px; }
+
+/* Visualização: escolhas exclusivas continuam exclusivas, apresentadas em lista. */
+.mk-vis .mk-vis__seg:not(#mk-padrao), .mk-vis .mk-vis__chips:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--mk-cartao-sombra);
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  justify-content: flex-start;
+  border-radius: 0;
+  padding: 6px 10px;
+  box-shadow: none;
+  font-size: 11px !important;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 1px solid var(--mk-list-divider); }
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]::before {
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px no-repeat;
+  border-color: #32d65e;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) { color: #334155; background: #f0fbf3; }
+.mk-hist__barra { gap: 8px; margin-bottom: 10px; }
+.mk-hist__lista { display: flex; flex-direction: column; gap: 8px; }
+.mk-hist__lista > :not(#mk-padrao) { padding: 10px; }
+.mk-hist :is(input, button[role="combobox"]):not(#mk-padrao) { min-height: 32px; font-size: 12px !important; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: #f7f8fa; backdrop-filter: none; }
+}
+
+/* As barras flutuantes do mapa acompanham o vidro dos painéis. */
+.mk-mapa .mk-mapa-card:not(.is-on):not(#mk-padrao) {
+  background: rgba(255, 255, 255, .86);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  border: 1px solid var(--mk-glass-border);
+}
+/* Textos internos não herdam os tamanhos antigos das folhas mobile. */
+:is(.b1ref .fpop .fvr .pn, .mgs__op, .mk-co__item, .cmd-option, .mk-colcfg__row .mg-b1-row__title):not(#mk-padrao) { font-size: 12px !important; }
+/* Barras dos cadastros tinham medidas fixas com maior especificidade. */
+.cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(#mk-padrao),
+.cadastro-b1--full-page .mg-toolbar .tb-btn:not(#mk-padrao) {
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
+}
+.cadastro-b1 .tb-btn:not(#mk-padrao) svg,
+.mk-ll-dlg .tb-btn:not(#mk-padrao) svg {
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+  padding: 0;
+}
+.cadastro-b1 .mg-fluid-slot__ghost:not(#mk-padrao) {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+/* Botões com rótulo ficam largos no desktop; só ícones ficam quadrados. */
+@media (max-width: 1023px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join :is(.tb-btn-icon, .tb-btn.mg-act-ic):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+  }
+}
+@media (min-width: 1024px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic:has(.mk-desktop-action-label):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+    width: auto !important;
+    min-width: max-content !important;
+    flex: 0 0 auto;
+    aspect-ratio: auto;
+    padding: 0 12px !important;
+  }
+}
+
+/* O cinza dos painéis é sólido. O vidro fica nos botões de ação. */
+:root {
+  --mk-btn-bg: rgba(255, 255, 255, .64);
+  --mk-btn-hover: rgba(255, 255, 255, .88);
+  --mk-control-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 3px rgba(15, 23, 42, .07), 0 4px 12px rgba(15, 23, 42, .035);
+}
+:is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
+  --mk-btn-sombra: var(--mk-control-glass-shadow);
+}
+:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo,
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+.mk-mhdr__back > span:not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: var(--mk-control-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: #334155; }
+.mk-ui-button.bg-primary:not(#mk-padrao) { color: #334155; }
+.mk-ui-button.bg-destructive:not(#mk-padrao) { color: #dc2626; }
+:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) {
+  box-sizing: border-box;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 999px;
+}
+:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) svg { width: 16px !important; height: 16px !important; }
+.mk-ui-button:not(#mk-padrao) { color: #334155; }
+.mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626; }
+.mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: #16a34a; }
+/* A barra de edição ainda tinha uma exceção cinza para Cancelar. */
+.cadastro-b1 .mg-toolbar .tb-btn:not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
+}
+
+/* Visto branco garantido, sem depender da cor nativa do navegador. */
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only) {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-block;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+  vertical-align: middle;
+}
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only):checked {
+  border-color: #32d65e;
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px 10px no-repeat;
+}
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only):indeterminate {
+  border-color: #32d65e;
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6h8' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px 10px no-repeat;
+}
+input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offset: 2px; }
+:is(.b1ref .chk.on, .b1ref .chk.parte, .mg-check.is-checked, button[role="checkbox"][data-state="checked"]) svg {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+:is(.chk, .mg-check, .mg-b1-check):not(#mk-padrao) { box-sizing: border-box; line-height: 1; overflow: visible; }
+
+/* Folga para a sombra não ser recortada pelo contêiner da barra. */
+.cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row:not(#mk-padrao) {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 48px;
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+.cadastro-b1 .mg-fluid-slot.is-open:not(#mk-padrao),
+.cadastro-b1 .mg-fluid-slot.is-open > .mg-fluid-slot__inner:not(#mk-padrao) { overflow: visible; }
+
+/* Título no centro da janela, com os dois lados de mesma largura. */
+.mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao),
+.mk-sheet .mk-sheet__head:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+.mk-map-filter-header h2:not(#mk-padrao),
+.mk-sheet__title:not(#mk-padrao) {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mk-sheet__action:not(#mk-padrao), .mk-sheet__close-gap:not(#mk-padrao) { width: 36px; justify-self: end; }
+@media (max-width: 1023px) {
+  .mk-ll-dlg .mk-ll-dlg__head:not(#mk-padrao) {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 8px;
+  }
+  .mk-ll-dlg__txt:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao) { text-align: center; }
+  .mk-ll-dlg__slot:not(#mk-padrao) { min-width: 0; width: 36px; }
+}
+
+/* O filtro dentro da folha não ganha outra moldura/fundo por cima do cinza. */
+.mk-column-filter-sheet .fpop--sheet:not(#mk-padrao) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.mk-column-filter-sheet .mk-sheet__body:not(#mk-padrao) { background: var(--mk-sup-fundo); }
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao),
+.b1ref .fpop .fselb .fselb-l:not(#mk-padrao),
+.b1ref .foperadores .fopt:not(#mk-padrao) {
+  font-size: 12px !important;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #334155;
+}
+.b1ref .fpop .fselb .fselb-l > span { font-size: 12px !important; }
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao) { height: 32px; min-height: 32px; }
+.b1ref .fpop .fmi-limpar:not(#mk-padrao) { font-size: 12px !important; min-height: 32px; }
+.mk-sheet__title:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao),
+.mk-config-dialog .mdl-t:not(#mk-padrao) { font-size: 14px !important; line-height: 1.3; font-weight: 600; }
+.b1ref .foperadores .fopt:not(#mk-padrao) { min-height: 34px; }

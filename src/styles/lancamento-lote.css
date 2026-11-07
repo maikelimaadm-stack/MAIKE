@@ -128,7 +128,7 @@
   height: 44px;
   border: 0;
   border-radius: 999px;
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #334155;
   -webkit-tap-highlight-color: transparent;
 }
@@ -322,7 +322,7 @@
   gap: 4px;
   padding: 3px;
   border-radius: 10px;
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mk-ll__seg-op {
@@ -357,7 +357,7 @@
   padding: 8px 10px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--mk-sup-fundo, #f7f8fa);
   font-size: 12px;
   color: #334155;
 }
@@ -416,7 +416,7 @@
 }
 
 .mk-ll__btn--cinza {
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #334155;
 }
 
@@ -830,7 +830,7 @@
   min-width: 0;
 }
 
-/* Título do cartão (área e lote): a mesma pílula do "Categoria de Manejo" (D-PROD-145). */
+/* Títulos da área e do lote usam a cor dos ícones; categoria fica sem fundo. */
 .mk-dl__nome {
   display: inline-flex;
   align-items: center;
@@ -838,7 +838,7 @@
   max-width: 100%;
   padding: 2px 9px;
   border-radius: 999px;
-  background: #f1f3f4;
+  background: #e6f7fc;
   color: #374151;
   font-size: 11px;
   font-weight: 700;
@@ -878,7 +878,7 @@
   max-width: 100%;
   padding: 2px 9px;
   border-radius: 999px;
-  background: #f1f3f4;
+  background: transparent;
   color: #64748b;
   font-size: 10.5px;
   font-weight: 500;
@@ -949,7 +949,7 @@
 }
 
 .mk-dl .mk-al--embaixo .mk-al__quadro:hover {
-  background: #f8fafc;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mk-dl__rodape {
@@ -969,7 +969,7 @@
   height: 40px;
   border: 0;
   border-radius: 12px;
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #1f2937;
   font-size: 13px;
   font-weight: 600;
@@ -1028,7 +1028,7 @@
   overflow-y: auto;
   padding: 6px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
   border-radius: 28px 28px 0 0;
-  background: #f7f7f8;
+  background: var(--mk-sup-fundo, #f7f8fa);
   animation: mk-al-sobe 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
@@ -1133,7 +1133,7 @@
   padding: 10px 4px;
   border: 0;
   border-radius: 16px;
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #1f2937;
   font-size: 12.5px;
   font-weight: 500;

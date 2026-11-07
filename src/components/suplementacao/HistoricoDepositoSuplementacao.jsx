@@ -111,7 +111,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
   if (isLoading) return <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>;
 
   return (
-    <Card className="border-slate-200 shadow-sm">
+    <Card className="mk-hist border-slate-200 shadow-sm">
       <CardHeader className="bg-slate-50 border-b py-2 px-3">
         <CardTitle className="text-sm font-semibold">Histórico do Depósito ({movimentacoes.length})</CardTitle>
       </CardHeader>

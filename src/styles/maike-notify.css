@@ -104,7 +104,7 @@
 }
 
 .mg-toast__close:hover {
-  background: #f1f5f9;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #475569;
 }
 
@@ -151,11 +151,11 @@
   gap: 8px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-gray {
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #475569;
   box-shadow: none;
 }
@@ -168,7 +168,7 @@
 /* Excluir: igual ao toolbar — fundo cinza, texto e lixeira vermelhos */
 .mg-confirm-dialog .mg-confirm-dialog__f .mg-confirm-dialog__excluir,
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-red.mg-confirm-dialog__excluir {
-  background: #f1f3f4 !important;
+  background: var(--mk-sup-fundo, #f7f8fa) !important;
   color: #dc2626 !important;
   border-color: transparent !important;
   box-shadow: none !important;
@@ -280,7 +280,7 @@
   gap: 8px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mg-alerta__botao {
@@ -292,7 +292,7 @@
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #475569;
   font-size: 12.5px;
   font-weight: 600;
@@ -313,7 +313,7 @@
 }
 
 .mg-alerta__botao--acao.mg-alerta__botao--perigo {
-  background: #f1f3f4;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #dc2626;
 }
 

@@ -99,6 +99,13 @@ export const normalizarFiltrosMapa = (salvo) => {
     if (typeof padrao === 'boolean' && typeof s[k] === 'boolean') out[k] = s[k];
     else if (typeof padrao === 'string' && typeof s[k] === 'string') out[k] = s[k];
   }
+  // Multisseleção nos filtros; preferências antigas em texto continuam válidas.
+  for (const k of ['filtroCategoria', 'filtroIdentificador', 'filtroStatus', 'filtroSistema', 'filtroAlertaTipo', 'filtroTipoCultura', 'filtroTipoPastagem', 'filtroSetor']) {
+    if (Array.isArray(s[k])) {
+      const valores = [...new Set(s[k].filter(v => typeof v === 'string' && v.trim() && v !== 'todos' && v !== 'todas'))];
+      out[k] = valores.length ? valores : PADRAO_FILTROS_MAPA[k];
+    }
+  }
   if (!ESTILOS_PASTO_VALIDOS.includes(out.estiloPasto)) out.estiloPasto = PADRAO_FILTROS_MAPA.estiloPasto;
   out.filtroPesoMin = numeroOuNulo(s.filtroPesoMin);
   out.filtroPesoMax = numeroOuNulo(s.filtroPesoMax);

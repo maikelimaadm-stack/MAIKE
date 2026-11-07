@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import B1Select from "@/components/cadastro/base1/B1Select";
+import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -133,15 +133,15 @@ export default function MapaFiltrosAvancados({
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
-    <div className="mk-map-filters rounded space-y-1">
+    <div className="mk-map-filters mk-map-filters--clean rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
           <div className="mk-map-filter-section mk-map-filter-section--layers space-y-0 px-1">
-            <div className="space-y-0 px-1">
+            <div className="mk-map-filter-heading">
               <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
-            <div className="space-y-0">
+            <div className="mk-map-layer-list">
               {availableLayers.map((item) =>
             <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
                   <span className="text-xs font-medium text-slate-700">{item.label}</span>
@@ -204,23 +204,23 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
-      <div className="mk-map-filter-section">
-          <div className="space-y-0 px-1">
+      <div className="mk-map-filter-section mk-map-filter-section--fields">
+          <div className="mk-map-filter-heading">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-fields">
             <div>
               <Label className="text-[10px] text-slate-600">Setor</Label>
-              <B1Select value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor" className="h-8 text-xs">
 
                   <option value="todos" className="text-xs">Todos</option>
                   {setores.map((setor) => <option key={setor.id} value={setor.id} className="text-xs">{setor.nome}</option>)}
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Cultura</Label>
-              <B1Select value={filtroTipoCultura} onChange={(e) => setFiltroTipoCultura(e.target.value)} aria-label="Tipo de Cultura" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroTipoCultura} onChange={(e) => setFiltroTipoCultura(e.target.value)} aria-label="Tipo de Cultura" className="h-8 text-xs">
 
                   <option value="todas" className="text-xs">Todas</option>
                   <option value="Pastagem" className="text-xs">Pastagem</option>
@@ -229,16 +229,16 @@ export default function MapaFiltrosAvancados({
                   <option value="APP" className="text-xs">APP</option>
                   <option value="Infraestrutura" className="text-xs">Infraestrutura</option>
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Pastagem</Label>
-              <B1Select value={filtroTipoPastagem} onChange={(e) => setFiltroTipoPastagem(e.target.value)} aria-label="Tipo de Pastagem" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroTipoPastagem} onChange={(e) => setFiltroTipoPastagem(e.target.value)} aria-label="Tipo de Pastagem" className="h-8 text-xs">
 
                   <option value="todas" className="text-xs">Todas</option>
                   {tiposPastagem.map((tp) => <option key={tp} value={tp} className="text-xs">{tp}</option>)}
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
           </div>
         </div>
@@ -248,58 +248,58 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div className="mk-map-filter-section">
-          <div className="space-y-0 px-1">
+      <div className="mk-map-filter-section mk-map-filter-section--fields">
+          <div className="mk-map-filter-heading">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-fields">
             <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
-              <B1Select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} aria-label="Categoria" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} aria-label="Categoria" className="h-8 text-xs">
 
                   <option value="todas" className="text-xs">Todas</option>
                   {categorias.map((cat) => <option key={cat} value={cat} className="text-xs">{cat}</option>)}
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Sistema Produtivo</Label>
-              <B1Select value={filtroSistema} onChange={(e) => setFiltroSistema(e.target.value)} aria-label="Sistema Produtivo" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroSistema} onChange={(e) => setFiltroSistema(e.target.value)} aria-label="Sistema Produtivo" className="h-8 text-xs">
 
                   <option value="todos" className="text-xs">Todos</option>
                   {sistemasProdutivos.map((sp) => <option key={sp} value={sp} className="text-xs">{sp}</option>)}
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Identificador</Label>
-              <B1Select value={filtroIdentificador} onChange={(e) => setFiltroIdentificador(e.target.value)} aria-label="Identificador" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroIdentificador} onChange={(e) => setFiltroIdentificador(e.target.value)} aria-label="Identificador" className="h-8 text-xs">
 
                   <option value="todos" className="text-xs">Todos</option>
                   {identificadores.map((identificador) => <option key={identificador} value={identificador} className="text-xs">{identificador}</option>)}
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
-            <div className="space-y-0 px-1">
+            <div>
               <Label className="text-[10px] text-slate-600">Alertas</Label>
-              <B1Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Alertas" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Alertas" className="h-8 text-xs">
 
                   <option value="todos" className="text-xs">Todos</option>
                   <option value="com_alerta" className="text-xs">Com Alerta</option>
                   <option value="sem_alerta" className="text-xs">Sem Alerta</option>
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Alerta</Label>
-              <B1Select value={filtroAlertaTipo} onChange={(e) => setFiltroAlertaTipo(e.target.value)} aria-label="Tipo de Alerta" className="h-8 text-xs">
+              <MapaFiltroSelecao value={filtroAlertaTipo} onChange={(e) => setFiltroAlertaTipo(e.target.value)} aria-label="Tipo de Alerta" className="h-8 text-xs">
 
                   <option value="todos" className="text-xs">Todos</option>
                   <option value="suplementacao_pendente" className="text-xs">Suplementação</option>
                   <option value="cocho_sem_produto" className="text-xs">Cocho sem produto</option>
                   <option value="deposito_estoque_minimo" className="text-xs">Estoque mínimo</option>
 
-              </B1Select>
+              </MapaFiltroSelecao>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
