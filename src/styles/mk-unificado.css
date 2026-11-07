@@ -179,7 +179,57 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   min-width: 0 !important;
   padding: 0 !important;
 }
-.cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join :is(.tb-btn-icon, .tb-btn.mg-act-ic):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
-  width: var(--mk-action-height) !important;
-  min-width: var(--mk-action-height) !important;
+/* Botões com rótulo ficam largos no desktop; só ícones ficam quadrados. */
+@media (max-width: 1023px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join :is(.tb-btn-icon, .tb-btn.mg-act-ic):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+  }
+}
+@media (min-width: 1024px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic:has(.mk-desktop-action-label):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+    width: auto !important;
+    min-width: max-content !important;
+    flex: 0 0 auto;
+    aspect-ratio: auto;
+    padding: 0 12px !important;
+  }
+}
+
+/* O cinza dos painéis é sólido. O vidro fica nos botões de ação. */
+:root {
+  --mk-btn-bg: rgba(255, 255, 255, .64);
+  --mk-btn-hover: rgba(255, 255, 255, .88);
+  --mk-control-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 3px rgba(15, 23, 42, .07), 0 4px 12px rgba(15, 23, 42, .035);
+}
+:is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
+  --mk-btn-sombra: var(--mk-control-glass-shadow);
+}
+:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo,
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+.mk-mhdr__back > span:not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: var(--mk-control-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: #334155; }
+.mk-ui-button.bg-primary:not(#mk-padrao) { color: #334155; }
+.mk-ui-button.bg-destructive:not(#mk-padrao) { color: #dc2626; }
+:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) {
+  box-sizing: border-box;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 999px;
+}
+:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) svg { width: 16px !important; height: 16px !important; }
+.mk-ui-button:not(#mk-padrao) { color: #334155; }
+.mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626; }
+.mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: #16a34a; }
+/* A barra de edição ainda tinha uma exceção cinza para Cancelar. */
+.cadastro-b1 .mg-toolbar .tb-btn:not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
 }
