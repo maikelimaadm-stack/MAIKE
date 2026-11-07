@@ -26,7 +26,7 @@
   --mk-filter-row-height: 32px;
   --mk-check-size: 14px;
   --mk-check-on: #32d65e;
-  --mk-check-row-on: #f0fbf3;
+  --mk-check-row-on: #fff;
   --mk-search-height: 32px;
   --mk-glass-bg: var(--mk-sup-fundo, #FAFCFE);
   --mk-glass-border: rgba(255, 255, 255, .8);
@@ -194,9 +194,14 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   background: var(--mk-check-on) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px no-repeat;
   border-color: var(--mk-check-on);
 }
+/* Selecionado: só o checkbox verde muda — fundo permanece branco (sem cinza). */
 .mk-check-row[aria-checked="true"]:not(#mk-padrao),
 .mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) {
   color: #334155;
+  background: var(--mk-check-row-on);
+}
+.mk-check-row[aria-checked="true"]:hover:not(#mk-padrao),
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:hover:not(#mk-padrao) {
   background: var(--mk-check-row-on);
 }
 .mk-hist__barra { gap: 8px; margin-bottom: 10px; }
