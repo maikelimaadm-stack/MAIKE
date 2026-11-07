@@ -5466,4 +5466,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Decisão:** tokens `--mk-font-list|field|heading|title|search` e `--mk-text*` em `mk-unificado.css` aplicam essa tipografia a grades Base1, filtros, folhas, menus e listagens. Ações da barra seguem `12px`. Campos mobile que precisam de `16px` anti-zoom do iOS continuam com a regra específica de input.
 - **Implementação:** `mk-unificado.css` + alinhamento em `cadastro-base1.css`.
 
-<!-- Próxima decisão: D-PROD-151 -->
+## D-PROD-151 — Listagens do mapa: checkbox compacto (não toggle)
+
+- **Contexto:** o proprietário pediu que Filtros/Camadas usem o mesmo padrão visual da Visualização — listagens compactas com checkbox verde quadrado e linha selecionada em verde-claro — e removeu o toggle dessas listas.
+- **Decisão:** em Filtros/Camadas e no bloco “Mostrar no mapa” da Visualização, opções multi-seleção usam `role="checkbox"` + `.mk-check-row` (caixa 14×14, `#32d65e` ligado, fundo de linha `#f0fbf3`). Densidade de linha ~`32px`. O `ToggleSwitch` / `mk-ios-switch` permanece nos cadastros, colunas, login e formulários — só sai das listagens do mapa.
+- **Revoga em parte:** o item de D-PROD-132 que exigia `ToggleSwitch` nas camadas do Mapa Geral.
+- **Implementação:** `MapaFiltrosAvancados.jsx`, `MapaVisualizacao.jsx`, `mk-unificado.css`, `mk-mapa-superficie.css`.
+
+<!-- Próxima decisão: D-PROD-152 -->

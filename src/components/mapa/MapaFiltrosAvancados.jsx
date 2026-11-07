@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -141,17 +139,21 @@ export default function MapaFiltrosAvancados({
             <div className="mk-map-filter-heading">
               <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
-            <div className="mk-map-layer-list">
+            <div className="mk-map-layer-list" role="group" aria-label="Camadas">
               {availableLayers.map((item) =>
-            <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-[#FAFCFE] px-2 py-1.5 rounded-lg">
-                  <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                  {/* D-PROD-132: mesma chave liga/desliga dos cadastros e lançamentos */}
-                  <ToggleSwitch checked={item.checked} onChange={() => item.onChange()} ariaLabel={item.label} />
-                </label>
+            <button
+              key={item.label}
+              type="button"
+              role="checkbox"
+              aria-checked={item.checked}
+              aria-label={item.label}
+              className="mk-map-layer-row mk-check-row"
+              onClick={() => item.onChange()}>
+                  <span className="mk-map-layer-row__txt">{item.label}</span>
+                </button>
             )}
             </div>
           </div>
-          <Separator />
         </>
       }
 
@@ -200,8 +202,6 @@ export default function MapaFiltrosAvancados({
         </div>
       }
 
-      {mostrarCores && permissions?.visualizar_areas !== false && <Separator />}
-
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
       <div className="mk-map-filter-section mk-map-filter-section--fields">
@@ -243,8 +243,6 @@ export default function MapaFiltrosAvancados({
           </div>
         </div>
       }
-
-      {permissions?.visualizar_lotes !== false && <Separator />}
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&

@@ -73,9 +73,9 @@ describe("Painel Visualização", () => {
     const camadas = camadasDoMapa({ showAreas: true, showLotes: false, setShowLotes, showNomesAreas: true, showHectaresAreas: true, permissions: { visualizar_alertas: false } });
     expect(camadas.find((c) => c.id === "alertas")).toBeUndefined();
     painel({ camadas });
-    const lotes = screen.getByRole("switch", { name: "Lotes" });
+    const lotes = screen.getByRole("checkbox", { name: "Lotes" });
     expect(lotes.getAttribute("aria-checked")).toBe("false");
-    expect(screen.getByRole("switch", { name: "Áreas" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("checkbox", { name: "Áreas" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(lotes);
     expect(setShowLotes).toHaveBeenCalledTimes(1);
   });
