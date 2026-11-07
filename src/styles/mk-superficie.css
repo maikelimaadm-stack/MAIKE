@@ -39,6 +39,24 @@
   background: var(--mk-sup-fundo);
 }
 
+/* No desktop a faixa do título e a barra de ações são brancas, coladas ao
+   cabeçalho do sistema — mesma cor do menu lateral. A lista continua sobre o
+   cinza. As margens negativas levam o branco até as bordas da página e
+   anulam o respiro entre as duas linhas, formando uma faixa só. */
+@media (min-width: 1024px) {
+  .cadastro-b1.cadastro-b1--full-page > .cadastro-b1__page-title:not(#mk-padrao) {
+    margin: -8px -12px -6px;
+    padding: 14px 12px 10px;
+    background: var(--mk-sup-cartao);
+  }
+
+  .cadastro-b1.cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body) .mg-toolbar--join:not(#mk-padrao) {
+    margin: 0 -12px;
+    padding: 2px 12px;
+    background: var(--mk-sup-cartao);
+  }
+}
+
 
 /* ── Botões: brancos com sombra suave ─────────────────────────────────── */
 :is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
