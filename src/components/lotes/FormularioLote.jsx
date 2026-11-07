@@ -22,6 +22,7 @@ import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
+import { fornecedoresSelecionaveis } from "@/domain/lotes/fornecedoresDoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada, camposAdministrativosAlterados, errosNumericosDaEntrada, inteiroPositivoDigitado, pesoDigitado } from "@/domain/lotes/correcaoEntrada";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
@@ -227,6 +228,11 @@ export default function FormularioLote({
     queryFn: () => listarFornecedores(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
+  // D-PROD-145: inativo não entra em vínculo novo; o fornecedor atual do lote segue exibido.
+  const fornecedoresOpcoes = useMemo(
+    () => fornecedoresSelecionaveis(fornecedores, [initialData?.fornecedor_id, formData.fornecedor_id]),
+    [fornecedores, initialData?.fornecedor_id, formData.fornecedor_id]
+  );
 
   React.useEffect(() => {
     const areaSelecionada = areas.find((item) => item.id === formData.area_entrada_id);
@@ -507,7 +513,7 @@ export default function FormularioLote({
   { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
   { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="b1-multi" role="group" aria-label="Sistema Produtivo">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <button key={item} type="button" role="checkbox" aria-checked={checked} disabled={isReadOnly} onClick={() => toggleSistemaProdutivo(item)} className={`b1-multi__op${checked ? " is-on" : ""}`}>{checked ? <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M2 6l3 3 5-6" /></svg> : null}{item}</button>;})}</div> },
   { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
-  { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedores, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedoresOpcoes, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
   { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
   { id: "estado_origem", name: "estado_origem", label: "Estado Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "estado_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
   { id: "nota_fiscal", name: "nota_fiscal", label: "Nota Fiscal", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "nota_fiscal", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
@@ -522,7 +528,7 @@ export default function FormularioLote({
   { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData]);
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData]);
 
   const defaultLayout = {
     principal: ["nome", "status", "numero_lote"],
