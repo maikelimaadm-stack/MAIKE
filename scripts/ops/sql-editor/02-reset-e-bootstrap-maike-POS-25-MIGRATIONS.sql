@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 58 tabelas (53 + 5 do ledger R2E-P1/R1), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 61 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-145), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 43 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 46 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -55,6 +55,7 @@ DECLARE
   -- Ordem segura de exclusão (filha → mãe), conferida contra as FKs reais abaixo.
   c_tenant constant text[] := ARRAY[
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    'CentroCustoResultado','CentroCusto','CentroResultado',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
@@ -135,7 +136,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: as tabelas com cliente_id não são as esperadas. Nada foi alterado.';
   END IF;
 
-  -- 5. Ordem de FK: toda filha sai antes da mãe; auto-referência só em Categoria (anulável).
+  -- 5. Ordem de FK: toda filha sai antes da mãe; auto-referência só em Categoria e nos centros (D-PROD-145; anuláveis).
   FOR r IN
     SELECT c.conrelid::regclass::text AS filha_q, c.confrelid::regclass::text AS mae_q,
            (SELECT relname FROM pg_class WHERE oid = c.conrelid)::text AS filha,
@@ -150,7 +151,7 @@ BEGIN
         RAISE EXCEPTION 'MAIKE-02: a tabela preservada % tem linhas que podem referenciar o tenant; revise. Nada foi alterado.', r.filha;
       END IF;
     ELSIF r.filha = ANY (v_ordem) AND r.mae = ANY (v_ordem) THEN
-      IF r.filha = r.mae AND r.filha <> 'Categoria' THEN
+      IF r.filha = r.mae AND r.filha NOT IN ('Categoria', 'CentroCusto', 'CentroResultado') THEN
         RAISE EXCEPTION 'MAIKE-02: auto-referência inesperada em %. Nada foi alterado.', r.filha;
       END IF;
       IF r.filha <> r.mae AND array_position(v_ordem, r.filha) > array_position(v_ordem, r.mae) THEN
@@ -213,6 +214,9 @@ BEGIN
 
   -- 8. Apaga só as linhas dos clientes de teste (auto-referência de Categoria primeiro).
   UPDATE "Categoria" SET categoria_pai_id = NULL WHERE cliente_id = ANY (v_ids) AND categoria_pai_id IS NOT NULL;
+  -- D-PROD-145: árvores dos centros (FK composta com pai_id anulável).
+  UPDATE "CentroCusto" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
+  UPDATE "CentroResultado" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
   FOREACH v_tab IN ARRAY c_tenant LOOP
     EXECUTE format('DELETE FROM public.%I WHERE cliente_id = ANY ($1)', v_tab) USING v_ids;
     GET DIAGNOSTICS v_n = ROW_COUNT;

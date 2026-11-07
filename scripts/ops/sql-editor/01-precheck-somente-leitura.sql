@@ -13,12 +13,13 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 43 tabelas de tenant (com cliente_id) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 46 tabelas de tenant (com cliente_id) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (
   SELECT * FROM unnest(ARRAY[
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    'CentroCustoResultado','CentroCusto','CentroResultado',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
@@ -121,8 +122,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 58 depois (53 + 5 do ledger R2E)',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 58 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 61 depois (53 + 5 do ledger R2E + 3 de Gestão P1)',
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 61 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -180,7 +181,7 @@ base(ordem, item, valor, esperado, status) AS (
 ),
 contrato AS (
   SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
-         AND (SELECT count(*) FROM tabelas) = 58
+         AND (SELECT count(*) FROM tabelas) = 61
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
          AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0

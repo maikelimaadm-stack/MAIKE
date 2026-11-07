@@ -134,11 +134,16 @@ const lerFks = async (cx) =>
     await cx.$queryRawUnsafe(
       `SELECT c.conrelid::regclass::text AS filha, c.confrelid::regclass::text AS mae,
               array_agg(a.attname::text ORDER BY a.attnum) AS colunas,
-              bool_and(NOT a.attnotnull OR a.attname = 'cliente_id') AS anulaveis
+              -- D-PROD-145: FK composta de árvore (cliente_id, empresa_id, pai_id).
+              -- Com MATCH SIMPLE, anular UMA coluna anulável já desliga a FK; só
+              -- essas colunas são anuladas (as de tenant/empresa ficam).
+              coalesce(array_agg(a.attname::text ORDER BY a.attnum) FILTER (WHERE NOT a.attnotnull), '{}') AS colunas_anulaveis,
+              (bool_and(NOT a.attnotnull OR a.attname = 'cliente_id')
+                OR (c.confmatchtype = 's' AND bool_or(NOT a.attnotnull))) AS anulaveis
          FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
         WHERE c.contype = 'f' AND n.nspname = 'public'
-        GROUP BY c.oid, c.conrelid, c.confrelid`
+        GROUP BY c.oid, c.conrelid, c.confrelid, c.confmatchtype`
     )
   ).map((f) => ({ ...f, filha: f.filha.replaceAll('"', ''), mae: f.mae.replaceAll('"', '') }));
 

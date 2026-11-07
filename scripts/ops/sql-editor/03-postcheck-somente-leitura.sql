@@ -11,6 +11,7 @@ WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    'CentroCustoResultado','CentroCusto','CentroResultado',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
