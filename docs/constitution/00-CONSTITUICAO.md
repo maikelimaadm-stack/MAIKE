@@ -10,6 +10,11 @@ Construir o MAIKE como um sistema nativo, escalável e exclusivamente focado em
 **Pecuária — Mapa Geral + Manejo**, com o padrão arquitetural validado no
 PROJETOMG, removendo integralmente a dependência da Base44.
 
+**Expansão autorizada pelo proprietário (D-PROD-145):** cadastros de **Gestão Rural** —
+Parceiros, Centros de Custo e Centros de Resultado, com o vínculo entre os centros —
+**sem financeiro transacional** (nada de naturezas, plano de contas, lançamentos,
+contas a pagar/receber, compras ou movimento de estoque nesta expansão).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

@@ -5344,4 +5344,40 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Offline: a revogação vale no servidor.
 - **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md`.
 
-<!-- Próxima decisão: D-PROD-144 -->
+## D-PROD-145 — Gestão Rural P1: Parceiros sobre Fornecedor, Centros de Custo/Resultado e vínculo N:N (sem financeiro)
+
+> Numerada 145: a D-PROD-144 está na PR #221 (S04-P2, aberta).
+
+- **Contexto:** o proprietário pediu "cadastrar antes de lançar": pessoas (fornecedor, cliente, prestador, transportador), onde o custo nasce e o que se quer apurar. Já existia o model `Fornecedor`, referenciado por `Lote`, `EstoqueLoteNota` e `MovimentacaoEstoque`; `MovimentacaoEstoque` já tinha `centro_custo_id/nome` soltos, sem cadastro.
+- **Decisão:**
+  - **Expansão de escopo autorizada:** menu `gestao-rural` com as páginas `Parceiros`, `CentrosCusto` e `CentrosResultado` (telas `ges-parceiros`, `ges-centros-custo`, `ges-centros-resultado`). O manifesto ganha só essas três páginas e perde só o domínio proibido `CentrosCusto`. `CentroCusto` continua proibido como entidade Base44, e os domínios financeiros continuam proibidos.
+  - **Parceiros = `Fornecedor`:** nenhuma tabela `Parceiro`. A tabela, o id e o `numero_cadastro` são os mesmos, e a sequência é a mesma.
+    - Papéis em `tipos`, com vocabulário `fornecedor`, `cliente`, `prestador_servico`, `transportador`, `outros`.
+    - Aliases antigos são normalizados. Valores antigos desconhecidos são preservados (`tipos_legados`).
+    - Sem exclusão: a tela inativa e reativa.
+    - CPF/CNPJ com dígitos validados quando novos ou alterados.
+    - Documento novo duplicado na mesma empresa → 409, sob trava. As duplicatas históricas não são tocadas, e não há unique destrutivo.
+    - `GET /fornecedores` (seletor do Cadastro de Lotes, CPF mascarado) e as rotas antigas de escrita (só admin real) não mudam.
+  - **Centros:** dois models (`CentroCusto`, `CentroResultado`), tenant + empresa obrigatórios.
+    - Código pela `EntidadeCodigoSequencia`. Nome em maiúsculas, único por empresa.
+    - Árvore opcional pela FK composta `(cliente_id, empresa_id, pai_id)`. Pai do mesmo tipo e da mesma empresa por construção do banco, `CHECK` contra autorreferência.
+    - No serviço, sob trava por empresa: sem ciclo, pai ativo, profundidade máxima 5.
+    - Sem exclusão física. Inativar exige não ter filho ativo; reativar exige pai ativo.
+  - **Vínculo `CentroCustoResultado` (N:N, opcional):**
+    - FKs compostas tenant + empresa nos dois lados, unique do par.
+    - Escrita só pelo centro de custo (`PUT .../centros-resultado`, substitui o conjunto, idempotente, transação + AuditLog). Leitura dos dois lados com projeção mínima.
+    - Par novo exige os dois centros ativos. Pares existentes permanecem se um lado for inativado (rastreabilidade).
+    - O vínculo não gera lançamento nem atribui custo.
+  - **Segurança:**
+    - tenant só da sessão;
+    - `empresa_id` validado no banco (o fallback `clienteId` do navegador não é empresa) e imutável; outro tenant ou empresa → 404 sem revelar;
+    - schemas fechados e DTO explícito;
+    - texto com controle, HTML ou mal formado → 400;
+    - guardas por tela e ação, telas independentes, padrão negado para não-admin;
+    - auditoria com CPF mascarado, sem RG nem data de nascimento.
+  - **Migration** `20261107300000_gestao_p1_centros_custo_resultado`: expand-only, só tabelas novas, RLS/REVOKE no padrão. Está pinada em `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS`.
+- **Consequência:**
+  - Operações futuras (mapa, estoque, financeiro) podem **referenciar** os ids estáveis; nenhum lançamento é criado agora. O contrato está no relatório §6.
+  - Testes: `backend/tests/gestaoP1Cadastros.test.mjs` (PG) e os smoke de UI. Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P1-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-146 -->
