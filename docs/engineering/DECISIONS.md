@@ -5443,13 +5443,14 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 
 ## D-PROD-148 — Tipografia, cores e ícones de ação unificados
 
-- **Contexto:** o proprietário relatou fontes fora do padrão (umas enormes, outras pequenas), cores inconsistentes, ícones de botão finos demais e botões fora do estilo (fill verde/cinza misturado com branco).
-- **Decisão (SSOT em `mk-unificado.css`):**
-  - **Tipografia:** corpo/listas `13px`; ações `13px` peso 600; título de página `15px` (mobile) / `16px` (≥768). Campos em mobile continuam `16px` para não disparar zoom do iOS.
-  - **Cores de ação:** fundo `#ffffff`; texto/ícone neutro `#334155` / `#5b6b80`; verde `#16a34a` (Novo/Salvar/Aplicar); vermelho `#dc2626` (Excluir). Sem fill verde/vermelho nas pílulas de ação.
-  - **Ícones:** `16×16` com `stroke-width: 2.25` (mais “negrito” que o 1.65 anterior).
+- **Contexto:** o proprietário apontou fontes/cores/ícones inconsistentes; depois corrigiu o escopo: **Filtros e Camadas do mapa já estão no tamanho certo** — não reescrever tipografia global; só ajustar o que destoa (ícones finos, fills errados, botões fora do estilo).
+- **Referência visual:** painéis Filtros/Camadas (`mk-mapa-superficie.css`): rótulos ~12px, campos ~13px, ações brancas.
+- **Decisão:**
+  - **Não forçar** tipografia de títulos, folhas iOS (17px) nem `--mk-search-font` dos filtros.
+  - **Ações (barra):** fonte `12px`, fundo `#ffffff`, verde `#16a34a` / vermelho `#dc2626` no ícone/texto; sem fill verde/vermelho.
+  - **Ícones de ação:** `16×16`, `stroke-width: 2.25`.
   - **Altura:** desktop `36px`; barra mobile `38px`.
-- **Revoga:** o item visual “fundo cinza / sem sombra” ainda residual da D-PROD-96 na shell (já revogado em espírito pela D-PROD-138/147).
-- **Implementação:** `mk-unificado.css`, `mk-superficie.css`, `maike-mobile-shell.css`, `cadastro-base1.css`, `cadastro-b1-portal.css`, `cadastro-b1ref.css` + alinhamento de stroke nos CSS de mapa/filtros.
+- **Revoga:** o item visual “fundo cinza / sem sombra” residual da D-PROD-96 na shell (já em espírito pela D-PROD-138/147).
+- **Implementação:** `mk-unificado.css` (ações/ícones/cores), portal/base1/shell alinhados; tipografia de Filtros/Camadas preservada.
 
 <!-- Próxima decisão: D-PROD-149 -->
