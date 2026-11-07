@@ -69,3 +69,9 @@
 }
 .mk-sidebar-flyout a { gap: 8px; padding: 0 10px; font-size: 13px; font-weight: 400; }
 .mk-sidebar-flyout a[aria-current="page"] { font-weight: 500; }
+.mk-sidebar-flyout-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 6px 10px; color: #64748b; font-size: 11px; font-weight: 600; }
+.mk-sidebar-flyout-header button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: #64748b; }
+.mk-sidebar-flyout-header button:hover { background: #f1f3f4; color: #292a2d; }
+.mk-sidebar-flyout { animation: mk-sidebar-dropdown 140ms ease-out; transform-origin: top left; }
+@keyframes mk-sidebar-dropdown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .mk-sidebar-flyout { animation: none; } }

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Folder, Home, PanelLeft, PanelRight, Search } from "lucide-react";
+import { ChevronDown, Folder, Home, PinOff, Pin, Search } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
 import SidebarTooltip from "@/components/navigation/SidebarTooltip";
@@ -29,10 +29,9 @@ const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
  * Menu lateral do desktop (lg+), no estilo do protótipo "inspirado no ChatGPT":
  * marca no topo, atalhos, módulos em acordeão e faixa de ícones quando recolhido.
  *
- * Dois modos de abertura ao clicar no topo:
- * - a logo (ícone) abre o menu completo e clicar fora dele volta para a faixa de
- *   ícones — escolher uma tela não fecha o menu;
- * - o botão de recolher/expandir fixa o estado — fica aberto até ser recolhido.
+ * Recolhido: hover ou foco abre uma lista abaixo do ícone; clicar não expande.
+ * Fixar transforma o menu em uma coluna que reserva espaço no layout.
+ * Desafixar retorna à faixa de ícones e às listas transitórias.
  *
  * @param {{
  *   items: ItemMenu[],
@@ -72,49 +71,12 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     setMarcaEmHover(false);
   }, [collapsed]);
 
-  // Menu aberto a partir do ícone do módulo (barra recolhida): ele fica aberto ao
-  // navegar e só volta para a faixa de ícones quando se clica fora dele.
-  const [abertoPeloModulo, setAbertoPeloModulo] = React.useState(false);
-  const barraRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
-
-  const alternar = () => {
-    setAbertoPeloModulo(false);
-    onToggle();
-  };
-
+  const alternar = () => onToggle();
   const navegar = (event, path) => {
-    if (!expandido && flyout) {
-      setAbertoId(flyout.item.id);
-      setAbertoPeloModulo(false);
-      onToggle();
-    }
     setFlyout(null);
     onNavigate(event, path);
   };
 
-  React.useEffect(() => {
-    if (!expandido || !abertoPeloModulo) return undefined;
-    // Um clique real emite pointerdown, mousedown e click: fecha uma vez só.
-    let jaFechou = false;
-    const aoClicarFora = (event) => {
-      if (jaFechou) return;
-      if (barraRef.current?.contains(/** @type {Node} */ (event.target))) return;
-      jaFechou = true;
-      setAbertoPeloModulo(false);
-      onToggle();
-    };
-    document.addEventListener("pointerdown", aoClicarFora);
-    document.addEventListener("mousedown", aoClicarFora);
-    document.addEventListener("click", aoClicarFora);
-    return () => {
-      document.removeEventListener("pointerdown", aoClicarFora);
-      document.removeEventListener("mousedown", aoClicarFora);
-      document.removeEventListener("click", aoClicarFora);
-    };
-  }, [expandido, abertoPeloModulo, onToggle]);
-
-  // Listagem lateral no hover dos ícones (barra recolhida), como nos antigos
-  // menus do cabeçalho. O atraso ao sair permite levar o mouse até o painel.
   const [flyout, setFlyout] = React.useState(
     /** @type {{ item: ItemMenu, top: number, left: number } | null} */ (null),
   );
@@ -130,9 +92,8 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     const caixa = event.currentTarget.getBoundingClientRect();
     setFlyout({
       item,
-      top: Math.max(12, Math.min(caixa.top, window.innerHeight - 320)),
-      // Encosta fora do trilho, sem cobrir os ícones.
-      left: Math.max(caixa.right + 10, (barraRef.current?.getBoundingClientRect().right || 0) + 8),
+      top: Math.min(caixa.bottom + 6, window.innerHeight - 140),
+      left: Math.max(8, Math.min(caixa.left, window.innerWidth - 260)),
     });
   };
 
@@ -155,7 +116,6 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
         }`}
       >
         <nav
-          ref={barraRef}
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
@@ -186,16 +146,16 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 <button
                   type="button"
                   onClick={alternar}
-                  aria-label="Ocultar menu principal"
-                  title="Ocultar menu principal"
+                  aria-label="Desafixar menu"
+                  title="Desafixar menu"
                   className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
                 >
-                  <PanelLeft size={19} aria-hidden />
+                  <PinOff size={19} aria-hidden />
                 </button>
               </div>
             ) : (
               <div className="flex justify-center">
-                <SidebarTooltip label="Alternar barra lateral" atalhos={["Ctrl", "Shift", "S"]}>
+                <SidebarTooltip label="Fixar menu" atalhos={["Ctrl", "Shift", "S"]}>
                   <button
                     type="button"
                     onClick={alternar}
@@ -203,7 +163,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                     onMouseLeave={() => setMarcaEmHover(false)}
                     onFocus={() => setMarcaEmHover(true)}
                     onBlur={() => setMarcaEmHover(false)}
-                    aria-label="Mostrar menu principal"
+                    aria-label="Fixar menu principal"
                     className="relative grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
                   >
                     <img
@@ -219,7 +179,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                       }`}
                       aria-hidden
                     >
-                      <PanelRight size={20} />
+                      <Pin size={20} />
                     </span>
                   </button>
                 </SidebarTooltip>
@@ -271,11 +231,6 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => {
-                        setAbertoId(item.id);
-                        setAbertoPeloModulo(true);
-                        onToggle();
-                      }}
                       onMouseEnter={(event) => abrirFlyout(item, event)}
                       onMouseLeave={agendarFechamento}
                       onFocus={(event) => abrirFlyout(item, event)}
@@ -359,6 +314,11 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           top={flyout.top}
           left={flyout.left}
           onNavegar={navegar}
+          onFixar={() => {
+            setAbertoId(flyout.item.id);
+            setFlyout(null);
+            onToggle();
+          }}
           onMouseEnter={cancelarFechamento}
           onMouseLeave={agendarFechamento}
         />

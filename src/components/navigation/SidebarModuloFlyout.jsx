@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { Pin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -17,6 +18,7 @@ import { createPageUrl } from "@/utils";
  *   top: number,
  *   left: number,
  *   onNavegar: (event: React.MouseEvent, path: string) => void,
+ *   onFixar: () => void,
  *   onMouseEnter: () => void,
  *   onMouseLeave: () => void,
  * }} props
@@ -28,13 +30,14 @@ export default function SidebarModuloFlyout({
   top,
   left,
   onNavegar,
+  onFixar,
   onMouseEnter,
   onMouseLeave,
 }) {
   return createPortal(
     <div
       className="mk-sidebar-flyout-anchor fixed z-[120]"
-      style={{ top, left: left - 20, paddingLeft: 20 }}
+      style={{ top: top - 8, left, paddingTop: 8 }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onFocusCapture={onMouseEnter}
@@ -46,7 +49,10 @@ export default function SidebarModuloFlyout({
     <div role="menu" aria-label={titulo}
       style={{ maxHeight: `calc(100dvh - ${top + 12}px)` }}
       className="mk-sidebar-flyout w-[240px] rounded-xl bg-white p-1.5">
-      <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">{titulo}</div>
+      <div className="mk-sidebar-flyout-header">
+        <span>{titulo}</span>
+        <button type="button" onClick={onFixar} aria-label="Fixar menu" title="Fixar menu"><Pin size={15} aria-hidden /></button>
+      </div>
       {paginas.map((page) => {
         const ativo = currentPath === createPageUrl(page.url);
         return (
