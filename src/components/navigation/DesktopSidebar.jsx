@@ -9,11 +9,14 @@ const ICONE_DO_MODULO = /** @type {Record<string, React.ComponentType<any>>} */ 
 
 const PAGINA_INICIAL = "MapaGeral";
 
-/** Classes compartilhadas dos itens da barra (protótipo "menu inspirado no ChatGPT"). */
+/**
+ * Classes compartilhadas dos itens da barra, com a paleta do sistema
+ * (superfície branca, tinta #292a2d, cinza #64748b e verde #16a34a).
+ */
 const ITEM_BASE =
-  "flex h-[38px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left whitespace-nowrap transition-colors hover:bg-[#eaeeeb]";
-const ITEM_ATIVO = "bg-[#e5f4e9] font-semibold text-[#158b3b]";
-const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#617167]";
+  "flex h-[38px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left whitespace-nowrap transition-colors hover:bg-[var(--mk-btn-ativo)]";
+const ITEM_ATIVO = "bg-[rgba(64,222,99,0.14)] font-semibold text-[#16a34a]";
+const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
 
 /**
  * @typedef {{ id: string, title: string, url?: string }} PaginaMenu
@@ -22,8 +25,8 @@ const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#617167]";
 
 /**
  * Menu lateral do desktop (lg+), no estilo do protótipo "inspirado no ChatGPT":
- * fundo cinza-claro, marca no topo, atalhos (Início/Pesquisar), módulos em
- * acordeão e faixa de ícones quando recolhido.
+ * marca no topo, atalhos (Início/Pesquisar), módulos em acordeão e faixa de
+ * ícones quando recolhido — usando as cores do sistema.
  *
  * Recolhido, cada módulo vira um ícone e as telas aparecem num painel ao lado.
  *
@@ -61,29 +64,28 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
       id="app-shell-sidebar"
       aria-label="Módulos"
       data-collapsed={collapsed ? "true" : "false"}
-      className={`relative hidden shrink-0 flex-col border-r border-[#e7ebe8] bg-[#f8f9f8] transition-[width] duration-300 lg:flex ${
+      className={`relative hidden shrink-0 flex-col border-r border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] transition-[width] duration-300 lg:flex ${
         collapsed ? "w-[68px]" : "w-[322px]"
       }`}
     >
       {/* Marca + recolher */}
       <div className={collapsed ? "px-3.5 pb-2 pt-[19px]" : "px-[15px] pb-2 pt-[19px]"}>
         <div className={`flex h-10 min-w-0 items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
-          <span className="relative grid h-[38px] w-[38px] shrink-0 place-items-center overflow-hidden rounded-xl bg-[#163825]">
-            <span className="absolute -left-2.5 -top-2.5 h-[21px] w-[21px] rounded-full bg-[#32d65e] opacity-55 blur-[13px]" aria-hidden />
-            <img src="/brand/mak-gestao-simbolo.png" alt="" className="relative z-10 h-[25px] w-[25px] object-contain" />
+          <span className="grid h-[38px] w-[38px] shrink-0 place-items-center">
+            <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
           </span>
           {collapsed ? null : (
             <>
               <div className="flex min-w-0 flex-1 flex-col">
-                <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#1d2923]">MAK Gestão</strong>
-                <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#778179]">Plataforma de gestão rural</span>
+                <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#292a2d]">MAK Gestão</strong>
+                <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#64748b]">Plataforma de gestão rural</span>
               </div>
               <button
                 type="button"
                 onClick={onToggle}
                 aria-label="Recolher menu"
                 title="Recolher menu"
-                className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#778179] transition-colors hover:bg-[#eaeeeb] hover:text-[#1d2923]"
+                className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
               >
                 <PanelLeft size={19} aria-hidden />
               </button>
@@ -97,7 +99,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
               onClick={onToggle}
               aria-label="Expandir menu"
               title="Expandir menu"
-              className="flex h-[33px] w-[33px] items-center justify-center rounded-[9px] text-[#778179] transition-colors hover:bg-[#eaeeeb] hover:text-[#1d2923]"
+              className="flex h-[33px] w-[33px] items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
             >
               <ChevronRight size={18} aria-hidden />
             </button>
@@ -106,28 +108,28 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
       </div>
 
       {/* Atalhos */}
-      <div className={`flex flex-col gap-1 border-b border-[#e7ebe8] pb-3 pt-4 ${collapsed ? "px-2.5" : "px-3"}`}>
+      <div className={`flex flex-col gap-1 border-b border-[var(--mk-sup-borda)] pb-3 pt-4 ${collapsed ? "px-2.5" : "px-3"}`}>
         <Link
           to={createPageUrl(PAGINA_INICIAL)}
           onClick={(event) => onNavigate(event, createPageUrl(PAGINA_INICIAL))}
           title="Início"
           aria-current={inicioAtivo ? "page" : undefined}
-          className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#1d2923]"} ${collapsed ? "justify-center px-0" : ""}`}
+          className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${collapsed ? "justify-center px-0" : ""}`}
         >
-          <Home size={19} className={ICONE_ITEM} aria-hidden />
+          <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
           {collapsed ? null : <span className="truncate text-[12.5px]">Início</span>}
         </Link>
         <button
           type="button"
           onClick={onSearch}
           title="Pesquisar telas"
-          className={`${ITEM_BASE} text-[#1d2923] ${collapsed ? "justify-center px-0" : ""}`}
+          className={`${ITEM_BASE} text-[#292a2d] ${collapsed ? "justify-center px-0" : ""}`}
         >
           <Search size={19} className={ICONE_ITEM} aria-hidden />
           {collapsed ? null : (
             <>
               <span className="truncate text-[12.5px]">Pesquisar telas</span>
-              <kbd className="ml-auto rounded-[5px] border border-[#e7ebe8] px-[5px] py-0.5 text-[10px] text-[#778179]">
+              <kbd className="ml-auto rounded-[5px] border border-[var(--mk-sup-borda)] px-[5px] py-0.5 text-[10px] text-[#64748b]">
                 Ctrl K
               </kbd>
             </>
@@ -138,7 +140,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
       {/* Módulos */}
       <div className={`flex-1 overflow-y-auto pb-6 ${collapsed ? "px-2.5 pt-3" : "px-3 pt-3.5"}`}>
         {collapsed ? null : (
-          <div className="px-[11px] pb-2 pt-[11px] text-[11px] font-semibold tracking-[0.15px] text-[#778179]">Módulos</div>
+          <div className="px-[11px] pb-2 pt-[11px] text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">Módulos</div>
         )}
         <div className={collapsed ? "flex flex-col items-center gap-2" : "flex flex-col gap-[5px]"}>
           {items.map((item) => {
@@ -158,14 +160,16 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                     aria-label={`Abrir menu ${item.title}`}
                     title={item.title}
                     className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
-                      atual ? "bg-[#e5f4e9] text-[#158b3b]" : "text-[#617167] hover:bg-[#eaeeeb] hover:text-[#1d2923]"
+                      atual
+                        ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
+                        : "text-[#64748b] hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
                     }`}
                   >
                     <Icon size={20} aria-hidden />
                   </button>
                   <div className="absolute left-full top-0 z-50 hidden pl-2 group-hover:block group-focus-within:block">
-                    <div className="w-56 rounded-xl border border-[#e7ebe8] bg-white p-1.5 shadow-[0_12px_36px_rgba(18,34,21,.08)]">
-                      <div className="px-[11px] pb-2 pt-2 text-[11px] font-semibold text-[#778179]">{item.title}</div>
+                    <div className="w-56 rounded-xl border border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] p-1.5 shadow-[0_12px_36px_rgba(15,23,42,.08)]">
+                      <div className="px-[11px] pb-2 pt-2 text-[11px] font-semibold text-[#64748b]">{item.title}</div>
                       {telas.map((page) => {
                         const ativo = paginaAtual(page);
                         return (
@@ -174,12 +178,12 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                             to={createPageUrl(page.url)}
                             onClick={(event) => onNavigate(event, createPageUrl(page.url))}
                             aria-current={ativo ? "page" : undefined}
-                            className={`relative flex h-[34px] items-center rounded-lg pl-[26px] pr-3 text-[12.5px] transition-colors hover:bg-[#eaeeeb] ${
-                              ativo ? "font-semibold text-[#158b3b]" : "text-[#778179]"
+                            className={`relative flex h-[34px] items-center rounded-lg pl-[26px] pr-3 text-[12.5px] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
+                              ativo ? "font-semibold text-[#16a34a]" : "text-[#64748b]"
                             }`}
                           >
                             <span
-                              className={`absolute left-3.5 h-1 w-1 rounded-full ${ativo ? "bg-[#158b3b]" : "bg-current opacity-55"}`}
+                              className={`absolute left-3.5 h-1 w-1 rounded-full ${ativo ? "bg-[#16a34a]" : "bg-current opacity-55"}`}
                               aria-hidden
                             />
                             <span className="truncate">{page.title}</span>
@@ -200,15 +204,15 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                   onClick={() => setAbertoId(aberto ? null : item.id)}
                   aria-expanded={aberto}
                   title={item.title}
-                  className={`flex h-[37px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left transition-colors hover:bg-[#eaeeeb] ${
-                    atual ? "font-semibold text-[#1d2923]" : "font-medium text-[#1d2923]"
+                  className={`flex h-[37px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left text-[#292a2d] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
+                    atual ? "font-semibold" : "font-medium"
                   }`}
                 >
-                  <Icon size={19} className={atual ? "shrink-0 text-[#158b3b]" : ICONE_ITEM} aria-hidden />
+                  <Icon size={19} className={atual ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
                   <span className="flex-1 truncate text-[12.7px]">{item.title}</span>
                   <ChevronDown
                     size={15}
-                    className={`shrink-0 text-[#778179] transition-transform ${aberto ? "rotate-180" : ""}`}
+                    className={`shrink-0 text-[#64748b] transition-transform ${aberto ? "rotate-180" : ""}`}
                     aria-hidden
                   />
                 </button>
@@ -222,13 +226,13 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                           to={createPageUrl(page.url)}
                           onClick={(event) => onNavigate(event, createPageUrl(page.url))}
                           aria-current={ativo ? "page" : undefined}
-                          className={`relative flex h-[34px] items-center rounded-lg pl-[42px] pr-3 text-[12.5px] transition-colors hover:bg-[#eaeeeb] ${
-                            ativo ? "font-semibold text-[#158b3b]" : "text-[#778179]"
+                          className={`relative flex h-[34px] items-center rounded-lg pl-[42px] pr-3 text-[12.5px] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
+                            ativo ? "font-semibold text-[#16a34a]" : "text-[#64748b]"
                           }`}
                         >
                           <span
                             className={`absolute left-[28px] h-1 w-1 rounded-full ${
-                              ativo ? "bg-[#158b3b]" : "bg-current opacity-55"
+                              ativo ? "bg-[#16a34a]" : "bg-current opacity-55"
                             }`}
                             aria-hidden
                           />
