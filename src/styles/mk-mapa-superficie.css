@@ -389,14 +389,14 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   }
   .mk-map-filters--clean:not(#mk-padrao) { gap: 12px; }
   .mk-map-filters--clean .mk-map-filter-heading { padding-bottom: 6px; }
-  .mk-map-filters--clean .mk-map-filter-heading > span { font-size: 11px; }
+  .mk-map-filters--clean .mk-map-filter-heading > span { font-size: 11px !important; }
   .mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields) { padding: 0 10px; }
   .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) {
     min-height: 38px;
     padding: 7px 0;
   }
   .mk-map-filters--clean .mk-map-layer-row > span:not(#mk-padrao),
-  .mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) { font-size: 11px; }
+  .mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) { font-size: 11px !important; }
   .mk-map-filters--clean .mk-map-filter-fields > div {
     min-height: 40px;
     padding: 4px 0;
@@ -406,7 +406,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
     height: 28px;
     min-height: 28px;
     padding: 0 8px;
-    font-size: 11px;
+    font-size: 11px !important;
   }
   .mk-map-filters--clean button[role="combobox"] > svg { width: 12px; height: 12px; }
 }
