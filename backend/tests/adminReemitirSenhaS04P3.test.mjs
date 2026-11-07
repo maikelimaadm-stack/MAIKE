@@ -13,10 +13,16 @@
  *  - nada além da conta alvo muda.
  */
 
-import { describe, test, before, after, beforeEach } from 'node:test';
+import { describe, test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { env } from '../src/config/env.js';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { zerarLimitadorAdmin } from '../src/modules/adminMaike/adminSessao.js';
 import { codigoTotp, passoTotpAtual } from '../src/modules/adminMaike/adminCrypto.js';
@@ -34,9 +40,18 @@ after(async () => {
   await app.close();
   await encerrar();
 });
+// R1: o gate de ativação nasce DESLIGADO (variável ausente no ambiente de
+// teste, como em Production/Preview). Cada teste liga explicitamente no objeto
+// `env` deste processo isolado e o valor original volta no afterEach — nada
+// vaza para outros testes nem para `process.env`.
+const GATE_ORIGINAL = env.adminReemissaoSenhaHabilitada;
 beforeEach(async () => {
   await limparBanco();
   zerarLimitadorAdmin();
+  env.adminReemissaoSenhaHabilitada = true;
+});
+afterEach(() => {
+  env.adminReemissaoSenhaHabilitada = GATE_ORIGINAL;
 });
 
 const SENHA_FORMATO = /^[A-HJ-NP-Za-km-z2-9]{4}(-[A-HJ-NP-Za-km-z2-9]{4}){3}$/;
@@ -98,6 +113,82 @@ const assinatura = async (excetoUsuarioId) => ({
   empresas: await prisma().empresa.count(),
   permissoes: await prisma().permissao.count(),
   auditoriaFazenda: await prisma().auditLog.count(),
+});
+
+describe('S04-P3 R1 — gate de ativação ADMIN_REEMISSAO_SENHA_HABILITADA (fail-closed)', () => {
+  test('RS-00a sem a variável o gate nasce fechado (como em Production/Preview); só o literal "true" liga', () => {
+    assert.equal(GATE_ORIGINAL, false, 'ambiente de teste sem ADMIN_REEMISSAO_SENHA_HABILITADA = desligado');
+    const envJs = fileURLToPath(new URL('../src/config/env.js', import.meta.url));
+    // Processo filho com diretório vazio (nenhum .env alcançável) e só a variável em teste.
+    const vazio = mkdtempSync(join(tmpdir(), 's04p3-gate-'));
+    const ler = (valor) => {
+      const filho = { ...process.env, DOTENV_CONFIG_QUIET: 'true' };
+      delete filho.ADMIN_REEMISSAO_SENHA_HABILITADA;
+      if (valor !== undefined) filho.ADMIN_REEMISSAO_SENHA_HABILITADA = valor;
+      const saida = execFileSync(
+        process.execPath,
+        ['--input-type=module', '-e', `const m = await import(${JSON.stringify(envJs)}); process.stdout.write(String(m.reemissaoSenhaHabilitada()));`],
+        { env: filho, cwd: vazio }
+      );
+      return String(saida).trim().split('\n').pop();
+    };
+    for (const valor of [undefined, '', ' ', 'false', '0', '1', 'yes', 'TRUE', 'True', ' true', 'true ', 'on']) {
+      assert.equal(ler(valor), 'false', `valor ${JSON.stringify(valor)} deve manter fechado`);
+    }
+    assert.equal(ler('true'), 'true');
+    rmSync(vazio, { recursive: true, force: true });
+  });
+
+  test('RS-00b gate desligado: POST = 503 antes de tudo; nenhuma senha/pendência/época/auditoria/TOTP/sessão muda; a lista não oferece', async () => {
+    const lab = await laboratorio();
+    const rev = await revisaoDe(lab.dono.headers, lab.cliente.id, lab.usuario.id);
+    const lista = (await enviar('GET', `/admin-maike/clientes/${lab.cliente.id}/usuarios`, lab.dono.headers)).json();
+    assert.equal(lista.items.find((u) => u.id === lab.usuario.id).reemissao_disponivel, true, 'ligado: a lista oferece');
+    const codigo = await lab.dono.proximoCodigo();
+
+    env.adminReemissaoSenhaHabilitada = false;
+    const desligada = (await enviar('GET', `/admin-maike/clientes/${lab.cliente.id}/usuarios`, lab.dono.headers)).json();
+    assert.ok(desligada.items.length > 0);
+    for (const u of desligada.items) assert.equal(u.reemissao_disponivel, false, 'desligado: a lista não oferece');
+
+    const contaAntes = await conta(lab.usuario.id);
+    const adminAntes = await prisma().adminPrincipalMaike.findMany({ orderBy: { id: 'asc' } });
+    const sessoesAntes = await prisma().sessaoAdminMaike.findMany({ orderBy: { id: 'asc' } });
+    const eventosAntes = await prisma().eventoSegurancaAdminMaike.count();
+    const sig = await assinatura(lab.usuario.id);
+
+    const tentativas = [
+      // proprietário verificado, corpo e If-Match corretos, TOTP novo
+      () => enviar('POST', urlReemitir(lab.cliente.id, lab.usuario.id), { ...lab.dono.headers, 'if-match': rev }, { justificativa: JUST, senha_admin_atual: lab.dono.senha, codigo_mfa: codigo }),
+      // HTTP direto sem cookie/CSRF/Origin (Preview ou script): mesma resposta, sem oráculo
+      () => enviar('POST', urlReemitir(lab.cliente.id, lab.usuario.id), {}, {}),
+      // conta inexistente / de outro cliente: mesma resposta, não revela existência
+      () => enviar('POST', urlReemitir(lab.cliente.id, lab.vizinha.usuario?.id ?? 'zzzzzzzzzzzzzzzzzzzzzzzzz'), { ...lab.dono.headers, 'if-match': rev }, { justificativa: JUST, senha_admin_atual: lab.dono.senha, codigo_mfa: codigo }),
+      () => enviar('POST', urlReemitir('naoexiste000000000000000', 'naoexiste000000000000000'), { ...lab.dono.headers, 'if-match': rev }, { justificativa: JUST, senha_admin_atual: 'errada', codigo_mfa: '000000' }),
+    ];
+    const corpos = [];
+    for (let i = 0; i < 12; i++) {
+      const r = await tentativas[i % tentativas.length]();
+      assert.equal(r.statusCode, 503, r.body);
+      assert.match(String(r.headers['cache-control']), /no-store/);
+      const corpo = r.json();
+      assert.equal(corpo.code, 'ADMIN_REEMISSAO_SENHA_DESABILITADA');
+      assert.doesNotMatch(r.body, /ana\.lab|Ana Gestora|joao|senha_temporaria|\$2[aby]\$/i);
+      corpos.push(JSON.stringify({ code: corpo.code, message: corpo.message }));
+    }
+    assert.equal(new Set(corpos).size, 1, 'resposta idêntica para qualquer alvo/credencial');
+
+    assert.deepEqual(await conta(lab.usuario.id), contaAntes, 'senha, pendência, época e updatedAt intactos');
+    assert.deepEqual(await prisma().adminPrincipalMaike.findMany({ orderBy: { id: 'asc' } }), adminAntes, 'TOTP não consumido; sem falha de senha contada');
+    assert.deepEqual(await prisma().sessaoAdminMaike.findMany({ orderBy: { id: 'asc' } }), sessoesAntes, 'sessão admin intocada');
+    assert.equal(await prisma().eventoSegurancaAdminMaike.count(), eventosAntes, 'nenhum evento de auditoria');
+    assert.deepEqual(await assinatura(lab.usuario.id), sig);
+
+    // O limitador também não foi tocado: ligado de novo, o MESMO TOTP ainda vale e a reemissão funciona.
+    env.adminReemissaoSenhaHabilitada = true;
+    const ok = await enviar('POST', urlReemitir(lab.cliente.id, lab.usuario.id), { ...lab.dono.headers, 'if-match': rev }, { justificativa: JUST, senha_admin_atual: lab.dono.senha, codigo_mfa: codigo });
+    assert.equal(ok.statusCode, 200, ok.body);
+  });
 });
 
 describe('S04-P3 reemissão — caminho feliz e ciclo completo', () => {

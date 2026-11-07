@@ -11,6 +11,10 @@ Branch: `claude/maike-s04-p3-pr01-reemissao-senha-segura`.
 
 ### Barreiras, na ordem
 
+0. **Gate de ativação (R1), fail-closed:** `ADMIN_REEMISSAO_SENHA_HABILITADA` precisa ser exatamente `true`.
+   - Ausente, vazia ou qualquer outro valor (`TRUE`, `1`, ` true`…) → 503 `ADMIN_REEMISSAO_SENHA_DESABILITADA`.
+   - É o primeiro hook da rota: nada de sessão, corpo, limite, TOTP, consulta ou escrita. A resposta é idêntica para qualquer alvo, sem oráculo de existência. O service confere de novo.
+   - A listagem `GET /admin-maike/clientes/:id/usuarios` devolve `reemissao_disponivel` (gate ligado **e** conta ativa). O MAIKE Admin só mostra o botão com esse campo `true` vindo do servidor. Não há flag no navegador (`VITE_*`, localStorage ou URL).
 1. **Sessão do proprietário com MFA** (`exigirSessaoAdmin()`).
    - Bearer de fazenda ou o token restrito do S04-P2 sem o cookie de sessão admin → 403 `ADMIN_PRINCIPAL_REQUIRED`.
    - Sem cookie → 401.
@@ -99,11 +103,19 @@ Branch: `claude/maike-s04-p3-pr01-reemissao-senha-segura`.
 | `adminMaikeSeguranca`, `trocaSenhaInicialS04P2`, `sessaoTenantRevogacaoS04P1` | PG | verdes |
 | `tests/smoke/maikeAdminReemitirSenhaS04P3.test.jsx` RU-01..RU-06 | React + transporte real do admin até o `fetch` | 10/10 |
 | `tests/smoke/maikeAdminClientesGestao.test.jsx` | React | 11/11 |
+| R1: RS-00a (só o literal `true` liga; ausência = fechado, em processo filho isolado) e RS-00b (desligado = 503 para dono, HTTP direto e alvo inexistente; senha, pendência, época, auditoria, TOTP, sessão e limitador intactos; a lista não oferece) | PG | 2/2 |
+| R1: RU-00 (sem `reemissao_disponivel === true` do servidor não há botão, mesmo com localStorage/URL) | React | 1/1 |
+
+Os testes ligam o gate só no objeto `env` do processo de teste e restauram o valor em `afterEach`. `process.env` não é alterado.
 
 ## 5. Release
 
 - **Sem migration.** Os campos usados (`senha_hash`, `troca_senha_pendente`, `sessao_epoca`, `updatedAt`) já existem na produção (S04-P1/P2 aplicadas).
 - **Merge seguro:** o runtime novo usa só colunas existentes. O campo novo da listagem é calculado no servidor.
+- **Gate de ativação (R1):** o merge publica o código com a função **desligada**. A variável não existe em Production nem em Preview, e ausência = fechado.
+  - **CODE_MERGE_READY:** pode ser SIM com o gate fechado, testes e CI verdes.
+  - **OPERATIONAL_RELEASE_READY:** NÃO.
+  - Criar `ADMIN_REEMISSAO_SENHA_HABILITADA=true` na Vercel é operação futura, separada, que exige o S02 concluído operacionalmente **e** aprovação específica do proprietário. Nunca nesta PR.
 - **Uso em produção depende do S02:** MAIKE Admin publicado com `ADMIN_MAIKE_CHAVE`, `ADMIN_ORIGINS`, `trustProxy` e rate limit distribuído. O limitador por IP desta rota é por processo.
 
 ## 6. Limites

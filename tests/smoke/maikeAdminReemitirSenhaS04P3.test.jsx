@@ -25,7 +25,7 @@ const REV1 = `"u1-${'a'.repeat(43)}"`;
 const REV2 = `"u1-${'b'.repeat(43)}"`;
 const pagina = (items) => ({ items, next_cursor: null, has_more: false, total: items.length, limit: 25 });
 const cliente = (extra = {}) => ({ id: 'cl0001', codigo: 'fazenda-um', nome: 'Fazenda Um', ativo: true, criado_em: '2026-11-01T12:00:00.000Z', usuarios_total: 2, empresas_total: 0, ...extra });
-const usuario = (extra = {}) => ({ id: 'us0001', nome: 'Ana Gestora', login: 'ana.lab', ativo: true, criado_em: '2026-11-01T12:00:00.000Z', revisao: REV1, ...extra });
+const usuario = (extra = {}) => ({ id: 'us0001', nome: 'Ana Gestora', login: 'ana.lab', ativo: true, criado_em: '2026-11-01T12:00:00.000Z', revisao: REV1, reemissao_disponivel: true, ...extra });
 const ficha = (c) => ({
   cliente: { id: c.id, codigo: c.codigo, nome: c.nome, ativo: c.ativo, criado_em: c.criado_em, atualizado_em: c.criado_em },
   contagens: { usuarios: 2, usuarios_ativos: 1, empresas: 0 },
@@ -92,6 +92,35 @@ beforeEach(() => {
 });
 
 describe('S04-P3 reemissão — interface', () => {
+  it('RU-00 gate de ativação: sem `reemissao_disponivel === true` vindo do SERVIDOR a ação não é oferecida (nem com localStorage/URL)', async () => {
+    window.localStorage.setItem('ADMIN_REEMISSAO_SENHA_HABILITADA', 'true');
+    window.history.replaceState(null, '', '/?reemissao=true');
+    const chamadas = servidor(
+      base(cliente(), () => [
+        usuario({ reemissao_disponivel: false }),
+        usuario({ id: 'us0002', login: 'sem.campo', nome: 'Sem Campo', reemissao_disponivel: undefined }),
+      ])
+    );
+    const painel = await abrirFicha();
+    await within(painel).findByText('sem.campo');
+    expect(within(painel).queryByRole('button', { name: /Reemitir senha temporária/ })).toBeNull();
+    expect(within(painel).queryByTestId('reemitir-senha')).toBeNull();
+    expect(chamadas.some((c) => c.caminho.endsWith('/reemitir-senha'))).toBe(false);
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('RU-00b gate desligado no servidor enquanto o formulário estava aberto: 503 do gate = resultado CERTO (nada mudou), sem aviso de senha invalidada e sem repetir', async () => {
+    const chamadas = servidor({
+      ...base(cliente(), () => [usuario()]),
+      [`POST ${URL_REEMITIR}`]: () => [503, { code: 'ADMIN_REEMISSAO_SENHA_DESABILITADA', message: 'x' }],
+    });
+    const form = await abrirReemissao();
+    preencherEEnviar(form);
+    expect(await screen.findByText(/está desligada neste ambiente\. Nada foi alterado/)).toBeTruthy();
+    expect(screen.queryByText(/pode já ter sido invalidada/)).toBeNull();
+    expect(chamadas.filter((c) => c.caminho === URL_REEMITIR).length).toBe(1);
+  });
+
   it('RU-01 botão só para conta ativa de cliente ativo; aviso cita sessões e offline; envio bloqueado até confirmar tudo', async () => {
     servidor(base(cliente(), () => [usuario(), usuario({ id: 'us0002', login: 'jose.inativo', nome: 'José', ativo: false })]));
     const form = await abrirReemissao();

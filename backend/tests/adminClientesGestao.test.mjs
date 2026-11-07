@@ -298,7 +298,7 @@ describe('edição e situação', () => {
     assert.deepEqual(ficha.contagens, { usuarios: 1, usuarios_ativos: 1, empresas: 0 });
     const usuarios = (await enviar('GET', `/admin-maike/clientes/${criado.cliente.id}/usuarios`, headers)).json();
     // S04-P3: + `revisao` (opaca, para o If-Match da reemissão de senha).
-    assert.deepEqual(Object.keys(usuarios.items[0]).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome', 'revisao']);
+    assert.deepEqual(Object.keys(usuarios.items[0]).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome', 'reemissao_disponivel', 'revisao']);
     assert.match(usuarios.items[0].revisao, /^"u1-[A-Za-z0-9_-]{43}"$/);
   });
 

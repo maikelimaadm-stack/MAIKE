@@ -5373,6 +5373,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - A conta perde todas as sessões e, no próximo login, cai na troca obrigatória do S04-P2.
   - Nenhum outro dado muda.
   - O uso em produção depende do S02 (MAIKE Admin operacional).
+- **R1 — gate de ativação (separa merge de código de ativação operacional):**
+  - `ADMIN_REEMISSAO_SENHA_HABILITADA`, lida em `backend/src/config/env.js`, fail-closed: só o literal `true` liga. Ausente, vazia ou qualquer outro valor = desligada.
+  - Desligada: o POST responde 503 `ADMIN_REEMISSAO_SENHA_DESABILITADA` como PRIMEIRO hook, antes de sessão, corpo, limite, TOTP e qualquer consulta. A resposta é igual para qualquer alvo. A listagem devolve `reemissao_disponivel: false` e o MAIKE Admin não oferece a ação (o valor vem só do servidor).
+  - **CODE_MERGE_READY** pode ser SIM com o gate fechado. **OPERATIONAL_RELEASE_READY** continua NÃO.
+  - Criar `ADMIN_REEMISSAO_SENHA_HABILITADA=true` em qualquer ambiente da Vercel é **operação futura**: exige o S02 concluído operacionalmente e aprovação específica do proprietário. Nunca nesta PR.
 - **Detalhes:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P3-PR01-REEMISSAO-SENHA.md`.
 
 <!-- Próxima decisão: D-PROD-146 -->

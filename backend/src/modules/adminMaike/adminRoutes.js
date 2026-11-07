@@ -41,7 +41,7 @@ import {
 } from './adminClientesService.js';
 import { JUSTIFICATIVA_MIN, PADRAO_REVISAO, alterarSituacaoCliente, criarCliente, editarCliente, revisaoCliente, revisaoRequerida } from './adminClientesGestaoService.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
-import { PADRAO_REVISAO_USUARIO, reemitirSenhaUsuario } from './adminUsuarioSenhaService.js';
+import { PADRAO_REVISAO_USUARIO, exigirReemissaoHabilitada, reemitirSenhaUsuario } from './adminUsuarioSenhaService.js';
 
 const PREFIX = '/admin-maike';
 const corpo = (properties, required = []) => ({
@@ -369,10 +369,12 @@ export const registrarAdminMaikeRoutes = async (app) => {
   // atual + TOTP novo, no service) + revisão DA CONTA em If-Match. O corpo não
   // aceita senha escolhida, ids, papel, época nem pendência: só justificativa e
   // as credenciais da reautenticação, que nunca são auditadas nem ecoadas.
+  // R1: o gate de ativação roda PRIMEIRO (antes da sessão, do corpo, do limite,
+  // do TOTP e de qualquer consulta): desligado = 503 sem tocar no banco.
   app.post(
     `${PREFIX}/clientes/:id/usuarios/:usuarioId/reemitir-senha`,
     {
-      onRequest: verificada,
+      onRequest: [exigirReemissaoHabilitada, ...verificada],
       schema: {
         params: {
           type: 'object',

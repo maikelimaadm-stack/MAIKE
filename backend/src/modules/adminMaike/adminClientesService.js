@@ -17,6 +17,7 @@
  *   efeito colateral além do `ultimo_uso_em` da sessão, que a guarda já atualiza.
  */
 
+import { reemissaoSenhaHabilitada } from '../../config/env.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset } from '../../shared/pagination/keysetCursor.js';
@@ -209,7 +210,7 @@ export const listarUsuariosDoCliente = (id, query = {}) =>
         select: { id: true, nome: true, login: true, ativo: true, createdAt: true, ...SELECT_REVISAO_USUARIO },
       }),
     (clienteId) => getPrismaClient().usuario.count({ where: { cliente_id: clienteId } }),
-    (u) => ({ id: u.id, nome: u.nome, login: u.login, ativo: u.ativo, criado_em: iso(u.createdAt), revisao: revisaoUsuario(u) })
+    (u) => ({ id: u.id, nome: u.nome, login: u.login, ativo: u.ativo, criado_em: iso(u.createdAt), revisao: revisaoUsuario(u), reemissao_disponivel: reemissaoSenhaHabilitada() && u.ativo === true })
   );
 
 /**

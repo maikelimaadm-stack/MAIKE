@@ -26,6 +26,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { reemissaoSenhaHabilitada } from '../../config/env.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
 import { epocaDe, filtroEpoca, revogarSessoesUsuario } from '../../shared/auth/sessaoEpoca.js';
@@ -73,6 +74,16 @@ export const SELECT_REVISAO_USUARIO = Object.freeze({
   sessao_epoca: true,
 });
 
+/**
+ * Gate de ativação (R1, fail-closed). Hook `onRequest` da rota e também
+ * conferido no service: desligado = 503, sem sessão, TOTP, consulta ou escrita.
+ */
+export const exigirReemissaoHabilitada = async () => {
+  if (!reemissaoSenhaHabilitada()) {
+    throw adminError('ADMIN_REEMISSAO_SENHA_DESABILITADA', 'reemissão de senha temporária desligada neste ambiente');
+  }
+};
+
 const naoEncontrado = () => adminError('ADMIN_ENTRADA_INVALIDA', 'usuário não encontrado neste cliente');
 const concorrente = () =>
   adminError('ADMIN_USUARIO_EDICAO_CONCORRENTE', 'a conta foi alterada depois que a ficha foi lida; nada foi gravado');
@@ -86,6 +97,7 @@ const concorrente = () =>
  * @param {{ admin: { id: string }, ip?: string, requestId: string, revisao: string }} ctx  `revisao` = If-Match já validado na rota
  */
 export const reemitirSenhaUsuario = async (clienteId, usuarioId, entrada, ctx) => {
+  await exigirReemissaoHabilitada();
   const justificativa = typeof entrada.justificativa === 'string' ? entrada.justificativa.trim().replace(/\s+/g, ' ') : '';
   if (justificativa.length < 10) {
     throw adminError('ADMIN_ENTRADA_INVALIDA', 'justificativa: informe pelo menos 10 caracteres');

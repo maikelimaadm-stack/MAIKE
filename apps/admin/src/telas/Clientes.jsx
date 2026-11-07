@@ -426,7 +426,10 @@ function ReemitirSenha({ cliente, usuario, onConcluido, onReler, onCancelar }) {
       onConcluido(resultado);
     } catch (falha) {
       const f = /** @type {any} */ (falha);
-      if (resultadoIncerto(falha)) {
+      if (f?.code === 'ADMIN_REEMISSAO_SENHA_DESABILITADA') {
+        // R1: o servidor recusou ANTES de qualquer coisa — resultado certo, nada mudou.
+        onReler(mensagemDeErro(f));
+      } else if (resultadoIncerto(falha)) {
         onReler(
           `Não foi possível confirmar a reemissão para ${usuario.nome}. A senha anterior pode já ter sido invalidada. Recarregamos a lista: confira o usuário e, se precisar, inicie uma nova reemissão.`
         );
@@ -685,7 +688,7 @@ function FichaCliente({ id, onFechar, onAlterado }) {
                 </td>
                 <td>{data(u.criado_em)}</td>
                 <td>
-                  {u.ativo && ficha.cliente.ativo && !reemitindo && !reemitida ? (
+                  {u.reemissao_disponivel === true && u.ativo && ficha.cliente.ativo && !reemitindo && !reemitida ? (
                     <Botao variante="secundario" onClick={() => setReemitindo(u)} aria-label={`Reemitir senha temporária de ${u.login}`}>
                       Reemitir senha temporária
                     </Botao>
