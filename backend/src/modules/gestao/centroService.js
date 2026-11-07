@@ -39,7 +39,7 @@ const SELECAO = Object.freeze({ id: true, cliente_id: true, empresa_id: true, nu
 
 const naoEncontrado = (tipo) => new AppError(tipo.naoEncontrado, `${tipo.rotulo} não encontrado nesta empresa`);
 const hierarquia = (motivo, details = {}) =>
-  new AppError('CENTRO_HIERARQUIA_INVALIDA', 'pai inválido para este centro', { details: { reason: motivo, ...details } });
+  new AppError('CENTRO_HIERARQUIA_INVALIDA', 'pai inválido para este centro', { details: { field: 'pai_id', ...details, reason: motivo } });
 
 /** Forma pública: sem tenant; com o nome do pai quando o chamador o resolveu. */
 export const comoCentroPublico = (r, paiNome = undefined) => ({
