@@ -397,3 +397,42 @@ o runtime antigo.
 
 **Rollback do schema:** se um dia for necessário, consiste em remover as duas colunas vazias,
 **somente com nova autorização**.
+
+## 14. R9/R10 — Backup físico de 07/11/2026 e decisão do proprietário
+
+**Evidência nova:** o proprietário informou que existe um backup físico automático do Supabase
+de **07/11/2026**, visível no painel em Database → Backups. Ele decidiu usar esse backup como a
+proteção da release S04-P1, no lugar do backup lógico com restauração local que o R9/R10
+pedia.
+
+**O que este backup cobre e o que não cobre:**
+
+- **Horário não conferido pelo executor.** O executor na nuvem não tem acesso à lista de backups:
+  não há ferramenta de leitura de backups nesta sessão, e a Management API exige token.
+  - Os backups diários anteriores saíram por volta das 05:48 UTC.
+  - Se o de 07/11 seguiu esse horário, ele é **anterior** à migration (08:32 UTC).
+  - Nesse caso, ele é o ponto de restauração **pré-migration**, mas não guarda o que foi escrito
+    depois dele.
+- É backup físico: não dá para baixar, e a **restauração nunca foi testada**.
+- O único jeito de restaurá-lo é "Restore" no projeto, que **substitui o banco inteiro** e perde
+  as escritas posteriores. Por isso continua **proibido** no fluxo normal: serve só para desastre,
+  com decisão do proprietário.
+- O backup do banco não guarda os arquivos binários do Storage. Hoje o Storage tem 1 bucket e
+  0 objetos.
+
+**Por que o proprietário considerou isso suficiente:**
+
+- A migration só acrescentou duas colunas `INTEGER` anuláveis, sem default. Não reescreveu nem
+  apagou nenhuma linha.
+- A reversão de software é voltar ao deployment anterior da Vercel, sem tocar no banco: o código
+  antigo convive com as colunas novas.
+
+| Item | Estado |
+|---|---|
+| `BACKUP_PHYSICAL_PRESENT` | **SIM**, 07/11/2026 (informado pelo proprietário) |
+| `BACKUP_FRESH_LOGICAL_CREATED` | **NÃO** |
+| `BACKUP_RESTORE_PUBLIC_VERIFIED` | **NÃO** |
+| `BACKUP_FULL_RESTORE_VERIFIED` | **NÃO** |
+| `DATABASE_TARGET_DUAL_CONNECTION_VERIFIED` | **NÃO** (só correlação, §13.1) |
+| Risco aceito | **pelo proprietário**; precisa de revisão explícita do arquiteto-chefe |
+| `MERGE_READY` | **NÃO** até a decisão do arquiteto-chefe e o aviso às fazendas |
