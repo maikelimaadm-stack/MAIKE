@@ -22,6 +22,9 @@ import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
 import Permissoes from './pages/Permissoes';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
+import Parceiros from './pages/Parceiros';
+import CentrosCusto from './pages/CentrosCusto';
+import CentrosResultado from './pages/CentrosResultado';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -42,6 +45,9 @@ export const PAGES = {
     "Usuarios": Usuarios,
     "Permissoes": Permissoes,
     "ConfiguracoesGerais": ConfiguracoesGerais,
+    "Parceiros": Parceiros,
+    "CentrosCusto": CentrosCusto,
+    "CentrosResultado": CentrosResultado,
 };
 
 export const pagesConfig = {

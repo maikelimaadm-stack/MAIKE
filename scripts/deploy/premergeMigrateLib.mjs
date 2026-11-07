@@ -36,11 +36,15 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261106200000_s04_p1_sessao_epoca': '52cb8de740a20cf020f82115422425063e09d0d1dc5da5e5b7dc416346a2646c',
   // D-PROD-144 (S04-P2): Usuario.troca_senha_pendente BOOLEAN anulável, sem DEFAULT.
   '20261107200000_s04_p2_troca_senha_inicial': '1236460b8daf00784a4a44b80f611701749a29f0f5e2294844d297ee594d87fb',
+  // D-PROD-145 (Gestão P1): CentroCusto, CentroResultado e CentroCustoResultado — só tabelas novas.
+  '20261107300000_gestao_p1_centros_custo_resultado': 'e29855b2367e0a6c684c058578cd0783831e6380b16ef5202801dd7a7f1cecf5',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
   'b38a85816a49d2b3335e6a1bfa1098ed86ac38cc6d7e0b0bd1db979e97f770fd',
   'e6e0a232e9b893ae8bf24387e3455f89256930eef2aed29d7ac96130f4c62ae9',
+  // D-PROD-145: RLS/REVOKE das três tabelas de Gestão P1 (mesmo corpo, lista nova).
+  '62795ad42ff36406e413e54a16a6ee43abe93318ee4155967f57120b031d2aa3',
 ]);
 
 /**

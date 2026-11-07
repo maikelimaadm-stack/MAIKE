@@ -95,6 +95,9 @@ model Cliente {
   bebedourosAlertas      BebedouroAlerta[]
   rebanhoAtivacoes       RebanhoLedgerAtivacao[]
   posicoesRebanho        PosicaoRebanho[]
+  centrosCusto           CentroCusto[]
+  centrosResultado       CentroResultado[]
+  centrosCustoResultado  CentroCustoResultado[]
   eventosRebanho         EventoRebanho[]
   partidasRebanho        PartidaRebanho[]
   pesosRebanho           PesoRebanho[]
@@ -942,6 +945,10 @@ model Empresa {
   rebanhoAtivacao RebanhoLedgerAtivacao[]
   posicoesRebanho PosicaoRebanho[]
   eventosRebanho  EventoRebanho[]
+  // D-PROD-145: cadastros de gestão (sem financeiro transacional).
+  centrosCusto           CentroCusto[]
+  centrosResultado       CentroResultado[]
+  centrosCustoResultado  CentroCustoResultado[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1765,4 +1772,88 @@ model PesoRebanho {
   @@unique([cliente_id, id])
   @@index([cliente_id, posicao_id, data_operacional])
   @@index([cliente_id, evento_id])
+}
+
+/// D-PROD-145 — Gestão P1: centro de custo (onde o custo nasce: Curral, Oficina...).
+/// Árvore opcional pela FK composta (cliente_id, empresa_id, pai_id): o pai é do
+/// MESMO tenant e da MESMA empresa por construção do banco. Sem valores
+/// financeiros e sem exclusão física (inativação).
+model CentroCusto {
+  id          String   @id @default(cuid())
+  cliente_id  String   @db.VarChar(64)
+  empresa_id  String   @db.VarChar(64)
+  numero      String   @db.VarChar(32)
+  nome        String   @db.VarChar(120)
+  descricao   String?  @db.VarChar(500)
+  pai_id      String?  @db.VarChar(64)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente  Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa  Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  pai      CentroCusto?           @relation("CentroCustoArvore", fields: [cliente_id, empresa_id, pai_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  filhos   CentroCusto[]          @relation("CentroCustoArvore")
+  vinculos CentroCustoResultado[]
+
+  @@unique([cliente_id, id])
+  /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, empresa_id, pai_id])
+  @@index([cliente_id, empresa_id, createdAt, id])
+}
+
+/// D-PROD-145 — Gestão P1: centro de resultado (atividade a apurar: Cria, Recria,
+/// Soja...). Não é Natureza Financeira. Mesma forma de árvore do centro de custo.
+model CentroResultado {
+  id          String   @id @default(cuid())
+  cliente_id  String   @db.VarChar(64)
+  empresa_id  String   @db.VarChar(64)
+  numero      String   @db.VarChar(32)
+  nome        String   @db.VarChar(120)
+  descricao   String?  @db.VarChar(500)
+  pai_id      String?  @db.VarChar(64)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente  Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa  Empresa                @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  pai      CentroResultado?       @relation("CentroResultadoArvore", fields: [cliente_id, empresa_id, pai_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  filhos   CentroResultado[]      @relation("CentroResultadoArvore")
+  vinculos CentroCustoResultado[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, empresa_id, pai_id])
+  @@index([cliente_id, empresa_id, createdAt, id])
+}
+
+/// D-PROD-145 — combinação POSSÍVEL centro de custo × centro de resultado (N:N),
+/// opcional. Catálogo de combinações: não gera lançamento nem atribui custo.
+/// As FKs compostas garantem no banco que os dois centros são do mesmo tenant
+/// E da mesma empresa do vínculo.
+model CentroCustoResultado {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  centro_custo_id     String   @db.VarChar(64)
+  centro_resultado_id String   @db.VarChar(64)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente         Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa         Empresa         @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  centroCusto     CentroCusto     @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  centroResultado CentroResultado @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, centro_custo_id, centro_resultado_id])
+  @@index([cliente_id, empresa_id, centro_resultado_id])
 }

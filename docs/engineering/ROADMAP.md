@@ -253,6 +253,16 @@ operacional: [`docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCA
 PR #51 / branch `cursor/ux-base1-cards-colunas-878d`). Não substitui missões P4–P8;
 anexos nativos permanecem em P8.
 
+## Track autorizado — Gestão Rural P1 (D-PROD-145)
+
+Cadastros antes de lançar: **Parceiros** (sobre o model `Fornecedor`, papéis
+múltiplos), **Centros de Custo**, **Centros de Resultado** e o vínculo N:N
+opcional entre os centros. **Fora**: naturezas financeiras, lançamentos, compras,
+NF-e/XML, contas a pagar, movimento financeiro e qualquer efeito em estoque ou
+mapa. Relatório: [`MAIKE-GESTAO-CADASTROS-P1-REPORT.md`](./MAIKE-GESTAO-CADASTROS-P1-REPORT.md).
+Próximos passos (cada um com decisão própria): operações que **referenciam** os
+ids estáveis destes cadastros (ver contrato no relatório §6).
+
 ---
 
 ## Fora do roadmap

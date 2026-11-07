@@ -42,6 +42,8 @@ import { registrarLancamentoTarefaRoutes } from './modules/lancamentosTarefa/lan
 import { registrarEmpresaRoutes } from './modules/empresas/empresaRoutes.js';
 import { registrarPermissaoRoutes } from './modules/permissoes/permissaoRoutes.js';
 import { registrarFornecedorRoutes } from './modules/fornecedores/fornecedorRoutes.js';
+import { registrarParceiroRoutes } from './modules/gestao/parceiroRoutes.js';
+import { registrarCentroRoutes } from './modules/gestao/centroRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -201,6 +203,9 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEmpresaRoutes);
   await app.register(registrarPermissaoRoutes);
   await app.register(registrarFornecedorRoutes);
+  // D-PROD-145 — Gestão P1 (cadastros; sem financeiro transacional).
+  await app.register(registrarParceiroRoutes);
+  await app.register(registrarCentroRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

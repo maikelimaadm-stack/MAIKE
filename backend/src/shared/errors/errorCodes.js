@@ -100,6 +100,16 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PERMISSAO_NOT_FOUND: { http: 404, meaning: 'id não identifica permissão deste tenant' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
+  // D-PROD-145 — Gestão P1 (Parceiros e centros).
+  PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
+  PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
+  PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
+  CENTRO_CUSTO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de custo desta empresa neste tenant' },
+  CENTRO_RESULTADO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de resultado desta empresa neste tenant' },
+  CENTRO_NOME_CONFLITO: { http: 409, meaning: 'já existe centro com este nome nesta empresa; nada foi gravado' },
+  CENTRO_HIERARQUIA_INVALIDA: { http: 409, meaning: 'pai inválido: ciclo, profundidade máxima, pai inativo ou fora da empresa; nada foi gravado' },
+  CENTRO_COM_FILHOS_ATIVOS: { http: 409, meaning: 'o centro tem filhos ativos; inative-os antes; nada foi gravado' },
+  CENTRO_INATIVO: { http: 409, meaning: 'centro inativo não recebe vínculo novo; nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
     http: 409,
     meaning: 'já existe empresa com este nome neste tenant',
