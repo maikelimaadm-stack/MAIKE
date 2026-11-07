@@ -110,9 +110,29 @@ function LayoutShell({ children, currentPageName }) {
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });
-  // Mesmo estado para o botão do cabeçalho e para a barra lateral (app-shell).
+  // Em telas médias (abaixo de 1280px) o mesmo menu lateral nasce só com ícones.
+  const [telaGrande, setTelaGrande] = useState(() =>
+    typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1280px)').matches : true
+  );
+  // Clique no botão/faixa vence o automático até a tela mudar de faixa.
+  const [menuManual, setMenuManual] = useState(/** @type {boolean | null} */ (null));
+  const menuRecolhido = menuManual !== null ? menuManual : menuOculto || !telaGrande;
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const consulta = window.matchMedia('(min-width: 1280px)');
+    const aoMudar = (event) => {
+      setTelaGrande(event.matches);
+      setMenuManual(null);
+    };
+    consulta.addEventListener('change', aoMudar);
+    return () => consulta.removeEventListener('change', aoMudar);
+  }, []);
+
+  // Mesmo estado para o botão do cabeçalho e para a faixa da barra lateral (app-shell).
   const alternarMenu = () => {
-    const novoEstado = !menuOculto;
+    const novoEstado = !menuRecolhido;
+    setMenuManual(novoEstado);
     setMenuOculto(novoEstado);
     localStorage.setItem('menu_oculto', novoEstado.toString());
   };
@@ -594,9 +614,9 @@ function LayoutShell({ children, currentPageName }) {
                 // gera um diagnóstico TS2322 inédito e reprova `gate:types`.
                 // `title` já fazia parte da forma existente e o accessible name
                 // computado é o mesmo (SHELL5/SHELL5b provam).
-                title={menuOculto ? "Mostrar menu principal" : "Ocultar menu principal"}>
+                title={menuRecolhido ? "Mostrar menu principal" : "Ocultar menu principal"}>
 
-                {menuOculto ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
+                {menuRecolhido ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
               </Button>
 
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
@@ -692,7 +712,7 @@ function LayoutShell({ children, currentPageName }) {
         items={menuItemsFiltered}
         currentPath={location.pathname}
         onNavigate={aoClicarMenu}
-        collapsed={menuOculto}
+        collapsed={menuRecolhido}
         onToggle={alternarMenu} />
       {/* Tablet: barra lateral com os mesmos destinos da barra inferior do celular */}
       <nav aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden">
