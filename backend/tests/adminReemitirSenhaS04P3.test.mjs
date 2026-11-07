@@ -459,6 +459,13 @@ describe('S04-P3 reemissão — alvo, tenant e contrato', () => {
     const r = await login(lab.vizinha.credenciais);
     assert.deepEqual(Object.keys(r.json()).sort(), ['cliente_id', 'token', 'usuario']);
     const migrations = readdirSync(new URL('../prisma/migrations/', import.meta.url)).filter((n) => /^\d+_/.test(n)).sort();
-    assert.equal(migrations.at(-1), '20261107200000_s04_p2_troca_senha_inicial', 'S04-P3 PR01 não cria migration');
+    // Depois da S04-P2 só pode existir a migration da Gestão P1 (D-PROD-146, PR #222),
+    // que é de outro slice: lista EXATA, então uma migration da S04-P3 ainda reprova.
+    assert.ok(migrations.includes('20261107200000_s04_p2_troca_senha_inicial'));
+    assert.deepEqual(
+      migrations.filter((n) => n > '20261107200000_s04_p2_troca_senha_inicial'),
+      ['20261107300000_gestao_p1_centros_custo_resultado'],
+      'S04-P3 PR01 não cria migration',
+    );
   });
 });
