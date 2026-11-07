@@ -107,14 +107,15 @@ function LayoutShell({ children, currentPageName }) {
     setEmpresaSelecionada(empresaId);
     gravarEmpresaSelecionada(empresaId, clienteId);
   }, [clienteId]);
+  const [menuTriggerHost, setMenuTriggerHost] = useState(/** @type {HTMLElement | null} */ (null));
   const [menuOculto, setMenuOculto] = useState(() => {
-    return localStorage.getItem('menu_oculto') === 'true';
+    return localStorage.getItem('menu_oculto') !== 'false';
   });
-  // Em telas médias (abaixo de 1280px) o mesmo menu lateral nasce só com ícones.
+  // Em telas médias, o menu começa sem reservar uma coluna no layout.
   const [telaGrande, setTelaGrande] = useState(() =>
     typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1280px)').matches : true
   );
-  // Clique no botão/faixa vence o automático até a tela mudar de faixa.
+  // A opção de fixar vence o automático até a tela mudar de faixa.
   const [menuManual, setMenuManual] = useState(/** @type {boolean | null} */ (null));
   const menuRecolhido = menuManual !== null ? menuManual : menuOculto || !telaGrande;
 
@@ -129,7 +130,7 @@ function LayoutShell({ children, currentPageName }) {
     return () => consulta.removeEventListener('change', aoMudar);
   }, []);
 
-  // Mesmo estado para o botão do cabeçalho e para a faixa da barra lateral (app-shell).
+  // Mesmo estado de fixação para os controles do cabeçalho e do menu.
   const alternarMenu = () => {
     const novoEstado = !menuRecolhido;
     setMenuManual(novoEstado);
@@ -523,11 +524,12 @@ function LayoutShell({ children, currentPageName }) {
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      {/* Desktop: menu lateral recolhível — coluna de altura inteira; a borda sobe até o topo. */}
+      {/* Desktop: menu temporário no hover; só reserva uma coluna quando fixado. */}
       <DesktopSidebar
         items={menuItemsFiltered}
         currentPath={location.pathname}
         onNavigate={aoClicarMenu}
+        triggerHost={menuTriggerHost}
         collapsed={menuRecolhido}
         onToggle={alternarMenu}
         onSearch={() => setSearchOpen(true)} />
@@ -607,7 +609,8 @@ function LayoutShell({ children, currentPageName }) {
           {userMenu}
         </div>
         <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
+            <div ref={setMenuTriggerHost} />
             <div className="flex items-center gap-2">
               {empresas.length > 0 &&
               <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>

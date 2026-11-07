@@ -1,291 +1,81 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { ChevronDown, Folder, Home, PinOff, Pin, Search } from "lucide-react";
+import { ChevronDown, Folder, Home, Pin, PinOff, Search } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
-import SidebarTooltip from "@/components/navigation/SidebarTooltip";
 
-/** Ícone de cada módulo — o mesmo mapa da tela de Módulos do celular. */
 const ICONE_DO_MODULO = /** @type {Record<string, React.ComponentType<any>>} */ (ICONE_MODULO);
-
-const PAGINA_INICIAL = "MapaGeral";
-
+/** @typedef {{ id: string, title: string, url?: string }} PaginaMenu */
+/** @typedef {{ id: string, title: string, url?: string, submenu?: PaginaMenu[] }} ItemMenu */
 /**
- * Classes compartilhadas dos itens da barra, com a paleta do sistema
- * (superfície branca, tinta #292a2d, cinza #64748b e verde #16a34a).
+ * Hover na marca do cabeçalho mostra o menu sem reservar espaço.
+ * Fixar transforma o menu em coluna; sem fixar não existe trilho de ícones.
+ * @param {{items: ItemMenu[], currentPath: string, onNavigate: (event: React.MouseEvent, path: string) => void, collapsed: boolean, onToggle: () => void, onSearch: () => void, triggerHost?: HTMLElement | null}} props
  */
-const ITEM_BASE =
-  "flex h-[38px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left whitespace-nowrap transition-colors hover:bg-[var(--mk-btn-ativo)]";
-const ITEM_ATIVO = "bg-[rgba(64,222,99,0.14)] font-semibold text-[#16a34a]";
-const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
-
-/**
- * @typedef {{ id: string, title: string, url?: string }} PaginaMenu
- * @typedef {{ id: string, title: string, url?: string, submenu?: PaginaMenu[] }} ItemMenu
- */
-
-/**
- * Menu lateral do desktop (lg+), no estilo do protótipo "inspirado no ChatGPT":
- * marca no topo, atalhos, módulos em acordeão e faixa de ícones quando recolhido.
- *
- * Recolhido: hover abre o menu completo sobre o conteúdo sem mover a página.
- * Fixar transforma o menu em uma coluna que reserva espaço no layout.
- * Desafixar retorna à faixa de ícones e às listas transitórias.
- *
- * @param {{
- *   items: ItemMenu[],
- *   currentPath: string,
- *   onNavigate: (event: React.MouseEvent, path: string) => void,
- *   collapsed: boolean,
- *   onToggle: () => void,
- *   onSearch: () => void,
- * }} props
- */
-export default function DesktopSidebar({ items, currentPath, onNavigate, collapsed, onToggle, onSearch }) {
-  const telasDoModulo = (item) =>
-    item.submenu?.length
-      ? item.submenu.filter((sub) => Boolean(sub.url))
-      : item.url
-        ? [{ id: item.id, title: item.title, url: item.url }]
-        : [];
-
-  const iconeDoModulo = (id) => ICONE_DO_MODULO[id] || Folder;
-  const paginaAtual = (page) => currentPath === createPageUrl(page.url);
-
-  const moduloAtualId = items.find((item) => telasDoModulo(item).some(paginaAtual))?.id || null;
-  const [abertoId, setAbertoId] = React.useState(moduloAtualId);
-
-  React.useEffect(() => {
-    setAbertoId(moduloAtualId);
-  }, [moduloAtualId]);
-
-  const inicioAtivo = currentPath === createPageUrl(PAGINA_INICIAL);
-  // Recolhido: a logo mostra o ícone de expandir enquanto o mouse (ou foco) está nela.
-  const [marcaEmHover, setMarcaEmHover] = React.useState(false);
-
+export default function DesktopSidebar({ items, currentPath, onNavigate, collapsed, onToggle, onSearch, triggerHost }) {
+  const telas = (item) => item.submenu?.length ? item.submenu.filter(p => Boolean(p.url)) : item.url ? [{ id: item.id, title: item.title, url: item.url }] : [];
+  const ativo = (page) => currentPath === createPageUrl(page.url);
+  const moduloAtual = items.find(item => telas(item).some(ativo))?.id || null;
+  const [abertoId, setAbertoId] = React.useState(moduloAtual);
   const [espiando, setEspiando] = React.useState(false);
+  const [topo, setTopo] = React.useState(52);
+  const timer = React.useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
   const expandido = !collapsed || espiando;
-
-  // Ao recolher/expandir, a marca volta a mostrar a logo (sem herdar o hover anterior).
-  React.useEffect(() => {
-    setMarcaEmHover(false);
-    if (!collapsed) setEspiando(false);
-  }, [collapsed]);
-
-  const alternar = () => {
-    setEspiando(!collapsed);
-    onToggle();
+  const cancelarFechamento = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; };
+  React.useEffect(() => cancelarFechamento, []);
+  React.useEffect(() => setAbertoId(moduloAtual), [moduloAtual]);
+  React.useEffect(() => { if (!collapsed) setEspiando(false); }, [collapsed]);
+  const abrir = (event) => {
+    cancelarFechamento();
+    const el = event.currentTarget;
+    const header = el.closest('header');
+    if (header) setTopo(header.getBoundingClientRect().bottom);
+    if (collapsed) setEspiando(true);
   };
-  const navegar = (event, path) => onNavigate(event, path);
-
-  const pesquisar = () => {
-    onSearch();
+  const fecharDepois = () => {
+    cancelarFechamento();
+    if (collapsed) timer.current = setTimeout(() => setEspiando(false), 200);
   };
-
-  return (
-    <>
-      <div
-        className={`mk-desktop-sidebar-frame relative hidden shrink-0 motion-reduce:transition-none lg:block ${
-          collapsed ? "w-[60px]" : "w-[322px]"
-        }`}
-      >
-        <nav
-          id="app-shell-sidebar"
-          aria-label="Módulos"
-          data-collapsed={expandido ? "false" : "true"}
-          data-pinned={!collapsed ? "true" : "false"}
-          data-peeking={collapsed && espiando ? "true" : "false"}
-          onMouseEnter={() => { if (collapsed) setEspiando(true); }}
-          onMouseLeave={() => { if (collapsed) setEspiando(false); }}
-          onFocusCapture={() => {
-            if (collapsed && !espiando) {
-              setEspiando(true);
-              requestAnimationFrame(() => document.getElementById("mk-sidebar-pin")?.focus());
-            }
-          }}
-          onBlurCapture={(event) => { if (collapsed && !event.currentTarget.contains(event.relatedTarget)) setEspiando(false); }}
-          onKeyDown={(event) => { if (event.key === "Escape" && collapsed) setEspiando(false); }}
-          className={`mk-desktop-sidebar flex h-full flex-col bg-[var(--mk-sup-cartao)] ${
-            expandido ? "w-[322px]" : "w-[60px]"
-          } relative`}
-        >
-          {/* Marca: recolhido, a logo vira o botão de expandir ao passar o mouse. */}
-          <div className={expandido ? "px-3 pb-2 pt-[19px]" : "px-2.5 pb-2 pt-[19px]"}>
-            {expandido ? (
-              <div className="flex h-10 items-center gap-2">
-                <button
-                  id="mk-sidebar-pin"
-                  type="button"
-                  onClick={alternar}
-                  aria-label={collapsed ? "Fixar menu" : "Desafixar menu"}
-                  title={collapsed ? "Fixar menu" : "Desafixar menu"}
-                  className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                >
-                  {collapsed ? <Pin size={19} aria-hidden /> : <PinOff size={19} aria-hidden />}
-                </button>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#292a2d]">MAK Gestão</strong>
-                  <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#64748b]">Plataforma de gestão rural</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={pesquisar}
-                  aria-label="Pesquisar telas"
-                  title="Pesquisar telas (Ctrl K)"
-                  className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                >
-                  <Search size={19} aria-hidden />
-                </button>
-
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <SidebarTooltip label="Fixar menu" atalhos={["Ctrl", "Shift", "S"]}>
-                  <button
-                    type="button"
-                    onClick={alternar}
-                    onMouseMove={() => setMarcaEmHover(true)}
-                    onMouseLeave={() => setMarcaEmHover(false)}
-                    onFocus={() => setMarcaEmHover(true)}
-                    onBlur={() => setMarcaEmHover(false)}
-                    aria-label="Fixar menu principal"
-                    className="relative grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                  >
-                    <img
-                      src="/brand/mak-gestao-simbolo.png"
-                      alt=""
-                      className={`h-[32px] w-[32px] object-contain transition-opacity duration-150 ${
-                        marcaEmHover ? "opacity-0" : "opacity-100"
-                      }`}
-                    />
-                    <span
-                      className={`pointer-events-none absolute inset-0 grid place-items-center transition-opacity duration-150 ${
-                        marcaEmHover ? "opacity-100" : "opacity-0"
-                      }`}
-                      aria-hidden
-                    >
-                      <Pin size={20} />
-                    </span>
-                  </button>
-                </SidebarTooltip>
-              </div>
-            )}
-          </div>
-
-          {/* Atalhos */}
-          <div className={`flex flex-col gap-1 pb-1 pt-4 ${expandido ? "px-3" : "px-2.5"}`}>
-            {expandido ? null : (
-              <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]}>
-                <button
-                  type="button"
-                  onClick={pesquisar}
-                  aria-label="Pesquisar telas"
-                  className={`${ITEM_BASE} justify-center px-0 text-[#292a2d]`}
-                >
-                  <Search size={19} className={ICONE_ITEM} aria-hidden />
-                </button>
-              </SidebarTooltip>
-            )}
-            <SidebarTooltip label="Início" ativo={!expandido}>
-              <Link
-                to={createPageUrl(PAGINA_INICIAL)}
-                onClick={(event) => navegar(event, createPageUrl(PAGINA_INICIAL))}
-                aria-current={inicioAtivo ? "page" : undefined}
-                aria-label={expandido ? undefined : "Início"}
-                className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${expandido ? "" : "justify-center px-0"}`}
-              >
-                <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
-                {expandido ? <span className="truncate text-[12.5px]">Início</span> : null}
-              </Link>
-            </SidebarTooltip>
-          </div>
-
-          {/* Módulos */}
-          <div className={`flex-1 overflow-y-auto pb-6 ${expandido ? "px-3 pt-3.5" : "px-2.5 pt-3"}`}>
-            {expandido ? (
-              <div className="px-[11px] pb-2 pt-[11px] text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">Módulos</div>
-            ) : null}
-            <div className={expandido ? "flex flex-col gap-[5px]" : "flex flex-col items-center gap-1.5"}>
-              {items.map((item) => {
-                const Icon = iconeDoModulo(item.id);
-                const telas = telasDoModulo(item);
-                const atual = telas.some(paginaAtual);
-
-                if (!expandido) {
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-active={atual ? "true" : "false"}
-                      aria-label={`Mostrar menu ${item.title}`}
-                      className={`flex h-10 w-10 items-center justify-center rounded-[9px] transition-colors ${
-                        atual
-                          ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
-                          : "text-[#64748b] hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                      }`}
-                    >
-                      <Icon size={20} aria-hidden />
-                    </button>
-                  );
-                }
-
-                const aberto = abertoId === item.id;
-                return (
-                  <section key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => setAbertoId(aberto ? null : item.id)}
-                      aria-expanded={aberto}
-                      title={item.title}
-                      className={`flex h-[37px] w-full items-center gap-[11px] rounded-[9px] px-3 text-left text-[#292a2d] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
-                        atual ? "font-semibold" : "font-medium"
-                      }`}
-                    >
-                      <Icon size={19} className={atual ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
-                      <span className="flex-1 truncate text-[12.7px]">{item.title}</span>
-                      <ChevronDown
-                        size={15}
-                        className={`shrink-0 text-[#64748b] transition-transform ${aberto ? "rotate-180" : ""}`}
-                        aria-hidden
-                      />
-                    </button>
-                    {aberto ? (
-                      <div className="mk-sidebar-children flex flex-col gap-0.5 py-1">
-                        {telas.map((page) => {
-                          const ativo = paginaAtual(page);
-                          return (
-                            <Link
-                              key={page.id}
-                              to={createPageUrl(page.url)}
-                              onClick={(event) => navegar(event, createPageUrl(page.url))}
-                              aria-current={ativo ? "page" : undefined}
-                              className={`relative flex h-[34px] items-center rounded-lg pl-[42px] pr-3 text-[12.5px] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
-                                ativo ? "font-semibold text-[#16a34a]" : "text-[#64748b]"
-                              }`}
-                            >
-                              <span
-                                className={`absolute left-[28px] h-1 w-1 rounded-full ${
-                                  ativo ? "bg-[#16a34a]" : "bg-current opacity-55"
-                                }`}
-                                aria-hidden
-                              />
-                              <span className="truncate">{page.title}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-
-
-        </nav>
-      </div>
-
-
-    </>
-  );
+  const alternar = () => { cancelarFechamento(); setEspiando(!collapsed); onToggle(); };
+  const marca = (cabecalho) => <button type="button" className="mk-sidebar-brand relative grid h-[38px] w-[38px] shrink-0 place-items-center rounded-lg text-[#64748b]"
+    aria-label={cabecalho ? 'Menu principal' : collapsed ? 'Fixar menu' : 'Desafixar menu'}
+    title={collapsed ? 'Fixar menu' : 'Desafixar menu'} aria-controls="app-shell-sidebar" aria-expanded={expandido} aria-pressed={!collapsed}
+    onMouseEnter={abrir} onFocus={abrir} onClick={alternar}>
+    <img src="/brand/mak-gestao-simbolo.png" alt="MAK Gestão" className="mk-sidebar-brand-logo h-8 w-8 object-contain" />
+    <span className="mk-sidebar-brand-pin absolute inset-0 grid place-items-center" aria-hidden>{collapsed ? <Pin size={19} /> : <PinOff size={19} />}</span>
+  </button>;
+  const controle = <div className="mk-sidebar-trigger hidden lg:block" onMouseEnter={abrir} onMouseLeave={fecharDepois} onBlurCapture={fecharDepois}>{marca(true)}</div>;
+  return <>
+    {triggerHost ? createPortal(controle, triggerHost) : triggerHost === undefined ? controle : null}
+    <div className={`mk-desktop-sidebar-frame relative hidden shrink-0 lg:block ${collapsed ? 'w-0' : 'w-[322px]'}`}>
+      <nav id="app-shell-sidebar" aria-label="Módulos" aria-hidden={!expandido}
+        data-collapsed={!expandido ? 'true' : 'false'} data-pinned={!collapsed ? 'true' : 'false'} data-peeking={collapsed && espiando ? 'true' : 'false'}
+        style={collapsed && espiando ? { top: topo } : undefined}
+        className={`mk-desktop-sidebar relative flex h-full w-[322px] flex-col ${expandido ? '' : 'invisible pointer-events-none'}`}
+        onMouseEnter={() => cancelarFechamento()} onMouseLeave={fecharDepois}
+        onFocusCapture={cancelarFechamento} onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) fecharDepois(); }}
+        onKeyDown={(e) => { if (e.key === 'Escape' && collapsed) setEspiando(false); }}>
+        <div className="flex items-center gap-2 px-3 pb-2 pt-3">
+          {marca(false)}
+          <div className="min-w-0 flex-1"><strong className="block truncate text-[15px] text-[#292a2d]">MAK Gestão</strong><span className="text-[10px] text-[#64748b]">Plataforma de gestão rural</span></div>
+          <button type="button" className="grid h-9 w-9 place-items-center rounded-lg" onClick={onSearch} aria-label="Pesquisar telas"><Search size={19} /></button>
+        </div>
+        <div className="px-3 py-2"><Link to={createPageUrl('MapaGeral')} onClick={e => onNavigate(e, createPageUrl('MapaGeral'))} aria-current={currentPath === createPageUrl('MapaGeral') ? 'page' : undefined} className="flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px]"><Home size={20} /><span>Início</span></Link></div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5">
+          <div className="px-3 pb-2 pt-2 text-[11px] font-semibold text-[#64748b]">Módulos</div>
+          {items.map(item => {
+            const Icon = ICONE_DO_MODULO[item.id] || Folder;
+            const aberto = abertoId === item.id;
+            return <section key={item.id}>
+              <button type="button" aria-expanded={aberto} onClick={() => setAbertoId(aberto ? null : item.id)} className="flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-left">
+                <Icon size={20} /><span className="min-w-0 flex-1 truncate text-[13px]">{item.title}</span><ChevronDown size={15} className={aberto ? 'rotate-180' : ''} />
+              </button>
+              {aberto && <div className="mk-sidebar-children flex flex-col gap-0.5 py-1">{telas(item).map(page => <Link key={page.id} to={createPageUrl(page.url)} onClick={e => onNavigate(e, createPageUrl(page.url))} aria-current={ativo(page) ? 'page' : undefined} className="flex h-9 items-center rounded-lg pl-[42px] pr-3 text-[13px]"><span className="truncate">{page.title}</span></Link>)}</div>}
+            </section>;
+          })}
+        </div>
+      </nav>
+    </div>
+  </>;
 }

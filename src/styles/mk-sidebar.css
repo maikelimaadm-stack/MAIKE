@@ -58,11 +58,24 @@
 /* Espiar não reserva espaço; fixar usa a largura normal da coluna. */
 .mk-desktop-sidebar-frame { z-index: 60; }
 .mk-desktop-sidebar[data-peeking="true"] {
-  position: absolute;
-  inset: 0 auto 0 0;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  height: auto;
   z-index: 60;
   width: 322px;
   background: #fff;
 }
 .mk-desktop-sidebar[data-peeking="true"] > div { animation: mk-sidebar-reveal 140ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .mk-desktop-sidebar[data-peeking="true"] > div { animation: none; } }
+
+.mk-sidebar-brand-logo, .mk-sidebar-brand-pin { transition: opacity 130ms ease; }
+.mk-sidebar-brand-pin { opacity: 0; pointer-events: none; }
+.mk-sidebar-brand:is(:hover,:focus-visible) .mk-sidebar-brand-logo { opacity: 0; }
+.mk-sidebar-brand:is(:hover,:focus-visible) .mk-sidebar-brand-pin { opacity: 1; }
+.mk-sidebar-brand:focus-visible { outline: 2px solid #5acbe9; outline-offset: 2px; }
+/* Ponte entre a marca do cabeçalho e o menu temporário logo abaixo. */
+.mk-sidebar-trigger { position: relative; }
+.mk-sidebar-trigger::after { content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px; }
+.mk-sidebar-brand { cursor: pointer; transition: background-color 120ms ease; }
+.mk-sidebar-brand:is(:hover,:focus-visible) { background: rgba(41,42,45,.055); }
