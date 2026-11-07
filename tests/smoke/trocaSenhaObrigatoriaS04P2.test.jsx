@@ -15,7 +15,8 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 const API = 'https://backend.exemplo.invalido';
 const TEMPORARIA = 'Ab3d-Ef4g-Hj5k-Mn6p';
 const NOVA = 'Minha-Senha-Nova-9';
-const RESTRITO = 'eyJhbGciOiJIUzI1NiJ9.eyJlc2NvcG8iOiJ0cm9jYV9zZW5oYV9pbmljaWFsIn0.assinatura';
+/** Valor opaco de teste (não é um JWT): o frontend nunca decodifica o token restrito. */
+const RESTRITO = 'token-restrito-de-teste-s04p2';
 
 beforeEach(() => {
   vi.resetModules();

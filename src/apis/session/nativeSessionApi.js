@@ -109,8 +109,11 @@ const descartarSessaoLocal = () => {
  * Falha em qualquer ponto limpa o token: sessão pela metade é pior que sessão
  * ausente, porque a tela acha que está dentro.
  *
+ * S04-P2: com a senha temporária do primeiro acesso devolve
+ * `{trocaSenhaObrigatoria: true}` e NÃO abre sessão.
+ *
  * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
- * @returns {Promise<{usuario: object, clienteId: string}>}
+ * @returns {Promise<{usuario: object, clienteId: string, trocaSenhaObrigatoria?: undefined} | {trocaSenhaObrigatoria: true, usuario?: undefined, clienteId?: undefined}>}
  */
 export const login = async (credenciais) => {
   const usuarioLogin = texto(credenciais?.login);

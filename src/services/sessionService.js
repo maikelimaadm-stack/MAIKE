@@ -146,8 +146,10 @@ export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
  * os casos na tela desfaria a proteção contra enumeração que o `authService`
  * construiu com hash descartável e tempo constante.
  *
+ * S04-P2: com a senha temporária devolve `{trocaSenhaObrigatoria: true}` (sem sessão).
+ *
  * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
- * @returns {Promise<{usuario: object, clienteId: string}>}
+ * @returns {Promise<{usuario: object, clienteId: string, trocaSenhaObrigatoria?: undefined} | {trocaSenhaObrigatoria: true, usuario?: undefined, clienteId?: undefined}>}
  */
 export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);
 

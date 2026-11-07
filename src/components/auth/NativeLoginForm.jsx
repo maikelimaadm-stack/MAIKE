@@ -130,6 +130,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
   const anoAtual = new Date().getFullYear();
 
   if (trocaObrigatoria) {
+    /** @param {string} [texto] @param {'info'|'aviso'} [tom] */
     const voltarAoLogin = (texto, tom = 'info') => {
       setTrocaObrigatoria(false);
       setSenha('');
