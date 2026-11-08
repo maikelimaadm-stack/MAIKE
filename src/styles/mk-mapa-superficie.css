@@ -2,12 +2,14 @@
 .mk-mapa {
   --mk-mapa-alto: 44px;
   --mk-mapa-texto: #292a2d;
-  /* Controles do mapa usam o alto do mapa, não o das ações de barra. */
-  --mk-action-height: var(--mk-mapa-alto);
   background: var(--mk-sup-fundo);
 }
+/* Celular/tablet: controles do mapa um pouco maiores ao toque. */
+@media (max-width: 1023px) {
+  .mk-mapa { --mk-action-height: var(--mk-mapa-alto); }
+}
+/* Desktop: mesma altura 32px dos botões de ação do sistema (:root). */
 @media (min-width: 1024px) {
-  /* Mesma altura dos botões de ação do sistema. */
   .mk-mapa { --mk-mapa-alto: var(--mk-action-height); }
 }
 .mk-mapa-card:not(#mk-padrao) {
