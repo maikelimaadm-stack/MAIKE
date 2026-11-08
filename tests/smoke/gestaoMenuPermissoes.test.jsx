@@ -1,10 +1,11 @@
 /**
  * D-PROD-146 — grupo "Gestão Rural" no menu e no gerenciador de permissões.
  *
- *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as três telas;
+ *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as quatro telas
+ *    (P1: Parceiros e Centros, D-PROD-146; P2: Naturezas Financeiras, D-PROD-152);
  *  - o menu (shell real, Layout) mostra o grupo só para quem tem alguma das telas;
  *  - padrão para não-admin = NEGADO (sem concessão automática); admin vê tudo;
- *  - a tela Permissões lista as três telas com as ações, desligadas por padrão;
+ *  - a tela Permissões lista as quatro telas com as ações, desligadas por padrão;
  *  - a regra de botões é a mesma do servidor (novo|salvar, editar|salvar).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -75,22 +76,28 @@ beforeEach(() => {
 });
 
 describe('GES-M1 — SSOT de menu, páginas e escopo', () => {
-  it('grupo gestao-rural com exatamente as três telas', () => {
+  it('grupo gestao-rural com exatamente as quatro telas', () => {
     const grupo = DEFAULT_MENU.find((m) => m.id === 'gestao-rural');
     expect(grupo.title).toBe('Gestão Rural');
     expect(grupo.submenu).toEqual([
       { id: 'ges-parceiros', title: 'Parceiros', url: 'Parceiros' },
       { id: 'ges-centros-custo', title: 'Centros de Custo', url: 'CentrosCusto' },
       { id: 'ges-centros-resultado', title: 'Centros de Resultado', url: 'CentrosResultado' },
+      { id: 'ges-naturezas-financeiras', title: 'Naturezas Financeiras', url: 'NaturezasFinanceiras' },
     ]);
-    for (const p of ['Parceiros', 'CentrosCusto', 'CentrosResultado']) expect(typeof PAGES[p]).toBe('function');
+    for (const p of ['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras']) expect(typeof PAGES[p]).toBe('function');
+    expect(TELAS_GESTAO.NATUREZAS_FINANCEIRAS).toBe('ges-naturezas-financeiras');
   });
 
   it('manifesto: páginas permitidas; demais domínios e a entidade Base44 continuam proibidos', () => {
     const scope = JSON.parse(readFileSync('config/mapa-manejo-scope.json', 'utf8'));
-    expect(scope.allowedPages).toEqual(expect.arrayContaining(['Parceiros', 'CentrosCusto', 'CentrosResultado']));
+    expect(scope.allowedPages).toEqual(expect.arrayContaining(['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras']));
     expect(scope.forbiddenDomains).not.toContain('CentrosCusto');
-    for (const d of ['Fornecedores', 'Financeiro', 'PlanoContas', 'LancamentoFinanceiro', 'FluxoCaixa', 'MovimentacoesEstoque']) {
+    // D-PROD-152: a P2 só ganha a página; os domínios financeiros continuam proibidos.
+    for (const d of [
+      'Fornecedores', 'Financeiro', 'PlanoContas', 'GruposFinanceiros', 'ContasFinanceiras', 'CaixaBancos',
+      'LancamentoFinanceiro', 'FluxoCaixa', 'MovimentacoesEstoque',
+    ]) {
       expect(scope.forbiddenDomains).toContain(d);
     }
     expect(scope.forbiddenBase44Entities).toContain('CentroCusto');
@@ -137,6 +144,18 @@ describe('GES-M3 — menu do shell real', () => {
     expect(screen.getAllByText('Parceiros').length).toBeGreaterThan(0);
     expect(screen.queryByText('Centros de Custo')).toBeNull();
     expect(screen.queryByText('Centros de Resultado')).toBeNull();
+    expect(screen.queryByText('Naturezas Financeiras')).toBeNull();
+  });
+
+  it('quem tem só Naturezas Financeiras vê o grupo só com ela', async () => {
+    sessao.permissoes = [
+      registro(['mapa', 'gestao-rural'], [tela('mapa', 'pec-mapa-geral', { visualizar: true }), tela('gestao-rural', 'ges-naturezas-financeiras', { visualizar: true })]),
+    ];
+    await renderShell();
+    expect((await screen.findAllByText('Gestão Rural')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Naturezas Financeiras').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Parceiros')).toBeNull();
+    expect(screen.queryByText('Centros de Custo')).toBeNull();
   });
 
   it('quem não tem nenhuma das telas não vê o grupo (padrão negado)', async () => {
@@ -147,15 +166,15 @@ describe('GES-M3 — menu do shell real', () => {
     expect(screen.queryByText('Parceiros')).toBeNull();
   });
 
-  it('administrador da fazenda vê o grupo e as três telas', async () => {
+  it('administrador da fazenda vê o grupo e as quatro telas', async () => {
     sessao.usuario = admin;
     await renderShell();
     expect((await screen.findAllByText('Gestão Rural')).length).toBeGreaterThan(0);
-    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado']) expect(screen.getAllByText(t).length).toBeGreaterThan(0);
+    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado', 'Naturezas Financeiras']) expect(screen.getAllByText(t).length).toBeGreaterThan(0);
   });
 });
 
-describe('GES-M4 — tela Permissões lista as três telas com as ações', () => {
+describe('GES-M4 — tela Permissões lista as quatro telas com as ações', () => {
   it('módulo Gestão Rural aparece no gerenciador com as telas e ações desligadas', async () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
     const { default: FormularioUsuario } = await import('@/components/usuarios/FormularioUsuario');
@@ -166,7 +185,7 @@ describe('GES-M4 — tela Permissões lista as três telas com as ações', () =
     await act(async () => {
       caixaModulo.click();
     });
-    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado']) {
+    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado', 'Naturezas Financeiras']) {
       const cartao = screen.getByText(t, { selector: 'p.font-semibold' }).closest('.rounded-lg');
       const caixas = within(cartao).getAllByRole('checkbox');
       // visualizar + 6 ações (novo, salvar, editar, excluir, importar, exportar), todas desligadas

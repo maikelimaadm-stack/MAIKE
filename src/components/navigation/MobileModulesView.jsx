@@ -10,6 +10,7 @@ import {
   Layers,
   LayoutGrid,
   ListChecks,
+  ListTree,
   Map,
   Package,
   Pen,
@@ -30,7 +31,7 @@ import { flattenMenuPages } from "@/lib/menuConfig";
 export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, administracao: Shield };
 
 /** Ícone de cada tela (url do `menuConfig`). */
-const ICONE_TELA = {
+export const ICONE_TELA = {
   MapaGeral: Map,
   MapaCadastro: Pen,
   CadastroLotes: LayoutGrid,
@@ -51,6 +52,7 @@ const ICONE_TELA = {
   Parceiros: Users,
   CentrosCusto: Coins,
   CentrosResultado: PieChart,
+  NaturezasFinanceiras: ListTree,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;

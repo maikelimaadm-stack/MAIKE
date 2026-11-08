@@ -24,7 +24,7 @@ const PAGINAS_COLISAO_HISTORICA = [
   'Categorias',
 ];
 
-/** Todas as páginas permitidas (20; +3 de Gestão Rural, D-PROD-146). */
+/** Todas as páginas permitidas (21; +3 de Gestão Rural, D-PROD-146; +1 Naturezas Financeiras, D-PROD-152). */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
   'CadastroLotes',
@@ -46,6 +46,7 @@ const TODAS_PAGINAS_SPA = [
   'Parceiros',
   'CentrosCusto',
   'CentrosResultado',
+  'NaturezasFinanceiras',
 ];
 
 describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {

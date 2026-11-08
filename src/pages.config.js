@@ -25,6 +25,7 @@ import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import Parceiros from './pages/Parceiros';
 import CentrosCusto from './pages/CentrosCusto';
 import CentrosResultado from './pages/CentrosResultado';
+import NaturezasFinanceiras from './pages/NaturezasFinanceiras';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -48,6 +49,7 @@ export const PAGES = {
     "Parceiros": Parceiros,
     "CentrosCusto": CentrosCusto,
     "CentrosResultado": CentrosResultado,
+    "NaturezasFinanceiras": NaturezasFinanceiras,
 };
 
 export const pagesConfig = {
