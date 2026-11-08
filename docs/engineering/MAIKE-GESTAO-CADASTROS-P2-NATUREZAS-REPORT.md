@@ -429,3 +429,66 @@ Só roda depois de **aprovação arquitetural e autorização específica do pro
   - 0 grants para `anon`, `authenticated` e `PUBLIC`;
   - 0 linhas.
 - **Rollback:** antes do merge, `DROP TABLE "NaturezaFinanceira"` mais a remoção da linha em `_prisma_migrations`. Depois do merge, reverter o código e manter a tabela, que é aditiva.
+
+## 13. Adendo R3 — reconciliação com a `main` pós-#225 e decisão D-PROD-153
+
+### Integração
+- **Ponto de partida:** a `main` avançou para `b42658c0`, merge da PR #225 (visual), com CI `verify:all` verde (run 42476763616).
+- **Merge:** a `main` foi integrada nesta branch por **merge normal** (`a04d4200`, pais `d2ef47b6` e `b42658c0`), sem rebase, cherry-pick ou force-push.
+- **Conflito:** só em `docs/engineering/DECISIONS.md`. A #225 trouxe D-PROD-147…**152**, e a 152 é "Cabeçalho mobile: fazenda/usuário somem só com o mapa na frente".
+
+### Resolução da decisão
+- **Histórico da `main`:** D-PROD-147…152 preservadas byte a byte. O `git diff origin/main` do arquivo só tem acréscimos, mais a troca do marcador.
+- **Renumeração:** a decisão da P2 virou **D-PROD-153 — Gestão Rural P2: Naturezas Financeiras gerenciais**, logo após a 152.
+- **Marcador:** único, `<!-- Próxima decisão: D-PROD-154 -->`.
+- **Referências:** as da P2 a "D-PROD-152" foram renumeradas para 153 em backend, frontend, testes, documentação, scripts de operação e comentários do manifesto (commit `d2420ba5`, 30 arquivos). O texto desatualizado ("#225 aberta", "147 a 151 reservadas") foi removido.
+
+### Migration imutável
+- **Arquivo intocado:** `backend/prisma/migrations/20261108100000_gestao_p2_naturezas_financeiras/migration.sql` não foi alterado.
+  - SHA-256 continua `db299e1d3543769ed46f07ee174521d3ea75b2990b94181012eecdafb9462f04`.
+  - Bloco DO pinado continua `a532c9847a550d4b19015b8b3c2914b79fffdb6ae0e259438d5133c738e416a1`.
+  - Os hashes do manifesto (`premergeMigrateLib.mjs`) são idênticos; só mudaram dois comentários.
+- **Rótulo histórico:** o comentário interno do SQL ainda diz "D-PROD-152". É um rótulo **imutável** do artefato aplicado: regravá-lo mudaria o checksum registrado em `_prisma_migrations` em produção. A decisão canônica é a D-PROD-153.
+
+### Produção
+- **Nenhuma ação nesta R3:** sem SQL, migration, rollback, deploy ou alteração de variáveis.
+- **Estado conhecido:** é o da §12, com a migration aplicada e conferida em 2026-11-08: 34 concluídas, checksum igual, RLS ligado e 0 grants públicos.
+- **Backup/PITR:** continua **não comprovado** pelas ferramentas disponíveis.
+
+### Revalidação no HEAD de código `d2420ba5` (PG16 local isolado `maike_p2_r3`)
+
+| Comando | Exit | Contagem |
+|---|---|---|
+| `prisma migrate deploy` | 0 | todas as migrations, inclusive a P2 |
+| `prisma migrate diff --exit-code` | 0 | sem drift |
+| `prisma:validate` | 0 | — |
+| `prisma:generate` | 0 | — |
+| `gate:product-scope` | 0 | — |
+| `gate:modelobase1-pecuario` | 0 | — |
+| `gate:tenancy` | 0 | — |
+| `gate:indices` | 0 | — |
+| `gate:supabase-public-grants` | 0 | — |
+| `gate:native-api` | 0 | — |
+| `gate:admin-isolation` | 0 | — |
+| `test:gates` | 0 | 694/694 |
+| `test:backend` | 0 | 1140: 1135 pass, 0 fail, **0 skip**, 5 `todo` herdados (L2 do ledger) |
+| `test:smoke` | 0 | 156 arquivos, 1715/1715 |
+| `lint` | 0 | 0 erros, 56 avisos anteriores |
+| `typecheck:backend` | 0 | — |
+| `typecheck` | 0 | — |
+| `build` | 0 | — |
+
+- **CI `verify:all` em `d2420ba5`:** SUCCESS, run 42479558868.
+- **Coberto por essas suítes:** API, hierarquia, permissões (padrão nega), 2 tenants × 2 empresas, 1.001+ opções paginadas, ✓ do celular, troca de empresa, ausência de lançamentos, `gate:product-scope` e as regressões da P1.
+
+### Visual pós-#225
+- **Captura:** `scripts/dev/visual-naturezas-financeiras.mjs`, com backend falso rotulado, rodou em 1440/1280/768/390/320 × 13 etapas = **65 capturas**.
+  - Exit 0.
+  - `scrollWidth` igual à largura da tela em todas, sem overflow horizontal.
+  - Alvos do formulário de 32–48 px. O switch Ativo, compartilhado, fica em 20–22 px.
+- **Visual da #225 aplicado à tela P2:**
+  - botões positivos (Salvar, ✓) verdes com letra branca;
+  - fundo `#FAFCFE`;
+  - ações brancas e tipografia unificada.
+- **Regressão funcional:** nenhuma encontrada. Nenhum código da P2 nem estilo global foi alterado.
+- **Onde estão as capturas:** são efêmeras, fora do repositório.
