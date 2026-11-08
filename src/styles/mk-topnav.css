@@ -1,0 +1,39 @@
+/* Menu atual: itens sem cápsulas, com indicador discreto sob o módulo ativo. */
+.mk-topnav-header { border-color: var(--mk-sup-borda, #eceef1); }
+.mk-topnav { border-bottom: 1px solid var(--mk-sup-borda, #eceef1); box-shadow: none; }
+.mk-topnav .mk-topnav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.mk-topnav .mk-topnav-item:hover { color: #0f172a; }
+.mk-topnav .mk-topnav-item[data-active="true"] { color: #16a34a; }
+.mk-topnav .mk-topnav-item[data-active="true"]::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: #16a34a;
+  border-radius: 2px 2px 0 0;
+}
+.mk-topnav .mk-topnav-item:focus-visible { outline: 2px solid #5acbe9; outline-offset: -3px; }
+.mk-topnav .relative.group { align-self: stretch; display: flex; }
+header.mk-topnav-header { border-color: var(--mk-sup-borda, #eceef1); }
+.mk-topnav .relative.group > .absolute { top: 100%; margin-top: 0; }
