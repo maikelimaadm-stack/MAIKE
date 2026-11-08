@@ -325,13 +325,20 @@
 }
 
 /* Ações dos lançamentos: mesma superfície e proporção dos cadastros. */
-:is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao) {
+:is(.mk-ll__btn, .mk-ll__remover):not(#mk-padrao) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: var(--mk-btn-bg);
   box-shadow: var(--mk-btn-sombra);
+  height: var(--mk-action-height);
+  min-height: var(--mk-action-height);
+}
+.mk-ll__remover:not(#mk-padrao) {
+  width: var(--mk-action-height);
+  min-width: var(--mk-action-height);
+  color: var(--mk-icon-danger, #dc2626) !important;
 }
 
 .mk-ll__btn--verde:not(#mk-padrao) {
@@ -340,16 +347,11 @@
 }
 .mk-ll__btn--verde:not(#mk-padrao) svg { color: #fff !important; }
 .mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
-.mk-ll__btn--cinza:not(#mk-padrao) { color: #475569; }
-
-.mk-ll__remover:not(#mk-padrao) {
-  width: 38px;
-  height: 38px;
-}
+.mk-ll__btn--cinza:not(#mk-padrao) { color: var(--mk-action-fg, #334155); }
 
 :is(.mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
-  width: 20px;
-  height: 20px;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
   stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
@@ -360,7 +362,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):hover:not(:disabled) {
+  :is(.mk-ll__btn:not(.mk-ll__btn--verde):not(.mk-ll__btn--ambar), .mk-ll__add, .mk-ll__remover):not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-hover);
   }
 }

@@ -685,7 +685,7 @@
   width: 13px;
   height: 13px;
   margin-right: 5px;
-  color: var(--mg-text-3);
+  color: var(--mk-icon-field, var(--mg-text-3));
 }
 
 .cadastro-b1 .mg-search-pill-clear {
@@ -702,12 +702,12 @@
 }
 
 .cadastro-b1 .mg-search-pill-clear .mg-search-pill-icon {
-  color: var(--mg-red);
+  color: var(--mk-icon-close, #64748b);
   margin-right: 0;
 }
 
 .cadastro-b1 .mg-search-pill-clear:hover .mg-search-pill-icon {
-  color: #b91c1c;
+  color: var(--mk-action-fg, #334155);
 }
 
 .cadastro-b1 .mg-card-title {

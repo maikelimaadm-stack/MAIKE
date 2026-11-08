@@ -258,22 +258,26 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
+  width: var(--mk-action-height, 32px);
+  height: var(--mk-action-height, 32px);
+  min-width: var(--mk-action-height, 32px);
+  min-height: var(--mk-action-height, 32px);
   border: 0;
   border-radius: 999px;
-  background: transparent;
-  color: #ef4444;
+  background: var(--mk-btn-bg, #ffffff);
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1));
+  color: var(--mk-icon-danger, #dc2626);
   cursor: pointer;
 }
 
 .mk-ll__remover:hover {
-  background: #fef2f2;
+  background: var(--mk-btn-hover, #FAFCFE);
 }
 
 .mk-ll__remover svg {
-  width: 15px;
-  height: 15px;
+  width: var(--mk-action-icon, 14px);
+  height: var(--mk-action-icon, 14px);
+  color: inherit;
 }
 
 /* ── + Adicionar ─────────────────────────────────────────────────────── */
@@ -283,15 +287,17 @@
   justify-content: center;
   gap: 6px;
   width: 100%;
-  height: 36px;
+  height: var(--mk-action-height, 32px);
+  min-height: var(--mk-action-height, 32px);
   border: 1.5px dashed #cbd5e1;
   border-radius: 10px;
   background: transparent;
   color: #334155;
-  font-size: 12.5px;
+  font-size: var(--mk-action-font, 12px);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  box-shadow: none;
 }
 
 .mk-ll__add:hover:not(:disabled) {
@@ -300,9 +306,9 @@
 }
 
 .mk-ll__add svg {
-  width: 15px;
-  height: 15px;
-  color: #16a34a;
+  width: var(--mk-action-icon, 14px);
+  height: var(--mk-action-icon, 14px);
+  color: var(--mk-icon-positive, #16a34a);
 }
 
 /* ── Segmento (Sim/Não, modo da pesagem) ─────────────────────────────── */
@@ -405,12 +411,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
+  height: var(--mk-action-height, 32px);
+  min-height: var(--mk-action-height, 32px);
   min-width: 96px;
-  padding: 0 16px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: var(--mk-action-font, 12px);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;

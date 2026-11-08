@@ -19,6 +19,12 @@
   --mk-action-positive-bg: var(--mg-accent, #40de63);
   --mk-action-positive-hover: var(--mg-accent-hover, #36c956);
   --mk-action-positive-fg: #ffffff;
+  /* Ícones por papel — a mesma ação = a mesma cor em todo o sistema */
+  --mk-icon-edit: var(--mk-action-fg-muted);   /* Editar / lápis */
+  --mk-icon-close: #64748b;                    /* ✕ Fechar / Cancelar / Limpar */
+  --mk-icon-danger: var(--mk-action-fg-red);   /* Excluir / Remover */
+  --mk-icon-field: #9ca3af;                    /* chevron, lupa e adornos de campo */
+  --mk-icon-positive: var(--mk-action-fg-green); /* + em botão tracejado / texto */
   /* Tipografia Filtros/Camadas → sistema */
   --mk-font-list: 11px;
   --mk-font-field: 11px;
@@ -51,7 +57,7 @@
 /* Apenas ações: seletores, chaves e checkboxes conservam seus contratos. */
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
  .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
- .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) {
+ .mk-config-restore, .mk-colcfg__restaurar, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) {
   box-sizing: border-box;
   height: var(--mk-action-height) !important;
   min-height: var(--mk-action-height) !important;
@@ -62,10 +68,17 @@
   gap: 6px;
 }
 :is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mg-rec-pager__btn,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) {
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-ll__remover):not(#mk-padrao) {
   width: var(--mk-action-height) !important;
   min-width: var(--mk-action-height) !important;
   padding: 0 !important;
+}
+/* Botões de lançamento com rótulo (Editar, etc.): mesma altura, largura pelo texto. */
+.mk-ll__btn:not(#mk-padrao) {
+  width: auto !important;
+  min-width: max-content !important;
+  padding: 0 12px !important;
 }
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
  .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
@@ -354,18 +367,63 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     color: var(--mk-action-positive-fg) !important;
   }
 }
-.tb-btn.tb-btn-red:not(#mk-padrao) {
+.tb-btn.tb-btn-red:not(#mk-padrao),
+.mk-ll__remover:not(#mk-padrao) {
   background: var(--mk-btn-bg, #ffffff) !important;
-  color: var(--mk-action-fg-red) !important;
+  color: var(--mk-icon-danger) !important;
 }
-.tb-btn.tb-btn-red:not(#mk-padrao) svg {
-  color: var(--mk-action-fg-red) !important;
+.tb-btn.tb-btn-red:not(#mk-padrao) svg,
+.mk-ll__remover:not(#mk-padrao) svg {
+  color: var(--mk-icon-danger) !important;
   stroke: currentColor;
 }
 .tb-btn.tb-btn-gray:not(#mk-padrao),
 .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(#mk-padrao) {
   background: var(--mk-btn-bg, #ffffff) !important;
-  color: var(--mk-action-fg-muted);
+  color: var(--mk-icon-edit);
+}
+
+/* ✕ Fechar / Cancelar / Limpar — mesma cor em barra, folhas, campos e busca */
+:is(
+  .mk-sheet__close,
+  .mk-close-icon,
+  .mg-act-cancelar,
+  .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar),
+  .mk-mhdr__round:not(.mk-mhdr__round--salvar),
+  .cmd-clear,
+  .mg-search-pill-clear,
+  .mg-search-pill-clear .mg-search-pill-icon,
+  .mk-pill__clear,
+  .mk-sel-busca__limpar,
+  .th-estado-btn.is-filter
+):not(#mk-padrao) {
+  color: var(--mk-icon-close) !important;
+}
+:is(
+  .mk-sheet__close,
+  .mk-close-icon,
+  .mg-act-cancelar,
+  .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar),
+  .mk-mhdr__round:not(.mk-mhdr__round--salvar)
+):not(#mk-padrao) svg {
+  color: var(--mk-icon-close) !important;
+  stroke: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.cmd-clear, .mg-search-pill-clear, .mk-pill__clear, .mk-sel-busca__limpar):not(#mk-padrao):hover {
+    color: var(--mk-action-fg) !important;
+  }
+  :is(.cmd-clear, .mg-search-pill-clear, .mk-pill__clear, .mk-sel-busca__limpar):not(#mk-padrao):hover .mg-search-pill-icon {
+    color: var(--mk-action-fg) !important;
+  }
+}
+
+/* Adornos de campo (chevron, lupa): cor única */
+:is(.cmd-chevron, .mg-search-pill-icon, .mk-pill__icon, .mk-sel-busca__icone):not(#mk-padrao) {
+  color: var(--mk-icon-field) !important;
+}
+.mg-search-pill-clear .mg-search-pill-icon:not(#mk-padrao) {
+  color: var(--mk-icon-close) !important;
 }
 
 /* Neutros da barra: branco. Positivos ficam de fora. */

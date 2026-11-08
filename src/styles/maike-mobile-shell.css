@@ -3662,7 +3662,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
   padding: 0;
   border: 0;
   background: transparent;
-  color: #6b7280;
+  color: var(--mk-icon-close, #64748b);
   cursor: pointer;
 }
 
