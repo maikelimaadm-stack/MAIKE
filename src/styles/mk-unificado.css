@@ -10,7 +10,7 @@
   --mk-action-icon: 14px;
   --mk-action-icon-touch: 18px;
   --mk-action-stroke: 2.25;
-  --mk-action-font: 12px;
+  --mk-action-font: 13px;
   --mk-action-fg: #334155;
   --mk-action-fg-green: #16a34a;
   --mk-action-fg-red: #dc2626;
@@ -25,28 +25,28 @@
   --mk-icon-danger: var(--mk-action-fg-red);   /* Excluir / Remover */
   --mk-icon-field: #9ca3af;                    /* chevron, lupa e adornos de campo */
   --mk-icon-positive: var(--mk-action-fg-green); /* + em botão tracejado / texto */
-  /* Tipografia Filtros/Camadas → sistema */
-  --mk-font-list: 11px;
-  --mk-font-field: 11px;
-  --mk-font-heading: 11px;
-  --mk-font-title: 13px;
-  --mk-font-search: 12px;
+  /* Tipografia do sistema (legível em desktop; mobile/tablet sobe no media abaixo) */
+  --mk-font-list: 13px;
+  --mk-font-field: 13px;
+  --mk-font-heading: 13px;
+  --mk-font-title: 15px;
+  --mk-font-search: 13px;
   --mk-text: #334155;
   --mk-text-strong: #292a2d;
   --mk-text-muted: #64748b;
-  --mk-list-row-height: 32px;
-  --mk-filter-row-height: 32px;
+  --mk-list-row-height: 36px;
+  --mk-filter-row-height: 36px;
   --mk-check-size: 14px;
   --mk-check-on: #32d65e;
   --mk-check-row-on: #fff;
-  --mk-search-height: 32px;
+  --mk-search-height: 36px;
   --mk-glass-bg: var(--mk-sup-fundo, #FAFCFE);
   --mk-glass-border: rgba(255, 255, 255, .8);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
   --mk-ui-control-size: var(--mk-action-height);
   --mk-ui-icon-size: var(--mk-action-icon);
-  --mk-search-height: 32px;
+  --mk-search-height: var(--mk-list-row-height);
   --mk-filter-row-height: var(--mk-list-row-height);
   --mg-btn-h: var(--mk-action-height);
   --mg-btn-font: var(--mk-action-font);
@@ -431,11 +431,19 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   background: var(--mk-btn-bg) !important;
 }
 
-/* Mobile + tablet: botão 44px e ícone 18px (desktop ≥1024 permanece 32/14). */
+/* Mobile + tablet: botão 44px / ícone 18px + tipografia um passo maior. */
 @media (max-width: 1023px) {
   :root {
     --mk-action-height: var(--mk-action-height-touch);
     --mk-action-icon: var(--mk-action-icon-touch);
+    --mk-action-font: 14px;
+    --mk-font-list: 14px;
+    --mk-font-field: 14px;
+    --mk-font-heading: 14px;
+    --mk-font-title: 16px;
+    --mk-font-search: 14px;
+    --mk-list-row-height: 40px;
+    --mk-filter-row-height: 40px;
   }
   :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
     --mk-action-height: var(--mk-action-height-touch);
@@ -443,6 +451,9 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     --mk-ui-icon-size: var(--mk-action-icon-touch);
     --mk-action-icon: var(--mk-action-icon-touch);
     --mg-btn-h: var(--mk-action-height-touch);
+    --mg-btn-font: 14px;
+    --mk-search-font: var(--mk-font-search);
+    font-size: var(--mk-font-list);
   }
   .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao),
   .mg-rec-pager__btn:not(#mk-padrao),

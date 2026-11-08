@@ -5461,12 +5461,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Decisão:** `--mk-sup-fundo` (e fallbacks `#f7f8fa` / `#f2f3f5`) passam a `#FAFCFE`. Cartões e botões que já eram brancos (`#ffffff`) permanecem brancos. Hover de ação usa o mesmo fundo.
 - **Implementação:** token em `mk-superficie.css`; hardcodes e `bg-slate-50` alinhados.
 
-## D-PROD-150 — Tipografia de Filtros/Camadas em todo o sistema
+## D-PROD-150 — Tipografia unificada do sistema (legível)
 
-- **Contexto:** o proprietário pediu que os estilos de fonte das listagens de Filtros e Camadas sejam repassados para o sistema inteiro.
-- **Referência:** `.mk-map-filters--clean` / `.mk-vis` — listagens e rótulos `11px`, campos `11px`, título de painel `13px`, texto `#334155` / muted `#64748b` / forte `#292a2d`.
-- **Decisão:** tokens `--mk-font-list|field|heading|title|search` e `--mk-text*` em `mk-unificado.css` aplicam essa tipografia a grades Base1, filtros, folhas, menus e listagens. Ações da barra seguem `12px`. Campos mobile que precisam de `16px` anti-zoom do iOS continuam com a regra específica de input.
-- **Implementação:** `mk-unificado.css` + alinhamento em `cadastro-base1.css`.
+- **Contexto:** o proprietário pediu tipografia coerente a partir de Filtros/Camadas; depois apontou que `11px` ficou pequeno demais em desktop e mobile.
+- **Decisão (atual):** tokens `--mk-font-*` em `mk-unificado.css`:
+  - **Desktop (≥1024):** listagens/campos/rótulos `13px`, título `15px`, ações `13px`.
+  - **Mobile/tablet (≤1023):** listagens/campos/rótulos `14px`, título `16px`, ações `14px`.
+  - Cores: `#334155` / muted `#64748b` / forte `#292a2d`.
+  - Campos iOS que precisam de `16px` anti-zoom mantêm a regra específica de input.
+- **Implementação:** `mk-unificado.css`, `mk-mapa-superficie.css`, `cadastro-base1.css`.
 
 ## D-PROD-151 — Listagens do mapa: checkbox compacto (não toggle)
 
