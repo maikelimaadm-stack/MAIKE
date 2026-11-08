@@ -119,6 +119,16 @@ button[data-mk-map-action]:not(#mk-padrao) svg {
   gap: 8px;
 }
 .mk-map-filter-header > :not(#mk-padrao) { margin: 0; }
+.mk-map-filter-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.mk-map-filter-title__ic {
+  flex: none;
+  color: var(--mk-icon-close, #64748b);
+}
 .mk-map-panel-close:not(#mk-padrao) {
   display: inline-flex;
   align-items: center;
