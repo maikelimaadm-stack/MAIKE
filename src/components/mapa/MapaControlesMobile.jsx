@@ -106,7 +106,7 @@ export default function MapaControlesMobile({
           ) : null}
         </div>
       </div>
-      <MapaFiltrosPainel open={camadasAberto} onOpenChange={setCamadasAberto} side="right" titulo="Visualização" fecharLabel="Fechar visualização" iconeFiltro={false}>
+      <MapaFiltrosPainel open={camadasAberto} onOpenChange={setCamadasAberto} side="right" titulo="Visualização" fecharLabel="Fechar visualização">
         {conteudoCamadas}
       </MapaFiltrosPainel>
     </>

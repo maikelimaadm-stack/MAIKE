@@ -1,10 +1,15 @@
 import React from "react";
-import { Filter, X } from "lucide-react";
+import { X } from "lucide-react";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+/** Slot do canto direito do cabeçalho (ex.: limpar filtros). */
+export const MapaFiltrosHeaderRightCtx = React.createContext(
+  /** @type {(node: React.ReactNode) => void} */ (() => {}),
+);
+
 /** Painel lateral compartilhado entre filtros e visualização.
- * @param {{open: boolean, onOpenChange: (open: boolean) => void, children: React.ReactNode, side?: "left" | "right", titulo?: string, fecharLabel?: string, iconeFiltro?: boolean}} props
+ * @param {{open: boolean, onOpenChange: (open: boolean) => void, children: React.ReactNode, side?: "left" | "right", titulo?: string, fecharLabel?: string}} props
  */
 export default function MapaFiltrosPainel({
   open,
@@ -13,9 +18,9 @@ export default function MapaFiltrosPainel({
   side = "left",
   titulo = "Filtro",
   fecharLabel = "Fechar filtro",
-  iconeFiltro = true,
 }) {
   const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
+  const [acaoDireita, setAcaoDireita] = React.useState(/** @type {React.ReactNode} */ (null));
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side={side} className={`mk-map-filter-host mk-map-filter-host--${side}`}
@@ -25,16 +30,13 @@ export default function MapaFiltrosPainel({
         <div className="mk-map-filter-sheet h-full overflow-y-auto">
         <SheetHeader className="mk-map-filter-header">
           <button type="button" className="mk-map-panel-close" aria-label={fecharLabel} onClick={() => onOpenChange(false)}><X size={16} aria-hidden /></button>
-          <SheetTitle className="text-sm">
-            <span className="mk-map-filter-title">
-              <span>{titulo}</span>
-              {iconeFiltro ? <Filter size={14} aria-hidden strokeWidth={2.25} className="mk-map-filter-title__ic" /> : null}
-            </span>
-          </SheetTitle>
-          <span aria-hidden />
+          <SheetTitle className="text-sm">{titulo}</SheetTitle>
+          {acaoDireita ?? <span aria-hidden />}
         </SheetHeader>
         <MobileSheetPortalCtx.Provider value={alvoFolha}>
-          <div className="mt-3">{children}</div>
+          <MapaFiltrosHeaderRightCtx.Provider value={setAcaoDireita}>
+            <div className="mt-3">{children}</div>
+          </MapaFiltrosHeaderRightCtx.Provider>
         </MobileSheetPortalCtx.Provider>
         </div>
         {/* Fora do recorte/rolagem lateral, mas dentro do modal para foco/toque. */}

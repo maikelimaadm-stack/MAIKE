@@ -6,6 +6,7 @@ import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { filtroSemRestricao } from "@/lib/mapaFiltroSelecao";
+import { MapaFiltrosHeaderRightCtx } from "./MapaFiltrosPainel";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -144,7 +145,7 @@ export default function MapaFiltrosAvancados({
     filtroPesoMin != null ||
     filtroPesoMax != null;
 
-  const limparFiltros = () => {
+  const limparFiltros = React.useCallback(() => {
     setFiltroSetor("todos");
     setFiltroTipoCultura("todas");
     setFiltroTipoPastagem("todas");
@@ -155,21 +156,32 @@ export default function MapaFiltrosAvancados({
     setFiltroAlertaTipo("todos");
     setFiltroPesoMin(null);
     setFiltroPesoMax(null);
-  };
+  }, [
+    setFiltroSetor, setFiltroTipoCultura, setFiltroTipoPastagem, setFiltroCategoria,
+    setFiltroSistema, setFiltroIdentificador, setFiltroStatus, setFiltroAlertaTipo,
+    setFiltroPesoMin, setFiltroPesoMax,
+  ]);
+
+  // Cabeçalho: ✕ à esquerda, limpar (só ícone) à direita — espelho do fechar.
+  const setAcaoDireita = React.useContext(MapaFiltrosHeaderRightCtx);
+  React.useLayoutEffect(() => {
+    setAcaoDireita(
+      <button
+        type="button"
+        className="mk-map-panel-close"
+        aria-label="Limpar filtros"
+        title="Limpar filtros"
+        disabled={!temFiltroAtivo}
+        onClick={limparFiltros}
+      >
+        <FilterX size={16} aria-hidden strokeWidth={2.25} />
+      </button>,
+    );
+    return () => setAcaoDireita(null);
+  }, [setAcaoDireita, temFiltroAtivo, limparFiltros]);
 
   return (
     <div className="mk-map-filters mk-map-filters--clean">
-      {temFiltroAtivo ? (
-        <button
-          type="button"
-          className="mk-map-filters-limpar"
-          onClick={limparFiltros}
-        >
-          <FilterX size={14} aria-hidden strokeWidth={2.25} />
-          <span>Limpar filtros</span>
-        </button>
-      ) : null}
-
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
