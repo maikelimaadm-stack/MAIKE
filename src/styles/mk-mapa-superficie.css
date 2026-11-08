@@ -604,14 +604,49 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 }
 .mk-map-multi-title { padding: 6px 8px; font-size: var(--mk-font-heading, 13px); font-weight: 600; color: #64748b; }
 .mk-map-multi-options { max-height: min(280px, 50dvh); overflow-y: auto; overscroll-behavior: contain; }
-.mk-map-multi-options label {
+.mk-map-multi-options label,
+.mk-map-multi-options button.mk-check-row {
   display: flex; align-items: center; gap: 8px;
-  min-height: var(--mk-list-row-height, 36px); padding: 6px 8px;
-  font-size: var(--mk-font-list, 13px) !important; color: #334155; cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--mk-list-row-height, 36px);
+  margin: 0; padding: 6px 8px;
+  border: 0; border-radius: 0;
+  background: #fff;
+  font-size: var(--mk-font-list, 13px) !important;
+  font-weight: 500;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
 }
-.mk-map-multi-options label + label { border-top: 1px solid var(--mk-list-divider); }
-.mk-map-multi-options input { width: 14px; height: 14px; flex: none; accent-color: #32d65e; }
+.mk-map-multi-options label + label,
+.mk-map-multi-options button.mk-check-row + button.mk-check-row {
+  border-top: 1px solid var(--mk-list-divider, #eef0f3);
+}
+.mk-map-multi-options label > input[type="checkbox"] {
+  width: 14px; height: 14px; flex: none; accent-color: #32d65e;
+}
+.mk-map-multi-options button.mk-check-row[aria-checked="true"],
+.mk-map-multi-options button.mk-check-row.is-on {
+  background: #fff;
+  color: #334155;
+}
+.mk-map-multi-options button.mk-check-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.mk-map-multi-vazio {
+  padding: 12px 8px;
+  font-size: var(--mk-font-list, 13px);
+  color: #64748b;
+  text-align: center;
+}
 .mk-map-multi-popup > input[type="search"] {
   width: 100%; border: 0; border-radius: 999px; padding: 7px 10px; margin-bottom: 4px;
   background: var(--mk-sup-fundo); font-size: var(--mk-font-search, 13px) !important;
+}
+@media (max-width: 1023px) {
+  .mk-map-multi-popup > input[type="search"]:not(#mk-padrao) {
+    font-size: 16px !important;
+  }
 }

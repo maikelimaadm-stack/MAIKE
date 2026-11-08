@@ -1,7 +1,6 @@
 import React from "react";
-import { ChevronDown, Search, X } from "lucide-react";
-import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
-import PainelSelecao from "@/components/common/PainelSelecao";
+import { ChevronDown } from "lucide-react";
+import { Root as Popover, Content as PopoverContent, Trigger as PopoverTrigger, Portal } from "@radix-ui/react-popover";
 
 /** Texto de um nó React (filhos de `<option>`). */
 function textoDe(no) {
@@ -29,56 +28,48 @@ function opcoesDe(children) {
 }
 
 /**
- * `<select>` dos formulários Base1. Celular: a folha de baixo com as opções (e
- * pesquisa acima de 8), como os demais seletores (D-PROD-88). Desktop/tablet:
- * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-106).
- * Lista no padrão Filtros/Camadas: checkbox à esquerda (D-PROD-152).
+ * `<select>` dos formulários Base1 / lançamentos.
+ * Abre o **mesmo popup flutuante** de Filtros/Camadas (`.mk-map-multi-popup`):
+ * cartão ancorado ao campo, título, checkbox à esquerda — em celular e desktop
+ * (D-PROD-152). Não usa folha de baixo nem painel sob o campo.
  * Mesma API do `<select>`: `value`, `onChange(e)`.
  *
  * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
  */
 export default function B1Select(props) {
-  const celular = useCelular();
   const { value, onChange, children, className, disabled, id } = props;
-  // Atributos data-* (ex.: data-status) seguem para o botão, como iam para o <select>.
   const dataAttrs = Object.fromEntries(Object.entries(props).filter(([k]) => k.startsWith("data-")));
   const [aberto, setAberto] = React.useState(false);
   const [busca, setBusca] = React.useState("");
   const botao = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
-  const ancora = React.useCallback(() => botao.current?.closest(".mg-field") ?? botao.current, []);
 
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
   const vazio = !atual || atual.value === "";
-  // Fora da lista só o "Selecione…" (ou opção vazia sem rótulo). Uma opção vazia
-  // com nome — ex.: "SEM VÍNCULO" — é uma escolha válida.
   const reais = opcoes.filter((o) => o.value !== "" || (o.label.trim() !== "" && !/^selecione/i.test(o.label.trim())));
   const pesquisavel = reais.length > 8;
-  const termo = busca.trim().toLowerCase();
-  const vistas = termo ? reais.filter((o) => o.label.toLowerCase().includes(termo)) : reais;
+  const termo = busca.trim().toLocaleLowerCase("pt-BR");
+  const vistas = termo ? reais.filter((o) => o.label.toLocaleLowerCase("pt-BR").includes(termo)) : reais;
   const rotulo =
-    (aberto && botao.current?.closest(".mg-field")?.querySelector("label")?.textContent?.replace(/\s*\*\s*$/, "").trim()) ||
+    botao.current?.closest(".mg-field")?.querySelector("label")?.textContent?.replace(/\s*\*\s*$/, "").trim() ||
     props["aria-label"] ||
     "Selecione";
+
   const escolher = (v) => {
     setAberto(false);
+    setBusca("");
     onChange?.(/** @type {any} */ ({ target: { value: v }, currentTarget: { value: v } }));
   };
 
-  // Desktop/tablet (D-PROD-106): o mesmo painel das outras listas, logo abaixo do campo.
-  if (!celular) {
-    return (
-      <PainelSelecao
-        open={aberto}
-        onOpenChange={setAberto}
-        ancora={ancora}
-        itens={reais.map((o) => ({ value: o.value, label: o.label, texto: o.label, disabled: o.disabled }))}
-        valor={String(value ?? "")}
-        onEscolher={escolher}
-        pesquisavel={pesquisavel}
-        rotulo={props["aria-label"] || "opções"}
-        listaCheck
-      >
+  return (
+    <Popover
+      open={aberto}
+      onOpenChange={(v) => {
+        setAberto(v);
+        if (!v) setBusca("");
+      }}
+    >
+      <PopoverTrigger asChild>
         <button
           ref={botao}
           id={id}
@@ -92,7 +83,6 @@ export default function B1Select(props) {
           value={String(value ?? "")}
           {...dataAttrs}
           {...(vazio ? { "data-placeholder": "" } : {})}
-          onClick={() => setAberto((v) => !v)}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -103,49 +93,31 @@ export default function B1Select(props) {
           <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
           <ChevronDown aria-hidden className="b1-select-btn__c" />
         </button>
-      </PainelSelecao>
-    );
-  }
-
-  return (
-    <>
-      <button
-        ref={botao}
-        id={id}
-        type="button"
-        role="combobox"
-        aria-expanded={aberto}
-        aria-haspopup="listbox"
-        aria-label={props["aria-label"]}
-        disabled={disabled}
-        className={`${className ?? ""} b1-select-btn`}
-        {...(vazio ? { "data-placeholder": "" } : {})}
-        onClick={() => {
-          setBusca("");
-          setAberto(true);
-        }}
-      >
-        <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
-        <ChevronDown aria-hidden className="b1-select-btn__c" />
-      </button>
-      {aberto ? (
-        <MobileSheet open onClose={() => setAberto(false)} label={rotulo} title={rotulo}>
+      </PopoverTrigger>
+      <Portal>
+        <PopoverContent
+          align="end"
+          side="bottom"
+          sideOffset={5}
+          collisionPadding={8}
+          className="mk-map-multi-popup mk-lista-fc"
+          aria-label={rotulo}
+          onOpenAutoFocus={(e) => {
+            if (!pesquisavel) e.preventDefault();
+          }}
+        >
+          <div className="mk-map-multi-title">{rotulo}</div>
           {pesquisavel ? (
-            <div className="mk-pill mgs__busca">
-              {busca ? (
-                <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setBusca("")}>
-                  <X size={14} />
-                </button>
-              ) : (
-                <span className="mk-pill__icon" aria-hidden>
-                  <Search size={14} />
-                </span>
-              )}
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar…" aria-label={`Pesquisar ${rotulo}`} />
-            </div>
+            <input
+              type="search"
+              aria-label={`Pesquisar ${rotulo}`}
+              placeholder="Procurar opção..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
           ) : null}
-          <div className="mgs__lista mk-lista-fc" role="listbox" aria-label={rotulo}>
-            {!vistas.length ? <div className="mgs__vazio">Nenhuma opção</div> : null}
+          <div className="mk-map-multi-options" role="listbox" aria-label={rotulo}>
+            {!vistas.length ? <div className="mk-map-multi-vazio">Nenhuma opção</div> : null}
             {vistas.map((o) => {
               const on = o.value === String(value ?? "");
               return (
@@ -156,16 +128,16 @@ export default function B1Select(props) {
                   aria-selected={on}
                   aria-checked={on}
                   disabled={o.disabled}
-                  className={`mgs__op mk-check-row${on ? " is-on" : ""}`}
-                  onClick={() => escolher(o.value)}
+                  className={`mk-check-row${on ? " is-on" : ""}`}
+                  onClick={() => !o.disabled && escolher(o.value)}
                 >
-                  <span className="mgs__label">{o.label}</span>
+                  <span>{o.label}</span>
                 </button>
               );
             })}
           </div>
-        </MobileSheet>
-      ) : null}
-    </>
+        </PopoverContent>
+      </Portal>
+    </Popover>
   );
 }
