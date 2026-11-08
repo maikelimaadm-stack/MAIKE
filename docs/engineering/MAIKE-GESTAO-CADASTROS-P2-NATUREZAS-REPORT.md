@@ -79,3 +79,57 @@
 - **D — escala:** 1.005 ativas. Todas as opções são alcançáveis em 11 páginas; a busca acha a última direto; ela serve de pai; a 1.007ª é aceita (sem teto); `excluir_id` remove o nó e a subárvore.
 - **G — banco:** INSERT/UPDATE direto recusa pai de outro tipo, pai de outra empresa, tipo fora do domínio, autorreferência e troca de tipo de pai com filhos. `RESTRICT` na exclusão do nó e da empresa. RLS ligado e 0 grants públicos.
 - **Tabelas proibidas:** Lote, Produto, Movimentação, nota, rebanho, Parceiros e Centros ficam iguais antes e depois.
+
+## 5. Interface
+
+- **Página:** `src/pages/NaturezasFinanceiras.jsx` no padrão Motor Base1 (tela, formulário, seletor de pai e tabela em `src/components/gestao/`). **Layout global sem alteração.**
+- **Lista:** filtros de Tipo (Despesa por padrão, Receita ou Todos) e Situação (Ativos por padrão), com busca `q` no servidor e paginação keyset. A coluna Natureza mostra o caminho, indentado pelo nível. No celular, os cards trazem Tipo, Pai e Ativo.
+- **Formulário:**
+  - na criação, o tipo é obrigatório e não tem valor padrão; trocar o tipo limpa o pai;
+  - na edição, o tipo é só leitura;
+  - desligar o switch Ativo pede confirmação.
+- **Seletor de pai:** `useInfiniteQuery` com busca de espera 300 ms e "Carregar mais" por `next_cursor`, 50 itens por página. Envia `excluir_id` na edição e mostra o pai atual mesmo fora da página carregada. **Sem teto.**
+- **Empresa:**
+  - a empresa real fica na queryKey e a troca fecha o formulário;
+  - toda gravação leva `empresa_id`;
+  - gravação de empresa anterior é avisada.
+- **Menu e permissões:**
+  - item `ges-naturezas-financeiras` no grupo Gestão Rural, com ícone `ListTree` no celular;
+  - a tela de Permissões lista a nova tela automaticamente.
+- **Escopo:**
+  - `config/mapa-manejo-scope.json` recebe apenas `NaturezasFinanceiras` em `allowedPages`;
+  - os domínios financeiros proibidos e `forbiddenBase44Entities` continuam intactos;
+  - `vercel.json` foi regenerado pelo script oficial.
+- **Mensagens de erro:** os 4 códigos novos e cada `reason` de hierarquia.
+- **Larguras:** testado em 1280, 1440, 768, 390 e 320 px, sem rolagem horizontal.
+
+## 6. Gates e CI (HEAD `05dc7a53`, PG16 local descartável, execução sequencial)
+
+| Comando | Exit | Observação |
+|---|---|---|
+| `prisma migrate deploy` (banco novo) | 0 | |
+| `prisma:validate` / `prisma:generate` | 0 / 0 | |
+| `gate:product-scope` | 0 | |
+| `gate:modelobase1-pecuario` | 0 | |
+| `gate:tenancy` | 0 | |
+| `gate:indices` | 0 | |
+| `gate:supabase-public-grants` | 0 | |
+| `gate:native-api` | 0 | |
+| `gate:admin-isolation` | 0 | |
+| `test:gates` | 0 | 694/694 |
+| `test:backend` | 0 | 1140 testes: 1135 pass, 0 fail, 0 skip. Os 5 `todo` são anteriores (L2 do ledger) |
+| `test:smoke` | 0 | 156 arquivos, 1712/1712; inclui `gestaoNaturezas` (32) e `gestaoNaturezasShell` (1) |
+| `lint` / `typecheck:backend` / `typecheck` / `build` | 0 | |
+
+CI `verify:all`: verde em `8c3fa8cc` e em `05dc7a53`.
+
+## 7. Riscos residuais e ordem de release
+
+- **Migration:** ainda não aplicada em produção (`SCHEMA_APPLIED_PROD=NÃO`). Sem ela, a tela nova falha em produção, porque a tabela não existe. Ordem de release:
+  1. aprovação do proprietário;
+  2. migration pelo caminho oficial;
+  3. merge e deploy.
+- **Nome em maiúsculas:** o nome é gravado em maiúsculas, como nos Centros da P1.
+- **Sem E2E dedicado:** não há E2E Playwright no CI para a tela; a cobertura vem do smoke com Layout real e das capturas locais.
+- **Conflito com a #225:** só textual, em `DECISIONS.md`, e se resolve no merge.
+- **Invariantes da P1 preservadas:** migration e checksum da P1 intactos, rotas de Parceiros e Centros sem mudança de comportamento, e tabelas proibidas idênticas antes e depois dos testes.
