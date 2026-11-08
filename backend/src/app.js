@@ -44,6 +44,7 @@ import { registrarPermissaoRoutes } from './modules/permissoes/permissaoRoutes.j
 import { registrarFornecedorRoutes } from './modules/fornecedores/fornecedorRoutes.js';
 import { registrarParceiroRoutes } from './modules/gestao/parceiroRoutes.js';
 import { registrarCentroRoutes } from './modules/gestao/centroRoutes.js';
+import { registrarNaturezaFinanceiraRoutes } from './modules/gestao/naturezaFinanceiraRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -206,6 +207,7 @@ export const construirApp = async (opcoes = {}) => {
   // D-PROD-146 — Gestão P1 (cadastros; sem financeiro transacional).
   await app.register(registrarParceiroRoutes);
   await app.register(registrarCentroRoutes);
+  await app.register(registrarNaturezaFinanceiraRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

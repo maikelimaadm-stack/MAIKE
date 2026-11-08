@@ -112,6 +112,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   CENTRO_HIERARQUIA_INVALIDA: { http: 409, meaning: 'pai inválido: ciclo, profundidade máxima, pai inativo ou fora da empresa; nada foi gravado' },
   CENTRO_COM_FILHOS_ATIVOS: { http: 409, meaning: 'o centro tem filhos ativos; inative-os antes; nada foi gravado' },
   CENTRO_LIMITE_ATIVOS: { http: 409, meaning: 'empresa atingiu o teto de centros ativos do tipo; inativar antes de criar ou reativar' },
+  // D-PROD-152 — Gestão P2: naturezas financeiras gerenciais.
+  NATUREZA_FINANCEIRA_NOT_FOUND: { http: 404, meaning: 'id não identifica natureza financeira desta empresa neste tenant' },
+  NATUREZA_NOME_CONFLITO: { http: 409, meaning: 'já existe natureza com este nome e tipo nesta empresa; nada foi gravado' },
+  NATUREZA_HIERARQUIA_INVALIDA: { http: 409, meaning: 'pai inválido (outro tipo/empresa, inativo, ciclo, autorreferência ou profundidade); nada foi gravado' },
+  NATUREZA_COM_FILHOS_ATIVOS: { http: 409, meaning: 'natureza com filhas ativas não é inativada; inativar as filhas antes' },
   CENTRO_INATIVO: { http: 409, meaning: 'centro inativo não recebe vínculo novo; nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
     http: 409,

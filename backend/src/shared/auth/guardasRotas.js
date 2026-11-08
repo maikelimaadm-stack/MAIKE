@@ -191,6 +191,7 @@ export const GUARDAS = Object.freeze({
   parceiro: { ...cadastro(T.PARCEIROS), ver: porTela(T.PARCEIROS, 'visualizar') },
   centroCusto: { ...cadastro(T.CENTROS_CUSTO), ver: porTela(T.CENTROS_CUSTO, 'visualizar') },
   centroResultado: { ...cadastro(T.CENTROS_RESULTADO), ver: porTela(T.CENTROS_RESULTADO, 'visualizar') },
+  naturezaFinanceira: { ...cadastro(T.NATUREZAS_FINANCEIRAS), ver: porTela(T.NATUREZAS_FINANCEIRAS, 'visualizar') },
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),

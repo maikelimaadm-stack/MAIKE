@@ -109,6 +109,8 @@ export const limparBanco = async () => {
   await prisma.centroResultado.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
   await prisma.centroCusto.deleteMany({});
   await prisma.centroResultado.deleteMany({});
+  await prisma.naturezaFinanceira.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
+  await prisma.naturezaFinanceira.deleteMany({});
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }
