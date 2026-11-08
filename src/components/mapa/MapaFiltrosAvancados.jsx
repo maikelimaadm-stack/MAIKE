@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FilterX } from "lucide-react";
 import MapaFiltroSelecao from "./MapaFiltroSelecao";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { filtroSemRestricao } from "@/lib/mapaFiltroSelecao";
 import { MapaFiltrosHeaderRightCtx } from "./MapaFiltrosPainel";
 
@@ -260,14 +258,14 @@ export default function MapaFiltrosAvancados({
           </div>
           <div className="mk-map-filter-fields">
             <div>
-              <Label>Setor</Label>
+              <label>Setor</label>
               <MapaFiltroSelecao value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor">
                   <option value="todos">Todos</option>
                   {setores.map((setor) => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Tipo de Cultura</Label>
+              <label>Tipo de Cultura</label>
               <MapaFiltroSelecao value={filtroTipoCultura} onChange={(e) => setFiltroTipoCultura(e.target.value)} aria-label="Tipo de Cultura">
                   <option value="todas">Todas</option>
                   <option value="Pastagem">Pastagem</option>
@@ -278,7 +276,7 @@ export default function MapaFiltrosAvancados({
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Tipo de Pastagem</Label>
+              <label>Tipo de Pastagem</label>
               <MapaFiltroSelecao value={filtroTipoPastagem} onChange={(e) => setFiltroTipoPastagem(e.target.value)} aria-label="Tipo de Pastagem">
                   <option value="todas">Todas</option>
                   {tiposPastagem.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
@@ -296,28 +294,28 @@ export default function MapaFiltrosAvancados({
           </div>
           <div className="mk-map-filter-fields">
             <div>
-              <Label>Categoria</Label>
+              <label>Categoria</label>
               <MapaFiltroSelecao value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} aria-label="Categoria">
                   <option value="todas">Todas</option>
                   {categorias.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Sistema Produtivo</Label>
+              <label>Sistema Produtivo</label>
               <MapaFiltroSelecao value={filtroSistema} onChange={(e) => setFiltroSistema(e.target.value)} aria-label="Sistema Produtivo">
                   <option value="todos">Todos</option>
                   {sistemasProdutivos.map((sp) => <option key={sp} value={sp}>{sp}</option>)}
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Identificador</Label>
+              <label>Identificador</label>
               <MapaFiltroSelecao value={filtroIdentificador} onChange={(e) => setFiltroIdentificador(e.target.value)} aria-label="Identificador">
                   <option value="todos">Todos</option>
                   {identificadores.map((identificador) => <option key={identificador} value={identificador}>{identificador}</option>)}
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Alertas</Label>
+              <label>Alertas</label>
               <MapaFiltroSelecao value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Alertas">
                   <option value="todos">Todos</option>
                   <option value="com_alerta">Com Alerta</option>
@@ -325,7 +323,7 @@ export default function MapaFiltrosAvancados({
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Tipo de Alerta</Label>
+              <label>Tipo de Alerta</label>
               <MapaFiltroSelecao value={filtroAlertaTipo} onChange={(e) => setFiltroAlertaTipo(e.target.value)} aria-label="Tipo de Alerta">
                   <option value="todos">Todos</option>
                   <option value="suplementacao_pendente">Suplementação</option>
@@ -334,16 +332,16 @@ export default function MapaFiltrosAvancados({
               </MapaFiltroSelecao>
             </div>
             <div>
-              <Label>Peso Mínimo (kg)</Label>
-              <Input
+              <label>Peso Mínimo (kg)</label>
+              <input
               type="number"
               placeholder="Ex: 200"
               value={filtroPesoMin || ''}
               onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
             </div>
             <div>
-              <Label>Peso Máximo (kg)</Label>
-              <Input
+              <label>Peso Máximo (kg)</label>
+              <input
               type="number"
               placeholder="Ex: 500"
               value={filtroPesoMax || ''}
