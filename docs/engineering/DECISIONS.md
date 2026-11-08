@@ -5449,7 +5449,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Não forçar** tipografia de títulos, folhas iOS (17px) nem `--mk-search-font` dos filtros.
   - **Ações (barra):** fonte `12px`, fundo `#ffffff`, verde `#16a34a` / vermelho `#dc2626` no ícone/texto; sem fill verde/vermelho.
   - **Ícones de ação:** `16×16`, `stroke-width: 2.25`.
-  - **Altura:** desktop `36px`; barra mobile `38px`.
+  - **Altura:** desktop/tablet `32px` em todo o sistema (mapa, cadastros, barras); mobile `38px`.
 - **Revoga:** o item visual “fundo cinza / sem sombra” residual da D-PROD-96 na shell (já em espírito pela D-PROD-138/147).
 - **Implementação:** `mk-unificado.css` (ações/ícones/cores), portal/base1/shell alinhados; tipografia de Filtros/Camadas preservada. Token `--mk-action-height` é a SSOT; o mapa desktop usa o mesmo valor em `--mk-mapa-alto`.
 
