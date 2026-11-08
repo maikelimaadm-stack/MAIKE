@@ -24,6 +24,9 @@ describe("Shell e controles (D-PROD-132)", () => {
   it("cabeçalho sai só no celular/tablet; sem menu lateral nem fazenda no mapa", () => {
     const layout = readFileSync("src/Layout.jsx", "utf8");
     expect(layout).toMatch(/const telaMapa = currentPageName === PRIMARY_PAGE;/);
+    // Com Módulos aberto em cima do mapa, título/fazenda/usuário continuam visíveis.
+    expect(layout).toMatch(/ocultarCabecalhoMapa = telaMapa && !mobileMenuOpen/);
+    expect(layout).toMatch(/ocultarCabecalhoMapa \? " mk-shell--mapa"/);
     expect(layout).not.toMatch(/MenuLateral|MapaShellContext/);
     const css = readFileSync("src/styles/mapa-geral.css", "utf8");
     expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.mk-shell--mapa > header \{\s*display: none !important;/);

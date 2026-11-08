@@ -417,10 +417,17 @@ function LayoutShell({ children, currentPageName }) {
   let mobileSubtitle = empresaNome;
   if (mobileMenuOpen) {
     mobileTitle = moduloAberto?.title || 'Módulos';
+    mobileSubtitle = empresaNome;
   } else if (mobileRecord?.editing) {
     mobileTitle = mobileRecord.title || mobileTitle;
-    mobileSubtitle = mobileRecord.subtitle || '';
+    // Mantém a fazenda visível quando o registro não manda subtítulo.
+    mobileSubtitle = mobileRecord.subtitle || empresaNome;
   }
+
+  // Só esconde o cabeçalho quando o mapa está realmente na frente.
+  // Com Módulos aberto em cima do Mapa Geral, título/fazenda/usuário precisam
+  // continuar visíveis (senão "somem" de forma intermitente).
+  const ocultarCabecalhoMapa = telaMapa && !mobileMenuOpen;
 
   // Voltar: registro → lista; módulo → todos os módulos; tela → telas do módulo dela.
   let mobileBack = null;
@@ -475,7 +482,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-[#FAFCFE] safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#FAFCFE] safe-area-top flex flex-col${ocultarCabecalhoMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -491,7 +498,7 @@ function LayoutShell({ children, currentPageName }) {
             </button>
             <div className="mk-mhdr__center">
               <span className="mk-mhdr__title">{mobileTitle}</span>
-              {mobileSubtitle ? <span className="mk-mhdr__sub"><span>{mobileSubtitle}</span></span> : null}
+              <span className="mk-mhdr__sub"><span>{mobileSubtitle || empresaNome}</span></span>
             </div>
             <div className="mk-mhdr__acoes">
             {(mobileRecord.acoes ?? []).map((acao) =>

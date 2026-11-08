@@ -5478,4 +5478,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga em parte:** o item de D-PROD-132 que exigia `ToggleSwitch` nas camadas do Mapa Geral.
 - **Implementação:** `MapaFiltrosAvancados.jsx`, `MapaVisualizacao.jsx`, `mk-unificado.css`, `mk-mapa-superficie.css`.
 
-<!-- Próxima decisão: D-PROD-152 -->
+## D-PROD-152 — Cabeçalho mobile: fazenda/usuário somem só com o mapa na frente
+
+- **Contexto:** no celular, as linhas de título/fazenda e o avatar do usuário
+  sumiam de forma intermitente — em especial ao abrir **Módulos** em cima do
+  Mapa Geral, porque `mk-shell--mapa` escondia o `<header>` sempre que a rota
+  era `MapaGeral` (D-PROD-132), mesmo com o menu de módulos cobrindo o mapa.
+- **Decisão:** `ocultarCabecalhoMapa = telaMapa && !mobileMenuOpen`. O mapa
+  continua sem cabeçalho do sistema; com Módulos aberto, título/fazenda/usuário
+  voltam. Em edição de registro, o subtítulo não fica vazio — cai na fazenda.
+- **Implementação:** `Layout.jsx`, `tests/smoke/mapaV2Visualizacao.test.jsx`.
+
+<!-- Próxima decisão: D-PROD-153 -->
