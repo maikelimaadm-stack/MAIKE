@@ -9,6 +9,20 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-08) — MAIKE-GESTAO-P3-01: Central Única de Lançamentos (D-PROD-154)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-154**, autorizada pelo proprietário na missão (2026-11-08). Constituição: nota de expansão em [`00-CONSTITUICAO.md`](../constitution/00-CONSTITUICAO.md) |
+| Branch / PR | `claude/maike-gestao-p3-01-lancamento-unico` · PR #230 (**draft**) sobre `origin/main` `7ab43f7f` |
+| Escopo | Página nativa `LancamentosFinanceiros` (tela `ges-lancamentos-financeiros`): documento PAGAR/RECEBER com ou sem produtos, rateio global, títulos/parcelas, liquidação manual e efeito de estoque só na confirmação (estorno no cancelamento), por comando composto. **Fora:** conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade, caixa/bancos, rateio por item, pedido de compra, relatórios/dashboards |
+| Migration | `20261109100000_gestao_p3_01_central_lancamentos` (8 tabelas novas, expand-only). SHA-256 `69def1b6…295bdb7`, DO `0289125d…ab4fe`, pinados. **Não aplicada em produção** |
+| Release | Bloqueada até: achados da revisão adversarial fechados e GO do proprietário → preflight só leitura (alvo, 34 migrations, checksums, backup/PITR **comprovado**, classificador) → migration autorizada (35 concluídas) → conferência → merge manual → deploy → smoke. Runbook (não executado): [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) |
+| Relatório | [`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md) |
+| Antes dela | Gestão P1 (D-PROD-146) e P2 (D-PROD-153): cadastros de Parceiros, Centros e Naturezas, sem lançamento |
+
+---
+
 ## Backend, migrations e deploy
 
 | Campo | Valor |
@@ -84,7 +98,7 @@ repositório (D-PROD-04 / P7 opcional de arquivo).
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **Missão integrada: autorização real e preferências do Mapa Geral** (**D-PROD-137**, a decisão mais recente). Parte 1 na `main` (PR #205). Parte 2 na branch `claude/autorizacao-preferencias-integradas` (HEAD `1e2b9fc5`). Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`. Antes dela: **P8 — Hardening** (**D-PROD-56**); catálogo **D-PROD-57/60/62** (#126/#130/#132); UX Base1 **H.5**; MapLibre M1/M2-A/M2-B1/M2-B2/M2-B3 (**D-PROD-58/59/61/63/64**, #127/#129/#131/#133/#134) em `main`; **MapLibre áreas unificadas + Mapa Geral MapLibre + satélite Map Tiles** (**D-PROD-65**, R1 polígonos) **mergeada** em `main` (#139, merge `e8540e7d`, CI 40876450764 verde); **paridade visual do editor de polígonos** (**D-PROD-66**) **mergeada** (#141); **fechar/finalizar polígono e prévia do formulário** (**D-PROD-67**) **mergeada** (#142); **pontos médios no cadastro de área aberta** (**D-PROD-68**, `MAPLIBRE-PONTOS-MÉDIOS-NO-CADASTRO-03`) na branch `claude/new-session-26kpxu` — PR DRAFT, merge só após auditoria |
+| Missão em execução | **MAIKE-GESTAO-P3-01 — Central Única de Lançamentos** (**D-PROD-154**, PR #230 draft; ver "Missão ativa" no topo). Registro anterior desta linha: **Missão integrada: autorização real e preferências do Mapa Geral** (**D-PROD-137**, então a decisão mais recente). Parte 1 na `main` (PR #205). Parte 2 na branch `claude/autorizacao-preferencias-integradas` (HEAD `1e2b9fc5`). Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`. Antes dela: **P8 — Hardening** (**D-PROD-56**); catálogo **D-PROD-57/60/62** (#126/#130/#132); UX Base1 **H.5**; MapLibre M1/M2-A/M2-B1/M2-B2/M2-B3 (**D-PROD-58/59/61/63/64**, #127/#129/#131/#133/#134) em `main`; **MapLibre áreas unificadas + Mapa Geral MapLibre + satélite Map Tiles** (**D-PROD-65**, R1 polígonos) **mergeada** em `main` (#139, merge `e8540e7d`, CI 40876450764 verde); **paridade visual do editor de polígonos** (**D-PROD-66**) **mergeada** (#141); **fechar/finalizar polígono e prévia do formulário** (**D-PROD-67**) **mergeada** (#142); **pontos médios no cadastro de área aberta** (**D-PROD-68**, `MAPLIBRE-PONTOS-MÉDIOS-NO-CADASTRO-03`) na branch `claude/new-session-26kpxu` — PR DRAFT, merge só após auditoria |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |
@@ -112,7 +126,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
 | P4 | Mapa Core Native Persistence | **concluída** — P4.0–P4.3 mergeadas; geografia e setor/área nativos em produção |
 | P5 | Manejo Core Native Persistence | **concluída (P5.x + P5.5)** — lotes, movimentações, bebedouros, manejo técnico nativos; ver relatórios P5.x |
-| P6 | Supporting Capabilities | **majoritariamente entregue** — cadastros, tarefas, empresa, usuários/permissoes nativos; entrada de estoque (DBT-04) permanece |
+| P6 | Supporting Capabilities | **majoritariamente entregue** — cadastros, tarefas, empresa, usuários/permissoes nativos; entrada de estoque (DBT-04) permanece; endereçada pela Gestão P3-01 (D-PROD-154) só pelo lançamento confirmado, pendente de merge e release |
 | P7 | Base44 Final Removal | **runtime concluído** (PR **#85**) — sem SDK/`VITE_BASE44_*` em `src/`; opcional: arquivar schemas `base44/` e ratchet |
 | P8 | Hardening and Release | **em curso** — fatia grants/RLS (**D-PROD-56**) aplicada no remoto; restam CSP/cookies, observabilidade, release |
 
@@ -612,7 +626,7 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 37 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry — eram 38 até a P4.1 migrar `Setor` | fechado |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
 | DBT-03 | 2.318 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.318. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → 2.319 (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`) → **2.318** (P4.0, com o contrato do `AuthContext` declarado) → 2.318 (P4.1, estável: o diagnóstico que o código novo introduziu foi corrigido no código, não absorvido). A P2 e a P3 não mexeram em `src/` e por isso não reduziram nada. *O número de abertura desta linha dizia 2.319 desde a P4.0, contradizendo a própria trajetória e a tabela de inventário do mesmo documento; corrigido na P4.1.* | P4–P8 |
-| DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
+| DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08). **Endereçado pela Gestão P3-01 (D-PROD-154), pendente de merge e release:** a entrada passa a existir só como efeito do lançamento confirmado de compra com mercadoria (`LancamentosFinanceiros`, comando composto do motor de estoque). Não há tela avulsa de entrada, e `MovimentacoesEstoque`/`LancamentoProdutosEstoque` continuam proibidas | P6 → fecha com o merge manual da PR #230, depois da migration aplicada e conferida |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,50 MB, sem code splitting | P8 |
 | DBT-07 | `LayoutCampo`/`LayoutSecao`/`LayoutConfiguracao` + `src/services/campoEngine.js` sustentam o formulário dinâmico de lote — um mini-motor de layout dentro do produto. A P2 é contrato de dados e não toca em UI (D-PROD-21); o desmonte acontece quando o lote migrar | P5 |

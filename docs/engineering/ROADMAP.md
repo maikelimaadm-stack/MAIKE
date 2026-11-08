@@ -273,6 +273,30 @@ operação). **Fora**: lançamentos, valores, saldos, caixa/bancos, tributos,
 compras, NF-e/XML, contas a pagar/receber, estoque e mapa. Relatório:
 [`MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
 
+## Track autorizado — Gestão Rural P3-01: Central Única de Lançamentos (D-PROD-154)
+
+Uma tela (`LancamentosFinanceiros`) e um documento (`OperacaoFinanceira`) para
+compras, vendas, despesas e receitas **gerenciais**: PAGAR/RECEBER, com ou sem
+produtos, à vista, a prazo ou parcelado. Tem rateio **global** por natureza e
+centros, títulos (uma linha por parcela), liquidação **manual** com estorno e perfil
+financeiro da empresa (país, moeda, locale). O lançamento só mexe no estoque (KG,
+FIFO) ao ser confirmado, e o estorna ao ser cancelado, por um comando composto.
+É a primeira entrada de estoque nativa (DBT-04), sem tela avulsa de entrada.
+Migration expand-only com 8 tabelas novas.
+
+**Estado:** PR #230 em draft. O merge é condicionado à aprovação do proprietário e
+à ordem de release do runbook
+[`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md)
+(migration autorizada e conferida **antes** do merge manual). Relatório:
+[`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md).
+
+**Próximos passos:** nenhum autorizado. Ficaram fora desta fase, cada um só com
+decisão própria do proprietário: desconto/acréscimo no custo do lote de estoque,
+rateio por item e pedido de compra. **Fora do produto** (não voltam sem emenda de
+escopo): conciliação bancária, bancos/contas bancárias/OFX, módulo de
+caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade e
+relatórios/dashboards financeiros.
+
 ---
 
 ## Fora do roadmap

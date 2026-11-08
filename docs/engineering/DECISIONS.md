@@ -165,6 +165,12 @@ proprietário** — esta missão não reescreve histórico.
 
 **Data:** 2026-07-28 · **Missão:** P0.1
 
+> **Nota posterior (D-PROD-154, 2026-11-08):** a entrada de estoque volta a
+> existir **só** como efeito do lançamento confirmado da Central Única de
+> Lançamentos (comando composto do motor de estoque), pendente de merge e release.
+> `MovimentacoesEstoque` e `LancamentoProdutosEstoque` continuam excluídas e
+> proibidas, e não há tela avulsa de entrada. O texto abaixo fica preservado.
+
 **Decisão:** `MovimentacoesEstoque` e `LancamentoProdutosEstoque` foram excluídos.
 O mapa lê `EstoqueLoteNota`/`MovimentacaoEstoque` e escreve a transferência de
 depósito pelo próprio fluxo (`FormularioTransferenciaDeposito`), sem depender
@@ -5493,6 +5499,8 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 
 > Numerada **153**: a PR #225 (já na `main`) ocupou D-PROD-147…152.
 > **Rótulo histórico imutável:** o comentário da migration `20261108100000_gestao_p2_naturezas_financeiras` (já aplicada em produção, SHA-256 `db299e1d…62f04`) cita "D-PROD-152". O arquivo não é alterado, para não mudar o checksum registrado em `_prisma_migrations`. A decisão canônica é esta, a D-PROD-153.
+>
+> **Nota posterior (D-PROD-154, 2026-11-08):** os lançamentos agora existem só na Central Única de Lançamentos gerenciais (página nativa `LancamentosFinanceiros`), nos limites da D-PROD-154. Os domínios legados citados abaixo (`Financeiro`, `PlanoContas`, `GruposFinanceiros`, `ContasFinanceiras`, `CaixaBancos`, `LancamentoFinanceiro`), assim como `FormasPagamento`, `MovimentacoesEstoque` e `LancamentoProdutosEstoque`, continuam proibidos e em `forbiddenDomains`. O texto abaixo fica preservado.
 
 - **Contexto:** o proprietário quer cadastrar antes de lançar. A P1 (D-PROD-146) cobriu "quem" (Parceiros) e "onde/qual atividade" (Centros). Falta "qual o tipo econômico" da receita ou da despesa.
 - **Decisão:**
@@ -5521,4 +5529,70 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Estado (2026-11-08):** migration aplicada em produção com autorização do proprietário e conferida: 34 concluídas, checksum igual, RLS ligado, 0 grants públicos. Falta o merge manual da PR #227. O backup/PITR não foi comprovado pelas ferramentas disponíveis.
   - Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-154 -->
+## D-PROD-154 — Gestão Rural P3-01: Central Única de Lançamentos gerenciais (documento, rateio global, títulos, liquidação manual e estoque pelo comando composto)
+
+> **Autorização explícita do proprietário:** esta expansão foi pedida e autorizada pelo proprietário na missão **MAIKE-GESTAO-P3-01** (2026-11-08). O texto foi redigido pelo agente; o merge da PR #230 continua condicionado à aprovação do proprietário no review e à ordem de release abaixo (constituição §4: o agente propõe, o proprietário aprova).
+
+- **Contexto:**
+  - A P1 (D-PROD-146) e a P2 (D-PROD-153) cadastraram "quem" (Parceiros), "onde/qual atividade" (Centros) e "qual o tipo econômico" (Naturezas), explicitamente **sem** lançamento.
+  - O proprietário pediu o passo seguinte: registrar compras, vendas, despesas e receitas num lugar só, com vencimentos, baixa manual e a mercadoria entrando e saindo do estoque sem uma segunda tela.
+  - Até aqui o produto não tinha entrada de estoque (D-PROD-08, DBT-04) nem contas a pagar/receber.
+- **Decisão — o que entra (delimitado):**
+  - **Uma tela, um núcleo:** página nativa `LancamentosFinanceiros` (tela `ges-lancamentos-financeiros`, grupo `gestao-rural`) sobre o documento `OperacaoFinanceira`: PAGAR | RECEBER × COM_PRODUTOS | SEM_PRODUTOS × AVISTA | PRAZO | PARCELADO.
+  - **Ciclo:** RASCUNHO (documento completo, validado no POST/PUT; parcelas `PREVISTO`) → prévia → CONFIRMADO (títulos `ABERTO` e efeitos de estoque) → CANCELADO (só sem liquidação ativa, isto é, com todas as baixas estornadas; estorna o estoque). Rascunho pode ser descartado; documento confirmado não é editado.
+  - **Itens** (1..200, só COM_PRODUTOS): MERCADORIA (produto + local + KG|SACO) ou SERVICO (descrição, UN, sem estoque).
+  - **Rateio GLOBAL** do documento (1..50 linhas): natureza analítica do tipo da direção (PAGAR → DESPESA, RECEBER → RECEITA, garantido também pelo banco) + centro de custo e de resultado opcionais. Modo VALOR (soma exata) ou PERCENTUAL (soma 100; resto distribuído na menor unidade pelo maior resto).
+  - **Títulos:** uma linha por parcela (AVISTA 1 com vencimento = emissão; PRAZO 1; PARCELADO 2..120), somando exatamente o total.
+  - **Liquidação manual:** fato imutável (só INSERT) por título; saldo = Σ liquidações sem estorno, recalculado sob trava. Estorno em tabela própria, um por liquidação, com motivo. `QUITADO` = liquidação registrada pelo usuário, **não** confirmação bancária. `baixa_no_ato` só no à vista.
+  - **Perfil financeiro da empresa** (onboarding obrigatório): país, moeda e locale.
+  - **Reuso, sem solução paralela:** parceiro = `Fornecedor` (papéis da P1), classificação = `NaturezaFinanceira`, centros da P1, `OperacaoIdempotente`, `reservarNumero`, `AuditLog` por allowlist (sem texto livre nem nomes), keyset.
+- **Decisão — o que fica fora** (continua proibido sem nova decisão do proprietário): conciliação bancária; bancos, contas bancárias e OFX; módulo de caixa/bancos; DRE; plano de contas; fiscal, tributos e NF-e/XML; câmbio e conversão de moeda; contabilidade; rateio por item; pedido de compra; relatórios e dashboards financeiros; ERP amplo.
+  - `config/mapa-manejo-scope.json` ganha só `LancamentosFinanceiros` em `allowedPages`. `forbiddenDomains` e `forbiddenBase44Entities` ficam intactos.
+- **Modelo (8 tabelas novas, tenant + empresa):** `PerfilFinanceiroEmpresa`, `OperacaoFinanceira`, `OperacaoFinanceiraItem`, `OperacaoFinanceiraConsumoLote` (fatias FIFO de uma saída), `OperacaoFinanceiraRateio`, `TituloFinanceiro`, `LiquidacaoFinanceira`, `LiquidacaoFinanceiraEstorno`.
+  - Toda FK inclui `cliente_id` (composta quando aponta para tabela do tenant), todas `ON DELETE RESTRICT`; `ON UPDATE CASCADE`, menos as duas do rateio que carregam direção e tipo (`ON UPDATE RESTRICT`). Itens, rateios e títulos herdam a empresa do documento pela FK `(cliente_id, empresa_id, operacao_id)`; o estorno aponta para a liquidação do **mesmo** título; nenhuma autorreferência.
+  - Duplicidade documental: `documento_chave_ativa` preenchida só enquanto CONFIRMADO, com unique (sem índice parcial).
+  - Sem enum Prisma (VarChar + CHECK). Nenhuma coluna nova em tabela antiga.
+- **Motor de estoque** (`backend/src/modules/estoqueFisico/estoqueFisicoMotor.js`), única porta de efeito físico do lançamento:
+  - Estoque interno sempre em KG. `kg = ROUND_HALF_UP(quantidade × fator_kg, 4)` é calculado uma vez e vale para item, lote, movimento, `estoque_atual`, consumo e estorno.
+  - Compra confirmada com mercadoria → `EstoqueLoteNota` + `MovimentacaoEstoque` "Entrada" (`origem_sistema = operacao_financeira`, exclusão bloqueada fora dele). Venda → saída FIFO (lotes `Disponivel`, ordem `COALESCE(data_documento, createdAt)` e `id`), com as fatias gravadas. Cancelamento → movimento de estorno vinculado (pai/filho); lote já consumido → 409 `ESTOQUE_JA_CONSUMIDO`.
+  - **Invariantes:** trava por produto (advisory lock + trava da linha do `Produto`, em ordem crescente de id) antes de qualquer leitura de produto ou lote; ordem global cabeçalho → produtos → títulos → lotes/movimentos → sequências; `estoque_atual` só por increment/decrement conferido; lote por compare-and-set; `preco_custo` intocado.
+  - **Regressão corrigida na mesma PR:** a saída da suplementação e a transferência entre locais passam a usar a mesma trava (e a suplementação grava `estoque_atual` por decrement), sem lost update com a venda.
+  - **Política de local tenant-global (declarada):** `LocalEstoque` é do tenant e compartilhado entre as empresas. O saldo de um local é sempre filtrado pela `empresa_id` dos lotes e nunca soma empresas.
+- **Regra de custo:** custo do lote de entrada = `ROUND_HALF_UP(valor_total do item / kg, 4)`. A saída grava o custo FIFO (Σ fatia × custo do lote), nunca o preço de venda. **Desconto e acréscimo do cabeçalho ficam fora do custo do estoque** nesta fase (limitação declarada; a prévia e a tela avisam). Rateio e parcelas são sempre sobre o `valor_total`, já com desconto e acréscimo.
+- **Dinheiro, moedas, PIX e locales:**
+  - Backend em Decimal (`decimalFinanceiro.js`: precisão 50, ROUND_HALF_UP, sem `Decimal.set` global), nunca float. JSON com valores em string canônica e padrão por campo; o `preValidation` das rotas recusa número onde se espera texto (o Fastify coage tipos). Frontend em BigInt de unidades mínimas.
+  - Escala = casas da moeda. Casas a mais → 400 (sem arredondar em silêncio); valor acima do que o banco guarda → 422, nunca 500.
+  - Catálogo fechado em código: moedas BRL, USD, EUR, ARS e UYU (2 casas), PYG e JPY (0), KWD (3); países BR, AR, PY, UY, US, PT, ES, JP e KW (metadado, sem efeito fiscal); locales pt-BR, pt-PT, es-AR, es-PY, es-UY, es-ES, en-US e ja-JP (formatação com algarismos latinos).
+  - PIX só no perfil BR + BRL. O documento copia moeda e casas do perfil na criação e nunca converte: um documento, uma moeda, sem câmbio. Trocar a moeda do perfil é recusado se a empresa já tem lançamento (`operacoes_existentes`); moeda diferente de BRL é recusada, também na criação do perfil, se a empresa tem lote de estoque com custo > 0 (`estoque_legado_brl`: o custo legado da fila FIFO é BRL implícito).
+- **Datas:** dia civil `AAAA-MM-DD`. Exigem o fuso da empresa (409 `EMPRESA_FUSO_NAO_CONFIGURADO`): confirmar com mercadoria ou com baixa no ato, cancelar documento com mercadoria, liquidar e estornar liquidação. A data operacional e a da liquidação precisam ser ≤ hoje da fazenda (422 `FINANCEIRO_DATA_FUTURA`); os estornos (movimento de estoque e estorno de baixa) recebem o hoje da fazenda; vencimentos podem ser futuros. Nenhuma outra data é calculada no servidor.
+- **Permissões por ação** (tela própria, padrão negado; guardas em `backend/src/shared/auth/guardasRotas.js`):
+  - `visualizar`: lista, detalhe, prévia, os 7 seletores e a leitura do perfil;
+  - `novo` ou `salvar`: criar rascunho. `editar` ou `salvar`: substituir e descartar rascunho;
+  - `confirmar`, `cancelar`, `liquidar` e `estornar_liquidacao`: caixas extras só desta tela, criadas como `false` e não implícitas em `salvar`/`editar`. `baixa_no_ato` exige também `liquidar`, conferida dentro da transação;
+  - perfil financeiro: escrita só pelo administrador real ou pela linha `is_admin`;
+  - tenant só da sessão; `empresa_id` é escopo validado no banco; documento, título ou liquidação de outro tenant ou empresa → 404 igual ao de id inexistente; referência (parceiro, natureza, centro, produto, local) de outro tenant ou empresa → 422 `OPERACAO_REFERENCIA_INVALIDA` igual ao de id inexistente. Comandos idempotentes por `operation_id`; conflito de concorrência → 409 `CONCURRENCY_CONFLICT`, seguro repetir;
+  - rota a rota: `docs/engineering/MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
+- **Exclusões existentes sem 403 enganoso:** parceiro, produto, local, lote de nota e empresa referenciados por lançamento (rascunho inclusive) respondem 409 com o código de bloqueio de cada cadastro, nada apagado. Um `PerfilFinanceiroEmpresa` sozinho já impede excluir a empresa (`EMPRESA_COM_VINCULOS`).
+- **Migration** `20261109100000_gestao_p3_01_central_lancamentos`: expand-only, só as 8 tabelas novas (33 FKs, 33 CHECKs, 25 uniques, 12 índices) e um bloco DO de RLS/REVOKE no padrão da P2.
+  - SHA-256 `69def1b65a43842270533f08485dd104ef5f2f864035a9976b743101e295bdb7`; hash do DO `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe`.
+  - Pinada em `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS` (`scripts/deploy/premergeMigrateLib.mjs`). Classificador: `expand: true`, 8 tabelas novas, 0 colunas em tabela antiga, 0 violações.
+- **Defeitos que a verificação achou e corrigiu na mesma PR** (cada um com teste que falhava antes e passa depois):
+  - **CORS sem PUT:** `METODOS` de `backend/src/shared/http/corsPolicy.js` não liberava PUT, e o navegador barrava o PUT do perfil e do rascunho entre origens diferentes; PUT incluído, com o teste P4B-04d em `transporteNativo.test.mjs`.
+  - **Ciclo de travas no rascunho (contra a ordem global):** a FK do item travava o `Produto` na ordem do array, contra a ordem crescente da confirmação (deadlock → 409); o rascunho (POST e PUT) passa a travar os produtos em ordem crescente (`FOR KEY SHARE`) antes de gravar os itens.
+  - **Curingas na busca `q`:** `%`, `_` e `\` não eram escapados (`q=%` casava tudo) na lista e nas 7 rotas de opções; passam a ser literais com o `escaparCuringasLike` já existente.
+  - **Tela — linha de estorno como baixa ativa:** o estorno aparecia como baixa nova, com botão "Estornar baixa" (404) e contando no bloqueio do cancelamento.
+  - **Tela — prévia com "Nada foi gravado.":** a frase aparecia com o rascunho já salvo; removida de `mensagemDoBloqueio`.
+  - **Tela — releitura do rascunho descartado:** depois do DELETE a tela relia o documento (GET → 404); o registro fecha antes de mexer no cache.
+  - **Tela — backend falso fora do contrato:** o falso dos testes escondia as três divergências acima; passa a seguir as formas de resposta reais (comparador real × falso).
+  - **Revisão adversarial (rodada 1):** 8 achados reproduzidos (CONCORRENCIA-1 a 5 e ESTOQUE-1 a 3), tratados nesta PR; nenhum merge com achado aberto sem aceite escrito do proprietário. Resultado de cada um no relatório.
+- **Relação com decisões anteriores (nenhuma é reescrita):**
+  - **D-PROD-08:** a entrada de estoque volta a existir, mas **só** como efeito do lançamento confirmado, pelo comando composto desta decisão. `MovimentacoesEstoque` e `LancamentoProdutosEstoque` continuam excluídas e proibidas; não há tela avulsa de entrada. O DBT-04 fica endereçado quando a PR for mergeada.
+  - **D-PROD-153:** os domínios legados citados lá (`Financeiro`, `PlanoContas`, `GruposFinanceiros`, `ContasFinanceiras`, `CaixaBancos`, `LancamentoFinanceiro`), assim como `FormasPagamento`, `FluxoCaixa`, `LivroCaixa`, `MovimentacoesEstoque` e `LancamentoProdutosEstoque`, **continuam proibidos**. `LancamentosFinanceiros` é a página **nativa** autorizada por esta decisão. O plural não é contorno do `gate:product-scope`: nenhum domínio saiu de `forbiddenDomains`, e o teste de menu continua exigindo que eles sigam proibidos.
+  - **D-PROD-146 e D-PROD-153:** os cadastros não mudam; o lançamento só os **referencia** (FK composta e validação no servidor).
+- **Consequências e release:**
+  - Ordem obrigatória: aprovação do código pelo proprietário → preflight só leitura (alvo Vercel ↔ Supabase `uuemcasqcdjucflulkne`, 34 migrations concluídas, checksums, backup/PITR **comprovado**, classificador) → autorização expressa e aplicação da migration → conferência (35 concluídas, 8 tabelas, FKs, CHECKs, RLS, 0 grants públicos) → merge manual da PR #230 → deploy → smoke. Runtime novo sem as tabelas responde 500 nas rotas novas que as usam (perfil, lista, detalhe, rascunho, prévia e comandos) e também nos caminhos antigos que passaram a contar as tabelas novas: exclusão de parceiro, produto, local de estoque e empresa, e PATCH administrativo/DELETE de lote de nota.
+  - Sem prova de backup/PITR → `RELEASE_BLOCKED`.
+  - **Estado (2026-11-08):** código na branch `claude/maike-gestao-p3-01-lancamento-unico` (PR #230, draft). Esta missão não aplicou a migration fora do PostgreSQL local de teste.
+  - Relatório: `docs/engineering/MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`.
+
+<!-- Próxima decisão: D-PROD-155 -->

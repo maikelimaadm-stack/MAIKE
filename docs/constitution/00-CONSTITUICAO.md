@@ -21,6 +21,19 @@ futuras receitas e despesas. É catálogo, não plano de contas contábil: conti
 **sem** lançamentos, valores, saldos, caixa/bancos, tributos, compras, contas a
 pagar/receber e sem efeito em estoque ou mapa.
 
+**Expansão autorizada pelo proprietário (D-PROD-154):** **Central Única de
+Lançamentos gerenciais** (página `LancamentosFinanceiros`, missão
+MAIKE-GESTAO-P3-01): um documento a pagar ou a receber, com ou sem produtos, com
+rateio global por natureza e centros, títulos/parcelas e liquidação manual
+registrada pelo usuário. O lançamento só mexe no estoque ao ser **confirmado**
+(entrada na compra, saída FIFO na venda) ou cancelado (estorno), por um comando
+composto; não há tela avulsa de entrada, e a suplementação e a transferência do
+Mapa Geral continuam como estão. Continua **fora**: conciliação, bancos/OFX, caixa/bancos,
+DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade, rateio por
+item, pedido de compra e relatórios/dashboards financeiros. O MAIKE não volta a
+ser ERP amplo. Texto redigido pelo agente; vale com a aprovação explícita do
+proprietário no merge manual (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório
