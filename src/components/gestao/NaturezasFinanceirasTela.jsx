@@ -84,7 +84,8 @@ export default function NaturezasFinanceirasTela() {
     exportColumns: NATUREZAS_COLUNAS,
     getExportFieldValue: getNaturezaFieldValue,
     getRecordTitle: (item) => (item?.id ? item.nome || "Natureza financeira" : "Nova natureza financeira"),
-    getRecordCode: (item) => (item?.numero != null ? String(item.numero) : undefined),
+    // Rascunho de "Duplicar" herda `numero` do original: código só de registro gravado (R1).
+    getRecordCode: (item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
     getSearchHaystack: (n) => [n.nome, n.descricao, n.numero, n.pai_nome, n.caminho].filter((v) => v != null).join(" "),
     mapSearchSuggestion: (n) => ({ id: String(n.id), label: n.nome || "Natureza", secondary: n.pai_nome ? `em ${n.pai_nome}` : undefined }),
     matchRowId: (n, id) => String(n.id) === String(id),
@@ -252,7 +253,7 @@ export default function NaturezasFinanceirasTela() {
         columnsForCardsToolbar={NATUREZAS_COLUNAS}
         controller={{ ...controller, saving }}
         listErrorMessage={listErrorMessage}
-        recordCode={registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
+        recordCode={registroAtual?.id && registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
         listBanner={aviso}
         showCreate={podeGravar && acoes.criar}
         showDuplicate={podeGravar && acoes.criar}

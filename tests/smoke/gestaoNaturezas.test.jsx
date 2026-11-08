@@ -88,6 +88,8 @@ let paisGrandes;
 let proximaResposta;
 /** @type {Promise<void> | null} PATCH segurado até o teste liberar (resposta atrasada). */
 let segurarPatch;
+/** @type {(query: URLSearchParams) => any} falha injetável nas opções de pai (R1). */
+let opcoesPaisFalha = () => null;
 
 /** Ids do nó e de toda a subárvore (como o servidor faz com `excluir_id`). */
 const subarvore = (lista, raizId) => {
@@ -132,6 +134,7 @@ beforeEach(async () => {
   paisGrandes = null;
   proximaResposta = null;
   segurarPatch = null;
+  opcoesPaisFalha = () => null;
   backend = instalarBackendFake(async ({ method, path, query, body }) => {
     if (proximaResposta && method !== 'GET') {
       const r = proximaResposta;
@@ -146,7 +149,7 @@ beforeEach(async () => {
         .filter((n) => ativo == null || String(n.ativo) === ativo);
       return { status: 200, body: envelope(itens) };
     }
-    if (method === 'GET' && path === '/naturezas-financeiras-opcoes/pais') return { status: 200, body: opcoesPais(query) };
+    if (method === 'GET' && path === '/naturezas-financeiras-opcoes/pais') return opcoesPaisFalha(query) ?? { status: 200, body: opcoesPais(query) };
     if (method === 'POST' && path === '/naturezas-financeiras') {
       const pai = body.pai_id ? registros['emp-1'].find((n) => n.id === body.pai_id) : null;
       return { status: 201, body: natureza('n9', 9, body.tipo, body.nome, pai) };
@@ -549,5 +552,61 @@ describe('Naturezas — resposta atrasada depois de trocar de empresa', () => {
     expect(nome.value).toBe('OUTRA EMPRESA DESPESA');
     expect(screen.queryByText('Natureza financeira atualizada')).toBeNull();
     expect(backend.chamadas.find((c) => c.method === 'PATCH')).toMatchObject({ path: '/naturezas-financeiras/n4', body: { empresa_id: 'emp-1', nome: 'LUZ' } });
+  });
+});
+
+describe('Naturezas — R1: duplicar e falha nas opções de pai', () => {
+  it('duplicar: novo rascunho sem id nem código do original; POST sem id/numero, com o mesmo tipo e pai', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('n2');
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
+    const form = await screen.findByTestId('b1-form');
+    await waitFor(() => expect(within(form).getByRole('combobox', { name: 'Tipo' })).toBeTruthy());
+    // cabeçalho do rascunho não pode exibir o código "2" do original
+    expect(document.querySelector('.mg-b1-record-sep')).toBeNull();
+    expect(screen.getByTestId('seletor-pai-natureza')).toHaveTextContent('INSUMOS');
+    fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'ração 2' } });
+    salvar();
+    await screen.findByText('Natureza financeira criada');
+    const post = backend.chamadas.find((c) => c.method === 'POST').body;
+    expect(post).toEqual({ empresa_id: 'emp-1', tipo: 'DESPESA', nome: 'RAÇÃO 2', pai_id: 'n1' });
+  });
+
+  it('falha na 1ª página de pais: alerta + "Tentar novamente" recarrega e mostra as opções', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('n4');
+    editar();
+    let falhar = true;
+    opcoesPaisFalha = () => (falhar ? erroServidor(503, 'SERVICE_UNAVAILABLE') : null);
+    abrirSeletorPai();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/opções de pai|tente/i);
+    expect(within(listaPais()).queryByRole('option', { name: /INSUMOS/ })).toBeNull();
+    falhar = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await within(listaPais()).findByRole('option', { name: /^1\s*INSUMOS$/ });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('falha ao carregar mais: avisa que a lista está incompleta e "Tentar novamente" segue o mesmo cursor', async () => {
+    paisGrandes = Array.from({ length: 120 }, (_, i) => natureza(`g${i + 1}`, 100 + i, 'DESPESA', `NAT ${String(i + 1).padStart(4, '0')}`));
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('n1');
+    editar();
+    abrirSeletorPai();
+    await within(listaPais()).findByRole('option', { name: /NAT 0050$/ });
+    opcoesPaisFalha = (query) => (query.get('cursor') ? erroServidor(503, 'SERVICE_UNAVAILABLE') : null);
+    fireEvent.click(screen.getByRole('button', { name: 'Carregar mais' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/incompleta/i);
+    // as 50 já carregadas continuam escolhíveis
+    expect(within(listaPais()).getByRole('option', { name: /NAT 0050$/ })).toBeTruthy();
+    opcoesPaisFalha = () => null;
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await within(listaPais()).findByRole('option', { name: /NAT 0100$/ });
+    const cursores = chamadasPais().map((c) => c.query.cursor).filter(Boolean);
+    expect(cursores.every((c) => c === '50')).toBe(true);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

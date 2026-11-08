@@ -70,6 +70,8 @@ export default function SeletorPaiNatureza({ empresaId, tipo, excluirId = null, 
     return lista;
   }, [consulta.data]);
 
+  const temPaginas = (consulta.data?.pages?.length ?? 0) > 0;
+
   const escolher = (opcao) => {
     onChange(opcao ? { id: String(opcao.id), rotulo: opcao.caminho || opcao.nome } : null);
     setAberto(false);
@@ -140,14 +142,30 @@ export default function SeletorPaiNatureza({ empresaId, tipo, excluirId = null, 
           </ul>
           {consulta.isLoading ? <p className="px-2 py-1 text-xs text-[var(--mg-text-2,#475569)]">Carregando…</p> : null}
           {consulta.isError ? (
-            <p role="alert" className="px-2 py-1 text-xs text-red-700">
-              {mensagemErroGestao(consulta.error, "Não foi possível carregar as opções de pai.")}
-            </p>
+            // R1: falha nunca passa por lista completa. Sem página nenhuma →
+            // recarrega do início; com páginas → a lista é PARCIAL e "Tentar
+            // novamente" repete o MESMO cursor (as já carregadas seguem escolhíveis).
+            <div role="alert" className="px-2 py-1 text-xs text-red-700">
+              <p>
+                {temPaginas
+                  ? "Lista incompleta: não foi possível carregar mais opções de pai."
+                  : "Não foi possível carregar as opções de pai."}{" "}
+                {mensagemErroGestao(consulta.error, "")}
+              </p>
+              <button
+                type="button"
+                onClick={() => (temPaginas ? consulta.fetchNextPage() : consulta.refetch())}
+                disabled={consulta.isFetching}
+                className="mt-1 h-9 w-full rounded border border-red-300 font-medium"
+              >
+                {consulta.isFetching ? "Carregando…" : "Tentar novamente"}
+              </button>
+            </div>
           ) : null}
           {!consulta.isLoading && !consulta.isError && opcoes.length === 0 ? (
             <p className="px-2 py-1 text-xs text-[var(--mg-text-2,#475569)]">{q ? "Nenhuma natureza encontrada para a busca." : "Nenhuma natureza ativa deste tipo para ser pai."}</p>
           ) : null}
-          {consulta.hasNextPage ? (
+          {consulta.hasNextPage && !consulta.isError ? (
             <button
               type="button"
               onClick={() => consulta.fetchNextPage()}
