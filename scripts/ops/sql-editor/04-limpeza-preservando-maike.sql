@@ -13,7 +13,7 @@
 -- GARANTIAS (falha fechada; qualquer erro desfaz TUDO):
 --   - Uma única transação; fora dela, para antes de alterar.
 --   - Confere alvo, 25/25 migrations (as 7 da PR com o checksum do repositório),
---     o conjunto EXATO de 62 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-152), cliente_id, ordem das FKs, nenhuma FK de
+--     o conjunto EXATO de 62 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153), cliente_id, ordem das FKs, nenhuma FK de
 --     fora do tenant com linhas, RLS e grants; exatamente 1 cliente ("maike",
 --     ativo) e 1 conta ("maike", ativa, nesse cliente); todas as linhas de tenant
 --     desse cliente. Trava as tabelas e RECONFERE tudo, inclusive a impressão.
@@ -242,7 +242,7 @@ BEGIN
   -- D-PROD-146: árvores dos centros (FK composta com pai_id anulável).
   UPDATE "CentroCusto" SET pai_id = NULL WHERE cliente_id = v_cliente_id AND pai_id IS NOT NULL;
   UPDATE "CentroResultado" SET pai_id = NULL WHERE cliente_id = v_cliente_id AND pai_id IS NOT NULL;
-  -- D-PROD-152: árvore das naturezas financeiras (FK composta com pai_id anulável).
+  -- D-PROD-153: árvore das naturezas financeiras (FK composta com pai_id anulável).
   UPDATE "NaturezaFinanceira" SET pai_id = NULL WHERE cliente_id = v_cliente_id AND pai_id IS NOT NULL;
   FOREACH v_tab IN ARRAY c_tenant LOOP
     CONTINUE WHEN v_tab = 'Usuario';

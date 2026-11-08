@@ -1,4 +1,4 @@
-# MAIKE — Gestão P2: Naturezas Financeiras gerenciais (D-PROD-152)
+# MAIKE — Gestão P2: Naturezas Financeiras gerenciais (D-PROD-153)
 
 **Pedido do proprietário:** cadastrar **naturezas de receita e despesa**, com hierarquia, para classificar operações futuras.
 
@@ -12,10 +12,10 @@
   - acrescenta evidência visual reproduzível (§6);
   - corrige a descrição das FKs (§2);
   - completa este relatório.
-- **PR #225 (aberta, não incorporada):**
-  - é só visual, tem 65 arquivos e reserva as decisões D-PROD-147 a 151;
-  - por isso esta slice usa a **D-PROD-152**;
-  - a colisão com a P2 é só textual, no fim de `docs/engineering/DECISIONS.md` (§7).
+- **PR #225 (visual, já mergeada na `main` `b42658c0`):**
+  - ocupou as decisões D-PROD-147 a **152** (a 152 é o cabeçalho mobile do mapa/módulos);
+  - por isso a decisão canônica desta slice é a **D-PROD-153**. As rodadas anteriores usavam 152; foi renumerada na R3 (§13);
+  - o comentário da migration já aplicada continua dizendo "D-PROD-152". É um **rótulo histórico imutável** do artefato, mantido para não mudar o checksum registrado em produção (§13).
 
 ---
 
@@ -341,14 +341,7 @@ Nesta rodada o cluster local tinha caído na reciclagem do container ("stale pid
 - **Onde ficam os resultados finais:** o exit code do `verify:all` local reexecutado no HEAD final e a run da CI GitHub (`verify:all`) do **HEAD exato** ficam no corpo da PR #227. Um commit não consegue citar o próprio hash.
 
 ### Reconciliação com a PR #225
-- **Estado:** a #225 continua **aberta e não foi incorporada**. A P2 não reserva novas decisões.
-- **Conflito esperado:** ao entrar na `main`, ela adiciona D-PROD-147…151 ao fim de `DECISIONS.md`, no mesmo ponto em que a P2 adicionou a D-PROD-152.
-- **Resolução** (manual e trivial, histórico append-only):
-  - ordenar as entradas em 147…151 e depois 152;
-  - manter um único marcador `<!-- Próxima decisão: D-PROD-153 -->`.
-- **Dependência visual:** a #225 muda botões, tipografia e fundo de forma transversal (CSS).
-  - A tela P2 usa os mesmos componentes Base1 e herdará o visual.
-  - Depois do merge da #225, as capturas devem ser regeneradas com o script da §6.
+- **Estado (R3):** a #225 foi **mergeada na `main`** (`b42658c0`) e integrada nesta branch por merge normal. Detalhes, conflito e evidências na §13.
 
 ## 8. Riscos residuais e limitações intencionais
 
@@ -405,7 +398,7 @@ Só roda depois de **aprovação arquitetural e autorização específica do pro
 9. **Só então:** merge manual da PR #227 e deploy.
 
 ## 11. Referências
-- **Decisão:** `docs/engineering/DECISIONS.md` § D-PROD-152.
+- **Decisão:** `docs/engineering/DECISIONS.md` § D-PROD-153 (até a R2 era 152; ver §13).
 - **Roadmap:** `docs/engineering/ROADMAP.md`.
 - **Escopo:** `docs/constitution/00-CONSTITUICAO.md`.
 - **Cobertura de permissões:** `docs/engineering/MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.

@@ -119,7 +119,7 @@ describe('R5 e Ativo nos cards', () => {
     const noTopo = new Set(['numero', 'nome']);
     expect(PARCEIROS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toContain('ativo');
     expect(CENTROS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toEqual(['pai', 'descricao', 'ativo']);
-    // D-PROD-152: Naturezas — Tipo, Pai e Ativo.
+    // D-PROD-153: Naturezas — Tipo, Pai e Ativo.
     expect(NATUREZAS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toEqual(['tipo', 'pai', 'ativo']);
   });
 

@@ -2,7 +2,7 @@
  * D-PROD-146 — grupo "Gestão Rural" no menu e no gerenciador de permissões.
  *
  *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as quatro telas
- *    (P1: Parceiros e Centros, D-PROD-146; P2: Naturezas Financeiras, D-PROD-152);
+ *    (P1: Parceiros e Centros, D-PROD-146; P2: Naturezas Financeiras, D-PROD-153);
  *  - o menu (shell real, Layout) mostra o grupo só para quem tem alguma das telas;
  *  - padrão para não-admin = NEGADO (sem concessão automática); admin vê tudo;
  *  - a tela Permissões lista as quatro telas com as ações, desligadas por padrão;
@@ -93,7 +93,7 @@ describe('GES-M1 — SSOT de menu, páginas e escopo', () => {
     const scope = JSON.parse(readFileSync('config/mapa-manejo-scope.json', 'utf8'));
     expect(scope.allowedPages).toEqual(expect.arrayContaining(['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras']));
     expect(scope.forbiddenDomains).not.toContain('CentrosCusto');
-    // D-PROD-152: a P2 só ganha a página; os domínios financeiros continuam proibidos.
+    // D-PROD-153: a P2 só ganha a página; os domínios financeiros continuam proibidos.
     for (const d of [
       'Fornecedores', 'Financeiro', 'PlanoContas', 'GruposFinanceiros', 'ContasFinanceiras', 'CaixaBancos',
       'LancamentoFinanceiro', 'FluxoCaixa', 'MovimentacoesEstoque',

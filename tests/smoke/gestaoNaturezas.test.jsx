@@ -1,5 +1,5 @@
 /**
- * D-PROD-152 — tela Naturezas Financeiras montada de verdade (página, motor
+ * D-PROD-153 — tela Naturezas Financeiras montada de verdade (página, motor
  * Base1, service, API, porta e nativeHttpClient reais). Mocks só da borda:
  * `fetch` (backend falso) e a sessão (usuário/permissão efetiva, tenant do JWT).
  */

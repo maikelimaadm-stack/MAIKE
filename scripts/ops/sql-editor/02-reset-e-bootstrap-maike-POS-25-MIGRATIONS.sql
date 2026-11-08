@@ -20,7 +20,7 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 62 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-152), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 62 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
@@ -217,7 +217,7 @@ BEGIN
   -- D-PROD-146: árvores dos centros (FK composta com pai_id anulável).
   UPDATE "CentroCusto" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
   UPDATE "CentroResultado" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
-  -- D-PROD-152: árvore das naturezas financeiras (FK composta com pai_id anulável).
+  -- D-PROD-153: árvore das naturezas financeiras (FK composta com pai_id anulável).
   UPDATE "NaturezaFinanceira" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
   FOREACH v_tab IN ARRAY c_tenant LOOP
     EXECUTE format('DELETE FROM public.%I WHERE cliente_id = ANY ($1)', v_tab) USING v_ids;

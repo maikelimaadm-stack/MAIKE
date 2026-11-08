@@ -52,7 +52,7 @@ export const TELAS = Object.freeze({
   PARCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-parceiros' }),
   CENTROS_CUSTO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-custo' }),
   CENTROS_RESULTADO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-resultado' }),
-  // D-PROD-152 — Gestão P2.
+  // D-PROD-153 — Gestão P2.
   NATUREZAS_FINANCEIRAS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-naturezas-financeiras' }),
 });
 

@@ -1,5 +1,5 @@
 /**
- * Porta nativa das Naturezas Financeiras gerenciais (D-PROD-152). Só online;
+ * Porta nativa das Naturezas Financeiras gerenciais (D-PROD-153). Só online;
  * tenant só no JWT; `empresa_id` é escopo (query na leitura, corpo na gravação).
  */
 

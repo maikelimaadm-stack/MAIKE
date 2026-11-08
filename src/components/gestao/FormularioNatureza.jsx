@@ -14,7 +14,7 @@ const OPCOES_TIPO = [
 ];
 
 /**
- * Formulário da Natureza Financeira gerencial (D-PROD-152).
+ * Formulário da Natureza Financeira gerencial (D-PROD-153).
  *  - criação: Receita ou Despesa escolhido EXPLICITAMENTE (sem padrão);
  *    trocar o tipo limpa o pai escolhido;
  *  - edição: tipo fixo (só leitura; o servidor não aceita mudar), pai editável;

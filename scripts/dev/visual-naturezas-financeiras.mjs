@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-152 (R1) — evidência visual reproduzível da tela Naturezas Financeiras.
+ * D-PROD-153 (R1) — evidência visual reproduzível da tela Naturezas Financeiras.
  *
  * Usa os COMPONENTES REAIS (Vite dev) com o BACKEND FALSO deste arquivo
  * (`page.route` em /api/native/**): nenhuma chamada sai para banco ou API real.
@@ -83,7 +83,7 @@ const responder = (rota, q, estado) => {
   return [];
 };
 
-const FAIXA = `(() => { const f = document.createElement('div'); f.textContent = 'BACKEND FALSO — evidência visual (D-PROD-152)';
+const FAIXA = `(() => { const f = document.createElement('div'); f.textContent = 'BACKEND FALSO — evidência visual (D-PROD-153)';
   f.setAttribute('style','position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#7c2d12;color:#fff;font:600 11px system-ui;text-align:center;padding:2px;pointer-events:none');
   document.body.appendChild(f); })()`;
 

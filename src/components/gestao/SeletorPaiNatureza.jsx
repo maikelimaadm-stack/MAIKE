@@ -19,7 +19,7 @@ function useValorAtrasado(valor, ms) {
 }
 
 /**
- * Seletor de natureza pai (D-PROD-152) — PAGINADO e pesquisado no servidor:
+ * Seletor de natureza pai (D-PROD-153) — PAGINADO e pesquisado no servidor:
  * nada de carregar todas as naturezas. Digitar busca com `q` (com espera),
  * "Carregar mais" segue `next_cursor`. Só oferece ativas do `tipo` do
  * formulário; na edição o servidor tira o próprio nó e a subárvore

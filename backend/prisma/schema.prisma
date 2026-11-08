@@ -1860,7 +1860,7 @@ model CentroCustoResultado {
   @@index([cliente_id, empresa_id, centro_resultado_id])
 }
 
-/// D-PROD-152 — Gestão P2: natureza financeira GERENCIAL (catálogo que classifica
+/// D-PROD-153 — Gestão P2: natureza financeira GERENCIAL (catálogo que classifica
 /// futuras receitas e despesas: "qual o tipo econômico?"). Não é plano de contas
 /// contábil, não guarda valor, saldo nem lançamento. Árvore opcional do MESMO
 /// tipo (RECEITA ou DESPESA), mesmo tenant e mesma empresa, garantida pela FK

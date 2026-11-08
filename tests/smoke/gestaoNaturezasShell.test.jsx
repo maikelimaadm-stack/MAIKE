@@ -1,5 +1,5 @@
 /**
- * D-PROD-152 — Naturezas Financeiras dentro do shell real (Layout):
+ * D-PROD-153 — Naturezas Financeiras dentro do shell real (Layout):
  *  - a tela declara `permissaoExplicita`: o ✓ Salvar do cabeçalho do celular
  *    segue a regra do servidor (editar OU salvar) e quem só tem "editar" grava;
  *  - deep link `/naturezasfinanceiras` (mesma convenção de `/parceiros`).

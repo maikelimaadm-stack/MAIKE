@@ -1,5 +1,5 @@
 /**
- * D-PROD-152 — Naturezas financeiras GERENCIAIS (Gestão P2).
+ * D-PROD-153 — Naturezas financeiras GERENCIAIS (Gestão P2).
  *
  * Catálogo que classifica FUTURAS receitas e despesas pelo tipo econômico
  * ("qual foi o tipo da receita/despesa?"). Não é plano de contas contábil e não

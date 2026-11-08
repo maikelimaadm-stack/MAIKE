@@ -15,7 +15,7 @@ Parceiros, Centros de Custo e Centros de Resultado, com o vínculo entre os cent
 **sem financeiro transacional** (nada de naturezas, plano de contas, lançamentos,
 contas a pagar/receber, compras ou movimento de estoque nesta expansão).
 
-**Expansão autorizada pelo proprietário (D-PROD-152):** cadastro de **Naturezas
+**Expansão autorizada pelo proprietário (D-PROD-153):** cadastro de **Naturezas
 Financeiras gerenciais** (RECEITA/DESPESA, com hierarquia) para classificar
 futuras receitas e despesas. É catálogo, não plano de contas contábil: continua
 **sem** lançamentos, valores, saldos, caixa/bancos, tributos, compras, contas a

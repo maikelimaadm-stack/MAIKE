@@ -1,5 +1,5 @@
 /**
- * Service das Naturezas Financeiras gerenciais (D-PROD-152).
+ * Service das Naturezas Financeiras gerenciais (D-PROD-153).
  *
  * Catálogo GERENCIAL por empresa (RECEITA | DESPESA, hierarquia opcional) —
  * não é plano de contas e não gera lançamento ou valor. `tipo` é escolhido na

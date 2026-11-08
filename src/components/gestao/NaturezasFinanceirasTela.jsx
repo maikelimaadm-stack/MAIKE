@@ -45,7 +45,7 @@ export function FiltroTipoNatureza({ value, onChange }) {
 }
 
 /**
- * Naturezas Financeiras gerenciais (D-PROD-152) — catálogo RECEITA/DESPESA com
+ * Naturezas Financeiras gerenciais (D-PROD-153) — catálogo RECEITA/DESPESA com
  * hierarquia opcional, por empresa. Sem exclusão física: "Excluir" = inativar,
  * com confirmação. Online só. Mesmas salvaguardas da P1 (empresa real, resposta
  * atrasada de outra empresa não mexe no registro aberto, permissão explícita).

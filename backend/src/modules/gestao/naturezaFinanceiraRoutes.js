@@ -1,5 +1,5 @@
 /**
- * D-PROD-152 — rotas das Naturezas Financeiras gerenciais (Gestão P2).
+ * D-PROD-153 — rotas das Naturezas Financeiras gerenciais (Gestão P2).
  * Corpo e query fechados (`additionalProperties: false`); tenant só da sessão;
  * cada rota exige a ação da PRÓPRIA tela (nunca `semTela` nem só autenticação).
  * `tipo` só na criação; `empresa_id` é escopo (não muda o registro).
