@@ -4,11 +4,11 @@
  * Fundo de superfície = #FAFCFE (D-PROD-149).
  */
 :root {
-  /* Desktop ≥1024: 32px / 14px. Mobile+tablet ≤1023: 44px / 18px (mesma proporção). */
+  /* Desktop ≥1024: 32px / 14px. Mobile+tablet ≤1023: 40px / 17px (mesma proporção). */
   --mk-action-height: 32px;
-  --mk-action-height-touch: 44px;
+  --mk-action-height-touch: 40px;
   --mk-action-icon: 14px;
-  --mk-action-icon-touch: 18px;
+  --mk-action-icon-touch: 17px;
   --mk-action-stroke: 2.25;
   --mk-action-font: 13px;
   --mk-action-fg: #334155;
@@ -431,7 +431,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   background: var(--mk-btn-bg) !important;
 }
 
-/* Mobile + tablet: botão 44px / ícone 18px + tipografia um passo maior. */
+/* Mobile + tablet: botão 40px / ícone 17px + tipografia um passo maior. */
 @media (max-width: 1023px) {
   :root {
     --mk-action-height: var(--mk-action-height-touch);

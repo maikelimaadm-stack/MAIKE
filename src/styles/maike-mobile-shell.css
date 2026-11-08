@@ -2466,28 +2466,28 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 }
 
-/* Barra Base1 no celular/tablet: botões touch (44px) */
+/* Barra Base1 no celular/tablet: botões touch (40px) */
 @media (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: var(--mk-action-height-touch, 44px);
+    --mg-btn-h: var(--mk-action-height-touch, 40px);
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon),
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
-    min-height: var(--mk-action-height-touch, 44px) !important;
-    height: var(--mk-action-height-touch, 44px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon {
-    width: var(--mk-action-height-touch, 44px) !important;
-    min-width: var(--mk-action-height-touch, 44px) !important;
-    height: var(--mk-action-height-touch, 44px) !important;
-    min-height: var(--mk-action-height-touch, 44px) !important;
+    width: var(--mk-action-height-touch, 40px) !important;
+    min-width: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic.mg-fluid-slot__ghost {
@@ -2496,7 +2496,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
-    min-height: var(--mk-action-height-touch, 44px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
     padding: 3px !important;
   }
 
@@ -2508,8 +2508,8 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .mg-rec-pager__btn {
-    width: var(--mk-action-height-touch, 44px);
-    height: var(--mk-action-height-touch, 44px);
+    width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px);
   }
 }
 
@@ -3311,14 +3311,14 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 /* Mesmo tamanho para todos os botões da barra no celular/tablet */
 @media (max-width: 1023px) {
   .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao) {
-    min-width: var(--mk-action-height-touch, 44px);
-    height: var(--mk-action-height-touch, 44px) !important;
-    min-height: var(--mk-action-height-touch, 44px) !important;
+    min-width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
   }
 
   .mg-rec-pager__btn:not(#mk-padrao) {
-    width: var(--mk-action-height-touch, 44px);
-    height: var(--mk-action-height-touch, 44px);
+    width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px);
   }
 }
 

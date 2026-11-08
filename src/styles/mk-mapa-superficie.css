@@ -1,16 +1,8 @@
 /* Mapa Geral e seus painéis usam os mesmos tokens dos cadastros. */
 .mk-mapa {
-  --mk-mapa-alto: 44px;
+  --mk-mapa-alto: var(--mk-action-height);
   --mk-mapa-texto: #292a2d;
   background: var(--mk-sup-fundo);
-}
-/* Celular/tablet: controles do mapa um pouco maiores ao toque. */
-@media (max-width: 1023px) {
-  .mk-mapa { --mk-action-height: var(--mk-mapa-alto); }
-}
-/* Desktop: mesma altura 32px dos botões de ação do sistema (:root). */
-@media (min-width: 1024px) {
-  .mk-mapa { --mk-mapa-alto: var(--mk-action-height); }
 }
 .mk-mapa-card:not(#mk-padrao) {
   background: #fff;
