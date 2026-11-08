@@ -31,6 +31,7 @@ import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idem
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
+import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
@@ -323,6 +324,13 @@ const documentoDoBanco = (op, itens, rateios, titulos) => ({
 const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
   const base = { cliente_id: clienteId, empresa_id: op.empresa_id };
   if (plano.itens.length) {
+    // §8.4: a FK do item trava o Produto (FOR KEY SHARE) na ORDEM DOS ITENS; a
+    // confirmação/comandos travam FOR UPDATE em ordem CRESCENTE de id. Itens em
+    // ordem decrescente fechavam um ciclo (deadlock → 409). Trava antes, crescente.
+    const produtoIds = unicos(plano.itens.map((i) => i.produto_id)).sort();
+    if (produtoIds.length) {
+      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${clienteId} AND id = ANY(${produtoIds}::text[]) ORDER BY id FOR KEY SHARE`;
+    }
     await tx.operacaoFinanceiraItem.createMany({
       data: plano.itens.map((i) => ({
         ...base,
@@ -613,12 +621,14 @@ export const listar = async (contexto, query = {}) => {
   if (query.com_estoque === 'false') AND.push({ itens: { none: { tipo_item: 'MERCADORIA' } } });
   const q = typeof query.q === 'string' ? query.q.trim() : '';
   if (q) {
+    // Busca literal: o `contains` do Prisma não escapa `%`/`_` (q=% casaria tudo).
+    const literal = escaparCuringasLike(q);
     AND.push({
       OR: [
-        { numero: { contains: q } },
-        { documento_referencia: { contains: q, mode: 'insensitive' } },
-        { parceiro_nome: { contains: q, mode: 'insensitive' } },
-        { descricao: { contains: q, mode: 'insensitive' } },
+        { numero: { contains: literal } },
+        { documento_referencia: { contains: literal, mode: 'insensitive' } },
+        { parceiro_nome: { contains: literal, mode: 'insensitive' } },
+        { descricao: { contains: literal, mode: 'insensitive' } },
       ],
     });
   }

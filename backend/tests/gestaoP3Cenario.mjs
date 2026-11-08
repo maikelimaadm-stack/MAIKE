@@ -26,7 +26,7 @@ export const http = (app) => {
   const ok = async (r, status = 200) => {
     const x = await r;
     assert.equal(x.statusCode, status, x.body);
-    return x.json();
+    return status === 204 ? null : x.json();
   };
   return { req, ok };
 };

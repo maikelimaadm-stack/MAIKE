@@ -11,6 +11,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
 import { caminhosDe } from '../gestao/naturezaFinanceiraService.js';
+import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { CASAS_QUANTIDADE, ZERO, dec, texto } from './decimalFinanceiro.js';
 
 export const LIMITE_OPCOES_PADRAO = 50;
@@ -31,7 +32,8 @@ const paginacao = (query) => {
   const limit = Number.isInteger(n) && n >= 1 ? Math.min(n, LIMITE_OPCOES_MAXIMO) : LIMITE_OPCOES_PADRAO;
   const cursor = query.cursor ? decodificar(query.cursor) : null;
   if (query.cursor && !cursor) throw invalido('cursor inválido', { field: 'cursor', reason: 'cursor_invalido' });
-  const q = typeof query.q === 'string' ? query.q.trim() : '';
+  // Busca literal: o `contains` do Prisma não escapa `%`/`_` (q=% casaria tudo).
+  const q = typeof query.q === 'string' ? escaparCuringasLike(query.q.trim()) : '';
   return { limit, cursor, q };
 };
 
