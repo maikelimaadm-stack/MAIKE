@@ -44,15 +44,20 @@
 .mk-mhdr__back > span:not(#mk-padrao) {
   box-shadow: var(--mk-btn-sombra) !important;
 }
+/* Positivos na superfície: reforço caso regras locais tentem o branco. */
+:is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+:is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) svg {
+  color: #fff !important;
+}
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
-.tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .mg-rec-pager__btn:not(#mk-padrao),
 .mk-sheet__close:not(#mk-padrao),
-.mk-sheet__new:not(#mk-padrao),
 .mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
-.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao),
 .mk-mhdr__round:not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   border-color: transparent !important;
@@ -61,7 +66,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled),
   .mg-rec-pager__btn:not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-hover) !important;
@@ -265,12 +269,15 @@
   background: var(--mk-sup-cartao);
 }
 
-/* O toque pode manter :hover ativo no Safari. O repouso continua branco. */
+/* O toque pode manter :hover ativo no Safari. Neutros voltam ao branco; positivos ao verde. */
 @media (hover: none) {
   .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-bg) !important;
+  }
+  :is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+    color: #fff !important;
   }
 }
 
@@ -311,7 +318,11 @@
   box-shadow: var(--mk-btn-sombra);
 }
 
-.mk-ll__btn--verde:not(#mk-padrao) { color: #16a34a; }
+.mk-ll__btn--verde:not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.mk-ll__btn--verde:not(#mk-padrao) svg { color: #fff !important; }
 .mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
 .mk-ll__btn--cinza:not(#mk-padrao) { color: #475569; }
 

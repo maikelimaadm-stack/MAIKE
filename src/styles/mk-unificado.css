@@ -15,6 +15,10 @@
   --mk-action-fg-green: #16a34a;
   --mk-action-fg-red: #dc2626;
   --mk-action-fg-muted: #5b6b80;
+  /* Positivos (Novo / Adicionar / Salvar / Aplicar): verde do sistema + letra branca */
+  --mk-action-positive-bg: var(--mg-accent, #40de63);
+  --mk-action-positive-hover: var(--mg-accent-hover, #36c956);
+  --mk-action-positive-fg: #ffffff;
   /* Tipografia Filtros/Camadas → sistema */
   --mk-font-list: 11px;
   --mk-font-field: 11px;
@@ -275,8 +279,8 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   --portal-acao-bg: var(--mk-btn-bg);
   --portal-acao-hover: var(--mk-btn-hover);
 }
-:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo,
- .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-ll-dlg__redondo,
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
   border: 1px solid transparent;
@@ -303,14 +307,46 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 .mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: var(--mk-action-fg-red); }
 .mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: var(--mk-action-fg-green); }
 
-/* Semântica de ação: branco + ícone/texto colorido (nunca fill verde/vermelho na barra). */
-:is(.tb-btn.tb-btn-green, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) {
-  background: var(--mk-btn-bg, #ffffff) !important;
-  color: var(--mk-action-fg-green) !important;
+/* Positivos: Novo / Adicionar / Salvar / Aplicar / ✓ — verde do sistema + letra/ícone brancos. */
+:is(
+  .tb-btn.tb-btn-green,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .mk-ll__btn--verde,
+  .mk-launch-action.tb-btn-green
+):not(#mk-padrao) {
+  background: var(--mk-action-positive-bg) !important;
+  color: var(--mk-action-positive-fg) !important;
+  border: 1px solid transparent !important;
+  box-shadow: var(--mk-btn-sombra) !important;
 }
-:is(.tb-btn.tb-btn-green, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) svg {
-  color: var(--mk-action-fg-green) !important;
+:is(
+  .tb-btn.tb-btn-green,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .mk-ll__btn--verde,
+  .mk-launch-action.tb-btn-green
+):not(#mk-padrao) svg {
+  color: var(--mk-action-positive-fg) !important;
   stroke: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(
+    .tb-btn.tb-btn-green,
+    .cadastro-b1 .tb-btn.mg-act-novo,
+    .cadastro-b1 .tb-btn.mg-act-salvar,
+    .mk-sheet__new,
+    .mk-btn-ok,
+    .mk-ll__btn--verde,
+    .mk-launch-action.tb-btn-green
+  ):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-action-positive-hover) !important;
+    color: var(--mk-action-positive-fg) !important;
+  }
 }
 .tb-btn.tb-btn-red:not(#mk-padrao) {
   background: var(--mk-btn-bg, #ffffff) !important;
@@ -326,8 +362,8 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   color: var(--mk-action-fg-muted);
 }
 
-/* A barra de edição ainda tinha uma exceção cinza para Cancelar. */
-.cadastro-b1 .mg-toolbar .tb-btn:not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
+/* Neutros da barra: branco. Positivos ficam de fora. */
+.cadastro-b1 .mg-toolbar .tb-btn:not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
 }
 

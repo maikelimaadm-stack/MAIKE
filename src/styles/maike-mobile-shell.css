@@ -2246,7 +2246,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   justify-content: flex-end;
 }
 
-/* Botão + (cadastrar novo) à direita do título da folha, como o "i" do app do Claude */
+/* Botão + / ✓ (positivo) à direita do título da folha */
 .mk-sheet__new {
   display: flex;
   align-items: center;
@@ -2256,11 +2256,12 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: #fff;
-  color: #16a34a;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
 }
+.mk-sheet__new svg { color: #fff; }
 
 /* Botões que encolhem ao toque */
 .mk-sheet__close,
@@ -2574,21 +2575,27 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 /*
- * Novo (+) e Salvar (✓): ícone verde sobre o fundo cinza dos botões de ação,
- * em todos os tamanhos (D-PROD-95). As folhas usam o mesmo verde.
+ * Novo (+) e Salvar (✓): verde do sistema + letra/ícone brancos.
  */
 .cadastro-b1 .tb-btn.mg-act-novo,
 .cadastro-b1 .tb-btn.tb-btn-green.mg-act-novo,
+.cadastro-b1 .tb-btn.mg-act-salvar,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green.mg-act-novo:not(.tb-btn-icon) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #FAFCFE) !important;
-  color: #16a34a !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.cadastro-b1 .tb-btn.mg-act-novo svg,
+.cadastro-b1 .tb-btn.mg-act-salvar svg,
+.cadastro-b1 .tb-btn.tb-btn-green.mg-act-novo svg {
+  color: #fff !important;
 }
 
 .cadastro-b1 .tb-btn.mg-act-novo:hover,
+.cadastro-b1 .tb-btn.mg-act-salvar:hover,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green.mg-act-novo:not(.tb-btn-icon):hover:not(:disabled) {
-  color: #15803d !important;
-  background: var(--portal-acao-hover, #e8ebee) !important;
+  color: #fff !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
 }
 
 /* Registro em edição: ✕ Descartar à esquerda, ✓ Salvar na ponta direita */
@@ -3025,14 +3032,16 @@ a.mk-anexos__arquivo:hover {
   }
 }
 
-/* + e ✓ das folhas: verde sobre cinza, como Novo/Salvar da barra */
+/* + e ✓ das folhas: mesmo verde positivo da barra */
 .mk-sheet__new {
-  background: #ececea;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
   box-shadow: none;
 }
 
 .mk-sheet.mk-cr .mk-sheet__new {
-  background: var(--portal-acao-bg, #FAFCFE);
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
 }
 
 /*
@@ -3234,21 +3243,27 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
-.tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao) {
   border-color: transparent !important;
   background: var(--mk-btn-bg, #ffffff) !important;
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-.tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
   background: var(--mk-btn-hover, #FAFCFE) !important;
 }
 
-.tb-btn.tb-btn-green:not(#mk-padrao),
+.tb-btn.tb-btn-green:not(#mk-padrao) {
+  border-color: transparent !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
 .tb-btn.tb-btn-green:not(#mk-padrao) svg {
-  color: var(--mk-action-fg-green, #16a34a) !important;
+  color: #fff !important;
+}
+.tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled) {
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
+  color: #fff !important;
 }
 
 .tb-btn.tb-btn-red:not(#mk-padrao),
@@ -3268,15 +3283,21 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
   color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
-/* Folhas: ✕ e +/✓ brancos */
-.mk-sheet__close:not(#mk-padrao),
-.mk-sheet__new:not(#mk-padrao) {
+/* Folhas: ✕ branco; +/✓ verde positivo */
+.mk-sheet__close:not(#mk-padrao) {
   background: var(--mk-btn-bg, #ffffff);
 }
+.mk-sheet__new:not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
+}
 
-.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
-.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao) {
+.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao) {
   background: var(--mk-btn-bg, #ffffff);
+}
+.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
 }
 
 /* Mesmo tamanho para todos os botões da barra no celular (38 px, como o Novo) */
