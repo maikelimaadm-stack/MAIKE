@@ -31,6 +31,9 @@
   --mk-font-heading: 13px;
   --mk-font-title: 15px;
   --mk-font-search: 13px;
+  /* Label flutuante (LancField / mg-field): descanso vs subida */
+  --mk-font-float-rest: 12px;
+  --mk-font-float-up: 9px;
   --mk-text: #334155;
   --mk-text-strong: #292a2d;
   --mk-text-muted: #64748b;
@@ -440,6 +443,8 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     --mk-font-heading: 14px;
     --mk-font-title: 16px;
     --mk-font-search: 14px;
+    --mk-font-float-rest: 14px;
+    --mk-font-float-up: 10px;
     --mk-list-row-height: 40px;
     --mk-filter-row-height: 40px;
   }
@@ -590,9 +595,29 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
   font-size: var(--mk-font-list) !important;
   color: var(--mk-text);
 }
-.cadastro-b1 :is(.mg-field__label, .mg-b1-row__title, label):not(#mk-padrao) {
+/* Títulos de linha / labels estáticas — NÃO a label flutuante do campo. */
+.cadastro-b1 :is(.mg-b1-row__title, label:not(.mg-field__label)):not(#mk-padrao) {
   font-size: var(--mk-font-heading) !important;
   color: var(--mk-text-muted);
+}
+/*
+ * Label flutuante (lançamento / cadastro): ao subir fica compacta.
+ * Sem isso o !important da tipografia do sistema trava a label no tamanho de descanso.
+ */
+:is(.cadastro-b1, .mk-lanc) .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-rest) !important;
+  color: var(--mk-text-muted);
+}
+:is(.cadastro-b1, .mk-lanc) .mg-field.mg-has-value:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field:focus-within:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field.is-open:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field--multiline .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-up) !important;
+  line-height: 1 !important;
+}
+/* Switch: a label não flutua — permanece no tamanho de descanso. */
+.cadastro-b1 .mg-field--switch .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-rest) !important;
 }
 .cadastro-b1 :is(.mg-field__control input, .mg-field__control textarea, .mg-field__control select,
  button[role="combobox"], .mg-pill-select):not(#mk-padrao) {

@@ -1025,14 +1025,14 @@
   }
 
   .cadastro-b1--full-page .mg-field__label {
-    font-size: 14px;
+    font-size: var(--mk-font-float-rest, 14px);
   }
 
   .cadastro-b1--full-page .mg-field.mg-has-value .mg-field__label,
   .cadastro-b1--full-page .mg-field:focus-within .mg-field__label,
   .cadastro-b1--full-page .mg-field.is-open .mg-field__label,
   .cadastro-b1--full-page .mg-field--multiline .mg-field__label {
-    font-size: 10.5px;
+    font-size: var(--mk-font-float-up, 10px);
   }
 
   .cadastro-b1--full-page .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
@@ -1248,13 +1248,13 @@
   }
 
   .mk-lanc .mg-field__label {
-    font-size: 14px;
+    font-size: var(--mk-font-float-rest, 14px);
   }
 
   .mk-lanc .mg-field.mg-has-value .mg-field__label,
   .mk-lanc .mg-field:focus-within .mg-field__label,
   .mk-lanc .mg-field--multiline .mg-field__label {
-    font-size: 10.5px;
+    font-size: var(--mk-font-float-up, 10px);
   }
 
   .mk-lanc .mg-field__control :is(input, textarea, select) {
