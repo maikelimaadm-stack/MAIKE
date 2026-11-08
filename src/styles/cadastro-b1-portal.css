@@ -67,8 +67,8 @@
 .cadastro-b1--portal-compras .mg-summary .tb-btn-icon svg,
 .cadastro-b1--portal-compras .mg-nav-btn svg,
 .cadastro-b1--portal-compras .mg-search-dropdown__config-btn svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
   color: inherit !important;
 }
 

@@ -65,8 +65,8 @@
 }
 .mk-config-dialog .dmid-btn:not(#mk-padrao) { width: var(--mk-action-height); height: var(--mk-action-height); padding: 0; }
 :is(.mk-config-dialog, .mk-config-sheet) :is(.tb-btn, .dmid-btn, .mk-colcfg__ordem button, .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
   padding: 0;
   stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;

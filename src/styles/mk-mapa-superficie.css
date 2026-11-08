@@ -42,8 +42,8 @@
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
 :is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
-  width: 16px;
-  height: 16px;
+  width: var(--mk-action-icon);
+  height: var(--mk-action-icon);
   stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
@@ -98,7 +98,11 @@ button[data-mk-map-action]:not(#mk-padrao) {
 }
 button[data-mk-map-action]:is([class*="bg-emerald"], [class*="bg-green"]):not(#mk-padrao) { color: #16a34a !important; }
 button[data-mk-map-action]:is([class*="bg-red"], .bg-destructive):not(#mk-padrao) { color: #dc2626 !important; }
-button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stroke-width: var(--mk-action-stroke, 2.25); }
+button[data-mk-map-action]:not(#mk-padrao) svg {
+  width: var(--mk-action-icon);
+  height: var(--mk-action-icon);
+  stroke-width: var(--mk-action-stroke, 2.25);
+}
 :is(.mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) { background: #fff; box-shadow: var(--mk-btn-sombra); border: 0; }
 .mk-al__botao:not(#mk-padrao) { min-height: 44px; border-radius: 999px; }
 .mk-al__quadro:not(#mk-padrao) { border-radius: 14px; }
@@ -134,7 +138,7 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
   background: #fff;
   box-shadow: var(--mk-btn-sombra);
 }
-.mk-map-panel-close svg { width: 16px; height: 16px; }
+.mk-map-panel-close svg { width: var(--mk-action-icon); height: var(--mk-action-icon); }
 .mk-vis__seg:not(#mk-padrao) { background: #fff; border-radius: 999px; box-shadow: var(--mk-btn-sombra); }
 .mk-vis__seg-op:not(#mk-padrao),
 .mk-vis__chip:not(#mk-padrao) {

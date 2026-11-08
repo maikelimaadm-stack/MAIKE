@@ -377,8 +377,8 @@
   }
 
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: var(--mk-action-icon) !important;
+    height: var(--mk-action-icon) !important;
     stroke-width: var(--mk-action-stroke, 2.25);
   }
 
@@ -474,8 +474,8 @@
   }
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) svg,
   .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
-    width: 16px !important;
-    height: 16px !important;
+    width: var(--mk-action-icon) !important;
+    height: var(--mk-action-icon) !important;
     stroke-width: var(--mk-action-stroke, 2.25);
     flex-shrink: 0;
   }
