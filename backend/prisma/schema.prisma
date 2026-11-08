@@ -98,6 +98,7 @@ model Cliente {
   centrosCusto           CentroCusto[]
   centrosResultado       CentroResultado[]
   centrosCustoResultado  CentroCustoResultado[]
+  naturezasFinanceiras   NaturezaFinanceira[]
   eventosRebanho         EventoRebanho[]
   partidasRebanho        PartidaRebanho[]
   pesosRebanho           PesoRebanho[]
@@ -949,6 +950,7 @@ model Empresa {
   centrosCusto           CentroCusto[]
   centrosResultado       CentroResultado[]
   centrosCustoResultado  CentroCustoResultado[]
+  naturezasFinanceiras   NaturezaFinanceira[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1857,3 +1859,41 @@ model CentroCustoResultado {
   @@unique([cliente_id, empresa_id, centro_custo_id, centro_resultado_id])
   @@index([cliente_id, empresa_id, centro_resultado_id])
 }
+
+/// D-PROD-153 — Gestão P2: natureza financeira GERENCIAL (catálogo que classifica
+/// futuras receitas e despesas: "qual o tipo econômico?"). Não é plano de contas
+/// contábil, não guarda valor, saldo nem lançamento. Árvore opcional do MESMO
+/// tipo (RECEITA ou DESPESA), mesmo tenant e mesma empresa, garantida pela FK
+/// composta (cliente_id, empresa_id, tipo, pai_id) → (cliente_id, empresa_id, tipo, id).
+model NaturezaFinanceira {
+  id          String   @id @default(cuid())
+  cliente_id  String   @db.VarChar(64)
+  empresa_id  String   @db.VarChar(64)
+  numero      String   @db.VarChar(32)
+  /// RECEITA | DESPESA (CHECK no banco); imutável depois de criado.
+  tipo        String   @db.VarChar(10)
+  nome        String   @db.VarChar(120)
+  descricao   String?  @db.VarChar(500)
+  pai_id      String?  @db.VarChar(64)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa              @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  pai     NaturezaFinanceira?  @relation("NaturezaFinanceiraArvore", fields: [cliente_id, empresa_id, tipo, pai_id], references: [cliente_id, empresa_id, tipo, id], onDelete: Restrict, onUpdate: Restrict)
+  filhos  NaturezaFinanceira[] @relation("NaturezaFinanceiraArvore")
+
+  @@unique([cliente_id, id])
+  /// Alvo de FKs futuras com empresa (operações que classificarem por natureza).
+  @@unique([cliente_id, empresa_id, id])
+  /// Alvo da FK do pai: o pai é do mesmo tenant, empresa E tipo.
+  @@unique([cliente_id, empresa_id, tipo, id])
+  @@unique([cliente_id, numero])
+  /// Nome único por empresa e tipo ("Venda de animais" pode existir em RECEITA e não em DESPESA).
+  @@unique([cliente_id, empresa_id, tipo, nome])
+  @@index([cliente_id, empresa_id, tipo, ativo])
+  @@index([cliente_id, empresa_id, pai_id])
+  @@index([cliente_id, empresa_id, tipo, createdAt, id])
+}
+

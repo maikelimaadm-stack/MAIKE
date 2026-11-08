@@ -41,6 +41,15 @@ const HIERARQUIA = /** @type {Record<string, string>} */ ({
   autorreferencia: 'Um centro não pode ser pai de si mesmo.',
 });
 
+const HIERARQUIA_NATUREZA = /** @type {Record<string, string>} */ ({
+  ciclo: 'A natureza escolhida como pai está abaixo desta natureza na hierarquia (formaria um ciclo).',
+  profundidade_maxima: 'A hierarquia ultrapassaria o número máximo de níveis permitido.',
+  pai_inativo: 'A natureza escolhida como pai está inativa. Escolha um pai ativo.',
+  pai_fora_da_empresa: 'A natureza escolhida como pai não pertence a esta empresa (ou não existe mais).',
+  pai_de_outro_tipo: 'A natureza pai precisa ser do mesmo tipo (Receita com Receita, Despesa com Despesa).',
+  autorreferencia: 'Uma natureza não pode ser pai de si mesma.',
+});
+
 /**
  * Mensagem clara por código. Nunca devolve vazio; código desconhecido cai na
  * mensagem pública do `ApiError` (catálogo local) ou no fallback.
@@ -79,6 +88,17 @@ export const mensagemErroGestao = (erro, fallback) => {
     }
     case 'CENTRO_INATIVO':
       return 'Há centro inativo na seleção: centro inativo não recebe vínculo novo. Nada foi gravado.';
+    case 'NATUREZA_FINANCEIRA_NOT_FOUND':
+      return 'Natureza financeira não encontrada nesta empresa. A lista será atualizada.';
+    case 'NATUREZA_NOME_CONFLITO':
+      return 'Já existe uma natureza com este nome e tipo nesta empresa. Nada foi gravado.';
+    case 'NATUREZA_HIERARQUIA_INVALIDA':
+      if (reason === 'profundidade_maxima' && details.maximo != null) {
+        return `A hierarquia ultrapassaria o número máximo de níveis permitido (${String(details.maximo)}).`;
+      }
+      return HIERARQUIA_NATUREZA[reason ?? ''] ?? 'Pai inválido para esta natureza. Nada foi gravado.';
+    case 'NATUREZA_COM_FILHOS_ATIVOS':
+      return 'Esta natureza tem naturezas filhas ativas. Inative as filhas antes. Nada foi gravado.';
     case 'REQUEST_VALIDATION_FAILED':
       return field ? `Dados inválidos no campo "${field}". Revise e tente novamente.` : 'Dados inválidos. Revise o formulário e tente novamente.';
     default:
@@ -88,4 +108,4 @@ export const mensagemErroGestao = (erro, fallback) => {
 
 /** Códigos que significam "o registro não existe mais": a tela relê a lista. */
 export const ehNaoEncontradoGestao = (erro) =>
-  ['PARCEIRO_NOT_FOUND', 'CENTRO_CUSTO_NOT_FOUND', 'CENTRO_RESULTADO_NOT_FOUND'].includes(lerErroGestao(erro).code ?? '');
+  ['PARCEIRO_NOT_FOUND', 'CENTRO_CUSTO_NOT_FOUND', 'CENTRO_RESULTADO_NOT_FOUND', 'NATUREZA_FINANCEIRA_NOT_FOUND'].includes(lerErroGestao(erro).code ?? '');

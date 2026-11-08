@@ -19,6 +19,8 @@ export const TELAS_GESTAO = Object.freeze({
   PARCEIROS: 'ges-parceiros',
   CENTROS_CUSTO: 'ges-centros-custo',
   CENTROS_RESULTADO: 'ges-centros-resultado',
+  // D-PROD-153 — Gestão P2 (`GUARDAS.naturezaFinanceira`, mesma regra).
+  NATUREZAS_FINANCEIRAS: 'ges-naturezas-financeiras',
 });
 
 /**

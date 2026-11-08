@@ -263,6 +263,16 @@ mapa. Relatório: [`MAIKE-GESTAO-CADASTROS-P1-REPORT.md`](./MAIKE-GESTAO-CADASTR
 Próximos passos (cada um com decisão própria): operações que **referenciam** os
 ids estáveis destes cadastros (ver contrato no relatório §6).
 
+## Track autorizado — Gestão Rural P2: Naturezas Financeiras gerenciais (D-PROD-153)
+
+Cadastro de **naturezas de receita/despesa** com hierarquia (pai do mesmo tipo,
+mesma empresa), para classificar FUTURAS operações pelo tipo econômico. Uma
+entidade canônica (`NaturezaFinanceira`); **não** é plano de contas contábil e
+**não** tem vínculo estático com Parceiro ou Centros (a combinação será da
+operação). **Fora**: lançamentos, valores, saldos, caixa/bancos, tributos,
+compras, NF-e/XML, contas a pagar/receber, estoque e mapa. Relatório:
+[`MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
+
 ---
 
 ## Fora do roadmap

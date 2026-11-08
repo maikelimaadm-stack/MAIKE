@@ -48,6 +48,8 @@ export const DEFAULT_MENU = [
       { id: "ges-parceiros", title: "Parceiros", url: "Parceiros" },
       { id: "ges-centros-custo", title: "Centros de Custo", url: "CentrosCusto" },
       { id: "ges-centros-resultado", title: "Centros de Resultado", url: "CentrosResultado" },
+      // D-PROD-153 — Gestão Rural P2: catálogo gerencial (não é plano de contas nem lançamento).
+      { id: "ges-naturezas-financeiras", title: "Naturezas Financeiras", url: "NaturezasFinanceiras" },
     ],
   },
   {

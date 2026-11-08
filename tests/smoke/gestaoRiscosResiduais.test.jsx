@@ -33,9 +33,10 @@ vi.mock('@/apis/session', async (importOriginal) => ({
 }));
 
 import { usePublishMobileShell } from '@/lib/mobileShellContext';
-import { ICONE_MODULO } from '@/components/navigation/MobileModulesView';
+import { ICONE_MODULO, ICONE_TELA } from '@/components/navigation/MobileModulesView';
 import { PARCEIROS_CAMPOS_CARD } from '@/components/gestao/TabelaParceiros';
 import { CENTROS_CAMPOS_CARD } from '@/components/gestao/TabelaCentros';
+import { NATUREZAS_CAMPOS_CARD } from '@/components/gestao/TabelaNaturezas';
 import { mensagemErroGestao } from '@/lib/gestaoErros';
 
 const operador = { id: 'u-op', login: 'vaqueiro', email: 'vaqueiro', nome: 'Vaqueiro', administrador_fazenda: false, cliente_id: 'fazenda-1' };
@@ -118,6 +119,16 @@ describe('R5 e Ativo nos cards', () => {
     const noTopo = new Set(['numero', 'nome']);
     expect(PARCEIROS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toContain('ativo');
     expect(CENTROS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toEqual(['pai', 'descricao', 'ativo']);
+    // D-PROD-153: Naturezas — Tipo, Pai e Ativo.
+    expect(NATUREZAS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toEqual(['tipo', 'pai', 'ativo']);
+  });
+
+  it('as quatro telas de Gestão Rural têm ícone próprio no celular (P2: Naturezas Financeiras)', () => {
+    for (const url of ['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras']) {
+      expect(ICONE_TELA[url], url).toBeTruthy();
+      expect(ICONE_TELA[url]).not.toBe(Package);
+    }
+    expect(new Set(['CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras'].map((u) => ICONE_TELA[u])).size).toBe(3);
   });
 
   it('R3: mensagem do teto de centros ativos', () => {

@@ -21,7 +21,8 @@
     "Permissoes",
     "Parceiros",
     "CentrosCusto",
-    "CentrosResultado"
+    "CentrosResultado",
+    "NaturezasFinanceiras"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [

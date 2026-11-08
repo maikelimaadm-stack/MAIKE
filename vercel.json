@@ -33,11 +33,27 @@
       "destination": "/api/fastify?__native_route=:path*"
     },
     {
+      "source": "/naturezasfinanceiras/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/NaturezasFinanceiras/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/configuracoesgerais/",
       "destination": "/index.html"
     },
     {
       "source": "/ConfiguracoesGerais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/naturezasfinanceiras",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/NaturezasFinanceiras",
       "destination": "/index.html"
     },
     {
