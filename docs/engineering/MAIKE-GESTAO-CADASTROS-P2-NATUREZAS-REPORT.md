@@ -370,8 +370,8 @@ Nesta rodada o cluster local tinha caído na reciclagem do container ("stale pid
 | Critério | Estado |
 |---|---|
 | **CODE_READY** (código, testes, gates, CI verdes no HEAD) | ver §7 |
-| **SCHEMA_APPLIED_PROD** | **NÃO**: P2 não aplicada |
-| **MERGE_READY** | **NÃO**: aguarda aprovação, autorização específica e rollout da migration |
+| **SCHEMA_APPLIED_PROD** | **SIM**: aplicada em 2026-11-08 com autorização do proprietário e conferida (§12) |
+| **MERGE_READY** | Schema aplicado e conferido; o merge manual da PR #227 é decisão do proprietário |
 
 Prontidão de código ≠ prontidão de release: só após o schema aplicado **e conferido** em produção pode haver merge manual da PR #227.
 
@@ -412,3 +412,27 @@ Só roda depois de **aprovação arquitetural e autorização específica do pro
 - **Migration:** `backend/prisma/migrations/20261108100000_gestao_p2_naturezas_financeiras/migration.sql`.
 - **Testes:** `backend/tests/gestaoP2Naturezas.test.mjs`, `tests/smoke/gestaoNaturezas.test.jsx`, `tests/smoke/gestaoNaturezasShell.test.jsx`.
 - **Script visual:** `scripts/dev/visual-naturezas-financeiras.mjs`.
+
+## 12. Aplicação em produção (executada)
+
+- **Autorização:** dada expressamente pelo proprietário. A transação foi enviada pelo conector Supabase, com aprovação no diálogo do conector.
+- **Pré-checagem (§10, passos 1–5):**
+  - **Alvo:** MAIKE `uuemcasqcdjucflulkne` (sa-east-1, Postgres 17), sysid `7692130048193495360`.
+  - **Vercel → banco:** as variáveis de banco de produção (`POSTGRES_*`, `SUPABASE_URL`) vêm da integração Supabase deste projeto. Havia conexões ativas da aplicação via Supavisor.
+  - **Histórico:**
+    - 33 migrations concluídas, 0 parciais;
+    - todos os checksums iguais aos do repositório (4 `manual` históricos);
+    - faltava só a P2.
+  - **Preflight:** `classificarMigrations` → `expand: true`, `tabelas_novas: [NaturezaFinanceira]`, 0 violações. SHA-256 igual ao manifesto.
+  - **Backup:** não verificável pelas ferramentas disponíveis. Mitigado porque a migration é aditiva e reversível com `DROP TABLE`.
+- **Execução:** uma transação com o SQL idêntico ao arquivo mais a linha em `_prisma_migrations` (checksum `db299e1d…62f04`), encerrada com `COMMIT`.
+- **Conferência pós-aplicação (só leitura):**
+  - 34 migrations concluídas, 0 parciais;
+  - checksum da P2 no banco = `db299e1d3543769ed46f07ee174521d3ea75b2990b94181012eecdafb9462f04`;
+  - 11 colunas e 9 índices (PK, 5 uniques, 3 índices);
+  - FKs com as ações esperadas: Cliente e Empresa com `ON DELETE RESTRICT` e `ON UPDATE CASCADE`; a da árvore com `ON DELETE RESTRICT` e `ON UPDATE RESTRICT`;
+  - os 2 CHECKs presentes;
+  - RLS ligado, policy `maike_backend_all` só para `maike_vercel`;
+  - 0 grants para `anon`, `authenticated` e `PUBLIC`;
+  - 0 linhas.
+- **Rollback:** antes do merge, `DROP TABLE "NaturezaFinanceira"` mais a remoção da linha em `_prisma_migrations`. Depois do merge, reverter o código e manter a tabela, que é aditiva.
