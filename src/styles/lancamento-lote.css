@@ -490,16 +490,17 @@
   color: #475569;
 }
 
-/* ── Celular ─────────────────────────────────────────────────────────── */
-@media (max-width: 639px) {
+/* ── Celular / tablet ────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
   .mk-ll__add,
   .mk-ll__btn {
-    height: 44px;
+    height: var(--mk-action-height-touch, 44px);
+    min-height: var(--mk-action-height-touch, 44px);
     font-size: 14px;
   }
 
   .mk-ll__seg-op {
-    height: 38px;
+    height: var(--mk-action-height-touch, 44px);
     font-size: 13px;
     white-space: normal;
     line-height: 1.1;

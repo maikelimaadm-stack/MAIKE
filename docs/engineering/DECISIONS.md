@@ -5450,8 +5450,8 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Ações neutras (barra):** fonte `12px`, fundo `#ffffff`; vermelho `#dc2626` no ícone/texto de exclusão.
   - **Ações positivas** (Novo, Adicionar, Salvar, Aplicar, ✓): fundo `--mg-accent` (`#40de63`) e letra/ícone brancos; hover `--mg-accent-hover`.
   - **Ícones por papel (SSOT):** Editar `--mk-icon-edit` (`#5b6b80`); ✕ Fechar/Cancelar/Limpar `--mk-icon-close` (`#64748b`); Excluir/Remover `--mk-icon-danger` (`#dc2626`); adornos de campo (chevron/lupa) `--mk-icon-field` (`#9ca3af`).
-  - **Ícones de ação:** desktop/tablet `14×14` (proporção do mobile `16/38` sobre botão `32`); mobile `16×16`; `stroke-width: 2.25`.
-  - **Altura:** desktop/tablet `32px` em todo o sistema (mapa, cadastros, barras, Remover de lançamentos); mobile `38px`.
+  - **Ícones de ação:** desktop `14×14` (botão `32`); mobile/tablet `18×18` (botão `44`, mesma proporção); `stroke-width: 2.25`.
+  - **Altura:** desktop (≥1024) `32px`; mobile e tablet (≤1023) `44px` em todo o sistema.
 - **Revoga:** o item visual “fundo cinza / sem sombra” residual da D-PROD-96 na shell (já em espírito pela D-PROD-138/147); e o “sem fill verde” da própria D-PROD-148 para botões positivos.
 - **Implementação:** `mk-unificado.css` (ações/ícones/cores), portal/base1/shell/lançamentos alinhados; tipografia de Filtros/Camadas preservada. Tokens `--mk-action-height` / `--mk-action-icon` / `--mk-action-positive-*` / `--mk-icon-*` são a SSOT.
 

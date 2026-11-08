@@ -4,11 +4,11 @@
  * Fundo de superfície = #FAFCFE (D-PROD-149).
  */
 :root {
-  /* Desktop/tablet: botão 32px + ícone na mesma proporção do mobile (16/38 ≈ 14/32). */
+  /* Desktop ≥1024: 32px / 14px. Mobile+tablet ≤1023: 44px / 18px (mesma proporção). */
   --mk-action-height: 32px;
-  --mk-action-height-touch: 38px;
+  --mk-action-height-touch: 44px;
   --mk-action-icon: 14px;
-  --mk-action-icon-touch: 16px;
+  --mk-action-icon-touch: 18px;
   --mk-action-stroke: 2.25;
   --mk-action-font: 12px;
   --mk-action-fg: #334155;
@@ -431,9 +431,10 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   background: var(--mk-btn-bg) !important;
 }
 
-/* Mobile: barra/pager 38px e ícone 16px (mesma proporção do desktop 32/14). */
-@media (max-width: 639px) {
+/* Mobile + tablet: botão 44px e ícone 18px (desktop ≥1024 permanece 32/14). */
+@media (max-width: 1023px) {
   :root {
+    --mk-action-height: var(--mk-action-height-touch);
     --mk-action-icon: var(--mk-action-icon-touch);
   }
   :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
@@ -441,14 +442,17 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     --mk-ui-control-size: var(--mk-action-height-touch);
     --mk-ui-icon-size: var(--mk-action-icon-touch);
     --mk-action-icon: var(--mk-action-icon-touch);
+    --mg-btn-h: var(--mk-action-height-touch);
   }
   .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao),
-  .mg-rec-pager__btn:not(#mk-padrao) {
+  .mg-rec-pager__btn:not(#mk-padrao),
+  :is(.mk-ll__remover, .mk-ll__btn, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) {
     height: var(--mk-action-height-touch) !important;
     min-height: var(--mk-action-height-touch) !important;
   }
   .cadastro-b1--full-page .mg-toolbar .tb-btn-icon:not(#mk-padrao),
-  .cadastro-b1--full-page .mg-toolbar .tb-btn.mg-act-ic:not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+  .cadastro-b1--full-page .mg-toolbar .tb-btn.mg-act-ic:not(.mg-fluid-slot__ghost):not(#mk-padrao),
+  :is(.mk-ll__remover, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-sheet__close, .mk-sheet__new):not(#mk-padrao) {
     width: var(--mk-action-height-touch) !important;
     min-width: var(--mk-action-height-touch) !important;
   }
