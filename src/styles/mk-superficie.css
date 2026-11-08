@@ -44,12 +44,28 @@
 .mk-mhdr__back > span:not(#mk-padrao) {
   box-shadow: var(--mk-btn-sombra) !important;
 }
-/* Positivos na superfície: reforço caso regras locais tentem o branco. */
-:is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) {
+/* Positivos na superfície: reforço caso regras locais tentem o branco (inclui Salvar do cabeçalho mobile). */
+:is(
+  .tb-btn.tb-btn-green,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) {
   background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
   color: #fff !important;
 }
-:is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok, .cadastro-b1 .tb-btn.mg-act-novo, .cadastro-b1 .tb-btn.mg-act-salvar):not(#mk-padrao) svg {
+:is(
+  .tb-btn.tb-btn-green,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) svg {
   color: #fff !important;
 }
 

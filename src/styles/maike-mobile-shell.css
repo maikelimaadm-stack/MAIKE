@@ -2761,7 +2761,14 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 .mk-mhdr__round--salvar {
-  color: #16a34a;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.mk-mhdr__round--salvar svg {
+  color: #fff !important;
+}
+.mk-mhdr__round--salvar:active:not(:disabled) {
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
 }
 
 .mk-mhdr__round:disabled {

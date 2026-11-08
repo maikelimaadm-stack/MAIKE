@@ -280,7 +280,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   --portal-acao-hover: var(--mk-btn-hover);
 }
 :is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-ll-dlg__redondo,
- .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.mk-mhdr__round--salvar):not(.mk-ll-dlg__redondo--salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
   border: 1px solid transparent;
@@ -307,7 +307,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 .mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: var(--mk-action-fg-red); }
 .mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: var(--mk-action-fg-green); }
 
-/* Positivos: Novo / Adicionar / Salvar / Aplicar / ✓ — verde do sistema + letra/ícone brancos. */
+/* Positivos: Novo / Adicionar / Salvar / Aplicar / ✓ — verde do sistema + letra/ícone brancos (todos os viewports). */
 :is(
   .tb-btn.tb-btn-green,
   .cadastro-b1 .tb-btn.mg-act-novo,
@@ -315,7 +315,9 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   .mk-sheet__new,
   .mk-btn-ok,
   .mk-ll__btn--verde,
-  .mk-launch-action.tb-btn-green
+  .mk-launch-action.tb-btn-green,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
 ):not(#mk-padrao) {
   background: var(--mk-action-positive-bg) !important;
   color: var(--mk-action-positive-fg) !important;
@@ -329,7 +331,9 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   .mk-sheet__new,
   .mk-btn-ok,
   .mk-ll__btn--verde,
-  .mk-launch-action.tb-btn-green
+  .mk-launch-action.tb-btn-green,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
 ):not(#mk-padrao) svg {
   color: var(--mk-action-positive-fg) !important;
   stroke: currentColor;
@@ -342,7 +346,9 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     .mk-sheet__new,
     .mk-btn-ok,
     .mk-ll__btn--verde,
-    .mk-launch-action.tb-btn-green
+    .mk-launch-action.tb-btn-green,
+    .mk-mhdr__round--salvar,
+    .mk-ll-dlg__redondo--salvar
   ):not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-action-positive-hover) !important;
     color: var(--mk-action-positive-fg) !important;

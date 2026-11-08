@@ -88,23 +88,23 @@
 .b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green,
 .b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon,
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green {
-  background: var(--mk-btn-bg, #ffffff) !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
   border-color: transparent !important;
-  color: var(--mk-action-fg-green, #16a34a) !important;
+  color: #fff !important;
 }
 
 .b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
 .b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE) !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
   border-color: transparent !important;
-  color: #15803d !important;
+  color: #fff !important;
 }
 
 .b1ref .fpop-f .tb-btn-icon.tb-btn-green svg,
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green svg {
-  color: var(--mk-action-fg-green, #16a34a) !important;
+  color: #fff !important;
 }
 
 .cadastro-b1 .cmd-panel {
