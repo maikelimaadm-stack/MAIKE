@@ -27,6 +27,7 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { PrismaClient } from '@prisma/client';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { acoes, codigo, docCom, docSem, foto, loteLegado, montarTenant, opId, prisma, somaLotes } from './gestaoP3Cenario.mjs';
@@ -37,13 +38,23 @@ import { ESCOPO_TENANT, reservarNumeros } from '../src/modules/sequencias/entida
 let app;
 /** @type {ReturnType<typeof acoes>} */
 let A;
+/**
+ * Cliente do TESTE com pool próprio para quem segura travas/portões e para quem
+ * observa `pg_locks`. No CI o pool padrão do Prisma tem 5 conexões (2 × CPUs +
+ * 1); com detentor, observador e comandos no MESMO pool do app, ele se esgotava
+ * (P2024 no observador, não no produto). Os comandos sob teste usam o pool do app.
+ * @type {PrismaClient}
+ */
+let aux;
 before(async () => {
   app = await criarApp();
   await app.ready();
   await limparBanco();
   A = acoes(app);
+  aux = new PrismaClient();
 });
 after(async () => {
+  await aux?.$disconnect();
   await app.close();
   await encerrar();
 });
@@ -68,18 +79,18 @@ const instalarPortao = async (s, tabela, condicao = 'TRUE') => {
 const removerPortao = (tabela) => prisma().$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${PORTAO} ON "${tabela}"`);
 /** Portão fechado (lock exclusivo numa transação do TESTE) enquanto `fn` roda; abre no fim (commit ou erro). */
 const comPortaoFechado = (fn) =>
-  prisma().$transaction(async (tx) => {
+  aux.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(154, 1)`;
     return fn();
   }, { maxWait: 10000, timeout: 60000 });
 /** pids parados no portão (ou null). */
 const paradosNoPortao = async () => {
-  const l = /** @type {any[]} */ (await prisma().$queryRaw`SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND classid = 154 AND objid = 1 AND objsubid = 2 AND NOT granted`);
+  const l = /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND classid = 154 AND objid = 1 AND objsubid = 2 AND NOT granted`);
   return l.length ? l.map((r) => r.pid) : null;
 };
 /** pids bloqueados (direta ou transitivamente não: só diretamente) por `pid`. */
 const bloqueadosPor = async (pid) =>
-  /** @type {any[]} */ (await prisma().$queryRaw`SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND ${pid}::int = ANY(pg_blocking_pids(pid))`).map((r) => r.pid);
+  /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND ${pid}::int = ANY(pg_blocking_pids(pid))`).map((r) => r.pid);
 const algunsBloqueadosPor = async (pid) => {
   const l = await bloqueadosPor(pid);
   return l.length ? l : null;
@@ -168,6 +179,8 @@ describe('C1 — CONCORRENCIA-1: PATCH/DELETE administrativo de lote × venda qu
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancelar', () => {
+  // Detentor e observador no pool do TESTE (`aux`); as vítimas, no pool do
+  // app, em ondas de 3 para caber em qualquer pool ≥ 3.
   test('com produto, sequência de movimentos e perfil segurados por > 5 s (as travas da confirmação), suplementação, transferência, POST de movimento, PATCH de produto, PATCH de lote e PUT do perfil esperam e concluem (nunca 500); a retentativa com a mesma operation_id aplica uma vez só', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
@@ -179,34 +192,43 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     await definirEstoqueAtual(e.milho, '100');
     const corpoSup = { operation_id: opId(), empresa_id: e.id, produto_id: e.sal.id, local_origem_id: s.local.id, quantidade: 5 };
     const corpoTransf = { operation_id: opId(), empresa_id: e.id, produto_id: e.milho.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 5 };
-    const pedidos = () => ({
-      'suplementação (mesmo produto: trava do produto)': A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, corpoSup),
-      'transferência (OUTRO produto: sequência de movimentos)': A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, corpoTransf),
-      'POST /movimentacoes-estoque (sequência de movimentos)': A.req('POST', '/movimentacoes-estoque', s.token, {
+    /** Pedidos preguiçosos: cada onda dispara só os seus. */
+    const pedidos = {
+      'suplementação (mesmo produto: trava do produto)': () => A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, corpoSup),
+      'transferência (OUTRO produto: sequência de movimentos)': () => A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, corpoTransf),
+      'POST /movimentacoes-estoque (sequência de movimentos)': () => A.req('POST', '/movimentacoes-estoque', s.token, {
         empresa_id: e.id, tipo_movimentacao: 'Entrada', data_movimentacao: '2027-06-10T12:00:00.000Z', produto_id: e.milho.id, quantidade: 3, unidade_medida: 'KG', local_estoque_destino: s.local.id,
       }),
-      'PATCH /produtos (linha do produto)': A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
-      'PUT do perfil (perfil em FOR SHARE)': A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
-      'PATCH de lote livre (trava do produto)': A.req('PATCH', `/estoque-lotes-nota/${livre.id}`, s.token, { custo_unitario: 2.5 }),
-    });
+      'PATCH /produtos (linha do produto)': () => A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
+      'PUT do perfil (perfil em FOR SHARE)': () => A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
+      'PATCH de lote livre (trava do produto)': () => A.req('PATCH', `/estoque-lotes-nota/${livre.id}`, s.token, { custo_unitario: 2.5 }),
+    };
+    // [vítimas da onda, quantas têm de ficar paradas nas travas] — o PATCH de
+    // lote livre pode ou não parar (custo não é coluna restrita), como antes.
+    const ondas = [
+      [['suplementação (mesmo produto: trava do produto)', 'transferência (OUTRO produto: sequência de movimentos)', 'POST /movimentacoes-estoque (sequência de movimentos)'], 3],
+      [['PATCH /produtos (linha do produto)', 'PUT do perfil (perfil em FOR SHARE)', 'PATCH de lote livre (trava do produto)'], 2],
+    ];
     /** @type {Record<string, any>} */
     const vitimas = {};
-    try {
-      await p.$transaction(async (tx) => {
-        const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
-        // As MESMAS travas que confirmar/cancelar seguram durante os efeitos (§8.4).
-        await travarProdutosEstoque(tx, s.c, e.id, [e.sal.id]);
-        await reservarNumeros(tx, { clienteId: s.c, entidade: 'MovimentacaoEstoque', escopoTipo: ESCOPO_TENANT }, 1);
-        await tx.$queryRaw`SELECT id FROM "PerfilFinanceiroEmpresa" WHERE cliente_id = ${s.c} AND empresa_id = ${e.id} FOR SHARE`;
-        for (const [nome, pedido] of Object.entries(pedidos())) vitimas[nome] = acompanhar(pedido);
-        await esperar(async () => (await bloqueadosPor(pid)).length >= 5, '5 comandos esperando as travas');
-        // CENÁRIO (não sincronização): a trava fica segura além dos 5 s do timeout padrão do Prisma.
-        await new Promise((r) => setTimeout(r, 5500));
-        const cedo = Object.entries(vitimas).filter(([nome, v]) => v.feito && !nome.startsWith('PATCH de lote'));
-        assert.deepEqual(cedo.map(([nome, v]) => `${nome}: ${resumo(v)}`), [], 'nenhum comando pode desistir (500) enquanto a trava está segura');
-      }, { maxWait: 10000, timeout: 60000 });
-    } finally {
-      await Promise.allSettled(Object.values(vitimas).map((v) => v.p));
+    for (const [nomes, minimo] of ondas) {
+      try {
+        await aux.$transaction(async (tx) => {
+          const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
+          // As MESMAS travas que confirmar/cancelar seguram durante os efeitos (§8.4).
+          await travarProdutosEstoque(tx, s.c, e.id, [e.sal.id]);
+          await reservarNumeros(tx, { clienteId: s.c, entidade: 'MovimentacaoEstoque', escopoTipo: ESCOPO_TENANT }, 1);
+          await tx.$queryRaw`SELECT id FROM "PerfilFinanceiroEmpresa" WHERE cliente_id = ${s.c} AND empresa_id = ${e.id} FOR SHARE`;
+          for (const nome of nomes) vitimas[nome] = acompanhar(pedidos[nome]());
+          await esperar(async () => (await bloqueadosPor(pid)).length >= minimo, `${minimo} comandos esperando as travas`);
+          // CENÁRIO (não sincronização): a trava fica segura além dos 5 s do timeout padrão do Prisma.
+          await new Promise((r) => setTimeout(r, 5500));
+          const cedo = nomes.filter((nome) => vitimas[nome].feito && !nome.startsWith('PATCH de lote'));
+          assert.deepEqual(cedo.map((nome) => `${nome}: ${resumo(vitimas[nome])}`), [], 'nenhum comando pode desistir (500) enquanto a trava está segura');
+        }, { maxWait: 10000, timeout: 60000 });
+      } finally {
+        await Promise.allSettled(nomes.filter((nome) => vitimas[nome]).map((nome) => vitimas[nome].p));
+      }
     }
     const tabela = Object.entries(vitimas).map(([nome, v]) => `${nome}: ${resumo(v)}`).join('\n');
     for (const [nome, v] of Object.entries(vitimas)) assert.ok(v.r.statusCode < 300, `${nome} → ${v.r.body}\n${tabela}`);
@@ -365,7 +387,6 @@ describe('C4 — CONCORRENCIA-4 e ESTOQUE-3: rascunho esperando produto travado'
   test('PUT do rascunho que passa a ter o produto travado: espera a confirmação ANTES de apagar os filhos e conclui depois', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
-    const p = prisma();
     const compra = await A.criar(s.token, docCom(e, s.local, [item(e.sal, '10', '2')]));
     const outro = await A.criar(s.token, docCom(e, s.local, [item(e.milho, '2', '3')]));
     await instalarPortao(s, 'MovimentacaoEstoque', `NEW.origem_sistema = 'operacao_financeira'`);
@@ -382,7 +403,7 @@ describe('C4 — CONCORRENCIA-4 e ESTOQUE-3: rascunho esperando produto travado'
         pend.push(put);
         await esperar(() => algunsBloqueadosPor(pidConf), 'PUT esperando o produto travado');
         // Os filhos do rascunho continuam lá enquanto ele espera (nada apagado antes da trava do produto).
-        const [{ n }] = /** @type {any[]} */ (await p.$queryRaw`SELECT count(*)::int AS n FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
+        const [{ n }] = /** @type {any[]} */ (await aux.$queryRaw`SELECT count(*)::int AS n FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
           WHERE l.pid = ANY(${await bloqueadosPor(pidConf)}::int[]) AND c.relname = 'OperacaoFinanceiraItem' AND l.mode = 'RowExclusiveLock'`);
         assert.equal(n, 0, 'o PUT não pode ter apagado os itens antes de travar o produto');
       });
