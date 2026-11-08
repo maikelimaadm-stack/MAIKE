@@ -17,7 +17,7 @@ export default function TopNoticeDialog({
   onConfirm
 }) {
   const isDanger = type === "danger" || type === "destructive";
-  const badgeClass = isDanger ? "bg-red-600" : type === "info" ? "bg-[#FAFCFE]0" : "bg-amber-500";
+  const badgeClass = isDanger ? "bg-red-600" : type === "info" ? "bg-[#FAFCFE]" : "bg-amber-500";
   const Icon = type === "info" ? Info : AlertTriangle;
   const iconClass = isDanger ? "text-red-600" : type === "info" ? "text-slate-500" : "text-amber-500";
 
