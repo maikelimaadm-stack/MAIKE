@@ -120,12 +120,10 @@
 :is(.b1ref .chk, .cadastro-b1 .mg-check):not(#mk-padrao) svg { width: 10px; height: 10px; padding: 0; }
 input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 
-/* Listagens no mesmo corpo tipográfico de Filtros/Camadas. */
+/* Listagens no mesmo corpo tipográfico (Filtros/Camadas do mapa têm CSS próprio). */
 :is(.fpc__item, .b1ref .fvr, .mgs__op, .mk-co__item, .cmd-option, .mk-sel-op,
  .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row,
- .mk-map-multi-options label, .mk-vis__linha, .mk-vis__linha-txt,
- .mk-map-filters--clean .mk-map-layer-row > span,
- .mk-map-filters--clean .mk-map-filter-fields label):not(#mk-padrao) {
+ .mk-map-multi-options label):not(#mk-padrao) {
   min-height: var(--mk-list-row-height);
   font-size: var(--mk-font-list) !important;
   line-height: 1.35;
@@ -578,9 +576,8 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
 }
 .b1ref .foperadores .fopt:not(#mk-padrao) { min-height: var(--mk-list-row-height); }
 
-/* Títulos de seção / subtítulos no tom dos filtros. */
-:is(.mk-vis__titulo, .mk-map-filter-heading > span, .mk-map-multi-title,
- .mk-map-list-subtitle, .mk-map-action-choices .mk-al__grupo-titulo):not(#mk-padrao) {
+/* Títulos de seção / subtítulos (exceto Filtros/Camadas/Visualização, com CSS próprio). */
+:is(.mk-map-multi-title, .mk-map-list-subtitle, .mk-map-action-choices .mk-al__grupo-titulo):not(#mk-padrao) {
   font-size: var(--mk-font-heading) !important;
   font-weight: 600;
   color: var(--mk-text-muted);

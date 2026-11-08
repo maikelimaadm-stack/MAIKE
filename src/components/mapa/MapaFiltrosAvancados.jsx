@@ -131,7 +131,7 @@ export default function MapaFiltrosAvancados({
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
-    <div className="mk-map-filters mk-map-filters--clean rounded space-y-1">
+    <div className="mk-map-filters mk-map-filters--clean">
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
