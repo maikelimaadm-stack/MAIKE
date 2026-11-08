@@ -5434,9 +5434,65 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **RS-12:** contrato da S04-P3 sem lista fechada de migrations futuras.
   - **Detalhes:** relatório §10.
 
-## D-PROD-152 — Gestão Rural P2: Naturezas Financeiras gerenciais (cadastro com hierarquia; sem financeiro transacional)
+## D-PROD-147 — Botões de ação com fundo branco sólido
 
-> Numerada 152: as D-PROD-147 a 151 estão reservadas pela PR #225 (aberta, visual).
+- **Contexto:** o proprietário viu botões cinza/translúcidos e pediu fundo branco em todos.
+- **Causa:** `mk-unificado.css` tinha sobrescrito `--mk-btn-bg` para `rgba(255,255,255,.64)` com `backdrop-filter` ("vidro nos botões"), o que no fundo cinza da página parecia cinza.
+- **Decisão:** ações (`tb-btn`, pager, ✕/✓ das folhas, chips/botões do mapa, secundários de lançamento) usam `#ffffff` sólido, sombra suave `0 1px 3px rgba(15,23,42,.1)`, sem blur. Painéis flutuantes podem manter vidro. Hover volta ao cinza de página (`--mk-sup-fundo`). Reforça D-PROD-138 / D-PROD-141.
+- **Implementação:** `src/styles/mk-unificado.css`, com alinhamento em `cadastro-b1-portal.css`, `cadastro-b1-controls.css`, `cadastro-b1ref.css`, `maike-mobile-shell.css` e `lancamento-lote.css`.
+
+## D-PROD-148 — Tipografia, cores e ícones de ação unificados
+
+- **Contexto:** o proprietário apontou fontes/cores/ícones inconsistentes; depois corrigiu o escopo: **Filtros e Camadas do mapa já estão no tamanho certo** — não reescrever tipografia global; só ajustar o que destoa (ícones finos, fills errados, botões fora do estilo).
+- **Referência visual:** painéis Filtros/Camadas (`mk-mapa-superficie.css`): rótulos ~12px, campos ~13px, ações brancas.
+- **Decisão:**
+  - **Não forçar** tipografia de títulos, folhas iOS (17px) nem `--mk-search-font` dos filtros.
+  - **Ações neutras (barra):** fonte `12px`, fundo `#ffffff`; vermelho `#dc2626` no ícone/texto de exclusão.
+  - **Ações positivas** (Novo, Adicionar, Salvar, Aplicar, ✓): fundo `--mg-accent` (`#40de63`) e letra/ícone brancos; hover `--mg-accent-hover`.
+  - **Ícones por papel (SSOT):** Editar `--mk-icon-edit` (`#5b6b80`); ✕ Fechar/Cancelar/Limpar `--mk-icon-close` (`#64748b`); Excluir/Remover `--mk-icon-danger` (`#dc2626`); adornos de campo (chevron/lupa) `--mk-icon-field` (`#9ca3af`).
+  - **Ícones de ação:** desktop `14×14` (botão `32`); mobile/tablet `17×17` (botão `40`, mesma proporção); `stroke-width: 2.25`.
+  - **Altura:** desktop (≥1024) `32px`; mobile e tablet (≤1023) `40px` em todo o sistema.
+- **Revoga:** o item visual “fundo cinza / sem sombra” residual da D-PROD-96 na shell (já em espírito pela D-PROD-138/147); e o “sem fill verde” da própria D-PROD-148 para botões positivos.
+- **Implementação:** `mk-unificado.css` (ações/ícones/cores), portal/base1/shell/lançamentos alinhados; tipografia de Filtros/Camadas preservada. Tokens `--mk-action-height` / `--mk-action-icon` / `--mk-action-positive-*` / `--mk-icon-*` são a SSOT.
+
+## D-PROD-149 — Fundo de superfície `#FAFCFE`
+
+- **Contexto:** o proprietário pediu que todos os fundos cinza (página, cards/listagens cinza, folhas, shells) usem `#FAFCFE`.
+- **Decisão:** `--mk-sup-fundo` (e fallbacks `#f7f8fa` / `#f2f3f5`) passam a `#FAFCFE`. Cartões e botões que já eram brancos (`#ffffff`) permanecem brancos. Hover de ação usa o mesmo fundo.
+- **Implementação:** token em `mk-superficie.css`; hardcodes e `bg-slate-50` alinhados.
+
+## D-PROD-150 — Tipografia unificada do sistema (legível)
+
+- **Contexto:** o proprietário pediu tipografia coerente a partir de Filtros/Camadas; depois apontou que `11px` ficou pequeno demais em desktop e mobile.
+- **Decisão (atual):** tokens `--mk-font-*` em `mk-unificado.css`:
+  - **Desktop (≥1024):** listagens/campos/rótulos `13px`, título `15px`, ações `13px`.
+  - **Mobile/tablet (≤1023):** listagens/campos/rótulos `14px`, título `16px`, ações `14px`.
+  - Cores: `#334155` / muted `#64748b` / forte `#292a2d`.
+  - Campos iOS que precisam de `16px` anti-zoom mantêm a regra específica de input.
+- **Implementação:** `mk-unificado.css`, `mk-mapa-superficie.css`, `cadastro-base1.css`.
+
+## D-PROD-151 — Listagens do mapa: checkbox compacto (não toggle)
+
+- **Contexto:** o proprietário pediu que Filtros/Camadas usem o mesmo padrão visual da Visualização — listagens compactas com checkbox verde quadrado e linha selecionada em verde-claro — e removeu o toggle dessas listas.
+- **Decisão:** em Filtros/Camadas e no bloco “Mostrar no mapa” da Visualização, opções multi-seleção usam `role="checkbox"` + `.mk-check-row` (caixa 14×14, `#32d65e` ligado). Linha selecionada permanece branca — sem fundo cinza/verde-claro; o estado ativo é só o checkbox. Densidade de linha ~`32px`. O `ToggleSwitch` / `mk-ios-switch` permanece nos cadastros, colunas, login e formulários — só sai das listagens do mapa.
+- **Revoga em parte:** o item de D-PROD-132 que exigia `ToggleSwitch` nas camadas do Mapa Geral.
+- **Implementação:** `MapaFiltrosAvancados.jsx`, `MapaVisualizacao.jsx`, `mk-unificado.css`, `mk-mapa-superficie.css`.
+
+## D-PROD-152 — Cabeçalho mobile: fazenda/usuário somem só com o mapa na frente
+
+- **Contexto:** no celular, as linhas de título/fazenda e o avatar do usuário
+  sumiam de forma intermitente — em especial ao abrir **Módulos** em cima do
+  Mapa Geral, porque `mk-shell--mapa` escondia o `<header>` sempre que a rota
+  era `MapaGeral` (D-PROD-132), mesmo com o menu de módulos cobrindo o mapa.
+- **Decisão:** `ocultarCabecalhoMapa = telaMapa && !mobileMenuOpen`. O mapa
+  continua sem cabeçalho do sistema; com Módulos aberto, título/fazenda/usuário
+  voltam. Em edição de registro, o subtítulo não fica vazio — cai na fazenda.
+- **Implementação:** `Layout.jsx`, `tests/smoke/mapaV2Visualizacao.test.jsx`.
+
+## D-PROD-153 — Gestão Rural P2: Naturezas Financeiras gerenciais (cadastro com hierarquia; sem financeiro transacional)
+
+> Numerada **153**: a PR #225 (já na `main`) ocupou D-PROD-147…152.
+> **Rótulo histórico imutável:** o comentário da migration `20261108100000_gestao_p2_naturezas_financeiras` (já aplicada em produção, SHA-256 `db299e1d…62f04`) cita "D-PROD-152". O arquivo não é alterado, para não mudar o checksum registrado em `_prisma_migrations`. A decisão canônica é esta, a D-PROD-153.
 
 - **Contexto:** o proprietário quer cadastrar antes de lançar. A P1 (D-PROD-146) cobriu "quem" (Parceiros) e "onde/qual atividade" (Centros). Falta "qual o tipo econômico" da receita ou da despesa.
 - **Decisão:**
@@ -5462,6 +5518,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Migration** `20261108100000_gestao_p2_naturezas_financeiras`: expand-only, só a tabela nova, com RLS/REVOKE. SHA e corpo DO pinados.
 - **Consequências e release:**
   - Ordem obrigatória: aprovar o código → conferir alvo, histórico e backup → autorização explícita → aplicar a migration → preflight → merge manual. Runtime novo sem a tabela responde 500.
+  - **Estado (2026-11-08):** migration aplicada em produção com autorização do proprietário e conferida: 34 concluídas, checksum igual, RLS ligado, 0 grants públicos. Falta o merge manual da PR #227. O backup/PITR não foi comprovado pelas ferramentas disponíveis.
   - Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-153 -->
+<!-- Próxima decisão: D-PROD-154 -->

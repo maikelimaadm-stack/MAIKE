@@ -57,7 +57,7 @@ export default function HistoricoAbateCurral({ areaId }) {
   if (historico.length === 0) {
     return (
       <Card>
-        <CardHeader className="bg-slate-50 border-b py-3">
+        <CardHeader className="bg-[#FAFCFE] border-b py-3">
           <CardTitle className="text-sm font-semibold">Histórico de Abate</CardTitle>
         </CardHeader>
         <CardContent className="mk-hist p-4">
@@ -69,7 +69,7 @@ export default function HistoricoAbateCurral({ areaId }) {
 
   return (
     <Card>
-      <CardHeader className="bg-slate-50 border-b py-3">
+      <CardHeader className="bg-[#FAFCFE] border-b py-3">
         <CardTitle className="text-sm font-semibold">Histórico de Abate ({historico.length})</CardTitle>
       </CardHeader>
       <CardContent className="mk-hist p-2">

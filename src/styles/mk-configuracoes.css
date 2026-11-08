@@ -63,19 +63,19 @@
   color: #475569;
   box-shadow: var(--mk-btn-sombra);
 }
-.mk-config-dialog .dmid-btn:not(#mk-padrao) { width: 36px; height: 36px; padding: 0; }
+.mk-config-dialog .dmid-btn:not(#mk-padrao) { width: var(--mk-action-height); height: var(--mk-action-height); padding: 0; }
 :is(.mk-config-dialog, .mk-config-sheet) :is(.tb-btn, .dmid-btn, .mk-colcfg__ordem button, .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
   padding: 0;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 .mk-config-dialog .tb-btn.tb-btn-icon:not(#mk-padrao) {
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  width: var(--mk-action-height) !important;
+  min-width: var(--mk-action-height) !important;
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
   padding: 0 !important;
 }
 :is(.mk-config-options, .mk-colcfg__lista) .mg-b1-row:not(#mk-padrao) {
@@ -91,7 +91,7 @@
 .mk-colcfg__lista:not(#mk-padrao) { margin: 0 12px; }
 .mk-config-sheet .mk-colcfg__row:not(#mk-padrao) { border-radius: 10px; padding: 0 12px; }
 .mk-config-sheet .mk-colcfg__ordem { gap: 6px; }
-.mk-config-sheet .mk-colcfg__ordem button:not(#mk-padrao) { width: 36px; height: 36px; padding: 0; }
+.mk-config-sheet .mk-colcfg__ordem button:not(#mk-padrao) { width: var(--mk-action-height); height: var(--mk-action-height); padding: 0; }
 :is(.mk-colcfg__restaurar, .mk-config-restore):not(#mk-padrao) { min-height: 40px; margin: 12px; font-size: 14px; flex-shrink: 0; }
 .mk-config-body .mk-config-restore { margin: 0; }
 .mk-config-legacy > .space-y-3 > div:not(#mk-padrao) { background: #fff; border: 0; border-radius: 14px; padding: 12px; }
@@ -105,11 +105,11 @@
 }
 .mk-config-dialog:has([role="radiogroup"]):not(#mk-padrao) { height: auto; }
 .mk-config-legacy .tb-btn:not(#mk-padrao) {
-  height: 36px;
-  min-height: 36px;
+  height: var(--mk-action-height);
+  min-height: var(--mk-action-height);
   padding: 0 12px;
   border: 0;
-  font-size: 14px;
+  font-size: var(--mk-action-font, 12px);
 }
 
 /* Alça separada dos toggles/setas: arrastar não move a folha. */

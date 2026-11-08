@@ -28,7 +28,7 @@ import React from 'react';
  * }} props
  */
 const NativeSessionUnavailable = ({ mensagem, aoTentarNovamente, aoIrParaLogin, tentando = false }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-slate-50 p-4">
+  <div className="fixed inset-0 flex items-center justify-center bg-[#FAFCFE] p-4">
     <div
       role="status"
       className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm"

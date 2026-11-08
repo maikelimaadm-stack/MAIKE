@@ -7,7 +7,7 @@
 .cadastro-b1--portal-compras {
   --portal-espaco: 8px; /* espaçamento padrão entre botões */
   --mg-table-line: #dfe2e7;
-  --portal-acao-bg: var(--mk-sup-fundo, #f7f8fa);
+  --portal-acao-bg: var(--mk-btn-bg, #ffffff);
   --portal-acao-fg: #475569;
   --portal-acao-hover: #e8ecef;
   --portal-acao-fg-hover: #0f172a;
@@ -67,8 +67,8 @@
 .cadastro-b1--portal-compras .mg-summary .tb-btn-icon svg,
 .cadastro-b1--portal-compras .mg-nav-btn svg,
 .cadastro-b1--portal-compras .mg-search-dropdown__config-btn svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
   color: inherit !important;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu:hover {
-  background: var(--mg-gray-fill, #f7f8fa) !important;
+  background: var(--mg-gray-fill, #FAFCFE) !important;
   color: #0f172a !important;
 }
 
@@ -118,7 +118,7 @@
   gap: 5px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   box-shadow: var(--portal-sombra);
   display: flex;
   align-items: center;
@@ -165,17 +165,17 @@
   font-weight: 600 !important;
 }
 
-/* Novo / Salvar (tone green): verde + texto branco — padrão desktop e mobile */
+/* Novo / Salvar: verde do sistema + letra/ícone brancos */
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon) {
-  background: var(--mg-accent) !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
   color: #fff !important;
-  box-shadow: var(--portal-sombra) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
-  background: var(--mg-accent-hover) !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
   color: #fff !important;
-  box-shadow: var(--portal-sombra-hover) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-pill-select,
@@ -227,15 +227,15 @@
   stroke: currentColor !important;
 }
 
-/* Visto / OK / Pronto: fundo verde + ícone branco (vence o cinza do portal/fpop/mdl) */
+/* Visto / OK / Pronto: verde do sistema + ícone branco */
 .cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green,
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green {
-  background: #40de63 !important;
-  border-color: #40de63 !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
@@ -245,8 +245,8 @@
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: #36c956 !important;
-  border-color: #36c956 !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
@@ -284,16 +284,16 @@
   min-height: 25px !important;
   border-radius: 999px !important;
   border: 1px solid transparent !important;
-  background: var(--mk-sup-fundo, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
   color: #475569 !important;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   font-size: 12px !important;
   font-weight: 600 !important;
 }
 
-.b1-portal-compras .tb-btn:hover:not(:disabled),
-.b1-portal-compras.fpop .tb-btn:hover:not(:disabled),
-.b1-portal-compras .mdl-f .tb-btn:hover:not(:disabled) {
+.b1-portal-compras .tb-btn:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn:not(.tb-btn-green):hover:not(:disabled) {
   background: #e8ecef !important;
   color: #0f172a !important;
   box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
@@ -302,16 +302,16 @@
 .b1-portal-compras .tb-btn.tb-btn-green,
 .b1-portal-compras.fpop .tb-btn.tb-btn-green,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green {
-  background: #40de63 !important;
-  border-color: #40de63 !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
 .b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
-  background: #36c956 !important;
-  border-color: #36c956 !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
@@ -322,7 +322,7 @@
   padding: 0 !important;
 }
 
-/* Fechar / Cancelar (ícone, sem verde): fundo cinza explícito em diálogos e filtros */
+/* Fechar / Cancelar (ícone, sem verde): fundo branco (D-PROD-147) */
 .b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green),
 .b1-portal-compras.fpop .tb-btn.tb-btn-icon:not(.tb-btn-green),
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon:not(.tb-btn-green),
@@ -330,10 +330,10 @@
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon:not(.tb-btn-green),
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green),
 .b1ref.b1-portal-compras .rm {
-  background: var(--mk-sup-fundo, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
   border-color: transparent !important;
   color: #475569 !important;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
@@ -371,7 +371,7 @@
 
 .b1-portal-compras [role="menuitem"]:hover:not(:disabled),
 .b1-portal-compras .mg-b1-menuitem:hover:not(:disabled) {
-  background: var(--mg-bg-page, #f7f8fa) !important;
+  background: var(--mg-bg-page, #FAFCFE) !important;
 }
 
 .b1-portal-compras [role="menuitem"].is-danger,
@@ -397,38 +397,38 @@
  */
 @media (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: 44px;
+    --mg-btn-h: var(--mk-action-height-touch, 40px);
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon),
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
-    min-height: 44px !important;
-    height: auto !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    font-size: 13px !important;
-    box-shadow: none !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: var(--mk-action-font, 12px) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green {
-    background: var(--mg-accent) !important;
+    background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
     color: #fff !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green:hover:not(:disabled) {
-    background: var(--mg-accent-hover) !important;
+    background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
     color: #fff !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray {
-    background: var(--mg-gray-fill) !important;
+    background: var(--mk-btn-bg, #ffffff) !important;
     color: var(--mg-text-1) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
-    background: var(--mg-gray-fill2) !important;
+    background: var(--mk-btn-hover, #FAFCFE) !important;
     color: var(--mg-text-1) !important;
   }
 
@@ -450,25 +450,25 @@
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-summary .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-nav-btn {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    box-shadow: none !important;
+    width: var(--mk-action-height-touch, 40px) !important;
+    min-width: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
     height: auto !important;
-    min-height: 44px !important;
-    padding: 4px !important;
-    box-shadow: none !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
+    padding: 3px !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-search-pill-wrap,

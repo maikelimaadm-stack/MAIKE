@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 8px;
   box-sizing: border-box;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1__page-title {
@@ -47,9 +47,9 @@
   --mg-text-1: #334155;
   --mg-text-2: #6b7280;
   --mg-text-3: #9ca3af;
-  --mg-bg-page: var(--mk-sup-fundo, #f7f8fa);
+  --mg-bg-page: var(--mk-sup-fundo, #FAFCFE);
   --mg-bg-card: #ffffff;
-  --mg-gray-fill: var(--mk-sup-fundo, #f7f8fa);
+  --mg-gray-fill: var(--mk-sup-fundo, #FAFCFE);
   --mg-gray-fill2: #e5e7eb;
   --mg-divider: #e7eaee;
   --mg-container-border: 1px solid #e7eaee;
@@ -60,14 +60,14 @@
   --mg-focus-border: rgba(64, 222, 99, 0.35);
   --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
   --mg-btn-h: 28px;
-  --mg-btn-font: 13px;
-  --mg-btn-font-compact: 12px;
+  --mg-btn-font: var(--mk-action-font, 13px);
+  --mg-btn-font-compact: var(--mk-font-list, 13px);
   --mg-toolbar-h: 36px;
   --mg-field-h: 38px;
   --mg-field-edge-shadow: inset 0 1px 2px rgba(100, 116, 139, 0.05),
     inset 1px 0 1px rgba(148, 163, 184, 0.07), inset -1px 0 1px rgba(148, 163, 184, 0.07);
   --mg-selection-bg: rgba(64, 222, 99, 0.12);
-  --mg-row-alt: #fafbfc;
+  --mg-row-alt: #FAFCFE;
   --mg-row-hover: #eef6ff;
   --mg-overlay-bg: rgba(15, 23, 42, 0.45);
   --mg-z-overlay: 40;
@@ -79,7 +79,8 @@
   flex-direction: column;
   gap: 8px;
   min-height: 0;
-  font-size: 13px;
+  font-size: var(--mk-font-list, 13px);
+  color: var(--mk-text, #334155);
 }
 
 .cadastro-b1 .tb-btn {
@@ -92,7 +93,7 @@
   padding: 0 13px;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: var(--mg-btn-font, var(--mk-action-font, 12px));
   font-weight: 600;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -109,30 +110,32 @@
 }
 
 .cadastro-b1 .tb-btn svg {
-  width: 14px;
-  height: 14px;
+  width: var(--mk-action-icon, 16px);
+  height: var(--mk-action-icon, 16px);
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 .cadastro-b1 .tb-btn-green {
-  background: var(--mg-accent);
-  color: #fff;
+  background: var(--mk-btn-bg, #ffffff);
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-green:hover:not(:disabled) {
-  background: var(--mg-accent-hover);
+  background: var(--mk-btn-hover, #FAFCFE);
+  color: #15803d;
 }
 
 .cadastro-b1 .tb-btn-gray {
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-text-1);
 }
 
 .cadastro-b1 .tb-btn-gray:hover:not(:disabled) {
-  background: var(--mg-gray-fill2);
+  background: var(--mk-btn-hover, #FAFCFE);
 }
 
 .cadastro-b1 .tb-btn-red {
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-red);
 }
 
@@ -150,32 +153,32 @@
   width: var(--mg-btn-h);
   min-width: var(--mg-btn-h);
   padding: 0;
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-icon);
 }
 
 .cadastro-b1 .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mg-gray-fill2);
+  background: var(--mk-btn-hover, #FAFCFE);
 }
 
-/* Botões de visto (OK / Aplicar / Pronto): verde + ícone branco */
+/* Botões de visto (OK / Aplicar / Pronto): branco + ícone verde */
 .cadastro-b1 .tb-btn-icon.tb-btn-green,
 .b1ref .tb-btn-icon.tb-btn-green {
-  background: #40de63;
-  border-color: #40de63;
-  color: #fff;
+  background: var(--mk-btn-bg, #ffffff);
+  border-color: transparent;
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: #36c956;
-  border-color: #36c956;
-  color: #fff;
+  background: var(--mk-btn-hover, #FAFCFE);
+  border-color: transparent;
+  color: #15803d;
 }
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green svg,
 .b1ref .tb-btn-icon.tb-btn-green svg {
-  color: #fff;
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-icon.is-active {
@@ -613,7 +616,7 @@
   gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
   border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1 .mg-search-pill {
@@ -682,7 +685,7 @@
   width: 13px;
   height: 13px;
   margin-right: 5px;
-  color: var(--mg-text-3);
+  color: var(--mk-icon-field, var(--mg-text-3));
 }
 
 .cadastro-b1 .mg-search-pill-clear {
@@ -699,12 +702,12 @@
 }
 
 .cadastro-b1 .mg-search-pill-clear .mg-search-pill-icon {
-  color: var(--mg-red);
+  color: var(--mk-icon-close, #64748b);
   margin-right: 0;
 }
 
 .cadastro-b1 .mg-search-pill-clear:hover .mg-search-pill-icon {
-  color: #b91c1c;
+  color: var(--mk-action-fg, #334155);
 }
 
 .cadastro-b1 .mg-card-title {
@@ -799,7 +802,7 @@
 .cadastro-b1 .mg-grid tfoot td {
   position: sticky;
   bottom: 0;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   z-index: 3;
 }
 
@@ -1184,7 +1187,7 @@
 }
 
 .cadastro-b1 .mg-field--disabled {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   border-color: transparent;
   box-shadow: none;
   pointer-events: none;
@@ -1994,7 +1997,7 @@
 }
 
 .cadastro-b1 .fchip-lim:hover {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: var(--mg-text-1);
 }
 
@@ -2176,7 +2179,7 @@
 
 .cadastro-b1 .b1-panel-list__tab:hover {
   color: #3b4e63;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1 .b1-panel-list__tab.is-active {

@@ -112,7 +112,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
 
   return (
     <Card className="mk-hist border-slate-200 shadow-sm">
-      <CardHeader className="bg-slate-50 border-b py-2 px-3">
+      <CardHeader className="bg-[#FAFCFE] border-b py-2 px-3">
         <CardTitle className="text-sm font-semibold">Histórico do Depósito ({movimentacoes.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-2">

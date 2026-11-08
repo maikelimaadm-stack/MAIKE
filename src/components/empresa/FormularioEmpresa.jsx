@@ -483,7 +483,7 @@ export default function FormularioEmpresa({
       data-testid="b1-form-empresa"
     >
       <B1Field label="Nº da Empresa" span={3} hasValue locked disabled>
-        <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-slate-50`} />
+        <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-[#FAFCFE]`} />
       </B1Field>
       <B1Field
         label="Apelido"

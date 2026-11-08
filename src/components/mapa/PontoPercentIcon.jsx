@@ -14,7 +14,7 @@ export default function PontoPercentIcon({ imageUrl, label, percent = 0, fillCla
           className="h-[68px] w-[68px] object-contain pointer-events-none" /> :
 
 
-        <div className="h-[68px] w-[68px] rounded border border-slate-200 bg-slate-50" />
+        <div className="h-[68px] w-[68px] rounded border border-slate-200 bg-[#FAFCFE]" />
         }
       </div>
       )}

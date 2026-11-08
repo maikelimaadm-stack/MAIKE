@@ -301,7 +301,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           <div className="text-slate-500">Nenhum evento registrado.</div> :
 
           historico.slice(0, 3).map((item) =>
-          <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
+          <div key={item.id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-slate-900">{item.evento || "-"}</span>
                   <span className="text-slate-500">{formatDateBR(item.data_evento || item.created_date)}</span>

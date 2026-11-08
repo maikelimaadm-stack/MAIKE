@@ -183,15 +183,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                 <div className="text-slate-500">Saldo atual kg</div>
                 <div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                 <div className="text-slate-500">Saldo em sacos</div>
                 <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                 <div className="text-slate-500">Necessidade reposição kg</div>
                 <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeReposicao || 0)}</div>
               </div>
@@ -208,7 +208,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
           <div className="space-y-1">
               {saldosAgrupados.map((item) =>
-            <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+            <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                     <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
                     <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
@@ -274,7 +274,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
               Array.isArray(cocho.area_vinculada_nomes) && cocho.area_vinculada_nomes.length > 0 ?
               cocho.area_vinculada_nomes.join(', ') :
               cocho.area_vinculada_nome || 'Sem pasto vinculado';
-              return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-slate-50 px-1 py-1">
+              return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-1 py-1">
                   <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
                   <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
                 </div>;

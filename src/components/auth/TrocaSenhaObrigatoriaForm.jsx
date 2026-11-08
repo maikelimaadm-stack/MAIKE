@@ -135,7 +135,7 @@ const TrocaSenhaObrigatoriaForm = ({ login, onConcluida, onVoltar }) => {
   );
 
   return (
-    <div className="mk-login fixed inset-0 overflow-y-auto bg-slate-50">
+    <div className="mk-login fixed inset-0 overflow-y-auto bg-[#FAFCFE]">
       <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-8 sm:px-6">
         <form
           onSubmit={submeter}

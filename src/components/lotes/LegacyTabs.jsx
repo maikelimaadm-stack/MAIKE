@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const SYSTEM_PANEL_IDS = ["geral", "compra", "identificacao", "observacoes", "campos_personalizados"];
 const isCustomPanel = (tab) => tab && !SYSTEM_PANEL_IDS.includes(tab.id);
 const CustomMarker = () => <span className="pointer-events-none absolute bottom-0 right-0 z-10 w-0 h-0 border-l-[7px] border-l-transparent border-b-[7px] border-b-green-500" />;
-const navButtonClass = "relative z-20 h-7 flex-none self-center bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center w-8";
+const navButtonClass = "relative z-20 h-7 flex-none self-center bg-white hover:bg-[#FAFCFE] text-slate-700 flex items-center justify-center w-8";
 
 export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
   const tabsScrollRef = useRef(null);
@@ -26,7 +26,7 @@ export default function LegacyTabs({ tabs = [], activeTab, onChange }) {
               key={tab.id}
               type="button"
               onClick={() => onChange(tab.id)}
-              className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap overflow-hidden transition-colors rounded-[2px_2px_0px_0px] ${active ? "bg-white text-slate-800 font-semibold border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"}`}>
+              className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap overflow-hidden transition-colors rounded-[2px_2px_0px_0px] ${active ? "bg-white text-slate-800 font-semibold border-t-2 border-t-green-500 border-b-white" : "bg-[#FAFCFE] text-slate-700 border-b-slate-300 hover:bg-white"}`}>
               {isCustomPanel(tab) && <CustomMarker />}
               {tab.label}
             </button>);

@@ -103,7 +103,7 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
   return (
     <div className="space-y-3">
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-3 px-3">
+        <CardHeader className="bg-[#FAFCFE] border-b py-3 px-3">
           <CardTitle className="text-sm font-semibold">Histórico da Tarefa ({historico.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-2">

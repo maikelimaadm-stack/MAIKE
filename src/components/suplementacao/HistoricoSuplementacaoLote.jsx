@@ -176,7 +176,7 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                 const pesoMedio = item.peso_medio_lote_kg || 0;
 
                 return (
-                  <div key={item.id} className="border border-slate-200 rounded-lg p-3 bg-white hover:bg-slate-50 transition-colors">
+                  <div key={item.id} className="border border-slate-200 rounded-lg p-3 bg-white hover:bg-[#FAFCFE] transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="text-xs font-semibold text-slate-900">{item.produto}</div>
@@ -193,27 +193,27 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-[10px]">
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Cabeças</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.cabecas_na_area || 0, 0)}</div>
                       </div>
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Dias</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.dias_periodo || 0, 0)}</div>
                       </div>
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Peso médio</div>
                         <div className="font-bold text-slate-900">{pesoMedio > 0 ? `${formatQuantidadeTecnica(pesoMedio, 0)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Realizado</div>
                         <div className="font-bold text-slate-900">{periodoFechado ? `${formatConsumoKgCabDia(consumoReal)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Esperado (%PV)</div>
                         <div className="font-bold text-slate-900">{consumoEsperado > 0 ? `${consumoEsperado.toFixed(3)} kg` : '-'}</div>
                       </div>
-                      <div className="rounded border border-slate-200 bg-slate-50 p-1.5">
+                      <div className="rounded border border-slate-200 bg-[#FAFCFE] p-1.5">
                         <div className="text-slate-500">Total lote</div>
                         <div className="font-bold text-slate-900">{formatQuantidadeTecnica(item.consumo_total_lote_periodo_kg || 0, 1)} kg</div>
                       </div>

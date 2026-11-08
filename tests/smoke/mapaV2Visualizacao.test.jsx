@@ -24,6 +24,9 @@ describe("Shell e controles (D-PROD-132)", () => {
   it("cabeçalho sai só no celular/tablet; sem menu lateral nem fazenda no mapa", () => {
     const layout = readFileSync("src/Layout.jsx", "utf8");
     expect(layout).toMatch(/const telaMapa = currentPageName === PRIMARY_PAGE;/);
+    // Com Módulos aberto em cima do mapa, título/fazenda/usuário continuam visíveis.
+    expect(layout).toMatch(/ocultarCabecalhoMapa = telaMapa && !mobileMenuOpen/);
+    expect(layout).toMatch(/ocultarCabecalhoMapa \? " mk-shell--mapa"/);
     expect(layout).not.toMatch(/MenuLateral|MapaShellContext/);
     const css = readFileSync("src/styles/mapa-geral.css", "utf8");
     expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.mk-shell--mapa > header \{\s*display: none !important;/);
@@ -73,9 +76,9 @@ describe("Painel Visualização", () => {
     const camadas = camadasDoMapa({ showAreas: true, showLotes: false, setShowLotes, showNomesAreas: true, showHectaresAreas: true, permissions: { visualizar_alertas: false } });
     expect(camadas.find((c) => c.id === "alertas")).toBeUndefined();
     painel({ camadas });
-    const lotes = screen.getByRole("switch", { name: "Lotes" });
+    const lotes = screen.getByRole("checkbox", { name: "Lotes" });
     expect(lotes.getAttribute("aria-checked")).toBe("false");
-    expect(screen.getByRole("switch", { name: "Áreas" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("checkbox", { name: "Áreas" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(lotes);
     expect(setShowLotes).toHaveBeenCalledTimes(1);
   });

@@ -153,7 +153,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
     result.push({
       tipo: 'pontos_sem_suplementacao',
       icone: MapPin,
-      cor: 'text-slate-600 bg-slate-50 border-slate-200',
+      cor: 'text-slate-600 bg-[#FAFCFE] border-slate-200',
       titulo: `Pontos sem Suplementação (${pontosSemSuplementacao.length})`,
       lista: pontosSemSuplementacao.map((area) => area.nome)
     });
