@@ -5521,4 +5521,93 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Estado (2026-11-08):** migration aplicada em produção com autorização do proprietário e conferida: 34 concluídas, checksum igual, RLS ligado, 0 grants públicos. Falta o merge manual da PR #227. O backup/PITR não foi comprovado pelas ferramentas disponíveis.
   - Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-154 -->
+---
+
+## D-PROD-154 — Eixo de produtividade: base técnica e ordem de implantação
+
+**Decisão:** abrir o **eixo de produtividade** como linha de trabalho do produto, com
+a base técnica de negócio registrada em
+`docs/engineering/MAIKE-PRODUTIVIDADE-BASE-TECNICA.md`, e implantá-lo em fatias na
+ordem fixada abaixo — uma PR por vez.
+
+**Justificativa:** o produto hoje mede **posição e movimento** de rebanho com
+precisão (ledger imutável, saldo por data, mapa), mas não mede **produtividade**:
+não há GMD realizado, arroba, kg PV/ha, altura de pasto, nem custo por área ou por
+arroba. Sem esses números, o sistema registra o que aconteceu e não ajuda a decidir
+o que fazer. Três achados do inventário mostram que o caminho é curto:
+
+- o ledger (`PosicaoRebanho`, `PartidaRebanho`) já dá cabeças por área por dia, e
+  `AreaPastagem.area_pastejada` dá o denominador: **UA/ha histórico é derivável**;
+- `PesoRebanho` já é peso médio datado, com a flag `medido` separando medido de
+  derivado: **o GMD real é cálculo, não migration**;
+- `CategoriaManejo` já traz `gmd_janeiro`…`gmd_dezembro`: a **meta** de GMD por
+  categoria e mês já está cadastrada; falta só o realizado para comparar.
+
+**O que entra no eixo:** indicadores zootécnicos derivados (UA, UA/ha, GMD real
+contra previsto, kg PV/ha, arroba produzida); pastagem como unidade de gestão
+(cultivar com faixa de altura, medição de altura, degradação, análise de solo,
+adubação, balanço forrageiro, diferimento); apropriação de custo por área, lote e
+atividade sobre o que `MovimentacaoEstoque` e `LancamentoTarefa` já registram;
+frota (máquina, horímetro, abastecimento, manutenção, custo/hora); clima (chuva);
+sanidade tipada com calendário legal; lavoura (safra, operação, colheita); e
+índices de satélite por área.
+
+**O que fica fora:** financeiro transacional — lançamento, valor, saldo,
+caixa/banco, tributo, NF-e, contas a pagar e receber continuam proibidos. O custo
+do eixo vem da **saída de estoque** e da **tarefa**, que já têm valor, FIFO e
+destino. Animal individual e SISBOV também ficam fora: o ledger é por posição e
+lote, e identidade individual seria outro eixo, não um campo novo.
+
+**Ordem das fatias (dependência dura):**
+
+```
+PRODUTIVIDADE-00  (esta decisão + base técnica, só documentação)
+
+INDICADORES-01  →  PASTO-03  →  CUSTO-01  →  CUSTO-02  →  PAINEL-01
+                                      └→  FROTA-02
+                                      └→  LAVOURA-01
+PASTO-01  →  PASTO-02  →  FORRAGEM-01
+     └→  SOLO-01
+     └→  SATELITE-01
+SANIDADE-01  →  REPRODUCAO-01
+
+Independentes: CLIMA-01, FROTA-01
+```
+
+**Consequências:**
+
+- **O manifesto de escopo anda junto com o código, nunca antes.**
+  `config/mapa-manejo-scope.json` exige bijeção: toda página em `allowedPages` tem de
+  estar registrada em `src/pages.config.js`, e toda registrada tem de estar na lista.
+  Liberar tela antes de ela existir reprova o `gate:product-scope`. Portanto **não
+  há fatia de pré-liberação**: cada fatia altera o manifesto na mesma PR em que cria
+  a sua tela, e esta decisão não toca o manifesto.
+- **Models Prisma novos não passam pelo gate de escopo.** `allowedBase44Entities`
+  trata dos schemas legados em `base44/entities/`. Quem governa model novo é
+  `gate:tenancy` e `gate:indices`: `cliente_id` obrigatório e todo índice único
+  começando por `cliente_id`.
+- **`forbiddenDomains` é conferido por texto literal** em `pages.config.js`,
+  `App.jsx`, `Layout.jsx` e `menuConfig.js`, e já inclui `CadastroMaquinas`,
+  `LancamentosAbastecimento`, `OperacoesAgricolas`, `GerenciarSafras`, `CustosSafra`
+  e `Pesagens`. As fatias de frota e de lavoura usam nome de página fora dessa
+  lista, ou a removem com decisão própria — não se contorna o gate.
+- **Cálculo desce para o domínio.** UA, UA/ha e lotação vivem hoje em
+  `src/components/mapa/MapaInsights.jsx`, no frontend e só para exibição. Indicador
+  em componente de tela não serve para relatório, alerta, histórico nem comparação:
+  passam para `src/domain/indicadores/`, com teste, e o mapa consome o domínio.
+- **Faixas e metas são parâmetro, não constante.** Altura por cultivar, meta de GMD,
+  benchmark de custo e nível de degradação entram como dado do cliente. A base
+  técnica fornece o *seed*; o número oficial é calibrado na fazenda.
+- **Cada fatia tem decisão própria**, a partir da D-PROD-155, e relatório em
+  `docs/engineering/`.
+- **Duas decisões técnicas ficam abertas, a resolver antes da Onda 3:** (a) adotar ou
+  não PostGIS — o polígono hoje é JSON `[lat,lng]`, sem índice espacial, e
+  apontamento automático por GPS ou recorte de raster no servidor exigem geometria
+  no banco; (b) confirmar que peso médio por posição basta — basta para GMD por
+  lote, CV e curva; não basta para rastreabilidade individual.
+- **Capacidade de suporte passa a ser sazonal.** Hoje `AreaPastagem.capacidade_maxima`
+  é um número único para o ano, o que é incorreto: águas, transição e seca têm
+  capacidades diferentes. Corrigido em `PASTO-03`.
+- Base técnica: `docs/engineering/MAIKE-PRODUTIVIDADE-BASE-TECNICA.md`.
+
+<!-- Próxima decisão: D-PROD-155 -->
