@@ -192,7 +192,7 @@ export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeE
             {subIconePonto ? (
               <img src={subIconePonto} alt={bebedouro.tipo || "Bebedouro"} className="h-[68px] w-[68px] object-contain pointer-events-none" />
             ) : (
-              <div className="h-[68px] w-[68px] rounded border border-slate-200 bg-slate-50" />
+              <div className="h-[68px] w-[68px] rounded border border-slate-200 bg-[#FAFCFE]" />
             )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
@@ -205,7 +205,7 @@ export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeE
 
       <CardSection title="Último Registro">
         {ultimoLancamento ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1">
+          <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 space-y-1">
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs font-semibold text-slate-900">{ultimoLancamento.tipo_lancamento || "Lançamento"}</div>
               <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
@@ -236,7 +236,7 @@ export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeE
 }
 
 function MetricBox({ label, value }) {
-  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
+  return <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
 }
 
 function CardSection({ title, children }) {

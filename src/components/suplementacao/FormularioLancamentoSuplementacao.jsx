@@ -579,7 +579,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               {ultimoEvento && diasPeriodo && <div className="text-[10px] text-slate-600 pt-1 border-t border-emerald-200">Último lançamento: {formatDateBR(ultimoEvento.data_lancamento)} • Período: {formatDecimal(diasPeriodo, 0, true)} dia(s)</div>}
             </div>
 
-            {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
+            {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-[#FAFCFE] px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
 
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
@@ -682,7 +682,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               const consumoPorCabAnterior = safeDivide(consumoDiarioAnterior, ultimoEvento.total_cabecas_afetadas || 0);
               const consumidoAnterior = Math.max(0, totalDisponivelAnterior - sobraFechamento);
               return (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+                <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo do fechamento / estimativa</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                     <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Fornecido</div><div className="font-bold text-slate-900">{fornecidoAnterior.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div></div>
@@ -697,7 +697,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
                 <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
@@ -710,7 +710,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Consumo por lote */}
             {quantidadeKg > 0 && totalCabecas > 0 && lotes.length > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
                 <div className="flex items-center justify-between gap-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
                   <Button data-mk-map-action="" type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarConsumoLote((prev) => !prev)}>

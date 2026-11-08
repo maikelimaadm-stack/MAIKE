@@ -220,7 +220,7 @@ const trocarEmpresa = async (empresa) => {
 };
 const abrirFiltros = async () => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Filtros' })); });
-  return within(screen.getByRole('dialog', { name: 'Filtros e Camadas' }));
+  return within(screen.getByRole('dialog', { name: 'Filtro' }));
 };
 
 beforeEach(() => {
@@ -302,8 +302,8 @@ describe('PREF-04 — controles só com a permissão que os faz funcionar', () =
     expect(screen.queryByRole('button', { name: 'Arrasto ativo' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Minha localização' })).toBeNull();
     const filtros = await abrirFiltros();
-    expect(filtros.getByRole('switch', { name: 'Lotes' }), 'controle: camada permitida aparece').toBeInTheDocument();
-    expect(filtros.queryByRole('switch', { name: 'Tarefas' })).toBeNull();
+    expect(filtros.getByRole('checkbox', { name: 'Lotes' }), 'controle: camada permitida aparece').toBeInTheDocument();
+    expect(filtros.queryByRole('checkbox', { name: 'Tarefas' })).toBeNull();
     const salvo = ler(chave('emp-1'));
     expect(salvo?.dragLotesEnabled).toBe(false);
     expect(salvo?.showUserLocation).toBe(false);
@@ -317,7 +317,7 @@ describe('PREF-04 — controles só com a permissão que os faz funcionar', () =
     expect(ler(chave('emp-1'))?.dragLotesEnabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Minha localização' })).toBeInTheDocument();
     const filtros = await abrirFiltros();
-    expect(filtros.getByRole('switch', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(filtros.getByRole('checkbox', { name: 'Tarefas' })).toBeInTheDocument();
   });
 
   it('administrador da fazenda vê os três', async () => {
@@ -326,7 +326,7 @@ describe('PREF-04 — controles só com a permissão que os faz funcionar', () =
     expect(screen.getByRole('button', { name: 'Ativar arrasto' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Minha localização' })).toBeInTheDocument();
     const filtros = await abrirFiltros();
-    expect(filtros.getByRole('switch', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(filtros.getByRole('checkbox', { name: 'Tarefas' })).toBeInTheDocument();
   });
 });
 

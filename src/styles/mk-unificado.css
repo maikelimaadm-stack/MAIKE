@@ -1,44 +1,97 @@
-/* Contrato compartilhado: ações 36px / ícones 16px; listas 34px / checks 14px. */
+/*
+ * Contrato compartilhado (D-PROD-148/150):
+ * tipografia = listagens de Filtros/Camadas (`.mk-map-filters--clean` / `.mk-vis`).
+ * Fundo de superfície = #FAFCFE (D-PROD-149).
+ */
 :root {
-  --mk-action-height: 36px;
-  --mk-action-icon: 16px;
-  --mk-list-row-height: 34px;
-  --mk-filter-row-height: 34px;
-  --mk-search-height: 32px;
-  --mk-search-font: 12px;
-  --mk-glass-bg: var(--mk-sup-fundo, #f7f8fa);
+  /* Desktop ≥1024: 32px / 14px. Mobile+tablet ≤1023: 40px / 17px (mesma proporção). */
+  --mk-action-height: 32px;
+  --mk-action-height-touch: 40px;
+  --mk-action-icon: 14px;
+  --mk-action-icon-touch: 17px;
+  --mk-action-stroke: 2.25;
+  --mk-action-font: 13px;
+  --mk-action-fg: #334155;
+  --mk-action-fg-green: #16a34a;
+  --mk-action-fg-red: #dc2626;
+  --mk-action-fg-muted: #5b6b80;
+  /* Positivos (Novo / Adicionar / Salvar / Aplicar): verde do sistema + letra branca */
+  --mk-action-positive-bg: var(--mg-accent, #40de63);
+  --mk-action-positive-hover: var(--mg-accent-hover, #36c956);
+  --mk-action-positive-fg: #ffffff;
+  /* Ícones por papel — a mesma ação = a mesma cor em todo o sistema */
+  --mk-icon-edit: var(--mk-action-fg-muted);   /* Editar / lápis */
+  --mk-icon-close: #64748b;                    /* ✕ Fechar / Cancelar / Limpar */
+  --mk-icon-danger: var(--mk-action-fg-red);   /* Excluir / Remover */
+  --mk-icon-field: #9ca3af;                    /* chevron, lupa e adornos de campo */
+  --mk-icon-positive: var(--mk-action-fg-green); /* + em botão tracejado / texto */
+  /* Tipografia do sistema (legível em desktop; mobile/tablet sobe no media abaixo) */
+  --mk-font-list: 13px;
+  --mk-font-field: 13px;
+  --mk-font-heading: 13px;
+  --mk-font-title: 15px;
+  --mk-font-search: 13px;
+  /* Label flutuante (LancField / mg-field): descanso vs subida */
+  --mk-font-float-rest: 12px;
+  --mk-font-float-up: 10px;
+  --mk-text: #334155;
+  --mk-text-strong: #292a2d;
+  --mk-text-muted: #64748b;
+  --mk-list-row-height: 36px;
+  --mk-filter-row-height: 36px;
+  --mk-check-size: 14px;
+  --mk-check-on: #32d65e;
+  --mk-check-row-on: #fff;
+  --mk-search-height: 36px;
+  --mk-glass-bg: var(--mk-sup-fundo, #FAFCFE);
   --mk-glass-border: rgba(255, 255, 255, .8);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
   --mk-ui-control-size: var(--mk-action-height);
   --mk-ui-icon-size: var(--mk-action-icon);
-  --mk-search-height: 32px;
-  --mk-search-font: 12px;
-  --mk-filter-row-height: 34px;
+  --mk-search-height: var(--mk-list-row-height);
+  --mk-filter-row-height: var(--mk-list-row-height);
+  --mg-btn-h: var(--mk-action-height);
+  --mg-btn-font: var(--mk-action-font);
+  --mk-search-font: var(--mk-font-field);
+  font-size: var(--mk-font-list);
+  color: var(--mk-text);
 }
 /* Apenas ações: seletores, chaves e checkboxes conservam seus contratos. */
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
  .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
- .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) {
+ .mk-config-restore, .mk-colcfg__restaurar, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) {
   box-sizing: border-box;
   height: var(--mk-action-height) !important;
   min-height: var(--mk-action-height) !important;
   border-radius: 999px !important;
-  font-size: 12px !important;
+  font-size: var(--mk-action-font) !important;
+  font-weight: 600 !important;
+  color: var(--mk-action-fg);
   gap: 6px;
 }
 :is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mg-rec-pager__btn,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) {
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-ll__remover):not(#mk-padrao) {
   width: var(--mk-action-height) !important;
   min-width: var(--mk-action-height) !important;
   padding: 0 !important;
 }
+/* Botões de lançamento com rótulo (Editar, etc.): mesma altura, largura pelo texto. */
+.mk-ll__btn:not(#mk-padrao) {
+  width: auto !important;
+  min-width: max-content !important;
+  padding: 0 12px !important;
+}
 :is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
- .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) > svg:not(.mk-al__img) {
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .view-seg button, .mk-mhdr__round, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg:not(.mk-al__img),
+.mk-mhdr__back > span:not(#mk-padrao) > svg {
   width: var(--mk-action-icon) !important;
   height: var(--mk-action-icon) !important;
-  padding: 0;
+  padding: 0 !important;
   flex-shrink: 0;
+  stroke-width: var(--mk-action-stroke) !important;
 }
 
 /* Check quadrado verde: inclui cabeçalhos, linhas e filtros das tabelas. */
@@ -70,23 +123,30 @@
 :is(.b1ref .chk, .cadastro-b1 .mg-check):not(#mk-padrao) svg { width: 10px; height: 10px; padding: 0; }
 input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 
-/* Listas de opções compactas, sem alterar a altura dos dados das tabelas. */
+/* Listagens no mesmo corpo tipográfico (Filtros/Camadas do mapa têm CSS próprio). */
 :is(.fpc__item, .b1ref .fvr, .mgs__op, .mk-co__item, .cmd-option, .mk-sel-op,
- .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row):not(#mk-padrao) {
-  min-height: 34px;
-  font-size: 12px !important;
+ .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row,
+ .mk-map-multi-options label):not(#mk-padrao) {
+  min-height: var(--mk-list-row-height);
+  font-size: var(--mk-font-list) !important;
   line-height: 1.35;
+  color: var(--mk-text);
   padding-top: 6px;
   padding-bottom: 6px;
 }
-.b1ref .fpop .fvr:not(#mk-padrao) { height: 34px; grid-template-columns: 28px minmax(0, 1fr) max-content; }
-.b1ref .fpop .fvr > *:not(#mk-padrao) { height: 34px; }
-:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb):not(#mk-padrao) {
-  height: 32px !important;
-  min-height: 32px;
-  font-size: 12px !important;
+.b1ref .fpop .fvr:not(#mk-padrao) {
+  height: var(--mk-list-row-height);
+  grid-template-columns: 28px minmax(0, 1fr) max-content;
 }
-:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb) input:not(#mk-padrao) { font-size: 12px !important; }
+.b1ref .fpop .fvr > *:not(#mk-padrao) { height: var(--mk-list-row-height); }
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb):not(#mk-padrao) {
+  height: var(--mk-search-height) !important;
+  min-height: var(--mk-search-height);
+  font-size: var(--mk-font-search) !important;
+}
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb) input:not(#mk-padrao) {
+  font-size: var(--mk-font-search) !important;
+}
 
 /* Vidro discreto nas superfícies flutuantes; cards de dados permanecem opacos. */
 :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop,
@@ -121,36 +181,60 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   align-items: center;
   text-align: left;
   width: 100%;
-  height: 34px;
-  min-height: 34px;
+  height: 32px;
+  min-height: 32px;
   justify-content: flex-start;
   border-radius: 0;
-  padding: 6px 10px;
+  padding: 0 10px;
   box-shadow: none;
-  font-size: 11px !important;
+  font-size: var(--mk-font-list) !important;
+  color: var(--mk-text-strong);
+  gap: 8px;
 }
-.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 1px solid var(--mk-list-divider); }
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 0; }
+/* Checkbox verde (Visualização / Filtros·Camadas) — D-PROD-151 */
+.mk-check-row:not(#mk-padrao),
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {
+  position: relative;
+}
+.mk-check-row::before,
 .mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)::before {
   content: '';
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: var(--mk-check-size);
+  height: var(--mk-check-size);
   flex: none;
   box-sizing: border-box;
   border: 1px solid #cbd5e1;
   border-radius: 3px;
+  background: #fff;
 }
+.mk-check-row[aria-checked="true"]::before,
 .mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]::before {
-  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px no-repeat;
-  border-color: #32d65e;
+  background: var(--mk-check-on) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px no-repeat;
+  border-color: var(--mk-check-on);
 }
-.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) { color: #334155; background: #f0fbf3; }
+/* Selecionado: só o checkbox verde muda — fundo permanece branco (sem cinza). */
+.mk-check-row[aria-checked="true"]:not(#mk-padrao),
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) {
+  color: #334155;
+  background: var(--mk-check-row-on);
+}
+.mk-check-row[aria-checked="true"]:hover:not(#mk-padrao),
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:hover:not(#mk-padrao) {
+  background: var(--mk-check-row-on);
+}
+
 .mk-hist__barra { gap: 8px; margin-bottom: 10px; }
 .mk-hist__lista { display: flex; flex-direction: column; gap: 8px; }
 .mk-hist__lista > :not(#mk-padrao) { padding: 10px; }
-.mk-hist :is(input, button[role="combobox"]):not(#mk-padrao) { min-height: 32px; font-size: 12px !important; }
+.mk-hist :is(input, button[role="combobox"]):not(#mk-padrao) {
+  min-height: 28px;
+  font-size: var(--mk-font-field) !important;
+  color: var(--mk-text);
+}
 @media (prefers-reduced-transparency: reduce) {
-  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: #f7f8fa; backdrop-filter: none; }
+  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: #FAFCFE; backdrop-filter: none; }
 }
 
 /* As barras flutuantes do mapa acompanham o vidro dos painéis. */
@@ -161,7 +245,10 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   border: 1px solid var(--mk-glass-border);
 }
 /* Textos internos não herdam os tamanhos antigos das folhas mobile. */
-:is(.b1ref .fpop .fvr .pn, .mgs__op, .mk-co__item, .cmd-option, .mk-colcfg__row .mg-b1-row__title):not(#mk-padrao) { font-size: 12px !important; }
+:is(.b1ref .fpop .fvr .pn, .mgs__op, .mk-co__item, .cmd-option, .mk-colcfg__row .mg-b1-row__title):not(#mk-padrao) {
+  font-size: var(--mk-font-list) !important;
+  color: var(--mk-text);
+}
 /* Barras dos cadastros tinham medidas fixas com maior especificidade. */
 .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(#mk-padrao),
 .cadastro-b1--full-page .mg-toolbar .tb-btn:not(#mk-padrao) {
@@ -196,42 +283,194 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   }
 }
 
-/* O cinza dos painéis é sólido. O vidro fica nos botões de ação. */
+/* Botões de ação: branco sólido (D-PROD-147). Painéis flutuantes seguem o vidro acima. */
 :root {
-  --mk-btn-bg: rgba(255, 255, 255, .64);
-  --mk-btn-hover: rgba(255, 255, 255, .88);
-  --mk-control-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 3px rgba(15, 23, 42, .07), 0 4px 12px rgba(15, 23, 42, .035);
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
+  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
-  --mk-btn-sombra: var(--mk-control-glass-shadow);
+  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --portal-acao-bg: var(--mk-btn-bg);
+  --portal-acao-hover: var(--mk-btn-hover);
 }
-:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo,
- .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+:is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-ll-dlg__redondo,
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.mk-sheet__new):not(.mk-btn-ok):not(.mk-mhdr__round--salvar):not(.mk-ll-dlg__redondo--salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
-  border: 1px solid rgba(255, 255, 255, .9);
-  box-shadow: var(--mk-control-glass-shadow) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid transparent;
+  box-shadow: var(--mk-btn-sombra) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: #334155; }
 .mk-ui-button.bg-primary:not(#mk-padrao) { color: #334155; }
 .mk-ui-button.bg-destructive:not(#mk-padrao) { color: #dc2626; }
 :is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) {
   box-sizing: border-box;
-  width: 36px !important;
-  min-width: 36px !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  width: var(--mk-action-height) !important;
+  min-width: var(--mk-action-height) !important;
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
   border-radius: 999px;
 }
-:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) svg { width: 16px !important; height: 16px !important; }
-.mk-ui-button:not(#mk-padrao) { color: #334155; }
-.mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626; }
-.mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: #16a34a; }
-/* A barra de edição ainda tinha uma exceção cinza para Cancelar. */
-.cadastro-b1 .mg-toolbar .tb-btn:not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
+:is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) svg {
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+}
+.mk-ui-button:not(#mk-padrao) { color: var(--mk-action-fg); }
+.mk-ui-button:is(.bg-destructive, [class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: var(--mk-action-fg-red); }
+.mk-ui-button:is([class*="bg-emerald"], [class*="bg-green"], [class*="text-emerald"], [class*="text-green"]):not(#mk-padrao) { color: var(--mk-action-fg-green); }
+
+/* Positivos: Novo / Adicionar / Salvar / Aplicar / ✓ — verde do sistema + letra/ícone brancos (todos os viewports). */
+:is(
+  .tb-btn.tb-btn-green,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .mk-ll__btn--verde,
+  .mk-launch-action.tb-btn-green,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) {
+  background: var(--mk-action-positive-bg) !important;
+  color: var(--mk-action-positive-fg) !important;
+  border: 1px solid transparent !important;
+  box-shadow: var(--mk-btn-sombra) !important;
+}
+:is(
+  .tb-btn.tb-btn-green,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .mk-ll__btn--verde,
+  .mk-launch-action.tb-btn-green,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) svg {
+  color: var(--mk-action-positive-fg) !important;
+  stroke: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(
+    .tb-btn.tb-btn-green,
+    .cadastro-b1 .tb-btn.mg-act-novo,
+    .cadastro-b1 .tb-btn.mg-act-salvar,
+    .mk-sheet__new,
+    .mk-btn-ok,
+    .mk-ll__btn--verde,
+    .mk-launch-action.tb-btn-green,
+    .mk-mhdr__round--salvar,
+    .mk-ll-dlg__redondo--salvar
+  ):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-action-positive-hover) !important;
+    color: var(--mk-action-positive-fg) !important;
+  }
+}
+.tb-btn.tb-btn-red:not(#mk-padrao),
+.mk-ll__remover:not(#mk-padrao) {
+  background: var(--mk-btn-bg, #ffffff) !important;
+  color: var(--mk-icon-danger) !important;
+}
+.tb-btn.tb-btn-red:not(#mk-padrao) svg,
+.mk-ll__remover:not(#mk-padrao) svg {
+  color: var(--mk-icon-danger) !important;
+  stroke: currentColor;
+}
+.tb-btn.tb-btn-gray:not(#mk-padrao),
+.tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(#mk-padrao) {
+  background: var(--mk-btn-bg, #ffffff) !important;
+  color: var(--mk-icon-edit);
+}
+
+/* ✕ Fechar / Cancelar / Limpar — mesma cor em barra, folhas, campos e busca */
+:is(
+  .mk-sheet__close,
+  .mk-close-icon,
+  .mg-act-cancelar,
+  .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar),
+  .mk-mhdr__round:not(.mk-mhdr__round--salvar),
+  .cmd-clear,
+  .mg-search-pill-clear,
+  .mg-search-pill-clear .mg-search-pill-icon,
+  .mk-pill__clear,
+  .mk-sel-busca__limpar,
+  .th-estado-btn.is-filter
+):not(#mk-padrao) {
+  color: var(--mk-icon-close) !important;
+}
+:is(
+  .mk-sheet__close,
+  .mk-close-icon,
+  .mg-act-cancelar,
+  .mk-ll-dlg__redondo:not(.mk-ll-dlg__redondo--salvar),
+  .mk-mhdr__round:not(.mk-mhdr__round--salvar)
+):not(#mk-padrao) svg {
+  color: var(--mk-icon-close) !important;
+  stroke: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.cmd-clear, .mg-search-pill-clear, .mk-pill__clear, .mk-sel-busca__limpar):not(#mk-padrao):hover {
+    color: var(--mk-action-fg) !important;
+  }
+  :is(.cmd-clear, .mg-search-pill-clear, .mk-pill__clear, .mk-sel-busca__limpar):not(#mk-padrao):hover .mg-search-pill-icon {
+    color: var(--mk-action-fg) !important;
+  }
+}
+
+/* Adornos de campo (chevron, lupa): cor única */
+:is(.cmd-chevron, .mg-search-pill-icon, .mk-pill__icon, .mk-sel-busca__icone):not(#mk-padrao) {
+  color: var(--mk-icon-field) !important;
+}
+.mg-search-pill-clear .mg-search-pill-icon:not(#mk-padrao) {
+  color: var(--mk-icon-close) !important;
+}
+
+/* Neutros da barra: branco. Positivos ficam de fora. */
+.cadastro-b1 .mg-toolbar .tb-btn:not(.tb-btn-green):not(.mg-act-novo):not(.mg-act-salvar):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
+}
+
+/* Mobile + tablet: botão 40px / ícone 17px + tipografia um passo maior. */
+@media (max-width: 1023px) {
+  :root {
+    --mk-action-height: var(--mk-action-height-touch);
+    --mk-action-icon: var(--mk-action-icon-touch);
+    --mk-action-font: 14px;
+    --mk-font-list: 14px;
+    --mk-font-field: 14px;
+    --mk-font-heading: 14px;
+    --mk-font-title: 16px;
+    --mk-font-search: 14px;
+    --mk-font-float-rest: 14px;
+    --mk-font-float-up: 11px;
+    --mk-list-row-height: 40px;
+    --mk-filter-row-height: 40px;
+  }
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
+    --mk-action-height: var(--mk-action-height-touch);
+    --mk-ui-control-size: var(--mk-action-height-touch);
+    --mk-ui-icon-size: var(--mk-action-icon-touch);
+    --mk-action-icon: var(--mk-action-icon-touch);
+    --mg-btn-h: var(--mk-action-height-touch);
+    --mg-btn-font: 14px;
+    --mk-search-font: var(--mk-font-search);
+    font-size: var(--mk-font-list);
+  }
+  .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao),
+  .mg-rec-pager__btn:not(#mk-padrao),
+  :is(.mk-ll__remover, .mk-ll__btn, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) {
+    height: var(--mk-action-height-touch) !important;
+    min-height: var(--mk-action-height-touch) !important;
+  }
+  .cadastro-b1--full-page .mg-toolbar .tb-btn-icon:not(#mk-padrao),
+  .cadastro-b1--full-page .mg-toolbar .tb-btn.mg-act-ic:not(.mg-fluid-slot__ghost):not(#mk-padrao),
+  :is(.mk-ll__remover, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-sheet__close, .mk-sheet__new):not(#mk-padrao) {
+    width: var(--mk-action-height-touch) !important;
+    min-width: var(--mk-action-height-touch) !important;
+  }
 }
 
 /* Visto branco garantido, sem depender da cor nativa do navegador. */
@@ -318,14 +557,107 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
 .b1ref .fpop :is(.fselb, .fin):not(#mk-padrao),
 .b1ref .fpop .fselb .fselb-l:not(#mk-padrao),
 .b1ref .foperadores .fopt:not(#mk-padrao) {
-  font-size: 12px !important;
+  font-size: var(--mk-font-field) !important;
   font-weight: 500;
   line-height: 1.35;
-  color: #334155;
+  color: var(--mk-text);
 }
-.b1ref .fpop .fselb .fselb-l > span { font-size: 12px !important; }
-.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao) { height: 32px; min-height: 32px; }
-.b1ref .fpop .fmi-limpar:not(#mk-padrao) { font-size: 12px !important; min-height: 32px; }
-.mk-sheet__title:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao),
-.mk-config-dialog .mdl-t:not(#mk-padrao) { font-size: 14px !important; line-height: 1.3; font-weight: 600; }
-.b1ref .foperadores .fopt:not(#mk-padrao) { min-height: 34px; }
+.b1ref .fpop .fselb .fselb-l > span { font-size: var(--mk-font-field) !important; }
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao) {
+  height: 28px;
+  min-height: 28px;
+}
+.b1ref .fpop .fmi-limpar:not(#mk-padrao) {
+  font-size: var(--mk-font-list) !important;
+  min-height: var(--mk-list-row-height);
+}
+.mk-sheet__title:not(#mk-padrao),
+.mk-ll-dlg__titulo:not(#mk-padrao),
+.mk-config-dialog .mdl-t:not(#mk-padrao),
+.mk-map-filter-sheet .mk-map-filter-header h2:not(#mk-padrao) {
+  font-size: var(--mk-font-title) !important;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--mk-text-strong);
+}
+.b1ref .foperadores .fopt:not(#mk-padrao) { min-height: var(--mk-list-row-height); }
+
+/* Títulos de seção / subtítulos (exceto Filtros/Camadas/Visualização, com CSS próprio). */
+:is(.mk-map-multi-title, .mk-map-list-subtitle, .mk-map-action-choices .mk-al__grupo-titulo):not(#mk-padrao) {
+  font-size: var(--mk-font-heading) !important;
+  font-weight: 600;
+  color: var(--mk-text-muted);
+}
+
+/* Grades e campos Base1 acompanham a listagem. */
+.cadastro-b1 .mg-grid:not(#mk-padrao),
+.cadastro-b1 .mg-grid thead th:not(#mk-padrao),
+.cadastro-b1 .mg-grid tbody td:not(#mk-padrao) {
+  font-size: var(--mk-font-list) !important;
+  color: var(--mk-text);
+}
+/* Títulos de linha / labels estáticas — NÃO a label flutuante do campo. */
+.cadastro-b1 :is(.mg-b1-row__title, label:not(.mg-field__label)):not(#mk-padrao) {
+  font-size: var(--mk-font-heading) !important;
+  color: var(--mk-text-muted);
+}
+/*
+ * Label flutuante (lançamento / cadastro): ao subir fica compacta.
+ * Sem isso o !important da tipografia do sistema trava a label no tamanho de descanso.
+ */
+:is(.cadastro-b1, .mk-lanc) .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-rest) !important;
+  color: var(--mk-text-muted);
+}
+:is(.cadastro-b1, .mk-lanc) .mg-field.mg-has-value:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field:focus-within:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field.is-open:not(.mg-field--switch) .mg-field__label:not(#mk-padrao),
+:is(.cadastro-b1, .mk-lanc) .mg-field--multiline .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-up) !important;
+  line-height: 1 !important;
+}
+/* Switch: a label não flutua — permanece no tamanho de descanso. */
+.cadastro-b1 .mg-field--switch .mg-field__label:not(#mk-padrao) {
+  font-size: var(--mk-font-float-rest) !important;
+}
+.cadastro-b1 :is(.mg-field__control input, .mg-field__control textarea, .mg-field__control select,
+ button[role="combobox"], .mg-pill-select):not(#mk-padrao) {
+  font-size: var(--mk-font-field) !important;
+  color: var(--mk-text);
+}
+/*
+ * iOS/iPadOS: qualquer input/select/textarea com fonte <16px dá zoom ao focar.
+ * Vale para celular e tablet (≤1023). Labels/listagens podem ficar menores;
+ * só o controle editável precisa de 16px.
+ */
+@media (max-width: 1023px) {
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    textarea,
+    select
+  ):not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+  .cadastro-b1 :is(.mg-field__control input, .mg-field__control textarea, .mg-field__control select):not(#mk-padrao),
+  .mk-lanc .mg-field__control :is(input, textarea, select):not(#mk-padrao),
+  .mk-map-filters :is(input, select):not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao),
+  .mk-map-multi-popup > input[type="search"]:not(#mk-padrao),
+  .mk-ll :is(input, textarea, select):not(#mk-padrao),
+  .mk-sheet :is(input, textarea, select):not(#mk-padrao),
+  .mk-pill input:not(#mk-padrao),
+  .mg-search-pill input:not(#mk-padrao),
+  .cmd-panel__search:not(#mk-padrao),
+  .b1ref .fpop .fin:not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+}
+
+/* Folhas/menus: mesma tipografia das listagens (não 17px iOS). */
+.mk-sheet :is(.mgs__op, .fpc__item, .mg-b1-menuitem, .mk-co__item, .mk-pill input):not(#mk-padrao),
+.mg-mais-opcoes .mg-b1-menuitem:not(#mk-padrao),
+.mk-menu [role="menuitem"]:not(#mk-padrao),
+.mk-select .mk-select-item:not(#mk-padrao) {
+  font-size: var(--mk-font-list) !important;
+  color: var(--mk-text);
+}

@@ -148,7 +148,7 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
         ) : null}
 
         {showAvaliacaoAgua ? (
-          <div className="rounded-md border border-[var(--mg-divider)] bg-slate-50/80 p-2 space-y-1">
+          <div className="rounded-md border border-[var(--mg-divider)] bg-[#FAFCFE]/80 p-2 space-y-1">
             <div className="text-[11px] font-semibold text-slate-800 px-1">Qualidade da água</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Escore">

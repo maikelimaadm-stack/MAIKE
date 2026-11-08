@@ -1,7 +1,7 @@
 /**
  * Superfície única do sistema — o padrão do "Detalhes do Lote" (D-PROD-138).
  *
- * Fundo cinza (#f7f8fa), cartões brancos arredondados com borda leve e botões
+ * Fundo de superfície (#FAFCFE), cartões brancos arredondados com borda leve e botões
  * brancos com sombra suave. Vale para as listas dos cadastros (Base1), as
  * folhas e painéis de filtro e os lançamentos (LancLoteDialogo).
  *
@@ -12,16 +12,16 @@
  */
 
 :root {
-  --mk-sup-fundo: #f7f8fa;
+  --mk-sup-fundo: #FAFCFE;
   --mk-sup-cartao: #ffffff;
   --mk-sup-borda: #eceef1;
   --mk-sup-raio: 14px;
   --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
   --mk-btn-bg: #ffffff;
-  --mk-btn-hover: var(--mk-sup-fundo, #f7f8fa);
+  --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
   --mk-btn-ativo: #eef1f4;
   --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
-  --mk-chip-bg: var(--mk-sup-fundo, #f7f8fa);
+  --mk-chip-bg: var(--mk-sup-fundo, #FAFCFE);
 }
 
 /* Tokens antigos apontando para os novos */
@@ -44,15 +44,36 @@
 .mk-mhdr__back > span:not(#mk-padrao) {
   box-shadow: var(--mk-btn-sombra) !important;
 }
+/* Positivos na superfície: reforço caso regras locais tentem o branco (inclui Salvar do cabeçalho mobile). */
+:is(
+  .tb-btn.tb-btn-green,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+:is(
+  .tb-btn.tb-btn-green,
+  .mk-sheet__new,
+  .mk-btn-ok,
+  .cadastro-b1 .tb-btn.mg-act-novo,
+  .cadastro-b1 .tb-btn.mg-act-salvar,
+  .mk-mhdr__round--salvar,
+  .mk-ll-dlg__redondo--salvar
+):not(#mk-padrao) svg {
+  color: #fff !important;
+}
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
-.tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .mg-rec-pager__btn:not(#mk-padrao),
 .mk-sheet__close:not(#mk-padrao),
-.mk-sheet__new:not(#mk-padrao),
 .mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
-.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao),
 .mk-mhdr__round:not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   border-color: transparent !important;
@@ -61,7 +82,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled),
   .mg-rec-pager__btn:not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-hover) !important;
@@ -265,12 +285,15 @@
   background: var(--mk-sup-cartao);
 }
 
-/* O toque pode manter :hover ativo no Safari. O repouso continua branco. */
+/* O toque pode manter :hover ativo no Safari. Neutros voltam ao branco; positivos ao verde. */
 @media (hover: none) {
   .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-bg) !important;
+  }
+  :is(.tb-btn.tb-btn-green, .mk-sheet__new, .mk-btn-ok):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+    color: #fff !important;
   }
 }
 
@@ -280,7 +303,7 @@
 .view-seg button:not(#mk-padrao) > svg {
   width: 20px !important;
   height: 20px !important;
-  stroke-width: 1.8;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 
@@ -302,28 +325,34 @@
 }
 
 /* Ações dos lançamentos: mesma superfície e proporção dos cadastros. */
-:is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao) {
+:is(.mk-ll__btn, .mk-ll__remover):not(#mk-padrao) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: var(--mk-btn-bg);
   box-shadow: var(--mk-btn-sombra);
+  height: var(--mk-action-height);
+  min-height: var(--mk-action-height);
 }
-
-.mk-ll__btn--verde:not(#mk-padrao) { color: #16a34a; }
-.mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
-.mk-ll__btn--cinza:not(#mk-padrao) { color: #475569; }
-
 .mk-ll__remover:not(#mk-padrao) {
-  width: 38px;
-  height: 38px;
+  width: var(--mk-action-height);
+  min-width: var(--mk-action-height);
+  color: var(--mk-icon-danger, #dc2626) !important;
 }
+
+.mk-ll__btn--verde:not(#mk-padrao) {
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.mk-ll__btn--verde:not(#mk-padrao) svg { color: #fff !important; }
+.mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
+.mk-ll__btn--cinza:not(#mk-padrao) { color: var(--mk-action-fg, #334155); }
 
 :is(.mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 1.8;
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 
@@ -333,7 +362,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):hover:not(:disabled) {
+  :is(.mk-ll__btn:not(.mk-ll__btn--verde):not(.mk-ll__btn--ambar), .mk-ll__add, .mk-ll__remover):not(#mk-padrao):hover:not(:disabled) {
     background: var(--mk-btn-hover);
   }
 }
@@ -355,9 +384,9 @@
   .mk-desktop-action-label { display: inline; }
 
   .tb-btn:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
-    font-size: 14px;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
+    font-size: var(--mk-action-font, 12px);
     gap: 8px;
   }
 
@@ -377,9 +406,9 @@
   }
 
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
-    width: 16px !important;
-    height: 16px !important;
-    stroke-width: 1.8;
+    width: var(--mk-action-icon) !important;
+    height: var(--mk-action-icon) !important;
+    stroke-width: var(--mk-action-stroke, 2.25);
   }
 
   .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
@@ -404,15 +433,15 @@
 /* Desktop: controles auxiliares na mesma escala da barra de ações. */
 @media (min-width: 1024px) {
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 36px !important;
-    min-width: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
     padding: 0 !important;
-    flex: 0 0 36px;
+    flex: 0 0 var(--mk-action-height);
   }
 
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
     padding: 3px !important;
     gap: 2px;
     box-sizing: border-box;
@@ -454,17 +483,17 @@
 @media (min-width: 1024px) {
   .tb-btn:not(#mk-padrao),
   .cadastro-b1 .mg-search-pill:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 36px !important;
-    min-width: 36px !important;
-    flex-basis: 36px;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    flex-basis: var(--mk-action-height);
   }
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
   .cadastro-b1 .view-seg button:not(#mk-padrao) {
     width: 30px !important;
@@ -474,9 +503,9 @@
   }
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) svg,
   .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
-    width: 16px !important;
-    height: 16px !important;
-    stroke-width: 1.75;
+    width: var(--mk-action-icon) !important;
+    height: var(--mk-action-icon) !important;
+    stroke-width: var(--mk-action-stroke, 2.25);
     flex-shrink: 0;
   }
   .cadastro-b1 .mg-search-pill input:not(#mk-padrao) { font-size: 14px; }
@@ -506,7 +535,7 @@
   .cadastro-b1,
   .mk-ll-dlg {
     --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
-    --mk-btn-hover: var(--mk-sup-fundo, #f7f8fa);
+    --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
   }
 
   .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-padrao) {
@@ -528,7 +557,7 @@
     width: 20px !important;
     height: 20px !important;
     padding: 2px;
-    stroke-width: 1.65;
+    stroke-width: var(--mk-action-stroke, 2.25);
     flex-shrink: 0;
   }
 
@@ -666,7 +695,7 @@
     height: var(--mk-ui-icon-size) !important;
     padding: 0;
     flex-shrink: 0;
-    stroke-width: 1.65;
+    stroke-width: var(--mk-action-stroke, 2.25);
   }
 }
 
@@ -698,10 +727,10 @@
 .cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg,
 :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn, .mg-b1-menuitem, .fpc__item, .mgs__op):not(#mk-padrao) svg,
 .mk-mhdr__back > span:not(#mk-padrao) svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon, 16px) !important;
+  height: var(--mk-action-icon, 16px) !important;
   padding: 0 !important;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 

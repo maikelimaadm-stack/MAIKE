@@ -72,15 +72,15 @@
   padding: 0;
   border-radius: 999px;
   border: 1px solid transparent;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-btn-bg, #ffffff);
   color: #475569;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1));
 }
 
 .b1ref .fpop-f .tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
-  background: #e8ecef;
+  background: var(--mk-btn-hover, #FAFCFE);
   color: #0f172a;
 }
 
@@ -88,8 +88,8 @@
 .b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green,
 .b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon,
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green {
-  background: #40de63 !important;
-  border-color: #40de63 !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
@@ -97,8 +97,8 @@
 .b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: #36c956 !important;
-  border-color: #36c956 !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
+  border-color: transparent !important;
   color: #fff !important;
 }
 
@@ -144,7 +144,7 @@
   width: 12px;
   height: 12px;
   margin-top: -6px;
-  color: var(--mg-text-3);
+  color: var(--mk-icon-field, var(--mg-text-3));
   pointer-events: none;
   transition: transform 0.2s;
   z-index: 1;
@@ -161,13 +161,13 @@
   margin-top: -7px;
   width: 14px;
   height: 14px;
-  color: var(--mg-text-3);
+  color: var(--mk-icon-close, #64748b);
   cursor: pointer;
   z-index: 2;
 }
 
 .cadastro-b1 .cmd-clear:hover {
-  color: var(--mg-red);
+  color: var(--mk-action-fg, #334155);
 }
 
 .cadastro-b1 .cmd-panel__search {

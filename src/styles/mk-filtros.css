@@ -39,7 +39,7 @@
   width: 16px !important;
   height: 16px !important;
   flex-shrink: 0;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 /* Retira separadores e margens antigos: o espaço entre controles é 8px. */
@@ -150,20 +150,24 @@
   box-shadow: none !important;
   background: transparent !important;
 }
-:is(.mk-pill__clear, .mk-pill__icon, .mg-search-pill-clear, .mg-search-pill-icon):not(#mk-padrao),
-:is(.mk-pill__clear, .mk-pill__icon, .mg-search-pill-clear):not(#mk-padrao) svg {
-  color: #64748b !important;
+:is(.mk-pill__icon, .mg-search-pill-icon):not(.mg-search-pill-clear *):not(#mk-padrao) {
+  color: var(--mk-icon-field, #9ca3af) !important;
+}
+:is(.mk-pill__clear, .mg-search-pill-clear):not(#mk-padrao),
+:is(.mk-pill__clear, .mg-search-pill-clear):not(#mk-padrao) svg,
+.mg-search-pill-clear .mg-search-pill-icon:not(#mk-padrao) {
+  color: var(--mk-icon-close, #64748b) !important;
 }
 
 /* No tablet e desktop os dois botões do rodapé têm a mesma caixa. */
 @media (min-width: 640px) {
   .b1ref .fpop .fpop-f .tb-btn.tb-btn-icon:not(#mk-padrao) {
     box-sizing: border-box;
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
     padding: 0 !important;
-    flex: 0 0 36px;
+    flex: 0 0 var(--mk-action-height);
   }
 }

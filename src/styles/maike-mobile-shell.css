@@ -33,7 +33,7 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
 }
 
@@ -134,7 +134,7 @@
   z-index: 40;
   overflow: auto;
   overscroll-behavior: contain;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-mods__inner {
@@ -152,7 +152,7 @@
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   transition: background 0.22s, border-color 0.22s;
 }
 
@@ -319,7 +319,7 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
 }
 
@@ -442,7 +442,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 /* Trocar empresa */
@@ -730,7 +730,7 @@
 }
 
 .fpc__item:hover {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .fpc--sheet .fpc__item {
@@ -812,7 +812,7 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
   cursor: pointer;
@@ -1017,22 +1017,22 @@
   }
 }
 
-/* ── Campos do registro no celular: 48px, texto 16px (sem zoom do iPhone) ── */
-@media (max-width: 639px) {
+/* ── Campos no celular/tablet: texto 16px (sem zoom do iPhone/iPad) ── */
+@media (max-width: 1023px) {
   .cadastro-b1.cadastro-b1--full-page,
   .cadastro-b1--full-page .cadastro-b1 {
     --mg-field-h: 48px;
   }
 
   .cadastro-b1--full-page .mg-field__label {
-    font-size: 14px;
+    font-size: var(--mk-font-float-rest, 14px);
   }
 
   .cadastro-b1--full-page .mg-field.mg-has-value .mg-field__label,
   .cadastro-b1--full-page .mg-field:focus-within .mg-field__label,
   .cadastro-b1--full-page .mg-field.is-open .mg-field__label,
   .cadastro-b1--full-page .mg-field--multiline .mg-field__label {
-    font-size: 10.5px;
+    font-size: var(--mk-font-float-up, 10px);
   }
 
   .cadastro-b1--full-page .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
@@ -1242,22 +1242,22 @@
   box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.12);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .mk-lanc {
     --mg-field-h: 48px;
   }
 
   .mk-lanc .mg-field__label {
-    font-size: 14px;
+    font-size: var(--mk-font-float-rest, 14px);
   }
 
   .mk-lanc .mg-field.mg-has-value .mg-field__label,
   .mk-lanc .mg-field:focus-within .mg-field__label,
   .mk-lanc .mg-field--multiline .mg-field__label {
-    font-size: 10.5px;
+    font-size: var(--mk-font-float-up, 10px);
   }
 
-  .mk-lanc .mg-field__control :is(input, textarea, button[role="combobox"]) {
+  .mk-lanc .mg-field__control :is(input, textarea, select) {
     font-size: 16px !important;
   }
 }
@@ -1332,7 +1332,7 @@
   }
 
   .mk-select .mk-select-item[data-highlighted] {
-    background: var(--mk-sup-fundo, #f7f8fa);
+    background: var(--mk-sup-fundo, #FAFCFE);
   }
 
   .mk-select .mk-select-item > span:first-child {
@@ -1436,7 +1436,7 @@
 
 /*
  * Botões dos formulários de lançamento no padrão Base1 (pílula): o principal
- * verde #40de63 com texto branco, os secundários cinza #f1f3f4.
+ * verde #40de63 com texto branco, os secundários brancos (D-PROD-147).
  */
 form:has(.mk-lanc) button[class*="bg-emerald-6"],
 form:has(.mk-lanc) button[class*="bg-green-6"] {
@@ -1461,11 +1461,11 @@ form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]):not([cla
   padding: 0 14px !important;
   border: 1px solid transparent !important;
   border-radius: 999px !important;
-  background: var(--mk-sup-fundo, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
   color: #334155 !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 form:has(.mk-lanc) button[class*="border-dashed"] {
@@ -1505,7 +1505,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #475569;
   font-size: 12px;
   font-weight: 600;
@@ -1643,7 +1643,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .cadastro-b1 button[class*="border-input"][class*="bg-background"]:not([role="combobox"]) {
   border: 1px solid transparent !important;
   border-radius: 999px !important;
-  background: var(--mk-sup-fundo, #f7f8fa) !important;
+  background: var(--mk-sup-fundo, #FAFCFE) !important;
   color: #334155 !important;
   font-weight: 600 !important;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
@@ -1688,7 +1688,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   height: 40px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
   cursor: pointer;
@@ -1792,10 +1792,10 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 }
 
-/* Barra de ações Base1 no tablet: uma linha como no desktop, botões de 36px */
+/* Barra de ações Base1 no tablet: uma linha como no desktop, mesma altura do sistema */
 @media (min-width: 640px) and (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: 36px;
+    --mg-btn-h: var(--mk-action-height);
   }
 
   .cadastro-b1--full-page .mg-toolbar--responsive {
@@ -1818,20 +1818,20 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-nav-btn {
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
-    min-height: 36px !important;
+    min-height: var(--mk-action-height) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
-    min-height: 36px !important;
+    min-height: var(--mk-action-height) !important;
     padding: 3px !important;
   }
 
@@ -1854,7 +1854,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
  */
 .mk-sheet {
   border-radius: 36px 36px 0 0;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #1f1f1f;
 }
 
@@ -2104,7 +2104,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 @media (max-width: 639px) {
   .mk-select {
     border-radius: 36px 36px 0 0 !important;
-    background: var(--mk-sup-fundo, #f7f8fa) !important;
+    background: var(--mk-sup-fundo, #FAFCFE) !important;
   }
 
   .mk-select::before {
@@ -2138,7 +2138,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .mk-select .mk-select-item[data-highlighted] {
-    background: var(--mk-sup-fundo, #f7f8fa);
+    background: var(--mk-sup-fundo, #FAFCFE);
   }
 
   .mk-select .mk-select-item > span:first-child {
@@ -2246,7 +2246,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   justify-content: flex-end;
 }
 
-/* Botão + (cadastrar novo) à direita do título da folha, como o "i" do app do Claude */
+/* Botão + / ✓ (positivo) à direita do título da folha */
 .mk-sheet__new {
   display: flex;
   align-items: center;
@@ -2256,11 +2256,12 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: #fff;
-  color: #16a34a;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
 }
+.mk-sheet__new svg { color: #fff; }
 
 /* Botões que encolhem ao toque */
 .mk-sheet__close,
@@ -2347,7 +2348,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .mk-sheet .fpc__item:active,
 .mk-sheet .mg-b1-menuitem:active,
 .mk-sheet .mk-co__item:active {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-sheet .mgs__op.is-on,
@@ -2465,27 +2466,28 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 }
 
-/* Barra Base1 no celular: botões de 38px (eram 44px) */
-@media (max-width: 639px) {
+/* Barra Base1 no celular/tablet: botões touch (40px) */
+@media (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: 38px;
+    --mg-btn-h: var(--mk-action-height-touch, 40px);
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon),
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
-    min-height: 38px !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon {
-    width: 38px !important;
-    min-width: 38px !important;
-    height: 38px !important;
-    min-height: 38px !important;
+    width: var(--mk-action-height-touch, 40px) !important;
+    min-width: var(--mk-action-height-touch, 40px) !important;
+    height: var(--mk-action-height-touch, 40px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic.mg-fluid-slot__ghost {
@@ -2494,20 +2496,20 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
-    min-height: 38px !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
     padding: 3px !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {
-    width: 32px !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
   }
 
   .mg-rec-pager__btn {
-    width: 40px;
-    height: 40px;
+    width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px);
   }
 }
 
@@ -2574,21 +2576,27 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 /*
- * Novo (+) e Salvar (✓): ícone verde sobre o fundo cinza dos botões de ação,
- * em todos os tamanhos (D-PROD-95). As folhas usam o mesmo verde.
+ * Novo (+) e Salvar (✓): verde do sistema + letra/ícone brancos.
  */
 .cadastro-b1 .tb-btn.mg-act-novo,
 .cadastro-b1 .tb-btn.tb-btn-green.mg-act-novo,
+.cadastro-b1 .tb-btn.mg-act-salvar,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green.mg-act-novo:not(.tb-btn-icon) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
-  color: #16a34a !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.cadastro-b1 .tb-btn.mg-act-novo svg,
+.cadastro-b1 .tb-btn.mg-act-salvar svg,
+.cadastro-b1 .tb-btn.tb-btn-green.mg-act-novo svg {
+  color: #fff !important;
 }
 
 .cadastro-b1 .tb-btn.mg-act-novo:hover,
+.cadastro-b1 .tb-btn.mg-act-salvar:hover,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green.mg-act-novo:not(.tb-btn-icon):hover:not(:disabled) {
-  color: #15803d !important;
-  background: var(--portal-acao-hover, #e8ebee) !important;
+  color: #fff !important;
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
 }
 
 /* Registro em edição: ✕ Descartar à esquerda, ✓ Salvar na ponta direita */
@@ -2620,9 +2628,9 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 .cadastro-b1 .tb-btn.mg-act-novo svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 2.25;
+  width: var(--mk-action-icon, 16px);
+  height: var(--mk-action-icon, 16px);
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 /* Registro aberto no celular: a faixa do cabeçalho do registro fica vazia (título foi para o app) */
@@ -2741,7 +2749,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #1f1f1f;
   cursor: pointer;
   transition:
@@ -2754,7 +2762,14 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 .mk-mhdr__round--salvar {
-  color: #16a34a;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
+.mk-mhdr__round--salvar svg {
+  color: #fff !important;
+}
+.mk-mhdr__round--salvar:active:not(:disabled) {
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
 }
 
 .mk-mhdr__round:disabled {
@@ -3025,14 +3040,16 @@ a.mk-anexos__arquivo:hover {
   }
 }
 
-/* + e ✓ das folhas: verde sobre cinza, como Novo/Salvar da barra */
+/* + e ✓ das folhas: mesmo verde positivo da barra */
 .mk-sheet__new {
-  background: #ececea;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
   box-shadow: none;
 }
 
 .mk-sheet.mk-cr .mk-sheet__new {
-  background: var(--portal-acao-bg, #f7f8fa);
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
 }
 
 /*
@@ -3224,78 +3241,90 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 /*
- * Botões padronizados: fundo cinza, sem sombra, ícone na cor de sempre
- * (verde no Novo/Salvar/Aplicar, vermelho no Excluir). `:not(#mk-padrao)`
- * dá peso de id para vencer as regras antigas com !important.
+ * Botões padronizados (D-PROD-147/148): fundo branco + sombra suave;
+ * ícone verde no Novo/Salvar/Aplicar, vermelho no Excluir.
  */
 :is(.tb-btn, .view-seg, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-anexos__remover):not(#mk-padrao),
 .view-seg button:not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
-  box-shadow: none !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
-.tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
-.tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
-  background: var(--portal-acao-hover, #e8ebee) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
 }
 
-.tb-btn.tb-btn-green:not(#mk-padrao),
+.tb-btn.tb-btn-green:not(#mk-padrao) {
+  border-color: transparent !important;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
+  color: #fff !important;
+}
 .tb-btn.tb-btn-green:not(#mk-padrao) svg {
-  color: #16a34a !important;
+  color: #fff !important;
+}
+.tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled) {
+  background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
+  color: #fff !important;
 }
 
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao) svg {
-  color: #dc2626 !important;
+  color: var(--mk-action-fg-red, #dc2626) !important;
 }
 
-/* Seletor de visualização: trilho cinza; o modo ativo um cinza mais escuro (não branco) */
+/* Seletor de visualização: trilho branco; ativo verde claro */
 .view-seg:not(#mk-padrao) {
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
 }
 
 .view-seg button[aria-pressed="true"]:not(#mk-padrao),
 .view-seg button.is-active:not(#mk-padrao),
 .view-seg button[data-state="on"]:not(#mk-padrao) {
-  background: #dde1e6 !important;
+  background: rgba(64, 222, 99, 0.14) !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
-/* Folhas: ✕ e +/✓ cinza (nada de branco) */
-.mk-sheet__close:not(#mk-padrao),
+/* Folhas: ✕ branco; +/✓ verde positivo */
+.mk-sheet__close:not(#mk-padrao) {
+  background: var(--mk-btn-bg, #ffffff);
+}
 .mk-sheet__new:not(#mk-padrao) {
-  background: #ebebe8;
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
 }
 
-.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
+.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao) {
+  background: var(--mk-btn-bg, #ffffff);
+}
 .mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao) {
-  background: var(--portal-acao-bg, #f7f8fa);
+  background: var(--mk-action-positive-bg, var(--mg-accent, #40de63));
+  color: #fff;
 }
 
-/* Mesmo tamanho para todos os botões da barra no celular (38 px, como o Novo) */
-@media (max-width: 639px) {
+/* Mesmo tamanho para todos os botões da barra no celular/tablet */
+@media (max-width: 1023px) {
   .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao) {
-    min-width: 38px;
-    height: 38px !important;
-    min-height: 38px !important;
+    min-width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px) !important;
+    min-height: var(--mk-action-height-touch, 40px) !important;
   }
 
   .mg-rec-pager__btn:not(#mk-padrao) {
-    width: 38px;
-    height: 38px;
+    width: var(--mk-action-height-touch, 40px);
+    height: var(--mk-action-height-touch, 40px);
   }
 }
 
 /* Cards: só os cards, sem o painel branco por trás */
 .cadastro-b1 .mg-shell__scroll:not(#mk-padrao) {
-  background: var(--mg-page-bg, #f7f8fa) !important;
+  background: var(--mg-page-bg, #FAFCFE) !important;
 }
 
 /* Configurar colunas no celular (lista dos Ajustes do iPhone) */
@@ -3341,7 +3370,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 .mk-colcfg__ordem button:active:not(:disabled) {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-colcfg__ordem button:disabled {
@@ -3390,7 +3419,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
   }
 
   .mk-menu [role="menuitem"][data-highlighted] {
-    background: var(--mg-bg-page, #f7f8fa);
+    background: var(--mg-bg-page, #FAFCFE);
   }
 
   .mk-menu [role="separator"] {
@@ -3407,7 +3436,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 .mk-thdr .mk-thdr__icone:not(#mk-padrao),
 .mk-thdr .mk-thdr__empresa:not(#mk-padrao) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--portal-acao-bg, #FAFCFE) !important;
 }
 
 /*
@@ -3616,7 +3645,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
   margin: 2px 2px 4px;
   padding: 0 10px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-sel-busca:focus-within {
@@ -3634,7 +3663,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
   padding: 0;
   border: 0;
   background: transparent;
-  color: #6b7280;
+  color: var(--mk-icon-close, #64748b);
   cursor: pointer;
 }
 

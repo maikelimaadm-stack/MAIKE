@@ -177,7 +177,7 @@ export default function GerenciadorIcones() {
   return (
     <div className="space-y-3">
       <Card className="shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-3">
+        <CardHeader className="bg-[#FAFCFE] border-b py-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Image className="w-4 h-4" />
@@ -209,7 +209,7 @@ export default function GerenciadorIcones() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {iconesDoTipo.map(icone => (
-                      <div key={icone.id} className="border rounded p-3 bg-white hover:bg-slate-50 transition-colors">
+                      <div key={icone.id} className="border rounded p-3 bg-white hover:bg-[#FAFCFE] transition-colors">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {icone.icone_url ? (
@@ -425,7 +425,7 @@ export default function GerenciadorIcones() {
             {formData.categoria?.toUpperCase() === 'MISTO' && formData.tipo_entidade === 'Lote' && (
               <div className="space-y-1">
                 <Label className="text-xs">Categorias que formam o MISTO *</Label>
-                <div className="border rounded p-2 space-y-2 bg-slate-50">
+                <div className="border rounded p-2 space-y-2 bg-[#FAFCFE]">
                   <div className="text-[10px] text-slate-600 mb-2">
                     Selecione as categorias que, quando estiverem juntas na mesma área, devem usar este ícone:
                   </div>

@@ -600,7 +600,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                   lerArquivo(e.dataTransfer?.files?.[0]);
                 }}
                 className={`flex flex-col items-center justify-center gap-2 rounded border-2 border-dashed p-6 text-center ${
-                  arrastando ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-slate-50"
+                  arrastando ? "border-emerald-500 bg-emerald-50" : "border-slate-300 bg-[#FAFCFE]"
                 }`}
               >
                 <FileText className="h-8 w-8 text-slate-400" />

@@ -97,7 +97,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-lg p-3 bg-slate-50">
+      <div className="border rounded-lg p-3 bg-[#FAFCFE]">
         <Label className="text-xs font-semibold mb-3 block uppercase">Módulos Permitidos *</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {modules.map((module) => (
@@ -121,7 +121,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
       </div>
 
       {modulesAtivos.length > 0 && (
-        <div className="border rounded-lg p-3 bg-slate-50">
+        <div className="border rounded-lg p-3 bg-[#FAFCFE]">
           <Label className="text-xs font-semibold mb-3 block uppercase">Botões do menu mobile (até 4)</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {paginasMobile.map((page) => (
@@ -141,7 +141,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
       )}
 
       {modulesAtivos.map((module) => (
-        <div key={module.id} className="border rounded-lg p-3 bg-slate-50 space-y-3">
+        <div key={module.id} className="border rounded-lg p-3 bg-[#FAFCFE] space-y-3">
           <div className="flex items-center justify-between gap-2">
             <Label className="text-xs font-semibold uppercase">{module.title}</Label>
             <Badge variant="outline" className="text-[10px]">{module.pages.length} TELAS</Badge>

@@ -86,7 +86,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
   return (
     <div className="mt-4">
       <div className="rounded-xl border bg-card text-card-foreground shadow-sm border-slate-300">
-        <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+        <div className="flex flex-col space-y-1.5 p-6 bg-[#FAFCFE] border-b py-1 px-1">
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Linha' : 'Nova Linha'}</div>
         </div>
         <div className="p-1">
@@ -98,7 +98,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <FL label="Tipo" required><Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_LINHA.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></FL>
       </div>
-      <div className="border border-slate-200 bg-slate-50/50 rounded-lg p-3 space-y-1"><span className="font-semibold text-xs text-slate-700">Cor da Linha</span><div className="grid grid-cols-5 gap-2">{CORES_DISPONIVEIS.map((cor) => <button key={cor} type="button" onClick={() => handleChange('cor', cor)} className={`w-full h-7 rounded border ${formData.cor === cor ? 'ring-2 ring-slate-900' : ''}`} style={{ backgroundColor: cor }} />)}</div></div>
+      <div className="border border-slate-200 bg-[#FAFCFE]/50 rounded-lg p-3 space-y-1"><span className="font-semibold text-xs text-slate-700">Cor da Linha</span><div className="grid grid-cols-5 gap-2">{CORES_DISPONIVEIS.map((cor) => <button key={cor} type="button" onClick={() => handleChange('cor', cor)} className={`w-full h-7 rounded border ${formData.cor === cor ? 'ring-2 ring-slate-900' : ''}`} style={{ backgroundColor: cor }} />)}</div></div>
       <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => handleChange('observacoes', e.target.value)} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} /></FL>
       <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button><Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{item ? 'Salvar alterações' : 'Salvar linha'}</Button></div>
           </form>

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Info, X, Check } from "lucide-react";
 
-const iconButtonClass = "rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7";
+const iconButtonClass = "rounded-none border-0 bg-white hover:bg-[#FAFCFE] text-slate-700 shadow-none h-7 w-7";
 
 export default function TopNoticeDialog({
   open,
@@ -17,7 +17,7 @@ export default function TopNoticeDialog({
   onConfirm
 }) {
   const isDanger = type === "danger" || type === "destructive";
-  const badgeClass = isDanger ? "bg-red-600" : type === "info" ? "bg-slate-500" : "bg-amber-500";
+  const badgeClass = isDanger ? "bg-red-600" : type === "info" ? "bg-[#FAFCFE]" : "bg-amber-500";
   const Icon = type === "info" ? Info : AlertTriangle;
   const iconClass = isDanger ? "text-red-600" : type === "info" ? "text-slate-500" : "text-amber-500";
 
@@ -43,7 +43,7 @@ export default function TopNoticeDialog({
                 type="button"
                 variant="ghost"
                 onClick={() => onOpenChange?.(false)}
-                className="h-7 shrink-0 rounded-none px-2 text-[11px] font-semibold text-slate-600 shadow-none hover:bg-slate-50"
+                className="h-7 shrink-0 rounded-none px-2 text-[11px] font-semibold text-slate-600 shadow-none hover:bg-[#FAFCFE]"
               >
                 {cancelText}
               </Button>

@@ -517,7 +517,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       </p>
     </div>
   ) : (
-    <CardHeader className="bg-slate-50 border-b py-3">
+    <CardHeader className="bg-[#FAFCFE] border-b py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-sm font-semibold">
           {titulo}
@@ -550,7 +550,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   );
 
   const avisoDeCobertura = historico.outrasFontes > 0 && (
-    <div role="note" data-testid="aviso-cobertura" className="mx-2 mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
+    <div role="note" data-testid="aviso-cobertura" className="mx-2 mt-2 rounded-md border border-slate-200 bg-[#FAFCFE] px-2 py-1.5 text-[11px] text-slate-600">
       Nutrição, medicamentos, sanidade e manejo técnico vêm dos registros salvos neste aparelho e são ordenados junto com as
       movimentações carregadas.
       {historico.adiados > 0
@@ -618,7 +618,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               const tipoFluxo = item.source === 'movimentacao' ? fluxoNaArea(item.raw, escopoEfetivo === ESCOPO_AREA ? areaId : null) : item.sourceLabel;
 
               return (
-                <div key={item.uniqueId} className={`border rounded-lg p-2.5 space-y-1 ${item.cancelado ? 'border-slate-200 bg-slate-50' : 'border-slate-200 hover:bg-gray-50'}`}>
+                <div key={item.uniqueId} className={`border rounded-lg p-2.5 space-y-1 ${item.cancelado ? 'border-slate-200 bg-[#FAFCFE]' : 'border-slate-200 hover:bg-gray-50'}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-1">

@@ -1,10 +1,9 @@
 /* Mapa Geral e seus painéis usam os mesmos tokens dos cadastros. */
 .mk-mapa {
-  --mk-mapa-alto: 44px;
+  --mk-mapa-alto: var(--mk-action-height);
   --mk-mapa-texto: #292a2d;
   background: var(--mk-sup-fundo);
 }
-@media (min-width: 1024px) { .mk-mapa { --mk-mapa-alto: 36px; } }
 .mk-mapa-card:not(#mk-padrao) {
   background: #fff;
   border: 0;
@@ -13,6 +12,20 @@
   backdrop-filter: none;
 }
 :is(.mk-mapa-btn--solo, .mk-mapa-chip, .mk-mapa-pilha):not(#mk-padrao) { border-radius: 999px; }
+/* Pilha (atualizar / localização / movimentos): cápsula que recorta os botões. */
+.mk-mapa-pilha:not(#mk-padrao) {
+  overflow: hidden;
+  padding: 3px;
+  gap: 1px;
+}
+.mk-mapa-pilha .mk-mapa-btn:not(#mk-padrao) {
+  width: calc(var(--mk-mapa-alto) - 6px) !important;
+  min-width: calc(var(--mk-mapa-alto) - 6px) !important;
+  height: calc(var(--mk-mapa-alto) - 6px) !important;
+  min-height: calc(var(--mk-mapa-alto) - 6px) !important;
+  border-radius: 999px !important;
+  margin: 0 !important;
+}
 .mk-mapa-btn:not(#mk-padrao),
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao),
@@ -21,9 +34,9 @@
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
 :is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
-  width: 16px;
-  height: 16px;
-  stroke-width: 1.65;
+  width: var(--mk-action-icon);
+  height: var(--mk-action-icon);
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 .mk-mapa-camadas__menu:not(#mk-padrao),
@@ -41,9 +54,9 @@
 .mk-map-filter-sheet > :first-child { min-height: 44px; justify-content: center; }
 .mk-map-filters:not(#mk-padrao) { display: flex; flex-direction: column; gap: 12px; }
 .mk-map-filter-section:not(#mk-padrao) { padding: 12px; border-radius: 14px; background: #fff; }
-.mk-map-filters .mk-map-layer-row:not(#mk-padrao) { min-height: 44px; padding: 8px 0; border-radius: 0; }
-.mk-map-layer-row + .mk-map-layer-row { border-top: 1px solid var(--mk-list-divider); }
-.mk-map-filters :is(label, .mk-map-layer-row > span):not(#mk-padrao) { font-size: 13px; }
+.mk-map-filters .mk-map-layer-row:not(#mk-padrao) { min-height: var(--mk-list-row-height, 36px); padding: 0 10px; border-radius: 0; }
+.mk-map-layer-row + .mk-map-layer-row { border-top: 0; }
+.mk-map-filters :is(label, .mk-map-layer-row > span, .mk-map-layer-row__txt):not(#mk-padrao) { font-size: var(--mk-font-list, 13px); }
 .mk-map-filters :is(input, button[role="combobox"]):not(#mk-padrao) {
   min-height: var(--mk-search-height);
   height: var(--mk-search-height);
@@ -61,7 +74,7 @@
   background: #fff;
   color: #292a2d;
   box-shadow: var(--mk-btn-sombra);
-  font-size: 12px;
+  font-size: var(--mk-font-list, 13px);
 }
 .mk-map-color-button[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
 
@@ -77,7 +90,11 @@ button[data-mk-map-action]:not(#mk-padrao) {
 }
 button[data-mk-map-action]:is([class*="bg-emerald"], [class*="bg-green"]):not(#mk-padrao) { color: #16a34a !important; }
 button[data-mk-map-action]:is([class*="bg-red"], .bg-destructive):not(#mk-padrao) { color: #dc2626 !important; }
-button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stroke-width: 1.65; }
+button[data-mk-map-action]:not(#mk-padrao) svg {
+  width: var(--mk-action-icon);
+  height: var(--mk-action-icon);
+  stroke-width: var(--mk-action-stroke, 2.25);
+}
 :is(.mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) { background: #fff; box-shadow: var(--mk-btn-sombra); border: 0; }
 .mk-al__botao:not(#mk-padrao) { min-height: 44px; border-radius: 999px; }
 .mk-al__quadro:not(#mk-padrao) { border-radius: 14px; }
@@ -102,6 +119,11 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
   gap: 8px;
 }
 .mk-map-filter-header > :not(#mk-padrao) { margin: 0; }
+.mk-map-panel-close:disabled:not(#mk-padrao) {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
 .mk-map-panel-close:not(#mk-padrao) {
   display: inline-flex;
   align-items: center;
@@ -113,7 +135,7 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
   background: #fff;
   box-shadow: var(--mk-btn-sombra);
 }
-.mk-map-panel-close svg { width: 16px; height: 16px; }
+.mk-map-panel-close svg { width: var(--mk-action-icon); height: var(--mk-action-icon); }
 .mk-vis__seg:not(#mk-padrao) { background: #fff; border-radius: 999px; box-shadow: var(--mk-btn-sombra); }
 .mk-vis__seg-op:not(#mk-padrao),
 .mk-vis__chip:not(#mk-padrao) {
@@ -132,14 +154,14 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
 }
 .mk-vis__chip:not(#mk-padrao) { box-shadow: var(--mk-btn-sombra); padding: 0 12px; }
 .mk-vis__lista:not(#mk-padrao) { border: 0; border-radius: 14px; background: #fff; }
-.mk-vis__lista li + li { border-top-color: var(--mk-list-divider); }
+.mk-vis__lista li + li { border-top: 0; }
 .mk-vis__linha:not(#mk-padrao) { min-height: 44px; }
 .mk-vis__linha-ic { width: 16px; height: 16px; }
 .mk-map-details:not(#mk-padrao) { background: var(--mk-sup-fundo); padding: 8px; }
 .mk-map-legend:not(#mk-padrao) { background: #fff; border-radius: 14px; box-shadow: var(--mk-btn-sombra); }
 .mk-map-legend > button { min-height: 36px; }
 .mk-map-legend > button svg { width: 16px; height: 16px; }
-.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { border-top-color: var(--mk-list-divider); }
+.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { border-top: 0; }
 
 button[data-mk-map-action]:is([class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626 !important; }
 button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk-padrao) { color: #b45309 !important; }
@@ -172,29 +194,33 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 
 /* Controles compactos sem herdar os campos altos dos cadastros mobile. */
 .mk-map-filter-sheet:not(#mk-padrao) { width: min(320px, 100vw); }
-:is(.mk-map-filter-sheet, .mk-map-filter-mobile) { --mk-search-height: 36px; --mk-search-font: 13px; }
+:is(.mk-map-filter-sheet, .mk-map-filter-mobile) {
+  --mk-search-height: var(--mk-list-row-height, 36px);
+  --mk-search-font: var(--mk-font-search, 13px);
+}
 .mk-map-filters:not(#mk-padrao) { gap: 8px; }
 .mk-map-filter-section:not(#mk-padrao) { padding: 10px; }
-.mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors) > div:last-child {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+/* Legado 2-col: só fora do painel limpo (que é 1 coluna, igual à listagem). */
+.mk-map-filters:not(.mk-map-filters--clean)
+  .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors)
+  > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
-.mk-map-filters .mk-map-layer-row:not(#mk-padrao) { min-height: 40px; padding: 9px 0; }
-.mk-map-filters :is(input, button[role="combobox"]):not(#mk-padrao) { min-width: 0; width: 100%; padding: 0 10px; font-size: 13px; }
-.mk-map-filters button[role="combobox"] > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mk-map-filters button[role="combobox"] > svg { width: 14px; height: 14px; flex-shrink: 0; }
-.mk-map-filters :is(label, .mk-map-layer-row > span):not(#mk-padrao) { font-size: 12px; }
 .mk-map-filters > [data-orientation="horizontal"] { display: none; }
-.mk-vis__seg-op:not(#mk-padrao), .mk-vis__chip:not(#mk-padrao) { height: 32px; min-height: 32px; font-size: 12px; }
-.mk-vis__linha:not(#mk-padrao) { height: 40px; min-height: 40px; font-size: 12px; gap: 8px; }
 .mk-mapa-camadas__menu:not(#mk-padrao) { max-height: calc(100dvh - 120px); }
 .mk-mapa-camadas__corpo:not(#mk-padrao) { padding: 4px 8px 10px; }
-.mk-vis__secao + .mk-vis__secao { margin-top: 10px; }
+.mk-vis__secao + .mk-vis__secao { margin-top: 12px; }
 @media (min-width: 1024px) {
-  .mk-map-filter-sheet { --mk-search-height: 32px; }
-  .mk-map-filters .mk-map-layer-row:not(#mk-padrao), .mk-vis__linha:not(#mk-padrao) { min-height: 36px; height: 36px; padding-top: 7px; padding-bottom: 7px; }
+  .mk-map-filter-sheet { --mk-search-height: var(--mk-list-row-height, 36px); }
 }
 @media (max-width: 359px) {
-  .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors) > div:last-child { grid-template-columns: minmax(0, 1fr); }
+  .mk-map-filters:not(.mk-map-filters--clean)
+    .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors)
+    > div:last-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Filtros laterais também no celular, deixando parte do mapa à vista. */
@@ -312,133 +338,264 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   }
 }
 
-/* Filtros e camadas: títulos sobre o fundo e uma lista branca por seção. */
-.mk-map-filters--clean:not(#mk-padrao) { gap: 18px; }
-.mk-map-filters--clean .mk-map-filter-section:not(#mk-padrao) {
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
+/*
+ * Filtros / Camadas / Visualização — densidade única e alinhada (D-PROD-151).
+ * Campos sem checkbox começam no X do checkbox (borda esquerda da linha),
+ * como na main original — não indentados pela coluna do check.
+ */
+:is(.mk-map-filters--clean, .mk-vis):not(#mk-padrao) {
+  --mk-map-row: 32px;
+  --mk-map-control: 26px;
+  --mk-map-font: 12px;
+  --mk-map-title: 12px;
+  --mk-map-pad-x: 10px;
+  --mk-map-check: var(--mk-check-size, 14px);
+  --mk-map-check-gap: 8px;
+  --mk-list-row-height: var(--mk-map-row);
+  --mk-font-list: var(--mk-map-font);
+  --mk-font-field: var(--mk-map-font);
+  --mk-font-heading: var(--mk-map-font);
+  --mk-font-title: var(--mk-map-title);
+  --mk-search-height: var(--mk-map-row);
+  --mk-search-font: var(--mk-map-font);
 }
-.mk-map-filters--clean .mk-map-filter-heading { padding: 0 4px 8px; }
-.mk-map-filters--clean .mk-map-filter-heading > span {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: none;
-  color: #64748b;
-  line-height: 1.4;
+@media (max-width: 1023px) {
+  :is(.mk-map-filters--clean, .mk-vis):not(#mk-padrao) {
+    --mk-map-row: 40px;
+    --mk-map-control: 36px; /* cabe fonte 16px anti-zoom */
+  }
 }
-.mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields) {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: var(--mk-cartao-sombra);
-  padding: 0 12px;
-}
-.mk-map-filters--clean .mk-map-filter-fields:not(#mk-padrao) {
+
+.mk-map-filters--clean:not(#mk-padrao) {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
 }
-.mk-map-filters--clean .mk-map-filter-fields > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+
+.mk-map-filters--clean .mk-map-filter-section:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.mk-map-filters--clean .mk-map-filter-heading {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  min-height: 46px;
-  padding: 5px 0;
-}
-.mk-map-filters--clean .mk-map-filter-fields > div + div {
-  border-top: 1px solid var(--mk-list-divider);
-}
-.mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) {
+  min-height: 18px;
+  padding: 0 var(--mk-map-pad-x);
   margin: 0;
-  line-height: 1.35;
-  font-size: 12px;
+}
+.mk-map-filters--clean .mk-map-filter-heading > span {
+  font-size: var(--mk-map-title) !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: #64748b !important;
+  line-height: 1.3 !important;
+}
+
+/* Cartão branco — uma coluna (nunca o grid 2-col legado) */
+.mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields):not(#mk-padrao) {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(15, 23, 42, 0.08));
+  overflow: hidden;
+}
+
+/* Linha compartilhada: mesma altura, mesmo pad-x, mesma coluna de texto */
+.mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao),
+.mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
+  box-sizing: border-box;
+  align-items: center;
+  width: 100%;
+  height: var(--mk-map-row) !important;
+  min-height: var(--mk-map-row) !important;
+  max-height: var(--mk-map-row) !important;
+  margin: 0 !important;
+  padding: 0 var(--mk-map-pad-x) !important;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) {
+  display: flex !important;
+  gap: var(--mk-map-check-gap);
+  justify-content: flex-start;
+  text-align: left;
+  font-size: var(--mk-map-font) !important;
   font-weight: 500;
-  color: #475569;
+  color: #334155;
+  cursor: pointer;
 }
-.mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):not(#mk-padrao) {
-  box-shadow: none;
-  border-radius: 8px;
-  background: var(--mk-sup-fundo);
-  font-size: 12px;
-  height: 32px;
-  min-height: 32px;
+.mk-map-filters--clean .mk-map-layer-row.mk-check-row::before {
+  width: var(--mk-map-check);
+  height: var(--mk-map-check);
+  flex: 0 0 var(--mk-map-check);
 }
-.mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):focus-visible:not(#mk-padrao) {
+/* Campos sem check: rótulo | controle — rótulo no X do checkbox das camadas. */
+.mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  column-gap: 10px;
+  justify-items: stretch;
+  text-align: left;
+}
+.mk-map-filters--clean .mk-map-layer-row + .mk-map-layer-row,
+.mk-map-filters--clean .mk-map-filter-fields > div + div {
+  border-top: 1px solid #eef0f3;
+}
+
+.mk-map-filters--clean .mk-map-layer-row:hover:not([aria-checked="true"]):not(#mk-padrao) {
+  background: var(--mk-sup-fundo, #FAFCFE);
+}
+.mk-map-filters--clean .mk-map-layer-row__txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--mk-map-font) !important;
+  line-height: 1.25 !important;
+  color: inherit;
+}
+.mk-map-filters--clean .mk-map-layer-row:focus-visible:not(#mk-padrao) {
+  outline: 2px solid var(--mk-mapa-verde, #40de63);
+  outline-offset: -2px;
+}
+
+.mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) {
+  display: block;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left !important;
+  justify-self: start;
+  font-size: var(--mk-map-font) !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  color: #475569 !important;
+}
+.mk-map-filters--clean .mk-map-filter-fields :is(
+  input, select, button[role="combobox"]
+):not(#mk-padrao) {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0;
+  height: var(--mk-map-control) !important;
+  min-height: var(--mk-map-control) !important;
+  max-height: var(--mk-map-control) !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: var(--mk-sup-fundo, #FAFCFE) !important;
+  box-shadow: none !important;
+  font-size: var(--mk-map-font) !important;
+  line-height: 1.25 !important;
+  text-align: left !important;
+  color: #334155 !important;
+}
+@media (max-width: 1023px) {
+  /* Mobile/tablet: 1 coluna de linhas; rótulo no X do checkbox (igual desktop/main). */
+  .mk-map-filters--clean .mk-map-filter-fields:not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-section--fields > .mk-map-filter-fields:not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-section--fields > div:last-child:not(#mk-padrao) {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+  .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) !important;
+    width: 100% !important;
+  }
+  .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+  .mk-map-multi-popup > input[type="search"]:not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+}
+.mk-map-filters--clean .mk-map-filter-fields :is(input, select, button[role="combobox"]):focus-visible:not(#mk-padrao) {
   outline: 2px solid #5acbe9;
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
-.mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 42px; padding: 8px 0; }
-@media (min-width: 1024px) {
-  .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 38px; height: auto; }
+.mk-map-filters--clean button[role="combobox"] > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-map-filters--clean button[role="combobox"] > svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
 }
 
-/* Densidade compacta compartilhada entre celular, tablet e desktop. */
-  .mk-map-filter-sheet {
-    --mk-toggle-w: 40.5px;
-    --mk-toggle-h: 18px;
-  }
-  .mk-map-filter-sheet .mk-map-filter-header h2 { font-size: 13px; }
-  .mk-map-filter-sheet .mk-map-panel-close:not(#mk-padrao) {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    min-height: 32px;
-  }
-  .mk-map-filters--clean:not(#mk-padrao) { gap: 12px; }
-  .mk-map-filters--clean .mk-map-filter-heading { padding-bottom: 6px; }
-  .mk-map-filters--clean .mk-map-filter-heading > span { font-size: 11px !important; }
-  .mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields) { padding: 0 10px; }
-  .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) {
-    min-height: 38px;
-    padding: 7px 0;
-  }
-  .mk-map-filters--clean .mk-map-layer-row > span:not(#mk-padrao),
-  .mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) { font-size: 11px !important; }
-  .mk-map-filters--clean .mk-map-filter-fields > div {
-    min-height: 40px;
-    padding: 4px 0;
-    gap: 8px;
-  }
-  .mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):not(#mk-padrao) {
-    height: 28px;
-    min-height: 28px;
-    padding: 0 8px;
-    font-size: 11px !important;
-  }
-  .mk-map-filters--clean button[role="combobox"] > svg { width: 12px; height: 12px; }
-
-/* Visualização acompanha os mesmos tamanhos de Filtros e Camadas. */
-.mk-vis {
-  --mk-toggle-w: 40.5px;
-  --mk-toggle-h: 18px;
+/* Anula o layout 2-col legado só nestas seções de campos */
+.mk-map-filters--clean .mk-map-filter-section--fields > div:last-child:not(#mk-padrao) {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
 }
+
+.mk-map-filter-sheet .mk-map-filter-header h2 { font-size: var(--mk-map-title, 13px); }
+.mk-map-filter-sheet .mk-map-panel-close:not(#mk-padrao) {
+  width: var(--mk-action-height, 32px);
+  min-width: var(--mk-action-height, 32px);
+  height: var(--mk-action-height, 32px);
+  min-height: var(--mk-action-height, 32px);
+}
+
+/* Visualização: mesma densidade das listagens de Filtros/Camadas. */
 .mk-vis .mk-vis__titulo:not(#mk-padrao) {
-  font-size: 11px !important;
+  font-size: var(--mk-map-title, 13px) !important;
   font-weight: 600;
   color: #64748b;
   text-transform: none;
-  margin-bottom: 6px;
+  margin: 0 0 6px;
+  padding: 0 var(--mk-map-pad-x, 12px);
 }
-.mk-vis .mk-vis__secao + .mk-vis__secao { margin-top: 12px; }
-.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {
-  height: 28px;
-  min-height: 28px;
-  padding: 0 8px;
-  font-size: 11px !important;
-  gap: 5px;
+.mk-vis .mk-vis__secao + .mk-vis__secao { margin-top: 14px; }
+.mk-vis :is(.mk-vis__seg, .mk-vis__lista, .mk-vis__chips):not(#mk-padrao) {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(15, 23, 42, 0.08));
 }
-.mk-vis .mk-vis__linha:not(#mk-padrao) {
-  height: 38px;
-  min-height: 38px;
-  padding: 7px 10px;
-  font-size: 11px !important;
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip, .mk-vis__linha):not(#mk-padrao) {
+  box-sizing: border-box;
+  height: var(--mk-map-row, 36px) !important;
+  min-height: var(--mk-map-row, 36px) !important;
+  max-height: var(--mk-map-row, 36px) !important;
+  padding: 0 var(--mk-map-pad-x, 12px) !important;
+  font-size: var(--mk-map-font, 12px) !important;
   gap: 8px;
 }
-.mk-vis .mk-vis__linha-txt { font-size: 11px !important; }
-.mk-vis .mk-vis__linha-ic { width: 14px; height: 14px; }
+.mk-vis .mk-vis__lista { border: 0; }
+.mk-vis .mk-vis__linha-txt { font-size: var(--mk-map-font, 12px) !important; }
+.mk-vis .mk-vis__linha-ic { width: 14px; height: 14px; color: #64748b; }
 .mk-vis .mk-vis__ico { width: 14px; height: 10px; }
+.mk-vis .mk-vis__linha .mk-ios-switch { display: none; }
 
 /* Opções ancoradas: nunca viram folha mobile. */
 .mk-map-multi-popup:not(#mk-padrao) {
@@ -451,9 +608,16 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   background: #fff;
   box-shadow: 0 6px 24px rgba(15, 23, 42, .14);
 }
-.mk-map-multi-title { padding: 6px 8px; font-size: 11px; font-weight: 600; color: #64748b; }
+.mk-map-multi-title { padding: 6px 8px; font-size: var(--mk-font-heading, 13px); font-weight: 600; color: #64748b; }
 .mk-map-multi-options { max-height: min(280px, 50dvh); overflow-y: auto; overscroll-behavior: contain; }
-.mk-map-multi-options label { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 8px; font-size: 11px !important; color: #334155; cursor: pointer; }
+.mk-map-multi-options label {
+  display: flex; align-items: center; gap: 8px;
+  min-height: var(--mk-list-row-height, 36px); padding: 6px 8px;
+  font-size: var(--mk-font-list, 13px) !important; color: #334155; cursor: pointer;
+}
 .mk-map-multi-options label + label { border-top: 1px solid var(--mk-list-divider); }
 .mk-map-multi-options input { width: 14px; height: 14px; flex: none; accent-color: #32d65e; }
-.mk-map-multi-popup > input[type="search"] { width: 100%; border: 0; border-radius: 999px; padding: 7px 10px; margin-bottom: 4px; background: var(--mk-sup-fundo); font-size: 12px !important; }
+.mk-map-multi-popup > input[type="search"] {
+  width: 100%; border: 0; border-radius: 999px; padding: 7px 10px; margin-bottom: 4px;
+  background: var(--mk-sup-fundo); font-size: var(--mk-font-search, 13px) !important;
+}

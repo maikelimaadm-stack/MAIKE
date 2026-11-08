@@ -34,9 +34,10 @@ describe('V7/V8 — chave do iOS', () => {
     expect(css()).toMatch(/\.cadastro-b1 \.b1-chave-row:not\(#mk-padrao\) \{\s*justify-content: flex-start;/);
   });
 
-  it('V7-4 — sem Switch do shadcn: as chaves do sistema são o ToggleSwitch e o B1Switch (D-PROD-132)', () => {
+  it('V7-4 — sem Switch do shadcn: as chaves do sistema são o ToggleSwitch e o B1Switch', () => {
     expect(existsSync('src/components/ui/switch.jsx')).toBe(false);
-    expect(readFileSync('src/components/mapa/MapaFiltrosAvancados.jsx', 'utf8')).toMatch(/<ToggleSwitch /);
+    expect(existsSync('src/components/common/ToggleSwitch.jsx')).toBe(true);
+    expect(existsSync('src/components/cadastro/base1/B1Switch.jsx')).toBe(true);
   });
 
   it('V8-1 — pressionar estica a bolinha nas três chaves', () => {
