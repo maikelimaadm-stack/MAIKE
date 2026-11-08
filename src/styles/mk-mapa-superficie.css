@@ -2,9 +2,16 @@
 .mk-mapa {
   --mk-mapa-alto: 44px;
   --mk-mapa-texto: #292a2d;
+  /* Controles do mapa usam o alto do mapa, não o das ações de barra. */
+  --mk-action-height: var(--mk-mapa-alto);
   background: var(--mk-sup-fundo);
 }
-@media (min-width: 1024px) { .mk-mapa { --mk-mapa-alto: 36px; } }
+@media (min-width: 1024px) {
+  .mk-mapa {
+    --mk-mapa-alto: 32px;
+    --mk-action-icon: 15px;
+  }
+}
 .mk-mapa-card:not(#mk-padrao) {
   background: #fff;
   border: 0;
@@ -13,6 +20,20 @@
   backdrop-filter: none;
 }
 :is(.mk-mapa-btn--solo, .mk-mapa-chip, .mk-mapa-pilha):not(#mk-padrao) { border-radius: 999px; }
+/* Pilha (atualizar / localização / movimentos): cápsula que recorta os botões. */
+.mk-mapa-pilha:not(#mk-padrao) {
+  overflow: hidden;
+  padding: 3px;
+  gap: 1px;
+}
+.mk-mapa-pilha .mk-mapa-btn:not(#mk-padrao) {
+  width: calc(var(--mk-mapa-alto) - 6px) !important;
+  min-width: calc(var(--mk-mapa-alto) - 6px) !important;
+  height: calc(var(--mk-mapa-alto) - 6px) !important;
+  min-height: calc(var(--mk-mapa-alto) - 6px) !important;
+  border-radius: 999px !important;
+  margin: 0 !important;
+}
 .mk-mapa-btn:not(#mk-padrao),
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao),
@@ -139,7 +160,7 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
 .mk-map-legend:not(#mk-padrao) { background: #fff; border-radius: 14px; box-shadow: var(--mk-btn-sombra); }
 .mk-map-legend > button { min-height: 36px; }
 .mk-map-legend > button svg { width: 16px; height: 16px; }
-.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { border-top-color: var(--mk-list-divider); }
+.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { border-top: 0; }
 
 button[data-mk-map-action]:is([class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626 !important; }
 button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk-padrao) { color: #b45309 !important; }

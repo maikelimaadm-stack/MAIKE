@@ -108,10 +108,17 @@
 .mk-mapa-pilha {
   display: flex;
   flex-direction: column;
-  padding: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 1px;
 }
-.mk-mapa-pilha .mk-mapa-btn { width: calc(var(--mk-mapa-alto) - 4px); height: calc(var(--mk-mapa-alto) - 2px); }
-.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { margin-top: 1px; }
+.mk-mapa-pilha .mk-mapa-btn {
+  width: calc(var(--mk-mapa-alto) - 6px);
+  height: calc(var(--mk-mapa-alto) - 6px);
+  border-radius: 999px;
+}
+.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { margin-top: 0; }
 
 .mk-mapa-camadas { position: relative; }
 .mk-mapa-camadas__menu {
