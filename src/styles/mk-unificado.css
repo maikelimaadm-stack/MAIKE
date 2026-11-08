@@ -602,9 +602,30 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
   font-size: var(--mk-font-field) !important;
   color: var(--mk-text);
 }
-/* iOS: inputs reais ≥16px para não forçar zoom; listagens/combobox compactos mantêm 11px. */
-@media (max-width: 767px) {
-  .cadastro-b1 :is(.mg-field__control input, .mg-field__control textarea, .mg-field__control select):not(#mk-padrao) {
+/*
+ * iOS/iPadOS: qualquer input/select/textarea com fonte <16px dá zoom ao focar.
+ * Vale para celular e tablet (≤1023). Labels/listagens podem ficar menores;
+ * só o controle editável precisa de 16px.
+ */
+@media (max-width: 1023px) {
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    textarea,
+    select
+  ):not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+  .cadastro-b1 :is(.mg-field__control input, .mg-field__control textarea, .mg-field__control select):not(#mk-padrao),
+  .mk-lanc .mg-field__control :is(input, textarea, select):not(#mk-padrao),
+  .mk-map-filters :is(input, select):not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao),
+  .mk-map-multi-popup > input[type="search"]:not(#mk-padrao),
+  .mk-ll :is(input, textarea, select):not(#mk-padrao),
+  .mk-sheet :is(input, textarea, select):not(#mk-padrao),
+  .mk-pill input:not(#mk-padrao),
+  .mg-search-pill input:not(#mk-padrao),
+  .cmd-panel__search:not(#mk-padrao),
+  .b1ref .fpop .fin:not(#mk-padrao) {
     font-size: 16px !important;
   }
 }

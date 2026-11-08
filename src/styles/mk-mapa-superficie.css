@@ -436,6 +436,23 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   line-height: 1.25 !important;
   color: #334155 !important;
 }
+/* No toque, inputs reais ficam 16px (anti-zoom); o botão-combobox pode continuar compacto. */
+@media (max-width: 1023px) {
+  .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao) {
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    font-size: 16px !important;
+  }
+  .mk-map-filters--clean .mk-map-filter-fields > div {
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+  }
+  .mk-map-multi-popup > input[type="search"]:not(#mk-padrao) {
+    font-size: 16px !important;
+  }
+}
 /* Anula o padding vertical global das listagens — senão desalinha com os campos. */
 .mk-map-filters--clean :is(
   .mk-map-layer-row,
