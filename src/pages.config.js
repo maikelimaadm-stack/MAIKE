@@ -26,6 +26,7 @@ import Parceiros from './pages/Parceiros';
 import CentrosCusto from './pages/CentrosCusto';
 import CentrosResultado from './pages/CentrosResultado';
 import NaturezasFinanceiras from './pages/NaturezasFinanceiras';
+import LancamentosFinanceiros from './pages/LancamentosFinanceiros';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -50,6 +51,7 @@ export const PAGES = {
     "CentrosCusto": CentrosCusto,
     "CentrosResultado": CentrosResultado,
     "NaturezasFinanceiras": NaturezasFinanceiras,
+    "LancamentosFinanceiros": LancamentosFinanceiros,
 };
 
 export const pagesConfig = {

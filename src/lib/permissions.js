@@ -8,7 +8,24 @@ export const ACTION_LABELS = {
   excluir: "excluir registros",
   importar: "importar dados",
   exportar: "exportar dados",
+  confirmar: "confirmar lançamentos",
+  liquidar: "registrar pagamentos e recebimentos",
+  estornar_liquidacao: "estornar baixas",
+  cancelar: "cancelar lançamentos",
 };
+
+/**
+ * Ações EXTRAS de uma tela (D-PROD-154), gravadas na própria linha da tela em
+ * `permissoes_telas` (sem coluna nova: `telaPermite` do servidor testa
+ * `linha[acao] === true` para qualquer nome). Só a Central de Lançamentos tem.
+ * Espelho de `GUARDAS.operacaoFinanceira` (backend/src/shared/auth/guardasRotas.js).
+ */
+export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
+  "ges-lancamentos-financeiros": Object.freeze(["confirmar", "liquidar", "estornar_liquidacao", "cancelar"]),
+});
+
+/** @param {string} pageId @returns {readonly string[]} */
+export const extraActionKeysOf = (pageId) => EXTRA_ACTION_KEYS_BY_PAGE[pageId] ?? [];
 
 export const normalizePermissionRecord = (permission) => {
   if (!permission) return null;
@@ -87,6 +104,8 @@ const createBasePagePermission = (moduleId, moduleTitle, page, defaultValue) => 
   excluir: defaultValue,
   importar: defaultValue,
   exportar: defaultValue,
+  // Linha nova já nasce com as ações extras da tela (restrita = todas desligadas).
+  ...Object.fromEntries(extraActionKeysOf(page.id).map((acao) => [acao, defaultValue])),
 });
 
 export const createPagePermission = (moduleId, moduleTitle, page) =>

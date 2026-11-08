@@ -50,6 +50,8 @@ export const DEFAULT_MENU = [
       { id: "ges-centros-resultado", title: "Centros de Resultado", url: "CentrosResultado" },
       // D-PROD-153 — Gestão Rural P2: catálogo gerencial (não é plano de contas nem lançamento).
       { id: "ges-naturezas-financeiras", title: "Naturezas Financeiras", url: "NaturezasFinanceiras" },
+      // D-PROD-154 — Gestão Rural P3-01: Central Única de Lançamentos (documento gerencial nativo).
+      { id: "ges-lancamentos-financeiros", title: "Lançamentos Financeiros", url: "LancamentosFinanceiros" },
     ],
   },
   {
