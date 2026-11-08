@@ -335,8 +335,8 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 
 /*
  * Filtros / Camadas / Visualização — densidade única e alinhada (D-PROD-151).
- * Coluna de texto começa no mesmo X: checkbox (ou spacer) + gap + rótulo.
- * Anula o grid 2-col legado em .mk-map-filter-fields.
+ * Campos sem checkbox começam no X do checkbox (borda esquerda da linha),
+ * como na main original — não indentados pela coluna do check.
  */
 :is(.mk-map-filters--clean, .mk-vis):not(#mk-padrao) {
   --mk-map-row: 32px;
@@ -436,22 +436,13 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   height: var(--mk-map-check);
   flex: 0 0 var(--mk-map-check);
 }
-/* Campos: spacer (= checkbox) | rótulo | controle — mesmo X do texto das camadas.
- * Desktop e mobile: uma linha por campo, alinhada à esquerda (nunca grid 2-col). */
+/* Campos sem check: rótulo | controle — rótulo no X do checkbox das camadas. */
 .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
   display: grid !important;
-  grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.35fr);
-  column-gap: var(--mk-map-check-gap);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  column-gap: 10px;
   justify-items: stretch;
   text-align: left;
-}
-.mk-map-filters--clean .mk-map-filter-fields > div::before {
-  content: '';
-  width: var(--mk-map-check);
-  height: var(--mk-map-check);
-  flex: none;
-  visibility: hidden;
-  pointer-events: none;
 }
 .mk-map-filters--clean .mk-map-layer-row + .mk-map-layer-row,
 .mk-map-filters--clean .mk-map-filter-fields > div + div {
@@ -516,7 +507,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   color: #334155 !important;
 }
 @media (max-width: 1023px) {
-  /* Mobile/tablet: mesma coluna única à esquerda do desktop (nunca 2-col). */
+  /* Mobile/tablet: 1 coluna de linhas; rótulo no X do checkbox (igual desktop/main). */
   .mk-map-filters--clean .mk-map-filter-fields:not(#mk-padrao),
   .mk-map-filters--clean .mk-map-filter-section--fields > .mk-map-filter-fields:not(#mk-padrao),
   .mk-map-filters--clean .mk-map-filter-section--fields > div:last-child:not(#mk-padrao) {
@@ -528,7 +519,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   }
   .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
     display: grid !important;
-    grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.35fr) !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) !important;
     width: 100% !important;
   }
   .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao) {
