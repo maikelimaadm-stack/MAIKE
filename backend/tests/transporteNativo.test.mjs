@@ -13,6 +13,9 @@
 
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { construirApp } from '../src/app.js';
 import { getPrismaClient } from '../src/database/prismaClient.js';
@@ -161,6 +164,31 @@ describe('P4B — CORS no app real', () => {
       },
     });
     assert.equal(r.headers['access-control-allow-origin'], undefined);
+  });
+
+  test('P4B-04d preflight libera TODO método HTTP que o frontend usa (PUT da P2/P3 incluído)', async () => {
+    // D-PROD-154 (prova real ponta a ponta): com frontend e backend em origins
+    // diferentes, o PUT do perfil financeiro e do rascunho morria no preflight
+    // — o navegador nem enviava a requisição. A lista vem das portas nativas
+    // do frontend, não de uma cópia: método novo lá sem liberação aqui reprova.
+    const raizApis = fileURLToPath(new URL('../../src/apis/', import.meta.url));
+    const metodos = new Set();
+    for (const arquivo of readdirSync(raizApis, { recursive: true })) {
+      if (!String(arquivo).endsWith('.js')) continue;
+      const fonte = readFileSync(path.join(raizApis, String(arquivo)), 'utf8');
+      for (const m of fonte.matchAll(/method:\s*['"]([A-Z]+)['"]/g)) metodos.add(m[1]);
+    }
+    assert.ok(metodos.has('PUT') && metodos.has('POST'), `varredura não achou os métodos do frontend: ${[...metodos]}`);
+    for (const [metodo, url] of [...metodos].map((m) => [m, m === 'PUT' ? '/perfis-financeiros-empresa' : '/operacoes-financeiras'])) {
+      const r = await app.inject({
+        method: 'OPTIONS',
+        url,
+        headers: { origin: ORIGIN_OK, 'access-control-request-method': metodo, 'access-control-request-headers': 'authorization,content-type' },
+      });
+      assert.ok(r.statusCode < 300, `preflight ${metodo} ${url} recusado: ${r.statusCode}`);
+      const liberados = String(r.headers['access-control-allow-methods'] ?? '').split(',').map((s) => s.trim());
+      assert.ok(liberados.includes(metodo), `preflight não libera ${metodo} (liberados: ${liberados.join(', ')})`);
+    }
   });
 
   test('P4B-04c nenhuma resposta traz Allow-Credentials', async () => {
