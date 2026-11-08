@@ -1,9 +1,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FilterX } from "lucide-react";
 import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { filtroSemRestricao } from "@/lib/mapaFiltroSelecao";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -130,8 +132,44 @@ export default function MapaFiltrosAvancados({
   // por" (cores) vai para o painel Visualização quando `mostrarCores` é false.
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
+  const temFiltroAtivo =
+    !filtroSemRestricao(filtroSetor) ||
+    !filtroSemRestricao(filtroTipoCultura) ||
+    !filtroSemRestricao(filtroTipoPastagem) ||
+    !filtroSemRestricao(filtroCategoria) ||
+    !filtroSemRestricao(filtroSistema) ||
+    !filtroSemRestricao(filtroIdentificador) ||
+    !filtroSemRestricao(filtroStatus) ||
+    !filtroSemRestricao(filtroAlertaTipo) ||
+    filtroPesoMin != null ||
+    filtroPesoMax != null;
+
+  const limparFiltros = () => {
+    setFiltroSetor("todos");
+    setFiltroTipoCultura("todas");
+    setFiltroTipoPastagem("todas");
+    setFiltroCategoria("todas");
+    setFiltroSistema("todos");
+    setFiltroIdentificador("todos");
+    setFiltroStatus("todos");
+    setFiltroAlertaTipo("todos");
+    setFiltroPesoMin(null);
+    setFiltroPesoMax(null);
+  };
+
   return (
     <div className="mk-map-filters mk-map-filters--clean">
+      {temFiltroAtivo ? (
+        <button
+          type="button"
+          className="mk-map-filters-limpar"
+          onClick={limparFiltros}
+        >
+          <FilterX size={14} aria-hidden strokeWidth={2.25} />
+          <span>Limpar filtros</span>
+        </button>
+      ) : null}
+
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>

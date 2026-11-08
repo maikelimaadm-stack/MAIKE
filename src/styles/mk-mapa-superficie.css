@@ -366,6 +366,46 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   flex-direction: column;
   gap: 12px;
 }
+
+/* Limpar filtros — só aparece com algum campo ativo; não mexe nas camadas. */
+.mk-map-filters-limpar:not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: stretch;
+  box-sizing: border-box;
+  height: var(--mk-action-height, 32px);
+  min-height: var(--mk-action-height, 32px);
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra, 0 1px 2px rgba(15, 23, 42, 0.08));
+  color: var(--mk-icon-close, #64748b);
+  font-size: var(--mk-map-font, 12px);
+  font-weight: 500;
+  cursor: pointer;
+}
+.mk-map-filters-limpar:not(#mk-padrao):hover {
+  background: var(--mk-btn-hover, #f8fafc);
+}
+.mk-map-filters-limpar:not(#mk-padrao):focus-visible {
+  outline: 2px solid #5acbe9;
+  outline-offset: 1px;
+}
+.mk-map-filters-limpar svg {
+  flex: none;
+  color: var(--mk-icon-close, #64748b);
+}
+@media (max-width: 1023px) {
+  .mk-map-filters-limpar:not(#mk-padrao) {
+    height: var(--mk-action-height-touch, 40px);
+    min-height: var(--mk-action-height-touch, 40px);
+    font-size: 13px;
+  }
+}
 .mk-map-filters--clean .mk-map-filter-section:not(#mk-padrao) {
   display: flex;
   flex-direction: column;
