@@ -7,6 +7,8 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { atorDoTenant, ehAdminTenantAtivo, tenantAdminRequired } from '../../shared/auth/exigirAdminTenant.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -77,7 +79,30 @@ export const criar = async (contexto, entrada) => {
  */
 export const CAMPOS_PATCH_DE_QUALQUER_CONTA = Object.freeze(['local_estoque_nome']);
 
-/** D-PROD-154 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. */
+/**
+ * D-PROD-154 (§8.4/§8.5): o PATCH/DELETE que mexe no saldo entra no protocolo de
+ * travas NA ORDEM da venda/confirmação — produto (`travarProdutosEstoque`) e
+ * DEPOIS o lote (FOR UPDATE) — e só então relê o lote. Sem isso, a contagem de
+ * vínculos (READ COMMITTED, sem trava) não via a fatia de uma venda ainda não
+ * commitada, e o UPDATE, depois de esperar a linha, sobrescrevia o saldo que a
+ * venda acabara de baixar (saldo fantasma; a venda deixava de ser cancelável);
+ * o DELETE batia na FK da fatia (403 enganoso). Inverter a ordem (lote antes do
+ * produto) fecharia ciclo com a venda.
+ * @param {any} tx @param {string} clienteId @param {any} lido lote lido antes da trava
+ * @param {Array<unknown>} [outrosProdutos] produto novo de um PATCH que troca `produto_id`
+ */
+const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
+  await travarProdutosEstoque(tx, clienteId, lido.empresa_id, [lido.produto_id, ...outrosProdutos.filter((v) => typeof v === 'string')]);
+  await tx.$queryRaw`SELECT id FROM "EstoqueLoteNota" WHERE cliente_id = ${clienteId} AND id = ${lido.id} FOR UPDATE`;
+  const atual = await buscarRegistro(clienteId, lido.id, tx);
+  if (!atual) throw erroNaoEncontrado();
+  if (atual.produto_id !== lido.produto_id || atual.empresa_id !== lido.empresa_id) {
+    throw new AppError('CONCURRENCY_CONFLICT', 'o lote mudou de produto ou de empresa durante a operação; recarregue e tente de novo; nada foi alterado');
+  }
+  return atual;
+};
+
+/** D-PROD-154 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. Chamar sob `travarLote`. */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
   const [itens, consumos] = await Promise.all([
     tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
@@ -92,20 +117,24 @@ const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const atualizado = await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
-    if (!existente) throw erroNaoEncontrado();
+  // Espera as travas que confirmar/cancelar/suplementação seguram (até 30 s) em
+  // vez de estourar os 5 s padrão (500); PATCH absoluto, sem operation_id.
+  const atualizado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
+    const lido = await buscarRegistro(auth.clienteId, id, tx);
+    if (!lido) throw erroNaoEncontrado();
     const patch = exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada);
     const restritos = Object.keys(patch).filter((campo) => {
       if (CAMPOS_PATCH_DE_QUALQUER_CONTA.includes(campo)) return false;
       // clientes antigos reenviam a empresa atual
-      return !(campo === 'empresa_id' && patch.empresa_id === existente.empresa_id);
+      return !(campo === 'empresa_id' && patch.empresa_id === lido.empresa_id);
     });
     if (restritos.length && !ehAdminTenantAtivo(await atorDoTenant(contexto, tx))) throw tenantAdminRequired();
-    // D-PROD-154 (§8.5): lote criado/consumido por lançamento financeiro só muda
-    // pelo próprio lançamento (cancelamento); o PATCH administrativo de coluna
-    // operacional seria um "ressuscitar" de lote estornado ou saldo fantasma.
+    // D-PROD-154 (§8.4/§8.5): coluna operacional (saldo, custo, situação...) só
+    // depois de travar produto → lote e reler; lote criado/consumido por
+    // lançamento financeiro só muda pelo próprio lançamento (cancelamento): o
+    // PATCH administrativo seria um "ressuscitar" de lote estornado ou saldo
+    // fantasma. Só o nome do local (de qualquer conta) segue sem o protocolo.
+    const existente = restritos.length ? await travarLote(tx, auth.clienteId, lido, [patch.produto_id]) : lido;
     if (restritos.length) await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
     if (Object.prototype.hasOwnProperty.call(patch, 'local_estoque_nome')) {
       const nome = typeof patch.local_estoque_nome === 'string' ? patch.local_estoque_nome.trim() : '';
@@ -133,16 +162,17 @@ export const atualizar = async (contexto, id, entrada) => {
       tx
     );
     return registro;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return comoPublico(atualizado);
 };
 
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
-    if (!existente) throw erroNaoEncontrado();
+  await emTransacao(TRANSACAO_LONGA, async (tx) => {
+    const lido = await buscarRegistro(auth.clienteId, id, tx);
+    if (!lido) throw erroNaoEncontrado();
+    // §8.4/§8.5: produto → lote travados e relidos ANTES de contar os vínculos.
+    const existente = await travarLote(tx, auth.clienteId, lido);
     await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
@@ -150,5 +180,5 @@ export const excluir = async (contexto, id) => {
       { acao: 'delete', entidade: 'EstoqueLoteNota', entidadeId: id, dadosAnteriores: comoPublico(existente) },
       tx
     );
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };

@@ -6,6 +6,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { propagarRenomeacaoDeProduto } from '../referencias/propagacaoPorChaveUnica.js';
 import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import {
@@ -219,9 +220,12 @@ export const criar = async (contexto, entrada) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id @param {Record<string, unknown>} entrada */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
 
-  return prisma.$transaction(async (tx) => {
+  // D-PROD-154 (§8.4): a linha do Produto pode estar em FOR UPDATE por uma
+  // confirmação/cancelamento/suplementação (até 30 s): espera em vez de estourar
+  // os 5 s padrão (500). PATCH de valores absolutos: repetir depois do 409 de
+  // corrida perdida leva ao mesmo estado.
+  return emTransacao(TRANSACAO_LONGA, async (tx) => {
     const anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
 
@@ -255,7 +259,7 @@ export const atualizar = async (contexto, id, entrada) => {
     // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-137).
     await registrarPropagacao(contexto, 'Produto', id, await propagarRenomeacaoDeProduto(tx, auth.clienteId, anterior, registro), tx);
     return publico;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id */

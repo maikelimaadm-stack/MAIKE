@@ -3,10 +3,10 @@
  */
 import { Prisma } from '@prisma/client';
 
-import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
+import { TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { buscarRegistro as buscarEmpresa } from '../empresas/empresaRepository.js';
 import { buscarProduto } from '../produtos/produtoRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -141,8 +141,10 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
-  const prisma = getPrismaClient();
-  const resultado = await prisma.$transaction(async (tx) => {
+  // D-PROD-154 (§8.4): espera as travas que confirmar/cancelar seguram (até 30 s)
+  // em vez de estourar o timeout padrão de 5 s (500); a corrida perdida vira 409
+  // CONCURRENCY_CONFLICT — o comando é idempotente por operation_id, repetir é seguro.
+  const resultado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
       operationKey,
@@ -304,9 +306,11 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
     observacoes: entrada.observacoes ?? null,
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
-  const prisma = getPrismaClient();
 
-  const resultado = await prisma.$transaction(async (tx) => {
+  // D-PROD-154 (§8.4): espera as travas que confirmar/cancelar seguram (até 30 s)
+  // em vez de estourar o timeout padrão de 5 s (500); a corrida perdida vira 409
+  // CONCURRENCY_CONFLICT — o comando é idempotente por operation_id, repetir é seguro.
+  const resultado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
       operationKey,

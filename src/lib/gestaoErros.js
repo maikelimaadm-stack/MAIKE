@@ -142,6 +142,9 @@ const mensagemLancamento = (code, field, reason, details, c) => {
   switch (code) {
     case 'OPERACAO_FINANCEIRA_NOT_FOUND':
       return 'Lançamento não encontrado nesta empresa. A lista será atualizada.';
+    case 'IDEMPOTENCY_EFEITO_EXCLUIDO':
+      // Reenvio de um POST cujo rascunho já foi descartado: definitivo, a pendência sai.
+      return 'Este envio repetia um rascunho que já foi descartado. Salve de novo para criar um rascunho novo. Nada foi gravado.';
     case 'TITULO_FINANCEIRO_NOT_FOUND':
       return 'Parcela não encontrada neste lançamento. Recarregue o lançamento.';
     case 'LIQUIDACAO_FINANCEIRA_NOT_FOUND':

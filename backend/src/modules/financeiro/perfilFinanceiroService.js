@@ -15,6 +15,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirEmpresaDoTenant, invalido, travarEscopo } from '../gestao/gestaoComum.js';
 import { normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
@@ -58,7 +59,11 @@ export const definirPerfil = async (contexto, corpo) => {
   }
   if (!localeSuportado(corpo.locale)) throw invalido('idioma/formato fora do catálogo', { field: 'locale', reason: 'locale_nao_suportado' });
   const cli = auth.clienteId;
-  return getPrismaClient().$transaction(async (tx) => {
+  // §8.4: a linha do perfil fica em FOR SHARE durante confirmação, rascunho e
+  // liquidação (até 30 s); o FOR UPDATE daqui espera em vez de estourar os 5 s
+  // padrão (500). Valores absolutos: repetir depois do 409 de corrida perdida
+  // leva ao mesmo perfil.
+  return emTransacao(TRANSACAO_LONGA, async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
     // A primeira gravação não tem linha para travar: a trava de escopo serializa.
     await travarEscopo(tx, `financeiro:perfil:${cli}:${empresaId}`);
@@ -88,5 +93,5 @@ export const definirPerfil = async (contexto, corpo) => {
       dadosNovos: { empresa_id: empresaId, pais: registro.pais, moeda: registro.moeda, locale: registro.locale, versao_contrato: registro.versao_contrato },
     }, tx);
     return comoPerfilPublico(registro);
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };

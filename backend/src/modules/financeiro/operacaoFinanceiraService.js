@@ -23,11 +23,14 @@
  *    efeitos) — nunca descrição, observação, motivo, referência ou nome.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, exigirTela } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
+import { STATUS_EXCLUIDO, executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
+import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
@@ -84,38 +87,9 @@ const dataFutura = ({ hoje, fuso }, dia, field) =>
   });
 const valoresInvalidos = (mensagem, details) => new AppError('OPERACAO_VALORES_INVALIDOS', mensagem, { details });
 
-const ehConflitoTransitorio = (erro) => {
-  const e = /** @type {any} */ (erro);
-  if (e?.code === 'P2034' || e?.code === 'P2028') return true;
-  if (e?.code === 'P2010' && ['40P01', '40001'].includes(String(e?.meta?.code))) return true;
-  return /deadlock detected|could not serialize access|code: "(40P01|40001)"/.test(String(e?.message ?? ''));
-};
-
-/**
- * Executa a transação traduzindo a corrida perdida: unique do banco (a rede)
- * → o código de negócio; deadlock/serialização/timeout → CONCURRENCY_CONFLICT.
- * @template T
- * @param {any} opcoes
- * @param {(tx: any) => Promise<T>} fn
- * @param {Record<string, () => AppError>} [unicos] trecho do alvo do P2002 → erro
- * @returns {Promise<T>}
- */
-const emTransacao = async (opcoes, fn, unicos = {}) => {
-  try {
-    return await getPrismaClient().$transaction(fn, opcoes);
-  } catch (erro) {
-    if (erro instanceof AppError) throw erro;
-    const e = /** @type {any} */ (erro);
-    if (e?.code === 'P2002') {
-      const alvo = JSON.stringify(e.meta?.target ?? '');
-      for (const [trecho, fabrica] of Object.entries(unicos)) if (alvo.includes(trecho)) throw fabrica();
-    }
-    if (ehConflitoTransitorio(erro)) {
-      throw new AppError('CONCURRENCY_CONFLICT', 'outra operação alterou os mesmos registros; tente de novo com a mesma operation_id', { cause: erro });
-    }
-    throw erro;
-  }
-};
+// `emTransacao` (unique do banco → código de negócio; deadlock/serialização/
+// timeout → CONCURRENCY_CONFLICT) vive em shared/prisma/transacaoConcorrente.js,
+// compartilhado com os comandos antigos que disputam as mesmas travas.
 
 /** Chaves ordenadas (fingerprint estável entre retentativas). */
 const canonico = (v) =>
@@ -147,6 +121,32 @@ const travarCabecalho = async (tx, clienteId, empresaId, id, modo = 'UPDATE') =>
 const travarTitulos = (tx, clienteId, operacaoId) =>
   tx.$queryRaw`SELECT id, numero_parcela, status, valor, valor_liquidado FROM "TituloFinanceiro"
     WHERE cliente_id = ${clienteId} AND operacao_id = ${operacaoId} ORDER BY id FOR UPDATE`;
+
+/**
+ * Número PROVISÓRIO de movimento (§8.4 item 5): único (cabe no VarChar(32) e na
+ * unique `(cliente_id, numero_movimentacao)`) e nunca chega ao commit —
+ * `numerarMovimentos` troca todos pelos números reservados no fim.
+ */
+const numeroProvisorio = () => `p-${randomUUID().replace(/-/g, '').slice(0, 30)}`;
+
+/**
+ * §8.4 item 5: a sequência ÚNICA de movimentos do tenant é reservada DEPOIS dos
+ * efeitos (lotes e movimentos), no fim da transação. Os movimentos nascem com
+ * número provisório e recebem aqui, na ordem dos efeitos, os números reservados
+ * de uma vez. Com a reserva antes do laço, a linha da sequência ficava presa
+ * durante todo ele (~6 idas ao banco por item) e todo movimento do tenant —
+ * suplementação de QUALQUER produto, transferência, POST de movimento —
+ * esperava a confirmação/cancelamento inteiro.
+ * @param {any} tx @param {string} clienteId @param {string[]} ids movimentos, na ordem dos efeitos
+ */
+const numerarMovimentos = async (tx, clienteId, ids) => {
+  if (!ids.length) return;
+  const numeros = (await reservarNumeros(tx, { clienteId, entidade: ENTIDADE_MOVIMENTO, escopoTipo: ESCOPO_TENANT }, ids.length)).map(String);
+  const n = await tx.$executeRaw`UPDATE "MovimentacaoEstoque" AS m SET numero_movimentacao = v.numero
+    FROM unnest(${ids}::text[], ${numeros}::text[]) AS v(id, numero)
+    WHERE m.cliente_id = ${clienteId} AND m.id = v.id`;
+  if (n !== ids.length) throw new Error(`numeração de movimentos incompleta: ${n} de ${ids.length}`);
+};
 
 /** Perfil financeiro lido com FOR SHARE (a troca de moeda espera o rascunho). */
 const lerPerfil = async (tx, clienteId, empresaId) => {
@@ -320,17 +320,30 @@ const documentoDoBanco = (op, itens, rateios, titulos) => ({
   })),
 });
 
-/** Itens, rateios e títulos PREVISTO do rascunho (snapshots de nomes incluídos). */
+/**
+ * §8.4 no rascunho: trava os produtos dos itens (FOR KEY SHARE, ordem CRESCENTE
+ * de id) ANTES da sequência de documentos do tenant (POST) e antes de apagar os
+ * filhos (PUT).
+ *  - a FK do item trava o Produto em KEY SHARE na ORDEM DOS ITENS, e a
+ *    confirmação/comandos travam FOR UPDATE em ordem crescente: itens em ordem
+ *    decrescente fechavam um ciclo (deadlock → 409). Travando antes, crescente,
+ *    não há ciclo;
+ *  - quem espera um produto travado por confirmar/cancelar espera AQUI, sem
+ *    segurar a linha única da sequência do tenant: os outros rascunhos do
+ *    tenant (até sem produtos) não entram na fila atrás dele.
+ * @param {any} tx @param {string} clienteId @param {Array<{produto_id?: string|null}>} itens
+ */
+const travarProdutosDoRascunho = async (tx, clienteId, itens) => {
+  const produtoIds = unicos(itens.map((i) => i.produto_id)).sort();
+  if (produtoIds.length) {
+    await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${clienteId} AND id = ANY(${produtoIds}::text[]) ORDER BY id FOR KEY SHARE`;
+  }
+};
+
+/** Itens, rateios e títulos PREVISTO do rascunho (snapshots de nomes incluídos). Produtos já travados (`travarProdutosDoRascunho`). */
 const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
   const base = { cliente_id: clienteId, empresa_id: op.empresa_id };
   if (plano.itens.length) {
-    // §8.4: a FK do item trava o Produto (FOR KEY SHARE) na ORDEM DOS ITENS; a
-    // confirmação/comandos travam FOR UPDATE em ordem CRESCENTE de id. Itens em
-    // ordem decrescente fechavam um ciclo (deadlock → 409). Trava antes, crescente.
-    const produtoIds = unicos(plano.itens.map((i) => i.produto_id)).sort();
-    if (produtoIds.length) {
-      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${clienteId} AND id = ANY(${produtoIds}::text[]) ORDER BY id FOR KEY SHARE`;
-    }
     await tx.operacaoFinanceiraItem.createMany({
       data: plano.itens.map((i) => ({
         ...base,
@@ -696,6 +709,8 @@ export const criarRascunho = async (contexto, corpo) => {
         const refs = await carregarReferencias(tx, cli, empresaId, doc);
         exigirReferencias(doc, refs, perfil);
         const plano = planejarOperacao(doc, { casas, moeda: perfil.moeda, produtos: refs.produtos });
+        // §8.4: produtos ANTES da sequência do tenant (quem espera produto não segura a sequência).
+        await travarProdutosDoRascunho(tx, cli, plano.itens);
         const numero = await reservarNumero(tx, { clienteId: cli, entidade: ENTIDADE, escopoTipo: ESCOPO_TENANT });
         const op = await tx.operacaoFinanceira.create({
           data: {
@@ -740,6 +755,8 @@ export const substituirRascunho = async (contexto, id, corpo) => {
     const refs = await carregarReferencias(tx, cli, empresaId, doc);
     exigirReferencias(doc, refs, perfil);
     const plano = planejarOperacao(doc, { casas, moeda: atual.moeda, produtos: refs.produtos });
+    // §8.4: cabeçalho → produtos → só então apaga e recria os filhos.
+    await travarProdutosDoRascunho(tx, cli, plano.itens);
     await apagarFilhosDoRascunho(tx, cli, id);
     const r = await tx.operacaoFinanceira.updateMany({
       where: { cliente_id: cli, id, versao, status: 'RASCUNHO' },
@@ -764,6 +781,14 @@ export const descartarRascunho = async (contexto, id, query) => {
     if (atual.versao !== query.versao) throw versaoConflito(atual.versao, query.versao);
     await apagarFilhosDoRascunho(tx, cli, id);
     await tx.operacaoFinanceira.delete({ where: { cliente_id_id: { cliente_id: cli, id } } });
+    // D-PROD-110: o recibo do POST que criou este rascunho vira marcador EXCLUIDO
+    // (mesma transação). O replay da mesma chave responde 409
+    // IDEMPOTENCY_EFEITO_EXCLUIDO — definitivo, a tela libera a pendência —,
+    // nunca 200 com o corpo de um documento apagado.
+    await tx.operacaoIdempotente.updateMany({
+      where: { cliente_id: cli, tipo_operacao: TIPO_CRIAR, status: 'committed', response_json: { path: ['id'], equals: id } },
+      data: { status: STATUS_EXCLUIDO },
+    });
     await registrarEvento(contexto, { acao: 'operacao_financeira.descartar', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: { id, numero: atual.numero, empresa_id: empresaId } }, tx);
   });
 };
@@ -955,10 +980,7 @@ export const confirmar = async (contexto, id, corpo) => {
             });
             if (dup) throw documentoDuplicado({ operacao_id: dup.id, numero: dup.numero });
           }
-          // Sequência SEMPRE depois da trava de produtos (§8.4).
-          const numeros = efeitos.length
-            ? await reservarNumeros(tx, { clienteId: cli, entidade: ENTIDADE_MOVIMENTO, escopoTipo: ESCOPO_TENANT }, efeitos.length)
-            : [];
+          // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
           const parceiro = { id: refs.parceiro.id, nome: refs.parceiro.nome };
           const documento = { numero: op.documento_referencia ?? op.numero, data: doc.data_emissao };
           const itensPorOrdem = new Map(plano.itens.map((i) => [i.ordem, i]));
@@ -966,17 +988,28 @@ export const confirmar = async (contexto, id, corpo) => {
           const movimentos = [];
           /** @type {string[]} */
           const lotes = [];
-          for (const [k, e] of efeitos.entries()) {
+          for (const e of efeitos) {
             const itemPlano = itensPorOrdem.get(e.item_ordem);
             const itemBanco = /** @type {any} */ (itens.find((i) => i.ordem === e.item_ordem));
             const produto = refs.produtos.get(e.produto_id);
             const local = /** @type {any} */ (refs.locais.get(e.local_estoque_id));
             const comum = {
               empresaId, produto, local: { id: local.id, nome: local.nome }, quantidadeKg: e.kg, dia: /** @type {string} */ (doc.data_operacional),
-              documento, parceiro, numeroMovimento: numeros[k], contextoErro: { colecao: 'itens', indice: e.indice, item_ordem: e.item_ordem, field: 'quantidade' },
+              documento, parceiro, numeroMovimento: numeroProvisorio(), contextoErro: { colecao: 'itens', indice: e.indice, item_ordem: e.item_ordem, field: 'quantidade' },
             };
-            /** @type {any} */
-            const dadosItem = { produto_nome: produto?.nome_produto ?? itemBanco.produto_nome, local_estoque_nome: local.nome };
+            /**
+             * §8.2: o kg replanejado AGORA (peso por saco atual do produto) é o que
+             * vai para lote, movimento, `estoque_atual` e fatias; o item guarda o
+             * MESMO kg (e fator/subtotal do plano), porque o estorno lê do item.
+             * @type {any}
+             */
+            const dadosItem = {
+              produto_nome: produto?.nome_produto ?? itemBanco.produto_nome,
+              local_estoque_nome: local.nome,
+              fator_kg: paraBanco(itemPlano.fator_kg, CASAS_QUANTIDADE),
+              quantidade_estoque: paraBanco(itemPlano.quantidade_estoque, CASAS_QUANTIDADE),
+              valor_total: paraBanco(itemPlano.valor_total, 4),
+            };
             if (op.direcao === 'PAGAR') {
               const ent = await aplicarEntradaEstoque(tx, contexto, {
                 ...comum, custoUnitarioKg: e.custo_kg, valorTotal: itemPlano.valor_total, origem: { operacaoId: id, tipoDetalhado: 'compra_financeiro' },
@@ -1030,6 +1063,7 @@ export const confirmar = async (contexto, id, corpo) => {
             entidadeId: id,
             dadosNovos: auditoriaDoc(confirmado, { ...contagens(plano), movimentos_estoque: movimentos, lotes_estoque: lotes, baixa_no_ato: Boolean(baixaValidada), liquidacao_id: liquidacaoId }),
           }, tx);
+          await numerarMovimentos(tx, cli, movimentos);
           return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
         },
       }),
@@ -1071,19 +1105,17 @@ export const cancelar = async (contexto, id, corpo) => {
           });
         }
         const tempo = mercadorias.length ? await hojeDaEmpresa(tx, cli, empresaId) : null;
-        const numeros = mercadorias.length
-          ? await reservarNumeros(tx, { clienteId: cli, entidade: ENTIDADE_MOVIMENTO, escopoTipo: ESCOPO_TENANT }, mercadorias.length)
-          : [];
+        // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const parceiro = await tx.fornecedor.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: op.parceiro_id } }, select: { id: true, nome: true } });
         /** @type {string[]} */
         const estornos = [];
-        for (const [k, item] of mercadorias.entries()) {
+        for (const item of mercadorias) {
           const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: item.produto_id } } });
           const local = await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: item.local_estoque_id } }, select: { id: true, nome: true } });
           const comum = {
             empresaId, item, produto, local: { id: item.local_estoque_id, nome: local?.nome ?? item.local_estoque_nome }, dia: /** @type {any} */ (tempo).hoje,
             documento: { numero: op.documento_referencia ?? op.numero, data: diaDe(op.data_emissao) },
-            parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: id }, numeroMovimento: numeros[k],
+            parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: id }, numeroMovimento: numeroProvisorio(),
           };
           const res = op.direcao === 'PAGAR'
             ? await estornarEntrada(tx, contexto, comum)
@@ -1109,6 +1141,7 @@ export const cancelar = async (contexto, id, corpo) => {
           entidadeId: id,
           dadosNovos: auditoriaDoc(cancelado, { motivo_informado: true, movimentos_estorno: estornos, titulos_n: titulos.length }),
         }, tx);
+        await numerarMovimentos(tx, cli, estornos);
         return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
       },
     })

@@ -8,6 +8,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -40,8 +41,11 @@ export const listar = async (contexto, filtros = {}) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const criado = await prisma.$transaction(async (tx) => {
+  // D-PROD-154 (§8.4): a sequência de movimentos do tenant pode estar presa por
+  // uma confirmação/cancelamento (até 30 s): espera em vez de estourar os 5 s
+  // padrão (500). Sem operation_id, o POST NÃO é idempotente; o 409 de corrida
+  // perdida garante só que esta tentativa voltou inteira (nada gravado).
+  const criado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...exigirSomenteColunasGravaveis('MovimentacaoEstoque', entrada), cliente_id: auth.clienteId };
     if (Object.prototype.hasOwnProperty.call(dados, 'numero_movimentacao')) {
@@ -61,7 +65,7 @@ export const criar = async (contexto, entrada) => {
       tx
     );
     return registro;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return comoPublico(criado);
 };
 

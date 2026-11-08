@@ -372,6 +372,27 @@ describe('LANC-2b — seletor paginado e rascunho com resposta perdida', () => {
     expect(estado.documentos).toHaveLength(1);
     expect(await screen.findByTestId('botao-confirmar-lancamento')).toBeTruthy();
   });
+
+  it('POST repetido depois do descarte do rascunho: 409 IDEMPOTENCY_EFEITO_EXCLUIDO é definitivo — a pendência sai e o envio seguinte usa chave NOVA', async () => {
+    const { enviarComPendencia, lerPendenciaLancamento } = await import('@/services/operacaoFinanceiraService');
+    const dados = new Map();
+    const storage = /** @type {any} */ ({ getItem: (k) => dados.get(k) ?? null, setItem: (k, v) => dados.set(k, String(v)), removeItem: (k) => dados.delete(k) });
+    const base = { escopo: 't', acao: 'criar', empresaId: 'e1', alvo: 'novo', conteudo: { valor: '75.00' }, storage };
+    const chaves = [];
+    const falhar = (erro) => async (k) => {
+      chaves.push(k);
+      throw erro;
+    };
+    await expect(enviarComPendencia({ ...base, enviar: falhar(new Error('sem resposta')) })).rejects.toThrow('sem resposta');
+    expect(lerPendenciaLancamento('t', 'criar', 'e1', 'novo', storage)?.operation_id).toBe(chaves[0]);
+    const excluido = Object.assign(new Error('excluído'), { cause: { code: 'IDEMPOTENCY_EFEITO_EXCLUIDO' } });
+    await expect(enviarComPendencia({ ...base, enviar: falhar(excluido) })).rejects.toBe(excluido);
+    expect(chaves[1]).toBe(chaves[0]);
+    expect(lerPendenciaLancamento('t', 'criar', 'e1', 'novo', storage)).toBeNull();
+    const r = await enviarComPendencia({ ...base, enviar: async (k) => { chaves.push(k); return { id: 'doc-novo' }; } });
+    expect(r).toEqual({ id: 'doc-novo' });
+    expect(chaves[2]).not.toBe(chaves[0]);
+  });
 });
 
 describe('LANC-3 — rateio ao centavo e percentual', () => {
@@ -744,6 +765,7 @@ describe('LANC-6 — botões seguem a ação exata da permissão', () => {
     );
     expect(mensagemErroGestao(e('FINANCEIRO_DATA_FUTURA', { details: { data: '2026-11-09', hoje: '2026-11-08', fuso: 'America/Sao_Paulo' } }), 'x')).toMatch(/09\/11\/2026 é futura.*08\/11\/2026/);
     expect(mensagemErroGestao(e('IDEMPOTENCY_CONFLICT'), 'x')).not.toMatch(/áreas/);
+    expect(mensagemErroGestao(e('IDEMPOTENCY_EFEITO_EXCLUIDO'), 'x')).toMatch(/já foi descartado.*Salve de novo/);
     expect(mensagemErroGestao(e('CONCURRENCY_CONFLICT'), 'x', { comandoIdempotente: true })).toMatch(/não será duplicado/);
     // Fora de comando idempotente (cadastros da P1/P2) não promete reenvio sem duplicar.
     expect(mensagemErroGestao(e('CONCURRENCY_CONFLICT'), 'x')).toMatch(/Recarregue e tente novamente/);
