@@ -77,6 +77,19 @@ export const criar = async (contexto, entrada) => {
  */
 export const CAMPOS_PATCH_DE_QUALQUER_CONTA = Object.freeze(['local_estoque_nome']);
 
+/** D-PROD-154 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. */
+const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
+  const [itens, consumos] = await Promise.all([
+    tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
+    tx.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
+  ]);
+  if (itens + consumos > 0) {
+    throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque vinculado a lançamento financeiro só muda pelo próprio lançamento (cancelamento); nada foi alterado', {
+      details: { id, vinculo: 'lancamento_financeiro', itens, consumos },
+    });
+  }
+};
+
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
@@ -90,6 +103,10 @@ export const atualizar = async (contexto, id, entrada) => {
       return !(campo === 'empresa_id' && patch.empresa_id === existente.empresa_id);
     });
     if (restritos.length && !ehAdminTenantAtivo(await atorDoTenant(contexto, tx))) throw tenantAdminRequired();
+    // D-PROD-154 (§8.5): lote criado/consumido por lançamento financeiro só muda
+    // pelo próprio lançamento (cancelamento); o PATCH administrativo de coluna
+    // operacional seria um "ressuscitar" de lote estornado ou saldo fantasma.
+    if (restritos.length) await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
     if (Object.prototype.hasOwnProperty.call(patch, 'local_estoque_nome')) {
       const nome = typeof patch.local_estoque_nome === 'string' ? patch.local_estoque_nome.trim() : '';
       const localId = Object.prototype.hasOwnProperty.call(patch, 'local_estoque_id') ? patch.local_estoque_id : existente.local_estoque_id;
@@ -126,6 +143,7 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,

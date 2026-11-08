@@ -149,14 +149,19 @@ export const excluir = async (contexto, id) => {
     if (!existente) throw erroNaoEncontrado();
     // D-PROD-146 (R1): parceiro com histórico não some (o nome tem de continuar
     // resolvendo em Lote, nota e movimentação); a tela Parceiros inativa.
-    const [lotes, notas, movimentacoes] = await Promise.all([
+    // D-PROD-154 (§8.5): lançamento financeiro (rascunho inclusive, que não gera
+    // movimento) e títulos também seguram o parceiro — sem isto, a FK RESTRICT
+    // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
+    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.movimentacaoEstoque.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
+      tx.operacaoFinanceira.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
+      tx.tituloFinanceiro.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
     ]);
-    if (lotes + notas + movimentacoes > 0) {
+    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos > 0) {
       throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
-        details: { lotes, notas, movimentacoes },
+        details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos },
       });
     }
     await excluirRegistroPorId(tx, auth.clienteId, id);

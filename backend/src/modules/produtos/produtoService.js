@@ -271,6 +271,14 @@ export const excluir = async (contexto, id) => {
     if (quantidade > 0) {
       throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
     }
+    // D-PROD-154 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
+    // o produto pela FK RESTRICT; 409 em vez do enganoso 403.
+    const itensFinanceiros = await tx.operacaoFinanceiraItem.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
+    if (itensFinanceiros > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto usado em lançamentos financeiros; inative-o', {
+        details: { id, vinculo: 'lançamentos financeiros', quantidade: itensFinanceiros },
+      });
+    }
 
     await excluirProdutoPorId(tx, auth.clienteId, id);
     await registrarEvento(

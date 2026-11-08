@@ -11,6 +11,8 @@ WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    -- D-PROD-154 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
+    'LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',

@@ -54,9 +54,18 @@ export const TELAS = Object.freeze({
   CENTROS_RESULTADO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-resultado' }),
   // D-PROD-153 — Gestão P2.
   NATUREZAS_FINANCEIRAS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-naturezas-financeiras' }),
+  // D-PROD-154 — Gestão P3-01: Central Única de Lançamentos (gerencial).
+  LANCAMENTOS_FINANCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-lancamentos-financeiros' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
+
+/**
+ * D-PROD-154 — ações EXTRAS da tela `ges-lancamentos-financeiros` (gravadas na
+ * própria linha da tela em `permissoes_telas`; ausente/não booleano = negado).
+ * Mesma lista no navegador (teste de paridade front↔back).
+ */
+export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquidar', 'estornar_liquidacao', 'cancelar']);
 
 /**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
@@ -227,6 +236,14 @@ export const acessoTotal = (aut) => Boolean(aut?.adminReal || (aut?.ativo && aut
 export const somenteCampos = (corpo, campos) =>
   Boolean(corpo) && typeof corpo === 'object' && !Array.isArray(corpo) &&
   Object.keys(corpo).length > 0 && Object.keys(corpo).every((k) => campos.includes(k));
+
+/**
+ * D-PROD-154 (§8.6) — escrita do perfil financeiro da empresa: administrador
+ * REAL da fazenda OU a concessão `Permissao.is_admin` (relidos do banco por
+ * `carregarAutorizacao`). `apenasAdminTenant` recusaria quem só tem `is_admin`.
+ */
+export const adminOuIsAdmin = () =>
+  autorizar((_req, aut) => (acessoTotal(aut) ? true : { exige: ['administrador_ou_is_admin'] }));
 
 /** preHandler: administrador real OU a concessão explícita `is_admin` da linha (todas as telas). */
 export const porAcessoTotal = () =>
