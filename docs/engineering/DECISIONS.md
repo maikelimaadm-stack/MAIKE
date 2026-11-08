@@ -5434,4 +5434,34 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **RS-12:** contrato da S04-P3 sem lista fechada de migrations futuras.
   - **Detalhes:** relatório §10.
 
-<!-- Próxima decisão: D-PROD-147 -->
+## D-PROD-152 — Gestão Rural P2: Naturezas Financeiras gerenciais (cadastro com hierarquia; sem financeiro transacional)
+
+> Numerada 152: as D-PROD-147 a 151 estão reservadas pela PR #225 (aberta, visual).
+
+- **Contexto:** o proprietário quer cadastrar antes de lançar. A P1 (D-PROD-146) cobriu "quem" (Parceiros) e "onde/qual atividade" (Centros). Falta "qual o tipo econômico" da receita ou da despesa.
+- **Decisão:**
+  - **Uma entidade canônica:** `NaturezaFinanceira`.
+    - Tipo RECEITA | DESPESA, com CHECK no banco; escolhido na criação e imutável.
+    - Hierarquia opcional, com nome único por empresa e tipo.
+    - Código pela `EntidadeCodigoSequencia`.
+    - Sem `PlanoContas`, `GrupoFinanceiro` nem tabela paralela: é catálogo **gerencial**, não plano de contas contábil.
+  - **Integridade pelo banco:**
+    - FK composta `(cliente_id, empresa_id, tipo, pai_id) → (cliente_id, empresa_id, tipo, id)`, com `ON DELETE/UPDATE RESTRICT`: pai do mesmo tenant, empresa **e tipo**; o tipo de um nó com filhos não muda.
+    - CHECK contra autorreferência.
+    - No serviço, sob trava por empresa+tipo: ciclo, profundidade 5, pai ativo, inativar sem filha ativa, reativar com pai ativo.
+  - **Sem vínculo estático** com Parceiro, Centro de Custo ou Centro de Resultado. A combinação real será da operação futura, com FK e validação próprias; os ids ficam estáveis para isso.
+  - **Sem teto artificial:**
+    - listagem keyset com total;
+    - opções de pai paginadas por (nome, id), com busca no servidor e exclusão da própria subárvore.
+    - Provado com mais de 1.001 ativas.
+  - **Segurança:** igual à P1.
+    - Tenant só da sessão; `empresa_id` validado e imutável; o fallback `clienteId` não é empresa; outro tenant ou empresa → 404.
+    - Schemas fechados; tela própria `ges-naturezas-financeiras`, negada por padrão.
+    - Auditoria mínima (ids, tipo, número, situação, pai e NOMES de campos alterados), na mesma transação.
+  - **Escopo do produto:** `allowedPages` ganha só `NaturezasFinanceiras`. `Financeiro`, `PlanoContas`, `GruposFinanceiros`, `ContasFinanceiras`, `CaixaBancos` e `LancamentoFinanceiro` continuam proibidos.
+  - **Migration** `20261108100000_gestao_p2_naturezas_financeiras`: expand-only, só a tabela nova, com RLS/REVOKE. SHA e corpo DO pinados.
+- **Consequências e release:**
+  - Ordem obrigatória: aprovar o código → conferir alvo, histórico e backup → autorização explícita → aplicar a migration → preflight → merge manual. Runtime novo sem a tabela responde 500.
+  - Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-153 -->
