@@ -5478,4 +5478,10 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga em parte:** o item de D-PROD-132 que exigia `ToggleSwitch` nas camadas do Mapa Geral.
 - **Implementação:** `MapaFiltrosAvancados.jsx`, `MapaVisualizacao.jsx`, `mk-unificado.css`, `mk-mapa-superficie.css`.
 
-<!-- Próxima decisão: D-PROD-152 -->
+## D-PROD-152 — Listas dos lançamentos no padrão Filtros/Camadas
+
+- **Contexto:** o proprietário pediu a mesma listagem de Filtros/Camadas nos campos de listagem dos lançamentos (folha/painel com pesquisa e checkbox à esquerda).
+- **Decisão:** `B1Select` (e o `PainelSelecao` que ele abre no desktop) usa `.mk-lista-fc` + `.mk-check-row`: cartão branco, linhas na densidade do sistema, checkbox verde à esquerda; escolhido sem fundo cinza/verde — só o check muda. A folha mobile e o painel desktop compartilham o mesmo desenho. Cadastros que usam `B1Select` herdam o padrão (paridade D-PROD-116).
+- **Implementação:** `B1Select.jsx`, `PainelSelecao.jsx`, `mk-unificado.css`.
+
+<!-- Próxima decisão: D-PROD-153 -->

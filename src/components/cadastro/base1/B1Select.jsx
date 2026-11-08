@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import PainelSelecao from "@/components/common/PainelSelecao";
 
@@ -32,6 +32,7 @@ function opcoesDe(children) {
  * `<select>` dos formulários Base1. Celular: a folha de baixo com as opções (e
  * pesquisa acima de 8), como os demais seletores (D-PROD-88). Desktop/tablet:
  * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-106).
+ * Lista no padrão Filtros/Camadas: checkbox à esquerda (D-PROD-152).
  * Mesma API do `<select>`: `value`, `onChange(e)`.
  *
  * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
@@ -76,6 +77,7 @@ export default function B1Select(props) {
         onEscolher={escolher}
         pesquisavel={pesquisavel}
         rotulo={props["aria-label"] || "opções"}
+        listaCheck
       >
         <button
           ref={botao}
@@ -142,7 +144,7 @@ export default function B1Select(props) {
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar…" aria-label={`Pesquisar ${rotulo}`} />
             </div>
           ) : null}
-          <div className="mgs__lista" role="listbox" aria-label={rotulo}>
+          <div className="mgs__lista mk-lista-fc" role="listbox" aria-label={rotulo}>
             {!vistas.length ? <div className="mgs__vazio">Nenhuma opção</div> : null}
             {vistas.map((o) => {
               const on = o.value === String(value ?? "");
@@ -152,12 +154,12 @@ export default function B1Select(props) {
                   type="button"
                   role="option"
                   aria-selected={on}
+                  aria-checked={on}
                   disabled={o.disabled}
-                  className={`mgs__op${on ? " is-on" : ""}`}
+                  className={`mgs__op mk-check-row${on ? " is-on" : ""}`}
                   onClick={() => escolher(o.value)}
                 >
                   <span className="mgs__label">{o.label}</span>
-                  {on ? <Check size={14} aria-hidden /> : null}
                 </button>
               );
             })}

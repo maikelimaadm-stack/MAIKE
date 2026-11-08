@@ -3,6 +3,8 @@ import * as Popover from "@radix-ui/react-popover";
 import { Check, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Lista com checkbox à esquerda no padrão Filtros/Camadas (D-PROD-152). */
+
 /** Teto de opções desenhadas — listas de cadastro podem ter milhares. */
 const LIMITE = 200;
 
@@ -32,6 +34,7 @@ const LIMITE = 200;
  *   className?: string,
  *   ancora?: () => Element | null,
  *   controleRef?: { current: null | { tecla: (e: React.KeyboardEvent) => void } },
+ *   listaCheck?: boolean,
  * }} props
  */
 export default function PainelSelecao({
@@ -50,6 +53,7 @@ export default function PainelSelecao({
   className = "",
   ancora = undefined,
   controleRef = undefined,
+  listaCheck = false,
 }) {
   // Âncora virtual: o retângulo do campo inteiro (lido na hora de posicionar).
   const ancoraRef = React.useMemo(
@@ -123,7 +127,7 @@ export default function PainelSelecao({
           sideOffset={4}
           avoidCollisions
           collisionPadding={8}
-          className={cn("mk-sel-pop", className)}
+          className={cn("mk-sel-pop", listaCheck && "mk-lista-fc", className)}
           onKeyDown={onKeyDown}
           onOpenAutoFocus={(e) => {
             if (!pesquisavel) e.preventDefault();
@@ -173,9 +177,15 @@ export default function PainelSelecao({
                   type="button"
                   role="option"
                   aria-selected={on}
+                  aria-checked={listaCheck ? on : undefined}
                   data-i={i}
                   disabled={o.disabled}
-                  className={cn("mk-sel-op", on && "is-on", i === hi && "is-hi")}
+                  className={cn(
+                    "mk-sel-op",
+                    listaCheck && "mk-check-row",
+                    on && "is-on",
+                    i === hi && "is-hi",
+                  )}
                   onMouseEnter={() => setHi(i)}
                   onClick={() => escolher(o)}
                 >
@@ -183,7 +193,7 @@ export default function PainelSelecao({
                     <span className="mk-sel-op__label">{o.label}</span>
                     {o.sub ? <span className="mk-sel-op__sub">{o.sub}</span> : null}
                   </span>
-                  {on ? <Check size={15} aria-hidden className="mk-sel-op__check" /> : null}
+                  {!listaCheck && on ? <Check size={15} aria-hidden className="mk-sel-op__check" /> : null}
                 </button>
               );
             })}
