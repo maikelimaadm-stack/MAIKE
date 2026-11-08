@@ -33,7 +33,7 @@
   --mk-font-search: 13px;
   /* Label flutuante (LancField / mg-field): descanso vs subida */
   --mk-font-float-rest: 12px;
-  --mk-font-float-up: 9px;
+  --mk-font-float-up: 10px;
   --mk-text: #334155;
   --mk-text-strong: #292a2d;
   --mk-text-muted: #64748b;
@@ -444,7 +444,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     --mk-font-title: 16px;
     --mk-font-search: 14px;
     --mk-font-float-rest: 14px;
-    --mk-font-float-up: 10px;
+    --mk-font-float-up: 11px;
     --mk-list-row-height: 40px;
     --mk-filter-row-height: 40px;
   }

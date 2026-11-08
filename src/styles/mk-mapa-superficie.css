@@ -195,8 +195,13 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 }
 .mk-map-filters:not(#mk-padrao) { gap: 8px; }
 .mk-map-filter-section:not(#mk-padrao) { padding: 10px; }
-.mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors) > div:last-child {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+/* Legado 2-col: só fora do painel limpo (que é 1 coluna, igual à listagem). */
+.mk-map-filters:not(.mk-map-filters--clean)
+  .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors)
+  > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 .mk-map-filters > [data-orientation="horizontal"] { display: none; }
 .mk-mapa-camadas__menu:not(#mk-padrao) { max-height: calc(100dvh - 120px); }
@@ -206,7 +211,11 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   .mk-map-filter-sheet { --mk-search-height: var(--mk-list-row-height, 36px); }
 }
 @media (max-width: 359px) {
-  .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors) > div:last-child { grid-template-columns: minmax(0, 1fr); }
+  .mk-map-filters:not(.mk-map-filters--clean)
+    .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors)
+    > div:last-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Filtros laterais também no celular, deixando parte do mapa à vista. */
@@ -427,11 +436,14 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   height: var(--mk-map-check);
   flex: 0 0 var(--mk-map-check);
 }
-/* Campos: spacer (= checkbox) | rótulo | controle — mesmo X do texto das camadas */
+/* Campos: spacer (= checkbox) | rótulo | controle — mesmo X do texto das camadas.
+ * Desktop e mobile: uma linha por campo, alinhada à esquerda (nunca grid 2-col). */
 .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
   display: grid !important;
-  grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.35fr);
   column-gap: var(--mk-map-check-gap);
+  justify-items: stretch;
+  text-align: left;
 }
 .mk-map-filters--clean .mk-map-filter-fields > div::before {
   content: '';
@@ -472,6 +484,8 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-align: left !important;
+  justify-self: start;
   font-size: var(--mk-map-font) !important;
   font-weight: 500 !important;
   line-height: 1.25 !important;
@@ -498,9 +512,25 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   box-shadow: none !important;
   font-size: var(--mk-map-font) !important;
   line-height: 1.25 !important;
+  text-align: left !important;
   color: #334155 !important;
 }
 @media (max-width: 1023px) {
+  /* Mobile/tablet: mesma coluna única à esquerda do desktop (nunca 2-col). */
+  .mk-map-filters--clean .mk-map-filter-fields:not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-section--fields > .mk-map-filter-fields:not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-section--fields > div:last-child:not(#mk-padrao) {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+  .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
+    display: grid !important;
+    grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.35fr) !important;
+    width: 100% !important;
+  }
   .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao) {
     font-size: 16px !important;
   }
