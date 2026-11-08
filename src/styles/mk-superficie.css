@@ -355,9 +355,9 @@
   .mk-desktop-action-label { display: inline; }
 
   .tb-btn:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
-    font-size: 14px;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
+    font-size: var(--mk-action-font, 12px);
     gap: 8px;
   }
 
@@ -404,15 +404,15 @@
 /* Desktop: controles auxiliares na mesma escala da barra de ações. */
 @media (min-width: 1024px) {
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 36px !important;
-    min-width: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
     padding: 0 !important;
-    flex: 0 0 36px;
+    flex: 0 0 var(--mk-action-height);
   }
 
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
     padding: 3px !important;
     gap: 2px;
     box-sizing: border-box;
@@ -454,17 +454,17 @@
 @media (min-width: 1024px) {
   .tb-btn:not(#mk-padrao),
   .cadastro-b1 .mg-search-pill:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 36px !important;
-    min-width: 36px !important;
-    flex-basis: 36px;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    flex-basis: var(--mk-action-height);
   }
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 36px !important;
-    min-height: 36px !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
   .cadastro-b1 .view-seg button:not(#mk-padrao) {
     width: 30px !important;

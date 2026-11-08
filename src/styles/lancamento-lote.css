@@ -1310,10 +1310,10 @@
   .mk-launch-action-label { display: none !important; }
   .mk-ll-dlg .cadastro-b1 .tb-btn.mg-act-ic:not(#mk-padrao),
   .mk-launch-action:not(#mk-padrao) {
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
     padding: 0 !important;
     gap: 0;
     border-radius: 999px;

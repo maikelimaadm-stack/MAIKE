@@ -1792,10 +1792,10 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 }
 
-/* Barra de ações Base1 no tablet: uma linha como no desktop, botões de 36px */
+/* Barra de ações Base1 no tablet: uma linha como no desktop, mesma altura do sistema */
 @media (min-width: 640px) and (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: 36px;
+    --mg-btn-h: var(--mk-action-height);
   }
 
   .cadastro-b1--full-page .mg-toolbar--responsive {
@@ -1818,20 +1818,20 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-nav-btn {
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+    width: var(--mk-action-height) !important;
+    min-width: var(--mk-action-height) !important;
+    height: var(--mk-action-height) !important;
+    min-height: var(--mk-action-height) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
-    min-height: 36px !important;
+    min-height: var(--mk-action-height) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
-    min-height: 36px !important;
+    min-height: var(--mk-action-height) !important;
     padding: 3px !important;
   }
 

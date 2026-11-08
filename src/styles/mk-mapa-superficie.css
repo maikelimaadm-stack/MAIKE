@@ -7,10 +7,8 @@
   background: var(--mk-sup-fundo);
 }
 @media (min-width: 1024px) {
-  .mk-mapa {
-    --mk-mapa-alto: 32px;
-    --mk-action-icon: 15px;
-  }
+  /* Mesma altura dos botões de ação do sistema. */
+  .mk-mapa { --mk-mapa-alto: var(--mk-action-height); }
 }
 .mk-mapa-card:not(#mk-padrao) {
   background: #fff;
