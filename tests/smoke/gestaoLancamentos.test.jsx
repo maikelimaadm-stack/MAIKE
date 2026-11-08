@@ -434,12 +434,21 @@ describe('LANC-4 — prévia, confirmação, duplo clique e retentativa', () => 
 
   it('com bloqueios na prévia o botão fica desabilitado e a mensagem aparece', async () => {
     const doc = semearDocumento(estado, corpoBase());
-    estado.bloqueiosPrevia = [{ code: 'ESTOQUE_SALDO_INSUFICIENTE', reason: 'saldo_lote_insuficiente', details: { colecao: 'itens', indice: 0, disponivel: '20.0000', solicitado: '50.0000' } }];
+    // Formato REAL do backend (prova ponta a ponta): field/reason no topo e em details.
+    const det = { field: 'quantidade', colecao: 'itens', indice: 0, item_ordem: 1, produto_id: 'pr2', local_estoque_id: 'lo2' };
+    estado.bloqueiosPrevia = [
+      { code: 'ESTOQUE_SALDO_INSUFICIENTE', field: 'quantidade', reason: 'saldo_lote_insuficiente', details: { ...det, reason: 'saldo_lote_insuficiente', disponivel: '20.0000', solicitado: '50.0000' } },
+      { code: 'ESTOQUE_SALDO_INSUFICIENTE', field: 'quantidade', reason: 'estoque_atual_insuficiente', details: { ...det, reason: 'estoque_atual_insuficiente', estoque_atual: '20.0000', solicitado: '50.0000' } },
+    ];
     await montar();
     await abrir(doc.id);
     await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
     const dialogo = await screen.findByTestId('dialogo-confirmacao');
-    expect(within(dialogo).getByTestId('previa-bloqueios')).toHaveTextContent(/disponível 20 kg, pedido 50 kg/);
+    const bloqueios = within(dialogo).getByTestId('previa-bloqueios');
+    expect(bloqueios).toHaveTextContent(/disponível 20 kg, pedido 50 kg/);
+    expect(bloqueios).toHaveTextContent(/atual 20 kg, pedido 50 kg/);
+    // O rascunho ESTÁ salvo: a prévia não pode dizer que "nada foi gravado".
+    expect(bloqueios).not.toHaveTextContent(/Nada foi gravado/);
     expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeDisabled();
   });
 
@@ -596,6 +605,33 @@ describe('LANC-5 — baixas, estorno e cancelamento', () => {
     expect(screen.getByTestId('titulo-1-status')).toHaveTextContent('Aberto');
   });
 
+  it('linha ESTORNO do servidor (contrato real): aparece como estorno, sem "Estornar baixa" e sem contar como baixa ativa', async () => {
+    // Achado da prova ponta a ponta com o backend REAL: o detalhe traz o
+    // estorno como linha própria (`tipo: 'ESTORNO'`, `estornada: false`). A
+    // tela a mostrava como uma baixa nova, com botão "Estornar baixa" (que
+    // levaria a 404) e o cancelamento acusando "baixas registradas".
+    const doc = confirmado();
+    await montar();
+    await abrir(doc.id);
+    await clicar(screen.getByTestId('botao-liquidar-1'));
+    await clicar(within(await screen.findByTestId('dialogo-liquidacao')).getByTestId('botao-registrar-liquidacao'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-liquidacao')).toBeNull());
+    const liq = estado.documentos[0].titulos[0].liquidacoes[0];
+    await clicar(await screen.findByTestId(`botao-estornar-${liq.id}`));
+    const dialogo = await screen.findByTestId('dialogo-estorno');
+    fireEvent.change(within(dialogo).getByTestId('dialogo-estorno-motivo'), { target: { value: 'Baixa no título errado' } });
+    await clicar(within(dialogo).getByTestId('dialogo-estorno-enviar'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-estorno')).toBeNull());
+    const linhaEstorno = estado.documentos[0].titulos[0].liquidacoes.find((l) => l.tipo === 'ESTORNO');
+    expect(linhaEstorno).toBeTruthy();
+    const linha = await screen.findByTestId(`liquidacao-${linhaEstorno.id}`);
+    expect(linha).toHaveTextContent(/Estorno/);
+    expect(linha).toHaveTextContent('Baixa no título errado');
+    expect(screen.queryByTestId(`botao-estornar-${linhaEstorno.id}`)).toBeNull();
+    expect(screen.getByTestId('botao-cancelar-lancamento')).not.toHaveAttribute('title');
+    expect(screen.getByTestId('titulo-1-status')).toHaveTextContent('Aberto');
+  });
+
   it('cancelar com baixa ativa: OPERACAO_COM_LIQUIDACOES aparece no diálogo (nada muda)', async () => {
     const doc = confirmado();
     await montar();
@@ -652,6 +688,13 @@ describe('LANC-5 — baixas, estorno e cancelamento', () => {
     const del = chamadas('DELETE', `/operacoes-financeiras/${doc.id}`);
     expect(del).toHaveLength(1);
     expect(del[0].query).toEqual({ empresa_id: 'emp-1', versao: '1' });
+    // Prova real: o detalhe do rascunho apagado era relido (GET → 404) logo
+    // depois do DELETE. Nada pode pedir de novo um documento que não existe.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    const posDelete = backend.chamadas.slice(backend.chamadas.indexOf(del[0]) + 1);
+    expect(posDelete.filter((c) => c.method === 'GET' && c.path === `/operacoes-financeiras/${doc.id}`)).toHaveLength(0);
   });
 });
 

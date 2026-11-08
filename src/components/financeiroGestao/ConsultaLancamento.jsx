@@ -45,6 +45,9 @@ export function Selo({ status, rotulo, testId = undefined }) {
 }
 
 /** @param {{ rotulo: string, children: React.ReactNode, span?: string }} props */
+/** Linha de estorno que o servidor devolve junto das baixas (só exibição). @param {any} l */
+const ehLinhaDeEstorno = (l) => l?.tipo === "ESTORNO";
+
 function Dado({ rotulo, children, span = "col-span-6 md:col-span-3" }) {
   return (
     <div className={`${span} min-w-0`}>
@@ -91,7 +94,9 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
   const itens = Array.isArray(d.itens) ? d.itens : [];
   const rateios = Array.isArray(d.rateios) ? d.rateios : [];
   const historico = Array.isArray(d.historico) ? d.historico : [];
-  const algumaBaixaAtiva = titulos.some((t) => (t.liquidacoes ?? []).some((/** @type {any} */ l) => !l.estornada));
+  // O detalhe real traz o estorno como linha própria (`tipo: 'ESTORNO'`, só exibição):
+  // ela não é baixa, não se estorna e não conta como baixa ativa.
+  const algumaBaixaAtiva = titulos.some((t) => (t.liquidacoes ?? []).some((/** @type {any} */ l) => !ehLinhaDeEstorno(l) && !l.estornada));
 
   return (
     <CadastroFormShell embedded title="Consulta do lançamento">
@@ -254,32 +259,46 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                   ) : null}
                   {(t.liquidacoes ?? []).length ? (
                     <ul className="col-span-12 space-y-1.5" aria-label={`Baixas da parcela ${t.numero_parcela}`}>
-                      {(t.liquidacoes ?? []).map((/** @type {any} */ l) => (
-                        <li
-                          key={l.id}
-                          data-testid={`liquidacao-${l.id}`}
-                          className={`flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-[12px] ${l.estornada ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-200 bg-emerald-50/40"}`}
-                        >
-                          <span className={l.estornada ? "line-through" : "font-medium"}>{dinheiro(l.valor)}</span>
-                          <span>em {formatarDia(l.data, locale)}</span>
-                          <span>· {ROTULO_METODO[/** @type {keyof typeof ROTULO_METODO} */ (l.metodo)] ?? l.metodo ?? "—"}</span>
-                          {l.referencia ? <span>· ref. {l.referencia}</span> : null}
-                          {l.observacao ? <span className="break-words">· {l.observacao}</span> : null}
-                          <span>· {quem(l.registrado_por)}</span>
-                          {l.estornada ? <Selo status="CANCELADO" rotulo="Estornada" testId={`liquidacao-${l.id}-estornada`} /> : null}
-                          {!l.estornada && confirmado && acoes.estornar ? (
-                            <button
-                              type="button"
-                              className={`${BOTAO} ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-50`}
-                              onClick={() => onEstornar(l, t)}
-                              disabled={ocupado}
-                              data-testid={`botao-estornar-${l.id}`}
-                            >
-                              <Undo2 size={14} aria-hidden /> Estornar baixa
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
+                      {(t.liquidacoes ?? []).map((/** @type {any} */ l) =>
+                        ehLinhaDeEstorno(l) ? (
+                          <li
+                            key={l.id}
+                            data-testid={`liquidacao-${l.id}`}
+                            className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-2 py-1.5 text-[12px] text-amber-900"
+                          >
+                            <Undo2 size={14} aria-hidden />
+                            <span className="font-medium">Estorno de {dinheiro(l.valor)}</span>
+                            <span>em {formatarDia(l.data, locale)}</span>
+                            {l.motivo ? <span className="break-words">· motivo: {l.motivo}</span> : null}
+                            <span>· {quem(l.registrado_por)}</span>
+                          </li>
+                        ) : (
+                          <li
+                            key={l.id}
+                            data-testid={`liquidacao-${l.id}`}
+                            className={`flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-[12px] ${l.estornada ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-200 bg-emerald-50/40"}`}
+                          >
+                            <span className={l.estornada ? "line-through" : "font-medium"}>{dinheiro(l.valor)}</span>
+                            <span>em {formatarDia(l.data, locale)}</span>
+                            <span>· {ROTULO_METODO[/** @type {keyof typeof ROTULO_METODO} */ (l.metodo)] ?? l.metodo ?? "—"}</span>
+                            {l.referencia ? <span>· ref. {l.referencia}</span> : null}
+                            {l.observacao ? <span className="break-words">· {l.observacao}</span> : null}
+                            <span>· {quem(l.registrado_por)}</span>
+                            {l.estornada ? <Selo status="CANCELADO" rotulo="Estornada" testId={`liquidacao-${l.id}-estornada`} /> : null}
+                            {!l.estornada && confirmado && acoes.estornar ? (
+                              <button
+                                type="button"
+                                className={`${BOTAO} ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-50`}
+                                onClick={() => onEstornar(l, t)}
+                                disabled={ocupado}
+                                data-testid={`botao-estornar-${l.id}`}
+                              >
+                                <Undo2 size={14} aria-hidden /> Estornar baixa
+                              </button>
+                            ) : null}
+                          </li>
+                        ),
+                      )}
                     </ul>
                   ) : null}
                 </div>

@@ -290,7 +290,7 @@ const executarLargura = async (browser, largura) => {
     await el.waitFor();
     await el.scrollIntoViewIfNeeded().catch(() => {});
     await el.dblclick();
-    await visivel(page.getByTestId('consulta-lancamento')).waitFor();
+    await visivel(page.getByTestId(op.status === 'RASCUNHO' ? 'botao-confirmar-lancamento' : 'consulta-lancamento')).waitFor();
     await page.waitForTimeout(300);
   };
   /** Confirma pelo fluxo da tela (salva rascunho → prévia → diálogo → confirmar). */
@@ -394,6 +394,13 @@ const executarLargura = async (browser, largura) => {
       await radio('escolha-condicao', 'Parcelado');
       await preencher('valor-bruto', '900,00');
       await escolher('seletor-natureza-0', /VENDA DE INSUMOS/);
+      await clicar(page.getByRole('radio', { name: 'Por percentual', exact: true }));
+      await clicar(page.getByRole('button', { name: /Linha de rateio/ }));
+      await escolher('seletor-natureza-1', /SERVIÇOS PRESTADOS/);
+      await preencher('rateio-0-percentual', '60');
+      await preencher('rateio-1-percentual', '40');
+      const difRateio = await visivel(page.getByTestId('rateio-diferenca')).innerText();
+      conferir(!/falta|sobra/i.test(difRateio), `[${rotulo}] rateio 60%+40% acusa diferença: ${difRateio}`);
       const gerador = page.getByTestId('gerador-parcelas');
       await visivel(gerador.getByLabel(/Nº de parcelas/)).fill('3');
       await clicar(gerador.getByRole('button', { name: 'Gerar parcelas' }));
@@ -416,7 +423,12 @@ const executarLargura = async (browser, largura) => {
         [1, 2, 3].map((k) => `${k}/3:ABERTO:300.0000:${somarDias(hoje, 30 * k)}`).join('|'),
         `[${rotulo}] títulos do parcelado`,
       );
-      igual(d.rateios.map((r) => `${r.natureza_tipo}:${dec(r.valor)}`).join('|'), 'RECEITA:900.0000', `[${rotulo}] rateio do parcelado`);
+      igual(
+        d.rateios.map((r) => `${r.natureza_nome}:${r.natureza_tipo}:${dec(r.valor)}:${r.percentual?.toFixed(6)}`).join('|'),
+        'VENDA DE INSUMOS:RECEITA:540.0000:60.000000|SERVIÇOS PRESTADOS:RECEITA:360.0000:40.000000',
+        `[${rotulo}] rateio PERCENTUAL do parcelado`,
+      );
+      igual(d.rateio_modo, 'PERCENTUAL', `[${rotulo}] rateio_modo do parcelado`);
       docs.receberParcelado = d;
     });
 
@@ -443,6 +455,10 @@ const executarLargura = async (browser, largura) => {
       const { resumo, bloqueios } = await confirmarPelaTela('10-compra');
       conferir(/8\.000,00/.test(resumo), `[${rotulo}] resumo da compra sem o total 8.000,00: ${resumo.slice(0, 200)}`);
       conferir(!bloqueios.trim(), `[${rotulo}] prévia da compra com bloqueio: ${bloqueios.slice(0, 200)}`);
+      // À vista: baixa no ato (pagamento registrado na confirmação, mesma transação).
+      await clicar(page.getByTestId('baixa-no-ato'));
+      await clicar(page.getByRole('dialog').getByRole('radio', { name: 'Pix', exact: true }));
+      await shot('10b-compra-baixa-no-ato');
       await confirmarDefinitivo('11-compra');
       const op = await esperarBanco(async () => {
         const u = await ultimaOperacao(s);
@@ -461,7 +477,9 @@ const executarLargura = async (browser, largura) => {
       igual(lote.movimentacao_entrada_id, mov.id, `[${rotulo}] lote ↔ movimento`);
       const racao = await prisma.produto.findFirst({ where: { cliente_id: s.cliente_id, id: s.produtos.racao.id } });
       igual(dec(racao.estoque_atual), (Number(racaoAntes.estoque_atual) + 3000).toFixed(4), `[${rotulo}] estoque_atual da RAÇÃO`);
-      igual(d.titulos.map((t) => `${t.status}:${dec(t.valor)}:${diaDe(t.vencimento)}`).join('|'), `ABERTO:8000.0000:${hoje}`, `[${rotulo}] título da compra à vista`);
+      igual(d.titulos.map((t) => `${t.status}:${dec(t.valor)}:${dec(t.valor_liquidado)}:${diaDe(t.vencimento)}`).join('|'), `QUITADO:8000.0000:8000.0000:${hoje}`, `[${rotulo}] título da compra à vista com baixa no ato`);
+      const liqAto = await prisma.liquidacaoFinanceira.findMany({ where: { cliente_id: s.cliente_id, titulo_id: d.titulos[0].id } });
+      igual(liqAto.map((l) => `${dec(l.valor)}:${l.metodo}:${diaDe(l.data)}`).join('|'), `8000.0000:PIX:${hoje}`, `[${rotulo}] liquidação da baixa no ato`);
       docs.compra = d;
     });
 
@@ -545,6 +563,14 @@ const executarLargura = async (browser, largura) => {
       await page.waitForTimeout(600);
       const liqTxt = await visivel(page.getByTestId(`liquidacao-${liq.id}`)).innerText();
       conferir(/estornad/i.test(liqTxt), `[${rotulo}] baixa estornada não aparece marcada: ${liqTxt.slice(0, 160)}`);
+      // O detalhe real traz o estorno como linha própria (id do estorno): tem de
+      // aparecer como ESTORNO, sem "Estornar baixa" (que levaria a 404).
+      const linhaEstorno = visivel(page.getByTestId(`liquidacao-${est.id}`));
+      const estTxt = (await linhaEstorno.count()) ? await linhaEstorno.innerText() : '';
+      conferir(/Estorno/.test(estTxt) && /título errado/.test(estTxt), `[${rotulo}] linha do estorno não aparece como estorno com o motivo: "${estTxt.slice(0, 160)}"`);
+      igual(await page.getByTestId(`botao-estornar-${est.id}`).count(), 0, `[${rotulo}] botão "Estornar baixa" na linha do próprio estorno`);
+      const tituloCancelar = await visivel(page.getByTestId('botao-cancelar-lancamento')).getAttribute('title');
+      igual(tituloCancelar, null, `[${rotulo}] cancelar acusa baixa ativa depois do estorno`);
       await shot('18-estornada');
     });
 
@@ -639,15 +665,103 @@ const executarLargura = async (browser, largura) => {
       await shot('22-venda-cancelada');
     });
 
-    await passo('10 lista final', async () => {
+    // 10. Editar o rascunho sem saldo (PUT) e confirmar com a RESPOSTA PERDIDA:
+    //     a tela mostra "resultado incerto" e o "Repetir o mesmo envio" reusa o
+    //     operation_id — o servidor devolve o replay e nada é duplicado.
+    await passo('10 editar rascunho (PUT) e confirmar com resposta perdida', async () => {
+      await abrirDocumento(docs.vendaSemSaldo);
+      await clicar(page.getByRole('button', { name: 'Editar', exact: true }));
+      await preencher('item-0-quantidade', '4');
+      await page.waitForTimeout(200);
+      const enviados = [];
+      await page.route(
+        (u) => u.pathname.endsWith(`/operacoes-financeiras/${docs.vendaSemSaldo.id}/confirmar`),
+        async (route) => {
+          const req = route.request();
+          if (req.method() !== 'POST') return route.continue();
+          enviados.push(JSON.parse(req.postData() || '{}').operation_id);
+          if (enviados.length === 1) {
+            await route.fetch(); // chega ao servidor e é processada…
+            return route.abort('failed'); // …mas a resposta se perde no caminho
+          }
+          return route.continue();
+        },
+      );
+      const { bloqueios } = await confirmarPelaTela('24-edicao-previa');
+      conferir(!bloqueios.trim(), `[${rotulo}] prévia da venda editada com bloqueio: ${bloqueios.slice(0, 200)}`);
+      await clicar(page.getByTestId('botao-confirmar-definitivo'));
+      await visivel(page.getByTestId('resultado-incerto')).waitFor();
+      await shot('25-resultado-incerto');
+      await clicar(page.getByTestId('botao-confirmar-definitivo'));
+      await visivel(page.getByTestId('consulta-lancamento')).waitFor({ timeout: 30000 });
+      const aviso = page.getByText(/nada foi duplicado/i).first();
+      await aviso.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      conferir(await aviso.isVisible(), `[${rotulo}] replay não foi comunicado ("nada foi duplicado")`);
+      await shot('26-replay-confirmado');
+      await page.unroute((u) => u.pathname.endsWith(`/operacoes-financeiras/${docs.vendaSemSaldo.id}/confirmar`));
+      igual(enviados.length, 2, `[${rotulo}] envios de confirmação`);
+      conferir(enviados[0] && enviados[0] === enviados[1], `[${rotulo}] repetição não reusou o operation_id (${enviados.join(' ≠ ')})`);
+      const d = await operacaoCompleta(s, docs.vendaSemSaldo.id);
+      igual(`${d.status}:${dec(d.valor_total)}:${dec(d.itens[0].quantidade)}`, 'CONFIRMADO:80.0000:4.0000', `[${rotulo}] rascunho editado e confirmado`);
+      conferir(d.versao >= 2, `[${rotulo}] PUT do rascunho não incrementou a versão (versao=${d.versao})`);
+      const movimentos = await prisma.movimentacaoEstoque.findMany({ where: { cliente_id: s.cliente_id, lancamento_origem_id: d.id } });
+      igual(movimentos.length, 1, `[${rotulo}] movimentos da confirmação repetida (sem duplicar)`);
+      const consumos = await prisma.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.cliente_id, item_id: d.itens[0].id }, orderBy: { custo_unitario: 'asc' } });
+      const [l1, l2] = s.lotes_sal;
+      igual(consumos.map((c) => `${c.estoque_lote_nota_id === l1.id ? 'L1' : 'L2'}:${dec(c.quantidade)}`).join('|'), 'L1:3.0000|L2:1.0000', `[${rotulo}] FIFO após devolução dos lotes`);
+      const lotes = await prisma.estoqueLoteNota.findMany({ where: { cliente_id: s.cliente_id, id: { in: [l1.id, l2.id] } }, orderBy: { custo_unitario: 'asc' } });
+      igual(lotes.map((l) => `${dec(l.quantidade_disponivel)}:${l.status}`).join('|'), '0.0000:Esgotado|9.0000:Disponivel', `[${rotulo}] lotes após a venda editada`);
+      const sal = await prisma.produto.findFirst({ where: { cliente_id: s.cliente_id, id: s.produtos.sal.id } });
+      igual(dec(sal.estoque_atual), '9.0000', `[${rotulo}] estoque_atual do SAL após a venda editada`);
+    });
+
+    // 11. Rascunho salvo pelo "Salvar" e descartado (DELETE com versão).
+    await passo('11 salvar e descartar rascunho', async () => {
+      const antes = await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } });
+      await novo();
+      await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+      await preencher('valor-bruto', '50,00');
+      await escolher('seletor-natureza-0', /FRETE/);
+      await clicar(page.getByRole('button', { name: 'Salvar', exact: true }));
+      const rascunho = await esperarBanco(async () => {
+        const u = await ultimaOperacao(s);
+        return u && u.status === 'RASCUNHO' && dec(u.valor_total) === '50.0000' ? u : null;
+      }, 'rascunho salvo');
+      await visivel(page.getByTestId('botao-descartar-rascunho')).waitFor();
+      await clicar(page.getByTestId('botao-descartar-rascunho'));
+      await page.getByTestId('dialogo-descarte').waitFor({ state: 'visible' });
+      await clicar(page.getByTestId('dialogo-descarte-enviar'));
+      await esperarBanco(async () => !(await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: rascunho.id } })), 'rascunho apagado');
+      igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } }), antes, `[${rotulo}] contagem de documentos após descartar`);
+      igual(await prisma.tituloFinanceiro.count({ where: { cliente_id: s.cliente_id, operacao_id: rascunho.id } }), 0, `[${rotulo}] parcelas do rascunho descartado`);
+      await shot('27-rascunho-descartado');
+    });
+
+    await passo('12 lista final com filtros', async () => {
       await irParaLista();
-      await shot('23-lista-final');
+      await shot('28-lista-final');
+      const filtrar = async (nome, opcao) => {
+        await clicar(page.getByRole('combobox', { name: nome }));
+        await page.getByRole('option', { name: opcao, exact: true }).first().click();
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForTimeout(700);
+      };
+      await filtrar('Filtrar por direção', 'A pagar');
+      await filtrar('Filtrar por situação', 'Confirmados');
+      const esperado = await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id, direcao: 'PAGAR', status: 'CONFIRMADO' } });
+      const rodape = await visivel(page.getByText(/Listados:\s*\d+/)).innerText();
+      conferir(new RegExp(`Listados:\\s*${esperado}\\b`).test(rodape), `[${rotulo}] filtro A pagar + Confirmados: esperado ${esperado}, rodapé "${rodape}"`);
+      await shot('29-lista-filtrada');
     });
   } catch (erro) {
     if (!(erro instanceof Divergencia)) console.error(`  [${rotulo}] interrompido: ${String(erro?.message || erro).split('\n')[0]}`);
   } finally {
     if (errosPagina.length) falhas.push(`[${rotulo}] erros de página: ${errosPagina.slice(0, 3).join(' | ')}`);
     if (respostasApi.length) console.log(`  [${rotulo}] respostas ≥400 da API (${respostasApi.length}):\n    ${respostasApi.slice(0, 12).join('\n    ')}`);
+    // Só a recusa PROVOCADA no passo 7 é esperada; qualquer outra resposta
+    // ≥ 400 da API real é divergência (mesmo que a tela "pareça" certa).
+    const esperadas = [/^POST \/api\/native\/operacoes-financeiras\/[^/]+\/cancelar → 409 \{"code":"OPERACAO_COM_LIQUIDACOES"/];
+    for (const r of respostasApi) if (!esperadas.some((re) => re.test(r))) falhas.push(`[${rotulo}] resposta inesperada da API: ${r.slice(0, 220)}`);
     await ctx.close();
   }
   return respostasApi;

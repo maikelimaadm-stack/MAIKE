@@ -586,10 +586,13 @@ export default function LancamentosFinanceirosTela() {
           onEnviar={async () => {
             try {
               await descartarRascunho(emp, String(dialogo.registro.id), dialogo.registro.versao);
-              queryClient.removeQueries({ queryKey: [QUERY_RAIZ, "detalhe", emp, String(dialogo.registro.id)] });
-              invalidarLista();
+              // Fecha o registro ANTES de mexer no cache: com o registro ainda
+              // aberto, tirar o detalhe do cache fazia a tela reler o documento
+              // apagado (GET → 404, visto na prova com o backend real). O
+              // detalhe fica sem observador e o cache o descarta sozinho.
               setDialogo(null);
               if (daEmpresaAtual({ empresaId: emp })) controller.recordHelpers.closeForm();
+              invalidarLista();
               notifySuccess("Sucesso", "Rascunho descartado");
             } catch (err) {
               reagirAoErro(err, emp);

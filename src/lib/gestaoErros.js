@@ -290,4 +290,7 @@ export const ehNaoEncontradoGestao = (erro) =>
  * @param {ContextoMoeda} [contexto]
  */
 export const mensagemDoBloqueio = (bloqueio, contexto = {}) =>
-  mensagemErroGestao({ cause: { code: bloqueio?.code, field: bloqueio?.field, reason: bloqueio?.reason, details: bloqueio?.details ?? {} } }, 'Há uma pendência que impede a confirmação.', contexto);
+  mensagemErroGestao({ cause: { code: bloqueio?.code, field: bloqueio?.field, reason: bloqueio?.reason, details: bloqueio?.details ?? {} } }, 'Há uma pendência que impede a confirmação.', contexto)
+    // A prévia só confere: o rascunho JÁ está salvo e nada é tentado, então o
+    // fecho dos erros de comando ("Nada foi gravado.") seria falso aqui.
+    .replace(/\s*Nada foi (?:gravado|alterado)\.\s*$/, '');

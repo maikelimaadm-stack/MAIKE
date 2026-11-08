@@ -27,28 +27,28 @@ const filtrarQ = (lista, query, campos = ['nome']) => {
 };
 
 export const PARCEIROS = [
-  { id: 'pa1', numero: 1, nome: 'AGROPECUÁRIA BOA VISTA', papeis: ['fornecedor'] },
-  { id: 'pa2', numero: 2, nome: 'FRIGORÍFICO CENTRAL', papeis: ['cliente'] },
-  { id: 'pa3', numero: 3, nome: 'VETERINÁRIA SÃO JOSÉ', papeis: ['prestador_servico'] },
-  { id: 'pa4', numero: 4, nome: 'COOPERATIVA MISTA', papeis: ['fornecedor', 'cliente'] },
+  { id: 'pa1', numero: '1', nome: 'AGROPECUÁRIA BOA VISTA', papeis: ['fornecedor'] },
+  { id: 'pa2', numero: '2', nome: 'FRIGORÍFICO CENTRAL', papeis: ['cliente'] },
+  { id: 'pa3', numero: '3', nome: 'VETERINÁRIA SÃO JOSÉ', papeis: ['prestador_servico'] },
+  { id: 'pa4', numero: '4', nome: 'COOPERATIVA MISTA', papeis: ['fornecedor', 'cliente'] },
 ];
 export const PRODUTOS = [
-  { id: 'pr1', numero: 10, nome: 'SAL MINERAL 80', unidade_principal_estoque: 'SACO', peso_por_saco_kg: '25.0000', estoque_atual: '500.0000' },
-  { id: 'pr2', numero: 11, nome: 'MILHO MOÍDO', unidade_principal_estoque: 'KG', peso_por_saco_kg: null, estoque_atual: '1200.0000' },
+  { id: 'pr1', numero: '10', nome: 'SAL MINERAL 80', unidade_principal_estoque: 'SACO', peso_por_saco_kg: '25.0000', estoque_atual: '500.0000' },
+  { id: 'pr2', numero: '11', nome: 'MILHO MOÍDO', unidade_principal_estoque: 'KG', peso_por_saco_kg: null, estoque_atual: '1200.0000' },
 ];
 export const LOCAIS = [
-  { id: 'lo1', numero: 1, nome: 'DEPÓSITO SEDE' },
-  { id: 'lo2', numero: 2, nome: 'GALPÃO RETIRO' },
+  { id: 'lo1', numero: '1', nome: 'DEPÓSITO SEDE' },
+  { id: 'lo2', numero: '2', nome: 'GALPÃO RETIRO' },
 ];
 export const NATUREZAS = [
-  { id: 'nd1', numero: 1, nome: 'NUTRIÇÃO', caminho: 'INSUMOS / NUTRIÇÃO', tipo: 'DESPESA' },
-  { id: 'nd2', numero: 2, nome: 'SANIDADE', caminho: 'INSUMOS / SANIDADE', tipo: 'DESPESA' },
-  { id: 'nd3', numero: 3, nome: 'ENERGIA ELÉTRICA', caminho: 'ENERGIA ELÉTRICA', tipo: 'DESPESA' },
-  { id: 'nr1', numero: 4, nome: 'VENDA DE INSUMOS', caminho: 'VENDA DE INSUMOS', tipo: 'RECEITA' },
-  { id: 'nr2', numero: 5, nome: 'VENDA DE GADO', caminho: 'VENDA DE GADO', tipo: 'RECEITA' },
+  { id: 'nd1', numero: '1', nome: 'NUTRIÇÃO', caminho: 'INSUMOS / NUTRIÇÃO', tipo: 'DESPESA' },
+  { id: 'nd2', numero: '2', nome: 'SANIDADE', caminho: 'INSUMOS / SANIDADE', tipo: 'DESPESA' },
+  { id: 'nd3', numero: '3', nome: 'ENERGIA ELÉTRICA', caminho: 'ENERGIA ELÉTRICA', tipo: 'DESPESA' },
+  { id: 'nr1', numero: '4', nome: 'VENDA DE INSUMOS', caminho: 'VENDA DE INSUMOS', tipo: 'RECEITA' },
+  { id: 'nr2', numero: '5', nome: 'VENDA DE GADO', caminho: 'VENDA DE GADO', tipo: 'RECEITA' },
 ];
-export const CENTROS_CUSTO = [{ id: 'cc1', numero: 1, nome: 'CRIA' }, { id: 'cc2', numero: 2, nome: 'RECRIA' }];
-export const CENTROS_RESULTADO = [{ id: 'cr1', numero: 1, nome: 'PECUÁRIA DE CORTE' }];
+export const CENTROS_CUSTO = [{ id: 'cc1', numero: '1', nome: 'CRIA' }, { id: 'cc2', numero: '2', nome: 'RECRIA' }];
+export const CENTROS_RESULTADO = [{ id: 'cr1', numero: '1', nome: 'PECUÁRIA DE CORTE' }];
 export const SALDOS = { pr1: [{ local_estoque_id: 'lo1', local_nome: 'DEPÓSITO SEDE', disponivel_kg: '300.0000' }], pr2: [{ local_estoque_id: 'lo2', local_nome: 'GALPÃO RETIRO', disponivel_kg: '1200.0000' }] };
 
 export const CATALOGO = {
@@ -59,7 +59,11 @@ export const CATALOGO = {
   paises: ['BR', 'AR', 'PY', 'UY', 'US', 'PT', 'ES', 'JP', 'KW'],
   locales: ['pt-BR', 'pt-PT', 'es-AR', 'es-PY', 'es-UY', 'es-ES', 'en-US', 'ja-JP'],
   metodos_por_pais: { BR: ['DINHEIRO', 'TRANSFERENCIA', 'CARTAO', 'PIX', 'OUTRO'], _padrao: ['DINHEIRO', 'TRANSFERENCIA', 'CARTAO', 'OUTRO'] },
+  pix_exige: { pais: 'BR', moeda: 'BRL' },
 };
+
+/** Formas permitidas como o backend real calcula (§8.6: PIX só BR + BRL). */
+const metodosPermitidos = (pais, moeda) => (pais === 'BR' && moeda === 'BRL' ? CATALOGO.metodos_por_pais.BR : CATALOGO.metodos_por_pais._padrao);
 
 export const PERFIL_BR = { empresa_id: EMPRESA, pais: 'BR', moeda: 'BRL', moeda_casas: 2, locale: 'pt-BR', versao_contrato: 1, metodos_permitidos: ['DINHEIRO', 'TRANSFERENCIA', 'CARTAO', 'PIX', 'OUTRO'] };
 
@@ -90,7 +94,7 @@ const casasDe = (doc) => doc.moeda_casas ?? 2;
 /** Saldo e status do título a partir dos FATOS (liquidações sem estorno). */
 const recalcularTitulo = (t) => {
   const casas = t.moeda_casas ?? 2;
-  const pago = somar(t.liquidacoes.filter((l) => !l.estornada).map((l) => l.valor), casas);
+  const pago = somar(t.liquidacoes.filter((l) => l.tipo !== 'ESTORNO' && !l.estornada).map((l) => l.valor), casas);
   t.valor_liquidado = pago;
   t.saldo = subtrair(t.valor, pago, casas);
   if (t.status === 'CANCELADO' || t.status === 'PREVISTO') return;
@@ -121,7 +125,7 @@ const montarDoc = (estado, corpo, base = {}) => {
   const rateios = corpo.rateios.map((r, k) => {
     const nat = NATUREZAS.find((n) => n.id === r.natureza_id);
     return {
-      ordem: k + 1, natureza_id: r.natureza_id, natureza_nome: nat?.caminho ?? null, natureza_tipo: nat?.tipo ?? null,
+      ordem: k + 1, natureza_id: r.natureza_id, natureza_nome: nat?.nome ?? null, natureza_tipo: nat?.tipo ?? null,
       centro_custo_id: r.centro_custo_id ?? null, centro_custo_nome: CENTROS_CUSTO.find((c) => c.id === r.centro_custo_id)?.nome ?? null,
       centro_resultado_id: r.centro_resultado_id ?? null, centro_resultado_nome: CENTROS_RESULTADO.find((c) => c.id === r.centro_resultado_id)?.nome ?? null,
       percentual: corpo.rateio_modo === 'PERCENTUAL' ? naEscala(r.percentual, 6) : null,
@@ -147,7 +151,11 @@ const montarDoc = (estado, corpo, base = {}) => {
 };
 
 /** Detalhe como o servidor devolve (cópia: o teste não muta o estado por engano). */
-const detalhe = (doc, extra = {}) => ({ ...JSON.parse(JSON.stringify(doc)), ...extra });
+const detalhe = (doc, extra = {}) => {
+  const copia = JSON.parse(JSON.stringify(doc));
+  copia.titulos = copia.titulos.map(({ moeda_casas: _c, ...t }) => t);
+  return { ...copia, ...extra };
+};
 
 const resumoLista = (d) => {
   const abertos = d.titulos.filter((t) => t.status === 'ABERTO' || t.status === 'PARCIAL');
@@ -194,7 +202,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       const f = falha(estado, 'perfil');
       if (f) return f.resposta;
       const casas = CATALOGO.moedas.find((m) => m.codigo === body.moeda)?.casas ?? 2;
-      estado.perfil = { empresa_id: body.empresa_id, pais: body.pais, moeda: body.moeda, moeda_casas: casas, locale: body.locale, versao_contrato: 1 };
+      estado.perfil = { empresa_id: body.empresa_id, pais: body.pais, moeda: body.moeda, moeda_casas: casas, locale: body.locale, versao_contrato: 1, metodos_permitidos: metodosPermitidos(body.pais, body.moeda) };
       return { status: 200, body: estado.perfil };
     }
   }
@@ -230,7 +238,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       if (!estado.perfil) return erro(409, 'PERFIL_FINANCEIRO_NAO_CONFIGURADO');
       const doc = montarDoc(estado, body);
       estado.documentos.unshift(doc);
-      return { status: 201, body: detalhe(doc) };
+      return { status: 201, body: detalhe(doc, { replay: false }) };
     });
     if (f?.gravarAntes) return { rede: true };
     return r;
@@ -258,7 +266,19 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     if (acao === 'previa' && method === 'POST') {
       const bloqueios = estado.bloqueiosPrevia;
       const estoque = doc.itens.filter((i) => i.tipo_item === 'MERCADORIA').length;
-      return { status: 200, body: { plano: { valor_total: doc.valor_total, resumo: { parcelas_n: doc.titulos.length, itens_estoque_n: estoque, valor_titulos: doc.valor_total, moeda: doc.moeda }, avisos: [] }, bloqueios } };
+      // Mesmo formato do `planejarOperacao` real (o front usa `resumo`; o resto é contrato).
+      const mercadorias = doc.itens.filter((i) => i.tipo_item === 'MERCADORIA');
+      const efeito = (i) => ({ item_ordem: i.ordem, produto_id: i.produto_id, produto_nome: i.produto_nome, local_estoque_id: i.local_estoque_id, local_nome: i.local_estoque_nome, kg: i.quantidade_estoque });
+      const plano = {
+        moeda: doc.moeda, moeda_casas: doc.moeda_casas, valor_bruto: doc.valor_bruto, valor_desconto: doc.valor_desconto, valor_acrescimo: doc.valor_acrescimo, valor_total: doc.valor_total,
+        itens: doc.itens.map(({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque }) => ({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque })),
+        rateios: doc.rateios.map(({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual }) => ({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual })),
+        parcelas: doc.titulos.map((t) => ({ numero_parcela: t.numero_parcela, total_parcelas: t.total_parcelas, vencimento: t.vencimento, valor: t.valor })),
+        efeitos_estoque: { entradas: doc.direcao === 'PAGAR' ? mercadorias.map(efeito) : [], saidas: doc.direcao === 'RECEBER' ? mercadorias.map(efeito) : [] },
+        resumo: { parcelas_n: doc.titulos.length, itens_estoque_n: estoque, valor_titulos: doc.valor_total, moeda: doc.moeda },
+        avisos: [],
+      };
+      return { status: 200, body: { plano, bloqueios } };
     }
     if (acao === 'confirmar' && method === 'POST') {
       if (estado.segurarConfirmar) await estado.segurarConfirmar;
@@ -279,7 +299,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         });
         if (body.baixa_no_ato) {
           const t = doc.titulos[0];
-          t.liquidacoes.push({ id: `liq-${++estado.seq}`, tipo: 'LIQUIDACAO', valor: t.valor, data: body.baixa_no_ato.data, metodo: body.baixa_no_ato.metodo, referencia: body.baixa_no_ato.referencia ?? null, observacao: null, estornada: false, registrado_por: usuario, created_date: TS });
+          t.liquidacoes.push({ id: `liq-${++estado.seq}`, tipo: 'LIQUIDACAO', valor: t.valor, data: body.baixa_no_ato.data, metodo: body.baixa_no_ato.metodo, referencia: body.baixa_no_ato.referencia ?? null, observacao: null, estorna_liquidacao_id: null, estornada: false, estorno_id: null, motivo: null, registrado_por: usuario, created_date: TS });
           recalcularTitulo(t);
         }
         doc.versao += 1;
@@ -316,9 +336,9 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     const r = idempotente(estado, 'liquidar', body, () => {
       if (t.status !== 'ABERTO' && t.status !== 'PARCIAL') return erro(409, 'TITULO_NAO_LIQUIDAVEL');
       if (comparar(body.valor, t.saldo) > 0) return erro(422, 'LIQUIDACAO_EXCEDE_SALDO', { details: { saldo: t.saldo, valor: body.valor } });
-      t.liquidacoes.push({ id: `liq-${++estado.seq}`, tipo: 'LIQUIDACAO', valor: naEscala(body.valor, casasDe(doc)), data: body.data, metodo: body.metodo, referencia: body.referencia ?? null, observacao: body.observacao ?? null, estornada: false, registrado_por: usuario, created_date: TS });
+      t.liquidacoes.push({ id: `liq-${++estado.seq}`, tipo: 'LIQUIDACAO', valor: naEscala(body.valor, casasDe(doc)), data: body.data, metodo: body.metodo, referencia: body.referencia ?? null, observacao: body.observacao ?? null, estorna_liquidacao_id: null, estornada: false, estorno_id: null, motivo: null, registrado_por: usuario, created_date: TS });
       recalcularTitulo(t);
-      doc.historico.push({ acao: 'liquidacao_financeira.registrar', em: TS, usuario_login: 'dono' });
+      doc.historico.push({ acao: 'titulo_financeiro.liquidar', em: TS, usuario_login: 'dono' });
       return { status: 201, body: detalhe(doc, { replay: false }) };
     });
     if (f?.gravarAntes) return { rede: true };
@@ -331,8 +351,14 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     const t = doc.titulos.find((x) => x.liquidacoes.some((l) => l.id === m[1]));
     const l = t.liquidacoes.find((x) => x.id === m[1]);
     return idempotente(estado, 'estornar', body, () => {
+      if (l.tipo === 'ESTORNO') return erro(404, 'LIQUIDACAO_FINANCEIRA_NOT_FOUND');
       if (l.estornada) return erro(409, 'LIQUIDACAO_JA_ESTORNADA');
+      // Como o backend real: a baixa fica `estornada` (com `estorno_id`) e o
+      // estorno aparece como linha própria `tipo: 'ESTORNO'` (só exibição).
+      const estornoId = `est-${++estado.seq}`;
       l.estornada = true;
+      l.estorno_id = estornoId;
+      t.liquidacoes.push({ id: estornoId, tipo: 'ESTORNO', valor: l.valor, data: TS.slice(0, 10), metodo: null, referencia: null, observacao: null, estorna_liquidacao_id: l.id, estornada: false, estorno_id: null, motivo: body.motivo, registrado_por: usuario, created_date: TS });
       recalcularTitulo(t);
       doc.historico.push({ acao: 'liquidacao_financeira.estornar', em: TS, usuario_login: 'dono' });
       return { status: 201, body: detalhe(doc, { replay: false }) };
