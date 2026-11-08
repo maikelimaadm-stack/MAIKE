@@ -326,14 +326,17 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 
 /*
  * Filtros / Camadas / Visualização — densidade única e alinhada (D-PROD-151).
- * Camadas e campos compartilham a MESMA altura de linha e o MESMO padding-x.
+ * Coluna de texto começa no mesmo X: checkbox (ou spacer) + gap + rótulo.
+ * Anula o grid 2-col legado em .mk-map-filter-fields.
  */
 :is(.mk-map-filters--clean, .mk-vis):not(#mk-padrao) {
-  --mk-map-row: 36px;
-  --mk-map-control: 28px;
+  --mk-map-row: 32px;
+  --mk-map-control: 26px;
   --mk-map-font: 12px;
-  --mk-map-title: 13px;
-  --mk-map-pad-x: 12px;
+  --mk-map-title: 12px;
+  --mk-map-pad-x: 10px;
+  --mk-map-check: var(--mk-check-size, 14px);
+  --mk-map-check-gap: 8px;
   --mk-list-row-height: var(--mk-map-row);
   --mk-font-list: var(--mk-map-font);
   --mk-font-field: var(--mk-map-font);
@@ -352,7 +355,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 .mk-map-filters--clean:not(#mk-padrao) {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .mk-map-filters--clean .mk-map-filter-section:not(#mk-padrao) {
   display: flex;
@@ -360,8 +363,9 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   gap: 6px;
   padding: 0 !important;
   margin: 0 !important;
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
 .mk-map-filters--clean .mk-map-filter-heading {
   display: flex;
@@ -379,26 +383,25 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   line-height: 1.3 !important;
 }
 
-/* Cartão branco compartilhado por camadas e campos */
+/* Cartão branco — uma coluna (nunca o grid 2-col legado) */
 .mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields):not(#mk-padrao) {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
   background: #fff;
   border-radius: 12px;
   box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(15, 23, 42, 0.08));
   overflow: hidden;
 }
 
-/* Linha de camada = linha de campo: mesma altura e mesmo padding lateral */
+/* Linha compartilhada: mesma altura, mesmo pad-x, mesma coluna de texto */
 .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao),
 .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
   box-sizing: border-box;
-  display: flex;
   align-items: center;
-  gap: 8px;
   width: 100%;
   height: var(--mk-map-row) !important;
   min-height: var(--mk-map-row) !important;
@@ -409,17 +412,9 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   border-radius: 0;
   background: #fff;
 }
-.mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-  column-gap: 10px;
-}
-.mk-map-filters--clean .mk-map-layer-row + .mk-map-layer-row,
-.mk-map-filters--clean .mk-map-filter-fields > div + div {
-  border-top: 1px solid #eef0f3;
-}
-
 .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) {
+  display: flex !important;
+  gap: var(--mk-map-check-gap);
   justify-content: flex-start;
   text-align: left;
   font-size: var(--mk-map-font) !important;
@@ -427,6 +422,30 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   color: #334155;
   cursor: pointer;
 }
+.mk-map-filters--clean .mk-map-layer-row.mk-check-row::before {
+  width: var(--mk-map-check);
+  height: var(--mk-map-check);
+  flex: 0 0 var(--mk-map-check);
+}
+/* Campos: spacer (= checkbox) | rótulo | controle — mesmo X do texto das camadas */
+.mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
+  display: grid !important;
+  grid-template-columns: var(--mk-map-check) minmax(0, 1fr) minmax(0, 1.2fr);
+  column-gap: var(--mk-map-check-gap);
+}
+.mk-map-filters--clean .mk-map-filter-fields > div::before {
+  content: '';
+  width: var(--mk-map-check);
+  height: var(--mk-map-check);
+  flex: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+.mk-map-filters--clean .mk-map-layer-row + .mk-map-layer-row,
+.mk-map-filters--clean .mk-map-filter-fields > div + div {
+  border-top: 1px solid #eef0f3;
+}
+
 .mk-map-filters--clean .mk-map-layer-row:hover:not([aria-checked="true"]):not(#mk-padrao) {
   background: var(--mk-sup-fundo, #FAFCFE);
 }
@@ -503,6 +522,14 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   width: 12px;
   height: 12px;
   flex: 0 0 auto;
+}
+
+/* Anula o layout 2-col legado só nestas seções de campos */
+.mk-map-filters--clean .mk-map-filter-section--fields > div:last-child:not(#mk-padrao) {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
 }
 
 .mk-map-filter-sheet .mk-map-filter-header h2 { font-size: var(--mk-map-title, 13px); }
