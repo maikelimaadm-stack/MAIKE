@@ -88,8 +88,14 @@ Casos cobertos pelo arquivo novo `gestaoP3RateioItem.test.mjs` (SPEC §7):
 
 ## 4. Revisão adversarial
 
-A revisão adversarial focada (lentes de dinheiro, banco e tela) e as correções
-com RED→GREEN estão no §4.1, preenchido ao fim da rodada.
+A revisão adversarial foi focada, com três lentes em paralelo: dinheiro, banco e
+tela. Resultado: **13 achados**, nenhum ALTO, 4 MÉDIOS e 9 BAIXOS.
+- **12 corrigidos com RED→GREEN.** O corretor só corrigia depois que um teste
+  reproduzisse a falha.
+- **1 sem mudança de código:** DIN-2, que é decisão de contrato, registrada.
+
+Para acelerar, não houve a rodada separada de verificadores: o teste RED fez
+esse papel.
 
 ### 4.1 Achados e correções
 
@@ -112,6 +118,17 @@ correção mínima (GREEN). Os testes novos ficam nas suítes da P3-02.
 | T6 | baixo | "Adicionar linha" depois de sobrar uma linha trazia de volta um valor antigo | A linha 1 recebe sempre o valor que estava à vista (líquido ou 100%) | RTL `RIT-8 T6`. RED: 420,00. GREEN: 600,00 |
 | T7 | baixo | `aria-controls` apontava para um corpo fora do DOM com o bloco recolhido | `aria-controls` só com o bloco aberto (padrão do `SeletorPaginadoGestao`) | RTL `RIT-8 T7` |
 
+Provas da rodada de correção (PostgreSQL 17.11 local, banco próprio, saída real):
+`gestaoP3*.test.mjs` 164/164, eram 161 (+2 `RI11b` e +1 `RI10`); vitest
+`gestaoLancamentos*` 7 arquivos e 255/255; `test:gates` 695/695; `lint` com 0
+erros e as mesmas 56 advertências de antes; `gate:types` com 815 diagnósticos,
+sem regressão; `typecheck:backend` limpo; `gate:deploy-migrations`,
+`gate:supabase-public-grants`, `gate:tenancy` e `gate:indices` verdes;
+`prisma migrate diff` banco→schema com saída 0. E2E real
+(`e2e-lancamentos-real.mjs`, tela + Fastify + PG, 1280 e 390 px): pool 5 com
+58 ✓ e 0 ✗, pool 3 com 58 ✓ e 0 ✗, incluindo os passos 28 e 29 (POR ITEM e
+GERAL).
+
 A migration da P3-02 **não foi alterada**: o sha256 está pinado em
 `MIGRATIONS_APROVADAS`, e o comentário dela ("a linha herda a empresa do
 documento e do item pelas FKs compostas") já é exato. O limite da FK está no
@@ -125,13 +142,13 @@ serviço, na D-PROD-156 e no §6.
 - **`rateio_escopo` sem CHECK no banco.** O classificador proíbe CHECK em
   tabela antiga, então o domínio (NULL, GERAL ou POR_ITEM) é garantido no
   serviço e nos testes. NULL é tratado como GERAL.
-- **Item de outro documento.** A tabela nova não tem como garantir, por FK, que
-  `item.operacao_id` seja igual a `linha.operacao_id`: isso exigiria uma unique
-  nova em `OperacaoFinanceiraItem`, e o classificador a proíbe. O serviço
-  sempre grava as duas coisas juntas. Uma linha forjada por SQL direto, cruzando
-  dois documentos, vira 422 `linha_de_item_fora_do_documento` na prévia, na
-  confirmação, no PUT e no descarte dos dois documentos. O detalhe de cada um
-  mostra só as próprias linhas (revisão BANCO-02, §4.1).
+- **Item de outro documento.**
+  - A FK não amarra `item.operacao_id` a `linha.operacao_id`: isso exigiria uma
+    unique nova em `OperacaoFinanceiraItem`, e o classificador a proíbe.
+  - Desde a correção BANCO-02 (§4.1), o serviço confere essa amarração
+    (`exigirLinhasDoDocumento`). Uma linha cruzada, que só pode ser gravada por
+    SQL direto, é recusada com 422 `linha_de_item_fora_do_documento` na prévia,
+    na confirmação, no PUT e no descarte, sem 500 e sem gravar nada.
 - **`rateio_modo` é do documento.** VALOR ou PERCENTUAL vale para todas as
   linhas de todos os itens.
 - **Preview da PR.** Ela usa o banco de produção, que ainda não tem o schema da
