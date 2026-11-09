@@ -2,7 +2,8 @@
  * D-PROD-155 (Gestão P3-01) — Central Única de Lançamentos GERENCIAIS.
  *
  * Um documento `OperacaoFinanceira` (PAGAR|RECEBER × COM_PRODUTOS|SEM_PRODUTOS ×
- * AVISTA|PRAZO|PARCELADO) com itens, rateio GLOBAL, títulos e liquidações
+ * AVISTA|PRAZO|PARCELADO) com itens, rateio GERAL ou POR ITEM (D-PROD-156,
+ * exclusivos; `rateio_escopo` NULL = GERAL), títulos e liquidações
  * MANUAIS. `QUITADO` = liquidação registrada pelo usuário, NÃO confirmação
  * bancária. Sem conciliação, OFX, DRE, plano de contas, fiscal ou câmbio.
  *
@@ -43,9 +44,11 @@ import {
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
-  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_PRECO, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, ZERO, arredondar, casasDecimais, dec, paraBanco, texto,
+  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_PRECO, CASAS_QUANTIDADE, CASAS_RESIDUO, ZERO, arredondar, casasDecimais, dec, paraBanco, texto,
 } from './decimalFinanceiro.js';
-import { diaValido, normalizarDocumento, planejarOperacao, simularEfeitosEstoque, tipoNaturezaDa } from './operacaoFinanceiraPlano.js';
+import {
+  ESCOPO_PADRAO, consolidarRateio, diaValido, normalizarDocumento, percentualDe, planejarOperacao, simularEfeitosEstoque, tipoNaturezaDa,
+} from './operacaoFinanceiraPlano.js';
 
 export { planejarOperacao } from './operacaoFinanceiraPlano.js';
 
@@ -171,11 +174,15 @@ const lerPerfil = async (tx, clienteId, empresaId) => {
 };
 
 // ─── referências (validadas DENTRO da transação; recusa uniforme) ──────────
+/** Linhas do rateio geral e de TODOS os itens (D-PROD-156): as mesmas validações de referência. */
+const todasAsLinhasDeRateio = (doc) => [...doc.rateios, ...doc.itens.flatMap((i) => i.rateios ?? [])];
+
 /** @param {any} tx @param {string} clienteId @param {string} empresaId @param {any} doc */
 export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
-  const natIds = unicos(doc.rateios.map((r) => r.natureza_id));
-  const ccIds = unicos(doc.rateios.map((r) => r.centro_custo_id));
-  const crIds = unicos(doc.rateios.map((r) => r.centro_resultado_id));
+  const linhas = todasAsLinhasDeRateio(doc);
+  const natIds = unicos(linhas.map((r) => r.natureza_id));
+  const ccIds = unicos(linhas.map((r) => r.centro_custo_id));
+  const crIds = unicos(linhas.map((r) => r.centro_resultado_id));
   const prodIds = unicos(doc.itens.map((i) => i.produto_id));
   const locIds = unicos(doc.itens.map((i) => i.local_estoque_id));
   const w = { cliente_id: clienteId, empresa_id: empresaId };
@@ -267,8 +274,8 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
     else if (!loc.ativo) add('local_estoque_id', 'local_inativo', extra);
   });
   const tipo = tipoNaturezaDa(doc.direcao);
-  doc.rateios.forEach((r, indice) => {
-    const extra = { colecao: 'rateios', indice };
+  /** Mesmas recusas para a linha geral e para a linha de um item (só muda a posição em `details`). */
+  const conferirLinha = (r, extra) => {
     const nat = refs.naturezas.get(r.natureza_id);
     if (!nat) add('natureza_id', 'natureza_nao_encontrada', extra);
     else if (!nat.ativo) add('natureza_id', 'natureza_inativa', extra);
@@ -284,6 +291,10 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
       if (!c) add('centro_resultado_id', 'centro_resultado_nao_encontrado', extra);
       else if (!c.ativo) add('centro_resultado_id', 'centro_resultado_inativo', extra);
     }
+  };
+  doc.rateios.forEach((r, indice) => conferirLinha(r, { colecao: 'rateios', indice }));
+  doc.itens.forEach((it, indice) => {
+    (it.rateios ?? []).forEach((r, subindice) => conferirLinha(r, { colecao: 'itens', indice, subcolecao: 'rateios', subindice }));
   });
   return lista;
 };
@@ -302,8 +313,19 @@ const exigirMetodo = (perfil, metodo, field = 'metodo') => {
 };
 
 // ─── documento ⇄ banco ──────────────────────────────────────────────────────
-/** Documento normalizado a partir das linhas gravadas (prévia e confirmação). */
-const documentoDoBanco = (op, itens, rateios, titulos) => ({
+/** Linha de rateio gravada (geral ou por item) → linha do documento normalizado. */
+const linhaDoBanco = (op, r) => ({
+  ordem: r.ordem, natureza_id: r.natureza_id, centro_custo_id: r.centro_custo_id, centro_resultado_id: r.centro_resultado_id,
+  valor: op.rateio_modo === 'VALOR' ? dec(r.valor) : null,
+  percentual: op.rateio_modo === 'PERCENTUAL' ? dec(r.percentual) : null,
+});
+
+/**
+ * Documento normalizado a partir das linhas gravadas (prévia e confirmação).
+ * `rateio_escopo` NULL (documento anterior à P3-02) é GERAL; as linhas por item
+ * vão para o SEU item pelo `item_id` (D-PROD-156).
+ */
+const documentoDoBanco = (op, itens, rateios, titulos, itemRateios = []) => ({
   empresa_id: op.empresa_id,
   direcao: op.direcao,
   conteudo: op.conteudo,
@@ -318,15 +340,13 @@ const documentoDoBanco = (op, itens, rateios, titulos) => ({
   valor_desconto: dec(op.valor_desconto),
   valor_acrescimo: dec(op.valor_acrescimo),
   rateio_modo: op.rateio_modo,
+  rateio_escopo: op.rateio_escopo ?? ESCOPO_PADRAO,
   itens: [...itens].sort((a, b) => a.ordem - b.ordem).map((i) => ({
     ordem: i.ordem, tipo_item: i.tipo_item, unidade: i.unidade, quantidade: dec(i.quantidade), valor_unitario: dec(i.valor_unitario),
     produto_id: i.produto_id, local_estoque_id: i.local_estoque_id, descricao: i.descricao,
+    rateios: itemRateios.filter((r) => r.item_id === i.id).sort((a, b) => a.ordem - b.ordem).map((r) => linhaDoBanco(op, r)),
   })),
-  rateios: [...rateios].sort((a, b) => a.ordem - b.ordem).map((r) => ({
-    ordem: r.ordem, natureza_id: r.natureza_id, centro_custo_id: r.centro_custo_id, centro_resultado_id: r.centro_resultado_id,
-    valor: op.rateio_modo === 'VALOR' ? dec(r.valor) : null,
-    percentual: op.rateio_modo === 'PERCENTUAL' ? dec(r.percentual) : null,
-  })),
+  rateios: [...rateios].sort((a, b) => a.ordem - b.ordem).map((r) => linhaDoBanco(op, r)),
   parcelas: [...titulos].sort((a, b) => a.numero_parcela - b.numero_parcela).map((t) => ({
     numero_parcela: t.numero_parcela, vencimento: diaDe(t.vencimento), valor: dec(t.valor),
   })),
@@ -359,11 +379,40 @@ const colunasDoLiquido = (i) => ({
   valor_liquido: paraBanco(i.valor_liquido, 4),
 });
 
-/** Itens, rateios e títulos PREVISTO do rascunho (snapshots de nomes incluídos). Produtos já travados (`travarProdutosDoRascunho`). */
+/** Linha de rateio (geral ou por item) para gravar, com o retrato dos nomes. */
+const linhaDeRateioParaGravar = (base, op, r, refs) => {
+  const nat = refs.naturezas.get(r.natureza_id);
+  return {
+    ...base,
+    operacao_id: op.id,
+    operacao_direcao: op.direcao,
+    ordem: r.ordem,
+    natureza_id: r.natureza_id,
+    natureza_tipo: nat?.tipo ?? tipoNaturezaDa(op.direcao),
+    natureza_nome: nat?.nome ?? '',
+    centro_custo_id: r.centro_custo_id ?? null,
+    centro_custo_nome: r.centro_custo_id ? refs.centrosCusto.get(r.centro_custo_id)?.nome ?? null : null,
+    centro_resultado_id: r.centro_resultado_id ?? null,
+    centro_resultado_nome: r.centro_resultado_id ? refs.centrosResultado.get(r.centro_resultado_id)?.nome ?? null : null,
+    percentual: r.percentual ? paraBanco(r.percentual, CASAS_PERCENTUAL) : null,
+    valor: paraBanco(r.valor, 4),
+  };
+};
+
+/**
+ * Itens, rateios (geral OU por item) e títulos PREVISTO do rascunho (snapshots
+ * de nomes incluídos). Produtos já travados (`travarProdutosDoRascunho`).
+ * D-PROD-156: os itens voltam do INSERT com o id (`createManyAndReturn`) e a
+ * linha por item vai para o item da MESMA requisição pela `ordem` do item no
+ * plano — nunca por índice de outra coleção.
+ */
 const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
   const base = { cliente_id: clienteId, empresa_id: op.empresa_id };
+  /** @type {Map<number, string>} */
+  const itemPorOrdem = new Map();
   if (plano.itens.length) {
-    await tx.operacaoFinanceiraItem.createMany({
+    const criados = await tx.operacaoFinanceiraItem.createManyAndReturn({
+      select: { id: true, ordem: true },
       data: plano.itens.map((i) => ({
         ...base,
         operacao_id: op.id,
@@ -383,27 +432,13 @@ const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
         ...colunasDoLiquido(i),
       })),
     });
+    for (const c of criados) itemPorOrdem.set(c.ordem, c.id);
+    if (itemPorOrdem.size !== plano.itens.length) throw new Error(`itens gravados: ${itemPorOrdem.size} de ${plano.itens.length}`);
   }
-  await tx.operacaoFinanceiraRateio.createMany({
-    data: plano.rateios.map((r) => {
-      const nat = refs.naturezas.get(r.natureza_id);
-      return {
-        ...base,
-        operacao_id: op.id,
-        operacao_direcao: op.direcao,
-        ordem: r.ordem,
-        natureza_id: r.natureza_id,
-        natureza_tipo: nat?.tipo ?? tipoNaturezaDa(op.direcao),
-        natureza_nome: nat?.nome ?? '',
-        centro_custo_id: r.centro_custo_id ?? null,
-        centro_custo_nome: r.centro_custo_id ? refs.centrosCusto.get(r.centro_custo_id)?.nome ?? null : null,
-        centro_resultado_id: r.centro_resultado_id ?? null,
-        centro_resultado_nome: r.centro_resultado_id ? refs.centrosResultado.get(r.centro_resultado_id)?.nome ?? null : null,
-        percentual: r.percentual ? paraBanco(r.percentual, CASAS_PERCENTUAL) : null,
-        valor: paraBanco(r.valor, 4),
-      };
-    }),
-  });
+  await tx.operacaoFinanceiraRateio.createMany({ data: plano.rateios.map((r) => linhaDeRateioParaGravar(base, op, r, refs)) });
+  const linhasDosItens = plano.itens.flatMap((i) =>
+    i.rateios.map((r) => ({ ...linhaDeRateioParaGravar(base, op, r, refs), item_id: /** @type {string} */ (itemPorOrdem.get(i.ordem)) })));
+  if (linhasDosItens.length) await tx.operacaoFinanceiraItemRateio.createMany({ data: linhasDosItens });
   await tx.tituloFinanceiro.createMany({
     data: plano.parcelas.map((p) => ({
       ...base,
@@ -421,12 +456,23 @@ const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
   });
 };
 
-const apagarFilhosDoRascunho = async (tx, clienteId, operacaoId) => {
+/**
+ * Apaga os filhos do rascunho (PUT recria; DELETE descarta). As linhas por
+ * item (D-PROD-156) saem ANTES dos itens (FK RESTRICT): item removido no PUT
+ * leva as linhas dele na mesma transação. O filtro com `empresa_id` usa o
+ * índice (cliente_id, empresa_id, operacao_id) da tabela nova.
+ */
+const apagarFilhosDoRascunho = async (tx, clienteId, empresaId, operacaoId) => {
   const w = { cliente_id: clienteId, operacao_id: operacaoId };
   await tx.tituloFinanceiro.deleteMany({ where: w });
   await tx.operacaoFinanceiraRateio.deleteMany({ where: w });
+  await tx.operacaoFinanceiraItemRateio.deleteMany({ where: { ...w, empresa_id: empresaId } });
   await tx.operacaoFinanceiraItem.deleteMany({ where: w });
 };
+
+/** Linhas por item do documento (D-PROD-156), pelo índice (cliente_id, empresa_id, operacao_id). */
+const lerItemRateios = (tx, clienteId, empresaId, operacaoId) =>
+  tx.operacaoFinanceiraItemRateio.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, operacao_id: operacaoId } });
 
 /** Colunas do cabeçalho vindas do plano (POST e PUT). */
 const camposDoCabecalho = (doc, plano, refs) => ({
@@ -444,6 +490,8 @@ const camposDoCabecalho = (doc, plano, refs) => ({
   valor_acrescimo: paraBanco(plano.valor_acrescimo, 4),
   valor_total: paraBanco(plano.valor_total, 4),
   rateio_modo: doc.rateio_modo,
+  // D-PROD-156: sempre explícito em POST/PUT (NULL só nos documentos anteriores).
+  rateio_escopo: doc.rateio_escopo,
   metodo_preferido: doc.metodo_preferido,
 });
 
@@ -466,7 +514,9 @@ const auditoriaDoc = (op, extra = {}) => ({
 });
 const contagens = (plano) => ({
   itens_n: plano.itens.length,
+  rateio_escopo: plano.rateio_escopo,
   rateios_n: plano.rateios.length,
+  rateios_itens_n: plano.itens.reduce((t, i) => t + i.rateios.length, 0),
   parcelas_n: plano.parcelas.length,
   itens_estoque_n: plano.efeitos_estoque.entradas.length + plano.efeitos_estoque.saidas.length,
 });
@@ -476,7 +526,10 @@ const INCLUDE_DETALHE = Object.freeze({
   criadoPor: USUARIO,
   confirmadoPor: USUARIO,
   canceladoPor: USUARIO,
-  itens: { orderBy: { ordem: 'asc' }, include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, loteEntrada: { select: { custo_unitario: true } } } },
+  itens: {
+    orderBy: { ordem: 'asc' },
+    include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, loteEntrada: { select: { custo_unitario: true } }, rateios: { orderBy: { ordem: 'asc' } } },
+  },
   rateios: { orderBy: { ordem: 'asc' } },
   titulos: {
     orderBy: { numero_parcela: 'asc' },
@@ -490,7 +543,56 @@ const INCLUDE_DETALHE = Object.freeze({
 });
 
 /** Percentual informativo do modo VALOR (calculado na leitura, 6 casas). */
-const percentualInformativo = (valor, total) => (dec(total).gt(0) ? arredondar(dec(valor).times(CEM).dividedBy(dec(total)), CASAS_PERCENTUAL) : ZERO);
+const percentualInformativo = percentualDe;
+
+/**
+ * Linha de rateio gravada (geral ou por item) no DETALHE. `base` do percentual
+ * informativo do modo VALOR: `valor_total` no geral; o LÍQUIDO do item na
+ * linha por item (D-PROD-156).
+ */
+const linhaDeRateioDetalhe = (r, base, c) => ({
+  ordem: r.ordem,
+  natureza_id: r.natureza_id,
+  natureza_nome: r.natureza_nome,
+  natureza_tipo: r.natureza_tipo,
+  centro_custo_id: r.centro_custo_id ?? null,
+  centro_custo_nome: r.centro_custo_nome ?? null,
+  centro_resultado_id: r.centro_resultado_id ?? null,
+  centro_resultado_nome: r.centro_resultado_nome ?? null,
+  percentual: texto(r.percentual ?? percentualInformativo(r.valor, base), CASAS_PERCENTUAL),
+  valor: texto(r.valor, c),
+});
+
+/** Grupo do resumo consolidado (D-PROD-156) para a resposta: nomes do retrato da 1ª linha do grupo. */
+const grupoConsolidadoPublico = (g, nomes, c) => ({
+  natureza_id: g.natureza_id,
+  natureza_nome: nomes.natureza_nome ?? null,
+  centro_custo_id: g.centro_custo_id,
+  centro_custo_nome: g.centro_custo_id ? nomes.centro_custo_nome ?? null : null,
+  centro_resultado_id: g.centro_resultado_id,
+  centro_resultado_nome: g.centro_resultado_id ? nomes.centro_resultado_nome ?? null : null,
+  valor: texto(g.valor, c),
+  percentual: texto(g.percentual, CASAS_PERCENTUAL),
+});
+
+/**
+ * Resumo consolidado do DETALHE: no GERAL é o próprio rateio do documento (as
+ * mesmas linhas e percentuais); no POR_ITEM, a soma por natureza + centros das
+ * linhas de todos os itens (ordem dos itens, depois das linhas), Σ = total.
+ */
+const consolidadoDoDetalhe = (op, c) => {
+  if ((op.rateio_escopo ?? ESCOPO_PADRAO) !== 'POR_ITEM') {
+    return (op.rateios ?? []).map((r) => {
+      const l = linhaDeRateioDetalhe(r, op.valor_total, c);
+      return {
+        natureza_id: l.natureza_id, natureza_nome: l.natureza_nome, centro_custo_id: l.centro_custo_id, centro_custo_nome: l.centro_custo_nome,
+        centro_resultado_id: l.centro_resultado_id, centro_resultado_nome: l.centro_resultado_nome, valor: l.valor, percentual: l.percentual,
+      };
+    });
+  }
+  const linhas = (op.itens ?? []).flatMap((i) => i.rateios ?? []);
+  return consolidarRateio(linhas, op.valor_total).map((g) => grupoConsolidadoPublico(g, g.linha, c));
+};
 
 /**
  * Custo por kg e resíduo da linha no DETALHE (só compra de mercadoria): com
@@ -530,6 +632,7 @@ export const comoDetalhe = (op, historico = []) => {
     valor_acrescimo: texto(op.valor_acrescimo, c),
     valor_total: texto(op.valor_total, c),
     rateio_modo: op.rateio_modo,
+    rateio_escopo: op.rateio_escopo ?? ESCOPO_PADRAO,
     metodo_preferido: op.metodo_preferido ?? null,
     criado_por: usuarioPublico(op.criadoPor),
     confirmado_por: usuarioPublico(op.confirmadoPor),
@@ -566,19 +669,11 @@ export const comoDetalhe = (op, historico = []) => {
         quantidade: texto(k.quantidade, CASAS_QUANTIDADE),
         custo_unitario: texto(k.custo_unitario, CASAS_CUSTO),
       })),
+      // D-PROD-156: sempre presente ([] no GERAL); percentual informativo sobre o LÍQUIDO do item.
+      rateios: (i.rateios ?? []).map((r) => linhaDeRateioDetalhe(r, i.valor_liquido, c)),
     })),
-    rateios: (op.rateios ?? []).map((r) => ({
-      ordem: r.ordem,
-      natureza_id: r.natureza_id,
-      natureza_nome: r.natureza_nome,
-      natureza_tipo: r.natureza_tipo,
-      centro_custo_id: r.centro_custo_id ?? null,
-      centro_custo_nome: r.centro_custo_nome ?? null,
-      centro_resultado_id: r.centro_resultado_id ?? null,
-      centro_resultado_nome: r.centro_resultado_nome ?? null,
-      percentual: texto(r.percentual ?? percentualInformativo(r.valor, op.valor_total), CASAS_PERCENTUAL),
-      valor: texto(r.valor, c),
-    })),
+    rateios: (op.rateios ?? []).map((r) => linhaDeRateioDetalhe(r, op.valor_total, c)),
+    rateio_consolidado: consolidadoDoDetalhe(op, c),
     titulos: (op.titulos ?? []).map((t) => {
       const saldo = t.status === 'CANCELADO' ? ZERO : dec(t.valor).minus(dec(t.valor_liquidado));
       /** @type {any[]} */
@@ -708,6 +803,7 @@ export const listar = async (contexto, query = {}) => {
         direcao: op.direcao,
         conteudo: op.conteudo,
         condicao: op.condicao,
+        rateio_escopo: op.rateio_escopo ?? ESCOPO_PADRAO,
         parceiro_nome: op.parceiro_nome,
         data_emissao: diaDe(op.data_emissao),
         valor_total: texto(op.valor_total, op.moeda_casas),
@@ -794,7 +890,7 @@ export const substituirRascunho = async (contexto, id, corpo) => {
     const plano = planejarOperacao(doc, { casas, moeda: atual.moeda, produtos: refs.produtos });
     // §8.4: cabeçalho → produtos → só então apaga e recria os filhos.
     await travarProdutosDoRascunho(tx, cli, plano.itens);
-    await apagarFilhosDoRascunho(tx, cli, id);
+    await apagarFilhosDoRascunho(tx, cli, empresaId, id);
     const r = await tx.operacaoFinanceira.updateMany({
       where: { cliente_id: cli, id, versao, status: 'RASCUNHO' },
       data: { ...camposDoCabecalho(doc, plano, refs), versao: { increment: 1 } },
@@ -816,7 +912,7 @@ export const descartarRascunho = async (contexto, id, query) => {
     const atual = await travarCabecalho(tx, cli, empresaId, id, 'UPDATE');
     if (atual.status !== 'RASCUNHO') throw statusInvalido(atual.status, 'RASCUNHO');
     if (atual.versao !== query.versao) throw versaoConflito(atual.versao, query.versao);
-    await apagarFilhosDoRascunho(tx, cli, id);
+    await apagarFilhosDoRascunho(tx, cli, empresaId, id);
     await tx.operacaoFinanceira.delete({ where: { cliente_id_id: { cliente_id: cli, id } } });
     // D-PROD-110: o recibo do POST que criou este rascunho vira marcador EXCLUIDO
     // (mesma transação). O replay da mesma chave responde 409
@@ -853,6 +949,28 @@ const comoPlanoPublico = (plano, simulacao, refs) => {
   const c = plano.casas;
   const nomeProduto = (id) => refs.produtos.get(id)?.nome_produto ?? null;
   const nomeLocal = (id) => refs.locais.get(id)?.nome ?? null;
+  /** Nomes ATUAIS das referências (os mesmos que a confirmação retrata). */
+  const nomesDaLinha = (r) => ({
+    natureza_nome: refs.naturezas.get(r.natureza_id)?.nome ?? null,
+    centro_custo_nome: r.centro_custo_id ? refs.centrosCusto.get(r.centro_custo_id)?.nome ?? null : null,
+    centro_resultado_nome: r.centro_resultado_id ? refs.centrosResultado.get(r.centro_resultado_id)?.nome ?? null : null,
+  });
+  /** Linha por item na prévia: os campos da linha do detalhe; percentual informativo sobre o líquido do item. */
+  const linhaDoItem = (r, liquido) => {
+    const nomes = nomesDaLinha(r);
+    return {
+      ordem: r.ordem,
+      natureza_id: r.natureza_id,
+      natureza_nome: nomes.natureza_nome,
+      natureza_tipo: refs.naturezas.get(r.natureza_id)?.tipo ?? null,
+      centro_custo_id: r.centro_custo_id ?? null,
+      centro_custo_nome: nomes.centro_custo_nome,
+      centro_resultado_id: r.centro_resultado_id ?? null,
+      centro_resultado_nome: nomes.centro_resultado_nome,
+      percentual: texto(r.percentual ?? percentualInformativo(r.valor, liquido), CASAS_PERCENTUAL),
+      valor: texto(r.valor, c),
+    };
+  };
   const saidas = simulacao?.saidas ?? plano.efeitos_estoque.saidas.map((s) => ({ ...s, disponivel: null, fatias: [], custo_total: null }));
   return {
     moeda: plano.moeda,
@@ -861,17 +979,20 @@ const comoPlanoPublico = (plano, simulacao, refs) => {
     valor_desconto: texto(plano.valor_desconto, c),
     valor_acrescimo: texto(plano.valor_acrescimo, c),
     valor_total: texto(plano.valor_total, c),
+    rateio_escopo: plano.rateio_escopo,
     itens: plano.itens.map((i) => ({
       ordem: i.ordem, tipo_item: i.tipo_item, produto_id: i.produto_id ?? null, local_estoque_id: i.local_estoque_id ?? null, unidade: i.unidade,
       quantidade: texto(i.quantidade, CASAS_QUANTIDADE), valor_unitario: texto(i.valor_unitario, CASAS_PRECO), valor_total: texto(i.valor_total, c),
       fator_kg: texto(i.fator_kg, CASAS_QUANTIDADE), quantidade_estoque: texto(i.quantidade_estoque, CASAS_QUANTIDADE),
       valor_desconto_rateado: texto(i.valor_desconto_rateado, c), valor_acrescimo_rateado: texto(i.valor_acrescimo_rateado, c), valor_liquido: texto(i.valor_liquido, c),
       custo_kg: texto(i.custo_kg, CASAS_CUSTO), residuo_custo: texto(i.residuo_custo, CASAS_RESIDUO),
+      rateios: i.rateios.map((r) => linhaDoItem(r, i.valor_liquido)),
     })),
     rateios: plano.rateios.map((r) => ({
       ordem: r.ordem, natureza_id: r.natureza_id, centro_custo_id: r.centro_custo_id ?? null, centro_resultado_id: r.centro_resultado_id ?? null,
       valor: texto(r.valor, c), percentual: texto(r.percentual ?? percentualInformativo(r.valor, plano.valor_total), CASAS_PERCENTUAL),
     })),
+    rateio_consolidado: plano.rateio_consolidado.map((g) => grupoConsolidadoPublico(g, nomesDaLinha(g), c)),
     parcelas: plano.parcelas.map((p) => ({ numero_parcela: p.numero_parcela, total_parcelas: p.total_parcelas, vencimento: p.vencimento, valor: texto(p.valor, c) })),
     efeitos_estoque: {
       entradas: plano.efeitos_estoque.entradas.map((e) => ({
@@ -904,16 +1025,17 @@ export const previa = async (contexto, id, corpo) => {
     if (!op || op.empresa_id !== empresaId) throw naoEncontrado();
     if (op.status !== 'RASCUNHO') throw statusInvalido(op.status, 'RASCUNHO');
     const w = { cliente_id: cli, operacao_id: id };
-    const [itens, rateios, titulos] = [
+    const [itens, rateios, titulos, itemRateios] = [
       await tx.operacaoFinanceiraItem.findMany({ where: w }),
       await tx.operacaoFinanceiraRateio.findMany({ where: w }),
       await tx.tituloFinanceiro.findMany({ where: w }),
+      await lerItemRateios(tx, cli, empresaId, id),
     ];
     /** @type {any[]} */
     const bloqueios = [];
     const perfil = await tx.perfilFinanceiroEmpresa.findUnique({ where: { cliente_id_empresa_id: { cliente_id: cli, empresa_id: empresaId } } });
     if (!perfil) bloqueios.push(comoBloqueio(perfilAusente(empresaId)));
-    const doc = documentoDoBanco(op, itens, rateios, titulos);
+    const doc = documentoDoBanco(op, itens, rateios, titulos, itemRateios);
     const refs = await carregarReferencias(tx, cli, empresaId, doc);
     bloqueios.push(...problemasDeReferencia(doc, refs, perfil ?? { pais: null, moeda: op.moeda }));
     let plano = null;
@@ -949,8 +1071,11 @@ export const previa = async (contexto, id, corpo) => {
 // ─── confirmar ──────────────────────────────────────────────────────────────
 const chaveDocumento = (cli, op) => `financeiro:documento:${cli}:${op.empresa_id}:${op.direcao}:${op.parceiro_id}:${op.documento_referencia}`;
 
-/** Snapshots de nomes no momento da confirmação (rateio). */
-const atualizarSnapshotsDoRateio = async (tx, cli, rateios, refs) => {
+/**
+ * Snapshots de nomes no momento da confirmação, no rateio geral E nas linhas
+ * por item (D-PROD-156): `modelo` é o delegate do Prisma da tabela da linha.
+ */
+const atualizarSnapshotsDoRateio = async (tx, cli, rateios, refs, modelo = tx.operacaoFinanceiraRateio) => {
   for (const r of rateios) {
     const dados = {
       natureza_nome: refs.naturezas.get(r.natureza_id)?.nome ?? r.natureza_nome,
@@ -958,9 +1083,33 @@ const atualizarSnapshotsDoRateio = async (tx, cli, rateios, refs) => {
       centro_resultado_nome: r.centro_resultado_id ? refs.centrosResultado.get(r.centro_resultado_id)?.nome ?? r.centro_resultado_nome : null,
     };
     if (dados.natureza_nome !== r.natureza_nome || dados.centro_custo_nome !== r.centro_custo_nome || dados.centro_resultado_nome !== r.centro_resultado_nome) {
-      await tx.operacaoFinanceiraRateio.update({ where: { cliente_id_id: { cliente_id: cli, id: r.id } }, data: dados });
+      await modelo.update({ where: { cliente_id_id: { cliente_id: cli, id: r.id } }, data: dados });
     }
   }
+};
+
+/**
+ * D-PROD-156: o valor de cada linha por item gravada é o do plano da
+ * confirmação (a mesma conta do rascunho; regrava só se divergir) e cada linha
+ * planejada tem a sua linha gravada (pelo id do item da ordem e a ordem da
+ * linha). Nada de linha a mais ou a menos: o plano e o banco batem 1 a 1.
+ * @param {any} tx @param {string} cli @param {any} plano @param {any[]} itens @param {any[]} itemRateios
+ */
+const conferirLinhasPorItem = async (tx, cli, plano, itens, itemRateios) => {
+  const idPorOrdem = new Map(itens.map((i) => [i.ordem, i.id]));
+  const gravadas = new Map(itemRateios.map((r) => [`${r.item_id}|${r.ordem}`, r]));
+  let planejadas = 0;
+  for (const item of plano.itens) {
+    for (const linha of item.rateios) {
+      planejadas += 1;
+      const r = gravadas.get(`${idPorOrdem.get(item.ordem)}|${linha.ordem}`);
+      if (!r) throw new Error(`linha ${linha.ordem} do item ${item.ordem} do rateio por item ausente no banco`);
+      if (!dec(r.valor).eq(linha.valor)) {
+        await tx.operacaoFinanceiraItemRateio.update({ where: { cliente_id_id: { cliente_id: cli, id: r.id } }, data: { valor: paraBanco(linha.valor, 4) } });
+      }
+    }
+  }
+  if (planejadas !== itemRateios.length) throw new Error(`rateio por item: ${itemRateios.length} linhas gravadas para ${planejadas} planejadas`);
 };
 
 /**
@@ -992,8 +1141,9 @@ export const confirmar = async (contexto, id, corpo) => {
           const titulosTravados = /** @type {any[]} */ (await travarTitulos(tx, cli, id));
           const titulos = await tx.tituloFinanceiro.findMany({ where: w });
           const rateios = await tx.operacaoFinanceiraRateio.findMany({ where: w });
+          const itemRateios = await lerItemRateios(tx, cli, empresaId, id);
           const perfil = await lerPerfil(tx, cli, empresaId);
-          const doc = documentoDoBanco(op, itens, rateios, titulos);
+          const doc = documentoDoBanco(op, itens, rateios, titulos, itemRateios);
           const refs = await carregarReferencias(tx, cli, empresaId, doc);
           exigirReferencias(doc, refs, perfil);
           const plano = planejarOperacao(doc, { casas: op.moeda_casas, moeda: op.moeda, produtos: refs.produtos });
@@ -1082,6 +1232,9 @@ export const confirmar = async (contexto, id, corpo) => {
             if (!igual) await tx.operacaoFinanceiraItem.update({ where: { cliente_id_id: { cliente_id: cli, id: itemBanco.id } }, data: colunasDoLiquido(itemPlano) });
           }
           await atualizarSnapshotsDoRateio(tx, cli, rateios, refs);
+          // D-PROD-156: rateio POR ITEM replanejado do banco — o valor gravado da linha é o do plano (vale a confirmação).
+          await conferirLinhasPorItem(tx, cli, plano, itens, itemRateios);
+          await atualizarSnapshotsDoRateio(tx, cli, itemRateios, refs, tx.operacaoFinanceiraItemRateio);
           await tx.tituloFinanceiro.updateMany({ where: { ...w, status: 'PREVISTO' }, data: { status: 'ABERTO' } });
           /** @type {string|null} */
           let liquidacaoId = null;

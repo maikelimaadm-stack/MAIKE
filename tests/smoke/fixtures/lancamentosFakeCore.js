@@ -1,13 +1,16 @@
 /**
  * Backend FALSO da Central Única de Lançamentos (D-PROD-155) — só para testes
  * RTL e para a evidência visual (scripts/dev/visual-lancamentos-financeiros.mjs).
+ * D-PROD-156 (P3-02): `rateio_escopo` (ausente/NULL = GERAL), `itens[].rateios`,
+ * `rateio_consolidado` e as recusas do rateio por item com `subindice`.
  * Nada aqui fala com banco ou API real. Segue o contrato do SPEC §5/§6/§8:
  * valores em string canônica, datas AAAA-MM-DD, `operation_id` idempotente,
  * `versao` com compare-and-swap, corpo de erro `{code, message, request_id,
  * field?, reason?, details?}`. Sem dependência de Vitest (puro JS).
  */
-import { comparar, ehPositivo, multiplicarArredondar, naEscala, ratearPercentual, somar, subtrair } from '../../../src/lib/dinheiroDecimal.js';
+import { comparar, ehPositivo, multiplicarArredondar, naEscala, percentualDe, ratearPercentual, somar, subtrair } from '../../../src/lib/dinheiroDecimal.js';
 import { ratearCabecalho } from '../../../src/lib/rateioCabecalho.js';
+import { ESCOPOS_RATEIO, MAX_RATEIOS_ITENS_TOTAL, MAX_RATEIOS_POR_ITEM, consolidarRateio, planejarRateioDoItem } from '../../../src/lib/rateioPorItem.js';
 
 export const EMPRESA = 'emp-1';
 export const TS = '2026-11-08T12:00:00.000Z';
@@ -128,9 +131,80 @@ const recalcularTitulo = (t) => {
   t.status = comparar(pago, '0') === 0 ? 'ABERTO' : comparar(pago, t.valor) === 0 ? 'QUITADO' : 'PARCIAL';
 };
 
+// ─── D-PROD-156 — rateio POR ITEM (SPEC §3–§5) ───────────────────────────
+
+const rateioInvalido = (details) => new RecusaDoServidor(erro(422, 'OPERACAO_RATEIO_INVALIDO', { field: details.field, reason: details.reason, details }));
+const posicaoNoItem = (indice, subindice) => ({ colecao: 'itens', indice, subcolecao: 'rateios', ...(subindice === undefined ? {} : { subindice }) });
+
+/**
+ * Escopo e exclusões, na ordem do `exigirEscopoDoRateio` do servidor: escopo
+ * fora do domínio; POR_ITEM sem produtos; geral + por item; GERAL sem linha;
+ * item sem linha; tetos (20 por item, 1000 no documento). Ausente = GERAL.
+ * @returns {'GERAL'|'POR_ITEM'}
+ */
+const exigirEscopoDoRateio = (corpo) => {
+  const escopo = corpo.rateio_escopo ?? 'GERAL';
+  if (!ESCOPOS_RATEIO.includes(escopo)) throw rateioInvalido({ field: 'rateio_escopo', reason: 'escopo_invalido', permitidos: [...ESCOPOS_RATEIO] });
+  if (escopo === 'POR_ITEM' && corpo.conteudo !== 'COM_PRODUTOS') throw rateioInvalido({ field: 'rateio_escopo', reason: 'escopo_por_item_exige_produtos' });
+  const itens = corpo.itens ?? [];
+  const topo = corpo.rateios ?? [];
+  const itemComLinhas = itens.findIndex((i) => Array.isArray(i.rateios) && i.rateios.length > 0);
+  const juntos = (details) => rateioInvalido({ field: 'rateios', reason: 'rateio_geral_e_por_item', escopo, ...details });
+  if (escopo === 'GERAL') {
+    if (itemComLinhas >= 0) throw juntos(posicaoNoItem(itemComLinhas));
+    if (!topo.length) throw rateioInvalido({ field: 'rateios', reason: 'rateio_geral_obrigatorio' });
+    return 'GERAL';
+  }
+  if (topo.length) throw juntos({ colecao: 'rateios', indice: 0 });
+  let total = 0;
+  itens.forEach((item, indice) => {
+    const n = (item.rateios ?? []).length;
+    if (!n) throw rateioInvalido({ field: 'rateios', reason: 'item_sem_rateio', ...posicaoNoItem(indice) });
+    if (n > MAX_RATEIOS_POR_ITEM) throw rateioInvalido({ field: 'rateios', reason: 'rateio_item_excede_limite', ...posicaoNoItem(indice), limite: MAX_RATEIOS_POR_ITEM, informado: n });
+    total += n;
+    if (total > MAX_RATEIOS_ITENS_TOTAL) {
+      throw rateioInvalido({ field: 'rateios', reason: 'rateio_itens_excede_limite', ...posicaoNoItem(indice), limite: MAX_RATEIOS_ITENS_TOTAL, informado: itens.reduce((t, i) => t + (i.rateios ?? []).length, 0) });
+    }
+  });
+  return 'POR_ITEM';
+};
+
+/** Linha de rateio do DETALHE (mesmos campos no geral e no item; nomes do cadastro). */
+const linhaDoDetalhe = (r, ordem, valor, percentual) => {
+  const nat = NATUREZAS.find((n) => n.id === r.natureza_id);
+  return {
+    ordem, natureza_id: r.natureza_id, natureza_nome: nat?.nome ?? null, natureza_tipo: nat?.tipo ?? null,
+    centro_custo_id: r.centro_custo_id ?? null, centro_custo_nome: CENTROS_CUSTO.find((c) => c.id === r.centro_custo_id)?.nome ?? null,
+    centro_resultado_id: r.centro_resultado_id ?? null, centro_resultado_nome: CENTROS_RESULTADO.find((c) => c.id === r.centro_resultado_id)?.nome ?? null,
+    percentual, valor,
+  };
+};
+
+/**
+ * POR_ITEM: cada item sobre o SEU líquido (a MESMA conta da tela e do servidor,
+ * src/lib/rateioPorItem.js); a recusa aponta item e linha.
+ */
+const ratearPorItem = (corpo, itens, casas) =>
+  itens.forEach((item, indice) => {
+    const percentual = corpo.rateio_modo === 'PERCENTUAL';
+    const linhas = (corpo.itens[indice].rateios ?? []).map((l) => ({
+      natureza_id: l.natureza_id, centro_custo_id: l.centro_custo_id ?? null, centro_resultado_id: l.centro_resultado_id ?? null,
+      valor: percentual ? null : l.valor ?? null, percentual: percentual ? l.percentual ?? null : null,
+    }));
+    const r = planejarRateioDoItem({ modo: corpo.rateio_modo, liquido: item.valor_liquido, linhas, casas });
+    if (r.erro) {
+      throw rateioInvalido({
+        field: r.erro.field, reason: r.erro.reason, ...posicaoNoItem(indice, r.erro.subindice), item_ordem: item.ordem, ...r.erro.details,
+        ...(r.erro.reason === 'soma_diferente' ? { valor_liquido: item.valor_liquido } : {}),
+      });
+    }
+    item.rateios = linhas.map((l, j) => linhaDoDetalhe(l, j + 1, r.valores[j], r.percentuais[j]));
+  });
+
 /** Documento do corpo DOC (como o servidor recalcula). */
 const montarDoc = (estado, corpo, base = {}) => {
   const casas = estado.perfil?.moeda_casas ?? 2;
+  const escopo = exigirEscopoDoRateio(corpo);
   const itens = (corpo.itens ?? []).map((i, k) => {
     const prod = [...PRODUTOS, ...estado.produtosExtras].find((p) => p.id === i.produto_id);
     const local = LOCAIS.find((l) => l.id === i.local_estoque_id);
@@ -154,9 +228,11 @@ const montarDoc = (estado, corpo, base = {}) => {
     const { field, reason, details } = rateio.erro;
     throw new RecusaDoServidor(erro(422, 'OPERACAO_VALORES_INVALIDOS', { field, reason, details: { field, reason, ...details } }));
   }
-  itens.forEach((i, k) => Object.assign(i, rateio?.itens[k] ?? {}));
-  const valoresPct = corpo.rateio_modo === 'PERCENTUAL' ? ratearPercentual(total, corpo.rateios.map((r) => r.percentual), casas).valores : [];
-  const rateios = corpo.rateios.map((r, k) => {
+  itens.forEach((i, k) => Object.assign(i, rateio?.itens[k] ?? {}, { rateios: [] }));
+  if (escopo === 'POR_ITEM') ratearPorItem(corpo, itens, casas);
+  const rateiosCorpo = escopo === 'POR_ITEM' ? [] : corpo.rateios ?? [];
+  const valoresPct = corpo.rateio_modo === 'PERCENTUAL' ? ratearPercentual(total, rateiosCorpo.map((r) => r.percentual), casas).valores : [];
+  const rateios = rateiosCorpo.map((r, k) => {
     const nat = NATUREZAS.find((n) => n.id === r.natureza_id);
     return {
       ordem: k + 1, natureza_id: r.natureza_id, natureza_nome: nat?.nome ?? null, natureza_tipo: nat?.tipo ?? null,
@@ -177,10 +253,16 @@ const montarDoc = (estado, corpo, base = {}) => {
     direcao: corpo.direcao, conteudo: corpo.conteudo, condicao: corpo.condicao, parceiro_id: corpo.parceiro_id, parceiro_nome: parceiro?.nome ?? 'PARCEIRO',
     descricao: corpo.descricao ?? null, documento_referencia: corpo.documento_referencia ?? null, data_emissao: corpo.data_emissao,
     data_operacional: corpo.data_operacional ?? null, moeda: estado.perfil?.moeda ?? 'BRL', moeda_casas: casas,
-    valor_bruto: bruto, valor_desconto: desconto, valor_acrescimo: acrescimo, valor_total: total, rateio_modo: corpo.rateio_modo,
+    valor_bruto: bruto, valor_desconto: desconto, valor_acrescimo: acrescimo, valor_total: total, rateio_modo: corpo.rateio_modo, rateio_escopo: escopo,
     metodo_preferido: corpo.metodo_preferido ?? null, criado_por: usuario, confirmado_por: null, confirmado_em: null, cancelado_por: null,
     cancelado_em: null, motivo_cancelamento: null, created_date: base.created_date ?? TS, updated_date: TS,
     itens, rateios, titulos, historico: [...(base.historico ?? []), { acao: base.id ? 'operacao_financeira.editar' : 'operacao_financeira.criar', em: TS, usuario_login: 'dono' }],
+    // Resumo consolidado (D-PROD-156): no GERAL são as próprias linhas do geral (percentual
+    // gravado ou informativo sobre o total); no POR_ITEM, a soma por natureza + centros.
+    rateio_consolidado:
+      escopo === 'POR_ITEM'
+        ? consolidarRateio(itens.flatMap((i) => i.rateios), total, casas)
+        : rateios.map(({ ordem: _o, natureza_tipo: _t, ...r }) => ({ ...r, percentual: r.percentual ?? percentualDe(r.valor, total, casas, 6) })),
   };
 };
 
@@ -188,6 +270,10 @@ const montarDoc = (estado, corpo, base = {}) => {
 const detalhe = (doc, extra = {}) => {
   const copia = JSON.parse(JSON.stringify(doc));
   copia.titulos = copia.titulos.map(({ moeda_casas: _c, ...t }) => t);
+  // Como o servidor: NULL (documento da P3-01) é GERAL; `itens[].rateios` sempre presente.
+  copia.rateio_escopo = copia.rateio_escopo ?? 'GERAL';
+  copia.itens = copia.itens.map((i) => ({ ...i, rateios: i.rateios ?? [] }));
+  copia.rateio_consolidado = copia.rateio_consolidado ?? [];
   return { ...copia, ...extra };
 };
 
@@ -197,7 +283,7 @@ const resumoLista = (d) => {
     id: d.id, numero: d.numero, status: d.status, direcao: d.direcao, conteudo: d.conteudo, condicao: d.condicao, parceiro_nome: d.parceiro_nome,
     data_emissao: d.data_emissao, valor_total: d.valor_total, moeda: d.moeda, moeda_casas: d.moeda_casas,
     saldo_aberto: somar(abertos.map((t) => t.saldo), d.moeda_casas), proximo_vencimento: abertos[0]?.vencimento ?? null,
-    tem_estoque: d.itens.some((i) => i.tipo_item === 'MERCADORIA'), created_date: d.created_date,
+    tem_estoque: d.itens.some((i) => i.tipo_item === 'MERCADORIA'), created_date: d.created_date, rateio_escopo: d.rateio_escopo ?? 'GERAL',
   };
 };
 
@@ -318,11 +404,14 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       const residuos = doc.itens.map((i) => i.residuo_custo).filter((r) => r != null);
       const plano = {
         moeda: doc.moeda, moeda_casas: doc.moeda_casas, valor_bruto: doc.valor_bruto, valor_desconto: doc.valor_desconto, valor_acrescimo: doc.valor_acrescimo, valor_total: doc.valor_total,
-        itens: doc.itens.map(({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque, valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, custo_kg, residuo_custo }) => ({
+        rateio_escopo: doc.rateio_escopo ?? 'GERAL',
+        itens: doc.itens.map(({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque, valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, custo_kg, residuo_custo, rateios: linhas }) => ({
           ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque,
           valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, custo_kg: custo_kg ?? null, residuo_custo: residuo_custo ?? null,
+          rateios: (linhas ?? []).map((l) => ({ ...l })),
         })),
         rateios: doc.rateios.map(({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual }) => ({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual })),
+        rateio_consolidado: (doc.rateio_consolidado ?? []).map((l) => ({ ...l })),
         parcelas: doc.titulos.map((t) => ({ numero_parcela: t.numero_parcela, total_parcelas: t.total_parcelas, vencimento: t.vencimento, valor: t.valor })),
         efeitos_estoque: { entradas: doc.direcao === 'PAGAR' ? mercadorias.map(entrada) : [], saidas: doc.direcao === 'RECEBER' ? mercadorias.map(saida) : [] },
         resumo: { parcelas_n: doc.titulos.length, itens_estoque_n: estoque, valor_titulos: doc.valor_total, moeda: doc.moeda },

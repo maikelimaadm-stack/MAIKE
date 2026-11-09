@@ -11,7 +11,8 @@
  *     onboarding é feito pela tela);
  *   - parceiros: fornecedor e cliente (papéis explícitos);
  *   - naturezas DESPESA/RECEITA analíticas (e uma sintética, que o seletor
- *     não pode oferecer), centros de custo e de resultado;
+ *     não pode oferecer), centros de custo e de resultado (P3-02: a natureza
+ *     SANIDADE e o centro REBANHO DE RECRIA servem ao rateio POR ITEM);
  *   - produtos: SAL MINERAL (KG) e RAÇÃO (SACO de 30 kg);
  *   - local "DEPÓSITO 01" e estoque inicial coerente do SAL MINERAL em dois
  *     lotes (3 kg a 10,0000/kg e 10 kg a 12,0000/kg), cada um com o seu
@@ -114,9 +115,13 @@ export const semearTenantE2E = async (opcoes = {}) => {
     const custeio = await tx.naturezaFinanceira.create({ data: { ...base, numero: '1', tipo: 'DESPESA', nome: 'CUSTEIO' } });
     const insumos = await tx.naturezaFinanceira.create({ data: { ...base, numero: '1.1', tipo: 'DESPESA', nome: 'INSUMOS', pai_id: custeio.id } });
     const frete = await tx.naturezaFinanceira.create({ data: { ...base, numero: '1.2', tipo: 'DESPESA', nome: 'FRETE', pai_id: custeio.id } });
+    // P3-02 (D-PROD-156): terceira natureza de despesa e segundo centro de custo
+    // para a compra com rateio POR ITEM (3 naturezas; 1 item em 2 centros).
+    const sanidade = await tx.naturezaFinanceira.create({ data: { ...base, numero: '1.3', tipo: 'DESPESA', nome: 'SANIDADE', pai_id: custeio.id } });
     const vendaInsumos = await tx.naturezaFinanceira.create({ data: { ...base, numero: '2', tipo: 'RECEITA', nome: 'VENDA DE INSUMOS' } });
     const servicos = await tx.naturezaFinanceira.create({ data: { ...base, numero: '3', tipo: 'RECEITA', nome: 'SERVIÇOS PRESTADOS' } });
     const centroCusto = await tx.centroCusto.create({ data: { ...base, numero: '1', nome: 'REBANHO DE CRIA' } });
+    const centroCusto2 = await tx.centroCusto.create({ data: { ...base, numero: '2', nome: 'REBANHO DE RECRIA' } });
     const centroResultado = await tx.centroResultado.create({ data: { ...base, numero: '1', nome: 'PECUÁRIA DE CORTE' } });
     const local = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '1', nome: 'DEPÓSITO 01' } });
     const sal = await tx.produto.create({
@@ -233,8 +238,8 @@ export const semearTenantE2E = async (opcoes = {}) => {
       local2: { id: local2.id, nome: local2.nome },
       local3: { id: local3.id, nome: local3.nome },
       parceiros: { fornecedor: { id: fornecedor.id, nome: fornecedor.nome }, cliente: { id: clienteParceiro.id, nome: clienteParceiro.nome } },
-      naturezas: { sintetica: custeio.id, insumos: insumos.id, frete: frete.id, venda_insumos: vendaInsumos.id, servicos: servicos.id },
-      centros: { custo: centroCusto.id, resultado: centroResultado.id },
+      naturezas: { sintetica: custeio.id, insumos: insumos.id, frete: frete.id, sanidade: sanidade.id, venda_insumos: vendaInsumos.id, servicos: servicos.id },
+      centros: { custo: centroCusto.id, custo2: centroCusto2.id, resultado: centroResultado.id },
       local: { id: local.id, nome: local.nome },
       produtos: { sal: { id: sal.id, nome: sal.nome_produto }, racao: { id: racao.id, nome: racao.nome_produto }, nucleo: { id: nucleo.id, nome: nucleo.nome_produto } },
       lotes_sal: lotes,

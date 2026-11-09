@@ -13,6 +13,7 @@ import {
   comparar,
   dividirComRestoNaUltima,
   ehPositivo,
+  formatarNumero,
   lerNumeroLocal,
   multiplicarArredondar,
   naEscala,
@@ -25,6 +26,7 @@ import {
 import { ehDiaValido, somarDias } from '@/lib/diaCivil';
 import { mensagemDaLinhaDoRateio } from '@/lib/gestaoErros';
 import { ratearCabecalho } from '@/lib/rateioCabecalho';
+import { MAX_RATEIOS_ITENS_TOTAL, MAX_RATEIOS_POR_ITEM, distribuirProporcional, escopoDoRateio } from '@/lib/rateioPorItem';
 
 export const MAX_ITENS = 200;
 export const MAX_RATEIOS = 50;
@@ -61,6 +63,12 @@ export const parcelaVazia = (vencimento = '', valor = '') => ({ chave: novaChave
 
 /**
  * Formulário novo. Padrões visíveis: a pagar, sem produtos, à vista, emissão = hoje.
+ *
+ * Rateio (D-PROD-156): `rateio_escopo` GERAL (padrão, o de sempre, em `rateios`)
+ * ou POR_ITEM (só com produtos). No POR_ITEM as linhas de cada item ficam em
+ * `rateios_itens[chave do item]` — presas à CHAVE estável do item, nunca ao
+ * índice: reordenar leva as linhas junto e remover o item as remove. O rateio
+ * geral continua guardado em `rateios` enquanto o escopo é POR_ITEM.
  * @param {{ hoje: string }} p
  * @returns {any}
  */
@@ -79,8 +87,10 @@ export const formularioVazio = ({ hoje }) => ({
   valor_desconto: '',
   valor_acrescimo: '',
   itens: [],
+  rateio_escopo: 'GERAL',
   rateio_modo: 'VALOR',
   rateios: [rateioVazio()],
+  rateios_itens: {},
   parcelas: [],
   prazo_vencimento: somarDias(hoje, 30),
   gerador: { quantidade: '2', primeiro_vencimento: somarDias(hoje, 30), intervalo: '30', entrada: '' },
@@ -110,14 +120,25 @@ export const formularioDoDetalhe = (d, ctx) => {
     valor_unitario: numero(i.valor_unitario, 6),
   }));
   const modo = d?.rateio_modo === 'PERCENTUAL' ? 'PERCENTUAL' : 'VALOR';
-  const rateios = (Array.isArray(d?.rateios) ? d.rateios : []).map((/** @type {any} */ r) => ({
+  const linhaDoRateio = (/** @type {any} */ r) => ({
     chave: novaChaveLinha(),
     natureza: ref(r.natureza_id, r.natureza_nome),
     centro_custo: ref(r.centro_custo_id, r.centro_custo_nome),
     centro_resultado: ref(r.centro_resultado_id, r.centro_resultado_nome),
     valor: modo === 'VALOR' ? dinheiro(r.valor) : '',
     percentual: modo === 'PERCENTUAL' ? numero(r.percentual, 6) : '',
-  }));
+  });
+  const rateios = (Array.isArray(d?.rateios) ? d.rateios : []).map(linhaDoRateio);
+  // Rascunho antigo (P3-01, sem `rateio_escopo`) abre como GERAL.
+  const escopo = d?.conteudo === 'COM_PRODUTOS' ? escopoDoRateio(d?.rateio_escopo) : 'GERAL';
+  /** @type {Record<string, any[]>} */
+  const rateiosItens = {};
+  if (escopo === 'POR_ITEM') {
+    (Array.isArray(d?.itens) ? d.itens : []).forEach((/** @type {any} */ i, /** @type {number} */ k) => {
+      const linhas = Array.isArray(i?.rateios) ? [...i.rateios].sort((a, b) => (a?.ordem ?? 0) - (b?.ordem ?? 0)) : [];
+      rateiosItens[itens[k].chave] = linhas.map(linhaDoRateio);
+    });
+  }
   const titulos = Array.isArray(d?.titulos) ? d.titulos : [];
   const parcelas = [...titulos]
     .sort((/** @type {any} */ a, /** @type {any} */ b) => (a.numero_parcela ?? 0) - (b.numero_parcela ?? 0))
@@ -140,8 +161,10 @@ export const formularioDoDetalhe = (d, ctx) => {
     valor_desconto: dinheiro(d?.valor_desconto),
     valor_acrescimo: dinheiro(d?.valor_acrescimo),
     itens,
+    rateio_escopo: escopo,
     rateio_modo: modo,
     rateios: rateios.length ? rateios : [rateioVazio()],
+    rateios_itens: rateiosItens,
     parcelas: condicao === 'PARCELADO' ? parcelas : [],
     prazo_vencimento: condicao === 'PRAZO' ? (parcelas[0]?.vencimento ?? '') : '',
     gerador: { quantidade: String(Math.max(2, parcelas.length || 2)), primeiro_vencimento: parcelas[0]?.vencimento || somarDias(emissao, 30), intervalo: '30', entrada: '' },
@@ -183,6 +206,252 @@ const pesoDoSaco = (produto) => {
 
 /** O produto aceita SACO? (só com unidade principal SACO e peso por saco > 0). @param {any} produto */
 export const produtoAceitaSaco = (produto) => produto?.unidade_principal_estoque === 'SACO' && pesoDoSaco(produto) !== null;
+
+// ─── Rateio POR ITEM (D-PROD-156) ────────────────────────────────────────
+
+/** Soma do item que não fecha (o indicador da tela já mostra quanto falta/sobra). */
+export const ERRO_SOMA_ITEM_VALOR = 'A soma das linhas precisa ser igual ao líquido do item';
+export const ERRO_SOMA_ITEM_PERCENTUAL = 'Os percentuais deste item precisam somar exatamente 100%';
+
+/** Linhas do rateio de UM item, pela CHAVE estável dele. @param {any} form @param {string} chave @returns {any[]} */
+export const linhasDoItem = (form, chave) => {
+  const linhas = form?.rateios_itens?.[chave];
+  return Array.isArray(linhas) ? linhas : [];
+};
+
+/** Alguma linha por item tem algo escolhido ou digitado? (troca POR_ITEM → GERAL pede confirmação) @param {any} form */
+export const temDadosPorItem = (form) =>
+  (form?.itens ?? []).some((/** @type {any} */ i) =>
+    linhasDoItem(form, i.chave).some((r) => r.natureza || r.centro_custo || r.centro_resultado || String(r.valor ?? '').trim() || String(r.percentual ?? '').trim()),
+  );
+
+/**
+ * Linha do corpo DOC (geral ou de um item): natureza, centros e o valor OU o
+ * percentual, conforme o modo do documento.
+ * @param {any} r @param {string} modo @param {string|null} percentual @param {string|null} valor
+ */
+const linhaDoCorpo = (r, modo, percentual, valor) => {
+  /** @type {Record<string, unknown>} */
+  const linha = { natureza_id: r.natureza?.id };
+  if (r.centro_custo) linha.centro_custo_id = r.centro_custo.id;
+  if (r.centro_resultado) linha.centro_resultado_id = r.centro_resultado.id;
+  if (modo === 'PERCENTUAL') linha.percentual = percentual;
+  else linha.valor = valor;
+  return linha;
+};
+
+/** Item novo no fim; no POR_ITEM ele já nasce com 1 linha (vazia) de rateio. @param {any} form @param {string} tipo @returns {any} */
+export const adicionarItemAoFormulario = (form, tipo) => {
+  const item = itemVazio(tipo);
+  const porItem = form.conteudo === 'COM_PRODUTOS' && form.rateio_escopo === 'POR_ITEM';
+  const rateiosItens = form.rateios_itens ?? {};
+  return { ...form, itens: [...form.itens, item], rateios_itens: porItem ? { ...rateiosItens, [item.chave]: [rateioVazio()] } : rateiosItens };
+};
+
+/** Remove o item `i` e, junto, as linhas de rateio dele. @param {any} form @param {number} i @returns {any} */
+export const removerItemDoFormulario = (form, i) => {
+  const chave = form.itens[i]?.chave;
+  const { [chave]: _removidas, ...rateiosItens } = form.rateios_itens ?? {};
+  return { ...form, itens: form.itens.filter((/** @type {any} */ _, /** @type {number} */ k) => k !== i), rateios_itens: rateiosItens };
+};
+
+/**
+ * Move o item `i` uma posição (`delta` −1 sobe, +1 desce). As linhas de rateio
+ * vão junto porque vivem na CHAVE do item, não no índice.
+ * @param {any} form @param {number} i @param {number} delta @returns {any}
+ */
+export const moverItemDoFormulario = (form, i, delta) => {
+  const j = i + delta;
+  if (i < 0 || j < 0 || i >= form.itens.length || j >= form.itens.length) return form;
+  const itens = [...form.itens];
+  [itens[i], itens[j]] = [itens[j], itens[i]];
+  return { ...form, itens };
+};
+
+/**
+ * "Aplicar classificação a todos os itens": cada item fica com UMA linha (100%
+ * automático) com a natureza e os centros escolhidos uma vez.
+ * @param {any} form @param {{ natureza: any, centro_custo?: any, centro_resultado?: any }} c
+ * @returns {Record<string, any[]>}
+ */
+export const classificacaoParaTodos = (form, { natureza, centro_custo = null, centro_resultado = null }) =>
+  Object.fromEntries(form.itens.map((/** @type {any} */ i) => [i.chave, [{ ...rateioVazio(), natureza, centro_custo, centro_resultado }]]));
+
+/**
+ * GERAL → POR_ITEM, opção "usar a classificação geral": cada item recebe as
+ * MESMAS naturezas e centros do geral, nas MESMAS proporções, sobre o SEU
+ * líquido (maiores restos em unidades mínimas; empate → menor ordem). Só com o
+ * geral completo e fechado; senão volta o motivo (e a tela oferece só
+ * "começar em branco"). O geral do formulário não muda.
+ * @param {any} form
+ * @param {ReturnType<typeof calcularResumo>} resumo resumo do formulário no escopo GERAL
+ * @param {{ locale: string, casas: number }} ctx
+ * @returns {{ possivel: boolean, motivo: string|null, rateios_itens: Record<string, any[]> }}
+ */
+export const inicializacaoProporcional = (form, resumo, { locale, casas }) => {
+  const nada = (/** @type {string} */ motivo) => ({ possivel: false, motivo, rateios_itens: {} });
+  const geral = Array.isArray(form.rateios) ? form.rateios : [];
+  if (!form.itens.length) return nada('Inclua os itens antes de classificar por item.');
+  if (!geral.length || geral.some((/** @type {any} */ r) => !r.natureza)) return nada('O rateio geral tem linha sem natureza: complete o rateio geral ou comece em branco.');
+  const copia = (/** @type {any} */ r, /** @type {Partial<{ valor: string, percentual: string }>} */ extra) => ({
+    ...rateioVazio(),
+    natureza: r.natureza,
+    centro_custo: r.centro_custo ?? null,
+    centro_resultado: r.centro_resultado ?? null,
+    ...extra,
+  });
+  if (geral.length === 1) {
+    return { possivel: true, motivo: null, rateios_itens: Object.fromEntries(form.itens.map((/** @type {any} */ i) => [i.chave, [copia(geral[0], {})]])) };
+  }
+  const errosGeral = Object.keys(resumo.erros).some((c) => c === 'rateio' || c.startsWith('rateios.'));
+  if (form.rateio_modo === 'PERCENTUAL') {
+    const pcts = resumo.rateio.percentuais;
+    if (errosGeral || resumo.rateio.somaPercentual == null || comparar(resumo.rateio.somaPercentual, '100') !== 0 || pcts.some((p) => !p)) {
+      return nada('O rateio geral não fecha (os percentuais precisam somar 100%): ajuste o rateio geral ou comece em branco.');
+    }
+    const percentuais = pcts.map((p) => paraTextoDeEdicao(/** @type {string} */ (p), locale, { casasMin: 0, casasMax: 6 }));
+    return { possivel: true, motivo: null, rateios_itens: Object.fromEntries(form.itens.map((/** @type {any} */ i) => [i.chave, geral.map((/** @type {any} */ r, /** @type {number} */ j) => copia(r, { percentual: percentuais[j] }))])) };
+  }
+  const pesos = resumo.rateio.valores;
+  if (errosGeral || !resumo.rateio.fecha || pesos.some((v) => !v)) {
+    return nada('O rateio geral não fecha com o total: ajuste o rateio geral ou comece em branco.');
+  }
+  const liquidos = resumo.liquidos ?? [];
+  if (liquidos.length !== form.itens.length || liquidos.some((l) => !l)) {
+    return nada('Preencha quantidade e valor de todos os itens: o rateio proporcional é feito sobre o líquido de cada item.');
+  }
+  /** @type {Record<string, any[]>} */
+  const rateiosItens = {};
+  for (const [k, item] of form.itens.entries()) {
+    const valores = distribuirProporcional({ liquido: /** @type {string} */ (liquidos[k]), pesos: /** @type {string[]} */ (pesos), casas, casasPeso: casas });
+    if (!valores) return nada('Não foi possível calcular o líquido de algum item: comece em branco.');
+    // Linha que ficaria com zero neste item não leva dinheiro: fica de fora (Σ continua = líquido).
+    rateiosItens[item.chave] = geral
+      .map((/** @type {any} */ r, /** @type {number} */ j) => ({ r, v: valores[j] }))
+      .filter(({ v }) => ehPositivo(v))
+      .map(({ r, v }) => copia(r, { valor: formatarNumero(v, { locale, casasMin: casas, casasMax: casas }) }));
+  }
+  return { possivel: true, motivo: null, rateios_itens: rateiosItens };
+};
+
+const CAMPO_DA_LINHA = /** @type {Record<string, string>} */ ({
+  natureza_id: 'natureza',
+  natureza_tipo: 'natureza',
+  centro_custo_id: 'centro_custo',
+  centro_resultado_id: 'centro_resultado',
+  valor: 'valor',
+  percentual: 'percentual',
+});
+
+/**
+ * Campo do formulário apontado por um erro do servidor no rateio POR ITEM
+ * (`details.colecao = 'itens'`, `indice`, `subcolecao = 'rateios'`, `subindice`).
+ * Sem `subindice` (soma, item sem linha, limite) o alvo é o item inteiro.
+ * @param {{ field?: string|null, details?: Record<string, any> }} e
+ * @returns {{ indice: number, subindice: number|null, campo: string } | null}
+ */
+export const alvoDoErroDoRateioPorItem = ({ field = null, details = {} }) => {
+  if (details?.colecao !== 'itens' || details?.subcolecao !== 'rateios' || !Number.isInteger(details.indice)) return null;
+  const subindice = Number.isInteger(details.subindice) ? details.subindice : null;
+  return { indice: details.indice, subindice, campo: subindice === null ? 'rateio' : CAMPO_DA_LINHA[String(field ?? details.field ?? '')] ?? 'natureza' };
+};
+
+/**
+ * Confere o rateio POR ITEM: cada item sobre o SEU líquido, no modo do
+ * documento. Erros em `itens.<i>.rateios.<j>.<campo>` e `itens.<i>.rateio` (o
+ * índice é só o da exibição; o estado vive na chave do item).
+ * @param {any} form
+ * @param {Array<string|null>} liquidos
+ * @param {{ locale: string, casas: number, total: string|null }} c
+ * @param {Record<string, string>} erros (recebe os erros encontrados)
+ */
+const conferirRateioPorItem = (form, liquidos, { locale, casas, total }, erros) => {
+  const DIN = { casas, inteiros: LIMITES.DINHEIRO.inteiros };
+  const emPercentual = form.rateio_modo === 'PERCENTUAL';
+  let totalLinhas = 0;
+  const porItem = form.itens.map((/** @type {any} */ item, /** @type {number} */ k) => {
+    const linhas = linhasDoItem(form, item.chave);
+    totalLinhas += linhas.length;
+    const base = `itens.${k}`;
+    const liquido = liquidos[k] ?? null;
+    const umaLinha = linhas.length === 1;
+    /** @type {Array<string|null>} */
+    let valores = linhas.map(() => null);
+    /** @type {Array<string|null>} */
+    let percentuais = linhas.map(() => null);
+    /** @type {Array<string|null>} */
+    let percentuaisInformativos = linhas.map(() => null);
+    /** @type {string|null} */
+    let diferenca = null;
+    /** @type {string|null} */
+    let somaPercentual = null;
+    let fecha = false;
+    if (emPercentual) {
+      percentuais = linhas.map((r, j) => {
+        if (umaLinha) return '100';
+        const p = lerCampo(r.percentual, locale, LIMITES.PERCENTUAL, { obrigatorio: true, positivo: true });
+        if (!p.erro && p.valor && comparar(p.valor, '100') > 0) p.erro = 'No máximo 100%';
+        if (p.erro) erros[`${base}.rateios.${j}.percentual`] = p.erro;
+        return p.erro ? null : p.valor;
+      });
+      somaPercentual = linhas.length && percentuais.every((p) => p) ? somar(percentuais, 6) : null;
+      if (somaPercentual && comparar(somaPercentual, '100') !== 0) erros[`${base}.rateio`] = ERRO_SOMA_ITEM_PERCENTUAL;
+      else if (somaPercentual && liquido) {
+        const r = ratearPercentual(liquido, percentuais, casas);
+        valores = r.valores;
+        fecha = r.fecha100 && r.linhasZeradas.length === 0;
+        if (r.fecha100) diferenca = subtrair(liquido, somar(r.valores, casas), casas);
+        for (const j of r.linhasZeradas) erros[`${base}.rateios.${j}.percentual`] = 'Esta linha ficaria com valor zero';
+      }
+    } else {
+      valores = linhas.map((r, j) => {
+        if (umaLinha) return liquido;
+        const v = lerCampo(r.valor, locale, DIN, { obrigatorio: true, positivo: true });
+        if (v.erro) erros[`${base}.rateios.${j}.valor`] = v.erro;
+        return v.erro || !v.valor ? null : naEscala(v.valor, casas);
+      });
+      if (liquido && linhas.length && valores.every((v) => v)) {
+        diferenca = subtrair(liquido, somar(valores, casas), casas);
+        fecha = comparar(diferenca, '0') === 0;
+        if (!fecha) erros[`${base}.rateio`] = ERRO_SOMA_ITEM_VALOR;
+        percentuaisInformativos = valores.map((v) => percentualDe(/** @type {string} */ (v), liquido, casas, 2));
+      }
+    }
+    linhas.forEach((r, j) => {
+      if (!r.natureza) erros[`${base}.rateios.${j}.natureza`] = 'Escolha a natureza';
+    });
+    /** @type {Map<string, number>} */
+    const vistos = new Map();
+    linhas.forEach((r, j) => {
+      if (!r.natureza) return;
+      const chave = `${r.natureza.id}|${r.centro_custo?.id ?? ''}|${r.centro_resultado?.id ?? ''}`;
+      const anterior = vistos.get(chave);
+      if (anterior !== undefined) erros[`${base}.rateios.${j}.natureza`] = `Linha repetida (igual à linha ${anterior + 1})`;
+      else vistos.set(chave, j);
+    });
+    if (!linhas.length) erros[`${base}.rateio`] = 'Inclua pelo menos uma linha de rateio neste item';
+    else if (linhas.length > MAX_RATEIOS_POR_ITEM) erros[`${base}.rateio`] = `No máximo ${MAX_RATEIOS_POR_ITEM} linhas de rateio por item`;
+    const comErro = Object.keys(erros).some((c) => c === `${base}.rateio` || c.startsWith(`${base}.rateios.`));
+    return { chave: /** @type {string} */ (item.chave), liquido, valores, percentuais, percentuaisInformativos, diferenca, somaPercentual, fecha: fecha && !comErro };
+  });
+  if (totalLinhas > MAX_RATEIOS_ITENS_TOTAL) erros.rateio_itens = `No máximo ${MAX_RATEIOS_ITENS_TOTAL} linhas de rateio somando todos os itens`;
+  const todos = porItem.flatMap((/** @type {any} */ i) => i.valores);
+  const diferencaTotal = total && todos.length && todos.every((/** @type {string|null} */ v) => v) ? subtrair(total, somar(todos, casas), casas) : null;
+  /** @type {Array<{ chave: string, item: number|null, linha: number|null, mensagem: string }>} */
+  const problemas = [];
+  porItem.forEach((/** @type {any} */ _, /** @type {number} */ k) => {
+    const base = `itens.${k}`;
+    const daLinha = Object.keys(erros)
+      .filter((c) => c.startsWith(`${base}.rateios.`))
+      .map((c) => ({ chave: c, item: k, linha: Number(c.split('.')[3]), mensagem: erros[c] }))
+      .sort((a, b) => a.linha - b.linha);
+    problemas.push(...daLinha);
+    if (erros[`${base}.rateio`]) problemas.push({ chave: `${base}.rateio`, item: k, linha: null, mensagem: erros[`${base}.rateio`] });
+  });
+  if (erros.rateio_itens) problemas.push({ chave: 'rateio_itens', item: null, linha: null, mensagem: erros.rateio_itens });
+  const fecha = porItem.length > 0 && porItem.every((/** @type {any} */ i) => i.fecha) && !erros.rateio_itens && diferencaTotal !== null && comparar(diferencaTotal, '0') === 0;
+  return { porItem, totalLinhas, diferencaTotal, fecha, problemas };
+};
 
 /**
  * Tudo o que é derivado do formulário, mais os erros por campo.
@@ -260,6 +529,9 @@ export const calcularResumo = (form, ctx) => {
   // Custo de aquisição líquido (rodada 4): a MESMA política do servidor
   // (desconto/acréscimo rateados por item; custo/kg com 4 casas) aponta, DENTRO
   // do item, a linha que o servidor recusaria — antes de salvar ou confirmar.
+  // O líquido de cada item é também a BASE do rateio por item (D-PROD-156).
+  /** @type {Array<string|null>} */
+  const liquidos = itens.map(() => null);
   if (comProdutos && totalValido && itens.length && itens.every((i) => i.subtotal && ehPositivo(i.subtotal))) {
     const rateio = ratearCabecalho({
       direcao: form.direcao,
@@ -267,6 +539,9 @@ export const calcularResumo = (form, ctx) => {
       valor_desconto: desconto,
       valor_acrescimo: acrescimo,
       itens: itens.map((i, k) => ({ ordem: k + 1, tipo_item: form.itens[k]?.tipo_item, valor_total: /** @type {string} */ (i.subtotal), quantidade_estoque: form.itens[k]?.tipo_item === 'MERCADORIA' ? i.kg : null })),
+    });
+    rateio?.itens.forEach((ri, k) => {
+      if (ehPositivo(ri.valor_liquido)) liquidos[k] = ri.valor_liquido;
     });
     if (rateio?.erro) {
       const { reason, details } = rateio.erro;
@@ -282,58 +557,69 @@ export const calcularResumo = (form, ctx) => {
     }
   }
 
-  // Rateio (sempre sobre o TOTAL, depois de desconto e acréscimo)
-  const umaLinha = form.rateios.length === 1;
+  // Rateio GERAL (sempre sobre o TOTAL, depois de desconto e acréscimo). No
+  // escopo POR_ITEM (D-PROD-156) o geral fica guardado no formulário, mas não é
+  // conferido nem enviado: cada item é conferido sobre o SEU líquido.
+  const porItem = comProdutos && form.rateio_escopo === 'POR_ITEM';
   /** @type {Array<string|null>} */
   let valoresRateio = [];
+  /** @type {string|null} */
   let diferencaRateio = null;
+  /** @type {string|null} */
   let somaPercentual = null;
   let rateioFecha = false;
   /** @type {Array<string|null>} */
   let percentuais = [];
-  if (form.rateio_modo === 'PERCENTUAL') {
-    const pcts = form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => {
-      if (umaLinha) return '100';
-      const p = lerCampo(r.percentual, locale, LIMITES.PERCENTUAL, { obrigatorio: true, positivo: true });
-      if (!p.erro && p.valor && comparar(p.valor, '100') > 0) p.erro = 'No máximo 100%';
-      if (p.erro) erros[`rateios.${i}.percentual`] = p.erro;
-      return p.erro ? null : p.valor;
-    });
-    percentuais = pcts;
-    const soma = pcts.every((p) => p) ? somar(pcts, 6) : null;
-    somaPercentual = soma;
-    if (soma && comparar(soma, '100') !== 0) erros.rateio = 'Os percentuais precisam somar exatamente 100%';
-    else if (totalValido && soma) {
-      const r = ratearPercentual(/** @type {string} */ (total), pcts, casas);
-      rateioFecha = r.fecha100 && r.linhasZeradas.length === 0;
-      valoresRateio = r.valores;
-      for (const i of r.linhasZeradas) erros[`rateios.${i}.percentual`] = 'Esta linha ficaria com valor zero';
-    }
+  /** @type {ReturnType<typeof conferirRateioPorItem>|null} */
+  let rateioItens = null;
+  if (porItem) {
+    rateioItens = conferirRateioPorItem(form, liquidos, { locale, casas, total: totalValido ? total : null }, erros);
   } else {
-    valoresRateio = form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => {
-      if (umaLinha) return totalValido ? total : null;
-      const v = lerCampo(r.valor, locale, DIN, { obrigatorio: true, positivo: true });
-      if (v.erro) erros[`rateios.${i}.valor`] = v.erro;
-      return v.erro || !v.valor ? null : naEscala(v.valor, casas);
-    });
-    if (totalValido && valoresRateio.every((v) => v)) {
-      diferencaRateio = subtrair(/** @type {string} */ (total), somar(valoresRateio, casas), casas);
-      rateioFecha = comparar(diferencaRateio, '0') === 0;
-      if (!rateioFecha) erros.rateio = 'A soma do rateio precisa ser igual ao total';
+    const umaLinha = form.rateios.length === 1;
+    if (form.rateio_modo === 'PERCENTUAL') {
+      const pcts = form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => {
+        if (umaLinha) return '100';
+        const p = lerCampo(r.percentual, locale, LIMITES.PERCENTUAL, { obrigatorio: true, positivo: true });
+        if (!p.erro && p.valor && comparar(p.valor, '100') > 0) p.erro = 'No máximo 100%';
+        if (p.erro) erros[`rateios.${i}.percentual`] = p.erro;
+        return p.erro ? null : p.valor;
+      });
+      percentuais = pcts;
+      const soma = pcts.every((p) => p) ? somar(pcts, 6) : null;
+      somaPercentual = soma;
+      if (soma && comparar(soma, '100') !== 0) erros.rateio = 'Os percentuais precisam somar exatamente 100%';
+      else if (totalValido && soma) {
+        const r = ratearPercentual(/** @type {string} */ (total), pcts, casas);
+        rateioFecha = r.fecha100 && r.linhasZeradas.length === 0;
+        valoresRateio = r.valores;
+        for (const i of r.linhasZeradas) erros[`rateios.${i}.percentual`] = 'Esta linha ficaria com valor zero';
+      }
+    } else {
+      valoresRateio = form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => {
+        if (umaLinha) return totalValido ? total : null;
+        const v = lerCampo(r.valor, locale, DIN, { obrigatorio: true, positivo: true });
+        if (v.erro) erros[`rateios.${i}.valor`] = v.erro;
+        return v.erro || !v.valor ? null : naEscala(v.valor, casas);
+      });
+      if (totalValido && valoresRateio.every((v) => v)) {
+        diferencaRateio = subtrair(/** @type {string} */ (total), somar(valoresRateio, casas), casas);
+        rateioFecha = comparar(diferencaRateio, '0') === 0;
+        if (!rateioFecha) erros.rateio = 'A soma do rateio precisa ser igual ao total';
+      }
     }
+    form.rateios.forEach((/** @type {any} */ r, /** @type {number} */ i) => {
+      if (!r.natureza) erros[`rateios.${i}.natureza`] = 'Escolha a natureza';
+    });
+    const vistos = new Map();
+    form.rateios.forEach((/** @type {any} */ r, /** @type {number} */ i) => {
+      if (!r.natureza) return;
+      const k = `${r.natureza.id}|${r.centro_custo?.id ?? ''}|${r.centro_resultado?.id ?? ''}`;
+      if (vistos.has(k)) erros[`rateios.${i}.natureza`] = `Linha repetida (igual à linha ${vistos.get(k) + 1})`;
+      else vistos.set(k, i);
+    });
+    if (!form.rateios.length) erros.rateio = 'Inclua pelo menos uma linha de rateio';
+    if (form.rateios.length > MAX_RATEIOS) erros.rateio = `No máximo ${MAX_RATEIOS} linhas de rateio`;
   }
-  form.rateios.forEach((/** @type {any} */ r, /** @type {number} */ i) => {
-    if (!r.natureza) erros[`rateios.${i}.natureza`] = 'Escolha a natureza';
-  });
-  const vistos = new Map();
-  form.rateios.forEach((/** @type {any} */ r, /** @type {number} */ i) => {
-    if (!r.natureza) return;
-    const k = `${r.natureza.id}|${r.centro_custo?.id ?? ''}|${r.centro_resultado?.id ?? ''}`;
-    if (vistos.has(k)) erros[`rateios.${i}.natureza`] = `Linha repetida (igual à linha ${vistos.get(k) + 1})`;
-    else vistos.set(k, i);
-  });
-  if (!form.rateios.length) erros.rateio = 'Inclua pelo menos uma linha de rateio';
-  if (form.rateios.length > MAX_RATEIOS) erros.rateio = `No máximo ${MAX_RATEIOS} linhas de rateio`;
 
   // Parcelas
   /** @type {Array<{ vencimento: string, valor: string|null }>} */
@@ -394,6 +680,8 @@ export const calcularResumo = (form, ctx) => {
           ? valoresRateio.map((v) => (v ? percentualDe(v, /** @type {string} */ (total), casas, 2) : null))
           : [],
     },
+    liquidos,
+    rateioItens,
     parcelas,
     diferencaParcelas,
     erros,
@@ -409,6 +697,7 @@ export const calcularResumo = (form, ctx) => {
  */
 export const montarDocumento = (form, resumo) => {
   const comProdutos = form.conteudo === 'COM_PRODUTOS';
+  const porItem = comProdutos && form.rateio_escopo === 'POR_ITEM';
   /** @type {Record<string, unknown>} */
   const doc = {
     direcao: form.direcao,
@@ -440,22 +729,23 @@ export const montarDocumento = (form, resumo) => {
       }
       const d = item.descricao.trim();
       if (d) linha.descricao = d;
+      // POR_ITEM: as linhas do item vão aninhadas nele (o servidor associa pela
+      // ordem do item na MESMA requisição — nunca por índice de outra coleção).
+      if (porItem) {
+        const conferido = resumo.rateioItens?.porItem[i];
+        linha.rateios = linhasDoItem(form, item.chave).map((/** @type {any} */ r, /** @type {number} */ j) =>
+          linhaDoCorpo(r, form.rateio_modo, conferido?.percentuais[j] ?? null, conferido?.valores[j] ?? null),
+        );
+      }
       return linha;
     });
   }
+  // Sempre explícito: o servidor grava o escopo (ausente = GERAL nos clientes antigos).
+  doc.rateio_escopo = porItem ? 'POR_ITEM' : 'GERAL';
   doc.rateio_modo = form.rateio_modo;
-  doc.rateios = form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => {
-    /** @type {Record<string, unknown>} */
-    const linha = { natureza_id: r.natureza?.id };
-    if (r.centro_custo) linha.centro_custo_id = r.centro_custo.id;
-    if (r.centro_resultado) linha.centro_resultado_id = r.centro_resultado.id;
-    if (form.rateio_modo === 'PERCENTUAL') {
-      linha.percentual = resumo.rateio.percentuais[i];
-    } else {
-      linha.valor = resumo.rateio.valores[i];
-    }
-    return linha;
-  });
+  doc.rateios = porItem
+    ? []
+    : form.rateios.map((/** @type {any} */ r, /** @type {number} */ i) => linhaDoCorpo(r, form.rateio_modo, resumo.rateio.percentuais[i] ?? null, resumo.rateio.valores[i] ?? null));
   doc.parcelas = resumo.parcelas.map((p) => ({ vencimento: p.vencimento, valor: p.valor }));
   return doc;
 };

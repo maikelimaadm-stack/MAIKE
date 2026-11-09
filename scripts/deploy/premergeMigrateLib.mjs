@@ -42,6 +42,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261108100000_gestao_p2_naturezas_financeiras': 'db299e1d3543769ed46f07ee174521d3ea75b2990b94181012eecdafb9462f04',
   // D-PROD-155 (Gestão P3-01): Central Única de Lançamentos — só as 8 tabelas novas.
   '20261109100000_gestao_p3_01_central_lancamentos': 'bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a',
+  // D-PROD-156 (Gestão P3-02): OperacaoFinanceira.rateio_escopo anulável, sem DEFAULT + tabela nova OperacaoFinanceiraItemRateio.
+  '20261109200000_gestao_p3_02_rateio_por_item': 'df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -53,6 +55,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'a532c9847a550d4b19015b8b3c2914b79fffdb6ae0e259438d5133c738e416a1',
   // D-PROD-155: RLS/REVOKE das 8 tabelas da Central Única de Lançamentos (mesmo corpo, lista nova).
   '0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe',
+  // D-PROD-156: RLS/REVOKE de OperacaoFinanceiraItemRateio (mesmo corpo, lista nova).
+  'dc05126cd737c77090c54fc04cd6f7d2ac0b7613168f13fb944a7477ca7bd576',
 ]);
 
 /**

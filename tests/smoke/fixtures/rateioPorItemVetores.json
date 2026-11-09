@@ -1,0 +1,1523 @@
+{
+  "$comentario": "D-PROD-156 (P3-02): vetores COMPARTILHADOS do rateio gerencial POR ITEM. Consumidos pelo backend (backend/tests/gestaoP3RateioItem.test.mjs: plano puro e PostgreSQL real) e pela tela (src/lib e o backend falso de tests/smoke/fixtures). Gerados pelo plano do backend (operacaoFinanceiraPlano.js) e conferidos pelo teste. Regra: a base de cada item é o seu valor_liquido = subtotal − desconto rateado + acréscimo rateado (rateio do cabeçalho de rateioCabecalhoVetores.json: maiores restos em unidades mínimas, empate → menor ordem). VALOR: cada linha > 0 e Σ das linhas do item = líquido do item, exato; o percentual é informativo, ROUND_HALF_UP(valor × 100 / líquido do item, 6). PERCENTUAL: Σ = 100 por item; cada linha recebe o piso de líquido × p / 100 em unidades mínimas e a sobra vai 1 unidade por vez às linhas de MAIOR resto (empate → menor ordem): o MESMO algoritmo do rateio geral. Linha que fica zero → 422 valor_linha_zero. rateio_consolidado: soma por (natureza, centro de custo, centro de resultado) na ordem da 1ª aparição (itens em ordem, depois as linhas), percentual sobre valor_total (6 casas); Σ valor = valor_total. Strings na escala: dinheiro nas casas da moeda, percentual com 6.",
+  "formato": {
+    "entrada": "perfil {pais, moeda, locale}, casas, rateio_modo (VALOR|PERCENTUAL), valor_desconto e valor_acrescimo do cabeçalho (null = 0) e itens [{tipo_item, subtotal (= quantidade 1 × valor_unitario), rateios [{natureza (N1..N3), centro_custo (C1|C2|null), centro_resultado (R1|null), valor (VALOR) ou percentual (PERCENTUAL)}]}]; escopo POR_ITEM, direção PAGAR",
+    "esperado_ok": "valor_total; itens [{valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, rateios [{valor, percentual}]}] (na ordem das linhas); rateio_consolidado [{natureza, centro_custo, centro_resultado, valor, percentual}]",
+    "esperado_erro": "erro {status, code, field, reason, details} — details com colecao \"itens\", indice do item, subcolecao \"rateios\" e (na linha) subindice"
+  },
+  "casos": [
+    {
+      "id": "brl-pct-tres-terços",
+      "descricao": "BRL, 1 item 100,00 em 3 naturezas 33,333333/33,333333/33,333334 (maior resto vai para a linha 3)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "100.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333334"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "100.00",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "100.00",
+            "rateios": [
+              {
+                "valor": "33.33",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "33.33",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "33.34",
+                "percentual": "33.333334"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "33.33",
+            "percentual": "33.330000"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "33.33",
+            "percentual": "33.330000"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "33.34",
+            "percentual": "33.340000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-empate-restos",
+      "descricao": "BRL, líquido 0,05 em 3 linhas: sobram 2 centavos → linha 3 (maior resto) e linha 1 (empate com a 2 → menor ordem)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "0.05",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333334"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "0.05",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "0.05",
+            "rateios": [
+              {
+                "valor": "0.02",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "0.01",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "0.02",
+                "percentual": "33.333334"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.02",
+            "percentual": "40.000000"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.01",
+            "percentual": "20.000000"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.02",
+            "percentual": "40.000000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-empate-meio-a-meio",
+      "descricao": "BRL, líquido 0,03 meio a meio: empate de restos → o centavo vai para a menor ordem",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "0.03",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "0.03",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "0.03",
+            "rateios": [
+              {
+                "valor": "0.02",
+                "percentual": "50.000000"
+              },
+              {
+                "valor": "0.01",
+                "percentual": "50.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.02",
+            "percentual": "66.666667"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.01",
+            "percentual": "33.333333"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-tres-itens-tres-naturezas",
+      "descricao": "BRL, 3 itens com 3 naturezas, 1 item em 2 centros de custo; consolidado soma a mesma natureza+centros entre itens",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "120.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "80.00",
+          "rateios": [
+            {
+              "natureza": "N2",
+              "centro_custo": "C1",
+              "centro_resultado": null,
+              "percentual": "60"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": "C2",
+              "centro_resultado": null,
+              "percentual": "40"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "45.50",
+          "rateios": [
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "70"
+            },
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "30"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "245.50",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "120.00",
+            "rateios": [
+              {
+                "valor": "120.00",
+                "percentual": "100.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "80.00",
+            "rateios": [
+              {
+                "valor": "48.00",
+                "percentual": "60.000000"
+              },
+              {
+                "valor": "32.00",
+                "percentual": "40.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "45.50",
+            "rateios": [
+              {
+                "valor": "31.85",
+                "percentual": "70.000000"
+              },
+              {
+                "valor": "13.65",
+                "percentual": "30.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "133.65",
+            "percentual": "54.439919"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": "C1",
+            "centro_resultado": null,
+            "valor": "48.00",
+            "percentual": "19.551935"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": "C2",
+            "centro_resultado": null,
+            "valor": "32.00",
+            "percentual": "13.034623"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "31.85",
+            "percentual": "12.973523"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-desconto-acrescimo-misto",
+      "descricao": "BRL, MERCADORIA + SERVICO com desconto 10,00 e acréscimo 0,07 do cabeçalho: base = líquido de cada item",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": "10.00",
+      "valor_acrescimo": "0.07",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "333.33",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": "C1",
+              "centro_resultado": null,
+              "percentual": "50"
+            },
+            {
+              "natureza": "N1",
+              "centro_custo": "C2",
+              "centro_resultado": null,
+              "percentual": "50"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "66.67",
+          "rateios": [
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "66.666667"
+            }
+          ]
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "100.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": "C1",
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "490.07",
+        "itens": [
+          {
+            "valor_desconto_rateado": "6.67",
+            "valor_acrescimo_rateado": "0.05",
+            "valor_liquido": "326.71",
+            "rateios": [
+              {
+                "valor": "163.36",
+                "percentual": "50.000000"
+              },
+              {
+                "valor": "163.35",
+                "percentual": "50.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "1.33",
+            "valor_acrescimo_rateado": "0.01",
+            "valor_liquido": "65.35",
+            "rateios": [
+              {
+                "valor": "21.78",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "43.57",
+                "percentual": "66.666667"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "2.00",
+            "valor_acrescimo_rateado": "0.01",
+            "valor_liquido": "98.01",
+            "rateios": [
+              {
+                "valor": "98.01",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": "C1",
+            "centro_resultado": null,
+            "valor": "261.37",
+            "percentual": "53.333197"
+          },
+          {
+            "natureza": "N1",
+            "centro_custo": "C2",
+            "centro_resultado": null,
+            "valor": "163.35",
+            "percentual": "33.331973"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "21.78",
+            "percentual": "4.444263"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "43.57",
+            "percentual": "8.890567"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-valor-desconto-acrescimo",
+      "descricao": "BRL, VALOR exato por item sobre o líquido (desconto 0,99 e acréscimo 0,10); percentual informativo sobre o líquido do item",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "VALOR",
+      "valor_desconto": "0.99",
+      "valor_acrescimo": "0.10",
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "10.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "3.00"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "6.70"
+            }
+          ]
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "20.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": "R1",
+              "valor": "19.41"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "0.03",
+          "rateios": [
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "0.03"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "29.14",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.33",
+            "valor_acrescimo_rateado": "0.03",
+            "valor_liquido": "9.70",
+            "rateios": [
+              {
+                "valor": "3.00",
+                "percentual": "30.927835"
+              },
+              {
+                "valor": "6.70",
+                "percentual": "69.072165"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.66",
+            "valor_acrescimo_rateado": "0.07",
+            "valor_liquido": "19.41",
+            "rateios": [
+              {
+                "valor": "19.41",
+                "percentual": "100.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "0.03",
+            "rateios": [
+              {
+                "valor": "0.03",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "3.00",
+            "percentual": "10.295127"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "6.70",
+            "percentual": "22.992450"
+          },
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": "R1",
+            "valor": "19.41",
+            "percentual": "66.609472"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.03",
+            "percentual": "0.102951"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pyg-pct-sem-casas",
+      "descricao": "PYG (0 casas), 3 itens com desconto 7: maiores restos em guaranis inteiros",
+      "perfil": {
+        "pais": "PY",
+        "moeda": "PYG",
+        "locale": "es-PY"
+      },
+      "casas": 0,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": "7",
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "1000",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333334"
+            }
+          ]
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "2000",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "3001",
+          "rateios": [
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "5994",
+        "itens": [
+          {
+            "valor_desconto_rateado": "1",
+            "valor_acrescimo_rateado": "0",
+            "valor_liquido": "999",
+            "rateios": [
+              {
+                "valor": "333",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "333",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "333",
+                "percentual": "33.333334"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "2",
+            "valor_acrescimo_rateado": "0",
+            "valor_liquido": "1998",
+            "rateios": [
+              {
+                "valor": "999",
+                "percentual": "50.000000"
+              },
+              {
+                "valor": "999",
+                "percentual": "50.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "4",
+            "valor_acrescimo_rateado": "0",
+            "valor_liquido": "2997",
+            "rateios": [
+              {
+                "valor": "2997",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "1332",
+            "percentual": "22.222222"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "1332",
+            "percentual": "22.222222"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "3330",
+            "percentual": "55.555556"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pyg-valor",
+      "descricao": "PYG (0 casas), VALOR com acréscimo 5",
+      "perfil": {
+        "pais": "PY",
+        "moeda": "PYG",
+        "locale": "es-PY"
+      },
+      "casas": 0,
+      "rateio_modo": "VALOR",
+      "valor_desconto": null,
+      "valor_acrescimo": "5",
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "100",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "60"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "41"
+            }
+          ]
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "250",
+          "rateios": [
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "254"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "355",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0",
+            "valor_acrescimo_rateado": "1",
+            "valor_liquido": "101",
+            "rateios": [
+              {
+                "valor": "60",
+                "percentual": "59.405941"
+              },
+              {
+                "valor": "41",
+                "percentual": "40.594059"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0",
+            "valor_acrescimo_rateado": "4",
+            "valor_liquido": "254",
+            "rateios": [
+              {
+                "valor": "254",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "60",
+            "percentual": "16.901408"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "41",
+            "percentual": "11.549296"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "254",
+            "percentual": "71.549296"
+          }
+        ]
+      }
+    },
+    {
+      "id": "kwd-pct-tres-casas",
+      "descricao": "KWD (3 casas), 2 itens com acréscimo 0,001: o milésimo vai para o item de maior resto",
+      "perfil": {
+        "pais": "KW",
+        "moeda": "KWD",
+        "locale": "en-US"
+      },
+      "casas": 3,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": "0.001",
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "10.000",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333334"
+            }
+          ]
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "subtotal": "0.002",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "10.003",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.000",
+            "valor_acrescimo_rateado": "0.001",
+            "valor_liquido": "10.001",
+            "rateios": [
+              {
+                "valor": "3.334",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "3.333",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "3.334",
+                "percentual": "33.333334"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.000",
+            "valor_acrescimo_rateado": "0.000",
+            "valor_liquido": "0.002",
+            "rateios": [
+              {
+                "valor": "0.001",
+                "percentual": "50.000000"
+              },
+              {
+                "valor": "0.001",
+                "percentual": "50.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "3.335",
+            "percentual": "33.339998"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "3.334",
+            "percentual": "33.330001"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "3.334",
+            "percentual": "33.330001"
+          }
+        ]
+      }
+    },
+    {
+      "id": "kwd-valor",
+      "descricao": "KWD (3 casas), VALOR com desconto 0,005",
+      "perfil": {
+        "pais": "KW",
+        "moeda": "KWD",
+        "locale": "en-US"
+      },
+      "casas": 3,
+      "rateio_modo": "VALOR",
+      "valor_desconto": "0.005",
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "1.000",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "0.333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "0.665"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "2.000",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "1.997"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "2.995",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.002",
+            "valor_acrescimo_rateado": "0.000",
+            "valor_liquido": "0.998",
+            "rateios": [
+              {
+                "valor": "0.333",
+                "percentual": "33.366733"
+              },
+              {
+                "valor": "0.665",
+                "percentual": "66.633267"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.003",
+            "valor_acrescimo_rateado": "0.000",
+            "valor_liquido": "1.997",
+            "rateios": [
+              {
+                "valor": "1.997",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "2.330",
+            "percentual": "77.796327"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.665",
+            "percentual": "22.203673"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-linha-unica",
+      "descricao": "BRL, uma linha por item = 100% do líquido (desconto 1,00 entre itens iguais: empate do cabeçalho → menor ordem)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": "0.01",
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "50.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "50.00",
+          "rateios": [
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "99.99",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.01",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "49.99",
+            "rateios": [
+              {
+                "valor": "49.99",
+                "percentual": "100.000000"
+              }
+            ]
+          },
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "50.00",
+            "rateios": [
+              {
+                "valor": "50.00",
+                "percentual": "100.000000"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "49.99",
+            "percentual": "49.994999"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "50.00",
+            "percentual": "50.005001"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-valor-grande",
+      "descricao": "BRL, líquido 999.999.999.999,99 em 33,333333/66,666667 (Decimal, sem float: exatos 333.333.329.999,9966666667 e 666.666.669.999,9933333333 → o centavo que sobra vai para a linha 1, de maior resto)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "999999999999.99",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "66.666667"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "999999999999.99",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "999999999999.99",
+            "rateios": [
+              {
+                "valor": "333333330000.00",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "666666669999.99",
+                "percentual": "66.666667"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "333333330000.00",
+            "percentual": "33.333333"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "666666669999.99",
+            "percentual": "66.666667"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brl-pct-empate-tres-iguais",
+      "descricao": "BRL, 0,10 em 3 linhas 33,333333/33,333334/33,333333: 1 centavo vai para a linha 2 (maior resto)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "0.10",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333334"
+            },
+            {
+              "natureza": "N3",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "33.333333"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "valor_total": "0.10",
+        "itens": [
+          {
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "0.10",
+            "rateios": [
+              {
+                "valor": "0.03",
+                "percentual": "33.333333"
+              },
+              {
+                "valor": "0.04",
+                "percentual": "33.333334"
+              },
+              {
+                "valor": "0.03",
+                "percentual": "33.333333"
+              }
+            ]
+          }
+        ],
+        "rateio_consolidado": [
+          {
+            "natureza": "N1",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.03",
+            "percentual": "30.000000"
+          },
+          {
+            "natureza": "N2",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.04",
+            "percentual": "40.000000"
+          },
+          {
+            "natureza": "N3",
+            "centro_custo": null,
+            "centro_resultado": null,
+            "valor": "0.03",
+            "percentual": "30.000000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "erro-valor-soma-item",
+      "descricao": "BRL, VALOR: o item 2 soma 1 centavo a menos que o líquido → 422 soma_diferente com indice 1",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "VALOR",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "10.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "10.00"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "5.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "2.00"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "valor": "2.99"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_RATEIO_INVALIDO",
+          "field": "rateios",
+          "reason": "soma_diferente",
+          "details": {
+            "modo": "VALOR",
+            "colecao": "itens",
+            "indice": 1,
+            "subcolecao": "rateios",
+            "item_ordem": 2,
+            "esperado": "5.00",
+            "informado": "4.99",
+            "diferenca": "0.01",
+            "valor_liquido": "5.00"
+          }
+        }
+      }
+    },
+    {
+      "id": "erro-pct-soma-item",
+      "descricao": "BRL, PERCENTUAL: o item 1 soma 99,999999 → 422 soma_diferente com indice 0",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "10.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "60"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "39.999999"
+            }
+          ]
+        },
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "5.00",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "100"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_RATEIO_INVALIDO",
+          "field": "rateios",
+          "reason": "soma_diferente",
+          "details": {
+            "modo": "PERCENTUAL",
+            "colecao": "itens",
+            "indice": 0,
+            "subcolecao": "rateios",
+            "item_ordem": 1,
+            "esperado": "100.000000",
+            "informado": "99.999999",
+            "diferenca": "0.000001",
+            "valor_liquido": "10.00"
+          }
+        }
+      }
+    },
+    {
+      "id": "erro-pct-linha-zera",
+      "descricao": "BRL, PERCENTUAL: líquido 0,01 em 50/50 → a linha 2 fica zero → 422 valor_linha_zero com indice 0, subindice 1",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "rateio_modo": "PERCENTUAL",
+      "valor_desconto": null,
+      "valor_acrescimo": null,
+      "itens": [
+        {
+          "tipo_item": "SERVICO",
+          "subtotal": "0.01",
+          "rateios": [
+            {
+              "natureza": "N1",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            },
+            {
+              "natureza": "N2",
+              "centro_custo": null,
+              "centro_resultado": null,
+              "percentual": "50"
+            }
+          ]
+        }
+      ],
+      "esperado": {
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_RATEIO_INVALIDO",
+          "field": "percentual",
+          "reason": "valor_linha_zero",
+          "details": {
+            "colecao": "itens",
+            "indice": 0,
+            "subcolecao": "rateios",
+            "subindice": 1,
+            "item_ordem": 1
+          }
+        }
+      }
+    }
+  ]
+}
