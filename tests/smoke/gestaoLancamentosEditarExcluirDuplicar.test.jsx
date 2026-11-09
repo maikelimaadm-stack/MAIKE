@@ -998,3 +998,156 @@ describe('ERR/SVC — mensagens dos códigos novos, contrato da API e pendência
     expect(chamadas('POST', /\/excluir$/)).toHaveLength(2);
   });
 });
+
+// ─── REV — achados da revisão adversarial (RED → GREEN) ──────────────────
+describe('REV — revisão: peso por saco gravado, motivos por direção, CAS da exclusão, cópia órfã e contrato do falso', () => {
+  const escolher = async (testId, rotulo) => {
+    await clicar(screen.getByTestId(testId));
+    const painel = await screen.findByTestId(`${testId}-painel`);
+    await clicar(await within(painel).findByRole('option', { name: rotulo }));
+  };
+  /** Venda com mercadoria: 10 kg de MILHO MOÍDO × 9,00 para o FRIGORÍFICO CENTRAL. */
+  const vendaSimples = (extra = {}) => ({
+    ...compraSimples(),
+    direcao: 'RECEBER',
+    parceiro_id: 'pa2',
+    itens: [{ tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo2', unidade: 'KG', quantidade: '10', valor_unitario: '9' }],
+    rateios: [{ natureza_id: 'nr1', valor: '90.00' }],
+    parcelas: [{ vencimento: '2026-11-08', valor: '90.00' }],
+    ...extra,
+  });
+
+  it('REV-1 (TELA-01) o cadastro mudou o peso por saco depois da compra: escolher de novo o MESMO produto e corrigir só a descrição prevê e grava NO_LUGAR com o peso GRAVADO; o diálogo diz que é previsão', async () => {
+    const doc = semearDocumento(estado, compraPorItem(), { confirmar: true });
+    // Recebida quando o saco pesava 30 kg; o cadastro (falso) hoje diz 25 kg.
+    Object.assign(doc.itens[0], { fator_kg: '30.0000', quantidade_estoque: '3000.0000' });
+    await montar();
+    await abrir(doc.id);
+    await clicar(barra('Editar'));
+    await screen.findByTestId('faixa-correcao');
+    // O seletor traz o peso ATUAL (25 kg); a linha já recebida continua com o peso gravado (30 kg), como no servidor.
+    await escolher('seletor-produto-0', /SAL MINERAL 80/);
+    await escolherOpcao(screen.getByRole('combobox', { name: 'Unidade do item 1' }), 'SACO');
+    fireEvent.change(screen.getByLabelText(/Histórico \(descrição\)/), { target: { value: 'COMPRA DE SAL MINERAL' } });
+    expect(screen.getByTestId('previsao-correcao')).toHaveTextContent(/não muda o estoque/);
+    await clicar(screen.getByTestId('botao-salvar-correcao'));
+    const dialogo = await screen.findByTestId('dialogo-retificacao');
+    const efeito = within(dialogo).getByTestId('dialogo-retificacao-estoque');
+    expect(efeito).toHaveTextContent(/O estoque não muda/);
+    expect(efeito).toHaveTextContent(/previsão da tela.*quem decide é o servidor/);
+    fireEvent.change(within(dialogo).getByTestId('dialogo-retificacao-motivo'), { target: { value: 'Descrição' } });
+    await clicar(within(dialogo).getByTestId('dialogo-retificacao-enviar'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-retificacao')).toBeNull());
+    expect(estado.eventos.map((e) => e.modo)).toEqual(['NO_LUGAR']);
+    expect(estado.documentos.find((d) => d.id === doc.id).itens[0]).toMatchObject({ fator_kg: '30.0000', quantidade_estoque: '3000.0000' });
+    await waitFor(() => expect(toasts().join(' | ')).toMatch(/o estoque não mudou/));
+  });
+
+  it('REV-2 (TELA-02) motivo físico de VENDA tem texto de venda (nunca "entrada desta compra"); lote consumido por outro lançamento depois da venda diz isso', async () => {
+    const { mensagemDoMotivo } = await import('@/lib/gestaoErros');
+    const loteDaVenda = { codigo: 'lote_alterado', mensagem: 'um lote da linha 1 não pode receber a devolução (situação Estornado)', item_ordem: 1, lote_id: 'l9' };
+    expect(mensagemDoMotivo(loteDaVenda, { direcao: 'RECEBER' })).not.toMatch(/compra/);
+    expect(mensagemDoMotivo(loteDaVenda, { direcao: 'RECEBER' })).toMatch(/venda do item 1.*saída/);
+    expect(mensagemDoMotivo(loteDaVenda, { direcao: 'PAGAR' })).toMatch(/entrada desta compra/);
+    const outroLancamento = { codigo: 'venda_com_movimento_posterior', mensagem: 'cru', item_ordem: 1, entidade: 'OperacaoFinanceira', numero: '7', lote_id: 'l9' };
+    expect(mensagemDoMotivo(outroLancamento)).toMatch(/lançamento nº 7 usou.*depois desta venda/);
+    expect(mensagemDoMotivo(outroLancamento)).not.toMatch(/Há movimento de estoque posterior/);
+    // Na tela: o diálogo de bloqueio e a faixa da correção conhecem a direção do documento.
+    const venda = semearDocumento(estado, vendaSimples(), { confirmar: true });
+    estado.dependencias[venda.id] = [loteDaVenda];
+    await montar();
+    await abrir(venda.id);
+    await clicar(screen.getByTestId('botao-excluir-lancamento'));
+    const bloqueio = await screen.findByTestId('dialogo-bloqueio');
+    expect(bloqueio).toHaveTextContent(/venda do item 1/);
+    expect(bloqueio).not.toHaveTextContent(/compra/);
+    await clicar(within(bloqueio).getByTestId('dialogo-bloqueio-fechar'));
+    await clicar(barra('Editar'));
+    const aviso = await screen.findByTestId('faixa-correcao-sem-estoque');
+    expect(aviso).toHaveTextContent(/venda do item 1/);
+    expect(aviso).not.toHaveTextContent(/compra/);
+  });
+
+  it('REV-3 (TELA-03) a versão mudou entre a leitura do detalhe e a da elegibilidade: Excluir não abre o diálogo (o conteúdo mostrado não é o que seria excluído); nada é enviado', async () => {
+    const doc = semearDocumento(estado, corpoServico({ descricao: 'LUZ' }), { confirmar: true });
+    await montar();
+    await abrir(doc.id);
+    let armado = true;
+    let detalheServido;
+    const servido = new Promise((r) => { detalheServido = r; });
+    backend = instalarBackendFake(async (req) => {
+      if (armado && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}`) {
+        const r = await rotearLancamentos(estado, req);
+        detalheServido();
+        return r;
+      }
+      if (armado && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}/elegibilidade`) {
+        armado = false;
+        await servido;
+        // Outra aba corrige NO LUGAR entre as duas leituras (versão 2 → 3).
+        await comando('POST', `/operacoes-financeiras/${doc.id}/retificar`, { ...corpoServico({ descricao: 'LUZ CORRIGIDA' }), versao: 2, operation_id: 'op-outra-aba', motivo: 'Outra aba' });
+      }
+      const r = await rotearLancamentos(estado, req);
+      if (r && r.rede) throw new TypeError('Failed to fetch');
+      return r;
+    });
+    await clicar(screen.getByTestId('botao-excluir-lancamento'));
+    await waitFor(() => expect(toasts().join(' | ')).toMatch(/mudou enquanto era verificado/));
+    expect(screen.queryByTestId('dialogo-exclusao')).toBeNull();
+    expect(chamadas('POST', /\/excluir$/)).toHaveLength(0);
+    expect(estado.documentos.find((d) => d.id === doc.id)).toMatchObject({ status: 'CONFIRMADO', versao: 3, excluido_em: null });
+  });
+
+  it('REV-4 (TELA-04) a origem da cópia foi descartada em outra aba: a recusa explica e o próximo Salvar grava a cópia SEM o vínculo de origem (nada digitado se perde)', async () => {
+    const rascunho = semearDocumento(estado, corpoServico({ descricao: 'ORIGEM QUE SERÁ DESCARTADA' }));
+    await montar();
+    await selecionarLinha(rascunho.id);
+    await clicar(barra('Duplicar'));
+    await screen.findByTestId('faixa-copia');
+    fireEvent.change(screen.getByLabelText(/Histórico \(descrição\)/), { target: { value: 'CÓPIA EDITADA' } });
+    // Outra aba descarta a origem (DELETE físico do rascunho).
+    estado.documentos = estado.documentos.filter((d) => d.id !== rascunho.id);
+    await clicar(barra('Salvar'));
+    await waitFor(() => expect(chamadas('POST', '/operacoes-financeiras')).toHaveLength(1));
+    await waitFor(() => expect(toasts().join(' | ')).toMatch(/origem desta cópia não existe mais.*salve de novo/i));
+    expect(toasts().join(' | ')).not.toMatch(/duplique de novo/);
+    expect(estado.documentos).toHaveLength(0);
+    expect(screen.getByLabelText(/Histórico \(descrição\)/)).toHaveValue('CÓPIA EDITADA');
+    await clicar(barra('Salvar'));
+    await waitFor(() => expect(estado.documentos).toHaveLength(1));
+    const posts = chamadas('POST', '/operacoes-financeiras');
+    expect(posts).toHaveLength(2);
+    expect(posts[1].body).not.toHaveProperty('duplicado_de_id');
+    expect(posts[1].body.operation_id).not.toBe(posts[0].body.operation_id);
+    expect(estado.documentos[0]).toMatchObject({ status: 'RASCUNHO', descricao: 'CÓPIA EDITADA' });
+  });
+
+  it('REV-5 (TELA-05) o falso segue o servidor: sem produtos, trocar a direção é SUBSTITUIÇÃO (id novo, antigo /r<v>) e a tela passa ao documento novo; detalhe traz duplicado_de_id e os números dos eventos', async () => {
+    const doc = semearDocumento(estado, corpoServico(), { confirmar: true });
+    await montar();
+    await abrir(doc.id);
+    await clicar(barra('Editar'));
+    await screen.findByTestId('faixa-correcao');
+    await clicar(within(screen.getByTestId('escolha-direcao')).getByRole('radio', { name: 'A receber' }));
+    await clicar(await screen.findByRole('button', { name: 'Trocar' }));
+    await escolher('seletor-parceiro', /FRIGORÍFICO CENTRAL/);
+    await escolher('seletor-natureza-0', /VENDA DE GADO/);
+    await clicar(screen.getByTestId('botao-salvar-correcao'));
+    const dialogo = await screen.findByTestId('dialogo-retificacao');
+    expect(within(dialogo).getByTestId('dialogo-retificacao-estoque')).toHaveTextContent(/O estoque não muda/);
+    expect(within(dialogo).getByTestId('dialogo-retificacao-efeitos')).toHaveTextContent(/versão nova.*MESMO número/);
+    fireEvent.change(within(dialogo).getByTestId('dialogo-retificacao-motivo'), { target: { value: 'Era recebimento' } });
+    await clicar(within(dialogo).getByTestId('dialogo-retificacao-enviar'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-retificacao')).toBeNull());
+    expect(estado.eventos.map((e) => e.modo)).toEqual(['SUBSTITUICAO']);
+    const novo = estado.documentos.find((d) => d.id !== doc.id);
+    expect(estado.documentos.find((d) => d.id === doc.id)).toMatchObject({ status: 'CANCELADO', numero: `${novo.numero}/r2` });
+    expect(novo).toMatchObject({ status: 'CONFIRMADO', direcao: 'RECEBER', versao: 3 });
+    expect(await screen.findByTestId('aviso-substitui')).toHaveTextContent(`nº ${novo.numero}/r2`);
+    const det = await comando('GET', `/operacoes-financeiras/${novo.id}`);
+    expect(det.eventos[0]).toMatchObject({ operacao_id: doc.id, operacao_numero: `${novo.numero}/r2`, operacao_nova_id: novo.id, operacao_nova_numero: novo.numero });
+    expect(det.duplicado_de_id).toBeNull();
+    const copia = await comando('POST', '/operacoes-financeiras', { ...corpoServico({ descricao: 'CÓPIA' }), operation_id: 'op-copia-1', duplicado_de_id: novo.id });
+    expect((await comando('GET', `/operacoes-financeiras/${copia.id}`)).duplicado_de_id).toBe(novo.id);
+  });
+});
