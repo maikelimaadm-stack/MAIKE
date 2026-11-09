@@ -1128,8 +1128,10 @@ describe('REV — revisão: peso por saco gravado, motivos por direção, CAS da
     await abrir(doc.id);
     await clicar(barra('Editar'));
     await screen.findByTestId('faixa-correcao');
+    // Sem o host de avisos do App, `confirmar` cai no `window.confirm`: o teste responde "Trocar".
+    const pergunta = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await clicar(within(screen.getByTestId('escolha-direcao')).getByRole('radio', { name: 'A receber' }));
-    await clicar(await screen.findByRole('button', { name: 'Trocar' }));
+    expect(pergunta).toHaveBeenCalledTimes(1);
     await escolher('seletor-parceiro', /FRIGORÍFICO CENTRAL/);
     await escolher('seletor-natureza-0', /VENDA DE GADO/);
     await clicar(screen.getByTestId('botao-salvar-correcao'));
