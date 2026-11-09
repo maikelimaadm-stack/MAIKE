@@ -6,11 +6,11 @@
 | Decisão | [D-PROD-157](./DECISIONS.md) |
 | PR | #234 (**draft**), branch `claude/maike-gestao-p3-03-editar-excluir-duplicar` |
 | Base | `origin/main` `e4e907ea`, merge da PR #231 (P3-02, em produção, 36 migrations) |
-| Runbook | [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md), **não executado** |
+| Runbook | [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md), **executado** até a conferência (2026-11-09, 21:32:01 UTC) |
 | Colisão externa | A PR #232 (Patrimônio) anuncia a D-PROD-156, que na `main` é a P3-02. Reportada ao proprietário e não alterada. Esta PR usa a D-PROD-157 |
 
 > **Provas:** saídas reais em PostgreSQL 17.11 local descartável, Playwright local e
-> CI da PR. Nada foi gravado em Preview nem em produção.
+> CI da PR. Em produção, só a migration autorizada (runbook, §11); nenhum documento foi gravado em Preview nem em produção.
 
 ## 1. Modelo técnico e justificativa
 
@@ -111,8 +111,9 @@ Três revisores independentes (dinheiro e estoque, banco e concorrência, tela) 
 | TELA-05 o backend falso divergia do real | BAIXO | o falso espelha a assinatura física, a direção e o peso gravado |
 
 ## 5. Gate final
-- `verify:all` no HEAD final, em PostgreSQL 17 local novo: ver o relatório final da rodada (bloco text) e o corpo da PR.
-- CI da PR no HEAD final: ver o corpo da PR #234.
+- `verify:all` no HEAD de implementação `bf2c5842`, com a árvore limpa e em PostgreSQL 17 local novo: exit 0 em 1029 s. Gates 696/696, backend 1346 aprovados, 0 falhas e 5 todo, vitest 2014/2014 em 165 arquivos, build ok.
+- CI `quality` no `bf2c5842`: run 42698668677 verde.
+- Release em produção: a migration foi aplicada em 2026-11-09 às 21:32:01 UTC (caminho B, GO escrito) e conferida pelo §6, com impressão digital idêntica à do ensaio. Detalhes no §11 do [runbook](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md). Os commits seguintes são só de documentação.
 
 ## 6. Limitações e riscos declarados
 - **Produto inativado depois da compra:** a retificação é recusada com 422 `produto_inativo`, e nada muda. Para corrigir, reative o produto. A falha é fechada de propósito, para não criar lote novo de produto inativo.
@@ -121,11 +122,11 @@ Três revisores independentes (dinheiro e estoque, banco e concorrência, tela) 
 - **Custo da substituição:** cerca de 3 s no pior caso medido (200 itens × 120 parcelas), dentro do tempo da função.
 - **Runtime antigo depois do schema:** a lista da P3-02 não esconde excluídos nem versões substituídas, que aparecem como `CANCELADO` (runbook, §0).
 - **Colisão de numeração:** a PR #232 anuncia a D-PROD-156, que na `main` é a P3-02. Foi reportada ao proprietário e não alterada. Esta PR usa a D-PROD-157.
-- **Nada foi aplicado em produção.** A migration exige GO específico e vem antes do merge.
+- **PITR desligado:** o último backup físico `COMPLETED` é de 2026-11-09T05:48:27Z; transações posteriores não têm recuperação garantida (reconhecido no GO).
 
 ## 7. Prontidão
 | Critério | Estado |
 |---|---|
-| CODE_READY | **SIM** depois de `verify:all` e CI verdes no HEAD final |
-| SCHEMA_APPLIED_PROD | **NÃO** |
-| MERGE_READY | **NÃO**: antes, GO específico, migration aplicada e conferida pelo runbook, e CI verde |
+| CODE_READY | **SIM**: `verify:all` e CI verdes no `bf2c5842` |
+| SCHEMA_APPLIED_PROD | **SIM**: 2026-11-09 às 21:32:01 UTC, 37 migrations, conferido pelo §6 |
+| MERGE_READY | **SIM** quando a CI do HEAD final (só documentação) ficar verde. O merge é manual e do proprietário |

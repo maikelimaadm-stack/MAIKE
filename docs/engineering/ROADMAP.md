@@ -334,9 +334,10 @@ posterior. O histórico fica em `OperacaoFinanceiraEvento` e no AuditLog.
 Banco: uma migration expand-only, com duas colunas anuláveis e a tabela nova
 `OperacaoFinanceiraEvento`.
 
-**Estado:** PR #234 em draft. A migration só é aplicada pelo runbook
-[`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md),
-com GO específico e antes do merge manual. Relatório:
+**Estado:** a migration foi aplicada e conferida em produção em 2026-11-09 às
+21:32:01 UTC, pelo runbook
+[`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md).
+Falta o merge manual da PR #234 (draft) pelo proprietário. Relatório:
 [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
 
 **Fora desta fase** (cada item só com decisão própria do proprietário): pedido

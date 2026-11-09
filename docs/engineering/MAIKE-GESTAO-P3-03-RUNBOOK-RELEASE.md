@@ -1,9 +1,9 @@
 # MAIKE — Gestão P3-03: runbook de release expand-only (D-PROD-157)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
-> Nada da P3-03 foi enviado ao Supabase de produção nem à Vercel. A migration só
-> rodou em PostgreSQL local de teste. Cada passo exige o GO específico do
-> proprietário e para no primeiro desvio com **`RELEASE_BLOCKED`**.
+> **Estado: EXECUTADO até a conferência do §6. `SCHEMA_APPLIED_PROD: SIM`.**
+> A migration foi aplicada em produção em 2026-11-09, às 21:32:01 UTC, pelo
+> caminho B, com GO escrito do proprietário (§11). Pendentes: merge manual da
+> PR #234, deploy e smoke (§7–§8).
 
 Decisão: [D-PROD-157](./DECISIONS.md). Relatório:
 [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
@@ -190,16 +190,19 @@ COMMIT;
 - sem GO;
 - qualquer erro na transação.
 
-## 11. Registro de execução (preencher só quando executado)
+## 11. Registro de execução
 
 | Campo | Valor |
 |---|---|
-| GO do proprietário | não executado |
-| Caminho | não executado |
-| Alvo e histórico antes | não executado |
-| SHA-256 e classificador | não executado |
-| Backup | não executado |
-| Ensaio local | não executado |
-| Transação | não executado |
-| Conferência do §6 | não executado |
-| Merge, deploy e smoke | não executado |
+| GO do proprietário | GO escrito `MAIKE-GESTAO-P3-03-RELEASE-MIGRATION-B-PR234` (2026-11-09). Autoriza esta migration, no HEAD aprovado `bf2c5842`, com o checksum `3f3af00e…df890b`, pelo caminho B, com desvio da D-PROD-74 só para ela. O PITR desligado foi reconhecido pelo proprietário |
+| Caminho | **B**: conector Supabase (`execute_sql`), uma única transação. O runner não rodou na máquina do proprietário |
+| `main` e PR | `origin/main` em `afbebcbc` (#233, só UI e docs). Nenhuma migration nova na `main` (lista idêntica à `e4e907ea`). A PR #234 faz merge sem conflito |
+| CI no HEAD aprovado | `quality` run 42698668677 **verde** em `bf2c5842`; `verify:all` local verde no mesmo HEAD (1029 s) |
+| Alvo e histórico antes | Projeto `uuemcasqcdjucflulkne` (MAIKE, sa-east-1, `ACTIVE_HEALTHY`), PostgreSQL 17.11, `system_identifier` `7692130048193495360`. **36** concluídas e 0 com falha; a última é a P3-02 `df4d1ab2…2076f4a0`; P3-03 ausente; tabela e colunas novas ausentes. Sem sessão ativa, sem trava 72707369 e sem outra migration. `conferirHistoricoRemoto` (36 linhas × 37 arquivos do SHA): `ok: true`, só a P3-03 pendente. Papel `maike_vercel` presente. As variáveis de banco do projeto Vercel `maike` vêm da integração Supabase `icfg_UsO8aBOPSy5sBgT4u7v1x57q` (só os nomes foram conferidos); health de produção 200, banco `up`, release `afbebcbc` |
+| SHA-256 e classificador | Arquivo no `bf2c5842`: `3f3af00edaffcce8ab0b64336029a93341bfbaba26c847e32e1d2658e4df890b`, igual ao manifesto. Classificador `expand: true`, 0 violações. Advisor de segurança antes: 0 alertas |
+| Backup | API de gestão do Supabase (`GET /v1/projects/uuemcasqcdjucflulkne/database/backups`, HTTP 200, às 21:29:31 UTC): último backup físico **`COMPLETED` em 2026-11-09T05:48:27Z**, anterior à janela. `pitr_enabled: false` (**PITR desligado**): transações posteriores a esse backup não têm recuperação garantida |
+| Contagens antes | `OperacaoFinanceira` 1, `OperacaoFinanceiraItem` 1, `TituloFinanceiro` 2, `LiquidacaoFinanceira` 0, `MovimentacaoEstoque` 1, `EstoqueLoteNota` 1, `OperacaoFinanceiraItemRateio` 0, `Usuario` 5, `Cliente` 2, `AuditLog` 649 |
+| Ensaio local | PG17 descartável, com `anon`, `authenticated` e `maike_vercel`, imediatamente antes. O SQL com o identificador de produção foi recusado (`RELEASE_BLOCKED: alvo divergente`). Com o local: `COMMIT`, 36→37, `migrate diff` 0, `migrate status` em dia. Repetir foi recusado (`migration já registrada`). O rollback do §9.1 voltou a 36 e a reaplicação, a 37. Impressão digital local: colunas `7b44a465…`, constraints `fd9520f2…`, índices `265a2529…`, política `555b56ed…`, RLS `c734cb3c…` |
+| Transação | Às 21:32:01 UTC: `BEGIN`, `lock_timeout` 5 s, trava 72707369, guarda (alvo, 36/0, P3-02 presente, P3-03, tabela e colunas ausentes), `migration.sql` **integral** do `bf2c5842`, registro em `_prisma_migrations` e `COMMIT`. Sem erro |
+| Conferência do §6 | Às 21:32:13 UTC:<br>(1) **37** concluídas e 0 com falha; a P3-03 com o checksum `3f3af00e…` e `applied_steps_count = 1`.<br>(2) `excluido_em` e `retificado_em` em `timestamp(3)`, anuláveis, sem default; 0 linhas não nulas.<br>(3) `OperacaoFinanceiraEvento`: 15 colunas; `p` 1, `f` 4, `c` 4; FKs em `(r,c)`; índices: 1 PK, 2 uniques, 2 outros; RLS ligado sem FORCE; dono `postgres`; 1 × `maike_backend_all`, `ALL`, `{maike_vercel}`; 0 grants a `anon`, `authenticated` e `PUBLIC`; 0 constraint ou índice novo em tabela antiga.<br>(4) Tabela nova com 0 linhas; contagens iguais às de antes.<br>(5) Advisor de segurança: 0 alertas.<br>(6) `health` 200, banco `up`, release `afbebcbc` (runtime da P3-02); `/LancamentosFinanceiros` 200; API sem sessão 401; 0 erros de runtime na Vercel desde 21:25 UTC.<br>(7) Impressão digital **idêntica** à do ensaio local |
+| Merge, deploy e smoke | Pendentes: o merge manual da PR #234 é do proprietário |

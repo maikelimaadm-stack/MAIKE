@@ -16,8 +16,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-157**, autorizada pelo proprietário na missão de 2026-11-09, depois do merge da P3-02. A PR #232 (Patrimônio) anuncia a D-PROD-156, que na `main` é a P3-02: colisão reportada e não alterada |
 | Branch / PR | `claude/maike-gestao-p3-03-editar-excluir-duplicar`, PR #234 em **draft** sobre `origin/main` `e4e907ea` |
 | Escopo | Na tela `LancamentosFinanceiros`: **Editar** documento confirmado por retificação (no lugar, quando a assinatura física não muda; por substituição, com estorno e documento novo de mesmo número, quando muda); **Excluir** confirmado de forma lógica (estorno, `excluido_em`, evento); **Duplicar** como rascunho novo. Bloqueios por liquidação, consumo de lote e movimento posterior. Histórico em `OperacaoFinanceiraEvento` e AuditLog |
-| Migration | `20261109300000_gestao_p3_03_editar_excluir`, expand-only: colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em` e tabela nova `OperacaoFinanceiraEvento`. **Não aplicada em produção** (`SCHEMA_APPLIED_PROD: NÃO`) |
-| Release | Runbook **não executado**: [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md). Exige GO específico, migration antes do merge manual |
+| Migration | `20261109300000_gestao_p3_03_editar_excluir`, expand-only: colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em` e tabela nova `OperacaoFinanceiraEvento`. SHA-256 `3f3af00e…df890b`. **Aplicada em produção em 2026-11-09 às 21:32:01 UTC** (caminho B, GO escrito), 37 migrations, conferida pelo §6 do runbook |
+| Release | **Concluído:** GO, preflight, backup comprovado (PITR desligado), ensaio local, migration e conferência. **Pendente:** merge manual da PR #234, deploy e smoke. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md) |
 | Relatório | [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md) |
 | Antes dela | P3-02 (D-PROD-156) em produção: migration aplicada em 2026-11-09 às 17:42:13 UTC e PR #231 mergeada (`e4e907ea`) |
 
