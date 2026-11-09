@@ -295,7 +295,7 @@ Relatório:
 
 **Próximos passos:**
 - o custo líquido do lote entrou na rodada 4;
-- o rateio por item é a P3-02 (D-PROD-156), descrita abaixo;
+- o rateio por item é a P3-02 (D-PROD-156), e editar, excluir e duplicar são a P3-03 (D-PROD-157), descritas abaixo;
 - o pedido de compra continua fora desta fase e só entra com decisão própria do
   proprietário.
 
@@ -312,10 +312,32 @@ títulos, estoque ou custo.
 Banco: uma migration expand-only, com uma coluna anulável `rateio_escopo` e a
 tabela nova `OperacaoFinanceiraItemRateio`.
 
-**Estado:** PR em draft. A migration só é aplicada pelo runbook
-[`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md),
-com GO específico e antes do merge manual. Relatório:
+**Estado:** em produção. A migration foi aplicada e conferida em 2026-11-09 às
+17:42:13 UTC, e o proprietário fez o merge da PR #231 (`e4e907ea`). Runbook
+executado:
+[`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md).
+Relatório:
 [`MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`](./MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md).
+
+## Track autorizado — Gestão Rural P3-03: editar, excluir e duplicar lançamentos (D-PROD-157)
+
+Na mesma tela `LancamentosFinanceiros`:
+- **Editar** um documento confirmado é uma retificação. Se a assinatura física das
+  mercadorias não muda, ela é feita no lugar (`versao+1`). Se muda, o documento
+  antigo é estornado e um novo, com o mesmo número, é confirmado na mesma transação;
+- **Excluir** um confirmado é lógico: estorno, `excluido_em` e evento com motivo;
+- **Duplicar** cria um rascunho novo a partir de qualquer documento.
+
+Retificar e excluir ficam bloqueados por liquidação, consumo de lote ou movimento
+posterior. O histórico fica em `OperacaoFinanceiraEvento` e no AuditLog.
+
+Banco: uma migration expand-only, com duas colunas anuláveis e a tabela nova
+`OperacaoFinanceiraEvento`.
+
+**Estado:** PR #234 em draft. A migration só é aplicada pelo runbook
+[`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md),
+com GO específico e antes do merge manual. Relatório:
+[`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
 
 **Fora desta fase** (cada item só com decisão própria do proprietário): pedido
 de compra e rateio fiscal. **Fora do produto** (não voltam sem emenda de
