@@ -66,3 +66,12 @@ Violação exige **rollback**, não flexibilização da regra.
 > `MovimentacoesEstoque`, `LancamentoProdutosEstoque`…); criar entrada de estoque
 > avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
 > comando composto da confirmação e do cancelamento; e somar dinheiro com float.
+
+> **Nota (D-PROD-156):** os cadastros de Patrimônio e Frota (`BensPatrimoniais`,
+> `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`)
+> são a única exceção de máquinas/combustível autorizada, nos limites da decisão.
+> Continuam proibidos: reabrir as páginas legadas `CadastroMaquinas`, `AtivosFixos`,
+> `LancamentosAbastecimento` e `FichaControleCombustivel`; recriar os schemas Base44
+> `Maquina`, `TipoAtivo`, `Implemento`, `ManutencaoMaquina` e `AbastecimentoMaquina`;
+> e, sem decisão própria, abastecimento, manutenção, custo/hora, apuração ou
+> lançamento de depreciação e transferência entre fazendas.

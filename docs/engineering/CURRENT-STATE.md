@@ -9,19 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-09, rodada 4) — MAIKE-GESTAO-P3-01: Central Única de Lançamentos (D-PROD-155)
+## Missão ativa (2026-11-09) — MAIKE-PATRIMONIO-P1-01: cadastros patrimoniais, frota e parâmetros operacionais (D-PROD-156)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-155**, autorizada pelo proprietário na missão (2026-11-08). Constituição: nota de expansão em [`00-CONSTITUICAO.md`](../constitution/00-CONSTITUICAO.md) |
-| Branch / PR | `claude/maike-gestao-p3-01-lancamento-unico` · PR #230 (**draft**) sobre `origin/main` `7ab43f7f` |
-| Escopo | Página nativa `LancamentosFinanceiros` (tela `ges-lancamentos-financeiros`): documento PAGAR/RECEBER com ou sem produtos, rateio global, títulos/parcelas, liquidação manual e efeito de estoque só na confirmação (estorno no cancelamento), por comando composto. **Fora:** conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade, caixa/bancos, rateio por item, pedido de compra, relatórios/dashboards |
-| Migration | `20261109100000_gestao_p3_01_central_lancamentos` (8 tabelas novas, expand-only). SHA-256 `bb89f4e0…4a451dc18a` (rodada 4), DO `0289125d…ab4fe`, pinados. **Aplicada em produção em 2026-11-09 às 14:08:36 UTC** (caminho B, GO escrito do proprietário), conferida pelo runbook §6 |
-| Custo (rodada 4) | Custo de aquisição **líquido**: desconto e acréscimo do cabeçalho rateados entre as linhas pelos maiores restos; lote = líquido ÷ kg (4 casas), movimento = líquido exato; resíduo explícito fora do FIFO, recusado acima de 0,1% da linha, nunca menos que 1 unidade mínima da moeda (`custo_kg_nao_representavel`) |
-| Vercel | `vercel.json` fixa `maxDuration` 60 s para `api/fastify.js`; vale no deploy de produção depois do merge (não comprovado em produção) |
-| Release | **Concluído:** GO, preflight, backup diário comprovado (PITR desligado), migration (35 concluídas) e conferência. **Pendente:** merge manual da PR #230 pelo proprietário, deploy e smoke. Runbook, com o §11 preenchido: [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) |
-| Relatório | [`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md) |
-| Antes dela | Gestão P1 (D-PROD-146) e P2 (D-PROD-153): cadastros de Parceiros, Centros e Naturezas, sem lançamento |
+| Decisão | **D-PROD-156**, autorizada pelo proprietário na missão (2026-11-09). Constituição: nota de expansão em [`00-CONSTITUICAO.md`](../constitution/00-CONSTITUICAO.md) |
+| Branch / PR | `claude/maike-patrimonio-p1-01-cadastros-inventario` · PR #232 (**draft**) sobre `origin/main` `f2b81e1b` |
+| Escopo | Grupo de menu **Patrimônio e Frota** com 5 telas nativas (`BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`): bens por fazenda com código patrimonial e código de frota, medições físicas, medidor de uso, tanques com combustíveis permitidos, aquisição e depreciação com prévia só simulada. **Fora:** abastecimento, manutenção, financeiro, estoque, apuração de depreciação e transferência |
+| Migration | `20261110100000_patrimonio_p1_01_cadastros` (9 tabelas novas, expand-only). SHA-256 `58fa953b…aa021a18`, DO `0d83249d…4da38fbbbab`, pinados. **Não aplicada em produção** |
+| Release | Pendente: auditoria, aplicação autorizada da migration (preflight + GO escrito) **antes** do merge manual |
+| Relatório | [`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md) |
+| Antes dela | Gestão P3-01, Central Única de Lançamentos (D-PROD-155): mergeada na `main` pela PR #230, com a migration aplicada em produção |
 
 ---
 
