@@ -20,7 +20,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
   atualizarComVersao, camposAlterados, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
-  nomeDuplicado, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
+  nomeDuplicado, nomeIgual, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
 } from './patrimonioComum.js';
 import { FINALIDADES_PERFIL, NOMES_DIMENSOES } from './patrimonioDominio.js';
 import { unidadeCanonicaDe, validarUnidadesPermitidas } from './unidadesFisicas.js';
@@ -87,7 +87,7 @@ const exigirLivre = async (tx, clienteId, { codigo, nome }, ignorarId = null) =>
   if (codigo !== undefined && (await tx.perfilMedicao.findFirst({ where: { cliente_id: clienteId, codigo, ...fora }, select: { id: true } }))) {
     throw codigoDuplicado();
   }
-  if (nome !== undefined && (await tx.perfilMedicao.findFirst({ where: { cliente_id: clienteId, nome: { equals: nome, mode: 'insensitive' }, ...fora }, select: { id: true } }))) {
+  if (nome !== undefined && (await tx.perfilMedicao.findFirst({ where: { cliente_id: clienteId, nome: nomeIgual(nome), ...fora }, select: { id: true } }))) {
     throw nomeDuplicado();
   }
 };

@@ -95,20 +95,29 @@ export const fotoPatrimonio = async (clienteIds) => {
   return JSON.stringify(out, replacer);
 };
 
-/** Estoque e financeiro do tenant: o cadastro do bem nunca os toca. */
-export const contagemEstoqueFinanceiro = async (clienteId) => {
-  const p = prisma();
-  const w = { where: { cliente_id: clienteId } };
-  return {
-    produto: await p.produto.count(w),
-    movimentacaoEstoque: await p.movimentacaoEstoque.count(w),
-    estoqueLoteNota: await p.estoqueLoteNota.count(w),
-    operacaoFinanceira: await p.operacaoFinanceira.count(w),
-    operacaoFinanceiraItem: await p.operacaoFinanceiraItem.count(w),
-    tituloFinanceiro: await p.tituloFinanceiro.count(w),
-    liquidacaoFinanceira: await p.liquidacaoFinanceira.count(w),
-    lote: await p.lote.count(w),
-  };
+/**
+ * Tudo FORA do Patrimônio: toda tabela do tenant (todo model com `cliente_id`,
+ * o que cobre estoque e financeiro inteiros — Produto, LocalEstoque, Lote,
+ * NaturezaFinanceira, PerfilFinanceiroEmpresa, CentroResultado, títulos...)
+ * menos as 9 do Patrimônio, a auditoria e a sequência de números. Compare
+ * antes/depois: uma tabela nova de estoque/financeiro entra sozinha.
+ */
+const FORA_DO_PATRIMONIO = Object.freeze(
+  MODELOS_DO_TENANT.filter((m) => ![...TABELAS_PATRIMONIO, 'AuditLog', 'EntidadeCodigoSequencia'].some((t) => t[0].toLowerCase() + t.slice(1) === m))
+);
+/** As tabelas de estoque e financeiro que o cenário NUNCA preenche (contagem 0 antes de qualquer bem). */
+export const ESTOQUE_FINANCEIRO_VAZIOS = Object.freeze([
+  'produto', 'movimentacaoEstoque', 'estoqueLoteNota', 'operacaoFinanceira', 'operacaoFinanceiraItem', 'tituloFinanceiro', 'liquidacaoFinanceira', 'lote',
+  'naturezaFinanceira', 'perfilFinanceiroEmpresa', 'localEstoque', 'centroResultado', 'centroCustoResultado',
+]);
+
+/** Contagem, por tabela, de tudo fora do Patrimônio no tenant: o cadastro do bem nunca toca estoque/financeiro. */
+export const contagemForaDoPatrimonio = async (clienteId) => {
+  const p = /** @type {any} */ (prisma());
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const m of FORA_DO_PATRIMONIO) out[m] = await p[m].count({ where: { cliente_id: clienteId } });
+  return out;
 };
 
 /** `{CODIGO: id}` de um catálogo do tenant. */

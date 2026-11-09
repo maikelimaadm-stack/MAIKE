@@ -11,7 +11,11 @@
  *  - prévia de depreciação rotulada como simulação (1.250,00 por mês);
  *  - edição com PATCH mínimo + `versao`; 409/422 mostram a mensagem do
  *    patrimônio e mantêm o formulário; conflito de versão relê o detalhe;
- *  - sem empresa → aviso e nada lido; sem a ação `inativar` → sem o item.
+ *  - sem empresa → aviso e nada lido; sem a ação `inativar` → sem o item;
+ *  - referências da fazenda, aquisição/depreciação e troca de propriedade com
+ *    o corpo HTTP exato; cancelar a edição descarta o digitado; correção do
+ *    medidor não envia o que o servidor recusa; "hoje" da leitura no fuso da
+ *    fazenda; duplicar não leva combustível inativo.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -62,6 +66,13 @@ const COMBUSTIVEIS = [
   { id: 'c3', codigo: 'ETANOL', nome: 'Etanol', unidade: 'L' },
   { id: 'c4', codigo: 'GNV', nome: 'GNV', unidade: 'm3' },
 ];
+/** Opções da EMPRESA (seletores do bem). */
+const OPCOES_DA_EMPRESA = {
+  responsaveis: [{ id: 'u7', nome: 'João Vaqueiro' }],
+  'centros-custo': [{ id: 'cc1', numero: '12', nome: 'Manutenção' }],
+  areas: [{ id: 'a1', nome: 'Retiro Sul' }],
+  parceiros: [{ id: 'pc1', nome: 'Agro Máquinas' }, { id: 'pc2', nome: 'Vizinho da Divisa' }],
+};
 const RESUMO_TRATOR = {
   id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA', familia: { id: 'f2', nome: 'Máquinas' },
   tipo: { id: 't2', nome: 'Trator de pneus' }, propriedade: 'PROPRIO', medidor_tipo: 'HORIMETRO', ativo: true, versao: 4,
@@ -110,6 +121,10 @@ let proxima;
 let versaoDetalhe;
 /** Medidor do trator gravado (quando o teste quer outro estado). */
 let medidorDoTrator;
+/** Outros campos do detalhe do trator (quando o teste quer outro estado). */
+let extraDoTrator;
+/** Resumo das empresas (GET /empresas, o mesmo que o Layout lê): traz o fuso da fazenda. */
+let empresasDoBackend;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -124,6 +139,11 @@ beforeEach(async () => {
   proxima = null;
   versaoDetalhe = 4;
   medidorDoTrator = null;
+  extraDoTrator = null;
+  empresasDoBackend = [
+    { id: 'emp-1', numero_empresa: 1, nome: 'Fazenda Boa Vista', fuso_horario: 'America/Sao_Paulo' },
+    { id: 'emp-2', numero_empresa: 2, nome: 'Fazenda Santa Rita', fuso_horario: 'America/Sao_Paulo' },
+  ];
   backend = instalarBackendFake(async ({ method, path, query, body }) => {
     if (proxima && method !== 'GET') {
       const r = proxima;
@@ -134,14 +154,17 @@ beforeEach(async () => {
       const itens = query.get('empresa_id') === 'emp-2' ? [RESUMO_OUTRA_EMPRESA] : [{ ...RESUMO_TRATOR, versao: versaoDetalhe }, RESUMO_CURRAL];
       return { status: 200, body: envelope(itens.filter((b) => !query.get('familia_id') || b.familia.id === query.get('familia_id'))) };
     }
-    if (method === 'GET' && path === '/bens-patrimoniais/b1') return { status: 200, body: { ...detalheTrator(versaoDetalhe), ...(medidorDoTrator ? { medidor: medidorDoTrator } : {}) } };
+    if (method === 'GET' && path === '/empresas') return { status: 200, body: empresasDoBackend };
+    if (method === 'GET' && path === '/bens-patrimoniais/b1') {
+      return { status: 200, body: { ...detalheTrator(versaoDetalhe), ...(medidorDoTrator ? { medidor: medidorDoTrator } : {}), ...(extraDoTrator ?? {}) } };
+    }
     if (method === 'GET' && path === '/bens-patrimoniais/b2') return { status: 200, body: detalheCurral() };
     if (method === 'PATCH' && path === '/bens-patrimoniais/b2') return { status: 200, body: { ...detalheCurral(), versao: 3 } };
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/familias') return opcoes(FAMILIAS);
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS[query.get('familia_id')] ?? []);
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/perfis-medicao') return opcoes(PERFIS);
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/combustiveis') return opcoes(COMBUSTIVEIS);
-    if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return opcoes([]);
+    if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return opcoes(OPCOES_DA_EMPRESA[path.split('/')[2]] ?? []);
     if (method === 'POST' && path === '/bens-patrimoniais-previa-depreciacao') return { status: 200, body: PREVIA };
     if (method === 'POST' && path === '/bens-patrimoniais') {
       const familia = FAMILIAS.find((f) => f.id === body.familia_id);
@@ -163,6 +186,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -611,6 +635,135 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
       tanques: [{ identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'] }],
     });
   });
+
+  it('duplicar não pré-seleciona combustível inativo do tanque de origem (nem como opção)', async () => {
+    extraDoTrator = {
+      tanques: [{
+        id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
+        combustiveis: [{ id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L', ativo: true }, { id: 'c9', codigo: 'DIESEL_S500', nome: 'Diesel S500', unidade: 'L', ativo: false }],
+      }],
+    };
+    await montar();
+    await abrirTrator();
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
+    const form = await screen.findByTestId('b1-form');
+    await waitFor(() => expect(within(form).getByLabelText(/^Nome/).value).toBe('Trator TP-02'));
+    aba('Operação');
+    const tanque = within(form).getByTestId('bem-tanque-0');
+    expect(await within(tanque).findByRole('checkbox', { name: 'Diesel S10' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(tanque).queryByRole('checkbox', { name: /Diesel S500/ })).toBeNull();
+    fireEvent.change(within(form).getByLabelText('Leitura inicial (h)'), { target: { value: '0' } });
+    fireEvent.change(within(form).getByTestId('bem-medidor-data'), { target: { value: '2026-11-03' } });
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'] }]);
+  });
+
+  it('cancelar a edição descarta o digitado: volta ao gravado e o próximo PATCH não leva o descartado', async () => {
+    await montar();
+    await abrirTrator();
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/), { target: { value: 'NOME DESCARTADO' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).value).toBe('Trator TP-02'));
+    expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).readOnly).toBe(true);
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Marca/), { target: { value: 'Massey' } });
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, marca: 'Massey' } })]);
+  });
+});
+
+describe('Bens — referências da fazenda, aquisição e propriedade (corpo exato)', () => {
+  it('responsável, centro, área, fornecedor, aquisição e depreciação: POST com os ids, o bloco aquisicao e a vida útil em meses', async () => {
+    await montar();
+    const form = await novoDaFamilia('Balsa do açude', /^Outros bens/, /Balsa/);
+    await escolherNoSeletor(form, 'bem-seletor-responsavel', 'João Vaqueiro');
+    await escolherNoSeletor(form, 'bem-seletor-centro-custo', /Manutenção/);
+    await escolherNoSeletor(form, 'bem-seletor-area', 'Retiro Sul');
+    expect(within(form).getByTestId('bem-seletor-centro-custo')).toHaveTextContent('12 · Manutenção');
+    aba('Aquisição e depreciação');
+    fireEvent.change(within(form).getByLabelText('Valor de aquisição (R$)'), { target: { value: '200.000,00' } });
+    await escolherNoSeletor(form, 'bem-seletor-fornecedor', 'Agro Máquinas');
+    fireEvent.click(within(form).getByRole('switch', { name: 'Depreciável' }));
+    fireEvent.change(within(form).getByLabelText(/^Vida útil \*$/), { target: { value: '10' } });
+    fireEvent.change(within(form).getByLabelText('Valor residual (R$)'), { target: { value: '50.000,00' } });
+    fireEvent.change(within(form).getByTestId('bem-inicio-depreciacao'), { target: { value: '2026-01-01' } });
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({
+        method: 'POST',
+        path: '/bens-patrimoniais',
+        body: {
+          empresa_id: 'emp-1', nome: 'Balsa do açude', familia_id: 'f6', tipo_id: 't6', propriedade: 'PROPRIO',
+          responsavel_usuario_id: 'u7', centro_custo_id: 'cc1', area_id: 'a1',
+          aquisicao: { valor_aquisicao: '200000', fornecedor_parceiro_id: 'pc1' },
+          depreciacao: { depreciavel: true, metodo: 'LINEAR', vida_util_meses: 120, residual_modo: 'VALOR', valor_residual: '50000', data_inicio_depreciacao: '2026-01-01' },
+        },
+      }),
+    ]);
+    const opcoesDaFazenda = backend.chamadas.filter((c) => /^\/bens-patrimoniais-opcoes\/(responsaveis|centros-custo|areas|parceiros)$/.test(c.path));
+    expect(opcoesDaFazenda.length).toBeGreaterThanOrEqual(4);
+    expect(opcoesDaFazenda.every((c) => c.query.empresa_id === 'emp-1')).toBe(true);
+  });
+
+  it('editar só a data de aquisição manda o bloco aquisicao INTEIRO (o servidor substitui o bloco: omitido = nulo)', async () => {
+    extraDoTrator = {
+      aquisicao: {
+        data_aquisicao: '2026-01-10', data_disponibilidade: '2026-01-15', valor_aquisicao: '200000.00', custo_incorporacao: '5000.00',
+        fornecedor: { id: 'pc1', nome: 'Agro Máquinas' }, documento_referencia: 'NF 123', garantia_ate: '2027-01-10',
+      },
+    };
+    await montar();
+    await abrirTrator();
+    editar();
+    const form = screen.getByTestId('b1-form');
+    aba('Aquisição e depreciação');
+    fireEvent.change(within(form).getByLabelText(/^Data de aquisição/), { target: { value: '2026-01-12' } });
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({
+        method: 'PATCH',
+        path: '/bens-patrimoniais/b1',
+        body: {
+          empresa_id: 'emp-1', versao: 4,
+          aquisicao: {
+            data_aquisicao: '2026-01-12', data_disponibilidade: '2026-01-15', valor_aquisicao: '200000', custo_incorporacao: '5000',
+            fornecedor_parceiro_id: 'pc1', documento_referencia: 'NF 123', garantia_ate: '2027-01-10',
+          },
+        },
+      }),
+    ]);
+  });
+
+  it('troca de propriedade: terceiro → próprio leva proprietario_parceiro_id:null; próprio → terceiro leva o proprietário escolhido', async () => {
+    extraDoTrator = { propriedade: 'TERCEIRO', proprietario: { id: 'pc2', nome: 'Vizinho da Divisa' } };
+    await montar();
+    await abrirTrator();
+    editar();
+    let form = screen.getByTestId('b1-form');
+    expect(within(form).getByTestId('bem-seletor-proprietario')).toHaveTextContent('Vizinho da Divisa');
+    await escolherOpcao(within(form).getByRole('combobox', { name: 'Propriedade' }), 'Próprio');
+    expect(within(form).queryByTestId('bem-seletor-proprietario')).toBeNull();
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, propriedade: 'PROPRIO', proprietario_parceiro_id: null } }),
+    ]);
+
+    extraDoTrator = null;
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Editar' })).toBeTruthy());
+    editar();
+    form = screen.getByTestId('b1-form');
+    await escolherOpcao(within(form).getByRole('combobox', { name: 'Propriedade' }), 'De terceiro');
+    await escolherNoSeletor(form, 'bem-seletor-proprietario', 'Vizinho da Divisa');
+    salvar();
+    await waitFor(() => expect(mutacoes()).toHaveLength(2));
+    expect(mutacoes()[1].body).toEqual({ empresa_id: 'emp-1', versao: 5, propriedade: 'TERCEIRO', proprietario_parceiro_id: 'pc2' });
+  });
 });
 
 describe('Bens — regras finas do formulário', () => {
@@ -627,6 +780,61 @@ describe('Bens — regras finas do formulário', () => {
     salvar();
     await screen.findByText('Bem patrimonial atualizado');
     expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 4, medidor: { tipo: 'HORIMETRO', leitura_inicial: '1200', leitura_atual: '1200', data_leitura: '2026-11-01' } });
+  });
+
+  it('correção do medidor com a leitura atual diferente da inicial: a tela não envia e explica; com a atual igual, salva a correção', async () => {
+    medidorDoTrator = { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1520.5000', leitura_atual: '1520.5000', data_leitura: '2026-11-01', origem: 'CADASTRO_INICIAL' };
+    await montar();
+    await abrirTrator();
+    editar();
+    const form = screen.getByTestId('b1-form');
+    aba('Operação');
+    // Atual digitada antes: a inicial deixa de puxar a atual junto.
+    fireEvent.change(within(form).getByLabelText('Leitura atual (h)'), { target: { value: '1.600' } });
+    fireEvent.change(within(form).getByLabelText('Leitura inicial (h)'), { target: { value: '1.500' } });
+    salvar();
+    expect(await within(form).findByText(/Na correção do cadastro a leitura atual é a própria leitura inicial/)).toBeTruthy();
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(mutacoes()).toEqual([]);
+    fireEvent.change(within(form).getByLabelText('Leitura atual (h)'), { target: { value: '1.500' } });
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({ method: 'PATCH', body: { empresa_id: 'emp-1', versao: 4, medidor: { tipo: 'HORIMETRO', leitura_inicial: '1500', leitura_atual: '1500', data_leitura: '2026-11-01' } } }),
+    ]);
+  });
+
+  it('422 de uma medição com field medicoes[1].valor (o servidor não manda índice nos details) mostra a linha', async () => {
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('bem-nome-b2'));
+    await screen.findByTestId('b1-form');
+    editar();
+    const form = screen.getByTestId('b1-form');
+    aba('Medições');
+    fireEvent.change(within(form).getByTestId('bem-medicao-valor-1'), { target: { value: '160' } });
+    proxima = erroServidor(422, 'MEDICAO_VALOR_INVALIDO', { field: 'medicoes[1].valor', reason: 'deve_ser_inteiro' });
+    salvar();
+    expect(await screen.findByText(/informe um número inteiro \(linha 2\)/)).toBeTruthy();
+    expect(within(screen.getByTestId('b1-form')).getByTestId('bem-medicao-valor-1').value).toBe('160');
+  });
+
+  it('"hoje" da leitura é o dia da FAZENDA (fuso da empresa no resumo de empresas), não o do navegador', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 03:30 UTC de 15/06 = 23:30 de 14/06 em Cuiabá: no navegador (UTC ou Brasília) já é 15/06.
+    vi.setSystemTime(new Date('2027-06-15T03:30:00.000Z'));
+    empresasDoBackend = [{ id: 'emp-1', numero_empresa: 1, nome: 'Fazenda Boa Vista', fuso_horario: 'America/Cuiaba' }];
+    await montar();
+    await waitFor(() => expect(backend.chamadas.some((c) => c.method === 'GET' && c.path === '/empresas')).toBe(true));
+    const form = await novoDaFamilia('Trator novo', /^Máquinas/, /Trator de pneus/);
+    aba('Operação');
+    await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Horímetro');
+    const data = within(form).getByTestId('bem-medidor-data');
+    expect(data.value).toBe('2027-06-14');
+    expect(data.getAttribute('max')).toBe('2027-06-14');
+    fireEvent.change(within(form).getByLabelText('Leitura inicial (h)'), { target: { value: '0' } });
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()[0].body.medidor).toEqual({ tipo: 'HORIMETRO', leitura_inicial: '0', data_leitura: '2027-06-14' });
   });
 
   it('benfeitoria gravada: unidades da medição vêm do perfil ativo; família de outra natureza é recusada na tela', async () => {

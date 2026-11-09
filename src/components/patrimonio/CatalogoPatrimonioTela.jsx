@@ -360,6 +360,12 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const semPermissao = !acoes.carregando && !acoes.ver;
   const Formulario = cfg.Formulario;
 
+  /** Cancelar a edição de um registro gravado descarta o digitado: o formulário remonta do registro. */
+  const cancelarEdicao = () => {
+    if (controller.isEditing && controller.editingItem?.id) controller.recordHelpers.bumpFormEpoch();
+    controller.cancelForm();
+  };
+
   return (
     // Os botões já seguem a regra EXATA do servidor (novo|salvar, editar|salvar,
     // inativar) — a heurística de texto do Layout não se aplica.
@@ -370,7 +376,7 @@ export default function CatalogoPatrimonioTela({ recurso }) {
         searchPlaceholder={`Buscar ${cfg.plural}…`}
         formId={cfg.formId}
         columnsForCardsToolbar={cfg.grade.colunas}
-        controller={{ ...controller, saving }}
+        controller={{ ...controller, saving, cancelForm: cancelarEdicao }}
         listErrorMessage={listErrorMessage}
         recordCode={registroAtual?.id && registroAtual?.codigo ? String(registroAtual.codigo) : undefined}
         listBanner={

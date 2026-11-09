@@ -28,7 +28,7 @@ import { ENTIDADE as ENTIDADE_COMBUSTIVEL, paraAuditoria as auditoriaCombustivel
 import { ENTIDADE as ENTIDADE_FAMILIA, paraAuditoria as auditoriaFamilia } from './familiaPatrimonialService.js';
 import { ENTIDADE as ENTIDADE_PERFIL, paraAuditoria as auditoriaPerfil } from './perfilMedicaoService.js';
 import { ENTIDADE as ENTIDADE_TIPO, paraAuditoria as auditoriaTipo, sincronizarPerfisDoTipo } from './tipoPatrimonialService.js';
-import { travarCatalogo } from './patrimonioComum.js';
+import { nomeIgual, travarCatalogo } from './patrimonioComum.js';
 import { unidadeCanonicaDe } from './unidadesFisicas.js';
 
 /** Perfis de medição padrão (unidades na ordem da dimensão, canônica primeiro). */
@@ -97,7 +97,7 @@ export const instalarCatalogoPadrao = async (contexto) => {
       const eventos = [];
       const conflito = (recurso, codigo, motivo) => conflitos.push({ recurso, codigo, motivo });
       const nomeEmUso = async (delegado, nome, extra = {}) =>
-        Boolean(await delegado.findFirst({ where: { cliente_id: cli, nome: { equals: nome, mode: 'insensitive' }, ...extra }, select: { id: true } }));
+        Boolean(await delegado.findFirst({ where: { cliente_id: cli, nome: nomeIgual(nome), ...extra }, select: { id: true } }));
 
       /** código → id dos perfis e famílias utilizáveis pelos tipos */
       const perfisOk = new Map();

@@ -81,6 +81,15 @@ export const codigoDuplicado = () =>
 export const nomeDuplicado = () =>
   new AppError('PATRIMONIO_NOME_DUPLICADO', 'já existe um cadastro com este nome; nada foi gravado', { details: { field: 'nome', reason: 'nome_repetido' } });
 
+/**
+ * Filtro de nome IGUAL sem diferenciar maiúsculas para a pré-checagem de
+ * unicidade. O Prisma gera `ILIKE` para `equals` + `insensitive`: `%`, `_` e
+ * `\` do nome são escapados para a comparação ser literal ('Linha_1' não
+ * casa com 'LinhaX1'; 'LINHA\NOVA' casa com 'Linha\Nova').
+ * @param {string} nome
+ */
+export const nomeIgual = (nome) => ({ equals: escaparCuringasLike(nome), mode: /** @type {const} */ ('insensitive') });
+
 // ─── texto, código e datas ──────────────────────────────────────────────────
 
 /**

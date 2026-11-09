@@ -308,13 +308,22 @@ const REFERENCIAS = Object.freeze({
   fornecedor_parceiro_id: { field: 'aquisicao.fornecedor_parceiro_id', inexistente: 'o parceiro fornecedor não foi encontrado nesta fazenda', inativo: 'o parceiro fornecedor está inativo' },
 });
 
-/** @param {any} tx @param {string} clienteId @param {string} coluna @param {string} id @returns {Promise<{ empresa_id?: string, ativo: boolean }|null>} */
-const lerReferencia = (tx, clienteId, coluna, id) => {
+/**
+ * O parceiro (proprietário ou fornecedor) é lido FOR KEY SHARE — a mesma trava
+ * que a FK pega no INSERT, só que antes: uma exclusão do parceiro em voo
+ * termina primeiro e aqui ele já não existe (422 "inexistente", nunca o 403 da
+ * FK); se este bem chega antes, a exclusão espera o commit e vê o vínculo.
+ * @param {any} tx @param {string} clienteId @param {string} coluna @param {string} id @returns {Promise<{ empresa_id?: string, ativo: boolean }|null>}
+ */
+const lerReferencia = async (tx, clienteId, coluna, id) => {
   const where = { cliente_id: clienteId, id };
   if (coluna === 'responsavel_usuario_id') return tx.usuario.findFirst({ where, select: { ativo: true } });
   if (coluna === 'centro_custo_id') return tx.centroCusto.findFirst({ where, select: { empresa_id: true, ativo: true } });
   if (coluna === 'area_id') return tx.areaPastagem.findFirst({ where, select: { empresa_id: true, ativo: true } });
-  return tx.fornecedor.findFirst({ where, select: { empresa_id: true, ativo: true } });
+  const [parceiro] = /** @type {Array<{ empresa_id: string, ativo: boolean }>} */ (
+    await tx.$queryRaw`SELECT empresa_id, ativo FROM "Fornecedor" WHERE cliente_id = ${clienteId} AND id = ${id} FOR KEY SHARE`
+  );
+  return parceiro ?? null;
 };
 
 /**
@@ -401,6 +410,13 @@ export const criar = async (contexto, entrada) => {
   const depreciacao = depreciacaoDoCorpo(entrada.depreciacao);
   return transacao(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
+    // FOR KEY SHARE da fazenda (a trava que a FK do INSERT pegaria, só que
+    // antes): uma exclusão da fazenda em voo termina primeiro → 404; se este
+    // bem chega antes, a exclusão espera o commit e devolve 409 com o vínculo.
+    const [empresaTravada] = /** @type {Array<{ id: string }>} */ (
+      await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${cli} AND id = ${empresaId} FOR KEY SHARE`
+    );
+    if (!empresaTravada) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada neste tenant', { details: { field: 'empresa_id' } });
     const classificacao = await carregarClassificacao(tx, cli, entrada.familia_id, entrada.tipo_id);
     exigirClassificacao(classificacao);
     const natureza = classificacao.familia.natureza;

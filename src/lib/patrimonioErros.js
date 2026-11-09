@@ -9,7 +9,7 @@
 
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
-import { ROTULO_NATUREZA } from '@/lib/patrimonioDominio';
+import { ROTULO_NATUREZA, rotuloDaUnidade } from '@/lib/patrimonioDominio';
 
 const NADA = 'Nada foi gravado.';
 
@@ -86,8 +86,15 @@ const rotuloDoCampo = (campo) => {
   return String(campo);
 };
 
-/** " (linha 2)" a partir de `details.indice` (0-based). @param {Record<string, any>} details */
-const naLinha = (details) => (Number.isInteger(details.indice) ? ` (linha ${details.indice + 1})` : '');
+/**
+ * " (linha 2)" a partir do índice (0-based) que o servidor põe no `field` dos
+ * filhos: `medicoes[1].valor`, `tanques[0].capacidade_litros`.
+ * @param {string|null} campo
+ */
+const naLinha = (campo) => {
+  const m = /\[(\d+)\]|\.(\d+)(?:\.|$)/.exec(String(campo ?? ''));
+  return m ? ` (linha ${Number(m[1] ?? m[2]) + 1})` : '';
+};
 
 const CAMPO_INVALIDO = /** @type {Record<string, string>} */ ({
   placa: 'Placa inválida: use o formato ABC-1234 ou o Mercosul ABC1D23.',
@@ -117,6 +124,8 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
   const campo = rotuloDoCampo(field);
   switch (code) {
     case 'ACAO_NAO_PERMITIDA':
+      // `adminOuIsAdmin()` (ex.: catálogo padrão) nega com `details.exige`: não é ação que se libera na tela.
+      if (Array.isArray(details.exige) && details.exige.includes('administrador_ou_is_admin')) return 'Só o administrador da fazenda pode fazer isso.';
       return 'Você não tem permissão para esta ação nesta tela. Peça ao administrador para liberar.';
     case 'TENANT_ADMIN_REQUIRED':
       return 'Só o administrador da fazenda pode fazer isso.';
@@ -145,8 +154,10 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'TIPO_PERFIS_INVALIDOS':
       return `${PERFIS_INVALIDOS[reason ?? ''] ?? 'Perfis sugeridos inválidos.'} ${NADA}`;
     case 'PERFIL_UNIDADE_EM_USO': {
-      const unidade = typeof details.unidade === 'string' ? ` (${details.unidade})` : '';
-      return `Não é possível retirar uma unidade${unidade} que já é usada em medições de bens. ${NADA}`;
+      // O servidor manda a LISTA das unidades em uso (`details.unidades`).
+      const unidades = Array.isArray(details.unidades) ? details.unidades.filter((u) => typeof u === 'string').map(rotuloDaUnidade) : [];
+      const quais = unidades.length ? ` (${unidades.join(', ')})` : '';
+      return `Não é possível retirar ${unidades.length > 1 ? 'unidades' : 'uma unidade'}${quais} já usada${unidades.length > 1 ? 's' : ''} em medições de bens. ${NADA}`;
     }
     case 'PERFIL_UNIDADES_INVALIDAS':
       return `Unidades permitidas inválidas: escolha unidades da mesma dimensão, sempre com a unidade padrão. ${NADA}`;
@@ -170,15 +181,15 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'BEM_CLASSIFICACAO_INATIVA':
       return `Para reativar o bem, a família e o tipo dele precisam estar ativos. Reative-os antes. ${NADA}`;
     case 'MEDICAO_UNIDADE_INCOMPATIVEL':
-      return `A unidade da medição${naLinha(details)} não é permitida para o perfil escolhido. ${NADA}`;
+      return `A unidade da medição${naLinha(field)} não é permitida para o perfil escolhido. ${NADA}`;
     case 'MEDICAO_PERFIL_DUPLICADO':
       if (reason === 'perfil_imutavel') return `O perfil de uma medição já gravada não muda: retire a medição e crie outra. ${NADA}`;
       return `O mesmo perfil de medição aparece mais de uma vez no bem. ${NADA}`;
     case 'MEDICAO_PRINCIPAL_DUPLICADA':
       return `Só uma medição pode ser a principal. ${NADA}`;
     case 'MEDICAO_VALOR_INVALIDO':
-      if (reason === 'deve_ser_inteiro') return `Para quantidade e cabeças, informe um número inteiro${naLinha(details)}. ${NADA}`;
-      return `Valor da medição inválido${naLinha(details)}: informe um número maior que zero, com até 4 casas decimais. ${NADA}`;
+      if (reason === 'deve_ser_inteiro') return `Para quantidade e cabeças, informe um número inteiro${naLinha(field)}. ${NADA}`;
+      return `Valor da medição inválido${naLinha(field)}: informe um número maior que zero, com até 4 casas decimais. ${NADA}`;
     case 'MEDICAO_LIMITE_EXCEDIDO':
       return `Um bem pode ter no máximo 20 medições. ${NADA}`;
     case 'MEDIDOR_OBRIGATORIO':
@@ -194,13 +205,18 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'MEDIDOR_DATA_FUTURA':
       return `A data da leitura não pode ser futura. ${NADA}`;
     case 'MEDIDOR_LEITURA_INVALIDA':
+      if (reason === 'atual_diferente_da_inicial') {
+        return `Na correção do cadastro do medidor a leitura atual é a própria leitura inicial: corrija a leitura inicial agora e registre a nova leitura depois. ${NADA}`;
+      }
+      if (reason === 'obrigatoria') return `Informe a leitura e a data da leitura do medidor. ${NADA}`;
+      if (reason === 'sem_medidor') return `"Sem medidor" não tem leitura nem data. ${NADA}`;
       return `Leitura do medidor inválida: informe um número maior ou igual a zero. ${NADA}`;
     case 'TANQUE_IDENTIFICADOR_DUPLICADO':
       return `Há tanques com o mesmo identificador neste bem (tanques inativos também reservam o identificador). ${NADA}`;
     case 'TANQUE_CAPACIDADE_INVALIDA':
-      return `Capacidade do tanque inválida${naLinha(details)}: informe os litros, maior que zero. ${NADA}`;
+      return `Capacidade do tanque inválida${naLinha(field)}: informe os litros, maior que zero. ${NADA}`;
     case 'TANQUE_COMBUSTIVEL_OBRIGATORIO':
-      return `Cada tanque precisa de pelo menos um combustível, sem repetição${naLinha(details)}. ${NADA}`;
+      return `Cada tanque precisa de pelo menos um combustível, sem repetição${naLinha(field)}. ${NADA}`;
     case 'TANQUE_COMBUSTIVEL_INCOMPATIVEL':
       return `Tanque só aceita combustíveis medidos em litros (combustível em m³, como o GNV, não vai em tanque). ${NADA}`;
     case 'TANQUE_REMOCAO_NAO_PERMITIDA':

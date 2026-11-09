@@ -129,13 +129,17 @@ export const limitesDaMedicao = (m) => (m.perfil.dimensao && DIMENSOES_INTEIRAS.
  * Estado inicial a partir do DETALHE (A13). Sem detalhe = bem novo. Ao
  * duplicar, sai sem o que identifica o bem físico (código de frota, série,
  * chassi, placa, renavam), sem leituras do medidor, sem ids de medições e
- * tanques e só com os tanques ativos.
+ * tanques e só com os tanques ativos. O inativo é legível no registro, mas não
+ * é escolhido para um bem novo: a cópia sai sem a família e o tipo inativos,
+ * sem as medições de perfil inativo e sem os combustíveis inativos.
  * @param {any} detalhe @param {{ duplicar?: boolean }} [opcoes]
  * @returns {EstadoBem}
  */
 export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
   const d = detalhe && typeof detalhe === 'object' ? detalhe : {};
-  const familia = d.familia?.id ? { id: String(d.familia.id), rotulo: texto(d.familia.nome), natureza: d.familia.natureza ?? d.natureza ?? null } : null;
+  /** Na cópia, referência inativa não vem marcada. @param {any} ref */
+  const usavel = (ref) => !duplicar || ref?.ativo !== false;
+  const familia = d.familia?.id && usavel(d.familia) ? { id: String(d.familia.id), rotulo: texto(d.familia.nome), natureza: d.familia.natureza ?? d.natureza ?? null } : null;
   const medidor = d.medidor && typeof d.medidor === 'object' ? d.medidor : null;
   const aq = d.aquisicao && typeof d.aquisicao === 'object' ? d.aquisicao : {};
   const dp = d.depreciacao && typeof d.depreciacao === 'object' ? d.depreciacao : {};
@@ -146,7 +150,7 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
     nome: texto(d.nome),
     codigo_frota: identidade('codigo_frota'),
     familia,
-    tipo: referencia(d.tipo),
+    tipo: duplicar && (!familia || !usavel(d.tipo)) ? null : referencia(d.tipo),
     propriedade: texto(d.propriedade) || 'PROPRIO',
     proprietario: referencia(d.proprietario),
     responsavel: referencia(d.responsavel),
@@ -175,7 +179,7 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
       data_leitura: duplicar ? '' : texto(medidor?.data_leitura),
     },
     medicoes: (Array.isArray(d.medicoes) ? d.medicoes : [])
-      .filter((m) => m && typeof m === 'object')
+      .filter((m) => m && typeof m === 'object' && usavel(m.perfil))
       .map((m, i) => ({
         chave: m.id && !duplicar ? `medicao-${m.id}` : `medicao-copia-${i}`,
         id: duplicar ? null : (m.id ?? null),
@@ -189,7 +193,7 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
       .filter((t) => t && typeof t === 'object' && (!duplicar || t.ativo !== false))
       .map((t, i) => {
         const combustiveis = (Array.isArray(t.combustiveis) ? t.combustiveis : [])
-          .filter((c) => c && c.id)
+          .filter((c) => c && c.id && usavel(c))
           .map((c) => ({ id: String(c.id), nome: texto(c.nome), unidade: typeof c.unidade === 'string' ? c.unidade : null, ativo: c.ativo !== false }));
         return {
           chave: t.id && !duplicar ? `tanque-${t.id}` : `tanque-copia-${i}`,
@@ -365,8 +369,16 @@ export const validarBem = (e, ctx) => {
       else if (diaAntes(ctx.hoje, e.medidor.data_leitura)) erros['medidor.data_leitura'] = 'A data da leitura não pode ser futura';
       if (mostraLeituraAtual(e, ctx)) {
         const atual = lerDecimal(e.medidor.leitura_atual, LIMITES_BEM.MEDIDA);
+        const original = ctx.medidorOriginal;
+        // Correção de cadastro pendente (A2): tipo trocado ou leitura inicial mudada num
+        // medidor ainda corrigível. Aí a atual é a própria inicial (o ajuste vem depois).
+        const inicial = ini.ok ? ini.valor : null;
+        const corrigindo = inicial !== null && medidorCorrigivel(original) && (e.medidor.tipo !== original.tipo || comparar(inicial, original.leitura_inicial) !== 0);
         if (!atual.ok || atual.valor === null) erros['medidor.leitura_atual'] = 'Informe a leitura atual (até 4 casas)';
         else if (ini.ok && ini.valor !== null && comparar(atual.valor, ini.valor) < 0) erros['medidor.leitura_atual'] = 'A leitura atual não pode ser menor que a inicial';
+        else if (corrigindo && inicial !== null && comparar(atual.valor, inicial) !== 0) {
+          erros['medidor.leitura_atual'] = 'Na correção do cadastro a leitura atual é a própria leitura inicial: salve a correção e registre a nova leitura depois';
+        }
       }
     }
   }

@@ -25,7 +25,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
   atualizarComVersao, camposAlterados, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
-  nomeDuplicado, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
+  nomeDuplicado, nomeIgual, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
 } from './patrimonioComum.js';
 import { MAX_PERFIS_POR_TIPO } from './patrimonioDominio.js';
 
@@ -103,7 +103,7 @@ const exigirLivre = async (tx, clienteId, { codigo, nome, familiaId }, ignorarId
   }
   if (
     nome !== undefined &&
-    (await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, familia_id: familiaId, nome: { equals: nome, mode: 'insensitive' }, ...fora }, select: { id: true } }))
+    (await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, familia_id: familiaId, nome: nomeIgual(nome), ...fora }, select: { id: true } }))
   ) {
     throw nomeDuplicado();
   }

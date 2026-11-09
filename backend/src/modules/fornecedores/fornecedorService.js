@@ -145,6 +145,11 @@ export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   await prisma.$transaction(async (tx) => {
+    // Trava o parceiro ANTES das contagens (o mesmo padrão de `atualizar` e da
+    // exclusão da empresa): quem está gravando um bem, lote ou lançamento com
+    // ele segura a linha (FOR KEY SHARE/FK) e esta exclusão espera o commit;
+    // as contagens seguintes já o veem e o 409 sai no lugar do 403 da FK.
+    await tx.$queryRaw`SELECT id FROM "Fornecedor" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
     // D-PROD-146 (R1): parceiro com histórico não some (o nome tem de continuar

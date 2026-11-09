@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina, listarOpcoesCompletasBem } from "@/services/bemPatrimonialService";
+import { listEmpresas } from "@/services/empresaService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
@@ -106,6 +107,21 @@ export default function BensPatrimoniaisTela() {
     // Sem exclusão física: a grade não oferece "Excluir" (inativar é ação própria).
     onRequestDeleteMutation: () => {},
   });
+
+  // Fuso da FAZENDA para o "hoje" da leitura do medidor (o servidor valida no dia
+  // da empresa): o mesmo resumo de empresas do Layout (mesma chave, sem guarda de
+  // tela). Sem fuso, o formulário usa o relógio do navegador.
+  const empresasQuery = useQuery({
+    queryKey: ["empresas"],
+    queryFn: () => listEmpresas(),
+    enabled: Boolean(empresaId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const fusoDaEmpresa = useMemo(() => {
+    const empresa = (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(empresaId));
+    return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
+  }, [empresasQuery.data, empresaId]);
 
   // Troca de empresa: nada da empresa anterior continua na tela.
   const empresaAnterior = useRef(empresaId);
@@ -335,6 +351,7 @@ export default function BensPatrimoniaisTela() {
           detalhe={idAberto ? detalhe : null}
           duplicarDe={duplicando ? detalhe : null}
           empresaId={empresaId}
+          fuso={fusoDaEmpresa}
           readOnly={!controller.isEditing}
           onSubmit={controller.handleSubmit}
         />
@@ -344,6 +361,12 @@ export default function BensPatrimoniaisTela() {
 
   const saving = createMutation.isPending || updateMutation.isPending || situacaoMutation.isPending;
   const registroAtual = idAberto ? (detalhe ?? registroLista) : null;
+
+  /** Cancelar a edição de um registro gravado descarta o digitado: o formulário remonta do detalhe. */
+  const cancelarEdicao = () => {
+    if (controller.isEditing && controller.editingItem?.id) controller.recordHelpers.bumpFormEpoch();
+    controller.cancelForm();
+  };
 
   return (
     // Os botões já seguem a regra EXATA do servidor (novo|salvar, editar|salvar,
@@ -355,7 +378,7 @@ export default function BensPatrimoniaisTela() {
         searchPlaceholder="Buscar bens…"
         formId={FORMULARIO_BEM_ID}
         columnsForCardsToolbar={GRADE_BENS.colunas}
-        controller={{ ...controller, saving, handleDuplicateSelected: duplicar }}
+        controller={{ ...controller, saving, handleDuplicateSelected: duplicar, cancelForm: cancelarEdicao }}
         listErrorMessage={listErrorMessage}
         recordCode={registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
         listBanner={aviso}

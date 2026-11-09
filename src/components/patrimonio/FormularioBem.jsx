@@ -60,11 +60,12 @@ const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome 
  *   detalhe?: any,
  *   duplicarDe?: any,
  *   empresaId: string|null,
+ *   fuso?: string|null,
  *   readOnly?: boolean,
  *   onSubmit: (forma: Record<string, any>) => void,
  * }} props
  */
-export default function FormularioBem({ detalhe = null, duplicarDe = null, empresaId, readOnly = false, onSubmit }) {
+export default function FormularioBem({ detalhe = null, duplicarDe = null, empresaId, fuso = null, readOnly = false, onSubmit }) {
   const queryClient = useQueryClient();
   const editando = Boolean(detalhe?.id);
   const [form, setForm] = useState(() => estadoInicialDoBem(editando ? detalhe : duplicarDe, { duplicar: !editando && Boolean(duplicarDe) }));
@@ -75,7 +76,8 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
   const natureza = form.familia?.natureza ?? null;
   const cap = capacidadesDaNatureza(natureza);
   const aplica = (/** @type {string} */ campo) => campoAplicavel(natureza, campo);
-  const hoje = hojeNoFuso(null);
+  // "Hoje" da leitura do medidor = dia da FAZENDA (o servidor valida no fuso da empresa); sem fuso, o do navegador.
+  const hoje = hojeNoFuso(fuso);
   const medidorOriginal = editando ? (detalhe.medidor ?? null) : null;
   const contexto = { editando, medidorOriginal, hoje };
   const tipoDoMedidorFixo = editando && ehMedidorContador(medidorOriginal?.tipo) && !medidorCorrigivel(medidorOriginal);

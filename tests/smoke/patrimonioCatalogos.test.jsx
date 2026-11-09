@@ -11,7 +11,9 @@
  *  - inativar/reativar é ação do menu, com confirmação, e exige a ação extra
  *    `inativar` (corpo só `{versao, ativo}`); sem a ação, o item não aparece;
  *  - "Instalar catálogo padrão" só para o administrador, só nas Famílias;
- *  - erros do servidor mostram a mensagem do patrimônio e mantêm o formulário.
+ *  - erros do servidor mostram a mensagem do patrimônio e mantêm o formulário
+ *    (com o corpo que o servidor realmente envia);
+ *  - cancelar a edição descarta o que foi digitado.
  * Mocks só da borda: `fetch` (backend falso) e a sessão (usuário/permissão
  * efetiva, tenant do JWT).
  */
@@ -287,6 +289,23 @@ describe('Famílias — criar e editar', () => {
     ]);
   });
 
+  it('cancelar a edição descarta o digitado: volta ao gravado e o próximo PATCH não leva o descartado', async () => {
+    await montar('FamiliasPatrimoniais');
+    await abrir('familia', 'f2');
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/), { target: { value: 'NOME DESCARTADO' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).value).toBe('Máquinas'));
+    expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).readOnly).toBe(true);
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Vida útil padrão/), { target: { value: '96' } });
+    salvar();
+    await screen.findByText('Família patrimonial atualizada');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({ method: 'PATCH', path: '/patrimonio-familias/f2', body: { versao: 3, vida_util_meses_padrao: 96 } }),
+    ]);
+  });
+
   it('409 de nome duplicado na criação e de versão na edição: mensagem e formulário mantido com o que foi digitado', async () => {
     await montar('FamiliasPatrimoniais');
     const form = await novo('familia', 'f1');
@@ -401,9 +420,10 @@ describe('Perfis de medição e combustíveis', () => {
     expect(within(form).getByLabelText('Dimensão').readOnly).toBe(true);
     expect(within(form).getByLabelText('Finalidade').readOnly).toBe(true);
     fireEvent.click(within(within(form).getByRole('group', { name: 'Unidades permitidas' })).getByRole('checkbox', { name: /hectares/ }));
-    proxima = erroServidor(409, 'PERFIL_UNIDADE_EM_USO', { details: { unidade: 'ha' } });
+    // Corpo real do servidor: field/reason no topo e a LISTA das unidades em uso em details.unidades.
+    proxima = erroServidor(409, 'PERFIL_UNIDADE_EM_USO', { field: 'unidades_permitidas', reason: 'unidade_em_uso', details: { unidades: ['ha'] } });
     salvar();
-    expect(await screen.findByText(/unidade \(ha\) que já é usada em medições de bens/)).toBeTruthy();
+    expect(await screen.findByText(/retirar uma unidade \(hectares \(ha\)\) já usada em medições de bens/)).toBeTruthy();
     expect(mutacoes()[0].body).toEqual({ versao: 1, unidades_permitidas: ['m2'] });
     expect(screen.getByTestId('b1-form')).toBeTruthy();
   });
@@ -601,7 +621,7 @@ describe('Catálogo padrão — só o administrador, só nas Famílias', () => {
     expect(screen.queryByText('Instalar catálogo padrão')).toBeNull();
   });
 
-  it('cancelar a confirmação não instala; recusa do servidor (TENANT_ADMIN_REQUIRED) mostra a mensagem', async () => {
+  it('cancelar a confirmação não instala; recusa real do servidor (403 ACAO_NAO_PERMITIDA, exige administrador) mostra a mensagem', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     sessao.permissao = ADMIN;
     await montar('FamiliasPatrimoniais');
@@ -612,7 +632,8 @@ describe('Catálogo padrão — só o administrador, só nas Famílias', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     expect(mutacoes()).toEqual([]);
     confirmSpy.mockReturnValue(true);
-    proxima = erroServidor(403, 'TENANT_ADMIN_REQUIRED');
+    // Mesma negação de `adminOuIsAdmin()` (ex.: administrador rebaixado em outra sessão).
+    proxima = erroServidor(403, 'ACAO_NAO_PERMITIDA', { details: { exige: ['administrador_ou_is_admin'] } });
     abrirMaisOpcoes();
     fireEvent.click(await screen.findByText('Instalar catálogo padrão'));
     expect(await screen.findByText('Só o administrador da fazenda pode fazer isso.')).toBeTruthy();

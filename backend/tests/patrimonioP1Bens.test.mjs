@@ -28,7 +28,7 @@ import assert from 'node:assert/strict';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import {
-  HOJE, contagemEstoqueFinanceiro, contagens, corpoCaminhonete, corpoCerca, corpoCurral, corpoGerador, corpoImplemento, corpoReservatorio,
+  ESTOQUE_FINANCEIRO_VAZIOS, HOJE, contagemForaDoPatrimonio, contagens, corpoCaminhonete, corpoCerca, corpoCurral, corpoGerador, corpoImplemento, corpoReservatorio,
   corpoTrator, erro, fotoPatrimonio, http, montarPatrimonio, prisma,
 } from './patrimonioP1Cenario.mjs';
 
@@ -107,7 +107,7 @@ const combustivelDe = (s, codigo, nome, ativo = true) => ({ id: s.comb[codigo], 
 describe('B1 — aceite do proprietário: um bem de cada natureza, relido', () => {
   test('cerca 1.250 m, curral m² + cabeças, reservatório L, trator TP-02, caminhonete flex UT-04, implemento e gerador sem medidor; detalhe fixo; nada em estoque/financeiro', async () => {
     const s = await montarPatrimonio(app);
-    const estoqueAntes = await contagemEstoqueFinanceiro(s.c);
+    const estoqueAntes = await contagemForaDoPatrimonio(s.c);
     const cerca = await criarOk(s, corpoCerca(s));
     const curral = await criarOk(s, corpoCurral(s));
     const reservatorio = await criarOk(s, corpoReservatorio(s));
@@ -169,8 +169,8 @@ describe('B1 — aceite do proprietário: um bem de cada natureza, relido', () =
     assert.equal(await p.tanqueBem.count({ where: { cliente_id: s.c } }), 2);
     assert.equal(await p.tanqueBemCombustivel.count({ where: { cliente_id: s.c } }), 3);
     assert.equal(await p.auditLog.count({ where: { cliente_id: s.c, entidade: 'BemPatrimonial', acao: 'create' } }), 7);
-    assert.deepEqual(await contagemEstoqueFinanceiro(s.c), estoqueAntes, 'nenhuma linha em estoque/financeiro');
-    assert.ok(Object.values(estoqueAntes).every((n) => n === 0));
+    assert.deepEqual(await contagemForaDoPatrimonio(s.c), estoqueAntes, 'nenhuma linha fora do Patrimônio (estoque/financeiro inclusive)');
+    for (const m of ESTOQUE_FINANCEIRO_VAZIOS) assert.equal(estoqueAntes[m], 0, `${m}: vazio antes do cadastro`);
   });
 });
 
@@ -324,6 +324,7 @@ describe('B3 — tanques e combustíveis', () => {
 
   test('PATCH: tanque ausente 422, novo inativo 400, id repetido/de outro bem 422; troca de identificadores (A5); combustível inativado fica; inativo libera vaga e reserva o identificador', async () => {
     const s = await montarPatrimonio(app);
+    const foraAntes = await contagemForaDoPatrimonio(s.c);
     const trator = await criarOk(s, corpoTrator(s, {
       tanques: [
         { identificador: 'Tanque principal', capacidade_litros: '180', combustivel_ids: [s.comb.DIESEL_S10] },
@@ -369,7 +370,49 @@ describe('B3 — tanques e combustíveis', () => {
     await recusa(s, patch(s, dez.id, { versao: 1, tanques: [...todos, novo] }), [422, 'TANQUE_LIMITE_EXCEDIDO', 'tanques', 'limite']);
     const comInativo = await patchOk(s, dez.id, { versao: 1, tanques: [{ ...todos[0], ativo: false }, ...todos.slice(1), novo] });
     assert.deepEqual([comInativo.tanques.length, comInativo.tanques.filter((t) => t.ativo).length], [11, 10]);
-    assert.ok(Object.values(await contagemEstoqueFinanceiro(s.c)).every((n) => n === 0), 'nenhum efeito em estoque/financeiro');
+    const foraDepois = await contagemForaDoPatrimonio(s.c);
+    assert.deepEqual(foraDepois, foraAntes, 'nenhum efeito fora do Patrimônio (estoque/financeiro inclusive)');
+    for (const m of ESTOQUE_FINANCEIRO_VAZIOS) assert.equal(foraDepois[m], 0, m);
+  });
+
+  test('A5: o temporário da troca nunca colide com um identificador digitado — `~<id de outro tanque>` é um nome comum, em qualquer ordem da lista, e não trava o PATCH seguinte', async () => {
+    const s = await montarPatrimonio(app);
+    const doisTanques = () => corpoTrator(s, {
+      codigo_frota: null,
+      tanques: [
+        { identificador: 'A', capacidade_litros: '100', combustivel_ids: [s.comb.DIESEL_S10] },
+        { identificador: 'B', capacidade_litros: '50', combustivel_ids: [s.comb.DIESEL_S10] },
+      ],
+    });
+    const item = (t, extra = {}) => ({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao, combustivel_ids: t.combustiveis.map((c) => c.id), ...extra });
+    const tanquesDe = (bem) => Object.fromEntries(bem.tanques.map((t) => [t.identificador, t]));
+    const identificadores = (bem) => Object.fromEntries(bem.tanques.map((t) => [t.id, t.identificador]));
+    const gravados = async (bemId) => Object.fromEntries((await prisma().tanqueBem.findMany({ where: { cliente_id: s.c, bem_id: bemId } })).map((t) => [t.id, t.identificador]));
+
+    // No mesmo PATCH: B recebe `~<id de A>` e A recebe 'C' — com B antes de A e com A antes de B.
+    for (const ordem of ['B antes de A', 'A antes de B']) {
+      const bem = await criarOk(s, doisTanques());
+      const { A: a, B: b } = tanquesDe(bem);
+      const itens = [item(b, { identificador: `~${a.id}` }), item(a, { identificador: 'C' })];
+      const r = await patchOk(s, bem.id, { versao: 1, tanques: ordem === 'B antes de A' ? itens : itens.reverse() });
+      const esperado = { [a.id]: 'C', [b.id]: `~${a.id}` };
+      assert.deepEqual([r.versao, identificadores(r)], [2, esperado], ordem);
+      assert.deepEqual(await gravados(bem.id), esperado, `${ordem}: gravado`);
+    }
+
+    // B já gravado com `~<id de A>`: renomear só A depois (o temporário de A não pode ser o nome de B).
+    const bem = await criarOk(s, doisTanques());
+    const { A: a, B: b } = tanquesDe(bem);
+    const v2 = await patchOk(s, bem.id, { versao: 1, tanques: [item(a), item(b, { identificador: `~${a.id}` })] });
+    assert.deepEqual(identificadores(v2), { [a.id]: 'A', [b.id]: `~${a.id}` });
+    const { A: a2, [`~${a.id}`]: b2 } = tanquesDe(v2);
+    const v3 = await patchOk(s, bem.id, { versao: 2, tanques: [item(a2, { identificador: 'Novo A' }), item(b2)] });
+    assert.deepEqual([v3.versao, identificadores(v3)], [3, { [a.id]: 'Novo A', [b.id]: `~${a.id}` }]);
+    // A (primeiro da lista) recebe `~<id de B>` enquanto B, que hoje se chama `~<id de A>`, volta a 'B'.
+    const { 'Novo A': a3, [`~${a.id}`]: b3 } = tanquesDe(v3);
+    const v4 = await patchOk(s, bem.id, { versao: 3, tanques: [item(a3, { identificador: `~${b.id}` }), item(b3, { identificador: 'B' })] });
+    assert.deepEqual(identificadores(v4), { [a.id]: `~${b.id}`, [b.id]: 'B' });
+    assert.deepEqual(await gravados(bem.id), { [a.id]: `~${b.id}`, [b.id]: 'B' });
   });
 });
 
@@ -536,6 +579,7 @@ describe('B5 — aquisição, depreciação e prévia', () => {
 
   test('bem depreciável: parâmetros e prévia no detalhe; PATCH valida o ESTADO FINAL (A6) e depreciavel=false limpa tudo; proprietário só fora de PROPRIO', async () => {
     const s = await montarPatrimonio(app);
+    const foraAntes = await contagemForaDoPatrimonio(s.c);
     const aquisicao = {
       data_aquisicao: '2026-02-10', data_disponibilidade: '2026-02-20', valor_aquisicao: '200000.00', fornecedor_parceiro_id: s.parceiro1.id,
       documento_referencia: 'NF 123', garantia_ate: '2028-02-10',
@@ -597,7 +641,9 @@ describe('B5 — aquisição, depreciação e prévia', () => {
     await recusa(s, criar(s, corpoTrator(s, { codigo_frota: null, depreciacao })), [422, 'DEPRECIACAO_PARAMETROS_INVALIDOS', 'aquisicao.valor_aquisicao', 'obrigatorio']);
     const pct = await criarOk(s, corpoTrator(s, { codigo_frota: null, aquisicao, depreciacao: { depreciavel: true, vida_util_meses: 60, residual_modo: 'PERCENTUAL', residual_percentual: '12.5', data_inicio_depreciacao: '2026-03-01' } }));
     assert.deepEqual([pct.depreciacao.residual_percentual, pct.depreciacao.valor_residual, pct.depreciacao.previa.valor_residual, pct.depreciacao.previa.quota_mensal], ['12.5000', null, '25000.00', '2916.66']);
-    assert.ok(Object.values(await contagemEstoqueFinanceiro(s.c)).every((n) => n === 0), 'depreciação são parâmetros: nada no financeiro');
+    const foraDepois = await contagemForaDoPatrimonio(s.c);
+    assert.deepEqual(foraDepois, foraAntes, 'depreciação são parâmetros: nada fora do Patrimônio (financeiro inclusive)');
+    for (const m of ESTOQUE_FINANCEIRO_VAZIOS) assert.equal(foraDepois[m], 0, m);
   });
 });
 

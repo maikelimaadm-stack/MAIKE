@@ -284,8 +284,10 @@ export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
 
 /**
  * Sync dos tanques (A5.5): identificadores alterados passam primeiro por um
- * temporário único `~<id>` (cabe em 40) e depois recebem o final — trocar o
- * identificador entre dois tanques nunca colide no unique; atualiza
+ * temporário único ` ~<id>` (cabe em 40) e depois recebem o final — trocar o
+ * identificador entre dois tanques nunca colide no unique. O espaço inicial
+ * torna o temporário inalcançável pelo corpo (`textoDoCorpo` apara): mesmo um
+ * identificador digitado `~<id de outro tanque>` nunca colide com ele; atualiza
  * capacidade, observação e situação; sincroniza os vínculos com combustível
  * (removidos fisicamente); cria os tanques novos. Chame `validarTanques` antes.
  * @param {any} tx
@@ -300,7 +302,7 @@ export const sincronizarTanques = async (tx, clienteId, bemId, desejados, gravad
   const existentes = desejados.filter((t) => t.id);
   for (const t of existentes) {
     if (porId.get(t.id).identificador !== t.identificador) {
-      await tx.tanqueBem.updateMany({ where: { ...base, id: t.id }, data: { identificador: `~${t.id}` } });
+      await tx.tanqueBem.updateMany({ where: { ...base, id: t.id }, data: { identificador: ` ~${t.id}` } });
     }
   }
   for (const t of existentes) {

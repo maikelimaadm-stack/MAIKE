@@ -14,7 +14,9 @@
  *  S5. RLS ligado e zero grants públicos nas 9 tabelas.
  *  S6. CHECK/FK/UNIQUE direto no banco (A7: CHECKs NULL-safe).
  *  S7. Cadastros antigos referenciados: parceiro → 409 PARCEIRO_EM_USO (não
- *      403); fazenda com bens → 409 EMPRESA_COM_VINCULOS.
+ *      403); fazenda com bens → 409 EMPRESA_COM_VINCULOS. Também em corrida
+ *      (portão na auditoria): exclusão em voo × escrita do bem e vice-versa
+ *      nunca terminam em 403.
  *  S8. Release: runtime novo + schema antigo → P2021 (500 sem detalhe); o
  *      preflight acusa a migration pendente.
  */
@@ -22,6 +24,7 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { PrismaClient } from '@prisma/client';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -517,6 +520,142 @@ describe('S7 — exclusão de cadastros antigos referenciados por bens', () => {
     assert.deepEqual(emp.json().details.vinculos, [{ entidade: 'BemPatrimonial', total: 1 }]);
     assert.ok(await p.empresa.findUnique({ where: { id: e3.id } }), 'fazenda intacta');
     assert.equal(await p.bemPatrimonial.count({ where: { cliente_id: s.c, empresa_id: e3.id } }), 1);
+  });
+
+  // ─── corridas: um portão (gatilho na auditoria) segura UMA transação do app
+  // depois das escritas e antes do commit; o teste observa as travas no banco.
+  // Sem trava na leitura, a FK falhava depois e devolvia o enganoso 403
+  // TENANT_SCOPE_VIOLATION; o contrato exige 409/422/404 de negócio.
+  /** @type {PrismaClient} */
+  let aux;
+  before(() => {
+    aux = new PrismaClient();
+  });
+  after(async () => {
+    await aux?.$disconnect();
+  });
+  const PORTAO = 'patrimonio_p1_portao';
+  /** Segura o INSERT de auditoria da `entidade` (só deste tenant) até o teste abrir o portão. */
+  const instalarPortao = async (clienteId, entidade) => {
+    const p = prisma();
+    await p.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION ${PORTAO}() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_advisory_xact_lock_shared(156, 1); RETURN NEW; END $f$`);
+    await p.$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${PORTAO} ON "AuditLog"`);
+    await p.$executeRawUnsafe(
+      `CREATE TRIGGER ${PORTAO} BEFORE INSERT ON "AuditLog" FOR EACH ROW WHEN (NEW.cliente_id = '${clienteId}' AND NEW.entidade = '${entidade}') EXECUTE FUNCTION ${PORTAO}()`
+    );
+  };
+  const removerPortao = () => prisma().$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${PORTAO} ON "AuditLog"`);
+  /** pid parado no portão (ou null). */
+  const paradoNoPortao = async () => {
+    const l = /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND classid = 156 AND objid = 1 AND objsubid = 2 AND NOT granted`);
+    return l.length ? l[0].pid : null;
+  };
+  /** Algum pid esperando uma trava de `pid` (ou null). */
+  const alguemEsperando = async (pid) => {
+    const l = /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND ${pid}::int = ANY(pg_blocking_pids(pid))`);
+    return l.length ? l[0].pid : null;
+  };
+  /** Espera uma CONDIÇÃO observável (nunca um tempo fixo). */
+  const esperar = async (cond, rotulo, ms = 4000) => {
+    const limite = Date.now() + ms;
+    for (;;) {
+      const v = await cond();
+      if (v) return v;
+      if (Date.now() > limite) throw new Error(`tempo esgotado esperando: ${rotulo}`);
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  };
+  /**
+   * `primeiro` para no portão (gravou, não confirmou); `segundo` é disparado e
+   * espera a trava de `primeiro`; o portão abre. Devolve as duas respostas.
+   * @param {string} clienteId @param {string} entidade  auditoria de `primeiro`
+   * @param {() => Promise<any>} primeiro @param {() => Promise<any>} segundo
+   */
+  const emCorrida = async (clienteId, entidade, primeiro, segundo) => {
+    await instalarPortao(clienteId, entidade);
+    try {
+      /** @type {Array<Promise<any>>} */
+      const pedidos = [];
+      await aux.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(156, 1)`;
+          pedidos.push(primeiro());
+          const pid = await esperar(paradoNoPortao, `${entidade} parado no portão`);
+          pedidos.push(segundo());
+          await esperar(() => alguemEsperando(pid), 'o segundo pedido esperando a trava do primeiro');
+        },
+        { maxWait: 10000, timeout: 30000 }
+      );
+      return await Promise.all(pedidos);
+    } finally {
+      await removerPortao();
+    }
+  };
+  const fornecedorNovo = (s, nome) =>
+    prisma().fornecedor.create({ data: { cliente_id: s.c, empresa_id: s.e1.id, numero_cadastro: `C-${randomUUID().slice(0, 6)}`, tipo_pessoa: 'Jurídica', nome } });
+  const fazendaNova = (s, numero) =>
+    prisma().empresa.create({ data: { cliente_id: s.c, numero_empresa: numero, fuso_horario: FUSO, apelido: `F${numero}`, nome: `Fazenda ${numero} ${randomUUID().slice(0, 4)}` } });
+
+  test('corrida parceiro × bem: bem em voo segura o parceiro (DELETE → 409 PARCEIRO_EM_USO); exclusão em voo some com ele (POST do bem → 422 inexistente); nunca 403', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    // (1) O bem gravou o fornecedor e ainda não confirmou; o DELETE chega.
+    const f1 = await fornecedorNovo(s, 'Revenda em corrida');
+    const [bem, exclusao] = await emCorrida(
+      s.c,
+      'BemPatrimonial',
+      () => req('POST', '/bens-patrimoniais', s.token, corpoImplemento(s, { aquisicao: { fornecedor_parceiro_id: f1.id } })),
+      () => req('DELETE', `/fornecedores/${f1.id}`, s.token)
+    );
+    assert.equal(bem.statusCode, 201, bem.body);
+    assert.deepEqual(erro(exclusao).slice(0, 2), [409, 'PARCEIRO_EM_USO'], exclusao.body);
+    assert.equal(exclusao.json().details.bens, 1);
+    assert.ok(await p.fornecedor.findUnique({ where: { id: f1.id } }), 'parceiro intacto');
+
+    // (2) O DELETE apagou o parceiro e ainda não confirmou; o POST do bem chega com ele.
+    const f2 = await fornecedorNovo(s, 'Revenda que sai');
+    const bensAntes = () => Promise.all([p.bemPatrimonial.count({ where: { cliente_id: s.c } }), p.auditLog.count({ where: { cliente_id: s.c, entidade: 'BemPatrimonial' } })]);
+    const antes = await bensAntes();
+    const [saida, recusado] = await emCorrida(
+      s.c,
+      'Fornecedor',
+      () => req('DELETE', `/fornecedores/${f2.id}`, s.token),
+      () => req('POST', '/bens-patrimoniais', s.token, corpoImplemento(s, { nome: 'Roçadeira nova', aquisicao: { fornecedor_parceiro_id: f2.id } }))
+    );
+    assert.equal(saida.statusCode, 204, saida.body);
+    assert.deepEqual(erro(recusado), [422, 'BEM_REFERENCIA_INVALIDA', 'aquisicao.fornecedor_parceiro_id', 'inexistente'], recusado.body);
+    assert.equal(await p.fornecedor.findUnique({ where: { id: f2.id } }), null);
+    assert.deepEqual(await bensAntes(), antes, 'bem recusado: nada gravado (nem auditoria)');
+  });
+
+  test('corrida fazenda × bem: exclusão em voo some com a fazenda (POST do bem → 404 EMPRESA_NOT_FOUND); bem em voo segura a fazenda (DELETE → 409 EMPRESA_COM_VINCULOS); nunca 403', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    // (1) O DELETE da fazenda vazia apagou-a e ainda não confirmou; o POST do bem chega nela.
+    const e3 = await fazendaNova(s, 3);
+    const [saida, recusado] = await emCorrida(
+      s.c,
+      'Empresa',
+      () => req('DELETE', `/empresas/${e3.id}`, s.token),
+      () => req('POST', '/bens-patrimoniais', s.token, corpoGerador(s, { empresa_id: e3.id }))
+    );
+    assert.equal(saida.statusCode, 204, saida.body);
+    assert.deepEqual(erro(recusado).slice(0, 2), [404, 'EMPRESA_NOT_FOUND'], recusado.body);
+    assert.equal(await p.empresa.findUnique({ where: { id: e3.id } }), null);
+    assert.equal(await p.bemPatrimonial.count({ where: { cliente_id: s.c, empresa_id: e3.id } }), 0);
+
+    // (2) O bem gravou na fazenda e ainda não confirmou; o DELETE chega.
+    const e4 = await fazendaNova(s, 4);
+    const [bem, exclusao] = await emCorrida(
+      s.c,
+      'BemPatrimonial',
+      () => req('POST', '/bens-patrimoniais', s.token, corpoGerador(s, { empresa_id: e4.id })),
+      () => req('DELETE', `/empresas/${e4.id}`, s.token)
+    );
+    assert.equal(bem.statusCode, 201, bem.body);
+    assert.deepEqual(erro(exclusao).slice(0, 2), [409, 'EMPRESA_COM_VINCULOS'], exclusao.body);
+    assert.deepEqual(exclusao.json().details.vinculos, [{ entidade: 'BemPatrimonial', total: 1 }]);
+    assert.ok(await p.empresa.findUnique({ where: { id: e4.id } }), 'fazenda intacta');
   });
 });
 

@@ -149,6 +149,46 @@ describe('K1 — catálogo padrão', () => {
     assert.deepEqual(r2.existentes, { familias: 2, tipos: 3, perfis: 3, combustiveis: 3 });
   });
 
+  test('A9: nome já usado por TIPO (na mesma família) e por PERFIL vira nome_em_uso; dependentes pulados; o resto instala; 200 sem P2002 abortar a transação', async () => {
+    const s = await montarPatrimonio(app, { catalogo: false });
+    const t = s.token;
+    const post = (url, corpo) => ok(req('POST', url, t, corpo), 201);
+    // Família BENFEITORIAS correta (ativa, mesma natureza): conta como existente e os tipos dela são instalados nela.
+    const benf = await post('/patrimonio-familias', { codigo: 'BENFEITORIAS', nome: 'Benfeitorias da fazenda', natureza: 'BENFEITORIA' });
+    // Nome EXATO do padrão: o unique [cliente_id, familia_id, nome] diferencia maiúsculas, então só o nome exato bateria em P2002.
+    const meuGalpao = await post('/patrimonio-tipos', { familia_id: benf.id, codigo: 'MEU_GALPAO', nome: 'Galpão' });
+    const meuVolume = await post('/patrimonio-perfis-medicao', { codigo: 'MEU_VOLUME', nome: 'Volume', dimensao: 'VOLUME', finalidade: 'CAPACIDADE', unidades_permitidas: ['L'] });
+    const antes = JSON.stringify([
+      await prisma().tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
+      await prisma().perfilMedicao.findUnique({ where: { id: meuVolume.id } }),
+      await prisma().familiaPatrimonial.findUnique({ where: { id: benf.id } }),
+    ]);
+
+    const r = await ok(instalar(t));
+    assert.deepEqual(conflitosOrdenados(r), [
+      'perfis:VOLUME:nome_em_uso', 'tipos:BEBEDOURO_FIXO:dependencia_em_conflito', 'tipos:GALPAO:nome_em_uso', 'tipos:RESERVATORIO:dependencia_em_conflito',
+    ]);
+    assert.deepEqual(r.criados, { familias: 4, tipos: 10, perfis: 4, combustiveis: 5 });
+    assert.deepEqual(r.existentes, { familias: 1, tipos: 0, perfis: 0, combustiveis: 0 });
+    const p = prisma();
+    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: { in: ['GALPAO', 'RESERVATORIO', 'BEBEDOURO_FIXO'] } } }), 0);
+    assert.equal(await p.perfilMedicao.count({ where: { cliente_id: s.c, codigo: 'VOLUME' } }), 0);
+    assert.equal((await p.tipoPatrimonial.findFirst({ where: { cliente_id: s.c, codigo: 'CURRAL' } }))?.familia_id, benf.id, 'tipos do padrão entram na família existente');
+    assert.equal(
+      JSON.stringify([
+        await p.tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
+        await p.perfilMedicao.findUnique({ where: { id: meuVolume.id } }),
+        await p.familiaPatrimonial.findUnique({ where: { id: benf.id } }),
+      ]),
+      antes,
+      'MEU_GALPAO, MEU_VOLUME e a família intactos',
+    );
+    // Idempotente: a 2ª chamada repete os conflitos e não cria nada.
+    const r2 = await ok(instalar(t));
+    assert.deepEqual(conflitosOrdenados(r2), conflitosOrdenados(r));
+    assert.deepEqual(r2.criados, ZERO);
+  });
+
   test('só administrador real ou is_admin; corpo fechado; sem sessão 401', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const todasAsTelas = await s.contaCom(...Object.values(TELAS).map(tudo));
@@ -256,6 +296,66 @@ describe('K2 — famílias', () => {
     assert.deepEqual([a.statusCode, b.statusCode].sort(), [201, 409]);
     assert.equal([a, b].find((r) => r.statusCode === 409).json().code, 'PATRIMONIO_CODIGO_DUPLICADO');
     assert.equal(await prisma().familiaPatrimonial.count({ where: { cliente_id: s.c, codigo: 'CORRIDA' } }), 1);
+  });
+
+  // A9: o unique do banco diferencia maiúsculas; sob concorrência, só a trava do catálogo barra o nome repetido em outra caixa.
+  test('corrida de NOME sem diferenciar maiúsculas (códigos distintos) → [201, 409 PATRIMONIO_NOME_DUPLICADO]: família, tipo (na família), perfil e combustível; um nome só', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    const casos = [
+      ['/patrimonio-familias', (codigo, nome) => ({ codigo, nome, natureza: 'OUTRO' }), ['Galpões', 'GALPÕES'], (nome) => p.familiaPatrimonial.count({ where: { cliente_id: s.c, nome: { equals: nome, mode: 'insensitive' } } })],
+      [
+        '/patrimonio-tipos', (codigo, nome) => ({ familia_id: s.fam.MAQUINAS, codigo, nome }), ['Grade aradora', 'GRADE ARADORA'],
+        (nome) => p.tipoPatrimonial.count({ where: { cliente_id: s.c, familia_id: s.fam.MAQUINAS, nome: { equals: nome, mode: 'insensitive' } } }),
+      ],
+      [
+        '/patrimonio-perfis-medicao', (codigo, nome) => ({ codigo, nome, dimensao: 'QUANTIDADE', finalidade: 'DIMENSAO', unidades_permitidas: ['un'] }), ['Mourões', 'MOURÕES'],
+        (nome) => p.perfilMedicao.count({ where: { cliente_id: s.c, nome: { equals: nome, mode: 'insensitive' } } }),
+      ],
+      ['/patrimonio-combustiveis', (codigo, nome) => ({ codigo, nome }), ['Biodiesel B100', 'BIODIESEL B100'], (nome) => p.tipoCombustivel.count({ where: { cliente_id: s.c, nome: { equals: nome, mode: 'insensitive' } } })],
+    ];
+    for (const [url, corpo, [nome1, nome2], contar] of casos) {
+      const [a, b] = await Promise.all([req('POST', url, s.token, corpo('CORRIDA_N1', nome1)), req('POST', url, s.token, corpo('CORRIDA_N2', nome2))]);
+      assert.deepEqual([a.statusCode, b.statusCode].sort(), [201, 409], `${url}: ${a.body} ${b.body}`);
+      assert.deepEqual(erro([a, b].find((r) => r.statusCode === 409)), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido'], url);
+      assert.equal(await contar(nome1), 1, `${url}: um nome só`);
+    }
+    // PATCH: duas famílias renomeadas ao mesmo tempo para o mesmo nome em caixas diferentes.
+    const post = (codigo, nome) => ok(req('POST', '/patrimonio-familias', s.token, { codigo, nome, natureza: 'OUTRO' }), 201);
+    const [x, y] = [await post('REN_X', 'Renomear X'), await post('REN_Y', 'Renomear Y')];
+    const [rx, ry] = await Promise.all([
+      req('PATCH', `/patrimonio-familias/${x.id}`, s.token, { versao: 1, nome: 'Depósito central' }),
+      req('PATCH', `/patrimonio-familias/${y.id}`, s.token, { versao: 1, nome: 'DEPÓSITO CENTRAL' }),
+    ]);
+    assert.deepEqual([rx.statusCode, ry.statusCode].sort(), [200, 409], `${rx.body} ${ry.body}`);
+    assert.equal([rx, ry].find((r) => r.statusCode === 409).json().code, 'PATRIMONIO_NOME_DUPLICADO');
+    assert.equal(await p.familiaPatrimonial.count({ where: { cliente_id: s.c, nome: { equals: 'depósito central', mode: 'insensitive' } } }), 1);
+  });
+
+  test('nome único: `%`, `_` e `\\` são literais na comparação sem diferenciar maiúsculas (família, tipo, perfil e combustível)', async () => {
+    const s = await montarPatrimonio(app);
+    const casos = [
+      ['/patrimonio-familias', (codigo, nome) => ({ codigo, nome, natureza: 'OUTRO' })],
+      ['/patrimonio-tipos', (codigo, nome) => ({ familia_id: s.fam.MAQUINAS, codigo, nome })],
+      ['/patrimonio-perfis-medicao', (codigo, nome) => ({ codigo, nome, dimensao: 'QUANTIDADE', finalidade: 'DIMENSAO', unidades_permitidas: ['un'] })],
+      ['/patrimonio-combustiveis', (codigo, nome) => ({ codigo, nome })],
+    ];
+    for (const [url, corpo] of casos) {
+      const post = (codigo, nome) => req('POST', url, s.token, corpo(codigo, nome));
+      const criado = async (codigo, nome, rotulo) => {
+        const r = await post(codigo, nome);
+        assert.equal(r.statusCode, 201, `${url} ${rotulo}: ${r.body}`);
+      };
+      await criado('LIKE_1', 'LinhaX1', 'base');
+      await criado('LIKE_2', 'Linha_1', "'_' não casa com qualquer caractere");
+      await criado('LIKE_3', 'Biodiesel 100% de soja', 'base');
+      await criado('LIKE_4', 'Biodiesel%', "'%' não casa com qualquer resto");
+      await criado('LIKE_5', 'Linha\\Nova', 'base');
+      const repetido = await post('LIKE_6', 'LINHA\\NOVA');
+      assert.deepEqual(erro(repetido), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido'], `${url}: '\\' é literal: ${repetido.body}`);
+      // Escapado, o curinga continua comparado sem diferenciar maiúsculas.
+      assert.deepEqual(erro(await post('LIKE_7', 'linha_1')), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido'], `${url}: '_' em outra caixa`);
+    }
   });
 });
 
