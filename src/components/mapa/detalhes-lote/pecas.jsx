@@ -342,6 +342,41 @@ const CAMINHO_CHEVRON = {
 };
 
 /**
+ * Popup que abre embaixo de um botão: a altura máxima vai do fim do botão até
+ * o fim da tela visível, e o popup rola por dentro. Sem isto, no celular as
+ * últimas opções ficavam abaixo da tela — e a camada que fecha o popup ao tocar
+ * fora também impede rolar o corpo por trás dela.
+ * @param {boolean} aberto
+ * @returns {{ ancora: React.MutableRefObject<HTMLButtonElement | null>, estilo: React.CSSProperties }}
+ */
+export function useAlturaPopup(aberto) {
+  const ancora = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
+  const [maximo, setMaximo] = React.useState(/** @type {number | null} */ (null));
+  React.useLayoutEffect(() => {
+    if (!aberto || typeof window === "undefined") return undefined;
+    const medir = () => {
+      const el = ancora.current;
+      if (!el) return;
+      const fimBotao = el.getBoundingClientRect().bottom;
+      const alturaTela = window.visualViewport?.height ?? window.innerHeight;
+      // 5px de distância do botão + 12px de respiro no fim da tela; nunca menor que 160px.
+      setMaximo(Math.max(160, Math.floor(alturaTela - fimBotao - 5 - 12)));
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    window.visualViewport?.addEventListener("resize", medir);
+    return () => {
+      window.removeEventListener("resize", medir);
+      window.visualViewport?.removeEventListener("resize", medir);
+    };
+  }, [aberto]);
+  return {
+    ancora,
+    estilo: { maxHeight: maximo ?? undefined, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" },
+  };
+}
+
+/**
  * Seta (traço 2,25). `girar` → 90° com transição (acordeão).
  * @param {{ direcao?: 'direita'|'esquerda'|'baixo', tamanho?: number, cor?: string, girar?: boolean, style?: React.CSSProperties }} props
  */

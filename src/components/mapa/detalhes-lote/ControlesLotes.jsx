@@ -1,6 +1,6 @@
 import { useEffect, useId } from 'react';
 import { SECOES_LOTE } from '@/components/mapa/detalhes-lote/catalogo';
-import { COR, useDlUi } from '@/components/mapa/detalhes-lote/pecas';
+import { COR, useAlturaPopup, useDlUi } from '@/components/mapa/detalhes-lote/pecas';
 
 /** @typedef {import('./useEstadoLotes').EstadoLotes} EstadoLotes */
 /** @typedef {import('./useEstadoLotes').Vista} Vista */
@@ -67,6 +67,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
   const idCampo = useId();
   const idPopup = useId();
   const { popupAberto, setPopupAberto } = estado;
+  const { ancora, estilo: estiloRolagem } = useAlturaPopup(popupAberto);
 
   // Esc fecha o popup (além de tocar fora).
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
             </label>
           )}
           <button
+            ref={ancora}
             id={idCampo}
             type="button"
             role="combobox"
@@ -171,6 +173,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
                 width: celular ? 350 : 268, maxWidth: celular ? 'none' : 'calc(100% - 16px)',
                 padding: 6, borderRadius: 12, background: '#fff', boxShadow: '0 6px 24px rgba(15, 23, 42, .14)',
                 boxSizing: 'border-box',
+                ...estiloRolagem,
               }}
             >
               <div role="listbox" aria-label="Informações" aria-multiselectable="true">

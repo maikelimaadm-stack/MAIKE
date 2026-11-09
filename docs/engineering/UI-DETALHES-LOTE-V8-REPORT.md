@@ -91,6 +91,16 @@ Conferências automáticas nos 3 tamanhos:
 - Nenhuma palavra GMD, arroba ou @ aparece.
 - Nenhum erro de página.
 
+## Correções depois do teste do dono no preview
+
+1. **A pesagem nova não aparecia ao reabrir o Detalhes do Lote.** O diálogo fecha depois do manejo. O `atualizar-mapa` relê as movimentações do servidor, mas a query `['detalhes-lote-movimentacoes']` tinha `staleTime` de 60 s. Ao reabrir em menos de 1 minuto, ela devolvia a lista antiga da memória.
+   - **Correção:** `staleTime: 0` + `refetchOnMount: 'always'` só nessa query.
+   - **O lote não mudou:** a query `['mapa-lotes']` ficou como estava, porque o "Editar Informação" (D-PROD-139) grava nela de propósito e uma releitura poria o IndexedDB antigo por cima.
+   - **Teste de regressão:** `tests/smoke/detalhesLoteV8Pesagem.test.jsx`. Falha sem a correção e passa com ela.
+2. **O popup não rolava no celular.** O popup "Filtrar" (e o "Mostrar informações" da aba Área) não tinha altura máxima. As últimas opções ficavam abaixo da tela, e a camada que fecha ao tocar fora impedia rolar o corpo.
+   - **Correção:** `useAlturaPopup` (em `pecas.jsx`) limita o popup ao espaço visível abaixo do botão (mínimo 160 px), e o popup rola por dentro.
+   - **Verificado no Chromium em 390×500:** o conteúdo rola e a última opção ("Intervalo curto") é alcançada e aplicada.
+
 ## O que NÃO foi feito
 
 - **Nome do lote no título da folha de manejos:** não se aplica. O prompt proíbe botões de ação no card, então a folha só abre pelo botão do cabeçalho, sem lote. `MobileSheet.jsx` não foi alterado.

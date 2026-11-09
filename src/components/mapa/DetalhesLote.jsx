@@ -186,7 +186,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       return cached || [];
     },
     enabled: !!empresaSelecionadaId,
-    staleTime: 60 * 1000
+    // Sempre relê ao abrir (a pesagem recém-registrada tem de aparecer): o queryFn
+    // devolve o IndexedDB na hora e a releitura do servidor — a mesma que o
+    // 'atualizar-mapa' disparou, se ainda estiver em andamento — substitui em seguida.
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   // Aguarda a leitura do cache local (IndexedDB) que é super rápida, para não exibir os dados zerados

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useState } from "react";
-import { useDlUi, COR, CartaoDl, PilulaTitulo, IconeCategoria, TituloSecao, GradeCampos, Chevron } from "@/components/mapa/detalhes-lote/pecas";
+import { useDlUi, COR, CartaoDl, PilulaTitulo, IconeCategoria, TituloSecao, GradeCampos, Chevron, useAlturaPopup } from "@/components/mapa/detalhes-lote/pecas";
 import { SECOES_AREA, TONS, VAZIO } from "@/components/mapa/detalhes-lote/catalogo";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
@@ -47,6 +47,7 @@ export default function AbaArea({ modelo }) {
   const area = modelo.area;
   const [secoes, setSecoes] = useState(lerSecoesArea);
   const [aberto, setAberto] = useState(false);
+  const { ancora, estilo: estiloRolagem } = useAlturaPopup(aberto);
   const idCampo = useId();
 
   /** @param {string[]} prox */
@@ -104,6 +105,7 @@ export default function AbaArea({ modelo }) {
             {ui.celular ? "Mostrar" : "Mostrar informações"}
           </label>
           <button
+            ref={ancora}
             id={idCampo}
             type="button"
             role="combobox"
@@ -151,6 +153,7 @@ export default function AbaArea({ modelo }) {
                 borderRadius: 12,
                 background: "#fff",
                 boxShadow: "0 6px 24px rgba(15, 23, 42, .14)",
+                ...estiloRolagem,
               }}
             >
               <div style={{ padding: "6px 8px", fontSize: 13, fontWeight: 600, color: COR.meta }}>Mostrar informações</div>
