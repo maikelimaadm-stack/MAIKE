@@ -7,7 +7,7 @@
  * valores em string canônica, datas AAAA-MM-DD, `operation_id` idempotente,
  * `versao` com compare-and-swap, corpo de erro `{code, message, request_id,
  * field?, reason?, details?}`. Sem dependência de Vitest (puro JS).
- * D-PROD-157 (P3-03, SPEC §3–§6): `GET /:id/elegibilidade`, `POST /:id/retificar`
+ * D-PROD-158 (P3-03, SPEC §3–§6): `GET /:id/elegibilidade`, `POST /:id/retificar`
  * (NO_LUGAR quando a assinatura física não muda; SUBSTITUICAO atômica quando
  * muda), `POST /:id/excluir` (lógico), `situacao` na lista, `excluido_em`,
  * `retificado_em`, `exclusao`, `substitui`, `substituido_por` e `eventos` no
@@ -103,19 +103,19 @@ export const criarEstadoLancamentos = (opts = {}) => ({
   /** Produtos extras (vetores com saco de outro peso). */
   produtosExtras: /** @type {any[]} */ ([]),
   /**
-   * D-PROD-157 — permissões que o SERVIDOR enxerga para a elegibilidade
+   * D-PROD-158 — permissões que o SERVIDOR enxerga para a elegibilidade
    * (`sem_permissao` entra como motivo, nunca mascarado).
    */
   permissoes: { criar: true, editar: true, confirmar: true, cancelar: true, excluir: true },
   /**
-   * D-PROD-157 — dependências físicas por documento (lote consumido/alterado,
+   * D-PROD-158 — dependências físicas por documento (lote consumido/alterado,
    * venda com movimento posterior): `{ [docId]: motivo[] }`. Com elas o
    * estoque não pode ser refeito (efeito_fisico_permitido=false).
    */
   dependencias: /** @type {Record<string, any[]>} */ ({}),
-  /** D-PROD-157 — AuditLog da criação (proveniência `duplicado_de_id`). */
+  /** D-PROD-158 — AuditLog da criação (proveniência `duplicado_de_id`). */
   auditoria: /** @type {any[]} */ ([]),
-  /** D-PROD-157 — eventos de revisão/exclusão (com snapshot, como a tabela nova). */
+  /** D-PROD-158 — eventos de revisão/exclusão (com snapshot, como a tabela nova). */
   eventos: /** @type {any[]} */ ([]),
   /** Promessa que segura a resposta do GET de detalhe (troca de empresa no meio do Duplicar). */
   segurarDetalhe: /** @type {Promise<void>|null} */ (null),
@@ -346,7 +346,7 @@ const eventosDaCadeia = (estado, doc) => {
   return estado.eventos.filter((e) => ids.has(e.operacao_id) || (e.operacao_nova_id && ids.has(e.operacao_nova_id))).slice(0, 50).map((e) => eventoPublico(estado, e));
 };
 
-/** Campos de leitura do D-PROD-157 (detalhe). */
+/** Campos de leitura do D-PROD-158 (detalhe). */
 const camposDeRevisao = (estado, doc) => {
   const exclusao = estado.eventos.find((e) => e.tipo === 'EXCLUSAO' && e.operacao_id === doc.id);
   const saiu = estado.eventos.find((e) => e.modo === 'SUBSTITUICAO' && e.operacao_id === doc.id);
@@ -387,7 +387,7 @@ const resumoLista = (d) => {
   };
 };
 
-// ─── D-PROD-157 — elegibilidade, retificar e excluir (SPEC §3–§5) ─────────
+// ─── D-PROD-158 — elegibilidade, retificar e excluir (SPEC §3–§5) ─────────
 
 const SITUACOES = ['OPERACIONAIS', 'EXCLUIDOS', 'TODOS'];
 /** Filtro `situacao` da lista: OPERACIONAIS (padrão) sem excluídos nem versões substituídas. */
@@ -594,7 +594,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     const r = idempotente(estado, 'criar', body, () => {
       if (!estado.perfil) return erro(409, 'PERFIL_FINANCEIRO_NAO_CONFIGURADO');
       const { operation_id: _op, duplicado_de_id: duplicadoDe, ...corpo } = body;
-      // D-PROD-157: proveniência da cópia — do mesmo tenant e da MESMA empresa, senão 422.
+      // D-PROD-158: proveniência da cópia — do mesmo tenant e da MESMA empresa, senão 422.
       if (duplicadoDe !== undefined) {
         const origem = estado.documentos.find((d) => d.id === duplicadoDe);
         if (typeof duplicadoDe !== 'string' || !origem || origem.empresa_id !== (corpo.empresa_id ?? EMPRESA)) {

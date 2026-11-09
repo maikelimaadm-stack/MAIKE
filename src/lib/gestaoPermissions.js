@@ -42,7 +42,7 @@ export const ACOES_EXTRAS_LANCAMENTOS = Object.freeze({
  * `estornar` (= `estornar_liquidacao`) e `cancelar`. Descartar rascunho é
  * edição (`editar|salvar`), como o DELETE do servidor.
  *
- * D-PROD-157 (P3-03): `excluir` é a ação PADRÃO da tela (coluna Excluir da
+ * D-PROD-158 (P3-03): `excluir` é a ação PADRÃO da tela (coluna Excluir da
  * permissão). Excluir lançamento CONFIRMADO exige `excluir` E `cancelar` (ele
  * estorna títulos e estoque como o cancelamento); corrigir confirmado exige
  * `editar` E `confirmar`; duplicar exige `criar` (e ver). A tela mostra o botão

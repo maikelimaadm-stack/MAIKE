@@ -23,7 +23,7 @@
  *  - auditoria por ALLOWLIST (ids, número, situação, totais, contagens, ids de
  *    efeitos) — nunca descrição, observação, motivo, referência ou nome.
  *
- * D-PROD-157 (Gestão P3-03) — EDITAR (retificar), EXCLUIR (lógico) e DUPLICAR:
+ * D-PROD-158 (Gestão P3-03) — EDITAR (retificar), EXCLUIR (lógico) e DUPLICAR:
  *  - elegibilidade de fonte ÚNICA (`avaliarElegibilidade`): o GET responde em
  *    REPEATABLE READ sem trava; os comandos repetem a MESMA avaliação depois das
  *    travas (mudou desde o GET → 409 específico com os motivos);
@@ -72,10 +72,10 @@ export const TIPO_CONFIRMAR = 'confirmar_operacao_financeira';
 export const TIPO_CANCELAR = 'cancelar_operacao_financeira';
 export const TIPO_LIQUIDAR = 'liquidar_titulo';
 export const TIPO_ESTORNAR = 'estornar_liquidacao';
-/** D-PROD-157: comandos de retificação e de exclusão lógica (idempotentes por `operation_id`). */
+/** D-PROD-158: comandos de retificação e de exclusão lógica (idempotentes por `operation_id`). */
 export const TIPO_RETIFICAR = 'retificar_operacao_financeira';
 export const TIPO_EXCLUIR = 'excluir_operacao_financeira';
-/** D-PROD-157 (revisão DE-02/BC-01): AuditLog do lote cuja procedência a retificação NO_LUGAR atualizou (escritor benigno). */
+/** D-PROD-158 (revisão DE-02/BC-01): AuditLog do lote cuja procedência a retificação NO_LUGAR atualizou (escritor benigno). */
 export const ACAO_PROCEDENCIA_LOTE = 'operacao_financeira.retificar_procedencia';
 
 /** Transações (§8.4): rascunho 20 s; efeitos (confirmar/cancelar) 30 s. */
@@ -426,7 +426,7 @@ const linhaDeRateioParaGravar = (base, op, r, refs) => {
  * D-PROD-156: os itens voltam do INSERT com o id (`createManyAndReturn`) e a
  * linha por item vai para o item da MESMA requisição pela `ordem` do item no
  * plano — nunca por índice de outra coleção.
- * D-PROD-157: a retificação NO_LUGAR mantém as linhas de MERCADORIA (com os
+ * D-PROD-158: a retificação NO_LUGAR mantém as linhas de MERCADORIA (com os
  * seus movimentos) — `mantidos`, ordem → id — e cria só as demais; os títulos
  * da retificação nascem `ABERTO` (`statusTitulos`), como na confirmação.
  * @param {any} tx @param {string} clienteId @param {any} op @param {any} plano @param {any} refs
@@ -674,7 +674,7 @@ const custoDoItem = (op, i) => {
 
 /**
  * DETALHE (§5): datas de negócio AAAA-MM-DD; valores em string na escala.
- * D-PROD-157: `revisao` traz exclusão, substituição (nos dois sentidos), a
+ * D-PROD-158: `revisao` traz exclusão, substituição (nos dois sentidos), a
  * cadeia de eventos (sem o snapshot) e a origem da cópia (`duplicado_de_id`).
  * @param {any} op @param {any[]} [historico]
  * @param {{ exclusao?: any, substituido_por?: any, substitui?: any, eventos?: any[], duplicado_de_id?: string|null }} [revisao]
@@ -711,7 +711,7 @@ export const comoDetalhe = (op, historico = [], revisao = {}) => {
     cancelado_por: usuarioPublico(op.canceladoPor),
     cancelado_em: isoDe(op.cancelado_em),
     motivo_cancelamento: op.motivo_cancelamento ?? null,
-    // D-PROD-157: exclusão lógica e retificação (substituição).
+    // D-PROD-158: exclusão lógica e retificação (substituição).
     excluido_em: isoDe(op.excluido_em),
     retificado_em: isoDe(op.retificado_em),
     exclusao: revisao.exclusao ?? null,
@@ -789,7 +789,7 @@ export const comoDetalhe = (op, historico = [], revisao = {}) => {
   };
 };
 
-// ─── leitura: revisões (D-PROD-157) ──────────────────────────────────────────
+// ─── leitura: revisões (D-PROD-158) ──────────────────────────────────────────
 /** Teto da cadeia de eventos no detalhe (e de passos ao percorrer a cadeia). */
 export const LIMITE_EVENTOS_DETALHE = 50;
 
@@ -899,7 +899,7 @@ export const detalhar = async (contexto, id, query = {}) => {
 export const LIMITE_LISTA_PADRAO = 50;
 export const LIMITE_LISTA_MAXIMO = 100;
 /**
- * D-PROD-157: situação da lista. OPERACIONAIS (padrão) = nem excluído nem
+ * D-PROD-158: situação da lista. OPERACIONAIS (padrão) = nem excluído nem
  * retificado (a versão substituída sai; a atual fica); EXCLUIDOS = só os
  * excluídos logicamente; TODOS = tudo, inclusive versões substituídas.
  */
@@ -917,7 +917,7 @@ export const listar = async (contexto, query = {}) => {
   }
   /** @type {any} */
   const where = { cliente_id: auth.clienteId, empresa_id: empresaId };
-  // D-PROD-157: a mesma semântica vale para o total (`count`) e a página (mesmo `where`).
+  // D-PROD-158: a mesma semântica vale para o total (`count`) e a página (mesmo `where`).
   const situacao = query.situacao ?? 'OPERACIONAIS';
   if (situacao === 'OPERACIONAIS') Object.assign(where, { excluido_em: null, retificado_em: null });
   else if (situacao === 'EXCLUIDOS') where.excluido_em = { not: null };
@@ -997,7 +997,7 @@ export const listar = async (contexto, query = {}) => {
 
 // ─── rascunho: criar / substituir / descartar ───────────────────────────────
 /**
- * D-PROD-157 (duplicar): o lançamento de origem da cópia tem de ser do MESMO
+ * D-PROD-158 (duplicar): o lançamento de origem da cópia tem de ser do MESMO
  * tenant e da MESMA empresa; senão 422 (sem revelar se existe noutro lugar). É
  * só proveniência (AuditLog da criação): nada acopla os dois documentos.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string} id
@@ -1015,7 +1015,7 @@ const exigirOrigemDaCopia = async (tx, cli, empresaId, id) => {
 /**
  * POST — rascunho idempotente por `operation_id`. Toda a validação antes de
  * qualquer INSERT; moeda/casas copiadas do perfil AGORA (nunca recalculadas).
- * D-PROD-157: `duplicado_de_id` opcional (cópia de outro lançamento) entra no
+ * D-PROD-158: `duplicado_de_id` opcional (cópia de outro lançamento) entra no
  * fingerprint e só no AuditLog da criação.
  */
 export const criarRascunho = async (contexto, corpo) => {
@@ -1321,7 +1321,7 @@ const conferirLinhasPorItem = async (tx, cli, plano, itens, itemRateios) => {
  * transação): por item, em ordem, ENTRADA na compra (custo de aquisição
  * LÍQUIDO) e SAÍDA FIFO na venda (com as fatias), gravando no item o kg e os
  * valores do plano e os ids de movimento/lote. Serviço não mexe em estoque.
- * Usado pela confirmação e pela retificação por SUBSTITUIÇÃO (D-PROD-157).
+ * Usado pela confirmação e pela retificação por SUBSTITUIÇÃO (D-PROD-158).
  * Quem chama já travou cabeçalho → produtos → títulos e numera os movimentos
  * no FIM (`numerarMovimentos`, §8.4 item 5).
  * @param {any} tx @param {any} contexto
@@ -1506,7 +1506,7 @@ export const confirmar = async (contexto, id, corpo) => {
  * estorna EM LOTE os efeitos de estoque dos itens de MERCADORIA (data = hoje
  * da fazenda) e liga cada item ao seu movimento de estorno. Usado pelo
  * cancelamento, pela exclusão lógica e pela retificação por SUBSTITUIÇÃO
- * (D-PROD-157). Quem chama já travou cabeçalho → produtos → títulos e numera
+ * (D-PROD-158). Quem chama já travou cabeçalho → produtos → títulos e numera
  * os estornos no FIM (`numerarMovimentos`).
  * @param {any} tx @param {any} contexto
  * @param {{ cli: string, empresaId: string, op: any, mercadorias: any[], dia: string|undefined }} a
@@ -1741,7 +1741,7 @@ export const estornarLiquidacao = async (contexto, liquidacaoId, corpo) => {
   return { status: r.httpStatus, body: { ...r.body, replay: r.replay } };
 };
 
-// ─── D-PROD-157: elegibilidade, retificação e exclusão lógica ───────────────
+// ─── D-PROD-158: elegibilidade, retificação e exclusão lógica ───────────────
 /** Tela das ações (as permissões entram como motivo `sem_permissao`, sem máscara). */
 const TELA_LANC = TELAS.LANCAMENTOS_FINANCEIROS;
 /** Comandos de estoque cujo recibo de idempotência guarda o rateio FIFO por lote (`rateio[].lote_id`). */
@@ -1808,7 +1808,7 @@ const motivoHistorico = async (tx, cli, empresaId, op) => {
 const instanteSql = (d) => d.toISOString().replace('Z', '');
 
 /**
- * D-PROD-157 §3 — PROVA DE PROVENIÊNCIA da compra: a reversão física do item só
+ * D-PROD-158 §3 — PROVA DE PROVENIÊNCIA da compra: a reversão física do item só
  * é permitida se o lote L que ele criou nunca foi tocado por mais ninguém.
  * Inventário dos escritores e das referências a lote cobertos (relatório):
  *  - fatias FIFO de lançamento (`OperacaoFinanceiraConsumoLote`), de QUALQUER
@@ -1953,7 +1953,7 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
 };
 
 /**
- * D-PROD-157 §3 — prova da VENDA: os lotes das fatias aceitam a devolução
+ * D-PROD-158 §3 — prova da VENDA: os lotes das fatias aceitam a devolução
  * (como o cancelamento: situação, entrada e soma), não há movimento da MESMA
  * empresa + produto + local POSTERIOR ao movimento original (exceto os do
  * próprio documento) e nenhuma fatia de OUTRO documento consumiu esses lotes
@@ -2049,7 +2049,7 @@ const lerMercadorias = (tx, cli, operacaoId) =>
   tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: cli, operacao_id: operacaoId, tipo_item: 'MERCADORIA' }, orderBy: { ordem: 'asc' }, include: { consumos: true } });
 
 /**
- * D-PROD-157 §3 — elegibilidade de fonte ÚNICA. O GET chama em REPEATABLE READ
+ * D-PROD-158 §3 — elegibilidade de fonte ÚNICA. O GET chama em REPEATABLE READ
  * sem trava; os comandos chamam DEPOIS das travas (cabeçalho → produtos →
  * títulos), então a resposta é a mesma regra no mesmo estado que vão alterar.
  *  - RASCUNHO: editar RASCUNHO, excluir DESCARTE (como hoje);
@@ -2218,7 +2218,7 @@ const exigirDocumentoUnico = async (tx, cli, empresaId, doc, ignorar) => {
 };
 
 /**
- * D-PROD-157 (revisão DE-01): na retificação, o peso por saco de um produto que
+ * D-PROD-158 (revisão DE-01): na retificação, o peso por saco de um produto que
  * o documento JÁ tinha em SACO é o GRAVADO no item (`fator_kg` do recebimento),
  * não o do cadastro atual — o saco recebido não muda de peso porque o cadastro
  * mudou depois. Sem isso, uma correção só informativa replanejava o kg com o
@@ -2243,7 +2243,7 @@ const comPesoGravado = (refs, mercadorias) => {
 };
 
 /**
- * D-PROD-157 (revisão DE-02/BC-01): no NO_LUGAR, parceiro, nº do documento e
+ * D-PROD-158 (revisão DE-02/BC-01): no NO_LUGAR, parceiro, nº do documento e
  * emissão trocados chegam aos registros físicos ORIGINAIS, que guardam cópias
  * deles (lote: fornecedor e nº; movimento: fornecedor/cliente, nº e data do
  * documento). Sem isso a procedência do lote contradizia o lançamento, uma

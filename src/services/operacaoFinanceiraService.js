@@ -4,7 +4,7 @@
  * Documento gerencial `OperacaoFinanceira`: rascunho completo (POST/PUT),
  * prévia, confirmação (títulos + efeitos de estoque), cancelamento, liquidação
  * MANUAL (sem conciliação bancária) e estorno de liquidação. Online só.
- * D-PROD-157 (P3-03): elegibilidade, correção de confirmado (`retificar`),
+ * D-PROD-158 (P3-03): elegibilidade, correção de confirmado (`retificar`),
  * exclusão LÓGICA de confirmado (`excluir`) e duplicação (`duplicado_de_id`).
  *
  * Retentativa segura (§8.7): toda ação que cria fato — criar rascunho,
@@ -53,7 +53,7 @@ export const ROTULO_CONTEUDO = Object.freeze({ COM_PRODUTOS: 'Com produtos', SEM
 export const ROTULO_CONDICAO = Object.freeze({ AVISTA: 'À vista', PRAZO: 'A prazo', PARCELADO: 'Parcelado' });
 export const ROTULO_STATUS = Object.freeze({ RASCUNHO: 'Rascunho', CONFIRMADO: 'Confirmado', CANCELADO: 'Cancelado' });
 /**
- * Filtro "Situação do registro" (D-PROD-157): OPERACIONAIS (padrão — sem
+ * Filtro "Situação do registro" (D-PROD-158): OPERACIONAIS (padrão — sem
  * excluídos nem versões substituídas por correção), EXCLUIDOS ou TODOS.
  */
 export const SITUACOES_LISTA = Object.freeze(['OPERACIONAIS', 'EXCLUIDOS', 'TODOS']);
@@ -159,7 +159,7 @@ export const obterLancamento = async (empresaId, id) => getOperacaoFinanceira(id
 
 /**
  * Elegibilidade de editar/excluir/duplicar observada AGORA pelo servidor
- * (D-PROD-157). O comando decide de novo, sob trava.
+ * (D-PROD-158). O comando decide de novo, sob trava.
  * @param {string|null} empresaId @param {string} id
  */
 export const obterElegibilidade = async (empresaId, id) => getElegibilidadeOperacaoFinanceira(id, exigirEmpresa(empresaId, 'obterElegibilidade', RESOURCE));
@@ -339,9 +339,9 @@ const ehABaixaDoPedido = (liquidacao, pedido) =>
  * documento a pendência fica: o envio pode estar em processamento no servidor,
  * e repeti-lo com a mesma chave continua sendo o caminho seguro.
  *  - confirmar: o documento saiu de RASCUNHO; cancelar: ficou CANCELADO;
- *  - retificar (D-PROD-157): a versão passou da enviada (correção no lugar) ou
+ *  - retificar (D-PROD-158): a versão passou da enviada (correção no lugar) ou
  *    o documento foi substituído (`retificado_em`/`substituido_por`);
- *  - excluir (D-PROD-157): o documento tem `excluido_em`;
+ *  - excluir (D-PROD-158): o documento tem `excluido_em`;
  *  - estornar: a baixa-alvo está `estornada`;
  *  - liquidar: há na parcela uma baixa que NÃO estava lá antes do envio
  *    (`liquidacoesAntes`, ids vistos ao abrir o diálogo) com o conteúdo dele.
@@ -390,7 +390,7 @@ export const resolverPendenciaConsultada = (p) => {
 /**
  * Grava o rascunho: POST (novo, idempotente por operation_id) ou PUT (com
  * `versao`, compare-and-swap no servidor). O corpo é o DOC completo (§5).
- * `duplicadoDeId` (D-PROD-157): só no POST de uma CÓPIA — proveniência gravada
+ * `duplicadoDeId` (D-PROD-158): só no POST de uma CÓPIA — proveniência gravada
  * no AuditLog da criação; não liga a vida dos dois documentos.
  * @param {string|null} empresaId
  * @param {{ id?: string|null, versao?: number|null, doc: Record<string, unknown>, escopo: string, storage?: Storage|null, retentativa?: boolean, duplicadoDeId?: string|null }} p
@@ -454,7 +454,7 @@ export const cancelarLancamento = async (empresaId, id, p) => {
 };
 
 /**
- * Corrige um lançamento CONFIRMADO (D-PROD-157): DOC completo do formulário +
+ * Corrige um lançamento CONFIRMADO (D-PROD-158): DOC completo do formulário +
  * `versao` do detalhe aberto (CAS) + `motivo`. O servidor decide, sob trava, se
  * corrige no lugar (sem mexer no estoque) ou por substituição atômica (estorno
  * do antigo + documento novo com o MESMO número). Sem resposta → mesmo
@@ -479,7 +479,7 @@ export const retificarLancamento = async (empresaId, id, p) => {
 };
 
 /**
- * Exclusão LÓGICA de um lançamento CONFIRMADO lançado por engano (D-PROD-157):
+ * Exclusão LÓGICA de um lançamento CONFIRMADO lançado por engano (D-PROD-158):
  * estorna títulos e estoque como o cancelamento, marca `excluido_em` e guarda o
  * motivo. Diferente de "Cancelar" (operação real desfeita) e de "Descartar
  * rascunho" (DELETE físico, só rascunho).

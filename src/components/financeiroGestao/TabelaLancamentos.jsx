@@ -59,7 +59,7 @@ const dinheiroDa = (item, campo, locale) =>
 /** @param {string} locale */
 export const valorDoCampoLancamento = (locale) => (/** @type {any} */ item, /** @type {string} */ id) => {
   if (id === "numero") return item.numero != null ? String(item.numero) : "";
-  // D-PROD-157: excluído e versão substituída por correção têm rótulo próprio (no servidor ficam CANCELADO).
+  // D-PROD-158: excluído e versão substituída por correção têm rótulo próprio (no servidor ficam CANCELADO).
   if (id === "status") return ROTULO_SITUACAO_REGISTRO[situacaoDoLancamento(item)] ?? item.status ?? "";
   if (id === "direcao") return ROTULO_DIRECAO[/** @type {keyof typeof ROTULO_DIRECAO} */ (item.direcao)] ?? "";
   if (id === "parceiro") return item.parceiro_nome || "";

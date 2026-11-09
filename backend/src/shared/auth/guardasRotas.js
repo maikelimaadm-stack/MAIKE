@@ -31,6 +31,32 @@ const cadastro = (alvo, extras = {}) => ({
   editar: porQualquer([alvo, 'editar'], [alvo, 'salvar'], ...(extras.editar ?? [])),
   excluir: porQualquer([alvo, 'excluir'], ...(extras.excluir ?? [])),
 });
+/**
+ * D-PROD-157 (A4) — PATCH de um cadastro do Patrimônio. Decide pela PRESENÇA
+ * das chaves no corpo (já validado pelo schema; o banco não é lido):
+ *  - `ativo` e, além dele, só `empresa_id`/`versao` → exige `inativar`;
+ *  - `ativo` com outros campos → (`editar` ou `salvar`) E `inativar`;
+ *  - sem `ativo` → `editar` ou `salvar`.
+ * Administrador real ou `is_admin` liberam tudo (como em `telaPermite`).
+ */
+const CHAVES_DE_ESCOPO_PATRIMONIO = Object.freeze(['empresa_id', 'versao']);
+const edicaoPatrimonio = (alvo) =>
+  autorizar((req, aut) => {
+    const corpo = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const mudaAtivo = Object.prototype.hasOwnProperty.call(corpo, 'ativo');
+    const mudaOutros = Object.keys(corpo).some((k) => k !== 'ativo' && !CHAVES_DE_ESCOPO_PATRIMONIO.includes(k));
+    const exige = [];
+    if ((!mudaAtivo || mudaOutros) && !telaPermite(aut, alvo, 'editar') && !telaPermite(aut, alvo, 'salvar')) exige.push(`${alvo.tela}:editar`);
+    if (mudaAtivo && !telaPermite(aut, alvo, 'inativar')) exige.push(`${alvo.tela}:inativar`);
+    return exige.length ? { tela: alvo.tela, exige } : true;
+  });
+/** Cadastro do Patrimônio: ver = visualizar; criar = novo|salvar; editar = `edicaoPatrimonio`. */
+const patrimonio = (alvo) => ({
+  ver: porTela(alvo, 'visualizar'),
+  criar: porQualquer([alvo, 'novo'], [alvo, 'salvar']),
+  editar: edicaoPatrimonio(alvo),
+});
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -203,7 +229,7 @@ export const GUARDAS = Object.freeze({
     cancelar: porTela(T.LANCAMENTOS_FINANCEIROS, 'cancelar'),
     liquidar: porTela(T.LANCAMENTOS_FINANCEIROS, 'liquidar'),
     estornarLiquidacao: porTela(T.LANCAMENTOS_FINANCEIROS, 'estornar_liquidacao'),
-    // D-PROD-157 (P3-03). Retificar gera efeitos CONFIRMADOS novos (títulos e,
+    // D-PROD-158 (P3-03). Retificar gera efeitos CONFIRMADOS novos (títulos e,
     // na substituição, estorno + entrada/saída): exige editar E confirmar —
     // quem não pode confirmar não retifica. Excluir confirmado estorna títulos e
     // estoque como o cancelamento: exige cancelar (o menor privilégio que cobre
@@ -217,6 +243,26 @@ export const GUARDAS = Object.freeze({
   },
   // Perfil financeiro: leitura pela tela; escrita só administrador real ou is_admin (§8.6).
   perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },
+  // D-PROD-157 — Patrimônio e Frota: cada tela com as SUAS ações; inativar e
+  // reativar (PATCH com `ativo`) exigem a ação extra `inativar`. Sem DELETE.
+  patrimonioBens: {
+    ...patrimonio(T.PATRIMONIO_BENS),
+    // A3: opções de CATÁLOGO (famílias, tipos, perfis, combustíveis) servem o
+    // formulário do bem E o do tipo (quem cria tipo escolhe família e perfis).
+    opcoesCatalogo: porQualquer([T.PATRIMONIO_BENS, 'visualizar'], [T.PATRIMONIO_TIPOS, 'visualizar']),
+  },
+  patrimonioFamilias: patrimonio(T.PATRIMONIO_FAMILIAS),
+  patrimonioTipos: patrimonio(T.PATRIMONIO_TIPOS),
+  patrimonioPerfisMedicao: patrimonio(T.PATRIMONIO_PERFIS_MEDICAO),
+  patrimonioCombustiveis: {
+    ...patrimonio(T.PATRIMONIO_COMBUSTIVEIS),
+    // D-PROD-157 (R2): o seletor "Vincular produto" serve a criação do vínculo
+    // (novo|salvar) e quem edita a tela (editar); ver sozinho não lista
+    // produtos da fazenda.
+    opcoesProdutos: porQualquer([T.PATRIMONIO_COMBUSTIVEIS, 'novo'], [T.PATRIMONIO_COMBUSTIVEIS, 'salvar'], [T.PATRIMONIO_COMBUSTIVEIS, 'editar']),
+  },
+  // Instalar o catálogo padrão: administrador real ou a concessão `is_admin`.
+  patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),

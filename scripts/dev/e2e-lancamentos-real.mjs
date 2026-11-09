@@ -76,7 +76,7 @@
  *  29. o modo GERAL não mudou (escopo explícito em todo documento, nenhuma
  *      linha por item, consolidado = rateio geral) e a API real recusa um corpo
  *      POR ITEM com soma errada apontando o item (422, nada gravado).
- *  P3-03 (D-PROD-157, editar/excluir/duplicar):
+ *  P3-03 (D-PROD-158, editar/excluir/duplicar):
  *  30. duplicar a compra POR ITEM confirmada do passo 28: faixa "Cópia do
  *      lançamento nº N — novo rascunho", nada gravado no clique, POST com
  *      `duplicado_de_id`; no banco um rascunho NOVO com o mesmo conteúdo (linhas
@@ -2652,7 +2652,7 @@ const executarLargura = async (browser, largura) => {
       igual(await fotoFinanceiro(s), antes, `[${rotulo}] a recusa POR ITEM gravou algo`);
     });
 
-    // ─── P3-03 (D-PROD-157): DUPLICAR, CORRIGIR (retificar) e EXCLUIR ──────
+    // ─── P3-03 (D-PROD-158): DUPLICAR, CORRIGIR (retificar) e EXCLUIR ──────
     // Os documentos de apoio dos passos 31 e 33 nascem pela API REAL (criar e
     // confirmar pela tela já está provado nos passos 2–28): aqui se prova a
     // tela de duplicar, corrigir e excluir e o efeito EXATO no banco.

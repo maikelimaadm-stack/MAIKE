@@ -229,7 +229,7 @@ const mensagemDoRateio = (reason, details, c, linha) => {
     : `O rateio é inválido${linha}. Revise as linhas (de 1 a 50, valores maiores que zero). Nada foi gravado.`;
 };
 
-// ─── D-PROD-157 — elegibilidade, correção (retificar) e exclusão lógica ──
+// ─── D-PROD-158 — elegibilidade, correção (retificar) e exclusão lógica ──
 
 const ROTULO_PERMISSAO = /** @type {Record<string, string>} */ ({
   visualizar: 'Visualizar',
@@ -279,7 +279,7 @@ const permissoesQueFaltam = (m) => {
  * Texto de UM motivo da elegibilidade ou de uma recusa (SPEC §3): o código
  * conhecido vira frase própria (com parcela, item e elo que impede); código
  * novo usa a `mensagem` legível que o contrato manda no próprio motivo.
- * `c.direcao` (D-PROD-157, revisão TELA-02): o servidor emite `lote_alterado`
+ * `c.direcao` (D-PROD-158, revisão TELA-02): o servidor emite `lote_alterado`
  * na compra (o lote da ENTRADA mudou) e na venda (um lote de onde a mercadoria
  * SAIU não aceita mais a devolução); sem a direção, o texto é neutro.
  * @param {unknown} motivo @param {ContextoMoeda} [c]
@@ -334,9 +334,9 @@ export const mensagemDoMotivo = (motivo, c = {}) => {
  */
 const mensagemLancamento = (code, field, reason, details, c) => {
   const linha = ondeNaLinha(details);
-  // D-PROD-157: o perfil de moeda mudou desde o lançamento — a correção não converte valores.
+  // D-PROD-158: o perfil de moeda mudou desde o lançamento — a correção não converte valores.
   if (reason === 'moeda_mudou') return 'A moeda do perfil financeiro da empresa é diferente da moeda deste lançamento: a correção não converte valores. Nada foi alterado.';
-  // D-PROD-157: `duplicado_de_id` de outro tenant/empresa (ou que não existe mais).
+  // D-PROD-158: `duplicado_de_id` de outro tenant/empresa (ou que não existe mais).
   if (field === 'duplicado_de_id' && (code === 'OPERACAO_REFERENCIA_INVALIDA' || code === 'REQUEST_VALIDATION_FAILED')) {
     // Revisão TELA-04: a origem pode ter sido descartada (DELETE do rascunho); a tela deixa de enviar a proveniência.
     return 'O lançamento de origem desta cópia não existe nesta empresa (pode ter sido descartado). Salve de novo: a cópia será gravada como rascunho novo, sem o vínculo de origem. Nada foi gravado.';

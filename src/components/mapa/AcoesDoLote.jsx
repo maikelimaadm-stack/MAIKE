@@ -61,7 +61,7 @@ export default function AcoesDoLote({ grupos }) {
     return <>
       {slot ? createPortal(botao, slot) : botao}
       <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura folhaMobile>
-        <div className="mk-map-action-choices">{conteudo}</div>
+        <div className="mk-map-action-choices mk-dl8-folha">{conteudo}</div>
       </LancLoteDialogo>
     </>;
   }

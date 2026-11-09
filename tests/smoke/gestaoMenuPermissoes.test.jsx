@@ -149,7 +149,7 @@ describe('GES-M2 — regra de ações igual à do servidor; padrão negado', () 
     const T = TELAS_GESTAO.LANCAMENTOS_FINANCEIROS;
     const com = (acoes) => registro(['gestao-rural'], [tela('gestao-rural', T, { visualizar: true, ...acoes })]);
     expect(acoesDaTelaGestao(com({ salvar: true, editar: true }), T)).toEqual({ ver: true, criar: true, editar: true, confirmar: false, liquidar: false, estornar: false, cancelar: false, excluir: false });
-    // D-PROD-157: `excluir` (ação padrão da tela) também exige a SUA chave — nem `cancelar` nem `editar` a dão.
+    // D-PROD-158: `excluir` (ação padrão da tela) também exige a SUA chave — nem `cancelar` nem `editar` a dão.
     expect(acoesDaTelaGestao(com({ cancelar: true, editar: true }), T)).toMatchObject({ cancelar: true, excluir: false });
     expect(acoesDaTelaGestao(com({ excluir: true }), T)).toMatchObject({ excluir: true, cancelar: false, editar: false });
     expect(acoesDaTelaGestao(com({ confirmar: true }), T)).toMatchObject({ criar: false, editar: false, confirmar: true, liquidar: false });

@@ -881,7 +881,7 @@ describe('LANC-6 — botões seguem a ação exata da permissão', () => {
     expect(screen.queryByTestId('botao-liquidar-1')).toBeNull();
   });
 
-  // D-PROD-157 (P3-03) mudou o contrato: o confirmado TEM "Editar" (correção),
+  // D-PROD-158 (P3-03) mudou o contrato: o confirmado TEM "Editar" (correção),
   // mas nunca abre direto em edição — a elegibilidade do servidor vem antes.
   it('confirmado nunca abre DIRETO em edição: abre em consulta e o Editar pergunta a elegibilidade antes do formulário', async () => {
     const doc = semearDocumento(estado, corpoBase(), { confirmar: true });

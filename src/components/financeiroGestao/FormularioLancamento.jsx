@@ -96,10 +96,10 @@ const rotuloDoErro = (chave) => {
  *   rateio POR ITEM (`details.indice` + `subindice`) ela aparece no campo exato,
  *   e a recusa de referência (parceiro, produto, local, natureza, centro) no
  *   seletor dela.
- *   `duplicarDe` (D-PROD-157): formulário NOVO pré-preenchido com o DETALHE do
+ *   `duplicarDe` (D-PROD-158): formulário NOVO pré-preenchido com o DETALHE do
  *   servidor (nada é gravado até "Salvar"); nº do documento vazio e declaração
  *   física desmarcada.
- *   `retificacao` (D-PROD-157): o MESMO formulário corrige um CONFIRMADO;
+ *   `retificacao` (D-PROD-158): o MESMO formulário corrige um CONFIRMADO;
  *   "Salvar alterações" entrega o DOC em `onRetificar` (a tela pede o motivo).
  */
 export default function FormularioLancamento({
@@ -128,7 +128,7 @@ export default function FormularioLancamento({
     return initialData?.id ? formularioDoDetalhe(initialData, { locale, casas, hoje }) : formularioVazio({ hoje });
   });
   const [tentou, setTentou] = useState(false);
-  // Correção de confirmado: produto já recebido em SACO usa o peso GRAVADO, como o servidor (D-PROD-157, revisão TELA-01).
+  // Correção de confirmado: produto já recebido em SACO usa o peso GRAVADO, como o servidor (D-PROD-158, revisão TELA-01).
   const resumo = useMemo(
     () => calcularResumo(corrigindo ? comPesoGravado(form, initialData) : form, { locale, casas, hoje, moeda }),
     [corrigindo, initialData, form, locale, casas, hoje, moeda],
@@ -159,7 +159,7 @@ export default function FormularioLancamento({
   const [erroDoServidor, setErroDoServidor] = useState(
     /** @type {{ form: any, itemChave: string, linhaChave: string|null, campo: string, mensagem: string } | null} */ (null),
   );
-  // Recusa de REFERÊNCIA (D-PROD-157, ex.: cópia com parceiro inativo): o campo
+  // Recusa de REFERÊNCIA (D-PROD-158, ex.: cópia com parceiro inativo): o campo
   // é apontado pela chave do item/linha até o formulário mudar.
   const [erroDeReferencia, setErroDeReferencia] = useState(
     /** @type {{ form: any, tipo: 'parceiro'|'item'|'rateio', chave: string|null, campo: string, mensagem: string } | null} */ (null),
@@ -319,7 +319,7 @@ export default function FormularioLancamento({
     return false;
   };
 
-  // Correção de confirmado (D-PROD-157): a tela PREVÊ se o estoque muda (a
+  // Correção de confirmado (D-PROD-158): a tela PREVÊ se o estoque muda (a
   // mesma assinatura física do servidor) para o diálogo dizer o efeito; se o
   // servidor já disse que o estoque não pode mudar, o formulário não envia o
   // que ele recusaria.

@@ -1,13 +1,14 @@
-# MAIKE — Gestão P3-03: editar (retificar), excluir (lógico) e duplicar lançamentos (D-PROD-157)
+# MAIKE — Gestão P3-03: editar (retificar), excluir (lógico) e duplicar lançamentos (D-PROD-158)
 
 | Campo | Valor |
 |---|---|
 | Missão | MAIKE-GESTAO-P3-03 (2026-11-09) |
-| Decisão | [D-PROD-157](./DECISIONS.md) |
+| Decisão | [D-PROD-158](./DECISIONS.md) |
 | PR | #234 (**draft**), branch `claude/maike-gestao-p3-03-editar-excluir-duplicar` |
 | Base | `origin/main` `e4e907ea`, merge da PR #231 (P3-02, em produção, 36 migrations) |
 | Runbook | [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md), **executado** até a conferência (2026-11-09, 21:32:01 UTC) |
-| Colisão externa | A PR #232 (Patrimônio) anuncia a D-PROD-156, que na `main` é a P3-02. Reportada ao proprietário e não alterada. Esta PR usa a D-PROD-157 |
+| Numeração | Nasceu como D-PROD-157. A PR #232 (Patrimônio) foi mergeada antes com a D-PROD-157 (`76edc913`). Ao integrar a `main` (rodada PR234-R1), a P3-03 passou a **D-PROD-158**. O comentário dentro do `migration.sql` da P3-03 ainda diz D-PROD-157 e fica **imutável**: o arquivo já está aplicado em produção (SHA-256 `3f3af00e…df890b`) |
+| Integração (PR234-R1) | `origin/main` `76edc913` integrada por merge não destrutivo; ver §8 |
 
 > **Provas:** saídas reais em PostgreSQL 17.11 local descartável, Playwright local e
 > CI da PR. Em produção, só a migration autorizada (runbook, §11); nenhum documento foi gravado em Preview nem em produção.
@@ -121,7 +122,7 @@ Três revisores independentes (dinheiro e estoque, banco e concorrência, tela) 
 - **Qualquer liquidação bloqueia,** mesmo estornada. O caminho é estornar e cancelar, ou lançar um documento novo.
 - **Custo da substituição:** cerca de 3 s no pior caso medido (200 itens × 120 parcelas), dentro do tempo da função.
 - **Runtime antigo depois do schema:** a lista da P3-02 não esconde excluídos nem versões substituídas, que aparecem como `CANCELADO` (runbook, §0).
-- **Colisão de numeração:** a PR #232 anuncia a D-PROD-156, que na `main` é a P3-02. Foi reportada ao proprietário e não alterada. Esta PR usa a D-PROD-157.
+- **Numeração:** a P3-03 é a D-PROD-158 desde a integração da `main` `76edc913` (o Patrimônio é a D-PROD-157). O comentário histórico dentro do `migration.sql` da P3-03 continua dizendo D-PROD-157, porque o arquivo aplicado não pode mudar.
 - **PITR desligado:** o último backup físico `COMPLETED` é de 2026-11-09T05:48:27Z; transações posteriores não têm recuperação garantida (reconhecido no GO).
 
 ## 7. Prontidão

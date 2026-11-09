@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 — Gestão P3-03: EDITAR (retificar), EXCLUIR (lógico) e DUPLICAR
+ * D-PROD-158 — Gestão P3-03: EDITAR (retificar), EXCLUIR (lógico) e DUPLICAR
  * lançamentos da Central Única de Lançamentos. PostgreSQL real, HTTP
  * autenticado, prova pelas linhas gravadas e pela fotografia COMPLETA do tenant.
  *

@@ -679,11 +679,11 @@ export const estornarEmLote = async (tx, ctx, a) => {
   return /** @type {string[]} */ (ids);
 };
 
-/** Colunas de PROCEDÊNCIA do lote que seguem o documento (D-PROD-157, revisão DE-02/BC-01). */
+/** Colunas de PROCEDÊNCIA do lote que seguem o documento (D-PROD-158, revisão DE-02/BC-01). */
 export const CAMPOS_PROCEDENCIA_LOTE = Object.freeze(['fornecedor_id', 'fornecedor_nome', 'numero_documento']);
 
 /**
- * D-PROD-157 (revisão DE-02/BC-01) — PROCEDÊNCIA dos registros físicos
+ * D-PROD-158 (revisão DE-02/BC-01) — PROCEDÊNCIA dos registros físicos
  * ORIGINAIS de um documento retificado NO_LUGAR (parceiro, nº do documento ou
  * emissão trocados): o movimento original (fornecedor/cliente, nº e data do
  * documento) e, na compra, o lote (fornecedor e nº do documento) passam a dizer

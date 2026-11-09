@@ -33,12 +33,12 @@ const ACOES_HISTORICO = /** @type {Record<string, string>} */ ({
   "titulo_financeiro.liquidar": "Baixa registrada",
   "liquidacao_financeira.registrar": "Baixa registrada",
   "liquidacao_financeira.estornar": "Baixa estornada",
-  // D-PROD-157
+  // D-PROD-158
   "operacao_financeira.retificar": "Lançamento corrigido",
   "operacao_financeira.excluir": "Lançamento excluído",
 });
 
-/** Rótulo do selo de situação do registro (D-PROD-157: excluído e substituído têm selo próprio). */
+/** Rótulo do selo de situação do registro (D-PROD-158: excluído e substituído têm selo próprio). */
 export const ROTULO_SITUACAO_REGISTRO = /** @type {Record<string, string>} */ ({
   ...ROTULO_STATUS,
   EXCLUIDO: "Excluído",
@@ -119,7 +119,7 @@ const consolidadoDoDetalhe = (d, casas) => {
  * POR ITEM (D-PROD-156) cada item mostra a sua classificação e o rateio vira o
  * resumo consolidado por natureza e centros (sem duplicar montantes).
  *
- * D-PROD-157: "Excluir lançamento" (exclusão LÓGICA de confirmado lançado por
+ * D-PROD-158: "Excluir lançamento" (exclusão LÓGICA de confirmado lançado por
  * engano) ao lado de "Cancelar lançamento" (operação real desfeita), selo e aviso
  * próprios de excluído e de versão substituída por correção, e o bloco
  * "Histórico de revisões e exclusão" com os links entre as versões.

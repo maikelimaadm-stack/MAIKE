@@ -1,11 +1,11 @@
-# MAIKE — Gestão P3-03: runbook de release expand-only (D-PROD-157)
+# MAIKE — Gestão P3-03: runbook de release expand-only (D-PROD-158)
 
 > **Estado: EXECUTADO até a conferência do §6. `SCHEMA_APPLIED_PROD: SIM`.**
 > A migration foi aplicada em produção em 2026-11-09, às 21:32:01 UTC, pelo
 > caminho B, com GO escrito do proprietário (§11). Pendentes: merge manual da
 > PR #234, deploy e smoke (§7–§8).
 
-Decisão: [D-PROD-157](./DECISIONS.md). Relatório:
+Decisão: [D-PROD-158](./DECISIONS.md). Relatório:
 [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
 Modelo seguido: [runbook da P3-02](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md), executado em 2026-11-09 às 17:42:13 UTC.
 
@@ -133,6 +133,28 @@ COMMIT;
 ## 7. Merge manual
 Só com o §6 conferido. O merge é do proprietário. O registro do §11 entra por
 commit de documentação na própria PR, e a CI precisa ficar verde de novo.
+
+### 7.1 Depois da PR #232 (Patrimônio) na `main` — situação em 2026-11-09, 22:30 UTC
+- A `main` `76edc913` já traz o runtime do Patrimônio, mas a migration
+  `20261110100000_patrimonio_p1_01_cadastros` **não** está aplicada em produção.
+  A produção tem 37 migrations, a P3-03 é a última, e `BemPatrimonial` e
+  `TipoCombustivelProduto` não existem.
+- Os domínios de produção (`www.makgestao.com`, `makgestao.com`,
+  `maike-five.vercel.app`) servem o deploy anterior `afbebcbc`, o que é compatível
+  com um rollback. Pela documentação da Vercel, depois de um rollback um deploy
+  novo da `main` **não** recebe os domínios sozinho: precisa de `promote`.
+- Merge desta PR: o schema da P3-03 já está aplicado, então o merge não pede
+  migration nova. Ele acrescenta à `main` o arquivo da P3-03, que já está no banco,
+  e isso **destrava** o runner oficial para o Patrimônio:
+  - `conferirHistoricoRemoto` com as 37 linhas de produção e os arquivos da `main`
+    `76edc913` recusa (`PREMERGE_MIGRATIONS_NAO_COMPROVADAS`, porque a migration
+    está no banco sem o arquivo na release);
+  - com a árvore integrada desta PR, `ok: true`, e só o Patrimônio fica pendente.
+- **Não promover** a `main` a produção, com ou sem esta PR, antes de aplicar a
+  migration do Patrimônio pelo runbook dele, com GO próprio. O runtime do
+  Patrimônio sem as tabelas responde 500 nas rotas dele e na exclusão de produto
+  e de fornecedor (as duas consultam `TipoCombustivelProduto` e `BemPatrimonial`).
+  A troca de empresa de produto também.
 
 ## 8. Deploy e smoke (só leitura)
 1. Health 200.

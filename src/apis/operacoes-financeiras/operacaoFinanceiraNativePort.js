@@ -20,7 +20,7 @@ const ctx = (operation, details) => ({ operation, resource: RESOURCE, ...(detail
 /** @param {unknown} v */
 const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
-// `situacao` (D-PROD-157): OPERACIONAIS (padrão do servidor) | EXCLUIDOS | TODOS.
+// `situacao` (D-PROD-158): OPERACIONAIS (padrão do servidor) | EXCLUIDOS | TODOS.
 const FILTROS_LISTA = Object.freeze([
   'empresa_id', 'direcao', 'status', 'situacao', 'conteudo', 'parceiro_id', 'emissao_de', 'emissao_ate', 'vencimento_de', 'vencimento_ate', 'q', 'cursor',
 ]);
@@ -89,7 +89,7 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} id @param {Record<string, unknown>} corpo */
   cancelar: (id, corpo) =>
     nativeRequest(`${doId(id)}/cancelar`, { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_MS }, ctx('cancelarOperacaoFinanceira', { id })),
-  /** Elegibilidade de editar/excluir/duplicar (D-PROD-157): só leitura. @param {string} id @param {string} empresaId */
+  /** Elegibilidade de editar/excluir/duplicar (D-PROD-158): só leitura. @param {string} id @param {string} empresaId */
   elegibilidade: (id, empresaId) =>
     nativeRequest(comQuery(`${doId(id)}/elegibilidade`, { empresa_id: empresaId }), { autenticado: true }, ctx('elegibilidadeOperacaoFinanceira', { id })),
   /** Correção de confirmado (no lugar ou por substituição atômica). @param {string} id @param {Record<string, unknown>} corpo */

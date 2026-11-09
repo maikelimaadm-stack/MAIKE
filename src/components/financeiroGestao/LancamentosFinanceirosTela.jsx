@@ -100,7 +100,7 @@ function FiltroLista({ rotulo, value, onChange, opcoes }) {
  * Gestão P1/P2: empresa real, resposta de outra empresa não mexe no registro
  * aberto, permissão explícita (ações extras próprias da tela).
  *
- * D-PROD-157 (P3-03): Duplicar (detalhe completo do servidor → formulário NOVO),
+ * D-PROD-158 (P3-03): Duplicar (detalhe completo do servidor → formulário NOVO),
  * Editar confirmado (elegibilidade → o MESMO formulário em modo correção →
  * motivo → `/retificar`) e Excluir confirmado (elegibilidade → efeitos + motivo
  * + confirmação → `/excluir`), filtro de situação do registro e histórico de
@@ -115,7 +115,7 @@ export default function LancamentosFinanceirosTela() {
   const escopo = `${clienteId || "sem-tenant"}:${acoes.login || "sem-login"}`;
   const [direcaoFiltro, setDirecaoFiltro] = useState("TODAS");
   const [statusFiltro, setStatusFiltro] = useState("TODOS");
-  // D-PROD-157: OPERACIONAIS (padrão) | EXCLUIDOS | TODOS.
+  // D-PROD-158: OPERACIONAIS (padrão) | EXCLUIDOS | TODOS.
   const [situacaoFiltro, setSituacaoFiltro] = useState("OPERACIONAIS");
   const [dialogo, setDialogo] = useState(/** @type {any} */ (null));
   // Cópia aberta (Duplicar): o DETALHE da origem lido do servidor da empresa atual.
@@ -259,7 +259,7 @@ export default function LancamentosFinanceirosTela() {
   }, [detalheQuery.error]);
 
   // Documento que deixou de ser rascunho não fica em modo de edição — exceto a
-  // correção de confirmado aberta pela elegibilidade (D-PROD-157).
+  // correção de confirmado aberta pela elegibilidade (D-PROD-158).
   const { isEditing, setIsEditing } = controller;
   const corrigindoAberto = Boolean(correcao && idAberto && correcao.id === idAberto && correcao.empresaId === empresaId);
   useEffect(() => {
@@ -490,7 +490,7 @@ export default function LancamentosFinanceirosTela() {
         "OPERACAO_STATUS_INVALIDO",
         "TITULO_NAO_LIQUIDAVEL",
         "LIQUIDACAO_JA_ESTORNADA",
-        // D-PROD-157: a elegibilidade mudou desde a leitura — relê o que a tela mostra.
+        // D-PROD-158: a elegibilidade mudou desde a leitura — relê o que a tela mostra.
         "OPERACAO_RETIFICACAO_BLOQUEADA",
         "OPERACAO_EXCLUSAO_BLOQUEADA",
       ].includes(code ?? "")
@@ -574,7 +574,7 @@ export default function LancamentosFinanceirosTela() {
     setDialogo(null);
   };
 
-  // ─── D-PROD-157 — Duplicar, Editar confirmado, Excluir confirmado ───────
+  // ─── D-PROD-158 — Duplicar, Editar confirmado, Excluir confirmado ───────
 
   /**
    * Duplicar: lê SEMPRE o detalhe completo e atual do servidor da empresa
@@ -735,7 +735,7 @@ export default function LancamentosFinanceirosTela() {
   // Alvo das ações da barra (Editar, Duplicar, Excluir): o registro aberto ou a linha/card selecionado.
   const alvoDaBarra = /** @type {any} */ (controller.showForm ? (idAberto ? { ...(registroLista ?? {}), ...(detalhe ?? {}), status: statusAberto } : null) : selecionado);
   const statusDoAlvo = alvoDaBarra?.status ?? null;
-  // Editar: rascunho como hoje; confirmado abre a correção depois da elegibilidade (D-PROD-157).
+  // Editar: rascunho como hoje; confirmado abre a correção depois da elegibilidade (D-PROD-158).
   const editavel = statusDoAlvo === "RASCUNHO" || statusDoAlvo === "CONFIRMADO";
   const podeDuplicar = podeGravar && acoes.ver && acoes.criar && Boolean(perfil) && Boolean(alvoDaBarra?.id) && !(controller.showForm && controller.isEditing);
   const podeExcluirConfirmado = podeGravar && Boolean(acoes.excluir) && Boolean(perfil) && statusDoAlvo === "CONFIRMADO" && !(controller.showForm && controller.isEditing);
@@ -809,7 +809,7 @@ export default function LancamentosFinanceirosTela() {
     if (!perfil) {
       conteudoRegistro = <AvisoGestao testId="registro-sem-perfil">Configure o perfil financeiro da empresa para lançar.</AvisoGestao>;
     } else if (corrigindoAberto && correcao && controller.isEditing) {
-      // Correção de confirmado (D-PROD-157): o MESMO formulário, com a versão lida na elegibilidade.
+      // Correção de confirmado (D-PROD-158): o MESMO formulário, com a versão lida na elegibilidade.
       conteudoRegistro = (
         <FormularioLancamento
           key={`correcao-${correcao.id}-${correcao.versao}-${controller.formEpoch}`}

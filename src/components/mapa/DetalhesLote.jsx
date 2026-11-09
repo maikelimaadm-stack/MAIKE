@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 
 import {
   listarProdutosDaEmpresa,
@@ -34,14 +33,15 @@ import EditarInformacaoPosicaoForm from "../lotes/EditarInformacaoPosicaoForm";
 import { LancLoteDialogo, LancLoteForm, LancLoteAviso, LancLoteRodape, LL_CTL } from "../lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
-import InformacoesArea from "./InformacoesArea";
+import PainelDetalhesLote from "./detalhes-lote/PainelDetalhesLote";
+import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
+import "@/styles/mk-detalhes-lote.css";
 import { Progress } from "@/components/ui/progress";
 import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplementacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import CampoDl from "./CampoDl";
 
 /**
  * Contrato do dono (D-PROD-107): `Lote` é só o cadastro de ENTRADA. O navegador
@@ -125,23 +125,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     staleTime: 10 * 60 * 1000
   });
 
-  // Agrupar lotes por categoria
-  const lotesPorCategoria = lotes.reduce((acc, lote) => {
-    const cat = lote.categoria?.toUpperCase() || 'SEM CATEGORIA';
-    if (!acc[cat]) {
-      acc[cat] = [];
-    }
-    acc[cat].push(lote);
-    return acc;
-  }, {});
-
-  const categorias = Object.keys(lotesPorCategoria).sort();
-
-  // Calcular total de cabeças
-  const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
-
-  // Título com nomes dos lotes
-
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ['mapa-areas', empresaSelecionadaId],
     queryFn: async () => {
@@ -184,8 +167,47 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     select: (data) => data.filter(l => l.area_atual_id === lotes[0]?.area_atual_id)
   });
 
+  // Movimentações do mapa (pesagens dos lotes, Detalhes do Lote v8). Mesmo
+  // padrão das áreas/lotes; NÃO bloqueia o carregamento inicial: sem elas os
+  // campos de pesagem ficam "—" até chegarem.
+  const { data: movimentacoes = [] } = useQuery({
+    queryKey: ['detalhes-lote-movimentacoes', empresaSelecionadaId],
+    queryFn: async () => {
+      const cached = await getMapaCachedData('movimentacoes', empresaSelecionadaId);
+      if (navigator.onLine) {
+        if (cached?.length) {
+          refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(fresh => {
+            if (fresh?.length) queryClient.setQueryData(['detalhes-lote-movimentacoes', empresaSelecionadaId], fresh);
+          });
+          return cached;
+        }
+        return (await refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId)) || [];
+      }
+      return cached || [];
+    },
+    enabled: !!empresaSelecionadaId,
+    // Sempre relê ao abrir (a pesagem recém-registrada tem de aparecer): o queryFn
+    // devolve o IndexedDB na hora e a releitura do servidor — a mesma que o
+    // 'atualizar-mapa' disparou, se ainda estiver em andamento — substitui em seguida.
+    staleTime: 0,
+    refetchOnMount: 'always'
+  });
+
   // Aguarda a leitura do cache local (IndexedDB) que é super rápida, para não exibir os dados zerados
   const loadingInicial = (loadingAreas && areas.length === 0) || (loadingLotesArea && todosLotesNaArea.length === 0);
+
+  // Preferências do Detalhes do Lote POR USUÁRIO (fazenda + conta + empresa),
+  // como os filtros do Mapa Geral. Sem as três partes, vale o padrão (sem filtro).
+  const escopoPreferencias = useMemo(() => {
+    const clienteId = user?.cliente_id || null;
+    const login = user?.login || user?.email || null;
+    return clienteId && login && empresaSelecionadaId ? { clienteId, login, empresaId: empresaSelecionadaId } : null;
+  }, [user?.cliente_id, user?.login, user?.email, empresaSelecionadaId]);
+
+  const modelo = useMemo(
+    () => montarModeloDetalhes({ area: areaAtual, lotes, lotesDaArea: todosLotesNaArea, movimentacoes, iconesConfig, hoje: new Date() }),
+    [areaAtual, lotes, todosLotesNaArea, movimentacoes, iconesConfig]
+  );
 
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
@@ -520,72 +542,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   if (loadingInicial) {
     return (
-      <div className="space-y-2" translate="no">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
-          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
-          <span className="text-xs font-medium text-slate-700">Carregando detalhes do lote...</span>
+      // Mesma casca do v8 (diálogo já na altura final, sem pular quando os dados chegam).
+      <div className="mk-dl mk-dl8" translate="no">
+        <div className="mk-dl8__corpo">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+            <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+            <span className="text-xs font-medium text-slate-700">Carregando detalhes do lote...</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <>
-    <div className="mk-dl space-y-2" translate="no">
-      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
-
-      <div className="mk-dl__lotes">
-        {categorias.map((categoria) => {
-            const lotesCategoria = lotesPorCategoria[categoria];
-            const configIcone = iconesConfig.find((ic) =>
-            ic.tipo_entidade === 'Lote' &&
-            ic.categoria?.toUpperCase() === categoria?.toUpperCase()
-            );
-            const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
-
-            return lotesCategoria.map((lote) => {
-              const cab = lote.quantidade_cabecas || 0;
-              const peso = lote.peso_medio_kg || 0;
-              const hoje = new Date();hoje.setHours(0, 0, 0, 0);
-              const entrada = lote.data_entrada ? new Date(lote.data_entrada) : null;
-              let diasPastejo = 0;
-              if (entrada) {entrada.setHours(0, 0, 0, 0);diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000));}
-
-              return (
-                <div key={lote.id} className="mk-dl__cartao">
-                <div className="mk-dl__cab">
-                  <span className="mk-dl__nome">Lote: {lote.nome}</span>
-                  {iconeUrl &&
-                    <span className="mk-dl__icone"><img src={iconeUrl} alt={categoria} /></span>
-                    }
-                </div>
-                <div className="mk-dl__infos">
-                  <CampoDl rotulo="Qtd. Cabeças">{cab.toLocaleString('pt-BR')}</CampoDl>
-                  <CampoDl rotulo="Peso Médio">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</CampoDl>
-                  <CampoDl rotulo="Raça Predom.">{(lote.raca_predominante || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Sexo">{(lote.sexo || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Sist. Rep.">{(lote.sistema_produtivo || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Dias de pastejo">{diasPastejo.toLocaleString('pt-BR')} dia(s)</CampoDl>
-                  <CampoDl rotulo="Identificador">
-                      {lote.identificador_cor && <span className="mk-dl__cor" style={{ backgroundColor: lote.identificador_cor }} />}
-                      {(lote.identificador_nome || '-').toUpperCase()}
-                    </CampoDl>
-                  <CampoDl rotulo="Sigla">{(lote.identificador_sigla || '-').toUpperCase()}</CampoDl>
-                  <span className="mk-dl__vazio" aria-hidden />
-                </div>
-                <div className="mk-dl__chips">
-                  <span className="mk-dl__chip">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
-                </div>
-              </div>);
-
-            });
-          })}
-      </div>
-
-      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
-
-      {/* D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados). */}
-      {(() => {
+  // D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados).
+  const acoes = (() => {
         const porCategoria = {};
         lotes.forEach((l) => {
           const cat = (l.categoria || '').toUpperCase();
@@ -631,12 +601,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           permissions.visualizar_historico_movimentacoes_lote !== false && { nome: 'Movimentação', rotulo: 'Histórico de Movimentação', Icone: IconeHistoricoMovimentacao, onClick: () => setShowHistorico(true) },
           permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: IconeHistoricoSuplementacao, onClick: () => setShowHistoricoSupl(true) },
         ].filter(Boolean);
-        return (
-          <div className="my-1">
-            <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />
-          </div>
-        );
-      })()}
+        return <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />;
+      })();
+
+  // A raiz do conteúdo é o `.mk-dl8` do Painel (filho direto do `.mk-ll` do
+  // diálogo: o CSS do v8 depende disso). Os diálogos abaixo são portais.
+  return (
+    <>
+      <PainelDetalhesLote
+        modelo={modelo}
+        suplementacao={<ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />}
+        acoes={acoes}
+        escopoPreferencias={escopoPreferencias} />
 
       {/* Dialog Juntar Lotes */}
       <LancLoteDialogo open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}} titulo="Juntar Lotes" lotes={lotes}>
@@ -842,8 +818,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
             null}
       </LancLoteDialogo>
-
-    </div>
 
     <Dialog open={progresso.show} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md">

@@ -171,7 +171,7 @@ export const formularioDoDetalhe = (d, ctx) => {
   };
 };
 
-// ─── D-PROD-157 — duplicar, corrigir confirmado e situação do registro ───
+// ─── D-PROD-158 — duplicar, corrigir confirmado e situação do registro ───
 
 /**
  * Formulário NOVO a partir do DETALHE completo de outro lançamento (Duplicar).
@@ -218,7 +218,7 @@ const mesmoDecimal = (a, b) => {
 };
 
 /**
- * D-PROD-157 (revisão TELA-01): na correção de um confirmado, o peso por saco
+ * D-PROD-158 (revisão TELA-01): na correção de um confirmado, o peso por saco
  * de um produto que o documento JÁ tinha em SACO é o GRAVADO no item
  * (`fator_kg` do recebimento), não o do cadastro atual — a MESMA regra do
  * servidor (`comPesoGravado` em operacaoFinanceiraService): o saco recebido

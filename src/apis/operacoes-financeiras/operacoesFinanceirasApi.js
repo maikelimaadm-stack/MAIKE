@@ -108,7 +108,7 @@ export const cancelarOperacaoFinanceira = async (id, corpo) => {
   return runProviderCall(() => operacoesNativas.cancelar(id, corpo), { ...contexto, details: { id } });
 };
 
-// ─── D-PROD-157 — elegibilidade, correção (retificar) e exclusão lógica ──
+// ─── D-PROD-158 — elegibilidade, correção (retificar) e exclusão lógica ──
 
 /** Motivos de uma ação: só objetos com `codigo` texto (o resto é descartado). @param {unknown} v */
 const motivosDe = (v) => (Array.isArray(v) ? v.filter((m) => isObjeto(m) && typeof m.codigo === 'string' && m.codigo) : []);

@@ -20,7 +20,7 @@
  * com item e linha exatos) — por isso o schema só tipa o escopo como texto e o
  * teto de linhas por item da rota é o do documento inteiro.
  *
- * D-PROD-157 (editar/excluir/duplicar): GET `/:id/elegibilidade` (ver), POST
+ * D-PROD-158 (editar/excluir/duplicar): GET `/:id/elegibilidade` (ver), POST
  * `/:id/retificar` (editar + confirmar; corpo = documento completo + `versao`,
  * `operation_id`, `motivo`), POST `/:id/excluir` (cancelar + excluir; corpo
  * `{empresa_id, versao, operation_id, motivo}`), `situacao` na lista e
@@ -109,7 +109,7 @@ const DOC_PROPS = {
 };
 const DOC_OBRIGATORIOS = ['empresa_id', 'direcao', 'conteudo', 'condicao', 'parceiro_id', 'data_emissao', 'rateio_modo', 'parcelas'];
 
-// D-PROD-157: `duplicado_de_id` (opcional) = cópia de outro lançamento da MESMA empresa (só proveniência no AuditLog).
+// D-PROD-158: `duplicado_de_id` (opcional) = cópia de outro lançamento da MESMA empresa (só proveniência no AuditLog).
 const CRIAR = {
   body: { type: 'object', required: [...DOC_OBRIGATORIOS, 'operation_id'], additionalProperties: false, properties: { ...DOC_PROPS, operation_id: OPERATION_ID, duplicado_de_id: ID } },
 };
@@ -151,7 +151,7 @@ const CANCELAR = {
     properties: { empresa_id: ID, operation_id: OPERATION_ID, motivo: { type: 'string', minLength: 1, maxLength: 500 } },
   },
 };
-/** D-PROD-157: motivo obrigatório (até 500), conferido sem só espaços no serviço (400 `obrigatorio`). */
+/** D-PROD-158: motivo obrigatório (até 500), conferido sem só espaços no serviço (400 `obrigatorio`). */
 const MOTIVO = { type: 'string', minLength: 1, maxLength: 500 };
 const RETIFICAR = {
   params: PARAMS,
@@ -207,7 +207,7 @@ const LISTAR = {
       vencimento_de: DIA,
       vencimento_ate: DIA,
       com_estoque: ENUM(['true', 'false']),
-      // D-PROD-157: OPERACIONAIS (padrão) | EXCLUIDOS | TODOS.
+      // D-PROD-158: OPERACIONAIS (padrão) | EXCLUIDOS | TODOS.
       situacao: ENUM(SITUACOES_LISTA),
       q: { type: 'string', maxLength: 120 },
       cursor: { type: 'string', minLength: 1, maxLength: 512 },
@@ -350,7 +350,7 @@ export const registrarOperacaoFinanceiraRoutes = async (app) => {
     confirmar(ctx(request), idDe(request), corpo(request)));
   app.post('/operacoes-financeiras/:id/cancelar', { ...auth, preHandler: [g.cancelar], schema: CANCELAR }, async (request) =>
     cancelar(ctx(request), idDe(request), corpo(request)));
-  // D-PROD-157: elegibilidade (fonte única), retificação e exclusão lógica do confirmado.
+  // D-PROD-158: elegibilidade (fonte única), retificação e exclusão lógica do confirmado.
   app.get('/operacoes-financeiras/:id/elegibilidade', { ...auth, preHandler: [g.ver], schema: DETALHE }, async (request) =>
     elegibilidade(ctx(request), idDe(request), consulta(request)));
   app.post('/operacoes-financeiras/:id/retificar', { ...auth, preHandler: [g.retificar], schema: RETIFICAR }, async (request) =>

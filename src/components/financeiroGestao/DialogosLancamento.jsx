@@ -35,7 +35,7 @@ const opcoesDeMetodo = (metodos) => metodos.map((m) => ({ value: m, label: ROTUL
 /**
  * Estado do envio de um comando: "incerto" = sem resposta (rede/prazo/5xx) —
  * NUNCA vira "sucesso"; o usuário consulta o documento ou repete o MESMO envio.
- * `motivos` (D-PROD-157): recusa de correção/exclusão com a lista legível.
+ * `motivos` (D-PROD-158): recusa de correção/exclusão com a lista legível.
  * @typedef {{ fase: 'pronto'|'enviando'|'incerto'|'erro', mensagem?: string, motivos?: string[], tituloMotivos?: string }} EstadoEnvio
  */
 
@@ -108,7 +108,7 @@ function AvisoDoEnvio({ estado, onConsultar = null }) {
     );
   }
   if (estado.fase === "erro") {
-    // Recusa com motivos (D-PROD-157): cada vínculo que impede numa linha própria.
+    // Recusa com motivos (D-PROD-158): cada vínculo que impede numa linha própria.
     if (estado.motivos?.length) {
       return (
         <div role="alert" data-testid="erro-envio" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
@@ -452,7 +452,7 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  * Ação com motivo obrigatório (estornar baixa, cancelar, corrigir ou excluir
  * lançamento) ou sem motivo (descartar rascunho). O erro do servidor fica
  * DENTRO do diálogo. `conteudo`: o efeito da ação, abaixo da descrição.
- * `confirmacaoExplicita` (D-PROD-157, exclusão): caixa que precisa ser marcada
+ * `confirmacaoExplicita` (D-PROD-158, exclusão): caixa que precisa ser marcada
  * além do motivo — o primeiro clique nunca envia nada.
  * @param {{
  *   aberto: boolean,
@@ -547,7 +547,7 @@ export function DialogoAcao({
 }
 
 /**
- * Bloqueio de editar/excluir (D-PROD-157): os motivos LEGÍVEIS que a
+ * Bloqueio de editar/excluir (D-PROD-158): os motivos LEGÍVEIS que a
  * elegibilidade do servidor devolveu — nada é aberto nem enviado. Sem
  * permissão aparece como sem permissão; vínculo aparece como vínculo.
  * @param {{
