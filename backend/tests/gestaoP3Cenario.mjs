@@ -197,6 +197,8 @@ export const acoes = (app) => {
 // ─── fotografias do banco ───────────────────────────────────────────────────
 const MODELOS_FOTO = [
   'perfilFinanceiroEmpresa', 'operacaoFinanceira', 'operacaoFinanceiraItem', 'operacaoFinanceiraConsumoLote', 'operacaoFinanceiraRateio',
+  // D-PROD-156: linhas do rateio por item (a prova de "nada mudou" cobre a tabela nova).
+  'operacaoFinanceiraItemRateio',
   'tituloFinanceiro', 'liquidacaoFinanceira', 'liquidacaoFinanceiraEstorno', 'produto', 'estoqueLoteNota', 'movimentacaoEstoque',
   'operacaoIdempotente', 'auditLog', 'entidadeCodigoSequencia', 'fornecedor', 'naturezaFinanceira', 'centroCusto', 'centroResultado',
   'localEstoque', 'empresa',

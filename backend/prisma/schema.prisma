@@ -108,6 +108,7 @@ model Cliente {
   operacoesFinanceirasItens    OperacaoFinanceiraItem[]
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
   operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
+  operacoesFinanceirasItensRateios OperacaoFinanceiraItemRateio[]
   titulosFinanceiros           TituloFinanceiro[]
   liquidacoesFinanceiras       LiquidacaoFinanceira[]
   estornosLiquidacao           LiquidacaoFinanceiraEstorno[]
@@ -1848,6 +1849,7 @@ model CentroCusto {
   filhos   CentroCusto[]          @relation("CentroCustoArvore")
   vinculos CentroCustoResultado[]
   rateiosFinanceiros OperacaoFinanceiraRateio[]
+  rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
   // D-PROD-156 — centro de custo do bem (mesma empresa pela FK composta).
   bensPatrimoniais BemPatrimonial[]
 
@@ -1881,6 +1883,7 @@ model CentroResultado {
   filhos   CentroResultado[]      @relation("CentroResultadoArvore")
   vinculos CentroCustoResultado[]
   rateiosFinanceiros OperacaoFinanceiraRateio[]
+  rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -1938,6 +1941,7 @@ model NaturezaFinanceira {
   pai     NaturezaFinanceira?  @relation("NaturezaFinanceiraArvore", fields: [cliente_id, empresa_id, tipo, pai_id], references: [cliente_id, empresa_id, tipo, id], onDelete: Restrict, onUpdate: Restrict)
   filhos  NaturezaFinanceira[] @relation("NaturezaFinanceiraArvore")
   rateiosFinanceiros OperacaoFinanceiraRateio[]
+  rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
 
   @@unique([cliente_id, id])
   /// Alvo de FKs futuras com empresa (operações que classificarem por natureza).
@@ -2010,6 +2014,10 @@ model OperacaoFinanceira {
   valor_acrescimo           Decimal   @default(0) @db.Decimal(18, 4)
   valor_total               Decimal   @db.Decimal(18, 4)
   rateio_modo               String    @db.VarChar(12)
+  /// D-PROD-156 (P3-02): GERAL | POR_ITEM, gravado explícito em POST/PUT.
+  /// NULL = documento anterior à P3-02, lido como GERAL. O domínio é conferido
+  /// no serviço (a migration expand-only não põe CHECK em tabela antiga).
+  rateio_escopo             String?   @db.VarChar(12)
   metodo_preferido          String?   @db.VarChar(16)
   versao                    Int       @default(1)
   versao_contrato           Int       @default(1)
@@ -2030,6 +2038,7 @@ model OperacaoFinanceira {
   canceladoPor  Usuario?                   @relation("OperacaoFinanceiraCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
   itens         OperacaoFinanceiraItem[]
   rateios       OperacaoFinanceiraRateio[]
+  itemRateios   OperacaoFinanceiraItemRateio[]
   titulos       TituloFinanceiro[]
 
   @@unique([cliente_id, id])
@@ -2084,6 +2093,7 @@ model OperacaoFinanceiraItem {
   movimentacaoEstorno MovimentacaoEstoque?            @relation("OperacaoFinanceiraItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict)
   loteEntrada         EstoqueLoteNota?                @relation("OperacaoFinanceiraItemLoteEntrada", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict)
   consumos            OperacaoFinanceiraConsumoLote[]
+  rateios             OperacaoFinanceiraItemRateio[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -2150,6 +2160,49 @@ model OperacaoFinanceiraRateio {
   @@unique([cliente_id, id])
   @@unique([cliente_id, operacao_id, ordem])
   @@index([cliente_id, empresa_id, natureza_id])
+}
+
+/// D-PROD-156 (P3-02) — rateio gerencial POR ITEM: as linhas de natureza e
+/// centros de UM item (MERCADORIA ou SERVICO). Base = `valor_liquido` do item
+/// (subtotal − desconto rateado + acréscimo rateado); Σ das linhas do item =
+/// líquido do item, e Σ de todos os itens = `valor_total` do documento. Só
+/// existe com `OperacaoFinanceira.rateio_escopo = 'POR_ITEM'` (nunca junto com o
+/// rateio geral). Classificação gerencial: não cria título, movimento nem custo.
+/// As FKs compostas amarram o tenant, a empresa, a direção do documento
+/// (PAGAR→DESPESA, RECEBER→RECEITA pelo CHECK) e o tipo da natureza.
+model OperacaoFinanceiraItemRateio {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  operacao_id           String   @db.VarChar(64)
+  operacao_direcao      String   @db.VarChar(8)
+  item_id               String   @db.VarChar(64)
+  /// Ordem da linha DENTRO do item (1..n).
+  ordem                 Int
+  natureza_id           String   @db.VarChar(64)
+  natureza_tipo         String   @db.VarChar(10)
+  natureza_nome         String   @db.VarChar(120)
+  centro_custo_id       String?  @db.VarChar(64)
+  centro_custo_nome     String?  @db.VarChar(120)
+  centro_resultado_id   String?  @db.VarChar(64)
+  centro_resultado_nome String?  @db.VarChar(120)
+  percentual            Decimal? @db.Decimal(9, 6)
+  valor                 Decimal  @db.Decimal(18, 4)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente         Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  operacao        OperacaoFinanceira     @relation(fields: [cliente_id, empresa_id, operacao_id, operacao_direcao], references: [cliente_id, empresa_id, id, direcao], onDelete: Restrict, onUpdate: Restrict, map: "OperacaoFinanceiraItemRateio_operacao_fkey")
+  item            OperacaoFinanceiraItem @relation(fields: [cliente_id, empresa_id, item_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "OperacaoFinanceiraItemRateio_item_fkey")
+  natureza        NaturezaFinanceira     @relation(fields: [cliente_id, empresa_id, natureza_tipo, natureza_id], references: [cliente_id, empresa_id, tipo, id], onDelete: Restrict, onUpdate: Restrict, map: "OperacaoFinanceiraItemRateio_natureza_fkey")
+  centroCusto     CentroCusto?           @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "OperacaoFinanceiraItemRateio_centro_custo_fkey")
+  centroResultado CentroResultado?       @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "OperacaoFinanceiraItemRateio_centro_resultado_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, item_id, ordem])
+  @@index([cliente_id, empresa_id, operacao_id], map: "OperacaoFinanceiraItemRateio_operacao_idx")
+  @@index([cliente_id, empresa_id, item_id], map: "OperacaoFinanceiraItemRateio_item_idx")
+  @@index([cliente_id, empresa_id, natureza_id], map: "OperacaoFinanceiraItemRateio_natureza_idx")
 }
 
 /// Uma linha = uma parcela. PREVISTO = parcela de rascunho (não é obrigação);

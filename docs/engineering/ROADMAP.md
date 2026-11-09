@@ -286,15 +286,39 @@ O custo do lote é o custo de aquisição **líquido** (desconto e acréscimo do
 cabeçalho rateados entre as linhas; resíduo de arredondamento explícito, rodada 4).
 Migration expand-only com 8 tabelas novas.
 
-**Estado:** PR #230 em draft. O merge é condicionado à aprovação do proprietário e
-à ordem de release do runbook
-[`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md)
-(migration autorizada e conferida **antes** do merge manual). Relatório:
+**Estado:** em produção. A migration foi aplicada e conferida em 2026-11-09 às
+14:08:36 UTC, e o proprietário fez o merge da PR #230 (`f2b81e1b`). Runbook
+executado:
+[`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md).
+Relatório:
 [`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md).
 
-**Próximos passos:** nenhum autorizado. Ficaram fora desta fase, cada um só com
-decisão própria do proprietário: desconto/acréscimo no custo do lote de estoque,
-rateio por item e pedido de compra. **Fora do produto** (não voltam sem emenda de
+**Próximos passos:**
+- o custo líquido do lote entrou na rodada 4;
+- o rateio por item é a P3-02 (D-PROD-156), descrita abaixo;
+- o pedido de compra continua fora desta fase e só entra com decisão própria do
+  proprietário.
+
+## Track autorizado — Gestão Rural P3-02: rateio gerencial por item (D-PROD-156)
+
+É feito na mesma tela `LancamentosFinanceiros` e só vale com produtos. O escopo
+do rateio pode ser **Geral** (o padrão, comportamento da P3-01) ou **Por item**.
+No modo Por item, cada item (mercadoria ou serviço) tem a sua própria divisão
+entre naturezas e centros, por valor ou percentual. A base é o valor líquido do
+item, e a soma é exata por item e no total. Os dois modos nunca convivem no mesmo
+documento. Detalhe e prévia mostram o resumo consolidado. Não há efeito novo em
+títulos, estoque ou custo.
+
+Banco: uma migration expand-only, com uma coluna anulável `rateio_escopo` e a
+tabela nova `OperacaoFinanceiraItemRateio`.
+
+**Estado:** PR em draft. A migration só é aplicada pelo runbook
+[`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md),
+com GO específico e antes do merge manual. Relatório:
+[`MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`](./MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md).
+
+**Fora desta fase** (cada item só com decisão própria do proprietário): pedido
+de compra e rateio fiscal. **Fora do produto** (não voltam sem emenda de
 escopo): conciliação bancária, bancos/contas bancárias/OFX, módulo de
 caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade e
 relatórios/dashboards financeiros.

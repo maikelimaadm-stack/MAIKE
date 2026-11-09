@@ -1,11 +1,27 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Trash2 } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
-import { SecaoItens, SecaoParcelas, SecaoRateio } from "@/components/financeiroGestao/SecoesLancamento";
-import { calcularResumo, formularioDoDetalhe, formularioVazio, itemVazio, montarDocumento } from "@/components/financeiroGestao/lancamentoModelo";
+import { SecaoItens, SecaoParcelas, SecaoRateio, SecaoRateioPorItem } from "@/components/financeiroGestao/SecoesLancamento";
+import { DialogoEscopoPorItem } from "@/components/financeiroGestao/DialogosLancamento";
+import {
+  alvoDoErroDoRateioPorItem,
+  calcularResumo,
+  entrarNoPorItem,
+  formularioDoDetalhe,
+  formularioVazio,
+  geralEmBranco,
+  inicializacaoProporcional,
+  itemVazio,
+  linhasDoItem,
+  montarDocumento,
+  rateioVazio,
+  temDadosPorItem,
+  voltarAoGeral,
+} from "@/components/financeiroGestao/lancamentoModelo";
+import { lerErroGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 import { LIMITES, formatarMoeda } from "@/lib/dinheiroDecimal";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -33,13 +49,17 @@ const ROTULOS_ERRO = /** @type {Record<string, string>} */ ({
   total: "Total",
   itens: "Itens",
   rateio: "Rateio",
+  rateio_itens: "Rateio por item",
   parcelas: "Parcelas",
   prazo_vencimento: "Vencimento",
 });
 
 /** @param {string} chave */
 const rotuloDoErro = (chave) => {
-  const [raiz, indice] = chave.split(".");
+  const [raiz, indice, sub, subindice] = chave.split(".");
+  // Rateio POR ITEM (D-PROD-156): aponta o item E a linha.
+  if (raiz === "itens" && indice != null && sub === "rateios" && subindice != null) return `Item ${Number(indice) + 1}, linha ${Number(subindice) + 1} do rateio`;
+  if (raiz === "itens" && indice != null && sub === "rateio") return `Item ${Number(indice) + 1}, rateio`;
   if (raiz === "itens" && indice != null) return `Item ${Number(indice) + 1}`;
   if (raiz === "rateios" && indice != null) return `Rateio, linha ${Number(indice) + 1}`;
   if (raiz === "parcelas" && indice != null) return `Parcela ${Number(indice) + 1}`;
@@ -62,7 +82,10 @@ const rotuloDoErro = (chave) => {
  *   onConfirmar?: ((p: { doc: Record<string, unknown>|null, alterado: boolean }) => void) | null,
  *   onDescartar?: (() => void) | null,
  *   ocupado?: boolean,
+ *   erroServidor?: { erro: unknown, seq: number } | null,
  * }} props
+ *   `erroServidor`: a última recusa do servidor ao gravar este formulário; no
+ *   rateio POR ITEM (`details.indice` + `subindice`) ela aparece no campo exato.
  */
 export default function FormularioLancamento({
   empresaId,
@@ -75,6 +98,7 @@ export default function FormularioLancamento({
   onConfirmar = null,
   onDescartar = null,
   ocupado = false,
+  erroServidor = null,
 }) {
   const locale = perfil.locale;
   const moeda = perfil.moeda;
@@ -91,9 +115,61 @@ export default function FormularioLancamento({
   }
 
   const c = { locale, moeda, casas };
+
+  // Recusa do servidor no rateio POR ITEM: o índice/subíndice viram a CHAVE do
+  // item e da linha (o estado vive na chave); a mensagem fica no campo exato até
+  // o formulário mudar. O índice é o do CORPO ENVIADO: durante o PUT/POST o
+  // formulário segue editável (mover/remover item ou linha), então ele é lido
+  // pelo retrato das chaves tirado no envio, nunca pela posição atual.
+  const formRef = useRef(form);
+  formRef.current = form;
+  const retratoEnviado = useRef(/** @type {Array<{ chave: string, linhas: string[] }> | null} */ (null));
+  const retratar = (/** @type {any} */ f) => {
+    retratoEnviado.current = f.itens.map((/** @type {any} */ i) => ({ chave: String(i.chave), linhas: linhasDoItem(f, i.chave).map((l) => String(l.chave)) }));
+  };
+  const seqVisto = useRef(erroServidor?.seq ?? 0);
+  const [erroDoServidor, setErroDoServidor] = useState(
+    /** @type {{ form: any, itemChave: string, linhaChave: string|null, campo: string, mensagem: string } | null} */ (null),
+  );
+  useEffect(() => {
+    if (!erroServidor || erroServidor.seq <= seqVisto.current) return;
+    seqVisto.current = erroServidor.seq;
+    const f = formRef.current;
+    const lido = lerErroGestao(erroServidor.erro);
+    const alvo = alvoDoErroDoRateioPorItem(lido);
+    if (!alvo || f.rateio_escopo !== "POR_ITEM") return;
+    // Sem retrato (recusa que não veio de um envio deste formulário), vale a posição atual.
+    const enviado = retratoEnviado.current ? retratoEnviado.current[alvo.indice] ?? null : { chave: f.itens[alvo.indice]?.chave, linhas: null };
+    const k = enviado ? f.itens.findIndex((/** @type {any} */ i) => i.chave === enviado.chave) : -1;
+    if (k < 0) return; // o item recusado foi removido enquanto o envio estava no ar
+    const item = f.itens[k];
+    const linhas = linhasDoItem(f, item.chave);
+    const linhaChave = alvo.subindice == null ? null : enviado?.linhas ? enviado.linhas[alvo.subindice] ?? null : linhas[alvo.subindice]?.chave ?? null;
+    const j = linhaChave ? linhas.findIndex((l) => l.chave === linhaChave) : -1;
+    const linha = j >= 0 ? linhas[j] : null;
+    // Linha única (100% automático) não tem campo de valor/percentual: o erro fica no item.
+    const naLinha = Boolean(linha) && !(linhas.length === 1 && (alvo.campo === "valor" || alvo.campo === "percentual"));
+    // A mensagem cita a posição ATUAL do item e da linha (não a do corpo enviado).
+    const { indice: _i, subindice: _j, ...outros } = lido.details;
+    const atual = { code: lido.code, details: { ...outros, field: lido.field, reason: lido.reason, indice: k, ...(naLinha ? { subindice: j } : {}) } };
+    setErroDoServidor({
+      form: f,
+      itemChave: item.chave,
+      linhaChave: naLinha && linha ? linha.chave : null,
+      campo: naLinha ? alvo.campo : "rateio",
+      mensagem: mensagemErroGestao(atual, "O servidor recusou o rateio deste item.", { locale, moeda, casas }),
+    });
+  }, [erroServidor, locale, moeda, casas]);
+  let chaveErroServidor = null;
+  if (erroDoServidor && erroDoServidor.form === form) {
+    const k = form.itens.findIndex((/** @type {any} */ i) => i.chave === erroDoServidor.itemChave);
+    const j = erroDoServidor.linhaChave ? linhasDoItem(form, erroDoServidor.itemChave).findIndex((l) => l.chave === erroDoServidor.linhaChave) : -1;
+    if (k >= 0) chaveErroServidor = j >= 0 ? `itens.${k}.rateios.${j}.${erroDoServidor.campo}` : `itens.${k}.rateio`;
+  }
+
   const erroDe = (/** @type {string} */ chave) => {
     const e = resumo.erros[chave];
-    if (!e) return undefined;
+    if (!e) return chave === chaveErroServidor ? erroDoServidor?.mensagem : undefined;
     // Formato/casas aparecem na hora; "obrigatório" só depois da 1ª tentativa.
     if (tentou || !/^Obrigatório|^Escolha|^Informe|^Inclua|^Descreva|^Confirme/.test(e)) return e;
     return undefined;
@@ -102,7 +178,10 @@ export default function FormularioLancamento({
   const set = (/** @type {string} */ campo, /** @type {unknown} */ valor) => setForm((f) => ({ ...f, [campo]: valor }));
 
   const trocarDirecao = async (/** @type {string} */ direcao) => {
-    const algoEscolhido = form.parceiro || form.rateios.some((/** @type {any} */ r) => r.natureza);
+    const algoEscolhido =
+      form.parceiro ||
+      form.rateios.some((/** @type {any} */ r) => r.natureza) ||
+      form.itens.some((/** @type {any} */ i) => linhasDoItem(form, i.chave).some((r) => r.natureza));
     if (algoEscolhido) {
       const ok = await confirmar({
         titulo: "Trocar a direção",
@@ -114,24 +193,63 @@ export default function FormularioLancamento({
       });
       if (!ok) return;
     }
-    setForm((f) => ({ ...f, direcao, parceiro: null, rateios: f.rateios.map((/** @type {any} */ r) => ({ ...r, natureza: null })) }));
+    setForm((f) => ({
+      ...f,
+      direcao,
+      parceiro: null,
+      rateios: f.rateios.map((/** @type {any} */ r) => ({ ...r, natureza: null })),
+      rateios_itens: Object.fromEntries(Object.entries(f.rateios_itens ?? {}).map(([k, ls]) => [k, (Array.isArray(ls) ? ls : []).map((r) => ({ ...r, natureza: null }))])),
+    }));
   };
 
   const trocarConteudo = async (/** @type {string} */ conteudo) => {
+    // Sem produtos só existe o rateio GERAL (D-PROD-156): sempre, com ou sem itens.
     if (conteudo === "SEM_PRODUTOS" && form.itens.length) {
       const n = form.itens.length;
+      const porItemAgora = form.rateio_escopo === "POR_ITEM";
       const ok = await confirmar({
         titulo: "Lançamento sem produtos",
-        descricao: `Os ${n} ${n === 1 ? "item será removido" : "itens serão removidos"} deste lançamento (o valor passa a ser digitado). Continuar?`,
+        descricao: `Os ${n} ${n === 1 ? "item será removido" : "itens serão removidos"} deste lançamento (o valor passa a ser digitado)${
+          porItemAgora ? " e as classificações por item serão descartadas (sem produtos o rateio é sempre geral)" : ""
+        }. Continuar?`,
         textoConfirmar: "Tirar os itens",
         perigo: true,
       });
       if (!ok) return;
-      setForm((f) => ({ ...f, conteudo, itens: [] }));
+      setForm((f) => ({ ...voltarAoGeral(f), conteudo, itens: [] }));
       return;
     }
-    setForm((f) => ({ ...f, conteudo, itens: conteudo === "COM_PRODUTOS" && !f.itens.length ? [itemVazio("MERCADORIA")] : f.itens }));
+    setForm((f) =>
+      conteudo === "SEM_PRODUTOS"
+        ? { ...voltarAoGeral(f), conteudo }
+        : { ...f, conteudo, itens: conteudo === "COM_PRODUTOS" && !f.itens.length ? [itemVazio("MERCADORIA")] : f.itens },
+    );
   };
+
+  // Escopo do rateio (D-PROD-156): GERAL ↔ POR_ITEM, nunca em silêncio.
+  const [dialogoEscopo, setDialogoEscopo] = useState(false);
+  const trocarEscopo = async (/** @type {string} */ escopo) => {
+    if (escopo === "POR_ITEM") {
+      setDialogoEscopo(true);
+      return;
+    }
+    if (temDadosPorItem(form)) {
+      // Depois de salvar por item, o documento não tem mais rateio geral (o
+      // formulário recarregado vem com ele em branco): a pergunta diz isso.
+      const geral = geralEmBranco(form)
+        ? "O rateio geral começa em branco (não há rateio geral guardado neste formulário)."
+        : "O rateio geral volta como estava.";
+      const ok = await confirmar({
+        titulo: "Voltar ao rateio geral",
+        descricao: `As classificações por item serão descartadas (elas não são convertidas numa natureza só). ${geral} Continuar?`,
+        textoConfirmar: "Descartar e voltar",
+        perigo: true,
+      });
+      if (!ok) return;
+    }
+    setForm((f) => voltarAoGeral(f));
+  };
+  const proporcional = dialogoEscopo ? inicializacaoProporcional(form, resumo, { locale, casas }) : null;
 
   const validar = () => {
     if (resumo.valido) return true;
@@ -146,6 +264,7 @@ export default function FormularioLancamento({
     e.preventDefault();
     if (readOnly || ocupado) return;
     if (!validar()) return;
+    retratar(form);
     onSubmit(montarDocumento(form, resumo));
   };
 
@@ -157,10 +276,15 @@ export default function FormularioLancamento({
     }
     if (!validar()) return;
     const doc = montarDocumento(form, resumo);
+    retratar(form);
     onConfirmar({ doc, alterado: !editando || JSON.stringify(doc) !== docInicial.current });
   };
 
   const comProdutos = form.conteudo === "COM_PRODUTOS";
+  const porItem = comProdutos && form.rateio_escopo === "POR_ITEM";
+  // POR_ITEM: confirmar só com todos os itens fechados; o aviso aponta o item e a linha.
+  const confirmarBloqueado = porItem && !readOnly && !resumo.rateioItens?.fecha;
+  const primeiroProblema = confirmarBloqueado ? resumo.rateioItens?.problemas[0] ?? null : null;
   const pagar = form.direcao === "PAGAR";
   const metodos = perfil.metodos_permitidos ?? [];
 
@@ -342,7 +466,24 @@ export default function FormularioLancamento({
           ) : null}
 
           <SecaoForm titulo="4. Rateio" />
-          <SecaoRateio form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
+          {comProdutos ? (
+            <EscolhaSegmentada
+              rotulo="Rateio"
+              testId="escolha-escopo-rateio"
+              value={form.rateio_escopo}
+              readOnly={readOnly}
+              onChange={trocarEscopo}
+              opcoes={[
+                { value: "GERAL", label: "Geral" },
+                { value: "POR_ITEM", label: "Por item" },
+              ]}
+            />
+          ) : null}
+          {porItem ? (
+            <SecaoRateioPorItem form={form} resumo={resumo} ctx={ctx} setForm={setForm} itemComErroServidor={chaveErroServidor ? erroDoServidor?.itemChave ?? null : null} />
+          ) : (
+            <SecaoRateio form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
+          )}
 
           <SecaoForm titulo="5. Vencimentos" />
           <SecaoParcelas form={form} resumo={resumo} ctx={ctx} setForm={setForm} />
@@ -363,7 +504,7 @@ export default function FormularioLancamento({
                   <button
                     type="button"
                     onClick={pedirConfirmacao}
-                    disabled={ocupado}
+                    disabled={ocupado || confirmarBloqueado}
                     data-testid="botao-confirmar-lancamento"
                     className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
@@ -383,9 +524,32 @@ export default function FormularioLancamento({
                 ) : null}
               </div>
             ) : null}
+            {onConfirmar && confirmarBloqueado ? (
+              <p role="status" className="mt-2 min-w-0 break-words text-[12px] text-amber-900" data-testid="confirmar-bloqueado-rateio-item">
+                Confirmar fica bloqueado até o rateio por item fechar
+                {primeiroProblema ? ` — ${rotuloDoErro(primeiroProblema.chave)}: ${primeiroProblema.mensagem}.` : ": preencha os itens e as linhas de rateio."}
+              </p>
+            ) : null}
           </div>
         </form>
       </div>
+      {dialogoEscopo && proporcional ? (
+        <DialogoEscopoPorItem
+          aberto
+          proporcional={proporcional}
+          onCancelar={() => setDialogoEscopo(false)}
+          onProporcional={() => {
+            if (!proporcional.possivel) return;
+            const iniciais = proporcional.rateios_itens;
+            setForm((f) => entrarNoPorItem(f, iniciais));
+            setDialogoEscopo(false);
+          }}
+          onEmBranco={() => {
+            setForm((f) => entrarNoPorItem(f, Object.fromEntries(f.itens.map((/** @type {any} */ i) => [i.chave, [rateioVazio()]]))));
+            setDialogoEscopo(false);
+          }}
+        />
+      ) : null}
     </CadastroFormShell>
   );
 }

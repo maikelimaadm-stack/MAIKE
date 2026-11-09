@@ -56,10 +56,18 @@ const HIERARQUIA_NATUREZA = /** @type {Record<string, string>} */ ({
 
 const COLECAO = /** @type {Record<string, string>} */ ({ itens: 'dos itens', rateios: 'do rateio', parcelas: 'das parcelas' });
 
-/** " (linha 2 dos itens)" a partir de `details.colecao` + `details.indice` (0-based). @param {Record<string, any>} details */
+/**
+ * " (linha 2 dos itens)" a partir de `details.colecao` + `details.indice` (0-based).
+ * No rateio POR ITEM (D-PROD-156: `colecao: 'itens'`, `subcolecao: 'rateios'`)
+ * aponta o item e a linha: " (item 2, linha 3 do rateio)" ou só " (item 2)".
+ * @param {Record<string, any>} details
+ */
 const ondeNaLinha = (details) => {
   const indice = Number.isInteger(details.indice) ? details.indice : Number.isInteger(details.item_ordem) ? details.item_ordem - 1 : null;
   if (indice == null) return '';
+  if (details.subcolecao === 'rateios') {
+    return ` (item ${indice + 1}${Number.isInteger(details.subindice) ? `, linha ${details.subindice + 1} do rateio` : ''})`;
+  }
   const colecao = COLECAO[String(details.colecao ?? (details.item_ordem != null ? 'itens' : ''))] ?? '';
   return ` (linha ${indice + 1}${colecao ? ` ${colecao}` : ''})`;
 };
@@ -164,6 +172,62 @@ const VALIDACAO = /** @type {Record<string, string>} */ ({
   tamanho_excedido: 'Texto maior que o permitido.',
 });
 
+/** Percentual de `details` (6 casas) sem zeros à direita: "90%". @param {unknown} v @param {ContextoMoeda} c */
+const pct = (v, c) => (typeof v === 'string' && v ? `${formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax: 6 })}%` : '');
+
+/**
+ * `OPERACAO_RATEIO_INVALIDO` — rateio geral (D-PROD-155) e por item (D-PROD-156,
+ * `details.subcolecao = 'rateios'` com `indice` do item e `subindice` da linha).
+ * @param {string|null} reason @param {Record<string, any>} details @param {ContextoMoeda} c @param {string} linha
+ */
+const mensagemDoRateio = (reason, details, c, linha) => {
+  const porItem = details.subcolecao === 'rateios' && Number.isInteger(details.indice);
+  const item = porItem ? ` ${details.indice + 1}` : '';
+  switch (reason) {
+    case 'escopo_invalido':
+      return 'O escopo do rateio é inválido (use Geral ou Por item). Recarregue a página e tente de novo. Nada foi gravado.';
+    case 'escopo_por_item_exige_produtos':
+      return 'O rateio por item só existe no lançamento com produtos. Use o rateio geral. Nada foi gravado.';
+    case 'rateio_geral_e_por_item':
+      return 'O lançamento não pode ter rateio geral e rateio por item ao mesmo tempo: escolha um dos dois. Nada foi gravado.';
+    case 'rateio_geral_obrigatorio':
+      return 'O rateio geral precisa de pelo menos uma linha (natureza e valor). Nada foi gravado.';
+    case 'item_sem_rateio':
+      return `O item${item} está sem classificação no rateio por item: inclua pelo menos uma linha. Nada foi gravado.`;
+    case 'rateio_item_excede_limite':
+      return `O item${item} passa do limite de ${details.limite != null ? String(details.limite) : '20'} linhas de rateio. Junte classificações ou divida o item. Nada foi gravado.`;
+    case 'rateio_itens_excede_limite':
+      return `O lançamento passa do limite de ${details.limite != null ? String(details.limite) : '1000'} linhas de rateio somando todos os itens. Junte classificações ou divida o lançamento. Nada foi gravado.`;
+    case 'soma_diferente':
+      if (details.modo === 'PERCENTUAL' && details.informado != null) {
+        return porItem
+          ? `Os percentuais do item${item} precisam somar 100%: informado ${pct(details.informado, c)} (diferença ${pct(details.diferenca, c)}). Nada foi gravado.`
+          : `Os percentuais do rateio precisam somar 100%: informado ${pct(details.informado, c)} (diferença ${pct(details.diferenca, c)}). Nada foi gravado.`;
+      }
+      if (details.esperado != null) {
+        return porItem
+          ? `O rateio do item${item} não fecha com o líquido do item: esperado ${dinheiro(details.esperado, c)}, informado ${dinheiro(details.informado, c)} (diferença ${dinheiro(details.diferenca, c)}). Nada foi gravado.`
+          : `O rateio não fecha com o total: esperado ${dinheiro(details.esperado, c)}, informado ${dinheiro(details.informado, c)} (diferença ${dinheiro(details.diferenca, c)}). Nada foi gravado.`;
+      }
+      break;
+    case 'valor_linha_zero':
+      if (details.modo === 'VALOR' || details.field === 'valor') return `Há linha de rateio com valor zero${linha}. Informe um valor maior que zero ou remova a linha. Nada foi gravado.`;
+      return `No rateio por percentual uma linha ficaria com valor zero${linha}. Ajuste os percentuais. Nada foi gravado.`;
+    case 'linha_duplicada':
+      return porItem
+        ? `Há linhas de rateio repetidas no mesmo item (mesma natureza e mesmos centros)${linha}. Junte-as numa linha só. Nada foi gravado.`
+        : `Há linhas de rateio repetidas (mesma natureza e mesmos centros)${linha}. Junte-as numa linha só. Nada foi gravado.`;
+    case 'soma_percentual_diferente':
+    case 'percentual_diferente_de_100':
+      return 'Os percentuais do rateio precisam somar exatamente 100%. Nada foi gravado.';
+    default:
+      break;
+  }
+  return porItem
+    ? `O rateio do item${item} é inválido${linha}. Revise as linhas (de 1 a 20 por item, valores maiores que zero). Nada foi gravado.`
+    : `O rateio é inválido${linha}. Revise as linhas (de 1 a 50, valores maiores que zero). Nada foi gravado.`;
+};
+
 /**
  * Mensagem dos códigos da Central de Lançamentos (null = não é desta tela).
  * @param {string|null} code @param {string|null} field @param {string|null} reason @param {Record<string, any>} details
@@ -195,13 +259,7 @@ const mensagemLancamento = (code, field, reason, details, c) => {
     case 'OPERACAO_DOCUMENTO_DUPLICADO':
       return 'Já existe um lançamento confirmado com este número de documento para este parceiro e direção. Confira antes de confirmar de novo. Nada foi gravado.';
     case 'OPERACAO_RATEIO_INVALIDO':
-      if (reason === 'soma_diferente' && details.esperado != null) {
-        return `O rateio não fecha com o total: esperado ${dinheiro(details.esperado, c)}, informado ${dinheiro(details.informado, c)} (diferença ${dinheiro(details.diferenca, c)}). Nada foi gravado.`;
-      }
-      if (reason === 'valor_linha_zero') return `No rateio por percentual uma linha ficaria com valor zero${linha}. Ajuste os percentuais. Nada foi gravado.`;
-      if (reason === 'linha_duplicada') return `Há linhas de rateio repetidas (mesma natureza e mesmos centros)${linha}. Junte-as numa linha só. Nada foi gravado.`;
-      if (reason === 'soma_percentual_diferente' || reason === 'percentual_diferente_de_100') return 'Os percentuais do rateio precisam somar exatamente 100%. Nada foi gravado.';
-      return `O rateio é inválido${linha}. Revise as linhas (de 1 a 50, valores maiores que zero). Nada foi gravado.`;
+      return mensagemDoRateio(reason, details, c, linha);
     case 'OPERACAO_PARCELAS_INVALIDAS':
       return `${PARCELAS_INVALIDAS[reason ?? ''] ?? 'As parcelas são inválidas.'}${linha} Nada foi gravado.`;
     case 'OPERACAO_REFERENCIA_INVALIDA':
