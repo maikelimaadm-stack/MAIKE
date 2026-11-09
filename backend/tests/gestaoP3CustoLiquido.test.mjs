@@ -307,6 +307,26 @@ describe('L4 — SEM_PRODUTOS e PUT', () => {
     assert.deepEqual([conf.status, conf.titulos.map((t) => t.valor)], ['CONFIRMADO', ['90.01']]);
   });
 
+  test('COM_PRODUTOS só de SERVIÇOS com desconto: rateio feito e aviso SEM falar em lote ou estoque (nenhum efeito de estoque)', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const servico = (descricao, valor_unitario) => ({ tipo_item: 'SERVICO', unidade: 'UN', quantidade: '1', valor_unitario, descricao });
+    for (const direcao of ['PAGAR', 'RECEBER']) {
+      const d = await A.criar(s.token, docSem(e, {
+        direcao, conteudo: 'COM_PRODUTOS', valor_bruto: undefined, valor_desconto: '15.00',
+        itens: [servico('FRETE', '100'), servico('MAO DE OBRA', '50')],
+        rateios: [{ natureza_id: (direcao === 'PAGAR' ? e.desp : e.rec).id, valor: '135.00' }], parcelas: [{ vencimento: '2027-07-10', valor: '135.00' }],
+      }));
+      const prev = await A.previa(s.token, d.id, e.id);
+      assert.deepEqual([prev.bloqueios, prev.plano.efeitos_estoque.entradas.length + prev.plano.efeitos_estoque.saidas.length], [[], 0]);
+      assert.deepEqual(prev.plano.itens.map((i) => [i.valor_desconto_rateado, i.valor_liquido, i.custo_kg]), [['10.00', '90.00', null], ['5.00', '45.00', null]]);
+      const aviso = prev.plano.avisos.find((a) => a.codigo === 'desconto_acrescimo_rateados');
+      assert.ok(aviso, `${direcao}: aviso do rateio presente`);
+      assert.doesNotMatch(aviso.mensagem, /lote|FIFO|custo do/, `${direcao}: sem mercadoria o aviso não fala em lote nem em custo de estoque`);
+      assert.match(aviso.mensagem, /nenhum item deste lançamento movimenta estoque/);
+    }
+  });
+
   test('PUT troca o desconto: as colunas do rateio são regravadas', async () => {
     const s = await montarTenant(app);
     const e = s.e1;

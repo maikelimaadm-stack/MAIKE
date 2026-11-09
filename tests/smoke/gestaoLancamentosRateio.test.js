@@ -188,6 +188,45 @@ describe('VET-2 — vetores compartilhados: backend falso (rascunho, prévia, co
   });
 });
 
+describe('VET-4 — textos: só serviços sem lote; limite completo na recusa', () => {
+  it('aviso do rateio num lançamento só de serviços não fala em lote nem em custo de estoque; com mercadoria fala', async () => {
+    const { mensagemDoAvisoDoPlano } = await import('../../src/lib/gestaoErros.js');
+    const aviso = { codigo: 'desconto_acrescimo_rateados', mensagem: 'x' };
+    const so = mensagemDoAvisoDoPlano(aviso, { direcao: 'PAGAR', semEstoque: true });
+    expect(so).not.toMatch(/lote|FIFO/);
+    expect(so).toMatch(/Nenhum item deste lançamento movimenta o estoque/);
+    expect(mensagemDoAvisoDoPlano(aviso, { direcao: 'PAGAR', semEstoque: false })).toMatch(/custo do lote é o valor líquido/);
+  });
+  it('na VENDA o aviso fala em receita líquida e custo FIFO, nunca em custo do lote', async () => {
+    const { mensagemDoAvisoDoPlano } = await import('../../src/lib/gestaoErros.js');
+    const venda = mensagemDoAvisoDoPlano({ codigo: 'desconto_acrescimo_rateados' }, { direcao: 'RECEBER', semEstoque: false });
+    expect(venda).toMatch(/receita líquida por item/);
+    expect(venda).toMatch(/custo FIFO dos lotes/);
+    expect(venda).not.toMatch(/custo do lote é o valor líquido/);
+  });
+  it('formulário (calcularResumo): desconto que zera a linha e acréscimo que leva o líquido acima do teto do estoque apontam o ITEM antes de salvar', async () => {
+    const { calcularResumo, formularioVazio, itemVazio } = await import('../../src/components/financeiroGestao/lancamentoModelo.js');
+    const ctx = { locale: 'pt-BR', casas: 2, hoje: '2026-11-08', moeda: 'BRL' };
+    const merc = (quantidade, valor_unitario) => ({ ...itemVazio('MERCADORIA'), produto: { id: 'p1', unidade_principal_estoque: 'KG' }, local: { id: 'l1' }, quantidade, valor_unitario });
+    const base = { ...formularioVazio({ hoje: '2026-11-08' }), conteudo: 'COM_PRODUTOS' };
+    const zerada = calcularResumo({ ...base, valor_desconto: '100,00', itens: [merc('1', '0,01'), merc('1', '100,00')] }, ctx);
+    expect(zerada.erros['itens.0.liquido']).toMatch(/zero ou negativo/);
+    expect(zerada.erros['itens.0.liquido']).toMatch(/desconto rateado R\$\s0,01/);
+    const teto = calcularResumo({ ...base, valor_acrescimo: '10.000,00', itens: [merc('1', '9.999.999.000,00')] }, ctx);
+    expect(teto.erros['itens.0.subtotal']).toBeUndefined();
+    expect(teto.erros['itens.0.liquido']).toMatch(/passa do limite do estoque/);
+    const ok = calcularResumo({ ...base, valor_acrescimo: '10,00', itens: [merc('1', '100,00')] }, ctx);
+    expect(Object.keys(ok.erros).filter((k) => k.startsWith('itens.'))).toEqual([]);
+  });
+  it('a recusa custo_kg_nao_representavel diz o limite inteiro: 0,1% do líquido e nunca menos que 1 unidade mínima', async () => {
+    const { mensagemDaLinhaDoRateio } = await import('../../src/lib/gestaoErros.js');
+    const caso = vetores.casos.find((c) => c.id === 'brl_residuo_relativo_acima');
+    const texto = mensagemDaLinhaDoRateio('custo_kg_nao_representavel', caso.esperado.erro.details, { locale: 'pt-BR', moeda: 'BRL', casas: 2 }, ' (linha 1 dos itens)');
+    expect(texto).toMatch(/0,1% do valor líquido da linha/);
+    expect(texto).toMatch(/nunca menos que 1 unidade mínima da moeda/);
+  });
+});
+
 describe('VET-3 — ordem da recusa igual à do servidor (linha a linha: líquido, depois custo)', () => {
   it('linha 1 com custo não representável e linha 2 com líquido zero: volta a linha 1 (a primeira recusada)', async () => {
     const { ratearCabecalho } = await import(/* @vite-ignore */ MODULO_PURO);

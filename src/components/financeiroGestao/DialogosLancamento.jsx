@@ -179,7 +179,7 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
           // Aviso é INFORMATIVO (os bloqueios vêm à parte, em `bloqueios`).
           <ul className="list-disc space-y-1 pl-5 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previa-avisos">
             {plano.avisos.map((/** @type {any} */ a, /** @type {number} */ k) => (
-              <li key={k}>{mensagemDoAvisoDoPlano(a, { ...c, direcao: registro?.direcao, residuoTotal })}</li>
+              <li key={k}>{mensagemDoAvisoDoPlano(a, { ...c, direcao: registro?.direcao, residuoTotal, semEstoque: nEstoque === 0 })}</li>
             ))}
           </ul>
         ) : null}

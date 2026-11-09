@@ -103,7 +103,7 @@ export const mensagemDaLinhaDoRateio = (reason, details, c = {}, linha = '') => 
       details.valor_liquido != null
         ? `: líquido ${dinheiro(details.valor_liquido, c)} para ${kg(details.quantidade_estoque, c)} dá ${dinheiroFino(details.custo_kg, c, 4)}/kg, e a diferença de ${dinheiroFino(details.residuo_custo, c, 8)} ficaria fora do custo`
         : '';
-    return `O custo por kg não cabe nas 4 casas do estoque${linha}${valores} (o limite é 0,1% do valor líquido da linha). Confira a quantidade, a unidade e o valor unitário do item.`;
+    return `O custo por kg não cabe nas 4 casas do estoque${linha}${valores} (o limite é 0,1% do valor líquido da linha, e nunca menos que 1 unidade mínima da moeda). Confira a quantidade, a unidade e o valor unitário do item.`;
   }
   return null;
 };
@@ -342,12 +342,14 @@ const RE_NUMERO = /^-?\d+(?:\.\d+)?$/;
  * erros, só o `codigo` (e o valor `residuo_total`) é lido — a `mensagem` do
  * servidor não é exibida.
  * @param {unknown} aviso
- * @param {ContextoMoeda & { direcao?: string, residuoTotal?: string|null }} [contexto]
+ * @param {ContextoMoeda & { direcao?: string, residuoTotal?: string|null, semEstoque?: boolean }} [contexto]
+ *   `semEstoque`: nenhum item movimenta estoque (só serviços) — o aviso não fala em lote
  *   `residuoTotal`: soma dos resíduos das linhas da prévia (se o aviso não trouxer o total)
  */
 export const mensagemDoAvisoDoPlano = (aviso, contexto = {}) => {
   const codigo = ehObjeto(aviso) && typeof aviso.codigo === 'string' ? aviso.codigo : null;
   if (codigo === 'desconto_acrescimo_rateados') {
+    if (contexto.semEstoque) return 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (valor líquido por item). Nenhum item deste lançamento movimenta o estoque.';
     return contexto.direcao === 'RECEBER'
       ? 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (receita líquida por item). A saída do estoque continua com o custo FIFO dos lotes.'
       : 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal: o custo do lote é o valor líquido da mercadoria.';

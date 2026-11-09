@@ -332,7 +332,9 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
           ...(comRateio && (ehPositivo(doc.valor_desconto) || ehPositivo(doc.valor_acrescimo))
             ? [{
                 codigo: 'desconto_acrescimo_rateados',
-                mensagem: doc.direcao === 'PAGAR'
+                mensagem: !mercadorias.length
+                  ? 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal (valor líquido por item); nenhum item deste lançamento movimenta estoque'
+                  : doc.direcao === 'PAGAR'
                   ? 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal; o custo do lote é o valor líquido da mercadoria'
                   : 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal (receita líquida por item); a saída do estoque continua com o custo FIFO dos lotes',
               }]

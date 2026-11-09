@@ -985,7 +985,8 @@ describe('LANC-R4 — custo de aquisição líquido (desconto e acréscimo ratea
     expect(within(totais).getByTestId('previa-rateio-totais-desconto')).toHaveTextContent(/R\$\s500,00/);
     expect(within(totais).getByTestId('previa-rateio-totais-acrescimo')).toHaveTextContent(/R\$\s90,00/);
     expect(within(totais).getByTestId('previa-rateio-totais-liquido')).toHaveTextContent(/R\$\s8\.590,00/);
-    expect(totais).toHaveTextContent(/confere com o total do documento/);
+    expect(totais).toHaveTextContent(/Σ líquido confere com o total do documento/);
+    expect(totais).not.toHaveTextContent(/NÃO confere/);
     expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent(/R\$\s8\.590,00 em títulos a pagar/);
     // A diferença é explicada: fica FORA do custo FIFO.
     expect(within(dialogo).getByTestId('previa-rateio-nota-residuo')).toHaveTextContent(/fora do custo FIFO/);
@@ -1025,7 +1026,8 @@ describe('LANC-R4 — custo de aquisição líquido (desconto e acréscimo ratea
     expect(screen.getByTestId('consulta-total')).toHaveTextContent(/R\$\s7\.500,00/);
     const totais = screen.getByTestId('consulta-rateio-totais');
     expect(within(totais).getByTestId('consulta-rateio-totais-liquido')).toHaveTextContent(/R\$\s7\.500,00/);
-    expect(totais).toHaveTextContent(/confere com o total do documento/);
+    expect(totais).toHaveTextContent(/Σ líquido confere com o total do documento/);
+    expect(totais).not.toHaveTextContent(/NÃO confere/);
     expect(screen.getByTestId('consulta-rateio-nota-residuo')).toHaveTextContent(/fora do custo FIFO/);
   });
 

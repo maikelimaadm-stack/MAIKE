@@ -271,6 +271,14 @@ export const calcularResumo = (form, ctx) => {
     if (rateio?.erro) {
       const { reason, details } = rateio.erro;
       erros[`itens.${details.indice}.liquido`] = mensagemDaLinhaDoRateio(reason, details, { locale, moeda: ctx.moeda, casas }) ?? 'O valor líquido deste item é inválido.';
+    } else if (rateio && form.direcao === 'PAGAR') {
+      // Como o servidor (valor_excede_limite_estoque): na compra, lote e movimento
+      // recebem o LÍQUIDO, que o acréscimo rateado pode levar acima do teto do estoque.
+      rateio.itens.forEach((ri, k) => {
+        if (form.itens[k]?.tipo_item === 'MERCADORIA' && comparar(ri.valor_liquido, LIMITE_ESTOQUE) > 0) {
+          erros[`itens.${k}.liquido`] = 'Com o acréscimo rateado, o valor líquido desta mercadoria passa do limite do estoque (9.999.999.999,9999). Reduza o acréscimo ou divida o item.';
+        }
+      });
     }
   }
 

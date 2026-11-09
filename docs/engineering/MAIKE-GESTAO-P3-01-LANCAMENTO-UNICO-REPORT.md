@@ -480,7 +480,7 @@ tributos, câmbio ou frete.
 | `backend/tests/gestaoP3CustoLiquido.test.mjs` (novo): vetores, FIFO, estornos, detalhe, replanejamento, SEM_PRODUTOS, PUT, idempotência, falha forçada (3 gatilhos, rollback total), concorrência (200 + 409, um lote) e CHECKs | contra o código anterior: 30 testes, 1 pass, 29 fail (`'2.6667','8000.0000'` em vez de `'2.5000','7500.0000'`; `brl_residuo_fora_do_limite` 201 em vez de 422) | 34/34, também com `connection_limit=5` e `=3` (com Rodada2 e Concorrência: 59/59 em cada pool) |
 | `gestaoP3Rodada2.test.mjs`: oráculo item a item com a variante "compra com desconto e acréscimo" | — (reforço) | verde |
 | `tests/smoke/gestaoLancamentosRateio.test.js` (novo): VET-1 (função pura BigInt), VET-2 (backend falso: rascunho, prévia, confirmação, detalhe, PUT recusado), VET-3 (ordem da recusa) | 23 falhas (módulo ausente, campos rateados ausentes, rascunho aceito em vez de 422) | 28/28 |
-| `tests/smoke/gestaoLancamentos.test.jsx` (bloco LANC-R4 e LANC-4) | 7 falhas (rateio da prévia e do detalhe, erro na linha, motivo no diálogo, aviso antigo) | 46/46 |
+| `tests/smoke/gestaoLancamentos.test.jsx` (bloco LANC-R4 e LANC-4) | 7 falhas (rateio da prévia e do detalhe, erro na linha, motivo no diálogo, aviso antigo) | 45/45 |
 | E2E real, passos 21–27 (`scripts/dev/e2e-lancamentos-real.mjs`) | tela antiga: 33 divergências; backend mutante com o custo bruto: 34 divergências (lote 2,6667, movimento 8.000,0000, fatia FIFO e estorno idem) | ver §8.3 |
 | Paridade backend × tela × oráculo BigInt independente (`fuzz`, 3 sementes × 30.000 documentos: casas 0/2/3, PAGAR/RECEBER, 1–6 linhas, SACO/KG/serviço, D/A aleatórios) | o oráculo com o limite antigo (0,01%) diverge em 2.196 documentos do código novo | 0 divergências nas 3 sementes (≈17.240 planos aceitos, ≈2.750 `item_liquido_nao_positivo` e ≈1.930 `custo_kg_nao_representavel` por semente) |
 
@@ -503,6 +503,22 @@ a venda).
 **Comportamento novo declarado:** a recusa por resíduo vale com ou sem
 desconto. Antes da rodada, 1,00 por 3.000 kg era gravado a 0,0003/kg em
 silêncio, com 10% de distorção; agora responde 422 explicando a linha.
+
+### 7.9 Revisão adversarial independente da rodada 4 (4 lentes + verificador por achado)
+
+Lentes de custo, tela, release/docs e testes sobre `41475078..c43c6c07`, cada
+achado reproduzido de novo por um verificador cético. Nenhum ALTO; 1 MÉDIO e
+os demais BAIXOS, todos corrigidos com RED→GREEN, exceto um refutado.
+
+| Id | Achado confirmado | Correção |
+|---|---|---|
+| TESTES-1 (MÉDIO) | Nenhum teste fixava o limite RELATIVO de 0,1% (só o piso de 1 centavo) | Vetores `brl_residuo_relativo_no_limite` (resíduo −1,00 = 0,1% de 1.000,00 → aceito) e `brl_residuo_relativo_acima` (−1,0017 → 422), nos dois lados |
+| CUSTO-2 / TELA-3 | Lançamento só de serviços com desconto: o aviso falava em "custo do lote" | Servidor, tela e falso: texto próprio quando nenhum item movimenta estoque. RED: 1 PG + 1 tela |
+| TELA-1 | Acréscimo rateado levando o líquido da mercadoria acima do teto do estoque só era recusado no servidor | O formulário aponta o item antes de salvar. RED: 1 teste |
+| TELA-2 / RELEASE-2 | Mensagem e docs citavam só "0,1%", sem o piso de 1 unidade mínima | Texto completo na tela, no CURRENT-STATE e no §9. RED: 1 teste |
+| TESTES-2/3/4 | Asserção que também aceitava "NÃO confere"; texto da venda e `item_liquido_nao_positivo` no formulário sem teste | Asserção ancorada; testes novos (VET-4) |
+| RELEASE-1 | §7.8 dizia 46/46 para um arquivo de 45 testes | Corrigido |
+| CUSTO-1 | Editar rascunho com peso do saco desatualizado | **Refutado** pelo verificador (caminho irreal; o servidor usa o peso atual) |
 
 ## 8. Testes e evidências
 
@@ -557,7 +573,8 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 
 - Custo de aquisição líquido (rodada 4): o lote guarda o custo por kg com 4
   casas (colunas antigas inalteradas). O resíduo de arredondamento fica fora do
-  FIFO e é mostrado, limitado a 0,1% do líquido da linha. Compra com custo por
+  FIFO e é mostrado, limitado a 0,1% do líquido da linha (nunca menos que 1
+  unidade mínima da moeda). Compra com custo por
   kg ínfimo (abaixo de ~0,06/kg) e resíduo acima disso é recusada (422), mesmo
   sem desconto. Tributos, câmbio e frete com natureza própria não entram no
   custo.

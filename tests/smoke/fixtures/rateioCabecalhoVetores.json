@@ -576,6 +576,88 @@
       }
     },
     {
+      "id": "brl_residuo_relativo_no_limite",
+      "descricao": "limite RELATIVO exato: 22.000 kg × 0,045 + acréscimo 10,00 → líquido 1.000,00, custo 0,0455 e resíduo −1,00 = 0,1% do líquido (acima de 1 centavo) → aceito",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "10.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "22000",
+          "valor_unitario": "0.045"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "990.00",
+        "valor_total": "1000.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "990.00",
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "10.00",
+            "valor_liquido": "1000.00",
+            "quantidade_estoque": "22000.0000",
+            "custo_kg": "0.0455",
+            "residuo_custo": "-1.00000000"
+          }
+        ],
+        "residuo_total": "-1.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados",
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "brl_residuo_relativo_acima",
+      "descricao": "logo acima do limite RELATIVO: 20.387 kg × 0,049 + acréscimo 1,04 → líquido 1.000,00, custo 0,0491 e resíduo −1,0017 > 1,00 (0,1%) → 422 custo_kg_nao_representavel",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "1.04",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "20387",
+          "valor_unitario": "0.049"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "998.96",
+        "valor_total": "1000.00",
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_VALORES_INVALIDOS",
+          "field": "valor_unitario",
+          "reason": "custo_kg_nao_representavel",
+          "details": {
+            "colecao": "itens",
+            "indice": 0,
+            "item_ordem": 1,
+            "valor_liquido": "1000.00",
+            "quantidade_estoque": "20387.0000",
+            "custo_kg": "0.0491",
+            "residuo_custo": "-1.00170000"
+          }
+        }
+      }
+    },
+    {
       "id": "brl_residuo_fora_do_limite",
       "descricao": "líquido 1,00 em 3000 kg: custo 0,0003 e resíduo 0,10 > max(0,01; 0,001) → 422 custo_kg_nao_representavel",
       "perfil": {
