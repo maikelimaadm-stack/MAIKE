@@ -43,8 +43,8 @@ títulos, liquidação manual e efeito de estoque só na confirmação do lança
 conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade,
 caixa/bancos, rateio por item, pedido de compra ou relatórios financeiros.
 Também delimitados (D-PROD-157): os **cadastros de Patrimônio e Frota** (bens,
-famílias, tipos, perfis de medição, combustíveis, medidores, tanques e parâmetros
-de depreciação com prévia só simulada), sem abastecimento, manutenção, apuração de
+famílias, tipos, perfis de medição, combustíveis e o vínculo deles aos Produtos de
+cada fazenda, medidores, tanques e parâmetros de depreciação com prévia só simulada), sem abastecimento, manutenção, apuração de
 depreciação nem efeito financeiro ou de estoque.
 
 ### Inventário atual
