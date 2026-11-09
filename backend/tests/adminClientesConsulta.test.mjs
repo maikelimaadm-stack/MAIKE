@@ -45,7 +45,11 @@ beforeEach(async () => {
 });
 
 const get = (url, headers = {}) => app.inject({ method: 'GET', url, headers });
-const PROIBIDOS = /senha_hash|papel_tenant|scrypt\$|cpf|cnpj|rg"|inscricao_estadual|telefone|email|endereco|permiss|modulos_permitidos|is_admin|token/i;
+// Os termos curtos (cpf, cnpj, rg") só contam fora de identificador alfanumérico:
+// um id aleatório (cuid) terminado em "rg" ou contendo "cpf" não é vazamento
+// (falso positivo visto na CI da PR #234, id "…aekogrg"). Chaves como "rg",
+// "documento_rg", "cpf_cnpj" continuam detectadas.
+const PROIBIDOS = /senha_hash|papel_tenant|scrypt\$|(?<![a-z0-9])(?:cpf|cnpj)|(?<![a-z0-9])rg"|inscricao_estadual|telefone|email|endereco|permiss|modulos_permitidos|is_admin|token/i;
 
 /** Dois clientes com usuários e empresas distintos. */
 const cenario = async () => {
