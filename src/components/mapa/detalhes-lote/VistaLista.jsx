@@ -23,7 +23,7 @@ const pisoCabCel = (rotulo) => Math.min(84, Math.max(40, palavraMax(rotulo) * 6.
 const primeiraDoGrupo = (cols, i) => i === 0 || cols[i - 1].secao !== cols[i].secao;
 
 /** @type {React.CSSProperties} */
-const FIXA = { position: "sticky", left: 0, zIndex: 1, borderRight: SEP };
+const FIXA = { position: "sticky", left: 0, zIndex: 1, borderRight: SEP, minWidth: 0, overflow: "hidden" };
 
 /** @type {React.CSSProperties} */
 const EYEBROW = { fontSize: 9, fontWeight: 700, color: COR.meta, textTransform: "uppercase", letterSpacing: "0.05em" };
@@ -203,13 +203,14 @@ function LinhaTabela({ lote, cols, primeira, linhaGrid, celPad, barraLarg }) {
   return (
     <div style={{ ...linhaGrid, borderTop: `1px solid ${primeira ? "transparent" : COR.divisor}`, background: "#fff" }}>
       <div style={{ ...FIXA, display: "flex", alignItems: "center", gap: 8, minWidth: 0, padding: celPad, background: "#fff" }}>
-        <span style={{ minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+        <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden" }} title={lote.nome}>
+          <span style={{ display: "flex", alignItems: "flex-start", gap: 5, minWidth: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.25 }}>
             <span
               title={lote.situacao?.rotulo}
-              style={{ width: 7, height: 7, flex: "0 0 auto", borderRadius: 999, background: tom.texto }}
+              style={{ width: 7, height: 7, flex: "0 0 auto", marginTop: 3, borderRadius: 999, background: tom.texto }}
             />
-            {lote.nome}
+            {/* Nome longo quebra em até 2 linhas e corta com reticências: nunca invade a coluna vizinha. */}
+            <span style={{ minWidth: 0, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{lote.nome}</span>
           </span>
           <span
             style={{

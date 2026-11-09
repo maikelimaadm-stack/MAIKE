@@ -423,3 +423,10 @@
   outline: 2px solid transparent !important;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35) !important;
 }
+
+/* O app força 16px em button[role=combobox] (evita zoom do iOS em campo de
+   digitação). Aqui os comboboxes são botões que só abrem o popup — sem zoom —
+   e o mockup pede 12px (Filtrar / Mostrar informações). */
+.mk-dl8 button[role="combobox"]:not(#mk-padrao) {
+  font-size: 12px !important;
+}
