@@ -20,7 +20,7 @@ Modelo e histórico da release anterior:
 | Item | Valor |
 |---|---|
 | Migration | `20261109200000_gestao_p3_02_rateio_por_item` |
-| Natureza | expand-only. Uma coluna **anulável e sem DEFAULT** `OperacaoFinanceira.rateio_escopo VARCHAR(12)` e uma tabela nova `OperacaoFinanceiraItemRateio`, com 20 colunas, 6 FKs compostas, 2 CHECKs, PK, 2 uniques, 3 índices e um bloco DO de RLS e REVOKE. Nenhum dado é migrado e nenhuma constraint ou índice entra em tabela antiga. |
+| Natureza | expand-only. Uma coluna **anulável e sem DEFAULT** `OperacaoFinanceira.rateio_escopo VARCHAR(12)` e uma tabela nova `OperacaoFinanceiraItemRateio`, com 18 colunas, 6 FKs compostas, 2 CHECKs, PK, 2 uniques, 3 índices e um bloco DO de RLS e REVOKE. Nenhum dado é migrado e nenhuma constraint ou índice entra em tabela antiga. |
 | Tabelas antigas referenciadas (FK) | `Cliente`, `OperacaoFinanceira`, `OperacaoFinanceiraItem`, `NaturezaFinanceira`, `CentroCusto`, `CentroResultado` |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0` |
 | Hash do DO pinado (`DO_RLS_APROVADOS`) | `dc05126cd737c77090c54fc04cd6f7d2ac0b7613168f13fb944a7477ca7bd576` |
@@ -133,6 +133,18 @@ Com o arquivo do SHA, num PostgreSQL 17 local que tenha os papéis `anon`,
 - repetir a transação é recusado;
 - o rollback do §9.1 funciona.
 
+Ensaio feito em 2026-11-09 (PG17.11 local, o arquivo do HEAD da PR, `df4d1ab2…`):
+- o SQL de produção foi recusado (`alvo divergente`);
+- com o identificador local: `COMMIT`, 36 concluídas, `migrate diff` 0 e
+  `migrate status` em dia; repetir foi recusado;
+- §6: 18 colunas; `p` 1, `f` 6, `c` 2; FKs `(r,r)` em `operacao` e `natureza`
+  e `(r,c)` nas demais; índices 1/2/3; RLS sem FORCE; 1 política; 0 grants
+  públicos;
+- o rollback do §9.1 voltou a 35 e a reaplicação deu `COMMIT`.
+
+Roteiro e saídas ficam no scratchpad da sessão (`p3/p302/ensaio/`). Repita o
+ensaio no GO, com o arquivo do SHA aprovado.
+
 ## 5. Aplicação (uma transação)
 
 ### Caminho A
@@ -199,7 +211,7 @@ COMMIT;
 | 1 | `_prisma_migrations` | **36** concluídas e 0 com falha; a linha da P3-02 tem o `checksum` do §4.3 e `applied_steps_count = 1` |
 | 2 | `information_schema.columns` de `OperacaoFinanceira.rateio_escopo` | `character varying(12)`, `is_nullable = YES`, `column_default` NULL; todas as linhas antigas com NULL |
 | 3 | `pg_class` da tabela nova | RLS ligado, sem FORCE; mesmo dono de `OperacaoFinanceiraRateio` |
-| 4 | Colunas da tabela nova | 20 |
+| 4 | Colunas da tabela nova | 18 |
 | 5 | `pg_constraint` da tabela nova | `p` 1, `f` 6, `c` 2. FKs: `operacao` e `natureza` com `(r,r)`; `cliente`, `item`, `centro_custo` e `centro_resultado` com `(r,c)` |
 | 6 | `pg_index` da tabela nova | PK 1, unique 2, não unique 3 |
 | 7 | `pg_policies` | 1 × `maike_backend_all`, `ALL`, `{maike_vercel}` |

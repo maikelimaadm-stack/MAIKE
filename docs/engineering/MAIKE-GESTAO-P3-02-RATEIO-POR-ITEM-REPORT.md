@@ -37,7 +37,7 @@ O comportamento está descrito na D-PROD-156. Em resumo:
   - os modos são mutuamente exclusivos.
 - **Banco:** migration expand-only `20261109200000_gestao_p3_02_rateio_por_item`.
   - Coluna anulável `OperacaoFinanceira.rateio_escopo`.
-  - Tabela nova `OperacaoFinanceiraItemRateio`: 20 colunas; 6 FKs compostas com tenant e empresa; 2 CHECKs, um deles de tipo × direção; PK, 2 uniques e 3 índices; RLS e política para `maike_vercel`.
+  - Tabela nova `OperacaoFinanceiraItemRateio`: 18 colunas; 6 FKs compostas com tenant e empresa; 2 CHECKs, um deles de tipo × direção; PK, 2 uniques e 3 índices; RLS e política para `maike_vercel`.
   - O classificador sem alteração devolve `expand: true` e 0 violações.
   - SHA-256 `df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0` e DO `dc05126c…bd576`, pinados.
 - **Backend:**
@@ -74,6 +74,7 @@ O comportamento está descrito na D-PROD-156. Em resumo:
 | Gates | `deploy-migrations`, `supabase-public-grants`, `tenancy` (70 models), `indices`, `import-integrity`, `no-secrets`, `base44`, `governance-paths`, `product-scope` e `native-api` passam; `test:gates` 695/695 |
 | Lint e tipos | lint com 0 erros (56 avisos herdados); `gate:types` com 815 (teto 1.746); `typecheck:backend` 0 |
 | Prisma | `validate` OK; `migrate diff --exit-code` 0 de banco → schema e de migrations → schema |
+| Ensaio do SQL do runbook em PG17.11 local com `anon`, `authenticated` e `maike_vercel`, a partir de 35 migrations e do arquivo do HEAD (`df4d1ab2…`) | SQL de produção recusado (`RELEASE_BLOCKED: alvo divergente`); com o identificador local: `COMMIT`, 36 concluídas, `migrate diff` 0 e `migrate status` em dia. Repetir é recusado (`migration já registrada`). Coluna `varchar(12)` anulável e sem default; tabela com 18 colunas, `p` 1, `f` 6 e `c` 2; FKs `operacao` e `natureza` `(r,r)`, as demais `(r,c)`; índices 1/2/3; RLS sem FORCE; 1 política; 0 grants públicos. O rollback do §9.1 deixa 35, sem tabela e sem coluna, e a reaplicação dá `COMMIT` e 36 |
 | `verify:all` no HEAD final | ver §5 |
 
 Casos cobertos pelo arquivo novo `gestaoP3RateioItem.test.mjs` (SPEC §7):
