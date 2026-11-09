@@ -90,13 +90,19 @@ aborta tudo, sem aplicar nada.
 
 ## 2. Pré-requisitos do GO (sem eles, não começa)
 
-1. **Código aprovado:** os 8 achados da revisão adversarial fechados (relatório
-   §7.4), CI verde no HEAD final e PR #230 aprovada pelo proprietário no review.
+1. **Código aprovado:** os 23 achados da revisão adversarial fechados (relatório
+   §7.4 e §7.6), CI verde no HEAD final e PR #230 aprovada pelo proprietário no review.
 2. **SHA aprovado** `<SHA_APROVADO>` (40 hex): o HEAD da PR #230 na aprovação.
 3. **GO escrito do proprietário:** autoriza esta migration neste alvo, escolhe o
    caminho A ou B e aceita a janela.
 4. **Prova de backup/PITR** (§4.4).
-5. **Congelamento:** nenhuma outra migration aplicada na janela, e nenhuma escrita
+5. **Prazo da função na Vercel:** confirmar (somente leitura, no painel ou na
+   configuração do projeto) que a função da API admite pelo menos 60 s, o prazo
+   que a tela nova dá a confirmar/cancelar/liquidar/estornar (transação de até
+   30 s + 10 s de espera de conexão). Se for menor, registrar o risco no GO: a
+   transação volta inteira e a retentativa com a mesma `operation_id` é segura,
+   mas o usuário vê "resultado incerto" mais vezes.
+6. **Congelamento:** nenhuma outra migration aplicada na janela, e nenhuma escrita
    de teste na Preview da PR #230. A Preview usa o mesmo banco de produção (S04-P1
    §13.5): depois da migration, um teste nela criaria lançamento e estoque reais.
 

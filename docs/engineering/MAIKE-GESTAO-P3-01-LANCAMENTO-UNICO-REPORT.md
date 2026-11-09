@@ -6,12 +6,12 @@
 | Decisão | [D-PROD-154](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
 | PR | #230 (**draft**), branch `claude/maike-gestao-p3-01-lancamento-unico` |
 | Base | `origin/main` `7ab43f7f` (merge da PR #227, Gestão P2) |
-| HEAD deste relatório | `{{HEAD_FINAL}}` (texto redigido sobre `0f0a96dc`) |
+| HEAD deste relatório | código em `b403845e` (CI `verify:all` verde); este relatório entra no commit seguinte, só de documentação |
 | Runbook de release | [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) — **não executado** |
 
-> **Marcadores.** Todo `{{…}}` é preenchido pelo orquestrador com a saída real do
-> comando no HEAD final. Nenhum número de prova foi inventado aqui. Marcador que
-> sobrar no texto significa **não comprovado**. A lista completa está no §12.
+> **Provas.** Todo número dos §7–§8 é saída real de comando, registrada nos logs
+> citados. Nada foi medido em Preview nem em produção: as provas são locais
+> (PostgreSQL 16 descartável, Playwright local) e do CI da PR.
 
 ## 1. Pedido e escopo
 
@@ -374,21 +374,68 @@ Todas as rotas usam `onRequest: [app.autenticar]` e schemas fechados
 
 ### 7.4 Revisão adversarial, rodada 1 (lentes concorrência e estoque)
 Os 8 achados foram reproduzidos pelo revisor com scripts próprios em banco
-descartável. Estão em correção nesta PR; o resultado de cada um entra no lugar do
-marcador. CONCORRENCIA-2 e ESTOQUE-2 têm a mesma raiz (comandos antigos com o
+descartável e corrigidos no commit `c40cab00`, cada um com teste PG que falhava
+antes e passa depois (`backend/tests/gestaoP3Concorrencia.test.mjs`, C1–C6). CONCORRENCIA-2 e ESTOQUE-2 têm a mesma raiz (comandos antigos com o
 prazo padrão de 5 s esperando travas longas); CONCORRENCIA-4 e ESTOQUE-3 também
 (rascunho segurando a sequência do tenant enquanto espera o produto).
 
 | ID | Gravidade | Defeito | Resultado |
 |---|---|---|---|
-| CONCORRENCIA-1 | ALTO | A guarda da §8.5 no PATCH/DELETE de lote conta os vínculos sem trava; um PATCH concorrente sobrescreve um lote que a venda acabou de consumir (205 kg fantasmas; venda nunca mais cancelável) | {{FIX-CONCORRENCIA-1}} |
-| CONCORRENCIA-2 | ALTO | Confirmar/cancelar seguram a trava do produto e a sequência de movimentos durante todos os efeitos; suplementação, transferência, POST de movimento e PATCH de produto, com o prazo padrão de 5 s, respondem 500 | {{FIX-CONCORRENCIA-2}} |
-| CONCORRENCIA-3 | MÉDIO | PUT do perfil sem `{ maxWait, timeout }` e sem tradução de transitórios: 500 enquanto uma confirmação segura o perfil em `FOR SHARE` | {{FIX-CONCORRENCIA-3}} |
-| CONCORRENCIA-4 | MÉDIO | `criarRascunho` reserva a sequência do tenant antes de travar os produtos (§8.4 item 5): um rascunho parado atrás de uma confirmação trava todos os rascunhos do tenant | {{FIX-CONCORRENCIA-4}} |
-| CONCORRENCIA-5 | BAIXO | Replay do POST de rascunho depois do descarte devolve 200 com o corpo de um documento apagado | {{FIX-CONCORRENCIA-5}} |
-| ESTOQUE-1 | ALTO | Confirmar recalcula o kg com o peso por saco atual, mas o item guarda o kg do rascunho; o cancelamento fica bloqueado para sempre | {{FIX-ESTOQUE-1}} |
-| ESTOQUE-2 | MÉDIO | Suplementação e transferência (prazo padrão de 5 s) esperam travas que confirmar/cancelar seguram por até 30 s e respondem 500 | {{FIX-ESTOQUE-2}} |
-| ESTOQUE-3 | BAIXO | O `FOR UPDATE` no `Produto` faz o rascunho esperar na FK segurando a sequência do tenant: todo rascunho do tenant entra na fila | {{FIX-ESTOQUE-3}} |
+| CONCORRENCIA-1 | ALTO | A guarda da §8.5 no PATCH/DELETE de lote conta os vínculos sem trava; um PATCH concorrente sobrescreve um lote que a venda acabou de consumir (205 kg fantasmas; venda nunca mais cancelável) | Corrigido: PATCH/DELETE de lote entram no protocolo (produto → lote, `FOR UPDATE`) antes de contar vínculos; 409 `REGISTRO_OPERACIONAL_IMUTAVEL`, Σ lotes = `estoque_atual`, venda cancela (C1) |
+| CONCORRENCIA-2 | ALTO | Confirmar/cancelar seguram a trava do produto e a sequência de movimentos durante todos os efeitos; suplementação, transferência, POST de movimento e PATCH de produto, com o prazo padrão de 5 s, respondem 500 | Corrigido: helper `shared/prisma/transacaoConcorrente.js` (transitórios → 409) e reserva da sequência de movimentos só no fim (número provisório + `unnest`); prazos dos comandos antigos ajustados na rodada 2 (CRITICO-1) (C2, C3) |
+| CONCORRENCIA-3 | MÉDIO | PUT do perfil sem `{ maxWait, timeout }` e sem tradução de transitórios: 500 enquanto uma confirmação segura o perfil em `FOR SHARE` | Corrigido: PUT do perfil pelo mesmo helper; 200 depois da espera, um único evento de auditoria (C2) |
+| CONCORRENCIA-4 | MÉDIO | `criarRascunho` reserva a sequência do tenant antes de travar os produtos (§8.4 item 5): um rascunho parado atrás de uma confirmação trava todos os rascunhos do tenant | Corrigido: produtos travados (`FOR KEY SHARE` ordenado) antes de `reservarNumero` no POST e antes de apagar filhos no PUT (C4) |
+| CONCORRENCIA-5 | BAIXO | Replay do POST de rascunho depois do descarte devolve 200 com o corpo de um documento apagado | Corrigido: descarte marca o recibo `criar` como excluído; replay responde 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`, com mensagem na tela (C5) |
+| ESTOQUE-1 | ALTO | Confirmar recalcula o kg com o peso por saco atual, mas o item guarda o kg do rascunho; o cancelamento fica bloqueado para sempre | Corrigido: confirmar grava no item `fator_kg`, `quantidade_estoque` e `valor_total` replanejados; compra e venda cancelam depois (C6) |
+| ESTOQUE-2 | MÉDIO | Suplementação e transferência (prazo padrão de 5 s) esperam travas que confirmar/cancelar seguram por até 30 s e respondem 500 | Corrigido junto com CONCORRENCIA-2 (C2) |
+| ESTOQUE-3 | BAIXO | O `FOR UPDATE` no `Produto` faz o rascunho esperar na FK segurando a sequência do tenant: todo rascunho do tenant entra na fila | Corrigido junto com CONCORRENCIA-4 (C4) |
+
+### 7.5 CI: teste dependente do pool do runner (`0549d44c`)
+O C2 falhou no CI com P2024: o pool padrão do runner tem 5 conexões, e o detentor
+das travas, o observador de `pg_locks` e as vítimas disputavam o mesmo pool.
+Defeito do teste, não do produto. O detentor e os observadores passaram a usar um
+cliente próprio do teste, e as vítimas rodam em ondas de 3. RED com
+`connection_limit=5`; GREEN com 5, 3 e o pool padrão.
+
+### 7.6 Revisão adversarial, rodada 2 (12 achados das lentes + 3 do crítico de completude)
+Lentes: dinheiro, segurança, schema/ops, frontend, API e conformidade; segurança e
+conformidade não acharam nada. Todos os 15 foram reproduzidos e corrigidos em
+`aadba910` (backend) e `93c80fe1` (tela), cada um com teste que falha no commit
+anterior e passa depois (`backend/tests/gestaoP3Rodada2.test.mjs`, C7/C8 em
+`gestaoP3Concorrencia.test.mjs`, `keysetCursor.test.mjs`,
+`tests/smoke/gestaoLancamentosEnvio.test.jsx` e `gestaoLancamentos.test.jsx`).
+
+| ID | Gravidade | Defeito | Resultado |
+|---|---|---|---|
+| CRITICO-1 | ALTO | Com a espera longa da rodada 1, suplementação e transferência das telas antigas (20 s no navegador, chave nova a cada envio) commitavam depois do navegador desistir: o reenvio baixava o estoque duas vezes | `TRANSACAO_CURTA` (maxWait 2 s, timeout 9 s, `lock_timeout` 8 s; 55P03 → 409) nos comandos chamados pelas telas antigas: resposta definitiva antes dos 20 s; provado que a transação perdedora não commita depois; trava de 6 s ainda conclui 2xx |
+| CRITICO-2 | MÉDIO | Cancelar 200 itens fazia ~2.250 idas ao banco (26 s a 10 ms/ida; a venda passava de 30 s e nunca cancelava) | `estornarEmLote`: 64 idas, 0,8 s a 10 ms/ida; equivalência provada contra as funções antigas (lotes, movimentos, `estoque_atual`, itens, fatias e recusas) |
+| CRITICO-3 | BAIXO | PATCH de movimento (renomear depósito) com 5 s respondia 500 durante cancelamento longo | Mesma transação curta: 200 depois do commit, 409 acima de 8 s |
+| DINHEIRO-1 | MÉDIO | Decimal lido do banco (precisão 20) na prévia/confirmação: o vetor do contrato dava …568,61 e o rascunho nunca confirmava | Conversão para o Decimal de alta precisão: …568,60 na prévia e confirmação 200 |
+| DINHEIRO-2 / FRONTEND-2 | MÉDIO | Pendência de `operation_id` reaproveitada por um envio NOVO de conteúdo igual: segunda baixa ou segundo rascunho viravam replay | Chave só é repetida para o mesmo envio; envio novo igual pergunta "Enviar como novo"/"Manter"; Consultar resolve a pendência quando o efeito aparece |
+| FRONTEND-1 | ALTO | Trocar de empresa cancelava as consultas da empresa nova (lista, perfil e Novo sumiam) | Cancela só as consultas da empresa anterior |
+| FRONTEND-3 | MÉDIO | Aviso informativo da prévia aparecia como pendência que impede confirmar | Texto próprio por código de aviso |
+| FRONTEND-4 | BAIXO | "Manter" virava erro "Nada foi gravado" e sumia o Consultar | Volta ao estado de resultado incerto, com Consultar |
+| FRONTEND-5 | BAIXO | Ordenação por Total, Em aberto, Emissão e Próx. vencimento comparava texto formatado | Comparação por valor (BigInt) e por dia; sem a prop, a grade Base1 ordena como antes |
+| SCHEMA_OPS-1 | BAIXO | Saldo do título agregava liquidações sem `empresa_id` (sem índice) | Filtro por `empresa_id`: o índice existente atende |
+| API-1 | ALTO | `q` com caractere NUL → 500 nas 7 rotas de busca | 400 `caractere_invalido` |
+| API-2 | ALTO | Cursor adulterado que passava no decodificador → 500 na listagem e nas opções (e em `/marcas`) | 400 `cursor_invalido` no decodificador compartilhado e no das opções, inclusive nos módulos antigos |
+| API-3 | BAIXO | `next_cursor` das opções podia passar do teto de 512 aceito pela rota | Teto acompanha o maior cursor legítimo (2.135 → 2.200) |
+| API-4 | BAIXO | Motivo só de espaços → 400 sem `field`/`reason` | 400 com `field: motivo`, `reason: obrigatorio`, nada gravado |
+| Lacuna do crítico | — | Mapa Geral até 60 s com saldo velho depois de confirmar/cancelar | A tela usa o mesmo refresh/invalidação/evento das telas antigas de estoque |
+
+Uma revisão adversarial das próprias correções (rodadas 1 e 2) não achou defeito
+novo com caminho concreto.
+
+### 7.7 Prova de uso real ampliada (`b403845e`)
+`scripts/dev/e2e-lancamentos-real.mjs` (tela real + Fastify real + PostgreSQL
+local, 1280 e 390 px, banco conferido a cada passo): 40 checagens, 0 divergências,
+com pool de 5 e de 3. Além dos fluxos de aceite: duas baixas iguais de propósito no
+mesmo título; resposta perdida → Consultar → nova baixa; "Manter"/"Repetir"/"Enviar
+como novo"; troca de moeda com operação → 409 sem efeito; compra da P3 consumida pelo
+comando antigo de suplementação (pela API real) com saldos exatos e cancelamento da
+compra recusado sem efeito; usuário só visualizar e visualizar+confirmar; troca de
+empresa pelo seletor real. Contra a tela anterior à rodada 2 o roteiro reprova
+(DINHEIRO-2, FRONTEND-2, FRONTEND-1).
 
 ## 8. Testes e evidências
 
@@ -408,19 +455,19 @@ prazo padrão de 5 s esperando travas longas); CONCORRENCIA-4 e ESTOQUE-3 també
 O erro de lint apontado no ensaio (`_vb` sem uso em
 `backend/tests/gestaoP3Financeiro.test.mjs`) já não existe em `0f0a96dc`.
 
-### 8.2 HEAD final — preencher com a saída real
+### 8.2 HEAD final (`b403845e`)
 
 | Comando | Resultado |
 |---|---|
-| `npm run test:backend` | {{TEST_BACKEND}} |
-| 4 arquivos PG da P3 (`node --test --test-concurrency=1`) | {{TEST_BACKEND_P3}} |
-| `npx vitest run --config vitest.config.js` | {{VITEST}} |
-| `node scripts/dev/e2e-lancamentos-real.mjs` (PostgreSQL local, 1280 + 390) | {{E2E_REAL}} |
-| `node scripts/dev/visual-lancamentos-financeiros.mjs` | {{VISUAL}} |
-| Gates (`gate:product-scope`, `gate:governance-paths`, `gate:tenancy`, `gate:indices`, `gate:deploy-migrations`, `gate:supabase-public-grants`, `gate:base44`, `gate:no-secrets`, `gate:import-integrity`, `gate:native-api`, `gate:api-boundary`, `gate:admin-isolation`, `gate:source-closure`, `gate:types`) | {{GATES}} |
-| `npm run lint` · `npm run typecheck` · `npm run typecheck:backend` · `npm run build` | {{LINT_TYPECHECK_BUILD}} |
-| `npm run verify:all` (banco novo) | {{VERIFY_ALL}} |
-| CI no HEAD `{{HEAD_FINAL}}` | {{CI_HEAD}} |
+| `npm run test:backend` | Dentro do `verify:all`: 98 arquivos, 1.228 testes — 1.223 pass, 0 fail, 0 cancelados, 5 `todo` herdados |
+| 4 arquivos PG da P3 (`node --test --test-concurrency=1`) | 6 arquivos PG da P3 + `keysetCursor` + `transporteNativo`: 112/112 com `connection_limit=5`; concorrência 10/10 também com `connection_limit=3` |
+| `npx vitest run --config vitest.config.js` | 160 arquivos, 1.831 testes, 0 falhas |
+| `node scripts/dev/e2e-lancamentos-real.mjs` (PostgreSQL local, 1280 + 390) | 40 checagens, 0 divergências, saída 0, em 1280 e 390 px, com pool de 5 e de 3 |
+| `node scripts/dev/visual-lancamentos-financeiros.mjs` | 60 capturas (5 larguras × 12 etapas), saída 0, sem rolagem horizontal, menor alvo 40 px |
+| Gates (`gate:product-scope`, `gate:governance-paths`, `gate:tenancy`, `gate:indices`, `gate:deploy-migrations`, `gate:supabase-public-grants`, `gate:base44`, `gate:no-secrets`, `gate:import-integrity`, `gate:native-api`, `gate:api-boundary`, `gate:admin-isolation`, `gate:source-closure`, `gate:types`) | Todos PASS (os 31 gates do `verify:all`, mais `test:gates`) |
+| `npm run lint` · `npm run typecheck` · `npm run typecheck:backend` · `npm run build` | lint 0 erros (56 avisos herdados) · typecheck 815 diagnósticos (teto 1.746) · typecheck:backend 0 · build e build:admin OK |
+| `npm run verify:all` (banco novo) | 39 etapas PASS, saída 0, em PostgreSQL 16 local recém-criado (`maike_p3_final`) |
+| CI no HEAD `b403845e` | `verify:all` verde (run 42559110486) |
 
 ## 9. Limitações declaradas
 
@@ -429,7 +476,8 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 - `saldo_antes`/`saldo_depois` dos movimentos (14,4) estouram se a soma dos lotes
   de um local passar de 10¹⁰ kg (borda não protegida).
 - A busca com curingas foi corrigida só na P3; o mesmo defeito existe em módulos
-  fora do escopo (marcas, locais).
+  fora do escopo (marcas, locais). `q` com caractere NUL ainda dá 500 em
+  `/parceiros` e `/naturezas-financeiras` (P1/P2); na P3 dá 400.
 - `opcoes/saldos` mostra saldo em local inativo, mas a venda desse local é
   recusada com `local_inativo`; o SPEC não define o caso.
 - Reasons raros caem na mensagem genérica do código: `cursor_invalido`,
@@ -440,10 +488,25 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 - O teste de paridade de permissões lê arquivos do backend e quebra, de
   propósito, se `operacaoFinanceira` ou `ACOES_LANCAMENTOS_FINANCEIROS` forem
   renomeados.
-- O roteiro real não cobre a troca de moeda do perfil, usuário com permissões
-  restritas nem a troca de empresa (cobertos pela matriz PG e pelos testes RTL).
-  Ele depende de `migrate deploy` e do Playwright, e o banco do ensaio acumula
-  um tenant por execução, de propósito.
+- O roteiro real cobre troca de moeda, usuário restrito e troca de empresa (§7.7),
+  mas o consumo do lote da P3 pelo estoque antigo foi feito pela API real do
+  comando de suplementação, não pela tela do Mapa Geral (a semente não monta
+  geografia, pontos e rebanho). Ele depende de `migrate deploy` e do Playwright,
+  e o banco do ensaio acumula um tenant por execução, de propósito. O CI não o roda.
+- Comandos chamados pelas telas antigas esperam no máximo ~8 s por uma trava
+  (`TRANSACAO_CURTA`); acima disso respondem 409 e o usuário repete. A troca é
+  deliberada: resposta definitiva antes dos 20 s do navegador.
+- Confirmar uma venda de 200 itens × 3 fatias com 10 ms por ida ao banco leva
+  ~24,6 s (limite 30 s). O cancelamento já é em lote; a confirmação ainda é item a
+  item (mesma técnica aplicável depois).
+- DELETE de produto, local e parceiro seguem com o prazo padrão de 5 s.
+- O `maxDuration` da função na Vercel e o pool de conexões de produção não foram
+  medidos com transações de até 30 s (+10 s de espera de conexão).
+- A fila offline (IndexedDB) de exclusões de Produto, Fornecedor e Local para no
+  primeiro erro: comportamento anterior a esta PR, agora com gatilhos novos (409
+  das §8.5), sem teste.
+- O refresh do cache do Mapa depois de confirmar/cancelar foi provado em teste RTL
+  (espião), não em navegador real com IndexedDB.
 - No Chromium headless os campos de data aparecem como MM/DD por causa do idioma
   do navegador, não do app. A consulta mostra os ids crus de lote e movimento,
   como o SPEC pede.
@@ -456,7 +519,7 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 |---|---|
 | Runtime novo sem as 8 tabelas responde 500 nas 12 rotas novas que as usam e nas exclusões de parceiro, produto, local e empresa e no PATCH/DELETE de lote; a Vercel publica a `main` sozinha | Migration aplicada e conferida **antes** do merge (runbook) |
 | Preview da PR usa o mesmo banco de produção: depois da migration, um teste na Preview gravaria lançamento e estoque reais | Nenhuma escrita de teste na Preview (runbook §2) |
-| Documento grande segura travas por segundos; com a latência real (5–10 ms por ida ao Supabase) fluxos antigos podem esperar ou recusar | Achados CONCORRENCIA-2/3/4 e ESTOQUE-2/3 (§7.4) |
+| Documento grande segura travas por segundos; com a latência real (5–10 ms por ida ao Supabase) fluxos antigos podem esperar ou recusar | Rodadas 1 e 2 (§7.4, §7.6): sequência reservada no fim, cancelamento em lote, comandos antigos com resposta definitiva (2xx ou 409) em até ~8 s |
 | Divergência legada entre `estoque_atual` e a soma dos lotes (CSV, PATCH absoluto, POST de lote do admin) bloqueia venda com `estoque_atual_insuficiente` | Recusa explícita, nada gravado; correção é operacional |
 | A reversão de suplementação no front ainda faz leitura-modificação-escrita de `estoque_atual` | Dívida anterior a esta PR, fora do escopo |
 | Exclusão concorrente de produto, local ou parceiro ainda pode responder 403 em vez de 409 | A FK RESTRICT impede perda de dado |
@@ -467,20 +530,16 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 
 | Critério | Estado |
 |---|---|
-| **CODE_READY** (8 achados fechados; testes, gates, `verify:all` e CI verdes no HEAD final) | {{CODE_READY}} |
-| **SCHEMA_APPLIED_PROD** | {{SCHEMA_APPLIED_PROD}} — nesta missão: **NÃO**. Nenhum comando foi enviado ao banco de produção e o runbook não foi executado |
-| **MERGE_READY** | {{MERGE_READY}} — só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
+| **CODE_READY** (23 achados da revisão fechados; testes, gates, `verify:all` e CI verdes no HEAD final) | **SIM** — código em `b403845e`, com as limitações do §9 declaradas |
+| **SCHEMA_APPLIED_PROD** | **NÃO** — nesta missão: **NÃO**. Nenhum comando foi enviado ao banco de produção e o runbook não foi executado |
+| **MERGE_READY** | **NÃO** — só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
 
 Prontidão de código não é prontidão de release. O merge manual da PR #230 é
 decisão do proprietário e vem depois do schema aplicado **e** conferido.
 
-## 12. Marcadores a preencher
+## 12. Marcadores
 
-`{{HEAD_FINAL}}`, `{{FIX-CONCORRENCIA-1}}` a `{{FIX-CONCORRENCIA-5}}`,
-`{{FIX-ESTOQUE-1}}` a `{{FIX-ESTOQUE-3}}`, `{{TEST_BACKEND}}`,
-`{{TEST_BACKEND_P3}}`, `{{VITEST}}`, `{{E2E_REAL}}`, `{{VISUAL}}`, `{{GATES}}`,
-`{{LINT_TYPECHECK_BUILD}}`, `{{VERIFY_ALL}}`, `{{CI_HEAD}}`, `{{CODE_READY}}`,
-`{{SCHEMA_APPLIED_PROD}}` e `{{MERGE_READY}}`.
+Todos preenchidos com saída real (§7–§8 e §11). Nenhum ficou em aberto.
 
 ## 13. Referências
 
@@ -490,5 +549,5 @@ decisão do proprietário e vem depois do schema aplicado **e** conferido.
 - Antecessoras: [P1](./MAIKE-GESTAO-CADASTROS-P1-REPORT.md) e [P2](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
 - Migration: `backend/prisma/migrations/20261109100000_gestao_p3_01_central_lancamentos/migration.sql`; pinagem em [`premergeMigrateLib.mjs`](../../scripts/deploy/premergeMigrateLib.mjs).
 - Backend: `backend/src/modules/financeiro/` e `backend/src/modules/estoqueFisico/estoqueFisicoMotor.js`.
-- Testes: `backend/tests/gestaoP3Lancamentos.test.mjs`, `gestaoP3Seguranca.test.mjs`, `gestaoP3Estoque.test.mjs`, `gestaoP3Financeiro.test.mjs`, `gestaoP3Cenario.mjs`; `tests/smoke/gestaoLancamentos.test.jsx`, `gestaoLancamentosShell.test.jsx`, `gestaoLancamentosDinheiro.test.js`.
+- Testes: `backend/tests/gestaoP3Lancamentos.test.mjs`, `gestaoP3Seguranca.test.mjs`, `gestaoP3Estoque.test.mjs`, `gestaoP3Financeiro.test.mjs`, `gestaoP3Concorrencia.test.mjs`, `gestaoP3Rodada2.test.mjs`, `gestaoP3Cenario.mjs`; `tests/smoke/gestaoLancamentos.test.jsx`, `gestaoLancamentosEnvio.test.jsx`, `gestaoLancamentosShell.test.jsx`, `gestaoLancamentosDinheiro.test.js`.
 - Scripts: [`visual-lancamentos-financeiros.mjs`](../../scripts/dev/visual-lancamentos-financeiros.mjs), [`e2e-lancamentos-real.mjs`](../../scripts/dev/e2e-lancamentos-real.mjs), [`e2e-lancamentos-seed.mjs`](../../scripts/dev/e2e-lancamentos-seed.mjs).
