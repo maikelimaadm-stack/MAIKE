@@ -139,6 +139,12 @@ export const UNIDADE_DO_MEDIDOR = Object.freeze({
   CICLOS: 'ciclos',
 });
 
+/** Medidores que têm leitura (contadores); `SEM_MEDIDOR` não tem. */
+export const MEDIDORES_CONTADORES = Object.freeze(['HORIMETRO', 'ODOMETRO', 'CICLOS']);
+
+/** @param {unknown} tipo */
+export const ehMedidorContador = (tipo) => typeof tipo === 'string' && MEDIDORES_CONTADORES.includes(tipo);
+
 // ─── Propriedade, depreciação, UF ────────────────────────────────────────
 
 export const PROPRIEDADES = Object.freeze(['PROPRIO', 'TERCEIRO', 'ARRENDADO', 'CEDIDO']);

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { alterarSituacaoBem, listarBensPagina } from "@/services/bemPatrimonialService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina, listarOpcoesCompletasBem } from "@/services/bemPatrimonialService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import GradePatrimonio from "@/components/patrimonio/GradePatrimonio";
 import { BENS_CAMPOS_CARD, GRADE_BENS } from "@/components/patrimonio/TabelaBens";
-import ResumoBemPatrimonial from "@/components/patrimonio/ResumoBemPatrimonial";
+import FormularioBem, { FORMULARIO_BEM_ID } from "@/components/patrimonio/FormularioBem";
+import { CHAVE_OPCOES_PATRIMONIO } from "@/components/patrimonio/bemFormulario";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
@@ -19,11 +20,21 @@ const QUERY_RAIZ = "bens-patrimoniais";
 
 const OPCOES_FILTRO_NATUREZA = [{ value: "TODAS", label: "Todas as naturezas" }, ...NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }))];
 
+const MENSAGEM_VERSAO =
+  "Este bem foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
+
 /**
- * Bens Patrimoniais (D-PROD-156) — inventário da EMPRESA selecionada: lista
- * keyset com busca no servidor (nome, número, código de frota, placa, série) e
- * filtros de natureza e situação; ficha somente leitura do bem; inativar e
- * reativar pelo menu, com confirmação, só com a ação `inativar`.
+ * Bens Patrimoniais (D-PROD-156) — inventário da EMPRESA selecionada.
+ *
+ * Lista keyset com busca no servidor (nome, número, código de frota, placa,
+ * série) e filtros de natureza, família e situação. O registro aberto lê o
+ * DETALHE completo (a lista traz só o resumo) e mostra o `FormularioBem` em
+ * abas; criar manda o corpo completo e editar manda o PATCH mínimo com
+ * `versao` (blocos aninhados inteiros, listas completas). Duplicar parte do
+ * detalhe do bem de origem, sem o que identifica o bem físico.
+ *
+ * Inativar/reativar é ação do menu, com confirmação, e exige a ação extra
+ * `inativar` (nada é apagado). Conflito de versão recarrega o registro.
  *
  * Mesmas salvaguardas de Gestão: sem empresa real nada é lido nem gravado;
  * trocar de empresa fecha o registro; resposta atrasada da empresa anterior
@@ -35,6 +46,30 @@ export default function BensPatrimoniaisTela() {
   const acoes = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.BENS);
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
+  const [familiaFiltro, setFamiliaFiltro] = useState("TODAS");
+  const [origemDuplicacao, setOrigemDuplicacao] = useState(/** @type {string|null} */ (null));
+  const submitRef = useRef(/** @type {(forma: Record<string, any>) => void} */ (() => {}));
+  const podeGravar = Boolean(empresaId);
+
+  // Famílias do filtro: catálogo do tenant (pequeno), só as ativas.
+  const familiasQuery = useQuery({
+    queryKey: [...CHAVE_OPCOES_PATRIMONIO, "familias-filtro"],
+    queryFn: () => listarOpcoesCompletasBem("familias", null),
+    enabled: acoes.ver,
+    staleTime: 60 * 1000,
+  });
+  const opcoesFamilia = useMemo(() => {
+    const itens = (familiasQuery.data?.itens ?? []).filter((f) => natureza === "TODAS" || f?.natureza === natureza);
+    return [{ value: "TODAS", label: "Todas as famílias" }, ...itens.map((f) => ({ value: String(f.id), label: String(f.nome ?? "") }))];
+  }, [familiasQuery.data, natureza]);
+  // Família de outra natureza (ou que saiu da lista) deixa de filtrar.
+  const familiaEfetiva = opcoesFamilia.some((o) => o.value === familiaFiltro) ? familiaFiltro : "TODAS";
+  /** Trocar a natureza esquece a família de outra natureza (ela não volta sozinha depois). @param {string} valor */
+  const mudarNatureza = (valor) => {
+    setNatureza(valor);
+    const familia = (familiasQuery.data?.itens ?? []).find((f) => String(f?.id) === familiaFiltro);
+    if (valor !== "TODAS" && familia && familia.natureza !== valor) setFamiliaFiltro("TODAS");
+  };
 
   const fetchPage = useCallback(
     ({ limit, cursor, q }) =>
@@ -44,15 +79,16 @@ export default function BensPatrimoniaisTela() {
         q: q || undefined,
         ativo: ativoDoFiltro(situacao),
         natureza: natureza !== "TODAS" ? natureza : undefined,
+        familiaId: familiaEfetiva !== "TODAS" ? familiaEfetiva : undefined,
       }),
-    [empresaId, situacao, natureza],
+    [empresaId, situacao, natureza, familiaEfetiva],
   );
 
   const controller = useCadastroBase1Controller({
     storageKey: GRADE_BENS.storageKey,
     columnIds: BENS_CAMPOS_CARD,
     listEnabled: Boolean(empresaId) && acoes.ver,
-    queryKey: [QUERY_RAIZ, "page", empresaId, situacao, natureza],
+    queryKey: [QUERY_RAIZ, "page", empresaId, situacao, natureza, familiaEfetiva],
     fetchPage,
     duplicateLabelField: "nome",
     searchPlaceholder: "Buscar bens…",
@@ -66,57 +102,168 @@ export default function BensPatrimoniaisTela() {
     matchRowId: (b, id) => String(b.id) === String(id),
     getRowId: (b) => String(b.id),
     findRowById: (rows, id) => rows.find((b) => String(b.id) === String(id)),
-    // A ficha é somente leitura e não há exclusão física (inativar é ação própria).
-    onSubmitRecord: () => {},
+    onSubmitRecord: (data) => submitRef.current(/** @type {Record<string, any>} */ (data)),
+    // Sem exclusão física: a grade não oferece "Excluir" (inativar é ação própria).
     onRequestDeleteMutation: () => {},
   });
 
   // Troca de empresa: nada da empresa anterior continua na tela.
   const empresaAnterior = useRef(empresaId);
+  // Na renderização da troca o registro aberto ainda é o da empresa anterior:
+  // o detalhe não pode ser pedido com a empresa nova (404 no servidor real).
+  const trocandoEmpresa = empresaAnterior.current !== empresaId;
   const { closeForm } = controller;
   useEffect(() => {
     if (empresaAnterior.current === empresaId) return;
     empresaAnterior.current = empresaId;
     closeForm();
+    setOrigemDuplicacao(null);
   }, [empresaId, closeForm]);
   const empresaAtual = useRef(empresaId);
   empresaAtual.current = empresaId;
   /** @param {{ empresaId?: string|null } | undefined} v */
   const daEmpresaAtual = (v) => Boolean(v) && v.empresaId === empresaAtual.current;
 
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+  const invalidarLista = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
 
-  const mostrarRegistro = (registro) => {
+  // Registro aberto: a lista traz o RESUMO; o formulário usa o DETALHE (A13).
+  // Ao duplicar, o detalhe lido é o do bem de origem.
+  const registroLista = controller.editingItem;
+  const idAberto = controller.showForm && registroLista?.id ? String(registroLista.id) : null;
+  const duplicando = Boolean(controller.showForm && registroLista && !registroLista.id && origemDuplicacao);
+  const idDetalhe = idAberto ?? (duplicando ? origemDuplicacao : null);
+  const detalheQuery = useQuery({
+    queryKey: [QUERY_RAIZ, "detalhe", empresaId, idDetalhe],
+    queryFn: () => detalharBem(empresaId, /** @type {string} */ (idDetalhe)),
+    enabled: Boolean(empresaId && idDetalhe && acoes.ver && !trocandoEmpresa),
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const detalhe = /** @type {any} */ (detalheQuery.data ?? null);
+
+  useEffect(() => {
+    if (!detalheQuery.error) return;
+    if (ehNaoEncontradoPatrimonio(detalheQuery.error)) {
+      invalidarLista();
+      closeForm();
+    }
+    notifyWarning("Atenção", mensagemErroPatrimonio(detalheQuery.error, "Não foi possível abrir o bem patrimonial."));
+  }, [detalheQuery.error]);
+
+  /** Mostra o detalhe devolvido pelo servidor (somente leitura). @param {any} registro @param {string} emp */
+  const aplicarDetalhe = (registro, emp) => {
+    if (!registro || typeof registro !== "object" || !registro.id) return;
+    queryClient.setQueryData([QUERY_RAIZ, "detalhe", emp, String(registro.id)], registro);
+    if (!daEmpresaAtual({ empresaId: emp })) return;
+    setOrigemDuplicacao(null);
     controller.recordHelpers.recordBeforeNewRef.current = null;
     controller.setEditingItem(registro);
     controller.setIsEditing(false);
     controller.recordHelpers.bumpFormEpoch();
+    controller.recordHelpers.chrome.onSelectionChange([String(registro.id)]);
   };
+
+  /**
+   * Erro de gravação: a mensagem do patrimônio e o formulário continua aberto
+   * (com o que foi digitado). Registro que sumiu fecha; conflito de versão
+   * relê o detalhe (o formulário volta com a versão atual).
+   * @param {unknown} err @param {string} fallback @param {{ empresaId: string, comRegistro: boolean }} v
+   */
+  const tratarErro = (err, fallback, v) => {
+    if (!daEmpresaAtual(v)) {
+      notifyWarning("Atenção", mensagemErroPatrimonio(err, fallback));
+      return;
+    }
+    if (v.comRegistro && ehNaoEncontradoPatrimonio(err)) {
+      invalidarLista();
+      controller.recordHelpers.closeForm();
+    } else if (v.comRegistro && ehConflitoDeVersaoPatrimonio(err)) {
+      invalidarLista();
+      queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "detalhe", v.empresaId] });
+      notifyWarning("Atenção", MENSAGEM_VERSAO);
+      return;
+    }
+    notifyWarning("Atenção", mensagemErroPatrimonio(err, fallback));
+  };
+
+  const createMutation = useMutation({
+    /** @param {{ empresaId: string, forma: Record<string, any> }} v */
+    mutationFn: (v) => criarBem(v.empresaId, v.forma),
+    onSuccess: (registro, v) => {
+      invalidarLista();
+      if (!daEmpresaAtual(v)) {
+        notifyInfo("Gravação concluída", "A gravação feita na empresa anterior foi concluída.");
+        return;
+      }
+      aplicarDetalhe(registro, v.empresaId);
+      notifySuccess("Sucesso", "Bem patrimonial criado");
+    },
+    onError: (err, v) => tratarErro(err, "Não foi possível salvar o bem patrimonial.", { empresaId: v.empresaId, comRegistro: false }),
+  });
+
+  const updateMutation = useMutation({
+    /** @param {{ empresaId: string, original: any, forma: Record<string, any> }} v */
+    mutationFn: (v) => atualizarBem(v.empresaId, v.original, v.forma),
+    onSuccess: ({ alterado, registro }, v) => {
+      if (!alterado) {
+        if (daEmpresaAtual(v)) controller.setIsEditing(false);
+        notifyInfo("Sem alterações", "Nada foi alterado.");
+        return;
+      }
+      invalidarLista();
+      if (!daEmpresaAtual(v)) {
+        notifyInfo("Gravação concluída", "A gravação feita na empresa anterior foi concluída.");
+        return;
+      }
+      aplicarDetalhe(registro, v.empresaId);
+      notifySuccess("Sucesso", "Bem patrimonial atualizado");
+    },
+    onError: (err, v) => tratarErro(err, "Não foi possível salvar o bem patrimonial.", { empresaId: v.empresaId, comRegistro: true }),
+  });
 
   const situacaoMutation = useMutation({
     /** @param {{ empresaId: string, alvo: any, ativo: boolean }} v */
     mutationFn: ({ empresaId: emp, alvo, ativo }) => alterarSituacaoBem(emp, alvo, ativo),
     onSuccess: (registro, v) => {
-      invalidar();
+      invalidarLista();
       if (!daEmpresaAtual(v)) {
         notifyInfo("Gravação concluída", "A gravação feita na empresa anterior foi concluída.");
         return;
       }
       const aberto = controller.showForm && String(controller.editingItem?.id) === String(v.alvo.id);
-      // A resposta é o detalhe; a ficha usa o resumo — o aberto só troca a situação e a versão.
-      if (aberto && registro && typeof registro === "object") {
-        mostrarRegistro({ ...controller.editingItem, ativo: /** @type {any} */ (registro).ativo, versao: /** @type {any} */ (registro).versao });
+      if (aberto) aplicarDetalhe(registro, v.empresaId);
+      else if (registro && typeof registro === "object" && /** @type {any} */ (registro).id) {
+        queryClient.setQueryData([QUERY_RAIZ, "detalhe", v.empresaId, String(/** @type {any} */ (registro).id)], registro);
       }
       notifySuccess("Sucesso", v.ativo ? "Bem patrimonial reativado" : "Bem patrimonial inativado");
     },
-    onError: (err, v) => {
-      if ((ehNaoEncontradoPatrimonio(err) || ehConflitoDeVersaoPatrimonio(err)) && daEmpresaAtual(v)) {
-        invalidar();
-        if (ehNaoEncontradoPatrimonio(err)) controller.recordHelpers.closeForm();
-      }
-      notifyWarning("Atenção", mensagemErroPatrimonio(err, v.ativo ? "Não foi possível reativar o bem." : "Não foi possível inativar o bem."));
-    },
+    onError: (err, v) =>
+      tratarErro(err, v.ativo ? "Não foi possível reativar o bem." : "Não foi possível inativar o bem.", { empresaId: v.empresaId, comRegistro: true }),
   });
+
+  submitRef.current = (forma) => {
+    if (!empresaId) {
+      notifyWarning("Atenção", "Selecione uma empresa antes de gravar.");
+      return;
+    }
+    if (createMutation.isPending || updateMutation.isPending) return;
+    if (idAberto) {
+      if (!acoes.editar || !detalhe) return;
+      updateMutation.mutate({ empresaId, original: detalhe, forma });
+    } else {
+      if (!acoes.criar) return;
+      createMutation.mutate({ empresaId, forma });
+    }
+  };
+
+  /** Duplicar lembra o bem de origem: o formulário parte do detalhe dele. */
+  const duplicar = () => {
+    const ids = controller.chrome.selectedIds;
+    const linha = ids.length ? controller.visibleRows.find((b) => String(b.id) === String(ids[0])) : null;
+    const origem = linha ?? (controller.editingItem?.id ? controller.editingItem : null);
+    setOrigemDuplicacao(origem?.id ? String(origem.id) : null);
+    controller.handleDuplicateSelected();
+  };
 
   /** @param {any} alvo @param {boolean} ativo */
   const pedirSituacao = async (alvo, ativo) => {
@@ -133,15 +280,17 @@ export default function BensPatrimoniaisTela() {
     if (ok) situacaoMutation.mutate({ empresaId, alvo, ativo });
   };
 
-  const registroAtual = controller.editingItem;
-
-  // Alvo de inativar/reativar: o registro aberto ou a única linha selecionada.
+  // Alvo de inativar/reativar: o registro aberto (fora da edição; com o
+  // detalhe, que tem a versão mais nova) ou a única linha selecionada.
   const alvo = useMemo(() => {
-    if (controller.showForm) return registroAtual?.id ? registroAtual : null;
+    if (controller.showForm) {
+      if (!idAberto || controller.isEditing) return null;
+      return detalhe?.id && String(detalhe.id) === idAberto ? detalhe : registroLista;
+    }
     const ids = controller.chrome.selectedIds;
     if (ids.length !== 1) return null;
     return controller.visibleRows.find((b) => String(b.id) === String(ids[0])) ?? null;
-  }, [controller.showForm, registroAtual, controller.chrome.selectedIds, controller.visibleRows]);
+  }, [controller.showForm, controller.isEditing, idAberto, detalhe, registroLista, controller.chrome.selectedIds, controller.visibleRows]);
 
   const acoesDoMenu =
     empresaId && acoes.inativar && alvo && Number.isInteger(alvo.versao)
@@ -164,29 +313,60 @@ export default function BensPatrimoniaisTela() {
 
   let aviso = null;
   if (!empresaId) {
-    aviso = <AvisoGestao testId="patrimonio-sem-empresa">Selecione uma empresa no topo da tela para ver os bens patrimoniais.</AvisoGestao>;
+    aviso = <AvisoGestao testId="patrimonio-sem-empresa">Selecione uma empresa no topo da tela para ver e cadastrar os bens patrimoniais.</AvisoGestao>;
   } else if (!acoes.carregando && !acoes.ver) {
     aviso = <AvisoGestao testId="patrimonio-sem-permissao">Você não tem permissão para visualizar Bens Patrimoniais.</AvisoGestao>;
   }
 
+  // ─── Conteúdo do registro ─────────────────────────────────────────────
+  let conteudoRegistro = null;
+  if (controller.showForm) {
+    if (idDetalhe && !detalhe) {
+      conteudoRegistro = (
+        <p className="p-3 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="bem-carregando" role="status">
+          {detalheQuery.isError ? "Não foi possível abrir o bem patrimonial." : "Carregando bem patrimonial…"}
+        </p>
+      );
+    } else {
+      const chave = idAberto ? `${idAberto}-${detalhe?.versao ?? 0}` : duplicando ? `copia-${origemDuplicacao}` : "bem-novo";
+      conteudoRegistro = (
+        <FormularioBem
+          key={`${chave}-${controller.formEpoch}`}
+          detalhe={idAberto ? detalhe : null}
+          duplicarDe={duplicando ? detalhe : null}
+          empresaId={empresaId}
+          readOnly={!controller.isEditing}
+          onSubmit={controller.handleSubmit}
+        />
+      );
+    }
+  }
+
+  const saving = createMutation.isPending || updateMutation.isPending || situacaoMutation.isPending;
+  const registroAtual = idAberto ? (detalhe ?? registroLista) : null;
+
   return (
+    // Os botões já seguem a regra EXATA do servidor (novo|salvar, editar|salvar,
+    // inativar) — a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Bens Patrimoniais"
         searchPlaceholder="Buscar bens…"
+        formId={FORMULARIO_BEM_ID}
         columnsForCardsToolbar={GRADE_BENS.colunas}
-        controller={{ ...controller, saving: situacaoMutation.isPending }}
+        controller={{ ...controller, saving, handleDuplicateSelected: duplicar }}
         listErrorMessage={listErrorMessage}
-        recordCode={registroAtual?.id && registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
+        recordCode={registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
         listBanner={aviso}
-        showCreate={false}
-        showDuplicate={false}
-        showEdit={false}
+        showCreate={podeGravar && acoes.criar}
+        showDuplicate={podeGravar && acoes.criar}
+        showEdit={podeGravar && acoes.editar}
         showDelete={false}
         extraToolbar={
           <>
-            <FiltroOpcoes rotulo="Filtrar por natureza" value={natureza} onChange={setNatureza} opcoes={OPCOES_FILTRO_NATUREZA} />
+            <FiltroOpcoes rotulo="Filtrar por natureza" value={natureza} onChange={mudarNatureza} opcoes={OPCOES_FILTRO_NATUREZA} />
+            <FiltroOpcoes rotulo="Filtrar por família" value={familiaEfetiva} onChange={setFamiliaFiltro} opcoes={opcoesFamilia} />
             <FiltroSituacao value={situacao} onChange={setSituacao} />
           </>
         }
@@ -197,7 +377,7 @@ export default function BensPatrimoniaisTela() {
           descriptionOne: "Inativar este bem? Nada é apagado.",
           descriptionMany: (n) => `Inativar ${n} bens? Nada é apagado.`,
         }}
-        recordForm={<ResumoBemPatrimonial key={`${registroAtual?.id ?? "bem"}-${controller.formEpoch}`} registro={registroAtual} />}
+        recordForm={conteudoRegistro}
         listSlot={
           <GradePatrimonio
             definicao={GRADE_BENS}

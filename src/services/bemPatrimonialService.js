@@ -129,13 +129,18 @@ const iguais = (a, b, chave) => JSON.stringify(normalizar(a, chave)) === JSON.st
 
 // ─── Blocos do corpo ─────────────────────────────────────────────────────
 
-/** @param {unknown} medidor @returns {Record<string, any>|null} */
-const corpoDoMedidor = (medidor) => {
+/**
+ * Bloco do medidor. Na criação o servidor só aceita `{tipo, leitura_inicial?,
+ * data_leitura?}` (a leitura atual nasce igual à inicial); `leitura_atual` só
+ * existe no PATCH.
+ * @param {unknown} medidor @param {{ novo?: boolean }} [modo] @returns {Record<string, any>|null}
+ */
+const corpoDoMedidor = (medidor, { novo = false } = {}) => {
   if (!ehObjeto(medidor) || vazio(medidor.tipo)) return null;
   return compactar({
     tipo: medidor.tipo,
     leitura_inicial: medidor.leitura_inicial,
-    leitura_atual: medidor.leitura_atual,
+    leitura_atual: novo ? undefined : medidor.leitura_atual,
     data_leitura: medidor.data_leitura,
   });
 };
@@ -153,14 +158,19 @@ const corpoDasMedicoes = (medicoes) =>
     }),
   );
 
-/** @param {unknown} tanques @param {{ novo: boolean }} modo — na criação não há `id` nem `ativo` */
+/**
+ * Na criação não há `id` nem `ativo`. Os combustíveis vão sem repetição e em
+ * ordem de id: o vínculo é um conjunto, e marcar/desmarcar na tela sem mudar o
+ * conjunto não gera PATCH.
+ * @param {unknown} tanques @param {{ novo: boolean }} modo
+ */
 const corpoDosTanques = (tanques, { novo }) =>
   (Array.isArray(tanques) ? tanques : []).filter(ehObjeto).map((t) =>
     compactar({
       id: novo ? undefined : t.id,
       identificador: t.identificador,
       capacidade_litros: t.capacidade_litros,
-      combustivel_ids: Array.isArray(t.combustivel_ids) ? [...new Set(t.combustivel_ids.map(String))] : [],
+      combustivel_ids: Array.isArray(t.combustivel_ids) ? [...new Set(t.combustivel_ids.map(String))].sort() : [],
       observacao: t.observacao,
       ativo: novo || !t.id ? undefined : t.ativo !== false,
     }),
@@ -293,7 +303,8 @@ export const detalharBem = async (empresaId, id) => {
 
 /**
  * Criação: escalares não vazios + blocos/listas informados, numa transação no
- * servidor. Tanques novos não levam `id` nem `ativo`.
+ * servidor. Tanques novos não levam `id` nem `ativo`; o medidor não leva
+ * `leitura_atual`; a depreciação só vai quando ligada (desligada é o padrão).
  * @param {string|null} empresaId @param {Record<string, any>} dados corpo (forma de edição)
  */
 export const criarBem = async (empresaId, dados) => {
@@ -304,7 +315,7 @@ export const criarBem = async (empresaId, dados) => {
     const valor = limpo(dados?.[campo]);
     if (valor !== null) corpo[campo] = valor;
   }
-  const medidor = corpoDoMedidor(dados?.medidor);
+  const medidor = corpoDoMedidor(dados?.medidor, { novo: true });
   if (medidor) corpo.medidor = medidor;
   const medicoes = corpoDasMedicoes(dados?.medicoes);
   if (medicoes.length) corpo.medicoes = medicoes;
@@ -312,7 +323,7 @@ export const criarBem = async (empresaId, dados) => {
   if (tanques.length) corpo.tanques = tanques;
   const aquisicao = corpoDaAquisicao(dados?.aquisicao);
   if (Object.keys(aquisicao).length) corpo.aquisicao = aquisicao;
-  if (ehObjeto(dados?.depreciacao)) corpo.depreciacao = corpoDaDepreciacao(dados.depreciacao);
+  if (ehObjeto(dados?.depreciacao) && dados.depreciacao.depreciavel === true) corpo.depreciacao = corpoDaDepreciacao(dados.depreciacao);
   return createBemPatrimonial(corpo);
 };
 
@@ -406,4 +417,36 @@ export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
     limit: opts.limit ?? 50,
     familia_id: opts.familiaId || undefined,
   });
+};
+
+/** Páginas lidas, no máximo, por `listarOpcoesCompletasBem` (100 itens cada). */
+export const PAGINAS_MAXIMAS_OPCOES = 20;
+
+/**
+ * Todas as opções ATIVAS de um recurso pequeno (combustíveis de tanque, perfis
+ * de medição, famílias do filtro), seguindo `next_cursor` página a página.
+ * `completo` é `false` quando o recurso tem mais que
+ * `PAGINAS_MAXIMAS_OPCOES` × 100 itens — a tela avisa que a lista é parcial.
+ * @param {'familias'|'tipos'|'perfis-medicao'|'combustiveis'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
+ * @param {string|null} empresaId
+ * @param {{ familiaId?: string|null }} [opts]
+ * @returns {Promise<{ itens: any[], completo: boolean }>}
+ */
+export const listarOpcoesCompletasBem = async (recurso, empresaId, opts = {}) => {
+  /** @type {any[]} */
+  const itens = [];
+  const vistos = new Set();
+  /** @type {string|null} */
+  let cursor = null;
+  for (let pagina = 0; pagina < PAGINAS_MAXIMAS_OPCOES; pagina += 1) {
+    const r = await listarOpcoesBem(recurso, empresaId, { cursor, limit: 100, familiaId: opts.familiaId });
+    for (const item of r.itens) {
+      if (!item || vistos.has(item.id)) continue;
+      vistos.add(item.id);
+      itens.push(item);
+    }
+    if (!r.has_more || !r.next_cursor || r.next_cursor === cursor) return { itens, completo: true };
+    cursor = r.next_cursor;
+  }
+  return { itens, completo: false };
 };

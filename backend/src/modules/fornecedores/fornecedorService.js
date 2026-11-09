@@ -152,16 +152,19 @@ export const excluir = async (contexto, id) => {
     // D-PROD-155 (§8.5): lançamento financeiro (rascunho inclusive, que não gera
     // movimento) e títulos também seguram o parceiro — sem isto, a FK RESTRICT
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
-    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos] = await Promise.all([
+    // D-PROD-156: bem patrimonial que o tem como proprietário OU fornecedor
+    // também o segura (mesma FK RESTRICT; mesmo 409, nunca 403).
+    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.movimentacaoEstoque.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.operacaoFinanceira.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
       tx.tituloFinanceiro.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
+      tx.bemPatrimonial.count({ where: { cliente_id: auth.clienteId, OR: [{ proprietario_parceiro_id: id }, { fornecedor_parceiro_id: id }] } }),
     ]);
-    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos > 0) {
+    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens > 0) {
       throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
-        details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos },
+        details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens },
       });
     }
     await excluirRegistroPorId(tx, auth.clienteId, id);

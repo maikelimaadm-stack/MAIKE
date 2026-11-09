@@ -1,10 +1,11 @@
 import React from "react";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
 
 /**
  * Peças de formulário de Patrimônio e Frota (D-PROD-156) que não existem em
  * `GestaoFormParts`: filtro em pílula da barra da lista, escolha múltipla
- * (`b1-multi`, botões `role="checkbox"`) e leitura de número inteiro.
+ * (`b1-multi`, botões `role="checkbox"`), texto longo e leitura de número inteiro.
  */
 
 /**
@@ -84,6 +85,26 @@ export function EscolhaMultipla({ rotulo, opcoes, valores, onChange, readOnly = 
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Texto longo (especificações, observações) em `textarea` Base1, com limite de caracteres.
+ * @param {{ label: string, value: string, onChange: (v: string) => void, readOnly?: boolean, maxLength: number, span?: number, placeholder?: string }} props
+ */
+export function CampoTextoLongo({ label, value, onChange, readOnly = false, maxLength, span = 12, placeholder = undefined }) {
+  return (
+    <B1Field label={label} span={span} hasValue={Boolean(String(value ?? "").trim())} locked={readOnly} disabled={readOnly} multiline>
+      <textarea
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={readOnly ? undefined : placeholder}
+        className={`${B1_FIELD_CTL_CLS.replace(" uppercase", " normal-case")} min-h-[2.5rem] resize-y`}
+        rows={2}
+        readOnly={readOnly}
+        maxLength={maxLength}
+      />
+    </B1Field>
   );
 }
 
