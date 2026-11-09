@@ -40,15 +40,22 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
   });
 
   it("mesmos campos do lote e da área (só o visual mudou)", () => {
+    // UI-DETALHES-LOTE-V8: os campos saíram do DetalhesLote para o catálogo único (uma definição por
+    // campo) e para o cartão da aba Tudo; a unidade foi para o rótulo ("Peso médio (kg)").
+    const catalogo = readFileSync("src/components/mapa/detalhes-lote/catalogo.js", "utf8");
+    const cartoesTudo = readFileSync("src/components/mapa/detalhes-lote/CartoesLoteTudo.jsx", "utf8");
     const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
-    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso Médio", "Dias de pastejo", "Sist. Rep.", "Raça Predom.", "Sexo", "Categoria de Manejo:"]) {
-      expect(fonte, c).toContain(c);
+    const camposLote = catalogo.slice(catalogo.indexOf("export function camposCartaoTudo"));
+    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso médio (kg)", "Dias de pastejo", "Sist. Rep.", "Raça Predom.", "Sexo"]) {
+      expect(camposLote, c).toContain(c);
     }
+    expect(cartoesTudo).toContain("Categoria de Manejo:");
     // D-PROD-124: o proprietário tirou "Categoria Oficial" do lote e "Sistemas Reprodutivos"/"Lotes" da área.
-    expect(fonte).not.toContain("Categoria Oficial");
-    expect(area).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
+    for (const f of [fonte, catalogo, cartoesTudo]) expect(f).not.toContain("Categoria Oficial");
+    for (const f of [area, catalogo]) expect(f).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
+    expect(area).toContain("area.camposResumo");
     for (const c of ["Hectares", "UA/ha", "UA total", "Qtd. Lotes", "Qtd. Cabeças", "Média geral", "Pastagem", "Dias pastejo"]) {
-      expect(area, c).toContain(c);
+      expect(catalogo, c).toContain(c);
     }
   });
 
