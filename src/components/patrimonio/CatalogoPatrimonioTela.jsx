@@ -5,6 +5,7 @@ import {
   alterarSituacaoCatalogo,
   atualizarCatalogo,
   criarCatalogo,
+  detalharCatalogo,
   instalarCatalogoPadrao,
   listarCatalogoPagina,
   resumoCatalogoPadrao,
@@ -148,6 +149,9 @@ function ResumoCatalogoPadrao({ resumo, onFechar }) {
   );
 }
 
+const MENSAGEM_VERSAO_RECARREGADA =
+  "Este cadastro foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
+
 /**
  * Tela Motor Base1 de um catálogo de Patrimônio e Frota (D-PROD-157): lista
  * keyset com busca no servidor e filtro de situação (e de natureza, nas
@@ -221,14 +225,30 @@ export default function CatalogoPatrimonioTela({ recurso }) {
     controller.recordHelpers.bumpFormEpoch();
   };
 
+  // Registro aberto AGORA (a releitura assíncrona não pode sobrescrever outro).
+  const abertoRef = useRef(/** @type {string|null} */ (null));
+  abertoRef.current = controller.showForm && controller.editingItem?.id ? String(controller.editingItem.id) : null;
+
   const tratarErro = (err, fallback) => {
     if (ehNaoEncontradoPatrimonio(err)) {
       invalidar();
       controller.recordHelpers.closeForm();
     } else if (ehConflitoDeVersaoPatrimonio(err)) {
-      // Outra pessoa gravou antes: a lista relê a versão atual; o formulário
-      // em edição continua aberto para a pessoa conferir o que digitou.
+      // Outra pessoa gravou antes: a lista e o registro aberto são relidos com
+      // a versão atual (o formulário volta a ela; sem isso cada nova gravação
+      // reenviaria a versão velha e daria 409 em laço). Mesmo padrão dos Bens.
       invalidar();
+      const id = abertoRef.current;
+      if (id) {
+        detalharCatalogo(recurso, id).then(
+          (atual) => {
+            if (abertoRef.current === id && atual && typeof atual === "object") mostrarRegistro(atual);
+          },
+          () => {},
+        );
+        notifyWarning("Atenção", MENSAGEM_VERSAO_RECARREGADA);
+        return;
+      }
     }
     notifyWarning("Atenção", mensagemErroPatrimonio(err, fallback));
   };

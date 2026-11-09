@@ -306,7 +306,7 @@ describe('Famílias — criar e editar', () => {
     ]);
   });
 
-  it('409 de nome duplicado na criação e de versão na edição: mensagem e formulário mantido com o que foi digitado', async () => {
+  it('409 de nome duplicado na criação: mensagem e formulário mantido com o que foi digitado; 409 de versão na edição: o registro é relido com a versão atual e a nova gravação usa essa versão', async () => {
     await montar('FamiliasPatrimoniais');
     const form = await novo('familia', 'f1');
     fireEvent.change(within(form).getByLabelText(/^Código/), { target: { value: 'MAQ2' } });
@@ -324,11 +324,25 @@ describe('Famílias — criar e editar', () => {
     await abrir('familia', 'f2');
     editar();
     fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/), { target: { value: 'Outra' } });
-    proxima = erroServidor(409, 'PATRIMONIO_VERSAO_CONFLITO', { details: { versao_atual: 4, versao_informada: 3 } });
+    // Outra pessoa grava antes (versão 3 → 4).
+    const i = estado.familias.findIndex((f) => f.id === 'f2');
+    estado.familias[i] = { ...estado.familias[i], nome: 'Nome gravado por outra pessoa', versao: estado.familias[i].versao + 1 };
+    const versaoAtual = estado.familias[i].versao;
+    proxima = erroServidor(409, 'PATRIMONIO_VERSAO_CONFLITO', { details: { versao_atual: versaoAtual, versao_informada: versaoAtual - 1 } });
     salvar();
-    expect(await screen.findByText(/alterado por outra pessoa enquanto você editava/)).toBeTruthy();
-    expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).value).toBe('Outra');
+    expect(await screen.findByText(/recarregado com a versão atual/)).toBeTruthy();
     expect(screen.queryByText('Família patrimonial atualizada')).toBeNull();
+    // O registro aberto mostra a versão atual (o que a outra pessoa gravou), fora da edição.
+    await waitFor(() => expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).value).toBe('Nome gravado por outra pessoa'));
+    // Refazer a alteração grava com a versão atual (sem 409 em laço).
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/), { target: { value: 'Outra' } });
+    backend.chamadas.length = 0;
+    salvar();
+    await screen.findByText('Família patrimonial atualizada');
+    expect(mutacoes()).toEqual([
+      expect.objectContaining({ method: 'PATCH', path: '/patrimonio-familias/f2', body: { versao: versaoAtual, nome: 'Outra' } }),
+    ]);
   });
 });
 
