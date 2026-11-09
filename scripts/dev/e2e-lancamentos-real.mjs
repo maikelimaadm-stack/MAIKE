@@ -90,7 +90,7 @@
  *  32. corrigir só informação (descrição e nº do documento) com a 1ª resposta
  *      perdida e "Repetir o mesmo envio" (mesma chave → replay, 1 evento):
  *      NO_LUGAR, mesmos ids de linha, movimento e lote, nenhum movimento novo,
- *      títulos recriados;
+ *      títulos recriados; o nº do documento chega ao lote e ao movimento;
  *  33. excluir uma venda elegível: nada no 1º clique, motivo + confirmação,
  *      resposta perdida e "Consultar lançamento" (nada reenviado); estorno, lote
  *      devolvido, evento, AuditLog sem o texto do motivo; some de
@@ -3009,6 +3009,10 @@ const executarLargura = async (browser, largura) => {
       );
       igual(await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, lancamento_origem_id: atual.id } }), movsAntes, `[${rotulo}] movimentos do documento (nenhum novo)`);
       igual(await fotoEstoque(s), estoqueAntes, `[${rotulo}] a correção no lugar mexeu no estoque`);
+      // Revisão DE-02/BC-01: a procedência (nº do documento) chega ao lote e ao movimento ORIGINAIS, com os mesmos ids.
+      const loteDepois = await prisma.estoqueLoteNota.findUnique({ where: { id: it.estoque_lote_nota_id }, select: { numero_documento: true } });
+      const movDepois = await prisma.movimentacaoEstoque.findUnique({ where: { id: it.movimentacao_estoque_id }, select: { numero_documento: true } });
+      igual(`${loteDepois?.numero_documento}:${movDepois?.numero_documento}`, `${novoDoc}:${novoDoc}`, `[${rotulo}] procedência do lote e do movimento (nº do documento corrigido)`);
       igual(
         depois.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:${t.status}:${dec(t.valor)}`).join('|'),
         '1/3:ABERTO:100.0000|2/3:ABERTO:100.0000|3/3:ABERTO:100.0000',

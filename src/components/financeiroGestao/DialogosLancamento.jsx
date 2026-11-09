@@ -462,7 +462,7 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   testId: string,
  *   comMotivo?: boolean,
  *   perigo?: boolean,
- *   contexto: { locale: string, moeda: string, casas: number },
+ *   contexto: { locale: string, moeda: string, casas: number, direcao?: string|null },
  *   onFechar: () => void,
  *   onEnviar: (motivo: string, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar?: (() => void) | null,
@@ -555,7 +555,7 @@ export function DialogoAcao({
  *   titulo: string,
  *   descricao: string,
  *   motivos: any[],
- *   contexto?: { locale?: string, moeda?: string, casas?: number },
+ *   contexto?: { locale?: string, moeda?: string, casas?: number, direcao?: string|null },
  *   onFechar: () => void,
  *   rodape?: React.ReactNode,
  * }} props

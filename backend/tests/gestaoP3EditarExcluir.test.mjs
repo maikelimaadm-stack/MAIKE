@@ -1039,6 +1039,17 @@ describe('E12 — revisão: peso por saco gravado e procedência do estoque', ()
     assert.equal(await estoqueAtual(e.racao), '2990.0000');
   });
 
+  test('produto INATIVADO depois da compra: a correção recusa 422 produto_inativo, legível, e nada muda (falha fechada; reativar o produto para corrigir)', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const doc = compraEmSacos(s, e);
+    const d0 = await A.criarConfirmar(s.token, doc);
+    await prisma().produto.update({ where: { id: e.racao.id }, data: { ativo: false } });
+    const antes = await foto([s.c]);
+    recusa(await retificarReq(s.token, d0, { ...doc, descricao: 'só a descrição' }), 422, 'OPERACAO_REFERENCIA_INVALIDA', 'produto_inativo');
+    assert.equal(await foto([s.c]), antes, 'nada mudou');
+  });
+
   test('peso por saco mudou e a correção muda a quantidade (100 → 90 SACO): SUBSTITUIÇÃO com o fator GRAVADO (o que a tela mostra); produto novo no documento usa o peso atual', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
