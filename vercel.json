@@ -6,6 +6,11 @@
   "regions": [
     "gru1"
   ],
+  "functions": {
+    "api/fastify.js": {
+      "maxDuration": 60
+    }
+  },
   "redirects": [
     {
       "source": "/admmakgestao",
