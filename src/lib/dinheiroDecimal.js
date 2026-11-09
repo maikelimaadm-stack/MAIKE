@@ -1,5 +1,5 @@
 /**
- * Dinheiro, quantidades e percentuais no navegador (D-PROD-154) — SEM ponto
+ * Dinheiro, quantidades e percentuais no navegador (D-PROD-155) — SEM ponto
  * flutuante em nenhuma conta.
  *
  * Representação canônica: texto com ponto decimal e sem separador de milhar

@@ -1,4 +1,4 @@
-# MAIKE — Gestão P3-01: runbook de release expand-only (D-PROD-154)
+# MAIKE — Gestão P3-01: runbook de release expand-only (D-PROD-155)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 > Nesta missão nada foi enviado ao Supabase de produção nem à Vercel: nenhum
@@ -12,7 +12,7 @@
 
 Relatório da missão:
 [`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md).
-Decisão: [D-PROD-154](./DECISIONS.md).
+Decisão: [D-PROD-155](./DECISIONS.md).
 
 ## 0. O que muda no banco
 
@@ -22,7 +22,7 @@ Decisão: [D-PROD-154](./DECISIONS.md).
 | Natureza | expand-only: 8 tabelas novas, 33 FKs, 33 CHECKs, 25 uniques, 12 índices e um bloco DO de RLS/REVOKE; zero `ALTER` em tabela antiga; nenhum dado migrado |
 | Tabelas novas | `PerfilFinanceiroEmpresa`, `OperacaoFinanceira`, `OperacaoFinanceiraItem`, `OperacaoFinanceiraConsumoLote`, `OperacaoFinanceiraRateio`, `TituloFinanceiro`, `LiquidacaoFinanceira`, `LiquidacaoFinanceiraEstorno` |
 | Tabelas antigas referenciadas (FK) | `Cliente`, `Empresa`, `Usuario`, `Fornecedor`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `EstoqueLoteNota`, `NaturezaFinanceira`, `CentroCusto`, `CentroResultado` |
-| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `69def1b65a43842270533f08485dd104ef5f2f864035a9976b743101e295bdb7` |
+| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e` |
 | Hash do DO pinado (`DO_RLS_APROVADOS`) | `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe` |
 | `_prisma_migrations` | antes **34** concluídas (as 34 pastas da `main` `7ab43f7f`, a última `20261108100000_gestao_p2_naturezas_financeiras`); depois **35** |
 
@@ -175,7 +175,7 @@ git show <SHA_APROVADO>:backend/prisma/migrations/20261109100000_gestao_p3_01_ce
 
 - O resultado tem de ser igual a
   `MIGRATIONS_APROVADAS['20261109100000_gestao_p3_01_central_lancamentos']` =
-  `69def1b65a43842270533f08485dd104ef5f2f864035a9976b743101e295bdb7`.
+  `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e`.
 - O valor gravado em `_prisma_migrations` é **o calculado aqui**, nunca copiado de
   documento nem digitado de memória.
 - Divergência → `RELEASE_BLOCKED`. Não se "acerta" a pinagem para a release
@@ -200,7 +200,7 @@ volta o **banco inteiro**, todos os tenants, a um ponto no tempo: não é o roll
 desta release (§9.3).
 
 Sem prova → **`RELEASE_BLOCKED`**. Na P1 e na P2 a falta de prova foi aceita como
-desvio; a D-PROD-154 não aceita.
+desvio; a D-PROD-155 não aceita.
 
 ### 4.5 Preflight expand-only (classificador)
 
@@ -412,7 +412,7 @@ local, e o banco foi removido no fim.
 - **Com o `system_identifier` de produção:** a guarda abortou
   (`RELEASE_BLOCKED: alvo divergente`), com 34 linhas e nenhuma tabela nova.
 - **Com o do banco local:** `COMMIT`; 35 linhas; checksum
-  `69def1b6…e295bdb7`; `applied_steps_count = 1`.
+  `1562e749…7203e56e`; `applied_steps_count = 1`.
 - **O Prisma aceitou o registro:** `prisma migrate status` → "Database schema is
   up to date!"; `prisma migrate diff --exit-code` → 0; `prisma migrate deploy` →
   "No pending migrations to apply".
@@ -469,7 +469,7 @@ foi tocado.
 
 ## 12. Referências
 
-- Decisões: [D-PROD-154, D-PROD-74, D-PROD-75 e D-PROD-56](./DECISIONS.md).
+- Decisões: [D-PROD-155, D-PROD-74, D-PROD-75 e D-PROD-56](./DECISIONS.md).
 - Registros das releases anteriores: [P1 §9](./MAIKE-GESTAO-CADASTROS-P1-REPORT.md),
   [P2 §10 e §12](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md),
   [S04-P1 §13](./MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md) e

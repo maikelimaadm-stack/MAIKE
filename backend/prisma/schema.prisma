@@ -102,7 +102,7 @@ model Cliente {
   eventosRebanho         EventoRebanho[]
   partidasRebanho        PartidaRebanho[]
   pesosRebanho           PesoRebanho[]
-  // D-PROD-154 — Central Única de Lançamentos (Gestão P3-01).
+  // D-PROD-155 — Central Única de Lançamentos (Gestão P3-01).
   perfisFinanceiros            PerfilFinanceiroEmpresa[]
   operacoesFinanceiras         OperacaoFinanceira[]
   operacoesFinanceirasItens    OperacaoFinanceiraItem[]
@@ -157,7 +157,7 @@ model Usuario {
   cliente   Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   auditLogs AuditLog[]
   operadorProdutoMaike OperadorProdutoMaike[]
-  // D-PROD-154 — autoria dos lançamentos (FK composta por tenant).
+  // D-PROD-155 — autoria dos lançamentos (FK composta por tenant).
   operacoesFinanceirasCriadas     OperacaoFinanceira[]          @relation("OperacaoFinanceiraCriadoPor")
   operacoesFinanceirasConfirmadas OperacaoFinanceira[]          @relation("OperacaoFinanceiraConfirmadoPor")
   operacoesFinanceirasCanceladas  OperacaoFinanceira[]          @relation("OperacaoFinanceiraCanceladoPor")
@@ -790,7 +790,7 @@ model LocalEstoque {
   updatedAt    DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  // D-PROD-154 — itens de lançamento que movimentam este local.
+  // D-PROD-155 — itens de lançamento que movimentam este local.
   itensFinanceiros OperacaoFinanceiraItem[]
 
   @@unique([cliente_id, numero_local])
@@ -832,7 +832,7 @@ model Produto {
   updatedAt                 DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  // D-PROD-154 — itens de lançamento deste produto.
+  // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
 
   @@unique([cliente_id, numero_produto])
@@ -970,7 +970,7 @@ model Empresa {
   centrosResultado       CentroResultado[]
   centrosCustoResultado  CentroCustoResultado[]
   naturezasFinanceiras   NaturezaFinanceira[]
-  // D-PROD-154 — perfil financeiro e lançamentos da empresa.
+  // D-PROD-155 — perfil financeiro e lançamentos da empresa.
   perfilFinanceiro       PerfilFinanceiroEmpresa?
   operacoesFinanceiras   OperacaoFinanceira[]
   @@unique([cliente_id, id])
@@ -1026,7 +1026,7 @@ model Fornecedor {
   updatedAt          DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  // D-PROD-154 — o parceiro do lançamento e dos títulos.
+  // D-PROD-155 — o parceiro do lançamento e dos títulos.
   operacoesFinanceiras OperacaoFinanceira[]
   titulosFinanceiros   TituloFinanceiro[]
 
@@ -1173,7 +1173,7 @@ model EstoqueLoteNota {
   updatedAt               DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  // D-PROD-154 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
+  // D-PROD-155 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
   itemFinanceiroEntrada OperacaoFinanceiraItem?         @relation("OperacaoFinanceiraItemLoteEntrada")
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
 
@@ -1248,7 +1248,7 @@ model MovimentacaoEstoque {
   updatedAt                   DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  // D-PROD-154 — item de lançamento que gerou / estornou este movimento.
+  // D-PROD-155 — item de lançamento que gerou / estornou este movimento.
   itemFinanceiro        OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemMovimento")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
 
@@ -1933,7 +1933,7 @@ model NaturezaFinanceira {
 
 
 // ---------------------------------------------------------------------------
-// D-PROD-154 — Gestão P3-01: Central Única de Lançamentos GERENCIAIS.
+// D-PROD-155 — Gestão P3-01: Central Única de Lançamentos GERENCIAIS.
 // Um documento (`OperacaoFinanceira`) PAGAR|RECEBER × COM_PRODUTOS|SEM_PRODUTOS
 // × AVISTA|PRAZO|PARCELADO, com itens, rateio GLOBAL por natureza/centros,
 // títulos (uma linha por parcela) e liquidações MANUAIS (sem conciliação, OFX,
@@ -2065,7 +2065,7 @@ model OperacaoFinanceiraItem {
   @@unique([cliente_id, estoque_lote_nota_id])
   @@index([cliente_id, empresa_id, operacao_id])
   @@index([cliente_id, produto_id])
-  /// Bloqueio de exclusão de local (D-PROD-154 §8.5) e checagem da FK.
+  /// Bloqueio de exclusão de local (D-PROD-155 §8.5) e checagem da FK.
   @@index([cliente_id, local_estoque_id])
 }
 

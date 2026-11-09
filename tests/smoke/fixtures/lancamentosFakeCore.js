@@ -1,5 +1,5 @@
 /**
- * Backend FALSO da Central Única de Lançamentos (D-PROD-154) — só para testes
+ * Backend FALSO da Central Única de Lançamentos (D-PROD-155) — só para testes
  * RTL e para a evidência visual (scripts/dev/visual-lancamentos-financeiros.mjs).
  * Nada aqui fala com banco ou API real. Segue o contrato do SPEC §5/§6/§8:
  * valores em string canônica, datas AAAA-MM-DD, `operation_id` idempotente,

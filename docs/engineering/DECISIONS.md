@@ -165,7 +165,7 @@ proprietário** — esta missão não reescreve histórico.
 
 **Data:** 2026-07-28 · **Missão:** P0.1
 
-> **Nota posterior (D-PROD-154, 2026-11-08):** a entrada de estoque volta a
+> **Nota posterior (D-PROD-155, 2026-11-08):** a entrada de estoque volta a
 > existir **só** como efeito do lançamento confirmado da Central Única de
 > Lançamentos (comando composto do motor de estoque), pendente de merge e release.
 > `MovimentacoesEstoque` e `LancamentoProdutosEstoque` continuam excluídas e
@@ -5500,7 +5500,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 > Numerada **153**: a PR #225 (já na `main`) ocupou D-PROD-147…152.
 > **Rótulo histórico imutável:** o comentário da migration `20261108100000_gestao_p2_naturezas_financeiras` (já aplicada em produção, SHA-256 `db299e1d…62f04`) cita "D-PROD-152". O arquivo não é alterado, para não mudar o checksum registrado em `_prisma_migrations`. A decisão canônica é esta, a D-PROD-153.
 >
-> **Nota posterior (D-PROD-154, 2026-11-08):** os lançamentos agora existem só na Central Única de Lançamentos gerenciais (página nativa `LancamentosFinanceiros`), nos limites da D-PROD-154. Os domínios legados citados abaixo (`Financeiro`, `PlanoContas`, `GruposFinanceiros`, `ContasFinanceiras`, `CaixaBancos`, `LancamentoFinanceiro`), assim como `FormasPagamento`, `MovimentacoesEstoque` e `LancamentoProdutosEstoque`, continuam proibidos e em `forbiddenDomains`. O texto abaixo fica preservado.
+> **Nota posterior (D-PROD-155, 2026-11-08):** os lançamentos agora existem só na Central Única de Lançamentos gerenciais (página nativa `LancamentosFinanceiros`), nos limites da D-PROD-155. Os domínios legados citados abaixo (`Financeiro`, `PlanoContas`, `GruposFinanceiros`, `ContasFinanceiras`, `CaixaBancos`, `LancamentoFinanceiro`), assim como `FormasPagamento`, `MovimentacoesEstoque` e `LancamentoProdutosEstoque`, continuam proibidos e em `forbiddenDomains`. O texto abaixo fica preservado.
 
 - **Contexto:** o proprietário quer cadastrar antes de lançar. A P1 (D-PROD-146) cobriu "quem" (Parceiros) e "onde/qual atividade" (Centros). Falta "qual o tipo econômico" da receita ou da despesa.
 - **Decisão:**
@@ -5529,7 +5529,9 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Estado (2026-11-08):** migration aplicada em produção com autorização do proprietário e conferida: 34 concluídas, checksum igual, RLS ligado, 0 grants públicos. Falta o merge manual da PR #227. O backup/PITR não foi comprovado pelas ferramentas disponíveis.
   - Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`.
 
-## D-PROD-154 — Gestão Rural P3-01: Central Única de Lançamentos gerenciais (documento, rateio global, títulos, liquidação manual e estoque pelo comando composto)
+## D-PROD-155 — Gestão Rural P3-01: Central Única de Lançamentos gerenciais (documento, rateio global, títulos, liquidação manual e estoque pelo comando composto)
+
+> **Numeração:** esta decisão nasceu como D-PROD-154 na PR #230. A PR #229 (PRODUTIVIDADE-00), aberta antes, também reserva a D-PROD-154 sobre a mesma `main`; para não duplicar o identificador, a P3-01 passa a D-PROD-155 (todas as referências do código, testes, scripts e docs desta PR foram renumeradas). O rótulo da linha 1 da migration acompanha, pois ela ainda não foi aplicada em lugar nenhum.
 
 > **Autorização explícita do proprietário:** esta expansão foi pedida e autorizada pelo proprietário na missão **MAIKE-GESTAO-P3-01** (2026-11-08). O texto foi redigido pelo agente; o merge da PR #230 continua condicionado à aprovação do proprietário no review e à ordem de release abaixo (constituição §4: o agente propõe, o proprietário aprova).
 
@@ -5574,7 +5576,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - rota a rota: `docs/engineering/MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
 - **Exclusões existentes sem 403 enganoso:** parceiro, produto, local, lote de nota e empresa referenciados por lançamento (rascunho inclusive) respondem 409 com o código de bloqueio de cada cadastro, nada apagado. Um `PerfilFinanceiroEmpresa` sozinho já impede excluir a empresa (`EMPRESA_COM_VINCULOS`).
 - **Migration** `20261109100000_gestao_p3_01_central_lancamentos`: expand-only, só as 8 tabelas novas (33 FKs, 33 CHECKs, 25 uniques, 12 índices) e um bloco DO de RLS/REVOKE no padrão da P2.
-  - SHA-256 `69def1b65a43842270533f08485dd104ef5f2f864035a9976b743101e295bdb7`; hash do DO `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe`.
+  - SHA-256 `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e`; hash do DO `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe`.
   - Pinada em `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS` (`scripts/deploy/premergeMigrateLib.mjs`). Classificador: `expand: true`, 8 tabelas novas, 0 colunas em tabela antiga, 0 violações.
 - **Defeitos que a verificação achou e corrigiu na mesma PR** (cada um com teste que falhava antes e passa depois):
   - **CORS sem PUT:** `METODOS` de `backend/src/shared/http/corsPolicy.js` não liberava PUT, e o navegador barrava o PUT do perfil e do rascunho entre origens diferentes; PUT incluído, com o teste P4B-04d em `transporteNativo.test.mjs`.
@@ -5597,4 +5599,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Estado (2026-11-08):** código na branch `claude/maike-gestao-p3-01-lancamento-unico` (PR #230, draft). Esta missão não aplicou a migration fora do PostgreSQL local de teste.
   - Relatório: `docs/engineering/MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`.
 
-<!-- Próxima decisão: D-PROD-155 -->
+<!-- Próxima decisão: D-PROD-156 -->

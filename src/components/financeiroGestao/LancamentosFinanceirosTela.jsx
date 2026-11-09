@@ -85,7 +85,7 @@ function FiltroLista({ rotulo, value, onChange, opcoes }) {
 }
 
 /**
- * Central Única de Lançamentos (D-PROD-154) — documento gerencial único para
+ * Central Única de Lançamentos (D-PROD-155) — documento gerencial único para
  * pagar/receber, com ou sem produtos, à vista/a prazo/parcelado: rascunho
  * completo → prévia → confirmação (títulos + estoque) → baixas manuais.
  * Sem conciliação bancária, fiscal ou contabilidade. Mesmas salvaguardas da

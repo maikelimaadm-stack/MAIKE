@@ -102,7 +102,7 @@ export const limparBanco = async () => {
     where: { catalogo_categoria_visual_id: { not: null } },
     data: { catalogo_categoria_visual_id: null },
   });
-  // D-PROD-154: lançamentos financeiros (filhas antes das mães; sem
+  // D-PROD-155: lançamentos financeiros (filhas antes das mães; sem
   // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
   // naturezas e centros, e antes do laço porque referenciam Fornecedor,
   // Produto, LocalEstoque, lote, movimento, Empresa e Usuario (tudo RESTRICT).

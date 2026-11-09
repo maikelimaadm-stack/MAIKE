@@ -1,5 +1,5 @@
 /**
- * Service da Central Única de Lançamentos (D-PROD-154).
+ * Service da Central Única de Lançamentos (D-PROD-155).
  *
  * Documento gerencial `OperacaoFinanceira`: rascunho completo (POST/PUT),
  * prévia, confirmação (títulos + efeitos de estoque), cancelamento, liquidação

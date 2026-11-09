@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 (Gestão P3-01) — motor de estoque FÍSICO composto (KG).
+ * D-PROD-155 (Gestão P3-01) — motor de estoque FÍSICO composto (KG).
  *
  * Funções que RECEBEM `tx` (nunca abrem transação) e trabalham em Decimal ponta
  * a ponta. São a única porta de efeito físico do lançamento financeiro

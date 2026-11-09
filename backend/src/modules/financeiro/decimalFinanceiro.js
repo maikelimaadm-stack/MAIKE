@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — aritmética decimal da Central Única de Lançamentos.
+ * D-PROD-155 — aritmética decimal da Central Única de Lançamentos.
  *
  * Dinheiro, quantidade, preço e percentual são `Decimal` ponta a ponta: nunca
  * `Number()`/float em soma, rateio, parcela ou custo. Um construtor PRÓPRIO

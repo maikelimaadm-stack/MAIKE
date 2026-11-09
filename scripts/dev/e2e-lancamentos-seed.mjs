@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-154 — semente do ensaio ponta a ponta REAL da Central Única de
+ * D-PROD-155 — semente do ensaio ponta a ponta REAL da Central Única de
  * Lançamentos (tela real + backend Fastify real + PostgreSQL LOCAL).
  *
  * Cria UM tenant novo por chamada (código e login com sufixo aleatório: nada

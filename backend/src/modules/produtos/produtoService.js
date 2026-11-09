@@ -221,7 +221,7 @@ export const criar = async (contexto, entrada) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
 
-  // D-PROD-154 (§8.4): a linha do Produto pode estar em FOR UPDATE por uma
+  // D-PROD-155 (§8.4): a linha do Produto pode estar em FOR UPDATE por uma
   // confirmação/cancelamento/suplementação: espera em vez de estourar os 5 s
   // padrão (500), até caber nos 20 s do navegador (TRANSACAO_CURTA). PATCH de
   // valores absolutos: repetir depois do 409 leva ao mesmo estado.
@@ -275,7 +275,7 @@ export const excluir = async (contexto, id) => {
     if (quantidade > 0) {
       throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
     }
-    // D-PROD-154 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
+    // D-PROD-155 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
     // o produto pela FK RESTRICT; 409 em vez do enganoso 403.
     const itensFinanceiros = await tx.operacaoFinanceiraItem.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
     if (itensFinanceiros > 0) {

@@ -45,7 +45,7 @@ export const useAcoesTelaGestao = (tela) => {
   return {
     ...acoesDaTelaGestao(permissao, tela),
     carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao),
-    // D-PROD-154: perfil financeiro = administrador real OU `is_admin` (a permissão
+    // D-PROD-155: perfil financeiro = administrador real OU `is_admin` (a permissão
     // efetiva chega com `is_admin: true` nos dois casos, como `adminOuIsAdmin` do servidor).
     administrador: /** @type {any} */ (permissao)?.is_admin === true,
     login,

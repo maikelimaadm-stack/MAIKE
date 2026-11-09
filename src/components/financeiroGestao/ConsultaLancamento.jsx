@@ -68,7 +68,7 @@ const quem = (u) => {
 };
 
 /**
- * Consulta do lançamento confirmado ou cancelado (D-PROD-154): cabeçalho,
+ * Consulta do lançamento confirmado ou cancelado (D-PROD-155): cabeçalho,
  * itens com os efeitos de estoque (lote/movimento), rateio, títulos com saldo e
  * liquidações (estornadas marcadas) e histórico (quem/quando/ação).
  *

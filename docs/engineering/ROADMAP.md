@@ -273,7 +273,7 @@ operação). **Fora**: lançamentos, valores, saldos, caixa/bancos, tributos,
 compras, NF-e/XML, contas a pagar/receber, estoque e mapa. Relatório:
 [`MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
 
-## Track autorizado — Gestão Rural P3-01: Central Única de Lançamentos (D-PROD-154)
+## Track autorizado — Gestão Rural P3-01: Central Única de Lançamentos (D-PROD-155)
 
 Uma tela (`LancamentosFinanceiros`) e um documento (`OperacaoFinanceira`) para
 compras, vendas, despesas e receitas **gerenciais**: PAGAR/RECEBER, com ou sem

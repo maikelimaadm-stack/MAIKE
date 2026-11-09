@@ -37,7 +37,7 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 
 **Exceções delimitadas, autorizadas pelo proprietário:** os cadastros de Gestão
 Rural (D-PROD-146 e D-PROD-153) e a **Central Única de Lançamentos gerenciais**
-(`LancamentosFinanceiros`, D-PROD-154): documento a pagar/receber, rateio global,
+(`LancamentosFinanceiros`, D-PROD-155): documento a pagar/receber, rateio global,
 títulos, liquidação manual e efeito de estoque só na confirmação do lançamento
 (estorno no cancelamento). O financeiro legado continua excluído e proibido: sem
 conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade,
@@ -187,7 +187,7 @@ O agente **não deve**:
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
 - Ampliar `config/mapa-manejo-scope.json` sem aprovação humana (cada expansão tem
-  decisão própria do proprietário; a mais recente, D-PROD-154, acrescentou só
+  decisão própria do proprietário; a mais recente, D-PROD-155, acrescentou só
   `LancamentosFinanceiros`)
 
 ---

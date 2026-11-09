@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — planejamento PURO do lançamento (sem banco).
+ * D-PROD-155 — planejamento PURO do lançamento (sem banco).
  *
  *  - `normalizarDocumento(corpo, casas)`: validação ESTRUTURAL (400) do corpo já
  *    aceito pelo schema fechado: datas reais, escala da moeda, regras de

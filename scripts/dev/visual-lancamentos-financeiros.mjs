@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-154 — evidência visual reproduzível da Central Única de Lançamentos.
+ * D-PROD-155 — evidência visual reproduzível da Central Única de Lançamentos.
  *
  * Usa os COMPONENTES REAIS (Vite dev) com o BACKEND FALSO do contrato
  * (`tests/smoke/fixtures/lancamentosFakeCore.js`, via `page.route` em
@@ -69,7 +69,7 @@ const responderSessao = (rota) => {
 };
 
 const FAIXA = `(() => { if (document.getElementById('faixa-backend-falso')) return; const f = document.createElement('div'); f.id = 'faixa-backend-falso';
-  f.textContent = 'BACKEND FALSO — evidência visual (D-PROD-154)';
+  f.textContent = 'BACKEND FALSO — evidência visual (D-PROD-155)';
   f.setAttribute('style','position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#7c2d12;color:#fff;font:600 11px system-ui;text-align:center;padding:2px;pointer-events:none');
   document.body.appendChild(f); })()`;
 

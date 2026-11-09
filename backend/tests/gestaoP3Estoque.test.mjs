@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — P3-01 Central Única de Lançamentos: ESTOQUE (matriz exaustiva).
+ * D-PROD-155 — P3-01 Central Única de Lançamentos: ESTOQUE (matriz exaustiva).
  * PostgreSQL real, HTTP autenticado, prova por linhas gravadas (lotes,
  * movimentos, fatias FIFO, `estoque_atual`) — nunca só pelo status HTTP.
  *

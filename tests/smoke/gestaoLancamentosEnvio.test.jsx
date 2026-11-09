@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — Central Única de Lançamentos: o `operation_id` pendente só repete
+ * D-PROD-155 — Central Única de Lançamentos: o `operation_id` pendente só repete
  * o MESMO envio sem resposta (revisão adversarial, rodada 2: DINHEIRO-2,
  * FRONTEND-2, FRONTEND-4) e o estoque alterado avisa o Mapa e as telas de
  * estoque como as telas antigas fazem (lacuna do crítico).

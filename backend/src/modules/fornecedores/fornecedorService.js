@@ -149,7 +149,7 @@ export const excluir = async (contexto, id) => {
     if (!existente) throw erroNaoEncontrado();
     // D-PROD-146 (R1): parceiro com histórico não some (o nome tem de continuar
     // resolvendo em Lote, nota e movimentação); a tela Parceiros inativa.
-    // D-PROD-154 (§8.5): lançamento financeiro (rascunho inclusive, que não gera
+    // D-PROD-155 (§8.5): lançamento financeiro (rascunho inclusive, que não gera
     // movimento) e títulos também seguram o parceiro — sem isto, a FK RESTRICT
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
     const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos] = await Promise.all([

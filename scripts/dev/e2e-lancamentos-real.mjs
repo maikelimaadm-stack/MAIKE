@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-154 — PROVA DE USO REAL ponta a ponta da Central Única de Lançamentos.
+ * D-PROD-155 — PROVA DE USO REAL ponta a ponta da Central Única de Lançamentos.
  *
  * Diferente de `visual-lancamentos-financeiros.mjs` (backend FALSO), este
  * roteiro sobe o backend Fastify REAL (`backend/src/server.js`) contra um

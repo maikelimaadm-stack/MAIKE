@@ -15,7 +15,7 @@ export const ACTION_LABELS = {
 };
 
 /**
- * Ações EXTRAS de uma tela (D-PROD-154), gravadas na própria linha da tela em
+ * Ações EXTRAS de uma tela (D-PROD-155), gravadas na própria linha da tela em
  * `permissoes_telas` (sem coluna nova: `telaPermite` do servidor testa
  * `linha[acao] === true` para qualquer nome). Só a Central de Lançamentos tem.
  * Espelho de `GUARDAS.operacaoFinanceira` (backend/src/shared/auth/guardasRotas.js).

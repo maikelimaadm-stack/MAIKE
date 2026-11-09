@@ -1,5 +1,5 @@
 /**
- * Dias civis (AAAA-MM-DD) no navegador (D-PROD-154, §8.7).
+ * Dias civis (AAAA-MM-DD) no navegador (D-PROD-155, §8.7).
  *
  * Datas de negócio são TEXTO de dia, nunca `Date` local: `new Date(2026, 10, 8)`
  * em Tóquio vira "2026-11-07" no `toISOString`, e somar 1 dia na troca de

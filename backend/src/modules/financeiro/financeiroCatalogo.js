@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — catálogo FECHADO do perfil financeiro (moeda, país, locale e
+ * D-PROD-155 — catálogo FECHADO do perfil financeiro (moeda, país, locale e
  * métodos). Exportado também para o navegador pela rota do perfil.
  *
  * País é METADADO (sem efeito fiscal). PIX só existe para BR com BRL (§8.6):

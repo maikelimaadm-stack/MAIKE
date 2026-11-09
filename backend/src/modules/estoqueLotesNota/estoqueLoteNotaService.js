@@ -80,7 +80,7 @@ export const criar = async (contexto, entrada) => {
 export const CAMPOS_PATCH_DE_QUALQUER_CONTA = Object.freeze(['local_estoque_nome']);
 
 /**
- * D-PROD-154 (§8.4/§8.5): o PATCH/DELETE que mexe no saldo entra no protocolo de
+ * D-PROD-155 (§8.4/§8.5): o PATCH/DELETE que mexe no saldo entra no protocolo de
  * travas NA ORDEM da venda/confirmação — produto (`travarProdutosEstoque`) e
  * DEPOIS o lote (FOR UPDATE) — e só então relê o lote. Sem isso, a contagem de
  * vínculos (READ COMMITTED, sem trava) não via a fatia de uma venda ainda não
@@ -102,7 +102,7 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
   return atual;
 };
 
-/** D-PROD-154 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. Chamar sob `travarLote`. */
+/** D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. Chamar sob `travarLote`. */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
   const [itens, consumos] = await Promise.all([
     tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
@@ -130,7 +130,7 @@ export const atualizar = async (contexto, id, entrada) => {
       return !(campo === 'empresa_id' && patch.empresa_id === lido.empresa_id);
     });
     if (restritos.length && !ehAdminTenantAtivo(await atorDoTenant(contexto, tx))) throw tenantAdminRequired();
-    // D-PROD-154 (§8.4/§8.5): coluna operacional (saldo, custo, situação...) só
+    // D-PROD-155 (§8.4/§8.5): coluna operacional (saldo, custo, situação...) só
     // depois de travar produto → lote e reler; lote criado/consumido por
     // lançamento financeiro só muda pelo próprio lançamento (cancelamento): o
     // PATCH administrativo seria um "ressuscitar" de lote estornado ou saldo

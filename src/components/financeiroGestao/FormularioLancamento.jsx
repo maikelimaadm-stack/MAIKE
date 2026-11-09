@@ -47,7 +47,7 @@ const rotuloDoErro = (chave) => {
 };
 
 /**
- * Formulário do lançamento (D-PROD-154) em 6 seções: Tipo, Dados gerais,
+ * Formulário do lançamento (D-PROD-155) em 6 seções: Tipo, Dados gerais,
  * Itens, Rateio, Vencimentos e Prévia/confirmação. O rascunho é um documento
  * COMPLETO (o servidor valida tudo no POST/PUT, §8.3).
  *

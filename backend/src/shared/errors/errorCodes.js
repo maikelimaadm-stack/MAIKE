@@ -104,7 +104,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
-  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação ou lançamento financeiro/título (D-PROD-154) não é excluído; inativar' },
+  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação ou lançamento financeiro/título (D-PROD-155) não é excluído; inativar' },
   PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
   CENTRO_CUSTO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de custo desta empresa neste tenant' },
   CENTRO_RESULTADO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de resultado desta empresa neste tenant' },
@@ -118,7 +118,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   NATUREZA_HIERARQUIA_INVALIDA: { http: 409, meaning: 'pai inválido (outro tipo/empresa, inativo, ciclo, autorreferência ou profundidade); nada foi gravado' },
   NATUREZA_COM_FILHOS_ATIVOS: { http: 409, meaning: 'natureza com filhas ativas não é inativada; inativar as filhas antes' },
   CENTRO_INATIVO: { http: 409, meaning: 'centro inativo não recebe vínculo novo; nada foi gravado' },
-  // D-PROD-154 — Gestão P3-01: Central Única de Lançamentos gerenciais.
+  // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos gerenciais.
   OPERACAO_FINANCEIRA_NOT_FOUND: { http: 404, meaning: 'id não identifica lançamento financeiro desta empresa neste tenant' },
   TITULO_FINANCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica título (parcela) desta empresa neste tenant' },
   LIQUIDACAO_FINANCEIRA_NOT_FOUND: { http: 404, meaning: 'id não identifica liquidação desta empresa neste tenant' },
@@ -218,7 +218,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   PRODUTO_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'produto possui movimentações de estoque ou itens de lançamento financeiro (D-PROD-154) e não pode ser excluído',
+    meaning: 'produto possui movimentações de estoque ou itens de lançamento financeiro (D-PROD-155) e não pode ser excluído',
   },
   // R2A (D-PROD-99): declarados para o 404 entre tenants não virar 500.
   MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },

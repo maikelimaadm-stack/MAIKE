@@ -36,7 +36,7 @@
 /**
  * Métodos que a API usa hoje. `OPTIONS` entra pelo preflight. `PUT` é usado
  * pelo frontend desde a P2 (empresa, vínculos de centros) e pela Central de
- * Lançamentos (perfil financeiro e rascunho, D-PROD-154); fora da lista, o
+ * Lançamentos (perfil financeiro e rascunho, D-PROD-155); fora da lista, o
  * preflight do navegador barrava a requisição em origins separadas
  * (P4B-04d confere contra as portas nativas do frontend).
  */

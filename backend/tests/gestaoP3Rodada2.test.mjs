@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — P3-01 Central Única de Lançamentos: correções da revisão
+ * D-PROD-155 — P3-01 Central Única de Lançamentos: correções da revisão
  * adversarial RODADA 2 (backend). PostgreSQL real, HTTP autenticado.
  *
  *  R1. DINHEIRO-1   — Decimal lido do banco recalcula com a precisão da camada (50);

@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — perfil financeiro da empresa (onboarding obrigatório da Central
+ * D-PROD-155 — perfil financeiro da empresa (onboarding obrigatório da Central
  * Única de Lançamentos): país (metadado), moeda e locale do catálogo FECHADO.
  *
  *  - leitura: quem vê a tela; devolve também o fuso da empresa (o navegador

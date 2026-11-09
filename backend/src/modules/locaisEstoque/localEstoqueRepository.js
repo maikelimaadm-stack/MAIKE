@@ -136,7 +136,7 @@ export const motivoBloqueioExclusaoLocal = async (tx, clienteId, localId, nomeLo
   });
   if (lote) return 'saldo_em_estoque';
 
-  // D-PROD-154 (§8.5): item de lançamento financeiro (rascunho inclusive) segura o
+  // D-PROD-155 (§8.5): item de lançamento financeiro (rascunho inclusive) segura o
   // local pela FK RESTRICT; 409 em vez do enganoso 403.
   const itemFinanceiro = await tx.operacaoFinanceiraItem.findFirst({
     where: { cliente_id: clienteId, local_estoque_id: localId },

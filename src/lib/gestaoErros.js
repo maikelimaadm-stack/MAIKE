@@ -52,7 +52,7 @@ const HIERARQUIA_NATUREZA = /** @type {Record<string, string>} */ ({
   autorreferencia: 'Uma natureza não pode ser pai de si mesma.',
 });
 
-// ─── D-PROD-154 — Central Única de Lançamentos ───────────────────────────
+// ─── D-PROD-155 — Central Única de Lançamentos ───────────────────────────
 
 const COLECAO = /** @type {Record<string, string>} */ ({ itens: 'dos itens', rateios: 'do rateio', parcelas: 'das parcelas' });
 
@@ -280,7 +280,7 @@ export const ehNaoEncontradoGestao = (erro) =>
     'CENTRO_CUSTO_NOT_FOUND',
     'CENTRO_RESULTADO_NOT_FOUND',
     'NATUREZA_FINANCEIRA_NOT_FOUND',
-    // D-PROD-154
+    // D-PROD-155
     'OPERACAO_FINANCEIRA_NOT_FOUND',
     'TITULO_FINANCEIRO_NOT_FOUND',
     'LIQUIDACAO_FINANCEIRA_NOT_FOUND',

@@ -141,7 +141,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
-  // D-PROD-154 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
+  // D-PROD-155 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
   // até a resposta caber nos 20 s do navegador (TRANSACAO_CURTA): o formulário
   // antigo gera operation_id NOVO a cada envio, então um commit depois do aviso
   // de falha viraria segunda baixa no reenvio. Espera longa demais → 409
@@ -154,7 +154,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
       fingerprint,
       executar: async () => {
         await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
-        // D-PROD-154 (§3/§8.4): trava do produto (a MESMA chave do lançamento
+        // D-PROD-155 (§3/§8.4): trava do produto (a MESMA chave do lançamento
         // financeiro) ANTES de ler produto e lotes, e antes da sequência. Sem
         // ela, duas baixas simultâneas liam o mesmo `estoque_atual` (lost update).
         await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
@@ -239,7 +239,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
             details: { field: 'estoque_atual' },
           });
         if (novoEstoque < 0) throw negativo();
-        // D-PROD-154: decremento relativo (nunca o valor absoluto lido antes),
+        // D-PROD-155: decremento relativo (nunca o valor absoluto lido antes),
         // conferido depois: um resultado negativo desfaz a transação.
         const atualizado = await tx.produto.update({
           where: { cliente_id_id: { cliente_id: auth.clienteId, id: produtoId } },
@@ -309,7 +309,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
-  // D-PROD-154 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
+  // D-PROD-155 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
   // até a resposta caber nos 20 s do navegador (TRANSACAO_CURTA): o formulário
   // antigo gera operation_id NOVO a cada envio, então um commit depois do aviso
   // de falha viraria segunda baixa no reenvio. Espera longa demais → 409
@@ -322,7 +322,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
       fingerprint,
       executar: async () => {
         await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
-        // D-PROD-154 (§3/§8.4): mesma trava do produto antes de ler lotes e reservar números.
+        // D-PROD-155 (§3/§8.4): mesma trava do produto antes de ler lotes e reservar números.
         await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, auth.clienteId, produtoId, empresaId);
         const lotes = await listarLotesFifo(tx, auth.clienteId, {

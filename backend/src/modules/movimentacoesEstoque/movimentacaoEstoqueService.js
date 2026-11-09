@@ -40,7 +40,7 @@ export const listar = async (contexto, filtros = {}) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  // D-PROD-154 (§8.4): a sequência de movimentos do tenant pode estar presa por
+  // D-PROD-155 (§8.4): a sequência de movimentos do tenant pode estar presa por
   // uma confirmação/cancelamento: espera em vez de estourar os 5 s padrão (500),
   // mas só até caber nos 20 s do navegador (TRANSACAO_CURTA). Sem operation_id,
   // o POST NÃO é idempotente; o 409 garante que esta tentativa voltou inteira
@@ -80,7 +80,7 @@ export const CAMPOS_PATCH_PERMITIDOS = Object.freeze(['local_origem', 'local_des
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  // D-PROD-154 (rodada 2, CRITICO-3): o cancelamento da P3 segura a linha do
+  // D-PROD-155 (rodada 2, CRITICO-3): o cancelamento da P3 segura a linha do
   // movimento original (marcado 'Estornada') até o commit. A renomeação de
   // depósito (FormularioPonto) faz este PATCH: espera (TRANSACAO_CURTA) em vez
   // de estourar os 5 s padrão (500, renomeação pela metade); espera longa

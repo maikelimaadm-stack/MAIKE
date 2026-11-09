@@ -1,9 +1,9 @@
-# MAIKE — Gestão P3-01: Central Única de Lançamentos gerenciais (D-PROD-154)
+# MAIKE — Gestão P3-01: Central Única de Lançamentos gerenciais (D-PROD-155)
 
 | Campo | Valor |
 |---|---|
 | Missão | MAIKE-GESTAO-P3-01 |
-| Decisão | [D-PROD-154](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
+| Decisão | [D-PROD-155](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
 | PR | #230 (**draft**), branch `claude/maike-gestao-p3-01-lancamento-unico` |
 | Base | `origin/main` `7ab43f7f` (merge da PR #227, Gestão P2) |
 | HEAD deste relatório | código em `b403845e` (CI `verify:all` verde); este relatório entra no commit seguinte, só de documentação |
@@ -108,7 +108,7 @@ Cada tabela tem ainda a sua PK (8). Contagens tiradas do `migration.sql`.
   `maike_backend_all` só para `maike_vercel`. No PostgreSQL local: RLS ligado e
   zero grants públicos nas 8 tabelas (matriz de segurança).
 - **Pinagem:** SHA-256 do arquivo
-  `69def1b65a43842270533f08485dd104ef5f2f864035a9976b743101e295bdb7` em
+  `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e` em
   `MIGRATIONS_APROVADAS`; hash do DO
   `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe` em
   `DO_RLS_APROVADOS` (`scripts/deploy/premergeMigrateLib.mjs`). Reconferidos na
@@ -543,7 +543,7 @@ Todos preenchidos com saída real (§7–§8 e §11). Nenhum ficou em aberto.
 
 ## 13. Referências
 
-- Decisão: [D-PROD-154](./DECISIONS.md); relação com D-PROD-08, D-PROD-146 e D-PROD-153.
+- Decisão: [D-PROD-155](./DECISIONS.md); relação com D-PROD-08, D-PROD-146 e D-PROD-153.
 - Runbook: [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md).
 - Permissões: [`MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`](./MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md).
 - Antecessoras: [P1](./MAIKE-GESTAO-CADASTROS-P1-REPORT.md) e [P2](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).

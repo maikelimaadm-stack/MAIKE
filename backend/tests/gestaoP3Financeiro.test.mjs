@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — P3-01 Central Única de Lançamentos: FINANCEIRO (matriz exaustiva).
+ * D-PROD-155 — P3-01 Central Única de Lançamentos: FINANCEIRO (matriz exaustiva).
  * PostgreSQL real, HTTP autenticado, prova por linhas gravadas.
  *
  *  F1. rateio VALOR (falta/sobra de 0,01) e PERCENTUAL (maior resto, empate

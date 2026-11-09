@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — Central Única de Lançamentos montada de verdade (página, motor
+ * D-PROD-155 — Central Única de Lançamentos montada de verdade (página, motor
  * Base1, service, API, porta e nativeHttpClient reais). Mocks só da borda:
  * `fetch` (backend FALSO do contrato, tests/smoke/fixtures/lancamentosFakeCore.js)
  * e a sessão (usuário/permissão efetiva, tenant do JWT).

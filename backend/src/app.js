@@ -209,7 +209,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarParceiroRoutes);
   await app.register(registrarCentroRoutes);
   await app.register(registrarNaturezaFinanceiraRoutes);
-  // D-PROD-154 — Gestão P3-01: Central Única de Lançamentos (gerencial).
+  // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);

@@ -3,7 +3,7 @@
  *
  *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as cinco telas
  *    (P1: Parceiros e Centros, D-PROD-146; P2: Naturezas Financeiras, D-PROD-153;
- *    P3-01: Lançamentos Financeiros, D-PROD-154 — página NATIVA autorizada; os
+ *    P3-01: Lançamentos Financeiros, D-PROD-155 — página NATIVA autorizada; os
  *    domínios legados `Financeiro`/`LancamentoFinanceiro`… continuam proibidos);
  *  - o menu (shell real, Layout) mostra o grupo só para quem tem alguma das telas;
  *  - padrão para não-admin = NEGADO (sem concessão automática); admin vê tudo;

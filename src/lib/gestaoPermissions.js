@@ -21,7 +21,7 @@ export const TELAS_GESTAO = Object.freeze({
   CENTROS_RESULTADO: 'ges-centros-resultado',
   // D-PROD-153 — Gestão P2 (`GUARDAS.naturezaFinanceira`, mesma regra).
   NATUREZAS_FINANCEIRAS: 'ges-naturezas-financeiras',
-  // D-PROD-154 — Gestão P3-01 (`GUARDAS.operacaoFinanceira`): cadastro + ações extras.
+  // D-PROD-155 — Gestão P3-01 (`GUARDAS.operacaoFinanceira`): cadastro + ações extras.
   LANCAMENTOS_FINANCEIROS: 'ges-lancamentos-financeiros',
 });
 

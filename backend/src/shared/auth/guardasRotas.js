@@ -192,7 +192,7 @@ export const GUARDAS = Object.freeze({
   centroCusto: { ...cadastro(T.CENTROS_CUSTO), ver: porTela(T.CENTROS_CUSTO, 'visualizar') },
   centroResultado: { ...cadastro(T.CENTROS_RESULTADO), ver: porTela(T.CENTROS_RESULTADO, 'visualizar') },
   naturezaFinanceira: { ...cadastro(T.NATUREZAS_FINANCEIRAS), ver: porTela(T.NATUREZAS_FINANCEIRAS, 'visualizar') },
-  // D-PROD-154 — Central Única de Lançamentos: cada efeito com a SUA ação da
+  // D-PROD-155 — Central Única de Lançamentos: cada efeito com a SUA ação da
   // tela (confirmar, cancelar, liquidar, estornar baixa são caixas próprias);
   // os seletores e a prévia só leem (visualizar).
   operacaoFinanceira: {

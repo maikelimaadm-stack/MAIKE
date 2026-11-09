@@ -167,7 +167,7 @@ describe('P4B — CORS no app real', () => {
   });
 
   test('P4B-04d preflight libera TODO método HTTP que o frontend usa (PUT da P2/P3 incluído)', async () => {
-    // D-PROD-154 (prova real ponta a ponta): com frontend e backend em origins
+    // D-PROD-155 (prova real ponta a ponta): com frontend e backend em origins
     // diferentes, o PUT do perfil financeiro e do rascunho morria no preflight
     // — o navegador nem enviava a requisição. A lista vem das portas nativas
     // do frontend, não de uma cópia: método novo lá sem liberação aqui reprova.

@@ -18,7 +18,7 @@ function useValorAtrasado(valor, ms) {
 }
 
 /**
- * Seletor PAGINADO e pesquisado no servidor (D-PROD-154), genérico para as
+ * Seletor PAGINADO e pesquisado no servidor (D-PROD-155), genérico para as
  * opções da Central de Lançamentos (parceiro, produto, local, natureza,
  * centros). Nunca carrega "tudo": a busca vai ao servidor com espera de 300 ms,
  * "Carregar mais" segue `next_cursor` (sem teto), falha mostra o erro e

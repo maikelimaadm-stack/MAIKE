@@ -1,5 +1,5 @@
 /**
- * Transação com espera limitada e tradução da corrida perdida (D-PROD-154, §8.4).
+ * Transação com espera limitada e tradução da corrida perdida (D-PROD-155, §8.4).
  *
  * Extraído de `operacaoFinanceiraService.js` — o comportamento dos comandos da
  * Central Única de Lançamentos não muda — para os comandos antigos que disputam

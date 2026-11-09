@@ -1,4 +1,4 @@
--- D-PROD-154 — MAIKE Gestão P3-01: Central Única de Lançamentos GERENCIAIS.
+-- D-PROD-155 — MAIKE Gestão P3-01: Central Única de Lançamentos GERENCIAIS.
 -- Um documento (OperacaoFinanceira) PAGAR|RECEBER × COM_PRODUTOS|SEM_PRODUTOS ×
 -- AVISTA|PRAZO|PARCELADO, com itens, rateio GLOBAL (natureza + centros), títulos
 -- (uma linha por parcela), liquidações MANUAIS e o estorno de liquidação em

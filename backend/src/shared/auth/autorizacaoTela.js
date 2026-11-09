@@ -54,14 +54,14 @@ export const TELAS = Object.freeze({
   CENTROS_RESULTADO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-resultado' }),
   // D-PROD-153 — Gestão P2.
   NATUREZAS_FINANCEIRAS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-naturezas-financeiras' }),
-  // D-PROD-154 — Gestão P3-01: Central Única de Lançamentos (gerencial).
+  // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   LANCAMENTOS_FINANCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-lancamentos-financeiros' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
 
 /**
- * D-PROD-154 — ações EXTRAS da tela `ges-lancamentos-financeiros` (gravadas na
+ * D-PROD-155 — ações EXTRAS da tela `ges-lancamentos-financeiros` (gravadas na
  * própria linha da tela em `permissoes_telas`; ausente/não booleano = negado).
  * Mesma lista no navegador (teste de paridade front↔back).
  */
@@ -238,7 +238,7 @@ export const somenteCampos = (corpo, campos) =>
   Object.keys(corpo).length > 0 && Object.keys(corpo).every((k) => campos.includes(k));
 
 /**
- * D-PROD-154 (§8.6) — escrita do perfil financeiro da empresa: administrador
+ * D-PROD-155 (§8.6) — escrita do perfil financeiro da empresa: administrador
  * REAL da fazenda OU a concessão `Permissao.is_admin` (relidos do banco por
  * `carregarAutorizacao`). `apenasAdminTenant` recusaria quem só tem `is_admin`.
  */

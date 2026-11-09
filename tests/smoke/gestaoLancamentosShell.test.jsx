@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 (§8.7) — Central de Lançamentos dentro do shell REAL (Layout):
+ * D-PROD-155 (§8.7) — Central de Lançamentos dentro do shell REAL (Layout):
  *  - perfil {visualizar, confirmar} (sem salvar/editar) confirma um rascunho já
  *    salvo: o botão da tela e o do diálogo (portal) seguem a regra exata do
  *    servidor — a heurística de texto do Layout ("Confirmar…" = salvar) não barra;

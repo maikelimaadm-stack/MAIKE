@@ -1,5 +1,5 @@
 /**
- * Porta nativa da Central Única de Lançamentos (D-PROD-154). Só online; o
+ * Porta nativa da Central Única de Lançamentos (D-PROD-155). Só online; o
  * tenant vem só do JWT; `empresa_id` é ESCOPO (query na leitura, corpo na
  * gravação) e o servidor o valida. Valores monetários, quantidades e
  * percentuais viajam como STRING canônica ("1234.56") — nunca número.

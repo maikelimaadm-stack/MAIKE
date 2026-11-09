@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — P3-01 Central Única de Lançamentos: SEGURANÇA (matriz exaustiva).
+ * D-PROD-155 — P3-01 Central Única de Lançamentos: SEGURANÇA (matriz exaustiva).
  * PostgreSQL real, HTTP autenticado (`app.inject`), prova por fotografia do banco.
  *
  *  S1. 2 tenants × 2 empresas: TODA rota recusa o cruzamento com 404 uniforme

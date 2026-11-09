@@ -19,7 +19,7 @@ const ACTION_LABELS = {
 /** Checkbox das ações extras (o componente de `ui/checkbox` não tem tipos). */
 const CheckboxAcaoExtra = /** @type {any} */ (Checkbox);
 
-/** Ações extras (D-PROD-154) — só aparecem na tela que as declara. */
+/** Ações extras (D-PROD-155) — só aparecem na tela que as declara. */
 const EXTRA_ACTION_LABELS = {
   confirmar: "CONFIRMAR LANÇAMENTO",
   liquidar: "REGISTRAR PAGAMENTO/RECEBIMENTO",

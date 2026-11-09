@@ -1,5 +1,5 @@
 /**
- * API da Central Única de Lançamentos (D-PROD-154): documento gerencial
+ * API da Central Única de Lançamentos (D-PROD-155): documento gerencial
  * `OperacaoFinanceira` (PAGAR|RECEBER × COM|SEM produtos × AVISTA|PRAZO|PARCELADO),
  * títulos, liquidações manuais e o perfil financeiro da empresa. Online só.
  */

@@ -56,7 +56,7 @@ Violação exige **rollback**, não flexibilização da regra.
 | D25 | Hardcodar chave ou segredo em `src/` | Variável de ambiente + `.env.example` |
 | D26 | Criar segunda fonte de menu ou de rota | SSOT em `src/lib/menuConfig.js` e `src/pages.config.js` |
 
-> **Nota (D-PROD-154):** a Central Única de Lançamentos (`LancamentosFinanceiros`)
+> **Nota (D-PROD-155):** a Central Única de Lançamentos (`LancamentosFinanceiros`)
 > é a única exceção financeira autorizada, nos limites da decisão. Continua
 > proibido: conciliação bancária, bancos/contas bancárias/OFX, módulo de
 > caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade,

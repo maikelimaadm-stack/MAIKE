@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — seletores da tela de Lançamentos (guardados pela PRÓPRIA tela,
+ * D-PROD-155 — seletores da tela de Lançamentos (guardados pela PRÓPRIA tela,
  * `visualizar`), todos paginados por keyset (nome, id) em ordem alfabética e
  * com busca no servidor: nenhum teto silencioso, qualquer ativo é alcançável.
  * Envelope `{ itens, has_more, next_cursor }` (o mesmo das opções da P2).

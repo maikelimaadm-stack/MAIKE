@@ -21,7 +21,7 @@ futuras receitas e despesas. É catálogo, não plano de contas contábil: conti
 **sem** lançamentos, valores, saldos, caixa/bancos, tributos, compras, contas a
 pagar/receber e sem efeito em estoque ou mapa.
 
-**Expansão autorizada pelo proprietário (D-PROD-154):** **Central Única de
+**Expansão autorizada pelo proprietário (D-PROD-155):** **Central Única de
 Lançamentos gerenciais** (página `LancamentosFinanceiros`, missão
 MAIKE-GESTAO-P3-01): um documento a pagar ou a receber, com ou sem produtos, com
 rateio global por natureza e centros, títulos/parcelas e liquidação manual

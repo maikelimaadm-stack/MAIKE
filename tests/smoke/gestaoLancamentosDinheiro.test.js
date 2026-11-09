@@ -1,5 +1,5 @@
 /**
- * D-PROD-154 — dinheiro no navegador SEM float (`src/lib/dinheiroDecimal.js`),
+ * D-PROD-155 — dinheiro no navegador SEM float (`src/lib/dinheiroDecimal.js`),
  * dias civis em UTC (`src/lib/diaCivil.js`) e o modelo puro do formulário
  * (rateio ao centavo, parcelas com resto na última, corpo DOC canônico).
  * Vetores iguais aos do servidor (§8.7), inclusive o caso em que
