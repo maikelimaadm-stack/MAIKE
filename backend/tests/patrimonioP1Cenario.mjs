@@ -16,13 +16,13 @@ import { Prisma } from '@prisma/client';
 import { autenticarNoApp, criarTenant } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 
-export const AGORA = '2027-06-15T15:00:00.000Z';
+const AGORA = '2027-06-15T15:00:00.000Z';
 /** Dia de AGORA em America/Sao_Paulo (12:00 local). */
 export const HOJE = '2027-06-15';
 process.env.MAIKE_TESTE_AGORA = AGORA;
 
 export const FUSO = 'America/Sao_Paulo';
-export const MODULO = 'patrimonio';
+const MODULO = 'patrimonio';
 export const TELAS = Object.freeze({
   bens: 'pat-bens-patrimoniais',
   familias: 'pat-familias-patrimoniais',
@@ -51,7 +51,6 @@ export const http = (app) => {
   return { req, ok };
 };
 
-export const codigo = (r) => r.json().code;
 /** `[status, code, field, reason]` de uma resposta de erro. */
 export const erro = (r) => {
   const c = r.json();
@@ -65,7 +64,7 @@ export const corpoErro = (r) => {
 };
 
 /** Ações padrão de uma linha de permissão (mais a extra `inativar` do Patrimônio). */
-export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar', 'inativar']);
+const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar', 'inativar']);
 /** Linha de permissão da tela do Patrimônio com só as ações dadas ligadas. */
 export const linha = (tela, acoes = {}) => ({ modulo_id: MODULO, tela_id: tela, ...Object.fromEntries(ACOES.map((a) => [a, false])), ...acoes });
 export const tudo = (tela) => linha(tela, Object.fromEntries(ACOES.map((a) => [a, true])));
@@ -159,10 +158,12 @@ export const montarPatrimonio = async (app, { fuso = FUSO, catalogo = true } = {
    */
   const conta = async (permissao, extra = {}) => {
     const login = `pat-${randomUUID().slice(0, 8)}`;
-    const u = await p.usuario.create({ data: { cliente_id: c, nome: `Usuário ${login}`, login, senha_hash: senhaHash, papel_tenant: 'usuario', ...extra } });
+    // O nome não contém o login: as provas de "login nunca sai" procuram o login na resposta.
+    const nome = `Responsável ${randomUUID().slice(0, 6)}`;
+    const u = await p.usuario.create({ data: { cliente_id: c, nome, login, senha_hash: senhaHash, papel_tenant: 'usuario', ...extra } });
     if (permissao) await p.permissao.create({ data: { cliente_id: c, user_email: login, user_nome: 'Op', ...permissao } });
     const auth = await autenticarNoApp(app, { login, senha: adm.credenciais.senha });
-    return { id: u.id, login, token: auth.corpo.token };
+    return { id: u.id, login, nome, token: auth.corpo.token };
   };
   /** Conta com as linhas dadas no módulo do Patrimônio. */
   const contaCom = (...linhas) => conta({ modulos_permitidos: [MODULO], permissoes_telas: linhas });

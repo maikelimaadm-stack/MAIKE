@@ -169,7 +169,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   MEDIDOR_LEITURA_REGRESSIVA: { http: 422, meaning: 'a leitura atual informada é menor que a registrada; nada foi gravado' },
   MEDIDOR_DATA_REGRESSIVA: { http: 422, meaning: 'a data da leitura é anterior à da leitura registrada; nada foi gravado' },
   MEDIDOR_DATA_FUTURA: { http: 422, meaning: 'a data da leitura é posterior a hoje no fuso da fazenda; nada foi gravado' },
-  MEDIDOR_LEITURA_INVALIDA: { http: 422, meaning: 'leitura do medidor negativa, acima do limite ou sem a data exigida (details.reason); nada foi gravado' },
+  MEDIDOR_LEITURA_INVALIDA: { http: 422, meaning: 'leitura do medidor ausente quando obrigatória, informada sem contador, ou leitura atual diferente da inicial no cadastro (details.reason: obrigatoria | sem_medidor | atual_diferente_da_inicial); nada foi gravado' },
   TANQUE_IDENTIFICADOR_DUPLICADO: { http: 422, meaning: 'dois tanques do bem com o mesmo identificador (sem diferenciar maiúsculas); nada foi gravado' },
   TANQUE_CAPACIDADE_INVALIDA: { http: 422, meaning: 'capacidade do tanque zero, negativa ou acima do limite; nada foi gravado' },
   TANQUE_COMBUSTIVEL_OBRIGATORIO: { http: 422, meaning: 'tanque sem combustível ou com combustível repetido; nada foi gravado' },
