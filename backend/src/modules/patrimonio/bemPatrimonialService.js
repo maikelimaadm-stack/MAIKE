@@ -437,10 +437,10 @@ export const atualizar = async (contexto, id, entrada) => {
   const depreciacao = depreciacaoDoCorpo(entrada.depreciacao);
   return transacao(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
-    const [linha] = /** @type {Array<{ empresa_id: string }>} */ (
-      await tx.$queryRaw`SELECT empresa_id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND id = ${id} FOR UPDATE`
+    const travado = /** @type {Array<{ id: string }>} */ (
+      await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`
     );
-    if (!linha || linha.empresa_id !== empresaId) throw naoEncontrado();
+    if (!travado.length) throw naoEncontrado();
     const atual = await buscar(tx, cli, empresaId, id);
     exigirVersao(atual, entrada.versao);
     const natureza = atual.natureza;

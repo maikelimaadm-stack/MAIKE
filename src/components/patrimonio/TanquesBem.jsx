@@ -67,8 +67,11 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
     limparErro("tanques");
   };
 
-  /** @param {string} chave */
-  const tirar = (chave) => onChange((atual) => atual.filter((t) => t.chave !== chave));
+  /** Os erros são por linha: tirar uma linha desalinha os índices, então eles saem todos. @param {string} chave */
+  const tirar = (chave) => {
+    onChange((atual) => atual.filter((t) => t.chave !== chave));
+    limparErro("tanques");
+  };
 
   /**
    * Opções do tanque: os combustíveis ativos em litros + os que o tanque já
