@@ -1072,30 +1072,34 @@ describe('REV — revisão: peso por saco gravado, motivos por direção, CAS da
     const doc = semearDocumento(estado, corpoServico({ descricao: 'LUZ' }), { confirmar: true });
     await montar();
     await abrir(doc.id);
-    let armado = true;
+    // Determinístico: o detalhe é servido (versão 2) ANTES de a elegibilidade
+    // responder; entre os dois, outra aba corrige NO LUGAR (versão 2 → 3).
+    let fase = 'parado';
     let detalheServido;
     const servido = new Promise((r) => { detalheServido = r; });
     backend = instalarBackendFake(async (req) => {
-      if (armado && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}`) {
+      if (fase === 'armado' && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}`) {
         const r = await rotearLancamentos(estado, req);
         detalheServido();
         return r;
       }
-      if (armado && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}/elegibilidade`) {
-        armado = false;
+      if (fase === 'armado' && req.method === 'GET' && req.path === `/operacoes-financeiras/${doc.id}/elegibilidade`) {
         await servido;
-        // Outra aba corrige NO LUGAR entre as duas leituras (versão 2 → 3).
+        fase = 'feito';
         await comando('POST', `/operacoes-financeiras/${doc.id}/retificar`, { ...corpoServico({ descricao: 'LUZ CORRIGIDA' }), versao: 2, operation_id: 'op-outra-aba', motivo: 'Outra aba' });
       }
       const r = await rotearLancamentos(estado, req);
       if (r && r.rede) throw new TypeError('Failed to fetch');
       return r;
     });
+    fase = 'armado';
     await clicar(screen.getByTestId('botao-excluir-lancamento'));
     await waitFor(() => expect(toasts().join(' | ')).toMatch(/mudou enquanto era verificado/));
     expect(screen.queryByTestId('dialogo-exclusao')).toBeNull();
     expect(chamadas('POST', /\/excluir$/)).toHaveLength(0);
-    expect(estado.documentos.find((d) => d.id === doc.id)).toMatchObject({ status: 'CONFIRMADO', versao: 3, excluido_em: null });
+    const salvo = estado.documentos.find((d) => d.id === doc.id);
+    expect(salvo).toMatchObject({ status: 'CONFIRMADO', versao: 3 });
+    expect(salvo.excluido_em ?? null).toBeNull();
   });
 
   it('REV-4 (TELA-04) a origem da cópia foi descartada em outra aba: a recusa explica e o próximo Salvar grava a cópia SEM o vínculo de origem (nada digitado se perde)', async () => {
@@ -1109,7 +1113,7 @@ describe('REV — revisão: peso por saco gravado, motivos por direção, CAS da
     estado.documentos = estado.documentos.filter((d) => d.id !== rascunho.id);
     await clicar(barra('Salvar'));
     await waitFor(() => expect(chamadas('POST', '/operacoes-financeiras')).toHaveLength(1));
-    await waitFor(() => expect(toasts().join(' | ')).toMatch(/origem desta cópia não existe mais.*salve de novo/i));
+    await waitFor(() => expect(toasts().join(' | ')).toMatch(/origem desta cópia não existe nesta empresa \(pode ter sido descartado\).*salve de novo/i));
     expect(toasts().join(' | ')).not.toMatch(/duplique de novo/);
     expect(estado.documentos).toHaveLength(0);
     expect(screen.getByLabelText(/Histórico \(descrição\)/)).toHaveValue('CÓPIA EDITADA');

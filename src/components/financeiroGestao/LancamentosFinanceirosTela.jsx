@@ -119,7 +119,8 @@ export default function LancamentosFinanceirosTela() {
   const [situacaoFiltro, setSituacaoFiltro] = useState("OPERACIONAIS");
   const [dialogo, setDialogo] = useState(/** @type {any} */ (null));
   // Cópia aberta (Duplicar): o DETALHE da origem lido do servidor da empresa atual.
-  const [copia, setCopia] = useState(/** @type {{ origemId: string, numero: string|null, detalhe: any, empresaId: string } | null} */ (null));
+  // `semVinculo` (revisão TELA-04): a origem não existe mais (descartada em outra aba); a cópia salva sem `duplicado_de_id`.
+  const [copia, setCopia] = useState(/** @type {{ origemId: string, numero: string|null, detalhe: any, empresaId: string, semVinculo?: boolean } | null} */ (null));
   // Correção de confirmado aberta: versão e detalhe do momento da elegibilidade.
   const [correcao, setCorrecao] = useState(
     /** @type {{ id: string, versao: number, detalhe: any, empresaId: string, efeitoFisicoPermitido: boolean, motivos: any[] } | null} */ (null),
@@ -366,6 +367,18 @@ export default function LancamentosFinanceirosTela() {
     }
   };
 
+  /**
+   * Revisão TELA-04: a origem da cópia não existe mais (rascunho descartado em
+   * outra aba ou por outra pessoa) → o servidor recusa `duplicado_de_id`. A
+   * proveniência é só registro: a cópia continua aberta (nada digitado se
+   * perde) e o próximo Salvar vai sem o vínculo, com `operation_id` novo.
+   * @param {unknown} err @param {{ empresaId: string }} v
+   */
+  const soltarOrigemDaCopia = (err, v) => {
+    if (lerErroGestao(err).field !== "duplicado_de_id" || !daEmpresaAtual(v)) return;
+    setCopia((c) => (c ? { ...c, semVinculo: true } : c));
+  };
+
   const salvarMutation = useMutation({
     /** @param {{ empresaId: string, id: string|null, versao: number|null, doc: Record<string, unknown>, formulario: number, duplicadoDeId?: string|null }} v */
     mutationFn: (v) => salvarComRetentativa(v.empresaId, v),
@@ -380,6 +393,7 @@ export default function LancamentosFinanceirosTela() {
     },
     onError: (err, v) => {
       if (daEmpresaAtual(v)) entregarErroAoFormulario(err);
+      soltarOrigemDaCopia(err, v);
       tratarErro(err, "Não foi possível salvar o rascunho. Nada foi gravado.", v);
     },
   });
@@ -413,7 +427,7 @@ export default function LancamentosFinanceirosTela() {
         versao: null,
         doc,
         formulario: controller.formEpoch,
-        duplicadoDeId: copiaAberta && copia ? copia.origemId : null,
+        duplicadoDeId: copiaAberta && copia && !copia.semVinculo ? copia.origemId : null,
       });
     }
   };
@@ -437,7 +451,7 @@ export default function LancamentosFinanceirosTela() {
           versao: registro?.versao ?? null,
           doc,
           formulario: controller.formEpoch,
-          duplicadoDeId: !registro?.id && copiaAberta && copia ? copia.origemId : null,
+          duplicadoDeId: !registro?.id && copiaAberta && copia && !copia.semVinculo ? copia.origemId : null,
         });
         invalidarLista();
         if (!daEmpresaAtual({ empresaId: emp })) return avisarEmpresaAnterior();
@@ -448,6 +462,7 @@ export default function LancamentosFinanceirosTela() {
       setDialogo({ tipo: "confirmar", registro, previa });
     } catch (err) {
       if (daEmpresaAtual({ empresaId: emp })) entregarErroAoFormulario(err);
+      soltarOrigemDaCopia(err, { empresaId: emp });
       tratarErro(err, "Não foi possível preparar a confirmação. Nada foi gravado.", { empresaId: emp });
     } finally {
       preparandoRef.current = false;
@@ -664,12 +679,15 @@ export default function LancamentosFinanceirosTela() {
       if (acoes.editar) setDialogo({ tipo: "descartar", registro: det });
       return;
     }
-    if (eleg.excluir.modo !== "LOGICA" || det.status !== "CONFIRMADO") {
+    // Revisão TELA-03: a mesma guarda da correção — o diálogo mostra o DETALHE, então o CAS
+    // vai com a versão dele; se a elegibilidade leu outra versão, o conteúdo mostrado não é o que seria excluído.
+    if (eleg.excluir.modo !== "LOGICA" || det.status !== "CONFIRMADO" || (eleg.versao !== null && eleg.versao !== det.versao)) {
       invalidarLista();
+      queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "detalhe", lido.emp, String(det.id)] });
       notifyWarning("Atenção", "O lançamento mudou enquanto era verificado. Confira e tente de novo. Nada foi alterado.");
       return;
     }
-    setDialogo({ tipo: "excluir", registro: { ...det, versao: eleg.versao ?? det.versao } });
+    setDialogo({ tipo: "excluir", registro: det });
   };
 
   /** Links do histórico de revisões: abre outra versão do mesmo lançamento lógico. @param {string} id */
@@ -1044,7 +1062,7 @@ export default function LancamentosFinanceirosTela() {
               : `O lançamento ${numeroDe(dialogo.registro)} não pode ser excluído agora. Nada foi alterado:`
           }
           motivos={dialogo.motivos}
-          contexto={contextoMoeda}
+          contexto={{ ...contextoMoeda, direcao: dialogo.registro?.direcao ?? null }}
           onFechar={fecharDialogo}
           rodape={acoes.criar ? "Para lançar de novo a partir deste documento, use Duplicar: a cópia é um rascunho novo e independente." : null}
         />
@@ -1057,7 +1075,7 @@ export default function LancamentosFinanceirosTela() {
           descricao="Informe o motivo da correção. Tudo é gravado de uma vez: ou a correção inteira, ou nada."
           rotuloBotao="Salvar correção"
           perigo={false}
-          contexto={contextoMoeda}
+          contexto={{ ...contextoMoeda, direcao: dialogo.registro?.direcao ?? null }}
           conteudo={
             <ul className="list-disc space-y-1 pl-5" data-testid="dialogo-retificacao-efeitos">
               <li className="break-words">As parcelas (títulos, todas sem baixa) são recriadas com os valores e vencimentos novos.</li>
@@ -1067,8 +1085,16 @@ export default function LancamentosFinanceirosTela() {
                   registrada. O lançamento continua com o MESMO número, numa versão nova; a versão anterior fica no histórico.
                 </li>
               ) : (
-                <li className="break-words" data-testid="dialogo-retificacao-estoque">O estoque não muda: lotes e movimentos continuam os mesmos.</li>
+                <li className="break-words" data-testid="dialogo-retificacao-estoque">
+                  O estoque não muda: lotes e movimentos continuam os mesmos. É a previsão da tela; quem decide é o servidor, ao gravar (se ele refizer o
+                  estoque, a tela avisa).
+                </li>
               )}
+              {!dialogo.mudaEstoque && dialogo.doc?.direcao && dialogo.doc.direcao !== dialogo.registro?.direcao ? (
+                <li className="break-words font-medium" data-testid="dialogo-retificacao-versao">
+                  A direção muda: o lançamento ganha uma versão nova com o MESMO número; a versão anterior fica no histórico.
+                </li>
+              ) : null}
               <li className="break-words">O motivo, o autor e a versão anterior ficam no histórico de revisões.</li>
             </ul>
           }
@@ -1093,7 +1119,7 @@ export default function LancamentosFinanceirosTela() {
           titulo={`Excluir lançamento ${numeroDe(dialogo.registro)}`}
           descricao="Para um lançamento CONFIRMADO lançado por engano. Não é Cancelar (operação real desfeita) nem Descartar rascunho: nada é apagado."
           rotuloBotao="Excluir lançamento"
-          contexto={contextoMoeda}
+          contexto={{ ...contextoMoeda, direcao: dialogo.registro?.direcao ?? null }}
           confirmacaoExplicita="Confirmo que este lançamento foi lançado por engano e deve ser excluído."
           conteudo={
             <ul className="list-disc space-y-1 pl-5" data-testid="dialogo-exclusao-efeitos">

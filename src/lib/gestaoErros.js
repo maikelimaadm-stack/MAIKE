@@ -76,7 +76,7 @@ const ondeNaLinha = (details) => {
  * Formatação dos valores que o servidor manda em `details` (string canônica).
  * `comandoIdempotente`: a tela reenvia com o MESMO `operation_id` (Central de
  * Lançamentos) — só então a mensagem promete que a repetição não duplica.
- * @typedef {{ locale?: string, moeda?: string, casas?: number, comandoIdempotente?: boolean }} ContextoMoeda
+ * @typedef {{ locale?: string, moeda?: string, casas?: number, comandoIdempotente?: boolean, direcao?: string|null }} ContextoMoeda
  */
 /** @param {unknown} v @param {ContextoMoeda} c */
 const dinheiro = (v, c) => (typeof v === 'string' && v ? (c.moeda ? formatarMoeda(v, { locale: c.locale, moeda: c.moeda, casas: c.casas ?? 2 }) : formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax: 4 })) : '');
@@ -279,10 +279,13 @@ const permissoesQueFaltam = (m) => {
  * Texto de UM motivo da elegibilidade ou de uma recusa (SPEC §3): o código
  * conhecido vira frase própria (com parcela, item e elo que impede); código
  * novo usa a `mensagem` legível que o contrato manda no próprio motivo.
- * @param {unknown} motivo @param {ContextoMoeda} [_c]
+ * `c.direcao` (D-PROD-157, revisão TELA-02): o servidor emite `lote_alterado`
+ * na compra (o lote da ENTRADA mudou) e na venda (um lote de onde a mercadoria
+ * SAIU não aceita mais a devolução); sem a direção, o texto é neutro.
+ * @param {unknown} motivo @param {ContextoMoeda} [c]
  * @returns {string}
  */
-export const mensagemDoMotivo = (motivo, _c = {}) => {
+export const mensagemDoMotivo = (motivo, c = {}) => {
   const m = ehObjeto(motivo) ? motivo : {};
   const item = Number.isInteger(m.item_ordem) ? ` do item ${m.item_ordem}` : '';
   switch (m.codigo) {
@@ -305,8 +308,16 @@ export const mensagemDoMotivo = (motivo, _c = {}) => {
     case 'lote_consumido':
       return `A mercadoria${item} já foi usada no estoque${eloDoMotivo(m)}: o lote desta compra não está mais intacto, então a entrada não pode ser estornada nem refeita.`;
     case 'lote_alterado':
-      return `O lote da mercadoria${item} foi alterado depois da entrada${eloDoMotivo(m)}: a entrada desta compra não pode ser estornada nem refeita.`;
+      if (c.direcao === 'RECEBER') {
+        return `Um lote de onde saiu a mercadoria da venda${item} mudou depois da venda${eloDoMotivo(m)} e não pode receber a mercadoria de volta: a saída desta venda não pode ser estornada nem refeita.`;
+      }
+      if (c.direcao === 'PAGAR') return `O lote da mercadoria${item} foi alterado depois da entrada${eloDoMotivo(m)}: a entrada desta compra não pode ser estornada nem refeita.`;
+      return `O lote da mercadoria${item} foi alterado depois do lançamento${eloDoMotivo(m)}: o efeito no estoque não pode ser estornado nem refeito.`;
     case 'venda_com_movimento_posterior':
+      // Variante do servidor: OUTRO lançamento consumiu, depois da venda, um lote de onde ela saiu.
+      if (/operacao|lancamento/i.test(String(m.entidade ?? '')) && m.numero != null && String(m.numero)) {
+        return `O lançamento nº ${String(m.numero)} usou, depois desta venda, um lote de onde saiu a mercadoria${item}: refazer a saída mudaria o custo e o saldo das operações seguintes.`;
+      }
       return `Há movimento de estoque posterior a esta venda no mesmo produto e local${eloDoMotivo(m)}${item ? ` (mercadoria${item})` : ''}: refazer a saída mudaria o custo e o saldo das operações seguintes.`;
     case 'moeda_mudou':
       return 'A moeda do perfil financeiro da empresa é diferente da moeda deste lançamento: a correção não converte valores.';
@@ -327,7 +338,8 @@ const mensagemLancamento = (code, field, reason, details, c) => {
   if (reason === 'moeda_mudou') return 'A moeda do perfil financeiro da empresa é diferente da moeda deste lançamento: a correção não converte valores. Nada foi alterado.';
   // D-PROD-157: `duplicado_de_id` de outro tenant/empresa (ou que não existe mais).
   if (field === 'duplicado_de_id' && (code === 'OPERACAO_REFERENCIA_INVALIDA' || code === 'REQUEST_VALIDATION_FAILED')) {
-    return 'O lançamento de origem desta cópia não existe nesta empresa. Feche a cópia e duplique de novo a partir da lista. Nada foi gravado.';
+    // Revisão TELA-04: a origem pode ter sido descartada (DELETE do rascunho); a tela deixa de enviar a proveniência.
+    return 'O lançamento de origem desta cópia não existe nesta empresa (pode ter sido descartado). Salve de novo: a cópia será gravada como rascunho novo, sem o vínculo de origem. Nada foi gravado.';
   }
   switch (code) {
     case 'OPERACAO_RETIFICACAO_BLOQUEADA':

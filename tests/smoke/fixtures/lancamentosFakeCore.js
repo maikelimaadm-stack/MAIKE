@@ -252,15 +252,19 @@ const ratearPorItem = (corpo, itens, casas) =>
     item.rateios = linhas.map((l, j) => linhaDoDetalhe(l, j + 1, r.valores[j], r.percentuais[j]));
   });
 
-/** Documento do corpo DOC (como o servidor recalcula). */
-const montarDoc = (estado, corpo, base = {}) => {
+/**
+ * Documento do corpo DOC (como o servidor recalcula). `pesoGravado` (produto →
+ * fator): na retificação, o produto que o documento JÁ tinha em SACO usa o
+ * peso GRAVADO, como o servidor (`comPesoGravado`, revisão DE-01/TELA-01).
+ */
+const montarDoc = (estado, corpo, base = {}, { pesoGravado = new Map() } = {}) => {
   const casas = estado.perfil?.moeda_casas ?? 2;
   const escopo = exigirEscopoDoRateio(corpo);
   if (escopo === 'POR_ITEM') normalizarLinhasDosItens(corpo, casas);
   const itens = (corpo.itens ?? []).map((i, k) => {
     const prod = [...PRODUTOS, ...estado.produtosExtras].find((p) => p.id === i.produto_id);
     const local = LOCAIS.find((l) => l.id === i.local_estoque_id);
-    const fator = i.unidade === 'SACO' ? prod?.peso_por_saco_kg ?? '1' : i.unidade === 'KG' ? '1' : null;
+    const fator = i.unidade === 'SACO' ? pesoGravado.get(i.produto_id) ?? prod?.peso_por_saco_kg ?? '1' : i.unidade === 'KG' ? '1' : null;
     return {
       id: `${base.id ?? 'novo'}-i${k + 1}`, ordem: k + 1, tipo_item: i.tipo_item, produto_id: i.produto_id ?? null, produto_nome: prod?.nome ?? null,
       descricao: i.descricao ?? null, local_estoque_id: i.local_estoque_id ?? null, local_estoque_nome: local?.nome ?? null, unidade: i.unidade,
@@ -318,8 +322,11 @@ const montarDoc = (estado, corpo, base = {}) => {
   };
 };
 
-/** Evento público (sem o snapshot), como o detalhe do servidor devolve. */
-const eventoPublico = ({ snapshot_anterior: _s, cliente_id: _c, empresa_id: _e, id: _id, ...e }) => ({ ...e });
+/** Evento público (sem o snapshot), como o detalhe do servidor devolve: com os números ATUAIS dos dois documentos. */
+const eventoPublico = (estado, { snapshot_anterior: _s, cliente_id: _c, empresa_id: _e, id: _id, ...e }) => {
+  const numeroDe = (id) => (id ? estado.documentos.find((d) => d.id === id)?.numero ?? null : null);
+  return { ...e, operacao_numero: numeroDe(e.operacao_id), operacao_nova_numero: numeroDe(e.operacao_nova_id) };
+};
 
 /**
  * Cadeia lógica de revisões nos dois sentidos (SPEC §6): os eventos do próprio
@@ -336,7 +343,7 @@ const eventosDaCadeia = (estado, doc) => {
       if (ids.has(e.operacao_nova_id) && !ids.has(e.operacao_id)) { ids.add(e.operacao_id); mudou = true; }
     }
   }
-  return estado.eventos.filter((e) => ids.has(e.operacao_id) || (e.operacao_nova_id && ids.has(e.operacao_nova_id))).slice(0, 50).map(eventoPublico);
+  return estado.eventos.filter((e) => ids.has(e.operacao_id) || (e.operacao_nova_id && ids.has(e.operacao_nova_id))).slice(0, 50).map((e) => eventoPublico(estado, e));
 };
 
 /** Campos de leitura do D-PROD-157 (detalhe). */
@@ -352,6 +359,8 @@ const camposDeRevisao = (estado, doc) => {
     substituido_por: saiu ? { id: saiu.operacao_nova_id, numero: numeroDe(saiu.operacao_nova_id) } : null,
     substitui: entrou ? { id: entrou.operacao_id, numero: numeroDe(entrou.operacao_id) } : null,
     eventos: eventosDaCadeia(estado, doc),
+    // Proveniência da cópia: só a auditoria da criação (SPEC §6/§7), como o servidor.
+    duplicado_de_id: estado.auditoria.find((a) => a.acao === 'operacao_financeira.criar' && a.operacao_id === doc.id)?.duplicado_de_id ?? null,
   };
 };
 
@@ -462,14 +471,28 @@ const documentoHistorico = (estado, doc) => {
  */
 const bloqueio = (code, motivos, extra = {}) => erro(409, code, { field: 'id', reason: motivos[0]?.codigo ?? 'bloqueado', details: { motivos, ...extra } });
 
-/** Assinatura física de um item MERCADORIA (SPEC §4.5) + cabeçalho. */
-const assinaturaFisica = (doc) => {
-  const merc = doc.itens.filter((i) => i.tipo_item === 'MERCADORIA');
-  if (!merc.length) return '[]';
-  return JSON.stringify({
-    direcao: doc.direcao, data_operacional: doc.data_operacional,
-    itens: merc.map((i) => [i.ordem, i.tipo_item, i.produto_id, i.local_estoque_id, i.unidade, naEscala(i.quantidade_estoque, 4), naEscala(i.fator_kg ?? '0', 4), doc.direcao === 'PAGAR' ? i.valor_liquido : null]),
+/**
+ * Assinatura física (SPEC §4.5), a MESMA do servidor (`assinaturaFisica`):
+ * direção e dia operacional SEMPRE (sem mercadoria também — trocar a direção é
+ * substituição) e, por item MERCADORIA, (ordem, tipo, produto, local, unidade,
+ * quantidade digitada, kg, fator, líquido só na compra).
+ */
+const assinaturaFisica = (doc) => JSON.stringify({
+  direcao: doc.direcao,
+  data_operacional: doc.data_operacional ?? null,
+  itens: doc.itens.filter((i) => i.tipo_item === 'MERCADORIA').sort((a, b) => a.ordem - b.ordem).map((i) => [
+    i.ordem, i.tipo_item, i.produto_id, i.local_estoque_id, i.unidade, naEscala(i.quantidade, 4), naEscala(i.quantidade_estoque, 4), naEscala(i.fator_kg ?? '0', 4),
+    doc.direcao === 'PAGAR' ? naEscala(i.valor_liquido, 4) : null,
+  ]),
+});
+
+/** Peso por saco GRAVADO por produto (1ª linha SACO, por ordem), como o servidor. */
+const pesoGravadoDe = (doc) => {
+  const m = new Map();
+  [...doc.itens].sort((a, b) => a.ordem - b.ordem).forEach((i) => {
+    if (i.tipo_item === 'MERCADORIA' && i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !m.has(i.produto_id)) m.set(i.produto_id, i.fator_kg);
   });
+  return m;
 };
 
 /** Snapshot da versão anterior (só histórico; nenhuma regra lê). */
@@ -617,7 +640,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         if (versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
         // Normalização e plano ANTES da elegibilidade (mesma ordem do servidor):
         // a declaração física vale nos DOIS modos (o normalizador exige com mercadoria).
-        const novo = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }));
+        const novo = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }, { pesoGravado: pesoGravadoDe(doc) }));
         if (novo.recusa) return novo.recusa;
         const plano = novo.ok;
         if (plano.itens.some((i) => i.tipo_item === 'MERCADORIA') && corpo.efeito_fisico_confirmado !== true) {
