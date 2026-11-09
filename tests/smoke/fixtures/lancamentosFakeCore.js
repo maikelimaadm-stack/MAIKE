@@ -411,10 +411,6 @@ const avaliarElegibilidade = (estado, doc) => {
   const permEditar = faltaEditar.length ? [semPermissao(...faltaEditar)] : [];
   const permExcluir = faltaExcluir.length ? [semPermissao(...faltaExcluir)] : [];
   const duplicar = { permitido: Boolean(p.criar), motivos: p.criar ? [] : [semPermissao('novo')] };
-  if (historico) {
-    const h = [{ codigo: 'documento_historico', mensagem: 'documento histórico' }];
-    return { editar: { permitido: false, modo: null, efeito_fisico_permitido: false, motivos: h }, excluir: { permitido: false, modo: null, motivos: h }, duplicar };
-  }
   if (doc.status === 'RASCUNHO') {
     const semEditar = p.editar ? [] : [semPermissao('editar')];
     return {
@@ -423,17 +419,48 @@ const avaliarElegibilidade = (estado, doc) => {
       duplicar,
     };
   }
+  // Como o servidor: documento histórico vem antes de tudo (com as permissões que faltam).
+  if (historico) {
+    const h = documentoHistorico(estado, doc);
+    return {
+      editar: { permitido: false, modo: null, efeito_fisico_permitido: false, motivos: [h, ...permEditar] },
+      excluir: { permitido: false, modo: null, motivos: [h, ...permExcluir] },
+      duplicar,
+    };
+  }
+  // Mesma ordem do servidor: liquidação → permissão (→ dependência física). Os
+  // motivos físicos vêm em `editar.motivos` MESMO com a correção permitida (a
+  // faixa da tela os mostra); `efeito_fisico_permitido` só depende da prova física.
   const liquidacoes = motivosDeLiquidacao(doc);
-  const motivosEditar = [...permEditar, ...liquidacoes];
-  const editarOk = motivosEditar.length === 0;
-  const motivosExcluir = [...permExcluir, ...liquidacoes, ...(fisicoOk ? [] : dependencias)];
+  const bloqueiosEditar = [...liquidacoes, ...permEditar];
+  const editarOk = bloqueiosEditar.length === 0;
+  const motivosExcluir = [...liquidacoes, ...(fisicoOk ? [] : dependencias), ...permExcluir];
   const excluirOk = motivosExcluir.length === 0;
   return {
-    editar: { permitido: editarOk, modo: editarOk ? 'RETIFICACAO' : null, efeito_fisico_permitido: editarOk && fisicoOk, motivos: editarOk ? dependencias : motivosEditar },
+    editar: { permitido: editarOk, modo: editarOk ? 'RETIFICACAO' : null, efeito_fisico_permitido: fisicoOk, motivos: [...bloqueiosEditar, ...dependencias] },
     excluir: { permitido: excluirOk, modo: excluirOk ? 'LOGICA' : null, motivos: motivosExcluir },
     duplicar,
   };
 };
+
+/**
+ * Motivo `documento_historico` como o servidor: na versão substituída, aponta a
+ * versão atual (`entidade`, `id`, `numero`).
+ */
+const documentoHistorico = (estado, doc) => {
+  if (doc.retificado_em) {
+    const ev = estado.eventos.find((e) => e.modo === 'SUBSTITUICAO' && e.operacao_id === doc.id);
+    const nova = ev ? estado.documentos.find((d) => d.id === ev.operacao_nova_id) : null;
+    return { codigo: 'documento_historico', mensagem: 'versão anterior, substituída por retificação', ...(nova ? { entidade: 'OperacaoFinanceira', id: nova.id, numero: nova.numero } : {}) };
+  }
+  return { codigo: 'documento_historico', mensagem: doc.excluido_em ? 'o lançamento foi excluído' : 'o lançamento está cancelado' };
+};
+
+/**
+ * 409 de bloqueio como o tradutor HTTP do servidor: `field` = documento
+ * (`id`), `reason` = código do 1º motivo e a lista em `details.motivos`.
+ */
+const bloqueio = (code, motivos, extra = {}) => erro(409, code, { field: 'id', reason: motivos[0]?.codigo ?? 'bloqueado', details: { motivos, ...extra } });
 
 /** Assinatura física de um item MERCADORIA (SPEC §4.5) + cabeçalho. */
 const assinaturaFisica = (doc) => {
@@ -548,7 +575,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       if (duplicadoDe !== undefined) {
         const origem = estado.documentos.find((d) => d.id === duplicadoDe);
         if (typeof duplicadoDe !== 'string' || !origem || origem.empresa_id !== (corpo.empresa_id ?? EMPRESA)) {
-          return erro(422, 'OPERACAO_REFERENCIA_INVALIDA', { field: 'duplicado_de_id', reason: 'duplicado_de_nao_encontrado', details: { field: 'duplicado_de_id', reason: 'duplicado_de_nao_encontrado' } });
+          return erro(422, 'OPERACAO_REFERENCIA_INVALIDA', { field: 'duplicado_de_id', reason: 'duplicado_de_nao_encontrado' });
         }
       }
       const r = ouRecusa(() => montarDoc(estado, corpo));
@@ -583,13 +610,21 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       const r = idempotente(estado, 'retificar', body, () => {
         const { operation_id: _op, versao, motivo, ...corpo } = body;
         if (!motivoValido(motivo)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'motivo', reason: 'obrigatorio' });
-        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        // Como o servidor (`exigirVigente`): rascunho → 409 de situação (use o PUT);
+        // cancelado/excluído/versão substituída → 409 de bloqueio `documento_historico`.
+        if (doc.status === 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', [documentoHistorico(estado, doc)]);
         if (versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
-        const eleg = avaliarElegibilidade(estado, doc);
-        if (!eleg.editar.permitido) return erro(409, 'OPERACAO_RETIFICACAO_BLOQUEADA', { details: { motivos: eleg.editar.motivos } });
+        // Normalização e plano ANTES da elegibilidade (mesma ordem do servidor):
+        // a declaração física vale nos DOIS modos (o normalizador exige com mercadoria).
         const novo = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }));
         if (novo.recusa) return novo.recusa;
         const plano = novo.ok;
+        if (plano.itens.some((i) => i.tipo_item === 'MERCADORIA') && corpo.efeito_fisico_confirmado !== true) {
+          return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'efeito_fisico_confirmado', reason: 'declaracao_obrigatoria' });
+        }
+        const eleg = avaliarElegibilidade(estado, doc);
+        if (!eleg.editar.permitido) return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', eleg.editar.motivos);
         // `montarDoc` anota "editar" (rascunho): a correção anota só "retificar".
         plano.historico = [...doc.historico];
         const snapshot = snapshotDe(doc);
@@ -606,9 +641,9 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
           registrarEvento(estado, { tipo: 'RETIFICACAO', modo: 'NO_LUGAR', operacao_id: doc.id, operacao_nova_id: null, numero_original: doc.numero, versao_anterior: snapshot.versao, versao_nova: doc.versao, motivo, snapshot_anterior: snapshot });
           return { status: 200, body: detalhe(doc, { replay: false, retificacao: { modo: 'NO_LUGAR', operacao_anterior_id: doc.id, operacao_atual_id: doc.id } }, estado) };
         }
-        if (!eleg.editar.efeito_fisico_permitido) return erro(409, 'OPERACAO_RETIFICACAO_BLOQUEADA', { details: { motivos: estado.dependencias[doc.id] ?? [] } });
-        if (plano.itens.some((i) => i.tipo_item === 'MERCADORIA') && corpo.efeito_fisico_confirmado !== true) {
-          return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'efeito_fisico_confirmado', reason: 'declaracao_obrigatoria' });
+        if (!eleg.editar.efeito_fisico_permitido) {
+          const fisicos = eleg.editar.motivos.filter((m) => !['tem_liquidacao', 'sem_permissao'].includes(m.codigo));
+          return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', fisicos, { efeito_fisico_permitido: false });
         }
         // SUBSTITUICAO atômica: o antigo é estornado/cancelado e libera o número; o novo assume.
         const numero = doc.numero;
@@ -639,10 +674,11 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         const extras = Object.keys(body).filter((k) => !['empresa_id', 'versao', 'operation_id', 'motivo'].includes(k));
         if (extras.length) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: extras[0], reason: 'nao_permitido' });
         if (!motivoValido(motivo)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'motivo', reason: 'obrigatorio' });
-        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        if (doc.status === 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return bloqueio('OPERACAO_EXCLUSAO_BLOQUEADA', [documentoHistorico(estado, doc)]);
         if (versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
         const eleg = avaliarElegibilidade(estado, doc);
-        if (!eleg.excluir.permitido) return erro(409, 'OPERACAO_EXCLUSAO_BLOQUEADA', { details: { motivos: eleg.excluir.motivos } });
+        if (!eleg.excluir.permitido) return bloqueio('OPERACAO_EXCLUSAO_BLOQUEADA', eleg.excluir.motivos);
         const snapshot = snapshotDe(doc);
         estornarEfeitos(doc);
         Object.assign(doc, {
