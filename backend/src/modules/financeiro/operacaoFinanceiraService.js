@@ -43,7 +43,7 @@ import {
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
-  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_PRECO, CASAS_QUANTIDADE, CEM, ZERO, arredondar, casasDecimais, dec, paraBanco, texto,
+  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_PRECO, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, ZERO, arredondar, casasDecimais, dec, paraBanco, texto,
 } from './decimalFinanceiro.js';
 import { diaValido, normalizarDocumento, planejarOperacao, simularEfeitosEstoque, tipoNaturezaDa } from './operacaoFinanceiraPlano.js';
 
@@ -352,6 +352,13 @@ const travarProdutosDoRascunho = async (tx, clienteId, itens) => {
   }
 };
 
+/** Colunas do custo de aquisição líquido (rateio do cabeçalho por linha) para gravar. */
+const colunasDoLiquido = (i) => ({
+  valor_desconto_rateado: paraBanco(i.valor_desconto_rateado, 4),
+  valor_acrescimo_rateado: paraBanco(i.valor_acrescimo_rateado, 4),
+  valor_liquido: paraBanco(i.valor_liquido, 4),
+});
+
 /** Itens, rateios e títulos PREVISTO do rascunho (snapshots de nomes incluídos). Produtos já travados (`travarProdutosDoRascunho`). */
 const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
   const base = { cliente_id: clienteId, empresa_id: op.empresa_id };
@@ -373,6 +380,7 @@ const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
         quantidade_estoque: i.quantidade_estoque ? paraBanco(i.quantidade_estoque, CASAS_QUANTIDADE) : null,
         valor_unitario: paraBanco(i.valor_unitario, CASAS_PRECO),
         valor_total: paraBanco(i.valor_total, 4),
+        ...colunasDoLiquido(i),
       })),
     });
   }
@@ -468,7 +476,7 @@ const INCLUDE_DETALHE = Object.freeze({
   criadoPor: USUARIO,
   confirmadoPor: USUARIO,
   canceladoPor: USUARIO,
-  itens: { orderBy: { ordem: 'asc' }, include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } } },
+  itens: { orderBy: { ordem: 'asc' }, include: { consumos: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, loteEntrada: { select: { custo_unitario: true } } } },
   rateios: { orderBy: { ordem: 'asc' } },
   titulos: {
     orderBy: { numero_parcela: 'asc' },
@@ -483,6 +491,19 @@ const INCLUDE_DETALHE = Object.freeze({
 
 /** Percentual informativo do modo VALOR (calculado na leitura, 6 casas). */
 const percentualInformativo = (valor, total) => (dec(total).gt(0) ? arredondar(dec(valor).times(CEM).dividedBy(dec(total)), CASAS_PERCENTUAL) : ZERO);
+
+/**
+ * Custo por kg e resíduo da linha no DETALHE (só compra de mercadoria): com
+ * lote gravado (confirmado/cancelado) o custo é o do LOTE; no rascunho, o do
+ * líquido gravado. Resíduo = líquido − kg × custo (8 casas, exato).
+ */
+const custoDoItem = (op, i) => {
+  if (op.direcao !== 'PAGAR' || i.tipo_item !== 'MERCADORIA' || i.quantidade_estoque == null) return { custo_kg: null, residuo_custo: null };
+  const kg = dec(i.quantidade_estoque);
+  const liquido = dec(i.valor_liquido);
+  const custo = i.loteEntrada ? dec(i.loteEntrada.custo_unitario) : arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
+  return { custo_kg: texto(custo, CASAS_CUSTO), residuo_custo: texto(liquido.minus(kg.times(custo)), CASAS_RESIDUO) };
+};
 
 /** DETALHE (§5): datas de negócio AAAA-MM-DD; valores em string na escala. */
 export const comoDetalhe = (op, historico = []) => {
@@ -533,6 +554,10 @@ export const comoDetalhe = (op, historico = []) => {
       quantidade_estoque: texto(i.quantidade_estoque, CASAS_QUANTIDADE),
       valor_unitario: texto(i.valor_unitario, CASAS_PRECO),
       valor_total: texto(i.valor_total, c),
+      valor_desconto_rateado: texto(i.valor_desconto_rateado, c),
+      valor_acrescimo_rateado: texto(i.valor_acrescimo_rateado, c),
+      valor_liquido: texto(i.valor_liquido, c),
+      ...custoDoItem(op, i),
       movimentacao_estoque_id: i.movimentacao_estoque_id ?? null,
       estoque_lote_nota_id: i.estoque_lote_nota_id ?? null,
       movimentacao_estorno_id: i.movimentacao_estorno_id ?? null,
@@ -840,6 +865,8 @@ const comoPlanoPublico = (plano, simulacao, refs) => {
       ordem: i.ordem, tipo_item: i.tipo_item, produto_id: i.produto_id ?? null, local_estoque_id: i.local_estoque_id ?? null, unidade: i.unidade,
       quantidade: texto(i.quantidade, CASAS_QUANTIDADE), valor_unitario: texto(i.valor_unitario, CASAS_PRECO), valor_total: texto(i.valor_total, c),
       fator_kg: texto(i.fator_kg, CASAS_QUANTIDADE), quantidade_estoque: texto(i.quantidade_estoque, CASAS_QUANTIDADE),
+      valor_desconto_rateado: texto(i.valor_desconto_rateado, c), valor_acrescimo_rateado: texto(i.valor_acrescimo_rateado, c), valor_liquido: texto(i.valor_liquido, c),
+      custo_kg: texto(i.custo_kg, CASAS_CUSTO), residuo_custo: texto(i.residuo_custo, CASAS_RESIDUO),
     })),
     rateios: plano.rateios.map((r) => ({
       ordem: r.ordem, natureza_id: r.natureza_id, centro_custo_id: r.centro_custo_id ?? null, centro_resultado_id: r.centro_resultado_id ?? null,
@@ -1012,7 +1039,8 @@ export const confirmar = async (contexto, id, corpo) => {
             /**
              * §8.2: o kg replanejado AGORA (peso por saco atual do produto) é o que
              * vai para lote, movimento, `estoque_atual` e fatias; o item guarda o
-             * MESMO kg (e fator/subtotal do plano), porque o estorno lê do item.
+             * MESMO kg (e fator/subtotal/rateio do cabeçalho/líquido do plano),
+             * porque o estorno lê do item.
              * @type {any}
              */
             const dadosItem = {
@@ -1021,10 +1049,12 @@ export const confirmar = async (contexto, id, corpo) => {
               fator_kg: paraBanco(itemPlano.fator_kg, CASAS_QUANTIDADE),
               quantidade_estoque: paraBanco(itemPlano.quantidade_estoque, CASAS_QUANTIDADE),
               valor_total: paraBanco(itemPlano.valor_total, 4),
+              ...colunasDoLiquido(itemPlano),
             };
             if (op.direcao === 'PAGAR') {
+              // Custo de aquisição LÍQUIDO: movimento = líquido da linha; lote = custo por kg do líquido.
               const ent = await aplicarEntradaEstoque(tx, contexto, {
-                ...comum, custoUnitarioKg: e.custo_kg, valorTotal: itemPlano.valor_total, origem: { operacaoId: id, tipoDetalhado: 'compra_financeiro' },
+                ...comum, custoUnitarioKg: e.custo_kg, valorTotal: e.valor_liquido, origem: { operacaoId: id, tipoDetalhado: 'compra_financeiro' },
               });
               dadosItem.movimentacao_estoque_id = ent.movimento.id;
               dadosItem.estoque_lote_nota_id = ent.lote.id;
@@ -1042,6 +1072,14 @@ export const confirmar = async (contexto, id, corpo) => {
               });
             }
             await tx.operacaoFinanceiraItem.update({ where: { cliente_id_id: { cliente_id: cli, id: itemBanco.id } }, data: dadosItem });
+          }
+          // Linhas sem efeito físico (serviço): o rateio do cabeçalho replanejado é regravado se mudou.
+          const comEfeito = new Set(efeitos.map((e) => e.item_ordem));
+          for (const itemPlano of plano.itens) {
+            if (comEfeito.has(itemPlano.ordem)) continue;
+            const itemBanco = /** @type {any} */ (itens.find((i) => i.ordem === itemPlano.ordem));
+            const igual = ['valor_desconto_rateado', 'valor_acrescimo_rateado', 'valor_liquido'].every((k) => dec(itemBanco[k]).eq(itemPlano[k]));
+            if (!igual) await tx.operacaoFinanceiraItem.update({ where: { cliente_id_id: { cliente_id: cli, id: itemBanco.id } }, data: colunasDoLiquido(itemPlano) });
           }
           await atualizarSnapshotsDoRateio(tx, cli, rateios, refs);
           await tx.tituloFinanceiro.updateMany({ where: { ...w, status: 'PREVISTO' }, data: { status: 'ABERTO' } });

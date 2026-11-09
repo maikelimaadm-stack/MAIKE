@@ -152,8 +152,10 @@ const incrementarEstoqueAtual = async (tx, clienteId, produtoId, kg) => {
 
 /**
  * ENTRADA (compra confirmada): lote novo + movimento 'Entrada' ligado ao lote +
- * `estoque_atual += kg`. Custo do lote = custo por kg do item (o desconto e o
- * acréscimo do cabeçalho NÃO entram no custo nesta fase).
+ * `estoque_atual += kg`. Custo de aquisição LÍQUIDO (D-PROD-155, rodada 4):
+ * `valorTotal` é o valor líquido da linha (subtotal − desconto + acréscimo do
+ * cabeçalho rateados) e `custoUnitarioKg` = ROUND_HALF_UP(líquido / kg, 4);
+ * o resíduo de arredondamento é decidido/mostrado pelo planejador.
  * @param {any} tx
  * @param {{auth: any, requestId?: string}} ctx
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, custoUnitarioKg: any,

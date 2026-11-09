@@ -1,0 +1,706 @@
+{
+  "$comentario": "D-PROD-155 (P3-01, rodada 4): vetores COMPARTILHADOS da política 'custo de aquisição líquido'. Consumidos pelo teste PG do backend (backend/tests/gestaoP3CustoLiquido.test.mjs) e pelo backend falso da tela (tests/smoke/fixtures). Os dois lados têm de produzir EXATAMENTE estes valores. Desconto D e acréscimo A do cabeçalho são rateados SEPARADAMENTE entre TODAS as linhas de um COM_PRODUTOS, proporcionais ao subtotal (item.valor_total), em unidades mínimas da moeda, pelo método dos maiores restos (empate de resto → menor ordem). valor_liquido = valor_total − valor_desconto_rateado + valor_acrescimo_rateado. Só PAGAR + MERCADORIA tem custo_kg = ROUND_HALF_UP(valor_liquido / quantidade_estoque, 4) e residuo_custo = valor_liquido − quantidade_estoque × custo_kg (8 casas); nos demais os dois são null. |residuo_custo| > max(1 unidade mínima, 0,001 × valor_liquido) → 422 custo_kg_nao_representavel (limite de 0,1%: como |residuo| ≤ kg × 0,00005, custo ≥ 0,06/kg nunca é recusado). Linha com valor_liquido ≤ 0 → 422 item_liquido_nao_positivo. Strings na escala: dinheiro nas casas da moeda, quantidade_estoque e custo_kg com 4, residuo_custo e residuo_total com 8.",
+  "formato": {
+    "entrada": "perfil {pais, moeda, locale}, casas, direcao, valor_desconto, valor_acrescimo e itens [{tipo_item, unidade, quantidade, valor_unitario, peso_por_saco_kg (só SACO), descricao (só SERVICO)}]",
+    "esperado_ok": "valor_bruto, valor_total, itens [{ordem, valor_total, valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, quantidade_estoque, custo_kg, residuo_custo}], residuo_total (Σ dos resíduos das linhas PAGAR+MERCADORIA; null se não houver nenhuma) e avisos (códigos, na ordem)",
+    "esperado_erro": "valor_bruto e valor_total do documento (para montar a parcela) e erro {status, code, field, reason, details} — details são os campos de details da resposta além de field/reason",
+    "efeitos_estoque_chaves": {
+      "$comentario": "chaves EXATAS de plano.efeitos_estoque na prévia (operacaoFinanceiraService.serializarPlano): o backend PG e o backend falso conferem as duas listas",
+      "entradas": [
+        "item_ordem",
+        "produto_id",
+        "produto_nome",
+        "local_estoque_id",
+        "local_nome",
+        "kg",
+        "custo_kg"
+      ],
+      "saidas": [
+        "item_ordem",
+        "produto_id",
+        "produto_nome",
+        "local_estoque_id",
+        "local_nome",
+        "kg",
+        "disponivel",
+        "custo_total",
+        "fatias"
+      ]
+    }
+  },
+  "casos": [
+    {
+      "id": "brl_compra_desconto_saco",
+      "descricao": "compra 100 SACO × 80,00 (30 kg/saco) com desconto de 500,00: título 7.500,00, lote 2,5000/kg, movimento 7.500,00",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "500.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "SACO",
+          "quantidade": "100",
+          "valor_unitario": "80",
+          "peso_por_saco_kg": "30"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "8000.00",
+        "valor_total": "7500.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "8000.00",
+            "valor_desconto_rateado": "500.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "7500.00",
+            "quantidade_estoque": "3000.0000",
+            "custo_kg": "2.5000",
+            "residuo_custo": "0.00000000"
+          }
+        ],
+        "residuo_total": "0.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados"
+        ]
+      }
+    },
+    {
+      "id": "brl_sem_desconto_residuo",
+      "descricao": "a mesma compra sem desconto: custo 2,6667/kg e resíduo −0,10 (dentro do limite) mostrado explicitamente",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "SACO",
+          "quantidade": "100",
+          "valor_unitario": "80",
+          "peso_por_saco_kg": "30"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "8000.00",
+        "valor_total": "8000.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "8000.00",
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "8000.00",
+            "quantidade_estoque": "3000.0000",
+            "custo_kg": "2.6667",
+            "residuo_custo": "-0.10000000"
+          }
+        ],
+        "residuo_total": "-0.10000000",
+        "avisos": [
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "brl_sobra_centavo_empate",
+      "descricao": "3 linhas de subtotal igual e desconto de 0,10: sobra 1 centavo com restos empatados → vai para a menor ordem",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.10",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "1"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "1"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "1"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "30.00",
+        "valor_total": "29.90",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "10.00",
+            "valor_desconto_rateado": "0.04",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "9.96",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "0.9960",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 2,
+            "valor_total": "10.00",
+            "valor_desconto_rateado": "0.03",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "9.97",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "0.9970",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 3,
+            "valor_total": "10.00",
+            "valor_desconto_rateado": "0.03",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "9.97",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "0.9970",
+            "residuo_custo": "0.00000000"
+          }
+        ],
+        "residuo_total": "0.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados"
+        ]
+      }
+    },
+    {
+      "id": "brl_maiores_restos",
+      "descricao": "subtotais 10, 20 e 70 com desconto de 0,07: pisos 0/1/4, sobram 2 centavos → maiores restos (linha 3 com 0,9; linha 1 com 0,7)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.07",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "1"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "2"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "10",
+          "valor_unitario": "7"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "100.00",
+        "valor_total": "99.93",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "10.00",
+            "valor_desconto_rateado": "0.01",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "9.99",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "0.9990",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 2,
+            "valor_total": "20.00",
+            "valor_desconto_rateado": "0.01",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "19.99",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "1.9990",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 3,
+            "valor_total": "70.00",
+            "valor_desconto_rateado": "0.05",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "69.95",
+            "quantidade_estoque": "10.0000",
+            "custo_kg": "6.9950",
+            "residuo_custo": "0.00000000"
+          }
+        ],
+        "residuo_total": "0.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados"
+        ]
+      }
+    },
+    {
+      "id": "brl_mercadoria_servico_desconto_acrescimo",
+      "descricao": "mercadoria KG + serviço + mercadoria SACO, desconto 1,00 e acréscimo 0,50 rateados separadamente (maiores restos em cada um); Σ líquido = total; resíduos −0,0001 e 0,002 dentro do limite",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "1.00",
+      "valor_acrescimo": "0.50",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "3",
+          "valor_unitario": "3.33"
+        },
+        {
+          "tipo_item": "SERVICO",
+          "unidade": "UN",
+          "quantidade": "1",
+          "valor_unitario": "5.01",
+          "descricao": "FRETE"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "SACO",
+          "quantidade": "2",
+          "valor_unitario": "45",
+          "peso_por_saco_kg": "30"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "105.00",
+        "valor_total": "104.50",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "9.99",
+            "valor_desconto_rateado": "0.09",
+            "valor_acrescimo_rateado": "0.05",
+            "valor_liquido": "9.95",
+            "quantidade_estoque": "3.0000",
+            "custo_kg": "3.3167",
+            "residuo_custo": "-0.00010000"
+          },
+          {
+            "ordem": 2,
+            "valor_total": "5.01",
+            "valor_desconto_rateado": "0.05",
+            "valor_acrescimo_rateado": "0.02",
+            "valor_liquido": "4.98",
+            "quantidade_estoque": null,
+            "custo_kg": null,
+            "residuo_custo": null
+          },
+          {
+            "ordem": 3,
+            "valor_total": "90.00",
+            "valor_desconto_rateado": "0.86",
+            "valor_acrescimo_rateado": "0.43",
+            "valor_liquido": "89.57",
+            "quantidade_estoque": "60.0000",
+            "custo_kg": "1.4928",
+            "residuo_custo": "0.00200000"
+          }
+        ],
+        "residuo_total": "0.00190000",
+        "avisos": [
+          "desconto_acrescimo_rateados",
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "pyg_desconto_sobra",
+      "descricao": "PYG (0 casas): desconto 1001 sobre 3000 + 7000; sobra 1 guarani para o maior resto; custo 899,8571 com resíduo 0,0003",
+      "perfil": {
+        "pais": "PY",
+        "moeda": "PYG",
+        "locale": "es-PY"
+      },
+      "casas": 0,
+      "direcao": "PAGAR",
+      "valor_desconto": "1001",
+      "valor_acrescimo": "0",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "3",
+          "valor_unitario": "1000"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "7",
+          "valor_unitario": "1000"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "10000",
+        "valor_total": "8999",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "3000",
+            "valor_desconto_rateado": "300",
+            "valor_acrescimo_rateado": "0",
+            "valor_liquido": "2700",
+            "quantidade_estoque": "3.0000",
+            "custo_kg": "900.0000",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 2,
+            "valor_total": "7000",
+            "valor_desconto_rateado": "701",
+            "valor_acrescimo_rateado": "0",
+            "valor_liquido": "6299",
+            "quantidade_estoque": "7.0000",
+            "custo_kg": "899.8571",
+            "residuo_custo": "0.00030000"
+          }
+        ],
+        "residuo_total": "0.00030000",
+        "avisos": [
+          "desconto_acrescimo_rateados",
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "kwd_desconto_acrescimo",
+      "descricao": "KWD (3 casas): desconto 0,001 e acréscimo 0,002 sobre 1,000 + 2,000 — cada rateio com a sua sobra",
+      "perfil": {
+        "pais": "KW",
+        "moeda": "KWD",
+        "locale": "en-US"
+      },
+      "casas": 3,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.001",
+      "valor_acrescimo": "0.002",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "1",
+          "valor_unitario": "1"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "2",
+          "valor_unitario": "1"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "3.000",
+        "valor_total": "3.001",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "1.000",
+            "valor_desconto_rateado": "0.000",
+            "valor_acrescimo_rateado": "0.001",
+            "valor_liquido": "1.001",
+            "quantidade_estoque": "1.0000",
+            "custo_kg": "1.0010",
+            "residuo_custo": "0.00000000"
+          },
+          {
+            "ordem": 2,
+            "valor_total": "2.000",
+            "valor_desconto_rateado": "0.001",
+            "valor_acrescimo_rateado": "0.001",
+            "valor_liquido": "2.000",
+            "quantidade_estoque": "2.0000",
+            "custo_kg": "1.0000",
+            "residuo_custo": "0.00000000"
+          }
+        ],
+        "residuo_total": "0.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados"
+        ]
+      }
+    },
+    {
+      "id": "brl_residuo_no_limite",
+      "descricao": "líquido 1,00 em 300 kg: custo 0,0033 e resíduo 0,01 = exatamente 1 unidade mínima → aceito (a recusa é só ACIMA do limite)",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "300",
+          "valor_unitario": "0.003333"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "1.00",
+        "valor_total": "1.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "1.00",
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "1.00",
+            "quantidade_estoque": "300.0000",
+            "custo_kg": "0.0033",
+            "residuo_custo": "0.01000000"
+          }
+        ],
+        "residuo_total": "0.01000000",
+        "avisos": [
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "brl_granel_frete",
+      "descricao": "granel barato com frete: 38.760 kg × 0,25 + acréscimo 850,00 → líquido 10.540,00, custo 0,2719/kg e resíduo 1,156 (0,011% da linha) dentro do limite de 0,1% → aceito",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "850.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "38760",
+          "valor_unitario": "0.25"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "9690.00",
+        "valor_total": "10540.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "9690.00",
+            "valor_desconto_rateado": "0.00",
+            "valor_acrescimo_rateado": "850.00",
+            "valor_liquido": "10540.00",
+            "quantidade_estoque": "38760.0000",
+            "custo_kg": "0.2719",
+            "residuo_custo": "1.15600000"
+          }
+        ],
+        "residuo_total": "1.15600000",
+        "avisos": [
+          "desconto_acrescimo_rateados",
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "brl_granel_desconto",
+      "descricao": "granel barato com desconto: 30.000 kg × 0,15 − desconto 7,00 → líquido 4.493,00, custo 0,1498/kg e resíduo −1,00 (0,022% da linha) dentro do limite de 0,1% → aceito",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "7.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "30000",
+          "valor_unitario": "0.15"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "4500.00",
+        "valor_total": "4493.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "4500.00",
+            "valor_desconto_rateado": "7.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "4493.00",
+            "quantidade_estoque": "30000.0000",
+            "custo_kg": "0.1498",
+            "residuo_custo": "-1.00000000"
+          }
+        ],
+        "residuo_total": "-1.00000000",
+        "avisos": [
+          "desconto_acrescimo_rateados",
+          "residuo_custo_estoque"
+        ]
+      }
+    },
+    {
+      "id": "brl_residuo_fora_do_limite",
+      "descricao": "líquido 1,00 em 3000 kg: custo 0,0003 e resíduo 0,10 > max(0,01; 0,001) → 422 custo_kg_nao_representavel",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "0.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "3000",
+          "valor_unitario": "0.000333"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "1.00",
+        "valor_total": "1.00",
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_VALORES_INVALIDOS",
+          "field": "valor_unitario",
+          "reason": "custo_kg_nao_representavel",
+          "details": {
+            "colecao": "itens",
+            "indice": 0,
+            "item_ordem": 1,
+            "valor_liquido": "1.00",
+            "quantidade_estoque": "3000.0000",
+            "custo_kg": "0.0003",
+            "residuo_custo": "0.10000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "brl_item_liquido_nao_positivo",
+      "descricao": "desconto 100,00 sobre 0,01 + 100,00: a sobra de 1 centavo vai para a linha 1 (maior resto) e zera o líquido dela → 422 item_liquido_nao_positivo",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "PAGAR",
+      "valor_desconto": "100.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "1",
+          "valor_unitario": "0.01"
+        },
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "100",
+          "valor_unitario": "1"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "100.01",
+        "valor_total": "0.01",
+        "erro": {
+          "status": 422,
+          "code": "OPERACAO_VALORES_INVALIDOS",
+          "field": "valor_desconto",
+          "reason": "item_liquido_nao_positivo",
+          "details": {
+            "colecao": "itens",
+            "indice": 0,
+            "item_ordem": 1,
+            "valor_total": "0.01",
+            "valor_desconto_rateado": "0.01",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "0.00"
+          }
+        }
+      }
+    },
+    {
+      "id": "brl_venda_desconto_informativo",
+      "descricao": "venda 8 kg × 3,00 com desconto 4,00: rateio informativo (receita líquida 20,00); sem custo_kg/resíduo — o custo da saída continua FIFO",
+      "perfil": {
+        "pais": "BR",
+        "moeda": "BRL",
+        "locale": "pt-BR"
+      },
+      "casas": 2,
+      "direcao": "RECEBER",
+      "valor_desconto": "4.00",
+      "valor_acrescimo": "0.00",
+      "itens": [
+        {
+          "tipo_item": "MERCADORIA",
+          "unidade": "KG",
+          "quantidade": "8",
+          "valor_unitario": "3"
+        }
+      ],
+      "esperado": {
+        "valor_bruto": "24.00",
+        "valor_total": "20.00",
+        "itens": [
+          {
+            "ordem": 1,
+            "valor_total": "24.00",
+            "valor_desconto_rateado": "4.00",
+            "valor_acrescimo_rateado": "0.00",
+            "valor_liquido": "20.00",
+            "quantidade_estoque": "8.0000",
+            "custo_kg": null,
+            "residuo_custo": null
+          }
+        ],
+        "residuo_total": null,
+        "avisos": [
+          "desconto_acrescimo_rateados"
+        ]
+      }
+    }
+  ]
+}

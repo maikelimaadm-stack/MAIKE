@@ -90,6 +90,9 @@ CREATE TABLE "OperacaoFinanceiraItem" (
     "quantidade_estoque" DECIMAL(14,4),
     "valor_unitario" DECIMAL(18,6) NOT NULL,
     "valor_total" DECIMAL(18,4) NOT NULL,
+    "valor_desconto_rateado" DECIMAL(18,4) NOT NULL DEFAULT 0,
+    "valor_acrescimo_rateado" DECIMAL(18,4) NOT NULL DEFAULT 0,
+    "valor_liquido" DECIMAL(18,4) NOT NULL,
     "movimentacao_estoque_id" VARCHAR(64),
     "estoque_lote_nota_id" VARCHAR(64),
     "movimentacao_estorno_id" VARCHAR(64),
@@ -351,6 +354,10 @@ ALTER TABLE "OperacaoFinanceira" ADD CONSTRAINT "OperacaoFinanceira_versao_check
 ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_tipo_item_check" CHECK ("tipo_item" IN ('MERCADORIA', 'SERVICO'));
 ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_unidade_check" CHECK ("unidade" IN ('KG', 'SACO', 'UN'));
 ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_valores_check" CHECK ("quantidade" > 0 AND "valor_unitario" >= 0 AND "valor_total" > 0 AND "ordem" >= 1);
+-- Custo de aquisição líquido (rodada 4): desconto/acréscimo do cabeçalho rateados por linha; líquido = subtotal − desconto + acréscimo, positivo.
+ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_rateado_check" CHECK ("valor_desconto_rateado" >= 0 AND "valor_acrescimo_rateado" >= 0);
+ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_liquido_positivo_check" CHECK ("valor_liquido" > 0);
+ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_liquido_check" CHECK ("valor_liquido" = "valor_total" - "valor_desconto_rateado" + "valor_acrescimo_rateado");
 ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = 'MERCADORIA' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "unidade" IN ('KG', 'SACO') AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = 'SERVICO' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = 'UN' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL));
 
 ALTER TABLE "OperacaoFinanceiraConsumoLote" ADD CONSTRAINT "OperacaoFinanceiraConsumoLote_valores_check" CHECK ("quantidade" > 0 AND "custo_unitario" >= 0);

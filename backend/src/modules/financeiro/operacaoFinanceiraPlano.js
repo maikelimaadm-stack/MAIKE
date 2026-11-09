@@ -5,21 +5,34 @@
  *    aceito pelo schema fechado: datas reais, escala da moeda, regras de
  *    conteúdo/itens/rateio/parcelas. Devolve o documento normalizado (Decimal).
  *  - `planejarOperacao(doc, referencias)`: a MESMA função usada por POST/PUT,
- *    prévia e confirmação (§4): totais, kg, custo por kg, rateio (VALOR ou
- *    PERCENTUAL com distribuição do resto), parcelas e efeitos de estoque.
+ *    prévia e confirmação (§4): totais, kg, rateio do desconto/acréscimo do
+ *    cabeçalho por linha, valor líquido, custo por kg (+ resíduo), rateio
+ *    gerencial (VALOR ou PERCENTUAL com distribuição do resto), parcelas e
+ *    efeitos de estoque.
  *    Falha matemática → 422 com `details.field/reason` (+ `colecao`/`indice`).
  *  - `simularEfeitosEstoque(plano, estado)`: bloqueios de ESTADO da prévia
  *    (FIFO em SEQUÊNCIA, `estoque_atual`, limites das colunas antigas).
  *
  * Rateio e parcelas são SEMPRE sobre `valor_total` (após desconto/acréscimo).
+ *
+ * Custo de aquisição líquido (rodada 4): desconto D e acréscimo A do cabeçalho
+ * de um COM_PRODUTOS são rateados SEPARADAMENTE entre TODAS as linhas
+ * (mercadoria e serviço, nas duas direções), proporcionais ao subtotal, em
+ * unidades mínimas da moeda, pelos maiores restos (empate → menor ordem):
+ * Σ d = D e Σ a = A exatos, e Σ líquido = `valor_total`. Na compra de
+ * mercadoria o custo por kg (4 casas, colunas antigas Decimal(14,4)) sai do
+ * LÍQUIDO; o resíduo `líquido − kg × custo` fica fora do custo FIFO e é
+ * mostrado; acima de max(1 unidade mínima, 0,001 × líquido) → 422
+ * `custo_kg_nao_representavel`. Na venda o rateio é só informativo (o custo
+ * da saída continua FIFO).
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { consumirFifo } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
-  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_QUANTIDADE, CEM, LIMITE_DINHEIRO, LIMITE_ESTOQUE, UM, ZERO,
-  arredondar, casasDecimais, dec, piso, somar, unidadeMinima,
+  CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, Dec, LIMITE_DINHEIRO, LIMITE_ESTOQUE, LIMITE_RESIDUO_RELATIVO, UM, ZERO,
+  arredondar, casasDecimais, dec, piso, somar, texto, unidadeMinima,
 } from './decimalFinanceiro.js';
 
 export const DIRECOES = Object.freeze(['PAGAR', 'RECEBER']);
@@ -187,8 +200,8 @@ const normalizarItem = (it, indice) => {
  */
 export const planejarOperacao = (doc, referencias) => {
   const casas = referencias.casas;
-  const itens = doc.itens.map((it, indice) => planejarItem(doc, it, indice, referencias, casas));
-  const valorBruto = doc.conteudo === 'COM_PRODUTOS' ? somar(itens.map((i) => i.valor_total)) : dec(doc.valor_bruto);
+  const brutos = doc.itens.map((it, indice) => planejarItem(it, indice, referencias, casas));
+  const valorBruto = doc.conteudo === 'COM_PRODUTOS' ? somar(brutos.map((i) => i.valor_total)) : dec(doc.valor_bruto);
   for (const [campo, v] of [['valor_bruto', valorBruto], ['valor_desconto', doc.valor_desconto], ['valor_acrescimo', doc.valor_acrescimo]]) {
     if (dec(v).gt(LIMITE_DINHEIRO)) throw valoresInvalidos(`${campo} acima do limite (99.999.999.999.999,9999)`, { field: campo, reason: 'valor_excede_limite' });
   }
@@ -196,6 +209,7 @@ export const planejarOperacao = (doc, referencias) => {
   const valorTotal = valorBruto.minus(doc.valor_desconto).plus(doc.valor_acrescimo);
   if (!valorTotal.gt(0)) throw valoresInvalidos('o total (bruto − desconto + acréscimo) deve ser maior que zero', { field: 'valor_total', reason: 'total_nao_positivo' });
   if (valorTotal.gt(LIMITE_DINHEIRO)) throw valoresInvalidos('o total está acima do limite (99.999.999.999.999,9999)', { field: 'valor_total', reason: 'valor_excede_limite' });
+  const itens = planejarCustoLiquido(doc, brutos, casas);
   const rateios = planejarRateio(doc, valorTotal, casas);
   const parcelas = planejarParcelas(doc, valorTotal, casas);
   /** @type {any[]} */
@@ -204,12 +218,29 @@ export const planejarOperacao = (doc, referencias) => {
   const saidas = [];
   for (const item of itens) {
     if (item.tipo_item !== 'MERCADORIA') continue;
-    const efeito = { item_ordem: item.ordem, indice: item.ordem - 1, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, kg: item.quantidade_estoque, custo_kg: item.custo_kg };
+    const efeito = {
+      item_ordem: item.ordem, indice: item.ordem - 1, produto_id: item.produto_id, local_estoque_id: item.local_estoque_id, kg: item.quantidade_estoque,
+      custo_kg: item.custo_kg, valor_liquido: item.valor_liquido,
+    };
     (doc.direcao === 'PAGAR' ? entradas : saidas).push(efeito);
   }
   const avisos = [];
-  if (entradas.length && (doc.valor_desconto.gt(0) || doc.valor_acrescimo.gt(0))) {
-    avisos.push({ codigo: 'custo_sem_desconto_acrescimo', mensagem: 'desconto e acréscimo do cabeçalho não entram no custo do estoque nesta fase (o custo do lote é o subtotal do item)' });
+  if (doc.conteudo === 'COM_PRODUTOS' && (doc.valor_desconto.gt(0) || doc.valor_acrescimo.gt(0))) {
+    avisos.push({
+      codigo: 'desconto_acrescimo_rateados',
+      mensagem: doc.direcao === 'PAGAR'
+        ? 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal; o custo do lote é o valor líquido da mercadoria'
+        : 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal (receita líquida por item); a saída do estoque continua com o custo FIFO dos lotes',
+    });
+  }
+  const comCusto = itens.filter((i) => i.residuo_custo !== null);
+  if (comCusto.some((i) => !i.residuo_custo.isZero())) {
+    const total = texto(somar(comCusto.map((i) => i.residuo_custo)), CASAS_RESIDUO);
+    avisos.push({
+      codigo: 'residuo_custo_estoque',
+      mensagem: `o custo por kg do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e kg × custo (resíduo total ${total}) não entra no custo FIFO do estoque`,
+      residuo_total: total,
+    });
   }
   return {
     moeda: referencias.moeda,
@@ -227,24 +258,95 @@ export const planejarOperacao = (doc, referencias) => {
   };
 };
 
-const planejarItem = (doc, it, indice, referencias, casas) => {
+/** Subtotal, fator e kg de uma linha (o custo por kg sai do líquido: `planejarCustoLiquido`). */
+const planejarItem = (it, indice, referencias, casas) => {
   const extra = { colecao: 'itens', indice };
   if (!it.quantidade.gt(0)) throw valoresInvalidos('a quantidade deve ser maior que zero', { field: 'quantidade', reason: 'quantidade_nao_positiva', ...extra });
   const valorTotal = arredondar(it.quantidade.times(it.valor_unitario), casas);
   if (valorTotal.gt(LIMITE_DINHEIRO)) throw valoresInvalidos('o subtotal do item está acima do limite', { field: 'valor_total', reason: 'valor_excede_limite', ...extra });
   if (!valorTotal.gt(0)) throw valoresInvalidos('o subtotal do item (quantidade × valor unitário) arredondado na moeda é zero', { field: 'valor_unitario', reason: 'item_valor_zero', ...extra });
-  if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null, custo_kg: null };
+  if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
   const fator = it.unidade === 'KG' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
   const kg = arredondar(it.quantidade.times(fator), CASAS_QUANTIDADE);
   if (!kg.gt(0)) throw valoresInvalidos('a quantidade em kg (arredondada a 4 casas) é zero', { field: 'quantidade', reason: 'quantidade_estoque_zero', ...extra });
-  const custoKg = doc.direcao === 'PAGAR' ? arredondar(valorTotal.dividedBy(kg), CASAS_CUSTO) : null;
-  const acima = [['valor_total', valorTotal], ['quantidade', kg], ['valor_unitario', custoKg]].find(([, v]) => v && dec(v).gt(LIMITE_ESTOQUE));
-  if (acima) {
-    throw valoresInvalidos('mercadoria acima do limite das colunas de estoque (9.999.999.999,9999 em kg, custo por kg e valor)', { field: acima[0], reason: 'valor_excede_limite_estoque', ...extra });
-  }
-  return { ...it, valor_total: valorTotal, fator_kg: fator, quantidade_estoque: kg, custo_kg: custoKg };
+  const acima = [['valor_total', valorTotal], ['quantidade', kg]].find(([, v]) => dec(v).gt(LIMITE_ESTOQUE));
+  if (acima) throw excedeLimiteEstoque(acima[0], extra);
+  return { ...it, valor_total: valorTotal, fator_kg: fator, quantidade_estoque: kg };
+};
+
+const excedeLimiteEstoque = (field, extra) =>
+  valoresInvalidos('mercadoria acima do limite das colunas de estoque (9.999.999.999,9999 em kg, custo por kg e valor)', { field, reason: 'valor_excede_limite_estoque', ...extra });
+
+/** Valor na escala da moeda → inteiro de unidades mínimas (exige estar na escala). */
+const unidadesDe = (x, casas) => {
+  const u = dec(x).times(new Dec(10).pow(casas));
+  if (!u.isInteger()) throw new TypeError(`rateio do cabeçalho: ${dec(x).toString()} fora da escala da moeda (${casas} casas)`);
+  return BigInt(u.toFixed(0));
+};
+
+/**
+ * Rateia `valor` (desconto OU acréscimo do cabeçalho) entre as linhas,
+ * proporcional ao subtotal, em unidades mínimas da moeda pelos MAIORES
+ * RESTOS; empate de resto → menor ordem (índice). Aritmética inteira (BigInt):
+ * Σ do resultado = `valor`, exato.
+ * @param {any} valor  na escala `casas`
+ * @param {any[]} subtotais  subtotais das linhas (na escala `casas`, todos > 0)
+ * @param {number} casas
+ */
+export const ratearCabecalho = (valor, subtotais, casas) => {
+  const alvo = unidadesDe(valor, casas);
+  const pesos = subtotais.map((x) => unidadesDe(x, casas));
+  const base = pesos.reduce((t, p) => t + p, 0n);
+  if (alvo === 0n || base <= 0n) return pesos.map(() => ZERO);
+  const partes = pesos.map((p) => (alvo * p) / base);
+  const restos = pesos.map((p) => (alvo * p) % base);
+  let faltam = alvo - partes.reduce((t, p) => t + p, 0n);
+  const ordem = pesos.map((_, i) => i).sort((a, b) => (restos[b] > restos[a] ? 1 : restos[b] < restos[a] ? -1 : a - b));
+  for (let k = 0; faltam > 0n; k += 1, faltam -= 1n) partes[ordem[k]] += 1n;
+  const escala = new Dec(10).pow(casas);
+  return partes.map((n) => new Dec(n.toString()).dividedBy(escala));
+};
+
+/**
+ * Desconto/acréscimo do cabeçalho por linha, valor líquido e, na COMPRA de
+ * mercadoria, custo por kg do líquido + resíduo (representabilidade).
+ * SEM_PRODUTOS não tem linhas: nada a fazer.
+ */
+const planejarCustoLiquido = (doc, itens, casas) => {
+  if (!itens.length) return [];
+  const subtotais = itens.map((i) => i.valor_total);
+  const descontos = ratearCabecalho(doc.valor_desconto, subtotais, casas);
+  const acrescimos = ratearCabecalho(doc.valor_acrescimo, subtotais, casas);
+  const u = unidadeMinima(casas);
+  return itens.map((it, indice) => {
+    const extra = { colecao: 'itens', indice, item_ordem: it.ordem };
+    const d = descontos[indice];
+    const a = acrescimos[indice];
+    const liquido = it.valor_total.minus(d).plus(a);
+    if (!liquido.gt(0)) {
+      throw valoresInvalidos('o desconto rateado zera (ou passa) o valor desta linha; reduza o desconto ou ajuste os itens', {
+        field: 'valor_desconto', reason: 'item_liquido_nao_positivo', ...extra,
+        valor_total: texto(it.valor_total, casas), valor_desconto_rateado: texto(d, casas), valor_acrescimo_rateado: texto(a, casas), valor_liquido: texto(liquido, casas),
+      });
+    }
+    const linha = { ...it, valor_desconto_rateado: d, valor_acrescimo_rateado: a, valor_liquido: liquido, custo_kg: null, residuo_custo: null };
+    if (doc.direcao !== 'PAGAR' || it.tipo_item !== 'MERCADORIA') return linha;
+    const kg = it.quantidade_estoque;
+    const custoKg = arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
+    const acima = [['valor_total', liquido], ['valor_unitario', custoKg]].find(([, v]) => v.gt(LIMITE_ESTOQUE));
+    if (acima) throw excedeLimiteEstoque(acima[0], { colecao: 'itens', indice });
+    const bruto = liquido.minus(kg.times(custoKg));
+    const residuo = bruto.isZero() ? ZERO : bruto;
+    if (residuo.abs().gt(Dec.max(u, liquido.times(LIMITE_RESIDUO_RELATIVO)))) {
+      throw valoresInvalidos('o custo por kg com 4 casas não representa o valor líquido desta linha (o resíduo passa de 0,1% do líquido da linha, mínimo 1 unidade da moeda); revise quantidade, unidade ou valores', {
+        field: 'valor_unitario', reason: 'custo_kg_nao_representavel', ...extra,
+        valor_liquido: texto(liquido, casas), quantidade_estoque: texto(kg, CASAS_QUANTIDADE), custo_kg: texto(custoKg, CASAS_CUSTO), residuo_custo: texto(residuo, CASAS_RESIDUO),
+      });
+    }
+    return { ...linha, custo_kg: custoKg, residuo_custo: residuo };
+  });
 };
 
 const planejarRateio = (doc, total, casas) => {

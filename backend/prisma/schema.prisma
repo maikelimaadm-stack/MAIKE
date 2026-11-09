@@ -2042,6 +2042,13 @@ model OperacaoFinanceiraItem {
   quantidade_estoque      Decimal? @db.Decimal(14, 4)
   valor_unitario          Decimal  @db.Decimal(18, 6)
   valor_total             Decimal  @db.Decimal(18, 4)
+  /// Custo de aquisição líquido (rodada 4): desconto e acréscimo do cabeçalho
+  /// rateados por linha (maiores restos na moeda); líquido = subtotal −
+  /// desconto + acréscimo (CHECKs na migration). Na compra de mercadoria é o
+  /// valor do movimento de entrada e a base do custo do lote.
+  valor_desconto_rateado  Decimal  @default(0) @db.Decimal(18, 4)
+  valor_acrescimo_rateado Decimal  @default(0) @db.Decimal(18, 4)
+  valor_liquido           Decimal  @db.Decimal(18, 4)
   movimentacao_estoque_id String?  @db.VarChar(64)
   estoque_lote_nota_id    String?  @db.VarChar(64)
   movimentacao_estorno_id String?  @db.VarChar(64)

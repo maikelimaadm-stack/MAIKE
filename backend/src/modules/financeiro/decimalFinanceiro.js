@@ -29,6 +29,15 @@ export const CASAS_QUANTIDADE = 4;
 export const CASAS_PRECO = 6;
 export const CASAS_PERCENTUAL = 6;
 export const CASAS_CUSTO = 4;
+/** Resíduo do custo por kg: líquido (≤ 4 casas) − kg (4) × custo (4) é exato em 8 casas. */
+export const CASAS_RESIDUO = 8;
+/**
+ * Limite do resíduo, relativo ao líquido da linha: 0,1% (D-PROD-155, rodada 4).
+ * O resíduo de HALF_UP em 4 casas é no máximo kg × 0,00005, então nenhuma
+ * compra com custo ≥ 0,06/kg é recusada; abaixo disso só passa o que cabe em
+ * 0,1% (ou em 1 unidade mínima da moeda, o que for maior).
+ */
+export const LIMITE_RESIDUO_RELATIVO = new Dec('0.001');
 
 /**
  * Converte string canônica, Decimal (de qualquer construtor, inclusive o do

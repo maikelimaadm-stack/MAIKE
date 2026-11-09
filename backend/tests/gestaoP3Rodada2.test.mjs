@@ -363,13 +363,25 @@ const montarCompra = async () => {
   return { s, e, d, L };
 };
 
+/** Compra com desconto e acréscimo no cabeçalho (rodada 4): movimentos e lotes pelo valor LÍQUIDO de cada linha. */
+const montarCompraLiquida = async () => {
+  const s = await montarTenant(app);
+  const e = s.e1;
+  const L = { P1: await loteLegado(s, e, e.sal, s.local, { kg: '10', dia: '2027-06-01' }) };
+  await definirEstoqueAtual(e.sal, '10');
+  const d = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '5', '2'), item(e.racao, '2', '90', { unidade: 'SACO', local: s.local2 }), item(e.sal, '3', '2')], {
+    valor_desconto: '7.77', valor_acrescimo: '1.23', total: '189.46',
+  }));
+  return { s, e, d, L };
+};
+
 const diaDoEstorno = async (cen) => {
   const it = await prisma().operacaoFinanceiraItem.findFirst({ where: { operacao_id: cen.d.id, NOT: { movimentacao_estorno_id: null } } });
   return (await prisma().movimentacaoEstoque.findUnique({ where: { id: it.movimentacao_estorno_id } })).data_movimentacao.toISOString().slice(0, 10);
 };
 
 describe('R7 — CRITICO-2: estornos do cancelamento em lote', () => {
-  for (const [rotulo, montar] of /** @type {const} */ ([['venda (fatias cruzadas)', montarVenda], ['compra (KG e SACO)', montarCompra]])) {
+  for (const [rotulo, montar] of /** @type {const} */ ([['venda (fatias cruzadas)', montarVenda], ['compra (KG e SACO)', montarCompra], ['compra com desconto e acréscimo (custo líquido)', montarCompraLiquida]])) {
     test(`equivalência — ${rotulo}: lotes, movimentos (campos e saldo antes/depois), estoque_atual, itens e fatias iguais aos do laço item a item`, async () => {
       const a = await montar();
       const b = await montar();
@@ -377,6 +389,16 @@ describe('R7 — CRITICO-2: estornos do cancelamento em lote', () => {
       assert.equal(canc.statusCode, 200, canc.body);
       await estornarItemAItem(b.s, b.e, b.d, await diaDoEstorno(a));
       assert.deepEqual(await estadoEstoque(a), await estadoEstoque(b));
+      if (montar === montarCompraLiquida) {
+        // o estorno devolve exatamente o valor LÍQUIDO de cada linha (desconto/acréscimo rateados)
+        const its = await prisma().operacaoFinanceiraItem.findMany({ where: { operacao_id: a.d.id }, orderBy: { ordem: 'asc' } });
+        const valores = [];
+        for (const it of its) {
+          const est = await prisma().movimentacaoEstoque.findUnique({ where: { id: it.movimentacao_estorno_id } });
+          valores.push([it.valor_liquido.toFixed(4), est.valor_total.toFixed(4), est.valor_unitario.toFixed(4)]);
+        }
+        assert.deepEqual(valores, [['9.6600', '9.6600', '1.9320'], ['174.0000', '174.0000', '2.9000'], ['5.8000', '5.8000', '1.9333']]);
+      }
       // números finais: numéricos, distintos e na ordem dos itens
       const itens = await prisma().operacaoFinanceiraItem.findMany({ where: { operacao_id: a.d.id }, orderBy: { ordem: 'asc' } });
       const numeros = [];

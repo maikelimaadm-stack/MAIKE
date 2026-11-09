@@ -41,7 +41,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-153 (Gestão P2): NaturezaFinanceira — só tabela nova.
   '20261108100000_gestao_p2_naturezas_financeiras': 'db299e1d3543769ed46f07ee174521d3ea75b2990b94181012eecdafb9462f04',
   // D-PROD-155 (Gestão P3-01): Central Única de Lançamentos — só as 8 tabelas novas.
-  '20261109100000_gestao_p3_01_central_lancamentos': '1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e',
+  '20261109100000_gestao_p3_01_central_lancamentos': 'bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
