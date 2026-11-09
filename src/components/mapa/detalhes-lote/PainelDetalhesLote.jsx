@@ -1,6 +1,7 @@
 import React from "react";
 import { DlUiProvider, useDlUi } from "@/components/mapa/detalhes-lote/pecas";
 import { useEstadoLotes } from "./useEstadoLotes";
+import { usePreferenciasDetalhes } from "./preferencias";
 import AbaLotes from "./AbaLotes";
 import ListaCompactaLotes from "./ListaCompactaLotes";
 import CartoesLoteTudo from "./CartoesLoteTudo";
@@ -18,23 +19,30 @@ import InformacoesArea from "@/components/mapa/InformacoesArea";
 const DESLIZE_MIN = 50;
 
 /**
- * @param {{ modelo: any, suplementacao?: React.ReactNode, acoes?: React.ReactNode }} props
+ * `escopoPreferencias` (fazenda + conta + empresa) liga as preferências do
+ * usuário — informações marcadas no Filtrar (Lotes) e no Mostrar informações
+ * (Área). Sem ele, vale o padrão (sem filtro) e nada é gravado.
+ * @param {{ modelo: any, suplementacao?: React.ReactNode, acoes?: React.ReactNode, escopoPreferencias?: import('./preferencias').EscopoPreferencias | null }} props
  */
-export default function PainelDetalhesLote({ modelo, suplementacao = null, acoes = null }) {
+export default function PainelDetalhesLote({ modelo, suplementacao = null, acoes = null, escopoPreferencias = null }) {
   return (
     <DlUiProvider>
-      <Painel modelo={modelo} suplementacao={suplementacao} acoes={acoes} />
+      <Painel modelo={modelo} suplementacao={suplementacao} acoes={acoes} escopoPreferencias={escopoPreferencias} />
     </DlUiProvider>
   );
 }
 
 /**
- * @param {{ modelo: any, suplementacao: React.ReactNode, acoes: React.ReactNode }} props
+ * @param {{ modelo: any, suplementacao: React.ReactNode, acoes: React.ReactNode, escopoPreferencias: import('./preferencias').EscopoPreferencias | null }} props
  */
-function Painel({ modelo, suplementacao, acoes }) {
+function Painel({ modelo, suplementacao, acoes, escopoPreferencias }) {
   const ui = useDlUi();
   const celular = ui.celular;
-  const estado = /** @type {any} */ (useEstadoLotes({ modelo, celular }));
+  const { preferencias, alterar } = usePreferenciasDetalhes(escopoPreferencias);
+  const aoMudarSecoesLote = React.useCallback((/** @type {string[]} */ v) => alterar("secoesLote", v), [alterar]);
+  const aoMudarSecoesArea = React.useCallback((/** @type {string[]} */ v) => alterar("secoesArea", v), [alterar]);
+  const estado = useEstadoLotes({ modelo, celular, secoes: preferencias.secoesLote, aoMudarSecoes: aoMudarSecoesLote });
+  const { setVista } = estado;
   const idBase = `mk-dl8-${React.useId().replace(/:/g, "")}`;
   const temSupl = suplementacao != null && suplementacao !== false;
   const qtdLotes = Array.isArray(modelo?.lotes) ? modelo.lotes.length : 0;
@@ -59,7 +67,12 @@ function Painel({ modelo, suplementacao, acoes }) {
     if (corpo.current) corpo.current.scrollTop = 0;
   }, [aba]);
 
-  const irAba = React.useCallback((/** @type {string} */ id) => setAba(id), []);
+  // Entrar na aba Lotes (menu, deslize ou teclado) sempre abre no Resumo.
+  // O atalho do Tudo para um lote (abrirLoteNaVista) não passa por aqui.
+  const irAba = React.useCallback((/** @type {string} */ id) => {
+    if (id === "lotes") setVista("resumo");
+    setAba(id);
+  }, [setVista]);
 
   /** Tudo (celular) → Lotes › Lote naquele lote. */
   const abrirLoteNaVista = React.useCallback(
@@ -93,7 +106,7 @@ function Painel({ modelo, suplementacao, acoes }) {
       return;
     }
     const i = ids.indexOf(aba) + passo;
-    if (i >= 0 && i < ids.length) setAba(ids[i]);
+    if (i >= 0 && i < ids.length) irAba(ids[i]);
   };
   const aoCancelar = () => {
     inicio.current = null;
@@ -109,7 +122,7 @@ function Painel({ modelo, suplementacao, acoes }) {
     else if (e.key === "End") novo = ids.length - 1;
     if (novo < 0) return;
     e.preventDefault();
-    setAba(ids[novo]);
+    irAba(ids[novo]);
     const botao = /** @type {HTMLElement | null} */ (document.getElementById(`${idBase}-aba-${ids[novo]}`));
     botao?.focus();
   };
@@ -124,7 +137,7 @@ function Painel({ modelo, suplementacao, acoes }) {
       </>
     );
   } else if (aba === "area") {
-    conteudo = <AbaArea modelo={modelo} />;
+    conteudo = <AbaArea modelo={modelo} secoes={preferencias.secoesArea} aoMudarSecoes={aoMudarSecoesArea} />;
   } else if (aba === "lotes") {
     conteudo = <AbaLotes modelo={modelo} estado={estado} />;
   } else if (aba === "supl") {

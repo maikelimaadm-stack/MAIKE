@@ -108,6 +108,15 @@ Conferências automáticas nos 3 tamanhos:
 4. **"Resultado desconhecido" ao registrar manejo.** Os logs do preview mostram que o servidor recusou com `REBANHO_DATA_FUTURA`: as datas escolhidas eram 19/11 e 04/12/2026, e o dia era 09/11. O front não tinha mensagem para esse código e caía no texto genérico.
    - **Correção:** mensagens próprias para `REBANHO_DATA_FUTURA` e `EMPRESA_FUSO_NAO_CONFIGURADO` em `src/services/manejoRebanhoService.js`. Esse arquivo fica fora da lista do prompt; a mudança é uma linha de texto por código, e o teste fica em `detalhesLoteV8Pesagem.test.jsx`.
    - **A 1ª pesagem (19:10) foi gravada:** o servidor respondeu 201, e ela só não aparecia por causa do item 1.
+5. **Preferências por usuário, sem filtro de início, Resumo ao entrar em Lotes** (pedido do dono depois do teste).
+   - **Preferência por usuário:** as informações marcadas no "Filtrar" da aba Lotes e no "Mostrar informações" da aba Área são salvas por usuário, com a chave fazenda + conta + empresa. É a mesma regra dos filtros do Mapa Geral (`mapaGeralFiltrosStorage.js`, D-PROD-135).
+     - O código está em `detalhes-lote/preferencias.js`.
+     - Sem as três partes do escopo, vale o padrão e nada é gravado.
+     - As chaves antigas sem titular não são herdadas.
+   - **Padrão sem filtro:** sem preferência salva, todas as informações vêm marcadas. Antes o padrão era Alertas, Lotação e Pesagem.
+   - **Filtro de alerta:** não é preferência. Toda abertura começa em "Todos os lotes".
+   - **Vista inicial:** entrar na aba Lotes abre sempre no Resumo, nos três modos (antes o desktop e o tablet abriam na Lista). A exceção é o toque num lote no Tudo do celular, que leva direto à vista Lote daquele lote.
+   - **Testes:** `tests/smoke/detalhesLoteV8Preferencias.test.jsx`, 5 casos.
 
 ## O que NÃO foi feito
 

@@ -4,29 +4,6 @@ import { SECOES_AREA, TONS, VAZIO } from "@/components/mapa/detalhes-lote/catalo
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
 
-/** Preferência das seções marcadas em "Mostrar informações" (só da aba Área). */
-const CHAVE_SECOES_AREA = "mk-dl-v8-secoes-area";
-
-/** @returns {string[]} */
-function lerSecoesArea() {
-  try {
-    const salvo = JSON.parse(window.localStorage.getItem(CHAVE_SECOES_AREA) || "null");
-    if (Array.isArray(salvo)) return SECOES_AREA.filter((s) => salvo.includes(s));
-  } catch {
-    /* sem preferência salva */
-  }
-  return [...SECOES_AREA];
-}
-
-/** @param {string[]} secoes */
-function salvarSecoesArea(secoes) {
-  try {
-    window.localStorage.setItem(CHAVE_SECOES_AREA, JSON.stringify(secoes));
-  } catch {
-    /* ignora: a escolha vale só nesta sessão */
-  }
-}
-
 /** @param {string[]} sel */
 function textoSeletor(sel) {
   if (SECOES_AREA.every((s) => sel.includes(s))) return "Todas";
@@ -40,22 +17,24 @@ function textoSeletor(sel) {
  * "Informações da Área" com a faixa da lotação, card "Categorias na área" e os
  * alertas da área. Mockup v8, linhas 155–195. Sem produção e sem altura do capim.
  *
- * @param {{ modelo: ModeloDetalhes }} props
+ * As seções marcadas são PREFERÊNCIA DO USUÁRIO (fazenda + conta + empresa,
+ * ./preferencias.js): chegam em `secoes` e cada mudança vai para `aoMudarSecoes`.
+ * Sem `secoes`, mostra todas (padrão: sem filtro).
+ *
+ * @param {{ modelo: ModeloDetalhes, secoes?: string[], aoMudarSecoes?: (secoes: string[]) => void }} props
  */
-export default function AbaArea({ modelo }) {
+export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
   const ui = useDlUi();
   const area = modelo.area;
-  const [secoes, setSecoes] = useState(lerSecoesArea);
+  const secoes = SECOES_AREA.filter((s) => (secoesPref ?? SECOES_AREA).includes(s));
   const [aberto, setAberto] = useState(false);
   const { ancora, estilo: estiloRolagem } = useAlturaPopup(aberto);
   const idCampo = useId();
 
   /** @param {string[]} prox */
   const mudar = useCallback((prox) => {
-    const ordenadas = SECOES_AREA.filter((s) => prox.includes(s));
-    setSecoes(ordenadas);
-    salvarSecoesArea(ordenadas);
-  }, []);
+    aoMudarSecoes?.(SECOES_AREA.filter((s) => prox.includes(s)));
+  }, [aoMudarSecoes]);
 
   /** @param {string} s */
   const alternar = (s) => mudar(secoes.includes(s) ? secoes.filter((x) => x !== s) : [...secoes, s]);

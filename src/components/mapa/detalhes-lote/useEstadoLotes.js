@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   SECOES_LOTE,
-  SECOES_PADRAO,
   filtrarPorAlerta,
   opcoesDeAlerta,
   ordenarLotes,
@@ -30,69 +29,38 @@ import {
  * }} EstadoLotes
  */
 
-/** Preferência das seções marcadas em INFORMAÇÕES (só da aba Lotes). */
-const CHAVE_SECOES = 'mk-dl-v8-secoes';
-
-/** Mantém só seções conhecidas, na ordem de SECOES_LOTE. */
-function normalizarSecoes(/** @type {unknown} */ lista) {
-  if (!Array.isArray(lista)) return null;
-  return SECOES_LOTE.filter((s) => lista.includes(s));
-}
-
-/** localStorage pode lançar (modo privado, cota, bloqueio): nunca derruba a tela. */
-function lerSecoes() {
-  try {
-    const salvo = normalizarSecoes(JSON.parse(window.localStorage.getItem(CHAVE_SECOES) || 'null'));
-    if (salvo) return salvo;
-  } catch {
-    /* sem preferência salva */
-  }
-  return [...SECOES_PADRAO];
-}
-
-function salvarSecoes(/** @type {string[]} */ secoes) {
-  try {
-    window.localStorage.setItem(CHAVE_SECOES, JSON.stringify(secoes));
-  } catch {
-    /* ignora: a escolha vale só nesta sessão */
-  }
-}
-
 /**
  * Estado da aba Lotes (vista, filtro de informações e de alerta, ordenação,
  * lote ativo, acordeão e tópicos). Mesma lógica do mockup v8 (`seletor`,
  * `filtroAlertas`, `ordenados`, `tab.nav`, `tab.escolha`, `vistaCel`).
  *
- * @param {{ modelo: ModeloDetalhes, celular: boolean }} params
+ * As seções marcadas em INFORMAÇÕES são PREFERÊNCIA DO USUÁRIO (fazenda + conta +
+ * empresa, ver ./preferencias.js): chegam de fora em `secoes` e cada mudança vai
+ * para `aoMudarSecoes`, que grava. O filtro de alerta e a vista não são
+ * preferência: começam sempre em "Todos os lotes" e em Resumo (pedido do dono).
+ *
+ * @param {{ modelo: ModeloDetalhes, celular?: boolean, secoes: string[], aoMudarSecoes: (secoes: string[]) => void }} params
  * @returns {EstadoLotes}
  */
-export function useEstadoLotes({ modelo, celular }) {
+export function useEstadoLotes({ modelo, secoes: secoesPref, aoMudarSecoes }) {
   const lotes = useMemo(() => /** @type {LoteVm[]} */ (modelo?.lotes || []), [modelo]);
   const temVarios = !!modelo?.temVarios;
 
-  // Vista: enquanto o usuário não escolher, acompanha o modo (celular → Resumo; senão Lista).
-  const [vistaEscolhida, setVistaEscolhida] = useState(/** @type {Vista|null} */ (null));
-  const vista = vistaEscolhida ?? (celular ? 'resumo' : 'lista');
-  const setVista = useCallback((/** @type {Vista} */ v) => setVistaEscolhida(v), []);
+  // Vista: sempre começa em Resumo, nos três modos (o Painel volta para Resumo
+  // a cada entrada na aba Lotes).
+  const [vista, setVistaEstado] = useState(/** @type {Vista} */ ('resumo'));
+  const setVista = useCallback((/** @type {Vista} */ v) => setVistaEstado(v), []);
 
-  // Seções marcadas em INFORMAÇÕES.
-  const [secoes, setSecoes] = useState(lerSecoes);
+  // Seções marcadas em INFORMAÇÕES (preferência do usuário; padrão: todas).
+  const secoes = useMemo(() => SECOES_LOTE.filter((x) => (secoesPref || []).includes(x)), [secoesPref]);
   const alternarSecao = useCallback((/** @type {string} */ s) => {
-    setSecoes((atual) => {
-      const marcadas = atual.includes(s) ? atual.filter((x) => x !== s) : [...atual, s];
-      const prox = SECOES_LOTE.filter((x) => marcadas.includes(x));
-      salvarSecoes(prox);
-      return prox;
-    });
-  }, []);
+    const marcadas = secoes.includes(s) ? secoes.filter((x) => x !== s) : [...secoes, s];
+    aoMudarSecoes(SECOES_LOTE.filter((x) => marcadas.includes(x)));
+  }, [secoes, aoMudarSecoes]);
   const alternarTodas = useCallback(() => {
-    setSecoes((atual) => {
-      const tudo = SECOES_LOTE.every((x) => atual.includes(x));
-      const prox = tudo ? [] : [...SECOES_LOTE];
-      salvarSecoes(prox);
-      return prox;
-    });
-  }, []);
+    const tudo = SECOES_LOTE.every((x) => secoes.includes(x));
+    aoMudarSecoes(tudo ? [] : [...SECOES_LOTE]);
+  }, [secoes, aoMudarSecoes]);
 
   // Filtro de alerta (escolha única).
   const [alertaEscolhido, setAlertaEscolhido] = useState(/** @type {FiltroAlerta} */ ('todos'));
@@ -161,7 +129,7 @@ export function useEstadoLotes({ modelo, celular }) {
   const abrirLoteNaVista = useCallback((/** @type {string} */ id) => {
     const visivel = /** @type {LoteVm[]} */ (filtrarPorAlerta(lotes, alerta)).some((l) => l.id === id);
     if (!visivel) setAlertaEscolhido('todos');
-    setVistaEscolhida('lote');
+    setVistaEstado('lote');
     setLoteId(id);
     setPopupAbertoState(false);
   }, [lotes, alerta]);

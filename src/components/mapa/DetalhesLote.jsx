@@ -196,6 +196,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   // Aguarda a leitura do cache local (IndexedDB) que é super rápida, para não exibir os dados zerados
   const loadingInicial = (loadingAreas && areas.length === 0) || (loadingLotesArea && todosLotesNaArea.length === 0);
 
+  // Preferências do Detalhes do Lote POR USUÁRIO (fazenda + conta + empresa),
+  // como os filtros do Mapa Geral. Sem as três partes, vale o padrão (sem filtro).
+  const escopoPreferencias = useMemo(() => {
+    const clienteId = user?.cliente_id || null;
+    const login = user?.login || user?.email || null;
+    return clienteId && login && empresaSelecionadaId ? { clienteId, login, empresaId: empresaSelecionadaId } : null;
+  }, [user?.cliente_id, user?.login, user?.email, empresaSelecionadaId]);
+
   const modelo = useMemo(
     () => montarModeloDetalhes({ area: areaAtual, lotes, lotesDaArea: todosLotesNaArea, movimentacoes, iconesConfig, hoje: new Date() }),
     [areaAtual, lotes, todosLotesNaArea, movimentacoes, iconesConfig]
@@ -603,7 +611,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       <PainelDetalhesLote
         modelo={modelo}
         suplementacao={<ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />}
-        acoes={acoes} />
+        acoes={acoes}
+        escopoPreferencias={escopoPreferencias} />
 
       {/* Dialog Juntar Lotes */}
       <LancLoteDialogo open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}} titulo="Juntar Lotes" lotes={lotes}>
