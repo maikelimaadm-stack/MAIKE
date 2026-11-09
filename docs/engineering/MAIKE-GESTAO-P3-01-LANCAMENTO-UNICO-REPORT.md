@@ -569,6 +569,19 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 | Vercel (projeto `maike`, time em plano Pro) | `vercel.json` com `maxDuration` 60 para `api/fastify.js` (teste VERCEL-DUR); o prazo efetivo não é exposto pelo conector e só vale depois do merge: **não comprovado** |
 | CI `quality` (`verify:all`) | verde no HEAD de código `c43c6c07` ([run 42617445198](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42617445198)); o HEAD final, só de documentação, é conferido na PR |
 
+### 8.4 Release em produção (2026-11-09, caminho B, SHA `9889563c`)
+
+Fonte de tudo abaixo: o registro completo no §11 do [runbook](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md).
+
+| Etapa | Resultado |
+|---|---|
+| GO | Escrito pelo proprietário: caminho B (conector), desvio da D-PROD-74 autorizado, ciência de que o PITR está desligado |
+| Backup | 8 backups físicos diários `COMPLETED`. Último: 2026-11-09T05:48:27Z. Mais antigo: 2026-11-02T05:48:28Z. PITR desligado. Lido pela API de gestão com o token do proprietário |
+| Preflight (somente leitura) | Banco: `system_identifier` `7692130048193495360`; 34 concluídas, 0 com falha; `conferirHistoricoRemoto` `ok: true`; 0 das 8 tabelas<br>Arquivo e classificador: SHA-256 do arquivo = manifesto; classificador `expand: true`, 0 violações; o SQL só cria objetos nas 8 tabelas novas<br>Vercel: variáveis de banco vindas da integração Supabase |
+| Ensaio imediato (PG17.11 local) | Guarda de alvo recusa o SQL de produção; com o identificador local: `COMMIT`, 35 concluídas, `migrate diff` 0 |
+| Transação | `COMMIT` sem erro. P3-01 registrada às 14:08:36 UTC com checksum `bb89f4e0…4a451dc18a` e 1 passo |
+| Conferência §6 (14:08:59 UTC) | 35/0; 8 tabelas, RLS sem FORCE; 130 colunas; `p` 8, `f` 33, `c` 36; FKs `(r,c)` 31 e `(r,r)` 2; índices 8/25/12; 8 políticas `maike_backend_all`; 0 grants públicos; tabelas novas vazias e contagens antigas iguais; advisor de segurança com 0 alertas; health 200 com o runtime antigo. Impressão digital do esquema **idêntica** à do ensaio |
+
 ## 9. Limitações declaradas
 
 - Custo de aquisição líquido (rodada 4): o lote guarda o custo por kg com 4
@@ -638,7 +651,7 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 | Backup/PITR nunca foi comprovado nas releases anteriores | Nesta release, sem prova → `RELEASE_BLOCKED` |
 | Custo legado do estoque é BRL implícito | Moeda ≠ BRL recusada com lote de custo > 0 |
 | Compra de insumo com custo por kg ínfimo e resíduo > 0,1% passa a ser recusada também sem desconto (antes era gravada com custo distorcido) | Mensagem na linha com líquido, kg, custo e diferença; custo ≥ 0,06/kg nunca é recusado; vetores de granel com frete e desconto aceitos |
-| Backup/PITR de produção sem prova (o conector não lê backups) | `BACKUP/PITR: NAO_COMPROVADO`; o proprietário confere no painel (runbook §4.4); sem prova, `RELEASE_BLOCKED` |
+| PITR desligado em produção: restaurar volta ao backup diário e perde o que foi gravado depois dele | Backup diário comprovado na API (§8.4). A migration só criou tabelas vazias, e o rollback dela é o §9.1, não uma restauração. O proprietário registrou ciência no GO |
 | PR #229 (só docs) também acrescenta decisão ao fim do `DECISIONS.md` | Numeração já reconciliada (esta é a D-PROD-155); quem for mergeada depois resolve um conflito textual no marcador final, sem renumerar |
 
 ## 11. Prontidão
@@ -646,9 +659,9 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 | Critério | Estado |
 |---|---|
 | **CODE_READY** (achados das revisões fechados, inclusive os da rodada 4; testes, gates, `verify:all` e CI verdes no HEAD final) | **SIM**, condicionado ao CI `quality` verde no HEAD final (checks da PR #230): achados da revisão independente da rodada 4 corrigidos em `6855bc95` (§7.9); `verify:all` 39/39 em PG17, E2E 54/0 nos pools 5 e 3, P3 PG 126/126, vitest 1.879; CI verde em `c43c6c07` e `baffefc4` |
-| **SCHEMA_APPLIED_PROD** | **NÃO**. Nenhum comando foi enviado ao banco de produção; a rodada 4 só leu o Supabase (somente leitura) e o runbook não foi executado |
-| **MERGE_READY** | **NÃO**: só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
-| **BACKUP/PITR** | **NAO_COMPROVADO**: o conector não lê backups. O proprietário confere no painel do Supabase → projeto MAIKE → Database → Backups (*Scheduled backups* e *Point in Time Recovery*); sem prova, `RELEASE_BLOCKED` (runbook §4.4) |
+| **SCHEMA_APPLIED_PROD** | **SIM**. Migration aplicada em 2026-11-09 às 14:08:36 UTC (caminho B, GO escrito) e conferida pelo runbook §6 (§8.4) |
+| **MERGE_READY** | **SIM**, para o merge manual do proprietário: schema aplicado e conferido, CI verde no HEAD da PR |
+| **BACKUP/PITR** | **COMPROVADO (backup diário; PITR desligado)**: 8 backups físicos diários `COMPLETED`, o último em 2026-11-09T05:48:27Z, lidos pela API de gestão (runbook §4.4 e §11) |
 | **VERCEL_DURATION** | **NAO_COMPROVADO**: `maxDuration` 60 s explícito no `vercel.json`, efetivo só no deploy de produção depois do merge; conferir no painel (runbook §8, item 7) |
 
 Prontidão de código não é prontidão de release. O merge manual da PR #230 é

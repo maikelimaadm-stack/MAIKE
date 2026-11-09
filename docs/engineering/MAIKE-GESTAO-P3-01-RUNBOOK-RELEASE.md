@@ -1,11 +1,13 @@
 # MAIKE — Gestão P3-01: runbook de release expand-only (D-PROD-155)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
-> Nesta missão nada foi enviado ao Supabase de produção nem à Vercel: nenhum
-> `CREATE`, nenhum registro em `_prisma_migrations`, nenhuma variável alterada,
-> nenhum merge. A migration só rodou em PostgreSQL local de teste. Este documento
-> é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
-> **`RELEASE_BLOCKED`**.
+> **Estado: §4 a §6 EXECUTADOS em 2026-11-09. `SCHEMA_APPLIED_PROD: SIM`.**
+> A migration foi aplicada em produção às 14:08:36 UTC pelo caminho B (conector),
+> com GO escrito do proprietário e desvio da D-PROD-74 autorizado. A conferência
+> do §6 passou. Merge, deploy e smoke (§7 e §8) ficam com o proprietário.
+> Evidências no §11.
+>
+> Este documento é o plano. Cada passo exige o GO do proprietário e para no
+> primeiro desvio com **`RELEASE_BLOCKED`**.
 >
 > Valores entre `<…>` (por exemplo `<SHA_APROVADO>`) são preenchidos na hora da
 > execução, a partir de leituras reais, nunca copiados deste texto.
@@ -222,6 +224,10 @@ confirma o projeto `uuemcasqcdjucflulkne` ativo e saudável (PostgreSQL 17.11,
 credencial a ninguém: painel do Supabase → projeto MAIKE → Database → Backups
 (abas *Scheduled backups* e *Point in Time Recovery*): data/hora UTC do último
 backup concluído e a janela de PITR. O plano do projeto não é prova.
+
+**Atualização em 2026-11-09 (antes da escrita):** **comprovado** pela API de gestão,
+com o token do proprietário. Há backup físico diário `COMPLETED` (o último em
+2026-11-09T05:48:27Z) e o PITR está desligado. Detalhes no §11.
 
 ### 4.5 Preflight expand-only (classificador)
 
@@ -488,17 +494,17 @@ PostgreSQL 17. Não prova nada sobre o banco de produção, que não foi tocado.
 
 | Campo | Valor |
 |---|---|
-| GO do proprietário (texto e data/hora UTC) | não executado |
-| Caminho (A runner / B conector) | não executado |
-| `system_identifier` e vínculo Vercel ↔ Supabase | não executado |
-| Histórico antes (concluídas, falhas, última) | não executado |
-| SHA-256 calculado no §4.3 | não executado |
-| Evidência de backup/PITR | não executado |
-| Classificador e `premerge-migrate` | não executado |
-| Resultado da transação | não executado |
-| Conferência do §6 (itens 1 a 11) | não executado |
-| Commit de merge e deployment | não executado |
-| Smoke | não executado |
+| GO do proprietário (texto e data/hora UTC) | 2026-11-09, recebido antes das 14:02 UTC (início do preflight): "GO migration P3-01, SHA 9889563c, caminho B (conector), desvio D-PROD-74 autorizado". O texto autoriza só esta migration neste alvo e registra ciência de que o PITR está desligado. |
+| Caminho (A runner / B conector) | **B**: conector Supabase, uma chamada `execute_sql`. É um desvio da D-PROD-74, autorizado por escrito. SHA aprovado `9889563cd4720701b712fca6948d2b8470f22371`, igual a `refs/pull/230/head`. |
+| `system_identifier` e vínculo Vercel ↔ Supabase | `7692130048193495360` (PostgreSQL 17.11). As variáveis de banco do projeto Vercel `maike` (production: `POSTGRES_*`, `SUPABASE_*`) vêm da integração Supabase; só os nomes foram lidos. O papel `maike_vercel` existe. |
+| Histórico antes (concluídas, falhas, última) | 34 concluídas e 0 com falha; última `20261108100000_gestao_p2_naturezas_financeiras` (`db299e1d…62f04`); P3-01 ausente; 0 das 8 tabelas. `conferirHistoricoRemoto` (34 linhas × 35 arquivos do SHA): `ok: true`, `pendentes: [P3-01]`, 0 falhas. Recontagem da `main` `7ab43f7f`: 34. Contagens antes: `Cliente` 2, `Usuario` 5, `Empresa` 2, `Fornecedor`, `Produto`, `EstoqueLoteNota` e `MovimentacaoEstoque` 0. |
+| SHA-256 calculado no §4.3 | `git show 9889563c:…/migration.sql \| sha256sum` = `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a`, igual ao manifesto `MIGRATIONS_APROVADAS` |
+| Evidência de backup/PITR | API de gestão do Supabase, `GET /v1/projects/uuemcasqcdjucflulkne/database/backups` → HTTP 200 (token do proprietário, nunca exibido). **8 backups físicos diários `COMPLETED`**: o último em 2026-11-09T05:48:27Z, antes da janela; o mais antigo em 2026-11-02T05:48:28Z (cerca de 7 dias). **`pitr_enabled: false`**, `walg_enabled: true`; o arquivamento WAL do banco registra 0 falhas. Uma restauração volta o banco inteiro ao backup diário (§9.3) e perde o que foi gravado depois dele; o proprietário registrou ciência disso no GO. |
+| Classificador e `premerge-migrate` | `premerge-migrate.mjs --sha 9889563c` (análise local, sem credenciais) saiu 0: `migrations_novas` = só a P3-01, `expand: true`, 8 tabelas novas, `colunas_novas_em_tabelas_antigas: []`, `violacoes: []`. Na varredura do SQL, `ALTER TABLE` e `CREATE INDEX` só aparecem nas 8 tabelas novas; não há `DELETE`, `TRUNCATE`, `UPDATE` nem `INSERT` de dado; o único `DROP` é `DROP POLICY IF EXISTS` nas tabelas novas. Ensaio imediatamente antes, em PG17.11 local com os papéis `anon`, `authenticated` e `maike_vercel`: o SQL de produção foi recusado (`RELEASE_BLOCKED: alvo divergente`, 34 linhas); com o `system_identifier` local, `COMMIT`, 35 linhas e `prisma migrate diff --exit-code` = 0. |
+| Resultado da transação | `COMMIT` sem erro. Linha da P3-01: `finished_at` 2026-11-09 14:08:36.752958 UTC, `checksum` `bb89f4e0…4a451dc18a`, `applied_steps_count` 1, não revertida. |
+| Conferência do §6 (itens 1 a 11) | Feita às 14:08:59 UTC. Resultados: (1) 35 concluídas, 0 com falha, 1 linha da P3-01; (2) 8 tabelas com RLS e sem FORCE, dono `postgres`, o mesmo de `NaturezaFinanceira`; (3) 9/33/25/9/17/15/12/10 = 130 colunas; (4) `p` 8, `f` 33, `c` 36, entre eles `_rateado_check`, `_liquido_positivo_check` e `_liquido_check`; (5) `(r,c)` 31 e `(r,r)` 2; (6) índices 8/25/12 = 45; (7) 8 × `maike_backend_all`, `ALL`, `{maike_vercel}`; (8) 0 grants para `anon`, `authenticated` e `PUBLIC`; `maike_vercel`, `postgres` e `service_role` com os mesmos privilégios de `NaturezaFinanceira`; (9) 8 × 0 linhas, contagens antigas iguais às de antes; (10) advisor de segurança com 0 alertas; (11) `GET https://www.makgestao.com/api/native/health` → 200, `banco: up`, release `7ab43f7f` (runtime antigo); nos logs da Vercel, só o aviso `FSTDEP023` (depreciação do Fastify), que já aparecia desde 2026-10-23. Impressão digital (md5 de colunas, constraints, índices, políticas e RLS das 8 tabelas): **idêntica** à do ensaio local. |
+| Commit de merge e deployment | pendente: merge manual do proprietário (§7) |
+| Smoke | pendente: §8, depois do deploy (inclui `maxDuration` 60 s na Vercel) |
 
 ## 12. Referências
 
