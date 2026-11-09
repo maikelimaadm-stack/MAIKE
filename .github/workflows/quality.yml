@@ -19,7 +19,11 @@ jobs:
   verify:
     name: verify:all
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A suíte completa (gates + PostgreSQL real + smokes + builds) já leva
+    # 16,5–18 min na `main` (nov/2026); com novos domínios passa de 20 e o job
+    # era CANCELADO por tempo, sem falha de teste. 30 min dá folga sem
+    # esconder travamento (um teste preso ainda estoura o limite).
+    timeout-minutes: 30
 
     # PostgreSQL EFÊMERO, criado e destruído com o job.
     #

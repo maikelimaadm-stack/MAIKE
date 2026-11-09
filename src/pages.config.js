@@ -27,6 +27,11 @@ import CentrosCusto from './pages/CentrosCusto';
 import CentrosResultado from './pages/CentrosResultado';
 import NaturezasFinanceiras from './pages/NaturezasFinanceiras';
 import LancamentosFinanceiros from './pages/LancamentosFinanceiros';
+import BensPatrimoniais from './pages/BensPatrimoniais';
+import FamiliasPatrimoniais from './pages/FamiliasPatrimoniais';
+import TiposPatrimoniais from './pages/TiposPatrimoniais';
+import PerfisMedicao from './pages/PerfisMedicao';
+import Combustiveis from './pages/Combustiveis';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -52,6 +57,11 @@ export const PAGES = {
     "CentrosResultado": CentrosResultado,
     "NaturezasFinanceiras": NaturezasFinanceiras,
     "LancamentosFinanceiros": LancamentosFinanceiros,
+    "BensPatrimoniais": BensPatrimoniais,
+    "FamiliasPatrimoniais": FamiliasPatrimoniais,
+    "TiposPatrimoniais": TiposPatrimoniais,
+    "PerfisMedicao": PerfisMedicao,
+    "Combustiveis": Combustiveis,
 };
 
 export const pagesConfig = {

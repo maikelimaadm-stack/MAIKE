@@ -17,13 +17,15 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) com tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) com tabela nova; Patrimônio P1-01 (D-PROD-157) só com tabelas novas', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.deepEqual(c.tabelas_novas, [
-    'CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno',
-    'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraItemRateio', 'OperacaoFinanceiraRateio',
-    'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao', 'TituloFinanceiro',
+    'BemPatrimonial', 'CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'FamiliaPatrimonial',
+    'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno', 'MedicaoBem', 'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote',
+    'OperacaoFinanceiraItem', 'OperacaoFinanceiraItemRateio', 'OperacaoFinanceiraRateio', 'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PerfilMedicao',
+    'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao', 'TanqueBem', 'TanqueBemCombustivel', 'TipoCombustivel',
+    'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil', 'TituloFinanceiro',
   ]);
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
 });
@@ -37,6 +39,21 @@ test('B1b: P3-02 (D-PROD-156) classificada SOZINHA, como na release (a P3-01 já
   // Sem a tabela da P3-01 como "nova", um CHECK na coluna nova da tabela antiga é recusado.
   const comCheck = `${ler('20261109200000_gestao_p3_02_rateio_por_item').sql}\nALTER TABLE "OperacaoFinanceira" ADD CONSTRAINT "x" CHECK ("rateio_escopo" IN ('GERAL', 'POR_ITEM'));`;
   assert.ok(classificar(comCheck).violacoes.some((v) => v.codigo === 'ALTER_EM_TABELA_ANTIGA'));
+});
+
+test('B1c: Patrimônio P1-01 (D-PROD-157) classificado SOZINHO, como na release (a P3-02 já está na main): expand, exatamente as 10 tabelas novas (com o vínculo combustível × produto da R2), nenhuma coluna nem constraint em tabela antiga (Produto intacto)', () => {
+  const m = ler('20261110100000_patrimonio_p1_01_cadastros');
+  const c = classificarMigrations([m]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, [
+    'BemPatrimonial', 'FamiliaPatrimonial', 'MedicaoBem', 'PerfilMedicao', 'TanqueBem', 'TanqueBemCombustivel', 'TipoCombustivel',
+    'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil',
+  ]);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  // A coerência Produto.empresa_id = vínculo.empresa_id NÃO vira unique em Produto (tabela antiga): seria recusado.
+  const comUnique = `${m.sql}\nCREATE UNIQUE INDEX "Produto_cliente_id_empresa_id_id_key" ON "Produto"("cliente_id", "empresa_id", "id");`;
+  assert.ok(classificar(comUnique).violacoes.some((v) => v.codigo === 'UNIQUE_EM_TABELA_ANTIGA'));
 });
 
 test('B2: padrão = RECUSAR — cada caso negativo é violação com código estável', () => {

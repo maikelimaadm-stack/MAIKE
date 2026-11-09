@@ -46,6 +46,9 @@ import { registrarParceiroRoutes } from './modules/gestao/parceiroRoutes.js';
 import { registrarCentroRoutes } from './modules/gestao/centroRoutes.js';
 import { registrarNaturezaFinanceiraRoutes } from './modules/gestao/naturezaFinanceiraRoutes.js';
 import { registrarOperacaoFinanceiraRoutes } from './modules/financeiro/operacaoFinanceiraRoutes.js';
+import { registrarPatrimonioCatalogoRoutes } from './modules/patrimonio/patrimonioCatalogoRoutes.js';
+import { registrarBemPatrimonialRoutes } from './modules/patrimonio/bemPatrimonialRoutes.js';
+import { registrarCombustivelProdutoRoutes } from './modules/patrimonio/combustivelProdutoRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -211,6 +214,12 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarNaturezaFinanceiraRoutes);
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
+  // D-PROD-157 — Patrimônio e Frota P1-01: catálogos do tenant e bens da empresa
+  // (sem estoque/financeiro; a depreciação é só prévia simulada).
+  await app.register(registrarPatrimonioCatalogoRoutes);
+  await app.register(registrarBemPatrimonialRoutes);
+  // D-PROD-157 (R2) — vínculo combustível × produto por empresa (classificação; sem estoque/custo).
+  await app.register(registrarCombustivelProdutoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

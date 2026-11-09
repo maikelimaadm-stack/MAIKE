@@ -325,6 +325,31 @@ relatórios/dashboards financeiros.
 
 ---
 
+## Track autorizado — Patrimônio P1-01: cadastros patrimoniais e frota (D-PROD-157)
+
+Grupo de menu próprio **Patrimônio e Frota** com cinco telas nativas no Motor Base1:
+`BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e
+`Combustiveis`. Catálogos do tenant (famílias com natureza fechada, tipos com
+perfis de medição sugeridos, perfis com conversão só dentro da dimensão,
+combustíveis classificatórios) e um catálogo padrão instalável pelo administrador.
+O bem tem código patrimonial estável, código de frota único por fazenda (ex.:
+TP-02), medições físicas (benfeitorias), medidor de uso que não regride (horímetro,
+odômetro, ciclos ou sem medidor), tanques com os combustíveis que aceitam (flex sem
+tanque falso) e parâmetros de aquisição e depreciação linear com **prévia só
+simulada**. Na R2, cada fazenda liga os seus Produtos aos tipos de combustível
+(vínculo por empresa, sem efeito em estoque, custo ou unidade) e a P1-02 ganha um
+contrato só de leitura dos produtos elegíveis de cada bem. Migration expand-only
+com 10 tabelas novas.
+
+**Estado:** PR #232 em draft. Migration **não aplicada** em produção; o merge
+depende da aplicação autorizada (preflight + GO escrito) e do merge manual do
+proprietário. Relatório:
+[`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md).
+
+**Próximos passos (cada um com decisão própria):** P1-02 Abastecimentos/Consumo
+(depois da auditoria, migration e merge desta), depois manutenção, apuração mensal
+de depreciação por competência e transferência entre fazendas.
+
 ## Fora do roadmap
 
 Plataforma low-code, Studio, MDP/MMM, marketplace, runtime universal, motor de
