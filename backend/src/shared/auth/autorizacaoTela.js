@@ -56,7 +56,7 @@ export const TELAS = Object.freeze({
   NATUREZAS_FINANCEIRAS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-naturezas-financeiras' }),
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   LANCAMENTOS_FINANCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-lancamentos-financeiros' }),
-  // D-PROD-156 — Patrimônio e Frota P1-01 (cadastros de inventário). Módulo
+  // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário). Módulo
   // próprio de menu; sem concessão automática a perfis antigos.
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   PATRIMONIO_FAMILIAS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-familias-patrimoniais' }),
@@ -75,7 +75,7 @@ export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'e
 export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquidar', 'estornar_liquidacao', 'cancelar']);
 
 /**
- * D-PROD-156 — ação EXTRA das cinco telas do Patrimônio: inativar ou reativar
+ * D-PROD-157 — ação EXTRA das cinco telas do Patrimônio: inativar ou reativar
  * o registro (PATCH com `ativo`). Gravada na própria linha da tela em
  * `permissoes_telas`; ausente/não booleano = negado. Mesma lista no navegador
  * (`EXTRA_ACTION_KEYS_BY_PAGE`, teste de paridade front↔back).

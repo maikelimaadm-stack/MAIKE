@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — prévia de depreciação LINEAR (função PURA, contrato §6 + A14).
+ * D-PROD-157 — prévia de depreciação LINEAR (função PURA, contrato §6 + A14).
  *
  * É uma SIMULAÇÃO gerencial: não grava nada, não gera lançamento, título,
  * despesa nem movimento de estoque, e não apura valor contábil (o ledger de

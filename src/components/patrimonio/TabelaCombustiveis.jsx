@@ -2,7 +2,7 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_UNIDADE_COMBUSTIVEL } from "@/lib/patrimonioDominio";
 
-/** Colunas da lista de Combustíveis (D-PROD-156) — catálogo classificatório: sem preço, custo ou saldo. */
+/** Colunas da lista de Combustíveis (D-PROD-157) — catálogo classificatório: sem preço, custo ou saldo. */
 export const COMBUSTIVEIS_COLUNAS = [
   { id: "codigo", label: "Código", default: true, sortable: true, width: 160 },
   { id: "nome", label: "Combustível", default: true, sortable: true, width: 240 },

@@ -67,7 +67,7 @@ Violação exige **rollback**, não flexibilização da regra.
 > avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
 > comando composto da confirmação e do cancelamento; e somar dinheiro com float.
 
-> **Nota (D-PROD-156):** os cadastros de Patrimônio e Frota (`BensPatrimoniais`,
+> **Nota (D-PROD-157):** os cadastros de Patrimônio e Frota (`BensPatrimoniais`,
 > `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`)
 > são a única exceção de máquinas/combustível autorizada, nos limites da decisão.
 > Continuam proibidos: reabrir as páginas legadas `CadastroMaquinas`, `AtivosFixos`,

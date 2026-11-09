@@ -4,7 +4,7 @@ import { ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 import { perfisDoTipo } from "@/services/patrimonioCatalogoService";
 import { textoMeses } from "@/components/patrimonio/TabelaFamilias";
 
-/** Colunas da lista de Tipos Patrimoniais (D-PROD-156). */
+/** Colunas da lista de Tipos Patrimoniais (D-PROD-157). */
 export const TIPOS_COLUNAS = [
   { id: "codigo", label: "Código", default: true, sortable: true, width: 140 },
   { id: "nome", label: "Tipo", default: true, sortable: true, width: 240 },

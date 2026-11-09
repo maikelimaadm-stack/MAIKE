@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — unidades físicas das medições de benfeitoria (funções PURAS).
+ * D-PROD-157 — unidades físicas das medições de benfeitoria (funções PURAS).
  *
  * Conversão só DENTRO da dimensão, por fator EXATO (string → Decimal, nunca
  * float): 1 km = 1000 m, 1 ha = 10000 m², 1 m³ = 1000 L, 1 t = 1000 kg. O

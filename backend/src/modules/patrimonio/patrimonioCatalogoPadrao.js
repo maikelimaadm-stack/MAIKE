@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — catálogo PADRÃO do Patrimônio (instalado pelo serviço, nunca
+ * D-PROD-157 — catálogo PADRÃO do Patrimônio (instalado pelo serviço, nunca
  * por seed na migration) e o instalador IDEMPOTENTE `POST /patrimonio-catalogo-padrao`.
  *
  * Cria só o que falta, por `codigo`, sob a trava do catálogo do tenant (A9):

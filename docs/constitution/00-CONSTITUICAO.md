@@ -34,7 +34,7 @@ item, pedido de compra e relatórios/dashboards financeiros. O MAIKE não volta 
 ser ERP amplo. Texto redigido pelo agente; vale com a aprovação explícita do
 proprietário no merge manual (§4).
 
-**Expansão autorizada pelo proprietário (D-PROD-156):** **Patrimônio e Frota —
+**Expansão autorizada pelo proprietário (D-PROD-157):** **Patrimônio e Frota —
 cadastros** (missão MAIKE-PATRIMONIO-P1-01): bens patrimoniais (benfeitorias,
 máquinas, veículos, implementos e equipamentos) com código patrimonial e código de
 frota, catálogos de famílias, tipos, perfis de medição e combustíveis, medições

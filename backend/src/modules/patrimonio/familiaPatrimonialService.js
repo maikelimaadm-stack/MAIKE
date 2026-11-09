@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — Famílias patrimoniais (catálogo do TENANT, sem empresa).
+ * D-PROD-157 — Famílias patrimoniais (catálogo do TENANT, sem empresa).
  *
  * Regras:
  *  - `cliente_id` só da sessão; registro de outro tenant = mesmo 404 de inexistente;

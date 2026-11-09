@@ -104,7 +104,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
-  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155) ou bem patrimonial como proprietário ou fornecedor (D-PROD-156) não é excluído; inativar' },
+  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota, movimentação, lançamento financeiro/título (D-PROD-155) ou bem patrimonial como proprietário ou fornecedor (D-PROD-157) não é excluído; inativar' },
   PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
   CENTRO_CUSTO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de custo desta empresa neste tenant' },
   CENTRO_RESULTADO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de resultado desta empresa neste tenant' },
@@ -137,7 +137,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   LIQUIDACAO_EXCEDE_SALDO: { http: 422, meaning: 'o valor da liquidação é maior que o saldo do título (details.saldo); nada foi gravado' },
   LIQUIDACAO_JA_ESTORNADA: { http: 409, meaning: 'esta liquidação já foi estornada; nada foi gravado' },
   FINANCEIRO_DATA_FUTURA: { http: 422, meaning: 'data posterior a hoje no fuso da fazenda: só fato já ocorrido entra (details.data/hoje/fuso); nada foi gravado' },
-  // D-PROD-156 — Patrimônio P1-01: cadastros de inventário (catálogos do tenant e bens da empresa).
+  // D-PROD-157 — Patrimônio P1-01: cadastros de inventário (catálogos do tenant e bens da empresa).
   PATRIMONIO_VERSAO_CONFLITO: { http: 409, meaning: 'o registro mudou desde a leitura (details.versao_atual/versao_informada); recarregue; nada foi gravado' },
   FAMILIA_PATRIMONIAL_NAO_ENCONTRADA: { http: 404, meaning: 'id não identifica família patrimonial deste tenant' },
   TIPO_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica tipo patrimonial deste tenant' },

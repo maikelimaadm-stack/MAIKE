@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — Tipos patrimoniais (catálogo do TENANT, sem empresa).
+ * D-PROD-157 — Tipos patrimoniais (catálogo do TENANT, sem empresa).
  *
  * Regras (além das comuns do catálogo — ver `familiaPatrimonialService.js`):
  *  - o tipo pertence a UMA família (`familia_id` IMUTÁVEL); a família tem de

@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — regras PURAS do bem patrimonial (sem banco): normalização do
+ * D-PROD-157 — regras PURAS do bem patrimonial (sem banco): normalização do
  * corpo, matriz de natureza (§2), transições do medidor (A2) e validação de
  * aquisição/depreciação sobre o ESTADO FINAL (A6).
  *

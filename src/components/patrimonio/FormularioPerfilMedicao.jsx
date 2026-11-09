@@ -28,7 +28,7 @@ const unidadesIniciais = (dimensao, unidades) => {
 };
 
 /**
- * Formulário do Perfil de Medição (D-PROD-156).
+ * Formulário do Perfil de Medição (D-PROD-157).
  *  - criação: dimensão e finalidade escolhidas explicitamente (imutáveis
  *    depois); a unidade padrão vem da dimensão e não vai no corpo;
  *  - unidades permitidas por escolha múltipla dentro da dimensão; a unidade

@@ -20,7 +20,7 @@ export const ACTION_LABELS = {
  * `permissoes_telas` (sem coluna nova: `telaPermite` do servidor testa
  * `linha[acao] === true` para qualquer nome).
  *  - Central de Lançamentos: espelho de `GUARDAS.operacaoFinanceira`;
- *  - Patrimônio e Frota (D-PROD-156): `inativar` (inativar e reativar) nas cinco
+ *  - Patrimônio e Frota (D-PROD-157): `inativar` (inativar e reativar) nas cinco
  *    telas `pat-*` — espelho de `ACOES_PATRIMONIO_EXTRAS` e da guarda
  *    `edicaoPatrimonio` (backend/src/shared/auth/guardasRotas.js).
  */

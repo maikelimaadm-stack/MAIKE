@@ -41,7 +41,7 @@ const assinaturaDaPrevia = (e) =>
 
 /**
  * Aquisição (datas, valores em R$, fornecedor, documento, garantia) e
- * parâmetros de depreciação LINEAR do bem (D-PROD-156): chave "Depreciável"
+ * parâmetros de depreciação LINEAR do bem (D-PROD-157): chave "Depreciável"
  * (só bem próprio), vida útil em meses ou anos (anos × 12 ao enviar), residual
  * por valor OU por percentual e início da depreciação.
  *

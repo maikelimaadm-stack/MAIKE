@@ -112,7 +112,7 @@ model Cliente {
   titulosFinanceiros           TituloFinanceiro[]
   liquidacoesFinanceiras       LiquidacaoFinanceira[]
   estornosLiquidacao           LiquidacaoFinanceiraEstorno[]
-  // D-PROD-156 — Patrimônio e Frota P1-01 (cadastros de inventário).
+  // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário).
   familiasPatrimoniais         FamiliaPatrimonial[]
   tiposPatrimoniais            TipoPatrimonial[]
   tiposPatrimoniaisPerfis      TipoPatrimonialPerfil[]
@@ -174,7 +174,7 @@ model Usuario {
   operacoesFinanceirasCanceladas  OperacaoFinanceira[]          @relation("OperacaoFinanceiraCanceladoPor")
   liquidacoesRegistradas          LiquidacaoFinanceira[]        @relation("LiquidacaoFinanceiraRegistradoPor")
   estornosLiquidacaoRegistrados   LiquidacaoFinanceiraEstorno[] @relation("LiquidacaoFinanceiraEstornoRegistradoPor")
-  // D-PROD-156 — responsável pelo bem patrimonial (FK composta por tenant).
+  // D-PROD-157 — responsável pelo bem patrimonial (FK composta por tenant).
   bensPatrimoniaisResponsavel     BemPatrimonial[]              @relation("BemPatrimonialResponsavel")
 
   @@unique([cliente_id, login])
@@ -581,7 +581,7 @@ model AreaPastagem {
   lancamentos   LancamentoTarefa[]
 
   posicoesRebanho PosicaoRebanho[]
-  // D-PROD-156 — localização opcional do bem patrimonial.
+  // D-PROD-157 — localização opcional do bem patrimonial.
   bensPatrimoniais BemPatrimonial[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
@@ -988,7 +988,7 @@ model Empresa {
   // D-PROD-155 — perfil financeiro e lançamentos da empresa.
   perfilFinanceiro       PerfilFinanceiroEmpresa?
   operacoesFinanceiras   OperacaoFinanceira[]
-  // D-PROD-156 — bens patrimoniais da fazenda (catálogos são do tenant).
+  // D-PROD-157 — bens patrimoniais da fazenda (catálogos são do tenant).
   bensPatrimoniais       BemPatrimonial[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
@@ -1046,7 +1046,7 @@ model Fornecedor {
   // D-PROD-155 — o parceiro do lançamento e dos títulos.
   operacoesFinanceiras OperacaoFinanceira[]
   titulosFinanceiros   TituloFinanceiro[]
-  // D-PROD-156 — proprietário (bem de terceiro) e fornecedor da aquisição.
+  // D-PROD-157 — proprietário (bem de terceiro) e fornecedor da aquisição.
   bensComoProprietario BemPatrimonial[]   @relation("BemPatrimonialProprietario")
   bensComoFornecedor   BemPatrimonial[]   @relation("BemPatrimonialFornecedor")
 
@@ -1850,7 +1850,7 @@ model CentroCusto {
   vinculos CentroCustoResultado[]
   rateiosFinanceiros OperacaoFinanceiraRateio[]
   rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
-  // D-PROD-156 — centro de custo do bem (mesma empresa pela FK composta).
+  // D-PROD-157 — centro de custo do bem (mesma empresa pela FK composta).
   bensPatrimoniais BemPatrimonial[]
 
   @@unique([cliente_id, id])
@@ -2294,7 +2294,7 @@ model LiquidacaoFinanceiraEstorno {
 
 
 // ---------------------------------------------------------------------------
-// D-PROD-156 — Patrimônio e Frota P1-01: cadastros nativos de inventário.
+// D-PROD-157 — Patrimônio e Frota P1-01: cadastros nativos de inventário.
 // Catálogos do TENANT (família, tipo, perfil de medição, combustível; sem
 // empresa, como UnidadeMedida/LocalEstoque) e o bem da EMPRESA (fazenda atual,
 // FK composta). O bem é a raiz do agregado: medições, medidor e tanques só

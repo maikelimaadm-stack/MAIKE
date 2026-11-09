@@ -7,7 +7,7 @@ import { LIMITES_BEM, LOCALE_BEM } from "@/components/patrimonio/bemFormulario";
 /** @typedef {import('./bemFormulario').MedidorForm} MedidorForm */
 
 /**
- * Medidor do bem (D-PROD-156, A2): tipo (com "Sem medidor"), leitura inicial,
+ * Medidor do bem (D-PROD-157, A2): tipo (com "Sem medidor"), leitura inicial,
  * leitura atual (só na edição de um contador já gravado) e data da leitura.
  *
  * Máquinas, veículos e equipamentos EXIGEM medidor; implementos e "outros" o

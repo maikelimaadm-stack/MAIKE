@@ -15,7 +15,7 @@ import { CHAVE_OPCOES_PATRIMONIO, LIMITES_BEM, LIMITE_TANQUES_ATIVOS, LOCALE_BEM
 const nomeDoTanque = (t, i) => t.identificador.trim() || String(i + 1);
 
 /**
- * Tanques de combustível de máquinas, veículos e equipamentos (D-PROD-156):
+ * Tanques de combustível de máquinas, veículos e equipamentos (D-PROD-157):
  * identificador, capacidade em litros, combustíveis aceitos (escolha múltipla —
  * o flex aceita mais de um) e observação. Neste slice só entram combustíveis
  * medidos em LITROS (GNV, em m³, fica fora do tanque).

@@ -2,7 +2,7 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_DIMENSAO, ROTULO_FINALIDADE, SIMBOLO_UNIDADE } from "@/lib/patrimonioDominio";
 
-/** Colunas da lista de Perfis de Medição (D-PROD-156). */
+/** Colunas da lista de Perfis de Medição (D-PROD-157). */
 export const PERFIS_COLUNAS = [
   { id: "codigo", label: "Código", default: true, sortable: true, width: 160 },
   { id: "nome", label: "Perfil", default: true, sortable: true, width: 220 },

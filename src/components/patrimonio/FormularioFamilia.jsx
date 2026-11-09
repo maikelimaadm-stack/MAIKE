@@ -11,7 +11,7 @@ export const FORMULARIO_FAMILIA_ID = "formulario-familia-patrimonial-base1";
 const OPCOES_NATUREZA = NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }));
 
 /**
- * Formulário da Família Patrimonial (D-PROD-156).
+ * Formulário da Família Patrimonial (D-PROD-157).
  *  - criação: código, nome e NATUREZA escolhidos explicitamente;
  *  - edição: código e natureza só leitura (imutáveis no servidor);
  *  - sem chave Ativo: inativar/reativar é ação própria da tela.

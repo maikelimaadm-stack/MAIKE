@@ -2,7 +2,7 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_MEDIDOR, ROTULO_NATUREZA, ROTULO_PROPRIEDADE } from "@/lib/patrimonioDominio";
 
-/** Colunas da lista de Bens Patrimoniais (D-PROD-156) — resumo da listagem do servidor. */
+/** Colunas da lista de Bens Patrimoniais (D-PROD-157) — resumo da listagem do servidor. */
 export const BENS_COLUNAS = [
   { id: "numero", label: "Nº patrimonial", default: true, sortable: true, width: 110 },
   { id: "codigo_frota", label: "Código de frota", default: true, sortable: true, width: 130 },

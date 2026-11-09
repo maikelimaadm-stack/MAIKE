@@ -61,7 +61,7 @@ export const ICONE_TELA = {
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
   LancamentosFinanceiros: ReceiptText,
-  // D-PROD-156 — Patrimônio e Frota.
+  // D-PROD-157 — Patrimônio e Frota.
   BensPatrimoniais: Tractor,
   FamiliasPatrimoniais: Boxes,
   TiposPatrimoniais: Shapes,

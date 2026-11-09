@@ -2,7 +2,7 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 
-/** Colunas da lista de Famílias Patrimoniais (D-PROD-156). */
+/** Colunas da lista de Famílias Patrimoniais (D-PROD-157). */
 export const FAMILIAS_COLUNAS = [
   { id: "codigo", label: "Código", default: true, sortable: true, width: 140 },
   { id: "nome", label: "Família", default: true, sortable: true, width: 260 },

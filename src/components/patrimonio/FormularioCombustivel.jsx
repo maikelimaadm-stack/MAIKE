@@ -11,7 +11,7 @@ export const FORMULARIO_COMBUSTIVEL_ID = "formulario-combustivel-base1";
 const OPCOES_UNIDADE = UNIDADES_COMBUSTIVEL.map((u) => ({ value: u, label: ROTULO_UNIDADE_COMBUSTIVEL[u] }));
 
 /**
- * Formulário do Combustível (D-PROD-156) — catálogo CLASSIFICATÓRIO: sem preço,
+ * Formulário do Combustível (D-PROD-157) — catálogo CLASSIFICATÓRIO: sem preço,
  * custo, saldo ou produto de estoque. Unidade escolhida na criação (padrão
  * litros) e imutável depois.
  *

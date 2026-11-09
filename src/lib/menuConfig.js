@@ -55,7 +55,7 @@ export const DEFAULT_MENU = [
     ],
   },
   {
-    // D-PROD-156 — Patrimônio e Frota P1-01: cadastros e inventário (sem abastecimento,
+    // D-PROD-157 — Patrimônio e Frota P1-01: cadastros e inventário (sem abastecimento,
     // manutenção, custo, financeiro ou estoque). Catálogos são do tenant; bens, da empresa.
     id: "patrimonio",
     title: "Patrimônio e Frota",

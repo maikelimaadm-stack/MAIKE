@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — Tipos de combustível (catálogo do TENANT, CLASSIFICATÓRIO).
+ * D-PROD-157 — Tipos de combustível (catálogo do TENANT, CLASSIFICATÓRIO).
  *
  * Sem preço, custo, saldo nem vínculo com Produto neste slice: o motor de
  * estoque é em KG e combustível em litros não cabe nele hoje (a associação a

@@ -41,7 +41,7 @@ const buscarPerfisCompletos = () => listarOpcoesCompletasBem("perfis-medicao", n
 const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
 /**
- * Formulário do Bem Patrimonial (D-PROD-156), com abas Base1:
+ * Formulário do Bem Patrimonial (D-PROD-157), com abas Base1:
  *  - Identificação: propriedade, responsáveis, localização e características
  *    (os campos de placa, chassi, série, potência, construção e
  *    compatibilidade aparecem só para a natureza que os admite — §2);

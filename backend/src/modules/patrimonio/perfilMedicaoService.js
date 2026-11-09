@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — Perfis de medição física (catálogo do TENANT, sem empresa).
+ * D-PROD-157 — Perfis de medição física (catálogo do TENANT, sem empresa).
  *
  * Regras (além das comuns do catálogo — ver `familiaPatrimonialService.js`):
  *  - `dimensao` e `finalidade` escolhidas na criação e IMUTÁVEIS (A9);

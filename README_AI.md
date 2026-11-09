@@ -42,7 +42,7 @@ títulos, liquidação manual e efeito de estoque só na confirmação do lança
 (estorno no cancelamento). O financeiro legado continua excluído e proibido: sem
 conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade,
 caixa/bancos, rateio por item, pedido de compra ou relatórios financeiros.
-Também delimitados (D-PROD-156): os **cadastros de Patrimônio e Frota** (bens,
+Também delimitados (D-PROD-157): os **cadastros de Patrimônio e Frota** (bens,
 famílias, tipos, perfis de medição, combustíveis, medidores, tanques e parâmetros
 de depreciação com prévia só simulada), sem abastecimento, manutenção, apuração de
 depreciação nem efeito financeiro ou de estoque.
@@ -191,7 +191,7 @@ O agente **não deve**:
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
 - Ampliar `config/mapa-manejo-scope.json` sem aprovação humana (cada expansão tem
-  decisão própria do proprietário; a mais recente, D-PROD-156, acrescentou só
+  decisão própria do proprietário; a mais recente, D-PROD-157, acrescentou só
   `BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e
   `Combustiveis`)
 

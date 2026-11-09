@@ -213,7 +213,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarNaturezaFinanceiraRoutes);
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
-  // D-PROD-156 — Patrimônio e Frota P1-01: catálogos do tenant e bens da empresa
+  // D-PROD-157 — Patrimônio e Frota P1-01: catálogos do tenant e bens da empresa
   // (sem estoque/financeiro; a depreciação é só prévia simulada).
   await app.register(registrarPatrimonioCatalogoRoutes);
   await app.register(registrarBemPatrimonialRoutes);

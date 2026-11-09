@@ -1,5 +1,5 @@
 /**
- * D-PROD-156 — grupo "Patrimônio e Frota" no menu, no celular e no gerenciador
+ * D-PROD-157 — grupo "Patrimônio e Frota" no menu, no celular e no gerenciador
  * de permissões (Patrimônio P1-01: cadastros e inventário).
  *
  *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as cinco telas
@@ -59,7 +59,7 @@ const PAGINAS = TELAS.map(([, , pagina]) => pagina);
 const TITULOS = TELAS.map(([, titulo]) => titulo);
 
 /**
- * `forbiddenDomains` e `forbiddenBase44Entities` como estavam ANTES da D-PROD-156
+ * `forbiddenDomains` e `forbiddenBase44Entities` como estavam ANTES da D-PROD-157
  * (origin/main f2b81e1b). A fase só ganha páginas nativas: nada sai das listas.
  */
 const DOMINIOS_PROIBIDOS_ANTES = [

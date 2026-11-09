@@ -25,7 +25,7 @@ const MENSAGEM_VERSAO =
   "Este bem foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
 
 /**
- * Bens Patrimoniais (D-PROD-156) — inventário da EMPRESA selecionada.
+ * Bens Patrimoniais (D-PROD-157) — inventário da EMPRESA selecionada.
  *
  * Lista keyset com busca no servidor (nome, número, código de frota, placa,
  * série) e filtros de natureza, família e situação. O registro aberto lê o

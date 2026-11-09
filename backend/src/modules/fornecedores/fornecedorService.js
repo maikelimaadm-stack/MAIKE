@@ -157,7 +157,7 @@ export const excluir = async (contexto, id) => {
     // D-PROD-155 (§8.5): lançamento financeiro (rascunho inclusive, que não gera
     // movimento) e títulos também seguram o parceiro — sem isto, a FK RESTRICT
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
-    // D-PROD-156: bem patrimonial que o tem como proprietário OU fornecedor
+    // D-PROD-157: bem patrimonial que o tem como proprietário OU fornecedor
     // também o segura (mesma FK RESTRICT; mesmo 409, nunca 403).
     const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),

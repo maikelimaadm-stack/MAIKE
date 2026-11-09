@@ -32,7 +32,7 @@ const cadastro = (alvo, extras = {}) => ({
   excluir: porQualquer([alvo, 'excluir'], ...(extras.excluir ?? [])),
 });
 /**
- * D-PROD-156 (A4) — PATCH de um cadastro do Patrimônio. Decide pela PRESENÇA
+ * D-PROD-157 (A4) — PATCH de um cadastro do Patrimônio. Decide pela PRESENÇA
  * das chaves no corpo (já validado pelo schema; o banco não é lido):
  *  - `ativo` e, além dele, só `empresa_id`/`versao` → exige `inativar`;
  *  - `ativo` com outros campos → (`editar` ou `salvar`) E `inativar`;
@@ -232,7 +232,7 @@ export const GUARDAS = Object.freeze({
   },
   // Perfil financeiro: leitura pela tela; escrita só administrador real ou is_admin (§8.6).
   perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },
-  // D-PROD-156 — Patrimônio e Frota: cada tela com as SUAS ações; inativar e
+  // D-PROD-157 — Patrimônio e Frota: cada tela com as SUAS ações; inativar e
   // reativar (PATCH com `ativo`) exigem a ação extra `inativar`. Sem DELETE.
   patrimonioBens: {
     ...patrimonio(T.PATRIMONIO_BENS),

@@ -1,5 +1,5 @@
 /**
- * Patrimônio e Frota (D-PROD-156) — espelho dos domínios fechados do servidor
+ * Patrimônio e Frota (D-PROD-157) — espelho dos domínios fechados do servidor
  * (`backend/src/modules/patrimonio/patrimonioDominio.js`) só para EXIBIR:
  * rótulos em português, unidades por dimensão e a matriz de capacidades por
  * natureza (quais seções/campos o formulário mostra). Quem valida é o servidor

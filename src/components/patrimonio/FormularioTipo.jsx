@@ -33,7 +33,7 @@ const familiaDoRegistro = (item) => {
 const nomeDoPerfil = (p) => p.nome || p.codigo || "Perfil";
 
 /**
- * Formulário do Tipo Patrimonial (D-PROD-156).
+ * Formulário do Tipo Patrimonial (D-PROD-157).
  *  - criação: família escolhida por seletor paginado (só ativas), código e nome;
  *  - edição: família e código só leitura (imutáveis no servidor);
  *  - perfis de medição sugeridos SÓ para família de natureza Benfeitoria:

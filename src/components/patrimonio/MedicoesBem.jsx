@@ -14,7 +14,7 @@ import { LIMITE_MEDICOES, LOCALE_BEM, limitesDaMedicao, medicaoDoPerfil } from "
 const nomeDaMedicao = (m) => m.perfil.nome || m.perfil.codigo || "Medição";
 
 /**
- * Medições físicas da benfeitoria (D-PROD-156): perfil de medição + valor +
+ * Medições físicas da benfeitoria (D-PROD-157): perfil de medição + valor +
  * unidade (só as permitidas pelo perfil) + rótulo + principal. Quantidade e
  * cabeças em número inteiro. Até 20 medições, sem perfil repetido; no máximo
  * uma principal (sem nenhuma, o servidor faz da primeira a principal).
