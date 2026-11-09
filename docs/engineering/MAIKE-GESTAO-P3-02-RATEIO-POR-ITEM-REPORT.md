@@ -136,7 +136,12 @@ documento e do item pelas FKs compostas") já é exato. O limite da FK está no
 serviço, na D-PROD-156 e no §6.
 
 ## 5. Gate final
-(preenchido com o `verify:all` e o CI do HEAD final)
+
+| Prova | Resultado |
+|---|---|
+| `npm run verify:all` no HEAD de código final `a89f2256`, em PostgreSQL 17.11 recém-criado e com a árvore limpa | **39/39 etapas PASS**, saída 0, 966 s. `test:gates` 695/695; `test:backend` 1.306 testes, 1.301 pass, 0 fail, 0 cancelados, 5 `todo` herdados; `test:smoke` 164 arquivos e 1.976 testes; lint, `gate:types`, `typecheck:backend`, `build` e `build:admin` PASS |
+| Commits seguintes | só documentação (relatório, runbook e PR). O código e a migration ficam os de `a89f2256` |
+| CI `quality` (`verify:all`) | conferido nos checks da PR #231 no HEAD final |
 
 ## 6. Limitações declaradas
 
@@ -160,6 +165,6 @@ serviço, na D-PROD-156 e no §6.
 
 | Critério | Estado |
 |---|---|
-| CODE_READY | ver §5 |
+| CODE_READY | **SIM**: achados da revisão fechados (12 corrigidos e 1 decisão de contrato), `verify:all` 39/39 no HEAD de código e CI conferido na PR |
 | SCHEMA_APPLIED_PROD | **NÃO**. Nada da P3-02 foi enviado ao Supabase |
 | MERGE_READY | **NÃO**. Antes do merge: GO específico, migration aplicada e conferida pelo runbook |
