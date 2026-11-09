@@ -309,7 +309,11 @@ describe('E3 — retificação só informativa: NO_LUGAR', () => {
     assert.deepEqual([r.itens[0].id, r.itens[0].movimentacao_estoque_id, r.itens[0].estoque_lote_nota_id], [d0.itens[0].id, d0.itens[0].movimentacao_estoque_id, d0.itens[0].estoque_lote_nota_id]);
     assert.equal(r.itens[1].descricao, 'FRETE CORRIGIDO');
     assert.equal(await contarMovimentos(s), movs, 'nenhum movimento novo');
-    assert.deepEqual(await lote(d0.itens[0].estoque_lote_nota_id), loteAntes, 'lote intocado (nem updatedAt)');
+    // Quantidade, custo, situação, local e datas do lote intactos; só a PROCEDÊNCIA (nº do documento) segue a correção (revisão DE-02/BC-01).
+    const loteDepois = await lote(d0.itens[0].estoque_lote_nota_id);
+    const semProcedencia = (l) => ({ ...l, numero_documento: null, updatedAt: null });
+    assert.deepEqual(semProcedencia(loteDepois), semProcedencia(loteAntes), 'lote fisicamente intocado');
+    assert.deepEqual([loteDepois.numero_documento, (await movimento(d0.itens[0].movimentacao_estoque_id)).numero_documento], ['NF-777', 'NF-777'], 'procedência no lote e no movimento');
     assert.equal(r.titulos.length, 3);
     assert.ok(r.titulos.every((t) => t.status === 'ABERTO' && !titulosAntes.includes(t.id)));
     assert.equal(await prisma().tituloFinanceiro.count({ where: { cliente_id: s.c } }), 3, 'títulos antigos apagados (sem baixa) e recriados');
@@ -996,5 +1000,136 @@ describe('E11 — o banco é a última rede: CHECK, UNIQUE e FKs do evento', () 
     // RLS ligada (sem FORCE) e sem acesso dos papéis da Data API
     const [rls] = /** @type {any[]} */ (await prisma().$queryRaw`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'OperacaoFinanceiraEvento'`);
     assert.deepEqual([rls.relrowsecurity, rls.relforcerowsecurity], [true, false]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('E12 — revisão: peso por saco gravado e procedência do estoque', () => {
+  /** Compra de 100 SACO de ração (30 kg) a 90,00 — lote de 3000 kg, 3,0000/kg. */
+  const compraEmSacos = (s, e, sacos = '100', extra = {}) =>
+    docCom(e, s.local, [item(e.racao, sacos, '90.00', { unidade: 'SACO' })], extra);
+
+  test('o cadastro muda o peso por saco (e a unidade) depois da compra: corrigir só a descrição é NO_LUGAR com o fator GRAVADO, com e sem lote consumido; o kg do estoque não muda', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const doc = compraEmSacos(s, e);
+    const d0 = await A.criarConfirmar(s.token, doc);
+    assert.deepEqual([d0.itens[0].fator_kg, d0.itens[0].quantidade_estoque], ['30.0000', '3000.0000']);
+    const loteAntes = await lote(d0.itens[0].estoque_lote_nota_id);
+    const movs = await contarMovimentos(s);
+    await prisma().produto.update({ where: { id: e.racao.id }, data: { peso_por_saco_kg: '25' } });
+    const r1 = await retificar(s, d0, { ...doc, descricao: 'só a descrição' });
+    assert.equal(r1.retificacao.modo, 'NO_LUGAR', 'o saco recebido não muda de peso porque o cadastro mudou');
+    assert.deepEqual([r1.id, r1.itens[0].estoque_lote_nota_id, r1.itens[0].movimentacao_estoque_id], [d0.id, d0.itens[0].estoque_lote_nota_id, d0.itens[0].movimentacao_estoque_id]);
+    assert.deepEqual([r1.itens[0].fator_kg, r1.itens[0].quantidade_estoque], ['30.0000', '3000.0000']);
+    assert.deepEqual(await lote(d0.itens[0].estoque_lote_nota_id), loteAntes, 'lote intocado');
+    assert.equal(await contarMovimentos(s), movs, 'nenhum movimento novo');
+    assert.equal(await estoqueAtual(e.racao), '3000.0000');
+    // o produto passa a ser medido em KG: a linha já recebida em SACO continua corrigível (sem `unidade_invalida`)
+    await prisma().produto.update({ where: { id: e.racao.id }, data: { unidade_principal_estoque: 'KG' } });
+    const r2 = await retificar(s, r1, { ...doc, descricao: 'de novo só a descrição' });
+    assert.equal(r2.retificacao.modo, 'NO_LUGAR');
+    // lote parcialmente vendido (efeito físico NÃO permitido): a correção informativa continua NO_LUGAR (antes: 409)
+    await A.criarConfirmar(s.token, vendaSimples(s, e, e.racao, '10'));
+    const el = await eleg(s, d0.id, e.id);
+    assert.deepEqual([el.editar.permitido, el.editar.efeito_fisico_permitido], [true, false]);
+    const r3 = await retificar(s, r2, { ...doc, descricao: 'descrição com lote consumido' });
+    assert.equal(r3.retificacao.modo, 'NO_LUGAR');
+    assert.equal(r3.itens[0].quantidade_estoque, '3000.0000');
+    assert.equal(await estoqueAtual(e.racao), '2990.0000');
+  });
+
+  test('peso por saco mudou e a correção muda a quantidade (100 → 90 SACO): SUBSTITUIÇÃO com o fator GRAVADO (o que a tela mostra); produto novo no documento usa o peso atual', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const d0 = await A.criarConfirmar(s.token, compraEmSacos(s, e));
+    await prisma().produto.update({ where: { id: e.racao.id }, data: { peso_por_saco_kg: '25' } });
+    const novoSaco = await prisma().produto.create({
+      data: { cliente_id: s.c, empresa_id: e.id, numero_produto: '19', nome_produto: `FARELO ${s.c}`, unidade_principal_estoque: 'SACO', peso_por_saco_kg: '40' },
+    });
+    const doc1 = docCom(e, s.local, [item(e.racao, '90', '90.00', { unidade: 'SACO' }), item(novoSaco, '2', '50.00', { unidade: 'SACO' })]);
+    const r = await retificar(s, d0, doc1);
+    assert.equal(r.retificacao.modo, 'SUBSTITUICAO');
+    assert.deepEqual(r.itens.map((i) => [i.fator_kg, i.quantidade_estoque]), [['30.0000', '2700.0000'], ['40.0000', '80.0000']]);
+    const l = await lote(r.itens[0].estoque_lote_nota_id);
+    assert.deepEqual([l.quantidade_entrada.toFixed(4), l.custo_unitario.toFixed(4)], ['2700.0000', '3.0000'], 'custo = líquido / kg do fator gravado');
+    assert.equal(await estoqueAtual(e.racao), '2700.0000');
+    assert.equal((await lote(d0.itens[0].estoque_lote_nota_id)).status, 'Estornado');
+  });
+
+  test('com mercadoria, trocar parceiro, nº do documento e emissão (NO_LUGAR) leva a procedência ao lote e ao movimento originais, com os mesmos ids; a prova de procedência continua valendo', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const base = compraSimples(s, e, e.sal, '100', '2.00', { documento_referencia: 'NF-ERRADA' });
+    const d0 = await A.criarConfirmar(s.token, base);
+    const L = d0.itens[0].estoque_lote_nota_id;
+    const M = d0.itens[0].movimentacao_estoque_id;
+    const movs = await contarMovimentos(s);
+    const loteAntes = await lote(L);
+    const r = await retificar(s, d0, { ...base, parceiro_id: e.prest.id, documento_referencia: 'NF-CERTA', data_emissao: '2027-06-01' });
+    assert.equal(r.retificacao.modo, 'NO_LUGAR');
+    assert.deepEqual([r.itens[0].estoque_lote_nota_id, r.itens[0].movimentacao_estoque_id], [L, M], 'mesmos ids');
+    assert.equal(await contarMovimentos(s), movs, 'nenhum movimento novo');
+    const l = await lote(L);
+    const m = await movimento(M);
+    assert.deepEqual([l.fornecedor_id, l.fornecedor_nome, l.numero_documento], [e.prest.id, e.prest.nome, 'NF-CERTA'], 'procedência do lote');
+    assert.deepEqual(
+      [l.quantidade_entrada, l.quantidade_disponivel, l.custo_unitario, l.status, l.data_documento].map(String),
+      [loteAntes.quantidade_entrada, loteAntes.quantidade_disponivel, loteAntes.custo_unitario, loteAntes.status, loteAntes.data_documento].map(String),
+      'quantidade, custo, situação e data do lote intactos',
+    );
+    assert.deepEqual([m.fornecedor_id, m.fornecedor_nome, m.numero_documento, m.data_documento.toISOString().slice(0, 10)], [e.prest.id, e.prest.nome, 'NF-CERTA', '2027-06-01'], 'procedência do movimento');
+    // A correção de procedência não conta como "lote alterado": a reversão física continua provada.
+    const el = await eleg(s, d0.id, e.id);
+    assert.deepEqual([el.editar.efeito_fisico_permitido, el.excluir.permitido, el.editar.motivos], [true, true, []], JSON.stringify(el.editar.motivos));
+    // e a exclusão estorna com o MESMO parceiro/documento do movimento original
+    const x = await excluir(s, r, e.id);
+    const est = await movimento(x.itens[0].movimentacao_estorno_id);
+    assert.deepEqual([est.fornecedor_id, est.numero_documento], [m.fornecedor_id, m.numero_documento], 'par original/estorno coerente');
+  });
+
+  test('a procedência benigna só cobre fornecedor e nº do documento: alteração posterior do lote, ou um AuditLog forjado com a mesma ação mudando o custo, continua lote_alterado', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const base = compraSimples(s, e, e.sal, '100', '2.00', { documento_referencia: 'NF-A' });
+    const d0 = await A.criarConfirmar(s.token, base);
+    const L = d0.itens[0].estoque_lote_nota_id;
+    const d1 = await retificar(s, d0, { ...base, documento_referencia: 'NF-B' });
+    assert.equal(d1.retificacao.modo, 'NO_LUGAR');
+    const aud = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'EstoqueLoteNota', entidade_id: L } });
+    assert.deepEqual(aud.map((a) => [a.acao, a.dados_anteriores.numero_documento, a.dados_novos.numero_documento]), [['operacao_financeira.retificar_procedencia', 'NF-A', 'NF-B']]);
+    assert.equal((await eleg(s, d0.id, e.id)).excluir.permitido, true);
+    const mexido = await prisma().estoqueLoteNota.update({ where: { id: L }, data: { custo_unitario: '2.5000' } });
+    assert.ok(codigosDe((await eleg(s, d0.id, e.id)).excluir.motivos).includes('lote_alterado'), 'alteração sem AuditLog depois da procedência');
+    await prisma().auditLog.create({
+      data: {
+        cliente_id: s.c, acao: 'operacao_financeira.retificar_procedencia', entidade: 'EstoqueLoteNota', entidade_id: L, request_id: 'forjado',
+        dados_anteriores: { custo_unitario: '2.0000', updated_date: d1.updated_date }, dados_novos: { custo_unitario: '2.5000', updated_date: mexido.updatedAt.toISOString() },
+      },
+    });
+    const el = await eleg(s, d0.id, e.id);
+    assert.ok(codigosDe(el.excluir.motivos).includes('lote_alterado'), JSON.stringify(el.excluir.motivos));
+    recusa(await excluirReq(s.token, d1, e.id), 409, 'OPERACAO_EXCLUSAO_BLOQUEADA', 'lote_alterado');
+  });
+
+  test('venda: trocar o nº do documento e a emissão (NO_LUGAR) leva a procedência ao movimento de saída; lote consumido de compra aceita a correção do fornecedor sem mexer em quantidade', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const compra = compraSimples(s, e, e.sal, '100', '2.00', { documento_referencia: 'NF-C1' });
+    const c0 = await A.criarConfirmar(s.token, compra);
+    const venda = vendaSimples(s, e, e.sal, '10', '5.00', { documento_referencia: 'NF-V1' });
+    const v0 = await A.criarConfirmar(s.token, venda);
+    const v1 = await retificar(s, v0, { ...venda, documento_referencia: 'NF-V2', data_emissao: '2027-06-05' });
+    assert.equal(v1.retificacao.modo, 'NO_LUGAR');
+    const mv = await movimento(v1.itens[0].movimentacao_estoque_id);
+    assert.deepEqual([mv.id, mv.numero_documento, mv.data_documento.toISOString().slice(0, 10), mv.cliente_nome], [v0.itens[0].movimentacao_estoque_id, 'NF-V2', '2027-06-05', e.cli.nome]);
+    // a compra está consumida pela venda: a correção do fornecedor é NO_LUGAR e chega ao lote, sem tocar no saldo
+    const L = c0.itens[0].estoque_lote_nota_id;
+    const disp = (await lote(L)).quantidade_disponivel.toFixed(4);
+    const c1 = await retificar(s, c0, { ...compra, parceiro_id: e.legado.id });
+    assert.equal(c1.retificacao.modo, 'NO_LUGAR');
+    const l = await lote(L);
+    assert.deepEqual([l.fornecedor_id, l.fornecedor_nome, l.quantidade_disponivel.toFixed(4)], [e.legado.id, e.legado.nome, disp]);
+    assert.equal(await estoqueAtual(e.sal), '90.0000');
   });
 });

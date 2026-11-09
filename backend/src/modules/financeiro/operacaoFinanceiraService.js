@@ -47,14 +47,14 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { STATUS_EXCLUIDO, executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
-import { registrarEvento } from '../auditoria/auditService.js';
+import { registrarEvento, registrarEventosEmLote } from '../auditoria/auditService.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { exigirEmpresaDoTenant, invalido, textoDeBusca, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaidaFifo, estornarEmLote, lotesFifo, travarProdutosEstoque,
+  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaidaFifo, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -75,6 +75,8 @@ export const TIPO_ESTORNAR = 'estornar_liquidacao';
 /** D-PROD-157: comandos de retificação e de exclusão lógica (idempotentes por `operation_id`). */
 export const TIPO_RETIFICAR = 'retificar_operacao_financeira';
 export const TIPO_EXCLUIR = 'excluir_operacao_financeira';
+/** D-PROD-157 (revisão DE-02/BC-01): AuditLog do lote cuja procedência a retificação NO_LUGAR atualizou (escritor benigno). */
+export const ACAO_PROCEDENCIA_LOTE = 'operacao_financeira.retificar_procedencia';
 
 /** Transações (§8.4): rascunho 20 s; efeitos (confirmar/cancelar) 30 s. */
 const TX_RASCUNHO = { maxWait: 10000, timeout: 20000 };
@@ -1817,10 +1819,12 @@ const instanteSql = (d) => d.toISOString().replace('Z', '');
  *    fatia própria): o recibo de idempotência guarda `rateio[].lote_id`;
  *  - estado do lote (`Disponivel`, disponível = entrada = kg do item) e o
  *    movimento de entrada original ainda 'Ativa' e sem filho;
- *  - `updatedAt` = `createdAt` (o Prisma grava os dois iguais na criação); o
- *    único escritor benigno é o PATCH de `local_estoque_nome` (renomear o
- *    depósito, de qualquer conta): aceito só se TODO AuditLog de L for esse
- *    PATCH e o último explicar o `updatedAt` atual;
+ *  - `updatedAt` = `createdAt` (o Prisma grava os dois iguais na criação); os
+ *    únicos escritores benignos são o PATCH de `local_estoque_nome` (renomear o
+ *    depósito, de qualquer conta) e a retificação NO_LUGAR do próprio
+ *    lançamento que leva a PROCEDÊNCIA (fornecedor e nº do documento) ao lote
+ *    (`atualizarProcedencia`, AuditLog `ACAO_PROCEDENCIA_LOTE`): aceito só se
+ *    TODO AuditLog de L for um desses e o último explicar o `updatedAt` atual;
  *  - `estoque_atual` do produto ≥ Σ kg a estornar.
  * Um motivo por item (o mais informativo), com o documento/movimento que
  * impede quando se conhece. Só o tenant (as FKs amarram o lote ao tenant).
@@ -1863,14 +1867,20 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
       select: { entidade_id: true, acao: true, dados_anteriores: true, dados_novos: true },
     })
     : [];
-  /** O AuditLog do lote só mostra renomeação do local (PATCH benigno) e explica o `updatedAt` atual. */
-  const soRenomeado = (l) => {
+  /**
+   * O AuditLog do lote só mostra escritores benignos — renomeação do local
+   * (PATCH) ou procedência levada pela retificação NO_LUGAR — e explica o
+   * `updatedAt` atual. Quantidade, custo, situação, local e datas nunca são benignos.
+   */
+  const soBenigno = (l) => {
     const lista = auditorias.filter((a) => a.entidade_id === l.id);
+    const permitidas = { update: ['local_estoque_nome'], [ACAO_PROCEDENCIA_LOTE]: CAMPOS_PROCEDENCIA_LOTE };
     const benigno = (a) => {
       const antes = /** @type {any} */ (a.dados_anteriores) ?? {};
       const depois = /** @type {any} */ (a.dados_novos) ?? {};
       const chaves = new Set([...Object.keys(antes), ...Object.keys(depois)]);
-      return a.acao === 'update' && [...chaves].every((k) => ['local_estoque_nome', 'updated_date'].includes(k) || JSON.stringify(antes[k]) === JSON.stringify(depois[k]));
+      const livres = /** @type {Record<string, readonly string[]>} */ (permitidas)[a.acao];
+      return Boolean(livres) && [...chaves].every((k) => k === 'updated_date' || livres.includes(k) || JSON.stringify(antes[k]) === JSON.stringify(depois[k]));
     };
     return lista.length > 0 && lista.every(benigno) && lista.some((a) => /** @type {any} */ (a.dados_novos)?.updated_date === l.updatedAt.toISOString());
   };
@@ -1921,7 +1931,7 @@ const provaDaCompra = async (tx, cli, empresaId, itens) => {
       motivos.push(motivoDe('lote_alterado', `o movimento de entrada da ${linha} foi alterado ou estornado`, { ...doLote, entidade: 'MovimentacaoEstoque', ...(original ? { id: original.id } : {}) }));
       continue;
     }
-    if (l.updatedAt.getTime() !== l.createdAt.getTime() && !soRenomeado(l)) {
+    if (l.updatedAt.getTime() !== l.createdAt.getTime() && !soBenigno(l)) {
       motivos.push(motivoDe('lote_alterado', `o lote da ${linha} foi alterado depois da entrada`, doLote));
     }
   }
@@ -2208,6 +2218,62 @@ const exigirDocumentoUnico = async (tx, cli, empresaId, doc, ignorar) => {
 };
 
 /**
+ * D-PROD-157 (revisão DE-01): na retificação, o peso por saco de um produto que
+ * o documento JÁ tinha em SACO é o GRAVADO no item (`fator_kg` do recebimento),
+ * não o do cadastro atual — o saco recebido não muda de peso porque o cadastro
+ * mudou depois. Sem isso, uma correção só informativa replanejava o kg com o
+ * peso novo e virava SUBSTITUIÇÃO (outro kg e outro custo por kg no estoque) ou
+ * 409 com o lote consumido; e um produto que passou a ser medido em KG recusava
+ * a linha já recebida (`unidade_invalida`). Produto que entra no documento pela
+ * primeira vez usa o peso atual. É a mesma regra da tela (`comPesoGravado` em
+ * `lancamentoModelo`). Para corrigir o kg de fato recebido, a linha usa KG.
+ * Num documento, todas as linhas SACO de um produto têm o mesmo fator (a
+ * confirmação planeja todas com o mesmo peso; esta regra preserva isso).
+ * @param {any} refs  de `carregarReferencias` @param {any[]} mercadorias  itens MERCADORIA gravados, por ordem
+ */
+const comPesoGravado = (refs, mercadorias) => {
+  /** @type {Map<string, any>} */
+  const gravado = new Map();
+  for (const i of mercadorias) {
+    if (i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !gravado.has(i.produto_id)) gravado.set(i.produto_id, i.fator_kg);
+  }
+  if (!gravado.size) return refs;
+  const produtos = new Map([...refs.produtos].map(([id, p]) => [id, gravado.has(id) ? { ...p, unidade_principal_estoque: 'SACO', peso_por_saco_kg: gravado.get(id) } : p]));
+  return { ...refs, produtos };
+};
+
+/**
+ * D-PROD-157 (revisão DE-02/BC-01): no NO_LUGAR, parceiro, nº do documento e
+ * emissão trocados chegam aos registros físicos ORIGINAIS, que guardam cópias
+ * deles (lote: fornecedor e nº; movimento: fornecedor/cliente, nº e data do
+ * documento). Sem isso a procedência do lote contradizia o lançamento, uma
+ * transferência posterior copiava o fornecedor velho e o par original/estorno
+ * saía com parceiros diferentes. Mesmos ids; quantidade, custo e situação
+ * intactos. Cada lote gravado ganha um AuditLog `ACAO_PROCEDENCIA_LOTE` — o
+ * escritor benigno que a prova de procedência aceita. Sem mercadoria ou sem
+ * troca desses campos: nada.
+ * @param {any} tx @param {any} contexto
+ * @param {{ op: any, doc: any, refs: any, mercadorias: any[] }} a
+ */
+const levarProcedencia = async (tx, contexto, { op, doc, refs, mercadorias }) => {
+  const trocou = op.parceiro_id !== doc.parceiro_id || (op.documento_referencia ?? null) !== (doc.documento_referencia ?? null)
+    || diaDe(op.data_emissao) !== doc.data_emissao;
+  if (!mercadorias.length || !trocou) return { movimentos: 0, lotes: 0 };
+  const movimentoIds = unicos(mercadorias.map((i) => i.movimentacao_estoque_id));
+  const lotes = await atualizarProcedencia(tx, contexto, {
+    direcao: op.direcao, loteIds: mercadorias.map((i) => i.estoque_lote_nota_id), movimentoIds,
+    documento: { numero: doc.documento_referencia ?? op.numero, data: doc.data_emissao }, parceiro: { id: refs.parceiro.id, nome: refs.parceiro.nome },
+  });
+  const publico = (l) => ({
+    operacao_id: op.id, fornecedor_id: l.fornecedor_id, fornecedor_nome: l.fornecedor_nome, numero_documento: l.numero_documento, updated_date: l.updatedAt.toISOString(),
+  });
+  await registrarEventosEmLote(contexto, lotes.map(({ antes, depois }) => ({
+    acao: ACAO_PROCEDENCIA_LOTE, entidade: 'EstoqueLoteNota', entidadeId: antes.id, dadosAnteriores: publico(antes), dadosNovos: publico(depois),
+  })), tx);
+  return { movimentos: movimentoIds.length, lotes: lotes.length };
+};
+
+/**
  * POST /operacoes-financeiras/:id/retificar (§4). Uma transação (TX_EFEITO) e
  * idempotência por `operation_id` (fingerprint canônico do corpo):
  *  1. trava o cabeçalho; CONFIRMADO vigente; `versao` do corpo;
@@ -2254,7 +2320,8 @@ export const retificar = async (contexto, id, corpo) => {
           await travarProdutosEstoque(tx, cli, empresaId,
             await produtosATravar(tx, cli, empresaId, unicos(mercadorias.map((i) => i.produto_id)), doc.itens.map((i) => i.produto_id)));
           await travarTitulos(tx, cli, id);
-          const refs = await carregarReferencias(tx, cli, empresaId, doc);
+          // DE-01: produto que o documento já tinha em SACO replaneja com o peso GRAVADO (o do recebimento).
+          const refs = comPesoGravado(await carregarReferencias(tx, cli, empresaId, doc), mercadorias);
           exigirReferencias(doc, refs, perfil);
           const plano = planejarOperacao(doc, { casas, moeda: op.moeda, produtos: refs.produtos });
           const eleg = await avaliarElegibilidade(tx, cli, empresaId, op, { aut: await carregarAutorizacao(contexto, tx), mercadorias });
@@ -2297,10 +2364,12 @@ export const retificar = async (contexto, id, corpo) => {
               if (n !== mantidas.length) throw new Error(`linhas de mercadoria atualizadas: ${n} de ${mantidas.length}`);
             }
             await gravarFilhos(tx, cli, atualizado, plano, refs, { mantidos: new Map(mantidas.map((i) => [i.ordem, /** @type {any} */ (porOrdem.get(i.ordem)).id])), statusTitulos: 'ABERTO' });
+            // DE-02/BC-01: parceiro/nº/emissão trocados chegam ao lote e ao movimento originais (mesmos ids).
+            const procedencia = await levarProcedencia(tx, contexto, { op, doc, refs, mercadorias });
             await tx.operacaoFinanceiraEvento.create({ data: evento({ modo: 'NO_LUGAR', operacao_nova_id: null }) });
             await registrarEvento(contexto, {
               acao: 'operacao_financeira.retificar', entidade: ENTIDADE, entidadeId: id,
-              dadosNovos: auditoriaDoc(atualizado, { ...contagens(plano), modo, operacao_anterior_id: id, operacao_atual_id: id, motivo_informado: true }),
+              dadosNovos: auditoriaDoc(atualizado, { ...contagens(plano), modo, operacao_anterior_id: id, operacao_atual_id: id, motivo_informado: true, procedencia }),
             }, tx);
             const retificacao = { modo, operacao_anterior_id: id, operacao_atual_id: id };
             return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, id)), retificacao } };

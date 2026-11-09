@@ -678,3 +678,49 @@ export const estornarEmLote = async (tx, ctx, a) => {
   if (finais.length !== produtoIds.length) throw conflitoDeEstoque({ produtos: produtoIds.length, atualizados: finais.length });
   return /** @type {string[]} */ (ids);
 };
+
+/** Colunas de PROCEDÊNCIA do lote que seguem o documento (D-PROD-157, revisão DE-02/BC-01). */
+export const CAMPOS_PROCEDENCIA_LOTE = Object.freeze(['fornecedor_id', 'fornecedor_nome', 'numero_documento']);
+
+/**
+ * D-PROD-157 (revisão DE-02/BC-01) — PROCEDÊNCIA dos registros físicos
+ * ORIGINAIS de um documento retificado NO_LUGAR (parceiro, nº do documento ou
+ * emissão trocados): o movimento original (fornecedor/cliente, nº e data do
+ * documento) e, na compra, o lote (fornecedor e nº do documento) passam a dizer
+ * o mesmo que o lançamento. Nunca toca em quantidade, custo, situação, local,
+ * data do lote (`data_documento` do lote é o dia operacional, que não muda no
+ * lugar) nem em ids: não é efeito físico. Só o lote cuja procedência muda é
+ * gravado (`updatedAt` honesto). Recebe `tx` com os produtos já travados.
+ * Devolve os lotes antes/depois: quem chama audita cada um, e a prova de
+ * procedência aceita esse AuditLog como escritor benigno.
+ * @param {any} tx
+ * @param {{auth: any}} ctx
+ * @param {{ direcao: string, loteIds: string[], movimentoIds: string[], documento: {numero: string|null, data: string},
+ *   parceiro: {id: string|null, nome: string|null} }} a
+ * @returns {Promise<Array<{ antes: any, depois: any }>>}
+ */
+export const atualizarProcedencia = async (tx, ctx, a) => {
+  const cli = exigirAuthContext(ctx?.auth).clienteId;
+  const compra = a.direcao === 'PAGAR';
+  const movimentoIds = unicosDe(a.movimentoIds);
+  if (movimentoIds.length) {
+    const quem = compra ? { fornecedor_id: a.parceiro.id ?? null, fornecedor_nome: a.parceiro.nome ?? null } : { cliente_nome: a.parceiro.nome ?? null };
+    const r = await tx.movimentacaoEstoque.updateMany({
+      where: { cliente_id: cli, id: { in: movimentoIds } },
+      data: { ...quem, numero_documento: a.documento.numero ?? null, data_documento: comoDia(a.documento.data) },
+    });
+    if (r.count !== movimentoIds.length) throw new Error(`procedência: movimentos atualizados ${r.count} de ${movimentoIds.length}`);
+  }
+  const loteIds = compra ? unicosDe(a.loteIds) : [];
+  if (!loteIds.length) return [];
+  const novo = { fornecedor_id: a.parceiro.id ?? null, fornecedor_nome: a.parceiro.nome ?? null, numero_documento: a.documento.numero ?? null };
+  const select = { id: true, fornecedor_id: true, fornecedor_nome: true, numero_documento: true, updatedAt: true };
+  const antes = await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: loteIds } }, select, orderBy: { id: 'asc' } });
+  if (antes.length !== loteIds.length) throw new Error(`procedência: lotes lidos ${antes.length} de ${loteIds.length}`);
+  const mudam = antes.filter((l) => CAMPOS_PROCEDENCIA_LOTE.some((k) => l[k] !== novo[k]));
+  if (!mudam.length) return [];
+  const r = await tx.estoqueLoteNota.updateMany({ where: { cliente_id: cli, id: { in: mudam.map((l) => l.id) } }, data: novo });
+  if (r.count !== mudam.length) throw new Error(`procedência: lotes atualizados ${r.count} de ${mudam.length}`);
+  const depois = new Map((await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: mudam.map((l) => l.id) } }, select })).map((l) => [l.id, l]));
+  return mudam.map((l) => ({ antes: l, depois: depois.get(l.id) }));
+};
