@@ -218,19 +218,52 @@ const mesmoDecimal = (a, b) => {
 };
 
 /**
+ * D-PROD-157 (revisão TELA-01): na correção de um confirmado, o peso por saco
+ * de um produto que o documento JÁ tinha em SACO é o GRAVADO no item
+ * (`fator_kg` do recebimento), não o do cadastro atual — a MESMA regra do
+ * servidor (`comPesoGravado` em operacaoFinanceiraService): o saco recebido
+ * não muda de peso porque o cadastro mudou depois. Vale também quando o
+ * produto é escolhido de novo no seletor (que traz o peso ATUAL). Produto que
+ * entra no documento pela primeira vez usa o peso do seletor.
+ * @param {any} form
+ * @param {any} d detalhe do confirmado aberto
+ * @returns {any} o formulário com o peso gravado nos produtos já recebidos em SACO
+ */
+export const comPesoGravado = (form, d) => {
+  /** @type {Map<string, string>} */
+  const gravado = new Map();
+  const antigos = (Array.isArray(d?.itens) ? [...d.itens] : []).sort((/** @type {any} */ a, /** @type {any} */ b) => (Number(a?.ordem) || 0) - (Number(b?.ordem) || 0));
+  for (const i of antigos) {
+    if (i?.tipo_item === 'MERCADORIA' && i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !gravado.has(String(i.produto_id))) {
+      gravado.set(String(i.produto_id), t(i.fator_kg));
+    }
+  }
+  if (!gravado.size || !Array.isArray(form?.itens)) return form;
+  return {
+    ...form,
+    itens: form.itens.map((/** @type {any} */ item) => {
+      const fator = item?.tipo_item === 'MERCADORIA' && item.produto?.id ? gravado.get(String(item.produto.id)) : undefined;
+      return fator === undefined ? item : { ...item, produto: { ...item.produto, unidade_principal_estoque: 'SACO', peso_por_saco_kg: fator } };
+    }),
+  };
+};
+
+/**
  * A correção muda o efeito FÍSICO? A mesma assinatura que o servidor compara
  * (SPEC §4.5): por item MERCADORIA `(ordem, tipo, produto, local, unidade,
  * quantidade em kg, fator)` + data operacional + direção e, só na compra, o
- * valor líquido (custo do lote). É só a PREVISÃO da tela (texto do diálogo e
- * aviso quando o servidor já disse que o estoque não pode mudar): quem decide
- * é o servidor, sob trava.
+ * valor líquido (custo do lote). O peso por saco é o GRAVADO para o produto
+ * já recebido em SACO (`comPesoGravado`, como o servidor). É só a PREVISÃO da
+ * tela (texto do diálogo e aviso quando o servidor já disse que o estoque não
+ * pode mudar): quem decide é o servidor, sob trava.
  * @param {any} d detalhe do confirmado aberto
- * @param {any} form
+ * @param {any} formulario
  * @param {ReturnType<typeof calcularResumo>} resumo
  * @returns {{ muda: boolean, diferencas: Array<{ item: number|null, campo: string }> }}
  */
-export const mudancasFisicas = (d, form, resumo) => {
+export const mudancasFisicas = (d, formulario, resumo) => {
   const antigos = (Array.isArray(d?.itens) ? d.itens : []).filter((/** @type {any} */ i) => i?.tipo_item === 'MERCADORIA');
+  const form = comPesoGravado(formulario, d);
   const comProdutos = form.conteudo === 'COM_PRODUTOS';
   const novos = (comProdutos ? form.itens : [])
     .map((/** @type {any} */ item, /** @type {number} */ k) => ({ item, k }))

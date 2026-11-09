@@ -10,6 +10,7 @@ import {
   alvoDaReferencia,
   alvoDoErroDoRateioPorItem,
   calcularResumo,
+  comPesoGravado,
   descreverMudancasFisicas,
   entrarNoPorItem,
   formularioDeDuplicacao,
@@ -127,7 +128,11 @@ export default function FormularioLancamento({
     return initialData?.id ? formularioDoDetalhe(initialData, { locale, casas, hoje }) : formularioVazio({ hoje });
   });
   const [tentou, setTentou] = useState(false);
-  const resumo = useMemo(() => calcularResumo(form, { locale, casas, hoje, moeda }), [form, locale, casas, hoje, moeda]);
+  // Correção de confirmado: produto já recebido em SACO usa o peso GRAVADO, como o servidor (D-PROD-157, revisão TELA-01).
+  const resumo = useMemo(
+    () => calcularResumo(corrigindo ? comPesoGravado(form, initialData) : form, { locale, casas, hoje, moeda }),
+    [corrigindo, initialData, form, locale, casas, hoje, moeda],
+  );
 
   // Documento como foi carregado: "Confirmar" só regrava (PUT) se algo mudou (§8.7).
   const docInicial = useRef(/** @type {string|null} */ (null));
@@ -320,7 +325,7 @@ export default function FormularioLancamento({
   // que ele recusaria.
   const fisico = useMemo(() => (corrigindo ? mudancasFisicas(initialData, form, resumo) : null), [corrigindo, initialData, form, resumo]);
   const fisicoBloqueado = Boolean(corrigindo && retificacao && !retificacao.efeitoFisicoPermitido && fisico?.muda);
-  const motivosFisicos = (retificacao?.motivos ?? []).map((/** @type {unknown} */ m) => mensagemDoMotivo(m)).join(" ");
+  const motivosFisicos = (retificacao?.motivos ?? []).map((/** @type {unknown} */ m) => mensagemDoMotivo(m, { direcao: initialData?.direcao })).join(" ");
 
   const enviar = (/** @type {React.FormEvent} */ e) => {
     e.preventDefault();
