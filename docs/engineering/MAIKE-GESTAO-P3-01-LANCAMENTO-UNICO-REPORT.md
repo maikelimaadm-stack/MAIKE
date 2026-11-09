@@ -6,7 +6,7 @@
 | Decisão | [D-PROD-155](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
 | PR | #230 (**draft**), branch `claude/maike-gestao-p3-01-lancamento-unico` |
 | Base | `origin/main` `7ab43f7f` (merge da PR #227, Gestão P2) |
-| HEAD deste relatório | código da rodada 4 em `c43c6c07` (§8.3); este relatório entra no commit seguinte, só de documentação |
+| HEAD deste relatório | código final em `6855bc95` (§7.9 e §8.3); este relatório entra no commit seguinte, só de documentação |
 | Runbook de release | [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) — **não executado** |
 
 > **Provas.** Todo número dos §7–§8 é saída real de comando, registrada nos logs
@@ -645,7 +645,7 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 
 | Critério | Estado |
 |---|---|
-| **CODE_READY** (achados das revisões fechados, inclusive os da rodada 4; testes, gates, `verify:all` e CI verdes no HEAD final) | **PENDENTE**: testes, gates, `verify:all` (PG17), E2E e CI verdes em `c43c6c07`; falta fechar a revisão adversarial independente do diff da rodada 4, em andamento |
+| **CODE_READY** (achados das revisões fechados, inclusive os da rodada 4; testes, gates, `verify:all` e CI verdes no HEAD final) | **SIM**, condicionado ao CI `quality` verde no HEAD final (checks da PR #230): achados da revisão independente da rodada 4 corrigidos em `6855bc95` (§7.9); `verify:all` 39/39 em PG17, E2E 54/0 nos pools 5 e 3, P3 PG 126/126, vitest 1.879; CI verde em `c43c6c07` e `baffefc4` |
 | **SCHEMA_APPLIED_PROD** | **NÃO**. Nenhum comando foi enviado ao banco de produção; a rodada 4 só leu o Supabase (somente leitura) e o runbook não foi executado |
 | **MERGE_READY** | **NÃO**: só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
 | **BACKUP/PITR** | **NAO_COMPROVADO**: o conector não lê backups. O proprietário confere no painel do Supabase → projeto MAIKE → Database → Backups (*Scheduled backups* e *Point in Time Recovery*); sem prova, `RELEASE_BLOCKED` (runbook §4.4) |
