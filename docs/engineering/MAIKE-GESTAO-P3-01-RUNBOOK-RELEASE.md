@@ -19,10 +19,10 @@ Decisão: [D-PROD-155](./DECISIONS.md).
 | Item | Valor |
 |---|---|
 | Migration | `20261109100000_gestao_p3_01_central_lancamentos` |
-| Natureza | expand-only: 8 tabelas novas, 33 FKs, 33 CHECKs, 25 uniques, 12 índices e um bloco DO de RLS/REVOKE; zero `ALTER` em tabela antiga; nenhum dado migrado |
+| Natureza | expand-only: 8 tabelas novas (130 colunas), 33 FKs, 36 CHECKs, 25 uniques, 12 índices e um bloco DO de RLS/REVOKE; zero `ALTER` em tabela antiga; nenhum dado migrado |
 | Tabelas novas | `PerfilFinanceiroEmpresa`, `OperacaoFinanceira`, `OperacaoFinanceiraItem`, `OperacaoFinanceiraConsumoLote`, `OperacaoFinanceiraRateio`, `TituloFinanceiro`, `LiquidacaoFinanceira`, `LiquidacaoFinanceiraEstorno` |
 | Tabelas antigas referenciadas (FK) | `Cliente`, `Empresa`, `Usuario`, `Fornecedor`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `EstoqueLoteNota`, `NaturezaFinanceira`, `CentroCusto`, `CentroResultado` |
-| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e` |
+| SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a` (rodada 4: +3 colunas e +3 CHECKs no `OperacaoFinanceiraItem`; o `1562e749…` anterior não vale mais) |
 | Hash do DO pinado (`DO_RLS_APROVADOS`) | `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe` |
 | `_prisma_migrations` | antes **34** concluídas (as 34 pastas da `main` `7ab43f7f`, a última `20261108100000_gestao_p2_naturezas_financeiras`); depois **35** |
 
@@ -95,17 +95,26 @@ aborta tudo, sem aplicar nada.
 ## 2. Pré-requisitos do GO (sem eles, não começa)
 
 1. **Código aprovado:** os 23 achados da revisão adversarial fechados (relatório
-   §7.4 e §7.6), CI verde no HEAD final e PR #230 aprovada pelo proprietário no review.
+   §7.4 e §7.6), a política de custo líquido da rodada 4 com os achados da
+   revisão dela fechados (§7.8), CI verde no HEAD final e PR #230 aprovada pelo
+   proprietário no review.
 2. **SHA aprovado** `<SHA_APROVADO>` (40 hex): o HEAD da PR #230 na aprovação.
 3. **GO escrito do proprietário:** autoriza esta migration neste alvo, escolhe o
    caminho A ou B e aceita a janela.
 4. **Prova de backup/PITR** (§4.4).
-5. **Prazo da função na Vercel:** confirmar (somente leitura, no painel ou na
-   configuração do projeto) que a função da API admite pelo menos 60 s, o prazo
-   que a tela nova dá a confirmar/cancelar/liquidar/estornar (transação de até
-   30 s + 10 s de espera de conexão). Se for menor, registrar o risco no GO: a
-   transação volta inteira e a retentativa com a mesma `operation_id` é segura,
-   mas o usuário vê "resultado incerto" mais vezes.
+5. **Prazo da função na Vercel:** a PR fixa no `vercel.json`
+   `functions["api/fastify.js"].maxDuration = 60` (commit `4395c28b`, teste
+   `tests/smoke/vercelFunctionDuration.test.js`), o prazo que a tela nova dá a
+   confirmar/cancelar/liquidar/estornar (transação de até 30 s + 10 s de espera
+   de conexão). 60 s cabe no máximo de qualquer plano (time em plano Pro), então
+   o build não falha por isso. O valor só vale no primeiro deploy de produção
+   que contiver o arquivo, isto é, **depois do merge**; o conector da Vercel não
+   expõe o prazo efetivo (`VERCEL_DURATION: NAO_COMPROVADO` até lá). Conferir no
+   §8, somente leitura: painel da Vercel → projeto `maike` → deployment de
+   produção → Functions → `api/fastify.js` → Max Duration = 60 s. Se divergir,
+   registrar: a transação volta inteira e a retentativa com a mesma
+   `operation_id` é segura (nunca há sucesso falso), mas o usuário vê
+   "resultado incerto" mais vezes.
 6. **Congelamento:** nenhuma outra migration aplicada na janela, e nenhuma escrita
    de teste na Preview da PR #230. A Preview usa o mesmo banco de produção (S04-P1
    §13.5): depois da migration, um teste nela criaria lançamento e estoque reais.
@@ -179,7 +188,7 @@ git show <SHA_APROVADO>:backend/prisma/migrations/20261109100000_gestao_p3_01_ce
 
 - O resultado tem de ser igual a
   `MIGRATIONS_APROVADAS['20261109100000_gestao_p3_01_central_lancamentos']` =
-  `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e`.
+  `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a`.
 - O valor gravado em `_prisma_migrations` é **o calculado aqui**, nunca copiado de
   documento nem digitado de memória.
 - Divergência → `RELEASE_BLOCKED`. Não se "acerta" a pinagem para a release
@@ -205,6 +214,14 @@ desta release (§9.3).
 
 Sem prova → **`RELEASE_BLOCKED`**. Na P1 e na P2 a falta de prova foi aceita como
 desvio; a D-PROD-155 não aceita.
+
+**Revalidação em 2026-11-09 (somente leitura, rodada 4):** o conector Supabase
+confirma o projeto `uuemcasqcdjucflulkne` ativo e saudável (PostgreSQL 17.11,
+`sa-east-1`), mas não tem ferramenta que leia backups ou PITR. Por isso:
+**`BACKUP/PITR: NAO_COMPROVADO`**. Onde o proprietário confere, sem passar
+credencial a ninguém: painel do Supabase → projeto MAIKE → Database → Backups
+(abas *Scheduled backups* e *Point in Time Recovery*): data/hora UTC do último
+backup concluído e a janela de PITR. O plano do projeto não é prova.
 
 ### 4.5 Preflight expand-only (classificador)
 
@@ -303,8 +320,8 @@ SELECT …;
 |---|---|---|
 | 1 | `_prisma_migrations`: concluídas e com falha; linha da P3-01 | **35** concluídas, 0 com falha; `checksum` = §4.3; `applied_steps_count = 1` |
 | 2 | `pg_class`: `relrowsecurity`, `relforcerowsecurity`, `pg_get_userbyid(relowner)` das 8 e de `NaturezaFinanceira` | 8 tabelas; RLS ligado, sem FORCE; mesmo dono de `NaturezaFinanceira` |
-| 3 | `information_schema.columns` por tabela | 9 / 33 / 22 / 9 / 17 / 15 / 12 / 10 (na ordem do §0), 127 no total |
-| 4 | `pg_constraint` por `contype` | `p` 8, `f` 33, `c` 33 |
+| 3 | `information_schema.columns` por tabela | 9 / 33 / 25 / 9 / 17 / 15 / 12 / 10 (na ordem do §0), 130 no total |
+| 4 | `pg_constraint` por `contype` | `p` 8, `f` 33, `c` 36 (entre eles `OperacaoFinanceiraItem_rateado_check`, `_liquido_positivo_check` e `_liquido_check`) |
 | 5 | FKs: `confdeltype`, `confupdtype` | 33 com `ON DELETE RESTRICT` (`r`); `ON UPDATE CASCADE` (`c`) em 31 e `RESTRICT` (`r`) nas 2 do rateio (→ `OperacaoFinanceira` com direção, → `NaturezaFinanceira` com tipo) |
 | 6 | `pg_index`: PK, unique e não unique | 8 / 25 / 12 (45 no total) |
 | 7 | `pg_policies` | 8 × `maike_backend_all`, `ALL`, `{maike_vercel}` (o bloco DO só cria a política se o papel existir; em produção ele existe, como na conferência da P2) |
@@ -339,6 +356,10 @@ Qualquer divergência → **não fazer o merge**. Registre e avalie o rollback d
   5. O Mapa Geral abre e a suplementação continua aparecendo como antes.
   6. Logs de produção sem 500 novo nas rotas novas nem nas exclusões, nos 30 min
      seguintes.
+  7. Prazo da função (§2, item 5): painel da Vercel → projeto `maike` →
+     deployment de produção do commit de merge → Functions → `api/fastify.js` →
+     Max Duration = 60 s. Registrar no §11 (`VERCEL_DURATION: COMPROVADO` só
+     com essa leitura).
 - **Escrita no smoke**, só com consentimento expresso:
   - O onboarding do perfil é ação real do proprietário, não teste.
   - Um rascunho SEM_PRODUTOS salvo e descartado deixa `AuditLog` e consome um
@@ -408,33 +429,41 @@ comunicação, reconciliação) e decisão do proprietário
 
 ### 9.4 Ensaio local do SQL deste runbook (não é produção)
 
-Em 2026-11-08 o SQL dos §5 (caminho B), §6 e §9.1 foi ensaiado num PostgreSQL 16
-local descartável, com as 34 migrations da `main` aplicadas por
-`prisma migrate deploy`. Foi trocado só o `system_identifier`, pelo do banco
-local, e o banco foi removido no fim.
+Em 2026-11-09, com a migration da rodada 4 (SHA `bb89f4e0…4a451dc18a`), o SQL
+dos §5 (caminho B), §6 e §9.1 foi refeito num **PostgreSQL 17.11** local
+descartável, a mesma versão de produção, com as 34 migrations da `main`
+aplicadas por `prisma migrate deploy`. O SQL foi extraído deste arquivo, com o
+`migration.sql` integral no lugar do marcador e só o `system_identifier` trocado
+pelo do banco local. O banco foi removido no fim. Roteiro e saídas:
+`scratchpad/p3/r4c/ensaio-runbook-pg17.sh` e `ensaio/resumo.txt` da sessão.
+Um ensaio anterior, em PostgreSQL 16 e com o arquivo antigo (`1562e749…`),
+fica superado por este.
 
 - **Com o `system_identifier` de produção:** a guarda abortou
   (`RELEASE_BLOCKED: alvo divergente`), com 34 linhas e nenhuma tabela nova.
 - **Com o do banco local:** `COMMIT`; 35 linhas; checksum
-  `1562e749…7203e56e`; `applied_steps_count = 1`.
+  `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a`;
+  `applied_steps_count = 1`.
 - **O Prisma aceitou o registro:** `prisma migrate status` → "Database schema is
   up to date!"; `prisma migrate diff --exit-code` → 0; `prisma migrate deploy` →
   "No pending migrations to apply".
-- **Repetir a transação:** abortou (`migration já registrada`).
+- **Repetir a transação:** abortou (`migration já registrada`), 35 linhas.
 - **Conferência do §6:**
-  - 8 tabelas com RLS e sem FORCE; colunas 9/33/22/9/17/15/12/10;
-  - `p`/`f`/`c` = 8/33/33; FKs `(r, c)` 31 e `(r, r)` 2; índices 8/25/12;
-  - 0 grants para `anon`/`authenticated`;
+  - 8 tabelas com RLS e sem FORCE; colunas 9/33/25/9/17/15/12/10 (130);
+  - `p`/`f`/`c` = 8/33/36, com os 3 CHECKs novos do item; FKs `(r, c)` 31 e
+    `(r, r)` 2; índices 8/25/12;
+  - 0 grants para `anon`/`authenticated`/`PUBLIC` (no banco local esses papéis
+    não existem, então isto não prova o REVOKE: em produção vale a linha 8 do §6);
   - 0 políticas, porque `maike_vercel` não existe no banco local.
 - **Rollback do §9.1:**
-  - com uma linha em `PerfilFinanceiroEmpresa`, abortou;
+  - com uma linha em `PerfilFinanceiroEmpresa`, abortou (`tabela nova com
+    linhas`), nada removido;
   - vazio, `COMMIT`: 34 linhas, as 8 tabelas removidas, e o Prisma voltou a ver
     a P3-01 como pendente;
   - a reaplicação seguinte deu `COMMIT` com 35 linhas.
 
 O ensaio prova a sintaxe, as guardas e a equivalência com o Prisma no
-PostgreSQL 16. Não prova nada sobre o banco de produção (PostgreSQL 17), que não
-foi tocado.
+PostgreSQL 17. Não prova nada sobre o banco de produção, que não foi tocado.
 
 ## 10. Estados que bloqueiam (fail-closed → `RELEASE_BLOCKED`)
 

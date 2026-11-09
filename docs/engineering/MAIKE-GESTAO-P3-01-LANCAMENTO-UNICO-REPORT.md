@@ -2,16 +2,17 @@
 
 | Campo | Valor |
 |---|---|
-| Missão | MAIKE-GESTAO-P3-01 |
+| Missão | MAIKE-GESTAO-P3-01; rodada 4: MAIKE-GESTAO-P3-01-PR230-R4-FECHAMENTO-INTEGRIDADE-CUSTO-E-GATES-RELEASE (§7.8) |
 | Decisão | [D-PROD-155](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
 | PR | #230 (**draft**), branch `claude/maike-gestao-p3-01-lancamento-unico` |
 | Base | `origin/main` `7ab43f7f` (merge da PR #227, Gestão P2) |
-| HEAD deste relatório | código em `b403845e` (CI `verify:all` verde); este relatório entra no commit seguinte, só de documentação |
+| HEAD deste relatório | código da rodada 4 em `5607a19a` (§8.3); este relatório entra no commit seguinte, só de documentação |
 | Runbook de release | [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) — **não executado** |
 
 > **Provas.** Todo número dos §7–§8 é saída real de comando, registrada nos logs
 > citados. Nada foi medido em Preview nem em produção: as provas são locais
-> (PostgreSQL 16 descartável, Playwright local) e do CI da PR.
+> (PostgreSQL 16 e, na rodada 4, PostgreSQL 17.11 descartáveis; Playwright local)
+> e do CI da PR.
 
 ## 1. Pedido e escopo
 
@@ -66,13 +67,13 @@ Zero `ALTER` em tabela antiga, nenhum dado migrado, nenhum enum Prisma
 |---|---|---:|---:|---:|---:|---:|
 | `PerfilFinanceiroEmpresa` | país, moeda e locale (1 por empresa) | 9 | 2 | 0 | 2 | 3 |
 | `OperacaoFinanceira` | cabeçalho do documento | 33 | 5 | 3 | 6 | 14 |
-| `OperacaoFinanceiraItem` | itens; ids do lote e dos movimentos gerados | 22 | 6 | 3 | 7 | 4 |
+| `OperacaoFinanceiraItem` | itens; rateio do cabeçalho e líquido (rodada 4); ids do lote e dos movimentos gerados | 25 | 6 | 3 | 7 | 7 |
 | `OperacaoFinanceiraConsumoLote` | fatias FIFO de uma saída | 9 | 2 | 1 | 3 | 1 |
 | `OperacaoFinanceiraRateio` | rateio global (natureza + centros) | 17 | 2 | 1 | 5 | 2 |
 | `TituloFinanceiro` | uma linha por parcela | 15 | 3 | 3 | 3 | 6 |
 | `LiquidacaoFinanceira` | baixa manual, fato imutável (só INSERT) | 12 | 3 | 0 | 3 | 2 |
 | `LiquidacaoFinanceiraEstorno` | estorno de uma baixa (no máximo 1 por baixa) | 10 | 2 | 1 | 4 | 1 |
-| **Total** | | **127** | **25** | **12** | **33** | **33** |
+| **Total** | | **130** | **25** | **12** | **33** | **36** |
 
 Cada tabela tem ainda a sua PK (8). Contagens tiradas do `migration.sql`.
 
@@ -90,6 +91,8 @@ Cada tabela tem ainda a sua PK (8). Contagens tiradas do `migration.sql`.
   `≥ 0`, `valor_total = valor_bruto − valor_desconto + valor_acrescimo`,
   `valor_liquidado ≤ valor` e coerente com a situação do título); forma exata de
   MERCADORIA e de SERVICO; PAGAR → DESPESA / RECEBER → RECEITA no rateio;
+  no item (rodada 4), desconto e acréscimo rateados ≥ 0, `valor_liquido` > 0 e
+  `valor_liquido = valor_total − valor_desconto_rateado + valor_acrescimo_rateado`;
   `documento_chave_ativa` preenchida só em CONFIRMADO; motivo não vazio.
 - **Uniques:** `(cliente_id, id)` em todas e os alvos das FKs compostas;
   `(cliente_id, numero)`; um perfil por empresa; ordem única por documento; cada
@@ -108,7 +111,9 @@ Cada tabela tem ainda a sua PK (8). Contagens tiradas do `migration.sql`.
   `maike_backend_all` só para `maike_vercel`. No PostgreSQL local: RLS ligado e
   zero grants públicos nas 8 tabelas (matriz de segurança).
 - **Pinagem:** SHA-256 do arquivo
-  `1562e74930cd3de9c7bfbef11bc8acda63118d0757b61407a6618baa7203e56e` em
+  `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a` (rodada 4;
+  a migration ainda não aplicada ganhou as 3 colunas e os 3 CHECKs do item, e o
+  `1562e749…` anterior deixou de valer) em
   `MIGRATIONS_APROVADAS`; hash do DO
   `0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe` em
   `DO_RLS_APROVADOS` (`scripts/deploy/premergeMigrateLib.mjs`). Reconferidos na
@@ -178,6 +183,24 @@ Decimal.
 - **Totais:** item = `ROUND_HALF_UP(quantidade × valor_unitario, casas)`, zero →
   422; bruto = Σ itens (COM_PRODUTOS) ou informado (SEM_PRODUTOS); total = bruto
   − desconto + acréscimo > 0. Rateio e parcelas são sempre sobre o total.
+- **Custo de aquisição líquido (rodada 4, D-PROD-155):**
+  - Num COM_PRODUTOS, o desconto D e o acréscimo A do cabeçalho são rateados
+    **separadamente** entre **todas** as linhas, proporcionais ao subtotal, em
+    unidades mínimas da moeda, pelos **maiores restos** (empate → menor ordem).
+    Σ desconto rateado = D, Σ acréscimo rateado = A, Σ `valor_liquido` = total,
+    exatos (aritmética inteira, sem float). Linha com líquido ≤ 0 → 422
+    `OPERACAO_VALORES_INVALIDOS`/`item_liquido_nao_positivo`.
+  - **Compra de mercadoria:** lote = `ROUND_HALF_UP(líquido / kg, 4)`; movimento
+    de entrada = líquido exato. 100 SACO × 80,00 com desconto 500,00 → título
+    7.500,00, lote 2,5000/kg, movimento 7.500,00.
+  - **Resíduo** `líquido − kg × custo_kg` (8 casas): mostrado na prévia (aviso
+    `residuo_custo_estoque`, com o total) e no detalhe, fora do custo FIFO; as
+    colunas antigas de estoque (4 casas) não mudaram. Acima de max(1 unidade
+    mínima, **0,1%** do líquido) → 422 `custo_kg_nao_representavel`. Como
+    |resíduo| ≤ kg × 0,00005, nenhuma compra com custo ≥ 0,06/kg é recusada.
+  - **Serviço:** recebe a sua parte do rateio, sem estoque. **Venda:** rateio
+    informativo (receita líquida por item); a saída segue com custo FIFO.
+  - Sem tributos, câmbio ou natureza de frete nesta fase.
 - **Rateio:** natureza ativa, analítica e do tipo da direção; centros ativos e
   opcionais (o vínculo N:N da P1 não é exigido); linha repetida → 422
   `linha_duplicada`. Modo VALOR: soma exata (422 `OPERACAO_RATEIO_INVALIDO`
@@ -437,6 +460,50 @@ compra recusado sem efeito; usuário só visualizar e visualizar+confirmar; troc
 empresa pelo seletor real. Contra a tela anterior à rodada 2 o roteiro reprova
 (DINHEIRO-2, FRONTEND-2, FRONTEND-1).
 
+### 7.8 Rodada 4: custo de aquisição líquido e fechamento de release (`35cc1203`, `8b0de9bc`, `5607a19a`)
+
+**Bloqueador:** `planejarItem()` calculava o custo do lote sobre o subtotal
+BRUTO, enquanto o título usava o total LÍQUIDO. Uma compra de 8.000,00 com
+desconto de 500,00 gerava título de 7.500,00 e lote avaliado em 8.000,00
+(2,6667/kg). Um aviso não bastava.
+
+**Decisão (D-PROD-155, regra de custo, §4):** política explícita de custo de
+aquisição líquido. O desconto e o acréscimo são rateados separadamente pelos
+maiores restos; o lote recebe líquido ÷ kg com 4 casas e o movimento recebe o
+líquido exato. O resíduo fica explícito e fora do FIFO, e o limite de
+representabilidade é de 0,1% (o fallback "422 para compra com desconto" não
+foi necessário). Serviço não é estoque. Na venda, o rateio é informativo. Sem
+tributos, câmbio ou frete.
+
+| Prova | RED (antes) | GREEN (depois) |
+|---|---|---|
+| `backend/tests/gestaoP3CustoLiquido.test.mjs` (novo): vetores, FIFO, estornos, detalhe, replanejamento, SEM_PRODUTOS, PUT, idempotência, falha forçada (3 gatilhos, rollback total), concorrência (200 + 409, um lote) e CHECKs | contra o código anterior: 30 testes, 1 pass, 29 fail (`'2.6667','8000.0000'` em vez de `'2.5000','7500.0000'`; `brl_residuo_fora_do_limite` 201 em vez de 422) | 34/34, também com `connection_limit=5` e `=3` (com Rodada2 e Concorrência: 59/59 em cada pool) |
+| `gestaoP3Rodada2.test.mjs`: oráculo item a item com a variante "compra com desconto e acréscimo" | — (reforço) | verde |
+| `tests/smoke/gestaoLancamentosRateio.test.js` (novo): VET-1 (função pura BigInt), VET-2 (backend falso: rascunho, prévia, confirmação, detalhe, PUT recusado), VET-3 (ordem da recusa) | 23 falhas (módulo ausente, campos rateados ausentes, rascunho aceito em vez de 422) | 28/28 |
+| `tests/smoke/gestaoLancamentos.test.jsx` (bloco LANC-R4 e LANC-4) | 7 falhas (rateio da prévia e do detalhe, erro na linha, motivo no diálogo, aviso antigo) | 46/46 |
+| E2E real, passos 21–27 (`scripts/dev/e2e-lancamentos-real.mjs`) | tela antiga: 33 divergências; backend mutante com o custo bruto: 34 divergências (lote 2,6667, movimento 8.000,0000, fatia FIFO e estorno idem) | ver §8.3 |
+| Paridade backend × tela × oráculo BigInt independente (`fuzz`, 3 sementes × 30.000 documentos: casas 0/2/3, PAGAR/RECEBER, 1–6 linhas, SACO/KG/serviço, D/A aleatórios) | o oráculo com o limite antigo (0,01%) diverge em 2.196 documentos do código novo | 0 divergências nas 3 sementes (≈17.240 planos aceitos, ≈2.750 `item_liquido_nao_positivo` e ≈1.930 `custo_kg_nao_representavel` por semente) |
+
+**Revisão adversarial da própria rodada (3 achados, todos corrigidos com RED→GREEN):**
+
+| Id | Severidade | Achado | Correção e prova |
+|---|---|---|---|
+| R4-REV-01 | ALTO | O primeiro limite (0,01% do líquido) recusava compras legítimas a granel: silagem de 38.760 kg × 0,25 + frete de 850,00 → 422 (resíduo 1,156 > 1,054); calcário de 30.000 kg × 0,15 com desconto de 7,00 → 422; a mesma compra sem frete passava | Limite de 0,1% (`LIMITE_RESIDUO_RELATIVO`) nos dois lados, com a mensagem dizendo o limite. Como \|resíduo\| ≤ kg × 0,00005, custo ≥ 0,06/kg nunca é recusado. Vetores novos `brl_granel_frete` e `brl_granel_desconto`: RED, 4 falhas no backend (422 em vez de 201) e 4 na tela; GREEN nos dois. `brl_residuo_fora_do_limite` (0,0003/kg, resíduo de 10%) continua recusado |
+| R4-REV-02 | BAIXO | Runbook e docs citavam o SHA antigo (`1562e749…`) | SHA `bb89f4e0…` em todos. A revisão das contagens também achou o §0/§6 desatualizados: Item com 25 colunas, total 130, 36 CHECKs. O ensaio do runbook foi refeito no PostgreSQL 17.11 com o arquivo novo (runbook §9.4) |
+| R4-REV-03 | BAIXO | O backend falso mandava `valor_liquido` (e `custo_kg` nas saídas) em `efeitos_estoque`, campos que o servidor não envia | Chaves exatas no JSON dos vetores (`formato.efeitos_estoque_chaves`), conferidas pelo teste PG e pelo backend falso. RED: 11 falhas no falso; GREEN |
+
+**Também corrigido (achado do E2E):** a prévia bloqueada pelo planejamento
+(`plano: null`) anunciava "Isto criará 0 parcelas… R$ 1,00 em títulos". A
+camada de API trocava o `null` por `{}`. Agora o `null` é preservado e o
+diálogo diz que nada será criado enquanto houver a pendência. RED: 1 falha;
+GREEN. O texto do aviso `desconto_acrescimo_rateados` que o servidor manda na
+venda deixou de falar em "custo do lote" (a tela já tinha texto próprio para
+a venda).
+
+**Comportamento novo declarado:** a recusa por resíduo vale com ou sem
+desconto. Antes da rodada, 1,00 por 3.000 kg era gravado a 0,0003/kg em
+silêncio, com 10% de distorção; agora responde 422 explicando a linha.
+
 ## 8. Testes e evidências
 
 ### 8.1 Medido durante a verificação (HEADs intermediários; não substitui o §8.2)
@@ -471,8 +538,12 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 
 ## 9. Limitações declaradas
 
-- Desconto e acréscimo do cabeçalho não entram no custo do lote de estoque nesta
-  fase; a prévia e a tela avisam.
+- Custo de aquisição líquido (rodada 4): o lote guarda o custo por kg com 4
+  casas (colunas antigas inalteradas). O resíduo de arredondamento fica fora do
+  FIFO e é mostrado, limitado a 0,1% do líquido da linha. Compra com custo por
+  kg ínfimo (abaixo de ~0,06/kg) e resíduo acima disso é recusada (422), mesmo
+  sem desconto. Tributos, câmbio e frete com natureza própria não entram no
+  custo.
 - `saldo_antes`/`saldo_depois` dos movimentos (14,4) estouram se a soma dos lotes
   de um local passar de 10¹⁰ kg (borda não protegida).
 - A busca com curingas foi corrigida só na P3; o mesmo defeito existe em módulos
@@ -500,8 +571,15 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
   ~24,6 s (limite 30 s). O cancelamento já é em lote; a confirmação ainda é item a
   item (mesma técnica aplicável depois).
 - DELETE de produto, local e parceiro seguem com o prazo padrão de 5 s.
-- O `maxDuration` da função na Vercel e o pool de conexões de produção não foram
-  medidos com transações de até 30 s (+10 s de espera de conexão).
+- `vercel.json` fixa `maxDuration` 60 s para `api/fastify.js` (`4395c28b`), mas o
+  valor só vale no deploy de produção depois do merge, e o conector não expõe o
+  prazo efetivo: `VERCEL_DURATION: NAO_COMPROVADO` até a leitura do runbook §8,
+  item 7. O pool de conexões de produção não foi medido com transações de até
+  30 s (+10 s de espera de conexão). Prazo estourado não gera sucesso falso: a
+  transação volta inteira, a tela mostra "resultado incerto" com Consultar, e a
+  retentativa com a mesma `operation_id` é idempotente.
+- Documento limitado a 200 itens (e 120 parcelas, 50 linhas de rateio): acima
+  disso, 400 no servidor e bloqueio no formulário.
 - A fila offline (IndexedDB) de exclusões de Produto, Fornecedor e Local para no
   primeiro erro: comportamento anterior a esta PR, agora com gatilhos novos (409
   das §8.5), sem teste.
@@ -525,6 +603,9 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 | Exclusão concorrente de produto, local ou parceiro ainda pode responder 403 em vez de 409 | A FK RESTRICT impede perda de dado |
 | Backup/PITR nunca foi comprovado nas releases anteriores | Nesta release, sem prova → `RELEASE_BLOCKED` |
 | Custo legado do estoque é BRL implícito | Moeda ≠ BRL recusada com lote de custo > 0 |
+| Compra de insumo com custo por kg ínfimo e resíduo > 0,1% passa a ser recusada também sem desconto (antes era gravada com custo distorcido) | Mensagem na linha com líquido, kg, custo e diferença; custo ≥ 0,06/kg nunca é recusado; vetores de granel com frete e desconto aceitos |
+| Backup/PITR de produção sem prova (o conector não lê backups) | `BACKUP/PITR: NAO_COMPROVADO`; o proprietário confere no painel (runbook §4.4); sem prova, `RELEASE_BLOCKED` |
+| PR #229 (só docs) também acrescenta decisão ao fim do `DECISIONS.md` | Numeração já reconciliada (esta é a D-PROD-155); quem for mergeada depois resolve um conflito textual no marcador final, sem renumerar |
 
 ## 11. Prontidão
 

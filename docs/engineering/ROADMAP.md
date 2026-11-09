@@ -282,6 +282,8 @@ centros, títulos (uma linha por parcela), liquidação **manual** com estorno e
 financeiro da empresa (país, moeda, locale). O lançamento só mexe no estoque (KG,
 FIFO) ao ser confirmado, e o estorna ao ser cancelado, por um comando composto.
 É a primeira entrada de estoque nativa (DBT-04), sem tela avulsa de entrada.
+O custo do lote é o custo de aquisição **líquido** (desconto e acréscimo do
+cabeçalho rateados entre as linhas; resíduo de arredondamento explícito, rodada 4).
 Migration expand-only com 8 tabelas novas.
 
 **Estado:** PR #230 em draft. O merge é condicionado à aprovação do proprietário e
