@@ -16,7 +16,11 @@
  *   - local "DEPÓSITO 01" e estoque inicial coerente do SAL MINERAL em dois
  *     lotes (3 kg a 10,0000/kg e 10 kg a 12,0000/kg), cada um com o seu
  *     movimento de Entrada, e `estoque_atual = 13`; local "DEPÓSITO 02" vazio
- *     (a compra que o estoque antigo consome entra nele);
+ *     (a compra que o estoque antigo consome entra nele); local "DEPÓSITO 03"
+ *     vazio (as compras com desconto/acréscimo da rodada 4 entram nele, para
+ *     a venda FIFO consumir o lote descontado e não o da compra do passo 4);
+ *   - produto NÚCLEO PROTEICO (SACO de 30 kg), só da prova de representabili-
+ *     dade do custo (rodada 4): o ensaio muda o peso do saco dele e devolve;
  *   - SEGUNDA empresa do mesmo tenant ("RETIRO", com fuso e SEM perfil
  *     financeiro) com parceiro e natureza próprios — a troca de empresa na tela
  *     não pode mostrar nada da outra;
@@ -180,6 +184,10 @@ export const semearTenantE2E = async (opcoes = {}) => {
     }
     await tx.produto.update({ where: { id: sal.id }, data: { estoque_atual: String(saldo) } });
     const local2 = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '2', nome: 'DEPÓSITO 02' } });
+    const local3 = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '3', nome: 'DEPÓSITO 03' } });
+    const nucleo = await tx.produto.create({
+      data: { ...base, numero_produto: '3', nome_produto: 'NÚCLEO PROTEICO', unidade_principal_estoque: 'SACO', peso_por_saco_kg: '30', unidade_medida: 'SACO' },
+    });
 
     // Segunda empresa do MESMO tenant: parceiro e natureza só dela, sem perfil.
     const empresa2 = await tx.empresa.create({
@@ -223,11 +231,12 @@ export const semearTenantE2E = async (opcoes = {}) => {
       parceiros2: { fornecedor: { id: fornecedor2.id, nome: fornecedor2.nome } },
       naturezas2: { manutencao: manutencao2.id },
       local2: { id: local2.id, nome: local2.nome },
+      local3: { id: local3.id, nome: local3.nome },
       parceiros: { fornecedor: { id: fornecedor.id, nome: fornecedor.nome }, cliente: { id: clienteParceiro.id, nome: clienteParceiro.nome } },
       naturezas: { sintetica: custeio.id, insumos: insumos.id, frete: frete.id, venda_insumos: vendaInsumos.id, servicos: servicos.id },
       centros: { custo: centroCusto.id, resultado: centroResultado.id },
       local: { id: local.id, nome: local.nome },
-      produtos: { sal: { id: sal.id, nome: sal.nome_produto }, racao: { id: racao.id, nome: racao.nome_produto } },
+      produtos: { sal: { id: sal.id, nome: sal.nome_produto }, racao: { id: racao.id, nome: racao.nome_produto }, nucleo: { id: nucleo.id, nome: nucleo.nome_produto } },
       lotes_sal: lotes,
     };
   });

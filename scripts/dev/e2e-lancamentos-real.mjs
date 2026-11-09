@@ -42,8 +42,32 @@
  *  20. troca de empresa na tela (duas empresas do mesmo tenant): perfil,
  *      lista e Novo da empresa nova aparecem; nada da outra vaza, nem o GET
  *      do documento aberto com a empresa nova (revisão rodada 2: FRONTEND-1).
+ *  Rodada 4 (D-PROD-155, custo de aquisição líquido; esperados lidos dos
+ *  vetores compartilhados `tests/smoke/fixtures/rateioCabecalhoVetores.json`):
+ *  21. compra pela tela de 100 SACO × 80,00 com desconto de 500,00 no
+ *      DEPÓSITO 03, a prazo, com a resposta da confirmação perdida e repetida
+ *      (replay): título 7.500, lote 2,5000/kg, movimento 7.500, item com
+ *      desconto rateado 500 e líquido 7.500 no banco; prévia e detalhe com o
+ *      rateio (tela e API = vetor);
+ *  22. venda FIFO de 300 kg consumindo o lote descontado a 2,5000/kg (desconto
+ *      da venda só informativo) e cancelamento que devolve o lote;
+ *  23. cancelamento da compra descontada: lote Estornado, estoque volta,
+ *      estorno 7.500 / 2,5000;
+ *  24. compra com 2 mercadorias + 1 serviço, desconto e acréscimo: Σ líquido =
+ *      total, custo de cada lote e diferença de arredondamento na tela;
+ *  25. custo_kg_nao_representavel: o formulário aponta a linha sem enviar; a
+ *      API recusa o corpo do vetor (422, details do vetor); rascunho cujo peso
+ *      do saco muda no cadastro: a prévia do servidor bloqueia e a confirmação
+ *      recusa — nada gravado;
+ *  26. empresa B e OUTRO tenant: nada vaza (tela e API); a mesma chave reenviada
+ *      é replay sem segundo efeito; a mesma chave em outro tenant é outra
+ *      operação;
+ *  27. vínculo único no banco: cada título com um só documento, cada
+ *      movimento/lote da P3 com um só item; o banco recusa ligar um movimento a
+ *      dois itens.
  *  Toda resposta ≥ 400 da API real observada pelas telas é divergência, salvo
- *  as recusas PROVOCADAS (7, 16, 17), que também TÊM de acontecer.
+ *  as recusas PROVOCADAS (7, 16, 17 e, se a tela deixar confirmar, 25), que
+ *  também TÊM de acontecer.
  *
  * Uso:
  *   DATABASE_URL=postgresql://maike_ci:maike_ci@localhost:5432/maike_p3_e2e \
@@ -179,6 +203,38 @@ const exigir = (cond, msg) => {
 const igual = (real, esperado, msg) => conferir(String(real) === String(esperado), `${msg}: esperado ${esperado}, obtido ${real}`);
 const dec = (v) => (v == null ? null : String(v.toFixed ? v.toFixed(4) : v));
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ─── Rodada 4: vetores compartilhados e aritmética exata ────────────────────
+const VETORES = JSON.parse(fs.readFileSync(path.join(RAIZ, 'tests/smoke/fixtures/rateioCabecalhoVetores.json'), 'utf8')).casos;
+const vetor = (id) => {
+  const c = VETORES.find((x) => x.id === id);
+  if (!c) throw new Error(`vetor ${id} ausente em tests/smoke/fixtures/rateioCabecalhoVetores.json`);
+  return c;
+};
+const CAMPOS_RATEIO = ['ordem', 'valor_total', 'valor_desconto_rateado', 'valor_acrescimo_rateado', 'valor_liquido', 'quantidade_estoque', 'custo_kg', 'residuo_custo'];
+const linhaRateio = (i) => CAMPOS_RATEIO.map((k) => `${k}=${i?.[k] ?? null}`).join(',');
+/** Decimal canônico → inteiro na escala (BigInt), sem float. */
+const escalar = (v, casas) => {
+  const t = String(v);
+  const [i, f = ''] = t.replace('-', '').split('.');
+  const n = BigInt(`${i}${f.padEnd(casas, '0').slice(0, casas)}`);
+  return t.startsWith('-') ? -n : n;
+};
+const deEscala = (n, casas) => {
+  const t = (n < 0n ? -n : n).toString().padStart(casas + 1, '0');
+  return `${n < 0n ? '-' : ''}${t.slice(0, -casas)}.${t.slice(-casas)}`;
+};
+const dec4 = (v) => deEscala(escalar(v, 4), 4);
+const somar4 = (a, b) => deEscala(escalar(a, 4) + escalar(b, 4), 4);
+/** Como a tela pt-BR mostra um decimal canônico (sem "R$" nem espaços): mínimo 2 casas, até `max`. */
+const br = (v, max = 2) => {
+  const t = String(v);
+  const [i, f0 = ''] = t.replace('-', '').split('.');
+  let f = f0.slice(0, max).padEnd(2, '0');
+  while (f.length > 2 && f.endsWith('0')) f = f.slice(0, -1);
+  return `${t.startsWith('-') ? '-' : ''}${i.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${f}`;
+};
+const limpo = (t) => String(t ?? '').replace(/R\$|\s/g, '');
 
 // ─── Dias ───────────────────────────────────────────────────────────────────
 const hojeEm = (fuso) => new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -1419,6 +1475,692 @@ const executarLargura = async (browser, largura) => {
         igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id, empresa_id: s.empresa.id } }), opsA.length, `[${rotulo}] lançamentos de A mudaram com a troca`);
       } finally {
         page.off('request', ouvir);
+      }
+    });
+
+    // ─── Rodada 4 (D-PROD-155): custo de aquisição líquido ─────────────────
+    // Desconto e acréscimo do cabeçalho rateados por item (maiores restos); o
+    // lote e o movimento de entrada da compra levam o LÍQUIDO. Os valores
+    // esperados vêm dos MESMOS vetores do teste PG e do backend falso
+    // (`tests/smoke/fixtures/rateioCabecalhoVetores.json`).
+    const textoDe = async (testId) => {
+      const loc = page.getByTestId(testId);
+      return (await loc.count()) ? limpo(await loc.first().innerText()) : null;
+    };
+    const textoBruto = async (testId) => {
+      const loc = page.getByTestId(testId);
+      return (await loc.count()) ? loc.first().innerText() : '';
+    };
+    const mostrar = async (testId, etapa) => {
+      const el = visivel(page.getByTestId(testId));
+      const ok = await el.waitFor({ timeout: 10000 }).then(
+        () => true,
+        () => false,
+      );
+      conferir(ok, `[${rotulo}] ${etapa}: o bloco "${testId}" não apareceu na tela`);
+      if (ok) await el.scrollIntoViewIfNeeded().catch(() => {});
+      await shot(etapa);
+    };
+    /** Cada item na tela (prévia: `previa-rateio`; detalhe: `consulta`) igual ao esperado. */
+    const conferirRateioNaTela = async (prefixo, itensEsperados, onde) => {
+      for (const e of itensEsperados) {
+        const p = `${prefixo}-item-${e.ordem}`;
+        const visto = [
+          await textoDe(`${p}-subtotal`),
+          await textoDe(`${p}-desconto`),
+          await textoDe(`${p}-acrescimo`),
+          await textoDe(`${p}-liquido`),
+          await textoDe(`${p}-custo-kg`),
+          await textoDe(`${p}-residuo`),
+        ];
+        const esperado = [
+          br(e.valor_total),
+          br(e.valor_desconto_rateado),
+          br(e.valor_acrescimo_rateado),
+          br(e.valor_liquido),
+          e.custo_kg == null ? null : `${br(e.custo_kg, 4)}/kg`,
+          e.residuo_custo == null ? null : br(e.residuo_custo, 8),
+        ];
+        igual(visto.join(' | '), esperado.join(' | '), `[${rotulo}] ${onde}: item ${e.ordem} na tela (subtotal | desconto | acréscimo | líquido | custo/kg | diferença)`);
+      }
+    };
+    const conferirTotaisNaTela = async (testId, caso, onde) => {
+      const visto = [await textoDe(`${testId}-subtotal`), await textoDe(`${testId}-desconto`), await textoDe(`${testId}-acrescimo`), await textoDe(`${testId}-liquido`)];
+      igual(visto.join(' | '), [br(caso.esperado.valor_bruto), br(caso.valor_desconto), br(caso.valor_acrescimo), br(caso.esperado.valor_total)].join(' | '), `[${rotulo}] ${onde}: totais do rateio na tela`);
+      const t = await textoBruto(testId);
+      conferir(/confere com o total do documento/.test(t) && !/NÃO confere/.test(t), `[${rotulo}] ${onde}: Σ líquido não confere com o total na tela: "${t.slice(0, 200)}"`);
+    };
+    /** Nenhum elemento do bloco sai da largura da tela nem rola sozinho (390 px). */
+    const dentroDaTela = async (prefixoTestId, onde) => {
+      const fora = await page.evaluate((pref) => {
+        const w = document.documentElement.clientWidth;
+        return [...document.querySelectorAll(`[data-testid^="${pref}"]`)]
+          .filter((e) => e.getClientRects().length > 0)
+          .map((e) => {
+            const r = e.getBoundingClientRect();
+            return { tid: e.getAttribute('data-testid'), l: Math.round(r.left), r: Math.round(r.right), sw: e.scrollWidth, cw: e.clientWidth };
+          })
+          .filter((x) => x.l < -1 || x.r > w + 1 || x.sw > x.cw + 1);
+      }, prefixoTestId);
+      conferir(!fora.length, `[${rotulo}] ${onde}: ${fora.length} elemento(s) "${prefixoTestId}*" fora da largura ou com rolagem própria: ${JSON.stringify(fora.slice(0, 3))}`);
+    };
+    const detalheApi = (tk, id, empresaId) => api(tk, 'GET', `/api/native/operacoes-financeiras/${id}?empresa_id=${empresaId}`);
+    const previaApi = (tk, id, empresaId) => api(tk, 'POST', `/api/native/operacoes-financeiras/${id}/previa`, { empresa_id: empresaId });
+    const listaApi = async (tk, empresaId) => {
+      const r = await api(tk, 'GET', `/api/native/operacoes-financeiras?empresa_id=${empresaId}`);
+      return { status: r.status, ids: (r.corpo?.items ?? []).map((o) => o.id) };
+    };
+    const produtoAgora = (id) => prisma.produto.findFirst({ where: { cliente_id: s.cliente_id, id } });
+    const unidadeSaco = async (indice) => {
+      await visivel(page.getByRole('combobox', { name: `Unidade do item ${indice + 1}` })).click();
+      await page.getByRole('option', { name: 'SACO', exact: true }).first().click();
+      await page.waitForTimeout(200);
+    };
+    const cancelarPelaTela = async (motivo) => {
+      await clicar(page.getByTestId('botao-cancelar-lancamento'));
+      await page.getByTestId('dialogo-cancelamento').waitFor({ state: 'visible' });
+      await preencher('dialogo-cancelamento-motivo', motivo);
+      await clicar(page.getByTestId('dialogo-cancelamento-enviar'));
+    };
+
+    // 21. (a) Compra pela TELA: 100 SACO × 80,00 com desconto de 500,00, a prazo,
+    //     no DEPÓSITO 03; a confirmação perde a resposta e o "repetir" reusa a
+    //     chave (replay). Título 7.500, lote 2,5000/kg e movimento 7.500 no banco.
+    await passo('21 R4 compra pela tela 100 SACO x 80 desconto 500: titulo 7.500, lote 2,5000/kg, movimento 7.500', async () => {
+      const caso = vetor('brl_compra_desconto_saco');
+      const racaoAntes = await produtoAgora(s.produtos.racao.id);
+      const vencimento = somarDias(hoje, 30);
+      const criados = [];
+      const confirmacoes = [];
+      const ouvirCriacao = (req) => {
+        if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/native/operacoes-financeiras') criados.push(JSON.parse(req.postData() || '{}'));
+      };
+      const rotaConfirmar = (u) => /\/operacoes-financeiras\/[^/]+\/confirmar$/.test(u.pathname);
+      page.on('request', ouvirCriacao);
+      let d;
+      try {
+        await novo();
+        await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+        await radio('escolha-conteudo', 'Com produtos');
+        await radio('escolha-condicao', 'A prazo');
+        await preencher('prazo-vencimento', vencimento);
+        await escolher('seletor-produto-0', /RAÇÃO/);
+        await escolher('seletor-local-0', /DEPÓSITO 03/);
+        await unidadeSaco(0);
+        await preencher('item-0-quantidade', '100');
+        await preencher('item-0-valor-unitario', '80,00');
+        await preencher('valor-desconto', '500,00');
+        await preencher('data-operacional', hoje);
+        await clicar(page.getByTestId('declaracao-efeito-fisico'));
+        await escolher('seletor-natureza-0', /INSUMOS/);
+        const total = limpo(await visivel(page.getByTestId('total-lancamento')).innerText());
+        conferir(total.includes(br(caso.esperado.valor_total)), `[${rotulo}] total do formulário com desconto: "${total}"`);
+        await shot('r4-compra-desconto-form');
+        await page.route(rotaConfirmar, async (route) => {
+          const req = route.request();
+          if (req.method() !== 'POST') return route.continue();
+          confirmacoes.push(JSON.parse(req.postData() || '{}'));
+          if (confirmacoes.length === 1) {
+            await route.fetch(); // chega ao servidor e é processada…
+            return route.abort('failed'); // …mas a resposta se perde no caminho
+          }
+          return route.continue();
+        });
+        const { resumo, bloqueios } = await confirmarPelaTela('r4-compra-desconto');
+        conferir(limpo(resumo).includes(br(caso.esperado.valor_total)) && /1 parcela/i.test(resumo), `[${rotulo}] resumo da compra com desconto: ${resumo.slice(0, 200)}`);
+        conferir(!bloqueios.trim(), `[${rotulo}] prévia da compra com desconto com bloqueio: ${bloqueios.slice(0, 200)}`);
+        await mostrar('previa-rateio', 'r4-compra-desconto-previa-rateio');
+        await conferirRateioNaTela('previa-rateio', caso.esperado.itens, 'prévia da compra com desconto');
+        await conferirTotaisNaTela('previa-rateio-totais', caso, 'prévia da compra com desconto');
+        const avisos = await textoBruto('previa-avisos');
+        conferir(/o custo do lote é o valor líquido da mercadoria/.test(avisos), `[${rotulo}] prévia sem o aviso do rateio: "${avisos.slice(0, 300)}"`);
+        conferir(!/Diferença de arredondamento/.test(avisos), `[${rotulo}] prévia com aviso de diferença sem diferença: "${avisos.slice(0, 300)}"`);
+        if (movel) await dentroDaTela('previa-rateio', 'prévia da compra com desconto');
+        const rasc = await ultimaOperacao(s);
+        exigir(rasc?.status === 'RASCUNHO', `[${rotulo}] rascunho da compra com desconto não está no banco`);
+        const pv = await previaApi(token, rasc.id, s.empresa.id);
+        igual(`${pv.status}:${(pv.corpo?.bloqueios ?? []).length}`, '200:0', `[${rotulo}] prévia da API`);
+        igual((pv.corpo?.plano?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] prévia da API = vetor ${caso.id}`);
+        igual((pv.corpo?.plano?.avisos ?? []).map((a) => a.codigo).join(','), caso.esperado.avisos.join(','), `[${rotulo}] avisos da prévia da API = vetor ${caso.id}`);
+        const entrada = pv.corpo?.plano?.efeitos_estoque?.entradas?.[0];
+        igual(`${entrada?.kg}:${entrada?.custo_kg}`, '3000.0000:2.5000', `[${rotulo}] prévia da entrada no estoque: custo líquido`);
+        await clicar(page.getByTestId('botao-confirmar-definitivo'));
+        await visivel(page.getByTestId('resultado-incerto')).waitFor();
+        await shot('r4-compra-desconto-incerto');
+        await clicar(page.getByTestId('botao-confirmar-definitivo'));
+        await visivel(page.getByTestId('consulta-lancamento')).waitFor({ timeout: 30000 });
+        const aviso = page.getByText(/nada foi duplicado/i).first();
+        await aviso.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+        conferir(await aviso.isVisible(), `[${rotulo}] replay da compra com desconto não foi comunicado ("nada foi duplicado")`);
+        d = await operacaoCompleta(s, rasc.id);
+      } finally {
+        page.off('request', ouvirCriacao);
+        await page.unroute(rotaConfirmar).catch(() => {});
+      }
+      igual(criados.length, 1, `[${rotulo}] POST de criação da compra com desconto`);
+      igual(confirmacoes.length, 2, `[${rotulo}] envios de confirmação da compra com desconto`);
+      conferir(confirmacoes[0]?.operation_id && confirmacoes[0].operation_id === confirmacoes[1]?.operation_id, `[${rotulo}] repetição não reusou o operation_id (${confirmacoes.map((c) => c.operation_id).join(' ≠ ')})`);
+      igual(`${d.status}:${dec(d.valor_bruto)}:${dec(d.valor_desconto)}:${dec(d.valor_acrescimo)}:${dec(d.valor_total)}`, 'CONFIRMADO:8000.0000:500.0000:0.0000:7500.0000', `[${rotulo}] cabeçalho da compra com desconto`);
+      igual(d.itens.length, 1, `[${rotulo}] itens da compra com desconto`);
+      const it = d.itens[0];
+      igual(
+        `${it.unidade}:${dec(it.quantidade_estoque)}:${dec(it.valor_total)}:${dec(it.valor_desconto_rateado)}:${dec(it.valor_acrescimo_rateado)}:${dec(it.valor_liquido)}`,
+        'SACO:3000.0000:8000.0000:500.0000:0.0000:7500.0000',
+        `[${rotulo}] item gravado com o rateio (banco)`,
+      );
+      igual(d.titulos.map((t) => `${t.status}:${dec(t.valor)}:${dec(t.valor_liquidado)}:${diaDe(t.vencimento)}`).join('|'), `ABERTO:7500.0000:0.0000:${vencimento}`, `[${rotulo}] título da compra com desconto`);
+      const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: it.estoque_lote_nota_id } });
+      exigir(lote, `[${rotulo}] lote da compra com desconto não gravado`);
+      igual(`${dec(lote.quantidade_entrada)}:${dec(lote.quantidade_disponivel)}:${dec(lote.custo_unitario)}:${lote.status}:${lote.local_estoque_id}`, `3000.0000:3000.0000:2.5000:Disponivel:${s.local3.id}`, `[${rotulo}] lote da compra com desconto (custo líquido)`);
+      const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: it.movimentacao_estoque_id } });
+      exigir(mov, `[${rotulo}] movimento da compra com desconto não gravado`);
+      igual(
+        `${mov.tipo_movimentacao}:${mov.tipo_detalhado}:${dec(mov.quantidade)}:${dec(mov.valor_total)}:${dec(mov.valor_unitario)}:${mov.lancamento_origem_id}:${mov.local_estoque_destino}`,
+        `Entrada:compra_financeiro:3000.0000:7500.0000:2.5000:${d.id}:${s.local3.id}`,
+        `[${rotulo}] movimento da compra com desconto (valor líquido)`,
+      );
+      igual(lote.movimentacao_entrada_id, mov.id, `[${rotulo}] lote ↔ movimento da compra com desconto`);
+      igual(await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, lancamento_origem_id: d.id } }), 1, `[${rotulo}] movimentos da compra com desconto (replay sem duplicar)`);
+      igual(await prisma.estoqueLoteNota.count({ where: { cliente_id: s.cliente_id, movimentacao_entrada_id: mov.id } }), 1, `[${rotulo}] lotes da compra com desconto (replay sem duplicar)`);
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), somar4(dec(racaoAntes.estoque_atual), '3000.0000'), `[${rotulo}] estoque_atual da RAÇÃO após a compra com desconto`);
+      await mostrar('consulta-item-1', 'r4-compra-desconto-detalhe');
+      await conferirRateioNaTela('consulta', caso.esperado.itens, 'detalhe da compra com desconto');
+      await conferirTotaisNaTela('consulta-rateio-totais', caso, 'detalhe da compra com desconto');
+      if (movel) await dentroDaTela('consulta-item-', 'detalhe da compra com desconto');
+      const det = await detalheApi(token, d.id, s.empresa.id);
+      igual(det.status, 200, `[${rotulo}] detalhe da API da compra com desconto`);
+      igual((det.corpo?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] detalhe da API = vetor ${caso.id} (custo do lote gravado)`);
+      docs.compraDesc = { ...d, racaoAntes: dec(racaoAntes.estoque_atual), corpoCriar: criados[0], corpoConfirmar: confirmacoes[0] };
+    });
+
+    // 22. (d) Venda FIFO de 300 kg da RAÇÃO no DEPÓSITO 03: consome o lote
+    //     descontado a 2,5000/kg; o desconto da venda é só informativo (receita
+    //     líquida). Cancelar a venda devolve o lote (pré-requisito do passo 23).
+    await passo('22 R4 venda FIFO consome o lote descontado a 2,5000/kg; desconto da venda informativo; cancelar devolve', async () => {
+      exigir(docs.compraDesc, `[${rotulo}] o passo 22 exige a compra com desconto do passo 21`);
+      const loteId = docs.compraDesc.itens[0].estoque_lote_nota_id;
+      const racaoAntes = await produtoAgora(s.produtos.racao.id);
+      const esperadoItens = [
+        { ordem: 1, valor_total: '1200.00', valor_desconto_rateado: '100.00', valor_acrescimo_rateado: '0.00', valor_liquido: '1100.00', quantidade_estoque: '300.0000', custo_kg: null, residuo_custo: null },
+      ];
+      await novo();
+      await radio('escolha-direcao', 'A receber');
+      await escolher('seletor-parceiro', /FRIGORÍFICO CENTRAL/);
+      await radio('escolha-conteudo', 'Com produtos');
+      await escolher('seletor-produto-0', /RAÇÃO/);
+      const saldos = page.getByTestId('saldos-item-0');
+      await visivel(saldos.getByRole('button', { name: /DEPÓSITO 03/ })).waitFor();
+      const textoSaldo = await visivel(saldos).innerText();
+      conferir(/DEPÓSITO 03: 3\.000 kg/i.test(textoSaldo), `[${rotulo}] saldo do DEPÓSITO 03 não mostra 3.000 kg: ${textoSaldo.slice(0, 200)}`);
+      await clicar(saldos.getByRole('button', { name: /DEPÓSITO 03/ }));
+      await preencher('item-0-quantidade', '300');
+      await preencher('item-0-valor-unitario', '4,00');
+      await preencher('valor-desconto', '100,00');
+      await preencher('data-operacional', hoje);
+      await clicar(page.getByTestId('declaracao-efeito-fisico'));
+      await escolher('seletor-natureza-0', /VENDA DE INSUMOS/);
+      const { resumo, bloqueios } = await confirmarPelaTela('r4-venda-lote-descontado');
+      conferir(limpo(resumo).includes('1.100,00'), `[${rotulo}] resumo da venda sem 1.100,00: ${resumo.slice(0, 200)}`);
+      conferir(!bloqueios.trim(), `[${rotulo}] prévia da venda com bloqueio: ${bloqueios.slice(0, 200)}`);
+      await mostrar('previa-rateio', 'r4-venda-previa-rateio');
+      await conferirRateioNaTela('previa-rateio', esperadoItens, 'prévia da venda');
+      const avisos = await textoBruto('previa-avisos');
+      conferir(/custo FIFO dos lotes/.test(avisos), `[${rotulo}] prévia da venda sem o aviso de receita líquida/custo FIFO: "${avisos.slice(0, 300)}"`);
+      const rasc = await ultimaOperacao(s);
+      const pv = await previaApi(token, rasc.id, s.empresa.id);
+      igual((pv.corpo?.plano?.itens ?? []).map(linhaRateio).join(' | '), esperadoItens.map(linhaRateio).join(' | '), `[${rotulo}] prévia da API da venda`);
+      igual((pv.corpo?.plano?.avisos ?? []).map((a) => a.codigo).join(','), 'desconto_acrescimo_rateados', `[${rotulo}] avisos da prévia da API da venda`);
+      const saida = pv.corpo?.plano?.efeitos_estoque?.saidas?.[0];
+      igual(
+        `${saida?.kg}:${saida?.custo_total}:${(saida?.fatias ?? []).map((f) => `${f.lote_id === loteId ? 'LOTE-DESCONTADO' : f.lote_id}/${f.quantidade}/${f.custo_unitario}`).join(',')}`,
+        '300.0000:750.0000:LOTE-DESCONTADO/300.0000/2.5000',
+        `[${rotulo}] prévia da saída: custo FIFO do lote descontado`,
+      );
+      await confirmarDefinitivo('r4-venda-lote-descontado');
+      const op = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, rasc.id);
+        return o && o.status === 'CONFIRMADO' ? o : null;
+      }, 'venda do lote descontado confirmada');
+      const it = op.itens[0];
+      igual(`${dec(it.quantidade_estoque)}:${dec(it.valor_total)}:${dec(it.valor_desconto_rateado)}:${dec(it.valor_acrescimo_rateado)}:${dec(it.valor_liquido)}`, '300.0000:1200.0000:100.0000:0.0000:1100.0000', `[${rotulo}] item da venda (receita líquida)`);
+      const consumos = await prisma.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.cliente_id, item_id: it.id } });
+      igual(consumos.map((c) => `${c.estoque_lote_nota_id === loteId ? 'LOTE-DESCONTADO' : c.estoque_lote_nota_id}:${dec(c.quantidade)}:${dec(c.custo_unitario)}`).join('|'), 'LOTE-DESCONTADO:300.0000:2.5000', `[${rotulo}] fatia FIFO da venda`);
+      const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: loteId } });
+      igual(`${dec(lote.quantidade_disponivel)}:${lote.status}`, '2700.0000:Disponivel', `[${rotulo}] lote descontado após a venda`);
+      const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: it.movimentacao_estoque_id } });
+      igual(`${mov.tipo_movimentacao}:${mov.tipo_detalhado}:${dec(mov.quantidade)}:${dec(mov.valor_total)}:${dec(mov.valor_unitario)}:${mov.local_estoque_origem}`, `Saída:venda_financeiro:300.0000:750.0000:2.5000:${s.local3.id}`, `[${rotulo}] movimento da venda (custo FIFO líquido, nunca o preço)`);
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), somar4(dec(racaoAntes.estoque_atual), '-300.0000'), `[${rotulo}] estoque_atual da RAÇÃO após a venda`);
+      igual(op.titulos.map((t) => `${t.status}:${dec(t.valor)}`).join('|'), 'ABERTO:1100.0000', `[${rotulo}] título da venda com desconto`);
+      await conferirRateioNaTela('consulta', esperadoItens, 'detalhe da venda');
+      await cancelarPelaTela('Venda desfeita: lote descontado devolvido');
+      const canc = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, op.id);
+        return o && o.status === 'CANCELADO' ? o : null;
+      }, 'venda do lote descontado CANCELADA');
+      const lote2 = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: loteId } });
+      igual(`${dec(lote2.quantidade_disponivel)}:${lote2.status}`, '3000.0000:Disponivel', `[${rotulo}] lote descontado devolvido ao cancelar a venda`);
+      const est = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: canc.itens[0].movimentacao_estorno_id } });
+      exigir(est, `[${rotulo}] estorno da venda não gravado`);
+      igual(`${est.tipo_movimentacao}:${est.tipo_detalhado}:${dec(est.quantidade)}:${dec(est.valor_total)}:${dec(est.valor_unitario)}:${est.movimento_pai_id === mov.id}`, 'Entrada:estorno_venda:300.0000:750.0000:2.5000:true', `[${rotulo}] estorno da venda pelo custo FIFO líquido`);
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), dec(racaoAntes.estoque_atual), `[${rotulo}] estoque_atual da RAÇÃO após cancelar a venda`);
+      await shot('r4-venda-cancelada');
+      docs.vendaDesc = canc;
+    });
+
+    // 23. (e) Cancelar a compra com desconto: lote Estornado, estoque volta e o
+    //     estorno sai pelo MESMO valor líquido (7.500 / 2,5000).
+    await passo('23 R4 cancelar a compra descontada: lote Estornado, estoque volta, estorno pelo liquido', async () => {
+      exigir(docs.compraDesc, `[${rotulo}] o passo 23 exige a compra com desconto do passo 21`);
+      const caso = vetor('brl_compra_desconto_saco');
+      const it0 = docs.compraDesc.itens[0];
+      await abrirDocumento(docs.compraDesc);
+      await cancelarPelaTela('Compra devolvida ao fornecedor');
+      const op = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, docs.compraDesc.id);
+        return o && o.status === 'CANCELADO' ? o : null;
+      }, 'compra com desconto CANCELADA');
+      igual(op.titulos.map((t) => `${t.status}:${dec(t.valor)}`).join('|'), 'CANCELADO:7500.0000', `[${rotulo}] título da compra com desconto cancelada`);
+      const it = op.itens[0];
+      igual(`${dec(it.valor_desconto_rateado)}:${dec(it.valor_liquido)}`, '500.0000:7500.0000', `[${rotulo}] rateio gravado continua no item cancelado`);
+      const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: it0.estoque_lote_nota_id } });
+      igual(`${dec(lote.quantidade_entrada)}:${dec(lote.quantidade_disponivel)}:${dec(lote.custo_unitario)}:${lote.status}`, '3000.0000:0.0000:2.5000:Estornado', `[${rotulo}] lote da compra cancelada`);
+      exigir(it.movimentacao_estorno_id, `[${rotulo}] item da compra cancelada sem movimentacao_estorno_id`);
+      const original = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: it.movimentacao_estoque_id } });
+      const estorno = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: it.movimentacao_estorno_id } });
+      igual(`${original.status}:${original.movimento_filho_id === estorno.id}`, 'Estornada:true', `[${rotulo}] movimento da compra estornado e ligado`);
+      igual(
+        `${estorno.tipo_movimentacao}:${estorno.tipo_detalhado}:${dec(estorno.quantidade)}:${dec(estorno.valor_total)}:${dec(estorno.valor_unitario)}:${estorno.movimento_pai_id === original.id}:${estorno.local_estoque_origem}`,
+        `Saída:estorno_compra:3000.0000:7500.0000:2.5000:true:${s.local3.id}`,
+        `[${rotulo}] estorno da compra pelo valor líquido`,
+      );
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), docs.compraDesc.racaoAntes, `[${rotulo}] estoque_atual da RAÇÃO volta ao de antes da compra com desconto`);
+      await page.waitForTimeout(600);
+      await visivel(page.getByTestId('aviso-cancelado')).waitFor().catch(() => conferir(false, `[${rotulo}] aviso de cancelado não apareceu na compra com desconto`));
+      await mostrar('consulta-item-1', 'r4-compra-desconto-cancelada');
+      await conferirRateioNaTela('consulta', caso.esperado.itens, 'detalhe da compra cancelada');
+      const det = await detalheApi(token, op.id, s.empresa.id);
+      igual((det.corpo?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] detalhe da API da compra cancelada = vetor ${caso.id}`);
+      docs.compraDesc.status = 'CANCELADO';
+    });
+
+    // 24. (b) Compra com 2 mercadorias + 1 serviço, desconto e acréscimo juntos
+    //     (vetor brl_mercadoria_servico_desconto_acrescimo): Σ líquido = total,
+    //     custo de cada lote e diferença de arredondamento mostrada.
+    await passo('24 R4 compra 2 mercadorias + 1 servico com desconto e acrescimo: soma do liquido = total, custo de cada lote, diferenca na tela', async () => {
+      const caso = vetor('brl_mercadoria_servico_desconto_acrescimo');
+      const [e1, , e3] = caso.esperado.itens;
+      const [v1, v2, v3] = caso.itens;
+      const salAntes = await produtoAgora(s.produtos.sal.id);
+      const racaoAntes = await produtoAgora(s.produtos.racao.id);
+      const vencimento = somarDias(hoje, 30);
+      await novo();
+      await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+      await radio('escolha-conteudo', 'Com produtos');
+      await radio('escolha-condicao', 'A prazo');
+      await preencher('prazo-vencimento', vencimento);
+      await escolher('seletor-produto-0', /SAL MINERAL/);
+      await escolher('seletor-local-0', /DEPÓSITO 03/);
+      await preencher('item-0-quantidade', v1.quantidade);
+      await preencher('item-0-valor-unitario', v1.valor_unitario.replace('.', ','));
+      await clicar(page.getByRole('button', { name: 'Serviço', exact: true }));
+      await visivel(page.getByTestId('item-1').getByLabel('Descrição do serviço')).fill(v2.descricao);
+      await preencher('item-1-quantidade', v2.quantidade);
+      await preencher('item-1-valor-unitario', v2.valor_unitario.replace('.', ','));
+      await clicar(page.getByRole('button', { name: 'Mercadoria', exact: true }));
+      await escolher('seletor-produto-2', /RAÇÃO/);
+      await escolher('seletor-local-2', /DEPÓSITO 03/);
+      await unidadeSaco(2);
+      await preencher('item-2-quantidade', v3.quantidade);
+      await preencher('item-2-valor-unitario', `${v3.valor_unitario},00`);
+      await preencher('valor-desconto', caso.valor_desconto.replace('.', ','));
+      await preencher('valor-acrescimo', caso.valor_acrescimo.replace('.', ','));
+      await preencher('data-operacional', hoje);
+      await clicar(page.getByTestId('declaracao-efeito-fisico'));
+      await escolher('seletor-natureza-0', /INSUMOS/);
+      const total = limpo(await visivel(page.getByTestId('total-lancamento')).innerText());
+      conferir(total.includes(br(caso.esperado.valor_total)), `[${rotulo}] total do formulário (2 mercadorias + serviço): "${total}"`);
+      await shot('r4-mercadorias-servico-form');
+      const { resumo, bloqueios } = await confirmarPelaTela('r4-mercadorias-servico');
+      conferir(limpo(resumo).includes(br(caso.esperado.valor_total)), `[${rotulo}] resumo sem ${caso.esperado.valor_total}: ${resumo.slice(0, 200)}`);
+      conferir(!bloqueios.trim(), `[${rotulo}] prévia (2 mercadorias + serviço) com bloqueio: ${bloqueios.slice(0, 200)}`);
+      await mostrar('previa-rateio', 'r4-mercadorias-servico-previa-rateio');
+      await conferirRateioNaTela('previa-rateio', caso.esperado.itens, 'prévia (2 mercadorias + serviço)');
+      await mostrar('previa-rateio-totais', 'r4-mercadorias-servico-previa-totais');
+      await conferirTotaisNaTela('previa-rateio-totais', caso, 'prévia (2 mercadorias + serviço)');
+      conferir(await page.getByTestId('previa-rateio-nota-residuo').count(), `[${rotulo}] prévia sem a nota da diferença de arredondamento`);
+      const avisos = await textoBruto('previa-avisos');
+      conferir(
+        /o custo do lote é o valor líquido da mercadoria/.test(avisos) && limpo(avisos).includes(`${br(caso.esperado.residuo_total, 8)}nototal`),
+        `[${rotulo}] avisos da prévia sem o rateio ou sem a diferença total ${caso.esperado.residuo_total}: "${avisos.slice(0, 400)}"`,
+      );
+      if (movel) await dentroDaTela('previa-rateio', 'prévia (2 mercadorias + serviço)');
+      const rasc = await ultimaOperacao(s);
+      const pv = await previaApi(token, rasc.id, s.empresa.id);
+      igual((pv.corpo?.plano?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] prévia da API = vetor ${caso.id}`);
+      igual((pv.corpo?.plano?.avisos ?? []).map((a) => a.codigo).join(','), caso.esperado.avisos.join(','), `[${rotulo}] avisos da prévia da API = vetor ${caso.id}`);
+      igual((pv.corpo?.plano?.avisos ?? []).find((a) => a.codigo === 'residuo_custo_estoque')?.residuo_total, caso.esperado.residuo_total, `[${rotulo}] resíduo total da prévia da API`);
+      await confirmarDefinitivo('r4-mercadorias-servico');
+      const d = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, rasc.id);
+        return o && o.status === 'CONFIRMADO' ? o : null;
+      }, 'compra 2 mercadorias + serviço confirmada');
+      igual(`${dec(d.valor_bruto)}:${dec(d.valor_desconto)}:${dec(d.valor_acrescimo)}:${dec(d.valor_total)}`, '105.0000:1.0000:0.5000:104.5000', `[${rotulo}] cabeçalho (2 mercadorias + serviço)`);
+      igual(
+        d.itens.map((i) => `${i.ordem}:${i.tipo_item}:${dec(i.valor_total)}:${dec(i.valor_desconto_rateado)}:${dec(i.valor_acrescimo_rateado)}:${dec(i.valor_liquido)}`).join('|'),
+        caso.esperado.itens.map((e, k) => `${e.ordem}:${caso.itens[k].tipo_item}:${dec4(e.valor_total)}:${dec4(e.valor_desconto_rateado)}:${dec4(e.valor_acrescimo_rateado)}:${dec4(e.valor_liquido)}`).join('|'),
+        `[${rotulo}] itens gravados (banco) = vetor ${caso.id}`,
+      );
+      const somaLiquido = deEscala(d.itens.reduce((acc, i) => acc + escalar(dec(i.valor_liquido), 4), 0n), 4);
+      igual(somaLiquido, dec(d.valor_total), `[${rotulo}] Σ valor_liquido dos itens = valor_total do documento (banco, exato)`);
+      igual(d.titulos.map((t) => `${t.status}:${dec(t.valor)}:${diaDe(t.vencimento)}`).join('|'), `ABERTO:104.5000:${vencimento}`, `[${rotulo}] título (2 mercadorias + serviço)`);
+      const servico = d.itens[1];
+      igual(`${servico.estoque_lote_nota_id}:${servico.movimentacao_estoque_id}:${servico.quantidade_estoque}`, 'null:null:null', `[${rotulo}] serviço sem lote, movimento nem kg`);
+      for (const [k, e] of [[0, e1], [2, e3]]) {
+        const i = d.itens[k];
+        const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: i.estoque_lote_nota_id } });
+        const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: i.movimentacao_estoque_id } });
+        exigir(lote && mov, `[${rotulo}] item ${e.ordem} sem lote ou movimento`);
+        igual(`${dec(lote.quantidade_entrada)}:${dec(lote.custo_unitario)}:${lote.status}:${lote.local_estoque_id}`, `${e.quantidade_estoque}:${e.custo_kg}:Disponivel:${s.local3.id}`, `[${rotulo}] lote do item ${e.ordem} (custo líquido)`);
+        igual(`${mov.tipo_detalhado}:${dec(mov.quantidade)}:${dec(mov.valor_total)}:${dec(mov.valor_unitario)}:${lote.movimentacao_entrada_id === mov.id}`, `compra_financeiro:${e.quantidade_estoque}:${dec4(e.valor_liquido)}:${e.custo_kg}:true`, `[${rotulo}] movimento do item ${e.ordem} (valor líquido exato)`);
+        const residuo = deEscala(escalar(dec(i.valor_liquido), 8) - escalar(dec(i.quantidade_estoque), 4) * escalar(dec(lote.custo_unitario), 4), 8);
+        igual(residuo, e.residuo_custo, `[${rotulo}] resíduo do item ${e.ordem} = líquido − kg × custo do lote (banco)`);
+      }
+      igual(dec((await produtoAgora(s.produtos.sal.id)).estoque_atual), somar4(dec(salAntes.estoque_atual), e1.quantidade_estoque), `[${rotulo}] estoque_atual do SAL`);
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), somar4(dec(racaoAntes.estoque_atual), e3.quantidade_estoque), `[${rotulo}] estoque_atual da RAÇÃO`);
+      await mostrar('consulta-item-1', 'r4-mercadorias-servico-detalhe');
+      await conferirRateioNaTela('consulta', caso.esperado.itens, 'detalhe (2 mercadorias + serviço)');
+      await mostrar('consulta-rateio-totais', 'r4-mercadorias-servico-detalhe-totais');
+      await conferirTotaisNaTela('consulta-rateio-totais', caso, 'detalhe (2 mercadorias + serviço)');
+      if (movel) await dentroDaTela('consulta-item-', 'detalhe (2 mercadorias + serviço)');
+      const det = await detalheApi(token, d.id, s.empresa.id);
+      igual((det.corpo?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] detalhe da API = vetor ${caso.id}`);
+      docs.compraMista = d;
+    });
+
+    // 25. (c) custo_kg_nao_representavel: (a) o formulário aponta a linha e não
+    //     envia nada; (b) a API real recusa o MESMO corpo do vetor com 422 e os
+    //     details do vetor; (c) rascunho válido cujo peso do saco muda no
+    //     cadastro: a prévia DO SERVIDOR bloqueia e a confirmação recusa. Nada gravado.
+    await passo('25 R4 custo_kg_nao_representavel: formulario aponta a linha, API recusa 422, previa do servidor bloqueia; nada gravado', async () => {
+      const caso = vetor('brl_residuo_fora_do_limite');
+      const e = caso.esperado.erro;
+      const v = caso.itens[0];
+      const detalhesComo = (det) => JSON.stringify(Object.fromEntries(Object.keys(e.details).map((k) => [k, det?.[k] ?? null])));
+      const estoqueInicio = await fotoEstoque(s);
+      const financeiroInicio = await fotoFinanceiro(s);
+      // 25a. formulário
+      const escritas = () => dono.requisicoes.filter((r) => r.metodo !== 'GET' && /\/operacoes-financeiras/.test(r.url)).length;
+      await novo();
+      await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+      await radio('escolha-conteudo', 'Com produtos');
+      await escolher('seletor-produto-0', /SAL MINERAL/);
+      await escolher('seletor-local-0', /DEPÓSITO 03/);
+      await preencher('item-0-quantidade', v.quantidade);
+      await preencher('item-0-valor-unitario', v.valor_unitario.replace('.', ','));
+      await preencher('data-operacional', hoje);
+      await clicar(page.getByTestId('declaracao-efeito-fisico'));
+      await escolher('seletor-natureza-0', /INSUMOS/);
+      const antes = escritas();
+      await clicar(page.getByRole('button', { name: 'Salvar', exact: true }));
+      const erroLinha = visivel(page.getByTestId('item-0-liquido-erro'));
+      await erroLinha.waitFor({ timeout: 10000 }).catch(() => {});
+      const txt = (await erroLinha.isVisible()) ? await erroLinha.innerText() : '';
+      conferir(
+        /não cabe nas 4 casas/.test(txt) && /3\.000 kg/.test(txt) && limpo(txt).includes(br(e.details.custo_kg, 4)) && limpo(txt).includes(br(e.details.residuo_custo, 8)),
+        `[${rotulo}] formulário não apontou o custo não representável na linha 1: "${txt.slice(0, 300)}"`,
+      );
+      await erroLinha.scrollIntoViewIfNeeded().catch(() => {});
+      await shot('r4-custo-nao-representavel-form');
+      await clicar(page.getByTestId('botao-confirmar-lancamento'));
+      await page.waitForTimeout(800);
+      igual(await page.getByTestId('dialogo-confirmacao').filter({ visible: true }).count(), 0, `[${rotulo}] diálogo de confirmação abriu com a linha recusada`);
+      igual(escritas() - antes, 0, `[${rotulo}] escritas enviadas com a linha recusada`);
+      igual(await fotoFinanceiro(s), financeiroInicio, `[${rotulo}] formulário recusado alterou o financeiro`);
+      // 25b. API real, mesmo corpo do vetor
+      const corpo = {
+        empresa_id: s.empresa.id,
+        operation_id: randomUUID(),
+        direcao: 'PAGAR',
+        conteudo: 'COM_PRODUTOS',
+        condicao: 'PRAZO',
+        parceiro_id: s.parceiros.fornecedor.id,
+        data_emissao: hoje,
+        data_operacional: hoje,
+        efeito_fisico_confirmado: true,
+        valor_desconto: caso.valor_desconto,
+        valor_acrescimo: caso.valor_acrescimo,
+        itens: [{ tipo_item: 'MERCADORIA', produto_id: s.produtos.sal.id, local_estoque_id: s.local3.id, unidade: v.unidade, quantidade: v.quantidade, valor_unitario: v.valor_unitario }],
+        rateio_modo: 'PERCENTUAL',
+        rateios: [{ natureza_id: s.naturezas.insumos, percentual: '100' }],
+        parcelas: [{ vencimento: somarDias(hoje, 30), valor: caso.esperado.valor_total }],
+      };
+      const r = await api(token, 'POST', '/api/native/operacoes-financeiras', corpo);
+      igual(`${r.status}:${r.corpo?.code}:${r.corpo?.field}:${r.corpo?.reason}`, `${e.status}:${e.code}:${e.field}:${e.reason}`, `[${rotulo}] API real recusa o corpo do vetor ${caso.id}`);
+      igual(detalhesComo(r.corpo?.details), JSON.stringify(e.details), `[${rotulo}] details do 422 = vetor ${caso.id}`);
+      igual(await fotoFinanceiro(s), financeiroInicio, `[${rotulo}] 422 da API alterou o financeiro`);
+      igual(await fotoEstoque(s), estoqueInicio, `[${rotulo}] 422 da API alterou o estoque`);
+      // 25c. rascunho válido (1 SACO de 30 kg × 1,00: custo 0,0333, diferença 0,001)
+      await novo();
+      await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+      await radio('escolha-conteudo', 'Com produtos');
+      await escolher('seletor-produto-0', /NÚCLEO PROTEICO/);
+      await escolher('seletor-local-0', /DEPÓSITO 03/);
+      await unidadeSaco(0);
+      await preencher('item-0-quantidade', '1');
+      await preencher('item-0-valor-unitario', '1,00');
+      await preencher('data-operacional', hoje);
+      await clicar(page.getByTestId('declaracao-efeito-fisico'));
+      await escolher('seletor-natureza-0', /INSUMOS/);
+      await clicar(page.getByRole('button', { name: 'Salvar', exact: true }));
+      const rasc = await esperarBanco(async () => {
+        const u = await ultimaOperacao(s);
+        return u && u.status === 'RASCUNHO' && dec(u.valor_total) === '1.0000' ? u : null;
+      }, 'rascunho do NÚCLEO PROTEICO');
+      const itRasc = (await operacaoCompleta(s, rasc.id)).itens[0];
+      igual(`${dec(itRasc.fator_kg)}:${dec(itRasc.quantidade_estoque)}:${dec(itRasc.valor_liquido)}`, '30.0000:30.0000:1.0000', `[${rotulo}] rascunho do NÚCLEO PROTEICO`);
+      const nucleo = await produtoAgora(s.produtos.nucleo.id);
+      // Outra pessoa muda o peso do saco no cadastro do produto (fora desta tela):
+      // 1 SACO passa a 3.000 kg e o MESMO 1,00 dá 0,0003/kg com 0,10 de diferença.
+      await prisma.produto.updateMany({ where: { cliente_id: s.cliente_id, id: s.produtos.nucleo.id }, data: { peso_por_saco_kg: '3000' } });
+      try {
+        const estoqueRasc = await fotoEstoque(s);
+        const financeiroRasc = await fotoFinanceiro(s);
+        await abrirDocumento(rasc);
+        const { bloqueios } = await confirmarPelaTela('r4-custo-nao-representavel-servidor');
+        conferir(
+          /não cabe nas 4 casas/.test(bloqueios) && /3\.000 kg/.test(bloqueios) && limpo(bloqueios).includes(br(e.details.custo_kg, 4)) && limpo(bloqueios).includes(br(e.details.residuo_custo, 8)),
+          `[${rotulo}] prévia do servidor não mostrou o custo não representável: "${bloqueios.slice(0, 300)}"`,
+        );
+        const pv = await previaApi(token, rasc.id, s.empresa.id);
+        const bl = (pv.corpo?.bloqueios ?? []).find((b) => b.reason === 'custo_kg_nao_representavel');
+        exigir(bl, `[${rotulo}] prévia da API sem o bloqueio custo_kg_nao_representavel: ${JSON.stringify(pv.corpo?.bloqueios ?? []).slice(0, 300)}`);
+        igual(`${bl.code}:${bl.field}`, `${e.code}:${e.field}`, `[${rotulo}] bloqueio da prévia da API`);
+        igual(detalhesComo(bl.details), JSON.stringify(e.details), `[${rotulo}] details do bloqueio da prévia = vetor ${caso.id} (mesmos números do 25b)`);
+        const botao = page.getByTestId('botao-confirmar-definitivo');
+        if ((await botao.count()) && (await botao.first().isEnabled())) {
+          esperarRecusa(/^POST \/api\/native\/operacoes-financeiras\/[^/]+\/confirmar → 422 .*custo_kg_nao_representavel/, 'passo 25: confirmar com custo não representável → 422');
+          await botao.first().click();
+          await page.waitForTimeout(1500);
+          const msg = page.getByRole('dialog').getByText(/não cabe nas 4 casas/).first();
+          conferir(await msg.isVisible().catch(() => false), `[${rotulo}] 422 da confirmação sem a mensagem do custo não representável`);
+        }
+        await shot('r4-custo-nao-representavel-servidor-recusa');
+        const rc = await api(token, 'POST', `/api/native/operacoes-financeiras/${rasc.id}/confirmar`, { empresa_id: s.empresa.id, operation_id: randomUUID(), versao: rasc.versao });
+        igual(`${rc.status}:${rc.corpo?.code}:${rc.corpo?.reason}`, `422:${e.code}:${e.reason}`, `[${rotulo}] confirmação pela API com custo não representável`);
+        igual(await fotoEstoque(s), estoqueRasc, `[${rotulo}] recusa do servidor alterou o estoque`);
+        igual(await fotoFinanceiro(s), financeiroRasc, `[${rotulo}] recusa do servidor alterou o financeiro`);
+        const depois = await operacaoCompleta(s, rasc.id);
+        igual(`${depois.status}:${depois.itens[0].estoque_lote_nota_id}:${depois.itens[0].movimentacao_estoque_id}:${depois.titulos.map((t) => t.status).join('|')}`, 'RASCUNHO:null:null:PREVISTO', `[${rotulo}] rascunho recusado continua rascunho, sem lote nem movimento`);
+        await page.keyboard.press('Escape').catch(() => {});
+      } finally {
+        await prisma.produto.updateMany({ where: { cliente_id: s.cliente_id, id: s.produtos.nucleo.id }, data: { peso_por_saco_kg: nucleo.peso_por_saco_kg } });
+      }
+      igual(await fotoEstoque(s), estoqueInicio, `[${rotulo}] passo 25 alterou o estoque`);
+    });
+
+    // 26. (f) Duas empresas do mesmo tenant e OUTRO tenant: o lançamento de um
+    //     não aparece no outro (tela e API real); reenvio com a mesma chave =
+    //     replay, sem segundo efeito (banco). A mesma chave em outro tenant é
+    //     outra operação (a chave é do tenant), não replay da primeira.
+    await passo('26 R4 duas empresas e outro tenant: nada vaza; mesma chave = replay sem segundo efeito', async () => {
+      exigir(docs.compraDesc?.corpoCriar?.operation_id && docs.compraDesc?.corpoConfirmar?.operation_id, `[${rotulo}] o passo 26 exige as chaves da compra com desconto do passo 21`);
+      const caso = vetor('brl_compra_desconto_saco');
+      const idA = docs.compraDesc.id;
+      const fotoA = async () => `${await fotoFinanceiro(s)}|${await fotoEstoque(s)}`;
+      // 26a. reenvio no MESMO tenant (a compra já foi confirmada e cancelada)
+      const antes = await fotoA();
+      const rc1 = await api(token, 'POST', '/api/native/operacoes-financeiras', docs.compraDesc.corpoCriar);
+      igual(`${rc1.status}:${rc1.corpo?.replay}:${rc1.corpo?.id}`, `200:true:${idA}`, `[${rotulo}] reenvio da criação com a mesma chave`);
+      const rc2 = await api(token, 'POST', `/api/native/operacoes-financeiras/${idA}/confirmar`, docs.compraDesc.corpoConfirmar);
+      igual(`${rc2.status}:${rc2.corpo?.replay}:${rc2.corpo?.id}`, `200:true:${idA}`, `[${rotulo}] reenvio da confirmação com a mesma chave`);
+      igual(await fotoA(), antes, `[${rotulo}] reenvio com a mesma chave teve efeito no banco`);
+      igual((await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: idA } })).status, 'CANCELADO', `[${rotulo}] replay da confirmação reconfirmou a compra cancelada`);
+      // 26b. empresa B do mesmo tenant
+      const rB = await detalheApi(token, idA, s.empresa2.id);
+      conferir([403, 404].includes(rB.status) && !JSON.stringify(rB.corpo ?? {}).includes('7500'), `[${rotulo}] detalhe da compra de A pedido com a empresa B: ${rB.status} ${JSON.stringify(rB.corpo ?? {}).slice(0, 160)}`);
+      const listaB = await listaApi(token, s.empresa2.id);
+      conferir(listaB.status === 200 && !listaB.ids.includes(idA), `[${rotulo}] lista da API da empresa B (${listaB.status}) contém a compra de A`);
+      // 26c. OUTRO tenant, com a MESMA chave de criação e de confirmação de A
+      const s2 = await semearTenantE2E({ rotulo: `w${rotulo}x` });
+      docs.outroTenant = s2;
+      const token2 = await login(s2.credenciais);
+      const perfil2 = await api(token2, 'PUT', '/api/native/perfis-financeiros-empresa', { empresa_id: s2.empresa.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' });
+      exigir(perfil2.status < 300, `[${rotulo}] perfil do outro tenant: ${perfil2.status} ${JSON.stringify(perfil2.corpo ?? {}).slice(0, 200)}`);
+      const corpo2 = {
+        empresa_id: s2.empresa.id,
+        operation_id: docs.compraDesc.corpoCriar.operation_id,
+        direcao: 'PAGAR',
+        conteudo: 'COM_PRODUTOS',
+        condicao: 'PRAZO',
+        parceiro_id: s2.parceiros.fornecedor.id,
+        data_emissao: hoje,
+        data_operacional: hoje,
+        efeito_fisico_confirmado: true,
+        valor_desconto: caso.valor_desconto,
+        valor_acrescimo: caso.valor_acrescimo,
+        itens: [{ tipo_item: 'MERCADORIA', produto_id: s2.produtos.racao.id, local_estoque_id: s2.local3.id, unidade: 'SACO', quantidade: '100', valor_unitario: '80' }],
+        rateio_modo: 'PERCENTUAL',
+        rateios: [{ natureza_id: s2.naturezas.insumos, percentual: '100' }],
+        parcelas: [{ vencimento: somarDias(hoje, 30), valor: caso.esperado.valor_total }],
+      };
+      const c1 = await api(token2, 'POST', '/api/native/operacoes-financeiras', corpo2);
+      exigir(c1.status === 201 && c1.corpo?.replay === false && c1.corpo?.id && c1.corpo.id !== idA, `[${rotulo}] mesma chave em outro tenant não criou outro documento: ${c1.status} replay=${c1.corpo?.replay} id=${c1.corpo?.id}`);
+      const id2 = c1.corpo.id;
+      const c2 = await api(token2, 'POST', '/api/native/operacoes-financeiras', corpo2);
+      igual(`${c2.status}:${c2.corpo?.replay}:${c2.corpo?.id}`, `200:true:${id2}`, `[${rotulo}] reenvio da criação no outro tenant`);
+      igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s2.cliente_id } }), 1, `[${rotulo}] documentos do outro tenant depois do reenvio`);
+      const conf2 = { empresa_id: s2.empresa.id, operation_id: docs.compraDesc.corpoConfirmar.operation_id, versao: c1.corpo.versao };
+      const k1 = await api(token2, 'POST', `/api/native/operacoes-financeiras/${id2}/confirmar`, conf2);
+      igual(`${k1.status}:${k1.corpo?.replay}:${k1.corpo?.status}`, '200:false:CONFIRMADO', `[${rotulo}] confirmação no outro tenant (mesma chave de A)`);
+      const foto2 = async () => `${await fotoFinanceiro(s2)}|${await fotoEstoque(s2)}`;
+      const antes2 = await foto2();
+      const k2 = await api(token2, 'POST', `/api/native/operacoes-financeiras/${id2}/confirmar`, conf2);
+      igual(`${k2.status}:${k2.corpo?.replay}`, '200:true', `[${rotulo}] reenvio da confirmação no outro tenant`);
+      igual(await foto2(), antes2, `[${rotulo}] reenvio da confirmação no outro tenant teve efeito`);
+      const d2 = await prisma.operacaoFinanceira.findFirst({
+        where: { cliente_id: s2.cliente_id, id: id2 },
+        include: { itens: true, titulos: true },
+      });
+      const it2 = d2.itens[0];
+      const lote2 = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s2.cliente_id, id: it2.estoque_lote_nota_id } });
+      igual(
+        `${d2.status}:${dec(d2.valor_total)}:${dec(it2.valor_desconto_rateado)}:${dec(it2.valor_liquido)}:${dec(lote2?.custo_unitario)}:${d2.titulos.map((t) => `${t.status}/${dec(t.valor)}`).join('|')}`,
+        'CONFIRMADO:7500.0000:500.0000:7500.0000:2.5000:ABERTO/7500.0000',
+        `[${rotulo}] compra com desconto do outro tenant (banco)`,
+      );
+      igual(await prisma.movimentacaoEstoque.count({ where: { cliente_id: s2.cliente_id, lancamento_origem_id: id2 } }), 1, `[${rotulo}] movimentos do outro tenant (sem segundo efeito)`);
+      igual((k1.corpo?.itens ?? []).map(linhaRateio).join(' | '), caso.esperado.itens.map(linhaRateio).join(' | '), `[${rotulo}] detalhe da confirmação no outro tenant = vetor ${caso.id}`);
+      // isolamento pela API real
+      for (const [tk, id, emp, desc] of [
+        [token2, idA, s.empresa.id, 'outro tenant pede a compra de A com a empresa de A'],
+        [token2, idA, s2.empresa.id, 'outro tenant pede a compra de A com a própria empresa'],
+        [token, id2, s.empresa.id, 'A pede a compra do outro tenant com a própria empresa'],
+        [token, id2, s2.empresa.id, 'A pede a compra do outro tenant com a empresa dele'],
+      ]) {
+        const x = await detalheApi(tk, id, emp);
+        conferir([403, 404].includes(x.status) && !JSON.stringify(x.corpo ?? {}).includes('7500'), `[${rotulo}] ${desc}: ${x.status} ${JSON.stringify(x.corpo ?? {}).slice(0, 160)}`);
+      }
+      const listaA = await listaApi(token, s.empresa.id);
+      conferir(listaA.status === 200 && listaA.ids.includes(idA) && !listaA.ids.includes(id2), `[${rotulo}] lista da API de A: ${listaA.status}, tem A=${listaA.ids.includes(idA)}, tem o outro tenant=${listaA.ids.includes(id2)}`);
+      const lista2 = await listaApi(token2, s2.empresa.id);
+      conferir(lista2.status === 200 && lista2.ids.includes(id2) && !lista2.ids.includes(idA), `[${rotulo}] lista da API do outro tenant: ${lista2.status}, tem o dele=${lista2.ids.includes(id2)}, tem A=${lista2.ids.includes(idA)}`);
+      igual(await fotoA(), antes, `[${rotulo}] o outro tenant mexeu no banco de A`);
+      // na tela: B não mostra a compra de A; A não mostra a do outro tenant
+      const idsB = (await prisma.operacaoFinanceira.findMany({ where: { cliente_id: s.cliente_id, empresa_id: s.empresa2.id }, select: { id: true } })).map((o) => o.id);
+      await irParaLista();
+      await dono.trocarEmpresa(s.empresa, s.empresa2);
+      await page.waitForTimeout(1500);
+      await dono.esperarLista(idsB, [idA, id2], 'lista de B (rodada 4)');
+      await shot('r4-lista-empresa-B');
+      await dono.trocarEmpresa(s.empresa2, s.empresa);
+      await dono.esperarLista([idA], [id2, ...idsB], 'lista de A (rodada 4)');
+      await shot('r4-lista-empresa-A');
+    });
+
+    // 27. (g) Vínculo único (banco): cada título liga a um só documento e cada
+    //     movimento/lote da P3 a um só item, em A e no outro tenant; o banco
+    //     recusa ligar um movimento a um segundo item.
+    await passo('27 R4 vinculo unico: cada titulo e cada movimento ligado a um so documento/item (banco)', async () => {
+      const repetidos = (xs) => [...new Set(xs.filter((x, k) => xs.indexOf(x) !== k))];
+      const tenants = [s, docs.outroTenant].filter(Boolean);
+      for (const t of tenants) {
+        const cli = t.cliente_id;
+        const nome = t === s ? 'A' : 'outro tenant';
+        const ops = await prisma.operacaoFinanceira.findMany({ where: { cliente_id: cli }, select: { id: true, empresa_id: true, direcao: true } });
+        const opPorId = new Map(ops.map((o) => [o.id, o]));
+        const titulos = await prisma.tituloFinanceiro.findMany({ where: { cliente_id: cli }, select: { id: true, operacao_id: true, empresa_id: true, numero_parcela: true } });
+        igual(titulos.filter((x) => !x.operacao_id || opPorId.get(x.operacao_id)?.empresa_id !== x.empresa_id).length, 0, `[${rotulo}] ${nome}: títulos sem documento (ou de outra empresa)`);
+        igual(repetidos(titulos.map((x) => `${x.operacao_id}#${x.numero_parcela}`)).length, 0, `[${rotulo}] ${nome}: parcela repetida no mesmo documento`);
+        const itens = await prisma.operacaoFinanceiraItem.findMany({
+          where: { cliente_id: cli },
+          select: { id: true, operacao_id: true, tipo_item: true, movimentacao_estoque_id: true, movimentacao_estorno_id: true, estoque_lote_nota_id: true },
+        });
+        igual(itens.filter((i) => !opPorId.has(i.operacao_id)).length, 0, `[${rotulo}] ${nome}: item sem documento`);
+        const refsMov = itens.flatMap((i) => [i.movimentacao_estoque_id, i.movimentacao_estorno_id].filter(Boolean));
+        igual(repetidos(refsMov).length, 0, `[${rotulo}] ${nome}: movimento ligado a mais de um item`);
+        igual(repetidos(itens.map((i) => i.estoque_lote_nota_id).filter(Boolean)).length, 0, `[${rotulo}] ${nome}: lote ligado a mais de um item`);
+        igual(itens.filter((i) => i.tipo_item === 'SERVICO' && (i.movimentacao_estoque_id || i.movimentacao_estorno_id || i.estoque_lote_nota_id)).length, 0, `[${rotulo}] ${nome}: serviço com movimento ou lote`);
+        const movs = await prisma.movimentacaoEstoque.findMany({
+          where: { cliente_id: cli, tipo_detalhado: { in: ['compra_financeiro', 'venda_financeiro', 'estorno_compra', 'estorno_venda'] } },
+          select: { id: true, lancamento_origem_id: true, movimento_pai_id: true },
+        });
+        const itemDoMov = new Map();
+        for (const i of itens) for (const m of [i.movimentacao_estoque_id, i.movimentacao_estorno_id]) if (m) itemDoMov.set(m, i);
+        const orfaos = movs.filter((m) => itemDoMov.get(m.id)?.operacao_id !== m.lancamento_origem_id);
+        igual(orfaos.length, 0, `[${rotulo}] ${nome}: movimento da P3 sem item (ou de outro documento): ${orfaos.slice(0, 3).map((m) => m.id).join(', ')}`);
+        const movPorId = new Map(movs.map((m) => [m.id, m]));
+        igual(refsMov.filter((m) => !movPorId.has(m)).length, 0, `[${rotulo}] ${nome}: item apontando para movimento inexistente`);
+        igual(itens.filter((i) => i.movimentacao_estorno_id && movPorId.get(i.movimentacao_estorno_id)?.movimento_pai_id !== i.movimentacao_estoque_id).length, 0, `[${rotulo}] ${nome}: estorno que não é filho do movimento do próprio item`);
+        const lotes = await prisma.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: itens.map((i) => i.estoque_lote_nota_id).filter(Boolean) } }, select: { id: true, movimentacao_entrada_id: true } });
+        igual(lotes.filter((l) => itens.find((i) => i.estoque_lote_nota_id === l.id)?.movimentacao_estoque_id !== l.movimentacao_entrada_id).length, 0, `[${rotulo}] ${nome}: lote cuja entrada não é o movimento do item`);
+        const consumos = await prisma.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: cli }, select: { item_id: true, estoque_lote_nota_id: true } });
+        const itemPorId = new Map(itens.map((i) => [i.id, i]));
+        igual(consumos.filter((c) => opPorId.get(itemPorId.get(c.item_id)?.operacao_id)?.direcao !== 'RECEBER').length, 0, `[${rotulo}] ${nome}: fatia FIFO fora de uma venda`);
+        igual(repetidos(consumos.map((c) => `${c.item_id}#${c.estoque_lote_nota_id}`)).length, 0, `[${rotulo}] ${nome}: fatia FIFO repetida`);
+        console.log(`  [${rotulo}] vínculo único (${nome}): ${ops.length} documentos, ${titulos.length} títulos, ${itens.length} itens, ${movs.length} movimentos da P3, ${lotes.length} lotes, ${consumos.length} fatias`);
+      }
+      // O banco garante: índices únicos por tenant e título sempre com documento.
+      const indices = await prisma.$queryRawUnsafe(
+        `SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND indexdef LIKE 'CREATE UNIQUE INDEX%' AND indexname = ANY($1::text[]) ORDER BY 1`,
+        ['OperacaoFinanceiraItem_cliente_id_movimentacao_estoque_id_key', 'OperacaoFinanceiraItem_cliente_id_movimentacao_estorno_id_key', 'OperacaoFinanceiraItem_cliente_id_estoque_lote_nota_id_key', 'TituloFinanceiro_cliente_id_operacao_id_numero_parcela_key'],
+      );
+      igual(indices.length, 4, `[${rotulo}] índices únicos do vínculo (${indices.map((x) => x.indexname).join(', ')})`);
+      const nulo = await prisma.$queryRawUnsafe(`SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'TituloFinanceiro' AND column_name = 'operacao_id'`);
+      igual(nulo[0]?.is_nullable, 'NO', `[${rotulo}] TituloFinanceiro.operacao_id aceita nulo`);
+      const comMov = (await prisma.operacaoFinanceiraItem.findMany({ where: { cliente_id: s.cliente_id, movimentacao_estoque_id: { not: null } }, orderBy: { id: 'asc' }, select: { id: true, movimentacao_estoque_id: true } })).slice(0, 2);
+      if (comMov.length === 2) {
+        let recusa = null;
+        try {
+          await prisma.operacaoFinanceiraItem.updateMany({ where: { cliente_id: s.cliente_id, id: comMov[1].id }, data: { movimentacao_estoque_id: comMov[0].movimentacao_estoque_id } });
+        } catch (erro) {
+          recusa = erro?.code ?? String(erro?.message ?? erro).slice(0, 80);
+        }
+        conferir(recusa, `[${rotulo}] o banco aceitou ligar um movimento a dois itens`);
+        console.log(`  [${rotulo}] tentativa de ligar um movimento a dois itens recusada pelo banco: ${recusa}`);
+        const intacto = await prisma.operacaoFinanceiraItem.findFirst({ where: { cliente_id: s.cliente_id, id: comMov[1].id }, select: { movimentacao_estoque_id: true } });
+        igual(intacto.movimentacao_estoque_id, comMov[1].movimentacao_estoque_id, `[${rotulo}] item mudou depois da tentativa recusada`);
+      } else {
+        conferir(false, `[${rotulo}] menos de dois itens com movimento para provar a recusa do banco`);
       }
     });
   } catch (erro) {
