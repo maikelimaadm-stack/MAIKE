@@ -15,7 +15,14 @@
  *   - produtos: SAL MINERAL (KG) e RAÇÃO (SACO de 30 kg);
  *   - local "DEPÓSITO 01" e estoque inicial coerente do SAL MINERAL em dois
  *     lotes (3 kg a 10,0000/kg e 10 kg a 12,0000/kg), cada um com o seu
- *     movimento de Entrada, e `estoque_atual = 13`.
+ *     movimento de Entrada, e `estoque_atual = 13`; local "DEPÓSITO 02" vazio
+ *     (a compra que o estoque antigo consome entra nele);
+ *   - SEGUNDA empresa do mesmo tenant ("RETIRO", com fuso e SEM perfil
+ *     financeiro) com parceiro e natureza próprios — a troca de empresa na tela
+ *     não pode mostrar nada da outra;
+ *   - dois usuários comuns (`papel_tenant = 'usuario'`) com linha de
+ *     Permissão só na tela `ges-lancamentos-financeiros`: um só com
+ *     `visualizar`, outro com `visualizar` + `confirmar` (sem salvar/editar).
  *
  * SÓ roda contra PostgreSQL local (localhost/127.0.0.1) — recusa qualquer
  * outra URL e as variáveis de integração (POSTGRES_PRISMA_URL/POSTGRES_URL).
@@ -48,6 +55,24 @@ export const exigirBancoLocal = () => {
 };
 
 const dia = (s) => new Date(`${s}T00:00:00.000Z`);
+
+/** Linha da tela de Lançamentos com TODAS as ações explícitas (ausente = negado). */
+const linhaLancamentos = (acoes) => ({
+  modulo_id: 'gestao-rural',
+  tela_id: 'ges-lancamentos-financeiros',
+  visualizar: true,
+  novo: false,
+  salvar: false,
+  editar: false,
+  excluir: false,
+  importar: false,
+  exportar: false,
+  confirmar: false,
+  liquidar: false,
+  estornar_liquidacao: false,
+  cancelar: false,
+  ...acoes,
+});
 
 /**
  * @param {{ rotulo?: string }} [opcoes]
@@ -154,12 +179,50 @@ export const semearTenantE2E = async (opcoes = {}) => {
       lotes.push({ id: lote.id, kg: l.kg, custo: l.custo, movimento_id: movimento.id });
     }
     await tx.produto.update({ where: { id: sal.id }, data: { estoque_atual: String(saldo) } });
+    const local2 = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '2', nome: 'DEPÓSITO 02' } });
+
+    // Segunda empresa do MESMO tenant: parceiro e natureza só dela, sem perfil.
+    const empresa2 = await tx.empresa.create({
+      data: { cliente_id: c, numero_empresa: 2, apelido: 'RETIRO', nome: 'FAZENDA RETIRO DO SOL', fuso_horario: 'America/Sao_Paulo' },
+    });
+    const base2 = { cliente_id: c, empresa_id: empresa2.id };
+    const fornecedor2 = await tx.fornecedor.create({
+      data: { ...base2, numero_cadastro: '3', tipo_pessoa: 'Jurídica', nome: 'CASA DO PRODUTOR RETIRO', tipos: ['fornecedor'] },
+    });
+    const manutencao2 = await tx.naturezaFinanceira.create({ data: { ...base2, numero: '9', tipo: 'DESPESA', nome: 'MANUTENÇÃO DO RETIRO' } });
+
+    // Usuários comuns com permissão RESTRITA na tela (vínculo = login).
+    const usuarios = {};
+    for (const [chave, nome, acoes] of [
+      ['vis', 'VAQUEIRO SÓ CONSULTA', {}],
+      ['conf', 'GERENTE QUE CONFIRMA', { confirmar: true }],
+    ]) {
+      const loginRestrito = `${chave}-${rotulo}-${sufixo}`;
+      const u = await tx.usuario.create({ data: { cliente_id: c, nome, login: loginRestrito, senha_hash: senhaHash, papel_tenant: 'usuario' } });
+      await tx.permissao.create({
+        data: {
+          cliente_id: c,
+          user_email: loginRestrito,
+          user_nome: nome,
+          is_admin: false,
+          modulos_permitidos: ['gestao-rural'],
+          mobile_menu_ids: [],
+          permissoes_telas: [linhaLancamentos(acoes)],
+        },
+      });
+      usuarios[chave] = { id: u.id, nome, credenciais: { login: loginRestrito, senha: SENHA_E2E } };
+    }
 
     return {
       cliente_id: c,
       usuario_id: usuario.id,
       credenciais: { login, senha: SENHA_E2E },
-      empresa: { id: empresa.id, nome: empresa.nome, fuso: empresa.fuso_horario },
+      usuarios,
+      empresa: { id: empresa.id, nome: empresa.nome, apelido: empresa.apelido, fuso: empresa.fuso_horario },
+      empresa2: { id: empresa2.id, nome: empresa2.nome, apelido: empresa2.apelido, fuso: empresa2.fuso_horario },
+      parceiros2: { fornecedor: { id: fornecedor2.id, nome: fornecedor2.nome } },
+      naturezas2: { manutencao: manutencao2.id },
+      local2: { id: local2.id, nome: local2.nome },
       parceiros: { fornecedor: { id: fornecedor.id, nome: fornecedor.nome }, cliente: { id: clienteParceiro.id, nome: clienteParceiro.nome } },
       naturezas: { sintetica: custeio.id, insumos: insumos.id, frete: frete.id, venda_insumos: vendaInsumos.id, servicos: servicos.id },
       centros: { custo: centroCusto.id, resultado: centroResultado.id },
