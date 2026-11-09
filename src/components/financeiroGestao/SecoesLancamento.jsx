@@ -517,6 +517,13 @@ export function SecaoRateioPorItem({ form, resumo, ctx, setForm, itemComErroServ
   const [recolhidos, setRecolhidos] = useState(() => /** @type {Set<string>} */ (new Set()));
   const [painelTodos, setPainelTodos] = useState(false);
   const [todos, setTodos] = useState(() => /** @type {{ natureza: any, centro_custo: any, centro_resultado: any }} */ ({ natureza: null, centro_custo: null, centro_resultado: null }));
+  // Trocar a direção zera as naturezas do formulário: a escolha pendente de "aplicar
+  // a todos" (do tipo antigo: despesa × receita) também sai, senão ela voltaria aqui.
+  const [direcaoDosTodos, setDirecaoDosTodos] = useState(form.direcao);
+  if (direcaoDosTodos !== form.direcao) {
+    setDirecaoDosTodos(form.direcao);
+    setTodos({ natureza: null, centro_custo: null, centro_resultado: null });
+  }
 
   const alterarLinhas = (/** @type {string} */ chave, /** @type {(ls: any[]) => any[]} */ fn) =>
     setForm((f) => ({ ...f, rateios_itens: { ...(f.rateios_itens ?? {}), [chave]: fn(linhasDoItem(f, chave)) } }));
@@ -527,13 +534,12 @@ export function SecaoRateioPorItem({ form, resumo, ctx, setForm, itemComErroServ
     if (linhasDoItem(form, chave).length >= MAX_RATEIOS_POR_ITEM) return notifyWarning("Atenção", `No máximo ${MAX_RATEIOS_POR_ITEM} linhas de rateio por item.`);
     const valorAuto = conferido?.porItem[k]?.valores[0] ?? null;
     alterarLinhas(chave, (ls) => {
-      // A linha que era "100% automática" passa a ter o valor visível (editável).
-      const primeira =
-        ls.length === 1 && form.rateio_modo === "VALOR" && !ls[0].valor && valorAuto
-          ? [{ ...ls[0], valor: formatarNumero(valorAuto, { locale, casasMin: casas, casasMax: casas }) }]
-          : ls.length === 1 && form.rateio_modo === "PERCENTUAL" && !ls[0].percentual
-            ? [{ ...ls[0], percentual: "100" }]
-            : ls;
+      // A linha que era "100% automática" passa a ter o valor que estava À VISTA
+      // (o líquido ou 100%), mesmo que guarde um valor antigo de quando o item
+      // tinha mais linhas; sem líquido calculado, fica em branco.
+      let primeira = ls;
+      if (ls.length === 1 && form.rateio_modo === "VALOR") primeira = [{ ...ls[0], valor: valorAuto ? formatarNumero(valorAuto, { locale, casasMin: casas, casasMax: casas }) : "" }];
+      else if (ls.length === 1) primeira = [{ ...ls[0], percentual: "100" }];
       return [...primeira, rateioVazio()];
     });
   };
@@ -672,7 +678,7 @@ export function SecaoRateioPorItem({ form, resumo, ctx, setForm, itemComErroServ
             <button
               type="button"
               aria-expanded={aberto}
-              aria-controls={`rateio-item-${item.chave}-corpo`}
+              aria-controls={aberto ? `rateio-item-${item.chave}-corpo` : undefined}
               onClick={() => alternar(item.chave)}
               className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 p-3 text-left"
               data-testid={`rateio-item-${k}-cabecalho`}

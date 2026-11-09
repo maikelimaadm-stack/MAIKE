@@ -62,6 +62,8 @@ export const TIPO_ESTORNAR = 'estornar_liquidacao';
 /** Transações (§8.4): rascunho 20 s; efeitos (confirmar/cancelar) 30 s. */
 const TX_RASCUNHO = { maxWait: 10000, timeout: 20000 };
 const TX_EFEITO = { maxWait: 10000, timeout: 30000 };
+/** Leitura do detalhe: um snapshot só para cabeçalho, itens e linhas (D-PROD-156). */
+const TX_LEITURA = { maxWait: 10000, timeout: 20000, isolationLevel: 'RepeatableRead' };
 
 const USUARIO = { select: { id: true, login: true } };
 
@@ -457,12 +459,43 @@ const gravarFilhos = async (tx, clienteId, op, plano, refs) => {
 };
 
 /**
+ * D-PROD-156: toda linha por item do documento aponta um item DELE, e nenhum
+ * item dele tem linha de OUTRO documento. A FK do item é (cliente_id,
+ * empresa_id, item_id) e não amarra o item ao mesmo documento da linha: uma
+ * linha gravada fora da API (SQL, script de ops) pode cruzar dois documentos
+ * da mesma empresa. Aqui isso vira 422 explícito (prévia, confirmação, PUT e
+ * descarte), em vez de 500, 403 de tenant ou consolidado acima do total.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} operacaoId
+ */
+const exigirLinhasDoDocumento = async (tx, clienteId, empresaId, operacaoId) => {
+  const cruzada = await tx.operacaoFinanceiraItemRateio.findFirst({
+    where: {
+      cliente_id: clienteId,
+      empresa_id: empresaId,
+      OR: [
+        { operacao_id: operacaoId, item: { operacao_id: { not: operacaoId } } },
+        { operacao_id: { not: operacaoId }, item: { operacao_id: operacaoId } },
+      ],
+    },
+    select: { operacao_id: true, item: { select: { operacao_id: true, ordem: true } } },
+  });
+  if (!cruzada) return;
+  // Item DESTE documento com linha de outro: aponta o item; linha deste documento num item de outro: sem índice.
+  const posicao = cruzada.item.operacao_id === operacaoId ? { indice: cruzada.item.ordem - 1 } : {};
+  throw new AppError('OPERACAO_RATEIO_INVALIDO', 'há linha de rateio por item ligada a um item de outro documento (gravada fora da API); nada foi gravado', {
+    details: { field: 'rateios', reason: 'linha_de_item_fora_do_documento', colecao: 'itens', ...posicao, subcolecao: 'rateios' },
+  });
+};
+
+/**
  * Apaga os filhos do rascunho (PUT recria; DELETE descarta). As linhas por
  * item (D-PROD-156) saem ANTES dos itens (FK RESTRICT): item removido no PUT
  * leva as linhas dele na mesma transação. O filtro com `empresa_id` usa o
- * índice (cliente_id, empresa_id, operacao_id) da tabela nova.
+ * índice (cliente_id, empresa_id, operacao_id) da tabela nova. Linha cruzada
+ * com outro documento → 422 antes de apagar (`exigirLinhasDoDocumento`).
  */
 const apagarFilhosDoRascunho = async (tx, clienteId, empresaId, operacaoId) => {
+  await exigirLinhasDoDocumento(tx, clienteId, empresaId, operacaoId);
   const w = { cliente_id: clienteId, operacao_id: operacaoId };
   await tx.tituloFinanceiro.deleteMany({ where: w });
   await tx.operacaoFinanceiraRateio.deleteMany({ where: w });
@@ -576,6 +609,13 @@ const grupoConsolidadoPublico = (g, nomes, c) => ({
 });
 
 /**
+ * Linhas por item do DETALHE: o include vem pelo item, então uma linha de OUTRO
+ * documento gravada fora da API no item deste (a FK não impede) fica de fora;
+ * prévia e confirmação recusam o documento (`exigirLinhasDoDocumento`).
+ */
+const linhasDoProprioDocumento = (op, i) => (i.rateios ?? []).filter((r) => r.operacao_id === op.id);
+
+/**
  * Resumo consolidado do DETALHE: no GERAL é o próprio rateio do documento (as
  * mesmas linhas e percentuais); no POR_ITEM, a soma por natureza + centros das
  * linhas de todos os itens (ordem dos itens, depois das linhas), Σ = total.
@@ -590,7 +630,7 @@ const consolidadoDoDetalhe = (op, c) => {
       };
     });
   }
-  const linhas = (op.itens ?? []).flatMap((i) => i.rateios ?? []);
+  const linhas = (op.itens ?? []).flatMap((i) => linhasDoProprioDocumento(op, i));
   return consolidarRateio(linhas, op.valor_total).map((g) => grupoConsolidadoPublico(g, g.linha, c));
 };
 
@@ -670,7 +710,7 @@ export const comoDetalhe = (op, historico = []) => {
         custo_unitario: texto(k.custo_unitario, CASAS_CUSTO),
       })),
       // D-PROD-156: sempre presente ([] no GERAL); percentual informativo sobre o LÍQUIDO do item.
-      rateios: (i.rateios ?? []).map((r) => linhaDeRateioDetalhe(r, i.valor_liquido, c)),
+      rateios: linhasDoProprioDocumento(op, i).map((r) => linhaDeRateioDetalhe(r, i.valor_liquido, c)),
     })),
     rateios: (op.rateios ?? []).map((r) => linhaDeRateioDetalhe(r, op.valor_total, c)),
     rateio_consolidado: consolidadoDoDetalhe(op, c),
@@ -721,13 +761,21 @@ const carregarDetalhe = async (db, clienteId, id) => {
   return comoDetalhe(op, eventos.map((e) => ({ acao: e.acao, em: e.createdAt.toISOString(), usuario_login: e.usuario?.login ?? null })));
 };
 
+/**
+ * GET do detalhe numa transação REPEATABLE READ (só leitura, sem trava): o
+ * include do Prisma lê cabeçalho, itens e linhas por item em comandos
+ * separados, e as linhas são associadas pelo `item_id`, que todo PUT recria.
+ * Em READ COMMITTED, um PUT que confirmava entre os comandos devolvia itens sem
+ * linhas e um consolidado vazio; com um snapshot só, tudo é do mesmo instante.
+ */
 export const detalhar = async (contexto, id, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
-  const op = await prisma.operacaoFinanceira.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } }, select: { empresa_id: true } });
-  if (!op || op.empresa_id !== empresaId) throw naoEncontrado();
-  return carregarDetalhe(prisma, auth.clienteId, id);
+  return emTransacao(TX_LEITURA, async (tx) => {
+    const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, query.empresa_id);
+    const op = await tx.operacaoFinanceira.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } }, select: { empresa_id: true } });
+    if (!op || op.empresa_id !== empresaId) throw naoEncontrado();
+    return carregarDetalhe(tx, auth.clienteId, id);
+  });
 };
 
 // ─── leitura: lista keyset ──────────────────────────────────────────────────
@@ -1015,14 +1063,19 @@ const comoPlanoPublico = (plano, simulacao, refs) => {
  * Prévia do rascunho salvo: o MESMO plano da confirmação + bloqueios de ESTADO
  * (FIFO em sequência, `estoque_atual`, fuso/data futura, duplicidade
  * documental, referência que ficou inativa). 200 mesmo com bloqueios.
+ *
+ * O cabeçalho é lido com FOR SHARE: PUT, descartar e confirmar travam FOR
+ * UPDATE, então cabeçalho, itens e linhas são do MESMO instante. Sem a trava,
+ * um PUT que confirma entre a leitura dos itens e a das linhas por item
+ * (associadas pelo `item_id`, que o PUT recria) montava o POR_ITEM sem linhas
+ * e a prévia acusava "item sem rateio" num documento válido (D-PROD-156).
  */
 export const previa = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
   return emTransacao(TX_RASCUNHO, async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-    const op = await tx.operacaoFinanceira.findUnique({ where: { cliente_id_id: { cliente_id: cli, id } } });
-    if (!op || op.empresa_id !== empresaId) throw naoEncontrado();
+    const op = await travarCabecalho(tx, cli, empresaId, id, 'SHARE');
     if (op.status !== 'RASCUNHO') throw statusInvalido(op.status, 'RASCUNHO');
     const w = { cliente_id: cli, operacao_id: id };
     const [itens, rateios, titulos, itemRateios] = [
@@ -1040,6 +1093,7 @@ export const previa = async (contexto, id, corpo) => {
     bloqueios.push(...problemasDeReferencia(doc, refs, perfil ?? { pais: null, moeda: op.moeda }));
     let plano = null;
     try {
+      await exigirLinhasDoDocumento(tx, cli, empresaId, id);
       plano = planejarOperacao(doc, { casas: op.moeda_casas, moeda: op.moeda, produtos: refs.produtos });
     } catch (erro) {
       if (!(erro instanceof AppError)) throw erro;
@@ -1142,6 +1196,7 @@ export const confirmar = async (contexto, id, corpo) => {
           const titulos = await tx.tituloFinanceiro.findMany({ where: w });
           const rateios = await tx.operacaoFinanceiraRateio.findMany({ where: w });
           const itemRateios = await lerItemRateios(tx, cli, empresaId, id);
+          await exigirLinhasDoDocumento(tx, cli, empresaId, id);
           const perfil = await lerPerfil(tx, cli, empresaId);
           const doc = documentoDoBanco(op, itens, rateios, titulos, itemRateios);
           const refs = await carregarReferencias(tx, cli, empresaId, doc);

@@ -225,6 +225,34 @@ export const temDadosPorItem = (form) =>
     linhasDoItem(form, i.chave).some((r) => r.natureza || r.centro_custo || r.centro_resultado || String(r.valor ?? '').trim() || String(r.percentual ?? '').trim()),
   );
 
+/** O rateio geral guardado está em branco (nada escolhido nem digitado)? @param {any} form */
+export const geralEmBranco = (form) =>
+  (form?.rateios ?? []).every(
+    (/** @type {any} */ r) => !r.natureza && !r.centro_custo && !r.centro_resultado && !String(r.valor ?? '').trim() && !String(r.percentual ?? '').trim(),
+  );
+
+/**
+ * GERAL → POR_ITEM: guarda o MODO do geral (`rateio_modo_geral`), porque o
+ * "Modo do rateio" do bloco por item muda o `rateio_modo` do documento.
+ * @param {any} form @param {Record<string, any[]>} rateiosItens @returns {any}
+ */
+export const entrarNoPorItem = (form, rateiosItens) => ({
+  ...form,
+  rateio_escopo: 'POR_ITEM',
+  rateios_itens: rateiosItens,
+  rateio_modo_geral: form.rateio_escopo === 'POR_ITEM' ? form.rateio_modo_geral : form.rateio_modo,
+});
+
+/**
+ * POR_ITEM → GERAL (troca de escopo ou "sem produtos"): descarta as linhas por
+ * item e devolve o geral guardado no MODO em que ele estava.
+ * @param {any} form @returns {any}
+ */
+export const voltarAoGeral = (form) => {
+  const { rateio_modo_geral: modoGeral, ...resto } = form;
+  return { ...resto, rateio_escopo: 'GERAL', rateios_itens: {}, rateio_modo: modoGeral ?? form.rateio_modo };
+};
+
 /**
  * Linha do corpo DOC (geral ou de um item): natureza, centros e o valor OU o
  * percentual, conforme o modo do documento.
@@ -325,11 +353,17 @@ export const inicializacaoProporcional = (form, resumo, { locale, casas }) => {
   for (const [k, item] of form.itens.entries()) {
     const valores = distribuirProporcional({ liquido: /** @type {string} */ (liquidos[k]), pesos: /** @type {string[]} */ (pesos), casas, casasPeso: casas });
     if (!valores) return nada('Não foi possível calcular o líquido de algum item: comece em branco.');
-    // Linha que ficaria com zero neste item não leva dinheiro: fica de fora (Σ continua = líquido).
-    rateiosItens[item.chave] = geral
-      .map((/** @type {any} */ r, /** @type {number} */ j) => ({ r, v: valores[j] }))
-      .filter(({ v }) => ehPositivo(v))
-      .map(({ r, v }) => copia(r, { valor: formatarNumero(v, { locale, casasMin: casas, casasMax: casas }) }));
+    // Linha que ficaria com zero num item: recusar. Tirá-la calada deixaria o item
+    // sem uma natureza/centro do geral e, se zerasse em todos, o valor dela iria
+    // para as outras naturezas do documento (o diálogo promete as MESMAS do geral).
+    const zerada = valores.findIndex((v) => !ehPositivo(v));
+    if (zerada >= 0) {
+      const rotulo = geral[zerada].natureza?.rotulo ? ` (${geral[zerada].natureza.rotulo})` : '';
+      return nada(
+        `A linha ${zerada + 1} do rateio geral${rotulo} ficaria com valor zero no item ${k + 1}: o valor dela é pequeno demais para dividir entre os itens. Comece em branco ou ajuste o rateio geral.`,
+      );
+    }
+    rateiosItens[item.chave] = geral.map((/** @type {any} */ r, /** @type {number} */ j) => copia(r, { valor: formatarNumero(valores[j], { locale, casasMin: casas, casasMax: casas }) }));
   }
   return { possivel: true, motivo: null, rateios_itens: rateiosItens };
 };

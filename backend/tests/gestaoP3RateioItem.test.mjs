@@ -22,8 +22,10 @@
  *       a direção; descartar;
  *  RI6. idempotência (replay); RI7. documento duplicado; RI8. cancelamento e
  *       imutabilidade; RI9. documento antigo (`rateio_escopo` NULL) = GERAL;
- *  RI10. o banco é a última rede (documento adulterado, CHECK/FK/RLS);
+ *  RI10. o banco é a última rede (documento adulterado, CHECK/FK/RLS) e, onde a
+ *       FK não alcança (linha cruzando dois documentos), o serviço fecha com 422;
  *  RI11. concorrência focada (PUT × PUT, PUT × confirmar, confirmar × PUT);
+ *  RI11b. leitura × PUT: prévia e detalhe nunca montam o documento rasgado;
  *  RI12. volume: 1000 linhas por item no documento.
  */
 
@@ -608,7 +610,9 @@ describe('RI3 — escopo, exclusões e recusas da linha (item e linha exatos)', 
     assert.deepEqual([soma.details.modo, soma.details.esperado, soma.details.informado, soma.details.diferenca, soma.details.valor_liquido], ['VALOR', '50.00', '49.99', '0.01', '50.00']);
     const somaP = recusa(await post(s, docItens(e, [servico('100.00', [linha(e.desp, { percentual: '60' }), linha(e.desp2, { percentual: '40.000001' })])], { rateio_modo: 'PERCENTUAL' })), 422, 'OPERACAO_RATEIO_INVALIDO', 'soma_diferente');
     naPosicao(somaP, 0);
-    assert.deepEqual([somaP.details.modo, somaP.details.esperado, somaP.details.informado, somaP.details.diferenca], ['PERCENTUAL', '100.000000', '100.000001', '-0.000001']);
+    // Contrato (D-PROD-156, revisão DIN-2): no PERCENTUAL, esperado/informado/diferenca são percentuais (6 casas, como no
+    // rateio geral) e o líquido do item vem em `valor_liquido`, na escala da moeda.
+    assert.deepEqual([somaP.details.modo, somaP.details.esperado, somaP.details.informado, somaP.details.diferenca, somaP.details.valor_liquido], ['PERCENTUAL', '100.000000', '100.000001', '-0.000001', '100.00']);
     // 400 da linha do item: obrigatório, casas da moeda, coerção de tipo, campo desconhecido
     const obrig = recusa(await post(s, docItens(e, [servico('100.00', [linha(e.desp, { valor: '60.00' }), linha(e.desp2)])])), 400, 'REQUEST_VALIDATION_FAILED', 'obrigatorio');
     naPosicao(obrig, 0, 1);
@@ -895,6 +899,43 @@ describe('RI10 — o banco é a última rede', () => {
     recusa(await A.confirmarReq(s.token, sem, e.id), 422, 'OPERACAO_RATEIO_INVALIDO', 'escopo_por_item_exige_produtos');
   });
 
+  test('linha cruzada fora da API (operacao_id = A, item_id = item de B, mesma empresa): o banco aceita, mas prévia, confirmação, detalhe, PUT e descarte de A e de B fecham seguro com 422 linha_de_item_fora_do_documento (nunca 500, 403 ou consolidado acima do total)', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const p = prisma();
+    const corpoA = docItens(e, [servico('30.00', [linha(e.desp, { valor: '30.00' })])]);
+    const corpoB = docItens(e, [servico('40.00', [linha(e.desp, { valor: '40.00' })])]);
+    const dA = await A.criar(s.token, corpoA);
+    const dB = await A.criar(s.token, corpoB);
+    // A FK do item é (cliente_id, empresa_id, item_id): não amarra o item ao MESMO documento da linha.
+    const n = await p.$executeRawUnsafe(`INSERT INTO "OperacaoFinanceiraItemRateio" (id, cliente_id, empresa_id, operacao_id, operacao_direcao, item_id, ordem, natureza_id, natureza_tipo, natureza_nome, valor, "createdAt", "updatedAt")
+      VALUES ('x${randomUUID().replace(/-/g, '').slice(0, 24)}', '${s.c}', '${e.id}', '${dA.id}', 'PAGAR', '${dB.itens[0].id}', 2, '${e.desp.id}', 'DESPESA', 'X', 5, now(), now())`);
+    assert.equal(n, 1, 'o banco aceita a linha cruzada (limite conhecido da FK)');
+    const fora = (r, rotulo) => {
+      const corpo = recusa(r, 422, 'OPERACAO_RATEIO_INVALIDO', 'linha_de_item_fora_do_documento');
+      assert.equal(corpo.details.colecao, 'itens', rotulo);
+      return corpo;
+    };
+    for (const [d, rotulo] of [[dA, 'A (dono da linha)'], [dB, 'B (dono do item)']]) {
+      const prev = await A.previa(s.token, d.id, e.id);
+      assert.deepEqual([prev.plano, prev.bloqueios.map((b) => [b.code, b.reason])], [null, [['OPERACAO_RATEIO_INVALIDO', 'linha_de_item_fora_do_documento']]], `prévia de ${rotulo}`);
+      const antes = await foto(s.c);
+      fora(await A.confirmarReq(s.token, d, e.id), `confirmar ${rotulo}`);
+      fora(await put(s, d, d === dA ? corpoA : corpoB), `PUT ${rotulo}`);
+      fora(await A.req('DELETE', `/operacoes-financeiras/${d.id}?empresa_id=${e.id}&versao=${d.versao}`, s.token), `descartar ${rotulo}`);
+      assert.equal(await foto(s.c), antes, `${rotulo}: nada mudou`);
+    }
+    // O detalhe de cada documento mostra só as SUAS linhas; o consolidado fecha no total.
+    const detA = await A.detalhe(s.token, dA.id, e.id);
+    const detB = await A.detalhe(s.token, dB.id, e.id);
+    assert.deepEqual([valoresDoDetalhe(detA), somaDe(detA.rateio_consolidado.map((g) => g.valor))], [[['30.00']], '30.00']);
+    assert.deepEqual([valoresDoDetalhe(detB), somaDe(detB.rateio_consolidado.map((g) => g.valor))], [[['40.00']], '40.00']);
+    // Removida a linha cruzada, os dois voltam ao normal.
+    await p.operacaoFinanceiraItemRateio.deleteMany({ where: { operacao_id: dA.id, item_id: dB.itens[0].id } });
+    assert.deepEqual((await A.previa(s.token, dA.id, e.id)).bloqueios, []);
+    assert.equal((await A.confirmar(s.token, dB, e.id)).status, 'CONFIRMADO');
+  });
+
   test('CHECK/FK/UNIQUE da tabela nova recusam INSERT/UPDATE direto incoerente; RLS ligado e zero grants para PUBLIC/anon/authenticated', async () => {
     const s = await montarTenant(app);
     const outro = await montarTenant(app);
@@ -1074,6 +1115,96 @@ describe('RI11 — concorrência focada nos pontos novos', () => {
     const conf = bConf.r.json();
     assert.deepEqual(valoresDoDetalhe(conf), [['15.00', '5.00'], ['10.00']], 'confirmou as linhas do PUT que venceu');
     assert.deepEqual([await p.movimentacaoEstoque.count({ where: { lancamento_origem_id: d.id } }), await p.tituloFinanceiro.count({ where: { operacao_id: d.id } }), await linhasCoerentes(d.id)], [1, 1, 3]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Leitura × PUT (revisão P3-02, BANCO-01): o PUT recria os itens com ids novos e
+// as linhas por item são associadas pelo `item_id`. Uma leitura que pega os
+// itens ANTES do commit do PUT e as linhas DEPOIS monta o documento rasgado
+// (itens sem linhas). O roteiro é determinístico, sem sleep:
+//  1. o PUT para no INSERT do título (portão), já com as linhas por item novas
+//     gravadas (RowExclusive na tabela nova, ainda sem commit);
+//  2. `LOCK TABLE ... ACCESS EXCLUSIVE` na tabela nova entra na fila atrás do PUT;
+//  3. a leitura (prévia ou detalhe) começa e fica esperando alguma trava: em
+//     READ COMMITTED, depois de ler os itens antigos, na fila do SELECT das
+//     linhas; com a correção, já no começo;
+//  4. o portão abre, o PUT confirma, o LOCK é concedido e solto, e a leitura termina.
+const TABELA_LINHAS = 'OperacaoFinanceiraItemRateio';
+const pidsEsperandoTrava = async () =>
+  /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`).map((r) => r.pid);
+const leituraNoMeioDoPut = async (s, d, corpo, ler) => {
+  await instalarPortao(s, 'TituloFinanceiro');
+  /** @type {any[]} */
+  const pend = [];
+  let soltarLock = () => {};
+  const lockSolto = new Promise((r) => {
+    soltarLock = r;
+  });
+  const lock = { pid: 0, concedido: false };
+  let aPut;
+  let aLock;
+  let aLeitura;
+  try {
+    await comPortaoFechado(async () => {
+      aPut = acompanhar(put(s, d, corpo));
+      pend.push(aPut);
+      const [pidPut] = await esperar(paradosNoPortao, 'PUT parado no INSERT do título (linhas por item novas já gravadas)');
+      aLock = acompanhar(
+        aux.$transaction(async (tx) => {
+          lock.pid = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`)[0].pid;
+          await tx.$executeRawUnsafe(`LOCK TABLE "${TABELA_LINHAS}" IN ACCESS EXCLUSIVE MODE`);
+          lock.concedido = true;
+          await lockSolto;
+        }, { maxWait: 10000, timeout: 60000 }),
+      );
+      pend.push(aLock);
+      await esperar(async () => lock.pid && (await pidsEsperandoTrava()).includes(lock.pid), 'LOCK TABLE na fila atrás do PUT');
+      aLeitura = acompanhar(ler());
+      pend.push(aLeitura);
+      await esperar(async () => (await pidsEsperandoTrava()).some((pid) => pid !== pidPut && pid !== lock.pid), 'leitura esperando uma trava');
+      assert.equal(aPut.feito, false, 'o PUT ainda não confirmou');
+    });
+    await aPut.p;
+    await esperar(async () => lock.concedido, 'LOCK concedido depois do commit do PUT');
+    soltarLock();
+    await aLock.p;
+    await aLeitura.p;
+  } finally {
+    soltarLock();
+    await Promise.allSettled(pend.map((x) => x.p));
+    await removerPortao('TituloFinanceiro');
+  }
+  assert.equal(aPut.r.statusCode, 200, aPut.r.body);
+  return aLeitura.r;
+};
+
+describe('RI11b — leitura × PUT no mesmo rascunho (sem documento rasgado)', () => {
+  const corpoDe = (e) => docItens(e, [servico('30.00', [linha(e.desp, { valor: '30.00' })]), servico('20.00', [linha(e.desp2, { valor: '12.00' }), linha(e.desp3, { valor: '8.00' })])]);
+
+  test('prévia × PUT de MESMO conteúdo: a prévia nunca monta o POR_ITEM com itens de uma versão e linhas de outra (sem "item sem rateio" falso)', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const corpo = corpoDe(e);
+    const d = await A.criar(s.token, corpo);
+    const r = await leituraNoMeioDoPut(s, d, corpo, () => A.req('POST', `/operacoes-financeiras/${d.id}/previa`, s.token, { empresa_id: e.id }));
+    assert.equal(r.statusCode, 200, r.body);
+    const prev = r.json();
+    assert.deepEqual(prev.bloqueios, [], JSON.stringify(prev.bloqueios));
+    assert.deepEqual(prev.plano.itens.map((i) => i.rateios.map((l) => l.valor)), [['30.00'], ['12.00', '8.00']]);
+    assert.equal(somaDe(prev.plano.rateio_consolidado.map((g) => g.valor)), '50.00');
+  });
+
+  test('detalhe (GET) × PUT de MESMO conteúdo: itens e linhas por item do MESMO instante; o consolidado fecha no total', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const corpo = corpoDe(e);
+    const d = await A.criar(s.token, corpo);
+    const r = await leituraNoMeioDoPut(s, d, corpo, () => A.req('GET', `/operacoes-financeiras/${d.id}?empresa_id=${e.id}`, s.token));
+    assert.equal(r.statusCode, 200, r.body);
+    const det = r.json();
+    assert.deepEqual(valoresDoDetalhe(det), [['30.00'], ['12.00', '8.00']]);
+    assert.equal(somaDe(det.rateio_consolidado.map((g) => g.valor)), det.valor_total);
   });
 });
 

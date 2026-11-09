@@ -261,7 +261,8 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
  * Troca do rateio GERAL → POR ITEM (D-PROD-156): pergunta EXPLICITAMENTE como
  * cada item começa — com a classificação geral, nas mesmas proporções sobre o
  * líquido de cada item (maiores restos), ou em branco. O rateio geral fica
- * guardado no formulário: voltar para "Geral" o traz de volta como estava.
+ * guardado no formulário até o rascunho ser salvo: voltar para "Geral" antes
+ * disso o traz de volta como estava (o documento POR_ITEM salvo não tem geral).
  * @param {{
  *   aberto: boolean,
  *   proporcional: { possivel: boolean, motivo: string|null },
@@ -277,7 +278,8 @@ export function DialogoEscopoPorItem({ aberto, proporcional, onProporcional, onE
         <DialogHeader>
           <DialogTitle>Rateio por item</DialogTitle>
           <DialogDescription>
-            Como começar a classificação de cada item? O rateio geral continua guardado: se voltar para “Geral”, ele volta como está.
+            Como começar a classificação de cada item? O rateio geral continua guardado enquanto o rascunho não for salvo: se voltar para “Geral”
+            antes de salvar, ele volta como está. Ao salvar por item, o rateio geral deixa de existir no documento.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 text-[13px]">

@@ -169,6 +169,33 @@ const exigirEscopoDoRateio = (corpo) => {
   return 'POR_ITEM';
 };
 
+/** Casas decimais LITERAIS do texto, como `casasDecimais` do servidor (zero à direita conta). */
+const casasDoTexto = (v) => {
+  const t = String(v);
+  const i = t.indexOf('.');
+  return i < 0 ? 0 : t.length - i - 1;
+};
+
+/**
+ * Linhas do rateio de cada item, como o `normalizarLinhasDeRateio` do servidor
+ * (400 antes de qualquer conta, logo depois do escopo): VALOR exige `valor` e
+ * PERCENTUAL exige `percentual`; dinheiro com mais casas que a moeda →
+ * `casas_decimais_excedidas`. O corpo do erro é o do servidor (field/reason no
+ * topo; posição da linha em `details`).
+ */
+const normalizarLinhasDosItens = (corpo, casas) => {
+  const percentual = corpo.rateio_modo === 'PERCENTUAL';
+  const field = percentual ? 'percentual' : 'valor';
+  const recusa = (reason, details) => new RecusaDoServidor(erro(400, 'REQUEST_VALIDATION_FAILED', { field, reason, details }));
+  (corpo.itens ?? []).forEach((item, indice) => {
+    (item.rateios ?? []).forEach((l, subindice) => {
+      const v = l?.[field];
+      if (v === null || v === undefined) throw recusa('obrigatorio', posicaoNoItem(indice, subindice));
+      if (!percentual && casasDoTexto(v) > casas) throw recusa('casas_decimais_excedidas', { casas, ...posicaoNoItem(indice, subindice) });
+    });
+  });
+};
+
 /** Linha de rateio do DETALHE (mesmos campos no geral e no item; nomes do cadastro). */
 const linhaDoDetalhe = (r, ordem, valor, percentual) => {
   const nat = NATUREZAS.find((n) => n.id === r.natureza_id);
@@ -205,6 +232,7 @@ const ratearPorItem = (corpo, itens, casas) =>
 const montarDoc = (estado, corpo, base = {}) => {
   const casas = estado.perfil?.moeda_casas ?? 2;
   const escopo = exigirEscopoDoRateio(corpo);
+  if (escopo === 'POR_ITEM') normalizarLinhasDosItens(corpo, casas);
   const itens = (corpo.itens ?? []).map((i, k) => {
     const prod = [...PRODUTOS, ...estado.produtosExtras].find((p) => p.id === i.produto_id);
     const local = LOCAIS.find((l) => l.id === i.local_estoque_id);

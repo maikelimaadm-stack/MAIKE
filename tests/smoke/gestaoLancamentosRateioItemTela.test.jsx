@@ -580,3 +580,178 @@ describe('RIT-7 — celular (390 px)', () => {
     }
   });
 });
+
+// ─── RIT-8 — revisão da P3-02 (achados da tela, RED → GREEN) ──────────────
+
+/** Só serviços (sem mercadoria): dois itens de 50,00 e o geral 99,99 NUTRIÇÃO + 0,01 SANIDADE. */
+const corpoGeralCentavo = () =>
+  corpoGeral({
+    data_operacional: undefined,
+    efeito_fisico_confirmado: undefined,
+    itens: [
+      { tipo_item: 'SERVICO', unidade: 'UN', descricao: 'FRETE', quantidade: '1', valor_unitario: '50' },
+      { tipo_item: 'SERVICO', unidade: 'UN', descricao: 'MAO DE OBRA', quantidade: '1', valor_unitario: '50' },
+    ],
+    rateios: [
+      { natureza_id: 'nd1', valor: '99.99' },
+      { natureza_id: 'nd2', valor: '0.01' },
+    ],
+    parcelas: [{ vencimento: '2026-11-08', valor: '100.00' }],
+  });
+
+describe('RIT-8 — revisão da P3-02: o rateio por item nunca perde nada em silêncio', () => {
+  it('DIN-1: "usar a classificação geral" não tira uma natureza do documento: se uma linha do geral ficaria com zero num item, o proporcional é recusado com o motivo', async () => {
+    const doc = semearDocumento(estado, corpoGeralCentavo());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await radio('Por item');
+    const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
+    // Sozinho, cada item dava 50,00 / 0,00: SANIDADE (0,01) sumia do documento sem aviso.
+    expect(within(dialogo).getByTestId('escopo-por-item-proporcional')).toBeDisabled();
+    expect(within(dialogo).getByTestId('escopo-por-item-motivo')).toHaveTextContent(/linha 2 do rateio geral \([^)]*SANIDADE\) ficaria com valor zero no item 1/);
+    await clicar(within(dialogo).getByTestId('escopo-por-item-cancelar'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
+    expect(screen.getByTestId('rateio-1-valor')).toHaveValue('0,01');
+  });
+
+  it('T1: depois de SALVAR por item o geral não existe mais no servidor: o diálogo avisa e a volta para "Geral" diz que ele começa em branco (nunca promete o que sumiu)', async () => {
+    const perguntar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const doc = semearDocumento(estado, corpoGeral());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await radio('Por item');
+    const dialogo = await screen.findByTestId('dialogo-escopo-por-item');
+    expect(dialogo).toHaveTextContent(/rateio geral continua guardado enquanto o rascunho não for salvo/i);
+    expect(dialogo).toHaveTextContent(/ao salvar por item, o rateio geral deixa de existir/i);
+    await clicar(within(dialogo).getByTestId('escopo-por-item-proporcional'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
+    await salvar();
+    await waitFor(() => expect(chamadas('PUT', `/operacoes-financeiras/${doc.id}`)).toHaveLength(1));
+    await editar();
+    await radio('Geral');
+    expect(perguntar).toHaveBeenCalledTimes(1);
+    expect(perguntar.mock.calls[0][0]).toMatch(/classificações por item serão descartadas/);
+    expect(perguntar.mock.calls[0][0]).toMatch(/rateio geral começa em branco/);
+    expect(perguntar.mock.calls[0][0]).not.toMatch(/volta como estava/);
+    await waitFor(() => expect(screen.queryByTestId('rateio-item-0')).toBeNull());
+    expect(screen.queryByTestId('rateio-1')).toBeNull();
+  });
+
+  it('T2: a recusa do servidor vale para o formulário ENVIADO: mover um item com o PUT no ar não leva o erro para o item errado', async () => {
+    const doc = semearDocumento(estado, corpoPorItem());
+    estado.falhas.editar = {
+      umaVez: true,
+      resposta: {
+        status: 422,
+        body: {
+          code: 'OPERACAO_REFERENCIA_INVALIDA',
+          message: 'texto do servidor (falso)',
+          request_id: 'req_fake',
+          field: 'natureza_id',
+          reason: 'natureza_inativa',
+          details: { field: 'natureza_id', reason: 'natureza_inativa', colecao: 'itens', indice: 1, subcolecao: 'rateios', subindice: 1, item_ordem: 2 },
+        },
+      },
+    };
+    let soltar = () => {};
+    const segura = new Promise((r) => {
+      soltar = r;
+    });
+    ajustarResposta = async (req, r) => {
+      if (req.method === 'PUT') await segura;
+      return r;
+    };
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await salvar(); // enviado: item 2 = FRETE, linha 2 = ENERGIA
+    await clicar(screen.getByRole('button', { name: 'Mover item 2 para cima' }));
+    expect(screen.getByTestId('rateio-item-0-cabecalho')).toHaveTextContent(/FRETE/);
+    await act(async () => {
+      soltar();
+    });
+    await waitFor(() => expect(chamadas('PUT', `/operacoes-financeiras/${doc.id}`)).toHaveLength(1));
+    const linha = await screen.findByTestId('rateio-item-0-linha-1');
+    await waitFor(() => expect(within(linha).getByText(/natureza escolhida está inativa.*\(item 1, linha 2 do rateio\)/)).toBeTruthy());
+    expect(naturezaDaLinha(0, 1)).toMatch(/ENERGIA/);
+    expect(within(screen.getByTestId('rateio-item-1')).queryByText(/inativa/)).toBeNull();
+  });
+
+  it('T3: trocar o modo dentro do "Por item" não muda o modo do geral guardado: voltar para "Geral" traz 700,00/300,00 em valor', async () => {
+    const doc = semearDocumento(estado, corpoGeral());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await radio('Por item');
+    await clicar(within(await screen.findByTestId('dialogo-escopo-por-item')).getByTestId('escopo-por-item-branco'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
+    await radio('Por percentual');
+    await radio('Geral');
+    await waitFor(() => expect(screen.queryByTestId('rateio-item-0')).toBeNull());
+    expect(screen.getByRole('radio', { name: 'Por valor' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('rateio-0-valor')).toHaveValue('700,00');
+    expect(screen.getByTestId('rateio-1-valor')).toHaveValue('300,00');
+  });
+
+  it('T4: "Sem produtos" sempre volta ao rateio geral, mesmo sem itens; voltar para "Com produtos" começa em Geral', async () => {
+    const doc = semearDocumento(estado, corpoPorItem());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await clicar(screen.getByRole('button', { name: 'Remover item 2' }));
+    await clicar(screen.getByRole('button', { name: 'Remover item 1' }));
+    await radio('Sem produtos');
+    await radio('Com produtos');
+    const escopo = screen.getByTestId('escolha-escopo-rateio');
+    expect(within(escopo).getByRole('radio', { name: 'Geral' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull();
+    expect(screen.queryByTestId('rateio-item-0')).toBeNull();
+    expect(screen.getByTestId('rateio-0')).toBeTruthy();
+  });
+
+  it('T5: trocar a direção limpa a escolha de "aplicar a todos" (natureza de despesa não vai para uma venda)', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const doc = semearDocumento(estado, corpoPorItem());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await clicar(screen.getByTestId('abrir-aplicar-todos'));
+    await escolher('seletor-natureza-todos', /NUTRIÇÃO/);
+    expect(screen.getByTestId('aplicar-classificacao-todos')).not.toBeDisabled();
+    await radio('A receber');
+    await waitFor(() => expect(naturezaDaLinha(0, 0)).not.toMatch(/NUTRI/));
+    expect(screen.getByTestId('seletor-natureza-todos').getAttribute('aria-label')).not.toMatch(/NUTRI/);
+    expect(screen.getByTestId('aplicar-classificacao-todos')).toBeDisabled();
+  });
+
+  it('T6: "Adicionar linha" depois de remover até sobrar uma: a linha 1 fica com o líquido que estava à vista (não com um valor antigo)', async () => {
+    const doc = semearDocumento(estado, corpoGeral());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    await radio('Por item');
+    await clicar(within(await screen.findByTestId('dialogo-escopo-por-item')).getByTestId('escopo-por-item-proporcional'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-escopo-por-item')).toBeNull());
+    expect(screen.getByTestId('rateio-item-0-linha-0-valor')).toHaveValue('420,00');
+    await clicar(screen.getByRole('button', { name: 'Remover linha 2 do item 1' }));
+    expect(screen.getByTestId('rateio-item-0-linha-0-valor-auto')).toHaveTextContent(/R\$\s600,00 \(100% do líquido\)/);
+    await clicar(screen.getByTestId('rateio-item-0-adicionar'));
+    expect(screen.getByTestId('rateio-item-0-linha-0-valor')).toHaveValue('600,00');
+    expect(screen.getByTestId('rateio-item-0-linha-1-valor')).toHaveValue('');
+  });
+
+  it('T7: bloco recolhido não aponta aria-controls para um corpo que não está no DOM', async () => {
+    const doc = semearDocumento(estado, corpoPorItem());
+    await montar();
+    await abrir(doc.id);
+    await editar();
+    const cabecalho = screen.getByTestId('rateio-item-0-cabecalho');
+    const alvo = () => cabecalho.getAttribute('aria-controls');
+    expect(document.getElementById(String(alvo()))).toBeTruthy();
+    await clicar(cabecalho);
+    expect(cabecalho).toHaveAttribute('aria-expanded', 'false');
+    expect(alvo() === null || document.getElementById(alvo()) !== null).toBe(true);
+  });
+});

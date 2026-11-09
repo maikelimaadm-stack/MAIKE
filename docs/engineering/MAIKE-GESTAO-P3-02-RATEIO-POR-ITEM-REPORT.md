@@ -92,7 +92,30 @@ A revisão adversarial focada (lentes de dinheiro, banco e tela) e as correçõe
 com RED→GREEN estão no §4.1, preenchido ao fim da rodada.
 
 ### 4.1 Achados e correções
-(preenchido ao fim da rodada)
+
+Cada achado ganhou primeiro um teste que reproduz a falha (RED), e só então a
+correção mínima (GREEN). Os testes novos ficam nas suítes da P3-02.
+
+| Achado | Gravidade | Defeito | Correção | Teste (RED → GREEN) |
+|---|---|---|---|---|
+| BANCO-01 | médio | A prévia e o GET do detalhe liam cabeçalho, itens e linhas por item em comandos separados, em READ COMMITTED. Um PUT que confirmasse no meio rasgava o documento: prévia com `item_sem_rateio` falso, e detalhe com itens sem linhas e consolidado vazio | Prévia com o cabeçalho em `FOR SHARE`, serializada com PUT, descarte e confirmação. Detalhe numa transação `REPEATABLE READ` só de leitura | `RI11b` (2 testes, determinísticos, sem sleep: PUT parado no portão do título com as linhas novas gravadas e `LOCK TABLE` na fila). RED: `bloqueios=[item_sem_rateio]` e itens `[[],[]]`. GREEN: prévia sem bloqueio e detalhe `[['30.00'],['12.00','8.00']]` |
+| BANCO-02 | baixo | Uma linha gravada fora da API com `operacao_id` = A e `item_id` = item de B é aceita pela FK. Efeitos: prévia de A limpa, confirmar A dava 500, o detalhe de B somava 45,00 com total 40,00, descartar B dava 403 e confirmar B passava | `exigirLinhasDoDocumento` devolve 422 `OPERACAO_RATEIO_INVALIDO` `linha_de_item_fora_do_documento` na prévia, na confirmação, no PUT e no descarte de A e de B. O detalhe mostra em cada item só as linhas do próprio documento | `RI10` "linha cruzada". RED: a prévia de A voltava com plano. GREEN: 422 nos 8 comandos, "nada mudou" pela fotografia e consolidados 30,00 e 40,00 |
+| DIN-1 | médio | "Usar a classificação geral" no modo VALOR tirava, sem aviso, a linha que dava zero num item. Com 99,99 + 0,01 e dois itens de 50,00, a SANIDADE sumia do documento | O proporcional é recusado, com o motivo (linha, natureza e item), quando alguma linha do geral ficaria com zero. Sobra "começar em branco" | RTL `RIT-8 DIN-1`. RED: botão habilitado. GREEN: botão desabilitado e motivo à vista |
+| DIN-2 | baixo | O SPEC dizia que `esperado` é o líquido do item, mas no PERCENTUAL ele vem em % | Sem mudança de código: mantida a semântica do rateio geral da D-PROD-155 e registrada na D-PROD-156 (PERCENTUAL em %, com o líquido em `valor_liquido`) | `RI3` agora fixa também `valor_liquido` no PERCENTUAL. Já passava: não há RED de código |
+| DIN-3 | baixo | O backend falso lançava `RangeError` com casas a mais e respondia 422 `valor_linha_zero` (ou `soma_diferente`) para valor ou percentual ausente. O servidor responde 400 | O falso normaliza as linhas por item como o servidor: 400 `REQUEST_VALIDATION_FAILED`, `obrigatorio`/`casas_decimais_excedidas`, com item e linha | vitest `RI-4` com as 4 respostas copiadas do servidor real (PYG). RED: `RangeError: casas_excedidas`. GREEN: 400 igual ao servidor |
+| BANCO-03 | baixo | O quadro de rollback dizia só "Recusa" | O runbook (§0 e §9.2) traz as respostas exatas do runtime da P3-01: 403 `TENANT_SCOPE_VIOLATION` ao salvar ou descartar, e 422 `soma_diferente` ao confirmar. Traz também o aviso ao suporte | Documentação, conferida no código da `main` `f2b81e1b` (`apagarFilhosDoRascunho` antigo, `errorHandler` P2003 → 403, `ApiError` "Você não tem acesso a este registro.") |
+| T1 | médio | O diálogo prometia que o geral voltava como estava, mas depois de salvar por item o formulário recarregado vinha com ele em branco | O texto passou a ser honesto ("guardado enquanto o rascunho não for salvo"). A volta para "Geral" diz quando o geral começa em branco | RTL `RIT-8 T1`. RED: a pergunta dizia "volta como estava". GREEN: "começa em branco" |
+| T2 | médio | A recusa do servidor (`indice`/`subindice`) era resolvida contra o formulário atual. Mover um item com o PUT no ar levava o erro para o item errado | Retrato das chaves enviadas (item → linhas) no envio. O índice do servidor é traduzido por ele, e a mensagem cita a posição atual | RTL `RIT-8 T2`. RED: o erro não estava na linha 2 do FRETE. GREEN: "(item 1, linha 2 do rateio)" no campo certo |
+| T3 | baixo | O "Modo do rateio" do bloco por item mudava o modo do geral guardado | `rateio_modo_geral` é guardado ao entrar no POR_ITEM e restaurado ao voltar ao GERAL (troca de escopo ou "sem produtos") | RTL `RIT-8 T3`. RED: o geral voltava em percentual. GREEN: 700,00/300,00 em valor |
+| T4 | baixo | O POR_ITEM sobrevivia a "Sem produtos" sem itens e voltava sem diálogo | "Sem produtos" sempre volta ao GERAL | RTL `RIT-8 T4` |
+| T5 | baixo | A escolha de "aplicar a todos" sobrevivia à troca de direção, e uma natureza de despesa ia para uma venda | A escolha pendente é zerada quando a direção muda | RTL `RIT-8 T5` |
+| T6 | baixo | "Adicionar linha" depois de sobrar uma linha trazia de volta um valor antigo | A linha 1 recebe sempre o valor que estava à vista (líquido ou 100%) | RTL `RIT-8 T6`. RED: 420,00. GREEN: 600,00 |
+| T7 | baixo | `aria-controls` apontava para um corpo fora do DOM com o bloco recolhido | `aria-controls` só com o bloco aberto (padrão do `SeletorPaginadoGestao`) | RTL `RIT-8 T7` |
+
+A migration da P3-02 **não foi alterada**: o sha256 está pinado em
+`MIGRATIONS_APROVADAS`, e o comentário dela ("a linha herda a empresa do
+documento e do item pelas FKs compostas") já é exato. O limite da FK está no
+serviço, na D-PROD-156 e no §6.
 
 ## 5. Gate final
 (preenchido com o `verify:all` e o CI do HEAD final)
@@ -105,8 +128,10 @@ com RED→GREEN estão no §4.1, preenchido ao fim da rodada.
 - **Item de outro documento.** A tabela nova não tem como garantir, por FK, que
   `item.operacao_id` seja igual a `linha.operacao_id`: isso exigiria uma unique
   nova em `OperacaoFinanceiraItem`, e o classificador a proíbe. O serviço
-  sempre grava as duas coisas juntas. Uma linha forjada por SQL direto faz a
-  confirmação falhar fechada.
+  sempre grava as duas coisas juntas. Uma linha forjada por SQL direto, cruzando
+  dois documentos, vira 422 `linha_de_item_fora_do_documento` na prévia, na
+  confirmação, no PUT e no descarte dos dois documentos. O detalhe de cada um
+  mostra só as próprias linhas (revisão BANCO-02, §4.1).
 - **`rateio_modo` é do documento.** VALOR ou PERCENTUAL vale para todas as
   linhas de todos os itens.
 - **Preview da PR.** Ela usa o banco de produção, que ainda não tem o schema da

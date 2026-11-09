@@ -5632,17 +5632,20 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Validação:**
     - acontece no rascunho, na prévia e na confirmação, também quando a chamada vem direto pela API;
     - os erros apontam o item e a linha (`details.colecao='itens'`, `indice`, `subcolecao='rateios'`, `subindice`);
-    - naturezas e centros passam pelas mesmas regras do rateio geral: existe, está ativo, tipo × direção, não é sintética, mesmo tenant e mesma empresa.
+    - `soma_diferente` por item segue a semântica do rateio geral da D-PROD-155: no modo VALOR, `esperado` é o líquido do item e `esperado`/`informado`/`diferenca` vêm na escala da moeda; no modo PERCENTUAL, os três são **percentuais** com 6 casas (`esperado = '100.000000'`), e o líquido do item vem em `valor_liquido`, na escala da moeda. Quem formata `details` olha o `modo` primeiro. O SPEC da missão citava só o caso VALOR, e a revisão registrou a divergência;
+    - naturezas e centros passam pelas mesmas regras do rateio geral: existe, está ativo, tipo × direção, não é sintética, mesmo tenant e mesma empresa;
+    - a FK da linha por item é `(cliente_id, empresa_id, item_id)` e não amarra o item ao **mesmo** documento da linha, porque isso exigiria UNIQUE em tabela antiga, o que o classificador recusa. Uma linha gravada fora da API que cruze dois documentos da mesma empresa vira **422 `OPERACAO_RATEIO_INVALIDO` `linha_de_item_fora_do_documento`** na prévia, na confirmação, no PUT e no descarte dos dois documentos. O detalhe mostra em cada item só as linhas do próprio documento.
   - **Leitura:**
     - o detalhe, a prévia e a listagem expõem `rateio_escopo`;
-    - o detalhe e a prévia expõem também `itens[].rateios` e o `rateio_consolidado` (soma por natureza e centros, sem duplicar montantes, Σ = total), nos dois modos.
+    - o detalhe e a prévia expõem também `itens[].rateios` e o `rateio_consolidado` (soma por natureza e centros, sem duplicar montantes, Σ = total), nos dois modos;
+    - **leitura de um instante só:** todo PUT recria os itens com ids novos, e as linhas por item são associadas pelo `item_id`. Por isso a prévia lê o cabeçalho com `FOR SHARE`, que serializa com PUT, descarte e confirmação (todos `FOR UPDATE`), e o GET do detalhe roda numa transação `REPEATABLE READ` só de leitura. Sem isso, um PUT que confirmasse entre as leituras rasgava o documento: prévia com "item sem rateio" falso, detalhe com itens sem linhas.
   - **Tela (a mesma `LancamentosFinanceiros`):**
     - seletor "Rateio: Geral | Por item";
     - um bloco compacto por item, que recolhe e expande, com líquido e diferença por item e total;
     - "Aplicar classificação a todos os itens";
-    - **troca de GERAL para POR_ITEM:** um diálogo pergunta se usa a classificação geral proporcional ou se começa em branco. O geral fica guardado e nunca se perde em silêncio;
-    - **troca de POR_ITEM para GERAL:** pede confirmação antes de descartar;
-    - o estado fica preso à chave estável do item;
+    - **troca de GERAL para POR_ITEM:** um diálogo pergunta se usa a classificação geral proporcional ou se começa em branco. O proporcional é recusado, com o motivo, quando alguma linha do geral ficaria com zero em algum item: tirá-la calada mudaria as naturezas do documento. O geral (linhas e modo) fica guardado no formulário **até o rascunho ser salvo**, e o diálogo diz isso: o documento POR_ITEM salvo não tem rateio geral;
+    - **troca de POR_ITEM para GERAL:** pede confirmação antes de descartar e diz se o geral volta como estava ou começa em branco;
+    - o estado fica preso à chave estável do item, e a recusa do servidor (`indice`/`subindice` do corpo enviado) é traduzida pelas chaves enviadas, mesmo que o usuário mova ou remova itens com a requisição no ar;
     - Confirmar fica desabilitado enquanto algo não fecha;
     - a tela funciona em 390 px sem rolagem horizontal.
   - **Banco** (migration `20261109200000_gestao_p3_02_rateio_por_item`, expand-only e classificada sem mudar o classificador):
@@ -5656,7 +5659,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora do escopo:** contabilidade, fiscal, tributos, NF-e, OFX, contas bancárias, DRE, câmbio, rateio fiscal e módulos novos. Os domínios legados continuam proibidos.
 - **Consequências e release:**
   - A migration vem antes do merge, pelo runbook próprio: GO específico, preflight só leitura com 35 migrations concluídas, backup comprovado, classificador, ensaio local, migration (36 concluídas), conferência, merge manual, deploy e smoke.
-  - Se o runtime voltar ao da P3-01, as operações com documento POR_ITEM falham de forma segura (FK RESTRICT e recusa por falta de rateio geral), sem perda de dado.
+  - Se o runtime voltar ao da P3-01, as operações com documento POR_ITEM falham de forma segura, sem perda de dado: salvar ou descartar o rascunho responde 403 `TENANT_SCOPE_VIOLATION` (a FK RESTRICT da linha por item vira `P2003`, que o `errorHandler` traduz assim), e confirmar responde 422 `OPERACAO_RATEIO_INVALIDO` `soma_diferente` (não há rateio geral). As duas respostas enganam e estão no quadro do runbook, com o aviso ao suporte de que, nessa janela, esse 403 não é incidente de tenancy.
   - Relatório: `docs/engineering/MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`.
 
 <!-- Próxima decisão: D-PROD-157 -->

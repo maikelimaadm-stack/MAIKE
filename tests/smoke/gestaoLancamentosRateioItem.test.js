@@ -445,6 +445,31 @@ describe('RI-4 — backend falso espelha o contrato (SPEC §3–§5)', () => {
     }
   });
 
+  it('linha do item com valor/percentual ausente ou com casas a mais: 400 REQUEST_VALIDATION_FAILED com item e linha, como o servidor (nunca RangeError nem 422 de outra regra)', async () => {
+    // Respostas copiadas do servidor real (normalizarLinhasDeRateio), PYG = 0 casas.
+    const PERFIL_PY = { ...PERFIL_BR, pais: 'PY', moeda: 'PYG', moeda_casas: 0, locale: 'es-PY' };
+    const corpoPy = (modo, rateios) => ({
+      empresa_id: 'emp-1', direcao: 'PAGAR', conteudo: 'COM_PRODUTOS', condicao: 'AVISTA', parceiro_id: 'pa1', data_emissao: '2026-11-08',
+      rateio_escopo: 'POR_ITEM', rateio_modo: modo, rateios: [],
+      itens: [{ tipo_item: 'SERVICO', unidade: 'UN', descricao: 'FRETE', quantidade: '1', valor_unitario: '100', rateios }],
+      parcelas: [{ vencimento: '2026-11-08', valor: '100' }],
+    });
+    const linha = (j) => ({ colecao: 'itens', indice: 0, subcolecao: 'rateios', subindice: j });
+    const casos = [
+      [corpoPy('VALOR', [{ natureza_id: 'nd1', valor: '60.5' }, { natureza_id: 'nd2', valor: '39.5' }]), { field: 'valor', reason: 'casas_decimais_excedidas', details: { casas: 0, ...linha(0) } }],
+      [corpoPy('VALOR', [{ natureza_id: 'nd1', valor: null }, { natureza_id: 'nd2', valor: '100' }]), { field: 'valor', reason: 'obrigatorio', details: linha(0) }],
+      [corpoPy('VALOR', [{ natureza_id: 'nd1', valor: '100' }, { natureza_id: 'nd2' }]), { field: 'valor', reason: 'obrigatorio', details: linha(1) }],
+      [corpoPy('PERCENTUAL', [{ natureza_id: 'nd1', percentual: '60' }, { natureza_id: 'nd2', percentual: null }]), { field: 'percentual', reason: 'obrigatorio', details: linha(1) }],
+    ];
+    for (const [corpo, esperado] of casos) {
+      const estado = criarEstadoLancamentos({ perfil: PERFIL_PY });
+      const r = await chamar(estado, 'POST', '/operacoes-financeiras', { ...corpo, operation_id: `op-${esperado.reason}-${esperado.details.subindice}` });
+      expect(r.status, JSON.stringify(esperado)).toBe(400);
+      expect(r.body).toMatchObject({ code: 'REQUEST_VALIDATION_FAILED', ...esperado });
+      expect(estado.documentos).toHaveLength(0);
+    }
+  });
+
   it('PUT: item removido leva as linhas dele; reordenar leva as linhas junto (associação pela ordem do item na MESMA requisição)', async () => {
     const estado = criarEstadoLancamentos();
     const criado = (await chamar(estado, 'POST', '/operacoes-financeiras', { ...corpoPorItem({ valor_desconto: undefined, parcelas: [{ vencimento: '2026-11-08', valor: '1000.00' }] , itens: [{ ...corpoPorItem().itens[0], rateios: [{ natureza_id: 'nd1', valor: '600.00' }] }, { ...corpoPorItem().itens[1], rateios: [{ natureza_id: 'nd2', valor: '400.00' }] }] }), operation_id: 'op-put-1' })).body;

@@ -9,14 +9,17 @@ import { DialogoEscopoPorItem } from "@/components/financeiroGestao/DialogosLanc
 import {
   alvoDoErroDoRateioPorItem,
   calcularResumo,
+  entrarNoPorItem,
   formularioDoDetalhe,
   formularioVazio,
+  geralEmBranco,
   inicializacaoProporcional,
   itemVazio,
   linhasDoItem,
   montarDocumento,
   rateioVazio,
   temDadosPorItem,
+  voltarAoGeral,
 } from "@/components/financeiroGestao/lancamentoModelo";
 import { lerErroGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 import { LIMITES, formatarMoeda } from "@/lib/dinheiroDecimal";
@@ -115,9 +118,15 @@ export default function FormularioLancamento({
 
   // Recusa do servidor no rateio POR ITEM: o índice/subíndice viram a CHAVE do
   // item e da linha (o estado vive na chave); a mensagem fica no campo exato até
-  // o formulário mudar.
+  // o formulário mudar. O índice é o do CORPO ENVIADO: durante o PUT/POST o
+  // formulário segue editável (mover/remover item ou linha), então ele é lido
+  // pelo retrato das chaves tirado no envio, nunca pela posição atual.
   const formRef = useRef(form);
   formRef.current = form;
+  const retratoEnviado = useRef(/** @type {Array<{ chave: string, linhas: string[] }> | null} */ (null));
+  const retratar = (/** @type {any} */ f) => {
+    retratoEnviado.current = f.itens.map((/** @type {any} */ i) => ({ chave: String(i.chave), linhas: linhasDoItem(f, i.chave).map((l) => String(l.chave)) }));
+  };
   const seqVisto = useRef(erroServidor?.seq ?? 0);
   const [erroDoServidor, setErroDoServidor] = useState(
     /** @type {{ form: any, itemChave: string, linhaChave: string|null, campo: string, mensagem: string } | null} */ (null),
@@ -126,19 +135,29 @@ export default function FormularioLancamento({
     if (!erroServidor || erroServidor.seq <= seqVisto.current) return;
     seqVisto.current = erroServidor.seq;
     const f = formRef.current;
-    const alvo = alvoDoErroDoRateioPorItem(lerErroGestao(erroServidor.erro));
-    const item = alvo ? f.itens[alvo.indice] : null;
-    if (!alvo || !item || f.rateio_escopo !== "POR_ITEM") return;
+    const lido = lerErroGestao(erroServidor.erro);
+    const alvo = alvoDoErroDoRateioPorItem(lido);
+    if (!alvo || f.rateio_escopo !== "POR_ITEM") return;
+    // Sem retrato (recusa que não veio de um envio deste formulário), vale a posição atual.
+    const enviado = retratoEnviado.current ? retratoEnviado.current[alvo.indice] ?? null : { chave: f.itens[alvo.indice]?.chave, linhas: null };
+    const k = enviado ? f.itens.findIndex((/** @type {any} */ i) => i.chave === enviado.chave) : -1;
+    if (k < 0) return; // o item recusado foi removido enquanto o envio estava no ar
+    const item = f.itens[k];
     const linhas = linhasDoItem(f, item.chave);
-    const linha = alvo.subindice != null ? linhas[alvo.subindice] ?? null : null;
+    const linhaChave = alvo.subindice == null ? null : enviado?.linhas ? enviado.linhas[alvo.subindice] ?? null : linhas[alvo.subindice]?.chave ?? null;
+    const j = linhaChave ? linhas.findIndex((l) => l.chave === linhaChave) : -1;
+    const linha = j >= 0 ? linhas[j] : null;
     // Linha única (100% automático) não tem campo de valor/percentual: o erro fica no item.
     const naLinha = Boolean(linha) && !(linhas.length === 1 && (alvo.campo === "valor" || alvo.campo === "percentual"));
+    // A mensagem cita a posição ATUAL do item e da linha (não a do corpo enviado).
+    const { indice: _i, subindice: _j, ...outros } = lido.details;
+    const atual = { code: lido.code, details: { ...outros, field: lido.field, reason: lido.reason, indice: k, ...(naLinha ? { subindice: j } : {}) } };
     setErroDoServidor({
       form: f,
       itemChave: item.chave,
       linhaChave: naLinha && linha ? linha.chave : null,
       campo: naLinha ? alvo.campo : "rateio",
-      mensagem: mensagemErroGestao(erroServidor.erro, "O servidor recusou o rateio deste item.", { locale, moeda, casas }),
+      mensagem: mensagemErroGestao(atual, "O servidor recusou o rateio deste item.", { locale, moeda, casas }),
     });
   }, [erroServidor, locale, moeda, casas]);
   let chaveErroServidor = null;
@@ -184,6 +203,7 @@ export default function FormularioLancamento({
   };
 
   const trocarConteudo = async (/** @type {string} */ conteudo) => {
+    // Sem produtos só existe o rateio GERAL (D-PROD-156): sempre, com ou sem itens.
     if (conteudo === "SEM_PRODUTOS" && form.itens.length) {
       const n = form.itens.length;
       const porItemAgora = form.rateio_escopo === "POR_ITEM";
@@ -196,11 +216,14 @@ export default function FormularioLancamento({
         perigo: true,
       });
       if (!ok) return;
-      // Sem produtos só existe o rateio GERAL (D-PROD-156).
-      setForm((f) => ({ ...f, conteudo, itens: [], rateio_escopo: "GERAL", rateios_itens: {} }));
+      setForm((f) => ({ ...voltarAoGeral(f), conteudo, itens: [] }));
       return;
     }
-    setForm((f) => ({ ...f, conteudo, itens: conteudo === "COM_PRODUTOS" && !f.itens.length ? [itemVazio("MERCADORIA")] : f.itens }));
+    setForm((f) =>
+      conteudo === "SEM_PRODUTOS"
+        ? { ...voltarAoGeral(f), conteudo }
+        : { ...f, conteudo, itens: conteudo === "COM_PRODUTOS" && !f.itens.length ? [itemVazio("MERCADORIA")] : f.itens },
+    );
   };
 
   // Escopo do rateio (D-PROD-156): GERAL ↔ POR_ITEM, nunca em silêncio.
@@ -211,15 +234,20 @@ export default function FormularioLancamento({
       return;
     }
     if (temDadosPorItem(form)) {
+      // Depois de salvar por item, o documento não tem mais rateio geral (o
+      // formulário recarregado vem com ele em branco): a pergunta diz isso.
+      const geral = geralEmBranco(form)
+        ? "O rateio geral começa em branco (não há rateio geral guardado neste formulário)."
+        : "O rateio geral volta como estava.";
       const ok = await confirmar({
         titulo: "Voltar ao rateio geral",
-        descricao: "As classificações por item serão descartadas (elas não são convertidas numa natureza só). O rateio geral volta como estava. Continuar?",
+        descricao: `As classificações por item serão descartadas (elas não são convertidas numa natureza só). ${geral} Continuar?`,
         textoConfirmar: "Descartar e voltar",
         perigo: true,
       });
       if (!ok) return;
     }
-    setForm((f) => ({ ...f, rateio_escopo: "GERAL", rateios_itens: {} }));
+    setForm((f) => voltarAoGeral(f));
   };
   const proporcional = dialogoEscopo ? inicializacaoProporcional(form, resumo, { locale, casas }) : null;
 
@@ -236,6 +264,7 @@ export default function FormularioLancamento({
     e.preventDefault();
     if (readOnly || ocupado) return;
     if (!validar()) return;
+    retratar(form);
     onSubmit(montarDocumento(form, resumo));
   };
 
@@ -247,6 +276,7 @@ export default function FormularioLancamento({
     }
     if (!validar()) return;
     const doc = montarDocumento(form, resumo);
+    retratar(form);
     onConfirmar({ doc, alterado: !editando || JSON.stringify(doc) !== docInicial.current });
   };
 
@@ -511,11 +541,11 @@ export default function FormularioLancamento({
           onProporcional={() => {
             if (!proporcional.possivel) return;
             const iniciais = proporcional.rateios_itens;
-            setForm((f) => ({ ...f, rateio_escopo: "POR_ITEM", rateios_itens: iniciais }));
+            setForm((f) => entrarNoPorItem(f, iniciais));
             setDialogoEscopo(false);
           }}
           onEmBranco={() => {
-            setForm((f) => ({ ...f, rateio_escopo: "POR_ITEM", rateios_itens: Object.fromEntries(f.itens.map((/** @type {any} */ i) => [i.chave, [rateioVazio()]])) }));
+            setForm((f) => entrarNoPorItem(f, Object.fromEntries(f.itens.map((/** @type {any} */ i) => [i.chave, [rateioVazio()]]))));
             setDialogoEscopo(false);
           }}
         />

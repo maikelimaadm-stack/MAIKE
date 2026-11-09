@@ -34,13 +34,23 @@ tabela nova, então o banco migrado continua atendendo a ele sem mudança.
 
 **Se o runtime voltar ao da P3-01 depois que existir documento POR_ITEM** (§9.2):
 
-| Operação no runtime antigo | Resultado |
-|---|---|
-| Confirmar um rascunho POR_ITEM | **Recusa**: não há rateio geral |
-| Editar ou descartar o rascunho | **Recusa**: a FK RESTRICT da linha por item impede apagar o item |
-| Detalhe de confirmado POR_ITEM | Abre sem as linhas do rateio |
+| Operação no runtime antigo | Resposta exata | O que a tela antiga mostra |
+|---|---|---|
+| Confirmar (e a prévia de) um rascunho POR_ITEM | **422 `OPERACAO_RATEIO_INVALIDO`**, `reason: soma_diferente` (não há rateio geral: a soma é 0) | "a soma do rateio difere do total" / "os percentuais precisam somar 100" |
+| Editar (Salvar) ou descartar o rascunho POR_ITEM | **403 `TENANT_SCOPE_VIOLATION`**, `message: "vínculo inválido para este tenant"`. O `apagarFilhosDoRascunho` antigo apaga o item, a FK RESTRICT da linha por item recusa (Prisma `P2003`) e o `errorHandler` traduz `P2003` em 403 | "Você não tem acesso a este registro." |
+| Detalhe de confirmado POR_ITEM | 200, sem as linhas do rateio | o documento sem classificação |
 
-Nos três casos nada se perde e nada fica errado.
+Nos três casos nada se perde e nada fica errado: a transação recusada não grava
+nada. As respostas, porém, **enganam**: o código antigo não tem como ser
+corrigido, então o aviso fica aqui.
+
+> **Aviso ao suporte e ao monitoramento (janela de rollback):** enquanto o
+> runtime da P3-01 estiver no ar com a migration da P3-02 aplicada, um **403
+> `TENANT_SCOPE_VIOLATION`** em `PUT` ou `DELETE /operacoes-financeiras/:id` de
+> um rascunho POR_ITEM **não é incidente de tenancy**: é a FK da linha por item
+> segurando o item. E um 422 `soma_diferente` ao confirmar esse rascunho não é
+> erro de digitação do usuário. O documento volta a funcionar quando o runtime
+> da P3-02 voltar. Não "corrigir" apagando linhas por item no banco.
 
 **Efeito durante a transação:**
 - `ADD FOREIGN KEY` toma `SHARE ROW EXCLUSIVE` nas 6 tabelas referenciadas até o
@@ -252,7 +262,10 @@ COMMIT;
 - Não fazer `DROP`: podem existir classificações reais por item.
 - Problema de código → rollback de deployment na Vercel ou revert da PR. A
   coluna e a tabela ficam. Como o runtime antigo se comporta está no quadro do
-  §0: falha segura, sem perda de dado.
+  §0: falha segura, sem perda de dado, mas com respostas que enganam. Antes do
+  rollback, avisar o suporte: nessa janela, **403 `TENANT_SCOPE_VIOLATION`** ao
+  salvar ou descartar um rascunho POR_ITEM e **422 `OPERACAO_RATEIO_INVALIDO`
+  `soma_diferente`** ao confirmá-lo são esperados e não são incidente de tenancy.
 
 ### 9.3 Restaurar backup
 Não é rollback desta release. Volta o banco inteiro, com todos os tenants. Exige
