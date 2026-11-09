@@ -390,6 +390,68 @@ describe('V3 — concorrência e corridas com o Produto', () => {
        WHERE v.cliente_id = ${s.c} AND v.ativo AND pr.empresa_id <> v.empresa_id`);
     assert.deepEqual(incoerentes, []);
   });
+
+  // ─── escritor FORA do serviço (sem a trava): grava sem confirmar, solta o
+  // pedido, espera o pedido bloquear na escrita dele e só então confirma.
+  /** @param {string[]} sqls @param {() => Promise<any>} pedido */
+  const comEscritorExterno = async (sqls, pedido) => {
+    /** @type {Promise<any> | undefined} */
+    let emVoo;
+    await aux.$transaction(
+      async (tx) => {
+        const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
+        for (const sql of sqls) await tx.$executeRawUnsafe(sql);
+        emVoo = pedido();
+        await esperar(() => alguemEsperando(pid), 'o pedido esperando a escrita externa');
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
+    return emVoo;
+  };
+  /** INSERT direto de um vínculo ATIVO (sem serviço, sem trava, sem auditoria). */
+  const sqlVinculoAtivo = (cli, emp, tipo, prodId) =>
+    `INSERT INTO "TipoCombustivelProduto" (id, cliente_id, empresa_id, tipo_combustivel_id, produto_id, ativo, ativo_chave, versao, "updatedAt") VALUES ('x${randomUUID().replace(/-/g, '').slice(0, 24)}', '${cli}', '${emp}', '${tipo}', '${prodId}', true, true, 1, now())`;
+
+  test('barreira final (P2002): escritor fora da trava confirma o produto ATIVO em outro tipo enquanto o POST ou a reativação espera no unique → 409 EM_OUTRO_TIPO com o tipo VENCEDOR em details (nunca vazio)', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    const prod = await produtoNovo(s, s.e1, 'DIESEL FORA DA TRAVA');
+    const post = await comEscritorExterno([sqlVinculoAtivo(s.c, s.e1.id, s.comb.DIESEL_S500, prod.id)], () => vincular(s, s.comb.DIESEL_S10, s.e1.id, prod.id));
+    assert.deepEqual(erro(post).slice(0, 2), [409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO'], post.body);
+    assert.deepEqual(post.json().details, { tipo_combustivel_id: s.comb.DIESEL_S500 });
+
+    const prod2 = await produtoNovo(s, s.e1, 'DIESEL REATIVA FORA DA TRAVA');
+    const v = await vincularOk(s, s.comb.DIESEL_S10, s.e1.id, prod2.id);
+    await ok(alterar(s, v.id, { empresa_id: s.e1.id, versao: 1, ativo: false }));
+    const reativar = await comEscritorExterno([sqlVinculoAtivo(s.c, s.e1.id, s.comb.DIESEL_S500, prod2.id)], () =>
+      alterar(s, v.id, { empresa_id: s.e1.id, versao: 2, ativo: true })
+    );
+    assert.deepEqual(erro(reativar).slice(0, 2), [409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO'], reativar.body);
+    assert.deepEqual(reativar.json().details, { tipo_combustivel_id: s.comb.DIESEL_S500 });
+    for (const id of [prod.id, prod2.id]) {
+      assert.equal(await p.tipoCombustivelProduto.count({ where: { cliente_id: s.c, produto_id: id, ativo: true } }), 1, 'um único vínculo ativo por produto');
+    }
+    assert.equal((await p.tipoCombustivelProduto.findUnique({ where: { id: v.id } }))?.ativo, false, 'a reativação não gravou');
+  });
+
+  test('troca de fazenda confirmada (com vínculo ATIVO na fazenda nova) enquanto um PATCH do produto que REENVIA a fazenda antiga espera → 409 PRODUTO_VINCULADO_COMBUSTIVEL; o produto não volta; nunca vínculo ativo incoerente', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    const prod = await produtoNovo(s, s.e1, 'GASOLINA VAI E VOLTA');
+    const r = await comEscritorExterno(
+      [`UPDATE "Produto" SET empresa_id = '${s.e2.id}' WHERE cliente_id = '${s.c}' AND id = '${prod.id}'`, sqlVinculoAtivo(s.c, s.e2.id, s.comb.GASOLINA, prod.id)],
+      // O formulário de Produtos sempre reenvia a fazenda que ele leu.
+      () => req('PATCH', `/produtos/${prod.id}`, s.token, { empresa_id: s.e1.id, observacoes: 'reenvia a fazenda de antes' })
+    );
+    assert.deepEqual(erro(r).slice(0, 2), [409, 'PRODUTO_VINCULADO_COMBUSTIVEL'], r.body);
+    const depois = await p.produto.findUnique({ where: { id: prod.id } });
+    assert.equal(depois?.empresa_id, s.e2.id, 'o produto não volta para a fazenda antiga');
+    assert.equal(depois?.observacoes ?? null, null, 'nada gravado');
+    const incoerentes = /** @type {any[]} */ (await p.$queryRaw`
+      SELECT v.id FROM "TipoCombustivelProduto" v JOIN "Produto" pr ON pr.cliente_id = v.cliente_id AND pr.id = v.produto_id
+       WHERE v.cliente_id = ${s.c} AND v.ativo AND pr.empresa_id <> v.empresa_id`);
+    assert.deepEqual(incoerentes, []);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -666,6 +728,8 @@ describe('V8 — banco e auditoria', () => {
     assert.ok(!JSON.stringify(eventos).includes('SENTINELA'), 'sem texto livre do produto na auditoria');
 
     const outroProd = await produtoNovo(s, s.e1, 'DIESEL NAO GRAVA');
+    // Um vínculo ainda ATIVO para provar a inativação sob o gatilho (o `v` já está inativo).
+    const vAtivo = await vincularOk(s, s.comb.GASOLINA, s.e1.id, (await produtoNovo(s, s.e1, 'GASOLINA NAO INATIVA')).id);
     const antes = await fotoPatrimonio(s.c);
     await p.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION patrimonio_r2_falha_audit() RETURNS trigger AS $$ BEGIN
       IF NEW.entidade = 'TipoCombustivelProduto' THEN RAISE EXCEPTION 'falha forçada'; END IF;
@@ -674,6 +738,7 @@ describe('V8 — banco e auditoria', () => {
     try {
       for (const [rotulo, pedido] of [
         ['POST', () => vincular(s, s.comb.DIESEL_S500, s.e1.id, outroProd.id)],
+        ['inativar', () => alterar(s, vAtivo.id, { empresa_id: s.e1.id, versao: 1, ativo: false })],
         ['reativar', () => alterar(s, v.id, { empresa_id: s.e1.id, versao: 2, ativo: true })],
       ]) {
         const r = await pedido();

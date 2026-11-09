@@ -125,14 +125,23 @@ beforeEach(async () => {
       return { status: 200, body: envelope(itens.map(vinculoPublico)) };
     }
     if (lista && method === 'POST') {
+      // Mesmos códigos/field/reason do backend real (combustivelProdutoService).
       const tipo = estado.combustiveis.find((c) => c.id === lista[1]);
+      if (!tipo) return erroServidor(404, 'COMBUSTIVEL_NAO_ENCONTRADO');
+      if (!tipo.ativo) return erroServidor(422, 'COMBUSTIVEL_PRODUTO_INVALIDO', { field: 'tipo_combustivel_id', reason: 'tipo_inativo' });
       const produto = estado.produtos.find((p) => p.id === body.produto_id && p.empresa_id === body.empresa_id && p.ativo);
-      if (!tipo || !tipo.ativo || !produto) return erroServidor(422, 'COMBUSTIVEL_PRODUTO_INVALIDO', { reason: 'inexistente' });
+      if (!produto) return erroServidor(422, 'COMBUSTIVEL_PRODUTO_INVALIDO', { field: 'produto_id', reason: 'inexistente' });
       const mesmo = estado.vinculos.find((v) => v.empresa_id === body.empresa_id && v.tipo_combustivel_id === tipo.id && v.produto_id === produto.id);
-      if (mesmo?.ativo) return erroServidor(409, 'COMBUSTIVEL_PRODUTO_DUPLICADO');
-      if (mesmo) return erroServidor(409, 'COMBUSTIVEL_PRODUTO_DUPLICADO', { reason: 'inativo_reative', details: { vinculo_id: mesmo.id } });
+      if (mesmo?.ativo) return erroServidor(409, 'COMBUSTIVEL_PRODUTO_DUPLICADO', { field: 'produto_id', reason: 'ja_vinculado' });
+      if (mesmo) return erroServidor(409, 'COMBUSTIVEL_PRODUTO_DUPLICADO', { field: 'produto_id', reason: 'inativo_reative', details: { vinculo_id: mesmo.id } });
       const outro = estado.vinculos.find((v) => v.empresa_id === body.empresa_id && v.produto_id === produto.id && v.ativo);
-      if (outro) return erroServidor(409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO', { details: { tipo_combustivel_id: outro.tipo_combustivel_id } });
+      if (outro) {
+        return erroServidor(409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO', {
+          field: 'produto_id',
+          reason: 'vinculado_a_outro_tipo',
+          details: { tipo_combustivel_id: outro.tipo_combustivel_id },
+        });
+      }
       seq += 1;
       const novo = vinculo(`v-novo-${seq}`, body.empresa_id, tipo.id, produto.id, true, 1);
       estado.vinculos.unshift(novo);

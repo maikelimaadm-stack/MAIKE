@@ -226,25 +226,25 @@ export const atualizar = async (contexto, id, entrada) => {
   // padrão (500), até caber nos 20 s do navegador (TRANSACAO_CURTA). PATCH de
   // valores absolutos: repetir depois do 409 leva ao mesmo estado.
   return emTransacao(TRANSACAO_CURTA, async (tx) => {
-    let anterior = await buscarProduto(auth.clienteId, id, tx);
-    if (!anterior) throw produtoNotFound();
-
     const campos = camposDe(entrada);
     // D-PROD-157 (R2): o vínculo ATIVO a combustível do Patrimônio exige que o
     // produto continue na MESMA empresa (invariante do serviço: Produto não tem
-    // unique por empresa). Só a TROCA de empresa trava a linha (FOR UPDATE ×
-    // o FOR KEY SHARE de quem vincula) e relê antes de contar; nada é gravado.
-    if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
+    // unique por empresa). Corpo com `empresa_id` (o formulário sempre reenvia a
+    // que leu) trava a linha ANTES de ler o estado anterior (FOR UPDATE × o FOR
+    // KEY SHARE de quem vincula): a comparação e a contagem usam a linha
+    // travada, e nenhuma troca nem vínculo concorrente cabe até o UPDATE.
+    if (campos.empresa_id !== undefined) {
       await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
-      anterior = await buscarProduto(auth.clienteId, id, tx);
-      if (!anterior) throw produtoNotFound();
-      if (campos.empresa_id !== anterior.empresa_id) {
-        const vinculos = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id, ativo: true } });
-        if (vinculos > 0) {
-          throw new AppError('PRODUTO_VINCULADO_COMBUSTIVEL', 'produto vinculado a combustível do Patrimônio não muda de fazenda; inative o vínculo na tela Combustíveis antes; nada foi gravado', {
-            details: { id, vinculos },
-          });
-        }
+    }
+    const anterior = await buscarProduto(auth.clienteId, id, tx);
+    if (!anterior) throw produtoNotFound();
+
+    if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
+      const vinculos = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id, ativo: true } });
+      if (vinculos > 0) {
+        throw new AppError('PRODUTO_VINCULADO_COMBUSTIVEL', 'produto vinculado a combustível do Patrimônio não muda de fazenda; inative o vínculo na tela Combustíveis antes; nada foi gravado', {
+          details: { id, vinculos },
+        });
       }
     }
     if (campos.nome_produto && campos.nome_produto !== anterior.nome_produto) {

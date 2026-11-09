@@ -174,23 +174,30 @@ const exigirSemOutroAtivo = async (tx, clienteId, empresaId, produtoId, ignorarI
  * Corrida perdida num unique (barreira final; com a trava ela não deveria
  * acontecer): par repetido → DUPLICADO; outro ativo do produto → EM_OUTRO_TIPO
  * com o tipo que venceu (relido fora da transação desfeita).
+ *
+ * O `escopo` é preenchido DENTRO da transação (empresa validada, produto do
+ * vínculo): por isso é lido aqui, na hora do erro, e nunca desestruturado na
+ * chamada (valeria os '' iniciais e o details sairia vazio).
  * @template T
  * @param {() => Promise<T>} fn
  * @param {{ clienteId: string, empresaId: string, produtoId: string }} escopo
  * @returns {Promise<T>}
  */
-const comUnicosDoVinculo = async (fn, { clienteId, empresaId, produtoId }) => {
+const comUnicosDoVinculo = async (fn, escopo) => {
   try {
     return await fn();
   } catch (erro) {
     if (!ehViolacaoDeUnique(erro)) throw erro;
     const alvo = JSON.stringify(/** @type {any} */ (erro)?.meta?.target ?? '');
     if (alvo.includes('ativo_chave') || alvo.includes('produto_ativo')) {
+      // Sem empresa/produto não há como achar o vencedor: o erro original sobe.
+      if (!escopo.empresaId || !escopo.produtoId) throw erro;
       const vencedor = await getPrismaClient().tipoCombustivelProduto.findFirst({
-        where: { cliente_id: clienteId, empresa_id: empresaId, produto_id: produtoId, ativo: true },
+        where: { cliente_id: escopo.clienteId, empresa_id: escopo.empresaId, produto_id: escopo.produtoId, ativo: true },
         select: { tipo_combustivel_id: true },
       });
-      throw emOutroTipo(vencedor?.tipo_combustivel_id ?? '');
+      if (!vencedor) throw erro;
+      throw emOutroTipo(vencedor.tipo_combustivel_id);
     }
     if (alvo.includes('tipo_combustivel_id') || alvo.includes('par_key')) throw duplicado();
     throw erro;

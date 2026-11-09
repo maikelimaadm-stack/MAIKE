@@ -25,7 +25,8 @@ import {
 import { listCategorias } from '@/apis/categorias';
 import { listUnidades } from '@/apis/unidades-medida';
 import { listLocais } from '@/apis/estoque';
-import { ApiError, API_ERROR_CODES, hasApiErrorCode } from '@/apis/_core/ApiError';
+import { ApiError, API_ERROR_CODES, hasApiErrorCode, getApiErrorMessage } from '@/apis/_core/ApiError';
+import { lerErroGestao } from '@/lib/gestaoErros';
 import { parseDecimalPtBR } from '@/domain/numeroPtBR';
 import { listarMarcasAtivas } from './marcaService';
 
@@ -200,9 +201,46 @@ export const excluirProdutos = async (ids) => {
   return { excluidas, falhas };
 };
 
-/** @param {unknown} erro */
+/**
+ * O nativeHttpClient não cataloga `PRODUTO_DELETE_BLOCKED` (vira
+ * API_OPERATION_FAILED) e guarda o corpo do servidor em `cause`: o código real
+ * é lido de lá (D-PROD-157 R2), sem depender do catálogo do cliente HTTP.
+ * @param {unknown} erro
+ */
 export const isProdutoDeleteBlockedError = (erro) =>
+  lerErroGestao(erro).code === API_ERROR_CODES.PRODUTO_DELETE_BLOCKED ||
   hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED);
+
+const VINCULO_ESTOQUE = 'movimentações de estoque';
+
+/**
+ * Frase do bloqueio de exclusão com o vínculo REAL que o servidor informou
+ * (`details.vinculo`: movimentações de estoque, lançamentos financeiros ou
+ * combustíveis do patrimônio) e a quantidade.
+ * @param {unknown} erro
+ */
+export const mensagemExclusaoProdutoBloqueada = (erro) => {
+  const { details } = lerErroGestao(erro);
+  const quantidade = Number.isFinite(Number(details.quantidade)) ? Number(details.quantidade) : 0;
+  const vinculo = typeof details.vinculo === 'string' && details.vinculo.trim() ? details.vinculo.trim() : VINCULO_ESTOQUE;
+  if (vinculo === VINCULO_ESTOQUE) {
+    return `Este produto já possui ${quantidade} registro(s) lançados em ${VINCULO_ESTOQUE} e não pode ser excluído.`;
+  }
+  return `Este produto possui ${quantidade} registro(s) em ${vinculo} e não pode ser excluído. Inative o produto em vez de excluí-lo.`;
+};
+
+/**
+ * Mensagem de falha ao salvar o produto. Mudar de fazenda um produto com
+ * vínculo ATIVO a combustível do Patrimônio (409 PRODUTO_VINCULADO_COMBUSTIVEL,
+ * D-PROD-157 R2) diz o que fazer; o resto segue a mensagem pública do código.
+ * @param {unknown} erro
+ */
+export const mensagemErroSalvarProduto = (erro) => {
+  if (lerErroGestao(erro).code === 'PRODUTO_VINCULADO_COMBUSTIVEL') {
+    return 'Este produto está vinculado a um combustível do Patrimônio nesta fazenda: ele não pode mudar de fazenda. Inative o vínculo na tela Combustíveis antes. Nada foi gravado.';
+  }
+  return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
+};
 
 /**
  * Fontes de opção do formulário.
