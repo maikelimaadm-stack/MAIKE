@@ -1,0 +1,425 @@
+/*
+ * Detalhes do Lote v8 — casca do diálogo, menu de abas e ações
+ * (mockup docs/design/detalhes-do-lote/detalhes-do-lote-v8.dc.html).
+ *
+ * O conteúdo vive em `LancLoteDialogo` (src/components/lotes/LancamentoLoteUi.jsx):
+ *   .mk-ll-dlg > .mk-ll-dlg__head + .mk-ll > .mk-dl.mk-dl8
+ * Só valem quando o `.mk-dl8` está lá (`:has(> .mk-ll > .mk-dl8)`); os
+ * `:not(#mk-padrao)` vencem as regras de lancamento-lote.css, mk-superficie.css
+ * e mk-unificado.css, que já usam esse reforço.
+ *
+ * O `.mk-dl8` leva `data-modo` = celular | tablet | desktop (useDlUi), o mesmo
+ * breakpoint dos componentes (celular ≤ 639 px, desktop ≥ 1024 px).
+ */
+
+/* ── Diálogo: só o corpo rola; o menu fica parado ─────────────────────── */
+.mk-ll-dlg:has(> .mk-ll > .mk-dl8):not(#mk-padrao) {
+  background: #FAFCFE;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dl8) > .mk-ll:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mk-dl8 {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  color: #374151;
+  font-size: 13px;
+}
+
+/* Desktop: largura do mockup e ALTURA FIXA (não pula ao trocar de aba) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl8):not(#mk-padrao) {
+  width: min(880px, calc(100vw - 48px));
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #FAFCFE;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+  /* mk-unificado.css devolve a sombra da tela a todo .mk-ll-dlg; aqui é a do desktop */
+  --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__head:not(#mk-padrao) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__titulo:not(#mk-padrao) {
+  margin: 0;
+  font-size: 15px !important;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #292a2d;
+}
+
+.mk-ll-dlg:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__lotes:not(#mk-padrao) {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ✕ do desktop (PillBtn): 36 px, redondo, branco com a sombra do desktop */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar:not(#mk-padrao) {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025) !important;
+  color: #64748b !important;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__acoes .tb-btn.mg-act-cancelar:not(#mk-padrao) svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Tela (celular e tablet): tela cheia; ✕ · título no meio · manejos */
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8):not(#mk-padrao) {
+  border: 0;
+  border-radius: 0;
+  background: #FAFCFE;
+  box-shadow: none;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__head:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__txt:not(#mk-padrao) {
+  min-width: 0;
+  text-align: center;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__titulo:not(#mk-padrao) {
+  font-size: 16px !important;
+  text-align: center;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__slot:not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 0;
+  height: 44px;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__redondo:not(#mk-padrao) {
+  flex: 0 0 auto;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+  color: #64748b !important;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__redondo:not(#mk-padrao) svg {
+  width: 17px !important;
+  height: 17px !important;
+  color: #64748b !important;
+}
+
+/* ── Menu de abas: faixa fixa acima do corpo, estilo menu com linha ───── */
+.mk-dl8__menu {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  background: #FAFCFE;
+}
+
+.mk-dl8[data-modo="celular"] .mk-dl8__menu {
+  padding: 0 10px;
+}
+
+.mk-dl8__abas {
+  display: grid;
+  justify-content: start;
+  gap: 0;
+  margin: 0 0 0 -10px;
+  padding: 0;
+  border-bottom: 1px solid #edf0f3;
+  background: transparent;
+}
+
+.mk-dl8__aba:not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+
+.mk-dl8[data-modo="tablet"] .mk-dl8__aba:not(#mk-padrao) {
+  height: 36px;
+}
+
+.mk-dl8[data-modo="celular"] .mk-dl8__aba:not(#mk-padrao) {
+  height: 40px;
+  font-size: 12.5px;
+}
+
+.mk-dl8__aba[aria-selected="true"]:not(#mk-padrao) {
+  color: #292a2d;
+  box-shadow: inset 0 -2px 0 #16a34a;
+}
+
+.mk-dl8__aba-rotulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mk-dl8__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e6f7fc;
+  color: #374151;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Corpo: a única área que rola ─────────────────────────────────────── */
+.mk-dl8__corpo:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 12px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mk-dl8[data-modo="tablet"] .mk-dl8__corpo:not(#mk-padrao) {
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.mk-dl8[data-modo="celular"] .mk-dl8__corpo:not(#mk-padrao) {
+  padding: 12px 10px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.mk-dl8__corpo > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.mk-dl8__deslize {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: pan-y;
+}
+
+/* Troca de aba: só fade, nada desliza */
+@keyframes mk-dl8-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mk-dl8__painel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  animation: mk-dl8-fade 0.16s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-dl8__painel,
+  .mk-dl8 * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Foco por teclado: anel verde (vence sombras inline com !important) */
+.mk-dl8 :is(a, button, [role="tab"], [role="option"], [role="combobox"]):focus-visible,
+.mk-dl8 .mk-al__quadro:not(#mk-padrao):focus-visible {
+  outline: 2px solid transparent !important;
+  outline-offset: 0;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35) !important;
+}
+
+.mk-dl8 .mk-dl8__aba[aria-selected="true"]:not(#mk-padrao):focus-visible {
+  box-shadow: inset 0 -2px 0 #16a34a, 0 0 0 3px rgba(22, 163, 74, 0.35) !important;
+}
+
+/* ── Ações (desktop/tablet): quadros embaixo do conteúdo ──────────────── */
+.mk-dl8 .mk-al--embaixo {
+  margin-bottom: 4px;
+}
+
+.mk-dl8 .mk-al--embaixo .mk-al__grupos:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.mk-dl8 .mk-al--embaixo .mk-al__grupo:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mk-dl8 .mk-al--embaixo .mk-al__quadros:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  justify-content: stretch;
+  gap: 8px;
+}
+
+/* Quadro: linha, ícone 24 + nome 13/500 (mockup 412–428 e folha 433–462) */
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__grupo-titulo:not(#mk-padrao) {
+  margin: 0;
+  padding-left: 2px;
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+  color: #292a2d;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.mk-dl8[data-modo="desktop"] .mk-al--embaixo .mk-al__quadro:not(#mk-padrao) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao):hover:not(:disabled) {
+  background: #fff;
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao) svg {
+  display: block;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  max-width: 24px;
+  margin: 0;
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao) span {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: normal;
+}
+
+:is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  background: #fff;
+}
+
+/* Folha do celular (Manejos e históricos): uma coluna, mesmos quadros */
+.mk-dl8-folha:not(#mk-padrao) {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 4px 12px 12px;
+}
+
+.mk-dl8-folha .mk-al__grupos:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mk-dl8-folha .mk-al__grupo:not(#mk-padrao) {
+  gap: 8px;
+}
+
+.mk-map-action-choices.mk-dl8-folha .mk-al__quadros:not(#mk-padrao) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.mk-dl8-folha .mk-al__quadro:not(#mk-padrao):focus-visible {
+  outline: 2px solid transparent !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35) !important;
+}
