@@ -12,8 +12,8 @@ const DialogHeader = /** @type {any} */ (UiDialog.DialogHeader);
 const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 import { LIMITES, comparar, ehPositivo, formatarMoeda, lerNumeroLocal, naEscala, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
-import { mensagemDoBloqueio, mensagemErroGestao } from "@/lib/gestaoErros";
-import { ROTULO_METODO, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import { mensagemDoAvisoDoPlano, mensagemDoBloqueio, mensagemErroGestao } from "@/lib/gestaoErros";
+import { CODIGO_ENVIO_PENDENTE, ROTULO_METODO, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import { mensagemNumero } from "@/components/financeiroGestao/lancamentoModelo";
 
 const CTL = "h-10 w-full min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-[14px] outline-none focus:border-emerald-500";
@@ -38,24 +38,35 @@ const opcoesDeMetodo = (metodos) => metodos.map((m) => ({ value: m, label: ROTUL
  */
 
 /**
- * Executa o envio uma vez por vez (duplo clique = 1 envio).
- * @param {(arg: any) => Promise<unknown>} enviar
+ * Executa o envio uma vez por vez (duplo clique = 1 envio). O 2º argumento de
+ * `enviar` diz se este clique é a RETENTATIVA do envio que ficou sem resposta
+ * definitiva NESTE diálogo ("Repetir o mesmo envio"): só ela reaproveita a
+ * chave pendente sem perguntar (§8.7). Diálogo novo = envio novo.
+ * @param {(arg: any, opcoes: { retentativa: boolean }) => Promise<unknown>} enviar
  * @param {{ locale: string, moeda: string, casas: number }} c
  * @param {(r: unknown) => void} [aoConcluir]
  */
 function useEnvioUnico(enviar, c, aoConcluir) {
   const [estado, setEstado] = useState(/** @type {EstadoEnvio} */ ({ fase: "pronto" }));
   const emCurso = useRef(false);
+  // O último clique deixou a pendência guardada (sem resposta, resposta não
+  // definitiva do servidor ou "Manter"): o próximo clique repete aquele envio.
+  const repetir = useRef(false);
   const disparar = async (/** @type {any} */ arg) => {
     if (emCurso.current) return;
     emCurso.current = true;
     setEstado({ fase: "enviando" });
     try {
-      const r = await enviar(arg);
+      const r = await enviar(arg, { retentativa: repetir.current });
+      repetir.current = false;
       setEstado({ fase: "pronto" });
       aoConcluir?.(r);
     } catch (erro) {
-      if (ehResultadoIncerto(erro)) setEstado({ fase: "incerto" });
+      // "Manter" o envio anterior sem resposta: nada saiu agora e aquele envio
+      // continua incerto — o diálogo fica como estava, com o "Consultar".
+      const manteve = /** @type {any} */ (erro)?.code === CODIGO_ENVIO_PENDENTE;
+      repetir.current = manteve || !ehRecusaDefinitiva(erro);
+      if (manteve || ehResultadoIncerto(erro)) setEstado({ fase: "incerto" });
       else setEstado({ fase: "erro", mensagem: mensagemErroGestao(erro, "Não foi possível concluir. Nada foi gravado.", { ...c, comandoIdempotente: true }) });
     } finally {
       emCurso.current = false;
@@ -107,7 +118,7 @@ function AvisoDoEnvio({ estado, onConsultar = null }) {
  *   fusoConfigurado: boolean,
  *   podeLiquidar: boolean,
  *   onFechar: () => void,
- *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null }) => Promise<unknown>,
+ *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null }, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => void,
  * }} props
  */
@@ -142,9 +153,10 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
           </DialogDescription>
         </DialogHeader>
         {Array.isArray(plano.avisos) && plano.avisos.length ? (
-          <ul className="list-disc space-y-1 pl-5 text-[12px] text-[var(--mg-text-2,#475569)]">
+          // Aviso é INFORMATIVO (os bloqueios vêm à parte, em `bloqueios`).
+          <ul className="list-disc space-y-1 pl-5 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previa-avisos">
             {plano.avisos.map((/** @type {any} */ a, /** @type {number} */ k) => (
-              <li key={k}>{typeof a === "string" ? a : mensagemDoBloqueio(a, c)}</li>
+              <li key={k}>{mensagemDoAvisoDoPlano(a)}</li>
             ))}
           </ul>
         ) : null}
@@ -219,7 +231,7 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
  *   hoje: string,
  *   fusoConfigurado: boolean,
  *   onFechar: () => void,
- *   onRegistrar: (p: { valor: string, data: string, metodo: string, referencia?: string, observacao?: string }) => Promise<unknown>,
+ *   onRegistrar: (p: { valor: string, data: string, metodo: string, referencia?: string, observacao?: string }, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => void,
  * }} props
  */
@@ -326,7 +338,7 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   perigo?: boolean,
  *   contexto: { locale: string, moeda: string, casas: number },
  *   onFechar: () => void,
- *   onEnviar: (motivo: string) => Promise<unknown>,
+ *   onEnviar: (motivo: string, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar?: (() => void) | null,
  * }} props
  */

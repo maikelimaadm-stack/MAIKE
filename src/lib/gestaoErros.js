@@ -297,3 +297,19 @@ export const mensagemDoBloqueio = (bloqueio, contexto = {}) =>
     // A prévia só confere: o rascunho JÁ está salvo e nada é tentado, então o
     // fecho dos erros de comando ("Nada foi gravado.") seria falso aqui.
     .replace(/\s*Nada foi (?:gravado|alterado)\.\s*$/, '');
+
+/** Avisos INFORMATIVOS do plano (`plano.avisos[]`: `{ codigo, mensagem }`) — não impedem a confirmação. */
+const AVISOS_DO_PLANO = Object.freeze({
+  custo_sem_desconto_acrescimo: 'Desconto e acréscimo não entram no custo do estoque nesta fase: o custo do lote é o subtotal de cada item.',
+});
+
+/**
+ * Texto de um aviso da prévia. Aviso NÃO é bloqueio (o servidor manda os
+ * bloqueios à parte): nunca vira "pendência que impede a confirmação". Como nos
+ * erros, só o `codigo` é lido — a `mensagem` do servidor não é exibida.
+ * @param {unknown} aviso
+ */
+export const mensagemDoAvisoDoPlano = (aviso) => {
+  const codigo = ehObjeto(aviso) && typeof aviso.codigo === 'string' ? aviso.codigo : null;
+  return (codigo && AVISOS_DO_PLANO[/** @type {keyof typeof AVISOS_DO_PLANO} */ (codigo)]) || 'Há um aviso do plano para conferir antes de confirmar.';
+};

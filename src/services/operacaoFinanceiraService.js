@@ -8,9 +8,15 @@
  * Retentativa segura (§8.7): toda ação que cria fato — criar rascunho,
  * confirmar, cancelar, liquidar, estornar — leva um `operation_id` guardado
  * por (escopo, ação, empresa, alvo) até a resposta DEFINITIVA do servidor.
- * Sem resposta (rede, prazo, 5xx), a próxima tentativa reaproveita o MESMO id:
+ * Sem resposta (rede, prazo, 5xx), REPETIR aquele envio reaproveita o MESMO id:
  * o servidor devolve o resultado gravado (replay) em vez de gravar de novo.
  * Mesmo padrão de `manejoRebanhoService.enviarManejoRebanho`.
+ *
+ * A chave pendente só serve para repetir o MESMO envio (revisão adversarial,
+ * rodada 2): onde o alvo aceita o mesmo conteúdo como fato novo (2 rascunhos
+ * iguais, 2 baixas iguais na parcela), um envio NOVO de conteúdo igual pergunta
+ * em vez de virar replay em silêncio; e o "Consultar" que mostra o efeito do
+ * envio resolve a pendência dele (`resolverPendenciaConsultada`).
  */
 
 import {
@@ -30,7 +36,7 @@ import {
 } from '@/apis/operacoes-financeiras';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { confirmar } from '@/lib/maikeConfirmar';
-import { LOCALES_FINANCEIROS } from '@/lib/dinheiroDecimal';
+import { LOCALES_FINANCEIROS, comparar, ehCanonico } from '@/lib/dinheiroDecimal';
 import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
 
 const RESOURCE = 'OperacaoFinanceira';
@@ -224,12 +230,33 @@ const MENSAGEM_DESCARTE =
   'Há um envio anterior desta ação sem resposta do servidor — ele pode ter sido gravado. Consulte o documento antes.\n\n' +
   'Descartar e enviar: abandona o envio anterior e envia este conteúdo.\nManter: reenvie o MESMO conteúdo para concluir com segurança.';
 
+const MENSAGEM_NOVO_ENVIO =
+  'Há um envio anterior IGUAL a este, desta mesma ação, sem resposta do servidor — ele pode ter sido gravado. Consulte o lançamento antes.\n\n' +
+  'Enviar como novo: grava um NOVO registro, além do anterior.\n' +
+  'Manter: nada é enviado agora; consulte o lançamento ou repita aquele envio ("Repetir o mesmo envio") para concluí-lo sem duplicar.';
+
+/**
+ * Ações em que o MESMO conteúdo no mesmo alvo pode ser um fato NOVO e legítimo:
+ * dois rascunhos iguais (alvo fixo 'novo') e duas baixas iguais na mesma parcela
+ * (mesmo valor, dia e forma). Nelas, conteúdo igual ao da pendência só repete o
+ * envio anterior quando é a retentativa EXPLÍCITA dele; fora disso, pergunta.
+ * Confirmar, cancelar e estornar ficam de fora: o alvo recebe o efeito uma vez
+ * só (versão e estado no servidor), então conteúdo igual no mesmo alvo É o
+ * mesmo pedido.
+ */
+const ACOES_REPETIVEIS = new Set(['criar', 'liquidar']);
+
 /**
  * Envia com `operation_id` persistente por (escopo, ação, empresa, alvo).
+ * `retentativa`: é o "Repetir o mesmo envio" daquele envio sem resposta (o
+ * diálogo ou o formulário que ficou em resultado incerto) — só ela reaproveita
+ * a chave pendente. Envio novo de conteúdo igual numa ação repetível pergunta:
+ * "Enviar como novo" (chave nova) ou "Manter" (nada sai; `CODIGO_ENVIO_PENDENTE`).
  * @template T
  * @param {{ escopo: string, acao: string, empresaId: string, alvo: string, conteudo: Record<string, unknown>,
- *   enviar: (operationId: string) => Promise<T>, storage?: Storage|null,
- *   confirmarDescarte?: (mensagem: string) => boolean | Promise<boolean> }} p
+ *   enviar: (operationId: string) => Promise<T>, storage?: Storage|null, retentativa?: boolean,
+ *   confirmarDescarte?: (mensagem: string) => boolean | Promise<boolean>,
+ *   confirmarNovoEnvio?: (mensagem: string) => boolean | Promise<boolean> }} p
  * @returns {Promise<T>}
  */
 export const enviarComPendencia = async (p) => {
@@ -237,11 +264,19 @@ export const enviarComPendencia = async (p) => {
   const confirmarDescarte =
     p.confirmarDescarte ??
     ((mensagem) => confirmar({ titulo: 'Envio anterior sem resposta', descricao: mensagem, textoConfirmar: 'Descartar e enviar', textoCancelar: 'Manter', perigo: true }));
+  // Fechar a pergunta = "Manter": nada sai (nem chave reaproveitada, nem fato a mais).
+  const confirmarNovoEnvio =
+    p.confirmarNovoEnvio ??
+    ((mensagem) => confirmar({ titulo: 'Envio igual sem resposta', descricao: mensagem, textoConfirmar: 'Enviar como novo', textoCancelar: 'Manter', perigo: true }));
   const conteudo = JSON.stringify(p.conteudo);
   let pendencia = lerPendenciaLancamento(p.escopo, p.acao, p.empresaId, p.alvo, storage);
   if (pendencia && pendencia.conteudo !== conteudo) {
     const descartar = await confirmarDescarte(MENSAGEM_DESCARTE);
     if (!descartar) throw Object.assign(new Error('envio anterior pendente'), { code: CODIGO_ENVIO_PENDENTE });
+    pendencia = null;
+  } else if (pendencia && !p.retentativa && ACOES_REPETIVEIS.has(p.acao)) {
+    const novo = await confirmarNovoEnvio(MENSAGEM_NOVO_ENVIO);
+    if (!novo) throw Object.assign(new Error('envio anterior pendente'), { code: CODIGO_ENVIO_PENDENTE });
     pendencia = null;
   }
   const operationId = pendencia?.operation_id || novaChave();
@@ -260,11 +295,69 @@ export const enviarComPendencia = async (p) => {
   }
 };
 
+/** @param {unknown} v */
+const textoOuNulo = (v) => (typeof v === 'string' && v ? v : null);
+
+/**
+ * A baixa relida é a do envio pendente? Mesmos valor (na escala que vier),
+ * dia, forma, referência e observação — o conteúdo inteiro do envio.
+ * @param {any} liquidacao @param {any} pedido
+ */
+const ehABaixaDoPedido = (liquidacao, pedido) =>
+  ehCanonico(liquidacao?.valor) &&
+  ehCanonico(pedido?.valor) &&
+  comparar(liquidacao.valor, pedido.valor) === 0 &&
+  liquidacao.data === pedido.data &&
+  liquidacao.metodo === pedido.metodo &&
+  textoOuNulo(liquidacao.referencia) === textoOuNulo(pedido.referencia) &&
+  textoOuNulo(liquidacao.observacao) === textoOuNulo(pedido.observacao);
+
+/**
+ * "Consultar" depois de um resultado incerto (§8.7): quando o documento relido
+ * MOSTRA o efeito do envio pendente, aquele envio está resolvido e a pendência
+ * sai — o próximo envio, mesmo igual, é um envio NOVO. Sem o efeito no
+ * documento a pendência fica: o envio pode estar em processamento no servidor,
+ * e repeti-lo com a mesma chave continua sendo o caminho seguro.
+ *  - confirmar: o documento saiu de RASCUNHO; cancelar: ficou CANCELADO;
+ *  - estornar: a baixa-alvo está `estornada`;
+ *  - liquidar: há na parcela uma baixa que NÃO estava lá antes do envio
+ *    (`liquidacoesAntes`, ids vistos ao abrir o diálogo) com o conteúdo dele.
+ * @param {{ escopo: string, acao: string, empresaId: string, alvo: string, detalhe: any,
+ *   liquidacoesAntes?: string[], storage?: Storage|null }} p
+ * @returns {boolean} true quando a pendência foi resolvida (apagada)
+ */
+export const resolverPendenciaConsultada = (p) => {
+  const storage = p.storage === undefined ? armazenamentoPadrao() : p.storage;
+  const pendencia = lerPendenciaLancamento(p.escopo, p.acao, p.empresaId, p.alvo, storage);
+  const d = p.detalhe;
+  if (!pendencia || !ehObjeto(d)) return false;
+  const titulos = Array.isArray(d.titulos) ? d.titulos : [];
+  /** @type {(t: any) => any[]} */
+  const baixasDe = (t) => (Array.isArray(t?.liquidacoes) ? t.liquidacoes : []);
+  let mostrou = false;
+  if (p.acao === 'confirmar') mostrou = typeof d.status === 'string' && d.status !== 'RASCUNHO';
+  else if (p.acao === 'cancelar') mostrou = d.status === 'CANCELADO';
+  else if (p.acao === 'estornar') mostrou = titulos.some((t) => baixasDe(t).some((l) => String(l?.id) === p.alvo && l?.estornada === true));
+  else if (p.acao === 'liquidar') {
+    let pedido = null;
+    try {
+      pedido = JSON.parse(pendencia.conteudo);
+    } catch {
+      pedido = null;
+    }
+    const antes = new Set(p.liquidacoesAntes ?? []);
+    const titulo = titulos.find((t) => String(t?.id) === p.alvo);
+    mostrou = Boolean(pedido) && baixasDe(titulo).some((l) => l?.tipo !== 'ESTORNO' && !antes.has(String(l?.id)) && ehABaixaDoPedido(l, pedido));
+  }
+  if (mostrou) limparPendenciaLancamento(p.escopo, p.acao, p.empresaId, p.alvo, storage);
+  return mostrou;
+};
+
 /**
  * Grava o rascunho: POST (novo, idempotente por operation_id) ou PUT (com
  * `versao`, compare-and-swap no servidor). O corpo é o DOC completo (§5).
  * @param {string|null} empresaId
- * @param {{ id?: string|null, versao?: number|null, doc: Record<string, unknown>, escopo: string, storage?: Storage|null }} p
+ * @param {{ id?: string|null, versao?: number|null, doc: Record<string, unknown>, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
  */
 export const salvarRascunho = async (empresaId, p) => {
   const empresa = exigirEmpresa(empresaId, 'salvarRascunho', RESOURCE);
@@ -277,6 +370,7 @@ export const salvarRascunho = async (empresaId, p) => {
     alvo: 'novo',
     conteudo: doc,
     storage: p.storage,
+    retentativa: p.retentativa,
     enviar: (operationId) => createOperacaoFinanceira({ ...doc, operation_id: operationId }),
   });
 };
@@ -286,7 +380,7 @@ export const salvarRascunho = async (empresaId, p) => {
  * para à vista e só com a permissão `liquidar`.
  * @param {string|null} empresaId
  * @param {string} id
- * @param {{ versao: number, baixa_no_ato?: { metodo: string, data: string, referencia?: string } | null, escopo: string, storage?: Storage|null }} p
+ * @param {{ versao: number, baixa_no_ato?: { metodo: string, data: string, referencia?: string } | null, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
  */
 export const confirmarLancamento = async (empresaId, id, p) => {
   const empresa = exigirEmpresa(empresaId, 'confirmarLancamento', RESOURCE);
@@ -300,11 +394,12 @@ export const confirmarLancamento = async (empresaId, id, p) => {
     alvo: id,
     conteudo,
     storage: p.storage,
+    retentativa: p.retentativa,
     enviar: (operationId) => confirmarOperacaoFinanceira(id, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
   });
 };
 
-/** @param {string|null} empresaId @param {string} id @param {{ motivo: string, escopo: string, storage?: Storage|null }} p */
+/** @param {string|null} empresaId @param {string} id @param {{ motivo: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p */
 export const cancelarLancamento = async (empresaId, id, p) => {
   const empresa = exigirEmpresa(empresaId, 'cancelarLancamento', RESOURCE);
   const conteudo = { motivo: p.motivo };
@@ -315,6 +410,7 @@ export const cancelarLancamento = async (empresaId, id, p) => {
     alvo: id,
     conteudo,
     storage: p.storage,
+    retentativa: p.retentativa,
     enviar: (operationId) => cancelarOperacaoFinanceira(id, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
   });
 };
@@ -323,7 +419,7 @@ export const cancelarLancamento = async (empresaId, id, p) => {
  * Registra uma liquidação MANUAL (gerencial — não é confirmação bancária).
  * @param {string|null} empresaId
  * @param {string} tituloId
- * @param {{ valor: string, data: string, metodo: string, referencia?: string, observacao?: string, escopo: string, storage?: Storage|null }} p
+ * @param {{ valor: string, data: string, metodo: string, referencia?: string, observacao?: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
  */
 export const registrarLiquidacao = async (empresaId, tituloId, p) => {
   const empresa = exigirEmpresa(empresaId, 'registrarLiquidacao', RESOURCE);
@@ -338,11 +434,12 @@ export const registrarLiquidacao = async (empresaId, tituloId, p) => {
     alvo: tituloId,
     conteudo,
     storage: p.storage,
+    retentativa: p.retentativa,
     enviar: (operationId) => registrarLiquidacaoTitulo(tituloId, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
   });
 };
 
-/** @param {string|null} empresaId @param {string} liquidacaoId @param {{ motivo: string, escopo: string, storage?: Storage|null }} p */
+/** @param {string|null} empresaId @param {string} liquidacaoId @param {{ motivo: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p */
 export const estornarLiquidacao = async (empresaId, liquidacaoId, p) => {
   const empresa = exigirEmpresa(empresaId, 'estornarLiquidacao', RESOURCE);
   const conteudo = { motivo: p.motivo };
@@ -353,6 +450,7 @@ export const estornarLiquidacao = async (empresaId, liquidacaoId, p) => {
     alvo: liquidacaoId,
     conteudo,
     storage: p.storage,
+    retentativa: p.retentativa,
     enviar: (operationId) => estornarLiquidacaoFinanceira(liquidacaoId, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
   });
 };

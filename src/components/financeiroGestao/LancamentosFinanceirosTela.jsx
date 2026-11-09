@@ -21,25 +21,52 @@ import { TELAS_GESTAO } from "@/lib/gestaoPermissions";
 import { ehNaoEncontradoGestao, lerErroGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { hojeNoFuso } from "@/lib/diaCivil";
+import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   CODIGO_ENVIO_PENDENTE,
   ROTULO_DIRECAO,
   cancelarLancamento,
   confirmarLancamento,
   descartarRascunho,
+  ehRecusaDefinitiva,
   ehResultadoIncerto,
   estornarLiquidacao,
-  limparPendenciaLancamento,
   listarLancamentosPagina,
   obterLancamento,
   obterPerfilFinanceiro,
   previaLancamento,
   registrarLiquidacao,
+  resolverPendenciaConsultada,
   salvarPerfilFinanceiro,
   salvarRascunho,
 } from "@/services/operacaoFinanceiraService";
 
 const QUERY_RAIZ = "lancamentos-financeiros-gestao";
+
+/**
+ * Consultas que as telas antigas de estoque invalidam depois de gravar
+ * (FormularioTransferenciaDeposito, FormularioLancamentoSuplementacao,
+ * HistoricoSuplementacaoPonto, HistoricoDepositoSuplementacao) e, do cache do
+ * Mapa, a de lotes de estoque (a que o "atualizar-mapa" relê).
+ * @param {unknown} chave
+ */
+const ehConsultaDeEstoque = (chave) =>
+  Array.isArray(chave) &&
+  ([
+    "estoque-lotes-transferencia",
+    "saldo-deposito",
+    "lotes-nota-suplementacao",
+    "produtos",
+    "movimentacoes",
+    "historico-deposito",
+    "movimentacoes-deposito-detalhe",
+    "mapa-estoque-lotes",
+  ].includes(chave[0]) ||
+    (chave[0] === "mapa-cache" && chave[1] === "estoqueLotes"));
+
+/** Documento com mercadoria: confirmar/cancelar mexe no estoque físico. @param {any} registro */
+const temMercadoria = (registro) => Array.isArray(registro?.itens) && registro.itens.some((/** @type {any} */ i) => i?.tipo_item === "MERCADORIA");
+
 const PERFIL_SEM_CONFIGURACAO = Object.freeze({ locale: "pt-BR", moeda: "BRL", moeda_casas: 2, metodos_permitidos: /** @type {string[]} */ ([]) });
 
 /** @param {{ rotulo: string, value: string, onChange: (v: string) => void, opcoes: Array<[string, string]> }} props */
@@ -132,13 +159,21 @@ export default function LancamentosFinanceirosTela() {
 
   // Troca de empresa: nada da empresa anterior continua na tela.
   const empresaAnterior = useRef(empresaId);
+  // Na renderização da troca o registro aberto ainda é o da empresa anterior:
+  // o detalhe não pode ser pedido com a empresa nova (404 no servidor real).
+  const trocandoEmpresa = empresaAnterior.current !== empresaId;
   const { closeForm } = controller;
   useEffect(() => {
-    if (empresaAnterior.current === empresaId) return;
+    const anterior = empresaAnterior.current;
+    if (anterior === empresaId) return;
     empresaAnterior.current = empresaId;
     closeForm();
     setDialogo(null);
-    queryClient.cancelQueries({ queryKey: [QUERY_RAIZ] });
+    // Só as consultas da empresa ANTERIOR (perfil, lista, detalhe e opções dos
+    // seletores levam a empresa na chave): as da nova (perfil e lista, hooks
+    // acima) já começaram neste mesmo ciclo, e cancelá-las as deixava
+    // "pendentes" sem dados e sem nova busca até sair da tela.
+    if (anterior) queryClient.cancelQueries({ predicate: (q) => q.queryKey[0] === QUERY_RAIZ && q.queryKey.includes(anterior) });
   }, [empresaId, closeForm, queryClient]);
   const empresaAtual = useRef(empresaId);
   empresaAtual.current = empresaId;
@@ -154,7 +189,7 @@ export default function LancamentosFinanceirosTela() {
   const detalheQuery = useQuery({
     queryKey: [QUERY_RAIZ, "detalhe", empresaId, idAberto],
     queryFn: () => obterLancamento(empresaId, /** @type {string} */ (idAberto)),
-    enabled: Boolean(empresaId && idAberto && acoes.ver),
+    enabled: Boolean(empresaId && idAberto && acoes.ver && !trocandoEmpresa),
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -191,7 +226,7 @@ export default function LancamentosFinanceirosTela() {
   /** @param {unknown} err @param {string} fallback @param {{ empresaId?: string|null }} v */
   const tratarErro = (err, fallback, v) => {
     if (/** @type {any} */ (err)?.code === CODIGO_ENVIO_PENDENTE) {
-      notifyInfo("Envio mantido", "Repita com o mesmo conteúdo para concluir o envio anterior.");
+      notifyInfo("Envio mantido", "Nada foi enviado agora. Confira a lista; para concluir o envio anterior sem duplicar, repita com o MESMO conteúdo neste formulário.");
       return;
     }
     const { code } = lerErroGestao(err);
@@ -211,9 +246,28 @@ export default function LancamentosFinanceirosTela() {
     notifyWarning("Atenção", mensagemErroGestao(err, fallback, contextoMoeda));
   };
 
+  // Formulário NOVO cujo último salvar ficou sem resposta definitiva (a
+  // pendência de "criar" ficou) ou que escolheu "Manter" o envio pendente:
+  // salvar de novo NESTE formulário é a retentativa daquele envio. Outro
+  // formulário (outro "Novo", outra visita à tela) é um envio novo — com
+  // conteúdo igual, pergunta (§8.7).
+  const criarIncertoNoFormulario = useRef(/** @type {number|null} */ (null));
+  /** @param {string} emp @param {{ id: string|null, versao: number|null, doc: Record<string, unknown>, formulario: number }} v */
+  const salvarComRetentativa = async (emp, v) => {
+    const novoDoc = !v.id;
+    try {
+      const r = await salvarRascunho(emp, { id: v.id, versao: v.versao, doc: v.doc, escopo, retentativa: novoDoc && criarIncertoNoFormulario.current === v.formulario });
+      if (novoDoc) criarIncertoNoFormulario.current = null;
+      return r;
+    } catch (err) {
+      if (novoDoc) criarIncertoNoFormulario.current = /** @type {any} */ (err)?.code !== CODIGO_ENVIO_PENDENTE && ehRecusaDefinitiva(err) ? null : v.formulario;
+      throw err;
+    }
+  };
+
   const salvarMutation = useMutation({
-    /** @param {{ empresaId: string, id: string|null, versao: number|null, doc: Record<string, unknown> }} v */
-    mutationFn: (v) => salvarRascunho(v.empresaId, { id: v.id, versao: v.versao, doc: v.doc, escopo }),
+    /** @param {{ empresaId: string, id: string|null, versao: number|null, doc: Record<string, unknown>, formulario: number }} v */
+    mutationFn: (v) => salvarComRetentativa(v.empresaId, v),
     onSuccess: (registro, v) => {
       invalidarLista();
       if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
@@ -243,10 +297,10 @@ export default function LancamentosFinanceirosTela() {
     if (salvarMutation.isPending) return;
     if (idAberto) {
       if (!acoes.editar || !detalhe) return;
-      salvarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: idAberto, versao: detalhe.versao, doc });
+      salvarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: idAberto, versao: detalhe.versao, doc, formulario: controller.formEpoch });
     } else {
       if (!acoes.criar) return;
-      salvarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: null, versao: null, doc });
+      salvarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: null, versao: null, doc, formulario: controller.formEpoch });
     }
   };
 
@@ -264,7 +318,7 @@ export default function LancamentosFinanceirosTela() {
           notifyWarning("Atenção", "Você não tem permissão para gravar alterações neste rascunho.");
           return;
         }
-        registro = await salvarRascunho(emp, { id: registro?.id ?? null, versao: registro?.versao ?? null, doc, escopo });
+        registro = await salvarComRetentativa(emp, { id: registro?.id ?? null, versao: registro?.versao ?? null, doc, formulario: controller.formEpoch });
         invalidarLista();
         if (!daEmpresaAtual({ empresaId: emp })) return avisarEmpresaAnterior();
         aplicarDetalhe(registro, emp);
@@ -299,17 +353,40 @@ export default function LancamentosFinanceirosTela() {
     }
   };
 
-  /** "Consultar" do resultado incerto: relê o documento e fecha o diálogo. @param {string} acao @param {string} alvo */
-  const consultarDepoisDeIncerto = async (acao, alvo) => {
+  /**
+   * Confirmar/cancelar com mercadoria mexeu no estoque físico: o MESMO aviso das
+   * telas antigas que gravam estoque — refresh FORÇADO do cache do Mapa (fura o
+   * intervalo mínimo de 60 s do mapaCacheService), consultas de estoque
+   * invalidadas (o Mapa guarda as suas por 5 min) e o evento "atualizar-mapa".
+   * @param {any} registro @param {string} emp
+   */
+  const avisarEstoqueAlterado = (registro, emp) => {
+    if (!temMercadoria(registro)) return;
+    Promise.all([
+      refreshMapaCacheEntry("estoqueLotes", emp, { force: true }),
+      refreshMapaCacheEntry("movimentacaoEstoque", emp, { force: true }),
+    ]).catch(() => {});
+    queryClient.invalidateQueries({ predicate: (q) => ehConsultaDeEstoque(q.queryKey) });
+    window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["estoqueLotes"] } }));
+  };
+
+  /**
+   * "Consultar" do resultado incerto: relê o documento, resolve a pendência do
+   * envio quando o efeito dele aparece (§8.7) e fecha o diálogo.
+   * @param {string} acao @param {string} alvo @param {{ liquidacoesAntes?: string[] }} [extra]
+   */
+  const consultarDepoisDeIncerto = async (acao, alvo, extra = {}) => {
     const emp = empresaId;
     if (!emp || !idAberto) return;
     const r = await detalheQuery.refetch();
-    const novo = /** @type {any} */ (r.data);
+    // Releitura que falhou devolve o dado ANTIGO: não serve de prova.
+    const novo = /** @type {any} */ (r.status === "success" ? r.data : null);
     invalidarLista();
-    if (novo && ((acao === "confirmar" && novo.status !== "RASCUNHO") || (acao === "cancelar" && novo.status === "CANCELADO"))) {
-      limparPendenciaLancamento(escopo, acao, emp, alvo);
+    if (novo) {
+      const resolvida = resolverPendenciaConsultada({ escopo, acao, empresaId: emp, alvo, detalhe: novo, liquidacoesAntes: extra.liquidacoesAntes });
+      if (resolvida && (acao === "confirmar" || acao === "cancelar")) avisarEstoqueAlterado(novo, emp);
+      aplicarDetalhe(novo, emp);
     }
-    if (novo) aplicarDetalhe(novo, emp);
     setDialogo(null);
   };
 
@@ -499,9 +576,10 @@ export default function LancamentosFinanceirosTela() {
           podeLiquidar={Boolean(acoes.liquidar)}
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("confirmar", String(dialogo.registro.id))}
-          onConfirmar={async ({ baixa_no_ato }) => {
+          onConfirmar={async ({ baixa_no_ato }, { retentativa }) => {
             try {
-              const r = await confirmarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.registro.versao, baixa_no_ato, escopo });
+              const r = await confirmarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.registro.versao, baixa_no_ato, escopo, retentativa });
+              avisarEstoqueAlterado(r, emp);
               concluirComando(r, emp, baixa_no_ato ? "Lançamento confirmado e baixa registrada" : "Lançamento confirmado");
             } catch (err) {
               reagirAoErro(err, emp);
@@ -519,10 +597,14 @@ export default function LancamentosFinanceirosTela() {
           hoje={hoje}
           fusoConfigurado={Boolean(fuso)}
           onFechar={fecharDialogo}
-          onConsultar={() => consultarDepoisDeIncerto("liquidar", String(dialogo.titulo.id))}
-          onRegistrar={async (dados) => {
+          onConsultar={() =>
+            consultarDepoisDeIncerto("liquidar", String(dialogo.titulo.id), {
+              liquidacoesAntes: (Array.isArray(dialogo.titulo.liquidacoes) ? dialogo.titulo.liquidacoes : []).map((/** @type {any} */ l) => String(l.id)),
+            })
+          }
+          onRegistrar={async (dados, { retentativa }) => {
             try {
-              const r = await registrarLiquidacao(emp, String(dialogo.titulo.id), { ...dados, escopo });
+              const r = await registrarLiquidacao(emp, String(dialogo.titulo.id), { ...dados, escopo, retentativa });
               concluirComando(r, emp, pagar ? "Pagamento registrado" : "Recebimento registrado");
             } catch (err) {
               reagirAoErro(err, emp);
@@ -541,9 +623,9 @@ export default function LancamentosFinanceirosTela() {
           contexto={contextoMoeda}
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("estornar", String(dialogo.liquidacao.id))}
-          onEnviar={async (motivo) => {
+          onEnviar={async (motivo, { retentativa }) => {
             try {
-              const r = await estornarLiquidacao(emp, String(dialogo.liquidacao.id), { motivo, escopo });
+              const r = await estornarLiquidacao(emp, String(dialogo.liquidacao.id), { motivo, escopo, retentativa });
               concluirComando(r, emp, "Baixa estornada");
             } catch (err) {
               reagirAoErro(err, emp);
@@ -562,9 +644,10 @@ export default function LancamentosFinanceirosTela() {
           contexto={contextoMoeda}
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("cancelar", String(dialogo.registro.id))}
-          onEnviar={async (motivo) => {
+          onEnviar={async (motivo, { retentativa }) => {
             try {
-              const r = await cancelarLancamento(emp, String(dialogo.registro.id), { motivo, escopo });
+              const r = await cancelarLancamento(emp, String(dialogo.registro.id), { motivo, escopo, retentativa });
+              avisarEstoqueAlterado(r, emp);
               concluirComando(r, emp, "Lançamento cancelado");
             } catch (err) {
               reagirAoErro(err, emp);

@@ -54,13 +54,15 @@ const empresaSelecionada = (id) => {
 
 const montar = async () => {
   const { default: LancamentosFinanceiros } = await import('@/pages/LancamentosFinanceiros');
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  // Mesmos padrões da aplicação (src/lib/query-client.js): sem refetch no foco.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false }, mutations: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <Toaster />
       <LancamentosFinanceiros />
     </QueryClientProvider>,
   );
+  return queryClient;
 };
 
 const chamadas = (method, re) => backend.chamadas.filter((c) => c.method === method && (typeof re === 'string' ? c.path === re : re.test(c.path)));
@@ -175,6 +177,50 @@ describe('LANC-1 — lista, filtros, perfil e fuso', () => {
     act(() => persistirEmpresaSelecionada('emp-2', 'cli-1'));
     await waitFor(() => expect(screen.queryByTestId('consulta-lancamento')).toBeNull());
     await waitFor(() => expect(chamadas('GET', '/operacoes-financeiras').some((c) => c.query.empresa_id === 'emp-2')).toBe(true));
+    // O perfil da empresa NOVA chega (o botão Novo volta) e o documento da
+    // empresa anterior nunca é pedido com a empresa nova (404 no backend real).
+    expect(await screen.findByRole('button', { name: 'Novo' })).toBeTruthy();
+    expect(chamadas('GET', `/operacoes-financeiras/${doc.id}`).filter((c) => c.query.empresa_id === 'emp-2')).toHaveLength(0);
+  });
+
+  /** Duas empresas, cada uma com o seu backend falso (o tenant é o mesmo). */
+  const duasEmpresas = () => {
+    const estado2 = criarEstadoLancamentos({ perfil: { ...estado.perfil, empresa_id: 'emp-2' } });
+    estado2.seq = 500;
+    const docEmp1 = semearDocumento(estado, corpoBase(), { confirmar: true });
+    const docEmp2 = semearDocumento(estado2, corpoBase({ empresa_id: 'emp-2', parceiro_id: 'pa3' }), { confirmar: true });
+    backend = instalarBackendFake(async (req) => {
+      const emp = req.query.get('empresa_id') || req.body?.empresa_id;
+      const r = await rotearLancamentos(emp === 'emp-2' ? estado2 : estado, req);
+      if (r && r.rede) throw new TypeError('Failed to fetch');
+      return r;
+    });
+    return { docEmp1, docEmp2 };
+  };
+
+  it('troca de empresa: a lista, o perfil e o botão Novo da empresa NOVA aparecem (nada fica preso em "pendente")', async () => {
+    const { docEmp1, docEmp2 } = duasEmpresas();
+    await montar();
+    await abrir(docEmp1.id);
+    expect(await screen.findByTestId('consulta-lancamento')).toBeTruthy();
+    const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
+    act(() => persistirEmpresaSelecionada('emp-2', 'cli-1'));
+    expect(await screen.findByTestId(`lancamento-numero-${docEmp2.id}`)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Novo' })).toBeTruthy();
+    expect(screen.queryByTestId(`lancamento-numero-${docEmp1.id}`)).toBeNull();
+    expect(chamadas('GET', `/operacoes-financeiras/${docEmp1.id}`).filter((c) => c.query.empresa_id === 'emp-2')).toHaveLength(0);
+  });
+
+  it('primeira escolha de empresa (sem empresa → emp-1): a lista e o botão Novo aparecem', async () => {
+    const { docEmp1 } = duasEmpresas();
+    window.localStorage.removeItem('empresa_selecionada_id');
+    window.localStorage.removeItem('empresa_selecionada_cliente_id');
+    await montar();
+    expect(await screen.findByTestId('gestao-sem-empresa')).toBeTruthy();
+    const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
+    act(() => persistirEmpresaSelecionada('emp-1', 'cli-1'));
+    expect(await screen.findByTestId(`lancamento-numero-${docEmp1.id}`)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Novo' })).toBeTruthy();
   });
 });
 
@@ -386,7 +432,8 @@ describe('LANC-2b — seletor paginado e rascunho com resposta perdida', () => {
     await expect(enviarComPendencia({ ...base, enviar: falhar(new Error('sem resposta')) })).rejects.toThrow('sem resposta');
     expect(lerPendenciaLancamento('t', 'criar', 'e1', 'novo', storage)?.operation_id).toBe(chaves[0]);
     const excluido = Object.assign(new Error('excluído'), { cause: { code: 'IDEMPOTENCY_EFEITO_EXCLUIDO' } });
-    await expect(enviarComPendencia({ ...base, enviar: falhar(excluido) })).rejects.toBe(excluido);
+    // O POST repetido é a retentativa EXPLÍCITA daquele envio ("salvar de novo" no mesmo formulário).
+    await expect(enviarComPendencia({ ...base, retentativa: true, enviar: falhar(excluido) })).rejects.toBe(excluido);
     expect(chaves[1]).toBe(chaves[0]);
     expect(lerPendenciaLancamento('t', 'criar', 'e1', 'novo', storage)).toBeNull();
     const r = await enviarComPendencia({ ...base, enviar: async (k) => { chaves.push(k); return { id: 'doc-novo' }; } });
@@ -471,6 +518,34 @@ describe('LANC-4 — prévia, confirmação, duplo clique e retentativa', () => 
     // O rascunho ESTÁ salvo: a prévia não pode dizer que "nada foi gravado".
     expect(bloqueios).not.toHaveTextContent(/Nada foi gravado/);
     expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeDisabled();
+  });
+
+  it('aviso INFORMATIVO do plano (formato real `{codigo, mensagem}`): compra com mercadoria e desconto explica o custo e não vira bloqueio', async () => {
+    const doc = semearDocumento(
+      estado,
+      corpoBase({
+        conteudo: 'COM_PRODUTOS',
+        valor_bruto: undefined,
+        valor_desconto: '10.00',
+        data_operacional: '2026-11-08',
+        efeito_fisico_confirmado: true,
+        itens: [{ tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo1', unidade: 'KG', quantidade: '100', valor_unitario: '2' }],
+        rateios: [{ natureza_id: 'nd1', valor: '190.00' }],
+        parcelas: [{ vencimento: '2026-11-08', valor: '190.00' }],
+      }),
+    );
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    await waitFor(() => expect(chamadas('POST', `/operacoes-financeiras/${doc.id}/previa`)).toHaveLength(1));
+    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
+    expect(dialogo).not.toHaveTextContent(/impede a confirmação/);
+    expect(dialogo).toHaveTextContent(/Desconto e acréscimo não entram no custo do estoque/);
+    expect(within(dialogo).getByTestId('previa-avisos')).toHaveTextContent(/o custo do lote é o subtotal de cada item/);
+    // Texto próprio da tela: a `mensagem` do servidor não é exibida crua.
+    expect(dialogo).not.toHaveTextContent(/desconto e acréscimo do cabeçalho/);
+    expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeEnabled();
   });
 
   it('duplo clique em Confirmar = 1 envio', async () => {
@@ -716,6 +791,38 @@ describe('LANC-5 — baixas, estorno e cancelamento', () => {
     });
     const posDelete = backend.chamadas.slice(backend.chamadas.indexOf(del[0]) + 1);
     expect(posDelete.filter((c) => c.method === 'GET' && c.path === `/operacoes-financeiras/${doc.id}`)).toHaveLength(0);
+  });
+});
+
+describe('LANC-1b — ordenação da lista pelo valor canônico (não pelo texto formatado)', () => {
+  it('Total, Em aberto, Emissão e Próx. vencimento ordenam por dinheiro e por dia', async () => {
+    const doc = (valor, dia) =>
+      corpoBase({ valor_bruto: valor, data_emissao: dia, rateios: [{ natureza_id: 'nd1', valor }], parcelas: [{ vencimento: dia, valor }] });
+    semearDocumento(estado, doc('200.00', '2026-11-20'), { confirmar: true });
+    semearDocumento(estado, doc('1000.00', '2027-01-15'), { confirmar: true });
+    semearDocumento(estado, doc('50.00', '2026-12-01'), { confirmar: true });
+    await montar();
+    await screen.findAllByText(/R\$\s1\.000,00/);
+    const th = (nome) => screen.getAllByRole('columnheader').find((c) => c.textContent.trim().startsWith(nome));
+    const cabecalho = (nome) => th(nome).querySelector('button') || th(nome);
+    // Valor de cada linha NA COLUNA (célula na posição do cabeçalho); Intl separa "R$" com espaço não separável.
+    const coluna = (nome) => {
+      const indice = [...th(nome).parentElement.children].indexOf(th(nome));
+      return [...document.querySelectorAll('tbody tr')].map((tr) => tr.children[indice]?.textContent.replace(/\s/g, ' ').trim());
+    };
+
+    await clicar(cabecalho('Total'));
+    expect(coluna('Total')).toEqual(['R$ 50,00', 'R$ 200,00', 'R$ 1.000,00']);
+    await clicar(cabecalho('Total'));
+    expect(coluna('Total')).toEqual(['R$ 1.000,00', 'R$ 200,00', 'R$ 50,00']);
+    await clicar(cabecalho('Em aberto'));
+    expect(coluna('Em aberto')).toEqual(['R$ 50,00', 'R$ 200,00', 'R$ 1.000,00']);
+    await clicar(cabecalho('Emissão'));
+    expect(coluna('Emissão')).toEqual(['20/11/2026', '01/12/2026', '15/01/2027']);
+    await clicar(cabecalho('Emissão'));
+    expect(coluna('Emissão')).toEqual(['15/01/2027', '01/12/2026', '20/11/2026']);
+    await clicar(cabecalho('Próx. vencimento'));
+    expect(coluna('Próx. vencimento')).toEqual(['20/11/2026', '01/12/2026', '15/01/2027']);
   });
 });
 

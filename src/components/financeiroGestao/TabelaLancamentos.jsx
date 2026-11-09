@@ -1,8 +1,8 @@
 import React, { useCallback } from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
-import { formatarMoeda } from "@/lib/dinheiroDecimal";
-import { formatarDia } from "@/lib/diaCivil";
+import { comparar, ehCanonico, formatarMoeda } from "@/lib/dinheiroDecimal";
+import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
 import { ROTULO_CONDICAO, ROTULO_CONTEUDO, ROTULO_DIRECAO, ROTULO_STATUS } from "@/services/operacaoFinanceiraService";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 
@@ -24,6 +24,32 @@ export const LANCAMENTOS_COLUNAS = [
 
 /** Cards: parceiro é o título e o nº é o código; no celular, Situação, Total e Próx. vencimento. */
 export const LANCAMENTOS_CAMPOS_CARD = ["numero", "status", "valor_total", "proximo_vencimento", "direcao", "saldo_aberto"];
+
+const COLUNAS_DINHEIRO = new Set(["valor_total", "saldo_aberto"]);
+const COLUNAS_DIA = new Set(["data_emissao", "proximo_vencimento"]);
+
+/**
+ * Ordenação de dinheiro e de dia pelo valor CANÔNICO do servidor ("1000.00",
+ * "2027-01-15"), não pelo texto formatado ("R$ 1.000,00", "15/01/2027"), que
+ * depende do locale e põe o dia antes do mês. Vazio fica por último na ordem
+ * crescente, como na coluna numérica da grade. Outras colunas: regra da grade.
+ * @param {any} a @param {any} b @param {string} colId
+ * @returns {number|null}
+ */
+export const compararLancamentosParaOrdenar = (a, b, colId) => {
+  const dinheiro = COLUNAS_DINHEIRO.has(colId);
+  if (!dinheiro && !COLUNAS_DIA.has(colId)) return null;
+  /** @param {any} item */
+  const valor = (item) => {
+    const v = item?.[colId];
+    return dinheiro ? (ehCanonico(v) ? v : null) : ehDiaValido(v) ? v : null;
+  };
+  const va = valor(a);
+  const vb = valor(b);
+  if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+  if (dinheiro) return comparar(va, vb);
+  return va === vb ? 0 : va < vb ? -1 : 1;
+};
 
 /** @param {any} item @param {string} locale */
 const dinheiroDa = (item, campo, locale) =>
@@ -69,6 +95,7 @@ export default function TabelaLancamentos(props) {
       storageKey={LANCAMENTOS_STORAGE_KEY}
       droppableId="colunas-lancamentos-financeiros"
       getFieldValue={valorDoCampo}
+      compararParaOrdenar={compararLancamentosParaOrdenar}
       renderCell={renderCell}
       defaultSortKey="numero"
       defaultSortDir="desc"

@@ -139,7 +139,7 @@ const montarDoc = (estado, corpo, base = {}) => {
     valor_liquidado: naEscala('0', casas), saldo: naEscala(p.valor, casas), status: 'PREVISTO', moeda_casas: casas, liquidacoes: [],
   }));
   return {
-    id, numero: base.numero ?? String(estado.seq), status: 'RASCUNHO', versao: base.versao ?? 1, empresa_id: EMPRESA,
+    id, numero: base.numero ?? String(estado.seq), status: 'RASCUNHO', versao: base.versao ?? 1, empresa_id: corpo.empresa_id ?? EMPRESA,
     direcao: corpo.direcao, conteudo: corpo.conteudo, condicao: corpo.condicao, parceiro_id: corpo.parceiro_id, parceiro_nome: parceiro?.nome ?? 'PARCEIRO',
     descricao: corpo.descricao ?? null, documento_referencia: corpo.documento_referencia ?? null, data_emissao: corpo.data_emissao,
     data_operacional: corpo.data_operacional ?? null, moeda: estado.perfil?.moeda ?? 'BRL', moeda_casas: casas,
@@ -276,7 +276,11 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         parcelas: doc.titulos.map((t) => ({ numero_parcela: t.numero_parcela, total_parcelas: t.total_parcelas, vencimento: t.vencimento, valor: t.valor })),
         efeitos_estoque: { entradas: doc.direcao === 'PAGAR' ? mercadorias.map(efeito) : [], saidas: doc.direcao === 'RECEBER' ? mercadorias.map(efeito) : [] },
         resumo: { parcelas_n: doc.titulos.length, itens_estoque_n: estoque, valor_titulos: doc.valor_total, moeda: doc.moeda },
-        avisos: [],
+        // Como `planejarOperacao` real: compra com mercadoria e desconto ou acréscimo > 0 (informativo, não bloqueia).
+        avisos:
+          doc.direcao === 'PAGAR' && mercadorias.length && (ehPositivo(doc.valor_desconto) || ehPositivo(doc.valor_acrescimo))
+            ? [{ codigo: 'custo_sem_desconto_acrescimo', mensagem: 'desconto e acréscimo do cabeçalho não entram no custo do estoque nesta fase (o custo do lote é o subtotal do item)' }]
+            : [],
       };
       return { status: 200, body: { plano, bloqueios } };
     }
@@ -350,7 +354,9 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     if (!doc) return erro(404, 'LIQUIDACAO_FINANCEIRA_NOT_FOUND');
     const t = doc.titulos.find((x) => x.liquidacoes.some((l) => l.id === m[1]));
     const l = t.liquidacoes.find((x) => x.id === m[1]);
-    return idempotente(estado, 'estornar', body, () => {
+    const f = falha(estado, 'estornar');
+    if (f && !f.gravarAntes) return f.resposta ?? { rede: true };
+    const r = idempotente(estado, 'estornar', body, () => {
       if (l.tipo === 'ESTORNO') return erro(404, 'LIQUIDACAO_FINANCEIRA_NOT_FOUND');
       if (l.estornada) return erro(409, 'LIQUIDACAO_JA_ESTORNADA');
       // Como o backend real: a baixa fica `estornada` (com `estorno_id`) e o
@@ -363,6 +369,8 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       doc.historico.push({ acao: 'liquidacao_financeira.estornar', em: TS, usuario_login: 'dono' });
       return { status: 201, body: detalhe(doc, { replay: false }) };
     });
+    if (f?.gravarAntes) return { rede: true };
+    return r;
   }
   return undefined;
 };
