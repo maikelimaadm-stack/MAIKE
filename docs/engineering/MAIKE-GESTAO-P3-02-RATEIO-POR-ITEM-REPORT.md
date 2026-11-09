@@ -166,5 +166,19 @@ serviço, na D-PROD-156 e no §6.
 | Critério | Estado |
 |---|---|
 | CODE_READY | **SIM**: achados da revisão fechados (12 corrigidos e 1 decisão de contrato), `verify:all` 39/39 no HEAD de código e CI conferido na PR |
-| SCHEMA_APPLIED_PROD | **NÃO**. Nada da P3-02 foi enviado ao Supabase |
-| MERGE_READY | **NÃO**. Antes do merge: GO específico, migration aplicada e conferida pelo runbook |
+| SCHEMA_APPLIED_PROD | **SIM**. Aplicada em 2026-11-09 às 17:42:13 UTC (caminho B, GO escrito) e conferida pelo §6 do runbook (§8 abaixo) |
+| MERGE_READY | **SIM**, para o merge manual do proprietário: schema aplicado e conferido, CI verde no HEAD da PR |
+
+## 8. Release em produção (2026-11-09, caminho B, HEAD `a3290af3`)
+
+Registro completo no §11 do [runbook](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md).
+
+| Etapa | Resultado |
+|---|---|
+| GO | escrito pelo proprietário: caminho B, desvio da D-PROD-74 só para esta migration, ciência de que o PITR está desligado |
+| Preflight (só leitura) | **Alvo e versão:** `7692130048193495360`, PG 17.11.<br>**Histórico:** 35/0, P3-01 com checksum `bb89f4e0…`, P3-02 ausente, sem tabela nem coluna novas; `conferirHistoricoRemoto` `ok: true`.<br>**Checksum:** `df4d1ab2…`, igual ao manifesto.<br>**Classificador:** `expand: true`, 0 violações.<br>**CI** verde no HEAD |
+| Backup | último backup físico `COMPLETED` em 2026-11-09T05:48:27Z; PITR desligado |
+| Ensaio local imediato | guarda de alvo recusa; `COMMIT` com 36 concluídas; repetir é recusado; rollback e reaplicação funcionam |
+| Transação | `COMMIT` às 17:42:13 UTC |
+| Conferência §6 | **Migrations:** 36/0.<br>**Coluna:** `varchar(12)` anulável, sem default.<br>**Tabela nova:** 18 colunas; `p` 1, `f` 6, `c` 2; índices 1/2/3; RLS sem FORCE; 1 política; 0 grants públicos.<br>**Contagens:** iguais às de antes.<br>**Advisor:** 0 alertas.<br>**Runtime:** health 200, sem erro novo.<br>**Impressão digital** idêntica ao ensaio |
+

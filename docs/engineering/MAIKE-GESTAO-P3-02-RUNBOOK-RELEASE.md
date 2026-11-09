@@ -1,10 +1,10 @@
 # MAIKE — Gestão P3-02: runbook de release expand-only (D-PROD-156)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
-> Nada da P3-02 foi enviado ao Supabase de produção nem à Vercel. A migration só
-> rodou em PostgreSQL local de teste. Este documento é o plano. Cada passo exige
-> o GO específico do proprietário e para no primeiro desvio com
-> **`RELEASE_BLOCKED`**.
+> **Estado: §4 a §6 EXECUTADOS em 2026-11-09. `SCHEMA_APPLIED_PROD: SIM`.**
+> Migration aplicada em produção às 17:42:13 UTC pelo caminho B (conector), com
+> GO escrito do proprietário que cita o HEAD `a3290af3` e autoriza o desvio da
+> D-PROD-74 só para esta migration. A conferência do §6 passou. Merge, deploy e
+> smoke pós-merge (§7 e §8) ficam com o proprietário. Evidências no §11.
 >
 > Valores entre `<…>` são preenchidos na hora da execução, sempre a partir de
 > leituras reais.
@@ -298,13 +298,13 @@ plano explícito e decisão do proprietário (ver o runbook da P3-01, §9.3).
 
 | Campo | Valor |
 |---|---|
-| GO do proprietário (texto e data/hora UTC) | não executado |
-| Caminho (A runner / B conector) | não executado |
-| `system_identifier` e vínculo Vercel ↔ Supabase | não executado |
-| Histórico antes | não executado |
-| SHA-256 calculado no §4.3 | não executado |
-| Evidência de backup | não executado |
-| Classificador e ensaio local | não executado |
-| Resultado da transação | não executado |
-| Conferência do §6 | não executado |
-| Merge, deployment e smoke | não executado |
+| GO do proprietário (texto e data/hora UTC) | 2026-11-09, antes das 17:40 UTC. Texto: "GO MIGRATION P3-02 — PR #231 — CAMINHO B". Autoriza só a `20261109200000_gestao_p3_02_rateio_por_item` no `uuemcasqcdjucflulkne`, com HEAD `a3290af3…` e checksum `df4d1ab2…`, e registra ciência de que o PITR está desligado |
+| Caminho (A runner / B conector) | **B**: conector Supabase, uma chamada `execute_sql`. É desvio da D-PROD-74, autorizado só para esta migration |
+| `system_identifier` e vínculo Vercel ↔ Supabase | `7692130048193495360`, PostgreSQL 17.11. As variáveis de banco do projeto Vercel `maike` vêm da integração Supabase (só os nomes foram conferidos, em 2026-11-09). O papel `maike_vercel` existe |
+| Histórico antes | Às 17:40:47 UTC: 35 concluídas e 0 com falha. Última: `20261109100000_gestao_p3_01_central_lancamentos` (`bb89f4e0…`). P3-02 ausente, tabela nova e coluna ausentes. `conferirHistoricoRemoto` (35 linhas × 36 arquivos do SHA): `ok: true`, `pendentes: [P3-02]`, 0 falhas. Contagens antes: `OperacaoFinanceira`, `OperacaoFinanceiraItem`, `OperacaoFinanceiraRateio` e `TituloFinanceiro` com 0; `Cliente` e `Empresa` com 2 |
+| SHA-256 calculado no §4.3 | `git show a3290af3:…/migration.sql \| sha256sum` = `df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0`, igual ao manifesto. A P3-01 e as demais migrations estão idênticas às da `main` `f2b81e1b`. CI `verify:all` verde no `a3290af3` (run 42664156896) |
+| Evidência de backup | API de gestão `GET …/database/backups` → 200. 8 backups físicos diários, todos `COMPLETED`. O último é de 2026-11-09T05:48:27Z, anterior à janela; o mais antigo, de 2026-11-02T05:48:28Z. `pitr_enabled: false`, `walg_enabled: true`, 0 falhas de WAL. O proprietário registrou no GO ciência do PITR desligado |
+| Classificador e ensaio local | `premerge-migrate.mjs --sha a3290af3` saiu 0: `expand: true`, tabela nova `OperacaoFinanceiraItemRateio`, coluna `OperacaoFinanceira.rateio_escopo` e 0 violações. Ensaio imediato em PG17.11 local com `anon`, `authenticated` e `maike_vercel`, usando o arquivo do SHA: o SQL de produção foi recusado (`alvo divergente`); com o identificador local, `COMMIT`, 36 concluídas, `migrate diff` 0 e `migrate status` em dia; repetir foi recusado; o rollback do §9.1 voltou a 35 e a reaplicação deu `COMMIT` |
+| Resultado da transação | `COMMIT` sem erro. Linha da P3-02: `finished_at` 2026-11-09 17:42:13.298322 UTC, `checksum` `df4d1ab2…`, `applied_steps_count` 1 |
+| Conferência do §6 | Às 17:42:30 UTC:<br>(1) 36 concluídas, 0 com falha, 1 linha da P3-02.<br>(2) `rateio_escopo` em `varchar(12)`, anulável, sem default, 0 linhas não nulas.<br>(3) RLS ligado, sem FORCE; dono `postgres`, o mesmo de `OperacaoFinanceiraRateio`.<br>(4) 18 colunas.<br>(5) `p` 1, `f` 6, `c` 2 (`_tipo_direcao_check` e `_valores_check`). FKs `operacao` e `natureza` em `(r,r)`; `cliente`, `item`, `centro_custo` e `centro_resultado` em `(r,c)`.<br>(6) Índices: 1 PK, 2 uniques, 3 outros.<br>(7) 1 × `maike_backend_all`, `ALL`, `{maike_vercel}`.<br>(8) 0 grants para `anon`, `authenticated` e `PUBLIC`; `maike_vercel`, `postgres` e `service_role` com os mesmos privilégios de `OperacaoFinanceiraRateio`.<br>(9) Tabela nova com 0 linhas; contagens iguais às de antes.<br>(10) Advisor de segurança: 0 alertas.<br>(11) `health` 200 com banco `up` e release `f2b81e1b` (runtime da P3-01); `/LancamentosFinanceiros` 200; API sem sessão 401; nenhum erro de runtime na Vercel desde 17:40 UTC.<br>A impressão digital (md5 de colunas, constraints, índices, política e RLS) é **idêntica** à do ensaio local |
+| Merge, deployment e smoke | pendente: merge manual do proprietário (§7) e smoke pós-deploy (§8) |

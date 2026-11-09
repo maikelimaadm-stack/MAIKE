@@ -16,8 +16,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-156**, autorizada pelo proprietário na missão de 2026-11-09, depois do merge da P3-01 |
 | Branch / PR | `claude/maike-gestao-p3-02-rateio-por-item`, PR em **draft** sobre `origin/main` `f2b81e1b` |
 | Escopo | Na mesma tela `LancamentosFinanceiros` e só com produtos, o rateio pode ser Geral (padrão) ou Por item. Por item, cada linha é dividida por natureza e centros, em valor ou percentual, sobre o **líquido** do item. A soma é exata por item e no total, os dois modos nunca convivem e existe um resumo consolidado. Não há efeito novo em títulos, estoque ou custo |
-| Migration | `20261109200000_gestao_p3_02_rateio_por_item`, expand-only: coluna anulável `OperacaoFinanceira.rateio_escopo` e tabela nova `OperacaoFinanceiraItemRateio`. SHA-256 `df4d1ab2…2076f4a0` pinado. **Não aplicada em produção** |
-| Release | GO específico → preflight (35 concluídas, backup, classificador) → ensaio local → migration (36) → conferência → merge manual → deploy → smoke. Runbook (não executado): [`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md) |
+| Migration | `20261109200000_gestao_p3_02_rateio_por_item`, expand-only: coluna anulável `OperacaoFinanceira.rateio_escopo` e tabela nova `OperacaoFinanceiraItemRateio`. SHA-256 `df4d1ab2…2076f4a0` pinado. **Aplicada em produção em 2026-11-09 às 17:42:13 UTC** (caminho B, GO escrito) e conferida pelo §6 do runbook |
+| Release | **Concluído:** GO, preflight, ensaio local, migration (36 concluídas) e conferência. **Pendente:** merge manual da PR #231, deploy e smoke. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md) |
 | Relatório | [`MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`](./MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md) |
 | Antes dela | P3-01 (D-PROD-155) em produção: migration aplicada em 2026-11-09 às 14:08:36 UTC e PR #230 mergeada (`f2b81e1b`) |
 
