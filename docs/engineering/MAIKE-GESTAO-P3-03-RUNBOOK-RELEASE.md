@@ -156,6 +156,18 @@ commit de documentação na própria PR, e a CI precisa ficar verde de novo.
   e de fornecedor (as duas consultam `TipoCombustivelProduto` e `BemPatrimonial`).
   A troca de empresa de produto também.
 
+### 7.2 Atualização em 2026-11-09, 23:19 UTC (só leitura)
+- A migration do Patrimônio foi aplicada **por outro fluxo** às 23:04:22 UTC, com
+  checksum `b8818ba8…ffd64dc`. A produção tem **38** concluídas e 0 com falha, e
+  82 tabelas.
+- `conferirHistoricoRemoto` com as 38 linhas de produção e a árvore desta PR dá
+  `ok: true` e **0 pendentes**. Depois do merge, a `main` fica idêntica ao banco de
+  produção. Com a `main` `76edc913`, continua recusando, porque falta o arquivo da P3-03.
+- Os domínios de produção ainda servem `afbebcbc`. Depois do merge, o novo deploy
+  da `main` (P3-03 + Patrimônio) só vai ao ar por `promote` do proprietário. Com
+  as duas migrations aplicadas, o schema não impede o promote. Depois dele, vem o
+  smoke do §8, só de leitura.
+
 ## 8. Deploy e smoke (só leitura)
 1. Health 200.
 2. A lista padrão continua igual à de antes.

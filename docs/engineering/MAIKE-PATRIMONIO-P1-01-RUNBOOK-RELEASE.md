@@ -22,6 +22,7 @@ Modelo: [runbook da P3-02](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md), executado e
 >   - `<SHA_APROVADO>` tem de conter o arquivo da P3-03. Com o SHA `76edc913`, `conferirHistoricoRemoto` recusa (`PREMERGE_MIGRATIONS_NAO_COMPROVADAS`); com a árvore da PR #234 integrada, dá `ok: true`, com só esta migration pendente.
 > - Os domínios de produção servem o deploy `afbebcbc`. Não promover a `main` antes desta migration aplicada e conferida.
 > - A aplicação exige GO próprio, backup atualizado, ensaio local em PG17 e postcheck.
+> - **Atualização (23:19 UTC, só leitura):** a migration foi aplicada por outro fluxo em 2026-11-09 às 23:04:22 UTC, com checksum `b8818ba8…ffd64dc` e `applied_steps_count = 1`. A produção tem 38 concluídas e 0 com falha. As 10 tabelas estão vazias, com RLS sem FORCE e 0 grants públicos, e o advisor tem 0 alertas. O registro de execução (§11) é do fluxo que aplicou e não foi preenchido por esta PR.
 
 ## 0. O que muda no banco
 

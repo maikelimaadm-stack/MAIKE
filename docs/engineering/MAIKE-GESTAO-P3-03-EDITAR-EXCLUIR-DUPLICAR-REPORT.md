@@ -5,7 +5,7 @@
 | Missão | MAIKE-GESTAO-P3-03 (2026-11-09) |
 | Decisão | [D-PROD-158](./DECISIONS.md) |
 | PR | #234 (**draft**), branch `claude/maike-gestao-p3-03-editar-excluir-duplicar` |
-| Base | `origin/main` `e4e907ea`, merge da PR #231 (P3-02, em produção, 36 migrations) |
+| Base | `origin/main` `e4e907ea` (P3-02); integrada depois com a `origin/main` `76edc913` (PR #232, Patrimônio), ver §8 |
 | Runbook | [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md), **executado** até a conferência (2026-11-09, 21:32:01 UTC) |
 | Numeração | Nasceu como D-PROD-157. A PR #232 (Patrimônio) foi mergeada antes com a D-PROD-157 (`76edc913`). Ao integrar a `main` (rodada PR234-R1), a P3-03 passou a **D-PROD-158**. O comentário dentro do `migration.sql` da P3-03 ainda diz D-PROD-157 e fica **imutável**: o arquivo já está aplicado em produção (SHA-256 `3f3af00e…df890b`) |
 | Integração (PR234-R1) | `origin/main` `76edc913` integrada por merge não destrutivo; ver §8 |
@@ -128,6 +128,21 @@ Três revisores independentes (dinheiro e estoque, banco e concorrência, tela) 
 ## 7. Prontidão
 | Critério | Estado |
 |---|---|
-| CODE_READY | **SIM**: `verify:all` e CI verdes no `bf2c5842` |
-| SCHEMA_APPLIED_PROD | **SIM**: 2026-11-09 às 21:32:01 UTC, 37 migrations, conferido pelo §6 |
-| MERGE_READY | **SIM** quando a CI do HEAD final (só documentação) ficar verde. O merge é manual e do proprietário |
+| CODE_READY | **SIM**: `verify:all` e CI verdes no HEAD final integrado (ver §8 e o corpo da PR #234) |
+| SCHEMA_APPLIED_PROD | **SIM**: P3-03 em 2026-11-09 às 21:32:01 UTC. A migration do Patrimônio também está aplicada (23:04:22 UTC, outro fluxo): 38/0 |
+| MERGE_READY | **SIM** com a CI verde no HEAD final e a PR `mergeable`. O merge é manual e do proprietário. Depois dele, o deploy só vai ao ar por `promote`, porque a produção está fixada em `afbebcbc` |
+
+## 8. Integração com a `main` depois do Patrimônio (rodada PR234-R1)
+
+| Item | Valor |
+|---|---|
+| `main` integrada | `76edc913` (merge da PR #232, Patrimônio P1-01, D-PROD-157), por **merge** não destrutivo: commit `14bebb15`, sem rebase nem force-push |
+| Conflitos (11 arquivos) | `schema.prisma` (relações de Cliente e Usuario das duas frentes; model `OperacaoFinanceiraEvento` mais os 10 do Patrimônio), `errorCodes.js` (os dois blocos), `premergeMigrateLib.mjs` (as 2 migrations e os 2 blocos DO pinados), `premerge-migrate.test.mjs` (B1 com 29 tabelas novas; B1c Patrimônio; B1d P3-03), `sqlEditorBootstrap.test.mjs` e `sql-editor` 01–04 (82 tabelas; `OperacaoFinanceiraEvento` antes dos documentos e o bloco do Patrimônio antes dos centros), `DECISIONS.md` e `CURRENT-STATE.md`. O git juntou sozinho, e a revisão conferiu, `autorizacaoTela`, `guardasRotas`, `helpers` (`limparBanco`), `ROADMAP` e o código de produto, fornecedor e tela. Nenhum arquivo foi resolvido por "ours" ou "theirs" em bloco |
+| Numeração | Patrimônio = D-PROD-157, P3-03 = **D-PROD-158**, P3-02 = D-PROD-156; próxima, D-PROD-159. 92 referências da P3-03 renumeradas, só nas linhas que vieram da P3-03 |
+| Migrations | Nenhum byte mudou. P3-03 `3f3af00e…df890b`, cujo comentário interno ainda diz D-PROD-157 (imutável). Patrimônio `b8818ba8…ffd64dc`. Os dois pins foram preservados |
+| Revisão adversarial do merge | 0 resolução errada, 0 código perdido, 0 chave duplicada. Ordem de FK do `limparBanco` e dos scripts conferida contra `pg_constraint`, com 0 violações. Três lacunas BAIXO fechadas: o teste novo `gestaoP3PatrimonioCombinado.test.mjs` (C1 fornecedor com lançamento e bem → 409 `PARCEIRO_EM_USO` com `details` exatos, antes e depois de excluir e retificar; C2 produto com item financeiro e combustível → 409, inclusive depois de SUBSTITUIÇÃO e exclusão; C3 permissões cruzadas e `porTodas` com metade das ações → 403 com `faltam` exato, 401 sem token), provado por 6 mutantes; e as 3 rotas da P3-03 na matriz `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md` |
+| Teste instável da `main` | `adminClientesConsulta` CLI-07 falhou na CI do merge: o regex `PROIBIDOS` casava `rg"` dentro de um cuid aleatório (`…aekogrg`). Corrigido no `0ee60613` (termos curtos só fora de identificador), sem perder a detecção de chaves reais |
+| Testes locais (PG17 descartável) | Backend `gestaoP3*` + `patrimonioP1*` + `sqlEditorBootstrap` + `permissoes*`: 330/330; demais arquivos: 952/952 e 5 todo; teste combinado: 3/3; smoke (vitest): 2162/2162; gates: 697/697; classificador: 15/15; `migrate diff` banco→schema e migrations→schema: 0 |
+| E2E real da P3-03 | 38 migrations; pools 5 e 3, 1280 e 390 px: **68 ✓, 0 ✗** em cada um, 208 capturas; passos 30–34 (duplicar, corrigir NO_LUGAR e SUBSTITUIÇÃO, excluir, bloqueios) verdes. Distribuição de respostas idêntica à de antes do merge, sem 5xx |
+| Ensaio da sequência real | Banco local com as 37 de produção (sem Patrimônio): `conferirHistoricoRemoto` com a árvore integrada dá `ok:true`, só Patrimônio pendente; com a `main` `76edc913` dá `PREMERGE_MIGRATIONS_NAO_COMPROVADAS`. `prisma migrate deploy` aplica só o Patrimônio (38, 82 tabelas) e o `migrate diff` dá 0 |
+| Produção (só leitura) | 22:30 UTC: Patrimônio pendente (37/0), domínios em `afbebcbc`. 23:19 UTC: Patrimônio aplicado por outro fluxo às 23:04:22 UTC (38/0, 82 tabelas, advisor 0), domínios ainda em `afbebcbc`, nenhum erro de tabela ausente nos logs. Esta PR não escreveu nada em produção |
