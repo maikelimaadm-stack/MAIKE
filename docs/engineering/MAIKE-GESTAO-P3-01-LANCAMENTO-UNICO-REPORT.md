@@ -6,7 +6,7 @@
 | Decisão | [D-PROD-155](./DECISIONS.md) (autorização explícita do proprietário, 2026-11-08) |
 | PR | #230 (**draft**), branch `claude/maike-gestao-p3-01-lancamento-unico` |
 | Base | `origin/main` `7ab43f7f` (merge da PR #227, Gestão P2) |
-| HEAD deste relatório | código da rodada 4 em `5607a19a` (§8.3); este relatório entra no commit seguinte, só de documentação |
+| HEAD deste relatório | código da rodada 4 em `c43c6c07` (§8.3); este relatório entra no commit seguinte, só de documentação |
 | Runbook de release | [`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md) — **não executado** |
 
 > **Provas.** Todo número dos §7–§8 é saída real de comando, registrada nos logs
@@ -536,6 +536,23 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 | `npm run verify:all` (banco novo) | 39 etapas PASS, saída 0, em PostgreSQL 16 local recém-criado (`maike_p3_final`) |
 | CI no HEAD `b403845e` | `verify:all` verde (run 42559110486) |
 
+### 8.3 Rodada 4 (código em `c43c6c07`; PostgreSQL 17.11 local, a versão de produção)
+
+| Comando | Resultado |
+|---|---|
+| PG17 limpo (`maike_r4c_final`): `prisma validate` · `prisma generate` · `npm run deploy:migrate` (runner oficial) | exit 0 · 0 · 0; 35 migrations concluídas; checksum da P3-01 = `bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a` |
+| `prisma migrate diff --exit-code` (banco → schema; migrations → schema com sombra) | 0 e 0 |
+| `npm run verify:all` em PG17 recém-criado (HEAD de código `5607a19a`) | **39/39 etapas PASS**, saída 0, 1045 s. `test:gates` 694/694; `test:backend` 1.263 testes, 1.258 pass, 0 fail, 0 cancelados, 0 skip, 5 `todo` herdados; `test:smoke` 162 arquivos, 1.869 testes; lint 0 erros (56 avisos herdados); typecheck 815 (teto 1.746); typecheck:backend 0; build e build:admin OK |
+| Testes de prazo estourado (`c43c6c07`): `gestaoP3Concorrencia` + `gestaoP3CustoLiquido` com `connection_limit=5` e `=3` | 47/47 em cada pool |
+| `gestaoP3CustoLiquido` + `gestaoP3Rodada2` + `gestaoP3Concorrencia` (PG16, pools padrão, 5 e 3, antes dos testes de prazo) | 59/59 em cada pool |
+| vitest da tela (`gestaoLancamentos`, `gestaoLancamentosEnvio`, `gestaoLancamentosRateio`) | 88/88; mutante "504 tratado como recusa definitiva" reprova as 2 variantes do ENV-4 |
+| E2E real (`scripts/dev/e2e-lancamentos-real.mjs`, 27 passos, 1280 + 390 px, PG17) no HEAD `c43c6c07` | pool 5: 54 ✓ / 0 ✗, saída 0, 146 capturas; pool 3: 54 ✓ / 0 ✗, saída 0, 146 capturas |
+| Ensaio do SQL do runbook (§5 caminho B, §6, §9.1) em PG17 | todas as guardas e conferências como esperado (runbook §9.4) |
+| Paridade backend × tela × oráculo (fuzz, 3 × 30.000 documentos) | 0 divergências |
+| Revalidação somente leitura do Supabase `uuemcasqcdjucflulkne` | PostgreSQL 17.11, `ACTIVE_HEALTHY`; `_prisma_migrations` 34 concluídas, 0 com falha, P3-01 ausente, 0 das 8 tabelas; backups/PITR **não legíveis** pelo conector |
+| Vercel (projeto `maike`, time em plano Pro) | `vercel.json` com `maxDuration` 60 para `api/fastify.js` (teste VERCEL-DUR); o prazo efetivo não é exposto pelo conector e só vale depois do merge: **não comprovado** |
+| CI `quality` (`verify:all`) | verde no HEAD de código `c43c6c07` ([run 42617445198](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42617445198)); o HEAD final, só de documentação, é conferido na PR |
+
 ## 9. Limitações declaradas
 
 - Custo de aquisição líquido (rodada 4): o lote guarda o custo por kg com 4
@@ -611,16 +628,18 @@ O erro de lint apontado no ensaio (`_vb` sem uso em
 
 | Critério | Estado |
 |---|---|
-| **CODE_READY** (23 achados da revisão fechados; testes, gates, `verify:all` e CI verdes no HEAD final) | **SIM** — código em `b403845e`, com as limitações do §9 declaradas |
-| **SCHEMA_APPLIED_PROD** | **NÃO** — nesta missão: **NÃO**. Nenhum comando foi enviado ao banco de produção e o runbook não foi executado |
-| **MERGE_READY** | **NÃO** — só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
+| **CODE_READY** (achados das revisões fechados, inclusive os da rodada 4; testes, gates, `verify:all` e CI verdes no HEAD final) | **PENDENTE**: testes, gates, `verify:all` (PG17), E2E e CI verdes em `c43c6c07`; falta fechar a revisão adversarial independente do diff da rodada 4, em andamento |
+| **SCHEMA_APPLIED_PROD** | **NÃO**. Nenhum comando foi enviado ao banco de produção; a rodada 4 só leu o Supabase (somente leitura) e o runbook não foi executado |
+| **MERGE_READY** | **NÃO**: só depois de CODE_READY, do GO do proprietário e da migration aplicada e conferida pelo runbook |
+| **BACKUP/PITR** | **NAO_COMPROVADO**: o conector não lê backups. O proprietário confere no painel do Supabase → projeto MAIKE → Database → Backups (*Scheduled backups* e *Point in Time Recovery*); sem prova, `RELEASE_BLOCKED` (runbook §4.4) |
+| **VERCEL_DURATION** | **NAO_COMPROVADO**: `maxDuration` 60 s explícito no `vercel.json`, efetivo só no deploy de produção depois do merge; conferir no painel (runbook §8, item 7) |
 
 Prontidão de código não é prontidão de release. O merge manual da PR #230 é
 decisão do proprietário e vem depois do schema aplicado **e** conferido.
 
 ## 12. Marcadores
 
-Todos preenchidos com saída real (§7–§8 e §11). Nenhum ficou em aberto.
+Preenchidos com saída real (§7–§8 e §11). O CI do HEAD final está no §8.3.
 
 ## 13. Referências
 
@@ -630,5 +649,5 @@ Todos preenchidos com saída real (§7–§8 e §11). Nenhum ficou em aberto.
 - Antecessoras: [P1](./MAIKE-GESTAO-CADASTROS-P1-REPORT.md) e [P2](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
 - Migration: `backend/prisma/migrations/20261109100000_gestao_p3_01_central_lancamentos/migration.sql`; pinagem em [`premergeMigrateLib.mjs`](../../scripts/deploy/premergeMigrateLib.mjs).
 - Backend: `backend/src/modules/financeiro/` e `backend/src/modules/estoqueFisico/estoqueFisicoMotor.js`.
-- Testes: `backend/tests/gestaoP3Lancamentos.test.mjs`, `gestaoP3Seguranca.test.mjs`, `gestaoP3Estoque.test.mjs`, `gestaoP3Financeiro.test.mjs`, `gestaoP3Concorrencia.test.mjs`, `gestaoP3Rodada2.test.mjs`, `gestaoP3Cenario.mjs`; `tests/smoke/gestaoLancamentos.test.jsx`, `gestaoLancamentosEnvio.test.jsx`, `gestaoLancamentosShell.test.jsx`, `gestaoLancamentosDinheiro.test.js`.
+- Testes: `backend/tests/gestaoP3Lancamentos.test.mjs`, `gestaoP3Seguranca.test.mjs`, `gestaoP3Estoque.test.mjs`, `gestaoP3Financeiro.test.mjs`, `gestaoP3Concorrencia.test.mjs`, `gestaoP3Rodada2.test.mjs`, `gestaoP3CustoLiquido.test.mjs`, `gestaoP3Cenario.mjs`; `tests/smoke/gestaoLancamentos.test.jsx`, `gestaoLancamentosEnvio.test.jsx`, `gestaoLancamentosShell.test.jsx`, `gestaoLancamentosDinheiro.test.js`, `gestaoLancamentosRateio.test.js`; vetores compartilhados `tests/smoke/fixtures/rateioCabecalhoVetores.json`.
 - Scripts: [`visual-lancamentos-financeiros.mjs`](../../scripts/dev/visual-lancamentos-financeiros.mjs), [`e2e-lancamentos-real.mjs`](../../scripts/dev/e2e-lancamentos-real.mjs), [`e2e-lancamentos-seed.mjs`](../../scripts/dev/e2e-lancamentos-seed.mjs).
