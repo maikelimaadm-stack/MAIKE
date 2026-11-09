@@ -245,6 +245,8 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
       parceiro_id: 'pa1',
       data_emissao: '2026-11-08',
       valor_bruto: '1234.56',
+      // D-PROD-156: o escopo vai SEMPRE explícito (sem produtos só existe GERAL).
+      rateio_escopo: 'GERAL',
       rateio_modo: 'VALOR',
       rateios: [{ natureza_id: 'nd1', valor: '1234.56' }],
       parcelas: [{ vencimento: '2026-11-08', valor: '1234.56' }],

@@ -110,6 +110,9 @@ export const limparBanco = async () => {
   await prisma.liquidacaoFinanceira.deleteMany({});
   await prisma.tituloFinanceiro.deleteMany({});
   await prisma.operacaoFinanceiraConsumoLote.deleteMany({});
+  // D-PROD-156: as linhas do rateio por item referenciam o item, o documento,
+  // naturezas e centros (RESTRICT): saem antes dos itens.
+  await prisma.operacaoFinanceiraItemRateio.deleteMany({});
   await prisma.operacaoFinanceiraItem.deleteMany({});
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});

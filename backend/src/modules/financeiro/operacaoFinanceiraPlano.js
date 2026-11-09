@@ -15,6 +15,15 @@
  *
  * Rateio e parcelas são SEMPRE sobre `valor_total` (após desconto/acréscimo).
  *
+ * Escopo do rateio gerencial (D-PROD-156, P3-02), EXCLUSIVO por documento:
+ *  - GERAL (padrão; NULL no banco = GERAL): `rateios` do documento, como na
+ *    P3-01, sobre `valor_total`; nenhum item traz linhas;
+ *  - POR_ITEM (só COM_PRODUTOS): cada item traz as SUAS linhas
+ *    (`itens[i].rateios`) sobre o `valor_liquido` do item (o mesmo gravado),
+ *    VALOR exato ou PERCENTUAL distribuído pelos MESMOS maiores restos do geral;
+ *    `rateios` do documento vazio. Σ de todas as linhas = `valor_total`.
+ *  Os dois modos devolvem `rateio_consolidado` (soma por natureza + centros).
+ *
  * Custo de aquisição líquido (rodada 4): desconto D e acréscimo A do cabeçalho
  * de um COM_PRODUTOS são rateados SEPARADAMENTE entre TODAS as linhas
  * (mercadoria e serviço, nas duas direções), proporcionais ao subtotal, em
@@ -32,17 +41,23 @@ import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { consumirFifo } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, Dec, LIMITE_DINHEIRO, LIMITE_ESTOQUE, LIMITE_RESIDUO_RELATIVO, UM, ZERO,
-  arredondar, casasDecimais, dec, piso, somar, texto, unidadeMinima,
+  arredondar, casasDecimais, dec, somar, texto, unidadeMinima,
 } from './decimalFinanceiro.js';
 
 export const DIRECOES = Object.freeze(['PAGAR', 'RECEBER']);
 export const CONTEUDOS = Object.freeze(['COM_PRODUTOS', 'SEM_PRODUTOS']);
 export const CONDICOES = Object.freeze(['AVISTA', 'PRAZO', 'PARCELADO']);
 export const RATEIO_MODOS = Object.freeze(['VALOR', 'PERCENTUAL']);
+/** D-PROD-156: escopo do rateio gerencial (exclusivo). Sem `rateio_escopo` → GERAL. */
+export const RATEIO_ESCOPOS = Object.freeze(['GERAL', 'POR_ITEM']);
+export const ESCOPO_PADRAO = 'GERAL';
 export const TIPOS_ITEM = Object.freeze(['MERCADORIA', 'SERVICO']);
 export const UNIDADES = Object.freeze(['KG', 'SACO', 'UN']);
 export const MAX_ITENS = 200;
 export const MAX_RATEIOS = 50;
+/** D-PROD-156: linhas do rateio por item (por item e no documento inteiro). */
+export const MAX_RATEIOS_POR_ITEM = 20;
+export const MAX_RATEIOS_ITENS_TOTAL = 1000;
 export const MAX_PARCELAS = 120;
 export const MIN_PARCELADO = 2;
 
@@ -111,7 +126,9 @@ export const normalizarDocumento = (corpo, casas) => {
     valor_desconto: dinheiro(corpo.valor_desconto, 'valor_desconto', casas) ?? ZERO,
     valor_acrescimo: dinheiro(corpo.valor_acrescimo, 'valor_acrescimo', casas) ?? ZERO,
     rateio_modo: corpo.rateio_modo,
+    rateio_escopo: presente(corpo.rateio_escopo) ? corpo.rateio_escopo : ESCOPO_PADRAO,
   };
+  exigirEscopoValido(doc.rateio_escopo);
   // MAIÚSCULAS pode alongar o texto ("ß" → "SS"): confere de novo contra a coluna (64).
   if (doc.documento_referencia && [...doc.documento_referencia].length > 64) {
     throw invalido('documento_referencia passa de 64 caracteres', { field: 'documento_referencia', reason: 'tamanho_excedido' });
@@ -144,24 +161,12 @@ export const normalizarDocumento = (corpo, casas) => {
     doc.data_operacional = null;
   }
   const rateiosCorpo = Array.isArray(corpo.rateios) ? corpo.rateios : [];
-  doc.rateios = rateiosCorpo.map((r, indice) => {
-    const extra = { colecao: 'rateios', indice };
-    const linha = {
-      ordem: indice + 1,
-      natureza_id: r.natureza_id,
-      centro_custo_id: presente(r.centro_custo_id) ? r.centro_custo_id : null,
-      centro_resultado_id: presente(r.centro_resultado_id) ? r.centro_resultado_id : null,
-      valor: null,
-      percentual: null,
-    };
-    if (doc.rateio_modo === 'VALOR') {
-      if (!presente(r.valor)) throw invalido('valor da linha de rateio é obrigatório no modo VALOR', { field: 'valor', reason: 'obrigatorio', ...extra });
-      linha.valor = dinheiro(r.valor, 'valor', casas, extra);
-    } else {
-      if (!presente(r.percentual)) throw invalido('percentual da linha de rateio é obrigatório no modo PERCENTUAL', { field: 'percentual', reason: 'obrigatorio', ...extra });
-      linha.percentual = dec(r.percentual);
-    }
-    return linha;
+  const linhasDosItens = itensCorpo.map((it) => (Array.isArray(it?.rateios) ? it.rateios : []));
+  // D-PROD-156: escopo e exclusões ANTES dos valores das linhas (a recusa aponta o modo, não a linha).
+  exigirEscopoDoRateio({ rateio_escopo: doc.rateio_escopo, conteudo, rateios: rateiosCorpo, itens: linhasDosItens.map((rateios) => ({ rateios })) });
+  doc.rateios = normalizarLinhasDeRateio(rateiosCorpo, doc.rateio_modo, casas, (indice) => ({ colecao: 'rateios', indice }));
+  doc.itens.forEach((item, indice) => {
+    item.rateios = normalizarLinhasDeRateio(linhasDosItens[indice], doc.rateio_modo, casas, (subindice) => posicaoNoItem(indice, subindice));
   });
   const parcelasCorpo = Array.isArray(corpo.parcelas) ? corpo.parcelas : [];
   doc.parcelas = parcelasCorpo.map((p, indice) => {
@@ -192,6 +197,84 @@ const normalizarItem = (it, indice) => {
   return { ...base, produto_id: null, local_estoque_id: null, descricao: textoLinha(it.descricao, 'descricao', { obrigatorio: true }, extra) };
 };
 
+/** Posição de uma linha do rateio POR ITEM nos erros (item e linha exatos). */
+const posicaoNoItem = (indice, subindice) => ({ colecao: 'itens', indice, subcolecao: 'rateios', ...(subindice === undefined ? {} : { subindice }) });
+
+/**
+ * Linhas de rateio do corpo (geral ou de um item) em Decimal, na escala da
+ * moeda. VALOR exige `valor`; PERCENTUAL exige `percentual`; o outro campo é
+ * ignorado (como na P3-01). `posicao(i)` dá o `details` da linha `i`.
+ * @param {any[]} linhas @param {string} modo @param {number} casas @param {(i: number) => Record<string, unknown>} posicao
+ */
+const normalizarLinhasDeRateio = (linhas, modo, casas, posicao) =>
+  linhas.map((r, i) => {
+    const extra = posicao(i);
+    const linha = {
+      ordem: i + 1,
+      natureza_id: r.natureza_id,
+      centro_custo_id: presente(r.centro_custo_id) ? r.centro_custo_id : null,
+      centro_resultado_id: presente(r.centro_resultado_id) ? r.centro_resultado_id : null,
+      valor: null,
+      percentual: null,
+    };
+    if (modo === 'VALOR') {
+      if (!presente(r.valor)) throw invalido('valor da linha de rateio é obrigatório no modo VALOR', { field: 'valor', reason: 'obrigatorio', ...extra });
+      linha.valor = dinheiro(r.valor, 'valor', casas, extra);
+    } else {
+      if (!presente(r.percentual)) throw invalido('percentual da linha de rateio é obrigatório no modo PERCENTUAL', { field: 'percentual', reason: 'obrigatorio', ...extra });
+      linha.percentual = dec(r.percentual);
+    }
+    return linha;
+  });
+
+/** `rateio_escopo` fora do domínio → 422 `escopo_invalido` (o schema da rota só tipa como texto). */
+const exigirEscopoValido = (escopo) => {
+  if (!RATEIO_ESCOPOS.includes(escopo)) {
+    throw rateioInvalido('escopo do rateio inválido (use GERAL ou POR_ITEM)', { field: 'rateio_escopo', reason: 'escopo_invalido', permitidos: [...RATEIO_ESCOPOS] });
+  }
+};
+
+/**
+ * D-PROD-156 — escopo do rateio e exclusões (§3), pela PRESENÇA das linhas. A
+ * MESMA regra no corpo (normalização) e no documento lido do banco
+ * (planejamento: prévia e confirmação), para que um documento gravado fora da
+ * API nunca confirme com rateio faltante, geral + por item, ou acima do teto.
+ * @param {{ rateio_escopo: unknown, conteudo: string, rateios: any[], itens: Array<{ rateios: any[] }> }} doc
+ */
+export const exigirEscopoDoRateio = (doc) => {
+  exigirEscopoValido(doc.rateio_escopo);
+  if (doc.rateio_escopo === 'POR_ITEM' && doc.conteudo !== 'COM_PRODUTOS') {
+    throw rateioInvalido('o rateio por item só existe em lançamento COM produtos', { field: 'rateio_escopo', reason: 'escopo_por_item_exige_produtos' });
+  }
+  const itemComLinhas = doc.itens.findIndex((i) => i.rateios.length > 0);
+  const juntos = (details) =>
+    rateioInvalido('rateio geral e rateio por item são exclusivos: use só um deles no documento', { field: 'rateios', reason: 'rateio_geral_e_por_item', escopo: doc.rateio_escopo, ...details });
+  if (doc.rateio_escopo === 'GERAL') {
+    // Linha em item no escopo GERAL é o modo por item misturado ao geral (com ou sem linhas no topo).
+    if (itemComLinhas >= 0) throw juntos(posicaoNoItem(itemComLinhas));
+    if (!doc.rateios.length) throw rateioInvalido('o rateio geral exige ao menos 1 linha', { field: 'rateios', reason: 'rateio_geral_obrigatorio' });
+    return;
+  }
+  if (doc.rateios.length) throw juntos({ colecao: 'rateios', indice: 0 });
+  let total = 0;
+  doc.itens.forEach((item, indice) => {
+    const n = item.rateios.length;
+    if (!n) throw rateioInvalido('no rateio por item, cada item precisa de ao menos 1 linha', { field: 'rateios', reason: 'item_sem_rateio', ...posicaoNoItem(indice) });
+    if (n > MAX_RATEIOS_POR_ITEM) {
+      throw rateioInvalido(`o item passa de ${MAX_RATEIOS_POR_ITEM} linhas de rateio`, {
+        field: 'rateios', reason: 'rateio_item_excede_limite', ...posicaoNoItem(indice), limite: MAX_RATEIOS_POR_ITEM, informado: n,
+      });
+    }
+    total += n;
+    if (total > MAX_RATEIOS_ITENS_TOTAL) {
+      throw rateioInvalido(`o documento passa de ${MAX_RATEIOS_ITENS_TOTAL} linhas de rateio por item`, {
+        field: 'rateios', reason: 'rateio_itens_excede_limite', ...posicaoNoItem(indice), limite: MAX_RATEIOS_ITENS_TOTAL,
+        informado: doc.itens.reduce((t, i) => t + i.rateios.length, 0),
+      });
+    }
+  });
+};
+
 /**
  * Plano do lançamento (puro). `referencias.casas` é a escala da moeda DO
  * DOCUMENTO; `referencias.produtos` (Map id → produto) dá o `peso_por_saco_kg`.
@@ -209,8 +292,16 @@ export const planejarOperacao = (doc, referencias) => {
   const valorTotal = valorBruto.minus(doc.valor_desconto).plus(doc.valor_acrescimo);
   if (!valorTotal.gt(0)) throw valoresInvalidos('o total (bruto − desconto + acréscimo) deve ser maior que zero', { field: 'valor_total', reason: 'total_nao_positivo' });
   if (valorTotal.gt(LIMITE_DINHEIRO)) throw valoresInvalidos('o total está acima do limite (99.999.999.999.999,9999)', { field: 'valor_total', reason: 'valor_excede_limite' });
-  const itens = planejarCustoLiquido(doc, brutos, casas);
-  const rateios = planejarRateio(doc, valorTotal, casas);
+  exigirEscopoDoRateio(doc);
+  const liquidos = planejarCustoLiquido(doc, brutos, casas);
+  const porItem = doc.rateio_escopo === 'POR_ITEM';
+  // GERAL: o rateio do documento, intacto (P3-01); POR_ITEM: depois do líquido (é a base de cada item).
+  const rateios = porItem ? [] : planejarRateio(doc, valorTotal, casas);
+  const itens = porItem ? planejarRateioPorItem(doc, liquidos, casas) : liquidos.map((i) => ({ ...i, rateios: [] }));
+  if (porItem) {
+    const soma = somar(itens.flatMap((i) => i.rateios.map((r) => r.valor)));
+    if (!soma.eq(valorTotal)) throw new TypeError(`rateio por item: Σ das linhas ${soma.toFixed(casas)} ≠ total ${valorTotal.toFixed(casas)}`);
+  }
   const parcelas = planejarParcelas(doc, valorTotal, casas);
   /** @type {any[]} */
   const entradas = [];
@@ -251,8 +342,12 @@ export const planejarOperacao = (doc, referencias) => {
     valor_desconto: doc.valor_desconto,
     valor_acrescimo: doc.valor_acrescimo,
     valor_total: valorTotal,
+    rateio_escopo: doc.rateio_escopo,
     itens,
     rateios,
+    rateio_consolidado: porItem
+      ? consolidarRateio(itens.flatMap((i) => i.rateios), valorTotal)
+      : rateios.map((r) => ({ ...chaveDaLinha(r), valor: r.valor, percentual: r.percentual ?? percentualDe(r.valor, valorTotal), linha: r })),
     parcelas,
     efeitos_estoque: { entradas, saidas },
     resumo: { parcelas_n: parcelas.length, itens_estoque_n: entradas.length + saidas.length, valor_titulos: valorTotal, moeda: referencias.moeda },
@@ -288,6 +383,30 @@ const unidadesDe = (x, casas) => {
   return BigInt(u.toFixed(0));
 };
 
+/** Inteiro de unidades mínimas → valor na escala `casas`. */
+const deUnidades = (n, casas) => new Dec(n.toString()).dividedBy(new Dec(10).pow(casas));
+
+/**
+ * MAIORES RESTOS em aritmética inteira (BigInt), o ÚNICO algoritmo de
+ * distribuição do módulo (desconto/acréscimo do cabeçalho, rateio PERCENTUAL
+ * geral e por item): cada parte recebe o piso de `alvo × p / Σp` e a sobra vai
+ * 1 unidade por vez às partes de MAIOR resto; empate de resto → menor índice
+ * (ordem). Σ do resultado = `alvo`, exato. Sem `Number`.
+ * @param {bigint} alvo  em unidades mínimas
+ * @param {bigint[]} pesos  não negativos
+ * @returns {bigint[]}
+ */
+export const maioresRestos = (alvo, pesos) => {
+  const base = pesos.reduce((t, p) => t + p, 0n);
+  if (alvo === 0n || base <= 0n) return pesos.map(() => 0n);
+  const partes = pesos.map((p) => (alvo * p) / base);
+  const restos = pesos.map((p) => (alvo * p) % base);
+  let faltam = alvo - partes.reduce((t, p) => t + p, 0n);
+  const ordem = pesos.map((_, i) => i).sort((a, b) => (restos[b] > restos[a] ? 1 : restos[b] < restos[a] ? -1 : a - b));
+  for (let k = 0; faltam > 0n; k += 1, faltam -= 1n) partes[ordem[k]] += 1n;
+  return partes;
+};
+
 /**
  * Rateia `valor` (desconto OU acréscimo do cabeçalho) entre as linhas,
  * proporcional ao subtotal, em unidades mínimas da moeda pelos MAIORES
@@ -297,18 +416,22 @@ const unidadesDe = (x, casas) => {
  * @param {any[]} subtotais  subtotais das linhas (na escala `casas`, todos > 0)
  * @param {number} casas
  */
-export const ratearCabecalho = (valor, subtotais, casas) => {
-  const alvo = unidadesDe(valor, casas);
-  const pesos = subtotais.map((x) => unidadesDe(x, casas));
-  const base = pesos.reduce((t, p) => t + p, 0n);
-  if (alvo === 0n || base <= 0n) return pesos.map(() => ZERO);
-  const partes = pesos.map((p) => (alvo * p) / base);
-  const restos = pesos.map((p) => (alvo * p) % base);
-  let faltam = alvo - partes.reduce((t, p) => t + p, 0n);
-  const ordem = pesos.map((_, i) => i).sort((a, b) => (restos[b] > restos[a] ? 1 : restos[b] < restos[a] ? -1 : a - b));
-  for (let k = 0; faltam > 0n; k += 1, faltam -= 1n) partes[ordem[k]] += 1n;
-  const escala = new Dec(10).pow(casas);
-  return partes.map((n) => new Dec(n.toString()).dividedBy(escala));
+export const ratearCabecalho = (valor, subtotais, casas) =>
+  maioresRestos(unidadesDe(valor, casas), subtotais.map((x) => unidadesDe(x, casas))).map((n) => deUnidades(n, casas));
+
+/**
+ * Distribui `total` (escala `casas`) pelos percentuais (Σ = 100, conferida
+ * antes) pelos maiores restos: `total × p / 100` em unidades mínimas. O peso
+ * de cada linha é o percentual escrito como inteiro (todas na mesma escala, a
+ * maior das linhas), o que dá exatamente o piso e a ordem dos restos de
+ * `total × p / 100` — o mesmo resultado da distribuição da P3-01.
+ * @param {any} total @param {any[]} percentuais @param {number} casas
+ */
+export const distribuirPercentuais = (total, percentuais, casas) => {
+  const escala = Math.max(0, ...percentuais.map((p) => dec(p).decimalPlaces()));
+  const fator = new Dec(10).pow(escala);
+  const pesos = percentuais.map((p) => BigInt(dec(p).times(fator).toFixed(0)));
+  return maioresRestos(unidadesDe(total, casas), pesos).map((n) => deUnidades(n, casas));
 };
 
 /**
@@ -356,7 +479,7 @@ const planejarRateio = (doc, total, casas) => {
   /** @type {Map<string, number>} */
   const vistos = new Map();
   linhas.forEach((l, indice) => {
-    const chave = `${l.natureza_id}|${l.centro_custo_id ?? ''}|${l.centro_resultado_id ?? ''}`;
+    const chave = textoDaChave(l);
     if (vistos.has(chave)) {
       throw rateioInvalido('linha de rateio repetida (mesma natureza e centros)', { field: 'natureza_id', reason: 'linha_duplicada', colecao: 'rateios', indice, repete_indice: vistos.get(chave) });
     }
@@ -381,20 +504,103 @@ const planejarRateio = (doc, total, casas) => {
       field: 'rateios', reason: 'soma_diferente', modo: 'PERCENTUAL', esperado: CEM.toFixed(CASAS_PERCENTUAL), informado: somaP.toFixed(CASAS_PERCENTUAL), diferenca: CEM.minus(somaP).toFixed(CASAS_PERCENTUAL),
     });
   }
-  const u = unidadeMinima(casas);
-  const exatos = linhas.map((l) => total.times(l.percentual).dividedBy(CEM));
-  const valores = exatos.map((x) => piso(x, casas));
-  const restos = exatos.map((x, i) => x.minus(valores[i]));
-  const faltam = total.minus(somar(valores)).dividedBy(u).toNumber();
   // Resto em unidades mínimas, 1 a 1, para os MAIORES restos; empate → menor ordem.
-  const ordem = linhas.map((_, i) => i).sort((a, b) => (restos[b].cmp(restos[a]) || a - b));
-  for (let k = 0; k < faltam; k += 1) valores[ordem[k]] = valores[ordem[k]].plus(u);
+  const valores = distribuirPercentuais(total, linhas.map((l) => l.percentual), casas);
   return linhas.map((l, indice) => {
     if (!valores[indice].gt(0)) {
       throw rateioInvalido('uma linha do rateio ficou com valor zero depois da distribuição; ajuste os percentuais', { field: 'percentual', reason: 'valor_linha_zero', colecao: 'rateios', indice });
     }
     return { ...l, valor: valores[indice], percentual: arredondar(l.percentual, CASAS_PERCENTUAL) };
   });
+};
+
+/** Chave da linha de rateio: natureza + centro de custo + centro de resultado. */
+const chaveDaLinha = (l) => ({ natureza_id: l.natureza_id, centro_custo_id: l.centro_custo_id ?? null, centro_resultado_id: l.centro_resultado_id ?? null });
+const textoDaChave = (l) => `${l.natureza_id}|${l.centro_custo_id ?? ''}|${l.centro_resultado_id ?? ''}`;
+
+/** Percentual informativo de `valor` sobre `base` (6 casas, ROUND_HALF_UP); base ≤ 0 → 0. */
+export const percentualDe = (valor, base) => (dec(base).gt(0) ? arredondar(dec(valor).times(CEM).dividedBy(dec(base)), CASAS_PERCENTUAL) : ZERO);
+
+/**
+ * D-PROD-156 — rateio POR ITEM, depois de `planejarCustoLiquido`: a base de
+ * cada item é o `valor_liquido` dele (o MESMO valor gravado). VALOR: cada linha
+ * > 0 e Σ = líquido do item, exato. PERCENTUAL: Σ = 100 por item e o líquido é
+ * distribuído pelos maiores restos (`distribuirPercentuais`, o mesmo do geral).
+ * Linha repetida (mesma natureza e centros) só conta DENTRO do mesmo item.
+ * Erros apontam `{colecao:'itens', indice, subcolecao:'rateios', subindice}`.
+ * @param {any} doc @param {any[]} itens  itens com `valor_liquido` @param {number} casas
+ */
+export const planejarRateioPorItem = (doc, itens, casas) =>
+  itens.map((item, indice) => {
+    const linhas = item.rateios;
+    const liquido = item.valor_liquido;
+    const noItem = (subindice) => ({ ...posicaoNoItem(indice, subindice), item_ordem: item.ordem });
+    if (!linhas.length) throw rateioInvalido('no rateio por item, cada item precisa de ao menos 1 linha', { field: 'rateios', reason: 'item_sem_rateio', ...noItem() });
+    /** @type {Map<string, number>} */
+    const vistos = new Map();
+    linhas.forEach((l, subindice) => {
+      const chave = textoDaChave(l);
+      if (vistos.has(chave)) {
+        throw rateioInvalido('linha de rateio repetida no mesmo item (mesma natureza e centros)', {
+          field: 'natureza_id', reason: 'linha_duplicada', ...noItem(subindice), repete_subindice: vistos.get(chave),
+        });
+      }
+      vistos.set(chave, subindice);
+    });
+    if (doc.rateio_modo === 'VALOR') {
+      linhas.forEach((l, subindice) => {
+        if (!l.valor.gt(0)) throw rateioInvalido('linha de rateio do item com valor zero', { field: 'valor', reason: 'valor_linha_zero', ...noItem(subindice) });
+      });
+      const soma = somar(linhas.map((l) => l.valor));
+      if (!soma.eq(liquido)) {
+        throw rateioInvalido('a soma do rateio do item difere do valor líquido do item', {
+          field: 'rateios', reason: 'soma_diferente', modo: 'VALOR', ...noItem(),
+          esperado: liquido.toFixed(casas), informado: soma.toFixed(casas), diferenca: liquido.minus(soma).toFixed(casas), valor_liquido: liquido.toFixed(casas),
+        });
+      }
+      // Modo VALOR: percentual NÃO é gravado (o informativo é calculado na leitura, sobre o líquido do item).
+      return { ...item, rateios: linhas.map((l) => ({ ...l, valor: l.valor, percentual: null })) };
+    }
+    const somaP = somar(linhas.map((l) => l.percentual));
+    if (!somaP.eq(CEM)) {
+      throw rateioInvalido('os percentuais do rateio do item devem somar exatamente 100', {
+        field: 'rateios', reason: 'soma_diferente', modo: 'PERCENTUAL', ...noItem(),
+        esperado: CEM.toFixed(CASAS_PERCENTUAL), informado: somaP.toFixed(CASAS_PERCENTUAL), diferenca: CEM.minus(somaP).toFixed(CASAS_PERCENTUAL), valor_liquido: liquido.toFixed(casas),
+      });
+    }
+    const valores = distribuirPercentuais(liquido, linhas.map((l) => l.percentual), casas);
+    return {
+      ...item,
+      rateios: linhas.map((l, subindice) => {
+        if (!valores[subindice].gt(0)) {
+          throw rateioInvalido('uma linha do rateio do item ficou com valor zero depois da distribuição; ajuste os percentuais', {
+            field: 'percentual', reason: 'valor_linha_zero', ...noItem(subindice),
+          });
+        }
+        return { ...l, valor: valores[subindice], percentual: arredondar(l.percentual, CASAS_PERCENTUAL) };
+      }),
+    };
+  });
+
+/**
+ * Resumo CONSOLIDADO do rateio: soma por (natureza, centro de custo, centro de
+ * resultado), na ordem da PRIMEIRA aparição; Σ valor = Σ das linhas (= total
+ * no documento); percentual sobre `total` (6 casas, informativo). `linha` é a
+ * primeira linha do grupo (os nomes/snapshots saem dela).
+ * @template {{ natureza_id: string, centro_custo_id?: string|null, centro_resultado_id?: string|null, valor: any }} L
+ * @param {L[]} linhas @param {any} total
+ * @returns {Array<{ natureza_id: string, centro_custo_id: string|null, centro_resultado_id: string|null, valor: any, percentual: any, linha: L }>}
+ */
+export const consolidarRateio = (linhas, total) => {
+  /** @type {Map<string, { natureza_id: string, centro_custo_id: string|null, centro_resultado_id: string|null, valor: any, linha: L }>} */
+  const grupos = new Map();
+  for (const l of linhas) {
+    const chave = textoDaChave(l);
+    const g = grupos.get(chave);
+    if (g) g.valor = g.valor.plus(dec(l.valor));
+    else grupos.set(chave, { ...chaveDaLinha(l), valor: dec(l.valor), linha: l });
+  }
+  return [...grupos.values()].map((g) => ({ ...g, percentual: percentualDe(g.valor, total) }));
 };
 
 const planejarParcelas = (doc, total, casas) => {

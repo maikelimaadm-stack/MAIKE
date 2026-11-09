@@ -33,9 +33,10 @@ const dividirHalfUp = (n, d) => {
 /**
  * Maiores restos: cada linha recebe o piso de total × s_i / B; a sobra vai 1
  * unidade por linha às de MAIOR resto (empate → menor ordem). Σ = total exato.
+ * Também usado pela inicialização proporcional do rateio POR ITEM (D-PROD-156).
  * @param {bigint} total @param {bigint[]} pesos @returns {bigint[]}
  */
-const maioresRestos = (total, pesos) => {
+export const maioresRestos = (total, pesos) => {
   const base = pesos.reduce((s, p) => s + p, 0n);
   const linhas = pesos.map((p, i) => ({ i, valor: (total * p) / base, resto: (total * p) % base }));
   let sobra = total - linhas.reduce((s, l) => s + l.valor, 0n);

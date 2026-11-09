@@ -5609,4 +5609,57 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Estado (2026-11-09):** código na branch `claude/maike-gestao-p3-01-lancamento-unico` (PR #230, draft). Esta missão não aplicou a migration fora do PostgreSQL local de teste.
   - Relatório: `docs/engineering/MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`.
 
-<!-- Próxima decisão: D-PROD-156 -->
+## D-PROD-156 — Gestão Rural P3-02: rateio gerencial POR ITEM na Central Única de Lançamentos
+
+> **Autorização explícita do proprietário:** pedida e autorizada na missão **MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-IMPLEMENTACAO-INTEGRADA** (2026-11-09), depois do merge da PR #230 (P3-01, D-PROD-155) e da migration dela aplicada em produção. O texto foi redigido pelo agente. O merge da PR da P3-02 depende da aprovação do proprietário e da ordem de release do runbook próprio.
+
+- **Contexto:**
+  - A P3-01 (D-PROD-155) deixou o rateio gerencial só no nível do documento e listou o "rateio por item" como fora de escopo.
+  - Uma compra com ração, medicamento e serviço, ou destinada a vários centros, precisa classificar cada item de um jeito.
+- **Decisão — o que entra (delimitado):**
+  - **Escopo do rateio**, escolhido no documento e só com `COM_PRODUTOS`:
+    - **GERAL** é o padrão e o comportamento da P3-01;
+    - **POR_ITEM** dá a cada item (MERCADORIA ou SERVICO) a sua própria divisão em natureza, centro de custo e centro de resultado, por VALOR ou PERCENTUAL. O `rateio_modo` do documento vale para todas as linhas.
+  - **Os modos são mutuamente exclusivos:** um documento nunca tem rateio geral e rateio por item ao mesmo tempo, e a API recusa a mistura (`rateio_geral_e_por_item`).
+    - `SEM_PRODUTOS` aceita só GERAL.
+    - Sem `rateio_escopo` no corpo, vale GERAL; os clientes antigos continuam funcionando.
+  - **Base do rateio por item:**
+    - é o `valor_liquido` do item calculado pelo motor da D-PROD-155 e gravado: subtotal − desconto rateado + acréscimo rateado;
+    - a soma por item é exatamente esse líquido, e a soma de todos os itens é exatamente o `valor_total`;
+    - no modo PERCENTUAL, a distribuição usa os maiores restos em unidades mínimas da moeda (empate → menor ordem), o mesmo algoritmo do rateio do cabeçalho e do rateio geral, agora numa função só;
+    - dinheiro é sempre Decimal no backend e inteiro na tela.
+  - **Limites:** 20 linhas por item e 1000 linhas por documento.
+  - **Validação:**
+    - acontece no rascunho, na prévia e na confirmação, também quando a chamada vem direto pela API;
+    - os erros apontam o item e a linha (`details.colecao='itens'`, `indice`, `subcolecao='rateios'`, `subindice`);
+    - `soma_diferente` por item segue a semântica do rateio geral da D-PROD-155: no modo VALOR, `esperado` é o líquido do item e `esperado`/`informado`/`diferenca` vêm na escala da moeda; no modo PERCENTUAL, os três são **percentuais** com 6 casas (`esperado = '100.000000'`), e o líquido do item vem em `valor_liquido`, na escala da moeda. Quem formata `details` olha o `modo` primeiro. O SPEC da missão citava só o caso VALOR, e a revisão registrou a divergência;
+    - naturezas e centros passam pelas mesmas regras do rateio geral: existe, está ativo, tipo × direção, não é sintética, mesmo tenant e mesma empresa;
+    - a FK da linha por item é `(cliente_id, empresa_id, item_id)` e não amarra o item ao **mesmo** documento da linha, porque isso exigiria UNIQUE em tabela antiga, o que o classificador recusa. Uma linha gravada fora da API que cruze dois documentos da mesma empresa vira **422 `OPERACAO_RATEIO_INVALIDO` `linha_de_item_fora_do_documento`** na prévia, na confirmação, no PUT e no descarte dos dois documentos. O detalhe mostra em cada item só as linhas do próprio documento.
+  - **Leitura:**
+    - o detalhe, a prévia e a listagem expõem `rateio_escopo`;
+    - o detalhe e a prévia expõem também `itens[].rateios` e o `rateio_consolidado` (soma por natureza e centros, sem duplicar montantes, Σ = total), nos dois modos;
+    - **leitura de um instante só:** todo PUT recria os itens com ids novos, e as linhas por item são associadas pelo `item_id`. Por isso a prévia lê o cabeçalho com `FOR SHARE`, que serializa com PUT, descarte e confirmação (todos `FOR UPDATE`), e o GET do detalhe roda numa transação `REPEATABLE READ` só de leitura. Sem isso, um PUT que confirmasse entre as leituras rasgava o documento: prévia com "item sem rateio" falso, detalhe com itens sem linhas.
+  - **Tela (a mesma `LancamentosFinanceiros`):**
+    - seletor "Rateio: Geral | Por item";
+    - um bloco compacto por item, que recolhe e expande, com líquido e diferença por item e total;
+    - "Aplicar classificação a todos os itens";
+    - **troca de GERAL para POR_ITEM:** um diálogo pergunta se usa a classificação geral proporcional ou se começa em branco. O proporcional é recusado, com o motivo, quando alguma linha do geral ficaria com zero em algum item: tirá-la calada mudaria as naturezas do documento. O geral (linhas e modo) fica guardado no formulário **até o rascunho ser salvo**, e o diálogo diz isso: o documento POR_ITEM salvo não tem rateio geral;
+    - **troca de POR_ITEM para GERAL:** pede confirmação antes de descartar e diz se o geral volta como estava ou começa em branco;
+    - o estado fica preso à chave estável do item, e a recusa do servidor (`indice`/`subindice` do corpo enviado) é traduzida pelas chaves enviadas, mesmo que o usuário mova ou remova itens com a requisição no ar;
+    - Confirmar fica desabilitado enquanto algo não fecha;
+    - a tela funciona em 390 px sem rolagem horizontal.
+  - **Banco** (migration `20261109200000_gestao_p3_02_rateio_por_item`, expand-only e classificada sem mudar o classificador):
+    - **coluna `OperacaoFinanceira.rateio_escopo VARCHAR(12)` anulável e sem DEFAULT.** É o discriminador durável e explícito: `NULL`, das linhas da P3-01, vale GERAL, e o runtime novo grava sempre `GERAL` ou `POR_ITEM`. O classificador proíbe CHECK em tabela antiga, então o domínio é garantido no serviço e nos testes;
+    - **tabela nova `OperacaoFinanceiraItemRateio`.** Tem FKs compostas: tenant + empresa + documento + direção, tenant + empresa + item, natureza com tipo, e os centros. Tem também CHECKs (tipo × direção e valores), uniques, índices iniciados por `cliente_id`, RLS sem FORCE, política só para `maike_vercel` e 0 grants públicos.
+- **O que continua igual:**
+  - títulos, liquidação, estoque, FIFO, custo líquido, cancelamento, idempotência, travas e permissões da D-PROD-155;
+  - o rateio é só classificação gerencial: não cria título, movimento ou custo, e o consumo de estoque não vira despesa duas vezes;
+  - documento confirmado ou cancelado continua imutável;
+  - a migration da P3-01 e todo o histórico continuam imutáveis.
+- **Fora do escopo:** contabilidade, fiscal, tributos, NF-e, OFX, contas bancárias, DRE, câmbio, rateio fiscal e módulos novos. Os domínios legados continuam proibidos.
+- **Consequências e release:**
+  - A migration vem antes do merge, pelo runbook próprio: GO específico, preflight só leitura com 35 migrations concluídas, backup comprovado, classificador, ensaio local, migration (36 concluídas), conferência, merge manual, deploy e smoke.
+  - Se o runtime voltar ao da P3-01, as operações com documento POR_ITEM falham de forma segura, sem perda de dado: salvar ou descartar o rascunho responde 403 `TENANT_SCOPE_VIOLATION` (a FK RESTRICT da linha por item vira `P2003`, que o `errorHandler` traduz assim), e confirmar responde 422 `OPERACAO_RATEIO_INVALIDO` `soma_diferente` (não há rateio geral). As duas respostas enganam e estão no quadro do runbook, com o aviso ao suporte de que, nessa janela, esse 403 não é incidente de tenancy.
+  - Relatório: `docs/engineering/MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`.
+
+<!-- Próxima decisão: D-PROD-157 -->

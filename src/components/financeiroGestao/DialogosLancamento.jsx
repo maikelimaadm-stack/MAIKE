@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
 import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
-import RateioItensLancamento from "@/components/financeiroGestao/RateioItensLancamento";
+import RateioItensLancamento, { nomesDasClassificacoes } from "@/components/financeiroGestao/RateioItensLancamento";
 
 // Os componentes de `ui/dialog` são forwardRef sem tipos: aqui valem como `any`.
 const Dialog = /** @type {any} */ (UiDialog.Dialog);
@@ -146,10 +146,14 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
   const erroBaixa = baixa ? (!metodo ? "Escolha a forma" : !ehDiaValido(dataBaixa) ? "Informe a data" : dataBaixa > hoje ? "A data não pode ser futura" : null) : null;
   const pagar = registro?.direcao === "PAGAR";
   // Rateio do cabeçalho por item (rodada 4): nomes vêm do rascunho; valores, do plano.
-  const itensDoPlano = registro?.conteudo === "COM_PRODUTOS" && Array.isArray(plano.itens) ? plano.itens : [];
-  const nomes = new Map(
-    (Array.isArray(registro?.itens) ? registro.itens : []).map((/** @type {any} */ i) => [i.ordem, i.tipo_item === "SERVICO" ? i.descricao || "Serviço" : i.produto_nome || ""]),
+  const itensDoRascunho = Array.isArray(registro?.itens) ? registro.itens : [];
+  // Rateio POR ITEM (D-PROD-156): as linhas de cada item vêm do plano (o rascunho, se faltarem).
+  const itensDoPlano = (registro?.conteudo === "COM_PRODUTOS" && Array.isArray(plano.itens) ? plano.itens : []).map((/** @type {any} */ i) =>
+    Array.isArray(i?.rateios) ? i : { ...i, rateios: itensDoRascunho.find((/** @type {any} */ r) => r?.ordem === i?.ordem)?.rateios ?? [] },
   );
+  const nomes = new Map(itensDoRascunho.map((/** @type {any} */ i) => [i.ordem, i.tipo_item === "SERVICO" ? i.descricao || "Serviço" : i.produto_nome || ""]));
+  const escopoRateio = plano.rateio_escopo ?? registro?.rateio_escopo ?? "GERAL";
+  const consolidado = Array.isArray(plano.rateio_consolidado) ? plano.rateio_consolidado : Array.isArray(registro?.rateio_consolidado) ? registro.rateio_consolidado : null;
   const residuos = itensDoPlano.map((/** @type {any} */ i) => i?.residuo_custo).filter((/** @type {unknown} */ r) => typeof r === "string" && /^-?\d+(?:\.\d+)?$/.test(r));
   let residuoTotal = null;
   try {
@@ -174,7 +178,17 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
             )}
           </DialogDescription>
         </DialogHeader>
-        {itensDoPlano.length ? <RateioItensLancamento itens={itensDoPlano} nomes={nomes} valorTotal={plano.valor_total ?? registro?.valor_total} c={c} /> : null}
+        {itensDoPlano.length ? (
+          <RateioItensLancamento
+            itens={itensDoPlano}
+            nomes={nomes}
+            valorTotal={plano.valor_total ?? registro?.valor_total}
+            c={c}
+            escopo={escopoRateio}
+            consolidado={consolidado}
+            nomesRateio={nomesDasClassificacoes(registro)}
+          />
+        ) : null}
         {Array.isArray(plano.avisos) && plano.avisos.length ? (
           // Aviso é INFORMATIVO (os bloqueios vêm à parte, em `bloqueios`).
           <ul className="list-disc space-y-1 pl-5 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previa-avisos">
@@ -236,6 +250,65 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
           >
             {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
             {enviando ? "Confirmando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Confirmar lançamento"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Troca do rateio GERAL → POR ITEM (D-PROD-156): pergunta EXPLICITAMENTE como
+ * cada item começa — com a classificação geral, nas mesmas proporções sobre o
+ * líquido de cada item (maiores restos), ou em branco. O rateio geral fica
+ * guardado no formulário até o rascunho ser salvo: voltar para "Geral" antes
+ * disso o traz de volta como estava (o documento POR_ITEM salvo não tem geral).
+ * @param {{
+ *   aberto: boolean,
+ *   proporcional: { possivel: boolean, motivo: string|null },
+ *   onProporcional: () => void,
+ *   onEmBranco: () => void,
+ *   onCancelar: () => void,
+ * }} props
+ */
+export function DialogoEscopoPorItem({ aberto, proporcional, onProporcional, onEmBranco, onCancelar }) {
+  return (
+    <Dialog open={aberto} onOpenChange={(o) => (!o ? onCancelar() : undefined)}>
+      <DialogContent data-permissao-explicita="" data-testid="dialogo-escopo-por-item" className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Rateio por item</DialogTitle>
+          <DialogDescription>
+            Como começar a classificação de cada item? O rateio geral continua guardado enquanto o rascunho não for salvo: se voltar para “Geral”
+            antes de salvar, ele volta como está. Ao salvar por item, o rateio geral deixa de existir no documento.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 text-[13px]">
+          <div className="rounded-md border border-[var(--mg-divider,#cbd5e1)] p-3">
+            <p className="font-semibold">Usar a classificação geral (proporcional)</p>
+            <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">
+              Cada item recebe as mesmas naturezas e centros do rateio geral, nas mesmas proporções, sobre o valor líquido do item (o arredondamento vai pelos
+              maiores restos, ao centavo).
+            </p>
+            {!proporcional.possivel && proporcional.motivo ? (
+              <p className="mt-1 text-[12px] text-amber-800" data-testid="escopo-por-item-motivo">
+                {proporcional.motivo}
+              </p>
+            ) : null}
+            <button type="button" className={`${BOTAO_PRIMARIO} mt-2`} disabled={!proporcional.possivel} onClick={onProporcional} data-testid="escopo-por-item-proporcional">
+              Usar a classificação geral
+            </button>
+          </div>
+          <div className="rounded-md border border-[var(--mg-divider,#cbd5e1)] p-3">
+            <p className="font-semibold">Começar em branco</p>
+            <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">Cada item começa com uma linha vazia para você escolher a natureza e os centros.</p>
+            <button type="button" className={`${BOTAO_SECUNDARIO} mt-2`} onClick={onEmBranco} data-testid="escopo-por-item-branco">
+              Começar em branco
+            </button>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={onCancelar} data-testid="escopo-por-item-cancelar">
+            Continuar no rateio geral
           </button>
         </DialogFooter>
       </DialogContent>

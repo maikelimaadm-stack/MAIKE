@@ -4,7 +4,15 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { formatarMoeda, formatarNumero, percentualDe } from "@/lib/dinheiroDecimal";
 import { formatarDia, formatarInstante } from "@/lib/diaCivil";
-import { NotaResiduoCusto, TotaisRateioItens, ValoresRateadosDoItem, temRateioDoItem } from "@/components/financeiroGestao/RateioItensLancamento";
+import {
+  ClassificacaoDoItem,
+  NotaResiduoCusto,
+  ResumoConsolidado,
+  TotaisRateioItens,
+  ValoresRateadosDoItem,
+  temRateioDoItem,
+} from "@/components/financeiroGestao/RateioItensLancamento";
+import { consolidarRateio, escopoDoRateio } from "@/lib/rateioPorItem";
 import {
   ROTULO_CONDICAO,
   ROTULO_CONTEUDO,
@@ -69,9 +77,26 @@ const quem = (u) => {
 };
 
 /**
+ * Resumo consolidado do detalhe; servidor sem o campo → soma das linhas dos
+ * itens aqui mesmo (mesma regra, src/lib/rateioPorItem.js).
+ * @param {any} d @param {number} casas @returns {any[]}
+ */
+const consolidadoDoDetalhe = (d, casas) => {
+  if (Array.isArray(d.rateio_consolidado)) return d.rateio_consolidado;
+  try {
+    const linhas = (Array.isArray(d.itens) ? d.itens : []).flatMap((/** @type {any} */ i) => (Array.isArray(i?.rateios) ? i.rateios : []));
+    return consolidarRateio(linhas, String(d.valor_total), casas);
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Consulta do lançamento confirmado ou cancelado (D-PROD-155): cabeçalho,
  * itens com os efeitos de estoque (lote/movimento), rateio, títulos com saldo e
- * liquidações (estornadas marcadas) e histórico (quem/quando/ação).
+ * liquidações (estornadas marcadas) e histórico (quem/quando/ação). No rateio
+ * POR ITEM (D-PROD-156) cada item mostra a sua classificação e o rateio vira o
+ * resumo consolidado por natureza e centros (sem duplicar montantes).
  *
  * @param {{
  *   detalhe: any,
@@ -94,6 +119,7 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
   const titulos = Array.isArray(d.titulos) ? [...d.titulos].sort((a, b) => (a.numero_parcela ?? 0) - (b.numero_parcela ?? 0)) : [];
   const itens = Array.isArray(d.itens) ? d.itens : [];
   const rateios = Array.isArray(d.rateios) ? d.rateios : [];
+  const porItem = escopoDoRateio(d.rateio_escopo) === "POR_ITEM";
   const historico = Array.isArray(d.historico) ? d.historico : [];
   // O detalhe real traz o estorno como linha própria (`tipo: 'ESTORNO'`, só exibição):
   // ela não é baixa, não se estorna e não conta como baixa ativa.
@@ -174,6 +200,11 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                     <div className="col-span-12 min-w-0">
                       <ValoresRateadosDoItem item={i} c={c} prefixo={`consulta-item-${i.ordem}`} />
                     </div>
+                    {porItem ? (
+                      <div className="col-span-12 min-w-0">
+                        <ClassificacaoDoItem linhas={i.rateios} c={c} testId={`consulta-item-${i.ordem}-classificacao`} />
+                      </div>
+                    ) : null}
                     {i.tipo_item === "MERCADORIA" ? (
                       <Dado rotulo="Efeito no estoque" span="col-span-12">
                         <span className="text-[12px] font-normal">
@@ -200,8 +231,13 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
             </>
           ) : null}
 
-          <SecaoForm titulo="Rateio" />
-          {rateios.map((/** @type {any} */ r) => (
+          <SecaoForm titulo={porItem ? "Rateio por item — resumo consolidado" : "Rateio"} />
+          {porItem ? (
+            <div className="col-span-12 min-w-0">
+              <ResumoConsolidado linhas={consolidadoDoDetalhe(d, c.casas)} valorTotal={d.valor_total} c={c} testId="consulta-rateio-consolidado" />
+            </div>
+          ) : null}
+          {(porItem ? [] : rateios).map((/** @type {any} */ r) => (
             <div key={r.ordem} className="col-span-12 min-w-0 rounded-lg border border-[var(--mg-divider,#cbd5e1)] bg-white p-3" data-testid={`consulta-rateio-${r.ordem}`}>
               <div className="grid grid-cols-12 gap-3">
                 <Dado rotulo={`Natureza ${r.ordem}`} span="col-span-12 md:col-span-4">

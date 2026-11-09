@@ -17,15 +17,26 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) com tabela nova', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.deepEqual(c.tabelas_novas, [
     'CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno',
-    'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraRateio',
+    'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraItemRateio', 'OperacaoFinanceiraRateio',
     'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao', 'TituloFinanceiro',
   ]);
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
+});
+
+test('B1b: P3-02 (D-PROD-156) classificada SOZINHA, como na release (a P3-01 já está na main): só OperacaoFinanceira.rateio_escopo anulável numa tabela antiga e a tabela nova do rateio por item', () => {
+  const c = classificarMigrations([ler('20261109200000_gestao_p3_02_rateio_por_item')]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, ['OperacaoFinanceiraItemRateio']);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, ['OperacaoFinanceira.rateio_escopo']);
+  // Sem a tabela da P3-01 como "nova", um CHECK na coluna nova da tabela antiga é recusado.
+  const comCheck = `${ler('20261109200000_gestao_p3_02_rateio_por_item').sql}\nALTER TABLE "OperacaoFinanceira" ADD CONSTRAINT "x" CHECK ("rateio_escopo" IN ('GERAL', 'POR_ITEM'));`;
+  assert.ok(classificar(comCheck).violacoes.some((v) => v.codigo === 'ALTER_EM_TABELA_ANTIGA'));
 });
 
 test('B2: padrão = RECUSAR — cada caso negativo é violação com código estável', () => {

@@ -10,14 +10,24 @@
  * plugin (encapsulado: só estas rotas) tem um `preValidation` que recusa, em
  * todos os níveis, valor que não seja string e declaração que não seja booleano
  * literal — 400 `REQUEST_VALIDATION_FAILED` reason `valor_deve_ser_texto` /
- * `tipo_invalido`, com `details.campo` (caminho), `colecao` e `indice`.
+ * `tipo_invalido`, com `details.campo` (caminho), `colecao` e `indice` (e, na
+ * linha do rateio de um item, `subcolecao` e `subindice`).
+ *
+ * D-PROD-156 (rateio por item): `rateio_escopo` e `itens[].rateios` entram no
+ * corpo; `rateios` do documento deixa de ser obrigatório (POR_ITEM manda vazio)
+ * mas continua tipado. As recusas precisas (escopo, exclusões, item sem linha,
+ * teto por item) vêm do normalizador do plano (422 `OPERACAO_RATEIO_INVALIDO`
+ * com item e linha exatos) — por isso o schema só tipa o escopo como texto e o
+ * teto de linhas por item da rota é o do documento inteiro.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { METODOS } from './financeiroCatalogo.js';
-import { CONDICOES, CONTEUDOS, DIRECOES, MAX_ITENS, MAX_PARCELAS, MAX_RATEIOS, RATEIO_MODOS, TIPOS_ITEM, UNIDADES } from './operacaoFinanceiraPlano.js';
+import {
+  CONDICOES, CONTEUDOS, DIRECOES, MAX_ITENS, MAX_PARCELAS, MAX_RATEIOS, MAX_RATEIOS_ITENS_TOTAL, RATEIO_MODOS, TIPOS_ITEM, UNIDADES,
+} from './operacaoFinanceiraPlano.js';
 import {
   LIMITE_LISTA_MAXIMO, LIMITE_LISTA_PADRAO, cancelar, confirmar, criarRascunho, descartarRascunho, detalhar, estornarLiquidacao, listar, previa,
   registrarLiquidacao, substituirRascunho,
@@ -43,6 +53,12 @@ const ENUM = (lista) => ({ type: 'string', enum: [...lista] });
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
 
+const RATEIO = {
+  type: 'object',
+  required: ['natureza_id'],
+  additionalProperties: false,
+  properties: { natureza_id: ID, centro_custo_id: ID_NULO, centro_resultado_id: ID_NULO, valor: DINHEIRO_NULO, percentual: PERCENTUAL_NULO },
+};
 const ITEM = {
   type: 'object',
   required: ['tipo_item', 'unidade', 'quantidade', 'valor_unitario'],
@@ -55,13 +71,10 @@ const ITEM = {
     unidade: ENUM(UNIDADES),
     quantidade: QUANTIDADE,
     valor_unitario: PRECO,
+    // D-PROD-156: linhas do rateio POR ITEM (mesmo formato da linha geral). O teto
+    // por item (20) é do normalizador, com item e linha no erro; aqui só o do documento.
+    rateios: { type: 'array', maxItems: MAX_RATEIOS_ITENS_TOTAL, items: RATEIO },
   },
-};
-const RATEIO = {
-  type: 'object',
-  required: ['natureza_id'],
-  additionalProperties: false,
-  properties: { natureza_id: ID, centro_custo_id: ID_NULO, centro_resultado_id: ID_NULO, valor: DINHEIRO_NULO, percentual: PERCENTUAL_NULO },
 };
 const PARCELA = { type: 'object', required: ['vencimento', 'valor'], additionalProperties: false, properties: { vencimento: DIA, valor: DINHEIRO } };
 
@@ -82,10 +95,13 @@ const DOC_PROPS = {
   valor_acrescimo: DINHEIRO_NULO,
   itens: { type: 'array', maxItems: MAX_ITENS, items: ITEM },
   rateio_modo: ENUM(RATEIO_MODOS),
-  rateios: { type: 'array', minItems: 1, maxItems: MAX_RATEIOS, items: RATEIO },
+  // D-PROD-156: GERAL | POR_ITEM (ausente/null → GERAL). Só tipado: o domínio é do normalizador (422 escopo_invalido).
+  rateio_escopo: { type: ['string', 'null'], maxLength: 32 },
+  // Sem minItems: POR_ITEM manda vazio; GERAL sem linha → 422 rateio_geral_obrigatorio no normalizador.
+  rateios: { type: 'array', maxItems: MAX_RATEIOS, items: RATEIO },
   parcelas: { type: 'array', minItems: 1, maxItems: MAX_PARCELAS, items: PARCELA },
 };
-const DOC_OBRIGATORIOS = ['empresa_id', 'direcao', 'conteudo', 'condicao', 'parceiro_id', 'data_emissao', 'rateio_modo', 'rateios', 'parcelas'];
+const DOC_OBRIGATORIOS = ['empresa_id', 'direcao', 'conteudo', 'condicao', 'parceiro_id', 'data_emissao', 'rateio_modo', 'parcelas'];
 
 const CRIAR = { body: { type: 'object', required: [...DOC_OBRIGATORIOS, 'operation_id'], additionalProperties: false, properties: { ...DOC_PROPS, operation_id: OPERATION_ID } } };
 const SUBSTITUIR = {
@@ -215,6 +231,8 @@ const PERFIL_GRAVAR = {
 // ─── anti-coerção (preValidation, antes do AJV) ─────────────────────────────
 const VALORES_TOPO = ['valor_bruto', 'valor_desconto', 'valor_acrescimo', 'valor'];
 const VALORES_LINHA = Object.freeze({ itens: ['quantidade', 'valor_unitario'], rateios: ['valor', 'percentual'], parcelas: ['valor'] });
+/** D-PROD-156: valores da linha do rateio de um item (`itens[i].rateios[j]`). */
+const VALORES_LINHA_ITEM = Object.freeze(['valor', 'percentual']);
 
 const recusarTipo = (field, campo, reason, extra = {}) =>
   new AppError('REQUEST_VALIDATION_FAILED', reason === 'valor_deve_ser_texto'
@@ -247,6 +265,18 @@ export const recusarCoercaoFinanceira = (corpo) => {
       for (const chave of chaves) conferirValor(linha, chave, `${colecao}.${indice}.${chave}`, { colecao, indice });
     });
   }
+  // D-PROD-156: a coerção também chegaria às linhas do rateio por item.
+  if (!Array.isArray(c.itens)) return;
+  c.itens.forEach((item, indice) => {
+    const linhas = item && typeof item === 'object' && !Array.isArray(item) ? item.rateios : null;
+    if (!Array.isArray(linhas)) return;
+    linhas.forEach((linha, subindice) => {
+      if (!linha || typeof linha !== 'object' || Array.isArray(linha)) return;
+      for (const chave of VALORES_LINHA_ITEM) {
+        conferirValor(linha, chave, `itens.${indice}.rateios.${subindice}.${chave}`, { colecao: 'itens', indice, subcolecao: 'rateios', subindice });
+      }
+    });
+  });
 };
 
 const ctx = (request) => {

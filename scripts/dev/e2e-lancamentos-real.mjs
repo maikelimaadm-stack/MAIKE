@@ -65,6 +65,17 @@
  *  27. vínculo único no banco: cada título com um só documento, cada
  *      movimento/lote da P3 com um só item; o banco recusa ligar um movimento a
  *      dois itens.
+ *  P3-02 (D-PROD-156, rateio gerencial POR ITEM):
+ *  28. compra PARCELADA pela tela com 2 mercadorias + 1 serviço, desconto e
+ *      acréscimo, rateio POR ITEM (troca de escopo com os diálogos nos dois
+ *      sentidos, "usar a classificação geral", "começar em branco", "aplicar a
+ *      todos", 1 item em 2 centros, diferença de 1 centavo bloqueando o
+ *      Confirmar): prévia e detalhe com a classificação de cada item e o
+ *      consolidado; no banco 1 título por parcela, 1 movimento e 1 lote por
+ *      mercadoria com o custo líquido, linhas por item exatas e Σ = total;
+ *  29. o modo GERAL não mudou (escopo explícito em todo documento, nenhuma
+ *      linha por item, consolidado = rateio geral) e a API real recusa um corpo
+ *      POR ITEM com soma errada apontando o item (422, nada gravado).
  *  Toda resposta ≥ 400 da API real observada pelas telas é divergência, salvo
  *  as recusas PROVOCADAS (7, 16, 17 e, se a tela deixar confirmar, 25), que
  *  também TÊM de acontecer.
@@ -2162,6 +2173,457 @@ const executarLargura = async (browser, largura) => {
       } else {
         conferir(false, `[${rotulo}] menos de dois itens com movimento para provar a recusa do banco`);
       }
+    });
+
+    // ─── P3-02 (D-PROD-156): rateio gerencial POR ITEM ─────────────────────
+    // Compra COM produtos, PARCELADA em 2, com 2 mercadorias (KG) + 1 serviço,
+    // desconto 10,00 e acréscimo 3,33 rateados por item (maiores restos):
+    //   SAL MINERAL 200 kg × 2,50 = 500,00 → desc 3,22 acr 1,08 líq 497,86 (2,4893/kg)
+    //   serviço VACINAÇÃO 1 × 150,00      → desc 0,97 acr 0,32 líq 149,35
+    //   RAÇÃO 400 kg × 2,25 = 900,00      → desc 5,81 acr 1,93 líq 896,12 (2,2403/kg)
+    //   total 1.543,33 = Σ líquidos; parcelas 771,66 + 771,67. Os restos são
+    //   todos distintos: a ordem dos itens não muda o rateio de cada um.
+    // Classificação por item (modo VALOR): SAL INSUMOS/CRIA (100%); VACINAÇÃO
+    // SANIDADE/CRIA (100%); RAÇÃO em DOIS centros: INSUMOS/CRIA 500,00 +
+    // INSUMOS/RECRIA 396,12. Digitado na ordem SAL, VACINAÇÃO, RAÇÃO; no
+    // rascunho reaberto a RAÇÃO SOBE para o item 2 (PUT): as linhas vão junto.
+    // Consolidado (1ª aparição, ordem FINAL): INSUMOS/CRIA 997,86 (64,656295%),
+    // INSUMOS/RECRIA 396,12 (25,666578%), SANIDADE/CRIA 149,35 (9,677127%);
+    // Σ = 1.543,33. Conferido à mão (maiores restos) e com
+    // src/lib/rateioCabecalho.js, src/lib/rateioPorItem.js e o plano do backend.
+    const P302_ITENS = {
+      sal: { tipo: 'MERCADORIA', nome: 'SAL MINERAL', subtotal: '500.00', desconto: '3.22', acrescimo: '1.08', liquido: '497.86', kg: '200.0000', custo: '2.4893',
+        // [natureza, centro de custo, valor, % do líquido do item (informativo no VALOR)]
+        linhas: [['insumos', 'custo', '497.86', '100.000000']] },
+      vac: { tipo: 'SERVICO', nome: 'VACINAÇÃO', subtotal: '150.00', desconto: '0.97', acrescimo: '0.32', liquido: '149.35', kg: null, custo: null,
+        linhas: [['sanidade', 'custo', '149.35', '100.000000']] },
+      racao: { tipo: 'MERCADORIA', nome: 'RAÇÃO', subtotal: '900.00', desconto: '5.81', acrescimo: '1.93', liquido: '896.12', kg: '400.0000', custo: '2.2403',
+        linhas: [['insumos', 'custo', '500.00', '55.796099'], ['insumos', 'custo2', '396.12', '44.203901']] },
+    };
+    const P302 = {
+      total: '1543.33',
+      inicial: [P302_ITENS.sal, P302_ITENS.vac, P302_ITENS.racao],
+      final: [P302_ITENS.sal, P302_ITENS.racao, P302_ITENS.vac],
+      consolidadoInicial: [
+        ['insumos', 'custo', '997.86', '64.656295'],
+        ['sanidade', 'custo', '149.35', '9.677127'],
+        ['insumos', 'custo2', '396.12', '25.666578'],
+      ],
+      consolidado: [
+        ['insumos', 'custo', '997.86', '64.656295'],
+        ['insumos', 'custo2', '396.12', '25.666578'],
+        ['sanidade', 'custo', '149.35', '9.677127'],
+      ],
+      parcelas: ['771.66', '771.67'],
+    };
+    const NOME_NAT = { insumos: 'INSUMOS', sanidade: 'SANIDADE' };
+    const NOME_CC = { custo: 'REBANHO DE CRIA', custo2: 'REBANHO DE RECRIA' };
+    /** Linhas por item gravadas, item a item (ordem do item, depois a da linha). */
+    const linhasPorItemNoBanco = async (operacaoId) =>
+      (
+        await prisma.operacaoFinanceiraItem.findMany({
+          where: { cliente_id: s.cliente_id, operacao_id: operacaoId },
+          orderBy: { ordem: 'asc' },
+          include: { rateios: { orderBy: { ordem: 'asc' } } },
+        })
+      ).map((i) => i.rateios);
+    const confirmarAviso = async (botao) => {
+      const aviso = page.getByRole('alertdialog');
+      await aviso.waitFor({ state: 'visible' });
+      const texto = await aviso.innerText();
+      await clicar(aviso.getByRole('button', { name: botao, exact: true }));
+      await aviso.waitFor({ state: 'hidden' }).catch(() => {});
+      return texto;
+    };
+
+    // 28. Compra POR ITEM feita PELA TELA: troca de escopo com os diálogos nos
+    //     dois sentidos, "usar a classificação geral", "começar em branco",
+    //     "aplicar a todos", 1 item em 2 centros, diferença ao centavo
+    //     bloqueando o Confirmar, prévia com a classificação e o consolidado,
+    //     confirmação; no banco: 1 título por parcela, 1 movimento por item
+    //     físico, lote com o custo líquido, linhas por item exatas e Σ = total.
+    await passo('28 P3-02 compra POR ITEM pela tela (3 itens, mercadoria + servico, desconto e acrescimo, 1 item em 2 centros): escopo com dialogos, previa, confirmacao e banco exato', async () => {
+      const salAntes = await produtoAgora(s.produtos.sal.id);
+      const racaoAntes = await produtoAgora(s.produtos.racao.id);
+      const estoqueAntes = await fotoEstoque(s);
+      const criados = [];
+      const substituidos = [];
+      const ouvirCriacao = (req) => {
+        const caminho = new URL(req.url()).pathname;
+        if (req.method() === 'POST' && caminho === '/api/native/operacoes-financeiras') criados.push(JSON.parse(req.postData() || '{}'));
+        if (req.method() === 'PUT' && /^\/api\/native\/operacoes-financeiras\/[^/]+$/.test(caminho)) substituidos.push(JSON.parse(req.postData() || '{}'));
+      };
+      page.on('request', ouvirCriacao);
+      let rasc;
+      try {
+        await novo();
+        // Sem produtos não existe o seletor de escopo (só o rateio geral).
+        igual(await page.getByTestId('escolha-escopo-rateio').count(), 0, `[${rotulo}] seletor "Rateio: Geral | Por item" visível SEM produtos`);
+        await escolher('seletor-parceiro', /AGROPECUÁRIA BOA VISTA/);
+        await radio('escolha-conteudo', 'Com produtos');
+        await radio('escolha-condicao', 'Parcelado');
+        await escolher('seletor-produto-0', /SAL MINERAL/);
+        await escolher('seletor-local-0', /DEPÓSITO 03/);
+        await preencher('item-0-quantidade', '200');
+        await preencher('item-0-valor-unitario', '2,50');
+        await clicar(page.getByRole('button', { name: 'Serviço', exact: true }));
+        await visivel(page.getByTestId('item-1').getByLabel('Descrição do serviço')).fill('VACINAÇÃO');
+        await preencher('item-1-quantidade', '1');
+        await preencher('item-1-valor-unitario', '150,00');
+        await clicar(page.getByRole('button', { name: 'Mercadoria', exact: true }));
+        await escolher('seletor-produto-2', /RAÇÃO/);
+        await escolher('seletor-local-2', /DEPÓSITO 03/);
+        await preencher('item-2-quantidade', '400');
+        await preencher('item-2-valor-unitario', '2,25');
+        await preencher('valor-desconto', '10,00');
+        await preencher('valor-acrescimo', '3,33');
+        await preencher('data-operacional', hoje);
+        await clicar(page.getByTestId('declaracao-efeito-fisico'));
+        // Rateio GERAL primeiro (o padrão): uma linha, INSUMOS.
+        await visivel(page.getByTestId('escolha-escopo-rateio')).waitFor();
+        conferir(
+          await visivel(page.getByTestId('escolha-escopo-rateio').getByRole('radio', { name: 'Geral', exact: true })).isChecked(),
+          `[${rotulo}] o escopo padrão do rateio não é "Geral"`,
+        );
+        await escolher('seletor-natureza-0', /INSUMOS/);
+        const total = limpo(await visivel(page.getByTestId('total-lancamento')).innerText());
+        conferir(total.includes(br(P302.total)), `[${rotulo}] total do formulário POR ITEM: "${total}"`);
+
+        // (a) GERAL → POR ITEM: o diálogo pergunta; "Continuar no rateio geral" não muda nada.
+        await radio('escolha-escopo-rateio', 'Por item');
+        const dlgEscopo = page.getByTestId('dialogo-escopo-por-item');
+        await dlgEscopo.waitFor({ state: 'visible' });
+        conferir(await page.getByTestId('escopo-por-item-proporcional').isEnabled(), `[${rotulo}] "Usar a classificação geral" desabilitado com o geral completo`);
+        await shot('p302-dialogo-escopo');
+        if (movel) await dentroDaTela('dialogo-escopo-por-item', 'diálogo do escopo');
+        await clicar(page.getByTestId('escopo-por-item-cancelar'));
+        await dlgEscopo.waitFor({ state: 'hidden' });
+        igual(await page.getByTestId('rateio-item-0').count(), 0, `[${rotulo}] "Continuar no rateio geral" abriu o rateio por item`);
+        conferir(await visivel(page.getByTestId('seletor-natureza-0')).isVisible(), `[${rotulo}] o rateio geral sumiu depois de "Continuar no rateio geral"`);
+
+        // (b) "Usar a classificação geral": cada item com INSUMOS, 100% do SEU líquido.
+        await radio('escolha-escopo-rateio', 'Por item');
+        await dlgEscopo.waitFor({ state: 'visible' });
+        await clicar(page.getByTestId('escopo-por-item-proporcional'));
+        await dlgEscopo.waitFor({ state: 'hidden' });
+        for (const [k, it] of P302.inicial.entries()) {
+          await visivel(page.getByTestId(`rateio-item-${k}`)).waitFor();
+          const cab = limpo(await visivel(page.getByTestId(`rateio-item-${k}-cabecalho`)).innerText());
+          conferir(cab.toUpperCase().includes(`ITEM${k + 1}`) && cab.includes(br(it.liquido)), `[${rotulo}] cabeçalho do item ${k + 1} sem "Item ${k + 1}" ou o líquido ${it.liquido}: "${cab}"`);
+          const nat = await visivel(page.getByTestId(`seletor-natureza-item-${k}-0`)).innerText();
+          conferir(/INSUMOS/.test(nat), `[${rotulo}] item ${k + 1} não herdou INSUMOS do geral: "${nat}"`);
+          const auto = limpo(await visivel(page.getByTestId(`rateio-item-${k}-linha-0-valor-auto`)).innerText());
+          conferir(auto.includes(br(it.liquido)), `[${rotulo}] linha única do item ${k + 1} sem o líquido automático: "${auto}"`);
+        }
+        await shot('p302-por-item-proporcional');
+
+        // (c) POR ITEM → GERAL com dados: pede confirmação; "Descartar e voltar" traz o geral INTACTO.
+        await radio('escolha-escopo-rateio', 'Geral');
+        const aviso1 = await confirmarAviso('Descartar e voltar');
+        conferir(/classificações por item serão descartadas/i.test(aviso1), `[${rotulo}] a volta ao geral não avisou que descarta: "${aviso1.slice(0, 200)}"`);
+        igual(await page.getByTestId('rateio-item-0').count(), 0, `[${rotulo}] blocos por item continuam depois de voltar ao geral`);
+        const natGeral = await visivel(page.getByTestId('seletor-natureza-0')).innerText();
+        conferir(/INSUMOS/.test(natGeral), `[${rotulo}] o rateio geral não voltou intacto: "${natGeral}"`);
+
+        // (d) De novo POR ITEM, agora "Começar em branco": cada item com 1 linha vazia e o Confirmar bloqueado.
+        await radio('escolha-escopo-rateio', 'Por item');
+        await dlgEscopo.waitFor({ state: 'visible' });
+        await clicar(page.getByTestId('escopo-por-item-branco'));
+        await dlgEscopo.waitFor({ state: 'hidden' });
+        for (const k of [0, 1, 2]) {
+          const nat = await visivel(page.getByTestId(`seletor-natureza-item-${k}-0`)).innerText();
+          conferir(!/INSUMOS|SANIDADE|FRETE/.test(nat), `[${rotulo}] "Começar em branco" deixou natureza no item ${k + 1}: "${nat}"`);
+        }
+        conferir(await page.getByTestId('botao-confirmar-lancamento').isDisabled(), `[${rotulo}] Confirmar habilitado com itens sem classificação`);
+        const bloqueado = await visivel(page.getByTestId('confirmar-bloqueado-rateio-item')).innerText();
+        conferir(/Item 1, linha 1 do rateio/.test(bloqueado), `[${rotulo}] o aviso do Confirmar não aponta o item e a linha: "${bloqueado}"`);
+
+        // (e) "Aplicar classificação a todos os itens": INSUMOS + REBANHO DE CRIA, 100% em cada item.
+        await clicar(page.getByTestId('abrir-aplicar-todos'));
+        await escolher('seletor-natureza-todos', /INSUMOS/);
+        await escolher('seletor-centro-custo-todos', /REBANHO DE CRIA/);
+        await shot('p302-aplicar-todos');
+        await clicar(page.getByTestId('aplicar-classificacao-todos'));
+        for (const k of [0, 1, 2]) {
+          const cc = await visivel(page.getByTestId(`seletor-centro-custo-item-${k}-0`)).innerText();
+          conferir(/REBANHO DE CRIA/.test(cc), `[${rotulo}] "aplicar a todos" não chegou ao item ${k + 1}: "${cc}"`);
+        }
+        // Item 2 (serviço): SANIDADE. Item 3: dois centros, com 1 centavo a menos primeiro.
+        await escolher('seletor-natureza-item-1-0', /SANIDADE/);
+        await clicar(page.getByTestId('rateio-item-2-adicionar'));
+        await preencher('rateio-item-2-linha-0-valor', '500,00');
+        await escolher('seletor-natureza-item-2-1', /INSUMOS/);
+        await escolher('seletor-centro-custo-item-2-1', /REBANHO DE RECRIA/);
+        await preencher('rateio-item-2-linha-1-valor', '396,11');
+        const difItem = await visivel(page.getByTestId('rateio-item-2-diferenca')).innerText();
+        conferir(/falta/i.test(difItem) && limpo(difItem).includes('0,01'), `[${rotulo}] diferença de 1 centavo do item 3 não aparece: "${difItem}"`);
+        const difTotal = await visivel(page.getByTestId('rateio-itens-diferenca-total')).innerText();
+        conferir(/falta/i.test(difTotal) && limpo(difTotal).includes('0,01'), `[${rotulo}] diferença total de 1 centavo não aparece: "${difTotal}"`);
+        conferir(await page.getByTestId('botao-confirmar-lancamento').isDisabled(), `[${rotulo}] Confirmar habilitado com o item 3 sem fechar`);
+        const bloqueado3 = await visivel(page.getByTestId('confirmar-bloqueado-rateio-item')).innerText();
+        conferir(/Item 3/.test(bloqueado3), `[${rotulo}] o aviso do Confirmar não aponta o item 3: "${bloqueado3}"`);
+        await shot('p302-diferenca-centavo');
+        if (movel) await dentroDaTela('rateio-item-', 'rateio por item (formulário)');
+        await preencher('rateio-item-2-linha-1-valor', '396,12');
+        const difOk = await visivel(page.getByTestId('rateio-itens-diferenca-total')).innerText();
+        conferir(/Fechado/.test(difOk), `[${rotulo}] o total do rateio por item não fechou: "${difOk}"`);
+        conferir(await page.getByTestId('botao-confirmar-lancamento').isEnabled(), `[${rotulo}] Confirmar continua desabilitado com tudo fechado`);
+        igual(await page.getByTestId('confirmar-bloqueado-rateio-item').count(), 0, `[${rotulo}] aviso de bloqueio continua com tudo fechado`);
+
+        // (f) Recolher e expandir o bloco do item 1 (as linhas continuam no estado).
+        await clicar(page.getByTestId('rateio-item-0-cabecalho'));
+        igual(await page.getByTestId('rateio-item-0-linha-0').count(), 0, `[${rotulo}] o bloco do item 1 não recolheu`);
+        await clicar(page.getByTestId('rateio-item-0-cabecalho'));
+        await visivel(page.getByTestId('rateio-item-0-linha-0')).waitFor();
+
+        // (g) POR ITEM → GERAL com dados, e "Cancelar": nada muda.
+        await radio('escolha-escopo-rateio', 'Geral');
+        await confirmarAviso('Cancelar');
+        conferir(await visivel(page.getByTestId('escolha-escopo-rateio').getByRole('radio', { name: 'Por item', exact: true })).isChecked(), `[${rotulo}] "Cancelar" saiu do rateio por item`);
+        const linha31 = limpo(await visivel(page.getByTestId('seletor-centro-custo-item-2-1')).innerText());
+        conferir(/REBANHODERECRIA/.test(linha31), `[${rotulo}] "Cancelar" perdeu a linha 2 do item 3: "${linha31}"`);
+
+        // Parcelado em 2 (gerador: 30 e 60 dias).
+        const gerador = page.getByTestId('gerador-parcelas');
+        await visivel(gerador.getByLabel(/Nº de parcelas/)).fill('2');
+        await clicar(gerador.getByRole('button', { name: 'Gerar parcelas' }));
+        await page.getByTestId('parcela-1-valor').first().waitFor();
+        const difParc = await visivel(page.getByTestId('parcelas-diferenca')).innerText();
+        conferir(!/falta|sobra/i.test(difParc), `[${rotulo}] parcelas 771,66 + 771,67 acusam diferença: ${difParc}`);
+        await shot('p302-por-item-form');
+
+        // Prévia (o Confirmar salva o rascunho com POST e pede a prévia ao servidor).
+        const linhasDaApi = (itens) => (itens ?? []).map((i) => (i.rateios ?? []).map((r) => `${r.natureza_id}:${r.centro_custo_id}:${r.valor}:${r.percentual}`).join(',')).join(' | ');
+        const linhasEsperadas = (ordem) => ordem.map((it) => it.linhas.map(([n, cc, v, p]) => `${s.naturezas[n]}:${s.centros[cc]}:${v}:${p}`).join(',')).join(' | ');
+        const consolidadoDaApi = (lista) => (lista ?? []).map((g) => `${g.natureza_nome}:${g.centro_custo_nome}:${g.valor}:${g.percentual}`).join(' | ');
+        const consolidadoEsperado = (lista) => lista.map(([n, cc, v, p]) => `${NOME_NAT[n]}:${NOME_CC[cc]}:${v}:${p}`).join(' | ');
+        const previa1 = await confirmarPelaTela('p302-por-item');
+        conferir(limpo(previa1.resumo).includes(br(P302.total)) && /2 parcelas/i.test(previa1.resumo), `[${rotulo}] resumo da compra POR ITEM: ${previa1.resumo.slice(0, 200)}`);
+        conferir(!previa1.bloqueios.trim(), `[${rotulo}] prévia da compra POR ITEM com bloqueio: ${previa1.bloqueios.slice(0, 200)}`);
+        await mostrar('previa-rateio-item-3-classificacao', 'p302-previa-classificacao');
+        const cls3 = limpo(await textoBruto('previa-rateio-item-3-classificacao'));
+        conferir(
+          cls3.includes('REBANHODECRIA') && cls3.includes('REBANHODERECRIA') && cls3.includes(br('500.00')) && cls3.includes(br('396.12')),
+          `[${rotulo}] prévia sem os dois centros do item 3 (RAÇÃO): "${cls3.slice(0, 300)}"`,
+        );
+        await mostrar('previa-rateio-consolidado', 'p302-previa-consolidado');
+        const consPrevia = await textoBruto('previa-rateio-consolidado');
+        conferir(/confere com o total do documento/.test(consPrevia) && !/NÃO confere/.test(consPrevia), `[${rotulo}] prévia: consolidado não confere: "${consPrevia.slice(0, 300)}"`);
+        if (movel) {
+          await dentroDaTela('previa-rateio', 'prévia POR ITEM');
+          await dentroDaTela('dialogo-confirmacao', 'diálogo de confirmação POR ITEM');
+        }
+        rasc = await ultimaOperacao(s);
+        exigir(rasc?.status === 'RASCUNHO' && rasc.rateio_escopo === 'POR_ITEM', `[${rotulo}] rascunho POR ITEM não está no banco (escopo ${rasc?.rateio_escopo})`);
+        const pv = await previaApi(token, rasc.id, s.empresa.id);
+        igual(`${pv.status}:${(pv.corpo?.bloqueios ?? []).length}:${pv.corpo?.plano?.rateio_escopo}:${(pv.corpo?.plano?.rateios ?? []).length}`, '200:0:POR_ITEM:0', `[${rotulo}] prévia da API (escopo, rateio geral vazio)`);
+        igual(linhasDaApi(pv.corpo?.plano?.itens), linhasEsperadas(P302.inicial), `[${rotulo}] prévia da API: linhas por item (ordem digitada)`);
+        igual(consolidadoDaApi(pv.corpo?.plano?.rateio_consolidado), consolidadoEsperado(P302.consolidadoInicial), `[${rotulo}] prévia da API: consolidado (ordem digitada)`);
+
+        // "Voltar": o formulário passa a mostrar o RASCUNHO como o servidor o devolveu
+        // (detalhe → formulário): escopo, linhas e centros de cada item intactos.
+        await clicar(page.getByTestId('dialogo-confirmacao').getByRole('button', { name: 'Voltar', exact: true }));
+        await page.getByTestId('dialogo-confirmacao').waitFor({ state: 'hidden' });
+        await visivel(page.getByTestId('rateio-item-2')).waitFor();
+        conferir(
+          await visivel(page.getByTestId('escolha-escopo-rateio').getByRole('radio', { name: 'Por item', exact: true })).isChecked(),
+          `[${rotulo}] rascunho reaberto não está no rateio por item`,
+        );
+        for (const [k, it] of P302.inicial.entries()) {
+          for (const [j, [n, cc]] of it.linhas.entries()) {
+            const nat = limpo(await visivel(page.getByTestId(`seletor-natureza-item-${k}-${j}`)).innerText());
+            const ccTxt = limpo(await visivel(page.getByTestId(`seletor-centro-custo-item-${k}-${j}`)).innerText());
+            // "REBANHODECRIA" não é parte de "REBANHODERECRIA": `includes` distingue os dois centros.
+            conferir(nat.includes(NOME_NAT[n]) && ccTxt.includes(NOME_CC[cc].replace(/\s/g, '')), `[${rotulo}] rascunho reaberto: item ${k + 1} linha ${j + 1} = "${nat}" / "${ccTxt}"`);
+          }
+        }
+        await shot('p302-rascunho-reaberto');
+
+        // Editar e SUBIR a RAÇÃO (item 3 → item 2): as linhas vão junto (estado na chave do item).
+        await clicar(page.getByRole('button', { name: 'Editar', exact: true }));
+        await clicar(page.getByRole('button', { name: 'Mover item 3 para cima', exact: true }));
+        for (const [k, it] of P302.final.entries()) {
+          const cab = limpo(await visivel(page.getByTestId(`rateio-item-${k}-cabecalho`)).innerText()).toUpperCase();
+          conferir(cab.includes(`ITEM${k + 1}·${it.nome.replace(/\s/g, '')}`) && cab.includes(br(it.liquido)), `[${rotulo}] depois de subir a RAÇÃO, cabeçalho do item ${k + 1}: "${cab}"`);
+          const nLinhas = await page.evaluate((kk) => [...document.querySelectorAll('[data-testid]')].filter((e) => new RegExp(`^rateio-item-${kk}-linha-\\d+$`).test(e.getAttribute('data-testid') ?? '')).length, k);
+          igual(nLinhas, it.linhas.length, `[${rotulo}] depois de subir a RAÇÃO, linhas do item ${k + 1}`);
+        }
+        const ccRecria = limpo(await visivel(page.getByTestId('seletor-centro-custo-item-1-1')).innerText());
+        conferir(ccRecria.includes('REBANHODERECRIA'), `[${rotulo}] a linha 2 da RAÇÃO não acompanhou o item: "${ccRecria}"`);
+        conferir(await page.getByTestId('botao-confirmar-lancamento').isEnabled(), `[${rotulo}] Confirmar desabilitado depois de reordenar (tudo continua fechado)`);
+        await shot('p302-racao-subiu');
+
+        // Confirmar de novo: o formulário mudou → PUT do rascunho → prévia na ordem nova.
+        const previa2 = await confirmarPelaTela('p302-por-item-reordenado');
+        conferir(!previa2.bloqueios.trim(), `[${rotulo}] prévia do rascunho reordenado com bloqueio: ${previa2.bloqueios.slice(0, 200)}`);
+        const cls2 = limpo(await textoBruto('previa-rateio-item-2-classificacao'));
+        conferir(cls2.includes('REBANHODERECRIA') && cls2.includes(br('396.12')), `[${rotulo}] prévia reordenada: a RAÇÃO (item 2) sem os dois centros: "${cls2.slice(0, 300)}"`);
+        const pv2 = await previaApi(token, rasc.id, s.empresa.id);
+        igual(`${pv2.status}:${(pv2.corpo?.bloqueios ?? []).length}`, '200:0', `[${rotulo}] prévia da API do rascunho reordenado`);
+        igual(linhasDaApi(pv2.corpo?.plano?.itens), linhasEsperadas(P302.final), `[${rotulo}] prévia da API: linhas por item (ordem nova)`);
+        igual(consolidadoDaApi(pv2.corpo?.plano?.rateio_consolidado), consolidadoEsperado(P302.consolidado), `[${rotulo}] prévia da API: consolidado (ordem nova)`);
+        await confirmarDefinitivo('p302-por-item');
+      } finally {
+        page.off('request', ouvirCriacao);
+      }
+
+      // Os corpos que a TELA mandou: escopo explícito, geral vazio, linhas aninhadas
+      // no SEU item (POST na ordem digitada; PUT com a RAÇÃO no item 2).
+      igual(`${criados.length}:${substituidos.length}`, '1:1', `[${rotulo}] POST de criação e PUT do rascunho reordenado`);
+      const linhasDoCorpo = (c) =>
+        (c?.itens ?? []).map((i) => `${i.produto_id ?? i.descricao}=${(i.rateios ?? []).map((r) => `${r.natureza_id}:${r.centro_custo_id ?? null}:${r.centro_resultado_id ?? null}:${r.valor}`).join(',')}`).join(' | ');
+      const corpoEsperado = (ordem) =>
+        ordem
+          .map((it) => `${it === P302_ITENS.sal ? s.produtos.sal.id : it === P302_ITENS.racao ? s.produtos.racao.id : 'VACINAÇÃO'}=${it.linhas.map(([n, cc, v]) => `${s.naturezas[n]}:${s.centros[cc]}:null:${v}`).join(',')}`)
+          .join(' | ');
+      for (const [nome, c, ordem] of [['POST', criados[0], P302.inicial], ['PUT', substituidos[0], P302.final]]) {
+        igual(`${c?.rateio_escopo}:${c?.rateio_modo}:${JSON.stringify(c?.rateios)}`, 'POR_ITEM:VALOR:[]', `[${rotulo}] ${nome} da tela: escopo, modo e rateio geral`);
+        igual(linhasDoCorpo(c), corpoEsperado(ordem), `[${rotulo}] ${nome} da tela: linhas de cada item (valor na escala da moeda)`);
+      }
+
+      const d = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, rasc.id);
+        return o && o.status === 'CONFIRMADO' ? o : null;
+      }, 'compra POR ITEM confirmada');
+      igual(
+        `${d.rateio_escopo}:${d.rateio_modo}:${d.condicao}:${dec(d.valor_bruto)}:${dec(d.valor_desconto)}:${dec(d.valor_acrescimo)}:${dec(d.valor_total)}`,
+        'POR_ITEM:VALOR:PARCELADO:1550.0000:10.0000:3.3300:1543.3300',
+        `[${rotulo}] cabeçalho da compra POR ITEM`,
+      );
+      igual(d.rateios.length, 0, `[${rotulo}] compra POR ITEM com linha no rateio GERAL (os modos são exclusivos)`);
+      igual(
+        d.itens.map((i) => `${i.ordem}:${i.tipo_item}:${i.unidade}:${dec(i.valor_total)}:${dec(i.valor_desconto_rateado)}:${dec(i.valor_acrescimo_rateado)}:${dec(i.valor_liquido)}`).join('|'),
+        P302.final.map((e, k) => `${k + 1}:${e.tipo}:${e.tipo === 'SERVICO' ? 'UN' : 'KG'}:${dec4(e.subtotal)}:${dec4(e.desconto)}:${dec4(e.acrescimo)}:${dec4(e.liquido)}`).join('|'),
+        `[${rotulo}] itens gravados (banco)`,
+      );
+      // 1 título por parcela, Σ = total.
+      igual(
+        d.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:${t.status}:${dec(t.valor)}:${diaDe(t.vencimento)}`).join('|'),
+        P302.parcelas.map((v, k) => `${k + 1}/2:ABERTO:${dec4(v)}:${somarDias(hoje, 30 * (k + 1))}`).join('|'),
+        `[${rotulo}] títulos da compra POR ITEM (1 por parcela)`,
+      );
+      igual(await prisma.tituloFinanceiro.count({ where: { cliente_id: s.cliente_id, operacao_id: d.id } }), 2, `[${rotulo}] títulos da compra POR ITEM no banco`);
+      igual(deEscala(d.titulos.reduce((t, x) => t + escalar(dec(x.valor), 4), 0n), 4), dec(d.valor_total), `[${rotulo}] Σ títulos = total`);
+      // 1 movimento (e 1 lote) por item físico, com o custo LÍQUIDO; o serviço não mexe no estoque.
+      igual(await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, lancamento_origem_id: d.id } }), 2, `[${rotulo}] movimentos da compra POR ITEM (1 por mercadoria)`);
+      const servico = d.itens[2];
+      igual(`${servico.tipo_item}:${servico.estoque_lote_nota_id}:${servico.movimentacao_estoque_id}:${servico.quantidade_estoque}`, 'SERVICO:null:null:null', `[${rotulo}] serviço sem lote, movimento nem kg`);
+      for (const k of [0, 1]) {
+        const e = { ...P302.final[k], ordem: k + 1 };
+        const i = d.itens[k];
+        const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: i.estoque_lote_nota_id } });
+        const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: i.movimentacao_estoque_id } });
+        exigir(lote && mov, `[${rotulo}] item ${e.ordem} sem lote ou movimento`);
+        igual(`${dec(lote.quantidade_entrada)}:${dec(lote.custo_unitario)}:${lote.status}:${lote.local_estoque_id}`, `${e.kg}:${e.custo}:Disponivel:${s.local3.id}`, `[${rotulo}] lote do item ${e.ordem} (custo líquido)`);
+        igual(`${mov.tipo_detalhado}:${dec(mov.quantidade)}:${dec(mov.valor_total)}:${dec(mov.valor_unitario)}:${lote.movimentacao_entrada_id === mov.id}`, `compra_financeiro:${e.kg}:${dec4(e.liquido)}:${e.custo}:true`, `[${rotulo}] movimento do item ${e.ordem} (valor líquido exato)`);
+        igual(deEscala(escalar(e.kg, 4) * escalar(e.custo, 4), 8), deEscala(escalar(e.liquido, 8), 8), `[${rotulo}] custo do lote do item ${e.ordem} × kg = líquido (sem resíduo)`);
+        igual(await prisma.estoqueLoteNota.count({ where: { cliente_id: s.cliente_id, movimentacao_entrada_id: mov.id } }), 1, `[${rotulo}] lotes do movimento do item ${e.ordem}`);
+      }
+      igual(dec((await produtoAgora(s.produtos.sal.id)).estoque_atual), somar4(dec(salAntes.estoque_atual), '200.0000'), `[${rotulo}] estoque_atual do SAL depois da compra POR ITEM`);
+      igual(dec((await produtoAgora(s.produtos.racao.id)).estoque_atual), somar4(dec(racaoAntes.estoque_atual), '400.0000'), `[${rotulo}] estoque_atual da RAÇÃO depois da compra POR ITEM`);
+      conferir((await fotoEstoque(s)) !== estoqueAntes, `[${rotulo}] a compra POR ITEM não mexeu no estoque`);
+      // Linhas por item EXATAS (retrato dos nomes, tipo e direção), Σ = total, nenhuma a mais.
+      const porItem = await linhasPorItemNoBanco(d.id);
+      igual(
+        porItem.map((ls) => ls.map((r) => `${r.ordem}:${r.natureza_id}:${r.natureza_nome}:${r.natureza_tipo}:${r.centro_custo_id}:${r.centro_custo_nome}:${r.centro_resultado_id}:${dec(r.valor)}:${r.percentual}`).join(',')).join(' | '),
+        P302.final
+          .map((it) => it.linhas.map(([n, cc, v], j) => `${j + 1}:${s.naturezas[n]}:${NOME_NAT[n]}:DESPESA:${s.centros[cc]}:${NOME_CC[cc]}:null:${dec4(v)}:null`).join(','))
+          .join(' | '),
+        `[${rotulo}] linhas por item gravadas (banco)`,
+      );
+      const todasLinhas = porItem.flat();
+      igual(deEscala(todasLinhas.reduce((t, r) => t + escalar(dec(r.valor), 4), 0n), 4), dec(d.valor_total), `[${rotulo}] Σ das linhas por item = valor_total (banco, exato)`);
+      porItem.forEach((ls, k) => igual(deEscala(ls.reduce((t, r) => t + escalar(dec(r.valor), 4), 0n), 4), dec(d.itens[k].valor_liquido), `[${rotulo}] Σ das linhas do item ${k + 1} = líquido do item (banco)`));
+      igual(
+        todasLinhas.filter((r) => r.operacao_id !== d.id || r.empresa_id !== d.empresa_id || r.operacao_direcao !== 'PAGAR' || !d.itens.some((i) => i.id === r.item_id)).length,
+        0,
+        `[${rotulo}] linha por item fora do documento, da empresa ou da direção`,
+      );
+      igual(await prisma.operacaoFinanceiraItemRateio.count({ where: { cliente_id: s.cliente_id, operacao_id: d.id } }), 4, `[${rotulo}] total de linhas por item do documento`);
+
+      // Detalhe (tela): classificação de cada item e o resumo consolidado (Σ = total).
+      await mostrar('consulta-item-2-classificacao', 'p302-detalhe-item-2');
+      for (const [k, it] of P302.final.entries()) {
+        for (const [j, [n, cc, v]] of it.linhas.entries()) {
+          const t = limpo(await textoBruto(`consulta-item-${k + 1}-classificacao-linha-${j + 1}`));
+          conferir(
+            t.includes(NOME_NAT[n]) && t.includes(NOME_CC[cc].replace(/\s/g, '')) && t.includes(br(v)),
+            `[${rotulo}] detalhe: item ${k + 1} linha ${j + 1} na tela sem ${NOME_NAT[n]}/${NOME_CC[cc]}/${v}: "${t.slice(0, 200)}"`,
+          );
+        }
+      }
+      await mostrar('consulta-rateio-consolidado', 'p302-detalhe-consolidado');
+      for (const [k, [n, cc, v]] of P302.consolidado.entries()) {
+        const t = limpo(await textoBruto(`consulta-rateio-consolidado-linha-${k + 1}`));
+        conferir(t.includes(NOME_NAT[n]) && t.includes(NOME_CC[cc].replace(/\s/g, '')) && t.includes(br(v)), `[${rotulo}] detalhe: consolidado ${k + 1} na tela: "${t.slice(0, 200)}"`);
+      }
+      igual(await page.locator('[data-testid^="consulta-rateio-consolidado-linha-"][data-testid$="-valor"]').count(), 3, `[${rotulo}] detalhe: linhas do consolidado na tela`);
+      const conf = await textoBruto('consulta-rateio-consolidado-conferencia');
+      conferir(/confere com o total do documento/.test(conf) && !/NÃO confere/.test(conf), `[${rotulo}] detalhe: consolidado não confere: "${conf}"`);
+      if (movel) {
+        await dentroDaTela('consulta-item-', 'detalhe POR ITEM (itens)');
+        await dentroDaTela('consulta-rateio-consolidado', 'detalhe POR ITEM (consolidado)');
+      }
+      // Detalhe e lista (API).
+      const det = await detalheApi(token, d.id, s.empresa.id);
+      igual(`${det.status}:${det.corpo?.rateio_escopo}:${(det.corpo?.rateios ?? []).length}`, '200:POR_ITEM:0', `[${rotulo}] detalhe da API: escopo e rateio geral vazio`);
+      igual(
+        (det.corpo?.itens ?? []).map((i) => (i.rateios ?? []).map((r) => `${r.ordem}:${r.natureza_nome}:${r.natureza_tipo}:${r.centro_custo_nome}:${r.valor}:${r.percentual}`).join(',')).join(' | '),
+        P302.final.map((it) => it.linhas.map(([n, cc, v, p], j) => `${j + 1}:${NOME_NAT[n]}:DESPESA:${NOME_CC[cc]}:${v}:${p}`).join(',')).join(' | '),
+        `[${rotulo}] detalhe da API: linhas por item (percentual sobre o líquido do item)`,
+      );
+      igual(
+        (det.corpo?.rateio_consolidado ?? []).map((g) => `${g.natureza_id}:${g.natureza_nome}:${g.centro_custo_id}:${g.centro_custo_nome}:${g.centro_resultado_id}:${g.valor}:${g.percentual}`).join(' | '),
+        P302.consolidado.map(([n, cc, v, p]) => `${s.naturezas[n]}:${NOME_NAT[n]}:${s.centros[cc]}:${NOME_CC[cc]}:null:${v}:${p}`).join(' | '),
+        `[${rotulo}] detalhe da API: consolidado (Σ = total, 1ª aparição)`,
+      );
+      const lista = await api(token, 'GET', `/api/native/operacoes-financeiras?empresa_id=${s.empresa.id}`);
+      igual(lista.corpo?.items?.find((o) => o.id === d.id)?.rateio_escopo, 'POR_ITEM', `[${rotulo}] lista da API: rateio_escopo da compra POR ITEM`);
+      docs.compraPorItem = d;
+    });
+
+    // 29. O modo GERAL não mudou: todo documento gravado pela tela tem o escopo
+    //     EXPLÍCITO (nunca NULL), nenhuma linha por item, e o consolidado do
+    //     detalhe é o próprio rateio geral; a API real recusa um corpo POR ITEM
+    //     com soma errada apontando o item (422, nada gravado).
+    await passo('29 P3-02 modo GERAL intacto (escopo explicito, consolidado = rateio geral) e recusa POR ITEM da API com item exato', async () => {
+      const ops = await prisma.operacaoFinanceira.findMany({ where: { cliente_id: s.cliente_id }, select: { id: true, rateio_escopo: true, conteudo: true } });
+      igual(ops.filter((o) => o.rateio_escopo === null).length, 0, `[${rotulo}] documento gravado com rateio_escopo NULL`);
+      const porItemIds = ops.filter((o) => o.rateio_escopo === 'POR_ITEM').map((o) => o.id);
+      igual(porItemIds.join(','), docs.compraPorItem ? docs.compraPorItem.id : '', `[${rotulo}] documentos POR_ITEM do tenant (só a compra do passo 28)`);
+      const linhasFora = await prisma.operacaoFinanceiraItemRateio.count({ where: { cliente_id: s.cliente_id, operacao_id: { notIn: porItemIds } } });
+      igual(linhasFora, 0, `[${rotulo}] linhas por item em documento GERAL`);
+      const geral = docs.compraMista;
+      exigir(geral, `[${rotulo}] o passo 29 usa a compra GERAL do passo 24`);
+      const det = await detalheApi(token, geral.id, s.empresa.id);
+      igual(`${det.status}:${det.corpo?.rateio_escopo}`, '200:GERAL', `[${rotulo}] detalhe GERAL: escopo`);
+      igual((det.corpo?.itens ?? []).map((i) => JSON.stringify(i.rateios)).join(','), (det.corpo?.itens ?? []).map(() => '[]').join(','), `[${rotulo}] detalhe GERAL: itens[].rateios sempre presente e vazio`);
+      const chaveGrupo = (g) => ['natureza_id', 'natureza_nome', 'centro_custo_id', 'centro_custo_nome', 'centro_resultado_id', 'centro_resultado_nome', 'valor', 'percentual'].map((k) => `${k}=${g?.[k] ?? null}`).join(',');
+      igual(
+        (det.corpo?.rateio_consolidado ?? []).map(chaveGrupo).join(' | '),
+        (det.corpo?.rateios ?? []).map(chaveGrupo).join(' | '),
+        `[${rotulo}] detalhe GERAL: consolidado = as linhas do rateio geral`,
+      );
+      conferir((det.corpo?.rateio_consolidado ?? []).length > 0, `[${rotulo}] detalhe GERAL sem consolidado`);
+      // Recusa da API real (fora da tela): soma do item 2 com 1 centavo a mais.
+      const antes = await fotoFinanceiro(s);
+      const linha = (nat, valor) => ({ natureza_id: nat, centro_custo_id: s.centros.custo, valor });
+      const r = await api(token, 'POST', '/api/native/operacoes-financeiras', {
+        empresa_id: s.empresa.id, direcao: 'PAGAR', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: s.parceiros.fornecedor.id, data_emissao: hoje,
+        rateio_escopo: 'POR_ITEM', rateio_modo: 'VALOR', rateios: [], operation_id: `p302-recusa-${randomUUID()}`,
+        itens: [
+          { tipo_item: 'SERVICO', unidade: 'UN', quantidade: '1', valor_unitario: '100.00', descricao: 'SERVICO A', rateios: [linha(s.naturezas.insumos, '100.00')] },
+          { tipo_item: 'SERVICO', unidade: 'UN', quantidade: '1', valor_unitario: '50.00', descricao: 'SERVICO B', rateios: [linha(s.naturezas.insumos, '30.00'), linha(s.naturezas.sanidade, '20.01')] },
+        ],
+        parcelas: [{ vencimento: somarDias(hoje, 30), valor: '150.00' }],
+      });
+      const det2 = r.corpo?.details ?? {};
+      igual(
+        `${r.status}:${r.corpo?.code}:${r.corpo?.reason}:${det2.colecao}:${det2.indice}:${det2.subcolecao}:${'subindice' in det2}:${det2.modo}:${det2.esperado}:${det2.informado}:${det2.diferenca}`,
+        '422:OPERACAO_RATEIO_INVALIDO:soma_diferente:itens:1:rateios:false:VALOR:50.00:50.01:-0.01',
+        `[${rotulo}] API: soma do item 2 errada → 422 com o item exato`,
+      );
+      igual(await fotoFinanceiro(s), antes, `[${rotulo}] a recusa POR ITEM gravou algo`);
     });
   } catch (erro) {
     if (!(erro instanceof Divergencia)) console.error(`  [${rotulo}] interrompido: ${String(erro?.message || erro).split('\n')[0]}`);

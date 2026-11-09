@@ -105,6 +105,15 @@ export default function LancamentosFinanceirosTela() {
   const preparandoRef = useRef(false);
   const submitRef = useRef(/** @type {(doc: Record<string, unknown>) => void} */ (() => {}));
   const podeGravar = Boolean(empresaId);
+  // Última recusa do servidor ao GRAVAR o formulário aberto (D-PROD-156): o
+  // formulário aponta o item e a linha do rateio por item (`indice`/`subindice`).
+  const [erroDoFormulario, setErroDoFormulario] = useState(/** @type {{ erro: unknown, seq: number } | null} */ (null));
+  const seqErroDoFormulario = useRef(0);
+  /** @param {unknown} erro */
+  const entregarErroAoFormulario = (erro) => {
+    seqErroDoFormulario.current += 1;
+    setErroDoFormulario({ erro, seq: seqErroDoFormulario.current });
+  };
 
   const perfilQuery = useQuery({
     queryKey: [QUERY_RAIZ, "perfil", empresaId],
@@ -274,7 +283,10 @@ export default function LancamentosFinanceirosTela() {
       aplicarDetalhe(registro, v.empresaId);
       notifySuccess("Sucesso", v.id ? "Rascunho atualizado" : "Rascunho salvo (ainda não gera título nem mexe no estoque)");
     },
-    onError: (err, v) => tratarErro(err, "Não foi possível salvar o rascunho. Nada foi gravado.", v),
+    onError: (err, v) => {
+      if (daEmpresaAtual(v)) entregarErroAoFormulario(err);
+      tratarErro(err, "Não foi possível salvar o rascunho. Nada foi gravado.", v);
+    },
   });
 
   const perfilMutation = useMutation({
@@ -327,6 +339,7 @@ export default function LancamentosFinanceirosTela() {
       if (!daEmpresaAtual({ empresaId: emp })) return;
       setDialogo({ tipo: "confirmar", registro, previa });
     } catch (err) {
+      if (daEmpresaAtual({ empresaId: emp })) entregarErroAoFormulario(err);
       tratarErro(err, "Não foi possível preparar a confirmação. Nada foi gravado.", { empresaId: emp });
     } finally {
       preparandoRef.current = false;
@@ -467,6 +480,7 @@ export default function LancamentosFinanceirosTela() {
           onSubmit={controller.handleSubmit}
           onConfirmar={acoes.confirmar && podeGravar ? iniciarConfirmacao : null}
           onDescartar={idAberto && acoes.editar && podeGravar ? () => setDialogo({ tipo: "descartar", registro: detalhe }) : null}
+          erroServidor={erroDoFormulario}
         />
       );
     } else {
