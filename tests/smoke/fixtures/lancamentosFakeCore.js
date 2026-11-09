@@ -7,6 +7,7 @@
  * field?, reason?, details?}`. Sem dependência de Vitest (puro JS).
  */
 import { comparar, ehPositivo, multiplicarArredondar, naEscala, ratearPercentual, somar, subtrair } from '../../../src/lib/dinheiroDecimal.js';
+import { ratearCabecalho } from '../../../src/lib/rateioCabecalho.js';
 
 export const EMPRESA = 'emp-1';
 export const TS = '2026-11-08T12:00:00.000Z';
@@ -83,13 +84,39 @@ export const criarEstadoLancamentos = (opts = {}) => ({
   falhas: {},
   /** Bloqueios da próxima prévia. */
   bloqueiosPrevia: /** @type {any[]} */ ([]),
+  /** Como o servidor quando o PLANEJAMENTO recusa (`plano: null` + bloqueios). */
+  planoNuloNaPrevia: false,
   /** Promessa que segura a resposta do confirmar (teste de duplo clique). */
   segurarConfirmar: /** @type {Promise<void>|null} */ (null),
   /** Parceiros extras (teste de escala do seletor paginado). */
   parceirosExtras: /** @type {any[]} */ ([]),
+  /** Produtos extras (vetores com saco de outro peso). */
+  produtosExtras: /** @type {any[]} */ ([]),
 });
 
+/** Recusa do servidor dentro de `montarDoc` (vira a resposta do POST/PUT). */
+class RecusaDoServidor extends Error {
+  /** @param {{ status: number, body: any }} resposta */
+  constructor(resposta) {
+    super(resposta.body.code);
+    this.resposta = resposta;
+  }
+}
+
+/** POST/PUT: recusa de `montarDoc` vira resposta; o resto é erro do teste. @param {() => any} fazer */
+const ouRecusa = (fazer) => {
+  try {
+    return { ok: fazer() };
+  } catch (e) {
+    if (e instanceof RecusaDoServidor) return { recusa: e.resposta };
+    throw e;
+  }
+};
+
 const casasDe = (doc) => doc.moeda_casas ?? 2;
+
+/** Soma exata dos resíduos (8 casas, podem ser negativos). @param {string[]} residuos */
+const somarResiduos = (residuos) => somar(residuos, 8);
 
 /** Saldo e status do título a partir dos FATOS (liquidações sem estorno). */
 const recalcularTitulo = (t) => {
@@ -105,7 +132,7 @@ const recalcularTitulo = (t) => {
 const montarDoc = (estado, corpo, base = {}) => {
   const casas = estado.perfil?.moeda_casas ?? 2;
   const itens = (corpo.itens ?? []).map((i, k) => {
-    const prod = PRODUTOS.find((p) => p.id === i.produto_id);
+    const prod = [...PRODUTOS, ...estado.produtosExtras].find((p) => p.id === i.produto_id);
     const local = LOCAIS.find((l) => l.id === i.local_estoque_id);
     const fator = i.unidade === 'SACO' ? prod?.peso_por_saco_kg ?? '1' : i.unidade === 'KG' ? '1' : null;
     return {
@@ -121,6 +148,13 @@ const montarDoc = (estado, corpo, base = {}) => {
   const desconto = naEscala(corpo.valor_desconto ?? '0', casas);
   const acrescimo = naEscala(corpo.valor_acrescimo ?? '0', casas);
   const total = somar([subtrair(bruto, desconto, casas), acrescimo], casas);
+  // Custo de aquisição líquido (rodada 4): a MESMA política do `planejarOperacao`.
+  const rateio = corpo.conteudo === 'COM_PRODUTOS' ? ratearCabecalho({ direcao: corpo.direcao, casas, valor_desconto: desconto, valor_acrescimo: acrescimo, itens }) : null;
+  if (rateio?.erro) {
+    const { field, reason, details } = rateio.erro;
+    throw new RecusaDoServidor(erro(422, 'OPERACAO_VALORES_INVALIDOS', { field, reason, details: { field, reason, ...details } }));
+  }
+  itens.forEach((i, k) => Object.assign(i, rateio?.itens[k] ?? {}));
   const valoresPct = corpo.rateio_modo === 'PERCENTUAL' ? ratearPercentual(total, corpo.rateios.map((r) => r.percentual), casas).valores : [];
   const rateios = corpo.rateios.map((r, k) => {
     const nat = NATUREZAS.find((n) => n.id === r.natureza_id);
@@ -236,9 +270,11 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     if (f && !f.gravarAntes) return f.resposta ?? { rede: true };
     const r = idempotente(estado, 'criar', body, () => {
       if (!estado.perfil) return erro(409, 'PERFIL_FINANCEIRO_NAO_CONFIGURADO');
-      const doc = montarDoc(estado, body);
-      estado.documentos.unshift(doc);
-      return { status: 201, body: detalhe(doc, { replay: false }) };
+      const { operation_id: _op, ...corpo } = body;
+      const r = ouRecusa(() => montarDoc(estado, corpo));
+      if (r.recusa) return r.recusa;
+      estado.documentos.unshift(r.ok);
+      return { status: 201, body: detalhe(r.ok, { replay: false }) };
     });
     if (f?.gravarAntes) return { rede: true };
     return r;
@@ -250,11 +286,14 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     const acao = m[2];
     if (!acao && method === 'GET') return { status: 200, body: detalhe(doc) };
     if (!acao && method === 'PUT') {
+      const f = falha(estado, 'editar');
+      if (f) return f.resposta ?? { rede: true };
       if (doc.status !== 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
       if (body.versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
       const { versao: _v, ...corpo } = body;
-      const novo = montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico });
-      Object.assign(doc, novo);
+      const r = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }));
+      if (r.recusa) return r.recusa;
+      Object.assign(doc, r.ok);
       return { status: 200, body: detalhe(doc) };
     }
     if (!acao && method === 'DELETE') {
@@ -265,22 +304,43 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     }
     if (acao === 'previa' && method === 'POST') {
       const bloqueios = estado.bloqueiosPrevia;
+      if (estado.planoNuloNaPrevia) return { status: 200, body: { plano: null, bloqueios } };
       const estoque = doc.itens.filter((i) => i.tipo_item === 'MERCADORIA').length;
       // Mesmo formato do `planejarOperacao` real (o front usa `resumo`; o resto é contrato).
       const mercadorias = doc.itens.filter((i) => i.tipo_item === 'MERCADORIA');
-      const efeito = (i) => ({ item_ordem: i.ordem, produto_id: i.produto_id, produto_nome: i.produto_nome, local_estoque_id: i.local_estoque_id, local_nome: i.local_estoque_nome, kg: i.quantidade_estoque });
+      // Chaves EXATAS do servidor (rateioCabecalhoVetores.json → formato.efeitos_estoque_chaves):
+      // entrada leva o custo líquido por kg; saída leva disponível/custo/fatias (aqui sem
+      // simulação FIFO: null/null/[] — como o servidor quando não há simulação).
+      const base = (i) => ({ item_ordem: i.ordem, produto_id: i.produto_id, produto_nome: i.produto_nome, local_estoque_id: i.local_estoque_id, local_nome: i.local_estoque_nome, kg: i.quantidade_estoque });
+      const entrada = (i) => ({ ...base(i), custo_kg: i.custo_kg ?? null });
+      const saida = (i) => ({ ...base(i), disponivel: null, custo_total: null, fatias: [] });
+      const comRateio = doc.conteudo === 'COM_PRODUTOS' && doc.itens.length > 0;
+      const residuos = doc.itens.map((i) => i.residuo_custo).filter((r) => r != null);
       const plano = {
         moeda: doc.moeda, moeda_casas: doc.moeda_casas, valor_bruto: doc.valor_bruto, valor_desconto: doc.valor_desconto, valor_acrescimo: doc.valor_acrescimo, valor_total: doc.valor_total,
-        itens: doc.itens.map(({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque }) => ({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque })),
+        itens: doc.itens.map(({ ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque, valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, custo_kg, residuo_custo }) => ({
+          ordem, tipo_item, produto_id, local_estoque_id, unidade, quantidade, valor_unitario, valor_total, fator_kg, quantidade_estoque,
+          valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, custo_kg: custo_kg ?? null, residuo_custo: residuo_custo ?? null,
+        })),
         rateios: doc.rateios.map(({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual }) => ({ ordem, natureza_id, centro_custo_id, centro_resultado_id, valor, percentual })),
         parcelas: doc.titulos.map((t) => ({ numero_parcela: t.numero_parcela, total_parcelas: t.total_parcelas, vencimento: t.vencimento, valor: t.valor })),
-        efeitos_estoque: { entradas: doc.direcao === 'PAGAR' ? mercadorias.map(efeito) : [], saidas: doc.direcao === 'RECEBER' ? mercadorias.map(efeito) : [] },
+        efeitos_estoque: { entradas: doc.direcao === 'PAGAR' ? mercadorias.map(entrada) : [], saidas: doc.direcao === 'RECEBER' ? mercadorias.map(saida) : [] },
         resumo: { parcelas_n: doc.titulos.length, itens_estoque_n: estoque, valor_titulos: doc.valor_total, moeda: doc.moeda },
-        // Como `planejarOperacao` real: compra com mercadoria e desconto ou acréscimo > 0 (informativo, não bloqueia).
-        avisos:
-          doc.direcao === 'PAGAR' && mercadorias.length && (ehPositivo(doc.valor_desconto) || ehPositivo(doc.valor_acrescimo))
-            ? [{ codigo: 'custo_sem_desconto_acrescimo', mensagem: 'desconto e acréscimo do cabeçalho não entram no custo do estoque nesta fase (o custo do lote é o subtotal do item)' }]
-            : [],
+        // Como `planejarOperacao` real (rodada 4), só informativos: rateio do cabeçalho
+        // num COM_PRODUTOS com desconto ou acréscimo; resíduo de custo ≠ 0 em alguma linha.
+        avisos: [
+          ...(comRateio && (ehPositivo(doc.valor_desconto) || ehPositivo(doc.valor_acrescimo))
+            ? [{
+                codigo: 'desconto_acrescimo_rateados',
+                mensagem: doc.direcao === 'PAGAR'
+                  ? 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal; o custo do lote é o valor líquido da mercadoria'
+                  : 'desconto e acréscimo do cabeçalho foram rateados entre as linhas proporcionalmente ao subtotal (receita líquida por item); a saída do estoque continua com o custo FIFO dos lotes',
+              }]
+            : []),
+          ...(residuos.some((r) => comparar(r, '0') !== 0)
+            ? [{ codigo: 'residuo_custo_estoque', mensagem: 'diferença de arredondamento do custo por kg fora do custo FIFO', residuo_total: somarResiduos(residuos) }]
+            : []),
+        ],
       };
       return { status: 200, body: { plano, bloqueios } };
     }

@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
 import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
+import RateioItensLancamento from "@/components/financeiroGestao/RateioItensLancamento";
 
 // Os componentes de `ui/dialog` são forwardRef sem tipos: aqui valem como `any`.
 const Dialog = /** @type {any} */ (UiDialog.Dialog);
@@ -10,7 +11,7 @@ const DialogDescription = /** @type {any} */ (UiDialog.DialogDescription);
 const DialogFooter = /** @type {any} */ (UiDialog.DialogFooter);
 const DialogHeader = /** @type {any} */ (UiDialog.DialogHeader);
 const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
-import { LIMITES, comparar, ehPositivo, formatarMoeda, lerNumeroLocal, naEscala, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
+import { LIMITES, comparar, ehPositivo, formatarMoeda, lerNumeroLocal, naEscala, paraTextoDeEdicao, somar } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
 import { mensagemDoAvisoDoPlano, mensagemDoBloqueio, mensagemErroGestao } from "@/lib/gestaoErros";
 import { CODIGO_ENVIO_PENDENTE, ROTULO_METODO, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
@@ -133,6 +134,9 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
   const plano = previa?.plano ?? {};
   const resumo = plano.resumo ?? {};
   const bloqueios = previa?.bloqueios ?? [];
+  // `plano: null` = o servidor recusou o PLANEJAMENTO (os bloqueios dizem por quê):
+  // não há parcelas, estoque nem títulos a anunciar.
+  const semPlano = previa != null && previa.plano == null && bloqueios.length > 0;
   const nParcelas = resumo.parcelas_n ?? (Array.isArray(plano.parcelas) ? plano.parcelas.length : 0);
   const nEstoque =
     resumo.itens_estoque_n ?? ((plano.efeitos_estoque?.entradas?.length ?? 0) + (plano.efeitos_estoque?.saidas?.length ?? 0));
@@ -141,6 +145,18 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
   const enviando = estado.fase === "enviando";
   const erroBaixa = baixa ? (!metodo ? "Escolha a forma" : !ehDiaValido(dataBaixa) ? "Informe a data" : dataBaixa > hoje ? "A data não pode ser futura" : null) : null;
   const pagar = registro?.direcao === "PAGAR";
+  // Rateio do cabeçalho por item (rodada 4): nomes vêm do rascunho; valores, do plano.
+  const itensDoPlano = registro?.conteudo === "COM_PRODUTOS" && Array.isArray(plano.itens) ? plano.itens : [];
+  const nomes = new Map(
+    (Array.isArray(registro?.itens) ? registro.itens : []).map((/** @type {any} */ i) => [i.ordem, i.tipo_item === "SERVICO" ? i.descricao || "Serviço" : i.produto_nome || ""]),
+  );
+  const residuos = itensDoPlano.map((/** @type {any} */ i) => i?.residuo_custo).filter((/** @type {unknown} */ r) => typeof r === "string" && /^-?\d+(?:\.\d+)?$/.test(r));
+  let residuoTotal = null;
+  try {
+    residuoTotal = residuos.length ? somar(residuos, 8) : null;
+  } catch {
+    residuoTotal = null;
+  }
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => (!o && !enviando ? onFechar() : undefined)}>
@@ -148,15 +164,22 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
         <DialogHeader>
           <DialogTitle>Confirmar lançamento {registro?.numero ? `nº ${registro.numero}` : ""}</DialogTitle>
           <DialogDescription data-testid="previa-resumo">
-            Isto criará {nParcelas} {nParcelas === 1 ? "parcela" : "parcelas"}, movimentará {nEstoque} {nEstoque === 1 ? "item" : "itens"} no estoque e registrará{" "}
-            {formatarMoeda(valorTitulos, c)} em títulos {pagar ? "a pagar" : "a receber"}.
+            {semPlano ? (
+              "Este lançamento ainda não pode ser confirmado: nada será criado enquanto houver a pendência abaixo."
+            ) : (
+              <>
+                Isto criará {nParcelas} {nParcelas === 1 ? "parcela" : "parcelas"}, movimentará {nEstoque} {nEstoque === 1 ? "item" : "itens"} no estoque e registrará{" "}
+                {formatarMoeda(valorTitulos, c)} em títulos {pagar ? "a pagar" : "a receber"}.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
+        {itensDoPlano.length ? <RateioItensLancamento itens={itensDoPlano} nomes={nomes} valorTotal={plano.valor_total ?? registro?.valor_total} c={c} /> : null}
         {Array.isArray(plano.avisos) && plano.avisos.length ? (
           // Aviso é INFORMATIVO (os bloqueios vêm à parte, em `bloqueios`).
           <ul className="list-disc space-y-1 pl-5 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previa-avisos">
             {plano.avisos.map((/** @type {any} */ a, /** @type {number} */ k) => (
-              <li key={k}>{mensagemDoAvisoDoPlano(a)}</li>
+              <li key={k}>{mensagemDoAvisoDoPlano(a, { ...c, direcao: registro?.direcao, residuoTotal })}</li>
             ))}
           </ul>
         ) : null}

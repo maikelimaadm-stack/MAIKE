@@ -379,14 +379,17 @@ const formatarExato = (canonico, locale, opcoes) => {
 
 /**
  * Valor monetário formatado no locale (ex.: "R$ 1.234,56"). Texto vazio ou
- * inválido vira "—".
+ * inválido vira "—". `casasMax` (padrão = `casas`) mostra mais casas quando o
+ * valor as tem (custo por kg com 4, diferença de arredondamento com 8) sem
+ * arredondar para a escala da moeda.
  * @param {unknown} canonico
- * @param {{ locale?: string, moeda?: string, casas?: number }} [opcoes]
+ * @param {{ locale?: string, moeda?: string, casas?: number, casasMax?: number }} [opcoes]
  */
 export const formatarMoeda = (canonico, opcoes = {}) => {
   const { locale = 'pt-BR', moeda = 'BRL', casas = 2 } = opcoes;
+  const casasMax = Math.max(casas, opcoes.casasMax ?? casas);
   if (typeof canonico !== 'string' || !RE_CANONICO.test(canonico.trim())) return '—';
-  return formatarExato(canonico.trim(), locale, { style: 'currency', currency: moeda, minimumFractionDigits: casas, maximumFractionDigits: casas });
+  return formatarExato(canonico.trim(), locale, { style: 'currency', currency: moeda, minimumFractionDigits: casas, maximumFractionDigits: casasMax });
 };
 
 /**

@@ -78,12 +78,16 @@ export const deleteOperacaoFinanceira = async (id, empresaId, versao) => {
   return runProviderCall(() => operacoesNativas.remove(id, empresaId, versao), { ...contexto, details: { id } });
 };
 
-/** @param {string} id @param {string} empresaId @returns {Promise<{ plano: any, bloqueios: any[] }>} */
+/**
+ * `plano: null` é preservado: o servidor o devolve quando o PLANEJAMENTO recusa
+ * (os `bloqueios` dizem por quê) e a tela não pode anunciar parcelas nem títulos.
+ * @param {string} id @param {string} empresaId @returns {Promise<{ plano: any|null, bloqueios: any[] }>}
+ */
 export const previaOperacaoFinanceira = async (id, empresaId) => {
   const contexto = ctx('previaOperacaoFinanceira');
   assertArgument(isId(id) && isId(empresaId), 'id', contexto);
   const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.previa(id, empresaId), contexto));
-  return { plano: isObjeto(bruto?.plano) ? bruto.plano : {}, bloqueios: Array.isArray(bruto?.bloqueios) ? bruto.bloqueios : [] };
+  return { plano: isObjeto(bruto?.plano) ? bruto.plano : null, bloqueios: Array.isArray(bruto?.bloqueios) ? bruto.bloqueios : [] };
 };
 
 /** @param {string} id @param {Record<string, unknown>} corpo */

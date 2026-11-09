@@ -74,6 +74,39 @@ const ondeNaLinha = (details) => {
 const dinheiro = (v, c) => (typeof v === 'string' && v ? (c.moeda ? formatarMoeda(v, { locale: c.locale, moeda: c.moeda, casas: c.casas ?? 2 }) : formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax: 4 })) : '');
 /** @param {unknown} v @param {ContextoMoeda} c */
 const kg = (v, c) => (typeof v === 'string' && v ? `${formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax: 4 })} kg` : '');
+/** Dinheiro com mais casas quando o valor as tem (custo/kg com 4, diferença com 8). @param {unknown} v @param {ContextoMoeda} c @param {number} casasMax */
+const dinheiroFino = (v, c, casasMax) =>
+  typeof v === 'string' && v
+    ? c.moeda
+      ? formatarMoeda(v, { locale: c.locale, moeda: c.moeda, casas: c.casas ?? 2, casasMax })
+      : formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax })
+    : '';
+
+/**
+ * Texto do motivo de uma linha recusada pela política de custo líquido
+ * (`item_liquido_nao_positivo`, `custo_kg_nao_representavel`), com os valores
+ * de `details`. O formulário usa o mesmo texto DENTRO do item (sem a linha e
+ * sem o fecho "Nada foi gravado", porque nada foi tentado).
+ * @param {string|null} reason @param {Record<string, any>} details @param {ContextoMoeda} [c] @param {string} [linha] " (linha N dos itens)"
+ * @returns {string|null}
+ */
+export const mensagemDaLinhaDoRateio = (reason, details, c = {}, linha = '') => {
+  if (reason === 'item_liquido_nao_positivo') {
+    const valores =
+      details.valor_liquido != null
+        ? `: subtotal ${dinheiro(details.valor_total, c)}, desconto rateado ${dinheiro(details.valor_desconto_rateado, c)}, acréscimo rateado ${dinheiro(details.valor_acrescimo_rateado, c)}, líquido ${dinheiro(details.valor_liquido, c)}`
+        : '';
+    return `O desconto rateado deixa o valor líquido do item zero ou negativo${linha}${valores}. Diminua o desconto do cabeçalho ou aumente o valor do item.`;
+  }
+  if (reason === 'custo_kg_nao_representavel') {
+    const valores =
+      details.valor_liquido != null
+        ? `: líquido ${dinheiro(details.valor_liquido, c)} para ${kg(details.quantidade_estoque, c)} dá ${dinheiroFino(details.custo_kg, c, 4)}/kg, e a diferença de ${dinheiroFino(details.residuo_custo, c, 8)} ficaria fora do custo`
+        : '';
+    return `O custo por kg não cabe nas 4 casas do estoque${linha}${valores} (o limite é 0,1% do valor líquido da linha). Confira a quantidade, a unidade e o valor unitário do item.`;
+  }
+  return null;
+};
 
 const REFERENCIA_INVALIDA = /** @type {Record<string, string>} */ ({
   parceiro_nao_encontrado: 'O parceiro escolhido não existe mais nesta empresa. Escolha outro.',
@@ -173,8 +206,11 @@ const mensagemLancamento = (code, field, reason, details, c) => {
       return `${PARCELAS_INVALIDAS[reason ?? ''] ?? 'As parcelas são inválidas.'}${linha} Nada foi gravado.`;
     case 'OPERACAO_REFERENCIA_INVALIDA':
       return `${REFERENCIA_INVALIDA[reason ?? ''] ?? `Referência inválida${field ? ` no campo "${field}"` : ''}.`}${linha} Nada foi gravado.`;
-    case 'OPERACAO_VALORES_INVALIDOS':
+    case 'OPERACAO_VALORES_INVALIDOS': {
+      const daLinha = mensagemDaLinhaDoRateio(reason, details, c, linha);
+      if (daLinha) return `${daLinha} Nada foi gravado.`;
       return `${VALORES_INVALIDOS[reason ?? ''] ?? 'Valores inválidos no lançamento.'}${linha} Nada foi gravado.`;
+    }
     case 'OPERACAO_COM_LIQUIDACOES':
       return 'Este lançamento tem pagamentos/recebimentos registrados. Estorne as baixas antes de cancelar. Nada foi alterado.';
     case 'ESTOQUE_JA_CONSUMIDO': {
@@ -298,18 +334,28 @@ export const mensagemDoBloqueio = (bloqueio, contexto = {}) =>
     // fecho dos erros de comando ("Nada foi gravado.") seria falso aqui.
     .replace(/\s*Nada foi (?:gravado|alterado)\.\s*$/, '');
 
-/** Avisos INFORMATIVOS do plano (`plano.avisos[]`: `{ codigo, mensagem }`) — não impedem a confirmação. */
-const AVISOS_DO_PLANO = Object.freeze({
-  custo_sem_desconto_acrescimo: 'Desconto e acréscimo não entram no custo do estoque nesta fase: o custo do lote é o subtotal de cada item.',
-});
+const RE_NUMERO = /^-?\d+(?:\.\d+)?$/;
 
 /**
  * Texto de um aviso da prévia. Aviso NÃO é bloqueio (o servidor manda os
  * bloqueios à parte): nunca vira "pendência que impede a confirmação". Como nos
- * erros, só o `codigo` é lido — a `mensagem` do servidor não é exibida.
+ * erros, só o `codigo` (e o valor `residuo_total`) é lido — a `mensagem` do
+ * servidor não é exibida.
  * @param {unknown} aviso
+ * @param {ContextoMoeda & { direcao?: string, residuoTotal?: string|null }} [contexto]
+ *   `residuoTotal`: soma dos resíduos das linhas da prévia (se o aviso não trouxer o total)
  */
-export const mensagemDoAvisoDoPlano = (aviso) => {
+export const mensagemDoAvisoDoPlano = (aviso, contexto = {}) => {
   const codigo = ehObjeto(aviso) && typeof aviso.codigo === 'string' ? aviso.codigo : null;
-  return (codigo && AVISOS_DO_PLANO[/** @type {keyof typeof AVISOS_DO_PLANO} */ (codigo)]) || 'Há um aviso do plano para conferir antes de confirmar.';
+  if (codigo === 'desconto_acrescimo_rateados') {
+    return contexto.direcao === 'RECEBER'
+      ? 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal (receita líquida por item). A saída do estoque continua com o custo FIFO dos lotes.'
+      : 'Desconto e acréscimo do cabeçalho foram rateados entre os itens proporcionalmente ao subtotal: o custo do lote é o valor líquido da mercadoria.';
+  }
+  if (codigo === 'residuo_custo_estoque') {
+    const doAviso = ehObjeto(aviso) && typeof aviso.residuo_total === 'string' && RE_NUMERO.test(aviso.residuo_total) ? aviso.residuo_total : null;
+    const total = doAviso ?? contexto.residuoTotal ?? null;
+    return `Diferença de arredondamento do custo${total ? `: ${dinheiroFino(total, contexto, 8)} no total` : ''}. O custo por kg do estoque tem 4 casas; essa diferença fica fora do custo FIFO (não entra no lote) e o título não muda.`;
+  }
+  return 'Há um aviso do plano para conferir antes de confirmar.';
 };

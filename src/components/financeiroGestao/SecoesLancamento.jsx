@@ -181,6 +181,11 @@ function LinhaItem({ item, indice, resumoItem, direcao, ctx, alterar, remover })
           testId={`item-${indice}-subtotal`}
         />
         {erroDe(`${base}.subtotal`) ? <p className="col-span-12 text-[12px] text-red-700">{erroDe(`${base}.subtotal`)}</p> : null}
+        {erroDe(`${base}.liquido`) ? (
+          <p role="alert" className="col-span-12 min-w-0 break-words text-[12px] text-red-700" data-testid={`item-${indice}-liquido-erro`}>
+            {erroDe(`${base}.liquido`)}
+          </p>
+        ) : null}
         {mercadoria && resumoItem?.kg ? (
           <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`item-${indice}-kg`}>
             {direcao === "PAGAR" ? "Entra no estoque" : "Sai do estoque"}: {formatarNumero(resumoItem.kg, { locale, casasMax: 4 })} kg

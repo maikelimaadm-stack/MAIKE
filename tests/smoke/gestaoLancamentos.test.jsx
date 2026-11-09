@@ -520,7 +520,28 @@ describe('LANC-4 — prévia, confirmação, duplo clique e retentativa', () => 
     expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeDisabled();
   });
 
-  it('aviso INFORMATIVO do plano (formato real `{codigo, mensagem}`): compra com mercadoria e desconto explica o custo e não vira bloqueio', async () => {
+  it('prévia bloqueada SEM plano (o servidor devolve `plano: null` quando o planejamento recusa): o resumo não promete parcelas, estoque nem títulos', async () => {
+    const doc = semearDocumento(estado, corpoBase());
+    estado.planoNuloNaPrevia = true;
+    estado.bloqueiosPrevia = [
+      {
+        code: 'OPERACAO_VALORES_INVALIDOS', field: 'valor_unitario', reason: 'custo_kg_nao_representavel',
+        details: { field: 'valor_unitario', reason: 'custo_kg_nao_representavel', colecao: 'itens', indice: 0, item_ordem: 1, valor_liquido: '1.00', quantidade_estoque: '3000.0000', custo_kg: '0.0003', residuo_custo: '0.10000000' },
+      },
+    ];
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    const resumo = within(dialogo).getByTestId('previa-resumo');
+    expect(resumo).not.toHaveTextContent(/Isto criará/);
+    expect(resumo).not.toHaveTextContent(/em títulos/);
+    expect(resumo).toHaveTextContent(/não pode ser confirmado.*pendência/i);
+    expect(within(dialogo).getByTestId('previa-bloqueios')).toHaveTextContent(/custo por kg não cabe nas 4 casas do estoque/i);
+    expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeDisabled();
+  });
+
+  it('aviso INFORMATIVO do plano (formato real `{codigo, mensagem}`): compra com mercadoria e desconto explica o rateio e não vira bloqueio', async () => {
     const doc = semearDocumento(
       estado,
       corpoBase({
@@ -541,10 +562,12 @@ describe('LANC-4 — prévia, confirmação, duplo clique e retentativa', () => 
     await waitFor(() => expect(chamadas('POST', `/operacoes-financeiras/${doc.id}/previa`)).toHaveLength(1));
     expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
     expect(dialogo).not.toHaveTextContent(/impede a confirmação/);
-    expect(dialogo).toHaveTextContent(/Desconto e acréscimo não entram no custo do estoque/);
-    expect(within(dialogo).getByTestId('previa-avisos')).toHaveTextContent(/o custo do lote é o subtotal de cada item/);
+    // O aviso antigo ("não entram no custo") deixou de existir: agora o desconto É rateado.
+    expect(dialogo).not.toHaveTextContent(/não entram no custo do estoque/);
+    expect(within(dialogo).getByTestId('previa-avisos')).toHaveTextContent(/rateados entre os itens proporcionalmente ao subtotal/);
+    expect(within(dialogo).getByTestId('previa-avisos')).toHaveTextContent(/o custo do lote é o valor líquido da mercadoria/);
     // Texto próprio da tela: a `mensagem` do servidor não é exibida crua.
-    expect(dialogo).not.toHaveTextContent(/desconto e acréscimo do cabeçalho/);
+    expect(dialogo).not.toHaveTextContent(/desconto e acréscimo do cabeçalho foram rateados/);
     expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeEnabled();
   });
 
@@ -881,5 +904,209 @@ describe('LANC-6 — botões seguem a ação exata da permissão', () => {
     expect(mensagemErroGestao(e('PERFIL_FINANCEIRO_MOEDA_EM_USO', { reason: 'estoque_legado_brl' }), 'x')).toMatch(/BRL/);
     expect(mensagemErroGestao(e('REQUEST_VALIDATION_FAILED', { field: 'valor', reason: 'casas_decimais_excedidas' }), 'x')).toMatch(/casas decimais/);
     for (const code of ['OPERACAO_FINANCEIRA_NOT_FOUND', 'TITULO_FINANCEIRO_NOT_FOUND', 'LIQUIDACAO_FINANCEIRA_NOT_FOUND']) expect(ehNaoEncontradoGestao(e(code))).toBe(true);
+  });
+});
+
+describe('LANC-R4 — custo de aquisição líquido (desconto e acréscimo rateados por item)', () => {
+  // 8.000,00 (3.200 kg) + frete 1.000,00; desconto 500,00 e acréscimo 90,00 →
+  // desconto 444,44 + 55,56 (sobra ao maior resto), acréscimo 80,00 + 10,00;
+  // líquido 7.635,56 + 954,44 = 8.590,00; custo 7.635,56 / 3.200 = 2,3861/kg
+  // (3.200 × 2,3861 = 7.635,52 → diferença 0,04 fora do custo FIFO).
+  const compraComFrete = (extra = {}) =>
+    corpoBase({
+      conteudo: 'COM_PRODUTOS',
+      valor_bruto: undefined,
+      valor_desconto: '500.00',
+      valor_acrescimo: '90.00',
+      data_operacional: '2026-11-08',
+      efeito_fisico_confirmado: true,
+      itens: [
+        { tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo1', unidade: 'KG', quantidade: '3200', valor_unitario: '2.5' },
+        { tipo_item: 'SERVICO', unidade: 'UN', descricao: 'FRETE', quantidade: '1', valor_unitario: '1000' },
+      ],
+      rateios: [{ natureza_id: 'nd1', valor: '8590.00' }],
+      parcelas: [{ vencimento: '2026-11-08', valor: '8590.00' }],
+      ...extra,
+    });
+  // Rascunho VÁLIDO cuja linha 2 fica no limite: 20.000 kg por 2,00 → 0,0001/kg exato.
+  const rascunhoNoLimite = () =>
+    semearDocumento(
+      estado,
+      corpoBase({
+        conteudo: 'COM_PRODUTOS',
+        valor_bruto: undefined,
+        data_operacional: '2026-11-08',
+        efeito_fisico_confirmado: true,
+        itens: [
+          { tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo1', unidade: 'KG', quantidade: '10', valor_unitario: '10' },
+          { tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo1', unidade: 'KG', quantidade: '20000', valor_unitario: '0.0001' },
+        ],
+        rateios: [{ natureza_id: 'nd1', valor: '102.00' }],
+        parcelas: [{ vencimento: '2026-11-08', valor: '102.00' }],
+      }),
+    );
+  const erroCustoLinha2 = {
+    status: 422,
+    body: {
+      code: 'OPERACAO_VALORES_INVALIDOS',
+      message: 'texto do servidor (falso)',
+      request_id: 'req_fake',
+      field: 'valor_unitario',
+      reason: 'custo_kg_nao_representavel',
+      details: { field: 'valor_unitario', reason: 'custo_kg_nao_representavel', colecao: 'itens', indice: 1, item_ordem: 2, valor_liquido: '1.20', quantidade_estoque: '20000.0000', custo_kg: '0.0001', residuo_custo: '-0.80000000' },
+    },
+  };
+
+  it('prévia: por item Subtotal, Desconto rateado, Acréscimo rateado e Líquido; na mercadoria Custo/kg e a diferença de arredondamento; totais conferem; avisos não bloqueiam', async () => {
+    const doc = semearDocumento(estado, compraComFrete());
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    const item1 = within(dialogo).getByTestId('previa-rateio-item-1');
+    expect(item1).toHaveTextContent(/SAL MINERAL 80|MILHO MOÍDO/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-subtotal')).toHaveTextContent(/R\$\s8\.000,00/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-desconto')).toHaveTextContent(/R\$\s444,44/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-acrescimo')).toHaveTextContent(/R\$\s80,00/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-liquido')).toHaveTextContent(/R\$\s7\.635,56/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-custo-kg')).toHaveTextContent(/R\$\s2,3861/);
+    expect(within(item1).getByTestId('previa-rateio-item-1-residuo')).toHaveTextContent(/R\$\s0,04/);
+    expect(item1).toHaveTextContent(/Diferença de arredondamento do custo/);
+    const item2 = within(dialogo).getByTestId('previa-rateio-item-2');
+    expect(item2).toHaveTextContent(/FRETE/);
+    expect(within(item2).getByTestId('previa-rateio-item-2-desconto')).toHaveTextContent(/R\$\s55,56/);
+    expect(within(item2).getByTestId('previa-rateio-item-2-acrescimo')).toHaveTextContent(/R\$\s10,00/);
+    expect(within(item2).getByTestId('previa-rateio-item-2-liquido')).toHaveTextContent(/R\$\s954,44/);
+    // Serviço não tem custo por kg nem diferença de arredondamento.
+    expect(within(item2).queryByTestId('previa-rateio-item-2-custo-kg')).toBeNull();
+    expect(within(item2).queryByTestId('previa-rateio-item-2-residuo')).toBeNull();
+    const totais = within(dialogo).getByTestId('previa-rateio-totais');
+    expect(within(totais).getByTestId('previa-rateio-totais-subtotal')).toHaveTextContent(/R\$\s9\.000,00/);
+    expect(within(totais).getByTestId('previa-rateio-totais-desconto')).toHaveTextContent(/R\$\s500,00/);
+    expect(within(totais).getByTestId('previa-rateio-totais-acrescimo')).toHaveTextContent(/R\$\s90,00/);
+    expect(within(totais).getByTestId('previa-rateio-totais-liquido')).toHaveTextContent(/R\$\s8\.590,00/);
+    expect(totais).toHaveTextContent(/confere com o total do documento/);
+    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent(/R\$\s8\.590,00 em títulos a pagar/);
+    // A diferença é explicada: fica FORA do custo FIFO.
+    expect(within(dialogo).getByTestId('previa-rateio-nota-residuo')).toHaveTextContent(/fora do custo FIFO/);
+    // Avisos novos são INFORMATIVOS (texto próprio), nunca bloqueio.
+    const avisos = within(dialogo).getByTestId('previa-avisos');
+    expect(avisos).toHaveTextContent(/rateados entre os itens proporcionalmente ao subtotal/);
+    expect(avisos).toHaveTextContent(/Diferença de arredondamento do custo.*R\$\s0,04/);
+    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
+    expect(within(dialogo).getByTestId('botao-confirmar-definitivo')).toBeEnabled();
+    await clicar(within(dialogo).getByTestId('botao-confirmar-definitivo'));
+    expect(await screen.findByTestId('status-lancamento')).toHaveTextContent('Confirmado');
+  });
+
+  it('detalhe da compra confirmada: o lote vale o LÍQUIDO (8.000 − 500 = 7.500 / 3.200 kg → 2,3438/kg) e a diferença −0,16 aparece fora do custo FIFO', async () => {
+    const doc = semearDocumento(
+      estado,
+      corpoBase({
+        conteudo: 'COM_PRODUTOS',
+        valor_bruto: undefined,
+        valor_desconto: '500.00',
+        data_operacional: '2026-11-08',
+        efeito_fisico_confirmado: true,
+        itens: [{ tipo_item: 'MERCADORIA', produto_id: 'pr2', local_estoque_id: 'lo1', unidade: 'KG', quantidade: '3200', valor_unitario: '2.5' }],
+        rateios: [{ natureza_id: 'nd1', valor: '7500.00' }],
+        parcelas: [{ vencimento: '2026-11-08', valor: '7500.00' }],
+      }),
+      { confirmar: true },
+    );
+    await montar();
+    await abrir(doc.id);
+    const item = await screen.findByTestId('consulta-item-1');
+    expect(within(item).getByTestId('consulta-item-1-subtotal')).toHaveTextContent(/R\$\s8\.000,00/);
+    expect(within(item).getByTestId('consulta-item-1-desconto')).toHaveTextContent(/R\$\s500,00/);
+    expect(within(item).getByTestId('consulta-item-1-liquido')).toHaveTextContent(/R\$\s7\.500,00/);
+    expect(within(item).getByTestId('consulta-item-1-custo-kg')).toHaveTextContent(/R\$\s2,3438/);
+    expect(within(item).getByTestId('consulta-item-1-residuo')).toHaveTextContent(/-R\$\s0,16/);
+    expect(screen.getByTestId('consulta-total')).toHaveTextContent(/R\$\s7\.500,00/);
+    const totais = screen.getByTestId('consulta-rateio-totais');
+    expect(within(totais).getByTestId('consulta-rateio-totais-liquido')).toHaveTextContent(/R\$\s7\.500,00/);
+    expect(totais).toHaveTextContent(/confere com o total do documento/);
+    expect(screen.getByTestId('consulta-rateio-nota-residuo')).toHaveTextContent(/fora do custo FIFO/);
+  });
+
+  it('linha cujo custo por kg não cabe nas 4 casas: o formulário aponta a linha 2 e não envia o rascunho', async () => {
+    const doc = rascunhoNoLimite();
+    await montar();
+    await abrir(doc.id);
+    await clicar(screen.getByRole('button', { name: 'Editar' }));
+    digitar('item-1-valor-unitario', '0,00006');
+    const erro = await screen.findByTestId('item-1-liquido-erro');
+    expect(erro).toHaveTextContent(/custo por kg não cabe nas 4 casas do estoque/i);
+    expect(erro).toHaveTextContent(/20\.000 kg/);
+    expect(erro).toHaveTextContent(/-R\$\s0,80/);
+    expect(within(screen.getByTestId('item-0')).queryByTestId('item-0-liquido-erro')).toBeNull();
+    await salvar();
+    expect(await screen.findByText(/Revise o campo: Item 2/)).toBeTruthy();
+    expect(chamadas('PUT', /^\/operacoes-financeiras\//)).toHaveLength(0);
+    await clicar(screen.getByTestId('botao-confirmar-lancamento'));
+    expect(screen.queryByTestId('dialogo-confirmacao')).toBeNull();
+    expect(chamadas('POST', /\/previa$/)).toHaveLength(0);
+  });
+
+  it('422 custo_kg_nao_representavel do servidor ao SALVAR o rascunho: mensagem clara na linha 2 (sem o texto cru do servidor)', async () => {
+    const doc = rascunhoNoLimite();
+    estado.falhas.editar = { resposta: erroCustoLinha2, umaVez: true };
+    await montar();
+    await abrir(doc.id);
+    await clicar(screen.getByRole('button', { name: 'Editar' }));
+    fireEvent.change(screen.getByLabelText(/Histórico \(descrição\)/), { target: { value: 'COMPRA DE MILHO' } });
+    await salvar();
+    await waitFor(() => expect(chamadas('PUT', `/operacoes-financeiras/${doc.id}`)).toHaveLength(1));
+    const msg = await screen.findByText(/linha 2 dos itens/);
+    expect(msg.textContent).toMatch(/custo por kg não cabe nas 4 casas do estoque/i);
+    expect(msg.textContent).toMatch(/R\$\s1,20.*20\.000 kg.*R\$\s0,0001.*-R\$\s0,80/);
+    expect(msg.textContent).toMatch(/Nada foi gravado/);
+    expect(screen.queryByText(/texto do servidor/)).toBeNull();
+  });
+
+  it('422 na CONFIRMAÇÃO (custo_kg_nao_representavel e item_liquido_nao_positivo): o diálogo explica o motivo apontando a linha e nada é confirmado', async () => {
+    const doc = rascunhoNoLimite();
+    estado.falhas.confirmar = { resposta: erroCustoLinha2, umaVez: true };
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    await clicar(within(dialogo).getByTestId('botao-confirmar-definitivo'));
+    const erro = await within(dialogo).findByTestId('erro-envio');
+    expect(erro).toHaveTextContent(/linha 2 dos itens/);
+    expect(erro).toHaveTextContent(/custo por kg não cabe nas 4 casas do estoque/i);
+    expect(estado.documentos[0].status).toBe('RASCUNHO');
+    // Mesma tela, outro motivo: líquido da linha zerado pelo desconto.
+    const { mensagemErroGestao } = await import('@/lib/gestaoErros');
+    const liquido = mensagemErroGestao(
+      { cause: { code: 'OPERACAO_VALORES_INVALIDOS', field: 'valor_desconto', reason: 'item_liquido_nao_positivo', details: { colecao: 'itens', indice: 0, item_ordem: 1, valor_total: '0.01', valor_desconto_rateado: '0.01', valor_acrescimo_rateado: '0.00', valor_liquido: '0.00' } } },
+      'x',
+      { locale: 'pt-BR', moeda: 'BRL', casas: 2, comandoIdempotente: true },
+    );
+    expect(liquido).toMatch(/linha 1 dos itens/);
+    expect(liquido).toMatch(/líquido.*zero ou negativo/i);
+    expect(liquido).toMatch(/subtotal R\$\s0,01, desconto rateado R\$\s0,01/);
+  });
+
+  it('celular (390 px): o rateio por item é empilhado em 2 colunas, sem tabela larga nem largura mínima fixa (sem rolagem horizontal)', async () => {
+    window.innerWidth = 390;
+    window.dispatchEvent(new Event('resize'));
+    const doc = semearDocumento(estado, compraComFrete());
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    const bloco = within(dialogo).getByTestId('previa-rateio');
+    expect(bloco.querySelector('table')).toBeNull();
+    const todos = [bloco, ...bloco.querySelectorAll('*')];
+    for (const el of todos) {
+      const cls = String(el.getAttribute('class') ?? '');
+      expect(cls, cls).not.toMatch(/(^|\s)(whitespace-nowrap|overflow-x-auto|w-screen)(\s|$)|min-w-\[|(^|\s)w-\[\d{3,}px\]/);
+    }
+    for (const ordem of [1, 2]) {
+      const grade = within(dialogo).getByTestId(`previa-rateio-item-${ordem}-grade`);
+      expect(grade.className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+      for (const celula of grade.children) expect(celula.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    }
   });
 });

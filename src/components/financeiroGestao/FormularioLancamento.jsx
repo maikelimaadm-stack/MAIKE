@@ -82,7 +82,7 @@ export default function FormularioLancamento({
   const editando = Boolean(initialData?.id);
   const [form, setForm] = useState(() => (initialData?.id ? formularioDoDetalhe(initialData, { locale, casas, hoje }) : formularioVazio({ hoje })));
   const [tentou, setTentou] = useState(false);
-  const resumo = useMemo(() => calcularResumo(form, { locale, casas, hoje }), [form, locale, casas, hoje]);
+  const resumo = useMemo(() => calcularResumo(form, { locale, casas, hoje, moeda }), [form, locale, casas, hoje, moeda]);
 
   // Documento como foi carregado: "Confirmar" só regrava (PUT) se algo mudou (§8.7).
   const docInicial = useRef(/** @type {string|null} */ (null));
@@ -336,7 +336,8 @@ export default function FormularioLancamento({
           {erroDe("total") ? <p className="col-span-12 text-[12px] text-red-700">{erroDe("total")}</p> : null}
           {comProdutos ? (
             <p className="col-span-12 text-[11px] text-[var(--mg-text-2,#475569)]">
-              Desconto e acréscimo valem para o título; nesta fase não entram no custo do estoque.
+              Desconto e acréscimo são rateados entre os itens proporcionalmente ao subtotal. Na compra, o custo do lote é o valor líquido da mercadoria
+              (a prévia mostra o rateio por item).
             </p>
           ) : null}
 

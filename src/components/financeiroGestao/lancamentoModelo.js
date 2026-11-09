@@ -23,6 +23,8 @@ import {
   subtrair,
 } from '@/lib/dinheiroDecimal';
 import { ehDiaValido, somarDias } from '@/lib/diaCivil';
+import { mensagemDaLinhaDoRateio } from '@/lib/gestaoErros';
+import { ratearCabecalho } from '@/lib/rateioCabecalho';
 
 export const MAX_ITENS = 200;
 export const MAX_RATEIOS = 50;
@@ -185,7 +187,7 @@ export const produtoAceitaSaco = (produto) => produto?.unidade_principal_estoque
 /**
  * Tudo o que é derivado do formulário, mais os erros por campo.
  * @param {any} form
- * @param {{ locale: string, casas: number, hoje?: string }} ctx
+ * @param {{ locale: string, casas: number, hoje?: string, moeda?: string }} ctx
  */
 export const calcularResumo = (form, ctx) => {
   const { locale, casas } = ctx;
@@ -254,6 +256,23 @@ export const calcularResumo = (form, ctx) => {
     else if (comparar(total, LIMITE_TOTAL) > 0) erros.total = 'Total acima do limite permitido';
   }
   const totalValido = Boolean(total) && !erros.total;
+
+  // Custo de aquisição líquido (rodada 4): a MESMA política do servidor
+  // (desconto/acréscimo rateados por item; custo/kg com 4 casas) aponta, DENTRO
+  // do item, a linha que o servidor recusaria — antes de salvar ou confirmar.
+  if (comProdutos && totalValido && itens.length && itens.every((i) => i.subtotal && ehPositivo(i.subtotal))) {
+    const rateio = ratearCabecalho({
+      direcao: form.direcao,
+      casas,
+      valor_desconto: desconto,
+      valor_acrescimo: acrescimo,
+      itens: itens.map((i, k) => ({ ordem: k + 1, tipo_item: form.itens[k]?.tipo_item, valor_total: /** @type {string} */ (i.subtotal), quantidade_estoque: form.itens[k]?.tipo_item === 'MERCADORIA' ? i.kg : null })),
+    });
+    if (rateio?.erro) {
+      const { reason, details } = rateio.erro;
+      erros[`itens.${details.indice}.liquido`] = mensagemDaLinhaDoRateio(reason, details, { locale, moeda: ctx.moeda, casas }) ?? 'O valor líquido deste item é inválido.';
+    }
+  }
 
   // Rateio (sempre sobre o TOTAL, depois de desconto e acréscimo)
   const umaLinha = form.rateios.length === 1;

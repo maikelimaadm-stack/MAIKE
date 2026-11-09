@@ -4,6 +4,7 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { formatarMoeda, formatarNumero, percentualDe } from "@/lib/dinheiroDecimal";
 import { formatarDia, formatarInstante } from "@/lib/diaCivil";
+import { NotaResiduoCusto, TotaisRateioItens, ValoresRateadosDoItem, temRateioDoItem } from "@/components/financeiroGestao/RateioItensLancamento";
 import {
   ROTULO_CONDICAO,
   ROTULO_CONTEUDO,
@@ -169,7 +170,10 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                       {i.quantidade_estoque && i.unidade !== "KG" ? ` (${formatarNumero(i.quantidade_estoque, { locale, casasMax: 4 })} kg)` : ""}
                     </Dado>
                     <Dado rotulo="Valor unitário">{formatarNumero(i.valor_unitario, { locale, casasMin: c.casas, casasMax: 6 })}</Dado>
-                    <Dado rotulo="Subtotal">{dinheiro(i.valor_total)}</Dado>
+                    {/* Custo de aquisição líquido: subtotal, desconto/acréscimo rateados, líquido e, na compra, o custo do lote. */}
+                    <div className="col-span-12 min-w-0">
+                      <ValoresRateadosDoItem item={i} c={c} prefixo={`consulta-item-${i.ordem}`} />
+                    </div>
                     {i.tipo_item === "MERCADORIA" ? (
                       <Dado rotulo="Efeito no estoque" span="col-span-12">
                         <span className="text-[12px] font-normal">
@@ -187,6 +191,12 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                   </div>
                 </div>
               ))}
+              {itens.every(temRateioDoItem) ? (
+                <div className="col-span-12 min-w-0 space-y-1">
+                  <TotaisRateioItens itens={itens} valorTotal={d.valor_total} c={c} testId="consulta-rateio-totais" />
+                  {itens.some((/** @type {any} */ i) => typeof i.residuo_custo === "string") ? <NotaResiduoCusto testId="consulta-rateio-nota-residuo" /> : null}
+                </div>
+              ) : null}
             </>
           ) : null}
 
