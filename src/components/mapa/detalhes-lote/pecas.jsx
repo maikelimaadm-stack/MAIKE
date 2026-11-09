@@ -1,4 +1,5 @@
 import React from "react";
+import { TextoCorrido } from "@/components/mapa/CampoDl";
 import { useMediaQuery } from "@/components/common/MobileSheet";
 import { TONS } from "@/components/mapa/detalhes-lote/catalogo";
 
@@ -273,17 +274,25 @@ export function GradeCampos({ campos, colunas, variante = "topico" }) {
               {c.rotulo}
             </div>
             <div style={estiloValor}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: info ? undefined : "wrap", maxWidth: "100%" }}>
-                {c.dot ? (
+              {(() => {
+                const dot = c.dot ? (
                   <span aria-hidden="true" style={{ flex: "0 0 auto", width: dotTam, height: dotTam, border: `1px solid ${COR.marcador}`, borderRadius: 999, backgroundColor: c.dot }} />
-                ) : null}
-                {info ? <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{c.texto}</span> : c.texto}
-                {barra != null ? (
+                ) : null;
+                const barrinha = barra != null ? (
                   <span aria-hidden="true" style={{ display: "inline-block", flex: "0 0 auto", width: barraLarg, height: 4, borderRadius: 999, background: COR.divisor, overflow: "hidden" }}>
                     <span style={{ display: "block", width: `${barra}%`, height: "100%", borderRadius: 999, background: COR.barra }} />
                   </span>
-                ) : null}
-              </span>
+                ) : null;
+                // 'info' numa linha só: se o valor não couber, o texto corre devagar (D-PROD-124, TextoCorrido do CampoDl).
+                if (info && !quebra) return <TextoCorrido>{dot}{c.texto}{barrinha}</TextoCorrido>;
+                return (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: info ? undefined : "wrap", maxWidth: "100%" }}>
+                    {dot}
+                    {c.texto}
+                    {barrinha}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         );

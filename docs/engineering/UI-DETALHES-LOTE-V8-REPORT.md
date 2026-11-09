@@ -62,7 +62,10 @@ A saída completa está no PR. Resumo:
 - `npm run build`: passou.
 - `npm run lint`: passou.
 - `npm run gate:product-scope`: passou com contagens iguais à `main` (22 páginas, 35 entidades, 0 function(s), antes e depois).
-- `npm run verify:all`: ver o PR.
+- `npm run verify:all`: na primeira rodada, 36 de 39 etapas passaram e 3 falharam.
+  - `gate:source-closure`: `CampoDl.jsx` ficou sem quem o importasse. Correção: `GradeCampos` (variante "info") passou a usar o `TextoCorrido` do `CampoDl`, o que mantém o "texto corre se não couber" da D-PROD-124. Agora passa (538 alcançáveis, 0 na allowlist).
+  - `test:smoke`: dois testes liam no código-fonte a marcação antiga do cartão (`DetalhesLote.jsx`/`InformacoesArea.jsx`). Foram apontados para os arquivos novos, conferindo as mesmas coisas: os mesmos campos, nomes em texto simples e nenhum amarelo. A única mudança é a unidade no rótulo ("Peso médio (kg)"). Agora 164/164 arquivos e 1976/1976 testes passam.
+  - `test:backend`: exige PostgreSQL real (`DATABASE_URL`), que não estava no contêiner. Rodado depois contra um PostgreSQL 16 local; o resultado está no PR. Esta fatia não toca o backend.
 - Tipos (catraca):
   - Arquivos novos com 0 erros de `tsc`.
   - `DetalhesLote.jsx` passou de 26 para 24 erros legados.
