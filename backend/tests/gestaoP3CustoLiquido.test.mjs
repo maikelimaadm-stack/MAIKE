@@ -187,6 +187,9 @@ describe('L1 — vetores compartilhados (rascunho, prévia, confirmação, lote 
         assert.deepEqual(prev.bloqueios, []);
         assert.deepEqual(linhas(prev.plano.itens), caso.esperado.itens);
         assert.deepEqual(prev.plano.avisos.map((a) => a.codigo), caso.esperado.avisos);
+        const rateados = prev.plano.avisos.find((a) => a.codigo === 'desconto_acrescimo_rateados');
+        if (rateados) assert.match(rateados.mensagem, caso.direcao === 'PAGAR' ? /custo do lote é o valor líquido/ : /custo FIFO/, 'texto do aviso conforme a direção');
+        if (rateados && caso.direcao === 'RECEBER') assert.doesNotMatch(rateados.mensagem, /custo do lote/, 'na venda o rateio não muda custo de lote');
         const residuo = prev.plano.avisos.find((a) => a.codigo === 'residuo_custo_estoque');
         assert.equal(residuo?.residuo_total ?? null, caso.esperado.avisos.includes('residuo_custo_estoque') ? caso.esperado.residuo_total : null);
         // Chaves EXATAS de entradas/saídas: o backend falso da tela confere a mesma lista.

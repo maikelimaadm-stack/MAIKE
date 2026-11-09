@@ -307,6 +307,32 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     const comum = await emTransacao(opcoes, async () => { throw new Error('qualquer'); }).then(() => null, (erro) => erro);
     assert.equal(comum.message, 'qualquer');
   });
+
+  test('prazo estourado (P2028) não deixa efeito parcial nem sucesso falso: a escrita feita antes do estouro some e o comando repetido com a mesma operation_id grava uma vez', async () => {
+    const { emTransacao } = await import('../src/shared/prisma/transacaoConcorrente.js');
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const p = prisma();
+    const nomeAntes = (await p.produto.findUnique({ where: { id: e.racao.id } })).nome_produto;
+    const estouro = await emTransacao({ maxWait: 5000, timeout: 300 }, async (tx) => {
+      await tx.produto.update({ where: { id: e.racao.id }, data: { nome_produto: 'GRAVADO ANTES DO ESTOURO' } });
+      await tx.$executeRaw`SELECT pg_sleep(0.8)`;
+      await tx.$executeRaw`SELECT 1`;
+      return 'sucesso falso';
+    }).then((v) => ({ v }), (erro) => ({ erro }));
+    assert.equal(estouro.v, undefined, 'a transação estourada nunca devolve sucesso');
+    assert.equal(estouro.erro?.code, 'CONCURRENCY_CONFLICT', `${estouro.erro?.code} ${estouro.erro?.message}`);
+    assert.equal((await p.produto.findUnique({ where: { id: e.racao.id } })).nome_produto, nomeAntes, 'nada do que foi escrito antes do estouro ficou');
+    // Do lado do cliente, prazo estourado = resposta perdida: repetir com a MESMA
+    // operation_id confirma uma vez só (replay), sem segundo lote nem segundo título.
+    const d = await A.criar(s.token, docCom(e, s.local, [item(e.racao, '10', '3', { unidade: 'KG' })]));
+    const chave = opId();
+    const r1 = await A.req('POST', `/operacoes-financeiras/${d.id}/confirmar`, s.token, { empresa_id: e.id, operation_id: chave, versao: d.versao });
+    const depois = await foto(s.c);
+    const r2 = await A.req('POST', `/operacoes-financeiras/${d.id}/confirmar`, s.token, { empresa_id: e.id, operation_id: chave, versao: d.versao });
+    assert.deepEqual([r1.statusCode, r2.statusCode, r2.json().replay], [200, 200, true], r2.body);
+    assert.equal(await foto(s.c), depois, 'o reenvio não grava nada novo');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

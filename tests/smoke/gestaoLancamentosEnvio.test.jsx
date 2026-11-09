@@ -408,6 +408,49 @@ describe('ENV-1 — a pendência só repete o MESMO envio sem resposta (DINHEIRO
   });
 });
 
+describe('ENV-4 — prazo da função estourado na Vercel (504 FUNCTION_INVOCATION_TIMEOUT): nunca sucesso falso', () => {
+  const VERCEL_504 = { status: 504, body: 'An error occurred with your deployment. FUNCTION_INVOCATION_TIMEOUT' };
+  const confirmarPelaTela = async (doc) => {
+    await montar();
+    await abrir(doc.id);
+    await clicar(await screen.findByTestId('botao-confirmar-lancamento'));
+    const dialogo = await screen.findByTestId('dialogo-confirmacao');
+    await clicar(within(dialogo).getByTestId('botao-confirmar-definitivo'));
+    return dialogo;
+  };
+
+  it('504 DEPOIS do COMMIT: "resultado incerto" (sem "Confirmado" nem "Nada foi gravado"); Consultar mostra o estado real, uma confirmação só', async () => {
+    const doc = semearDocumento(estado, corpoCompra());
+    estado.falhas.confirmar = { gravarAntes: true, umaVez: true, resposta: VERCEL_504 };
+    const dialogo = await confirmarPelaTela(doc);
+    const incerto = await within(dialogo).findByTestId('resultado-incerto');
+    expect(incerto).not.toHaveTextContent(/Nada foi gravado/);
+    expect(screen.getByTestId('dialogo-confirmacao')).toBeTruthy();
+    expect(toasts().join(' | ')).not.toMatch(/confirmad/i);
+    await clicar(within(dialogo).getByTestId('botao-consultar-resultado'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-confirmacao')).toBeNull());
+    expect(await screen.findByTestId('status-lancamento')).toHaveTextContent('Confirmado');
+    expect(chamadas('POST', /\/confirmar$/)).toHaveLength(1);
+    expect(estado.documentos[0].status).toBe('CONFIRMADO');
+  });
+
+  it('504 SEM gravar: "resultado incerto"; repetir no mesmo diálogo reusa a operation_id e confirma uma vez só', async () => {
+    const doc = semearDocumento(estado, corpoCompra());
+    estado.falhas.confirmar = { umaVez: true, resposta: VERCEL_504 };
+    const versaoAntes = doc.versao;
+    const dialogo = await confirmarPelaTela(doc);
+    expect(await within(dialogo).findByTestId('resultado-incerto')).toBeTruthy();
+    expect(estado.documentos[0].status).toBe('RASCUNHO');
+    await clicar(within(dialogo).getByTestId('botao-confirmar-definitivo'));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-confirmacao')).toBeNull());
+    expect(await screen.findByTestId('status-lancamento')).toHaveTextContent('Confirmado');
+    const envios = chamadas('POST', /\/confirmar$/);
+    expect(envios).toHaveLength(2);
+    expect(envios[1].body.operation_id).toBe(envios[0].body.operation_id);
+    expect(estado.documentos[0].versao, 'uma confirmação só (versão +1, não +2)').toBe(versaoAntes + 1);
+  });
+});
+
 describe('ENV-2 — "Manter" no aviso de envio pendente (FRONTEND-4)', () => {
   it('liquidação incerta → valor mudado → "Manter": o diálogo continua em resultado incerto com "Consultar" (sem "Nada foi gravado")', async () => {
     const doc = semearDocumento(estado, corpoBase(), { confirmar: true });

@@ -370,7 +370,9 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         doc.historico.push({ acao: 'operacao_financeira.confirmar', em: TS, usuario_login: 'dono' });
         return { status: 200, body: detalhe(doc, { replay: false }) };
       });
-      if (f?.gravarAntes) return { rede: true };
+      // `gravarAntes` + `resposta`: gravou, mas o cliente recebe outra coisa (ex.: 504
+      // da Vercel quando o prazo da função estoura depois do COMMIT).
+      if (f?.gravarAntes) return f.resposta ?? { rede: true };
       return r;
     }
     if (acao === 'cancelar' && method === 'POST') {
