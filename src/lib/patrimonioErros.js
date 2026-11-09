@@ -73,6 +73,8 @@ const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   data_leitura: 'Data da leitura',
   leitura_inicial: 'Leitura inicial',
   leitura_atual: 'Leitura atual',
+  produto_id: 'Produto',
+  tipo_combustivel_id: 'Combustível',
 });
 
 /** "medicoes[2].valor" / "tanques.1.capacidade_litros" → rótulo do último campo conhecido. @param {string|null} campo */
@@ -233,6 +235,21 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
       return `Depreciação incompleta ou incoerente: com a depreciação ligada, informe valor de aquisição, vida útil, início e o residual (por valor ou por percentual); desligada, não informe parâmetros. ${NADA}`;
     case 'PATRIMONIO_DATA_INVALIDA':
       return `Data inválida${campo ? ` em "${campo}"` : ''}: confira o dia e a ordem (disponibilidade não antes da aquisição; início da depreciação não antes da disponibilidade). ${NADA}`;
+    // ─── Combustível × Produto por empresa (R2) ───
+    case 'COMBUSTIVEL_PRODUTO_INVALIDO':
+      if (field === 'tipo_combustivel_id' || reason === 'tipo_inativo') return `O combustível está inativo (ou não existe mais): reative-o antes de vincular produtos. ${NADA}`;
+      if (reason === 'outra_empresa') return `O produto escolhido é de outra fazenda: só produtos desta fazenda podem ser vinculados. ${NADA}`;
+      if (reason === 'inativo') return `O produto escolhido está inativo: só produtos ativos podem ser vinculados. ${NADA}`;
+      return `O produto escolhido não existe nesta fazenda (ou não está mais disponível). Atualize a lista e escolha outro. ${NADA}`;
+    case 'COMBUSTIVEL_PRODUTO_DUPLICADO':
+      if (reason === 'inativo_reative') return `Este produto já foi vinculado a este combustível nesta fazenda e o vínculo está inativo: reative-o na lista. ${NADA}`;
+      return `Este produto já está vinculado a este combustível nesta fazenda. ${NADA}`;
+    case 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO':
+      return `Este produto já está vinculado a outro combustível nesta fazenda: um produto só pode ter um combustível ativo. Inative aquele vínculo antes. ${NADA}`;
+    case 'COMBUSTIVEL_PRODUTO_NAO_ENCONTRADO':
+      return 'Vínculo de produto não encontrado nesta fazenda. A lista será atualizada.';
+    case 'PRODUTO_VINCULADO_COMBUSTIVEL':
+      return `Este produto está vinculado a um combustível do Patrimônio nesta fazenda: ele não pode mudar de fazenda. Inative o vínculo na tela Combustíveis antes. ${NADA}`;
     case 'REQUEST_VALIDATION_FAILED':
       if (reason === 'valor_deve_ser_texto') {
         const onde = rotuloDoCampo(typeof details.campo === 'string' ? details.campo : null);

@@ -2,11 +2,14 @@
 -- Catálogos do TENANT (FamiliaPatrimonial, TipoPatrimonial, TipoPatrimonialPerfil,
 -- PerfilMedicao, TipoCombustivel; sem empresa) e o bem da EMPRESA
 -- (BemPatrimonial) com os seus atributos (MedicaoBem, TanqueBem,
--- TanqueBemCombustivel). Sem abastecimento, manutenção, consumo, estoque,
--- financeiro, OS, custo/hora ou contabilidade: a depreciação são só parâmetros
--- (a prévia é calculada no servidor e nada grava).
+-- TanqueBemCombustivel) e, por EMPRESA, o vínculo explícito de um tipo de
+-- combustível a Produtos reais da fazenda (TipoCombustivelProduto, R2). Sem
+-- abastecimento, manutenção, consumo, estoque, financeiro, OS, custo/hora ou
+-- contabilidade: a depreciação são só parâmetros (a prévia é calculada no
+-- servidor e nada grava) e o vínculo a Produto é só classificação (nenhuma
+-- conversão L↔KG, nenhum saldo, custo ou movimento).
 --
--- EXPAND-ONLY: só CREATE TABLE / INDEX / FK / CHECK nas 9 tabelas NOVAS. Nenhuma
+-- EXPAND-ONLY: só CREATE TABLE / INDEX / FK / CHECK nas 10 tabelas NOVAS. Nenhuma
 -- tabela existente é alterada e nenhum dado é migrado (o catálogo padrão é
 -- instalado pelo serviço, nunca por seed). As FKs para tabelas antigas são
 -- compostas por (cliente_id, …) e RESTRICT: nada some em cascata.
@@ -17,13 +20,18 @@
 -- tanques e vínculos de combustível herdam o tenant do bem pela FK
 -- (cliente_id, bem_id|tanque_id); `principal` (true|NULL) com unique garante no
 -- máximo um principal por tipo e por bem; o valor normalizado da medição é o
--- informado vezes o fator EXATO da unidade (CHECK).
+-- informado vezes o fator EXATO da unidade (CHECK). O vínculo combustível ×
+-- produto tem FK composta (cliente_id, …) para Empresa, TipoCombustivel e
+-- Produto; como Produto não tem unique (cliente_id, empresa_id, id) e não é
+-- alterado aqui, a coerência Produto.empresa_id = vínculo.empresa_id é
+-- invariante do serviço. No máximo UM vínculo ativo por produto na empresa
+-- (`ativo_chave` true|NULL + unique) e nunca o mesmo par repetido.
 --
--- Reversão operacional (não executada em produção): as 9 tabelas são novas e
+-- Reversão operacional (não executada em produção): as 10 tabelas são novas e
 -- nenhuma tabela antiga as referencia; removê-las (filhas antes das mães:
--- TanqueBemCombustivel, TanqueBem, MedicaoBem, BemPatrimonial,
--- TipoPatrimonialPerfil, TipoPatrimonial, FamiliaPatrimonial, PerfilMedicao,
--- TipoCombustivel) não afeta dados existentes.
+-- TipoCombustivelProduto, TanqueBemCombustivel, TanqueBem, MedicaoBem,
+-- BemPatrimonial, TipoPatrimonialPerfil, TipoPatrimonial, FamiliaPatrimonial,
+-- PerfilMedicao, TipoCombustivel) não afeta dados existentes.
 
 CREATE TABLE "FamiliaPatrimonial" (
     "id" TEXT NOT NULL,
@@ -205,6 +213,21 @@ CREATE TABLE "TanqueBemCombustivel" (
     CONSTRAINT "TanqueBemCombustivel_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "TipoCombustivelProduto" (
+    "id" TEXT NOT NULL,
+    "cliente_id" VARCHAR(64) NOT NULL,
+    "empresa_id" VARCHAR(64) NOT NULL,
+    "tipo_combustivel_id" VARCHAR(64) NOT NULL,
+    "produto_id" VARCHAR(64) NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "ativo_chave" BOOLEAN,
+    "versao" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TipoCombustivelProduto_pkey" PRIMARY KEY ("id")
+);
+
 CREATE INDEX "FamiliaPatrimonial_cliente_id_ativo_idx" ON "FamiliaPatrimonial"("cliente_id", "ativo");
 
 CREATE INDEX "FamiliaPatrimonial_cliente_id_createdAt_id_idx" ON "FamiliaPatrimonial"("cliente_id", "createdAt", "id");
@@ -297,6 +320,20 @@ CREATE UNIQUE INDEX "TanqueBemCombustivel_cliente_id_id_key" ON "TanqueBemCombus
 
 CREATE UNIQUE INDEX "TanqueBemCombustivel_cliente_id_tanque_id_combustivel_id_key" ON "TanqueBemCombustivel"("cliente_id", "tanque_id", "combustivel_id");
 
+CREATE INDEX "TipoCombustivelProduto_empresa_tipo_ativo_idx" ON "TipoCombustivelProduto"("cliente_id", "empresa_id", "tipo_combustivel_id", "ativo");
+
+CREATE INDEX "TipoCombustivelProduto_cliente_id_produto_id_idx" ON "TipoCombustivelProduto"("cliente_id", "produto_id");
+
+CREATE INDEX "TipoCombustivelProduto_cliente_id_tipo_combustivel_id_idx" ON "TipoCombustivelProduto"("cliente_id", "tipo_combustivel_id");
+
+CREATE INDEX "TipoCombustivelProduto_cliente_id_empresa_id_createdAt_id_idx" ON "TipoCombustivelProduto"("cliente_id", "empresa_id", "createdAt", "id");
+
+CREATE UNIQUE INDEX "TipoCombustivelProduto_cliente_id_id_key" ON "TipoCombustivelProduto"("cliente_id", "id");
+
+CREATE UNIQUE INDEX "TipoCombustivelProduto_par_key" ON "TipoCombustivelProduto"("cliente_id", "empresa_id", "tipo_combustivel_id", "produto_id");
+
+CREATE UNIQUE INDEX "TipoCombustivelProduto_produto_ativo_key" ON "TipoCombustivelProduto"("cliente_id", "empresa_id", "produto_id", "ativo_chave");
+
 ALTER TABLE "FamiliaPatrimonial" ADD CONSTRAINT "FamiliaPatrimonial_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "TipoPatrimonial" ADD CONSTRAINT "TipoPatrimonial_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -346,6 +383,14 @@ ALTER TABLE "TanqueBemCombustivel" ADD CONSTRAINT "TanqueBemCombustivel_cliente_
 ALTER TABLE "TanqueBemCombustivel" ADD CONSTRAINT "TanqueBemCombustivel_cliente_id_tanque_id_fkey" FOREIGN KEY ("cliente_id", "tanque_id") REFERENCES "TanqueBem"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "TanqueBemCombustivel" ADD CONSTRAINT "TanqueBemCombustivel_cliente_id_combustivel_id_fkey" FOREIGN KEY ("cliente_id", "combustivel_id") REFERENCES "TipoCombustivel"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_cliente_id_empresa_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id") REFERENCES "Empresa"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_cliente_id_tipo_combustivel_id_fkey" FOREIGN KEY ("cliente_id", "tipo_combustivel_id") REFERENCES "TipoCombustivel"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_cliente_id_produto_id_fkey" FOREIGN KEY ("cliente_id", "produto_id") REFERENCES "Produto"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 
 -- Domínios fechados e invariantes (CHECK escrito à mão; NULL-safe: cada ramo
@@ -397,13 +442,16 @@ ALTER TABLE "MedicaoBem" ADD CONSTRAINT "MedicaoBem_normalizado_check" CHECK ("v
 ALTER TABLE "TanqueBem" ADD CONSTRAINT "TanqueBem_capacidade_check" CHECK ("capacidade_litros" > 0);
 ALTER TABLE "TanqueBem" ADD CONSTRAINT "TanqueBem_identificador_check" CHECK (char_length(btrim("identificador")) > 0);
 
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_ativo_chave_check" CHECK (("ativo" AND "ativo_chave" IS TRUE) OR (NOT "ativo" AND "ativo_chave" IS NULL));
+ALTER TABLE "TipoCombustivelProduto" ADD CONSTRAINT "TipoCombustivelProduto_versao_check" CHECK ("versao" >= 1);
+
 -- Supabase Data API: mesmo padrão das migrations anteriores — REVOKE de
 -- anon/authenticated, RLS ligado sem FORCE e política só para o papel do backend.
 DO $$
 DECLARE
   tbl text;
   pol_name constant text := 'maike_backend_all';
-  tabelas constant text[] := ARRAY['BemPatrimonial','FamiliaPatrimonial','MedicaoBem','PerfilMedicao','TanqueBem','TanqueBemCombustivel','TipoCombustivel','TipoPatrimonial','TipoPatrimonialPerfil'];
+  tabelas constant text[] := ARRAY['BemPatrimonial','FamiliaPatrimonial','MedicaoBem','PerfilMedicao','TanqueBem','TanqueBemCombustivel','TipoCombustivel','TipoCombustivelProduto','TipoPatrimonial','TipoPatrimonialPerfil'];
 BEGIN
   FOREACH tbl IN ARRAY tabelas
   LOOP

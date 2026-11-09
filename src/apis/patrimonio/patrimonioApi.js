@@ -2,8 +2,9 @@
  * API do módulo Patrimônio e Frota (D-PROD-157). Online só; página keyset do
  * motor Base1; opções de seletor paginadas no servidor (sem teto).
  *
- * Catálogos do tenant: nunca `empresa_id`. Bens: `empresa_id` obrigatório
- * (query na leitura, corpo na gravação). PATCH sempre com `versao` (CAS).
+ * Catálogos do tenant: nunca `empresa_id`. Bens e vínculos Combustível ×
+ * Produto (R2): `empresa_id` obrigatório (query na leitura, corpo na gravação).
+ * PATCH sempre com `versao` (CAS).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
@@ -156,8 +157,109 @@ export const listOpcoesBemPatrimonial = async (recurso, filtros = {}) => {
   const contexto = ctx('listOpcoesBemPatrimonial', 'BemPatrimonial');
   assertArgument(RECURSOS_OPCOES_PATRIMONIO.includes(recurso), 'recurso', contexto);
   if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso)) assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
-  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.opcoes(recurso, filtros), contexto));
-  const itens = isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens : [];
-  const proximo = isObjeto(bruto) && typeof bruto.next_cursor === 'string' && bruto.next_cursor ? bruto.next_cursor : null;
-  return { itens, has_more: Boolean(isObjeto(bruto) && bruto.has_more === true && proximo), next_cursor: proximo };
+  const bruto = await runProviderCall(() => operacoesNativas.opcoes(recurso, filtros), contexto);
+  return paginaDeOpcoes(bruto);
+};
+
+/**
+ * Envelope de opções `{itens, has_more, next_cursor}`: `has_more` só com cursor.
+ * @param {unknown} bruto
+ * @returns {{ itens: any[], has_more: boolean, next_cursor: string|null }}
+ */
+const paginaDeOpcoes = (bruto) => {
+  const o = isObjeto(bruto) ? bruto : {};
+  const itens = Array.isArray(o.itens) ? o.itens : [];
+  const proximo = typeof o.next_cursor === 'string' && o.next_cursor ? o.next_cursor : null;
+  return { itens, has_more: Boolean(o.has_more === true && proximo), next_cursor: proximo };
+};
+
+/** Campos do item de produto elegível (contrato da P1-02): nada de preço, saldo ou custo. */
+const CAMPOS_ELEGIVEL = Object.freeze([
+  'tanque_id',
+  'tanque_identificador',
+  'tipo_combustivel_id',
+  'tipo_combustivel_nome',
+  'produto_id',
+  'produto_nome',
+  'unidade_principal_estoque',
+  'empresa_id',
+]);
+
+/**
+ * Produtos elegíveis de um bem (leitura para a P1-02): por tanque ATIVO do bem
+ * (ou só o informado), interseção dos combustíveis do tanque com os vínculos
+ * ATIVOS da empresa do bem e os produtos ATIVOS dessa empresa. Sem vínculo →
+ * lista vazia. Cada item sai só com os campos do contrato.
+ * @param {string} bemId
+ * @param {{ empresa_id: string, tanque_id?: string|null }} filtros
+ * @returns {Promise<{ itens: Array<Record<string, unknown>> }>}
+ */
+export const listProdutosElegiveisBemPatrimonial = async (bemId, filtros) => {
+  const contexto = ctx('listProdutosElegiveisBemPatrimonial', 'BemPatrimonial');
+  assertArgument(isId(bemId), 'id', contexto);
+  assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.bemProdutosElegiveis(bemId, filtros), contexto));
+  const lista = Array.isArray(bruto) ? bruto : isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens : isObjeto(bruto) && Array.isArray(bruto.items) ? bruto.items : [];
+  return {
+    itens: lista.filter(isObjeto).map((item) => Object.fromEntries(CAMPOS_ELEGIVEL.map((campo) => [campo, item[campo] ?? null]))),
+  };
+};
+
+// ─── Combustível × Produto por empresa (R2) ──────────────────────────────
+
+const RESOURCE_VINCULO = 'TipoCombustivelProduto';
+
+/**
+ * Vínculos do tipo de combustível NA empresa (keyset; inativos inclusos para
+ * rastreabilidade, salvo filtro `ativo`).
+ * @param {string} tipoId
+ * @param {{ empresa_id: string, ativo?: boolean, limit?: number, cursor?: string|null }} filtros
+ */
+export const listProdutosDoCombustivelPage = async (tipoId, filtros) => {
+  const contexto = ctx('listProdutosDoCombustivelPage', RESOURCE_VINCULO);
+  assertArgument(isId(tipoId), 'id', contexto);
+  assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => operacoesNativas.combustivelProdutosListPage(tipoId, filtros), contexto);
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+};
+
+/**
+ * Vincula um produto da empresa ao tipo: corpo EXATO `{empresa_id, produto_id}`.
+ * @param {string} tipoId @param {{ empresa_id: string, produto_id: string }} corpo
+ */
+export const createVinculoCombustivelProduto = async (tipoId, corpo) => {
+  const contexto = ctx('createVinculoCombustivelProduto', RESOURCE_VINCULO);
+  assertArgument(isId(tipoId), 'id', contexto);
+  assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(isId(corpo.produto_id), 'produto_id', contexto);
+  assertArgument(Object.keys(corpo).every((k) => k === 'empresa_id' || k === 'produto_id'), 'corpo', contexto);
+  return runProviderCall(() => operacoesNativas.combustivelProdutoCreate(tipoId, corpo), contexto);
+};
+
+/**
+ * Inativa/reativa um vínculo: corpo EXATO `{empresa_id, versao, ativo}` (tipo,
+ * produto e empresa são imutáveis; `versao` = concorrência otimista).
+ * @param {string} vinculoId @param {{ empresa_id: string, versao: number, ativo: boolean }} corpo
+ */
+export const updateVinculoCombustivelProduto = async (vinculoId, corpo) => {
+  const contexto = ctx('updateVinculoCombustivelProduto', RESOURCE_VINCULO);
+  assertArgument(isId(vinculoId), 'id', contexto);
+  assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(typeof corpo.ativo === 'boolean', 'ativo', contexto);
+  assertArgument(Object.keys(corpo).every((k) => k === 'empresa_id' || k === 'versao' || k === 'ativo'), 'corpo', contexto);
+  return runProviderCall(() => operacoesNativas.combustivelProdutoUpdate(vinculoId, corpo), { ...contexto, details: { id: vinculoId } });
+};
+
+/**
+ * Uma página de produtos ATIVOS da empresa para vincular (keyset nome+id); cada
+ * item diz se o produto já tem vínculo ativo (`vinculo_ativo`).
+ * @param {{ empresa_id: string, q?: string, cursor?: string|null, limit?: number }} filtros
+ * @returns {Promise<{ itens: any[], has_more: boolean, next_cursor: string|null }>}
+ */
+export const listOpcoesProdutosCombustivel = async (filtros) => {
+  const contexto = ctx('listOpcoesProdutosCombustivel', RESOURCE_VINCULO);
+  assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => operacoesNativas.combustivelProdutoOpcoes(filtros), contexto);
+  return paginaDeOpcoes(bruto);
 };

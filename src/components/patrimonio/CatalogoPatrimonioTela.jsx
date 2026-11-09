@@ -21,10 +21,11 @@ import FormularioFamilia, { FORMULARIO_FAMILIA_ID } from "@/components/patrimoni
 import FormularioTipo, { FORMULARIO_TIPO_ID } from "@/components/patrimonio/FormularioTipo";
 import FormularioPerfilMedicao, { FORMULARIO_PERFIL_MEDICAO_ID } from "@/components/patrimonio/FormularioPerfilMedicao";
 import FormularioCombustivel, { FORMULARIO_COMBUSTIVEL_ID } from "@/components/patrimonio/FormularioCombustivel";
+import ProdutosDoCombustivel from "@/components/patrimonio/ProdutosDoCombustivel";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
-import { useAcoesTelaPatrimonio } from "@/hooks/usePatrimonioSessao";
+import { useAcoesTelaPatrimonio, useEmpresaRealSelecionadaId } from "@/hooks/usePatrimonioSessao";
 import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
 import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 import { ehConflitoDeVersaoPatrimonio, ehNaoEncontradoPatrimonio, mensagemErroPatrimonio } from "@/lib/patrimonioErros";
@@ -155,7 +156,8 @@ function ResumoCatalogoPadrao({ resumo, onFechar }) {
  * Catálogos são do TENANT: não pedem empresa. Sem exclusão física e sem chave
  * Ativo no formulário: inativar/reativar é ação do menu (com confirmação) e
  * exige a ação extra `inativar`. Nas Famílias, o administrador instala o
- * catálogo padrão (idempotente) e vê o resumo.
+ * catálogo padrão (idempotente) e vê o resumo. Nos Combustíveis, o registro
+ * aberto mostra os produtos vinculados NA fazenda selecionada (R2).
  *
  * @param {{ recurso: 'familias'|'tipos'|'perfis-medicao'|'combustiveis' }} props
  */
@@ -163,6 +165,8 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const cfg = CONFIG_CATALOGOS[recurso];
   const queryClient = useQueryClient();
   const acoes = useAcoesTelaPatrimonio(cfg.tela);
+  // Só os Combustíveis usam a empresa: os produtos vinculados são POR fazenda (R2).
+  const empresaId = useEmpresaRealSelecionadaId();
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
   const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
@@ -360,6 +364,18 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const semPermissao = !acoes.carregando && !acoes.ver;
   const Formulario = cfg.Formulario;
 
+  // Combustíveis: no registro aberto (leitura), os produtos vinculados NESTA
+  // fazenda. `key` empresa+combustível: trocar de registro ou de fazenda zera a seção.
+  const produtosVinculados =
+    recurso === RECURSOS_CATALOGO.COMBUSTIVEIS && acoes.ver && registroAtual?.id && !controller.isEditing ? (
+      <ProdutosDoCombustivel
+        key={`${empresaId ?? "sem-empresa"}:${registroAtual.id}`}
+        empresaId={empresaId}
+        combustivel={{ id: String(registroAtual.id), nome: registroAtual.nome ?? null, ativo: registroAtual.ativo !== false }}
+        acoes={{ criar: acoes.criar, inativar: acoes.inativar }}
+      />
+    ) : null;
+
   /** Cancelar a edição de um registro gravado descarta o digitado: o formulário remonta do registro. */
   const cancelarEdicao = () => {
     if (controller.isEditing && controller.editingItem?.id) controller.recordHelpers.bumpFormEpoch();
@@ -405,12 +421,15 @@ export default function CatalogoPatrimonioTela({ recurso }) {
           descriptionMany: () => cfg.efeitoInativar,
         }}
         recordForm={
-          <Formulario
-            key={`${registroAtual?.id ?? `${recurso}-novo`}-${controller.formEpoch}`}
-            readOnly={!controller.isEditing}
-            initialData={registroAtual}
-            onSubmit={controller.handleSubmit}
-          />
+          <>
+            <Formulario
+              key={`${registroAtual?.id ?? `${recurso}-novo`}-${controller.formEpoch}`}
+              readOnly={!controller.isEditing}
+              initialData={registroAtual}
+              onSubmit={controller.handleSubmit}
+            />
+            {produtosVinculados}
+          </>
         }
         listSlot={
           <GradePatrimonio

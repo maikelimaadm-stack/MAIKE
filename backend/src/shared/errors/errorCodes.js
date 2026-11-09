@@ -181,6 +181,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   DEPRECIACAO_RESIDUAL_INVALIDO: { http: 422, meaning: 'valor residual maior que o custo do bem ou percentual fora de 0 a 100; nada foi gravado' },
   DEPRECIACAO_PARAMETROS_INVALIDOS: { http: 422, meaning: 'parâmetros de depreciação incompletos ou presentes em bem não depreciável (details.field); nada foi gravado' },
   PATRIMONIO_DATA_INVALIDA: { http: 422, meaning: 'data inexistente ou fora de ordem (disponibilidade antes da aquisição, início da depreciação antes da disponibilidade); nada foi gravado' },
+  // D-PROD-157 (R2) — combustível × produto por empresa (classificação; sem estoque, custo ou conversão L↔KG).
+  COMBUSTIVEL_PRODUTO_INVALIDO: { http: 422, meaning: 'produto recusado no vínculo ao combustível (details.field/reason: inexistente — também de outro tenant, sem oráculo —, outra_empresa, inativo; ou tipo_inativo no tipo de combustível); nada foi gravado' },
+  COMBUSTIVEL_PRODUTO_DUPLICADO: { http: 409, meaning: 'este produto já está vinculado a este combustível nesta fazenda (reason inativo_reative + details.vinculo_id quando o vínculo existe inativo: reative-o); nada foi gravado' },
+  COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO: { http: 409, meaning: 'o produto já tem vínculo ATIVO com outro combustível nesta fazenda (details.tipo_combustivel_id): um produto, um combustível ativo; nada foi gravado' },
+  COMBUSTIVEL_PRODUTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica vínculo combustível × produto desta fazenda neste tenant' },
+  PRODUTO_VINCULADO_COMBUSTIVEL: { http: 409, meaning: 'produto com vínculo ATIVO a combustível do Patrimônio não muda de empresa; inative o vínculo antes; nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
     http: 409,
     meaning: 'já existe empresa com este nome neste tenant',
@@ -262,7 +268,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   PRODUTO_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'produto possui movimentações de estoque ou itens de lançamento financeiro (D-PROD-155) e não pode ser excluído',
+    meaning: 'produto possui movimentações de estoque, itens de lançamento financeiro (D-PROD-155) ou vínculo a combustível do Patrimônio (D-PROD-157, ativo ou inativo) e não pode ser excluído',
   },
   // R2A (D-PROD-99): declarados para o 404 entre tenants não virar 500.
   MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },

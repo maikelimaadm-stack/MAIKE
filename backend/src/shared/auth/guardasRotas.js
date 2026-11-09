@@ -243,7 +243,13 @@ export const GUARDAS = Object.freeze({
   patrimonioFamilias: patrimonio(T.PATRIMONIO_FAMILIAS),
   patrimonioTipos: patrimonio(T.PATRIMONIO_TIPOS),
   patrimonioPerfisMedicao: patrimonio(T.PATRIMONIO_PERFIS_MEDICAO),
-  patrimonioCombustiveis: patrimonio(T.PATRIMONIO_COMBUSTIVEIS),
+  patrimonioCombustiveis: {
+    ...patrimonio(T.PATRIMONIO_COMBUSTIVEIS),
+    // D-PROD-157 (R2): o seletor "Vincular produto" serve a criação do vínculo
+    // (novo|salvar) e quem edita a tela (editar); ver sozinho não lista
+    // produtos da fazenda.
+    opcoesProdutos: porQualquer([T.PATRIMONIO_COMBUSTIVEIS, 'novo'], [T.PATRIMONIO_COMBUSTIVEIS, 'salvar'], [T.PATRIMONIO_COMBUSTIVEIS, 'editar']),
+  },
   // Instalar o catálogo padrão: administrador real ou a concessão `is_admin`.
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),

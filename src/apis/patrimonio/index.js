@@ -12,4 +12,9 @@ export {
   updateBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
+  listProdutosElegiveisBemPatrimonial,
+  listProdutosDoCombustivelPage,
+  createVinculoCombustivelProduto,
+  updateVinculoCombustivelProduto,
+  listOpcoesProdutosCombustivel,
 } from './patrimonioApi.js';

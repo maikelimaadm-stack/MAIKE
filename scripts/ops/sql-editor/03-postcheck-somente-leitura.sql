@@ -15,7 +15,8 @@ tenant(nome) AS (
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
     'LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItemRateio','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
     -- D-PROD-157 (Patrimônio P1-01): filhas antes das mães; antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem que o bem referencia.
-    'TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivel',
+    -- D-PROD-157 (R2): o vínculo combustível × produto sai antes de TipoCombustivel, Produto e Empresa, que ele referencia.
+    'TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivelProduto','TipoCombustivel',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',

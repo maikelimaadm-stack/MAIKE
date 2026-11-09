@@ -11,7 +11,7 @@
  *      sem sessão, conta desativada, permissão revogada.
  *  S4. Auditoria por allowlist (sem texto livre) na mesma transação: falha
  *      forçada por gatilho desfaz bem, filhos, sequência e catálogo.
- *  S5. RLS ligado e zero grants públicos nas 9 tabelas.
+ *  S5. RLS ligado e zero grants públicos nas 10 tabelas.
  *  S6. CHECK/FK/UNIQUE direto no banco (A7: CHECKs NULL-safe).
  *  S7. Cadastros antigos referenciados: parceiro → 409 PARCEIRO_EM_USO (não
  *      403); fazenda com bens → 409 EMPRESA_COM_VINCULOS. Também em corrida
@@ -377,7 +377,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S5–S6 — o banco é a última rede', () => {
-  test('RLS ligado e zero grants para PUBLIC/anon/authenticated nas 9 tabelas', async () => {
+  test('RLS ligado e zero grants para PUBLIC/anon/authenticated nas 10 tabelas', async () => {
     const p = prisma();
     const rls = /** @type {any[]} */ (await p.$queryRaw`SELECT relname, relrowsecurity FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[]) ORDER BY relname`);
     assert.deepEqual(rls.map((r) => r.relname), [...TABELAS_PATRIMONIO].sort());
@@ -661,7 +661,7 @@ describe('S7 — exclusão de cadastros antigos referenciados por bens', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
-  test('sem as 9 tabelas (DROP numa transação desfeita), o runtime novo falha P2021 no Patrimônio (500 sem detalhe) e o resto segue; o banco volta ao normal', async () => {
+  test('sem as 10 tabelas (DROP numa transação desfeita), o runtime novo falha P2021 no Patrimônio (500 sem detalhe) e o resto segue; o banco volta ao normal', async () => {
     const s = await montarPatrimonio(app);
     await criarOk(s, corpoTrator(s));
     const delegados = ['bemPatrimonial', 'medicaoBem', 'tanqueBem', 'tanqueBemCombustivel', 'familiaPatrimonial', 'tipoPatrimonial', 'tipoPatrimonialPerfil', 'perfilMedicao', 'tipoCombustivel'];
@@ -692,7 +692,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     assert.deepEqual([r.fornecedores, r.empresas], [3, 2], 'as tabelas antigas seguem legíveis');
     const http500 = normalizarErro(r.primeiro);
     assert.deepEqual([http500.code, http500.status], ['INTERNAL_ERROR', 500], 'o cliente vê 500 genérico, sem nome de tabela');
-    // Transação desfeita: as 9 tabelas e o bem continuam lá.
+    // Transação desfeita: as 10 tabelas e o bem continuam lá.
     assert.equal(await prisma().bemPatrimonial.count({ where: { cliente_id: s.c } }), 1);
     const existentes = /** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[])`);
     assert.equal(existentes.length, 9);

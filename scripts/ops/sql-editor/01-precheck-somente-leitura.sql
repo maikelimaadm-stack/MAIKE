@@ -23,7 +23,8 @@ tenant(nome, ord) AS (
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
     'LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItemRateio','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
     -- D-PROD-157 (Patrimônio P1-01): filhas antes das mães; antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem que o bem referencia.
-    'TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivel',
+    -- D-PROD-157 (R2): o vínculo combustível × produto sai antes de TipoCombustivel, Produto e Empresa, que ele referencia.
+    'TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivelProduto','TipoCombustivel',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
@@ -127,8 +128,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 80 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 9 de Patrimônio P1-01)',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 80 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 81 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 10 de Patrimônio P1-01)',
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 81 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -186,7 +187,7 @@ base(ordem, item, valor, esperado, status) AS (
 ),
 contrato AS (
   SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
-         AND (SELECT count(*) FROM tabelas) = 80
+         AND (SELECT count(*) FROM tabelas) = 81
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
          AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0

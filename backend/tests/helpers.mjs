@@ -120,6 +120,9 @@ export const limparBanco = async () => {
   // D-PROD-157: Patrimônio e Frota (filhas antes das mães; sem autorreferência).
   // Antes do bloco de Gestão porque o bem referencia o centro de custo, e antes
   // do laço porque referencia Empresa, Fornecedor, Usuario e AreaPastagem (RESTRICT).
+  // R2: o vínculo combustível × produto referencia TipoCombustivel, Produto e
+  // Empresa (RESTRICT): sai antes deles.
+  await prisma.tipoCombustivelProduto.deleteMany({});
   await prisma.tanqueBemCombustivel.deleteMany({});
   await prisma.tanqueBem.deleteMany({});
   await prisma.medicaoBem.deleteMany({});

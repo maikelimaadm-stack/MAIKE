@@ -48,6 +48,7 @@ import { registrarNaturezaFinanceiraRoutes } from './modules/gestao/naturezaFina
 import { registrarOperacaoFinanceiraRoutes } from './modules/financeiro/operacaoFinanceiraRoutes.js';
 import { registrarPatrimonioCatalogoRoutes } from './modules/patrimonio/patrimonioCatalogoRoutes.js';
 import { registrarBemPatrimonialRoutes } from './modules/patrimonio/bemPatrimonialRoutes.js';
+import { registrarCombustivelProdutoRoutes } from './modules/patrimonio/combustivelProdutoRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -217,6 +218,8 @@ export const construirApp = async (opcoes = {}) => {
   // (sem estoque/financeiro; a depreciação é só prévia simulada).
   await app.register(registrarPatrimonioCatalogoRoutes);
   await app.register(registrarBemPatrimonialRoutes);
+  // D-PROD-157 (R2) — vínculo combustível × produto por empresa (classificação; sem estoque/custo).
+  await app.register(registrarCombustivelProdutoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

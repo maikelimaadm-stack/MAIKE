@@ -122,6 +122,8 @@ model Cliente {
   medicoesBem                  MedicaoBem[]
   tanquesBem                   TanqueBem[]
   tanquesBemCombustiveis       TanqueBemCombustivel[]
+  // D-PROD-157 (R2) — combustível × produto por empresa.
+  tiposCombustivelProdutos     TipoCombustivelProduto[]
 
   @@index([nome])
   @@index([ativo])
@@ -849,6 +851,8 @@ model Produto {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
+  // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
+  vinculosCombustivel TipoCombustivelProduto[]
 
   @@unique([cliente_id, numero_produto])
   @@unique([cliente_id, id])
@@ -990,6 +994,8 @@ model Empresa {
   operacoesFinanceiras   OperacaoFinanceira[]
   // D-PROD-157 — bens patrimoniais da fazenda (catálogos são do tenant).
   bensPatrimoniais       BemPatrimonial[]
+  // D-PROD-157 (R2) — produtos da fazenda vinculados a tipos de combustível.
+  tiposCombustivelProdutos TipoCombustivelProduto[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -2426,8 +2432,10 @@ model TipoCombustivel {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  cliente Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tanques TanqueBemCombustivel[]
+  cliente  Cliente                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tanques  TanqueBemCombustivel[]
+  // D-PROD-157 (R2) — produtos reais vinculados, por empresa.
+  produtos TipoCombustivelProduto[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, codigo])
@@ -2597,4 +2605,45 @@ model TanqueBemCombustivel {
   @@unique([cliente_id, tanque_id, combustivel_id])
   @@index([cliente_id, combustivel_id])
   @@index([cliente_id, createdAt, id])
+}
+
+/// D-PROD-157 (R2) — vínculo POR EMPRESA entre um tipo de combustível (catálogo
+/// do tenant) e um Produto REAL da fazenda. Sem efeito em estoque, financeiro,
+/// FIFO, custo ou unidade: é classificação explícita para a P1-02 oferecer só
+/// os produtos compatíveis com o tanque e a empresa (nenhuma conversão L↔KG).
+///
+/// Integridade: FKs compostas com o tenant para Empresa, TipoCombustivel e
+/// Produto. `Produto` NÃO tem `@@unique([cliente_id, empresa_id, id])` (tabela
+/// antiga, expand-only): a coerência `Produto.empresa_id = empresa_id` é
+/// invariante do SERVICE (FOR KEY SHARE na criação/reativação; a troca de
+/// empresa do produto com vínculo ATIVO é recusada em `produtoService`).
+/// Sem DELETE: inativação (`ativo=false`, `ativo_chave=NULL`; CHECK). No
+/// máximo UM vínculo ATIVO por produto na empresa (`ativo_chave=true` + unique;
+/// NULLs não colidem) e nunca o mesmo par repetido (reativa-se o existente).
+model TipoCombustivelProduto {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  empresa_id          String   @db.VarChar(64)
+  tipo_combustivel_id String   @db.VarChar(64)
+  produto_id          String   @db.VarChar(64)
+  ativo               Boolean  @default(true)
+  /// `true` quando ativo, NULL quando inativo (CHECK): dá ao unique
+  /// [cliente_id, empresa_id, produto_id, ativo_chave] o papel de "um ativo".
+  ativo_chave         Boolean?
+  versao              Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente         Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa         Empresa         @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  tipoCombustivel TipoCombustivel @relation(fields: [cliente_id, tipo_combustivel_id], references: [cliente_id, id], onDelete: Restrict)
+  produto         Produto         @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, tipo_combustivel_id, produto_id], map: "TipoCombustivelProduto_par_key")
+  @@unique([cliente_id, empresa_id, produto_id, ativo_chave], map: "TipoCombustivelProduto_produto_ativo_key")
+  @@index([cliente_id, empresa_id, tipo_combustivel_id, ativo], map: "TipoCombustivelProduto_empresa_tipo_ativo_idx")
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, tipo_combustivel_id])
+  @@index([cliente_id, empresa_id, createdAt, id])
 }

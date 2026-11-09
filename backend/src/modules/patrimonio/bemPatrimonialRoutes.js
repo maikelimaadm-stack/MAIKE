@@ -25,6 +25,7 @@ import * as perfis from './perfilMedicaoService.js';
 import * as combustiveis from './tipoCombustivelService.js';
 import { atualizar, criar, detalhar, listar, previaDepreciacao } from './bemPatrimonialService.js';
 import { opcoesAreas, opcoesCentrosCusto, opcoesParceiros, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
+import { produtosElegiveisDoBem } from './combustivelProdutoService.js';
 import { PADRAO_DINHEIRO, PADRAO_MEDIDA, PADRAO_PERCENTUAL } from './bemPatrimonialRegras.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO, recusarCoercaoPatrimonio } from './patrimonioComum.js';
 import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS } from './patrimonioDominio.js';
@@ -206,6 +207,11 @@ const LISTAR = {
 };
 
 const DETALHE = { params: PARAMS, querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } } };
+/** D-PROD-157 (R2): produtos elegíveis do bem (contrato de leitura para a P1-02). */
+const ELEGIVEIS = {
+  params: PARAMS,
+  querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID, tanque_id: ID } },
+};
 
 const PREVIA = {
   body: {
@@ -271,6 +277,11 @@ export const registrarBemPatrimonialRoutes = async (app) => {
     reply.status(201).send(await criar(ctx(request), corpo(request))));
   app.patch('/bens-patrimoniais/:id', { ...autenticado, preHandler: [g.editar], schema: ATUALIZAR }, async (request) =>
     atualizar(ctx(request), idDe(request), corpo(request)));
+  // D-PROD-157 (R2): produtos elegíveis por tanque (leitura; sem preço, saldo ou custo).
+  app.get('/bens-patrimoniais/:id/produtos-elegiveis', { ...autenticado, preHandler: [g.ver], schema: ELEGIVEIS }, async (request) => {
+    const q = consulta(request);
+    return produtosElegiveisDoBem(ctx(request), { empresaId: q.empresa_id, bemId: idDe(request), tanqueId: q.tanque_id ?? null });
+  });
   // Prévia: só cálculo, nada é gravado (guarda de leitura).
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));

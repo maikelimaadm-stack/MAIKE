@@ -30,10 +30,10 @@ export const TELAS = Object.freeze({
   perfis: 'pat-perfis-medicao',
   combustiveis: 'pat-combustiveis',
 });
-/** As 9 tabelas novas da migration `20261110100000_patrimonio_p1_01_cadastros`. */
+/** As 10 tabelas novas da migration `20261110100000_patrimonio_p1_01_cadastros` (R2: + o vínculo combustível × produto). */
 export const TABELAS_PATRIMONIO = Object.freeze([
   'BemPatrimonial', 'FamiliaPatrimonial', 'MedicaoBem', 'PerfilMedicao', 'TanqueBem', 'TanqueBemCombustivel',
-  'TipoCombustivel', 'TipoPatrimonial', 'TipoPatrimonialPerfil',
+  'TipoCombustivel', 'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil',
 ]);
 export const MIGRATION_PATRIMONIO = '20261110100000_patrimonio_p1_01_cadastros';
 
@@ -99,7 +99,7 @@ export const fotoPatrimonio = async (clienteIds) => {
  * Tudo FORA do Patrimônio: toda tabela do tenant (todo model com `cliente_id`,
  * o que cobre estoque e financeiro inteiros — Produto, LocalEstoque, Lote,
  * NaturezaFinanceira, PerfilFinanceiroEmpresa, CentroResultado, títulos...)
- * menos as 9 do Patrimônio, a auditoria e a sequência de números. Compare
+ * menos as 10 do Patrimônio, a auditoria e a sequência de números. Compare
  * antes/depois: uma tabela nova de estoque/financeiro entra sozinha.
  */
 const FORA_DO_PATRIMONIO = Object.freeze(

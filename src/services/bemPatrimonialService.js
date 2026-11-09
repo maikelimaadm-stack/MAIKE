@@ -26,6 +26,7 @@ import {
   updateBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
+  listProdutosElegiveisBemPatrimonial,
   RECURSOS_OPCOES_DA_EMPRESA,
 } from '@/apis/patrimonio';
 import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
@@ -417,6 +418,25 @@ export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
     limit: opts.limit ?? 50,
     familia_id: opts.familiaId || undefined,
   });
+};
+
+/**
+ * Contrato de LEITURA para a P1-02 (abastecimento futuro; sem tela agora):
+ * produtos elegíveis do bem, por tanque ATIVO (ou só `tanqueId`) — interseção
+ * dos combustíveis permitidos no tanque com os vínculos ATIVOS Combustível ×
+ * Produto da empresa DO BEM e com os produtos ATIVOS dessa empresa.
+ *
+ * Sem vínculo → `{ itens: [] }` (nunca "todos os produtos"). Itens só com
+ * `{tanque_id, tanque_identificador, tipo_combustivel_id,
+ * tipo_combustivel_nome, produto_id, produto_nome, unidade_principal_estoque,
+ * empresa_id}`: sem preço, saldo ou custo, e sem conversão de unidade.
+ * Sem empresa → `{ itens: [] }` e nada é lido.
+ * @param {string|null} empresaId @param {string} bemId @param {{ tanqueId?: string|null }} [opts]
+ * @returns {Promise<{ itens: Array<Record<string, unknown>> }>}
+ */
+export const produtosElegiveisDoBem = async (empresaId, bemId, opts = {}) => {
+  if (!empresaId) return { itens: [] };
+  return listProdutosElegiveisBemPatrimonial(bemId, { empresa_id: empresaId, tanque_id: opts.tanqueId || undefined });
 };
 
 /** Páginas lidas, no máximo, por `listarOpcoesCompletasBem` (100 itens cada). */

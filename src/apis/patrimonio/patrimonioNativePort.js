@@ -3,7 +3,9 @@
  *
  * Catálogos (famílias, tipos, perfis de medição, combustíveis) são do TENANT:
  * nenhuma rota de catálogo leva `empresa_id`. Bens pertencem a uma empresa:
- * `empresa_id` vai na query da leitura e no corpo da gravação.
+ * `empresa_id` vai na query da leitura e no corpo da gravação. O vínculo
+ * Combustível × Produto (R2) é POR EMPRESA: `empresa_id` na query da leitura e
+ * no corpo do POST/PATCH.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -29,6 +31,15 @@ const CAMINHO_PREVIA = '/bens-patrimoniais-previa-depreciacao';
 const CAMINHO_OPCOES = '/bens-patrimoniais-opcoes';
 
 const RESOURCE_BEM = 'BemPatrimonial';
+
+/**
+ * Combustível × Produto por empresa (R2): vínculos do tipo NA empresa, item do
+ * vínculo (inativar/reativar) e opções de produto. Nenhuma rota começa pelos
+ * caminhos da porta de Produtos — o produto é só referência por id.
+ */
+const CAMINHO_VINCULO_COMBUSTIVEL_PRODUTO = '/patrimonio-combustivel-produtos';
+const CAMINHO_OPCOES_PRODUTOS_COMBUSTIVEL = '/patrimonio-combustiveis-opcoes/produtos';
+const RESOURCE_VINCULO = 'TipoCombustivelProduto';
 
 /** @param {string} operation @param {string} resource @param {Record<string, unknown>} [details] */
 const ctx = (operation, resource, details) => ({ operation, resource, ...(details ? { details } : {}) });
@@ -103,6 +114,49 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
 const doCatalogo = (recurso, id) => `${caminhoDoCatalogo(recurso)}/${encodeURIComponent(id)}`;
 /** @param {string} id */
 const doBem = (id) => `${CAMINHO_BENS}/${encodeURIComponent(id)}`;
+/** Vínculos de um tipo de combustível: `/patrimonio-combustiveis/:id/produtos`. @param {string} tipoId */
+const produtosDoCombustivel = (tipoId) => `${doCatalogo('combustiveis', tipoId)}/produtos`;
+/** @param {string} vinculoId */
+const doVinculo = (vinculoId) => `${CAMINHO_VINCULO_COMBUSTIVEL_PRODUTO}/${encodeURIComponent(vinculoId)}`;
+
+/**
+ * Vínculos do tipo NA empresa (keyset): `empresa_id`, `ativo`, `limit`, `cursor`.
+ * @param {string} tipoId @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoProdutosDoCombustivel = (tipoId, filtros = {}) => {
+  const params = new URLSearchParams();
+  const empresa = texto(filtros.empresa_id);
+  if (empresa) params.set('empresa_id', empresa);
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  return comQuery(produtosDoCombustivel(tipoId), params);
+};
+
+/**
+ * Opções de produto ATIVO da empresa para vincular: `empresa_id`, `q`, `limit`, `cursor`.
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoOpcoesProdutosCombustivel = (filtros = {}) => {
+  const params = new URLSearchParams();
+  const empresa = texto(filtros.empresa_id);
+  if (empresa) params.set('empresa_id', empresa);
+  paginacao(params, filtros);
+  return comQuery(CAMINHO_OPCOES_PRODUTOS_COMBUSTIVEL, params);
+};
+
+/**
+ * Produtos elegíveis de um bem (contrato de leitura da P1-02): `empresa_id` e `tanque_id` opcional.
+ * @param {string} bemId @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoProdutosElegiveisDoBem = (bemId, filtros = {}) => {
+  const params = new URLSearchParams();
+  const empresa = texto(filtros.empresa_id);
+  if (empresa) params.set('empresa_id', empresa);
+  const tanque = texto(filtros.tanque_id);
+  if (tanque) params.set('tanque_id', tanque);
+  return comQuery(`${doBem(bemId)}/produtos-elegiveis`, params);
+};
 /** @param {string} caminho @param {string} empresaId */
 const comEmpresa = (caminho, empresaId) => `${caminho}?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`;
 
@@ -134,4 +188,19 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
   opcoes: (recurso, filtros = {}) =>
     nativeRequest(montarCaminhoOpcoes(recurso, filtros), { autenticado: true }, ctx('listOpcoesBemPatrimonial', RESOURCE_BEM, { recurso })),
+  /** @param {string} bemId @param {Record<string, unknown>} [filtros] */
+  bemProdutosElegiveis: (bemId, filtros = {}) =>
+    nativeRequest(montarCaminhoProdutosElegiveisDoBem(bemId, filtros), { autenticado: true }, ctx('listProdutosElegiveisBemPatrimonial', RESOURCE_BEM, { id: bemId })),
+  /** @param {string} tipoId @param {Record<string, unknown>} [filtros] */
+  combustivelProdutosListPage: (tipoId, filtros = {}) =>
+    nativeRequest(montarCaminhoProdutosDoCombustivel(tipoId, filtros), { autenticado: true }, ctx('listProdutosDoCombustivelPage', RESOURCE_VINCULO, { tipo_combustivel_id: tipoId })),
+  /** @param {string} tipoId @param {Record<string, unknown>} corpo */
+  combustivelProdutoCreate: (tipoId, corpo) =>
+    nativeRequest(produtosDoCombustivel(tipoId), { method: 'POST', body: corpo, autenticado: true }, ctx('createVinculoCombustivelProduto', RESOURCE_VINCULO, { tipo_combustivel_id: tipoId })),
+  /** @param {string} vinculoId @param {Record<string, unknown>} corpo */
+  combustivelProdutoUpdate: (vinculoId, corpo) =>
+    nativeRequest(doVinculo(vinculoId), { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateVinculoCombustivelProduto', RESOURCE_VINCULO, { id: vinculoId })),
+  /** @param {Record<string, unknown>} [filtros] */
+  combustivelProdutoOpcoes: (filtros = {}) =>
+    nativeRequest(montarCaminhoOpcoesProdutosCombustivel(filtros), { autenticado: true }, ctx('listOpcoesProdutosCombustivel', RESOURCE_VINCULO)),
 });

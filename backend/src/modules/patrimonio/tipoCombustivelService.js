@@ -1,10 +1,11 @@
 /**
  * D-PROD-157 — Tipos de combustível (catálogo do TENANT, CLASSIFICATÓRIO).
  *
- * Sem preço, custo, saldo nem vínculo com Produto neste slice: o motor de
- * estoque é em KG e combustível em litros não cabe nele hoje (a associação a
- * Produto fica para a P1-02). `unidade` L | m3 escolhida na criação e
- * IMUTÁVEL. Regras comuns do catálogo — ver `familiaPatrimonialService.js`.
+ * Sem preço, custo nem saldo: o motor de estoque é em KG e combustível em
+ * litros não cabe nele hoje. A relação com Produto (R2) é POR EMPRESA e só
+ * classificatória, em `combustivelProdutoService.js` (nenhuma conversão L↔KG,
+ * nenhum movimento). `unidade` L | m3 escolhida na criação e IMUTÁVEL. Regras
+ * comuns do catálogo — ver `familiaPatrimonialService.js`.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -112,7 +113,8 @@ export const atualizar = async (contexto, id, entrada) => {
   return transacao(async (tx) => {
     await travarCatalogo(tx, cli);
     // FOR UPDATE: o bem que vincula este combustível segura a linha com FOR
-    // SHARE (A5); inativar e vincular nunca se cruzam com estado velho.
+    // SHARE (A5) e o vínculo a produto (R2) com FOR KEY SHARE; inativar e
+    // vincular nunca se cruzam com estado velho.
     await tx.$queryRaw`SELECT id FROM "TipoCombustivel" WHERE cliente_id = ${cli} AND id = ${id} FOR UPDATE`;
     const antes = await buscar(tx, cli, id);
     if (!antes) throw naoEncontrado();
