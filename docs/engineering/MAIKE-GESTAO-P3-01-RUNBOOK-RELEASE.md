@@ -72,8 +72,12 @@ aborta tudo, sem aplicar nada.
   - Para o Prisma a migration ficaria pendente. O próximo `deploy:migrate`
     rodaria o SQL de novo e falharia na tabela que já existe, deixando uma linha
     com falha que trava toda release seguinte até resolução manual.
-  - Passariam a existir dois históricos (SSOT duplicado), e o do Supabase listaria
-    uma migration que o repositório não tem: não há pasta `supabase/` aqui.
+  - O histórico paralelo do Supabase já existe e é legado: em 2026-11-09 o
+    `list_migrations` (somente leitura) mostrou 18 entradas antigas, de
+    2026-10-23 a 2026-10-28 (a última é `20261028195527 p8_supabase_public_revoke_rls`),
+    e nenhuma das releases seguintes passou por ele. Usar o `apply_migration`
+    agora reabriria esse segundo histórico (SSOT duplicado) com uma entrada que o
+    repositório não tem: não há pasta `supabase/` aqui.
   - As guardas e o registro em `_prisma_migrations` não entrariam na mesma
     unidade atômica do DDL.
   - As releases pelo conector registradas no repositório usaram `execute_sql`,
