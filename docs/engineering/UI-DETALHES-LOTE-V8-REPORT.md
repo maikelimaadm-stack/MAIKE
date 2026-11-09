@@ -100,6 +100,14 @@ Conferências automáticas nos 3 tamanhos:
 2. **O popup não rolava no celular.** O popup "Filtrar" (e o "Mostrar informações" da aba Área) não tinha altura máxima. As últimas opções ficavam abaixo da tela, e a camada que fecha ao tocar fora impedia rolar o corpo.
    - **Correção:** `useAlturaPopup` (em `pecas.jsx`) limita o popup ao espaço visível abaixo do botão (mínimo 160 px), e o popup rola por dentro.
    - **Verificado no Chromium em 390×500:** o conteúdo rola e a última opção ("Intervalo curto") é alcançada e aplicada.
+3. **No desktop o conteúdo ficava cortado embaixo e não rolava.**
+   - **Causa:** `lancamento-lote.css` tem `.mk-ll > * { flex-shrink: 0 }`, com a mesma especificidade de `.mk-dl8 { flex: 1 1 auto }`. O `main.jsx` importa o `App` antes do `index.css`, então no bundle aquela regra vem depois e vence. O painel não encolhia até a altura do diálogo, o corpo não rolava e o diálogo cortava o conteúdo.
+   - **Por que passou na primeira rodada:** o harness de screenshots importava o CSS na ordem inversa.
+   - **Correção:** `.mk-ll-dlg > .mk-ll > .mk-dl8:not(#mk-padrao)` vence em qualquer ordem.
+   - **Verificado** com o harness na ordem do app: sem a correção, o corpo não encolhe e a rolagem fica em 0; com a correção, o corpo encolhe e rola. As 16 screenshots foram refeitas na ordem do app, e todas batem com as anteriores, salvo poucos pixels na rolagem do popup.
+4. **"Resultado desconhecido" ao registrar manejo.** Os logs do preview mostram que o servidor recusou com `REBANHO_DATA_FUTURA`: as datas escolhidas eram 19/11 e 04/12/2026, e o dia era 09/11. O front não tinha mensagem para esse código e caía no texto genérico.
+   - **Correção:** mensagens próprias para `REBANHO_DATA_FUTURA` e `EMPRESA_FUSO_NAO_CONFIGURADO` em `src/services/manejoRebanhoService.js`. Esse arquivo fica fora da lista do prompt; a mudança é uma linha de texto por código, e o teste fica em `detalhesLoteV8Pesagem.test.jsx`.
+   - **A 1ª pesagem (19:10) foi gravada:** o servidor respondeu 201, e ela só não aparecia por causa do item 1.
 
 ## O que NÃO foi feito
 

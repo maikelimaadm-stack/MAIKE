@@ -85,3 +85,15 @@ describe("Detalhes do Lote v8: pesagem nova aparece ao reabrir", () => {
     expect(screen.getByText("MEDIDO")).toBeTruthy(); // peso atual = peso da pesagem
   });
 });
+
+describe("Manejo com data futura: mensagem clara (não 'Resultado desconhecido')", () => {
+  it("REBANHO_DATA_FUTURA e EMPRESA_FUSO_NAO_CONFIGURADO têm mensagem própria", async () => {
+    const { mensagemDaTransferenciaLedger } = await import("@/services/manejoRebanhoService");
+    // Forma real do erro do cliente nativo: código genérico na casca, código do servidor no `cause`.
+    const futura = Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "REBANHO_DATA_FUTURA", details: { data: "2026-12-04", hoje: "2026-11-09" } } });
+    const semFuso = Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "EMPRESA_FUSO_NAO_CONFIGURADO" } });
+    expect(mensagemDaTransferenciaLedger(futura)).toMatch(/depois de hoje/);
+    expect(mensagemDaTransferenciaLedger(futura)).not.toMatch(/Resultado desconhecido/);
+    expect(mensagemDaTransferenciaLedger(semFuso)).toMatch(/fuso horário da fazenda/);
+  });
+});

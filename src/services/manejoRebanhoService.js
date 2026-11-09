@@ -79,6 +79,9 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',
+  // Recusas de data/fuso do ledger que caíam em "Resultado desconhecido" (achado no teste do dono, UI-DETALHES-LOTE-V8).
+  REBANHO_DATA_FUTURA: 'A data escolhida é depois de hoje. Só manejos que já aconteceram podem ser registrados: use a data de hoje ou uma anterior. Nada foi gravado.',
+  EMPRESA_FUSO_NAO_CONFIGURADO: 'O fuso horário da fazenda não está configurado. O administrador precisa configurá-lo em Empresa → "Fuso horário da fazenda". Nada foi gravado.',
   IDEMPOTENCY_CONFLICT: 'Este envio já foi usado com outro conteúdo. Abra o formulário de novo. Nada foi gravado.',
   IDEMPOTENCY_IN_PROGRESS: 'O envio anterior ainda está sendo processado. Aguarde e tente de novo com o mesmo registro.',
   LOTE_CADASTRO_SOMENTE_ENTRADAS: 'O cadastro de lotes guarda só entradas: esta operação criaria um lote derivado. Nesta fazenda o controle por posições ainda não está ativo — peça ao administrador para ativá-lo. Nada foi gravado.',

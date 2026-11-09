@@ -37,6 +37,16 @@
   font-size: 13px;
 }
 
+/* lancamento-lote.css tem `.mk-ll > * { flex-shrink: 0 }`, com a MESMA
+   especificidade de `.mk-dl8`. No app o main.jsx importa o App (e este CSS)
+   ANTES do index.css, então aquela regra vinha depois e vencia: o painel não
+   encolhia até a altura do diálogo, o corpo não rolava e o diálogo cortava o
+   conteúdo (achado do dono no preview, desktop). Daqui vence em qualquer ordem. */
+.mk-ll-dlg > .mk-ll > .mk-dl8:not(#mk-padrao) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* Desktop: largura do mockup e ALTURA FIXA (não pula ao trocar de aba) */
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl8):not(#mk-padrao) {
   width: min(880px, calc(100vw - 48px));
