@@ -35,11 +35,11 @@ import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizar
 import { registrarEvento } from '../auditoria/auditService.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
-import { exigirEmpresaDoTenant, invalido, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
+import { exigirEmpresaDoTenant, invalido, textoDeBusca, textoDoCorpo, travarEscopo } from '../gestao/gestaoComum.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaidaFifo, estornarEntrada, estornarSaida, lotesFifo, travarProdutosEstoque,
+  ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaidaFifo, estornarEmLote, lotesFifo, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -101,6 +101,18 @@ const diaDe = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : d ?? nu
 const isoDe = (d) => (d instanceof Date ? d.toISOString() : d ?? null);
 const usuarioPublico = (u) => (u ? { id: u.id, login: u.login } : null);
 const unicos = (lista) => [...new Set(lista.filter((v) => typeof v === 'string' && v))];
+
+/**
+ * Motivo do cancelamento/estorno: vazio ou só espaços → 400 com field E reason
+ * (§6; o `textoDoCorpo` obrigatório só dá field, e o tradutor HTTP descartava).
+ * @param {unknown} valor
+ * @returns {string}
+ */
+const motivoObrigatorio = (valor) => {
+  const motivo = textoDoCorpo(valor, 'motivo');
+  if (!motivo) throw invalido('motivo é obrigatório', { field: 'motivo', reason: 'obrigatorio' });
+  return motivo;
+};
 
 // ─── travas e leituras base ─────────────────────────────────────────────────
 /**
@@ -632,7 +644,7 @@ export const listar = async (contexto, query = {}) => {
   }
   if (query.com_estoque === 'true') AND.push({ itens: { some: { tipo_item: 'MERCADORIA' } } });
   if (query.com_estoque === 'false') AND.push({ itens: { none: { tipo_item: 'MERCADORIA' } } });
-  const q = typeof query.q === 'string' ? query.q.trim() : '';
+  const q = textoDeBusca(query.q);
   if (q) {
     // Busca literal: o `contains` do Prisma não escapa `%`/`_` (q=% casaria tudo).
     const literal = escaparCuringasLike(q);
@@ -1044,7 +1056,7 @@ export const confirmar = async (contexto, id, corpo) => {
               },
             });
             liquidacaoId = liq.id;
-            await recalcularTitulo(tx, cli, unico);
+            await recalcularTitulo(tx, cli, empresaId, unico);
           }
           const confirmado = await tx.operacaoFinanceira.update({
             where: { cliente_id_id: { cliente_id: cli, id } },
@@ -1090,7 +1102,7 @@ export const cancelar = async (contexto, id, corpo) => {
       fingerprint,
       executar: async () => {
         const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-        const motivo = /** @type {string} */ (textoDoCorpo(corpo.motivo, 'motivo', { obrigatorio: true }));
+        const motivo = motivoObrigatorio(corpo.motivo);
         const op = await travarCabecalho(tx, cli, empresaId, id, 'UPDATE');
         if (op.status !== 'CONFIRMADO') throw statusInvalido(op.status, 'CONFIRMADO');
         const w = { cliente_id: cli, operacao_id: id };
@@ -1107,21 +1119,20 @@ export const cancelar = async (contexto, id, corpo) => {
         const tempo = mercadorias.length ? await hojeDaEmpresa(tx, cli, empresaId) : null;
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const parceiro = await tx.fornecedor.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: op.parceiro_id } }, select: { id: true, nome: true } });
-        /** @type {string[]} */
-        const estornos = [];
-        for (const item of mercadorias) {
-          const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: item.produto_id } } });
-          const local = await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: item.local_estoque_id } }, select: { id: true, nome: true } });
-          const comum = {
-            empresaId, item, produto, local: { id: item.local_estoque_id, nome: local?.nome ?? item.local_estoque_nome }, dia: /** @type {any} */ (tempo).hoje,
-            documento: { numero: op.documento_referencia ?? op.numero, data: diaDe(op.data_emissao) },
-            parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: id }, numeroMovimento: numeroProvisorio(),
-          };
-          const res = op.direcao === 'PAGAR'
-            ? await estornarEntrada(tx, contexto, comum)
-            : await estornarSaida(tx, contexto, { ...comum, consumos: item.consumos });
-          estornos.push(res.movimento.id);
-          await tx.operacaoFinanceiraItem.update({ where: { cliente_id_id: { cliente_id: cli, id: item.id } }, data: { movimentacao_estorno_id: res.movimento.id } });
+        // Rodada 2 (CRITICO-2): estornos EM LOTE — mesmo resultado e mesmas
+        // recusas do laço item a item, com um número fixo de idas ao banco
+        // (com 5–10 ms por ida, 200 itens passavam dos 25–30 s da transação).
+        const estornos = await estornarEmLote(tx, contexto, {
+          empresaId, direcao: op.direcao, itens: mercadorias, dia: /** @type {any} */ (tempo)?.hoje,
+          documento: { numero: op.documento_referencia ?? op.numero, data: diaDe(op.data_emissao) },
+          parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: id }, numeroMovimento: numeroProvisorio,
+        });
+        if (estornos.length) {
+          const ligados = await tx.$executeRaw`UPDATE "OperacaoFinanceiraItem" AS i
+            SET movimentacao_estorno_id = v.estorno, "updatedAt" = (now() AT TIME ZONE 'UTC')
+            FROM unnest(${mercadorias.map((item) => item.id)}::text[], ${estornos}::text[]) AS v(id, estorno)
+            WHERE i.cliente_id = ${cli} AND i.id = v.id`;
+          if (ligados !== estornos.length) throw new Error(`itens ligados ao estorno: ${ligados} de ${estornos.length}`);
         }
         await tx.tituloFinanceiro.updateMany({ where: w, data: { status: 'CANCELADO' } });
         const cancelado = await tx.operacaoFinanceira.update({
@@ -1151,8 +1162,11 @@ export const cancelar = async (contexto, id, corpo) => {
 
 // ─── liquidação e estorno ───────────────────────────────────────────────────
 /** Recalcula `valor_liquidado` e a situação do título a partir dos FATOS (sob trava). */
-const recalcularTitulo = async (tx, cli, titulo) => {
-  const soma = await tx.liquidacaoFinanceira.aggregate({ _sum: { valor: true }, where: { cliente_id: cli, titulo_id: titulo.id, estornos: { none: {} } } });
+// `empresa_id` no filtro (rodada 2, SCHEMA_OPS-1): só com ele a soma usa as 3
+// colunas da unique (cliente_id, empresa_id, titulo_id, id) e não varre todas as
+// liquidações do tenant enquanto o título está travado.
+const recalcularTitulo = async (tx, cli, empresaId, titulo) => {
+  const soma = await tx.liquidacaoFinanceira.aggregate({ _sum: { valor: true }, where: { cliente_id: cli, empresa_id: empresaId, titulo_id: titulo.id, estornos: { none: {} } } });
   const liquidado = soma._sum.valor == null ? ZERO : dec(soma._sum.valor);
   const valor = dec(titulo.valor);
   if (liquidado.gt(valor)) throw new AppError('LIQUIDACAO_EXCEDE_SALDO', 'as liquidações ultrapassariam o valor do título; nada foi gravado', { details: { titulo_id: titulo.id } });
@@ -1206,7 +1220,7 @@ export const registrarLiquidacao = async (contexto, tituloId, corpo) => {
         if (!diaValido(corpo.data)) throw invalido('data não é um dia válido (AAAA-MM-DD)', { field: 'data', reason: 'data_invalida' });
         const tempo = await hojeDaEmpresa(tx, cli, empresaId);
         if (corpo.data > tempo.hoje) throw dataFutura(tempo, corpo.data, 'data');
-        const atual = await tx.liquidacaoFinanceira.aggregate({ _sum: { valor: true }, where: { cliente_id: cli, titulo_id: tituloId, estornos: { none: {} } } });
+        const atual = await tx.liquidacaoFinanceira.aggregate({ _sum: { valor: true }, where: { cliente_id: cli, empresa_id: empresaId, titulo_id: tituloId, estornos: { none: {} } } });
         const saldo = dec(titulo.valor).minus(atual._sum.valor == null ? ZERO : dec(atual._sum.valor));
         if (valor.gt(saldo)) {
           throw new AppError('LIQUIDACAO_EXCEDE_SALDO', 'o valor é maior que o saldo do título; nada foi gravado', {
@@ -1220,7 +1234,7 @@ export const registrarLiquidacao = async (contexto, tituloId, corpo) => {
             registrado_por_usuario_id: auth.usuarioId,
           },
         });
-        const depois = await recalcularTitulo(tx, cli, titulo);
+        const depois = await recalcularTitulo(tx, cli, empresaId, titulo);
         await registrarEvento(contexto, {
           acao: 'titulo_financeiro.liquidar',
           entidade: ENTIDADE,
@@ -1256,7 +1270,7 @@ export const estornarLiquidacao = async (contexto, liquidacaoId, corpo) => {
         fingerprint,
         executar: async () => {
           const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-          const motivo = /** @type {string} */ (textoDoCorpo(corpo.motivo, 'motivo', { obrigatorio: true }));
+          const motivo = motivoObrigatorio(corpo.motivo);
           const liq = await tx.liquidacaoFinanceira.findUnique({
             where: { cliente_id_id: { cliente_id: cli, id: liquidacaoId } },
             select: { id: true, empresa_id: true, titulo_id: true, valor: true },
@@ -1276,7 +1290,7 @@ export const estornarLiquidacao = async (contexto, liquidacaoId, corpo) => {
               registrado_por_usuario_id: auth.usuarioId,
             },
           });
-          const depois = await recalcularTitulo(tx, cli, titulo);
+          const depois = await recalcularTitulo(tx, cli, empresaId, titulo);
           await registrarEvento(contexto, {
             acao: 'liquidacao_financeira.estornar',
             entidade: ENTIDADE,

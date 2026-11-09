@@ -39,6 +39,22 @@ export const textoDoCorpo = (valor, campo, opcoes = {}) => {
 };
 
 /**
+ * Texto de BUSCA (`q` da querystring), aparado: caractere de controle (o NUL o
+ * PostgreSQL recusa com 22021, que virava 500) ou texto mal formado → 400
+ * `caractere_invalido`. Marcação não é recusada: é só texto procurado.
+ * @param {unknown} valor
+ * @param {string} [campo]
+ * @returns {string} '' = sem busca
+ */
+export const textoDeBusca = (valor, campo = 'q') => {
+  if (typeof valor !== 'string') return '';
+  if (CONTROLE.test(valor) || SURROGATE_ISOLADO.test(valor)) {
+    throw invalido(`${campo} tem caractere inválido`, { field: campo, reason: 'caractere_invalido' });
+  }
+  return valor.trim();
+};
+
+/**
  * A empresa informada existe NESTE tenant. O `cliente_id` vem só da sessão; o
  * fallback do navegador (clienteId no lugar da empresa) não é empresa e cai aqui.
  * Mesma resposta para empresa de outro tenant e inexistente.

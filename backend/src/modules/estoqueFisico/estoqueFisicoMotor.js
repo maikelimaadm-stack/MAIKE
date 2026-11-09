@@ -483,3 +483,196 @@ export const estornarSaida = async (tx, ctx, a) => {
   await incrementarEstoqueAtual(tx, cli, a.produto.id, kg);
   return { movimento: estorno };
 };
+
+// ─── estornos do cancelamento EM LOTE ──────────────────────────────────────
+const chaveSaldo = (produtoId, localId) => `${produtoId}\u0000${localId}`;
+const unicosDe = (lista) => [...new Set(lista.filter((v) => typeof v === 'string' && v))];
+
+/**
+ * Estornos do CANCELAMENTO em lote (rodada 2, CRITICO-2). Mesmo resultado e
+ * mesmas recusas, na mesma ordem dos itens, de `estornarEntrada` (compra) e
+ * `estornarSaida` (venda) item a item — lotes, movimentos (campos, saldo
+ * antes/depois por item), `estoque_atual` e fatias —, com um número FIXO de
+ * idas ao banco (≈ 10) em vez de 11–15 por item: com 5–10 ms por ida, o
+ * cancelamento de 200 itens passava dos 25–30 s da transação.
+ *
+ *  1. leituras de uma vez: produtos (já travados por quem chama), locais,
+ *     lotes e movimentos originais (`FOR UPDATE`, em ordem de id — o mesmo
+ *     passo 4 do §8.4, depois de produtos e títulos) e o saldo por produto +
+ *     local (Σ dos lotes 'Disponivel', como `saldoNoLocal`);
+ *  2. simulação pura, item a item na ordem do documento, com o estado que o
+ *     laço antigo veria (lote devolvido por um item é relido pelo seguinte;
+ *     saldo e `estoque_atual` corridos);
+ *  3. gravações em lote: lotes (UPDATE … FROM unnest com CAS sobre o valor
+ *     lido sob trava), movimentos (createManyAndReturn), originais
+ *     'Estornada' e `estoque_atual` (UPDATE … FROM unnest, conferido).
+ * A sequência de movimentos continua com quem chama (`numerarMovimentos`, no fim).
+ * @param {any} tx
+ * @param {{auth: any}} ctx
+ * @param {{ empresaId: string, direcao: string, itens: any[], dia: string, documento?: {numero?: string|null, data?: string|null},
+ *   parceiro?: {id?: string|null, nome?: string|null}, origem: {operacaoId: string}, numeroMovimento: () => string|number }} a
+ * @returns {Promise<string[]>} ids dos movimentos de estorno, na ordem de `a.itens`
+ */
+export const estornarEmLote = async (tx, ctx, a) => {
+  const auth = exigirAuthContext(ctx?.auth);
+  const cli = auth.clienteId;
+  if (!a.itens.length) return [];
+  const compra = a.direcao === 'PAGAR';
+  const produtoIds = unicosDe(a.itens.map((i) => i.produto_id));
+  const localIds = unicosDe(a.itens.map((i) => i.local_estoque_id));
+  const originalIds = unicosDe(a.itens.map((i) => i.movimentacao_estoque_id));
+  const loteIds = unicosDe(compra ? a.itens.map((i) => i.estoque_lote_nota_id) : a.itens.flatMap((i) => i.consumos.map((c) => c.estoque_lote_nota_id)));
+
+  // 1. leituras
+  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+  const locais = new Map((await tx.localEstoque.findMany({ where: { cliente_id: cli, id: { in: localIds } }, select: { id: true, nome: true } })).map((l) => [l.id, l]));
+  /** @type {Map<string, {id: string, empresa_id: string, produto_id: string, local_estoque_id: string|null, status: string, entrada: any, disp: any}>} */
+  const lotes = new Map();
+  if (loteIds.length) {
+    const lidos = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel
+      FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`);
+    for (const l of lidos) {
+      lotes.set(l.id, { id: l.id, empresa_id: l.empresa_id, produto_id: l.produto_id, local_estoque_id: l.local_estoque_id, status: l.status, entrada: dec(l.quantidade_entrada), disp: dec(l.quantidade_disponivel) });
+    }
+  }
+  const inicial = new Map([...lotes.values()].map((l) => [l.id, { status: l.status, disp: l.disp }]));
+  const originais = new Map(
+    originalIds.length
+      ? (/** @type {any[]} */ (await tx.$queryRaw`SELECT id, valor_unitario, valor_total FROM "MovimentacaoEstoque"
+          WHERE cliente_id = ${cli} AND id = ANY(${originalIds}::text[]) ORDER BY id FOR UPDATE`)).map((m) => [m.id, m])
+      : [],
+  );
+  const saldos = new Map();
+  for (const g of await tx.estoqueLoteNota.groupBy({
+    by: ['produto_id', 'local_estoque_id'],
+    where: { cliente_id: cli, empresa_id: a.empresaId, produto_id: { in: produtoIds }, local_estoque_id: { in: localIds }, status: 'Disponivel' },
+    _sum: { quantidade_disponivel: true },
+  })) {
+    saldos.set(chaveSaldo(g.produto_id, g.local_estoque_id), g._sum.quantidade_disponivel == null ? ZERO : dec(g._sum.quantidade_disponivel));
+  }
+  const estoque = new Map([...produtos.values()].map((p) => [p.id, dec(p.estoque_atual)]));
+
+  // 2. simulação na ordem dos itens
+  const saldoDe = (produtoId, localId) => saldos.get(chaveSaldo(produtoId, localId)) ?? ZERO;
+  /** Lote muda de estado; o saldo do produto + local dele (desta empresa) acompanha. */
+  const mudarLote = (l, status, disp) => {
+    if (l.empresa_id === a.empresaId && l.local_estoque_id) {
+      const chave = chaveSaldo(l.produto_id, l.local_estoque_id);
+      const antes = l.status === 'Disponivel' ? l.disp : ZERO;
+      const depois = status === 'Disponivel' ? disp : ZERO;
+      saldos.set(chave, (saldos.get(chave) ?? ZERO).minus(antes).plus(depois));
+    }
+    Object.assign(l, { status, disp, mudou: true });
+  };
+  const exigirOriginal = (id) => {
+    const m = id ? originais.get(id) : null;
+    if (!m) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
+    return m;
+  };
+  const exigirEstoque = (produto) => {
+    if (!produto) throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado neste tenant');
+    return /** @type {any} */ (estoque.get(produto.id));
+  };
+  /** @type {any[]} */
+  const movimentos = [];
+  for (const item of a.itens) {
+    const kg = dec(item.quantidade_estoque);
+    const produto = produtos.get(item.produto_id);
+    const local = { id: item.local_estoque_id, nome: locais.get(item.local_estoque_id)?.nome ?? item.local_estoque_nome };
+    let original;
+    let saldoAntes;
+    if (compra) {
+      const base = { item_ordem: item.ordem, lote_id: item.estoque_lote_nota_id };
+      const l = item.estoque_lote_nota_id ? lotes.get(item.estoque_lote_nota_id) : null;
+      if (!l) throw jaConsumido('o lote de entrada deste item não existe mais; cancelamento recusado (nada foi alterado)', { ...base, reason: 'lote_inexistente' });
+      if (l.status !== 'Disponivel' || !l.disp.eq(l.entrada) || !l.entrada.eq(kg)) {
+        throw jaConsumido('o estoque desta compra já foi consumido ou alterado; cancelamento recusado (nada foi alterado)', {
+          ...base, reason: 'lote_consumido', entrada: l.entrada.toFixed(CASAS_QUANTIDADE), disponivel: l.disp.toFixed(CASAS_QUANTIDADE), status: l.status,
+        });
+      }
+      original = exigirOriginal(item.movimentacao_estoque_id);
+      const atual = exigirEstoque(produto);
+      if (atual.lt(kg)) {
+        throw jaConsumido('o estoque atual do produto é menor que a compra a estornar; cancelamento recusado (nada foi alterado)', {
+          ...base, reason: 'estoque_atual_insuficiente', estoque_atual: atual.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE),
+        });
+      }
+      saldoAntes = saldoDe(produto.id, local.id);
+      mudarLote(l, 'Estornado', ZERO);
+      estoque.set(produto.id, atual.minus(kg));
+    } else {
+      const devolvido = somar(item.consumos.map((c) => c.quantidade));
+      if (!devolvido.eq(kg)) {
+        throw jaConsumido('as fatias FIFO gravadas não somam a quantidade do item; cancelamento recusado', { item_ordem: item.ordem, reason: 'fatias_inconsistentes' });
+      }
+      original = exigirOriginal(item.movimentacao_estoque_id);
+      const atual = exigirEstoque(produto);
+      if (atual.plus(kg).gt(LIMITE_ESTOQUE)) {
+        throw excedeLimiteEstoque({ colecao: 'itens', indice: item.ordem - 1, item_ordem: item.ordem, produto_id: produto.id });
+      }
+      saldoAntes = saldoDe(produto.id, local.id);
+      for (const c of item.consumos) {
+        const l = lotes.get(c.estoque_lote_nota_id);
+        const base = { item_ordem: item.ordem, lote_id: c.estoque_lote_nota_id };
+        if (!l || !['Disponivel', 'Esgotado'].includes(l.status)) {
+          throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+            ...base, reason: 'lote_indisponivel_para_devolucao', status: l?.status ?? null,
+          });
+        }
+        const novo = l.disp.plus(dec(c.quantidade));
+        if (novo.gt(l.entrada)) {
+          throw jaConsumido('a devolução ultrapassaria a entrada do lote; cancelamento recusado', {
+            ...base, reason: 'devolucao_excede_entrada', entrada: l.entrada.toFixed(CASAS_QUANTIDADE), disponivel: l.disp.toFixed(CASAS_QUANTIDADE),
+          });
+        }
+        mudarLote(l, 'Disponivel', novo);
+      }
+      estoque.set(produto.id, atual.plus(kg));
+    }
+    movimentos.push({
+      ...camposComuns(auth, { empresaId: a.empresaId, produto, documento: a.documento, origem: a.origem }),
+      numero_movimentacao: String(a.numeroMovimento()),
+      tipo_movimentacao: compra ? 'Saída' : 'Entrada',
+      tipo_detalhado: compra ? 'estorno_compra' : 'estorno_venda',
+      data_movimentacao: instanteDoDia(a.dia),
+      quantidade: paraBanco(kg, CASAS_QUANTIDADE),
+      valor_unitario: original.valor_unitario,
+      valor_total: original.valor_total,
+      ...(compra
+        ? { local_estoque_origem: local.id, local_origem: local.nome ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null }
+        : { local_estoque_destino: local.id, local_destino: local.nome ?? null, cliente_nome: a.parceiro?.nome ?? null }),
+      motivo_movimentacao: compra ? 'Estorno de compra por cancelamento do lançamento financeiro' : 'Estorno de venda por cancelamento do lançamento financeiro',
+      movimento_pai_id: original.id,
+      saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
+      saldo_depois: paraBanco(compra ? saldoAntes.minus(kg) : saldoAntes.plus(kg), CASAS_QUANTIDADE),
+    });
+  }
+
+  // 3. gravações em lote
+  const mudados = [...lotes.values()].filter((l) => /** @type {any} */ (l).mudou);
+  if (mudados.length) {
+    const ini = mudados.map((l) => /** @type {any} */ (inicial.get(l.id)));
+    const n = await tx.$executeRaw`UPDATE "EstoqueLoteNota" AS l
+      SET quantidade_disponivel = v.disp::numeric, status = v.status, "updatedAt" = (now() AT TIME ZONE 'UTC')
+      FROM unnest(${mudados.map((l) => l.id)}::text[], ${ini.map((x) => x.status)}::text[], ${ini.map((x) => paraBanco(x.disp, CASAS_QUANTIDADE))}::text[],
+        ${mudados.map((l) => l.status)}::text[], ${mudados.map((l) => paraBanco(l.disp, CASAS_QUANTIDADE))}::text[]) AS v(id, status_antes, disp_antes, status, disp)
+      WHERE l.cliente_id = ${cli} AND l.id = v.id AND l.status = v.status_antes AND l.quantidade_disponivel = v.disp_antes::numeric`;
+    if (n !== mudados.length) throw conflitoDeEstoque({ lotes: mudados.length, atualizados: n });
+  }
+  const criados = await tx.movimentacaoEstoque.createManyAndReturn({ data: movimentos, select: { id: true, movimento_pai_id: true } });
+  const estornoDe = new Map(criados.map((m) => [m.movimento_pai_id, m.id]));
+  const ids = a.itens.map((item) => estornoDe.get(item.movimentacao_estoque_id));
+  if (criados.length !== a.itens.length || ids.some((id) => !id)) throw new Error(`estornos incompletos: ${criados.length} de ${a.itens.length}`);
+  const marcados = await tx.$executeRaw`UPDATE "MovimentacaoEstoque" AS m
+    SET status = 'Estornada', movimento_filho_id = v.filho, "updatedAt" = (now() AT TIME ZONE 'UTC')
+    FROM unnest(${a.itens.map((item) => item.movimentacao_estoque_id)}::text[], ${ids}::text[]) AS v(id, filho)
+    WHERE m.cliente_id = ${cli} AND m.id = v.id`;
+  if (marcados !== a.itens.length) throw new Error(`originais marcados: ${marcados} de ${a.itens.length}`);
+  const finais = /** @type {any[]} */ (await tx.$queryRaw`UPDATE "Produto" AS p
+    SET estoque_atual = v.valor::numeric, "updatedAt" = (now() AT TIME ZONE 'UTC')
+    FROM unnest(${produtoIds}::text[], ${produtoIds.map((id) => paraBanco(estoque.get(id), CASAS_QUANTIDADE))}::text[], ${produtoIds.map((id) => paraBanco(dec(produtos.get(id).estoque_atual), CASAS_QUANTIDADE))}::text[]) AS v(id, valor, antes)
+    WHERE p.cliente_id = ${cli} AND p.id = v.id AND p.estoque_atual = v.antes::numeric
+    RETURNING p.id`);
+  if (finais.length !== produtoIds.length) throw conflitoDeEstoque({ produtos: produtoIds.length, atualizados: finais.length });
+  return /** @type {string[]} */ (ids);
+};

@@ -38,7 +38,10 @@ export const CASAS_CUSTO = 4;
  * @returns {InstanceType<typeof Dec>}
  */
 export const dec = (valor) => {
-  if (valor instanceof Dec) return valor;
+  // `Decimal.clone` compartilha o protótipo: o `Prisma.Decimal` lido do banco
+  // também é `instanceof Dec`, mas carrega o construtor do Prisma (precisão 20)
+  // e as contas com ele arredondariam a 20 dígitos (rodada 2, DINHEIRO-1).
+  if (valor instanceof Dec) return valor.constructor === Dec ? valor : new Dec(valor.toString());
   if (typeof valor === 'string') return new Dec(valor);
   if (typeof valor === 'number') {
     if (!Number.isSafeInteger(valor)) throw new TypeError('decimalFinanceiro: número não inteiro não é aceito (use string)');

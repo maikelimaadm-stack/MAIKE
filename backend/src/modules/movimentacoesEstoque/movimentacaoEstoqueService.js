@@ -1,14 +1,13 @@
 /**
  * Serviço de MovimentacaoEstoque (P5.4).
  */
-import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -42,10 +41,11 @@ export const listar = async (contexto, filtros = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   // D-PROD-154 (§8.4): a sequência de movimentos do tenant pode estar presa por
-  // uma confirmação/cancelamento (até 30 s): espera em vez de estourar os 5 s
-  // padrão (500). Sem operation_id, o POST NÃO é idempotente; o 409 de corrida
-  // perdida garante só que esta tentativa voltou inteira (nada gravado).
-  const criado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
+  // uma confirmação/cancelamento: espera em vez de estourar os 5 s padrão (500),
+  // mas só até caber nos 20 s do navegador (TRANSACAO_CURTA). Sem operation_id,
+  // o POST NÃO é idempotente; o 409 garante que esta tentativa voltou inteira
+  // e não commita depois (nada gravado).
+  const criado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...exigirSomenteColunasGravaveis('MovimentacaoEstoque', entrada), cliente_id: auth.clienteId };
     if (Object.prototype.hasOwnProperty.call(dados, 'numero_movimentacao')) {
@@ -80,8 +80,12 @@ export const CAMPOS_PATCH_PERMITIDOS = Object.freeze(['local_origem', 'local_des
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const atualizado = await prisma.$transaction(async (tx) => {
+  // D-PROD-154 (rodada 2, CRITICO-3): o cancelamento da P3 segura a linha do
+  // movimento original (marcado 'Estornada') até o commit. A renomeação de
+  // depósito (FormularioPonto) faz este PATCH: espera (TRANSACAO_CURTA) em vez
+  // de estourar os 5 s padrão (500, renomeação pela metade); espera longa
+  // demais → 409. Valor absoluto: repetir depois do 409 leva ao mesmo estado.
+  const atualizado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
     exigirSomenteCamposPermitidos(entrada, CAMPOS_PATCH_PERMITIDOS, { entidade: 'MovimentacaoEstoque', empresaAtual: existente.empresa_id });
@@ -120,7 +124,7 @@ export const atualizar = async (contexto, id, entrada) => {
       tx
     );
     return registro;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
   return comoPublico(atualizado);
 };
 

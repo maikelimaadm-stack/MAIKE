@@ -116,7 +116,15 @@ const acompanhar = (pedido) => {
   });
   return a;
 };
-const resumo = (a) => (a.feito ? `${a.r.statusCode} ${a.r.json?.()?.code ?? ''} em ${a.ms} ms` : 'ainda esperando');
+/** Corpo JSON da resposta (204 e corpo vazio → null). */
+const corpoDe = (r) => {
+  try {
+    return r.json();
+  } catch {
+    return null;
+  }
+};
+const resumo = (a) => (a.feito ? `${a.r.statusCode} ${corpoDe(a.r)?.code ?? ''} em ${a.ms} ms` : 'ainda esperando');
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C1 — CONCORRENCIA-1: PATCH/DELETE administrativo de lote × venda que o consome', () => {
@@ -181,14 +189,20 @@ describe('C1 — CONCORRENCIA-1: PATCH/DELETE administrativo de lote × venda qu
 describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancelar', () => {
   // Detentor e observador no pool do TESTE (`aux`); as vítimas, no pool do
   // app, em ondas de 3 para caber em qualquer pool ≥ 3.
-  test('com produto, sequência de movimentos e perfil segurados por > 5 s (as travas da confirmação), suplementação, transferência, POST de movimento, PATCH de produto, PATCH de lote e PUT do perfil esperam e concluem (nunca 500); a retentativa com a mesma operation_id aplica uma vez só', async () => {
+  test('com produto, sequência de movimentos, perfil e movimento original segurados por 6 s (as travas da confirmação/cancelamento), suplementação, transferência, POST e PATCH de movimento, PATCH de produto, PATCH e DELETE de lote e PUT do perfil esperam e concluem (nunca 500); a retentativa com a mesma operation_id aplica uma vez só', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
     await loteLegado(s, e, e.sal, s.local, { kg: '100' });
     await loteLegado(s, e, e.milho, s.local, { kg: '100' });
     const livre = await loteLegado(s, e, e.sal, s.local2, { kg: '10' });
+    const livre2 = await loteLegado(s, e, e.sal, s.local2, { kg: '0', disponivel: '0', status: 'Esgotado' });
     await definirEstoqueAtual(e.sal, '110');
+    // movimento ORIGINAL de uma compra confirmada (a linha que o cancelamento trava) e o depósito renomeado
+    const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.racao, '1', '30')]));
+    const original = await p.movimentacaoEstoque.findFirst({ where: { cliente_id: s.c, lancamento_origem_id: compra.id } });
+    const nomeNovo = `DEPOSITO RENOMEADO ${s.c}`;
+    await p.localEstoque.update({ where: { id: s.local.id }, data: { nome: nomeNovo } });
     await definirEstoqueAtual(e.milho, '100');
     const corpoSup = { operation_id: opId(), empresa_id: e.id, produto_id: e.sal.id, local_origem_id: s.local.id, quantidade: 5 };
     const corpoTransf = { operation_id: opId(), empresa_id: e.id, produto_id: e.milho.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 5 };
@@ -202,12 +216,15 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
       'PATCH /produtos (linha do produto)': () => A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
       'PUT do perfil (perfil em FOR SHARE)': () => A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
       'PATCH de lote livre (trava do produto)': () => A.req('PATCH', `/estoque-lotes-nota/${livre.id}`, s.token, { custo_unitario: 2.5 }),
+      'PATCH /movimentacoes-estoque (linha do movimento original)': () => A.req('PATCH', `/movimentacoes-estoque/${original.id}`, s.token, { local_destino: nomeNovo }),
+      'DELETE de lote livre (trava do produto)': () => A.req('DELETE', `/estoque-lotes-nota/${livre2.id}`, s.token),
     };
     // [vítimas da onda, quantas têm de ficar paradas nas travas] — o PATCH de
     // lote livre pode ou não parar (custo não é coluna restrita), como antes.
     const ondas = [
       [['suplementação (mesmo produto: trava do produto)', 'transferência (OUTRO produto: sequência de movimentos)', 'POST /movimentacoes-estoque (sequência de movimentos)'], 3],
       [['PATCH /produtos (linha do produto)', 'PUT do perfil (perfil em FOR SHARE)', 'PATCH de lote livre (trava do produto)'], 2],
+      [['PATCH /movimentacoes-estoque (linha do movimento original)', 'DELETE de lote livre (trava do produto)'], 2],
     ];
     /** @type {Record<string, any>} */
     const vitimas = {};
@@ -219,10 +236,12 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
           await travarProdutosEstoque(tx, s.c, e.id, [e.sal.id]);
           await reservarNumeros(tx, { clienteId: s.c, entidade: 'MovimentacaoEstoque', escopoTipo: ESCOPO_TENANT }, 1);
           await tx.$queryRaw`SELECT id FROM "PerfilFinanceiroEmpresa" WHERE cliente_id = ${s.c} AND empresa_id = ${e.id} FOR SHARE`;
+          await tx.$queryRaw`SELECT id FROM "MovimentacaoEstoque" WHERE cliente_id = ${s.c} AND id = ${original.id} FOR UPDATE`;
           for (const nome of nomes) vitimas[nome] = acompanhar(pedidos[nome]());
           await esperar(async () => (await bloqueadosPor(pid)).length >= minimo, `${minimo} comandos esperando as travas`);
-          // CENÁRIO (não sincronização): a trava fica segura além dos 5 s do timeout padrão do Prisma.
-          await new Promise((r) => setTimeout(r, 5500));
+          // CENÁRIO (não sincronização): a trava fica segura 6 s — além dos 5 s do
+          // timeout padrão do Prisma e abaixo do lock_timeout de TRANSACAO_CURTA.
+          await new Promise((r) => setTimeout(r, 6000));
           const cedo = nomes.filter((nome) => vitimas[nome].feito && !nome.startsWith('PATCH de lote'));
           assert.deepEqual(cedo.map((nome) => `${nome}: ${resumo(vitimas[nome])}`), [], 'nenhum comando pode desistir (500) enquanto a trava está segura');
         }, { maxWait: 10000, timeout: 60000 });
@@ -244,6 +263,8 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     );
     const perfil = await p.perfilFinanceiroEmpresa.findFirst({ where: { cliente_id: s.c, empresa_id: e.id } });
     assert.equal(perfil.locale, 'pt-PT');
+    assert.equal((await p.movimentacaoEstoque.findUnique({ where: { id: original.id } })).local_destino, nomeNovo, 'renomeação gravada no movimento');
+    assert.equal(await p.estoqueLoteNota.count({ where: { id: livre2.id } }), 0, 'lote livre excluído');
     assert.equal(await p.auditLog.count({ where: { cliente_id: s.c, acao: 'perfil_financeiro.atualizar' } }), 1, 'locale gravado exatamente uma vez');
   });
 
@@ -289,6 +310,148 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+describe('C7 — CRITICO-1 (rodada 2): comandos chamados com os 20 s do navegador têm resposta DEFINITIVA antes dele desistir', () => {
+  /**
+   * O detentor (pool do TESTE) segura as travas de confirmar/cancelar por mais
+   * tempo do que o servidor aceita esperar (lock_timeout de TRANSACAO_CURTA).
+   * Cada vítima tem de responder 409 CONCURRENCY_CONFLICT bem antes dos 20 s
+   * e, AINDA COM A TRAVA SEGURA, já não pode haver transação dela no banco:
+   * nada pode commitar depois. Ondas de até 3 vítimas (cabe em pool ≥ 3).
+   */
+  test('suplementação, transferência, POST e PATCH de movimento, PATCH de produto, PATCH e DELETE de lote e PUT do perfil: 409 em ≈ 8 s (< 12 s), nenhuma transação viva depois do 409, nada gravado depois de soltar a trava; o reenvio com chave NOVA aplica uma vez', async (t) => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const p = prisma();
+    await loteLegado(s, e, e.sal, s.local, { kg: '100' });
+    await loteLegado(s, e, e.milho, s.local, { kg: '100' });
+    const loteP = await loteLegado(s, e, e.sal, s.local2, { kg: '10' });
+    const loteD = await loteLegado(s, e, e.sal, s.local2, { kg: '0', disponivel: '0', status: 'Esgotado' });
+    await definirEstoqueAtual(e.sal, '110');
+    await definirEstoqueAtual(e.milho, '100');
+    const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.racao, '1', '30')]));
+    const original = await p.movimentacaoEstoque.findFirst({ where: { cliente_id: s.c, lancamento_origem_id: compra.id } });
+    const nomeAntigo = original.local_destino;
+    const nomeNovo = `DEPOSITO RENOMEADO ${s.c}`;
+    await p.localEstoque.update({ where: { id: s.local.id }, data: { nome: nomeNovo } });
+    const antes = await foto([s.c]);
+    const [k1, k2] = [opId(), opId()];
+    const pedidos = {
+      'suplementação (formulário antigo, chave K1)': () => suplementar(s, e, e.sal, s.local, 10, k1),
+      'transferência (formulário antigo, chave K2)': () => A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, {
+        operation_id: k2, empresa_id: e.id, produto_id: e.milho.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 10,
+      }),
+      'POST /movimentacoes-estoque': () => A.req('POST', '/movimentacoes-estoque', s.token, {
+        empresa_id: e.id, tipo_movimentacao: 'Entrada', data_movimentacao: '2027-06-10T12:00:00.000Z', produto_id: e.milho.id, quantidade: 3, unidade_medida: 'KG', local_estoque_destino: s.local.id,
+      }),
+      'PATCH /produtos': () => A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
+      'PATCH de lote': () => A.req('PATCH', `/estoque-lotes-nota/${loteP.id}`, s.token, { custo_unitario: 2.5 }),
+      'DELETE de lote': () => A.req('DELETE', `/estoque-lotes-nota/${loteD.id}`, s.token),
+      'PATCH /movimentacoes-estoque (renomeação de depósito)': () => A.req('PATCH', `/movimentacoes-estoque/${original.id}`, s.token, { local_destino: nomeNovo }),
+      'PUT do perfil (tela nova, 20 s padrão)': () => A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
+    };
+    const ondas = [
+      ['suplementação (formulário antigo, chave K1)', 'transferência (formulário antigo, chave K2)', 'POST /movimentacoes-estoque'],
+      ['PATCH /produtos', 'PATCH de lote', 'DELETE de lote'],
+      ['PATCH /movimentacoes-estoque (renomeação de depósito)', 'PUT do perfil (tela nova, 20 s padrão)'],
+    ];
+    /** @type {Record<string, any>} */
+    const vitimas = {};
+    /** @type {string[]} */
+    const vivasComATrava = [];
+    const DESFAZ = 'p3c7-desfaz-detentor';
+    for (const nomes of ondas) {
+      try {
+        await aux.$transaction(async (tx) => {
+          const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
+          await travarProdutosEstoque(tx, s.c, e.id, [e.sal.id, e.milho.id]);
+          await reservarNumeros(tx, { clienteId: s.c, entidade: 'MovimentacaoEstoque', escopoTipo: ESCOPO_TENANT }, 1);
+          await tx.$queryRaw`SELECT id FROM "PerfilFinanceiroEmpresa" WHERE cliente_id = ${s.c} AND empresa_id = ${e.id} FOR SHARE`;
+          await tx.$queryRaw`SELECT id FROM "MovimentacaoEstoque" WHERE cliente_id = ${s.c} AND id = ${original.id} FOR UPDATE`;
+          for (const nome of nomes) vitimas[nome] = acompanhar(pedidos[nome]());
+          await esperar(async () => (await bloqueadosPor(pid)).length >= nomes.length, `${nomes.length} comandos esperando as travas`);
+          // CENÁRIO: as travas ficam seguras além do que o servidor aceita
+          // esperar (até 15 s, mais do que o lock_timeout de 8 s).
+          const limite = Date.now() + 15000;
+          while (Date.now() < limite && !nomes.every((nome) => vitimas[nome].feito)) await new Promise((r) => setTimeout(r, 50));
+          // Ainda com a trava segura: ninguém mais esperando por ela e nenhuma transação aberta além da do detentor.
+          const presos = await bloqueadosPor(pid);
+          const abertas = /** @type {any[]} */ (await aux.$queryRaw`SELECT pid FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> ${pid}::int AND pid <> pg_backend_pid() AND state LIKE 'idle in transaction%'`);
+          if (presos.length || abertas.length) vivasComATrava.push(`${nomes.join(', ')}: ${presos.length} esperando, ${abertas.length} abertas`);
+          // O detentor VOLTA (a reserva de número dele não pode sujar a foto do banco).
+          throw new Error(DESFAZ);
+        }, { maxWait: 10000, timeout: 60000 }).catch((erro) => { if (erro?.message !== DESFAZ) throw erro; });
+      } finally {
+        await Promise.allSettled(nomes.map((nome) => vitimas[nome].p));
+      }
+    }
+    const tabela = Object.entries(vitimas).map(([nome, v]) => `${nome}: ${resumo(v)}`).join('\n');
+    t.diagnostic(tabela);
+    for (const [nome, v] of Object.entries(vitimas)) {
+      assert.equal(`${v.r.statusCode} ${corpoDe(v.r)?.code}`, '409 CONCURRENCY_CONFLICT', `${nome} → ${v.r.body}\n${tabela}`);
+      assert.ok(v.ms >= 7000 && v.ms < 12000, `${nome}: o 409 vem do lock_timeout (≈ 8 s), bem antes dos 20 s do navegador — ${v.ms} ms\n${tabela}`);
+    }
+    assert.deepEqual(vivasComATrava, [], 'depois do 409 a transação perdedora já acabou no banco (não commita quando a trava soltar)');
+    // Trava solta: nada do que recebeu 409 aparece depois.
+    assert.deepEqual(await foto([s.c]), antes, 'nenhuma linha mudou: movimentos, lotes, estoque, perfil, recibos e auditoria');
+    assert.equal((await p.movimentacaoEstoque.findUnique({ where: { id: original.id } })).local_destino, nomeAntigo);
+    assert.equal(await p.operacaoIdempotente.count({ where: { cliente_id: s.c, operation_key: { in: [k1, k2] } } }), 0, 'nenhum recibo das chaves K1/K2');
+    // O usuário viu o erro e reenvia o MESMO formulário (chave NOVA): uma baixa só.
+    const sup2 = await suplementar(s, e, e.sal, s.local, 10);
+    const tr2 = await A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, {
+      operation_id: opId(), empresa_id: e.id, produto_id: e.milho.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 10,
+    });
+    assert.deepEqual([sup2.statusCode, tr2.statusCode], [201, 201], `${sup2.body}\n${tr2.body}`);
+    assert.equal(await p.movimentacaoEstoque.count({ where: { cliente_id: s.c, tipo_detalhado: 'suplementacao' } }), 1, 'uma suplementação só');
+    assert.equal(await estoqueAtual(e.sal), '100.0000', 'uma baixa só (110 − 10)');
+    assert.deepEqual(
+      [await somaLotes({ cliente_id: s.c, produto_id: e.milho.id, local_estoque_id: s.local.id }), await somaLotes({ cliente_id: s.c, produto_id: e.milho.id, local_estoque_id: s.local2.id })],
+      ['90.0000', '10.0000'],
+      'uma transferência só',
+    );
+  });
+});
+
+describe('C8 — CRITICO-3 (rodada 2): renomear depósito durante um cancelamento longo', () => {
+  test('PATCH {local_destino} do movimento original que o cancelamento travou: espera o cancelamento (6 s) e responde 200 com o nome gravado (nunca 500 com a renomeação pela metade)', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const p = prisma();
+    const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '10', '2')]));
+    const original = await p.movimentacaoEstoque.findFirst({ where: { cliente_id: s.c, lancamento_origem_id: compra.id } });
+    const nomeNovo = `DEPOSITO RENOMEADO ${s.c}`;
+    await p.localEstoque.update({ where: { id: s.local.id }, data: { nome: nomeNovo } });
+    // O cancelamento para no portão DEPOIS dos efeitos (original já 'Estornada' e travado): no registro de auditoria.
+    await instalarPortao(s, 'AuditLog', `NEW.acao = 'operacao_financeira.cancelar'`);
+    /** @type {any[]} */
+    const pend = [];
+    /** @type {any} */
+    let canc;
+    /** @type {any} */
+    let patch;
+    try {
+      await comPortaoFechado(async () => {
+        canc = acompanhar(cancelar(s, compra, e));
+        pend.push(canc);
+        const [pidCanc] = await esperar(paradosNoPortao, 'cancelamento parado depois de marcar o original');
+        patch = acompanhar(A.req('PATCH', `/movimentacoes-estoque/${original.id}`, s.token, { local_destino: nomeNovo }));
+        pend.push(patch);
+        await esperar(async () => patch.feito || (await bloqueadosPor(pidCanc)).length > 0, 'PATCH esperando a linha do movimento');
+        // CENÁRIO: o cancelamento segura a linha 6 s (além dos 5 s padrão do Prisma).
+        await new Promise((r) => setTimeout(r, 6000));
+        assert.equal(patch.feito, false, `o PATCH não pode desistir enquanto o cancelamento segura a linha: ${resumo(patch)} ${patch.r?.body}`);
+      });
+    } finally {
+      await Promise.allSettled(pend.map((a) => a.p));
+      await removerPortao('AuditLog');
+    }
+    assert.equal(canc.r.statusCode, 200, canc.r.body);
+    assert.equal(patch.r.statusCode, 200, `PATCH durante o cancelamento: ${resumo(patch)} ${patch.r.body}`);
+    const depois = await p.movimentacaoEstoque.findUnique({ where: { id: original.id } });
+    assert.deepEqual([depois.local_destino, depois.status], [nomeNovo, 'Estornada'], 'nome gravado; o estorno do cancelamento intacto');
+  });
+});
+
 describe('C3 — CONCORRENCIA-2: janela da sequência de movimentos do tenant', () => {
   test('confirmar e cancelar só reservam os números de movimento DEPOIS dos efeitos: a suplementação de OUTRO produto conclui enquanto o comando está parado no meio; números finais numéricos, distintos e posteriores', async () => {
     const s = await montarTenant(app);

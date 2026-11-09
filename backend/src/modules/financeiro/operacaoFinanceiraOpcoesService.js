@@ -9,19 +9,30 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
-import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
+import { exigirEmpresaDoTenant, invalido, textoDeBusca } from '../gestao/gestaoComum.js';
 import { caminhosDe } from '../gestao/naturezaFinanceiraService.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
 import { CASAS_QUANTIDADE, ZERO, dec, texto } from './decimalFinanceiro.js';
+import { ID_DE_CURSOR } from '../../shared/pagination/keysetCursor.js';
 
 export const LIMITE_OPCOES_PADRAO = 50;
 export const LIMITE_OPCOES_MAXIMO = 100;
 
 const codificar = (nome, id) => Buffer.from(JSON.stringify([nome, id]), 'utf8').toString('base64url');
+/** Nome que um registro pode ter: até 255 caracteres (as colunas de nome), sem NUL e sem surrogate isolado. */
+const NOME_IMPOSSIVEL = /\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+/**
+ * Cursor adulterado (id fora do padrão, nome com NUL, surrogate isolado ou
+ * maior que as colunas) → null → 400 `cursor_invalido`, nunca 500 no banco
+ * (22021) ou no engine (JSON). Os demais caracteres de controle podem estar
+ * num nome gravado e continuam aceitos.
+ */
 const decodificar = (bruto) => {
   try {
     const v = JSON.parse(Buffer.from(String(bruto), 'base64url').toString('utf8'));
-    return Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && typeof v[1] === 'string' ? { nome: v[0], id: v[1] } : null;
+    if (!Array.isArray(v) || v.length !== 2 || typeof v[0] !== 'string' || typeof v[1] !== 'string') return null;
+    if (!ID_DE_CURSOR.test(v[1]) || NOME_IMPOSSIVEL.test(v[0]) || [...v[0]].length > 255) return null;
+    return { nome: v[0], id: v[1] };
   } catch {
     return null;
   }
@@ -33,7 +44,7 @@ const paginacao = (query) => {
   const cursor = query.cursor ? decodificar(query.cursor) : null;
   if (query.cursor && !cursor) throw invalido('cursor inválido', { field: 'cursor', reason: 'cursor_invalido' });
   // Busca literal: o `contains` do Prisma não escapa `%`/`_` (q=% casaria tudo).
-  const q = typeof query.q === 'string' ? escaparCuringasLike(query.q.trim()) : '';
+  const q = escaparCuringasLike(textoDeBusca(query.q));
   return { limit, cursor, q };
 };
 

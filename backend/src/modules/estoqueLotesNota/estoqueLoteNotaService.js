@@ -7,7 +7,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { atorDoTenant, ehAdminTenantAtivo, tenantAdminRequired } from '../../shared/auth/exigirAdminTenant.js';
-import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   listarRegistros,
@@ -117,9 +117,10 @@ const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
 
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  // Espera as travas que confirmar/cancelar/suplementação seguram (até 30 s) em
-  // vez de estourar os 5 s padrão (500); PATCH absoluto, sem operation_id.
-  const atualizado = await emTransacao(TRANSACAO_LONGA, async (tx) => {
+  // Espera as travas que confirmar/cancelar/suplementação seguram em vez de
+  // estourar os 5 s padrão (500), até caber nos 20 s do navegador
+  // (TRANSACAO_CURTA; espera longa demais → 409); PATCH absoluto, sem operation_id.
+  const atualizado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const lido = await buscarRegistro(auth.clienteId, id, tx);
     if (!lido) throw erroNaoEncontrado();
     const patch = exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada);
@@ -168,7 +169,7 @@ export const atualizar = async (contexto, id, entrada) => {
 
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
-  await emTransacao(TRANSACAO_LONGA, async (tx) => {
+  await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const lido = await buscarRegistro(auth.clienteId, id, tx);
     if (!lido) throw erroNaoEncontrado();
     // §8.4/§8.5: produto → lote travados e relidos ANTES de contar os vínculos.

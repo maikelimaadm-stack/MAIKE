@@ -168,6 +168,13 @@ const LISTAR = {
     },
   },
 };
+/**
+ * Cursor das opções = base64url(JSON [nome, id]) com o nome INTEIRO (até 255
+ * caracteres; até 6 bytes cada no JSON) e id de até 64: no máximo 2135
+ * caracteres. Com 512 o servidor emitia cursor que ele mesmo recusava
+ * (rodada 2, API-3: 120 caracteres japoneses já davam 523).
+ */
+const CURSOR_OPCOES = { type: 'string', minLength: 1, maxLength: 2200 };
 const OPCOES = (extras = {}, obrigatorios = ['empresa_id']) => ({
   querystring: {
     type: 'object',
@@ -176,7 +183,7 @@ const OPCOES = (extras = {}, obrigatorios = ['empresa_id']) => ({
     properties: {
       empresa_id: ID,
       q: { type: 'string', maxLength: 120 },
-      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      cursor: CURSOR_OPCOES,
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_OPCOES_MAXIMO, default: LIMITE_OPCOES_PADRAO },
       ...extras,
     },
@@ -188,7 +195,7 @@ const OPCOES_LOCAIS = {
     additionalProperties: false,
     properties: {
       q: { type: 'string', maxLength: 120 },
-      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      cursor: CURSOR_OPCOES,
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_OPCOES_MAXIMO, default: LIMITE_OPCOES_PADRAO },
     },
   },
