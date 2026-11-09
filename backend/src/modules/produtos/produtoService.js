@@ -230,15 +230,23 @@ export const atualizar = async (contexto, id, entrada) => {
     // D-PROD-157 (R2): o vínculo ATIVO a combustível do Patrimônio exige que o
     // produto continue na MESMA empresa (invariante do serviço: Produto não tem
     // unique por empresa). Corpo com `empresa_id` (o formulário sempre reenvia a
-    // que leu) trava a linha ANTES de ler o estado anterior (FOR UPDATE × o FOR
-    // KEY SHARE de quem vincula): a comparação e a contagem usam a linha
-    // travada, e nenhuma troca nem vínculo concorrente cabe até o UPDATE.
+    // que leu) trava a linha ANTES de ler o estado anterior, para a comparação
+    // usar a versão confirmada mais nova (uma troca concorrente fica em fila):
+    //  - FOR NO KEY UPDATE, a mesma força do UPDATE comum: não disputa com o
+    //    FOR KEY SHARE de rascunhos de lançamento nem de quem vincula;
+    //  - só se a fazenda MUDA sobe para FOR UPDATE (espera quem segura o
+    //    produto em KEY SHARE, como um vínculo em voo), relê e conta.
     if (campos.empresa_id !== undefined) {
-      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     }
-    const anterior = await buscarProduto(auth.clienteId, id, tx);
+    let anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
 
+    if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
+      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
+      anterior = await buscarProduto(auth.clienteId, id, tx);
+      if (!anterior) throw produtoNotFound();
+    }
     if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
       const vinculos = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id, ativo: true } });
       if (vinculos > 0) {

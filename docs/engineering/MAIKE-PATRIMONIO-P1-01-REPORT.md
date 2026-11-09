@@ -20,7 +20,7 @@ Branch: `claude/maike-patrimonio-p1-01-cadastros-inventario` · PR #232 (draft).
 - catálogos: `familiaPatrimonialService.js`, `tipoPatrimonialService.js`, `perfilMedicaoService.js`, `tipoCombustivelService.js`, `patrimonioCatalogoRoutes.js`;
 - bens: `bemPatrimonialService.js`, `bemPatrimonialRoutes.js` e as opções (inclui `produtosElegiveisDoBem`, R2);
 - vínculo combustível × produto (R2): `combustivelProdutoService.js`, `combustivelProdutoRoutes.js`.
-- Compartilhados: `app.js` (rotas), `autorizacaoTela.js` (5 telas `pat-*` + ação extra `inativar`), `guardasRotas.js` (`GUARDAS.patrimonio*`), `errorCodes.js` (códigos do domínio), `fornecedorService.excluir` (conta bens → 409 `PARCEIRO_EM_USO`), `produtoService` (R2: excluir produto vinculado → 409 `PRODUTO_DELETE_BLOCKED`; PATCH com `empresa_id` trava a linha antes de ler e recusa a troca de fazenda com vínculo ativo → 409 `PRODUTO_VINCULADO_COMBUSTIVEL`).
+- Compartilhados: `app.js` (rotas), `autorizacaoTela.js` (5 telas `pat-*` + ação extra `inativar`), `guardasRotas.js` (`GUARDAS.patrimonio*`), `errorCodes.js` (códigos do domínio), `fornecedorService.excluir` (conta bens → 409 `PARCEIRO_EM_USO`), `produtoService` (R2: excluir produto vinculado → 409 `PRODUTO_DELETE_BLOCKED`; PATCH com `empresa_id` trava a linha antes de ler — `FOR NO KEY UPDATE`, `FOR UPDATE` só na troca de fazenda — e recusa a troca de fazenda com vínculo ativo → 409 `PRODUTO_VINCULADO_COMBUSTIVEL`).
 
 **Banco:** `backend/prisma/schema.prisma` (10 models; o `Produto` ganha só a relação inversa, sem DDL) e a migration `20261110100000_patrimonio_p1_01_cadastros` (§6).
 
@@ -71,7 +71,7 @@ Branch: `claude/maike-patrimonio-p1-01-cadastros-inventario` · PR #232 (draft).
 
 **Limite de integridade (assumido e provado).** `Produto` não tem unique `(cliente_id, empresa_id, id)` e esta PR **não** cria um (nenhum DDL em tabela antiga). A regra `Produto.empresa_id = vínculo.empresa_id` é do **serviço**:
 - POST e reativação leem o produto com `FOR KEY SHARE` e exigem a mesma empresa e produto ativo (422 `COMBUSTIVEL_PRODUTO_INVALIDO`, `reason` `inexistente` ≡ outro tenant, `outra_empresa`, `inativo`; tipo inativo → `tipo_inativo`);
-- `PATCH /produtos/:id` com `empresa_id` trava a linha (`FOR UPDATE`) antes de ler o estado anterior e recusa a troca de fazenda com vínculo ATIVO (409 `PRODUTO_VINCULADO_COMBUSTIVEL`, nada gravado); com vínculo só inativo a troca passa e o vínculo fica rastreável (`empresa_coerente=false`);
+- `PATCH /produtos/:id` com `empresa_id` trava a linha antes de ler o estado anterior (`FOR NO KEY UPDATE`, a mesma força do UPDATE comum, que não disputa com o `FOR KEY SHARE` de rascunhos de lançamento; sobe para `FOR UPDATE` só quando a fazenda muda) e recusa a troca de fazenda com vínculo ATIVO (409 `PRODUTO_VINCULADO_COMBUSTIVEL`, nada gravado); com vínculo só inativo a troca passa e o vínculo fica rastreável (`empresa_coerente=false`);
 - `DELETE /produtos/:id` com vínculo, ativo ou inativo → 409 `PRODUTO_DELETE_BLOCKED` (`details.vinculo` = "combustíveis do patrimônio"), nunca o 403 da FK;
 - a trava consultiva por (tenant, empresa, produto) serializa as escritas do vínculo; os uniques são a barreira final (P2002 → 409 de negócio);
 - SQL direto fora do serviço pode quebrar a regra; nesse caso a leitura marca `empresa_coerente=false` e o produto **nunca** fica elegível, porque opções e elegíveis filtram por `produto.empresa_id`.
@@ -105,7 +105,7 @@ Números da árvore final da R2 (PostgreSQL 16 local descartável; `verify:all` 
 | `backend/tests/patrimonioP1Catalogos.test.mjs` | PostgreSQL real + Fastify | 14/14 |
 | `backend/tests/patrimonioP1Bens.test.mjs` | PostgreSQL real + Fastify | 19/19 |
 | `backend/tests/patrimonioP1Seguranca.test.mjs` | PostgreSQL real + Fastify | 12/12 |
-| `backend/tests/patrimonioP1CombustivelProduto.test.mjs` (R2) | PostgreSQL real + Fastify | 19/19 (RED 17/17 antes da API; +2 da revisão, RED→GREEN) |
+| `backend/tests/patrimonioP1CombustivelProduto.test.mjs` (R2) | PostgreSQL real + Fastify | 20/20 (RED 17/17 antes da API; +3 das revisões, cada um RED→GREEN) |
 | Regressão que toca Produto e a P3-01/P3-02: cadastrosEstoqueNativo, estabP0LancamentosNativo, gestaoP3Concorrencia, gestaoP3Lancamentos, gestaoP3Rodada2, leiturasCadastrosIntegrada, permissoesR2Rotas, referenciasSincronizarIntegrada, trocaSenhaInicialS04P2 + patrimonioP1* | PostgreSQL real | 177/177 |
 | `tests/smoke/patrimonioMenuPermissoes.test.jsx` | React + backend falso | 18/18 |
 | `tests/smoke/patrimonioCatalogos.test.jsx` | React + backend falso | 32/32 |
@@ -127,7 +127,7 @@ Casos críticos cobertos: famílias/tipos (tipo de família errada ou inativa re
 ## 10. Riscos e limitações
 
 - **Ordem de release:** a Vercel publica a `main` sozinha. Se o código entrar antes da migration, respondem 500 (P2021) as rotas do patrimônio **e rotas antigas**: `DELETE /fornecedores/:id`, `DELETE /produtos/:id` e `PATCH /produtos/:id` com `empresa_id` diferente (consultam as tabelas novas). A barreira é o preflight, que acusa a migration pendente. A migration tem de ser aplicada com autorização **antes** do merge, pelo runbook [`MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md) (não executado; SQL de aplicação e de rollback ensaiados num PostgreSQL local).
-- **Coerência produto × vínculo é do serviço** (§5a): sem unique composto em `Produto`, SQL direto pode gravar vínculo ativo com produto de outra fazenda; a leitura o rotula (`empresa_coerente=false`) e ele nunca fica elegível. Todo `PATCH /produtos/:id` com `empresa_id` (o formulário sempre manda) agora trava a linha do produto, como o próprio UPDATE já faria.
+- **Coerência produto × vínculo é do serviço** (§5a): sem unique composto em `Produto`, SQL direto pode gravar vínculo ativo com produto de outra fazenda; a leitura o rotula (`empresa_coerente=false`) e ele nunca fica elegível. Todo `PATCH /produtos/:id` com `empresa_id` (o formulário sempre manda) trava a linha do produto em `FOR NO KEY UPDATE`, a mesma força que o UPDATE já tomaria (testado: não espera rascunho nem vínculo em voo); só a troca de fazenda sobe para `FOR UPDATE` e espera quem segura o produto.
 - O seletor compartilhado `SeletorPaginadoGestao` não desabilita a opção de produto preso a outro tipo: a tela mostra o motivo, deixa "Gravar vínculo" desabilitado e o servidor é a barreira final (409).
 - O smoke do frontend usa backend falso alinhado aos códigos reais; a integração front × back da R2 não foi exercitada ponta a ponta em navegador.
 - `scripts/deploy/preflightSchemaLib.mjs` não lista as 10 tabelas em `TABELAS_PROTEGIDAS` (a detecção depende de "migrations pendentes", que basta); acrescentá-las daria também a checagem de RLS e grants no preflight.

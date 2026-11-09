@@ -434,6 +434,35 @@ describe('V3 — concorrência e corridas com o Produto', () => {
     assert.equal((await p.tipoCombustivelProduto.findUnique({ where: { id: v.id } }))?.ativo, false, 'a reativação não gravou');
   });
 
+  test('edição comum do produto (corpo reenvia a MESMA fazenda) não disputa com quem segura o produto em FOR KEY SHARE (rascunho de lançamento, vínculo em voo): grava na hora; a troca de fazenda segue esperando', async () => {
+    const s = await montarPatrimonio(app);
+    const p = prisma();
+    const prod = await produtoNovo(s, s.e1, 'DIESEL EDITADO EM PAZ');
+    /** @type {any} */
+    let edicao;
+    /** @type {any} */
+    let troca;
+    await aux.$transaction(
+      async (tx) => {
+        const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
+        await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${s.c} AND id = ${prod.id} FOR KEY SHARE`;
+        const t0 = Date.now();
+        edicao = await req('PATCH', `/produtos/${prod.id}`, s.token, { empresa_id: s.e1.id, observacoes: 'só a observação' });
+        assert.ok(Date.now() - t0 < 4000, `a edição esperou ${Date.now() - t0} ms pela trava de outra transação`);
+        // A troca de fazenda, ao contrário, precisa esperar quem segura o produto.
+        const emVoo = req('PATCH', `/produtos/${prod.id}`, s.token, { empresa_id: s.e2.id });
+        await esperar(() => alguemEsperando(pid), 'a troca de fazenda esperando o FOR KEY SHARE');
+        troca = emVoo;
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
+    assert.equal(edicao.statusCode, 200, edicao.body);
+    assert.equal(edicao.json().observacoes, 'só a observação');
+    const t = await troca;
+    assert.equal(t.statusCode, 200, t.body);
+    assert.equal((await p.produto.findUnique({ where: { id: prod.id } }))?.empresa_id, s.e2.id);
+  });
+
   test('troca de fazenda confirmada (com vínculo ATIVO na fazenda nova) enquanto um PATCH do produto que REENVIA a fazenda antiga espera → 409 PRODUTO_VINCULADO_COMBUSTIVEL; o produto não volta; nunca vínculo ativo incoerente', async () => {
     const s = await montarPatrimonio(app);
     const p = prisma();
