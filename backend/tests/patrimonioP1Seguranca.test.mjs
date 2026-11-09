@@ -664,7 +664,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
   test('sem as 10 tabelas (DROP numa transação desfeita), o runtime novo falha P2021 no Patrimônio (500 sem detalhe) e o resto segue; o banco volta ao normal', async () => {
     const s = await montarPatrimonio(app);
     await criarOk(s, corpoTrator(s));
-    const delegados = ['bemPatrimonial', 'medicaoBem', 'tanqueBem', 'tanqueBemCombustivel', 'familiaPatrimonial', 'tipoPatrimonial', 'tipoPatrimonialPerfil', 'perfilMedicao', 'tipoCombustivel'];
+    const delegados = ['bemPatrimonial', 'medicaoBem', 'tanqueBem', 'tanqueBemCombustivel', 'familiaPatrimonial', 'tipoPatrimonial', 'tipoPatrimonialPerfil', 'perfilMedicao', 'tipoCombustivel', 'tipoCombustivelProduto'];
     const r = await emTransacaoDesfeita(async (tx) => {
       await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */
@@ -695,7 +695,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     // Transação desfeita: as 10 tabelas e o bem continuam lá.
     assert.equal(await prisma().bemPatrimonial.count({ where: { cliente_id: s.c } }), 1);
     const existentes = /** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[])`);
-    assert.equal(existentes.length, 9);
+    assert.equal(existentes.length, 10);
   });
 
   test('preflight: sem a migration no histórico acusa "migrations pendentes" (dados sintéticos e o histórico local numa transação desfeita); iniciada sem concluir → falha registrada', async () => {
