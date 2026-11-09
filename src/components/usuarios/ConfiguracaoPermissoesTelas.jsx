@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ACTION_KEYS, createRestrictedPagePermission, getPagePermission } from "@/lib/permissions";
+import { ACTION_KEYS, createRestrictedPagePermission, extraActionKeysOf, getPagePermission } from "@/lib/permissions";
 import { MAPA_GERAL_PERMISSION_GROUPS, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 
 const ACTION_LABELS = {
@@ -14,6 +14,17 @@ const ACTION_LABELS = {
   excluir: "EXCLUIR",
   importar: "IMPORTAR",
   exportar: "EXPORTAR",
+};
+
+/** Checkbox das ações extras (o componente de `ui/checkbox` não tem tipos). */
+const CheckboxAcaoExtra = /** @type {any} */ (Checkbox);
+
+/** Ações extras (D-PROD-155) — só aparecem na tela que as declara. */
+const EXTRA_ACTION_LABELS = {
+  confirmar: "CONFIRMAR LANÇAMENTO",
+  liquidar: "REGISTRAR PAGAMENTO/RECEBIMENTO",
+  estornar_liquidacao: "ESTORNAR BAIXA",
+  cancelar: "CANCELAR LANÇAMENTO",
 };
 
 export default function ConfiguracaoPermissoesTelas({ formData, onChange, modules }) {
@@ -182,6 +193,33 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
                       </label>
                     ))}
                   </div>
+
+                  {extraActionKeysOf(page.id).length > 0 && (
+                    <div
+                      data-testid={`acoes-extras-${page.id}`}
+                      className={`rounded-lg border p-3 space-y-2 ${permission.visualizar ? "bg-sky-50 border-sky-200" : "bg-slate-100 border-slate-200 opacity-60"}`}
+                    >
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-slate-900">Ações do lançamento</p>
+                        <p className="text-[11px] text-slate-500 uppercase">Cada ação é liberada à parte; nenhuma vem ligada.</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {extraActionKeysOf(page.id).map((action) => (
+                          <label
+                            key={action}
+                            className={`flex items-center gap-2 rounded border px-2 py-1.5 ${permission.visualizar ? "bg-white" : "bg-slate-100 opacity-60"}`}
+                          >
+                            <CheckboxAcaoExtra
+                              checked={permission[action] === true}
+                              disabled={!permission.visualizar}
+                              onCheckedChange={(checked) => handlePagePermission(module, page, action, checked)}
+                            />
+                            <span className="text-[11px] uppercase">{EXTRA_ACTION_LABELS[action] ?? action}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {page.id === "pec-mapa-geral" && (
                     <div className={`rounded-lg border p-3 space-y-3 ${permission.visualizar ? "bg-emerald-50 border-emerald-200" : "bg-slate-100 border-slate-200 opacity-60"}`}>

@@ -33,8 +33,14 @@
  * quebraria monitoramento e integração. A defesa dessas chamadas é o JWT.
  */
 
-/** Métodos que a API usa hoje. `OPTIONS` entra pelo preflight. */
-const METODOS = Object.freeze(['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']);
+/**
+ * Métodos que a API usa hoje. `OPTIONS` entra pelo preflight. `PUT` é usado
+ * pelo frontend desde a P2 (empresa, vínculos de centros) e pela Central de
+ * Lançamentos (perfil financeiro e rascunho, D-PROD-155); fora da lista, o
+ * preflight do navegador barrava a requisição em origins separadas
+ * (P4B-04d confere contra as portas nativas do frontend).
+ */
+const METODOS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 
 /**
  * Cabeçalhos que o navegador pode enviar.

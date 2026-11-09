@@ -55,3 +55,14 @@ Violação exige **rollback**, não flexibilização da regra.
 | D24 | Copiar Studio, MDP/MMM, marketplace ou low-code do PROJETOMG | Copiar só a disciplina (D-PROD-03) |
 | D25 | Hardcodar chave ou segredo em `src/` | Variável de ambiente + `.env.example` |
 | D26 | Criar segunda fonte de menu ou de rota | SSOT em `src/lib/menuConfig.js` e `src/pages.config.js` |
+
+> **Nota (D-PROD-155):** a Central Única de Lançamentos (`LancamentosFinanceiros`)
+> é a única exceção financeira autorizada, nos limites da decisão. Continua
+> proibido: conciliação bancária, bancos/contas bancárias/OFX, módulo de
+> caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade,
+> rateio por item, pedido de compra, relatórios/dashboards financeiros e ERP
+> amplo; reabrir os domínios legados de `forbiddenDomains` (`Financeiro`,
+> `LancamentoFinanceiro`, `ContasFinanceiras`, `CaixaBancos`, `FormasPagamento`,
+> `MovimentacoesEstoque`, `LancamentoProdutosEstoque`…); criar entrada de estoque
+> avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
+> comando composto da confirmação e do cancelamento; e somar dinheiro com float.

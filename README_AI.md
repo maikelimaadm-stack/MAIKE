@@ -35,6 +35,14 @@ combustível, agrícola, safra, comercial, cotação, pesagens individuais,
 relatórios genéricos, dashboards paralelos, fichas personalizadas e editor visual
 **saíram do produto** e foram fisicamente excluídos (D-PROD-02).
 
+**Exceções delimitadas, autorizadas pelo proprietário:** os cadastros de Gestão
+Rural (D-PROD-146 e D-PROD-153) e a **Central Única de Lançamentos gerenciais**
+(`LancamentosFinanceiros`, D-PROD-155): documento a pagar/receber, rateio global,
+títulos, liquidação manual e efeito de estoque só na confirmação do lançamento
+(estorno no cancelamento). O financeiro legado continua excluído e proibido: sem
+conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade,
+caixa/bancos, rateio por item, pedido de compra ou relatórios financeiros.
+
 ### Inventário atual
 
 | Métrica | Valor |
@@ -178,7 +186,9 @@ O agente **não deve**:
 - Afirmar que gate passou sem ter rodado
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
-- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana
+- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana (cada expansão tem
+  decisão própria do proprietário; a mais recente, D-PROD-155, acrescentou só
+  `LancamentosFinanceiros`)
 
 ---
 

@@ -123,12 +123,12 @@ describe('R5 e Ativo nos cards', () => {
     expect(NATUREZAS_CAMPOS_CARD.filter((k) => !noTopo.has(k)).slice(0, 3)).toEqual(['tipo', 'pai', 'ativo']);
   });
 
-  it('as quatro telas de Gestão Rural têm ícone próprio no celular (P2: Naturezas Financeiras)', () => {
-    for (const url of ['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras']) {
+  it('as cinco telas de Gestão Rural têm ícone próprio no celular (P2: Naturezas; P3-01: Lançamentos Financeiros)', () => {
+    for (const url of ['Parceiros', 'CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras', 'LancamentosFinanceiros']) {
       expect(ICONE_TELA[url], url).toBeTruthy();
       expect(ICONE_TELA[url]).not.toBe(Package);
     }
-    expect(new Set(['CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras'].map((u) => ICONE_TELA[u])).size).toBe(3);
+    expect(new Set(['CentrosCusto', 'CentrosResultado', 'NaturezasFinanceiras', 'LancamentosFinanceiros'].map((u) => ICONE_TELA[u])).size).toBe(4);
   });
 
   it('R3: mensagem do teto de centros ativos', () => {

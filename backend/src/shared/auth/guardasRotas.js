@@ -21,7 +21,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from './authContext.js';
 import {
   TELAS, porQualquer, porTela, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
-  carregarAutorizacao, somenteCampos, acaoNaoPermitida,
+  carregarAutorizacao, somenteCampos, acaoNaoPermitida, adminOuIsAdmin,
 } from './autorizacaoTela.js';
 
 const T = TELAS;
@@ -192,6 +192,20 @@ export const GUARDAS = Object.freeze({
   centroCusto: { ...cadastro(T.CENTROS_CUSTO), ver: porTela(T.CENTROS_CUSTO, 'visualizar') },
   centroResultado: { ...cadastro(T.CENTROS_RESULTADO), ver: porTela(T.CENTROS_RESULTADO, 'visualizar') },
   naturezaFinanceira: { ...cadastro(T.NATUREZAS_FINANCEIRAS), ver: porTela(T.NATUREZAS_FINANCEIRAS, 'visualizar') },
+  // D-PROD-155 — Central Única de Lançamentos: cada efeito com a SUA ação da
+  // tela (confirmar, cancelar, liquidar, estornar baixa são caixas próprias);
+  // os seletores e a prévia só leem (visualizar).
+  operacaoFinanceira: {
+    ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'),
+    criar: porQualquer([T.LANCAMENTOS_FINANCEIROS, 'novo'], [T.LANCAMENTOS_FINANCEIROS, 'salvar']),
+    editar: porQualquer([T.LANCAMENTOS_FINANCEIROS, 'editar'], [T.LANCAMENTOS_FINANCEIROS, 'salvar']),
+    confirmar: porTela(T.LANCAMENTOS_FINANCEIROS, 'confirmar'),
+    cancelar: porTela(T.LANCAMENTOS_FINANCEIROS, 'cancelar'),
+    liquidar: porTela(T.LANCAMENTOS_FINANCEIROS, 'liquidar'),
+    estornarLiquidacao: porTela(T.LANCAMENTOS_FINANCEIROS, 'estornar_liquidacao'),
+  },
+  // Perfil financeiro: leitura pela tela; escrita só administrador real ou is_admin (§8.6).
+  perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),

@@ -3,10 +3,10 @@
  */
 import { Prisma } from '@prisma/client';
 
-import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
+import { TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { buscarRegistro as buscarEmpresa } from '../empresas/empresaRepository.js';
 import { buscarProduto } from '../produtos/produtoRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -15,6 +15,7 @@ import { buscarRegistro as buscarLoteNota, inserirRegistro as inserirLoteNota, a
 import { inserirRegistro, atualizarRegistroPorId } from './movimentacaoEstoqueRepository.js';
 import { comoPublico, ENTIDADE_SEQUENCIA } from './movimentacaoEstoqueService.js';
 import { buildRateioObservacao, calcularRateioFifo, parseNumero } from './fifoEstoque.js';
+import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 
 const TIPO_SAIDA = 'saida_suplementacao';
 const TIPO_TRANSFERENCIA = 'transferencia_locais';
@@ -140,8 +141,12 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
-  const prisma = getPrismaClient();
-  const resultado = await prisma.$transaction(async (tx) => {
+  // D-PROD-155 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
+  // até a resposta caber nos 20 s do navegador (TRANSACAO_CURTA): o formulário
+  // antigo gera operation_id NOVO a cada envio, então um commit depois do aviso
+  // de falha viraria segunda baixa no reenvio. Espera longa demais → 409
+  // CONCURRENCY_CONFLICT definitivo (nada gravado, nem depois).
+  const resultado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
       operationKey,
@@ -149,6 +154,10 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
       fingerprint,
       executar: async () => {
         await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
+        // D-PROD-155 (§3/§8.4): trava do produto (a MESMA chave do lançamento
+        // financeiro) ANTES de ler produto e lotes, e antes da sequência. Sem
+        // ela, duas baixas simultâneas liam o mesmo `estoque_atual` (lost update).
+        await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, auth.clienteId, produtoId, empresaId);
         const lotes = await listarLotesFifo(tx, auth.clienteId, {
           empresa_id: empresaId,
@@ -225,15 +234,19 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
 
         const estoqueAtual = dec(produto.estoque_atual);
         const novoEstoque = estoqueAtual - quantidade;
-        if (novoEstoque < 0) {
-          throw new AppError('ESTOQUE_SALDO_INSUFICIENTE', 'Estoque do produto ficaria negativo', {
+        const negativo = () =>
+          new AppError('ESTOQUE_SALDO_INSUFICIENTE', 'Estoque do produto ficaria negativo', {
             details: { field: 'estoque_atual' },
           });
-        }
-        await tx.produto.update({
+        if (novoEstoque < 0) throw negativo();
+        // D-PROD-155: decremento relativo (nunca o valor absoluto lido antes),
+        // conferido depois: um resultado negativo desfaz a transação.
+        const atualizado = await tx.produto.update({
           where: { cliente_id_id: { cliente_id: auth.clienteId, id: produtoId } },
-          data: { estoque_atual: novoEstoque },
+          data: { estoque_atual: { decrement: quantidade } },
+          select: { estoque_atual: true },
         });
+        if (atualizado.estoque_atual.lt(0)) throw negativo();
 
         const publico = comoPublico(movimentacao);
         await registrarEvento(
@@ -295,9 +308,13 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
     observacoes: entrada.observacoes ?? null,
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
-  const prisma = getPrismaClient();
 
-  const resultado = await prisma.$transaction(async (tx) => {
+  // D-PROD-155 (§8.4): espera as travas que confirmar/cancelar seguram, mas só
+  // até a resposta caber nos 20 s do navegador (TRANSACAO_CURTA): o formulário
+  // antigo gera operation_id NOVO a cada envio, então um commit depois do aviso
+  // de falha viraria segunda baixa no reenvio. Espera longa demais → 409
+  // CONCURRENCY_CONFLICT definitivo (nada gravado, nem depois).
+  const resultado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
       operationKey,
@@ -305,6 +322,8 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
       fingerprint,
       executar: async () => {
         await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
+        // D-PROD-155 (§3/§8.4): mesma trava do produto antes de ler lotes e reservar números.
+        await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, auth.clienteId, produtoId, empresaId);
         const lotes = await listarLotesFifo(tx, auth.clienteId, {
           empresa_id: empresaId,

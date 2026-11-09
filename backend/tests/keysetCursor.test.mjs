@@ -29,6 +29,23 @@ describe('keysetCursor', () => {
     assert.equal(decodificarCursor(''), null);
   });
 
+  test('cursor adulterado que o banco ou o engine recusariam devolve null; os limites válidos (anos 0000 e 9999, id cuid) passam (rodada 2, API-2)', () => {
+    const b64 = (s) => Buffer.from(s, 'utf8').toString('base64url');
+    for (const json of [
+      '{"t":"+010000-01-01T00:00:00.000Z","i":"a"}',
+      '{"t":"-000001-01-01T00:00:00.000Z","i":"a"}',
+      '{"t":"2027-01-01T00:00:00.000Z","i":"a\\u0000b"}',
+      '{"t":"2027-01-01T00:00:00.000Z","i":"\\ud800"}',
+      `{"t":"2027-01-01T00:00:00.000Z","i":"${'x'.repeat(65)}"}`,
+      '{"t":"2027-01-01T00:00:00.000Z","i":"a b"}',
+    ]) {
+      assert.equal(decodificarCursor(b64(json)), null, json);
+    }
+    for (const t of ['0000-01-01T00:00:00.000Z', '9999-12-31T23:59:59.999Z']) assert.ok(decodificarCursor(b64(JSON.stringify({ t, i: 'cmw8g1y5d00767drlmll57z4t' }))), t);
+    const legitimo = codificarCursor({ createdAt: new Date('2027-06-15T15:00:00.123Z'), id: 'cmw8g1y5d00767drlmll57z4t' });
+    assert.deepEqual(decodificarCursor(legitimo), { createdAt: new Date('2027-06-15T15:00:00.123Z'), id: 'cmw8g1y5d00767drlmll57z4t' });
+  });
+
   test('normalizarLimite respeita teto', () => {
     assert.equal(normalizarLimite(1000), LIMITE_MAXIMO);
     assert.equal(normalizarLimite(0), 100);

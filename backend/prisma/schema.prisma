@@ -102,6 +102,15 @@ model Cliente {
   eventosRebanho         EventoRebanho[]
   partidasRebanho        PartidaRebanho[]
   pesosRebanho           PesoRebanho[]
+  // D-PROD-155 — Central Única de Lançamentos (Gestão P3-01).
+  perfisFinanceiros            PerfilFinanceiroEmpresa[]
+  operacoesFinanceiras         OperacaoFinanceira[]
+  operacoesFinanceirasItens    OperacaoFinanceiraItem[]
+  operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
+  operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
+  titulosFinanceiros           TituloFinanceiro[]
+  liquidacoesFinanceiras       LiquidacaoFinanceira[]
+  estornosLiquidacao           LiquidacaoFinanceiraEstorno[]
 
   @@index([nome])
   @@index([ativo])
@@ -148,6 +157,12 @@ model Usuario {
   cliente   Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   auditLogs AuditLog[]
   operadorProdutoMaike OperadorProdutoMaike[]
+  // D-PROD-155 — autoria dos lançamentos (FK composta por tenant).
+  operacoesFinanceirasCriadas     OperacaoFinanceira[]          @relation("OperacaoFinanceiraCriadoPor")
+  operacoesFinanceirasConfirmadas OperacaoFinanceira[]          @relation("OperacaoFinanceiraConfirmadoPor")
+  operacoesFinanceirasCanceladas  OperacaoFinanceira[]          @relation("OperacaoFinanceiraCanceladoPor")
+  liquidacoesRegistradas          LiquidacaoFinanceira[]        @relation("LiquidacaoFinanceiraRegistradoPor")
+  estornosLiquidacaoRegistrados   LiquidacaoFinanceiraEstorno[] @relation("LiquidacaoFinanceiraEstornoRegistradoPor")
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -775,6 +790,8 @@ model LocalEstoque {
   updatedAt    DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-155 — itens de lançamento que movimentam este local.
+  itensFinanceiros OperacaoFinanceiraItem[]
 
   @@unique([cliente_id, numero_local])
   @@unique([cliente_id, id])
@@ -815,6 +832,8 @@ model Produto {
   updatedAt                 DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-155 — itens de lançamento deste produto.
+  itensFinanceiros OperacaoFinanceiraItem[]
 
   @@unique([cliente_id, numero_produto])
   @@unique([cliente_id, id])
@@ -951,6 +970,9 @@ model Empresa {
   centrosResultado       CentroResultado[]
   centrosCustoResultado  CentroCustoResultado[]
   naturezasFinanceiras   NaturezaFinanceira[]
+  // D-PROD-155 — perfil financeiro e lançamentos da empresa.
+  perfilFinanceiro       PerfilFinanceiroEmpresa?
+  operacoesFinanceiras   OperacaoFinanceira[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1004,6 +1026,9 @@ model Fornecedor {
   updatedAt          DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-155 — o parceiro do lançamento e dos títulos.
+  operacoesFinanceiras OperacaoFinanceira[]
+  titulosFinanceiros   TituloFinanceiro[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_cadastro])
@@ -1148,6 +1173,9 @@ model EstoqueLoteNota {
   updatedAt               DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-155 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
+  itemFinanceiroEntrada OperacaoFinanceiraItem?         @relation("OperacaoFinanceiraItemLoteEntrada")
+  consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -1220,6 +1248,9 @@ model MovimentacaoEstoque {
   updatedAt                   DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-155 — item de lançamento que gerou / estornou este movimento.
+  itemFinanceiro        OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemMovimento")
+  itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_movimentacao])
@@ -1797,6 +1828,7 @@ model CentroCusto {
   pai      CentroCusto?           @relation("CentroCustoArvore", fields: [cliente_id, empresa_id, pai_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
   filhos   CentroCusto[]          @relation("CentroCustoArvore")
   vinculos CentroCustoResultado[]
+  rateiosFinanceiros OperacaoFinanceiraRateio[]
 
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
@@ -1827,6 +1859,7 @@ model CentroResultado {
   pai      CentroResultado?       @relation("CentroResultadoArvore", fields: [cliente_id, empresa_id, pai_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
   filhos   CentroResultado[]      @relation("CentroResultadoArvore")
   vinculos CentroCustoResultado[]
+  rateiosFinanceiros OperacaoFinanceiraRateio[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -1883,6 +1916,7 @@ model NaturezaFinanceira {
   empresa Empresa              @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
   pai     NaturezaFinanceira?  @relation("NaturezaFinanceiraArvore", fields: [cliente_id, empresa_id, tipo, pai_id], references: [cliente_id, empresa_id, tipo, id], onDelete: Restrict, onUpdate: Restrict)
   filhos  NaturezaFinanceira[] @relation("NaturezaFinanceiraArvore")
+  rateiosFinanceiros OperacaoFinanceiraRateio[]
 
   @@unique([cliente_id, id])
   /// Alvo de FKs futuras com empresa (operações que classificarem por natureza).
@@ -1897,3 +1931,289 @@ model NaturezaFinanceira {
   @@index([cliente_id, empresa_id, tipo, createdAt, id])
 }
 
+
+// ---------------------------------------------------------------------------
+// D-PROD-155 — Gestão P3-01: Central Única de Lançamentos GERENCIAIS.
+// Um documento (`OperacaoFinanceira`) PAGAR|RECEBER × COM_PRODUTOS|SEM_PRODUTOS
+// × AVISTA|PRAZO|PARCELADO, com itens, rateio GLOBAL por natureza/centros,
+// títulos (uma linha por parcela) e liquidações MANUAIS (sem conciliação, OFX,
+// DRE, plano de contas, fiscal, câmbio ou contabilidade). Dinheiro em
+// Decimal(18,4), quantidade em Decimal(14,4) (KG, como o estoque), preço em
+// Decimal(18,6) e percentual em Decimal(9,6). Domínios fechados por CHECK SQL
+// (sem enum Prisma). Toda FK para tabela tenant inclui `cliente_id`.
+// ---------------------------------------------------------------------------
+
+/// Perfil financeiro da empresa (onboarding obrigatório): moeda/país/locale do
+/// catálogo FECHADO (`financeiroCatalogo.js`). País é metadado, sem efeito fiscal.
+model PerfilFinanceiroEmpresa {
+  id              String   @id @default(cuid())
+  cliente_id      String   @db.VarChar(64)
+  empresa_id      String   @db.VarChar(64)
+  pais            String   @db.VarChar(2)
+  moeda           String   @db.VarChar(3)
+  locale          String   @db.VarChar(35)
+  versao_contrato Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id])
+}
+
+/// Cabeçalho do documento. `documento_chave_ativa` = `documento_referencia` só
+/// enquanto CONFIRMADO (NULL em rascunho/cancelado): a unique abaixo barra a
+/// duplicidade documental entre documentos confirmados (NULLs são distintos).
+model OperacaoFinanceira {
+  id                        String    @id @default(cuid())
+  cliente_id                String    @db.VarChar(64)
+  empresa_id                String    @db.VarChar(64)
+  numero                    String    @db.VarChar(32)
+  status                    String    @db.VarChar(16)
+  direcao                   String    @db.VarChar(8)
+  conteudo                  String    @db.VarChar(16)
+  condicao                  String    @db.VarChar(12)
+  parceiro_id               String    @db.VarChar(64)
+  parceiro_nome             String    @db.VarChar(255)
+  descricao                 String?   @db.VarChar(500)
+  documento_referencia      String?   @db.VarChar(64)
+  documento_chave_ativa     String?   @db.VarChar(64)
+  data_emissao              DateTime  @db.Date
+  data_operacional          DateTime? @db.Date
+  moeda                     String    @db.VarChar(3)
+  moeda_casas               Int
+  valor_bruto               Decimal   @db.Decimal(18, 4)
+  valor_desconto            Decimal   @default(0) @db.Decimal(18, 4)
+  valor_acrescimo           Decimal   @default(0) @db.Decimal(18, 4)
+  valor_total               Decimal   @db.Decimal(18, 4)
+  rateio_modo               String    @db.VarChar(12)
+  metodo_preferido          String?   @db.VarChar(16)
+  versao                    Int       @default(1)
+  versao_contrato           Int       @default(1)
+  criado_por_usuario_id     String?   @db.VarChar(64)
+  confirmado_por_usuario_id String?   @db.VarChar(64)
+  confirmado_em             DateTime?
+  cancelado_por_usuario_id  String?   @db.VarChar(64)
+  cancelado_em              DateTime?
+  motivo_cancelamento       String?   @db.VarChar(500)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  cliente       Cliente                    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa       Empresa                    @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  parceiro      Fornecedor                 @relation(fields: [cliente_id, parceiro_id], references: [cliente_id, id], onDelete: Restrict)
+  criadoPor     Usuario?                   @relation("OperacaoFinanceiraCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  confirmadoPor Usuario?                   @relation("OperacaoFinanceiraConfirmadoPor", fields: [cliente_id, confirmado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  canceladoPor  Usuario?                   @relation("OperacaoFinanceiraCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  itens         OperacaoFinanceiraItem[]
+  rateios       OperacaoFinanceiraRateio[]
+  titulos       TituloFinanceiro[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  /// Alvo da FK do rateio: a direção do rateio é a do documento.
+  @@unique([cliente_id, empresa_id, id, direcao])
+  @@unique([cliente_id, numero])
+  @@unique([cliente_id, empresa_id, direcao, parceiro_id, documento_chave_ativa])
+  @@index([cliente_id, empresa_id, createdAt, id])
+  @@index([cliente_id, empresa_id, status, createdAt, id])
+  @@index([cliente_id, parceiro_id])
+}
+
+/// Item do documento COM_PRODUTOS. MERCADORIA mexe no estoque (KG) pelo motor
+/// físico na confirmação; SERVICO não mexe em estoque.
+model OperacaoFinanceiraItem {
+  id                      String   @id @default(cuid())
+  cliente_id              String   @db.VarChar(64)
+  empresa_id              String   @db.VarChar(64)
+  operacao_id             String   @db.VarChar(64)
+  ordem                   Int
+  tipo_item               String   @db.VarChar(12)
+  produto_id              String?  @db.VarChar(64)
+  produto_nome            String?  @db.VarChar(255)
+  descricao               String?  @db.VarChar(255)
+  local_estoque_id        String?  @db.VarChar(64)
+  local_estoque_nome      String?  @db.VarChar(255)
+  unidade                 String   @db.VarChar(8)
+  quantidade              Decimal  @db.Decimal(14, 4)
+  fator_kg                Decimal? @db.Decimal(14, 4)
+  quantidade_estoque      Decimal? @db.Decimal(14, 4)
+  valor_unitario          Decimal  @db.Decimal(18, 6)
+  valor_total             Decimal  @db.Decimal(18, 4)
+  /// Custo de aquisição líquido (rodada 4): desconto e acréscimo do cabeçalho
+  /// rateados por linha (maiores restos na moeda); líquido = subtotal −
+  /// desconto + acréscimo (CHECKs na migration). Na compra de mercadoria é o
+  /// valor do movimento de entrada e a base do custo do lote.
+  valor_desconto_rateado  Decimal  @default(0) @db.Decimal(18, 4)
+  valor_acrescimo_rateado Decimal  @default(0) @db.Decimal(18, 4)
+  valor_liquido           Decimal  @db.Decimal(18, 4)
+  movimentacao_estoque_id String?  @db.VarChar(64)
+  estoque_lote_nota_id    String?  @db.VarChar(64)
+  movimentacao_estorno_id String?  @db.VarChar(64)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  cliente             Cliente                         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  operacao            OperacaoFinanceira              @relation(fields: [cliente_id, empresa_id, operacao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  produto             Produto?                        @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+  localEstoque        LocalEstoque?                   @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacao        MovimentacaoEstoque?            @relation("OperacaoFinanceiraItemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacaoEstorno MovimentacaoEstoque?            @relation("OperacaoFinanceiraItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict)
+  loteEntrada         EstoqueLoteNota?                @relation("OperacaoFinanceiraItemLoteEntrada", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict)
+  consumos            OperacaoFinanceiraConsumoLote[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operacao_id, ordem])
+  @@unique([cliente_id, movimentacao_estoque_id])
+  @@unique([cliente_id, movimentacao_estorno_id])
+  @@unique([cliente_id, estoque_lote_nota_id])
+  @@index([cliente_id, empresa_id, operacao_id])
+  @@index([cliente_id, produto_id])
+  /// Bloqueio de exclusão de local (D-PROD-155 §8.5) e checagem da FK.
+  @@index([cliente_id, local_estoque_id])
+}
+
+/// Fatia FIFO consumida por um item de SAÍDA (venda): de qual lote, quanto e a
+/// que custo. O cancelamento devolve cada fatia ao SEU lote.
+model OperacaoFinanceiraConsumoLote {
+  id                   String   @id @default(cuid())
+  cliente_id           String   @db.VarChar(64)
+  empresa_id           String   @db.VarChar(64)
+  item_id              String   @db.VarChar(64)
+  estoque_lote_nota_id String   @db.VarChar(64)
+  quantidade           Decimal  @db.Decimal(14, 4)
+  custo_unitario       Decimal  @db.Decimal(14, 4)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  item    OperacaoFinanceiraItem @relation(fields: [cliente_id, empresa_id, item_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  lote    EstoqueLoteNota        @relation("OperacaoFinanceiraConsumoDoLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, item_id, estoque_lote_nota_id])
+  /// Bloqueio de PATCH/DELETE administrativo do lote (§8.5) e checagem da FK.
+  @@index([cliente_id, estoque_lote_nota_id])
+}
+
+/// Rateio GLOBAL do documento. A FK com a direção amarra PAGAR→DESPESA e
+/// RECEBER→RECEITA (CHECK) com a natureza do MESMO tipo (FK com tipo).
+model OperacaoFinanceiraRateio {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  operacao_id           String   @db.VarChar(64)
+  operacao_direcao      String   @db.VarChar(8)
+  ordem                 Int
+  natureza_id           String   @db.VarChar(64)
+  natureza_tipo         String   @db.VarChar(10)
+  natureza_nome         String   @db.VarChar(120)
+  centro_custo_id       String?  @db.VarChar(64)
+  centro_custo_nome     String?  @db.VarChar(120)
+  centro_resultado_id   String?  @db.VarChar(64)
+  centro_resultado_nome String?  @db.VarChar(120)
+  percentual            Decimal? @db.Decimal(9, 6)
+  valor                 Decimal  @db.Decimal(18, 4)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente         Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  operacao        OperacaoFinanceira @relation(fields: [cliente_id, empresa_id, operacao_id, operacao_direcao], references: [cliente_id, empresa_id, id, direcao], onDelete: Restrict, onUpdate: Restrict)
+  natureza        NaturezaFinanceira @relation(fields: [cliente_id, empresa_id, natureza_tipo, natureza_id], references: [cliente_id, empresa_id, tipo, id], onDelete: Restrict, onUpdate: Restrict)
+  centroCusto     CentroCusto?       @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  centroResultado CentroResultado?   @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, operacao_id, ordem])
+  @@index([cliente_id, empresa_id, natureza_id])
+}
+
+/// Uma linha = uma parcela. PREVISTO = parcela de rascunho (não é obrigação);
+/// confirmar promove a ABERTO; cancelar o documento leva a CANCELADO. QUITADO é
+/// liquidação MANUAL registrada, não confirmação bancária.
+model TituloFinanceiro {
+  id              String   @id @default(cuid())
+  cliente_id      String   @db.VarChar(64)
+  empresa_id      String   @db.VarChar(64)
+  operacao_id     String   @db.VarChar(64)
+  direcao         String   @db.VarChar(8)
+  parceiro_id     String   @db.VarChar(64)
+  numero_parcela  Int
+  total_parcelas  Int
+  vencimento      DateTime @db.Date
+  moeda           String   @db.VarChar(3)
+  valor           Decimal  @db.Decimal(18, 4)
+  valor_liquidado Decimal  @default(0) @db.Decimal(18, 4)
+  status          String   @db.VarChar(12)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente     Cliente                       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  operacao    OperacaoFinanceira            @relation(fields: [cliente_id, empresa_id, operacao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  parceiro    Fornecedor                    @relation(fields: [cliente_id, parceiro_id], references: [cliente_id, id], onDelete: Restrict)
+  liquidacoes LiquidacaoFinanceira[]
+  estornos    LiquidacaoFinanceiraEstorno[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operacao_id, numero_parcela])
+  @@index([cliente_id, empresa_id, status, vencimento, id])
+  @@index([cliente_id, empresa_id, operacao_id])
+  /// Bloqueio de exclusão de parceiro (§8.5) e checagem da FK.
+  @@index([cliente_id, parceiro_id])
+}
+
+/// Liquidação manual registrada (fato imutável: só INSERT). O estorno é outra
+/// tabela (sem autorreferência); o saldo do título é Σ liquidações sem estorno.
+model LiquidacaoFinanceira {
+  id                        String   @id @default(cuid())
+  cliente_id                String   @db.VarChar(64)
+  empresa_id                String   @db.VarChar(64)
+  titulo_id                 String   @db.VarChar(64)
+  valor                     Decimal  @db.Decimal(18, 4)
+  data                      DateTime @db.Date
+  metodo                    String   @db.VarChar(16)
+  referencia                String?  @db.VarChar(120)
+  observacao                String?  @db.VarChar(500)
+  registrado_por_usuario_id String?  @db.VarChar(64)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  cliente       Cliente                       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  titulo        TituloFinanceiro              @relation(fields: [cliente_id, empresa_id, titulo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  registradoPor Usuario?                      @relation("LiquidacaoFinanceiraRegistradoPor", fields: [cliente_id, registrado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  estornos      LiquidacaoFinanceiraEstorno[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  /// Alvo da FK do estorno: o estorno é do MESMO título da liquidação.
+  @@unique([cliente_id, empresa_id, titulo_id, id])
+}
+
+/// Estorno de UMA liquidação (no máximo um por liquidação). Sem coluna de valor:
+/// o valor estornado é o da própria liquidação (sem duplicar o fato).
+model LiquidacaoFinanceiraEstorno {
+  id                        String   @id @default(cuid())
+  cliente_id                String   @db.VarChar(64)
+  empresa_id                String   @db.VarChar(64)
+  titulo_id                 String   @db.VarChar(64)
+  liquidacao_id             String   @db.VarChar(64)
+  data                      DateTime @db.Date
+  motivo                    String   @db.VarChar(500)
+  registrado_por_usuario_id String?  @db.VarChar(64)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  cliente       Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // Nomes explícitos: os gerados (cortados em 63 bytes) colidiriam.
+  titulo        TituloFinanceiro     @relation(fields: [cliente_id, empresa_id, titulo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "LiquidacaoFinanceiraEstorno_titulo_fkey")
+  liquidacao    LiquidacaoFinanceira @relation(fields: [cliente_id, empresa_id, titulo_id, liquidacao_id], references: [cliente_id, empresa_id, titulo_id, id], onDelete: Restrict, map: "LiquidacaoFinanceiraEstorno_liquidacao_fkey")
+  registradoPor Usuario?             @relation("LiquidacaoFinanceiraEstornoRegistradoPor", fields: [cliente_id, registrado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, liquidacao_id])
+  @@index([cliente_id, empresa_id, titulo_id])
+}

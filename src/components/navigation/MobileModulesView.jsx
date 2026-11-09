@@ -15,6 +15,7 @@ import {
   Package,
   Pen,
   PieChart,
+  ReceiptText,
   Ruler,
   Search,
   Shield,
@@ -53,6 +54,7 @@ export const ICONE_TELA = {
   CentrosCusto: Coins,
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
+  LancamentosFinanceiros: ReceiptText,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;

@@ -8,6 +8,16 @@ service foram conferidas à mão (coluna "c"/"b").
 > regenerada pelo mesmo levantamento. O que mudou está marcado com "(D-PROD-137)".
 > Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`.
 
+> **Acréscimo da Gestão P3-01 (D-PROD-155).** As 19 rotas da Central Única de
+> Lançamentos (`backend/src/modules/financeiro/operacaoFinanceiraRoutes.js`) estão
+> na tabela, marcadas com "(D-PROD-155)". São todas classe **a**, com
+> `onRequest: [app.autenticar]`: 18 com guarda da tela `ges-lancamentos-financeiros`
+> e o `PUT /perfis-financeiros-empresa` com `GUARDAS.perfilFinanceiro.editar =
+> adminOuIsAdmin()` (administrador real ou `is_admin`). Conferido contra as rotas
+> registradas no código (diff `origin/main` → branch): além delas, nenhuma rota
+> nova ficou fora. A matriz R3 ganhou duas linhas. Relatório:
+> `MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`.
+
 Classes:
 - **a** — guarda por tela/ação (`porTela`, `porMapa`, `porQualquer`, `GUARDAS.*` em
   `backend/src/shared/auth/guardasRotas.js`), avaliada por
@@ -97,6 +107,8 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 | `renomear_lotes` no controle por posições (D-PROD-139) | `PATCH /rebanho/posicoes/:id/informacoes`: nome e identificação de UMA posição | chave `=== true` (ou acesso total); schema fechado com só esses quatro campos; posição do tenant **e** da empresa (senão 404); ledger ativo; posição com cabeças; trava + AuditLog |
 | Parceiros / Centros de Custo / Centros de Resultado (D-PROD-146) | cadastros de Gestão Rural; vínculo centro de custo × resultado só pela tela de Centros de Custo | ação da PRÓPRIA tela (`ges-parceiros`, `ges-centros-custo`, `ges-centros-resultado`); telas independentes; padrão negado; empresa validada no banco e imutável; outro tenant/empresa → 404 |
 | Naturezas Financeiras gerenciais (D-PROD-153) | cadastro de classificação de receitas/despesas (sem valores) | ação da PRÓPRIA tela (`ges-naturezas-financeiras`); padrão negado; empresa validada no banco e imutável; tipo imutável; outro tenant/empresa → 404 |
+| Lançamentos Financeiros (`ges-lancamentos-financeiros`, D-PROD-155) | **`visualizar`**: lista, detalhe, prévia, as 7 rotas de opções (parceiros, produtos, locais, saldos, naturezas, centros de custo e de resultado) e leitura do perfil. **`novo`/`salvar`**: criar rascunho. **`editar`/`salvar`**: substituir (PUT) e descartar (DELETE) rascunho. **`confirmar`**: confirmar (títulos + efeito de estoque). **`cancelar`**: cancelar confirmado (estorna o estoque). **`liquidar`**: registrar liquidação manual. **`estornar_liquidacao`**: estornar liquidação | uma ação por efeito, relida do banco a cada requisição; as 4 caixas extras (`confirmar`, `cancelar`, `liquidar`, `estornar_liquidacao`) só existem nesta tela, nascem `false` e **não** são implícitas em `salvar`/`editar`. `baixa_no_ato` no confirmar exige também `liquidar`, conferida **dentro** da transação. Padrão negado; tenant da sessão; `empresa_id` validado no banco; documento, título ou liquidação de outro tenant/empresa → 404; referência de outro tenant/empresa → 422 `OPERACAO_REFERENCIA_INVALIDA`, igual ao id inexistente; comandos idempotentes por `operation_id` |
+| administrador real ou linha `is_admin`: perfil financeiro (D-PROD-155) | `PUT /perfis-financeiros-empresa`: país, moeda e locale da empresa | `adminOuIsAdmin()` (`Usuario.papel_tenant` ou `Permissao.is_admin`, relidos do banco). A tela `visualizar` só lê. 409 `PERFIL_FINANCEIRO_MOEDA_EM_USO`: trocar a moeda com lançamento existente (`operacoes_existentes`) ou escolher moeda ≠ BRL, também na criação, com lote de estoque de custo > 0 (`estoque_legado_brl`) |
 | Mapa Cadastro `novo`/`salvar`/`editar` | áreas, pontos, linhas, cochos, depósitos e bebedouro. **Local de estoque** (D-PROD-137): criar local (o fluxo é o do depósito novo; o `POST` não confere o vínculo) e, em PATCH, só `nome`/`descricao` do local ligado a um depósito | ação da tela. PATCH de local: só `nome`/`descricao`, e o banco precisa ter um `PontoSuplementacao` DEPÓSITO com `local_estoque_id = :id`; senão 403 antes da escrita. Movimentações e notas aceitam **só** `local_origem`, `local_destino` e `local_estoque_nome`. Na nota, o nome é conferido com o `LocalEstoque` vinculado (422 `NOME_LOCAL_DIVERGENTE`), e qualquer outra coluna exige o administrador real (D-PROD-137) |
 | Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído. **Não exclui local de estoque** (D-PROD-137) | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` **iguais a null**, e só num cocho que **está** vinculado (relido no banco). `DELETE /locais-estoque` → 403; a cascata do mapa conta a recusa como "local ignorado", como já fazia com o 409 |
 | Locais `editar`/`salvar` | cadastro de locais (qualquer campo) + renomear o depósito ligado | `nome_ponto`/`local_estoque_nome` só num **DEPÓSITO ligado a um local**; `deposito_origem_nome` só num cocho **vinculado**. O registro é relido no banco (R3 deixava renomear qualquer ponto) |
@@ -116,6 +128,8 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 Total: 201 rotas · (a) 77 · (b) 2 · (c) 66 · (d) 54 · pública 2 · (e) LACUNA 0
 
 Antes da D-PROD-137: (a) 76 · (c) 65 · (d) 56. Mudaram de classe `GET /fornecedores` (d → a) e `GET /usuarios/page` (d → c). As demais linhas marcadas mudaram a regra, não a classe.
+
+D-PROD-155: +19 rotas, todas classe (a). Os totais acima são do levantamento da D-PROD-137 e **não** foram recontados: as P1/P2 acrescentaram linhas sem atualizá-los. A tabela tinha 225 linhas antes deste acréscimo e agora tem 244.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
@@ -316,6 +330,25 @@ Antes da D-PROD-137: (a) 76 · (c) 65 · (d) 56. Mudaram de classe `GET /fornece
 | POST | `/naturezas-financeiras` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.criar (D-PROD-153) |
 | PATCH | `/naturezas-financeiras/:id` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.editar (D-PROD-153) |
 | GET | `/naturezas-financeiras-opcoes/pais` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.ver (paginado; D-PROD-153) |
+| GET | `/perfis-financeiros-empresa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.perfilFinanceiro.ver = porTela(LANCAMENTOS_FINANCEIROS, 'visualizar') (D-PROD-155) |
+| PUT | `/perfis-financeiros-empresa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.perfilFinanceiro.editar = adminOuIsAdmin() (administrador real ou linha `is_admin`; D-PROD-155) |
+| GET | `/operacoes-financeiras` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (visualizar; keyset) (D-PROD-155) |
+| GET | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (D-PROD-155) |
+| POST | `/operacoes-financeiras` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.criar = porQualquer(novo, salvar) (rascunho; D-PROD-155) |
+| PUT | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.editar = porQualquer(editar, salvar) (só RASCUNHO, com `versao`; D-PROD-155) |
+| DELETE | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.editar = porQualquer(editar, salvar) (descarta só RASCUNHO; D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/previa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (só leitura, nada gravado; D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/confirmar` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.confirmar = porTela(…, 'confirmar'); com `baixa_no_ato`, também `liquidar` via exigirTela na transação (D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/cancelar` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.cancelar = porTela(…, 'cancelar') (D-PROD-155) |
+| POST | `/titulos-financeiros/:id/liquidacoes` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.liquidar = porTela(…, 'liquidar') (D-PROD-155) |
+| POST | `/liquidacoes-financeiras/:id/estorno` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.estornarLiquidacao = porTela(…, 'estornar_liquidacao') (D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/parceiros` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado, filtrado pela direção; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/produtos` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/locais` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; locais do tenant; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/saldos` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (saldo só da empresa; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/naturezas` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; ativas e analíticas; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/centros-custo` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/centros-resultado` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
 | POST | `/rebanho/comandos/transferencia` | `backend/src/modules/rebanhoLedger/rebanhoLedgerRoutes.js:69` | a — porMapa('mover_lotes') |
 | POST | `/referencias/sincronizar` | `backend/src/modules/referencias/referenciasRoutes.js:39` | a — GUARDAS.referencias. (D-PROD-137) O corpo só identifica a origem; valores lidos no banco, por id, em transação auditada |
 | GET | `/registros-anexo` | `backend/src/modules/registrosAnexo/registroAnexoRoutes.js:31` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |

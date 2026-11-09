@@ -17,10 +17,14 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146) e P2 (D-PROD-153) só com tabelas novas', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
-  assert.deepEqual(c.tabelas_novas, ['CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'NaturezaFinanceira', 'PartidaRebanho', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao']);
+  assert.deepEqual(c.tabelas_novas, [
+    'CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno',
+    'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraRateio',
+    'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao', 'TituloFinanceiro',
+  ]);
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
 });
 

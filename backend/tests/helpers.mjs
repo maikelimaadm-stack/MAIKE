@@ -102,6 +102,18 @@ export const limparBanco = async () => {
     where: { catalogo_categoria_visual_id: { not: null } },
     data: { catalogo_categoria_visual_id: null },
   });
+  // D-PROD-155: lançamentos financeiros (filhas antes das mães; sem
+  // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
+  // naturezas e centros, e antes do laço porque referenciam Fornecedor,
+  // Produto, LocalEstoque, lote, movimento, Empresa e Usuario (tudo RESTRICT).
+  await prisma.liquidacaoFinanceiraEstorno.deleteMany({});
+  await prisma.liquidacaoFinanceira.deleteMany({});
+  await prisma.tituloFinanceiro.deleteMany({});
+  await prisma.operacaoFinanceiraConsumoLote.deleteMany({});
+  await prisma.operacaoFinanceiraItem.deleteMany({});
+  await prisma.operacaoFinanceiraRateio.deleteMany({});
+  await prisma.operacaoFinanceira.deleteMany({});
+  await prisma.perfilFinanceiroEmpresa.deleteMany({});
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});

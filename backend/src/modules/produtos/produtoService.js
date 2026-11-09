@@ -6,6 +6,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { propagarRenomeacaoDeProduto } from '../referencias/propagacaoPorChaveUnica.js';
 import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import {
@@ -159,7 +160,7 @@ export const listarPagina = async (contexto, query = {}) => {
   const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
   const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
   if (cursorBruto && !cursor) {
-    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido', { details: { field: 'cursor', reason: 'cursor_invalido' } });
   }
 
   const filtro = { empresaId, q, ativo, cursor, limit };
@@ -219,9 +220,12 @@ export const criar = async (contexto, entrada) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id @param {Record<string, unknown>} entrada */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
 
-  return prisma.$transaction(async (tx) => {
+  // D-PROD-155 (§8.4): a linha do Produto pode estar em FOR UPDATE por uma
+  // confirmação/cancelamento/suplementação: espera em vez de estourar os 5 s
+  // padrão (500), até caber nos 20 s do navegador (TRANSACAO_CURTA). PATCH de
+  // valores absolutos: repetir depois do 409 leva ao mesmo estado.
+  return emTransacao(TRANSACAO_CURTA, async (tx) => {
     const anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
 
@@ -255,7 +259,7 @@ export const atualizar = async (contexto, id, entrada) => {
     // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-137).
     await registrarPropagacao(contexto, 'Produto', id, await propagarRenomeacaoDeProduto(tx, auth.clienteId, anterior, registro), tx);
     return publico;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id */
@@ -270,6 +274,14 @@ export const excluir = async (contexto, id) => {
     const quantidade = await contarMovimentacoesPorProduto(tx, auth.clienteId, id);
     if (quantidade > 0) {
       throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
+    }
+    // D-PROD-155 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
+    // o produto pela FK RESTRICT; 409 em vez do enganoso 403.
+    const itensFinanceiros = await tx.operacaoFinanceiraItem.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
+    if (itensFinanceiros > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto usado em lançamentos financeiros; inative-o', {
+        details: { id, vinculo: 'lançamentos financeiros', quantidade: itensFinanceiros },
+      });
     }
 
     await excluirProdutoPorId(tx, auth.clienteId, id);

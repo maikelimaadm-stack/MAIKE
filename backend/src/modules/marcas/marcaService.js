@@ -110,7 +110,7 @@ export const listar = async (contexto, query = {}) => {
   const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
   const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
   if (cursorBruto && !cursor) {
-    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido', { details: { field: 'cursor', reason: 'cursor_invalido' } });
   }
 
   const filtro = { empresaId, q, ativo, cursor, limit };

@@ -22,7 +22,8 @@
     "Parceiros",
     "CentrosCusto",
     "CentrosResultado",
-    "NaturezasFinanceiras"
+    "NaturezasFinanceiras",
+    "LancamentosFinanceiros"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [
