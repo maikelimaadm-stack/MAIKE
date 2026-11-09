@@ -95,6 +95,7 @@ Casos críticos cobertos: famílias/tipos (tipo de família errada ou inativa re
 
 - **Ordem de release:** a Vercel publica a `main` sozinha. Se o código entrar antes da migration, as rotas do patrimônio e o `DELETE /fornecedores/:id` respondem 500 (P2021). A barreira é o preflight, que acusa a migration pendente. A migration tem de ser aplicada com autorização **antes** do merge.
 - `scripts/deploy/preflightSchemaLib.mjs` não lista as 9 tabelas em `TABELAS_PROTEGIDAS` (a detecção depende de "migrations pendentes", que basta); acrescentá-las daria também a checagem de RLS e grants no preflight.
+- Semântica do PATCH do bem: `aquisicao` e `depreciacao` substituem o bloco inteiro; no `medidor` de um contador do mesmo tipo, campos omitidos ou nulos significam "como está" (desvio deliberado do texto do adendo A6, alinhado à regra de transição do medidor e ao envio mínimo da tela; registrado na D-PROD-156).
 - Correção de medidor só enquanto não houve ajuste; erro descoberto depois depende da operação futura auditável.
 - O bem "Bebedouro fixo" do catálogo padrão não substitui nem se liga ao Bebedouro do Mapa.
 - Depreciação: sem pró-rata no primeiro mês e sem regras fiscais (taxas legais não são impostas); terrenos e benfeitorias em área de terceiros não têm regra própria neste slice.
