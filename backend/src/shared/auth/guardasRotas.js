@@ -20,7 +20,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from './authContext.js';
 import {
-  TELAS, porQualquer, porTela, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
+  TELAS, porQualquer, porTela, porTodas, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
   carregarAutorizacao, somenteCampos, acaoNaoPermitida, adminOuIsAdmin,
 } from './autorizacaoTela.js';
 
@@ -203,6 +203,17 @@ export const GUARDAS = Object.freeze({
     cancelar: porTela(T.LANCAMENTOS_FINANCEIROS, 'cancelar'),
     liquidar: porTela(T.LANCAMENTOS_FINANCEIROS, 'liquidar'),
     estornarLiquidacao: porTela(T.LANCAMENTOS_FINANCEIROS, 'estornar_liquidacao'),
+    // D-PROD-157 (P3-03). Retificar gera efeitos CONFIRMADOS novos (títulos e,
+    // na substituição, estorno + entrada/saída): exige editar E confirmar —
+    // quem não pode confirmar não retifica. Excluir confirmado estorna títulos e
+    // estoque como o cancelamento: exige cancelar (o menor privilégio que cobre
+    // o efeito) E a ação de tela excluir. Duplicar é o POST de criação (`criar`;
+    // toda ação de tela já exige `visualizar`). O descarte do rascunho segue em `editar`.
+    retificar: porTodas(
+      [[T.LANCAMENTOS_FINANCEIROS, 'editar'], [T.LANCAMENTOS_FINANCEIROS, 'salvar']],
+      [[T.LANCAMENTOS_FINANCEIROS, 'confirmar']],
+    ),
+    excluirConfirmado: porTodas([[T.LANCAMENTOS_FINANCEIROS, 'cancelar']], [[T.LANCAMENTOS_FINANCEIROS, 'excluir']]),
   },
   // Perfil financeiro: leitura pela tela; escrita só administrador real ou is_admin (§8.6).
   perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },

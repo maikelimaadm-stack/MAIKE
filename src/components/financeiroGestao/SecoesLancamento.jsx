@@ -385,6 +385,7 @@ export function SecaoRateio({ form, resumo, ctx, setForm }) {
                 readOnly={readOnly}
                 permitirLimpar
                 textoVazio="— Nenhum —"
+                erro={erroDe(`${base}.centro_custo`)}
                 onChange={(o) => alterar(i, { centro_custo: o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null })}
               />
               <SeletorPaginadoGestao
@@ -397,6 +398,7 @@ export function SecaoRateio({ form, resumo, ctx, setForm }) {
                 readOnly={readOnly}
                 permitirLimpar
                 textoVazio="— Nenhum —"
+                erro={erroDe(`${base}.centro_resultado`)}
                 onChange={(o) => alterar(i, { centro_resultado: o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null })}
               />
               {form.rateio_modo === "PERCENTUAL" ? (

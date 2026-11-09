@@ -44,6 +44,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261109100000_gestao_p3_01_central_lancamentos': 'bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a',
   // D-PROD-156 (Gestão P3-02): OperacaoFinanceira.rateio_escopo anulável, sem DEFAULT + tabela nova OperacaoFinanceiraItemRateio.
   '20261109200000_gestao_p3_02_rateio_por_item': 'df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0',
+  // D-PROD-157 (Gestão P3-03): OperacaoFinanceira.excluido_em e .retificado_em anuláveis, sem DEFAULT + tabela nova OperacaoFinanceiraEvento.
+  '20261109300000_gestao_p3_03_editar_excluir': '3f3af00edaffcce8ab0b64336029a93341bfbaba26c847e32e1d2658e4df890b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -57,6 +59,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe',
   // D-PROD-156: RLS/REVOKE de OperacaoFinanceiraItemRateio (mesmo corpo, lista nova).
   'dc05126cd737c77090c54fc04cd6f7d2ac0b7613168f13fb944a7477ca7bd576',
+  // D-PROD-157: RLS/REVOKE de OperacaoFinanceiraEvento (mesmo corpo, lista nova).
+  '20c6f9ca6b880dc26efea49c4eaaa2bf3e9b3bc43dcdd7b6a6bcaee6ff899ec9',
 ]);
 
 /**

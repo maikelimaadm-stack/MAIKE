@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { CheckCircle2, Save, Trash2 } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -7,9 +7,12 @@ import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/comp
 import { SecaoItens, SecaoParcelas, SecaoRateio, SecaoRateioPorItem } from "@/components/financeiroGestao/SecoesLancamento";
 import { DialogoEscopoPorItem } from "@/components/financeiroGestao/DialogosLancamento";
 import {
+  alvoDaReferencia,
   alvoDoErroDoRateioPorItem,
   calcularResumo,
+  descreverMudancasFisicas,
   entrarNoPorItem,
+  formularioDeDuplicacao,
   formularioDoDetalhe,
   formularioVazio,
   geralEmBranco,
@@ -17,14 +20,15 @@ import {
   itemVazio,
   linhasDoItem,
   montarDocumento,
+  mudancasFisicas,
   rateioVazio,
   temDadosPorItem,
   voltarAoGeral,
 } from "@/components/financeiroGestao/lancamentoModelo";
-import { lerErroGestao, mensagemErroGestao } from "@/lib/gestaoErros";
+import { lerErroGestao, mensagemDoMotivo, mensagemErroGestao } from "@/lib/gestaoErros";
 import { LIMITES, formatarMoeda } from "@/lib/dinheiroDecimal";
 import { confirmar } from "@/lib/maikeConfirmar";
-import { notifyWarning } from "@/lib/maikeNotify";
+import { notifyInfo, notifyWarning } from "@/lib/maikeNotify";
 import { ROTULO_METODO, buscarOpcoesLancamento } from "@/services/operacaoFinanceiraService";
 
 export const FORMULARIO_LANCAMENTO_ID = "formulario-lancamento-financeiro-base1";
@@ -83,9 +87,19 @@ const rotuloDoErro = (chave) => {
  *   onDescartar?: (() => void) | null,
  *   ocupado?: boolean,
  *   erroServidor?: { erro: unknown, seq: number } | null,
+ *   duplicarDe?: { detalhe: any, numero: string|null } | null,
+ *   retificacao?: { efeitoFisicoPermitido: boolean, motivos: any[] } | null,
+ *   onRetificar?: ((p: { doc: Record<string, unknown>, mudaEstoque: boolean, diferencas: Array<{ item: number|null, campo: string }> }) => void) | null,
  * }} props
  *   `erroServidor`: a última recusa do servidor ao gravar este formulário; no
- *   rateio POR ITEM (`details.indice` + `subindice`) ela aparece no campo exato.
+ *   rateio POR ITEM (`details.indice` + `subindice`) ela aparece no campo exato,
+ *   e a recusa de referência (parceiro, produto, local, natureza, centro) no
+ *   seletor dela.
+ *   `duplicarDe` (D-PROD-157): formulário NOVO pré-preenchido com o DETALHE do
+ *   servidor (nada é gravado até "Salvar"); nº do documento vazio e declaração
+ *   física desmarcada.
+ *   `retificacao` (D-PROD-157): o MESMO formulário corrige um CONFIRMADO;
+ *   "Salvar alterações" entrega o DOC em `onRetificar` (a tela pede o motivo).
  */
 export default function FormularioLancamento({
   empresaId,
@@ -99,12 +113,19 @@ export default function FormularioLancamento({
   onDescartar = null,
   ocupado = false,
   erroServidor = null,
+  duplicarDe = null,
+  retificacao = null,
+  onRetificar = null,
 }) {
   const locale = perfil.locale;
   const moeda = perfil.moeda;
   const casas = perfil.moeda_casas;
   const editando = Boolean(initialData?.id);
-  const [form, setForm] = useState(() => (initialData?.id ? formularioDoDetalhe(initialData, { locale, casas, hoje }) : formularioVazio({ hoje })));
+  const corrigindo = editando && Boolean(retificacao);
+  const [form, setForm] = useState(() => {
+    if (duplicarDe?.detalhe) return formularioDeDuplicacao(duplicarDe.detalhe, { locale, casas, hoje });
+    return initialData?.id ? formularioDoDetalhe(initialData, { locale, casas, hoje }) : formularioVazio({ hoje });
+  });
   const [tentou, setTentou] = useState(false);
   const resumo = useMemo(() => calcularResumo(form, { locale, casas, hoje, moeda }), [form, locale, casas, hoje, moeda]);
 
@@ -124,18 +145,38 @@ export default function FormularioLancamento({
   const formRef = useRef(form);
   formRef.current = form;
   const retratoEnviado = useRef(/** @type {Array<{ chave: string, linhas: string[] }> | null} */ (null));
+  const retratoRateios = useRef(/** @type {string[] | null} */ (null));
   const retratar = (/** @type {any} */ f) => {
     retratoEnviado.current = f.itens.map((/** @type {any} */ i) => ({ chave: String(i.chave), linhas: linhasDoItem(f, i.chave).map((l) => String(l.chave)) }));
+    retratoRateios.current = f.rateios.map((/** @type {any} */ r) => String(r.chave));
   };
   const seqVisto = useRef(erroServidor?.seq ?? 0);
   const [erroDoServidor, setErroDoServidor] = useState(
     /** @type {{ form: any, itemChave: string, linhaChave: string|null, campo: string, mensagem: string } | null} */ (null),
+  );
+  // Recusa de REFERÊNCIA (D-PROD-157, ex.: cópia com parceiro inativo): o campo
+  // é apontado pela chave do item/linha até o formulário mudar.
+  const [erroDeReferencia, setErroDeReferencia] = useState(
+    /** @type {{ form: any, tipo: 'parceiro'|'item'|'rateio', chave: string|null, campo: string, mensagem: string } | null} */ (null),
   );
   useEffect(() => {
     if (!erroServidor || erroServidor.seq <= seqVisto.current) return;
     seqVisto.current = erroServidor.seq;
     const f = formRef.current;
     const lido = lerErroGestao(erroServidor.erro);
+    const referencia = alvoDaReferencia(lido);
+    if (referencia) {
+      // A mensagem cita o campo; o fecho dos comandos ("Nada foi gravado.") fica no aviso do topo.
+      const mensagem = mensagemErroGestao(erroServidor.erro, "O servidor recusou este campo.", { locale, moeda, casas }).replace(/\s*Nada foi (?:gravado|alterado)\.\s*$/, "");
+      if (referencia.tipo === "parceiro") {
+        setErroDeReferencia({ form: f, tipo: "parceiro", chave: null, campo: "parceiro", mensagem });
+        return;
+      }
+      const chaves = referencia.tipo === "item" ? retratoEnviado.current?.map((x) => x.chave) ?? f.itens.map((/** @type {any} */ i) => i.chave) : retratoRateios.current ?? f.rateios.map((/** @type {any} */ r) => r.chave);
+      const chave = chaves[referencia.indice] ?? null;
+      if (chave) setErroDeReferencia({ form: f, tipo: referencia.tipo, chave: String(chave), campo: referencia.campo, mensagem });
+      return;
+    }
     const alvo = alvoDoErroDoRateioPorItem(lido);
     if (!alvo || f.rateio_escopo !== "POR_ITEM") return;
     // Sem retrato (recusa que não veio de um envio deste formulário), vale a posição atual.
@@ -167,8 +208,21 @@ export default function FormularioLancamento({
     if (k >= 0) chaveErroServidor = j >= 0 ? `itens.${k}.rateios.${j}.${erroDoServidor.campo}` : `itens.${k}.rateio`;
   }
 
+  let chaveErroReferencia = null;
+  if (erroDeReferencia && erroDeReferencia.form === form) {
+    if (erroDeReferencia.tipo === "parceiro") chaveErroReferencia = "parceiro";
+    else if (erroDeReferencia.tipo === "item") {
+      const k = form.itens.findIndex((/** @type {any} */ i) => i.chave === erroDeReferencia.chave);
+      if (k >= 0) chaveErroReferencia = `itens.${k}.${erroDeReferencia.campo}`;
+    } else {
+      const k = form.rateios.findIndex((/** @type {any} */ r) => r.chave === erroDeReferencia.chave);
+      if (k >= 0) chaveErroReferencia = `rateios.${k}.${erroDeReferencia.campo}`;
+    }
+  }
+
   const erroDe = (/** @type {string} */ chave) => {
     const e = resumo.erros[chave];
+    if (!e && chave === chaveErroReferencia) return erroDeReferencia?.mensagem;
     if (!e) return chave === chaveErroServidor ? erroDoServidor?.mensagem : undefined;
     // Formato/casas aparecem na hora; "obrigatório" só depois da 1ª tentativa.
     if (tentou || !/^Obrigatório|^Escolha|^Informe|^Inclua|^Descreva|^Confirme/.test(e)) return e;
@@ -260,10 +314,35 @@ export default function FormularioLancamento({
     return false;
   };
 
+  // Correção de confirmado (D-PROD-157): a tela PREVÊ se o estoque muda (a
+  // mesma assinatura física do servidor) para o diálogo dizer o efeito; se o
+  // servidor já disse que o estoque não pode mudar, o formulário não envia o
+  // que ele recusaria.
+  const fisico = useMemo(() => (corrigindo ? mudancasFisicas(initialData, form, resumo) : null), [corrigindo, initialData, form, resumo]);
+  const fisicoBloqueado = Boolean(corrigindo && retificacao && !retificacao.efeitoFisicoPermitido && fisico?.muda);
+  const motivosFisicos = (retificacao?.motivos ?? []).map((/** @type {unknown} */ m) => mensagemDoMotivo(m)).join(" ");
+
   const enviar = (/** @type {React.FormEvent} */ e) => {
     e.preventDefault();
     if (readOnly || ocupado) return;
     if (!validar()) return;
+    if (corrigindo) {
+      if (fisicoBloqueado && fisico) {
+        notifyWarning(
+          "Atenção",
+          `Esta correção mexeria no estoque (${descreverMudancasFisicas(fisico.diferencas)}), o que não é possível neste lançamento. Volte esses campos ao valor original ou cancele a correção.`,
+        );
+        return;
+      }
+      const doc = montarDocumento(form, resumo);
+      if (JSON.stringify(doc) === docInicial.current) {
+        notifyInfo("Nada para corrigir", "Nenhum campo do lançamento foi alterado.");
+        return;
+      }
+      retratar(form);
+      onRetificar?.({ doc, mudaEstoque: Boolean(fisico?.muda), diferencas: fisico?.diferencas ?? [] });
+      return;
+    }
     retratar(form);
     onSubmit(montarDocumento(form, resumo));
   };
@@ -288,10 +367,48 @@ export default function FormularioLancamento({
   const pagar = form.direcao === "PAGAR";
   const metodos = perfil.metodos_permitidos ?? [];
 
+  const titulo = corrigindo ? "Corrigir lançamento confirmado" : duplicarDe ? "Novo lançamento (cópia)" : editando ? "Editar lançamento" : "Novo lançamento";
+
   return (
-    <CadastroFormShell embedded title={editando ? "Editar lançamento" : "Novo lançamento"}>
+    <CadastroFormShell embedded title={titulo}>
       <div className="mg-b1-record-form">
         <form id={FORMULARIO_LANCAMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
+          {duplicarDe ? (
+            <div className="col-span-12 min-w-0">
+              <AvisoGestao tone="blue" testId="faixa-copia">
+                <p className="break-words font-semibold">Cópia do lançamento nº {duplicarDe.numero ?? "—"} — novo rascunho</p>
+                <p className="mt-1 break-words">
+                  Nada foi gravado: a cópia só vira um rascunho NOVO (número, títulos e estoque próprios) ao salvar. O nº do documento começa vazio e a
+                  declaração da mercadoria precisa ser marcada de novo. Parceiro, produtos, locais, naturezas e centros vêm do lançamento de origem: se algum
+                  estiver inativo ou não pertencer mais a esta empresa, o servidor recusa ao salvar e o campo é apontado.
+                </p>
+              </AvisoGestao>
+            </div>
+          ) : null}
+          {corrigindo ? (
+            <div className="col-span-12 min-w-0">
+              <AvisoGestao testId="faixa-correcao">
+                <p className="break-words font-semibold">Correção de lançamento confirmado{initialData?.numero != null ? ` — nº ${initialData.numero}` : ""}</p>
+                <p className="mt-1 break-words">
+                  Ao salvar, informe o motivo. As parcelas (títulos sem baixa) são recriadas com os valores e vencimentos novos; a versão anterior fica
+                  guardada no histórico. Se a correção mudar o estoque, a entrada/saída anterior é estornada e uma nova é registrada, com o MESMO número
+                  de lançamento.
+                </p>
+                {retificacao && !retificacao.efeitoFisicoPermitido ? (
+                  <p className="mt-1 break-words font-medium" data-testid="faixa-correcao-sem-estoque">
+                    Neste lançamento o estoque não pode mudar: produtos, quantidades, locais, unidades, data de recebimento/entrega
+                    {initialData?.direcao === "PAGAR" ? " e custos (preço, desconto e acréscimo da mercadoria)" : ""} precisam ficar como estão.
+                    {motivosFisicos ? ` Motivo: ${motivosFisicos}` : ""}
+                  </p>
+                ) : null}
+                {fisicoBloqueado && fisico ? (
+                  <p role="alert" className="mt-1 break-words font-semibold text-red-800" data-testid="correcao-bloqueio-fisico">
+                    Esta correção mexeria no estoque ({descreverMudancasFisicas(fisico.diferencas)}). Volte esses campos ao valor original para salvar.
+                  </p>
+                ) : null}
+              </AvisoGestao>
+            </div>
+          ) : null}
           {!fusoConfigurado ? (
             <div className="col-span-12">
               <AvisoGestao testId="lancamento-sem-fuso">
@@ -494,11 +611,32 @@ export default function FormularioLancamento({
               {resumo.parcelas.length} {resumo.parcelas.length === 1 ? "parcela" : "parcelas"} · {resumo.itensEstoque}{" "}
               {resumo.itensEstoque === 1 ? "item no estoque" : "itens no estoque"} · total {resumo.total ? formatarMoeda(resumo.total, c) : "—"}
             </p>
-            <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">
-              O rascunho não gera título nem mexe no estoque. Ao confirmar, a prévia mostra exatamente o que será criado. Pagamento e recebimento são
-              registros gerenciais: não há conciliação bancária.
-            </p>
-            {onConfirmar || onDescartar ? (
+            {corrigindo ? (
+              <>
+                <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="previsao-correcao">
+                  {fisico?.muda
+                    ? `Esta correção muda o estoque (${descreverMudancasFisicas(fisico.diferencas)}): a entrada/saída anterior será estornada e uma nova será registrada.`
+                    : "Esta correção não muda o estoque: lotes e movimentos continuam os mesmos."}{" "}
+                  Quem decide é o servidor, na gravação.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    disabled={ocupado || readOnly}
+                    data-testid="botao-salvar-correcao"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <Save size={16} aria-hidden /> Salvar alterações
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]">
+                O rascunho não gera título nem mexe no estoque. Ao confirmar, a prévia mostra exatamente o que será criado. Pagamento e recebimento são
+                registros gerenciais: não há conciliação bancária.
+              </p>
+            )}
+            {!corrigindo && (onConfirmar || onDescartar) ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {onConfirmar ? (
                   <button
@@ -524,7 +662,7 @@ export default function FormularioLancamento({
                 ) : null}
               </div>
             ) : null}
-            {onConfirmar && confirmarBloqueado ? (
+            {!corrigindo && onConfirmar && confirmarBloqueado ? (
               <p role="status" className="mt-2 min-w-0 break-words text-[12px] text-amber-900" data-testid="confirmar-bloqueado-rateio-item">
                 Confirmar fica bloqueado até o rateio por item fechar
                 {primeiroProblema ? ` — ${rotuloDoErro(primeiroProblema.chave)}: ${primeiroProblema.mensagem}.` : ": preencha os itens e as linhas de rateio."}

@@ -5662,4 +5662,42 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Se o runtime voltar ao da P3-01, as operações com documento POR_ITEM falham de forma segura, sem perda de dado: salvar ou descartar o rascunho responde 403 `TENANT_SCOPE_VIOLATION` (a FK RESTRICT da linha por item vira `P2003`, que o `errorHandler` traduz assim), e confirmar responde 422 `OPERACAO_RATEIO_INVALIDO` `soma_diferente` (não há rateio geral). As duas respostas enganam e estão no quadro do runbook, com o aviso ao suporte de que, nessa janela, esse 403 não é incidente de tenancy.
   - Relatório: `docs/engineering/MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`. Runbook: `docs/engineering/MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`.
 
-<!-- Próxima decisão: D-PROD-157 -->
+## D-PROD-157 — Gestão Rural P3-03: editar (retificar), excluir (lógico) e duplicar lançamentos
+
+> **Autorização explícita do proprietário:** pedida na missão **MAIKE-GESTAO-P3-03** (2026-11-09), depois do merge da PR #231 (P3-02). O texto foi redigido pelo agente. O merge depende da aprovação do proprietário e do runbook próprio.
+>
+> **Numeração:** a PR #232 (Patrimônio, aberta em paralelo) anuncia a D-PROD-156, que na `main` já é a P3-02. A colisão é reportada ao proprietário e não é corrigida aqui. Esta decisão usa a D-PROD-157, livre na `main` e nas PRs abertas na data.
+
+- **Contexto:** depois da D-PROD-155 e da D-PROD-156, um lançamento confirmado não podia ser corrigido nem excluído; só cancelado. Duplicar estava desligado. O proprietário pediu editar, excluir e duplicar de verdade, no espírito do Cadastro de Lotes: não bloquear pelo status, e sim pela dependência posterior.
+- **Decisão — elegibilidade única no servidor:**
+  - `GET /operacoes-financeiras/:id/elegibilidade` e os comandos usam a mesma avaliação, refeita sob trava na transação.
+  - Quando a elegibilidade mudou entre a consulta e o comando, a resposta é 409 com o motivo legível.
+  - **Bloqueia editar e excluir:** qualquer liquidação já registrada, mesmo estornada; e documento cancelado, excluído ou retificado.
+  - **Bloqueia a mudança física:**
+    - na compra, a falta de prova de proveniência de que o lote nunca foi usado: fatias, movimentos e todos os writers de lote, não só "disponível = entrada";
+    - na venda, movimento posterior no mesmo produto + local.
+- **Decisão — editar confirmado (retificação atômica):**
+  - **NO_LUGAR**, quando a assinatura física não muda: mesmo registro, `versao+1`, mercadorias com os mesmos movimentos e lotes; rateios e títulos (sem baixa) recriados.
+  - **SUBSTITUIÇÃO**, quando muda: numa transação só, o antigo é estornado pelo núcleo do cancelamento, marcado `retificado_em` e renomeado `<número>/r<versão>`. Um documento novo, já confirmado pelo núcleo da confirmação, assume o mesmo número de negócio.
+  - Nos dois modos, um evento estruturado (`OperacaoFinanceiraEvento`, com FKs) guarda motivo, autor e snapshot da versão anterior, e há também AuditLog.
+  - **Permissões:** exige `editar` e `confirmar`, porque a retificação gera efeitos confirmados.
+- **Decisão — excluir confirmado (lógico):**
+  - estorno como o cancelamento, títulos cancelados, `excluido_em` e evento `EXCLUSAO` com motivo e autor;
+  - o documento sai da lista operacional e aparece no filtro "Excluídos";
+  - nunca há DELETE de confirmado;
+  - exige `cancelar` e `excluir`;
+  - rascunho continua com descarte físico.
+- **Decisão — duplicar:**
+  - a tela abre o formulário novo a partir do detalhe completo, com GERAL e POR_ITEM;
+  - não copia identidade, estado, títulos, baixas, lotes, movimentos nem histórico;
+  - a referência documental começa vazia e a declaração física, desmarcada;
+  - só "Salvar rascunho" cria o documento (com `duplicado_de_id` só no AuditLog);
+  - exige `ver` e `criar`.
+- **Banco:** migration expand-only `20261109300000_gestao_p3_03_editar_excluir`:
+  - colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em`;
+  - tabela nova `OperacaoFinanceiraEvento`, com FKs compostas para documento antigo e novo e para o usuário, CHECKs de tipo e modo, RLS e 0 grants públicos.
+- **O que continua igual:** confirmar, cancelar, liquidar e estornar; o motor de estoque, o FIFO e o custo líquido; a P3-01 e a P3-02.
+- **Fora:** correção histórica de baixa, edição de documento com baixa e reabertura de cancelado.
+- **Release:** pelo runbook `docs/engineering/MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`, com a migration aplicada e conferida antes do merge manual. Relatório: `docs/engineering/MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-158 -->

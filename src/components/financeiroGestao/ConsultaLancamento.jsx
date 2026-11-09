@@ -1,5 +1,5 @@
 import React from "react";
-import { Ban, HandCoins, Undo2 } from "lucide-react";
+import { Ban, HandCoins, History, Trash2, Undo2 } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { formatarMoeda, formatarNumero, percentualDe } from "@/lib/dinheiroDecimal";
@@ -13,6 +13,7 @@ import {
   temRateioDoItem,
 } from "@/components/financeiroGestao/RateioItensLancamento";
 import { consolidarRateio, escopoDoRateio } from "@/lib/rateioPorItem";
+import { situacaoDoLancamento } from "@/components/financeiroGestao/lancamentoModelo";
 import {
   ROTULO_CONDICAO,
   ROTULO_CONTEUDO,
@@ -32,7 +33,25 @@ const ACOES_HISTORICO = /** @type {Record<string, string>} */ ({
   "titulo_financeiro.liquidar": "Baixa registrada",
   "liquidacao_financeira.registrar": "Baixa registrada",
   "liquidacao_financeira.estornar": "Baixa estornada",
+  // D-PROD-157
+  "operacao_financeira.retificar": "Lançamento corrigido",
+  "operacao_financeira.excluir": "Lançamento excluído",
 });
+
+/** Rótulo do selo de situação do registro (D-PROD-157: excluído e substituído têm selo próprio). */
+export const ROTULO_SITUACAO_REGISTRO = /** @type {Record<string, string>} */ ({
+  ...ROTULO_STATUS,
+  EXCLUIDO: "Excluído",
+  SUBSTITUIDO: "Substituído",
+});
+
+/** Tipo/modo de um evento de revisão. @param {any} e */
+const rotuloDoEvento = (e) => {
+  if (e?.tipo === "EXCLUSAO") return "Exclusão";
+  if (e?.modo === "SUBSTITUICAO") return "Correção com substituição (estoque refeito)";
+  if (e?.modo === "NO_LUGAR") return "Correção no lugar (estoque mantido)";
+  return "Correção";
+};
 
 const COR_STATUS = /** @type {Record<string, string>} */ ({
   RASCUNHO: "bg-slate-100 text-slate-700 border-slate-300",
@@ -42,6 +61,8 @@ const COR_STATUS = /** @type {Record<string, string>} */ ({
   ABERTO: "bg-amber-50 text-amber-900 border-amber-300",
   PARCIAL: "bg-sky-50 text-sky-900 border-sky-300",
   QUITADO: "bg-emerald-50 text-emerald-800 border-emerald-300",
+  EXCLUIDO: "bg-zinc-200 text-zinc-800 border-zinc-400",
+  SUBSTITUIDO: "bg-violet-50 text-violet-900 border-violet-300",
 });
 
 /** @param {{ status: string, rotulo: string, testId?: string }} props */
@@ -98,18 +119,25 @@ const consolidadoDoDetalhe = (d, casas) => {
  * POR ITEM (D-PROD-156) cada item mostra a sua classificação e o rateio vira o
  * resumo consolidado por natureza e centros (sem duplicar montantes).
  *
+ * D-PROD-157: "Excluir lançamento" (exclusão LÓGICA de confirmado lançado por
+ * engano) ao lado de "Cancelar lançamento" (operação real desfeita), selo e aviso
+ * próprios de excluído e de versão substituída por correção, e o bloco
+ * "Histórico de revisões e exclusão" com os links entre as versões.
+ *
  * @param {{
  *   detalhe: any,
  *   perfil: { locale: string, moeda: string, moeda_casas: number },
  *   fuso: string|null,
- *   acoes: { liquidar?: boolean, estornar?: boolean, cancelar?: boolean },
+ *   acoes: { liquidar?: boolean, estornar?: boolean, cancelar?: boolean, excluir?: boolean },
  *   onLiquidar: (titulo: any) => void,
  *   onEstornar: (liquidacao: any, titulo: any) => void,
  *   onCancelar: () => void,
+ *   onExcluir?: (() => void) | null,
+ *   onAbrirLancamento?: ((id: string) => void) | null,
  *   ocupado?: boolean,
  * }} props
  */
-export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, onLiquidar, onEstornar, onCancelar, ocupado = false }) {
+export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, onLiquidar, onEstornar, onCancelar, onExcluir = null, onAbrirLancamento = null, ocupado = false }) {
   const locale = perfil.locale;
   // O documento guarda a SUA moeda e escala (copiadas do perfil na criação).
   const c = { locale, moeda: d.moeda || perfil.moeda, casas: Number.isInteger(d.moeda_casas) ? d.moeda_casas : perfil.moeda_casas };
@@ -124,35 +152,98 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
   // O detalhe real traz o estorno como linha própria (`tipo: 'ESTORNO'`, só exibição):
   // ela não é baixa, não se estorna e não conta como baixa ativa.
   const algumaBaixaAtiva = titulos.some((t) => (t.liquidacoes ?? []).some((/** @type {any} */ l) => !ehLinhaDeEstorno(l) && !l.estornada));
+  const situacao = situacaoDoLancamento(d);
+  const eventos = Array.isArray(d.eventos) ? d.eventos.slice(0, 50) : [];
+  const exclusao = d.exclusao && typeof d.exclusao === "object" ? d.exclusao : null;
+  const substituidoPor = d.substituido_por && typeof d.substituido_por === "object" && d.substituido_por.id ? d.substituido_por : null;
+  const substitui = d.substitui && typeof d.substitui === "object" && d.substitui.id ? d.substitui : null;
+  /** Link para outra versão do mesmo lançamento lógico. @param {string|null|undefined} id @param {string} rotulo @param {string} testId */
+  const linkVersao = (id, rotulo, testId) =>
+    id && onAbrirLancamento && String(id) !== String(d.id) ? (
+      <button type="button" className={`${BOTAO} mt-2 border-[var(--mg-divider,#cbd5e1)] bg-white text-[var(--mg-text-1,#0f172a)] hover:bg-slate-50`} onClick={() => onAbrirLancamento(String(id))} disabled={ocupado} data-testid={testId}>
+        <History size={16} aria-hidden /> {rotulo}
+      </button>
+    ) : null;
 
   return (
     <CadastroFormShell embedded title="Consulta do lançamento">
       <div className="mg-b1-record-form" data-testid="consulta-lancamento">
         <div className="b1 mg-b1-form-grid w-full min-h-0">
           <div className="col-span-12 flex flex-wrap items-center gap-2">
-            <Selo status={d.status} rotulo={ROTULO_STATUS[/** @type {keyof typeof ROTULO_STATUS} */ (d.status)] ?? d.status} testId="status-lancamento" />
+            <Selo status={situacao} rotulo={ROTULO_SITUACAO_REGISTRO[situacao] ?? d.status} testId="status-lancamento" />
             <span className="text-[12px] font-medium uppercase text-[var(--mg-text-2,#475569)]">
               {ROTULO_DIRECAO[/** @type {keyof typeof ROTULO_DIRECAO} */ (d.direcao)] ?? d.direcao} · {ROTULO_CONTEUDO[/** @type {keyof typeof ROTULO_CONTEUDO} */ (d.conteudo)] ?? d.conteudo} ·{" "}
               {ROTULO_CONDICAO[/** @type {keyof typeof ROTULO_CONDICAO} */ (d.condicao)] ?? d.condicao}
             </span>
-            {confirmado && acoes.cancelar ? (
-              <button
-                type="button"
-                className={`${BOTAO} ml-auto border-red-300 bg-white text-red-700 hover:bg-red-50`}
-                onClick={onCancelar}
-                disabled={ocupado}
-                data-testid="botao-cancelar-lancamento"
-                title={algumaBaixaAtiva ? "Há baixas registradas: estorne-as antes de cancelar" : undefined}
-              >
-                <Ban size={16} aria-hidden /> Cancelar lançamento
-              </button>
+            {confirmado && ((acoes.excluir && onExcluir) || acoes.cancelar) ? (
+              <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-2">
+                {acoes.excluir && onExcluir ? (
+                  <button
+                    type="button"
+                    className={`${BOTAO} border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-100`}
+                    onClick={onExcluir}
+                    disabled={ocupado}
+                    data-testid="botao-excluir-lancamento"
+                    title="Lançado por engano: estorna títulos e estoque e tira o lançamento da lista operacional (fica no filtro Excluídos)"
+                  >
+                    <Trash2 size={16} aria-hidden /> Excluir lançamento
+                  </button>
+                ) : null}
+                {acoes.cancelar ? (
+                  <button
+                    type="button"
+                    className={`${BOTAO} border-red-300 bg-white text-red-700 hover:bg-red-50`}
+                    onClick={onCancelar}
+                    disabled={ocupado}
+                    data-testid="botao-cancelar-lancamento"
+                    title={algumaBaixaAtiva ? "Há baixas registradas: estorne-as antes de cancelar" : undefined}
+                  >
+                    <Ban size={16} aria-hidden /> Cancelar lançamento
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
-          {d.status === "CANCELADO" ? (
+          {situacao === "EXCLUIDO" ? (
+            <div className="col-span-12 min-w-0">
+              <AvisoGestao testId="aviso-excluido">
+                <p className="break-words">
+                  Excluído em {formatarInstante(exclusao?.em ?? d.excluido_em, locale, fuso)} por {quem(exclusao?.por ?? d.cancelado_por)}. Motivo:{" "}
+                  {exclusao?.motivo || d.motivo_cancelamento || "—"}.
+                </p>
+                <p className="mt-1 break-words">
+                  Lançamento lançado por engano: os títulos foram cancelados e os efeitos no estoque, estornados (movimento original e estorno ficam no
+                  histórico). Ele não aparece na lista operacional — só no filtro “Excluídos”.
+                </p>
+              </AvisoGestao>
+            </div>
+          ) : situacao === "SUBSTITUIDO" ? (
+            <div className="col-span-12 min-w-0">
+              <AvisoGestao testId="aviso-substituido">
+                <p className="break-words">
+                  Versão anterior, substituída por correção em {formatarInstante(d.retificado_em, locale, fuso)}
+                  {substituidoPor?.numero != null ? `: o lançamento atual é o nº ${substituidoPor.numero}` : ""}. Os títulos desta versão foram cancelados e
+                  os efeitos no estoque, estornados.
+                </p>
+                {linkVersao(substituidoPor?.id, "Ver lançamento atual", "link-lancamento-atual")}
+              </AvisoGestao>
+            </div>
+          ) : d.status === "CANCELADO" ? (
             <div className="col-span-12">
               <AvisoGestao testId="aviso-cancelado">
                 Cancelado em {formatarInstante(d.cancelado_em, locale, fuso)} por {quem(d.cancelado_por)}. Motivo: {d.motivo_cancelamento || "—"}. Os títulos foram
                 cancelados e os efeitos de estoque, estornados.
+              </AvisoGestao>
+            </div>
+          ) : null}
+          {substitui ? (
+            <div className="col-span-12 min-w-0">
+              <AvisoGestao tone="blue" testId="aviso-substitui">
+                <p className="break-words">
+                  Este lançamento é a versão {d.versao ?? "—"}, corrigida: substitui a versão anterior{substitui.numero != null ? ` (nº ${substitui.numero})` : ""}, cujos
+                  efeitos foram estornados.
+                </p>
+                {linkVersao(substitui.id, "Ver versão anterior", "link-versao-anterior")}
               </AvisoGestao>
             </div>
           ) : null}
@@ -351,6 +442,35 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
               </div>
             );
           })}
+
+          {eventos.length ? (
+            <>
+              <SecaoForm titulo="Histórico de revisões e exclusão" />
+              <ul className="col-span-12 min-w-0 space-y-2" data-testid="historico-revisoes">
+                {eventos.map((/** @type {any} */ e, /** @type {number} */ k) => (
+                  <li
+                    key={`${e.tipo}-${e.em}-${k}`}
+                    className="min-w-0 rounded-lg border border-[var(--mg-divider,#cbd5e1)] bg-white p-3 text-[12px]"
+                    data-testid={`evento-revisao-${k}`}
+                  >
+                    <p className="break-words font-semibold">
+                      {rotuloDoEvento(e)} · versão {e.versao_anterior ?? "—"} → {e.versao_nova ?? "—"}
+                    </p>
+                    <p className="break-words">
+                      {formatarInstante(e.em, locale, fuso)} · {quem(e.por)} · lançamento nº {e.numero_original ?? d.numero ?? "—"}
+                    </p>
+                    <p className="break-words">Motivo: {e.motivo || "—"}</p>
+                    {e.modo === "SUBSTITUICAO" ? (
+                      <div className="flex min-w-0 flex-wrap gap-2">
+                        {linkVersao(e.operacao_id, "Ver versão anterior", `evento-revisao-${k}-anterior`)}
+                        {linkVersao(e.operacao_nova_id, "Ver versão corrigida", `evento-revisao-${k}-corrigida`)}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
 
           <SecaoForm titulo="Histórico de alterações" />
           <ul className="col-span-12 space-y-1 text-[12px]" data-testid="historico-lancamento">

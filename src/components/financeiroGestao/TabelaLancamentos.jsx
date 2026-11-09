@@ -3,8 +3,9 @@ import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import { comparar, ehCanonico, formatarMoeda } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
-import { ROTULO_CONDICAO, ROTULO_CONTEUDO, ROTULO_DIRECAO, ROTULO_STATUS } from "@/services/operacaoFinanceiraService";
-import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
+import { ROTULO_CONDICAO, ROTULO_CONTEUDO, ROTULO_DIRECAO } from "@/services/operacaoFinanceiraService";
+import { ROTULO_SITUACAO_REGISTRO, Selo } from "@/components/financeiroGestao/ConsultaLancamento";
+import { situacaoDoLancamento } from "@/components/financeiroGestao/lancamentoModelo";
 
 export const LANCAMENTOS_STORAGE_KEY = "colunas_lancamentos_financeiros_v1";
 
@@ -58,7 +59,8 @@ const dinheiroDa = (item, campo, locale) =>
 /** @param {string} locale */
 export const valorDoCampoLancamento = (locale) => (/** @type {any} */ item, /** @type {string} */ id) => {
   if (id === "numero") return item.numero != null ? String(item.numero) : "";
-  if (id === "status") return ROTULO_STATUS[/** @type {keyof typeof ROTULO_STATUS} */ (item.status)] ?? item.status ?? "";
+  // D-PROD-157: excluído e versão substituída por correção têm rótulo próprio (no servidor ficam CANCELADO).
+  if (id === "status") return ROTULO_SITUACAO_REGISTRO[situacaoDoLancamento(item)] ?? item.status ?? "";
   if (id === "direcao") return ROTULO_DIRECAO[/** @type {keyof typeof ROTULO_DIRECAO} */ (item.direcao)] ?? "";
   if (id === "parceiro") return item.parceiro_nome || "";
   if (id === "data_emissao") return item.data_emissao ? formatarDia(item.data_emissao, locale) : "";
@@ -81,7 +83,7 @@ export default function TabelaLancamentos(props) {
   const renderCell = useCallback(
     (/** @type {any} */ item, /** @type {string} */ colId) => {
       if (colId === "numero") return <span className="font-mono" data-testid={`lancamento-numero-${item.id}`}>{item.numero ?? "–"}</span>;
-      if (colId === "status") return <Selo status={item.status} rotulo={valorDoCampo(item, "status")} />;
+      if (colId === "status") return <Selo status={situacaoDoLancamento(item)} rotulo={valorDoCampo(item, "status")} testId={`lancamento-situacao-${item.id}`} />;
       if (colId === "parceiro") return <span className="uppercase">{item.parceiro_nome || "–"}</span>;
       const v = valorDoCampo(item, colId);
       return v || "–";

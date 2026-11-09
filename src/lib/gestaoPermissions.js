@@ -42,9 +42,16 @@ export const ACOES_EXTRAS_LANCAMENTOS = Object.freeze({
  * `estornar` (= `estornar_liquidacao`) e `cancelar`. Descartar rascunho é
  * edição (`editar|salvar`), como o DELETE do servidor.
  *
+ * D-PROD-157 (P3-03): `excluir` é a ação PADRÃO da tela (coluna Excluir da
+ * permissão). Excluir lançamento CONFIRMADO exige `excluir` E `cancelar` (ele
+ * estorna títulos e estoque como o cancelamento); corrigir confirmado exige
+ * `editar` E `confirmar`; duplicar exige `criar` (e ver). A tela mostra o botão
+ * pela ação de base e a elegibilidade do servidor explica o que faltar
+ * (`sem_permissao`) — nunca mascarado como outro motivo.
+ *
  * @param {unknown} permissao
  * @param {string} tela
- * @returns {{ ver: boolean, criar: boolean, editar: boolean, confirmar?: boolean, liquidar?: boolean, estornar?: boolean, cancelar?: boolean }}
+ * @returns {{ ver: boolean, criar: boolean, editar: boolean, confirmar?: boolean, liquidar?: boolean, estornar?: boolean, cancelar?: boolean, excluir?: boolean }}
  */
 export const acoesDaTelaGestao = (permissao, tela) => {
   const pode = (/** @type {string} */ acao) => canPerformAction(permissao, tela, MODULO_GESTAO_RURAL, acao);
@@ -60,5 +67,6 @@ export const acoesDaTelaGestao = (permissao, tela) => {
     liquidar: pode(ACOES_EXTRAS_LANCAMENTOS.liquidar),
     estornar: pode(ACOES_EXTRAS_LANCAMENTOS.estornar),
     cancelar: pode(ACOES_EXTRAS_LANCAMENTOS.cancelar),
+    excluir: pode('excluir'),
   };
 };

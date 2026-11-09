@@ -19,6 +19,12 @@
  * teto por item) vêm do normalizador do plano (422 `OPERACAO_RATEIO_INVALIDO`
  * com item e linha exatos) — por isso o schema só tipa o escopo como texto e o
  * teto de linhas por item da rota é o do documento inteiro.
+ *
+ * D-PROD-157 (editar/excluir/duplicar): GET `/:id/elegibilidade` (ver), POST
+ * `/:id/retificar` (editar + confirmar; corpo = documento completo + `versao`,
+ * `operation_id`, `motivo`), POST `/:id/excluir` (cancelar + excluir; corpo
+ * `{empresa_id, versao, operation_id, motivo}`), `situacao` na lista e
+ * `duplicado_de_id` opcional no POST de criação. Schemas fechados.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -29,8 +35,8 @@ import {
   CONDICOES, CONTEUDOS, DIRECOES, MAX_ITENS, MAX_PARCELAS, MAX_RATEIOS, MAX_RATEIOS_ITENS_TOTAL, RATEIO_MODOS, TIPOS_ITEM, UNIDADES,
 } from './operacaoFinanceiraPlano.js';
 import {
-  LIMITE_LISTA_MAXIMO, LIMITE_LISTA_PADRAO, cancelar, confirmar, criarRascunho, descartarRascunho, detalhar, estornarLiquidacao, listar, previa,
-  registrarLiquidacao, substituirRascunho,
+  LIMITE_LISTA_MAXIMO, LIMITE_LISTA_PADRAO, SITUACOES_LISTA, cancelar, confirmar, criarRascunho, descartarRascunho, detalhar, elegibilidade, estornarLiquidacao,
+  excluirConfirmado, listar, previa, registrarLiquidacao, retificar, substituirRascunho,
 } from './operacaoFinanceiraService.js';
 import { definirPerfil, obterPerfil } from './perfilFinanceiroService.js';
 import {
@@ -103,7 +109,10 @@ const DOC_PROPS = {
 };
 const DOC_OBRIGATORIOS = ['empresa_id', 'direcao', 'conteudo', 'condicao', 'parceiro_id', 'data_emissao', 'rateio_modo', 'parcelas'];
 
-const CRIAR = { body: { type: 'object', required: [...DOC_OBRIGATORIOS, 'operation_id'], additionalProperties: false, properties: { ...DOC_PROPS, operation_id: OPERATION_ID } } };
+// D-PROD-157: `duplicado_de_id` (opcional) = cópia de outro lançamento da MESMA empresa (só proveniência no AuditLog).
+const CRIAR = {
+  body: { type: 'object', required: [...DOC_OBRIGATORIOS, 'operation_id'], additionalProperties: false, properties: { ...DOC_PROPS, operation_id: OPERATION_ID, duplicado_de_id: ID } },
+};
 const SUBSTITUIR = {
   params: PARAMS,
   body: { type: 'object', required: [...DOC_OBRIGATORIOS, 'versao'], additionalProperties: false, properties: { ...DOC_PROPS, versao: { type: 'integer', minimum: 1 } } },
@@ -142,6 +151,26 @@ const CANCELAR = {
     properties: { empresa_id: ID, operation_id: OPERATION_ID, motivo: { type: 'string', minLength: 1, maxLength: 500 } },
   },
 };
+/** D-PROD-157: motivo obrigatório (até 500), conferido sem só espaços no serviço (400 `obrigatorio`). */
+const MOTIVO = { type: 'string', minLength: 1, maxLength: 500 };
+const RETIFICAR = {
+  params: PARAMS,
+  body: {
+    type: 'object',
+    required: [...DOC_OBRIGATORIOS, 'versao', 'operation_id', 'motivo'],
+    additionalProperties: false,
+    properties: { ...DOC_PROPS, versao: { type: 'integer', minimum: 1 }, operation_id: OPERATION_ID, motivo: MOTIVO },
+  },
+};
+const EXCLUIR = {
+  params: PARAMS,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'versao', 'operation_id', 'motivo'],
+    additionalProperties: false,
+    properties: { empresa_id: ID, versao: { type: 'integer', minimum: 1 }, operation_id: OPERATION_ID, motivo: MOTIVO },
+  },
+};
 const LIQUIDAR = {
   params: PARAMS,
   body: {
@@ -178,6 +207,8 @@ const LISTAR = {
       vencimento_de: DIA,
       vencimento_ate: DIA,
       com_estoque: ENUM(['true', 'false']),
+      // D-PROD-157: OPERACIONAIS (padrão) | EXCLUIDOS | TODOS.
+      situacao: ENUM(SITUACOES_LISTA),
       q: { type: 'string', maxLength: 120 },
       cursor: { type: 'string', minLength: 1, maxLength: 512 },
       limit: { type: 'integer', minimum: 1, maximum: LIMITE_LISTA_MAXIMO, default: LIMITE_LISTA_PADRAO },
@@ -319,6 +350,13 @@ export const registrarOperacaoFinanceiraRoutes = async (app) => {
     confirmar(ctx(request), idDe(request), corpo(request)));
   app.post('/operacoes-financeiras/:id/cancelar', { ...auth, preHandler: [g.cancelar], schema: CANCELAR }, async (request) =>
     cancelar(ctx(request), idDe(request), corpo(request)));
+  // D-PROD-157: elegibilidade (fonte única), retificação e exclusão lógica do confirmado.
+  app.get('/operacoes-financeiras/:id/elegibilidade', { ...auth, preHandler: [g.ver], schema: DETALHE }, async (request) =>
+    elegibilidade(ctx(request), idDe(request), consulta(request)));
+  app.post('/operacoes-financeiras/:id/retificar', { ...auth, preHandler: [g.retificar], schema: RETIFICAR }, async (request) =>
+    retificar(ctx(request), idDe(request), corpo(request)));
+  app.post('/operacoes-financeiras/:id/excluir', { ...auth, preHandler: [g.excluirConfirmado], schema: EXCLUIR }, async (request) =>
+    excluirConfirmado(ctx(request), idDe(request), corpo(request)));
 
   // Títulos e liquidações (manuais, sem conciliação bancária).
   app.post('/titulos-financeiros/:id/liquidacoes', { ...auth, preHandler: [g.liquidar], schema: LIQUIDAR }, async (request, reply) => {

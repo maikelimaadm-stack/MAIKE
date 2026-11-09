@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Ban, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
 import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import RateioItensLancamento, { nomesDasClassificacoes } from "@/components/financeiroGestao/RateioItensLancamento";
@@ -13,7 +13,7 @@ const DialogHeader = /** @type {any} */ (UiDialog.DialogHeader);
 const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 import { LIMITES, comparar, ehPositivo, formatarMoeda, lerNumeroLocal, naEscala, paraTextoDeEdicao, somar } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
-import { mensagemDoAvisoDoPlano, mensagemDoBloqueio, mensagemErroGestao } from "@/lib/gestaoErros";
+import { lerErroGestao, mensagemDoAvisoDoPlano, mensagemDoBloqueio, mensagemDoMotivo, mensagemErroGestao, motivosDoErro } from "@/lib/gestaoErros";
 import { CODIGO_ENVIO_PENDENTE, ROTULO_METODO, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import { mensagemNumero } from "@/components/financeiroGestao/lancamentoModelo";
 
@@ -35,7 +35,8 @@ const opcoesDeMetodo = (metodos) => metodos.map((m) => ({ value: m, label: ROTUL
 /**
  * Estado do envio de um comando: "incerto" = sem resposta (rede/prazo/5xx) —
  * NUNCA vira "sucesso"; o usuário consulta o documento ou repete o MESMO envio.
- * @typedef {{ fase: 'pronto'|'enviando'|'incerto'|'erro', mensagem?: string }} EstadoEnvio
+ * `motivos` (D-PROD-157): recusa de correção/exclusão com a lista legível.
+ * @typedef {{ fase: 'pronto'|'enviando'|'incerto'|'erro', mensagem?: string, motivos?: string[], tituloMotivos?: string }} EstadoEnvio
  */
 
 /**
@@ -68,7 +69,17 @@ function useEnvioUnico(enviar, c, aoConcluir) {
       const manteve = /** @type {any} */ (erro)?.code === CODIGO_ENVIO_PENDENTE;
       repetir.current = manteve || !ehRecusaDefinitiva(erro);
       if (manteve || ehResultadoIncerto(erro)) setEstado({ fase: "incerto" });
-      else setEstado({ fase: "erro", mensagem: mensagemErroGestao(erro, "Não foi possível concluir. Nada foi gravado.", { ...c, comandoIdempotente: true }) });
+      else {
+        const motivos = motivosDoErro(erro).map((m) => mensagemDoMotivo(m, c));
+        const { code } = lerErroGestao(erro);
+        const tituloMotivos =
+          code === "OPERACAO_RETIFICACAO_BLOQUEADA"
+            ? "A correção foi recusada pelo servidor:"
+            : code === "OPERACAO_EXCLUSAO_BLOQUEADA"
+              ? "A exclusão foi recusada pelo servidor:"
+              : "O servidor recusou:";
+        setEstado({ fase: "erro", mensagem: mensagemErroGestao(erro, "Não foi possível concluir. Nada foi gravado.", { ...c, comandoIdempotente: true }), motivos, tituloMotivos });
+      }
     } finally {
       emCurso.current = false;
     }
@@ -97,6 +108,22 @@ function AvisoDoEnvio({ estado, onConsultar = null }) {
     );
   }
   if (estado.fase === "erro") {
+    // Recusa com motivos (D-PROD-157): cada vínculo que impede numa linha própria.
+    if (estado.motivos?.length) {
+      return (
+        <div role="alert" data-testid="erro-envio" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
+          <p className="break-words font-semibold">{estado.tituloMotivos}</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {estado.motivos.map((m, k) => (
+              <li key={k} className="break-words">
+                {m}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1">Nada foi alterado.</p>
+        </div>
+      );
+    }
     return (
       <p role="alert" data-testid="erro-envio" className="rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
         {estado.mensagem}
@@ -422,8 +449,11 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
 }
 
 /**
- * Ação com motivo obrigatório (estornar baixa, cancelar lançamento) ou sem
- * motivo (descartar rascunho). O erro do servidor fica DENTRO do diálogo.
+ * Ação com motivo obrigatório (estornar baixa, cancelar, corrigir ou excluir
+ * lançamento) ou sem motivo (descartar rascunho). O erro do servidor fica
+ * DENTRO do diálogo. `conteudo`: o efeito da ação, abaixo da descrição.
+ * `confirmacaoExplicita` (D-PROD-157, exclusão): caixa que precisa ser marcada
+ * além do motivo — o primeiro clique nunca envia nada.
  * @param {{
  *   aberto: boolean,
  *   titulo: string,
@@ -436,13 +466,30 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   onFechar: () => void,
  *   onEnviar: (motivo: string, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar?: (() => void) | null,
+ *   conteudo?: React.ReactNode,
+ *   confirmacaoExplicita?: string | null,
  * }} props
  */
-export function DialogoAcao({ aberto, titulo, descricao, rotuloBotao, testId, comMotivo = true, perigo = true, contexto, onFechar, onEnviar, onConsultar = null }) {
+export function DialogoAcao({
+  aberto,
+  titulo,
+  descricao,
+  rotuloBotao,
+  testId,
+  comMotivo = true,
+  perigo = true,
+  contexto,
+  onFechar,
+  onEnviar,
+  onConsultar = null,
+  conteudo = null,
+  confirmacaoExplicita = null,
+}) {
   const [motivo, setMotivo] = useState("");
+  const [ciente, setCiente] = useState(false);
   const { estado, disparar } = useEnvioUnico(onEnviar, contexto);
   const enviando = estado.fase === "enviando";
-  const semMotivo = comMotivo && !motivo.trim();
+  const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente);
   return (
     <Dialog open={aberto} onOpenChange={(o) => (!o && !enviando ? onFechar() : undefined)}>
       <DialogContent data-permissao-explicita="" data-testid={testId} className="max-w-lg">
@@ -450,6 +497,7 @@ export function DialogoAcao({ aberto, titulo, descricao, rotuloBotao, testId, co
           <DialogTitle>{titulo}</DialogTitle>
           <DialogDescription>{descricao}</DialogDescription>
         </DialogHeader>
+        {conteudo ? <div className="min-w-0 text-[13px]">{conteudo}</div> : null}
         {comMotivo ? (
           <label className="min-w-0 text-[12px]">
             Motivo (obrigatório)
@@ -461,6 +509,20 @@ export function DialogoAcao({ aberto, titulo, descricao, rotuloBotao, testId, co
               aria-label="Motivo"
               data-testid={`${testId}-motivo`}
             />
+          </label>
+        ) : null}
+        {confirmacaoExplicita ? (
+          <label className="flex min-w-0 items-start gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0 accent-red-600"
+              style={{ width: 20, height: 20 }}
+              checked={ciente}
+              disabled={enviando}
+              onChange={(e) => setCiente(e.target.checked)}
+              data-testid={`${testId}-ciente`}
+            />
+            <span className="min-w-0 break-words">{confirmacaoExplicita}</span>
           </label>
         ) : null}
         <AvisoDoEnvio estado={estado} onConsultar={onConsultar} />
@@ -477,6 +539,55 @@ export function DialogoAcao({ aberto, titulo, descricao, rotuloBotao, testId, co
           >
             {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
             {enviando ? "Enviando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : rotuloBotao}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Bloqueio de editar/excluir (D-PROD-157): os motivos LEGÍVEIS que a
+ * elegibilidade do servidor devolveu — nada é aberto nem enviado. Sem
+ * permissão aparece como sem permissão; vínculo aparece como vínculo.
+ * @param {{
+ *   aberto: boolean,
+ *   titulo: string,
+ *   descricao: string,
+ *   motivos: any[],
+ *   contexto?: { locale?: string, moeda?: string, casas?: number },
+ *   onFechar: () => void,
+ *   rodape?: React.ReactNode,
+ * }} props
+ */
+export function DialogoMotivos({ aberto, titulo, descricao, motivos, contexto = {}, onFechar, rodape = null }) {
+  const lista = Array.isArray(motivos) ? motivos : [];
+  return (
+    <Dialog open={aberto} onOpenChange={(o) => (!o ? onFechar() : undefined)}>
+      <DialogContent data-permissao-explicita="" data-testid="dialogo-bloqueio" className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            <span className="inline-flex items-center gap-1.5">
+              <Ban size={18} aria-hidden /> {titulo}
+            </span>
+          </DialogTitle>
+          <DialogDescription>{descricao}</DialogDescription>
+        </DialogHeader>
+        <ul role="alert" className="min-w-0 list-disc space-y-1.5 rounded-md border border-amber-300 bg-amber-50 p-3 pl-7 text-[13px] text-amber-900" data-testid="dialogo-bloqueio-motivos">
+          {lista.length ? (
+            lista.map((m, k) => (
+              <li key={k} className="break-words" data-codigo={typeof m?.codigo === "string" ? m.codigo : undefined}>
+                {mensagemDoMotivo(m, contexto)}
+              </li>
+            ))
+          ) : (
+            <li className="break-words">O servidor não liberou esta ação agora. Recarregue o lançamento e tente de novo.</li>
+          )}
+        </ul>
+        {rodape ? <div className="min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]">{rodape}</div> : null}
+        <DialogFooter className="gap-2 sm:gap-2">
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} data-testid="dialogo-bloqueio-fechar">
+            Entendi
           </button>
         </DialogFooter>
       </DialogContent>

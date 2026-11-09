@@ -881,12 +881,19 @@ describe('LANC-6 — botões seguem a ação exata da permissão', () => {
     expect(screen.queryByTestId('botao-liquidar-1')).toBeNull();
   });
 
-  it('confirmado nunca abre em edição (Editar some mesmo com permissão)', async () => {
+  // D-PROD-157 (P3-03) mudou o contrato: o confirmado TEM "Editar" (correção),
+  // mas nunca abre direto em edição — a elegibilidade do servidor vem antes.
+  it('confirmado nunca abre DIRETO em edição: abre em consulta e o Editar pergunta a elegibilidade antes do formulário', async () => {
     const doc = semearDocumento(estado, corpoBase(), { confirmar: true });
     await montar();
     await abrir(doc.id);
     expect(await screen.findByTestId('consulta-lancamento')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull();
+    expect(screen.queryByTestId('b1-form')).toBeNull();
+    expect(chamadas('GET', /\/elegibilidade$/)).toHaveLength(0);
+    await clicar(screen.getByRole('button', { name: 'Editar' }));
+    expect(await screen.findByTestId('faixa-correcao')).toBeTruthy();
+    expect(chamadas('GET', `/operacoes-financeiras/${doc.id}/elegibilidade`)).toHaveLength(1);
+    expect(backend.chamadas.filter((c) => c.method !== 'GET')).toEqual([]);
   });
 
   it('erros novos têm mensagem própria (sem texto do servidor) e NOT_FOUND fecha o registro', async () => {
