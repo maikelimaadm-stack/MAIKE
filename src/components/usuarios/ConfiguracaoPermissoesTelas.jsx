@@ -19,13 +19,17 @@ const ACTION_LABELS = {
 /** Checkbox das ações extras (o componente de `ui/checkbox` não tem tipos). */
 const CheckboxAcaoExtra = /** @type {any} */ (Checkbox);
 
-/** Ações extras (D-PROD-155) — só aparecem na tela que as declara. */
+/** Ações extras (D-PROD-155; D-PROD-156 `inativar`) — só aparecem na tela que as declara. */
 const EXTRA_ACTION_LABELS = {
   confirmar: "CONFIRMAR LANÇAMENTO",
   liquidar: "REGISTRAR PAGAMENTO/RECEBIMENTO",
   estornar_liquidacao: "ESTORNAR BAIXA",
   cancelar: "CANCELAR LANÇAMENTO",
+  inativar: "INATIVAR/REATIVAR",
 };
+
+/** Título do bloco de ações extras: a Central de Lançamentos age sobre o lançamento; as telas `pat-*` sobre o cadastro. */
+const tituloDasAcoesExtras = (pageId) => (pageId === "ges-lancamentos-financeiros" ? "Ações do lançamento" : "Ações do cadastro");
 
 export default function ConfiguracaoPermissoesTelas({ formData, onChange, modules }) {
   const modulosPermitidos = formData.modulos_permitidos || [];
@@ -200,7 +204,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
                       className={`rounded-lg border p-3 space-y-2 ${permission.visualizar ? "bg-sky-50 border-sky-200" : "bg-slate-100 border-slate-200 opacity-60"}`}
                     >
                       <div>
-                        <p className="text-xs font-semibold uppercase text-slate-900">Ações do lançamento</p>
+                        <p className="text-xs font-semibold uppercase text-slate-900">{tituloDasAcoesExtras(page.id)}</p>
                         <p className="text-[11px] text-slate-500 uppercase">Cada ação é liberada à parte; nenhuma vem ligada.</p>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

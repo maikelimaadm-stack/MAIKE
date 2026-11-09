@@ -46,6 +46,7 @@ import { registrarParceiroRoutes } from './modules/gestao/parceiroRoutes.js';
 import { registrarCentroRoutes } from './modules/gestao/centroRoutes.js';
 import { registrarNaturezaFinanceiraRoutes } from './modules/gestao/naturezaFinanceiraRoutes.js';
 import { registrarOperacaoFinanceiraRoutes } from './modules/financeiro/operacaoFinanceiraRoutes.js';
+import { registrarPatrimonioCatalogoRoutes } from './modules/patrimonio/patrimonioCatalogoRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -211,6 +212,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarNaturezaFinanceiraRoutes);
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
+  // D-PROD-156 — Patrimônio e Frota P1-01: catálogos do tenant (sem estoque/financeiro).
+  await app.register(registrarPatrimonioCatalogoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

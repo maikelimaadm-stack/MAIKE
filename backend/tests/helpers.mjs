@@ -114,6 +114,18 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
+  // D-PROD-156: Patrimônio e Frota (filhas antes das mães; sem autorreferência).
+  // Antes do bloco de Gestão porque o bem referencia o centro de custo, e antes
+  // do laço porque referencia Empresa, Fornecedor, Usuario e AreaPastagem (RESTRICT).
+  await prisma.tanqueBemCombustivel.deleteMany({});
+  await prisma.tanqueBem.deleteMany({});
+  await prisma.medicaoBem.deleteMany({});
+  await prisma.bemPatrimonial.deleteMany({});
+  await prisma.tipoPatrimonialPerfil.deleteMany({});
+  await prisma.tipoPatrimonial.deleteMany({});
+  await prisma.familiaPatrimonial.deleteMany({});
+  await prisma.perfilMedicao.deleteMany({});
+  await prisma.tipoCombustivel.deleteMany({});
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});

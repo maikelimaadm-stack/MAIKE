@@ -13,6 +13,8 @@ tenant(nome) AS (
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     'LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
+    -- D-PROD-156 (Patrimônio P1-01): filhas antes das mães; antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem que o bem referencia.
+    'TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivel',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',

@@ -1,0 +1,409 @@
+/**
+ * Service dos Bens Patrimoniais (D-PROD-156).
+ *
+ * O bem pertence a uma EMPRESA (fazenda): sem empresa real não há leitura nem
+ * gravação. O bem é a raiz do agregado — medições, medidor e tanques só mudam
+ * pelo POST/PATCH do próprio bem, com `versao` (concorrência otimista).
+ *
+ * Formas:
+ *  - DETALHE (resposta do servidor, A13): referências como objetos
+ *    (`familia{…}`, `proprietario{…}`, `aquisicao.fornecedor{…}`…), medidor e
+ *    blocos aninhados, decimais em string canônica.
+ *  - CORPO (o que a tela monta e o servidor recebe, §5/A2/A6): ids planos
+ *    (`familia_id`, `proprietario_parceiro_id`…), `medidor{tipo, leitura_*,
+ *    data_leitura}`, `medicoes[{id?, perfil_id, valor, unidade, rotulo?, principal?}]`,
+ *    `tanques[{id?, identificador, capacidade_litros, combustivel_ids, observacao?, ativo?}]`,
+ *    `aquisicao{…}`, `depreciacao{depreciavel, …}`. Decimais SEMPRE string.
+ *
+ * `formaDeEdicaoDoBem(detalhe)` converte o detalhe no corpo, para a tela
+ * preencher o formulário e para o PATCH mínimo comparar.
+ */
+
+import {
+  listBensPatrimoniaisPage,
+  getBemPatrimonial,
+  createBemPatrimonial,
+  updateBemPatrimonial,
+  previaDepreciacaoBemPatrimonial,
+  listOpcoesBemPatrimonial,
+  RECURSOS_OPCOES_DA_EMPRESA,
+} from '@/apis/patrimonio';
+import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
+
+const RESOURCE = 'BemPatrimonial';
+
+/** Campos escalares do corpo (POST e PATCH). `numero`, `natureza` e `empresa_id` não são editáveis. */
+export const CAMPOS_ESCALARES_BEM = Object.freeze([
+  'nome',
+  'familia_id',
+  'tipo_id',
+  'codigo_frota',
+  'propriedade',
+  'proprietario_parceiro_id',
+  'responsavel_usuario_id',
+  'centro_custo_id',
+  'area_id',
+  'localizacao_descricao',
+  'marca',
+  'modelo',
+  'ano_fabricacao',
+  'ano_modelo',
+  'numero_serie',
+  'chassi',
+  'placa',
+  'placa_uf',
+  'renavam',
+  'potencia_cv',
+  'material',
+  'ano_conclusao',
+  'compatibilidade',
+  'especificacoes',
+  'observacoes',
+]);
+
+/** Blocos aninhados: presentes no PATCH, SUBSTITUEM o bloco inteiro (A6). */
+export const BLOCOS_BEM = Object.freeze(['medidor', 'aquisicao', 'depreciacao']);
+
+/** Listas sincronizadas por completo no PATCH (§5): medições e tanques. */
+export const LISTAS_BEM = Object.freeze(['medicoes', 'tanques']);
+
+/** Chaves com decimal em string (comparação ignora zeros à direita: "180.0000" = "180"). */
+const CHAVES_DECIMAIS = new Set([
+  'potencia_cv',
+  'leitura_inicial',
+  'leitura_atual',
+  'valor',
+  'capacidade_litros',
+  'valor_aquisicao',
+  'custo_incorporacao',
+  'valor_residual',
+  'residual_percentual',
+]);
+
+/** @param {unknown} v @returns {v is Record<string, any>} */
+const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+
+/** @param {unknown} v */
+const vazio = (v) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+
+/** Texto aparado; vazio = null. @param {unknown} v */
+const limpo = (v) => (typeof v === 'string' ? (v.trim() === '' ? null : v.trim()) : v === undefined ? null : v);
+
+/** Bloco sem chaves vazias (omitida = null no servidor). @param {Record<string, unknown>} bloco */
+const compactar = (bloco) => {
+  /** @type {Record<string, any>} */
+  const saida = {};
+  for (const [chave, valor] of Object.entries(bloco)) {
+    if (vazio(valor)) continue;
+    saida[chave] = typeof valor === 'string' ? valor.trim() : valor;
+  }
+  return saida;
+};
+
+/** "180.0000" → "180"; "0.50" → "0.5". @param {string} s */
+const decimalSemZeros = (s) => (/^\d+\.\d+$/.test(s) ? s.replace(/0+$/, '').replace(/\.$/, '') : s);
+
+/** Forma comparável (texto aparado, vazio = null, decimais sem zeros à direita). @param {unknown} v @param {string} [chave] @returns {unknown} */
+const normalizar = (v, chave = '') => {
+  if (v === undefined || v === null) return null;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '') return null;
+    return CHAVES_DECIMAIS.has(chave) ? decimalSemZeros(t) : t;
+  }
+  if (Array.isArray(v)) return v.map((item) => normalizar(item, chave === 'combustivel_ids' ? '' : chave));
+  if (ehObjeto(v)) {
+    /** @type {Record<string, unknown>} */
+    const saida = {};
+    for (const k of Object.keys(v).sort()) {
+      const n = normalizar(v[k], k);
+      if (n !== null) saida[k] = n;
+    }
+    return saida;
+  }
+  return v;
+};
+
+/** @param {unknown} a @param {unknown} b @param {string} chave */
+const iguais = (a, b, chave) => JSON.stringify(normalizar(a, chave)) === JSON.stringify(normalizar(b, chave));
+
+// ─── Blocos do corpo ─────────────────────────────────────────────────────
+
+/** @param {unknown} medidor @returns {Record<string, any>|null} */
+const corpoDoMedidor = (medidor) => {
+  if (!ehObjeto(medidor) || vazio(medidor.tipo)) return null;
+  return compactar({
+    tipo: medidor.tipo,
+    leitura_inicial: medidor.leitura_inicial,
+    leitura_atual: medidor.leitura_atual,
+    data_leitura: medidor.data_leitura,
+  });
+};
+
+/** @param {unknown} medicoes */
+const corpoDasMedicoes = (medicoes) =>
+  (Array.isArray(medicoes) ? medicoes : []).filter(ehObjeto).map((m) =>
+    compactar({
+      id: m.id,
+      perfil_id: m.perfil_id,
+      valor: m.valor,
+      unidade: m.unidade,
+      rotulo: m.rotulo,
+      principal: m.principal === true ? true : undefined,
+    }),
+  );
+
+/** @param {unknown} tanques @param {{ novo: boolean }} modo — na criação não há `id` nem `ativo` */
+const corpoDosTanques = (tanques, { novo }) =>
+  (Array.isArray(tanques) ? tanques : []).filter(ehObjeto).map((t) =>
+    compactar({
+      id: novo ? undefined : t.id,
+      identificador: t.identificador,
+      capacidade_litros: t.capacidade_litros,
+      combustivel_ids: Array.isArray(t.combustivel_ids) ? [...new Set(t.combustivel_ids.map(String))] : [],
+      observacao: t.observacao,
+      ativo: novo || !t.id ? undefined : t.ativo !== false,
+    }),
+  );
+
+/** @param {unknown} aquisicao */
+const corpoDaAquisicao = (aquisicao) =>
+  ehObjeto(aquisicao)
+    ? compactar({
+        data_aquisicao: aquisicao.data_aquisicao,
+        data_disponibilidade: aquisicao.data_disponibilidade,
+        valor_aquisicao: aquisicao.valor_aquisicao,
+        custo_incorporacao: aquisicao.custo_incorporacao,
+        fornecedor_parceiro_id: aquisicao.fornecedor_parceiro_id,
+        documento_referencia: aquisicao.documento_referencia,
+        garantia_ate: aquisicao.garantia_ate,
+      })
+    : {};
+
+/** Depreciação desligada = só `{depreciavel:false}` (o servidor limpa os parâmetros). @param {unknown} depreciacao */
+const corpoDaDepreciacao = (depreciacao) => {
+  if (!ehObjeto(depreciacao) || depreciacao.depreciavel !== true) return { depreciavel: false };
+  return compactar({
+    depreciavel: true,
+    metodo: depreciacao.metodo || 'LINEAR',
+    vida_util_meses: depreciacao.vida_util_meses,
+    residual_modo: depreciacao.residual_modo,
+    valor_residual: depreciacao.residual_modo === 'VALOR' ? depreciacao.valor_residual : undefined,
+    residual_percentual: depreciacao.residual_modo === 'PERCENTUAL' ? depreciacao.residual_percentual : undefined,
+    data_inicio_depreciacao: depreciacao.data_inicio_depreciacao,
+  });
+};
+
+/** @param {string} bloco @param {unknown} valor */
+const corpoDoBloco = (bloco, valor) => {
+  if (bloco === 'medidor') return corpoDoMedidor(valor);
+  if (bloco === 'aquisicao') return corpoDaAquisicao(valor);
+  return corpoDaDepreciacao(valor);
+};
+
+/** @param {unknown} ref */
+const idDe = (ref) => (ehObjeto(ref) && typeof ref.id === 'string' ? ref.id : null);
+
+// ─── Conversão detalhe → corpo ───────────────────────────────────────────
+
+/**
+ * Forma de edição (corpo) a partir do DETALHE do servidor. A tela usa para
+ * preencher o formulário; o PATCH mínimo compara contra ela.
+ * @param {any} detalhe
+ * @returns {Record<string, any>}
+ */
+export const formaDeEdicaoDoBem = (detalhe) => {
+  const d = ehObjeto(detalhe) ? detalhe : {};
+  /** @type {Record<string, any>} */
+  const forma = {};
+  for (const campo of CAMPOS_ESCALARES_BEM) forma[campo] = d[campo] ?? null;
+  forma.familia_id = idDe(d.familia) ?? d.familia_id ?? null;
+  forma.tipo_id = idDe(d.tipo) ?? d.tipo_id ?? null;
+  forma.proprietario_parceiro_id = idDe(d.proprietario) ?? d.proprietario_parceiro_id ?? null;
+  forma.responsavel_usuario_id = idDe(d.responsavel) ?? d.responsavel_usuario_id ?? null;
+  forma.centro_custo_id = idDe(d.centro_custo) ?? d.centro_custo_id ?? null;
+  forma.area_id = idDe(d.area) ?? d.area_id ?? null;
+  forma.medidor = ehObjeto(d.medidor)
+    ? { tipo: d.medidor.tipo ?? null, leitura_inicial: d.medidor.leitura_inicial ?? null, leitura_atual: d.medidor.leitura_atual ?? null, data_leitura: d.medidor.data_leitura ?? null }
+    : null;
+  forma.medicoes = (Array.isArray(d.medicoes) ? d.medicoes : []).filter(ehObjeto).map((m) => ({
+    id: m.id,
+    perfil_id: idDe(m.perfil) ?? m.perfil_id ?? null,
+    valor: m.valor_informado ?? null,
+    unidade: m.unidade_informada ?? null,
+    rotulo: m.rotulo ?? null,
+    principal: m.principal === true,
+  }));
+  forma.tanques = (Array.isArray(d.tanques) ? d.tanques : []).filter(ehObjeto).map((t) => ({
+    id: t.id,
+    identificador: t.identificador ?? '',
+    capacidade_litros: t.capacidade_litros ?? null,
+    combustivel_ids: (Array.isArray(t.combustiveis) ? t.combustiveis : []).map((c) => idDe(c)).filter(Boolean),
+    observacao: t.observacao ?? null,
+    ativo: t.ativo !== false,
+  }));
+  const aq = ehObjeto(d.aquisicao) ? d.aquisicao : {};
+  forma.aquisicao = {
+    data_aquisicao: aq.data_aquisicao ?? null,
+    data_disponibilidade: aq.data_disponibilidade ?? null,
+    valor_aquisicao: aq.valor_aquisicao ?? null,
+    custo_incorporacao: aq.custo_incorporacao ?? null,
+    fornecedor_parceiro_id: idDe(aq.fornecedor) ?? aq.fornecedor_parceiro_id ?? null,
+    documento_referencia: aq.documento_referencia ?? null,
+    garantia_ate: aq.garantia_ate ?? null,
+  };
+  const dp = ehObjeto(d.depreciacao) ? d.depreciacao : {};
+  forma.depreciacao = {
+    depreciavel: dp.depreciavel === true,
+    metodo: dp.metodo ?? null,
+    vida_util_meses: dp.vida_util_meses ?? null,
+    residual_modo: dp.residual_modo ?? null,
+    valor_residual: dp.valor_residual ?? null,
+    residual_percentual: dp.residual_percentual ?? null,
+    data_inicio_depreciacao: dp.data_inicio_depreciacao ?? null,
+  };
+  return forma;
+};
+
+// ─── Operações ───────────────────────────────────────────────────────────
+
+/**
+ * @param {string|null} empresaId
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean, natureza?: string|null, familiaId?: string|null, tipoId?: string|null }} [opts]
+ */
+export const listarBensPagina = async (empresaId, opts = {}) => {
+  if (!empresaId) return paginaVazia(opts.limit);
+  return listBensPatrimoniaisPage({
+    empresa_id: empresaId,
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+    natureza: opts.natureza || undefined,
+    familia_id: opts.familiaId || undefined,
+    tipo_id: opts.tipoId || undefined,
+  });
+};
+
+/** Detalhe completo (A13). @param {string|null} empresaId @param {string} id */
+export const detalharBem = async (empresaId, id) => {
+  const empresa = exigirEmpresa(empresaId, 'detalharBem', RESOURCE);
+  return getBemPatrimonial(id, empresa);
+};
+
+/**
+ * Criação: escalares não vazios + blocos/listas informados, numa transação no
+ * servidor. Tanques novos não levam `id` nem `ativo`.
+ * @param {string|null} empresaId @param {Record<string, any>} dados corpo (forma de edição)
+ */
+export const criarBem = async (empresaId, dados) => {
+  const empresa = exigirEmpresa(empresaId, 'criarBem', RESOURCE);
+  /** @type {Record<string, any>} */
+  const corpo = { empresa_id: empresa };
+  for (const campo of CAMPOS_ESCALARES_BEM) {
+    const valor = limpo(dados?.[campo]);
+    if (valor !== null) corpo[campo] = valor;
+  }
+  const medidor = corpoDoMedidor(dados?.medidor);
+  if (medidor) corpo.medidor = medidor;
+  const medicoes = corpoDasMedicoes(dados?.medicoes);
+  if (medicoes.length) corpo.medicoes = medicoes;
+  const tanques = corpoDosTanques(dados?.tanques, { novo: true });
+  if (tanques.length) corpo.tanques = tanques;
+  const aquisicao = corpoDaAquisicao(dados?.aquisicao);
+  if (Object.keys(aquisicao).length) corpo.aquisicao = aquisicao;
+  if (ehObjeto(dados?.depreciacao)) corpo.depreciacao = corpoDaDepreciacao(dados.depreciacao);
+  return createBemPatrimonial(corpo);
+};
+
+/**
+ * PATCH mínimo do agregado com `versao`:
+ *  - escalar alterado vai com o valor novo (vazio = `null`, limpa);
+ *  - bloco (`medidor`, `aquisicao`, `depreciacao`) alterado vai INTEIRO;
+ *    `medidor: null` só quando a tela retira o medidor (o servidor decide);
+ *  - lista (`medicoes`, `tanques`) alterada vai COMPLETA (sync no servidor:
+ *    medição ausente é removida; tanque gravado nunca some — inative-o).
+ * Sem mudança → nada é enviado.
+ * @param {string|null} empresaId @param {any} original detalhe aberto @param {Record<string, any>} dados corpo (forma de edição)
+ * @returns {Promise<{ alterado: boolean, registro: any }>}
+ */
+export const atualizarBem = async (empresaId, original, dados) => {
+  const empresa = exigirEmpresa(empresaId, 'atualizarBem', RESOURCE);
+  const antes = formaDeEdicaoDoBem(original);
+  /** @type {Record<string, any>} */
+  const corpo = {};
+  const temCampo = (/** @type {string} */ campo) => Object.prototype.hasOwnProperty.call(dados ?? {}, campo);
+  for (const campo of CAMPOS_ESCALARES_BEM) {
+    if (!temCampo(campo) || iguais(dados[campo], antes[campo], campo)) continue;
+    corpo[campo] = limpo(dados[campo]);
+  }
+  for (const bloco of BLOCOS_BEM) {
+    if (!temCampo(bloco)) continue;
+    const novo = corpoDoBloco(bloco, dados[bloco]);
+    if (iguais(novo, corpoDoBloco(bloco, antes[bloco]), bloco)) continue;
+    corpo[bloco] = novo;
+  }
+  if (temCampo('medicoes')) {
+    const novas = corpoDasMedicoes(dados.medicoes);
+    if (!iguais(novas, corpoDasMedicoes(antes.medicoes), 'medicoes')) corpo.medicoes = novas;
+  }
+  if (temCampo('tanques')) {
+    const novos = corpoDosTanques(dados.tanques, { novo: false });
+    if (!iguais(novos, corpoDosTanques(antes.tanques, { novo: false }), 'tanques')) corpo.tanques = novos;
+  }
+  if (!Object.keys(corpo).length) return { alterado: false, registro: original };
+  const registro = await updateBemPatrimonial(original.id, { empresa_id: empresa, versao: original.versao, ...corpo });
+  return { alterado: true, registro };
+};
+
+/**
+ * Inativar (`false`) ou reativar (`true`) o bem: corpo só com escopo, `versao`
+ * e `ativo` (exige a ação `inativar`). Nada é apagado.
+ * @param {string|null} empresaId @param {{ id: string, versao: number }} original @param {boolean} ativo
+ */
+export const alterarSituacaoBem = async (empresaId, original, ativo) => {
+  const empresa = exigirEmpresa(empresaId, 'alterarSituacaoBem', RESOURCE);
+  return updateBemPatrimonial(original.id, { empresa_id: empresa, versao: original.versao, ativo: ativo === true });
+};
+
+/**
+ * Prévia gerencial de depreciação linear (§6) — NÃO grava nada.
+ * @param {string|null} empresaId
+ * @param {{ valor_aquisicao: string, custo_incorporacao?: string|null, residual_modo: string, valor_residual?: string|null,
+ *   residual_percentual?: string|null, vida_util_meses: number, data_inicio_depreciacao: string }} parametros
+ */
+export const simularDepreciacao = async (empresaId, parametros) => {
+  const empresa = exigirEmpresa(empresaId, 'simularDepreciacao', RESOURCE);
+  const p = parametros ?? /** @type {any} */ ({});
+  return previaDepreciacaoBemPatrimonial({
+    empresa_id: empresa,
+    ...compactar({
+      valor_aquisicao: p.valor_aquisicao,
+      custo_incorporacao: p.custo_incorporacao,
+      residual_modo: p.residual_modo,
+      valor_residual: p.residual_modo === 'VALOR' ? p.valor_residual : undefined,
+      residual_percentual: p.residual_modo === 'PERCENTUAL' ? p.residual_percentual : undefined,
+      vida_util_meses: p.vida_util_meses,
+      data_inicio_depreciacao: p.data_inicio_depreciacao,
+    }),
+  });
+};
+
+/**
+ * Uma página de opções ATIVAS para os seletores do bem. Responsáveis,
+ * parceiros, centros de custo e áreas pedem a empresa (sem ela não há busca);
+ * os de catálogo não dependem dela. `tipos` aceita `familiaId`.
+ * @param {'familias'|'tipos'|'perfis-medicao'|'combustiveis'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
+ * @param {string|null} empresaId
+ * @param {{ q?: string, cursor?: string|null, limit?: number, familiaId?: string|null }} [opts]
+ */
+export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
+  if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso) && !empresaId) return { itens: [], has_more: false, next_cursor: null };
+  return listOpcoesBemPatrimonial(recurso, {
+    empresa_id: empresaId || undefined,
+    q: opts.q?.trim() || undefined,
+    cursor: opts.cursor || undefined,
+    limit: opts.limit ?? 50,
+    familia_id: opts.familiaId || undefined,
+  });
+};

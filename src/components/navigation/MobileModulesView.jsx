@@ -1,12 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
+  Boxes,
   Briefcase,
   Building2,
   ChevronRight,
   Coins,
   Droplet,
   Folder,
+  Fuel,
+  Gauge,
   Layers,
   LayoutGrid,
   ListChecks,
@@ -18,9 +21,12 @@ import {
   ReceiptText,
   Ruler,
   Search,
+  Shapes,
   Shield,
   SlidersHorizontal,
   Tag,
+  Tractor,
+  Truck,
   Users,
   Warehouse,
   X,
@@ -29,7 +35,7 @@ import { createPageUrl } from "@/utils";
 import { flattenMenuPages } from "@/lib/menuConfig";
 
 /** Ícone de cada módulo (id do `menuConfig`). */
-export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, administracao: Shield };
+export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, patrimonio: Truck, administracao: Shield };
 
 /** Ícone de cada tela (url do `menuConfig`). */
 export const ICONE_TELA = {
@@ -55,6 +61,12 @@ export const ICONE_TELA = {
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
   LancamentosFinanceiros: ReceiptText,
+  // D-PROD-156 — Patrimônio e Frota.
+  BensPatrimoniais: Tractor,
+  FamiliasPatrimoniais: Boxes,
+  TiposPatrimoniais: Shapes,
+  PerfisMedicao: Gauge,
+  Combustiveis: Fuel,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;

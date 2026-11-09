@@ -1,0 +1,15 @@
+export {
+  RECURSOS_OPCOES_PATRIMONIO,
+  RECURSOS_OPCOES_DA_EMPRESA,
+  listPatrimonioCatalogoPage,
+  getPatrimonioCatalogo,
+  createPatrimonioCatalogo,
+  updatePatrimonioCatalogo,
+  instalarPatrimonioCatalogoPadrao,
+  listBensPatrimoniaisPage,
+  getBemPatrimonial,
+  createBemPatrimonial,
+  updateBemPatrimonial,
+  previaDepreciacaoBemPatrimonial,
+  listOpcoesBemPatrimonial,
+} from './patrimonioApi.js';

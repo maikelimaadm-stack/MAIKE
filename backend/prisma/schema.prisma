@@ -111,6 +111,16 @@ model Cliente {
   titulosFinanceiros           TituloFinanceiro[]
   liquidacoesFinanceiras       LiquidacaoFinanceira[]
   estornosLiquidacao           LiquidacaoFinanceiraEstorno[]
+  // D-PROD-156 — Patrimônio e Frota P1-01 (cadastros de inventário).
+  familiasPatrimoniais         FamiliaPatrimonial[]
+  tiposPatrimoniais            TipoPatrimonial[]
+  tiposPatrimoniaisPerfis      TipoPatrimonialPerfil[]
+  perfisMedicao                PerfilMedicao[]
+  tiposCombustivel             TipoCombustivel[]
+  bensPatrimoniais             BemPatrimonial[]
+  medicoesBem                  MedicaoBem[]
+  tanquesBem                   TanqueBem[]
+  tanquesBemCombustiveis       TanqueBemCombustivel[]
 
   @@index([nome])
   @@index([ativo])
@@ -163,6 +173,8 @@ model Usuario {
   operacoesFinanceirasCanceladas  OperacaoFinanceira[]          @relation("OperacaoFinanceiraCanceladoPor")
   liquidacoesRegistradas          LiquidacaoFinanceira[]        @relation("LiquidacaoFinanceiraRegistradoPor")
   estornosLiquidacaoRegistrados   LiquidacaoFinanceiraEstorno[] @relation("LiquidacaoFinanceiraEstornoRegistradoPor")
+  // D-PROD-156 — responsável pelo bem patrimonial (FK composta por tenant).
+  bensPatrimoniaisResponsavel     BemPatrimonial[]              @relation("BemPatrimonialResponsavel")
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -568,6 +580,8 @@ model AreaPastagem {
   lancamentos   LancamentoTarefa[]
 
   posicoesRebanho PosicaoRebanho[]
+  // D-PROD-156 — localização opcional do bem patrimonial.
+  bensPatrimoniais BemPatrimonial[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -973,6 +987,8 @@ model Empresa {
   // D-PROD-155 — perfil financeiro e lançamentos da empresa.
   perfilFinanceiro       PerfilFinanceiroEmpresa?
   operacoesFinanceiras   OperacaoFinanceira[]
+  // D-PROD-156 — bens patrimoniais da fazenda (catálogos são do tenant).
+  bensPatrimoniais       BemPatrimonial[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1029,6 +1045,9 @@ model Fornecedor {
   // D-PROD-155 — o parceiro do lançamento e dos títulos.
   operacoesFinanceiras OperacaoFinanceira[]
   titulosFinanceiros   TituloFinanceiro[]
+  // D-PROD-156 — proprietário (bem de terceiro) e fornecedor da aquisição.
+  bensComoProprietario BemPatrimonial[]   @relation("BemPatrimonialProprietario")
+  bensComoFornecedor   BemPatrimonial[]   @relation("BemPatrimonialFornecedor")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_cadastro])
@@ -1829,6 +1848,8 @@ model CentroCusto {
   filhos   CentroCusto[]          @relation("CentroCustoArvore")
   vinculos CentroCustoResultado[]
   rateiosFinanceiros OperacaoFinanceiraRateio[]
+  // D-PROD-156 — centro de custo do bem (mesma empresa pela FK composta).
+  bensPatrimoniais BemPatrimonial[]
 
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
@@ -2216,4 +2237,311 @@ model LiquidacaoFinanceiraEstorno {
   @@unique([cliente_id, id])
   @@unique([cliente_id, liquidacao_id])
   @@index([cliente_id, empresa_id, titulo_id])
+}
+
+
+// ---------------------------------------------------------------------------
+// D-PROD-156 — Patrimônio e Frota P1-01: cadastros nativos de inventário.
+// Catálogos do TENANT (família, tipo, perfil de medição, combustível; sem
+// empresa, como UnidadeMedida/LocalEstoque) e o bem da EMPRESA (fazenda atual,
+// FK composta). O bem é a raiz do agregado: medições, medidor e tanques só
+// mudam pelo POST/PATCH do bem, numa transação, com CAS por `versao`. Sem
+// abastecimento, manutenção, consumo, estoque, financeiro ou contabilidade: a
+// depreciação é só PRÉVIA simulada (nada é gravado). Domínios fechados por
+// CHECK SQL (sem enum Prisma); toda FK para tabela tenant inclui `cliente_id`.
+// ---------------------------------------------------------------------------
+
+/// Família patrimonial ("Máquinas", "Benfeitorias"...). `natureza` define as
+/// capacidades do bem (medições, medidor, tanques); IMUTÁVEL depois de criada.
+/// Domínios (CHECK): natureza BENFEITORIA|MAQUINA|VEICULO|IMPLEMENTO|EQUIPAMENTO|OUTRO;
+/// codigo `^[A-Z0-9_]{2,32}$`; ordem 0..9999; vida útil 1..1200 meses.
+model FamiliaPatrimonial {
+  id                     String   @id @default(cuid())
+  cliente_id             String   @db.VarChar(64)
+  codigo                 String   @db.VarChar(32)
+  nome                   String   @db.VarChar(120)
+  natureza               String   @db.VarChar(16)
+  descricao              String?  @db.VarChar(500)
+  ordem                  Int?
+  vida_util_meses_padrao Int?
+  ativo                  Boolean  @default(true)
+  versao                 Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  cliente Cliente           @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipos   TipoPatrimonial[]
+  bens    BemPatrimonial[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, codigo])
+  @@unique([cliente_id, nome])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Tipo patrimonial ("Trator de pneus", "Curral"...) de UMA família
+/// (`familia_id` IMUTÁVEL). Perfis de medição sugeridos só para família BENFEITORIA.
+model TipoPatrimonial {
+  id                       String   @id @default(cuid())
+  cliente_id               String   @db.VarChar(64)
+  familia_id               String   @db.VarChar(64)
+  codigo                   String   @db.VarChar(32)
+  nome                     String   @db.VarChar(120)
+  descricao                String?  @db.VarChar(500)
+  vida_util_meses_sugerida Int?
+  ativo                    Boolean  @default(true)
+  versao                   Int      @default(1)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  cliente Cliente                 @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  familia FamiliaPatrimonial      @relation(fields: [cliente_id, familia_id], references: [cliente_id, id], onDelete: Restrict)
+  perfis  TipoPatrimonialPerfil[]
+  bens    BemPatrimonial[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, codigo])
+  @@unique([cliente_id, familia_id, nome])
+  @@index([cliente_id, familia_id, ativo])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Perfil de medição sugerido para o tipo (sync completo pelo POST/PATCH do
+/// tipo). `principal` é `true` ou NULL (CHECK): a unique com `principal`
+/// garante no máximo UM principal por tipo (NULLs não colidem).
+model TipoPatrimonialPerfil {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  tipo_id    String   @db.VarChar(64)
+  perfil_id  String   @db.VarChar(64)
+  principal  Boolean?
+  ordem      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipo    TipoPatrimonial @relation(fields: [cliente_id, tipo_id], references: [cliente_id, id], onDelete: Restrict)
+  perfil  PerfilMedicao   @relation(fields: [cliente_id, perfil_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, tipo_id, perfil_id])
+  @@unique([cliente_id, tipo_id, principal])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Perfil de medição física (Extensão, Área, Volume...). `dimensao` e
+/// `finalidade` IMUTÁVEIS; `unidade_canonica` derivada da dimensão (CHECK:
+/// EXTENSAO→m, AREA→m2, VOLUME→L, MASSA→kg, QUANTIDADE→un, CABECAS→cab);
+/// `unidades_permitidas` ⊂ unidades da dimensão e contém a canônica (CHECK).
+model PerfilMedicao {
+  id                  String   @id @default(cuid())
+  cliente_id          String   @db.VarChar(64)
+  codigo              String   @db.VarChar(32)
+  nome                String   @db.VarChar(120)
+  dimensao            String   @db.VarChar(16)
+  finalidade          String   @db.VarChar(16)
+  unidade_canonica    String   @db.VarChar(8)
+  unidades_permitidas String[]
+  descricao           String?  @db.VarChar(500)
+  ativo               Boolean  @default(true)
+  versao              Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  cliente     Cliente                 @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tiposPerfis TipoPatrimonialPerfil[]
+  medicoes    MedicaoBem[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, codigo])
+  @@unique([cliente_id, nome])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Tipo de combustível (catálogo CLASSIFICATÓRIO: sem preço, custo, saldo nem
+/// Produto neste slice). `unidade` L | m3 (CHECK), IMUTÁVEL.
+model TipoCombustivel {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  codigo     String   @db.VarChar(32)
+  nome       String   @db.VarChar(120)
+  unidade    String   @default("L") @db.VarChar(4)
+  descricao  String?  @db.VarChar(500)
+  ativo      Boolean  @default(true)
+  versao     Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tanques TanqueBemCombustivel[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, codigo])
+  @@unique([cliente_id, nome])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Bem patrimonial da EMPRESA (fazenda atual). `numero` pela sequência do
+/// tenant (IMUTÁVEL); `natureza` copiada da família na criação (IMUTÁVEL).
+/// Domínios (CHECK): propriedade PROPRIO|TERCEIRO|ARRENDADO|CEDIDO; medidor
+/// SEM_MEDIDOR|HORIMETRO(h)|ODOMETRO(km)|CICLOS(ciclos), obrigatório para
+/// MAQUINA/VEICULO/EQUIPAMENTO e proibido para BENFEITORIA; origem da leitura
+/// CADASTRO_INICIAL|AJUSTE_CADASTRO; depreciação LINEAR só para bem PROPRIO,
+/// residual VALOR xor PERCENTUAL. A depreciação aqui são só PARÂMETROS: nenhum
+/// valor contábil, cota ou lançamento é gravado.
+model BemPatrimonial {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  numero                   String    @db.VarChar(32)
+  codigo_frota             String?   @db.VarChar(16)
+  nome                     String    @db.VarChar(120)
+  natureza                 String    @db.VarChar(16)
+  familia_id               String    @db.VarChar(64)
+  tipo_id                  String    @db.VarChar(64)
+  propriedade              String    @default("PROPRIO") @db.VarChar(16)
+  proprietario_parceiro_id String?   @db.VarChar(64)
+  responsavel_usuario_id   String?   @db.VarChar(64)
+  centro_custo_id          String?   @db.VarChar(64)
+  area_id                  String?   @db.VarChar(64)
+  localizacao_descricao    String?   @db.VarChar(255)
+  marca                    String?   @db.VarChar(80)
+  modelo                   String?   @db.VarChar(80)
+  ano_fabricacao           Int?
+  ano_modelo               Int?
+  numero_serie             String?   @db.VarChar(40)
+  chassi                   String?   @db.VarChar(17)
+  placa                    String?   @db.VarChar(8)
+  placa_uf                 String?   @db.VarChar(2)
+  renavam                  String?   @db.VarChar(11)
+  potencia_cv              Decimal?  @db.Decimal(14, 4)
+  material                 String?   @db.VarChar(80)
+  ano_conclusao            Int?
+  compatibilidade          String?   @db.VarChar(255)
+  especificacoes           String?   @db.VarChar(1000)
+  observacoes              String?   @db.VarChar(2000)
+  medidor_tipo             String?   @db.VarChar(16)
+  medidor_unidade          String?   @db.VarChar(8)
+  medidor_leitura_inicial  Decimal?  @db.Decimal(14, 4)
+  medidor_leitura_atual    Decimal?  @db.Decimal(14, 4)
+  medidor_data_leitura     DateTime? @db.Date
+  medidor_origem           String?   @db.VarChar(24)
+  data_aquisicao           DateTime? @db.Date
+  data_disponibilidade     DateTime? @db.Date
+  valor_aquisicao          Decimal?  @db.Decimal(18, 4)
+  custo_incorporacao       Decimal?  @db.Decimal(18, 4)
+  fornecedor_parceiro_id   String?   @db.VarChar(64)
+  documento_referencia     String?   @db.VarChar(80)
+  garantia_ate             DateTime? @db.Date
+  depreciavel              Boolean   @default(false)
+  depreciacao_metodo       String?   @db.VarChar(16)
+  vida_util_meses          Int?
+  residual_modo            String?   @db.VarChar(16)
+  valor_residual           Decimal?  @db.Decimal(18, 4)
+  residual_percentual      Decimal?  @db.Decimal(9, 6)
+  data_inicio_depreciacao  DateTime? @db.Date
+  ativo                    Boolean   @default(true)
+  versao                   Int       @default(1)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente      Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa      Empresa            @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  familia      FamiliaPatrimonial @relation(fields: [cliente_id, familia_id], references: [cliente_id, id], onDelete: Restrict)
+  tipo         TipoPatrimonial    @relation(fields: [cliente_id, tipo_id], references: [cliente_id, id], onDelete: Restrict)
+  proprietario Fornecedor?        @relation("BemPatrimonialProprietario", fields: [cliente_id, proprietario_parceiro_id], references: [cliente_id, id], onDelete: Restrict)
+  fornecedor   Fornecedor?        @relation("BemPatrimonialFornecedor", fields: [cliente_id, fornecedor_parceiro_id], references: [cliente_id, id], onDelete: Restrict)
+  responsavel  Usuario?           @relation("BemPatrimonialResponsavel", fields: [cliente_id, responsavel_usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  centroCusto  CentroCusto?       @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  area         AreaPastagem?      @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  medicoes     MedicaoBem[]
+  tanques      TanqueBem[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, numero])
+  /// Código de frota único por empresa quando presente (NULLs não colidem).
+  @@unique([cliente_id, empresa_id, codigo_frota])
+  @@index([cliente_id, empresa_id, createdAt, id])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, familia_id])
+  @@index([cliente_id, tipo_id])
+  /// Bloqueio de exclusão de parceiro (PARCEIRO_EM_USO) e checagem da FK.
+  @@index([cliente_id, proprietario_parceiro_id])
+  @@index([cliente_id, fornecedor_parceiro_id])
+  @@index([cliente_id, responsavel_usuario_id])
+  @@index([cliente_id, empresa_id, centro_custo_id])
+  @@index([cliente_id, area_id])
+}
+
+/// Medição física de benfeitoria (atributo do bem): valor informado na
+/// unidade escolhida e normalizado na canônica do perfil por fator EXATO
+/// (km=1000 m, ha=10000 m², m³=1000 L, t=1000 kg; CHECK). Um perfil por bem;
+/// `principal` true|NULL, no máximo um por bem.
+model MedicaoBem {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  bem_id            String   @db.VarChar(64)
+  perfil_id         String   @db.VarChar(64)
+  rotulo            String?  @db.VarChar(80)
+  valor_informado   Decimal  @db.Decimal(14, 4)
+  unidade_informada String   @db.VarChar(8)
+  valor_normalizado Decimal  @db.Decimal(22, 4)
+  unidade_canonica  String   @db.VarChar(8)
+  principal         Boolean?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  bem     BemPatrimonial @relation(fields: [cliente_id, bem_id], references: [cliente_id, id], onDelete: Restrict)
+  perfil  PerfilMedicao  @relation(fields: [cliente_id, perfil_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, bem_id, perfil_id])
+  @@unique([cliente_id, bem_id, principal])
+  @@index([cliente_id, perfil_id])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Tanque de combustível do bem (MAQUINA/VEICULO/EQUIPAMENTO). Nunca removido,
+/// só inativado; o identificador de tanque inativo continua reservado no bem.
+/// Sem `versao` própria: o CAS é o do bem (raiz do agregado).
+model TanqueBem {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  bem_id            String   @db.VarChar(64)
+  identificador     String   @db.VarChar(40)
+  capacidade_litros Decimal  @db.Decimal(14, 4)
+  observacao        String?  @db.VarChar(255)
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  bem          BemPatrimonial         @relation(fields: [cliente_id, bem_id], references: [cliente_id, id], onDelete: Restrict)
+  combustiveis TanqueBemCombustivel[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, bem_id, identificador])
+  @@index([cliente_id, createdAt, id])
+}
+
+/// Combustível aceito pelo tanque (N:N; o tanque flex tem mais de um). Vínculo
+/// é atributo do tanque: o sync do bem o remove fisicamente (auditado).
+model TanqueBemCombustivel {
+  id             String   @id @default(cuid())
+  cliente_id     String   @db.VarChar(64)
+  tanque_id      String   @db.VarChar(64)
+  combustivel_id String   @db.VarChar(64)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cliente     Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tanque      TanqueBem       @relation(fields: [cliente_id, tanque_id], references: [cliente_id, id], onDelete: Restrict)
+  combustivel TipoCombustivel @relation(fields: [cliente_id, combustivel_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, tanque_id, combustivel_id])
+  @@index([cliente_id, combustivel_id])
+  @@index([cliente_id, createdAt, id])
 }

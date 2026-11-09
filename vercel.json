@@ -62,6 +62,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/familiaspatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/FamiliasPatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/configuracoesgerais/",
       "destination": "/index.html"
     },
@@ -78,11 +86,27 @@
       "destination": "/index.html"
     },
     {
+      "source": "/familiaspatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/FamiliasPatrimoniais",
+      "destination": "/index.html"
+    },
+    {
       "source": "/configuracoesgerais",
       "destination": "/index.html"
     },
     {
       "source": "/ConfiguracoesGerais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tipospatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposPatrimoniais/",
       "destination": "/index.html"
     },
     {
@@ -107,6 +131,22 @@
     },
     {
       "source": "/CentrosResultado/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/benspatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/BensPatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tipospatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposPatrimoniais",
       "destination": "/index.html"
     },
     {
@@ -139,6 +179,14 @@
     },
     {
       "source": "/CentrosResultado",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/benspatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/BensPatrimoniais",
       "destination": "/index.html"
     },
     {
@@ -182,6 +230,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/perfismedicao/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/PerfisMedicao/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/cadastrolotes",
       "destination": "/index.html"
     },
@@ -214,6 +270,22 @@
       "destination": "/index.html"
     },
     {
+      "source": "/perfismedicao",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/PerfisMedicao",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/combustiveis/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Combustiveis/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -235,6 +307,14 @@
     },
     {
       "source": "/CentrosCusto",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/combustiveis",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Combustiveis",
       "destination": "/index.html"
     },
     {
