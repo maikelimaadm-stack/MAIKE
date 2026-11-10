@@ -2,7 +2,7 @@
  * D-PROD-159 — Patrimônio P1-02: abastecimento × segurança (S1–S9 do
  * contrato §9.1). PostgreSQL real, HTTP autenticado, prova por linhas gravadas.
  *
- *  S1 401 sem sessão (ou token inválido) nas 15 rotas
+ *  S1 401 sem sessão (ou token inválido) nas 16 rotas (A16 `produtos-do-bem`: D-PROD-160)
  *  S2 403 pela matriz da tela `pat-abastecimentos` (negado por padrão; ações extras próprias)
  *  S3 404 entre tenants e fazendas, sem oráculo (mesmo corpo do inexistente)
  *  S4 corpo/query fechados e decimais só como texto → 400; nada gravado
@@ -47,7 +47,7 @@ const estoqueAtual = async (produto) => p4((await prisma().produto.findUnique({ 
 const replacer = (_k, v) => (typeof v === 'bigint' ? v.toString() : v);
 
 /**
- * As 15 rotas com entradas VÁLIDAS pelo schema e que, passando pela guarda, não
+ * As 16 rotas com entradas VÁLIDAS pelo schema e que, passando pela guarda, não
  * gravam nada (versão/fator vistos de propósito velhos → 409 de negócio).
  * @param {any} s @param {{ ab: string, conv: string }} ids
  */
@@ -69,16 +69,17 @@ const rotas = (s, { ab, conv }) => [
     empresa_id: s.e1.id, tipo_combustivel_id: s.comb.DIESEL_S10, produto_id: s.diesel.id, kg_por_litro: '0.850000', declara_estoque_em_kg: true, conversao_vigente_id: 'nao-e-a-vigente',
   }],
   ['A15', 'configurar', 'POST', `/patrimonio-conversoes-combustivel/${conv}/encerrar`, { empresa_id: s.e1.id, versao: 99 }],
+  ['A16', 'ver', 'GET', `/patrimonio-abastecimentos-opcoes/produtos-do-bem?empresa_id=${s.e1.id}&bem_id=${s.trator.id}`],
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S1–S2 — sessão e permissões da tela pat-abastecimentos', () => {
-  test('S1: sem token e com token inválido → 401 TENANT_CONTEXT_REQUIRED nas 15 rotas; S2: matriz 403 (negado por padrão; ações extras próprias; is_admin e administrador real passam); nada gravado', async () => {
+  test('S1: sem token e com token inválido → 401 TENANT_CONTEXT_REQUIRED nas 16 rotas; S2: matriz 403 (negado por padrão; ações extras próprias; is_admin e administrador real passam); nada gravado', async () => {
     const s = await montarAbastecimento(app);
     const ab = await A.confirmarOk(s.operador.token, corpoAbastecimento(s));
     const ids = { ab: ab.id, conv: s.fator.diesel.id };
     const R = rotas(s, ids);
-    assert.equal(R.length, 15);
+    assert.equal(R.length, 16);
 
     // ── S1 ──
     for (const [id, , metodo, url, corpo] of R) {
@@ -147,6 +148,7 @@ describe('S3 — isolamento entre tenants e fazendas', () => {
       ['confirmar com bem de outro tenant', t.trator.id, (id) => A.confirmar(s.operador.token, corpoAbastecimento(s, { bem_id: id })), [404, 'BEM_PATRIMONIAL_NAO_ENCONTRADO']],
       ['consumo de bem de outro tenant', t.trator.id, (id) => A.consumo(s.token, s.e1.id, id), [404, 'BEM_PATRIMONIAL_NAO_ENCONTRADO']],
       ['tanques de bem de outro tenant', t.trator.id, (id) => A.opcoes(s.token, 'tanques', `empresa_id=${s.e1.id}&bem_id=${id}`), [404, 'BEM_PATRIMONIAL_NAO_ENCONTRADO']],
+      ['produtos do bem de outro tenant', t.trator.id, (id) => A.produtosDoBem(s.token, s.e1.id, id), [404, 'BEM_PATRIMONIAL_NAO_ENCONTRADO']],
       ['locais de produto de outro tenant', t.diesel.id, (id) => A.opcoes(s.token, 'locais', `empresa_id=${s.e1.id}&produto_id=${id}`), [404, 'PRODUTO_NOT_FOUND']],
       ['encerrar fator de outro tenant', t.fator.diesel.id, (id) => A.req('POST', `/patrimonio-conversoes-combustivel/${id}/encerrar`, s.token, { empresa_id: s.e1.id, versao: 1 }), [404, 'CONVERSAO_COMBUSTIVEL_NAO_ENCONTRADA']],
       ['fator para produto de outro tenant', t.diesel.id, (id) => A.req('POST', '/patrimonio-conversoes-combustivel', s.token, {
@@ -207,6 +209,7 @@ describe('S4 — corpo e query fechados; decimais só como texto', () => {
       ['A1 query com cliente_id', () => A.lista(s.token, s.e1.id, `&cliente_id=${s.c}`)],
       ['A1 query com campo extra', () => A.lista(s.token, s.e1.id, '&ordem=asc')],
       ['A12 query com campo extra', () => A.opcoes(s.token, 'locais', `empresa_id=${s.e1.id}&produto_id=${s.diesel.id}&todos=1`)],
+      ['A16 query com cliente_id', () => A.produtosDoBem(s.token, s.e1.id, s.trator.id, `&cliente_id=${s.c}`)],
     ];
     for (const [rotulo, chamar, field, reason] of casos) {
       const r = await chamar();
