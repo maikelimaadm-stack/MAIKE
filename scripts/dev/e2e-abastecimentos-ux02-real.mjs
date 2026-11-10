@@ -855,6 +855,39 @@ const executarLargura = async (browser, largura) => {
       if (cabecalhos.length) igual(cabecalhos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] colunas padrão da lista`);
       const textoLista = await textoDe(page.locator('main'));
       conferir(textoLista.includes(A.nome) && textoLista.includes(B.nome), `[${rotulo}] lista sem os dois Produtos da época`);
+      // Situação de cada abastecimento sem abrir o registro (contrato §1.4):
+      // tabela → célula "Situação"; celular → card (título = máquina; Produto ·
+      // Litros · Data · Situação). Um Cancelado não pode parecer Confirmado.
+      const dia = s.hoje.split('-').reverse().join('/');
+      const cards = await page
+        .getByTestId('b1-card')
+        .filter({ visible: true })
+        .evaluateAll((els) =>
+          els.map((e) => ({
+            titulo: (e.querySelector('.mg-b1-card__title')?.textContent || '').trim(),
+            sub: (e.querySelector('.mg-b1-card__sub')?.textContent || '').trim(),
+            campos: [...e.querySelectorAll('.mg-b1-card__label')].map((dt) => `${(dt.textContent || '').trim()} ${(dt.nextElementSibling?.textContent || '').trim()}`),
+            texto: (e.textContent || '').replace(/\s+/g, ' ').trim(),
+          })),
+        );
+      if (cards.length) {
+        const doCard = (litros) => cards.find((c) => c.campos.some((f) => f === `Litros: ${litros}`));
+        for (const [nomeAb, litros, produto, situacao] of [
+          ['A', reg.A.litros, A.nome, 'Cancelado'],
+          ['B', reg.B.litros, B.nome, 'Confirmado'],
+        ]) {
+          const c = doCard(litros);
+          if (!conferir(c, `[${rotulo}] card do abastecimento ${nomeAb} (${litros}) ausente; cards: ${json(cards)}`)) continue;
+          igual(c.titulo, 'TR-01 — Trator 01', `[${rotulo}] card ${nomeAb}: título (Máquina/Veículo)`);
+          conferir(c.texto.includes(situacao), `[${rotulo}] card ${nomeAb}: Situação "${situacao}" ausente no card "${c.texto}"`);
+          conferir(c.campos.includes(`Produto: ${produto}`), `[${rotulo}] card ${nomeAb}: Produto da época (${produto}) — campos ${c.campos.join(' / ')}`);
+          conferir(c.campos.includes(`Data: ${dia}`), `[${rotulo}] card ${nomeAb}: Data ${dia} — campos ${c.campos.join(' / ')}`);
+        }
+        console.log(`  [${rotulo}] cards: ${cards.map((c) => `${c.titulo} | ${c.sub} | ${c.campos.join(' · ')}`).join(' // ')}`);
+      } else {
+        igual(await textoDe(page.getByTestId(`abastecimento-situacao-${reg.A.id}`)), 'Cancelado', `[${rotulo}] lista: Situação de A`);
+        igual(await textoDe(page.getByTestId(`abastecimento-situacao-${reg.B.id}`)), 'Confirmado', `[${rotulo}] lista: Situação de B`);
+      }
       await shot('lista-a-e-b');
     });
 
