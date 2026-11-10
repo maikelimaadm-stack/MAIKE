@@ -171,6 +171,27 @@ export const listarOpcoesAbastecimento = async (recurso, empresaId, opts = {}) =
 };
 
 /**
+ * Produtos que o operador escolhe para o bem (A16, D-PROD-160): cada item é um
+ * PRODUTO com o tipo de combustível derivado do vínculo ativo, os tanques do
+ * bem que o aceitam e o fator vigente (ou `pronto:false`); `resumo` é do
+ * conjunto inteiro (motivo quando não há opção). Sem empresa ou sem bem: vazio,
+ * nada é lido.
+ * @param {string|null} empresaId @param {string|null} bemId
+ * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ * @returns {Promise<{ bem: any, itens: any[], has_more: boolean, next_cursor: string|null, resumo: any }>}
+ */
+export const listarProdutosDoBem = async (empresaId, bemId, opts = {}) => {
+  if (!empresaId || !bemId) return { bem: null, itens: [], has_more: false, next_cursor: null, resumo: null };
+  return listOpcoesAbastecimento('produtos-do-bem', {
+    empresa_id: empresaId,
+    bem_id: bemId,
+    q: textoOuIndefinido(opts.q),
+    cursor: textoOuIndefinido(opts.cursor),
+    limit: opts.limit,
+  });
+};
+
+/**
  * Consumo do bem (km/L ou L/h pelo método do tanque cheio).
  * @param {string|null} empresaId @param {string} bemId @param {{ tanqueId?: string|null, limit?: number }} [opts]
  */

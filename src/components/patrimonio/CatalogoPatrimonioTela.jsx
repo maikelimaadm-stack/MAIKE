@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   RECURSOS_CATALOGO,
   alterarSituacaoCatalogo,
@@ -10,6 +10,9 @@ import {
   listarCatalogoPagina,
   resumoCatalogoPadrao,
 } from "@/services/patrimonioCatalogoService";
+import { associarProdutosAoCombustivel, buscarCombustivelPorCodigo, localizarCombustivelCriado } from "@/services/combustivelProdutoService";
+import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import { listEmpresas } from "@/services/empresaService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
@@ -22,7 +25,7 @@ import FormularioFamilia, { FORMULARIO_FAMILIA_ID } from "@/components/patrimoni
 import FormularioTipo, { FORMULARIO_TIPO_ID } from "@/components/patrimonio/FormularioTipo";
 import FormularioPerfilMedicao, { FORMULARIO_PERFIL_MEDICAO_ID } from "@/components/patrimonio/FormularioPerfilMedicao";
 import FormularioCombustivel, { FORMULARIO_COMBUSTIVEL_ID } from "@/components/patrimonio/FormularioCombustivel";
-import ProdutosDoCombustivel from "@/components/patrimonio/ProdutosDoCombustivel";
+import ProdutosDoCombustivel, { aplicarResultadoDoLote } from "@/components/patrimonio/ProdutosDoCombustivel";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
@@ -149,6 +152,17 @@ function ResumoCatalogoPadrao({ resumo, onFechar }) {
   );
 }
 
+/** Erro local da criação de combustível com resultado incerto: a mensagem já é a final. */
+const erroDeCriacao = (/** @type {string} */ mensagem) => Object.assign(new Error(mensagem), { mensagemCriacao: mensagem });
+
+const SUFIXO_CRIACAO_INCERTA = " A resposta do servidor não chegou, mas o combustível foi gravado.";
+const MENSAGEM_NAO_GRAVADO = "O combustível não foi gravado. Salve de novo.";
+const MENSAGEM_NAO_CONFIRMADO =
+  "Não foi possível confirmar se o combustível foi gravado. Confira a lista antes de salvar de novo: o código não se repete.";
+const MENSAGEM_JA_EXISTE = "Já existe um combustível com este código. Confira a lista; nada foi criado nem associado.";
+const AVISO_FAZENDA_MUDOU_NA_CRIACAO =
+  "Combustível criado, mas nenhum Produto foi associado. A fazenda mudou: os Produtos escolhidos eram da fazenda anterior e foram retirados. Escolha de novo.";
+
 const MENSAGEM_VERSAO_RECARREGADA =
   "Este cadastro foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
 
@@ -161,7 +175,11 @@ const MENSAGEM_VERSAO_RECARREGADA =
  * Ativo no formulário: inativar/reativar é ação do menu (com confirmação) e
  * exige a ação extra `inativar`. Nas Famílias, o administrador instala o
  * catálogo padrão (idempotente) e vê o resumo. Nos Combustíveis, o registro
- * aberto mostra os produtos vinculados NA fazenda selecionada (R2).
+ * aberto (leitura E edição) mostra os Produtos associados NA fazenda
+ * selecionada (R2), e a criação escolhe os Produtos antes de salvar (UX-02,
+ * D-PROD-160): cria o combustível, associa cada Produto pelos endpoints
+ * existentes e mostra o resultado explícito — nunca "sucesso" com falha, e
+ * repetir só reenvia os Produtos que falharam ao MESMO combustível.
  *
  * @param {{ recurso: 'familias'|'tipos'|'perfis-medicao'|'combustiveis' }} props
  */
@@ -171,6 +189,48 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const acoes = useAcoesTelaPatrimonio(cfg.tela);
   // Só os Combustíveis usam a empresa: os produtos vinculados são POR fazenda (R2).
   const empresaId = useEmpresaRealSelecionadaId();
+  const ehCombustiveis = recurso === RECURSOS_CATALOGO.COMBUSTIVEIS;
+  // A fazenda AGORA (a criação compara com a fazenda dos Produtos escolhidos).
+  const empresaAtualRef = useRef(empresaId);
+  empresaAtualRef.current = empresaId;
+  // Nome da fazenda para "Fazenda: …" (mesma consulta/chave do Layout e de Abastecimentos).
+  const empresasQuery = useQuery({
+    queryKey: ["empresas"],
+    queryFn: () => listEmpresas(),
+    enabled: ehCombustiveis && Boolean(empresaId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  /** @param {string|null} id */
+  const nomeDaEmpresa = (id) => {
+    const empresa = id ? (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(id)) : null;
+    return typeof empresa?.nome === "string" && empresa.nome.trim() ? empresa.nome.trim() : null;
+  };
+  const empresaNome = ehCombustiveis ? nomeDaEmpresa(empresaId) : null;
+  // "Não associados" por empresa+combustível (da criação e da seção do registro):
+  // sobrevivem à remontagem da seção e reaparecem ao voltar para a mesma fazenda e registro.
+  const [falhasPorRegistro, setFalhasPorRegistro] = useState(
+    /** @type {Record<string, Array<{ id: string, nome: string, codigo: string|null, mensagem: string }>>} */ ({}),
+  );
+  /**
+   * Aplica o DELTA de um lote à entrada `empresa:combustível` (atualização
+   * funcional): uma resposta atrasada de um lote antigo não apaga a falha de
+   * um lote mais novo do mesmo registro.
+   * @param {string} emp @param {string} tipo @param {import("@/components/patrimonio/ProdutosDoCombustivel").ResultadoDoLote} lote
+   */
+  const guardarFalhasDoRegistro = (emp, tipo, lote) =>
+    setFalhasPorRegistro((atual) => {
+      const chave = `${emp}:${tipo}`;
+      const falhas = aplicarResultadoDoLote(atual[chave] ?? [], lote);
+      if (falhas.length) return { ...atual, [chave]: falhas };
+      if (!(chave in atual)) return atual;
+      const resto = { ...atual };
+      delete resto[chave];
+      return resto;
+    });
+  // Fazenda e registro com a seção de Produtos NA TELA agora (o aviso de uma
+  // associação que termina depois de trocar de fazenda ou de registro diz onde ver "Não associados").
+  const telaAtualRef = useRef(/** @type {{ empresaId: string|null, tipoId: string|null }} */ ({ empresaId: null, tipoId: null }));
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
   const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
@@ -253,20 +313,130 @@ export default function CatalogoPatrimonioTela({ recurso }) {
     notifyWarning("Atenção", mensagemErroPatrimonio(err, fallback));
   };
 
+  /**
+   * Combustível: cria e associa os Produtos escolhidos (resultado por Produto).
+   * Antes do POST confere o código: já existe → nada é criado nem associado.
+   * Criação incerta (rede/prazo/falha interna) → procura pelo código único;
+   * só é deste pedido o que não existia na conferência (mesmo nome, ativo) →
+   * segue como criado (sem 2º POST); não achou → "não foi gravado"; achou
+   * outro → "já existe"; leitura falhou ou conferência sem resposta → pede
+   * conferência. Nunca recria às cegas nem dá como criado o que já existia.
+   * @param {Record<string, any>} data
+   */
+  const criarCombustivel = async (data) => {
+    const pendentes = Array.isArray(data.produtos_pendentes) ? data.produtos_pendentes : [];
+    const empresaDosPendentes = typeof data.empresa_pendentes === "string" && data.empresa_pendentes ? data.empresa_pendentes : null;
+    const codigo = String(data.codigo ?? "");
+    /** @type {any} */
+    let existente = null;
+    let ausenteAntes = false;
+    try {
+      existente = await buscarCombustivelPorCodigo(codigo);
+      ausenteAntes = !existente;
+    } catch {
+      // Sem resposta: o POST segue (o servidor barra o código repetido), mas uma
+      // resposta perdida não poderá dar o achado como deste pedido.
+    }
+    if (existente) throw erroDeCriacao(MENSAGEM_JA_EXISTE);
+    /** @type {any} */
+    let criado;
+    let incerto = false;
+    try {
+      criado = await criarCatalogo(recurso, data);
+    } catch (err) {
+      if (!ehResultadoIncerto(err)) throw err;
+      /** @type {Awaited<ReturnType<typeof localizarCombustivelCriado>>} */
+      let achado;
+      try {
+        achado = await localizarCombustivelCriado({ codigo, nome: String(data.nome ?? ""), ausenteAntes });
+      } catch {
+        throw erroDeCriacao(MENSAGEM_NAO_CONFIRMADO);
+      }
+      if (achado.situacao === "ausente") throw erroDeCriacao(MENSAGEM_NAO_GRAVADO);
+      if (achado.situacao === "outro") throw erroDeCriacao(MENSAGEM_JA_EXISTE);
+      if (achado.situacao !== "criado") throw erroDeCriacao(MENSAGEM_NAO_CONFIRMADO);
+      criado = achado.combustivel;
+      incerto = true;
+    }
+    const tipoId = criado && typeof criado === "object" && criado.id ? String(criado.id) : null;
+    if (!pendentes.length || !tipoId) return { criado, incerto, associacao: null, fazendaMudou: false };
+    if (!empresaDosPendentes || empresaDosPendentes !== empresaAtualRef.current) return { criado, incerto, associacao: null, fazendaMudou: true };
+    // Nome da fazenda capturado no envio: o aviso a nomeia se a tela mudar de fazenda no meio.
+    const empresaNomeDosPendentes = nomeDaEmpresa(empresaDosPendentes);
+    const resultado = await associarProdutosAoCombustivel(empresaDosPendentes, tipoId, pendentes);
+    return {
+      criado,
+      incerto,
+      associacao: { empresaId: empresaDosPendentes, empresaNome: empresaNomeDosPendentes, tipoId, total: pendentes.length, ...resultado },
+      fazendaMudou: false,
+    };
+  };
+
+  /** @param {any} r resultado de `criarCombustivel` */
+  const avisarCriacaoDeCombustivel = (r) => {
+    const sufixo = r.incerto ? SUFIXO_CRIACAO_INCERTA : "";
+    if (r.fazendaMudou) {
+      notifyWarning("Atenção", `${AVISO_FAZENDA_MUDOU_NA_CRIACAO}${sufixo}`);
+      return;
+    }
+    const a = r.associacao;
+    if (!a) {
+      notifySuccess("Sucesso", `${cfg.criado}${r.incerto ? `.${sufixo}` : ""}`);
+      return;
+    }
+    // A fazenda do topo mudou durante a associação: os vínculos foram para a de
+    // origem (certo), então o aviso a nomeia em vez de dizer "nesta fazenda".
+    const outraFazenda = a.empresaId !== empresaAtualRef.current;
+    const origem = a.empresaNome ? `na fazenda anterior (${a.empresaNome})` : "na fazenda anterior";
+    if (!a.falhas.length) {
+      const base = `Combustível criado com ${a.total} produto(s) associado(s) ${outraFazenda ? origem : "nesta fazenda"}`;
+      const conferir = outraFazenda ? " Para conferir, volte para essa fazenda no topo da tela." : "";
+      notifySuccess("Sucesso", outraFazenda || r.incerto ? `${base}.${conferir}${sufixo}` : base);
+      return;
+    }
+    // Alguma falha: NUNCA sucesso. O registro abre com "Não associados" (na fazenda de origem).
+    notifyWarning(
+      "Atenção",
+      outraFazenda
+        ? `Combustível criado, mas ${a.falhas.length} de ${a.total} produto(s) não foram associados ${origem}. Volte para essa fazenda no topo da tela para ver "Não associados" e tentar de novo.${sufixo}`
+        : `Combustível criado, mas ${a.falhas.length} de ${a.total} produto(s) não foram associados. Veja "Não associados" e tente de novo.${sufixo}`,
+    );
+  };
+
   const createMutation = useMutation({
     /** @param {{ data: object }} v */
-    mutationFn: ({ data }) => criarCatalogo(recurso, /** @type {Record<string, any>} */ (data)),
-    onSuccess: (criado) => {
+    mutationFn: async ({ data }) =>
+      ehCombustiveis
+        ? criarCombustivel(/** @type {Record<string, any>} */ (data))
+        : { criado: await criarCatalogo(recurso, /** @type {Record<string, any>} */ (data)), incerto: false, associacao: null, fazendaMudou: false },
+    onSuccess: (r) => {
       invalidar();
+      const criado = r.criado;
+      if (ehCombustiveis && r.associacao) {
+        guardarFalhasDoRegistro(r.associacao.empresaId, r.associacao.tipoId, {
+          resolvidos: r.associacao.associados.map((/** @type {{ id: string }} */ p) => String(p.id)),
+          falhas: r.associacao.falhas,
+        });
+      }
       if (criado && typeof criado === "object" && "id" in criado && criado.id) {
         mostrarRegistro(criado);
         controller.recordHelpers.chrome.onSelectionChange([String(criado.id)]);
       } else {
         controller.recordHelpers.closeForm();
       }
-      notifySuccess("Sucesso", cfg.criado);
+      if (ehCombustiveis) avisarCriacaoDeCombustivel(r);
+      else notifySuccess("Sucesso", cfg.criado);
     },
-    onError: (err) => tratarErro(err, `Não foi possível salvar o cadastro (${cfg.rotulo}).`),
+    onError: (err) => {
+      const local = /** @type {any} */ (err)?.mensagemCriacao;
+      if (typeof local === "string" && local) {
+        // Criação incerta: o formulário continua aberto com os Produtos escolhidos.
+        invalidar();
+        notifyWarning("Atenção", local);
+        return;
+      }
+      tratarErro(err, `Não foi possível salvar o cadastro (${cfg.rotulo}).`);
+    },
   });
 
   const updateMutation = useMutation({
@@ -384,15 +554,24 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const semPermissao = !acoes.carregando && !acoes.ver;
   const Formulario = cfg.Formulario;
 
-  // Combustíveis: no registro aberto (leitura), os produtos vinculados NESTA
-  // fazenda. `key` empresa+combustível: trocar de registro ou de fazenda zera a seção.
+  // Combustíveis: no registro GRAVADO (leitura e edição), os Produtos associados
+  // NESTA fazenda. `key` empresa+combustível: trocar de registro ou de fazenda zera a seção.
+  const tipoAberto = ehCombustiveis && registroAtual?.id ? String(registroAtual.id) : null;
+  const falhasDoAberto = tipoAberto && empresaId ? (falhasPorRegistro[`${empresaId}:${tipoAberto}`] ?? null) : null;
+  telaAtualRef.current = { empresaId, tipoId: ehCombustiveis && acoes.ver && controller.showForm && empresaId ? tipoAberto : null };
   const produtosVinculados =
-    recurso === RECURSOS_CATALOGO.COMBUSTIVEIS && acoes.ver && registroAtual?.id && !controller.isEditing ? (
+    ehCombustiveis && acoes.ver && tipoAberto ? (
       <ProdutosDoCombustivel
-        key={`${empresaId ?? "sem-empresa"}:${registroAtual.id}`}
+        key={`${empresaId ?? "sem-empresa"}:${tipoAberto}`}
         empresaId={empresaId}
-        combustivel={{ id: String(registroAtual.id), nome: registroAtual.nome ?? null, ativo: registroAtual.ativo !== false }}
+        empresaNome={empresaNome}
+        combustivel={{ id: tipoAberto, nome: registroAtual.nome ?? null, ativo: registroAtual.ativo !== false, unidade: registroAtual.unidade ?? null }}
         acoes={{ criar: acoes.criar, inativar: acoes.inativar }}
+        editando={controller.isEditing}
+        falhasGuardadas={falhasDoAberto}
+        // Empresa e combustível do CLIQUE (a seção pode ter remontado antes da resposta); só o delta do lote.
+        onResultadoDoLote={({ empresaId: emp, tipoId: tipo, resolvidos, falhas }) => guardarFalhasDoRegistro(emp, tipo, { resolvidos, falhas })}
+        telaAtual={() => telaAtualRef.current}
       />
     ) : null;
 
@@ -447,6 +626,7 @@ export default function CatalogoPatrimonioTela({ recurso }) {
               readOnly={!controller.isEditing}
               initialData={registroAtual}
               onSubmit={controller.handleSubmit}
+              {...(ehCombustiveis ? { empresaId, empresaNome, salvando: createMutation.isPending } : {})}
             />
             {produtosVinculados}
           </>

@@ -388,8 +388,10 @@ export const cancelarAbastecimento = async (id, corpo) => {
 };
 
 /**
- * Opções da tela Abastecimentos (A7–A12). `tanques` → `{bem, itens}`; `locais`
- * → `{itens}` (com saldo da empresa); demais → página `{itens, has_more, next_cursor}`.
+ * Opções da tela Abastecimentos (A7–A12, A16). `tanques` → `{bem, itens}`;
+ * `locais` → `{itens}` (com saldo da empresa); `produtos-do-bem` → página com
+ * `bem` e `resumo` (ramo próprio: `paginaDeOpcoes` descartaria as duas);
+ * demais → página `{itens, has_more, next_cursor}`.
  * @param {string} recurso @param {Record<string, unknown>} [filtros]
  * @returns {Promise<any>}
  */
@@ -400,11 +402,23 @@ export const listOpcoesAbastecimento = async (recurso, filtros = {}) => {
   if (recurso === 'tanques') assertArgument(isId(filtros.bem_id), 'bem_id', contexto);
   if (recurso === 'produtos') assertArgument(isId(filtros.tipo_combustivel_id), 'tipo_combustivel_id', contexto);
   if (recurso === 'locais') assertArgument(isId(filtros.produto_id), 'produto_id', contexto);
+  if (recurso === 'produtos-do-bem') assertArgument(isId(filtros.bem_id), 'bem_id', contexto);
   const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.abastecimentoOpcoes(recurso, filtros), contexto));
   if (recurso === 'tanques') {
     return { bem: isObjeto(bruto) && isObjeto(bruto.bem) ? bruto.bem : null, itens: isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens.filter(isObjeto) : [] };
   }
   if (recurso === 'locais') return { itens: isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens.filter(isObjeto) : [] };
+  if (recurso === 'produtos-do-bem') {
+    const o = isObjeto(bruto) ? bruto : {};
+    const pagina = paginaDeOpcoes(o);
+    return {
+      bem: isObjeto(o.bem) ? o.bem : null,
+      itens: pagina.itens.filter(isObjeto),
+      has_more: pagina.has_more,
+      next_cursor: pagina.next_cursor,
+      resumo: isObjeto(o.resumo) ? o.resumo : null,
+    };
+  }
   return paginaDeOpcoes(bruto);
 };
 

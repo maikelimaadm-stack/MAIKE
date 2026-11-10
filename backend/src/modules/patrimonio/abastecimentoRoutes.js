@@ -9,6 +9,9 @@
  *  - `POST /patrimonio-abastecimentos/:id/cancelar` (cancelar) — estorno exato
  *  - `GET  /patrimonio-abastecimentos-consumo` (ver) — consumo do bem
  *  - `GET  /patrimonio-abastecimentos-opcoes/{bens,tanques,tipos,produtos,produtos-filtro}` (ver)
+ *  - `GET  /patrimonio-abastecimentos-opcoes/produtos-do-bem` (ver) — D-PROD-160 (UX-02):
+ *    os Produtos do bem com o tipo derivado do vínculo ativo, os tanques e o
+ *    fator vigente, mais o `resumo` do conjunto inteiro (só leitura)
  *  - `GET  /patrimonio-abastecimentos-opcoes/locais` (criar) — locais com saldo
  *  - `GET  /patrimonio-conversoes-combustivel` (ver), `POST …` (configurar_conversao),
  *    `POST /patrimonio-conversoes-combustivel/:id/encerrar` (configurar_conversao)
@@ -23,7 +26,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { consumoDoBem } from './abastecimentoConsumo.js';
-import { opcoesBens, opcoesLocais, opcoesProdutos, opcoesProdutosFiltro, opcoesTanques, opcoesTipos } from './abastecimentoOpcoesService.js';
+import { opcoesBens, opcoesLocais, opcoesProdutos, opcoesProdutosDoBem, opcoesProdutosFiltro, opcoesTanques, opcoesTipos } from './abastecimentoOpcoesService.js';
 import { PADRAO_FATOR, PADRAO_LEITURA, PADRAO_LITROS, recusarCoercaoAbastecimento } from './abastecimentoPlano.js';
 import { cancelar, confirmar, detalhar, listar, previa } from './abastecimentoService.js';
 import * as conversoes from './conversaoCombustivelService.js';
@@ -124,6 +127,7 @@ const OPCOES_TANQUES = { querystring: { type: 'object', required: ['empresa_id',
 const OPCOES_TIPOS = OPCOES([]);
 const OPCOES_PRODUTOS = OPCOES(['empresa_id', 'tipo_combustivel_id'], { tipo_combustivel_id: ID });
 const OPCOES_PRODUTOS_FILTRO = OPCOES(['empresa_id']);
+const OPCOES_PRODUTOS_DO_BEM = OPCOES(['empresa_id', 'bem_id'], { bem_id: ID });
 const OPCOES_LOCAIS = { querystring: { type: 'object', required: ['empresa_id', 'produto_id'], additionalProperties: false, properties: { empresa_id: ID, produto_id: ID } } };
 const LISTAR_CONVERSOES = {
   querystring: {
@@ -196,6 +200,8 @@ export const registrarAbastecimentoRoutes = async (app) => {
     opcoesProdutos(ctx(request), consulta(request)));
   app.get('/patrimonio-abastecimentos-opcoes/produtos-filtro', { ...autenticado, preHandler: [g.ver], schema: OPCOES_PRODUTOS_FILTRO }, async (request) =>
     opcoesProdutosFiltro(ctx(request), consulta(request)));
+  app.get('/patrimonio-abastecimentos-opcoes/produtos-do-bem', { ...autenticado, preHandler: [g.ver], schema: OPCOES_PRODUTOS_DO_BEM }, async (request) =>
+    opcoesProdutosDoBem(ctx(request), consulta(request)));
   app.get('/patrimonio-abastecimentos-opcoes/locais', { ...autenticado, preHandler: [g.criar], schema: OPCOES_LOCAIS }, async (request) =>
     opcoesLocais(ctx(request), consulta(request)));
 

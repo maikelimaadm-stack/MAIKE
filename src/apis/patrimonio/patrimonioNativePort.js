@@ -179,7 +179,8 @@ const RESOURCE_CONVERSAO = 'ConversaoCombustivelProduto';
 /** Prévia/confirmar/cancelar mexem em lotes e movimentos: prazo próprio (o servidor responde em ≤ 19 s). */
 export const TIMEOUT_COMANDO_ABASTECIMENTO_MS = 60000;
 /** Recursos de opção da tela Abastecimentos (guardados pela própria tela). */
-export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'tipos', 'produtos', 'produtos-filtro', 'locais']);
+/** `produtos-do-bem` (A16, D-PROD-160): os Produtos que o operador escolhe para o bem, com o tipo e os tanques do servidor. */
+export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'tipos', 'produtos', 'produtos-filtro', 'locais', 'produtos-do-bem']);
 
 /** Filtros aceitos por recurso (query FECHADA no servidor: nada além disso vai). */
 const FILTROS_LISTA_ABASTECIMENTOS = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'status', 'data_de', 'data_ate', 'operation_id', 'q', 'limit', 'cursor']);
@@ -190,6 +191,7 @@ const FILTROS_OPCOES_ABASTECIMENTO = Object.freeze(/** @type {Record<string, rea
   produtos: ['empresa_id', 'tipo_combustivel_id', 'q', 'limit', 'cursor'],
   'produtos-filtro': ['empresa_id', 'q', 'limit', 'cursor'],
   locais: ['empresa_id', 'produto_id'],
+  'produtos-do-bem': ['empresa_id', 'bem_id', 'q', 'limit', 'cursor'],
 }));
 const FILTROS_CONSUMO = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'limit']);
 const FILTROS_CONVERSOES = Object.freeze(['empresa_id', 'tipo_combustivel_id', 'produto_id', 'situacao', 'limit', 'cursor']);

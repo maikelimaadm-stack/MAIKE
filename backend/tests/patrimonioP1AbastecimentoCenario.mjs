@@ -234,9 +234,11 @@ export const acoesAbastecimento = (app) => {
   };
   /** A6: consumo do bem (`extra` = query adicional, começando por `&`). */
   const consumo = (tok, empresaId, bemId, extra = '') => req('GET', `/patrimonio-abastecimentos-consumo?empresa_id=${empresaId}&bem_id=${bemId}${extra}`, tok);
-  /** A7–A12: `recurso` = bens | tanques | tipos | produtos | produtos-filtro | locais; `query` sem o `?`. */
+  /** A7–A12 e A16: `recurso` = bens | tanques | tipos | produtos | produtos-filtro | locais | produtos-do-bem; `query` sem o `?`. */
   const opcoes = (tok, recurso, query) => req('GET', `/patrimonio-abastecimentos-opcoes/${recurso}?${query}`, tok);
+  /** A16 (D-PROD-160): Produtos do bem (`extra` = query adicional, começando por `&`). */
+  const produtosDoBem = (tok, empresaId, bemId, extra = '') => opcoes(tok, 'produtos-do-bem', `empresa_id=${empresaId}&bem_id=${bemId}${extra}`);
   /** Detalhe público do bem (P1-01 + `medidor_operacional`). */
   const bem = (tok, empresaId, id) => ok(req('GET', `/bens-patrimoniais/${id}?empresa_id=${empresaId}`, tok));
-  return { req, ok, previa, confirmar, confirmarOk, cancelar, detalhe, lista, consumo, opcoes, bem };
+  return { req, ok, previa, confirmar, confirmarOk, cancelar, detalhe, lista, consumo, opcoes, produtosDoBem, bem };
 };

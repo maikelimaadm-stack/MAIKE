@@ -1,5 +1,6 @@
 /**
- * Peças comuns dos testes da tela Abastecimentos (D-PROD-159): monta a PÁGINA
+ * Peças comuns dos testes da tela Abastecimentos (D-PROD-159; fluxo por
+ * PRODUTO da UX-02, D-PROD-160): monta a PÁGINA
  * real (motor Base1, service, API, porta e nativeHttpClient reais) sobre o
  * backend falso `abastecimentosFakeCore`, e os gestos do formulário.
  * Os `vi.mock` (sessão, Mapa) ficam em cada arquivo de teste.
@@ -77,17 +78,42 @@ export const digitar = (form, testId, valor) => {
   fireEvent.blur(campo);
 };
 
-/** Trator TP-02: um tanque (auto), diesel (auto), produto com fator, um local (auto). */
+/** O radio do Produto `nome` (escolha por botões) está marcado. */
+export const esperarProdutoMarcado = async (form, nome) => {
+  await waitFor(() => expect(within(within(form).getByTestId('abastecimento-produto')).getByRole('radio', { name: nome }).getAttribute('aria-checked')).toBe('true'));
+};
+
+/** Escolhe o Produto `nome` nos botões (2..6 opções completas). */
+export const escolherProduto = async (form, nome) => {
+  const grupo = await within(form).findByTestId('abastecimento-produto');
+  fireEvent.click(within(grupo).getByRole('radio', { name: nome }));
+  await esperarProdutoMarcado(form, nome);
+};
+
+/** "Completou o tanque?" Sim/Não. */
+export const responderTanqueCheio = (form, sim) => {
+  fireEvent.click(within(within(form).getByTestId('abastecimento-tanque-cheio')).getByRole('radio', { name: sim ? 'Sim' : 'Não' }));
+};
+
+/**
+ * Trator TP-02 (UX-02): máquina → o ÚNICO Produto ("Diesel S10 granel") já vem
+ * marcado (resposta completa) → local único automático → litros, horímetro e
+ * "Completou o tanque?". Nenhuma etapa de combustível.
+ */
 export const preencherTrator = async (form, { litros = '80', leitura = '1.550,5', tanqueCheio = true } = {}) => {
   await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
-  await within(form).findByText('Capacidade nominal: 180,0000 L');
-  await waitFor(() => expect(within(within(form).getByTestId('abastecimento-combustivel')).getByRole('radio', { name: 'Diesel S10' }).getAttribute('aria-checked')).toBe('true'));
-  await escolherNoSeletor(form, 'abastecimento-produto', /Diesel S10 granel/);
-  await within(form).findByText(/Fator: 0,840000 kg\/L \(versão 1\)/);
-  await waitFor(() => expect(within(form).getByRole('combobox', { name: 'Local de estoque' }).textContent).toMatch(/Tanque diesel sede/));
+  await esperarProdutoMarcado(form, 'Diesel S10 granel');
+  await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Sai do estoque: Tanque diesel sede'));
   digitar(form, 'abastecimento-litros', litros);
   if (leitura !== null) digitar(form, 'abastecimento-leitura', leitura);
-  if (tanqueCheio) fireEvent.click(within(form).getByTestId('abastecimento-tanque-cheio'));
+  if (tanqueCheio) responderTanqueCheio(form, true);
+};
+
+/** Abre "Detalhes do estoque" da revisão (recolhido por padrão). */
+export const abrirDetalhesDoEstoque = (dialogo) => {
+  const botao = within(dialogo).getByTestId('previa-detalhes-estoque');
+  if (botao.getAttribute('aria-expanded') !== 'true') fireEvent.click(botao);
+  return within(dialogo).getByTestId('previa-detalhes-conteudo');
 };
 
 export const pedirPrevia = async (form) => {
