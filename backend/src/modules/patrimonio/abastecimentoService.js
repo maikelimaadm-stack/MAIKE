@@ -476,8 +476,6 @@ export const cancelar = async (contexto, id, corpo) => {
               });
             }
             if (antes.versao !== entrada.versao) throw versaoConflito(antes.versao, entrada.versao);
-            const vincM11 = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: antes.tipo_combustivel_id, produto_id: antes.produto_id }, select: { ativo: true } });
-            if (!vincM11?.ativo) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const bem = await tx.bemPatrimonial.findFirst({
               where: { cliente_id: cli, id: antes.bem_id },
               select: { id: true, medidor_tipo: true, medidor_leitura_atual: true, medidor_data_leitura: true },
@@ -500,8 +498,8 @@ export const cancelar = async (contexto, id, corpo) => {
             try {
               estorno = await estornarSaida(tx, contexto, {
                 empresaId,
-                item: { quantidade_estoque: antes.quantidade_kg, ordem: 1, movimentacao_estoque_id: orig.id },
-                consumos: fatias.map((f) => ({ estoque_lote_nota_id: f.estoque_lote_nota_id, quantidade: f.quantidade })),
+                item: { quantidade_estoque: somar((fatias.length > 1 ? fatias.slice(0, -1) : fatias).map((f) => f.quantidade)), ordem: 1, movimentacao_estoque_id: orig.id },
+                consumos: (fatias.length > 1 ? fatias.slice(0, -1) : fatias).map((f) => ({ estoque_lote_nota_id: f.estoque_lote_nota_id, quantidade: f.quantidade })),
                 produto,
                 local: { id: local.id, nome: local.nome },
                 dia: hoje,
