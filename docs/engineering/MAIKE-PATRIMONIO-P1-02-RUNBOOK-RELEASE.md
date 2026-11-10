@@ -7,7 +7,7 @@
 > CI verde).
 >
 > Valores entre `<…>` são preenchidos na hora da execução, sempre a partir de leituras
-> reais. Valores ⟨PREENCHER⟩ são do fechamento da missão (HEAD final, CI).
+> reais. Os valores do fechamento da missão (HEAD e CI) estão na PR #235.
 
 Decisão: [D-PROD-159](./DECISIONS.md). Relatório:
 [`MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md`](./MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md).
@@ -68,7 +68,7 @@ tabelas esperam; leituras não. **O teto de espera depende do caminho:**
 ## 2. Pré-requisitos do GO
 
 1. `main` com a P1-01 aplicada e mergeada: **38 migrations** no repositório e em produção, 0 com falha.
-2. PR da P1-02 revisada pelo proprietário e CI `verify:all` verde no `<SHA_APROVADO>` (40 hex) — run ⟨PREENCHER⟩.
+2. PR da P1-02 revisada pelo proprietário e CI `verify:all` verde no `<SHA_APROVADO>` (40 hex) — o run tem de ser o do `<SHA_APROVADO>` (no fechamento da missão: run 42761888698 em `6dd34014`; conferir o do HEAD aprovado).
 3. GO expresso e escrito: esta migration, este alvo, caminho A ou B, ciência da janela.
 4. Backup comprovado (§4.4).
 5. Nenhuma outra migration na janela e **nenhuma escrita de teste na Preview** (a Preview usa o banco de produção).
@@ -535,7 +535,7 @@ explícito e decisão do proprietário (ver o runbook da P3-01, §9.3).
 |---|---|
 | GO do proprietário (texto e data/hora UTC) | `<pendente>` |
 | Caminho (A runner / B conector) | `<pendente>` |
-| `<SHA_APROVADO>` e run de CI | `<pendente>` (HEAD final da PR: ⟨PREENCHER⟩) |
+| `<SHA_APROVADO>` e run de CI | `<pendente>` (HEAD final da PR #235 no momento da aprovação; código final da missão `6dd34014`) |
 | `system_identifier` e vínculo Vercel ↔ Supabase | `<pendente>` |
 | Histórico antes | `<pendente>` |
 | SHA-256 calculado no §4.3 | `<pendente>` |

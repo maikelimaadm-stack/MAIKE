@@ -1,7 +1,7 @@
 # MAIKE-PATRIMONIO-P1-02 — Abastecimentos e consumo de combustível da frota
 
 Decisão: **D-PROD-159** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `a23477414cf2b2512143868d57c5ec68fa9501ab` (PRs #232 Patrimônio P1-01 e #234 Gestão P3-03 mergeadas).
-Branch: `claude/maike-patrimonio-p1-02-abastecimentos` · PR ⟨PREENCHER⟩ (**DRAFT**) · HEAD final ⟨PREENCHER⟩.
+Branch: `claude/maike-patrimonio-p1-02-abastecimentos` · PR [#235](https://github.com/maikelimaadm-stack/MAIKE/pull/235) (**DRAFT**) · código final `6dd34014`; o HEAD final é o commit de documentação logo acima, com CI registrada na PR.
 Runbook de release (não executado): [`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md).
 
 > **`SCHEMA_APPLIED_PRODUCTION: NÃO`.** Nenhum DDL foi executado em Supabase, Vercel, staging ou qualquer banco remoto. Todos os testes rodaram em PostgreSQL 16/17 **local** e descartável. A PR fica em **DRAFT** até a revisão humana e o GO expresso da migration.
@@ -192,20 +192,20 @@ Resultados registrados pelas frentes na branch (antes do HEAD final); os número
 | `patrimonioP1AbastecimentosMedidor` (M1–M8) | PG real + Fastify | 8/0 | 11,8 s |
 | `patrimonioP1AbastecimentosConcorrencia` (C1–C11) | PG real, portões por gatilho, espera por condição | 12/0 | 24,3 s (C9 ≈ 9 s pelo `lock_timeout`) |
 | `patrimonioP1AbastecimentosSeguranca` (S1–S9 + S6b) | PG real + SQL direto | 9/0 (S6b na revisão final) | 11,5 s |
-| `patrimonioP1AbastecimentosContratoTela` (INT-1) | módulo puro da tela × API real × PG | ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
+| `patrimonioP1AbastecimentosContratoTela` (INT-1) | módulo puro da tela × API real × PG | 3/0 | 5,4 s |
 | Regressão P1-01: `patrimonioP1Bens` 19/0 · `patrimonioP1CombustivelProduto` 20/0 · `patrimonioP1Catalogos` 14/0 · `patrimonioP1Seguranca` 12/0 (S8 com as 3 novas) | PG real | verde | — |
 | Regressão P3 e estoque: `gestaoP3Estoque` 17/0 · `gestaoP3Rodada2` 13/0 · `gestaoP3Concorrencia` 13/0 · `gestaoP3Lancamentos` 14/0 · `gestaoP3EditarExcluir` 45/0 · `gestaoP3Financeiro` 22/0 · `gestaoP3CustoLiquido` 38/0 · `gestaoP3RateioItem` 38/0 · `gestaoP3Seguranca` 9/0 · `gestaoP3PatrimonioCombinado` 3/0 · `cadastrosEstoqueNativo` 10/0 · `estabP0LancamentosNativo` 7/0 | PG real | verde | — |
 | Regressão permissões e infra: `permissoesR2Rotas` 7/0 · `permissoesAutorizacao` 11/0 · `permissoesR2` 10/0 · `permissoesR3` 9/0 · `permissoesR4` 9/0 · `autorizacaoIntegradaBloqueadores` 14/0 · `leiturasCadastrosIntegrada` 20/0 · `supabasePublicGrantsNativo` 4/0 · `sqlEditorBootstrap` 10/0 · `sqlEditorPreservaMaike` 7/0 · `inicializarTenantMaikeCli` 11/0 | PG real | verde | — |
-| `tests/smoke/patrimonioAbastecimentos.test.jsx` (FE1–FE5) | React + backend falso com os códigos reais | 20 | ⟨PREENCHER⟩ |
-| `tests/smoke/patrimonioAbastecimentosCancelamento.test.jsx` (FE6) | idem | 4 | ⟨PREENCHER⟩ |
-| `tests/smoke/patrimonioAbastecimentosConversoes.test.jsx` (FE7) | idem | 4 | ⟨PREENCHER⟩ |
-| `tests/smoke/abastecimentoRegras.test.js` (FE8, todos os vetores) | regras puras | 24 | ⟨PREENCHER⟩ |
+| `tests/smoke/patrimonioAbastecimentos.test.jsx` (FE1–FE5) | React + backend falso com os códigos reais | 24 (20 + 4 da revisão) | 10,2 s |
+| `tests/smoke/patrimonioAbastecimentosCancelamento.test.jsx` (FE6) | idem | 4 | 2,1 s |
+| `tests/smoke/patrimonioAbastecimentosConversoes.test.jsx` (FE7) | idem | 6 (4 + 2 da revisão) | 2,3 s |
+| `tests/smoke/abastecimentoRegras.test.js` (FE8, todos os vetores) | regras puras | 26 (24 + 2 da revisão) | 0,05 s |
 | `patrimonioMenuPermissoes`, `vercelSpaRoutes`, `bensPatrimoniais` (FE9–FE11, atualizados) | React | verde | — |
 | `scripts/tests/deploy/premerge-migrate.test.mjs` (B1, B1e, B7) | gates | 16/16 | 0,4 s |
-| `npm run test:gates` | gates | 698/698 (frente de infra) · ⟨PREENCHER⟩ (HEAD final) | 60 s |
-| E2E-1 `scripts/dev/e2e-abastecimentos-real.mjs` (1280 e 390 px, fora do CI) | backend real + Vite + Chromium + conferência no banco | ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
-| `npm run verify:all` no HEAD final | todas as etapas | ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
-| CI (`verify:all`, teto 30 min) | GitHub Actions | run ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
+| `npm run test:gates` | gates | 698/698 (frente de infra) · 698/698 no `verify:all` de `6dd34014` | 58 s |
+| E2E-1 `scripts/dev/e2e-abastecimentos-real.mjs` (1280 e 390 px, fora do CI) | backend real + Vite + Chromium + conferência no banco | 18/18 passos (9 × 2 larguras), exit 0, "sem divergências" — rodado de novo depois da revisão, em `6dd34014` | ≈ 60 s |
+| `npm run verify:all` no HEAD final | todas as etapas | 39/39 PASS em `6dd34014` (PG16 local, banco vazio): `test:backend` 1468 testes, 1463 pass, 0 fail, 5 todo · `test:smoke` 178 arquivos, 2229/2229 · `test:gates` 698/698 · lint, typecheck, build e build:admin verdes | 1157 s |
+| CI (`verify:all`, teto 30 min) | GitHub Actions | run [42761888698](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42761888698) verde em `6dd34014` (18 min 31 s); antes, [42757222615](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42757222615) verde em `05e417fe` | 18 min 31 s |
 
 Sensibilidade (mutação numa cópia da árvore no scratchpad, nunca na árvore real): sem `FOR UPDATE` do bem → C6 vermelho; sem o advisory do vínculo → C7 vermelho; sem `travarProdutosEstoque` → C3 e C5 vermelhos; L/h invertido → M1, M3, M7 vermelhos; sem checagem do ponto posterior → M4 vermelho; sem `produto_mudou_de_fazenda` → AB11 vermelho. Falhas provocadas por gatilho (S5) no 2º lote, na auditoria e no INSERT do fator novo → 5xx genérico e `fotoAbastecimento` idêntica (3 tabelas, lotes, movimentos, `estoque_atual`, recibos, auditoria, sequências).
 
@@ -223,7 +223,7 @@ recuperação de falha (§5.1), impressão digital das tabelas antigas que o con
 rodar (§4.2 e §6.10) e os códigos reais do §9.2. A ordem de travas do §7 e da D-PROD-159 foi
 alinhada ao código.
 
-Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de backend somam ≈ 72 s registrados + INT-1 (⟨PREENCHER⟩). Duração final do job: ⟨PREENCHER⟩.
+Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de backend somam ≈ 72 s registrados + INT-1 (5,4 s). Duração final do job: 18 min 31 s (teto 30 min). A única falha de CI da branch (`a9c762ce`) foi um teste de tela da própria PR que clicava num seletor ainda desabilitado sob carga; corrigido em `05e417fe` sem pular teste.
 
 ## 16. Decisões de contrato (C1–C15, todas fail-closed)
 
@@ -281,7 +281,7 @@ Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de
 
 | Item | Valor |
 |---|---|
-| CODE_READY | ⟨PREENCHER⟩ (depende do `verify:all` e da CI no HEAD final) |
+| CODE_READY | SIM — `verify:all` 39/39 local e CI verde em `6dd34014`; o fluxo completo (fator → bem/tanque/produto/local → prévia → confirmar → baixa KG/FIFO/custo → histórico → cancelar/estornar) funciona na API e na tela (INT-1 e E2E-1) |
 | SCHEMA_READY_LOCAL | SIM — banco novo local (PG16 e PG17): 39 migrations, reexecução sem pendências, `migrate diff` 0, upgrade de 38 → 39 só acrescenta, rollback ensaiado |
 | SCHEMA_APPLIED_PRODUCTION | **NÃO** — nenhum DDL remoto |
 | MERGE_READY | **NÃO** — depende da revisão humana, do GO expresso da migration e da aplicação conferida pelo runbook |
