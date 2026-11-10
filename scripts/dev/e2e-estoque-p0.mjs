@@ -22,9 +22,10 @@
  * Roteiro, em cada largura:
  *   1. Produtos: o formulário (consulta, edição e "Novo") mostra o aviso
  *      "Estoque é alterado em Entradas/Movimentações, não no Cadastro de
- *      Produtos" e não tem campo de estoque; a edição informativa (descrição e
- *      estoque mínimo) grava pelo PATCH real SEM `estoque_atual` no corpo; no
- *      banco o cache e os lotes ficam intactos.
+ *      Produtos" e não tem campo de saldo; a edição informativa (descrição,
+ *      estoque mínimo e preço de custo 999,00) grava pelo PATCH real SEM
+ *      `estoque_atual` no corpo; no banco o cache, os lotes (custo 2,0000 e
+ *      3,5000 intactos: I6) e os movimentos ficam iguais.
  *   2. Mapa Geral → cocho → "Lançar": suplementação de 120 kg pela tela. No
  *      banco: 1 Saída `suplementacao` de 120,0000 kg, FIFO em 2 camadas
  *      (100 @2,0000 + 20 @3,5000 = 270,0000; unitário 2,2500), `lotes_consumidos`
@@ -291,8 +292,22 @@ const semear = async (rotulo) => {
     });
     const localA = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '1', nome: 'DEPÓSITO CENTRAL' } });
     const localB = await tx.localEstoque.create({ data: { cliente_id: c, numero_local: '2', nome: 'DEPÓSITO RETIRO' } });
+    // Cadastros que o formulário de Produto exige (categoria, unidade e local por nome).
+    const categoria = await tx.categoria.create({ data: { cliente_id: c, numero_categoria: '1', nome: 'SUPLEMENTOS' } });
+    await tx.unidadeMedida.create({ data: { cliente_id: c, numero_unidade: '1', sigla: 'KG', descricao: 'QUILOGRAMA' } });
     const produto = await tx.produto.create({
-      data: { ...base, numero_produto: '1', nome_produto: 'RAÇÃO PROTEICA P0', tipo_uso: 'Nutrição Animal', codigo_interno: 'RP0', unidade_medida: 'KG', unidade_principal_estoque: 'KG' },
+      data: {
+        ...base,
+        numero_produto: '1',
+        nome_produto: 'RAÇÃO PROTEICA P0',
+        tipo_uso: 'Nutrição Animal',
+        codigo_interno: 'RP0',
+        categoria: categoria.nome,
+        unidade_medida: 'KG',
+        unidade_principal_estoque: 'KG',
+        local_estoque: localA.nome,
+        preco_custo: '2.0000',
+      },
     });
     const deposito = await tx.pontoSuplementacao.create({
       data: {
@@ -507,15 +522,25 @@ const executarLargura = async (browser, largura) => {
       const form = page.getByTestId('b1-form-produto');
       await form.locator('textarea').first().waitFor({ state: 'visible' });
       exigir(await aviso.isVisible(), `[${rotulo}] aviso não visível na edição`);
-      // Nenhum campo de estoque no formulário: o único rótulo com "Estoque" é o mínimo.
-      const rotulos = (await form.locator('label').allInnerTexts()).map((t) => t.replace(/\s*\*\s*$/, '').trim());
-      const deEstoque = rotulos.filter((t) => /estoque/i.test(t));
-      conferir(deEstoque.every((t) => /m[íi]nimo/i.test(t)), `[${rotulo}] campo de estoque no formulário: ${JSON.stringify(deEstoque)}`);
-      conferir(deEstoque.length === 1, `[${rotulo}] esperado só "Estoque Mínimo", obtido ${JSON.stringify(deEstoque)}`);
+      // Nenhum campo de SALDO no formulário. Os rótulos com "estoque" que podem
+      // existir são cadastro, não quantidade: "Estoque Mínimo", "Local de Estoque"
+      // e "Unidade principal de estoque".
+      const rotulos = (await form.locator('label.mg-field__label').allInnerTexts()).map((t) => t.replace(/\s*\*\s*$/, '').trim());
+      const deEstoque = rotulos.filter((t) => /estoque|saldo/i.test(t));
+      const permitidos = /^(Estoque Mínimo|Local de Estoque|Unidade principal de estoque)$/i;
+      conferir(deEstoque.every((t) => permitidos.test(t)), `[${rotulo}] campo de estoque/saldo no formulário: ${JSON.stringify(deEstoque)}`);
+      conferir(!rotulos.some((t) => /estoque atual|saldo|^estoque$/i.test(t)), `[${rotulo}] campo "Estoque atual" no formulário: ${JSON.stringify(rotulos)}`);
+      console.log(`  [${rotulo}] rótulos com "estoque" no formulário: ${JSON.stringify(deEstoque)}`);
+      const campo = (re) => form.locator('.mg-field').filter({ has: page.locator('label.mg-field__label', { hasText: re }) }).locator('input, textarea').first();
       const descricao = `RAÇÃO DO COCHO, EDITADA NO E2E ${rotulo.toUpperCase()}`;
-      await form.locator('textarea').first().fill(descricao);
-      const minimo = form.locator('input[placeholder="0,00"]').first();
-      await minimo.fill('25');
+      await campo(/^Descrição/).fill(descricao);
+      // Máscara de moeda: dígitos em centavos ("2500" → 25,00; "99900" → 999,00).
+      await campo(/^Estoque Mínimo/).fill('2500');
+      // I6: o preço de custo do cadastro é referência — não mexe em lote nem em custo histórico.
+      await campo(/^Preço de Custo/).fill('99900');
+      await page.waitForTimeout(300);
+      igual(await campo(/^Estoque Mínimo/).inputValue(), '25,00', `[${rotulo}] estoque mínimo digitado`);
+      igual(await campo(/^Preço de Custo/).inputValue(), '999,00', `[${rotulo}] preço de custo digitado`);
       await shot('produto-edicao');
       const desde = escritas.length;
       const respostaPatch = page.waitForResponse((r) => r.url().startsWith(`${API}`) && r.request().method() === 'PATCH' && /\/produtos\//.test(r.url()), { timeout: 20000 });
@@ -533,7 +558,7 @@ const executarLargura = async (browser, largura) => {
         },
         'descrição do produto gravada',
       );
-      igual(d4(prod.estoque_minimo), '25.0000', `[${rotulo}] estoque mínimo gravado`);
+      igual(`${d4(prod.estoque_minimo)}:${d4(prod.preco_custo)}`, '25.0000:999.0000', `[${rotulo}] estoque mínimo e preço de custo gravados`);
       igual(await fotoEstoque(s), fotoAntes, `[${rotulo}] cache, lotes e movimentos depois da edição informativa`);
       await shot('produto-salvo');
       // Cadastro novo: o mesmo aviso, sem campo de estoque (só abre; nada é gravado).
@@ -542,8 +567,8 @@ const executarLargura = async (browser, largura) => {
       await page.getByText(s.produto.nome, { exact: true }).filter({ visible: true }).first().waitFor();
       await toque(page.getByRole('button', { name: 'Novo', exact: true }).filter({ visible: true }).first());
       await aviso.waitFor({ state: 'visible' });
-      const rotulosNovo = (await form.locator('label').allInnerTexts()).filter((t) => /estoque/i.test(t));
-      conferir(rotulosNovo.every((t) => /m[íi]nimo/i.test(t)), `[${rotulo}] campo de estoque no cadastro novo: ${JSON.stringify(rotulosNovo)}`);
+      const rotulosNovo = (await form.locator('label.mg-field__label').allInnerTexts()).map((t) => t.replace(/\s*\*\s*$/, '').trim());
+      conferir(!rotulosNovo.some((t) => /estoque atual|saldo|^estoque$/i.test(t)), `[${rotulo}] campo "Estoque atual" no cadastro novo: ${JSON.stringify(rotulosNovo)}`);
       await shot('produto-novo-aviso');
       await toque(page.getByRole('button', { name: 'Cancelar', exact: true }).filter({ visible: true }).first());
       igual(escritas.slice(desdeNovo).length, 0, `[${rotulo}] abrir/cancelar o cadastro novo não escreve nada`);
