@@ -5812,4 +5812,12 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) em **DRAFT**, branch `claude/maike-patrimonio-ux-02-abastecimento-produto`, base `e3ea4c39`. Sem migration e sem deploy. `MERGE_READY = NÃO` até a revisão humana e o merge manual.
 - Relatório: [`MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md`](./MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-161 -->
+## D-PROD-161 — SVG estático nos ícones e subícones
+
+- **Contexto:** o proprietário pediu que o cadastro aceite seu SVG vetorial de cerca de 29 KB, em vez de recusá-lo por formato ou sugerir redução de dimensões raster. A mudança parte da `main`, sem os experimentos de marcadores do mapa.
+- **Decisão:** o upload nativo de arquivos e o catálogo oficial aceitam `image/svg+xml` após análise XML por `saxes` (dependência de produção fixada no lockfile). O SVG é preservado em vetor, com os bytes originais; os ajustes PNG continuam iguais.
+- **Contrato:** SVG até 512 KB e dentro do limite de upload configurado; dimensões ou `viewBox` positivos; somente gráficos estáticos. Scripts, eventos, HTML, animação, DTD, imagens embutidas e referências externas são recusados. Não há aumento do limite geral, nova rota, entidade ou migration. Isso substitui somente a recusa absoluta de SVG do catálogo; autenticação, permissões e tenancy permanecem iguais.
+- **Storage:** extensão `.svg` e `Content-Type: image/svg+xml`, sem transformar os caminhos em pixels. Nenhuma alteração de bucket, política ou credencial remota nesta entrega.
+- **Validação:** `backend/tests/svgEstatico.test.mjs` cobre arquivo de 1000 px, MIME, gradientes/referências internas, conteúdo ativo, peso máximo, upload comum e cabeçalho do Storage. O SVG enviado pelo proprietário foi aceito pelo validador local com 30.036 bytes, sem alteração de hash.
+
+<!-- Próxima decisão: D-PROD-162 -->

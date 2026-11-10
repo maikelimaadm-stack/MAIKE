@@ -216,13 +216,13 @@ export const catalogo = {
 export const lerImagem = (arquivo, limites) =>
   new Promise((resolve, reject) => {
     if (limites && !limites.mimes.includes(arquivo.type)) {
-      reject(new Error(`Formato não aceito (${arquivo.type || 'desconhecido'}). Use ${limites.mimes.map((m) => m.split('/')[1].toUpperCase()).join(', ')}. SVG não é aceito por segurança.`));
+      reject(new Error(`Formato não aceito (${arquivo.type || 'desconhecido'}). Use ${limites.mimes.map((m) => m === 'image/svg+xml' ? 'SVG' : m.split('/')[1].toUpperCase()).join(', ')}.`));
       return;
     }
     if (limites && arquivo.size > limites.max_bytes) {
       reject(
         new Error(
-          `Arquivo com ${Math.ceil(arquivo.size / 1024)} KB, acima do limite de ${Math.round(limites.max_bytes / 1024)} KB. Exporte o ícone em tamanho menor (ex.: 256×256 px) e tente de novo.`
+          `Arquivo com ${Math.ceil(arquivo.size / 1024)} KB, acima do limite de ${Math.round(limites.max_bytes / 1024)} KB. Otimize o arquivo; em SVG, simplifique os caminhos. As dimensões em pixels não determinam o peso de um vetor.`
         )
       );
       return;

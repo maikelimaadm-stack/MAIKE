@@ -327,6 +327,7 @@ export default function GerenciadorIcones() {
             <>
               <div className="space-y-1">
                 <Label className="text-xs">Ícone Principal (Mapa)</Label>
+                <p className="text-xs text-slate-500">Imagens ou SVG vetorial estático (SVG até 512 KB).</p>
                 <div className="flex gap-2">
                   <Input
                     type="file"
@@ -360,6 +361,7 @@ export default function GerenciadorIcones() {
 
               <div className="space-y-1">
                 <Label className="text-xs">Sub Ícone (Informações/Detalhes)</Label>
+                <p className="text-xs text-slate-500">Imagens ou SVG vetorial estático (SVG até 512 KB).</p>
                 <div className="flex gap-2">
                   <Input
                     type="file"
