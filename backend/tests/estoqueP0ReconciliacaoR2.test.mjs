@@ -127,19 +127,7 @@ const medir = async (c, filtro = {}, orcamento = undefined, { semSeqscan = true 
         const v = alvo[prop];
         if (prop === '$queryRaw' || prop === '$executeRaw' || prop === '$queryRawUnsafe' || prop === '$executeRawUnsafe') {
           return async (...args) => {
-            const antesDbg = process.env.R2_DEPURAR ? await estatistica(alvo) : null;
             const res = await v.apply(alvo, args);
-            if (antesDbg) {
-              const depoisDbg = /** @type {any[]} */ (await estatistica(alvo));
-              const de = (l) => (l.find((t) => t.tabela === 'AuditLog') ?? { seq_tup_read: 0, idx_tup_fetch: 0 });
-              const n = de(depoisDbg).seq_tup_read + de(depoisDbg).idx_tup_fetch - de(antesDbg).seq_tup_read - de(antesDbg).idx_tup_fetch;
-              console.error('DBG', n, textoSql(args).text.trim().replace(/\s+/g, ' ').slice(0, 80));
-              if (n > 50) {
-                const q = textoSql(args);
-                const plano = await alvo.$queryRawUnsafe(`EXPLAIN (ANALYZE, BUFFERS) ${q.text}`, ...q.values);
-                console.error(plano.map((r) => r['QUERY PLAN']).join('\n'));
-              }
-            }
             consultas.push({ ...textoSql(args), linhas: Array.isArray(res) ? res.length : 0, prop: String(prop) });
             return res;
           };
@@ -222,6 +210,16 @@ const orfaos = async (c, empresaId, localId, ids) => {
     });
   }
 };
+/**
+ * Estatística do planejador em dia (o que o autovacuum mantém num banco
+ * assentado): a medida física de RX é a do plano escolhido por custo com a
+ * estatística atual. Logo depois de uma carga em lote, com a estatística de
+ * antes, o planejador estima ~1 linha para o tenant novo e escolhe qualquer
+ * índice que comece por `cliente_id` (medido: o de `request_id`); aí só o
+ * `statement_timeout` e o orçamento de tempo limitam (fail-closed), e isso
+ * está registrado como risco residual.
+ */
+const atualizarEstatisticas = () => prisma().$executeRawUnsafe('ANALYZE "AuditLog", "EstoqueLoteNota", "MovimentacaoEstoque", "Produto", "OperacaoIdempotente"');
 /** Linhas que a chamada PROCESSOU (lotes + movimentos varridos) nunca passam do que ela CONTOU no orçamento. */
 const contabilidadeFecha = (r, rotulo) =>
   assert.ok(r.cobertura.linhas_previstas >= r.resumo.lotes + r.resumo.movimentos,
@@ -248,6 +246,7 @@ describe('RX — exclusões legadas de lote: dimensão própria, orçamento cont
     await del('n00600-lote-excluido', `produto-que-nao-existe-${randomUUID().slice(0, 6)}`, s.local.id); // no meio
     await del('z9999-lote-excluido', e.milho.id, s.local2.id); // depois de todo o ruído
 
+    await atualizarEstatisticas();
     const orc = { linhasPorPagina: 100, linhasPorChamada: 250 };
     const chamadas = await medirTudo(s.c, {}, orc);
     assert.ok(chamadas.length >= 4, `paginada: ${chamadas.length} chamadas`);
@@ -332,6 +331,7 @@ describe('RX — exclusões legadas de lote: dimensão própria, orçamento cont
         dados_anteriores: { local_estoque_nome: 'A' }, dados_novos: { local_estoque_nome: 'B' },
       })),
     });
+    await atualizarEstatisticas();
     const m = await medir(s.c, { produtoId: e.sal.id }, { linhasPorChamada: 1 });
     assert.ok(m.lidasDe('AuditLog') <= 20, `AuditLog lido: ${m.lidasDe('AuditLog')} (os 1.500 são de outro produto)`);
     assert.equal(m.r.cobertura.exclusoes_lidas, 0);
