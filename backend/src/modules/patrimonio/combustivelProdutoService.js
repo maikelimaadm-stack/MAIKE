@@ -255,7 +255,6 @@ export const vincular = async (contexto, tipoId, entrada) => {
           data: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: tipo.id, produto_id: produtoId, ativo: true, ativo_chave: true },
           select: SELECAO,
         });
-        await tx.tanqueBemCombustivel.updateMany({ where: { cliente_id: cli, combustivel_id: tipo.id }, data: { updatedAt: new Date() } });
         await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: criado.id, dadosNovos: paraAuditoria(criado) }, tx);
         return comoVinculoPublico(criado);
       }),
