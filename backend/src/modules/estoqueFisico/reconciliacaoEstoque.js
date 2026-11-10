@@ -41,17 +41,19 @@ import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
+import { ORIGEM_ABASTECIMENTO, ORIGEM_DEPOSITO, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO } from './estoqueFisicoMotor.js';
 
 /**
- * Origens de movimento do protocolo (motor físico único). Declaradas aqui para
- * não depender da fatia F1; os valores são os de `estoqueFisicoMotor.js`
- * (`ORIGEM_SISTEMA`, `ORIGEM_ABASTECIMENTO`, `ORIGEM_SUPLEMENTACAO`, `ORIGEM_DEPOSITO`).
+ * Origens de movimento do protocolo (motor físico único, D-PROD-161). Vêm dos
+ * exports `ORIGEM_*` de `estoqueFisicoMotor.js` (passo 3 da integração da SPEC
+ * §8), para que uma origem nova do motor não fique fora do reconciliador por
+ * divergência de literal. Os valores são os mesmos que a F4 declarava aqui.
  */
-export const ORIGENS_PROTOCOLO = Object.freeze(['operacao_financeira', 'abastecimento_patrimonio', 'suplementacao', 'deposito']);
+export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /** Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. */
-const ORIGENS_SEM_FK = Object.freeze(['suplementacao', 'deposito']);
+const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /** Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote`). */
-const ORIGENS_COM_FK = Object.freeze(['operacao_financeira', 'abastecimento_patrimonio']);
+const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO]);
 /** Escritores genéricos antigos (POST de movimento, reversão pelo navegador). */
 const ORIGENS_LEGADAS = Object.freeze(['manual', 'reversao']);
 const STATUS_LOTE = Object.freeze(['Disponivel', 'Esgotado', 'Estornado']);
