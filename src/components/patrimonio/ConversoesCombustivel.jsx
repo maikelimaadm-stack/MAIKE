@@ -5,7 +5,7 @@ import * as UiDialog from "@/components/ui/dialog";
 import { CampoNumero, EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { configurarConversao, encerrarConversao, listarConversoesPagina, listarOpcoesAbastecimento } from "@/services/abastecimentoService";
-import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
+import { mensagemErroAbastecimento, mensagemErroConversao } from "@/lib/patrimonioErros";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
@@ -142,7 +142,10 @@ export default function ConversoesCombustivel({ aberto, empresaId, podeConfigura
         const vigenteId = typeof details.conversao_vigente_id === "string" ? details.conversao_vigente_id : null;
         setForm((f) => (f ? { ...f, vigenteId, vigente: vigenteId ? { id: vigenteId, versao: details.conversao_vigente_versao } : null } : f));
         setAviso("O fator vigente deste par mudou enquanto você editava. A lista foi relida: confira e salve de novo. Nada foi gravado.");
-      } else setAviso(mensagemErroAbastecimento(erro, "Não foi possível salvar o fator. Nada foi gravado."));
+      } else {
+        if (code === "PATRIMONIO_VERSAO_CONFLITO") reler();
+        setAviso(mensagemErroConversao(erro, "Não foi possível salvar o fator. Nada foi gravado."));
+      }
     } finally {
       enviando.current = false;
       setSalvando(false);
@@ -166,7 +169,7 @@ export default function ConversoesCombustivel({ aberto, empresaId, podeConfigura
       notifySuccess("Fator encerrado", "O par ficou sem fator vigente.");
     } catch (erro) {
       reler();
-      notifyWarning("Atenção", mensagemErroAbastecimento(erro, "Não foi possível encerrar o fator. Nada foi alterado."));
+      notifyWarning("Atenção", mensagemErroConversao(erro, "Não foi possível encerrar o fator. Nada foi alterado."));
     } finally {
       enviando.current = false;
     }
@@ -242,7 +245,7 @@ export default function ConversoesCombustivel({ aberto, empresaId, podeConfigura
                   ? `Fator vigente: ${formatarFator(form.vigente.kg_por_litro)} kg/L (versão ${form.vigente.sequencia ?? "?"}). Salvar encerra este e cria a versão ${proximaVersao ?? "seguinte"}.`
                   : form.vigenteId
                     ? "Há um fator vigente para este par: salvar o substitui por uma nova versão."
-                    : "Este par ainda não tem fator: salvar cria a versão 1."
+                    : "Este par não tem fator vigente: salvar cria uma nova versão."
                 : null}
             </p>
             <CampoNumero

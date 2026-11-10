@@ -41,15 +41,27 @@ funcionando com o banco migrado.
 `Usuario`, `Empresa`, `BemPatrimonial`, `TanqueBem`, `TipoCombustivelProduto`,
 `MovimentacaoEstoque`, `EstoqueLoteNota` e `LocalEstoque` até o `COMMIT` (no ensaio local,
 sobre um banco com as 38 migrations e sem carga, a transação levou ~76 ms). Escritas nessas
-tabelas esperam; leituras não. O `lock_timeout` de 5 s aborta tudo, sem aplicar nada, se houver transação longa no
-caminho.
+tabelas esperam; leituras não. **O teto de espera depende do caminho:**
+- **Caminho B:** o `SET LOCAL lock_timeout = '5s'` do §5 aborta tudo, sem aplicar nada, se
+  houver transação longa no caminho.
+- **Caminho A:** o runner (`premerge-migrate` → `deploy:migrate` → `prisma migrate deploy`)
+  **não** define `lock_timeout`. Sem ele, a migration espera **sem limite** e, enquanto
+  espera, já segura `SHARE ROW EXCLUSIVE` nas tabelas que alcançou antes (no ensaio:
+  `Cliente`, `Usuario`, `Empresa` e `TipoCombustivelProduto`), bloqueando as escritas nelas.
+  Por isso o caminho A **exige** `&options=-c%20lock_timeout%3D5s` na
+  `MIGRATION_DATABASE_URL` (§1). Com ele, uma trava no caminho faz o deploy sair 1
+  (`P3018`, `55P03 canceling statement due to lock timeout`) sem DDL aplicado, mas deixa a
+  linha da P1-02 em `_prisma_migrations` com `finished_at` NULL: a recuperação está no §5.1.
 
 ## 1. Caminho
 
 - **Padrão (D-PROD-74):** runner oficial `premerge-migrate.mjs --sha <SHA_APROVADO>`,
   primeiro com `--verificar-alvo` e depois com `--aplicar`, numa máquina protegida do
   operador, com `MIGRATION_DATABASE_URL` direta ou de sessão (porta 5432, nunca o pooler
-  6543) e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360`.
+  6543) **terminada em `&options=-c%20lock_timeout%3D5s`** (ou `?options=…` se a URL não
+  tiver outro parâmetro) e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360`.
+  Repita a consulta de transações longas do §4.2 logo antes do `--aplicar` e pare se
+  aparecer alguma.
 - **Caminho B (conector Supabase, uma transação):** só com GO escrito que cite esta
   migration, este alvo e o desvio da D-PROD-74 (caminho usado na P3-01, P3-02, P3-03 e P1-01).
 
@@ -106,6 +118,57 @@ SELECT pid, state, now() - xact_start AS idade, left(query, 80) AS consulta
 - Anote as contagens de `Cliente`, `Usuario`, `Empresa`, `BemPatrimonial`, `TanqueBem`,
   `TipoCombustivelProduto`, `LocalEstoque`, `MovimentacaoEstoque` e `EstoqueLoteNota`
   (`SELECT count(*) FROM "<tabela>"`).
+- **Impressão digital das tabelas antigas** (base do §6 item 10): rode a consulta abaixo
+  (uma instrução, só leitura, sem metacomando do psql, então o conector também roda) e
+  anote as 7 linhas (`TOTAL`, `coluna`, `constraint`, `fk_entrando`, `indice`, `politica`,
+  `tabela`). O valor **de produção** é a referência. O do ensaio local não serve, porque a
+  impressão inclui as ACLs (`relacl`) e as do Supabase são outras: no PG17 local deu
+  `TOTAL|2223|f4b51b600e72ea43a44e14220a4a044a`, antes e depois da P1-02.
+
+```sql
+-- Impressão digital das tabelas ANTIGAS de public (só leitura; uma instrução).
+-- Exclui as 3 tabelas da P1-02 e as FKs que saem delas. Saída: categoria | n | md5 (e TOTAL).
+WITH novas(t) AS (VALUES ('AbastecimentoBem'), ('AbastecimentoBemConsumoLote'), ('ConversaoCombustivelProduto')),
+tab AS (
+  SELECT c.oid, c.relname::text AS t, c.relrowsecurity AS rls, c.relforcerowsecurity AS force, coalesce(c.relacl::text, '') AS acl
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'f') AND c.relname NOT IN (SELECT t FROM novas)
+),
+linhas AS (
+  SELECT 'tabela' AS cat, t || '|rls=' || rls || '|force=' || force || '|acl=' || acl AS l FROM tab
+  UNION ALL
+  SELECT 'coluna', t.t || '.' || a.attname::text || '|' || a.attnum || '|' || format_type(a.atttypid, a.atttypmod) || '|nn=' || a.attnotnull
+         || '|def=' || coalesce(pg_get_expr(d.adbin, d.adrelid), '') || '|coll=' || coalesce(co.collname::text, '')
+    FROM tab t JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
+    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    LEFT JOIN pg_collation co ON co.oid = a.attcollation AND a.attcollation <> 0
+  UNION ALL
+  SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
+    FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
+  UNION ALL
+  SELECT 'indice', t.t || '|' || i.relname::text || '|' || pg_get_indexdef(i.oid)
+    FROM tab t JOIN pg_index x ON x.indrelid = t.oid JOIN pg_class i ON i.oid = x.indexrelid
+  UNION ALL
+  SELECT 'politica', p.tablename::text || '|' || p.policyname::text || '|' || p.cmd || '|' || array_to_string(p.roles, ',') || '|' || coalesce(p.qual, '') || '|' || coalesce(p.with_check, '')
+    FROM pg_policies p JOIN tab t ON t.t = p.tablename::text WHERE p.schemaname = 'public'
+  UNION ALL
+  SELECT 'gatilho', t.t || '|' || g.tgname::text || '|' || pg_get_triggerdef(g.oid)
+    FROM tab t JOIN pg_trigger g ON g.tgrelid = t.oid AND NOT g.tgisinternal
+  UNION ALL
+  SELECT 'fk_entrando', t.t || '<-' || k.conrelid::regclass::text || '|' || k.conname::text
+    FROM tab t JOIN pg_constraint k ON k.confrelid = t.oid AND k.contype = 'f'
+    JOIN pg_class o ON o.oid = k.conrelid
+   WHERE o.relname NOT IN (SELECT t FROM novas)
+)
+SELECT categoria, n, md5 FROM (
+  SELECT cat AS categoria, count(*) AS n, md5(string_agg(l, E'\n' ORDER BY l COLLATE "C")) AS md5 FROM linhas GROUP BY cat
+  UNION ALL
+  SELECT 'TOTAL', count(*), md5(string_agg(cat || ':' || l, E'\n' ORDER BY cat COLLATE "C", l COLLATE "C")) FROM linhas
+) r
+ORDER BY categoria COLLATE "C";
+```
+No PG17 local essa consulta dá exatamente as linhas da impressão do ensaio (variante
+"antigas" do `fingerprint.sql`), e as 7 linhas ficam iguais de 38 para 39.
 
 ### 4.3 Checksum
 `git show <SHA_APROVADO>:backend/prisma/migrations/20261110200000_patrimonio_p1_02_abastecimentos/migration.sql | sha256sum`
@@ -129,7 +192,9 @@ Com o arquivo do SHA, num PostgreSQL **17** local que tenha os papéis `anon`,
 - o SQL do §5 com o identificador de produção é recusado (`alvo divergente`);
 - com o identificador local, ele aplica até o `COMMIT`, e `prisma migrate diff --exit-code` dá 0;
 - repetir a transação é recusado (`migration já registrada`);
-- o rollback do §9.1 funciona e volta a 38.
+- o rollback do §9.1 **sem** modo de ensaio é recusado no cluster local (`alvo divergente`);
+  com `PGOPTIONS='-c maike.rollback_p102_ensaio_alvo=<system_identifier local>'` ele faz
+  o `COMMIT` e volta a 38. O texto do SQL é o mesmo de produção: nada é editado para ensaiar.
 
 **Ensaio feito na missão (2026-11-10)**, PostgreSQL 17.11 local descartável, papéis `anon`,
 `authenticated`, `service_role` e `maike_vercel`, com o default do Supabase simulado
@@ -138,6 +203,14 @@ Com o arquivo do SHA, num PostgreSQL **17** local que tenha os papéis `anon`,
 - **upgrade** de um banco com as 38 da `main` (82 tabelas) pelo runner `--verificar-alvo` ("ALVO VERIFICADO — 1 pendente") e `--aplicar`: 39/0, 85 tabelas; histórico 38 → 39 só com a P1-02; impressão digital das 82 tabelas antigas (colunas, constraints, índices, políticas, gatilhos, RLS/ACL, FKs entrando) **idêntica** antes e depois (`TOTAL|2223|129448571f9f2c161c27979033c53721`);
 - default hostil (re-`GRANT ALL` depois das 38): privilégios nas 3 = 0 (o REVOKE do DO funciona);
 - rollback do §9.1: com 1 linha em `ConversaoCombustivelProduto` → recusado, nada alterado; vazio → `COMMIT`, 38/0, 82 tabelas, impressão = a de 38; repetir → recusado; reaplicar → 39 de novo.
+- **Re-ensaio do rollback com a guarda de alvo embutida** (revisão final, PG17.11, cluster
+  `7706296865171723100`): sem modo de ensaio → `alvo divergente (system_identifier 7706296865171723100, esperado 7692130048193495360)`, nada alterado (39/0);
+  modo de ensaio nomeando outro cluster (o id de produção, ou `123`) → recusado; cópia com
+  o id local no lugar do de produção (simula o alvo certo, termina em `ROLLBACK`): com o modo
+  de ensaio ligado → `modo de ensaio ligado no alvo de PRODUÇÃO`, recusado; sem ele → a
+  guarda passa e o resto roda até o fim; modo de ensaio + 1 linha → recusado pela guarda de
+  vazio; modo de ensaio com o id local → `COMMIT`, 38/0, 82 tabelas, impressão **idêntica**
+  à de 38 (md5 por categoria, TOTAL e linhas brutas); repetir → recusado; reaplicar → 39.
 
 **Repetir no GO** com o arquivo do SHA aprovado e o SQL do §5 (inclusive a guarda de alvo).
 
@@ -202,13 +275,41 @@ COMMIT;
 - O `migration.sql` não tem `BEGIN`/`COMMIT` próprios (o único `BEGIN` é o do bloco `DO`)
   e não tem `DELETE`, `TRUNCATE`, `UPDATE` nem `INSERT` de dado. O único `DROP` é
   `DROP POLICY IF EXISTS` nas tabelas novas.
-- Qualquer falha desfaz tudo. Confira com o §6 que nada ficou e peça um novo GO.
+- **Caminho B:** qualquer falha desfaz tudo (é uma transação só, inclusive o `INSERT` em
+  `_prisma_migrations`). Confira com o §4.2 que nada ficou e peça um novo GO.
+- **Caminho A:** a falha também desfaz o DDL, mas o Prisma deixa a linha da P1-02 em
+  `_prisma_migrations` com `finished_at` NULL. Siga o §5.1 antes de qualquer outra tentativa.
+
+### 5.1 Recuperação depois de falha no caminho A (ex.: `P3018` / `55P03 lock timeout`)
+
+Ensaiado no PG16 local: uma transação segurando `ROW EXCLUSIVE` em `BemPatrimonial` e o
+caminho A com `options=-c lock_timeout=5s` deram exit 1 em ~6 s (`P3018`, `55P03`), sem
+nenhuma das 3 tabelas e com a linha da P1-02 sem `finished_at`. Um novo deploy, sem resolver,
+foi recusado com `P3009`.
+
+1. Confirme que nada do DDL ficou (deve dar **0**):
+   ```sql
+   SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname IN ('ConversaoCombustivelProduto','AbastecimentoBem','AbastecimentoBemConsumoLote');
+   ```
+   Se der mais que 0, **pare**: não é este caso (`RELEASE_BLOCKED`).
+2. Marque a tentativa como revertida, com a mesma `MIGRATION_DATABASE_URL`:
+   `npx prisma migrate resolve --rolled-back 20261110200000_patrimonio_p1_02_abastecimentos --schema backend/prisma/schema.prisma`
+3. Elimine a causa (a transação longa do §4.2) e repita **pelo caminho A** (`--verificar-alvo` e
+   `--aplicar`). Não troque para o caminho B sem novo GO: a guarda dele (`migration já
+   registrada`) recusa enquanto houver a linha revertida.
+4. Depois disso o histórico tem 39 concluídas, 0 com falha em aberto e **1 linha da P1-02 com
+   `rolled_back_at` preenchido**. No §6 item 1, conte a falha em aberto como
+   `finished_at IS NULL AND rolled_back_at IS NULL` (deve dar 0) e aceite exatamente essa
+   linha revertida. O rollback do §9.1 continua válido: as guardas dele contam só falha em
+   aberto, e o `DELETE` final remove as duas linhas da P1-02.
 
 ## 6. Postcheck (somente leitura)
 
 | # | Conferência | Esperado |
 |---|---|---|
-| 1 | `_prisma_migrations` | **39** concluídas e 0 com falha; a linha da P1-02 tem o `checksum` do §4.3 e `applied_steps_count = 1`; as outras 38 iguais às do §4.2 |
+| 1 | `_prisma_migrations` | **39** concluídas e 0 com falha; a linha da P1-02 tem o `checksum` do §4.3 e `applied_steps_count = 1`; as outras 38 iguais às do §4.2. Depois de uma recuperação do §5.1: 0 com falha **em aberto** (`finished_at IS NULL AND rolled_back_at IS NULL`) e exatamente 1 linha revertida, a da tentativa da P1-02 |
 | 2 | Tabelas em `public` | as 3 novas; total = **85** (com `_prisma_migrations`) |
 | 3 | `pg_class` das novas | RLS ligado e **sem** FORCE nas 3 |
 | 4 | Colunas por tabela | `ConversaoCombustivelProduto` 16 · `AbastecimentoBem` 34 · `AbastecimentoBemConsumoLote` 10 |
@@ -217,7 +318,7 @@ COMMIT;
 | 7 | `pg_policies` | 1 × `maike_backend_all`, `ALL`, `{maike_vercel}` em cada uma das 3 |
 | 8 | Grants das novas | 0 para `anon`, `authenticated` e `PUBLIC` (`has_table_privilege` e `information_schema.role_table_grants`); os demais grantees iguais aos de uma tabela da P1-01 (`TipoCombustivelProduto`) |
 | 9 | Contagens | as 3 novas com 0 linhas; as contagens do §4.2 iguais |
-| 10 | Tabelas antigas | colunas, constraints, índices e políticas das 82 antigas iguais aos do §4.2 (nenhuma linha removida ou alterada; só FKs novas **saindo** das 3) |
+| 10 | Tabelas antigas | a consulta de impressão digital do §4.2, rodada de novo, dá as **mesmas 7 linhas** anotadas em produção no §4.2 (colunas, constraints, índices, políticas, gatilhos, RLS/ACL e FKs entrando das 82 antigas; as FKs novas **saindo** das 3 ficam fora). Qualquer md5 diferente → divergência |
 | 11 | Advisor de segurança | nenhum alerta novo |
 | 12 | Runtime no ar (ainda o da `main`) | `GET /api/native/health` → 200; Bens, Combustíveis, Produtos e Lançamentos abrem; nenhum erro novo nos logs em 30 min |
 
@@ -260,13 +361,21 @@ de documentação na própria PR antes do merge, e a CI precisa ficar verde de n
 Só com autorização expressa e com a PR **não** mergeada (ou com o runtime antigo no ar e
 **nenhum** fator ou abastecimento gravado). Ordem: filhas antes das mães, **sem CASCADE**.
 
-**Passo 0 (obrigatório em produção, na mesma sessão, imediatamente antes):** a guarda de
-alvo não está dentro do script abaixo. Rode o §4.1 e pare se `system_identifier` ≠
-`7692130048193495360`.
+**Antes (obrigatório):** rode o preflight só leitura do §4.1 e do §4.2 no mesmo alvo e pare se
+`system_identifier` ≠ `7692130048193495360` ou se o histórico não for 39/0 com a P1-02 por
+último. A guarda de alvo agora também está **dentro** do script, como primeira instrução do
+primeiro `DO`, na mesma transação dos `DROP`: em qualquer outro cluster ele aborta antes de
+qualquer `DROP` (`alvo divergente`), mesmo que o preflight tenha rodado em outra conexão.
 
-Script testado (cópia exata do SQL ensaiado no PostgreSQL 17.11 local; guarda por checksum
-pinado, 39 concluídas, nada depois da P1-02, tabelas vazias sob `ACCESS EXCLUSIVE`, nenhuma
-FK externa apontando para elas; conferência final 38/0):
+**Ensaio local** (§4.6): o mesmo texto, sem edição, com o modo de ensaio ligado **fora** do
+SQL, só na conexão do ensaio:
+`PGOPTIONS='-c maike.rollback_p102_ensaio_alvo=<system_identifier local>' psql <url local> -v ON_ERROR_STOP=1 -f rollback.sql`.
+O modo só vale no cluster cujo id foi nomeado e é recusado no alvo de produção. Em produção
+**nunca** se liga o modo (o conector não passa `PGOPTIONS`, e nenhum `SET` dele vai no texto).
+
+Script testado (cópia exata do SQL ensaiado no PostgreSQL 17.11 local; guarda de alvo
+embutida, guarda por checksum pinado, 39 concluídas, nada depois da P1-02, tabelas vazias sob
+`ACCESS EXCLUSIVE`, nenhuma FK externa apontando para elas; conferência final 38/0):
 
 ```sql
 -- =============================================================================
@@ -279,7 +388,12 @@ FK externa apontando para elas; conferência final 38/0):
 -- runtime da P1-02 lendo estas tabelas daria P2021 → 500).
 -- O QUE FAZ (uma transação; tudo ou nada):
 --   1. trava de migration do Prisma (advisory 72707369) e lock_timeout 5 s;
---   2. guardas: a P1-02 está registrada, concluída, com o checksum pinado e é a
+--   2. guarda de ALVO, antes de tudo: system_identifier = 7692130048193495360 (projeto
+--      Supabase MAIKE); qualquer outro cluster → EXCEPTION. Modo de ENSAIO LOCAL só
+--      explícito, fora do texto: PGOPTIONS='-c maike.rollback_p102_ensaio_alvo=<id local>'
+--      (o id do cluster local, lido no §4.1). Com o modo ligado, só roda no cluster
+--      cujo id foi nomeado e é RECUSADO no alvo de produção;
+--      guardas: a P1-02 está registrada, concluída, com o checksum pinado e é a
 --      ÚLTIMA (39 concluídas, 0 com falha, nada depois dela); as 3 tabelas existem,
 --      ficam em ACCESS EXCLUSIVE e estão VAZIAS; nenhuma FK de fora aponta para elas;
 --   3. DROP TABLE das 3, filhas antes das mães, SEM CASCADE (nada some escondido);
@@ -298,9 +412,24 @@ DECLARE
   c_mig constant text := '20261110200000_patrimonio_p1_02_abastecimentos';
   c_sha constant text := '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba';
   c_tabelas constant text[] := ARRAY['AbastecimentoBemConsumoLote','AbastecimentoBem','ConversaoCombustivelProduto'];
+  c_alvo constant bigint := 7692130048193495360;  -- projeto Supabase MAIKE (§4.1)
+  v_sysid bigint := (SELECT system_identifier FROM pg_control_system());
+  v_ensaio text := nullif(current_setting('maike.rollback_p102_ensaio_alvo', true), '');
   v_tab text;
   v_n int;
 BEGIN
+  -- Guarda de ALVO dentro da transação, antes de qualquer outra leitura e de qualquer DROP.
+  IF v_ensaio IS NULL THEN
+    IF v_sysid <> c_alvo THEN
+      RAISE EXCEPTION 'ROLLBACK-P1-02: alvo divergente (system_identifier %, esperado %). Nada foi alterado.', v_sysid, c_alvo;
+    END IF;
+  ELSIF v_sysid = c_alvo THEN
+    RAISE EXCEPTION 'ROLLBACK-P1-02: modo de ensaio ligado no alvo de PRODUÇÃO; o ensaio só roda em banco local. Nada foi alterado.';
+  ELSIF v_ensaio <> v_sysid::text THEN
+    RAISE EXCEPTION 'ROLLBACK-P1-02: o modo de ensaio nomeia o cluster %, mas esta conexão está no %. Nada foi alterado.', v_ensaio, v_sysid;
+  ELSE
+    RAISE NOTICE 'ROLLBACK-P1-02: ENSAIO LOCAL no cluster % (não é produção).', v_sysid;
+  END IF;
   SELECT count(*) INTO v_n FROM public."_prisma_migrations"
    WHERE migration_name = c_mig AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND checksum = c_sha;
   IF v_n <> 1 THEN
@@ -374,13 +503,16 @@ Locks do rollback: `ACCESS EXCLUSIVE` em `BemPatrimonial`, `Cliente`, `Empresa`,
     fail-closed) — **não editar lotes consumidos** nessa janela;
   - o PATCH do medidor do bem não respeita o piso operacional — **não ajustar medidores**
     de bens com abastecimento nessa janela;
-  - excluir lote, produto ou empresa ligado a abastecimento cai na FK RESTRICT e o runtime
-    antigo traduz o `P2003` em **403 `TENANT_SCOPE_VIOLATION`**. Nada se perde, mas a
-    resposta engana.
+  - excluir **lote manual** (que não veio de compra P3) consumido por abastecimento cai na
+    FK RESTRICT (`AbastecimentoBemConsumoLote_lote_fkey`) e o runtime antigo traduz o
+    `P2003` em **403 `TENANT_SCOPE_VIOLATION`**. Nada se perde, mas a resposta engana.
+    Lote de compra P3 dá **409 `REGISTRO_OPERACIONAL_IMUTAVEL`**; produto dá **409
+    `PRODUTO_DELETE_BLOCKED`** (o abastecimento criou movimentação de estoque) e empresa dá
+    **409 `EMPRESA_COM_VINCULOS`**, os dois recusados antes de chegar à FK.
 
 > **Aviso ao suporte (janela de rollback de código):** um 403 `TENANT_SCOPE_VIOLATION` ao
-> excluir lote, Produto ou Empresa **não é incidente de tenancy**: é a FK de um
-> abastecimento. Não "corrigir" apagando linhas das tabelas da P1-02 no banco.
+> excluir um **lote** **não é incidente de tenancy**: é a FK de um abastecimento que consumiu
+> o lote. Não "corrigir" apagando linhas das tabelas da P1-02 no banco.
 
 ### 9.3 Restaurar backup
 Não é rollback desta release. Volta o banco inteiro, com todos os tenants. Exige plano

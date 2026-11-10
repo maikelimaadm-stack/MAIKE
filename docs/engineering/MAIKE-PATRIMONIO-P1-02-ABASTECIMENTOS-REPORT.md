@@ -94,11 +94,17 @@ Confirmação (`TRANSACAO_CURTA`):
 | R7 | `LocalEstoque FOR KEY SHARE` |
 | R8 | `travarProdutosEstoque` (advisory `estoque:produto` + `Produto FOR UPDATE`), uma vez |
 | — | `carregarEstado` relê tudo sob as travas: bem (ativo, natureza com tanque), tanque ativo do bem, tipo aceito pelo tanque, vínculo ativo, produto ativo da mesma empresa e em KG, fator vigente, local ativo, lotes, medidor |
-| R9 | `EstoqueLoteNota` (CAS do motor) |
-| R10 | `MovimentacaoEstoque` INSERT (nº provisório) |
+| R10 | `MovimentacaoEstoque` INSERT (nº provisório) — dentro de `aplicarSaidaFifo`, **antes** do CAS dos lotes |
+| R9 | `EstoqueLoteNota` (CAS do motor) e, em seguida, `Produto.estoque_atual` |
+| R12a | sequência do `AbastecimentoBem` (o número da linha), **antes** do INSERT |
 | R11 | INSERT `AbastecimentoBem` + `createMany` das fatias |
-| R12 | sequências `AbastecimentoBem` e `MovimentacaoEstoque` — sempre por último |
+| R12b | sequência de `MovimentacaoEstoque` (troca o nº provisório) |
 | R13 | AuditLog na mesma transação → recibo `committed` |
+
+A ordem da tabela é a de execução (conferida em `abastecimentoService.js` e
+`estoqueFisicoMotor.js`); os rótulos R9/R10 ficaram com os nomes antigos. O INSERT do
+movimento só toma `FOR KEY SHARE` em linhas já travadas antes (o `Produto` está `FOR UPDATE`
+desde R8), por isso vir antes do CAS dos lotes não abre ciclo.
 
 Cancelamento: R0 → R1 → R2 (dia do estorno) → leitura sem trava só de `bem_id/produto_id` → R3 → R4 → medidor antes → R8 → movimento original `FOR UPDATE` → `estornarSaida` (lotes + movimento) → R11 (CAS) → R12 → R13. **Prévia:** nenhuma trava (RepeatableRead só leitura; o "hoje" lido sem `FOR SHARE`, C5) e a mesma função de plano. A ausência de ciclo foi provada par a par contra P3-01/02/03 (confirmar, cancelar, retificar, excluir), suplementação/transferência, PATCH/DELETE de lote, PATCH/DELETE de Produto e PATCH do bem; as corridas C1–C11 (§15) confirmam a serialização, e `pg_stat_database.deadlocks` não mudou durante o arquivo de concorrência.
 
@@ -185,7 +191,7 @@ Resultados registrados pelas frentes na branch (antes do HEAD final); os número
 | `patrimonioP1Abastecimentos` (AB1–AB16) | PG real + Fastify | 17/0 | 24,0 s |
 | `patrimonioP1AbastecimentosMedidor` (M1–M8) | PG real + Fastify | 8/0 | 11,8 s |
 | `patrimonioP1AbastecimentosConcorrencia` (C1–C11) | PG real, portões por gatilho, espera por condição | 12/0 | 24,3 s (C9 ≈ 9 s pelo `lock_timeout`) |
-| `patrimonioP1AbastecimentosSeguranca` (S1–S9) | PG real + SQL direto | 8/0 | 11,5 s |
+| `patrimonioP1AbastecimentosSeguranca` (S1–S9 + S6b) | PG real + SQL direto | 9/0 (S6b na revisão final) | 11,5 s |
 | `patrimonioP1AbastecimentosContratoTela` (INT-1) | módulo puro da tela × API real × PG | ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
 | Regressão P1-01: `patrimonioP1Bens` 19/0 · `patrimonioP1CombustivelProduto` 20/0 · `patrimonioP1Catalogos` 14/0 · `patrimonioP1Seguranca` 12/0 (S8 com as 3 novas) | PG real | verde | — |
 | Regressão P3 e estoque: `gestaoP3Estoque` 17/0 · `gestaoP3Rodada2` 13/0 · `gestaoP3Concorrencia` 13/0 · `gestaoP3Lancamentos` 14/0 · `gestaoP3EditarExcluir` 45/0 · `gestaoP3Financeiro` 22/0 · `gestaoP3CustoLiquido` 38/0 · `gestaoP3RateioItem` 38/0 · `gestaoP3Seguranca` 9/0 · `gestaoP3PatrimonioCombinado` 3/0 · `cadastrosEstoqueNativo` 10/0 · `estabP0LancamentosNativo` 7/0 | PG real | verde | — |
@@ -202,6 +208,20 @@ Resultados registrados pelas frentes na branch (antes do HEAD final); os número
 | CI (`verify:all`, teto 30 min) | GitHub Actions | run ⟨PREENCHER⟩ | ⟨PREENCHER⟩ |
 
 Sensibilidade (mutação numa cópia da árvore no scratchpad, nunca na árvore real): sem `FOR UPDATE` do bem → C6 vermelho; sem o advisory do vínculo → C7 vermelho; sem `travarProdutosEstoque` → C3 e C5 vermelhos; L/h invertido → M1, M3, M7 vermelhos; sem checagem do ponto posterior → M4 vermelho; sem `produto_mudou_de_fazenda` → AB11 vermelho. Falhas provocadas por gatilho (S5) no 2º lote, na auditoria e no INSERT do fator novo → 5xx genérico e `fotoAbastecimento` idêntica (3 tabelas, lotes, movimentos, `estoque_atual`, recibos, auditoria, sequências).
+
+**Correções da revisão independente (antes do HEAD final), cada uma com teste RED → GREEN:**
+FE-01 (editar um bem com contador não fica preso ao piso operacional quando a leitura e a data
+não mudam; `bensPatrimoniais`), FE-02 ("Consultar" só tira a pendência depois de ler o
+detalhe, então repetir usa a mesma chave), FE-03 (sem `localStorage` gravável a chave pendente
+fica em memória), FE-04/FE-05 (textos da tela de fatores), FE-06 (`IDEMPOTENCY_IN_PROGRESS`
+continua "incerto", com Consultar), prévia sem "baixa de 0,0000 kg" quando há bloqueio de
+quantidade (`kgDaBaixaNaPrevia`, também no INT-1), S6b (o DO de REVOKE/RLS exercitado com os
+papéis do Supabase e o default hostil simulado; um mutante sem `REVOKE` e outro sem a política
+reprovam). No runbook: guarda de alvo dentro do rollback do §9.1 (com modo de ensaio explícito
+por `PGOPTIONS`, re-ensaiado no PG17), `lock_timeout` exigido na URL do caminho A e a
+recuperação de falha (§5.1), impressão digital das tabelas antigas que o conector consegue
+rodar (§4.2 e §6.10) e os códigos reais do §9.2. A ordem de travas do §7 e da D-PROD-159 foi
+alinhada ao código.
 
 Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de backend somam ≈ 72 s registrados + INT-1 (⟨PREENCHER⟩). Duração final do job: ⟨PREENCHER⟩.
 
@@ -237,7 +257,7 @@ Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de
 ## 18. Riscos e limitações
 
 - **Ordem de release:** a Vercel publica a `main` sozinha. Se o código entrar antes da migration, respondem 500 (P2021) as 15 rotas novas **e rotas antigas**: `GET`/`PATCH /bens-patrimoniais/:id` de bem com contador, `PATCH`/`DELETE /estoque-lotes-nota/:id` e `DELETE /empresas/:id`. A migration tem de ser aplicada com GO **antes** do merge (runbook). Na P1-01 houve incidente de sequência (merge antes da migration); este runbook repete a barreira.
-- **Rollback de código depois de existir abastecimento:** o runtime antigo não conhece X1 nem X2. Nessa janela, o administrador poderia alterar o saldo de um lote consumido por abastecimento (o estorno exato passaria a ser recusado por `devolucao_excede_entrada`, fail-closed) e ajustar o medidor do bem abaixo da leitura operacional. Excluir lote, produto ou empresa ligado ao abastecimento cairia na FK RESTRICT (403 enganoso `TENANT_SCOPE_VIOLATION`, sem perda de dado). Orientação no runbook §9.2.
+- **Rollback de código depois de existir abastecimento:** o runtime antigo não conhece X1 nem X2. Nessa janela, o administrador poderia alterar o saldo de um lote consumido por abastecimento (o estorno exato passaria a ser recusado por `devolucao_excede_entrada`, fail-closed) e ajustar o medidor do bem abaixo da leitura operacional. Excluir um lote manual (que não veio de compra P3) consumido por abastecimento cairia na FK RESTRICT (403 enganoso `TENANT_SCOPE_VIOLATION`, sem perda de dado); lote de compra P3 dá 409 `REGISTRO_OPERACIONAL_IMUTAVEL`, e produto e empresa continuam recusados antes da FK (409 `PRODUTO_DELETE_BLOCKED` e 409 `EMPRESA_COM_VINCULOS`). Orientação no runbook §9.2.
 - **Fator informado pelo usuário:** fator errado gera kg errado. Mitigação: faixa 0 < f ≤ 10, declaração explícita, versionamento, snapshot por abastecimento e cancelamento exato; não existe validação física.
 - **Coerência produto × empresa é do serviço** (sem unique composto em tabela antiga): SQL direto fora do serviço pode quebrá-la; toda confirmação relê sob trava.
 - **Produto que muda de fazenda** com abastecimento confirmado (inativar o vínculo + `PATCH /produtos` com outra fazenda é permitido): o cancelamento desse abastecimento fica 409 `produto_mudou_de_fazenda` até o produto voltar.

@@ -404,7 +404,7 @@ const executarLargura = async (browser, largura) => {
       await visivel(page.getByTestId('conversao-form')).waitFor();
       await escolher(dlg, 'conversao-tipo', /Diesel S10/);
       await escolher(dlg, 'conversao-produto', /DIESEL S10 GRANEL/);
-      await visivel(page.getByText('Este par ainda não tem fator: salvar cria a versão 1.')).waitFor();
+      await visivel(page.getByText('Este par não tem fator vigente: salvar cria uma nova versão.')).waitFor();
       await preencher('conversao-fator', '0,84');
       await visivel(page.getByTestId('conversao-declaracao')).check();
       await shot('fator-form');

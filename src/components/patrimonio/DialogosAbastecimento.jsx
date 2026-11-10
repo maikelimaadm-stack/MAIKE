@@ -10,9 +10,10 @@ import {
   formatarKg,
   formatarLeitura,
   formatarLitros,
+  kgDaBaixaNaPrevia,
   rotuloDoBem,
 } from "@/lib/abastecimentoRegras";
-import { CODIGO_ENVIO_PENDENTE, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 // Os componentes de `ui/dialog` são forwardRef sem tipos: aqui valem como `any`.
 const Dialog = /** @type {any} */ (UiDialog.Dialog);
@@ -58,8 +59,11 @@ export function useEnvioAbastecimento(enviar, fallback) {
     } catch (erro) {
       // "Manter" o envio anterior sem resposta: nada saiu agora; aquele envio continua incerto.
       const manteve = /** @type {any} */ (erro)?.code === CODIGO_ENVIO_PENDENTE;
+      // O MESMO envio ainda em processamento no servidor: pode virar gravado a qualquer momento — segue incerto.
+      const processando = codigoDoServidor(erro) === "IDEMPOTENCY_IN_PROGRESS";
       repetir.current = manteve || !ehRecusaDefinitiva(erro);
-      if (manteve || ehResultadoIncerto(erro)) setEstado({ fase: "incerto", consulta: null });
+      if (processando) setEstado({ fase: "incerto", consulta: mensagemErroAbastecimento(erro, fallback) });
+      else if (manteve || ehResultadoIncerto(erro)) setEstado({ fase: "incerto", consulta: null });
       else setEstado({ fase: "erro", mensagem: mensagemErroAbastecimento(erro, fallback) });
     } finally {
       emCurso.current = false;
@@ -152,6 +156,8 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
   const fatias = Array.isArray(fifo?.fatias) ? fifo.fatias : [];
   const medidor = plano?.medidor ?? null;
   const unidade = UNIDADE_MEDIDOR[String(medidor?.tipo ?? "")] ?? "";
+  // Com bloqueio de quantidade (0 kg arredondado, acima do teto) o KG do plano não é baixa: não aparece como tal.
+  const kgBaixa = kgDaBaixaNaPrevia(previa);
 
   const consultar = async () => {
     const texto = await onConsultar();
@@ -164,9 +170,9 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
         <DialogHeader>
           <DialogTitle>Prévia do abastecimento</DialogTitle>
           <DialogDescription data-testid="previa-resumo">
-            {plano?.quantidade_kg
+            {kgBaixa
               ? `${formatarLitros(plano.quantidade_litros)} L de ${plano.tipo_combustivel?.nome ?? "combustível"} em ${rotuloDoBem(plano.bem)}: baixa de ${formatarKg(
-                  plano.quantidade_kg,
+                  kgBaixa,
                 )} kg de ${plano.produto?.nome ?? "produto"} do estoque em ${plano.local_estoque?.nome ?? "local"}.`
               : "Nada foi gravado: confira abaixo o que impede a confirmação."}
           </DialogDescription>
@@ -179,7 +185,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
             testId="previa-fator"
             valor={plano?.conversao ? `${formatarFator(plano.conversao.kg_por_litro)} kg/L (versão ${plano.conversao.sequencia ?? plano.conversao.versao})` : "Sem fator kg/L configurado"}
           />
-          <Linha rotulo="Quantidade baixada" testId="previa-kg" valor={plano?.quantidade_kg ? `${formatarKg(plano.quantidade_kg)} kg` : "—"} />
+          <Linha rotulo="Quantidade baixada" testId="previa-kg" valor={kgBaixa ? `${formatarKg(kgBaixa)} kg` : "—"} />
           <Linha
             rotulo="Custo"
             testId="previa-custo"

@@ -51,6 +51,57 @@ const ALVO_NOVO = 'novo';
 /** Escopo da pendência: separado da Central (`<cliente>:<login>` → `abastecimento:<cliente>:<login>`). @param {string} escopo */
 const escopoDaPendencia = (escopo) => `abastecimento:${escopo}`;
 
+/**
+ * Onde a chave pendente mora: no storage do navegador e, quando ele não grava
+ * (cota cheia, bloqueado, ausente), em memória nesta página — assim "Repetir o
+ * mesmo envio" e "Consultar" ainda usam a MESMA chave e o estoque não é baixado
+ * duas vezes. A Central (C7) fica como está: só o armazenamento passado muda.
+ * @type {Map<string, string>}
+ */
+const pendenciasEmMemoria = new Map();
+const storageDoNavegador = () => {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+};
+const armazenamentoDaPendencia = /** @type {Storage} */ (
+  /** @type {unknown} */ ({
+    /** @param {string} k */
+    getItem: (k) => {
+      if (pendenciasEmMemoria.has(k)) return pendenciasEmMemoria.get(k) ?? null;
+      try {
+        return storageDoNavegador()?.getItem(k) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    /** @param {string} k @param {string} v */
+    setItem: (k, v) => {
+      try {
+        const s = storageDoNavegador();
+        if (!s) throw new Error('sem storage');
+        s.setItem(k, v);
+        pendenciasEmMemoria.delete(k);
+      } catch {
+        pendenciasEmMemoria.set(k, v);
+      }
+    },
+    /** @param {string} k */
+    removeItem: (k) => {
+      pendenciasEmMemoria.delete(k);
+      try {
+        storageDoNavegador()?.removeItem(k);
+      } catch {
+        /* sem storage: só a memória tinha a chave */
+      }
+    },
+  })
+);
+/** @param {Storage|null|undefined} storage */
+const storageDaPendencia = (storage) => (storage === undefined ? armazenamentoDaPendencia : storage);
+
 const MENSAGEM_DESCARTE =
   'Há um envio anterior deste abastecimento sem resposta do servidor — ele pode ter sido gravado. Consulte a lista antes.\n\n' +
   'Descartar e enviar: abandona o envio anterior e envia este conteúdo.\nManter: nada é enviado agora; repita aquele envio para concluí-lo sem duplicar.';
@@ -157,7 +208,7 @@ export const confirmarAbastecimento = async (empresaId, form, plano, c) => {
     alvo: ALVO_NOVO,
     conteudo: corpo,
     enviar: (operationId) => confirmarAbastecimentoApi({ ...corpo, operation_id: operationId }),
-    storage: c.storage,
+    storage: storageDaPendencia(c.storage),
     retentativa: c.retentativa,
     confirmarDescarte: c.confirmarDescarte ?? perguntarDescarte,
     confirmarNovoEnvio: c.confirmarNovoEnvio ?? perguntarNovoEnvio,
@@ -181,7 +232,7 @@ export const cancelarAbastecimento = async (empresaId, registro, c) => {
     alvo: id,
     conteudo: corpo,
     enviar: (operationId) => cancelarAbastecimentoApi(id, { ...corpo, operation_id: operationId }),
-    storage: c.storage,
+    storage: storageDaPendencia(c.storage),
     retentativa: c.retentativa,
     confirmarDescarte: c.confirmarDescarte ?? perguntarDescarte,
     confirmarNovoEnvio: perguntarNovoEnvio,
@@ -192,10 +243,12 @@ export const cancelarAbastecimento = async (empresaId, registro, c) => {
  * Pendência (envio sem resposta) desta ação: `{operation_id, conteudo}` ou null.
  * @param {string} escopo @param {string} acao @param {string} empresaId @param {string} alvo @param {Storage|null} [storage]
  */
-export const pendenciaDoAbastecimento = (escopo, acao, empresaId, alvo, storage) => lerPendenciaLancamento(escopoDaPendencia(escopo), acao, empresaId, alvo, storage);
+export const pendenciaDoAbastecimento = (escopo, acao, empresaId, alvo, storage) =>
+  lerPendenciaLancamento(escopoDaPendencia(escopo), acao, empresaId, alvo, storageDaPendencia(storage));
 
 /** @param {string} escopo @param {string} acao @param {string} empresaId @param {string} alvo @param {Storage|null} [storage] */
-export const limparPendenciaDoAbastecimento = (escopo, acao, empresaId, alvo, storage) => limparPendenciaLancamento(escopoDaPendencia(escopo), acao, empresaId, alvo, storage);
+export const limparPendenciaDoAbastecimento = (escopo, acao, empresaId, alvo, storage) =>
+  limparPendenciaLancamento(escopoDaPendencia(escopo), acao, empresaId, alvo, storageDaPendencia(storage));
 
 export const ALVO_NOVO_ABASTECIMENTO = ALVO_NOVO;
 

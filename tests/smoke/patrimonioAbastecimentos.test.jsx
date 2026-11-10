@@ -273,6 +273,26 @@ describe('FE4 — prévia', () => {
     expect(within(form).queryByTestId('abastecimento-reabrir-previa')).toBeNull();
   });
 
+  it('bloqueio de quantidade (0 kg arredondado; acima do teto do estoque): a prévia não mostra o KG como baixa', async () => {
+    amb.estado.conversoes.find((c) => c.id === 'f1').kg_por_litro = '0.400000';
+    await montar();
+    const form = await abrirNovo();
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
+    await within(form).findByText('Capacidade nominal: 180,0000 L');
+    await waitFor(() => expect(within(within(form).getByTestId('abastecimento-combustivel')).getByRole('radio', { name: 'Diesel S10' }).getAttribute('aria-checked')).toBe('true'));
+    await escolherNoSeletor(form, 'abastecimento-produto', /Diesel S10 granel/);
+    await within(form).findByText(/Fator: 0,400000 kg\/L/);
+    await waitFor(() => expect(within(form).getByRole('combobox', { name: 'Local de estoque' }).textContent).toMatch(/Tanque diesel sede/));
+    digitar(form, 'abastecimento-litros', '0,0001');
+    digitar(form, 'abastecimento-leitura', '1.550,5');
+    const dialogo = await pedirPrevia(form);
+    expect(within(dialogo).getByTestId('previa-bloqueios').querySelector('[data-codigo="OPERACAO_VALORES_INVALIDOS"]')).toBeTruthy();
+    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('Nada foi gravado: confira abaixo o que impede a confirmação.');
+    expect(within(dialogo).getByTestId('previa-resumo')).not.toHaveTextContent(/baixa de/);
+    expect(within(dialogo).getByTestId('previa-kg')).toHaveTextContent(/^—$/);
+    expect(within(dialogo).queryByTestId('abastecimento-confirmar')).toBeNull();
+  });
+
   it('fator ausente: bloqueio legível, sem Confirmar; "Configurar fator" só com configurar_conversao', async () => {
     const preencherFlexGasolina = async (form) => {
       await escolherNoSeletor(form, 'abastecimento-bem', /Caminhonete flex/);
@@ -306,7 +326,7 @@ describe('FE4 — prévia', () => {
     const conversoes = await screen.findByTestId('conversoes-combustivel');
     expect(within(conversoes).getByTestId('conversao-tipo')).toHaveTextContent('Gasolina');
     expect(within(conversoes).getByTestId('conversao-produto')).toHaveTextContent('Gasolina comum');
-    expect(within(conversoes).getByTestId('conversao-vigente')).toHaveTextContent('Este par ainda não tem fator: salvar cria a versão 1.');
+    expect(within(conversoes).getByTestId('conversao-vigente')).toHaveTextContent('Este par não tem fator vigente: salvar cria uma nova versão.');
   });
 });
 
@@ -429,6 +449,55 @@ describe('FE5 — confirmação idempotente', () => {
     expect(amb.estado.abastecimentos).toHaveLength(1);
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '82.8000']);
     expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
+  });
+
+  it('FE-03: sem localStorage gravável (cota cheia) a chave do envio sem resposta fica em memória e repetir manda a MESMA chave (nada duplicado)', async () => {
+    const gravar = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (k, v) {
+      if (String(k).startsWith('maike_lancamento_pendente')) throw new DOMException('cheio', 'QuotaExceededError');
+      return gravar.call(this, k, v);
+    });
+    amb.estado.proxima = 'gravar-e-perder';
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    const dialogo = await pedirPrevia(form);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    await within(dialogo).findByTestId('resultado-incerto');
+    expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(confirmacoes()).toHaveLength(2);
+    expect(confirmacoes()[1].body.operation_id).toBe(confirmacoes()[0].body.operation_id);
+    expect(amb.estado.abastecimentos).toHaveLength(1);
+  });
+
+  it('FE-06: o mesmo envio ainda em processamento (409 IDEMPOTENCY_IN_PROGRESS) continua incerto: Consultar e "Repetir o mesmo envio" à vista, mesma chave', async () => {
+    let n = 0;
+    amb.falhar = (req) => {
+      if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos') return null;
+      n += 1;
+      if (n === 1) return { status: 504, body: { message: 'gateway timeout' } };
+      if (n === 2) return erroServidor(409, 'IDEMPOTENCY_IN_PROGRESS', { details: { operation_id: req.body?.operation_id } });
+      return null;
+    };
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    const dialogo = await pedirPrevia(form);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    await within(dialogo).findByTestId('resultado-incerto');
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
+    expect(await within(dialogo).findByTestId('consulta-resultado')).toHaveTextContent('O mesmo envio ainda está sendo processado. Aguarde e consulte.');
+    expect(within(dialogo).getByTestId('resultado-incerto')).toBeTruthy();
+    expect(within(dialogo).queryByTestId('erro-envio')).toBeNull();
+    expect(within(dialogo).getByTestId('botao-consultar-resultado')).toBeTruthy();
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
+    expect(await screen.findByText(/Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque\./)).toBeTruthy();
+    const chaves = confirmacoes().map((c) => c.body.operation_id);
+    expect(chaves).toHaveLength(3);
+    expect(new Set(chaves).size).toBe(1);
+    expect(amb.estado.abastecimentos).toHaveLength(1);
   });
 
   it('IDEMPOTENCY_CONFLICT com mensagem própria; fator encerrado entre prévia e confirmação → 422 legível', async () => {

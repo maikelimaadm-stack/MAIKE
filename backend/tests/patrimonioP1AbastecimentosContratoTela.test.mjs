@@ -32,6 +32,7 @@ import {
   conferirRespostaAbastecimento,
   estimarKg,
   formularioVazio,
+  kgDaBaixaNaPrevia,
   LIMITES_ABASTECIMENTO,
   montarCorpoCancelamento,
   montarCorpoConfirmacao,
@@ -243,6 +244,8 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
       if (v.recusa) {
         // a tela não promete número (estimativa null); o plano traz o kg arredondado que o bloqueio B8b recusa (details.quantidade_kg)
         assert.deepEqual(rp.bloqueios.map((b) => [b.code, b.reason, b.details.quantidade_kg]), [['OPERACAO_VALORES_INVALIDOS', v.recusa, rp.plano.quantidade_kg]], `${v.litros} × ${v.kg_por_litro}`);
+        // …e a prévia da tela NÃO mostra esse kg como baixa (nem "baixa de 0,0000 kg" ao lado do bloqueio)
+        assert.equal(kgDaBaixaNaPrevia(rp), null, `kg da baixa na prévia ${v.litros} × ${v.kg_por_litro}`);
         // mesmo que o corpo da tela chegasse à API (o botão Confirmar não aparece com bloqueio), nada é gravado
         const antes = await fotoAbastecimento(s.c);
         const rc = await A.confirmar(tok, { ...montarCorpoConfirmacao(s.e1.id, p.form, rp.plano), operation_id: chaveDaTela() });
@@ -250,7 +253,7 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
         assert.equal(await fotoAbastecimento(s.c), antes);
         continue;
       }
-      assert.deepEqual([rp.bloqueios, rp.plano.quantidade_kg], [[], kgDaTela], `prévia ${v.litros} × ${v.kg_por_litro}`);
+      assert.deepEqual([rp.bloqueios, rp.plano.quantidade_kg, kgDaBaixaNaPrevia(rp)], [[], kgDaTela, kgDaTela], `prévia ${v.litros} × ${v.kg_por_litro}`);
       const rc = await A.confirmar(tok, { ...montarCorpoConfirmacao(s.e1.id, p.form, rp.plano), operation_id: chaveDaTela() });
       assert.equal(rc.statusCode, 201, rc.body);
       conforme(rc.json(), `A4 ${v.litros} × ${v.kg_por_litro}`);

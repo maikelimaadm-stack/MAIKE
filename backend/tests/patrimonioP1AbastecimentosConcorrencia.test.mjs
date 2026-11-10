@@ -19,7 +19,7 @@
  *     movimento (nº provisório) → R9 lotes (CAS) → R12a nº do abastecimento →
  *     R11 linha + fatias → R12b nº do movimento → R13 auditoria → recibo;
  *   cancelar: R1 → R2 → (leitura) → R3 Bem → R4 linha FOR UPDATE → R8 →
- *     movimento original FOR UPDATE → R10 estorno → R9 lotes → R11 → R12 → R13.
+ *     movimento original FOR UPDATE → R9 lotes (CAS) → R10 estorno → R11 → R12 → R13.
  *
  *  C1  mesma operation_id em paralelo (e payload divergente)
  *  C2  chaves diferentes, saldo para um só (mesmo bem e bens diferentes)

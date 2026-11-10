@@ -377,6 +377,18 @@ export const mensagemErroAbastecimento = (erro, fallback) => {
 };
 
 /**
+ * Erros da tela de fatores kg/L: o conflito de versão é do FATOR (outra pessoa
+ * alterou ou encerrou depois da leitura da lista), não de um abastecimento; o
+ * resto segue as mensagens do abastecimento.
+ * @param {unknown} erro
+ * @param {string} fallback
+ */
+export const mensagemErroConversao = (erro, fallback) =>
+  lerErroGestao(erro).code === 'PATRIMONIO_VERSAO_CONFLITO'
+    ? 'O fator mudou desde que a lista foi lida (outra pessoa alterou ou encerrou). A lista foi relida; nada foi alterado.'
+    : mensagemErroAbastecimento(erro, fallback);
+
+/**
  * Mensagem de um BLOQUEIO da prévia (`{code, field, reason, details}`): o mesmo
  * texto do erro, sem o "Nada foi gravado." (a prévia não tenta gravar).
  * @param {{ code?: string, field?: string, reason?: string, details?: Record<string, any> } | null | undefined} bloqueio

@@ -17,6 +17,7 @@ import {
   conferirRespostaAbastecimento,
   estimarKg,
   formularioVazio,
+  kgDaBaixaNaPrevia,
   medidorExigeLeitura,
   montarCorpoCancelamento,
   montarCorpoConfirmacao,
@@ -198,5 +199,20 @@ describe('totais exatos', () => {
     ];
     expect(totaisConfirmados(itens)).toEqual({ litros: '0.3000', kg: '0.2520', quantidade: 2 });
     expect(totaisConfirmados([{ status: 'CONFIRMADO', quantidade_litros: '9999999999.9999', quantidade_kg: '0.0001' }, { status: 'CONFIRMADO', quantidade_litros: '0.0001', quantidade_kg: '0.0001' }]).litros).toBe('10000000000.0000');
+  });
+});
+
+describe('kgDaBaixaNaPrevia — o KG do plano só aparece como baixa sem bloqueio de quantidade', () => {
+  const bloqueio = (reason) => ({ code: 'OPERACAO_VALORES_INVALIDOS', field: 'quantidade_litros', reason, details: {} });
+  it('sem bloqueio: o kg do plano; com outro bloqueio (saldo, medidor): ainda o kg', () => {
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '67.2000' }, bloqueios: [] })).toBe('67.2000');
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '67.2000' }, bloqueios: [{ code: 'ESTOQUE_SALDO_INSUFICIENTE', reason: 'saldo_lote_insuficiente' }] })).toBe('67.2000');
+  });
+  it('0 kg arredondado ou acima do teto do estoque: null (nada de "baixa de 0,0000 kg")', () => {
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '0.0000' }, bloqueios: [bloqueio('quantidade_estoque_zero')] })).toBeNull();
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '0.0000' }, bloqueios: [] })).toBeNull();
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '99999999999.9990' }, bloqueios: [bloqueio('valor_excede_limite_estoque')] })).toBeNull();
+    expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: null }, bloqueios: [] })).toBeNull();
+    expect(kgDaBaixaNaPrevia(null)).toBeNull();
   });
 });

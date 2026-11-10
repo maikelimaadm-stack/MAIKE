@@ -73,7 +73,7 @@ describe('FE7 — fatores kg/L', () => {
     fireEvent.click(within(painel).getByTestId('conversao-nova'));
     await escolherNoSeletor(painel, 'conversao-tipo', /Gasolina/);
     await escolherNoSeletor(painel, 'conversao-produto', /Gasolina comum/);
-    expect(within(painel).getByTestId('conversao-vigente')).toHaveTextContent('Este par ainda não tem fator: salvar cria a versão 1.');
+    expect(within(painel).getByTestId('conversao-vigente')).toHaveTextContent('Este par não tem fator vigente: salvar cria uma nova versão.');
     digitarFator(painel, '12');
     fireEvent.click(within(painel).getByTestId('conversao-salvar'));
     expect(await within(painel).findByText('Informe um fator maior que zero e até 10.')).toBeTruthy();
@@ -115,5 +115,36 @@ describe('FE7 — fatores kg/L', () => {
     await waitFor(() => expect(amb.backend.chamadas.some((c) => c.path === '/patrimonio-conversoes-combustivel/f3/encerrar')).toBe(true));
     expect(amb.backend.chamadas.find((c) => c.path === '/patrimonio-conversoes-combustivel/f3/encerrar').body).toEqual({ empresa_id: 'emp-1', versao: 1 });
     await waitFor(() => expect(within(painel).getByTestId('conversao-f3')).toHaveTextContent('Encerrado'));
+  });
+
+  it('FE-04: encerrar com a versão lida desatualizada (409 PATRIMONIO_VERSAO_CONFLITO) fala do FATOR, não do abastecimento, e relê', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const painel = await abrirFatores();
+    // Outra pessoa mexeu no fator depois de a lista ser lida.
+    amb.estado.conversoes.find((c) => c.id === 'f1').versao = 2;
+    const leiturasAntes = amb.backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/patrimonio-conversoes-combustivel').length;
+    await act(async () => fireEvent.click(within(painel).getByTestId('conversao-encerrar-f1')));
+    await waitFor(() => expect(amb.backend.chamadas.some((c) => c.path === '/patrimonio-conversoes-combustivel/f1/encerrar')).toBe(true));
+    expect(amb.backend.chamadas.find((c) => c.path === '/patrimonio-conversoes-combustivel/f1/encerrar').body).toEqual({ empresa_id: 'emp-1', versao: 1 });
+    expect(await screen.findByText('O fator mudou desde que a lista foi lida (outra pessoa alterou ou encerrou). A lista foi relida; nada foi alterado.')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('O abastecimento mudou desde que você o abriu');
+    await waitFor(() => expect(amb.backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/patrimonio-conversoes-combustivel').length).toBeGreaterThan(leiturasAntes));
+    expect(amb.estado.conversoes.find((c) => c.id === 'f1').ativo).toBe(true);
+  });
+
+  it('FE-05: par sem fator vigente mas com versão encerrada não promete "versão 1"; o toast mostra a versão que o servidor criou', async () => {
+    Object.assign(amb.estado.conversoes.find((c) => c.id === 'f1'), { ativo: false, versao: 2, encerrado_em: '2026-11-01T10:00:00.000Z' });
+    const painel = await abrirFatores();
+    fireEvent.click(within(painel).getByTestId('conversao-nova'));
+    await escolherNoSeletor(painel, 'conversao-tipo', /Diesel S10/);
+    await escolherNoSeletor(painel, 'conversao-produto', /Diesel S10 granel/);
+    expect(within(painel).getByTestId('conversao-vigente')).toHaveTextContent('Este par não tem fator vigente: salvar cria uma nova versão.');
+    expect(within(painel).getByTestId('conversao-vigente').textContent).not.toMatch(/versão 1/);
+    digitarFator(painel, '0,85');
+    fireEvent.click(within(painel).getByTestId('conversao-declaracao'));
+    await act(async () => fireEvent.click(within(painel).getByTestId('conversao-salvar')));
+    await waitFor(() => expect(criacoes()).toHaveLength(1));
+    expect(amb.estado.conversoes.at(-1).sequencia).toBe(2);
+    expect(await screen.findByText('Fator 0,850000 kg/L vigente (versão 2).')).toBeTruthy();
   });
 });

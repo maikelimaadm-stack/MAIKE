@@ -68,6 +68,24 @@ export const estimarKg = (litros, fator) => {
   }
 };
 
+/** Bloqueios de quantidade em que o KG do plano não é uma baixa: 0 kg arredondado ou acima do teto das colunas do estoque. */
+const MOTIVOS_SEM_BAIXA = new Set(['quantidade_estoque_zero', 'valor_excede_limite_estoque']);
+
+/**
+ * KG que a prévia mostra como baixa do estoque: o do plano, ou null quando o
+ * servidor bloqueou a quantidade (aí "baixa de 0,0000 kg" ao lado do bloqueio
+ * só confunde: nada seria baixado).
+ * @param {{ plano?: any, bloqueios?: any[] } | null | undefined} previa
+ * @returns {string|null}
+ */
+export const kgDaBaixaNaPrevia = (previa) => {
+  const kg = previa?.plano?.quantidade_kg;
+  if (!ehCanonico(kg) || !ehPositivo(kg)) return null;
+  const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
+  const semBaixa = bloqueios.some((/** @type {any} */ b) => b?.code === 'OPERACAO_VALORES_INVALIDOS' && MOTIVOS_SEM_BAIXA.has(String(b?.reason ?? '')));
+  return semBaixa ? null : /** @type {string} */ (kg);
+};
+
 /**
  * Formulário em branco. `bem` e `produto` são as OPÇÕES escolhidas (objetos do
  * servidor); os demais, ids ou texto digitado.

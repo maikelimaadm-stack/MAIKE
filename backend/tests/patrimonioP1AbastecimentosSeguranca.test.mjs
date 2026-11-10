@@ -18,6 +18,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import {
@@ -305,6 +306,61 @@ describe('S6–S8 — o banco é a última rede', () => {
         assert.equal(r.pode, false, `${papel} em ${t}`);
       }
     }
+  });
+
+  test('S6b: com os papéis do Supabase e o default hostil simulado (GRANT ALL a anon/authenticated), o DO da migration revoga tudo e cria maike_backend_all para maike_vercel — numa transação desfeita no fim', async () => {
+    // Na CI (cluster novo) anon/authenticated/maike_vercel não existem quando a migration roda:
+    // o DO pula o REVOKE e a política, e o S6 acima não exercita nenhum dos dois. Aqui os papéis
+    // são criados (CREATE ROLE é transacional), o default do Supabase é simulado e o DO
+    // EXATO do migration.sql roda de novo (é idempotente). Tudo volta no ROLLBACK.
+    const sql = readFileSync(new URL('../prisma/migrations/20261110200000_patrimonio_p1_02_abastecimentos/migration.sql', import.meta.url), 'utf8');
+    const blocos = sql.match(/^DO \$\$[\s\S]*?^END \$\$;/gm) ?? [];
+    assert.equal(blocos.length, 1, 'a migration tem exatamente um bloco DO (o de REVOKE/RLS)');
+    const PRIVS = 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER';
+    const papeis = ['anon', 'authenticated'];
+    const p = prisma();
+    const antes = /** @type {any[]} */ (await p.$queryRaw`SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'maike_vercel') ORDER BY 1`);
+    const DESFAZER = new Error('rollback proposital do S6b');
+    /** @type {{ controle: any[], depois: any[], politicas: any[] } | null} */
+    let visto = null;
+    const pode = async (tx) => {
+      const linhas = [];
+      for (const papel of papeis) {
+        for (const t of TABELAS_ABASTECIMENTO) {
+          const [r] = /** @type {any[]} */ (await tx.$queryRawUnsafe(`SELECT has_table_privilege('${papel}', 'public."${t}"', '${PRIVS}') AS pode`));
+          linhas.push([papel, t, r.pode]);
+        }
+      }
+      return linhas;
+    };
+    await p
+      .$transaction(async (tx) => {
+        for (const papel of ['anon', 'authenticated', 'maike_vercel']) {
+          await tx.$executeRawUnsafe(`DO $papel$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${papel}') THEN CREATE ROLE ${papel} NOLOGIN; END IF; END $papel$`);
+        }
+        for (const t of TABELAS_ABASTECIMENTO) await tx.$executeRawUnsafe(`GRANT ALL ON TABLE public."${t}" TO anon, authenticated`);
+        const controle = await pode(tx);
+        await tx.$executeRawUnsafe(blocos[0]);
+        const depois = await pode(tx);
+        const politicas = /** @type {any[]} */ (await tx.$queryRaw`SELECT tablename::text AS t, cmd, array_to_string(roles, ',') AS roles, qual, with_check FROM pg_policies
+          WHERE schemaname = 'public' AND policyname = 'maike_backend_all' AND tablename = ANY(${[...TABELAS_ABASTECIMENTO]}::text[]) ORDER BY 1`);
+        visto = { controle, depois, politicas };
+        throw DESFAZER;
+      }, { timeout: 20000 })
+      .catch((e) => {
+        if (e !== DESFAZER) throw e;
+      });
+    assert.ok(visto, 'a transação chegou ao fim');
+    const v = /** @type {{ controle: any[], depois: any[], politicas: any[] }} */ (/** @type {unknown} */ (visto));
+    assert.ok(v.controle.every((l) => l[2] === true), `controle negativo: o GRANT simulado vale antes do DO (${JSON.stringify(v.controle)})`);
+    assert.ok(v.depois.every((l) => l[2] === false), `o DO revoga anon/authenticated nas 3 (${JSON.stringify(v.depois)})`);
+    assert.deepEqual(
+      v.politicas.map((x) => [x.t, x.cmd, x.roles, x.qual, x.with_check]),
+      [...TABELAS_ABASTECIMENTO].sort().map((t) => [t, 'ALL', 'maike_vercel', 'true', 'true']),
+      '1 política maike_backend_all, ALL, só para maike_vercel, em cada tabela',
+    );
+    const depoisDoRollback = /** @type {any[]} */ (await p.$queryRaw`SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'maike_vercel') ORDER BY 1`);
+    assert.deepEqual(depoisDoRollback, antes, 'nenhum papel criado sobrevive ao ROLLBACK');
   });
 
   test('S7: CHECKs, uniques, FKs compostas e RESTRICT recusam escrita direta incoerente; S8: BemPatrimonial nunca recebe ABASTECIMENTO e o abastecimento não grava o bem', async () => {
