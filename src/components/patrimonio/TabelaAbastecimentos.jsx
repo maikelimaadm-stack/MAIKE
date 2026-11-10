@@ -25,22 +25,33 @@ export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
  * dados técnicos ficam como colunas opcionais (desligadas); o tipo de
  * combustível aparece só na consulta (detalhe técnico).
  *
- * Larguras (tablet, 820 px): a grade tem ~711 px úteis; tirando a coluna de
+ * Larguras (tablet, 820 px): a grade tem ~712 px úteis; tirando a coluna de
  * seleção (36) e a barra de rolagem vertical (~15), sobram ~660 px, e as 6
  * colunas padrão somam 655. A Situação aparece sem rolar a tabela por dentro.
  * Medido no Chromium com DM Sans 14 px (≤ 1023 px). A célula gasta 19 px
- * (padding 0 9px + borda) e o cabeçalho 43 px (+ gap 4 + menu 20). Por isso
- * nenhum rótulo é cortado: "Máquina/Veículo" pede 157 e "Situação" 103. A Data
- * cabe inteira (a mais larga de 2026, "04/04/2026", pede 101) e Litros cabe
- * até "999,9999 L" (pede 95). "1.200,0000 L" pediria 105 e passaria da soma:
- * com 4 dígitos inteiros o valor sai cortado, com `title`. Máquina/Veículo e
- * Produto cortam de propósito, também com `title`. As larguras são mínimas: no
- * desktop a grade estica as colunas para ocupar a linha.
+ * (padding 0 9px + borda) e o cabeçalho 43 px (+ gap 4 + menu 20; +16 com a
+ * seta de ordenação).
+ *
+ * Prioridade: o PRODUTO vem antes do rótulo inteiro do cabeçalho
+ * "Máquina/Veículo". Vários Produtos do mesmo combustível só se distinguem
+ * pela última palavra ("Diesel S10 granel" × "Diesel S10 posto"), e no tablet
+ * não há hover para o `title`. Por isso o Produto tem 130 (até ~111 px de
+ * texto: "Gasolina comum" 109, "Diesel S10 granel" 108 cabem inteiros) e a
+ * Máquina/Veículo cede: com 124, o RÓTULO "Máquina/Veículo" (pede 157) sai
+ * com reticências no tablet — exceção aceita, porque a célula já identifica a
+ * máquina ("TP-02 — Trator TP-02": o código vem primeiro; tudo no `title`).
+ * Os outros rótulos cabem inteiros ("Situação" pede 103). A Data cabe inteira
+ * (a mais larga de 2026, "04/04/2026", pede 101) e Litros cabe até
+ * "999,9999 L" (pede 95). "1.200,0000 L" pediria 105 e passaria da soma: com
+ * 4 dígitos inteiros o valor sai cortado, com `title`. Nomes de Produto
+ * maiores que ~111 px (ex.: "DIESEL S10 GRANEL" em maiúsculas) cortam, com
+ * `title`. As larguras são mínimas: no desktop a grade estica as colunas para
+ * ocupar a linha.
  */
 export const ABASTECIMENTOS_COLUNAS = [
   { id: "data_operacional", label: "Data", default: true, sortable: true, width: 101 },
-  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 157 },
-  { id: "produto", label: "Produto", default: true, sortable: true, width: 97 },
+  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 124 },
+  { id: "produto", label: "Produto", default: true, sortable: true, width: 130 },
   { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 97 },
   { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 100 },
   { id: "status", label: "Situação", default: true, sortable: true, width: 103 },

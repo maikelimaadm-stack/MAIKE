@@ -114,29 +114,43 @@ describe('UX-02 L1 — ordem padrão da lista = ordem do servidor (Nº desc)', (
  * layout: aqui fica o ORÇAMENTO, com as medidas tiradas no Chromium com a
  * fonte da tela (DM Sans; 14 px em ≤ 1023 px, `mk-unificado.css`; cabeçalho
  * 600). A prova na tela real é o E2E-1 (`conferirLista`: rótulos e células de
- * Data/Litros/Medidor/Situação sem corte em 820 px).
+ * Data/Litros/Medidor/Situação sem corte e coluna Produto ≥ 128 px em 820 px).
  * Célula: padding 0 9px + borda 1px (`cadastro-base1.css`) = 19 px. Cabeçalho:
- * + gap 4 + botão do menu 20 = 43 px. Grade útil em 820 px ≈ 711 px − 36 da
+ * + gap 4 + botão do menu 20 = 43 px. Grade útil em 820 px ≈ 712 px − 36 da
  * seleção − 15 da barra de rolagem vertical ≈ 660 → orçamento de 655.
+ *
+ * Prioridade (rodada 2): o PRODUTO vale mais que o rótulo inteiro do cabeçalho
+ * "Máquina/Veículo". Com 97 px o Produto mostrava 81 px de texto na tela e
+ * "Diesel S10 granel", "Diesel S10 posto" e "Gasolina comum" viravam
+ * "Diesel S10 …" — sumia a palavra que distingue os Produtos, e no tablet não
+ * há hover para o `title`.
+ * A célula da máquina já diz qual é a máquina, então o rótulo "Máquina/Veículo"
+ * (pede 157) é a ÚNICA exceção aceita: no tablet ele sai com reticências.
  */
-describe('UX-02 L2 — larguras padrão cabem em 820 px sem cortar rótulo nem número', () => {
+describe('UX-02 L2 — larguras padrão cabem em 820 px sem cortar o Produto, a Data nem os números', () => {
   const ROTULO = { data_operacional: 31.7, bem: 113.8, produto: 54.0, quantidade_litros: 38.5, leitura: 56.3, status: 59.3 };
+  /** Cabeçalho que pode cortar no tablet (decisão do orquestrador, rodada 2). */
+  const ROTULO_PODE_CORTAR = ['bem'];
   const MAIOR_VALOR = {
     data_operacional: ['04/04/2026', 81.1], // a data mais larga de 2026 (dígitos proporcionais)
+    // Nomes comuns de Produto, medidos no Chromium (scrollWidth). O orçamento é
+    // de 111 px de texto: cabem inteiros; "DIESEL S10 GRANEL" (127, maiúsculas)
+    // e "Diesel S10 estoque novo" (157) continuam cortando, com `title`.
+    produto: ['texto de 111 px ("Gasolina comum" 109, "Diesel S10 granel" 108, "Etanol hidratado" 107, "Diesel S10 posto" 106)', 111],
     quantidade_litros: ['999,9999 L', 75.2], // cortava a partir de "100,0000 L"
     leitura: ['123.456 km', 72.6],
     status: ['Confirmado', 80.7], // o selo, com padding e borda
   };
 
-  it('soma ≤ 655 px; cada coluna cabe o rótulo inteiro (+43) e o maior valor esperado (+19)', () => {
+  it('soma ≤ 655 px; cada coluna cabe o rótulo inteiro (+43, exceto Máquina/Veículo) e o maior valor esperado (+19)', () => {
     const padrao = ABASTECIMENTOS_COLUNAS.filter((c) => c.default);
     expect(padrao.map((c) => c.id)).toEqual(['data_operacional', 'bem', 'produto', 'quantidade_litros', 'leitura', 'status']);
     expect(padrao.reduce((s, c) => s + c.width, 0)).toBeLessThanOrEqual(655);
     const faltas = padrao.flatMap((c) => {
       const f = [];
-      if (c.width < ROTULO[c.id] + 43) f.push(`${c.label} ${c.width} px: o rótulo pede ${(ROTULO[c.id] + 43).toFixed(1)}`);
+      if (!ROTULO_PODE_CORTAR.includes(c.id) && c.width < ROTULO[c.id] + 43) f.push(`${c.label} ${c.width} px: o rótulo pede ${(ROTULO[c.id] + 43).toFixed(1)}`);
       const v = MAIOR_VALOR[c.id];
-      if (v && c.width < v[1] + 19) f.push(`${c.label} ${c.width} px: "${v[0]}" pede ${(v[1] + 19).toFixed(1)}`);
+      if (v && c.width < v[1] + 19) f.push(`${c.label} ${c.width} px: ${v[0].startsWith('texto') ? v[0] : `"${v[0]}"`} pede ${(v[1] + 19).toFixed(1)}`);
       return f;
     });
     expect(faltas).toEqual([]);

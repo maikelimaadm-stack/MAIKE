@@ -22,7 +22,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react';
 import { escolherOpcao, rotulosDasOpcoes } from './fixtures/gestaoBackendFake.js';
-import { semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
+import { previaComUnidadeDoProduto, rotearAbastecimentos, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
 import {
   abrirDetalhesDoEstoque,
   abrirNovo,
@@ -721,5 +721,99 @@ describe('UX-02 revisão final — formulário', () => {
     await pedirPrevia(form);
     expect(previas()).toHaveLength(1);
     expect(previas()[0].body).toEqual(CORPO_TP02(amb.estado.hoje));
+  });
+
+  /** Guarda o corpo de cada resposta da prévia (`rotear(req)` decide a resposta; `null` = fake normal). */
+  const registrarPrevias = (rotear = (req) => rotearAbastecimentos(amb.estado, req)) => {
+    const respostas = [];
+    amb.falhar = (req) => {
+      if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos-previa') return null;
+      return Promise.resolve(rotear(req)).then((r) => {
+        respostas.push(r.body);
+        return r;
+      });
+    };
+    return respostas;
+  };
+  const codigosDe = (resposta) => (resposta?.bloqueios ?? []).map((b) => `${b.code}:${b.reason}`);
+
+  it('F1: o tanque deixa de aceitar o Diesel S10 ANTES de "Revisar" (200, TANQUE_COMBUSTIVEL_INCOMPATIVEL) relê uma vez: A sai com aviso e o par velho não é revisado de novo nem confirmado', async () => {
+    const respostas = registrarPrevias();
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    expect(produtosDoBem()).toHaveLength(1);
+    // Antes de revisar: o tanque do trator passa a aceitar só Gasolina (cadastro do bem).
+    amb.estado.tanques.b1[0].combustiveis = ['c2'];
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await waitFor(() => expect(respostas).toHaveLength(1));
+    expect(previas()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
+    expect(codigosDe(respostas[0])).toEqual(['TANQUE_COMBUSTIVEL_INCOMPATIVEL:nao_aceito_pelo_tanque']);
+    // A tela relê os Produtos do bem e a reconciliação tira A (mesmo aviso do vínculo inativado).
+    expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
+    // O servidor só oferece o que o tanque aceita agora (Gasolina, sem fator): nada marcado em silêncio.
+    expect(radios(within(form).getByTestId('abastecimento-produto'))).toEqual([['Gasolina comum (sem fator kg/L)', 'false']]);
+    // Uma releitura só: sem laço, nada mais é lido nem revisado sozinho.
+    expect(produtosDoBem()).toHaveLength(2);
+    await esperar(200);
+    expect(produtosDoBem()).toHaveLength(2);
+    expect(previas()).toHaveLength(1);
+    // "Revisar" de novo, sem Produto, não manda o par velho (fica na validação local).
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await esperar(50);
+    expect(previas()).toHaveLength(1);
+    expect(produtosDoBem()).toHaveLength(2);
+    expect(confirmacoes()).toEqual([]);
+    expect(amb.estado.abastecimentos).toEqual([]);
+  });
+
+  it('F1: o tanque deixa de aceitar o Diesel S10 DEPOIS de "Revisar" (422 TANQUE_COMBUSTIVEL_INCOMPATIVEL na confirmação) relê do mesmo jeito; nada é gravado', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    const dialogo = await pedirPrevia(form);
+    expect(produtosDoBem()).toHaveLength(1);
+    amb.estado.tanques.b1[0].combustiveis = ['c2'];
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    expect(confirmacoes()).toHaveLength(1);
+    expect(confirmacoes()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
+    expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
+    expect(produtosDoBem()).toHaveLength(2);
+    await esperar(200);
+    expect(produtosDoBem()).toHaveLength(2);
+    expect(confirmacoes()).toHaveLength(1);
+    expect(amb.estado.abastecimentos).toEqual([]);
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
+  });
+
+  it('F1: o estoque do Produto deixa de ser KG ANTES de "Revisar" (200, ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL) relê uma vez: A sai e aparece o motivo do servidor; nada é confirmado', async () => {
+    const respostas = registrarPrevias((req) => previaComUnidadeDoProduto(amb.estado, req));
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    expect(produtosDoBem()).toHaveLength(1);
+    // Antes de revisar: a unidade de estoque do Produto passa a ser litro (cadastro de Produtos).
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'L';
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await waitFor(() => expect(respostas).toHaveLength(1));
+    expect(previas()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
+    expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL:unidade_estoque_nao_kg']);
+    expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('O Produto associado tem estoque em outra unidade (não KG): o abastecimento só baixa estoque em KG. Ajuste a unidade de estoque do Produto.');
+    expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
+    expect(produtosDoBem()).toHaveLength(2);
+    await esperar(200);
+    expect(produtosDoBem()).toHaveLength(2);
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await esperar(50);
+    expect(previas()).toHaveLength(1);
+    expect(produtosDoBem()).toHaveLength(2);
+    expect(confirmacoes()).toEqual([]);
+    expect(amb.estado.abastecimentos).toEqual([]);
   });
 });

@@ -25,7 +25,7 @@ import FormularioFamilia, { FORMULARIO_FAMILIA_ID } from "@/components/patrimoni
 import FormularioTipo, { FORMULARIO_TIPO_ID } from "@/components/patrimonio/FormularioTipo";
 import FormularioPerfilMedicao, { FORMULARIO_PERFIL_MEDICAO_ID } from "@/components/patrimonio/FormularioPerfilMedicao";
 import FormularioCombustivel, { FORMULARIO_COMBUSTIVEL_ID } from "@/components/patrimonio/FormularioCombustivel";
-import ProdutosDoCombustivel from "@/components/patrimonio/ProdutosDoCombustivel";
+import ProdutosDoCombustivel, { aplicarResultadoDoLote } from "@/components/patrimonio/ProdutosDoCombustivel";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
@@ -212,16 +212,25 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   const [falhasPorRegistro, setFalhasPorRegistro] = useState(
     /** @type {Record<string, Array<{ id: string, nome: string, codigo: string|null, mensagem: string }>>} */ ({}),
   );
-  /** @param {string} emp @param {string} tipo @param {Array<{ id: string, nome: string, codigo: string|null, mensagem: string }>} falhas */
-  const guardarFalhasDoRegistro = (emp, tipo, falhas) =>
+  /**
+   * Aplica o DELTA de um lote à entrada `empresa:combustível` (atualização
+   * funcional): uma resposta atrasada de um lote antigo não apaga a falha de
+   * um lote mais novo do mesmo registro.
+   * @param {string} emp @param {string} tipo @param {import("@/components/patrimonio/ProdutosDoCombustivel").ResultadoDoLote} lote
+   */
+  const guardarFalhasDoRegistro = (emp, tipo, lote) =>
     setFalhasPorRegistro((atual) => {
       const chave = `${emp}:${tipo}`;
+      const falhas = aplicarResultadoDoLote(atual[chave] ?? [], lote);
       if (falhas.length) return { ...atual, [chave]: falhas };
       if (!(chave in atual)) return atual;
       const resto = { ...atual };
       delete resto[chave];
       return resto;
     });
+  // Fazenda e registro com a seção de Produtos NA TELA agora (o aviso de uma
+  // associação que termina depois de trocar de fazenda ou de registro diz onde ver "Não associados").
+  const telaAtualRef = useRef(/** @type {{ empresaId: string|null, tipoId: string|null }} */ ({ empresaId: null, tipoId: null }));
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
   const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
@@ -403,7 +412,12 @@ export default function CatalogoPatrimonioTela({ recurso }) {
     onSuccess: (r) => {
       invalidar();
       const criado = r.criado;
-      if (ehCombustiveis && r.associacao) guardarFalhasDoRegistro(r.associacao.empresaId, r.associacao.tipoId, r.associacao.falhas);
+      if (ehCombustiveis && r.associacao) {
+        guardarFalhasDoRegistro(r.associacao.empresaId, r.associacao.tipoId, {
+          resolvidos: r.associacao.associados.map((/** @type {{ id: string }} */ p) => String(p.id)),
+          falhas: r.associacao.falhas,
+        });
+      }
       if (criado && typeof criado === "object" && "id" in criado && criado.id) {
         mostrarRegistro(criado);
         controller.recordHelpers.chrome.onSelectionChange([String(criado.id)]);
@@ -544,6 +558,7 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   // NESTA fazenda. `key` empresa+combustível: trocar de registro ou de fazenda zera a seção.
   const tipoAberto = ehCombustiveis && registroAtual?.id ? String(registroAtual.id) : null;
   const falhasDoAberto = tipoAberto && empresaId ? (falhasPorRegistro[`${empresaId}:${tipoAberto}`] ?? null) : null;
+  telaAtualRef.current = { empresaId, tipoId: ehCombustiveis && acoes.ver && controller.showForm && empresaId ? tipoAberto : null };
   const produtosVinculados =
     ehCombustiveis && acoes.ver && tipoAberto ? (
       <ProdutosDoCombustivel
@@ -554,8 +569,9 @@ export default function CatalogoPatrimonioTela({ recurso }) {
         acoes={{ criar: acoes.criar, inativar: acoes.inativar }}
         editando={controller.isEditing}
         falhasGuardadas={falhasDoAberto}
-        // Empresa e combustível do CLIQUE (a seção pode ter remontado antes da resposta).
-        onFalhasChange={({ empresaId: emp, tipoId: tipo, falhas }) => guardarFalhasDoRegistro(emp, tipo, falhas)}
+        // Empresa e combustível do CLIQUE (a seção pode ter remontado antes da resposta); só o delta do lote.
+        onResultadoDoLote={({ empresaId: emp, tipoId: tipo, resolvidos, falhas }) => guardarFalhasDoRegistro(emp, tipo, { resolvidos, falhas })}
+        telaAtual={() => telaAtualRef.current}
       />
     ) : null;
 

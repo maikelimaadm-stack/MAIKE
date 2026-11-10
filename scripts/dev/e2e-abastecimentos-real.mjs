@@ -54,7 +54,10 @@
  *  Situação no card (contrato §1.4: no passo 8 o cancelado mostra "Cancelado"
  *  e os outros "Confirmado", na linha e no card). Na tabela, nenhum rótulo
  *  de cabeçalho cortado nem célula de Data/Litros/Medidor/Situação (elemento
- *  com scrollWidth <= clientWidth + 1). Formulário: nenhum
+ *  com scrollWidth <= clientWidth + 1) — exceção única: em < 1024 px o rótulo
+ *  "Máquina/Veículo" pode sair com reticências (a coluna cede largura ao
+ *  Produto; a célula já identifica a máquina) —, coluna Produto com >= 128 px
+ *  renderizados e a grade sem rolagem horizontal. Formulário: nenhum
  *  rótulo/campo/etapa "Combustível" nem o tipo "Diesel S10".
  *
  * Uso:
@@ -378,9 +381,12 @@ const executarLargura = async (browser, largura) => {
           return { direita: Math.round(th.getBoundingClientRect().right), limite: Math.round(caixa.right), sw: el?.scrollWidth ?? 0, cw: el?.clientWidth ?? 0 };
         });
         conferir(
-          encaixe.direita <= encaixe.limite + 1 && encaixe.sw <= encaixe.cw + 1,
-          `[${rotulo}] ${ator}: coluna Situação fora da área visível da grade em ${largura} px (borda ${encaixe.direita} > ${encaixe.limite}; grade ${encaixe.sw} > ${encaixe.cw})`,
+          encaixe.direita <= encaixe.limite + 1,
+          `[${rotulo}] ${ator}: coluna Situação fora da área visível da grade em ${largura} px (borda ${encaixe.direita} > ${encaixe.limite})`,
         );
+        // Rodada 2 (L2): a grade (contêiner com overflow-x da tabela) não rola na
+        // horizontal — as 6 colunas padrão cabem sem arrastar a tabela.
+        conferir(encaixe.sw <= encaixe.cw + 1, `[${rotulo}] ${ator}: a grade rola na horizontal em ${largura} px (scrollWidth ${encaixe.sw} > clientWidth ${encaixe.cw} + 1)`);
         // Revisão final UX-02 (L2): em 820 px "Medidor" e "Máquina/Veículo" saíam com
         // reticências e Litros cortava a partir de 100 L. `allTextContents` (acima)
         // devolve o texto inteiro mesmo cortado, então mede o ELEMENTO do rótulo
@@ -390,13 +396,14 @@ const executarLargura = async (browser, largura) => {
           const ths = [...tabela.querySelectorAll('thead th')];
           const rotuloDe = (th) => th.querySelector('button span') || th.querySelector('button');
           const out = [];
+          const cabecalhosCortados = [];
           const indice = {};
           ths.forEach((th, i) => {
             const el = rotuloDe(th);
             const t = el?.textContent.trim();
             if (!t) return;
             indice[t] = i;
-            if (el.scrollWidth > el.clientWidth + 1) out.push(`cabeçalho "${t}" (${el.scrollWidth} > ${el.clientWidth})`);
+            if (el.scrollWidth > el.clientWidth + 1) cabecalhosCortados.push({ t, sw: el.scrollWidth, cw: el.clientWidth });
           });
           for (const tr of tabela.querySelectorAll('tbody tr')) {
             for (const nome of ['Data', 'Litros', 'Medidor', 'Situação']) {
@@ -404,10 +411,27 @@ const executarLargura = async (browser, largura) => {
               if (td && td.scrollWidth > td.clientWidth + 1) out.push(`${nome} "${td.textContent.trim()}" (${td.scrollWidth} > ${td.clientWidth})`);
             }
           }
-          return { out, rotulos: Object.keys(indice) };
+          const thProduto = indice.Produto === undefined ? null : ths[indice.Produto];
+          return { out, cabecalhosCortados, rotulos: Object.keys(indice), larguraProduto: thProduto ? Math.round(thProduto.getBoundingClientRect().width * 10) / 10 : 0 };
         });
         igual(cortes.rotulos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] ${ator}: rótulos medidos na grade`);
-        conferir(cortes.out.length === 0, `[${rotulo}] ${ator}: texto cortado na lista em ${largura} px: ${cortes.out.join('; ')}`);
+        // Rodada 2 (L2, decisão do orquestrador): no tablet (< 1024 px) o PRODUTO
+        // vale mais que o rótulo inteiro "Máquina/Veículo" — vários Produtos do
+        // mesmo combustível só se distinguem pela última palavra ("Diesel S10
+        // granel" × "Diesel S10 posto") e não há hover para o `title`, enquanto a
+        // célula da máquina já a identifica ("TP-02 — …"). Por isso, em < 1024 px,
+        // SÓ o rótulo "Máquina/Veículo" pode sair com reticências; em >= 1024 px,
+        // nenhum. Qualquer outro rótulo cortado é divergência.
+        const rotuloPodeCortar = (t) => largura < 1024 && t === 'Máquina/Veículo';
+        const cabecalhosRuins = cortes.cabecalhosCortados.filter((c) => !rotuloPodeCortar(c.t)).map((c) => `cabeçalho "${c.t}" (${c.sw} > ${c.cw})`);
+        const aceitos = cortes.cabecalhosCortados.filter((c) => rotuloPodeCortar(c.t));
+        if (aceitos.length) console.log(`  [${rotulo}] ${ator}: ${largura} px — rótulo "Máquina/Veículo" com reticências (${aceitos[0].sw} > ${aceitos[0].cw}), exceção aceita no tablet`);
+        conferir(cabecalhosRuins.length === 0 && cortes.out.length === 0, `[${rotulo}] ${ator}: texto cortado na lista em ${largura} px: ${[...cabecalhosRuins, ...cortes.out].join('; ')}`);
+        // O seed usa "DIESEL S10 GRANEL" (127 px em maiúsculas, mais largo que os
+        // nomes comuns), então em vez de exigir a célula inteira confere a
+        // LARGURA renderizada da coluna: >= 128 px deixa ~109 px de texto, onde
+        // cabem "Gasolina comum", "Diesel S10 granel" e "Diesel S10 posto".
+        conferir(cortes.larguraProduto >= 128, `[${rotulo}] ${ator}: coluna Produto com ${cortes.larguraProduto} px (< 128) em ${largura} px — o nome do Produto perde a palavra que o distingue`);
         for (const r of [registro, ...outros]) {
           const linha = visivel(page.locator('tr').filter({ has: page.getByTestId(`abastecimento-bem-${r.id}`) }));
           const txt = (await linha.innerText()).replace(/\s+/g, ' ');

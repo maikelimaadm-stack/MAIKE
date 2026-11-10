@@ -17,8 +17,10 @@
  * fazenda · CB-08 sem fazenda · CB-09 permissões · CB-10 combustível inativo
  * · CB-11 Produto já de outro combustível · CB-12 textos de inativar/reativar
  * · CB-13 fazenda muda durante a associação da criação · CB-14 falha de
- * associação sobrevive à remontagem da seção · CB-15 "Tentar de novo" com o
- * painel aberto · CB-16 código que já existe (nunca "criado" falso).
+ * associação sobrevive à remontagem da seção (e o aviso diz onde vê-la) ·
+ * CB-15 "Tentar de novo" com o painel aberto · CB-16 código que já existe
+ * (nunca "criado" falso) · CB-17 resposta atrasada de um lote antigo não
+ * apaga a falha de um lote novo (delta por lote).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -807,12 +809,18 @@ describe('CB-14 — registro: a falha de uma associação em andamento não se p
     await waitFor(() => expect(screen.queryByTestId('combustivel-produtos-nao-associados')).toBeNull());
   });
 
-  it('a resposta chega com OUTRA fazenda na tela: o bloco não aparece lá e aparece ao voltar para a fazenda e o registro', async () => {
+  it('a resposta chega com OUTRA fazenda na tela: o aviso nomeia o combustível e a fazenda de origem; o bloco não aparece lá e aparece ao voltar', async () => {
     const liberar = await associarComRespostaPresa();
     await trocarFazenda('emp-2');
     expect(await screen.findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
     await liberar();
-    expect(await screen.findByText('1 de 1 produto(s) não foram associados. Veja "Não associados" e tente de novo.')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        '1 de 1 produto(s) não foram associados ao combustível Diesel S10 na fazenda anterior (Fazenda Boa Vista). Volte para essa fazenda no topo da tela para ver "Não associados" e tentar de novo.',
+      ),
+    ).toBeTruthy();
+    // Nunca manda "ver" um bloco que não está na tela.
+    expect(screen.queryByText(/Veja "Não associados"/)).toBeNull();
     await esperar(50);
     expect(within(screen.getByTestId('combustivel-produtos')).queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
     await trocarFazenda('emp-1');
@@ -820,6 +828,114 @@ describe('CB-14 — registro: a falha de uma associação em andamento não se p
     const bloco = within(screen.getByTestId('combustivel-produtos')).getByTestId('combustivel-produtos-nao-associados');
     expect(bloco).toHaveTextContent('Não associados (1)');
     expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+  });
+
+  it('a resposta chega com OUTRO registro aberto na mesma fazenda: o aviso nomeia o combustível e manda abrir esse registro (o bloco aparece lá)', async () => {
+    const liberar = await associarComRespostaPresa();
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo registro' }));
+    await within(await screen.findByTestId('combustivel-produtos')).findByTestId('combustivel-produto-v5');
+    await liberar();
+    expect(
+      await screen.findByText('1 de 1 produto(s) não foram associados ao combustível Diesel S10 nesta fazenda. Abra esse registro para ver "Não associados" e tentar de novo.'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Veja "Não associados"/)).toBeNull();
+    await esperar(50);
+    expect(within(screen.getByTestId('combustivel-produtos')).queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Registro anterior' }));
+    await within(await screen.findByTestId('combustivel-produtos')).findByTestId('combustivel-produto-v1');
+    const bloco = within(screen.getByTestId('combustivel-produtos')).getByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+  });
+
+  it('outra fazenda E outro registro na tela: o aviso nomeia a fazenda de origem e o combustível e diz para voltar e abrir esse registro', async () => {
+    const liberar = await associarComRespostaPresa();
+    await trocarFazenda('emp-2');
+    // c1 em Santa Rita mostra o vínculo de lá (v6); c2 em Santa Rita não tem nenhum.
+    await within(await screen.findByTestId('combustivel-produtos')).findByTestId('combustivel-produto-v6');
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo registro' }));
+    await waitFor(() => expect(within(screen.getByTestId('combustivel-produtos')).getByText('Nenhum produto associado nesta fazenda.')).toBeTruthy());
+    await liberar();
+    expect(
+      await screen.findByText(
+        '1 de 1 produto(s) não foram associados ao combustível Diesel S10 na fazenda anterior (Fazenda Boa Vista). Volte para essa fazenda no topo da tela e abra esse registro para ver "Não associados" e tentar de novo.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Veja "Não associados"/)).toBeNull();
+  });
+});
+
+describe('CB-17 — registro: resposta atrasada de um lote antigo não apaga a falha de um lote novo (delta por lote)', () => {
+  const err403 = () => erroServidor(403, 'ACAO_NAO_PERMITIDA', { details: { tela: 'pat-combustiveis' } });
+  /**
+   * c1 em Boa Vista: associa pB com a resposta PRESA; troca de fazenda e volta
+   * (a seção remonta); na seção nova associa pD, que recebe 403. Devolve o
+   * liberador da resposta antiga de pB.
+   * @param {object|null} respostaAntiga resposta do POST antigo de pB (null = grava de verdade: 201)
+   */
+  const loteAntigoPresoELoteNovoComFalha = async (respostaAntiga) => {
+    await montar();
+    let secao = await abrir('c1');
+    await within(secao).findByTestId('combustivel-produto-v1');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+    await escolherNaSecao(secao, /DIESEL ESTOQUE NOVO/);
+    let liberar;
+    ganchos.vinculo.push({ esperar: new Promise((r) => { liberar = r; }), ...(respostaAntiga ? { resposta: respostaAntiga } : {}) });
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    await waitFor(() => expect(postsVinculo()).toHaveLength(1));
+    await trocarFazenda('emp-2');
+    expect(await screen.findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
+    await trocarFazenda('emp-1');
+    expect(await screen.findByText('Fazenda: Fazenda Boa Vista')).toBeTruthy();
+    secao = screen.getByTestId('combustivel-produtos');
+    await within(secao).findByTestId('combustivel-produto-v1');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+    await escolherNaSecao(secao, /DIESEL TANQUE 2/);
+    ganchos.vinculo.push({ resposta: err403() });
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    const bloco = await within(screen.getByTestId('combustivel-produtos')).findByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL TANQUE 2: ${MSG_403}`);
+    return () => act(async () => { liberar(); });
+  };
+
+  it('P2e: o lote antigo (pB) dá CERTO depois da falha nova (pD): só pB sai; "Não associados (1) DIESEL TANQUE 2" continua', async () => {
+    const liberar = await loteAntigoPresoELoteNovoComFalha(null);
+    await liberar();
+    expect(await screen.findByText('Produto associado')).toBeTruthy();
+    await waitFor(() => expect(within(screen.getByTestId('combustivel-produtos')).getByText('Associados (2)')).toBeTruthy());
+    const bloco = within(screen.getByTestId('combustivel-produtos')).getByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL TANQUE 2: ${MSG_403}`);
+    expect(bloco).not.toHaveTextContent('DIESEL ESTOQUE NOVO');
+    // pD de fato não está associado: o bloco diz a verdade.
+    expect(estado.vinculos.filter((v) => v.produto_id === 'pD')).toEqual([]);
+  });
+
+  it('P2a: o lote antigo (pB) também FALHA depois: os dois ficam em "Não associados" e "Tentar de novo" reenvia os dois', async () => {
+    const liberar = await loteAntigoPresoELoteNovoComFalha(err403());
+    await liberar();
+    // Um aviso por lote (pD antes, pB agora), os dois com a seção na tela.
+    await waitFor(() => expect(screen.getAllByText('1 de 1 produto(s) não foram associados. Veja "Não associados" e tente de novo.')).toHaveLength(2));
+    const bloco = within(screen.getByTestId('combustivel-produtos')).getByTestId('combustivel-produtos-nao-associados');
+    await waitFor(() => expect(bloco).toHaveTextContent('Não associados (2)'));
+    expect(bloco).toHaveTextContent(`DIESEL TANQUE 2: ${MSG_403}`);
+    expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+    fireEvent.click(within(bloco).getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText('2 produtos associados')).toBeTruthy();
+    expect(postsVinculo().map((c) => c.body.produto_id)).toEqual(['pB', 'pD', 'pD', 'pB']);
+    await waitFor(() => expect(screen.queryByTestId('combustivel-produtos-nao-associados')).toBeNull());
+  });
+
+  it('"Descartar" tira só o que estava no bloco: a falha que chega depois (lote antigo) aparece sozinha', async () => {
+    const liberar = await loteAntigoPresoELoteNovoComFalha(err403());
+    fireEvent.click(within(screen.getByTestId('combustivel-produtos-nao-associados')).getByRole('button', { name: 'Descartar' }));
+    expect(screen.queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
+    await liberar();
+    const bloco = await within(screen.getByTestId('combustivel-produtos')).findByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+    expect(bloco).not.toHaveTextContent('DIESEL TANQUE 2');
   });
 });
 

@@ -716,3 +716,31 @@ export const semearAbastecimento = async (e, corpo) => {
   if (r.status !== 201) throw new Error(`semente recusada: ${JSON.stringify(r.body)}`);
   return r.body;
 };
+
+/** B0..B5a do plano real: campos cujos bloqueios vêm ANTES do B5b (unidade do Produto). */
+const ANTES_DO_B5B = new Set(['bem_id', 'tanque_id', 'tipo_combustivel_id', 'produto_id', 'data_operacional']);
+
+/**
+ * Cenário opt-in (o `planejar` acima não avalia o B5b): a prévia com o bloqueio
+ * `ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL` do plano real
+ * (`abastecimentoPlano.js`: estoque do Produto fora de KG → 200 com o bloqueio,
+ * depois de B0..B5a). Para `ambiente.falhar`: devolve a resposta da prévia com
+ * o bloqueio acrescentado, ou `null` nas demais rotas (seguem o fake normal).
+ * @param {ReturnType<typeof criarEstadoAbastecimentos>} e
+ * @param {{ method: string, path: string, query: URLSearchParams, body: any }} req
+ */
+export const previaComUnidadeDoProduto = (e, req) => {
+  if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos-previa') return null;
+  return rotearAbastecimentos(e, req).then((r) => {
+    const produto = e.produtos.find((p) => p.id === req.body?.produto_id) ?? null;
+    if (r?.status !== 200 || !produto || produto.unidade_principal_estoque === 'KG') return r;
+    const bloqueios = [...r.body.bloqueios];
+    const novo = { code: 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', field: 'produto_id', reason: 'unidade_estoque_nao_kg', details: { unidade: produto.unidade_principal_estoque } };
+    let posicao = 0;
+    bloqueios.forEach((b, i) => {
+      if (ANTES_DO_B5B.has(b.field) || b.reason === 'quantidade_nao_positiva') posicao = i + 1;
+    });
+    bloqueios.splice(posicao, 0, novo);
+    return { status: 200, body: { ...r.body, bloqueios } };
+  });
+};

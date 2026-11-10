@@ -74,6 +74,10 @@ const RELER_NOS_ERROS = new Set([
   "ABASTECIMENTO_LOCAL_INVALIDO",
   "ABASTECIMENTO_BEM_INELEGIVEL",
   "COMBUSTIVEL_PRODUTO_INVALIDO",
+  // Tanque deixou de aceitar o combustível (ou ele saiu de litros) / estoque do Produto saiu de KG:
+  // a opção do formulário ficou velha; relida, a reconciliação tira o par que saiu.
+  "TANQUE_COMBUSTIVEL_INCOMPATIVEL",
+  "ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL",
   "ABASTECIMENTO_STATUS_INVALIDO",
   "PATRIMONIO_VERSAO_CONFLITO",
   "ABASTECIMENTO_NAO_ENCONTRADO",

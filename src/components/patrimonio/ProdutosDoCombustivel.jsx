@@ -44,6 +44,53 @@ export const AJUDA_TROCA_DE_ASSOCIACAO =
 export const AVISO_EDICAO_ASSOCIACOES = "As associações são gravadas na hora, independentemente do botão Salvar.";
 
 /** @typedef {{ id: string, nome: string, codigo: string|null, mensagem: string }} FalhaDeAssociacao */
+/** @typedef {{ resolvidos: string[], falhas: FalhaDeAssociacao[] }} ResultadoDoLote */
+
+/**
+ * Aplica o resultado de UM lote à lista de "Não associados" (função pura: o
+ * pai e a seção sem pai usam a mesma). Tira os `resolvidos` (associados por
+ * este lote, inclusive `ja_vinculado`, ou descartados), atualiza no lugar ou
+ * acrescenta as `falhas` deste lote e mantém o resto: a resposta atrasada de
+ * um lote antigo nunca apaga a falha de outro lote.
+ * @param {FalhaDeAssociacao[]} atual @param {ResultadoDoLote} lote
+ * @returns {FalhaDeAssociacao[]}
+ */
+export const aplicarResultadoDoLote = (atual, { resolvidos, falhas }) => {
+  const tirar = new Set(resolvidos.map(String));
+  const novas = new Map(falhas.map((f) => [String(f.id), f]));
+  /** @type {FalhaDeAssociacao[]} */
+  const proximas = [];
+  for (const f of atual) {
+    const id = String(f.id);
+    const nova = novas.get(id);
+    if (nova) {
+      proximas.push(nova);
+      novas.delete(id);
+    } else if (!tirar.has(id)) {
+      proximas.push(f);
+    }
+  }
+  return [...proximas, ...novas.values()];
+};
+
+/**
+ * Aviso de falha de um lote. A resposta pode chegar com OUTRA fazenda ou OUTRO
+ * registro na tela, onde o bloco "Não associados" não está: o aviso diz onde vê-lo.
+ * @param {{ empresaId: string, tipoId: string, empresaNome: string|null, tipoNome: string|null }} v
+ * @param {number} f @param {number} n
+ * @param {{ empresaId: string|null, tipoId: string|null } | null} tela  o que está na tela agora (null = sem pai: a própria seção)
+ */
+const avisoDeFalhas = (v, f, n, tela) => {
+  const base = `${f} de ${n} produto(s) não foram associados`;
+  const mesmaFazenda = !tela || tela.empresaId === v.empresaId;
+  const mesmoRegistro = !tela || tela.tipoId === v.tipoId;
+  if (mesmaFazenda && mesmoRegistro) return `${base}. Veja "Não associados" e tente de novo.`;
+  const doTipo = v.tipoNome ? ` ao combustível ${v.tipoNome}` : " ao combustível de origem";
+  if (mesmaFazenda) return `${base}${doTipo} nesta fazenda. Abra esse registro para ver "Não associados" e tentar de novo.`;
+  const origem = v.empresaNome ? `na fazenda anterior (${v.empresaNome})` : "na fazenda anterior";
+  const abrir = mesmoRegistro ? "" : " e abra esse registro";
+  return `${base}${doTipo} ${origem}. Volte para essa fazenda no topo da tela${abrir} para ver "Não associados" e tentar de novo.`;
+};
 
 /**
  * "Produtos associados nesta fazenda" (D-PROD-157 R2; UX-02, D-PROD-160) —
@@ -73,11 +120,15 @@ export const AVISO_EDICAO_ASSOCIACOES = "As associações são gravadas na hora,
  * monta a seção com `key` empresa+combustível, então trocar de registro ou de
  * fazenda zera o painel (nada da fazenda anterior aparece).
  *
- * "Não associados": com `onFalhasChange` o PAI guarda as falhas por
+ * "Não associados": com `onResultadoDoLote` o PAI guarda as falhas por
  * empresa+combustível e a seção mostra `falhasGuardadas`. A associação pode
  * terminar com a seção já desmontada (troca de fazenda ou de registro no
  * meio): o resultado vai direto ao pai com a empresa e o combustível do
- * clique, e reaparece ao voltar para eles. Sem pai, as falhas ficam na seção.
+ * clique, e reaparece ao voltar para eles. Cada lote manda só o SEU delta
+ * (`aplicarResultadoDoLote`), nunca a lista inteira: uma resposta atrasada
+ * não apaga a falha de um lote mais novo; "Descartar" tira só o que estava
+ * no bloco. Com `telaAtual`, o aviso de falha que chega com outra fazenda ou
+ * outro registro na tela diz onde ver o bloco. Sem pai, as falhas ficam na seção.
  *
  * @param {{
  *   empresaId: string|null,
@@ -86,10 +137,20 @@ export const AVISO_EDICAO_ASSOCIACOES = "As associações são gravadas na hora,
  *   acoes: { criar: boolean, inativar: boolean },
  *   editando?: boolean,
  *   falhasGuardadas?: FalhaDeAssociacao[] | null,
- *   onFalhasChange?: (r: { empresaId: string, tipoId: string, falhas: FalhaDeAssociacao[] }) => void,
+ *   onResultadoDoLote?: (r: { empresaId: string, tipoId: string } & ResultadoDoLote) => void,
+ *   telaAtual?: () => { empresaId: string|null, tipoId: string|null },
  * }} props
  */
-export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, combustivel, acoes, editando = false, falhasGuardadas = null, onFalhasChange }) {
+export default function ProdutosDoCombustivel({
+  empresaId,
+  empresaNome = null,
+  combustivel,
+  acoes,
+  editando = false,
+  falhasGuardadas = null,
+  onResultadoDoLote,
+  telaAtual,
+}) {
   const queryClient = useQueryClient();
   const tipoId = String(combustivel.id);
   const tipoAtivo = combustivel.ativo !== false;
@@ -98,19 +159,18 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
   const [associando, setAssociando] = useState(false);
   const [escolhidos, setEscolhidos] = useState(/** @type {Array<{ id: string, nome: string }>} */ ([]));
   const [falhasLocais, setFalhasLocais] = useState(/** @type {FalhaDeAssociacao[]} */ ([]));
-  const falhas = onFalhasChange ? (Array.isArray(falhasGuardadas) ? falhasGuardadas : []) : falhasLocais;
-  // Última lista vista: a mutação pode terminar depois desta seção desmontar.
-  const falhasRef = useRef(falhas);
-  falhasRef.current = falhas;
-  const avisarFalhas = useRef(onFalhasChange);
-  avisarFalhas.current = onFalhasChange;
+  const falhas = onResultadoDoLote ? (Array.isArray(falhasGuardadas) ? falhasGuardadas : []) : falhasLocais;
+  // Do pai, pela última renderização: a mutação pode terminar depois desta seção desmontar.
+  const avisarLote = useRef(onResultadoDoLote);
+  avisarLote.current = onResultadoDoLote;
+  const telaAtualRef = useRef(telaAtual);
+  telaAtualRef.current = telaAtual;
   const enviando = useRef(false);
 
-  /** @param {string} emp @param {string} tipo @param {FalhaDeAssociacao[]} proximas */
-  const guardarFalhas = (emp, tipo, proximas) => {
-    falhasRef.current = proximas;
-    setFalhasLocais(proximas);
-    avisarFalhas.current?.({ empresaId: emp, tipoId: tipo, falhas: proximas });
+  /** Só o delta deste lote (o pai aplica com atualização funcional). @param {string} emp @param {string} tipo @param {ResultadoDoLote} lote */
+  const registrarLote = (emp, tipo, lote) => {
+    if (avisarLote.current) avisarLote.current({ empresaId: emp, tipoId: tipo, ...lote });
+    else setFalhasLocais((atual) => aplicarResultadoDoLote(atual, lote));
   };
 
   const lista = useInfiniteQuery({
@@ -151,14 +211,16 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
   };
 
   const associar = useMutation({
-    /** @param {{ empresaId: string, tipoId: string, origem: "painel"|"repetir", produtos: Array<{ id: string, nome: string }> }} v */
+    /**
+     * @param {{ empresaId: string, tipoId: string, empresaNome: string|null, tipoNome: string|null,
+     *   origem: "painel"|"repetir", produtos: Array<{ id: string, nome: string }> }} v
+     */
     mutationFn: (v) => associarProdutosAoCombustivel(v.empresaId, v.tipoId, v.produtos),
-    // Roda mesmo com a seção desmontada: as falhas vão ao pai com a empresa e o combustível do clique.
+    // Roda mesmo com a seção desmontada: o resultado vai ao pai com a empresa e o combustível do clique.
     onSuccess: (r, v) => {
       reler(v.empresaId, v.tipoId);
       const n = v.produtos.length;
-      const doLote = new Set(v.produtos.map((p) => String(p.id)));
-      guardarFalhas(v.empresaId, v.tipoId, [...falhasRef.current.filter((f) => !doLote.has(String(f.id))), ...r.falhas]);
+      registrarLote(v.empresaId, v.tipoId, { resolvidos: r.associados.map((p) => String(p.id)), falhas: r.falhas });
       // "Tentar de novo" não mexe no painel: o que foi escolhido lá continua lá.
       if (v.origem === "painel") {
         setAssociando(false);
@@ -167,7 +229,7 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
       if (!r.falhas.length) {
         notifySuccess("Sucesso", n === 1 ? "Produto associado" : `${n} produtos associados`);
       } else {
-        notifyWarning("Atenção", `${r.falhas.length} de ${n} produto(s) não foram associados. Veja "Não associados" e tente de novo.`);
+        notifyWarning("Atenção", avisoDeFalhas(v, r.falhas.length, n, telaAtualRef.current ? telaAtualRef.current() : null));
       }
     },
     // `associarProdutosAoCombustivel` não lança; isto só cobre o inesperado.
@@ -216,7 +278,14 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
   const gravar = (produtos, origem) => {
     if (!produtos.length || enviando.current || associar.isPending) return;
     enviando.current = true;
-    associar.mutate({ empresaId: empresa, tipoId, origem, produtos: produtos.map((p) => ({ id: String(p.id), nome: String(p.nome ?? "") })) });
+    associar.mutate({
+      empresaId: empresa,
+      tipoId,
+      empresaNome,
+      tipoNome: combustivel.nome || null,
+      origem,
+      produtos: produtos.map((p) => ({ id: String(p.id), nome: String(p.nome ?? "") })),
+    });
   };
 
   /** @param {any} v @param {boolean} ativo */
@@ -299,7 +368,12 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
                 {ocupado ? "Gravando…" : "Tentar de novo"}
               </button>
             ) : null}
-            <button type="button" className={CLS_ACAO} disabled={ocupado} onClick={() => guardarFalhas(empresa, tipoId, [])}>
+            <button
+              type="button"
+              className={CLS_ACAO}
+              disabled={ocupado}
+              onClick={() => registrarLote(empresa, tipoId, { resolvidos: falhas.map((f) => String(f.id)), falhas: [] })}
+            >
               Descartar
             </button>
           </div>
