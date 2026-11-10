@@ -40,7 +40,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { acoesAbastecimento, corpoAbastecimento, erro, montarAbastecimento, opId, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
+import { acoesAbastecimento, corpoAbastecimento, corpoPrevia, erro, montarAbastecimento, opId, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -419,7 +419,7 @@ describe('C5 — abastecimento × suplementação', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C6 — abastecimento × PATCH do bem', () => {
-  test('PATCH inativando o tanque segura o Bem → o abastecimento espera e recusa 422 tanque_inativo sem gravar; abastecimento segura o Bem → o ajuste de medidor espera e vê o piso novo (422, nunca 409 de versão)', async () => {
+  test('abastecimento segura o Bem → o ajuste de medidor espera e vê o piso novo (422, nunca 409 de versão); PATCH segura o Bem → o abastecimento espera, relê medidor e tanque e recusa (422 leitura_regressiva / tanque_inativo) sem gravar', async () => {
     const s = await montarAbastecimento(app);
     const bem0 = await A.bem(s.token, s.e1.id, s.trator.id);
     // (b) abastecimento (leitura 1550,5 em 06-10) segura o Bem; ajuste 1540 em 06-14 (válido sem ele) espera
@@ -428,10 +428,19 @@ describe('C6 — abastecimento × PATCH do bem', () => {
     assert.equal(b.r1.statusCode, 201, b.r1.body);
     assert.deepEqual(erro(b.r2), [422, 'MEDIDOR_LEITURA_REGRESSIVA', 'medidor.leitura_atual', 'leitura_regressiva'], b.r2.body);
     assert.equal(b.r2.json().details.origem_referencia, 'ABASTECIMENTO', 'o PATCH leu o piso operacional gravado pelo abastecimento');
+    assert.equal((await A.bem(s.token, s.e1.id, s.trator.id)).versao, bem0.versao, 'o abastecimento não mexe na versão do bem');
+    // (c) ajuste de cadastro 1600 em 06-12 (≥ piso) segura o Bem; o abastecimento 1590 em 06-13 (válido ANTES do ajuste) espera,
+    //     relê o medidor sob a trava e recusa: o ponto do cadastro (06-12) agora é anterior e maior
+    const fotoC = JSON.stringify(await prisma().abastecimentoBem.findMany({ where: { cliente_id: s.c } }));
+    const c = await corrida(s, { tabela: 'AuditLog', condicao: `NEW.entidade = 'BemPatrimonial'` },
+      () => A.req('PATCH', `/bens-patrimoniais/${s.trator.id}`, s.token, { empresa_id: s.e1.id, versao: bem0.versao, medidor: { tipo: 'HORIMETRO', leitura_atual: '1600', data_leitura: '2027-06-12' } }),
+      () => A.confirmar(s.operador.token, corpoAbastecimento(s, { quantidade_litros: '10', data_operacional: '2027-06-13', medidor_leitura: '1590' })));
+    assert.equal(c.r1.statusCode, 200, c.r1.body);
+    assert.deepEqual(erro(c.r2), [422, 'MEDIDOR_LEITURA_REGRESSIVA', 'medidor_leitura', 'leitura_regressiva'], c.r2.body);
+    assert.equal(JSON.stringify(await prisma().abastecimentoBem.findMany({ where: { cliente_id: s.c } })), fotoC, 'nada gravado pelo perdedor');
     // (a) PATCH inativando o tanque segura o Bem; o abastecimento espera e recusa
     const t = s.trator.tanques[0];
     const bem1 = await A.bem(s.token, s.e1.id, s.trator.id);
-    assert.equal(bem1.versao, bem0.versao, 'o abastecimento não mexe na versão do bem');
     const fotoAntes = JSON.stringify(await prisma().abastecimentoBem.findMany({ where: { cliente_id: s.c } }));
     const a = await corrida(s, { tabela: 'AuditLog', condicao: `NEW.entidade = 'BemPatrimonial'` },
       () => A.req('PATCH', `/bens-patrimoniais/${s.trator.id}`, s.token, {
@@ -443,7 +452,7 @@ describe('C6 — abastecimento × PATCH do bem', () => {
     assert.deepEqual(erro(a.r2), [422, 'ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inativo'], a.r2.body);
     assert.equal(JSON.stringify(await prisma().abastecimentoBem.findMany({ where: { cliente_id: s.c } })), fotoAntes, 'nada gravado pelo perdedor');
     assert.equal(await coerente(s, s.diesel, 'C6'), '82.8000');
-    semConflito(a.r1, a.r2, b.r1, b.r2);
+    semConflito(a.r1, a.r2, b.r1, b.r2, c.r1, c.r2);
   });
 });
 
@@ -597,7 +606,7 @@ describe('C10 — PATCH administrativo de lote × abastecimento', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C11 — numeração de movimentos', () => {
-  test('confirmar e cancelar não seguram a sequência de movimentos durante os efeitos: suplementação de OUTRO produto conclui com o abastecimento parado depois dos lotes; nenhum movimento commita com p-…', async () => {
+  test('confirmar e cancelar não seguram a sequência de movimentos durante os efeitos (suplementação de OUTRO produto conclui com o abastecimento parado depois dos lotes); a prévia não espera; nenhum movimento commita com p-…', async () => {
     const s = await montarAbastecimento(app);
     const suplementarGasolina = () => A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, {
       operation_id: opId(), empresa_id: s.e1.id, produto_id: s.gasolina.id, local_origem_id: s.local.id, quantidade: 3,
@@ -614,11 +623,17 @@ describe('C11 — numeração de movimentos', () => {
     assert.equal(x.r2.statusCode, 201, `a suplementação não esperou o cancelamento: ${x.r2.body}`);
     assert.equal(x.r1.statusCode, 200, x.r1.body);
     assert.match(x.r1.json().estorno.numero, /^\d+$/);
+    // a prévia (sem trava, RepeatableRead só de leitura) não espera uma confirmação parada com Bem, vínculo e produto travados
+    const pv = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, corpoAbastecimento(s, { quantidade_litros: '10' })),
+      () => A.previa(s.operador.token, corpoPrevia(s, { quantidade_litros: '10' })), { segundoEspera: false });
+    assert.equal(pv.r2.statusCode, 200, pv.r2.body);
+    assert.deepEqual(pv.r2.json().bloqueios, []);
+    assert.equal(pv.r1.statusCode, 201, pv.r1.body);
     await numeracaoLimpa(s);
     // a sequência é contígua: os 4 movimentos usam 1..4 em ordem de commit
     const ns = (await numeros(s)).map(Number).sort((p, q) => p - q);
-    assert.deepEqual(ns, [1, 2, 3, 4], `sequência sem buraco nem repetição: ${ns}`);
-    assert.equal(await coerente(s, s.diesel, 'C11'), '150.0000');
+    assert.deepEqual(ns, [1, 2, 3, 4, 5], `sequência sem buraco nem repetição: ${ns}`);
+    assert.equal(await coerente(s, s.diesel, 'C11'), '141.6000');
     // prova suplementar do arquivo todo: o banco não registrou deadlock (40P01) em nenhuma corrida
     assert.equal(await deadlocks(), deadlocksAntes, 'pg_stat_database.deadlocks não mudou');
   });

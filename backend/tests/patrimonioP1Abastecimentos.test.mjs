@@ -538,6 +538,20 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     const L = compra.lote_id;
     const d = await A.confirmarOk(s.operador.token, corpoAbastecimento(s, { local_estoque_id: s.local2.id }));
     assert.deepEqual(d.fatias.map((f) => [f.lote_id, f.quantidade_kg, f.custo_unitario]), [[L, '67.2000', '5.0000']], 'consome o lote nascido da compra P3');
+    /** Mexe no banco por fora, confere a recusa EXATA e que nada mudou, e desfaz. */
+    const bloqueadoPor = async (sujar, reason, limpar) => {
+      await sujar();
+      const foto = await fotoAbastecimento(s.c);
+      const r = await A.cancelar(s.contaCancelar.token, d.id, { empresa_id: s.e1.id, ...cancelarCorpo() });
+      assert.deepEqual(erro(r), [409, 'ABASTECIMENTO_CANCELAMENTO_BLOQUEADO', 'abastecimento', reason], r.body);
+      assert.equal(await fotoAbastecimento(s.c), foto, `${reason}: nada alterado`);
+      await limpar();
+    };
+    const estoqueAtualOriginal = await estoqueAtual(s.diesel.id);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "Produto" SET estoque_atual = 9999999999.0000 WHERE id = ${s.diesel.id}`, 'estoque_excede_limite',
+      () => prisma().$executeRaw`UPDATE "Produto" SET estoque_atual = ${estoqueAtualOriginal}::numeric WHERE id = ${s.diesel.id}`);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET status = 'Estornada' WHERE id = ${d.movimentacao.id}`, 'movimento_estornado',
+      () => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET status = 'Ativa' WHERE id = ${d.movimentacao.id}`);
 
     // (a) reposição por fora: o lote volta a 100 kg → devolver 67,2 passaria a entrada
     await prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET quantidade_disponivel = quantidade_entrada WHERE id = ${L}`;
@@ -679,7 +693,7 @@ describe('P1-02 — inativações com a tela aberta (entre a prévia e a confirm
         s.fator.diesel = await A.ok(s.configurarFator(s.e1, s.comb.DIESEL_S10, s.diesel, '0.840000', null, s.contaFator.token), 201);
       });
     // reativado tudo, a mesma tela confirma
-    await A.confirmarOk(s.operador.token, corpoAbastecimento(s));
+    const confirmado = await A.confirmarOk(s.operador.token, corpoAbastecimento(s));
 
     const antes = await fotoAbastecimento(s.c);
     // GNV é medido em m3: o abastecimento só aceita litros (nem o fator é configurável)
@@ -705,6 +719,17 @@ describe('P1-02 — inativações com a tela aberta (entre a prévia e a confirm
     for (const t of ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'conversaoCombustivelProduto', 'movimentacaoEstoque', 'estoqueLoteNota', 'operacaoIdempotente', 'tanqueBem', 'produtos']) {
       assert.deepEqual(fotoDepois[t], fotoAntes[t], t);
     }
+
+    // C14: cancelar é correção — com bem, tanque, tipo, vínculo, produto e local INATIVOS o estorno exato passa
+    await patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { ativo: false })] }));
+    await patchBem(() => ({ ativo: false }));
+    await vinculo(false)();
+    await tipo(false)();
+    await produto(false)();
+    await local(false)();
+    const k = await A.ok(A.cancelar(s.contaCancelar.token, confirmado.id, { empresa_id: s.e1.id, ...cancelarCorpo() }));
+    assert.deepEqual([k.status, k.estorno.quantidade_kg], ['CANCELADO', '67.2000']);
+    assert.equal(await estoqueAtual(s.diesel.id), '150.0000');
   });
 });
 
