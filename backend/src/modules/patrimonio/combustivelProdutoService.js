@@ -282,6 +282,7 @@ export const alterarSituacao = async (contexto, id, entrada) => {
         const previa = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, select: { produto_id: true } });
         if (!previa) throw naoEncontrado();
         Object.assign(escopo, { empresaId, produtoId: previa.produto_id });
+        await travarEscopo(tx, chaveVinculo(cli, empresaId, previa.produto_id));
         await tx.$queryRaw`SELECT id FROM "TipoCombustivelProduto" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`;
         const antes = await buscar(tx, cli, empresaId, id);
         if (!antes) throw naoEncontrado();
