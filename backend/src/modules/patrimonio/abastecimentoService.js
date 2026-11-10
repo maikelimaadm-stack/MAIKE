@@ -340,6 +340,7 @@ export const confirmar = async (contexto, corpo) => {
               await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${entrada.bem_id} FOR UPDATE`
             ); // R3
             if (!bemTravado.length) throw bemNaoEncontrado();
+            await travarEscopo(tx, chaveVinculo(cli, empresaId, entrada.produto_id)); // R5
             await tx.$queryRaw`SELECT id FROM "TipoCombustivel" WHERE cliente_id = ${cli} AND id = ${entrada.tipo_combustivel_id} FOR KEY SHARE`; // R6
             await tx.$queryRaw`SELECT id FROM "LocalEstoque" WHERE cliente_id = ${cli} AND id = ${entrada.local_estoque_id} FOR KEY SHARE`; // R7
             await travarProdutosEstoque(tx, cli, empresaId, [entrada.produto_id]); // R8

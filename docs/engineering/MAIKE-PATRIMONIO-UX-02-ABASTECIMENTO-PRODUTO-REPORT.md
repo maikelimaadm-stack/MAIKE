@@ -174,7 +174,7 @@ Arquivos: **PB** = `backend/tests/patrimonioUx02ProdutosDoBem.test.mjs`; **TA** 
 | 17 | Teclado/mobile | UX-A13 (2: `role="radio"`/`aria-checked`, `aria-expanded`, botões nativos, sem largura fixa; "Mais detalhes" abre com erro); UX-A12 (390 px: cards, sem tabela) | registrado PASS (jsdom) · navegador real: ⟪PENDENTE: Playwright 390/820/1280 px, sem rolagem horizontal em 390⟫ |
 | 18 | Testes reais com PostgreSQL local descartável | §8 | registrado PASS nos arquivos listados · ⟪PENDENTE: `npm run test:backend` completo no HEAD final⟫ |
 | 19 | Smoke RTL | §8 | registrado PASS · ⟪PENDENTE: `npm run test:smoke` completo no HEAD final⟫ |
-| 20 | Playwright 390/820/1280 px | E2E-1 (`scripts/dev/e2e-abastecimentos-real.mjs`, larguras padrão `1280,820,390`, só `node --check` até aqui) e E2E-2 do aceite humano | ⟪PENDENTE: E2E-1 real (passos, larguras, exit code, divergências de banco)⟫ · ⟪PENDENTE: E2E-2 real (passos, capturas 390/820/1280)⟫ |
+| 20 | Playwright 390/820/1280 px | E2E-1 (`scripts/dev/e2e-abastecimentos-real.mjs`, larguras padrão `1280,820,390`; a frente registrou só `node --check`) e E2E-2 do aceite humano (`scripts/dev/e2e-abastecimentos-ux02-real.mjs`) | ⟪PENDENTE: E2E-1 real (passos, larguras, exit code, divergências de banco)⟫ · ⟪PENDENTE: E2E-2 real (passos, capturas 390/820/1280)⟫ |
 | 21 | `verify:all` e CI completos, sem ignorar testes | — | ⟪PENDENTE: `npm run verify:all` no HEAD final (etapas, contagens, duração)⟫ · ⟪PENDENTE: CI da PR #237 (run, conclusão, duração)⟫ |
 
 **Nota A→B (TA-01..TA-11).** A frente do cenário obrigatório registrou `patrimonioUx02TrocaAssociacao` **12/12** em 4 execuções seguidas (a 1ª deu 11/12: TA-05b caía no unique de nome do Produto homônimo da Fazenda 2; corrigido no fixture), mais `patrimonioUx02ProdutosDoBem` 14/14, `patrimonioP1Abastecimentos` 17/17, `patrimonioP1AbastecimentosConcorrencia` 12/12 e `patrimonioP1CombustivelProduto` 20/20 (5 arquivos, 75/75, banco `maike_ux02_ab`). ⟪PENDENTE: reexecução do cenário A→B PG-real no HEAD final e resultado da mutação que prova que TA-01..TA-11 mordem⟫.
@@ -201,7 +201,7 @@ Comando por arquivo de backend: `DATABASE_URL="postgresql://postgres@localhost:5
 
 | Suíte | Banco / ambiente | Resultado registrado | Duração |
 |---|---|---|---|
-| `patrimonioUx02ProdutosDoBem` (PB-01..PB-14) | `maike_ux02_be` | 14/14 | ≈ 22 s |
+| `patrimonioUx02ProdutosDoBem` (PB-01..PB-14) | `maike_ux02_be` | 14/14 | 23 s |
 | `patrimonioP1AbastecimentosSeguranca` (A16 em S1–S4) | `maike_ux02_be` | 9/9 | 15 s |
 | `patrimonioP1AbastecimentosContratoTela` (INT-1, mapeamento inline) | `maike_ux02_be` | 3/3 | 7 s |
 | Regressão: `patrimonioP1Abastecimentos` 17/17 · `…Concorrencia` 12/12 · `…Medidor` 8/8 · `patrimonioP1CombustivelProduto` 20/20 · `patrimonioP1Bens` 19/19 · `permissoesAutorizacao` 11/11 · `permissoesR2` 10/10 · `permissoesR2Rotas` 7/7 · `permissoesR3` 9/9 · `permissoesR4` 9/9 | `maike_ux02_be` | verde | — |
