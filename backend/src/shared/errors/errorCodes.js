@@ -137,6 +137,15 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   LIQUIDACAO_EXCEDE_SALDO: { http: 422, meaning: 'o valor da liquidação é maior que o saldo do título (details.saldo); nada foi gravado' },
   LIQUIDACAO_JA_ESTORNADA: { http: 409, meaning: 'esta liquidação já foi estornada; nada foi gravado' },
   FINANCEIRO_DATA_FUTURA: { http: 422, meaning: 'data posterior a hoje no fuso da fazenda: só fato já ocorrido entra (details.data/hoje/fuso); nada foi gravado' },
+  // D-PROD-158 — Gestão P3-03: retificação e exclusão lógica de lançamento confirmado.
+  OPERACAO_RETIFICACAO_BLOQUEADA: {
+    http: 409,
+    meaning: 'a correção do lançamento confirmado não é permitida agora (details.motivos: liquidação, documento histórico, dependência física, moeda); nada foi alterado',
+  },
+  OPERACAO_EXCLUSAO_BLOQUEADA: {
+    http: 409,
+    meaning: 'a exclusão do lançamento confirmado não é permitida agora (details.motivos: liquidação, documento histórico, dependência física); nada foi alterado',
+  },
   // D-PROD-157 — Patrimônio P1-01: cadastros de inventário (catálogos do tenant e bens da empresa).
   PATRIMONIO_VERSAO_CONFLITO: { http: 409, meaning: 'o registro mudou desde a leitura (details.versao_atual/versao_informada); recarregue; nada foi gravado' },
   FAMILIA_PATRIMONIAL_NAO_ENCONTRADA: { http: 404, meaning: 'id não identifica família patrimonial deste tenant' },

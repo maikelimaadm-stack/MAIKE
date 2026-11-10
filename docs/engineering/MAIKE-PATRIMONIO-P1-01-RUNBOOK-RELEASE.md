@@ -13,6 +13,17 @@ Decisão: [D-PROD-157](./DECISIONS.md). Relatório:
 Modelo: [runbook da P3-02](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md), executado em
 2026-11-09 às 17:42:13 UTC.
 
+> **Atualização de estado (2026-11-09, 22:30 UTC, registrada pela PR #234 — só leitura; o procedimento abaixo não foi alterado):**
+> - A PR #232 foi mergeada (`76edc913`) **antes** desta migration. É um incidente de sequência de release.
+> - A migration continua **não aplicada**: 37 concluídas, sem `BemPatrimonial` e sem `TipoCombustivelProduto`.
+> - A Gestão P3-03 (`20261109300000_gestao_p3_03_editar_excluir`, checksum `3f3af00e…df890b`) foi aplicada **antes**, às 21:32:01 UTC. Por isso, o preflight deste runbook precisa ser **recalculado**:
+>   - histórico esperado: **37** concluídas e 0 com falha, a última a P3-03, em vez de 36 com a P3-02;
+>   - a guarda do caminho B deve esperar 37 e a P3-03 presente;
+>   - `<SHA_APROVADO>` tem de conter o arquivo da P3-03. Com o SHA `76edc913`, `conferirHistoricoRemoto` recusa (`PREMERGE_MIGRATIONS_NAO_COMPROVADAS`); com a árvore da PR #234 integrada, dá `ok: true`, com só esta migration pendente.
+> - Os domínios de produção servem o deploy `afbebcbc`. Não promover a `main` antes desta migration aplicada e conferida.
+> - A aplicação exige GO próprio, backup atualizado, ensaio local em PG17 e postcheck.
+> - **Atualização (23:19 UTC, só leitura):** a migration foi aplicada por outro fluxo em 2026-11-09 às 23:04:22 UTC, com checksum `b8818ba8…ffd64dc` e `applied_steps_count = 1`. A produção tem 38 concluídas e 0 com falha. As 10 tabelas estão vazias, com RLS sem FORCE e 0 grants públicos, e o advisor tem 0 alertas. O registro de execução (§11) é do fluxo que aplicou e não foi preenchido por esta PR.
+
 ## 0. O que muda no banco
 
 | Item | Valor |

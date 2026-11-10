@@ -106,6 +106,9 @@ export const limparBanco = async () => {
   // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
   // naturezas e centros, e antes do laço porque referenciam Fornecedor,
   // Produto, LocalEstoque, lote, movimento, Empresa e Usuario (tudo RESTRICT).
+  // D-PROD-158: o evento de retificação/exclusão referencia o documento (e o
+  // documento novo) e o usuário (RESTRICT): sai antes deles.
+  await prisma.operacaoFinanceiraEvento.deleteMany({});
   await prisma.liquidacaoFinanceiraEstorno.deleteMany({});
   await prisma.liquidacaoFinanceira.deleteMany({});
   await prisma.tituloFinanceiro.deleteMany({});

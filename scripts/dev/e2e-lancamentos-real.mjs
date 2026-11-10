@@ -76,6 +76,30 @@
  *  29. o modo GERAL não mudou (escopo explícito em todo documento, nenhuma
  *      linha por item, consolidado = rateio geral) e a API real recusa um corpo
  *      POR ITEM com soma errada apontando o item (422, nada gravado).
+ *  P3-03 (D-PROD-158, editar/excluir/duplicar):
+ *  30. duplicar a compra POR ITEM confirmada do passo 28: faixa "Cópia do
+ *      lançamento nº N — novo rascunho", nada gravado no clique, POST com
+ *      `duplicado_de_id`; no banco um rascunho NOVO com o mesmo conteúdo (linhas
+ *      por item nas chaves novas), sem nº de documento, proveniência só no
+ *      AuditLog; origem e estoque intactos; o rascunho segue no DELETE;
+ *  31. corrigir uma compra confirmada mudando o estoque (100 → 150 kg, 2 → 3
+ *      parcelas) pela tela: elegibilidade antes do formulário, diálogo com
+ *      motivo e efeito; SUBSTITUIÇÃO no banco: antigo CANCELADO "<n>/r<v>" com
+ *      lote Estornado, novo com o MESMO número, versão +1, lote novo, 1 título
+ *      por parcela, evento com snapshot e AuditLog; lista por situação;
+ *  32. corrigir só informação (descrição e nº do documento) com a 1ª resposta
+ *      perdida e "Repetir o mesmo envio" (mesma chave → replay, 1 evento):
+ *      NO_LUGAR, mesmos ids de linha, movimento e lote, nenhum movimento novo,
+ *      títulos recriados; o nº do documento chega ao lote e ao movimento;
+ *  33. excluir uma venda elegível: nada no 1º clique, motivo + confirmação,
+ *      resposta perdida e "Consultar lançamento" (nada reenviado); estorno, lote
+ *      devolvido, evento, AuditLog sem o texto do motivo; some de
+ *      "Operacionais" e aparece em "Excluídos" (tela e API);
+ *  34. compra consumida (passo 17): a correção abre só com o aviso legível de
+ *      que o estoque não pode mudar e não envia mudança física; excluir mostra
+ *      o bloqueio legível; compra com baixa (passo 4) nem abre a correção; a API
+ *      real recusa 409 e nada muda; a compra do passo 31 vendida e recomposta
+ *      segue bloqueada.
  *  Toda resposta ≥ 400 da API real observada pelas telas é divergência, salvo
  *  as recusas PROVOCADAS (7, 16, 17 e, se a tela deixar confirmar, 25), que
  *  também TÊM de acontecer.
@@ -1323,6 +1347,8 @@ const executarLargura = async (browser, largura) => {
       igual(await fotoFinanceiro(s), ff, `[${rotulo}] recusa do cancelamento alterou o financeiro`);
       igual((await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: d.id } })).status, 'CONFIRMADO', `[${rotulo}] compra consumida continua CONFIRMADA`);
       await page.keyboard.press('Escape').catch(() => {});
+      // P3-03 (passo 34): a mesma compra consumida pela suplementação tenta ser corrigida/excluída.
+      docs.compraConsumida = d;
     });
 
     // 18/19. Perfis restritos: rascunho salvo pelo dono para eles.
@@ -2624,6 +2650,612 @@ const executarLargura = async (browser, largura) => {
         `[${rotulo}] API: soma do item 2 errada → 422 com o item exato`,
       );
       igual(await fotoFinanceiro(s), antes, `[${rotulo}] a recusa POR ITEM gravou algo`);
+    });
+
+    // ─── P3-03 (D-PROD-158): DUPLICAR, CORRIGIR (retificar) e EXCLUIR ──────
+    // Os documentos de apoio dos passos 31 e 33 nascem pela API REAL (criar e
+    // confirmar pela tela já está provado nos passos 2–28): aqui se prova a
+    // tela de duplicar, corrigir e excluir e o efeito EXATO no banco.
+    const escritasDoDono = () => dono.requisicoes.filter((r) => !['GET', 'HEAD', 'OPTIONS'].includes(r.metodo)).map((r) => `${r.metodo} ${r.url}`);
+    const botaoBarra = (nome) => page.getByRole('button', { name: nome, exact: true });
+    const elegibilidadeApi = (id) => api(token, 'GET', `/api/native/operacoes-financeiras/${id}/elegibilidade?empresa_id=${s.empresa.id}`);
+    const eventosDoBanco = (ids) =>
+      prisma.operacaoFinanceiraEvento.findMany({
+        where: { cliente_id: s.cliente_id, OR: [{ operacao_id: { in: ids } }, { operacao_nova_id: { in: ids } }] },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+    const criarConfirmadoApi = async (corpo, desc) => {
+      const c = await api(token, 'POST', '/api/native/operacoes-financeiras', { empresa_id: s.empresa.id, operation_id: `p303-${randomUUID()}`, ...corpo });
+      exigir(c.status === 201 && c.corpo?.id, `[${rotulo}] ${desc}: criação pela API ${c.status} ${JSON.stringify(c.corpo ?? {}).slice(0, 240)}`);
+      const k = await api(token, 'POST', `/api/native/operacoes-financeiras/${c.corpo.id}/confirmar`, { empresa_id: s.empresa.id, operation_id: `p303-${randomUUID()}`, versao: c.corpo.versao });
+      exigir(k.status === 200 && k.corpo?.status === 'CONFIRMADO', `[${rotulo}] ${desc}: confirmação pela API ${k.status} ${JSON.stringify(k.corpo ?? {}).slice(0, 240)}`);
+      return operacaoCompleta(s, c.corpo.id);
+    };
+    /** Ouve os POST de um caminho (corpo enviado pela tela) durante `fn`. */
+    const ouvindoPost = async (re, fn) => {
+      const corpos = [];
+      const ouvir = (req) => {
+        if (req.method() === 'POST' && re.test(new URL(req.url()).pathname)) corpos.push(JSON.parse(req.postData() || '{}'));
+      };
+      page.on('request', ouvir);
+      try {
+        await fn(corpos);
+      } finally {
+        page.off('request', ouvir);
+      }
+      return corpos;
+    };
+    const filtrarSituacaoDoRegistro = async (opcao) => {
+      await clicar(page.getByRole('combobox', { name: 'Filtrar por situação do registro' }));
+      await page.getByRole('option', { name: opcao, exact: true }).first().click();
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForTimeout(700);
+    };
+    const listaSituacaoApi = async (situacao) => {
+      const r = await api(token, 'GET', `/api/native/operacoes-financeiras?empresa_id=${s.empresa.id}&limit=100${situacao ? `&situacao=${situacao}` : ''}`);
+      exigir(r.status === 200, `[${rotulo}] lista da API (situacao=${situacao ?? 'padrão'}): ${r.status}`);
+      return { ids: (r.corpo?.items ?? []).map((o) => o.id), itens: r.corpo?.items ?? [], total: r.corpo?.total };
+    };
+
+    // 30. Duplicar a compra POR ITEM confirmada do passo 28: lê o detalhe do
+    //     servidor, abre o formulário NOVO com a faixa, nada gravado no clique;
+    //     "Salvar" cria UM rascunho novo com o mesmo conteúdo (rateio por item
+    //     incluído), sem nº de documento, com `duplicado_de_id` só na
+    //     auditoria; a origem e o estoque não mudam; o rascunho da cópia
+    //     continua descartável pelo DELETE (nada muda para rascunho).
+    await passo('30 P3-03 duplicar a compra POR ITEM confirmada: faixa, nada gravado no clique, copia salva como rascunho novo (mesmo rateio por item) e proveniencia so na auditoria', async () => {
+      const origem = docs.compraPorItem;
+      exigir(origem, `[${rotulo}] o passo 30 duplica a compra POR ITEM do passo 28`);
+      const origemAntes = await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: origem.id }, select: { status: true, versao: true, updatedAt: true } });
+      const estoqueAntes = await fotoEstoque(s);
+      const idsAntes = new Set((await prisma.operacaoFinanceira.findMany({ where: { cliente_id: s.cliente_id }, select: { id: true } })).map((o) => o.id));
+      let copia = null;
+      const criados = await ouvindoPost(/^\/api\/native\/operacoes-financeiras$/, async () => {
+        await abrirDocumento(origem);
+        const antes = escritasDoDono().length;
+        await clicar(botaoBarra('Duplicar'));
+        const faixa = visivel(page.getByTestId('faixa-copia'));
+        await faixa.waitFor();
+        const textoFaixa = await faixa.innerText();
+        conferir(textoFaixa.includes(`Cópia do lançamento nº ${origem.numero} — novo rascunho`), `[${rotulo}] faixa da cópia: "${textoFaixa.slice(0, 160)}"`);
+        await page.waitForTimeout(500);
+        igual(escritasDoDono().slice(antes).join(','), '', `[${rotulo}] clicar em Duplicar gravou algo`);
+        conferir(
+          await visivel(page.getByTestId('escolha-escopo-rateio').getByRole('radio', { name: 'Por item', exact: true })).isChecked(),
+          `[${rotulo}] a cópia não abriu com o rateio "Por item"`,
+        );
+        conferir(!(await visivel(page.getByTestId('declaracao-efeito-fisico')).isChecked()), `[${rotulo}] a cópia abriu com a declaração física marcada`);
+        igual(await visivel(page.getByLabel('Nº do documento')).inputValue(), '', `[${rotulo}] nº do documento da cópia`);
+        igual(await page.getByTestId('consulta-lancamento').count(), 0, `[${rotulo}] a consulta da origem continua aberta com a cópia`);
+        await shot('p303-duplicar-faixa');
+        if (movel) await dentroDaTela('faixa-copia', 'faixa da cópia');
+        await clicar(page.getByTestId('declaracao-efeito-fisico'));
+        await clicar(botaoBarra('Salvar'));
+        copia = await esperarBanco(async () => {
+          const u = await ultimaOperacao(s);
+          return u && !idsAntes.has(u.id) && u.status === 'RASCUNHO' ? u : null;
+        }, 'cópia salva como rascunho');
+        const aviso = page.getByText(/Cópia salva como rascunho novo/).first();
+        await aviso.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+        conferir(await aviso.isVisible(), `[${rotulo}] aviso "Cópia salva como rascunho novo" não apareceu`);
+        await shot('p303-duplicar-salva');
+      });
+      igual(criados.length, 1, `[${rotulo}] POSTs de criação da cópia`);
+      const corpo = criados[0] ?? {};
+      igual(`${corpo.duplicado_de_id}:${'documento_referencia' in corpo}:${corpo.efeito_fisico_confirmado}:${corpo.rateio_escopo}`, `${origem.id}:false:true:POR_ITEM`, `[${rotulo}] corpo do POST da cópia`);
+      for (const proibido of ['id', 'numero', 'versao', 'status', 'titulos', 'eventos', 'historico']) conferir(!(proibido in corpo), `[${rotulo}] a cópia enviou "${proibido}"`);
+      const c = await operacaoCompleta(s, copia.id);
+      const o = await operacaoCompleta(s, origem.id);
+      const cab = (d) => `${d.direcao}:${d.conteudo}:${d.condicao}:${d.parceiro_id}:${d.rateio_escopo}:${d.rateio_modo}:${dec(d.valor_bruto)}:${dec(d.valor_desconto)}:${dec(d.valor_acrescimo)}:${dec(d.valor_total)}:${diaDe(d.data_operacional)}`;
+      igual(cab(c), cab(o), `[${rotulo}] cabeçalho da cópia = origem`);
+      conferir(c.numero !== o.numero && c.versao === 1 && c.documento_referencia === null && c.confirmado_em === null, `[${rotulo}] identidade da cópia: nº ${c.numero}, versão ${c.versao}, doc ${c.documento_referencia}`);
+      const item = (i) => `${i.ordem}:${i.tipo_item}:${i.produto_id}:${i.local_estoque_id}:${i.unidade}:${dec(i.quantidade)}:${i.valor_unitario?.toFixed(6)}:${i.descricao ?? ''}`;
+      igual(c.itens.map(item).join('|'), o.itens.map(item).join('|'), `[${rotulo}] itens da cópia = origem`);
+      igual(c.itens.map((i) => `${i.estoque_lote_nota_id}:${i.movimentacao_estoque_id}:${i.movimentacao_estorno_id}`).join('|'), c.itens.map(() => 'null:null:null').join('|'), `[${rotulo}] a cópia herdou lote/movimento`);
+      const linha = (r) => `${r.ordem}:${r.natureza_id}:${r.centro_custo_id}:${r.centro_resultado_id}:${dec(r.valor)}`;
+      igual(
+        (await linhasPorItemNoBanco(c.id)).map((ls) => ls.map(linha).join(',')).join(' | '),
+        (await linhasPorItemNoBanco(o.id)).map((ls) => ls.map(linha).join(',')).join(' | '),
+        `[${rotulo}] linhas por item da cópia = origem (chaves novas dos itens)`,
+      );
+      igual(
+        c.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:${t.status}:${dec(t.valor)}:${diaDe(t.vencimento)}`).join('|'),
+        o.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:PREVISTO:${dec(t.valor)}:${diaDe(t.vencimento)}`).join('|'),
+        `[${rotulo}] parcelas da cópia (previstas, mesmas datas e valores)`,
+      );
+      const auditoria = await prisma.auditLog.findFirst({ where: { cliente_id: s.cliente_id, entidade: 'OperacaoFinanceira', entidade_id: c.id, acao: 'operacao_financeira.criar' } });
+      igual(`${auditoria?.dados_novos?.duplicado_de_id}:${auditoria?.dados_novos?.duplicado_de_numero}`, `${o.id}:${o.numero}`, `[${rotulo}] proveniência no AuditLog da criação`);
+      const det = await detalheApi(token, c.id, s.empresa.id);
+      igual(`${det.status}:${det.corpo?.duplicado_de_id}:${(det.corpo?.eventos ?? []).length}`, `200:${o.id}:0`, `[${rotulo}] detalhe da API da cópia`);
+      const origemDepois = await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: origem.id }, select: { status: true, versao: true, updatedAt: true } });
+      igual(JSON.stringify(origemDepois), JSON.stringify(origemAntes), `[${rotulo}] a origem mudou ao ser duplicada`);
+      igual(await fotoEstoque(s), estoqueAntes, `[${rotulo}] duplicar mexeu no estoque`);
+      // O rascunho da cópia continua no DELETE físico (nada muda para rascunho).
+      await visivel(page.getByTestId('botao-descartar-rascunho')).waitFor();
+      await clicar(page.getByTestId('botao-descartar-rascunho'));
+      await page.getByTestId('dialogo-descarte').waitFor({ state: 'visible' });
+      await clicar(page.getByTestId('dialogo-descarte-enviar'));
+      await esperarBanco(async () => !(await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: c.id } })), 'rascunho da cópia descartado');
+      igual(await prisma.operacaoFinanceiraEvento.count({ where: { cliente_id: s.cliente_id, operacao_id: { in: [c.id, o.id] } } }), 0, `[${rotulo}] duplicar/descartar gravou evento de revisão`);
+    });
+
+    // 31. Corrigir uma compra confirmada MUDANDO o estoque (100 → 150 kg e 2 →
+    //     3 parcelas) pela tela: elegibilidade antes do formulário, faixa,
+    //     diálogo com motivo e efeito; SUBSTITUIÇÃO atômica no banco: o antigo
+    //     fica CANCELADO "<n>/r<v>" com o lote Estornado e títulos cancelados;
+    //     o novo assume o MESMO número, versão +1, lote novo com o custo novo,
+    //     1 título por parcela; evento com snapshot e AuditLog nos dois.
+    await passo('31 P3-03 corrigir compra confirmada mudando o estoque (SUBSTITUICAO): mesmo numero, antigo "/r<v>", lote antigo Estornado, lote novo, 1 titulo por parcela e eventos', async () => {
+      const salAntes = dec((await produtoAgora(s.produtos.sal.id)).estoque_atual);
+      const doc = `NF-P303-${rotulo}`;
+      const antiga = await criarConfirmadoApi(
+        {
+          direcao: 'PAGAR', conteudo: 'COM_PRODUTOS', condicao: 'PARCELADO', parceiro_id: s.parceiros.fornecedor.id, data_emissao: hoje, data_operacional: hoje,
+          efeito_fisico_confirmado: true, documento_referencia: doc, descricao: 'COMPRA DE SAL P3-03',
+          itens: [{ tipo_item: 'MERCADORIA', produto_id: s.produtos.sal.id, local_estoque_id: s.local2.id, unidade: 'KG', quantidade: '100', valor_unitario: '2' }],
+          rateio_escopo: 'GERAL', rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: s.naturezas.insumos, percentual: '100' }],
+          parcelas: [{ vencimento: somarDias(hoje, 30), valor: '100.00' }, { vencimento: somarDias(hoje, 60), valor: '100.00' }],
+        },
+        'compra a corrigir',
+      );
+      const loteAntigoId = antiga.itens[0].estoque_lote_nota_id;
+      igual(dec((await produtoAgora(s.produtos.sal.id)).estoque_atual), somar4(salAntes, '100.0000'), `[${rotulo}] estoque_atual do SAL com a compra a corrigir`);
+      const e0 = await elegibilidadeApi(antiga.id);
+      igual(
+        `${e0.status}:${e0.corpo?.versao}:${e0.corpo?.editar?.permitido}:${e0.corpo?.editar?.modo}:${e0.corpo?.editar?.efeito_fisico_permitido}:${e0.corpo?.excluir?.permitido}:${e0.corpo?.excluir?.modo}:${e0.corpo?.duplicar?.permitido}`,
+        `200:${antiga.versao}:true:RETIFICACAO:true:true:LOGICA:true`,
+        `[${rotulo}] elegibilidade da compra intacta (API)`,
+      );
+      const MOTIVO = 'Recebidos 150 kg, em 3 parcelas';
+      const enviados = await ouvindoPost(/\/retificar$/, async (corpos) => {
+        await abrirDocumento(antiga);
+        const antes = dono.requisicoes.length;
+        await clicar(botaoBarra('Editar'));
+        await visivel(page.getByTestId('faixa-correcao')).waitFor();
+        conferir(
+          dono.requisicoes.slice(antes).some((r) => r.metodo === 'GET' && r.url.includes(`/operacoes-financeiras/${antiga.id}/elegibilidade`)),
+          `[${rotulo}] a correção abriu sem consultar a elegibilidade`,
+        );
+        igual(escritasDoDono().filter((r) => r.includes(antiga.id)).length, 0, `[${rotulo}] abrir a correção gravou algo`);
+        igual(await page.getByTestId('faixa-correcao-sem-estoque').count(), 0, `[${rotulo}] faixa "estoque não pode mudar" numa compra intacta`);
+        await preencher('item-0-quantidade', '150');
+        const gerador = page.getByTestId('gerador-parcelas');
+        await visivel(gerador.getByLabel(/Nº de parcelas/)).fill('3');
+        await clicar(gerador.getByRole('button', { name: 'Gerar parcelas' }));
+        await page.getByTestId('parcela-2-valor').first().waitFor();
+        const dif = await visivel(page.getByTestId('parcelas-diferenca')).innerText();
+        conferir(!/falta|sobra/i.test(dif), `[${rotulo}] parcelas 3×100 da correção acusam diferença: ${dif}`);
+        const prev = await visivel(page.getByTestId('previsao-correcao')).innerText();
+        conferir(/estoque/i.test(prev) && !/não muda o estoque/i.test(prev), `[${rotulo}] previsão da correção não avisa que o estoque muda: "${prev.slice(0, 200)}"`);
+        await shot('p303-correcao-substituicao-form');
+        if (movel) await dentroDaTela('faixa-correcao', 'faixa da correção');
+        await clicar(page.getByTestId('botao-salvar-correcao'));
+        const dlg = page.getByTestId('dialogo-retificacao');
+        await dlg.waitFor({ state: 'visible' });
+        const efeito = await dlg.getByTestId('dialogo-retificacao-estoque').innerText();
+        conferir(/O estoque muda/.test(efeito) && /entrada anterior é estornada/.test(efeito) && /MESMO número/.test(efeito), `[${rotulo}] diálogo da correção sem o efeito no estoque: "${efeito.slice(0, 200)}"`);
+        conferir(await dlg.getByTestId('dialogo-retificacao-enviar').isDisabled(), `[${rotulo}] "Salvar correção" habilitado sem motivo`);
+        igual(corpos.length, 0, `[${rotulo}] /retificar chamado antes do motivo`);
+        await dlg.getByTestId('dialogo-retificacao-motivo').fill(MOTIVO);
+        await shot('p303-correcao-substituicao-dialogo');
+        if (movel) await dentroDaTela('dialogo-retificacao', 'diálogo da correção');
+        await clicar(dlg.getByTestId('dialogo-retificacao-enviar'));
+        await visivel(page.getByTestId('aviso-substitui')).waitFor({ timeout: 30000 });
+      });
+      igual(enviados.length, 1, `[${rotulo}] envios de /retificar`);
+      const corpo = enviados[0] ?? {};
+      igual(
+        `${corpo.versao}:${corpo.motivo}:${corpo.empresa_id}:${/^lanc-/.test(String(corpo.operation_id))}:${corpo.itens?.[0]?.quantidade}:${(corpo.parcelas ?? []).map((p) => p.valor).join('/')}:${corpo.documento_referencia}:${corpo.efeito_fisico_confirmado}`,
+        `${antiga.versao}:${MOTIVO}:${s.empresa.id}:true:150:100.00/100.00/100.00:${doc}:true`,
+        `[${rotulo}] corpo do /retificar (versão do detalhe, motivo, DOC completo)`,
+      );
+      const ev = await esperarBanco(async () => (await eventosDoBanco([antiga.id])).find((e) => e.modo === 'SUBSTITUICAO') ?? null, 'evento da substituição');
+      const velha = await operacaoCompleta(s, antiga.id);
+      const nova = await operacaoCompleta(s, ev.operacao_nova_id);
+      exigir(nova, `[${rotulo}] documento novo da substituição não encontrado`);
+      igual(
+        `${velha.status}:${velha.numero}:${velha.versao}:${Boolean(velha.retificado_em)}:${velha.excluido_em}:${velha.motivo_cancelamento}:${velha.documento_chave_ativa}`,
+        `CANCELADO:${antiga.numero}/r${antiga.versao}:${antiga.versao + 1}:true:null:Retificado: ${MOTIVO}:null`,
+        `[${rotulo}] versão anterior (cancelada por retificação, número "/r<v>")`,
+      );
+      igual(velha.titulos.map((t) => `${t.numero_parcela}:${t.status}:${dec(t.valor)}`).join('|'), '1:CANCELADO:100.0000|2:CANCELADO:100.0000', `[${rotulo}] títulos da versão anterior`);
+      const loteVelho = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: loteAntigoId } });
+      igual(`${dec(loteVelho.quantidade_entrada)}:${dec(loteVelho.quantidade_disponivel)}:${loteVelho.status}`, '100.0000:0.0000:Estornado', `[${rotulo}] lote da versão anterior`);
+      const itVelho = velha.itens[0];
+      exigir(itVelho.movimentacao_estorno_id, `[${rotulo}] item da versão anterior sem movimentacao_estorno_id`);
+      const movVelho = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: itVelho.movimentacao_estoque_id } });
+      const estorno = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: itVelho.movimentacao_estorno_id } });
+      igual(
+        `${movVelho.status}:${movVelho.movimento_filho_id === estorno.id}:${estorno.tipo_detalhado}:${dec(estorno.quantidade)}:${dec(estorno.valor_total)}:${estorno.movimento_pai_id === movVelho.id}`,
+        'Estornada:true:estorno_compra:100.0000:200.0000:true',
+        `[${rotulo}] movimento original estornado e estorno ligado`,
+      );
+      igual(
+        `${nova.status}:${nova.numero}:${nova.versao}:${nova.retificado_em}:${nova.excluido_em}:${dec(nova.valor_total)}:${nova.documento_referencia}:${nova.documento_chave_ativa}:${nova.condicao}:${Boolean(nova.confirmado_em)}`,
+        `CONFIRMADO:${antiga.numero}:${antiga.versao + 1}:null:null:300.0000:${doc}:${doc}:PARCELADO:true`,
+        `[${rotulo}] documento novo (mesmo número, versão +1)`,
+      );
+      igual(
+        nova.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:${t.status}:${dec(t.valor)}`).join('|'),
+        '1/3:ABERTO:100.0000|2/3:ABERTO:100.0000|3/3:ABERTO:100.0000',
+        `[${rotulo}] títulos do documento novo (1 por parcela)`,
+      );
+      igual(await prisma.tituloFinanceiro.count({ where: { cliente_id: s.cliente_id, operacao_id: { in: [velha.id, nova.id] } } }), 5, `[${rotulo}] títulos dos dois documentos (2 cancelados + 3 abertos, nenhum duplicado)`);
+      const itNovo = nova.itens[0];
+      const loteNovo = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: itNovo.estoque_lote_nota_id } });
+      exigir(loteNovo && loteNovo.id !== loteAntigoId, `[${rotulo}] a substituição não criou lote novo`);
+      igual(
+        `${dec(loteNovo.quantidade_entrada)}:${dec(loteNovo.quantidade_disponivel)}:${dec(loteNovo.custo_unitario)}:${loteNovo.status}:${loteNovo.local_estoque_id}`,
+        `150.0000:150.0000:2.0000:Disponivel:${s.local2.id}`,
+        `[${rotulo}] lote novo (custo líquido do plano)`,
+      );
+      const movNovo = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: itNovo.movimentacao_estoque_id } });
+      igual(
+        `${movNovo.tipo_movimentacao}:${movNovo.tipo_detalhado}:${dec(movNovo.quantidade)}:${dec(movNovo.valor_total)}:${movNovo.lancamento_origem_id}:${loteNovo.movimentacao_entrada_id === movNovo.id}:${movNovo.status}`,
+        `Entrada:compra_financeiro:150.0000:300.0000:${nova.id}:true:Ativa`,
+        `[${rotulo}] movimento de entrada do documento novo`,
+      );
+      igual(dec((await produtoAgora(s.produtos.sal.id)).estoque_atual), somar4(salAntes, '150.0000'), `[${rotulo}] estoque_atual do SAL depois da substituição (−100 +150)`);
+      igual(
+        `${ev.tipo}:${ev.modo}:${ev.operacao_id}:${ev.operacao_nova_id}:${ev.numero_original}:${ev.versao_anterior}:${ev.versao_nova}:${ev.motivo}:${Boolean(ev.usuario_id)}`,
+        `RETIFICACAO:SUBSTITUICAO:${velha.id}:${nova.id}:${antiga.numero}:${antiga.versao}:${antiga.versao + 1}:${MOTIVO}:true`,
+        `[${rotulo}] evento da substituição`,
+      );
+      conferir(JSON.stringify(ev.snapshot_anterior ?? {}).includes(loteAntigoId), `[${rotulo}] snapshot do evento sem o lote da versão anterior`);
+      igual(
+        await prisma.auditLog.count({ where: { cliente_id: s.cliente_id, entidade: 'OperacaoFinanceira', acao: 'operacao_financeira.retificar', entidade_id: { in: [velha.id, nova.id] } } }),
+        2,
+        `[${rotulo}] AuditLog da retificação nos dois documentos`,
+      );
+      // Tela: mostra o documento NOVO, o aviso de que ele substitui o anterior e o histórico.
+      const avisoSub = await visivel(page.getByTestId('aviso-substitui')).innerText();
+      conferir(avisoSub.includes(`nº ${antiga.numero}/r${antiga.versao}`), `[${rotulo}] aviso "substitui" sem o número da versão anterior: "${avisoSub.slice(0, 200)}"`);
+      const evTela = await visivel(page.getByTestId('evento-revisao-0')).innerText();
+      conferir(
+        evTela.includes(MOTIVO) && evTela.includes(`versão ${antiga.versao} → ${antiga.versao + 1}`) && /substituição/i.test(evTela),
+        `[${rotulo}] histórico de revisões na tela: "${evTela.slice(0, 240)}"`,
+      );
+      await mostrar('historico-revisoes', 'p303-correcao-substituicao-historico');
+      if (movel) {
+        await dentroDaTela('aviso-substitui', 'aviso da versão corrigida');
+        await dentroDaTela('evento-revisao-', 'histórico de revisões');
+      }
+      // Lista (API): OPERACIONAIS tem só a versão atual; TODOS tem as duas.
+      const operacionais = await listaSituacaoApi(null);
+      const todos = await listaSituacaoApi('TODOS');
+      igual(`${operacionais.ids.includes(nova.id)}:${operacionais.ids.includes(velha.id)}:${todos.ids.includes(nova.id)}:${todos.ids.includes(velha.id)}`, 'true:false:true:true', `[${rotulo}] lista da API por situação`);
+      const linhaVelha = todos.itens.find((x) => x.id === velha.id);
+      conferir(linhaVelha?.retificado_em && linhaVelha?.excluido_em === null, `[${rotulo}] linha da versão anterior na lista sem retificado_em: ${JSON.stringify(linhaVelha ?? {}).slice(0, 200)}`);
+      // Link para a versão anterior: selo "Substituído" e link de volta.
+      await clicar(page.getByTestId('link-versao-anterior'));
+      await visivel(page.getByTestId('aviso-substituido')).waitFor();
+      igual((await visivel(page.getByTestId('status-lancamento')).innerText()).trim().toUpperCase(), 'SUBSTITUÍDO', `[${rotulo}] selo da versão anterior`);
+      const avisoAnt = await visivel(page.getByTestId('aviso-substituido')).innerText();
+      conferir(avisoAnt.includes(`nº ${antiga.numero}`), `[${rotulo}] aviso da versão anterior sem o número atual: "${avisoAnt.slice(0, 200)}"`);
+      await shot('p303-versao-anterior');
+      if (movel) await dentroDaTela('aviso-substituido', 'aviso da versão substituída');
+      docs.p303 = { antiga: velha, novaId: nova.id, loteNovoId: loteNovo.id, doc };
+    });
+
+    // 32. Corrigir só INFORMAÇÃO (descrição e nº do documento) do documento
+    //     atual: NO_LUGAR — mesmo id, número e movimento/lote, versão +1,
+    //     nenhum movimento novo, estoque intacto, títulos recriados (ids novos).
+    await passo('32 P3-03 corrigir so informacao (NO_LUGAR): mesmos ids de movimento e lote, nenhum movimento novo, versao +1, titulos recriados', async () => {
+      exigir(docs.p303?.novaId, `[${rotulo}] o passo 32 corrige o documento atual do passo 31`);
+      const atual = await operacaoCompleta(s, docs.p303.novaId);
+      const it = atual.itens[0];
+      const movsAntes = await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, lancamento_origem_id: atual.id } });
+      const estoqueAntes = await fotoEstoque(s);
+      const titulosAntes = new Set(atual.titulos.map((t) => t.id));
+      const MOTIVO = 'Nota fiscal digitada errada';
+      const novoDoc = `${docs.p303.doc}-B`;
+      const enviados = await ouvindoPost(/\/retificar$/, async () => {
+        await abrirDocumento(atual);
+        await clicar(botaoBarra('Editar'));
+        await visivel(page.getByTestId('faixa-correcao')).waitFor();
+        await visivel(page.getByLabel(/Histórico \(descrição\)/)).fill('COMPRA DE SAL P3-03 NF CORRIGIDA');
+        await visivel(page.getByLabel('Nº do documento')).fill(novoDoc);
+        await page.waitForTimeout(200);
+        const prev = await visivel(page.getByTestId('previsao-correcao')).innerText();
+        conferir(/não muda o estoque/i.test(prev), `[${rotulo}] previsão da correção informativa: "${prev.slice(0, 200)}"`);
+        await clicar(page.getByTestId('botao-salvar-correcao'));
+        const dlg = page.getByTestId('dialogo-retificacao');
+        await dlg.waitFor({ state: 'visible' });
+        const efeito = await dlg.getByTestId('dialogo-retificacao-estoque').innerText();
+        conferir(/O estoque não muda/.test(efeito), `[${rotulo}] diálogo da correção informativa: "${efeito.slice(0, 200)}"`);
+        await dlg.getByTestId('dialogo-retificacao-motivo').fill(MOTIVO);
+        await shot('p303-correcao-no-lugar-dialogo');
+        // A 1ª resposta se perde (o servidor grava): "Repetir o mesmo envio" reusa a chave → replay.
+        let perdidas = 0;
+        const rota = (u) => u.pathname.endsWith(`/operacoes-financeiras/${atual.id}/retificar`);
+        await page.route(rota, async (route) => {
+          if (route.request().method() !== 'POST') return route.continue();
+          if (perdidas++ === 0) {
+            await route.fetch();
+            return route.abort('failed');
+          }
+          return route.continue();
+        });
+        try {
+          await clicar(dlg.getByTestId('dialogo-retificacao-enviar'));
+          await visivel(dlg.getByTestId('resultado-incerto')).waitFor({ timeout: 30000 });
+          await shot('p303-correcao-no-lugar-incerto');
+          igual((await dlg.getByTestId('dialogo-retificacao-enviar').innerText()).trim(), 'Repetir o mesmo envio', `[${rotulo}] botão depois da resposta perdida`);
+          await clicar(dlg.getByTestId('dialogo-retificacao-enviar'));
+          await dlg.waitFor({ state: 'hidden', timeout: 30000 });
+        } finally {
+          await page.unroute(rota);
+        }
+        const replay = page.getByText(/nada foi duplicado/i).first();
+        await replay.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+        conferir(await replay.isVisible(), `[${rotulo}] replay da correção não foi comunicado ("nada foi duplicado")`);
+      });
+      igual(enviados.length, 2, `[${rotulo}] envios de /retificar (no lugar: o perdido e a repetição)`);
+      conferir(enviados[0]?.operation_id && enviados[0].operation_id === enviados[1]?.operation_id, `[${rotulo}] a repetição da correção não reusou o operation_id`);
+      igual(JSON.stringify({ ...enviados[0], operation_id: null }), JSON.stringify({ ...enviados[1], operation_id: null }), `[${rotulo}] a repetição da correção mudou o corpo`);
+      igual(await prisma.operacaoFinanceiraEvento.count({ where: { cliente_id: s.cliente_id, operacao_id: atual.id, modo: 'NO_LUGAR' } }), 1, `[${rotulo}] eventos NO_LUGAR depois da repetição (sem duplicar)`);
+      const ev = await esperarBanco(async () => (await eventosDoBanco([atual.id])).find((e) => e.modo === 'NO_LUGAR') ?? null, 'evento NO_LUGAR');
+      const depois = await operacaoCompleta(s, atual.id);
+      igual(
+        `${depois.id}:${depois.status}:${depois.numero}:${depois.versao}:${depois.descricao}:${depois.documento_referencia}:${depois.documento_chave_ativa}:${depois.retificado_em}`,
+        `${atual.id}:CONFIRMADO:${atual.numero}:${atual.versao + 1}:COMPRA DE SAL P3-03 NF CORRIGIDA:${novoDoc}:${novoDoc}:null`,
+        `[${rotulo}] documento corrigido no lugar`,
+      );
+      const it2 = depois.itens[0];
+      igual(
+        `${it2.id}:${it2.movimentacao_estoque_id}:${it2.estoque_lote_nota_id}:${it2.movimentacao_estorno_id}`,
+        `${it.id}:${it.movimentacao_estoque_id}:${it.estoque_lote_nota_id}:null`,
+        `[${rotulo}] item de mercadoria com os MESMOS ids de linha, movimento e lote`,
+      );
+      igual(await prisma.movimentacaoEstoque.count({ where: { cliente_id: s.cliente_id, lancamento_origem_id: atual.id } }), movsAntes, `[${rotulo}] movimentos do documento (nenhum novo)`);
+      igual(await fotoEstoque(s), estoqueAntes, `[${rotulo}] a correção no lugar mexeu no estoque`);
+      // Revisão DE-02/BC-01: a procedência (nº do documento) chega ao lote e ao movimento ORIGINAIS, com os mesmos ids.
+      const loteDepois = await prisma.estoqueLoteNota.findUnique({ where: { id: it.estoque_lote_nota_id }, select: { numero_documento: true } });
+      const movDepois = await prisma.movimentacaoEstoque.findUnique({ where: { id: it.movimentacao_estoque_id }, select: { numero_documento: true } });
+      igual(`${loteDepois?.numero_documento}:${movDepois?.numero_documento}`, `${novoDoc}:${novoDoc}`, `[${rotulo}] procedência do lote e do movimento (nº do documento corrigido)`);
+      igual(
+        depois.titulos.map((t) => `${t.numero_parcela}/${t.total_parcelas}:${t.status}:${dec(t.valor)}`).join('|'),
+        '1/3:ABERTO:100.0000|2/3:ABERTO:100.0000|3/3:ABERTO:100.0000',
+        `[${rotulo}] títulos recriados (mesmos valores, abertos)`,
+      );
+      igual(depois.titulos.filter((t) => titulosAntes.has(t.id)).length, 0, `[${rotulo}] títulos mantiveram ids (deviam ser recriados)`);
+      igual(
+        `${ev.tipo}:${ev.modo}:${ev.operacao_id}:${ev.operacao_nova_id}:${ev.numero_original}:${ev.versao_anterior}:${ev.versao_nova}:${ev.motivo}`,
+        `RETIFICACAO:NO_LUGAR:${atual.id}:null:${atual.numero}:${atual.versao}:${atual.versao + 1}:${MOTIVO}`,
+        `[${rotulo}] evento NO_LUGAR`,
+      );
+      // Tela: continua no MESMO documento; o histórico mostra a cadeia (substituição + no lugar).
+      igual((await visivel(page.getByTestId('status-lancamento')).innerText()).trim().toUpperCase(), 'CONFIRMADO', `[${rotulo}] selo depois da correção no lugar`);
+      const hist = await visivel(page.getByTestId('historico-revisoes')).innerText();
+      conferir(hist.includes(MOTIVO) && /Correção no lugar/.test(hist) && /substituição/i.test(hist), `[${rotulo}] histórico de revisões sem a cadeia: "${hist.slice(0, 300)}"`);
+      await mostrar('historico-revisoes', 'p303-correcao-no-lugar-historico');
+      const det = await detalheApi(token, atual.id, s.empresa.id);
+      igual(
+        (det.corpo?.eventos ?? []).map((e) => `${e.tipo}/${e.modo}/${e.versao_anterior}→${e.versao_nova}`).join(','),
+        `RETIFICACAO/SUBSTITUICAO/${atual.versao - 1}→${atual.versao},RETIFICACAO/NO_LUGAR/${atual.versao}→${atual.versao + 1}`,
+        `[${rotulo}] eventos no detalhe da API (cadeia em ordem cronológica)`,
+      );
+      igual(`${det.corpo?.substitui?.id}:${det.corpo?.substituido_por}`, `${docs.p303.antiga.id}:null`, `[${rotulo}] detalhe da API: substitui/substituido_por`);
+    });
+
+    // 33. Excluir uma venda elegível pela tela: nada no 1º clique; motivo e
+    //     confirmação explícita; títulos cancelados, saída estornada, lote
+    //     devolvido, evento e AuditLog; sai de "Operacionais" e aparece em
+    //     "Excluídos" (tela e API).
+    await passo('33 P3-03 excluir venda elegivel pela tela: motivo e confirmacao, estorno, some de Operacionais e aparece em Excluidos', async () => {
+      exigir(docs.p303?.loteNovoId, `[${rotulo}] o passo 33 vende do lote do passo 31`);
+      const salAntes = dec((await produtoAgora(s.produtos.sal.id)).estoque_atual);
+      const venda = await criarConfirmadoApi(
+        {
+          direcao: 'RECEBER', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: s.parceiros.cliente.id, data_emissao: hoje, data_operacional: hoje,
+          efeito_fisico_confirmado: true, descricao: 'VENDA DE SAL P3-03',
+          itens: [{ tipo_item: 'MERCADORIA', produto_id: s.produtos.sal.id, local_estoque_id: s.local2.id, unidade: 'KG', quantidade: '10', valor_unitario: '20' }],
+          rateio_escopo: 'GERAL', rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: s.naturezas.venda_insumos, percentual: '100' }],
+          parcelas: [{ vencimento: somarDias(hoje, 30), valor: '200.00' }],
+        },
+        'venda a excluir',
+      );
+      const it = venda.itens[0];
+      const fatias = await prisma.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.cliente_id, item_id: it.id } });
+      igual(fatias.map((f) => `${f.estoque_lote_nota_id === docs.p303.loteNovoId}:${dec(f.quantidade)}`).join('|'), 'true:10.0000', `[${rotulo}] FIFO da venda no lote do passo 31`);
+      const e0 = await elegibilidadeApi(venda.id);
+      igual(`${e0.status}:${e0.corpo?.excluir?.permitido}:${e0.corpo?.excluir?.modo}:${e0.corpo?.editar?.efeito_fisico_permitido}`, '200:true:LOGICA:true', `[${rotulo}] elegibilidade da venda sem movimento posterior (API)`);
+      const MOTIVO = 'Venda lançada em dobro';
+      const enviados = await ouvindoPost(/\/excluir$/, async (corpos) => {
+        await abrirDocumento(venda);
+        conferir(await visivel(page.getByTestId('botao-cancelar-lancamento')).isVisible(), `[${rotulo}] "Cancelar lançamento" sumiu ao lado de "Excluir"`);
+        const antes = escritasDoDono().length;
+        await clicar(page.getByTestId('botao-excluir-lancamento'));
+        const dlg = page.getByTestId('dialogo-exclusao');
+        await dlg.waitFor({ state: 'visible' });
+        await page.waitForTimeout(300);
+        igual(escritasDoDono().slice(antes).join(','), '', `[${rotulo}] o 1º clique em Excluir gravou algo`);
+        const efeitos = await dlg.getByTestId('dialogo-exclusao-efeitos').innerText();
+        conferir(/A parcela é cancelada/.test(efeitos) && /A saída da mercadoria no estoque é estornada/.test(efeitos), `[${rotulo}] efeitos da exclusão: "${efeitos.slice(0, 240)}"`);
+        const enviar = dlg.getByTestId('dialogo-exclusao-enviar');
+        conferir(await enviar.isDisabled(), `[${rotulo}] "Excluir lançamento" habilitado sem motivo`);
+        await dlg.getByTestId('dialogo-exclusao-motivo').fill(MOTIVO);
+        conferir(await enviar.isDisabled(), `[${rotulo}] "Excluir lançamento" habilitado sem a confirmação explícita`);
+        await clicar(dlg.getByTestId('dialogo-exclusao-ciente'));
+        conferir(await enviar.isEnabled(), `[${rotulo}] "Excluir lançamento" desabilitado com motivo e confirmação`);
+        igual(corpos.length, 0, `[${rotulo}] /excluir chamado antes de confirmar`);
+        await shot('p303-excluir-dialogo');
+        if (movel) await dentroDaTela('dialogo-exclusao', 'diálogo da exclusão');
+        // A resposta se perde (o servidor grava): "Consultar lançamento" acha a exclusão sem reenviar.
+        let perdidas = 0;
+        const rota = (u) => u.pathname.endsWith(`/operacoes-financeiras/${venda.id}/excluir`);
+        await page.route(rota, async (route) => {
+          if (route.request().method() !== 'POST') return route.continue();
+          if (perdidas++ === 0) {
+            await route.fetch();
+            return route.abort('failed');
+          }
+          return route.continue();
+        });
+        try {
+          await clicar(enviar);
+          await visivel(dlg.getByTestId('resultado-incerto')).waitFor({ timeout: 30000 });
+          await shot('p303-excluir-incerto');
+          await clicar(dlg.getByTestId('botao-consultar-resultado'));
+          await visivel(page.getByTestId('aviso-excluido')).waitFor({ timeout: 30000 });
+        } finally {
+          await page.unroute(rota);
+        }
+        igual(await page.getByTestId('dialogo-exclusao').count(), 0, `[${rotulo}] o diálogo da exclusão continua aberto depois de "Consultar"`);
+      });
+      igual(enviados.length, 1, `[${rotulo}] envios de /excluir`);
+      const corpo = enviados[0] ?? {};
+      igual(Object.keys(corpo).sort().join(','), 'empresa_id,motivo,operation_id,versao', `[${rotulo}] corpo FECHADO do /excluir`);
+      igual(`${corpo.versao}:${corpo.motivo}`, `${venda.versao}:${MOTIVO}`, `[${rotulo}] versão e motivo do /excluir`);
+      const d = await esperarBanco(async () => {
+        const o = await operacaoCompleta(s, venda.id);
+        return o?.excluido_em ? o : null;
+      }, 'venda excluída');
+      igual(
+        `${d.status}:${d.versao}:${d.motivo_cancelamento}:${d.retificado_em}:${d.documento_chave_ativa}:${Boolean(d.cancelado_em)}`,
+        `CANCELADO:${venda.versao + 1}:Excluído: ${MOTIVO}:null:null:true`,
+        `[${rotulo}] venda excluída (lógica, nunca DELETE)`,
+      );
+      igual(d.titulos.map((t) => `${t.status}:${dec(t.valor)}`).join('|'), 'CANCELADO:200.0000', `[${rotulo}] título da venda excluída`);
+      const itD = d.itens[0];
+      exigir(itD.movimentacao_estoque_id && itD.movimentacao_estorno_id, `[${rotulo}] venda excluída sem movimento original ou estorno`);
+      const original = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: itD.movimentacao_estoque_id } });
+      const estorno = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: itD.movimentacao_estorno_id } });
+      igual(
+        `${original.status}:${original.movimento_filho_id === estorno.id}:${estorno.tipo_movimentacao}:${estorno.tipo_detalhado}:${dec(estorno.quantidade)}:${estorno.movimento_pai_id === original.id}`,
+        'Estornada:true:Entrada:estorno_venda:10.0000:true',
+        `[${rotulo}] saída da venda estornada (movimento original + estorno preservados)`,
+      );
+      igual(await prisma.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: s.cliente_id, item_id: it.id } }), 1, `[${rotulo}] a fatia FIFO da venda continua (histórico)`);
+      const lote = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, id: docs.p303.loteNovoId } });
+      igual(`${dec(lote.quantidade_disponivel)}:${lote.status}`, '150.0000:Disponivel', `[${rotulo}] lote devolvido pela exclusão`);
+      igual(dec((await produtoAgora(s.produtos.sal.id)).estoque_atual), salAntes, `[${rotulo}] estoque_atual do SAL reconciliado depois da exclusão`);
+      const evs = await eventosDoBanco([venda.id]);
+      igual(
+        evs.map((e) => `${e.tipo}:${e.modo}:${e.operacao_nova_id}:${e.numero_original}:${e.versao_anterior}:${e.versao_nova}:${e.motivo}`).join('|'),
+        `EXCLUSAO:null:null:${venda.numero}:${venda.versao}:${venda.versao + 1}:${MOTIVO}`,
+        `[${rotulo}] evento da exclusão`,
+      );
+      const aud = await prisma.auditLog.findMany({ where: { cliente_id: s.cliente_id, entidade: 'OperacaoFinanceira', entidade_id: venda.id, acao: 'operacao_financeira.excluir' } });
+      igual(aud.length, 1, `[${rotulo}] AuditLog da exclusão`);
+      conferir(aud[0]?.dados_novos?.motivo_informado === true && !JSON.stringify(aud[0]?.dados_novos ?? {}).includes(MOTIVO), `[${rotulo}] AuditLog da exclusão com o texto do motivo (deve ficar só no evento)`);
+      // Tela: selo, aviso com motivo e autor; sem Cancelar/Excluir.
+      igual((await visivel(page.getByTestId('status-lancamento')).innerText()).trim().toUpperCase(), 'EXCLUÍDO', `[${rotulo}] selo da venda excluída`);
+      const aviso = await visivel(page.getByTestId('aviso-excluido')).innerText();
+      conferir(aviso.includes(`Motivo: ${MOTIVO}`) && aviso.includes(s.credenciais.login), `[${rotulo}] aviso da exclusão sem motivo/autor: "${aviso.slice(0, 240)}"`);
+      igual(await page.getByTestId('botao-excluir-lancamento').count(), 0, `[${rotulo}] "Excluir" continua no documento excluído`);
+      igual(await page.getByTestId('botao-cancelar-lancamento').count(), 0, `[${rotulo}] "Cancelar" continua no documento excluído`);
+      await shot('p303-venda-excluida');
+      if (movel) await dentroDaTela('aviso-excluido', 'aviso da exclusão');
+      // Lista: some de "Operacionais" (padrão) e aparece em "Excluídos" (tela e API).
+      await irParaLista();
+      await dono.esperarLista([docs.p303.novaId], [], 'lista operacional depois da exclusão');
+      conferir(!(await dono.idsNaTela(false)).includes(venda.id), `[${rotulo}] a venda excluída continua na lista operacional`);
+      await filtrarSituacaoDoRegistro('Excluídos');
+      await dono.esperarLista([venda.id], [], 'filtro "Excluídos"');
+      const noFiltro = await dono.idsNaTela(false);
+      conferir(!noFiltro.includes(docs.p303.novaId) && !noFiltro.includes(docs.p303.antiga.id), `[${rotulo}] filtro "Excluídos" mostra lançamento não excluído`);
+      await shot('p303-lista-excluidos');
+      await filtrarSituacaoDoRegistro('Todos');
+      await dono.esperarLista([venda.id, docs.p303.novaId, docs.p303.antiga.id], [], 'filtro "Todos"');
+      await shot('p303-lista-todos');
+      await filtrarSituacaoDoRegistro('Operacionais');
+      const ex = await listaSituacaoApi('EXCLUIDOS');
+      const op = await listaSituacaoApi(null);
+      igual(`${ex.ids.includes(venda.id)}:${op.ids.includes(venda.id)}:${ex.total === ex.ids.length}`, 'true:false:true', `[${rotulo}] lista da API: Excluídos tem a venda, Operacionais não; total coerente`);
+      igual(ex.itens.find((x) => x.id === venda.id)?.excluido_em ? 'sim' : 'não', 'sim', `[${rotulo}] linha da venda excluída na API com excluido_em`);
+      docs.p303.venda = d;
+    });
+
+    // 34. Compra CONSUMIDA (passo 17, suplementação pelo estoque antigo):
+    //     corrigir abre só com o aviso legível de que o estoque não pode mudar
+    //     e a tela não envia mudança física; excluir mostra o bloqueio legível;
+    //     compra com baixa (passo 4) não abre a correção; a API real recusa
+    //     (409) a correção física e a exclusão, nada muda. A compra do passo 31,
+    //     vendida e depois "recomposta" pela exclusão da venda, segue bloqueada.
+    await passo('34 P3-03 compra consumida: bloqueio legivel ao editar e excluir (tela), compra com baixa bloqueada, API recusa 409 e nada muda', async () => {
+      const consumida = docs.compraConsumida;
+      exigir(consumida, `[${rotulo}] o passo 34 usa a compra consumida do passo 17`);
+      const e0 = await elegibilidadeApi(consumida.id);
+      igual(
+        `${e0.status}:${e0.corpo?.editar?.permitido}:${e0.corpo?.editar?.efeito_fisico_permitido}:${e0.corpo?.excluir?.permitido}:${e0.corpo?.excluir?.modo}:${(e0.corpo?.excluir?.motivos ?? []).map((m) => `${m.codigo}/${m.entidade}/${m.item_ordem}`).join(',')}`,
+        '200:true:false:false:null:lote_consumido/MovimentacaoEstoque/1',
+        `[${rotulo}] elegibilidade da compra consumida (API)`,
+      );
+      const fe = await fotoEstoque(s);
+      const ff = await fotoFinanceiro(s);
+      const comandos = await ouvindoPost(/\/(retificar|excluir)$/, async () => {
+        // (a) Editar: abre com o aviso de que o estoque não pode mudar; mudança física não é enviada.
+        await abrirDocumento(consumida);
+        await clicar(botaoBarra('Editar'));
+        const semEstoque = visivel(page.getByTestId('faixa-correcao-sem-estoque'));
+        await semEstoque.waitFor();
+        const t = await semEstoque.innerText();
+        conferir(/o estoque não pode mudar/i.test(t) && /já foi usada no estoque/.test(t) && /movimento nº \d+/.test(t), `[${rotulo}] aviso da compra consumida ilegível: "${t.slice(0, 300)}"`);
+        await preencher('item-0-quantidade', '5');
+        const bloqueio = visivel(page.getByTestId('correcao-bloqueio-fisico'));
+        await bloqueio.waitFor();
+        conferir(/mexeria no estoque/.test(await bloqueio.innerText()), `[${rotulo}] alerta da mudança física proibida`);
+        await shot('p303-compra-consumida-correcao');
+        if (movel) await dentroDaTela('faixa-correcao', 'faixa da correção bloqueada');
+        await clicar(page.getByTestId('botao-salvar-correcao'));
+        await page.waitForTimeout(600);
+        igual(await page.getByTestId('dialogo-retificacao').count(), 0, `[${rotulo}] o diálogo de correção abriu com mudança de estoque proibida`);
+        // (b) Excluir: diálogo de bloqueio legível, nada enviado.
+        await abrirDocumento(consumida);
+        await clicar(page.getByTestId('botao-excluir-lancamento'));
+        const dlg = page.getByTestId('dialogo-bloqueio');
+        await dlg.waitFor({ state: 'visible' });
+        const txt = await dlg.innerText();
+        conferir(/Exclusão bloqueada/.test(txt) && /já foi usada no estoque/.test(txt) && /movimento nº \d+/.test(txt), `[${rotulo}] bloqueio da exclusão ilegível: "${txt.slice(0, 300)}"`);
+        conferir(!/lote_consumido|OperacaoFinanceira|MovimentacaoEstoque/.test(txt), `[${rotulo}] bloqueio mostra código cru: "${txt.slice(0, 300)}"`);
+        await shot('p303-compra-consumida-excluir-bloqueado');
+        if (movel) await dentroDaTela('dialogo-bloqueio', 'diálogo de bloqueio');
+        await clicar(page.getByTestId('dialogo-bloqueio-fechar'));
+        await dlg.waitFor({ state: 'hidden' });
+        // (c) Compra com baixa no ato (passo 4): a correção nem abre.
+        await abrirDocumento(docs.compra);
+        await clicar(botaoBarra('Editar'));
+        const dlg2 = page.getByTestId('dialogo-bloqueio');
+        await dlg2.waitFor({ state: 'visible' });
+        const txt2 = await dlg2.innerText();
+        conferir(/Correção bloqueada/.test(txt2) && /tem pagamento\/recebimento registrado/.test(txt2), `[${rotulo}] bloqueio da correção com baixa: "${txt2.slice(0, 300)}"`);
+        igual(await page.getByTestId('faixa-correcao').count(), 0, `[${rotulo}] a correção abriu numa compra com baixa`);
+        await shot('p303-compra-com-baixa-bloqueada');
+        await clicar(page.getByTestId('dialogo-bloqueio-fechar'));
+      });
+      igual(comandos.length, 0, `[${rotulo}] a tela enviou /retificar ou /excluir bloqueado`);
+      igual(await fotoEstoque(s), fe, `[${rotulo}] as tentativas bloqueadas mexeram no estoque`);
+      igual(await fotoFinanceiro(s), ff, `[${rotulo}] as tentativas bloqueadas mexeram no financeiro`);
+      // (d) A API real recusa sozinha (mesma regra, sob trava).
+      const atual = await prisma.operacaoFinanceira.findFirst({ where: { cliente_id: s.cliente_id, id: consumida.id } });
+      const r1 = await api(token, 'POST', `/api/native/operacoes-financeiras/${consumida.id}/retificar`, {
+        empresa_id: s.empresa.id, versao: atual.versao, operation_id: `p303-${randomUUID()}`, motivo: 'Tentativa pela API',
+        direcao: 'PAGAR', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: s.parceiros.fornecedor.id, data_emissao: hoje, data_operacional: hoje,
+        efeito_fisico_confirmado: true,
+        itens: [{ tipo_item: 'MERCADORIA', produto_id: s.produtos.racao.id, local_estoque_id: s.local2.id, unidade: 'SACO', quantidade: '5', valor_unitario: '80' }],
+        rateio_escopo: 'GERAL', rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: s.naturezas.insumos, percentual: '100' }],
+        parcelas: [{ vencimento: somarDias(hoje, 30), valor: '400.00' }],
+      });
+      igual(
+        `${r1.status}:${r1.corpo?.code}:${r1.corpo?.field}:${r1.corpo?.reason}:${r1.corpo?.details?.efeito_fisico_permitido}:${(r1.corpo?.details?.motivos ?? []).map((m) => m.codigo).join(',')}`,
+        '409:OPERACAO_RETIFICACAO_BLOQUEADA:id:lote_consumido:false:lote_consumido',
+        `[${rotulo}] API: correção física da compra consumida`,
+      );
+      const r2 = await api(token, 'POST', `/api/native/operacoes-financeiras/${consumida.id}/excluir`, { empresa_id: s.empresa.id, versao: atual.versao, operation_id: `p303-${randomUUID()}`, motivo: 'Tentativa pela API' });
+      igual(`${r2.status}:${r2.corpo?.code}:${r2.corpo?.reason}`, '409:OPERACAO_EXCLUSAO_BLOQUEADA:lote_consumido', `[${rotulo}] API: exclusão da compra consumida`);
+      igual(await fotoEstoque(s), fe, `[${rotulo}] as recusas da API mexeram no estoque`);
+      igual(await fotoFinanceiro(s), ff, `[${rotulo}] as recusas da API mexeram no financeiro`);
+      // (e) Compra do passo 31, vendida e "recomposta" pela exclusão da venda: a fatia fica e bloqueia.
+      if (docs.p303?.venda) {
+        const e1 = await elegibilidadeApi(docs.p303.novaId);
+        const m = (e1.corpo?.excluir?.motivos ?? [])[0] ?? {};
+        igual(
+          `${e1.status}:${e1.corpo?.excluir?.permitido}:${e1.corpo?.editar?.efeito_fisico_permitido}:${m.codigo}:${m.entidade}:${m.numero}`,
+          `200:false:false:lote_consumido:OperacaoFinanceira:${docs.p303.venda.numero}`,
+          `[${rotulo}] compra vendida e recomposta continua bloqueada (API)`,
+        );
+      }
     });
   } catch (erro) {
     if (!(erro instanceof Divergencia)) console.error(`  [${rotulo}] interrompido: ${String(erro?.message || erro).split('\n')[0]}`);

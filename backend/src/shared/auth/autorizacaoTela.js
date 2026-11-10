@@ -227,6 +227,22 @@ export const porQualquer = (...opcoes) =>
       : { exige: opcoes.map(rotuloDaOpcao) });
 
 /**
+ * D-PROD-158 — preHandler "todas de": cada exigência é uma lista de
+ * alternativas `[alvo, acao]` (basta UMA delas) e a ação só passa se TODAS as
+ * exigências valerem. Ex.: retificar = (editar OU salvar) E confirmar; excluir
+ * confirmado = cancelar E excluir. Administrador real e `is_admin` passam
+ * (`telaPermite`/`acessoTotal`). Negação: 403 com `exige` (todas) e `faltam`.
+ * @param {...Array<[{modulo: string, tela: string}, string]>} exigencias
+ */
+export const porTodas = (...exigencias) =>
+  autorizar((_req, aut) => {
+    if (acessoTotal(aut)) return true;
+    const rotulo = (alternativas) => alternativas.map(([alvo, acao]) => `${alvo.tela}:${acao}`).join('|');
+    const faltam = exigencias.filter((alternativas) => !alternativas.some(([alvo, acao]) => telaPermite(aut, alvo, acao)));
+    return faltam.length ? { exige: exigencias.map(rotulo), faltam: faltam.map(rotulo) } : true;
+  });
+
+/**
  * Uma opção de `porQualquer`:
  *  - `[alvo, acao]` — tela/ação;  `{ mapa }` — ação do Mapa Geral;
  *  - `{ de: <opção>, campos: [...] }` — R3: a concessão só vale se o corpo

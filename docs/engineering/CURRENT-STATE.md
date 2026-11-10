@@ -9,15 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-09) — MAIKE-PATRIMONIO-P1-01: cadastros patrimoniais, frota e parâmetros operacionais (D-PROD-157)
+## Missão ativa (2026-11-09) — MAIKE-GESTAO-P3-03: editar, excluir e duplicar lançamentos (D-PROD-158)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-158** (nasceu como D-PROD-157; renumerada ao integrar a `main` `76edc913`, onde a D-PROD-157 é o Patrimônio P1-01). O comentário dentro do `migration.sql` da P3-03, já aplicado em produção, ainda diz D-PROD-157 e fica imutável (checksum) |
+| Branch / PR | `claude/maike-gestao-p3-03-editar-excluir-duplicar`, PR #234 em **draft**, integrada com a `origin/main` `76edc913` (PR #232, Patrimônio) por merge não destrutivo |
+| Escopo | Na tela `LancamentosFinanceiros`: **Editar** documento confirmado por retificação (no lugar, quando a assinatura física não muda; por substituição, com estorno e documento novo de mesmo número, quando muda); **Excluir** confirmado de forma lógica (estorno, `excluido_em`, evento); **Duplicar** como rascunho novo. Bloqueios por liquidação, consumo de lote e movimento posterior. Histórico em `OperacaoFinanceiraEvento` e AuditLog |
+| Migration | `20261109300000_gestao_p3_03_editar_excluir`, expand-only: colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em` e tabela nova `OperacaoFinanceiraEvento`. SHA-256 `3f3af00e…df890b`. **Aplicada em produção em 2026-11-09 às 21:32:01 UTC** (caminho B, GO escrito), 37 migrations, conferida pelo §6 do runbook |
+| Release | **Concluído:** GO, preflight, backup comprovado (PITR desligado), ensaio local, migration e conferência. **Pendente:** merge manual da PR #234, deploy e smoke. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md) |
+| Relatório | [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md) |
+| Antes dela | P3-02 (D-PROD-156) em produção: migration aplicada em 2026-11-09 às 17:42:13 UTC e PR #231 mergeada (`e4e907ea`) |
+
+## Missão anterior (2026-11-09) — MAIKE-PATRIMONIO-P1-01: cadastros patrimoniais, frota e parâmetros operacionais (D-PROD-157)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-157** (nasceu como D-PROD-156; renumerada ao integrar a `main`, onde a D-PROD-156 é a Gestão P3-02), autorizada pelo proprietário na missão (2026-11-09). Constituição: nota de expansão em [`00-CONSTITUICAO.md`](../constitution/00-CONSTITUICAO.md) |
-| Branch / PR | `claude/maike-patrimonio-p1-01-cadastros-inventario` · PR #232 (**draft**), integrada com a `origin/main` `e4e907ea` por merge não destrutivo |
+| Branch / PR | `claude/maike-patrimonio-p1-01-cadastros-inventario` · PR #232 **mergeada** na `main` (`76edc913`) |
 | Escopo | Grupo de menu **Patrimônio e Frota** com 5 telas nativas (`BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`): bens por fazenda com código patrimonial e código de frota, medições físicas, medidor de uso, tanques com combustíveis permitidos, aquisição e depreciação com prévia só simulada. **R2:** vínculo combustível × produto por empresa na tela Combustíveis e contrato só de leitura dos produtos elegíveis de um bem (para a P1-02). **Fora:** abastecimento, manutenção, financeiro, estoque, apuração de depreciação e transferência |
 | Migration | `20261110100000_patrimonio_p1_01_cadastros` (expand-only, 10 tabelas novas, nenhum DDL em tabela antiga; nunca aplicada em ambiente remoto, por isso ampliada na R2 com `TipoCombustivelProduto`). SHA-256 final `b8818ba8f16528580b7ba6053b0c89f07f0d4fd434955f4b9c5830a62ffd64dc`, hash do DO `01dbf9ae4875444fa77082d37e1b71da655f217ecc25cc95a4d1b8a4a108a0a3` (os da R1 são inválidos). Com a `main`: 37 migrations, 81 tabelas. **Não aplicada em produção** |
-| Release | Pendente: auditoria, aplicação autorizada da migration (preflight + GO escrito) **antes** do merge manual. Runbook (não executado, ensaiado localmente): [`MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md) |
+| Release | **Incidente de sequência:** a PR #232 foi mergeada (`76edc913`, deploy às ~21:41 UTC) **antes** de a migration `20261110100000_patrimonio_p1_01_cadastros` ser aplicada. Às 22:30 UTC (só leitura) a migration não estava aplicada e os domínios de produção serviam o deploy anterior `afbebcbc`. **Depois, por outro fluxo:** migration aplicada em 2026-11-09 às 23:04:22 UTC (checksum `b8818ba8…ffd64dc`, `applied_steps_count = 1`). A produção ficou com 38 concluídas e 0 com falha, 82 tabelas, as 10 do Patrimônio vazias, com RLS sem FORCE e 0 grants públicos, e o advisor com 0 alertas (conferido por esta PR, só leitura, às 23:19 UTC). Os domínios continuavam em `afbebcbc`. Runbook: [`MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md) |
 | Relatório | [`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md) |
 | Antes dela | Gestão P3-02, rateio por item (D-PROD-156): mergeada na `main` pela PR #231 (`e4e907ea`), migration aplicada em produção; P3-01 (D-PROD-155) idem pela PR #230 |
 
@@ -26,10 +38,10 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-156**, autorizada pelo proprietário na missão de 2026-11-09, depois do merge da P3-01 |
-| Branch / PR | `claude/maike-gestao-p3-02-rateio-por-item`, PR em **draft** sobre `origin/main` `f2b81e1b` |
+| Branch / PR | `claude/maike-gestao-p3-02-rateio-por-item`, PR #231 **mergeada** pelo proprietário (`e4e907ea`) |
 | Escopo | Na mesma tela `LancamentosFinanceiros` e só com produtos, o rateio pode ser Geral (padrão) ou Por item. Por item, cada linha é dividida por natureza e centros, em valor ou percentual, sobre o **líquido** do item. A soma é exata por item e no total, os dois modos nunca convivem e existe um resumo consolidado. Não há efeito novo em títulos, estoque ou custo |
 | Migration | `20261109200000_gestao_p3_02_rateio_por_item`, expand-only: coluna anulável `OperacaoFinanceira.rateio_escopo` e tabela nova `OperacaoFinanceiraItemRateio`. SHA-256 `df4d1ab2…2076f4a0` pinado. **Aplicada em produção em 2026-11-09 às 17:42:13 UTC** (caminho B, GO escrito) e conferida pelo §6 do runbook |
-| Release | **Concluído:** GO, preflight, ensaio local, migration (36 concluídas) e conferência. **Pendente:** merge manual da PR #231, deploy e smoke. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md) |
+| Release | **Concluído:** GO, preflight, ensaio local, migration (36 concluídas), conferência e merge manual da PR #231 (`e4e907ea`), com deploy em produção. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md) |
 | Relatório | [`MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`](./MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md) |
 | Antes dela | P3-01 (D-PROD-155) em produção: migration aplicada em 2026-11-09 às 14:08:36 UTC e PR #230 mergeada (`f2b81e1b`) |
 
@@ -124,7 +136,7 @@ repositório (D-PROD-04 / P7 opcional de arquivo).
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **MAIKE-GESTAO-P3-02 — rateio gerencial por item** (**D-PROD-156**, PR draft; ver "Missão ativa" no topo). Antes dela: **P3-01** (D-PROD-155), PR #230 mergeada. Registro anterior desta linha: **Missão integrada: autorização real e preferências do Mapa Geral** (**D-PROD-137**, então a decisão mais recente). Parte 1 na `main` (PR #205). Parte 2 na branch `claude/autorizacao-preferencias-integradas` (HEAD `1e2b9fc5`). Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`. Antes dela: **P8 — Hardening** (**D-PROD-56**); catálogo **D-PROD-57/60/62** (#126/#130/#132); UX Base1 **H.5**; MapLibre M1/M2-A/M2-B1/M2-B2/M2-B3 (**D-PROD-58/59/61/63/64**, #127/#129/#131/#133/#134) em `main`; **MapLibre áreas unificadas + Mapa Geral MapLibre + satélite Map Tiles** (**D-PROD-65**, R1 polígonos) **mergeada** em `main` (#139, merge `e8540e7d`, CI 40876450764 verde); **paridade visual do editor de polígonos** (**D-PROD-66**) **mergeada** (#141); **fechar/finalizar polígono e prévia do formulário** (**D-PROD-67**) **mergeada** (#142); **pontos médios no cadastro de área aberta** (**D-PROD-68**, `MAPLIBRE-PONTOS-MÉDIOS-NO-CADASTRO-03`) na branch `claude/new-session-26kpxu` — PR DRAFT, merge só após auditoria |
+| Missão em execução | **MAIKE-GESTAO-P3-03 — editar, excluir e duplicar lançamentos** (**D-PROD-158**, PR #234 draft; ver "Missão ativa" no topo). Antes dela: **P3-02** (D-PROD-156), PR #231 mergeada; **P3-01** (D-PROD-155), PR #230 mergeada. Registro anterior desta linha: **Missão integrada: autorização real e preferências do Mapa Geral** (**D-PROD-137**, então a decisão mais recente). Parte 1 na `main` (PR #205). Parte 2 na branch `claude/autorizacao-preferencias-integradas` (HEAD `1e2b9fc5`). Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`. Antes dela: **P8 — Hardening** (**D-PROD-56**); catálogo **D-PROD-57/60/62** (#126/#130/#132); UX Base1 **H.5**; MapLibre M1/M2-A/M2-B1/M2-B2/M2-B3 (**D-PROD-58/59/61/63/64**, #127/#129/#131/#133/#134) em `main`; **MapLibre áreas unificadas + Mapa Geral MapLibre + satélite Map Tiles** (**D-PROD-65**, R1 polígonos) **mergeada** em `main` (#139, merge `e8540e7d`, CI 40876450764 verde); **paridade visual do editor de polígonos** (**D-PROD-66**) **mergeada** (#141); **fechar/finalizar polígono e prévia do formulário** (**D-PROD-67**) **mergeada** (#142); **pontos médios no cadastro de área aberta** (**D-PROD-68**, `MAPLIBRE-PONTOS-MÉDIOS-NO-CADASTRO-03`) na branch `claude/new-session-26kpxu` — PR DRAFT, merge só após auditoria |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |

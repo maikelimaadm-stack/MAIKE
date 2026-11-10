@@ -112,6 +112,8 @@ model Cliente {
   titulosFinanceiros           TituloFinanceiro[]
   liquidacoesFinanceiras       LiquidacaoFinanceira[]
   estornosLiquidacao           LiquidacaoFinanceiraEstorno[]
+  // D-PROD-158 — histórico de retificação/exclusão (Gestão P3-03).
+  operacoesFinanceirasEventos  OperacaoFinanceiraEvento[]
   // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário).
   familiasPatrimoniais         FamiliaPatrimonial[]
   tiposPatrimoniais            TipoPatrimonial[]
@@ -176,6 +178,8 @@ model Usuario {
   operacoesFinanceirasCanceladas  OperacaoFinanceira[]          @relation("OperacaoFinanceiraCanceladoPor")
   liquidacoesRegistradas          LiquidacaoFinanceira[]        @relation("LiquidacaoFinanceiraRegistradoPor")
   estornosLiquidacaoRegistrados   LiquidacaoFinanceiraEstorno[] @relation("LiquidacaoFinanceiraEstornoRegistradoPor")
+  // D-PROD-158 — autor da retificação/exclusão (FK composta por tenant).
+  operacoesFinanceirasEventos     OperacaoFinanceiraEvento[]    @relation("OperacaoFinanceiraEventoUsuario")
   // D-PROD-157 — responsável pelo bem patrimonial (FK composta por tenant).
   bensPatrimoniaisResponsavel     BemPatrimonial[]              @relation("BemPatrimonialResponsavel")
 
@@ -2033,6 +2037,14 @@ model OperacaoFinanceira {
   cancelado_por_usuario_id  String?   @db.VarChar(64)
   cancelado_em              DateTime?
   motivo_cancelamento       String?   @db.VarChar(500)
+  /// D-PROD-158 (P3-03): exclusão LÓGICA de documento confirmado (estornado como
+  /// o cancelamento, status CANCELADO). Fora da lista operacional padrão. Anulável,
+  /// sem CHECK (a migration expand-only não põe CHECK em tabela antiga).
+  excluido_em               DateTime?
+  /// D-PROD-158 (P3-03): versão substituída por retificação (SUBSTITUICAO): o
+  /// documento foi estornado e cancelado e um documento novo assumiu o número.
+  /// Fora da lista operacional padrão.
+  retificado_em             DateTime?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
@@ -2046,6 +2058,10 @@ model OperacaoFinanceira {
   rateios       OperacaoFinanceiraRateio[]
   itemRateios   OperacaoFinanceiraItemRateio[]
   titulos       TituloFinanceiro[]
+  // D-PROD-158: eventos de retificação/exclusão SOBRE este documento e o evento
+  // de substituição de que ele NASCEU (no máximo um).
+  eventos       OperacaoFinanceiraEvento[] @relation("OperacaoFinanceiraEventoOperacao")
+  eventosOrigem OperacaoFinanceiraEvento[] @relation("OperacaoFinanceiraEventoNova")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -2298,6 +2314,43 @@ model LiquidacaoFinanceiraEstorno {
   @@index([cliente_id, empresa_id, titulo_id])
 }
 
+/// D-PROD-158 (P3-03) — evento de RETIFICAÇÃO (NO_LUGAR ou SUBSTITUICAO) ou de
+/// EXCLUSÃO lógica de um lançamento confirmado. `operacao_id` é o documento sobre
+/// o qual o evento age; na SUBSTITUICAO, `operacao_nova_id` é o documento novo
+/// (um documento nasce de no máximo uma substituição: unique abaixo; NULLs
+/// repetidos são permitidos). `snapshot_anterior` guarda a versão anterior
+/// (cabeçalho, itens com ids de movimento/lote/estorno, consumos, rateios geral e
+/// por item, títulos) só como registro histórico: nenhuma regra o lê para decidir.
+/// Domínios e forma por CHECK SQL (sem enum Prisma); FKs compostas por tenant.
+model OperacaoFinanceiraEvento {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  operacao_id       String   @db.VarChar(64)
+  /// RETIFICACAO | EXCLUSAO.
+  tipo              String   @db.VarChar(16)
+  /// NO_LUGAR | SUBSTITUICAO (só na retificação).
+  modo              String?  @db.VarChar(16)
+  operacao_nova_id  String?  @db.VarChar(64)
+  numero_original   String   @db.VarChar(32)
+  versao_anterior   Int
+  versao_nova       Int
+  motivo            String   @db.VarChar(500)
+  usuario_id        String?  @db.VarChar(64)
+  snapshot_anterior Json
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente      Cliente             @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  operacao     OperacaoFinanceira  @relation("OperacaoFinanceiraEventoOperacao", fields: [cliente_id, empresa_id, operacao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "OperacaoFinanceiraEvento_operacao_fkey")
+  operacaoNova OperacaoFinanceira? @relation("OperacaoFinanceiraEventoNova", fields: [cliente_id, empresa_id, operacao_nova_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "OperacaoFinanceiraEvento_operacao_nova_fkey")
+  usuario      Usuario?            @relation("OperacaoFinanceiraEventoUsuario", fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "OperacaoFinanceiraEvento_usuario_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, operacao_nova_id])
+  @@index([cliente_id, empresa_id, operacao_id, createdAt], map: "OperacaoFinanceiraEvento_operacao_idx")
+  @@index([cliente_id, empresa_id, operacao_nova_id], map: "OperacaoFinanceiraEvento_operacao_nova_idx")
+}
 
 // ---------------------------------------------------------------------------
 // D-PROD-157 — Patrimônio e Frota P1-01: cadastros nativos de inventário.

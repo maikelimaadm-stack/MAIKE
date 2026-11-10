@@ -12,7 +12,7 @@ const CAMINHO = '/operacoes-financeiras';
 const CAMINHO_OPCOES = '/operacoes-financeiras-opcoes';
 const CAMINHO_PERFIL = '/perfis-financeiros-empresa';
 
-/** Confirmar e cancelar podem mexer em centenas de linhas: prazo próprio (§8.7). */
+/** Confirmar, cancelar, retificar e excluir podem mexer em centenas de linhas: prazo próprio (§8.7). */
 export const TIMEOUT_COMANDO_MS = 60000;
 
 const ctx = (operation, details) => ({ operation, resource: RESOURCE, ...(details ? { details } : {}) });
@@ -20,8 +20,9 @@ const ctx = (operation, details) => ({ operation, resource: RESOURCE, ...(detail
 /** @param {unknown} v */
 const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
+// `situacao` (D-PROD-158): OPERACIONAIS (padrão do servidor) | EXCLUIDOS | TODOS.
 const FILTROS_LISTA = Object.freeze([
-  'empresa_id', 'direcao', 'status', 'conteudo', 'parceiro_id', 'emissao_de', 'emissao_ate', 'vencimento_de', 'vencimento_ate', 'q', 'cursor',
+  'empresa_id', 'direcao', 'status', 'situacao', 'conteudo', 'parceiro_id', 'emissao_de', 'emissao_ate', 'vencimento_de', 'vencimento_ate', 'q', 'cursor',
 ]);
 
 /** @param {string} caminho @param {Record<string, unknown>} params */
@@ -88,6 +89,15 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} id @param {Record<string, unknown>} corpo */
   cancelar: (id, corpo) =>
     nativeRequest(`${doId(id)}/cancelar`, { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_MS }, ctx('cancelarOperacaoFinanceira', { id })),
+  /** Elegibilidade de editar/excluir/duplicar (D-PROD-158): só leitura. @param {string} id @param {string} empresaId */
+  elegibilidade: (id, empresaId) =>
+    nativeRequest(comQuery(`${doId(id)}/elegibilidade`, { empresa_id: empresaId }), { autenticado: true }, ctx('elegibilidadeOperacaoFinanceira', { id })),
+  /** Correção de confirmado (no lugar ou por substituição atômica). @param {string} id @param {Record<string, unknown>} corpo */
+  retificar: (id, corpo) =>
+    nativeRequest(`${doId(id)}/retificar`, { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_MS }, ctx('retificarOperacaoFinanceira', { id })),
+  /** Exclusão LÓGICA de confirmado (estorna como o cancelamento). @param {string} id @param {Record<string, unknown>} corpo */
+  excluir: (id, corpo) =>
+    nativeRequest(`${doId(id)}/excluir`, { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_MS }, ctx('excluirOperacaoFinanceira', { id })),
   /** @param {string} tituloId @param {Record<string, unknown>} corpo */
   liquidar: (tituloId, corpo) =>
     nativeRequest(`/titulos-financeiros/${encodeURIComponent(tituloId)}/liquidacoes`, { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_MS }, ctx('registrarLiquidacaoTitulo', { id: tituloId })),

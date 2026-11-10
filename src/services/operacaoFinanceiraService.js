@@ -4,9 +4,11 @@
  * Documento gerencial `OperacaoFinanceira`: rascunho completo (POST/PUT),
  * prévia, confirmação (títulos + efeitos de estoque), cancelamento, liquidação
  * MANUAL (sem conciliação bancária) e estorno de liquidação. Online só.
+ * D-PROD-158 (P3-03): elegibilidade, correção de confirmado (`retificar`),
+ * exclusão LÓGICA de confirmado (`excluir`) e duplicação (`duplicado_de_id`).
  *
  * Retentativa segura (§8.7): toda ação que cria fato — criar rascunho,
- * confirmar, cancelar, liquidar, estornar — leva um `operation_id` guardado
+ * confirmar, cancelar, liquidar, estornar, retificar, excluir — leva um `operation_id` guardado
  * por (escopo, ação, empresa, alvo) até a resposta DEFINITIVA do servidor.
  * Sem resposta (rede, prazo, 5xx), REPETIR aquele envio reaproveita o MESMO id:
  * o servidor devolve o resultado gravado (replay) em vez de gravar de novo.
@@ -30,6 +32,9 @@ import {
   previaOperacaoFinanceira,
   confirmarOperacaoFinanceira,
   cancelarOperacaoFinanceira,
+  getElegibilidadeOperacaoFinanceira,
+  retificarOperacaoFinanceira,
+  excluirOperacaoFinanceira,
   registrarLiquidacaoTitulo,
   estornarLiquidacaoFinanceira,
   listOpcoesOperacaoFinanceira,
@@ -47,6 +52,12 @@ export const ROTULO_DIRECAO = Object.freeze({ PAGAR: 'A pagar', RECEBER: 'A rece
 export const ROTULO_CONTEUDO = Object.freeze({ COM_PRODUTOS: 'Com produtos', SEM_PRODUTOS: 'Sem produtos' });
 export const ROTULO_CONDICAO = Object.freeze({ AVISTA: 'À vista', PRAZO: 'A prazo', PARCELADO: 'Parcelado' });
 export const ROTULO_STATUS = Object.freeze({ RASCUNHO: 'Rascunho', CONFIRMADO: 'Confirmado', CANCELADO: 'Cancelado' });
+/**
+ * Filtro "Situação do registro" (D-PROD-158): OPERACIONAIS (padrão — sem
+ * excluídos nem versões substituídas por correção), EXCLUIDOS ou TODOS.
+ */
+export const SITUACOES_LISTA = Object.freeze(['OPERACIONAIS', 'EXCLUIDOS', 'TODOS']);
+export const ROTULO_SITUACAO = Object.freeze({ OPERACIONAIS: 'Operacionais', EXCLUIDOS: 'Excluídos', TODOS: 'Todos' });
 export const ROTULO_STATUS_TITULO = Object.freeze({
   PREVISTO: 'Previsto',
   ABERTO: 'Aberto',
@@ -125,9 +136,10 @@ export const salvarPerfilFinanceiro = async (empresaId, dados) => {
 };
 
 /**
- * Página da lista (keyset; teto 100 por página no servidor).
+ * Página da lista (keyset; teto 100 por página no servidor). `situacao`
+ * OPERACIONAIS é o padrão do servidor: só vai na URL quando é outra.
  * @param {string|null} empresaId
- * @param {{ limit?: number, cursor?: string|null, q?: string, direcao?: string, status?: string }} [opts]
+ * @param {{ limit?: number, cursor?: string|null, q?: string, direcao?: string, status?: string, situacao?: string }} [opts]
  */
 export const listarLancamentosPagina = async (empresaId, opts = {}) => {
   if (!empresaId) return paginaVazia(opts.limit);
@@ -138,11 +150,19 @@ export const listarLancamentosPagina = async (empresaId, opts = {}) => {
     q: opts.q,
     direcao: opts.direcao,
     status: opts.status,
+    situacao: opts.situacao && opts.situacao !== 'OPERACIONAIS' && SITUACOES_LISTA.includes(opts.situacao) ? opts.situacao : undefined,
   });
 };
 
 /** @param {string|null} empresaId @param {string} id */
 export const obterLancamento = async (empresaId, id) => getOperacaoFinanceira(id, exigirEmpresa(empresaId, 'obterLancamento', RESOURCE));
+
+/**
+ * Elegibilidade de editar/excluir/duplicar observada AGORA pelo servidor
+ * (D-PROD-158). O comando decide de novo, sob trava.
+ * @param {string|null} empresaId @param {string} id
+ */
+export const obterElegibilidade = async (empresaId, id) => getElegibilidadeOperacaoFinanceira(id, exigirEmpresa(empresaId, 'obterElegibilidade', RESOURCE));
 
 /** @param {string|null} empresaId @param {string} id */
 export const previaLancamento = async (empresaId, id) => previaOperacaoFinanceira(id, exigirEmpresa(empresaId, 'previaLancamento', RESOURCE));
@@ -240,9 +260,9 @@ const MENSAGEM_NOVO_ENVIO =
  * dois rascunhos iguais (alvo fixo 'novo') e duas baixas iguais na mesma parcela
  * (mesmo valor, dia e forma). Nelas, conteúdo igual ao da pendência só repete o
  * envio anterior quando é a retentativa EXPLÍCITA dele; fora disso, pergunta.
- * Confirmar, cancelar e estornar ficam de fora: o alvo recebe o efeito uma vez
- * só (versão e estado no servidor), então conteúdo igual no mesmo alvo É o
- * mesmo pedido.
+ * Confirmar, cancelar, estornar, retificar e excluir ficam de fora: o alvo
+ * recebe o efeito uma vez só (versão e estado no servidor), então conteúdo
+ * igual no mesmo alvo É o mesmo pedido.
  */
 const ACOES_REPETIVEIS = new Set(['criar', 'liquidar']);
 
@@ -319,6 +339,9 @@ const ehABaixaDoPedido = (liquidacao, pedido) =>
  * documento a pendência fica: o envio pode estar em processamento no servidor,
  * e repeti-lo com a mesma chave continua sendo o caminho seguro.
  *  - confirmar: o documento saiu de RASCUNHO; cancelar: ficou CANCELADO;
+ *  - retificar (D-PROD-158): a versão passou da enviada (correção no lugar) ou
+ *    o documento foi substituído (`retificado_em`/`substituido_por`);
+ *  - excluir (D-PROD-158): o documento tem `excluido_em`;
  *  - estornar: a baixa-alvo está `estornada`;
  *  - liquidar: há na parcela uma baixa que NÃO estava lá antes do envio
  *    (`liquidacoesAntes`, ids vistos ao abrir o diálogo) com o conteúdo dele.
@@ -337,6 +360,17 @@ export const resolverPendenciaConsultada = (p) => {
   let mostrou = false;
   if (p.acao === 'confirmar') mostrou = typeof d.status === 'string' && d.status !== 'RASCUNHO';
   else if (p.acao === 'cancelar') mostrou = d.status === 'CANCELADO';
+  else if (p.acao === 'excluir') mostrou = typeof d.excluido_em === 'string' && d.excluido_em.length > 0;
+  else if (p.acao === 'retificar') {
+    let enviada = null;
+    try {
+      enviada = JSON.parse(pendencia.conteudo)?.versao ?? null;
+    } catch {
+      enviada = null;
+    }
+    const substituido = (typeof d.retificado_em === 'string' && d.retificado_em.length > 0) || ehObjeto(d.substituido_por);
+    mostrou = substituido || (Number.isInteger(enviada) && Number.isInteger(d.versao) && d.versao > enviada);
+  }
   else if (p.acao === 'estornar') mostrou = titulos.some((t) => baixasDe(t).some((l) => String(l?.id) === p.alvo && l?.estornada === true));
   else if (p.acao === 'liquidar') {
     let pedido = null;
@@ -356,13 +390,17 @@ export const resolverPendenciaConsultada = (p) => {
 /**
  * Grava o rascunho: POST (novo, idempotente por operation_id) ou PUT (com
  * `versao`, compare-and-swap no servidor). O corpo é o DOC completo (§5).
+ * `duplicadoDeId` (D-PROD-158): só no POST de uma CÓPIA — proveniência gravada
+ * no AuditLog da criação; não liga a vida dos dois documentos.
  * @param {string|null} empresaId
- * @param {{ id?: string|null, versao?: number|null, doc: Record<string, unknown>, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
+ * @param {{ id?: string|null, versao?: number|null, doc: Record<string, unknown>, escopo: string, storage?: Storage|null, retentativa?: boolean, duplicadoDeId?: string|null }} p
  */
 export const salvarRascunho = async (empresaId, p) => {
   const empresa = exigirEmpresa(empresaId, 'salvarRascunho', RESOURCE);
+  /** @type {Record<string, unknown>} */
   const doc = { ...p.doc, empresa_id: empresa };
   if (p.id) return replaceOperacaoFinanceira(p.id, { ...doc, versao: /** @type {number} */ (p.versao) });
+  if (typeof p.duplicadoDeId === 'string' && p.duplicadoDeId) doc.duplicado_de_id = p.duplicadoDeId;
   return enviarComPendencia({
     escopo: p.escopo,
     acao: 'criar',
@@ -412,6 +450,55 @@ export const cancelarLancamento = async (empresaId, id, p) => {
     storage: p.storage,
     retentativa: p.retentativa,
     enviar: (operationId) => cancelarOperacaoFinanceira(id, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
+  });
+};
+
+/**
+ * Corrige um lançamento CONFIRMADO (D-PROD-158): DOC completo do formulário +
+ * `versao` do detalhe aberto (CAS) + `motivo`. O servidor decide, sob trava, se
+ * corrige no lugar (sem mexer no estoque) ou por substituição atômica (estorno
+ * do antigo + documento novo com o MESMO número). Sem resposta → mesmo
+ * `operation_id` na repetição (replay).
+ * @param {string|null} empresaId
+ * @param {string} id
+ * @param {{ versao: number, doc: Record<string, unknown>, motivo: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
+ */
+export const retificarLancamento = async (empresaId, id, p) => {
+  const empresa = exigirEmpresa(empresaId, 'retificarLancamento', RESOURCE);
+  const conteudo = { ...p.doc, versao: p.versao, motivo: p.motivo };
+  return enviarComPendencia({
+    escopo: p.escopo,
+    acao: 'retificar',
+    empresaId: empresa,
+    alvo: id,
+    conteudo,
+    storage: p.storage,
+    retentativa: p.retentativa,
+    enviar: (operationId) => retificarOperacaoFinanceira(id, { ...conteudo, empresa_id: empresa, operation_id: operationId }),
+  });
+};
+
+/**
+ * Exclusão LÓGICA de um lançamento CONFIRMADO lançado por engano (D-PROD-158):
+ * estorna títulos e estoque como o cancelamento, marca `excluido_em` e guarda o
+ * motivo. Diferente de "Cancelar" (operação real desfeita) e de "Descartar
+ * rascunho" (DELETE físico, só rascunho).
+ * @param {string|null} empresaId
+ * @param {string} id
+ * @param {{ versao: number, motivo: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
+ */
+export const excluirLancamento = async (empresaId, id, p) => {
+  const empresa = exigirEmpresa(empresaId, 'excluirLancamento', RESOURCE);
+  const conteudo = { versao: p.versao, motivo: p.motivo };
+  return enviarComPendencia({
+    escopo: p.escopo,
+    acao: 'excluir',
+    empresaId: empresa,
+    alvo: id,
+    conteudo,
+    storage: p.storage,
+    retentativa: p.retentativa,
+    enviar: (operationId) => excluirOperacaoFinanceira(id, { empresa_id: empresa, operation_id: operationId, ...conteudo }),
   });
 };
 

@@ -171,6 +171,186 @@ export const formularioDoDetalhe = (d, ctx) => {
   };
 };
 
+// ─── D-PROD-158 — duplicar, corrigir confirmado e situação do registro ───
+
+/**
+ * Formulário NOVO a partir do DETALHE completo de outro lançamento (Duplicar).
+ * Copia o conteúdo editável — direção, conteúdo, condição, parceiro, itens e
+ * serviços, preços, desconto/acréscimo, rateio GERAL ou POR_ITEM (as linhas por
+ * item presas às chaves NOVAS dos itens), naturezas, centros e parcelas com as
+ * mesmas datas e valores. NÃO copia identidade nem estado (id, número, versão,
+ * status, operation_id, datas de sistema, usuários, títulos, baixas, lotes,
+ * movimentos, consumos, histórico, eventos): o formulário só guarda conteúdo.
+ * `documento_referencia` começa vazio (unicidade) e a declaração física começa
+ * DESMARCADA (sem segunda entrada/saída sem intenção).
+ * @param {any} d
+ * @param {{ locale: string, casas: number, hoje: string }} ctx
+ * @returns {any}
+ */
+export const formularioDeDuplicacao = (d, ctx) => ({
+  ...formularioDoDetalhe(d, ctx),
+  documento_referencia: '',
+  efeito_fisico_confirmado: false,
+});
+
+/**
+ * Situação de exibição do registro: excluído e versão substituída por correção
+ * têm selo próprio (os dois ficam CANCELADO no servidor).
+ * @param {any} item
+ * @returns {string}
+ */
+export const situacaoDoLancamento = (item) => {
+  if (typeof item?.excluido_em === 'string' && item.excluido_em) return 'EXCLUIDO';
+  if (typeof item?.retificado_em === 'string' && item.retificado_em) return 'SUBSTITUIDO';
+  return typeof item?.status === 'string' ? item.status : '';
+};
+
+/** Decimal canônico igual (escala livre: "100" = "100.0000"); ausente só é igual a ausente. @param {unknown} a @param {unknown} b */
+const mesmoDecimal = (a, b) => {
+  const x = a == null || a === '' ? null : t(a);
+  const y = b == null || b === '' ? null : t(b);
+  if (x === null || y === null) return x === y;
+  try {
+    return comparar(x, y) === 0;
+  } catch {
+    return x === y;
+  }
+};
+
+/**
+ * D-PROD-158 (revisão TELA-01): na correção de um confirmado, o peso por saco
+ * de um produto que o documento JÁ tinha em SACO é o GRAVADO no item
+ * (`fator_kg` do recebimento), não o do cadastro atual — a MESMA regra do
+ * servidor (`comPesoGravado` em operacaoFinanceiraService): o saco recebido
+ * não muda de peso porque o cadastro mudou depois. Vale também quando o
+ * produto é escolhido de novo no seletor (que traz o peso ATUAL). Produto que
+ * entra no documento pela primeira vez usa o peso do seletor.
+ * @param {any} form
+ * @param {any} d detalhe do confirmado aberto
+ * @returns {any} o formulário com o peso gravado nos produtos já recebidos em SACO
+ */
+export const comPesoGravado = (form, d) => {
+  /** @type {Map<string, string>} */
+  const gravado = new Map();
+  const antigos = (Array.isArray(d?.itens) ? [...d.itens] : []).sort((/** @type {any} */ a, /** @type {any} */ b) => (Number(a?.ordem) || 0) - (Number(b?.ordem) || 0));
+  for (const i of antigos) {
+    if (i?.tipo_item === 'MERCADORIA' && i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !gravado.has(String(i.produto_id))) {
+      gravado.set(String(i.produto_id), t(i.fator_kg));
+    }
+  }
+  if (!gravado.size || !Array.isArray(form?.itens)) return form;
+  return {
+    ...form,
+    itens: form.itens.map((/** @type {any} */ item) => {
+      const fator = item?.tipo_item === 'MERCADORIA' && item.produto?.id ? gravado.get(String(item.produto.id)) : undefined;
+      return fator === undefined ? item : { ...item, produto: { ...item.produto, unidade_principal_estoque: 'SACO', peso_por_saco_kg: fator } };
+    }),
+  };
+};
+
+/**
+ * A correção muda o efeito FÍSICO? A mesma assinatura que o servidor compara
+ * (SPEC §4.5): por item MERCADORIA `(ordem, tipo, produto, local, unidade,
+ * quantidade em kg, fator)` + data operacional + direção e, só na compra, o
+ * valor líquido (custo do lote). O peso por saco é o GRAVADO para o produto
+ * já recebido em SACO (`comPesoGravado`, como o servidor). É só a PREVISÃO da
+ * tela (texto do diálogo e aviso quando o servidor já disse que o estoque não
+ * pode mudar): quem decide é o servidor, sob trava.
+ * @param {any} d detalhe do confirmado aberto
+ * @param {any} formulario
+ * @param {ReturnType<typeof calcularResumo>} resumo
+ * @returns {{ muda: boolean, diferencas: Array<{ item: number|null, campo: string }> }}
+ */
+export const mudancasFisicas = (d, formulario, resumo) => {
+  const antigos = (Array.isArray(d?.itens) ? d.itens : []).filter((/** @type {any} */ i) => i?.tipo_item === 'MERCADORIA');
+  const form = comPesoGravado(formulario, d);
+  const comProdutos = form.conteudo === 'COM_PRODUTOS';
+  const novos = (comProdutos ? form.itens : [])
+    .map((/** @type {any} */ item, /** @type {number} */ k) => ({ item, k }))
+    .filter((/** @type {{ item: any }} */ x) => x.item.tipo_item === 'MERCADORIA');
+  /** @type {Array<{ item: number|null, campo: string }>} */
+  const diferencas = [];
+  if (!antigos.length && !novos.length) return { muda: false, diferencas };
+  if (d?.direcao !== form.direcao) diferencas.push({ item: null, campo: 'direcao' });
+  if (t(d?.data_operacional).slice(0, 10) !== String(form.data_operacional ?? '')) diferencas.push({ item: null, campo: 'data_operacional' });
+  const compra = d?.direcao === 'PAGAR' && form.direcao === 'PAGAR';
+  const total = Math.max(antigos.length, novos.length);
+  for (let n = 0; n < total; n += 1) {
+    const antigo = antigos[n];
+    const novo = novos[n];
+    if (!antigo || !novo) {
+      diferencas.push({ item: novo ? novo.k + 1 : Number(antigo?.ordem) || null, campo: antigo ? 'item_removido' : 'item_incluido' });
+      continue;
+    }
+    const { item, k } = novo;
+    const ordem = k + 1;
+    const r = resumo.itens[k] ?? {};
+    const fator = item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
+    /** @param {string} campo */
+    const dif = (campo) => diferencas.push({ item: ordem, campo });
+    if (Number(antigo.ordem) !== ordem) dif('ordem');
+    if (String(antigo.produto_id ?? '') !== String(item.produto?.id ?? '')) dif('produto');
+    if (String(antigo.local_estoque_id ?? '') !== String(item.local?.id ?? '')) dif('local');
+    if (String(antigo.unidade ?? '') !== String(item.unidade ?? '')) dif('unidade');
+    if (!mesmoDecimal(antigo.quantidade_estoque, r.kg)) dif('quantidade');
+    if (!mesmoDecimal(antigo.fator_kg, fator)) dif('fator');
+    if (compra && !mesmoDecimal(antigo.valor_liquido, resumo.liquidos?.[k] ?? null)) dif('custo');
+  }
+  return { muda: diferencas.length > 0, diferencas };
+};
+
+const ROTULO_MUDANCA_FISICA = /** @type {Record<string, string>} */ ({
+  direcao: 'direção',
+  data_operacional: 'data de recebimento/entrega da mercadoria',
+  item_removido: 'mercadoria removida',
+  item_incluido: 'mercadoria incluída',
+  ordem: 'posição da mercadoria na lista',
+  produto: 'produto',
+  local: 'local de estoque',
+  unidade: 'unidade',
+  quantidade: 'quantidade',
+  fator: 'peso por saco',
+  custo: 'custo (valor líquido da mercadoria: preço, desconto ou acréscimo)',
+});
+
+/**
+ * "item 1: quantidade; data de recebimento/entrega da mercadoria" (até 4).
+ * @param {Array<{ item: number|null, campo: string }>} diferencas
+ */
+export const descreverMudancasFisicas = (diferencas) => {
+  const textos = diferencas.map((x) => `${x.item ? `item ${x.item}: ` : ''}${ROTULO_MUDANCA_FISICA[x.campo] ?? x.campo}`);
+  const unicos = [...new Set(textos)];
+  return `${unicos.slice(0, 4).join('; ')}${unicos.length > 4 ? '…' : ''}`;
+};
+
+const CAMPO_DA_REFERENCIA = /** @type {Record<string, string>} */ ({
+  produto_id: 'produto',
+  local_estoque_id: 'local',
+  unidade: 'unidade',
+  natureza_id: 'natureza',
+  centro_custo_id: 'centro_custo',
+  centro_resultado_id: 'centro_resultado',
+});
+
+/**
+ * Campo do formulário apontado por uma recusa de REFERÊNCIA do servidor (fora
+ * do rateio por item, que tem `alvoDoErroDoRateioPorItem`): parceiro, produto,
+ * local ou unidade de um item, natureza/centros de uma linha do rateio geral.
+ * Serve a cópia (Duplicar) cuja referência ficou inativa ou saiu da empresa.
+ * @param {{ field?: string|null, details?: Record<string, any> }} e
+ * @returns {{ tipo: 'parceiro' } | { tipo: 'item'|'rateio', indice: number, campo: string } | null}
+ */
+export const alvoDaReferencia = ({ field = null, details = {} }) => {
+  const campo = String(field ?? details?.field ?? '');
+  if (campo === 'parceiro_id' && details?.colecao == null) return { tipo: 'parceiro' };
+  if (!Number.isInteger(details?.indice) || details?.subcolecao != null) return null;
+  const alvo = CAMPO_DA_REFERENCIA[campo];
+  if (!alvo) return null;
+  if (details.colecao === 'itens' && ['produto', 'local', 'unidade'].includes(alvo)) return { tipo: 'item', indice: details.indice, campo: alvo };
+  if (details.colecao === 'rateios' && ['natureza', 'centro_custo', 'centro_resultado'].includes(alvo)) return { tipo: 'rateio', indice: details.indice, campo: alvo };
+  return null;
+};
+
 /** Mensagem do motivo de leitura de número. @param {'vazio'|'formato'|'casas'|'limite'|undefined} motivo @param {number} casas */
 export const mensagemNumero = (motivo, casas) => {
   if (motivo === 'casas') return casas === 0 ? 'Esta moeda não tem casas decimais' : `No máximo ${casas} casa${casas === 1 ? '' : 's'} decimais`;

@@ -148,10 +148,13 @@ describe('GES-M2 — regra de ações igual à do servidor; padrão negado', () 
   it('Central de Lançamentos: cada ação extra exige a SUA chave (sem atalho por salvar/editar); is_admin libera', () => {
     const T = TELAS_GESTAO.LANCAMENTOS_FINANCEIROS;
     const com = (acoes) => registro(['gestao-rural'], [tela('gestao-rural', T, { visualizar: true, ...acoes })]);
-    expect(acoesDaTelaGestao(com({ salvar: true, editar: true }), T)).toEqual({ ver: true, criar: true, editar: true, confirmar: false, liquidar: false, estornar: false, cancelar: false });
+    expect(acoesDaTelaGestao(com({ salvar: true, editar: true }), T)).toEqual({ ver: true, criar: true, editar: true, confirmar: false, liquidar: false, estornar: false, cancelar: false, excluir: false });
+    // D-PROD-158: `excluir` (ação padrão da tela) também exige a SUA chave — nem `cancelar` nem `editar` a dão.
+    expect(acoesDaTelaGestao(com({ cancelar: true, editar: true }), T)).toMatchObject({ cancelar: true, excluir: false });
+    expect(acoesDaTelaGestao(com({ excluir: true }), T)).toMatchObject({ excluir: true, cancelar: false, editar: false });
     expect(acoesDaTelaGestao(com({ confirmar: true }), T)).toMatchObject({ criar: false, editar: false, confirmar: true, liquidar: false });
     expect(acoesDaTelaGestao(com({ estornar_liquidacao: true }), T)).toMatchObject({ estornar: true, cancelar: false });
-    expect(acoesDaTelaGestao({ user_email: 'x', is_admin: true }, T)).toEqual({ ver: true, criar: true, editar: true, confirmar: true, liquidar: true, estornar: true, cancelar: true });
+    expect(acoesDaTelaGestao({ user_email: 'x', is_admin: true }, T)).toEqual({ ver: true, criar: true, editar: true, confirmar: true, liquidar: true, estornar: true, cancelar: true, excluir: true });
     // As outras telas não ganham chaves novas.
     expect(acoesDaTelaGestao(com({}), TELAS_GESTAO.PARCEIROS)).toEqual({ ver: false, criar: false, editar: false });
     expect(EXTRA_ACTION_KEYS_BY_PAGE[T]).toEqual(Object.values(ACOES_EXTRAS_LANCAMENTOS));

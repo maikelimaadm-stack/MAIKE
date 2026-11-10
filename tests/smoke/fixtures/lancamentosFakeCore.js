@@ -7,6 +7,13 @@
  * valores em string canônica, datas AAAA-MM-DD, `operation_id` idempotente,
  * `versao` com compare-and-swap, corpo de erro `{code, message, request_id,
  * field?, reason?, details?}`. Sem dependência de Vitest (puro JS).
+ * D-PROD-158 (P3-03, SPEC §3–§6): `GET /:id/elegibilidade`, `POST /:id/retificar`
+ * (NO_LUGAR quando a assinatura física não muda; SUBSTITUICAO atômica quando
+ * muda), `POST /:id/excluir` (lógico), `situacao` na lista, `excluido_em`,
+ * `retificado_em`, `exclusao`, `substitui`, `substituido_por` e `eventos` no
+ * detalhe, `duplicado_de_id` no POST (gravado só na auditoria da criação) e as
+ * mesmas recusas: OPERACAO_RETIFICACAO_BLOQUEADA / OPERACAO_EXCLUSAO_BLOQUEADA
+ * com `details.motivos`, versão, status e declaração física.
  */
 import { comparar, ehPositivo, multiplicarArredondar, naEscala, percentualDe, ratearPercentual, somar, subtrair } from '../../../src/lib/dinheiroDecimal.js';
 import { ratearCabecalho } from '../../../src/lib/rateioCabecalho.js';
@@ -95,6 +102,23 @@ export const criarEstadoLancamentos = (opts = {}) => ({
   parceirosExtras: /** @type {any[]} */ ([]),
   /** Produtos extras (vetores com saco de outro peso). */
   produtosExtras: /** @type {any[]} */ ([]),
+  /**
+   * D-PROD-158 — permissões que o SERVIDOR enxerga para a elegibilidade
+   * (`sem_permissao` entra como motivo, nunca mascarado).
+   */
+  permissoes: { criar: true, editar: true, confirmar: true, cancelar: true, excluir: true },
+  /**
+   * D-PROD-158 — dependências físicas por documento (lote consumido/alterado,
+   * venda com movimento posterior): `{ [docId]: motivo[] }`. Com elas o
+   * estoque não pode ser refeito (efeito_fisico_permitido=false).
+   */
+  dependencias: /** @type {Record<string, any[]>} */ ({}),
+  /** D-PROD-158 — AuditLog da criação (proveniência `duplicado_de_id`). */
+  auditoria: /** @type {any[]} */ ([]),
+  /** D-PROD-158 — eventos de revisão/exclusão (com snapshot, como a tabela nova). */
+  eventos: /** @type {any[]} */ ([]),
+  /** Promessa que segura a resposta do GET de detalhe (troca de empresa no meio do Duplicar). */
+  segurarDetalhe: /** @type {Promise<void>|null} */ (null),
 });
 
 /** Recusa do servidor dentro de `montarDoc` (vira a resposta do POST/PUT). */
@@ -228,15 +252,19 @@ const ratearPorItem = (corpo, itens, casas) =>
     item.rateios = linhas.map((l, j) => linhaDoDetalhe(l, j + 1, r.valores[j], r.percentuais[j]));
   });
 
-/** Documento do corpo DOC (como o servidor recalcula). */
-const montarDoc = (estado, corpo, base = {}) => {
+/**
+ * Documento do corpo DOC (como o servidor recalcula). `pesoGravado` (produto →
+ * fator): na retificação, o produto que o documento JÁ tinha em SACO usa o
+ * peso GRAVADO, como o servidor (`comPesoGravado`, revisão DE-01/TELA-01).
+ */
+const montarDoc = (estado, corpo, base = {}, { pesoGravado = new Map() } = {}) => {
   const casas = estado.perfil?.moeda_casas ?? 2;
   const escopo = exigirEscopoDoRateio(corpo);
   if (escopo === 'POR_ITEM') normalizarLinhasDosItens(corpo, casas);
   const itens = (corpo.itens ?? []).map((i, k) => {
     const prod = [...PRODUTOS, ...estado.produtosExtras].find((p) => p.id === i.produto_id);
     const local = LOCAIS.find((l) => l.id === i.local_estoque_id);
-    const fator = i.unidade === 'SACO' ? prod?.peso_por_saco_kg ?? '1' : i.unidade === 'KG' ? '1' : null;
+    const fator = i.unidade === 'SACO' ? pesoGravado.get(i.produto_id) ?? prod?.peso_por_saco_kg ?? '1' : i.unidade === 'KG' ? '1' : null;
     return {
       id: `${base.id ?? 'novo'}-i${k + 1}`, ordem: k + 1, tipo_item: i.tipo_item, produto_id: i.produto_id ?? null, produto_nome: prod?.nome ?? null,
       descricao: i.descricao ?? null, local_estoque_id: i.local_estoque_id ?? null, local_estoque_nome: local?.nome ?? null, unidade: i.unidade,
@@ -294,15 +322,58 @@ const montarDoc = (estado, corpo, base = {}) => {
   };
 };
 
+/** Evento público (sem o snapshot), como o detalhe do servidor devolve: com os números ATUAIS dos dois documentos. */
+const eventoPublico = (estado, { snapshot_anterior: _s, cliente_id: _c, empresa_id: _e, id: _id, ...e }) => {
+  const numeroDe = (id) => (id ? estado.documentos.find((d) => d.id === id)?.numero ?? null : null);
+  return { ...e, operacao_numero: numeroDe(e.operacao_id), operacao_nova_numero: numeroDe(e.operacao_nova_id) };
+};
+
+/**
+ * Cadeia lógica de revisões nos dois sentidos (SPEC §6): os eventos do próprio
+ * documento e os das versões ligadas por substituição, até 50, sem snapshot.
+ */
+const eventosDaCadeia = (estado, doc) => {
+  const ids = new Set([doc.id]);
+  let mudou = true;
+  while (mudou) {
+    mudou = false;
+    for (const e of estado.eventos) {
+      if (e.modo !== 'SUBSTITUICAO') continue;
+      if (ids.has(e.operacao_id) && !ids.has(e.operacao_nova_id)) { ids.add(e.operacao_nova_id); mudou = true; }
+      if (ids.has(e.operacao_nova_id) && !ids.has(e.operacao_id)) { ids.add(e.operacao_id); mudou = true; }
+    }
+  }
+  return estado.eventos.filter((e) => ids.has(e.operacao_id) || (e.operacao_nova_id && ids.has(e.operacao_nova_id))).slice(0, 50).map((e) => eventoPublico(estado, e));
+};
+
+/** Campos de leitura do D-PROD-158 (detalhe). */
+const camposDeRevisao = (estado, doc) => {
+  const exclusao = estado.eventos.find((e) => e.tipo === 'EXCLUSAO' && e.operacao_id === doc.id);
+  const saiu = estado.eventos.find((e) => e.modo === 'SUBSTITUICAO' && e.operacao_id === doc.id);
+  const entrou = estado.eventos.find((e) => e.modo === 'SUBSTITUICAO' && e.operacao_nova_id === doc.id);
+  const numeroDe = (id) => estado.documentos.find((d) => d.id === id)?.numero ?? null;
+  return {
+    excluido_em: doc.excluido_em ?? null,
+    retificado_em: doc.retificado_em ?? null,
+    exclusao: exclusao ? { em: exclusao.em, por: exclusao.por, motivo: exclusao.motivo } : null,
+    substituido_por: saiu ? { id: saiu.operacao_nova_id, numero: numeroDe(saiu.operacao_nova_id) } : null,
+    substitui: entrou ? { id: entrou.operacao_id, numero: numeroDe(entrou.operacao_id) } : null,
+    eventos: eventosDaCadeia(estado, doc),
+    // Proveniência da cópia: só a auditoria da criação (SPEC §6/§7), como o servidor.
+    duplicado_de_id: estado.auditoria.find((a) => a.acao === 'operacao_financeira.criar' && a.operacao_id === doc.id)?.duplicado_de_id ?? null,
+  };
+};
+
 /** Detalhe como o servidor devolve (cópia: o teste não muta o estado por engano). */
-const detalhe = (doc, extra = {}) => {
+const detalhe = (doc, extra = {}, estado = null) => {
   const copia = JSON.parse(JSON.stringify(doc));
   copia.titulos = copia.titulos.map(({ moeda_casas: _c, ...t }) => t);
   // Como o servidor: NULL (documento da P3-01) é GERAL; `itens[].rateios` sempre presente.
   copia.rateio_escopo = copia.rateio_escopo ?? 'GERAL';
   copia.itens = copia.itens.map((i) => ({ ...i, rateios: i.rateios ?? [] }));
   copia.rateio_consolidado = copia.rateio_consolidado ?? [];
-  return { ...copia, ...extra };
+  const revisao = estado ? camposDeRevisao(estado, doc) : { excluido_em: doc.excluido_em ?? null, retificado_em: doc.retificado_em ?? null };
+  return { ...copia, ...revisao, ...extra };
 };
 
 const resumoLista = (d) => {
@@ -312,8 +383,143 @@ const resumoLista = (d) => {
     data_emissao: d.data_emissao, valor_total: d.valor_total, moeda: d.moeda, moeda_casas: d.moeda_casas,
     saldo_aberto: somar(abertos.map((t) => t.saldo), d.moeda_casas), proximo_vencimento: abertos[0]?.vencimento ?? null,
     tem_estoque: d.itens.some((i) => i.tipo_item === 'MERCADORIA'), created_date: d.created_date, rateio_escopo: d.rateio_escopo ?? 'GERAL',
+    excluido_em: d.excluido_em ?? null, retificado_em: d.retificado_em ?? null,
   };
 };
+
+// ─── D-PROD-158 — elegibilidade, retificar e excluir (SPEC §3–§5) ─────────
+
+const SITUACOES = ['OPERACIONAIS', 'EXCLUIDOS', 'TODOS'];
+/** Filtro `situacao` da lista: OPERACIONAIS (padrão) sem excluídos nem versões substituídas. */
+const naSituacao = (d, situacao) => {
+  if (situacao === 'TODOS') return true;
+  if (situacao === 'EXCLUIDOS') return Boolean(d.excluido_em);
+  return !d.excluido_em && !d.retificado_em;
+};
+
+/** Qualquer liquidação já registrada (ativa OU estornada) bloqueia: a baixa é fato histórico. */
+const motivosDeLiquidacao = (doc) =>
+  doc.titulos.flatMap((t) =>
+    t.liquidacoes
+      .filter((l) => l.tipo !== 'ESTORNO')
+      .map((l) => ({ codigo: 'tem_liquidacao', mensagem: `a parcela ${t.numero_parcela} tem liquidação registrada`, entidade: 'LiquidacaoFinanceira', id: l.id, numero_parcela: t.numero_parcela, estornada: l.estornada === true })),
+  );
+
+/** Como o servidor: `exige` lista as ações de tela que faltam. */
+const semPermissao = (...faltam) => ({ codigo: 'sem_permissao', mensagem: `você não tem permissão (falta: ${faltam.join(', ')})`, exige: faltam });
+
+/** A mesma decisão do serviço (SPEC §3), para o GET e para os comandos. */
+const avaliarElegibilidade = (estado, doc) => {
+  const p = estado.permissoes;
+  const historico = doc.status === 'CANCELADO' || Boolean(doc.excluido_em) || Boolean(doc.retificado_em);
+  const temMercadoria = doc.itens.some((i) => i.tipo_item === 'MERCADORIA');
+  const dependencias = temMercadoria ? estado.dependencias[doc.id] ?? [] : [];
+  const fisicoOk = dependencias.length === 0;
+  const faltaEditar = [...(p.editar ? [] : ['editar']), ...(p.confirmar ? [] : ['confirmar'])];
+  const faltaExcluir = [...(p.cancelar ? [] : ['cancelar']), ...(p.excluir ? [] : ['excluir'])];
+  const permEditar = faltaEditar.length ? [semPermissao(...faltaEditar)] : [];
+  const permExcluir = faltaExcluir.length ? [semPermissao(...faltaExcluir)] : [];
+  const duplicar = { permitido: Boolean(p.criar), motivos: p.criar ? [] : [semPermissao('novo')] };
+  if (doc.status === 'RASCUNHO') {
+    const semEditar = p.editar ? [] : [semPermissao('editar')];
+    return {
+      editar: { permitido: !semEditar.length, modo: semEditar.length ? null : 'RASCUNHO', efeito_fisico_permitido: true, motivos: semEditar },
+      excluir: { permitido: !semEditar.length, modo: semEditar.length ? null : 'DESCARTE', motivos: semEditar },
+      duplicar,
+    };
+  }
+  // Como o servidor: documento histórico vem antes de tudo (com as permissões que faltam).
+  if (historico) {
+    const h = documentoHistorico(estado, doc);
+    return {
+      editar: { permitido: false, modo: null, efeito_fisico_permitido: false, motivos: [h, ...permEditar] },
+      excluir: { permitido: false, modo: null, motivos: [h, ...permExcluir] },
+      duplicar,
+    };
+  }
+  // Mesma ordem do servidor: liquidação → permissão (→ dependência física). Os
+  // motivos físicos vêm em `editar.motivos` MESMO com a correção permitida (a
+  // faixa da tela os mostra); `efeito_fisico_permitido` só depende da prova física.
+  const liquidacoes = motivosDeLiquidacao(doc);
+  const bloqueiosEditar = [...liquidacoes, ...permEditar];
+  const editarOk = bloqueiosEditar.length === 0;
+  const motivosExcluir = [...liquidacoes, ...(fisicoOk ? [] : dependencias), ...permExcluir];
+  const excluirOk = motivosExcluir.length === 0;
+  return {
+    editar: { permitido: editarOk, modo: editarOk ? 'RETIFICACAO' : null, efeito_fisico_permitido: fisicoOk, motivos: [...bloqueiosEditar, ...dependencias] },
+    excluir: { permitido: excluirOk, modo: excluirOk ? 'LOGICA' : null, motivos: motivosExcluir },
+    duplicar,
+  };
+};
+
+/**
+ * Motivo `documento_historico` como o servidor: na versão substituída, aponta a
+ * versão atual (`entidade`, `id`, `numero`).
+ */
+const documentoHistorico = (estado, doc) => {
+  if (doc.retificado_em) {
+    const ev = estado.eventos.find((e) => e.modo === 'SUBSTITUICAO' && e.operacao_id === doc.id);
+    const nova = ev ? estado.documentos.find((d) => d.id === ev.operacao_nova_id) : null;
+    return { codigo: 'documento_historico', mensagem: 'versão anterior, substituída por retificação', ...(nova ? { entidade: 'OperacaoFinanceira', id: nova.id, numero: nova.numero } : {}) };
+  }
+  return { codigo: 'documento_historico', mensagem: doc.excluido_em ? 'o lançamento foi excluído' : 'o lançamento está cancelado' };
+};
+
+/**
+ * 409 de bloqueio como o tradutor HTTP do servidor: `field` = documento
+ * (`id`), `reason` = código do 1º motivo e a lista em `details.motivos`.
+ */
+const bloqueio = (code, motivos, extra = {}) => erro(409, code, { field: 'id', reason: motivos[0]?.codigo ?? 'bloqueado', details: { motivos, ...extra } });
+
+/**
+ * Assinatura física (SPEC §4.5), a MESMA do servidor (`assinaturaFisica`):
+ * direção e dia operacional SEMPRE (sem mercadoria também — trocar a direção é
+ * substituição) e, por item MERCADORIA, (ordem, tipo, produto, local, unidade,
+ * quantidade digitada, kg, fator, líquido só na compra).
+ */
+const assinaturaFisica = (doc) => JSON.stringify({
+  direcao: doc.direcao,
+  data_operacional: doc.data_operacional ?? null,
+  itens: doc.itens.filter((i) => i.tipo_item === 'MERCADORIA').sort((a, b) => a.ordem - b.ordem).map((i) => [
+    i.ordem, i.tipo_item, i.produto_id, i.local_estoque_id, i.unidade, naEscala(i.quantidade, 4), naEscala(i.quantidade_estoque, 4), naEscala(i.fator_kg ?? '0', 4),
+    doc.direcao === 'PAGAR' ? naEscala(i.valor_liquido, 4) : null,
+  ]),
+});
+
+/** Peso por saco GRAVADO por produto (1ª linha SACO, por ordem), como o servidor. */
+const pesoGravadoDe = (doc) => {
+  const m = new Map();
+  [...doc.itens].sort((a, b) => a.ordem - b.ordem).forEach((i) => {
+    if (i.tipo_item === 'MERCADORIA' && i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !m.has(i.produto_id)) m.set(i.produto_id, i.fator_kg);
+  });
+  return m;
+};
+
+/** Snapshot da versão anterior (só histórico; nenhuma regra lê). */
+const snapshotDe = (doc) => JSON.parse(JSON.stringify({ ...doc, historico: undefined }));
+
+const registrarEvento = (estado, e) => {
+  estado.eventos.push({ id: `ev${estado.eventos.length + 1}`, em: TS, por: usuario, ...e });
+};
+
+/** Estorna os efeitos físicos e cancela os títulos (núcleo do cancelamento). */
+const estornarEfeitos = (doc) => {
+  doc.titulos.forEach((t) => { t.status = 'CANCELADO'; });
+  doc.itens.forEach((i, k) => { if (i.movimentacao_estoque_id) i.movimentacao_estorno_id = `mov-estorno-${doc.id}-${k + 1}`; });
+};
+
+/** Efeitos físicos e títulos da confirmação (núcleo da confirmação). */
+const aplicarEfeitos = (doc, sufixo = '') => {
+  doc.titulos.forEach((t) => { t.status = 'ABERTO'; });
+  doc.itens.forEach((i, k) => {
+    if (i.tipo_item !== 'MERCADORIA') return;
+    i.movimentacao_estoque_id = `mov-${doc.id}${sufixo}-${k + 1}`;
+    if (doc.direcao === 'PAGAR') i.estoque_lote_nota_id = `lote-${doc.id}${sufixo}-${k + 1}`;
+    else i.consumos = [{ estoque_lote_nota_id: 'lote-antigo-1', quantidade: i.quantidade_estoque, custo_unitario: '2.5000' }];
+  });
+};
+
+const motivoValido = (m) => typeof m === 'string' && m.trim().length > 0 && m.length <= 500;
 
 /** Idempotência: mesmo operation_id + mesmo conteúdo = replay; conteúdo diferente = IDEMPOTENCY_CONFLICT. */
 const idempotente = (estado, tipo, corpo, executar) => {
@@ -372,7 +578,10 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
   }
   if (path === '/operacoes-financeiras' && method === 'GET') {
     const q = (query.get('q') || '').toLowerCase();
+    const situacao = query.get('situacao') || 'OPERACIONAIS';
+    if (!SITUACOES.includes(situacao)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'situacao', reason: 'invalido' });
     const itens = estado.documentos
+      .filter((d) => naSituacao(d, situacao))
       .filter((d) => !query.get('direcao') || d.direcao === query.get('direcao'))
       .filter((d) => !query.get('status') || d.status === query.get('status'))
       .filter((d) => !q || `${d.numero} ${d.parceiro_nome} ${d.documento_referencia ?? ''}`.toLowerCase().includes(q))
@@ -384,21 +593,127 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
     if (f && !f.gravarAntes) return f.resposta ?? { rede: true };
     const r = idempotente(estado, 'criar', body, () => {
       if (!estado.perfil) return erro(409, 'PERFIL_FINANCEIRO_NAO_CONFIGURADO');
-      const { operation_id: _op, ...corpo } = body;
+      const { operation_id: _op, duplicado_de_id: duplicadoDe, ...corpo } = body;
+      // D-PROD-158: proveniência da cópia — do mesmo tenant e da MESMA empresa, senão 422.
+      if (duplicadoDe !== undefined) {
+        const origem = estado.documentos.find((d) => d.id === duplicadoDe);
+        if (typeof duplicadoDe !== 'string' || !origem || origem.empresa_id !== (corpo.empresa_id ?? EMPRESA)) {
+          return erro(422, 'OPERACAO_REFERENCIA_INVALIDA', { field: 'duplicado_de_id', reason: 'duplicado_de_nao_encontrado' });
+        }
+      }
       const r = ouRecusa(() => montarDoc(estado, corpo));
       if (r.recusa) return r.recusa;
       estado.documentos.unshift(r.ok);
-      return { status: 201, body: detalhe(r.ok, { replay: false }) };
+      // Só no AuditLog da criação: nada liga a vida dos dois documentos.
+      estado.auditoria.push({ acao: 'operacao_financeira.criar', operacao_id: r.ok.id, ...(duplicadoDe ? { duplicado_de_id: duplicadoDe } : {}) });
+      return { status: 201, body: detalhe(r.ok, { replay: false }, estado) };
     });
     if (f?.gravarAntes) return { rede: true };
     return r;
   }
-  let m = path.match(/^\/operacoes-financeiras\/([^/]+)(?:\/(previa|confirmar|cancelar))?$/);
+  let m = path.match(/^\/operacoes-financeiras\/([^/]+)(?:\/(previa|confirmar|cancelar|elegibilidade|retificar|excluir))?$/);
   if (m) {
     const doc = estado.documentos.find((d) => d.id === m[1]);
     if (!doc) return erro(404, 'OPERACAO_FINANCEIRA_NOT_FOUND');
     const acao = m[2];
-    if (!acao && method === 'GET') return { status: 200, body: detalhe(doc) };
+    if (!acao && method === 'GET') {
+      if (estado.segurarDetalhe) await estado.segurarDetalhe;
+      const f = falha(estado, 'detalhe');
+      if (f) return f.resposta ?? { rede: true };
+      return { status: 200, body: detalhe(doc, {}, estado) };
+    }
+    if (acao === 'elegibilidade' && method === 'GET') {
+      const f = falha(estado, 'elegibilidade');
+      if (f) return f.resposta ?? { rede: true };
+      return { status: 200, body: { id: doc.id, versao: doc.versao, status: doc.status, ...avaliarElegibilidade(estado, doc) } };
+    }
+    if (acao === 'retificar' && method === 'POST') {
+      const f = falha(estado, 'retificar');
+      if (f && !f.gravarAntes) return f.resposta ?? { rede: true };
+      const r = idempotente(estado, 'retificar', body, () => {
+        const { operation_id: _op, versao, motivo, ...corpo } = body;
+        if (!motivoValido(motivo)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'motivo', reason: 'obrigatorio' });
+        // Como o servidor (`exigirVigente`): rascunho → 409 de situação (use o PUT);
+        // cancelado/excluído/versão substituída → 409 de bloqueio `documento_historico`.
+        if (doc.status === 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', [documentoHistorico(estado, doc)]);
+        if (versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
+        // Normalização e plano ANTES da elegibilidade (mesma ordem do servidor):
+        // a declaração física vale nos DOIS modos (o normalizador exige com mercadoria).
+        const novo = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }, { pesoGravado: pesoGravadoDe(doc) }));
+        if (novo.recusa) return novo.recusa;
+        const plano = novo.ok;
+        if (plano.itens.some((i) => i.tipo_item === 'MERCADORIA') && corpo.efeito_fisico_confirmado !== true) {
+          return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'efeito_fisico_confirmado', reason: 'declaracao_obrigatoria' });
+        }
+        const eleg = avaliarElegibilidade(estado, doc);
+        if (!eleg.editar.permitido) return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', eleg.editar.motivos);
+        // `montarDoc` anota "editar" (rascunho): a correção anota só "retificar".
+        plano.historico = [...doc.historico];
+        const snapshot = snapshotDe(doc);
+        if (assinaturaFisica(plano) === assinaturaFisica(doc)) {
+          // NO_LUGAR: mesmos movimentos e lotes; títulos recriados (nunca houve baixa).
+          const movs = new Map(doc.itens.filter((i) => i.tipo_item === 'MERCADORIA').map((i) => [i.ordem, i]));
+          plano.itens.forEach((i) => {
+            const antigo = movs.get(i.ordem);
+            if (antigo) Object.assign(i, { movimentacao_estoque_id: antigo.movimentacao_estoque_id, estoque_lote_nota_id: antigo.estoque_lote_nota_id, consumos: antigo.consumos });
+          });
+          plano.titulos.forEach((t, k) => { t.id = `${doc.id}-v${plano.versao}-t${k + 1}`; t.status = 'ABERTO'; });
+          Object.assign(doc, plano, { status: 'CONFIRMADO', confirmado_por: doc.confirmado_por, confirmado_em: doc.confirmado_em });
+          doc.historico.push({ acao: 'operacao_financeira.retificar', em: TS, usuario_login: 'dono' });
+          registrarEvento(estado, { tipo: 'RETIFICACAO', modo: 'NO_LUGAR', operacao_id: doc.id, operacao_nova_id: null, numero_original: doc.numero, versao_anterior: snapshot.versao, versao_nova: doc.versao, motivo, snapshot_anterior: snapshot });
+          return { status: 200, body: detalhe(doc, { replay: false, retificacao: { modo: 'NO_LUGAR', operacao_anterior_id: doc.id, operacao_atual_id: doc.id } }, estado) };
+        }
+        if (!eleg.editar.efeito_fisico_permitido) {
+          const fisicos = eleg.editar.motivos.filter((m) => !['tem_liquidacao', 'sem_permissao'].includes(m.codigo));
+          return bloqueio('OPERACAO_RETIFICACAO_BLOQUEADA', fisicos, { efeito_fisico_permitido: false });
+        }
+        // SUBSTITUICAO atômica: o antigo é estornado/cancelado e libera o número; o novo assume.
+        const numero = doc.numero;
+        estornarEfeitos(doc);
+        Object.assign(doc, {
+          status: 'CANCELADO', cancelado_por: usuario, cancelado_em: TS, motivo_cancelamento: `Retificado: ${motivo}`.slice(0, 500),
+          retificado_em: TS, numero: `${numero}/r${doc.versao}`, versao: doc.versao + 1,
+        });
+        doc.historico.push({ acao: 'operacao_financeira.retificar', em: TS, usuario_login: 'dono' });
+        const id = `op${++estado.seq}`;
+        const atual = { ...plano, id, numero, versao: snapshot.versao + 1, status: 'CONFIRMADO', confirmado_por: usuario, confirmado_em: TS, created_date: TS, historico: [{ acao: 'operacao_financeira.retificar', em: TS, usuario_login: 'dono' }] };
+        atual.itens = atual.itens.map((i, k) => ({ ...i, id: `${id}-i${k + 1}` }));
+        atual.titulos = atual.titulos.map((t, k) => ({ ...t, id: `${id}-t${k + 1}` }));
+        aplicarEfeitos(atual);
+        estado.documentos.unshift(atual);
+        registrarEvento(estado, { tipo: 'RETIFICACAO', modo: 'SUBSTITUICAO', operacao_id: doc.id, operacao_nova_id: id, numero_original: numero, versao_anterior: snapshot.versao, versao_nova: atual.versao, motivo, snapshot_anterior: snapshot });
+        return { status: 200, body: detalhe(atual, { replay: false, retificacao: { modo: 'SUBSTITUICAO', operacao_anterior_id: doc.id, operacao_atual_id: id } }, estado) };
+      });
+      // `gravarAntes` + `resposta`: gravou, mas o cliente recebe outra coisa (504 depois do COMMIT).
+      if (f?.gravarAntes) return f.resposta ?? { rede: true };
+      return r;
+    }
+    if (acao === 'excluir' && method === 'POST') {
+      const f = falha(estado, 'excluir');
+      if (f && !f.gravarAntes) return f.resposta ?? { rede: true };
+      const r = idempotente(estado, 'excluir', body, () => {
+        const { versao, motivo } = body;
+        const extras = Object.keys(body).filter((k) => !['empresa_id', 'versao', 'operation_id', 'motivo'].includes(k));
+        if (extras.length) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: extras[0], reason: 'nao_permitido' });
+        if (!motivoValido(motivo)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'motivo', reason: 'obrigatorio' });
+        if (doc.status === 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
+        if (doc.status !== 'CONFIRMADO' || doc.excluido_em || doc.retificado_em) return bloqueio('OPERACAO_EXCLUSAO_BLOQUEADA', [documentoHistorico(estado, doc)]);
+        if (versao !== doc.versao) return erro(409, 'OPERACAO_VERSAO_CONFLITO');
+        const eleg = avaliarElegibilidade(estado, doc);
+        if (!eleg.excluir.permitido) return bloqueio('OPERACAO_EXCLUSAO_BLOQUEADA', eleg.excluir.motivos);
+        const snapshot = snapshotDe(doc);
+        estornarEfeitos(doc);
+        Object.assign(doc, {
+          status: 'CANCELADO', cancelado_por: usuario, cancelado_em: TS, motivo_cancelamento: `Excluído: ${motivo}`.slice(0, 500), excluido_em: TS, versao: doc.versao + 1,
+        });
+        doc.historico.push({ acao: 'operacao_financeira.excluir', em: TS, usuario_login: 'dono' });
+        registrarEvento(estado, { tipo: 'EXCLUSAO', modo: null, operacao_id: doc.id, operacao_nova_id: null, numero_original: doc.numero, versao_anterior: snapshot.versao, versao_nova: doc.versao, motivo, snapshot_anterior: snapshot });
+        return { status: 200, body: detalhe(doc, { replay: false }, estado) };
+      });
+      if (f?.gravarAntes) return f.resposta ?? { rede: true };
+      return r;
+    }
     if (!acao && method === 'PUT') {
       const f = falha(estado, 'editar');
       if (f) return f.resposta ?? { rede: true };
@@ -408,7 +723,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       const r = ouRecusa(() => montarDoc(estado, corpo, { id: doc.id, numero: doc.numero, versao: doc.versao + 1, created_date: doc.created_date, historico: doc.historico }));
       if (r.recusa) return r.recusa;
       Object.assign(doc, r.ok);
-      return { status: 200, body: detalhe(doc) };
+      return { status: 200, body: detalhe(doc, {}, estado) };
     }
     if (!acao && method === 'DELETE') {
       if (doc.status !== 'RASCUNHO') return erro(409, 'OPERACAO_STATUS_INVALIDO');
@@ -487,7 +802,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         }
         doc.versao += 1;
         doc.historico.push({ acao: 'operacao_financeira.confirmar', em: TS, usuario_login: 'dono' });
-        return { status: 200, body: detalhe(doc, { replay: false }) };
+        return { status: 200, body: detalhe(doc, { replay: false }, estado) };
       });
       // `gravarAntes` + `resposta`: gravou, mas o cliente recebe outra coisa (ex.: 504
       // da Vercel quando o prazo da função estoura depois do COMMIT).
@@ -507,7 +822,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
         doc.titulos.forEach((t) => { t.status = 'CANCELADO'; });
         doc.itens.forEach((i, k) => { if (i.movimentacao_estoque_id) i.movimentacao_estorno_id = `mov-estorno-${doc.id}-${k + 1}`; });
         doc.historico.push({ acao: 'operacao_financeira.cancelar', em: TS, usuario_login: 'dono' });
-        return { status: 200, body: detalhe(doc, { replay: false }) };
+        return { status: 200, body: detalhe(doc, { replay: false }, estado) };
       });
     }
   }
@@ -524,7 +839,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       t.liquidacoes.push({ id: `liq-${++estado.seq}`, tipo: 'LIQUIDACAO', valor: naEscala(body.valor, casasDe(doc)), data: body.data, metodo: body.metodo, referencia: body.referencia ?? null, observacao: body.observacao ?? null, estorna_liquidacao_id: null, estornada: false, estorno_id: null, motivo: null, registrado_por: usuario, created_date: TS });
       recalcularTitulo(t);
       doc.historico.push({ acao: 'titulo_financeiro.liquidar', em: TS, usuario_login: 'dono' });
-      return { status: 201, body: detalhe(doc, { replay: false }) };
+      return { status: 201, body: detalhe(doc, { replay: false }, estado) };
     });
     if (f?.gravarAntes) return { rede: true };
     return r;
@@ -548,7 +863,7 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       t.liquidacoes.push({ id: estornoId, tipo: 'ESTORNO', valor: l.valor, data: TS.slice(0, 10), metodo: null, referencia: null, observacao: null, estorna_liquidacao_id: l.id, estornada: false, estorno_id: null, motivo: body.motivo, registrado_por: usuario, created_date: TS });
       recalcularTitulo(t);
       doc.historico.push({ acao: 'liquidacao_financeira.estornar', em: TS, usuario_login: 'dono' });
-      return { status: 201, body: detalhe(doc, { replay: false }) };
+      return { status: 201, body: detalhe(doc, { replay: false }, estado) };
     });
     if (f?.gravarAntes) return { rede: true };
     return r;

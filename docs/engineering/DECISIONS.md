@@ -5692,6 +5692,47 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Relação com decisões anteriores (nenhuma é reescrita):** supera a D-PROD-01/02 **somente** no trecho "máquinas, combustível", delimitado a este cadastro; relaciona-se com a D-PROD-154 (PR #229) como a primeira fatia de frota; reusa D-PROD-146/153/155 (Parceiros, Centros, `decimalFinanceiro`, `reservarNumero`, auditoria por allowlist).
 - **Consequências e release:** o código só pode ir para a `main` depois de a migration ser aplicada com autorização (preflight de produção + GO escrito), porque a Vercel publica a `main` sozinha e o runtime novo sem as tabelas responderia 500 — inclusive em telas antigas: `DELETE /produtos/:id`, `PATCH /produtos/:id` com troca de fazenda e `DELETE /fornecedores/:id` passam a consultar tabelas do Patrimônio. Próxima fatia sugerida: P1-02 Abastecimentos/Consumo, só depois da auditoria, migration e merge desta.
 - **Estado:** PR draft. `SCHEMA_APPLIED_PRODUCTION = NÃO`, `MERGE_READY = NÃO`, `OPERATIONAL_RELEASE_READY = NÃO`.
+- **Atualização de estado (2026-11-09, registrada pela PR #234):** a PR #232 foi mergeada (`76edc913`) **antes** de a migration `20261110100000_patrimonio_p1_01_cadastros` estar aplicada em produção, um incidente de sequência de release. Às 22:30 UTC os domínios de produção serviam o deploy anterior (`afbebcbc`), e só o alias `maike-git-main` servia `76edc913`. A migration foi aplicada depois, por outro fluxo, em 2026-11-09 às 23:04:22 UTC (checksum `b8818ba8…ffd64dc`). A produção ficou com 38 concluídas e 0 com falha.
 - Relatório: [`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md). Runbook de release (não executado; ensaiado localmente): [`MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-01-RUNBOOK-RELEASE.md).
 
-<!-- Próxima decisão: D-PROD-158 -->
+## D-PROD-158 — Gestão Rural P3-03: editar (retificar), excluir (lógico) e duplicar lançamentos
+
+> **Autorização explícita do proprietário:** pedida na missão **MAIKE-GESTAO-P3-03** (2026-11-09), depois do merge da PR #231 (P3-02). O texto foi redigido pelo agente. O merge depende da aprovação do proprietário e do runbook próprio.
+>
+> **Numeração:** esta decisão nasceu como D-PROD-157 na PR #234. A PR #232 (Patrimônio) foi mergeada antes na `main` (`76edc913`) com a D-PROD-157, que permanece intacta acima. Ao integrar a `main`, a P3-03 passou a ser a **D-PROD-158**. O comentário dentro de `backend/prisma/migrations/20261109300000_gestao_p3_03_editar_excluir/migration.sql` ainda diz "D-PROD-157" e fica **imutável**: o arquivo já foi aplicado em produção (SHA-256 `3f3af00edaffcce8ab0b64336029a93341bfbaba26c847e32e1d2658e4df890b`) e mudar um byte quebraria o checksum. A decisão oficial vigente é a D-PROD-158.
+
+- **Contexto:** depois da D-PROD-155 e da D-PROD-156, um lançamento confirmado não podia ser corrigido nem excluído; só cancelado. Duplicar estava desligado. O proprietário pediu editar, excluir e duplicar de verdade, no espírito do Cadastro de Lotes: não bloquear pelo status, e sim pela dependência posterior.
+- **Decisão — elegibilidade única no servidor:**
+  - `GET /operacoes-financeiras/:id/elegibilidade` e os comandos usam a mesma avaliação, refeita sob trava na transação.
+  - Quando a elegibilidade mudou entre a consulta e o comando, a resposta é 409 com o motivo legível.
+  - **Bloqueia editar e excluir:** qualquer liquidação já registrada, mesmo estornada; e documento cancelado, excluído ou retificado.
+  - **Bloqueia a mudança física:**
+    - na compra, a falta de prova de proveniência de que o lote nunca foi usado: fatias, movimentos e todos os writers de lote, não só "disponível = entrada";
+    - na venda, movimento posterior no mesmo produto + local.
+- **Decisão — editar confirmado (retificação atômica):**
+  - **NO_LUGAR**, quando a assinatura física não muda: mesmo registro, `versao+1`, mercadorias com os mesmos movimentos e lotes; rateios e títulos (sem baixa) recriados.
+  - **SUBSTITUIÇÃO**, quando muda: numa transação só, o antigo é estornado pelo núcleo do cancelamento, marcado `retificado_em` e renomeado `<número>/r<versão>`. Um documento novo, já confirmado pelo núcleo da confirmação, assume o mesmo número de negócio.
+  - Nos dois modos, um evento estruturado (`OperacaoFinanceiraEvento`, com FKs) guarda motivo, autor e snapshot da versão anterior, e há também AuditLog.
+  - **Peso por saco (revisão DE-01):** um produto que o documento já tinha em SACO é replanejado com o `fator_kg` gravado no recebimento, e não com o peso atual do cadastro. Assim, uma correção só informativa continua NO_LUGAR mesmo depois de o cadastro mudar o peso ou a unidade. Produto que entra no documento pela primeira vez usa o peso atual. Para corrigir o kg de fato recebido, a linha usa KG. A tela aplica a mesma regra na previsão.
+  - **Procedência (revisão DE-02/BC-01):** no NO_LUGAR, trocar o parceiro, o nº do documento ou a emissão de um documento com mercadoria atualiza as cópias desses dados no lote e no movimento originais, com os mesmos ids. Quantidade, custo, situação, local e data do lote não mudam. Escolhemos isso, e não levar a troca para a SUBSTITUIÇÃO, porque a especificação manda corrigir "documento" no lugar e porque o caso mais comum, o nº da nota digitado errado, ficaria bloqueado em toda compra já consumida. Cada lote alterado ganha um AuditLog `operacao_financeira.retificar_procedencia`, e a prova de procedência só aceita esse registro como escritor benigno se ele mexer apenas em fornecedor e nº do documento e explicar o `updatedAt` atual.
+  - **Permissões:** exige `editar` e `confirmar`, porque a retificação gera efeitos confirmados.
+- **Decisão — excluir confirmado (lógico):**
+  - estorno como o cancelamento, títulos cancelados, `excluido_em` e evento `EXCLUSAO` com motivo e autor;
+  - o documento sai da lista operacional e aparece no filtro "Excluídos";
+  - nunca há DELETE de confirmado;
+  - exige `cancelar` e `excluir`;
+  - rascunho continua com descarte físico.
+- **Decisão — duplicar:**
+  - a tela abre o formulário novo a partir do detalhe completo, com GERAL e POR_ITEM;
+  - não copia identidade, estado, títulos, baixas, lotes, movimentos nem histórico;
+  - a referência documental começa vazia e a declaração física, desmarcada;
+  - só "Salvar rascunho" cria o documento (com `duplicado_de_id` só no AuditLog);
+  - exige `ver` e `criar`.
+- **Banco:** migration expand-only `20261109300000_gestao_p3_03_editar_excluir`:
+  - colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em`;
+  - tabela nova `OperacaoFinanceiraEvento`, com FKs compostas para documento antigo e novo e para o usuário, CHECKs de tipo e modo, RLS e 0 grants públicos.
+- **O que continua igual:** confirmar, cancelar, liquidar e estornar; o motor de estoque, o FIFO e o custo líquido; a P3-01 e a P3-02.
+- **Fora:** correção histórica de baixa, edição de documento com baixa e reabertura de cancelado.
+- **Release:** pelo runbook `docs/engineering/MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`. A migration foi aplicada e conferida em produção em 2026-11-09 às 21:32:01 UTC (caminho B, GO escrito), antes do merge manual. Relatório: `docs/engineering/MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-159 -->

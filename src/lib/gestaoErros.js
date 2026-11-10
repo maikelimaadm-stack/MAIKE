@@ -76,7 +76,7 @@ const ondeNaLinha = (details) => {
  * Formatação dos valores que o servidor manda em `details` (string canônica).
  * `comandoIdempotente`: a tela reenvia com o MESMO `operation_id` (Central de
  * Lançamentos) — só então a mensagem promete que a repetição não duplica.
- * @typedef {{ locale?: string, moeda?: string, casas?: number, comandoIdempotente?: boolean }} ContextoMoeda
+ * @typedef {{ locale?: string, moeda?: string, casas?: number, comandoIdempotente?: boolean, direcao?: string|null }} ContextoMoeda
  */
 /** @param {unknown} v @param {ContextoMoeda} c */
 const dinheiro = (v, c) => (typeof v === 'string' && v ? (c.moeda ? formatarMoeda(v, { locale: c.locale, moeda: c.moeda, casas: c.casas ?? 2 }) : formatarNumero(v, { locale: c.locale, casasMin: 0, casasMax: 4 })) : '');
@@ -159,6 +159,7 @@ const VALIDACAO = /** @type {Record<string, string>} */ ({
   valor_deve_ser_texto: 'Valor enviado em formato inválido. Recarregue a página e tente de novo.',
   tipo_invalido: 'Dado enviado em formato inválido. Recarregue a página e tente de novo.',
   declaracao_obrigatoria: 'Confirme que a mercadoria já foi recebida/entregue antes de gravar.',
+  motivo_obrigatorio: 'Informe o motivo (até 500 caracteres).',
   data_invalida: 'Data inválida: use um dia real do calendário.',
   obrigatorio: 'Há campo obrigatório sem preencher.',
   itens_obrigatorios: 'Lançamento com produtos precisa de pelo menos um item.',
@@ -228,6 +229,103 @@ const mensagemDoRateio = (reason, details, c, linha) => {
     : `O rateio é inválido${linha}. Revise as linhas (de 1 a 50, valores maiores que zero). Nada foi gravado.`;
 };
 
+// ─── D-PROD-158 — elegibilidade, correção (retificar) e exclusão lógica ──
+
+const ROTULO_PERMISSAO = /** @type {Record<string, string>} */ ({
+  visualizar: 'Visualizar',
+  ver: 'Visualizar',
+  novo: 'Novo',
+  criar: 'Novo',
+  salvar: 'Salvar',
+  editar: 'Editar',
+  excluir: 'Excluir',
+  confirmar: 'Confirmar',
+  cancelar: 'Cancelar',
+  liquidar: 'Liquidar',
+  estornar_liquidacao: 'Estornar baixa',
+});
+
+/**
+ * Motivos de uma recusa de correção/exclusão (`details.motivos`, ou `motivos`
+ * no corpo). Cada um é `{ codigo, mensagem, entidade?, id?, numero?, item_ordem? }`.
+ * @param {unknown} erro
+ * @returns {Array<Record<string, any>>}
+ */
+export const motivosDoErro = (erro) => {
+  const e = /** @type {any} */ (erro);
+  const causa = ehObjeto(e?.cause) ? e.cause : {};
+  const det = ehObjeto(causa.details) ? causa.details : ehObjeto(e?.details) ? e.details : {};
+  const lista = Array.isArray(det.motivos) ? det.motivos : Array.isArray(causa.motivos) ? causa.motivos : [];
+  return lista.filter((/** @type {unknown} */ m) => ehObjeto(m) && typeof m.codigo === 'string');
+};
+
+/** " (movimento nº 12)" / " (lançamento nº 7)" de um motivo, quando o servidor conhece o elo. @param {Record<string, any>} m */
+const eloDoMotivo = (m) => {
+  if (m.numero == null || String(m.numero) === '') return '';
+  const entidade = typeof m.entidade === 'string' ? m.entidade : '';
+  if (/movimenta/i.test(entidade)) return ` (movimento nº ${String(m.numero)})`;
+  if (/operacao|lancamento|documento|venda|compra/i.test(entidade)) return ` (lançamento nº ${String(m.numero)})`;
+  return ` (nº ${String(m.numero)})`;
+};
+
+/** Permissões que faltam, sem repetição: `exige` (lista do servidor) ou um campo avulso. @param {Record<string, any>} m */
+const permissoesQueFaltam = (m) => {
+  const candidatas = [...(Array.isArray(m.exige) ? m.exige : []), m.permissao, m.acao, m.entidade, m.id];
+  const rotulos = candidatas.filter((v) => typeof v === 'string' && ROTULO_PERMISSAO[v]).map((v) => ROTULO_PERMISSAO[v]);
+  return [...new Set(rotulos)];
+};
+
+/**
+ * Texto de UM motivo da elegibilidade ou de uma recusa (SPEC §3): o código
+ * conhecido vira frase própria (com parcela, item e elo que impede); código
+ * novo usa a `mensagem` legível que o contrato manda no próprio motivo.
+ * `c.direcao` (D-PROD-158, revisão TELA-02): o servidor emite `lote_alterado`
+ * na compra (o lote da ENTRADA mudou) e na venda (um lote de onde a mercadoria
+ * SAIU não aceita mais a devolução); sem a direção, o texto é neutro.
+ * @param {unknown} motivo @param {ContextoMoeda} [c]
+ * @returns {string}
+ */
+export const mensagemDoMotivo = (motivo, c = {}) => {
+  const m = ehObjeto(motivo) ? motivo : {};
+  const item = Number.isInteger(m.item_ordem) ? ` do item ${m.item_ordem}` : '';
+  switch (m.codigo) {
+    case 'sem_permissao': {
+      const faltam = permissoesQueFaltam(m);
+      if (!faltam.length) return 'Você não tem a permissão exigida para esta ação nesta tela. Peça ao administrador para liberar.';
+      const lista = faltam.map((r) => `“${r}”`);
+      const texto = lista.length === 1 ? `a permissão ${lista[0]}` : `as permissões ${lista.slice(0, -1).join(', ')} e ${lista.at(-1)}`;
+      return `Você não tem ${texto} exigida${lista.length === 1 ? '' : 's'} para esta ação nesta tela. Peça ao administrador para liberar.`;
+    }
+    case 'tem_liquidacao': {
+      const parcela = m.numero_parcela ?? m.numero;
+      const estornada = m.estornada === true ? ' (já estornada — a baixa continua na história do lançamento)' : ' (mesmo estornada, a baixa continua na história do lançamento)';
+      return `A parcela${parcela != null && String(parcela) ? ` nº ${String(parcela)}` : ''} tem pagamento/recebimento registrado${estornada}: com baixa, o lançamento não pode ser corrigido por inteiro nem excluído.`;
+    }
+    case 'documento_historico':
+      return `Este lançamento é histórico (cancelado, excluído ou substituído por uma correção) e não muda mais.${
+        m.numero != null && String(m.numero) && /operacao/i.test(String(m.entidade ?? '')) ? ` A versão atual é o lançamento nº ${String(m.numero)}.` : ''
+      } Para lançar de novo, use Duplicar.`;
+    case 'lote_consumido':
+      return `A mercadoria${item} já foi usada no estoque${eloDoMotivo(m)}: o lote desta compra não está mais intacto, então a entrada não pode ser estornada nem refeita.`;
+    case 'lote_alterado':
+      if (c.direcao === 'RECEBER') {
+        return `Um lote de onde saiu a mercadoria da venda${item} mudou depois da venda${eloDoMotivo(m)} e não pode receber a mercadoria de volta: a saída desta venda não pode ser estornada nem refeita.`;
+      }
+      if (c.direcao === 'PAGAR') return `O lote da mercadoria${item} foi alterado depois da entrada${eloDoMotivo(m)}: a entrada desta compra não pode ser estornada nem refeita.`;
+      return `O lote da mercadoria${item} foi alterado depois do lançamento${eloDoMotivo(m)}: o efeito no estoque não pode ser estornado nem refeito.`;
+    case 'venda_com_movimento_posterior':
+      // Variante do servidor: OUTRO lançamento consumiu, depois da venda, um lote de onde ela saiu.
+      if (/operacao|lancamento/i.test(String(m.entidade ?? '')) && m.numero != null && String(m.numero)) {
+        return `O lançamento nº ${String(m.numero)} usou, depois desta venda, um lote de onde saiu a mercadoria${item}: refazer a saída mudaria o custo e o saldo das operações seguintes.`;
+      }
+      return `Há movimento de estoque posterior a esta venda no mesmo produto e local${eloDoMotivo(m)}${item ? ` (mercadoria${item})` : ''}: refazer a saída mudaria o custo e o saldo das operações seguintes.`;
+    case 'moeda_mudou':
+      return 'A moeda do perfil financeiro da empresa é diferente da moeda deste lançamento: a correção não converte valores.';
+    default:
+      return typeof m.mensagem === 'string' && m.mensagem.trim() ? m.mensagem.trim() : 'Há um vínculo que impede esta ação.';
+  }
+};
+
 /**
  * Mensagem dos códigos da Central de Lançamentos (null = não é desta tela).
  * @param {string|null} code @param {string|null} field @param {string|null} reason @param {Record<string, any>} details
@@ -236,7 +334,21 @@ const mensagemDoRateio = (reason, details, c, linha) => {
  */
 const mensagemLancamento = (code, field, reason, details, c) => {
   const linha = ondeNaLinha(details);
+  // D-PROD-158: o perfil de moeda mudou desde o lançamento — a correção não converte valores.
+  if (reason === 'moeda_mudou') return 'A moeda do perfil financeiro da empresa é diferente da moeda deste lançamento: a correção não converte valores. Nada foi alterado.';
+  // D-PROD-158: `duplicado_de_id` de outro tenant/empresa (ou que não existe mais).
+  if (field === 'duplicado_de_id' && (code === 'OPERACAO_REFERENCIA_INVALIDA' || code === 'REQUEST_VALIDATION_FAILED')) {
+    // Revisão TELA-04: a origem pode ter sido descartada (DELETE do rascunho); a tela deixa de enviar a proveniência.
+    return 'O lançamento de origem desta cópia não existe nesta empresa (pode ter sido descartado). Salve de novo: a cópia será gravada como rascunho novo, sem o vínculo de origem. Nada foi gravado.';
+  }
   switch (code) {
+    case 'OPERACAO_RETIFICACAO_BLOQUEADA':
+    case 'OPERACAO_EXCLUSAO_BLOQUEADA': {
+      const acao = code === 'OPERACAO_RETIFICACAO_BLOQUEADA' ? 'A correção' : 'A exclusão';
+      const motivos = Array.isArray(details.motivos) ? details.motivos : [];
+      const textos = motivos.map((/** @type {unknown} */ m) => mensagemDoMotivo(m, c));
+      return `${acao} foi recusada pelo servidor${textos.length ? `: ${textos.join(' ')}` : ' (há vínculo que impede).'} Nada foi alterado.`;
+    }
     case 'OPERACAO_FINANCEIRA_NOT_FOUND':
       return 'Lançamento não encontrado nesta empresa. A lista será atualizada.';
     case 'IDEMPOTENCY_EFEITO_EXCLUIDO':
@@ -253,9 +365,9 @@ const mensagemLancamento = (code, field, reason, details, c) => {
         ? 'A moeda precisa continuar BRL: esta empresa tem estoque com custo registrado em reais. País e formato podem mudar. Nada foi gravado.'
         : 'A moeda não pode ser trocada: esta empresa já tem lançamentos. País e formato podem mudar. Nada foi gravado.';
     case 'OPERACAO_STATUS_INVALIDO':
-      return 'Este lançamento mudou de situação (já foi confirmado, cancelado ou descartado). Recarregue e confira. Nada foi gravado.';
+      return 'Este lançamento mudou de situação (já foi confirmado, cancelado, excluído, corrigido ou descartado). Recarregue e confira. Nada foi gravado.';
     case 'OPERACAO_VERSAO_CONFLITO':
-      return 'O rascunho foi alterado em outro lugar (outra pessoa ou outra aba). Recarregue o lançamento e refaça a alteração. Nada foi gravado.';
+      return 'O lançamento foi alterado em outro lugar (outra pessoa ou outra aba). Recarregue o lançamento e refaça a alteração. Nada foi gravado.';
     case 'OPERACAO_DOCUMENTO_DUPLICADO':
       return 'Já existe um lançamento confirmado com este número de documento para este parceiro e direção. Confira antes de confirmar de novo. Nada foi gravado.';
     case 'OPERACAO_RATEIO_INVALIDO':
@@ -317,7 +429,7 @@ const mensagemLancamento = (code, field, reason, details, c) => {
  */
 export const mensagemErroGestao = (erro, fallback, contexto = {}) => {
   const { code, field, reason, details } = lerErroGestao(erro);
-  const doLancamento = mensagemLancamento(code, field, reason, details, contexto);
+  const doLancamento = mensagemLancamento(code, field, reason, { ...details, motivos: motivosDoErro(erro) }, contexto);
   if (doLancamento) return doLancamento;
   switch (code) {
     case 'ACAO_NAO_PERMITIDA':

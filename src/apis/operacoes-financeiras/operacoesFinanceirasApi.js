@@ -108,6 +108,91 @@ export const cancelarOperacaoFinanceira = async (id, corpo) => {
   return runProviderCall(() => operacoesNativas.cancelar(id, corpo), { ...contexto, details: { id } });
 };
 
+// ─── D-PROD-158 — elegibilidade, correção (retificar) e exclusão lógica ──
+
+/** Motivos de uma ação: só objetos com `codigo` texto (o resto é descartado). @param {unknown} v */
+const motivosDe = (v) => (Array.isArray(v) ? v.filter((m) => isObjeto(m) && typeof m.codigo === 'string' && m.codigo) : []);
+
+/**
+ * Uma ação da elegibilidade, FECHADA por padrão: só é permitida com
+ * `permitido === true` E um modo do contrato (quando a ação tem modo). Resposta
+ * fora do contrato nunca libera a ação.
+ * @param {unknown} bruto @param {readonly string[]|null} modos
+ */
+const acaoDaElegibilidade = (bruto, modos) => {
+  const a = isObjeto(bruto) ? bruto : {};
+  const modo = modos && typeof a.modo === 'string' && modos.includes(a.modo) ? a.modo : null;
+  const permitido = a.permitido === true && (modos === null || modo !== null);
+  return { permitido, modo: permitido ? modo : null, motivos: motivosDe(a.motivos) };
+};
+
+/**
+ * `GET /operacoes-financeiras/:id/elegibilidade` normalizado (SPEC §3). A
+ * decisão final é sempre do servidor, DENTRO da transação do comando: isto só
+ * explica à tela o que ele observou agora.
+ * @param {string} id @param {string} empresaId
+ * @returns {Promise<{ id: string, versao: number|null, status: string|null,
+ *   editar: { permitido: boolean, modo: 'RASCUNHO'|'RETIFICACAO'|null, efeito_fisico_permitido: boolean, motivos: any[] },
+ *   excluir: { permitido: boolean, modo: 'DESCARTE'|'LOGICA'|null, motivos: any[] },
+ *   duplicar: { permitido: boolean, motivos: any[] } }>}
+ */
+export const getElegibilidadeOperacaoFinanceira = async (id, empresaId) => {
+  const contexto = ctx('elegibilidadeOperacaoFinanceira');
+  assertArgument(isId(id) && isId(empresaId), 'id', contexto);
+  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.elegibilidade(id, empresaId), { ...contexto, details: { id } }));
+  const b = isObjeto(bruto) ? bruto : {};
+  const editar = acaoDaElegibilidade(b.editar, ['RASCUNHO', 'RETIFICACAO']);
+  const excluir = acaoDaElegibilidade(b.excluir, ['DESCARTE', 'LOGICA']);
+  return {
+    id: isId(b.id) ? String(b.id) : id,
+    versao: typeof b.versao === 'number' && Number.isInteger(b.versao) ? b.versao : null,
+    status: typeof b.status === 'string' ? b.status : null,
+    editar: {
+      ...editar,
+      modo: /** @type {'RASCUNHO'|'RETIFICACAO'|null} */ (editar.modo),
+      // Sem a resposta explícita do servidor, mexer no estoque NÃO é prometido.
+      efeito_fisico_permitido: editar.permitido && isObjeto(b.editar) && b.editar.efeito_fisico_permitido === true,
+    },
+    excluir: { ...excluir, modo: /** @type {'DESCARTE'|'LOGICA'|null} */ (excluir.modo) },
+    duplicar: acaoDaElegibilidade(b.duplicar, null),
+  };
+};
+
+/** Corpo dos comandos de confirmado: versão (CAS) e motivo obrigatório (até 500). @param {Record<string, unknown>} corpo @param {string} operation */
+const exigirVersaoEMotivo = (corpo, operation) => {
+  assertArgument(Number.isInteger(corpo.versao), 'versao', ctx(operation));
+  assertArgument(typeof corpo.motivo === 'string' && corpo.motivo.trim().length > 0 && corpo.motivo.length <= 500, 'motivo', ctx(operation));
+};
+
+/**
+ * `POST /operacoes-financeiras/:id/retificar` — DOC completo + `versao`,
+ * `operation_id` e `motivo`. A resposta é o detalhe do documento ATUAL (o novo,
+ * na substituição) com `retificacao: { modo, operacao_anterior_id, operacao_atual_id }`.
+ * @param {string} id @param {Record<string, unknown>} corpo
+ */
+export const retificarOperacaoFinanceira = async (id, corpo) => {
+  const contexto = ctx('retificarOperacaoFinanceira');
+  assertArgument(isId(id), 'id', contexto);
+  exigirCorpoComEmpresa(corpo, 'retificarOperacaoFinanceira');
+  exigirOperationId(corpo, 'retificarOperacaoFinanceira');
+  exigirVersaoEMotivo(corpo, 'retificarOperacaoFinanceira');
+  return runProviderCall(() => operacoesNativas.retificar(id, corpo), { ...contexto, details: { id } });
+};
+
+/**
+ * `POST /operacoes-financeiras/:id/excluir` — exclusão LÓGICA do confirmado
+ * (`{empresa_id, versao, operation_id, motivo}`); nunca DELETE de confirmado.
+ * @param {string} id @param {Record<string, unknown>} corpo
+ */
+export const excluirOperacaoFinanceira = async (id, corpo) => {
+  const contexto = ctx('excluirOperacaoFinanceira');
+  assertArgument(isId(id), 'id', contexto);
+  exigirCorpoComEmpresa(corpo, 'excluirOperacaoFinanceira');
+  exigirOperationId(corpo, 'excluirOperacaoFinanceira');
+  exigirVersaoEMotivo(corpo, 'excluirOperacaoFinanceira');
+  return runProviderCall(() => operacoesNativas.excluir(id, corpo), { ...contexto, details: { id } });
+};
+
 /** @param {string} tituloId @param {Record<string, unknown>} corpo */
 export const registrarLiquidacaoTitulo = async (tituloId, corpo) => {
   const contexto = ctx('registrarLiquidacaoTitulo');
