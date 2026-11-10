@@ -311,6 +311,12 @@ export default function AbastecimentosTela() {
       if (!daEmpresaAtual(emp)) return;
       seqPrevia.current += 1;
       setPrevia({ seq: seqPrevia.current, assinatura, form: snapshot, resposta, empresaId: emp });
+      // Bloqueio que muda a verdade da tela (vínculo, produto, tanque, combustível inativo…) relê como a
+      // recusa da confirmação: a reconciliação do formulário tira a escolha que saiu e oferece a nova.
+      if ((Array.isArray(resposta.bloqueios) ? resposta.bloqueios : []).some((b) => RELER_NOS_ERROS.has(String(b?.code ?? "")))) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+        queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_ABASTECIMENTO });
+      }
       // O fator do formulário acompanha o que o servidor leu agora; se mudou, as opções do bem são relidas.
       const conversao = resposta.plano?.conversao ?? null;
       const antes = snapshot.produto?.conversao ?? null;

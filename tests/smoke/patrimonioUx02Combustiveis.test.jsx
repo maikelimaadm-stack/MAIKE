@@ -15,7 +15,10 @@
  * Produtos · CB-04 falha parcial + "Tentar de novo" · CB-05 resposta perdida
  * do vínculo / `ja_vinculado` · CB-06 criação incerta · CB-07 troca de
  * fazenda · CB-08 sem fazenda · CB-09 permissões · CB-10 combustível inativo
- * · CB-11 Produto já de outro combustível · CB-12 textos de inativar/reativar.
+ * · CB-11 Produto já de outro combustível · CB-12 textos de inativar/reativar
+ * · CB-13 fazenda muda durante a associação da criação · CB-14 falha de
+ * associação sobrevive à remontagem da seção · CB-15 "Tentar de novo" com o
+ * painel aberto · CB-16 código que já existe (nunca "criado" falso).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -73,9 +76,12 @@ let estado;
 let backend;
 /**
  * Ganchos por chamada (consumidos em ordem):
- *  - combustivel: POST /patrimonio-combustiveis → `{ modo: 'gravar-e-perder' | 'perder' }` ou `{ esperar: Promise }`;
- *  - vinculo: POST /patrimonio-combustiveis/:id/produtos → `{ modo: 'gravar-e-perder' | 'perder' }` ou `{ resposta }`;
- *  - listaCombustiveisCai: GET da lista do catálogo responde 503.
+ *  - combustivel: POST /patrimonio-combustiveis → `{ modo: 'gravar-e-perder' | 'perder' }`, `{ esperar: Promise }`
+ *    e/ou `{ antes: () => void }` (roda antes de gravar: outra pessoa grava no meio);
+ *  - vinculo: POST /patrimonio-combustiveis/:id/produtos → `{ modo: 'gravar-e-perder' | 'perder' }`, `{ resposta }`
+ *    e/ou `{ esperar: Promise }` (segura a resposta até liberar);
+ *  - listaCombustiveisCai: GET da lista do catálogo responde 503;
+ *  - buscasQueCaem: quantas buscas por texto (`q`) na lista do catálogo respondem 503 (uma a uma).
  */
 let ganchos;
 let seqCombustivel;
@@ -136,13 +142,17 @@ beforeEach(async () => {
   setNativeToken('jwt.teste');
   sessao.permissao = permissaoCom({ novo: true, editar: true, inativar: true });
   estado = { combustiveis: COMBUSTIVEIS(), produtos: PRODUTOS(), vinculos: VINCULOS() };
-  ganchos = { combustivel: [], vinculo: [], listaCombustiveisCai: false };
+  ganchos = { combustivel: [], vinculo: [], listaCombustiveisCai: false, buscasQueCaem: 0 };
   seqCombustivel = 0;
   seqVinculo = 0;
   backend = instalarBackendFake(async ({ method, path, query, body }) => {
     if (method === 'GET' && path === '/empresas') return { status: 200, body: EMPRESAS };
     if (method === 'GET' && path === '/patrimonio-combustiveis') {
       if (ganchos.listaCombustiveisCai) return { status: 503, body: { code: 'SERVICE_UNAVAILABLE', message: 'x', request_id: 'r' } };
+      if (query.get('q') && ganchos.buscasQueCaem > 0) {
+        ganchos.buscasQueCaem -= 1;
+        return { status: 503, body: { code: 'SERVICE_UNAVAILABLE', message: 'x', request_id: 'r' } };
+      }
       const q = (query.get('q') || '').toLowerCase();
       const itens = estado.combustiveis
         .filter((c) => query.get('ativo') == null || String(c.ativo) === query.get('ativo'))
@@ -152,6 +162,7 @@ beforeEach(async () => {
     if (method === 'POST' && path === '/patrimonio-combustiveis') {
       const g = ganchos.combustivel.shift();
       if (g?.esperar) await g.esperar;
+      g?.antes?.();
       if (g?.modo === 'perder') perderResposta();
       const r = criarCombustivelNoFake(body);
       if (g?.modo === 'gravar-e-perder') perderResposta();
@@ -171,6 +182,7 @@ beforeEach(async () => {
     }
     if (lista && method === 'POST') {
       const g = ganchos.vinculo.shift();
+      if (g?.esperar) await g.esperar;
       if (g?.resposta) return g.resposta;
       if (g?.modo === 'perder') perderResposta();
       const r = vincularNoFake(lista[1], body);
@@ -248,6 +260,13 @@ const escolherNo = async (raiz, testIdSeletor, nome) => {
 };
 const escolherNoNovo = (form, nome) => escolherNo(form, 'combustivel-novo-produto-seletor', nome);
 const escolherNaSecao = (secao, nome) => escolherNo(secao, 'combustivel-produto-seletor', nome);
+/** Troca a fazenda no topo da tela (mesmo caminho do seletor do Layout). */
+const trocarFazenda = async (emp) => {
+  const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
+  act(() => persistirEmpresaSelecionada(emp, 'cli-1'));
+};
+const MSG_403 = 'Você não tem permissão para esta ação nesta tela. Peça ao administrador para liberar.';
+const MSG_JA_EXISTE = 'Já existe um combustível com este código. Confira a lista; nada foi criado nem associado.';
 
 describe('CB-01 — seção "Produtos associados nesta fazenda" no registro gravado', () => {
   it('leitura e edição: fazenda pelo nome, Associados e Inativos com o nome real do Produto; nada da outra fazenda', async () => {
@@ -695,5 +714,198 @@ describe('CB-12 — inativar e reativar valem para o futuro (histórico intacto)
     ]);
     // Nada é apagado: a associação inativada continua listada.
     await waitFor(() => expect(within(screen.getByTestId('combustivel-produtos-inativos')).getByTestId('combustivel-produto-v1')).toBeTruthy());
+  });
+});
+
+describe('CB-13 — criação: a fazenda muda enquanto os Produtos são associados (C1)', () => {
+  it('tudo ok: os vínculos vão para a fazenda de origem e o aviso a nomeia — nunca "nesta fazenda" com outra na tela', async () => {
+    await montar();
+    const form = await novo();
+    preencher(form, 'diesel_p1', 'Diesel P1');
+    await escolherNoNovo(form, /DIESEL ESTOQUE NOVO/);
+    await escolherNoNovo(form, /DIESEL TANQUE 2/);
+    let liberar;
+    ganchos.vinculo.push({ esperar: new Promise((r) => { liberar = r; }) });
+    salvar();
+    await waitFor(() => expect(postsVinculo()).toHaveLength(1));
+    await trocarFazenda('emp-2');
+    await act(async () => { liberar(); });
+    expect(
+      await screen.findByText('Combustível criado com 2 produto(s) associado(s) na fazenda anterior (Fazenda Boa Vista). Para conferir, volte para essa fazenda no topo da tela.'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/associado\(s\) nesta fazenda/)).toBeNull();
+    expect(postsVinculo().map((c) => c.body)).toEqual([
+      { empresa_id: 'emp-1', produto_id: 'pB' },
+      { empresa_id: 'emp-1', produto_id: 'pD' },
+    ]);
+    const secao = await screen.findByTestId('combustivel-produtos');
+    expect(await within(secao).findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
+  });
+
+  it('falha parcial: o aviso diz que "Não associados" aparece ao voltar para a fazenda de origem — e aparece lá', async () => {
+    await montar();
+    const form = await novo();
+    preencher(form, 'diesel_p2', 'Diesel P2');
+    await escolherNoNovo(form, /DIESEL ESTOQUE NOVO/);
+    await escolherNoNovo(form, /DIESEL TANQUE 2/);
+    estado.vinculos.push(vinculo('v-corrida', 'emp-1', 'c2', 'pD', true, 1));
+    let liberar;
+    ganchos.vinculo.push({ esperar: new Promise((r) => { liberar = r; }) });
+    salvar();
+    await waitFor(() => expect(postsVinculo()).toHaveLength(1));
+    await trocarFazenda('emp-2');
+    await act(async () => { liberar(); });
+    expect(
+      await screen.findByText(
+        'Combustível criado, mas 1 de 2 produto(s) não foram associados na fazenda anterior (Fazenda Boa Vista). Volte para essa fazenda no topo da tela para ver "Não associados" e tentar de novo.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Sucesso')).toBeNull();
+    const secao = await screen.findByTestId('combustivel-produtos');
+    expect(await within(secao).findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
+    expect(within(secao).queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
+    await trocarFazenda('emp-1');
+    const deVolta = await screen.findByTestId('combustivel-produtos');
+    expect(await within(deVolta).findByText('Fazenda: Fazenda Boa Vista')).toBeTruthy();
+    const bloco = within(deVolta).getByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent('DIESEL TANQUE 2: Este produto já está vinculado a outro combustível nesta fazenda');
+  });
+});
+
+describe('CB-14 — registro: a falha de uma associação em andamento não se perde quando a seção remonta (C2)', () => {
+  const associarComRespostaPresa = async () => {
+    await montar();
+    const secao = await abrir('c1');
+    await within(secao).findByTestId('combustivel-produto-v1');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+    await escolherNaSecao(secao, /DIESEL ESTOQUE NOVO/);
+    let liberar;
+    ganchos.vinculo.push({ esperar: new Promise((r) => { liberar = r; }), resposta: erroServidor(403, 'ACAO_NAO_PERMITIDA', { details: { tela: 'pat-combustiveis' } }) });
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    await waitFor(() => expect(postsVinculo()).toHaveLength(1));
+    return () => act(async () => { liberar(); });
+  };
+
+  it('troca de fazenda e volta ANTES da resposta: "Não associados" aparece com o motivo e "Tentar de novo" vai ao MESMO combustível e fazenda', async () => {
+    const liberar = await associarComRespostaPresa();
+    await trocarFazenda('emp-2');
+    expect(await screen.findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
+    await trocarFazenda('emp-1');
+    expect(await screen.findByText('Fazenda: Fazenda Boa Vista')).toBeTruthy();
+    await liberar();
+    expect(await screen.findByText('1 de 1 produto(s) não foram associados. Veja "Não associados" e tente de novo.')).toBeTruthy();
+    const bloco = await within(screen.getByTestId('combustivel-produtos')).findByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+    fireEvent.click(within(bloco).getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText('Produto associado')).toBeTruthy();
+    expect(postsVinculo().map((c) => ({ path: c.path, body: c.body }))).toEqual([
+      { path: '/patrimonio-combustiveis/c1/produtos', body: { empresa_id: 'emp-1', produto_id: 'pB' } },
+      { path: '/patrimonio-combustiveis/c1/produtos', body: { empresa_id: 'emp-1', produto_id: 'pB' } },
+    ]);
+    await waitFor(() => expect(screen.queryByTestId('combustivel-produtos-nao-associados')).toBeNull());
+  });
+
+  it('a resposta chega com OUTRA fazenda na tela: o bloco não aparece lá e aparece ao voltar para a fazenda e o registro', async () => {
+    const liberar = await associarComRespostaPresa();
+    await trocarFazenda('emp-2');
+    expect(await screen.findByText('Fazenda: Fazenda Santa Rita')).toBeTruthy();
+    await liberar();
+    expect(await screen.findByText('1 de 1 produto(s) não foram associados. Veja "Não associados" e tente de novo.')).toBeTruthy();
+    await esperar(50);
+    expect(within(screen.getByTestId('combustivel-produtos')).queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
+    await trocarFazenda('emp-1');
+    expect(await screen.findByText('Fazenda: Fazenda Boa Vista')).toBeTruthy();
+    const bloco = within(screen.getByTestId('combustivel-produtos')).getByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(`DIESEL ESTOQUE NOVO: ${MSG_403}`);
+  });
+});
+
+describe('CB-15 — "Tentar de novo" com o painel "Associar produtos" aberto (C3)', () => {
+  it('reenvia só o que falhou e mantém o painel com os Produtos escolhidos (nada é descartado sem aviso)', async () => {
+    await montar();
+    const secao = await abrir('c1');
+    await within(secao).findByTestId('combustivel-produto-v1');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+    await escolherNaSecao(secao, /DIESEL ESTOQUE NOVO/);
+    ganchos.vinculo.push({ resposta: erroServidor(403, 'ACAO_NAO_PERMITIDA', { details: { tela: 'pat-combustiveis' } }) });
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    const bloco = await within(secao).findByTestId('combustivel-produtos-nao-associados');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+    await escolherNaSecao(secao, /DIESEL TANQUE 2/);
+    expect(within(secao).getByTestId('combustivel-produto-pendente-pD')).toBeTruthy();
+
+    fireEvent.click(within(bloco).getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText('Produto associado')).toBeTruthy();
+    expect(postsVinculo().map((c) => c.body.produto_id)).toEqual(['pB', 'pB']);
+    await waitFor(() => expect(within(secao).queryByTestId('combustivel-produtos-nao-associados')).toBeNull());
+    // A escolha do painel continua lá: nada foi enviado nem descartado.
+    expect(within(secao).getByTestId('combustivel-produto-vincular')).toBeTruthy();
+    expect(within(secao).getByTestId('combustivel-produto-pendente-pD')).toBeTruthy();
+
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    await waitFor(() => expect(postsVinculo().map((c) => c.body.produto_id)).toEqual(['pB', 'pB', 'pD']));
+    await waitFor(() => expect(within(secao).queryByTestId('combustivel-produto-vincular')).toBeNull());
+    await waitFor(() => expect(within(screen.getByTestId('combustivel-produtos')).getByText('Associados (3)')).toBeTruthy());
+  });
+});
+
+describe('CB-16 — código que já existe: nada é criado nem associado e nunca aparece "criado" (C4)', () => {
+  it.each([
+    ['inativo', 'QUEROSENE', 'Querosene'],
+    ['ativo', 'DIESEL_S10', 'Diesel S10'],
+  ])('combustível %s com o mesmo código e nome: a verificação antes do POST barra, mesmo que a resposta fosse se perder', async (_situacao, codigo, nome) => {
+    await montar();
+    const form = await novo();
+    preencher(form, codigo, nome);
+    await escolherNoNovo(form, /DIESEL ESTOQUE NOVO/);
+    ganchos.combustivel.push({ modo: 'perder' });
+    salvar();
+    expect(await screen.findByText(MSG_JA_EXISTE)).toBeTruthy();
+    expect(leituras('/patrimonio-combustiveis').some((c) => c.query.q === codigo)).toBe(true);
+    expect(postsCombustivel()).toEqual([]);
+    expect(postsVinculo()).toEqual([]);
+    expect(screen.queryByText(/Combustível criado/)).toBeNull();
+    expect(screen.queryByText('Sucesso')).toBeNull();
+    expect(estado.combustiveis.filter((c) => c.codigo === codigo)).toHaveLength(1);
+    // O formulário continua aberto com os Produtos escolhidos.
+    expect(within(screen.getByTestId('b1-form')).getByTestId('combustivel-novo-pendente-pB')).toBeTruthy();
+  });
+
+  it.each([
+    ['com outro nome', { nome: 'Diesel de outra pessoa' }],
+    ['inativo com o mesmo nome', { nome: 'Diesel S10 X', ativo: false }],
+  ])('outra pessoa grava o mesmo código entre a verificação e o POST (%s) e a resposta se perde: não é dado como nosso', async (_caso, extra) => {
+    await montar();
+    const form = await novo();
+    preencher(form, 'diesel_s10_x', 'Diesel S10 X');
+    await escolherNoNovo(form, /DIESEL ESTOQUE NOVO/);
+    ganchos.combustivel.push({ antes: () => estado.combustiveis.push(combustivel('c-outro', 'DIESEL_S10_X', extra.nome, extra)), modo: 'perder' });
+    salvar();
+    expect(await screen.findByText(MSG_JA_EXISTE)).toBeTruthy();
+    expect(postsCombustivel()).toHaveLength(1);
+    expect(postsVinculo()).toEqual([]);
+    expect(screen.queryByText(/Combustível criado/)).toBeNull();
+    expect(within(screen.getByTestId('b1-form')).getByTestId('combustivel-novo-pendente-pB')).toBeTruthy();
+  });
+
+  it('a verificação antes do POST não respondeu e a resposta do POST se perdeu: achar pelo código não basta — pede conferência e não associa', async () => {
+    await montar();
+    const form = await novo();
+    preencher(form, 'diesel_s10_y', 'Diesel S10 Y');
+    await escolherNoNovo(form, /DIESEL ESTOQUE NOVO/);
+    ganchos.buscasQueCaem = 1;
+    ganchos.combustivel.push({ modo: 'gravar-e-perder' });
+    salvar();
+    expect(
+      await screen.findByText('Não foi possível confirmar se o combustível foi gravado. Confira a lista antes de salvar de novo: o código não se repete.'),
+    ).toBeTruthy();
+    // Verificação (caiu) + recuperação (achou, mas não dá para provar que é nosso).
+    expect(leituras('/patrimonio-combustiveis').filter((c) => c.query.q === 'DIESEL_S10_Y')).toHaveLength(2);
+    expect(postsCombustivel()).toHaveLength(1);
+    expect(postsVinculo()).toEqual([]);
+    expect(screen.queryByText(/Combustível criado/)).toBeNull();
   });
 });

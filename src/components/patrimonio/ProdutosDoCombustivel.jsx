@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
@@ -73,17 +73,23 @@ export const AVISO_EDICAO_ASSOCIACOES = "As associações são gravadas na hora,
  * monta a seção com `key` empresa+combustível, então trocar de registro ou de
  * fazenda zera o painel (nada da fazenda anterior aparece).
  *
+ * "Não associados": com `onFalhasChange` o PAI guarda as falhas por
+ * empresa+combustível e a seção mostra `falhasGuardadas`. A associação pode
+ * terminar com a seção já desmontada (troca de fazenda ou de registro no
+ * meio): o resultado vai direto ao pai com a empresa e o combustível do
+ * clique, e reaparece ao voltar para eles. Sem pai, as falhas ficam na seção.
+ *
  * @param {{
  *   empresaId: string|null,
  *   empresaNome?: string|null,
  *   combustivel: { id: string, nome?: string|null, ativo?: boolean, unidade?: string|null },
  *   acoes: { criar: boolean, inativar: boolean },
  *   editando?: boolean,
- *   falhasIniciais?: FalhaDeAssociacao[] | null,
- *   onFalhasChange?: (falhas: FalhaDeAssociacao[]) => void,
+ *   falhasGuardadas?: FalhaDeAssociacao[] | null,
+ *   onFalhasChange?: (r: { empresaId: string, tipoId: string, falhas: FalhaDeAssociacao[] }) => void,
  * }} props
  */
-export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, combustivel, acoes, editando = false, falhasIniciais = null, onFalhasChange }) {
+export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, combustivel, acoes, editando = false, falhasGuardadas = null, onFalhasChange }) {
   const queryClient = useQueryClient();
   const tipoId = String(combustivel.id);
   const tipoAtivo = combustivel.ativo !== false;
@@ -91,20 +97,21 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
   const emLitros = !combustivel.unidade || combustivel.unidade === "L";
   const [associando, setAssociando] = useState(false);
   const [escolhidos, setEscolhidos] = useState(/** @type {Array<{ id: string, nome: string }>} */ ([]));
-  const [falhas, setFalhas] = useState(() => /** @type {FalhaDeAssociacao[]} */ (Array.isArray(falhasIniciais) ? falhasIniciais : []));
-  const enviando = useRef(false);
-
-  // O pai guarda as falhas (reabrir o registro mostra o mesmo bloco); só avisa mudanças.
+  const [falhasLocais, setFalhasLocais] = useState(/** @type {FalhaDeAssociacao[]} */ ([]));
+  const falhas = onFalhasChange ? (Array.isArray(falhasGuardadas) ? falhasGuardadas : []) : falhasLocais;
+  // Última lista vista: a mutação pode terminar depois desta seção desmontar.
+  const falhasRef = useRef(falhas);
+  falhasRef.current = falhas;
   const avisarFalhas = useRef(onFalhasChange);
   avisarFalhas.current = onFalhasChange;
-  const primeiraLeitura = useRef(true);
-  useEffect(() => {
-    if (primeiraLeitura.current) {
-      primeiraLeitura.current = false;
-      return;
-    }
-    avisarFalhas.current?.(falhas);
-  }, [falhas]);
+  const enviando = useRef(false);
+
+  /** @param {string} emp @param {string} tipo @param {FalhaDeAssociacao[]} proximas */
+  const guardarFalhas = (emp, tipo, proximas) => {
+    falhasRef.current = proximas;
+    setFalhasLocais(proximas);
+    avisarFalhas.current?.({ empresaId: emp, tipoId: tipo, falhas: proximas });
+  };
 
   const lista = useInfiniteQuery({
     queryKey: chaveProdutosDoCombustivel(empresaId, tipoId),
@@ -144,15 +151,19 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
   };
 
   const associar = useMutation({
-    /** @param {{ empresaId: string, tipoId: string, produtos: Array<{ id: string, nome: string }> }} v */
+    /** @param {{ empresaId: string, tipoId: string, origem: "painel"|"repetir", produtos: Array<{ id: string, nome: string }> }} v */
     mutationFn: (v) => associarProdutosAoCombustivel(v.empresaId, v.tipoId, v.produtos),
+    // Roda mesmo com a seção desmontada: as falhas vão ao pai com a empresa e o combustível do clique.
     onSuccess: (r, v) => {
       reler(v.empresaId, v.tipoId);
       const n = v.produtos.length;
       const doLote = new Set(v.produtos.map((p) => String(p.id)));
-      setFalhas((anteriores) => [...anteriores.filter((f) => !doLote.has(String(f.id))), ...r.falhas]);
-      setAssociando(false);
-      setEscolhidos([]);
+      guardarFalhas(v.empresaId, v.tipoId, [...falhasRef.current.filter((f) => !doLote.has(String(f.id))), ...r.falhas]);
+      // "Tentar de novo" não mexe no painel: o que foi escolhido lá continua lá.
+      if (v.origem === "painel") {
+        setAssociando(false);
+        setEscolhidos([]);
+      }
       if (!r.falhas.length) {
         notifySuccess("Sucesso", n === 1 ? "Produto associado" : `${n} produtos associados`);
       } else {
@@ -201,11 +212,11 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
     setEscolhidos([]);
   };
 
-  /** @param {Array<{ id: string, nome: string }>} produtos */
-  const gravar = (produtos) => {
+  /** @param {Array<{ id: string, nome: string }>} produtos @param {"painel"|"repetir"} origem */
+  const gravar = (produtos, origem) => {
     if (!produtos.length || enviando.current || associar.isPending) return;
     enviando.current = true;
-    associar.mutate({ empresaId: empresa, tipoId, produtos: produtos.map((p) => ({ id: String(p.id), nome: String(p.nome ?? "") })) });
+    associar.mutate({ empresaId: empresa, tipoId, origem, produtos: produtos.map((p) => ({ id: String(p.id), nome: String(p.nome ?? "") })) });
   };
 
   /** @param {any} v @param {boolean} ativo */
@@ -284,11 +295,11 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
           </ul>
           <div className="mt-2 flex flex-wrap gap-2">
             {podeAssociar ? (
-              <button type="button" className={CLS_ACAO} disabled={ocupado} onClick={() => gravar(falhas)}>
+              <button type="button" className={CLS_ACAO} disabled={ocupado} onClick={() => gravar(falhas, "repetir")}>
                 {ocupado ? "Gravando…" : "Tentar de novo"}
               </button>
             ) : null}
-            <button type="button" className={CLS_ACAO} disabled={ocupado} onClick={() => setFalhas([])}>
+            <button type="button" className={CLS_ACAO} disabled={ocupado} onClick={() => guardarFalhas(empresa, tipoId, [])}>
               Descartar
             </button>
           </div>
@@ -366,7 +377,7 @@ export default function ProdutosDoCombustivel({ empresaId, empresaNome = null, c
                 <button type="button" className={CLS_ACAO} aria-label="Cancelar associação" disabled={ocupado} onClick={fecharAssociacao}>
                   Cancelar
                 </button>
-                <button type="button" className={CLS_ACAO} disabled={!escolhidos.length || ocupado} onClick={() => gravar(escolhidos)}>
+                <button type="button" className={CLS_ACAO} disabled={!escolhidos.length || ocupado} onClick={() => gravar(escolhidos, "painel")}>
                   {ocupado ? "Gravando…" : `Associar ${escolhidos.length} produto(s)`}
                 </button>
               </div>

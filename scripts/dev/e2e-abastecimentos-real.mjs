@@ -52,7 +52,9 @@
  *  Produto | Litros | Medidor | Situação (sem "Combustível"); no celular,
  *  cards com a máquina/veículo no título + Produto, Litros e Data, e a
  *  Situação no card (contrato §1.4: no passo 8 o cancelado mostra "Cancelado"
- *  e os outros "Confirmado", na linha e no card). Formulário: nenhum
+ *  e os outros "Confirmado", na linha e no card). Na tabela, nenhum rótulo
+ *  de cabeçalho cortado nem célula de Data/Litros/Medidor/Situação (elemento
+ *  com scrollWidth <= clientWidth + 1). Formulário: nenhum
  *  rótulo/campo/etapa "Combustível" nem o tipo "Diesel S10".
  *
  * Uso:
@@ -379,6 +381,33 @@ const executarLargura = async (browser, largura) => {
           encaixe.direita <= encaixe.limite + 1 && encaixe.sw <= encaixe.cw + 1,
           `[${rotulo}] ${ator}: coluna Situação fora da área visível da grade em ${largura} px (borda ${encaixe.direita} > ${encaixe.limite}; grade ${encaixe.sw} > ${encaixe.cw})`,
         );
+        // Revisão final UX-02 (L2): em 820 px "Medidor" e "Máquina/Veículo" saíam com
+        // reticências e Litros cortava a partir de 100 L. `allTextContents` (acima)
+        // devolve o texto inteiro mesmo cortado, então mede o ELEMENTO do rótulo
+        // (scrollWidth <= clientWidth + 1). Também as células de Data, Litros,
+        // Medidor e Situação (Máquina e Produto cortam de propósito, com `title`).
+        const cortes = await visivel(page.locator('table.mg-grid')).evaluate((tabela) => {
+          const ths = [...tabela.querySelectorAll('thead th')];
+          const rotuloDe = (th) => th.querySelector('button span') || th.querySelector('button');
+          const out = [];
+          const indice = {};
+          ths.forEach((th, i) => {
+            const el = rotuloDe(th);
+            const t = el?.textContent.trim();
+            if (!t) return;
+            indice[t] = i;
+            if (el.scrollWidth > el.clientWidth + 1) out.push(`cabeçalho "${t}" (${el.scrollWidth} > ${el.clientWidth})`);
+          });
+          for (const tr of tabela.querySelectorAll('tbody tr')) {
+            for (const nome of ['Data', 'Litros', 'Medidor', 'Situação']) {
+              const td = indice[nome] === undefined ? null : tr.children[indice[nome]];
+              if (td && td.scrollWidth > td.clientWidth + 1) out.push(`${nome} "${td.textContent.trim()}" (${td.scrollWidth} > ${td.clientWidth})`);
+            }
+          }
+          return { out, rotulos: Object.keys(indice) };
+        });
+        igual(cortes.rotulos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] ${ator}: rótulos medidos na grade`);
+        conferir(cortes.out.length === 0, `[${rotulo}] ${ator}: texto cortado na lista em ${largura} px: ${cortes.out.join('; ')}`);
         for (const r of [registro, ...outros]) {
           const linha = visivel(page.locator('tr').filter({ has: page.getByTestId(`abastecimento-bem-${r.id}`) }));
           const txt = (await linha.innerText()).replace(/\s+/g, ' ');

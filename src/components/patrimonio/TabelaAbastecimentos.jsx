@@ -25,18 +25,25 @@ export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
  * dados técnicos ficam como colunas opcionais (desligadas); o tipo de
  * combustível aparece só na consulta (detalhe técnico).
  *
- * Larguras: a soma das 6 colunas padrão (654 px + a de seleção) cabe na grade
- * do tablet (820 px, ~712 px úteis), então a Situação aparece sem rolar a
- * tabela por dentro. As larguras são mínimas: no desktop a grade estica as
- * colunas para ocupar a linha.
+ * Larguras (tablet, 820 px): a grade tem ~711 px úteis; tirando a coluna de
+ * seleção (36) e a barra de rolagem vertical (~15), sobram ~660 px, e as 6
+ * colunas padrão somam 655. A Situação aparece sem rolar a tabela por dentro.
+ * Medido no Chromium com DM Sans 14 px (≤ 1023 px). A célula gasta 19 px
+ * (padding 0 9px + borda) e o cabeçalho 43 px (+ gap 4 + menu 20). Por isso
+ * nenhum rótulo é cortado: "Máquina/Veículo" pede 157 e "Situação" 103. A Data
+ * cabe inteira (a mais larga de 2026, "04/04/2026", pede 101) e Litros cabe
+ * até "999,9999 L" (pede 95). "1.200,0000 L" pediria 105 e passaria da soma:
+ * com 4 dígitos inteiros o valor sai cortado, com `title`. Máquina/Veículo e
+ * Produto cortam de propósito, também com `title`. As larguras são mínimas: no
+ * desktop a grade estica as colunas para ocupar a linha.
  */
 export const ABASTECIMENTOS_COLUNAS = [
-  { id: "data_operacional", label: "Data", default: true, sortable: true, width: 96 },
-  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 146 },
-  { id: "produto", label: "Produto", default: true, sortable: true, width: 136 },
-  { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 88 },
-  { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 88 },
-  { id: "status", label: "Situação", default: true, sortable: true, width: 100 },
+  { id: "data_operacional", label: "Data", default: true, sortable: true, width: 101 },
+  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 157 },
+  { id: "produto", label: "Produto", default: true, sortable: true, width: 97 },
+  { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 97 },
+  { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 100 },
+  { id: "status", label: "Situação", default: true, sortable: true, width: 103 },
   { id: "numero", label: "Nº", default: false, sortable: true, width: 70 },
   { id: "tanque", label: "Tanque", default: false, sortable: true, width: 140 },
   { id: "quantidade_kg", label: "KG", default: false, sortable: true, align: "right", width: 110 },
@@ -77,7 +84,7 @@ export const compararAbastecimentosParaOrdenar = (a, b, colId) => {
     const vb = ehDiaValido(b?.data_operacional) ? b.data_operacional : null;
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
     if (va !== vb) return va < vb ? -1 : 1;
-    // Mesmo dia: o nº (sequência do servidor) desempata — "mais recente primeiro" na ordem padrão.
+    // Mesmo dia: o nº (sequência do servidor) desempata.
     const na = ehCanonico(a?.numero) ? a.numero : null;
     const nb = ehCanonico(b?.numero) ? b.numero : null;
     return na === null || nb === null ? 0 : comparar(na, nb);
@@ -128,7 +135,11 @@ export function SeloAbastecimento({ status, testId = undefined }) {
 
 /**
  * Lista de abastecimentos (tabela no desktop, cards no celular). Ordem padrão:
- * data mais recente primeiro (o nº desempata no mesmo dia).
+ * Nº desc (coluna oculta), a mesma em que o servidor pagina: o Nº é reservado
+ * na criação e acompanha `createdAt desc`. Ordenar por Data no padrão poria no
+ * topo só a data mais recente das linhas JÁ carregadas (a data pode ser
+ * retroativa) e a página seguinte "pularia" para o topo. Ordenar por Data é
+ * escolha do operador no cabeçalho (o nº desempata no mesmo dia).
  * @param {any} props
  */
 export default function TabelaAbastecimentos(props) {
@@ -148,7 +159,7 @@ export default function TabelaAbastecimentos(props) {
       getFieldValue={valorDoCampoAbastecimento}
       compararParaOrdenar={compararAbastecimentosParaOrdenar}
       renderCell={renderCell}
-      defaultSortKey="data_operacional"
+      defaultSortKey="numero"
       defaultSortDir="desc"
       emptyText={props.emptyText}
       isLoading={props.isLoading}

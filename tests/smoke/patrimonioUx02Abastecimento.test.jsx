@@ -553,8 +553,9 @@ describe('UX-A12 — lista', () => {
     expect(cabecalhos).toEqual(['Data', 'Máquina/Veículo', 'Produto', 'Litros', 'Medidor', 'Situação']);
     expect(cabecalhos).not.toContain('Combustível');
     const linhas = screen.getAllByRole('row').slice(1);
-    expect(linhas[0]).toHaveTextContent(/10\/06\/2026.*TP-02 — Trator TP-02.*Diesel S10 granel.*10,0000 L.*1.535 h.*Confirmado/);
-    expect(linhas.map((l) => (l.textContent.match(/\d{2}\/06\/2026/) ?? [''])[0])).toEqual(['10/06/2026', '08/06/2026', '05/06/2026']);
+    expect(linhas.find((l) => l.textContent.includes('10/06/2026'))).toHaveTextContent(/10\/06\/2026.*TP-02 — Trator TP-02.*Diesel S10 granel.*10,0000 L.*1.535 h.*Confirmado/);
+    // Ordem padrão = Nº desc, a do servidor (createdAt desc): o último lançado primeiro (L1; ver patrimonioUx02ListaOrdem).
+    expect(linhas.map((l) => (l.textContent.match(/\d{2}\/06\/2026/) ?? [''])[0])).toEqual(['08/06/2026', '10/06/2026', '05/06/2026']);
     expect(screen.queryByText('Diesel S10', { exact: true })).toBeNull();
   });
 
@@ -659,5 +660,66 @@ describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
     expect(within(form).queryByText('Observação')).toBeNull();
     await pedirPrevia(form);
     expect(previas()[0].body.observacao).toBe('completou na sede');
+  });
+});
+
+describe('UX-02 revisão final — formulário', () => {
+  it('F1: A→B ANTES de "Revisar": o bloqueio da revisão (200, sem_vinculo_ativo) relê os Produtos do bem; A sai com aviso, B é oferecido e nada de A é confirmado', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    expect(produtosDoBem()).toHaveLength(1);
+    // Antes de revisar: o vínculo de A sai e B entra no MESMO Diesel S10 (cadastro de Combustíveis).
+    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
+    novoProduto('p4', 'Diesel S10 estoque novo', 'c1', { fator: '0.830000' });
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await waitFor(() => expect(previas()).toHaveLength(1));
+    expect(previas()[0].body.produto_id).toBe('p1');
+    // A revisão responde 200 COM o bloqueio: a tela relê os Produtos do bem e a reconciliação tira A.
+    expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
+    expect(produtosDoBem().length).toBeGreaterThan(1);
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    // Mesmo resultado do caminho do 422 (UX-A10): B oferecido, nada trocado em silêncio.
+    expect(radios(within(form).getByTestId('abastecimento-produto'))).toEqual([['Diesel S10 estoque novo', 'false']]);
+    expect(confirmacoes()).toEqual([]);
+    await escolherProduto(form, 'Diesel S10 estoque novo');
+    expect(within(form).queryByTestId('abastecimento-produto-indisponivel')).toBeNull();
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
+    const dialogoB = await pedirPrevia(form);
+    expect(previas().at(-1).body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p4', tanque_id: 'tq1', quantidade_litros: '80' });
+    expect(within(dialogoB).getByTestId('previa-kg')).toHaveTextContent('66,4000 kg');
+    await act(async () => fireEvent.click(within(dialogoB).getByTestId('abastecimento-confirmar')));
+    expect(await screen.findByTestId('abastecimento-consulta')).toBeTruthy();
+    expect(confirmacoes()).toHaveLength(1);
+    expect(confirmacoes()[0].body).toMatchObject({ produto_id: 'p4', conversao_id: 'f-p4', conversao_versao: 1 });
+    expect(amb.estado.abastecimentos.map((a) => a.produto_id)).toEqual(['p4']);
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
+  });
+
+  it('F1: tanque inativado ANTES de "Revisar" (200, ABASTECIMENTO_TANQUE_INVALIDO) também relê: a opção velha sai e o motivo aparece', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    amb.estado.tanques.b1[0].ativo = false;
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    await waitFor(() => expect(previas()).toHaveLength(1));
+    expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toBeTruthy();
+    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('Este bem não tem tanque ativo. Cadastre ou reative um tanque no cadastro do bem.');
+    expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    expect(confirmacoes()).toEqual([]);
+  });
+
+  it('F2: escolher de novo a MESMA máquina não desmarca o único Produto nem limpa local e leitura; Revisar segue com o corpo de antes', async () => {
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
+    await esperar(50);
+    expect(radios(within(form).getByTestId('abastecimento-produto'))).toEqual([['Diesel S10 granel', 'true']]);
+    expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Sai do estoque: Tanque diesel sede');
+    await pedirPrevia(form);
+    expect(previas()).toHaveLength(1);
+    expect(previas()[0].body).toEqual(CORPO_TP02(amb.estado.hoje));
   });
 });

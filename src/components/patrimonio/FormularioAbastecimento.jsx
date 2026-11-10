@@ -298,6 +298,8 @@ export default function FormularioAbastecimento({
             buscar={({ q, cursor, limit }) => listarOpcoesAbastecimento("bens", empresaId, { q, cursor, limit, uso: "formulario" })}
             value={form.bem ? { id: String(form.bem.id), rotulo: rotuloDoBem(form.bem) } : null}
             onChange={(opcao) => {
+              // A MESMA máquina de novo não muda nada (o Produto único, o local e a leitura continuam).
+              if (opcao?.id != null && bemId && String(opcao.id) === bemId) return;
               setIndisponivel(false);
               mudar({ bem: opcao, ...SEM_PRODUTO, medidor_leitura: "" }, ["bem", "produto", "tanque_id", "tipo_combustivel_id", "local_estoque_id", "medidor_leitura"]);
             }}

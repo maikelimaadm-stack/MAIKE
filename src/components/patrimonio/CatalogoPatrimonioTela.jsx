@@ -10,7 +10,7 @@ import {
   listarCatalogoPagina,
   resumoCatalogoPadrao,
 } from "@/services/patrimonioCatalogoService";
-import { associarProdutosAoCombustivel, localizarCombustivelCriado } from "@/services/combustivelProdutoService";
+import { associarProdutosAoCombustivel, buscarCombustivelPorCodigo, localizarCombustivelCriado } from "@/services/combustivelProdutoService";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import { listEmpresas } from "@/services/empresaService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
@@ -159,6 +159,7 @@ const SUFIXO_CRIACAO_INCERTA = " A resposta do servidor não chegou, mas o combu
 const MENSAGEM_NAO_GRAVADO = "O combustível não foi gravado. Salve de novo.";
 const MENSAGEM_NAO_CONFIRMADO =
   "Não foi possível confirmar se o combustível foi gravado. Confira a lista antes de salvar de novo: o código não se repete.";
+const MENSAGEM_JA_EXISTE = "Já existe um combustível com este código. Confira a lista; nada foi criado nem associado.";
 const AVISO_FAZENDA_MUDOU_NA_CRIACAO =
   "Combustível criado, mas nenhum Produto foi associado. A fazenda mudou: os Produtos escolhidos eram da fazenda anterior e foram retirados. Escolha de novo.";
 
@@ -200,15 +201,27 @@ export default function CatalogoPatrimonioTela({ recurso }) {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const empresaNome = useMemo(() => {
-    if (!ehCombustiveis || !empresaId) return null;
-    const empresa = (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(empresaId));
+  /** @param {string|null} id */
+  const nomeDaEmpresa = (id) => {
+    const empresa = id ? (Array.isArray(empresasQuery.data) ? empresasQuery.data : []).find((e) => String(e?.id) === String(id)) : null;
     return typeof empresa?.nome === "string" && empresa.nome.trim() ? empresa.nome.trim() : null;
-  }, [ehCombustiveis, empresaId, empresasQuery.data]);
-  // Falhas da associação feita na criação (o registro criado abre com "Não associados").
-  const [associacaoPendente, setAssociacaoPendente] = useState(
-    /** @type {{ empresaId: string, tipoId: string, falhas: Array<{ id: string, nome: string, codigo: string|null, mensagem: string }> }|null} */ (null),
+  };
+  const empresaNome = ehCombustiveis ? nomeDaEmpresa(empresaId) : null;
+  // "Não associados" por empresa+combustível (da criação e da seção do registro):
+  // sobrevivem à remontagem da seção e reaparecem ao voltar para a mesma fazenda e registro.
+  const [falhasPorRegistro, setFalhasPorRegistro] = useState(
+    /** @type {Record<string, Array<{ id: string, nome: string, codigo: string|null, mensagem: string }>>} */ ({}),
   );
+  /** @param {string} emp @param {string} tipo @param {Array<{ id: string, nome: string, codigo: string|null, mensagem: string }>} falhas */
+  const guardarFalhasDoRegistro = (emp, tipo, falhas) =>
+    setFalhasPorRegistro((atual) => {
+      const chave = `${emp}:${tipo}`;
+      if (falhas.length) return { ...atual, [chave]: falhas };
+      if (!(chave in atual)) return atual;
+      const resto = { ...atual };
+      delete resto[chave];
+      return resto;
+    });
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
   const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
@@ -293,14 +306,29 @@ export default function CatalogoPatrimonioTela({ recurso }) {
 
   /**
    * Combustível: cria e associa os Produtos escolhidos (resultado por Produto).
+   * Antes do POST confere o código: já existe → nada é criado nem associado.
    * Criação incerta (rede/prazo/falha interna) → procura pelo código único;
-   * achou → segue como criado (sem 2º POST); não achou → "não foi gravado";
-   * leitura falhou → pede conferência. Nunca recria às cegas.
+   * só é deste pedido o que não existia na conferência (mesmo nome, ativo) →
+   * segue como criado (sem 2º POST); não achou → "não foi gravado"; achou
+   * outro → "já existe"; leitura falhou ou conferência sem resposta → pede
+   * conferência. Nunca recria às cegas nem dá como criado o que já existia.
    * @param {Record<string, any>} data
    */
   const criarCombustivel = async (data) => {
     const pendentes = Array.isArray(data.produtos_pendentes) ? data.produtos_pendentes : [];
     const empresaDosPendentes = typeof data.empresa_pendentes === "string" && data.empresa_pendentes ? data.empresa_pendentes : null;
+    const codigo = String(data.codigo ?? "");
+    /** @type {any} */
+    let existente = null;
+    let ausenteAntes = false;
+    try {
+      existente = await buscarCombustivelPorCodigo(codigo);
+      ausenteAntes = !existente;
+    } catch {
+      // Sem resposta: o POST segue (o servidor barra o código repetido), mas uma
+      // resposta perdida não poderá dar o achado como deste pedido.
+    }
+    if (existente) throw erroDeCriacao(MENSAGEM_JA_EXISTE);
     /** @type {any} */
     let criado;
     let incerto = false;
@@ -308,22 +336,31 @@ export default function CatalogoPatrimonioTela({ recurso }) {
       criado = await criarCatalogo(recurso, data);
     } catch (err) {
       if (!ehResultadoIncerto(err)) throw err;
-      /** @type {any} */
+      /** @type {Awaited<ReturnType<typeof localizarCombustivelCriado>>} */
       let achado;
       try {
-        achado = await localizarCombustivelCriado({ codigo: String(data.codigo ?? ""), nome: String(data.nome ?? "") });
+        achado = await localizarCombustivelCriado({ codigo, nome: String(data.nome ?? ""), ausenteAntes });
       } catch {
         throw erroDeCriacao(MENSAGEM_NAO_CONFIRMADO);
       }
-      if (!achado) throw erroDeCriacao(MENSAGEM_NAO_GRAVADO);
-      criado = achado;
+      if (achado.situacao === "ausente") throw erroDeCriacao(MENSAGEM_NAO_GRAVADO);
+      if (achado.situacao === "outro") throw erroDeCriacao(MENSAGEM_JA_EXISTE);
+      if (achado.situacao !== "criado") throw erroDeCriacao(MENSAGEM_NAO_CONFIRMADO);
+      criado = achado.combustivel;
       incerto = true;
     }
     const tipoId = criado && typeof criado === "object" && criado.id ? String(criado.id) : null;
     if (!pendentes.length || !tipoId) return { criado, incerto, associacao: null, fazendaMudou: false };
     if (!empresaDosPendentes || empresaDosPendentes !== empresaAtualRef.current) return { criado, incerto, associacao: null, fazendaMudou: true };
+    // Nome da fazenda capturado no envio: o aviso a nomeia se a tela mudar de fazenda no meio.
+    const empresaNomeDosPendentes = nomeDaEmpresa(empresaDosPendentes);
     const resultado = await associarProdutosAoCombustivel(empresaDosPendentes, tipoId, pendentes);
-    return { criado, incerto, associacao: { empresaId: empresaDosPendentes, tipoId, total: pendentes.length, ...resultado }, fazendaMudou: false };
+    return {
+      criado,
+      incerto,
+      associacao: { empresaId: empresaDosPendentes, empresaNome: empresaNomeDosPendentes, tipoId, total: pendentes.length, ...resultado },
+      fazendaMudou: false,
+    };
   };
 
   /** @param {any} r resultado de `criarCombustivel` */
@@ -338,12 +375,23 @@ export default function CatalogoPatrimonioTela({ recurso }) {
       notifySuccess("Sucesso", `${cfg.criado}${r.incerto ? `.${sufixo}` : ""}`);
       return;
     }
+    // A fazenda do topo mudou durante a associação: os vínculos foram para a de
+    // origem (certo), então o aviso a nomeia em vez de dizer "nesta fazenda".
+    const outraFazenda = a.empresaId !== empresaAtualRef.current;
+    const origem = a.empresaNome ? `na fazenda anterior (${a.empresaNome})` : "na fazenda anterior";
     if (!a.falhas.length) {
-      notifySuccess("Sucesso", `Combustível criado com ${a.total} produto(s) associado(s) nesta fazenda${r.incerto ? `.${sufixo}` : ""}`);
+      const base = `Combustível criado com ${a.total} produto(s) associado(s) ${outraFazenda ? origem : "nesta fazenda"}`;
+      const conferir = outraFazenda ? " Para conferir, volte para essa fazenda no topo da tela." : "";
+      notifySuccess("Sucesso", outraFazenda || r.incerto ? `${base}.${conferir}${sufixo}` : base);
       return;
     }
-    // Alguma falha: NUNCA sucesso. O registro abre com "Não associados".
-    notifyWarning("Atenção", `Combustível criado, mas ${a.falhas.length} de ${a.total} produto(s) não foram associados. Veja "Não associados" e tente de novo.${sufixo}`);
+    // Alguma falha: NUNCA sucesso. O registro abre com "Não associados" (na fazenda de origem).
+    notifyWarning(
+      "Atenção",
+      outraFazenda
+        ? `Combustível criado, mas ${a.falhas.length} de ${a.total} produto(s) não foram associados ${origem}. Volte para essa fazenda no topo da tela para ver "Não associados" e tentar de novo.${sufixo}`
+        : `Combustível criado, mas ${a.falhas.length} de ${a.total} produto(s) não foram associados. Veja "Não associados" e tente de novo.${sufixo}`,
+    );
   };
 
   const createMutation = useMutation({
@@ -355,10 +403,7 @@ export default function CatalogoPatrimonioTela({ recurso }) {
     onSuccess: (r) => {
       invalidar();
       const criado = r.criado;
-      if (ehCombustiveis) {
-        const a = r.associacao;
-        setAssociacaoPendente(a && a.falhas.length ? { empresaId: a.empresaId, tipoId: a.tipoId, falhas: a.falhas } : null);
-      }
+      if (ehCombustiveis && r.associacao) guardarFalhasDoRegistro(r.associacao.empresaId, r.associacao.tipoId, r.associacao.falhas);
       if (criado && typeof criado === "object" && "id" in criado && criado.id) {
         mostrarRegistro(criado);
         controller.recordHelpers.chrome.onSelectionChange([String(criado.id)]);
@@ -498,8 +543,7 @@ export default function CatalogoPatrimonioTela({ recurso }) {
   // Combustíveis: no registro GRAVADO (leitura e edição), os Produtos associados
   // NESTA fazenda. `key` empresa+combustível: trocar de registro ou de fazenda zera a seção.
   const tipoAberto = ehCombustiveis && registroAtual?.id ? String(registroAtual.id) : null;
-  const falhasDoAberto =
-    tipoAberto && associacaoPendente && associacaoPendente.empresaId === empresaId && associacaoPendente.tipoId === tipoAberto ? associacaoPendente.falhas : null;
+  const falhasDoAberto = tipoAberto && empresaId ? (falhasPorRegistro[`${empresaId}:${tipoAberto}`] ?? null) : null;
   const produtosVinculados =
     ehCombustiveis && acoes.ver && tipoAberto ? (
       <ProdutosDoCombustivel
@@ -509,11 +553,9 @@ export default function CatalogoPatrimonioTela({ recurso }) {
         combustivel={{ id: tipoAberto, nome: registroAtual.nome ?? null, ativo: registroAtual.ativo !== false, unidade: registroAtual.unidade ?? null }}
         acoes={{ criar: acoes.criar, inativar: acoes.inativar }}
         editando={controller.isEditing}
-        falhasIniciais={falhasDoAberto}
-        onFalhasChange={(falhas) => {
-          const emp = empresaAtualRef.current;
-          setAssociacaoPendente(falhas.length && emp ? { empresaId: emp, tipoId: tipoAberto, falhas } : null);
-        }}
+        falhasGuardadas={falhasDoAberto}
+        // Empresa e combustível do CLIQUE (a seção pode ter remontado antes da resposta).
+        onFalhasChange={({ empresaId: emp, tipoId: tipo, falhas }) => guardarFalhasDoRegistro(emp, tipo, falhas)}
       />
     ) : null;
 

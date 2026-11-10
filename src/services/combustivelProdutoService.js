@@ -19,9 +19,11 @@
  * UX-02 (D-PROD-160): na tela o vínculo se chama "associação". Associar vários
  * Produtos de uma vez é um POST por Produto, em sequência, com resultado por
  * Produto (`associarProdutosAoCombustivel`, nunca lança); repetir nunca
- * duplica (par único: 409 `ja_vinculado` = associado depois de reler). A
- * criação incerta do combustível é recuperada pelo código único
- * (`localizarCombustivelCriado`), nunca recriando às cegas.
+ * duplica (par único: 409 `ja_vinculado` = associado depois de reler). Antes
+ * de criar, a tela confere se o código já existe (`buscarCombustivelPorCodigo`);
+ * a criação incerta do combustível é recuperada pelo código único
+ * (`localizarCombustivelCriado`), nunca recriando às cegas nem dando como
+ * criado um combustível que já existia.
  */
 
 import {
@@ -255,25 +257,45 @@ export const associarProdutosAoCombustivel = async (empresaId, tipoId, produtos)
 const PAGINAS_PARA_LOCALIZAR = 10;
 
 /**
- * Depois de uma criação INCERTA: procura o combustível pelo código (lista do
- * catálogo, `q=codigo`). O código é único no tenant; o nome precisa bater
- * (sem caixa) para ser o MESMO pedido. Lança se a leitura falhar (ou não
- * couber nas páginas lidas): a tela pede conferência, nunca recria às cegas.
- * @param {{ codigo: string, nome: string }} dados
+ * Procura o combustível pelo código EXATO (lista do catálogo, `q=codigo`,
+ * ativos e inativos; o código é único no tenant). `null` = não existe. Lança
+ * se a leitura falhar ou não couber nas páginas lidas (nunca "não existe" sem
+ * saber).
+ * @param {string} codigo
  * @returns {Promise<any|null>}
  */
-export const localizarCombustivelCriado = async ({ codigo, nome }) => {
+export const buscarCombustivelPorCodigo = async (codigo) => {
   const alvoCodigo = String(codigo ?? '').trim();
-  const alvoNome = String(nome ?? '').trim().toLowerCase();
   if (!alvoCodigo) return null;
   let cursor = /** @type {string|null} */ (null);
   for (let pagina = 0; pagina < PAGINAS_PARA_LOCALIZAR; pagina += 1) {
     const r = await listarCatalogoPagina(RECURSOS_CATALOGO.COMBUSTIVEIS, { q: alvoCodigo, cursor, limit: 100 });
     const itens = Array.isArray(r?.items) ? r.items : [];
     const mesmoCodigo = itens.find((c) => c && String(c.codigo ?? '') === alvoCodigo);
-    if (mesmoCodigo) return String(mesmoCodigo.nome ?? '').trim().toLowerCase() === alvoNome && mesmoCodigo.id ? mesmoCodigo : null;
+    if (mesmoCodigo) return mesmoCodigo;
     if (!r?.has_more || !r.next_cursor) return null;
     cursor = r.next_cursor;
   }
   throw erroIndeterminado();
+};
+
+/**
+ * Depois de uma criação INCERTA: procura o combustível pelo código. Só é o
+ * MESMO pedido (`criado`) se a verificação feita ANTES do POST confirmou que o
+ * código não existia (`ausenteAntes`), o nome bate (sem caixa) e ele está
+ * ativo (o recém-criado nasce ativo). Lança se a leitura falhar: a tela pede
+ * conferência, nunca recria às cegas.
+ *  - `ausente`: o código não existe → nada foi gravado;
+ *  - `outro`: existe, mas não é deste pedido (outro nome ou inativo) → nada foi criado;
+ *  - `indeterminado`: existe, mas sem a verificação anterior não dá para provar que é deste pedido.
+ * @param {{ codigo: string, nome: string, ausenteAntes: boolean }} dados
+ * @returns {Promise<{ situacao: 'criado', combustivel: any } | { situacao: 'ausente' | 'outro' | 'indeterminado', combustivel?: undefined }>}
+ */
+export const localizarCombustivelCriado = async ({ codigo, nome, ausenteAntes }) => {
+  const achado = await buscarCombustivelPorCodigo(codigo);
+  if (!achado) return { situacao: 'ausente' };
+  const alvoNome = String(nome ?? '').trim().toLowerCase();
+  const mesmoPedido = Boolean(achado.id) && achado.ativo !== false && String(achado.nome ?? '').trim().toLowerCase() === alvoNome;
+  if (!mesmoPedido) return { situacao: 'outro' };
+  return ausenteAntes === true ? { situacao: 'criado', combustivel: achado } : { situacao: 'indeterminado' };
 };
