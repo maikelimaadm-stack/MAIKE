@@ -216,6 +216,12 @@ describe('FE3 — formulário', () => {
     await escolherNoSeletor(form, 'abastecimento-bem', /Gerador/);
     await within(form).findByText('Capacidade nominal: 50,0000 L');
     expect(within(form).queryByTestId('abastecimento-leitura')).toBeNull();
+    // Espera a escolha automática do combustível (tanque de um tipo só) e o
+    // seletor de produto habilitado antes de abrir — como em `preencherTrator`.
+    // Sem isso, sob a carga da suíte inteira, o clique caía no seletor ainda
+    // desabilitado e a opção nunca aparecia (falha de CI em a9c762ce).
+    await waitFor(() => expect(within(within(form).getByTestId('abastecimento-combustivel')).getByRole('radio', { name: 'Diesel S10' }).getAttribute('aria-checked')).toBe('true'));
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-produto')).not.toBeDisabled());
     await escolherNoSeletor(form, 'abastecimento-produto', /Diesel S10 granel/);
     await waitFor(() => expect(within(form).getByRole('combobox', { name: 'Local de estoque' }).textContent).toMatch(/Tanque diesel sede/));
     digitar(form, 'abastecimento-litros', '0,1');

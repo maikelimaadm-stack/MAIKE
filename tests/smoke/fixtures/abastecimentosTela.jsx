@@ -57,6 +57,9 @@ export const montar = async () => {
 
 /** Abre um `SeletorPaginadoGestao` e escolhe a opção cujo nome casa com `nome`. */
 export const escolherNoSeletor = async (raiz, testId, nome) => {
+  // O seletor dependente (produto, local) só habilita depois que a escolha
+  // anterior assenta; clicar antes não abre o painel e a opção nunca aparece.
+  await waitFor(() => expect(within(raiz).getByTestId(testId)).not.toBeDisabled());
   fireEvent.click(within(raiz).getByTestId(testId));
   fireEvent.click(await within(raiz).findByRole('option', { name: nome }));
   await waitFor(() => expect(within(raiz).queryByTestId(`${testId}-painel`)).toBeNull());
