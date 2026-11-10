@@ -309,8 +309,12 @@ const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
 /**
  * Q5 — evidência RELEVANTE de escritor fora do protocolo no AuditLog (só ids e
  * ações: nenhum `dados_*` sai daqui). Produto: por id dos produtos da página;
- * lote: por id dos lotes da faixa (`= ANY(ARRAY(...))` vira Index Cond no
- * índice `(cliente_id, entidade, entidade_id)`: nunca o histórico do tenant).
+ * lote: por id dos lotes da faixa. As duas buscas são LATERAL `OFFSET 0`
+ * dirigidas pela chave (uma descida no índice `(cliente_id, entidade,
+ * entidade_id)` por produto/lote): o plano fica preso ao escopo da página
+ * mesmo com estatística velha (medido: com o `= ANY(ARRAY(...))` de R1 e a
+ * estatística de antes de uma carga, o planejador lia o histórico de lotes do
+ * tenant inteiro).
  */
 const lerAuditoria = (tx, cli, f, faixa, idsProdutos, teto) => {
   const dados = Prisma.sql`CROSS JOIN LATERAL (SELECT ${objeto(Prisma.sql`a.dados_novos`)} AS nov, ${objeto(Prisma.sql`a.dados_anteriores`)} AS ant) d`;
@@ -320,18 +324,26 @@ const lerAuditoria = (tx, cli, f, faixa, idsProdutos, teto) => {
     FROM (
       SELECT a.entidade, a.entidade_id, a.acao, a.entidade_id AS produto_id,
              ${empresaDoJson} AS empresa_id, NULL::text AS local_estoque_id, NULL::text AS local_estoque_id_anterior
-      FROM "AuditLog" a ${dados}
-      WHERE a.cliente_id = ${cli} AND a.entidade = 'Produto' AND a.entidade_id = ANY(${idsProdutos}::text[])
-        AND jsonb_typeof(d.nov -> 'estoque_atual') IN ('number', 'string') AND ${estoqueNov} IS NOT NULL
+      FROM unnest(${idsProdutos}::text[]) AS pid(id)
+      CROSS JOIN LATERAL (
+        SELECT a.entidade, a.entidade_id, a.acao, a.dados_novos, a.dados_anteriores FROM "AuditLog" a
+        WHERE a.cliente_id = ${cli} AND a.entidade = 'Produto' AND a.entidade_id = pid.id OFFSET 0
+      ) a
+      ${dados}
+      WHERE jsonb_typeof(d.nov -> 'estoque_atual') IN ('number', 'string') AND ${estoqueNov} IS NOT NULL
         AND ((a.acao = 'create' AND ${estoqueNov} <> 0)
           OR (a.acao = 'update' AND jsonb_typeof(d.ant -> 'estoque_atual') IN ('number', 'string') AND ${estoqueAnt} IS NOT NULL AND ${estoqueNov} <> ${estoqueAnt}))
       UNION ALL
       SELECT a.entidade, a.entidade_id, a.acao,
              COALESCE(d.nov ->> 'produto_id', d.ant ->> 'produto_id'), COALESCE(d.nov ->> 'empresa_id', d.ant ->> 'empresa_id'),
              COALESCE(d.nov ->> 'local_estoque_id', d.ant ->> 'local_estoque_id'), d.ant ->> 'local_estoque_id'
-      FROM "AuditLog" a ${dados}
-      WHERE a.cliente_id = ${cli} AND a.entidade = 'EstoqueLoteNota'
-        AND a.entidade_id = ANY(ARRAY(SELECT l.id FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}))
+      FROM "EstoqueLoteNota" l
+      CROSS JOIN LATERAL (
+        SELECT a.entidade, a.entidade_id, a.acao, a.dados_novos, a.dados_anteriores FROM "AuditLog" a
+        WHERE a.cliente_id = ${cli} AND a.entidade = 'EstoqueLoteNota' AND a.entidade_id = l.id OFFSET 0
+      ) a
+      ${dados}
+      WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}
         AND (a.acao IN ('create', 'delete') OR (a.acao = 'update' AND (
         EXISTS (SELECT 1 FROM unnest(${CAMPOS_QUANTIDADE_LOTE}::text[]) k(c)
                 WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND ${num(Prisma.sql`d.nov ->> k.c`)} IS DISTINCT FROM ${num(Prisma.sql`d.ant ->> k.c`)})
