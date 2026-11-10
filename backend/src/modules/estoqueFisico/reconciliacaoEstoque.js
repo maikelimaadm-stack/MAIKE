@@ -52,14 +52,16 @@
  *
  * Leitura (SPEC §5.1): uma transação RepeatableRead (um só snapshot por
  * chamada) cuja PRIMEIRA instrução é `SET TRANSACTION READ ONLY` (o PostgreSQL
- * recusa qualquer escrita nela) e a segunda força plano CUSTOM
- * (`plan_cache_mode`: o plano genérico do prepared statement, que o driver
- * passa a usar na 6ª execução, levava 0,9 s a 6,6 s); nenhuma trava de linha
- * nem advisory. Idas ao banco = 4 fixas (+1 com empresa) + 5 por página, sem
- * N+1 por lote ou movimento. Listas entram como `::text[]` e todo WHERE começa
- * por `cliente_id`. Quantidades viram `::text` no SQL e `Dec` aqui; nunca
- * Number. O tenant vem SÓ do `auth_context` (R11). A resposta tem só ids do
- * próprio tenant: nenhum `dados_*` do AuditLog nem dado de usuário.
+ * recusa qualquer escrita nela) e a segunda força plano CUSTOM e desliga o
+ * JIT só nesta transação (`plan_cache_mode`: o plano genérico do prepared
+ * statement, que o PostgreSQL passa a usar na 6ª execução, levava 0,9 s a
+ * 6,6 s; `jit`: a compilação custava ~1,6 s por consulta de custo alto);
+ * nenhuma trava de linha nem advisory. Idas ao banco = 4 fixas (+1 com
+ * empresa) + 5 por página, sem N+1 por lote ou movimento. Listas entram como
+ * `::text[]` e todo WHERE começa por `cliente_id`. Quantidades viram
+ * `::text` no SQL e `Dec` aqui; nunca Number. O tenant vem SÓ do
+ * `auth_context` (R11). A resposta tem só ids do próprio tenant: nenhum
+ * `dados_*` do AuditLog nem dado de usuário.
  */
 
 import { Prisma } from '@prisma/client';
@@ -107,8 +109,9 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 20000, isolationLevel: /
  * Orçamento de UMA chamada (R1). `linhasPorPagina` e `linhasPorChamada` contam
  * a pré-contagem `1 + lotes + movimentos` de cada produto; `tempoMs` é
  * conferido entre páginas e fica bem abaixo dos 20 s da transação, com folga
- * para a última página (medida: ~0,3 s por 200 produtos × 12 lotes × 42
- * movimentos). Só o serviço aceita orçamento menor (testes); o HTTP usa este.
+ * para a última página (medida local: ~0,17 s por página de 200 produtos × 12
+ * lotes × 42 movimentos; ~1,1 s para UM produto de 130.000 linhas). Só o
+ * serviço aceita outro orçamento (testes); o HTTP usa este.
  */
 export const ORCAMENTO_PADRAO = Object.freeze({ produtosPorPagina: 200, linhasPorPagina: 20000, linhasPorChamada: 250000, tempoMs: 8000 });
 const ORCAMENTO_TETO = Object.freeze({ produtosPorPagina: 1000, linhasPorPagina: 100000, linhasPorChamada: 1000000, tempoMs: 12000 });
@@ -818,7 +821,10 @@ const normalizarFiltro = (filtro) => {
 export const reconciliarEstoque = async (contexto, filtro = {}, orcamento = undefined) => {
   const auth = exigirAuthContext(contexto?.auth);
   const f = normalizarFiltro(filtro);
-  const r = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f, orcamento));
+  // Disputa de leitura ou transação expirada (P2028: uma página única gigante) → 409 sem nada gravado e sem
+  // nenhum "OK": a mensagem orienta a filtrar ou continuar pelo cursor (fail-closed).
+  const r = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f, orcamento), {},
+    'a leitura da reconciliação não terminou no prazo; filtre por empresa/produto ou continue pelo cursor; nada foi gravado');
   return {
     escopo: { empresa_id: f.empresaId, produto_id: f.produtoId, local_estoque_id: f.localId, limite: f.limite },
     gerado_em: agoraDoServidor().toISOString(),
