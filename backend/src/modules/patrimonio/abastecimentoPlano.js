@@ -153,6 +153,8 @@ export const fingerprintDaConfirmacao = (e) => ({
   tanque_cheio: e.tanque_cheio,
   observacao: e.observacao,
   referencia_externa: e.referencia_externa,
+  conversao_id: e.conversao_id,
+  conversao_versao: e.conversao_versao,
 });
 
 /** @param {any} e Entrada normalizada do cancelamento */
