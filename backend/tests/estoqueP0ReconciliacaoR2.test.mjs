@@ -114,14 +114,27 @@ const medir = async (c, filtro = {}, orcamento = undefined, { semSeqscan = true 
   /** @type {any[]} */
   let stats = [];
   let sessao = null;
+  // `pg_stat_xact_*` (PG15+) soma também o que transações anteriores da MESMA conexão ainda não
+  // descarregaram: mede-se a diferença entre o começo e o fim desta transação.
+  const estatistica = (tx) => tx.$queryRaw`SELECT relname::text AS tabela, seq_scan::int, seq_tup_read::int, idx_scan::int, idx_tup_fetch::int,
+      n_tup_ins::int, n_tup_upd::int, n_tup_del::int
+    FROM pg_stat_xact_user_tables WHERE seq_scan + idx_scan + n_tup_ins + n_tup_upd + n_tup_del > 0`;
   await aux.$transaction(async (tx) => {
+    const base = /** @type {any[]} */ (await estatistica(tx));
     if (semSeqscan) await tx.$queryRaw`SELECT set_config('enable_seqscan', 'off', true)`;
     const proxy = new Proxy(tx, {
       get(alvo, prop) {
         const v = alvo[prop];
         if (prop === '$queryRaw' || prop === '$executeRaw' || prop === '$queryRawUnsafe' || prop === '$executeRawUnsafe') {
           return async (...args) => {
+            const antesDbg = process.env.R2_DEPURAR ? await estatistica(alvo) : null;
             const res = await v.apply(alvo, args);
+            if (antesDbg) {
+              const depoisDbg = /** @type {any[]} */ (await estatistica(alvo));
+              const de = (l) => (l.find((t) => t.tabela === 'AuditLog') ?? { seq_tup_read: 0, idx_tup_fetch: 0 });
+              const n = de(depoisDbg).seq_tup_read + de(depoisDbg).idx_tup_fetch - de(antesDbg).seq_tup_read - de(antesDbg).idx_tup_fetch;
+              console.error('DBG', n, textoSql(args).text.trim().replace(/\s+/g, ' ').slice(0, 80));
+            }
             consultas.push({ ...textoSql(args), linhas: Array.isArray(res) ? res.length : 0, prop: String(prop) });
             return res;
           };
@@ -133,9 +146,12 @@ const medir = async (c, filtro = {}, orcamento = undefined, { semSeqscan = true 
       },
     });
     r = await lerReconciliacao(proxy, c, filtro, orcamento);
-    stats = /** @type {any[]} */ (await tx.$queryRaw`SELECT relname::text AS tabela, seq_scan::int, seq_tup_read::int, idx_scan::int, idx_tup_fetch::int,
-        n_tup_ins::int, n_tup_upd::int, n_tup_del::int
-      FROM pg_stat_xact_user_tables WHERE seq_scan + idx_scan + n_tup_ins + n_tup_upd + n_tup_del > 0`);
+    const fim = /** @type {any[]} */ (await estatistica(tx));
+    const campos = ['seq_scan', 'seq_tup_read', 'idx_scan', 'idx_tup_fetch', 'n_tup_ins', 'n_tup_upd', 'n_tup_del'];
+    stats = fim.map((t) => {
+      const b = base.find((x) => x.tabela === t.tabela);
+      return { tabela: t.tabela, ...Object.fromEntries(campos.map((c) => [c, t[c] - (b?.[c] ?? 0)])) };
+    });
     sessao = (await tx.$queryRaw`SELECT current_setting('transaction_read_only') AS ro, current_setting('transaction_isolation') AS iso`)[0];
     throw new Error(DESFAZ);
   }, { isolationLevel: 'RepeatableRead', maxWait: 10000, timeout: 120000 }).catch((e) => { if (e?.message !== DESFAZ) throw e; });
@@ -493,7 +509,7 @@ describe('RK — cursor autenticado (HMAC) e amarrado ao tenant e ao escopo; qua
     const recusado = async (rotulo, q) => {
       const r = await reconciliar(s.token, q);
       assert.deepEqual([r.statusCode, codigo(r)], [400, 'REQUEST_VALIDATION_FAILED'], `${rotulo}: ${r.body}`);
-      assert.deepEqual(r.json().details, { field: 'cursor', reason: 'cursor_invalido' }, rotulo);
+      assert.deepEqual([r.json().field, r.json().reason, r.json().details], ['cursor', 'cursor_invalido', undefined], rotulo);
       corpos.add(semRequestId(r));
     };
     // casos que independem da forma interna do cursor
