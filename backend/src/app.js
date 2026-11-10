@@ -55,6 +55,7 @@ import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.j
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
 import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoqueLoteNotaRoutes.js';
 import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
+import { registrarEstoqueFisicoRoutes } from './modules/estoqueFisico/estoqueFisicoRoutes.js';
 import { registrarMovimentacaoMapaRoutes } from './modules/movimentacoesMapa/movimentacaoMapaRoutes.js';
 import { registrarRebanhoLedgerRoutes } from './modules/rebanhoLedger/rebanhoLedgerRoutes.js';
 import { registrarMovimentacaoPecuariaRoutes } from './modules/movimentacoesPecuaria/movimentacaoPecuariaRoutes.js';
@@ -228,6 +229,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarPontoSuplementacaoRoutes);
   await app.register(registrarEstoqueLoteNotaRoutes);
   await app.register(registrarMovimentacaoEstoqueRoutes);
+  await app.register(registrarEstoqueFisicoRoutes); // D-PROD-161: reconciliação somente leitura
   await app.register(registrarMovimentacaoMapaRoutes);
   await app.register(registrarRebanhoLedgerRoutes);
   await app.register(registrarMovimentacaoPecuariaRoutes);
