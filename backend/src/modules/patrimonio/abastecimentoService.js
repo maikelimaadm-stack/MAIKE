@@ -330,7 +330,7 @@ export const confirmar = async (contexto, corpo) => {
       (tx) =>
         executarComIdempotencia(tx, {
           clienteId: cli,
-          operationKey: entrada.operation_id,
+          operationKey: `${entrada.operation_id}:${randomUUID()}`,
           tipoOperacao: TIPO_CONFIRMAR,
           fingerprint,
           executar: async () => {
