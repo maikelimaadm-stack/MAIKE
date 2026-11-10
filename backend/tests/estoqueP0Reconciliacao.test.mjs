@@ -531,7 +531,7 @@ describe('R7/R8 — sem auto-reparo, sem trava, número fixo de consultas', () =
     }
     const modulo = readFileSync(new URL('../src/modules/estoqueFisico/reconciliacaoEstoque.js', import.meta.url), 'utf8');
     assert.match(modulo, /SET TRANSACTION READ ONLY/);
-    assert.match(modulo, /isolationLevel: 'RepeatableRead'/);
+    assert.match(modulo, /isolationLevel:[^,}\n]*'RepeatableRead'/);
   });
 });
 
