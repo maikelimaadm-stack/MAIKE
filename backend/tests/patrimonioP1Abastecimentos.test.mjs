@@ -425,6 +425,14 @@ describe('P1-02 — combustível, fazenda e fator', () => {
     const enc = await A.ok(A.req('POST', `/patrimonio-conversoes-combustivel/${f2.id}/encerrar`, s.contaFator.token, { empresa_id: s.e1.id, versao: 1 }));
     assert.deepEqual([enc.ativo, enc.versao], [false, 2]);
     assert.equal((await A.ok(A.req('POST', `/patrimonio-conversoes-combustivel/${f2.id}/encerrar`, s.contaFator.token, { empresa_id: s.e1.id, versao: 2 }))).versao, 2, 'já encerrado: 200 sem escrita');
+    const auditFator = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'ConversaoCombustivelProduto', entidade_id: { in: [f1.id, f2.id] } }, orderBy: { createdAt: 'asc' } });
+    const linhaAudit = (a) => JSON.stringify([a.acao, a.entidade_id, a.dados_novos.kg_por_litro, a.dados_novos.ativo]);
+    assert.deepEqual(auditFator.map(linhaAudit).sort(), [
+      ['conversao_combustivel.criar', f1.id, '0.840000', true],
+      ['conversao_combustivel.encerrar', f1.id, '0.840000', false],
+      ['conversao_combustivel.criar', f2.id, '0.850000', true],
+      ['conversao_combustivel.encerrar', f2.id, '0.850000', false],
+    ].map((l) => JSON.stringify(l)).sort(), 'criar e encerrar auditados (o mesmo lote de eventos pode ter o mesmo instante); o encerramento repetido não audita');
     const antes2 = await fotoAbastecimento(s.c);
     const ausente = await A.confirmar(s.operador.token, { ...corpoVisto, operation_id: opId(), conversao_id: f2.id, conversao_versao: 1 });
     assert.deepEqual(erro(ausente), [422, 'ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente']);
