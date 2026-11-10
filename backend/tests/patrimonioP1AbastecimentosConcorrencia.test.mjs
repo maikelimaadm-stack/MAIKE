@@ -608,6 +608,7 @@ describe('C10 — PATCH administrativo de lote × abastecimento', () => {
 describe('C11 — numeração de movimentos', () => {
   test('confirmar e cancelar não seguram a sequência de movimentos durante os efeitos (suplementação de OUTRO produto conclui com o abastecimento parado depois dos lotes); a prévia não espera; nenhum movimento commita com p-…', async () => {
     const s = await montarAbastecimento(app);
+    const jaHavia = new Set(await numeros(s));
     const suplementarGasolina = () => A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, {
       operation_id: opId(), empresa_id: s.e1.id, produto_id: s.gasolina.id, local_origem_id: s.local.id, quantidade: 3,
     });
@@ -630,9 +631,10 @@ describe('C11 — numeração de movimentos', () => {
     assert.deepEqual(pv.r2.json().bloqueios, []);
     assert.equal(pv.r1.statusCode, 201, pv.r1.body);
     await numeracaoLimpa(s);
-    // a sequência é contígua: os 4 movimentos usam 1..4 em ordem de commit
-    const ns = (await numeros(s)).map(Number).sort((p, q) => p - q);
-    assert.deepEqual(ns, [1, 2, 3, 4, 5], `sequência sem buraco nem repetição: ${ns}`);
+    // a sequência é contígua: os 5 movimentos novos usam números consecutivos (sem buraco nem repetição)
+    const ns = (await numeros(s)).filter((n) => !jaHavia.has(n)).map((n) => BigInt(n)).sort((p, q) => (p < q ? -1 : p > q ? 1 : 0));
+    assert.equal(ns.length, 5, `5 movimentos novos: ${ns}`);
+    assert.ok(ns.every((n, i) => i === 0 || n === ns[i - 1] + 1n), `sequência contígua: ${ns}`);
     assert.equal(await coerente(s, s.diesel, 'C11'), '141.6000');
     // prova suplementar do arquivo todo: o banco não registrou deadlock (40P01) em nenhuma corrida
     assert.equal(await deadlocks(), deadlocksAntes, 'pg_stat_database.deadlocks não mudou');

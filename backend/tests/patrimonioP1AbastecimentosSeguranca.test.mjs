@@ -21,7 +21,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import {
-  TABELAS_ABASTECIMENTO, acoesAbastecimento, corpoAbastecimento, corpoErro, corpoPrevia, erro, fotoAbastecimento, linhaAbastecimento, montarAbastecimento, opId, prisma,
+  TABELAS_ABASTECIMENTO, acoesAbastecimento, corpoAbastecimento, corpoErro, corpoPrevia, fotoAbastecimento, linhaAbastecimento, montarAbastecimento, opId, prisma,
 } from './patrimonioP1AbastecimentoCenario.mjs';
 import { TELAS, tudo } from './patrimonioP1Cenario.mjs';
 
