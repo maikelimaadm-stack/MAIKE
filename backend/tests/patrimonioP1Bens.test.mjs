@@ -83,7 +83,7 @@ const recusa400 = async (s, pedido, rotulo) => {
 const CHAVES_DETALHE = [
   'ano_conclusao', 'ano_fabricacao', 'ano_modelo', 'aquisicao', 'area', 'ativo', 'centro_custo', 'chassi', 'codigo_frota', 'compatibilidade', 'consumo',
   'created_date', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medicoes', 'medidor',
-  'modelo', 'natureza', 'nome', 'numero', 'numero_serie', 'observacoes', 'placa', 'placa_uf', 'potencia_cv', 'propriedade', 'proprietario', 'renavam',
+  'medidor_operacional', 'modelo', 'natureza', 'nome', 'numero', 'numero_serie', 'observacoes', 'placa', 'placa_uf', 'potencia_cv', 'propriedade', 'proprietario', 'renavam',
   'responsavel', 'tanques', 'tipo', 'updated_date', 'versao',
 ];
 const AQUISICAO_VAZIA = { data_aquisicao: null, data_disponibilidade: null, valor_aquisicao: null, custo_incorporacao: null, fornecedor: null, documento_referencia: null, garantia_ate: null };

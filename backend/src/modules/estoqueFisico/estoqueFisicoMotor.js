@@ -19,14 +19,18 @@
  *  - nada aqui altera `preco_custo`.
  */
 
+import { randomUUID } from 'node:crypto';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { travarEscopo } from '../gestao/gestaoComum.js';
-import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { reservarNumero, reservarNumeros, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, LIMITE_ESTOQUE, ZERO, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
 
 export const ENTIDADE_MOVIMENTO = 'MovimentacaoEstoque';
 export const ORIGEM_SISTEMA = 'operacao_financeira';
+/** D-PROD-159: origem do movimento do abastecimento de bem patrimonial (nunca lançamento financeiro). 24 chars (VarChar(32)). */
+export const ORIGEM_ABASTECIMENTO = 'abastecimento_patrimonio';
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO]);
 
 /** Chave da trava por produto (a mesma em TODOS os escritores de estoque). */
 export const chaveTravaProduto = (clienteId, empresaId, produtoId) => `estoque:produto:${clienteId}:${empresaId}:${produtoId}`;
@@ -112,23 +116,33 @@ const camposDoProduto = (produto) => ({
   produto_categoria: produto.categoria ?? null,
 });
 
-const camposComuns = (auth, a) => ({
-  cliente_id: auth.clienteId,
-  empresa_id: a.empresaId,
-  ...camposDoProduto(a.produto),
-  unidade_medida: 'KG',
-  numero_documento: a.documento?.numero ?? null,
-  data_documento: a.documento?.data ? comoDia(a.documento.data) : null,
-  lancamento_origem_id: a.origem.operacaoId,
-  origem_sistema: ORIGEM_SISTEMA,
-  bloqueado_exclusao_estoque: true,
-  exclusao_somente_em: ORIGEM_SISTEMA,
-  is_registro_principal: true,
-  numero_movimentacao_seq: 1,
-  total_movimentacoes_grupo: 1,
-  usuario_responsavel: auth.login || 'Sistema',
-  status: 'Ativa',
-});
+/** Origem do movimento: padrão = a do financeiro; só as origens conhecidas (fail-closed: erro de programação → 500). */
+const origemSistemaDe = (a) => {
+  const sistema = a.origem?.sistema ?? ORIGEM_SISTEMA;
+  if (!ORIGENS_SISTEMA.has(sistema)) throw new Error(`origem de estoque desconhecida: ${String(sistema)}`);
+  return sistema;
+};
+
+const camposComuns = (auth, a) => {
+  const sistema = origemSistemaDe(a);
+  return {
+    cliente_id: auth.clienteId,
+    empresa_id: a.empresaId,
+    ...camposDoProduto(a.produto),
+    unidade_medida: 'KG',
+    numero_documento: a.documento?.numero ?? null,
+    data_documento: a.documento?.data ? comoDia(a.documento.data) : null,
+    lancamento_origem_id: a.origem.operacaoId,
+    origem_sistema: sistema,
+    bloqueado_exclusao_estoque: true,
+    exclusao_somente_em: sistema,
+    is_registro_principal: true,
+    numero_movimentacao_seq: 1,
+    total_movimentacoes_grupo: 1,
+    usuario_responsavel: auth.login || 'Sistema',
+    status: 'Ativa',
+  };
+};
 
 const decrementarEstoqueAtual = async (tx, clienteId, produtoId, kg, erroSeNegativo) => {
   const depois = await tx.produto.update({
@@ -266,18 +280,24 @@ export const estoqueAtualInsuficiente = (details) =>
 /**
  * SAÍDA FIFO (venda confirmada): baixa os lotes Disponivel do produto + local +
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
- * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`.
+ * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
+ * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia: string,
  *   documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
- *   origem: {operacaoId: string, tipoDetalhado?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown> }} a
+ *   origem: {operacaoId: string, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown> }} a
  */
 export const aplicarSaidaFifo = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
   const kg = dec(a.quantidadeKg);
   const extra = { produto_id: a.produto.id, local_estoque_id: a.local.id, ...(a.contextoErro ?? {}) };
+  // D-PROD-159 (M5): kg <= 0 faria `decrement` negativo (= aumento) e > limite estouraria a coluna.
+  if (!kg.gt(0)) {
+    throw new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...extra }) });
+  }
+  if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id);
   const fifo = consumirFifo(lotes, kg);
   if (!fifo.suficiente) {
@@ -303,7 +323,7 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
       local_estoque_origem: a.local.id,
       local_origem: a.local.nome ?? null,
       cliente_nome: a.parceiro?.nome ?? null,
-      motivo_movimentacao: 'Saída por lançamento financeiro confirmado',
+      motivo_movimentacao: a.origem.motivo ?? 'Saída por lançamento financeiro confirmado',
       modo_saida_fifo: 'FIFO',
       lotes_consumidos: fifo.fatias.map((f) => ({
         lote_id: f.lote_id,
@@ -423,7 +443,8 @@ export const estornarEntrada = async (tx, ctx, a) => {
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, item: any, consumos: Array<{estoque_lote_nota_id: string, quantidade: any}>, produto: any,
- *   local: {id: string, nome: string}, dia: string, documento?: any, parceiro?: any, origem: {operacaoId: string},
+ *   local: {id: string, nome: string}, dia: string, documento?: any, parceiro?: any,
+ *   origem: {operacaoId: string, sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string},
  *   numeroMovimento?: string|number }} a
  */
 export const estornarSaida = async (tx, ctx, a) => {
@@ -467,7 +488,7 @@ export const estornarSaida = async (tx, ctx, a) => {
       ...camposComuns(auth, a),
       numero_movimentacao: numero,
       tipo_movimentacao: 'Entrada',
-      tipo_detalhado: 'estorno_venda',
+      tipo_detalhado: a.origem.tipoDetalhadoEstorno ?? 'estorno_venda',
       data_movimentacao: instanteDoDia(a.dia),
       quantidade: paraBanco(kg, CASAS_QUANTIDADE),
       valor_unitario: original.valor_unitario,
@@ -475,7 +496,7 @@ export const estornarSaida = async (tx, ctx, a) => {
       local_estoque_destino: a.local.id,
       local_destino: a.local.nome ?? null,
       cliente_nome: a.parceiro?.nome ?? null,
-      motivo_movimentacao: 'Estorno de venda por cancelamento do lançamento financeiro',
+      motivo_movimentacao: a.origem.motivoEstorno ?? 'Estorno de venda por cancelamento do lançamento financeiro',
       movimento_pai_id: original.id,
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(saldoAntes.plus(kg), CASAS_QUANTIDADE),
@@ -677,6 +698,26 @@ export const estornarEmLote = async (tx, ctx, a) => {
     RETURNING p.id`);
   if (finais.length !== produtoIds.length) throw conflitoDeEstoque({ produtos: produtoIds.length, atualizados: finais.length });
   return /** @type {string[]} */ (ids);
+};
+
+/**
+ * D-PROD-159 — número PROVISÓRIO de movimento (mesmo formato do financeiro): único,
+ * cabe no VarChar(32) e nunca chega ao commit — `numerarMovimentos` o troca no fim.
+ */
+export const numeroMovimentoProvisorio = () => `p-${randomUUID().replace(/-/g, '').slice(0, 30)}`;
+
+/**
+ * D-PROD-159 — troca os números provisórios pelos da sequência ÚNICA de movimentos do
+ * tenant, reservados de uma vez no FIM da transação (depois de lotes e movimentos).
+ * @param {any} tx @param {string} clienteId @param {string[]} ids movimentos, na ordem dos efeitos
+ */
+export const numerarMovimentos = async (tx, clienteId, ids) => {
+  if (!ids.length) return;
+  const numeros = (await reservarNumeros(tx, { clienteId, entidade: ENTIDADE_MOVIMENTO, escopoTipo: ESCOPO_TENANT }, ids.length)).map(String);
+  const n = await tx.$executeRaw`UPDATE "MovimentacaoEstoque" AS m SET numero_movimentacao = v.numero
+    FROM unnest(${ids}::text[], ${numeros}::text[]) AS v(id, numero)
+    WHERE m.cliente_id = ${clienteId} AND m.id = v.id`;
+  if (n !== ids.length) throw new Error(`numeração de movimentos incompleta: ${n} de ${ids.length}`);
 };
 
 /** Colunas de PROCEDÊNCIA do lote que seguem o documento (D-PROD-158, revisão DE-02/BC-01). */

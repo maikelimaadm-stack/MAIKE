@@ -125,6 +125,10 @@ export const limparBanco = async () => {
   // do laço porque referencia Empresa, Fornecedor, Usuario e AreaPastagem (RESTRICT).
   // R2: o vínculo combustível × produto referencia TipoCombustivel, Produto e
   // Empresa (RESTRICT): sai antes deles.
+  // D-PROD-159: fatias → abastecimento → fator (referenciam lote, movimento, bem, tanque, local, vínculo, usuário — RESTRICT).
+  await prisma.abastecimentoBemConsumoLote.deleteMany({});
+  await prisma.abastecimentoBem.deleteMany({});
+  await prisma.conversaoCombustivelProduto.deleteMany({});
   await prisma.tipoCombustivelProduto.deleteMany({});
   await prisma.tanqueBemCombustivel.deleteMany({});
   await prisma.tanqueBem.deleteMany({});

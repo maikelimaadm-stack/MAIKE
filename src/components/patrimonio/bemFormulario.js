@@ -60,7 +60,7 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
  *   material: string, ano_conclusao: string, compatibilidade: string, especificacoes: string, observacoes: string,
  *   medidor: MedidorForm, medicoes: MedicaoForm[], tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
  * }} EstadoBem
- * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string }} ContextoBem
+ * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string, medidorOperacional?: { leitura: string, data: string, abastecimento_id?: string|null } | null }} ContextoBem
  */
 
 let sequencia = 0;
@@ -233,9 +233,13 @@ const tinhaContador = (ctx) => ctx.editando && ehMedidorContador(ctx.medidorOrig
 /**
  * Correção de cadastro do medidor (A2): enquanto a origem é o cadastro inicial
  * e não houve ajuste (atual = inicial), o tipo e a leitura inicial ainda mudam.
+ * D-PROD-159 (X2): com leitura registrada por ABASTECIMENTO confirmado
+ * (`medidor_operacional` do detalhe), o tipo e a leitura inicial ficam fixos.
  * @param {any} medidorOriginal
+ * @param {any} [medidorOperacional]
  */
-export const medidorCorrigivel = (medidorOriginal) => {
+export const medidorCorrigivel = (medidorOriginal, medidorOperacional = null) => {
+  if (medidorOperacional != null) return false;
   if (!medidorOriginal || !ehMedidorContador(medidorOriginal.tipo)) return true;
   if (medidorOriginal.origem !== 'CADASTRO_INICIAL') return false;
   const ini = medidorOriginal.leitura_inicial;
@@ -373,9 +377,18 @@ export const validarBem = (e, ctx) => {
         // Correção de cadastro pendente (A2): tipo trocado ou leitura inicial mudada num
         // medidor ainda corrigível. Aí a atual é a própria inicial (o ajuste vem depois).
         const inicial = ini.ok ? ini.valor : null;
-        const corrigindo = inicial !== null && medidorCorrigivel(original) && (e.medidor.tipo !== original.tipo || comparar(inicial, original.leitura_inicial) !== 0);
+        const operacional = ctx.medidorOperacional ?? null;
+        const corrigindo =
+          inicial !== null && medidorCorrigivel(original, operacional) && (e.medidor.tipo !== original.tipo || comparar(inicial, original.leitura_inicial) !== 0);
+        // O abastecimento nunca grava o cadastro (D4): o piso operacional só vale para um
+        // ajuste de verdade (leitura ou data mudadas), como no servidor; editar outro campo passa.
+        const ajustando =
+          e.medidor.data_leitura !== original.data_leitura || (atual.ok && atual.valor !== null && comparar(atual.valor, original.leitura_atual) !== 0);
         if (!atual.ok || atual.valor === null) erros['medidor.leitura_atual'] = 'Informe a leitura atual (até 4 casas)';
         else if (ini.ok && ini.valor !== null && comparar(atual.valor, ini.valor) < 0) erros['medidor.leitura_atual'] = 'A leitura atual não pode ser menor que a inicial';
+        else if (operacional && typeof operacional.leitura === 'string' && ajustando && comparar(atual.valor, operacional.leitura) < 0) {
+          erros['medidor.leitura_atual'] = 'A leitura atual não pode ser menor que a registrada pelo último abastecimento';
+        }
         else if (corrigindo && inicial !== null && comparar(atual.valor, inicial) !== 0) {
           erros['medidor.leitura_atual'] = 'Na correção do cadastro a leitura atual é a própria leitura inicial: salve a correção e registre a nova leitura depois';
         }

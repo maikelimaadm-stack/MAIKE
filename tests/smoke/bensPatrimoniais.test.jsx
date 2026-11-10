@@ -782,6 +782,48 @@ describe('Bens — regras finas do formulário', () => {
     expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 4, medidor: { tipo: 'HORIMETRO', leitura_inicial: '1200', leitura_atual: '1200', data_leitura: '2026-11-01' } });
   });
 
+  it('D-PROD-159: com leitura registrada por abastecimento (medidor_operacional) o tipo e a leitura inicial ficam fixos, e o ajuste não desce do piso', async () => {
+    medidorDoTrator = { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1250.0000', data_leitura: '2026-11-01', origem: 'CADASTRO_INICIAL' };
+    extraDoTrator = { medidor_operacional: { leitura: '1550.5000', data: '2026-11-05', abastecimento_id: 'ab-9' } };
+    await montar();
+    await abrirTrator();
+    editar();
+    const form = screen.getByTestId('b1-form');
+    aba('Operação');
+    expect(within(form).getByTestId('bem-medidor-fixo')).toHaveTextContent(
+      'Há leitura registrada por abastecimento: o tipo e a leitura inicial não mudam, e um ajuste não pode ser menor que 1.550,5 nem anterior a 05/11/2026.',
+    );
+    expect(within(form).getByLabelText('Leitura inicial (h)')).toHaveAttribute('readonly');
+    fireEvent.change(within(form).getByLabelText('Leitura atual (h)'), { target: { value: '1.400' } });
+    salvar();
+    expect(await within(form).findByText('A leitura atual não pode ser menor que a registrada pelo último abastecimento')).toBeTruthy();
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(mutacoes()).toEqual([]);
+  });
+
+  it('D-PROD-159 (FE-01): leitura do abastecimento acima da do cadastro não impede editar outro campo; o piso só vale quando a leitura ou a data mudam', async () => {
+    medidorDoTrator = { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1300.0000', data_leitura: '2026-11-01', origem: 'AJUSTE_CADASTRO' };
+    extraDoTrator = { medidor_operacional: { leitura: '1550.5000', data: '2026-11-05', abastecimento_id: 'ab-9' } };
+    await montar();
+    await abrirTrator();
+    editar();
+    const form = screen.getByTestId('b1-form');
+    // só a data muda, com a leitura do cadastro abaixo do piso: o servidor recusaria, a tela também
+    aba('Operação');
+    fireEvent.change(within(form).getByTestId('bem-medidor-data'), { target: { value: '2026-11-06' } });
+    salvar();
+    expect(await within(form).findByText('A leitura atual não pode ser menor que a registrada pelo último abastecimento')).toBeTruthy();
+    expect(mutacoes()).toEqual([]);
+    // data de volta + só o nome muda: sai o PATCH sem o bloco do medidor
+    fireEvent.change(within(form).getByTestId('bem-medidor-data'), { target: { value: '2026-11-01' } });
+    aba('Identificação');
+    fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Trator renomeado' } });
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toHaveLength(1);
+    expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 4, nome: 'Trator renomeado' });
+  });
+
   it('correção do medidor com a leitura atual diferente da inicial: a tela não envia e explica; com a atual igual, salva a correção', async () => {
     medidorDoTrator = { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1520.5000', leitura_atual: '1520.5000', data_leitura: '2026-11-01', origem: 'CADASTRO_INICIAL' };
     await montar();

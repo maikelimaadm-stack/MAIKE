@@ -19,13 +19,14 @@ export const MODULO_PATRIMONIO = 'patrimonio';
 /** Ids das telas = ids do menu (`src/lib/menuConfig.js`) = `TELAS.PATRIMONIO_*` do servidor. */
 export const TELAS_PATRIMONIO = Object.freeze({
   BENS: 'pat-bens-patrimoniais',
+  ABASTECIMENTOS: 'pat-abastecimentos', // D-PROD-159 (mesma ordem do menu)
   FAMILIAS: 'pat-familias-patrimoniais',
   TIPOS: 'pat-tipos-patrimoniais',
   PERFIS_MEDICAO: 'pat-perfis-medicao',
   COMBUSTIVEIS: 'pat-combustiveis',
 });
 
-/** Ação extra das cinco telas (`ACOES_PATRIMONIO_EXTRAS` no servidor). */
+/** Ação extra das cinco telas de cadastro (`ACOES_PATRIMONIO_EXTRAS` no servidor). */
 export const ACAO_INATIVAR = 'inativar';
 
 export const ACOES_EXTRAS_PATRIMONIO = Object.freeze([ACAO_INATIVAR]);
@@ -42,5 +43,33 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
     criar: pode('novo') || pode('salvar'),
     editar: pode('editar') || pode('salvar'),
     inativar: pode(ACAO_INATIVAR),
+  };
+};
+
+/**
+ * D-PROD-159 (Patrimônio P1-02) — ações EXTRAS da tela Abastecimentos
+ * (`ACOES_ABASTECIMENTO_EXTRAS` no servidor): cancelar/estornar o abastecimento
+ * confirmado e configurar o fator de conversão kg/L. As cinco telas de cadastro
+ * continuam só com `inativar`.
+ */
+export const ACAO_CANCELAR_ABASTECIMENTO = 'cancelar';
+export const ACAO_CONFIGURAR_CONVERSAO = 'configurar_conversao';
+/** Ações extras da tela Abastecimentos (`ACOES_ABASTECIMENTO_EXTRAS` no servidor). */
+export const ACOES_EXTRAS_ABASTECIMENTO = Object.freeze([ACAO_CANCELAR_ABASTECIMENTO, ACAO_CONFIGURAR_CONVERSAO]);
+
+/**
+ * Espelho de `GUARDAS.patrimonioAbastecimentos`: ver = visualizar; criar (prévia
+ * e confirmação) = novo OU salvar; cancelar e configurar o fator = ações extras
+ * próprias. Sem linha da tela → tudo negado (fail-closed).
+ * @param {unknown} permissao
+ * @returns {{ ver: boolean, criar: boolean, cancelar: boolean, configurarConversao: boolean }}
+ */
+export const acoesDaTelaAbastecimento = (permissao) => {
+  const pode = (/** @type {string} */ acao) => canPerformAction(permissao, TELAS_PATRIMONIO.ABASTECIMENTOS, MODULO_PATRIMONIO, acao);
+  return {
+    ver: pode('visualizar'),
+    criar: pode('novo') || pode('salvar'),
+    cancelar: pode(ACAO_CANCELAR_ABASTECIMENTO),
+    configurarConversao: pode(ACAO_CONFIGURAR_CONVERSAO),
   };
 };

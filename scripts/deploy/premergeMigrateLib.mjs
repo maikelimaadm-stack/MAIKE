@@ -49,6 +49,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-157 (Patrimônio P1-01): cadastros de inventário (catálogos, bens, medições, tanques e o vínculo
   // combustível × produto por empresa, R2) — só as 10 tabelas novas.
   '20261110100000_patrimonio_p1_01_cadastros': 'b8818ba8f16528580b7ba6053b0c89f07f0d4fd434955f4b9c5830a62ffd64dc',
+  // D-PROD-159 (Patrimônio P1-02): ConversaoCombustivelProduto, AbastecimentoBem e AbastecimentoBemConsumoLote — só tabelas novas.
+  '20261110200000_patrimonio_p1_02_abastecimentos': '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -66,6 +68,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '20c6f9ca6b880dc26efea49c4eaaa2bf3e9b3bc43dcdd7b6a6bcaee6ff899ec9',
   // D-PROD-157 (Patrimônio P1-01): RLS/REVOKE das 10 tabelas de Patrimônio e Frota (mesmo corpo, lista nova).
   '01dbf9ae4875444fa77082d37e1b71da655f217ecc25cc95a4d1b8a4a108a0a3',
+  // D-PROD-159 (Patrimônio P1-02): RLS/REVOKE das 3 tabelas de abastecimento (mesmo corpo, lista nova).
+  'ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd',
 ]);
 
 /**

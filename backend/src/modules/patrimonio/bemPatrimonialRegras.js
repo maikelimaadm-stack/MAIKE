@@ -475,11 +475,16 @@ const contador = (tipo, inicial, atual, data, origem) => ({
  * "hoje" da fazenda (lança `EMPRESA_FUSO_NAO_CONFIGURADO` sem fuso) e só é
  * chamado quando uma data de leitura precisa ser conferida.
  *
+ * D-PROD-159 (X2): `piso` = maior leitura de abastecimento CONFIRMADO do bem
+ * (`{leitura, data, abastecimento_id}`) ou null. Com piso o medidor deixa de ser
+ * corrigível (tipo e leitura inicial imutáveis) e o ajuste não pode ficar abaixo
+ * da leitura nem antes da data do piso. Sem `piso`: idêntico ao comportamento P1-01.
+ *
  * @param {{ natureza: string, estado: Record<string, any>, pedido: Record<string, any>|null|undefined, criacao: boolean,
- *   hoje: () => Promise<string> }} entrada
+ *   hoje: () => Promise<string>, piso?: { leitura: string, data: string, abastecimento_id: string|null }|null }} entrada
  * @returns {Promise<{ colunas: Record<string, any>|null, correcao: boolean }>}
  */
-export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }) => {
+export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje, piso = null }) => {
   const regra = regraDoMedidor(natureza);
   const nada = { colunas: null, correcao: false };
   if (regra === MEDIDOR_PROIBIDO) {
@@ -498,12 +503,21 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }
   const tipoAtual = estado.medidor_tipo;
   const temContador = tipoAtual !== null && tipoAtual !== 'SEM_MEDIDOR';
   const semMedidor = { medidor_tipo: 'SEM_MEDIDOR', ...SEM_LEITURA };
+  // D-PROD-159 (X2): com leitura operacional (abastecimento CONFIRMADO com leitura) o medidor deixa de ser
+  // corrigível (tipo e leitura inicial imutáveis) e o ajuste respeita o piso. Sem `piso`: idêntico ao atual.
+  const podeCorrigirAgora = corrigivel(estado) && !piso;
+  const imutavel = () =>
+    !corrigivel(estado)
+      ? tipoImutavel(tipoAtual)
+      : new AppError('MEDIDOR_TIPO_IMUTAVEL', 'o medidor já tem leitura registrada por abastecimento: o tipo não muda; nada foi gravado', {
+          details: { field: 'medidor.tipo', reason: 'medidor_com_abastecimento', tipo_atual: tipoAtual },
+        });
 
   if (pedido === undefined || pedido === null) {
     if (regra === MEDIDOR_OBRIGATORIO) throw medidorObrigatorio(natureza);
     if (tipoAtual === null) return nada;
     if (!temContador) return { colunas: { medidor_tipo: null, ...SEM_LEITURA }, correcao: false };
-    if (!corrigivel(estado)) throw tipoImutavel(tipoAtual);
+    if (!podeCorrigirAgora) throw imutavel();
     return { colunas: { medidor_tipo: null, ...SEM_LEITURA }, correcao: true };
   }
 
@@ -518,7 +532,7 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }
     }
     if (tipoAtual === 'SEM_MEDIDOR') return nada;
     if (!temContador) return { colunas: semMedidor, correcao: false };
-    if (!corrigivel(estado)) throw tipoImutavel(tipoAtual);
+    if (!podeCorrigirAgora) throw imutavel();
     return { colunas: semMedidor, correcao: true };
   }
 
@@ -535,9 +549,9 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }
 
   if (!temContador) return { colunas: await contadorNovo(), correcao: false };
 
-  const podeCorrigir = corrigivel(estado);
+  const podeCorrigir = podeCorrigirAgora;
   if (tipo !== tipoAtual) {
-    if (!podeCorrigir) throw tipoImutavel(tipoAtual);
+    if (!podeCorrigir) throw imutavel();
     return { colunas: await contadorNovo(), correcao: true };
   }
 
@@ -545,7 +559,11 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }
   if (!dec(inicial).eq(dec(estado.medidor_leitura_inicial))) {
     if (!podeCorrigir) {
       throw new AppError('MEDIDOR_LEITURA_INICIAL_IMUTAVEL', 'a leitura inicial não muda depois de um ajuste de leitura; nada foi gravado', {
-        details: { field: 'medidor.leitura_inicial', reason: 'medidor_com_ajuste', leitura_inicial: estado.medidor_leitura_inicial },
+        details: {
+          field: 'medidor.leitura_inicial',
+          reason: piso && corrigivel(estado) ? 'medidor_com_abastecimento' : 'medidor_com_ajuste',
+          leitura_inicial: estado.medidor_leitura_inicial,
+        },
       });
     }
     if (atualPedida !== null && !dec(atualPedida).eq(dec(inicial))) {
@@ -574,6 +592,16 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje }
   if (data < estado.medidor_data_leitura) {
     throw new AppError('MEDIDOR_DATA_REGRESSIVA', `a data da leitura é anterior à da leitura registrada (${estado.medidor_data_leitura}); nada foi gravado`, {
       details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: estado.medidor_data_leitura },
+    });
+  }
+  if (piso && dec(novaAtual).lt(dec(piso.leitura))) {
+    throw new AppError('MEDIDOR_LEITURA_REGRESSIVA', `a leitura informada é menor que a registrada por abastecimento (${piso.leitura}); nada foi gravado`, {
+      details: { field: 'medidor.leitura_atual', reason: 'leitura_regressiva', leitura_atual: piso.leitura, origem_referencia: 'ABASTECIMENTO', abastecimento_id: piso.abastecimento_id },
+    });
+  }
+  if (piso && data < piso.data) {
+    throw new AppError('MEDIDOR_DATA_REGRESSIVA', `a data da leitura é anterior à leitura registrada por abastecimento (${piso.data}); nada foi gravado`, {
+      details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: piso.data, origem_referencia: 'ABASTECIMENTO', abastecimento_id: piso.abastecimento_id },
     });
   }
   await naoFutura(data);

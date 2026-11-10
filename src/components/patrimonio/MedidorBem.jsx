@@ -24,9 +24,10 @@ import { LIMITES_BEM, LOCALE_BEM } from "@/components/patrimonio/bemFormulario";
  *   readOnly: boolean,
  *   erros: Record<string, string>,
  *   hoje: string,
+ *   motivoFixo?: string|null,
  * }} props
  */
-export default function MedidorBem({ medidor, onChange, regra, comLeituraAtual, tipoFixo, readOnly, erros, hoje }) {
+export default function MedidorBem({ medidor, onChange, regra, comLeituraAtual, tipoFixo, readOnly, erros, hoje, motivoFixo = null }) {
   const contador = ehMedidorContador(medidor.tipo);
   const unidade = contador ? /** @type {Record<string, string|null>} */ (UNIDADE_DO_MEDIDOR)[medidor.tipo] : null;
   const fixo = readOnly || tipoFixo;
@@ -108,7 +109,7 @@ export default function MedidorBem({ medidor, onChange, regra, comLeituraAtual, 
       {tipoFixo && !readOnly ? (
         <div className="col-span-12">
           <AvisoGestao tone="blue" testId="bem-medidor-fixo">
-            Já houve ajuste de leitura: o tipo do medidor e a leitura inicial não mudam mais. A troca de painel será uma operação própria.
+            {motivoFixo ?? "Já houve ajuste de leitura: o tipo do medidor e a leitura inicial não mudam mais. A troca de painel será uma operação própria."}
           </AvisoGestao>
         </div>
       ) : null}

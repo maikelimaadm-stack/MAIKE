@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Coins,
   Droplet,
+  Droplets,
   Folder,
   Fuel,
   Gauge,
@@ -63,6 +64,8 @@ export const ICONE_TELA = {
   LancamentosFinanceiros: ReceiptText,
   // D-PROD-157 — Patrimônio e Frota.
   BensPatrimoniais: Tractor,
+  // D-PROD-159 — Abastecimentos (Droplets ≠ Droplet dos Bebedouros).
+  Abastecimentos: Droplets,
   FamiliasPatrimoniais: Boxes,
   TiposPatrimoniais: Shapes,
   PerfisMedicao: Gauge,

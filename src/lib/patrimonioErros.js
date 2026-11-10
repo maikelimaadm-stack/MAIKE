@@ -10,6 +10,8 @@
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { ROTULO_NATUREZA, rotuloDaUnidade } from '@/lib/patrimonioDominio';
+import { formatarNumero } from '@/lib/dinheiroDecimal';
+import { formatarDia } from '@/lib/diaCivil';
 
 const NADA = 'Nada foi gravado.';
 
@@ -75,6 +77,17 @@ const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   leitura_atual: 'Leitura atual',
   produto_id: 'Produto',
   tipo_combustivel_id: 'Combustível',
+  // D-PROD-159 — Abastecimentos.
+  quantidade_litros: 'Quantidade (L)',
+  medidor_leitura: 'Leitura do medidor',
+  tanque_id: 'Tanque',
+  bem_id: 'Bem',
+  local_estoque_id: 'Local de estoque',
+  data_operacional: 'Data do abastecimento',
+  kg_por_litro: 'Fator kg/L',
+  referencia_externa: 'Referência externa',
+  conversao_id: 'Fator kg/L',
+  motivo: 'Motivo',
 });
 
 /** "medicoes[2].valor" / "tanques.1.capacidade_litros" → rótulo do último campo conhecido. @param {string|null} campo */
@@ -261,12 +274,139 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
   }
 };
 
+// ─── Abastecimentos (D-PROD-159) ─────────────────────────────────────────
+
+/** Número canônico do servidor ("1550.5000") no formato do Brasil, sem float. @param {unknown} v @param {number} [casasMax] */
+const numeroBr = (v, casasMax = 4) => (typeof v === 'string' && v ? formatarNumero(v, { locale: 'pt-BR', casasMin: 0, casasMax }) : '?');
+/** @param {unknown} v */
+const diaBr = (v) => (typeof v === 'string' && v ? formatarDia(v, 'pt-BR') : '?');
+
+/** Por que o estorno exato não é seguro agora (`ABASTECIMENTO_CANCELAMENTO_BLOQUEADO`). */
+const MOTIVO_CANCELAMENTO_BLOQUEADO = /** @type {Record<string, string>} */ ({
+  produto_mudou_de_fazenda: 'o produto mudou de fazenda',
+  movimento_inexistente: 'o movimento de estoque do abastecimento não existe mais',
+  movimento_estornado: 'o movimento de estoque já foi estornado',
+  fatias_inconsistentes: 'os lotes consumidos não conferem com a quantidade baixada',
+  lote_indisponivel_para_devolucao: 'um lote de origem foi estornado ou removido',
+  devolucao_excede_entrada: 'a devolução passaria da entrada do lote de origem',
+  estoque_excede_limite: 'o estoque do produto passaria do limite',
+});
+
+/**
+ * Mensagem dos erros de Abastecimentos (comandos e leituras). Fecha com "Nada
+ * foi gravado." onde o servidor garante que nada mudou; o resto cai em
+ * `mensagemErroPatrimonio`.
+ * @param {unknown} erro
+ * @param {string} fallback
+ */
+export const mensagemErroAbastecimento = (erro, fallback) => {
+  const { code, field, reason, details } = lerErroGestao(erro);
+  switch (code) {
+    case 'ABASTECIMENTO_NAO_ENCONTRADO':
+      return 'Abastecimento não encontrado nesta fazenda. A lista será atualizada.';
+    case 'CONVERSAO_COMBUSTIVEL_NAO_ENCONTRADA':
+      return 'Fator kg/L não encontrado nesta fazenda. A lista será atualizada.';
+    case 'ABASTECIMENTO_STATUS_INVALIDO':
+      return 'Este abastecimento já foi cancelado. Nada foi alterado.';
+    case 'ABASTECIMENTO_BEM_INELEGIVEL':
+      if (reason === 'natureza_sem_tanque') return `Este bem não tem tanque de combustível. ${NADA}`;
+      return `O bem está inativo: reative-o antes de abastecer. ${NADA}`;
+    case 'ABASTECIMENTO_TANQUE_INVALIDO':
+      if (reason === 'tanque_inativo') return `O tanque está inativo. ${NADA}`;
+      return `O tanque não pertence mais a este bem. ${NADA}`;
+    case 'COMBUSTIVEL_PRODUTO_INVALIDO':
+      if (field === 'tipo_combustivel_id' || reason === 'tipo_inexistente' || reason === 'tipo_inativo') return `O combustível está inativo ou não existe mais. ${NADA}`;
+      if (reason === 'outra_empresa') return `O produto é de outra fazenda. ${NADA}`;
+      if (reason === 'inativo') return `O produto está inativo. ${NADA}`;
+      if (reason === 'sem_vinculo_ativo') return `O produto não está mais vinculado a este combustível (tela Combustíveis). ${NADA}`;
+      return `O produto não existe nesta fazenda. ${NADA}`;
+    case 'TANQUE_COMBUSTIVEL_INCOMPATIVEL':
+      return `Este tanque não aceita este combustível (o tanque só recebe combustível em litros e dos tipos cadastrados nele). ${NADA}`;
+    case 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL':
+      return `O estoque deste produto não está em KG: a baixa não é feita. Ajuste a unidade de estoque do produto. ${NADA}`;
+    case 'ABASTECIMENTO_CONVERSAO_AUSENTE':
+      return `Não há fator kg/L configurado para este produto e combustível nesta fazenda. Configure o fator antes de confirmar. ${NADA}`;
+    case 'ABASTECIMENTO_CONVERSAO_ALTERADA':
+      return `O fator kg/L mudou desde a prévia. Refaça a prévia antes de confirmar. ${NADA}`;
+    case 'ABASTECIMENTO_CONVERSAO_INVALIDA':
+      if (field === 'declara_estoque_em_kg' || reason === 'declaracao_obrigatoria') return `Marque a declaração de que o estoque está em KG. ${NADA}`;
+      return `Fator inválido: informe um número maior que zero e até 10, com até 6 casas. ${NADA}`;
+    case 'ABASTECIMENTO_LOCAL_INVALIDO':
+      return `O local de estoque não existe mais ou está inativo. ${NADA}`;
+    case 'ABASTECIMENTO_EXCEDE_CAPACIDADE':
+      return `Os litros passam da capacidade nominal do tanque (${numeroBr(details.capacidade_litros)} L). ${NADA}`;
+    case 'ABASTECIMENTO_DATA_FUTURA':
+      return `A data é posterior a hoje na fazenda (${diaBr(details.hoje)}): só abastecimento já feito entra. ${NADA}`;
+    case 'OPERACAO_VALORES_INVALIDOS':
+      if (reason === 'quantidade_nao_positiva') return `Informe litros maiores que zero. ${NADA}`;
+      if (reason === 'quantidade_estoque_zero') return `Os litros convertidos dão 0 kg (4 casas): aumente a quantidade ou revise o fator. ${NADA}`;
+      return `Quantidade ou custo acima do limite do estoque. ${NADA}`;
+    case 'ESTOQUE_SALDO_INSUFICIENTE':
+      if (reason === 'estoque_atual_insuficiente') return `O estoque atual do produto é menor que o pedido. ${NADA}`;
+      return `Saldo insuficiente deste produto neste local: disponível ${numeroBr(details.disponivel)} kg, pedido ${numeroBr(details.solicitado)} kg. ${NADA}`;
+    case 'MEDIDOR_LEITURA_INVALIDA':
+      if (reason === 'sem_medidor') return `Este bem não tem medidor: não informe leitura. ${NADA}`;
+      if (reason === 'obrigatoria') return `Informe a leitura do medidor. ${NADA}`;
+      return mensagemErroPatrimonio(erro, fallback);
+    case 'MEDIDOR_LEITURA_REGRESSIVA':
+      return `A leitura é menor que a registrada em ${diaBr(details.data_referencia)} (${numeroBr(details.leitura_referencia)}). ${NADA}`;
+    case 'MEDIDOR_LEITURA_ACIMA_POSTERIOR':
+      return `A leitura é maior que a registrada depois, em ${diaBr(details.data_posterior)} (${numeroBr(details.leitura_posterior)}). ${NADA}`;
+    case 'ABASTECIMENTO_CANCELAMENTO_BLOQUEADO': {
+      const motivo = MOTIVO_CANCELAMENTO_BLOQUEADO[reason ?? ''] ?? 'o estoque de origem mudou';
+      return `O estorno exato não é seguro agora (${motivo}). Nada foi alterado.`;
+    }
+    case 'IDEMPOTENCY_CONFLICT':
+      return `Este envio usa uma chave já usada por outro conteúdo. Recarregue e envie de novo. ${NADA}`;
+    case 'IDEMPOTENCY_IN_PROGRESS':
+      return 'O mesmo envio ainda está sendo processado. Aguarde e consulte.';
+    case 'CONCURRENCY_CONFLICT':
+      return 'Outra operação mexeu no mesmo estoque ao mesmo tempo. Repita o mesmo envio (é seguro: não duplica).';
+    case 'PATRIMONIO_VERSAO_CONFLITO':
+      return 'O abastecimento mudou desde que você o abriu. Recarregue.';
+    case 'PRODUTO_NOT_FOUND':
+      return 'Produto não encontrado nesta fazenda. Escolha outro.';
+    case 'REQUEST_VALIDATION_FAILED':
+      if (field === 'motivo' && reason === 'motivo_curto') return 'Informe um motivo com pelo menos 3 caracteres. Nada foi alterado.';
+      if (field === 'motivo') return 'Informe o motivo do cancelamento. Nada foi alterado.';
+      if (field === 'data_ate' && reason === 'periodo_invertido') return 'A data final do período é anterior à inicial.';
+      return mensagemErroPatrimonio(erro, fallback);
+    default:
+      return mensagemErroPatrimonio(erro, fallback);
+  }
+};
+
+/**
+ * Erros da tela de fatores kg/L: o conflito de versão é do FATOR (outra pessoa
+ * alterou ou encerrou depois da leitura da lista), não de um abastecimento; o
+ * resto segue as mensagens do abastecimento.
+ * @param {unknown} erro
+ * @param {string} fallback
+ */
+export const mensagemErroConversao = (erro, fallback) =>
+  lerErroGestao(erro).code === 'PATRIMONIO_VERSAO_CONFLITO'
+    ? 'O fator mudou desde que a lista foi lida (outra pessoa alterou ou encerrou). A lista foi relida; nada foi alterado.'
+    : mensagemErroAbastecimento(erro, fallback);
+
+/**
+ * Mensagem de um BLOQUEIO da prévia (`{code, field, reason, details}`): o mesmo
+ * texto do erro, sem o "Nada foi gravado." (a prévia não tenta gravar).
+ * @param {{ code?: string, field?: string, reason?: string, details?: Record<string, any> } | null | undefined} bloqueio
+ */
+export const mensagemDoBloqueioAbastecimento = (bloqueio) =>
+  mensagemErroAbastecimento(
+    { cause: { code: bloqueio?.code, field: bloqueio?.field, reason: bloqueio?.reason, details: bloqueio?.details ?? {} } },
+    'Há uma pendência que impede a confirmação.',
+  ).replace(/\s*Nada foi (?:gravado|alterado)\.\s*$/, '');
+
 const NAO_ENCONTRADOS = Object.freeze([
   'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA',
   'TIPO_PATRIMONIAL_NAO_ENCONTRADO',
   'PERFIL_MEDICAO_NAO_ENCONTRADO',
   'COMBUSTIVEL_NAO_ENCONTRADO',
   'BEM_PATRIMONIAL_NAO_ENCONTRADO',
+  'ABASTECIMENTO_NAO_ENCONTRADO',
+  'CONVERSAO_COMBUSTIVEL_NAO_ENCONTRADA',
 ]);
 
 /** O registro aberto não existe mais (ou é de outro escopo): a tela relê a lista. @param {unknown} erro */

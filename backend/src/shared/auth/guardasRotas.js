@@ -261,6 +261,15 @@ export const GUARDAS = Object.freeze({
     // produtos da fazenda.
     opcoesProdutos: porQualquer([T.PATRIMONIO_COMBUSTIVEIS, 'novo'], [T.PATRIMONIO_COMBUSTIVEIS, 'salvar'], [T.PATRIMONIO_COMBUSTIVEIS, 'editar']),
   },
+  // D-PROD-159 — Patrimônio P1-02: Abastecimentos. Prévia e confirmação = novo|salvar;
+  // cancelar/estornar e o fator kg/L são ações extras próprias; leitura e seletores =
+  // visualizar DESTA tela (não dependem da tela de bens nem da Central); saldos = criar.
+  patrimonioAbastecimentos: {
+    ver: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'visualizar'),
+    criar: porQualquer([T.PATRIMONIO_ABASTECIMENTOS, 'novo'], [T.PATRIMONIO_ABASTECIMENTOS, 'salvar']),
+    cancelar: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'cancelar'),
+    configurarConversao: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'configurar_conversao'),
+  },
   // Instalar o catálogo padrão: administrador real ou a concessão `is_admin`.
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),

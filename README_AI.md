@@ -46,6 +46,12 @@ Também delimitados (D-PROD-157): os **cadastros de Patrimônio e Frota** (bens,
 famílias, tipos, perfis de medição, combustíveis e o vínculo deles aos Produtos de
 cada fazenda, medidores, tanques e parâmetros de depreciação com prévia só simulada), sem abastecimento, manutenção, apuração de
 depreciação nem efeito financeiro ou de estoque.
+E, em PR draft com migration **não aplicada** (D-PROD-159), os **Abastecimentos** da
+frota (`Abastecimentos`): fator kg/L informado e versionado por produto da fazenda,
+prévia sem escrita e confirmação com baixa física real em KG pelo motor de estoque
+(FIFO, custo FIFO final), estorno exato no cancelamento, leitura do medidor no próprio
+abastecimento e consumo km/L ou L/h pelo tanque cheio declarado. Sem lançamento
+financeiro, manutenção, custo/hora, apuração de depreciação nem transferência.
 
 ### Inventário atual
 
@@ -191,9 +197,9 @@ O agente **não deve**:
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
 - Ampliar `config/mapa-manejo-scope.json` sem aprovação humana (cada expansão tem
-  decisão própria do proprietário; a mais recente, D-PROD-157, acrescentou só
+  decisão própria do proprietário; a D-PROD-157 acrescentou só
   `BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e
-  `Combustiveis`)
+  `Combustiveis`, e a mais recente, D-PROD-159, só `Abastecimentos`)
 
 ---
 
