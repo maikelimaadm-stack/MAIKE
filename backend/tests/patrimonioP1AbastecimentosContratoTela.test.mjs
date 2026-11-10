@@ -5,8 +5,9 @@
  * relativos) e manda à API REAL (Fastify `app.inject` + PostgreSQL local) os
  * corpos que a TELA monta a partir do formulário como o usuário o preenche:
  * texto pt-BR com vírgula decimal ("80,0", "1550,5", "0,84"), as OPÇÕES do
- * próprio servidor (A7 bens, A8 tanques, A10 produtos, A12 locais) e a chave
- * `lanc-<uuid>` do serviço. Percorre A3 sem fator (fail-closed) → A14 → A13 →
+ * próprio servidor (A7 bens, A16 produtos do bem — D-PROD-160/UX-02: o
+ * operador escolhe o PRODUTO e o tipo vem do vínculo ativo —, A12 locais) e a
+ * chave `lanc-<uuid>` do serviço. Percorre A3 sem fator (fail-closed) → A14 → A13 →
  * A3 → A4 → replay → A1 (`operation_id`) → A2 → A6 → A5 → replay do A5 → A15,
  * e exige em TODA resposta `conferirRespostaAbastecimento(body) = []` (a forma
  * que a tela lê). O KG que a tela estima (`estimarKg`) tem de ser o KG que o
@@ -24,7 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { acoesAbastecimento, fotoAbastecimento, montarAbastecimento, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
+import { acoesAbastecimento, corpoPrevia as corpoPreviaDoCenario, fotoAbastecimento, montarAbastecimento, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
 import { FUSO, HOJE } from './patrimonioP1Cenario.mjs';
 import {
   assinaturaDoFormulario,
@@ -70,32 +71,39 @@ beforeEach(async () => {
 const conforme = (body, onde) => assert.deepEqual(conferirRespostaAbastecimento(body), [], `${onde}: ${JSON.stringify(conferirRespostaAbastecimento(body))}`);
 
 /**
- * Preenche o formulário COMO A TELA: bem → tanque → combustível → produto →
- * local, sempre a partir das opções do servidor (`FormularioAbastecimento.jsx`).
+ * Preenche o formulário COMO A TELA (UX-02): bem → PRODUTO (A16, o tipo e os
+ * tanques vêm da opção do servidor) → local, sempre a partir das opções do
+ * servidor (`FormularioAbastecimento.jsx`). O mapeamento opção → formulário é
+ * o do contrato UX-02 §2.6, INLINE (a fase de integração troca por
+ * `opcaoNoFormulario`). `unico` (padrão): a resposta tem de ser completa com 1
+ * opção (a tela auto-seleciona); senão o item é escolhido pelo `produto.id`.
  * @param {any} s @param {string} tok
- * @param {{ bemId: string, tipoId: string, produtoId: string, litros: string, leitura?: string, tanqueCheio?: boolean, data?: string }} p
+ * @param {{ bemId: string, tipoId: string, produtoId: string, litros: string, leitura?: string, tanqueCheio?: boolean, data?: string, unico?: boolean }} p
  */
 const preencher = async (s, tok, p) => {
   const bens = await A.ok(A.opcoes(tok, 'bens', `empresa_id=${s.e1.id}`));
   const bem = bens.itens.find((b) => b.id === p.bemId);
   assert.ok(bem, 'o bem aparece no seletor do formulário');
-  const tanques = await A.ok(A.opcoes(tok, 'tanques', `empresa_id=${s.e1.id}&bem_id=${bem.id}`));
-  assert.equal(tanques.itens.length, 1, 'tanque único → a tela auto-seleciona');
-  const tanque = tanques.itens[0];
-  assert.ok(tanque.combustiveis.some((c) => c.id === p.tipoId), 'o combustível aparece entre os do tanque');
-  const produtos = await A.ok(A.opcoes(tok, 'produtos', `empresa_id=${s.e1.id}&tipo_combustivel_id=${p.tipoId}`));
-  const produto = produtos.itens.find((x) => x.id === p.produtoId);
-  assert.ok(produto, 'o produto aparece no seletor do combustível');
-  const locais = await A.ok(A.opcoes(tok, 'locais', `empresa_id=${s.e1.id}&produto_id=${produto.id}`));
+  const opcoes = await A.ok(A.produtosDoBem(tok, s.e1.id, bem.id));
+  assert.equal(opcoes.bem.id, bem.id, 'a resposta é do bem do formulário');
+  if (p.unico !== false) assert.deepEqual([opcoes.itens.length, opcoes.has_more], [1, false], 'resposta completa com 1 Produto → a tela auto-seleciona');
+  const item = opcoes.itens.find((x) => x.produto.id === p.produtoId);
+  assert.ok(item, 'o Produto aparece entre os do bem');
+  assert.equal(item.tipo_combustivel.id, p.tipoId, 'o tipo vem do vínculo ativo (servidor), nunca de escolha na tela');
+  assert.equal(item.tanques.length, 1, 'um tanque aceita o Produto → a tela não pergunta o tanque');
+  const tanque = item.tanques[0];
+  const locais = await A.ok(A.opcoes(tok, 'locais', `empresa_id=${s.e1.id}&produto_id=${item.produto.id}`));
   assert.equal(locais.itens.length, 1, 'um local com saldo → a tela auto-seleciona');
   const hoje = hojeNoFuso(FUSO, new Date(String(process.env.MAIKE_TESTE_AGORA)));
   assert.equal(hoje, HOJE);
+  // contrato UX-02 §2.6 (as MESMAS chaves de hoje; `montarCorpo*` não mudam)
+  const produto = { ...item.produto, conversao: item.conversao, tipo_combustivel: item.tipo_combustivel, tanques: item.tanques, pronto: item.pronto };
   const form = {
     ...formularioVazio(hoje),
     bem,
-    tanque_id: tanque.id,
-    tipo_combustivel_id: p.tipoId,
     produto,
+    tipo_combustivel_id: item.tipo_combustivel.id,
+    tanque_id: item.tanques.length === 1 ? item.tanques[0].id : null,
     local_estoque_id: String(locais.itens[0].local_estoque_id),
     data_operacional: p.data ?? '2027-06-10',
     quantidade_litros: p.litros,
@@ -103,8 +111,12 @@ const preencher = async (s, tok, p) => {
     tanque_cheio: p.tanqueCheio === true,
   };
   assert.deepEqual(validarFormulario(form, { hoje, capacidadeLitros: tanque.capacidade_litros }).erros, {}, 'formulário válido para a tela');
+  const corpo = montarCorpoPrevia(s.e1.id, form);
+  assert.deepEqual([corpo.bem_id, corpo.tanque_id, corpo.tipo_combustivel_id, corpo.produto_id], [p.bemId, tanque.id, p.tipoId, p.produtoId], 'ids do corpo = os da opção do servidor');
   return { form, tanque, produto, hoje };
 };
+/** Os ids do corpo da API (o que a UX-02 NÃO pode mudar). */
+const idsDoCorpo = (c) => [c.bem_id, c.tanque_id, c.tipo_combustivel_id, c.produto_id];
 
 describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
   test('TP-02 diesel S10: A3 sem fator → A14 → A13 → A3 → A4 → replay → A1 → A2 → A6 → A5 → replay → A15; respostas na forma da tela', async () => {
@@ -114,6 +126,8 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
     // 1) sem fator: a prévia aponta o bloqueio e a tela NÃO consegue montar a confirmação (fail-closed)
     const sem = await preencher(s, tok, { bemId: s.trator.id, tipoId: s.comb.DIESEL_S10, produtoId: s.diesel.id, litros: '80,0', leitura: '1550,5', tanqueCheio: true });
     assert.equal(sem.produto.conversao, null);
+    assert.equal(sem.produto.pronto, false, 'sem fator a opção vem com pronto:false');
+    assert.deepEqual(idsDoCorpo(montarCorpoPrevia(s.e1.id, sem.form)), idsDoCorpo(corpoPreviaDoCenario(s)), 'o corpo da API não mudou (TP-02)');
     const p0 = await A.ok(A.previa(tok, montarCorpoPrevia(s.e1.id, sem.form)));
     conforme(p0, 'A3 sem fator');
     assert.deepEqual(p0.bloqueios.map((b) => b.code), ['ABASTECIMENTO_CONVERSAO_AUSENTE']);
@@ -131,6 +145,7 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
     // 3) A3 com o formulário relido (o produto agora traz o fator): kg da tela = kg do servidor
     const { form, tanque } = await preencher(s, tok, { bemId: s.trator.id, tipoId: s.comb.DIESEL_S10, produtoId: s.diesel.id, litros: '80,0', leitura: '1550,5', tanqueCheio: true });
     assert.deepEqual(form.produto.conversao, { id: fator.id, versao: fator.versao, sequencia: 1, kg_por_litro: '0.840000' });
+    assert.equal(form.produto.pronto, true);
     const corpoPrevia = montarCorpoPrevia(s.e1.id, form);
     assert.deepEqual([corpoPrevia.quantidade_litros, corpoPrevia.medidor_leitura], ['80', '1550.5']);
     const antesPrevia = await fotoAbastecimento(s.c);
@@ -210,7 +225,10 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
     const gas = await A.ok(A.opcoes(tok, 'produtos', `empresa_id=${s.e1.id}&tipo_combustivel_id=${s.comb.GASOLINA}`));
     const eta = await A.ok(A.opcoes(tok, 'produtos', `empresa_id=${s.e1.id}&tipo_combustivel_id=${s.comb.ETANOL}`));
     assert.deepEqual([gas.itens.map((p) => p.id), eta.itens.map((p) => p.id)], [[s.gasolina.id], [s.etanol.id]]);
-    const { form } = await preencher(s, tok, { bemId: s.caminhonete.id, tipoId: s.comb.ETANOL, produtoId: s.etanol.id, litros: '37,25', leitura: '35.300,0', tanqueCheio: true, data: '2027-06-02' });
+    const { form } = await preencher(s, tok, {
+      bemId: s.caminhonete.id, tipoId: s.comb.ETANOL, produtoId: s.etanol.id, litros: '37,25', leitura: '35.300,0', tanqueCheio: true, data: '2027-06-02', unico: false,
+    });
+    assert.deepEqual(idsDoCorpo(montarCorpoPrevia(s.e1.id, form)), [s.caminhonete.id, s.caminhonete.tanques[0].id, s.comb.ETANOL, s.etanol.id], 'flex: o item escolhido pelo produto.id leva o SEU tipo');
     const previa = await A.ok(A.previa(tok, montarCorpoPrevia(s.e1.id, form)));
     conforme(previa, 'A3 flex');
     assert.deepEqual(previa.bloqueios, []);
