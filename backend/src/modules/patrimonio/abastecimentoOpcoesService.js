@@ -207,7 +207,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
 
     const baseVinculo = { empresa_id: empresaId, ativo: true, tipo_combustivel_id: { in: [...tiposAceitos.keys()] } };
     // `Produto.empresa_id` no próprio filtro: vínculo incoerente (produto movido) nunca entra.
-    const elegivel = { cliente_id: cli, ativo: true, unidade_principal_estoque: 'KG', vinculosCombustivel: { some: baseVinculo } };
+    const elegivel = { cliente_id: cli, empresa_id: empresaId, ativo: true, unidade_principal_estoque: 'KG', vinculosCombustivel: { some: baseVinculo } };
 
     // Resumo do conjunto INTEIRO (sem `q`, sem `cursor`).
     const total = await tx.produto.count({ where: elegivel });
@@ -267,7 +267,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
           const tipo = tipoId ? tiposAceitos.get(tipoId) : undefined;
           // Mesmo instantâneo do filtro: o produto da página tem o vínculo ativo de um tipo aceito.
           if (!tipoId || !tipo) throw new Error(`invariante violada: produto ${p.id} sem vínculo ativo de tipo aceito no instantâneo`);
-          const c = fatorDoPar.get(`${tipoId}|${p.id}`);
+          const c = conversoes.find((x) => x.produto_id === p.id);
           const bloqueios = c ? [] : ['sem_fator'];
           return {
             id: p.id,
