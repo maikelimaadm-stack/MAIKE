@@ -198,7 +198,7 @@ const lerProdutos = (tx, cli, f, desde, n) => tx.$queryRaw`SELECT p.id, p.empres
     ) m ON true
     WHERE p.cliente_id = ${cli}${igual('p.empresa_id', f.empresaId)}${igual('p.id', f.produtoId)}${desde === null ? Prisma.empty : Prisma.sql` AND p.id > ${desde}`}
     ORDER BY p.id
-    LIMIT ${n}`;
+    LIMIT ${n}::int`;
 
 /**
  * Q2–Q5 de UMA página (faixa `(desde, ate]` de `produto_id`). Os órfãos (Q6 da
