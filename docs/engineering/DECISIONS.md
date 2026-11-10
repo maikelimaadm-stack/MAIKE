@@ -5805,7 +5805,46 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - `DELETE /estoque-lotes-nota/:id` nunca apaga (mesma ordem de recusas);
   - `PATCH`/`DELETE /movimentacoes-estoque/:id`, os GETs e os comandos específicos ficam como estão;
   - no front, `create`/`delete` saem das portas de movimento e de lote e dos wrappers sem chamador; a reversão do navegador passa a ser fail-closed sem I/O (o estorno de verdade vem na P1, no motor).
-- **Decisão — reconciliação somente leitura:** `backend/src/modules/estoqueFisico/reconciliacaoEstoque.js` e `GET /estoque-fisico/reconciliacao` (SO_ADMIN, `RepeatableRead` + `READ ONLY`, número fixo de consultas, tenant só do `auth_context`). Classifica cache × lotes, saldo por local, lote, movimento e evidência fora do protocolo em `OK`, `DIVERGENCIA_REAL`, `LIMITACAO_LEGADA` e `DADOS_INSUFICIENTES`. **Nunca corrige**: não há função de escrita no módulo.
+- **Decisão — reconciliação somente leitura:** `backend/src/modules/estoqueFisico/reconciliacaoEstoque.js` e `GET /estoque-fisico/reconciliacao`.
+  - Guarda `GUARDAS.estoqueFisico.reconciliar`: só o administrador real do tenant.
+  - `RepeatableRead` + `READ ONLY`, tenant só do `auth_context` e `cliente_id` em toda consulta.
+  - Classifica cache × lotes, saldo por local, lote, movimento, linhagem e evidência fora do protocolo em `OK`, `DIVERGENCIA_REAL`, `LIMITACAO_LEGADA` e `DADOS_INSUFICIENTES`.
+  - **Nunca corrige**: não há função de escrita no módulo.
+- **Decisão — volume limitado e fail-closed (R1):**
+  - A varredura anda em páginas por keyset, com orçamento por chamada (`ORCAMENTO_PADRAO`):
+    - páginas: 200 chaves e 20.000 linhas;
+    - por chamada: 250.000 linhas e 8 s;
+    - por instrução: 15 s;
+    - por consulta: 20.000 anomalias; por chamada, 250.000 linhas de auditoria.
+  - Na transação, só nela: `plan_cache_mode=force_custom_plan`, `jit=off` e `statement_timeout=15000ms`. O 57014 vira 409 `CONCURRENCY_CONFLICT`.
+  - O AuditLog só rebaixa para `LIMITACAO_LEGADA` quando prova escrita de `estoque_atual` ou de quantidade, situação ou vínculo do lote. Renomeação, procedência, custo e nome nunca rebaixam.
+  - O recibo legado sem `lotes_consumidos` é ligado ao movimento por `LATERAL` na janela de ±10 min.
+- **Decisão — fechamento rigoroso (R2):**
+  - **Chaves:** a página anda por ids de Produto **e** pelos `produto_id` órfãos de lote e de movimento. Órfãos antes, entre e depois dos produtos, e o tenant sem produto, entram no orçamento. A chave pesada abre a chamada seguinte sozinha e nunca é pulada.
+  - **Linhas suspeitas:** Q3 e Q4 devolvem só o que é suspeito, com teto declarado (`paginas_truncadas`).
+  - **Exclusões legadas** são uma fase própria e paginada (`exclusoes` e depois `exclusoes_sem_id`). Cada uma vira achado, `lote_excluido_fora_do_motor` ou `lote_excluido_produto_inexistente`; nenhuma é omitida.
+  - **Regra nova** `linhagem_transferencia_diverge`.
+  - **Cobertura:** `fim_do_escopo`, `snapshot_unico`, `fase`, `cumulativa`, `conclusao_global`/`conclusao_global_comprovada` e `motivos_inconclusiva`.
+    - `COMPROVADA` só existe com o escopo inteiro num único snapshot.
+    - Várias chamadas terminam em `INCONCLUSIVO`, com `OK = null`. Nunca é um OK falso.
+  - **Cursor v2:** `base64url(estado ‖ HMAC-SHA256)`, com chave HKDF do `AUTH_SECRET` e rótulo próprio.
+    - Amarrado a tenant, empresa, produto, local, limite e versão, com validade de 24 h.
+    - Qualquer desvio dá o mesmo 400 `cursor_invalido`, antes de ir ao banco e sem oráculo.
+    - Sai o `cursor_de_outro_escopo`, e o cursor R1 deixa de valer.
+  - **Idas ao banco:** 3 fixas (+1 com empresa), mais 5 por página, mais 1 por bloco de exclusões, mais 1 da busca de evidência quando necessária. Substitui o "4 fixas + 5 por página" do R1.
+  - **Números e RED/GREEN:** no relatório §9.
+- **Bloqueios arquiteturais registrados (não executados: pedem DDL ou execução fora do HTTP):**
+  - **R2-1:** produto com mais de ~1,5 milhão de linhas numa chave. Fail-closed por `statement_timeout`, mas não fecha.
+  - **R2-2:** AuditLog de lote sem índice por produto. Pede índice de expressão (DDL).
+  - **R2-3:** sem snapshot global entre requisições. Pede job assíncrono com snapshot exportado.
+
+  Os três vão para a P1, com decisão própria.
+- **Decisão — máscaras e folha do celular (R2):**
+  - O Cadastro de Produtos grava o mesmo valor que exibe, com uma leitura única do campo.
+    - Antes, "25,00" kg por saco gravava 2,5 e uma compra de 4 SACO gerava 10 kg em vez de 100.
+    - Era um bloqueador de integridade, corrigido com RED→GREEN.
+  - Na "Saída do Depósito", a folha "Local de Destino" do celular abre dentro do diálogo de cima, não mais atrás do diálogo `aria-hidden` de baixo.
+  - Nenhuma mudança de API.
 - **Decisão — blindagem contra regeneração do CRUD inseguro:** os geradores `scripts/scaffold/p54-*.mjs` recusam (exit 2, `[SCAFFOLD_ESTOQUE_RECUSADO]`, nada gravado) qualquer execução que gere escritor genérico de `EstoqueLoteNota`, `MovimentacaoEstoque` ou `Produto.estoque_atual`; teste no `test:gates`.
 - **Mudança deliberada de contrato registrada em teste legado:** o AB11 do Patrimônio P1-02 trocava pela API a empresa de um produto com estoque; com esta decisão isso responde 409 `PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA`, e o estado "produto movido de fazenda" passa a existir só como dado legado (emulado no banco de teste para manter provada a defesa `produto_mudou_de_fazenda`). `SUPLEMENTACAO_PARTIAL_OPERATION` sai do catálogo do front (sem consumidor após a reversão fail-closed).
 - **Erros novos** (bloco D-PROD-161 de `errorCodes.js`, 4): `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (409), `PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL` (422), `PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA` (409), `ESTOQUE_LOCAL_INVALIDO` (422).

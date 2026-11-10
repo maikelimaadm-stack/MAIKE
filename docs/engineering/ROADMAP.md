@@ -411,7 +411,13 @@ lote de destino com ano 2001. O Cadastro de Produtos não lança estoque
 e exclusão bloqueadas com estoque). As escritas genéricas de movimento e de lote
 respondem 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (fica só a renomeação benigna do
 local). Uma reconciliação **somente leitura** (`GET /estoque-fisico/reconciliacao`,
-SO_ADMIN) classifica divergências sem corrigir nada.
+SO_ADMIN) classifica divergências sem corrigir nada. A reconciliação tem trabalho
+limitado por chamada e cursor assinado por HMAC e amarrado ao tenant e ao escopo.
+Ela só declara a conclusão global COMPROVADA num snapshot único; em várias chamadas
+o resultado é INCONCLUSIVO, nunca OK.
+No fechamento R2 também entraram:
+- a correção das máscaras do Cadastro de Produtos (o valor exibido agora é o gravado);
+- a folha "Local de Destino" do celular, que passou a abrir dentro do diálogo certo.
 
 **Estado:** PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238) em
 **DRAFT**. Sem migration (`SCHEMA_APPLIED_PROD = N/A`); o merge depende da revisão e
@@ -423,7 +429,11 @@ Entrada de Estoque manual (implantação de saldo, ajuste, doação, devolução
 motor; lote de fabricante e validade; linhagem estruturada com FK e tabela de fatias;
 estorno de suplementação e de transferência no motor; CHECKs/FKs de integridade e
 saneamento auditado com GO (lotes de 2001, `Disponivel` com 0, recálculo de cache);
-consulta/histórico por lote com contrato próprio.
+consulta/histórico por lote com contrato próprio. Bloqueios arquiteturais da
+reconciliação, registrados na D-PROD-161:
+- **R2-1:** partição de um produto gigantesco por local;
+- **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
+- **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
 
 ## Fora do roadmap
 

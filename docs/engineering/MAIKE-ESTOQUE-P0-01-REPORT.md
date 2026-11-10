@@ -96,6 +96,23 @@ Legenda: **MANTIDO** = sem mudança de comportamento; **MIGRADO→X** = passa pe
   - 400 `REQUEST_VALIDATION_FAILED` para `data_movimentacao` com formato inválido ou dia inexistente;
   - `[RATEIO_FIFO]` montado em Decimal; se passar de 2000 caracteres, corta só o bloco gerado (antes dava 500).
 
+### 5.1 Celular: folha "Local de Destino" atrás do diálogo (R2, pré-existente)
+
+- **Causa, medida no Chromium a 390 px:**
+  - o "Depósito de Suplementação" é um `LancLoteDialogo` e passa aos filhos o lugar das folhas do celular (`MobileSheetPortalCtx`);
+  - o diálogo "Saída do Depósito", aberto por cima, herdava esse lugar;
+  - a folha nascia dentro do diálogo de baixo (`.mk-ll-dlg__folhas`), que o de cima deixa `aria-hidden`, sem toque e fora do foco;
+  - o z-index 90 dela ficava preso na camada z-50 do diálogo de baixo.
+- **Correção mínima**, só em `DetalhesDepositoSuplementacao.jsx`:
+  - o diálogo da transferência dá às folhas o próprio lugar;
+  - no celular ele centraliza sem `transform` (classes `max-sm:`);
+  - Escape com a folha aberta fecha só a folha, pela guarda no `onOpenChange` da Root tipada.
+- **Foco, em `AutocompleteGenerico.jsx`** (só no celular): ao abrir, entra na opção marcada ou na primeira; ao fechar, volta ao campo.
+- Ficaram sem mudança: Mapa, `FormularioTransferenciaDeposito`, `MobileSheet` e `ui/dialog`.
+- **RED → GREEN:**
+  - E2E antigo a 390 px: exit 1 com `ariaHidden: true, coberta: true`;
+  - RTL `estoqueP0FolhaTransferenciaMobile` (FT1–FT5): 5 de 5 falham antes e 5 de 5 passam depois.
+
 ## 6. Cadastro de Produtos
 
 - `POST /produtos`: grava sempre `estoque_atual = 0`; ausente ou 0 aceito; outro valor (100, −5, 0,00001, 1e-9) → 422 `PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL` antes de reservar número ou auditar.
@@ -104,6 +121,20 @@ Legenda: **MANTIDO** = sem mudança de comportamento; **MIGRADO→X** = passa pe
 - `DELETE` com lote → 409 `PRODUTO_DELETE_BLOCKED` (`vinculo: 'lotes de estoque'`).
 - `preco_custo`, peso por saco e unidade continuam editáveis e **não** mexem em lote, item (`fator_kg` gravado) nem movimento.
 - Front: `normalizarProduto` e a porta nativa (allowlist) nunca enviam `estoque_atual`; CSV sem estoque (template com `0`; ≠ 0/vazio vira erro de linha); `FormularioProduto` mostra "Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos" (`role="note"`); o saldo transferível do Mapa vem só dos lotes do local (saiu o fallback para `estoque_atual`).
+
+### 6.1 Máscaras: o valor exibido não era o gravado (R2, bloqueador de integridade corrigido)
+
+- **Reproduzido no Chromium com banco real**, a 1280 e 390 px:
+  - peso por saco digitado tecla a tecla mostrava "25,00" e gravava `2.5000`;
+  - preço colado com Ctrl+V mostrava "12,34" e gravava `0.0012`;
+  - uma compra planejada de 4 SACO saía com `fator_kg` 2.5000 e 10 kg, quando deveria ser 25.0000 e 100 kg.
+- **Por que é bloqueador:** o lote de estoque nasceria com a quantidade errada.
+- **Correção mínima, em `FormularioProduto.jsx`:** uma única leitura do campo serve à tela e ao envio. O texto decimal vindo do servidor (`"30.0000"`) é lido uma vez, na abertura; antes aparecia "3.000,00".
+- Não mudaram: a máscara, o `normalizarProduto` e o `produtoService`.
+- **RED → GREEN:**
+  - probe Playwright + banco: 8 divergências antes, 0 depois;
+  - RTL `estoqueP0MascarasProduto`: MP1–MP4 falham antes, MP5 é o controle; 5 de 5 passam depois;
+  - o passo 7 do E2E confere que o banco tem 25.0000 e 12.3400 e que a compra usa `fator_kg` 25.0000 (100 kg).
 
 ## 7. Escritas genéricas fechadas
 
@@ -120,10 +151,105 @@ Ver W13–W18 e W27–W28. A ordem das recusas preserva os testes de concorrênc
 
 ## 9. Reconciliação somente leitura
 
-- `GET /estoque-fisico/reconciliacao?empresa_id&produto_id&local_estoque_id&limite` — `onRequest: autenticar`, `preHandler: SO_ADMIN`, querystring `additionalProperties: false`, tenant só do `auth_context`.
-- Transação `RepeatableRead` + `SET TRANSACTION READ ONLY`, sem `FOR UPDATE`/`FOR SHARE`/advisory; número fixo de consultas, sem N+1; quantidades em `numeric`/Decimal e saída em texto com 4 casas.
-- Classes (a primeira regra que casar vale; o nível lote não é mascarado pelo nível produto): `DADOS_INSUFICIENTES` (órfão, local inexistente, status/tipo desconhecido, cache ≠ 0 sem lote e sem evidência), `LIMITACAO_LEGADA` (evidência de escritor fora do protocolo, lote sem movimento de entrada, lote de transferência com ano 2001, resíduo de Number), `DIVERGENCIA_REAL` (invariante quebrado com proveniência do protocolo), `OK`.
-- **Nunca corrige**: não há chamada de escrita no módulo; os testes conferem que a foto do banco e a contagem de AuditLog ficam iguais.
+### 9.1 Rota e isolamento
+
+- `GET /estoque-fisico/reconciliacao?empresa_id&produto_id&local_estoque_id&limite&cursor`:
+  - `onRequest: autenticar` e `preHandler: GUARDAS.estoqueFisico.reconciliar` (só o administrador real do tenant);
+  - querystring `additionalProperties: false`, `limite` de 1 a `LIMITE_MAXIMO`, `cursor` ≤ 1024 caracteres no padrão `^[A-Za-z0-9_-]+$`;
+  - tenant só do `auth_context`.
+- A transação é `RepeatableRead` com `SET TRANSACTION READ ONLY`. Não usa `FOR UPDATE`, `FOR SHARE` nem advisory lock.
+- Tudo é ajustado só nesta transação: `plan_cache_mode=force_custom_plan`, `jit=off` e `statement_timeout=15000ms`. O cancelamento 57014 vira 409 `CONCURRENCY_CONFLICT`: fail-closed, nada declarado OK.
+- Toda consulta começa por `cliente_id`. O teste RI2 confere isso por tabela, em cada consulta, e também zero `n_tup_ins/upd/del`.
+- Quantidades em `numeric`/Decimal e saída em texto com 4 casas.
+
+### 9.2 Classes e regras
+
+- Classes, pela ordem: `DADOS_INSUFICIENTES` → `LIMITACAO_LEGADA` → `DIVERGENCIA_REAL` → `OK`. Vale a primeira que casar, e o nível lote não é mascarado pelo nível produto.
+- `DADOS_INSUFICIENTES`:
+  - órfão (chave de produto sem Produto);
+  - local inexistente;
+  - status ou tipo desconhecido;
+  - cache ≠ 0 sem lote e sem evidência;
+  - lote excluído cujo produto não existe (`lote_excluido_produto_inexistente`).
+- `LIMITACAO_LEGADA`:
+  - evidência relevante de escritor fora do protocolo;
+  - lote sem movimento de entrada;
+  - lote de transferência com ano 2001;
+  - resíduo de Number;
+  - lote excluído fora do motor (`lote_excluido_fora_do_motor`).
+- `DIVERGENCIA_REAL`: invariante quebrado com proveniência do protocolo, inclusive `linhagem_transferencia_diverge` (R2). Na transferência do motor, `lote_destino_id` tem de apontar para a camada do filho, no local de destino, com a mesma quantidade e o mesmo custo.
+- **AuditLog relevante (R1).** Só rebaixa para `LIMITACAO_LEGADA` a escrita **provada** de:
+  - `estoque_atual`: os dois lados com o campo e valores diferentes; na criação, ≠ 0;
+  - quantidade, situação ou vínculo do lote.
+
+  Nunca rebaixam `DIVERGENCIA_REAL`: renomeação, procedência, custo, fornecedor ou documento do lote, nome ou preço do produto, quantidade igual em outro formato.
+- **Recibo legado** (suplementação sem `lotes_consumidos`): ligado ao movimento por `LATERAL` na janela de ±10 min e usado só quando o movimento não tem `lotes_consumidos` (nunca conta duas vezes).
+- **Filtro de local:** não mascara a inconsistência do cache, que é global. `cobertura.nivel_produto = 'todos_os_locais'` e I1 continua conferido em todos os locais.
+- **Nunca corrige**: não há chamada de escrita no módulo.
+  - A única cadeia `.update(` é a do HMAC do cursor, e o teste R9 exige exatamente uma.
+  - Os testes conferem que a foto do banco e a contagem de AuditLog ficam iguais.
+  - Na carga, 14 chamadas deixaram iguais o hash de todas as linhas de 9 tabelas e os contadores do PostgreSQL.
+
+### 9.3 Volume limitado (R1 + R2)
+
+- **ANTES do R1:** o `limite` não limitava nada; o módulo agregava o tenant inteiro e cortava a lista no fim.
+  - A (5.000 produtos, 60 mil lotes, 210 mil movimentos): 8,0–8,2 s, 90 mil linhas, 53,6 MB e heap 132 MB.
+  - Com 3× A, a transação estourava, e uma consulta em plano genérico ficou 8 min 50 s.
+  - JIT ligado (~1,5 s por consulta) e plano genérico na 6ª execução da conexão (7× mais lento).
+- **R1:** páginas por produto em keyset e orçamento por chamada. O padrão é `ORCAMENTO_PADRAO`:
+  - `produtosPorPagina` 200, `linhasPorPagina` 20.000 e `linhasPorChamada` 250.000;
+  - `tempoMs` 8.000 e `instrucaoMs` 15.000;
+  - R2 acrescenta `anomaliasPorConsulta` 20.000 e `auditoriaPorChamada` 250.000.
+
+  A resposta passou a ter `cobertura`, com `OK = null` quando a cobertura é parcial, e um cursor amarrado ao escopo.
+- **R2:** o fechamento rigoroso tem sete partes.
+  1. **Chaves em vez de produtos.** A página anda pelos ids de Produto **mais** os `produto_id` distintos de lote e de movimento.
+     - Órfãos antes do primeiro id, entre dois ids e depois do último, e o tenant sem produto, entram na pré-contagem e no orçamento.
+     - Não sobra faixa aberta sem conta.
+  2. **Agregado no SQL.** Q3 (lotes) e Q4 (movimentos) devolvem só as linhas suspeitas, com teto `anomaliasPorConsulta`. Acima do teto, a página fica **truncada** e é declarada.
+     - Órfãos são contados no SQL e só uma amostra volta.
+     - A chave pesada que não cabe no que sobra do orçamento abre sozinha a chamada seguinte. Ela nunca é pulada.
+  3. **Exclusões legadas** são uma fase própria, `exclusoes` e depois `exclusoes_sem_id`, com cursor próprio.
+     - O histórico de AuditLog de lote é lido em blocos de no máximo `linhasPorPagina` linhas lidas; o LIMIT vem antes do filtro.
+     - Cada exclusão vira achado; nenhuma é omitida, nem a de produto inexistente.
+     - A evidência por página é uma sonda de índice por produto ou lote.
+     - A busca de evidência tem teto `auditoriaPorChamada`. Acima dele, `evidencia_exclusoes = 'parcial'` e nada é rebaixado.
+  4. **Contrato da cobertura.**
+     - Campos novos: `fim_do_escopo`, `snapshot_unico`, `fase` (`chaves | exclusoes | exclusoes_sem_id | fim`), `cumulativa` (assinada no cursor), `conclusao_global` (`COMPROVADA | INCONCLUSIVA`), `conclusao_global_comprovada` e `motivos_inconclusiva` (`continua_no_cursor`, `varios_snapshots`, `paginas_truncadas`, `evidencia_de_exclusao_parcial`).
+     - **COMPROVADA só existe quando o escopo inteiro é lido num único snapshot, sem lacuna.**
+     - Uma varredura em várias chamadas termina em `resumo.situacao = 'INCONCLUSIVO'`, com `OK = null`. Nunca é um OK falso.
+     - `CONSISTENTE`, `COM_ACHADOS` e o `OK` numérico só aparecem com a conclusão global comprovada.
+  5. **Cursor v2 autêntico.**
+     - Formato: `base64url(JSON(estado) ‖ HMAC-SHA256)`.
+     - Chave derivada por HKDF-SHA256 do `AUTH_SECRET`, com sal e rótulo próprios (`maike-estoque-reconciliacao-cursor:v2`).
+     - A assinatura cobre versão, tenant do `auth_context`, empresa, produto, local e limite. Validade de 24 h, com folga de 5 min no relógio.
+     - Comparação em tempo constante.
+     - **Qualquer** desvio dá o mesmo 400 `REQUEST_VALIDATION_FAILED` (`field: 'cursor'`, `reason: 'cursor_invalido'`) antes de qualquer ida ao banco, sem oráculo de existência.
+       - Os desvios cobertos são: adulterado, de outro tenant, de outro escopo, de outra versão ou de outro limite, sem assinatura, vencido ou do futuro.
+       - Sai o `cursor_de_outro_escopo` do R1, e o cursor R1 deixa de valer.
+     - **RED que motivou o cursor v2:** no R1, o cursor do tenant B era aceito pelo tenant A com 200 e pulava a verificação do tenant inteiro (RK1).
+  6. **Idas ao banco:** 3 fixas (+1 com empresa), mais 5 por página, mais 1 por bloco de exclusões, mais 1 da busca de evidência quando necessária. Substitui o "4 fixas + 5 por página" do R1; não há N+1.
+  7. **Remedição** em PG17 local, só aqui, sem produção (`r2-carga/medicao.md` no scratchpad da missão).
+     - **Fixture:** A com 5.001 produtos, 130.331 lotes, 430.300 movimentos, 145.000 recibos e 62.031 AuditLog. Inclui:
+       - um produto patológico com 50.000 lotes e 200.000 movimentos;
+       - 300 órfãos antes, entre e depois dos produtos, e uma chave órfã pesada (20.000 + 20.000);
+       - 2.000 exclusões antigas, 500 delas de produto inexistente.
+
+       O tenant Z não tem produto e tem 45.000 lotes e 45.000 movimentos órfãos.
+
+| Métrica por chamada | ANTES (R1 `850c5aa2`) | DEPOIS (R2) |
+|---|---|---|
+| Linhas pré-contadas (orçamento 250.000) | até 387.532 (empresa E1); Z: 90.000 lidas com `linhas_previstas = 0` | ≤ 250.000, salvo a página de uma chave só (`PPESADO`, 250.001) |
+| Linhas banco → Node | até 137.245 | até 27.245 |
+| MB banco → Node | até 90,6 | até 11,3 |
+| Heap pico | até 142 MB | ≤ 33,5 MB |
+| Tempo | até 6,5 s | ≤ 4,0 s |
+| Produto patológico | 50.008 linhas, 35,4 MB, heap 102 MB | **14 linhas**, heap 11,8 MB, 2,3–2,8 s |
+| JIT | desligado desde o R1 | 0 JIT em todos os planos (EXPLAIN ANALYZE BUFFERS) |
+
+- **Varredura inteira:** A leva 8,4–8,6 s em 4 chamadas, contra 8,3 s em 2 chamadas antes.
+- **Equivalência nos 6 cenários:** os totais são iguais e o conjunto de `DIVERGENCIA_REAL` é **idêntico** (147/147/7/1/46/0). O único acréscimo é o achado de cada exclusão legada (2.000/1.250/0/0/800/1.000).
+- Classes sem cobertura exaustiva viraram BLOCKER nomeado (§12): R2-1, R2-2 e R2-3.
 
 ## 10. Preflight de produção (somente leitura)
 
@@ -160,6 +286,23 @@ _(preenchido ao fim da integração e da revisão)_
 - **R18** a baixa de suplementação e o evento de suplementação continuam em duas transações (comando único fica para a P1).
 - **Pré-existente:** `PATCH /produtos` sem `empresa_id` e sem `estoque_atual` lê o estado anterior sem trava; o AuditLog pode registrar `dados_anteriores.estoque_atual` defasado em relação ao motor (o formulário real sempre reenvia `empresa_id`, então trava).
 - **Colisão de numeração:** a PR #237 (DRAFT) anuncia a D-PROD-160 e mexe nos mesmos documentos; o merge posterior resolve só texto.
+- **BLOCKER-R2-1: produto gigantesco numa chave.** Arquitetural, não explorável; vai para a P1.
+  - Uma chave nunca é partida, porque I1 e I2 precisam do produto inteiro.
+  - Medido: 250.001 linhas levam 2,3–2,8 s. Extrapolando, a partir de ~1,5–2 milhões de linhas num só produto, o `statement_timeout` de 15 s corta a leitura.
+  - Efeito: 409 fail-closed, nada gravado e nenhum OK, mas esse produto nunca fecha.
+  - Saída na P1: partição por local dentro da chave (sem DDL) ou linhagem estruturada (DDL).
+  - Em produção hoje são 2 produtos e 2 lotes.
+- **BLOCKER-R2-2: AuditLog de lote sem índice útil.** Arquitetural, pede DDL e não é executado nesta PR.
+  - O produto de um lote apagado só existe no JSON. Por isso a fase de exclusões lê todo o histórico de AuditLog de lote do tenant, também com filtro de produto.
+  - Essa leitura é paginada e cada linha é lida uma vez por varredura. Medido: +75 ms com 32 mil linhas.
+  - Acima de `auditoriaPorChamada`, a evidência é PARCIAL e é declarada.
+  - Saída na P1 (DDL): índice parcial ou de expressão em `(cliente_id, (dados_anteriores->>'produto_id')) WHERE entidade='EstoqueLoteNota' AND acao='delete'`.
+- **BLOCKER-R2-3: sem snapshot global entre requisições.**
+  - A conclusão global só existe na chamada única. Uma varredura em várias chamadas é sempre INCONCLUSIVA, por contrato; o tenant de carga A fecha em 4 chamadas.
+  - Saída na P1: job assíncrono com `pg_export_snapshot` ou transação dedicada, fora do HTTP.
+- **Estatística velha:** logo depois de uma carga em lote e antes do autovacuum, o planejador pode subestimar o tenant e ler o histórico pelo índice errado. Só o orçamento de tempo e o `statement_timeout` limitam isso, e o resultado é fail-closed.
+- **Âncora do cursor apagada entre chamadas:** não dá 400. O keyset `id > âncora` continua sem pular nada e sem oráculo (teste RK2). Mudar isso seria decisão de contrato.
+- **Medição só local:** 4 vCPU, sem latência de rede. Uma chamada cheia faz cerca de 115 idas ao banco.
 
 ## 13. Proposta P1 (somente design; nada implementado)
 
