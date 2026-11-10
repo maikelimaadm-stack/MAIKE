@@ -212,11 +212,23 @@ export const isProdutoDeleteBlockedError = (erro) =>
   hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED);
 
 const VINCULO_ESTOQUE = 'movimentações de estoque';
+const VINCULO_TANQUES = 'tanques do patrimônio';
+
+/**
+ * D-PROD-161 (padrão P-10): por que a unidade de estoque não muda
+ * (409 PRODUTO_UNIDADE_EM_USO, `reason`).
+ */
+const MOTIVO_UNIDADE_EM_USO = Object.freeze({
+  estoque: 'Este produto tem estoque',
+  lotes: 'Este produto tem lotes de estoque',
+  movimentos: 'Este produto tem movimentações de estoque',
+  lancamentos: 'Este produto está em lançamentos financeiros',
+});
 
 /**
  * Frase do bloqueio de exclusão com o vínculo REAL que o servidor informou
  * (`details.vinculo`: movimentações de estoque, lançamentos financeiros ou
- * combustíveis do patrimônio) e a quantidade.
+ * tanques do patrimônio — D-PROD-161) e a quantidade.
  * @param {unknown} erro
  */
 export const mensagemExclusaoProdutoBloqueada = (erro) => {
@@ -226,18 +238,33 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
   if (vinculo === VINCULO_ESTOQUE) {
     return `Este produto já possui ${quantidade} registro(s) lançados em ${VINCULO_ESTOQUE} e não pode ser excluído.`;
   }
+  if (vinculo === VINCULO_TANQUES) {
+    return `Este produto está nos Produtos aceitos de ${quantidade} tanque(s) de bens patrimoniais e não pode ser excluído. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais ou inative o produto.`;
+  }
   return `Este produto possui ${quantidade} registro(s) em ${vinculo} e não pode ser excluído. Inative o produto em vez de excluí-lo.`;
 };
 
 /**
- * Mensagem de falha ao salvar o produto. Mudar de fazenda um produto com
- * vínculo ATIVO a combustível do Patrimônio (409 PRODUTO_VINCULADO_COMBUSTIVEL,
- * D-PROD-157 R2) diz o que fazer; o resto segue a mensagem pública do código.
+ * Mensagem de falha ao salvar o produto (D-PROD-161). Diz o que fazer quando:
+ *  - o produto está nos Produtos aceitos de um tanque e muda de fazenda
+ *    (409 PRODUTO_EM_TANQUE_PATRIMONIO);
+ *  - a unidade de estoque não pode mudar (409 PRODUTO_UNIDADE_EM_USO, por
+ *    `reason`: estoque, lotes, movimentos, lançamentos — padrão P-10 — ou
+ *    aceito em tanque);
+ * o resto segue a mensagem pública do código.
  * @param {unknown} erro
  */
 export const mensagemErroSalvarProduto = (erro) => {
-  if (lerErroGestao(erro).code === 'PRODUTO_VINCULADO_COMBUSTIVEL') {
-    return 'Este produto está vinculado a um combustível do Patrimônio nesta fazenda: ele não pode mudar de fazenda. Inative o vínculo na tela Combustíveis antes. Nada foi gravado.';
+  const { code, reason } = lerErroGestao(erro);
+  if (code === 'PRODUTO_EM_TANQUE_PATRIMONIO') {
+    return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial: ele não pode mudar de fazenda. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais antes. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_UNIDADE_EM_USO') {
+    if (reason === 'aceito_em_tanque') {
+      return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que só usa estoque em litros (L) ou quilos (KG). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
+    }
+    const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
+    return `${motivo}: a unidade de estoque não muda de ou para litros. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. Nada foi gravado.`;
   }
   return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
 };

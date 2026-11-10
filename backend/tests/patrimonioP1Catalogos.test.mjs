@@ -1,29 +1,29 @@
 /**
- * D-PROD-157 — Patrimônio P1-01: CATÁLOGOS do tenant (famílias, tipos, perfis
- * de medição, combustíveis e o catálogo padrão). PostgreSQL real, HTTP
- * autenticado, prova por persistência.
+ * D-PROD-157 / D-PROD-161 — Patrimônio: CATÁLOGOS do tenant (famílias, tipos
+ * e o catálogo padrão). PostgreSQL real, HTTP autenticado, prova por
+ * persistência. D-PROD-161: perfis de medição e combustíveis saíram (rotas
+ * 404); famílias e tipos têm as guardas da tela de Bens; `codigo` opcional.
  *
- *  K1. Catálogo padrão: idempotente (2ª chamada cria 0), isolado por tenant,
- *      corrida instala uma vez, conflitos do A9 sem alterar nada e sem P2002
- *      abortar; só administrador real ou `is_admin`.
+ *  K1. Catálogo padrão (só famílias e tipos): idempotente (2ª chamada cria 0),
+ *      isolado por tenant, corrida instala uma vez, conflitos do A9 sem alterar
+ *      nada e sem P2002 abortar; só administrador real ou `is_admin`.
  *  K2. Famílias: CRUD, código normalizado, natureza/código imutáveis (400),
  *      CAS por versão, PATCH sem mudança efetiva, nome único sem diferenciar
  *      maiúsculas, keyset/filtros/busca literal, 404 cruzado sem oráculo,
  *      auditoria sem texto livre.
- *  K3. Tipos: família inexistente/inativa/de outro tenant recusada, perfis só
- *      em benfeitoria, regras dos perfis (limite, repetido, 2 principais,
- *      inexistente, inativo ao acrescentar), troca do principal (A5).
- *  K4. Perfis e combustíveis: unidade canônica derivada, unidades fora da
- *      dimensão, dimensão/finalidade/unidade imutáveis, unidade em uso não sai.
- *  K5. Permissões por ação (ver/criar/editar/inativar) e opções de seletor
- *      (A3: quem só tem a tela Tipos cria tipo com perfis).
+ *  K3. Tipos: família inexistente/inativa/de outro tenant recusada; `perfis`
+ *      → 400; familia_id/código imutáveis; nome único na família.
+ *  K4. Código gerado do nome (P-05): sem acentos, MAIÚSCULAS, `_`, até 28 +
+ *      sufixo `_2`…`_99` (≤ 32), colisão sob a trava do catálogo; nome repetido
+ *      continua 409.
+ *  K5. Permissões pelas ações de Bens e opções de seletor.
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { TELAS, corpoCurral, corpoErro, erro, http, linha, montarPatrimonio, prisma, tudo } from './patrimonioP1Cenario.mjs';
+import { TELAS, TELAS_ANTIGAS, corpoErro, erro, http, linha, montarPatrimonio, prisma, tudo } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -44,8 +44,8 @@ beforeEach(async () => {
 
 const req = (...a) => H.req(...a);
 const ok = (...a) => H.ok(...a);
-const ZERO = Object.freeze({ familias: 0, tipos: 0, perfis: 0, combustiveis: 0 });
-const PADRAO = Object.freeze({ familias: 5, tipos: 13, perfis: 5, combustiveis: 5 });
+const ZERO = Object.freeze({ familias: 0, tipos: 0 });
+const PADRAO = Object.freeze({ familias: 5, tipos: 13 });
 const INEXISTENTE = 'cl0inexistente000000000000';
 const instalar = (tok, corpo = {}) => req('POST', '/patrimonio-catalogo-padrao', tok, corpo);
 const todos = async (tok, base) => (await ok(req('GET', `${base}?limit=100`, tok))).items;
@@ -54,39 +54,34 @@ const conflitosOrdenados = (r) => r.conflitos.map((x) => `${x.recurso}:${x.codig
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('K1 — catálogo padrão', () => {
-  test('instala 5 famílias, 13 tipos, 5 perfis e 5 combustíveis; 2ª chamada cria 0; outro tenant é independente; corrida instala uma vez', async () => {
+  test('instala 5 famílias e 13 tipos (sem perfis nem combustíveis); 2ª chamada cria 0; outro tenant é independente; corrida instala uma vez', async () => {
     const a = await montarPatrimonio(app, { catalogo: false });
     const b = await montarPatrimonio(app, { catalogo: false });
     const r1 = await ok(instalar(a.token));
     assert.deepEqual(r1, { criados: PADRAO, existentes: ZERO, conflitos: [] });
     const eventos = await prisma().auditLog.count({ where: { cliente_id: a.c, acao: 'create' } });
-    assert.equal(eventos, 28, 'um evento de criação por item, na mesma transação');
+    assert.equal(eventos, 18, 'um evento de criação por item, na mesma transação');
+    assert.deepEqual(
+      (await prisma().auditLog.groupBy({ by: ['entidade'], where: { cliente_id: a.c, acao: 'create' }, _count: true })).map((g) => [g.entidade, g._count]).sort(),
+      [['FamiliaPatrimonial', 5], ['TipoPatrimonial', 13]],
+    );
     const r2 = await ok(instalar(a.token));
     assert.deepEqual(r2, { criados: ZERO, existentes: PADRAO, conflitos: [] }, '2ª chamada não cria nada');
-    assert.equal(await prisma().auditLog.count({ where: { cliente_id: a.c, acao: 'create' } }), 28, 'sem auditoria na 2ª');
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: a.c, acao: 'create' } }), 18, 'sem auditoria na 2ª');
 
-    // Conteúdo do padrão (A9: sem CAPACIDADE_CARGA; GNV em m3; CURRAL com AREA principal).
-    const perfis = porCodigo(await todos(a.token, '/patrimonio-perfis-medicao'), (p) => [p.dimensao, p.finalidade, p.unidade_canonica, p.unidades_permitidas]);
-    assert.deepEqual(perfis, {
-      AREA: ['AREA', 'DIMENSAO', 'm2', ['m2', 'ha']],
-      CAPACIDADE_ANIMAL: ['CABECAS', 'CAPACIDADE', 'cab', ['cab']],
-      EXTENSAO: ['EXTENSAO', 'DIMENSAO', 'm', ['m', 'km']],
-      QUANTIDADE: ['QUANTIDADE', 'DIMENSAO', 'un', ['un']],
-      VOLUME: ['VOLUME', 'CAPACIDADE', 'L', ['L', 'm3']],
-    });
+    // Conteúdo do padrão.
     const familias = porCodigo(await todos(a.token, '/patrimonio-familias'), (f) => [f.natureza, f.vida_util_meses_padrao]);
     assert.deepEqual(familias, {
       BENFEITORIAS: ['BENFEITORIA', 300], EQUIPAMENTOS: ['EQUIPAMENTO', 120], IMPLEMENTOS: ['IMPLEMENTO', 120], MAQUINAS: ['MAQUINA', 120], VEICULOS: ['VEICULO', 60],
     });
-    const combustiveis = porCodigo(await todos(a.token, '/patrimonio-combustiveis'), (c) => c.unidade);
-    assert.deepEqual(combustiveis, { DIESEL_S10: 'L', DIESEL_S500: 'L', ETANOL: 'L', GASOLINA: 'L', GNV: 'm3' });
-    const tipos = porCodigo(await todos(a.token, '/patrimonio-tipos'), (t) => [t.familia.codigo, t.perfis.map((p) => `${p.perfil.codigo}${p.principal ? '*' : ''}`)]);
+    const tipos = porCodigo(await todos(a.token, '/patrimonio-tipos'), (t) => t.familia.codigo);
     assert.deepEqual(tipos, {
-      BALANCA: ['EQUIPAMENTOS', []], BEBEDOURO_FIXO: ['BENFEITORIAS', ['VOLUME*']], CAMINHAO: ['VEICULOS', []], CAMINHONETE: ['VEICULOS', []],
-      CERCA_ARAME: ['BENFEITORIAS', ['EXTENSAO*']], CERCA_ELETRICA: ['BENFEITORIAS', ['EXTENSAO*']], CURRAL: ['BENFEITORIAS', ['AREA*', 'CAPACIDADE_ANIMAL']],
-      GALPAO: ['BENFEITORIAS', ['AREA*']], GERADOR: ['EQUIPAMENTOS', []], RESERVATORIO: ['BENFEITORIAS', ['VOLUME*']], ROCADEIRA: ['IMPLEMENTOS', []],
-      TRATOR_ESTEIRAS: ['MAQUINAS', []], TRATOR_PNEUS: ['MAQUINAS', []],
+      BALANCA: 'EQUIPAMENTOS', BEBEDOURO_FIXO: 'BENFEITORIAS', CAMINHAO: 'VEICULOS', CAMINHONETE: 'VEICULOS', CERCA_ARAME: 'BENFEITORIAS', CERCA_ELETRICA: 'BENFEITORIAS',
+      CURRAL: 'BENFEITORIAS', GALPAO: 'BENFEITORIAS', GERADOR: 'EQUIPAMENTOS', RESERVATORIO: 'BENFEITORIAS', ROCADEIRA: 'IMPLEMENTOS', TRATOR_ESTEIRAS: 'MAQUINAS', TRATOR_PNEUS: 'MAQUINAS',
     });
+    assert.ok((await todos(a.token, '/patrimonio-tipos')).every((t) => !('perfis' in t)), 'tipo sem perfis na forma pública');
+    // Perfis e combustíveis saíram do produto: as rotas não existem.
+    for (const url of ['/patrimonio-perfis-medicao', '/patrimonio-combustiveis']) assert.equal((await req('GET', url, a.token)).statusCode, 404, url);
 
     // Isolado por tenant: B não viu nada de A e instala o seu próprio catálogo.
     assert.equal((await ok(req('GET', '/patrimonio-familias', b.token))).total, 0);
@@ -104,7 +99,7 @@ describe('K1 — catálogo padrão', () => {
     assert.equal((await req('POST', '/patrimonio-catalogo-padrao', d.token)).statusCode, 200);
   });
 
-  test('A9: código existente com natureza/dimensão/unidade divergente, inativo ou nome já usado vira conflito; dependentes pulados; nada alterado; 200 sem P2002', async () => {
+  test('A9: código existente com natureza/família divergente, inativo ou nome já usado vira conflito; dependentes pulados; nada alterado; 200 sem P2002', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
     const post = (url, corpo) => ok(req('POST', url, t, corpo), 201);
@@ -114,17 +109,9 @@ describe('K1 — catálogo padrão', () => {
     const caminhao = await post('/patrimonio-tipos', { familia_id: frota.id, codigo: 'CAMINHAO', nome: 'Caminhão da frota' });
     const impl = await post('/patrimonio-familias', { codigo: 'IMPLEMENTOS', nome: 'Implementos agrícolas', natureza: 'IMPLEMENTO' });
     await ok(req('PATCH', `/patrimonio-familias/${impl.id}`, t, { versao: 1, ativo: false }));
-    await post('/patrimonio-perfis-medicao', { codigo: 'EXTENSAO', nome: 'Extensão em área', dimensao: 'AREA', finalidade: 'DIMENSAO', unidades_permitidas: ['m2'] });
-    const area = await post('/patrimonio-perfis-medicao', { codigo: 'AREA', nome: 'Área própria', dimensao: 'AREA', finalidade: 'DIMENSAO', unidades_permitidas: ['m2', 'ha'] });
-    await ok(req('PATCH', `/patrimonio-perfis-medicao/${area.id}`, t, { versao: 1, ativo: false }));
-    const gnv = await post('/patrimonio-combustiveis', { codigo: 'GNV', nome: 'GNV líquido', unidade: 'L' });
-    await post('/patrimonio-combustiveis', { codigo: 'X1', nome: 'gasolina' });
-    await post('/patrimonio-combustiveis', { codigo: 'ETANOL', nome: 'Etanol hidratado' });
 
     const esperadoConflitos = [
-      'combustiveis:GASOLINA:nome_em_uso', 'combustiveis:GNV:unidade_divergente',
       'familias:BENFEITORIAS:nome_em_uso', 'familias:IMPLEMENTOS:inativo', 'familias:MAQUINAS:natureza_divergente',
-      'perfis:AREA:inativo', 'perfis:EXTENSAO:dimensao_divergente',
       'tipos:BEBEDOURO_FIXO:dependencia_em_conflito', 'tipos:CAMINHAO:familia_divergente', 'tipos:CERCA_ARAME:dependencia_em_conflito',
       'tipos:CERCA_ELETRICA:dependencia_em_conflito', 'tipos:CURRAL:dependencia_em_conflito', 'tipos:GALPAO:dependencia_em_conflito',
       'tipos:RESERVATORIO:dependencia_em_conflito', 'tipos:ROCADEIRA:dependencia_em_conflito', 'tipos:TRATOR_ESTEIRAS:dependencia_em_conflito',
@@ -132,24 +119,22 @@ describe('K1 — catálogo padrão', () => {
     ];
     const r1 = await ok(instalar(t));
     assert.deepEqual(conflitosOrdenados(r1), esperadoConflitos);
-    assert.deepEqual(r1.criados, { familias: 2, tipos: 3, perfis: 3, combustiveis: 2 });
-    assert.deepEqual(r1.existentes, { familias: 0, tipos: 0, perfis: 0, combustiveis: 1 });
+    assert.deepEqual(r1.criados, { familias: 2, tipos: 3 });
+    assert.deepEqual(r1.existentes, { familias: 0, tipos: 0 });
     // Os itens em conflito ficaram como estavam.
     const p = prisma();
     assert.equal((await p.familiaPatrimonial.findUnique({ where: { id: maq.id } })).natureza, 'OUTRO');
     assert.equal((await p.familiaPatrimonial.findUnique({ where: { id: impl.id } })).ativo, false);
-    assert.equal((await p.perfilMedicao.findUnique({ where: { id: area.id } })).ativo, false);
-    assert.equal((await p.tipoCombustivel.findUnique({ where: { id: gnv.id } })).unidade, 'L');
     assert.equal((await p.tipoPatrimonial.findUnique({ where: { id: caminhao.id } })).familia_id, frota.id);
     assert.equal(await p.familiaPatrimonial.count({ where: { cliente_id: s.c, codigo: 'BENFEITORIAS' } }), 0);
     // Idempotente também com conflitos.
     const r2 = await ok(instalar(t));
     assert.deepEqual(conflitosOrdenados(r2), esperadoConflitos);
     assert.deepEqual(r2.criados, ZERO);
-    assert.deepEqual(r2.existentes, { familias: 2, tipos: 3, perfis: 3, combustiveis: 3 });
+    assert.deepEqual(r2.existentes, { familias: 2, tipos: 3 });
   });
 
-  test('A9: nome já usado por TIPO (na mesma família) e por PERFIL vira nome_em_uso; dependentes pulados; o resto instala; 200 sem P2002 abortar a transação', async () => {
+  test('A9: nome já usado por TIPO (na mesma família) vira nome_em_uso; o resto instala; 200 sem P2002 abortar a transação', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
     const post = (url, corpo) => ok(req('POST', url, t, corpo), 201);
@@ -157,31 +142,25 @@ describe('K1 — catálogo padrão', () => {
     const benf = await post('/patrimonio-familias', { codigo: 'BENFEITORIAS', nome: 'Benfeitorias da fazenda', natureza: 'BENFEITORIA' });
     // Nome EXATO do padrão: o unique [cliente_id, familia_id, nome] diferencia maiúsculas, então só o nome exato bateria em P2002.
     const meuGalpao = await post('/patrimonio-tipos', { familia_id: benf.id, codigo: 'MEU_GALPAO', nome: 'Galpão' });
-    const meuVolume = await post('/patrimonio-perfis-medicao', { codigo: 'MEU_VOLUME', nome: 'Volume', dimensao: 'VOLUME', finalidade: 'CAPACIDADE', unidades_permitidas: ['L'] });
     const antes = JSON.stringify([
       await prisma().tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
-      await prisma().perfilMedicao.findUnique({ where: { id: meuVolume.id } }),
       await prisma().familiaPatrimonial.findUnique({ where: { id: benf.id } }),
     ]);
 
     const r = await ok(instalar(t));
-    assert.deepEqual(conflitosOrdenados(r), [
-      'perfis:VOLUME:nome_em_uso', 'tipos:BEBEDOURO_FIXO:dependencia_em_conflito', 'tipos:GALPAO:nome_em_uso', 'tipos:RESERVATORIO:dependencia_em_conflito',
-    ]);
-    assert.deepEqual(r.criados, { familias: 4, tipos: 10, perfis: 4, combustiveis: 5 });
-    assert.deepEqual(r.existentes, { familias: 1, tipos: 0, perfis: 0, combustiveis: 0 });
+    assert.deepEqual(conflitosOrdenados(r), ['tipos:GALPAO:nome_em_uso']);
+    assert.deepEqual(r.criados, { familias: 4, tipos: 12 });
+    assert.deepEqual(r.existentes, { familias: 1, tipos: 0 });
     const p = prisma();
-    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: { in: ['GALPAO', 'RESERVATORIO', 'BEBEDOURO_FIXO'] } } }), 0);
-    assert.equal(await p.perfilMedicao.count({ where: { cliente_id: s.c, codigo: 'VOLUME' } }), 0);
+    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: 'GALPAO' } }), 0);
     assert.equal((await p.tipoPatrimonial.findFirst({ where: { cliente_id: s.c, codigo: 'CURRAL' } }))?.familia_id, benf.id, 'tipos do padrão entram na família existente');
     assert.equal(
       JSON.stringify([
         await p.tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
-        await p.perfilMedicao.findUnique({ where: { id: meuVolume.id } }),
         await p.familiaPatrimonial.findUnique({ where: { id: benf.id } }),
       ]),
       antes,
-      'MEU_GALPAO, MEU_VOLUME e a família intactos',
+      'MEU_GALPAO e a família intactos',
     );
     // Idempotente: a 2ª chamada repete os conflitos e não cria nada.
     const r2 = await ok(instalar(t));
@@ -191,7 +170,7 @@ describe('K1 — catálogo padrão', () => {
 
   test('só administrador real ou is_admin; corpo fechado; sem sessão 401', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
-    const todasAsTelas = await s.contaCom(...Object.values(TELAS).map(tudo));
+    const todasAsTelas = await s.contaCom(...[...Object.values(TELAS), ...Object.values(TELAS_ANTIGAS)].map(tudo));
     const r = await instalar(todasAsTelas.token);
     assert.deepEqual(erro(r).slice(0, 2), [403, 'ACAO_NAO_PERMITIDA']);
     assert.equal(await prisma().familiaPatrimonial.count({ where: { cliente_id: s.c } }), 0);
@@ -299,7 +278,7 @@ describe('K2 — famílias', () => {
   });
 
   // A9: o unique do banco diferencia maiúsculas; sob concorrência, só a trava do catálogo barra o nome repetido em outra caixa.
-  test('corrida de NOME sem diferenciar maiúsculas (códigos distintos) → [201, 409 PATRIMONIO_NOME_DUPLICADO]: família, tipo (na família), perfil e combustível; um nome só', async () => {
+  test('corrida de NOME sem diferenciar maiúsculas (códigos distintos) → [201, 409 PATRIMONIO_NOME_DUPLICADO]: família e tipo (na família); um nome só', async () => {
     const s = await montarPatrimonio(app);
     const p = prisma();
     const casos = [
@@ -308,11 +287,6 @@ describe('K2 — famílias', () => {
         '/patrimonio-tipos', (codigo, nome) => ({ familia_id: s.fam.MAQUINAS, codigo, nome }), ['Grade aradora', 'GRADE ARADORA'],
         (nome) => p.tipoPatrimonial.count({ where: { cliente_id: s.c, familia_id: s.fam.MAQUINAS, nome: { equals: nome, mode: 'insensitive' } } }),
       ],
-      [
-        '/patrimonio-perfis-medicao', (codigo, nome) => ({ codigo, nome, dimensao: 'QUANTIDADE', finalidade: 'DIMENSAO', unidades_permitidas: ['un'] }), ['Mourões', 'MOURÕES'],
-        (nome) => p.perfilMedicao.count({ where: { cliente_id: s.c, nome: { equals: nome, mode: 'insensitive' } } }),
-      ],
-      ['/patrimonio-combustiveis', (codigo, nome) => ({ codigo, nome }), ['Biodiesel B100', 'BIODIESEL B100'], (nome) => p.tipoCombustivel.count({ where: { cliente_id: s.c, nome: { equals: nome, mode: 'insensitive' } } })],
     ];
     for (const [url, corpo, [nome1, nome2], contar] of casos) {
       const [a, b] = await Promise.all([req('POST', url, s.token, corpo('CORRIDA_N1', nome1)), req('POST', url, s.token, corpo('CORRIDA_N2', nome2))]);
@@ -332,13 +306,11 @@ describe('K2 — famílias', () => {
     assert.equal(await p.familiaPatrimonial.count({ where: { cliente_id: s.c, nome: { equals: 'depósito central', mode: 'insensitive' } } }), 1);
   });
 
-  test('nome único: `%`, `_` e `\\` são literais na comparação sem diferenciar maiúsculas (família, tipo, perfil e combustível)', async () => {
+  test('nome único: `%`, `_` e `\\` são literais na comparação sem diferenciar maiúsculas (família e tipo)', async () => {
     const s = await montarPatrimonio(app);
     const casos = [
       ['/patrimonio-familias', (codigo, nome) => ({ codigo, nome, natureza: 'OUTRO' })],
       ['/patrimonio-tipos', (codigo, nome) => ({ familia_id: s.fam.MAQUINAS, codigo, nome })],
-      ['/patrimonio-perfis-medicao', (codigo, nome) => ({ codigo, nome, dimensao: 'QUANTIDADE', finalidade: 'DIMENSAO', unidades_permitidas: ['un'] })],
-      ['/patrimonio-combustiveis', (codigo, nome) => ({ codigo, nome })],
     ];
     for (const [url, corpo] of casos) {
       const post = (codigo, nome) => req('POST', url, s.token, corpo(codigo, nome));
@@ -359,9 +331,10 @@ describe('K2 — famílias', () => {
   });
 });
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 describe('K3 — tipos', () => {
-  test('família inexistente, de outro tenant ou inativa recusada; perfis só em benfeitoria e com as regras; familia_id/código imutáveis; troca do principal (A5)', async () => {
+  test('família inexistente, de outro tenant ou inativa recusada; `perfis` → 400; familia_id/código imutáveis; nome único na família; filtro, 404 cruzado e auditoria sem perfis', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
     const t = s.token;
@@ -372,177 +345,143 @@ describe('K3 — tipos', () => {
     const fam = await ok(req('POST', '/patrimonio-familias', t, { codigo: 'PROVISORIA', nome: 'Provisória', natureza: 'OUTRO' }), 201);
     await ok(req('PATCH', `/patrimonio-familias/${fam.id}`, t, { versao: 1, ativo: false }));
     assert.deepEqual(erro(await tipo({ familia_id: fam.id, codigo: 'NOVO', nome: 'Novo' })), [422, 'BEM_REFERENCIA_INVALIDA', 'familia_id', 'inativo']);
+    assert.deepEqual(erro(await tipo({ familia_id: fam.id, nome: 'Novo' })), [422, 'BEM_REFERENCIA_INVALIDA', 'familia_id', 'inativo'], 'sem código: a família é conferida igual');
     assert.equal(await prisma().tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: 'NOVO' } }), 0);
 
-    // Perfis só para família BENFEITORIA.
-    const naoAplic = await tipo({ familia_id: s.fam.MAQUINAS, codigo: 'PULV', nome: 'Pulverizador', perfis: [{ perfil_id: s.per.AREA }] });
-    assert.deepEqual(erro(naoAplic), [422, 'TIPO_PERFIS_NAO_APLICAVEIS', 'perfis', 'natureza_sem_medicoes']);
-    // Regras da lista de perfis (TIPO_PERFIS_INVALIDOS com reason).
-    const benf = (perfis) => tipo({ familia_id: s.fam.BENFEITORIAS, codigo: 'POCILGA', nome: 'Pocilga', perfis });
-    assert.deepEqual(erro(await benf(Array.from({ length: 11 }, () => ({ perfil_id: s.per.AREA })))), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'limite']);
-    assert.deepEqual(erro(await benf([{ perfil_id: s.per.AREA }, { perfil_id: s.per.AREA }])), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'duplicado']);
-    assert.deepEqual(erro(await benf([{ perfil_id: s.per.AREA, principal: true }, { perfil_id: s.per.EXTENSAO, principal: true }])), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'principal_duplicado']);
-    assert.deepEqual(erro(await benf([{ perfil_id: outro.per.AREA }])), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'inexistente']);
-    await ok(req('PATCH', `/patrimonio-perfis-medicao/${s.per.QUANTIDADE}`, t, { versao: 1, ativo: false }));
-    assert.deepEqual(erro(await benf([{ perfil_id: s.per.QUANTIDADE }])), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'inativo']);
-
-    const criado = await ok(benf([{ perfil_id: s.per.AREA, principal: true }, { perfil_id: s.per.EXTENSAO }]), 201);
+    // D-PROD-161: perfis saíram do contrato.
+    for (const corpo of [
+      { familia_id: s.fam.BENFEITORIAS, codigo: 'POCILGA', nome: 'Pocilga', perfis: [] },
+      { familia_id: s.fam.BENFEITORIAS, nome: 'Pocilga', perfis: [{ perfil_id: INEXISTENTE }] },
+    ]) {
+      assert.deepEqual(erro(await tipo(corpo)).slice(0, 2), [400, 'REQUEST_VALIDATION_FAILED'], JSON.stringify(corpo));
+    }
+    const criado = await ok(tipo({ familia_id: s.fam.BENFEITORIAS, codigo: 'pocilga', nome: 'Pocilga', descricao: 'DESCSENTINELA', vida_util_meses_sugerida: 240 }), 201);
     assert.equal(criado.codigo, 'POCILGA');
     assert.equal(criado.familia.codigo, 'BENFEITORIAS');
-    assert.deepEqual(criado.perfis.map((p) => [p.perfil.codigo, p.principal]), [['AREA', true], ['EXTENSAO', false]]);
+    assert.deepEqual(Object.keys(criado).sort(), ['ativo', 'codigo', 'created_date', 'descricao', 'familia', 'familia_id', 'id', 'nome', 'updated_date', 'versao', 'vida_util_meses_sugerida']);
     assert.deepEqual(await ok(req('GET', `/patrimonio-tipos/${criado.id}`, t)), criado);
-
-    // A5: trocar o principal enviando o novo primeiro (sem colidir no unique).
-    const troca = await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 1, perfis: [{ perfil_id: s.per.EXTENSAO, principal: true }, { perfil_id: s.per.AREA }] }));
-    assert.deepEqual(troca.perfis.map((p) => [p.perfil.codigo, p.principal]), [['EXTENSAO', true], ['AREA', false]]);
-    assert.equal(troca.versao, 2);
-    const vinculos = await prisma().tipoPatrimonialPerfil.findMany({ where: { cliente_id: s.c, tipo_id: criado.id }, orderBy: { ordem: 'asc' } });
-    assert.deepEqual(vinculos.map((v) => [v.perfil_id, v.principal]), [[s.per.EXTENSAO, true], [s.per.AREA, null]], 'principal só true ou NULL');
-    // Mesma lista na mesma ordem: sem mudança efetiva.
-    assert.equal((await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 2, perfis: [{ perfil_id: s.per.EXTENSAO, principal: true }, { perfil_id: s.per.AREA }] }))).versao, 2);
-    // Perfil já vinculado e depois inativado pode continuar; acrescentar o inativo, não.
-    await ok(req('PATCH', `/patrimonio-perfis-medicao/${s.per.EXTENSAO}`, t, { versao: 1, ativo: false }));
-    const mantem = await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 2, nome: 'Pocilga coberta', perfis: [{ perfil_id: s.per.EXTENSAO, principal: true }, { perfil_id: s.per.AREA }] }));
-    assert.deepEqual([mantem.versao, mantem.perfis[0].perfil.ativo], [3, false]);
-    assert.deepEqual(erro(await req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 3, perfis: [{ perfil_id: s.per.EXTENSAO }, { perfil_id: s.per.QUANTIDADE }] })), [422, 'TIPO_PERFIS_INVALIDOS', 'perfis', 'inativo']);
-    // Remover todos os perfis é um sync válido.
-    assert.deepEqual((await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 3, perfis: [] }))).perfis, []);
+    assert.equal((await req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 1, perfis: [] })).statusCode, 400, 'PATCH com perfis');
 
     // familia_id e código imutáveis (400); nome único DENTRO da família.
-    for (const corpo of [{ versao: 4, familia_id: s.fam.MAQUINAS }, { versao: 4, codigo: 'OUTRO' }]) {
+    for (const corpo of [{ versao: 1, familia_id: s.fam.MAQUINAS }, { versao: 1, codigo: 'OUTRO' }]) {
       assert.equal((await req('PATCH', `/patrimonio-tipos/${criado.id}`, t, corpo)).statusCode, 400, JSON.stringify(corpo));
     }
     assert.deepEqual(erro(await tipo({ familia_id: s.fam.BENFEITORIAS, codigo: 'CURRAL2', nome: 'curral' })), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido']);
+    assert.deepEqual(erro(await tipo({ familia_id: s.fam.BENFEITORIAS, nome: 'CURRAL' })), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido'], 'sem código: nome repetido continua 409');
     assert.equal((await tipo({ familia_id: s.fam.EQUIPAMENTOS, codigo: 'CURRAL2', nome: 'Curral' })).statusCode, 201, 'o mesmo nome em outra família');
     assert.deepEqual(erro(await tipo({ familia_id: s.fam.EQUIPAMENTOS, codigo: 'curral', nome: 'Outro' })), [409, 'PATRIMONIO_CODIGO_DUPLICADO', 'codigo', 'codigo_repetido']);
 
-    // Filtro por família, 404 cruzado e auditoria dos perfis.
+    // Edição e inativação; filtro por família; 404 cruzado; auditoria sem perfis nem texto livre.
+    const ed = await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 1, nome: 'Pocilga coberta', descricao: null }));
+    assert.equal(ed.versao, 2);
+    assert.equal((await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 2, nome: 'Pocilga coberta' }))).versao, 2, 'sem mudança efetiva');
+    assert.equal((await ok(req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 2, ativo: false }))).ativo, false);
     const daFamilia = await ok(req('GET', `/patrimonio-tipos?familia_id=${s.fam.MAQUINAS}`, t));
     assert.deepEqual(daFamilia.items.map((i) => i.codigo).sort(), ['TRATOR_ESTEIRAS', 'TRATOR_PNEUS']);
     assert.deepEqual(erro(await req('GET', `/patrimonio-tipos/${criado.id}`, outro.token)).slice(0, 2), [404, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']);
-    const evento = await prisma().auditLog.findFirst({ where: { cliente_id: s.c, entidade: 'TipoPatrimonial', entidade_id: criado.id, acao: 'update' }, orderBy: { createdAt: 'asc' } });
-    assert.deepEqual(/** @type {any} */ (evento.dados_novos).campos_alterados, ['perfis']);
-    assert.deepEqual(/** @type {any} */ (evento.dados_novos).perfis, [`${s.per.EXTENSAO}*`, s.per.AREA]);
+    const eventos = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'TipoPatrimonial', entidade_id: criado.id }, orderBy: { createdAt: 'asc' } });
+    assert.deepEqual(eventos.map((e) => e.acao), ['create', 'update', 'update']);
+    assert.deepEqual(Object.keys(/** @type {any} */ (eventos[0].dados_novos)).sort(), ['ativo', 'codigo', 'familia_id', 'id', 'versao']);
+    assert.deepEqual([.../** @type {any} */ (eventos[1].dados_novos).campos_alterados].sort(), ['descricao', 'nome']);
+    assert.deepEqual(/** @type {any} */ (eventos[2].dados_novos).campos_alterados, ['ativo']);
+    const texto = JSON.stringify(eventos.map((e) => [e.dados_anteriores, e.dados_novos]));
+    for (const sentinela of ['DESCSENTINELA', 'Pocilga']) assert.ok(!texto.includes(sentinela), `auditoria com texto livre: ${sentinela}`);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('K4 — perfis de medição e combustíveis', () => {
-  test('perfil: canônica derivada; unidades fora da dimensão/sem canônica/repetidas/vazias → 422; dimensão e finalidade imutáveis; unidade usada por medição não sai (409)', async () => {
-    const s = await montarPatrimonio(app);
-    const t = s.token;
-    const perfil = (corpo) => req('POST', '/patrimonio-perfis-medicao', t, { codigo: 'CARGA', nome: 'Capacidade de carga', dimensao: 'MASSA', finalidade: 'CAPACIDADE', ...corpo });
-    assert.deepEqual(erro(await perfil({ unidades_permitidas: ['kg', 'km'] })), [422, 'PERFIL_UNIDADES_INVALIDAS', 'unidades_permitidas', 'fora_da_dimensao']);
-    assert.deepEqual(erro(await perfil({ unidades_permitidas: ['t'] })), [422, 'PERFIL_UNIDADES_INVALIDAS', 'unidades_permitidas', 'sem_canonica']);
-    assert.deepEqual(erro(await perfil({ unidades_permitidas: ['kg', 'kg'] })), [422, 'PERFIL_UNIDADES_INVALIDAS', 'unidades_permitidas', 'repetida']);
-    assert.deepEqual(erro(await perfil({ unidades_permitidas: [] })), [422, 'PERFIL_UNIDADES_INVALIDAS', 'unidades_permitidas', 'vazia']);
-    assert.equal((await perfil({ unidades_permitidas: ['kg'], unidade_canonica: 't' })).statusCode, 400, 'a canônica nunca vem do corpo');
-    assert.equal((await perfil({ unidades_permitidas: ['kg'], dimensao: 'PESO' })).statusCode, 400);
-    const carga = await ok(perfil({ unidades_permitidas: ['t', 'kg'] }), 201);
-    assert.deepEqual([carga.unidade_canonica, carga.unidades_permitidas, carga.dimensao, carga.finalidade], ['kg', ['kg', 't'], 'MASSA', 'CAPACIDADE']);
-    for (const corpo of [{ versao: 1, dimensao: 'VOLUME' }, { versao: 1, finalidade: 'DIMENSAO' }, { versao: 1, unidade_canonica: 't' }, { versao: 1, codigo: 'X' }]) {
-      assert.equal((await req('PATCH', `/patrimonio-perfis-medicao/${carga.id}`, t, corpo)).statusCode, 400, JSON.stringify(corpo));
-    }
-    // Unidade não usada sai; unidade usada por medição de bem, não.
-    assert.deepEqual((await ok(req('PATCH', `/patrimonio-perfis-medicao/${carga.id}`, t, { versao: 1, unidades_permitidas: ['kg'] }))).unidades_permitidas, ['kg']);
-    await ok(req('POST', '/bens-patrimoniais', t, corpoCurral(s)), 201);
-    const emUso = await req('PATCH', `/patrimonio-perfis-medicao/${s.per.AREA}`, t, { versao: 1, unidades_permitidas: ['m2'] });
-    assert.deepEqual(erro(emUso), [409, 'PERFIL_UNIDADE_EM_USO', 'unidades_permitidas', 'unidade_em_uso']);
-    assert.deepEqual(emUso.json().details, { unidades: ['ha'] });
-    assert.deepEqual((await prisma().perfilMedicao.findUnique({ where: { id: s.per.AREA } })).unidades_permitidas, ['m2', 'ha']);
-    assert.deepEqual(erro(await req('GET', `/patrimonio-perfis-medicao/${carga.id}`, (await montarPatrimonio(app, { catalogo: false })).token)).slice(0, 2), [404, 'PERFIL_MEDICAO_NAO_ENCONTRADO']);
-  });
-
-  test('combustível: unidade padrão L, m3 aceita, unidade imutável e fora do domínio 400; inativar; 404 cruzado', async () => {
+describe('K4 — código gerado do nome (P-05)', () => {
+  test('sem `codigo`: sem acentos, MAIÚSCULAS, `_`, até 28; colisão → _2, _3; curto → ITEM; nunca passa de 32; tipo e família independentes; nome repetido 409', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
-    const b100 = await ok(req('POST', '/patrimonio-combustiveis', t, { codigo: 'b100', nome: 'Biodiesel B100' }), 201);
-    assert.deepEqual([b100.codigo, b100.unidade, b100.versao], ['B100', 'L', 1]);
-    assert.equal((await ok(req('POST', '/patrimonio-combustiveis', t, { codigo: 'BIOMETANO', nome: 'Biometano', unidade: 'm3' }), 201)).unidade, 'm3');
-    for (const corpo of [{ codigo: 'KG1', nome: 'Kg', unidade: 'kg' }, { codigo: 'M3X', nome: 'M3 maiúsculo', unidade: 'M3' }]) {
-      assert.equal((await req('POST', '/patrimonio-combustiveis', t, corpo)).statusCode, 400, JSON.stringify(corpo));
-    }
-    assert.equal((await req('PATCH', `/patrimonio-combustiveis/${b100.id}`, t, { versao: 1, unidade: 'm3' })).statusCode, 400);
-    const inat = await ok(req('PATCH', `/patrimonio-combustiveis/${b100.id}`, t, { versao: 1, ativo: false }));
-    assert.deepEqual([inat.ativo, inat.versao, inat.unidade], [false, 2, 'L']);
+    const familia = (corpo) => req('POST', '/patrimonio-familias', t, { natureza: 'OUTRO', ...corpo });
+    const criada = async (nome) => (await ok(familia({ nome }), 201)).codigo;
+    assert.equal(await criada('Galpão de máquinas'), 'GALPAO_DE_MAQUINAS');
+    assert.equal(await criada('Galpao de maquinas!'), 'GALPAO_DE_MAQUINAS_2', 'colisão no tenant → _2');
+    assert.equal(await criada('  galpão   DE  máquinas  ?? '), 'GALPAO_DE_MAQUINAS_3');
+    assert.equal(await criada('Açude & Irrigação'), 'ACUDE_IRRIGACAO');
+    assert.equal(await criada('x'), 'ITEM', 'menos de 2 caracteres úteis → ITEM');
+    assert.equal(await criada('?!'), 'ITEM_2');
+    const longo = await criada('Trator de pneus 4x4 com cabine fechada e ar-condicionado');
+    assert.equal(longo, 'TRATOR_DE_PNEUS_4X4_COM_CABI');
+    assert.equal(longo.length, 28);
+    const longo2 = await criada('Trator de pneus 4x4 com cabine aberta');
+    assert.equal(longo2, 'TRATOR_DE_PNEUS_4X4_COM_CABI_2');
+    assert.ok(longo2.length <= 32);
+    // O radical cortado não termina em `_` (corte em cima de um separador).
+    assert.equal(await criada('Abcdefghij abcdefghij abcde fg'), 'ABCDEFGHIJ_ABCDEFGHIJ_ABCDE', 'o 28º caractere era `_`: sai');
+    // Código informado continua valendo; e ocupa o lugar do gerado.
+    assert.equal((await ok(familia({ codigo: 'curral', nome: 'Curral principal' }), 201)).codigo, 'CURRAL');
+    assert.equal(await criada('Curral'), 'CURRAL_2');
+    // Nome repetido (sem diferenciar maiúsculas) continua 409, antes de gerar código.
+    assert.deepEqual(erro(await familia({ nome: 'GALPÃO DE MÁQUINAS' })), [409, 'PATRIMONIO_NOME_DUPLICADO', 'nome', 'nome_repetido']);
+    // Esgotado (radical e _2…_99 ocupados) → 409 PATRIMONIO_CODIGO_DUPLICADO.
+    const p = prisma();
+    await p.familiaPatrimonial.createMany({
+      data: [{ codigo: 'SILO' }, ...Array.from({ length: 98 }, (_, i) => ({ codigo: `SILO_${i + 2}` }))].map((r, i) => ({ cliente_id: s.c, codigo: r.codigo, nome: `Silo ocupado ${i}`, natureza: 'OUTRO' })),
+    });
+    assert.deepEqual(erro(await familia({ nome: 'Silo' })), [409, 'PATRIMONIO_CODIGO_DUPLICADO', 'codigo', 'codigo_repetido']);
+    assert.equal(await p.familiaPatrimonial.count({ where: { cliente_id: s.c, nome: 'Silo' } }), 0, 'nada gravado');
+    // Tipo: o código é único no TENANT (não por família).
+    const fam = await ok(familia({ nome: 'Máquinas pesadas', natureza: 'MAQUINA' }), 201);
+    const outraFam = await ok(familia({ nome: 'Máquinas leves', natureza: 'MAQUINA' }), 201);
+    assert.equal((await ok(req('POST', '/patrimonio-tipos', t, { familia_id: fam.id, nome: 'Trator' }), 201)).codigo, 'TRATOR');
+    assert.equal((await ok(req('POST', '/patrimonio-tipos', t, { familia_id: outraFam.id, nome: 'Trator' }), 201)).codigo, 'TRATOR_2', 'mesmo nome em outra família, código seguinte');
+    // O mesmo radical em outro tenant é livre.
     const outro = await montarPatrimonio(app, { catalogo: false });
-    assert.deepEqual(erro(await req('GET', `/patrimonio-combustiveis/${b100.id}`, outro.token)).slice(0, 2), [404, 'COMBUSTIVEL_NAO_ENCONTRADO']);
-    assert.equal((await req('PATCH', `/patrimonio-combustiveis/${b100.id}`, outro.token, { versao: 2, nome: 'X' })).statusCode, 404);
+    assert.equal((await ok(req('POST', '/patrimonio-familias', outro.token, { nome: 'Galpão de máquinas', natureza: 'OUTRO' }), 201)).codigo, 'GALPAO_DE_MAQUINAS');
+  });
+
+  test('corrida: duas criações sem código com nomes que geram o mesmo radical → 201 + 201 com códigos distintos (sob a trava do catálogo)', async () => {
+    const s = await montarPatrimonio(app, { catalogo: false });
+    const [a, b] = await Promise.all([
+      req('POST', '/patrimonio-familias', s.token, { nome: 'Galpão A', natureza: 'OUTRO' }),
+      req('POST', '/patrimonio-familias', s.token, { nome: 'Galpao-A', natureza: 'OUTRO' }),
+    ]);
+    assert.deepEqual([a.statusCode, b.statusCode], [201, 201], `${a.body} ${b.body}`);
+    assert.deepEqual([a.json().codigo, b.json().codigo].sort(), ['GALPAO_A', 'GALPAO_A_2']);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('K5 — permissões por ação e opções de seletor', () => {
-  test('ver, criar, editar e inativar separados; tela errada 403; sem sessão 401; is_admin e administrador real passam', async () => {
+describe('K5 — permissões pelas ações de Bens e opções de seletor', () => {
+  test('ver = Bens visualizar; criar = Bens novo|salvar|editar; editar = Bens editar|salvar; inativar = Bens inativar; telas antigas 403; sem sessão 401; conta desativada 401', async () => {
     const s = await montarPatrimonio(app);
-    const tela = TELAS.combustiveis;
-    const soVer = await s.contaCom(linha(tela, { visualizar: true }));
-    const soNovo = await s.contaCom(linha(tela, { visualizar: true, novo: true }));
-    const soSalvar = await s.contaCom(linha(tela, { visualizar: true, salvar: true }));
-    const soEditar = await s.contaCom(linha(tela, { visualizar: true, editar: true }));
-    const soInativar = await s.contaCom(linha(tela, { visualizar: true, inativar: true }));
-    const editarInativar = await s.contaCom(linha(tela, { visualizar: true, editar: true, inativar: true }));
-    const id = s.comb.GNV;
-    const patch = (conta, corpo) => req('PATCH', `/patrimonio-combustiveis/${id}`, conta.token, corpo);
-    const versao = async () => (await prisma().tipoCombustivel.findUnique({ where: { id } })).versao;
+    const bens = TELAS.bens;
+    const soVer = await s.contaCom(linha(bens, { visualizar: true }));
+    const soNovo = await s.contaCom(linha(bens, { visualizar: true, novo: true }));
+    const soEditar = await s.contaCom(linha(bens, { visualizar: true, editar: true }));
+    const soInativar = await s.contaCom(linha(bens, { visualizar: true, inativar: true }));
+    const id = s.fam.EQUIPAMENTOS;
+    const patch = (conta, corpo) => req('PATCH', `/patrimonio-familias/${id}`, conta.token, corpo);
+    const versao = async () => (await prisma().familiaPatrimonial.findUnique({ where: { id } })).versao;
 
-    assert.equal((await req('GET', '/patrimonio-combustiveis', soVer.token)).statusCode, 200);
-    assert.equal((await req('GET', `/patrimonio-combustiveis/${id}`, soVer.token)).statusCode, 200);
-    assert.equal((await req('GET', '/patrimonio-familias', soVer.token)).statusCode, 403, 'só a própria tela');
-    assert.deepEqual(erro(await req('POST', '/patrimonio-combustiveis', soVer.token, { codigo: 'B100', nome: 'Biodiesel' })).slice(0, 2), [403, 'ACAO_NAO_PERMITIDA']);
-    assert.equal((await patch(soVer, { versao: 1, nome: 'Gás' })).statusCode, 403);
-    assert.equal((await req('POST', '/patrimonio-combustiveis', soNovo.token, { codigo: 'B100', nome: 'Biodiesel' })).statusCode, 201);
-    assert.equal((await req('POST', '/patrimonio-combustiveis', soSalvar.token, { codigo: 'B200', nome: 'Biodiesel 2' })).statusCode, 201);
-    assert.equal((await patch(soNovo, { versao: 1, nome: 'Gás natural' })).statusCode, 403, 'novo não edita');
+    for (const url of ['/patrimonio-familias', `/patrimonio-familias/${id}`, '/patrimonio-tipos']) assert.equal((await req('GET', url, soVer.token)).statusCode, 200, url);
+    assert.deepEqual(erro(await req('POST', '/patrimonio-familias', soVer.token, { nome: 'Negada', natureza: 'OUTRO' })).slice(0, 2), [403, 'ACAO_NAO_PERMITIDA']);
+    assert.equal((await patch(soVer, { versao: 1, nome: 'Equip.' })).statusCode, 403);
+    assert.equal((await req('POST', '/patrimonio-familias', soNovo.token, { nome: 'Pelo novo', natureza: 'OUTRO' })).statusCode, 201);
+    assert.equal((await req('POST', '/patrimonio-familias', soEditar.token, { nome: 'Pelo editar', natureza: 'OUTRO' })).statusCode, 201, 'quem edita bem também cria pelo "+"');
+    assert.equal((await patch(soNovo, { versao: 1, nome: 'Equip.' })).statusCode, 403, 'novo não edita');
     assert.equal((await patch(soEditar, { versao: 1, ativo: false })).statusCode, 403, 'editar não inativa');
-    assert.equal((await patch(soInativar, { versao: 1, nome: 'Gás natural', ativo: false })).statusCode, 403, 'inativar sozinho não edita');
-    assert.equal((await patch(soInativar, { versao: 1, nome: 'Gás natural' })).statusCode, 403);
+    assert.equal((await patch(soInativar, { versao: 1, nome: 'Equip.', ativo: false })).statusCode, 403, 'inativar sozinho não edita');
     assert.equal(await versao(), 1, 'nada gravado pelas recusas');
-    assert.equal((await ok(patch(soEditar, { versao: 1, nome: 'Gás natural' }))).versao, 2);
-    assert.equal((await ok(patch(soSalvar, { versao: 2, nome: 'Gás natural veicular' }))).versao, 3, 'salvar edita');
-    assert.equal((await ok(patch(soInativar, { versao: 3, ativo: false }))).ativo, false);
-    assert.deepEqual(await ok(patch(editarInativar, { versao: 4, nome: 'GNV', ativo: true })).then((r) => [r.nome, r.ativo, r.versao]), ['GNV', true, 5]);
-    const isAdmin = await s.conta({ is_admin: true });
-    const adminReal = await s.conta(null, { papel_tenant: 'administrador' });
-    assert.equal((await ok(patch(isAdmin, { versao: 5, ativo: false }))).versao, 6);
-    assert.equal((await ok(patch(adminReal, { versao: 6, ativo: true }))).versao, 7);
-    const semTela = await s.contaCom(linha(TELAS.bens, { visualizar: true }));
-    for (const url of ['/patrimonio-familias', '/patrimonio-tipos', '/patrimonio-perfis-medicao', '/patrimonio-combustiveis']) {
-      assert.equal((await req('GET', url, semTela.token)).statusCode, 403, url);
+    assert.equal((await ok(patch(soEditar, { versao: 1, nome: 'Equipamentos fixos' }))).versao, 2);
+    assert.equal((await ok(patch(soInativar, { versao: 2, ativo: false }))).ativo, false);
+    const antigas = await s.contaCom(...Object.values(TELAS_ANTIGAS).map(tudo));
+    for (const url of ['/patrimonio-familias', '/patrimonio-tipos', '/bens-patrimoniais-opcoes/familias', '/bens-patrimoniais-opcoes/tipos']) {
+      assert.equal((await req('GET', url, antigas.token)).statusCode, 403, `telas antigas ${url}`);
       assert.equal((await req('GET', url, null)).statusCode, 401, url);
     }
-    const desativado = await s.contaCom(tudo(tela));
+    const desativado = await s.contaCom(tudo(bens));
     await prisma().usuario.update({ where: { id: desativado.id }, data: { ativo: false } });
-    assert.equal((await req('GET', '/patrimonio-combustiveis', desativado.token)).statusCode, 401, 'sessão de conta desativada não vale');
+    assert.equal((await req('GET', '/patrimonio-familias', desativado.token)).statusCode, 401, 'sessão de conta desativada não vale');
   });
 
-  test('A3: só a tela Tipos (visualizar + novo) usa as opções de catálogo e cria tipo com perfis; não vê responsáveis nem bens', async () => {
+  test('opções de catálogo: só Bens visualizar; só ativos, ordem por nome, keyset, busca, formas fixas (tipo sem perfis), filtro de família, empresa_id opcional, cursor adulterado 400', async () => {
     const s = await montarPatrimonio(app);
-    const soTipos = await s.contaCom(linha(TELAS.tipos, { visualizar: true, novo: true }));
-    const t = soTipos.token;
-    const familias = await ok(req('GET', '/bens-patrimoniais-opcoes/familias', t));
-    const benf = familias.itens.find((f) => f.natureza === 'BENFEITORIA');
-    const perfis = await ok(req('GET', '/bens-patrimoniais-opcoes/perfis-medicao', t));
-    const area = perfis.itens.find((p) => p.codigo === 'AREA');
-    const volume = perfis.itens.find((p) => p.codigo === 'VOLUME');
-    assert.equal((await req('GET', `/bens-patrimoniais-opcoes/tipos?familia_id=${benf.id}`, t)).statusCode, 200);
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/combustiveis', t)).statusCode, 200);
-    const criado = await ok(req('POST', '/patrimonio-tipos', t, {
-      familia_id: benf.id, codigo: 'SILO', nome: 'Silo', perfis: [{ perfil_id: volume.id, principal: true }, { perfil_id: area.id }],
-    }), 201);
-    assert.deepEqual(criado.perfis.map((p) => [p.perfil.codigo, p.principal]), [['VOLUME', true], ['AREA', false]]);
-    for (const url of [`/bens-patrimoniais-opcoes/responsaveis?empresa_id=${s.e1.id}`, `/bens-patrimoniais-opcoes/parceiros?empresa_id=${s.e1.id}`, `/bens-patrimoniais?empresa_id=${s.e1.id}`, '/patrimonio-familias']) {
-      assert.equal((await req('GET', url, t)).statusCode, 403, url);
-    }
-    assert.equal((await req('PATCH', `/patrimonio-tipos/${criado.id}`, t, { versao: 1, nome: 'Silo graneleiro' })).statusCode, 403, 'sem editar');
-    const nenhuma = await s.contaCom(linha(TELAS.combustiveis, { visualizar: true }));
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias', nenhuma.token)).statusCode, 403, 'opções de catálogo: só tela Bens ou Tipos');
-  });
-
-  test('opções de catálogo: só ativos, ordem por nome, keyset, busca, formas fixas, filtro de família, empresa_id opcional, cursor adulterado 400', async () => {
-    const s = await montarPatrimonio(app);
-    const t = s.token;
-    await ok(req('PATCH', `/patrimonio-familias/${s.fam.EQUIPAMENTOS}`, t, { versao: 1, ativo: false }));
+    const soVer = await s.contaCom(linha(TELAS.bens, { visualizar: true }));
+    const t = soVer.token;
+    await ok(req('PATCH', `/patrimonio-familias/${s.fam.EQUIPAMENTOS}`, s.token, { versao: 1, ativo: false }));
     const nomes = [];
     let cursor = null;
     do {
@@ -557,20 +496,18 @@ describe('K5 — permissões por ação e opções de seletor', () => {
     assert.deepEqual(nomes, ['Benfeitorias e instalações', 'Implementos', 'Máquinas', 'Veículos'], 'ordem por nome; inativa fora');
     const tipos = await ok(req('GET', `/bens-patrimoniais-opcoes/tipos?familia_id=${s.fam.BENFEITORIAS}&empresa_id=${s.e1.id}`, t));
     assert.equal(tipos.itens.length, 6);
-    const curral = tipos.itens.find((i) => i.codigo === 'CURRAL');
-    assert.deepEqual(curral, { id: s.tip.CURRAL, codigo: 'CURRAL', nome: 'Curral', familia_id: s.fam.BENFEITORIAS, perfis: [{ perfil_id: s.per.AREA, principal: true }, { perfil_id: s.per.CAPACIDADE_ANIMAL, principal: false }] });
-    const perfis = await ok(req('GET', '/bens-patrimoniais-opcoes/perfis-medicao?q=vol', t));
-    assert.deepEqual(perfis.itens, [{ id: s.per.VOLUME, codigo: 'VOLUME', nome: 'Volume', dimensao: 'VOLUME', finalidade: 'CAPACIDADE', unidade_canonica: 'L', unidades_permitidas: ['L', 'm3'] }]);
-    const comb = await ok(req('GET', '/bens-patrimoniais-opcoes/combustiveis', t));
-    // A ordem fina entre maiúsculas e minúsculas é a da collation do banco; o conjunto é fixo.
-    assert.deepEqual(comb.itens.map((c) => c.nome).sort(), ['Diesel S10', 'Diesel S500', 'Etanol', 'GNV', 'Gasolina']);
-    assert.deepEqual(comb.itens.find((c) => c.codigo === 'GNV'), { id: s.comb.GNV, codigo: 'GNV', nome: 'GNV', unidade: 'm3' });
-    assert.deepEqual([comb.has_more, comb.next_cursor], [false, null]);
-    assert.equal((await ok(req('GET', '/bens-patrimoniais-opcoes/combustiveis?q=%25', t))).itens.length, 0, 'busca literal');
+    assert.deepEqual(tipos.itens.find((i) => i.codigo === 'CURRAL'), { id: s.tip.CURRAL, codigo: 'CURRAL', nome: 'Curral', familia_id: s.fam.BENFEITORIAS });
+    assert.deepEqual((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?q=trator', t))).itens.map((i) => i.codigo), ['TRATOR_ESTEIRAS', 'TRATOR_PNEUS']);
+    assert.equal((await ok(req('GET', '/bens-patrimoniais-opcoes/familias?q=%25', t))).itens.length, 0, 'busca literal');
     assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias?cursor=bGl4bw', t)).statusCode, 400);
     assert.equal((await req('GET', `/bens-patrimoniais-opcoes/familias?familia_id=${s.fam.MAQUINAS}`, t)).statusCode, 400, 'familia_id só em /tipos');
     assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias?limit=101', t)).statusCode, 400);
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/desconhecido', t)).statusCode, 404);
+    for (const url of ['/bens-patrimoniais-opcoes/desconhecido', '/bens-patrimoniais-opcoes/perfis-medicao', '/bens-patrimoniais-opcoes/combustiveis']) {
+      assert.equal((await req('GET', url, t)).statusCode, 404, url);
+    }
+    // Só a tela de Abastecimentos (ou só as antigas) não lista o catálogo.
+    const doAbastecimento = await s.contaCom(tudo(TELAS.abastecimentos));
+    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias', doAbastecimento.token)).statusCode, 403);
     // O catálogo é do tenant: nada de outro tenant aparece.
     const outro = await montarPatrimonio(app);
     const doOutro = await ok(req('GET', '/bens-patrimoniais-opcoes/tipos', outro.token));

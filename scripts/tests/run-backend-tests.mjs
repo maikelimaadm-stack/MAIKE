@@ -67,16 +67,29 @@ const executar = (rotulo, comando, args) => {
   if (status !== 0) falhar(`${rotulo} falhou com exit ${status}`);
 };
 
-/** Igual ao anterior, com variáveis extras só para o subprocesso. */
-const executarComAmbiente = (rotulo, comando, args, extras) => {
+/** Igual ao anterior, com variáveis extras só para o subprocesso (e uma dica opcional na falha). */
+const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
   const r = spawnSync(comando, args, {
     stdio: 'inherit',
     shell: false,
     env: { ...process.env, ...extras },
   });
   const status = r.status === null ? 1 : r.status;
-  if (status !== 0) falhar(`${rotulo} falhou com exit ${status}`);
+  if (status !== 0) falhar(`${rotulo} falhou com exit ${status}${dica ? `\n\n  ${dica}` : ''}`);
 };
+
+/**
+ * D-PROD-161 (achado B8): a migration CONTRACT do Patrimônio recusa banco com
+ * abastecimento CONFIRMADO e banco com linhas nas tabelas que ela apaga sem a
+ * impressão aprovada. A CI nasce vazia e não é afetada; um banco de teste LOCAL
+ * com sobras de rodadas antigas (CONFIRMADO, sementes E2E) é. A dica só orienta
+ * a recriar o banco local — não muda o código de saída. (`npm run db:down`
+ * sozinho NÃO recria: o volume `maike_pgdata` continua; é preciso o `-v`.)
+ */
+const DICA_BANCO_LOCAL_COM_SOBRAS =
+  'Se a saída acima cita D-PROD-161, o banco de teste local tem sobras de rodadas antigas: ' +
+  'recrie-o (docker compose down -v && npm run db:up, que apaga o volume LOCAL do docker-compose; ' +
+  'ou dropdb/createdb do banco de teste) e rode de novo.';
 
 console.log('test:backend — validando schema Prisma');
 executar('prisma validate', 'npx', ['prisma', 'validate', '--schema', SCHEMA]);
@@ -89,7 +102,8 @@ executarComAmbiente(
   'deploy:migrate',
   process.platform === 'win32' ? 'npm.cmd' : 'npm',
   ['run', 'deploy:migrate'],
-  { MIGRATION_DATABASE_URL: process.env.DATABASE_URL }
+  { MIGRATION_DATABASE_URL: process.env.DATABASE_URL },
+  DICA_BANCO_LOCAL_COM_SOBRAS
 );
 
 const arquivos = readdirSync(DIR)

@@ -1,14 +1,19 @@
 /**
- * D-PROD-155 (Gestão P3-01) — motor de estoque FÍSICO composto (KG).
+ * D-PROD-155 (Gestão P3-01) — motor de estoque FÍSICO composto (KG; D-PROD-161: e L).
  *
  * Funções que RECEBEM `tx` (nunca abrem transação) e trabalham em Decimal ponta
  * a ponta. São a única porta de efeito físico do lançamento financeiro
  * confirmado/cancelado: entrada (compra), saída FIFO (venda) e os estornos.
  *
  * Regras (§3, §8.2, §8.4 do contrato):
- *  - estoque interno SEMPRE em KG; o planejador já entrega `kg` com 4 casas
- *    (ROUND_HALF_UP UMA vez) e o mesmo `kg` vale para item, lote, movimento,
- *    `estoque_atual`, consumo e estorno;
+ *  - quantidade na unidade de estoque do Produto (KG para KG/SACO; L para L,
+ *    D-PROD-161); nenhuma conversão aqui. O planejador já entrega a quantidade
+ *    com 4 casas (ROUND_HALF_UP UMA vez) e o mesmo número vale para item, lote,
+ *    movimento, `estoque_atual`, consumo e estorno. Os parâmetros e variáveis
+ *    `quantidadeKg`/`custoUnitarioKg`/`kg` mantêm o nome (contrato da P3), mas
+ *    estão na unidade de estoque do Produto; o rótulo do movimento
+ *    (`unidade_medida`) vem do Produto: `'L'` para Produto em L, `'KG'` para o
+ *    resto (inclusive SACO, que guarda kg);
  *  - `travarProdutosEstoque` antes de QUALQUER leitura de produto/lote e antes
  *    de qualquer UPDATE em movimento (evita lost update com a suplementação e o
  *    ciclo com `/referencias/sincronizar`, que faz FOR SHARE no Produto);
@@ -129,7 +134,8 @@ const camposComuns = (auth, a) => {
     cliente_id: auth.clienteId,
     empresa_id: a.empresaId,
     ...camposDoProduto(a.produto),
-    unidade_medida: 'KG',
+    // D-PROD-161: o rótulo vem do Produto (quem chama passa `unidade_principal_estoque`); KG e SACO continuam 'KG'.
+    unidade_medida: a.produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG',
     numero_documento: a.documento?.numero ?? null,
     data_documento: a.documento?.data ? comoDia(a.documento.data) : null,
     lancamento_origem_id: a.origem.operacaoId,
@@ -170,6 +176,8 @@ const incrementarEstoqueAtual = async (tx, clienteId, produtoId, kg) => {
  * `valorTotal` é o valor líquido da linha (subtotal − desconto + acréscimo do
  * cabeçalho rateados) e `custoUnitarioKg` = ROUND_HALF_UP(líquido / kg, 4);
  * o resíduo de arredondamento é decidido/mostrado pelo planejador.
+ * `quantidadeKg`/`custoUnitarioKg`: na unidade de estoque do Produto (kg, ou L
+ * para Produto em L — D-PROD-161).
  * @param {any} tx
  * @param {{auth: any, requestId?: string}} ctx
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, custoUnitarioKg: any,
@@ -282,6 +290,7 @@ export const estoqueAtualInsuficiente = (details) =>
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
  * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
  * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`).
+ * `quantidadeKg`: na unidade de estoque do Produto (kg, ou L para Produto em L — D-PROD-161).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia: string,

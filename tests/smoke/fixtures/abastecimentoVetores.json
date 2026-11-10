@@ -1,60 +1,117 @@
 {
-  "decisao": "D-PROD-159",
-  "regra_conversao": "kg = ROUND_HALF_UP(litros x kg_por_litro, 4), uma vez; kg <= 0 ou kg > 9999999999.9999 e recusado (OPERACAO_VALORES_INVALIDOS)",
-  "conversao": [
-    { "litros": "100.0000", "kg_por_litro": "0.840000", "kg": "84.0000", "recusa": null },
-    { "litros": "123.4567", "kg_por_litro": "0.840000", "kg": "103.7036", "recusa": null },
-    { "litros": "45.5555", "kg_por_litro": "0.791234", "kg": "36.0451", "recusa": null },
-    { "litros": "37.2500", "kg_por_litro": "0.789100", "kg": "29.3940", "recusa": null },
-    { "litros": "80.0000", "kg_por_litro": "0.745000", "kg": "59.6000", "recusa": null },
-    { "litros": "0.0001", "kg_por_litro": "0.500000", "kg": "0.0001", "recusa": null },
-    { "litros": "0.0003", "kg_por_litro": "0.500000", "kg": "0.0002", "recusa": null },
-    { "litros": "1000.0000", "kg_por_litro": "9.999999", "kg": "9999.9990", "recusa": null },
-    { "litros": "0.0001", "kg_por_litro": "0.400000", "kg": null, "recusa": "quantidade_estoque_zero" },
-    { "litros": "9999999999.9999", "kg_por_litro": "10.000000", "kg": null, "recusa": "valor_excede_limite_estoque" }
+  "decisao": "D-PROD-161",
+  "regra_quantidade": "o abastecimento baixa do estoque EXATAMENTE a quantidade digitada, na unidade de estoque do Produto (L ou KG), em texto canonico com 4 casas; nenhuma conversao entre unidades; quantidade <= 0 e recusada (OPERACAO_VALORES_INVALIDOS / quantidade_nao_positiva); texto fora de ^\\d{1,10}(\\.\\d{1,4})?$ e recusado pelo servidor com 400 (REQUEST_VALIDATION_FAILED)",
+  "regra_capacidade": "a capacidade do tanque e em litros e so e conferida para Produto em L (ABASTECIMENTO_EXCEDE_CAPACIDADE); Produto em KG nunca e comparado com a capacidade",
+  "quantidade": [
+    { "digitado": "100", "unidade": "L", "baixa": "100.0000", "recusa": null },
+    { "digitado": "123.4567", "unidade": "L", "baixa": "123.4567", "recusa": null },
+    { "digitado": "0.0001", "unidade": "L", "baixa": "0.0001", "recusa": null },
+    { "digitado": "45.5", "unidade": "KG", "baixa": "45.5000", "recusa": null },
+    { "digitado": "0.0001", "unidade": "KG", "baixa": "0.0001", "recusa": null },
+    { "digitado": "080.50", "unidade": "KG", "baixa": "80.5000", "recusa": null },
+    { "digitado": "0", "unidade": "L", "baixa": null, "recusa": "quantidade_nao_positiva" },
+    { "digitado": "0.0000", "unidade": "KG", "baixa": null, "recusa": "quantidade_nao_positiva" },
+    { "digitado": "1.23456", "unidade": "L", "baixa": null, "recusa": "formato" },
+    { "digitado": "-5", "unidade": "KG", "baixa": null, "recusa": "formato" },
+    { "digitado": "12345678901", "unidade": "L", "baixa": null, "recusa": "formato" },
+    { "digitado": "1,5", "unidade": "L", "baixa": null, "recusa": "formato" }
   ],
+  "capacidade": {
+    "capacidade_litros": "180.0000",
+    "casos": [
+      { "quantidade": "180", "unidade": "L", "excede": false },
+      { "quantidade": "180.0001", "unidade": "L", "excede": true },
+      { "quantidade": "180.0001", "unidade": "KG", "excede": false },
+      { "quantidade": "500", "unidade": "KG", "excede": false }
+    ]
+  },
   "fifo": {
+    "unidade": "L",
     "lotes": [
-      { "chave": "A", "dia": "2027-06-01", "disponivel_kg": "50.0000", "custo_unitario": "5.2000" },
-      { "chave": "B", "dia": "2027-06-03", "disponivel_kg": "100.0000", "custo_unitario": "5.5000" }
+      { "chave": "A", "dia": "2027-06-01", "disponivel": "50.0000", "custo_unitario": "5.2000" },
+      { "chave": "B", "dia": "2027-06-03", "disponivel": "100.0000", "custo_unitario": "5.5000" }
     ],
-    "litros": "80.0000",
-    "kg_por_litro": "0.840000",
-    "kg": "67.2000",
+    "quantidade": "80.0000",
     "fatias": [
-      { "ordem": 1, "lote": "A", "quantidade_kg": "50.0000", "custo_unitario": "5.2000", "valor": "260.0000" },
-      { "ordem": 2, "lote": "B", "quantidade_kg": "17.2000", "custo_unitario": "5.5000", "valor": "94.6000" }
+      { "ordem": 1, "lote": "A", "quantidade": "50.0000", "custo_unitario": "5.2000", "valor": "260.0000" },
+      { "ordem": 2, "lote": "B", "quantidade": "30.0000", "custo_unitario": "5.5000", "valor": "165.0000" }
     ],
-    "custo_total": "354.6000",
-    "custo_unitario_kg": "5.2768"
+    "custo_total": "425.0000",
+    "custo_unitario": "5.3125"
   },
   "consumo": [
     {
       "caso": "horimetro_tp02",
       "medidor": "HORIMETRO",
+      "unidade": "L",
       "cadastro": { "leitura": "1520.5000", "data": "2027-06-01" },
       "abastecimentos": [
-        { "ordem": 1, "data": "2027-06-05", "leitura": "1530.5000", "litros": "100.0000", "tanque_cheio": true },
-        { "ordem": 2, "data": "2027-06-08", "leitura": "1540.5000", "litros": "40.0000", "tanque_cheio": false },
-        { "ordem": 3, "data": "2027-06-10", "leitura": "1550.5000", "litros": "60.0000", "tanque_cheio": true }
+        { "ordem": 1, "data": "2027-06-05", "leitura": "1530.5000", "quantidade": "100.0000", "unidade": "L", "tanque_cheio": true },
+        { "ordem": 2, "data": "2027-06-08", "leitura": "1540.5000", "quantidade": "40.0000", "unidade": "L", "tanque_cheio": false },
+        { "ordem": 3, "data": "2027-06-10", "leitura": "1550.5000", "quantidade": "60.0000", "unidade": "L", "tanque_cheio": true }
       ],
       "esperado": [
         { "ordem": 1, "situacao": "DADOS_INSUFICIENTES", "motivo": "sem_tanque_cheio_anterior", "valor": null },
         { "ordem": 2, "situacao": "DADOS_INSUFICIENTES", "motivo": "nao_e_tanque_cheio", "valor": null },
-        { "ordem": 3, "situacao": "CALCULADO", "motivo": null, "metrica": "LITROS_POR_HORA", "unidade_metrica": "L/h", "intervalo": "20.0000", "litros": "100.0000", "valor": "5.0000" }
+        { "ordem": 3, "situacao": "CALCULADO", "motivo": null, "metrica": "LITROS_POR_HORA", "unidade_metrica": "L/h", "intervalo": "20.0000", "quantidade": "100.0000", "unidade": "L", "valor": "5.0000" }
       ]
     },
     {
       "caso": "odometro_caminhonete",
       "medidor": "ODOMETRO",
+      "unidade": "L",
       "cadastro": { "leitura": "35210.0000", "data": "2027-05-30" },
       "abastecimentos": [
-        { "ordem": 1, "data": "2027-06-02", "leitura": "35300.0000", "litros": "50.0000", "tanque_cheio": true },
-        { "ordem": 2, "data": "2027-06-06", "leitura": "35650.0000", "litros": "40.0000", "tanque_cheio": true }
+        { "ordem": 1, "data": "2027-06-02", "leitura": "35300.0000", "quantidade": "50.0000", "unidade": "L", "tanque_cheio": true },
+        { "ordem": 2, "data": "2027-06-06", "leitura": "35650.0000", "quantidade": "40.0000", "unidade": "L", "tanque_cheio": true }
       ],
       "esperado": [
         { "ordem": 1, "situacao": "DADOS_INSUFICIENTES", "motivo": "sem_tanque_cheio_anterior", "valor": null },
-        { "ordem": 2, "situacao": "CALCULADO", "motivo": null, "metrica": "KM_POR_LITRO", "unidade_metrica": "km/L", "intervalo": "350.0000", "litros": "40.0000", "valor": "8.7500" }
+        { "ordem": 2, "situacao": "CALCULADO", "motivo": null, "metrica": "KM_POR_LITRO", "unidade_metrica": "km/L", "intervalo": "350.0000", "quantidade": "40.0000", "unidade": "L", "valor": "8.7500" }
+      ]
+    },
+    {
+      "caso": "horimetro_kg",
+      "medidor": "HORIMETRO",
+      "unidade": "KG",
+      "cadastro": { "leitura": "1520.5000", "data": "2027-06-01" },
+      "abastecimentos": [
+        { "ordem": 1, "data": "2027-06-05", "leitura": "1530.5000", "quantidade": "100.0000", "unidade": "KG", "tanque_cheio": true },
+        { "ordem": 2, "data": "2027-06-10", "leitura": "1550.5000", "quantidade": "60.0000", "unidade": "KG", "tanque_cheio": true }
+      ],
+      "esperado": [
+        { "ordem": 1, "situacao": "DADOS_INSUFICIENTES", "motivo": "sem_tanque_cheio_anterior", "valor": null },
+        { "ordem": 2, "situacao": "CALCULADO", "motivo": null, "metrica": "KG_POR_HORA", "unidade_metrica": "kg/h", "intervalo": "20.0000", "quantidade": "60.0000", "unidade": "KG", "valor": "3.0000" }
+      ]
+    },
+    {
+      "caso": "odometro_kg",
+      "medidor": "ODOMETRO",
+      "unidade": "KG",
+      "cadastro": { "leitura": "35210.0000", "data": "2027-05-30" },
+      "abastecimentos": [
+        { "ordem": 1, "data": "2027-06-02", "leitura": "35300.0000", "quantidade": "50.0000", "unidade": "KG", "tanque_cheio": true },
+        { "ordem": 2, "data": "2027-06-06", "leitura": "35650.0000", "quantidade": "40.0000", "unidade": "KG", "tanque_cheio": true }
+      ],
+      "esperado": [
+        { "ordem": 1, "situacao": "DADOS_INSUFICIENTES", "motivo": "sem_tanque_cheio_anterior", "valor": null },
+        { "ordem": 2, "situacao": "CALCULADO", "motivo": null, "metrica": "KM_POR_KG", "unidade_metrica": "km/kg", "intervalo": "350.0000", "quantidade": "40.0000", "unidade": "KG", "valor": "8.7500" }
+      ]
+    },
+    {
+      "caso": "unidades_misturadas",
+      "medidor": "HORIMETRO",
+      "unidade": "L",
+      "cadastro": { "leitura": "1520.5000", "data": "2027-06-01" },
+      "abastecimentos": [
+        { "ordem": 1, "data": "2027-06-05", "leitura": "1530.5000", "quantidade": "100.0000", "unidade": "L", "tanque_cheio": true },
+        { "ordem": 2, "data": "2027-06-08", "leitura": "1540.5000", "quantidade": "40.0000", "unidade": "KG", "tanque_cheio": false },
+        { "ordem": 3, "data": "2027-06-10", "leitura": "1550.5000", "quantidade": "60.0000", "unidade": "L", "tanque_cheio": true }
+      ],
+      "esperado": [
+        { "ordem": 1, "situacao": "DADOS_INSUFICIENTES", "motivo": "sem_tanque_cheio_anterior", "valor": null },
+        { "ordem": 2, "situacao": "DADOS_INSUFICIENTES", "motivo": "nao_e_tanque_cheio", "valor": null },
+        { "ordem": 3, "situacao": "DADOS_INSUFICIENTES", "motivo": "unidades_misturadas", "metrica": null, "unidade_metrica": null, "valor": null }
       ]
     }
   ]

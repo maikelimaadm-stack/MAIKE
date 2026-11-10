@@ -1,6 +1,6 @@
 /**
- * D-PROD-157 — peças comuns do Patrimônio e Frota (P1-01). Pequenas e
- * explícitas; o texto, a empresa e a trava vêm de `gestao/gestaoComum.js`
+ * D-PROD-157 — peças comuns do Patrimônio e Frota (P1-01; D-PROD-161). Pequenas
+ * e explícitas; o texto, a empresa e a trava vêm de `gestao/gestaoComum.js`
  * (D14: estender o que existe, sem solução paralela).
  */
 
@@ -17,7 +17,7 @@ export const chaveCatalogo = (clienteId) => `patrimonio:catalogo:${clienteId}`;
 
 /**
  * Serializa as escritas de catálogo do tenant até o fim da transação
- * (pré-checagem de código/nome, sync de perfis do tipo e catálogo padrão).
+ * (pré-checagem de código/nome, código gerado do nome e catálogo padrão).
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {string} clienteId
  */
@@ -105,6 +105,51 @@ export const codigoDoCorpo = (valor, campo = 'codigo') => {
     throw invalido(`${campo} deve ter de 2 a 32 letras, números ou sublinhado`, { field: campo, reason: 'codigo_invalido' });
   }
   return codigo;
+};
+
+/** Tamanho do radical do código gerado: cabe `_99` dentro dos 32 do CHECK. */
+const RADICAL_MAXIMO = 28;
+const SUFIXO_MAXIMO = 99;
+
+/**
+ * Radical do código gerado a partir do NOME (D-PROD-161, P-05): sem acentos
+ * (NFD), MAIÚSCULAS, cada trecho fora de `[A-Z0-9]` vira `_`, sem `_` nas
+ * pontas, até 28 caracteres; com menos de 2, `ITEM`. Ex.: "Galpão de máquinas"
+ * → `GALPAO_DE_MAQUINAS`.
+ * @param {string} nome
+ */
+export const radicalDoCodigo = (nome) => {
+  const aparar = (v) => v.replace(/^_+|_+$/g, '');
+  const base = aparar(
+    String(nome)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_'),
+  );
+  const cortado = aparar(base.slice(0, RADICAL_MAXIMO));
+  return cortado.length < 2 ? 'ITEM' : cortado;
+};
+
+/**
+ * Código livre no tenant gerado do nome: o radical, ou o primeiro de
+ * `_2`…`_99` ainda não usado (≤ 32, `PADRAO_CODIGO_CATALOGO`). Chame SOB
+ * `travarCatalogo` (sem corrida com outra escrita de catálogo do tenant).
+ * Esgotado → 409 `PATRIMONIO_CODIGO_DUPLICADO`.
+ * @param {any} tx  transação (já sob a trava do catálogo)
+ * @param {string} clienteId
+ * @param {'familiaPatrimonial'|'tipoPatrimonial'} delegado  model do catálogo (código único no tenant)
+ * @param {string} nome
+ */
+export const codigoDisponivel = async (tx, clienteId, delegado, nome) => {
+  const radical = radicalDoCodigo(nome);
+  const candidatos = [radical];
+  for (let n = 2; n <= SUFIXO_MAXIMO; n += 1) candidatos.push(`${radical}_${n}`);
+  const usados = await tx[delegado].findMany({ where: { cliente_id: clienteId, codigo: { in: candidatos } }, select: { codigo: true } });
+  const ocupados = new Set(usados.map((r) => r.codigo));
+  const livre = candidatos.find((c) => !ocupados.has(c));
+  if (!livre) throw codigoDuplicado();
+  return livre;
 };
 
 /** `ativo` da querystring ('true'/'false') → boolean; ausente → null. */
@@ -239,7 +284,7 @@ const DECIMAIS_DO_BEM = Object.freeze({
     aquisicao: Object.freeze(['valor_aquisicao', 'custo_incorporacao']),
     depreciacao: Object.freeze(['valor_residual', 'residual_percentual']),
   }),
-  listas: Object.freeze({ medicoes: Object.freeze(['valor']), tanques: Object.freeze(['capacidade_litros']) }),
+  listas: Object.freeze({ tanques: Object.freeze(['capacidade_litros']) }),
 });
 /** Decimais do corpo da prévia de depreciação (todos no topo). */
 const DECIMAIS_DA_PREVIA = Object.freeze(['valor_aquisicao', 'custo_incorporacao', 'valor_residual', 'residual_percentual']);
@@ -259,7 +304,7 @@ const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v)
  * `preValidation` do plugin do Patrimônio (antes do AJV, que COERGE número em
  * string e deixaria o float corromper o valor): decimal presente e não-string
  * (e não null) → 400 `REQUEST_VALIDATION_FAILED` reason `valor_deve_ser_texto`,
- * `details.campo` = caminho (`medicoes[0].valor`, `aquisicao.valor_aquisicao`...).
+ * `details.campo` = caminho (`tanques[0].capacidade_litros`, `aquisicao.valor_aquisicao`...).
  * Cobre o corpo do bem E o da prévia (as chaves não colidem).
  * @param {unknown} corpo
  */

@@ -1,20 +1,23 @@
 /**
- * D-PROD-158 × D-PROD-157 — comportamento COMBINADO da Gestão P3-03
- * (retificar/excluir lançamentos) com o Patrimônio P1-01 (bens e vínculo
- * combustível × produto), que chegaram à mesma base pelo merge de `main` na
- * P3-03. Cada frente tinha os seus testes; nenhum exercitava as duas juntas.
- * PostgreSQL real, HTTP autenticado, prova pelas linhas do tenant.
+ * D-PROD-158 × D-PROD-157 × D-PROD-161 — comportamento COMBINADO da Gestão
+ * P3-03 (retificar/excluir lançamentos) com o Patrimônio (bens e Produtos
+ * aceitos pelos tanques, D-PROD-161), que chegaram à mesma base pelo merge de
+ * `main` na P3-03. Cada frente tinha os seus testes; nenhum exercitava as duas
+ * juntas. PostgreSQL real, HTTP autenticado, prova pelas linhas do tenant.
  *
  *  C1. fornecedor que é parceiro de lançamento confirmado E proprietário e
  *      fornecedor de bem: DELETE → 409 PARCEIRO_EM_USO com os `details`
  *      completos (nunca 403), nada apagado; continua 409 depois da exclusão
  *      lógica do lançamento; a retificação NO_LUGAR que troca o parceiro leva
  *      só a contagem financeira para o novo parceiro, e o bem segura o antigo;
- *  C2. produto com item financeiro E vínculo a combustível: DELETE → 409
+ *  C2. produto com item financeiro E aceito num tanque de bem: DELETE → 409
  *      PRODUTO_DELETE_BLOCKED (nunca 403) antes e depois de SUBSTITUIÇÃO +
- *      exclusão; trocar a fazenda → 409 PRODUTO_VINCULADO_COMBUSTIVEL; com
+ *      exclusão; trocar a fazenda → 409 PRODUTO_EM_TANQUE_PATRIMONIO; com
  *      rascunho, o bloqueio financeiro vem primeiro e, descartado o rascunho, o
- *      vínculo do Patrimônio continua segurando;
+ *      aceite do tanque continua segurando;
+ *  C2b. (D-PROD-161) compra P3 de diesel em L → abastecimento de 80 L (tanque de 100 L) → o
+ *      cancelamento do abastecimento devolve ao MESMO lote → o cancelamento da
+ *      compra estorna o lote intacto; tudo rotulado `L`;
  *  C3. permissões cruzadas: a concessão total de uma frente não abre a outra
  *      (retificar, excluir e elegibilidade × bens); `porTodas` recusa quando
  *      falta só um dos lados, mesmo numa conta com o Patrimônio inteiro; nada
@@ -27,7 +30,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { ACOES_EXTRAS, ACOES_PADRAO, TELA, acoes, codigo, docCom, docSem, foto, linhaTela, montarTenant, opId, prisma } from './gestaoP3Cenario.mjs';
-import { TELAS, contagens, fotoPatrimonio, tudo } from './patrimonioP1Cenario.mjs';
+import { TELAS, contagens, fotoPatrimonio, tanqueCom, tudo } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -54,15 +57,16 @@ const montar = async () => {
   const r = await A.req('POST', '/patrimonio-catalogo-padrao', s.token, {});
   assert.equal(r.statusCode, 200, r.body);
   const p = prisma();
-  return { ...s, fam: await porCodigo(p.familiaPatrimonial, s.c), tip: await porCodigo(p.tipoPatrimonial, s.c), comb: await porCodigo(p.tipoCombustivel, s.c) };
+  return { ...s, fam: await porCodigo(p.familiaPatrimonial, s.c), tip: await porCodigo(p.tipoPatrimonial, s.c) };
 };
-const trator = (s, e, extra = {}) => ({
+/** Trator com um tanque de 100 L que aceita os Produtos dados (D-PROD-161; P-01: pode ser nenhum). */
+const trator = (s, e, extra = {}, produtoIds = []) => ({
   empresa_id: e.id,
   nome: `Trator ${randomUUID().slice(0, 6)}`,
   familia_id: s.fam.MAQUINAS,
   tipo_id: s.tip.TRATOR_PNEUS,
   medidor: { tipo: 'HORIMETRO', leitura_inicial: '10', data_leitura: '2027-06-01' },
-  tanques: [{ identificador: 'T1', capacidade_litros: '100', combustivel_ids: [s.comb.DIESEL_S10] }],
+  tanques: [tanqueCom(produtoIds, { identificador: 'T1', capacidade_litros: '100' })],
   ...extra,
 });
 const criarBem = async (s, corpo, tok = s.token) => {
@@ -99,19 +103,18 @@ const produtoBloqueado = async (s, produto, vinculo) => {
   return r.json().details;
 };
 
-/** PATCH /produtos/:id trocando a fazenda com vínculo ATIVO a combustível → 409 PRODUTO_VINCULADO_COMBUSTIVEL; nada muda. */
-const trocaDeFazendaRecusada = async (s, produto, empresaDestino) => {
+/** PATCH /produtos/:id trocando a fazenda com aceite ATIVO num tanque ativo de bem ativo → 409 PRODUTO_EM_TANQUE_PATRIMONIO; nada muda. */
+const trocaDeFazendaRecusada = async (s, produto, empresaDestino, bem) => {
   const antes = await estado(s.c);
   const r = await A.req('PATCH', `/produtos/${produto.id}`, s.token, { empresa_id: empresaDestino.id });
-  assert.deepEqual([r.statusCode, codigo(r), r.json().details], [409, 'PRODUTO_VINCULADO_COMBUSTIVEL', { id: produto.id, vinculos: 1 }], r.body);
+  assert.deepEqual([r.statusCode, codigo(r), r.json().details], [409, 'PRODUTO_EM_TANQUE_PATRIMONIO', {
+    id: produto.id, tanques: [{ bem_id: bem.id, bem_numero: bem.numero, tanque_id: bem.tanques[0].id, identificador: 'T1' }],
+  }], r.body);
   assert.equal(await estado(s.c), antes, 'nada gravado');
 };
 
-const vincular = async (s, combustivelId, e, produto) => {
-  const r = await A.req('POST', `/patrimonio-combustiveis/${combustivelId}/produtos`, s.token, { empresa_id: e.id, produto_id: produto.id });
-  assert.equal(r.statusCode, 201, r.body);
-  return r.json();
-};
+/** Bem com um tanque que aceita o Produto (o aceite nasce pelo POST do bem, D-PROD-161). */
+const aceitar = (s, e, produto) => criarBem(s, trator(s, e, {}, [produto.id]));
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C1 — fornecedor com lançamento financeiro E bem patrimonial', () => {
@@ -145,15 +148,15 @@ describe('C1 — fornecedor com lançamento financeiro E bem patrimonial', () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('C2 — produto com item financeiro E vínculo a combustível', () => {
-  test('DELETE → 409 PRODUTO_DELETE_BLOCKED (nunca 403) antes e depois de SUBSTITUIÇÃO + exclusão; troca de fazenda → 409 PRODUTO_VINCULADO_COMBUSTIVEL; descartado o rascunho, o vínculo segura', async () => {
+describe('C2 — produto com item financeiro E aceito num tanque de bem', () => {
+  test('DELETE → 409 PRODUTO_DELETE_BLOCKED (nunca 403) antes e depois de SUBSTITUIÇÃO + exclusão; troca de fazenda → 409 PRODUTO_EM_TANQUE_PATRIMONIO; descartado o rascunho, o aceite segura', async () => {
     const s = await montar();
     const e = s.e1;
-    await vincular(s, s.comb.DIESEL_S10, e, e.milho);
+    const bemMilho = await aceitar(s, e, e.milho);
     const d0 = await A.criarConfirmar(s.token, docCom(e, s.local, [{ produto: e.milho, quantidade: '100', valor_unitario: '2.00' }]));
     // A compra confirmada gera movimento de entrada: é o primeiro bloqueio conferido.
     await produtoBloqueado(s, e.milho, 'movimentações de estoque');
-    await trocaDeFazendaRecusada(s, e.milho, s.e2);
+    await trocaDeFazendaRecusada(s, e.milho, s.e2, bemMilho);
 
     // SUBSTITUIÇÃO (a quantidade muda): documento novo com o mesmo produto; depois, exclusão lógica do novo.
     const sub = await retificarReq(s.token, d0, docCom(e, s.local, [{ produto: e.milho, quantidade: '80', valor_unitario: '2.00' }]));
@@ -163,18 +166,55 @@ describe('C2 — produto com item financeiro E vínculo a combustível', () => {
     assert.equal(ex.statusCode, 200, ex.body);
     assert.equal(ex.json().status, 'CANCELADO');
     await produtoBloqueado(s, e.milho, 'movimentações de estoque');
-    await trocaDeFazendaRecusada(s, e.milho, s.e2);
+    await trocaDeFazendaRecusada(s, e.milho, s.e2, bemMilho);
     assert.equal(await prisma().produto.count({ where: { cliente_id: s.c, id: e.milho.id } }), 1, 'o produto continua existindo');
 
-    // Produto com vínculo a combustível + rascunho (sem movimento): o bloqueio financeiro vem primeiro;
-    // descartado o rascunho, só o vínculo do Patrimônio segura.
-    await vincular(s, s.comb.DIESEL_S10, e, e.racao);
-    const rascunho = await A.criar(s.token, docCom(e, s.local, [{ produto: e.racao, unidade: 'SACO', quantidade: '1', valor_unitario: '1.00' }]));
-    assert.equal((await produtoBloqueado(s, e.racao, 'lançamentos financeiros')).quantidade, 1);
+    // Produto aceito num tanque + rascunho (sem movimento): o bloqueio financeiro vem primeiro;
+    // descartado o rascunho, só o aceite do tanque segura. (O SACO não entra em tanque: o sal, em KG.)
+    const bemSal = await aceitar(s, e, e.sal);
+    const rascunho = await A.criar(s.token, docCom(e, s.local, [{ produto: e.sal, unidade: 'KG', quantidade: '1', valor_unitario: '1.00' }]));
+    assert.equal((await produtoBloqueado(s, e.sal, 'lançamentos financeiros')).quantidade, 1);
     const descarte = await A.req('DELETE', `/operacoes-financeiras/${rascunho.id}?empresa_id=${e.id}&versao=${rascunho.versao}`, s.token);
     assert.equal(descarte.statusCode, 204, descarte.body);
-    assert.equal((await produtoBloqueado(s, e.racao, 'combustíveis do patrimônio')).quantidade, 1);
-    await trocaDeFazendaRecusada(s, e.racao, s.e2);
+    assert.equal((await produtoBloqueado(s, e.sal, 'tanques do patrimônio')).quantidade, 1);
+    await trocaDeFazendaRecusada(s, e.sal, s.e2, bemSal);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('C2b — compra P3 em L → abastecimento em L → cancelamentos (D-PROD-161)', () => {
+  test('lote/movimentos/estoque em L do começo ao fim; o estorno do abastecimento devolve ao mesmo lote e a compra cancela', async () => {
+    const s = await montar();
+    const e = s.e1;
+    const p = prisma();
+    const diesel = await p.produto.create({ data: { cliente_id: s.c, empresa_id: e.id, numero_produto: '9001', nome_produto: 'DIESEL S10 (L)', unidade_principal_estoque: 'L' } });
+    const bem = await aceitar(s, e, diesel);
+    const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [{ produto: diesel, unidade: 'L', quantidade: '1000', valor_unitario: '6.00' }]));
+    const [lote] = await p.estoqueLoteNota.findMany({ where: { cliente_id: s.c, produto_id: diesel.id } });
+    const estoque = async () => (await p.produto.findUnique({ where: { id: diesel.id } })).estoque_atual.toFixed(4);
+    const disponivel = async () => (await p.estoqueLoteNota.findUnique({ where: { id: lote.id } })).quantidade_disponivel.toFixed(4);
+    assert.deepEqual([lote.quantidade_entrada.toFixed(4), await estoque()], ['1000.0000', '1000.0000']);
+
+    const ab = await A.req('POST', '/patrimonio-abastecimentos', s.token, {
+      empresa_id: e.id, bem_id: bem.id, tanque_id: bem.tanques[0].id, produto_id: diesel.id, local_estoque_id: s.local.id,
+      data_operacional: '2027-06-10', quantidade: '80', medidor_leitura: '12', tanque_cheio: false, observacao: null, referencia_externa: null, operation_id: opId(),
+    });
+    assert.equal(ab.statusCode, 201, ab.body);
+    assert.deepEqual([ab.json().quantidade, ab.json().unidade], ['80.0000', 'L']);
+    assert.deepEqual([await disponivel(), await estoque()], ['920.0000', '920.0000']);
+
+    const x = await A.req('POST', `/patrimonio-abastecimentos/${ab.json().id}/cancelar`, s.token, { empresa_id: e.id, versao: ab.json().versao, motivo: 'combinado P3 × abastecimento', operation_id: opId() });
+    assert.equal(x.statusCode, 200, x.body);
+    assert.deepEqual([await disponivel(), await estoque()], ['1000.0000', '1000.0000']);
+
+    const c = await A.cancelarReq(s.token, compra.id, e.id);
+    assert.equal(c.statusCode, 200, c.body);
+    assert.deepEqual([await disponivel(), await estoque()], ['0.0000', '0.0000']);
+    const movs = await p.movimentacaoEstoque.findMany({ where: { cliente_id: s.c, produto_id: diesel.id } });
+    assert.equal(movs.length, 4, 'entrada da compra, saída do abastecimento, estorno do abastecimento e estorno da compra');
+    assert.ok(movs.every((m) => m.unidade_medida === 'L'), JSON.stringify(movs.map((m) => m.unidade_medida)));
+    // O histórico segura o Produto (movimentos) e o aceite (FK do abastecimento): nunca 403.
+    await produtoBloqueado(s, diesel, 'movimentações de estoque');
   });
 });
 

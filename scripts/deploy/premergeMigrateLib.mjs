@@ -21,7 +21,20 @@
  *     Qualquer outra coisa (CREATE OR REPLACE FUNCTION/VIEW, TRIGGER, GRANT,
  *     REVOKE, COPY, INSERT, SELECT, UPDATE, DELETE, TRUNCATE, DROP, RENAME,
  *     ALTER COLUMN, CHECK/UNIQUE em tabela antiga, DO desconhecido) → violação.
- *  3. Conferência do alvo (somente leitura): `_prisma_migrations` × arquivos
+ *  3. Modo CONTRACT (D-PROD-161; exceção FECHADA aprovada pelo proprietário à
+ *     D-PROD-72 item 3 e à D-PROD-107 R7): só para o NOME de migration listado
+ *     em MIGRATIONS_CONTRACT_APROVADAS (que também está no manifesto). Recorte
+ *     prévio, com conteúdo pinado: a PRIMEIRA instrução é a guarda `DO $$ … $$`
+ *     com hash pinado (e só cita as tabelas removidas, as criadas no resto e os
+ *     literais listados); depois EXATAMENTE os DROP TABLE da lista, na ordem;
+ *     depois EXATAMENTE as instruções `alter_antigas` (texto pinado), na ordem.
+ *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
+ *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
+ *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
+ *     isolada e autorizada pela decisão exata (`--contract D-PROD-161`), e o
+ *     runner oficial (`run-migrations.mjs`) recusa aplicar um CONTRACT pendente
+ *     no alvo remoto sem `MIGRATION_CONTRACT_AUTORIZADO` igual à decisão.
+ *  4. Conferência do alvo (somente leitura): `_prisma_migrations` × arquivos
  *     locais — extra, checksum divergente, parcial ou pendência fora do
  *     manifesto → PREMERGE_MIGRATIONS_NAO_COMPROVADAS.
  */
@@ -51,6 +64,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261110100000_patrimonio_p1_01_cadastros': 'b8818ba8f16528580b7ba6053b0c89f07f0d4fd434955f4b9c5830a62ffd64dc',
   // D-PROD-159 (Patrimônio P1-02): ConversaoCombustivelProduto, AbastecimentoBem e AbastecimentoBemConsumoLote — só tabelas novas.
   '20261110200000_patrimonio_p1_02_abastecimentos': '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba',
+  // D-PROD-161 (Patrimônio SIMPLIFICA-01): CONTRACT aprovado pelo proprietário — apaga as 13 tabelas do Patrimônio, alarga 2 CHECKs de OperacaoFinanceiraItem (L) e cria as 7 novas.
+  '20261110300000_patrimonio_simplifica': 'ea1edf7ec3b494233a8d48c7b160ad179c8d8e9b92cc6c041228f116907302c4',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -70,7 +85,29 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '01dbf9ae4875444fa77082d37e1b71da655f217ecc25cc95a4d1b8a4a108a0a3',
   // D-PROD-159 (Patrimônio P1-02): RLS/REVOKE das 3 tabelas de abastecimento (mesmo corpo, lista nova).
   'ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd',
+  // D-PROD-161: RLS/REVOKE das 7 tabelas do Patrimônio simplificado (mesmo corpo, lista nova).
+  '6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e',
 ]);
+
+/** D-PROD-161: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
+export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
+  '20261110300000_patrimonio_simplifica': Object.freeze({
+    decisao: 'D-PROD-161',
+    guarda_sha256: '6fbcabd9358eebcd87f0a272b0072cca76bfaa4779314c8426fd13037490794e',
+    drop: Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto',
+      'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial',
+      'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']),
+    literais_guarda: Object.freeze(['CONFIRMADO']),
+    // Únicas instruções permitidas em tabela antiga: só ALARGAM os 2 CHECKs da P3-01 (:355, :361) para aceitar 'L' (D1).
+    // Texto normalizado (espaços colapsados, sem o ';'), conferido na ordem, logo depois dos DROP.
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_unidade_check"',
+      'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_unidade_check" CHECK ("unidade" IN (\'KG\', \'SACO\', \'UN\', \'L\'))',
+      'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_forma_check"',
+      'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = \'MERCADORIA\' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "unidade" IN (\'KG\', \'SACO\', \'L\') AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = \'SERVICO\' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = \'UN\' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+    ]),
+  }),
+});
 
 /**
  * PR174-R8: migrations HISTÓRICAS aplicadas à mão em produção, registradas em
@@ -91,60 +128,173 @@ const semComentarios = (sql) => sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]
 const q = (s) => s.replace(/"/g, '');
 const ID = '"[A-Za-z_][A-Za-z0-9_]*"';
 
+const norm = (s) => s.replace(/\s+/g, ' ').trim();
+const CITACAO_DO = /'([A-Z][A-Za-z]+)'|public\."([A-Za-z]+)"/g;
+const tabelasCriadas = (sql) => [...semComentarios(sql).matchAll(new RegExp(`CREATE TABLE (${ID})`, 'g'))].map((x) => q(x[1]));
+
+/**
+ * Laço EXPAND (allowlist fechada) sobre UM trecho de SQL, com o conjunto de
+ * tabelas `novas` dado pelo chamador.
+ */
+const classificarExpand = (nome, sqlBruto, { novas, colunasNovasEmAntigas, doAprovados, v }) => {
+  let sql = semComentarios(sqlBruto);
+  sql = sql.replace(/DO\s+\$\$([\s\S]*?)\$\$\s*;?/g, (_, corpo) => {
+    const corpoNorm = norm(corpo);
+    if (!doAprovados.includes(sha256(corpoNorm))) v(nome, 'DO_NAO_RECONHECIDO', corpoNorm);
+    const citadas = [...corpoNorm.matchAll(CITACAO_DO)].map((x) => x[1] ?? x[2]);
+    for (const t of citadas) if (!novas.has(t)) v(nome, 'DO_EM_TABELA_ANTIGA', t);
+    return ';';
+  });
+  for (const bruto of sql.split(';')) {
+    const st = norm(bruto);
+    if (!st) continue;
+    let x;
+    if ((x = st.match(new RegExp(`^CREATE TABLE (${ID}) \\(`)))) continue;
+    if ((x = st.match(new RegExp(`^CREATE (UNIQUE )?INDEX ${ID} ON (${ID}) ?\\(`)))) {
+      if (x[1] && !novas.has(q(x[2]))) v(nome, 'UNIQUE_EM_TABELA_ANTIGA', q(x[2]));
+      continue;
+    }
+    if ((x = st.match(new RegExp(`^ALTER TABLE (${ID}) (.*)$`)))) {
+      const tabela = q(x[1]);
+      const acao = x[2];
+      if (novas.has(tabela)) {
+        if (new RegExp(`^(ADD CONSTRAINT ${ID} (FOREIGN KEY|CHECK) |DROP CONSTRAINT ${ID}$|ADD COLUMN ${ID} )`).test(acao)) continue;
+        v(nome, 'ALTER_NAO_RECONHECIDO', `${tabela}: ${acao}`);
+        continue;
+      }
+      const col = acao.match(new RegExp(`^ADD COLUMN (${ID}) (VARCHAR\\(\\d+\\)|TEXT|INTEGER|BOOLEAN|TIMESTAMP\\(3\\)|DECIMAL\\(\\d+,\\d+\\))$`));
+      if (col) {
+        colunasNovasEmAntigas.add(`${tabela}.${q(col[1])}`);
+        continue;
+      }
+      const fk = acao.match(new RegExp(`^ADD CONSTRAINT ${ID} FOREIGN KEY \\("cliente_id", (${ID})\\) REFERENCES (${ID})\\("cliente_id", "id"\\) ON DELETE (RESTRICT|SET NULL) ON UPDATE CASCADE$`));
+      if (fk && colunasNovasEmAntigas.has(`${tabela}.${q(fk[1])}`) && novas.has(q(fk[2]))) continue;
+      v(nome, 'ALTER_EM_TABELA_ANTIGA', `${tabela}: ${acao}`);
+      continue;
+    }
+    v(nome, 'SQL_NAO_RECONHECIDO', st);
+  }
+};
+
+/** Alvo das constraints alargadas, a partir do texto pinado (`ALTER TABLE "T" ADD CONSTRAINT "C" …`). */
+const constraintsAlargadas = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
+
+/**
+ * D-PROD-161 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
+ * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
+ * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
+ */
+const recortarContract = (m, k, v) => {
+  const limpo = semComentarios(m.sql).trim();
+  const guarda = limpo.match(/^DO\s+\$\$([\s\S]*?)\$\$\s*;/);
+  if (!guarda) {
+    v(m.nome, 'CONTRACT_GUARDA_AUSENTE', 'a 1ª instrução tem de ser a guarda DO $$ … $$ pinada');
+    return null;
+  }
+  const corpo = norm(guarda[1]);
+  if (sha256(corpo) !== k.guarda_sha256) v(m.nome, 'CONTRACT_GUARDA_NAO_RECONHECIDA', corpo);
+  const instrucoes = limpo.slice(guarda[0].length).split(';');
+  for (let i = 0; i < k.drop.length; i++) {
+    const esperado = `DROP TABLE "${k.drop[i]}"`;
+    const achado = norm(instrucoes[i] ?? '');
+    if (achado !== esperado) {
+      v(m.nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${i}: esperado ${esperado} encontrado ${achado}`);
+      return null;
+    }
+  }
+  for (let j = 0; j < k.alter_antigas.length; j++) {
+    const achado = norm(instrucoes[k.drop.length + j] ?? '');
+    if (achado !== k.alter_antigas[j]) {
+      v(m.nome, 'CONTRACT_ALTER_FORA_DO_CONTRATO', `posição ${j}: esperado ${k.alter_antigas[j].slice(0, 30)}… encontrado ${achado}`);
+      return null;
+    }
+  }
+  const resto = instrucoes.slice(k.drop.length + k.alter_antigas.length).join(';');
+  const permitidas = new Set([...k.drop, ...tabelasCriadas(resto), ...k.literais_guarda]);
+  for (const x of corpo.matchAll(CITACAO_DO)) {
+    const t = x[1] ?? x[2];
+    if (!permitidas.has(t)) v(m.nome, 'DO_EM_TABELA_ANTIGA', t);
+  }
+  return resto;
+};
+
 /**
  * @param {Array<{nome: string, sql: string}>} migrations
- * @param {{manifesto?: Record<string,string>, doAprovados?: readonly string[]}} [opcoes]
+ * @param {{manifesto?: Record<string,string>, doAprovados?: readonly string[], contratos?: Record<string, any>}} [opcoes]
  */
-export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROVADAS, doAprovados = DO_RLS_APROVADOS } = {}) => {
+export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROVADAS, doAprovados = DO_RLS_APROVADOS, contratos = MIGRATIONS_CONTRACT_APROVADAS } = {}) => {
   const violacoes = [];
+  const contract = [];
   const v = (migration, codigo, detalhe) => violacoes.push({ migration, codigo, detalhe: String(detalhe).slice(0, 80) });
   for (const m of migrations) {
     if (!(m.nome in manifesto)) v(m.nome, 'MIGRATION_NAO_APROVADA', 'fora do manifesto da release');
     else if (sha256(m.sql) !== manifesto[m.nome]) v(m.nome, 'MIGRATION_CHECKSUM_DIVERGENTE', 'conteúdo difere do auditado');
   }
   const novas = new Set();
-  for (const m of migrations) for (const x of semComentarios(m.sql).matchAll(new RegExp(`CREATE TABLE (${ID})`, 'g'))) novas.add(q(x[1]));
+  for (const m of migrations) for (const t of tabelasCriadas(m.sql)) novas.add(t);
   const colunasNovasEmAntigas = new Set();
   for (const m of migrations) {
-    let sql = semComentarios(m.sql);
-    sql = sql.replace(/DO\s+\$\$([\s\S]*?)\$\$\s*;?/g, (_, corpo) => {
-      const norm = corpo.replace(/\s+/g, ' ').trim();
-      if (!doAprovados.includes(sha256(norm))) v(m.nome, 'DO_NAO_RECONHECIDO', norm);
-      const citadas = [...norm.matchAll(/'([A-Z][A-Za-z]+)'|public\."([A-Za-z]+)"/g)].map((x) => x[1] ?? x[2]);
-      for (const t of citadas) if (!novas.has(t)) v(m.nome, 'DO_EM_TABELA_ANTIGA', t);
-      return ';';
-    });
-    for (const bruto of sql.split(';')) {
-      const st = bruto.replace(/\s+/g, ' ').trim();
-      if (!st) continue;
-      let x;
-      if ((x = st.match(new RegExp(`^CREATE TABLE (${ID}) \\(`)))) continue;
-      if ((x = st.match(new RegExp(`^CREATE (UNIQUE )?INDEX ${ID} ON (${ID}) ?\\(`)))) {
-        if (x[1] && !novas.has(q(x[2]))) v(m.nome, 'UNIQUE_EM_TABELA_ANTIGA', q(x[2]));
-        continue;
-      }
-      if ((x = st.match(new RegExp(`^ALTER TABLE (${ID}) (.*)$`)))) {
-        const tabela = q(x[1]);
-        const acao = x[2];
-        if (novas.has(tabela)) {
-          if (new RegExp(`^(ADD CONSTRAINT ${ID} (FOREIGN KEY|CHECK) |DROP CONSTRAINT ${ID}$|ADD COLUMN ${ID} )`).test(acao)) continue;
-          v(m.nome, 'ALTER_NAO_RECONHECIDO', `${tabela}: ${acao}`);
-          continue;
-        }
-        const col = acao.match(new RegExp(`^ADD COLUMN (${ID}) (VARCHAR\\(\\d+\\)|TEXT|INTEGER|BOOLEAN|TIMESTAMP\\(3\\)|DECIMAL\\(\\d+,\\d+\\))$`));
-        if (col) {
-          colunasNovasEmAntigas.add(`${tabela}.${q(col[1])}`);
-          continue;
-        }
-        const fk = acao.match(new RegExp(`^ADD CONSTRAINT ${ID} FOREIGN KEY \\("cliente_id", (${ID})\\) REFERENCES (${ID})\\("cliente_id", "id"\\) ON DELETE (RESTRICT|SET NULL) ON UPDATE CASCADE$`));
-        if (fk && colunasNovasEmAntigas.has(`${tabela}.${q(fk[1])}`) && novas.has(q(fk[2]))) continue;
-        v(m.nome, 'ALTER_EM_TABELA_ANTIGA', `${tabela}: ${acao}`);
-        continue;
-      }
-      v(m.nome, 'SQL_NAO_RECONHECIDO', st);
+    const k = Object.hasOwn(contratos, m.nome) && Object.hasOwn(manifesto, m.nome) ? contratos[m.nome] : null;
+    if (!k) {
+      classificarExpand(m.nome, m.sql, { novas, colunasNovasEmAntigas, doAprovados, v });
+      continue;
     }
+    contract.push({ migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop], constraints_alargadas: constraintsAlargadas(k.alter_antigas) });
+    const resto = recortarContract(m, k, v);
+    if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });
   }
-  return { expand: violacoes.length === 0, tabelas_novas: [...novas].sort(), colunas_novas_em_tabelas_antigas: [...colunasNovasEmAntigas].sort(), violacoes };
+  const ok = violacoes.length === 0;
+  return {
+    ok,
+    expand: ok && contract.length === 0,
+    modo: contract.length ? 'CONTRACT' : 'EXPAND',
+    contract,
+    tabelas_novas: [...novas].sort(),
+    colunas_novas_em_tabelas_antigas: [...colunasNovasEmAntigas].sort(),
+    violacoes,
+  };
+};
+
+/**
+ * D-PROD-161 — a release com CONTRACT é ISOLADA (a migration CONTRACT é a única
+ * nova) e só é verificada/aplicada com a decisão exata; `--contract` numa release
+ * sem CONTRACT é recusado (CONTRACT_INESPERADO). Puro.
+ * @param {{nomesNovas: string[], classificacao: {contract: Array<{decisao: string}>}, autorizacao?: string|null}} e
+ */
+export const conferirReleaseContract = ({ nomesNovas, classificacao, autorizacao }) => {
+  const [k] = classificacao.contract ?? [];
+  const informada = autorizacao !== undefined && autorizacao !== null;
+  if (!k) return informada ? { ok: false, codigo: 'CONTRACT_INESPERADO' } : { ok: true, codigo: null };
+  if (nomesNovas.length !== 1 || classificacao.contract.length !== 1) return { ok: false, codigo: 'CONTRACT_NAO_ISOLADO' };
+  if (autorizacao !== k.decisao) return { ok: false, codigo: 'CONTRACT_NAO_AUTORIZADO' };
+  return { ok: true, codigo: null };
+};
+
+/**
+ * D-PROD-161 — ambiente do subprocesso `npm run deploy:migrate` do premerge.
+ * `MIGRATION_CONTRACT_AUTORIZADO` (lido por `run-migrations.mjs`) só vai quando a
+ * release é CONTRACT e a decisão informada conferiu; nunca é herdado do ambiente.
+ */
+export const envDoDeployMigrate = ({ env, classificacao, autorizacao }) => {
+  const saida = { ...env, MIGRATION_EXIGIR_CONFERENCIA: 'sim' };
+  delete saida.MIGRATION_CONTRACT_AUTORIZADO;
+  const [k] = classificacao.contract ?? [];
+  if (k && classificacao.contract.length === 1 && autorizacao === k.decisao) saida.MIGRATION_CONTRACT_AUTORIZADO = k.decisao;
+  return saida;
+};
+
+/**
+ * D-PROD-161 — migrations CONTRACT presentes nas pastas locais e ainda NÃO
+ * concluídas (concluída = `finished_at` e sem `rolled_back_at`) no histórico do
+ * alvo. Usado pelo runner oficial para exigir a autorização. Puro.
+ * @param {{locais: string[], linhas: Array<{migration_name: string, finished_at: any, rolled_back_at: any}>, contratos?: Record<string, {decisao: string}>}} e
+ */
+export const contractsPendentes = ({ locais, linhas, contratos = MIGRATIONS_CONTRACT_APROVADAS }) => {
+  const concluidas = new Set(linhas.filter((l) => l.finished_at && !l.rolled_back_at).map((l) => l.migration_name));
+  return Object.keys(contratos)
+    .filter((nome) => locais.includes(nome) && !concluidas.has(nome))
+    .map((nome) => ({ nome, decisao: contratos[nome].decisao }));
 };
 
 /**

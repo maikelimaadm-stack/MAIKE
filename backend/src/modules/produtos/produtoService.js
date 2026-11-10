@@ -15,6 +15,8 @@ import {
   normalizarLimite,
 } from '../../shared/pagination/keysetCursor.js';
 import { AppError, produtoNotFound, produtoNomeConflito, produtoDeleteBlocked } from '../../shared/errors/AppError.js';
+import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { dec } from '../financeiro/decimalFinanceiro.js';
 import {
   listarProdutos,
   listarProdutosPagina,
@@ -130,6 +132,61 @@ const camposDe = (entrada) => {
   return saida;
 };
 
+/** D-PROD-161: unidades de estoque que um tanque do Patrimônio aceita (e o abastecimento baixa). */
+const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG']);
+
+/**
+ * D-PROD-161 (achado D1): o aceite que VALE — ativo, num tanque ativo de um bem
+ * ativo. Aceite em tanque inativo (ou de bem inativo) não trava o Produto: o
+ * abastecimento relê o Produto e o recusa, e reativar o tanque/bem revalida.
+ * @param {string} clienteId @param {string} produtoId
+ */
+const aceiteQueVale = (clienteId, produtoId) => ({ cliente_id: clienteId, produto_id: produtoId, ativo: true, tanque: { ativo: true, bem: { ativo: true } } });
+
+/** `[{ bem_id, bem_numero, tanque_id, identificador }]` dos aceites que valem (ordem estável). */
+const tanquesQueAceitam = async (tx, clienteId, produtoId) => {
+  const linhas = await tx.tanqueBemProduto.findMany({
+    where: aceiteQueVale(clienteId, produtoId),
+    orderBy: { id: 'asc' },
+    select: { tanque: { select: { id: true, identificador: true, bem: { select: { id: true, numero: true } } } } },
+  });
+  return linhas
+    .map((l) => ({ bem_id: l.tanque.bem.id, bem_numero: l.tanque.bem.numero, tanque_id: l.tanque.id, identificador: l.tanque.identificador }))
+    .sort((a, b) => a.bem_numero.localeCompare(b.bem_numero, 'pt-BR', { numeric: true }) || a.identificador.localeCompare(b.identificador, 'pt-BR') || a.tanque_id.localeCompare(b.tanque_id));
+};
+
+const unidadeEmUso = (id, de, para, reason, extra = {}) =>
+  new AppError('PRODUTO_UNIDADE_EM_USO', reason === 'aceito_em_tanque'
+    ? 'produto aceito em tanque de bem patrimonial só usa estoque em L ou KG; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens antes; nada foi gravado'
+    : 'a unidade de estoque não muda de ou para litros (L) num produto com estoque, lotes, movimentos ou lançamentos; cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”; nada foi gravado', {
+    details: { field: 'unidade_principal_estoque', reason, id, de, para, ...extra },
+  });
+
+/**
+ * D-PROD-161 (§4.6, padrões P-08 e P-10) — a troca da unidade de estoque.
+ *  - envolvendo `L` (de L ou para L): só sem histórico — `estoque` (≠ 0) →
+ *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da
+ *    Gestão P3, rascunho inclusive), nessa ordem;
+ *  - unidade nova fora de {L, KG} com aceite que vale → `aceito_em_tanque`;
+ *  - KG ↔ SACO sem tanque: como antes (P-08).
+ * Corre com a linha do Produto já travada (advisory de estoque + FOR UPDATE).
+ */
+const conferirTrocaDeUnidade = async (tx, clienteId, anterior, para) => {
+  const de = anterior.unidade_principal_estoque ?? 'KG';
+  const id = anterior.id;
+  if (de === 'L' || para === 'L') {
+    if (!dec(anterior.estoque_atual ?? 0).isZero()) throw unidadeEmUso(id, de, para, 'estoque');
+    const onde = { cliente_id: clienteId, produto_id: id };
+    if ((await tx.estoqueLoteNota.count({ where: onde })) > 0) throw unidadeEmUso(id, de, para, 'lotes');
+    if ((await contarMovimentacoesPorProduto(tx, clienteId, id)) > 0) throw unidadeEmUso(id, de, para, 'movimentos');
+    if ((await tx.operacaoFinanceiraItem.count({ where: onde })) > 0) throw unidadeEmUso(id, de, para, 'lancamentos');
+  }
+  if (!UNIDADES_DO_TANQUE.includes(para)) {
+    const tanques = await tanquesQueAceitam(tx, clienteId, id);
+    if (tanques.length) throw unidadeEmUso(id, de, para, 'aceito_em_tanque', { tanques });
+  }
+};
+
 /** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {{empresa_id?: string, ativo?: boolean}} [filtros] */
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -227,20 +284,36 @@ export const atualizar = async (contexto, id, entrada) => {
   // valores absolutos: repetir depois do 409 leva ao mesmo estado.
   return emTransacao(TRANSACAO_CURTA, async (tx) => {
     const campos = camposDe(entrada);
-    // D-PROD-157 (R2): o vínculo ATIVO a combustível do Patrimônio exige que o
-    // produto continue na MESMA empresa (invariante do serviço: Produto não tem
-    // unique por empresa). Corpo com `empresa_id` (o formulário sempre reenvia a
-    // que leu) trava a linha ANTES de ler o estado anterior, para a comparação
-    // usar a versão confirmada mais nova (uma troca concorrente fica em fila):
+    // D-PROD-161 (§4.6): trocar a unidade de estoque toma a MESMA trava dos
+    // escritores de estoque (advisory `estoque:produto:*` → FOR UPDATE, nesta
+    // ordem: sem deadlock com confirmação/cancelamento/abastecimento) ANTES de
+    // qualquer outra trava do Produto. A unidade é lida sem trava só para saber
+    // se há troca; sob a trava ela é relida e, se mudou no meio, 409.
+    const lida = campos.unidade_principal_estoque !== undefined ? await buscarProduto(auth.clienteId, id, tx) : null;
+    if (campos.unidade_principal_estoque !== undefined && !lida) throw produtoNotFound();
+    const trocaUnidade = Boolean(lida) && campos.unidade_principal_estoque !== (lida.unidade_principal_estoque ?? 'KG');
+    if (trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
+    // D-PROD-157 (R2) / D-PROD-161: o aceite ATIVO do Produto num tanque do
+    // Patrimônio exige que ele continue na MESMA empresa (invariante do serviço:
+    // Produto não tem unique por empresa). Corpo com `empresa_id` (o formulário
+    // sempre reenvia a que leu) ou com a unidade trava a linha ANTES de ler o
+    // estado anterior, para a comparação usar a versão confirmada mais nova
+    // (uma troca concorrente fica em fila):
     //  - FOR NO KEY UPDATE, a mesma força do UPDATE comum: não disputa com o
-    //    FOR KEY SHARE de rascunhos de lançamento nem de quem vincula;
+    //    FOR KEY SHARE de rascunhos de lançamento nem de quem acrescenta o
+    //    Produto a um tanque;
     //  - só se a fazenda MUDA sobe para FOR UPDATE (espera quem segura o
-    //    produto em KEY SHARE, como um vínculo em voo), relê e conta.
-    if (campos.empresa_id !== undefined) {
+    //    produto em KEY SHARE, como um aceite em voo), relê e conta.
+    if (campos.empresa_id !== undefined || campos.unidade_principal_estoque !== undefined) {
       await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     }
     let anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
+    if (lida && ((anterior.unidade_principal_estoque ?? 'KG') !== (lida.unidade_principal_estoque ?? 'KG') || anterior.empresa_id !== lida.empresa_id)) {
+      throw new AppError('CONCURRENCY_CONFLICT', 'a unidade de estoque ou a fazenda do produto mudou durante a gravação; recarregue e tente de novo; nada foi gravado', {
+        details: { id },
+      });
+    }
 
     if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
       await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
@@ -248,13 +321,14 @@ export const atualizar = async (contexto, id, entrada) => {
       if (!anterior) throw produtoNotFound();
     }
     if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
-      const vinculos = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id, ativo: true } });
-      if (vinculos > 0) {
-        throw new AppError('PRODUTO_VINCULADO_COMBUSTIVEL', 'produto vinculado a combustível do Patrimônio não muda de fazenda; inative o vínculo na tela Combustíveis antes; nada foi gravado', {
-          details: { id, vinculos },
+      const tanques = await tanquesQueAceitam(tx, auth.clienteId, id);
+      if (tanques.length > 0) {
+        throw new AppError('PRODUTO_EM_TANQUE_PATRIMONIO', 'produto aceito em tanque de bem patrimonial não muda de fazenda; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens antes; nada foi gravado', {
+          details: { field: 'empresa_id', reason: 'aceito_em_tanque', id, tanques },
         });
       }
     }
+    if (trocaUnidade) await conferirTrocaDeUnidade(tx, auth.clienteId, anterior, String(campos.unidade_principal_estoque));
     if (campos.nome_produto && campos.nome_produto !== anterior.nome_produto) {
       const empresa = String(campos.empresa_id ?? anterior.empresa_id);
       const nome = String(campos.nome_produto);
@@ -293,10 +367,10 @@ export const excluir = async (contexto, id) => {
   const prisma = getPrismaClient();
 
   await prisma.$transaction(async (tx) => {
-    // D-PROD-157 (R2): trava o produto ANTES das contagens (padrão da exclusão
-    // do parceiro): quem está vinculando-o a um combustível segura a linha
-    // (FOR KEY SHARE) e esta exclusão espera o commit; a contagem já o vê e o
-    // 409 sai no lugar do 403 da FK.
+    // D-PROD-157 (R2) / D-PROD-161: trava o produto ANTES das contagens (padrão
+    // da exclusão do parceiro): quem o está acrescentando a um tanque do
+    // Patrimônio segura a linha (FOR KEY SHARE) e esta exclusão espera o commit;
+    // a contagem já o vê e o 409 sai no lugar do 403 da FK.
     await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
@@ -313,12 +387,14 @@ export const excluir = async (contexto, id) => {
         details: { id, vinculo: 'lançamentos financeiros', quantidade: itensFinanceiros },
       });
     }
-    // D-PROD-157 (R2): vínculo a combustível do Patrimônio (ativo OU inativo:
-    // é histórico rastreável) segura o produto pela FK RESTRICT; 409, nunca 403.
-    const vinculosCombustivel = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
-    if (vinculosCombustivel > 0) {
-      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto vinculado a combustível do Patrimônio; inative-o', {
-        details: { id, vinculo: 'combustíveis do patrimônio', quantidade: vinculosCombustivel },
+    // D-PROD-161 (§4.6): as linhas de `TanqueBemProduto` que SOBRAM (ativas, ou
+    // inativas com histórico — o sync do bem apaga a retirada sem abastecimento)
+    // seguram o produto pela FK RESTRICT; 409, nunca 403. Com histórico há
+    // movimento, e a contagem de movimentos acima já bloqueou.
+    const aceites = await tx.tanqueBemProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
+    if (aceites > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto aceito em tanque de bem patrimonial; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens ou inative-o', {
+        details: { id, vinculo: 'tanques do patrimônio', quantidade: aceites },
       });
     }
 

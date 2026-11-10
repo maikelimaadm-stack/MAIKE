@@ -25,11 +25,7 @@
     "NaturezasFinanceiras",
     "LancamentosFinanceiros",
     "BensPatrimoniais",
-    "Abastecimentos",
-    "FamiliasPatrimoniais",
-    "TiposPatrimoniais",
-    "PerfisMedicao",
-    "Combustiveis"
+    "Abastecimentos"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [

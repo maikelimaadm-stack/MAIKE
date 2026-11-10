@@ -1,10 +1,13 @@
 /**
- * D-PROD-157 — Famílias patrimoniais (catálogo do TENANT, sem empresa).
+ * D-PROD-157 / D-PROD-161 — Famílias patrimoniais (catálogo do TENANT, sem
+ * empresa), criadas e mantidas DENTRO do cadastro de Bens (guardas da tela
+ * `pat-bens-patrimoniais`).
  *
  * Regras:
  *  - `cliente_id` só da sessão; registro de outro tenant = mesmo 404 de inexistente;
  *  - `codigo` (MAIÚSCULAS, `^[A-Z0-9_]{2,32}$`) e `natureza` escolhidos na
- *    criação e IMUTÁVEIS (fora do schema do PATCH);
+ *    criação e IMUTÁVEIS (fora do schema do PATCH); sem `codigo` no POST, o
+ *    servidor o gera do nome sob a trava do catálogo (P-05, `codigoDisponivel`);
  *  - código e nome únicos no tenant (nome sem diferenciar maiúsculas, pré-checado
  *    sob a trava do catálogo; o unique do banco é a última barreira);
  *  - toda escrita sob `travarCatalogo` (A9); PATCH com CAS por `versao`; PATCH
@@ -22,7 +25,7 @@ import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../..
 import { registrarEvento } from '../auditoria/auditService.js';
 import { invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
-  atualizarComVersao, camposAlterados, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
+  atualizarComVersao, camposAlterados, codigoDisponivel, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
   nomeDuplicado, nomeIgual, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
 } from './patrimonioComum.js';
 import { NATUREZAS } from './patrimonioDominio.js';
@@ -106,13 +109,14 @@ export const detalhar = async (contexto, id) => {
 
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const codigo = codigoDoCorpo(entrada.codigo);
+  const codigoInformado = entrada.codigo === undefined ? null : codigoDoCorpo(entrada.codigo);
   const nome = /** @type {string} */ (textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true }));
   const natureza = exigirNatureza(entrada.natureza);
   const descricao = textoDoCorpo(entrada.descricao, 'descricao') ?? null;
   return transacao(async (tx) => {
     await travarCatalogo(tx, auth.clienteId);
-    await exigirLivre(tx, auth.clienteId, { codigo, nome });
+    await exigirLivre(tx, auth.clienteId, { ...(codigoInformado ? { codigo: codigoInformado } : {}), nome });
+    const codigo = codigoInformado ?? (await codigoDisponivel(tx, auth.clienteId, 'familiaPatrimonial', nome));
     const r = await tx.familiaPatrimonial.create({
       data: {
         cliente_id: auth.clienteId,

@@ -19,6 +19,8 @@ import { dirname, join } from 'node:path';
 import {
   validarUrlDeMigration,
   executarMigrationsDeDeploy,
+  exigirAlvoConferido,
+  exigirContractAutorizado,
   CODIGOS_DEPLOY_MIGRATION,
   VARIAVEL_DE_MIGRATION,
 } from '../../deploy/run-migrations.mjs';
@@ -213,3 +215,91 @@ function readFonte() {
   const aqui = dirname(fileURLToPath(import.meta.url));
   return readFileSync(join(aqui, '../../deploy/run-migrations.mjs'), 'utf8');
 }
+
+describe('B11 (D-PROD-161) — o runner oficial não aplica um CONTRACT pendente sem autorização', () => {
+  const NOME_C = '20261110300000_patrimonio_simplifica';
+  const REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
+  const LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
+  const concluida = (n, extra = {}) => ({ migration_name: n, checksum: 'x', finished_at: new Date(), rolled_back_at: null, ...extra });
+  const rodar = async (env, lerHistorico) => {
+    const saida = criarSaida();
+    let leu = 0;
+    const pode = await exigirContractAutorizado({
+      env,
+      urlMigracao: env[VARIAVEL_DE_MIGRATION],
+      lerHistorico: async (url) => {
+        leu++;
+        assert.equal(url, env[VARIAVEL_DE_MIGRATION]);
+        return lerHistorico();
+      },
+      erro: saida.erro,
+      log: saida.log,
+    });
+    return { pode, leu, texto: saida.texto() };
+  };
+
+  test('B11-1 alvo remoto com o CONTRACT pendente e SEM a variável → recusa com código estável, sem URL', async () => {
+    for (const autorizado of [undefined, '', 'D-PROD-999', 'd-prod-161']) {
+      const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }) };
+      const r = await rodar(env, () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')]);
+      assert.equal(r.pode, false, String(autorizado));
+      assert.equal(r.leu, 1);
+      assert.match(r.texto, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
+      assert.match(r.texto, new RegExp(NOME_C));
+      assert.match(r.texto, /Nenhuma migration foi executada/);
+      assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), r.texto);
+    }
+    assert.equal(CODIGOS_DEPLOY_MIGRATION.CONTRACT_NAO_AUTORIZADO, 'DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED');
+  });
+
+  test('B11-2 falha aberta ou revertida no histórico continua pendente; histórico ilegível → falha fechada', async () => {
+    const env = { [VARIAVEL_DE_MIGRATION]: REMOTO };
+    assert.equal((await rodar(env, () => [concluida(NOME_C, { finished_at: null })])).pode, false);
+    assert.equal((await rodar(env, () => [concluida(NOME_C, { rolled_back_at: new Date() })])).pode, false);
+    const ilegivel = await rodar(env, () => {
+      throw Object.assign(new Error(`Can't reach database server at db.exemplo.invalido user ops:${SENHA_FIXTURE}`), { code: 'P1001' });
+    });
+    assert.equal(ilegivel.pode, false);
+    assert.match(ilegivel.texto, /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/);
+    assert.match(ilegivel.texto, /P1001/);
+    assert.ok(!ilegivel.texto.includes(SENHA_FIXTURE) && !ilegivel.texto.includes('exemplo.invalido'), ilegivel.texto);
+  });
+
+  test('B11-3 com MIGRATION_CONTRACT_AUTORIZADO = decisão exata → segue', async () => {
+    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-161' }, () => []);
+    assert.equal(r.pode, true);
+    assert.equal(r.leu, 1);
+  });
+
+  test('B11-4 CONTRACT já concluído no alvo → segue sem a variável (as releases seguintes não mudam)', async () => {
+    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO }, () => [concluida(NOME_C, { rolled_back_at: new Date() }), concluida(NOME_C)]);
+    assert.equal(r.pode, true);
+  });
+
+  test('B11-5 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico (CI e dev livres); com a conferência exigida → recusa', async () => {
+    const livre = await rodar({ [VARIAVEL_DE_MIGRATION]: LOCAL }, () => []);
+    assert.equal(livre.pode, true);
+    assert.equal(livre.leu, 0);
+    const exigida = await rodar({ [VARIAVEL_DE_MIGRATION]: LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, () => []);
+    assert.equal(exigida.pode, false);
+    assert.equal(exigida.leu, 1);
+  });
+
+  test('B11-6 exigirAlvoConferido chama a barreira do CONTRACT DEPOIS do alvo conferido (alvo reprovado nem lê o histórico)', async () => {
+    const SID = '7692130048193495360';
+    const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID };
+    let leu = 0;
+    const lerHistorico = async () => (leu++, []);
+    const silencio = { log: () => {}, erro: () => {}, resolverRuntime: async () => REMOTO, lerHistorico };
+    assert.equal(await exigirAlvoConferido({ env, conferir: async () => ({ ok: false, falhas: ['x'], resumo: '' }), ...silencio }), false);
+    assert.equal(leu, 0);
+    assert.equal(await exigirAlvoConferido({ env, conferir: async () => ({ ok: true, falhas: [], resumo: '' }), ...silencio }), false);
+    assert.equal(leu, 1);
+    assert.equal(await exigirAlvoConferido({ env: { ...env, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-161' }, conferir: async () => ({ ok: true, falhas: [], resumo: '' }), ...silencio }), true);
+  });
+
+  test('B11-7 a única fonte de MIGRATION_CONTRACT_AUTORIZADO no repositório é o premerge (o release-migrate.yml não a define)', () => {
+    const wf = readFileSync('.github/workflows/release-migrate.yml', 'utf8');
+    assert.ok(!wf.includes('MIGRATION_CONTRACT_AUTORIZADO'));
+  });
+});

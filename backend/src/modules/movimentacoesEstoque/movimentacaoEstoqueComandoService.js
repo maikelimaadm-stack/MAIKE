@@ -384,7 +384,8 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
           produto_codigo: produto.codigo_interno || produto.codigo_barras || '',
           produto_categoria: produto.categoria,
           quantidade,
-          unidade_medida: produto.unidade_medida || 'KG',
+          // D-PROD-161 (achado D5): Produto em L rotula a transferência 'L'; os outros, como antes.
+          unidade_medida: produto.unidade_principal_estoque === 'L' ? 'L' : (produto.unidade_medida || 'KG'),
           valor_unitario: fifo.custoMedioPonderado,
           valor_total: fifo.valorTotal,
           local_estoque_origem: localOrigemId,

@@ -57,6 +57,12 @@ const patrimonio = (alvo) => ({
   editar: edicaoPatrimonio(alvo),
 });
 
+/**
+ * D-PROD-161 — quem CADASTRA ou EDITA bem: cria família/tipo pelo "+" do
+ * formulário e lista os Produtos que um tanque pode aceitar.
+ */
+const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -243,32 +249,27 @@ export const GUARDAS = Object.freeze({
   },
   // Perfil financeiro: leitura pela tela; escrita só administrador real ou is_admin (§8.6).
   perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },
-  // D-PROD-157 — Patrimônio e Frota: cada tela com as SUAS ações; inativar e
-  // reativar (PATCH com `ativo`) exigem a ação extra `inativar`. Sem DELETE.
+  // D-PROD-157 / D-PROD-161 — Patrimônio e Frota: duas telas (Bens e
+  // Abastecimentos); inativar e reativar (PATCH com `ativo`) exigem a ação
+  // extra `inativar`. Sem DELETE.
   patrimonioBens: {
     ...patrimonio(T.PATRIMONIO_BENS),
-    // A3: opções de CATÁLOGO (famílias, tipos, perfis, combustíveis) servem o
-    // formulário do bem E o do tipo (quem cria tipo escolhe família e perfis).
-    opcoesCatalogo: porQualquer([T.PATRIMONIO_BENS, 'visualizar'], [T.PATRIMONIO_TIPOS, 'visualizar']),
+    // A3: opções de CATÁLOGO (famílias e tipos do formulário do bem).
+    opcoesCatalogo: porTela(T.PATRIMONIO_BENS, 'visualizar'),
+    // "Produtos aceitos" do tanque: quem cadastra OU edita bem; ver sozinho não lista produtos da fazenda.
+    opcoesProdutos: porQualquer(...BENS_CRIAR_OU_EDITAR),
   },
-  patrimonioFamilias: patrimonio(T.PATRIMONIO_FAMILIAS),
-  patrimonioTipos: patrimonio(T.PATRIMONIO_TIPOS),
-  patrimonioPerfisMedicao: patrimonio(T.PATRIMONIO_PERFIS_MEDICAO),
-  patrimonioCombustiveis: {
-    ...patrimonio(T.PATRIMONIO_COMBUSTIVEIS),
-    // D-PROD-157 (R2): o seletor "Vincular produto" serve a criação do vínculo
-    // (novo|salvar) e quem edita a tela (editar); ver sozinho não lista
-    // produtos da fazenda.
-    opcoesProdutos: porQualquer([T.PATRIMONIO_COMBUSTIVEIS, 'novo'], [T.PATRIMONIO_COMBUSTIVEIS, 'salvar'], [T.PATRIMONIO_COMBUSTIVEIS, 'editar']),
-  },
-  // D-PROD-159 — Patrimônio P1-02: Abastecimentos. Prévia e confirmação = novo|salvar;
-  // cancelar/estornar e o fator kg/L são ações extras próprias; leitura e seletores =
-  // visualizar DESTA tela (não dependem da tela de bens nem da Central); saldos = criar.
+  // D-PROD-161: famílias e tipos vivem no cadastro de Bens; quem cadastra OU edita bem cria pelo "+".
+  // Renomear/descrever = Bens editar|salvar; inativar/reativar = Bens `inativar` (`edicaoPatrimonio`).
+  patrimonioFamilias: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar'), criar: porQualquer(...BENS_CRIAR_OU_EDITAR), editar: edicaoPatrimonio(T.PATRIMONIO_BENS) },
+  patrimonioTipos: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar'), criar: porQualquer(...BENS_CRIAR_OU_EDITAR), editar: edicaoPatrimonio(T.PATRIMONIO_BENS) },
+  // D-PROD-159 / D-PROD-161 — Abastecimentos. Prévia e confirmação = novo|salvar;
+  // cancelar/estornar é ação extra própria; leitura e seletores = visualizar DESTA
+  // tela (não dependem da tela de bens nem da Central); saldos = criar. O fator kg/L saiu.
   patrimonioAbastecimentos: {
     ver: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'visualizar'),
     criar: porQualquer([T.PATRIMONIO_ABASTECIMENTOS, 'novo'], [T.PATRIMONIO_ABASTECIMENTOS, 'salvar']),
     cancelar: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'cancelar'),
-    configurarConversao: porTela(T.PATRIMONIO_ABASTECIMENTOS, 'configurar_conversao'),
   },
   // Instalar o catálogo padrão: administrador real ou a concessão `is_admin`.
   patrimonioCatalogoPadrao: adminOuIsAdmin(),

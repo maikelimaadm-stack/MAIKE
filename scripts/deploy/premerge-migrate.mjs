@@ -20,17 +20,26 @@
  *     ⊆ manifesto) — senão PREMERGE_MIGRATIONS_NAO_COMPROVADAS.
  *  5. Só `--aplicar` executa o runner oficial `npm run deploy:migrate` (que
  *     refaz a conferência de alvo e recusa o pooler). Nenhum segundo executor de DDL.
+ *  6. Modo CONTRACT (D-PROD-161): a migration CONTRACT tem de ser a ÚNICA nova
+ *     (CONTRACT_NAO_ISOLADO); `--verificar-alvo`/`--aplicar` exigem
+ *     `--contract <decisão>` exato (CONTRACT_NAO_AUTORIZADO), ANTES de qualquer
+ *     conexão; `--contract` sem CONTRACT na release é CONTRACT_INESPERADO. Só
+ *     este runner define MIGRATION_CONTRACT_AUTORIZADO para o `deploy:migrate`.
  * Sem credenciais: análise local apenas, declarada "alvo remoto NÃO verificado".
  * Nunca imprime URL, host, usuário ou senha.
  *
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex>                    (análise local)
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --verificar-alvo   (+ alvo, só leitura)
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --aplicar          (+ alvo, aplica)
+ *   … --verificar-alvo --contract D-PROD-161 / … --aplicar --contract D-PROD-161   (release CONTRACT)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { MIGRATIONS_APROVADAS, classificarMigrations, conferirHistoricoRemoto, migrationsDoManifestoFaltando, sha256 } from './premergeMigrateLib.mjs';
+import {
+  MIGRATIONS_APROVADAS, classificarMigrations, conferirHistoricoRemoto, conferirReleaseContract, envDoDeployMigrate,
+  migrationsDoManifestoFaltando, sha256,
+} from './premergeMigrateLib.mjs';
 import { CONSULTA_HISTORICO, executorPrisma, lerIdentidade } from './alvoBancoLib.mjs';
 
 const args = process.argv.slice(2);
@@ -48,6 +57,8 @@ if (args.includes('--base')) recusar('BASE_FIXA', 'a base da release é sempre o
 const sha = valor('--sha');
 const aplicar = args.includes('--aplicar');
 const verificarAlvo = aplicar || args.includes('--verificar-alvo');
+// D-PROD-161: `--contract` sem valor conta como informado e vazio (nunca autoriza nada).
+const autorizacaoContract = args.includes('--contract') ? (valor('--contract') ?? '') : undefined;
 if (!sha || !/^[0-9a-f]{40}$/.test(sha)) recusar('SHA_INVALIDO', '--sha com 40 caracteres hexadecimais é obrigatório');
 if (git('rev-parse', 'HEAD') !== sha) recusar('HEAD_DIVERGENTE', 'HEAD não é o SHA aprovado (faça checkout exato dele)');
 if (git('status', '--porcelain')) recusar('ARVORE_SUJA', 'árvore suja');
@@ -68,15 +79,23 @@ const c = classificarMigrations(novas.map((f) => ({ nome: f.split('/').at(-2), s
 // D-PROD-113: migration do manifesto que já está na main foi liberada antes; não "falta".
 const naMain = (n) => { try { git('cat-file', '-e', `origin/main:backend/prisma/migrations/${n}/migration.sql`); return true; } catch { return false; } };
 const faltamNoDiff = migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, nomesNovas, naMain);
-console.log(JSON.stringify({ sha, main: mainRemota, migrations_novas: nomesNovas, expand: c.expand, tabelas_novas: c.tabelas_novas, colunas_novas_em_tabelas_antigas: c.colunas_novas_em_tabelas_antigas, violacoes: c.violacoes }, null, 2));
-if (!c.expand) recusar('MIGRATIONS_NAO_EXPAND', 'migrations fora da allowlist/manifesto da release');
+console.log(JSON.stringify({ sha, main: mainRemota, migrations_novas: nomesNovas, expand: c.expand, modo: c.modo, contract: c.contract, tabelas_novas: c.tabelas_novas, colunas_novas_em_tabelas_antigas: c.colunas_novas_em_tabelas_antigas, violacoes: c.violacoes }, null, 2));
+// Código estável mantido: qualquer violação (EXPAND ou recorte CONTRACT) recusa com MIGRATIONS_NAO_EXPAND.
+if (!c.ok) recusar('MIGRATIONS_NAO_EXPAND', 'migrations fora da allowlist/manifesto da release');
+// D-PROD-161: isolamento e --contract inesperado já na análise local; a autorização só é exigida para tocar o alvo.
+const rc = conferirReleaseContract({ nomesNovas, classificacao: c, autorizacao: autorizacaoContract });
+if (rc.codigo === 'CONTRACT_NAO_ISOLADO') recusar(rc.codigo, 'a migration CONTRACT tem de ser a única migration nova da release');
+if (rc.codigo === 'CONTRACT_INESPERADO') recusar(rc.codigo, '--contract informado, mas a release não tem migration CONTRACT');
 if (faltamNoDiff.length) recusar('MANIFESTO_INCOMPLETO', `manifesto cita migration ausente da release: ${faltamNoDiff.join(', ')}`);
+const [k] = c.contract;
+const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${k.tabelas_removidas.length} tabelas removidas, ${k.constraints_alargadas.length} CHECKs alargados)` : '';
 if (!verificarAlvo) {
-  console.log('premerge-migrate: ANÁLISE LOCAL OK — alvo remoto NÃO verificado (isto não autoriza aplicar; use --verificar-alvo)');
+  console.log(`premerge-migrate: ANÁLISE LOCAL OK${rotuloContract} — alvo remoto NÃO verificado (isto não autoriza aplicar; use --verificar-alvo)`);
   process.exit(0);
 }
-const faltando = ['MIGRATION_DATABASE_URL', 'MIGRATION_EXPECTED_SYSTEM_IDENTIFIER'].filter((k) => !process.env[k]);
+const faltando = ['MIGRATION_DATABASE_URL', 'MIGRATION_EXPECTED_SYSTEM_IDENTIFIER'].filter((x) => !process.env[x]);
 if (faltando.length) recusar('ALVO_SEM_CONFIGURACAO', `ambiente sem ${faltando.join(', ')} (configure no runner protegido; nunca no repositório)`);
+if (rc.codigo === 'CONTRACT_NAO_AUTORIZADO') recusar(rc.codigo, `release CONTRACT ${k.decisao}: --verificar-alvo/--aplicar exigem --contract ${k.decisao} exato`);
 const url = process.env.MIGRATION_DATABASE_URL;
 const id = await lerIdentidade(url, executorPrisma);
 if (!id.ok) recusar('PREMERGE_MIGRATIONS_NAO_COMPROVADAS', `alvo indisponível ou sem permissão (${id.erro})`);
@@ -101,5 +120,5 @@ if (!h.pendentes.length) {
   console.log('premerge-migrate: nada pendente — schema já aplicado');
   process.exit(0);
 }
-const r = spawnSync('npm', ['run', 'deploy:migrate'], { stdio: 'inherit', env: { ...process.env, MIGRATION_EXIGIR_CONFERENCIA: 'sim' } });
+const r = spawnSync('npm', ['run', 'deploy:migrate'], { stdio: 'inherit', env: envDoDeployMigrate({ env: process.env, classificacao: c, autorizacao: autorizacaoContract }) });
 process.exit(r.status ?? 1);

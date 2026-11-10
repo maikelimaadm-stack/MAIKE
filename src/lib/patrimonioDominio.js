@@ -1,9 +1,13 @@
 /**
  * Patrimônio e Frota (D-PROD-157) — espelho dos domínios fechados do servidor
  * (`backend/src/modules/patrimonio/patrimonioDominio.js`) só para EXIBIR:
- * rótulos em português, unidades por dimensão e a matriz de capacidades por
- * natureza (quais seções/campos o formulário mostra). Quem valida é o servidor
+ * rótulos em português e a matriz de capacidades por natureza (quais
+ * seções/campos o formulário mostra). Quem valida é o servidor
  * (422 `BEM_CAMPO_NAO_APLICAVEL` etc.); nada aqui decide gravação.
+ *
+ * D-PROD-161: saíram as medições físicas (dimensões, unidades físicas,
+ * finalidades de perfil) e as unidades de combustível. O tanque aceita
+ * Produtos do estoque em litros (`L`) ou quilos (`KG`).
  */
 
 export const NATUREZAS_PATRIMONIO = Object.freeze(['BENFEITORIA', 'MAQUINA', 'VEICULO', 'IMPLEMENTO', 'EQUIPAMENTO', 'OUTRO']);
@@ -20,104 +24,18 @@ export const ROTULO_NATUREZA = Object.freeze({
 /** @param {unknown} v @returns {v is 'BENFEITORIA'|'MAQUINA'|'VEICULO'|'IMPLEMENTO'|'EQUIPAMENTO'|'OUTRO'} */
 export const ehNatureza = (v) => typeof v === 'string' && NATUREZAS_PATRIMONIO.includes(v);
 
-// ─── Medidas físicas (benfeitorias) ──────────────────────────────────────
+// ─── Unidade de estoque do Produto no tanque (D-PROD-161) ────────────────
 
-export const DIMENSOES = Object.freeze(['EXTENSAO', 'AREA', 'VOLUME', 'MASSA', 'QUANTIDADE', 'CABECAS']);
+/** Unidades de estoque que um tanque aceita e o abastecimento baixa (`UNIDADES_ABASTECIMENTO` no servidor). */
+export const UNIDADES_ESTOQUE_TANQUE = Object.freeze(['L', 'KG']);
 
-export const ROTULO_DIMENSAO = Object.freeze({
-  EXTENSAO: 'Extensão',
-  AREA: 'Área',
-  VOLUME: 'Volume',
-  MASSA: 'Massa',
-  QUANTIDADE: 'Quantidade',
-  CABECAS: 'Cabeças',
-});
+/** Produtos aceitos ATIVOS por tanque (P-02; `MAX_PRODUTOS_POR_TANQUE` no servidor). */
+export const MAX_PRODUTOS_POR_TANQUE = 20;
 
-/** Unidades aceitas em cada dimensão, a canônica primeiro (conversão só dentro da dimensão). */
-export const UNIDADES_DA_DIMENSAO = Object.freeze({
-  EXTENSAO: Object.freeze(['m', 'km']),
-  AREA: Object.freeze(['m2', 'ha']),
-  VOLUME: Object.freeze(['L', 'm3']),
-  MASSA: Object.freeze(['kg', 't']),
-  QUANTIDADE: Object.freeze(['un']),
-  CABECAS: Object.freeze(['cab']),
-});
-
-/** Unidade canônica da dimensão (derivada no servidor; nunca vai no corpo). */
-export const UNIDADE_CANONICA = Object.freeze({
-  EXTENSAO: 'm',
-  AREA: 'm2',
-  VOLUME: 'L',
-  MASSA: 'kg',
-  QUANTIDADE: 'un',
-  CABECAS: 'cab',
-});
-
-/** Dimensões contadas em número inteiro (422 `MEDICAO_VALOR_INVALIDO` reason `deve_ser_inteiro`). */
-export const DIMENSOES_INTEIRAS = Object.freeze(['QUANTIDADE', 'CABECAS']);
-
-export const ROTULO_UNIDADE = Object.freeze({
-  m: 'metros',
-  km: 'quilômetros',
-  m2: 'm²',
-  ha: 'hectares',
-  L: 'litros',
-  m3: 'm³',
-  kg: 'quilogramas',
-  t: 'toneladas',
-  un: 'unidades',
-  cab: 'cabeças',
-});
-
-/** Símbolo curto para valores ("1.250 m", "3 ha"). */
-export const SIMBOLO_UNIDADE = Object.freeze({
-  m: 'm',
-  km: 'km',
-  m2: 'm²',
-  ha: 'ha',
+/** Selo curto da unidade de estoque do Produto ("120 L", "80 kg"). */
+export const ROTULO_UNIDADE_ESTOQUE = Object.freeze({
   L: 'L',
-  m3: 'm³',
-  kg: 'kg',
-  t: 't',
-  un: 'un',
-  cab: 'cab',
-});
-
-/** @param {unknown} dimensao @returns {readonly string[]} */
-export const unidadesDaDimensao = (dimensao) =>
-  typeof dimensao === 'string' && Object.prototype.hasOwnProperty.call(UNIDADES_DA_DIMENSAO, dimensao)
-    ? UNIDADES_DA_DIMENSAO[/** @type {keyof typeof UNIDADES_DA_DIMENSAO} */ (dimensao)]
-    : [];
-
-/** @param {unknown} dimensao @returns {string|null} */
-export const unidadeCanonicaDa = (dimensao) =>
-  typeof dimensao === 'string' && Object.prototype.hasOwnProperty.call(UNIDADE_CANONICA, dimensao)
-    ? UNIDADE_CANONICA[/** @type {keyof typeof UNIDADE_CANONICA} */ (dimensao)]
-    : null;
-
-/** "metros (m)", "hectares (ha)". @param {string} unidade */
-export const rotuloDaUnidade = (unidade) => {
-  const nome = /** @type {Record<string, string>} */ (ROTULO_UNIDADE)[unidade];
-  const simbolo = /** @type {Record<string, string>} */ (SIMBOLO_UNIDADE)[unidade];
-  if (!nome) return unidade;
-  return nome === simbolo ? nome : `${nome} (${simbolo})`;
-};
-
-export const FINALIDADES_PERFIL = Object.freeze(['DIMENSAO', 'CAPACIDADE']);
-
-export const ROTULO_FINALIDADE = Object.freeze({
-  DIMENSAO: 'Dimensão (tamanho do bem)',
-  CAPACIDADE: 'Capacidade (o que o bem comporta)',
-});
-
-// ─── Combustíveis ────────────────────────────────────────────────────────
-
-/** Grafia `m3` em todo o domínio (A9); o tanque só aceita combustível em `L` neste slice. */
-export const UNIDADES_COMBUSTIVEL = Object.freeze(['L', 'm3']);
-
-export const ROTULO_UNIDADE_COMBUSTIVEL = Object.freeze({
-  L: 'Litros (L)',
-  m3: 'Metros cúbicos (m³)',
+  KG: 'kg',
 });
 
 // ─── Medidor (máquinas, veículos, equipamentos) ──────────────────────────
@@ -174,7 +92,6 @@ export const UFS = Object.freeze([
 
 /**
  * @typedef {{
- *   medicoes: boolean,
  *   medidor: 'PROIBIDO'|'OBRIGATORIO'|'OPCIONAL',
  *   tanques: boolean,
  *   identificacaoVeicular: boolean,
@@ -188,12 +105,12 @@ export const UFS = Object.freeze([
 
 /** @type {Readonly<Record<string, Readonly<CapacidadesNatureza>>>} */
 export const CAPACIDADES_DA_NATUREZA = Object.freeze({
-  BENFEITORIA: Object.freeze({ medicoes: true, medidor: 'PROIBIDO', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: false, potencia: false, construcao: true, compatibilidade: false }),
-  MAQUINA: Object.freeze({ medicoes: false, medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: false, chassi: true, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
-  VEICULO: Object.freeze({ medicoes: false, medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: true, chassi: true, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
-  IMPLEMENTO: Object.freeze({ medicoes: false, medidor: 'OPCIONAL', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: false, construcao: false, compatibilidade: true }),
-  EQUIPAMENTO: Object.freeze({ medicoes: false, medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
-  OUTRO: Object.freeze({ medicoes: false, medidor: 'OPCIONAL', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: false, construcao: false, compatibilidade: false }),
+  BENFEITORIA: Object.freeze({ medidor: 'PROIBIDO', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: false, potencia: false, construcao: true, compatibilidade: false }),
+  MAQUINA: Object.freeze({ medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: false, chassi: true, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
+  VEICULO: Object.freeze({ medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: true, chassi: true, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
+  IMPLEMENTO: Object.freeze({ medidor: 'OPCIONAL', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: false, construcao: false, compatibilidade: true }),
+  EQUIPAMENTO: Object.freeze({ medidor: 'OBRIGATORIO', tanques: true, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: true, construcao: false, compatibilidade: false }),
+  OUTRO: Object.freeze({ medidor: 'OPCIONAL', tanques: false, identificacaoVeicular: false, chassi: false, numeroSerie: true, potencia: false, construcao: false, compatibilidade: false }),
 });
 
 /** @param {unknown} natureza @returns {Readonly<CapacidadesNatureza>|null} */

@@ -15,10 +15,10 @@ tenant(nome) AS (
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
     -- D-PROD-158 (Gestão P3-03): o evento de retificação/exclusão sai antes dos documentos e do usuário que ele referencia.
     'OperacaoFinanceiraEvento','LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItemRateio','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
-    -- D-PROD-157 (Patrimônio P1-01): filhas antes das mães; antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem que o bem referencia.
-    -- D-PROD-157 (R2): o vínculo combustível × produto sai antes de TipoCombustivel, Produto e Empresa, que ele referencia.
-    -- D-PROD-159 (Patrimônio P1-02): fatias FIFO → abastecimento → fator kg/L, antes do tanque, do bem, do vínculo combustível × produto, dos lotes/movimentos/local e do usuário que eles referenciam.
-    'AbastecimentoBemConsumoLote','AbastecimentoBem','ConversaoCombustivelProduto','TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivelProduto','TipoCombustivel',
+    -- D-PROD-157/159 (Patrimônio P1-01/P1-02): antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem, do Produto e dos lotes/movimentos/local que eles referenciam.
+    -- D-PROD-161: o Patrimônio simplificado (sem perfis, medições, combustíveis e fator) — filhas antes das mães
+    -- (fatias FIFO → abastecimento → Produto aceito pelo tanque → tanque → bem → tipo → família).
+    'AbastecimentoBemConsumoLote','AbastecimentoBem','TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',

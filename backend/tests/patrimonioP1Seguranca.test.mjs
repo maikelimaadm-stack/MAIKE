@@ -1,17 +1,19 @@
 /**
- * D-PROD-157 — Patrimônio P1-01: SEGURANÇA e BANCO. PostgreSQL real, HTTP
- * autenticado, prova por fotografia das linhas.
+ * D-PROD-157 / D-PROD-161 — Patrimônio: SEGURANÇA e BANCO. PostgreSQL real,
+ * HTTP autenticado, prova por fotografia das linhas. D-PROD-161: sem perfis,
+ * medições e combustíveis; tanques com Produtos aceitos (`TanqueBemProduto`);
+ * as 7 tabelas da migration `20261110300000_patrimonio_simplifica`.
  *
  *  S1. 2 tenants × 2 fazendas: toda rota recusa o cruzamento com 404 uniforme
  *      (corpo idêntico ao de um id inexistente), sem efeito.
  *  S2. Corpo/query fechados: `cliente_id` (topo, item de lista, bloco), campo
  *      extra, campo imutável → 400; número JSON em decimal → 400
  *      `valor_deve_ser_texto` em TODOS os caminhos do A1, sem efeito.
- *  S3. Permissões por ação nos bens (ver/criar/editar/inativar, A4), sem tela,
- *      sem sessão, conta desativada, permissão revogada.
+ *  S3. Permissões por ação nos bens (ver/criar/editar/inativar, A4), sem tela
+ *      (só as telas antigas), sem sessão, conta desativada, permissão revogada.
  *  S4. Auditoria por allowlist (sem texto livre) na mesma transação: falha
- *      forçada por gatilho desfaz bem, filhos, sequência e catálogo.
- *  S5. RLS ligado e zero grants públicos nas 10 tabelas.
+ *      forçada por gatilho desfaz bem, tanques, Produtos aceitos, sequência e catálogo.
+ *  S5. RLS ligado e zero grants públicos nas 7 tabelas.
  *  S6. CHECK/FK/UNIQUE direto no banco (A7: CHECKs NULL-safe).
  *  S7. Cadastros antigos referenciados: parceiro → 409 PARCEIRO_EM_USO (não
  *      403); fazenda com bens → 409 EMPRESA_COM_VINCULOS. Também em corrida
@@ -32,8 +34,8 @@ import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { normalizarErro } from '../src/shared/errors/errorHandler.js';
 import { COLUNAS_EXIGIDAS, CONSULTAS, TABELAS_PROTEGIDAS, avaliarPreflight } from '../../scripts/deploy/preflightSchemaLib.mjs';
 import {
-  FUSO, MIGRATION_PATRIMONIO, TABELAS_PATRIMONIO, TELAS, contagens, corpoCaminhonete, corpoCerca, corpoCurral, corpoErro, corpoGerador, corpoImplemento,
-  corpoTrator, erro, fotoPatrimonio, http, linha, montarPatrimonio, prisma, tudo,
+  FUSO, MIGRATION_PATRIMONIO, TABELAS_PATRIMONIO, TELAS, TELAS_ANTIGAS, contagens, corpoCaminhonete, corpoCerca, corpoCurral, corpoErro, corpoGerador, corpoImplemento,
+  corpoTrator, erro, fotoPatrimonio, http, linha, montarPatrimonio, prisma, produtoL, tanqueCom, tudo,
 } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -83,7 +85,8 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
   test('bens, prévia, opções e catálogos recusam o cruzamento sem revelar existência', async () => {
     const a = await montarPatrimonio(app);
     const b = await montarPatrimonio(app);
-    const alvo = await criarOk(a, corpoTrator(a));
+    const dieselA = await produtoL(a, { nome: 'Diesel S10' });
+    const alvo = await criarOk(a, corpoTrator(a, { tanques: [tanqueCom([dieselA.id])] }));
     const naE2 = await criarOk(a, corpoCerca(a, { empresa_id: a.e2.id }));
     await criarOk(b, corpoTrator(b));
     const antes = await fotoPatrimonio([a.c, b.c]);
@@ -111,7 +114,7 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         ['POST', '/bens-patrimoniais', corpoTrator(b, { empresa_id: empresa })],
         ['PATCH', `/bens-patrimoniais/${alvo.id}`, { empresa_id: empresa, versao: 1, nome: 'Invasão' }],
         ['POST', '/bens-patrimoniais-previa-depreciacao', { empresa_id: empresa, valor_aquisicao: '100.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 12, data_inicio_depreciacao: '2026-01-01' }],
-        ...['responsaveis', 'parceiros', 'centros-custo', 'areas'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
+        ...['responsaveis', 'parceiros', 'centros-custo', 'areas', 'produtos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
       ];
       const referencia = corpoErro(await req('GET', `/bens-patrimoniais?empresa_id=${INEXISTENTE}`, b.token));
       for (const [metodo, url, corpo] of rotas) {
@@ -123,7 +126,6 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
     // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência.
     for (const [base, id, codigo] of [
       ['/patrimonio-familias', a.fam.MAQUINAS, 'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA'], ['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO'],
-      ['/patrimonio-perfis-medicao', a.per.AREA, 'PERFIL_MEDICAO_NAO_ENCONTRADO'], ['/patrimonio-combustiveis', a.comb.DIESEL_S10, 'COMBUSTIVEL_NAO_ENCONTRADO'],
     ]) {
       assert.deepEqual(erro(await req('GET', `${base}/${id}`, b.token)).slice(0, 2), [404, codigo], base);
       assert.deepEqual(corpoErro(await req('GET', `${base}/${id}`, b.token)), corpoErro(await req('GET', `${base}/${INEXISTENTE}`, b.token)), `${base}: sem oráculo`);
@@ -138,6 +140,14 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
     assert.ok(listaB.items.every((i) => i.id !== alvo.id));
     const parceirosB = await ok(req('GET', `/bens-patrimoniais-opcoes/parceiros?empresa_id=${b.e1.id}`, b.token));
     assert.ok(parceirosB.itens.every((i) => i.id !== a.parceiro1.id));
+    const produtosB = await ok(req('GET', `/bens-patrimoniais-opcoes/produtos?empresa_id=${b.e1.id}`, b.token));
+    assert.ok(produtosB.itens.every((i) => i.id !== dieselA.id), 'Produto de outro tenant nunca aparece');
+    // Produto de outro tenant num tanque: 422 inexistente, o mesmo de um id que não existe.
+    const comProdutoAlheio = await req('POST', '/bens-patrimoniais', b.token, corpoTrator(b, { codigo_frota: null, tanques: [tanqueCom([dieselA.id])] }));
+    const comProdutoInexistente = await req('POST', '/bens-patrimoniais', b.token, corpoTrator(b, { codigo_frota: null, tanques: [tanqueCom([INEXISTENTE])] }));
+    assert.deepEqual(erro(comProdutoAlheio), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'inexistente']);
+    assert.deepEqual(corpoErro(comProdutoAlheio).details?.produto_id, dieselA.id);
+    assert.deepEqual({ ...corpoErro(comProdutoAlheio), details: null }, { ...corpoErro(comProdutoInexistente), details: null });
     const responsaveisB = await ok(req('GET', `/bens-patrimoniais-opcoes/responsaveis?empresa_id=${b.e1.id}`, b.token));
     assert.ok(responsaveisB.itens.every((i) => i.id !== a.adm.usuario.id));
     assert.equal(await fotoPatrimonio([a.c, b.c]), antes, 'nenhuma tentativa gravou nada');
@@ -148,16 +158,18 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
 describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () => {
   test('cliente_id em qualquer lugar, campo extra, campo imutável e PATCH só de escopo → 400; número JSON em cada caminho decimal → 400 valor_deve_ser_texto; nada gravado', async () => {
     const s = await montarPatrimonio(app);
-    const t = await criarOk(s, corpoTrator(s));
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    const t = await criarOk(s, corpoTrator(s, { tanques: [tanqueCom([diesel.id])] }));
     const curral = await criarOk(s, corpoCurral(s));
     const antes = await fotoPatrimonio(s.c);
     const post = (corpo) => req('POST', '/bens-patrimoniais', s.token, corpo);
     const patch = (id, corpo) => req('PATCH', `/bens-patrimoniais/${id}`, s.token, { empresa_id: s.e1.id, versao: 1, ...corpo });
-    const tanque = { identificador: 'T', capacidade_litros: '10', combustivel_ids: [s.comb.DIESEL_S10] };
+    const tanque = tanqueCom([diesel.id], { identificador: 'T', capacidade_litros: '10' });
     const casos400 = [
       ['POST cliente_id', post(corpoTrator(s, { codigo_frota: null, cliente_id: s.c }))],
       ['POST cliente_id em tanque', post(corpoTrator(s, { codigo_frota: null, tanques: [{ ...tanque, cliente_id: s.c }] }))],
-      ['POST cliente_id em medição', post(corpoCurral(s, { medicoes: [{ perfil_id: s.per.AREA, valor: '1', unidade: 'ha', cliente_id: s.c }] }))],
+      ['POST medicoes (D-PROD-161)', post(corpoCurral(s, { medicoes: [] }))],
+      ['POST combustivel_ids (D-PROD-161)', post(corpoTrator(s, { codigo_frota: null, tanques: [{ ...tanque, combustivel_ids: [] }] }))],
       ['POST cliente_id na aquisição', post(corpoTrator(s, { codigo_frota: null, aquisicao: { cliente_id: s.c } }))],
       ['POST cliente_id no medidor', post(corpoTrator(s, { codigo_frota: null, medidor: { tipo: 'SEM_MEDIDOR', cliente_id: s.c } }))],
       ['POST campo extra', post(corpoTrator(s, { codigo_frota: null, desconhecido: 1 }))],
@@ -179,7 +191,8 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
       ['PATCH sem empresa', req('PATCH', `/bens-patrimoniais/${t.id}`, s.token, { versao: 1, nome: 'X' })],
       ['PATCH versão zero', patch(t.id, { versao: 0, nome: 'X' })],
       ['PATCH campo extra', patch(t.id, { extra: true })],
-      ['PATCH cliente_id em medição', patch(curral.id, { medicoes: [{ id: curral.medicoes[0].id, perfil_id: s.per.AREA, valor: '1', unidade: 'ha', cliente_id: s.c }] })],
+      ['PATCH medicoes (D-PROD-161)', patch(curral.id, { medicoes: [] })],
+      ['PATCH cliente_id em tanque', patch(t.id, { tanques: [{ id: t.tanques[0].id, ...tanque, cliente_id: s.c }] })],
       ['GET detalhe com cliente_id', req('GET', `/bens-patrimoniais/${t.id}?empresa_id=${s.e1.id}&cliente_id=${s.c}`, s.token)],
       ['GET detalhe sem empresa', req('GET', `/bens-patrimoniais/${t.id}`, s.token)],
       ['prévia com cliente_id', req('POST', '/bens-patrimoniais-previa-depreciacao', s.token, { empresa_id: s.e1.id, cliente_id: s.c, valor_aquisicao: '1.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 1, data_inicio_depreciacao: '2026-01-01' })],
@@ -205,21 +218,17 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
         assert.deepEqual([r.statusCode, r.json().code, r.json().field, r.json().reason, r.json().details], [400, 'REQUEST_VALIDATION_FAILED', caminho, 'valor_deve_ser_texto', { campo: caminho }], `${caminho}=${JSON.stringify(valor)}`);
       }
     }
-    const medicao2 = await post(corpoCurral(s, { medicoes: [{ perfil_id: s.per.AREA, valor: '1', unidade: 'ha' }, { perfil_id: s.per.CAPACIDADE_ANIMAL, valor: 200, unidade: 'cab' }] }));
-    assert.deepEqual([medicao2.statusCode, medicao2.json().field, medicao2.json().details], [400, 'medicoes[1].valor', { campo: 'medicoes[1].valor' }]);
     for (const [caminho, corpo] of [
       ['medidor.leitura_atual', { medidor: { tipo: 'HORIMETRO', leitura_atual: 1600, data_leitura: '2027-06-10' } }],
       ['medidor.leitura_inicial', { medidor: { tipo: 'HORIMETRO', leitura_inicial: 1520.5 } }],
       ['potencia_cv', { potencia_cv: 100 }],
-      ['tanques[0].capacidade_litros', { tanques: [{ id: t.tanques[0].id, identificador: 'T', capacidade_litros: 200, combustivel_ids: [s.comb.DIESEL_S10] }] }],
+      ['tanques[0].capacidade_litros', { tanques: [{ id: t.tanques[0].id, identificador: 'T', capacidade_litros: 200, produto_ids: [diesel.id] }] }],
       ['aquisicao.valor_aquisicao', { aquisicao: { valor_aquisicao: 1 } }],
       ['depreciacao.valor_residual', { depreciacao: { depreciavel: true, valor_residual: 0 } }],
     ]) {
       const r = await patch(t.id, corpo);
       assert.deepEqual([r.statusCode, r.json().reason, r.json().details], [400, 'valor_deve_ser_texto', { campo: caminho }], `PATCH ${caminho}`);
     }
-    const patchMedicao = await patch(curral.id, { medicoes: [{ perfil_id: s.per.AREA, valor: 1, unidade: 'ha' }] });
-    assert.deepEqual([patchMedicao.statusCode, patchMedicao.json().details], [400, { campo: 'medicoes[0].valor' }]);
     // null num decimal opcional não é coerção: segue a regra normal (aqui, limpa a potência).
     assert.equal(await fotoPatrimonio(s.c), antes, 'nenhum 400 gravou nada');
     assert.equal((await ok(patch(t.id, { potencia_cv: null }))).potencia_cv, null);
@@ -231,7 +240,7 @@ describe('S3 — permissões por ação nos bens (A4)', () => {
   test('sem tela 403 em toda rota; visualizar só lê e simula; novo|salvar criam; editar|salvar editam; inativar só com a ação extra; combinação exige as duas; sem sessão 401; revogada 403', async () => {
     const s = await montarPatrimonio(app);
     const bens = TELAS.bens;
-    const semTela = await s.contaCom(tudo(TELAS.familias));
+    const semTela = await s.contaCom(...Object.values(TELAS_ANTIGAS).map(tudo));
     const soVer = await s.contaCom(linha(bens, { visualizar: true }));
     const soNovo = await s.contaCom(linha(bens, { visualizar: true, novo: true }));
     const soSalvar = await s.contaCom(linha(bens, { visualizar: true, salvar: true }));
@@ -249,7 +258,7 @@ describe('S3 — permissões por ação nos bens (A4)', () => {
     const leituras = [
       ['GET', `/bens-patrimoniais?empresa_id=${e}`], ['GET', `/bens-patrimoniais/${b.id}?empresa_id=${e}`], ['POST', '/bens-patrimoniais-previa-depreciacao', previaCorpo],
       ...['responsaveis', 'parceiros', 'centros-custo', 'areas'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${e}`]),
-      ...['familias', 'tipos', 'perfis-medicao', 'combustiveis'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}`]),
+      ...['familias', 'tipos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}`]),
     ];
     const escritas = [['POST', '/bens-patrimoniais', corpoImplemento(s)], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, nome: 'X' }], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, ativo: false }]];
     const antes = await fotoPatrimonio(s.c);
@@ -292,19 +301,21 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
   test('criação e edição auditadas sem texto livre (nomes, descrições, rótulos, identificadores, documentos, placa, chassi, renavam, nomes de parceiros/centros/responsável)', async () => {
     const s = await montarPatrimonio(app);
     const resp = await s.conta(null);
+    const diesel = await produtoL(s, { nome: 'PRODUTOSENTINELA S10', codigo_interno: 'CODPRODSENTINELA' });
+    const s500 = await produtoL(s, { nome: 'Diesel S500' });
     const trator = await criarOk(s, corpoTrator(s, {
       nome: 'NOMESENTINELA', marca: 'MARCASENTINELA', modelo: 'MODELOSENTINELA', numero_serie: 'SERIESENTINELA', chassi: '9BWZZZ377VT004251',
       especificacoes: 'ESPECSENTINELA', observacoes: 'OBSSENTINELA', localizacao_descricao: 'LOCALSENTINELA', propriedade: 'TERCEIRO',
       proprietario_parceiro_id: s.parceiro1.id, centro_custo_id: s.centro1.id, area_id: s.area1.id, responsavel_usuario_id: resp.id,
-      tanques: [{ identificador: 'TANQUESENTINELA', capacidade_litros: '180', combustivel_ids: [s.comb.DIESEL_S10], observacao: 'TANQOBSSENTINELA' }],
+      tanques: [tanqueCom([diesel.id], { identificador: 'TANQUESENTINELA', observacao: 'TANQOBSSENTINELA' })],
       aquisicao: { documento_referencia: 'DOCSENTINELA', fornecedor_parceiro_id: s.parceiro1.id, valor_aquisicao: '1000.00' },
     }));
     const camionete = await criarOk(s, corpoCaminhonete(s, { placa: 'QWE1R23', renavam: '98765432109' }));
-    const curral = await criarOk(s, corpoCurral(s, { material: 'MATERIALSENTINELA', medicoes: [{ perfil_id: s.per.AREA, valor: '1', unidade: 'ha', rotulo: 'ROTULOSENTINELA' }] }));
+    const curral = await criarOk(s, corpoCurral(s, { material: 'MATERIALSENTINELA' }));
     const impl = await criarOk(s, corpoImplemento(s, { compatibilidade: 'COMPATSENTINELA' }));
     const editado = await ok(req('PATCH', `/bens-patrimoniais/${trator.id}`, s.token, {
       empresa_id: s.e1.id, versao: 1, observacoes: 'OBS2SENTINELA', marca: null,
-      tanques: [{ id: trator.tanques[0].id, identificador: 'TANQUE2SENTINELA', capacidade_litros: '200', combustivel_ids: [s.comb.DIESEL_S10, s.comb.DIESEL_S500] }],
+      tanques: [{ id: trator.tanques[0].id, identificador: 'TANQUE2SENTINELA', capacidade_litros: '200', produto_ids: [diesel.id, s500.id] }],
     }));
     assert.equal(editado.versao, 2);
 
@@ -312,7 +323,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
     assert.deepEqual(eventos.map((e) => [e.acao, e.entidade_id]), [['create', trator.id], ['create', camionete.id], ['create', curral.id], ['create', impl.id], ['update', trator.id]]);
     assert.ok(eventos.every((e) => e.usuario_id === s.adm.usuario.id && e.request_id));
     const ALLOWLIST = [
-      'area_id', 'ativo', 'centro_custo_id', 'codigo_frota', 'depreciavel', 'empresa_id', 'familia_id', 'fornecedor_parceiro_id', 'id', 'medicoes', 'medidor', 'natureza',
+      'area_id', 'ativo', 'centro_custo_id', 'codigo_frota', 'depreciavel', 'empresa_id', 'familia_id', 'fornecedor_parceiro_id', 'id', 'medidor', 'natureza',
       'numero', 'propriedade', 'proprietario_parceiro_id', 'residual_modo', 'responsavel_usuario_id', 'tanques', 'tipo_id', 'versao', 'vida_util_meses',
     ];
     for (const e of eventos.slice(0, 4)) assert.deepEqual(Object.keys(/** @type {any} */ (e.dados_novos)).sort(), ALLOWLIST);
@@ -320,46 +331,52 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
     assert.deepEqual(Object.keys(update.dados_anteriores).sort(), ALLOWLIST);
     assert.deepEqual(Object.keys(update.dados_novos).sort(), [...ALLOWLIST, 'campos_alterados'].sort());
     assert.deepEqual([...update.dados_novos.campos_alterados].sort(), ['marca', 'observacoes', 'tanques']);
-    assert.deepEqual(update.dados_anteriores.tanques, [{ id: trator.tanques[0].id, ativo: true, capacidade_litros: '180.0000', combustivel_ids: [s.comb.DIESEL_S10] }]);
-    assert.deepEqual(update.dados_novos.tanques[0].combustivel_ids, [s.comb.DIESEL_S10, s.comb.DIESEL_S500].sort());
+    assert.deepEqual(update.dados_anteriores.tanques, [{ id: trator.tanques[0].id, ativo: true, capacidade_litros: '180.0000', produto_ids: [diesel.id] }]);
+    assert.deepEqual(update.dados_novos.tanques[0].produto_ids, [diesel.id, s500.id].sort());
     assert.equal(update.dados_novos.versao, 2);
     const texto = JSON.stringify(eventos.map((e) => [e.dados_anteriores, e.dados_novos]));
     for (const sentinela of [
       'NOMESENTINELA', 'MARCASENTINELA', 'MODELOSENTINELA', 'SERIESENTINELA', '9BWZZZ377VT004251', 'ESPECSENTINELA', 'OBSSENTINELA', 'OBS2SENTINELA',
       'LOCALSENTINELA', 'TANQUESENTINELA', 'TANQUE2SENTINELA', 'TANQOBSSENTINELA', 'DOCSENTINELA', 'QWE1R23', '98765432109', 'MATERIALSENTINELA',
-      'ROTULOSENTINELA', 'COMPATSENTINELA', 'Agropecuária Parceira', 'Máquinas e frota', 'Retiro', resp.nome, resp.login,
+      'COMPATSENTINELA', 'PRODUTOSENTINELA', 'CODPRODSENTINELA', 'Diesel S500', 'Agropecuária Parceira', 'Máquinas e frota', 'Retiro', resp.nome, resp.login,
     ]) {
       assert.ok(!texto.includes(sentinela), `auditoria com texto livre: ${sentinela}`);
     }
   });
 
-  test('falha forçada na auditoria (gatilho) → 5xx e NADA gravado: bem, filhos, sequência, PATCH com correção do medidor e catálogo; depois a numeração segue contínua', async () => {
+  test('falha forçada na auditoria (gatilho) → 5xx e NADA gravado: bem, tanques e Produtos aceitos, sequência, PATCH com correção do medidor e catálogo; depois a numeração segue contínua', async () => {
     const s = await montarPatrimonio(app);
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    const arla = await produtoL(s, { nome: 'Arla 32' });
     const curral = await criarOk(s, corpoCurral(s));
-    const trator = await criarOk(s, corpoTrator(s));
+    const trator = await criarOk(s, corpoTrator(s, { tanques: [tanqueCom([diesel.id])] }));
     const p = prisma();
     const sequencia = () => p.entidadeCodigoSequencia.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } });
     const antes = await fotoPatrimonio(s.c);
     const seqAntes = JSON.stringify(await sequencia());
     await p.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION patrimonio_p1_falha_audit() RETURNS trigger AS $$ BEGIN
-      IF NEW.entidade IN ('BemPatrimonial', 'FamiliaPatrimonial', 'TipoPatrimonial', 'PerfilMedicao', 'TipoCombustivel') THEN RAISE EXCEPTION 'falha forçada'; END IF;
+      IF NEW.entidade IN ('BemPatrimonial', 'FamiliaPatrimonial', 'TipoPatrimonial') THEN RAISE EXCEPTION 'falha forçada'; END IF;
       RETURN NEW; END $$ LANGUAGE plpgsql`);
     await p.$executeRawUnsafe('CREATE TRIGGER patrimonio_p1_falha_audit BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION patrimonio_p1_falha_audit()');
     try {
       const pedidos = [
-        ['POST bem com medições', req('POST', '/bens-patrimoniais', s.token, corpoCurral(s, { nome: 'Não grava' }))],
-        ['POST bem com tanque', req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, { codigo_frota: 'TP-09' }))],
-        ['PATCH com medições', req('PATCH', `/bens-patrimoniais/${curral.id}`, s.token, { empresa_id: s.e1.id, versao: 1, nome: 'Não grava', medicoes: [] })],
+        ['POST benfeitoria', req('POST', '/bens-patrimoniais', s.token, corpoCurral(s, { nome: 'Não grava' }))],
+        ['POST bem com tanque e Produtos aceitos', req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, { codigo_frota: 'TP-09', tanques: [tanqueCom([diesel.id, arla.id])] }))],
+        ['PATCH benfeitoria', req('PATCH', `/bens-patrimoniais/${curral.id}`, s.token, { empresa_id: s.e1.id, versao: 1, nome: 'Não grava' })],
+        ['PATCH tanques (aceite retirado e acrescentado)', req('PATCH', `/bens-patrimoniais/${trator.id}`, s.token, {
+          empresa_id: s.e1.id, versao: 1, tanques: [{ id: trator.tanques[0].id, identificador: 'Tanque principal', capacidade_litros: '180', produto_ids: [arla.id] }],
+        })],
         ['PATCH com correção do medidor (2 eventos)', req('PATCH', `/bens-patrimoniais/${trator.id}`, s.token, { empresa_id: s.e1.id, versao: 1, medidor: { tipo: 'CICLOS', leitura_inicial: '1', data_leitura: '2027-06-01' } })],
-        ['POST família', req('POST', '/patrimonio-familias', s.token, { codigo: 'NAO_GRAVA', nome: 'Não grava', natureza: 'OUTRO' })],
-        ['PATCH tipo com perfis', req('PATCH', `/patrimonio-tipos/${s.tip.CURRAL}`, s.token, { versao: 1, perfis: [] })],
+        ['POST família (código gerado)', req('POST', '/patrimonio-familias', s.token, { nome: 'Não grava', natureza: 'OUTRO' })],
+        ['POST tipo', req('POST', '/patrimonio-tipos', s.token, { familia_id: s.fam.MAQUINAS, nome: 'Não grava' })],
+        ['PATCH tipo', req('PATCH', `/patrimonio-tipos/${s.tip.CURRAL}`, s.token, { versao: 1, nome: 'Não grava' })],
       ];
       for (const [rotulo, pedido] of pedidos) {
         const r = await pedido;
         assert.ok(r.statusCode >= 500, `${rotulo}: ${r.statusCode} ${r.body}`);
         assert.equal(r.json().message, 'erro interno', `${rotulo}: sem detalhe`);
       }
-      // Instalar o padrão num tenant vazio também desfaz tudo (nenhuma das 28 linhas fica).
+      // Instalar o padrão num tenant vazio também desfaz tudo (nenhuma das 18 linhas fica).
       const vazio = await montarPatrimonio(app, { catalogo: false });
       const vazioAntes = await contagens(vazio.c);
       assert.ok((await req('POST', '/patrimonio-catalogo-padrao', vazio.token, {})).statusCode >= 500);
@@ -368,7 +385,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
       await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS patrimonio_p1_falha_audit ON "AuditLog"');
       await p.$executeRawUnsafe('DROP FUNCTION IF EXISTS patrimonio_p1_falha_audit()');
     }
-    assert.equal(await fotoPatrimonio(s.c), antes, 'rollback completo: bem, medições, tanques, vínculos e catálogo');
+    assert.equal(await fotoPatrimonio(s.c), antes, 'rollback completo: bem, tanques, Produtos aceitos e catálogo');
     assert.equal(JSON.stringify(await sequencia()), seqAntes, 'a reserva do número também foi desfeita');
     const seguinte = await criarOk(s, corpoGerador(s));
     assert.equal(seguinte.numero, '3', 'numeração do tenant contínua, sem buraco');
@@ -377,7 +394,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S5–S6 — o banco é a última rede', () => {
-  test('RLS ligado e zero grants para PUBLIC/anon/authenticated nas 10 tabelas', async () => {
+  test('RLS ligado e zero grants para PUBLIC/anon/authenticated nas 7 tabelas', async () => {
     const p = prisma();
     const rls = /** @type {any[]} */ (await p.$queryRaw`SELECT relname, relrowsecurity FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[]) ORDER BY relname`);
     assert.deepEqual(rls.map((r) => r.relname), [...TABELAS_PATRIMONIO].sort());
@@ -401,11 +418,12 @@ describe('S5–S6 — o banco é a última rede', () => {
   test('UPDATE/INSERT/DELETE direto recusado pelos CHECKs (NULL-safe, A7), FKs compostas com o tenant e uniques; nada passa', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
-    const trator = await criarOk(s, corpoTrator(s));
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    const dieselAlheio = await produtoL(outro, { nome: 'Diesel alheio' });
+    const trator = await criarOk(s, corpoTrator(s, { tanques: [tanqueCom([diesel.id])] }));
+    const tratorAlheio = await criarOk(outro, corpoTrator(outro));
     const dep = await criarOk(s, corpoTrator(s, { codigo_frota: 'TP-03', ...DEPRECIAVEL }));
     const curral = await criarOk(s, corpoCurral(s));
-    const cab = curral.medicoes.find((m) => m.perfil.codigo === 'CAPACIDADE_ANIMAL');
-    const area = curral.medicoes.find((m) => m.perfil.codigo === 'AREA');
     const tanque = trator.tanques[0];
     const p = prisma();
     const antes = await fotoPatrimonio([s.c, outro.c]);
@@ -458,21 +476,9 @@ describe('S5–S6 — o banco é a última rede', () => {
     await bem(trator.id, "propriedade = 'EMPRESTADO'", 'BemPatrimonial_propriedade_check', 'propriedade fora do domínio');
     await bem(trator.id, `proprietario_parceiro_id = '${s.parceiro1.id}'`, 'BemPatrimonial_proprietario_check', 'bem próprio com proprietário');
     await bem(trator.id, 'versao = 0', 'BemPatrimonial_versao_check', 'versão zero');
-    // Medições, tanques e catálogos.
-    await recusa(`UPDATE "MedicaoBem" SET principal = false WHERE id = '${cab.id}'`, /MedicaoBem_principal_check/, 'principal false');
-    await recusa(`UPDATE "MedicaoBem" SET valor_normalizado = valor_normalizado + 1 WHERE id = '${area.id}'`, /MedicaoBem_normalizado_check/, 'normalizado sem o fator exato');
-    await recusa(`UPDATE "MedicaoBem" SET unidade_informada = 'un' WHERE id = '${cab.id}'`, /MedicaoBem_unidades_check/, 'unidade de outra dimensão');
-    await recusa(`UPDATE "MedicaoBem" SET valor_informado = 0, valor_normalizado = 0 WHERE id = '${cab.id}'`, /MedicaoBem_valores_check/, 'medida zero');
-    await recusa(`UPDATE "MedicaoBem" SET principal = true WHERE id = '${cab.id}'`, /23505|duplicate key|unique/i, 'duas principais no bem');
-    await recusa(`UPDATE "MedicaoBem" SET perfil_id = '${s.per.AREA}' WHERE id = '${cab.id}'`, /23505|duplicate key|unique|check/i, 'perfil repetido no bem');
+    // Tanques, Produtos aceitos e catálogos.
     await recusa(`UPDATE "TanqueBem" SET capacidade_litros = 0 WHERE id = '${tanque.id}'`, /TanqueBem_capacidade_check/, 'tanque sem capacidade');
     await recusa(`UPDATE "TanqueBem" SET identificador = '   ' WHERE id = '${tanque.id}'`, /TanqueBem_identificador_check/, 'identificador em branco');
-    await recusa(`UPDATE "TipoPatrimonialPerfil" SET principal = false WHERE cliente_id = '${s.c}' AND tipo_id = '${s.tip.CURRAL}' AND principal`, /TipoPatrimonialPerfil_principal_check/, 'perfil principal false');
-    await recusa(`UPDATE "PerfilMedicao" SET unidades_permitidas = '{}' WHERE id = '${s.per.AREA}'`, /PerfilMedicao_unidades_check/, 'perfil sem unidades');
-    await recusa(`UPDATE "PerfilMedicao" SET unidades_permitidas = ARRAY['ha'] WHERE id = '${s.per.AREA}'`, /PerfilMedicao_unidades_check/, 'perfil sem a canônica');
-    await recusa(`UPDATE "PerfilMedicao" SET unidades_permitidas = ARRAY['m2','L'] WHERE id = '${s.per.AREA}'`, /PerfilMedicao_unidades_dimensao_check/, 'unidade de outra dimensão no perfil');
-    await recusa(`UPDATE "PerfilMedicao" SET dimensao = 'VOLUME' WHERE id = '${s.per.AREA}'`, /PerfilMedicao_dimensao_check|PerfilMedicao_unidades_dimensao_check/, 'dimensão incoerente com a canônica');
-    await recusa(`UPDATE "TipoCombustivel" SET unidade = 'M3' WHERE id = '${s.comb.GNV}'`, /TipoCombustivel_unidade_check/, 'unidade de combustível fora do domínio');
     await recusa(`UPDATE "FamiliaPatrimonial" SET natureza = 'FROTA' WHERE id = '${s.fam.MAQUINAS}'`, /FamiliaPatrimonial_natureza_check/, 'natureza da família fora do domínio');
     await recusa(`UPDATE "FamiliaPatrimonial" SET codigo = 'maq' WHERE id = '${s.fam.MAQUINAS}'`, /FamiliaPatrimonial_codigo_check/, 'código em minúsculas');
     // FKs compostas: tenant e fazenda nos dois lados.
@@ -480,15 +486,14 @@ describe('S5–S6 — o banco é a última rede', () => {
     await recusa(`UPDATE "BemPatrimonial" SET empresa_id = '${outro.e1.id}' WHERE id = '${trator.id}'`, /foreign key/i, 'fazenda de outro tenant');
     await recusa(`UPDATE "BemPatrimonial" SET familia_id = '${outro.fam.MAQUINAS}' WHERE id = '${trator.id}'`, /foreign key/i, 'família de outro tenant');
     await recusa(`UPDATE "TipoPatrimonial" SET familia_id = '${outro.fam.MAQUINAS}' WHERE id = '${s.tip.TRATOR_PNEUS}'`, /foreign key/i, 'tipo apontando família de outro tenant');
-    await recusa(`INSERT INTO "MedicaoBem" (id, cliente_id, bem_id, perfil_id, valor_informado, unidade_informada, valor_normalizado, unidade_canonica, "updatedAt")
-      VALUES ('${novoId()}', '${outro.c}', '${curral.id}', '${outro.per.VOLUME}', 1, 'L', 1, 'L', now())`, /foreign key/i, 'medição do outro tenant no bem alheio');
-    await recusa(`INSERT INTO "TanqueBemCombustivel" (id, cliente_id, tanque_id, combustivel_id, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${tanque.id}', '${outro.comb.GASOLINA}', now())`, /foreign key/i, 'combustível de outro tenant');
+    await recusa(`INSERT INTO "TanqueBemProduto" (id, cliente_id, tanque_id, produto_id, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${tanque.id}', '${dieselAlheio.id}', now())`, /foreign key/i, 'Produto de outro tenant');
+    await recusa(`INSERT INTO "TanqueBemProduto" (id, cliente_id, tanque_id, produto_id, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${tratorAlheio.tanques[0].id}', '${diesel.id}', now())`, /foreign key/i, 'tanque de outro tenant');
     await recusa(`INSERT INTO "TanqueBem" (id, cliente_id, bem_id, identificador, capacidade_litros, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${trator.id}', '${tanque.identificador}', 10, now())`, /23505|duplicate key|unique/i, 'identificador repetido no bem');
-    await recusa(`INSERT INTO "TanqueBemCombustivel" (id, cliente_id, tanque_id, combustivel_id, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${tanque.id}', '${s.comb.DIESEL_S10}', now())`, /23505|duplicate key|unique/i, 'vínculo repetido');
+    await recusa(`INSERT INTO "TanqueBemProduto" (id, cliente_id, tanque_id, produto_id, "updatedAt") VALUES ('${novoId()}', '${s.c}', '${tanque.id}', '${diesel.id}', now())`, /23505|duplicate key|unique/i, 'Produto aceito repetido no tanque');
     // RESTRICT: nada referenciado some por DELETE direto.
     await recusa(`DELETE FROM "FamiliaPatrimonial" WHERE id = '${s.fam.MAQUINAS}'`, /foreign key/i, 'família usada');
-    await recusa(`DELETE FROM "PerfilMedicao" WHERE id = '${s.per.AREA}'`, /foreign key/i, 'perfil usado');
-    await recusa(`DELETE FROM "TipoCombustivel" WHERE id = '${s.comb.DIESEL_S10}'`, /foreign key/i, 'combustível usado');
+    await recusa(`DELETE FROM "Produto" WHERE id = '${diesel.id}'`, /foreign key/i, 'Produto aceito por tanque');
+    await recusa(`DELETE FROM "TanqueBem" WHERE id = '${tanque.id}'`, /foreign key/i, 'tanque com Produto aceito');
     await recusa(`DELETE FROM "BemPatrimonial" WHERE id = '${trator.id}'`, /foreign key/i, 'bem com tanque');
     assert.equal(await fotoPatrimonio([s.c, outro.c]), antes, 'nenhuma escrita direta passou');
   });
@@ -661,13 +666,15 @@ describe('S7 — exclusão de cadastros antigos referenciados por bens', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
-  test('sem as 10 tabelas (DROP numa transação desfeita), o runtime novo falha P2021 no Patrimônio (500 sem detalhe) e o resto segue; o banco volta ao normal', async () => {
+  test('sem as 7 tabelas (DROP numa transação desfeita), o runtime novo falha P2021 no Patrimônio (500 sem detalhe) e o resto segue; o banco volta ao normal', async () => {
     const s = await montarPatrimonio(app);
-    await criarOk(s, corpoTrator(s));
-    const delegados = ['bemPatrimonial', 'medicaoBem', 'tanqueBem', 'tanqueBemCombustivel', 'familiaPatrimonial', 'tipoPatrimonial', 'tipoPatrimonialPerfil', 'perfilMedicao', 'tipoCombustivel', 'tipoCombustivelProduto'];
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    await criarOk(s, corpoTrator(s, { tanques: [tanqueCom([diesel.id])] }));
+    const delegados = ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'bemPatrimonial', 'familiaPatrimonial', 'tanqueBem', 'tanqueBemProduto', 'tipoPatrimonial'];
+    assert.deepEqual(delegados.map((d) => d[0].toUpperCase() + d.slice(1)), [...TABELAS_PATRIMONIO], 'um delegado por tabela');
     const r = await emTransacaoDesfeita(async (tx) => {
-      // D-PROD-159: as 3 tabelas da P1-02 referenciam as 10 (RESTRICT) e saem juntas, sem CASCADE (nada some escondido).
-      await tx.$executeRawUnsafe(`DROP TABLE "AbastecimentoBemConsumoLote", "AbastecimentoBem", "ConversaoCombustivelProduto", ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
+      // As 7 saem juntas, sem CASCADE (nada de fora as referencia; nada some escondido).
+      await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */
       const codigos = {};
       /** @type {unknown} */
@@ -686,17 +693,22 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
       await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT exclusao_parceiro');
       const fornecedores = await tx.fornecedor.count({ where: { cliente_id: s.c } });
       const empresas = await tx.empresa.count({ where: { cliente_id: s.c } });
-      return { codigos, primeiro, contagemBens, fornecedores, empresas };
+      const produtos = await tx.produto.count({ where: { cliente_id: s.c } });
+      return { codigos, primeiro, contagemBens, fornecedores, empresas, produtos };
     });
     assert.deepEqual(r.codigos, Object.fromEntries(delegados.map((d) => [d, 'P2021'])), JSON.stringify(r.codigos));
     assert.equal(r.contagemBens, 'P2021');
-    assert.deepEqual([r.fornecedores, r.empresas], [3, 2], 'as tabelas antigas seguem legíveis');
+    assert.deepEqual([r.fornecedores, r.empresas, r.produtos], [3, 2, 1], 'as tabelas antigas seguem legíveis (o Produto também)');
     const http500 = normalizarErro(r.primeiro);
     assert.deepEqual([http500.code, http500.status], ['INTERNAL_ERROR', 500], 'o cliente vê 500 genérico, sem nome de tabela');
-    // Transação desfeita: as 10 tabelas e o bem continuam lá.
+    // Transação desfeita: as 7 tabelas, o bem e o aceite continuam lá.
     assert.equal(await prisma().bemPatrimonial.count({ where: { cliente_id: s.c } }), 1);
+    assert.equal(await prisma().tanqueBemProduto.count({ where: { cliente_id: s.c } }), 1);
     const existentes = /** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[])`);
-    assert.equal(existentes.length, 10);
+    assert.equal(existentes.length, 7);
+    // As tabelas removidas pela D-PROD-161 não existem mais.
+    const removidas = ['ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TipoCombustivel', 'MedicaoBem', 'TipoPatrimonialPerfil', 'PerfilMedicao'];
+    assert.deepEqual(/** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${removidas}::text[])`), []);
   });
 
   test('preflight: sem a migration no histórico acusa "migrations pendentes" (dados sintéticos e o histórico local numa transação desfeita); iniciada sem concluir → falha registrada', async () => {
@@ -730,6 +742,12 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     // O histórico REAL do banco local: aplicado → nada pendente; sem a linha (desfeito) → pendente.
     const real = avaliarPreflight({ ...base, migrations: /** @type {any} */ (await prisma().$queryRawUnsafe(CONSULTAS.migrations)) });
     assert.deepEqual(real.resumo.pendentes, []);
+    // D-PROD-161: as colunas exigidas (quantidade/unidade do abastecimento e o Produto aceito) existem no banco real.
+    for (const par of [['AbastecimentoBem', 'quantidade'], ['AbastecimentoBem', 'unidade'], ['TanqueBemProduto', 'produto_id']]) {
+      assert.ok(COLUNAS_EXIGIDAS.some(([t, c]) => t === par[0] && c === par[1]), `COLUNAS_EXIGIDAS com ${par.join('.')}`);
+    }
+    const colunasReais = /** @type {any[]} */ (await prisma().$queryRawUnsafe(CONSULTAS.colunas));
+    assert.equal(colunasReais.length, COLUNAS_EXIGIDAS.length, 'toda coluna exigida existe no banco migrado');
     const local = await emTransacaoDesfeita(async (tx) => {
       await tx.$executeRawUnsafe(`DELETE FROM "_prisma_migrations" WHERE migration_name = '${MIGRATION_PATRIMONIO}'`);
       return avaliarPreflight({ ...base, migrations: /** @type {any} */ (await tx.$queryRawUnsafe(CONSULTAS.migrations)) });

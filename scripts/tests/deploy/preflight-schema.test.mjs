@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { avaliarPreflight, CONSULTAS, TABELAS_PROTEGIDAS } from '../../deploy/preflightSchemaLib.mjs';
+import { avaliarPreflight, CONSULTAS, COLUNAS_EXIGIDAS, TABELAS_PROTEGIDAS } from '../../deploy/preflightSchemaLib.mjs';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const PASTAS = ['20261028240000_p8', '20261029300000_admin', '20261029400000_papel'];
@@ -25,6 +25,10 @@ const COLUNAS_OK = [
   { table_name: 'Cliente', column_name: 'sessao_epoca' },
   { table_name: 'Usuario', column_name: 'sessao_epoca' },
   { table_name: 'Usuario', column_name: 'troca_senha_pendente' },
+  // D-PROD-161: o backend do Patrimônio simplificado lê estas colunas.
+  { table_name: 'AbastecimentoBem', column_name: 'quantidade' },
+  { table_name: 'AbastecimentoBem', column_name: 'unidade' },
+  { table_name: 'TanqueBemProduto', column_name: 'produto_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -108,4 +112,17 @@ test('PR167-R1: falta qualquer coluna da exclusão lógica do Lote → reprovado
     assert.equal(r.ok, false, ausente);
     assert.match(r.falhas.join('\n'), new RegExp(`Lote\\.${ausente}`));
   }
+});
+
+test('B12 (D-PROD-161): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS — todo par exigido aparece nela; as colunas do Patrimônio simplificado são exigidas', () => {
+  for (const [t, c] of COLUNAS_EXIGIDAS) assert.ok(CONSULTAS.colunas.includes(`('${t}','${c}')`), `${t}.${c} fora da consulta`);
+  const pares = [...CONSULTAS.colunas.matchAll(/\('([A-Za-z_]+)','([A-Za-z_]+)'\)/g)].map((x) => `${x[1]}.${x[2]}`);
+  assert.deepEqual(pares, COLUNAS_EXIGIDAS.map(([t, c]) => `${t}.${c}`), 'nada a mais nem a menos na consulta');
+  for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id']) {
+    assert.ok(pares.includes(k), k);
+    const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => `${c.table_name}.${c.column_name}` !== k) }));
+    assert.equal(r.ok, false, k);
+    assert.match(r.falhas.join('\n'), new RegExp(k.replace('.', '\\.')));
+  }
+  assert.equal(avaliarPreflight(pronto()).ok, true);
 });

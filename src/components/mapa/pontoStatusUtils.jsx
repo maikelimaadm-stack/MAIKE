@@ -70,10 +70,20 @@ export function getCochoIndicator(ponto, eventos = []) {
   };
 }
 
-export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueLotes = [], movimentacoes = []) {
+/**
+ * Indicador do depósito (saldo, % da capacidade, alerta de estoque mínimo e
+ * último registro), tudo em kg.
+ *
+ * D-PROD-161 (padrão P-11): `produtos` (opcional) diz quais Produtos têm
+ * estoque em LITROS; os lotes deles ficam fora do saldo em kg e o movimento
+ * rotulado `L` fica fora do "último registro". Sem `produtos`, ou sem Produto
+ * em L, o resultado é idêntico ao de antes.
+ */
+export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueLotes = [], movimentacoes = [], produtos = []) {
   const cochosRelacionados = cochos.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
+  const produtosEmLitros = new Set((Array.isArray(produtos) ? produtos : []).filter((p) => p?.unidade_principal_estoque === "L").map((p) => p.id));
   const saldoAtual = estoqueLotes
-    .filter((lote) => lote.local_estoque_id === deposito.local_estoque_id && (lote.quantidade_disponivel || 0) > 0)
+    .filter((lote) => lote.local_estoque_id === deposito.local_estoque_id && (lote.quantidade_disponivel || 0) > 0 && !produtosEmLitros.has(lote.produto_id))
     .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 
   const necessidadeEstimada = cochosRelacionados.reduce((total, cocho) => {
@@ -88,7 +98,7 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
   }, 0);
 
   const ultimoRegistro = movimentacoes
-    .filter((item) => item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id)
+    .filter((item) => (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id) && item.unidade_medida !== "L")
     .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao))[0] || null;
 
   const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);

@@ -1,11 +1,14 @@
 /**
- * Porta nativa de Patrimônio e Frota (D-PROD-157). Só online; tenant só no JWT.
+ * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-161).
+ * Só online; tenant só no JWT.
  *
- * Catálogos (famílias, tipos, perfis de medição, combustíveis) são do TENANT:
- * nenhuma rota de catálogo leva `empresa_id`. Bens pertencem a uma empresa:
- * `empresa_id` vai na query da leitura e no corpo da gravação. O vínculo
- * Combustível × Produto (R2) é POR EMPRESA: `empresa_id` na query da leitura e
- * no corpo do POST/PATCH.
+ * Catálogos (famílias e tipos) são do TENANT: nenhuma rota de catálogo leva
+ * `empresa_id`. Bens pertencem a uma empresa: `empresa_id` vai na query da
+ * leitura e no corpo da gravação. Os Produtos que um tanque aceita vêm da opção
+ * `/bens-patrimoniais-opcoes/produtos` (empresa obrigatória, filtro `unidade`
+ * `L`|`KG`). Saíram (D-PROD-161, as rotas respondem 404): perfis de medição,
+ * combustíveis, vínculo combustível × produto, produtos elegíveis do bem e os
+ * fatores kg/L.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -14,15 +17,11 @@ import { nativeRequest } from '../_core/nativeHttpClient.js';
 export const CAMINHOS_CATALOGO = Object.freeze({
   familias: '/patrimonio-familias',
   tipos: '/patrimonio-tipos',
-  'perfis-medicao': '/patrimonio-perfis-medicao',
-  combustiveis: '/patrimonio-combustiveis',
 });
 
 const RECURSO_DO_CATALOGO = Object.freeze({
   familias: 'FamiliaPatrimonial',
   tipos: 'TipoPatrimonial',
-  'perfis-medicao': 'PerfilMedicao',
-  combustiveis: 'TipoCombustivel',
 });
 
 const CAMINHO_CATALOGO_PADRAO = '/patrimonio-catalogo-padrao';
@@ -32,14 +31,8 @@ const CAMINHO_OPCOES = '/bens-patrimoniais-opcoes';
 
 const RESOURCE_BEM = 'BemPatrimonial';
 
-/**
- * Combustível × Produto por empresa (R2): vínculos do tipo NA empresa, item do
- * vínculo (inativar/reativar) e opções de produto. Nenhuma rota começa pelos
- * caminhos da porta de Produtos — o produto é só referência por id.
- */
-const CAMINHO_VINCULO_COMBUSTIVEL_PRODUTO = '/patrimonio-combustivel-produtos';
-const CAMINHO_OPCOES_PRODUTOS_COMBUSTIVEL = '/patrimonio-combustiveis-opcoes/produtos';
-const RESOURCE_VINCULO = 'TipoCombustivelProduto';
+/** Unidades de estoque do filtro `unidade` das opções de produtos do tanque (D-PROD-161, achado D8). */
+export const UNIDADES_FILTRO_PRODUTOS = Object.freeze(['L', 'KG']);
 
 /** @param {string} operation @param {string} resource @param {Record<string, unknown>} [details] */
 const ctx = (operation, resource, details) => ({ operation, resource, ...(details ? { details } : {}) });
@@ -99,13 +92,20 @@ export const montarCaminhoListagemBens = (filtros = {}) => {
   return comQuery(CAMINHO_BENS, params);
 };
 
-/** @param {string} recurso @param {Record<string, unknown>} [filtros] */
+/**
+ * Opções do formulário do bem: `empresa_id`, `familia_id` (tipos) e, só em
+ * `produtos` (Produtos que o tanque aceita), `unidade` (`L` | `KG`); mais `q`,
+ * `limit` e `cursor`.
+ * @param {string} recurso @param {Record<string, unknown>} [filtros]
+ */
 export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
   const params = new URLSearchParams();
   const empresa = texto(filtros.empresa_id);
   if (empresa) params.set('empresa_id', empresa);
   const familia = texto(filtros.familia_id);
   if (familia) params.set('familia_id', familia);
+  const unidade = texto(filtros.unidade);
+  if (recurso === 'produtos' && unidade && UNIDADES_FILTRO_PRODUTOS.includes(unidade)) params.set('unidade', unidade);
   paginacao(params, filtros);
   return comQuery(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, params);
 };
@@ -114,87 +114,43 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
 const doCatalogo = (recurso, id) => `${caminhoDoCatalogo(recurso)}/${encodeURIComponent(id)}`;
 /** @param {string} id */
 const doBem = (id) => `${CAMINHO_BENS}/${encodeURIComponent(id)}`;
-/** Vínculos de um tipo de combustível: `/patrimonio-combustiveis/:id/produtos`. @param {string} tipoId */
-const produtosDoCombustivel = (tipoId) => `${doCatalogo('combustiveis', tipoId)}/produtos`;
-/** @param {string} vinculoId */
-const doVinculo = (vinculoId) => `${CAMINHO_VINCULO_COMBUSTIVEL_PRODUTO}/${encodeURIComponent(vinculoId)}`;
-
-/**
- * Vínculos do tipo NA empresa (keyset): `empresa_id`, `ativo`, `limit`, `cursor`.
- * @param {string} tipoId @param {Record<string, unknown>} [filtros]
- */
-export const montarCaminhoProdutosDoCombustivel = (tipoId, filtros = {}) => {
-  const params = new URLSearchParams();
-  const empresa = texto(filtros.empresa_id);
-  if (empresa) params.set('empresa_id', empresa);
-  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
-  if (filtros.limit != null) params.set('limit', String(filtros.limit));
-  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
-  return comQuery(produtosDoCombustivel(tipoId), params);
-};
-
-/**
- * Opções de produto ATIVO da empresa para vincular: `empresa_id`, `q`, `limit`, `cursor`.
- * @param {Record<string, unknown>} [filtros]
- */
-export const montarCaminhoOpcoesProdutosCombustivel = (filtros = {}) => {
-  const params = new URLSearchParams();
-  const empresa = texto(filtros.empresa_id);
-  if (empresa) params.set('empresa_id', empresa);
-  paginacao(params, filtros);
-  return comQuery(CAMINHO_OPCOES_PRODUTOS_COMBUSTIVEL, params);
-};
-
-/**
- * Produtos elegíveis de um bem (contrato de leitura da P1-02): `empresa_id` e `tanque_id` opcional.
- * @param {string} bemId @param {Record<string, unknown>} [filtros]
- */
-export const montarCaminhoProdutosElegiveisDoBem = (bemId, filtros = {}) => {
-  const params = new URLSearchParams();
-  const empresa = texto(filtros.empresa_id);
-  if (empresa) params.set('empresa_id', empresa);
-  const tanque = texto(filtros.tanque_id);
-  if (tanque) params.set('tanque_id', tanque);
-  return comQuery(`${doBem(bemId)}/produtos-elegiveis`, params);
-};
 /** @param {string} caminho @param {string} empresaId */
 const comEmpresa = (caminho, empresaId) => `${caminho}?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`;
 
-// ─── Abastecimentos (D-PROD-159) ─────────────────────────────────────────
+// ─── Abastecimentos (D-PROD-159, simplificados pela D-PROD-161) ─────────
 /**
- * Abastecimentos da EMPRESA e fatores kg/L (Patrimônio P1-02). Prefixo próprio
- * (`/patrimonio-abastecimentos…`, `/patrimonio-conversoes-combustivel`); as
- * opções da tela são rotas DESTA tela (`/patrimonio-abastecimentos-opcoes/<recurso>`),
- * montadas por template — nenhuma rota é a da porta de Produtos ou de Locais.
- * Decimais (litros, leitura, fator) viajam como TEXTO canônico.
+ * Abastecimentos da EMPRESA (Patrimônio P1-02). Prefixo próprio
+ * (`/patrimonio-abastecimentos…`); as opções da tela são rotas DESTA tela
+ * (`/patrimonio-abastecimentos-opcoes/<recurso>`), montadas por template —
+ * nenhuma rota é a da porta de Produtos ou de Locais. Decimais (quantidade na
+ * unidade do Produto, leitura) viajam como TEXTO canônico. D-PROD-161: saíram
+ * as opções `tipos` e `produtos` (por tipo) e os fatores kg/L.
  */
 const CAMINHO_ABASTECIMENTOS = '/patrimonio-abastecimentos';
 const CAMINHO_ABASTECIMENTOS_PREVIA = '/patrimonio-abastecimentos-previa';
 const CAMINHO_ABASTECIMENTOS_OPCOES = '/patrimonio-abastecimentos-opcoes';
 const CAMINHO_ABASTECIMENTOS_CONSUMO = '/patrimonio-abastecimentos-consumo';
-const CAMINHO_CONVERSOES = '/patrimonio-conversoes-combustivel';
 const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
-const RESOURCE_CONVERSAO = 'ConversaoCombustivelProduto';
 
 /** Prévia/confirmar/cancelar mexem em lotes e movimentos: prazo próprio (o servidor responde em ≤ 19 s). */
 export const TIMEOUT_COMANDO_ABASTECIMENTO_MS = 60000;
-/** Recursos de opção da tela Abastecimentos (guardados pela própria tela). */
-/** `produtos-do-bem` (A16, D-PROD-160): os Produtos que o operador escolhe para o bem, com o tipo e os tanques do servidor. */
-export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'tipos', 'produtos', 'produtos-filtro', 'locais', 'produtos-do-bem']);
+/**
+ * Recursos de opção da tela Abastecimentos (guardados pela própria tela).
+ * `produtos-do-bem` (A16): os Produtos aceitos pelos tanques ativos do bem, com
+ * os tanques de cada um (D-PROD-161: sem tipo de combustível nem fator).
+ */
+export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'produtos-filtro', 'locais', 'produtos-do-bem']);
 
 /** Filtros aceitos por recurso (query FECHADA no servidor: nada além disso vai). */
 const FILTROS_LISTA_ABASTECIMENTOS = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'status', 'data_de', 'data_ate', 'operation_id', 'q', 'limit', 'cursor']);
 const FILTROS_OPCOES_ABASTECIMENTO = Object.freeze(/** @type {Record<string, readonly string[]>} */ ({
   bens: ['empresa_id', 'uso', 'q', 'limit', 'cursor'],
   tanques: ['empresa_id', 'bem_id'],
-  tipos: ['empresa_id', 'q', 'limit', 'cursor'],
-  produtos: ['empresa_id', 'tipo_combustivel_id', 'q', 'limit', 'cursor'],
   'produtos-filtro': ['empresa_id', 'q', 'limit', 'cursor'],
   locais: ['empresa_id', 'produto_id'],
   'produtos-do-bem': ['empresa_id', 'bem_id', 'q', 'limit', 'cursor'],
 }));
 const FILTROS_CONSUMO = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'limit']);
-const FILTROS_CONVERSOES = Object.freeze(['empresa_id', 'tipo_combustivel_id', 'produto_id', 'situacao', 'limit', 'cursor']);
 
 /**
  * Caminho com só as chaves permitidas, sem vazio (texto aparado; número como texto).
@@ -218,12 +174,8 @@ export const montarCaminhoOpcoesAbastecimento = (recurso, filtros = {}) =>
   comFiltros(`${CAMINHO_ABASTECIMENTOS_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_OPCOES_ABASTECIMENTO[recurso] ?? [], filtros);
 /** @param {Record<string, unknown>} [filtros] */
 export const montarCaminhoConsumoAbastecimento = (filtros = {}) => comFiltros(CAMINHO_ABASTECIMENTOS_CONSUMO, FILTROS_CONSUMO, filtros);
-/** @param {Record<string, unknown>} [filtros] */
-export const montarCaminhoConversoes = (filtros = {}) => comFiltros(CAMINHO_CONVERSOES, FILTROS_CONVERSOES, filtros);
 /** @param {string} id */
 const doAbastecimento = (id) => `${CAMINHO_ABASTECIMENTOS}/${encodeURIComponent(id)}`;
-/** @param {string} id */
-const daConversao = (id) => `${CAMINHO_CONVERSOES}/${encodeURIComponent(id)}`;
 
 export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
@@ -253,21 +205,6 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
   opcoes: (recurso, filtros = {}) =>
     nativeRequest(montarCaminhoOpcoes(recurso, filtros), { autenticado: true }, ctx('listOpcoesBemPatrimonial', RESOURCE_BEM, { recurso })),
-  /** @param {string} bemId @param {Record<string, unknown>} [filtros] */
-  bemProdutosElegiveis: (bemId, filtros = {}) =>
-    nativeRequest(montarCaminhoProdutosElegiveisDoBem(bemId, filtros), { autenticado: true }, ctx('listProdutosElegiveisBemPatrimonial', RESOURCE_BEM, { id: bemId })),
-  /** @param {string} tipoId @param {Record<string, unknown>} [filtros] */
-  combustivelProdutosListPage: (tipoId, filtros = {}) =>
-    nativeRequest(montarCaminhoProdutosDoCombustivel(tipoId, filtros), { autenticado: true }, ctx('listProdutosDoCombustivelPage', RESOURCE_VINCULO, { tipo_combustivel_id: tipoId })),
-  /** @param {string} tipoId @param {Record<string, unknown>} corpo */
-  combustivelProdutoCreate: (tipoId, corpo) =>
-    nativeRequest(produtosDoCombustivel(tipoId), { method: 'POST', body: corpo, autenticado: true }, ctx('createVinculoCombustivelProduto', RESOURCE_VINCULO, { tipo_combustivel_id: tipoId })),
-  /** @param {string} vinculoId @param {Record<string, unknown>} corpo */
-  combustivelProdutoUpdate: (vinculoId, corpo) =>
-    nativeRequest(doVinculo(vinculoId), { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateVinculoCombustivelProduto', RESOURCE_VINCULO, { id: vinculoId })),
-  /** @param {Record<string, unknown>} [filtros] */
-  combustivelProdutoOpcoes: (filtros = {}) =>
-    nativeRequest(montarCaminhoOpcoesProdutosCombustivel(filtros), { autenticado: true }, ctx('listOpcoesProdutosCombustivel', RESOURCE_VINCULO)),
   // ─── Abastecimentos (D-PROD-159) ───
   /** @param {Record<string, unknown>} [filtros] */
   abastecimentosListPage: (filtros = {}) =>
@@ -302,13 +239,4 @@ export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} [filtros] */
   abastecimentoConsumo: (filtros = {}) =>
     nativeRequest(montarCaminhoConsumoAbastecimento(filtros), { autenticado: true }, ctx('getConsumoAbastecimento', RESOURCE_ABASTECIMENTO)),
-  /** @param {Record<string, unknown>} [filtros] */
-  conversoesListPage: (filtros = {}) =>
-    nativeRequest(montarCaminhoConversoes(filtros), { autenticado: true }, ctx('listConversoesCombustivelPage', RESOURCE_CONVERSAO)),
-  /** @param {Record<string, unknown>} corpo */
-  conversaoCriar: (corpo) =>
-    nativeRequest(CAMINHO_CONVERSOES, { method: 'POST', body: corpo, autenticado: true }, ctx('createConversaoCombustivel', RESOURCE_CONVERSAO)),
-  /** @param {string} id @param {Record<string, unknown>} corpo */
-  conversaoEncerrar: (id, corpo) =>
-    nativeRequest(`${daConversao(id)}/encerrar`, { method: 'POST', body: corpo, autenticado: true }, ctx('encerrarConversaoCombustivel', RESOURCE_CONVERSAO, { id })),
 });

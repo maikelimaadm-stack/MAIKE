@@ -1,202 +1,107 @@
 /**
- * D-PROD-157 — filhos do agregado do bem: medições físicas (só BENFEITORIA) e
- * tanques de combustível (só MAQUINA/VEICULO/EQUIPAMENTO). Mudam SÓ pelo
- * POST/PATCH do bem, dentro da transação dele e depois da trava da linha do
- * bem (A5). Cada lista do corpo é o SYNC COMPLETO do estado final.
- *
- * Medições: item com `id` atualiza, sem `id` cria, ausente é REMOVIDO (é
- * atributo; a auditoria do bem registra antes/depois). O perfil de uma
- * medição gravada não muda (trocar = remover + criar). Perfil ATIVO só ao
- * acrescentar; a unidade tem de estar no perfil e o valor é normalizado na
- * canônica por fator exato. Sem principal marcada, a primeira vira principal.
+ * D-PROD-157 / D-PROD-161 — filhos do agregado do bem: os tanques (só
+ * MAQUINA/VEICULO/EQUIPAMENTO) e, em cada tanque, os Produtos do estoque que
+ * ele ACEITA. Mudam SÓ pelo POST/PATCH do bem, dentro da transação dele e
+ * depois da trava da linha do bem (A5; o PATCH trava o bem FOR UPDATE, a mesma
+ * trava R3 do confirmar do abastecimento). A lista `tanques` do corpo é o SYNC
+ * COMPLETO do estado final.
  *
  * Tanques: nunca removidos (ausente → 422 `TANQUE_REMOCAO_NAO_PERMITIDA`),
  * só inativados; identificador único no bem sem diferenciar maiúsculas
  * (inclusive o de tanque inativo, que continua reservado); até 10 ATIVOS;
- * combustível só em litros, ATIVO ao ser acrescentado. Os vínculos tanque ×
- * combustível são atributos: removidos fisicamente no sync.
+ * capacidade em litros, maior que zero, com até 4 casas.
  *
- * Perfis e combustíveis usados são lidos com `FOR SHARE`: o PATCH do perfil
- * (que trava a linha FOR UPDATE antes de contar as medições) e a inativação
- * do combustível esperam esta escrita, e vice-versa.
+ * Produtos aceitos (`produto_ids`, obrigatório; pode ser `[]`, P-01): até 20,
+ * sem repetição. Só o que é ACRESCENTADO (novo, reativado, ou o conjunto de um
+ * tanque/bem que volta a ficar ativo — achado D1) é validado: Produto do
+ * tenant, da MESMA fazenda do bem, ativo e com estoque em L ou KG; lido antes
+ * com `FOR KEY SHARE` (espera a troca de fazenda/unidade do Produto em voo,
+ * que toma `FOR UPDATE`). Um aceite mantido não é revalidado: o abastecimento
+ * relê o Produto e o recusa.
+ *
+ * Aceite retirado (achado D11): sem nenhum abastecimento naquele par tanque ×
+ * Produto, a linha é APAGADA (o Produto passa a poder ser excluído); com
+ * histórico, só `ativo = false` (a FK do abastecimento segura o par).
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { dec, texto } from '../financeiro/decimalFinanceiro.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { PADRAO_MEDIDA, referenciaInvalida } from './bemPatrimonialRegras.js';
-import { MAX_MEDICOES_POR_BEM, MAX_TANQUES_ATIVOS_POR_BEM, UNIDADE_COMBUSTIVEL_DO_TANQUE } from './patrimonioDominio.js';
-import { CASAS_MEDIDA, normalizarMedicao } from './unidadesFisicas.js';
+import { MAX_PRODUTOS_POR_TANQUE, MAX_TANQUES_ATIVOS_POR_BEM, UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
 
-// ─── medições ───────────────────────────────────────────────────────────────
-
-/**
- * @typedef {{ id: string|null, perfil_id: string, rotulo: string|null, valor_informado: string, unidade_informada: string,
- *   valor_normalizado: string, unidade_canonica: string, principal: boolean }} MedicaoDesejada
- */
-
-/** Medição gravada → forma comparável (decimais na escala da coluna). */
-const medicaoGravada = (m) => ({
-  rotulo: m.rotulo ?? null,
-  valor_informado: texto(m.valor_informado, CASAS_MEDIDA),
-  unidade_informada: m.unidade_informada,
-  principal: m.principal === true,
-});
-
-/** @param {any} tx @param {string} clienteId @param {string[]} ids */
-const travarPerfis = async (tx, clienteId, ids) => {
-  if (!ids.length) return new Map();
-  await tx.$queryRaw`SELECT id FROM "PerfilMedicao" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR SHARE`;
-  const perfis = await tx.perfilMedicao.findMany({
-    where: { cliente_id: clienteId, id: { in: ids } },
-    select: { id: true, dimensao: true, unidades_permitidas: true, ativo: true },
-  });
-  return new Map(perfis.map((p) => [p.id, p]));
-};
-
-const perfilDuplicado = (field, reason, mensagem) => new AppError('MEDICAO_PERFIL_DUPLICADO', `${mensagem}; nada foi gravado`, { details: { field, reason } });
-
-/**
- * Valida a lista final de medições (sem gravar).
- * @param {any} tx
- * @param {string} clienteId
- * @param {Array<Record<string, any>>} pedidas  itens do corpo `{id?, perfil_id, valor, unidade, rotulo?, principal?}`
- * @param {Array<Record<string, any>>} gravadas  medições atuais do bem (PATCH) ou []
- * @returns {Promise<{ desejadas: MedicaoDesejada[], mudou: boolean }>}
- */
-export const validarMedicoes = async (tx, clienteId, pedidas, gravadas) => {
-  if (pedidas.length > MAX_MEDICOES_POR_BEM) {
-    throw new AppError('MEDICAO_LIMITE_EXCEDIDO', `um bem tem no máximo ${MAX_MEDICOES_POR_BEM} medições; nada foi gravado`, {
-      details: { field: 'medicoes', reason: 'limite', maximo: MAX_MEDICOES_POR_BEM },
-    });
-  }
-  const porId = new Map(gravadas.map((m) => [m.id, m]));
-  pedidas.forEach((item, i) => {
-    if (!item.id) return;
-    const gravada = porId.get(item.id);
-    if (!gravada) throw referenciaInvalida(`medicoes[${i}].id`, 'inexistente', 'medição não encontrada neste bem');
-    if (gravada.perfil_id !== item.perfil_id) {
-      throw perfilDuplicado(`medicoes[${i}].perfil_id`, 'perfil_imutavel', 'o perfil de uma medição gravada não muda: remova a medição e crie outra');
-    }
-  });
-  const perfisPedidos = new Set();
-  pedidas.forEach((item, i) => {
-    if (perfisPedidos.has(item.perfil_id)) throw perfilDuplicado(`medicoes[${i}].perfil_id`, 'perfil_repetido', 'o mesmo perfil de medição aparece mais de uma vez no bem');
-    perfisPedidos.add(item.perfil_id);
-  });
-  if (pedidas.filter((m) => m.principal === true).length > 1) {
-    throw new AppError('MEDICAO_PRINCIPAL_DUPLICADA', 'marque no máximo uma medição como principal; nada foi gravado', {
-      details: { field: 'medicoes', reason: 'principal_duplicada' },
-    });
-  }
-  const perfis = await travarPerfis(tx, clienteId, [...perfisPedidos]);
-  const perfisDoBem = new Set(gravadas.map((m) => m.perfil_id));
-  const principal = Math.max(0, pedidas.findIndex((m) => m.principal === true));
-  /** @type {MedicaoDesejada[]} */
-  const desejadas = pedidas.map((item, i) => {
-    const perfil = perfis.get(item.perfil_id);
-    if (!perfil) throw referenciaInvalida(`medicoes[${i}].perfil_id`, 'inexistente', 'perfil de medição não encontrado');
-    if (!perfil.ativo && !perfisDoBem.has(perfil.id)) throw referenciaInvalida(`medicoes[${i}].perfil_id`, 'inativo', 'perfil de medição inativo não pode ser acrescentado');
-    return {
-      id: item.id ?? null,
-      perfil_id: perfil.id,
-      rotulo: textoDoCorpo(item.rotulo, `medicoes[${i}].rotulo`) ?? null,
-      ...normalizarMedicao(perfil, item.valor, item.unidade, `medicoes[${i}]`),
-      principal: i === principal,
-    };
-  });
-  const mudou =
-    desejadas.length !== gravadas.length ||
-    desejadas.some((d) => {
-      if (!d.id) return true;
-      const g = medicaoGravada(porId.get(d.id));
-      return g.rotulo !== d.rotulo || g.valor_informado !== d.valor_informado || g.unidade_informada !== d.unidade_informada || g.principal !== d.principal;
-    });
-  return { desejadas, mudou };
-};
-
-/**
- * Sync das medições (A5.4): remove as ausentes, zera o `principal` das
- * mantidas, atualiza as mantidas que mudaram, cria as novas e marca a
- * principal por último — trocar a principal nunca colide no unique
- * `(cliente_id, bem_id, principal)`. Chame `validarMedicoes` antes.
- * @param {any} tx
- * @param {string} clienteId
- * @param {string} bemId
- * @param {MedicaoDesejada[]} desejadas
- * @param {Array<Record<string, any>>} gravadas
- */
-export const sincronizarMedicoes = async (tx, clienteId, bemId, desejadas, gravadas) => {
-  const base = { cliente_id: clienteId, bem_id: bemId };
-  const mantidas = new Set(desejadas.filter((d) => d.id).map((d) => d.id));
-  const remover = gravadas.filter((m) => !mantidas.has(m.id)).map((m) => m.id);
-  if (remover.length) await tx.medicaoBem.deleteMany({ where: { ...base, id: { in: remover } } });
-  await tx.medicaoBem.updateMany({ where: { ...base, principal: true }, data: { principal: null } });
-  const porId = new Map(gravadas.map((m) => [m.id, medicaoGravada(m)]));
-  for (const d of desejadas) {
-    if (!d.id) continue;
-    const g = porId.get(d.id);
-    if (g.rotulo === d.rotulo && g.valor_informado === d.valor_informado && g.unidade_informada === d.unidade_informada) continue;
-    await tx.medicaoBem.updateMany({
-      where: { ...base, id: d.id },
-      data: {
-        rotulo: d.rotulo,
-        valor_informado: d.valor_informado,
-        unidade_informada: d.unidade_informada,
-        valor_normalizado: d.valor_normalizado,
-        unidade_canonica: d.unidade_canonica,
-      },
-    });
-  }
-  const novas = desejadas.filter((d) => !d.id);
-  if (novas.length) {
-    await tx.medicaoBem.createMany({
-      data: novas.map((d) => ({
-        ...base,
-        perfil_id: d.perfil_id,
-        rotulo: d.rotulo,
-        valor_informado: d.valor_informado,
-        unidade_informada: d.unidade_informada,
-        valor_normalizado: d.valor_normalizado,
-        unidade_canonica: d.unidade_canonica,
-        principal: null,
-      })),
-    });
-  }
-  const principal = desejadas.find((d) => d.principal);
-  if (principal) await tx.medicaoBem.updateMany({ where: { ...base, perfil_id: principal.perfil_id }, data: { principal: true } });
-};
-
-// ─── tanques ────────────────────────────────────────────────────────────────
+/** Escala da capacidade (`DECIMAL(14,4)`). */
+const CASAS_MEDIDA = 4;
 
 /**
  * @typedef {{ id: string|null, identificador: string, capacidade_litros: string, observacao: string|null, ativo: boolean,
- *   combustivel_ids: string[] }} TanqueDesejado
+ *   produto_ids: string[] }} TanqueDesejado
  */
 
-/** @param {any} tx @param {string} clienteId @param {string[]} ids */
-const travarCombustiveis = async (tx, clienteId, ids) => {
-  if (!ids.length) return new Map();
-  await tx.$queryRaw`SELECT id FROM "TipoCombustivel" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR SHARE`;
-  const combustiveis = await tx.tipoCombustivel.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: { id: true, unidade: true, ativo: true } });
-  return new Map(combustiveis.map((c) => [c.id, c]));
-};
+const MENSAGENS_PRODUTO = Object.freeze({
+  inexistente: 'Produto não encontrado',
+  outra_empresa: 'o Produto é de outra fazenda: o tanque só aceita Produtos da fazenda do bem',
+  inativo: 'Produto inativo não pode ser acrescentado ao tanque',
+  unidade_incompativel: 'o tanque só aceita Produto com estoque em litros (L) ou em quilos (KG)',
+  repetido: 'o mesmo Produto aparece mais de uma vez no tanque',
+  limite: `um tanque aceita no máximo ${MAX_PRODUTOS_POR_TANQUE} Produtos`,
+});
 
-const combustivelObrigatorio = (i, reason, mensagem) =>
-  new AppError('TANQUE_COMBUSTIVEL_OBRIGATORIO', `${mensagem}; nada foi gravado`, { details: { field: `tanques[${i}].combustivel_ids`, reason } });
+/**
+ * 422 `TANQUE_PRODUTO_INVALIDO` (nada foi gravado). `inexistente` vale também
+ * para Produto de outro tenant (sem oráculo).
+ * @param {number} i @param {keyof typeof MENSAGENS_PRODUTO} reason @param {Record<string, unknown>} [extra]
+ */
+const produtoInvalido = (i, reason, extra = {}) =>
+  new AppError('TANQUE_PRODUTO_INVALIDO', `${MENSAGENS_PRODUTO[reason]}; nada foi gravado`, {
+    details: { field: `tanques[${i}].produto_ids`, reason, ...extra },
+  });
 
-const idsVinculados = (tanque) => tanque.combustiveis.map((c) => c.combustivel_id);
+/** Ids ATIVOS gravados de um tanque. @param {{ produtos?: Array<{ produto_id: string, ativo: boolean }> }} tanque */
+const idsAtivos = (tanque) => (tanque.produtos ?? []).filter((p) => p.ativo).map((p) => p.produto_id);
 const mesmoConjunto = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+
+/**
+ * Passo 3 do §4.5: os Produtos acrescentados, em ordem crescente de id, são
+ * travados `FOR KEY SHARE` ANTES de ler e então relidos e conferidos.
+ * @param {any} tx
+ * @param {string} clienteId
+ * @param {string} empresaId  fazenda do bem
+ * @param {Array<{ indice: number, ids: string[] }>} porTanque
+ */
+const validarProdutosAcrescentados = async (tx, clienteId, empresaId, porTanque) => {
+  const todos = [...new Set(porTanque.flatMap((t) => t.ids))].sort();
+  if (!todos.length) return;
+  await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${clienteId} AND id = ANY(${todos}::text[]) ORDER BY id FOR KEY SHARE`;
+  const lidos = await tx.produto.findMany({
+    where: { cliente_id: clienteId, id: { in: todos } },
+    select: { id: true, empresa_id: true, ativo: true, unidade_principal_estoque: true },
+  });
+  const porId = new Map(lidos.map((p) => [p.id, p]));
+  for (const { indice, ids } of porTanque) {
+    for (const id of ids) {
+      const p = porId.get(id);
+      if (!p) throw produtoInvalido(indice, 'inexistente', { produto_id: id });
+      if (p.empresa_id !== empresaId) throw produtoInvalido(indice, 'outra_empresa', { produto_id: id });
+      if (!p.ativo) throw produtoInvalido(indice, 'inativo', { produto_id: id });
+      if (!UNIDADES_ABASTECIMENTO.includes(p.unidade_principal_estoque)) {
+        throw produtoInvalido(indice, 'unidade_incompativel', { produto_id: id, unidade: p.unidade_principal_estoque ?? null });
+      }
+    }
+  }
+};
 
 /**
  * Valida a lista final de tanques (sem gravar).
  * @param {any} tx
  * @param {string} clienteId
- * @param {Array<Record<string, any>>} pedidos  itens do corpo `{id?, identificador, capacidade_litros, combustivel_ids, observacao?, ativo?}`
- * @param {Array<Record<string, any>>} gravados  tanques atuais do bem (com `combustiveis[].combustivel_id`) ou []
+ * @param {string} empresaId  fazenda do bem (os Produtos aceitos são dela)
+ * @param {Array<Record<string, any>>} pedidos  itens do corpo `{id?, identificador, capacidade_litros, produto_ids, observacao?, ativo?}`
+ * @param {Array<Record<string, any>>} gravados  tanques atuais do bem com `produtos: [{produto_id, ativo}]` (TODAS as linhas) ou []
+ * @param {{ reativandoBem?: boolean }} [opcoes]  o PATCH reativa o bem: os aceites dos tanques ativos são revalidados (D1)
  * @returns {Promise<{ desejados: TanqueDesejado[], mudou: boolean }>}
  */
-export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
+export const validarTanques = async (tx, clienteId, empresaId, pedidos, gravados, { reativandoBem = false } = {}) => {
   const porId = new Map(gravados.map((t) => [t.id, t]));
   const citados = new Set();
   pedidos.forEach((item, i) => {
@@ -233,16 +138,17 @@ export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
       });
     }
     const ativo = typeof item.ativo === 'boolean' ? item.ativo : gravado ? gravado.ativo : true;
-    const combustivelIds = Array.isArray(item.combustivel_ids) ? item.combustivel_ids.map(String) : [];
-    if (new Set(combustivelIds).size !== combustivelIds.length) throw combustivelObrigatorio(i, 'repetido', 'o mesmo combustível aparece mais de uma vez no tanque');
-    if (ativo && combustivelIds.length === 0) throw combustivelObrigatorio(i, 'vazio', 'informe ao menos um combustível aceito pelo tanque');
+    if (!Array.isArray(item.produto_ids)) throw invalido(`tanques[${i}].produto_ids é obrigatório (pode ser vazio)`, { field: `tanques[${i}].produto_ids` });
+    const produtoIds = item.produto_ids.map(String);
+    if (new Set(produtoIds).size !== produtoIds.length) throw produtoInvalido(i, 'repetido');
+    if (produtoIds.length > MAX_PRODUTOS_POR_TANQUE) throw produtoInvalido(i, 'limite', { maximo: MAX_PRODUTOS_POR_TANQUE });
     return {
       id: item.id ?? null,
       identificador,
       capacidade_litros: dec(capacidade).toFixed(CASAS_MEDIDA),
       observacao: textoDoCorpo(item.observacao, `tanques[${i}].observacao`) ?? null,
       ativo,
-      combustivel_ids: combustivelIds,
+      produto_ids: produtoIds,
     };
   });
   const ativos = desejados.filter((t) => t.ativo).length;
@@ -251,21 +157,17 @@ export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
       details: { field: 'tanques', reason: 'limite', maximo: MAX_TANQUES_ATIVOS_POR_BEM },
     });
   }
-  const combustiveis = await travarCombustiveis(tx, clienteId, [...new Set(desejados.flatMap((t) => t.combustivel_ids))]);
-  desejados.forEach((t, i) => {
-    const vinculados = t.id ? idsVinculados(porId.get(t.id)) : [];
-    const field = `tanques[${i}].combustivel_ids`;
-    for (const id of t.combustivel_ids) {
-      const c = combustiveis.get(id);
-      if (!c) throw referenciaInvalida(field, 'inexistente', 'combustível não encontrado', { combustivel_id: id });
-      if (!c.ativo && !vinculados.includes(id)) throw referenciaInvalida(field, 'inativo', 'combustível inativo não pode ser acrescentado ao tanque', { combustivel_id: id });
-      if (c.unidade !== UNIDADE_COMBUSTIVEL_DO_TANQUE) {
-        throw new AppError('TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'o tanque só aceita combustível medido em litros (L) neste cadastro; nada foi gravado', {
-          details: { field, reason: 'unidade_incompativel', combustivel_id: id, unidade: c.unidade },
-        });
-      }
-    }
+  // Acrescentados: ids que não estão ATIVOS no tanque. Tanque (ou bem) que volta
+  // a ficar ativo revalida o conjunto inteiro (achado D1).
+  const porTanque = desejados.map((t, indice) => {
+    const gravado = t.id ? porId.get(t.id) : null;
+    if (!gravado) return { indice, ids: t.produto_ids };
+    const voltaAtivo = t.ativo && (!gravado.ativo || reativandoBem);
+    if (voltaAtivo) return { indice, ids: t.produto_ids };
+    const jaAtivos = idsAtivos(gravado);
+    return { indice, ids: t.produto_ids.filter((id) => !jaAtivos.includes(id)) };
   });
+  await validarProdutosAcrescentados(tx, clienteId, empresaId, porTanque);
   const mudou =
     desejados.length !== gravados.length ||
     desejados.some((t) => {
@@ -276,10 +178,43 @@ export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
         texto(g.capacidade_litros, CASAS_MEDIDA) !== t.capacidade_litros ||
         (g.observacao ?? null) !== t.observacao ||
         g.ativo !== t.ativo ||
-        !mesmoConjunto(idsVinculados(g), t.combustivel_ids)
+        !mesmoConjunto(idsAtivos(g), t.produto_ids)
       );
     });
   return { desejados, mudou };
+};
+
+/**
+ * Reativação do bem SEM `tanques` no corpo (achado D1): os aceites ativos dos
+ * tanques ativos são revalidados como acrescentados. Nada é gravado.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId
+ * @param {Array<Record<string, any>>} gravados  tanques com `produtos: [{produto_id, ativo}]`
+ */
+export const revalidarAceitesDoBem = (tx, clienteId, empresaId, gravados) =>
+  validarProdutosAcrescentados(
+    tx,
+    clienteId,
+    empresaId,
+    gravados.map((t, indice) => ({ indice, ids: t.ativo ? idsAtivos(t) : [] })),
+  );
+
+/**
+ * Aceites retirados de um tanque: sem abastecimento → linha apagada; com
+ * histórico → `ativo = false` (D11). Roda sob o FOR UPDATE do bem.
+ * @param {any} tx @param {string} clienteId @param {string} tanqueId @param {string[]} retirados
+ */
+const retirarAceites = async (tx, clienteId, tanqueId, retirados) => {
+  if (!retirados.length) return;
+  const usados = await tx.abastecimentoBem.findMany({
+    where: { cliente_id: clienteId, tanque_id: tanqueId, produto_id: { in: retirados } },
+    select: { produto_id: true },
+    distinct: ['produto_id'],
+  });
+  const comHistorico = new Set(usados.map((u) => u.produto_id));
+  const apagar = retirados.filter((id) => !comHistorico.has(id));
+  const desligar = retirados.filter((id) => comHistorico.has(id));
+  if (apagar.length) await tx.tanqueBemProduto.deleteMany({ where: { cliente_id: clienteId, tanque_id: tanqueId, produto_id: { in: apagar } } });
+  if (desligar.length) await tx.tanqueBemProduto.updateMany({ where: { cliente_id: clienteId, tanque_id: tanqueId, produto_id: { in: desligar } }, data: { ativo: false } });
 };
 
 /**
@@ -288,13 +223,14 @@ export const validarTanques = async (tx, clienteId, pedidos, gravados) => {
  * identificador entre dois tanques nunca colide no unique. O espaço inicial
  * torna o temporário inalcançável pelo corpo (`textoDoCorpo` apara): mesmo um
  * identificador digitado `~<id de outro tanque>` nunca colide com ele; atualiza
- * capacidade, observação e situação; sincroniza os vínculos com combustível
- * (removidos fisicamente); cria os tanques novos. Chame `validarTanques` antes.
+ * capacidade, observação e situação; sincroniza os Produtos aceitos (retirado
+ * → apagado ou desligado, D11; inativo que volta → `ativo = true`; inédito →
+ * criado); cria os tanques novos com os seus. Chame `validarTanques` antes.
  * @param {any} tx
  * @param {string} clienteId
  * @param {string} bemId
  * @param {TanqueDesejado[]} desejados
- * @param {Array<Record<string, any>>} gravados
+ * @param {Array<Record<string, any>>} gravados  com `produtos: [{produto_id, ativo}]` (todas as linhas)
  */
 export const sincronizarTanques = async (tx, clienteId, bemId, desejados, gravados) => {
   const base = { cliente_id: clienteId, bem_id: bemId };
@@ -314,12 +250,14 @@ export const sincronizarTanques = async (tx, clienteId, bemId, desejados, gravad
     if ((g.observacao ?? null) !== t.observacao) dados.observacao = t.observacao;
     if (g.ativo !== t.ativo) dados.ativo = t.ativo;
     if (Object.keys(dados).length) await tx.tanqueBem.updateMany({ where: { ...base, id: t.id }, data: dados });
-    const vinculados = idsVinculados(g);
-    const remover = vinculados.filter((id) => !t.combustivel_ids.includes(id));
-    if (remover.length) await tx.tanqueBemCombustivel.deleteMany({ where: { cliente_id: clienteId, tanque_id: t.id, combustivel_id: { in: remover } } });
-    const criar = t.combustivel_ids.filter((id) => !vinculados.includes(id));
-    if (criar.length) {
-      await tx.tanqueBemCombustivel.createMany({ data: criar.map((combustivelId) => ({ cliente_id: clienteId, tanque_id: t.id, combustivel_id: combustivelId })) });
+    const ativosAntes = idsAtivos(g);
+    const inativosAntes = (g.produtos ?? []).filter((p) => !p.ativo).map((p) => p.produto_id);
+    await retirarAceites(tx, clienteId, t.id, ativosAntes.filter((id) => !t.produto_ids.includes(id)));
+    const voltam = t.produto_ids.filter((id) => inativosAntes.includes(id));
+    if (voltam.length) await tx.tanqueBemProduto.updateMany({ where: { cliente_id: clienteId, tanque_id: t.id, produto_id: { in: voltam } }, data: { ativo: true } });
+    const ineditos = t.produto_ids.filter((id) => !ativosAntes.includes(id) && !inativosAntes.includes(id));
+    if (ineditos.length) {
+      await tx.tanqueBemProduto.createMany({ data: ineditos.map((produtoId) => ({ cliente_id: clienteId, tanque_id: t.id, produto_id: produtoId })) });
     }
   }
   for (const t of desejados.filter((d) => !d.id)) {
@@ -327,6 +265,8 @@ export const sincronizarTanques = async (tx, clienteId, bemId, desejados, gravad
       data: { ...base, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao, ativo: true },
       select: { id: true },
     });
-    await tx.tanqueBemCombustivel.createMany({ data: t.combustivel_ids.map((combustivelId) => ({ cliente_id: clienteId, tanque_id: novo.id, combustivel_id: combustivelId })) });
+    if (t.produto_ids.length) {
+      await tx.tanqueBemProduto.createMany({ data: t.produto_ids.map((produtoId) => ({ cliente_id: clienteId, tanque_id: novo.id, produto_id: produtoId })) });
+    }
   }
 };

@@ -1,13 +1,15 @@
 /**
- * D-PROD-159 (Patrimônio P1-02) — regras PURAS do abastecimento (sem banco):
- * normalização dos corpos, fingerprint canônico da idempotência, conversão
- * L → kg UMA vez (ROUND_HALF_UP 4 casas), série do medidor e o PLANO único
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * regras PURAS do abastecimento (sem banco): normalização dos corpos,
+ * fingerprint canônico da idempotência (v2), série do medidor e o PLANO único
  * que a prévia mostra e a confirmação executa (mesma função, mesmo estado).
  *
- * Nada aqui infere fator: o kg/L vem SEMPRE da conversão vigente informada
- * pelo responsável (nunca do nome, do combustível, do preço ou de fonte
- * externa) e 1 L nunca vale 1 kg. Decimais em `Dec` (decimalFinanceiro),
- * nunca Number.
+ * D-PROD-161: o abastecimento baixa do estoque EXATAMENTE a quantidade
+ * digitada, na unidade de estoque do Produto (`L` ou `KG`), com 4 casas.
+ * Nenhuma conversão entre unidades (nem fator, nem densidade, nem `1 L = 1 KG`):
+ * o número digitado é o número que o motor de estoque recebe. A capacidade do
+ * tanque (em litros) só é conferida para Produto em `L`. Decimais em `Dec`
+ * (decimalFinanceiro), nunca Number.
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
@@ -16,30 +18,36 @@ import { consumirFifo } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { MEDIDORES_CONTADOR, ehContador } from './abastecimentoMedidor.js';
 import { diaDe, diaDoCorpo } from './patrimonioComum.js';
-import { CAPACIDADES_POR_NATUREZA, UNIDADE_DO_MEDIDOR } from './patrimonioDominio.js';
+import { CAPACIDADES_POR_NATUREZA, UNIDADES_ABASTECIMENTO, UNIDADE_DO_MEDIDOR } from './patrimonioDominio.js';
 
 export const ENTIDADE = 'AbastecimentoBem';
-export const ENTIDADE_CONVERSAO = 'ConversaoCombustivelProduto';
-export const TIPO_CONFIRMAR = 'confirmar_abastecimento_bem';
-export const TIPO_CANCELAR = 'cancelar_abastecimento_bem';
+/**
+ * D-PROD-161: tipos NOVOS do recibo de idempotência. O recibo v1
+ * (`confirmar_abastecimento_bem`/`cancelar_abastecimento_bem`, corpo com litros,
+ * tipo e fator) nunca é reaproveitado: o unique do recibo inclui o tipo.
+ */
+export const TIPO_CONFIRMAR = 'confirmar_abastecimento_bem_v2';
+export const TIPO_CANCELAR = 'cancelar_abastecimento_bem_v2';
 /** Naturezas com tanque (MAQUINA, VEICULO, EQUIPAMENTO), da matriz da P1-01. */
 export const NATUREZAS_COM_TANQUE = Object.freeze(Object.entries(CAPACIDADES_POR_NATUREZA).filter(([, c]) => c.tanques).map(([n]) => n));
-export const CASAS_LITROS = 4;
-export const CASAS_FATOR = 6;
+export const CASAS_QUANTIDADE_ABASTECIMENTO = 4;
 export const CASAS_LEITURA = 4;
-export const FATOR_MAXIMO = dec('10');
-export const PADRAO_LITROS = /^\d{1,10}(\.\d{1,4})?$/;
+export const PADRAO_QUANTIDADE = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_LEITURA = /^\d{1,10}(\.\d{1,4})?$/;
-export const PADRAO_FATOR = /^\d{1,2}(\.\d{1,6})?$/;
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const STATUS_CONFIRMADO = 'CONFIRMADO';
 export const STATUS_CANCELADO = 'CANCELADO';
+
+/** A unidade de estoque é uma das que o abastecimento aceita (`L`, `KG`; D-PROD-161)? @param {unknown} u */
+export const unidadeDoAbastecimento = (u) => typeof u === 'string' && UNIDADES_ABASTECIMENTO.includes(u);
+/** Rótulo curto da unidade nas mensagens (`L` / `kg`). @param {string|null|undefined} u */
+export const rotuloDaUnidade = (u) => (u === 'L' ? 'L' : u === 'KG' ? 'kg' : (u ?? '—'));
 
 const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
 // ─── anti-coerção (antes do AJV) ────────────────────────────────────────────
 
-const DECIMAIS_DO_CORPO = Object.freeze(['quantidade_litros', 'medidor_leitura', 'kg_por_litro']);
+const DECIMAIS_DO_CORPO = Object.freeze(['quantidade', 'medidor_leitura']);
 
 /**
  * `preValidation` do plugin: decimal presente, não-null e não-string → 400
@@ -75,36 +83,39 @@ const dataOperacionalDoCorpo = (v) => {
   return d;
 };
 
+const quantidadeObrigatoria = (c) => {
+  if (c.quantidade === undefined || c.quantidade === null) throw invalido('quantidade é obrigatória', { field: 'quantidade', reason: 'obrigatorio' });
+};
+
 const basesDoCorpo = (c) => ({
   empresa_id: c.empresa_id,
   bem_id: c.bem_id,
   tanque_id: c.tanque_id,
-  tipo_combustivel_id: c.tipo_combustivel_id,
   produto_id: c.produto_id,
   local_estoque_id: c.local_estoque_id,
   data_operacional: dataOperacionalDoCorpo(c.data_operacional),
-  quantidade_litros: /** @type {string} */ (decimalDoCorpo(c.quantidade_litros, 'quantidade_litros', PADRAO_LITROS, CASAS_LITROS)),
+  quantidade: /** @type {string} */ (decimalDoCorpo(c.quantidade, 'quantidade', PADRAO_QUANTIDADE, CASAS_QUANTIDADE_ABASTECIMENTO)),
   medidor_leitura: decimalDoCorpo(c.medidor_leitura, 'medidor_leitura', PADRAO_LEITURA, CASAS_LEITURA),
   tanque_cheio: c.tanque_cheio === true,
   observacao: textoDoCorpo(c.observacao, 'observacao') ?? null,
   referencia_externa: textoDoCorpo(c.referencia_externa, 'referencia_externa') ?? null,
 });
 
-/** Corpo da prévia (A3) → Entrada (sem operation_id nem conversão vista). */
+/** Corpo da prévia (A3) → Entrada (sem operation_id). */
 export const normalizarPrevia = (corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
-  if (c.quantidade_litros === undefined || c.quantidade_litros === null) throw invalido('quantidade_litros é obrigatória', { field: 'quantidade_litros', reason: 'obrigatorio' });
-  return { ...basesDoCorpo(c), operation_id: null, conversao_id: null, conversao_versao: null };
+  quantidadeObrigatoria(c);
+  return { ...basesDoCorpo(c), operation_id: null };
 };
 
 /** Corpo da confirmação (A4) → Entrada canônica. */
 export const normalizarConfirmacao = (corpo) => {
   const c = /** @type {Record<string, any>} */ (corpo ?? {});
-  if (c.quantidade_litros === undefined || c.quantidade_litros === null) throw invalido('quantidade_litros é obrigatória', { field: 'quantidade_litros', reason: 'obrigatorio' });
+  quantidadeObrigatoria(c);
   if (typeof c.operation_id !== 'string' || !PADRAO_OPERATION_ID.test(c.operation_id)) {
     throw invalido('operation_id inválido', { field: 'operation_id', reason: 'formato' });
   }
-  return { ...basesDoCorpo(c), operation_id: c.operation_id, conversao_id: c.conversao_id, conversao_versao: c.conversao_versao };
+  return { ...basesDoCorpo(c), operation_id: c.operation_id };
 };
 
 /** Corpo do cancelamento (A5). Motivo obrigatório (3..500, aparado). */
@@ -119,52 +130,26 @@ export const normalizarCancelamento = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-/** Corpo do fator kg/L (A14). A faixa de negócio (0 < f <= 10) é conferida no serviço, sob a trava. */
-export const normalizarConversao = (corpo) => {
-  const c = /** @type {Record<string, any>} */ (corpo ?? {});
-  if (typeof c.kg_por_litro !== 'string' || !PADRAO_FATOR.test(c.kg_por_litro)) {
-    throw new AppError('ABASTECIMENTO_CONVERSAO_INVALIDA', 'o fator kg/L deve ser um número com até 2 dígitos inteiros e 6 casas; nada foi gravado', {
-      details: { field: 'kg_por_litro', reason: 'formato' },
-    });
-  }
-  return {
-    empresa_id: c.empresa_id,
-    tipo_combustivel_id: c.tipo_combustivel_id,
-    produto_id: c.produto_id,
-    kg_por_litro: dec(c.kg_por_litro).toFixed(CASAS_FATOR),
-    declara_estoque_em_kg: c.declara_estoque_em_kg === true,
-    conversao_vigente_id: c.conversao_vigente_id ?? null,
-  };
-};
-
-// ─── fingerprint canônico (ordem FIXA de chaves) ────────────────────────────
+// ─── fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-161) ──────────
 
 /** @param {any} e Entrada normalizada da confirmação */
 export const fingerprintDaConfirmacao = (e) => ({
-  v: 1,
+  v: 2,
   empresa_id: e.empresa_id,
   bem_id: e.bem_id,
   tanque_id: e.tanque_id,
-  tipo_combustivel_id: e.tipo_combustivel_id,
   produto_id: e.produto_id,
   local_estoque_id: e.local_estoque_id,
   data_operacional: e.data_operacional,
-  quantidade_litros: e.quantidade_litros,
+  quantidade: e.quantidade,
   medidor_leitura: e.medidor_leitura,
   tanque_cheio: e.tanque_cheio,
   observacao: e.observacao,
   referencia_externa: e.referencia_externa,
-  conversao_id: e.conversao_id,
-  conversao_versao: e.conversao_versao,
 });
 
 /** @param {any} e Entrada normalizada do cancelamento */
-export const fingerprintDoCancelamento = (e) => ({ v: 1, id: e.id, empresa_id: e.empresa_id, versao: e.versao, motivo: e.motivo });
-
-// ─── conversão L → kg ───────────────────────────────────────────────────────
-
-/** kg = ROUND_HALF_UP(litros × fator, 4), UMA vez. */
-export const converterLitrosEmKg = (litros, fator) => arredondar(dec(litros).times(dec(fator)), CASAS_QUANTIDADE);
+export const fingerprintDoCancelamento = (e) => ({ v: 2, id: e.id, empresa_id: e.empresa_id, versao: e.versao, motivo: e.motivo });
 
 // ─── bloqueios e mensagens ──────────────────────────────────────────────────
 
@@ -177,8 +162,7 @@ const bloqueio = (code, field, reason, details = {}) => ({ code, field, reason, 
 /** Mensagem por código e motivo (pt-BR; toda recusa diz que nada foi gravado). */
 const MENSAGENS = Object.freeze({
   OPERACAO_VALORES_INVALIDOS: {
-    quantidade_nao_positiva: () => 'a quantidade de litros deve ser maior que zero; nada foi gravado',
-    quantidade_estoque_zero: () => 'a quantidade convertida em kg arredonda para zero: informe mais litros; nada foi gravado',
+    quantidade_nao_positiva: () => 'a quantidade abastecida deve ser maior que zero; nada foi gravado',
     valor_excede_limite_estoque: () => 'quantidade ou valor acima do limite das colunas de estoque (9.999.999.999,9999); nada foi gravado',
   },
   ABASTECIMENTO_DATA_FUTURA: { _: (b) => `a data do abastecimento é posterior a hoje na fazenda (${b.details.hoje}); nada foi gravado` },
@@ -190,31 +174,23 @@ const MENSAGENS = Object.freeze({
     tanque_inexistente: () => 'tanque não encontrado neste bem; nada foi gravado',
     tanque_inativo: () => 'o tanque está inativo: escolha um tanque ativo do bem; nada foi gravado',
   },
-  COMBUSTIVEL_PRODUTO_INVALIDO: {
-    tipo_inexistente: () => 'tipo de combustível não encontrado; nada foi gravado',
-    tipo_inativo: () => 'o tipo de combustível está inativo; nada foi gravado',
+  ABASTECIMENTO_PRODUTO_INVALIDO: {
     inexistente: () => 'produto não encontrado nesta fazenda; nada foi gravado',
     outra_empresa: () => 'o produto pertence a outra fazenda: só produtos da fazenda do bem podem ser baixados; nada foi gravado',
     inativo: () => 'o produto está inativo; nada foi gravado',
-    sem_vinculo_ativo: () => 'o produto não tem vínculo ativo com este tipo de combustível nesta fazenda; nada foi gravado',
-  },
-  TANQUE_COMBUSTIVEL_INCOMPATIVEL: {
-    unidade_nao_litro: () => 'este combustível não é medido em litros: o abastecimento só aceita combustível em litros; nada foi gravado',
-    nao_aceito_pelo_tanque: () => 'o tanque escolhido não aceita este tipo de combustível; nada foi gravado',
   },
   ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: {
-    _: (b) => `o estoque do produto está em ${b.details.unidade ?? '—'}, não em KG: a baixa em kg não é possível; nada foi gravado`,
+    _: (b) => `o estoque do produto está em ${b.details.unidade ?? '—'}, não em L nem em KG: o abastecimento não é possível; nada foi gravado`,
   },
-  ABASTECIMENTO_CONVERSAO_AUSENTE: {
-    _: () => 'não há fator kg/L vigente para este produto e combustível nesta fazenda: configure o fator antes de abastecer; nada foi gravado',
+  ABASTECIMENTO_PRODUTO_NAO_ACEITO: {
+    _: () => 'o tanque escolhido não aceita este produto: marque-o nos Produtos aceitos do tanque em Bens Patrimoniais; nada foi gravado',
   },
-  ABASTECIMENTO_CONVERSAO_ALTERADA: { _: () => 'o fator kg/L vigente mudou desde a prévia: refaça a prévia antes de confirmar; nada foi gravado' },
   ABASTECIMENTO_LOCAL_INVALIDO: {
     local_inexistente: () => 'local de estoque não encontrado; nada foi gravado',
     local_inativo: () => 'o local de estoque está inativo; nada foi gravado',
   },
   ABASTECIMENTO_EXCEDE_CAPACIDADE: {
-    _: (b) => `os litros informados passam da capacidade do tanque (${b.details.capacidade_litros} L); nada foi gravado`,
+    _: (b) => `a quantidade em litros passa da capacidade do tanque (${b.details.capacidade_litros} L); nada foi gravado`,
   },
   MEDIDOR_LEITURA_INVALIDA: {
     sem_medidor: () => 'o bem não tem medidor: não informe leitura; nada foi gravado',
@@ -227,8 +203,10 @@ const MENSAGENS = Object.freeze({
     _: (b) => `a leitura informada é maior que a leitura de data posterior do medidor (${b.details.leitura_posterior} em ${b.details.data_posterior}); nada foi gravado`,
   },
   ESTOQUE_SALDO_INSUFICIENTE: {
-    saldo_lote_insuficiente: (b) => `saldo insuficiente nos lotes deste produto neste local (disponível ${b.details.disponivel} kg); nada foi gravado`,
-    estoque_atual_insuficiente: (b) => `o estoque atual do produto (${b.details.estoque_atual} kg) é menor que a quantidade pedida; nada foi gravado`,
+    saldo_lote_insuficiente: (b) =>
+      `saldo insuficiente nos lotes deste produto neste local (disponível ${b.details.disponivel} ${rotuloDaUnidade(b.details.unidade)}); nada foi gravado`,
+    estoque_atual_insuficiente: (b) =>
+      `o estoque atual do produto (${b.details.estoque_atual} ${rotuloDaUnidade(b.details.unidade)}) é menor que a quantidade pedida; nada foi gravado`,
   },
 });
 
@@ -294,20 +272,22 @@ const q4 = (v) => dec(v).toFixed(CASAS_QUANTIDADE);
  * Plano ÚNICO da prévia e da confirmação: devolve sempre o plano (subcampos
  * null quando a base falta) e a lista ORDENADA de bloqueios (B0..B10); a
  * confirmação lança o primeiro. Bloqueios dependentes são pulados quando a
- * base falta (sem tanque não avalia combustível no tanque nem capacidade; sem
- * fator não avalia kg nem estoque; sem produto/local não avalia estoque).
+ * base falta (sem tanque ou sem produto não avalia o aceite; sem unidade L não
+ * confere a capacidade; sem produto/local válidos não avalia o estoque).
+ * D-PROD-161: a prévia e a confirmação têm EXATAMENTE os mesmos bloqueios (sem
+ * fator visto na prévia não há o que divergir entre as duas).
  * @param {any} entrada Entrada normalizada
  * @param {any} estado `carregarEstado` (o mesmo formato na prévia e na confirmação)
- * @param {{ comando: boolean }} opcoes
  */
-export const planejarAbastecimento = (entrada, estado, { comando }) => {
+export const planejarAbastecimento = (entrada, estado) => {
   /** @type {Array<ReturnType<typeof bloqueio>>} */
   const bloqueios = [];
-  const { bem, tanque, tipo, vinculo, conversao, local, produto, lotes } = estado;
-  const litros = dec(entrada.quantidade_litros);
+  const { bem, tanque, local, produto, lotes } = estado;
+  const quantidade = dec(entrada.quantidade);
 
   // B0
-  if (!litros.gt(0)) bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade_litros', 'quantidade_nao_positiva'));
+  const quantidadePositiva = quantidade.gt(0);
+  if (!quantidadePositiva) bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade', 'quantidade_nao_positiva'));
   // B1
   if (entrada.data_operacional > estado.hoje) {
     bloqueios.push(bloqueio('ABASTECIMENTO_DATA_FUTURA', 'data_operacional', 'data_futura', { hoje: estado.hoje, fuso: estado.fuso }));
@@ -318,46 +298,34 @@ export const planejarAbastecimento = (entrada, estado, { comando }) => {
   // B3
   if (!tanque) bloqueios.push(bloqueio('ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inexistente'));
   else if (!tanque.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inativo'));
-  // B4a / B4b
-  if (!tipo) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inexistente'));
-  else if (!tipo.ativo) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inativo'));
-  if (tipo && tipo.unidade !== 'L') {
-    bloqueios.push(bloqueio('TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'tipo_combustivel_id', 'unidade_nao_litro', { unidade: tipo.unidade }));
-  } else if (tipo && tanque && !tanque.combustiveis.some((c) => c.combustivel_id === tipo.id)) {
-    bloqueios.push(bloqueio('TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'tipo_combustivel_id', 'nao_aceito_pelo_tanque'));
+  // B4 (inexistente = outro tenant também: sem oráculo)
+  let produtoValido = false;
+  if (!produto) bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'inexistente'));
+  else if (produto.empresa_id !== bem.empresa_id) bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'outra_empresa'));
+  else if (!produto.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'inativo'));
+  else produtoValido = true;
+  // B5
+  const unidadeAceita = Boolean(produto) && unidadeDoAbastecimento(produto.unidade_principal_estoque);
+  if (produto && !unidadeAceita) {
+    bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita', { unidade: produto.unidade_principal_estoque }));
   }
-  // B5a / B5b
-  if (!produto) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'inexistente'));
-  else if (produto.empresa_id !== bem.empresa_id) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'outra_empresa'));
-  else if (!produto.ativo) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'inativo'));
-  else if (!vinculo || !vinculo.ativo) bloqueios.push(bloqueio('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'sem_vinculo_ativo'));
-  if (produto && produto.unidade_principal_estoque !== 'KG') {
-    bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_estoque_nao_kg', { unidade: produto.unidade_principal_estoque }));
-  }
-  // B6a / B6b (só com tipo e produto: sem eles o par não existe)
-  if (tipo && produto) {
-    if (!conversao) {
-      bloqueios.push(bloqueio('ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente', { tipo_combustivel_id: tipo.id, produto_id: produto.id }));
-    } else if (comando && (entrada.conversao_id !== conversao.id || entrada.conversao_versao !== conversao.versao)) {
-      bloqueios.push(bloqueio('ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_id', 'conversao_alterada', { conversao_vigente_id: conversao.id, conversao_vigente_versao: conversao.versao }));
-    }
+  /** @type {'L'|'KG'|null} */
+  const unidade = unidadeAceita ? produto.unidade_principal_estoque : null;
+  // B6 (só com tanque e produto: sem eles o par não existe)
+  if (tanque && produto && !(tanque.produtos ?? []).some((a) => a.produto_id === produto.id && a.ativo)) {
+    bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque'));
   }
   // B7
   if (!local) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente'));
   else if (!local.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'));
-  // B8a
-  if (tanque && litros.gt(dec(tanque.capacidade_litros))) {
-    bloqueios.push(bloqueio('ABASTECIMENTO_EXCEDE_CAPACIDADE', 'quantidade_litros', 'excede_capacidade_tanque', { capacidade_litros: q4(tanque.capacidade_litros) }));
+  // B8a — a capacidade do tanque é em litros: só conferida para Produto em L (D-PROD-161)
+  const confereCapacidade = unidade === 'L';
+  if (confereCapacidade && tanque && quantidade.gt(dec(tanque.capacidade_litros))) {
+    bloqueios.push(bloqueio('ABASTECIMENTO_EXCEDE_CAPACIDADE', 'quantidade', 'excede_capacidade_tanque', { capacidade_litros: q4(tanque.capacidade_litros) }));
   }
-  // B8b
-  const fator = conversao && tipo && produto ? dec(conversao.kg_por_litro) : null;
-  const kg = fator && litros.gt(0) ? converterLitrosEmKg(litros, fator) : null;
-  let kgValido = false;
-  if (kg) {
-    if (!kg.gt(0)) bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade_litros', 'quantidade_estoque_zero', { quantidade_kg: q4(kg) }));
-    else if (kg.gt(LIMITE_ESTOQUE)) bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade_litros', 'valor_excede_limite_estoque', { quantidade_kg: q4(kg) }));
-    else kgValido = true;
-  }
+  // B8b (defensivo: o padrão de 10+4 dígitos já cabe no limite)
+  const dentroDoLimite = !quantidade.gt(LIMITE_ESTOQUE);
+  if (!dentroDoLimite) bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade', 'valor_excede_limite_estoque', { quantidade: q4(quantidade) }));
   // B9
   const tipoMedidor = bem.medidor_tipo ?? 'SEM_MEDIDOR';
   const medidor = avaliarLeitura({
@@ -369,26 +337,27 @@ export const planejarAbastecimento = (entrada, estado, { comando }) => {
     posterior: estado.medidor.posterior,
   });
   if (medidor.bloqueio) bloqueios.push(medidor.bloqueio);
-  // B10
+  // B10 — FIFO com a quantidade digitada (só com produto e unidade válidos, local ativo e quantidade válida)
+  const produtoOk = produtoValido && unidadeAceita;
   let fifo = null;
-  if (kgValido && produto && local) {
-    const sim = consumirFifo(lotes, /** @type {any} */ (kg));
+  if (quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
+    const sim = consumirFifo(lotes, quantidade);
     if (!sim.suficiente) {
-      bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade_litros', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(kg) }));
-    } else if (dec(produto.estoque_atual).lt(/** @type {any} */ (kg))) {
-      bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade_litros', 'estoque_atual_insuficiente', { estoque_atual: q4(produto.estoque_atual), solicitado: q4(kg) }));
+      bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(quantidade), unidade }));
+    } else if (dec(produto.estoque_atual).lt(quantidade)) {
+      bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'estoque_atual_insuficiente', { estoque_atual: q4(produto.estoque_atual), solicitado: q4(quantidade), unidade }));
     } else if (sim.valorTotal.gt(LIMITE_ESTOQUE)) {
-      bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade_litros', 'valor_excede_limite_estoque', { valor_total: sim.valorTotal.toFixed(CASAS_CUSTO) }));
+      bloqueios.push(bloqueio('OPERACAO_VALORES_INVALIDOS', 'quantidade', 'valor_excede_limite_estoque', { valor_total: sim.valorTotal.toFixed(CASAS_CUSTO) }));
     }
     const porId = new Map(lotes.map((l) => [l.id, l]));
     fifo = {
       suficiente: sim.suficiente,
-      disponivel_kg: q4(sim.disponivel),
+      disponivel: q4(sim.disponivel),
       fatias: sim.fatias.map((f, i) => ({
         ordem: i + 1,
         lote_id: f.lote_id,
         data_lote: diaDe(porId.get(f.lote_id)?.data_documento ?? porId.get(f.lote_id)?.createdAt ?? null),
-        quantidade_kg: q4(f.quantidade),
+        quantidade: q4(f.quantidade),
         custo_unitario: dec(f.custo_unitario).toFixed(CASAS_CUSTO),
         valor: arredondar(f.quantidade.times(f.custo_unitario), CASAS_CUSTO).toFixed(CASAS_CUSTO),
       })),
@@ -403,17 +372,14 @@ export const planejarAbastecimento = (entrada, estado, { comando }) => {
     hoje: estado.hoje,
     bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota ?? null, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo },
     tanque: tanque ? { id: tanque.id, identificador: tanque.identificador, capacidade_litros: q4(tanque.capacidade_litros), ativo: tanque.ativo } : null,
-    tipo_combustivel: tipo ? { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome, unidade: tipo.unidade } : null,
     produto: produto
       ? { id: produto.id, nome: produto.nome_produto, codigo_interno: produto.codigo_interno ?? null, unidade_principal_estoque: produto.unidade_principal_estoque }
       : null,
     local_estoque: local ? { id: local.id, nome: local.nome } : null,
-    conversao: conversao && tipo && produto
-      ? { id: conversao.id, versao: conversao.versao, sequencia: conversao.sequencia, kg_por_litro: dec(conversao.kg_por_litro).toFixed(CASAS_FATOR) }
-      : null,
-    quantidade_litros: litros.toFixed(CASAS_LITROS),
-    quantidade_kg: kg ? q4(kg) : null,
-    estoque: produto && local ? { saldo_local_kg: q4(somar(lotes.map((l) => l.quantidade_disponivel))), estoque_atual_kg: q4(produto.estoque_atual) } : null,
+    quantidade: q4(quantidade),
+    unidade,
+    confere_capacidade: confereCapacidade,
+    estoque: produtoOk && local ? { saldo_local: q4(somar(lotes.map((l) => l.quantidade_disponivel))), estoque_atual: q4(produto.estoque_atual), unidade } : null,
     fifo,
     medidor: {
       tipo: tipoMedidor,
@@ -444,16 +410,13 @@ export const paraAuditoria = (r, fatias) => ({
   versao: r.versao,
   bem_id: r.bem_id,
   tanque_id: r.tanque_id,
-  tipo_combustivel_id: r.tipo_combustivel_id,
   produto_id: r.produto_id,
   local_estoque_id: r.local_estoque_id,
-  conversao_id: r.conversao_id,
   data_operacional: diaDe(r.data_operacional),
-  quantidade_litros: texto4(r.quantidade_litros),
-  kg_por_litro: dec(r.kg_por_litro).toFixed(CASAS_FATOR),
-  quantidade_kg: texto4(r.quantidade_kg),
+  quantidade: texto4(r.quantidade),
+  unidade: r.unidade,
   custo_total: texto4(r.custo_total),
-  custo_unitario_kg: texto4(r.custo_unitario_kg),
+  custo_unitario: texto4(r.custo_unitario),
   tanque_cheio: r.tanque_cheio,
   medidor_tipo: r.medidor_tipo,
   medidor_leitura: texto4(r.medidor_leitura),

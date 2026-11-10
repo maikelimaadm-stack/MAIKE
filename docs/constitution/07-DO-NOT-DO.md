@@ -67,24 +67,35 @@ Violação exige **rollback**, não flexibilização da regra.
 > avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
 > comando composto da confirmação e do cancelamento; e somar dinheiro com float.
 
-> **Nota (D-PROD-157):** os cadastros de Patrimônio e Frota (`BensPatrimoniais`,
-> `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`)
-> são a única exceção de máquinas/combustível autorizada, nos limites da decisão.
+> **Nota (D-PROD-157, revista pela D-PROD-161):** o cadastro de Patrimônio e Frota é a
+> página `BensPatrimoniais` (famílias, tipos e tanques dentro dela). Ela é a única exceção
+> de máquinas/combustível autorizada, nos limites das decisões. As páginas
+> `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e `Combustiveis` foram
+> removidas pela D-PROD-161 e não voltam sem decisão própria.
 > Continuam proibidos: reabrir as páginas legadas `CadastroMaquinas`, `AtivosFixos`,
 > `LancamentosAbastecimento` e `FichaControleCombustivel`; recriar os schemas Base44
 > `Maquina`, `TipoAtivo`, `Implemento`, `ManutencaoMaquina` e `AbastecimentoMaquina`;
 > e, sem decisão própria, abastecimento, manutenção, custo/hora, apuração ou
 > lançamento de depreciação e transferência entre fazendas.
 
-> **Nota (D-PROD-159):** a página `Abastecimentos` é a única exceção de abastecimento
-> autorizada, nos limites da decisão. Continua proibido: converter litros em KG por
-> `1 L = 1 KG`, por densidade presumida ou por fator inferido do nome, do combustível ou
-> do preço; usar `Number`/float em quantidade, fator ou dinheiro; baixar estoque fora do
-> motor de estoque (`estoqueFisicoMotor.js`) ou por `Produto.estoque_atual -= …` isolado;
-> criar ou fingir `OperacaoFinanceira` para representar abastecimento; gravar leitura de
-> abastecimento em `BemPatrimonial` ou com proveniência falsa; apagar abastecimento
-> (só cancelar com estorno exato); conceder a tela ou as ações `cancelar` e
-> `configurar_conversao` a perfis existentes por padrão; reabrir
-> `LancamentosAbastecimento`, `FichaControleCombustivel`, `AbastecimentoMaquina` ou
-> `ConfiguracaoFatoresConsumo`; e, sem decisão própria, manutenção, custo/hora, saldo de
-> tanque e GNV em tanque de litros.
+> **Nota (D-PROD-159, revista pela D-PROD-161):** a página `Abastecimentos` é a única
+> exceção de abastecimento autorizada, nos limites das decisões. O abastecimento baixa
+> **exatamente** a quantidade digitada na unidade de estoque do Produto (`L` ou `KG`).
+> Continua proibido:
+> - converter a quantidade entre unidades, seja por `1 L = 1 KG`, por fator, por densidade
+>   ou por inferência do nome, do combustível ou do preço;
+> - abastecer Produto cuja unidade de estoque não seja `L` nem `KG`;
+> - deixar a tela de abastecimento de Produto em `KG` sem o aviso de que se digitam quilos;
+> - usar `Number`/float em quantidade ou dinheiro;
+> - baixar estoque fora do motor de estoque (`estoqueFisicoMotor.js`) ou por
+>   `Produto.estoque_atual -= …` isolado;
+> - criar ou fingir `OperacaoFinanceira` para representar abastecimento;
+> - gravar leitura de abastecimento em `BemPatrimonial` ou com proveniência falsa;
+> - apagar abastecimento (só cancelar com estorno exato). A única exceção foi a limpeza
+>   única da D-PROD-161, que recusaria se houvesse abastecimento CONFIRMADO;
+> - conceder a tela ou a ação `cancelar` a perfis existentes por padrão;
+> - reabrir `LancamentosAbastecimento`, `FichaControleCombustivel`, `AbastecimentoMaquina`,
+>   `ConfiguracaoFatoresConsumo` ou as telas de combustível e fator removidas pela
+>   D-PROD-161;
+> - sem decisão própria: manutenção, custo/hora, saldo de tanque e abastecimento em
+>   unidade que não seja `L` nem `KG` (ex.: GNV em m³).

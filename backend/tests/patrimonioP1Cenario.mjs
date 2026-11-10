@@ -1,7 +1,12 @@
 /**
- * D-PROD-157 — cenário compartilhado dos testes da Patrimônio P1-01
+ * D-PROD-157 / D-PROD-161 — cenário compartilhado dos testes do Patrimônio
  * (cadastros de Patrimônio e Frota). Não é arquivo de teste (sem `.test.`):
- * só monta tenants, contas por permissão, corpos de bens e fotografias.
+ * só monta tenants, contas por permissão, Produtos do estoque para os tanques,
+ * corpos de bens e fotografias.
+ *
+ * D-PROD-161: duas telas (Bens e Abastecimentos); famílias e tipos dentro de
+ * Bens; sem perfis de medição, medições, combustíveis nem fator kg/L. Cada
+ * tanque traz `produto_ids` (Produtos em L ou KG da fazenda do bem).
  *
  * Tudo contra PostgreSQL real e HTTP autenticado (`app.inject`). O "hoje" da
  * fazenda é o do relógio de teste: o runner define `MAIKE_TESTE_AGORA` com este
@@ -25,17 +30,23 @@ export const FUSO = 'America/Sao_Paulo';
 const MODULO = 'patrimonio';
 export const TELAS = Object.freeze({
   bens: 'pat-bens-patrimoniais',
+  abastecimentos: 'pat-abastecimentos',
+});
+/**
+ * Telas REMOVIDAS pela D-PROD-161: uma linha gravada com elas em
+ * `permissoes_telas` fica inerte (nenhuma guarda as pede).
+ */
+export const TELAS_ANTIGAS = Object.freeze({
   familias: 'pat-familias-patrimoniais',
   tipos: 'pat-tipos-patrimoniais',
   perfis: 'pat-perfis-medicao',
   combustiveis: 'pat-combustiveis',
 });
-/** As 10 tabelas novas da migration `20261110100000_patrimonio_p1_01_cadastros` (R2: + o vínculo combustível × produto). */
+/** As 7 tabelas (re)criadas pela migration `20261110300000_patrimonio_simplifica` (D-PROD-161). */
 export const TABELAS_PATRIMONIO = Object.freeze([
-  'BemPatrimonial', 'FamiliaPatrimonial', 'MedicaoBem', 'PerfilMedicao', 'TanqueBem', 'TanqueBemCombustivel',
-  'TipoCombustivel', 'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil',
+  'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial',
 ]);
-export const MIGRATION_PATRIMONIO = '20261110100000_patrimonio_p1_01_cadastros';
+export const MIGRATION_PATRIMONIO = '20261110300000_patrimonio_simplifica';
 
 export const prisma = () => getPrismaClient();
 
@@ -99,15 +110,19 @@ export const fotoPatrimonio = async (clienteIds) => {
  * Tudo FORA do Patrimônio: toda tabela do tenant (todo model com `cliente_id`,
  * o que cobre estoque e financeiro inteiros — Produto, LocalEstoque, Lote,
  * NaturezaFinanceira, PerfilFinanceiroEmpresa, CentroResultado, títulos...)
- * menos as 10 do Patrimônio, a auditoria e a sequência de números. Compare
+ * menos as 7 do Patrimônio, a auditoria e a sequência de números. Compare
  * antes/depois: uma tabela nova de estoque/financeiro entra sozinha.
  */
 const FORA_DO_PATRIMONIO = Object.freeze(
   MODELOS_DO_TENANT.filter((m) => ![...TABELAS_PATRIMONIO, 'AuditLog', 'EntidadeCodigoSequencia'].some((t) => t[0].toLowerCase() + t.slice(1) === m))
 );
-/** As tabelas de estoque e financeiro que o cenário NUNCA preenche (contagem 0 antes de qualquer bem). */
+/**
+ * As tabelas de estoque e financeiro que o cenário NUNCA preenche (contagem 0
+ * antes de qualquer bem). O Produto fica fora: os testes criam Produtos para os
+ * tanques (`produtoL`/`produtoKG`), e o cadastro do bem nunca cria nem muda um.
+ */
 export const ESTOQUE_FINANCEIRO_VAZIOS = Object.freeze([
-  'produto', 'movimentacaoEstoque', 'estoqueLoteNota', 'operacaoFinanceira', 'operacaoFinanceiraItem', 'tituloFinanceiro', 'liquidacaoFinanceira', 'lote',
+  'movimentacaoEstoque', 'estoqueLoteNota', 'operacaoFinanceira', 'operacaoFinanceiraItem', 'tituloFinanceiro', 'liquidacaoFinanceira', 'lote',
   'naturezaFinanceira', 'perfilFinanceiroEmpresa', 'localEstoque', 'centroResultado', 'centroCustoResultado',
 ]);
 
@@ -147,8 +162,6 @@ export const montarPatrimonio = async (app, { fuso = FUSO, catalogo = true } = {
   }
   const fam = await porCodigo(p.familiaPatrimonial, c);
   const tip = await porCodigo(p.tipoPatrimonial, c);
-  const per = await porCodigo(p.perfilMedicao, c);
-  const comb = await porCodigo(p.tipoCombustivel, c);
   let n = 0;
   const parceiro = (empresa, nome, ativo = true) =>
     p.fornecedor.create({ data: { cliente_id: c, empresa_id: empresa.id, numero_cadastro: `P${(n += 1)}-${sufixo}`, tipo_pessoa: 'Jurídica', nome, ativo } });
@@ -184,8 +197,6 @@ export const montarPatrimonio = async (app, { fuso = FUSO, catalogo = true } = {
     e2,
     fam,
     tip,
-    per,
-    comb,
     conta,
     contaCom,
     parceiro1: await parceiro(e1, 'Agropecuária Parceira'),
@@ -198,19 +209,55 @@ export const montarPatrimonio = async (app, { fuso = FUSO, catalogo = true } = {
   };
 };
 
+// ─── Produtos do estoque para os tanques (D-PROD-161) ───────────────────────
+
+let produtosCriados = 0;
+/**
+ * Produto REAL do estoque (só o cadastro; sem lote, movimento nem estoque).
+ * Nome único por chamada (o unique é por fazenda).
+ * @param {{ c: string, e1: { id: string } }} s
+ * @param {string} unidade  `unidade_principal_estoque` (L, KG, SACO...)
+ * @param {{ empresa?: { id: string }, nome?: string, ativo?: boolean, codigo_interno?: string|null }} [extra]
+ */
+export const produto = (s, unidade, { empresa = s.e1, nome, ativo = true, codigo_interno = null } = {}) => {
+  produtosCriados += 1;
+  const sufixo = `${produtosCriados}-${randomUUID().slice(0, 6)}`;
+  return prisma().produto.create({
+    data: {
+      cliente_id: s.c,
+      empresa_id: empresa.id,
+      numero_produto: `PAT-${sufixo}`,
+      nome_produto: nome ?? `Produto ${unidade} ${sufixo}`,
+      codigo_interno,
+      unidade_principal_estoque: unidade,
+      ativo,
+    },
+  });
+};
+/** Produto com estoque em LITROS (diesel, gasolina, Arla...). */
+export const produtoL = (s, extra = {}) => produto(s, 'L', extra);
+/** Produto com estoque em QUILOS. */
+export const produtoKG = (s, extra = {}) => produto(s, 'KG', extra);
+
+/**
+ * Item de tanque do corpo do bem com os Produtos aceitos dados (P-01: pode ser `[]`).
+ * @param {string[]} produtoIds
+ * @param {Record<string, unknown>} [extra]  identificador, capacidade_litros, observacao, id, ativo
+ */
+export const tanqueCom = (produtoIds, extra = {}) => ({ identificador: 'Tanque principal', capacidade_litros: '180', produto_ids: [...produtoIds], ...extra });
+
 // ─── corpos dos bens do aceite do proprietário ──────────────────────────────
 
-/** Cerca de arame de 1,25 km (= 1.250 m). */
+/** Cerca de arame (benfeitoria: sem medidor nem tanque). */
 export const corpoCerca = (s, extra = {}) => ({
   empresa_id: s.e1.id,
   nome: 'Cerca do retiro',
   familia_id: s.fam.BENFEITORIAS,
   tipo_id: s.tip.CERCA_ARAME,
-  medicoes: [{ perfil_id: s.per.EXTENSAO, valor: '1.25', unidade: 'km' }],
   ...extra,
 });
 
-/** Curral de 0,5 ha (= 5.000 m², principal) para 200 cabeças. */
+/** Curral (benfeitoria com construção). */
 export const corpoCurral = (s, extra = {}) => ({
   empresa_id: s.e1.id,
   nome: 'Curral de manejo',
@@ -218,24 +265,19 @@ export const corpoCurral = (s, extra = {}) => ({
   tipo_id: s.tip.CURRAL,
   material: 'Madeira de lei',
   ano_conclusao: 2019,
-  medicoes: [
-    { perfil_id: s.per.AREA, valor: '0.5', unidade: 'ha', principal: true, rotulo: 'Área coberta' },
-    { perfil_id: s.per.CAPACIDADE_ANIMAL, valor: '200', unidade: 'cab' },
-  ],
   ...extra,
 });
 
-/** Reservatório de 20 m³ (= 20.000 L). */
+/** Reservatório da sede (benfeitoria). */
 export const corpoReservatorio = (s, extra = {}) => ({
   empresa_id: s.e1.id,
   nome: 'Reservatório da sede',
   familia_id: s.fam.BENFEITORIAS,
   tipo_id: s.tip.RESERVATORIO,
-  medicoes: [{ perfil_id: s.per.VOLUME, valor: '20', unidade: 'm3' }],
   ...extra,
 });
 
-/** Trator TP-02: horímetro 1.520,5 h e tanque de 180 L de diesel S10. */
+/** Trator TP-02: horímetro 1.520,5 h e um tanque de 180 L (sem Produto aceito por padrão; passe `tanques`). */
 export const corpoTrator = (s, extra = {}) => ({
   empresa_id: s.e1.id,
   nome: 'Trator TP-02',
@@ -247,11 +289,11 @@ export const corpoTrator = (s, extra = {}) => ({
   ano_fabricacao: 2018,
   potencia_cv: '95',
   medidor: { tipo: 'HORIMETRO', leitura_inicial: '1520.5', data_leitura: '2027-06-01' },
-  tanques: [{ identificador: 'Tanque principal', capacidade_litros: '180', combustivel_ids: [s.comb.DIESEL_S10] }],
+  tanques: [tanqueCom([])],
   ...extra,
 });
 
-/** Caminhonete flex UT-04: odômetro e tanque único de 80 L (gasolina + etanol). */
+/** Caminhonete UT-04: odômetro e tanque único de 80 L (sem Produto aceito por padrão; passe `tanques`). */
 export const corpoCaminhonete = (s, extra = {}) => ({
   empresa_id: s.e1.id,
   nome: 'Caminhonete UT-04',
@@ -263,7 +305,7 @@ export const corpoCaminhonete = (s, extra = {}) => ({
   renavam: '12345678901',
   chassi: '9bwzzz377vt004251',
   medidor: { tipo: 'ODOMETRO', leitura_inicial: '35210', data_leitura: '2027-05-30' },
-  tanques: [{ identificador: 'Tanque', capacidade_litros: '80', combustivel_ids: [s.comb.GASOLINA, s.comb.ETANOL] }],
+  tanques: [tanqueCom([], { identificador: 'Tanque', capacidade_litros: '80' })],
   ...extra,
 });
 

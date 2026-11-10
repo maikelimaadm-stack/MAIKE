@@ -48,7 +48,6 @@ import { registrarNaturezaFinanceiraRoutes } from './modules/gestao/naturezaFina
 import { registrarOperacaoFinanceiraRoutes } from './modules/financeiro/operacaoFinanceiraRoutes.js';
 import { registrarPatrimonioCatalogoRoutes } from './modules/patrimonio/patrimonioCatalogoRoutes.js';
 import { registrarBemPatrimonialRoutes } from './modules/patrimonio/bemPatrimonialRoutes.js';
-import { registrarCombustivelProdutoRoutes } from './modules/patrimonio/combustivelProdutoRoutes.js';
 import { registrarAbastecimentoRoutes } from './modules/patrimonio/abastecimentoRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
@@ -215,13 +214,14 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarNaturezaFinanceiraRoutes);
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
-  // D-PROD-157 — Patrimônio e Frota P1-01: catálogos do tenant e bens da empresa
-  // (sem estoque/financeiro; a depreciação é só prévia simulada).
+  // D-PROD-157 / D-PROD-161 — Patrimônio e Frota: famílias e tipos (do tenant,
+  // mantidos no cadastro de Bens) e bens da empresa com tanques e os Produtos
+  // aceitos por tanque (sem estoque/financeiro; a depreciação é só prévia
+  // simulada). O vínculo combustível × produto e o fator kg/L saíram (D-PROD-161).
   await app.register(registrarPatrimonioCatalogoRoutes);
   await app.register(registrarBemPatrimonialRoutes);
-  // D-PROD-157 (R2) — vínculo combustível × produto por empresa (classificação; sem estoque/custo).
-  await app.register(registrarCombustivelProdutoRoutes);
-  // D-PROD-159 — Patrimônio P1-02: abastecimentos (baixa física pelo motor de estoque; fator kg/L informado).
+  // D-PROD-159 / D-PROD-161 — abastecimentos: baixa EXATA da quantidade digitada,
+  // na unidade de estoque do Produto (L ou KG), pelo motor de estoque.
   await app.register(registrarAbastecimentoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
