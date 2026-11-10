@@ -300,6 +300,7 @@ export const alterarSituacao = async (contexto, id, entrada) => {
           versao: entrada.versao,
           data: { ativo: entrada.ativo, ativo_chave: entrada.ativo ? true : null },
         });
+        if (!entrada.ativo) await tx.tipoCombustivelProduto.updateMany({ where: { cliente_id: cli, tipo_combustivel_id: antes.tipo_combustivel_id, NOT: { empresa_id: empresaId }, ativo: true }, data: { ativo: false, ativo_chave: null, versao: { increment: 1 } } });
         const depois = await buscar(tx, cli, empresaId, id);
         await registrarEvento(
           contexto,

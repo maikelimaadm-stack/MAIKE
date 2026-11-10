@@ -338,7 +338,7 @@ export const planejarAbastecimento = (entrada, estado, { comando }) => {
   if (tipo && produto) {
     if (!conversao) {
       bloqueios.push(bloqueio('ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente', { tipo_combustivel_id: tipo.id, produto_id: produto.id }));
-    } else if (comando && false) {
+    } else if (comando && (entrada.conversao_id !== conversao.id || entrada.conversao_versao !== conversao.versao)) {
       bloqueios.push(bloqueio('ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_id', 'conversao_alterada', { conversao_vigente_id: conversao.id, conversao_vigente_versao: conversao.versao }));
     }
   }
