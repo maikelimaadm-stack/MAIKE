@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-P0-01 — Motor físico único; ENTRADA ≠ MOVIMENTAÇÃO
 
-Decisão: **D-PROD-161** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `e3ea4c39` (PRs #232, #234 e #235 mergeadas), com a `main` integrada por merge conservador ao longo da missão.
+Decisão: **D-PROD-161** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `e3ea4c39` (PRs #232, #234 e #235 mergeadas), com a `main` integrada por merge conservador ao longo da missão. A última integração foi a `main` `e39d318b`, que trouxe a PR #237 (D-PROD-160), no merge `6da66a55`.
 Branch: `claude/maike-estoque-p0-motor-unico-01` · PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238) (**DRAFT**).
 
 > **Zero DDL.** Nenhuma migration nova: `git diff origin/main -- backend/prisma` é vazio. `SCHEMA_APPLIED_PROD = N/A`. Nenhum UPDATE, DDL, seed ou "ajuste para conciliar" foi feito em banco remoto. O único acesso a produção foi um preflight **somente leitura** com números agregados (§10). Todos os testes rodaram em PostgreSQL 17 **local** e descartável.
@@ -280,7 +280,89 @@ Nada foi corrigido, recalculado ou escrito.
 
 ## 11. Testes
 
-_(preenchido ao fim da integração e da revisão)_
+Todos em PostgreSQL 17 **local e descartável**, na porta 5433, com um banco novo por suíte e por roteiro. Nada rodou em produção nem na Preview.
+
+### 11.1 RED → GREEN por frente
+
+| Frente | RED (código anterior) | GREEN |
+|---|---|---|
+| F1 motor único (`estoqueP0MotorUnico`, `estoqueP0MotorConcorrencia`) | 18/23 e 3/4 falham. Motivos: data 2001, Number em vez de Decimal, 500 por estouro, nome do local vindo do corpo, CAS ausente, sequência reservada no meio da transação | 27/27 |
+| F2 Cadastro de Produtos (`estoqueP0Cadastro`) | 7/10 falham. Motivos: 201 com `estoque_atual` 100 e −5, PATCH absoluto com *lost update*, troca de empresa e DELETE com lote | 10/10, mais 76/76 nos testes de tela |
+| F3 escritas genéricas (`estoqueP0EscritaDireta`) | 6/11 falham. POST de movimento e de lote dão 201 e reservam número; PATCH e DELETE de lote livre gravam | 92/92 nos afetados, mais 113/113 nos testes de tela |
+| F4 reconciliação (`estoqueP0Reconciliacao`) | 17/17 falham: a rota não existia e o seed trazia saldo sem fato | 18/18 |
+| R1 cobertura (`estoqueP0ReconciliacaoCobertura`) | 9/9 falham: sem cobertura nem cursor, plano genérico, AuditLog benigno rebaixando | 74/74 nos afetados |
+| R1 blindagem p54 (`scaffold-p54-estoque`) | 15/18 falham: o gerador produzia escrita de estoque com exit 0 | 18/18. As três mutações da guarda são detectadas |
+| R2 reconciliação (`estoqueP0ReconciliacaoR2`) | 12/16 falham contra `850c5aa2`. Inclui o **cursor do tenant B aceito pelo tenant A** (RK1) | 44/44 nos três arquivos da reconciliação |
+| R2 folha do celular (`estoqueP0FolhaTransferenciaMobile`) | 5/5 falham; no E2E antigo a 390 px, `ariaHidden: true` | 5/5 |
+| R2 máscaras (`estoqueP0MascarasProduto`) | 4/5 falham (o MP5 é o controle). No probe com banco, 8 divergências entre o exibido e o gravado | 5/5, e o banco grava 25.0000 e 12.3400 |
+| R2 lentes (`estoqueP0CorrecoesR2`, `estoqueP0FilaOfflineLegada`) | 6/6 e 1/2 falham (A-01, A-02, A-03, B-01, B-02, LC-2, LC-3) | 6/6 e 2/2 |
+| Contrato legado (AB11 e TA-05b) | 409 ≠ 200: mudança deliberada da D-PROD-161 | 17/17 nos dois arquivos, com o legado emulado no banco |
+
+### 11.2 Lentes adversariais (R2)
+
+| Id | Lente | Severidade | Defeito | Resultado |
+|---|---|---|---|---|
+| A-01 | A integridade/FIFO | MÉDIO | `data_transferencia_2001` mascarava a divergência de uma camada do motor | Corrigido (RED→GREEN) |
+| A-02 | A | BAIXO | Destino de origem sem data herdava o dia da movimentação, até 0001 | Corrigido |
+| A-03 | A | BAIXO | Retificação NO_LUGAR não chegava às camadas transferidas | Corrigido |
+| B-01 | B concorrência | MÉDIO | Renomeação de lote sem trava gerava AuditLog falso de quantidade | Corrigido |
+| B-02 | B | BAIXO | `PATCH /produtos` sem `empresa_id` gerava AuditLog falso de cache | Corrigido |
+| B-03 | B | BAIXO, pré-existente | Replay devolve número onde o 201 devolve string | Não corrigido: contrato, registrado para a P1 |
+| LC-1 | C segurança/compat./crescimento | MÉDIO | Mesmo defeito de B-01 e B-02, visto pela reconciliação | Corrigido (B-01/B-02) |
+| LC-2 | C | MÉDIO | Recibo legado O(N×M) fora do orçamento: 409 eterno numa rajada | Corrigido para O(N+M) e contado; resíduo físico vai para a P1 (índice, DDL) |
+| LC-3 | C | BAIXO | Item legado de estoque travava a fila offline inteira | Corrigido: quarentena no cliente |
+
+As lentes também confirmaram o que segue correto (`verificado_ok`):
+- Lente A: cadeia financeira completa, frações e duas camadas, custo líquido, conservação na transferência, limites `Decimal(14,4)`, empresa e tenant; 157/157 nas suítes da lente.
+- Lente B: concorrência e idempotência nos pools padrão, 3 e 5.
+  - LB1: 6 rodadas, até 10 pedidos simultâneos no mesmo produto.
+  - LB2: duas transferências com saldo para uma só.
+  - LB3: `lock_timeout` de 8 s.
+  - LB4: CAS.
+  - LB5: três pedidos com a mesma chave.
+  - LB6: recibos legados com float.
+  - LB7: rollback em 4 pontos.
+  - LB11: 5 rodadas de cancelar contra transferir, com um único vencedor.
+  - Nenhum número `p-` commitado. O único deadlock observado é o forçado pelo próprio teste C de mapeamento 40P01.
+- Lente C: 401/403 da reconciliação, cursor sem oráculo entre tenants, `cliente_id` nunca vem do corpo (9 escritas → 400), fila offline legada por HTTP → 409/422, scaffolds recusados, diff zero no Financeiro e no Patrimônio, 205/205 nos testes de tela do mobile.
+
+### 11.3 Suítes e gates
+
+| Verificação | HEAD `63070351` (antes do merge da `main`) | HEAD ``6da66a55`` (depois do merge da `main`) |
+|---|---|---|
+| `prisma migrate diff`, migrations → schema e banco → schema | No difference detected (exit 0) | No difference detected (exit 0) |
+| Migrations: repositório × banco local × produção (SELECT) | 39 × 39 × 39 | 39 × 39 × 39 |
+| `git diff origin/main -- backend/prisma` | vazio | vazio |
+| `verify:all` integral, banco novo | 39 etapas PASS, exit 0, 1319 s | 39 etapas PASS, exit 0, 1312 s |
+| gates (`test:gates`) | 716/716 | 716/716 |
+| backend (`test:backend`) | 1567 testes: 1562 pass, 0 fail, 5 todo | 1598 testes: 1593 pass, 0 fail, 5 todo |
+| testes de tela (`test:smoke`) | 183 arquivos, 2270/2270 | 186 arquivos, 2353/2353 |
+| lint / gate:types / typecheck / build | 0 erros / 808 (teto 1746) / ok / ok | 0 erros / 808 (teto 1746) / ok / ok |
+
+### 11.4 E2E com navegador real (Playwright/Chromium, backend e Vite locais)
+
+Um auditor somente leitura confere o banco antes e depois de cada roteiro: cache igual à soma dos lotes, lote dentro da faixa, nenhum `p-` gravado, nenhum ano 2001, e a reconciliação oficial de cada tenant.
+
+| Roteiro | Larguras | Pool 5 | Pool 3 | 5xx | Banco depois |
+|---|---|---|---|---|---|
+| `e2e-estoque-p0.mjs` (8 passos: compra → suplementação no Mapa → transferência pelo depósito → venda FIFO → cancelar consumido → escritas diretas → Produto/máscaras → reconciliação) | 1280, 390, 412 | 24/24 | 24/24 | 0 | 0 violações; CONSISTENTE/COMPROVADA, 0 achados |
+| `e2e-lancamentos-real.mjs` (Central Financeira: confirmar, cancelar, retificar no lugar/substituição, excluir) | 1280, 390 | 68/68 | 68/68 | 0 | 0 violações; só LIMITACAO_LEGADA da semente |
+| `e2e-abastecimentos-real.mjs` (Patrimônio: confirmar, cancelar, replay, 403) | 1280, 820, 390 | 27/27 | 27/27 | 0 | 0 violações; só LIMITACAO_LEGADA da semente |
+| `e2e-abastecimentos-ux02-real.mjs` (UX-02 vinda da `main`: Produto do bem, troca de associação) | 1280, 820, 390 | 25/25 | 25/25 | 0 | 0 violações; só LIMITACAO_LEGADA da semente |
+
+Os números acima são do HEAD `6da66a55`, depois do merge. Antes do merge, no HEAD `63070351`, os mesmos roteiros tinham dado estoque 24/24, Financeiro 68/68 e Patrimônio 18/18 (em 1280 e 390 px), nos dois pools e sem 5xx.
+
+Nos roteiros Financeiro e Patrimônio, a reconciliação dá `COM_ACHADOS/COMPROVADA`, só com `LIMITACAO_LEGADA` (`entrada_fora_do_protocolo`). A causa é o estoque inicial que as sementes antigas desses roteiros gravam direto no banco com origem `manual`. O resultado está correto: 0 `DIVERGENCIA_REAL`, 0 `DADOS_INSUFICIENTES` e 0 violações físicas.
+
+### 11.5 Volume
+
+Ver §9.3 (R2) e o LC-2 (§9.2): fixture de 5.001 produtos, 130.331 lotes, 430.300 movimentos, 145.000 recibos e 62.031 AuditLog, mais um produto patológico, órfãos e exclusões antigas. Por chamada: ≤ 4,0 s e heap ≤ 33,5 MB. Equivalência exata do conjunto de `DIVERGENCIA_REAL`.
+
+### 11.6 CI
+
+`quality` / `verify:all` no SHA exato do HEAD final: [run 42917240485](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42917240485) no `6da66a55`, **success** (job `verify:all`, 20 min). O commit seguinte só altera `docs/`; o run do SHA final está no corpo da PR.
+
+Ambiente local: Node 22.22 e PostgreSQL 17.11. A CI usa Node 20.19 e PostgreSQL 16.13, e é ela que vale para o SHA final.
 
 ## 12. Riscos e limitações
 
@@ -347,4 +429,16 @@ Cada item exige decisão própria e, havendo DDL, migration expand-only, runbook
 
 ## 14. Situação
 
-_(preenchido no fechamento)_
+| Status | Valor | Justificativa |
+|---|---|---|
+| `CODE_READY` | **SIM** | Toda a missão (F1–F4, R1 e R2) está implementada, e cada achado corrigido tem teste RED→GREEN. Os resultados pós-merge da `main` estão em §11:<br>• `verify:all` integral passou num banco novo;<br>• os E2E reais passaram nos pools 3 e 5, sem 5xx;<br>• o E2E de estoque deu 8/8 em 1280, 390 e 412 px. |
+| `SCHEMA_APPLIED_PROD` | **N/A** | Zero DDL: `prisma migrate diff` não acusa diferença nas duas direções, e `git diff origin/main -- backend/prisma` está vazio. Há 39 migrations no repositório, no banco local e em produção (SELECT de 2026-11-10 19:18 UTC). |
+| `MERGE_READY` | **SIM (técnico)**. O CI `quality`/`verify:all` está verde no SHA exato do HEAD final, a PR está mergeável sem conflito com a `main` `e39d318b`, e não há risco crítico explorável | Os três BLOCKERs (R2-1, R2-2 e R2-3) são limites arquiteturais fail-closed e não são exploráveis: o máximo que fazem é dar `INCONCLUSIVO` ou um 409, nunca um OK falso. O merge é manual, do proprietário, depois da auditoria do arquiteto. A PR continua em DRAFT. |
+| `RELEASE_BLOCKED` | **SIM, até o merge manual** | Não há passo de banco nem migration: o merge publica o código. A liberação depende só da auditoria do arquiteto e do merge manual do proprietário. Pelo preflight só de leitura, a produção tem 0 divergência entre cache e lotes. |
+
+**O que fica para a P1** (nada disso está implementado; cada item precisa de decisão própria):
+- os bloqueios R2-1, R2-2 e R2-3, mais o índice de recibos do LC-2 (§12);
+- B-03, a forma do replay;
+- a faixa de `data_movimentacao` (R12);
+- liberar ou descartar item retido na fila offline;
+- os itens 1 a 7 do §13.

@@ -19,7 +19,7 @@ rollout pausado **D-PROD-41**)
 | Migration | **Nenhuma (zero DDL)**: `git diff origin/main -- backend/prisma` vazio. `SCHEMA_APPLIED_PROD = N/A` |
 | Produção (só leitura) | Preflight 2026-11-10 15:50 UTC: 39/39 migrations, 0 produto com cache divergente, 0 lote fora de faixa/situação, 0 lote de transferência com ano 2001, 0 saldo sem fato, 0 número provisório, 0 movimento fora do protocolo (2 produtos, 2 lotes, 3 movimentos, 1 local). Nada foi corrigido nem escrito |
 | Release | Sem migration: o merge manual do proprietário publica o código. Nada a aplicar no banco |
-| Testes / CI | ver relatório §Testes |
+| Testes / CI | Pós-merge da `main` (`6da66a55`), em PG17 local novo: `verify:all` integral PASS; backend 1593/1598 (0 fail, 5 todo); testes de tela 2353/2353; gates 716/716. E2E reais nos pools 3 e 5, sem 5xx: estoque 8/8 em 1280/390/412, Central Financeira 68/68, Patrimônio 27/27, UX-02 25/25. CI `quality` verde ([run 42917240485](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42917240485)). Detalhes no relatório §11 |
 | Relatório | [`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md) |
 | Antes dela | Patrimônio UX-02 (D-PROD-160): PR #237 mergeada na `main` (`e39d318b`), sem migration |
 
