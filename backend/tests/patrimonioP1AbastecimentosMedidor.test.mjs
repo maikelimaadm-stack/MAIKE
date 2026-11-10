@@ -167,8 +167,29 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
     assert.deepEqual([r.situacao_geral, r.intervalos], ['NAO_APLICAVEL', []]);
     assert.equal(JSON.stringify(await bemCru(s.gerador.id)), JSON.stringify(bemAntes));
     // cancelar: sem leitura operacional antes nem depois
-    const k = await cancelarOk(s, d);
+    const extra = await A.confirmarOk(s.operador.token, corpo({ medidor_leitura: null, quantidade_litros: '5', tanque_cheio: false }));
+    const k = await cancelarOk(s, extra);
     assert.deepEqual([k.leitura_operacional_antes, k.leitura_operacional_depois], [null, null]);
+
+    // o gerador ganha um horímetro DEPOIS (SEM_MEDIDOR → contador é livre: sem leitura operacional não há piso).
+    // O cheio sem medidor não fecha intervalo com o primeiro cheio medido (medidor_trocado); o seguinte calcula.
+    const g = await A.bem(s.token, s.e1.id, s.gerador.id);
+    await A.ok(patchBem(s, s.gerador.id, { versao: g.versao, medidor: { tipo: 'HORIMETRO', leitura_inicial: '100', data_leitura: '2027-06-11' } }));
+    assert.deepEqual(erro(await A.confirmar(s.operador.token, corpo({ data_operacional: '2027-06-12', medidor_leitura: null }))), [422, 'MEDIDOR_LEITURA_INVALIDA', 'medidor_leitura', 'obrigatoria']);
+    const h1 = await A.confirmarOk(s.operador.token, corpo({ data_operacional: '2027-06-12', medidor_leitura: '110', quantidade_litros: '10' }));
+    const h2 = await A.confirmarOk(s.operador.token, corpo({ data_operacional: '2027-06-14', medidor_leitura: '125', quantidade_litros: '20' }));
+    const c1 = await consumoDe(s, h1);
+    assert.deepEqual([c1.situacao, c1.motivo, c1.abastecimento_inicial_id, c1.valor], ['DADOS_INSUFICIENTES', 'medidor_trocado', d.id, null]);
+    const c2 = await consumoDe(s, h2);
+    assert.deepEqual([c2.situacao, c2.abastecimento_inicial_id, c2.intervalo, c2.litros, c2.valor], ['CALCULADO', h1.id, '15.0000', '20.0000', '1.3333'], '20 L ÷ 15 h, 4 casas HALF_UP');
+    assert.deepEqual([(await consumoDe(s, d)).situacao, (await consumoDe(s, d)).motivo], ['NAO_APLICAVEL', 'sem_medidor'], 'o snapshot do histórico não muda');
+    const r2 = await A.ok(A.consumo(s.leitor.token, s.e1.id, s.gerador.id));
+    assert.deepEqual([r2.situacao_geral, r2.metrica], ['DISPONIVEL', 'LITROS_POR_HORA']);
+    assert.deepEqual(r2.intervalos.map((i) => [i.abastecimento_id, i.situacao, i.motivo, i.valor]), [
+      [h2.id, 'CALCULADO', null, '1.3333'],
+      [h1.id, 'DADOS_INSUFICIENTES', 'medidor_trocado', null],
+      [d.id, 'DADOS_INSUFICIENTES', 'sem_medidor', null],
+    ]);
   });
 });
 
