@@ -206,6 +206,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/abastecimentos/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Abastecimentos/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/cadastrolotes/",
       "destination": "/index.html"
     },
@@ -227,6 +235,14 @@
     },
     {
       "source": "/UnidadesMedida",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/abastecimentos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Abastecimentos",
       "destination": "/index.html"
     },
     {

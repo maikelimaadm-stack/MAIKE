@@ -63,6 +63,8 @@ export const TELAS = Object.freeze({
   PATRIMONIO_TIPOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-tipos-patrimoniais' }),
   PATRIMONIO_PERFIS_MEDICAO: Object.freeze({ modulo: 'patrimonio', tela: 'pat-perfis-medicao' }),
   PATRIMONIO_COMBUSTIVEIS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-combustiveis' }),
+  // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
+  PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
@@ -81,6 +83,14 @@ export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquid
  * (`EXTRA_ACTION_KEYS_BY_PAGE`, teste de paridade front↔back).
  */
 export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
+
+/**
+ * D-PROD-159 — ações EXTRAS da tela `pat-abastecimentos`: cancelar/estornar o
+ * abastecimento confirmado e configurar o fator de conversão kg/L. Separada de
+ * ACOES_PATRIMONIO_EXTRAS (as cinco telas do P1-01 seguem só com `inativar`).
+ * Ausente/não booleano = negado. Mesma lista no navegador (teste de paridade).
+ */
+export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar', 'configurar_conversao']);
 
 /**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo

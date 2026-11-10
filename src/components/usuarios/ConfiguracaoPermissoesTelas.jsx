@@ -28,8 +28,26 @@ const EXTRA_ACTION_LABELS = {
   inativar: "INATIVAR/REATIVAR",
 };
 
-/** Título do bloco de ações extras: a Central de Lançamentos age sobre o lançamento; as telas `pat-*` sobre o cadastro. */
-const tituloDasAcoesExtras = (pageId) => (pageId === "ges-lancamentos-financeiros" ? "Ações do lançamento" : "Ações do cadastro");
+/**
+ * Rótulos POR TELA (D-PROD-159), consultados antes dos globais: em Abastecimentos
+ * `cancelar` estorna o abastecimento (a Central segue "CANCELAR LANÇAMENTO").
+ */
+const EXTRA_ACTION_LABELS_POR_TELA = {
+  "pat-abastecimentos": {
+    cancelar: "CANCELAR/ESTORNAR ABASTECIMENTO",
+    configurar_conversao: "CONFIGURAR FATOR KG/L",
+  },
+};
+
+/** @param {string} pageId @param {string} action */
+const rotuloDaAcaoExtra = (pageId, action) => EXTRA_ACTION_LABELS_POR_TELA[pageId]?.[action] ?? EXTRA_ACTION_LABELS[action] ?? action;
+
+/**
+ * Título do bloco de ações extras: a Central de Lançamentos age sobre o
+ * lançamento; Abastecimentos sobre o abastecimento; as demais `pat-*` sobre o cadastro.
+ */
+const tituloDasAcoesExtras = (pageId) =>
+  pageId === "ges-lancamentos-financeiros" ? "Ações do lançamento" : pageId === "pat-abastecimentos" ? "Ações do abastecimento" : "Ações do cadastro";
 
 export default function ConfiguracaoPermissoesTelas({ formData, onChange, modules }) {
   const modulosPermitidos = formData.modulos_permitidos || [];
@@ -218,7 +236,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
                               disabled={!permission.visualizar}
                               onCheckedChange={(checked) => handlePagePermission(module, page, action, checked)}
                             />
-                            <span className="text-[11px] uppercase">{EXTRA_ACTION_LABELS[action] ?? action}</span>
+                            <span className="text-[11px] uppercase">{rotuloDaAcaoExtra(page.id, action)}</span>
                           </label>
                         ))}
                       </div>

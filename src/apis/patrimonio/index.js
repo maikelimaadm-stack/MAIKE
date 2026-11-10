@@ -17,4 +17,17 @@ export {
   createVinculoCombustivelProduto,
   updateVinculoCombustivelProduto,
   listOpcoesProdutosCombustivel,
+  // D-PROD-159 — Abastecimentos e fatores kg/L.
+  RECURSOS_OPCOES_ABASTECIMENTO,
+  PADRAO_OPERATION_ID_ABASTECIMENTO,
+  listAbastecimentosPage,
+  getAbastecimento,
+  previaAbastecimento,
+  confirmarAbastecimento,
+  cancelarAbastecimento,
+  listOpcoesAbastecimento,
+  getConsumoAbastecimento,
+  listConversoesCombustivelPage,
+  createConversaoCombustivel,
+  encerrarConversaoCombustivel,
 } from './patrimonioApi.js';

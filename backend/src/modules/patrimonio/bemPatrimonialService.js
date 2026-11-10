@@ -36,6 +36,7 @@ import {
   exigirCamposAplicaveis, exigirProprietarioCoerente, medidorDoEstado, paraGravacao, previaDoEstado, referenciaInvalida,
   validarAquisicaoEDepreciacao,
 } from './bemPatrimonialRegras.js';
+import { ehContador, pisoOperacional } from './abastecimentoMedidor.js';
 import { sincronizarMedicoes, sincronizarTanques, validarMedicoes, validarTanques } from './bemPatrimonialFilhos.js';
 import { simularDepreciacaoLinear } from './depreciacaoLinear.js';
 import { atualizarComVersao, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset, termoDeBusca } from './patrimonioComum.js';
@@ -89,9 +90,13 @@ const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
  * depreciação em blocos (sem repetir as colunas planas), decimais em string
  * (medidas, leituras, capacidade e potência com 4 casas; dinheiro 2;
  * percentual 4), `consumo` sempre null neste slice.
+ * D-PROD-159: `medidor_operacional` = maior leitura registrada por abastecimento
+ * CONFIRMADO (`{leitura, data, abastecimento_id}`) ou null — o abastecimento
+ * nunca grava as colunas do medidor do bem.
  * @param {any} r  bem lido com `INCLUIR`
+ * @param {{ leitura: string, data: string, abastecimento_id: string|null }|null} [operacional]
  */
-export const comoBemPublico = (r) => {
+export const comoBemPublico = (r, operacional = null) => {
   const e = estadoDoRegistro(r);
   const medicoes = [...r.medicoes].sort((a, b) => Number(b.principal === true) - Number(a.principal === true));
   return {
@@ -129,6 +134,7 @@ export const comoBemPublico = (r) => {
     especificacoes: e.especificacoes,
     observacoes: e.observacoes,
     medidor: medidorDoEstado(e),
+    medidor_operacional: operacional ? { leitura: operacional.leitura, data: operacional.data, abastecimento_id: operacional.abastecimento_id } : null,
     medicoes: medicoes.map((m) => ({
       id: m.id,
       perfil: { id: m.perfil.id, codigo: m.perfil.codigo, nome: m.perfil.nome, dimensao: m.perfil.dimensao, ativo: m.perfil.ativo },
@@ -397,7 +403,7 @@ export const detalhar = async (contexto, id, query = {}) => {
   const empresaId = await exigirEmpresaDoTenant(prisma, auth.clienteId, query.empresa_id);
   const r = await buscar(prisma, auth.clienteId, empresaId, id);
   if (!r) throw naoEncontrado();
-  return comoBemPublico(r);
+  return comoBemPublico(r, ehContador(r.medidor_tipo) ? await pisoOperacional(prisma, auth.clienteId, r.id, r.medidor_tipo) : null);
 };
 
 // ─── escrita ────────────────────────────────────────────────────────────────
@@ -441,7 +447,7 @@ export const criar = async (contexto, entrada) => {
     if (tanques?.desejados.length) await sincronizarTanques(tx, cli, id, tanques.desejados, []);
     const r = await buscar(tx, cli, empresaId, id);
     await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(r) }, tx);
-    return comoBemPublico(r);
+    return comoBemPublico(r, null);
   });
 };
 
@@ -459,6 +465,8 @@ export const atualizar = async (contexto, id, entrada) => {
     if (!travado.length) throw naoEncontrado();
     const atual = await buscar(tx, cli, empresaId, id);
     exigirVersao(atual, entrada.versao);
+    // D-PROD-159 (X2): piso operacional lido sob o FOR UPDATE do bem (o abastecimento trava o bem antes de gravar a leitura).
+    const piso = ehContador(atual.medidor_tipo) ? await pisoOperacional(tx, cli, id, atual.medidor_tipo) : null;
     const natureza = atual.natureza;
     const antes = estadoDoRegistro(atual);
 
@@ -480,7 +488,7 @@ export const atualizar = async (contexto, id, entrada) => {
     }
     exigirProprietarioCoerente(estado);
     await exigirReferencias(tx, cli, empresaId, estado, antes);
-    const medidor = await decidirMedidor({ natureza, estado: antes, pedido: entrada.medidor, criacao: false, hoje: hojeDe(tx, cli, empresaId) });
+    const medidor = await decidirMedidor({ natureza, estado: antes, pedido: entrada.medidor, criacao: false, hoje: hojeDe(tx, cli, empresaId), piso });
     if (medidor.colunas) Object.assign(estado, medidor.colunas);
     const capacidades = CAPACIDADES_POR_NATUREZA[natureza];
     const medicoes = capacidades.medicoes && entrada.medicoes !== undefined ? await validarMedicoes(tx, cli, entrada.medicoes, atual.medicoes) : null;
@@ -490,7 +498,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const dados = diferencas(antes, estado);
     const mudouMedicoes = medicoes?.mudou === true;
     const mudouTanques = tanques?.mudou === true;
-    if (!Object.keys(dados).length && !mudouMedicoes && !mudouTanques) return comoBemPublico(atual);
+    if (!Object.keys(dados).length && !mudouMedicoes && !mudouTanques) return comoBemPublico(atual, piso);
     if ('codigo_frota' in dados) await exigirCodigoFrotaLivre(tx, cli, empresaId, dados.codigo_frota, id);
     if (mudouMedicoes) await sincronizarMedicoes(tx, cli, id, medicoes.desejadas, atual.medicoes);
     if (mudouTanques) await sincronizarTanques(tx, cli, id, tanques.desejados, atual.tanques);
@@ -516,7 +524,7 @@ export const atualizar = async (contexto, id, entrada) => {
       });
     }
     await registrarEventosEmLote(contexto, eventos, tx);
-    return comoBemPublico(depois);
+    return comoBemPublico(depois, await pisoOperacional(tx, cli, id, depois.medidor_tipo));
   });
 };
 

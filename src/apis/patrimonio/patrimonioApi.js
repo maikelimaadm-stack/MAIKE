@@ -8,7 +8,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { CAMINHOS_CATALOGO, operacoesNativas } from './patrimonioNativePort.js';
+import { CAMINHOS_CATALOGO, RECURSOS_OPCOES_ABASTECIMENTO, operacoesNativas } from './patrimonioNativePort.js';
 import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
 /** Recursos de opções (A3): os de catálogo não pedem empresa; os demais pedem. */
@@ -262,4 +262,191 @@ export const listOpcoesProdutosCombustivel = async (filtros) => {
   assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
   const bruto = await runProviderCall(() => operacoesNativas.combustivelProdutoOpcoes(filtros), contexto);
   return paginaDeOpcoes(bruto);
+};
+
+// ─── Abastecimentos e fatores kg/L (D-PROD-159) ──────────────────────────
+
+export { RECURSOS_OPCOES_ABASTECIMENTO };
+
+const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
+const RESOURCE_CONVERSAO = 'ConversaoCombustivelProduto';
+
+/** Corpo base da prévia e da confirmação (schema FECHADO no servidor). */
+const CORPO_BASE_ABASTECIMENTO = Object.freeze([
+  'empresa_id',
+  'bem_id',
+  'tanque_id',
+  'tipo_combustivel_id',
+  'produto_id',
+  'local_estoque_id',
+  'data_operacional',
+  'quantidade_litros',
+  'medidor_leitura',
+  'tanque_cheio',
+  'observacao',
+  'referencia_externa',
+]);
+const OBRIGATORIAS_PREVIA = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'tipo_combustivel_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade_litros']);
+const EXTRAS_CONFIRMACAO = Object.freeze(['operation_id', 'conversao_id', 'conversao_versao']);
+const CORPO_CONFIRMACAO = Object.freeze([...CORPO_BASE_ABASTECIMENTO, ...EXTRAS_CONFIRMACAO]);
+const CORPO_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo', 'operation_id']);
+const CORPO_CONVERSAO = Object.freeze(['empresa_id', 'tipo_combustivel_id', 'produto_id', 'kg_por_litro', 'declara_estoque_em_kg', 'conversao_vigente_id']);
+const CORPO_ENCERRAR_CONVERSAO = Object.freeze(['empresa_id', 'versao']);
+
+/** Litros e leitura: texto canônico até 10 inteiros e 4 casas (sem número/float). */
+const RE_DECIMAL_4 = /^\d{1,10}(\.\d{1,4})?$/;
+/** Fator kg/L: texto canônico até 2 inteiros e 6 casas. */
+const RE_FATOR = /^\d{1,2}(\.\d{1,6})?$/;
+const RE_DIA = /^\d{4}-\d{2}-\d{2}$/;
+/** Mesmo formato do schema do servidor. */
+export const PADRAO_OPERATION_ID_ABASTECIMENTO = /^[A-Za-z0-9_.:-]{8,128}$/;
+
+/** @param {Record<string, unknown>} corpo @param {readonly string[]} permitidas */
+const soChaves = (corpo, permitidas) => Object.keys(corpo).every((k) => permitidas.includes(k));
+/** @param {Record<string, unknown>} corpo @param {readonly string[]} obrigatorias */
+const comChaves = (corpo, obrigatorias) => obrigatorias.every((k) => tem(corpo, k));
+/** @param {unknown} v */
+const textoOuNulo = (v) => v === null || typeof v === 'string';
+
+/**
+ * Validação local comum da prévia e da confirmação (falha ANTES da rede).
+ * @param {Record<string, unknown>} corpo @param {{ operation: string, resource: string }} contexto
+ */
+const validarCorpoAbastecimento = (corpo, contexto) => {
+  assertArgument(isId(corpo.empresa_id), 'empresa_id', contexto);
+  for (const campo of ['bem_id', 'tanque_id', 'tipo_combustivel_id', 'produto_id', 'local_estoque_id']) assertArgument(isId(corpo[campo]), campo, contexto);
+  assertArgument(typeof corpo.data_operacional === 'string' && RE_DIA.test(corpo.data_operacional), 'data_operacional', contexto);
+  assertArgument(typeof corpo.quantidade_litros === 'string' && RE_DECIMAL_4.test(corpo.quantidade_litros), 'quantidade_litros', contexto);
+  if (tem(corpo, 'medidor_leitura')) {
+    assertArgument(corpo.medidor_leitura === null || (typeof corpo.medidor_leitura === 'string' && RE_DECIMAL_4.test(corpo.medidor_leitura)), 'medidor_leitura', contexto);
+  }
+  if (tem(corpo, 'tanque_cheio')) assertArgument(typeof corpo.tanque_cheio === 'boolean', 'tanque_cheio', contexto);
+  for (const campo of ['observacao', 'referencia_externa']) if (tem(corpo, campo)) assertArgument(textoOuNulo(corpo[campo]), campo, contexto);
+};
+
+/** @param {Record<string, unknown>} [filtros] */
+export const listAbastecimentosPage = async (filtros = {}) => {
+  const contexto = ctx('listAbastecimentosPage', RESOURCE_ABASTECIMENTO);
+  assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => operacoesNativas.abastecimentosListPage(filtros), contexto);
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+};
+
+/** @param {string} id @param {string} empresaId */
+export const getAbastecimento = async (id, empresaId) => {
+  const contexto = ctx('getAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(isId(id) && isId(empresaId), 'id', contexto);
+  return runProviderCall(() => operacoesNativas.abastecimentoGet(id, empresaId), contexto);
+};
+
+/**
+ * Prévia SEM escrita (A3): o plano (kg, fator e versão, lotes FIFO, custo
+ * estimado, medidor) e os bloqueios que impediriam a confirmação.
+ * @param {Record<string, unknown>} corpo
+ * @returns {Promise<{ plano: any, bloqueios: any[] }>}
+ */
+export const previaAbastecimento = async (corpo) => {
+  const contexto = ctx('previaAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_BASE_ABASTECIMENTO), 'corpo', contexto);
+  assertArgument(comChaves(corpo, OBRIGATORIAS_PREVIA), 'corpo', contexto);
+  validarCorpoAbastecimento(corpo, contexto);
+  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.abastecimentoPrevia(corpo), contexto));
+  return {
+    plano: isObjeto(bruto) && isObjeto(bruto.plano) ? bruto.plano : null,
+    bloqueios: isObjeto(bruto) && Array.isArray(bruto.bloqueios) ? bruto.bloqueios.filter(isObjeto) : [],
+  };
+};
+
+/**
+ * Confirmação (A4): corpo EXATO com `operation_id` (idempotência) e o fator
+ * (`conversao_id`/`conversao_versao`) visto na prévia.
+ * @param {Record<string, unknown>} corpo
+ */
+export const confirmarAbastecimento = async (corpo) => {
+  const contexto = ctx('confirmarAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_CONFIRMACAO) && comChaves(corpo, CORPO_CONFIRMACAO), 'corpo', contexto);
+  validarCorpoAbastecimento(corpo, contexto);
+  assertArgument(typeof corpo.operation_id === 'string' && PADRAO_OPERATION_ID_ABASTECIMENTO.test(corpo.operation_id), 'operation_id', contexto);
+  assertArgument(isId(corpo.conversao_id), 'conversao_id', contexto);
+  assertArgument(ehVersao(corpo.conversao_versao), 'conversao_versao', contexto);
+  return runProviderCall(() => operacoesNativas.abastecimentoConfirmar(corpo), contexto);
+};
+
+/**
+ * Cancelamento com estorno exato (A5): corpo EXATO `{empresa_id, versao, motivo, operation_id}`.
+ * @param {string} id @param {Record<string, unknown>} corpo
+ */
+export const cancelarAbastecimento = async (id, corpo) => {
+  const contexto = ctx('cancelarAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_CANCELAMENTO) && comChaves(corpo, CORPO_CANCELAMENTO), 'corpo', contexto);
+  assertArgument(isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  assertArgument(typeof corpo.motivo === 'string' && corpo.motivo.trim().length > 0 && corpo.motivo.length <= 500, 'motivo', contexto);
+  assertArgument(typeof corpo.operation_id === 'string' && PADRAO_OPERATION_ID_ABASTECIMENTO.test(corpo.operation_id), 'operation_id', contexto);
+  return runProviderCall(() => operacoesNativas.abastecimentoCancelar(id, corpo), { ...contexto, details: { id } });
+};
+
+/**
+ * Opções da tela Abastecimentos (A7–A12). `tanques` → `{bem, itens}`; `locais`
+ * → `{itens}` (com saldo da empresa); demais → página `{itens, has_more, next_cursor}`.
+ * @param {string} recurso @param {Record<string, unknown>} [filtros]
+ * @returns {Promise<any>}
+ */
+export const listOpcoesAbastecimento = async (recurso, filtros = {}) => {
+  const contexto = ctx('listOpcoesAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(RECURSOS_OPCOES_ABASTECIMENTO.includes(recurso), 'recurso', contexto);
+  if (recurso !== 'tipos') assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  if (recurso === 'tanques') assertArgument(isId(filtros.bem_id), 'bem_id', contexto);
+  if (recurso === 'produtos') assertArgument(isId(filtros.tipo_combustivel_id), 'tipo_combustivel_id', contexto);
+  if (recurso === 'locais') assertArgument(isId(filtros.produto_id), 'produto_id', contexto);
+  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.abastecimentoOpcoes(recurso, filtros), contexto));
+  if (recurso === 'tanques') {
+    return { bem: isObjeto(bruto) && isObjeto(bruto.bem) ? bruto.bem : null, itens: isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens.filter(isObjeto) : [] };
+  }
+  if (recurso === 'locais') return { itens: isObjeto(bruto) && Array.isArray(bruto.itens) ? bruto.itens.filter(isObjeto) : [] };
+  return paginaDeOpcoes(bruto);
+};
+
+/** Consumo do bem (A6): intervalos entre tanques cheios, com metodologia. @param {Record<string, unknown>} filtros */
+export const getConsumoAbastecimento = async (filtros) => {
+  const contexto = ctx('getConsumoAbastecimento', RESOURCE_ABASTECIMENTO);
+  assertArgument(isObjeto(filtros) && isId(filtros.empresa_id), 'empresa_id', contexto);
+  assertArgument(isId(filtros.bem_id), 'bem_id', contexto);
+  return runProviderCall(() => operacoesNativas.abastecimentoConsumo(filtros), contexto);
+};
+
+/** Fatores kg/L da empresa (A13; keyset). @param {Record<string, unknown>} [filtros] */
+export const listConversoesCombustivelPage = async (filtros = {}) => {
+  const contexto = ctx('listConversoesCombustivelPage', RESOURCE_CONVERSAO);
+  assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => operacoesNativas.conversoesListPage(filtros), contexto);
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+};
+
+/**
+ * Novo fator (A14): encerra a vigente do par (`conversao_vigente_id` lido pela
+ * tela, ou null) e cria a próxima versão. Corpo EXATO; fator como TEXTO.
+ * @param {Record<string, unknown>} corpo
+ */
+export const createConversaoCombustivel = async (corpo) => {
+  const contexto = ctx('createConversaoCombustivel', RESOURCE_CONVERSAO);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_CONVERSAO) && comChaves(corpo, CORPO_CONVERSAO), 'corpo', contexto);
+  assertArgument(isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(isId(corpo.tipo_combustivel_id), 'tipo_combustivel_id', contexto);
+  assertArgument(isId(corpo.produto_id), 'produto_id', contexto);
+  assertArgument(typeof corpo.kg_por_litro === 'string' && RE_FATOR.test(corpo.kg_por_litro), 'kg_por_litro', contexto);
+  assertArgument(typeof corpo.declara_estoque_em_kg === 'boolean', 'declara_estoque_em_kg', contexto);
+  assertArgument(corpo.conversao_vigente_id === null || isId(corpo.conversao_vigente_id), 'conversao_vigente_id', contexto);
+  return runProviderCall(() => operacoesNativas.conversaoCriar(corpo), contexto);
+};
+
+/** Encerra o fator vigente (A15): corpo EXATO `{empresa_id, versao}`. @param {string} id @param {Record<string, unknown>} corpo */
+export const encerrarConversaoCombustivel = async (id, corpo) => {
+  const contexto = ctx('encerrarConversaoCombustivel', RESOURCE_CONVERSAO);
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(corpo) && soChaves(corpo, CORPO_ENCERRAR_CONVERSAO) && comChaves(corpo, CORPO_ENCERRAR_CONVERSAO), 'corpo', contexto);
+  assertArgument(isId(corpo.empresa_id), 'empresa_id', contexto);
+  assertArgument(ehVersao(corpo.versao), 'versao', contexto);
+  return runProviderCall(() => operacoesNativas.conversaoEncerrar(id, corpo), { ...contexto, details: { id } });
 };

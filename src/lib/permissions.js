@@ -13,6 +13,7 @@ export const ACTION_LABELS = {
   estornar_liquidacao: "estornar baixas",
   cancelar: "cancelar lançamentos",
   inativar: "inativar ou reativar registros",
+  configurar_conversao: "configurar fator de conversão kg/L",
 };
 
 /**
@@ -22,7 +23,9 @@ export const ACTION_LABELS = {
  *  - Central de Lançamentos: espelho de `GUARDAS.operacaoFinanceira`;
  *  - Patrimônio e Frota (D-PROD-157): `inativar` (inativar e reativar) nas cinco
  *    telas `pat-*` — espelho de `ACOES_PATRIMONIO_EXTRAS` e da guarda
- *    `edicaoPatrimonio` (backend/src/shared/auth/guardasRotas.js).
+ *    `edicaoPatrimonio` (backend/src/shared/auth/guardasRotas.js);
+ *  - Abastecimentos (D-PROD-159): `cancelar` (cancelar/estornar o abastecimento)
+ *    e `configurar_conversao` (fator kg/L) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`.
  */
 const ACOES_EXTRAS_PATRIMONIO = Object.freeze(["inativar"]);
 
@@ -33,6 +36,7 @@ export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
   "pat-tipos-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
   "pat-perfis-medicao": ACOES_EXTRAS_PATRIMONIO,
   "pat-combustiveis": ACOES_EXTRAS_PATRIMONIO,
+  "pat-abastecimentos": Object.freeze(["cancelar", "configurar_conversao"]),
 });
 
 /** @param {string} pageId @returns {readonly string[]} */

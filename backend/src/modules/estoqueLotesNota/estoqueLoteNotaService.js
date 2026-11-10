@@ -102,15 +102,25 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
   return atual;
 };
 
-/** D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409. Chamar sob `travarLote`. */
+/**
+ * D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409.
+ * D-PROD-159 (X1): idem para fatia FIFO de abastecimento de bem (confirmado ou
+ * cancelado: o histórico fica). Chamar sob `travarLote`.
+ */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
-  const [itens, consumos] = await Promise.all([
+  const [itens, consumos, abastecimentos] = await Promise.all([
     tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
     tx.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
+    tx.abastecimentoBemConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
   ]);
   if (itens + consumos > 0) {
     throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque vinculado a lançamento financeiro só muda pelo próprio lançamento (cancelamento); nada foi alterado', {
       details: { id, vinculo: 'lancamento_financeiro', itens, consumos },
+    });
+  }
+  if (abastecimentos > 0) {
+    throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque consumido por abastecimento de bem só muda pelo próprio abastecimento (cancelamento); nada foi alterado', {
+      details: { id, vinculo: 'abastecimento_bem', consumos_abastecimento: abastecimentos },
     });
   }
 };

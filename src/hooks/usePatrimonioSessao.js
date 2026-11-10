@@ -6,19 +6,20 @@
  * invalida `["permissao-efetiva"]` ao gravar, e o cache é compartilhado.
  *
  * Catálogos (famílias, tipos, perfis, combustíveis) são do TENANT e não pedem
- * empresa; os bens pedem a empresa REAL (`useEmpresaRealSelecionadaId`).
+ * empresa; os bens e os abastecimentos pedem a empresa REAL
+ * (`useEmpresaRealSelecionadaId`).
  */
 import { useQuery } from '@tanstack/react-query';
 import { carregarPermissaoEfetiva, getCurrentUser } from '@/services/sessionService';
-import { acoesDaTelaPatrimonio } from '@/lib/patrimonioPermissions';
+import { acoesDaTelaAbastecimento, acoesDaTelaPatrimonio } from '@/lib/patrimonioPermissions';
 
 export { useEmpresaRealSelecionadaId } from '@/hooks/useGestaoSessao';
 
 /**
- * @param {string} tela id da tela (`TELAS_PATRIMONIO`)
- * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean, carregando: boolean, administrador: boolean, login: string|null }}
+ * Usuário atual e permissão efetiva (as duas consultas compartilhadas).
+ * @returns {{ permissao: any, carregando: boolean, administrador: boolean, login: string|null }}
  */
-export const useAcoesTelaPatrimonio = (tela) => {
+const usePermissaoEfetivaPatrimonio = () => {
   const { data: usuarioAtual = null, isLoading: carregandoUsuario } = useQuery({
     queryKey: ['gestao-usuario'],
     queryFn: () => getCurrentUser(),
@@ -34,11 +35,31 @@ export const useAcoesTelaPatrimonio = (tela) => {
     refetchOnWindowFocus: true,
   });
   return {
-    ...acoesDaTelaPatrimonio(permissao, tela),
+    permissao,
     carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao),
     // Administrador real OU concessão `is_admin`: a permissão efetiva chega com
     // `is_admin: true` nos dois casos (= `adminOuIsAdmin()` do servidor).
     administrador: /** @type {any} */ (permissao)?.is_admin === true,
     login,
   };
+};
+
+/**
+ * @param {string} tela id da tela (`TELAS_PATRIMONIO`)
+ * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean, carregando: boolean, administrador: boolean, login: string|null }}
+ */
+export const useAcoesTelaPatrimonio = (tela) => {
+  const { permissao, carregando, administrador, login } = usePermissaoEfetivaPatrimonio();
+  return { ...acoesDaTelaPatrimonio(permissao, tela), carregando, administrador, login };
+};
+
+/**
+ * Ações da tela Abastecimentos (D-PROD-159): ver, criar (prévia e confirmação),
+ * cancelar/estornar e configurar o fator kg/L — espelho de
+ * `GUARDAS.patrimonioAbastecimentos`.
+ * @returns {{ ver: boolean, criar: boolean, cancelar: boolean, configurarConversao: boolean, carregando: boolean, administrador: boolean, login: string|null }}
+ */
+export const useAcoesTelaAbastecimento = () => {
+  const { permissao, carregando, administrador, login } = usePermissaoEfetivaPatrimonio();
+  return { ...acoesDaTelaAbastecimento(permissao), carregando, administrador, login };
 };

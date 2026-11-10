@@ -160,6 +160,69 @@ export const montarCaminhoProdutosElegiveisDoBem = (bemId, filtros = {}) => {
 /** @param {string} caminho @param {string} empresaId */
 const comEmpresa = (caminho, empresaId) => `${caminho}?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`;
 
+// ─── Abastecimentos (D-PROD-159) ─────────────────────────────────────────
+/**
+ * Abastecimentos da EMPRESA e fatores kg/L (Patrimônio P1-02). Prefixo próprio
+ * (`/patrimonio-abastecimentos…`, `/patrimonio-conversoes-combustivel`); as
+ * opções da tela são rotas DESTA tela (`/patrimonio-abastecimentos-opcoes/<recurso>`),
+ * montadas por template — nenhuma rota é a da porta de Produtos ou de Locais.
+ * Decimais (litros, leitura, fator) viajam como TEXTO canônico.
+ */
+const CAMINHO_ABASTECIMENTOS = '/patrimonio-abastecimentos';
+const CAMINHO_ABASTECIMENTOS_PREVIA = '/patrimonio-abastecimentos-previa';
+const CAMINHO_ABASTECIMENTOS_OPCOES = '/patrimonio-abastecimentos-opcoes';
+const CAMINHO_ABASTECIMENTOS_CONSUMO = '/patrimonio-abastecimentos-consumo';
+const CAMINHO_CONVERSOES = '/patrimonio-conversoes-combustivel';
+const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
+const RESOURCE_CONVERSAO = 'ConversaoCombustivelProduto';
+
+/** Prévia/confirmar/cancelar mexem em lotes e movimentos: prazo próprio (o servidor responde em ≤ 19 s). */
+export const TIMEOUT_COMANDO_ABASTECIMENTO_MS = 60000;
+/** Recursos de opção da tela Abastecimentos (guardados pela própria tela). */
+export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'tipos', 'produtos', 'produtos-filtro', 'locais']);
+
+/** Filtros aceitos por recurso (query FECHADA no servidor: nada além disso vai). */
+const FILTROS_LISTA_ABASTECIMENTOS = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'status', 'data_de', 'data_ate', 'operation_id', 'q', 'limit', 'cursor']);
+const FILTROS_OPCOES_ABASTECIMENTO = Object.freeze(/** @type {Record<string, readonly string[]>} */ ({
+  bens: ['empresa_id', 'uso', 'q', 'limit', 'cursor'],
+  tanques: ['empresa_id', 'bem_id'],
+  tipos: ['empresa_id', 'q', 'limit', 'cursor'],
+  produtos: ['empresa_id', 'tipo_combustivel_id', 'q', 'limit', 'cursor'],
+  'produtos-filtro': ['empresa_id', 'q', 'limit', 'cursor'],
+  locais: ['empresa_id', 'produto_id'],
+}));
+const FILTROS_CONSUMO = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'limit']);
+const FILTROS_CONVERSOES = Object.freeze(['empresa_id', 'tipo_combustivel_id', 'produto_id', 'situacao', 'limit', 'cursor']);
+
+/**
+ * Caminho com só as chaves permitidas, sem vazio (texto aparado; número como texto).
+ * @param {string} caminho @param {readonly string[]} permitidas @param {Record<string, unknown>} filtros
+ */
+const comFiltros = (caminho, permitidas, filtros) => {
+  const params = new URLSearchParams();
+  for (const chave of permitidas) {
+    const valor = filtros[chave];
+    if (valor === undefined || valor === null) continue;
+    const textoValor = typeof valor === 'string' ? valor.trim() : String(valor);
+    if (textoValor) params.set(chave, textoValor);
+  }
+  return comQuery(caminho, params);
+};
+
+/** @param {Record<string, unknown>} [filtros] */
+export const montarCaminhoListagemAbastecimentos = (filtros = {}) => comFiltros(CAMINHO_ABASTECIMENTOS, FILTROS_LISTA_ABASTECIMENTOS, filtros);
+/** @param {string} recurso @param {Record<string, unknown>} [filtros] */
+export const montarCaminhoOpcoesAbastecimento = (recurso, filtros = {}) =>
+  comFiltros(`${CAMINHO_ABASTECIMENTOS_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_OPCOES_ABASTECIMENTO[recurso] ?? [], filtros);
+/** @param {Record<string, unknown>} [filtros] */
+export const montarCaminhoConsumoAbastecimento = (filtros = {}) => comFiltros(CAMINHO_ABASTECIMENTOS_CONSUMO, FILTROS_CONSUMO, filtros);
+/** @param {Record<string, unknown>} [filtros] */
+export const montarCaminhoConversoes = (filtros = {}) => comFiltros(CAMINHO_CONVERSOES, FILTROS_CONVERSOES, filtros);
+/** @param {string} id */
+const doAbastecimento = (id) => `${CAMINHO_ABASTECIMENTOS}/${encodeURIComponent(id)}`;
+/** @param {string} id */
+const daConversao = (id) => `${CAMINHO_CONVERSOES}/${encodeURIComponent(id)}`;
+
 export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
   catalogoListPage: (recurso, filtros = {}) =>
@@ -203,4 +266,47 @@ export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} [filtros] */
   combustivelProdutoOpcoes: (filtros = {}) =>
     nativeRequest(montarCaminhoOpcoesProdutosCombustivel(filtros), { autenticado: true }, ctx('listOpcoesProdutosCombustivel', RESOURCE_VINCULO)),
+  // ─── Abastecimentos (D-PROD-159) ───
+  /** @param {Record<string, unknown>} [filtros] */
+  abastecimentosListPage: (filtros = {}) =>
+    nativeRequest(montarCaminhoListagemAbastecimentos(filtros), { autenticado: true }, ctx('listAbastecimentosPage', RESOURCE_ABASTECIMENTO)),
+  /** @param {string} id @param {string} empresaId */
+  abastecimentoGet: (id, empresaId) =>
+    nativeRequest(comEmpresa(doAbastecimento(id), empresaId), { autenticado: true }, ctx('getAbastecimento', RESOURCE_ABASTECIMENTO, { id })),
+  /** @param {Record<string, unknown>} corpo */
+  abastecimentoPrevia: (corpo) =>
+    nativeRequest(
+      CAMINHO_ABASTECIMENTOS_PREVIA,
+      { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_ABASTECIMENTO_MS },
+      ctx('previaAbastecimento', RESOURCE_ABASTECIMENTO),
+    ),
+  /** @param {Record<string, unknown>} corpo */
+  abastecimentoConfirmar: (corpo) =>
+    nativeRequest(
+      CAMINHO_ABASTECIMENTOS,
+      { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_ABASTECIMENTO_MS },
+      ctx('confirmarAbastecimento', RESOURCE_ABASTECIMENTO),
+    ),
+  /** @param {string} id @param {Record<string, unknown>} corpo */
+  abastecimentoCancelar: (id, corpo) =>
+    nativeRequest(
+      `${doAbastecimento(id)}/cancelar`,
+      { method: 'POST', body: corpo, autenticado: true, timeoutMs: TIMEOUT_COMANDO_ABASTECIMENTO_MS },
+      ctx('cancelarAbastecimento', RESOURCE_ABASTECIMENTO, { id }),
+    ),
+  /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
+  abastecimentoOpcoes: (recurso, filtros = {}) =>
+    nativeRequest(montarCaminhoOpcoesAbastecimento(recurso, filtros), { autenticado: true }, ctx('listOpcoesAbastecimento', RESOURCE_ABASTECIMENTO, { recurso })),
+  /** @param {Record<string, unknown>} [filtros] */
+  abastecimentoConsumo: (filtros = {}) =>
+    nativeRequest(montarCaminhoConsumoAbastecimento(filtros), { autenticado: true }, ctx('getConsumoAbastecimento', RESOURCE_ABASTECIMENTO)),
+  /** @param {Record<string, unknown>} [filtros] */
+  conversoesListPage: (filtros = {}) =>
+    nativeRequest(montarCaminhoConversoes(filtros), { autenticado: true }, ctx('listConversoesCombustivelPage', RESOURCE_CONVERSAO)),
+  /** @param {Record<string, unknown>} corpo */
+  conversaoCriar: (corpo) =>
+    nativeRequest(CAMINHO_CONVERSOES, { method: 'POST', body: corpo, autenticado: true }, ctx('createConversaoCombustivel', RESOURCE_CONVERSAO)),
+  /** @param {string} id @param {Record<string, unknown>} corpo */
+  conversaoEncerrar: (id, corpo) =>
+    nativeRequest(`${daConversao(id)}/encerrar`, { method: 'POST', body: corpo, autenticado: true }, ctx('encerrarConversaoCombustivel', RESOURCE_CONVERSAO, { id })),
 });

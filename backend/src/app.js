@@ -49,6 +49,7 @@ import { registrarOperacaoFinanceiraRoutes } from './modules/financeiro/operacao
 import { registrarPatrimonioCatalogoRoutes } from './modules/patrimonio/patrimonioCatalogoRoutes.js';
 import { registrarBemPatrimonialRoutes } from './modules/patrimonio/bemPatrimonialRoutes.js';
 import { registrarCombustivelProdutoRoutes } from './modules/patrimonio/combustivelProdutoRoutes.js';
+import { registrarAbastecimentoRoutes } from './modules/patrimonio/abastecimentoRoutes.js';
 import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
 import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
@@ -220,6 +221,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarBemPatrimonialRoutes);
   // D-PROD-157 (R2) — vínculo combustível × produto por empresa (classificação; sem estoque/custo).
   await app.register(registrarCombustivelProdutoRoutes);
+  // D-PROD-159 — Patrimônio P1-02: abastecimentos (baixa física pelo motor de estoque; fator kg/L informado).
+  await app.register(registrarAbastecimentoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
   await app.register(registrarBebedouroRoutes);
   await app.register(registrarPontoSuplementacaoRoutes);

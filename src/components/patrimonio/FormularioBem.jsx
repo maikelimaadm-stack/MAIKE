@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { hojeNoFuso } from "@/lib/diaCivil";
+import { formatarDia, hojeNoFuso } from "@/lib/diaCivil";
+import { formatarNumero } from "@/lib/dinheiroDecimal";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -79,8 +80,10 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
   // "Hoje" da leitura do medidor = dia da FAZENDA (o servidor valida no fuso da empresa); sem fuso, o do navegador.
   const hoje = hojeNoFuso(fuso);
   const medidorOriginal = editando ? (detalhe.medidor ?? null) : null;
-  const contexto = { editando, medidorOriginal, hoje };
-  const tipoDoMedidorFixo = editando && ehMedidorContador(medidorOriginal?.tipo) && !medidorCorrigivel(medidorOriginal);
+  // D-PROD-159 (X2): leitura registrada por abastecimento confirmado = piso do medidor.
+  const medidorOperacional = editando ? (detalhe.medidor_operacional ?? null) : null;
+  const contexto = { editando, medidorOriginal, hoje, medidorOperacional };
+  const tipoDoMedidorFixo = editando && ehMedidorContador(medidorOriginal?.tipo) && !medidorCorrigivel(medidorOriginal, medidorOperacional);
 
   const perfisQuery = useQuery({
     queryKey: CHAVE_PERFIS_COMPLETOS,
@@ -346,6 +349,14 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
         readOnly={readOnly}
         erros={erros}
         hoje={hoje}
+        motivoFixo={
+          medidorOperacional
+            ? `Há leitura registrada por abastecimento: o tipo e a leitura inicial não mudam, e um ajuste não pode ser menor que ${formatarNumero(
+                String(medidorOperacional.leitura ?? ""),
+                { locale: LOCALE_BEM, casasMin: 0, casasMax: 4 },
+              )} nem anterior a ${formatarDia(medidorOperacional.data, LOCALE_BEM)}.`
+            : null
+        }
       />
       {cap?.tanques ? (
         <>
