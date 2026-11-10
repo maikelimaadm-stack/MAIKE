@@ -276,7 +276,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
             conversao: c ? { id: c.id, versao: c.versao, sequencia: c.sequencia, kg_por_litro: dec(c.kg_por_litro).toFixed(CASAS_PRECO) } : null,
             tanques: (tanquesPorTipo.get(tipo.id) ?? []).map((t) => ({ ...t })),
             bloqueios,
-            pronto: bloqueios.length === 0,
+            pronto: true,
           };
         });
       },
