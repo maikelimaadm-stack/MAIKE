@@ -417,6 +417,64 @@ describe('R6 — tenancy e autorização da rota', () => {
   });
 });
 
+describe('R10 — evidência do AuditLog (Q5) e JSON fora de forma', () => {
+  test('R10: renomeação benigna do lote não é evidência; PATCH/DELETE legado de lote e POST manual de movimento → LIMITACAO_LEGADA; JSON forjado ou fora de forma nunca derruba a leitura', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '100', '2.00')]));
+    const L = compra.itens[0].estoque_lote_nota_id;
+    // renomeação benigna pela rota (FormularioPonto): o AuditLog só muda local_estoque_nome/updated_date
+    await A.ok(A.req('PATCH', `/estoque-lotes-nota/${L}`, s.token, { local_estoque_nome: s.local.nome }));
+    assert.ok(await prisma().auditLog.count({ where: { cliente_id: s.c, entidade: 'EstoqueLoteNota', entidade_id: L, acao: 'update' } }) >= 1);
+    // AuditLog de lote com dados fora de forma (lista/nulo): não é evidência e não quebra a leitura
+    await prisma().auditLog.create({ data: { cliente_id: s.c, acao: 'update', entidade: 'EstoqueLoteNota', entidade_id: L, request_id: 'req-forma', dados_novos: ['x'] } });
+    assert.deepEqual((await relatorio(s, { empresa_id: e.id })).achados, [], 'a renomeação benigna não é escritor fora do protocolo');
+
+    // PATCH legado de quantidade (antes da P0): o lote e o cache divergem e há evidência
+    const publico = (disp, nome) => ({
+      id: L, empresa_id: e.id, produto_id: e.sal.id, local_estoque_id: s.local.id, local_estoque_nome: nome, quantidade_entrada: '100', quantidade_disponivel: disp,
+      status: 'Disponivel', updated_date: new Date().toISOString(),
+    });
+    await prisma().estoqueLoteNota.update({ where: { cliente_id_id: { cliente_id: s.c, id: L } }, data: { quantidade_disponivel: '90' } });
+    await prisma().auditLog.create({
+      data: { cliente_id: s.c, acao: 'update', entidade: 'EstoqueLoteNota', entidade_id: L, request_id: 'req-patch', dados_anteriores: publico('100', s.local.nome), dados_novos: publico('90', s.local.nome) },
+    });
+    // DELETE legado de um lote de milho (o cache ficou com o saldo do lote apagado)
+    await definirEstoqueAtual(s, e.milho, '30');
+    await prisma().auditLog.create({
+      data: {
+        cliente_id: s.c, acao: 'delete', entidade: 'EstoqueLoteNota', entidade_id: `lote-apagado-${randomUUID().slice(0, 8)}`, request_id: 'req-del',
+        dados_anteriores: { produto_id: e.milho.id, empresa_id: e.id, local_estoque_id: s.local.id, quantidade_disponivel: '30' },
+      },
+    });
+    // POST genérico legado de movimento (origem manual) de ração, sem lote
+    const manual = await movimento(s, e, e.racao, { tipo_movimentacao: 'Entrada', tipo_detalhado: 'ajuste', origem_sistema: 'manual', quantidade: '25', local_estoque_destino: s.local.id });
+    await prisma().auditLog.create({
+      data: { cliente_id: s.c, acao: 'create', entidade: 'MovimentacaoEstoque', entidade_id: manual.id, request_id: 'req-post', dados_novos: { id: manual.id, empresa_id: e.id, produto_id: e.racao.id, origem_sistema: 'manual' } },
+    });
+    // lotes_consumidos forjado (quantidade não numérica) e recibo com rateio fora de forma
+    const forjado = await movimento(s, s.e2, s.e2.milho, {
+      tipo_movimentacao: 'Saída', tipo_detalhado: 'suplementacao', origem_sistema: 'suplementacao', quantidade: '1', local_estoque_origem: s.local.id,
+      lotes_consumidos: [{ lote_id: 'x', quantidade: 'abc' }, 'texto', { lote_id: 'y', quantidade: '1e999999' }],
+    });
+    await recibo(s, 'saida_suplementacao', { movimentacao: { id: forjado.id }, rateio: { nao: 'lista' } });
+    await recibo(s, 'transferencia_locais', ['nao', 'objeto']);
+
+    const rel = await relatorio(s);
+    const [lote] = achadosDe(rel, 'lote', 'lote_id', L);
+    assert.deepEqual([lote?.classe, lote?.regra], ['LIMITACAO_LEGADA', 'lote_escrito_fora_do_motor'], JSON.stringify(rel.achados));
+    assert.ok(lote.evidencias.includes('consumo_nao_explicado') && lote.evidencias.includes('auditoria:EstoqueLoteNota:update'), JSON.stringify(lote));
+    assert.deepEqual(classe(rel, 'produto', 'produto_id', e.sal.id), ['LIMITACAO_LEGADA', 'cache_diverge_legado']);
+    assert.deepEqual(classe(rel, 'produto', 'produto_id', e.milho.id), ['LIMITACAO_LEGADA', 'cache_diverge_legado'], 'cache sem lote, mas com o DELETE legado como evidência');
+    assert.deepEqual(classe(rel, 'movimento', 'movimento_id', manual.id), ['LIMITACAO_LEGADA', 'origem_fora_do_protocolo']);
+    const localRacao = achadosDe(rel, 'local', 'produto_id', e.racao.id);
+    assert.deepEqual(localRacao.map((a) => [a.classe, a.regra, a.esperado, a.observado]), [['LIMITACAO_LEGADA', 'razao_diverge_legado', '25.0000', '0.0000']]);
+    assert.deepEqual(classe(rel, 'movimento', 'movimento_id', forjado.id), ['DADOS_INSUFICIENTES', 'fatias_ilegiveis']);
+    const corpo = JSON.stringify(rel);
+    for (const proibido of ['dados_anteriores', 'dados_novos', 'req-patch', 'req-del']) assert.ok(!corpo.includes(proibido), `sem "${proibido}" na resposta`);
+  });
+});
+
 describe('R7/R8 — sem auto-reparo, sem trava, número fixo de consultas', () => {
   test('R7: foto() do tenant e contagem de AuditLog iguais antes e depois de reconciliar (com divergências presentes); duas leituras dão o mesmo relatório', async () => {
     const s = await montarTenant(app);
