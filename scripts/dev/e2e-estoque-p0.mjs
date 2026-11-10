@@ -38,7 +38,11 @@
  *      a MESMA `data_documento` e a MESMA procedência da camada de origem e
  *      `movimentacao_entrada_id` = Entrada; `lotes_consumidos` da Saída com
  *      `lote_destino_id`; total global conservado (180,0000) e `estoque_atual`
- *      igual (a transferência não mexe no cache).
+ *      igual (a transferência não mexe no cache). Em 390 px a folha "Local de
+ *      Destino" abre atrás do diálogo modal (defeito PRÉ-EXISTENTE, fora da P0):
+ *      o roteiro registra o bloqueio exato (aria-hidden + hit-test) e falha.
+ *   4. GET /estoque-fisico/reconciliacao (somente leitura) sobre o que as telas
+ *      gravaram: 0 achados em todas as classes, sem escrita nem auditoria.
  *   Em toda captura: sem rolagem horizontal da página nem diálogo fora da tela.
  *   Toda resposta ≥ 400 da API real vista pelas telas é divergência.
  *
@@ -788,6 +792,23 @@ const executarLargura = async (browser, largura) => {
       igual(genericas.map((e) => `${e.metodo} ${e.url}`).join(', '), '', `[${rotulo}] escrita genérica de estoque disparada pela tela`);
       await page.waitForTimeout(800);
       await shot('deposito-apos-transferencia');
+    });
+
+    // ── 4. Reconciliação somente leitura (F4) sobre o que as telas gravaram ──
+    await passo('4 Reconciliação somente leitura: 0 achados no tenant e nada gravado', async () => {
+      const antes = await fotoEstoque(s);
+      const auditAntes = await prisma.auditLog.count({ where: { cliente_id: s.cliente_id } });
+      const r = await api(token, 'GET', `/estoque-fisico/reconciliacao?empresa_id=${s.empresa.id}`);
+      exigir(r.status === 200, `[${rotulo}] GET /estoque-fisico/reconciliacao: ${r.status} ${JSON.stringify(r.corpo).slice(0, 300)}`);
+      const pc = r.corpo?.resumo?.por_classe ?? {};
+      igual(
+        `${pc.DIVERGENCIA_REAL}:${pc.LIMITACAO_LEGADA}:${pc.DADOS_INSUFICIENTES}:${(r.corpo?.achados ?? []).length}`,
+        '0:0:0:0',
+        `[${rotulo}] reconciliação (DIVERGENCIA_REAL:LIMITACAO_LEGADA:DADOS_INSUFICIENTES:achados) ${JSON.stringify((r.corpo?.achados ?? []).slice(0, 3))}`,
+      );
+      console.log(`  [${rotulo}] reconciliação: resumo ${JSON.stringify(r.corpo?.resumo)}`);
+      igual(await fotoEstoque(s), antes, `[${rotulo}] a reconciliação não mexe no estoque`);
+      igual(await prisma.auditLog.count({ where: { cliente_id: s.cliente_id } }), auditAntes, `[${rotulo}] a reconciliação não grava auditoria`);
     });
   } finally {
     await dormir(500);
