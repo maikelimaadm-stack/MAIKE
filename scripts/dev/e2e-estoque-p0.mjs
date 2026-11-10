@@ -1080,7 +1080,7 @@ const executarLargura = async (browser, largura) => {
         ...('conclusao_global' in cob ? [['conclusao_global', cob.conclusao_global, 'COMPROVADA']] : []),
         ...('conclusao_global_comprovada' in cob ? [['conclusao_global_comprovada', cob.conclusao_global_comprovada, true]] : []),
         ...('motivos_inconclusiva' in cob ? [['motivos_inconclusiva', JSON.stringify(cob.motivos_inconclusiva), '[]']] : []),
-        ...('evidencia_exclusoes' in cob ? [['evidencia_exclusoes', cob.evidencia_exclusoes, 'completa']] : []),
+        ...('evidencia_exclusoes' in cob ? [['evidencia_exclusoes_parcial', cob.evidencia_exclusoes === 'parcial', false]] : []),
         ...('interrompida_por' in cob ? [['interrompida_por', cob.interrompida_por ?? null, null]] : []),
       ];
       igual(provas.map(([k, v]) => `${k}=${v}`).join(' '), provas.map(([k, , e]) => `${k}=${e}`).join(' '), `[${rotulo}] cobertura da reconciliação (escopo inteiro num snapshot, sem continuação)`);
