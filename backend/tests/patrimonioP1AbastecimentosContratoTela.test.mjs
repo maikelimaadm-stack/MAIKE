@@ -164,6 +164,15 @@ describe('INT-1 — corpos da tela na API real (TP-02 e flex)', () => {
     const { form, tanque } = await preencher(s, tok, { bemId: s.trator.id, tipoId: s.comb.DIESEL_S10, produtoId: s.diesel.id, litros: '80,0', leitura: '1550,5', tanqueCheio: true });
     assert.deepEqual(form.produto.conversao, { id: fator.id, versao: fator.versao, sequencia: 1, kg_por_litro: '0.840000' });
     assert.equal(form.produto.pronto, true);
+    // …e a tela com o formulário JÁ aberto (sem fator) relê `produtos-do-bem` e reaplica a opção nova do MESMO
+    // Produto com o helper real (`FormularioAbastecimento`: "o servidor mudou fator/tanques → reaplica a opção"):
+    // local, tanque e o digitado ficam, só fator e prontidão mudam — o mesmo formulário de preencher do zero
+    const relida = await A.ok(A.produtosDoBem(tok, s.e1.id, s.trator.id));
+    assert.equal(situacaoDaEscolha(relida, sem.form), 'presente', 'a escolha aberta segue entre as opções do servidor');
+    const opcaoNova = relida.itens.find((i) => i.produto.id === sem.form.produto.id && i.tipo_combustivel.id === sem.form.tipo_combustivel_id);
+    const reaplicado = opcaoNoFormulario(sem.form, opcaoNova);
+    assert.deepEqual([reaplicado.local_estoque_id, reaplicado.tanque_id], [sem.form.local_estoque_id, sem.form.tanque_id], 'mesmo Produto → local e tanque mantidos');
+    assert.deepEqual(reaplicado, form, 'reaplicar a opção no formulário aberto = preencher de novo (fator novo, nada mais muda)');
     const corpoPrevia = montarCorpoPrevia(s.e1.id, form);
     assert.deepEqual([corpoPrevia.quantidade_litros, corpoPrevia.medidor_leitura], ['80', '1550.5']);
     const antesPrevia = await fotoAbastecimento(s.c);
