@@ -587,9 +587,9 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => tx.$queryRaw`WITH mv
     (SELECT ${COLUNAS_MOVIMENTO}, true AS amostra_orfa FROM x WHERE produto_inexistente
       ORDER BY empresa_id, produto_id, local_estoque_id, id LIMIT ${amostra}::int)`;
 
-/** Exclusão legada no JSON do AuditLog: produto, empresa e local do lote apagado. */
-const infoExclusao = Prisma.sql`jsonb_build_object('lote_id', b.entidade_id, 'produto_id', ${produtoDoJson}, 'empresa_id', ${empresaDoJson},
-  'local_estoque_id', ${localDoJson}, 'produto_existe', EXISTS (SELECT 1 FROM "Produto" p WHERE p.cliente_id = ${Prisma.raw('$1')}::text AND p.id = ${produtoDoJson}))`;
+/** Exclusão legada no JSON do AuditLog: produto, empresa e local do lote apagado (e se o produto ainda existe no tenant). */
+const infoExclusao = (cli) => Prisma.sql`jsonb_build_object('lote_id', b.entidade_id, 'produto_id', ${produtoDoJson}, 'empresa_id', ${empresaDoJson},
+  'local_estoque_id', ${localDoJson}, 'produto_existe', EXISTS (SELECT 1 FROM "Produto" p WHERE p.cliente_id = ${cli} AND p.id = ${produtoDoJson}))`;
 
 /**
  * Exclusões legadas de um BLOCO do histórico de AuditLog de EstoqueLoteNota:
@@ -606,7 +606,9 @@ const lerBlocoExclusoes = (tx, cli, f, apos, n, semId) => {
     ? Prisma.sql`a.entidade_id IS NULL${apos.id === null ? Prisma.empty : Prisma.sql` AND a.id > ${apos.id}`} ORDER BY a.id`
     : Prisma.sql`a.entidade_id IS NOT NULL${apos.entidade === null ? Prisma.empty : Prisma.sql` AND a.entidade_id >= ${apos.entidade} AND (a.entidade_id > ${apos.entidade} OR a.id > ${apos.id})`}
       ORDER BY a.entidade_id, a.id`;
-  return tx.$queryRaw`SELECT count(*)::int AS lidas,
+  // `ha_sem_id`: um passo de índice que poupa a fase do `entidade_id` nulo quando ela não tem nada.
+  const semIdExiste = semId ? Prisma.sql`true` : Prisma.sql`EXISTS (SELECT 1 FROM "AuditLog" z WHERE z.cliente_id = ${cli} AND z.entidade = 'EstoqueLoteNota' AND z.entidade_id IS NULL)`;
+  return tx.$queryRaw`SELECT count(*)::int AS lidas, ${semIdExiste} AS ha_sem_id,
       (max(ARRAY[COALESCE(b.entidade_id::text, ''), b.id::text]))[1] AS ult_entidade,
       (max(ARRAY[COALESCE(b.entidade_id::text, ''), b.id::text]))[2] AS ult_id,
       COALESCE(jsonb_agg(e.info) FILTER (WHERE e.info IS NOT NULL), '[]'::jsonb) AS exclusoes
@@ -619,7 +621,7 @@ const lerBlocoExclusoes = (tx, cli, f, apos, n, semId) => {
       LIMIT ${n}::int
     ) b
     LEFT JOIN LATERAL (
-      SELECT ${infoExclusao} AS info
+      SELECT ${infoExclusao(cli)} AS info
       FROM (SELECT ${objeto(Prisma.sql`b.nov_bruto`)} AS nov, ${objeto(Prisma.sql`b.ant_bruto`)} AS ant) d
       WHERE b.acao = 'delete' AND NOT EXISTS (SELECT 1 FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli} AND l.id = b.entidade_id)
         ${f.empresaId === null ? Prisma.empty : Prisma.sql`AND ${empresaDoJson} = ${f.empresaId}`}
@@ -645,7 +647,7 @@ const lerEvidenciaExclusoes = (tx, cli, f, produtos, teto) => tx.$queryRaw`SELEC
       LIMIT ${teto + 1}::int
     ) b
     LEFT JOIN LATERAL (
-      SELECT ${infoExclusao} AS info
+      SELECT ${infoExclusao(cli)} AS info
       FROM (SELECT ${objeto(Prisma.sql`b.nov_bruto`)} AS nov, ${objeto(Prisma.sql`b.ant_bruto`)} AS ant) d
       WHERE b.acao = 'delete' AND NOT EXISTS (SELECT 1 FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli} AND l.id = b.entidade_id)
         AND ${produtoDoJson} = ANY(${produtos}::text[])
@@ -1038,7 +1040,11 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
     unidades += 1;
     if (fase === 'k') {
       const candidatos = /** @type {any[]} */ (await lerChaves(tx, cli, f, desde, o.produtosPorPagina + 1));
-      if (!candidatos.length) { fase = 'x'; continue; }
+      if (!candidatos.length) {
+        unidades -= 1; // nenhuma chave depois da âncora: passa às exclusões sem gastar a vez
+        fase = 'x';
+        continue;
+      }
       let k = 0;
       let custo = 0;
       while (k < candidatos.length && k < o.produtosPorPagina) {
@@ -1115,7 +1121,7 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
     }
     juntar(doBloco);
     if (bloco.lidas < n) {
-      fase = fase === 'x' ? 'n' : 'fim';
+      fase = fase === 'x' && bloco.ha_sem_id ? 'n' : 'fim';
       aposX = { entidade: null, id: null };
     } else {
       aposX = { entidade: fase === 'n' ? null : bloco.ult_entidade, id: bloco.ult_id };

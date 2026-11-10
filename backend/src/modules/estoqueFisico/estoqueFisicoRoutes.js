@@ -1,14 +1,18 @@
 /**
- * D-PROD-161 (Estoque P0, fatia F4 + R1) — rotas do estoque físico.
+ * D-PROD-161 (Estoque P0, fatia F4 + R1 + R2) — rotas do estoque físico.
  *
  * GET /estoque-fisico/reconciliacao — diagnóstico SOMENTE LEITURA dos
  * invariantes do motor físico (SPEC §5). Só o administrador real do tenant
  * (`GUARDAS.estoqueFisico.reconciliar`); o tenant vem do `auth_context`, a
  * querystring é fechada (`additionalProperties: false`: um `cliente_id` ou
  * qualquer chave extra é 400, nunca ignorado). A varredura é limitada por
- * chamada (R1): `cursor` é o `cobertura.proximo_cursor` da resposta anterior,
- * opaco (base64url), e o serviço o confere contra o escopo (400 se for de
- * outra empresa/produto/local, de outra versão ou adulterado).
+ * chamada: `cursor` é o `cobertura.proximo_cursor` da resposta anterior,
+ * ASSINADO pelo servidor (HMAC-SHA256 com chave derivada do AUTH_SECRET) e
+ * amarrado ao tenant, à empresa, ao produto, ao local e ao limite; qualquer
+ * desvio é o mesmo 400 `REQUEST_VALIDATION_FAILED {field:'cursor'}` (o serviço
+ * confere antes de qualquer ida ao banco). O contrato da cobertura (fim do
+ * escopo, continuação, cumulativa e conclusão global) está em
+ * `reconciliacaoEstoque.js`.
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
@@ -25,7 +29,7 @@ const RECONCILIACAO_SCHEMA = {
       produto_id: ID,
       local_estoque_id: ID,
       limite: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO },
-      cursor: { type: 'string', minLength: 1, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' },
+      cursor: { type: 'string', minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' },
     },
   },
 };
