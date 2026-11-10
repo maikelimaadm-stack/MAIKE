@@ -1,11 +1,13 @@
 /**
- * D-PROD-161 (Estoque P0, fatia F4) — RECONCILIAÇÃO SOMENTE LEITURA do estoque
- * físico (SPEC §5). Confere os invariantes do motor único e classifica o que
- * não fecha; NUNCA corrige nada (sem auto-reparo: o saneamento é da P1, com GO).
+ * D-PROD-161 (Estoque P0, fatia F4 + R1) — RECONCILIAÇÃO SOMENTE LEITURA do
+ * estoque físico (SPEC §5). Confere os invariantes do motor único e classifica
+ * o que não fecha; NUNCA corrige nada (sem auto-reparo: o saneamento é da P1,
+ * com GO).
  *
  * Invariantes conferidos (SPEC §1.2):
  *  I1 cache    `Produto.estoque_atual` = Σ disponível dos lotes 'Disponivel' da
- *              empresa do produto, em todos os locais;
+ *              empresa do produto, em TODOS os locais (também com o filtro de
+ *              local: `cobertura.nivel_produto = 'todos_os_locais'`);
  *  I2 local    Σ disponível dos lotes 'Disponivel' por (empresa, produto, local)
  *              = razão dos movimentos (Σ Entrada no destino − Σ Saída na origem,
  *              todos os status: o estorno compensa) e nunca negativo;
@@ -22,21 +24,49 @@
  *
  * Classes (a primeira que casar vale; o nível lote não é mascarado pelo nível
  * produto): DADOS_INSUFICIENTES → LIMITACAO_LEGADA → DIVERGENCIA_REAL → OK.
+ * Evidência do AuditLog só rebaixa para LIMITACAO_LEGADA quando é RELEVANTE
+ * (R1): escrita PROVADA de `estoque_atual` do produto (os dois lados do
+ * snapshot com o campo e valores numéricos diferentes; na criação, ≠ 0) ou de
+ * quantidade/situação/vínculo do lote (criação, exclusão, ou mudança provada
+ * de `quantidade_*`, `status`, `produto_id`, `empresa_id`, `local_estoque_id`,
+ * `movimentacao_entrada_id`). Renomeação, custo/fornecedor/documento do lote,
+ * nome/preço do produto, quantidade igual em outro formato e criação de
+ * movimento manual nunca rebaixam DIVERGENCIA_REAL.
  *
- * Leitura (SPEC §5.1): uma transação RepeatableRead (um só snapshot) cuja
- * PRIMEIRA instrução é `SET TRANSACTION READ ONLY` (defesa extra: o PostgreSQL
- * recusa qualquer escrita nela); nenhuma trava de linha nem advisory, então
- * nunca espera nem bloqueia confirmar/cancelar/suplementar. Número FIXO de idas
- * ao banco (≤ 7: READ ONLY, empresa, Q1–Q5), sem N+1; listas entram como
- * `::text[]` e todo WHERE começa por `cliente_id` (índices `(cliente_id,
- * produto_id)` de lote e movimento). Quantidades viram `::text` no SQL e `Dec`
- * aqui; nunca Number. O tenant vem SÓ do `auth_context` (R11). A resposta tem
- * só ids do próprio tenant: nenhum `dados_*` do AuditLog nem dado de usuário.
+ * Volume (R1, medido em PG17 local com 5.000 produtos, 60.000 lotes, 210.000
+ * movimentos, 140.000 recibos e 60.000 AuditLog): a varredura é LIMITADA e
+ * fail-closed. Anda por PÁGINAS de produto em ordem de id (keyset): a 1ª
+ * consulta de cada página lê os próximos `produtosPorPagina + 1` produtos com
+ * a pré-contagem de lotes e movimentos (índice `(cliente_id, produto_id)`) e
+ * corta a página no orçamento de linhas (no mínimo 1 produto, que nunca é
+ * pulado). Lotes, movimentos e evidências entram por FAIXA de `produto_id`
+ * (`(desde, ate]`; a última página é aberta e cobre os órfãos), e os recibos
+ * legados por janela de criação do próprio movimento (índice
+ * `(cliente_id, createdAt)`: no caminho legado o recibo e o movimento nascem na
+ * mesma transação de ≤ 9 s; fora de ±1 h não casa → DADOS_INSUFICIENTES).
+ * Acima do orçamento da CHAMADA (linhas ou tempo) a resposta é 200 com
+ * `cobertura.completa = false`, `proximo_cursor`, `resumo.situacao =
+ * 'INCOMPLETO'` e `por_classe.OK = null`: nada é declarado OK sobre dados
+ * parciais. `truncado` é só o corte da LISTA de achados pelo `limite` (os
+ * mais graves primeiro, mantidos com memória O(limite + página)).
+ *
+ * Leitura (SPEC §5.1): uma transação RepeatableRead (um só snapshot por
+ * chamada) cuja PRIMEIRA instrução é `SET TRANSACTION READ ONLY` (o PostgreSQL
+ * recusa qualquer escrita nela) e a segunda força plano CUSTOM
+ * (`plan_cache_mode`: o plano genérico do prepared statement, que o driver
+ * passa a usar na 6ª execução, levava 0,9 s a 6,6 s); nenhuma trava de linha
+ * nem advisory. Idas ao banco = 4 fixas (+1 com empresa) + 5 por página, sem
+ * N+1 por lote ou movimento. Listas entram como `::text[]` e todo WHERE começa
+ * por `cliente_id`. Quantidades viram `::text` no SQL e `Dec` aqui; nunca
+ * Number. O tenant vem SÓ do `auth_context` (R11). A resposta tem só ids do
+ * próprio tenant: nenhum `dados_*` do AuditLog nem dado de usuário.
  */
 
 import { Prisma } from '@prisma/client';
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { AppError } from '../../shared/errors/AppError.js';
+import { ID_DE_CURSOR } from '../../shared/pagination/keysetCursor.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
@@ -61,9 +91,10 @@ const TIPOS_MOVIMENTO = Object.freeze(['Entrada', 'Saída']);
 const STATUS_MOVIMENTO = Object.freeze(['Ativa', 'Estornada']);
 /** Recibos dos comandos de estoque que guardam o rateio FIFO (`response_json.rateio`). */
 const TIPOS_RECIBO = Object.freeze(['saida_suplementacao', 'transferencia_locais']);
-/** Colunas do lote que um PATCH pode mudar sem ser escritor fora do protocolo (renomeação do local). */
-const CAMPOS_LIVRES_LOTE = Object.freeze(['local_estoque_nome', 'updated_date', 'updatedAt']);
-const ENTIDADES_AUDITADAS = Object.freeze(['Produto', 'EstoqueLoteNota', 'MovimentacaoEstoque']);
+/** Campos numéricos do lote cuja mudança PROVADA (os dois lados, valor diferente) é evidência de escritor fora do motor. */
+const CAMPOS_QUANTIDADE_LOTE = Object.freeze(['quantidade_entrada', 'quantidade_disponivel']);
+/** Situação e vínculos do lote que mudam saldo, cache ou razão (comparação do valor JSON). */
+const CAMPOS_VINCULO_LOTE = Object.freeze(['status', 'produto_id', 'empresa_id', 'local_estoque_id', 'movimentacao_entrada_id']);
 /** Resíduo de Number por fatia (ou baixa) legada: 1 unidade da 4ª casa. */
 const TOLERANCIA_POR_FATIA = new Dec('0.0001');
 
@@ -71,6 +102,19 @@ export const LIMITE_PADRAO = 500;
 export const LIMITE_MAXIMO = 2000;
 /** Mesmo padrão de `TX_LEITURA`/`LEITURA` dos serviços de financeiro e abastecimento (SPEC §5.1). */
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 20000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
+
+/**
+ * Orçamento de UMA chamada (R1). `linhasPorPagina` e `linhasPorChamada` contam
+ * a pré-contagem `1 + lotes + movimentos` de cada produto; `tempoMs` é
+ * conferido entre páginas e fica bem abaixo dos 20 s da transação, com folga
+ * para a última página (medida: ~0,3 s por 200 produtos × 12 lotes × 42
+ * movimentos). Só o serviço aceita orçamento menor (testes); o HTTP usa este.
+ */
+export const ORCAMENTO_PADRAO = Object.freeze({ produtosPorPagina: 200, linhasPorPagina: 20000, linhasPorChamada: 250000, tempoMs: 8000 });
+const ORCAMENTO_TETO = Object.freeze({ produtosPorPagina: 1000, linhasPorPagina: 100000, linhasPorChamada: 1000000, tempoMs: 12000 });
+/** Janela do recibo legado em torno do `createdAt` do movimento (mesma transação no caminho legado: ≤ 9 s). */
+const JANELA_RECIBO = Prisma.raw(`interval '1 hour'`);
+const VERSAO_CURSOR = 1;
 
 export const CLASSES = Object.freeze(['DADOS_INSUFICIENTES', 'LIMITACAO_LEGADA', 'DIVERGENCIA_REAL']);
 const [DI, LL, DR] = CLASSES;
@@ -91,37 +135,48 @@ const num = (expr) => Prisma.sql`(CASE WHEN (${expr}) ~ '^-?[0-9]+([.][0-9]+)?([
 const objeto = (expr) => Prisma.sql`(CASE WHEN jsonb_typeof((${expr})::jsonb) = 'object' THEN (${expr})::jsonb ELSE '{}'::jsonb END)`;
 /** JSON → lista (`[]` se não for lista). */
 const lista = (expr) => Prisma.sql`(CASE WHEN jsonb_typeof((${expr})::jsonb) = 'array' THEN (${expr})::jsonb ELSE '[]'::jsonb END)`;
-
-/** Recibos committed dos comandos de estoque: id do movimento (suplementação ou saída da transferência) + rateio. */
-const recibosSql = (cli) => Prisma.sql`SELECT o."createdAt" AS criado_em,
-    COALESCE(${objeto(Prisma.sql`o.response_json`)} -> 'movimentacao' ->> 'id', ${objeto(Prisma.sql`o.response_json`)} -> 'movimentacao_saida' ->> 'id') AS movimento_id,
-    ${lista(Prisma.sql`${objeto(Prisma.sql`o.response_json`)} -> 'rateio'`)} AS rateio
-  FROM "OperacaoIdempotente" o
-  WHERE o.cliente_id = ${cli} AND o.tipo_operacao = ANY(${TIPOS_RECIBO}::text[]) AND o.status = 'committed' AND o.response_json IS NOT NULL`;
+/** ` AND coluna = valor` (ou nada sem filtro). `coluna` é constante do código, nunca entrada. */
+const igual = (coluna, valor) => (valor === null ? Prisma.empty : Prisma.sql` AND ${Prisma.raw(coluna)} = ${valor}`);
+/** ` AND coluna > desde AND coluna <= ate` (cada lado só se houver): a faixa de `produto_id` da página. */
+const naFaixa = (coluna, faixa) => Prisma.sql`${faixa.desde === null ? Prisma.empty : Prisma.sql` AND ${Prisma.raw(coluna)} > ${faixa.desde}`}${
+  faixa.ate === null ? Prisma.empty : Prisma.sql` AND ${Prisma.raw(coluna)} <= ${faixa.ate}`}`;
+/** Escopo de lote/movimento da página: faixa de produto + empresa + produto filtrados. */
+const escopo = (alias, f, faixa) => Prisma.sql`${naFaixa(`${alias}.produto_id`, faixa)}${igual(`${alias}.empresa_id`, f.empresaId)}${igual(`${alias}.produto_id`, f.produtoId)}`;
+/** Local que o movimento afeta (Entrada no destino, Saída na origem). */
+const localDoMovimento = (alias) => Prisma.raw(`CASE ${alias}.tipo_movimentacao WHEN 'Entrada' THEN ${alias}.local_estoque_destino WHEN 'Saída' THEN ${alias}.local_estoque_origem END`);
+const localDoLote = (f) => igual('l.local_estoque_id', f.localId);
+const localDoMov = (alias, f) => (f.localId === null ? Prisma.empty : Prisma.sql` AND (${localDoMovimento(alias)}) = ${f.localId}`);
 
 /**
- * As consultas da reconciliação, num `tx` já aberto (a rota abre a transação
- * RepeatableRead; o teste mede as idas ao banco com o próprio `tx`). Número
- * FIXO de idas: `SET TRANSACTION READ ONLY`, a empresa (se filtrada) e Q1–Q5.
- * Os órfãos (Q6 da SPEC) saem de Q2–Q4 por LEFT JOIN em Produto.
- * @param {any} tx
- * @param {string} cli tenant do auth_context
- * @param {{ empresaId?: string|null, produtoId?: string|null, localId?: string|null }} filtro
+ * Recibos committed de comando de estoque cujo movimento (suplementação ou
+ * saída da transferência) é o `alias` — busca LIMITADA pelo índice
+ * `(cliente_id, createdAt)` na janela do próprio movimento (nunca varre todos
+ * os recibos do tenant).
  */
-export const lerReconciliacao = async (tx, cli, filtro = {}) => {
-  await tx.$queryRaw`SET TRANSACTION READ ONLY`;
-  const emp = filtro.empresaId ?? null;
-  const prod = filtro.produtoId ?? null;
-  const loc = filtro.localId ?? null;
-  if (emp !== null) await exigirEmpresaDoTenant(tx, cli, emp);
+const recibosDoMovimento = (cli, alias) => {
+  const m = Prisma.raw(alias);
+  const corpo = objeto(Prisma.sql`o.response_json`);
+  return Prisma.sql`SELECT o."createdAt" AS criado_em, ${lista(Prisma.sql`${corpo} -> 'rateio'`)} AS rateio
+    FROM "OperacaoIdempotente" o
+    WHERE o.cliente_id = ${cli} AND o."createdAt" >= ${m}."createdAt" - ${JANELA_RECIBO} AND o."createdAt" <= ${m}."createdAt" + ${JANELA_RECIBO}
+      AND o.tipo_operacao = ANY(${TIPOS_RECIBO}::text[]) AND o.status = 'committed' AND o.response_json IS NOT NULL
+      AND COALESCE(${corpo} -> 'movimentacao' ->> 'id', ${corpo} -> 'movimentacao_saida' ->> 'id') = ${m}.id`;
+};
+/** Saída legada de suplementação/transferência (a fatia só está no recibo). */
+const saidaLegada = (alias) => Prisma.raw(`${alias}.tipo_movimentacao = 'Saída' AND ${alias}.lotes_consumidos IS NULL AND ${alias}.origem_sistema = ANY(ARRAY['${ORIGENS_SEM_FK.join("','")}']::text[])`);
 
-  // Q1 — produtos do escopo + o necessário para I1 (todos os locais, todas as empresas dos lotes).
-  const produtos = await tx.$queryRaw`SELECT p.id, p.empresa_id, p.estoque_atual::text AS estoque_atual,
+/**
+ * Q1 da página: os próximos `n` produtos do escopo depois de `desde`, em ordem
+ * de id, com o necessário para I1 (todos os locais, todas as empresas dos
+ * lotes) e a pré-contagem de lotes e movimentos que corta a página.
+ */
+const lerProdutos = (tx, cli, f, desde, n) => tx.$queryRaw`SELECT p.id, p.empresa_id, p.estoque_atual::text AS estoque_atual,
       COALESCE(l.saldo, 0)::text AS saldo_lotes,
       COALESCE(l.n_lotes, 0)::int AS n_lotes,
       COALESCE(l.n_outra_empresa, 0)::int AS n_lotes_outra_empresa,
       COALESCE(l.n_status_desconhecido, 0)::int AS n_lotes_status_desconhecido,
       COALESCE(l.n_sem_movimento_entrada, 0)::int AS n_lotes_sem_movimento_entrada,
+      COALESCE(m.n_movimentos, 0)::int AS n_movimentos,
       COALESCE(m.n_outra_empresa, 0)::int AS n_movimentos_outra_empresa,
       COALESCE(m.n_fora_do_protocolo, 0)::int AS n_movimentos_fora_do_protocolo,
       COALESCE(m.n_saidas_legadas, 0)::int AS n_saidas_legadas
@@ -135,14 +190,26 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
       FROM "EstoqueLoteNota" x WHERE x.cliente_id = p.cliente_id AND x.produto_id = p.id
     ) l ON true
     LEFT JOIN LATERAL (
-      SELECT COUNT(*) FILTER (WHERE y.empresa_id <> p.empresa_id) AS n_outra_empresa,
+      SELECT COUNT(*) AS n_movimentos,
+             COUNT(*) FILTER (WHERE y.empresa_id <> p.empresa_id) AS n_outra_empresa,
              COUNT(*) FILTER (WHERE y.origem_sistema <> ALL(${ORIGENS_PROTOCOLO}::text[])) AS n_fora_do_protocolo,
-             COUNT(*) FILTER (WHERE y.tipo_movimentacao = 'Saída' AND y.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND y.lotes_consumidos IS NULL) AS n_saidas_legadas
+             COUNT(*) FILTER (WHERE ${saidaLegada('y')}) AS n_saidas_legadas
       FROM "MovimentacaoEstoque" y WHERE y.cliente_id = p.cliente_id AND y.produto_id = p.id
     ) m ON true
-    WHERE p.cliente_id = ${cli} AND (${emp}::text IS NULL OR p.empresa_id = ${emp}) AND (${prod}::text IS NULL OR p.id = ${prod})
-    ORDER BY p.id`;
+    WHERE p.cliente_id = ${cli}${igual('p.empresa_id', f.empresaId)}${igual('p.id', f.produtoId)}${desde === null ? Prisma.empty : Prisma.sql` AND p.id > ${desde}`}
+    ORDER BY p.id
+    LIMIT ${n}`;
 
+/**
+ * Q2–Q5 de UMA página (faixa `(desde, ate]` de `produto_id`). Os órfãos (Q6 da
+ * SPEC) saem de Q2–Q4 por LEFT JOIN em Produto: a faixa cobre qualquer
+ * `produto_id`, exista ou não o produto.
+ * @param {any} tx @param {string} cli
+ * @param {{ empresaId: string|null, produtoId: string|null, localId: string|null }} f
+ * @param {{ desde: string|null, ate: string|null }} faixa
+ * @param {string[]} idsProdutos
+ */
+const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
   // Q2 — por (empresa, produto, local): lotes × razão dos movimentos (+ local/produto inexistentes).
   const locais = await tx.$queryRaw`WITH lot AS (
       SELECT l.empresa_id, l.produto_id, l.local_estoque_id AS local_id,
@@ -151,18 +218,17 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
              COUNT(*) FILTER (WHERE l.status <> ALL(${STATUS_LOTE}::text[])) AS n_status_desconhecido,
              COUNT(*) FILTER (WHERE l.movimentacao_entrada_id IS NULL) AS n_sem_movimento_entrada
       FROM "EstoqueLoteNota" l
-      WHERE l.cliente_id = ${cli} AND (${emp}::text IS NULL OR l.empresa_id = ${emp}) AND (${prod}::text IS NULL OR l.produto_id = ${prod})
+      WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}${localDoLote(f)}
       GROUP BY 1, 2, 3
     ), mov AS (
-      SELECT m.empresa_id, m.produto_id,
-             CASE m.tipo_movimentacao WHEN 'Entrada' THEN m.local_estoque_destino WHEN 'Saída' THEN m.local_estoque_origem END AS local_id,
+      SELECT m.empresa_id, m.produto_id, (${localDoMovimento('m')}) AS local_id,
              COALESCE(SUM(CASE m.tipo_movimentacao WHEN 'Entrada' THEN m.quantidade WHEN 'Saída' THEN -m.quantidade ELSE 0 END), 0) AS saldo_razao,
              COUNT(*) AS n_movimentos,
              COUNT(*) FILTER (WHERE m.tipo_movimentacao <> ALL(${TIPOS_MOVIMENTO}::text[])) AS n_tipo_desconhecido,
              COUNT(*) FILTER (WHERE m.origem_sistema <> ALL(${ORIGENS_PROTOCOLO}::text[])) AS n_fora_do_protocolo,
-             COUNT(*) FILTER (WHERE m.tipo_movimentacao = 'Saída' AND m.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND m.lotes_consumidos IS NULL) AS n_saidas_legadas
+             COUNT(*) FILTER (WHERE ${saidaLegada('m')}) AS n_saidas_legadas
       FROM "MovimentacaoEstoque" m
-      WHERE m.cliente_id = ${cli} AND (${emp}::text IS NULL OR m.empresa_id = ${emp}) AND (${prod}::text IS NULL OR m.produto_id = ${prod})
+      WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}${localDoMov('m', f)}
       GROUP BY 1, 2, 3
     )
     SELECT COALESCE(lot.empresa_id, mov.empresa_id) AS empresa_id,
@@ -184,7 +250,6 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
     FULL JOIN mov ON mov.empresa_id = lot.empresa_id AND mov.produto_id = lot.produto_id AND mov.local_id = lot.local_id
     LEFT JOIN "LocalEstoque" le ON le.cliente_id = ${cli} AND le.id = COALESCE(lot.local_id, mov.local_id)
     LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = COALESCE(lot.produto_id, mov.produto_id)
-    WHERE ${loc}::text IS NULL OR COALESCE(lot.local_id, mov.local_id) = ${loc}
     ORDER BY 2, 1, 3`;
 
   // Q3 — por lote: consumo observado × explicado, coerência da situação e do movimento de entrada.
@@ -192,8 +257,7 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
       SELECT l.id, l.empresa_id, l.produto_id, l.local_estoque_id, l.status, l.quantidade_entrada, l.quantidade_disponivel,
              l.movimentacao_entrada_id, l.data_documento, l."createdAt"
       FROM "EstoqueLoteNota" l
-      WHERE l.cliente_id = ${cli} AND (${emp}::text IS NULL OR l.empresa_id = ${emp}) AND (${prod}::text IS NULL OR l.produto_id = ${prod})
-        AND (${loc}::text IS NULL OR l.local_estoque_id = ${loc})
+      WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}${localDoLote(f)}
     ), fin AS (
       SELECT c.estoque_lote_nota_id AS lote_id, SUM(c.quantidade) AS consumido
       FROM "OperacaoFinanceiraConsumoLote" c
@@ -210,20 +274,19 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
       SELECT x.elem ->> 'lote_id' AS lote_id, SUM(${num(Prisma.sql`x.elem ->> 'quantidade'`)}) AS consumido
       FROM "MovimentacaoEstoque" m
       CROSS JOIN LATERAL jsonb_array_elements(${lista(Prisma.sql`m.lotes_consumidos`)}) AS x(elem)
-      WHERE m.cliente_id = ${cli} AND (${emp}::text IS NULL OR m.empresa_id = ${emp}) AND (${prod}::text IS NULL OR m.produto_id = ${prod})
+      WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}
         AND m.tipo_movimentacao = 'Saída' AND m.status = 'Ativa' AND m.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND m.lotes_consumidos IS NOT NULL
       GROUP BY 1
-    ), rcb AS (${recibosSql(cli)}
     ), leg AS (
       SELECT lt.id AS lote_id,
              SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) FILTER (WHERE r.criado_em >= lt."createdAt" - interval '1 hour') AS consumido,
              COUNT(*) FILTER (WHERE r.criado_em >= lt."createdAt" - interval '1 hour') AS fatias,
              COUNT(*) FILTER (WHERE r.criado_em < lt."createdAt" - interval '1 hour') AS fatias_fora_janela
-      FROM rcb r
-      JOIN "MovimentacaoEstoque" m ON m.cliente_id = ${cli} AND m.id = r.movimento_id
-        AND m.lotes_consumidos IS NULL AND m.tipo_movimentacao = 'Saída' AND m.status = 'Ativa'
+      FROM "MovimentacaoEstoque" m
+      CROSS JOIN LATERAL (${recibosDoMovimento(cli, 'm')}) r
       CROSS JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem)
       JOIN lt ON lt.id = (e.elem ->> 'lote_id')
+      WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)} AND m.status = 'Ativa' AND ${saidaLegada('m')}
       GROUP BY 1
     ), compra AS (
       SELECT i.estoque_lote_nota_id AS lote_id, bool_or(i.movimentacao_estorno_id IS NOT NULL) AS estornada
@@ -266,21 +329,21 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
   // Q4 — movimentos com alguma regra disparada (os demais só entram na contagem de Q2).
   const movimentos = await tx.$queryRaw`WITH mv AS (
       SELECT m.id, m.empresa_id, m.produto_id, m.tipo_movimentacao, m.tipo_detalhado, m.origem_sistema, m.status, m.quantidade,
-             m.numero_movimentacao, m.movimento_pai_id, m.movimento_filho_id, m.lotes_consumidos,
-             CASE m.tipo_movimentacao WHEN 'Entrada' THEN m.local_estoque_destino WHEN 'Saída' THEN m.local_estoque_origem END AS local_id
+             m.numero_movimentacao, m.movimento_pai_id, m.movimento_filho_id, m.lotes_consumidos, m."createdAt",
+             (${localDoMovimento('m')}) AS local_id
       FROM "MovimentacaoEstoque" m
-      WHERE m.cliente_id = ${cli} AND (${emp}::text IS NULL OR m.empresa_id = ${emp}) AND (${prod}::text IS NULL OR m.produto_id = ${prod})
-    ), rcb AS (${recibosSql(cli)}
+      WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}${localDoMov('m', f)}
     ), rcm AS (
-      SELECT r.movimento_id, SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) AS soma, COUNT(e.elem) AS n
-      FROM rcb r LEFT JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem) ON true
-      WHERE r.movimento_id IN (SELECT id FROM mv)
+      SELECT mv.id AS movimento_id, SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) AS soma, COUNT(e.elem) AS n
+      FROM mv
+      CROSS JOIN LATERAL (${recibosDoMovimento(cli, 'mv')}) r
+      LEFT JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem) ON true
+      WHERE ${saidaLegada('mv')}
       GROUP BY 1
     ), lin AS (
       SELECT l.movimentacao_entrada_id AS movimento_id, SUM(l.quantidade_entrada) AS soma
       FROM "EstoqueLoteNota" l
-      WHERE l.cliente_id = ${cli} AND l.movimentacao_entrada_id IS NOT NULL
-        AND (${emp}::text IS NULL OR l.empresa_id = ${emp}) AND (${prod}::text IS NULL OR l.produto_id = ${prod})
+      WHERE l.cliente_id = ${cli} AND l.movimentacao_entrada_id IS NOT NULL${escopo('l', f, faixa)}
       GROUP BY 1
     ), fk AS (
       SELECT i.movimentacao_estoque_id AS movimento_id, SUM(c.quantidade) AS soma
@@ -305,7 +368,7 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
              (mv.movimento_filho_id IS NOT NULL AND (f.id IS NULL OR f.movimento_pai_id IS DISTINCT FROM mv.id)) AS par_incoerente,
              (jsonb_typeof(mv.lotes_consumidos::jsonb) = 'array') AS tem_fatias_json,
              fj.soma::text AS soma_fatias_json, COALESCE(fj.n_ilegiveis, 0)::int AS n_fatias_json_ilegiveis,
-             (mv.tipo_movimentacao = 'Saída' AND mv.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND mv.lotes_consumidos IS NULL) AS legado,
+             (${saidaLegada('mv')}) AS legado,
              (rcm.movimento_id IS NOT NULL) AS tem_recibo, rcm.soma::text AS soma_recibo, COALESCE(rcm.n, 0)::int AS n_fatias_recibo,
              (mv.tipo_movimentacao = 'Entrada' AND mv.tipo_detalhado = 'transferencia_recebida') AS transferencia_recebida,
              (mv.tipo_movimentacao = 'Entrada' AND mv.origem_sistema = ANY(${ORIGENS_PROTOCOLO}::text[]) AND mv.movimento_pai_id IS NULL) AS exige_camada,
@@ -324,7 +387,6 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
       LEFT JOIN "MovimentacaoEstoque" f ON f.cliente_id = ${cli} AND f.id = mv.movimento_filho_id
       LEFT JOIN "MovimentacaoEstoque" pai ON pai.cliente_id = ${cli} AND pai.id = mv.movimento_pai_id
       LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = mv.produto_id
-      WHERE ${loc}::text IS NULL OR mv.local_id = ${loc}
     )
     SELECT * FROM x
     WHERE produto_inexistente OR tipo_desconhecido OR status_desconhecido OR produto_empresa_id IS DISTINCT FROM empresa_id
@@ -335,47 +397,80 @@ export const lerReconciliacao = async (tx, cli, filtro = {}) => {
        OR (exige_fk AND soma_fk IS DISTINCT FROM quantidade)
     ORDER BY id`;
 
-  // Q5 — evidência de escritor FORA do protocolo no AuditLog (só ids e ações: nenhum `dados_*` sai daqui).
-  const auditoria = await tx.$queryRaw`SELECT entidade, entidade_id, acao, produto_id, empresa_id, local_estoque_id, COUNT(*)::int AS n
+  // Q5 — evidência RELEVANTE de escritor fora do protocolo no AuditLog (só ids e ações: nenhum `dados_*` sai daqui).
+  // Produto: por id da página; lote: por id dos lotes da faixa (laço por índice, nunca a tabela inteira).
+  const dados = Prisma.sql`CROSS JOIN LATERAL (SELECT ${objeto(Prisma.sql`a.dados_novos`)} AS nov, ${objeto(Prisma.sql`a.dados_anteriores`)} AS ant) d`;
+  const estoqueNov = num(Prisma.sql`d.nov ->> 'estoque_atual'`);
+  const estoqueAnt = num(Prisma.sql`d.ant ->> 'estoque_atual'`);
+  const auditoria = await tx.$queryRaw`SELECT entidade, entidade_id, acao, produto_id, empresa_id, local_estoque_id, local_estoque_id_anterior, COUNT(*)::int AS n
     FROM (
+      SELECT a.entidade, a.entidade_id, a.acao, a.entidade_id AS produto_id,
+             COALESCE(d.nov ->> 'empresa_id', d.ant ->> 'empresa_id') AS empresa_id, NULL::text AS local_estoque_id, NULL::text AS local_estoque_id_anterior
+      FROM "AuditLog" a ${dados}
+      WHERE a.cliente_id = ${cli} AND a.entidade = 'Produto' AND a.entidade_id = ANY(${idsProdutos}::text[])
+        AND jsonb_typeof(d.nov -> 'estoque_atual') IN ('number', 'string') AND ${estoqueNov} IS NOT NULL
+        AND ((a.acao = 'create' AND ${estoqueNov} <> 0)
+          OR (a.acao = 'update' AND jsonb_typeof(d.ant -> 'estoque_atual') IN ('number', 'string') AND ${estoqueAnt} IS NOT NULL AND ${estoqueNov} <> ${estoqueAnt}))
+      UNION ALL
       SELECT a.entidade, a.entidade_id, a.acao,
-             CASE WHEN a.entidade = 'Produto' THEN a.entidade_id ELSE COALESCE(d.nov ->> 'produto_id', d.ant ->> 'produto_id') END AS produto_id,
-             COALESCE(d.nov ->> 'empresa_id', d.ant ->> 'empresa_id') AS empresa_id,
-             COALESCE(d.nov ->> 'local_estoque_id', d.ant ->> 'local_estoque_id') AS local_estoque_id
-      FROM "AuditLog" a
-      CROSS JOIN LATERAL (SELECT ${objeto(Prisma.sql`a.dados_novos`)} AS nov, ${objeto(Prisma.sql`a.dados_anteriores`)} AS ant) d
-      WHERE a.cliente_id = ${cli} AND a.entidade = ANY(${ENTIDADES_AUDITADAS}::text[])
-        AND (
-          (a.entidade = 'Produto' AND a.acao IN ('create', 'update') AND jsonb_typeof(d.nov -> 'estoque_atual') IN ('number', 'string')
-            AND ${num(Prisma.sql`d.nov ->> 'estoque_atual'`)} IS DISTINCT FROM COALESCE(${num(Prisma.sql`d.ant ->> 'estoque_atual'`)}, 0))
-          OR (a.entidade = 'EstoqueLoteNota' AND (a.acao IN ('create', 'delete') OR (a.acao = 'update' AND EXISTS (
-            SELECT 1 FROM jsonb_each(d.nov) n FULL JOIN jsonb_each(d.ant) o ON o.key = n.key
-            WHERE COALESCE(n.key, o.key) <> ALL(${CAMPOS_LIVRES_LOTE}::text[]) AND n.value IS DISTINCT FROM o.value))))
-          OR (a.entidade = 'MovimentacaoEstoque' AND a.acao = 'create' AND COALESCE(d.nov ->> 'origem_sistema', '') <> ALL(${ORIGENS_PROTOCOLO}::text[]))
-        )
+             COALESCE(d.nov ->> 'produto_id', d.ant ->> 'produto_id'), COALESCE(d.nov ->> 'empresa_id', d.ant ->> 'empresa_id'),
+             COALESCE(d.nov ->> 'local_estoque_id', d.ant ->> 'local_estoque_id'), d.ant ->> 'local_estoque_id'
+      FROM (SELECT l.id FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}) lf
+      CROSS JOIN LATERAL (SELECT * FROM "AuditLog" a0 WHERE a0.cliente_id = ${cli} AND a0.entidade = 'EstoqueLoteNota' AND a0.entidade_id = lf.id) a
+      ${dados}
+      WHERE a.acao IN ('create', 'delete') OR (a.acao = 'update' AND (
+        EXISTS (SELECT 1 FROM unnest(${CAMPOS_QUANTIDADE_LOTE}::text[]) k(c)
+                WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND ${num(Prisma.sql`d.nov ->> k.c`)} IS DISTINCT FROM ${num(Prisma.sql`d.ant ->> k.c`)})
+        OR EXISTS (SELECT 1 FROM unnest(${CAMPOS_VINCULO_LOTE}::text[]) k(c)
+                WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND (d.nov -> k.c) IS DISTINCT FROM (d.ant -> k.c))))
     ) ev
-    WHERE (${emp}::text IS NULL OR ev.empresa_id = ${emp}) AND (${prod}::text IS NULL OR ev.produto_id = ${prod})
-    GROUP BY 1, 2, 3, 4, 5, 6
+    GROUP BY 1, 2, 3, 4, 5, 6, 7
     ORDER BY 1, 2, 3`;
 
-  return { produtos, locais, lotes, movimentos, auditoria };
+  return { locais, lotes, movimentos, auditoria };
 };
+
+/**
+ * Exclusões legadas de lote (o lote já não existe: o produto só aparece no
+ * JSON do AuditLog). Uma consulta por CHAMADA; o conjunto é fechado (o DELETE
+ * genérico é recusado desde a F3, sem AuditLog).
+ */
+const lerLotesExcluidos = (tx, cli, f) => tx.$queryRaw`SELECT entidade, entidade_id, acao, produto_id, empresa_id, local_estoque_id, NULL::text AS local_estoque_id_anterior, COUNT(*)::int AS n
+    FROM (
+      SELECT a.entidade, a.entidade_id, a.acao,
+             COALESCE(d.ant ->> 'produto_id', d.nov ->> 'produto_id') AS produto_id,
+             COALESCE(d.ant ->> 'empresa_id', d.nov ->> 'empresa_id') AS empresa_id,
+             COALESCE(d.ant ->> 'local_estoque_id', d.nov ->> 'local_estoque_id') AS local_estoque_id
+      FROM "AuditLog" a
+      CROSS JOIN LATERAL (SELECT ${objeto(Prisma.sql`a.dados_novos`)} AS nov, ${objeto(Prisma.sql`a.dados_anteriores`)} AS ant) d
+      WHERE a.cliente_id = ${cli} AND a.entidade = 'EstoqueLoteNota' AND a.acao = 'delete'
+        AND NOT EXISTS (SELECT 1 FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli} AND l.id = a.entidade_id)
+    ) ev
+    WHERE produto_id IS NOT NULL${igual('ev.empresa_id', f.empresaId)}${igual('ev.produto_id', f.produtoId)}
+    GROUP BY 1, 2, 3, 4, 5, 6
+    ORDER BY 1, 2, 3`;
 
 // ─── classificação pura ─────────────────────────────────────────────────────
 const d = (v) => (v === null || v === undefined || v === '' ? ZERO : dec(v));
 const chaveLocal = (empresaId, produtoId, localId) => `${empresaId}\u0000${produtoId}\u0000${localId}`;
-/** Agrupa a evidência do AuditLog por uma chave. */
-const agrupar = (linhas, chave) => {
+/** Agrupa a evidência do AuditLog por uma ou mais chaves (a mesma linha vale para cada chave distinta). */
+const agrupar = (linhas, chaves) => {
   /** @type {Map<string, any[]>} */
   const mapa = new Map();
   for (const l of linhas) {
-    const k = chave(l);
-    if (k === null || k === undefined) continue;
-    mapa.set(k, [...(mapa.get(k) ?? []), l]);
+    for (const k of new Set([chaves(l)].flat())) {
+      if (k === null || k === undefined) continue;
+      mapa.set(k, [...(mapa.get(k) ?? []), l]);
+    }
   }
   return mapa;
 };
 const tagsAuditoria = (lista) => [...new Set(lista.map((a) => `auditoria:${a.entidade}:${a.acao}`))];
+/** Ordem total dos achados: classe mais grave, depois nível, depois a chave. */
+const compararAchados = (a, b) =>
+  GRAVIDADE[a.classe] - GRAVIDADE[b.classe]
+  || NIVEIS.indexOf(a.nivel) - NIVEIS.indexOf(b.nivel)
+  || JSON.stringify(a.chave).localeCompare(JSON.stringify(b.chave));
 
 /**
  * Sinais disparados → achado (ou null = OK). A primeira classe em CLASSES que
@@ -405,15 +500,19 @@ const dentroDaTolerancia = (dif, n) => n > 0 && !dif.isZero() && dif.abs().lte(T
 
 /**
  * Classificação PURA (sem banco), exportada para teste unitário: as linhas das
- * consultas viram achados e o resumo por classe.
+ * consultas (de uma página ou de tudo) viram achados e o resumo por classe.
+ * A `auditoria` já chega filtrada pela RELEVÂNCIA (Q5); aqui ela só é ligada ao
+ * produto (escritas de `estoque_atual` dele e de quantidade/situação dos lotes
+ * dele), ao local (lotes daquele local, antes ou depois) e ao lote (o próprio).
  * @param {{ produtos: any[], locais: any[], lotes: any[], movimentos: any[], auditoria: any[] }} linhas
  */
 export const classificarReconciliacao = (linhas) => {
   const { produtos = [], locais = [], lotes = [], movimentos = [], auditoria = [] } = linhas;
+  const audLotes = auditoria.filter((a) => a.entidade === 'EstoqueLoteNota');
   const audProduto = agrupar(auditoria.filter((a) => a.entidade === 'Produto'), (a) => a.entidade_id);
-  const audLote = agrupar(auditoria.filter((a) => a.entidade === 'EstoqueLoteNota'), (a) => a.entidade_id);
-  const audDoProduto = agrupar(auditoria.filter((a) => a.entidade !== 'Produto'), (a) => a.produto_id);
-  const audDoLocal = agrupar(auditoria.filter((a) => a.entidade === 'EstoqueLoteNota'), (a) => (a.local_estoque_id ? chaveLocal(a.empresa_id, a.produto_id, a.local_estoque_id) : null));
+  const audLote = agrupar(audLotes, (a) => a.entidade_id);
+  const audDoProduto = agrupar(audLotes, (a) => a.produto_id);
+  const audDoLocal = agrupar(audLotes, (a) => [a.local_estoque_id, a.local_estoque_id_anterior].filter(Boolean).map((loc) => chaveLocal(a.empresa_id, a.produto_id, loc)));
   /** (empresa, produto, local) com Saída legada de suplementação/transferência SEM recibo: o consumo não tem como ser atribuído. */
   const semRecibo = new Set(movimentos.filter((m) => m.legado && !m.tem_recibo).map((m) => chaveLocal(m.empresa_id, m.produto_id, m.local_estoque_id)));
   /** @type {any[]} */
@@ -551,39 +650,173 @@ export const classificarReconciliacao = (linhas) => {
   const naoOk = { DIVERGENCIA_REAL: 0, LIMITACAO_LEGADA: 0, DADOS_INSUFICIENTES: 0 };
   for (const a of achados) naoOk[/** @type {keyof typeof naoOk} */ (a.classe)] += 1;
   const total = totais.produtos + totais.locais + totais.lotes + totais.movimentos;
-  const ordenados = achados.sort((a, b) =>
-    GRAVIDADE[a.classe] - GRAVIDADE[b.classe]
-    || NIVEIS.indexOf(a.nivel) - NIVEIS.indexOf(b.nivel)
-    || JSON.stringify(a.chave).localeCompare(JSON.stringify(b.chave)));
   return {
     resumo: { ...totais, por_classe: { OK: total - achados.length, ...naoOk } },
-    achados: ordenados,
+    achados: achados.sort(compararAchados),
+  };
+};
+
+// ─── varredura limitada ─────────────────────────────────────────────────────
+/** Orçamento efetivo: inteiros ≥ 0 (tempo) ou ≥ 1, nunca acima do teto. */
+const normalizarOrcamento = (o = {}) => {
+  /** @type {Record<string, number>} */
+  const r = {};
+  for (const [k, padrao] of Object.entries(ORCAMENTO_PADRAO)) {
+    const v = /** @type {any} */ (o)?.[k];
+    const minimo = k === 'tempoMs' ? 0 : 1;
+    r[k] = Number.isInteger(v) ? Math.min(Math.max(v, minimo), ORCAMENTO_TETO[/** @type {keyof typeof ORCAMENTO_TETO} */ (k)]) : padrao;
+  }
+  return /** @type {typeof ORCAMENTO_PADRAO} */ (r);
+};
+
+/** Cursor opaco da continuação: o último produto varrido + o escopo a que pertence. */
+const codificarCursor = (apos, f) =>
+  Buffer.from(JSON.stringify({ v: VERSAO_CURSOR, apos, e: f.empresaId, p: f.produtoId, l: f.localId }), 'utf8').toString('base64url');
+/**
+ * Cursor adulterado, de outra versão ou de OUTRO escopo (empresa/produto/local)
+ * → 400 antes de qualquer ida ao banco. Um id de produto de outro tenant só
+ * posiciona o keyset dentro do tenant do auth_context (não é oráculo).
+ * @param {unknown} bruto
+ * @param {{ empresaId: string|null, produtoId: string|null, localId: string|null }} f
+ */
+const decodificarCursor = (bruto, f) => {
+  const invalido = (reason) => new AppError('REQUEST_VALIDATION_FAILED', 'cursor da reconciliação inválido', { details: { field: 'cursor', reason } });
+  if (typeof bruto !== 'string' || !/^[A-Za-z0-9_-]{1,512}$/.test(bruto)) throw invalido('cursor_invalido');
+  /** @type {any} */
+  let c;
+  try {
+    c = JSON.parse(Buffer.from(bruto, 'base64url').toString('utf8'));
+  } catch {
+    throw invalido('cursor_invalido');
+  }
+  const chaves = ['v', 'apos', 'e', 'p', 'l'];
+  if (!c || typeof c !== 'object' || Array.isArray(c) || Object.keys(c).some((k) => !chaves.includes(k))
+    || c.v !== VERSAO_CURSOR || typeof c.apos !== 'string' || !ID_DE_CURSOR.test(c.apos)) throw invalido('cursor_invalido');
+  if ((c.e ?? null) !== f.empresaId || (c.p ?? null) !== f.produtoId || (c.l ?? null) !== f.localId) throw invalido('cursor_de_outro_escopo');
+  return c.apos;
+};
+
+/**
+ * A varredura da reconciliação, num `tx` já aberto (a rota abre a transação
+ * RepeatableRead; o teste mede as idas ao banco com o próprio `tx`). Idas ao
+ * banco: `SET TRANSACTION READ ONLY`, `plan_cache_mode`, a empresa (se
+ * filtrada), a pré-contagem do escopo e as exclusões legadas de lote, e 5 por
+ * página (Q1 com a pré-contagem da página, Q2–Q5 da faixa).
+ * @param {any} tx
+ * @param {string} cli tenant do auth_context
+ * @param {{ empresaId?: string|null, produtoId?: string|null, localId?: string|null, apos?: string|null, limite?: number }} filtro
+ * @param {Partial<typeof ORCAMENTO_PADRAO>} [orcamento]
+ */
+export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefined) => {
+  await tx.$queryRaw`SET TRANSACTION READ ONLY`;
+  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true)`;
+  const inicio = Date.now();
+  const f = { empresaId: filtro.empresaId ?? null, produtoId: filtro.produtoId ?? null, localId: filtro.localId ?? null };
+  const apos = filtro.apos ?? null;
+  const limite = Number.isInteger(filtro.limite) ? /** @type {number} */ (filtro.limite) : LIMITE_PADRAO;
+  const o = normalizarOrcamento(orcamento);
+  if (f.empresaId !== null) await exigirEmpresaDoTenant(tx, cli, f.empresaId);
+
+  const [contagem] = /** @type {any[]} */ (await tx.$queryRaw`SELECT count(*)::int AS total,
+      ${apos === null ? Prisma.sql`0` : Prisma.sql`(count(*) FILTER (WHERE p.id <= ${apos}))`}::int AS antes
+    FROM "Produto" p WHERE p.cliente_id = ${cli}${igual('p.empresa_id', f.empresaId)}${igual('p.id', f.produtoId)}`);
+  const excluidos = /** @type {any[]} */ (await lerLotesExcluidos(tx, cli, f));
+
+  const totais = { produtos: 0, locais: 0, lotes: 0, movimentos: 0 };
+  const naoOk = { DIVERGENCIA_REAL: 0, LIMITACAO_LEGADA: 0, DADOS_INSUFICIENTES: 0 };
+  /** @type {any[]} */
+  let achados = [];
+  let desde = apos;
+  let paginas = 0;
+  let varridos = 0;
+  let linhasPrevistas = 0;
+  /** @type {null|'orcamento'|'tempo'} */
+  let interrompida = null;
+  let fim = false;
+  while (!fim) {
+    const candidatos = /** @type {any[]} */ (await lerProdutos(tx, cli, f, desde, o.produtosPorPagina + 1));
+    let k = 0;
+    let custo = 0;
+    while (k < candidatos.length && k < o.produtosPorPagina) {
+      const c = 1 + candidatos[k].n_lotes + candidatos[k].n_movimentos;
+      if (k > 0 && custo + c > o.linhasPorPagina) break;
+      custo += c;
+      k += 1;
+    }
+    const produtos = candidatos.slice(0, k);
+    fim = k === candidatos.length;
+    const ate = fim ? null : produtos[k - 1].id;
+    const pagina = await lerPagina(tx, cli, f, { desde, ate }, produtos.map((p) => p.id));
+    const daPagina = new Set([...produtos.map((p) => p.id), ...pagina.locais.map((r) => r.produto_id), ...pagina.lotes.map((l) => l.produto_id)]);
+    const r = classificarReconciliacao({ produtos, ...pagina, auditoria: [...pagina.auditoria, ...excluidos.filter((x) => daPagina.has(x.produto_id))] });
+    for (const c of /** @type {(keyof typeof totais)[]} */ (Object.keys(totais))) totais[c] += r.resumo[c];
+    for (const c of /** @type {(keyof typeof naoOk)[]} */ (Object.keys(naoOk))) naoOk[c] += r.resumo.por_classe[c];
+    achados = [...achados, ...r.achados].sort(compararAchados).slice(0, limite);
+    paginas += 1;
+    varridos += k;
+    linhasPrevistas += custo;
+    desde = ate;
+    if (!fim) {
+      if (linhasPrevistas >= o.linhasPorChamada) interrompida = 'orcamento';
+      else if (Date.now() - inicio >= o.tempoMs) interrompida = 'tempo';
+      if (interrompida) break;
+    }
+  }
+
+  const completa = apos === null && fim;
+  const totalAchados = naoOk.DIVERGENCIA_REAL + naoOk.LIMITACAO_LEGADA + naoOk.DADOS_INSUFICIENTES;
+  const entidades = totais.produtos + totais.locais + totais.lotes + totais.movimentos;
+  return {
+    truncado: totalAchados > limite,
+    cobertura: {
+      completa,
+      nivel_produto: 'todos_os_locais',
+      produtos_no_escopo: contagem.total,
+      produtos_antes_do_cursor: contagem.antes,
+      produtos_varridos: varridos,
+      produtos_restantes: Math.max(contagem.total - contagem.antes - varridos, 0),
+      paginas,
+      linhas_previstas: linhasPrevistas,
+      interrompida_por: interrompida,
+      proximo_cursor: fim ? null : codificarCursor(/** @type {string} */ (desde), f),
+    },
+    resumo: {
+      situacao: !completa ? 'INCOMPLETO' : totalAchados ? 'COM_ACHADOS' : 'CONSISTENTE',
+      ...totais,
+      // Sobre dados parciais nada é declarado OK: só as classes encontradas (limite inferior).
+      por_classe: { OK: completa ? entidades - totalAchados : null, ...naoOk },
+    },
+    achados,
   };
 };
 
 // ─── serviço ────────────────────────────────────────────────────────────────
-/** Filtro da querystring já validada pelo schema; `limite` padrão 500, máximo 2000. */
+/** Filtro da querystring já validada pelo schema; `limite` padrão 500, máximo 2000; o cursor é conferido aqui (400 sem I/O). */
 const normalizarFiltro = (filtro) => {
   const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const limite = Number.isInteger(filtro?.limite) ? Math.min(Math.max(/** @type {number} */ (filtro.limite), 1), LIMITE_MAXIMO) : LIMITE_PADRAO;
-  return { empresaId: texto(filtro?.empresaId), produtoId: texto(filtro?.produtoId), localId: texto(filtro?.localId), limite };
+  const f = { empresaId: texto(filtro?.empresaId), produtoId: texto(filtro?.produtoId), localId: texto(filtro?.localId), limite };
+  const apos = filtro?.cursor === undefined || filtro?.cursor === null ? null : decodificarCursor(filtro.cursor, f);
+  return { ...f, apos };
 };
 
 /**
- * Reconciliação SOMENTE LEITURA do estoque físico do tenant (SPEC §5).
+ * Reconciliação SOMENTE LEITURA do estoque físico do tenant (SPEC §5), com
+ * varredura limitada e cursor de continuação (R1).
  * @param {{ auth: import('../../shared/auth/authContext.js').AuthContext, requestId?: string }} contexto  tenant SÓ de auth_context (R11)
- * @param {{ empresaId?: string, produtoId?: string, localId?: string, limite?: number }} [filtro]  limite padrão 500, máx 2000
+ * @param {{ empresaId?: string, produtoId?: string, localId?: string, limite?: number, cursor?: string }} [filtro]  limite padrão 500, máx 2000
+ * @param {Partial<typeof ORCAMENTO_PADRAO>} [orcamento] só chamadas internas/testes; o HTTP usa `ORCAMENTO_PADRAO`
  */
-export const reconciliarEstoque = async (contexto, filtro = {}) => {
+export const reconciliarEstoque = async (contexto, filtro = {}, orcamento = undefined) => {
   const auth = exigirAuthContext(contexto?.auth);
   const f = normalizarFiltro(filtro);
-  const linhas = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f));
-  const { resumo, achados } = classificarReconciliacao(/** @type {any} */ (linhas));
+  const r = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f, orcamento));
   return {
     escopo: { empresa_id: f.empresaId, produto_id: f.produtoId, local_estoque_id: f.localId, limite: f.limite },
     gerado_em: agoraDoServidor().toISOString(),
-    truncado: achados.length > f.limite,
-    resumo,
-    achados: achados.slice(0, f.limite),
+    truncado: r.truncado,
+    cobertura: r.cobertura,
+    resumo: r.resumo,
+    achados: r.achados,
   };
 };
