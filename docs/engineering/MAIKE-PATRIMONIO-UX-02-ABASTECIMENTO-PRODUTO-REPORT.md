@@ -191,7 +191,7 @@ Levantado com `git diff --name-status origin/main...HEAD` e `git status` durante
 - **Docs (5):** `docs/engineering/DECISIONS.md` (D-PROD-160; atualização de estado da D-PROD-159), `docs/engineering/CURRENT-STATE.md`, `docs/engineering/ROADMAP.md`, `docs/engineering/MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md` (linha A16 e números de linha), este relatório.
 - **Não tocados:** `backend/prisma/**`, `config/**`, `TanquesBem.jsx`, `src/hooks/**`, `operacaoFinanceiraService.js`, `patrimonioCatalogoService.js` e os serviços mutativos do backend listados no §1.
 
-⟪PENDENTE: `git diff --stat origin/main...HEAD` do HEAD final (arquivos, inserções, remoções)⟫ · ⟪PENDENTE: confirmar que `abastecimentoService.js` e `abastecimentoPlano.js` não têm diff contra `origin/main` no HEAD final — checkpoints intermediários da branch capturaram mutantes temporários do teste de mutação nesses arquivos⟫.
+⟪PENDENTE: `git diff --stat origin/main...HEAD` do HEAD final (arquivos, inserções, remoções)⟫ · ⟪PENDENTE: confirmar no HEAD final que `abastecimentoService.js`, `abastecimentoPlano.js` e `combustivelProdutoService.js` (backend) não têm diff contra `origin/main` e que `abastecimentoOpcoesService.js` é a versão sem mutante — checkpoints intermediários da branch capturaram mutantes temporários do teste de mutação nesses arquivos⟫.
 
 ## 8. Provas de testes
 
