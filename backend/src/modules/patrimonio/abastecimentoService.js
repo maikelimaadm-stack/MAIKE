@@ -230,10 +230,14 @@ const carregarEstado = async (tx, cli, empresaId, entrada, { hoje, fuso }) => {
     where: { cliente_id_id: { cliente_id: cli, id: entrada.tipo_combustivel_id } },
     select: { id: true, codigo: true, nome: true, unidade: true, ativo: true },
   });
-  const vinculo = await tx.tipoCombustivelProduto.findFirst({
+  let vinculo = await tx.tipoCombustivelProduto.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, produto_id: entrada.produto_id },
     select: { id: true, ativo: true },
   });
+  if (!vinculo || !vinculo.ativo) {
+    const atual = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { id: true, ativo: true, produto_id: true } });
+    if (atual) { vinculo = { id: atual.id, ativo: true }; entrada.produto_id = atual.produto_id; }
+  }
   const conversao = await tx.conversaoCombustivelProduto.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, produto_id: entrada.produto_id, ativo: true },
     select: { id: true, versao: true, sequencia: true, kg_por_litro: true },
@@ -484,7 +488,7 @@ export const cancelar = async (contexto, id, corpo) => {
             const leituraAntes = leituraVigente(cadastro, await pisoOperacional(tx, cli, antes.bem_id, bem?.medidor_tipo ?? null));
             await travarProdutosEstoque(tx, cli, empresaId, [antes.produto_id]); // R8
             const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
-            if (!produto) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
+            if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const [orig] = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id, status, movimento_filho_id FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${antes.movimentacao_estoque_id} FOR UPDATE`
             ); // R10
