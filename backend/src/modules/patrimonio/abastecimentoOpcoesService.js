@@ -267,7 +267,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
           const tipo = tipoId ? tiposAceitos.get(tipoId) : undefined;
           // Mesmo instantâneo do filtro: o produto da página tem o vínculo ativo de um tipo aceito.
           if (!tipoId || !tipo) throw new Error(`invariante violada: produto ${p.id} sem vínculo ativo de tipo aceito no instantâneo`);
-          const c = conversoes.find((x) => x.produto_id === p.id);
+          const c = fatorDoPar.get(`${tipoId}|${p.id}`);
           const bloqueios = c ? [] : ['sem_fator'];
           return {
             id: p.id,
