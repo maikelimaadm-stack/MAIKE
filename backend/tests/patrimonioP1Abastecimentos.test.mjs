@@ -745,7 +745,13 @@ describe('P1-02 — lista, detalhe e opções', () => {
   test('AB15: lista com filtros (empresa, bem, tanque, produto, status, período, operation_id, q), keyset limit=2 e total; erros de período', async () => {
     const s = await montarAbastecimento(app);
     const cam = { bem_id: s.caminhonete.id, tanque_id: s.caminhonete.tanques[0].id };
-    const a1 = await A.confirmarOk(s.operador.token, corpoAbastecimento(s, { quantidade_litros: '20', data_operacional: '2027-06-05', medidor_leitura: '1530', referencia_externa: 'NF-100' }));
+    const a1 = await A.confirmarOk(s.operador.token, corpoAbastecimento(s, {
+      quantidade_litros: '20', data_operacional: '2027-06-05', medidor_leitura: '1530', referencia_externa: 'NF-100', observacao: '  Frentista João — bomba 2  ',
+    }));
+    assert.deepEqual([a1.observacao, a1.referencia_externa], ['Frentista João — bomba 2', 'NF-100'], 'textos aparados');
+    const auditA1 = await prisma().auditLog.findFirst({ where: { cliente_id: s.c, acao: 'abastecimento_bem.confirmar', entidade_id: a1.id } });
+    assert.deepEqual([auditA1.dados_novos.tem_observacao, auditA1.dados_novos.tem_referencia_externa], [true, true]);
+    assert.equal(/Frentista|NF-100/.test(JSON.stringify(auditA1)), false, 'a auditoria não copia texto livre (allowlist)');
     const a2 = await A.confirmarOk(s.operador.token, corpoAbastecimento(s, { quantidade_litros: '20', data_operacional: '2027-06-08', medidor_leitura: '1540', referencia_externa: 'nf-200' }));
     const a3 = await A.confirmarOk(s.operador.token, corpoAbastecimento(s, {
       ...cam, tipo_combustivel_id: s.comb.GASOLINA, produto_id: s.gasolina.id, conversao_id: s.fator.gasolina.id, conversao_versao: 1, quantidade_litros: '30',
@@ -923,6 +929,10 @@ describe('P1-02 — permissões e isolamento', () => {
     assert.deepEqual(erro(conf), [422, 'COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'inexistente']);
     const localCruzado = await A.confirmar(outro.operador.token, corpoAbastecimento(outro, { local_estoque_id: s.local.id }));
     assert.deepEqual(erro(localCruzado), [422, 'ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente']);
+    const tipoCruzado = await A.confirmar(outro.operador.token, corpoAbastecimento(outro, { tipo_combustivel_id: s.comb.DIESEL_S10 }));
+    assert.deepEqual(erro(tipoCruzado), [422, 'COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inexistente']);
+    const fatorCruzado = await outro.configurarFator(outro.e1, s.comb.DIESEL_S10, outro.diesel, '0.840000', null, outro.contaFator.token);
+    assert.deepEqual(erro(fatorCruzado), [422, 'COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inexistente']);
     assert.equal((await A.ok(A.lista(outro.operador.token, outro.e1.id))).total, 0);
     assert.equal(await fotoAbastecimento([s.c, outro.c]), antes);
 

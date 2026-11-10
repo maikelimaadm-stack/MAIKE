@@ -166,6 +166,7 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
     const r = await A.ok(A.consumo(s.leitor.token, s.e1.id, s.gerador.id));
     assert.deepEqual([r.situacao_geral, r.intervalos], ['NAO_APLICAVEL', []]);
     assert.equal(JSON.stringify(await bemCru(s.gerador.id)), JSON.stringify(bemAntes));
+    assert.equal((await A.bem(s.token, s.e1.id, s.gerador.id)).medidor_operacional, null, 'sem leitura não há leitura operacional');
     // cancelar: sem leitura operacional antes nem depois
     const extra = await A.confirmarOk(s.operador.token, corpo({ medidor_leitura: null, quantidade_litros: '5', tanque_cheio: false }));
     const k = await cancelarOk(s, extra);
@@ -183,6 +184,7 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
     const c2 = await consumoDe(s, h2);
     assert.deepEqual([c2.situacao, c2.abastecimento_inicial_id, c2.intervalo, c2.litros, c2.valor], ['CALCULADO', h1.id, '15.0000', '20.0000', '1.3333'], '20 L ÷ 15 h, 4 casas HALF_UP');
     assert.deepEqual([(await consumoDe(s, d)).situacao, (await consumoDe(s, d)).motivo], ['NAO_APLICAVEL', 'sem_medidor'], 'o snapshot do histórico não muda');
+    assert.deepEqual((await A.bem(s.token, s.e1.id, s.gerador.id)).medidor_operacional, { leitura: '125.0000', data: '2027-06-14', abastecimento_id: h2.id });
     const r2 = await A.ok(A.consumo(s.leitor.token, s.e1.id, s.gerador.id));
     assert.deepEqual([r2.situacao_geral, r2.metrica], ['DISPONIVEL', 'LITROS_POR_HORA']);
     assert.deepEqual(r2.intervalos.map((i) => [i.abastecimento_id, i.situacao, i.motivo, i.valor]), [
