@@ -343,11 +343,6 @@ const executarLargura = async (browser, largura) => {
     await painel.locator(`[role="option"][title="${esperado.replace(/"/g, '\\"')}"]`).first().waitFor({ state: 'visible' });
     return painel.locator('[role="option"]').evaluateAll((els) => els.map((e) => e.getAttribute('title')));
   };
-  const fecharSeletor = async (testId) => {
-    const painel = visivel(page.getByTestId(`${testId}-painel`));
-    await clicar(painel.getByRole('button', { name: /^Fechar seleção/ }));
-    await painel.waitFor({ state: 'detached' }).catch(() => {});
-  };
   const ir = async (rota) => {
     await page.goto(`${WEB}${rota}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
