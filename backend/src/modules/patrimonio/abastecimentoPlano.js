@@ -164,7 +164,7 @@ export const fingerprintDoCancelamento = (e) => ({ v: 1, id: e.id, empresa_id: e
 // ─── conversão L → kg ───────────────────────────────────────────────────────
 
 /** kg = ROUND_HALF_UP(litros × fator, 4), UMA vez. */
-export const converterLitrosEmKg = (litros, fator) => dec(litros).times(dec(fator)).toDecimalPlaces(CASAS_QUANTIDADE, 6);
+export const converterLitrosEmKg = (litros, fator) => arredondar(dec(litros).times(dec(fator)), CASAS_QUANTIDADE);
 
 // ─── bloqueios e mensagens ──────────────────────────────────────────────────
 
