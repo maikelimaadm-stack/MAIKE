@@ -108,6 +108,13 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     const { s, produtos } = await tenantComSeisProdutos();
     const ultimo = produtos[5];
     await definirEstoqueAtual(s, ultimo, '99'); // cache 7 → 99: DIVERGENCIA_REAL só no último produto
+    // lote órfão cujo produto_id cai ENTRE o 3º e o 4º produto: a faixa (desde, ate] de alguma página intermediária o cobre
+    const orfao = await prisma().estoqueLoteNota.create({
+      data: {
+        cliente_id: s.c, empresa_id: s.e1.id, produto_id: `${produtos[2].id}0`, local_estoque_id: s.local.id, custo_unitario: '1', quantidade_entrada: '2',
+        quantidade_disponivel: '2', status: 'Disponivel',
+      },
+    });
 
     const cheio = await servico(s);
     assert.equal(cheio.cobertura.completa, true, JSON.stringify(cheio.cobertura));
@@ -116,6 +123,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     assert.equal(cheio.resumo.situacao, 'COM_ACHADOS');
     assert.equal(typeof cheio.resumo.por_classe.OK, 'number');
     assert.deepEqual(classe(cheio, 'produto', 'produto_id', ultimo.id), ['DIVERGENCIA_REAL', 'cache_diverge']);
+    assert.deepEqual(classe(cheio, 'lote', 'lote_id', orfao.id), ['DADOS_INSUFICIENTES', 'produto_inexistente']);
 
     // 2 produtos por página e orçamento de 1 linha por chamada: para depois da 1ª página
     const orc = { produtosPorPagina: 2, linhasPorChamada: 1 };
@@ -143,6 +151,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     for (const k of ['produtos', 'locais', 'lotes', 'movimentos']) assert.equal(soma(k), cheio.resumo[k], k);
     for (const c of ['DIVERGENCIA_REAL', 'LIMITACAO_LEGADA', 'DADOS_INSUFICIENTES']) assert.equal(paginas.reduce((t, p) => t + p.resumo.por_classe[c], 0), cheio.resumo.por_classe[c], c);
     assert.deepEqual(paginas.flatMap((p) => p.achados).map(chaveDe).sort(), cheio.achados.map(chaveDe).sort());
+    assert.equal(paginas.filter((p) => achadosDe(p, 'lote', 'lote_id', orfao.id).length).length, 1, 'o órfão aparece em exatamente uma página');
 
     // o cursor emitido vale no HTTP (orçamento padrão: vai até o fim a partir dele)
     const http = await relatorio(s, { cursor: p1.cobertura.proximo_cursor });
@@ -195,7 +204,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     for (const idDeB of [b.c, b.e1.id, b.e1.sal.id, b.local.id]) assert.ok(!corpo.includes(idDeB), `id de B (${idDeB}) não aparece`);
   });
 
-  test('RC4: idas ao banco = fixas por chamada + 5 por página (sem N+1 por lote/movimento); plan_cache_mode=force_custom_plan e READ ONLY na transação', async () => {
+  test('RC4: idas ao banco = fixas por chamada + 5 por página (sem N+1 por lote/movimento); plan_cache_mode=force_custom_plan, jit=off e READ ONLY na transação', async () => {
     const { lerReconciliacao } = await import(MODULO);
     const { s } = await tenantComSeisProdutos();
     const medir = async (orcamento) => {
@@ -221,7 +230,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
           },
         });
         await lerReconciliacao(proxy, s.c, {}, orcamento);
-        modo = (await tx.$queryRaw`SELECT current_setting('plan_cache_mode') AS m`)[0].m;
+        modo = (await tx.$queryRaw`SELECT current_setting('plan_cache_mode') || '/' || current_setting('jit') AS m`)[0].m;
         recusa = await tx.$executeRaw`UPDATE "Produto" SET nome_produto = nome_produto WHERE cliente_id = ${s.c}`.then(() => null, (e) => String(e?.message ?? e));
         throw new Error('desfaz');
       }, { isolationLevel: 'RepeatableRead' }).catch((e) => { if (e?.message !== 'desfaz') throw e; });
@@ -229,7 +238,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     };
     const uma = await medir(undefined);
     const seis = await medir({ produtosPorPagina: 1 });
-    assert.equal(uma.modo, 'force_custom_plan', 'plano genérico do prepared statement nunca entra (B_tudo: 0,9 s → 6,6 s na 6ª execução)');
+    assert.equal(uma.modo, 'force_custom_plan/off', 'plano genérico nunca entra (0,9 s → 6,6 s na 6ª execução) e sem JIT (1,6 s de compilação por consulta)');
     assert.match(String(uma.recusa), /read-only transaction/);
     assert.match(uma.chamadas[0], /^\$queryRaw:SET TRANSACTION READ ONLY/);
     assert.ok(!uma.chamadas.some((c) => c.startsWith('$executeRaw')), uma.chamadas.join(' | '));

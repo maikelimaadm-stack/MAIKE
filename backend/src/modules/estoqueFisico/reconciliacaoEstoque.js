@@ -43,7 +43,7 @@
  * (`(desde, ate]`; a última página é aberta e cobre os órfãos), e os recibos
  * legados por janela de criação do próprio movimento (índice
  * `(cliente_id, createdAt)`: no caminho legado o recibo e o movimento nascem na
- * mesma transação de ≤ 9 s; fora de ±1 h não casa → DADOS_INSUFICIENTES).
+ * mesma transação de ≤ 9 s; fora de ±10 min não casa → DADOS_INSUFICIENTES).
  * Acima do orçamento da CHAMADA (linhas ou tempo) a resposta é 200 com
  * `cobertura.completa = false`, `proximo_cursor`, `resumo.situacao =
  * 'INCOMPLETO'` e `por_classe.OK = null`: nada é declarado OK sobre dados
@@ -112,8 +112,14 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 20000, isolationLevel: /
  */
 export const ORCAMENTO_PADRAO = Object.freeze({ produtosPorPagina: 200, linhasPorPagina: 20000, linhasPorChamada: 250000, tempoMs: 8000 });
 const ORCAMENTO_TETO = Object.freeze({ produtosPorPagina: 1000, linhasPorPagina: 100000, linhasPorChamada: 1000000, tempoMs: 12000 });
-/** Janela do recibo legado em torno do `createdAt` do movimento (mesma transação no caminho legado: ≤ 9 s). */
-const JANELA_RECIBO = Prisma.raw(`interval '1 hour'`);
+/**
+ * Janela do recibo legado em torno do `createdAt` do movimento. No caminho
+ * legado o recibo é reservado na 1ª instrução e o movimento gravado na MESMA
+ * transação (`TRANSACAO_CURTA`, timeout 9 s), os dois com o relógio do servidor
+ * (UTC, gravado pelo Prisma): 10 min é mais de 60× essa folga. Fora dela o
+ * recibo não casa → DADOS_INSUFICIENTES (nunca OK).
+ */
+const JANELA_RECIBO = Prisma.raw(`interval '10 minutes'`);
 const VERSAO_CURSOR = 1;
 
 export const CLASSES = Object.freeze(['DADOS_INSUFICIENTES', 'LIMITACAO_LEGADA', 'DIVERGENCIA_REAL']);
@@ -160,7 +166,8 @@ const recibosDoMovimento = (cli, alias) => {
     FROM "OperacaoIdempotente" o
     WHERE o.cliente_id = ${cli} AND o."createdAt" >= ${m}."createdAt" - ${JANELA_RECIBO} AND o."createdAt" <= ${m}."createdAt" + ${JANELA_RECIBO}
       AND o.tipo_operacao = ANY(${TIPOS_RECIBO}::text[]) AND o.status = 'committed' AND o.response_json IS NOT NULL
-      AND COALESCE(${corpo} -> 'movimentacao' ->> 'id', ${corpo} -> 'movimentacao_saida' ->> 'id') = ${m}.id`;
+      AND COALESCE(${corpo} -> 'movimentacao' ->> 'id', ${corpo} -> 'movimentacao_saida' ->> 'id') = ${m}.id
+    OFFSET 0`;
 };
 /** Saída legada de suplementação/transferência (a fatia só está no recibo). */
 const saidaLegada = (alias) => Prisma.raw(`${alias}.tipo_movimentacao = 'Saída' AND ${alias}.lotes_consumidos IS NULL AND ${alias}.origem_sistema = ANY(ARRAY['${ORIGENS_SEM_FK.join("','")}']::text[])`);
@@ -262,13 +269,13 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
       SELECT c.estoque_lote_nota_id AS lote_id, SUM(c.quantidade) AS consumido
       FROM "OperacaoFinanceiraConsumoLote" c
       JOIN "OperacaoFinanceiraItem" i ON i.cliente_id = c.cliente_id AND i.id = c.item_id
-      WHERE c.cliente_id = ${cli} AND c.estoque_lote_nota_id IN (SELECT id FROM lt) AND i.movimentacao_estorno_id IS NULL
+      WHERE c.cliente_id = ${cli} AND c.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt)) AND i.movimentacao_estorno_id IS NULL
       GROUP BY 1
     ), abs AS (
       SELECT f.estoque_lote_nota_id AS lote_id, SUM(f.quantidade) AS consumido
       FROM "AbastecimentoBemConsumoLote" f
       JOIN "AbastecimentoBem" a ON a.cliente_id = f.cliente_id AND a.id = f.abastecimento_id
-      WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id IN (SELECT id FROM lt) AND a.status = 'CONFIRMADO'
+      WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt)) AND a.status = 'CONFIRMADO'
       GROUP BY 1
     ), nov AS (
       SELECT x.elem ->> 'lote_id' AS lote_id, SUM(${num(Prisma.sql`x.elem ->> 'quantidade'`)}) AS consumido
@@ -277,26 +284,27 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
       WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}
         AND m.tipo_movimentacao = 'Saída' AND m.status = 'Ativa' AND m.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND m.lotes_consumidos IS NOT NULL
       GROUP BY 1
-    ), leg AS (
-      SELECT lt.id AS lote_id,
-             SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) FILTER (WHERE r.criado_em >= lt."createdAt" - interval '1 hour') AS consumido,
-             COUNT(*) FILTER (WHERE r.criado_em >= lt."createdAt" - interval '1 hour') AS fatias,
-             COUNT(*) FILTER (WHERE r.criado_em < lt."createdAt" - interval '1 hour') AS fatias_fora_janela
+    ), fatias_recibo AS MATERIALIZED (
+      -- MATERIALIZED: as fatias dos recibos legados da faixa saem primeiro (um laço por movimento, pelo índice) e só
+      -- depois cruzam com os lotes (um hash): sem isso o planejador refaz o hash de "lt" a cada movimento.
+      SELECT e.elem ->> 'lote_id' AS lote_id, ${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)} AS quantidade, r.criado_em
       FROM "MovimentacaoEstoque" m
       CROSS JOIN LATERAL (${recibosDoMovimento(cli, 'm')}) r
       CROSS JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem)
-      JOIN lt ON lt.id = (e.elem ->> 'lote_id')
       WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)} AND m.status = 'Ativa' AND ${saidaLegada('m')}
+    ), leg AS (
+      SELECT lt.id AS lote_id,
+             SUM(fr.quantidade) FILTER (WHERE fr.criado_em >= lt."createdAt" - interval '1 hour') AS consumido,
+             COUNT(*) FILTER (WHERE fr.criado_em >= lt."createdAt" - interval '1 hour') AS fatias,
+             COUNT(*) FILTER (WHERE fr.criado_em < lt."createdAt" - interval '1 hour') AS fatias_fora_janela
+      FROM fatias_recibo fr
+      JOIN lt ON lt.id = fr.lote_id
       GROUP BY 1
     ), compra AS (
       SELECT i.estoque_lote_nota_id AS lote_id, bool_or(i.movimentacao_estorno_id IS NOT NULL) AS estornada
       FROM "OperacaoFinanceiraItem" i
-      WHERE i.cliente_id = ${cli} AND i.estoque_lote_nota_id IN (SELECT id FROM lt)
+      WHERE i.cliente_id = ${cli} AND i.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
       GROUP BY 1
-    ), ent AS (
-      SELECT m.id, m.quantidade, m.tipo_movimentacao, m.tipo_detalhado, m.origem_sistema, m.produto_id, m.local_estoque_destino
-      FROM "MovimentacaoEstoque" m
-      WHERE m.cliente_id = ${cli} AND m.id IN (SELECT movimentacao_entrada_id FROM lt WHERE movimentacao_entrada_id IS NOT NULL)
     )
     SELECT lt.id, lt.empresa_id, lt.produto_id, lt.local_estoque_id, lt.status,
            lt.quantidade_entrada::text AS entrada, lt.quantidade_disponivel::text AS disponivel, lt.movimentacao_entrada_id,
@@ -323,7 +331,7 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
     LEFT JOIN nov ON nov.lote_id = lt.id
     LEFT JOIN leg ON leg.lote_id = lt.id
     LEFT JOIN compra ON compra.lote_id = lt.id
-    LEFT JOIN ent ON ent.id = lt.movimentacao_entrada_id
+    LEFT JOIN "MovimentacaoEstoque" ent ON ent.cliente_id = ${cli} AND ent.id = lt.movimentacao_entrada_id
     ORDER BY lt.id`;
 
   // Q4 — movimentos com alguma regra disparada (os demais só entram na contagem de Q2).
@@ -347,15 +355,15 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
       GROUP BY 1
     ), fk AS (
       SELECT i.movimentacao_estoque_id AS movimento_id, SUM(c.quantidade) AS soma
-      FROM "OperacaoFinanceiraConsumoLote" c
-      JOIN "OperacaoFinanceiraItem" i ON i.cliente_id = c.cliente_id AND i.id = c.item_id
-      WHERE c.cliente_id = ${cli} AND i.movimentacao_estoque_id IN (SELECT id FROM mv)
+      FROM "OperacaoFinanceiraItem" i
+      JOIN "OperacaoFinanceiraConsumoLote" c ON c.cliente_id = i.cliente_id AND c.item_id = i.id
+      WHERE i.cliente_id = ${cli} AND i.movimentacao_estoque_id = ANY(ARRAY(SELECT id FROM mv))
       GROUP BY 1
       UNION ALL
       SELECT a.movimentacao_estoque_id, SUM(f.quantidade)
-      FROM "AbastecimentoBemConsumoLote" f
-      JOIN "AbastecimentoBem" a ON a.cliente_id = f.cliente_id AND a.id = f.abastecimento_id
-      WHERE f.cliente_id = ${cli} AND a.movimentacao_estoque_id IN (SELECT id FROM mv)
+      FROM "AbastecimentoBem" a
+      JOIN "AbastecimentoBemConsumoLote" f ON f.cliente_id = a.cliente_id AND f.abastecimento_id = a.id
+      WHERE a.cliente_id = ${cli} AND a.movimentacao_estoque_id = ANY(ARRAY(SELECT id FROM mv))
       GROUP BY 1
     ), x AS (
       SELECT mv.id, mv.empresa_id, mv.produto_id, mv.local_id AS local_estoque_id, mv.tipo_movimentacao, mv.tipo_detalhado, mv.origem_sistema, mv.status,
@@ -398,7 +406,7 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
     ORDER BY id`;
 
   // Q5 — evidência RELEVANTE de escritor fora do protocolo no AuditLog (só ids e ações: nenhum `dados_*` sai daqui).
-  // Produto: por id da página; lote: por id dos lotes da faixa (laço por índice, nunca a tabela inteira).
+  // Produto: por id da página; lote: por id dos lotes da faixa (`= ANY(ARRAY(...))` vira Index Cond: nunca a tabela inteira).
   const dados = Prisma.sql`CROSS JOIN LATERAL (SELECT ${objeto(Prisma.sql`a.dados_novos`)} AS nov, ${objeto(Prisma.sql`a.dados_anteriores`)} AS ant) d`;
   const estoqueNov = num(Prisma.sql`d.nov ->> 'estoque_atual'`);
   const estoqueAnt = num(Prisma.sql`d.ant ->> 'estoque_atual'`);
@@ -415,14 +423,14 @@ const lerPagina = async (tx, cli, f, faixa, idsProdutos) => {
       SELECT a.entidade, a.entidade_id, a.acao,
              COALESCE(d.nov ->> 'produto_id', d.ant ->> 'produto_id'), COALESCE(d.nov ->> 'empresa_id', d.ant ->> 'empresa_id'),
              COALESCE(d.nov ->> 'local_estoque_id', d.ant ->> 'local_estoque_id'), d.ant ->> 'local_estoque_id'
-      FROM (SELECT l.id FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}) lf
-      CROSS JOIN LATERAL (SELECT * FROM "AuditLog" a0 WHERE a0.cliente_id = ${cli} AND a0.entidade = 'EstoqueLoteNota' AND a0.entidade_id = lf.id) a
-      ${dados}
-      WHERE a.acao IN ('create', 'delete') OR (a.acao = 'update' AND (
+      FROM "AuditLog" a ${dados}
+      WHERE a.cliente_id = ${cli} AND a.entidade = 'EstoqueLoteNota'
+        AND a.entidade_id = ANY(ARRAY(SELECT l.id FROM "EstoqueLoteNota" l WHERE l.cliente_id = ${cli}${escopo('l', f, faixa)}))
+        AND (a.acao IN ('create', 'delete') OR (a.acao = 'update' AND (
         EXISTS (SELECT 1 FROM unnest(${CAMPOS_QUANTIDADE_LOTE}::text[]) k(c)
                 WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND ${num(Prisma.sql`d.nov ->> k.c`)} IS DISTINCT FROM ${num(Prisma.sql`d.ant ->> k.c`)})
         OR EXISTS (SELECT 1 FROM unnest(${CAMPOS_VINCULO_LOTE}::text[]) k(c)
-                WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND (d.nov -> k.c) IS DISTINCT FROM (d.ant -> k.c))))
+                WHERE (d.nov -> k.c) IS NOT NULL AND (d.ant -> k.c) IS NOT NULL AND (d.nov -> k.c) IS DISTINCT FROM (d.ant -> k.c)))))
     ) ev
     GROUP BY 1, 2, 3, 4, 5, 6, 7
     ORDER BY 1, 2, 3`;
@@ -709,7 +717,7 @@ const decodificarCursor = (bruto, f) => {
  */
 export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefined) => {
   await tx.$queryRaw`SET TRANSACTION READ ONLY`;
-  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true)`;
+  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true)`;
   const inicio = Date.now();
   const f = { empresaId: filtro.empresaId ?? null, produtoId: filtro.produtoId ?? null, localId: filtro.localId ?? null };
   const apos = filtro.apos ?? null;
