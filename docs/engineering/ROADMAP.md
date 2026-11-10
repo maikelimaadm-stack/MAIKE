@@ -337,7 +337,7 @@ Banco: uma migration expand-only, com duas colunas anuláveis e a tabela nova
 **Estado:** a migration foi aplicada e conferida em produção em 2026-11-09 às
 21:32:01 UTC, pelo runbook
 [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md).
-Falta o merge manual da PR #234 (draft) pelo proprietário. Relatório:
+A PR #234 foi mergeada pelo proprietário (`a2347741`; registrado pela P1-02). Relatório:
 [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
 
 **Fora desta fase** (cada item só com decisão própria do proprietário): pedido
@@ -364,14 +364,39 @@ simulada**. Na R2, cada fazenda liga os seus Produtos aos tipos de combustível
 contrato só de leitura dos produtos elegíveis de cada bem. Migration expand-only
 com 10 tabelas novas.
 
-**Estado:** PR #232 em draft. Migration **não aplicada** em produção; o merge
-depende da aplicação autorizada (preflight + GO escrito) e do merge manual do
-proprietário. Relatório:
+**Estado:** PR #232 mergeada (`76edc913`) e migration aplicada em produção em
+2026-11-09 às 23:04:22 UTC (registrado pela P1-02; houve incidente de sequência:
+o merge veio antes da migration, ver D-PROD-157). Relatório:
 [`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md).
 
 **Próximos passos (cada um com decisão própria):** P1-02 Abastecimentos/Consumo
-(depois da auditoria, migration e merge desta), depois manutenção, apuração mensal
-de depreciação por competência e transferência entre fazendas.
+(D-PROD-159, abaixo), depois manutenção, apuração mensal de depreciação por
+competência e transferência entre fazendas.
+
+## Track autorizado — Patrimônio P1-02: abastecimentos e consumo de combustível (D-PROD-159)
+
+Página nativa **Abastecimentos** (`pat-abastecimentos`) no grupo Patrimônio e Frota.
+O responsável configura o **fator kg/L** de cada produto de combustível da fazenda
+(informado, validado e versionado; nunca 1 L = 1 KG nem densidade presumida). O
+abastecimento de um bem (tanque, combustível aceito, produto vinculado da mesma
+fazenda, local de estoque, litros, leitura do medidor e tanque cheio) passa por uma
+**prévia sem escrita** e por uma **confirmação transacional** que converte litros em KG
+uma vez (`ROUND_HALF_UP`, 4 casas) e baixa o estoque **de verdade** pelo motor
+existente (FIFO por lote, custo FIFO final), sem lançamento financeiro. Idempotência
+por `operation_id`, cancelamento com estorno exato das fatias, histórico paginado,
+leitura do medidor guardada no próprio abastecimento (série monotônica, sem gravar o
+bem) e consumo km/L ou L/h pelo método do tanque cheio declarado. Permissões novas,
+negadas por padrão. Migration expand-only com 3 tabelas novas.
+
+**Estado:** PR em **DRAFT**. Migration **não aplicada** em nenhum ambiente remoto; o
+merge depende da revisão humana, do GO expresso da migration pelo runbook
+[`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md)
+e do merge manual. Relatório:
+[`MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md`](./MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md).
+
+**Fora desta fase** (cada item só com decisão própria): manutenção, ordens de
+serviço, peças, compras, custo/hora, apuração de depreciação, transferência entre
+fazendas, saldo de tanque, GNV em tanque de litros, mapas e dashboards.
 
 ## Fora do roadmap
 

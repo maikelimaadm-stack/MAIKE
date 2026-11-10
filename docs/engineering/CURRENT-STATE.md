@@ -9,15 +9,28 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-09) — MAIKE-GESTAO-P3-03: editar, excluir e duplicar lançamentos (D-PROD-158)
+## Missão ativa (2026-11-10) — MAIKE-PATRIMONIO-P1-02: abastecimentos e consumo de combustível da frota (D-PROD-159)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-159**, autorizada pelo proprietário na missão (2026-11-10). Constituição: nota de expansão em [`00-CONSTITUICAO.md`](../constitution/00-CONSTITUICAO.md) e em [`07-DO-NOT-DO.md`](../constitution/07-DO-NOT-DO.md) |
+| Branch / PR | `claude/maike-patrimonio-p1-02-abastecimentos`, base `origin/main` `a2347741` (PRs #232 e #234 mergeadas) · PR ⟨PREENCHER⟩ em **DRAFT** · HEAD final ⟨PREENCHER⟩ |
+| Escopo | Página nativa **Abastecimentos** (`pat-abastecimentos`) no grupo Patrimônio e Frota: fator kg/L por fazenda × combustível × produto, informado pelo responsável e versionado; prévia sem escrita; confirmação transacional com baixa **física real em KG** pelo motor de estoque (FIFO por lote, custo FIFO final, origem `abastecimento_patrimonio`, nenhum lançamento financeiro); idempotência por `operation_id`; cancelamento com estorno exato das fatias; leitura do medidor no próprio abastecimento (série monotônica, sem gravar o bem); consumo km/L ou L/h pelo tanque cheio declarado. Permissões negadas por padrão (`visualizar`, `novo`/`salvar`, `cancelar`, `configurar_conversao`). **Fora:** manutenção, OS, compras, financeiro, custo/hora, depreciação apurada, transferência, mapas, dashboards, saldo de tanque |
+| Migration | `20261110200000_patrimonio_p1_02_abastecimentos`, expand-only: 3 tabelas novas (`ConversaoCombustivelProduto`, `AbastecimentoBem`, `AbastecimentoBemConsumoLote`), nenhum DDL em tabela antiga. SHA-256 `20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba`, hash do DO `ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd`, pinados. Repositório: 39 migrations, 85 tabelas. **Não aplicada em nenhum ambiente remoto** (`SCHEMA_APPLIED_PRODUCTION: NÃO`) |
+| Release | Nada executado. A migration tem de ser aplicada com GO expresso **antes** do merge (o runtime novo sem as tabelas daria 500 também em `GET`/`PATCH /bens-patrimoniais/:id`, `PATCH`/`DELETE /estoque-lotes-nota/:id` e `DELETE /empresas/:id`). Runbook com preflight, aplicação, postcheck e rollback de schema vazio: [`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md) |
+| Testes / CI | `verify:all` no HEAD final ⟨PREENCHER⟩ · CI ⟨PREENCHER⟩ · contagens no relatório §15 |
+| Relatório | [`MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md`](./MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md) |
+| Antes dela | P1-01 (D-PROD-157): PR #232 mergeada (`76edc913`) e migration aplicada em produção (2026-11-09, 23:04:22 UTC). P3-03 (D-PROD-158): migration aplicada (21:32:01 UTC) e PR #234 mergeada (`a2347741`). Produção: 38 migrations |
+
+## Missão anterior (2026-11-09) — MAIKE-GESTAO-P3-03: editar, excluir e duplicar lançamentos (D-PROD-158)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-158** (nasceu como D-PROD-157; renumerada ao integrar a `main` `76edc913`, onde a D-PROD-157 é o Patrimônio P1-01). O comentário dentro do `migration.sql` da P3-03, já aplicado em produção, ainda diz D-PROD-157 e fica imutável (checksum) |
-| Branch / PR | `claude/maike-gestao-p3-03-editar-excluir-duplicar`, PR #234 em **draft**, integrada com a `origin/main` `76edc913` (PR #232, Patrimônio) por merge não destrutivo |
+| Branch / PR | `claude/maike-gestao-p3-03-editar-excluir-duplicar`, PR #234 **mergeada** na `main` (`a2347741`; registrado pela P1-02), depois de integrada com a `origin/main` `76edc913` (PR #232, Patrimônio) por merge não destrutivo |
 | Escopo | Na tela `LancamentosFinanceiros`: **Editar** documento confirmado por retificação (no lugar, quando a assinatura física não muda; por substituição, com estorno e documento novo de mesmo número, quando muda); **Excluir** confirmado de forma lógica (estorno, `excluido_em`, evento); **Duplicar** como rascunho novo. Bloqueios por liquidação, consumo de lote e movimento posterior. Histórico em `OperacaoFinanceiraEvento` e AuditLog |
 | Migration | `20261109300000_gestao_p3_03_editar_excluir`, expand-only: colunas anuláveis `OperacaoFinanceira.excluido_em` e `.retificado_em` e tabela nova `OperacaoFinanceiraEvento`. SHA-256 `3f3af00e…df890b`. **Aplicada em produção em 2026-11-09 às 21:32:01 UTC** (caminho B, GO escrito), 37 migrations, conferida pelo §6 do runbook |
-| Release | **Concluído:** GO, preflight, backup comprovado (PITR desligado), ensaio local, migration e conferência. **Pendente:** merge manual da PR #234, deploy e smoke. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md) |
+| Release | **Concluído:** GO, preflight, backup comprovado (PITR desligado), ensaio local, migration, conferência e merge manual da PR #234 (`a2347741`). Deploy e smoke não foram conferidos pela P1-02. Runbook com o §11 preenchido: [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md) |
 | Relatório | [`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md) |
 | Antes dela | P3-02 (D-PROD-156) em produção: migration aplicada em 2026-11-09 às 17:42:13 UTC e PR #231 mergeada (`e4e907ea`) |
 

@@ -46,6 +46,19 @@ lançamento de depreciação, transferência entre fazendas e qualquer efeito
 financeiro ou de estoque. Texto redigido pelo agente; vale com a aprovação
 explícita do proprietário no merge manual (§4).
 
+**Expansão autorizada pelo proprietário (D-PROD-159):** **Patrimônio e Frota —
+Abastecimentos** (página `Abastecimentos`, missão MAIKE-PATRIMONIO-P1-02): o abastecimento
+de um bem com baixa **física real** do combustível no estoque em KG, pelo motor de estoque
+existente (FIFO por lote, custo FIFO final, estorno exato no cancelamento), convertendo os
+litros por um fator kg/L **informado pelo responsável** e versionado por produto da fazenda
+(nunca 1 L = 1 KG nem densidade presumida); a leitura do medidor fica no próprio
+abastecimento e o consumo (km/L, L/h) só é calculado com dois tanques cheios declarados.
+Esta é a única exceção à lista "fora" da D-PROD-157, e só no trecho abastecimento/baixa de
+estoque de combustível. Continua **fora**: lançamento financeiro do abastecimento,
+manutenção, peças, ordens de serviço, compras, custo/hora, apuração ou lançamento de
+depreciação, transferência entre fazendas, saldo de tanque, mapas e dashboards. Texto
+redigido pelo agente; vale com a aprovação explícita do proprietário no merge manual (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório
