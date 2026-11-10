@@ -330,7 +330,7 @@ export const confirmar = async (contexto, corpo) => {
       (tx) =>
         executarComIdempotencia(tx, {
           clienteId: cli,
-          operationKey: `${entrada.operation_id}:${randomUUID()}`,
+          operationKey: entrada.operation_id,
           tipoOperacao: TIPO_CONFIRMAR,
           fingerprint,
           executar: async () => {
@@ -390,7 +390,7 @@ export const confirmar = async (contexto, corpo) => {
                 medidor_origem: contador ? 'ABASTECIMENTO' : null,
                 observacao: entrada.observacao,
                 referencia_externa: entrada.referencia_externa,
-                operation_id: `${entrada.operation_id}:${randomUUID().slice(0, 8)}`,
+                operation_id: entrada.operation_id,
                 movimentacao_estoque_id: saida.movimento.id,
                 criado_por_usuario_id: auth.usuarioId ?? null,
                 versao: 1,
