@@ -520,7 +520,7 @@ describe('R7/R8 — sem auto-reparo, sem trava, número fixo de consultas', () =
     assert.ok(pedido.ms < 2000, `terminou em ${pedido.ms} ms`);
   });
 
-  test('R8b: número FIXO de idas ao banco (≤ 7), igual para tenant pequeno e grande; a 1ª é SET TRANSACTION READ ONLY e a transação recusa escrita', async () => {
+  test('R8b: número FIXO de idas ao banco numa página (≤ 10; R1: +5 por página, ver RC4), igual para tenant pequeno e grande; a 1ª é SET TRANSACTION READ ONLY e a transação recusa escrita', async () => {
     const { lerReconciliacao } = await import(MODULO);
     const contar = (tx) => {
       /** @type {string[]} */
@@ -570,7 +570,10 @@ describe('R7/R8 — sem auto-reparo, sem trava, número fixo de consultas', () =
     }
     const p = await medir(pequeno, { empresaId: pequeno.e1.id });
     const g = await medir(grande, { empresaId: grande.e1.id });
-    assert.ok(p.chamadas.length <= 7, p.chamadas.join(' | '));
+    // R1 (D-PROD-161): a varredura é paginada; numa página são 4 idas fixas (READ ONLY, plan_cache_mode,
+    // pré-contagem do escopo, exclusões legadas de lote) + a empresa + 5 da página (Q1–Q5). Antes: ≤ 7 sem paginar.
+    assert.ok(p.chamadas.length <= 10, p.chamadas.join(' | '));
+    assert.match(p.chamadas[1], /^\$queryRaw:SELECT set_config\('plan_cache_/);
     assert.deepEqual(g.chamadas, p.chamadas, 'mesmas idas ao banco, sem N+1');
     assert.match(p.chamadas[0], /^\$queryRaw:SET TRANSACTION READ ONLY/);
     assert.ok(!p.chamadas.some((c) => c.startsWith('$executeRaw')), 'nenhuma escrita');
