@@ -167,7 +167,22 @@ export const atualizar = async (contexto, id, entrada) => {
         { operacao: 'editar', campos: restritos }
       );
     }
-    const existente = lido;
+    // D-PROD-161 (R2, achado B-01/LC-1): a renomeação TRAVA a linha do lote
+    // (FOR NO KEY UPDATE, a força do próprio UPDATE: não disputa com o FOR KEY
+    // SHARE das fatias FK) e RELÊ antes de auditar. Sem isso, uma baixa do motor
+    // (CAS no lote) que commitasse entre a leitura e o UPDATE deixava o AuditLog
+    // com `quantidade_disponivel` anterior ≠ nova — uma "escrita provada de
+    // quantidade" que a renomeação não fez e que a reconciliação toma como
+    // escritor fora do motor (falso LIMITACAO_LEGADA que mascara divergência
+    // real). Só esta linha é travada e nada antes dela: o motor trava produto →
+    // lote e só espera; não há ciclo. O caminho restrito acima segue a ordem
+    // produto → lote de `travarLote` (esta trava não pode vir antes dele).
+    await tx.$queryRaw`SELECT id FROM "EstoqueLoteNota" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
+    const existente = await buscarRegistro(auth.clienteId, id, tx);
+    if (!existente) throw erroNaoEncontrado();
+    if (Object.prototype.hasOwnProperty.call(patch, 'empresa_id') && patch.empresa_id !== existente.empresa_id) {
+      throw new AppError('CONCURRENCY_CONFLICT', 'o lote mudou de empresa durante a operação; recarregue e tente de novo; nada foi alterado');
+    }
     if (Object.prototype.hasOwnProperty.call(patch, 'local_estoque_nome')) {
       const nome = typeof patch.local_estoque_nome === 'string' ? patch.local_estoque_nome.trim() : '';
       const localId = existente.local_estoque_id;

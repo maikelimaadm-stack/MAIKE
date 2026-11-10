@@ -530,8 +530,10 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
 /**
  * D-PROD-161 — TRANSFERÊNCIA entre locais da MESMA empresa e produto. Consome
  * FIFO na origem (CAS) e cria, no destino, uma camada por fatia com o MESMO
- * custo, a MESMA `data_documento` (a de origem; sem data, o dia UTC de
- * `instante` — nunca o ano 2001 do `String(Date).slice`) e a MESMA procedência
+ * custo, a MESMA `data_documento` (a de origem; sem data, o dia UTC do
+ * `createdAt` da origem — a idade FIFO dela, `COALESCE(data_documento,
+ * createdAt)`; nunca o ano 2001 do `String(Date).slice` nem o dia escolhido em
+ * `data_movimentacao`: R2, achado A-02) e a MESMA procedência
  * (nulo continua nulo). Grava o par pai/filho (Saída `transferencia_enviada`,
  * Entrada `transferencia_recebida`) e a linhagem em `lotes_consumidos[].lote_destino_id`
  * (JSON, sem FK). NÃO lê nem altera `estoque_atual`, nem o total da empresa.
@@ -620,7 +622,6 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
       saldo_depois: paraBanco(saldoDestino.plus(kg), CASAS_QUANTIDADE),
     },
   });
-  const diaDoInstante = a.instante.toISOString().slice(0, 10);
   /** @type {string[]} */
   const destinos = [];
   for (const f of fatias) {
@@ -630,7 +631,10 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
       local: a.destino,
       kg: f.quantidade,
       custoKg: f.custo_unitario,
-      dataDocumento: f.lote.data_documento ?? comoDia(diaDoInstante),
+      // D-PROD-161 (R2, achado A-02): origem sem data (legado, import) → o dia UTC do createdAt dela, que é a
+      // chave FIFO que ela tinha na origem; o dia da movimentação (livre no corpo, até 0001-01-01) reescrevia a
+      // idade da camada no destino e o custo das baixas seguintes.
+      dataDocumento: f.lote.data_documento ?? comoDia(f.lote.createdAt.toISOString().slice(0, 10)),
       procedencia: {
         numero_documento: f.lote.numero_documento ?? null,
         serie_documento: f.lote.serie_documento ?? null,
@@ -1022,6 +1026,41 @@ export const numerarMovimentos = async (tx, clienteId, ids) => {
   if (n !== ids.length) throw new Error(`numeração de movimentos incompleta: ${n} de ${ids.length}`);
 };
 
+/**
+ * D-PROD-161 (R2, achado A-03) — camadas nascidas de `raizes` por
+ * TRANSFERÊNCIA do motor, de forma transitiva (a volta de uma camada
+ * transferida também). A linhagem é o JSON `lotes_consumidos[].lote_id →
+ * lote_destino_id` das Saídas `transferencia_enviada` (SPEC §6: sem FK); só
+ * conta a camada que existe no tenant, no mesmo produto e empresa da saída e
+ * ligada ao filho dela (`movimentacao_entrada_id = movimento_filho_id`): um
+ * JSON forjado não alcança lote de fora. Uma leitura das saídas de
+ * transferência dos produtos das raízes, que quem chama já travou (nenhuma
+ * transferência desses produtos corre ao mesmo tempo).
+ * @param {any} tx @param {string} cli @param {string[]} raizes
+ * @returns {Promise<string[]>} ids das camadas derivadas (sem as raízes), em ordem de id
+ */
+const camadasDerivadasPorTransferencia = async (tx, cli, raizes) => {
+  const doc = await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: raizes } }, select: { produto_id: true, empresa_id: true } });
+  const produtos = unicosDe(doc.map((l) => l.produto_id));
+  const empresas = unicosDe(doc.map((l) => l.empresa_id));
+  if (!produtos.length || !empresas.length) return [];
+  const linhas = /** @type {Array<{ id: string }>} */ (await tx.$queryRaw`WITH RECURSIVE tr AS MATERIALIZED (
+      SELECT e.elem ->> 'lote_id' AS origem, d.id AS destino
+      FROM "MovimentacaoEstoque" m
+      CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(m.lotes_consumidos::jsonb) = 'array' THEN m.lotes_consumidos::jsonb ELSE '[]'::jsonb END) AS e(elem)
+      JOIN "EstoqueLoteNota" d ON d.cliente_id = ${cli} AND d.id = e.elem ->> 'lote_destino_id'
+        AND d.produto_id = m.produto_id AND d.empresa_id = m.empresa_id AND d.movimentacao_entrada_id = m.movimento_filho_id
+      WHERE m.cliente_id = ${cli} AND m.produto_id = ANY(${produtos}::text[]) AND m.empresa_id = ANY(${empresas}::text[])
+        AND m.tipo_movimentacao = 'Saída' AND m.tipo_detalhado = 'transferencia_enviada' AND m.lotes_consumidos IS NOT NULL
+    ), lin(id) AS (
+      SELECT x FROM unnest(${raizes}::text[]) AS x
+      UNION
+      SELECT tr.destino FROM lin JOIN tr ON tr.origem = lin.id
+    )
+    SELECT id FROM lin WHERE NOT (id = ANY(${raizes}::text[])) ORDER BY id`);
+  return linhas.map((l) => l.id);
+};
+
 /** Colunas de PROCEDÊNCIA do lote que seguem o documento (D-PROD-158, revisão DE-02/BC-01). */
 export const CAMPOS_PROCEDENCIA_LOTE = Object.freeze(['fornecedor_id', 'fornecedor_nome', 'numero_documento']);
 
@@ -1036,6 +1075,12 @@ export const CAMPOS_PROCEDENCIA_LOTE = Object.freeze(['fornecedor_id', 'forneced
  * gravado (`updatedAt` honesto). Recebe `tx` com os produtos já travados.
  * Devolve os lotes antes/depois: quem chama audita cada um, e a prova de
  * procedência aceita esse AuditLog como escritor benigno.
+ * D-PROD-161 (R2, achado A-03): na compra, a procedência vale também para as
+ * camadas que nasceram desses lotes por TRANSFERÊNCIA do motor (que copiou a
+ * procedência "exatamente"), de forma transitiva — sem isso a camada
+ * transferida continuava com o fornecedor e a NF antigos, e o rateio e o
+ * `[RATEIO_FIFO]` das baixas sobre ela citavam o documento errado. Mesmo
+ * metadado, mesma auditoria (cada camada gravada volta na lista).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ direcao: string, loteIds: string[], movimentoIds: string[], documento: {numero: string|null, data: string},
@@ -1054,8 +1099,9 @@ export const atualizarProcedencia = async (tx, ctx, a) => {
     });
     if (r.count !== movimentoIds.length) throw new Error(`procedência: movimentos atualizados ${r.count} de ${movimentoIds.length}`);
   }
-  const loteIds = compra ? unicosDe(a.loteIds) : [];
-  if (!loteIds.length) return [];
+  const raizes = compra ? unicosDe(a.loteIds) : [];
+  if (!raizes.length) return [];
+  const loteIds = [...raizes, ...(await camadasDerivadasPorTransferencia(tx, cli, raizes))];
   const novo = { fornecedor_id: a.parceiro.id ?? null, fornecedor_nome: a.parceiro.nome ?? null, numero_documento: a.documento.numero ?? null };
   const select = { id: true, fornecedor_id: true, fornecedor_nome: true, numero_documento: true, updatedAt: true };
   const antes = await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, id: { in: loteIds } }, select, orderBy: { id: 'asc' } });

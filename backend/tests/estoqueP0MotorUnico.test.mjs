@@ -444,7 +444,7 @@ describe('T — transferência no motor (camadas preservadas, total conservado)'
     assert.equal(ok.statusCode, 201, ok.body);
   });
 
-  test('T4: procedência nula na origem continua nula no destino (sem fabricar "S/N"); procedência presente é copiada; origem sem data → camada com o dia da movimentação', async () => {
+  test('T4: procedência nula na origem continua nula no destino (sem fabricar "S/N"); procedência presente é copiada; origem sem data → camada com o dia UTC do createdAt da origem (idade FIFO), não o da movimentação', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -468,7 +468,10 @@ describe('T — transferência no motor (camadas preservadas, total conservado)'
     const [dn, dc, ds] = [porCusto('2.0000'), porCusto('3.0000'), porCusto('4.0000')];
     assert.deepEqual([dn.numero_documento, dn.serie_documento, dn.fornecedor_id, dn.fornecedor_nome, dia(dn.data_documento)], [null, null, null, null, '2027-05-01']);
     assert.deepEqual([dc.numero_documento, dc.serie_documento, dc.fornecedor_id, dc.fornecedor_nome, dia(dc.data_documento)], ['NF-123', '2', e.forn.id, e.forn.nome, '2027-05-02']);
-    assert.equal(dia(ds.data_documento), '2027-06-12', 'origem sem data: a camada recebe o dia (UTC) da movimentação');
+    // D-PROD-161 (R2, achado A-02 — mudança DELIBERADA da SPEC §3.2 passo 9): o fallback era o dia da
+    // movimentação (2027-06-12), que reescrevia a idade FIFO da camada no destino; agora é o dia UTC do
+    // createdAt da origem (2027-05-03T10:00Z), a chave COALESCE(data_documento, createdAt) que ela tinha.
+    assert.equal(dia(ds.data_documento), '2027-05-03', 'origem sem data: a camada recebe o dia (UTC) do createdAt da origem');
     assert.equal(r.json().rateio.find((x) => x.lote_id === nulo.id).numero_documento, 'S/N', 'o rateio da resposta mantém o rótulo de hoje');
     assert.deepEqual(Object.fromEntries((saida.lotes_consumidos ?? []).map((f) => [f.lote_id, f.lote_destino_id])), { [nulo.id]: dn.id, [cheio.id]: dc.id, [semData.id]: ds.id });
     await conferirInvariantes(s, {}, 'T4');

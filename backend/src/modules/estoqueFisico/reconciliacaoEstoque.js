@@ -46,8 +46,10 @@
  *     (varredura solta do índice `(cliente_id, produto_id)`; R2). Órfãos antes
  *     do primeiro, entre dois ou depois do último id de Produto — e o tenant
  *     sem nenhum Produto — são chaves como as outras: a pré-contagem `1 +
- *     lotes + movimentos` de cada chave corta a página no orçamento e cobre
- *     TODA linha que a página lê (nenhuma faixa aberta sem conta). Lotes e
+ *     lotes + movimentos + 2 × recibos legados` de cada chave corta a página
+ *     no orçamento e cobre TODA linha que a página lê (nenhuma faixa aberta sem
+ *     conta; os recibos que Q3 e Q4 leem para as saídas legadas — em leitura
+ *     linear, R2/LC-2 — entram na conta). Lotes e
  *     movimentos de uma página voltam ao Node só quando SUSPEITOS (o SQL
  *     agrega e filtra; um produto de 50.000 lotes consistentes devolve 1 linha
  *     por local), com teto `anomaliasPorConsulta` (acima dele a página é
@@ -157,7 +159,7 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 20000, isolationLevel: /
 /**
  * Orçamento de UMA chamada (R1 + R2). `produtosPorPagina` conta CHAVES de
  * produto (com órfãos); `linhasPorPagina` e `linhasPorChamada` contam a
- * pré-contagem `1 + lotes + movimentos` de cada chave e as linhas de AuditLog
+ * pré-contagem `1 + lotes + movimentos + 2 × recibos legados` de cada chave e as linhas de AuditLog
  * LIDAS pela fase de exclusões; `tempoMs` é conferido entre páginas/blocos e
  * fica bem abaixo dos 20 s da transação; `instrucaoMs` é o
  * `statement_timeout`; `anomaliasPorConsulta` é o teto de lotes/movimentos/
@@ -181,7 +183,8 @@ const ORCAMENTO_TETO = Object.freeze({
  * (UTC, gravado pelo Prisma): 10 min é mais de 60× essa folga. Fora dela o
  * recibo não casa → DADOS_INSUFICIENTES (nunca OK).
  */
-const JANELA_RECIBO = Prisma.raw(`interval '10 minutes'`);
+const JANELA_TEXTO = `interval '10 minutes'`;
+const JANELA_RECIBO = Prisma.raw(JANELA_TEXTO);
 
 export const CLASSES = Object.freeze(['DADOS_INSUFICIENTES', 'LIMITACAO_LEGADA', 'DIVERGENCIA_REAL']);
 const [DI, LL, DR] = CLASSES;
@@ -222,21 +225,46 @@ const empresaDoJson = Prisma.sql`COALESCE(d.ant ->> 'empresa_id', d.nov ->> 'emp
 const localDoJson = Prisma.sql`COALESCE(d.ant ->> 'local_estoque_id', d.nov ->> 'local_estoque_id')`;
 
 /**
- * Recibos committed de comando de estoque cujo movimento (suplementação ou
- * saída da transferência) é o `alias` — busca LIMITADA pelo índice
- * `(cliente_id, createdAt)` na janela do próprio movimento (nunca varre todos
- * os recibos do tenant).
+ * Recibo legado em LEITURA LINEAR (R2, achado LC-2). Antes era um LATERAL por
+ * saída legada sobre todos os recibos da janela dela: O(saídas × recibos na
+ * janela) — 2.000 saídas numa rajada de 22.000 recibos levavam 10,7 s por
+ * consulta e prendiam a varredura do tenant num 409 perpétuo. Agora:
+ *  1. `intervalosDosRecibos`: as janelas ±JANELA_RECIBO das saídas legadas
+ *     FUNDIDAS em intervalos disjuntos (todas têm a mesma largura: a ordem por
+ *     instante basta);
+ *  2. `recibosNosIntervalos`: UMA varredura do índice `(cliente_id, createdAt)`
+ *     por intervalo — cada recibo é lido no máximo UMA vez por consulta — com o
+ *     id do movimento tirado do JSON;
+ *  3. `casaRecibo`: o casamento com a saída é um hash pelo id, com a janela do
+ *     `createdAt` da PRÓPRIA saída (a mesma regra de antes).
+ * O número de recibos que a página lê entra na pré-contagem (`lerChaves`).
+ * @param {import('@prisma/client').Prisma.Sql} instantes consulta com a coluna `t` (o `createdAt` de cada saída legada)
  */
-const recibosDoMovimento = (cli, alias) => {
-  const m = Prisma.raw(alias);
+const intervalosDosRecibos = (instantes) => Prisma.sql`SELECT min(g.t) - ${JANELA_RECIBO} AS ini, max(g.t) + ${JANELA_RECIBO} AS fim
+  FROM (
+    SELECT s1.t, sum(s1.novo) OVER (ORDER BY s1.t ROWS UNBOUNDED PRECEDING) AS grupo
+    FROM (SELECT s0.t, CASE WHEN s0.t - lag(s0.t) OVER (ORDER BY s0.t) <= 2 * ${JANELA_RECIBO} THEN 0 ELSE 1 END AS novo FROM (${instantes}) s0) s1
+  ) g
+  GROUP BY g.grupo`;
+/**
+ * Recibos committed de comando de estoque (`TIPOS_RECIBO`) dentro dos
+ * intervalos: `(movimento_id, criado_em, rateio)`.
+ * @param {string} cli @param {import('@prisma/client').Prisma.Sql} intervalos
+ */
+const recibosNosIntervalos = (cli, intervalos) => {
   const corpo = objeto(Prisma.sql`o.response_json`);
-  return Prisma.sql`SELECT o."createdAt" AS criado_em, ${lista(Prisma.sql`${corpo} -> 'rateio'`)} AS rateio
-    FROM "OperacaoIdempotente" o
-    WHERE o.cliente_id = ${cli} AND o."createdAt" >= ${m}."createdAt" - ${JANELA_RECIBO} AND o."createdAt" <= ${m}."createdAt" + ${JANELA_RECIBO}
-      AND o.tipo_operacao = ANY(${TIPOS_RECIBO}::text[]) AND o.status = 'committed' AND o.response_json IS NOT NULL
-      AND COALESCE(${corpo} -> 'movimentacao' ->> 'id', ${corpo} -> 'movimentacao_saida' ->> 'id') = ${m}.id
-    OFFSET 0`;
+  return Prisma.sql`SELECT r.movimento_id, r.criado_em, r.rateio FROM (${intervalos}) iv
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(${corpo} -> 'movimentacao' ->> 'id', ${corpo} -> 'movimentacao_saida' ->> 'id') AS movimento_id, o."createdAt" AS criado_em,
+             ${lista(Prisma.sql`${corpo} -> 'rateio'`)} AS rateio
+      FROM "OperacaoIdempotente" o
+      WHERE o.cliente_id = ${cli} AND o."createdAt" >= iv.ini AND o."createdAt" <= iv.fim
+        AND o.tipo_operacao = ANY(${TIPOS_RECIBO}::text[]) AND o.status = 'committed' AND o.response_json IS NOT NULL
+      OFFSET 0
+    ) r`;
 };
+/** Recibo `r` da saída `s` (colunas `id`, `t`): mesmo id do movimento E dentro da janela do `createdAt` da saída. */
+const casaRecibo = (s, r) => Prisma.raw(`${r}.movimento_id = ${s}.id AND ${r}.criado_em >= ${s}.t - ${JANELA_TEXTO} AND ${r}.criado_em <= ${s}.t + ${JANELA_TEXTO}`);
 /** Saída legada de suplementação/transferência (a fatia só está no recibo). */
 const saidaLegada = (alias) => Prisma.raw(`${alias}.tipo_movimentacao = 'Saída' AND ${alias}.lotes_consumidos IS NULL AND ${alias}.origem_sistema = ANY(ARRAY['${ORIGENS_SEM_FK.join("','")}']::text[])`);
 
@@ -253,8 +281,8 @@ const proximaChave = (tabela, alias, cli, f, anterior) => Prisma.sql`SELECT ${Pr
  * Q1 da página: as próximas `n` CHAVES depois de `desde`, em ordem de id — a
  * união dos ids de Produto do escopo com os `produto_id` distintos de lote e de
  * movimento do escopo (assim um órfão é chave como qualquer produto) — com o
- * necessário para I1 e a pré-contagem `1 + lotes + movimentos` que corta a
- * página no orçamento.
+ * necessário para I1 e a pré-contagem `1 + lotes + movimentos + 2 × recibos
+ * legados` que corta a página no orçamento.
  */
 const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
     ${f.produtoId === null ? Prisma.empty : Prisma.sql`unica(id) AS (SELECT ${f.produtoId}::text WHERE ${desde === null ? Prisma.sql`true` : Prisma.sql`${f.produtoId}::text > ${desde}`}),`}
@@ -290,7 +318,8 @@ const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
       COALESCE(m.n_movimentos, 0)::int AS n_movimentos,
       COALESCE(m.n_outra_empresa, 0)::int AS n_movimentos_outra_empresa,
       COALESCE(m.n_fora_do_protocolo, 0)::int AS n_movimentos_fora_do_protocolo,
-      COALESCE(m.n_saidas_legadas, 0)::int AS n_saidas_legadas
+      COALESCE(m.n_saidas_legadas, 0)::int AS n_saidas_legadas,
+      COALESCE(rc.n_recibos, 0)::int AS n_recibos_legados
     FROM chaves c
     LEFT JOIN LATERAL (SELECT p.id, p.empresa_id, p.estoque_atual FROM "Produto" p WHERE p.cliente_id = ${cli} AND p.id = c.id OFFSET 0) p ON true
     LEFT JOIN LATERAL (
@@ -308,6 +337,14 @@ const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
              COUNT(*) FILTER (WHERE ${saidaLegada('y')}) AS n_saidas_legadas
       FROM "MovimentacaoEstoque" y WHERE y.cliente_id = ${cli} AND y.produto_id = c.id
     ) m ON true
+    LEFT JOIN LATERAL (
+      -- R2 (LC-2): linhas de recibo que Q3/Q4 vão ler para as saídas legadas desta chave (todas as do intervalo, de
+      -- qualquer tipo: é o que o índice visita). Só roda para chave com saída legada.
+      SELECT sum(k.n) AS n_recibos
+      FROM (${intervalosDosRecibos(Prisma.sql`SELECT z."createdAt" AS t FROM "MovimentacaoEstoque" z
+          WHERE z.cliente_id = ${cli} AND z.produto_id = c.id${igual('z.empresa_id', f.empresaId)} AND ${saidaLegada('z')} AND COALESCE(m.n_saidas_legadas, 0) > 0`)}) iv
+      CROSS JOIN LATERAL (SELECT count(*) AS n FROM "OperacaoIdempotente" o WHERE o.cliente_id = ${cli} AND o."createdAt" >= iv.ini AND o."createdAt" <= iv.fim) k
+    ) rc ON true
     ORDER BY c.id`;
 
 /**
@@ -405,7 +442,7 @@ const COLUNAS_LOTE = Prisma.raw(`y.id, y.empresa_id, y.produto_id, y.local_estoq
   y.movimentacao_entrada_id, y.data_antiga, y.produto_inexistente, y.produto_empresa_id, y.local_inexistente,
   y.c_fin::text AS consumo_financeiro, y.c_abs::text AS consumo_abastecimento, y.c_nov::text AS consumo_movimentos, y.c_leg::text AS consumo_recibos,
   y.fatias_recibo, y.fatias_recibo_fora_janela, y.compra_estornada, y.tem_movimento_entrada, y.entrada_tipo, y.entrada_tipo_detalhado,
-  y.entrada_origem, y.q_ent_mov::text AS entrada_quantidade, y.entrada_incoerente`);
+  y.entrada_origem, y.q_ent_mov::text AS entrada_quantidade, y.entrada_incoerente, y.linhagem_motor`);
 
 /**
  * Q3 — por lote: consumo observado × explicado, coerência da situação e do
@@ -442,14 +479,18 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
       WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}
         AND m.tipo_movimentacao = 'Saída' AND m.status = 'Ativa' AND m.origem_sistema = ANY(${ORIGENS_SEM_FK}::text[]) AND m.lotes_consumidos IS NOT NULL
       GROUP BY 1
-    ), fatias_recibo AS MATERIALIZED (
-      -- MATERIALIZED: as fatias dos recibos legados da faixa saem primeiro (um laço por movimento, pelo índice) e só
-      -- depois cruzam com os lotes (um hash): sem isso o planejador refaz o hash de "lt" a cada movimento.
-      SELECT e.elem ->> 'lote_id' AS lote_id, ${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)} AS quantidade, r.criado_em
+    ), ls AS MATERIALIZED (
+      SELECT m.id, m."createdAt" AS t
       FROM "MovimentacaoEstoque" m
-      CROSS JOIN LATERAL (${recibosDoMovimento(cli, 'm')}) r
-      CROSS JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem)
       WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)} AND m.status = 'Ativa' AND ${saidaLegada('m')}
+    ), rl AS MATERIALIZED (${recibosNosIntervalos(cli, intervalosDosRecibos(Prisma.sql`SELECT ls.t FROM ls`))}
+    ), fatias_recibo AS MATERIALIZED (
+      -- R2 (LC-2): recibos lidos UMA vez por intervalo (rl) e casados por hash (id + janela da própria saída);
+      -- MATERIALIZED: as fatias saem primeiro e só depois cruzam com os lotes (um hash).
+      SELECT e.elem ->> 'lote_id' AS lote_id, ${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)} AS quantidade, r.criado_em
+      FROM ls
+      JOIN rl r ON ${casaRecibo('ls', 'r')}
+      CROSS JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem)
     ), leg AS (
       SELECT lt.id AS lote_id,
              SUM(fr.quantidade) FILTER (WHERE fr.criado_em >= lt."createdAt" - interval '1 hour') AS consumido,
@@ -473,7 +514,8 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
              (ent.id IS NOT NULL) AS tem_movimento_entrada, ent.tipo_movimentacao AS entrada_tipo, ent.tipo_detalhado AS entrada_tipo_detalhado,
              ent.origem_sistema AS entrada_origem, ent.quantidade AS q_ent_mov,
              (ent.id IS NOT NULL AND (ent.produto_id <> lt.produto_id OR ent.local_estoque_destino IS DISTINCT FROM lt.local_estoque_id
-               OR ent.tipo_movimentacao <> 'Entrada')) AS entrada_incoerente
+               OR ent.tipo_movimentacao <> 'Entrada')) AS entrada_incoerente,
+             COALESCE(lm.ok, false) AS linhagem_motor
       FROM lt
       LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = lt.produto_id${naFaixa('p.id', faixa)}
       LEFT JOIN "LocalEstoque" le ON le.cliente_id = ${cli} AND le.id = lt.local_estoque_id
@@ -483,6 +525,17 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
       LEFT JOIN leg ON leg.lote_id = lt.id
       LEFT JOIN compra ON compra.lote_id = lt.id
       LEFT JOIN "MovimentacaoEstoque" ent ON ent.cliente_id = ${cli} AND ent.id = lt.movimentacao_entrada_id
+      -- R2 (A-01): camada < 2002 criada pelo MOTOR — a saída-pai cita esta camada em lotes_consumidos[].lote_destino_id —
+      -- tem a data COPIADA da origem: não é o bug de 2001 do comando legado. LATERAL parametrizado (uma descida na chave
+      -- primária por camada) e só avaliado quando a data é antiga (filtro de uma vez sobre a linha de fora).
+      LEFT JOIN LATERAL (
+        SELECT true AS ok FROM "MovimentacaoEstoque" pai
+        WHERE pai.cliente_id = ${cli} AND pai.id = ent.movimento_pai_id
+          AND lt.data_documento < DATE '2002-01-01' AND ent.tipo_detalhado = 'transferencia_recebida'
+          AND pai.tipo_detalhado = 'transferencia_enviada' AND pai.lotes_consumidos IS NOT NULL
+          AND ${lista(Prisma.sql`pai.lotes_consumidos`)} @> jsonb_build_array(jsonb_build_object('lote_destino_id', lt.id::text))
+        OFFSET 0
+      ) lm ON true
     ), y AS ${comAmostra ? Prisma.sql`MATERIALIZED` : Prisma.empty} (
       SELECT x.*, ((x.q_entrada - x.q_disp) - (x.c_fin + x.c_abs + x.c_nov + x.c_leg + CASE WHEN x.compra_estornada THEN x.q_entrada ELSE 0 END)) AS dif
       FROM x
@@ -496,7 +549,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
         OR NOT y.tem_movimento_entrada
         OR y.dif <> 0
         OR NOT COALESCE(y.entrada_origem = ANY(${ORIGENS_PROTOCOLO}::text[]), false)
-        OR (y.entrada_tipo_detalhado = 'transferencia_recebida' AND y.data_antiga)
+        OR (y.entrada_tipo_detalhado = 'transferencia_recebida' AND y.data_antiga AND NOT y.linhagem_motor)
         OR (y.status = 'Disponivel' AND y.q_disp = 0)
         OR y.q_disp < 0 OR y.q_disp > y.q_entrada
         OR (y.status <> 'Disponivel' AND y.q_disp > 0)
@@ -523,12 +576,15 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => {
              (${localDoMovimento('m')}) AS local_id
       FROM "MovimentacaoEstoque" m
       WHERE m.cliente_id = ${cli}${escopo('m', f, faixa)}${localDoMov('m', f)}
+    ), lsm AS MATERIALIZED (
+      SELECT mv.id, mv."createdAt" AS t FROM mv WHERE ${saidaLegada('mv')}
+    ), rlm AS MATERIALIZED (${recibosNosIntervalos(cli, intervalosDosRecibos(Prisma.sql`SELECT lsm.t FROM lsm`))}
     ), rcm AS (
-      SELECT mv.id AS movimento_id, SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) AS soma, COUNT(e.elem) AS n
-      FROM mv
-      CROSS JOIN LATERAL (${recibosDoMovimento(cli, 'mv')}) r
+      -- R2 (LC-2): idem Q3 — leitura linear dos recibos e casamento por hash
+      SELECT lsm.id AS movimento_id, SUM(${num(Prisma.sql`e.elem ->> 'quantidade_consumida'`)}) AS soma, COUNT(e.elem) AS n
+      FROM lsm
+      JOIN rlm r ON ${casaRecibo('lsm', 'r')}
       LEFT JOIN LATERAL jsonb_array_elements(r.rateio) AS e(elem) ON true
-      WHERE ${saidaLegada('mv')}
       GROUP BY 1
     ), lin AS (
       SELECT l.movimentacao_entrada_id AS movimento_id, SUM(l.quantidade_entrada) AS soma
@@ -799,7 +855,8 @@ const achadoLote = (l, aud, semRecibo) => {
   if (!l.movimentacao_entrada_id) s.push([LL, 'lote_sem_movimento_entrada']);
   if (aud.length) s.push([LL, 'lote_escrito_fora_do_motor']);
   if (l.tem_movimento_entrada && !ORIGENS_PROTOCOLO.includes(l.entrada_origem)) s.push([LL, 'entrada_fora_do_protocolo']);
-  if (l.entrada_tipo_detalhado === 'transferencia_recebida' && l.data_antiga) s.push([LL, 'data_transferencia_2001']);
+  // R2 (A-01): só a camada LEGADA (sem linhagem do motor) é o bug 2001; a do motor nunca mascara divergência física.
+  if (l.entrada_tipo_detalhado === 'transferencia_recebida' && l.data_antiga && !l.linhagem_motor) s.push([LL, 'data_transferencia_2001']);
   if (zeradoDisponivel && l.fatias_recibo > 0) s.push([LL, 'disponivel_zerado_legado']);
   if (dentroDaTolerancia(dif, l.fatias_recibo)) s.push([LL, 'residuo_number_legado']);
   if (disp.lt(0) || disp.gt(entrada)) s.push([DR, 'fora_da_faixa']);
@@ -1077,7 +1134,8 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
       let k = 0;
       let custo = 0;
       while (k < candidatos.length && k < o.produtosPorPagina) {
-        const c = 1 + candidatos[k].n_lotes + candidatos[k].n_movimentos;
+        // R2 (LC-2): + as linhas de recibo legado que Q3 e Q4 leem (cada uma lê o intervalo da chave uma vez)
+        const c = 1 + candidatos[k].n_lotes + candidatos[k].n_movimentos + 2 * candidatos[k].n_recibos_legados;
         if (custo + c > resto || (k > 0 && custo + c > o.linhasPorPagina)) break;
         custo += c;
         k += 1;

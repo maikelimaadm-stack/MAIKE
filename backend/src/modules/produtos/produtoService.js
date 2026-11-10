@@ -334,9 +334,14 @@ export const atualizar = async (contexto, id, entrada) => {
     //  - D-PROD-161: corpo com `estoque_atual` também trava (FOR NO KEY UPDATE
     //    espera o FOR UPDATE de `travarProdutosEstoque`): a comparação usa o
     //    cache que o motor acabou de commitar, e o valor nunca é gravado.
-    if (campos.empresa_id !== undefined || estoqueInformado(entrada)) {
-      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
-    }
+    //  - D-PROD-161 (R2, achado B-02/LC-1): e QUALQUER corpo trava antes de ler,
+    //    não só com `empresa_id`/`estoque_atual`. Sem isso, o PATCH de um cliente
+    //    de API com só `{nome_produto}` lia o cache velho e, depois de esperar a
+    //    baixa do motor no UPDATE, auditava `estoque_atual` 100→90 — uma escrita
+    //    de cache que não fez e que a reconciliação toma como escritor fora do
+    //    motor. É a mesma trava que o UPDATE já pegaria, só que antes da
+    //    leitura: nenhuma trava nova antes dela, sem ciclo.
+    await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     let anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
     exigirEstoqueIgualAoAtual(entrada, anterior);
