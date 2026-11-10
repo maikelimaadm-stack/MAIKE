@@ -263,7 +263,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
         // Par EXATO (tipo, produto): o fator de outro par nunca serve.
         const fatorDoPar = new Map(conversoes.map((c) => [`${c.tipo_combustivel_id}|${c.produto_id}`, c]));
         return linhas.map((p) => {
-          const tipoId = tipoDoProduto.has(p.id) ? [...tiposAceitos.keys()][0] : undefined;
+          const tipoId = tipoDoProduto.get(p.id);
           const tipo = tipoId ? tiposAceitos.get(tipoId) : undefined;
           // Mesmo instantâneo do filtro: o produto da página tem o vínculo ativo de um tipo aceito.
           if (!tipoId || !tipo) throw new Error(`invariante violada: produto ${p.id} sem vínculo ativo de tipo aceito no instantâneo`);
