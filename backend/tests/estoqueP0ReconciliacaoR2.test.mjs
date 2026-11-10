@@ -428,6 +428,38 @@ describe('RO — órfãos e produto pesado: nenhuma linha fora do orçamento, nu
   });
 });
 
+describe('RO4 — orçamento da chamada vale também para a chave pesada', () => {
+  test('RO4: chave pesada que não cabe no que resta do orçamento da chamada fica para a próxima (abre a página sozinha): nenhuma chamada passa do orçamento, salvo a página de UMA chave', async () => {
+    const { s } = await tenantComSeisProdutos();
+    const e = s.e1;
+    const pesado = await prisma().produto.create({ data: { id: `zzzz-pesado-${randomUUID().slice(0, 8)}`, cliente_id: s.c, empresa_id: e.id, numero_produto: `9${randomUUID().slice(0, 6)}`,
+      nome_produto: `PESADO ${randomUUID().slice(0, 6)}`, unidade_principal_estoque: 'KG', estoque_atual: '3000' } });
+    const tag = randomUUID().slice(0, 8);
+    await prisma().$executeRaw`INSERT INTO "MovimentacaoEstoque" (id, cliente_id, empresa_id, numero_movimentacao, tipo_movimentacao, tipo_detalhado, data_movimentacao,
+        produto_id, quantidade, unidade_medida, local_estoque_destino, origem_sistema, status, "updatedAt")
+      SELECT 'r4m-' || ${tag} || '-' || k, ${s.c}, ${e.id}, 'R4-' || ${tag} || '-' || k, 'Entrada', 'compra_financeiro', now(), ${pesado.id}, 10, 'KG', ${s.local.id},
+             'operacao_financeira', 'Ativa', now()
+      FROM generate_series(1, 300) k`;
+    await prisma().$executeRaw`INSERT INTO "EstoqueLoteNota" (id, cliente_id, empresa_id, produto_id, local_estoque_id, custo_unitario, quantidade_entrada,
+        quantidade_disponivel, movimentacao_entrada_id, status, "updatedAt")
+      SELECT 'r4l-' || ${tag} || '-' || k, ${s.c}, ${e.id}, ${pesado.id}, ${s.local.id}, 2, 10, 10, 'r4m-' || ${tag} || '-' || k, 'Disponivel', now()
+      FROM generate_series(1, 300) k`;
+    const orc = { produtosPorPagina: 1, linhasPorChamada: 100 };
+    const chamadas = await varrer(s.c, {}, orc);
+    for (const [k, r] of chamadas.entries()) {
+      const umaChave = r.cobertura.paginas === 1 && r.cobertura.chaves_varridas === 1;
+      assert.ok(r.cobertura.linhas_previstas <= orc.linhasPorChamada || umaChave, `chamada ${k + 1}: ${JSON.stringify(r.cobertura)}`);
+    }
+    const doPesado = chamadas.find((r) => r.resumo.lotes === 300);
+    assert.ok(doPesado, 'o produto pesado foi varrido');
+    assert.deepEqual([doPesado.cobertura.paginas, doPesado.cobertura.chaves_varridas, doPesado.cobertura.linhas_previstas >= 601], [1, 1, true]);
+    assert.equal(somaResumo(chamadas, 'produtos'), 7);
+    const uma = await servico(s.c);
+    assert.equal(uma.resumo.situacao, 'CONSISTENTE');
+    assert.deepEqual(todos(chamadas).map(chaveDe), []);
+  });
+});
+
 describe('RS — contrato: fim desta chamada × continuação × cobertura cumulativa × conclusão global', () => {
   const COBERTURA = ['auditoria_lida', 'chaves_orfas_varridas', 'chaves_varridas', 'completa', 'conclusao_global', 'conclusao_global_comprovada', 'cumulativa',
     'evidencia_exclusoes', 'exclusoes_lidas', 'fase', 'fim_do_escopo', 'interrompida_por', 'linhas_previstas', 'motivos_inconclusiva', 'nivel_produto', 'paginas',

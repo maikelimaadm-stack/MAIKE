@@ -4,12 +4,14 @@
  * evidência do AuditLog. PostgreSQL real; o HTTP é o mesmo GET
  * `/estoque-fisico/reconciliacao` (só o administrador real).
  *
- *  RC  cobertura: a varredura anda por páginas de produto (keyset por id) com
- *      orçamento de linhas e de tempo por chamada; acima do orçamento a
- *      resposta é 200 com `cobertura.completa=false`, `proximo_cursor`,
- *      `resumo.situacao='INCOMPLETO'` e `por_classe.OK=null` (nada é
- *      declarado OK sobre dados parciais). `truncado` continua sendo só o corte
- *      da LISTA de achados pelo `limite`.
+ *  RC  cobertura: a varredura anda por páginas de CHAVES de produto (keyset
+ *      por id; R2: órfãos também são chaves) com orçamento de linhas e de
+ *      tempo por chamada; acima do orçamento a resposta é 200 com
+ *      `cobertura.completa=false`, `proximo_cursor`, `resumo.situacao=
+ *      'INCOMPLETO'` e `por_classe.OK=null`; o fim alcançado em várias
+ *      chamadas é 'INCONCLUSIVO' (R2: vários snapshots nunca dão conclusão
+ *      global). `truncado` continua sendo só o corte da LISTA pelo `limite`.
+ *      O cursor (R2) é assinado (HMAC) e amarrado ao tenant e ao escopo.
  *  RL  filtro de local: o nível produto (I1) é SEMPRE calculado sobre todos os
  *      locais do produto (`cobertura.nivel_produto='todos_os_locais'`); uma
  *      divergência de cache causada por lote de OUTRO local nunca vira OK.
@@ -104,11 +106,11 @@ const tenantComSeisProdutos = async () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
-  test('RC1: orçamento estourado → 200 INCOMPLETO (OK=null, proximo_cursor); as páginas somadas = a chamada completa; o HTTP aceita o cursor emitido', async () => {
+  test('RC1: orçamento estourado → 200 INCOMPLETO (OK=null, proximo_cursor); as chamadas somadas = a chamada única; o fim em vários snapshots é INCONCLUSIVO; o HTTP aceita o cursor emitido', async () => {
     const { s, produtos } = await tenantComSeisProdutos();
     const ultimo = produtos[5];
     await definirEstoqueAtual(s, ultimo, '99'); // cache 7 → 99: DIVERGENCIA_REAL só no último produto
-    // lote órfão cujo produto_id cai ENTRE o 3º e o 4º produto: a faixa (desde, ate] de alguma página intermediária o cobre
+    // lote órfão cujo produto_id cai ENTRE o 3º e o 4º produto: R2 — é uma CHAVE própria da varredura (contada no orçamento)
     const orfao = await prisma().estoqueLoteNota.create({
       data: {
         cliente_id: s.c, empresa_id: s.e1.id, produto_id: `${produtos[2].id}0`, local_estoque_id: s.local.id, custo_unitario: '1', quantidade_entrada: '2',
@@ -119,13 +121,15 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     const cheio = await servico(s);
     assert.equal(cheio.cobertura.completa, true, JSON.stringify(cheio.cobertura));
     assert.deepEqual([cheio.cobertura.produtos_no_escopo, cheio.cobertura.produtos_varridos, cheio.cobertura.produtos_restantes, cheio.cobertura.proximo_cursor], [6, 6, 0, null]);
+    assert.deepEqual([cheio.cobertura.chaves_varridas, cheio.cobertura.chaves_orfas_varridas], [7, 1]);
     assert.equal(cheio.cobertura.interrompida_por, null);
+    assert.equal(cheio.cobertura.conclusao_global, 'COMPROVADA');
     assert.equal(cheio.resumo.situacao, 'COM_ACHADOS');
     assert.equal(typeof cheio.resumo.por_classe.OK, 'number');
     assert.deepEqual(classe(cheio, 'produto', 'produto_id', ultimo.id), ['DIVERGENCIA_REAL', 'cache_diverge']);
     assert.deepEqual(classe(cheio, 'lote', 'lote_id', orfao.id), ['DADOS_INSUFICIENTES', 'produto_inexistente']);
 
-    // 2 produtos por página e orçamento de 1 linha por chamada: para depois da 1ª página
+    // 2 chaves por página e orçamento de 1 linha por chamada: para depois da 1ª página
     const orc = { produtosPorPagina: 2, linhasPorChamada: 1 };
     const p1 = await servico(s, {}, orc);
     assert.deepEqual(
@@ -137,25 +141,29 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     assert.deepEqual(p1.achados, []);
     assert.equal(p1.truncado, false, 'truncado é só o corte da lista; cobertura é outra coisa');
 
-    // percorre até o fim: cada página continua do cursor anterior
+    // percorre até o fim: cada chamada continua do cursor anterior (4 páginas de chaves + a fase de exclusões)
     const paginas = [p1];
     while (paginas.at(-1).cobertura.proximo_cursor) {
       paginas.push(await servico(s, { cursor: paginas.at(-1).cobertura.proximo_cursor }, orc));
-      assert.ok(paginas.length <= 6, 'termina');
+      assert.ok(paginas.length <= 8, 'termina');
     }
-    assert.equal(paginas.length, 3);
+    assert.equal(paginas.length, 5);
     const fim = paginas.at(-1);
-    assert.deepEqual([fim.cobertura.completa, fim.cobertura.produtos_antes_do_cursor, fim.cobertura.produtos_varridos, fim.cobertura.produtos_restantes], [false, 4, 2, 0]);
-    assert.equal(fim.resumo.situacao, 'INCOMPLETO', 'a última página sozinha não cobre o escopo inteiro');
+    assert.deepEqual([fim.cobertura.fim_do_escopo, fim.cobertura.completa, fim.cobertura.produtos_antes_do_cursor, fim.cobertura.produtos_restantes], [true, false, 6, 0]);
+    assert.equal(fim.resumo.situacao, 'INCONCLUSIVO', 'o escopo inteiro foi visto, mas em vários snapshots: nunca CONSISTENTE');
+    assert.deepEqual(fim.cobertura.motivos_inconclusiva, ['varios_snapshots']);
     const soma = (k) => paginas.reduce((t, p) => t + p.resumo[k], 0);
     for (const k of ['produtos', 'locais', 'lotes', 'movimentos']) assert.equal(soma(k), cheio.resumo[k], k);
     for (const c of ['DIVERGENCIA_REAL', 'LIMITACAO_LEGADA', 'DADOS_INSUFICIENTES']) assert.equal(paginas.reduce((t, p) => t + p.resumo.por_classe[c], 0), cheio.resumo.por_classe[c], c);
+    assert.deepEqual(fim.cobertura.cumulativa.por_classe, { DIVERGENCIA_REAL: cheio.resumo.por_classe.DIVERGENCIA_REAL, LIMITACAO_LEGADA: cheio.resumo.por_classe.LIMITACAO_LEGADA,
+      DADOS_INSUFICIENTES: cheio.resumo.por_classe.DADOS_INSUFICIENTES });
     assert.deepEqual(paginas.flatMap((p) => p.achados).map(chaveDe).sort(), cheio.achados.map(chaveDe).sort());
     assert.equal(paginas.filter((p) => achadosDe(p, 'lote', 'lote_id', orfao.id).length).length, 1, 'o órfão aparece em exatamente uma página');
 
     // o cursor emitido vale no HTTP (orçamento padrão: vai até o fim a partir dele)
     const http = await relatorio(s, { cursor: p1.cobertura.proximo_cursor });
     assert.deepEqual([http.cobertura.produtos_antes_do_cursor, http.cobertura.produtos_varridos, http.cobertura.proximo_cursor, http.cobertura.completa], [2, 4, null, false]);
+    assert.equal(http.resumo.situacao, 'INCONCLUSIVO');
     assert.deepEqual(http.achados.map(chaveDe).sort(), cheio.achados.map(chaveDe).sort());
     assert.equal(http.resumo.por_classe.OK, null);
   });
@@ -175,36 +183,42 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     assert.ok(cheio.cobertura.linhas_previstas >= 6 * 3, JSON.stringify(cheio.cobertura));
   });
 
-  test('RC3: cursor validado (400 field cursor): lixo, base64 sem JSON, versão errada, id inválido, cursor de OUTRO escopo; cursor com id de outro tenant não é oráculo', async () => {
+  test('RC3: cursor validado (400 field cursor): lixo, base64 sem JSON, versão errada, id inválido, cursor de OUTRO escopo, grande demais, formato R1 sem assinatura; cursor forjado com id de outro tenant é recusado (não posiciona nada)', async () => {
     const { s } = await tenantComSeisProdutos();
     const b = await montarTenant(app);
     const p1 = await servico(s, { empresaId: s.e1.id }, { produtosPorPagina: 1, linhasPorChamada: 1 });
     const cursor = p1.cobertura.proximo_cursor;
     assert.equal(typeof cursor, 'string');
     const b64 = (v) => Buffer.from(typeof v === 'string' ? v : JSON.stringify(v), 'utf8').toString('base64url');
-    const conteudo = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    // R2: corpo JSON + HMAC-SHA256 de 32 bytes no fim
+    const bytes = Buffer.from(cursor, 'base64url');
+    const conteudo = JSON.parse(bytes.subarray(0, bytes.length - 32).toString('utf8'));
+    const mac = bytes.subarray(bytes.length - 32);
+    const comMac = (obj) => Buffer.concat([Buffer.from(JSON.stringify(obj), 'utf8'), mac]).toString('base64url');
     for (const [rotulo, q] of [
       ['caractere fora do base64url', { cursor: 'abc!' }],
       ['base64 sem JSON', { cursor: b64('nao é json') }],
-      ['versão', { empresa_id: s.e1.id, cursor: b64({ ...conteudo, v: 2 }) }],
-      ['id inválido', { empresa_id: s.e1.id, cursor: b64({ ...conteudo, apos: 'x y' }) }],
+      ['versão', { empresa_id: s.e1.id, cursor: comMac({ ...conteudo, v: 1 }) }],
+      ['id inválido', { empresa_id: s.e1.id, cursor: comMac({ ...conteudo, a: 'x y' }) }],
       ['sem empresa (escopo diferente)', { cursor }],
       ['outra empresa', { empresa_id: s.e2.id, cursor }],
       ['com local (escopo diferente)', { empresa_id: s.e1.id, local_estoque_id: s.local.id, cursor }],
-      ['grande demais', { cursor: 'a'.repeat(600) }],
+      ['grande demais', { cursor: 'a'.repeat(1100) }],
+      ['formato R1 sem assinatura', { empresa_id: s.e1.id, cursor: b64({ v: 1, apos: conteudo.a, e: s.e1.id, p: null, l: null }) }],
+      ['forjado com id de produto de B', { cursor: b64({ v: 1, apos: b.e1.sal.id, e: null, p: null, l: null }) }],
+      ['assinatura de A com a posição trocada para o id de B', { empresa_id: s.e1.id, cursor: comMac({ ...conteudo, a: b.e1.sal.id }) }],
     ]) {
       const r = await reconciliar(s.token, q);
       assert.deepEqual([r.statusCode, codigo(r)], [400, 'REQUEST_VALIDATION_FAILED'], `${rotulo}: ${r.body}`);
     }
     const ok = await relatorio(s, { empresa_id: s.e1.id, cursor });
     assert.equal(ok.cobertura.produtos_antes_do_cursor, 1);
-    // id de produto de B no cursor: só posiciona o keyset no tenant de A; nada de B aparece
-    const deB = await relatorio(s, { cursor: b64({ v: 1, apos: b.e1.sal.id, e: null, p: null, l: null }) });
-    const corpo = JSON.stringify(deB);
+    // relatório legítimo do tenant A: nada de B aparece
+    const corpo = JSON.stringify(await relatorio(s));
     for (const idDeB of [b.c, b.e1.id, b.e1.sal.id, b.local.id]) assert.ok(!corpo.includes(idDeB), `id de B (${idDeB}) não aparece`);
   });
 
-  test('RC4: idas ao banco = fixas por chamada + 5 por página (sem N+1 por lote/movimento); plan_cache_mode=force_custom_plan, jit=off e READ ONLY na transação', async () => {
+  test('RC4: idas ao banco = 3 fixas + 5 por página + 1 por bloco de exclusões (sem N+1 por lote/movimento); plan_cache_mode=force_custom_plan, jit=off e READ ONLY na transação', async () => {
     const { lerReconciliacao } = await import(MODULO);
     const { s } = await tenantComSeisProdutos();
     const medir = async (orcamento) => {
@@ -242,10 +256,13 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     assert.match(String(uma.recusa), /read-only transaction/);
     assert.match(uma.chamadas[0], /^\$queryRaw:SET TRANSACTION READ ONLY/);
     assert.ok(!uma.chamadas.some((c) => c.startsWith('$executeRaw')), uma.chamadas.join(' | '));
-    const fixas = uma.chamadas.length - 5;
-    assert.equal(seis.chamadas.length, fixas + 5 * 6, seis.chamadas.join(' | '));
-    assert.deepEqual(seis.chamadas.slice(0, fixas), uma.chamadas.slice(0, fixas));
-    for (let k = 0; k < 6; k += 1) assert.deepEqual(seis.chamadas.slice(fixas + 5 * k, fixas + 5 * (k + 1)), uma.chamadas.slice(fixas), `página ${k + 1}: as mesmas 5 consultas`);
+    // uma: [READ ONLY, set_config, pré-contagem] + [Q1, Q5, Q2, Q3, Q4] + [bloco de exclusões]
+    assert.equal(uma.chamadas.length, 3 + 5 + 1, uma.chamadas.join(' | '));
+    assert.equal(seis.chamadas.length, 3 + 5 * 6 + 1, seis.chamadas.join(' | '));
+    assert.deepEqual(seis.chamadas.slice(0, 3), uma.chamadas.slice(0, 3));
+    for (let k = 0; k < 6; k += 1) assert.deepEqual(seis.chamadas.slice(3 + 5 * k, 3 + 5 * (k + 1)), uma.chamadas.slice(3, 8), `página ${k + 1}: as mesmas 5 consultas`);
+    assert.equal(seis.chamadas.at(-1), uma.chamadas.at(-1), 'o bloco de exclusões');
+    assert.match(uma.chamadas.at(-1), /^\$queryRaw:SELECT count\(\*\)::int AS lidas/);
   });
 });
 

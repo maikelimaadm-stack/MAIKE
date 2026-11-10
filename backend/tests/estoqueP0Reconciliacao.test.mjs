@@ -584,8 +584,13 @@ describe('R7/R8 — sem auto-reparo, sem trava, número fixo de consultas', () =
 
   test('R9: o módulo não tem chamada de escrita nem trava (create/update/delete/upsert/$executeRaw/FOR UPDATE/advisory) e usa RepeatableRead + READ ONLY', () => {
     const semComentarios = (texto) => texto.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    // R2 (D-PROD-161): a ÚNICA cadeia `.update(` permitida é a do HMAC do cursor (`createHmac(...).update(...).digest()`,
+    // memória, não banco); ela sai do texto antes da busca e tem de aparecer exatamente uma vez.
+    const HMAC_DO_CURSOR = /createHmac\('sha256', chaveCursor\(\)\)(?:\.update\((?:[^()]|\([^()]*\))*\))+\.digest\(\)/g;
     for (const arquivo of ['../src/modules/estoqueFisico/reconciliacaoEstoque.js', '../src/modules/estoqueFisico/estoqueFisicoRoutes.js']) {
-      const codigoFonte = semComentarios(readFileSync(new URL(arquivo, import.meta.url), 'utf8'));
+      const bruto = semComentarios(readFileSync(new URL(arquivo, import.meta.url), 'utf8'));
+      if (arquivo.endsWith('reconciliacaoEstoque.js')) assert.equal((bruto.match(HMAC_DO_CURSOR) ?? []).length, 1, 'uma só cadeia HMAC do cursor');
+      const codigoFonte = bruto.replace(HMAC_DO_CURSOR, 'HMAC_DO_CURSOR');
       for (const proibido of [/\.(create|createMany|createManyAndReturn|update|updateMany|upsert|delete|deleteMany)\s*\(/, /\$executeRaw/, /\bFOR\s+(NO\s+KEY\s+)?(UPDATE|SHARE)\b/i, /FOR KEY SHARE/i, /pg_advisory/, /\b(INSERT|UPDATE|DELETE)\s/, /travarEscopo|travarProdutosEstoque|reservarNumero/]) {
         assert.ok(!proibido.test(codigoFonte), `${arquivo}: ${proibido}`);
       }

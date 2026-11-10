@@ -257,6 +257,7 @@ const proximaChave = (tabela, alias, cli, f, anterior) => Prisma.sql`SELECT ${Pr
  * página no orçamento.
  */
 const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
+    ${f.produtoId === null ? Prisma.empty : Prisma.sql`unica(id) AS (SELECT ${f.produtoId}::text WHERE ${desde === null ? Prisma.sql`true` : Prisma.sql`${f.produtoId}::text > ${desde}`}),`}
     lk(id) AS (
       (${proximaChave('EstoqueLoteNota', 'l', cli, f, depois('l.produto_id', desde))})
       UNION ALL
@@ -267,13 +268,16 @@ const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
       UNION ALL
       SELECT (${proximaChave('MovimentacaoEstoque', 'm', cli, f, Prisma.sql` AND m.produto_id > mk.id`)}) FROM mk WHERE mk.id IS NOT NULL
     ),
-    chaves AS (
+    chaves AS (${f.produtoId !== null
+    // filtro de produto: a única chave possível é o próprio id (a varredura solta seria uma passada inútil no índice)
+    ? Prisma.sql`SELECT id FROM unica`
+    : Prisma.sql`
       SELECT u.id FROM (
-        (SELECT p.id::text AS id FROM "Produto" p WHERE p.cliente_id = ${cli}${igual('p.empresa_id', f.empresaId)}${igual('p.id', f.produtoId)}${depois('p.id', desde)}
+        (SELECT p.id::text AS id FROM "Produto" p WHERE p.cliente_id = ${cli}${igual('p.empresa_id', f.empresaId)}${depois('p.id', desde)}
           ORDER BY p.id LIMIT ${n}::int)
         UNION (SELECT lk.id::text FROM lk WHERE lk.id IS NOT NULL LIMIT ${n}::int)
         UNION (SELECT mk.id::text FROM mk WHERE mk.id IS NOT NULL LIMIT ${n}::int)
-      ) u ORDER BY u.id LIMIT ${n}::int
+      ) u ORDER BY u.id LIMIT ${n}::int`}
     )
     SELECT c.id, (p.id IS NOT NULL) AS existe,
       (p.id IS NOT NULL${f.empresaId === null ? Prisma.empty : Prisma.sql` AND p.empresa_id = ${f.empresaId}`}) AS no_escopo,
@@ -288,7 +292,7 @@ const lerChaves = (tx, cli, f, desde, n) => tx.$queryRaw`WITH RECURSIVE
       COALESCE(m.n_fora_do_protocolo, 0)::int AS n_movimentos_fora_do_protocolo,
       COALESCE(m.n_saidas_legadas, 0)::int AS n_saidas_legadas
     FROM chaves c
-    LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = c.id
+    LEFT JOIN LATERAL (SELECT p.id, p.empresa_id, p.estoque_atual FROM "Produto" p WHERE p.cliente_id = ${cli} AND p.id = c.id OFFSET 0) p ON true
     LEFT JOIN LATERAL (
       SELECT SUM(x.quantidade_disponivel) FILTER (WHERE x.status = 'Disponivel' AND x.empresa_id = p.empresa_id) AS saldo,
              COUNT(*) AS n_lotes,
@@ -394,7 +398,7 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
     FROM lot
     FULL JOIN mov ON mov.empresa_id = lot.empresa_id AND mov.produto_id = lot.produto_id AND mov.local_id = lot.local_id
     LEFT JOIN "LocalEstoque" le ON le.cliente_id = ${cli} AND le.id = COALESCE(lot.local_id, mov.local_id)
-    LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = COALESCE(lot.produto_id, mov.produto_id)
+    LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = COALESCE(lot.produto_id, mov.produto_id)${naFaixa('p.id', faixa)}
     ORDER BY 2, 1, 3`;
 
 const COLUNAS_LOTE = Prisma.raw(`y.id, y.empresa_id, y.produto_id, y.local_estoque_id, y.status, y.q_entrada::text AS entrada, y.q_disp::text AS disponivel,
@@ -410,7 +414,11 @@ const COLUNAS_LOTE = Prisma.raw(`y.id, y.empresa_id, y.produto_id, y.local_estoq
  * `teto + 1` (o excesso marca a página truncada), e uma AMOSTRA de `amostra`
  * lotes órfãos (os órfãos são contados por Q2: classe fixa).
  */
-const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => tx.$queryRaw`WITH lt AS (
+const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => {
+  // Sem amostra de órfãos a CTE `y` é lida uma vez só (o PostgreSQL a embute e filtra em fluxo, sem materializar
+  // a página inteira em disco); com amostra, os dois ramos leem a mesma `y` materializada.
+  const comAmostra = amostra > 0;
+  return tx.$queryRaw`WITH lt AS (
       SELECT l.id, l.empresa_id, l.produto_id, l.local_estoque_id, l.status, l.quantidade_entrada, l.quantidade_disponivel,
              l.movimentacao_entrada_id, l.data_documento, l."createdAt"
       FROM "EstoqueLoteNota" l
@@ -467,7 +475,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => tx.$queryRaw`W
              (ent.id IS NOT NULL AND (ent.produto_id <> lt.produto_id OR ent.local_estoque_destino IS DISTINCT FROM lt.local_estoque_id
                OR ent.tipo_movimentacao <> 'Entrada')) AS entrada_incoerente
       FROM lt
-      LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = lt.produto_id
+      LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = lt.produto_id${naFaixa('p.id', faixa)}
       LEFT JOIN "LocalEstoque" le ON le.cliente_id = ${cli} AND le.id = lt.local_estoque_id
       LEFT JOIN fin ON fin.lote_id = lt.id
       LEFT JOIN abs ON abs.lote_id = lt.id
@@ -475,7 +483,7 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => tx.$queryRaw`W
       LEFT JOIN leg ON leg.lote_id = lt.id
       LEFT JOIN compra ON compra.lote_id = lt.id
       LEFT JOIN "MovimentacaoEstoque" ent ON ent.cliente_id = ${cli} AND ent.id = lt.movimentacao_entrada_id
-    ), y AS MATERIALIZED (
+    ), y AS ${comAmostra ? Prisma.sql`MATERIALIZED` : Prisma.empty} (
       SELECT x.*, ((x.q_entrada - x.q_disp) - (x.c_fin + x.c_abs + x.c_nov + x.c_leg + CASE WHEN x.compra_estornada THEN x.q_entrada ELSE 0 END)) AS dif
       FROM x
     )
@@ -496,9 +504,10 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra) => tx.$queryRaw`W
         OR (y.entrada_tipo_detalhado IS DISTINCT FROM 'transferencia_recebida' AND y.q_ent_mov IS DISTINCT FROM y.q_entrada)
         OR y.id = ANY(${evidencia}::text[]))
       ORDER BY y.id LIMIT ${teto + 1}::int)
-    UNION ALL
+    ${comAmostra ? Prisma.sql`UNION ALL
     (SELECT ${COLUNAS_LOTE}, true AS amostra_orfa FROM y WHERE y.produto_inexistente
-      ORDER BY y.empresa_id, y.produto_id, y.local_estoque_id, y.id LIMIT ${amostra}::int)`;
+      ORDER BY y.empresa_id, y.produto_id, y.local_estoque_id, y.id LIMIT ${amostra}::int)` : Prisma.empty}`;
+};
 
 const COLUNAS_MOVIMENTO = Prisma.raw('x.*');
 
@@ -506,7 +515,9 @@ const COLUNAS_MOVIMENTO = Prisma.raw('x.*');
  * Q4 — movimentos com alguma regra disparada (os demais só entram na contagem
  * de Q2), até `teto + 1` não órfãos e uma AMOSTRA de `amostra` órfãos.
  */
-const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => tx.$queryRaw`WITH mv AS (
+const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => {
+  const comAmostra = amostra > 0; // idem `lerLotes`: sem amostra, `x` é embutida e filtrada em fluxo
+  return tx.$queryRaw`WITH mv AS (
       SELECT m.id, m.empresa_id, m.produto_id, m.tipo_movimentacao, m.tipo_detalhado, m.origem_sistema, m.status, m.quantidade,
              m.numero_movimentacao, m.movimento_pai_id, m.movimento_filho_id, m.lotes_consumidos, m."createdAt", m.local_estoque_destino,
              (${localDoMovimento('m')}) AS local_id
@@ -553,7 +564,7 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => tx.$queryRaw`WITH mv
       LEFT JOIN "EstoqueLoteNota" d ON d.cliente_id = ${cli} AND d.id = fx.destino
       WHERE mv.tipo_movimentacao = 'Saída' AND mv.tipo_detalhado = 'transferencia_enviada' AND mv.lotes_consumidos IS NOT NULL
       GROUP BY 1
-    ), x AS MATERIALIZED (
+    ), x AS ${comAmostra ? Prisma.sql`MATERIALIZED` : Prisma.empty} (
       SELECT mv.id, mv.empresa_id, mv.produto_id, mv.local_id AS local_estoque_id, mv.tipo_movimentacao, mv.tipo_detalhado, mv.origem_sistema, mv.status,
              mv.quantidade::text AS quantidade,
              (p.id IS NULL) AS produto_inexistente, p.empresa_id AS produto_empresa_id,
@@ -584,7 +595,7 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => tx.$queryRaw`WITH mv
       LEFT JOIN ltr ON ltr.movimento_id = mv.id
       LEFT JOIN "MovimentacaoEstoque" f ON f.cliente_id = ${cli} AND f.id = mv.movimento_filho_id
       LEFT JOIN "MovimentacaoEstoque" pai ON pai.cliente_id = ${cli} AND pai.id = mv.movimento_pai_id
-      LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = mv.produto_id
+      LEFT JOIN "Produto" p ON p.cliente_id = ${cli} AND p.id = mv.produto_id${naFaixa('p.id', faixa)}
     )
     (SELECT ${COLUNAS_MOVIMENTO}, false AS amostra_orfa FROM x
       WHERE NOT produto_inexistente AND (tipo_desconhecido OR status_desconhecido OR produto_empresa_id IS DISTINCT FROM empresa_id
@@ -595,9 +606,10 @@ const lerMovimentos = (tx, cli, f, faixa, teto, amostra) => tx.$queryRaw`WITH mv
        OR (exige_fk AND soma_fk IS DISTINCT FROM quantidade)
        OR linhagem_diverge)
       ORDER BY id LIMIT ${teto + 1}::int)
-    UNION ALL
+    ${comAmostra ? Prisma.sql`UNION ALL
     (SELECT ${COLUNAS_MOVIMENTO}, true AS amostra_orfa FROM x WHERE produto_inexistente
-      ORDER BY empresa_id, produto_id, local_estoque_id, id LIMIT ${amostra}::int)`;
+      ORDER BY empresa_id, produto_id, local_estoque_id, id LIMIT ${amostra}::int)` : Prisma.empty}`;
+};
 
 /** Exclusão legada no JSON do AuditLog: produto, empresa e local do lote apagado (e se o produto ainda existe no tenant). */
 const infoExclusao = (cli) => Prisma.sql`jsonb_build_object('lote_id', b.entidade_id, 'produto_id', ${produtoDoJson}, 'empresa_id', ${empresaDoJson},
@@ -1057,13 +1069,22 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
         fase = 'x';
         continue;
       }
+      // Corte da página pela pré-contagem: a 1ª chave sempre entra (uma chave mais pesada que a página é varrida
+      // sozinha: nunca pulada nem partida); as seguintes, até `linhasPorPagina`. Depois da 1ª unidade da chamada,
+      // nada passa do que ainda cabe no orçamento da CHAMADA: a chave pesada que não cabe fica para a próxima
+      // chamada, onde abre a página.
+      const resto = unidades > 1 ? o.linhasPorChamada - linhasPrevistas : Infinity;
       let k = 0;
       let custo = 0;
       while (k < candidatos.length && k < o.produtosPorPagina) {
         const c = 1 + candidatos[k].n_lotes + candidatos[k].n_movimentos;
-        if (k > 0 && custo + c > o.linhasPorPagina) break;
+        if (custo + c > resto || (k > 0 && custo + c > o.linhasPorPagina)) break;
         custo += c;
         k += 1;
+      }
+      if (k === 0) {
+        interrompida = 'orcamento';
+        break;
       }
       const chaves = candidatos.slice(0, k);
       const faixa = { desde, ate: chaves[k - 1].id };
@@ -1072,8 +1093,10 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
       const auditoria = /** @type {any[]} */ (await lerAuditoria(tx, cli, f, faixa, produtos.map((p) => p.id), teto));
       const locais = /** @type {any[]} */ (await lerLocais(tx, cli, f, faixa));
       const evidencia = [...new Set(auditoria.filter((a) => a.entidade === 'EstoqueLoteNota').map((a) => a.entidade_id))];
-      const lotes = /** @type {any[]} */ (await lerLotes(tx, cli, f, faixa, evidencia, teto, limite));
-      const movimentos = /** @type {any[]} */ (await lerMovimentos(tx, cli, f, faixa, teto, limite));
+      // Amostra de órfãos: só as vagas da lista que um DADOS_INSUFICIENTES ainda pode ocupar (a contagem é exata no SQL).
+      const vagas = chaves.some((c) => !c.existe) ? Math.max(limite - achados.filter((a) => GRAVIDADE[a.classe] <= GRAVIDADE.DADOS_INSUFICIENTES).length, 0) : 0;
+      const lotes = /** @type {any[]} */ (await lerLotes(tx, cli, f, faixa, evidencia, teto, vagas));
+      const movimentos = /** @type {any[]} */ (await lerMovimentos(tx, cli, f, faixa, teto, vagas));
       const lotesSuspeitos = lotes.filter((l) => !l.amostra_orfa);
       const movsSuspeitos = movimentos.filter((m) => !m.amostra_orfa);
       const truncada = auditoria.length > teto || lotesSuspeitos.length > teto || movsSuspeitos.length > teto;
@@ -1104,9 +1127,11 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
       atual.DADOS_INSUFICIENTES += Math.max(orfaosLotes - lotes.filter((l) => l.amostra_orfa).length, 0)
         + Math.max(orfaosMovs - movimentos.filter((m) => m.amostra_orfa).length, 0);
       juntar(daPagina);
-      atual.chaves += chaves.length;
+      // chave do filtro de produto sem produto e sem linha nenhuma não conta (não vira "órfão" de um id qualquer)
+      const comConteudo = chaves.filter((c) => c.existe || c.n_lotes + c.n_movimentos > 0);
+      atual.chaves += comConteudo.length;
       atual.produtos += produtos.length;
-      atual.orfas += chaves.filter((c) => !c.existe).length;
+      atual.orfas += comConteudo.filter((c) => !c.existe).length;
       atual.locais += locais.length;
       atual.lotes += locais.reduce((t, r) => t + r.n_lotes, 0);
       atual.movimentos += locais.reduce((t, r) => t + r.n_movimentos, 0);
