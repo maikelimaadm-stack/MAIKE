@@ -1,7 +1,14 @@
 /**
  * Serviço de EstoqueLoteNota (P5.4).
+ *
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o lote é a camada de quantidade e custo
+ * do motor físico. Ele só nasce de uma ENTRADA (compra confirmada) ou de uma
+ * TRANSFERÊNCIA, e saldo, custo e situação só mudam pelos comandos do motor
+ * (venda, suplementação, transferência, abastecimento e seus cancelamentos).
+ * Por esta API sobram a leitura e a renomeação benigna do local
+ * (`local_estoque_nome`, FormularioPonto). POST, PATCH de coluna operacional e
+ * DELETE de lote LIVRE → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA; nada é gravado.
  */
-import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -12,14 +19,17 @@ import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   listarRegistros,
   buscarRegistro,
-  inserirRegistro,
   atualizarRegistroPorId,
-  excluirRegistroPorId,
 } from './estoqueLoteNotaRepository.js';
 
-
-
 const erroNaoEncontrado = () => new AppError('ESTOQUE_LOTE_NOT_FOUND', 'EstoqueLoteNota não encontrado');
+
+/**
+ * D-PROD-161: recusa da escrita direta de lote (details.entidade/operacao/campos).
+ * @param {string} mensagem @param {{ operacao: 'criar'|'editar'|'excluir', campos?: string[] }} detalhes
+ */
+const escritaDiretaRecusada = (mensagem, detalhes) =>
+  new AppError('ESTOQUE_ESCRITA_DIRETA_RECUSADA', mensagem, { details: { entidade: 'EstoqueLoteNota', ...detalhes } });
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
@@ -47,23 +57,22 @@ export const buscarPorId = async (contexto, id) => {
   return comoPublico(registro);
 };
 
-/** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
+/**
+ * D-PROD-161 (SPEC §2 W16, F3): saldo de lote sem fato (sem movimento de
+ * entrada, sem trava, sem cache) não nasce mais por aqui. A ordem das recusas
+ * anteriores fica: guarda SO_ADMIN (403) → colunas graváveis (400, a matriz de
+ * relações) → 409. Sem transação e sem auditoria.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} entrada
+ * @returns {Promise<never>}
+ */
 export const criar = async (contexto, entrada) => {
-  const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const criado = await prisma.$transaction(async (tx) => {
-    /** @type {Record<string, unknown>} */
-    const dados = { ...exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada), cliente_id: auth.clienteId };
-
-    const registro = await inserirRegistro(tx, dados);
-    await registrarEvento(
-      contexto,
-      { acao: 'create', entidade: 'EstoqueLoteNota', entidadeId: registro.id, dadosNovos: comoPublico(registro) },
-      tx
-    );
-    return registro;
-  });
-  return comoPublico(criado);
+  exigirAuthContext(contexto?.auth);
+  exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada);
+  throw escritaDiretaRecusada(
+    'lote de estoque só nasce de uma entrada (compra confirmada) ou de uma transferência entre locais; nada foi gravado',
+    { operacao: 'criar' }
+  );
 };
 
 /**
@@ -145,11 +154,23 @@ export const atualizar = async (contexto, id, entrada) => {
     // lançamento financeiro só muda pelo próprio lançamento (cancelamento): o
     // PATCH administrativo seria um "ressuscitar" de lote estornado ou saldo
     // fantasma. Só o nome do local (de qualquer conta) segue sem o protocolo.
-    const existente = restritos.length ? await travarLote(tx, auth.clienteId, lido, [patch.produto_id]) : lido;
-    if (restritos.length) await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
+    //
+    // D-PROD-161 (SPEC §2 W17, F3): e o lote LIVRE também não muda por aqui —
+    // a recusa vem DEPOIS da trava e da contagem de vínculos (a venda em curso
+    // continua sendo esperada e o vínculo dela continua aparecendo como 409
+    // REGISTRO_OPERACIONAL_IMUTAVEL); nada é gravado, nem o nome junto.
+    if (restritos.length) {
+      await travarLote(tx, auth.clienteId, lido, [patch.produto_id]);
+      await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
+      throw escritaDiretaRecusada(
+        'saldo, custo, situação, produto, empresa e local do lote só mudam pelos comandos do estoque; aqui só se renomeia o local (local_estoque_nome); nada foi alterado',
+        { operacao: 'editar', campos: restritos }
+      );
+    }
+    const existente = lido;
     if (Object.prototype.hasOwnProperty.call(patch, 'local_estoque_nome')) {
       const nome = typeof patch.local_estoque_nome === 'string' ? patch.local_estoque_nome.trim() : '';
-      const localId = Object.prototype.hasOwnProperty.call(patch, 'local_estoque_id') ? patch.local_estoque_id : existente.local_estoque_id;
+      const localId = existente.local_estoque_id;
       const local = typeof localId === 'string' && localId
         ? await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: localId } }, select: { nome: true } })
         : null;
@@ -177,19 +198,24 @@ export const atualizar = async (contexto, id, entrada) => {
   return comoPublico(atualizado);
 };
 
+/**
+ * D-PROD-161 (SPEC §2 W18, F3): o lote nunca é apagado por aqui. Mantém o
+ * protocolo de travas (produto → lote, relidos) e a contagem de vínculos — o
+ * lote de lançamento ou de abastecimento continua respondendo 409
+ * REGISTRO_OPERACIONAL_IMUTAVEL com o vínculo —; o lote LIVRE, 409
+ * ESTOQUE_ESCRITA_DIRETA_RECUSADA. Nada é apagado.
+ */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const lido = await buscarRegistro(auth.clienteId, id, tx);
     if (!lido) throw erroNaoEncontrado();
     // §8.4/§8.5: produto → lote travados e relidos ANTES de contar os vínculos.
-    const existente = await travarLote(tx, auth.clienteId, lido);
+    await travarLote(tx, auth.clienteId, lido);
     await recusarSeVinculadoALancamento(tx, auth.clienteId, id);
-    await excluirRegistroPorId(tx, auth.clienteId, id);
-    await registrarEvento(
-      contexto,
-      { acao: 'delete', entidade: 'EstoqueLoteNota', entidadeId: id, dadosAnteriores: comoPublico(existente) },
-      tx
+    throw escritaDiretaRecusada(
+      'lote de estoque não é excluído: o saldo só sai pelos comandos do estoque (venda, suplementação, transferência, abastecimento ou cancelamento da compra); nada foi apagado',
+      { operacao: 'excluir' }
     );
   }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };

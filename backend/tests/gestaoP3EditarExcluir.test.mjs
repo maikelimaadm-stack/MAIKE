@@ -474,11 +474,17 @@ describe('E5 — bloqueios: 409 com motivo e nada mudou', () => {
     }, { codigo: 'lote_alterado' });
   });
 
-  test('movimento administrativo citando o lote em lotes_consumidos: lote_consumido com o movimento', async () => {
-    await bloqueioDaCompra(async (s, e, _c, L) => A.ok(A.req('POST', '/movimentacoes-estoque', s.token, {
-      empresa_id: e.id, tipo_movimentacao: 'Saída', data_movimentacao: '2027-06-11T12:00:00.000Z', produto_id: e.sal.id, quantidade: 1, unidade_medida: 'KG',
-      local_estoque_origem: s.local.id, lotes_consumidos: [{ lote_id: L, quantidade: '1.0000' }],
-    }), 201), { codigo: 'lote_consumido', entidade: 'MovimentacaoEstoque', numero: (m) => m.numero_movimentacao });
+  // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o POST genérico não grava mais
+  // movimento (409). O movimento LEGADO que cita o lote em `lotes_consumidos`
+  // (escrito antes da P0) vira fixture de banco: a regra de `provaDaCompra`
+  // continua valendo para ele.
+  test('movimento administrativo (legado) citando o lote em lotes_consumidos: lote_consumido com o movimento', async () => {
+    await bloqueioDaCompra(async (s, e, _c, L) => prisma().movimentacaoEstoque.create({
+      data: {
+        cliente_id: s.c, empresa_id: e.id, numero_movimentacao: '900001', tipo_movimentacao: 'Saída', data_movimentacao: new Date('2027-06-11T12:00:00.000Z'),
+        produto_id: e.sal.id, quantidade: '1', unidade_medida: 'KG', local_estoque_origem: s.local.id, lotes_consumidos: [{ lote_id: L, quantidade: '1.0000' }],
+      },
+    }), { codigo: 'lote_consumido', entidade: 'MovimentacaoEstoque', numero: (m) => m.numero_movimentacao });
   });
 
   test('renomear o depósito (PATCH benigno de local_estoque_nome no lote) NÃO bloqueia; a substituição passa', async () => {

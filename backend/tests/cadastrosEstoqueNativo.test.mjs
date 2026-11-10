@@ -4,7 +4,9 @@
 
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 
+import { getPrismaClient } from '../src/database/prismaClient.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -27,10 +29,28 @@ beforeEach(async () => {
 const EMPRESA = 'empresa-legada-1';
 
 const tenantAutenticado = async () => {
-  const { credenciais } = await criarTenant({ papelTenant: 'administrador' }); // R2: o preparo usa rotas legadas só do administrador real
+  const { credenciais, cliente } = await criarTenant({ papelTenant: 'administrador' }); // R2: o preparo usa rotas legadas só do administrador real
   const { corpo } = await autenticarNoApp(app, credenciais);
-  return { token: corpo.token };
+  return { token: corpo.token, clienteId: cliente.id };
 };
+
+/**
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o POST genérico de movimentação não
+ * grava mais (409 ESTOQUE_ESCRITA_DIRETA_RECUSADA). O movimento que só serve
+ * de VÍNCULO para os bloqueios de exclusão vira fixture de banco.
+ */
+const movimentoFixture = (clienteId, dados) =>
+  getPrismaClient().movimentacaoEstoque.create({
+    data: {
+      cliente_id: clienteId,
+      empresa_id: EMPRESA,
+      numero_movimentacao: `fx-${randomUUID().slice(0, 8)}`,
+      tipo_movimentacao: 'Entrada',
+      data_movimentacao: new Date(),
+      unidade_medida: 'KG',
+      ...dados,
+    },
+  });
 
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
@@ -94,7 +114,7 @@ describe('P5.2 — LocalEstoque', () => {
   });
 
   test('BE-P52-06 DELETE bloqueado com movimentação (LOCAL_ESTOQUE_DELETE_BLOCKED)', async () => {
-    const { token } = await tenantAutenticado();
+    const { token, clienteId } = await tenantAutenticado();
     const local = await app.inject({
       method: 'POST',
       url: '/locais-estoque',
@@ -108,20 +128,7 @@ describe('P5.2 — LocalEstoque', () => {
       headers: auth(token),
       payload: { empresa_id: EMPRESA, nome_produto: 'Item teste' },
     });
-    await app.inject({
-      method: 'POST',
-      url: '/movimentacoes-estoque',
-      headers: auth(token),
-      payload: {
-        empresa_id: EMPRESA,
-        tipo_movimentacao: 'Entrada',
-        data_movimentacao: new Date().toISOString(),
-        produto_id: produto.json().id,
-        quantidade: 3,
-        unidade_medida: 'KG',
-        local_estoque_destino: localId,
-      },
-    });
+    await movimentoFixture(clienteId, { produto_id: produto.json().id, quantidade: '3', local_estoque_destino: localId });
     const del = await app.inject({
       method: 'DELETE',
       url: `/locais-estoque/${localId}`,
@@ -196,7 +203,7 @@ describe('P5.2 — Produto', () => {
   });
 
   test('BE-P52-05 DELETE bloqueado com movimentação (PRODUTO_DELETE_BLOCKED)', async () => {
-    const { token } = await tenantAutenticado();
+    const { token, clienteId } = await tenantAutenticado();
     const criado = await app.inject({
       method: 'POST',
       url: '/produtos',
@@ -204,19 +211,7 @@ describe('P5.2 — Produto', () => {
       payload: { empresa_id: EMPRESA, nome_produto: 'Ração bloqueada' },
     });
     const produtoId = criado.json().id;
-    await app.inject({
-      method: 'POST',
-      url: '/movimentacoes-estoque',
-      headers: auth(token),
-      payload: {
-        empresa_id: EMPRESA,
-        tipo_movimentacao: 'Entrada',
-        data_movimentacao: new Date().toISOString(),
-        produto_id: produtoId,
-        quantidade: 5,
-        unidade_medida: 'KG',
-      },
-    });
+    await movimentoFixture(clienteId, { produto_id: produtoId, quantidade: '5' });
     const del = await app.inject({
       method: 'DELETE',
       url: `/produtos/${produtoId}`,

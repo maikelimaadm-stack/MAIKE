@@ -9,7 +9,21 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-10) — MAIKE-PATRIMONIO-P1-02: abastecimentos e consumo de combustível da frota (D-PROD-159)
+## Missão ativa (2026-11-10) — MAIKE-ESTOQUE-P0-01: motor físico único, ENTRADA ≠ MOVIMENTAÇÃO (D-PROD-161)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-161** (a D-PROD-160 está anunciada pela PR #237, em DRAFT), autorizada pelo proprietário na missão (2026-11-10) |
+| Branch / PR | `claude/maike-estoque-p0-motor-unico-01`, base `origin/main` `e3ea4c39` (PRs #232, #234 e #235 mergeadas), com a `main` integrada por merge · PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238) em **DRAFT** |
+| Escopo | Um único motor físico (`estoqueFisicoMotor.js`): suplementação e transferência entre locais migradas para o FIFO Decimal com CAS (o segundo FIFO em `Number`, `fifoEstoque.js`, foi apagado; corrigido o lote de destino com ano 2001); Cadastro de Produtos sem efeito de estoque (`estoque_atual` é cache derivado: POST só 0, PATCH só o valor atual sem efeito, troca de empresa e DELETE bloqueados com estoque, CSV sem estoque, aviso no formulário); escritas genéricas fechadas (`POST /movimentacoes-estoque`, `POST`/`DELETE /estoque-lotes-nota` e `PATCH` de lote fora da renomeação → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`); reconciliação somente leitura `GET /estoque-fisico/reconciliacao` (SO_ADMIN). Nenhuma tela nova |
+| Migration | **Nenhuma (zero DDL)**: `git diff origin/main -- backend/prisma` vazio. `SCHEMA_APPLIED_PROD = N/A` |
+| Produção (só leitura) | Preflight 2026-11-10 15:50 UTC: 39/39 migrations, 0 produto com cache divergente, 0 lote fora de faixa/situação, 0 lote de transferência com ano 2001, 0 saldo sem fato, 0 número provisório, 0 movimento fora do protocolo (2 produtos, 2 lotes, 3 movimentos, 1 local). Nada foi corrigido nem escrito |
+| Release | Sem migration: o merge manual do proprietário publica o código. Nada a aplicar no banco |
+| Testes / CI | ver relatório §Testes |
+| Relatório | [`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md) |
+| Antes dela | Patrimônio P1-02 (D-PROD-159): migration aplicada em produção (2026-11-10 13:18:33 UTC) e PR #235 mergeada (`e3ea4c39`) |
+
+## Missão anterior (2026-11-10) — MAIKE-PATRIMONIO-P1-02: abastecimentos e consumo de combustível da frota (D-PROD-159)
 
 | Campo | Valor |
 |---|---|
