@@ -1067,7 +1067,23 @@ const executarLargura = async (browser, largura) => {
       const res = r.corpo?.resumo ?? {};
       const pc = res.por_classe ?? {};
       anotar(rotulo, 'reconciliacao', { resumo: res, cobertura: cob, achados: (r.corpo?.achados ?? []).length, truncado: r.corpo?.truncado });
-      igual(`${cob.completa}:${cob.proximo_cursor ?? null}:${cob.produtos_restantes}`, 'true:null:0', `[${rotulo}] cobertura da reconciliação (completa, sem continuação, nada restante)`);
+      // Contrato vigente do módulo (D-PROD-161): a chamada única cobre o escopo
+      // inteiro. Cada campo de prova que o módulo expõe é exigido; um campo
+      // ausente não vira "verde" por omissão nos obrigatórios (completa,
+      // proximo_cursor, situacao).
+      const provas = [
+        ['completa', cob.completa, true],
+        ['proximo_cursor', cob.proximo_cursor ?? null, null],
+        ...('produtos_restantes' in cob ? [['produtos_restantes', cob.produtos_restantes, 0]] : []),
+        ...('fim_do_escopo' in cob ? [['fim_do_escopo', cob.fim_do_escopo, true]] : []),
+        ...('snapshot_unico' in cob ? [['snapshot_unico', cob.snapshot_unico, true]] : []),
+        ...('conclusao_global' in cob ? [['conclusao_global', cob.conclusao_global, 'COMPROVADA']] : []),
+        ...('conclusao_global_comprovada' in cob ? [['conclusao_global_comprovada', cob.conclusao_global_comprovada, true]] : []),
+        ...('motivos_inconclusiva' in cob ? [['motivos_inconclusiva', JSON.stringify(cob.motivos_inconclusiva), '[]']] : []),
+        ...('evidencia_exclusoes' in cob ? [['evidencia_exclusoes', cob.evidencia_exclusoes, 'completa']] : []),
+        ...('interrompida_por' in cob ? [['interrompida_por', cob.interrompida_por ?? null, null]] : []),
+      ];
+      igual(provas.map(([k, v]) => `${k}=${v}`).join(' '), provas.map(([k, , e]) => `${k}=${e}`).join(' '), `[${rotulo}] cobertura da reconciliação (escopo inteiro num snapshot, sem continuação)`);
       igual(res.situacao, 'CONSISTENTE', `[${rotulo}] situação da reconciliação`);
       igual(
         `${pc.DIVERGENCIA_REAL}:${pc.LIMITACAO_LEGADA}:${pc.DADOS_INSUFICIENTES}:${(r.corpo?.achados ?? []).length}:${r.corpo?.truncado}`,
