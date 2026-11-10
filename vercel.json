@@ -6,6 +6,11 @@
   "regions": [
     "gru1"
   ],
+  "functions": {
+    "api/fastify.js": {
+      "maxDuration": 60
+    }
+  },
   "redirects": [
     {
       "source": "/admmakgestao",
@@ -33,11 +38,35 @@
       "destination": "/api/fastify?__native_route=:path*"
     },
     {
+      "source": "/lancamentosfinanceiros/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/LancamentosFinanceiros/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lancamentosfinanceiros",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/LancamentosFinanceiros",
+      "destination": "/index.html"
+    },
+    {
       "source": "/naturezasfinanceiras/",
       "destination": "/index.html"
     },
     {
       "source": "/NaturezasFinanceiras/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/familiaspatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/FamiliasPatrimoniais/",
       "destination": "/index.html"
     },
     {
@@ -57,11 +86,27 @@
       "destination": "/index.html"
     },
     {
+      "source": "/familiaspatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/FamiliasPatrimoniais",
+      "destination": "/index.html"
+    },
+    {
       "source": "/configuracoesgerais",
       "destination": "/index.html"
     },
     {
       "source": "/ConfiguracoesGerais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tipospatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposPatrimoniais/",
       "destination": "/index.html"
     },
     {
@@ -86,6 +131,22 @@
     },
     {
       "source": "/CentrosResultado/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/benspatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/BensPatrimoniais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tipospatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposPatrimoniais",
       "destination": "/index.html"
     },
     {
@@ -121,6 +182,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/benspatrimoniais",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/BensPatrimoniais",
+      "destination": "/index.html"
+    },
+    {
       "source": "/cadastrosetores",
       "destination": "/index.html"
     },
@@ -134,6 +203,14 @@
     },
     {
       "source": "/UnidadesMedida/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/abastecimentos/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Abastecimentos/",
       "destination": "/index.html"
     },
     {
@@ -158,6 +235,22 @@
     },
     {
       "source": "/UnidadesMedida",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/abastecimentos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Abastecimentos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/perfismedicao/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/PerfisMedicao/",
       "destination": "/index.html"
     },
     {
@@ -193,6 +286,22 @@
       "destination": "/index.html"
     },
     {
+      "source": "/perfismedicao",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/PerfisMedicao",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/combustiveis/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Combustiveis/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -214,6 +323,14 @@
     },
     {
       "source": "/CentrosCusto",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/combustiveis",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Combustiveis",
       "destination": "/index.html"
     },
     {

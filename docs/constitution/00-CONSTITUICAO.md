@@ -21,6 +21,44 @@ futuras receitas e despesas. É catálogo, não plano de contas contábil: conti
 **sem** lançamentos, valores, saldos, caixa/bancos, tributos, compras, contas a
 pagar/receber e sem efeito em estoque ou mapa.
 
+**Expansão autorizada pelo proprietário (D-PROD-155):** **Central Única de
+Lançamentos gerenciais** (página `LancamentosFinanceiros`, missão
+MAIKE-GESTAO-P3-01): um documento a pagar ou a receber, com ou sem produtos, com
+rateio global por natureza e centros, títulos/parcelas e liquidação manual
+registrada pelo usuário. O lançamento só mexe no estoque ao ser **confirmado**
+(entrada na compra, saída FIFO na venda) ou cancelado (estorno), por um comando
+composto; não há tela avulsa de entrada, e a suplementação e a transferência do
+Mapa Geral continuam como estão. Continua **fora**: conciliação, bancos/OFX, caixa/bancos,
+DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade, rateio por
+item, pedido de compra e relatórios/dashboards financeiros. O MAIKE não volta a
+ser ERP amplo. Texto redigido pelo agente; vale com a aprovação explícita do
+proprietário no merge manual (§4).
+
+**Expansão autorizada pelo proprietário (D-PROD-157):** **Patrimônio e Frota —
+cadastros** (missão MAIKE-PATRIMONIO-P1-01): bens patrimoniais (benfeitorias,
+máquinas, veículos, implementos e equipamentos) com código patrimonial e código de
+frota, catálogos de famílias, tipos, perfis de medição e combustíveis, medições
+físicas, medidores de uso, tanques com combustíveis permitidos, o vínculo de cada
+combustível aos Produtos da fazenda (só cadastro, sem baixa, custo nem conversão de
+unidade) e parâmetros de depreciação com prévia **só simulada**. Continua **fora**: abastecimento,
+manutenção, peças, baixa de estoque, ordens de serviço, custo/hora, apuração ou
+lançamento de depreciação, transferência entre fazendas e qualquer efeito
+financeiro ou de estoque. Texto redigido pelo agente; vale com a aprovação
+explícita do proprietário no merge manual (§4).
+
+**Expansão autorizada pelo proprietário (D-PROD-159):** **Patrimônio e Frota —
+Abastecimentos** (página `Abastecimentos`, missão MAIKE-PATRIMONIO-P1-02): o abastecimento
+de um bem com baixa **física real** do combustível no estoque em KG, pelo motor de estoque
+existente (FIFO por lote, custo FIFO final, estorno exato no cancelamento), convertendo os
+litros por um fator kg/L **informado pelo responsável** e versionado por produto da fazenda
+(nunca 1 L = 1 KG nem densidade presumida); a leitura do medidor fica no próprio
+abastecimento e o consumo (km/L, L/h) só é calculado com dois tanques cheios declarados.
+Esta é a única exceção à lista "fora" da D-PROD-157, e só no trecho abastecimento/baixa de
+estoque de combustível. Continua **fora**: lançamento financeiro do abastecimento,
+manutenção, peças, ordens de serviço, compras, custo/hora, apuração ou lançamento de
+depreciação, transferência entre fazendas, saldo de tanque, mapas e dashboards. Texto
+redigido pelo agente; vale com a aprovação explícita do proprietário no merge manual (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

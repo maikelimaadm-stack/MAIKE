@@ -65,6 +65,8 @@ export function colunasBase1(defs) {
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
  * @param {boolean} [props.colunaSelecao] coluna de checkbox (SSOT `BASE1_GRADE_REFERENCE_HEADERS`)
  * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (SSOT preset Base1)
+ * @param {(a: any, b: any, colId: string) => number | null | undefined} [props.compararParaOrdenar] comparação própria da tela
+ *   para a coluna (ex.: dinheiro e dia pelo valor canônico, não pelo texto formatado); `null`/`undefined` = regra padrão da grade
  */
 export default function CadastroBase1Grade({
   rows = EMPTY_ROWS,
@@ -99,6 +101,7 @@ export default function CadastroBase1Grade({
   configureColumnsAnchorRef,
   colunaSelecao = true,
   selecaoSticky = true,
+  compararParaOrdenar,
 }) {
   // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
   // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
@@ -225,6 +228,8 @@ export default function CadastroBase1Grade({
       return Number.isNaN(n) ? null : n;
     };
     s.sort((a, b) => {
+      const proprio = compararParaOrdenar?.(a, b, sortConfig.key);
+      if (typeof proprio === "number" && !Number.isNaN(proprio)) return sortConfig.direction === "asc" ? proprio : -proprio;
       const rawA = getFieldValue(a, sortConfig.key);
       const rawB = getFieldValue(b, sortConfig.key);
       let cmp = 0;
@@ -243,7 +248,7 @@ export default function CadastroBase1Grade({
       return sortConfig.direction === "asc" ? cmp : -cmp;
     });
     return s;
-  }, [filtrados, sortConfig, getFieldValue, dataCols, referenceHeaders]);
+  }, [filtrados, sortConfig, getFieldValue, dataCols, referenceHeaders, compararParaOrdenar]);
 
   const cardFieldKeys = useMemo(() => {
     if (cardFields?.length) return cardFields;

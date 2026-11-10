@@ -1,12 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
+  Boxes,
   Briefcase,
   Building2,
   ChevronRight,
   Coins,
   Droplet,
+  Droplets,
   Folder,
+  Fuel,
+  Gauge,
   Layers,
   LayoutGrid,
   ListChecks,
@@ -15,11 +19,15 @@ import {
   Package,
   Pen,
   PieChart,
+  ReceiptText,
   Ruler,
   Search,
+  Shapes,
   Shield,
   SlidersHorizontal,
   Tag,
+  Tractor,
+  Truck,
   Users,
   Warehouse,
   X,
@@ -28,7 +36,7 @@ import { createPageUrl } from "@/utils";
 import { flattenMenuPages } from "@/lib/menuConfig";
 
 /** Ícone de cada módulo (id do `menuConfig`). */
-export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, administracao: Shield };
+export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, patrimonio: Truck, administracao: Shield };
 
 /** Ícone de cada tela (url do `menuConfig`). */
 export const ICONE_TELA = {
@@ -53,6 +61,15 @@ export const ICONE_TELA = {
   CentrosCusto: Coins,
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
+  LancamentosFinanceiros: ReceiptText,
+  // D-PROD-157 — Patrimônio e Frota.
+  BensPatrimoniais: Tractor,
+  // D-PROD-159 — Abastecimentos (Droplets ≠ Droplet dos Bebedouros).
+  Abastecimentos: Droplets,
+  FamiliasPatrimoniais: Boxes,
+  TiposPatrimoniais: Shapes,
+  PerfisMedicao: Gauge,
+  Combustiveis: Fuel,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;

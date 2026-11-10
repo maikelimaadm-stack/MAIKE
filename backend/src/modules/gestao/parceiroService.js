@@ -134,7 +134,7 @@ export const listar = async (contexto, query = {}) => {
   const limit = normalizarLimite(query.limit);
   const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
   const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
-  if (cursorBruto && !cursor) throw invalido('cursor inválido', { field: 'cursor' });
+  if (cursorBruto && !cursor) throw invalido('cursor inválido', { field: 'cursor', reason: 'cursor_invalido' });
   /** @type {Record<string, any>} */
   const where = { cliente_id: auth.clienteId, empresa_id: empresaId };
   if (query.ativo === 'true') where.ativo = true;

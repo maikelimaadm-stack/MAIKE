@@ -35,6 +35,24 @@ combustível, agrícola, safra, comercial, cotação, pesagens individuais,
 relatórios genéricos, dashboards paralelos, fichas personalizadas e editor visual
 **saíram do produto** e foram fisicamente excluídos (D-PROD-02).
 
+**Exceções delimitadas, autorizadas pelo proprietário:** os cadastros de Gestão
+Rural (D-PROD-146 e D-PROD-153) e a **Central Única de Lançamentos gerenciais**
+(`LancamentosFinanceiros`, D-PROD-155): documento a pagar/receber, rateio global,
+títulos, liquidação manual e efeito de estoque só na confirmação do lançamento
+(estorno no cancelamento). O financeiro legado continua excluído e proibido: sem
+conciliação, bancos/OFX, DRE, plano de contas, fiscal, câmbio, contabilidade,
+caixa/bancos, rateio por item, pedido de compra ou relatórios financeiros.
+Também delimitados (D-PROD-157): os **cadastros de Patrimônio e Frota** (bens,
+famílias, tipos, perfis de medição, combustíveis e o vínculo deles aos Produtos de
+cada fazenda, medidores, tanques e parâmetros de depreciação com prévia só simulada), sem abastecimento, manutenção, apuração de
+depreciação nem efeito financeiro ou de estoque.
+E, em PR draft com migration **não aplicada** (D-PROD-159), os **Abastecimentos** da
+frota (`Abastecimentos`): fator kg/L informado e versionado por produto da fazenda,
+prévia sem escrita e confirmação com baixa física real em KG pelo motor de estoque
+(FIFO, custo FIFO final), estorno exato no cancelamento, leitura do medidor no próprio
+abastecimento e consumo km/L ou L/h pelo tanque cheio declarado. Sem lançamento
+financeiro, manutenção, custo/hora, apuração de depreciação nem transferência.
+
 ### Inventário atual
 
 | Métrica | Valor |
@@ -178,7 +196,10 @@ O agente **não deve**:
 - Afirmar que gate passou sem ter rodado
 - Inventar módulos, entidades ou funcionalidades que não existem
 - Citar conclusão de relatório antigo sem reverificar no código atual
-- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana
+- Ampliar `config/mapa-manejo-scope.json` sem aprovação humana (cada expansão tem
+  decisão própria do proprietário; a D-PROD-157 acrescentou só
+  `BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e
+  `Combustiveis`, e a mais recente, D-PROD-159, só `Abastecimentos`)
 
 ---
 

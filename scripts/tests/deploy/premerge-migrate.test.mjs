@@ -17,11 +17,88 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146) e P2 (D-PROD-153) só com tabelas novas', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
-  assert.deepEqual(c.tabelas_novas, ['CentroCusto', 'CentroCustoResultado', 'CentroResultado', 'EventoRebanho', 'NaturezaFinanceira', 'PartidaRebanho', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao']);
+  assert.deepEqual(c.tabelas_novas, [
+    'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'CentroCusto', 'CentroCustoResultado', 'CentroResultado',
+    'ConversaoCombustivelProduto', 'EventoRebanho', 'FamiliaPatrimonial',
+    'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno', 'MedicaoBem', 'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote',
+    'OperacaoFinanceiraEvento', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraItemRateio', 'OperacaoFinanceiraRateio', 'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PerfilMedicao',
+    'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao', 'TanqueBem', 'TanqueBemCombustivel', 'TipoCombustivel',
+    'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil', 'TituloFinanceiro',
+  ]);
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
+});
+
+test('B1b: P3-02 (D-PROD-156) classificada SOZINHA, como na release (a P3-01 já está na main): só OperacaoFinanceira.rateio_escopo anulável numa tabela antiga e a tabela nova do rateio por item', () => {
+  const c = classificarMigrations([ler('20261109200000_gestao_p3_02_rateio_por_item')]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, ['OperacaoFinanceiraItemRateio']);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, ['OperacaoFinanceira.rateio_escopo']);
+  // Sem a tabela da P3-01 como "nova", um CHECK na coluna nova da tabela antiga é recusado.
+  const comCheck = `${ler('20261109200000_gestao_p3_02_rateio_por_item').sql}\nALTER TABLE "OperacaoFinanceira" ADD CONSTRAINT "x" CHECK ("rateio_escopo" IN ('GERAL', 'POR_ITEM'));`;
+  assert.ok(classificar(comCheck).violacoes.some((v) => v.codigo === 'ALTER_EM_TABELA_ANTIGA'));
+});
+
+test('B1d: P3-03 (D-PROD-158) classificada SOZINHA, como na release (P3-01 e P3-02 já estão na main; aplicada em produção antes do Patrimônio): só OperacaoFinanceira.excluido_em/retificado_em anuláveis numa tabela antiga e a tabela nova de eventos', () => {
+  const c = classificarMigrations([ler('20261109300000_gestao_p3_03_editar_excluir')]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, ['OperacaoFinanceiraEvento']);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, ['OperacaoFinanceira.excluido_em', 'OperacaoFinanceira.retificado_em']);
+  // Sem a tabela da P3-01 como "nova": NOT NULL, DEFAULT ou CHECK nas colunas novas da tabela antiga são recusados.
+  const base = ler('20261109300000_gestao_p3_03_editar_excluir').sql;
+  const casos = [
+    `${base}\nALTER TABLE "OperacaoFinanceira" ADD CONSTRAINT "x" CHECK ("excluido_em" IS NULL OR "status" = 'CANCELADO');`,
+    base.replace('ADD COLUMN "excluido_em" TIMESTAMP(3);', 'ADD COLUMN "excluido_em" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;'),
+    `${base}\nUPDATE "OperacaoFinanceira" SET "retificado_em" = now();`,
+  ];
+  for (const sql of casos) assert.ok(classificar(sql).violacoes.length > 0, sql.slice(-120));
+});
+
+test('B1c: Patrimônio P1-01 (D-PROD-157) classificado SOZINHO, como na release (a P3-02 já está na main): expand, exatamente as 10 tabelas novas (com o vínculo combustível × produto da R2), nenhuma coluna nem constraint em tabela antiga (Produto intacto)', () => {
+  const m = ler('20261110100000_patrimonio_p1_01_cadastros');
+  const c = classificarMigrations([m]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, [
+    'BemPatrimonial', 'FamiliaPatrimonial', 'MedicaoBem', 'PerfilMedicao', 'TanqueBem', 'TanqueBemCombustivel', 'TipoCombustivel',
+    'TipoCombustivelProduto', 'TipoPatrimonial', 'TipoPatrimonialPerfil',
+  ]);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  // A coerência Produto.empresa_id = vínculo.empresa_id NÃO vira unique em Produto (tabela antiga): seria recusado.
+  const comUnique = `${m.sql}\nCREATE UNIQUE INDEX "Produto_cliente_id_empresa_id_id_key" ON "Produto"("cliente_id", "empresa_id", "id");`;
+  assert.ok(classificar(comUnique).violacoes.some((v) => v.codigo === 'UNIQUE_EM_TABELA_ANTIGA'));
+});
+
+test('B1e: Patrimônio P1-02 (D-PROD-159) classificado SOZINHO, como na release (a P1-01 já está na main): expand, exatamente as 3 tabelas novas de abastecimento, nenhuma coluna nem constraint em tabela antiga (BemPatrimonial e MovimentacaoEstoque intactos)', () => {
+  const m = ler('20261110200000_patrimonio_p1_02_abastecimentos');
+  const c = classificarMigrations([m]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.expand, true);
+  assert.deepEqual(c.tabelas_novas, ['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'ConversaoCombustivelProduto']);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  // A leitura do medidor vive na tabela nova: aceitar 'ABASTECIMENTO' no CHECK do bem, um unique de empresa no bem
+  // ou uma coluna DATE no movimento seriam DDL em tabela antiga e são recusados.
+  const casos = {
+    [`ALTER TABLE "BemPatrimonial" ADD CONSTRAINT "BemPatrimonial_medidor_origem_abastecimento_check" CHECK ("medidor_origem" IS NULL OR "medidor_origem" IN ('CADASTRO_INICIAL', 'AJUSTE_CADASTRO', 'ABASTECIMENTO'));`]: 'ALTER_EM_TABELA_ANTIGA',
+    [`ALTER TABLE "BemPatrimonial" DROP CONSTRAINT "BemPatrimonial_medidor_origem_check";`]: 'ALTER_EM_TABELA_ANTIGA',
+    [`CREATE UNIQUE INDEX "BemPatrimonial_cliente_id_empresa_id_id_key" ON "BemPatrimonial"("cliente_id", "empresa_id", "id");`]: 'UNIQUE_EM_TABELA_ANTIGA',
+    [`ALTER TABLE "MovimentacaoEstoque" ADD COLUMN "abastecimento_data" DATE;`]: 'ALTER_EM_TABELA_ANTIGA',
+  };
+  for (const [ddl, codigo] of Object.entries(casos)) {
+    const r = classificar(`${m.sql}\n${ddl}\n`);
+    assert.equal(r.expand, false, ddl);
+    assert.deepEqual(r.violacoes.map((v) => v.codigo), [codigo], ddl);
+  }
+  // O bloco DO pinado não pode citar tabela antiga: incluir 'TanqueBem' na lista muda o hash e cita tabela antiga.
+  const doComAntiga = m.sql.replace("ARRAY['AbastecimentoBem',", "ARRAY['TanqueBem','AbastecimentoBem',");
+  assert.notEqual(doComAntiga, m.sql);
+  assert.deepEqual(classificar(doComAntiga).violacoes.map((v) => v.codigo).sort(), ['DO_EM_TABELA_ANTIGA', 'DO_NAO_RECONHECIDO']);
+  // 1 byte a mais no arquivo pinado → checksum divergente.
+  assert.deepEqual(classificarMigrations([{ ...m, sql: `${m.sql}\n` }]).violacoes.map((v) => v.codigo), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
 test('B2: padrão = RECUSAR — cada caso negativo é violação com código estável', () => {

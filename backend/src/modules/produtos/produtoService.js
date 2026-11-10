@@ -6,6 +6,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { propagarRenomeacaoDeProduto } from '../referencias/propagacaoPorChaveUnica.js';
 import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import {
@@ -159,7 +160,7 @@ export const listarPagina = async (contexto, query = {}) => {
   const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
   const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
   if (cursorBruto && !cursor) {
-    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido', { details: { field: 'cursor', reason: 'cursor_invalido' } });
   }
 
   const filtro = { empresaId, q, ativo, cursor, limit };
@@ -219,13 +220,41 @@ export const criar = async (contexto, entrada) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id @param {Record<string, unknown>} entrada */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
 
-  return prisma.$transaction(async (tx) => {
-    const anterior = await buscarProduto(auth.clienteId, id, tx);
+  // D-PROD-155 (§8.4): a linha do Produto pode estar em FOR UPDATE por uma
+  // confirmação/cancelamento/suplementação: espera em vez de estourar os 5 s
+  // padrão (500), até caber nos 20 s do navegador (TRANSACAO_CURTA). PATCH de
+  // valores absolutos: repetir depois do 409 leva ao mesmo estado.
+  return emTransacao(TRANSACAO_CURTA, async (tx) => {
+    const campos = camposDe(entrada);
+    // D-PROD-157 (R2): o vínculo ATIVO a combustível do Patrimônio exige que o
+    // produto continue na MESMA empresa (invariante do serviço: Produto não tem
+    // unique por empresa). Corpo com `empresa_id` (o formulário sempre reenvia a
+    // que leu) trava a linha ANTES de ler o estado anterior, para a comparação
+    // usar a versão confirmada mais nova (uma troca concorrente fica em fila):
+    //  - FOR NO KEY UPDATE, a mesma força do UPDATE comum: não disputa com o
+    //    FOR KEY SHARE de rascunhos de lançamento nem de quem vincula;
+    //  - só se a fazenda MUDA sobe para FOR UPDATE (espera quem segura o
+    //    produto em KEY SHARE, como um vínculo em voo), relê e conta.
+    if (campos.empresa_id !== undefined) {
+      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
+    }
+    let anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
 
-    const campos = camposDe(entrada);
+    if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
+      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
+      anterior = await buscarProduto(auth.clienteId, id, tx);
+      if (!anterior) throw produtoNotFound();
+    }
+    if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
+      const vinculos = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id, ativo: true } });
+      if (vinculos > 0) {
+        throw new AppError('PRODUTO_VINCULADO_COMBUSTIVEL', 'produto vinculado a combustível do Patrimônio não muda de fazenda; inative o vínculo na tela Combustíveis antes; nada foi gravado', {
+          details: { id, vinculos },
+        });
+      }
+    }
     if (campos.nome_produto && campos.nome_produto !== anterior.nome_produto) {
       const empresa = String(campos.empresa_id ?? anterior.empresa_id);
       const nome = String(campos.nome_produto);
@@ -255,7 +284,7 @@ export const atualizar = async (contexto, id, entrada) => {
     // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-137).
     await registrarPropagacao(contexto, 'Produto', id, await propagarRenomeacaoDeProduto(tx, auth.clienteId, anterior, registro), tx);
     return publico;
-  });
+  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id */
@@ -264,12 +293,33 @@ export const excluir = async (contexto, id) => {
   const prisma = getPrismaClient();
 
   await prisma.$transaction(async (tx) => {
+    // D-PROD-157 (R2): trava o produto ANTES das contagens (padrão da exclusão
+    // do parceiro): quem está vinculando-o a um combustível segura a linha
+    // (FOR KEY SHARE) e esta exclusão espera o commit; a contagem já o vê e o
+    // 409 sai no lugar do 403 da FK.
+    await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
 
     const quantidade = await contarMovimentacoesPorProduto(tx, auth.clienteId, id);
     if (quantidade > 0) {
       throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
+    }
+    // D-PROD-155 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
+    // o produto pela FK RESTRICT; 409 em vez do enganoso 403.
+    const itensFinanceiros = await tx.operacaoFinanceiraItem.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
+    if (itensFinanceiros > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto usado em lançamentos financeiros; inative-o', {
+        details: { id, vinculo: 'lançamentos financeiros', quantidade: itensFinanceiros },
+      });
+    }
+    // D-PROD-157 (R2): vínculo a combustível do Patrimônio (ativo OU inativo:
+    // é histórico rastreável) segura o produto pela FK RESTRICT; 409, nunca 403.
+    const vinculosCombustivel = await tx.tipoCombustivelProduto.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
+    if (vinculosCombustivel > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto vinculado a combustível do Patrimônio; inative-o', {
+        details: { id, vinculo: 'combustíveis do patrimônio', quantidade: vinculosCombustivel },
+      });
     }
 
     await excluirProdutoPorId(tx, auth.clienteId, id);

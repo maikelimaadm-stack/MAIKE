@@ -54,9 +54,43 @@ export const TELAS = Object.freeze({
   CENTROS_RESULTADO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-resultado' }),
   // D-PROD-153 — Gestão P2.
   NATUREZAS_FINANCEIRAS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-naturezas-financeiras' }),
+  // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
+  LANCAMENTOS_FINANCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-lancamentos-financeiros' }),
+  // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário). Módulo
+  // próprio de menu; sem concessão automática a perfis antigos.
+  PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
+  PATRIMONIO_FAMILIAS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-familias-patrimoniais' }),
+  PATRIMONIO_TIPOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-tipos-patrimoniais' }),
+  PATRIMONIO_PERFIS_MEDICAO: Object.freeze({ modulo: 'patrimonio', tela: 'pat-perfis-medicao' }),
+  PATRIMONIO_COMBUSTIVEIS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-combustiveis' }),
+  // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
+  PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
+
+/**
+ * D-PROD-155 — ações EXTRAS da tela `ges-lancamentos-financeiros` (gravadas na
+ * própria linha da tela em `permissoes_telas`; ausente/não booleano = negado).
+ * Mesma lista no navegador (teste de paridade front↔back).
+ */
+export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquidar', 'estornar_liquidacao', 'cancelar']);
+
+/**
+ * D-PROD-157 — ação EXTRA das cinco telas do Patrimônio: inativar ou reativar
+ * o registro (PATCH com `ativo`). Gravada na própria linha da tela em
+ * `permissoes_telas`; ausente/não booleano = negado. Mesma lista no navegador
+ * (`EXTRA_ACTION_KEYS_BY_PAGE`, teste de paridade front↔back).
+ */
+export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
+
+/**
+ * D-PROD-159 — ações EXTRAS da tela `pat-abastecimentos`: cancelar/estornar o
+ * abastecimento confirmado e configurar o fator de conversão kg/L. Separada de
+ * ACOES_PATRIMONIO_EXTRAS (as cinco telas do P1-01 seguem só com `inativar`).
+ * Ausente/não booleano = negado. Mesma lista no navegador (teste de paridade).
+ */
+export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar', 'configurar_conversao']);
 
 /**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
@@ -203,6 +237,22 @@ export const porQualquer = (...opcoes) =>
       : { exige: opcoes.map(rotuloDaOpcao) });
 
 /**
+ * D-PROD-158 — preHandler "todas de": cada exigência é uma lista de
+ * alternativas `[alvo, acao]` (basta UMA delas) e a ação só passa se TODAS as
+ * exigências valerem. Ex.: retificar = (editar OU salvar) E confirmar; excluir
+ * confirmado = cancelar E excluir. Administrador real e `is_admin` passam
+ * (`telaPermite`/`acessoTotal`). Negação: 403 com `exige` (todas) e `faltam`.
+ * @param {...Array<[{modulo: string, tela: string}, string]>} exigencias
+ */
+export const porTodas = (...exigencias) =>
+  autorizar((_req, aut) => {
+    if (acessoTotal(aut)) return true;
+    const rotulo = (alternativas) => alternativas.map(([alvo, acao]) => `${alvo.tela}:${acao}`).join('|');
+    const faltam = exigencias.filter((alternativas) => !alternativas.some(([alvo, acao]) => telaPermite(aut, alvo, acao)));
+    return faltam.length ? { exige: exigencias.map(rotulo), faltam: faltam.map(rotulo) } : true;
+  });
+
+/**
  * Uma opção de `porQualquer`:
  *  - `[alvo, acao]` — tela/ação;  `{ mapa }` — ação do Mapa Geral;
  *  - `{ de: <opção>, campos: [...] }` — R3: a concessão só vale se o corpo
@@ -227,6 +277,14 @@ export const acessoTotal = (aut) => Boolean(aut?.adminReal || (aut?.ativo && aut
 export const somenteCampos = (corpo, campos) =>
   Boolean(corpo) && typeof corpo === 'object' && !Array.isArray(corpo) &&
   Object.keys(corpo).length > 0 && Object.keys(corpo).every((k) => campos.includes(k));
+
+/**
+ * D-PROD-155 (§8.6) — escrita do perfil financeiro da empresa: administrador
+ * REAL da fazenda OU a concessão `Permissao.is_admin` (relidos do banco por
+ * `carregarAutorizacao`). `apenasAdminTenant` recusaria quem só tem `is_admin`.
+ */
+export const adminOuIsAdmin = () =>
+  autorizar((_req, aut) => (acessoTotal(aut) ? true : { exige: ['administrador_ou_is_admin'] }));
 
 /** preHandler: administrador real OU a concessão explícita `is_admin` da linha (todas as telas). */
 export const porAcessoTotal = () =>

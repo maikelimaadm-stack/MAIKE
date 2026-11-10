@@ -7,6 +7,8 @@ import {
   excluirProdutos,
   importarProdutos,
   isProdutoDeleteBlockedError,
+  mensagemExclusaoProdutoBloqueada,
+  mensagemErroSalvarProduto,
 } from "@/services/produtoService";
 import {
   BOM_UTF8,
@@ -15,7 +17,7 @@ import {
   montarCsvDeErros,
   parseCsvDeProdutos,
 } from "@/domain/produtos/csvProduto";
-import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -155,8 +157,7 @@ export default function Produtos() {
       controller.setIsEditing(false);
       notifySuccess("Sucesso", "Produto atualizado");
     },
-    onError: (err) =>
-      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar o produto.")),
+    onError: (err) => notifyWarning("Atenção", mensagemErroSalvarProduto(err)),
   });
 
   const deleteMutation = useMutation({
@@ -177,10 +178,7 @@ export default function Produtos() {
       }
       for (const falha of falhas) {
         if (isProdutoDeleteBlockedError(falha.erro)) {
-          const quantidade = /** @type {any} */ (falha.erro).details?.quantidade ?? 0;
-          emitDeleteDialog(
-            `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`,
-          );
+          emitDeleteDialog(mensagemExclusaoProdutoBloqueada(falha.erro));
         } else {
           notifyError(
             "Atenção",
@@ -191,11 +189,8 @@ export default function Produtos() {
     },
     onError: (err) => {
       controller.setDeleteState({ open: false, ids: [] });
-      if (hasApiErrorCode(err, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED)) {
-        const quantidade = /** @type {any} */ (err).details?.quantidade ?? 0;
-        emitDeleteDialog(
-          `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`,
-        );
+      if (isProdutoDeleteBlockedError(err)) {
+        emitDeleteDialog(mensagemExclusaoProdutoBloqueada(err));
         return;
       }
       notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir o produto."));

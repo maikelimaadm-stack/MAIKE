@@ -273,7 +273,130 @@ operação). **Fora**: lançamentos, valores, saldos, caixa/bancos, tributos,
 compras, NF-e/XML, contas a pagar/receber, estoque e mapa. Relatório:
 [`MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md`](./MAIKE-GESTAO-CADASTROS-P2-NATUREZAS-REPORT.md).
 
+## Track autorizado — Gestão Rural P3-01: Central Única de Lançamentos (D-PROD-155)
+
+Uma tela (`LancamentosFinanceiros`) e um documento (`OperacaoFinanceira`) para
+compras, vendas, despesas e receitas **gerenciais**: PAGAR/RECEBER, com ou sem
+produtos, à vista, a prazo ou parcelado. Tem rateio **global** por natureza e
+centros, títulos (uma linha por parcela), liquidação **manual** com estorno e perfil
+financeiro da empresa (país, moeda, locale). O lançamento só mexe no estoque (KG,
+FIFO) ao ser confirmado, e o estorna ao ser cancelado, por um comando composto.
+É a primeira entrada de estoque nativa (DBT-04), sem tela avulsa de entrada.
+O custo do lote é o custo de aquisição **líquido** (desconto e acréscimo do
+cabeçalho rateados entre as linhas; resíduo de arredondamento explícito, rodada 4).
+Migration expand-only com 8 tabelas novas.
+
+**Estado:** em produção. A migration foi aplicada e conferida em 2026-11-09 às
+14:08:36 UTC, e o proprietário fez o merge da PR #230 (`f2b81e1b`). Runbook
+executado:
+[`MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-01-RUNBOOK-RELEASE.md).
+Relatório:
+[`MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`](./MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md).
+
+**Próximos passos:**
+- o custo líquido do lote entrou na rodada 4;
+- o rateio por item é a P3-02 (D-PROD-156), e editar, excluir e duplicar são a P3-03 (D-PROD-158), descritas abaixo;
+- o pedido de compra continua fora desta fase e só entra com decisão própria do
+  proprietário.
+
+## Track autorizado — Gestão Rural P3-02: rateio gerencial por item (D-PROD-156)
+
+É feito na mesma tela `LancamentosFinanceiros` e só vale com produtos. O escopo
+do rateio pode ser **Geral** (o padrão, comportamento da P3-01) ou **Por item**.
+No modo Por item, cada item (mercadoria ou serviço) tem a sua própria divisão
+entre naturezas e centros, por valor ou percentual. A base é o valor líquido do
+item, e a soma é exata por item e no total. Os dois modos nunca convivem no mesmo
+documento. Detalhe e prévia mostram o resumo consolidado. Não há efeito novo em
+títulos, estoque ou custo.
+
+Banco: uma migration expand-only, com uma coluna anulável `rateio_escopo` e a
+tabela nova `OperacaoFinanceiraItemRateio`.
+
+**Estado:** em produção. A migration foi aplicada e conferida em 2026-11-09 às
+17:42:13 UTC, e o proprietário fez o merge da PR #231 (`e4e907ea`). Runbook
+executado:
+[`MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-02-RUNBOOK-RELEASE.md).
+Relatório:
+[`MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md`](./MAIKE-GESTAO-P3-02-RATEIO-POR-ITEM-REPORT.md).
+
+## Track autorizado — Gestão Rural P3-03: editar, excluir e duplicar lançamentos (D-PROD-158)
+
+Na mesma tela `LancamentosFinanceiros`:
+- **Editar** um documento confirmado é uma retificação. Se a assinatura física das
+  mercadorias não muda, ela é feita no lugar (`versao+1`). Se muda, o documento
+  antigo é estornado e um novo, com o mesmo número, é confirmado na mesma transação;
+- **Excluir** um confirmado é lógico: estorno, `excluido_em` e evento com motivo;
+- **Duplicar** cria um rascunho novo a partir de qualquer documento.
+
+Retificar e excluir ficam bloqueados por liquidação, consumo de lote ou movimento
+posterior. O histórico fica em `OperacaoFinanceiraEvento` e no AuditLog.
+
+Banco: uma migration expand-only, com duas colunas anuláveis e a tabela nova
+`OperacaoFinanceiraEvento`.
+
+**Estado:** a migration foi aplicada e conferida em produção em 2026-11-09 às
+21:32:01 UTC, pelo runbook
+[`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md).
+A PR #234 foi mergeada pelo proprietário (`a2347741`; registrado pela P1-02). Relatório:
+[`MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md`](./MAIKE-GESTAO-P3-03-EDITAR-EXCLUIR-DUPLICAR-REPORT.md).
+
+**Fora desta fase** (cada item só com decisão própria do proprietário): pedido
+de compra e rateio fiscal. **Fora do produto** (não voltam sem emenda de
+escopo): conciliação bancária, bancos/contas bancárias/OFX, módulo de
+caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade e
+relatórios/dashboards financeiros.
+
 ---
+
+## Track autorizado — Patrimônio P1-01: cadastros patrimoniais e frota (D-PROD-157)
+
+Grupo de menu próprio **Patrimônio e Frota** com cinco telas nativas no Motor Base1:
+`BensPatrimoniais`, `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e
+`Combustiveis`. Catálogos do tenant (famílias com natureza fechada, tipos com
+perfis de medição sugeridos, perfis com conversão só dentro da dimensão,
+combustíveis classificatórios) e um catálogo padrão instalável pelo administrador.
+O bem tem código patrimonial estável, código de frota único por fazenda (ex.:
+TP-02), medições físicas (benfeitorias), medidor de uso que não regride (horímetro,
+odômetro, ciclos ou sem medidor), tanques com os combustíveis que aceitam (flex sem
+tanque falso) e parâmetros de aquisição e depreciação linear com **prévia só
+simulada**. Na R2, cada fazenda liga os seus Produtos aos tipos de combustível
+(vínculo por empresa, sem efeito em estoque, custo ou unidade) e a P1-02 ganha um
+contrato só de leitura dos produtos elegíveis de cada bem. Migration expand-only
+com 10 tabelas novas.
+
+**Estado:** PR #232 mergeada (`76edc913`) e migration aplicada em produção em
+2026-11-09 às 23:04:22 UTC (registrado pela P1-02; houve incidente de sequência:
+o merge veio antes da migration, ver D-PROD-157). Relatório:
+[`MAIKE-PATRIMONIO-P1-01-REPORT.md`](./MAIKE-PATRIMONIO-P1-01-REPORT.md).
+
+**Próximos passos (cada um com decisão própria):** P1-02 Abastecimentos/Consumo
+(D-PROD-159, abaixo), depois manutenção, apuração mensal de depreciação por
+competência e transferência entre fazendas.
+
+## Track autorizado — Patrimônio P1-02: abastecimentos e consumo de combustível (D-PROD-159)
+
+Página nativa **Abastecimentos** (`pat-abastecimentos`) no grupo Patrimônio e Frota.
+O responsável configura o **fator kg/L** de cada produto de combustível da fazenda
+(informado, validado e versionado; nunca 1 L = 1 KG nem densidade presumida). O
+abastecimento de um bem (tanque, combustível aceito, produto vinculado da mesma
+fazenda, local de estoque, litros, leitura do medidor e tanque cheio) passa por uma
+**prévia sem escrita** e por uma **confirmação transacional** que converte litros em KG
+uma vez (`ROUND_HALF_UP`, 4 casas) e baixa o estoque **de verdade** pelo motor
+existente (FIFO por lote, custo FIFO final), sem lançamento financeiro. Idempotência
+por `operation_id`, cancelamento com estorno exato das fatias, histórico paginado,
+leitura do medidor guardada no próprio abastecimento (série monotônica, sem gravar o
+bem) e consumo km/L ou L/h pelo método do tanque cheio declarado. Permissões novas,
+negadas por padrão. Migration expand-only com 3 tabelas novas.
+
+**Estado:** PR em **DRAFT**. Migration **não aplicada** em nenhum ambiente remoto; o
+merge depende da revisão humana, do GO expresso da migration pelo runbook
+[`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md)
+e do merge manual. Relatório:
+[`MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md`](./MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md).
+
+**Fora desta fase** (cada item só com decisão própria): manutenção, ordens de
+serviço, peças, compras, custo/hora, apuração de depreciação, transferência entre
+fazendas, saldo de tanque, GNV em tanque de litros, mapas e dashboards.
 
 ## Fora do roadmap
 

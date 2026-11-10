@@ -102,6 +102,43 @@ export const limparBanco = async () => {
     where: { catalogo_categoria_visual_id: { not: null } },
     data: { catalogo_categoria_visual_id: null },
   });
+  // D-PROD-155: lançamentos financeiros (filhas antes das mães; sem
+  // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
+  // naturezas e centros, e antes do laço porque referenciam Fornecedor,
+  // Produto, LocalEstoque, lote, movimento, Empresa e Usuario (tudo RESTRICT).
+  // D-PROD-158: o evento de retificação/exclusão referencia o documento (e o
+  // documento novo) e o usuário (RESTRICT): sai antes deles.
+  await prisma.operacaoFinanceiraEvento.deleteMany({});
+  await prisma.liquidacaoFinanceiraEstorno.deleteMany({});
+  await prisma.liquidacaoFinanceira.deleteMany({});
+  await prisma.tituloFinanceiro.deleteMany({});
+  await prisma.operacaoFinanceiraConsumoLote.deleteMany({});
+  // D-PROD-156: as linhas do rateio por item referenciam o item, o documento,
+  // naturezas e centros (RESTRICT): saem antes dos itens.
+  await prisma.operacaoFinanceiraItemRateio.deleteMany({});
+  await prisma.operacaoFinanceiraItem.deleteMany({});
+  await prisma.operacaoFinanceiraRateio.deleteMany({});
+  await prisma.operacaoFinanceira.deleteMany({});
+  await prisma.perfilFinanceiroEmpresa.deleteMany({});
+  // D-PROD-157: Patrimônio e Frota (filhas antes das mães; sem autorreferência).
+  // Antes do bloco de Gestão porque o bem referencia o centro de custo, e antes
+  // do laço porque referencia Empresa, Fornecedor, Usuario e AreaPastagem (RESTRICT).
+  // R2: o vínculo combustível × produto referencia TipoCombustivel, Produto e
+  // Empresa (RESTRICT): sai antes deles.
+  // D-PROD-159: fatias → abastecimento → fator (referenciam lote, movimento, bem, tanque, local, vínculo, usuário — RESTRICT).
+  await prisma.abastecimentoBemConsumoLote.deleteMany({});
+  await prisma.abastecimentoBem.deleteMany({});
+  await prisma.conversaoCombustivelProduto.deleteMany({});
+  await prisma.tipoCombustivelProduto.deleteMany({});
+  await prisma.tanqueBemCombustivel.deleteMany({});
+  await prisma.tanqueBem.deleteMany({});
+  await prisma.medicaoBem.deleteMany({});
+  await prisma.bemPatrimonial.deleteMany({});
+  await prisma.tipoPatrimonialPerfil.deleteMany({});
+  await prisma.tipoPatrimonial.deleteMany({});
+  await prisma.familiaPatrimonial.deleteMany({});
+  await prisma.perfilMedicao.deleteMany({});
+  await prisma.tipoCombustivel.deleteMany({});
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});

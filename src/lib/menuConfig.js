@@ -50,6 +50,23 @@ export const DEFAULT_MENU = [
       { id: "ges-centros-resultado", title: "Centros de Resultado", url: "CentrosResultado" },
       // D-PROD-153 — Gestão Rural P2: catálogo gerencial (não é plano de contas nem lançamento).
       { id: "ges-naturezas-financeiras", title: "Naturezas Financeiras", url: "NaturezasFinanceiras" },
+      // D-PROD-155 — Gestão Rural P3-01: Central Única de Lançamentos (documento gerencial nativo).
+      { id: "ges-lancamentos-financeiros", title: "Lançamentos Financeiros", url: "LancamentosFinanceiros" },
+    ],
+  },
+  {
+    // D-PROD-157 — Patrimônio e Frota P1-01: cadastros e inventário. Catálogos são do tenant; bens, da empresa.
+    // D-PROD-159 — P1-02: abastecimentos e consumo da frota (baixa física do estoque em KG; sem manutenção nem financeiro).
+    id: "patrimonio",
+    title: "Patrimônio e Frota",
+    icon: "Truck",
+    submenu: [
+      { id: "pat-bens-patrimoniais", title: "Bens Patrimoniais", url: "BensPatrimoniais" },
+      { id: "pat-abastecimentos", title: "Abastecimentos", url: "Abastecimentos" },
+      { id: "pat-familias-patrimoniais", title: "Famílias Patrimoniais", url: "FamiliasPatrimoniais" },
+      { id: "pat-tipos-patrimoniais", title: "Tipos Patrimoniais", url: "TiposPatrimoniais" },
+      { id: "pat-perfis-medicao", title: "Perfis de Medição", url: "PerfisMedicao" },
+      { id: "pat-combustiveis", title: "Combustíveis", url: "Combustiveis" },
     ],
   },
   {

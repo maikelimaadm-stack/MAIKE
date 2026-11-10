@@ -8,7 +8,39 @@ export const ACTION_LABELS = {
   excluir: "excluir registros",
   importar: "importar dados",
   exportar: "exportar dados",
+  confirmar: "confirmar lançamentos",
+  liquidar: "registrar pagamentos e recebimentos",
+  estornar_liquidacao: "estornar baixas",
+  cancelar: "cancelar lançamentos",
+  inativar: "inativar ou reativar registros",
+  configurar_conversao: "configurar fator de conversão kg/L",
 };
+
+/**
+ * Ações EXTRAS de uma tela (D-PROD-155), gravadas na própria linha da tela em
+ * `permissoes_telas` (sem coluna nova: `telaPermite` do servidor testa
+ * `linha[acao] === true` para qualquer nome).
+ *  - Central de Lançamentos: espelho de `GUARDAS.operacaoFinanceira`;
+ *  - Patrimônio e Frota (D-PROD-157): `inativar` (inativar e reativar) nas cinco
+ *    telas `pat-*` — espelho de `ACOES_PATRIMONIO_EXTRAS` e da guarda
+ *    `edicaoPatrimonio` (backend/src/shared/auth/guardasRotas.js);
+ *  - Abastecimentos (D-PROD-159): `cancelar` (cancelar/estornar o abastecimento)
+ *    e `configurar_conversao` (fator kg/L) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`.
+ */
+const ACOES_EXTRAS_PATRIMONIO = Object.freeze(["inativar"]);
+
+export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
+  "ges-lancamentos-financeiros": Object.freeze(["confirmar", "liquidar", "estornar_liquidacao", "cancelar"]),
+  "pat-bens-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
+  "pat-familias-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
+  "pat-tipos-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
+  "pat-perfis-medicao": ACOES_EXTRAS_PATRIMONIO,
+  "pat-combustiveis": ACOES_EXTRAS_PATRIMONIO,
+  "pat-abastecimentos": Object.freeze(["cancelar", "configurar_conversao"]),
+});
+
+/** @param {string} pageId @returns {readonly string[]} */
+export const extraActionKeysOf = (pageId) => EXTRA_ACTION_KEYS_BY_PAGE[pageId] ?? [];
 
 export const normalizePermissionRecord = (permission) => {
   if (!permission) return null;
@@ -87,6 +119,8 @@ const createBasePagePermission = (moduleId, moduleTitle, page, defaultValue) => 
   excluir: defaultValue,
   importar: defaultValue,
   exportar: defaultValue,
+  // Linha nova já nasce com as ações extras da tela (restrita = todas desligadas).
+  ...Object.fromEntries(extraActionKeysOf(page.id).map((acao) => [acao, defaultValue])),
 });
 
 export const createPagePermission = (moduleId, moduleTitle, page) =>

@@ -8,6 +8,47 @@ service foram conferidas à mão (coluna "c"/"b").
 > regenerada pelo mesmo levantamento. O que mudou está marcado com "(D-PROD-137)".
 > Relatório: `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`.
 
+> **Acréscimo da Gestão P3-01 (D-PROD-155).** As 19 rotas da Central Única de
+> Lançamentos (`backend/src/modules/financeiro/operacaoFinanceiraRoutes.js`) estão
+> na tabela, marcadas com "(D-PROD-155)". São todas classe **a**, com
+> `onRequest: [app.autenticar]`: 18 com guarda da tela `ges-lancamentos-financeiros`
+> e o `PUT /perfis-financeiros-empresa` com `GUARDAS.perfilFinanceiro.editar =
+> adminOuIsAdmin()` (administrador real ou `is_admin`). Conferido contra as rotas
+> registradas no código (diff `origin/main` → branch): além delas, nenhuma rota
+> nova ficou fora. A matriz R3 ganhou duas linhas. Relatório:
+> `MAIKE-GESTAO-P3-01-LANCAMENTO-UNICO-REPORT.md`.
+
+> **Acréscimo da Gestão P3-03 (D-PROD-158).** As 3 rotas de editar/excluir
+> lançamento (`backend/src/modules/financeiro/operacaoFinanceiraRoutes.js`) estão
+> na tabela, marcadas com "(D-PROD-158)". São todas classe **a**, com
+> `onRequest: [app.autenticar]` e guarda da tela `ges-lancamentos-financeiros`:
+> `GET /operacoes-financeiras/:id/elegibilidade` com `visualizar`;
+> `POST /operacoes-financeiras/:id/retificar` com `porTodas` (`editar` ou
+> `salvar`, **e** `confirmar`); `POST /operacoes-financeiras/:id/excluir` com
+> `porTodas` (`cancelar` **e** `excluir`). Na recusa, o 403
+> `ACAO_NAO_PERMITIDA` traz `exige` e `faltam`. Duplicar não tem rota própria: é
+> o `POST /operacoes-financeiras` com `duplicado_de_id`, na guarda `criar`. A
+> matriz R3 ganhou uma linha. Conferido contra as rotas registradas no código:
+> nenhuma outra rota da P3-03 ficou fora. O mesmo levantamento achou rotas
+> **anteriores** à P3-03 sem linha própria na tabela: `POST /auth/troca-senha-inicial`
+> (D-PROD-144) e as 8 rotas `/admin-maike/clientes*`, cobertas só pela linha
+> genérica `/admin-maike/*` (classe c) de "Leituras". Ficam registradas aqui e
+> não foram tratadas nesta missão. Prova das guardas cruzadas com o Patrimônio:
+> `backend/tests/gestaoP3PatrimonioCombinado.test.mjs` (C3).
+
+> **Acréscimo do Patrimônio P1-02 (D-PROD-159).** As 15 rotas de Abastecimentos
+> (`backend/src/modules/patrimonio/abastecimentoRoutes.js`) estão na tabela, marcadas com
+> "(D-PROD-159)". São todas classe **a**, com `onRequest: [app.autenticar]` e guarda da
+> tela própria `pat-abastecimentos` (`GUARDAS.patrimonioAbastecimentos`): `ver` =
+> `visualizar`; `criar` = `porQualquer(novo, salvar)`; `cancelar` = ação extra
+> `cancelar`; `configurarConversao` = ação extra `configurar_conversao`. As duas ações
+> extras (`ACOES_ABASTECIMENTO_EXTRAS`) só existem nesta tela e nascem negadas; nenhuma
+> concessão de outra tela (nem `pat-bens-patrimoniais` completo) libera estas rotas. Os
+> seletores de opções são guardados pela própria tela (C12). A matriz R3 ganhou uma
+> linha. Conferido contra as rotas registradas no código (diff `origin/main` → branch):
+> nenhuma outra rota nova ficou fora. Prova: `backend/tests/patrimonioP1AbastecimentosSeguranca.test.mjs`
+> (S1: 401 nas 15; S2: matriz de 12 contas × 15 rotas).
+
 Classes:
 - **a** — guarda por tela/ação (`porTela`, `porMapa`, `porQualquer`, `GUARDAS.*` em
   `backend/src/shared/auth/guardasRotas.js`), avaliada por
@@ -97,6 +138,11 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 | `renomear_lotes` no controle por posições (D-PROD-139) | `PATCH /rebanho/posicoes/:id/informacoes`: nome e identificação de UMA posição | chave `=== true` (ou acesso total); schema fechado com só esses quatro campos; posição do tenant **e** da empresa (senão 404); ledger ativo; posição com cabeças; trava + AuditLog |
 | Parceiros / Centros de Custo / Centros de Resultado (D-PROD-146) | cadastros de Gestão Rural; vínculo centro de custo × resultado só pela tela de Centros de Custo | ação da PRÓPRIA tela (`ges-parceiros`, `ges-centros-custo`, `ges-centros-resultado`); telas independentes; padrão negado; empresa validada no banco e imutável; outro tenant/empresa → 404 |
 | Naturezas Financeiras gerenciais (D-PROD-153) | cadastro de classificação de receitas/despesas (sem valores) | ação da PRÓPRIA tela (`ges-naturezas-financeiras`); padrão negado; empresa validada no banco e imutável; tipo imutável; outro tenant/empresa → 404 |
+| Lançamentos Financeiros (`ges-lancamentos-financeiros`, D-PROD-155) | **`visualizar`**: lista, detalhe, prévia, as 7 rotas de opções (parceiros, produtos, locais, saldos, naturezas, centros de custo e de resultado) e leitura do perfil. **`novo`/`salvar`**: criar rascunho. **`editar`/`salvar`**: substituir (PUT) e descartar (DELETE) rascunho. **`confirmar`**: confirmar (títulos + efeito de estoque). **`cancelar`**: cancelar confirmado (estorna o estoque). **`liquidar`**: registrar liquidação manual. **`estornar_liquidacao`**: estornar liquidação | uma ação por efeito, relida do banco a cada requisição; as 4 caixas extras (`confirmar`, `cancelar`, `liquidar`, `estornar_liquidacao`) só existem nesta tela, nascem `false` e **não** são implícitas em `salvar`/`editar`. `baixa_no_ato` no confirmar exige também `liquidar`, conferida **dentro** da transação. Padrão negado; tenant da sessão; `empresa_id` validado no banco; documento, título ou liquidação de outro tenant/empresa → 404; referência de outro tenant/empresa → 422 `OPERACAO_REFERENCIA_INVALIDA`, igual ao id inexistente; comandos idempotentes por `operation_id` |
+| Lançamentos Financeiros: editar, excluir e duplicar confirmado (D-PROD-158) | **(`editar` ou `salvar`) e `confirmar`**: retificar o confirmado (no lugar ou por substituição, com estorno e efeitos novos). **`cancelar` e `excluir`**: exclusão lógica do confirmado (estorna títulos e estoque como o cancelamento; o documento fica, com `excluido_em`). **`visualizar`**: elegibilidade. **`novo`/`salvar`**: duplicar (`POST` com `duplicado_de_id`) | `porTodas`: falta de um dos lados → 403 `ACAO_NAO_PERMITIDA` com `faltam`, mesmo com acesso total ao Patrimônio (e vice-versa). A elegibilidade, relida sob trava na transação, recusa de novo (409, motivo `sem_permissao`). Documento de outro tenant/empresa → 404; versão divergente → 409; comandos idempotentes por `operation_id` |
+| administrador real ou linha `is_admin`: perfil financeiro (D-PROD-155) | `PUT /perfis-financeiros-empresa`: país, moeda e locale da empresa | `adminOuIsAdmin()` (`Usuario.papel_tenant` ou `Permissao.is_admin`, relidos do banco). A tela `visualizar` só lê. 409 `PERFIL_FINANCEIRO_MOEDA_EM_USO`: trocar a moeda com lançamento existente (`operacoes_existentes`) ou escolher moeda ≠ BRL, também na criação, com lote de estoque de custo > 0 (`estoque_legado_brl`) |
+| Patrimônio e Frota (`pat-*`, D-PROD-157) | Bens patrimoniais e catálogos (famílias, tipos, perfis de medição, combustíveis) | ação da PRÓPRIA tela; `visualizar` lê e simula a prévia de depreciação; `novo`/`salvar` cria; `editar`/`salvar` altera; ação extra **`inativar`** é exigida sempre que o corpo do PATCH traz `ativo`; catálogo padrão só administrador real ou `is_admin`; empresa do bem validada no banco; outro tenant/empresa → 404 |
+| Abastecimentos (`pat-abastecimentos`, D-PROD-159) | **`visualizar`**: lista, detalhe, consumo, opções de bens/tanques/tipos/produtos/produtos-filtro e lista de fatores kg/L. **`novo`/`salvar`**: prévia, confirmar (baixa física FIFO em KG, movimento `abastecimento_patrimonio`, sem lançamento financeiro) e opções de locais com saldo. **`cancelar`**: cancelar com estorno exato das fatias. **`configurar_conversao`**: criar/alterar (nova versão) e encerrar fator kg/L | ação da PRÓPRIA tela, relida do banco a cada requisição; as 2 caixas extras só existem nesta tela e nascem `false` (não são implícitas em `salvar`/`editar`); nenhum acesso automático a perfis existentes. Tenant da sessão; `empresa_id` validado no banco; abastecimento, bem, fator ou empresa de outro tenant/empresa → 404 igual ao inexistente; corpo fechado (decimal só texto, `cliente_id` → 400); confirmar e cancelar idempotentes por `operation_id` (payload divergente → 409); estado relido sob trava (bem, tanque, tipo, vínculo, produto, local, fator, saldo, medidor) |
 | Mapa Cadastro `novo`/`salvar`/`editar` | áreas, pontos, linhas, cochos, depósitos e bebedouro. **Local de estoque** (D-PROD-137): criar local (o fluxo é o do depósito novo; o `POST` não confere o vínculo) e, em PATCH, só `nome`/`descricao` do local ligado a um depósito | ação da tela. PATCH de local: só `nome`/`descricao`, e o banco precisa ter um `PontoSuplementacao` DEPÓSITO com `local_estoque_id = :id`; senão 403 antes da escrita. Movimentações e notas aceitam **só** `local_origem`, `local_destino` e `local_estoque_nome`. Na nota, o nome é conferido com o `LocalEstoque` vinculado (422 `NOME_LOCAL_DIVERGENTE`), e qualquer outra coluna exige o administrador real (D-PROD-137) |
 | Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído. **Não exclui local de estoque** (D-PROD-137) | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` **iguais a null**, e só num cocho que **está** vinculado (relido no banco). `DELETE /locais-estoque` → 403; a cascata do mapa conta a recusa como "local ignorado", como já fazia com o 409 |
 | Locais `editar`/`salvar` | cadastro de locais (qualquer campo) + renomear o depósito ligado | `nome_ponto`/`local_estoque_nome` só num **DEPÓSITO ligado a um local**; `deposito_origem_nome` só num cocho **vinculado**. O registro é relido no banco (R3 deixava renomear qualquer ponto) |
@@ -116,6 +162,12 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 Total: 201 rotas · (a) 77 · (b) 2 · (c) 66 · (d) 54 · pública 2 · (e) LACUNA 0
 
 Antes da D-PROD-137: (a) 76 · (c) 65 · (d) 56. Mudaram de classe `GET /fornecedores` (d → a) e `GET /usuarios/page` (d → c). As demais linhas marcadas mudaram a regra, não a classe.
+
+D-PROD-155: +19 rotas, todas classe (a). Os totais acima são do levantamento da D-PROD-137 e **não** foram recontados: as P1/P2 acrescentaram linhas sem atualizá-los. A tabela tinha 225 linhas antes deste acréscimo e agora tem 244.
+
+D-PROD-158: +3 rotas, todas classe (a). Com as do Patrimônio (D-PROD-157), a tabela passa de 279 para 282 linhas de rota.
+
+D-PROD-159: +15 rotas, todas classe (a). A tabela passa de 282 para 297 linhas de rota.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
@@ -316,6 +368,78 @@ Antes da D-PROD-137: (a) 76 · (c) 65 · (d) 56. Mudaram de classe `GET /fornece
 | POST | `/naturezas-financeiras` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.criar (D-PROD-153) |
 | PATCH | `/naturezas-financeiras/:id` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.editar (D-PROD-153) |
 | GET | `/naturezas-financeiras-opcoes/pais` | `backend/src/modules/gestao/naturezaFinanceiraRoutes.js` | a — GUARDAS.naturezaFinanceira.ver (paginado; D-PROD-153) |
+| GET | `/perfis-financeiros-empresa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.perfilFinanceiro.ver = porTela(LANCAMENTOS_FINANCEIROS, 'visualizar') (D-PROD-155) |
+| PUT | `/perfis-financeiros-empresa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.perfilFinanceiro.editar = adminOuIsAdmin() (administrador real ou linha `is_admin`; D-PROD-155) |
+| GET | `/operacoes-financeiras` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (visualizar; keyset) (D-PROD-155) |
+| GET | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (D-PROD-155) |
+| POST | `/operacoes-financeiras` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.criar = porQualquer(novo, salvar) (rascunho; D-PROD-155) |
+| PUT | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.editar = porQualquer(editar, salvar) (só RASCUNHO, com `versao`; D-PROD-155) |
+| DELETE | `/operacoes-financeiras/:id` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.editar = porQualquer(editar, salvar) (descarta só RASCUNHO; D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/previa` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (só leitura, nada gravado; D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/confirmar` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.confirmar = porTela(…, 'confirmar'); com `baixa_no_ato`, também `liquidar` via exigirTela na transação (D-PROD-155) |
+| POST | `/operacoes-financeiras/:id/cancelar` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.cancelar = porTela(…, 'cancelar') (D-PROD-155) |
+| GET | `/operacoes-financeiras/:id/elegibilidade` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver = porTela(…, 'visualizar') (só leitura; por ação, permitido e motivos, `sem_permissao` incluso) (D-PROD-158) |
+| POST | `/operacoes-financeiras/:id/retificar` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.retificar = porTodas((editar\|salvar), confirmar) (só CONFIRMADO, com `versao` e `motivo`; elegibilidade de novo sob trava) (D-PROD-158) |
+| POST | `/operacoes-financeiras/:id/excluir` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.excluirConfirmado = porTodas(cancelar, excluir) (exclusão lógica do CONFIRMADO, com `versao` e `motivo`; elegibilidade de novo sob trava) (D-PROD-158) |
+| POST | `/titulos-financeiros/:id/liquidacoes` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.liquidar = porTela(…, 'liquidar') (D-PROD-155) |
+| POST | `/liquidacoes-financeiras/:id/estorno` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.estornarLiquidacao = porTela(…, 'estornar_liquidacao') (D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/parceiros` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado, filtrado pela direção; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/produtos` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/locais` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; locais do tenant; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/saldos` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (saldo só da empresa; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/naturezas` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; ativas e analíticas; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/centros-custo` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
+| GET | `/operacoes-financeiras-opcoes/centros-resultado` | `backend/src/modules/financeiro/operacaoFinanceiraRoutes.js` | a — GUARDAS.operacaoFinanceira.ver (paginado; D-PROD-155) |
+| GET | `/patrimonio-familias` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioFamilias.ver (visualizar; keyset; catálogo do tenant) (D-PROD-157) |
+| GET | `/patrimonio-familias/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioFamilias.ver (D-PROD-157) |
+| POST | `/patrimonio-familias` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioFamilias.criar = porQualquer(novo, salvar) (D-PROD-157) |
+| PATCH | `/patrimonio-familias/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioFamilias.editar = edicaoPatrimonio (editar\|salvar; `ativo` no corpo exige também `inativar`; com `versao`) (D-PROD-157) |
+| GET | `/patrimonio-tipos` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioTipos.ver (visualizar; keyset; catálogo do tenant) (D-PROD-157) |
+| GET | `/patrimonio-tipos/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioTipos.ver (D-PROD-157) |
+| POST | `/patrimonio-tipos` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioTipos.criar = porQualquer(novo, salvar) (D-PROD-157) |
+| PATCH | `/patrimonio-tipos/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioTipos.editar = edicaoPatrimonio (editar\|salvar; `ativo` no corpo exige também `inativar`; com `versao`) (D-PROD-157) |
+| GET | `/patrimonio-perfis-medicao` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioPerfisMedicao.ver (visualizar; keyset; catálogo do tenant) (D-PROD-157) |
+| GET | `/patrimonio-perfis-medicao/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioPerfisMedicao.ver (D-PROD-157) |
+| POST | `/patrimonio-perfis-medicao` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioPerfisMedicao.criar = porQualquer(novo, salvar) (D-PROD-157) |
+| PATCH | `/patrimonio-perfis-medicao/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioPerfisMedicao.editar = edicaoPatrimonio (editar\|salvar; `ativo` no corpo exige também `inativar`; com `versao`) (D-PROD-157) |
+| GET | `/patrimonio-combustiveis` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.ver (visualizar; keyset; catálogo do tenant) (D-PROD-157) |
+| GET | `/patrimonio-combustiveis/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.ver (D-PROD-157) |
+| POST | `/patrimonio-combustiveis` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.criar = porQualquer(novo, salvar) (D-PROD-157) |
+| PATCH | `/patrimonio-combustiveis/:id` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.editar = edicaoPatrimonio (editar\|salvar; `ativo` no corpo exige também `inativar`; com `versao`) (D-PROD-157) |
+| POST | `/patrimonio-catalogo-padrao` | `backend/src/modules/patrimonio/patrimonioCatalogoRoutes.js` | a — GUARDAS.patrimonioCatalogoPadrao = adminOuIsAdmin() (instala o catálogo padrão do tenant; idempotente) (D-PROD-157) |
+| GET | `/bens-patrimoniais` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (visualizar; empresa validada; keyset) (D-PROD-157) |
+| GET | `/bens-patrimoniais/:id` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (outro tenant/empresa → 404) (D-PROD-157) |
+| POST | `/bens-patrimoniais` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.criar = porQualquer(novo, salvar) (D-PROD-157) |
+| PATCH | `/bens-patrimoniais/:id` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.editar = edicaoPatrimonio (editar\|salvar; `ativo` exige `inativar`; com `versao`) (D-PROD-157) |
+| POST | `/bens-patrimoniais-previa-depreciacao` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (só cálculo, nada gravado) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/familias` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.opcoesCatalogo = visualizar de `pat-bens-patrimoniais` OU `pat-tipos-patrimoniais` (paginado) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/tipos` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.opcoesCatalogo = visualizar de `pat-bens-patrimoniais` OU `pat-tipos-patrimoniais` (paginado) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/perfis-medicao` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.opcoesCatalogo = visualizar de `pat-bens-patrimoniais` OU `pat-tipos-patrimoniais` (paginado) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/combustiveis` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.opcoesCatalogo = visualizar de `pat-bens-patrimoniais` OU `pat-tipos-patrimoniais` (paginado) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/responsaveis` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (empresa obrigatória; paginado; só `{id, nome}`) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/parceiros` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (empresa obrigatória; paginado; só `{id, nome}`) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/centros-custo` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (empresa obrigatória; paginado; só `{id, nome}`) (D-PROD-157) |
+| GET | `/bens-patrimoniais-opcoes/areas` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (empresa obrigatória; paginado; só `{id, nome}`) (D-PROD-157) |
+| GET | `/bens-patrimoniais/:id/produtos-elegiveis` | `backend/src/modules/patrimonio/bemPatrimonialRoutes.js` | a — GUARDAS.patrimonioBens.ver (só leitura para a P1-02: tanques ativos × tipos aceitos × vínculos ATIVOS da empresa do bem × produtos ATIVOS da mesma empresa; sem vínculo → vazio; sem preço/saldo/custo) (D-PROD-157 R2) |
+| GET | `/patrimonio-combustiveis/:id/produtos` | `backend/src/modules/patrimonio/combustivelProdutoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.ver (empresa obrigatória e validada; keyset; vínculos ativos e inativos) (D-PROD-157 R2) |
+| POST | `/patrimonio-combustiveis/:id/produtos` | `backend/src/modules/patrimonio/combustivelProdutoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.criar = porQualquer(novo, salvar) (`{empresa_id, produto_id}`; produto ativo da MESMA empresa; um tipo ativo por produto por empresa) (D-PROD-157 R2) |
+| PATCH | `/patrimonio-combustivel-produtos/:id` | `backend/src/modules/patrimonio/combustivelProdutoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.editar = edicaoPatrimonio (`{empresa_id, versao, ativo}`; `ativo` exige `inativar`; CAS; reativar com as regras do POST) (D-PROD-157 R2) |
+| GET | `/patrimonio-combustiveis-opcoes/produtos` | `backend/src/modules/patrimonio/combustivelProdutoRoutes.js` | a — GUARDAS.patrimonioCombustiveis.opcoesProdutos = porQualquer(novo, salvar, editar) da tela Combustíveis (produtos ATIVOS da fazenda, busca, keyset; `visualizar` sozinho não lista) (D-PROD-157 R2) |
+| GET | `/patrimonio-abastecimentos` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:179` | a — GUARDAS.patrimonioAbastecimentos.ver (visualizar; empresa obrigatória e validada; keyset; filtros bem/tanque/produto/status/período/`operation_id`/`q`; sem consumo na lista) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos/:id` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:180` | a — GUARDAS.patrimonioAbastecimentos.ver (detalhe com fatias, movimentos, consumo e efeito no medidor; outro tenant/empresa → 404) (D-PROD-159) |
+| POST | `/patrimonio-abastecimentos-previa` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:182` | a — GUARDAS.patrimonioAbastecimentos.criar = porQualquer(novo, salvar) (sem escrita, sem trava, sem recibo; `{plano, bloqueios}`) (D-PROD-159) |
+| POST | `/patrimonio-abastecimentos` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:183` | a — GUARDAS.patrimonioAbastecimentos.criar = porQualquer(novo, salvar) (confirmação transacional: baixa FIFO em KG pelo motor, origem `abastecimento_patrimonio`, idempotente por `operation_id`, estado relido sob trava; 201/replay 200) (D-PROD-159) |
+| POST | `/patrimonio-abastecimentos/:id/cancelar` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:187` | a — GUARDAS.patrimonioAbastecimentos.cancelar = ação extra `cancelar` (estorno exato das fatias; `versao` CAS; motivo obrigatório; idempotente por `operation_id`) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-consumo` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:189` | a — GUARDAS.patrimonioAbastecimentos.ver (consumo km/L ou L/h do bem pelo tanque cheio; só leitura) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/bens` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:191` | a — GUARDAS.patrimonioAbastecimentos.ver (bens da fazenda com tanque; `uso=filtro` inclui inativos; paginado) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/tanques` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:192` | a — GUARDAS.patrimonioAbastecimentos.ver (tanques do bem com a leitura vigente; bem de outra fazenda → 404) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/tipos` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:194` | a — GUARDAS.patrimonioAbastecimentos.ver (tipos de combustível ativos em litros; catálogo do tenant; paginado) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/produtos` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:195` | a — GUARDAS.patrimonioAbastecimentos.ver (produtos ATIVOS da fazenda com vínculo ativo ao tipo, com a conversão vigente; sem preço nem saldo) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/produtos-filtro` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:197` | a — GUARDAS.patrimonioAbastecimentos.ver (produtos para o filtro da lista; paginado) (D-PROD-159) |
+| GET | `/patrimonio-abastecimentos-opcoes/locais` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:199` | a — GUARDAS.patrimonioAbastecimentos.criar = porQualquer(novo, salvar) (locais ativos com o saldo da empresa no produto; produto de outra fazenda → 404; `visualizar` sozinho não lista) (D-PROD-159) |
+| GET | `/patrimonio-conversoes-combustivel` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:202` | a — GUARDAS.patrimonioAbastecimentos.ver (histórico de fatores kg/L da fazenda; vigentes ou todos; keyset) (D-PROD-159) |
+| POST | `/patrimonio-conversoes-combustivel` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:204` | a — GUARDAS.patrimonioAbastecimentos.configurarConversao = ação extra `configurar_conversao` (cria ou substitui o vigente por nova versão; `conversao_vigente_id` CAS; declaração de estoque em KG obrigatória; auditado) (D-PROD-159) |
+| POST | `/patrimonio-conversoes-combustivel/:id/encerrar` | `backend/src/modules/patrimonio/abastecimentoRoutes.js:206` | a — GUARDAS.patrimonioAbastecimentos.configurarConversao = ação extra `configurar_conversao` (encerra o vigente com `versao`; auditado) (D-PROD-159) |
 | POST | `/rebanho/comandos/transferencia` | `backend/src/modules/rebanhoLedger/rebanhoLedgerRoutes.js:69` | a — porMapa('mover_lotes') |
 | POST | `/referencias/sincronizar` | `backend/src/modules/referencias/referenciasRoutes.js:39` | a — GUARDAS.referencias. (D-PROD-137) O corpo só identifica a origem; valores lidos no banco, por id, em transação auditada |
 | GET | `/registros-anexo` | `backend/src/modules/registrosAnexo/registroAnexoRoutes.js:31` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |

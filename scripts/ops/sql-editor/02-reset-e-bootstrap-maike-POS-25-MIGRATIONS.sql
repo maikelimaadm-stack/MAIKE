@@ -20,7 +20,7 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 62 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 85 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
@@ -55,6 +55,14 @@ DECLARE
   -- Ordem segura de exclusão (filha → mãe), conferida contra as FKs reais abaixo.
   c_tenant constant text[] := ARRAY[
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
+    -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
+    -- D-PROD-158 (Gestão P3-03): o evento de retificação/exclusão sai antes dos documentos e do usuário que ele referencia.
+    'OperacaoFinanceiraEvento','LiquidacaoFinanceiraEstorno','LiquidacaoFinanceira','TituloFinanceiro','OperacaoFinanceiraConsumoLote','OperacaoFinanceiraItemRateio','OperacaoFinanceiraItem','OperacaoFinanceiraRateio','OperacaoFinanceira','PerfilFinanceiroEmpresa',
+    -- D-PROD-157 (Patrimônio P1-01): filhas antes das mães; antes de CentroCusto/Empresa/Fornecedor/Usuario/AreaPastagem que o bem referencia.
+    -- D-PROD-157 (R2): o vínculo combustível × produto sai antes de TipoCombustivel, Produto e Empresa, que ele referencia.
+    -- D-PROD-159 (Patrimônio P1-02): fatias FIFO → abastecimento → fator kg/L, antes do tanque, do bem, do vínculo combustível × produto, dos lotes/movimentos/local e do usuário que eles referenciam.
+    'AbastecimentoBemConsumoLote','AbastecimentoBem','ConversaoCombustivelProduto','TanqueBemCombustivel','TanqueBem','MedicaoBem','BemPatrimonial','TipoPatrimonialPerfil','TipoPatrimonial','FamiliaPatrimonial','PerfilMedicao','TipoCombustivelProduto','TipoCombustivel',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
@@ -185,6 +193,7 @@ BEGIN
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
   LOCK TABLE "HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+    "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","ConversaoCombustivelProduto","TanqueBemCombustivel","TanqueBem","MedicaoBem","BemPatrimonial","TipoPatrimonialPerfil","TipoPatrimonial","FamiliaPatrimonial","PerfilMedicao","TipoCombustivelProduto","TipoCombustivel","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CategoriaManejo","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
     "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",

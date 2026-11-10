@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarLotesDaEmpresa, listarEventosDaEmpresa } from "@/services/suplementacaoService";
-import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import DesvioConsumoTag from "./DesvioConsumoTag";
+import { CartaoDl, PilulaTitulo, TituloSecao, GradeCampos, useDlUi } from "@/components/mapa/detalhes-lote/pecas";
+import { VAZIO, fmtData, fmtInt, fmtNum } from "@/components/mapa/detalhes-lote/catalogo";
 
 /**
  * @param {{ lotesIds?: string[], modo?: string, areaId?: string, lotesInformados?: any[] }} props
@@ -12,6 +13,7 @@ import DesvioConsumoTag from "./DesvioConsumoTag";
  */
 export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", areaId = "", lotesInformados = undefined }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const ui = useDlUi();
 
   const { data: lotesBuscados = [] } = useQuery({
     queryKey: ["suplementacao-lotes-atuais", empresaSelecionadaId, lotesIds.join("|")],
@@ -74,7 +76,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     const consumoEsperadoPVDia = totalDiasFechados > 0 ? totalEsperadoPeriodoKg / totalDiasFechados : 0;
     const desvioKg = consumoRealCabDia > 0 && consumoEsperadoCabDia > 0 ? consumoRealCabDia - consumoEsperadoCabDia : null;
 
-    const ultimoEvento = [...eventosRecentes].sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
+    const ultimoEvento = [...eventosRecentes].sort((a, b) => new Date(b.data_lancamento).getTime() - new Date(a.data_lancamento).getTime())[0] || null;
     const ultimoSacos = ultimoEvento?.quantidade_sacos > 0
       ? ultimoEvento.quantidade_sacos
       : (ultimoEvento?.peso_por_saco_kg > 0 ? (ultimoEvento.quantidade_total_kg || 0) / ultimoEvento.peso_por_saco_kg : 0);
@@ -103,8 +105,11 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     return (totalConsumidoKg / totalEsperadoPeriodoKg) * 100;
   }, [eventosFechados]);
 
-  const fmtNum3 = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " kg" : "-";
-  const fmtSacos = (v) => v > 0 ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-";
+  // Número sem unidade (a unidade vai no rótulo); vazio = "—".
+  /** @param {number} v */
+  const fmtNum3 = (v) => (v > 0 ? fmtNum(v, 3) : VAZIO);
+  /** @param {number} v */
+  const fmtSacos = (v) => (v > 0 ? fmtNum(v, 2) : VAZIO);
 
   if (!areaId || eventosRecentes.length === 0) return null;
 
@@ -134,65 +139,69 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
     );
   }
 
-  const Cell = ({ label, children }) => (
-    <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
-      <div className="text-slate-500">{label}</div>
-      <div className="font-semibold text-slate-900">{children}</div>
-    </div>
-  );
+  // Modo "completo": card do padrão Detalhes do Lote v8 (mockup linhas 136–150 / 394–409).
+  const colsLargas = ui.celular ? 2 : 4;
+  const desvio = metricas.desvioKg;
+  const secoes = [
+    {
+      titulo: "Fornecimento",
+      colunas: 3,
+      campos: [
+        { rotulo: "Total fornecido (kg)", texto: fmtNum(metricas.totalFornecidoKg) },
+        { rotulo: "Total consumido (kg)", texto: fmtNum(metricas.totalConsumidoKg) },
+        { rotulo: "Sobra (resta) (kg)", texto: fmtNum(metricas.sobraRestaKg) },
+      ],
+    },
+    {
+      titulo: "Dados do Lote",
+      colunas: 3,
+      campos: [
+        { rotulo: "Qtd. Lotes", texto: fmtInt(metricas.qtdLotes) },
+        { rotulo: "Qtd. Cabeças", texto: fmtInt(metricas.totalCabecasAtual) },
+        { rotulo: "Peso médio geral (kg)", texto: metricas.pesoMedioGeral > 0 ? fmtInt(metricas.pesoMedioGeral) : VAZIO },
+      ],
+    },
+    {
+      titulo: "Consumo Esperado / Real",
+      colunas: colsLargas,
+      campos: [
+        { rotulo: "Consumo Lote PV/dia (kg)", texto: metricas.consumoEsperadoPVDia > 0 ? fmtNum(metricas.consumoEsperadoPVDia) : VAZIO },
+        { rotulo: "Esperado/cab/dia (kg)", texto: fmtNum3(metricas.consumoEsperadoCabDia) },
+        { rotulo: "Realizado cab/dia (kg)", texto: fmtNum3(metricas.consumoRealCabDia) },
+        {
+          rotulo: "Desvio (kg)",
+          texto: desvio != null ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <DesvioConsumoTag real={metricas.consumoRealCabDia} esperado={metricas.consumoEsperadoCabDia} />
+              {`${desvio > 0 ? "+" : ""}${fmtNum(desvio, 3)}`}
+            </span>
+          ) : VAZIO,
+        },
+      ],
+    },
+    ...(metricas.ultimoEvento ? [{
+      titulo: "Último Lançamento",
+      colunas: colsLargas,
+      campos: [
+        { rotulo: "Data", texto: fmtData(metricas.ultimoEvento.data_lancamento) },
+        { rotulo: "Produto", texto: metricas.ultimoEvento.produto || VAZIO },
+        { rotulo: "Total fornecido (kg)", texto: fmtNum(metricas.ultimoEvento.quantidade_total_kg || 0) },
+        { rotulo: "Total sacos", texto: fmtSacos(metricas.ultimoSacos) },
+      ],
+    }] : []),
+  ];
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
-      <span className="font-semibold text-slate-900 text-xs">Suplementação (últimos 30 dias)</span>
-
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Fornecimento</div>
-        <div className="grid grid-cols-3 gap-1 text-[10px]">
-          <Cell label="Total fornecido">{formatKg(metricas.totalFornecidoKg)}</Cell>
-          <Cell label="Total consumido">{formatKg(metricas.totalConsumidoKg)}</Cell>
-          <Cell label="Sobra (resta)">{formatKg(metricas.sobraRestaKg)}</Cell>
-        </div>
+    <CartaoDl gap={6}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <PilulaTitulo>Suplementação (últimos 30 dias)</PilulaTitulo>
       </div>
-
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Dados do Lote</div>
-        <div className="grid grid-cols-3 gap-1 text-[10px]">
-          <Cell label="Qtd. Lotes">{metricas.qtdLotes}</Cell>
-          <Cell label="Qtd. Cabeças">{metricas.totalCabecasAtual.toLocaleString("pt-BR")}</Cell>
-          <Cell label="Peso médio geral">{metricas.pesoMedioGeral > 0 ? `${metricas.pesoMedioGeral.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} kg` : "-"}</Cell>
+      {secoes.map((secao) => (
+        <div key={secao.titulo}>
+          <TituloSecao>{secao.titulo}</TituloSecao>
+          <GradeCampos campos={secao.campos} colunas={secao.colunas} />
         </div>
-      </div>
-
-      <div>
-        <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Consumo Esperado / Real</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-          <Cell label="Consumo Lote PV/dia">{metricas.consumoEsperadoPVDia > 0 ? formatKg(metricas.consumoEsperadoPVDia) : "-"}</Cell>
-          <Cell label="Esperado/cab/dia">{fmtNum3(metricas.consumoEsperadoCabDia)}</Cell>
-          <Cell label="Realizado cab/dia">{fmtNum3(metricas.consumoRealCabDia)}</Cell>
-          <Cell label="Desvio">
-            <span className="flex items-center gap-1">
-              {metricas.desvioKg != null ? (
-                <>
-                  <DesvioConsumoTag real={metricas.consumoRealCabDia} esperado={metricas.consumoEsperadoCabDia} />
-                  {metricas.desvioKg > 0 ? "+" : ""}{metricas.desvioKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
-                </>
-              ) : "-"}
-            </span>
-          </Cell>
-        </div>
-      </div>
-
-      {metricas.ultimoEvento && (
-        <div>
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Último Lançamento</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px]">
-            <Cell label="Data">{formatDateBR(metricas.ultimoEvento.data_lancamento)}</Cell>
-            <Cell label="Produto">{metricas.ultimoEvento.produto || "-"}</Cell>
-            <Cell label="Total fornecido">{formatKg(metricas.ultimoEvento.quantidade_total_kg || 0)}</Cell>
-            <Cell label="Total sacos">{fmtSacos(metricas.ultimoSacos)}</Cell>
-          </div>
-        </div>
-      )}
-    </div>
+      ))}
+    </CartaoDl>
   );
 }

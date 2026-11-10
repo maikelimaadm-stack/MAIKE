@@ -1,0 +1,148 @@
+# MAIKE — Gestão P3-03: editar (retificar), excluir (lógico) e duplicar lançamentos (D-PROD-158)
+
+| Campo | Valor |
+|---|---|
+| Missão | MAIKE-GESTAO-P3-03 (2026-11-09) |
+| Decisão | [D-PROD-158](./DECISIONS.md) |
+| PR | #234 (**draft**), branch `claude/maike-gestao-p3-03-editar-excluir-duplicar` |
+| Base | `origin/main` `e4e907ea` (P3-02); integrada depois com a `origin/main` `76edc913` (PR #232, Patrimônio), ver §8 |
+| Runbook | [`MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md`](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md), **executado** até a conferência (2026-11-09, 21:32:01 UTC) |
+| Numeração | Nasceu como D-PROD-157. A PR #232 (Patrimônio) foi mergeada antes com a D-PROD-157 (`76edc913`). Ao integrar a `main` (rodada PR234-R1), a P3-03 passou a **D-PROD-158**. O comentário dentro do `migration.sql` da P3-03 ainda diz D-PROD-157 e fica **imutável**: o arquivo já está aplicado em produção (SHA-256 `3f3af00e…df890b`) |
+| Integração (PR234-R1) | `origin/main` `76edc913` integrada por merge não destrutivo; ver §8 |
+
+> **Provas:** saídas reais em PostgreSQL 17.11 local descartável, Playwright local e
+> CI da PR. Em produção, só a migration autorizada (runbook, §11); nenhum documento foi gravado em Preview nem em produção.
+
+## 1. Modelo técnico e justificativa
+
+| Retificação | Quando | O que acontece |
+|---|---|---|
+| **NO_LUGAR** | a assinatura física de cada mercadoria não muda | mesmo registro e `versao+1`; as linhas de mercadoria ficam com os mesmos movimentos e lotes; itens de serviço, rateios e títulos (sem baixa) são recriados |
+| **SUBSTITUIÇÃO** | a assinatura física muda | numa transação: o antigo é estornado pelo núcleo do cancelamento, recebe `retificado_em` e passa a se chamar `<n>/r<v>`; um documento novo, já confirmado pelo núcleo da confirmação, assume o mesmo número |
+
+A **assinatura física** é: produto, local, unidade, kg, fator, ordem, data operacional, direção e, na compra, custo líquido.
+
+Por que não versionar as linhas no mesmo documento:
+- as uniques `(operacao_id, ordem)` dos itens e `(operacao_id, numero_parcela)` dos títulos impedem guardar as linhas antigas ao lado das novas;
+- o classificador proíbe CHECK, UNIQUE e NOT NULL em tabela antiga.
+
+Assim, a substituição reusa os dois caminhos já provados, e o histórico físico e financeiro fica íntegro e com FK: itens, fatias FIFO, movimentos, estornos e títulos cancelados.
+
+Nos dois modos fica registrado:
+- evento `OperacaoFinanceiraEvento` com motivo, autor, versões, número original e snapshot da versão anterior;
+- AuditLog.
+
+## 2. O que foi entregue
+
+### Editar (retificar) um documento confirmado
+- `GET /operacoes-financeiras/:id/elegibilidade` é a fonte única da regra. Ela é usada pela tela antes de abrir o formulário e pelos comandos depois das travas (cabeçalho → produtos → títulos).
+- `POST /operacoes-financeiras/:id/retificar` exige motivo, `versao` (CAS) e `operation_id` (replay idempotente). O modo é escolhido pelo servidor:
+  - **NO_LUGAR**: mesmo registro e `versao+1`. A procedência (parceiro, nº e emissão) chega ao movimento e ao lote originais, com os mesmos ids. Quantidade, custo, status e local do lote não mudam;
+  - **SUBSTITUIÇÃO**: estorno pelo núcleo do cancelamento, o antigo vira `<n>/r<v>` com `retificado_em`, e o novo é confirmado pelo núcleo da confirmação com o mesmo número, na mesma transação.
+- Na retificação, o peso por saco é o **gravado** no documento, não o do cadastro atual. Corrigir só dados financeiros nunca muda o estoque porque o cadastro mudou depois.
+- **Bloqueios** (409 `OPERACAO_RETIFICACAO_BLOQUEADA`, com `details.motivos`):
+  - qualquer liquidação, mesmo estornada;
+  - lote da compra consumido (fatia FIFO, `lotes_consumidos`, suplementação, transferência ou alteração não auditada);
+  - venda com movimento posterior no lote;
+  - documento histórico;
+  - falta de permissão.
+  Se só a parte física for bloqueada, a correção apenas informativa continua permitida.
+- Permissão: editar (ou salvar) **e** confirmar.
+
+### Excluir um documento confirmado
+- `POST /operacoes-financeiras/:id/excluir` é lógico: estorna como o cancelamento, grava `excluido_em` e o evento `EXCLUSAO` com motivo, e cancela os títulos.
+- Os bloqueios são os mesmos (409 `OPERACAO_EXCLUSAO_BLOQUEADA`). O rascunho continua no `DELETE` de antes.
+- Permissão: cancelar **e** excluir.
+- Na tela, os efeitos aparecem antes; motivo e confirmação explícita são obrigatórios.
+
+### Duplicar
+- Abre um formulário **novo** a partir do detalhe completo do servidor, a partir de documento confirmado, rascunho ou cancelado.
+- Não clona status, número nem efeitos; nada é gravado até Salvar.
+- O `POST` leva `duplicado_de_id`, que só vai para o AuditLog. Uma origem inválida, de outro tenant ou de outra empresa dá 422.
+- Se a origem for descartada antes de Salvar, a cópia continua aberta e é gravada sem o vínculo.
+
+### Lista, detalhe e histórico
+- A lista tem o filtro `situacao`: `OPERACIONAIS` (padrão), `EXCLUIDOS` ou `TODOS`, com selos de Excluído e Corrigido.
+- O detalhe traz:
+  - `excluido_em`, `retificado_em` e `exclusao`;
+  - `substituido_por`, `substitui` e `duplicado_de_id`;
+  - `eventos[]`, com a cadeia nos dois sentidos.
+- Na tela, a seção "Histórico de revisões e exclusão" mostra motivo, autor, versões e links.
+
+### Banco
+Migration `20261109300000_gestao_p3_03_editar_excluir`, expand-only:
+- `OperacaoFinanceira.excluido_em` e `.retificado_em`, `TIMESTAMP(3)`, anuláveis e sem DEFAULT;
+- tabela nova `OperacaoFinanceiraEvento`, com 15 colunas, 4 FKs compostas RESTRICT, 4 CHECKs, 2 uniques e 2 índices que começam por `cliente_id`;
+- RLS sem FORCE e a política `maike_backend_all` só para `maike_vercel`.
+
+SHA-256 `3f3af00edaffcce8ab0b64336029a93341bfbaba26c847e32e1d2658e4df890b`. O bloco DO `20c6f9ca…9ec9` está pinado em `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS`. O classificador dá `expand: true` com 0 violações, sozinha e com a P3-01 e a P3-02.
+
+### Arquivos
+- Backend: `operacaoFinanceiraService.js` (elegibilidade, núcleos de confirmar e estornar extraídos sem transação aninhada, retificar, excluir, lista e detalhe), `operacaoFinanceiraRoutes.js`, `estoqueFisicoMotor.js` (`atualizarProcedencia`), `guardasRotas.js` (`porTodas`, `retificar`, `excluirConfirmado`), `autorizacaoTela.js`, `errorCodes.js` e `schema.prisma`.
+- Tela: `LancamentosFinanceirosTela`, `FormularioLancamento`, `DialogosLancamento`, `ConsultaLancamento`, `TabelaLancamentos`, `SecoesLancamento`, `lancamentoModelo`, `gestaoErros`, `gestaoPermissions`, a API e o service de operações financeiras.
+- Operação: scripts `sql-editor` 01–04 (72 tabelas) e manifesto do classificador.
+
+## 3. Provas
+
+| Prova | Resultado |
+|---|---|
+| RED backend (`gestaoP3EditarExcluir.test.mjs` contra a `main` `e4e907ea`) | 38 de 38 falham (rotas e campos inexistentes) |
+| GREEN backend, mesmo arquivo, PG17 local | **45/45** (E0–E12): duplicar; substituição GERAL/POR_ITEM × VALOR/PERCENTUAL; venda FIFO refeita; 1→3→12 parcelas em BRL/PYG/KWD; todos os bloqueios; exclusão de compra, venda e serviço; cadeia de eventos; concorrência nos dois sentidos; replay; segurança 401/403/404/400/422/409; o banco como última rede (CHECK, UNIQUE, FK e RLS) |
+| Regressão Gestão P3 (9 arquivos `gestaoP3*`) | 209/209 |
+| `test:backend` completo em banco novo (rodada do implementador) | 1340 pass, 0 fail, 5 todo |
+| Medição 200 itens × 120 parcelas | retificar por substituição de 2,0 a 3,1 s; excluir de 0,25 a 0,41 s |
+| Tela (RTL) `gestaoLancamentosEditarExcluirDuplicar.test.jsx` | **38/38**, com DUP, EDT, EXC, FIL/DET, MOB (390 e 412 px) e REV (os 5 achados da revisão) |
+| Suítes `gestaoLancamentos*` | 293/293 |
+| E2E real (tela + backend real + PG17 local), 1280 e 390 px, pools 5 e 3 | **68 ✓, 0 ✗** em cada rodada, 208 capturas. Os passos 30–34 cobrem duplicar, corrigir nos dois modos, excluir e os bloqueios, com conferência exata no banco |
+| Classificador, `premerge-migrate.test.mjs` | 14/14 (B1c novo: CHECK, NOT NULL DEFAULT ou UPDATE em tabela antiga são recusados) |
+| `prisma migrate diff --exit-code` (migrations→schema e banco→schema) | 0, sem diferenças |
+| Ensaio do runbook (caminho B) em PG17 local | o SQL com o identificador de produção é recusado; com o local, `COMMIT` e 36→37; repetir é recusado; o rollback do §9.1 volta a 36; a reaplicação volta a 37; 0 constraint ou índice novo em tabela antiga |
+
+## 4. Revisão adversarial
+Três revisores independentes (dinheiro e estoque, banco e concorrência, tela) fizeram **8 achados**, e o corretor confirmou cada um com um teste RED antes de corrigir:
+
+| Achado | Severidade | Correção |
+|---|---|---|
+| DE-01 a retificação replanejava com o peso por saco **atual** do cadastro | ALTO | `comPesoGravado` no servidor e na tela: o produto que já estava no documento usa o `fator_kg` gravado. Produto novo no documento usa o peso atual |
+| DE-02 / BC-01 o NO_LUGAR trocava parceiro, nº e emissão sem levá-los ao movimento e ao lote | MÉDIO | `atualizarProcedencia` no motor e AuditLog `retificar_procedencia` por lote. A prova de proveniência aceita só esse escritor auditado (o teste negativo com AuditLog forjado continua dando `lote_alterado`) |
+| TELA-01 a prévia da tela derivava o peso por saco do cadastro | ALTO | mesma regra no `lancamentoModelo`. O diálogo diz que a decisão final é do servidor |
+| TELA-02 a mensagem de `lote_alterado` falava de compra também na venda | MÉDIO | mensagens por direção (venda, compra e neutra) |
+| TELA-03 a exclusão abria com uma versão diferente da mostrada | BAIXO | a guarda de versão, como na correção. O CAS usa a versão do detalhe |
+| TELA-04 a cópia ficava sem saída quando a origem era descartada | BAIXO | a cópia fica aberta e é gravada sem o vínculo, com outro `operation_id` |
+| TELA-05 o backend falso divergia do real | BAIXO | o falso espelha a assinatura física, a direção e o peso gravado |
+
+## 5. Gate final
+- `verify:all` no HEAD de implementação `bf2c5842`, com a árvore limpa e em PostgreSQL 17 local novo: exit 0 em 1029 s. Gates 696/696, backend 1346 aprovados, 0 falhas e 5 todo, vitest 2014/2014 em 165 arquivos, build ok.
+- CI `quality` no `bf2c5842`: run 42698668677 verde.
+- Release em produção: a migration foi aplicada em 2026-11-09 às 21:32:01 UTC (caminho B, GO escrito) e conferida pelo §6, com impressão digital idêntica à do ensaio. Detalhes no §11 do [runbook](./MAIKE-GESTAO-P3-03-RUNBOOK-RELEASE.md). Os commits seguintes são só de documentação.
+
+## 6. Limitações e riscos declarados
+- **Produto inativado depois da compra:** a retificação é recusada com 422 `produto_inativo`, e nada muda. Para corrigir, reative o produto. A falha é fechada de propósito, para não criar lote novo de produto inativo.
+- **Lote derivado de transferência anterior à correção:** guarda o fornecedor da época, que é a procedência da transferência. Transferências posteriores já copiam o fornecedor corrigido.
+- **Qualquer liquidação bloqueia,** mesmo estornada. O caminho é estornar e cancelar, ou lançar um documento novo.
+- **Custo da substituição:** cerca de 3 s no pior caso medido (200 itens × 120 parcelas), dentro do tempo da função.
+- **Runtime antigo depois do schema:** a lista da P3-02 não esconde excluídos nem versões substituídas, que aparecem como `CANCELADO` (runbook, §0).
+- **Numeração:** a P3-03 é a D-PROD-158 desde a integração da `main` `76edc913` (o Patrimônio é a D-PROD-157). O comentário histórico dentro do `migration.sql` da P3-03 continua dizendo D-PROD-157, porque o arquivo aplicado não pode mudar.
+- **PITR desligado:** o último backup físico `COMPLETED` é de 2026-11-09T05:48:27Z; transações posteriores não têm recuperação garantida (reconhecido no GO).
+
+## 7. Prontidão
+| Critério | Estado |
+|---|---|
+| CODE_READY | **SIM**: `verify:all` e CI verdes no HEAD final integrado (ver §8 e o corpo da PR #234) |
+| SCHEMA_APPLIED_PROD | **SIM**: P3-03 em 2026-11-09 às 21:32:01 UTC. A migration do Patrimônio também está aplicada (23:04:22 UTC, outro fluxo): 38/0 |
+| MERGE_READY | **SIM** com a CI verde no HEAD final e a PR `mergeable`. O merge é manual e do proprietário. Depois dele, o deploy só vai ao ar por `promote`, porque a produção está fixada em `afbebcbc` |
+
+## 8. Integração com a `main` depois do Patrimônio (rodada PR234-R1)
+
+| Item | Valor |
+|---|---|
+| `main` integrada | `76edc913` (merge da PR #232, Patrimônio P1-01, D-PROD-157), por **merge** não destrutivo: commit `14bebb15`, sem rebase nem force-push |
+| Conflitos (11 arquivos) | `schema.prisma` (relações de Cliente e Usuario das duas frentes; model `OperacaoFinanceiraEvento` mais os 10 do Patrimônio), `errorCodes.js` (os dois blocos), `premergeMigrateLib.mjs` (as 2 migrations e os 2 blocos DO pinados), `premerge-migrate.test.mjs` (B1 com 29 tabelas novas; B1c Patrimônio; B1d P3-03), `sqlEditorBootstrap.test.mjs` e `sql-editor` 01–04 (82 tabelas; `OperacaoFinanceiraEvento` antes dos documentos e o bloco do Patrimônio antes dos centros), `DECISIONS.md` e `CURRENT-STATE.md`. O git juntou sozinho, e a revisão conferiu, `autorizacaoTela`, `guardasRotas`, `helpers` (`limparBanco`), `ROADMAP` e o código de produto, fornecedor e tela. Nenhum arquivo foi resolvido por "ours" ou "theirs" em bloco |
+| Numeração | Patrimônio = D-PROD-157, P3-03 = **D-PROD-158**, P3-02 = D-PROD-156; próxima, D-PROD-159. 92 referências da P3-03 renumeradas, só nas linhas que vieram da P3-03 |
+| Migrations | Nenhum byte mudou. P3-03 `3f3af00e…df890b`, cujo comentário interno ainda diz D-PROD-157 (imutável). Patrimônio `b8818ba8…ffd64dc`. Os dois pins foram preservados |
+| Revisão adversarial do merge | 0 resolução errada, 0 código perdido, 0 chave duplicada. Ordem de FK do `limparBanco` e dos scripts conferida contra `pg_constraint`, com 0 violações. Três lacunas BAIXO fechadas: o teste novo `gestaoP3PatrimonioCombinado.test.mjs` (C1 fornecedor com lançamento e bem → 409 `PARCEIRO_EM_USO` com `details` exatos, antes e depois de excluir e retificar; C2 produto com item financeiro e combustível → 409, inclusive depois de SUBSTITUIÇÃO e exclusão; C3 permissões cruzadas e `porTodas` com metade das ações → 403 com `faltam` exato, 401 sem token), provado por 6 mutantes; e as 3 rotas da P3-03 na matriz `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md` |
+| Teste instável da `main` | `adminClientesConsulta` CLI-07 falhou na CI do merge: o regex `PROIBIDOS` casava `rg"` dentro de um cuid aleatório (`…aekogrg`). Corrigido no `0ee60613` (termos curtos só fora de identificador), sem perder a detecção de chaves reais |
+| Testes locais (PG17 descartável) | Backend `gestaoP3*` + `patrimonioP1*` + `sqlEditorBootstrap` + `permissoes*`: 330/330; demais arquivos: 952/952 e 5 todo; teste combinado: 3/3; smoke (vitest): 2162/2162; gates: 697/697; classificador: 15/15; `migrate diff` banco→schema e migrations→schema: 0 |
+| E2E real da P3-03 | 38 migrations; pools 5 e 3, 1280 e 390 px: **68 ✓, 0 ✗** em cada um, 208 capturas; passos 30–34 (duplicar, corrigir NO_LUGAR e SUBSTITUIÇÃO, excluir, bloqueios) verdes. Distribuição de respostas idêntica à de antes do merge, sem 5xx |
+| Ensaio da sequência real | Banco local com as 37 de produção (sem Patrimônio): `conferirHistoricoRemoto` com a árvore integrada dá `ok:true`, só Patrimônio pendente; com a `main` `76edc913` dá `PREMERGE_MIGRATIONS_NAO_COMPROVADAS`. `prisma migrate deploy` aplica só o Patrimônio (38, 82 tabelas) e o `migrate diff` dá 0 |
+| Produção (só leitura) | 22:30 UTC: Patrimônio pendente (37/0), domínios em `afbebcbc`. 23:19 UTC: Patrimônio aplicado por outro fluxo às 23:04:22 UTC (38/0, 82 tabelas, advisor 0), domínios ainda em `afbebcbc`, nenhum erro de tabela ausente nos logs. Esta PR não escreveu nada em produção |

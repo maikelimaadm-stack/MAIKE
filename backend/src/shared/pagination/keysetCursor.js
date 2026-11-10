@@ -8,6 +8,20 @@
 const TEXTO = 'utf8';
 
 /**
+ * Id que um cursor válido pode trazer: todo `@id` do schema é `cuid()` (e as
+ * rotas aceitam `^[A-Za-z0-9_-]{1,64}$`). NUL (22021 no PostgreSQL), surrogate
+ * isolado (o engine recusa o JSON) ou texto longo nunca vêm de um registro.
+ */
+export const ID_DE_CURSOR = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Instante que o Prisma serializa (`DateTime` do PostgreSQL com ano 0000–9999).
+ * `new Date('+010000-…')` é válido no JS, mas derrubava a consulta com 500.
+ * @param {Date} d
+ */
+export const instanteSerializavel = (d) => !Number.isNaN(d.getTime()) && d.getUTCFullYear() >= 0 && d.getUTCFullYear() <= 9999;
+
+/**
  * @param {{ createdAt: Date|string, id: string }} registro
  * @returns {string}
  */
@@ -21,6 +35,9 @@ export const codificarCursor = (registro) => {
 };
 
 /**
+ * Cursor adulterado (forma, id ou instante que nenhum registro produz) → null,
+ * e quem chama responde 400 — nunca 500 no banco ou no engine. O formato dos
+ * cursores válidos não muda.
  * @param {unknown} bruto
  * @returns {{ createdAt: Date, id: string } | null}
  */
@@ -32,9 +49,9 @@ export const decodificarCursor = (bruto) => {
     if (!parsed || typeof parsed !== 'object') return null;
     const t = /** @type {{ t?: unknown, i?: unknown }} */ (parsed).t;
     const i = /** @type {{ t?: unknown, i?: unknown }} */ (parsed).i;
-    if (typeof t !== 'string' || typeof i !== 'string' || i.trim() === '') return null;
+    if (typeof t !== 'string' || typeof i !== 'string' || !ID_DE_CURSOR.test(i)) return null;
     const createdAt = new Date(t);
-    if (Number.isNaN(createdAt.getTime())) return null;
+    if (!instanteSerializavel(createdAt)) return null;
     return { createdAt, id: i };
   } catch {
     return null;

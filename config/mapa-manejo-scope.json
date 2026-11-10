@@ -22,7 +22,14 @@
     "Parceiros",
     "CentrosCusto",
     "CentrosResultado",
-    "NaturezasFinanceiras"
+    "NaturezasFinanceiras",
+    "LancamentosFinanceiros",
+    "BensPatrimoniais",
+    "Abastecimentos",
+    "FamiliasPatrimoniais",
+    "TiposPatrimoniais",
+    "PerfisMedicao",
+    "Combustiveis"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [

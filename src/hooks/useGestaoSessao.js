@@ -42,5 +42,12 @@ export const useAcoesTelaGestao = (tela) => {
     refetchInterval: 60 * 1000,
     refetchOnWindowFocus: true,
   });
-  return { ...acoesDaTelaGestao(permissao, tela), carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao) };
+  return {
+    ...acoesDaTelaGestao(permissao, tela),
+    carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao),
+    // D-PROD-155: perfil financeiro = administrador real OU `is_admin` (a permissão
+    // efetiva chega com `is_admin: true` nos dois casos, como `adminOuIsAdmin` do servidor).
+    administrador: /** @type {any} */ (permissao)?.is_admin === true,
+    login,
+  };
 };

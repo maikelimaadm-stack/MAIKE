@@ -40,6 +40,17 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261107300000_gestao_p1_centros_custo_resultado': 'e29855b2367e0a6c684c058578cd0783831e6380b16ef5202801dd7a7f1cecf5',
   // D-PROD-153 (Gestão P2): NaturezaFinanceira — só tabela nova.
   '20261108100000_gestao_p2_naturezas_financeiras': 'db299e1d3543769ed46f07ee174521d3ea75b2990b94181012eecdafb9462f04',
+  // D-PROD-155 (Gestão P3-01): Central Única de Lançamentos — só as 8 tabelas novas.
+  '20261109100000_gestao_p3_01_central_lancamentos': 'bb89f4e090b94a8510971996668f552abdfa98f54248bf6e32ffbb4a451dc18a',
+  // D-PROD-156 (Gestão P3-02): OperacaoFinanceira.rateio_escopo anulável, sem DEFAULT + tabela nova OperacaoFinanceiraItemRateio.
+  '20261109200000_gestao_p3_02_rateio_por_item': 'df4d1ab29144d551793bb2fe43616d60bed86b87f10ec044d1cae2552076f4a0',
+  // D-PROD-158 (Gestão P3-03; o comentário dentro do migration.sql, já aplicado, diz D-PROD-157 e fica imutável): OperacaoFinanceira.excluido_em e .retificado_em anuláveis, sem DEFAULT + tabela nova OperacaoFinanceiraEvento.
+  '20261109300000_gestao_p3_03_editar_excluir': '3f3af00edaffcce8ab0b64336029a93341bfbaba26c847e32e1d2658e4df890b',
+  // D-PROD-157 (Patrimônio P1-01): cadastros de inventário (catálogos, bens, medições, tanques e o vínculo
+  // combustível × produto por empresa, R2) — só as 10 tabelas novas.
+  '20261110100000_patrimonio_p1_01_cadastros': 'b8818ba8f16528580b7ba6053b0c89f07f0d4fd434955f4b9c5830a62ffd64dc',
+  // D-PROD-159 (Patrimônio P1-02): ConversaoCombustivelProduto, AbastecimentoBem e AbastecimentoBemConsumoLote — só tabelas novas.
+  '20261110200000_patrimonio_p1_02_abastecimentos': '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -49,6 +60,16 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '62795ad42ff36406e413e54a16a6ee43abe93318ee4155967f57120b031d2aa3',
   // D-PROD-153: RLS/REVOKE de NaturezaFinanceira (mesmo corpo, lista nova).
   'a532c9847a550d4b19015b8b3c2914b79fffdb6ae0e259438d5133c738e416a1',
+  // D-PROD-155: RLS/REVOKE das 8 tabelas da Central Única de Lançamentos (mesmo corpo, lista nova).
+  '0289125dfdf6df7bccc8ca070208a4c9d1bf948fad1b341ae4d443e9f13ab4fe',
+  // D-PROD-156: RLS/REVOKE de OperacaoFinanceiraItemRateio (mesmo corpo, lista nova).
+  'dc05126cd737c77090c54fc04cd6f7d2ac0b7613168f13fb944a7477ca7bd576',
+  // D-PROD-158 (Gestão P3-03): RLS/REVOKE de OperacaoFinanceiraEvento (mesmo corpo, lista nova).
+  '20c6f9ca6b880dc26efea49c4eaaa2bf3e9b3bc43dcdd7b6a6bcaee6ff899ec9',
+  // D-PROD-157 (Patrimônio P1-01): RLS/REVOKE das 10 tabelas de Patrimônio e Frota (mesmo corpo, lista nova).
+  '01dbf9ae4875444fa77082d37e1b71da655f217ecc25cc95a4d1b8a4a108a0a3',
+  // D-PROD-159 (Patrimônio P1-02): RLS/REVOKE das 3 tabelas de abastecimento (mesmo corpo, lista nova).
+  'ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd',
 ]);
 
 /**

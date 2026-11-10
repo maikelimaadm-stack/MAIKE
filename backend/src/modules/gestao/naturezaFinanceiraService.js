@@ -85,7 +85,7 @@ const buscar = (tx, clienteId, empresaId, id) =>
  * (CTE recursiva subindo pelos pais, limitada à profundidade + folga).
  * @returns {Promise<Map<string, { caminho: string, nivel: number, pai_nome: string|null }>>}
  */
-const caminhosDe = async (tx, clienteId, empresaId, ids) => {
+export const caminhosDe = async (tx, clienteId, empresaId, ids) => {
   /** @type {Map<string, { caminho: string, nivel: number, pai_nome: string|null }>} */
   const saida = new Map();
   if (!ids.length) return saida;

@@ -55,3 +55,36 @@ Violação exige **rollback**, não flexibilização da regra.
 | D24 | Copiar Studio, MDP/MMM, marketplace ou low-code do PROJETOMG | Copiar só a disciplina (D-PROD-03) |
 | D25 | Hardcodar chave ou segredo em `src/` | Variável de ambiente + `.env.example` |
 | D26 | Criar segunda fonte de menu ou de rota | SSOT em `src/lib/menuConfig.js` e `src/pages.config.js` |
+
+> **Nota (D-PROD-155):** a Central Única de Lançamentos (`LancamentosFinanceiros`)
+> é a única exceção financeira autorizada, nos limites da decisão. Continua
+> proibido: conciliação bancária, bancos/contas bancárias/OFX, módulo de
+> caixa/bancos, DRE, plano de contas, fiscal/tributos/NF-e, câmbio, contabilidade,
+> rateio por item, pedido de compra, relatórios/dashboards financeiros e ERP
+> amplo; reabrir os domínios legados de `forbiddenDomains` (`Financeiro`,
+> `LancamentoFinanceiro`, `ContasFinanceiras`, `CaixaBancos`, `FormasPagamento`,
+> `MovimentacoesEstoque`, `LancamentoProdutosEstoque`…); criar entrada de estoque
+> avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
+> comando composto da confirmação e do cancelamento; e somar dinheiro com float.
+
+> **Nota (D-PROD-157):** os cadastros de Patrimônio e Frota (`BensPatrimoniais`,
+> `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao`, `Combustiveis`)
+> são a única exceção de máquinas/combustível autorizada, nos limites da decisão.
+> Continuam proibidos: reabrir as páginas legadas `CadastroMaquinas`, `AtivosFixos`,
+> `LancamentosAbastecimento` e `FichaControleCombustivel`; recriar os schemas Base44
+> `Maquina`, `TipoAtivo`, `Implemento`, `ManutencaoMaquina` e `AbastecimentoMaquina`;
+> e, sem decisão própria, abastecimento, manutenção, custo/hora, apuração ou
+> lançamento de depreciação e transferência entre fazendas.
+
+> **Nota (D-PROD-159):** a página `Abastecimentos` é a única exceção de abastecimento
+> autorizada, nos limites da decisão. Continua proibido: converter litros em KG por
+> `1 L = 1 KG`, por densidade presumida ou por fator inferido do nome, do combustível ou
+> do preço; usar `Number`/float em quantidade, fator ou dinheiro; baixar estoque fora do
+> motor de estoque (`estoqueFisicoMotor.js`) ou por `Produto.estoque_atual -= …` isolado;
+> criar ou fingir `OperacaoFinanceira` para representar abastecimento; gravar leitura de
+> abastecimento em `BemPatrimonial` ou com proveniência falsa; apagar abastecimento
+> (só cancelar com estorno exato); conceder a tela ou as ações `cancelar` e
+> `configurar_conversao` a perfis existentes por padrão; reabrir
+> `LancamentosAbastecimento`, `FichaControleCombustivel`, `AbastecimentoMaquina` ou
+> `ConfiguracaoFatoresConsumo`; e, sem decisão própria, manutenção, custo/hora, saldo de
+> tanque e GNV em tanque de litros.

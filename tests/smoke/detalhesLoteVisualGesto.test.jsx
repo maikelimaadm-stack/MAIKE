@@ -22,6 +22,9 @@ afterEach(() => {
 const detalhes = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
 const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
 const css = readFileSync("src/styles/lancamento-lote.css", "utf8");
+// UI-DETALHES-LOTE-V8: o cartão do lote (aba Tudo) e as pílulas de título saíram do DetalhesLote.
+const cartoesTudo = readFileSync("src/components/mapa/detalhes-lote/CartoesLoteTudo.jsx", "utf8");
+const pecas = readFileSync("src/components/mapa/detalhes-lote/pecas.jsx", "utf8");
 
 describe("Detalhes do Lote: visual (D-PROD-120)", () => {
   it("sem os alertas do lote", () => {
@@ -29,12 +32,14 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
   });
 
   it("nomes de área e lote em texto simples, sem o amarelo", () => {
-    expect(detalhes).toMatch(/className="mk-dl__nome">Lote: \{lote\.nome\}/);
+    // UI-DETALHES-LOTE-V8: nome do lote e título da área em pílula de título (texto #374151, 700), sem amarelo.
+    expect(cartoesTudo).toMatch(/<PilulaTitulo>\{`Lote: \$\{lote\.nome\}`\}<\/PilulaTitulo>/);
     // D-PROD-144: o nome da área sai do cartão e do lote; vai no cabeçalho do diálogo.
-    expect(detalhes).not.toMatch(/mk-dl__area-nome/);
-    expect(area).toMatch(/className="mk-dl__nome mk-dl__nome--area">Informações da Área</);
-    for (const f of [detalhes, area]) expect(f).not.toMatch(/yellow|amber/);
-    expect(css).toMatch(/\.mk-dl__nome \{[^}]*color: #374151;[^}]*font-weight: 700;/);
+    for (const f of [detalhes, area, cartoesTudo]) expect(f).not.toMatch(/mk-dl__area-nome/);
+    expect(area).toMatch(/<PilulaTitulo>Informações da Área<\/PilulaTitulo>/);
+    for (const f of [detalhes, area, cartoesTudo, pecas]) expect(f).not.toMatch(/yellow|amber/);
+    expect(pecas).toMatch(/export function PilulaTitulo[\s\S]*?color: COR\.texto,[\s\S]*?fontWeight: 700,/);
+    expect(pecas).toMatch(/texto: "#374151"/);
   });
 });
 

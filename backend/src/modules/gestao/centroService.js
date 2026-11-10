@@ -161,7 +161,7 @@ export const servicoDeCentro = (chaveTipo) => {
     const limit = normalizarLimite(query.limit);
     const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
     const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
-    if (cursorBruto && !cursor) throw invalido('cursor inválido', { field: 'cursor' });
+    if (cursorBruto && !cursor) throw invalido('cursor inválido', { field: 'cursor', reason: 'cursor_invalido' });
     let ativo = null;
     if (query.ativo === true || query.ativo === 'true') ativo = true;
     if (query.ativo === false || query.ativo === 'false') ativo = false;
