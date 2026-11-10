@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
 import { mensagemDoBloqueioAbastecimento, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import {
@@ -9,7 +9,7 @@ import {
   formatarFator,
   formatarKg,
   formatarLeitura,
-  formatarLitros,
+  formatarLitrosCurto,
   kgDaBaixaNaPrevia,
   rotuloDoBem,
 } from "@/lib/abastecimentoRegras";
@@ -131,10 +131,13 @@ function Linha({ rotulo, valor, testId = undefined }) {
 }
 
 /**
- * Prévia (sem escrita) + confirmação do abastecimento. Mostra KG, fator e
- * versão, lotes FIFO, custo ESTIMADO e o medidor; com bloqueio não há
- * "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou null
- * quando achou e o diálogo fecha).
+ * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
+ * (UX-02, D-PROD-160). Resumo humano: máquina, Produto, litros, medidor, tanque
+ * cheio, data, local e a baixa em KG. Os dados técnicos (tipo de combustível,
+ * tanque, fator kg/L e versão, custo estimado, saldo e lotes FIFO) ficam em
+ * "Detalhes do estoque", recolhido. Com bloqueio não há "Confirmar".
+ * `onConsultar` devolve o texto do resultado da consulta (ou null quando achou
+ * e o diálogo fecha).
  * @param {{
  *   aberto: boolean,
  *   previa: { plano: any, bloqueios: any[] } | null,
@@ -148,6 +151,7 @@ function Linha({ rotulo, valor, testId = undefined }) {
  */
 export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, podeConfigurarFator, onFechar, onConfirmar, onConsultar, onConfigurarFator }) {
   const { estado, disparar, setEstado } = useEnvioAbastecimento(onConfirmar, "Não foi possível confirmar o abastecimento. Nada foi gravado.");
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
   const enviando = estado.fase === "enviando";
   const plano = previa?.plano ?? null;
   const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
@@ -158,6 +162,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
   const unidade = UNIDADE_MEDIDOR[String(medidor?.tipo ?? "")] ?? "";
   // Com bloqueio de quantidade (0 kg arredondado, acima do teto) o KG do plano não é baixa: não aparece como tal.
   const kgBaixa = kgDaBaixaNaPrevia(previa);
+  const litros = plano?.quantidade_litros ? `${formatarLitrosCurto(plano.quantidade_litros)} L` : "—";
 
   const consultar = async () => {
     const texto = await onConsultar();
@@ -168,72 +173,102 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
     <Dialog open={aberto} onOpenChange={(/** @type {boolean} */ o) => (!o && !enviando ? onFechar() : undefined)}>
       <DialogContent data-permissao-explicita="" data-testid="dialogo-previa-abastecimento" className="max-h-[92vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Prévia do abastecimento</DialogTitle>
-          <DialogDescription data-testid="previa-resumo">
+          <DialogTitle>Revisar abastecimento</DialogTitle>
+          <DialogDescription data-testid="previa-resumo" className="break-words">
             {kgBaixa
-              ? `${formatarLitros(plano.quantidade_litros)} L de ${plano.tipo_combustivel?.nome ?? "combustível"} em ${rotuloDoBem(plano.bem)}: baixa de ${formatarKg(
-                  kgBaixa,
-                )} kg de ${plano.produto?.nome ?? "produto"} do estoque em ${plano.local_estoque?.nome ?? "local"}.`
+              ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${litros}. Baixa de ${formatarKg(kgBaixa)} kg do estoque em ${
+                  plano.local_estoque?.nome ?? "local"
+                }.`
               : "Nada foi gravado: confira abaixo o que impede a confirmação."}
           </DialogDescription>
         </DialogHeader>
-        <dl className="min-w-0">
-          <Linha rotulo="Data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
-          <Linha rotulo="Litros informados" valor={plano?.quantidade_litros ? `${formatarLitros(plano.quantidade_litros)} L` : "—"} />
-          <Linha
-            rotulo="Fator kg/L"
-            testId="previa-fator"
-            valor={plano?.conversao ? `${formatarFator(plano.conversao.kg_por_litro)} kg/L (versão ${plano.conversao.sequencia ?? plano.conversao.versao})` : "Sem fator kg/L configurado"}
-          />
-          <Linha rotulo="Quantidade baixada" testId="previa-kg" valor={kgBaixa ? `${formatarKg(kgBaixa)} kg` : "—"} />
-          <Linha
-            rotulo="Custo"
-            testId="previa-custo"
-            valor={
-              fifo?.custo_total_estimado ? (
-                <>
-                  {formatarCusto(fifo.custo_total_estimado)}
-                  {fifo.custo_unitario_estimado ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/kg)` : ""}
-                  <span className="block text-[11px] font-normal text-[var(--mg-text-2,#475569)]">estimativa; o custo final é calculado na confirmação</span>
-                </>
-              ) : (
-                "—"
-              )
-            }
-          />
-          {plano?.estoque ? (
-            <Linha rotulo="Saldo no local" valor={`${formatarKg(plano.estoque.saldo_local_kg)} kg`} />
-          ) : null}
+        <dl className="min-w-0" data-testid="previa-dados">
+          <Linha rotulo="Máquina/Veículo" testId="previa-bem" valor={rotuloDoBem(plano?.bem) || "—"} />
+          <Linha rotulo="Produto" testId="previa-produto" valor={plano?.produto?.nome ?? "—"} />
+          <Linha rotulo="Litros" testId="previa-litros" valor={litros} />
           {medidor?.leitura ? (
-            <Linha rotulo="Leitura do medidor" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
+            <Linha rotulo="Leitura do medidor" testId="previa-leitura" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
           ) : null}
-          <Linha rotulo="Tanque cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
+          <Linha rotulo="Completou o tanque" testId="previa-tanque-cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
+          <Linha rotulo="Data" testId="previa-data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
+          <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
+          <Linha rotulo="Baixa no estoque" testId="previa-kg" valor={kgBaixa ? `${formatarKg(kgBaixa)} kg` : "—"} />
         </dl>
-        {fatias.length ? (
-          <div className="min-w-0 overflow-x-auto">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">Lotes consumidos (FIFO)</p>
-            <table className="w-full text-[12px]" data-testid="previa-fatias">
-              <thead>
-                <tr className="text-left text-[var(--mg-text-2,#475569)]">
-                  <th className="py-1 pr-2">Lote de</th>
-                  <th className="py-1 pr-2 text-right">KG</th>
-                  <th className="py-1 pr-2 text-right">Custo/kg</th>
-                  <th className="py-1 text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fatias.map((/** @type {any} */ f) => (
-                  <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
-                    <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{formatarKg(f.quantidade_kg)}</td>
-                    <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
-                    <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+        <div className="min-w-0">
+          <button
+            type="button"
+            className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-[13px] font-medium hover:bg-slate-50"
+            aria-expanded={detalhesAbertos}
+            onClick={() => setDetalhesAbertos((v) => !v)}
+            data-testid="previa-detalhes-estoque"
+          >
+            {detalhesAbertos ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />} Detalhes do estoque
+          </button>
+          {detalhesAbertos ? (
+            <div className="mt-1 min-w-0 rounded-md border border-slate-200 p-2" data-testid="previa-detalhes-conteudo">
+              <dl className="min-w-0">
+                <Linha rotulo="Tipo de combustível" testId="previa-tipo" valor={plano?.tipo_combustivel?.nome ?? "—"} />
+                <Linha
+                  rotulo="Tanque"
+                  testId="previa-tanque"
+                  valor={
+                    plano?.tanque
+                      ? `${plano.tanque.identificador ?? ""}${plano.tanque.capacidade_litros ? ` (${formatarLitrosCurto(plano.tanque.capacidade_litros)} L)` : ""}`
+                      : "—"
+                  }
+                />
+                <Linha
+                  rotulo="Fator kg/L"
+                  testId="previa-fator"
+                  valor={
+                    plano?.conversao ? `${formatarFator(plano.conversao.kg_por_litro)} kg/L (versão ${plano.conversao.sequencia ?? plano.conversao.versao})` : "Sem fator kg/L configurado"
+                  }
+                />
+                <Linha
+                  rotulo="Custo estimado"
+                  testId="previa-custo"
+                  valor={
+                    fifo?.custo_total_estimado ? (
+                      <>
+                        {formatarCusto(fifo.custo_total_estimado)}
+                        {fifo.custo_unitario_estimado ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/kg)` : ""}
+                        <span className="block text-[11px] font-normal text-[var(--mg-text-2,#475569)]">estimativa; o custo final é calculado na confirmação</span>
+                      </>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                {plano?.estoque ? <Linha rotulo="Saldo no local" testId="previa-saldo" valor={`${formatarKg(plano.estoque.saldo_local_kg)} kg`} /> : null}
+              </dl>
+              {fatias.length ? (
+                <div className="mt-2 min-w-0 overflow-x-auto">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">Lotes consumidos (FIFO)</p>
+                  <table className="w-full text-[12px]" data-testid="previa-fatias">
+                    <thead>
+                      <tr className="text-left text-[var(--mg-text-2,#475569)]">
+                        <th className="py-1 pr-2">Lote de</th>
+                        <th className="py-1 pr-2 text-right">KG</th>
+                        <th className="py-1 pr-2 text-right">Custo/kg</th>
+                        <th className="py-1 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fatias.map((/** @type {any} */ f) => (
+                        <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
+                          <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
+                          <td className="py-1 pr-2 text-right tabular-nums">{formatarKg(f.quantidade_kg)}</td>
+                          <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
+                          <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         {bloqueios.length ? (
           <div role="alert" data-testid="previa-bloqueios" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
             <p className="font-semibold">Não dá para confirmar agora:</p>
@@ -246,7 +281,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
             </ul>
             {semFator && podeConfigurarFator ? (
               <button type="button" className={`${BOTAO_SECUNDARIO} mt-2`} onClick={onConfigurarFator} data-testid="abastecimento-configurar-fator">
-                Configurar fator
+                Configurar fator kg/L
               </button>
             ) : null}
           </div>

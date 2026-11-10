@@ -14,26 +14,34 @@ import {
 } from "@/lib/abastecimentoRegras";
 import { ROTULO_STATUS_ABASTECIMENTO } from "@/services/abastecimentoService";
 
-export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v1";
+/**
+ * UX-02 (D-PROD-160): preferências de coluna em chave NOVA — a v1 guardava a
+ * coluna "Combustível", que saiu da lista (o operador vê o PRODUTO).
+ */
+export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
 
+/**
+ * Padrão: Data | Máquina/Veículo | Produto | Litros | Medidor | Situação. Os
+ * dados técnicos ficam como colunas opcionais (desligadas); o tipo de
+ * combustível aparece só na consulta (detalhe técnico).
+ */
 export const ABASTECIMENTOS_COLUNAS = [
-  { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
   { id: "data_operacional", label: "Data", default: true, sortable: true, width: 100 },
-  { id: "bem", label: "Bem", default: true, sortable: true, width: 220 },
-  { id: "tanque", label: "Tanque", default: true, sortable: true, width: 140 },
-  { id: "tipo_combustivel", label: "Combustível", default: true, sortable: true, width: 130 },
-  { id: "produto", label: "Produto", default: true, sortable: true, width: 180 },
+  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 220 },
+  { id: "produto", label: "Produto", default: true, sortable: true, width: 200 },
   { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 110 },
-  { id: "quantidade_kg", label: "KG", default: true, sortable: true, align: "right", width: 110 },
-  { id: "custo_total", label: "Custo", default: true, sortable: true, align: "right", width: 120 },
-  { id: "leitura", label: "Leitura", default: true, sortable: true, align: "right", width: 110 },
+  { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 120 },
   { id: "status", label: "Situação", default: true, sortable: true, width: 110 },
+  { id: "numero", label: "Nº", default: false, sortable: true, width: 70 },
+  { id: "tanque", label: "Tanque", default: false, sortable: true, width: 140 },
+  { id: "quantidade_kg", label: "KG", default: false, sortable: true, align: "right", width: 110 },
+  { id: "custo_total", label: "Custo", default: false, sortable: true, align: "right", width: 120 },
   { id: "tanque_cheio", label: "Tanque cheio", default: false, sortable: true, align: "center", width: 100 },
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
 ];
 
-/** Cards: o bem é o título e o nº é o código; no celular, Data, Litros, KG e Situação. */
-export const ABASTECIMENTOS_CAMPOS_CARD = ["numero", "data_operacional", "quantidade_litros", "quantidade_kg", "status", "produto"];
+/** Cards (celular): a máquina é o título; Produto, Litros, Data e Situação. */
+export const ABASTECIMENTOS_CAMPOS_CARD = ["produto", "quantidade_litros", "data_operacional", "status"];
 
 const COLUNAS_DECIMAIS = Object.freeze({ quantidade_litros: "quantidade_litros", quantidade_kg: "quantidade_kg", custo_total: "custo_total", numero: "numero" });
 
@@ -58,7 +66,11 @@ export const compararAbastecimentosParaOrdenar = (a, b, colId) => {
     const va = ehDiaValido(a?.data_operacional) ? a.data_operacional : null;
     const vb = ehDiaValido(b?.data_operacional) ? b.data_operacional : null;
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
-    return va === vb ? 0 : va < vb ? -1 : 1;
+    if (va !== vb) return va < vb ? -1 : 1;
+    // Mesmo dia: o nº (sequência do servidor) desempata — "mais recente primeiro" na ordem padrão.
+    const na = ehCanonico(a?.numero) ? a.numero : null;
+    const nb = ehCanonico(b?.numero) ? b.numero : null;
+    return na === null || nb === null ? 0 : comparar(na, nb);
   }
   if (colId !== "leitura" && !Object.prototype.hasOwnProperty.call(COLUNAS_DECIMAIS, colId)) return null;
   const va = canonicoDa(a, colId);
@@ -73,7 +85,6 @@ export const valorDoCampoAbastecimento = (item, id) => {
   if (id === "data_operacional") return item.data_operacional ? formatarDiaAbastecimento(item.data_operacional) : "";
   if (id === "bem") return rotuloDoBem(item.bem);
   if (id === "tanque") return String(item.tanque?.identificador ?? "");
-  if (id === "tipo_combustivel") return String(item.tipo_combustivel?.nome ?? "");
   if (id === "produto") return String(item.produto?.nome ?? "");
   if (id === "quantidade_litros") return item.quantidade_litros ? `${formatarLitros(item.quantidade_litros)} L` : "";
   if (id === "quantidade_kg") return item.quantidade_kg ? `${formatarKg(item.quantidade_kg)} kg` : "";
@@ -106,7 +117,8 @@ export function SeloAbastecimento({ status, testId = undefined }) {
 }
 
 /**
- * Lista de abastecimentos (tabela no desktop, cards no celular).
+ * Lista de abastecimentos (tabela no desktop, cards no celular). Ordem padrão:
+ * data mais recente primeiro (o nº desempata no mesmo dia).
  * @param {any} props
  */
 export default function TabelaAbastecimentos(props) {
@@ -126,7 +138,7 @@ export default function TabelaAbastecimentos(props) {
       getFieldValue={valorDoCampoAbastecimento}
       compararParaOrdenar={compararAbastecimentosParaOrdenar}
       renderCell={renderCell}
-      defaultSortKey="numero"
+      defaultSortKey="data_operacional"
       defaultSortDir="desc"
       emptyText={props.emptyText}
       isLoading={props.isLoading}
