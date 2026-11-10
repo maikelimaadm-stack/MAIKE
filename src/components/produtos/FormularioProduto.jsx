@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { formatarMoedaInput, parseMoedaInput } from "@/components/financeiro/moedaUtils";
+import { parseDecimalPtBR } from "@/domain/numeroPtBR";
 import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -31,10 +32,41 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
+/**
+ * Leitura ÚNICA dos campos com máscara (D-PROD-161): o MESMO número serve para
+ * exibir (`formatarMoedaInput`) e para enviar. O texto do estado é o que o
+ * usuário digitou sobre a máscara de centavos ("0,002" → 0,02); lê-lo de outro
+ * jeito no envio gravava outro valor (o Peso por saco vira o fator SACO→KG).
+ */
 const parseNumero = (val) => {
   if (val === null || val === undefined || val === "") return 0;
   if (typeof val === "number") return val;
   return parseMoedaInput(val);
+};
+
+/** Campos com máscara numérica no formulário. */
+const CAMPOS_MASCARADOS = [
+  "preco_custo",
+  "preco_venda",
+  "estoque_minimo",
+  "percentual_consumo_pv",
+  "consumo_minimo_pv",
+  "consumo_maximo_pv",
+  "peso_por_saco_kg",
+];
+
+/**
+ * Valor lido do servidor ainda não é texto de máscara: decimal canônico
+ * ("30.0000") vira número uma vez, para a máscara não o ler como 300000 centavos.
+ */
+const valoresIniciaisMascarados = (dados) => {
+  const saida = {};
+  for (const campo of CAMPOS_MASCARADOS) {
+    if (typeof dados?.[campo] !== "string") continue;
+    const numero = parseDecimalPtBR(dados[campo]);
+    saida[campo] = numero ?? "";
+  }
+  return saida;
 };
 
 export default function FormularioProduto({
@@ -75,7 +107,7 @@ export default function FormularioProduto({
       observacoes: "",
       ativo: true,
     };
-    if (initialData) return { ...defaults, ...initialData, ativo: initialData.ativo !== false };
+    if (initialData) return { ...defaults, ...initialData, ...valoresIniciaisMascarados(initialData), ativo: initialData.ativo !== false };
     return defaults;
   });
 
@@ -180,7 +212,9 @@ export default function FormularioProduto({
       return;
     }
 
-    onSubmit(normalizarProduto(formData, { isEditing }));
+    // Envia o número EXIBIDO de cada campo com máscara (mesma leitura da tela).
+    const exibidos = Object.fromEntries(CAMPOS_MASCARADOS.map((campo) => [campo, parseNumero(formData[campo])]));
+    onSubmit(normalizarProduto({ ...formData, ...exibidos }, { isEditing }));
   };
 
   const acCls = `${B1_FIELD_CTL_CLS} w-full min-w-0`;
