@@ -484,7 +484,7 @@ export const cancelar = async (contexto, id, corpo) => {
             const leituraAntes = leituraVigente(cadastro, await pisoOperacional(tx, cli, antes.bem_id, bem?.medidor_tipo ?? null));
             await travarProdutosEstoque(tx, cli, empresaId, [antes.produto_id]); // R8
             const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
-            if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
+            if (!produto || produto.empresa_id !== empresaId || !produto.ativo) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const [orig] = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id, status, movimento_filho_id FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${antes.movimentacao_estoque_id} FOR UPDATE`
             ); // R10
