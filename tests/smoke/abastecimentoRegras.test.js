@@ -16,6 +16,7 @@ import {
   assinaturaDoFormulario,
   conferirRespostaAbastecimento,
   estimarKg,
+  formatarLitrosCurto,
   formularioVazio,
   kgDaBaixaNaPrevia,
   medidorExigeLeitura,
@@ -23,6 +24,10 @@ import {
   montarCorpoConfirmacao,
   montarCorpoConversao,
   montarCorpoPrevia,
+  opcaoNoFormulario,
+  produtoAutomatico,
+  situacaoDaEscolha,
+  tanqueDoFormulario,
   totaisConfirmados,
   validarConversao,
   validarFormulario,
@@ -120,14 +125,20 @@ describe('corpos montados (decimais como TEXTO canônico)', () => {
 describe('validação local', () => {
   it('formulário completo passa; cada falta tem mensagem em pt-BR', () => {
     expect(validarFormulario(formTrator({ quantidade_litros: '80' }), { hoje: '2026-06-15', capacidadeLitros: '180.0000' }).erros).toEqual({});
+    expect(validarFormulario(formularioVazio('2026-06-15'), { hoje: '2026-06-15' }).erros).toMatchObject({ bem: 'Escolha a máquina ou veículo.', produto: 'Escolha o Produto.' });
+    // UX-02: sem Produto, só "Escolha o Produto." (tanque e local dependem dele; nunca "Escolha o combustível.").
     const { erros } = validarFormulario({ ...formularioVazio('2026-06-15'), bem: BEM_TRATOR }, { hoje: '2026-06-15' });
     expect(erros).toEqual({
-      tanque_id: 'Escolha o tanque.',
-      tipo_combustivel_id: 'Escolha o combustível.',
-      produto: 'Escolha o produto.',
-      local_estoque_id: 'Escolha o local de estoque.',
+      produto: 'Escolha o Produto.',
       quantidade_litros: 'Informe os litros abastecidos.',
       medidor_leitura: 'Informe a leitura do medidor.',
+    });
+    // Produto sem tipo (opção incompleta) também é "Escolha o Produto.".
+    expect(validarFormulario(formTrator({ tipo_combustivel_id: null, quantidade_litros: '80' }), { hoje: '2026-06-15' }).erros).toEqual({ produto: 'Escolha o Produto.' });
+    // Com Produto: tanque (multi-tanque) e local (vários locais) com os textos novos.
+    expect(validarFormulario(formTrator({ tanque_id: null, local_estoque_id: null, quantidade_litros: '80' }), { hoje: '2026-06-15' }).erros).toEqual({
+      tanque_id: 'Escolha qual tanque será abastecido.',
+      local_estoque_id: 'Escolha de qual local do estoque sai o combustível.',
     });
   });
 
@@ -214,5 +225,90 @@ describe('kgDaBaixaNaPrevia — o KG do plano só aparece como baixa sem bloquei
     expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: '99999999999.9990' }, bloqueios: [bloqueio('valor_excede_limite_estoque')] })).toBeNull();
     expect(kgDaBaixaNaPrevia({ plano: { quantidade_kg: null }, bloqueios: [] })).toBeNull();
     expect(kgDaBaixaNaPrevia(null)).toBeNull();
+  });
+});
+
+// ─── UX-02 (D-PROD-160): opção de PRODUTO do bem → formulário ────────────
+const ITEM_DIESEL = {
+  id: 'p1',
+  produto: { id: 'p1', nome: 'Diesel S10 granel', codigo_interno: 'DS10', unidade_principal_estoque: 'KG' },
+  tipo_combustivel: { id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10' },
+  conversao: { id: 'f1', versao: 1, sequencia: 1, kg_por_litro: '0.840000' },
+  tanques: [{ id: 'tq1', identificador: 'Tanque principal', capacidade_litros: '180.0000' }],
+  bloqueios: [],
+  pronto: true,
+};
+const DOIS_TANQUES = [
+  { id: 'tqA', identificador: 'Tanque A', capacidade_litros: '180.0000' },
+  { id: 'tqB', identificador: 'Tanque B', capacidade_litros: '60.0000' },
+];
+const resposta = (itens, extra = {}) => ({ bem: { id: 'b1' }, itens, has_more: false, next_cursor: null, resumo: { motivo_sem_opcao: itens.length ? null : 'nenhum_produto_associado', total: itens.length, sem_fator: 0, fora_de_kg: 0, tipos_sem_produto: [] }, ...extra });
+
+describe('opcaoNoFormulario — o tipo e os tanques vêm da opção do servidor; o corpo da API não muda', () => {
+  it('um tanque: tanque e tipo da opção; o corpo da prévia é o MESMO de sempre', () => {
+    const base = { ...formularioVazio('2026-06-15'), bem: BEM_TRATOR, quantidade_litros: '80', medidor_leitura: '1.550,5' };
+    const form = opcaoNoFormulario(base, ITEM_DIESEL);
+    expect(form.produto).toEqual({ ...ITEM_DIESEL.produto, conversao: ITEM_DIESEL.conversao, tipo_combustivel: ITEM_DIESEL.tipo_combustivel, tanques: ITEM_DIESEL.tanques, pronto: true });
+    expect([form.tipo_combustivel_id, form.tanque_id, form.local_estoque_id]).toEqual(['c1', 'tq1', null]);
+    expect(Object.keys(form).sort()).toEqual(Object.keys(base).sort());
+    expect(montarCorpoPrevia('emp-1', { ...form, local_estoque_id: 'l1' })).toEqual({
+      empresa_id: 'emp-1', bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
+      data_operacional: '2026-06-15', quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: false, observacao: null, referencia_externa: null,
+    });
+  });
+
+  it('multi-tanque: pergunta o tanque; mantém o escolhido só para o MESMO Produto e se continua aceito; local só sobrevive no mesmo Produto', () => {
+    const item = { ...ITEM_DIESEL, tanques: DOIS_TANQUES };
+    const f1 = opcaoNoFormulario(formularioVazio('2026-06-15'), item);
+    expect(f1.tanque_id).toBeNull();
+    const escolhido = { ...f1, tanque_id: 'tqB', local_estoque_id: 'l1' };
+    expect(opcaoNoFormulario(escolhido, item)).toMatchObject({ tanque_id: 'tqB', local_estoque_id: 'l1' });
+    expect(opcaoNoFormulario(escolhido, { ...item, tanques: [DOIS_TANQUES[0], { id: 'tqC', identificador: 'C', capacidade_litros: null }] }).tanque_id).toBeNull();
+    const outro = { ...item, id: 'p5', produto: { ...item.produto, id: 'p5', nome: 'Diesel S10 posto' } };
+    expect(opcaoNoFormulario(escolhido, outro)).toMatchObject({ tanque_id: null, local_estoque_id: null });
+    expect(tanqueDoFormulario(escolhido)).toEqual(DOIS_TANQUES[1]);
+    expect(tanqueDoFormulario({ ...escolhido, tanque_id: 'tqX' })).toBeNull();
+    expect(tanqueDoFormulario(formularioVazio('2026-06-15'))).toBeNull();
+  });
+
+  it('sem fator: conversao null e pronto false (a confirmação não monta)', () => {
+    const f = opcaoNoFormulario(formularioVazio('2026-06-15'), { ...ITEM_DIESEL, conversao: null, bloqueios: ['sem_fator'], pronto: false });
+    expect(f.produto).toMatchObject({ conversao: null, pronto: false });
+  });
+});
+
+describe('produtoAutomatico — só resposta COMPLETA, do bem atual, com 1 opção', () => {
+  it('1 opção e has_more=false → a opção', () => {
+    expect(produtoAutomatico(resposta([ITEM_DIESEL]), 'b1')).toBe(ITEM_DIESEL);
+  });
+  it('página parcial (has_more=true), 2 opções, nenhuma, outro bem ou resposta vazia → null', () => {
+    expect(produtoAutomatico(resposta([ITEM_DIESEL], { has_more: true, next_cursor: 'x' }), 'b1')).toBeNull();
+    expect(produtoAutomatico(resposta([ITEM_DIESEL], { has_more: undefined }), 'b1')).toBeNull();
+    expect(produtoAutomatico(resposta([ITEM_DIESEL, { ...ITEM_DIESEL, id: 'p5' }]), 'b1')).toBeNull();
+    expect(produtoAutomatico(resposta([]), 'b1')).toBeNull();
+    expect(produtoAutomatico(resposta([ITEM_DIESEL]), 'b2')).toBeNull();
+    expect(produtoAutomatico(null, 'b1')).toBeNull();
+    expect(produtoAutomatico(resposta([ITEM_DIESEL]), null)).toBeNull();
+  });
+});
+
+describe('situacaoDaEscolha — ausente só com resposta completa sem o par do formulário', () => {
+  const form = opcaoNoFormulario({ ...formularioVazio('2026-06-15'), bem: BEM_TRATOR }, ITEM_DIESEL);
+  it('presente / ausente / indeterminado', () => {
+    expect(situacaoDaEscolha(resposta([ITEM_DIESEL]), form)).toBe('presente');
+    expect(situacaoDaEscolha(resposta([]), form)).toBe('ausente');
+    expect(situacaoDaEscolha(resposta([{ ...ITEM_DIESEL, tipo_combustivel: { id: 'c9', codigo: 'X', nome: 'X' } }]), form)).toBe('ausente');
+    expect(situacaoDaEscolha(resposta([], { has_more: true, next_cursor: 'x' }), form)).toBe('indeterminado');
+    expect(situacaoDaEscolha({ ...resposta([]), bem: { id: 'b2' } }, form)).toBe('indeterminado');
+    expect(situacaoDaEscolha(resposta([]), { ...form, produto: null })).toBe('indeterminado');
+    expect(situacaoDaEscolha(null, form)).toBe('indeterminado');
+  });
+});
+
+describe('formatarLitrosCurto', () => {
+  it('sem zeros à direita e sem float', () => {
+    expect(formatarLitrosCurto('180.0000')).toBe('180');
+    expect(formatarLitrosCurto('80.5000')).toBe('80,5');
+    expect(formatarLitrosCurto('1234.5678')).toBe('1.234,5678');
   });
 });

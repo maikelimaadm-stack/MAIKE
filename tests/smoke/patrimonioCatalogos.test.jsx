@@ -446,11 +446,15 @@ describe('Perfis de medição e combustíveis', () => {
     await montar('Combustiveis');
     let form = await novo('combustivel', 'c1');
     expect(within(form).getByRole('combobox', { name: 'Unidade' })).toBeTruthy();
+    // UX-02: sem fazenda selecionada, a seção de Produtos só avisa; o combustível salva igual.
+    expect(within(form).getByTestId('combustivel-novo-sem-empresa')).toHaveTextContent('O combustível pode ser salvo sem Produtos e associado depois.');
     fireEvent.change(within(form).getByLabelText(/^Código/), { target: { value: 'gasolina' } });
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Gasolina' } });
     salvar();
     await screen.findByText('Combustível criado');
     expect(mutacoes()[0].body).toEqual({ codigo: 'GASOLINA', nome: 'Gasolina', unidade: 'L' });
+    expect(mutacoes()).toHaveLength(1);
+    expect(backend.chamadas.filter((c) => c.path.includes('/produtos') || c.path === '/empresas')).toEqual([]);
 
     cleanup();
     await montar('Combustiveis');
@@ -458,6 +462,7 @@ describe('Perfis de medição e combustíveis', () => {
     fireEvent.change(within(form).getByLabelText(/^Código/), { target: { value: 'biometano' } });
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Biometano' } });
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Unidade' }), 'Metros cúbicos (m³)');
+    expect(within(form).getByTestId('combustivel-novo-nota-m3')).toHaveTextContent('Combustível em m³ não é usado em tanques: estas associações não aparecem no abastecimento.');
     salvar();
     await screen.findByText('Combustível criado');
     expect(mutacoes().at(-1).body).toEqual({ codigo: 'BIOMETANO', nome: 'Biometano', unidade: 'm3' });

@@ -1,21 +1,23 @@
 /**
- * D-PROD-157 (R2) — Combustível × Produto por empresa na tela Combustíveis,
- * montada de verdade (página, motor Base1, seção de vínculos, service, API,
- * porta e nativeHttpClient reais). Mocks só da borda: `fetch` (backend falso,
- * com as regras do contrato) e a sessão (usuário/permissão efetiva).
+ * D-PROD-157 (R2) e UX-02 (D-PROD-160) — Combustível × Produto por empresa na
+ * tela Combustíveis, montada de verdade (página, motor Base1, seção de
+ * associações, service, API, porta e nativeHttpClient reais). Mocks só da
+ * borda: `fetch` (backend falso, com as regras do contrato) e a sessão
+ * (usuário/permissão efetiva).
  *
- *  - no registro ABERTO (leitura), a seção "Produtos vinculados nesta fazenda"
- *    usa a empresa selecionada: sem empresa → aviso e nada lido;
- *  - lista dos vínculos do combustível NA fazenda: nome do produto, unidade de
- *    estoque como está (ex.: KG, sem conversão), situação (vínculo inativo,
- *    produto inativo, produto movido para outra fazenda); estado vazio
- *    explícito;
- *  - "Vincular produto": seletor paginado no servidor só com produtos ATIVOS da
- *    fazenda; o produto já ativo em OUTRO combustível aparece marcado e não pode
- *    ser escolhido; POST com o corpo EXATO `{empresa_id, produto_id}`;
- *  - inativar/reativar por vínculo com confirmação, exige a ação `inativar`,
- *    PATCH com o corpo EXATO `{empresa_id, versao, ativo}`;
- *  - erros novos (409 em outro tipo, duplicado inativo, CAS, 404) mostram a
+ *  - no registro GRAVADO (leitura e edição), a seção "Produtos associados
+ *    nesta fazenda" usa a empresa selecionada: sem empresa → aviso e nada lido;
+ *  - grupos "Associados" (oferecidos) e "Inativos" (associação inativa,
+ *    produto inativo, produto movido para outra fazenda): nome real do
+ *    produto, unidade de estoque como está (ex.: KG, sem conversão); estado
+ *    vazio explícito;
+ *  - "Associar produtos": seletor paginado no servidor só com produtos ATIVOS
+ *    da fazenda; o produto já ativo em OUTRO combustível aparece marcado e não
+ *    pode ser escolhido; um POST por produto com o corpo EXATO
+ *    `{empresa_id, produto_id}`; falha vira "Não associados" (nunca sucesso);
+ *  - inativar/reativar por associação com confirmação, exige a ação
+ *    `inativar`, PATCH com o corpo EXATO `{empresa_id, versao, ativo}`;
+ *  - erros (409 em outro tipo, duplicado inativo, CAS, 404) mostram a
  *    mensagem do patrimônio ("Nada foi gravado.").
  */
 import React from 'react';
@@ -200,26 +202,45 @@ const abrir = async (id) => {
   return screen.findByTestId('combustivel-produtos');
 };
 const linha = (id) => screen.findByTestId(`combustivel-produto-${id}`);
+/** Abre o painel "Associar produtos" e o seletor de produtos. */
+const abrirAssociacao = async (secao) => {
+  fireEvent.click(within(secao).getByRole('button', { name: 'Associar produtos' }));
+  fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
+};
+/** Escolhe uma opção do seletor (abrindo-o de novo se preciso). */
+const escolherProduto = async (secao, nome) => {
+  if (!within(secao).queryByTestId('combustivel-produto-seletor-painel')) fireEvent.click(within(secao).getByTestId('combustivel-produto-seletor'));
+  fireEvent.click(await within(secao).findByRole('option', { name: nome }));
+};
 const esperar = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
-describe('Combustíveis — produtos vinculados nesta fazenda (leitura)', () => {
-  it('lista só os vínculos do combustível NA fazenda selecionada: nome, unidade de estoque como está e situação', async () => {
+describe('Combustíveis — produtos associados nesta fazenda (leitura)', () => {
+  it('lista só as associações do combustível NA fazenda selecionada, em Associados e Inativos: nome, unidade de estoque como está e situação', async () => {
     await montar();
     const secao = await abrir('c1');
-    expect(within(secao).getByRole('heading', { name: 'Produtos vinculados nesta fazenda' })).toBeTruthy();
+    expect(within(secao).getByRole('heading', { name: 'Produtos associados nesta fazenda' })).toBeTruthy();
+    expect(secao).toHaveTextContent('Trocar a associação vale para os próximos abastecimentos: os já lançados continuam com o Produto e o fator da época. Nada é apagado.');
 
     const v1 = await linha('v1');
     expect(v1).toHaveTextContent('DIESEL S10 A GRANEL');
     expect(v1).toHaveTextContent('DS10G');
     expect(v1).toHaveTextContent('Unidade de estoque: KG');
-    expect(within(v1).getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Ativo$/);
+    expect(within(v1).getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Associado$/);
 
-    // Rastreabilidade: o vínculo continua na lista, rotulado, mas não é oferecido.
-    expect(within(await linha('v2')).getByTestId('combustivel-produto-situacao-v2')).toHaveTextContent('Ativo · produto inativo · não é oferecido');
-    expect(within(await linha('v3')).getByTestId('combustivel-produto-situacao-v3')).toHaveTextContent('Ativo · produto movido para outra fazenda · não é oferecido');
-    expect(within(await linha('v4')).getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Vínculo inativo$/);
-    expect(within(await linha('v8')).getByTestId('combustivel-produto-situacao-v8')).toHaveTextContent('Vínculo inativo · produto inativo');
+    // Rastreabilidade: a associação continua na lista, rotulada, mas não é oferecida.
+    expect(within(await linha('v2')).getByTestId('combustivel-produto-situacao-v2')).toHaveTextContent('Associado · produto inativo · não é oferecido');
+    expect(within(await linha('v3')).getByTestId('combustivel-produto-situacao-v3')).toHaveTextContent('Associado · produto movido para outra fazenda · não é oferecido');
+    expect(within(await linha('v4')).getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Associação inativa$/);
+    expect(within(await linha('v8')).getByTestId('combustivel-produto-situacao-v8')).toHaveTextContent('Associação inativa · produto inativo');
     expect(await linha('v8')).toHaveTextContent('Unidade de estoque: SACO');
+
+    // Grupos: só o oferecido em "Associados"; o resto em "Inativos".
+    expect(secao).toHaveTextContent('Associados (1)');
+    expect(secao).toHaveTextContent('Inativos (4)');
+    const associados = within(secao).getByTestId('combustivel-produtos-associados');
+    expect(within(associados).getAllByRole('listitem').map((li) => li.dataset.testid)).toEqual(['combustivel-produto-v1']);
+    const inativos = within(secao).getByTestId('combustivel-produtos-inativos');
+    expect(within(inativos).getAllByRole('listitem').map((li) => li.dataset.testid).sort()).toEqual(['combustivel-produto-v2', 'combustivel-produto-v3', 'combustivel-produto-v4', 'combustivel-produto-v8']);
 
     // Outro tipo e outra fazenda não aparecem.
     expect(screen.queryByTestId('combustivel-produto-v5')).toBeNull();
@@ -228,14 +249,16 @@ describe('Combustíveis — produtos vinculados nesta fazenda (leitura)', () => 
     expect(leituras('/patrimonio-combustiveis/c1/produtos').map((c) => c.query)).toEqual([{ empresa_id: 'emp-1', limit: '50' }]);
   });
 
-  it('estado vazio explícito: nenhum produto vinculado nesta fazenda', async () => {
+  it('estado vazio explícito: nenhum produto associado nesta fazenda', async () => {
     await montar();
     const secao = await abrir('c3');
-    expect(await within(secao).findByText('Nenhum produto vinculado nesta fazenda.')).toBeTruthy();
+    expect(await within(secao).findByText('Nenhum produto associado nesta fazenda.')).toBeTruthy();
+    expect(secao).toHaveTextContent('Associados (0)');
+    expect(within(secao).queryByTestId('combustivel-produtos-inativos')).toBeNull();
     expect(leituras('/patrimonio-combustiveis/c3/produtos').map((c) => c.query)).toEqual([{ empresa_id: 'emp-1', limit: '50' }]);
   });
 
-  it('sem empresa selecionada: aviso, nada lido e nada a vincular', async () => {
+  it('sem empresa selecionada: aviso, nada lido e nada a associar', async () => {
     window.localStorage.removeItem('empresa_selecionada_id');
     window.localStorage.removeItem('empresa_selecionada_cliente_id');
     await montar();
@@ -243,32 +266,38 @@ describe('Combustíveis — produtos vinculados nesta fazenda (leitura)', () => 
     expect(within(secao).getByTestId('combustivel-produtos-sem-empresa')).toHaveTextContent(/Selecione uma empresa \(fazenda\) no topo da tela/);
     await esperar();
     expect(backend.chamadas.filter((c) => c.path.includes('/produtos'))).toEqual([]);
-    expect(within(secao).queryByRole('button', { name: 'Vincular produto' })).toBeNull();
+    expect(within(secao).getByTestId('combustivel-produtos-sem-empresa')).toHaveTextContent(/ver e associar os produtos deste combustível/);
+    expect(within(secao).queryByRole('button', { name: 'Associar produtos' })).toBeNull();
   });
 
-  it('em edição do combustível a seção sai (só no registro aberto em leitura)', async () => {
+  it('em edição do combustível a seção continua (UX-02), com o aviso de que a associação grava na hora', async () => {
     await montar();
     await abrir('c1');
     await linha('v1');
+    expect(screen.queryByTestId('combustivel-produtos-aviso-edicao')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
-    await waitFor(() => expect(screen.queryByTestId('combustivel-produtos')).toBeNull());
+    expect(await screen.findByTestId('combustivel-produtos-aviso-edicao')).toHaveTextContent('As associações são gravadas na hora, independentemente do botão Salvar.');
+    const secao = screen.getByTestId('combustivel-produtos');
+    expect(within(secao).getByTestId('combustivel-produto-v1')).toBeTruthy();
+    expect(within(secao).getByRole('button', { name: 'Associar produtos' })).toBeTruthy();
+    // A seção fica FORA do formulário: os botões dela nunca enviam o "Salvar".
+    expect(screen.getByTestId('b1-form').contains(secao)).toBe(false);
   });
 });
 
-describe('Combustíveis — vincular produto', () => {
+describe('Combustíveis — associar produtos', () => {
   it('seletor paginado só com produtos ativos da fazenda; o que já está em outro combustível aparece marcado e não pode; POST com o corpo exato', async () => {
     await montar();
     const secao = await abrir('c1');
     await linha('v1');
-    fireEvent.click(within(secao).getByRole('button', { name: 'Vincular produto' }));
-    fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
+    await abrirAssociacao(secao);
 
     const granel = await within(secao).findByRole('option', { name: /DIESEL S10 A GRANEL/ });
-    expect(granel).toHaveTextContent('já vinculado a este combustível');
+    expect(granel).toHaveTextContent('já associado a este combustível');
     expect(within(secao).getByRole('option', { name: /DIESEL S10 POSTO/ })).toHaveTextContent('KG');
     fireEvent.click(within(secao).getByRole('button', { name: 'Carregar mais' }));
     const s500 = await within(secao).findByRole('option', { name: /DIESEL S500 BOMBA/ });
-    expect(s500).toHaveTextContent('já vinculado a Diesel S500 — não pode');
+    expect(s500).toHaveTextContent('já associado a Diesel S500 — não pode');
     expect(within(secao).getByRole('option', { name: /DIESEL S10 TANQUE 2/ })).toBeTruthy();
     // Inativo e de outra fazenda nunca são oferecidos.
     expect(within(secao).queryByRole('option', { name: /ANTIGO|TRANSFERIDO|FAZENDA B/ })).toBeNull();
@@ -277,127 +306,131 @@ describe('Combustíveis — vincular produto', () => {
       { empresa_id: 'emp-1', limit: '50', cursor: '2' },
     ]);
 
-    // Escolher o que já está em outro combustível: motivo legível e nada é gravado.
+    // Escolher o que já está em outro combustível: motivo legível, não entra em "A associar".
     fireEvent.click(s500);
     expect(await within(secao).findByTestId('combustivel-produto-bloqueado')).toHaveTextContent(
-      'DIESEL S500 BOMBA já está vinculado a Diesel S500 nesta fazenda: um produto só pode ter um combustível ativo. Inative aquele vínculo antes.',
+      'DIESEL S500 BOMBA já está associado a Diesel S500 nesta fazenda: um Produto só pode ter um combustível ativo. Inative aquela associação antes.',
     );
-    expect(within(secao).getByRole('button', { name: 'Gravar vínculo' })).toBeDisabled();
+    expect(within(secao).queryByTestId('combustivel-produto-pendente-pr3')).toBeNull();
+    expect(within(secao).getByRole('button', { name: 'Associar 0 produto(s)' })).toBeDisabled();
 
     // Escolher um livre e gravar.
-    fireEvent.click(within(secao).getByTestId('combustivel-produto-seletor'));
-    fireEvent.click(await within(secao).findByRole('option', { name: /DIESEL S10 POSTO/ }));
+    await escolherProduto(secao, /DIESEL S10 POSTO/);
     await waitFor(() => expect(within(secao).queryByTestId('combustivel-produto-bloqueado')).toBeNull());
-    fireEvent.click(within(secao).getByRole('button', { name: 'Gravar vínculo' }));
-    await screen.findByText('Produto vinculado');
+    expect(within(secao).getByTestId('combustivel-produto-pendente-pr2')).toHaveTextContent('DIESEL S10 POSTO');
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    await screen.findByText('Produto associado');
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'POST', path: '/patrimonio-combustiveis/c1/produtos', body: { empresa_id: 'emp-1', produto_id: 'pr2' } })]);
     // A lista relê a verdade do servidor e o painel fecha.
     expect(await linha('v-novo-1')).toHaveTextContent('DIESEL S10 POSTO');
-    expect(within(secao).queryByRole('button', { name: 'Gravar vínculo' })).toBeNull();
+    expect(within(screen.getByTestId('combustivel-produtos-associados')).getByTestId('combustivel-produto-v-novo-1')).toBeTruthy();
+    expect(within(secao).queryByRole('button', { name: /^Associar \d+ produto/ })).toBeNull();
+    expect(within(secao).queryByTestId('combustivel-produtos-nao-associados')).toBeNull();
   });
 
   it('busca vai ao servidor (q) com a empresa', async () => {
     await montar();
     const secao = await abrir('c1');
-    fireEvent.click(within(secao).getByRole('button', { name: 'Vincular produto' }));
-    fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
+    await abrirAssociacao(secao);
     await within(secao).findByRole('option', { name: /DIESEL S10 POSTO/ });
     fireEvent.change(within(secao).getByRole('searchbox'), { target: { value: 'tanque' } });
     await waitFor(() => expect(leituras('/patrimonio-combustiveis-opcoes/produtos').map((c) => c.query)).toContainEqual({ empresa_id: 'emp-1', q: 'tanque', limit: '50' }), { timeout: 2000 });
     expect(await within(secao).findByRole('option', { name: /DIESEL S10 TANQUE 2/ })).toBeTruthy();
   });
 
-  it('409 COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO do servidor (corrida): mensagem, painel mantido e lista sem o produto', async () => {
+  it('409 COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO do servidor (corrida): "Não associados" com a mensagem, nunca sucesso, e lista sem o produto', async () => {
     await montar();
     const secao = await abrir('c1');
     await linha('v1');
-    fireEvent.click(within(secao).getByRole('button', { name: 'Vincular produto' }));
-    fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
-    fireEvent.click(await within(secao).findByRole('option', { name: /DIESEL S10 POSTO/ }));
+    await abrirAssociacao(secao);
+    await escolherProduto(secao, /DIESEL S10 POSTO/);
     proxima = erroServidor(409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO', { details: { tipo_combustivel_id: 'c2' } });
-    fireEvent.click(within(secao).getByRole('button', { name: 'Gravar vínculo' }));
-    expect(
-      await screen.findByText('Este produto já está vinculado a outro combustível nesta fazenda: um produto só pode ter um combustível ativo. Inative aquele vínculo antes. Nada foi gravado.'),
-    ).toBeTruthy();
-    expect(within(secao).getByRole('button', { name: 'Gravar vínculo' })).toBeTruthy();
-    expect(screen.queryByText('Produto vinculado')).toBeNull();
-    // A lista relida continua sem o produto (o painel mantém a escolha para a pessoa conferir).
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    const bloco = await within(secao).findByTestId('combustivel-produtos-nao-associados');
+    expect(bloco).toHaveTextContent('Não associados (1)');
+    expect(bloco).toHaveTextContent(
+      'DIESEL S10 POSTO: Este produto já está vinculado a outro combustível nesta fazenda: um produto só pode ter um combustível ativo. Inative aquele vínculo antes. Nada foi gravado.',
+    );
+    expect(await screen.findByText('1 de 1 produto(s) não foram associados. Veja "Não associados" e tente de novo.')).toBeTruthy();
+    expect(screen.queryByText('Produto associado')).toBeNull();
+    expect(screen.queryByText('Sucesso')).toBeNull();
+    // A lista relida continua sem o produto.
     await waitFor(() => expect(leituras('/patrimonio-combustiveis/c1/produtos').length).toBeGreaterThan(1));
-    expect(within(screen.getByTestId('combustivel-produtos-lista')).queryByText('DIESEL S10 POSTO')).toBeNull();
+    expect(within(screen.getByTestId('combustivel-produtos-associados')).queryByText('DIESEL S10 POSTO')).toBeNull();
   });
 
-  it('par já existe inativo: 409 inativo_reative orienta reativar o vínculo da lista', async () => {
+  it('par já existe inativo: 409 inativo_reative orienta reativar a associação da lista', async () => {
     await montar();
     const secao = await abrir('c1');
     await linha('v4');
-    fireEvent.click(within(secao).getByRole('button', { name: 'Vincular produto' }));
-    fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
+    await abrirAssociacao(secao);
     fireEvent.click(await within(secao).findByRole('button', { name: 'Carregar mais' }));
-    fireEvent.click(await within(secao).findByRole('option', { name: /DIESEL S10 TANQUE 2/ }));
-    fireEvent.click(within(secao).getByRole('button', { name: 'Gravar vínculo' }));
-    expect(
-      await screen.findByText('Este produto já foi vinculado a este combustível nesta fazenda e o vínculo está inativo: reative-o na lista. Nada foi gravado.'),
-    ).toBeTruthy();
+    await escolherProduto(secao, /DIESEL S10 TANQUE 2/);
+    fireEvent.click(within(secao).getByRole('button', { name: 'Associar 1 produto(s)' }));
+    expect(await within(secao).findByTestId('combustivel-produtos-nao-associados')).toHaveTextContent(
+      'DIESEL S10 TANQUE 2: Este produto já foi vinculado a este combustível nesta fazenda e o vínculo está inativo: reative-o na lista. Nada foi gravado.',
+    );
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'POST', body: { empresa_id: 'emp-1', produto_id: 'pr7' } })]);
   });
 
-  it('cancelar a vinculação fecha o painel sem gravar', async () => {
+  it('cancelar a associação fecha o painel sem gravar', async () => {
     await montar();
     const secao = await abrir('c1');
-    fireEvent.click(within(secao).getByRole('button', { name: 'Vincular produto' }));
-    fireEvent.click(await within(secao).findByTestId('combustivel-produto-seletor'));
-    fireEvent.click(await within(secao).findByRole('option', { name: /DIESEL S10 POSTO/ }));
-    fireEvent.click(within(secao).getByRole('button', { name: 'Cancelar vinculação' }));
-    expect(within(secao).queryByRole('button', { name: 'Gravar vínculo' })).toBeNull();
-    expect(within(secao).getByRole('button', { name: 'Vincular produto' })).toBeTruthy();
+    await abrirAssociacao(secao);
+    await escolherProduto(secao, /DIESEL S10 POSTO/);
+    fireEvent.click(within(secao).getByRole('button', { name: 'Cancelar associação' }));
+    expect(within(secao).queryByRole('button', { name: /^Associar \d+ produto/ })).toBeNull();
+    expect(within(secao).getByRole('button', { name: 'Associar produtos' })).toBeTruthy();
     expect(mutacoes()).toEqual([]);
   });
 
-  it('combustível inativo: não oferece vincular nem reativar (o servidor exige combustível ativo)', async () => {
+  it('combustível inativo: não oferece associar nem reativar (o servidor exige combustível ativo)', async () => {
     estado.vinculos.push(vinculo('v9', 'emp-1', 'c9', 'pr2', false, 1));
     await montar();
     await screen.findByTestId('combustivel-nome-c1');
     await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por situação' }), 'Inativos');
     const secao = await abrir('c9');
     await linha('v9');
-    expect(within(secao).getByTestId('combustivel-produtos-tipo-inativo')).toHaveTextContent('Combustível inativo: reative-o para vincular ou reativar produtos.');
-    expect(within(secao).queryByRole('button', { name: 'Vincular produto' })).toBeNull();
-    expect(within(await linha('v9')).queryByRole('button', { name: 'Reativar vínculo' })).toBeNull();
+    expect(within(secao).getByTestId('combustivel-produtos-tipo-inativo')).toHaveTextContent('Combustível inativo: reative-o para associar ou reativar produtos.');
+    expect(within(secao).queryByRole('button', { name: 'Associar produtos' })).toBeNull();
+    expect(within(await linha('v9')).queryByRole('button', { name: 'Reativar associação' })).toBeNull();
   });
 });
 
-describe('Combustíveis — inativar e reativar vínculo (ação "inativar")', () => {
+describe('Combustíveis — inativar e reativar associação (ação "inativar")', () => {
   it('inativa com confirmação ({empresa_id, versao, ativo:false}); depois reativa outro ({empresa_id, versao, ativo:true})', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await montar();
     await abrir('c1');
-    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' }));
-    await screen.findByText('Vínculo inativado');
+    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' }));
+    await screen.findByText('Associação inativada');
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/patrimonio-combustivel-produtos/v1', body: { empresa_id: 'emp-1', versao: 1, ativo: false } })]);
-    await waitFor(() => expect(screen.getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Vínculo inativo$/));
+    await waitFor(() => expect(screen.getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Associação inativa$/));
+    // Sai de "Associados" e vai para "Inativos" (nada some).
+    await waitFor(() => expect(within(screen.getByTestId('combustivel-produtos-inativos')).getByTestId('combustivel-produto-v1')).toBeTruthy());
 
-    fireEvent.click(within(await linha('v4')).getByRole('button', { name: 'Reativar vínculo' }));
-    await screen.findByText('Vínculo reativado');
+    fireEvent.click(within(await linha('v4')).getByRole('button', { name: 'Reativar associação' }));
+    await screen.findByText('Associação reativada');
     expect(mutacoes().at(-1)).toEqual(expect.objectContaining({ method: 'PATCH', path: '/patrimonio-combustivel-produtos/v4', body: { empresa_id: 'emp-1', versao: 2, ativo: true } }));
-    await waitFor(() => expect(screen.getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Ativo$/));
+    await waitFor(() => expect(screen.getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Associado$/));
   });
 
-  it('vínculo ativo de produto inativo/movido pode ser inativado; inativo de produto inativo não oferece reativar', async () => {
+  it('associação ativa de produto inativo/movido pode ser inativada; inativa de produto inativo não oferece reativar', async () => {
     await montar();
     await abrir('c1');
-    expect(within(await linha('v2')).getByRole('button', { name: 'Inativar vínculo' })).toBeTruthy();
-    expect(within(await linha('v3')).getByRole('button', { name: 'Inativar vínculo' })).toBeTruthy();
+    expect(within(await linha('v2')).getByRole('button', { name: 'Inativar associação' })).toBeTruthy();
+    expect(within(await linha('v3')).getByRole('button', { name: 'Inativar associação' })).toBeTruthy();
     const v8 = await linha('v8');
-    expect(within(v8).queryByRole('button', { name: 'Reativar vínculo' })).toBeNull();
-    expect(within(v8).queryByRole('button', { name: 'Inativar vínculo' })).toBeNull();
+    expect(within(v8).queryByRole('button', { name: 'Reativar associação' })).toBeNull();
+    expect(within(v8).queryByRole('button', { name: 'Inativar associação' })).toBeNull();
   });
 
   it('cancelar a confirmação não grava', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await montar();
     await abrir('c1');
-    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' }));
+    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' }));
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
     await esperar();
     expect(mutacoes()).toEqual([]);
@@ -408,10 +441,10 @@ describe('Combustíveis — inativar e reativar vínculo (ação "inativar")', (
     await montar();
     await abrir('c1');
     proxima = erroServidor(409, 'COMBUSTIVEL_PRODUTO_EM_OUTRO_TIPO', { details: { tipo_combustivel_id: 'c2' } });
-    fireEvent.click(within(await linha('v4')).getByRole('button', { name: 'Reativar vínculo' }));
+    fireEvent.click(within(await linha('v4')).getByRole('button', { name: 'Reativar associação' }));
     expect(await screen.findByText(/já está vinculado a outro combustível nesta fazenda.*Nada foi gravado\./)).toBeTruthy();
-    expect(screen.getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Vínculo inativo$/);
-    expect(screen.queryByText('Vínculo reativado')).toBeNull();
+    expect(screen.getByTestId('combustivel-produto-situacao-v4')).toHaveTextContent(/^Associação inativa$/);
+    expect(screen.queryByText('Associação reativada')).toBeNull();
   });
 
   it('conflito de versão (409 PATRIMONIO_VERSAO_CONFLITO): mensagem e a lista é relida', async () => {
@@ -421,7 +454,7 @@ describe('Combustíveis — inativar e reativar vínculo (ação "inativar")', (
     await linha('v1');
     const antes = leituras('/patrimonio-combustiveis/c1/produtos').length;
     estado.vinculos.find((v) => v.id === 'v1').versao = 5; // outra pessoa gravou
-    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' }));
+    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' }));
     expect(await screen.findByText(/alterado por outra pessoa enquanto você editava.*Nada foi gravado\./)).toBeTruthy();
     await waitFor(() => expect(leituras('/patrimonio-combustiveis/c1/produtos').length).toBeGreaterThan(antes));
   });
@@ -433,40 +466,40 @@ describe('Combustíveis — inativar e reativar vínculo (ação "inativar")', (
     await linha('v1');
     const antes = leituras('/patrimonio-combustiveis/c1/produtos').length;
     proxima = erroServidor(404, 'COMBUSTIVEL_PRODUTO_NAO_ENCONTRADO');
-    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' }));
+    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' }));
     expect(await screen.findByText('Vínculo de produto não encontrado nesta fazenda. A lista será atualizada.')).toBeTruthy();
     await waitFor(() => expect(leituras('/patrimonio-combustiveis/c1/produtos').length).toBeGreaterThan(antes));
   });
 });
 
 describe('Combustíveis — permissões da seção de produtos', () => {
-  it('só visualizar: lista legível, sem vincular e sem inativar/reativar', async () => {
+  it('só visualizar: lista legível, sem associar e sem inativar/reativar', async () => {
     sessao.permissao = permissaoCom({});
     await montar();
     const secao = await abrir('c1');
     await linha('v1');
-    expect(within(secao).queryByRole('button', { name: 'Vincular produto' })).toBeNull();
-    expect(within(secao).queryByRole('button', { name: 'Inativar vínculo' })).toBeNull();
-    expect(within(secao).queryByRole('button', { name: 'Reativar vínculo' })).toBeNull();
+    expect(within(secao).queryByRole('button', { name: 'Associar produtos' })).toBeNull();
+    expect(within(secao).queryByRole('button', { name: 'Inativar associação' })).toBeNull();
+    expect(within(secao).queryByRole('button', { name: 'Reativar associação' })).toBeNull();
   });
 
-  it('novo sem inativar: vincula, mas não inativa/reativa (o servidor exige "inativar")', async () => {
+  it('novo sem inativar: associa, mas não inativa/reativa (o servidor exige "inativar")', async () => {
     sessao.permissao = permissaoCom({ novo: true, editar: true, salvar: true });
     await montar();
     const secao = await abrir('c1');
     await linha('v1');
-    expect(within(secao).getByRole('button', { name: 'Vincular produto' })).toBeTruthy();
-    expect(within(secao).queryByRole('button', { name: 'Inativar vínculo' })).toBeNull();
-    expect(within(secao).queryByRole('button', { name: 'Reativar vínculo' })).toBeNull();
+    expect(within(secao).getByRole('button', { name: 'Associar produtos' })).toBeTruthy();
+    expect(within(secao).queryByRole('button', { name: 'Inativar associação' })).toBeNull();
+    expect(within(secao).queryByRole('button', { name: 'Reativar associação' })).toBeNull();
   });
 
-  it('inativar sem novo/salvar: inativa, mas não vincula', async () => {
+  it('inativar sem novo/salvar: inativa, mas não associa', async () => {
     sessao.permissao = permissaoCom({ inativar: true });
     await montar();
     const secao = await abrir('c1');
     await linha('v1');
-    expect(within(secao).queryByRole('button', { name: 'Vincular produto' })).toBeNull();
-    expect(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' })).toBeTruthy();
+    expect(within(secao).queryByRole('button', { name: 'Associar produtos' })).toBeNull();
+    expect(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' })).toBeTruthy();
   });
 
   it('servidor nega (403 ACAO_NAO_PERMITIDA): mensagem de permissão e nada muda', async () => {
@@ -474,9 +507,9 @@ describe('Combustíveis — permissões da seção de produtos', () => {
     await montar();
     await abrir('c1');
     proxima = erroServidor(403, 'ACAO_NAO_PERMITIDA', { details: { tela: 'pat-combustiveis', exige: ['pat-combustiveis:inativar'] } });
-    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar vínculo' }));
+    fireEvent.click(within(await linha('v1')).getByRole('button', { name: 'Inativar associação' }));
     expect(await screen.findByText(/Você não tem permissão para esta ação nesta tela/)).toBeTruthy();
-    expect(screen.getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Ativo$/);
+    expect(screen.getByTestId('combustivel-produto-situacao-v1')).toHaveTextContent(/^Associado$/);
   });
 });
 

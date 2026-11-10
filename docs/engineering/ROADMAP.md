@@ -388,15 +388,38 @@ leitura do medidor guardada no próprio abastecimento (série monotônica, sem g
 bem) e consumo km/L ou L/h pelo método do tanque cheio declarado. Permissões novas,
 negadas por padrão. Migration expand-only com 3 tabelas novas.
 
-**Estado:** PR em **DRAFT**. Migration **não aplicada** em nenhum ambiente remoto; o
-merge depende da revisão humana, do GO expresso da migration pelo runbook
-[`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md)
-e do merge manual. Relatório:
+**Estado:** migration aplicada em produção em 2026-11-10 às 13:18:33 UTC, com GO
+expresso, pelo runbook
+[`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md);
+depois dela, a PR #235 foi mergeada pelo proprietário (`e3ea4c39`; registrado pela
+UX-02). Relatório:
 [`MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md`](./MAIKE-PATRIMONIO-P1-02-ABASTECIMENTOS-REPORT.md).
 
 **Fora desta fase** (cada item só com decisão própria): manutenção, ordens de
 serviço, peças, compras, custo/hora, apuração de depreciação, transferência entre
 fazendas, saldo de tanque, GNV em tanque de litros, mapas e dashboards.
+
+## Track autorizado — Patrimônio UX-02: abastecimento orientado pelo Produto associado (D-PROD-160)
+
+Correção de UX pedida pelo proprietário sobre a P1-02, sem schema. O cadastro de
+**Combustíveis** passa a ser o lugar onde cada fazenda associa os seus Produtos ao
+combustível (Associados, Inativos e Disponíveis, vários de uma vez, também ao criar
+o combustível, com resultado explícito quando algum vínculo falha). No **Novo
+abastecimento**, depois de escolher a máquina ou o veículo, o operador escolhe o
+**Produto** pelo nome real; o tipo de combustível, o tanque (quando só há um), o
+fator e o local (quando só um tem saldo) são resolvidos pelo servidor a partir dos
+vínculos ativos. A troca do Produto associado vale para os próximos abastecimentos,
+sem editar o bem e sem reescrever o histórico; o novo Produto precisa do seu próprio
+fator kg/L. Backend: uma rota nova só de leitura
+(`GET /patrimonio-abastecimentos-opcoes/produtos-do-bem`); nenhuma API mutativa muda.
+
+**Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237)
+**mergeada** na `main` (`e39d318b`), sem migration. Relatório:
+[`MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md`](./MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md).
+
+**Limites registrados** (mudar exige decisão própria e schema): um Produto só pode
+estar ativo num combustível por fazenda; o fator kg/L é por par combustível ×
+Produto.
 
 ## Track autorizado — Estoque P0-01: motor físico único, ENTRADA ≠ MOVIMENTAÇÃO (D-PROD-161)
 

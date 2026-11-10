@@ -9,15 +9,24 @@
  * confere o estado NO BANCO (Prisma): fator, abastecimento, fatias, movimento,
  * lotes, `Produto.estoque_atual` e o bem (intocado).
  *
- * Roteiro (em 1280 e 390 px; cada largura num tenant próprio semeado por
+ * UX-02 (D-PROD-160): o formulário é Máquina/Veículo → PRODUTO (o único Produto
+ * do bem já vem marcado; o tipo de combustível vem da opção do servidor e não
+ * é etapa da tela) → local automático → litros → medidor → "Completou o
+ * tanque?" → "Revisar abastecimento" (resumo humano; fator, custo e FIFO em
+ * "Detalhes do estoque", recolhido). A lista padrão não tem Nº nem Combustível:
+ * o registro é achado pela máquina (tabela) ou pelos litros (card no celular).
+ *
+ * Roteiro (em 1280, 820 e 390 px; cada largura num tenant próprio semeado por
  * `e2e-abastecimentos-seed.mjs`; "hoje" = dia real no fuso da fazenda):
  *   1. tela vazia ("Nenhum abastecimento…");
  *   2. configurar o fator kg/L PELA TELA ("Fatores kg/L" → Novo fator: Diesel
  *      S10 × DIESEL S10 GRANEL, "0,84", declaração) → 1 fator vigente no banco;
- *   3. Novo abastecimento: bem TP-02 → tanque e combustível automáticos →
- *      produto (fator 0,840000 versão 1) → local automático → 80 L → horímetro
- *      1.550,5 → tanque cheio → Pré-visualizar: 67,2000 kg, FIFO em 2 lotes,
- *      custo estimado R$ 354,60 (vetor `fifo`); a prévia NÃO grava nada;
+ *   3. Novo abastecimento: máquina TP-02 → Produto DIESEL S10 GRANEL já
+ *      marcado (sem etapa de combustível) → "Sai do estoque: TANQUE DIESEL
+ *      SEDE" → 80 L → horímetro 1.550,5 → "Completou o tanque?" Sim →
+ *      "Revisar abastecimento": 67,2000 kg; em "Detalhes do estoque" o fator
+ *      0,840000 versão 1, FIFO em 2 lotes e custo estimado R$ 354,60 (vetor
+ *      `fifo`); a revisão NÃO grava nada;
  *   4. Confirmar → no banco: 1 abastecimento CONFIRMADO, 1 Saída
  *      `abastecimento_patrimonio` (lancamento_origem_id = id), 2 fatias,
  *      lotes 0 / 82,8 kg, `estoque_atual` 82,8; o bem não muda (versão e
@@ -37,12 +46,25 @@
  *      ação (Novo, Cancelar, Novo fator); a API real recusa 403 os comandos
  *      e nada muda no banco.
  *  Toda resposta ≥ 400 da API real observada pelas telas é divergência.
+ *  Em TODA captura (lista, formulário, revisão…): a página não rola na
+ *  horizontal (`scrollingElement.scrollWidth <= clientWidth + 1`). Lista
+ *  (passos 5 e 8): tabela com as colunas exatas Data | Máquina/Veículo |
+ *  Produto | Litros | Medidor | Situação (sem "Combustível"); no celular,
+ *  cards com a máquina/veículo no título + Produto, Litros e Data, e a
+ *  Situação no card (contrato §1.4: no passo 8 o cancelado mostra "Cancelado"
+ *  e os outros "Confirmado", na linha e no card). Na tabela, nenhum rótulo
+ *  de cabeçalho cortado nem célula de Data/Litros/Medidor/Situação (elemento
+ *  com scrollWidth <= clientWidth + 1) — exceção única: em < 1024 px o rótulo
+ *  "Máquina/Veículo" pode sair com reticências (a coluna cede largura ao
+ *  Produto; a célula já identifica a máquina) —, coluna Produto com >= 128 px
+ *  renderizados e a grade sem rolagem horizontal. Formulário: nenhum
+ *  rótulo/campo/etapa "Combustível" nem o tipo "Diesel S10".
  *
  * Uso:
  *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_e2e?host=/tmp \
  *     node scripts/dev/e2e-abastecimentos-real.mjs [pasta-das-capturas]
  * Variáveis opcionais: E2E_API_PORT (3911), E2E_WEB_PORT (5211),
- * E2E_LARGURAS ("1280,390"). O banco precisa estar migrado
+ * E2E_LARGURAS ("1280,820,390"). O banco precisa estar migrado
  * (`npm run deploy:migrate` com a mesma URL). Recusa banco que não seja local.
  * Capturas com deviceScaleFactor 1. Encerra backend e Vite ao sair. Sai com
  * código ≠ 0 em QUALQUER divergência de tela ou de banco.
@@ -62,7 +84,7 @@ const WEB_PORT = Number(process.env.E2E_WEB_PORT || 5211);
 const API = `http://127.0.0.1:${API_PORT}`;
 const WEB = `http://127.0.0.1:${WEB_PORT}`;
 const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'maike-e2e-abastecimentos'));
-const LARGURAS = String(process.env.E2E_LARGURAS || '1280,390')
+const LARGURAS = String(process.env.E2E_LARGURAS || '1280,820,390')
   .split(',')
   .map((s) => Number(s.trim()))
   .filter((n) => Number.isInteger(n) && n >= 320);
@@ -288,6 +310,12 @@ const executarLargura = async (browser, largura) => {
       await page.screenshot({ path: path.join(OUT, arquivo), fullPage: false });
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
       conferir(sw <= largura, `${arquivo}: rolagem horizontal (${sw} > ${largura})`);
+      // UX-02: a PÁGINA não rola na horizontal (lista, formulário e revisão em todas as larguras).
+      const rol = await page.evaluate(() => {
+        const e = document.scrollingElement || document.documentElement;
+        return { sw: e.scrollWidth, cw: e.clientWidth };
+      });
+      conferir(rol.sw <= rol.cw + 1, `${arquivo}: rolagem horizontal da página (scrollingElement.scrollWidth ${rol.sw} > clientWidth ${rol.cw} + 1)`);
       return arquivo;
     };
     const visivel = (loc) => loc.filter({ visible: true }).first();
@@ -314,18 +342,143 @@ const executarLargura = async (browser, largura) => {
       await page.goto(`${WEB}/abastecimentos`, { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('networkidle').catch(() => {});
     };
-    /** Abre o abastecimento pela lista (tabela no desktop, card no celular). */
+    const esperarNaLista = (registro) =>
+      page.waitForFunction(
+        ({ id, litros }) =>
+          [...document.querySelectorAll(`[data-testid="abastecimento-bem-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
+          [...document.querySelectorAll('[data-testid="b1-card"]')].some((e) => e.textContent?.includes(litros) && e.getClientRects().length > 0),
+        { id: registro.id, litros: registro.litros },
+      );
+    /**
+     * UX-02: confere a LISTA padrão com o registro (e captura). Tabela (≥ 640
+     * px; obrigatória em ≥ 1024): colunas exatas Data | Máquina/Veículo |
+     * Produto | Litros | Medidor | Situação, sem "Combustível", e a linha com a
+     * máquina, o Produto, os litros e a data. Celular (< 640): cards com a
+     * máquina/veículo no título + Produto, Litros e Data (sem tabela).
+     */
+    const conferirLista = async (registro, etapa, outros = []) => {
+      await irParaLista();
+      await esperarNaLista(registro);
+      for (const o of outros) await esperarNaLista(o);
+      const [ano, mes, dia] = String(s.hoje).split('-');
+      const dataBr = `${dia}/${mes}/${ano}`;
+      const cabecalhos = (await page.getByRole('columnheader').filter({ visible: true }).allTextContents()).map((t) => t.trim()).filter(Boolean);
+      if (largura >= 1024) conferir(cabecalhos.length > 0, `[${rotulo}] ${ator}: lista sem tabela em ${largura} px`);
+      if (movel) conferir(cabecalhos.length === 0, `[${rotulo}] ${ator}: lista em tabela no celular (${cabecalhos.join(' | ')})`);
+      if (cabecalhos.length) {
+        igual(cabecalhos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] ${ator}: colunas padrão da lista`);
+        conferir(!cabecalhos.some((c) => /combust/i.test(c)), `[${rotulo}] ${ator}: coluna de combustível na lista (${cabecalhos.join(' | ')})`);
+        // Tablet e desktop (UX-02, linha 67): as 6 colunas padrão cabem na área
+        // visível da grade, sem rolar a tabela por dentro para ver a Situação.
+        const encaixe = await page.getByRole('columnheader', { name: 'Situação' }).first().evaluate((th) => {
+          let el = th.parentElement;
+          while (el && el !== document.body) {
+            const ox = getComputedStyle(el).overflowX;
+            if (ox === 'auto' || ox === 'scroll') break;
+            el = el.parentElement;
+          }
+          const caixa = (el && el !== document.body ? el : document.documentElement).getBoundingClientRect();
+          return { direita: Math.round(th.getBoundingClientRect().right), limite: Math.round(caixa.right), sw: el?.scrollWidth ?? 0, cw: el?.clientWidth ?? 0 };
+        });
+        conferir(
+          encaixe.direita <= encaixe.limite + 1,
+          `[${rotulo}] ${ator}: coluna Situação fora da área visível da grade em ${largura} px (borda ${encaixe.direita} > ${encaixe.limite})`,
+        );
+        // Rodada 2 (L2): a grade (contêiner com overflow-x da tabela) não rola na
+        // horizontal — as 6 colunas padrão cabem sem arrastar a tabela.
+        conferir(encaixe.sw <= encaixe.cw + 1, `[${rotulo}] ${ator}: a grade rola na horizontal em ${largura} px (scrollWidth ${encaixe.sw} > clientWidth ${encaixe.cw} + 1)`);
+        // Revisão final UX-02 (L2): em 820 px "Medidor" e "Máquina/Veículo" saíam com
+        // reticências e Litros cortava a partir de 100 L. `allTextContents` (acima)
+        // devolve o texto inteiro mesmo cortado, então mede o ELEMENTO do rótulo
+        // (scrollWidth <= clientWidth + 1). Também as células de Data, Litros,
+        // Medidor e Situação (Máquina e Produto cortam de propósito, com `title`).
+        const cortes = await visivel(page.locator('table.mg-grid')).evaluate((tabela) => {
+          const ths = [...tabela.querySelectorAll('thead th')];
+          const rotuloDe = (th) => th.querySelector('button span') || th.querySelector('button');
+          const out = [];
+          const cabecalhosCortados = [];
+          const indice = {};
+          ths.forEach((th, i) => {
+            const el = rotuloDe(th);
+            const t = el?.textContent.trim();
+            if (!t) return;
+            indice[t] = i;
+            if (el.scrollWidth > el.clientWidth + 1) cabecalhosCortados.push({ t, sw: el.scrollWidth, cw: el.clientWidth });
+          });
+          for (const tr of tabela.querySelectorAll('tbody tr')) {
+            for (const nome of ['Data', 'Litros', 'Medidor', 'Situação']) {
+              const td = indice[nome] === undefined ? null : tr.children[indice[nome]];
+              if (td && td.scrollWidth > td.clientWidth + 1) out.push(`${nome} "${td.textContent.trim()}" (${td.scrollWidth} > ${td.clientWidth})`);
+            }
+          }
+          const thProduto = indice.Produto === undefined ? null : ths[indice.Produto];
+          return { out, cabecalhosCortados, rotulos: Object.keys(indice), larguraProduto: thProduto ? Math.round(thProduto.getBoundingClientRect().width * 10) / 10 : 0 };
+        });
+        igual(cortes.rotulos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] ${ator}: rótulos medidos na grade`);
+        // Rodada 2 (L2, decisão do orquestrador): no tablet (< 1024 px) o PRODUTO
+        // vale mais que o rótulo inteiro "Máquina/Veículo" — vários Produtos do
+        // mesmo combustível só se distinguem pela última palavra ("Diesel S10
+        // granel" × "Diesel S10 posto") e não há hover para o `title`, enquanto a
+        // célula da máquina já a identifica ("TP-02 — …"). Por isso, em < 1024 px,
+        // SÓ o rótulo "Máquina/Veículo" pode sair com reticências; em >= 1024 px,
+        // nenhum. Qualquer outro rótulo cortado é divergência.
+        const rotuloPodeCortar = (t) => largura < 1024 && t === 'Máquina/Veículo';
+        const cabecalhosRuins = cortes.cabecalhosCortados.filter((c) => !rotuloPodeCortar(c.t)).map((c) => `cabeçalho "${c.t}" (${c.sw} > ${c.cw})`);
+        const aceitos = cortes.cabecalhosCortados.filter((c) => rotuloPodeCortar(c.t));
+        if (aceitos.length) console.log(`  [${rotulo}] ${ator}: ${largura} px — rótulo "Máquina/Veículo" com reticências (${aceitos[0].sw} > ${aceitos[0].cw}), exceção aceita no tablet`);
+        conferir(cabecalhosRuins.length === 0 && cortes.out.length === 0, `[${rotulo}] ${ator}: texto cortado na lista em ${largura} px: ${[...cabecalhosRuins, ...cortes.out].join('; ')}`);
+        // O seed usa "DIESEL S10 GRANEL" (127 px em maiúsculas, mais largo que os
+        // nomes comuns), então em vez de exigir a célula inteira confere a
+        // LARGURA renderizada da coluna: >= 128 px deixa ~109 px de texto, onde
+        // cabem "Gasolina comum", "Diesel S10 granel" e "Diesel S10 posto".
+        conferir(cortes.larguraProduto >= 128, `[${rotulo}] ${ator}: coluna Produto com ${cortes.larguraProduto} px (< 128) em ${largura} px — o nome do Produto perde a palavra que o distingue`);
+        for (const r of [registro, ...outros]) {
+          const linha = visivel(page.locator('tr').filter({ has: page.getByTestId(`abastecimento-bem-${r.id}`) }));
+          const txt = (await linha.innerText()).replace(/\s+/g, ' ');
+          conferir(
+            txt.includes('TP-02') && txt.includes('DIESEL S10 GRANEL') && txt.includes(r.litros) && txt.includes(dataBr),
+            `[${rotulo}] ${ator}: linha da lista sem máquina/Produto/litros/data (${txt})`,
+          );
+          if (r.situacao) igual((await visivel(page.getByTestId(`abastecimento-situacao-${r.id}`)).innerText()).trim(), r.situacao, `[${rotulo}] ${ator}: linha ${r.litros} — Situação`);
+        }
+      }
+      if (movel) {
+        for (const r of [registro, ...outros]) {
+          const card = visivel(page.getByTestId('b1-card').filter({ hasText: r.litros }));
+          const titulo = (await card.locator('.mg-b1-card__title').innerText().catch(() => '')).trim();
+          conferir(titulo.includes('TP-02') && titulo.includes('Trator TP-02'), `[${rotulo}] ${ator}: título do card sem a máquina/veículo (${titulo})`);
+          const rotulos = (await card.locator('.mg-b1-card__label').allInnerTexts()).map((t) => t.trim().replace(/:$/, ''));
+          const valores = (await card.locator('.mg-b1-card__value').allInnerTexts()).map((t) => t.trim());
+          const campos = Object.fromEntries(rotulos.map((rr, i) => [rr, valores[i]]));
+          igual(campos.Produto, 'DIESEL S10 GRANEL', `[${rotulo}] ${ator}: card ${r.litros} — Produto`);
+          igual(campos.Litros, r.litros, `[${rotulo}] ${ator}: card ${r.litros} — Litros`);
+          igual(campos.Data, dataBr, `[${rotulo}] ${ator}: card ${r.litros} — Data`);
+          conferir(!rotulos.some((rr) => /combust/i.test(rr)), `[${rotulo}] ${ator}: card com combustível (${rotulos.join(', ')})`);
+          // Contrato §1.4: a Situação aparece no card (Cancelado ≠ Confirmado sem abrir o registro).
+          if (r.situacao) {
+            const sub = (await card.locator('.mg-b1-card__sub').innerText().catch(() => '')).trim();
+            const situacaoNosCampos = campos['Situação'];
+            conferir(sub === r.situacao || situacaoNosCampos === r.situacao, `[${rotulo}] ${ator}: card ${r.litros} sem a Situação "${r.situacao}" (subtítulo "${sub}", campos ${rotulos.join(', ')})`);
+          }
+        }
+      }
+      await shot(etapa);
+    };
+    /**
+     * Abre o abastecimento pela lista: na tabela pela célula da máquina (o Nº
+     * é coluna opcional desde a UX-02); no celular pelo card com os litros dele.
+     */
     const abrirNaLista = async (registro) => {
       await irParaLista();
-      let alvo = page.getByTestId(`abastecimento-numero-${registro.id}`);
+      let alvo = page.getByTestId(`abastecimento-bem-${registro.id}`);
       await page.waitForFunction(
-        ({ id, numero }) =>
-          [...document.querySelectorAll(`[data-testid="abastecimento-numero-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
-          [...document.querySelectorAll('[data-testid="b1-card"] .mg-b1-card__sub')].some((e) => e.textContent?.trim() === String(numero) && e.getClientRects().length > 0),
-        { id: registro.id, numero: registro.numero },
+        ({ id, litros }) =>
+          [...document.querySelectorAll(`[data-testid="abastecimento-bem-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
+          [...document.querySelectorAll('[data-testid="b1-card"]')].some((e) => e.textContent?.includes(litros) && e.getClientRects().length > 0),
+        { id: registro.id, litros: registro.litros },
       );
       if (!(await visivel(alvo).isVisible().catch(() => false))) {
-        alvo = page.getByTestId('b1-card').filter({ has: page.locator('.mg-b1-card__sub', { hasText: new RegExp(`^\\s*${registro.numero}\\s*$`) }) });
+        alvo = page.getByTestId('b1-card').filter({ hasText: registro.litros });
       }
       const el = visivel(alvo);
       await el.scrollIntoViewIfNeeded().catch(() => {});
@@ -337,7 +490,7 @@ const executarLargura = async (browser, largura) => {
       fechado = true;
       await ctx.close().catch(() => {});
     };
-    const a = { ator, page, requisicoes, shot, visivel, clicar, preencher, escolher, irParaLista, abrirNaLista, fechar, aberto: () => !fechado };
+    const a = { ator, page, requisicoes, shot, visivel, clicar, preencher, escolher, irParaLista, conferirLista, abrirNaLista, fechar, aberto: () => !fechado };
     atores.push(a);
     return a;
   };
@@ -358,34 +511,53 @@ const executarLargura = async (browser, largura) => {
   };
 
   const dono = await abrirAtor('dono', token);
-  const { page, shot, visivel, clicar, preencher, escolher, irParaLista, abrirNaLista } = dono;
+  const { page, shot, visivel, clicar, preencher, escolher, irParaLista, conferirLista, abrirNaLista } = dono;
   const bemAntes = await bemCru(s);
   const reg = {};
 
-  /** Preenche o formulário do TP-02 como o usuário (litros/leitura em texto pt-BR). */
+  /**
+   * Preenche o formulário do TP-02 como o usuário (UX-02): máquina → o único
+   * Produto já vem marcado (sem etapa de combustível) → local automático →
+   * litros/leitura em texto pt-BR → "Completou o tanque?" Sim.
+   */
   const preencherTrator = async (litros, leitura) => {
     await clicar(page.getByRole('button', { name: 'Novo abastecimento' }));
     const form = visivel(page.getByTestId('abastecimento-form'));
     await form.waitFor();
     await escolher(form, 'abastecimento-bem', /TP-02/);
-    await visivel(page.getByText('Capacidade nominal: 180,0000 L')).waitFor();
-    await page.waitForFunction(() => document.querySelector('[data-testid="abastecimento-combustivel"] [role="radio"][aria-checked="true"]') !== null);
-    await escolher(form, 'abastecimento-produto', /DIESEL S10 GRANEL/);
-    await visivel(page.getByText(/Fator: 0,840000 kg\/L \(versão 1\)/)).waitFor();
-    await visivel(page.getByRole('combobox', { name: 'Local de estoque' }).filter({ hasText: 'TANQUE DIESEL SEDE' })).waitFor();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('[data-testid="abastecimento-produto"] [role="radio"][aria-checked="true"]')].some((r) => r.textContent?.trim() === 'DIESEL S10 GRANEL' && r.getClientRects().length > 0),
+    );
+    await visivel(page.getByTestId('abastecimento-local-auto').filter({ hasText: 'Sai do estoque: TANQUE DIESEL SEDE' })).waitFor();
+    igual(await page.getByTestId('abastecimento-combustivel').count(), 0, `[${rotulo}] o formulário ainda tem a etapa "Combustível"`);
+    igual(await form.getByRole('radio', { name: 'Diesel S10', exact: true }).count(), 0, `[${rotulo}] o tipo "Diesel S10" aparece como escolha no formulário`);
+    // UX-02: nenhuma ETAPA "Combustível" (rótulo, legenda ou campo) no formulário; o tipo não é exibido.
+    igual(await form.getByText(/^\s*(Tipo de )?[Cc]ombust[íi]vel\s*\*?\s*$/).filter({ visible: true }).count(), 0, `[${rotulo}] o formulário tem rótulo/etapa "Combustível"`);
+    igual(await form.getByLabel(/^\s*(Tipo de )?[Cc]ombust[íi]vel\s*\*?\s*$/).count(), 0, `[${rotulo}] o formulário tem campo "Combustível"`);
+    igual(await form.getByText('Diesel S10', { exact: true }).filter({ visible: true }).count(), 0, `[${rotulo}] o formulário mostra o tipo "Diesel S10"`);
+    const rotulosForm = (await form.locator('label, legend, [role="radiogroup"]').filter({ visible: true }).allInnerTexts()).map((t) => t.split('\n')[0].trim()).filter(Boolean);
+    conferir(!rotulosForm.some((t) => /^combust[íi]vel\b/i.test(t)), `[${rotulo}] etapa de combustível no formulário (${rotulosForm.join(' / ')})`);
     igual(await visivel(page.getByTestId('abastecimento-data')).inputValue(), s.hoje, `[${rotulo}] data padrão do formulário (hoje no fuso da fazenda)`);
     await preencher('abastecimento-litros', litros);
     await preencher('abastecimento-leitura', leitura);
-    const cheio = visivel(page.getByTestId('abastecimento-tanque-cheio'));
-    if (!(await cheio.isChecked())) await cheio.check();
+    const sim = visivel(page.getByTestId('abastecimento-tanque-cheio').getByRole('radio', { name: 'Sim' }));
+    if ((await sim.getAttribute('aria-checked')) !== 'true') await sim.click();
     return form;
   };
+  /** "Revisar abastecimento" → revisão do servidor (sem escrita). */
   const pedirPrevia = async () => {
     await clicar(page.getByTestId('abastecimento-previa'));
     const dlg = visivel(page.getByTestId('dialogo-previa-abastecimento'));
     await dlg.waitFor();
     await visivel(page.getByTestId('previa-kg')).waitFor();
     return dlg;
+  };
+  /** Abre "Detalhes do estoque" da revisão (recolhido por padrão). */
+  const abrirDetalhesDoEstoque = async () => {
+    const botao = visivel(page.getByTestId('previa-detalhes-estoque'));
+    igual(await botao.getAttribute('aria-expanded'), 'false', `[${rotulo}] "Detalhes do estoque" não começa recolhido`);
+    await botao.click();
+    await visivel(page.getByTestId('previa-fator')).waitFor();
   };
 
   try {
@@ -422,13 +594,17 @@ const executarLargura = async (browser, largura) => {
       reg.fator = fator;
     });
 
-    await passo('3 formulário → prévia (sem escrita)', async () => {
+    await passo('3 formulário → revisão (sem escrita)', async () => {
       await irParaLista();
       await preencherTrator('80', '1.550,5');
-      await visivel(page.getByText('Estimativa: ≈ 67,2000 kg')).waitFor();
       await shot('formulario');
       const antes = await fotoBanco(s);
       await pedirPrevia();
+      const resumo = await visivel(page.getByTestId('previa-resumo')).innerText();
+      conferir(resumo.includes('DIESEL S10 GRANEL') && resumo.includes('80 L') && resumo.includes('67,2000 kg'), `[${rotulo}] revisão: resumo ${resumo}`);
+      igual(await page.getByTestId('previa-fator').filter({ visible: true }).count(), 0, `[${rotulo}] revisão: fator fora de "Detalhes do estoque"`);
+      await shot('previa');
+      await abrirDetalhesDoEstoque();
       const kg = await visivel(page.getByTestId('previa-kg')).innerText();
       const fator = await visivel(page.getByTestId('previa-fator')).innerText();
       const custo = await visivel(page.getByTestId('previa-custo')).innerText();
@@ -440,7 +616,7 @@ const executarLargura = async (browser, largura) => {
       conferir(linhas[0]?.includes('50,0000') && linhas[1]?.includes('17,2000'), `[${rotulo}] prévia: fatias ${linhas.join(' / ')}`);
       igual(await page.getByTestId('previa-bloqueios').count(), 0, `[${rotulo}] prévia com bloqueio`);
       igual(await fotoBanco(s), antes, `[${rotulo}] a prévia gravou algo`);
-      await shot('previa');
+      await shot('previa-detalhes');
     });
 
     await passo('4 confirmar → baixa FIFO exata no banco', async () => {
@@ -466,11 +642,12 @@ const executarLargura = async (browser, largura) => {
       igual(await estoqueAtual(s), '82.8000', `[${rotulo}] estoque_atual após a baixa`);
       igual(await bemCru(s), bemAntes, `[${rotulo}] o abastecimento alterou o bem`);
       igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } }), 0, `[${rotulo}] lançamento financeiro criado`);
-      reg.primeiro = { id: ab.id, numero: ab.numero };
+      reg.primeiro = { id: ab.id, numero: ab.numero, litros: '80,0000 L', situacao: 'Confirmado' };
       await shot('confirmado');
     });
 
     await passo('5 histórico: lista e consulta', async () => {
+      await conferirLista(reg.primeiro, 'lista');
       await abrirNaLista(reg.primeiro);
       const kg = await visivel(page.getByTestId('consulta-kg')).innerText();
       const fator = await visivel(page.getByTestId('consulta-fator')).innerText();
@@ -481,6 +658,8 @@ const executarLargura = async (browser, largura) => {
       igual(await visivel(page.getByTestId('consulta-fatias')).locator('tbody tr').count(), 2, `[${rotulo}] consulta: fatias`);
       conferir(/Saída|abastecimento/i.test(await visivel(page.getByTestId('consulta-movimento')).innerText()), `[${rotulo}] consulta: movimento ausente`);
       igual(await visivel(page.getByTestId('abastecimento-consulta-situacao')).innerText(), 'Confirmado', `[${rotulo}] consulta: situação`);
+      conferir((await visivel(page.getByTestId('consulta-produto')).innerText()).includes('DIESEL S10 GRANEL'), `[${rotulo}] consulta: Produto`);
+      conferir((await visivel(page.getByTestId('consulta-tipo')).innerText()).includes('Diesel S10'), `[${rotulo}] consulta: tipo de combustível (classificação)`);
       await shot('consulta');
     });
 
@@ -561,7 +740,7 @@ const executarLargura = async (browser, largura) => {
       igual(await lotesDiesel(s), '24.8000:Disponivel|100.0000:Disponivel', `[${rotulo}] lotes após a confirmação repetida (UMA baixa)`);
       igual(await estoqueAtual(s), '124.8000', `[${rotulo}] estoque_atual após a confirmação repetida`);
       const ab = await prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, status: 'CONFIRMADO' } });
-      reg.segundo = { id: ab.id, numero: ab.numero, versao: ab.versao };
+      reg.segundo = { id: ab.id, numero: ab.numero, versao: ab.versao, litros: '30,0000 L', situacao: 'Confirmado' };
     });
 
     await passo('7b envio que não chegou + "Consultar" (não gravado) → repetir com resposta perdida + "Consultar" (achado pela operation_id)', async () => {
@@ -611,18 +790,16 @@ const executarLargura = async (browser, largura) => {
       igual(await lotesDiesel(s), '16.4000:Disponivel|100.0000:Disponivel', `[${rotulo}] lotes após o "Consultar" (UMA baixa de 8,4 kg)`);
       igual(await estoqueAtual(s), '116.4000', `[${rotulo}] estoque_atual após o "Consultar"`);
       igual(await bemCru(s), bemAntes, `[${rotulo}] os abastecimentos alteraram o bem`);
+      const terceiro = await prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, operation_id: enviados[0] } });
+      reg.terceiro = { id: terceiro.id, numero: terceiro.numero, litros: '10,0000 L', situacao: 'Confirmado' };
     });
 
     await passo('8 usuário só visualizar: sem botões na tela e 403 na API', async () => {
       const vis = await abrirAtor('vis', tokenVis);
-      await vis.irParaLista();
-      await vis.page.waitForFunction(
-        (id) => [...document.querySelectorAll(`[data-testid="abastecimento-numero-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
-          [...document.querySelectorAll('[data-testid="b1-card"]')].some((e) => e.getClientRects().length > 0),
-        reg.segundo.id,
-      );
+      // Lista padrão (UX-02): Data | Máquina/Veículo | Produto | Litros | Medidor | Situação — sem "Combustível"; cards no celular.
+      // Situação na linha e no card: o 80 L cancelado no passo 6 ≠ os confirmados (contrato §1.4).
+      await vis.conferirLista(reg.segundo, 'lista', [{ ...reg.primeiro, situacao: 'Cancelado' }, reg.terceiro]);
       igual(await vis.page.getByRole('button', { name: 'Novo abastecimento' }).filter({ visible: true }).count(), 0, `[${rotulo}] só-visualizar vê "Novo abastecimento"`);
-      await vis.shot('lista');
       await vis.abrirNaLista(reg.segundo);
       igual(await vis.page.getByTestId('abastecimento-cancelar').filter({ visible: true }).count(), 0, `[${rotulo}] só-visualizar vê "Cancelar"`);
       await vis.shot('consulta');

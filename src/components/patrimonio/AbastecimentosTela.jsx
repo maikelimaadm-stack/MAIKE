@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaAbastecimentos, { ABASTECIMENTOS_CAMPOS_CARD, ABASTECIMENTOS_COLUNAS, ABASTECIMENTOS_STORAGE_KEY, valorDoCampoAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
-import FormularioAbastecimento, { FORMULARIO_ABASTECIMENTO_ID, chaveTanques } from "@/components/patrimonio/FormularioAbastecimento";
+import FormularioAbastecimento, { FORMULARIO_ABASTECIMENTO_ID, chaveProdutosDoBem } from "@/components/patrimonio/FormularioAbastecimento";
 import ConsultaAbastecimento from "@/components/patrimonio/ConsultaAbastecimento";
 import PainelConsumoBem from "@/components/patrimonio/PainelConsumoBem";
 import ConversoesCombustivel from "@/components/patrimonio/ConversoesCombustivel";
@@ -19,7 +19,7 @@ import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { ehNaoEncontradoPatrimonio, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
-import { assinaturaDoFormulario, formatarKg, formatarLitros, formularioVazio, rotuloDoBem, totaisConfirmados, validarFormulario } from "@/lib/abastecimentoRegras";
+import { assinaturaDoFormulario, formatarKg, formatarLitros, formularioVazio, rotuloDoBem, tanqueDoFormulario, totaisConfirmados, validarFormulario } from "@/lib/abastecimentoRegras";
 import { listEmpresas } from "@/services/empresaService";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
@@ -74,6 +74,10 @@ const RELER_NOS_ERROS = new Set([
   "ABASTECIMENTO_LOCAL_INVALIDO",
   "ABASTECIMENTO_BEM_INELEGIVEL",
   "COMBUSTIVEL_PRODUTO_INVALIDO",
+  // Tanque deixou de aceitar o combustível (ou ele saiu de litros) / estoque do Produto saiu de KG:
+  // a opção do formulário ficou velha; relida, a reconciliação tira o par que saiu.
+  "TANQUE_COMBUSTIVEL_INCOMPATIVEL",
+  "ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL",
   "ABASTECIMENTO_STATUS_INVALIDO",
   "PATRIMONIO_VERSAO_CONFLITO",
   "ABASTECIMENTO_NAO_ENCONTRADO",
@@ -86,9 +90,10 @@ const RELER_NOS_ERROS = new Set([
  * Abastecimentos (Patrimônio e Frota P1-02, D-PROD-159) — da EMPRESA selecionada.
  *
  * Lista keyset com filtros (bem, produto, situação, período) e busca no
- * servidor (nº, referência). Novo abastecimento: formulário → PRÉVIA no
- * servidor (sem escrita: KG, fator e versão, lotes FIFO, custo estimado,
- * medidor, bloqueios) → confirmação com `operation_id` persistente (duplo
+ * servidor (nº, referência). Novo abastecimento (UX-02, D-PROD-160): máquina →
+ * PRODUTO (o tipo de combustível vem da opção do servidor) → litros/medidor →
+ * REVISÃO = prévia no servidor (sem escrita: KG, fator e versão, lotes FIFO,
+ * custo estimado, medidor, bloqueios) → confirmação com `operation_id` persistente (duplo
  * clique = 1 envio; sem resposta = resultado incerto, nunca sucesso; repetir
  * reaproveita a chave). O registro gravado é só CONSULTA: litros, KG, fator
  * usado, custo FIFO final, lotes, movimento e estorno, leitura, consumo; o
@@ -176,7 +181,7 @@ export default function AbastecimentosTela() {
     matchRowId: (a, id) => String(a.id) === String(id),
     getRowId: (a) => String(a.id),
     findRowById: (rows, id) => rows.find((a) => String(a.id) === String(id)),
-    // O formulário não "salva": o ✓ e o botão Pré-visualizar pedem a prévia.
+    // O formulário não "salva": o ✓ e o botão "Revisar abastecimento" pedem a prévia.
     onSubmitRecord: () => {},
     // Abastecimento não se apaga: cancela com estorno (ação própria).
     onRequestDeleteMutation: () => {},
@@ -293,13 +298,11 @@ export default function AbastecimentosTela() {
 
   const pedirPrevia = async () => {
     if (!empresaId || !acoes.criar || previandoRef.current) return;
-    const bemId = form.bem?.id ? String(form.bem.id) : null;
-    const tanques = /** @type {any} */ (queryClient.getQueryData(chaveTanques(empresaId, bemId)))?.itens ?? [];
-    const tanque = tanques.find((/** @type {any} */ t) => String(t.id) === String(form.tanque_id));
-    const v = validarFormulario(form, { hoje, capacidadeLitros: tanque?.capacidade_litros ?? null });
+    // Capacidade do tanque escolhido entre os que aceitam o Produto (opção do servidor).
+    const v = validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null });
     setErros(v.erros);
     if (Object.keys(v.erros).length) {
-      notifyWarning("Atenção", "Revise os campos destacados antes da prévia.");
+      notifyWarning("Atenção", "Revise os campos destacados.");
       return;
     }
     previandoRef.current = true;
@@ -312,13 +315,25 @@ export default function AbastecimentosTela() {
       if (!daEmpresaAtual(emp)) return;
       seqPrevia.current += 1;
       setPrevia({ seq: seqPrevia.current, assinatura, form: snapshot, resposta, empresaId: emp });
-      // O fator mostrado no formulário acompanha o que o servidor leu agora.
+      // Bloqueio que muda a verdade da tela (vínculo, produto, tanque, combustível inativo…) relê como a
+      // recusa da confirmação: a reconciliação do formulário tira a escolha que saiu e oferece a nova.
+      if ((Array.isArray(resposta.bloqueios) ? resposta.bloqueios : []).some((b) => RELER_NOS_ERROS.has(String(b?.code ?? "")))) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+        queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_ABASTECIMENTO });
+      }
+      // O fator do formulário acompanha o que o servidor leu agora; se mudou, as opções do bem são relidas.
       const conversao = resposta.plano?.conversao ?? null;
-      setFormEstado((f) => (f.produto?.id && String(f.produto.id) === String(resposta.plano?.produto?.id ?? f.produto.id) ? { ...f, produto: { ...f.produto, conversao } } : f));
+      const antes = snapshot.produto?.conversao ?? null;
+      if ((antes?.id ?? null) !== (conversao?.id ?? null) || (antes?.versao ?? null) !== (conversao?.versao ?? null)) {
+        queryClient.invalidateQueries({ queryKey: chaveProdutosDoBem(emp, snapshot.bem?.id ? String(snapshot.bem.id) : null) });
+      }
+      setFormEstado((f) =>
+        f.produto?.id && String(f.produto.id) === String(resposta.plano?.produto?.id ?? f.produto.id) ? { ...f, produto: { ...f.produto, conversao, pronto: Boolean(conversao) } } : f,
+      );
       setPreviaAberta(true);
     } catch (erro) {
       reagirAoErro(erro, emp);
-      notifyWarning("Atenção", mensagemErroAbastecimento(erro, "Não foi possível calcular a prévia. Nada foi gravado."));
+      notifyWarning("Atenção", mensagemErroAbastecimento(erro, "Não foi possível calcular a revisão. Nada foi gravado."));
     } finally {
       previandoRef.current = false;
       setPreviando(false);
@@ -401,14 +416,19 @@ export default function AbastecimentosTela() {
     setPreviaAberta(false);
     setConversoes({ aberto: true, par: acoes.configurarConversao ? par : null });
   };
-  /** Fator novo do par do formulário: o formulário passa a mostrá-lo e a prévia antiga deixa de valer. @param {any} c */
+  /**
+   * Fator novo do par do formulário: o Produto passa a estar pronto, a revisão
+   * antiga deixa de valer e as opções do bem são relidas (o servidor confirma).
+   * @param {any} c
+   */
   const aoSalvarFator = (c) => {
     setPrevia(null);
     setFormEstado((f) =>
       f.produto?.id && String(f.produto.id) === String(c?.produto?.id) && String(f.tipo_combustivel_id) === String(c?.tipo_combustivel?.id)
-        ? { ...f, produto: { ...f.produto, conversao: { id: c.id, versao: c.versao, sequencia: c.sequencia, kg_por_litro: c.kg_por_litro } } }
+        ? { ...f, produto: { ...f.produto, conversao: { id: c.id, versao: c.versao, sequencia: c.sequencia, kg_por_litro: c.kg_por_litro }, pronto: true } }
         : f,
     );
+    queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "produtos-do-bem"] });
   };
 
   // ─── Avisos e filtros ───────────────────────────────────────────────

@@ -318,16 +318,16 @@ export const mensagemErroAbastecimento = (erro, fallback) => {
       if (field === 'tipo_combustivel_id' || reason === 'tipo_inexistente' || reason === 'tipo_inativo') return `O combustível está inativo ou não existe mais. ${NADA}`;
       if (reason === 'outra_empresa') return `O produto é de outra fazenda. ${NADA}`;
       if (reason === 'inativo') return `O produto está inativo. ${NADA}`;
-      if (reason === 'sem_vinculo_ativo') return `O produto não está mais vinculado a este combustível (tela Combustíveis). ${NADA}`;
+      if (reason === 'sem_vinculo_ativo') return `O Produto não está mais associado ao combustível deste bem (cadastro de Combustíveis). Escolha o Produto de novo. ${NADA}`;
       return `O produto não existe nesta fazenda. ${NADA}`;
     case 'TANQUE_COMBUSTIVEL_INCOMPATIVEL':
       return `Este tanque não aceita este combustível (o tanque só recebe combustível em litros e dos tipos cadastrados nele). ${NADA}`;
     case 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL':
       return `O estoque deste produto não está em KG: a baixa não é feita. Ajuste a unidade de estoque do produto. ${NADA}`;
     case 'ABASTECIMENTO_CONVERSAO_AUSENTE':
-      return `Não há fator kg/L configurado para este produto e combustível nesta fazenda. Configure o fator antes de confirmar. ${NADA}`;
+      return `Não há fator kg/L configurado para este Produto nesta fazenda. Configure o fator antes de confirmar. ${NADA}`;
     case 'ABASTECIMENTO_CONVERSAO_ALTERADA':
-      return `O fator kg/L mudou desde a prévia. Refaça a prévia antes de confirmar. ${NADA}`;
+      return `O fator kg/L mudou desde a revisão. Revise de novo antes de confirmar. ${NADA}`;
     case 'ABASTECIMENTO_CONVERSAO_INVALIDA':
       if (field === 'declara_estoque_em_kg' || reason === 'declaracao_obrigatoria') return `Marque a declaração de que o estoque está em KG. ${NADA}`;
       return `Fator inválido: informe um número maior que zero e até 10, com até 6 casas. ${NADA}`;

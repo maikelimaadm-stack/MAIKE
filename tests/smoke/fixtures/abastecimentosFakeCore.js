@@ -1,7 +1,10 @@
 /**
  * Backend FALSO de Abastecimentos (Patrimônio P1-02, D-PROD-159) — só para os
  * testes RTL. Nada aqui fala com banco ou API real. Segue o contrato §6:
- * rotas A1–A15, decimais como TEXTO com casas fixas (litros/kg/leitura/custo 4,
+ * rotas A1–A16 (A16 `produtos-do-bem`, D-PROD-160, com a semântica do serviço
+ * real: bem ativo → tanques ativos → combustíveis ativos em L → vínculo ATIVO →
+ * Produto ativo em KG; fator vigente ou `pronto:false`; `resumo` do conjunto
+ * inteiro), decimais como TEXTO com casas fixas (litros/kg/leitura/custo 4,
  * fator 6), datas AAAA-MM-DD, corpo FECHADO, `operation_id` idempotente
  * (replay 200 `replay:true`; mesmo id + corpo diferente → 409
  * IDEMPOTENCY_CONFLICT), `versao` com compare-and-swap e corpo de erro
@@ -46,12 +49,19 @@ export const TIPOS = [
   { id: 'c3', codigo: 'ETANOL', nome: 'Etanol', unidade: 'L' },
 ];
 
-/** Estado inicial (cada teste cria o seu). */
+/**
+ * Estado inicial (cada teste cria o seu). Cenários extras (multi-tanque, vários
+ * Produtos por combustível, vínculo inativo, unidade fora de KG) são montados
+ * no teste mutando o estado ANTES de montar a tela: `tanques[bem][i].ativo`,
+ * `tipos[i].ativo`/`unidade`, `produtos[i].ativo`/`vinculo_ativo`/`unidade_principal_estoque`.
+ */
 export const criarEstadoAbastecimentos = () => {
   const hoje = hojeNoFuso('America/Sao_Paulo');
   return {
     hoje,
     fuso: 'America/Sao_Paulo',
+    /** Catálogo de combustíveis do tenant (cópia: o teste pode inativar sem vazar). */
+    tipos: TIPOS.map((t) => ({ ...t, ativo: true })),
     bens: [
       { id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA', ativo: true, medidor: { tipo: 'HORIMETRO', unidade: 'h' }, cadastro: { leitura: '1520.5000', data: '2026-06-01' } },
       { id: 'b2', numero: '8', codigo_frota: 'UT-04', nome: 'Caminhonete flex', natureza: 'VEICULO', ativo: true, medidor: { tipo: 'ODOMETRO', unidade: 'km' }, cadastro: { leitura: '35210.0000', data: '2026-05-30' } },
@@ -91,10 +101,14 @@ export const criarEstadoAbastecimentos = () => {
     atraso: null,
     /** Tamanho de página forçado na lista (keyset com cursor nos testes). */
     paginaLista: null,
+    /** A16: tamanho de página forçado (`has_more` com poucos Produtos). */
+    paginaProdutosDoBem: null,
+    /** A16: `(bemId) => Promise|null` — segura a resposta daquele bem (resposta atrasada). */
+    atrasoProdutosDoBem: null,
   };
 };
 
-const tipoPorId = (id) => TIPOS.find((t) => t.id === id) ?? null;
+const tipoPorId = (e, id) => e.tipos.find((t) => t.id === id) ?? null;
 const conversaoVigente = (e, tipo, produto) => e.conversoes.find((c) => c.ativo && c.tipo === tipo && c.produto === produto) ?? null;
 const opcaoConversao = (c) => (c ? { id: c.id, versao: c.versao, sequencia: c.sequencia, kg_por_litro: c.kg_por_litro } : null);
 const bemPorId = (e, id) => e.bens.find((b) => b.id === id) ?? null;
@@ -135,7 +149,7 @@ const planejar = (e, c, { comando }) => {
   const b = (code, field, reason, details = {}) => bloqueios.push({ code, field, reason, details });
   const bem = bemPorId(e, c.bem_id);
   const tanque = (e.tanques[c.bem_id] ?? []).find((t) => t.id === c.tanque_id) ?? null;
-  const tipo = tipoPorId(c.tipo_combustivel_id);
+  const tipo = tipoPorId(e, c.tipo_combustivel_id);
   const produto = e.produtos.find((p) => p.id === c.produto_id) ?? null;
   const conversao = produto && tipo ? conversaoVigente(e, tipo.id, produto.id) : null;
   const localNome = e.locais[c.local_estoque_id] ?? null;
@@ -144,11 +158,15 @@ const planejar = (e, c, { comando }) => {
   if (c.data_operacional > e.hoje) b('ABASTECIMENTO_DATA_FUTURA', 'data_operacional', 'data_futura', { hoje: e.hoje, fuso: e.fuso });
   if (!bem.ativo) b('ABASTECIMENTO_BEM_INELEGIVEL', 'bem_id', 'bem_inativo');
   if (!tanque) b('ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inexistente');
+  else if (tanque.ativo === false) b('ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inativo');
   if (!tipo) b('COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inexistente');
+  else if (tipo.ativo === false) b('COMBUSTIVEL_PRODUTO_INVALIDO', 'tipo_combustivel_id', 'tipo_inativo');
   else if (tanque && !tanque.combustiveis.includes(tipo.id)) b('TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'tipo_combustivel_id', 'nao_aceito_pelo_tanque');
+  // Vínculo do PAR (tipo, produto) na empresa: inativo (ou de outro tipo) → recusa, nunca troca de produto.
+  const vinculoOk = Boolean(produto && tipo && produto.tipo === tipo.id && produto.vinculo_ativo !== false);
   if (!produto) b('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'inexistente');
-  else if (tipo && produto.tipo !== tipo.id) b('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'sem_vinculo_ativo');
-  if (produto && tipo && produto.tipo === tipo.id && !conversao) b('ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente', { tipo_combustivel_id: tipo.id, produto_id: produto.id });
+  else if (tipo && !vinculoOk) b('COMBUSTIVEL_PRODUTO_INVALIDO', 'produto_id', 'sem_vinculo_ativo');
+  if (vinculoOk && !conversao) b('ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente', { tipo_combustivel_id: tipo.id, produto_id: produto.id });
   if (comando && conversao && (c.conversao_id !== conversao.id || c.conversao_versao !== conversao.versao)) {
     b('ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_id', 'conversao_alterada', { conversao_vigente_id: conversao.id, conversao_vigente_versao: conversao.versao });
   }
@@ -206,6 +224,84 @@ const planejar = (e, c, { comando }) => {
     custo_e_estimativa: true,
   };
   return { plano, bloqueios, bem, tanque, tipo, produto, conversao, localNome, kg, fifo };
+};
+
+/** Objeto `bem` de A8/A16 (com a leitura vigente do medidor). */
+const bemPublicoDe = (e, bem) => ({
+  id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo, medidor: bem.medidor, leitura_vigente: leituraVigente(e, bem.id),
+});
+
+const NATUREZAS_COM_TANQUE = ['MAQUINA', 'VEICULO', 'EQUIPAMENTO'];
+const porNomeEId = (a, b) => (a.nome < b.nome ? -1 : a.nome > b.nome ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * A16 `produtos-do-bem` (contrato UX-02 §2.3): a MESMA semântica do serviço
+ * real. Produto da empresa, ATIVO, com vínculo ATIVO (`vinculo_ativo !== false`)
+ * de um tipo aceito por algum tanque ATIVO do bem (tipo ativo, em L), estoque em
+ * KG. Sem fator → entra com `pronto:false`. `resumo` sobre o conjunto inteiro
+ * (ignora `q` e `cursor`).
+ */
+const produtosDoBem = async (e, query) => {
+  const bem = bemPorId(e, query.get('bem_id'));
+  if (!bem) return erro(404, 'BEM_PATRIMONIAL_NAO_ENCONTRADO', { field: 'bem_id', reason: 'bem_inexistente' });
+  if (typeof e.atrasoProdutosDoBem === 'function') {
+    const espera = e.atrasoProdutosDoBem(bem.id);
+    if (espera) await espera;
+  }
+  const publico = bemPublicoDe(e, bem);
+  const vazio = (motivo) => ({
+    status: 200,
+    body: { bem: publico, itens: [], has_more: false, next_cursor: null, resumo: { motivo_sem_opcao: motivo, total: 0, sem_fator: 0, fora_de_kg: 0, tipos_sem_produto: [] } },
+  });
+  if (!bem.ativo) return vazio('bem_inativo');
+  if (!NATUREZAS_COM_TANQUE.includes(bem.natureza)) return vazio('sem_tanque_ativo');
+  const tanques = (e.tanques[bem.id] ?? []).filter((t) => t.ativo !== false).sort((a, b) => (a.identificador < b.identificador ? -1 : a.identificador > b.identificador ? 1 : a.id < b.id ? -1 : 1));
+  if (!tanques.length) return vazio('sem_tanque_ativo');
+  const tiposAceitos = new Map();
+  const tanquesPorTipo = new Map();
+  for (const t of tanques) {
+    for (const id of t.combustiveis) {
+      const tipo = tipoPorId(e, id);
+      if (!tipo || tipo.ativo === false || tipo.unidade !== 'L') continue;
+      tiposAceitos.set(tipo.id, tipo);
+      const lista = tanquesPorTipo.get(tipo.id) ?? [];
+      lista.push({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros });
+      tanquesPorTipo.set(tipo.id, lista);
+    }
+  }
+  if (!tiposAceitos.size) return vazio('tanque_sem_combustivel');
+  const comVinculo = e.produtos.filter((p) => p.ativo !== false && p.vinculo_ativo !== false && (p.empresa ?? EMPRESA) === EMPRESA && tiposAceitos.has(p.tipo));
+  const elegiveis = comVinculo.filter((p) => p.unidade_principal_estoque === 'KG').map((p) => ({ ...p })).sort(porNomeEId);
+  const total = elegiveis.length;
+  const semFator = elegiveis.filter((p) => !conversaoVigente(e, p.tipo, p.id)).length;
+  const foraDeKg = comVinculo.filter((p) => p.unidade_principal_estoque !== 'KG').length;
+  const tiposComProduto = new Set(comVinculo.map((p) => p.tipo));
+  const resumo = {
+    motivo_sem_opcao: total > 0 ? null : foraDeKg > 0 ? 'produto_unidade_nao_kg' : 'nenhum_produto_associado',
+    total,
+    sem_fator: semFator,
+    fora_de_kg: foraDeKg,
+    tipos_sem_produto: [...tiposAceitos.values()].filter((t) => !tiposComProduto.has(t.id)).sort(porNomeEId).map((t) => ({ id: t.id, nome: t.nome })),
+  };
+  const filtrados = filtrarQ(elegiveis, query, ['nome', 'codigo_interno']);
+  const consulta = new URLSearchParams(query);
+  if (e.paginaProdutosDoBem) consulta.set('limit', String(e.paginaProdutosDoBem));
+  const pag = pagina(filtrados, consulta);
+  const itens = pag.itens.map((p) => {
+    const tipo = tiposAceitos.get(p.tipo);
+    const conversao = opcaoConversao(conversaoVigente(e, tipo.id, p.id));
+    const bloqueios = conversao ? [] : ['sem_fator'];
+    return {
+      id: p.id,
+      produto: { id: p.id, nome: p.nome, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque },
+      tipo_combustivel: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome },
+      conversao,
+      tanques: (tanquesPorTipo.get(tipo.id) ?? []).map((t) => ({ ...t })),
+      bloqueios,
+      pronto: bloqueios.length === 0,
+    };
+  });
+  return { status: 200, body: { bem: publico, itens, has_more: pag.has_more, next_cursor: pag.next_cursor, resumo } };
 };
 
 const HTTP_DO_BLOQUEIO = { ABASTECIMENTO_CONVERSAO_ALTERADA: 409 };
@@ -283,7 +379,7 @@ export const detalheDe = (e, a) => {
     data_operacional: a.data_operacional,
     bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota, nome: bem.nome },
     tanque: { id: a.tanque_id, identificador: a.tanque_identificador, capacidade_litros: a.tanque_capacidade },
-    tipo_combustivel: { id: a.tipo_combustivel_id, codigo: tipoPorId(a.tipo_combustivel_id).codigo, nome: tipoPorId(a.tipo_combustivel_id).nome },
+    tipo_combustivel: { id: a.tipo_combustivel_id, codigo: tipoPorId(e, a.tipo_combustivel_id).codigo, nome: tipoPorId(e, a.tipo_combustivel_id).nome },
     produto: { id: a.produto_id, nome: e.produtos.find((p) => p.id === a.produto_id).nome, unidade_principal_estoque: 'KG' },
     local_estoque: { id: a.local_estoque_id, nome: e.locais[a.local_estoque_id] },
     conversao: { id: conv.id, sequencia: conv.sequencia, versao: conv.versao, vigente: conv.ativo },
@@ -320,7 +416,7 @@ const resumoDe = (e, a) => {
 };
 
 const conversaoPublica = (e, c) => {
-  const tipo = tipoPorId(c.tipo);
+  const tipo = tipoPorId(e, c.tipo);
   const produto = e.produtos.find((p) => p.id === c.produto);
   return {
     id: c.id, empresa_id: EMPRESA, tipo_combustivel: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome }, produto: { id: produto.id, nome: produto.nome, unidade_principal_estoque: produto.unidade_principal_estoque },
@@ -372,12 +468,13 @@ export const rotearAbastecimentos = async (e, { method, path, query, body }) => 
       return {
         status: 200,
         body: {
-          bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo, medidor: bem.medidor, leitura_vigente: leituraVigente(e, bem.id) },
-          itens: (e.tanques[bem.id] ?? []).map((t) => ({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, combustiveis: t.combustiveis.map((id) => ({ id, codigo: tipoPorId(id).codigo, nome: tipoPorId(id).nome })) })),
+          bem: bemPublicoDe(e, bem),
+          itens: (e.tanques[bem.id] ?? []).filter((t) => t.ativo !== false).map((t) => ({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, combustiveis: t.combustiveis.map((id) => tipoPorId(e, id)).filter((c) => c.ativo !== false && c.unidade === 'L').map((c) => ({ id: c.id, codigo: c.codigo, nome: c.nome })) })),
         },
       };
     }
-    if (recurso === 'tipos') return { status: 200, body: pagina(filtrarQ(TIPOS, query, ['nome', 'codigo']), query) };
+    if (recurso === 'tipos') return { status: 200, body: pagina(filtrarQ(e.tipos.filter((t) => t.ativo !== false).map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, unidade: t.unidade })), query, ['nome', 'codigo']), query) };
+    if (recurso === 'produtos-do-bem') return produtosDoBem(e, query);
     if (recurso === 'produtos') {
       const tipo = query.get('tipo_combustivel_id');
       const lista = e.produtos.filter((p) => p.tipo === tipo).map((p) => ({ id: p.id, nome: p.nome, codigo_interno: p.codigo_interno, unidade_principal_estoque: p.unidade_principal_estoque, conversao: opcaoConversao(conversaoVigente(e, tipo, p.id)) }));
@@ -575,7 +672,7 @@ export const rotearAbastecimentos = async (e, { method, path, query, body }) => 
     }
     if (!RE_FATOR.test(body.kg_por_litro)) return erro(400, 'REQUEST_VALIDATION_FAILED', { field: 'kg_por_litro', reason: 'formato' });
     const produto = e.produtos.find((p) => p.id === body.produto_id);
-    if (!produto || produto.tipo !== body.tipo_combustivel_id) return erro(422, 'COMBUSTIVEL_PRODUTO_INVALIDO', { field: 'produto_id', reason: 'sem_vinculo_ativo' });
+    if (!produto || produto.tipo !== body.tipo_combustivel_id || produto.vinculo_ativo === false) return erro(422, 'COMBUSTIVEL_PRODUTO_INVALIDO', { field: 'produto_id', reason: 'sem_vinculo_ativo' });
     if (!ehPositivo(body.kg_por_litro)) return erro(422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', { field: 'kg_por_litro', reason: 'fator_nao_positivo' });
     if (comparar(body.kg_por_litro, '10') > 0) return erro(422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', { field: 'kg_por_litro', reason: 'fator_acima_do_teto' });
     if (body.declara_estoque_em_kg !== true) return erro(422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', { field: 'declara_estoque_em_kg', reason: 'declaracao_obrigatoria' });
@@ -618,4 +715,32 @@ export const semearAbastecimento = async (e, corpo) => {
   });
   if (r.status !== 201) throw new Error(`semente recusada: ${JSON.stringify(r.body)}`);
   return r.body;
+};
+
+/** B0..B5a do plano real: campos cujos bloqueios vêm ANTES do B5b (unidade do Produto). */
+const ANTES_DO_B5B = new Set(['bem_id', 'tanque_id', 'tipo_combustivel_id', 'produto_id', 'data_operacional']);
+
+/**
+ * Cenário opt-in (o `planejar` acima não avalia o B5b): a prévia com o bloqueio
+ * `ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL` do plano real
+ * (`abastecimentoPlano.js`: estoque do Produto fora de KG → 200 com o bloqueio,
+ * depois de B0..B5a). Para `ambiente.falhar`: devolve a resposta da prévia com
+ * o bloqueio acrescentado, ou `null` nas demais rotas (seguem o fake normal).
+ * @param {ReturnType<typeof criarEstadoAbastecimentos>} e
+ * @param {{ method: string, path: string, query: URLSearchParams, body: any }} req
+ */
+export const previaComUnidadeDoProduto = (e, req) => {
+  if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos-previa') return null;
+  return rotearAbastecimentos(e, req).then((r) => {
+    const produto = e.produtos.find((p) => p.id === req.body?.produto_id) ?? null;
+    if (r?.status !== 200 || !produto || produto.unidade_principal_estoque === 'KG') return r;
+    const bloqueios = [...r.body.bloqueios];
+    const novo = { code: 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', field: 'produto_id', reason: 'unidade_estoque_nao_kg', details: { unidade: produto.unidade_principal_estoque } };
+    let posicao = 0;
+    bloqueios.forEach((b, i) => {
+      if (ANTES_DO_B5B.has(b.field) || b.reason === 'quantidade_nao_positiva') posicao = i + 1;
+    });
+    bloqueios.splice(posicao, 0, novo);
+    return { status: 200, body: { ...r.body, bloqueios } };
+  });
 };

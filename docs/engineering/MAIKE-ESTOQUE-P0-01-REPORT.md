@@ -312,7 +312,9 @@ _(preenchido ao fim da integração e da revisão)_
 - **LC-2, resíduo:** o recibo legado já é lido de forma linear e entra no orçamento.
   - Continua um limite físico: um produto com milhões de recibos na janela é lido de uma vez, e o resultado é 409 fail-closed.
   - A saída é o índice `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`, que é DDL e fica para a P1. É o mesmo tipo de bloqueio que o R2-1.
-- **Colisão de numeração:** a PR #237 (DRAFT) anuncia a D-PROD-160 e mexe nos mesmos documentos; o merge posterior resolve só texto.
+- **Numeração resolvida:** a PR #237 foi mergeada na `main` com a D-PROD-160 (`e39d318b`) e integrada nesta branch por merge conservador.
+  - Os conflitos eram só de texto, em DECISIONS, CURRENT-STATE e ROADMAP; as duas decisões, as duas missões e os dois tracks foram mantidos.
+  - O código mergeou sem conflito, e a reverificação foi feita depois do merge (§11).
 - **BLOCKER-R2-1: produto gigantesco numa chave.** Arquitetural, não explorável; vai para a P1.
   - Uma chave nunca é partida, porque I1 e I2 precisam do produto inteiro.
   - Medido: 250.001 linhas levam 2,3–2,8 s. Extrapolando, a partir de ~1,5–2 milhões de linhas num só produto, o `statement_timeout` de 15 s corta a leitura.

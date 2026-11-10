@@ -105,6 +105,76 @@ export const formularioVazio = (hoje) => ({
   referencia_externa: '',
 });
 
+// ─── UX-02 (D-PROD-160): opção de PRODUTO do bem → formulário ────────────
+
+/**
+ * Aplica ao formulário a opção de PRODUTO escolhida (`produtos-do-bem`, A16):
+ * o tipo de combustível e os tanques vêm da opção do SERVIDOR (derivados do
+ * vínculo ativo), nunca de mapa na tela nem do nome. As chaves do formulário
+ * são as de sempre, então `montarCorpo*` mandam o MESMO corpo de antes.
+ * Tanque: o único, ou o já escolhido se o Produto é o mesmo e o tanque segue
+ * aceito; senão a tela pergunta. Local: só sobrevive se o Produto não mudou.
+ * @param {any} form @param {any} item
+ */
+export const opcaoNoFormulario = (form, item) => ({
+  ...form,
+  produto: {
+    ...item.produto,
+    conversao: item.conversao ?? null,
+    tipo_combustivel: item.tipo_combustivel,
+    tanques: item.tanques,
+    pronto: item.pronto === true,
+  },
+  tipo_combustivel_id: String(item.tipo_combustivel.id),
+  tanque_id:
+    item.tanques.length === 1
+      ? String(item.tanques[0].id)
+      : item.tanques.some((/** @type {any} */ t) => String(t.id) === String(form.tanque_id)) && String(form.produto?.id) === String(item.produto.id)
+        ? form.tanque_id
+        : null,
+  local_estoque_id: String(form.produto?.id) === String(item.produto.id) ? form.local_estoque_id : null,
+});
+
+/**
+ * O Produto que a tela escolhe SOZINHA: só quando a resposta é do bem atual,
+ * COMPLETA (`has_more === false`) e com exatamente UMA opção. Página parcial,
+ * resposta atrasada de outro bem ou várias opções → null (o operador escolhe).
+ * @param {any} resposta @param {string|null} bemId
+ */
+export const produtoAutomatico = (resposta, bemId) => {
+  if (!resposta || typeof resposta !== 'object' || !bemId) return null;
+  if (String(resposta.bem?.id ?? '') !== String(bemId)) return null;
+  if (resposta.has_more !== false) return null;
+  const itens = Array.isArray(resposta.itens) ? resposta.itens : [];
+  return itens.length === 1 ? itens[0] : null;
+};
+
+/**
+ * A escolha do formulário ainda está entre as opções do servidor? `ausente` só
+ * com resposta COMPLETA do mesmo bem sem o par (produto, tipo) do formulário;
+ * página parcial ou resposta de outro bem → `indeterminado` (nada a concluir).
+ * @param {any} resposta @param {any} form
+ * @returns {'presente'|'ausente'|'indeterminado'}
+ */
+export const situacaoDaEscolha = (resposta, form) => {
+  const produtoId = idDe(form?.produto);
+  const tipoId = idDe(form?.tipo_combustivel_id);
+  const bemId = idDe(form?.bem);
+  if (!produtoId || !tipoId || !bemId || !resposta || typeof resposta !== 'object') return 'indeterminado';
+  if (String(resposta.bem?.id ?? '') !== bemId) return 'indeterminado';
+  const itens = Array.isArray(resposta.itens) ? resposta.itens : [];
+  const achou = itens.some((/** @type {any} */ i) => String(i?.produto?.id ?? '') === produtoId && String(i?.tipo_combustivel?.id ?? '') === tipoId);
+  if (achou) return 'presente';
+  return resposta.has_more === false ? 'ausente' : 'indeterminado';
+};
+
+/** O tanque escolhido entre os que aceitam o Produto do formulário (ou null). @param {any} form */
+export const tanqueDoFormulario = (form) => {
+  const tanques = Array.isArray(form?.produto?.tanques) ? form.produto.tanques : [];
+  const id = idDe(form?.tanque_id);
+  return id ? (tanques.find((/** @type {any} */ t) => String(t?.id) === id) ?? null) : null;
+};
+
 /** Tipo do medidor do bem escolhido (opção `bens`: `medidor.tipo`). @param {any} form */
 export const medidorDoFormulario = (form) => {
   const tipo = form?.bem?.medidor?.tipo;
@@ -124,11 +194,15 @@ const mensagemDoNumero = (motivo) =>
 export const validarFormulario = (form, ctx = {}) => {
   /** @type {Record<string, string>} */
   const erros = {};
-  if (!idDe(form?.bem)) erros.bem = 'Escolha o bem.';
-  if (!idDe(form?.tanque_id)) erros.tanque_id = 'Escolha o tanque.';
-  if (!idDe(form?.tipo_combustivel_id)) erros.tipo_combustivel_id = 'Escolha o combustível.';
-  if (!idDe(form?.produto)) erros.produto = 'Escolha o produto.';
-  if (!idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha o local de estoque.';
+  if (!idDe(form?.bem)) erros.bem = 'Escolha a máquina ou veículo.';
+  // UX-02: o operador escolhe o PRODUTO; o tipo vem da opção do servidor (nunca é etapa da tela).
+  const produtoEscolhido = Boolean(idDe(form?.produto) && idDe(form?.tipo_combustivel_id));
+  if (!produtoEscolhido) erros.produto = 'Escolha o Produto.';
+  else {
+    // Tanque e local dependem do Produto: só cobrados (e só visíveis) depois dele.
+    if (!idDe(form?.tanque_id)) erros.tanque_id = 'Escolha qual tanque será abastecido.';
+    if (!idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha de qual local do estoque sai o combustível.';
+  }
   const dia = texto(form?.data_operacional);
   if (!ehDiaValido(dia)) erros.data_operacional = 'Informe a data do abastecimento.';
   else if (ctx.hoje && ehDiaValido(ctx.hoje) && dia > ctx.hoje) erros.data_operacional = 'A data não pode ser posterior a hoje na fazenda.';
@@ -257,6 +331,8 @@ export const assinaturaDoFormulario = (form) =>
 
 /** "80.0000" → "80,0000" (4 casas fixas). @param {unknown} v */
 export const formatarLitros = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 4, casasMax: 4 });
+/** Litros sem zeros à direita ("180.0000" → "180"; "80.5000" → "80,5"). @param {unknown} v */
+export const formatarLitrosCurto = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 0, casasMax: 4 });
 /** "67.2000" → "67,2000". @param {unknown} v */
 export const formatarKg = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 4, casasMax: 4 });
 /** "0.840000" → "0,840000" (6 casas fixas). @param {unknown} v */

@@ -86,8 +86,11 @@ export function ConsumoDoAbastecimento({ consumo }) {
 
 /**
  * Consulta de um abastecimento (fato confirmado ou cancelado; nada se edita):
- * litros, KG, fator usado (snapshot e versão), custo FIFO FINAL, lotes, movimento
- * e estorno, leitura do medidor, situação, cancelamento e consumo.
+ * máquina, PRODUTO (o da época: trocar a associação no cadastro de Combustíveis
+ * não reescreve o histórico), litros, KG, leitura do medidor; no detalhe
+ * técnico, tanque, tipo de combustível (classificação), fator usado (snapshot e
+ * versão), custo FIFO FINAL, lotes, movimento e estorno; situação, cancelamento
+ * e consumo.
  * @param {{ detalhe: any, podeCancelar: boolean, onCancelar: () => void, onVerConsumo: () => void, fuso?: string|null }} props
  */
 export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCancelar, onVerConsumo, fuso = null }) {
@@ -101,33 +104,35 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
         <span className="text-[12px] text-[var(--mg-text-2,#475569)]">{formatarDiaAbastecimento(d.data_operacional)}</span>
       </div>
       <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-3">
-        <Campo rotulo="Bem" testId="consulta-bem">
+        <Campo rotulo="Máquina/Veículo" testId="consulta-bem">
           {rotuloDoBem(d.bem)}
         </Campo>
-        <Campo rotulo="Tanque">
-          {d.tanque?.identificador ?? "—"}
-          {d.tanque?.capacidade_litros ? ` (${formatarLitros(d.tanque.capacidade_litros)} L)` : ""}
-        </Campo>
-        <Campo rotulo="Combustível">{d.tipo_combustivel?.nome ?? "—"}</Campo>
-        <Campo rotulo="Produto">
+        <Campo rotulo="Produto" testId="consulta-produto">
           {d.produto?.nome ?? "—"} {d.produto?.unidade_principal_estoque ? `(${d.produto.unidade_principal_estoque})` : ""}
         </Campo>
         <Campo rotulo="Local de estoque">{d.local_estoque?.nome ?? "—"}</Campo>
-        <Campo rotulo="Tanque cheio">{d.tanque_cheio ? "Sim" : "Não"}</Campo>
         <Campo rotulo="Litros" testId="consulta-litros">
           {formatarLitros(d.quantidade_litros)} L
-        </Campo>
-        <Campo rotulo="Fator usado" testId="consulta-fator">
-          {formatarFator(d.kg_por_litro)} kg/L{d.conversao ? ` (versão ${d.conversao.sequencia ?? d.conversao.versao}${d.conversao.vigente === false ? ", já substituída" : ""})` : ""}
         </Campo>
         <Campo rotulo="KG baixados" testId="consulta-kg">
           {formatarKg(d.quantidade_kg)} kg
         </Campo>
-        <Campo rotulo="Custo FIFO" testId="consulta-custo">
-          {formatarCusto(d.custo_total)} ({formatarCusto(d.custo_unitario_kg)}/kg)
-        </Campo>
         <Campo rotulo="Leitura do medidor" testId="consulta-leitura">
           {d.medidor?.leitura ? `${formatarLeitura(d.medidor.leitura)} ${unidade}` : d.medidor?.tipo === "SEM_MEDIDOR" ? "Sem medidor" : "—"}
+        </Campo>
+        <Campo rotulo="Tanque cheio">{d.tanque_cheio ? "Sim" : "Não"}</Campo>
+        <Campo rotulo="Tanque">
+          {d.tanque?.identificador ?? "—"}
+          {d.tanque?.capacidade_litros ? ` (${formatarLitros(d.tanque.capacidade_litros)} L)` : ""}
+        </Campo>
+        <Campo rotulo="Tipo de combustível (classificação)" testId="consulta-tipo">
+          {d.tipo_combustivel?.nome ?? "—"}
+        </Campo>
+        <Campo rotulo="Fator usado" testId="consulta-fator">
+          {formatarFator(d.kg_por_litro)} kg/L{d.conversao ? ` (versão ${d.conversao.sequencia ?? d.conversao.versao}${d.conversao.vigente === false ? ", já substituída" : ""})` : ""}
+        </Campo>
+        <Campo rotulo="Custo FIFO" testId="consulta-custo">
+          {formatarCusto(d.custo_total)} ({formatarCusto(d.custo_unitario_kg)}/kg)
         </Campo>
         <Campo rotulo="Referência externa">{d.referencia_externa || "—"}</Campo>
         {d.observacao ? (
