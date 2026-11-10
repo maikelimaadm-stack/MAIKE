@@ -230,7 +230,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
           },
         });
         await lerReconciliacao(proxy, s.c, {}, orcamento);
-        modo = (await tx.$queryRaw`SELECT current_setting('plan_cache_mode') || '/' || current_setting('jit') AS m`)[0].m;
+        modo = (await tx.$queryRaw`SELECT current_setting('plan_cache_mode') || '/' || current_setting('jit') || '/' || current_setting('statement_timeout') AS m`)[0].m;
         recusa = await tx.$executeRaw`UPDATE "Produto" SET nome_produto = nome_produto WHERE cliente_id = ${s.c}`.then(() => null, (e) => String(e?.message ?? e));
         throw new Error('desfaz');
       }, { isolationLevel: 'RepeatableRead' }).catch((e) => { if (e?.message !== 'desfaz') throw e; });
@@ -238,7 +238,7 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     };
     const uma = await medir(undefined);
     const seis = await medir({ produtosPorPagina: 1 });
-    assert.equal(uma.modo, 'force_custom_plan/off', 'plano genérico nunca entra (0,9 s → 6,6 s na 6ª execução) e sem JIT (1,6 s de compilação por consulta)');
+    assert.equal(uma.modo, 'force_custom_plan/off/15s', 'plano genérico nunca entra (0,9 s → 6,6 s na 6ª execução), sem JIT (1,6 s de compilação) e nenhuma instrução sobrevive à transação');
     assert.match(String(uma.recusa), /read-only transaction/);
     assert.match(uma.chamadas[0], /^\$queryRaw:SET TRANSACTION READ ONLY/);
     assert.ok(!uma.chamadas.some((c) => c.startsWith('$executeRaw')), uma.chamadas.join(' | '));
@@ -246,6 +246,23 @@ describe('RC — cobertura limitada, cursor keyset e fail-closed', () => {
     assert.equal(seis.chamadas.length, fixas + 5 * 6, seis.chamadas.join(' | '));
     assert.deepEqual(seis.chamadas.slice(0, fixas), uma.chamadas.slice(0, fixas));
     for (let k = 0; k < 6; k += 1) assert.deepEqual(seis.chamadas.slice(fixas + 5 * k, fixas + 5 * (k + 1)), uma.chamadas.slice(fixas), `página ${k + 1}: as mesmas 5 consultas`);
+  });
+});
+
+describe('RT — prazo por instrução: a consulta é cancelada no banco, nunca fica órfã', () => {
+  test('RT1: statement_timeout estourado → 409 CONCURRENCY_CONFLICT (nada gravado, nenhum OK); a conexão volta limpa e a leitura seguinte é 200', async () => {
+    const { s } = await tenantComSeisProdutos();
+    const antes = await prisma().auditLog.count({ where: { cliente_id: s.c } });
+    await assert.rejects(servico(s, {}, { instrucaoMs: 1 }), (erro) => {
+      assert.equal(/** @type {any} */ (erro).code, 'CONCURRENCY_CONFLICT', String(erro));
+      assert.match(String(/** @type {any} */ (erro).message), /não terminou no prazo/);
+      return true;
+    });
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: s.c } }), antes);
+    const depois = await relatorio(s);
+    assert.equal(depois.cobertura.completa, true);
+    const ativos = await aux.$queryRaw`SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND state = 'active' AND query LIKE 'WITH lt AS%'`;
+    assert.equal(/** @type {any[]} */ (ativos)[0].n, 0, 'nenhuma consulta da reconciliação ficou rodando');
   });
 });
 

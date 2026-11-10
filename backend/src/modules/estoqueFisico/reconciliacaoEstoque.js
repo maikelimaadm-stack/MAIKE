@@ -52,10 +52,12 @@
  *
  * Leitura (SPEC §5.1): uma transação RepeatableRead (um só snapshot por
  * chamada) cuja PRIMEIRA instrução é `SET TRANSACTION READ ONLY` (o PostgreSQL
- * recusa qualquer escrita nela) e a segunda força plano CUSTOM e desliga o
- * JIT só nesta transação (`plan_cache_mode`: o plano genérico do prepared
- * statement, que o PostgreSQL passa a usar na 6ª execução, levava 0,9 s a
- * 6,6 s; `jit`: a compilação custava ~1,6 s por consulta de custo alto);
+ * recusa qualquer escrita nela) e a segunda, só nesta transação, força plano
+ * CUSTOM, desliga o JIT e limita cada instrução a 15 s (`plan_cache_mode`: o
+ * plano genérico do prepared statement, que o PostgreSQL passa a usar na 6ª
+ * execução, levava 0,9 s a 6,6 s; `jit`: a compilação custava ~1,6 s por
+ * consulta de custo alto; `statement_timeout`: nenhuma consulta sobrevive à
+ * transação de 20 s — antes, uma seguiu 8 min 50 s no banco depois dela);
  * nenhuma trava de linha nem advisory. Idas ao banco = 4 fixas (+1 com
  * empresa) + 5 por página, sem N+1 por lote ou movimento. Listas entram como
  * `::text[]` e todo WHERE começa por `cliente_id`. Quantidades viram
@@ -110,11 +112,12 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 20000, isolationLevel: /
  * a pré-contagem `1 + lotes + movimentos` de cada produto; `tempoMs` é
  * conferido entre páginas e fica bem abaixo dos 20 s da transação, com folga
  * para a última página (medida local: ~0,17 s por página de 200 produtos × 12
- * lotes × 42 movimentos; ~1,1 s para UM produto de 130.000 linhas). Só o
- * serviço aceita outro orçamento (testes); o HTTP usa este.
+ * lotes × 42 movimentos; ~1,1 s para UM produto de 130.000 linhas).
+ * `instrucaoMs` é o `statement_timeout` de cada instrução. Só o serviço aceita
+ * outro orçamento (testes); o HTTP usa este.
  */
-export const ORCAMENTO_PADRAO = Object.freeze({ produtosPorPagina: 200, linhasPorPagina: 20000, linhasPorChamada: 250000, tempoMs: 8000 });
-const ORCAMENTO_TETO = Object.freeze({ produtosPorPagina: 1000, linhasPorPagina: 100000, linhasPorChamada: 1000000, tempoMs: 12000 });
+export const ORCAMENTO_PADRAO = Object.freeze({ produtosPorPagina: 200, linhasPorPagina: 20000, linhasPorChamada: 250000, tempoMs: 8000, instrucaoMs: 15000 });
+const ORCAMENTO_TETO = Object.freeze({ produtosPorPagina: 1000, linhasPorPagina: 100000, linhasPorChamada: 1000000, tempoMs: 12000, instrucaoMs: 15000 });
 /**
  * Janela do recibo legado em torno do `createdAt` do movimento. No caminho
  * legado o recibo é reservado na 1ª instrução e o movimento gravado na MESMA
@@ -720,12 +723,15 @@ const decodificarCursor = (bruto, f) => {
  */
 export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefined) => {
   await tx.$queryRaw`SET TRANSACTION READ ONLY`;
-  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true)`;
+  const o = normalizarOrcamento(orcamento);
+  // `statement_timeout` (< 20 s da transação): uma consulta nunca sobrevive à transação que o Prisma já
+  // abandonou (medido no código anterior: plano genérico rodando 8 min 50 s depois do timeout de 20 s).
+  await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
+    set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true)`;
   const inicio = Date.now();
   const f = { empresaId: filtro.empresaId ?? null, produtoId: filtro.produtoId ?? null, localId: filtro.localId ?? null };
   const apos = filtro.apos ?? null;
   const limite = Number.isInteger(filtro.limite) ? /** @type {number} */ (filtro.limite) : LIMITE_PADRAO;
-  const o = normalizarOrcamento(orcamento);
   if (f.empresaId !== null) await exigirEmpresaDoTenant(tx, cli, f.empresaId);
 
   const [contagem] = /** @type {any[]} */ (await tx.$queryRaw`SELECT count(*)::int AS total,
@@ -802,6 +808,12 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
 };
 
 // ─── serviço ────────────────────────────────────────────────────────────────
+const PRAZO_ESGOTADO = 'a leitura da reconciliação não terminou no prazo; filtre por empresa/produto ou continue pelo cursor; nada foi gravado';
+/** Instrução cancelada pelo `statement_timeout` da leitura (SQLSTATE 57014, embrulhado pelo Prisma como P2010). */
+const instrucaoCancelada = (erro) => {
+  const e = /** @type {any} */ (erro);
+  return (e?.code === 'P2010' && String(e?.meta?.code) === '57014') || /57014|canceling statement due to statement timeout/.test(String(e?.message ?? ''));
+};
 /** Filtro da querystring já validada pelo schema; `limite` padrão 500, máximo 2000; o cursor é conferido aqui (400 sem I/O). */
 const normalizarFiltro = (filtro) => {
   const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
@@ -821,10 +833,16 @@ const normalizarFiltro = (filtro) => {
 export const reconciliarEstoque = async (contexto, filtro = {}, orcamento = undefined) => {
   const auth = exigirAuthContext(contexto?.auth);
   const f = normalizarFiltro(filtro);
-  // Disputa de leitura ou transação expirada (P2028: uma página única gigante) → 409 sem nada gravado e sem
-  // nenhum "OK": a mensagem orienta a filtrar ou continuar pelo cursor (fail-closed).
-  const r = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f, orcamento), {},
-    'a leitura da reconciliação não terminou no prazo; filtre por empresa/produto ou continue pelo cursor; nada foi gravado');
+  // Disputa de leitura, transação expirada (P2028) ou instrução cancelada pelo `statement_timeout` (57014):
+  // 409 sem nada gravado e sem nenhum "OK"; a mensagem orienta a filtrar ou continuar pelo cursor (fail-closed).
+  /** @type {Awaited<ReturnType<typeof lerReconciliacao>>} */
+  let r;
+  try {
+    r = await emTransacao(LEITURA, (tx) => lerReconciliacao(tx, auth.clienteId, f, orcamento), {}, PRAZO_ESGOTADO);
+  } catch (erro) {
+    if (instrucaoCancelada(erro)) throw new AppError('CONCURRENCY_CONFLICT', PRAZO_ESGOTADO, { cause: erro });
+    throw erro;
+  }
   return {
     escopo: { empresa_id: f.empresaId, produto_id: f.produtoId, local_estoque_id: f.localId, limite: f.limite },
     gerado_em: agoraDoServidor().toISOString(),
