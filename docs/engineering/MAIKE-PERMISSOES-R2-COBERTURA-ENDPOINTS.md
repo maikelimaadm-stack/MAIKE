@@ -169,6 +169,8 @@ D-PROD-158: +3 rotas, todas classe (a). Com as do Patrimônio (D-PROD-157), a ta
 
 D-PROD-159: +15 rotas, todas classe (a). A tabela passa de 282 para 297 linhas de rota.
 
+D-PROD-161: +1 rota, classe (c): `GET /estoque-fisico/reconciliacao` (somente leitura, só administrador real). As linhas de `POST /movimentacoes-estoque` e de `POST`/`PATCH`/`DELETE /estoque-lotes-nota` mantêm guarda e classe e ganham a recusa 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`. A tabela passa de 297 para 298 linhas de rota.
+
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
 | GET | `/admin-maike/primeiro-acesso` | `backend/src/modules/adminMaike/adminRoutes.js:75` | c — sessão MAIKE Admin |
@@ -244,11 +246,12 @@ D-PROD-159: +15 rotas, todas classe (a). A tabela passa de 282 para 297 linhas d
 | PATCH | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:99` | a — porTela(TELAS.EMPRESA, 'editar') |
 | PUT | `/empresas/:id/fuso-horario` | `backend/src/modules/empresas/empresaRoutes.js:105` | c — empresaService.configurarFusoHorario: exigirAdminTenant na transação |
 | DELETE | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:111` | a — porTela(TELAS.EMPRESA, 'excluir'). (D-PROD-137) Com dependentes → 409 `EMPRESA_COM_VINCULOS`, nada apagado |
+| GET | `/estoque-fisico/reconciliacao` | `backend/src/modules/estoqueFisico/estoqueFisicoRoutes.js:31` | c — GUARDAS.estoqueFisico.reconciliar (só administrador real; somente leitura, `RepeatableRead` + `READ ONLY`, sem tela; D-PROD-161) |
 | GET | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:40` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | GET | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:46` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
-| POST | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:52` | c — GUARDAS.estoqueLoteNota.criar (só administrador real) |
-| PATCH | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:58` | a — GUARDAS.estoqueLoteNota.editar. (D-PROD-137) Qualquer conta só `local_estoque_nome`, conferido com o local (422); as demais colunas só o administrador real, relido na transação |
-| DELETE | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:64` | c — GUARDAS.estoqueLoteNota.excluir (só administrador real) |
+| POST | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:52` | c — GUARDAS.estoqueLoteNota.criar (só administrador real). (D-PROD-161) Depois da allowlist de colunas → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`: nada é gravado |
+| PATCH | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:58` | a — GUARDAS.estoqueLoteNota.editar. (D-PROD-137) Qualquer conta só `local_estoque_nome`, conferido com o local (422); as demais colunas só o administrador real, relido na transação. (D-PROD-161) Coluna além do nome: trava → 409 `REGISTRO_OPERACIONAL_IMUTAVEL` se vinculado → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` se livre; nada é gravado |
+| DELETE | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:64` | c — GUARDAS.estoqueLoteNota.excluir (só administrador real). (D-PROD-161) Nunca apaga: trava → vínculo → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` |
 | GET | `/eventos-sanitarios` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:34` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | POST | `/eventos-sanitarios` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:40` | c — GUARDAS.semTela (só administrador real) |
 | PATCH | `/eventos-sanitarios/:id` | `backend/src/modules/eventosSanitarios/eventoSanitarioRoutes.js:46` | c — GUARDAS.semTela (só administrador real) |
@@ -303,7 +306,7 @@ D-PROD-159: +15 rotas, todas classe (a). A tabela passa de 282 para 297 linhas d
 | GET | `/movimentacoes-estoque` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:96` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | POST | `/movimentacoes-estoque/comandos/saida-suplementacao` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:102` | a — GUARDAS.movimentacaoEstoque.saidaSuplementacao |
 | POST | `/movimentacoes-estoque/comandos/transferencia-locais` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:115` | a — GUARDAS.movimentacaoEstoque.transferenciaLocais |
-| POST | `/movimentacoes-estoque` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:128` | c — GUARDAS.movimentacaoEstoque.criar (só administrador real) |
+| POST | `/movimentacoes-estoque` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:128` | c — GUARDAS.movimentacaoEstoque.criar (só administrador real). (D-PROD-161) Depois do schema e da allowlist de colunas → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`: sem transação, número ou auditoria |
 | PATCH | `/movimentacoes-estoque/:id` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:134` | a — GUARDAS.movimentacaoEstoque.editar |
 | DELETE | `/movimentacoes-estoque/:id` | `backend/src/modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js:140` | c — GUARDAS.movimentacaoEstoque.excluir (só administrador real) |
 | GET | `/movimentacoes-mapa` | `backend/src/modules/movimentacoesMapa/movimentacaoMapaRoutes.js:221` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
