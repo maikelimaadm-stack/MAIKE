@@ -341,9 +341,15 @@ describe('P1-02 — tanques e versão do bem', () => {
     assert.deepEqual([cg2.situacao, cg2.abastecimento_inicial_id, cg2.intervalo, cg2.litros, cg2.valor], ['CALCULADO', g1.id, '350.0000', '50.0000', '7.0000']);
     assert.deepEqual([(await consumoDe(s, e1)).motivo], ['nao_e_tanque_cheio']);
     // um etanol cheio fecha o intervalo do mesmo tanque, qualquer que seja o tipo
-    const e2 = await A.confirmarOk(s.operador.token, corpoCaminhonete(s, 'ETANOL', { data_operacional: '2027-06-09', medidor_leitura: '35950', quantidade_litros: '40' }));
+    const e2 = await A.confirmarOk(s.operador.token, corpoCaminhonete(s, 'ETANOL', { data_operacional: '2027-06-09', medidor_leitura: '35950', quantidade_litros: '45' }));
     const ce2 = await consumoDe(s, e2);
-    assert.deepEqual([ce2.abastecimento_inicial_id, ce2.intervalo, ce2.litros, ce2.valor], [g2.id, '300.0000', '40.0000', '7.5000']);
+    assert.deepEqual([ce2.abastecimento_inicial_id, ce2.intervalo, ce2.litros, ce2.valor], [g2.id, '300.0000', '45.0000', '6.6667'], '300 km ÷ 45 L, 4 casas HALF_UP');
+    // um cheio RETROATIVO entre g1 e g2 redistribui os intervalos (a janela é por data e leitura, não por ordem de gravação)
+    const r1 = await A.confirmarOk(s.operador.token, corpoCaminhonete(s, 'GASOLINA', { data_operacional: '2027-06-05', medidor_leitura: '35500', quantidade_litros: '10' }));
+    const cr1 = await consumoDe(s, r1);
+    assert.deepEqual([cr1.abastecimento_inicial_id, cr1.intervalo, cr1.litros, cr1.valor], [g1.id, '200.0000', '30.0000', '6.6667'], 'g1 → r1: 20 L de etanol + 10 L de gasolina');
+    const cg2b = await consumoDe(s, g2);
+    assert.deepEqual([cg2b.abastecimento_inicial_id, cg2b.intervalo, cg2b.litros, cg2b.valor], [r1.id, '150.0000', '30.0000', '5.0000']);
   });
 
   test('M8: o abastecimento não muda BemPatrimonial.versao — o PATCH do bem aberto antes grava sem 409', async () => {

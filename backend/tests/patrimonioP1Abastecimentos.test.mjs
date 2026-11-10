@@ -659,6 +659,15 @@ describe('P1-02 — inativações com a tela aberta (entre a prévia e a confirm
     await comTelaAberta('tanque', () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { ativo: false })] })), [422, 'ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inativo'],
       () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { ativo: true })] })));
     await comTelaAberta('bem', () => patchBem(() => ({ ativo: false })), [422, 'ABASTECIMENTO_BEM_INELEGIVEL', 'bem_id', 'bem_inativo'], () => patchBem(() => ({ ativo: true })));
+    // não é só inativação: capacidade reduzida e combustível retirado do tanque também são relidos sob as travas
+    await comTelaAberta('capacidade', () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { capacidade_litros: '50' })] })),
+      [422, 'ABASTECIMENTO_EXCEDE_CAPACIDADE', 'quantidade_litros', 'excede_capacidade_tanque'], () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { capacidade_litros: '180' })] })));
+    await comTelaAberta('combustível do tanque', () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { combustivel_ids: [s.comb.DIESEL_S500] })] })),
+      [422, 'TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'tipo_combustivel_id', 'nao_aceito_pelo_tanque'], () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], { combustivel_ids: [s.comb.DIESEL_S10] })] })));
+    await comTelaAberta('fator encerrado', () => A.ok(A.req('POST', `/patrimonio-conversoes-combustivel/${s.fator.diesel.id}/encerrar`, s.contaFator.token, { empresa_id: s.e1.id, versao: 1 })),
+      [422, 'ABASTECIMENTO_CONVERSAO_AUSENTE', 'conversao_id', 'sem_conversao_vigente'], async () => {
+        s.fator.diesel = await A.ok(s.configurarFator(s.e1, s.comb.DIESEL_S10, s.diesel, '0.840000', null, s.contaFator.token), 201);
+      });
     // reativado tudo, a mesma tela confirma
     await A.confirmarOk(s.operador.token, corpoAbastecimento(s));
 
