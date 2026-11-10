@@ -84,6 +84,49 @@ export const montarAbastecimento = async (app, { fatores = true, lotes = true } 
   const sufixo = randomUUID().slice(0, 6);
   const local = await p.localEstoque.create({ data: { cliente_id: s.c, numero_local: `L1-${sufixo}`, nome: `Tanque de combustível ${sufixo}` } });
   const localInativo = await p.localEstoque.create({ data: { cliente_id: s.c, numero_local: `L2-${sufixo}`, nome: `Tanque desativado ${sufixo}`, ativo: false } });
+  /** Local ATIVO sem nenhum lote do cenário (compras P3 e "sem saldo"). */
+  const local2 = await p.localEstoque.create({ data: { cliente_id: s.c, numero_local: `L3-${sufixo}`, nome: `Tanque da sede ${sufixo}` } });
+
+  // ── compra P3 confirmada pela Central (caminho REAL do lote: lançamento → motor de estoque) ──
+  /** @type {Map<string, {forn: any, desp: any}>} */
+  const financeiro = new Map();
+  const preparoFinanceiro = async (empresa) => {
+    const pronto = financeiro.get(empresa.id);
+    if (pronto) return pronto;
+    await ok(req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: empresa.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
+    const base = { cliente_id: s.c, empresa_id: empresa.id };
+    const marca = randomUUID().slice(0, 6);
+    const forn = await p.fornecedor.create({ data: { ...base, numero_cadastro: `DC-${marca}`, tipo_pessoa: 'Jurídica', nome: `Distribuidora de combustível ${marca}`, tipos: ['fornecedor'] } });
+    const desp = await p.naturezaFinanceira.create({ data: { ...base, numero: `NC-${marca}`, tipo: 'DESPESA', nome: `COMBUSTIVEIS ${marca}` } });
+    const r = { forn, desp };
+    financeiro.set(empresa.id, r);
+    return r;
+  };
+  /**
+   * Corpo de uma compra PAGAR com 1 mercadoria em KG (total em Decimal, 2 casas).
+   * @param {any} empresa @param {any} prod @param {any} loc @param {{ kg: string, preco: string, dia?: string }} a
+   */
+  const docCompraP3 = async (empresa, prod, loc, { kg, preco, dia = '2027-06-10' }) => {
+    const { forn, desp } = await preparoFinanceiro(empresa);
+    const total = new Prisma.Decimal(kg).times(new Prisma.Decimal(preco)).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP).toFixed(2);
+    return {
+      empresa_id: empresa.id, direcao: 'PAGAR', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: forn.id, data_emissao: dia, data_operacional: dia,
+      efeito_fisico_confirmado: true,
+      itens: [{ tipo_item: 'MERCADORIA', produto_id: prod.id, local_estoque_id: loc.id, unidade: 'KG', quantidade: kg, valor_unitario: preco }],
+      rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: desp.id, percentual: '100' }], parcelas: [{ vencimento: '2027-07-10', valor: total }],
+    };
+  };
+  /**
+   * Compra P3 criada e CONFIRMADA pela API da Central: o lote nasce do motor de
+   * estoque (não do banco). Devolve o lançamento confirmado, o corpo e o lote.
+   * @param {any} empresa @param {any} prod @param {any} loc @param {{ kg: string, preco: string, dia?: string }} a
+   */
+  const compraP3 = async (empresa, prod, loc, a) => {
+    const doc = await docCompraP3(empresa, prod, loc, a);
+    const criada = await ok(req('POST', '/operacoes-financeiras', s.token, { ...doc, operation_id: opId() }), 201);
+    const operacao = await ok(req('POST', `/operacoes-financeiras/${criada.id}/confirmar`, s.token, { empresa_id: empresa.id, operation_id: opId(), versao: criada.versao }));
+    return { operacao, doc, lote_id: operacao.itens[0].estoque_lote_nota_id };
+  };
 
   /** POST do fator pela API (A14). */
   const configurarFator = (empresa, tipoId, prod, kgPorLitro, vigenteId = null, tok = s.token) =>
@@ -138,8 +181,8 @@ export const montarAbastecimento = async (app, { fatores = true, lotes = true } 
   const leitor = await contaAbastecimento({});
 
   return {
-    ...s, diesel, gasolina, etanol, oleoLitro, diesel2, vinculos, local, localInativo, fator, lotes: lotesCriados, trator, caminhonete, gerador,
-    configurarFator, lote, contaAbastecimento, operador, contaCancelar, contaFator, leitor,
+    ...s, diesel, gasolina, etanol, oleoLitro, diesel2, vinculos, local, localInativo, local2, fator, lotes: lotesCriados, trator, caminhonete, gerador,
+    configurarFator, lote, docCompraP3, compraP3, contaAbastecimento, operador, contaCancelar, contaFator, leitor,
   };
 };
 
@@ -189,5 +232,11 @@ export const acoesAbastecimento = (app) => {
     assert.equal(r.statusCode, 201, r.body);
     return r.json();
   };
-  return { req, ok, previa, confirmar, confirmarOk, cancelar, detalhe, lista };
+  /** A6: consumo do bem (`extra` = query adicional, começando por `&`). */
+  const consumo = (tok, empresaId, bemId, extra = '') => req('GET', `/patrimonio-abastecimentos-consumo?empresa_id=${empresaId}&bem_id=${bemId}${extra}`, tok);
+  /** A7–A12: `recurso` = bens | tanques | tipos | produtos | produtos-filtro | locais; `query` sem o `?`. */
+  const opcoes = (tok, recurso, query) => req('GET', `/patrimonio-abastecimentos-opcoes/${recurso}?${query}`, tok);
+  /** Detalhe público do bem (P1-01 + `medidor_operacional`). */
+  const bem = (tok, empresaId, id) => ok(req('GET', `/bens-patrimoniais/${id}?empresa_id=${empresaId}`, tok));
+  return { req, ok, previa, confirmar, confirmarOk, cancelar, detalhe, lista, consumo, opcoes, bem };
 };
