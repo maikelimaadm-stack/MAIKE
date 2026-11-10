@@ -150,6 +150,7 @@ function MgSelectSheet({ label, options, value, onPick, onClose }) {
   const fmt = (n) => n.toLocaleString("pt-BR");
   return (
     <MobileSheet
+      className="mk-base1-sheet"
       open
       onClose={onClose}
       label={label}
