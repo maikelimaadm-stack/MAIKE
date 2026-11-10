@@ -476,6 +476,8 @@ export const cancelar = async (contexto, id, corpo) => {
               });
             }
             if (antes.versao !== entrada.versao) throw versaoConflito(antes.versao, entrada.versao);
+            const vincM11 = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: antes.tipo_combustivel_id, produto_id: antes.produto_id }, select: { ativo: true } });
+            if (!vincM11?.ativo) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const bem = await tx.bemPatrimonial.findFirst({
               where: { cliente_id: cli, id: antes.bem_id },
               select: { id: true, medidor_tipo: true, medidor_leitura_atual: true, medidor_data_leitura: true },
@@ -483,8 +485,7 @@ export const cancelar = async (contexto, id, corpo) => {
             const cadastro = pontoDoCadastro(bem);
             const leituraAntes = leituraVigente(cadastro, await pisoOperacional(tx, cli, antes.bem_id, bem?.medidor_tipo ?? null));
             await travarProdutosEstoque(tx, cli, empresaId, [antes.produto_id]); // R8
-            const vigente = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: antes.tipo_combustivel_id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { produto_id: true } });
-            const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: vigente?.produto_id ?? antes.produto_id } } });
+            const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
             if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const [orig] = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id, status, movimento_filho_id FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${antes.movimentacao_estoque_id} FOR UPDATE`
