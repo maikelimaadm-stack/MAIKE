@@ -666,7 +666,8 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     await criarOk(s, corpoTrator(s));
     const delegados = ['bemPatrimonial', 'medicaoBem', 'tanqueBem', 'tanqueBemCombustivel', 'familiaPatrimonial', 'tipoPatrimonial', 'tipoPatrimonialPerfil', 'perfilMedicao', 'tipoCombustivel', 'tipoCombustivelProduto'];
     const r = await emTransacaoDesfeita(async (tx) => {
-      await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
+      // D-PROD-159: as 3 tabelas da P1-02 referenciam as 10 (RESTRICT) e saem juntas, sem CASCADE (nada some escondido).
+      await tx.$executeRawUnsafe(`DROP TABLE "AbastecimentoBemConsumoLote", "AbastecimentoBem", "ConversaoCombustivelProduto", ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */
       const codigos = {};
       /** @type {unknown} */
