@@ -1,24 +1,67 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
-import { CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
-import { EscolhaMultipla } from "@/components/patrimonio/PatrimonioFormParts";
-import { listarOpcoesCompletasBem } from "@/services/bemPatrimonialService";
-import { CHAVE_OPCOES_PATRIMONIO, LIMITES_BEM, LIMITE_TANQUES_ATIVOS, LOCALE_BEM, novaChave } from "@/components/patrimonio/bemFormulario";
+import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
+import { listarOpcoesBem } from "@/services/bemPatrimonialService";
+import { ROTULO_UNIDADE_ESTOQUE, UNIDADES_ESTOQUE_TANQUE } from "@/lib/patrimonioDominio";
+import { LIMITES_BEM, LIMITE_PRODUTOS_POR_TANQUE, LIMITE_TANQUES_ATIVOS, LOCALE_BEM, novaChave, produtoDoTanque } from "@/components/patrimonio/bemFormulario";
 
 /** @typedef {import('./bemFormulario').TanqueForm} TanqueForm */
+/** @typedef {import('./bemFormulario').ProdutoDoTanque} ProdutoDoTanque */
+/** @typedef {{ indice: number, produto_id: string, reason: string }} ProdutoRecusado */
 
 /** Nome do tanque para leitores de tela: o identificador ou o número da linha. @param {TanqueForm} t @param {number} i */
 const nomeDoTanque = (t, i) => t.identificador.trim() || String(i + 1);
 
+/** Selo curto da unidade de estoque ("L", "kg"); outra (legada) vai como veio. @param {string|null} u */
+const seloDaUnidade = (u) => (u ? /** @type {Record<string, string>} */ (ROTULO_UNIDADE_ESTOQUE)[u] ?? u : "?");
+
+/** Filtro de unidade do seletor (achado D8): Todos (padrão), Litros, Quilos. */
+const OPCOES_FILTRO_UNIDADE = [
+  { value: "TODAS", label: "Todos" },
+  { value: "L", label: "Litros (L)" },
+  { value: "KG", label: "Quilos (kg)" },
+];
+
+/** Motivo por que um Produto aceito já não serve (riscado na tela). */
+const MOTIVO_RECUSA = /** @type {Record<string, string>} */ ({
+  inativo: "inativo",
+  outra_empresa: "outra fazenda",
+  unidade_incompativel: "unidade não aceita",
+  inexistente: "não está mais disponível",
+});
+
+export const AVISO_TANQUE_SEM_PRODUTO = "Este tanque não pode ser abastecido até ter um Produto aceito.";
+export const AVISO_PRODUTO_EM_KG = "Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.";
+
 /**
- * Tanques de combustível de máquinas, veículos e equipamentos (D-PROD-157):
- * identificador, capacidade em litros, combustíveis aceitos (escolha múltipla —
- * o flex aceita mais de um) e observação. Neste slice só entram combustíveis
- * medidos em LITROS (GNV, em m³, fica fora do tanque).
+ * Motivo de recusa de um Produto aceito: o que o servidor apontou no último
+ * envio (422 `TANQUE_PRODUTO_INVALIDO`, inclusive "outra fazenda") ou o que o
+ * detalhe já mostra (Produto inativo; unidade fora de L e KG). `null` = serve.
+ * @param {ProdutoDoTanque} p @param {ProdutoRecusado|null} recusa
+ */
+const motivoDoProduto = (p, recusa) => {
+  if (recusa && recusa.produto_id === p.id) return MOTIVO_RECUSA[recusa.reason] ?? "recusado";
+  if (!p.ativo) return MOTIVO_RECUSA.inativo;
+  if (!p.unidade || !UNIDADES_ESTOQUE_TANQUE.includes(p.unidade)) return MOTIVO_RECUSA.unidade_incompativel;
+  return null;
+};
+
+/**
+ * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-161):
+ * identificador, capacidade em litros, observação e os **Produtos aceitos** —
+ * Produtos ativos do estoque DESTA fazenda, em litros (`L`) ou quilos (`KG`),
+ * escolhidos por um seletor paginado (busca por nome/código no servidor, selo
+ * da unidade em cada opção, filtro opcional Litros | Quilos | Todos). Até 20
+ * por tanque (P-02). Tanque sem Produto pode ser gravado: a tela avisa que ele
+ * não pode ser abastecido (P-01). Produto em quilos aceito: aviso de que no
+ * abastecimento se digita kg (achado D8).
+ *
+ * Produto aceito que ficou inativo, de outra fazenda ou fora de L e KG aparece
+ * riscado com o motivo e pode ser retirado (o "outra fazenda" vem do 422 do
+ * servidor, que aponta o Produto: `recusa`).
  *
  * Tanque já gravado NUNCA sai da lista: ele é inativado (e pode ser reativado);
  * só o tanque novo, ainda não gravado, pode ser tirado. Até 10 tanques ativos.
@@ -30,16 +73,14 @@ const nomeDoTanque = (t, i) => t.identificador.trim() || String(i + 1);
  *   readOnly: boolean,
  *   erros: Record<string, string>,
  *   limparErro: (chave: string) => void,
+ *   empresaId: string|null,
+ *   podeListarProdutos?: boolean,
+ *   recusa?: ProdutoRecusado|null,
+ *   onRetirarRecusado?: () => void,
  * }} props
  */
-export default function TanquesBem({ tanques, onChange, readOnly, erros, limparErro }) {
-  const combustiveisQuery = useQuery({
-    queryKey: [...CHAVE_OPCOES_PATRIMONIO, "combustiveis-completo"],
-    queryFn: () => listarOpcoesCompletasBem("combustiveis", null),
-    enabled: !readOnly,
-    staleTime: 60 * 1000,
-  });
-  const emLitros = (combustiveisQuery.data?.itens ?? []).filter((c) => c?.unidade === "L");
+export default function TanquesBem({ tanques, onChange, readOnly, erros, limparErro, empresaId, podeListarProdutos = true, recusa = null, onRetirarRecusado = undefined }) {
+  const [filtros, setFiltros] = useState(/** @type {Record<string, string>} */ ({}));
   const ativos = tanques.filter((t) => t.ativo).length;
 
   /** @param {string} chave @param {Partial<TanqueForm>} mudanca */
@@ -50,10 +91,7 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
       notifyWarning("Atenção", `Um bem pode ter no máximo ${LIMITE_TANQUES_ATIVOS} tanques ativos.`);
       return;
     }
-    onChange((atual) => [
-      ...atual,
-      { chave: novaChave("tanque"), id: null, identificador: "", capacidade: "", combustivel_ids: [], combustiveis: [], observacao: "", ativo: true },
-    ]);
+    onChange((atual) => [...atual, { chave: novaChave("tanque"), id: null, identificador: "", capacidade: "", observacao: "", ativo: true, produtos: [] }]);
     limparErro("tanques");
   };
 
@@ -67,31 +105,45 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
     limparErro("tanques");
   };
 
-  /** Os erros são por linha: tirar uma linha desalinha os índices, então eles saem todos. @param {string} chave */
+  /** Os erros (e a marca do servidor) são por linha: tirar uma linha desalinha os índices, então saem todos. @param {string} chave */
   const tirar = (chave) => {
     onChange((atual) => atual.filter((t) => t.chave !== chave));
     limparErro("tanques");
+    if (recusa) onRetirarRecusado?.();
   };
 
-  /**
-   * Opções do tanque: os combustíveis ativos em litros + os que o tanque já
-   * tem (um combustível já vinculado e depois inativado pode continuar).
-   * @param {TanqueForm} t
-   */
-  const opcoesDo = (t) => {
-    const lista = readOnly ? [] : emLitros.map((c) => ({ value: String(c.id), label: String(c.nome ?? c.codigo ?? "") }));
-    for (const c of t.combustiveis) {
-      if (!lista.some((o) => o.value === c.id)) lista.push({ value: c.id, label: c.ativo ? c.nome : `${c.nome} (inativo)` });
-    }
-    return lista;
+  /** @param {TanqueForm} t @param {number} i @param {any} opcao */
+  const aceitar = (t, i, opcao) => {
+    const produto = produtoDoTanque(opcao);
+    if (!produto) return;
+    onChange((atual) =>
+      atual.map((x) => {
+        if (x.chave !== t.chave || x.produtos.some((p) => p.id === produto.id)) return x;
+        if (x.produtos.length >= LIMITE_PRODUTOS_POR_TANQUE) return x;
+        return { ...x, produtos: [...x.produtos, produto] };
+      }),
+    );
+    if (t.produtos.length >= LIMITE_PRODUTOS_POR_TANQUE) notifyWarning("Atenção", `Um tanque aceita no máximo ${LIMITE_PRODUTOS_POR_TANQUE} Produtos.`);
+    limparErro(`tanques.${i}.produtos`);
+  };
+
+  /** @param {TanqueForm} t @param {number} i @param {string} produtoId */
+  const retirar = (t, i, produtoId) => {
+    alterar(t.chave, { produtos: t.produtos.filter((p) => p.id !== produtoId) });
+    limparErro(`tanques.${i}.produtos`);
+    if (recusa && recusa.indice === i && recusa.produto_id === produtoId) onRetirarRecusado?.();
   };
 
   return (
     <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2" data-testid="bem-tanques">
-      {tanques.length === 0 ? <p className="col-span-12 text-xs text-[var(--mg-text-2,#475569)]">Nenhum tanque de combustível.</p> : null}
+      {tanques.length === 0 ? <p className="col-span-12 text-xs text-[var(--mg-text-2,#475569)]">Nenhum tanque.</p> : null}
       {tanques.map((t, i) => {
         const nome = nomeDoTanque(t, i);
         const travado = readOnly || !t.ativo;
+        const filtro = filtros[t.chave] ?? "TODAS";
+        const cheio = t.produtos.length >= LIMITE_PRODUTOS_POR_TANQUE;
+        const recusaDaLinha = recusa && recusa.indice === i ? recusa : null;
+        const temKg = t.produtos.some((p) => p.unidade === "KG");
         return (
           <div key={t.chave} className="col-span-12 grid grid-cols-12 gap-x-3 gap-y-2 rounded-md border border-[var(--mg-divider,#cbd5e1)] p-2" data-testid={`bem-tanque-${i}`}>
             <div className="col-span-12 flex min-h-8 flex-wrap items-center gap-2 text-[13px]">
@@ -151,41 +203,111 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
               testId={`bem-tanque-capacidade-${i}`}
             />
             <CampoTexto label="Observação" span={4} value={t.observacao} onChange={(v) => alterar(t.chave, { observacao: v })} readOnly={travado} maxLength={255} />
-            <EscolhaMultipla
-              rotulo="Combustíveis aceitos"
-              opcoes={opcoesDo(t)}
-              valores={t.combustivel_ids}
-              onChange={(valores) => {
-                alterar(t.chave, { combustivel_ids: valores });
-                limparErro(`tanques.${i}.combustiveis`);
-              }}
-              readOnly={travado}
-              testId={`bem-tanque-combustiveis-${i}`}
-              erro={erros[`tanques.${i}.combustiveis`] || null}
-              ajuda={!travado ? "Marque todos os que o tanque aceita (flex: gasolina e etanol). Só combustíveis em litros." : null}
-            />
+
+            <div className="col-span-12 min-w-0" data-testid={`bem-tanque-produtos-${i}`}>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">
+                Produtos aceitos <span className="font-normal normal-case">({t.produtos.length} de {LIMITE_PRODUTOS_POR_TANQUE})</span>
+              </p>
+              {t.produtos.length ? (
+                <ul className="flex flex-wrap gap-1.5" aria-label={`Produtos aceitos do tanque ${nome}`}>
+                  {t.produtos.map((p) => {
+                    const motivo = motivoDoProduto(p, recusaDaLinha);
+                    return (
+                      <li
+                        key={p.id}
+                        className={`inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-[12px] ${
+                          motivo ? "border-amber-300 bg-amber-50 text-amber-900" : "border-[var(--mg-divider,#cbd5e1)] bg-white"
+                        }`}
+                        data-testid={`bem-tanque-${i}-produto-${p.id}`}
+                        data-motivo={motivo ?? undefined}
+                      >
+                        <span className={`min-w-0 break-words uppercase ${motivo ? "line-through" : ""}`}>{p.rotulo || "Produto"}</span>
+                        <span className="rounded bg-slate-100 px-1 text-[10px] font-semibold normal-case text-slate-700">{seloDaUnidade(p.unidade)}</span>
+                        {motivo ? <span className="text-[11px] normal-case">({motivo})</span> : null}
+                        {!travado ? (
+                          <button
+                            type="button"
+                            aria-label={`Tirar ${p.rotulo || "o Produto"} dos Produtos aceitos do tanque ${nome}`}
+                            onClick={() => retirar(t, i, p.id)}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full"
+                          >
+                            <X aria-hidden size={12} />
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              {!t.produtos.length && t.ativo ? (
+                <p className="mt-1 text-[11px] text-amber-800" role="status" data-testid={`bem-tanque-sem-produto-${i}`}>
+                  {AVISO_TANQUE_SEM_PRODUTO}
+                </p>
+              ) : null}
+              {temKg ? (
+                <p className="mt-1 text-[11px] text-[var(--mg-text-2,#475569)]" data-testid={`bem-tanque-aviso-kg-${i}`}>
+                  {AVISO_PRODUTO_EM_KG}
+                </p>
+              ) : null}
+              {erros[`tanques.${i}.produtos`] ? (
+                <p className="mt-1 text-[11px] text-red-700" role="alert">
+                  {erros[`tanques.${i}.produtos`]}
+                </p>
+              ) : null}
+            </div>
+            {!travado && podeListarProdutos && !cheio ? (
+              <>
+                <SeletorPaginadoGestao
+                  rotulo="Aceitar Produto"
+                  testId={`bem-tanque-seletor-produto-${i}`}
+                  chave={["patrimonio", "produtos-tanque", empresaId, filtro]}
+                  buscar={({ q, cursor, limit }) =>
+                    listarOpcoesBem("produtos", empresaId, { q, cursor, limit, unidade: filtro === "TODAS" ? null : /** @type {'L'|'KG'} */ (filtro) })
+                  }
+                  value={null}
+                  onChange={(o) => aceitar(t, i, o)}
+                  detalheDaOpcao={(o) => {
+                    const codigo = typeof o?.codigo_interno === "string" && o.codigo_interno ? `${o.codigo_interno} · ` : "";
+                    const jaAceito = t.produtos.some((p) => p.id === String(o?.id)) ? " · já aceito" : "";
+                    return `${codigo}${seloDaUnidade(o?.unidade_principal_estoque ?? null)}${jaAceito}`;
+                  }}
+                  textoVazio="— Escolha um Produto para aceitar —"
+                  span={8}
+                />
+                <CampoSelect
+                  label="Unidade"
+                  value={filtro}
+                  onChange={(v) => setFiltros((f) => ({ ...f, [t.chave]: v || "TODAS" }))}
+                  options={OPCOES_FILTRO_UNIDADE}
+                  span={4}
+                />
+              </>
+            ) : null}
+            {!travado && cheio ? (
+              <p className="col-span-12 text-[11px] text-[var(--mg-text-2,#475569)]" role="status">
+                Limite de {LIMITE_PRODUTOS_POR_TANQUE} Produtos aceitos neste tanque: tire um para aceitar outro.
+              </p>
+            ) : null}
+            {!travado && !podeListarProdutos ? (
+              <p className="col-span-12 text-[11px] text-[var(--mg-text-2,#475569)]" role="status">
+                Você não tem permissão para escolher os Produtos aceitos (cadastrar ou editar bens).
+              </p>
+            ) : null}
           </div>
         );
       })}
-      {!readOnly && combustiveisQuery.isLoading && tanques.length ? (
-        <p className="col-span-12 text-[11px] text-[var(--mg-text-2,#475569)]" role="status">
-          Carregando combustíveis…
-        </p>
-      ) : null}
-      {!readOnly && combustiveisQuery.isError ? (
-        <p className="col-span-12 text-[11px] text-red-700" role="alert">
-          {mensagemErroPatrimonio(combustiveisQuery.error, "Não foi possível carregar os combustíveis.")}
-        </p>
-      ) : null}
-      {!readOnly && combustiveisQuery.data && !combustiveisQuery.data.completo ? (
-        <p className="col-span-12 text-[11px] text-amber-700" role="status">
-          A lista de combustíveis é grande demais para mostrar inteira aqui: inative os que não usa no cadastro de Combustíveis.
-        </p>
-      ) : null}
       {erros.tanques ? (
         <p className="col-span-12 text-[11px] text-red-700" role="alert">
           {erros.tanques}
         </p>
+      ) : null}
+      {!readOnly && tanques.length ? (
+        <div className="col-span-12">
+          <AvisoGestao tone="blue" testId="bem-tanques-nota">
+            Os Produtos aceitos vêm do estoque desta fazenda, em litros (L) ou quilos (kg). O abastecimento baixa do estoque exatamente a quantidade digitada, na
+            unidade do Produto; a capacidade do tanque só é conferida para Produto em litros.
+          </AvisoGestao>
+        </div>
       ) : null}
       {!readOnly && ativos < LIMITE_TANQUES_ATIVOS ? (
         <div className="col-span-12">

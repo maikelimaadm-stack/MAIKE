@@ -1,19 +1,24 @@
 /**
- * Service dos Bens Patrimoniais (D-PROD-157).
+ * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-161).
  *
  * O bem pertence a uma EMPRESA (fazenda): sem empresa real não há leitura nem
- * gravação. O bem é a raiz do agregado — medições, medidor e tanques só mudam
- * pelo POST/PATCH do próprio bem, com `versao` (concorrência otimista).
+ * gravação. O bem é a raiz do agregado — medidor e tanques (com os Produtos
+ * aceitos) só mudam pelo POST/PATCH do próprio bem, com `versao`
+ * (concorrência otimista). D-PROD-161: saíram as medições físicas e os
+ * combustíveis do tanque; cada tanque aceita Produtos do estoque da fazenda
+ * (unidade L ou KG).
  *
  * Formas:
  *  - DETALHE (resposta do servidor, A13): referências como objetos
  *    (`familia{…}`, `proprietario{…}`, `aquisicao.fornecedor{…}`…), medidor e
- *    blocos aninhados, decimais em string canônica.
- *  - CORPO (o que a tela monta e o servidor recebe, §5/A2/A6): ids planos
+ *    blocos aninhados, decimais em string canônica; `tanques[i].produtos =
+ *    [{produto_id, nome, codigo_interno, unidade_principal_estoque, produto_ativo}]`.
+ *  - CORPO (o que a tela monta e o servidor recebe, §4.11): ids planos
  *    (`familia_id`, `proprietario_parceiro_id`…), `medidor{tipo, leitura_*,
- *    data_leitura}`, `medicoes[{id?, perfil_id, valor, unidade, rotulo?, principal?}]`,
- *    `tanques[{id?, identificador, capacidade_litros, combustivel_ids, observacao?, ativo?}]`,
- *    `aquisicao{…}`, `depreciacao{depreciavel, …}`. Decimais SEMPRE string.
+ *    data_leitura}`, `tanques[{id?, identificador, capacidade_litros,
+ *    produto_ids, observacao?, ativo?}]` (`produto_ids` sempre presente, pode
+ *    ser `[]`: P-01), `aquisicao{…}`, `depreciacao{depreciavel, …}`. Decimais
+ *    SEMPRE string.
  *
  * `formaDeEdicaoDoBem(detalhe)` converte o detalhe no corpo, para a tela
  * preencher o formulário e para o PATCH mínimo comparar.
@@ -26,7 +31,6 @@ import {
   updateBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
-  listProdutosElegiveisBemPatrimonial,
   RECURSOS_OPCOES_DA_EMPRESA,
 } from '@/apis/patrimonio';
 import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
@@ -65,15 +69,14 @@ export const CAMPOS_ESCALARES_BEM = Object.freeze([
 /** Blocos aninhados: presentes no PATCH, SUBSTITUEM o bloco inteiro (A6). */
 export const BLOCOS_BEM = Object.freeze(['medidor', 'aquisicao', 'depreciacao']);
 
-/** Listas sincronizadas por completo no PATCH (§5): medições e tanques. */
-export const LISTAS_BEM = Object.freeze(['medicoes', 'tanques']);
+/** Listas sincronizadas por completo no PATCH: os tanques (com os Produtos aceitos). */
+export const LISTAS_BEM = Object.freeze(['tanques']);
 
 /** Chaves com decimal em string (comparação ignora zeros à direita: "180.0000" = "180"). */
 const CHAVES_DECIMAIS = new Set([
   'potencia_cv',
   'leitura_inicial',
   'leitura_atual',
-  'valor',
   'capacidade_litros',
   'valor_aquisicao',
   'custo_incorporacao',
@@ -112,7 +115,7 @@ const normalizar = (v, chave = '') => {
     if (t === '') return null;
     return CHAVES_DECIMAIS.has(chave) ? decimalSemZeros(t) : t;
   }
-  if (Array.isArray(v)) return v.map((item) => normalizar(item, chave === 'combustivel_ids' ? '' : chave));
+  if (Array.isArray(v)) return v.map((item) => normalizar(item, chave === 'produto_ids' ? '' : chave));
   if (ehObjeto(v)) {
     /** @type {Record<string, unknown>} */
     const saida = {};
@@ -146,23 +149,11 @@ const corpoDoMedidor = (medidor, { novo = false } = {}) => {
   });
 };
 
-/** @param {unknown} medicoes */
-const corpoDasMedicoes = (medicoes) =>
-  (Array.isArray(medicoes) ? medicoes : []).filter(ehObjeto).map((m) =>
-    compactar({
-      id: m.id,
-      perfil_id: m.perfil_id,
-      valor: m.valor,
-      unidade: m.unidade,
-      rotulo: m.rotulo,
-      principal: m.principal === true ? true : undefined,
-    }),
-  );
-
 /**
- * Na criação não há `id` nem `ativo`. Os combustíveis vão sem repetição e em
- * ordem de id: o vínculo é um conjunto, e marcar/desmarcar na tela sem mudar o
- * conjunto não gera PATCH.
+ * Na criação não há `id` nem `ativo`. Os Produtos aceitos vão sem repetição e
+ * em ordem de id (`produto_ids`, sempre presente — `[]` é válido, P-01): o
+ * aceite é um conjunto, e tirar/recolocar na tela sem mudar o conjunto não
+ * gera PATCH.
  * @param {unknown} tanques @param {{ novo: boolean }} modo
  */
 const corpoDosTanques = (tanques, { novo }) =>
@@ -171,7 +162,7 @@ const corpoDosTanques = (tanques, { novo }) =>
       id: novo ? undefined : t.id,
       identificador: t.identificador,
       capacidade_litros: t.capacidade_litros,
-      combustivel_ids: Array.isArray(t.combustivel_ids) ? [...new Set(t.combustivel_ids.map(String))].sort() : [],
+      produto_ids: Array.isArray(t.produto_ids) ? [...new Set(t.produto_ids.map(String))].sort() : [],
       observacao: t.observacao,
       ativo: novo || !t.id ? undefined : t.ativo !== false,
     }),
@@ -237,19 +228,14 @@ export const formaDeEdicaoDoBem = (detalhe) => {
   forma.medidor = ehObjeto(d.medidor)
     ? { tipo: d.medidor.tipo ?? null, leitura_inicial: d.medidor.leitura_inicial ?? null, leitura_atual: d.medidor.leitura_atual ?? null, data_leitura: d.medidor.data_leitura ?? null }
     : null;
-  forma.medicoes = (Array.isArray(d.medicoes) ? d.medicoes : []).filter(ehObjeto).map((m) => ({
-    id: m.id,
-    perfil_id: idDe(m.perfil) ?? m.perfil_id ?? null,
-    valor: m.valor_informado ?? null,
-    unidade: m.unidade_informada ?? null,
-    rotulo: m.rotulo ?? null,
-    principal: m.principal === true,
-  }));
   forma.tanques = (Array.isArray(d.tanques) ? d.tanques : []).filter(ehObjeto).map((t) => ({
     id: t.id,
     identificador: t.identificador ?? '',
     capacidade_litros: t.capacidade_litros ?? null,
-    combustivel_ids: (Array.isArray(t.combustiveis) ? t.combustiveis : []).map((c) => idDe(c)).filter(Boolean),
+    produto_ids: (Array.isArray(t.produtos) ? t.produtos : [])
+      .filter(ehObjeto)
+      .map((p) => (typeof p.produto_id === 'string' ? p.produto_id : idDe(p)))
+      .filter(Boolean),
     observacao: t.observacao ?? null,
     ativo: t.ativo !== false,
   }));
@@ -318,8 +304,6 @@ export const criarBem = async (empresaId, dados) => {
   }
   const medidor = corpoDoMedidor(dados?.medidor, { novo: true });
   if (medidor) corpo.medidor = medidor;
-  const medicoes = corpoDasMedicoes(dados?.medicoes);
-  if (medicoes.length) corpo.medicoes = medicoes;
   const tanques = corpoDosTanques(dados?.tanques, { novo: true });
   if (tanques.length) corpo.tanques = tanques;
   const aquisicao = corpoDaAquisicao(dados?.aquisicao);
@@ -333,8 +317,8 @@ export const criarBem = async (empresaId, dados) => {
  *  - escalar alterado vai com o valor novo (vazio = `null`, limpa);
  *  - bloco (`medidor`, `aquisicao`, `depreciacao`) alterado vai INTEIRO;
  *    `medidor: null` só quando a tela retira o medidor (o servidor decide);
- *  - lista (`medicoes`, `tanques`) alterada vai COMPLETA (sync no servidor:
- *    medição ausente é removida; tanque gravado nunca some — inative-o).
+ *  - a lista `tanques` alterada vai COMPLETA (sync no servidor: tanque gravado
+ *    nunca some — inative-o; Produto que sai dos aceitos é retirado).
  * Sem mudança → nada é enviado.
  * @param {string|null} empresaId @param {any} original detalhe aberto @param {Record<string, any>} dados corpo (forma de edição)
  * @returns {Promise<{ alterado: boolean, registro: any }>}
@@ -354,10 +338,6 @@ export const atualizarBem = async (empresaId, original, dados) => {
     const novo = corpoDoBloco(bloco, dados[bloco]);
     if (iguais(novo, corpoDoBloco(bloco, antes[bloco]), bloco)) continue;
     corpo[bloco] = novo;
-  }
-  if (temCampo('medicoes')) {
-    const novas = corpoDasMedicoes(dados.medicoes);
-    if (!iguais(novas, corpoDasMedicoes(antes.medicoes), 'medicoes')) corpo.medicoes = novas;
   }
   if (temCampo('tanques')) {
     const novos = corpoDosTanques(dados.tanques, { novo: false });
@@ -403,11 +383,13 @@ export const simularDepreciacao = async (empresaId, parametros) => {
 
 /**
  * Uma página de opções ATIVAS para os seletores do bem. Responsáveis,
- * parceiros, centros de custo e áreas pedem a empresa (sem ela não há busca);
- * os de catálogo não dependem dela. `tipos` aceita `familiaId`.
- * @param {'familias'|'tipos'|'perfis-medicao'|'combustiveis'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
+ * parceiros, centros de custo, áreas e `produtos` pedem a empresa (sem ela não
+ * há busca); os de catálogo não dependem dela. `tipos` aceita `familiaId`.
+ * `produtos` (D-PROD-161) = Produtos ativos da fazenda em L ou KG que um
+ * tanque pode aceitar; `unidade` (`L` | `KG`) filtra.
+ * @param {'familias'|'tipos'|'produtos'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
  * @param {string|null} empresaId
- * @param {{ q?: string, cursor?: string|null, limit?: number, familiaId?: string|null }} [opts]
+ * @param {{ q?: string, cursor?: string|null, limit?: number, familiaId?: string|null, unidade?: 'L'|'KG'|null }} [opts]
  */
 export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
   if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso) && !empresaId) return { itens: [], has_more: false, next_cursor: null };
@@ -417,37 +399,19 @@ export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
     cursor: opts.cursor || undefined,
     limit: opts.limit ?? 50,
     familia_id: opts.familiaId || undefined,
+    ...(recurso === 'produtos' && opts.unidade ? { unidade: opts.unidade } : {}),
   });
-};
-
-/**
- * Contrato de LEITURA para a P1-02 (abastecimento futuro; sem tela agora):
- * produtos elegíveis do bem, por tanque ATIVO (ou só `tanqueId`) — interseção
- * dos combustíveis permitidos no tanque com os vínculos ATIVOS Combustível ×
- * Produto da empresa DO BEM e com os produtos ATIVOS dessa empresa.
- *
- * Sem vínculo → `{ itens: [] }` (nunca "todos os produtos"). Itens só com
- * `{tanque_id, tanque_identificador, tipo_combustivel_id,
- * tipo_combustivel_nome, produto_id, produto_nome, unidade_principal_estoque,
- * empresa_id}`: sem preço, saldo ou custo, e sem conversão de unidade.
- * Sem empresa → `{ itens: [] }` e nada é lido.
- * @param {string|null} empresaId @param {string} bemId @param {{ tanqueId?: string|null }} [opts]
- * @returns {Promise<{ itens: Array<Record<string, unknown>> }>}
- */
-export const produtosElegiveisDoBem = async (empresaId, bemId, opts = {}) => {
-  if (!empresaId) return { itens: [] };
-  return listProdutosElegiveisBemPatrimonial(bemId, { empresa_id: empresaId, tanque_id: opts.tanqueId || undefined });
 };
 
 /** Páginas lidas, no máximo, por `listarOpcoesCompletasBem` (100 itens cada). */
 export const PAGINAS_MAXIMAS_OPCOES = 20;
 
 /**
- * Todas as opções ATIVAS de um recurso pequeno (combustíveis de tanque, perfis
- * de medição, famílias do filtro), seguindo `next_cursor` página a página.
+ * Todas as opções ATIVAS de um recurso pequeno (as famílias do filtro da
+ * lista), seguindo `next_cursor` página a página.
  * `completo` é `false` quando o recurso tem mais que
  * `PAGINAS_MAXIMAS_OPCOES` × 100 itens — a tela avisa que a lista é parcial.
- * @param {'familias'|'tipos'|'perfis-medicao'|'combustiveis'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
+ * @param {'familias'|'tipos'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
  * @param {string|null} empresaId
  * @param {{ familiaId?: string|null }} [opts]
  * @returns {Promise<{ itens: any[], completo: boolean }>}

@@ -147,7 +147,8 @@ describe('INERTE-1 — regras de ação ignoram as linhas antigas', () => {
   it('nenhum id antigo está no menu: canAccessPage do menu nunca os consulta', () => {
     const ids = getMenuModules(DEFAULT_MENU).flatMap((m) => m.pages.map((p) => p.id));
     for (const [id] of ANTIGAS) expect(ids, id).not.toContain(id);
-    // Mesmo concedida, a linha antiga só "abriria" uma tela que não existe mais.
+    // A avaliação genérica ainda acha a linha pelo `tela_id` (o dado não é apagado), mas
+    // nenhum item de menu, rota ou guarda pede esse id: o "acesso" não leva a lugar nenhum.
     expect(canAccessPage(registro([MODULO_PATRIMONIO], LINHAS_ANTIGAS), 'pat-combustiveis', MODULO_PATRIMONIO)).toBe(true);
   });
 });

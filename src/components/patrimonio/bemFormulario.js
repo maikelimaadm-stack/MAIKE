@@ -1,5 +1,7 @@
 /**
- * Estado do formulário do Bem Patrimonial (D-PROD-157) — funções PURAS, sem
+ * Estado do formulário do Bem Patrimonial (D-PROD-157, simplificado pela
+ * D-PROD-161: sem medições físicas; cada tanque aceita Produtos do estoque da
+ * fazenda, em L ou KG) — funções PURAS, sem
  * React: do detalhe do servidor (A13) para o estado da tela (textos
  * localizados), validação local e do estado para a forma do corpo que o
  * `bemPatrimonialService` envia (POST completo ou PATCH mínimo).
@@ -11,7 +13,7 @@
  */
 
 import { comparar, lerNumeroLocal, paraTextoDeEdicao, somar } from '@/lib/dinheiroDecimal';
-import { DIMENSOES_INTEIRAS, campoAplicavel, capacidadesDaNatureza, ehMedidorContador } from '@/lib/patrimonioDominio';
+import { MAX_PRODUTOS_POR_TANQUE, UNIDADES_ESTOQUE_TANQUE, campoAplicavel, capacidadesDaNatureza, ehMedidorContador } from '@/lib/patrimonioDominio';
 import { lerInteiro, textoDoInteiro } from '@/components/patrimonio/PatrimonioFormParts';
 
 export const LOCALE_BEM = 'pt-BR';
@@ -24,15 +26,15 @@ export const LIMITES_BEM = Object.freeze({
   PERCENTUAL: Object.freeze({ casas: 4, inteiros: 3 }),
 });
 
-export const LIMITE_MEDICOES = 20;
 export const LIMITE_TANQUES_ATIVOS = 10;
+/** Produtos aceitos ativos por tanque (P-02). */
+export const LIMITE_PRODUTOS_POR_TANQUE = MAX_PRODUTOS_POR_TANQUE;
 
-/** Prefixo das consultas de opções do patrimônio (as telas de catálogo invalidam por ele). */
+/** Prefixo das consultas de opções do patrimônio (o cadastro rápido e o "Gerenciar famílias e tipos" invalidam por ele). */
 export const CHAVE_OPCOES_PATRIMONIO = Object.freeze(['lancamentos-financeiros-gestao', 'opcoes', 'patrimonio']);
 
 export const ABAS_BEM = Object.freeze({
   IDENTIFICACAO: 'identificacao',
-  MEDICOES: 'medicoes',
   OPERACAO: 'operacao',
   AQUISICAO: 'aquisicao',
 });
@@ -44,10 +46,8 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
 
 /**
  * @typedef {{ id: string, rotulo: string }} Referencia
- * @typedef {{ id: string, nome: string, codigo: string, dimensao: string|null, unidade_canonica: string|null, unidades_permitidas: string[]|null, ativo: boolean }} PerfilDaMedicao
- * @typedef {{ chave: string, id: string|null, perfil: PerfilDaMedicao, valor: string, unidade: string, rotulo: string, principal: boolean }} MedicaoForm
- * @typedef {{ id: string, nome: string, unidade: string|null, ativo: boolean }} CombustivelDoTanque
- * @typedef {{ chave: string, id: string|null, identificador: string, capacidade: string, combustivel_ids: string[], combustiveis: CombustivelDoTanque[], observacao: string, ativo: boolean }} TanqueForm
+ * @typedef {{ id: string, rotulo: string, unidade: string|null, ativo: boolean }} ProdutoDoTanque Produto aceito (`ativo` = situação do PRODUTO)
+ * @typedef {{ chave: string, id: string|null, identificador: string, capacidade: string, observacao: string, ativo: boolean, produtos: ProdutoDoTanque[] }} TanqueForm
  * @typedef {{ tipo: string, leitura_inicial: string, leitura_atual: string, data_leitura: string }} MedidorForm
  * @typedef {{ data_aquisicao: string, data_disponibilidade: string, valor_aquisicao: string, custo_incorporacao: string, fornecedor: Referencia|null, documento_referencia: string, garantia_ate: string }} AquisicaoForm
  * @typedef {{ depreciavel: boolean, vida: string, vidaUnidade: 'MESES'|'ANOS', residual_modo: 'VALOR'|'PERCENTUAL', valor_residual: string, residual_percentual: string, data_inicio_depreciacao: string }} DepreciacaoForm
@@ -58,13 +58,13 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
  *   localizacao_descricao: string, marca: string, modelo: string, ano_fabricacao: string, ano_modelo: string,
  *   numero_serie: string, chassi: string, placa: string, placa_uf: string, renavam: string, potencia_cv: string,
  *   material: string, ano_conclusao: string, compatibilidade: string, especificacoes: string, observacoes: string,
- *   medidor: MedidorForm, medicoes: MedicaoForm[], tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
+ *   medidor: MedidorForm, tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
  * }} EstadoBem
  * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string, medidorOperacional?: { leitura: string, data: string, abastecimento_id?: string|null } | null }} ContextoBem
  */
 
 let sequencia = 0;
-/** Chave estável de linha nova (medição ou tanque). @param {string} prefixo */
+/** Chave estável de linha nova (tanque). @param {string} prefixo */
 export const novaChave = (prefixo) => {
   sequencia += 1;
   return `${prefixo}-novo-${sequencia}`;
@@ -98,40 +98,30 @@ const referencia = (o, rotulo = o?.nome) => (o && typeof o === 'object' && o.id 
 /** "12 · Manutenção" para centro de custo. @param {any} c */
 export const rotuloDoCentro = (c) => (c?.numero != null && c.numero !== '' ? `${c.numero} · ${texto(c.nome)}` : texto(c?.nome));
 
-/** @param {any} p @returns {PerfilDaMedicao} */
-export const perfilDaOpcao = (p) => ({
-  id: String(p?.id ?? ''),
-  nome: texto(p?.nome),
-  codigo: texto(p?.codigo),
-  dimensao: typeof p?.dimensao === 'string' ? p.dimensao : null,
-  unidade_canonica: typeof p?.unidade_canonica === 'string' ? p.unidade_canonica : null,
-  unidades_permitidas: Array.isArray(p?.unidades_permitidas) ? p.unidades_permitidas.map(String) : null,
-  ativo: p?.ativo !== false,
-});
-
-/** Unidade inicial de uma medição nova: a canônica, se permitida; senão a primeira permitida. @param {PerfilDaMedicao} perfil */
-export const unidadeInicialDoPerfil = (perfil) => {
-  const permitidas = perfil.unidades_permitidas ?? [];
-  if (perfil.unidade_canonica && permitidas.includes(perfil.unidade_canonica)) return perfil.unidade_canonica;
-  return permitidas[0] ?? perfil.unidade_canonica ?? '';
+/**
+ * Produto aceito pelo tanque a partir do detalhe (`tanques[i].produtos[j]`:
+ * `{produto_id, nome, codigo_interno, unidade_principal_estoque, produto_ativo}`)
+ * ou de uma opção do seletor (`{id, nome, codigo_interno, unidade_principal_estoque}`).
+ * @param {any} p @returns {ProdutoDoTanque|null}
+ */
+export const produtoDoTanque = (p) => {
+  const id = p?.produto_id ?? p?.id;
+  if (typeof id !== 'string' || !id) return null;
+  const unidade = typeof p.unidade_principal_estoque === 'string' && p.unidade_principal_estoque ? p.unidade_principal_estoque : null;
+  return { id, rotulo: texto(p.nome), unidade, ativo: p.produto_ativo !== false && p.ativo !== false };
 };
 
-/** Medição nova a partir de uma opção de perfil. @param {any} opcao @param {boolean} principal @returns {MedicaoForm} */
-export const medicaoDoPerfil = (opcao, principal) => {
-  const perfil = perfilDaOpcao(opcao);
-  return { chave: novaChave('medicao'), id: null, perfil, valor: '', unidade: unidadeInicialDoPerfil(perfil), rotulo: '', principal };
-};
-
-/** Quantidade e cabeças contam em número inteiro (A10). @param {MedicaoForm} m */
-export const limitesDaMedicao = (m) => (m.perfil.dimensao && DIMENSOES_INTEIRAS.includes(m.perfil.dimensao) ? LIMITES_BEM.CONTAGEM : LIMITES_BEM.MEDIDA);
+/** O Produto aceito ainda serve para abastecer pela tela (ativo e em L ou KG)? @param {ProdutoDoTanque} p */
+export const produtoUtilizavel = (p) => p.ativo && typeof p.unidade === 'string' && UNIDADES_ESTOQUE_TANQUE.includes(p.unidade);
 
 /**
  * Estado inicial a partir do DETALHE (A13). Sem detalhe = bem novo. Ao
  * duplicar, sai sem o que identifica o bem físico (código de frota, série,
- * chassi, placa, renavam), sem leituras do medidor, sem ids de medições e
- * tanques e só com os tanques ativos. O inativo é legível no registro, mas não
- * é escolhido para um bem novo: a cópia sai sem a família e o tipo inativos,
- * sem as medições de perfil inativo e sem os combustíveis inativos.
+ * chassi, placa, renavam), sem leituras do medidor, sem ids de tanques e só
+ * com os tanques ativos. O inativo é legível no registro, mas não é escolhido
+ * para um bem novo: a cópia sai sem a família e o tipo inativos e só com os
+ * Produtos aceitos que ainda servem (ativos, em L ou KG) — o servidor
+ * recusaria os outros num bem novo.
  * @param {any} detalhe @param {{ duplicar?: boolean }} [opcoes]
  * @returns {EstadoBem}
  */
@@ -178,32 +168,18 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
       leitura_atual: duplicar ? '' : textoDecimal(medidor?.leitura_atual),
       data_leitura: duplicar ? '' : texto(medidor?.data_leitura),
     },
-    medicoes: (Array.isArray(d.medicoes) ? d.medicoes : [])
-      .filter((m) => m && typeof m === 'object' && usavel(m.perfil))
-      .map((m, i) => ({
-        chave: m.id && !duplicar ? `medicao-${m.id}` : `medicao-copia-${i}`,
-        id: duplicar ? null : (m.id ?? null),
-        perfil: perfilDaOpcao(m.perfil ?? { id: m.perfil_id }),
-        valor: textoDecimal(m.valor_informado),
-        unidade: texto(m.unidade_informada),
-        rotulo: texto(m.rotulo),
-        principal: m.principal === true,
-      })),
     tanques: (Array.isArray(d.tanques) ? d.tanques : [])
       .filter((t) => t && typeof t === 'object' && (!duplicar || t.ativo !== false))
       .map((t, i) => {
-        const combustiveis = (Array.isArray(t.combustiveis) ? t.combustiveis : [])
-          .filter((c) => c && c.id && usavel(c))
-          .map((c) => ({ id: String(c.id), nome: texto(c.nome), unidade: typeof c.unidade === 'string' ? c.unidade : null, ativo: c.ativo !== false }));
+        const produtos = /** @type {ProdutoDoTanque[]} */ ((Array.isArray(t.produtos) ? t.produtos : []).map(produtoDoTanque).filter(Boolean));
         return {
           chave: t.id && !duplicar ? `tanque-${t.id}` : `tanque-copia-${i}`,
           id: duplicar ? null : (t.id ?? null),
           identificador: texto(t.identificador),
           capacidade: textoDecimal(t.capacidade_litros),
-          combustivel_ids: combustiveis.map((c) => c.id),
-          combustiveis,
           observacao: texto(t.observacao),
           ativo: duplicar ? true : t.ativo !== false,
+          produtos: duplicar ? produtos.filter(produtoUtilizavel) : produtos,
         };
       }),
     aquisicao: {
@@ -264,7 +240,6 @@ export const vidaEmMeses = (dp) => {
 
 /** Aba onde fica o campo de uma chave de erro. @param {string} chave */
 export const abaDoCampo = (chave) => {
-  if (chave.startsWith('medicoes')) return ABAS_BEM.MEDICOES;
   if (chave.startsWith('medidor') || chave.startsWith('tanques')) return ABAS_BEM.OPERACAO;
   if (chave.startsWith('aquisicao') || chave.startsWith('depreciacao')) return ABAS_BEM.AQUISICAO;
   return ABAS_BEM.IDENTIFICACAO;
@@ -352,17 +327,6 @@ export const validarBem = (e, ctx) => {
     if (!pot.ok || (pot.valor !== null && comparar(pot.valor, '0') <= 0)) erros.potencia_cv = 'Número maior que zero, até 4 casas decimais';
   }
 
-  if (cap?.medicoes) {
-    e.medicoes.forEach((m, i) => {
-      const r = lerDecimal(m.valor, limitesDaMedicao(m));
-      if (!r.ok || r.valor === null || comparar(r.valor, '0') <= 0) {
-        erros[`medicoes.${i}.valor`] = limitesDaMedicao(m).casas === 0 ? 'Número inteiro maior que zero' : 'Número maior que zero, até 4 casas decimais';
-      }
-      if (!m.unidade) erros[`medicoes.${i}.unidade`] = 'Escolha a unidade';
-    });
-    if (e.medicoes.length > LIMITE_MEDICOES) erros.medicoes = `No máximo ${LIMITE_MEDICOES} medições`;
-  }
-
   if (cap && cap.medidor !== 'PROIBIDO') {
     const tipo = e.medidor.tipo;
     if (!tipo && cap.medidor === 'OBRIGATORIO') erros['medidor.tipo'] = 'Escolha o medidor (ou "Sem medidor")';
@@ -406,10 +370,13 @@ export const validarBem = (e, ctx) => {
         if (vistos.has(chave)) erros[`tanques.${i}.identificador`] = 'Outro tanque deste bem já usa este identificador';
         vistos.set(chave, i);
       }
+      // P-01: o tanque pode ficar sem Produto aceito (a tela avisa); o teto é por tanque (P-02).
+      const ids = t.produtos.map((p) => p.id);
+      if (new Set(ids).size !== ids.length) erros[`tanques.${i}.produtos`] = 'O mesmo Produto aparece mais de uma vez';
+      else if (ids.length > LIMITE_PRODUTOS_POR_TANQUE) erros[`tanques.${i}.produtos`] = `No máximo ${LIMITE_PRODUTOS_POR_TANQUE} Produtos aceitos por tanque`;
       if (!t.ativo) return;
       const capacidade = lerDecimal(t.capacidade, LIMITES_BEM.MEDIDA);
       if (!capacidade.ok || capacidade.valor === null || comparar(capacidade.valor, '0') <= 0) erros[`tanques.${i}.capacidade`] = 'Litros, maior que zero, até 4 casas decimais';
-      if (!t.combustivel_ids.length) erros[`tanques.${i}.combustiveis`] = 'Escolha ao menos um combustível';
     });
     if (e.tanques.filter((t) => t.ativo).length > LIMITE_TANQUES_ATIVOS) erros.tanques = `No máximo ${LIMITE_TANQUES_ATIVOS} tanques ativos`;
   }
@@ -517,22 +484,12 @@ export const formaDoEstado = (e, ctx) => {
     especificacoes: ouNulo(e.especificacoes),
     observacoes: ouNulo(e.observacoes),
     medidor,
-    medicoes: cap?.medicoes
-      ? e.medicoes.map((m) => ({
-          id: m.id ?? undefined,
-          perfil_id: m.perfil.id,
-          valor: decimal(m.valor, limitesDaMedicao(m)),
-          unidade: m.unidade,
-          rotulo: ouNulo(m.rotulo),
-          principal: m.principal === true,
-        }))
-      : [],
     tanques: cap?.tanques
       ? e.tanques.map((t) => ({
           id: t.id ?? undefined,
           identificador: t.identificador.trim().replace(/\s+/g, ' '),
           capacidade_litros: decimal(t.capacidade, LIMITES_BEM.MEDIDA),
-          combustivel_ids: [...t.combustivel_ids],
+          produto_ids: t.produtos.map((p) => p.id),
           observacao: ouNulo(t.observacao),
           ativo: t.ativo,
         }))

@@ -10,7 +10,9 @@ import { useAcoesTelaPatrimonio } from "@/hooks/usePatrimonioSessao";
 import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
 import { listarOpcoesAbastecimento, listarProdutosDoBem } from "@/services/abastecimentoService";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
+import { createPageUrl } from "@/utils";
 import {
+  DICA_PRODUTO_EM_KG,
   LIMITES_ABASTECIMENTO,
   LOCALE_ABASTECIMENTO,
   ROTULO_LEITURA,
@@ -22,8 +24,10 @@ import {
   medidorExigeLeitura,
   opcaoNoFormulario,
   produtoAutomatico,
+  rotuloDaUnidade,
   rotuloDoBem,
   situacaoDaEscolha,
+  unidadeDoFormulario,
 } from "@/lib/abastecimentoRegras";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 
@@ -38,25 +42,27 @@ export const MAXIMO_PRODUTOS_EM_BOTOES = 6;
 
 const ROTULO_NATUREZA_CURTO = /** @type {Record<string, string>} */ ({ MAQUINA: "Máquina", VEICULO: "Veículo", EQUIPAMENTO: "Equipamento" });
 
-/** Texto de cada motivo de "nenhum Produto" do servidor (`resumo.motivo_sem_opcao`). */
+/**
+ * Texto de cada motivo de "nenhum Produto" do servidor (`resumo.motivo_sem_opcao`,
+ * D-PROD-161): tudo se resolve no cadastro de Bens (Produtos aceitos do tanque).
+ */
 export const TEXTO_SEM_PRODUTO = Object.freeze(
   /** @type {Record<string, string>} */ ({
     bem_inativo: "Este bem está inativo: reative-o no cadastro de Bens para abastecer.",
     sem_tanque_ativo: "Este bem não tem tanque ativo. Cadastre ou reative um tanque no cadastro do bem.",
-    tanque_sem_combustivel: "Os tanques deste bem não têm combustível permitido ativo em litros. Ajuste os combustíveis permitidos no cadastro do bem.",
-    nenhum_produto_associado: "Nenhum Produto desta fazenda está associado aos combustíveis deste bem. Associe um Produto ao combustível no cadastro de Combustíveis.",
-    produto_unidade_nao_kg: "O Produto associado tem estoque em outra unidade (não KG): o abastecimento só baixa estoque em KG. Ajuste a unidade de estoque do Produto.",
+    tanque_sem_produto: "Os tanques deste bem não têm Produto aceito. Marque os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.",
+    produto_unidade_incompativel:
+      "O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível. Aceite no tanque um Produto em L ou em KG em Bens Patrimoniais › Operação › Tanques.",
+    produto_inativo_ou_outra_fazenda:
+      "Os Produtos aceitos pelos tanques deste bem estão inativos ou são de outra fazenda. Ajuste os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.",
   }),
 );
 
 /** Campos que dependem do bem / do Produto (trocar um limpa os seguintes). */
-const SEM_PRODUTO = Object.freeze({ produto: null, tipo_combustivel_id: null, tanque_id: null, local_estoque_id: null });
+const SEM_PRODUTO = Object.freeze({ produto: null, tanque_id: null, local_estoque_id: null });
 
-/** Rótulo do Produto na escolha (o NOME real do Produto; nunca o do combustível). @param {any} item */
-const rotuloDoProduto = (item) => {
-  const nome = String(item?.produto?.nome ?? "");
-  return item?.pronto === true ? nome : `${nome} (sem fator kg/L)`;
-};
+/** Rótulo do Produto na escolha: o NOME real do Produto do estoque. @param {any} item */
+const rotuloDoProduto = (item) => String(item?.produto?.nome ?? "");
 
 /** "Tanque principal (180 L)". @param {any} t */
 const rotuloDoTanque = (t) => {
@@ -64,9 +70,9 @@ const rotuloDoTanque = (t) => {
   return t?.capacidade_litros ? `${nome} (${formatarLitrosCurto(t.capacidade_litros)} L)` : nome;
 };
 
-/** O que da opção a tela reflete no formulário (fator, pronto, tanques): mudou → reaplica. @param {any} p */
+/** O que da opção a tela reflete no formulário (unidade, tanques): mudou → reaplica. @param {any} p */
 const assinaturaDaOpcao = (p) =>
-  JSON.stringify([p?.conversao?.id ?? null, p?.conversao?.versao ?? null, p?.pronto === true, (Array.isArray(p?.tanques) ? p.tanques : []).map((/** @type {any} */ t) => [t.id, t.capacidade_litros])]);
+  JSON.stringify([p?.unidade_principal_estoque ?? null, (Array.isArray(p?.tanques) ? p.tanques : []).map((/** @type {any} */ t) => [t.id, t.capacidade_litros])]);
 
 /** @param {{ texto: string|undefined }} props */
 function ErroDoCampo({ texto }) {
@@ -74,13 +80,14 @@ function ErroDoCampo({ texto }) {
 }
 
 /**
- * Formulário do NOVO abastecimento (o estado vive na tela). UX-02 (D-PROD-160):
- * Máquina/Veículo → PRODUTO (o nome real do estoque; o tipo de combustível vem
- * da opção do SERVIDOR, derivado do vínculo ativo, e nunca é etapa da tela) →
- * tanque (só se o Produto cabe em mais de um) → local (automático com um só) →
- * data, litros, medidor → "Completou o tanque?" → Mais detalhes → Revisar.
- * Trocar um campo limpa os que dependem dele. Nada é gravado aqui: "Revisar
- * abastecimento" pede a prévia ao servidor.
+ * Formulário do NOVO abastecimento (o estado vive na tela). D-PROD-161:
+ * Máquina/Veículo → PRODUTO (o nome real do estoque, dos "Produtos aceitos"
+ * dos tanques do bem, opção do SERVIDOR) → tanque (só se o Produto é aceito em
+ * mais de um) → local (automático com um só) → data → "Quantidade abastecida"
+ * na unidade do Produto (L ou kg; Produto em KG com a dica fixa) → medidor →
+ * "Completou o tanque?" → Mais detalhes → Revisar. Sem tipo de combustível e
+ * sem fator kg/L. Trocar um campo limpa os que dependem dele. Nada é gravado
+ * aqui: "Revisar abastecimento" pede a prévia ao servidor.
  * @param {{
  *   empresaId: string,
  *   form: any,
@@ -88,32 +95,17 @@ function ErroDoCampo({ texto }) {
  *   hoje: string,
  *   erros: Record<string, string>,
  *   limparErro: (campo: string) => void,
- *   podeConfigurarFator: boolean,
  *   previando: boolean,
  *   situacaoPrevia: 'nenhuma'|'valida'|'invalidada',
  *   onPrevia: () => void,
  *   onReabrirPrevia: () => void,
- *   onConfigurarFator: (par: { tipo: { id: string, nome: string } | null, produto: { id: string, nome: string, conversao: any } | null }) => void,
  * }} props
  */
-export default function FormularioAbastecimento({
-  empresaId,
-  form,
-  setForm,
-  hoje,
-  erros,
-  limparErro,
-  podeConfigurarFator,
-  previando,
-  situacaoPrevia,
-  onPrevia,
-  onReabrirPrevia,
-  onConfigurarFator,
-}) {
+export default function FormularioAbastecimento({ empresaId, form, setForm, hoje, erros, limparErro, previando, situacaoPrevia, onPrevia, onReabrirPrevia }) {
   const bemId = form.bem?.id ? String(form.bem.id) : null;
   const produtoId = form.produto?.id ? String(form.produto.id) : null;
-  const tipoId = form.tipo_combustivel_id ? String(form.tipo_combustivel_id) : null;
-  const acoesCombustiveis = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.COMBUSTIVEIS);
+  // "Abrir Bens Patrimoniais" só para quem vê a tela de Bens (onde ficam os Produtos aceitos do tanque).
+  const acoesBens = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.BENS);
   const [indisponivel, setIndisponivel] = useState(false);
   const [maisDetalhes, setMaisDetalhes] = useState(() => Boolean(String(form.observacao ?? "").trim() || String(form.referencia_externa ?? "").trim()));
 
@@ -122,7 +114,7 @@ export default function FormularioAbastecimento({
     setForm((f) => ({ ...f, ...mudanca }));
     for (const c of campos) limparErro(c);
   };
-  /** Aplica a opção de Produto do servidor (tipo e tanques vêm dela). @param {any} item */
+  /** Aplica a opção de Produto do servidor (os tanques que o aceitam vêm dela). @param {any} item */
   const escolherProduto = (item) => {
     setIndisponivel(false);
     setForm((f) => opcaoNoFormulario(f, item));
@@ -159,22 +151,22 @@ export default function FormularioAbastecimento({
     if (item) setForm((f) => (f.bem?.id && String(f.bem.id) === bemId && !f.produto ? opcaoNoFormulario(f, item) : f));
   }, [respostaDoBem, bemId, setForm]);
 
-  // A escolha ainda está nas opções? Saiu (vínculo inativado, produto inativo…) → limpa e avisa;
-  // continua mas o servidor mudou fator/tanques → reaplica a opção nova.
+  // A escolha ainda está nas opções? Saiu (aceite retirado do tanque, Produto inativo…) → limpa e avisa;
+  // continua mas o servidor mudou a unidade ou os tanques → reaplica a opção nova.
   useEffect(() => {
     const situacao = situacaoDaEscolha(respostaDoBem, form);
     if (situacao === "ausente") {
       setIndisponivel(true);
-      setForm((f) => (String(f.produto?.id ?? "") === produtoId && String(f.tipo_combustivel_id ?? "") === tipoId ? { ...f, ...SEM_PRODUTO } : f));
+      setForm((f) => (String(f.produto?.id ?? "") === produtoId ? { ...f, ...SEM_PRODUTO } : f));
       return;
     }
     if (situacao !== "presente") return;
-    const item = itens.find((i) => String(i?.produto?.id ?? "") === produtoId && String(i?.tipo_combustivel?.id ?? "") === tipoId);
-    if (item && assinaturaDaOpcao(item) !== assinaturaDaOpcao(form.produto)) {
+    const item = itens.find((i) => String(i?.produto?.id ?? "") === produtoId);
+    if (item && assinaturaDaOpcao({ ...item.produto, tanques: item.tanques }) !== assinaturaDaOpcao(form.produto)) {
       setForm((f) => (String(f.produto?.id ?? "") === produtoId ? opcaoNoFormulario(f, item) : f));
     }
     // Só reage à RESPOSTA do servidor e à troca de escolha (não a cada tecla).
-  }, [respostaDoBem, bemId, produtoId, tipoId]);
+  }, [respostaDoBem, bemId, produtoId]);
 
   // Local: o único com saldo já vem escolhido; um local que sumiu da lista sai do formulário.
   useEffect(() => {
@@ -195,6 +187,7 @@ export default function FormularioAbastecimento({
   const unidade = UNIDADE_MEDIDOR[tipoMedidor] ?? "";
   const leituraVigente = respostaDoBem?.bem?.leitura_vigente ?? null;
   const produto = form.produto ?? null;
+  const unidadeProduto = unidadeDoFormulario(form);
   const tanquesDoProduto = /** @type {any[]} */ (Array.isArray(produto?.tanques) ? produto.tanques : []);
   const localEscolhido = locais.find((l) => String(l.local_estoque_id) === String(form.local_estoque_id)) ?? null;
   const detalhesComErro = Boolean(erros.observacao || erros.referencia_externa);
@@ -203,7 +196,6 @@ export default function FormularioAbastecimento({
   useEffect(() => {
     if (detalhesComErro) setMaisDetalhes(true);
   }, [detalhesComErro]);
-  const tiposSemProduto = /** @type {any[]} */ (Array.isArray(resumo?.tipos_sem_produto) ? resumo.tipos_sem_produto : []);
 
   /** @param {React.FormEvent} ev */
   const enviar = (ev) => {
@@ -231,25 +223,21 @@ export default function FormularioAbastecimento({
         </p>
       );
     } else if (semProduto) {
-      const motivo = String(resumo?.motivo_sem_opcao ?? "nenhum_produto_associado");
-      const associar = motivo === "nenhum_produto_associado";
+      const motivo = String(resumo?.motivo_sem_opcao ?? "tanque_sem_produto");
       escolhaProduto = (
         <div className="col-span-12">
           <AvisoGestao testId="abastecimento-sem-produto">
-            {TEXTO_SEM_PRODUTO[motivo] ?? TEXTO_SEM_PRODUTO.nenhum_produto_associado}
-            {associar && tiposSemProduto.length ? ` Combustível sem Produto: ${tiposSemProduto.map((t) => String(t?.nome ?? "")).join(", ")}.` : null}
-            {associar ? (
-              acoesCombustiveis.criar ? (
-                <>
-                  {" "}
-                  <a href="/combustiveis" className="font-semibold underline" data-testid="abastecimento-abrir-combustiveis">
-                    Abrir Combustíveis
-                  </a>
-                </>
-              ) : (
-                " Peça a quem cuida do cadastro de Combustíveis."
-              )
-            ) : null}
+            {TEXTO_SEM_PRODUTO[motivo] ?? TEXTO_SEM_PRODUTO.tanque_sem_produto}
+            {acoesBens.ver ? (
+              <>
+                {" "}
+                <a href={createPageUrl("BensPatrimoniais")} className="font-semibold underline" data-testid="abastecimento-abrir-bens">
+                  Abrir Bens Patrimoniais
+                </a>
+              </>
+            ) : (
+              " Peça a quem cuida do cadastro de Bens Patrimoniais."
+            )}
           </AvisoGestao>
         </div>
       );
@@ -276,7 +264,7 @@ export default function FormularioAbastecimento({
           value={produto ? { id: String(produto.id), rotulo: String(produto.nome ?? "") } : null}
           onChange={(opcao) => (opcao ? escolherProduto(opcao) : null)}
           rotuloDaOpcao={(o) => String(o?.produto?.nome ?? "")}
-          detalheDaOpcao={(o) => (o?.pronto === true ? null : "sem fator kg/L")}
+          detalheDaOpcao={(o) => rotuloDaUnidade(o?.produto?.unidade_principal_estoque) || null}
           obrigatorio
           textoVazio="— Escolha o Produto —"
           span={12}
@@ -301,7 +289,7 @@ export default function FormularioAbastecimento({
               // A MESMA máquina de novo não muda nada (o Produto único, o local e a leitura continuam).
               if (opcao?.id != null && bemId && String(opcao.id) === bemId) return;
               setIndisponivel(false);
-              mudar({ bem: opcao, ...SEM_PRODUTO, medidor_leitura: "" }, ["bem", "produto", "tanque_id", "tipo_combustivel_id", "local_estoque_id", "medidor_leitura"]);
+              mudar({ bem: opcao, ...SEM_PRODUTO, medidor_leitura: "" }, ["bem", "produto", "tanque_id", "local_estoque_id", "medidor_leitura"]);
             }}
             rotuloDaOpcao={rotuloDoBem}
             detalheDaOpcao={(o) => ROTULO_NATUREZA_CURTO[String(o?.natureza ?? "")] ?? null}
@@ -318,37 +306,13 @@ export default function FormularioAbastecimento({
           ) : null}
           {escolhaProduto}
           <ErroDoCampo texto={bemId ? erros.produto : undefined} />
-          {produto && produto.pronto !== true ? (
-            <div className="col-span-12">
-              <AvisoGestao testId="abastecimento-sem-fator">
-                Configure o fator kg/L deste Produto nesta fazenda antes de abastecer.
-                {podeConfigurarFator ? (
-                  <button
-                    type="button"
-                    className={`${BOTAO_SECUNDARIO} ml-2 mt-1 min-h-10 px-3`}
-                    data-testid="abastecimento-form-configurar-fator"
-                    onClick={() =>
-                      onConfigurarFator({
-                        tipo: produto.tipo_combustivel ? { id: String(produto.tipo_combustivel.id), nome: String(produto.tipo_combustivel.nome ?? "") } : null,
-                        produto: { id: String(produto.id), nome: String(produto.nome ?? ""), conversao: produto.conversao ?? null },
-                      })
-                    }
-                  >
-                    Configurar fator kg/L
-                  </button>
-                ) : (
-                  " Peça a quem configura o fator kg/L."
-                )}
-              </AvisoGestao>
-            </div>
-          ) : null}
           {produto && tanquesDoProduto.length > 1 ? (
             <>
               <EscolhaSegmentada
                 rotulo="Qual tanque será abastecido?"
                 testId="abastecimento-tanque"
                 value={String(form.tanque_id ?? "")}
-                onChange={(v) => mudar({ tanque_id: v }, ["tanque_id", "quantidade_litros"])}
+                onChange={(v) => mudar({ tanque_id: v }, ["tanque_id", "quantidade"])}
                 opcoes={tanquesDoProduto.map((t) => ({ value: String(t.id), label: rotuloDoTanque(t) }))}
               />
               <ErroDoCampo texto={erros.tanque_id} />
@@ -405,17 +369,21 @@ export default function FormularioAbastecimento({
             testId="abastecimento-data"
           />
           <CampoNumero
-            label="Litros abastecidos"
-            sufixo="L"
-            value={form.quantidade_litros}
-            onChange={(v) => mudar({ quantidade_litros: v }, ["quantidade_litros"])}
+            label={unidadeProduto ? `Quantidade abastecida (${rotuloDaUnidade(unidadeProduto)})` : "Quantidade abastecida"}
+            value={form.quantidade}
+            onChange={(v) => mudar({ quantidade: v }, ["quantidade"])}
             locale={LOCALE_ABASTECIMENTO}
-            limites={LIMITES_ABASTECIMENTO.LITROS}
+            limites={LIMITES_ABASTECIMENTO.QUANTIDADE}
             required
             span={6}
-            error={erros.quantidade_litros}
-            testId="abastecimento-litros"
+            error={erros.quantidade}
+            testId="abastecimento-quantidade"
           />
+          {unidadeProduto === "KG" ? (
+            <p role="note" className="col-span-12 -mt-1 min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="abastecimento-dica-kg">
+              {DICA_PRODUTO_EM_KG}
+            </p>
+          ) : null}
           {contador ? (
             <>
               <CampoNumero
@@ -450,7 +418,7 @@ export default function FormularioAbastecimento({
             ]}
           />
           <p className="col-span-12 -mt-1 min-w-0 break-words text-[11px] text-[var(--mg-text-2,#475569)]">
-            Responda Sim só se encheu o tanque até o limite: o consumo (km/L ou L/h) é calculado entre dois abastecimentos com tanque cheio.
+            Responda Sim só se encheu o tanque até o limite: o consumo (km/L, L/h, km/kg ou kg/h) é calculado entre dois abastecimentos com tanque cheio.
           </p>
           <div className="col-span-12 min-w-0">
             <button

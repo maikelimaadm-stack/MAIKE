@@ -12,6 +12,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
 
 /** Caminho de cada catálogo (recurso → rota). */
 export const CAMINHOS_CATALOGO = Object.freeze({
@@ -30,9 +31,6 @@ const CAMINHO_PREVIA = '/bens-patrimoniais-previa-depreciacao';
 const CAMINHO_OPCOES = '/bens-patrimoniais-opcoes';
 
 const RESOURCE_BEM = 'BemPatrimonial';
-
-/** Unidades de estoque do filtro `unidade` das opções de produtos do tanque (D-PROD-161, achado D8). */
-export const UNIDADES_FILTRO_PRODUTOS = Object.freeze(['L', 'KG']);
 
 /** @param {string} operation @param {string} resource @param {Record<string, unknown>} [details] */
 const ctx = (operation, resource, details) => ({ operation, resource, ...(details ? { details } : {}) });
@@ -104,8 +102,9 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
   if (empresa) params.set('empresa_id', empresa);
   const familia = texto(filtros.familia_id);
   if (familia) params.set('familia_id', familia);
+  // D-PROD-161 (achado D8): filtro opcional dos Produtos que o tanque aceita.
   const unidade = texto(filtros.unidade);
-  if (recurso === 'produtos' && unidade && UNIDADES_FILTRO_PRODUTOS.includes(unidade)) params.set('unidade', unidade);
+  if (recurso === 'produtos' && unidade && UNIDADES_ESTOQUE_TANQUE.includes(unidade)) params.set('unidade', unidade);
   paginacao(params, filtros);
   return comQuery(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, params);
 };

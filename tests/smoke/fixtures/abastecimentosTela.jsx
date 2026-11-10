@@ -1,8 +1,9 @@
 /**
  * Peças comuns dos testes da tela Abastecimentos (D-PROD-159; fluxo por
- * PRODUTO da UX-02, D-PROD-160): monta a PÁGINA
- * real (motor Base1, service, API, porta e nativeHttpClient reais) sobre o
- * backend falso `abastecimentosFakeCore`, e os gestos do formulário.
+ * PRODUTO da UX-02, D-PROD-160; Produtos aceitos do tanque e quantidade na
+ * unidade do Produto da D-PROD-161): monta a PÁGINA real (motor Base1,
+ * service, API, porta e nativeHttpClient reais) sobre o backend falso
+ * `abastecimentosFakeCore`, e os gestos do formulário.
  * Os `vi.mock` (sessão, Mapa) ficam em cada arquivo de teste.
  */
 import React from 'react';
@@ -96,15 +97,16 @@ export const responderTanqueCheio = (form, sim) => {
 };
 
 /**
- * Trator TP-02 (UX-02): máquina → o ÚNICO Produto ("Diesel S10 granel") já vem
- * marcado (resposta completa) → local único automático → litros, horímetro e
- * "Completou o tanque?". Nenhuma etapa de combustível.
+ * Trator TP-02: máquina → o ÚNICO Produto aceito pelo tanque ("Diesel S10
+ * granel", em L) já vem marcado (resposta completa) → local único automático →
+ * quantidade (na unidade do Produto), horímetro e "Completou o tanque?".
+ * Nenhuma etapa de combustível nem de fator.
  */
-export const preencherTrator = async (form, { litros = '80', leitura = '1.550,5', tanqueCheio = true } = {}) => {
+export const preencherTrator = async (form, { quantidade = '80', leitura = '1.550,5', tanqueCheio = true } = {}) => {
   await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
   await esperarProdutoMarcado(form, 'Diesel S10 granel');
   await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Sai do estoque: Tanque diesel sede'));
-  digitar(form, 'abastecimento-litros', litros);
+  digitar(form, 'abastecimento-quantidade', quantidade);
   if (leitura !== null) digitar(form, 'abastecimento-leitura', leitura);
   if (tanqueCheio) responderTanqueCheio(form, true);
 };

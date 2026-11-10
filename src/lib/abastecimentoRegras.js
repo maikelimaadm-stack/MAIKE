@@ -1,35 +1,55 @@
 /**
- * Regras PURAS da tela Abastecimentos (Patrimônio P1-02, D-PROD-159).
+ * Regras PURAS da tela Abastecimentos (Patrimônio P1-02, D-PROD-159; revistas
+ * pela D-PROD-161, SIMPLIFICA-01).
  *
  * Sem React, sem rede, sem `@/`: só imports relativos com `.js` — o teste de
  * integração do backend (INT-1) importa este módulo no Node e manda à API REAL
  * os corpos que ele monta. Quantidades viajam como TEXTO canônico ("80.5"):
- * nada de `Number`/`parseFloat` em litros, leitura, fator, KG ou custo.
+ * nada de `Number`/`parseFloat` em quantidade, leitura ou custo.
+ *
+ * D-PROD-161: o abastecimento baixa do estoque EXATAMENTE a quantidade
+ * digitada, na unidade de estoque do Produto (`L` ou `KG`). Não existe fator
+ * kg/L nem tipo de combustível: o Produto vem dos "Produtos aceitos" do tanque
+ * (opção do servidor) e a tela só mostra a unidade dele. A capacidade do
+ * tanque é em litros e só é conferida para Produto em `L`.
  *
  * O formulário guarda o texto DIGITADO no formato do Brasil ("80,5"); os
  * `montarCorpo*` convertem para o canônico com `lerNumeroLocal` (nunca
- * arredondam: casa a mais é recusada). `estimarKg` é SÓ estimativa visual —
- * o KG que vale é o que o servidor converte (ROUND_HALF_UP, 4 casas, uma vez).
+ * arredondam: casa a mais é recusada).
  */
-import { comparar, ehCanonico, ehPositivo, formatarMoeda, formatarNumero, lerNumeroLocal, multiplicarArredondar, somar } from './dinheiroDecimal.js';
+import { comparar, ehCanonico, ehPositivo, formatarMoeda, formatarNumero, lerNumeroLocal, somar } from './dinheiroDecimal.js';
 import { ehDiaValido, formatarDia } from './diaCivil.js';
 
 export const LOCALE_ABASTECIMENTO = 'pt-BR';
 
 export const LIMITES_ABASTECIMENTO = Object.freeze({
-  LITROS: Object.freeze({ inteiros: 10, casas: 4 }),
+  QUANTIDADE: Object.freeze({ inteiros: 10, casas: 4 }),
   LEITURA: Object.freeze({ inteiros: 10, casas: 4 }),
-  FATOR: Object.freeze({ inteiros: 2, casas: 6 }),
 });
 
 /** Teto do motor de estoque (quantidade e valor). */
 export const LIMITE_ESTOQUE = '9999999999.9999';
-/** Teto do fator kg/L (0 < f ≤ 10). */
-export const FATOR_MAXIMO = '10';
 
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const MEDIDORES_CONTADOR = Object.freeze(['HORIMETRO', 'ODOMETRO', 'CICLOS']);
 export const STATUS_ABASTECIMENTO = Object.freeze(['CONFIRMADO', 'CANCELADO']);
+
+/** Unidades de estoque que o abastecimento aceita (D-PROD-161; `UNIDADES_ABASTECIMENTO` no servidor). */
+export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
+/** Rótulo curto da unidade (`L` / `kg`), o mesmo do servidor (`rotuloDaUnidade`). */
+export const ROTULO_UNIDADE_ABASTECIMENTO = Object.freeze(/** @type {Record<string, string>} */ ({ L: 'L', KG: 'kg' }));
+
+/**
+ * Dica fixa do Produto controlado em quilos (achado D8 da D-PROD-161): o
+ * frentista lê litros na bomba, mas a baixa é em kg. Aparece sob o campo
+ * Quantidade e de novo na Revisão.
+ */
+export const DICA_PRODUTO_EM_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
+
+/** @param {unknown} u @returns {u is 'L'|'KG'} */
+export const ehUnidadeDeAbastecimento = (u) => typeof u === 'string' && UNIDADES_ABASTECIMENTO.includes(u);
+/** "L" / "kg" (ou '' quando a unidade não é de abastecimento). @param {unknown} u */
+export const rotuloDaUnidade = (u) => (ehUnidadeDeAbastecimento(u) ? ROTULO_UNIDADE_ABASTECIMENTO[u] : '');
 
 /** @param {unknown} tipo */
 export const medidorExigeLeitura = (tipo) => typeof tipo === 'string' && MEDIDORES_CONTADOR.includes(tipo);
@@ -50,82 +70,57 @@ export const canonicoDoDigitado = (digitado, limites) => {
   return r.ok ? /** @type {string} */ (r.valor) : null;
 };
 
-/**
- * Estimativa VISUAL do KG: litros × fator, ROUND_HALF_UP 4 casas, só quando o
- * resultado é > 0 e ≤ o teto do estoque (senão o servidor recusa e a tela não
- * promete número). Entradas são canônicas ("80.0000", "0.840000").
- * @param {unknown} litros @param {unknown} fator
- * @returns {string|null}
- */
-export const estimarKg = (litros, fator) => {
-  if (!ehCanonico(litros) || !ehCanonico(fator)) return null;
-  try {
-    const kg = multiplicarArredondar(/** @type {string} */ (litros), /** @type {string} */ (fator), 4);
-    if (!ehPositivo(kg) || comparar(kg, LIMITE_ESTOQUE) > 0) return null;
-    return kg;
-  } catch {
-    return null;
-  }
-};
-
-/** Bloqueios de quantidade em que o KG do plano não é uma baixa: 0 kg arredondado ou acima do teto das colunas do estoque. */
-const MOTIVOS_SEM_BAIXA = new Set(['quantidade_estoque_zero', 'valor_excede_limite_estoque']);
+/** Bloqueios de quantidade em que o número do plano não é uma baixa: zero ou acima do teto das colunas do estoque. */
+const MOTIVOS_SEM_BAIXA = new Set(['quantidade_nao_positiva', 'valor_excede_limite_estoque']);
 
 /**
- * KG que a prévia mostra como baixa do estoque: o do plano, ou null quando o
- * servidor bloqueou a quantidade (aí "baixa de 0,0000 kg" ao lado do bloqueio
- * só confunde: nada seria baixado).
+ * Quantidade que a revisão mostra como baixa do estoque: a do plano (na
+ * unidade do Produto), ou null quando o servidor bloqueou a quantidade ou o
+ * Produto não está em L nem em KG (aí "baixa de 0 L" ao lado do bloqueio só
+ * confunde: nada seria baixado). A unidade é `plano.unidade`.
  * @param {{ plano?: any, bloqueios?: any[] } | null | undefined} previa
  * @returns {string|null}
  */
-export const kgDaBaixaNaPrevia = (previa) => {
-  const kg = previa?.plano?.quantidade_kg;
-  if (!ehCanonico(kg) || !ehPositivo(kg)) return null;
+export const quantidadeDaBaixaNaPrevia = (previa) => {
+  const quantidade = previa?.plano?.quantidade;
+  if (!ehCanonico(quantidade) || !ehPositivo(quantidade) || !ehUnidadeDeAbastecimento(previa?.plano?.unidade)) return null;
   const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
   const semBaixa = bloqueios.some((/** @type {any} */ b) => b?.code === 'OPERACAO_VALORES_INVALIDOS' && MOTIVOS_SEM_BAIXA.has(String(b?.reason ?? '')));
-  return semBaixa ? null : /** @type {string} */ (kg);
+  return semBaixa ? null : /** @type {string} */ (quantidade);
 };
 
 /**
  * Formulário em branco. `bem` e `produto` são as OPÇÕES escolhidas (objetos do
- * servidor); os demais, ids ou texto digitado.
+ * servidor); os demais, ids ou texto digitado. `quantidade` é o texto digitado
+ * na unidade do Produto.
  * @param {string} hoje AAAA-MM-DD no fuso da fazenda
  */
 export const formularioVazio = (hoje) => ({
   bem: null,
   tanque_id: null,
-  tipo_combustivel_id: null,
   produto: null,
   local_estoque_id: null,
   data_operacional: hoje,
-  quantidade_litros: '',
+  quantidade: '',
   medidor_leitura: '',
   tanque_cheio: false,
   observacao: '',
   referencia_externa: '',
 });
 
-// ─── UX-02 (D-PROD-160): opção de PRODUTO do bem → formulário ────────────
+// ─── Opção de PRODUTO do bem → formulário (A16) ──────────────────────────
 
 /**
  * Aplica ao formulário a opção de PRODUTO escolhida (`produtos-do-bem`, A16):
- * o tipo de combustível e os tanques vêm da opção do SERVIDOR (derivados do
- * vínculo ativo), nunca de mapa na tela nem do nome. As chaves do formulário
- * são as de sempre, então `montarCorpo*` mandam o MESMO corpo de antes.
+ * os tanques que aceitam o Produto vêm da opção do SERVIDOR (os "Produtos
+ * aceitos" de cada tanque), nunca de mapa na tela nem do nome.
  * Tanque: o único, ou o já escolhido se o Produto é o mesmo e o tanque segue
  * aceito; senão a tela pergunta. Local: só sobrevive se o Produto não mudou.
  * @param {any} form @param {any} item
  */
 export const opcaoNoFormulario = (form, item) => ({
   ...form,
-  produto: {
-    ...item.produto,
-    conversao: item.conversao ?? null,
-    tipo_combustivel: item.tipo_combustivel,
-    tanques: item.tanques,
-    pronto: item.pronto === true,
-  },
-  tipo_combustivel_id: String(item.tipo_combustivel.id),
+  produto: { ...item.produto, tanques: item.tanques, pronto: item.pronto === true },
   tanque_id:
     item.tanques.length === 1
       ? String(item.tanques[0].id)
@@ -151,20 +146,18 @@ export const produtoAutomatico = (resposta, bemId) => {
 
 /**
  * A escolha do formulário ainda está entre as opções do servidor? `ausente` só
- * com resposta COMPLETA do mesmo bem sem o par (produto, tipo) do formulário;
- * página parcial ou resposta de outro bem → `indeterminado` (nada a concluir).
+ * com resposta COMPLETA do mesmo bem sem o Produto do formulário; página
+ * parcial ou resposta de outro bem → `indeterminado` (nada a concluir).
  * @param {any} resposta @param {any} form
  * @returns {'presente'|'ausente'|'indeterminado'}
  */
 export const situacaoDaEscolha = (resposta, form) => {
   const produtoId = idDe(form?.produto);
-  const tipoId = idDe(form?.tipo_combustivel_id);
   const bemId = idDe(form?.bem);
-  if (!produtoId || !tipoId || !bemId || !resposta || typeof resposta !== 'object') return 'indeterminado';
+  if (!produtoId || !bemId || !resposta || typeof resposta !== 'object') return 'indeterminado';
   if (String(resposta.bem?.id ?? '') !== bemId) return 'indeterminado';
   const itens = Array.isArray(resposta.itens) ? resposta.itens : [];
-  const achou = itens.some((/** @type {any} */ i) => String(i?.produto?.id ?? '') === produtoId && String(i?.tipo_combustivel?.id ?? '') === tipoId);
-  if (achou) return 'presente';
+  if (itens.some((/** @type {any} */ i) => String(i?.produto?.id ?? '') === produtoId)) return 'presente';
   return resposta.has_more === false ? 'ausente' : 'indeterminado';
 };
 
@@ -173,6 +166,12 @@ export const tanqueDoFormulario = (form) => {
   const tanques = Array.isArray(form?.produto?.tanques) ? form.produto.tanques : [];
   const id = idDe(form?.tanque_id);
   return id ? (tanques.find((/** @type {any} */ t) => String(t?.id) === id) ?? null) : null;
+};
+
+/** Unidade de estoque do Produto do formulário (`L`/`KG`), ou null. @param {any} form @returns {'L'|'KG'|null} */
+export const unidadeDoFormulario = (form) => {
+  const u = form?.produto?.unidade_principal_estoque;
+  return ehUnidadeDeAbastecimento(u) ? u : null;
 };
 
 /** Tipo do medidor do bem escolhido (opção `bens`: `medidor.tipo`). @param {any} form */
@@ -186,31 +185,32 @@ const mensagemDoNumero = (motivo) =>
   motivo === 'casas' ? 'No máximo 4 casas decimais.' : motivo === 'limite' ? 'Número grande demais.' : 'Número inválido (use vírgula para decimais, ex.: 80,5).';
 
 /**
- * Validação LOCAL (o servidor confere tudo de novo, sob trava). Mensagens em pt-BR.
+ * Validação LOCAL (o servidor confere tudo de novo, sob trava). Mensagens em
+ * pt-BR. A capacidade (em litros) só é conferida quando a unidade é `L`; a
+ * unidade vem de `ctx.unidade` ou do Produto do formulário.
  * @param {any} form
- * @param {{ hoje?: string|null, capacidadeLitros?: string|null }} [ctx]
+ * @param {{ hoje?: string|null, capacidadeLitros?: string|null, unidade?: string|null }} [ctx]
  * @returns {{ erros: Record<string, string> }}
  */
 export const validarFormulario = (form, ctx = {}) => {
   /** @type {Record<string, string>} */
   const erros = {};
   if (!idDe(form?.bem)) erros.bem = 'Escolha a máquina ou veículo.';
-  // UX-02: o operador escolhe o PRODUTO; o tipo vem da opção do servidor (nunca é etapa da tela).
-  const produtoEscolhido = Boolean(idDe(form?.produto) && idDe(form?.tipo_combustivel_id));
-  if (!produtoEscolhido) erros.produto = 'Escolha o Produto.';
+  if (!idDe(form?.produto)) erros.produto = 'Escolha o Produto.';
   else {
     // Tanque e local dependem do Produto: só cobrados (e só visíveis) depois dele.
     if (!idDe(form?.tanque_id)) erros.tanque_id = 'Escolha qual tanque será abastecido.';
-    if (!idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha de qual local do estoque sai o combustível.';
+    if (!idDe(form?.local_estoque_id)) erros.local_estoque_id = 'Escolha de qual local do estoque sai o Produto.';
   }
   const dia = texto(form?.data_operacional);
   if (!ehDiaValido(dia)) erros.data_operacional = 'Informe a data do abastecimento.';
   else if (ctx.hoje && ehDiaValido(ctx.hoje) && dia > ctx.hoje) erros.data_operacional = 'A data não pode ser posterior a hoje na fazenda.';
-  const litros = lerNumeroLocal(form?.quantidade_litros, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.LITROS);
-  if (!litros.ok) erros.quantidade_litros = litros.motivo === 'vazio' ? 'Informe os litros abastecidos.' : mensagemDoNumero(String(litros.motivo));
-  else if (!ehPositivo(/** @type {string} */ (litros.valor))) erros.quantidade_litros = 'Informe litros maiores que zero.';
-  else if (ehCanonico(ctx.capacidadeLitros) && comparar(/** @type {string} */ (litros.valor), /** @type {string} */ (ctx.capacidadeLitros)) > 0) {
-    erros.quantidade_litros = 'Os litros passam da capacidade nominal do tanque.';
+  const unidade = ctx.unidade === undefined ? unidadeDoFormulario(form) : ehUnidadeDeAbastecimento(ctx.unidade) ? ctx.unidade : null;
+  const quantidade = lerNumeroLocal(form?.quantidade, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.QUANTIDADE);
+  if (!quantidade.ok) erros.quantidade = quantidade.motivo === 'vazio' ? 'Informe a quantidade abastecida.' : mensagemDoNumero(String(quantidade.motivo));
+  else if (!ehPositivo(/** @type {string} */ (quantidade.valor))) erros.quantidade = 'Informe uma quantidade maior que zero.';
+  else if (unidade === 'L' && ehCanonico(ctx.capacidadeLitros) && comparar(/** @type {string} */ (quantidade.valor), /** @type {string} */ (ctx.capacidadeLitros)) > 0) {
+    erros.quantidade = 'Os litros passam da capacidade nominal do tanque.';
   }
   if (medidorExigeLeitura(medidorDoFormulario(form))) {
     const leitura = lerNumeroLocal(form?.medidor_leitura, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.LEITURA);
@@ -224,23 +224,23 @@ export const validarFormulario = (form, ctx = {}) => {
 /**
  * Corpo da PRÉVIA (A3): decimais canônicos, leitura null quando o bem não tem
  * contador, textos aparados ou null. Recusa (lança) o que não converte —
- * `validarFormulario` vem antes.
+ * `validarFormulario` vem antes. D-PROD-161: `quantidade` na unidade do
+ * Produto; sem `tipo_combustivel_id` (o servidor responderia 400).
  * @param {string} empresaId @param {any} form
  */
 export const montarCorpoPrevia = (empresaId, form) => {
-  const litros = canonicoDoDigitado(form?.quantidade_litros, LIMITES_ABASTECIMENTO.LITROS);
-  if (!litros) throw new RangeError('quantidade_litros_invalida');
+  const quantidade = canonicoDoDigitado(form?.quantidade, LIMITES_ABASTECIMENTO.QUANTIDADE);
+  if (!quantidade) throw new RangeError('quantidade_invalida');
   const contador = medidorExigeLeitura(medidorDoFormulario(form));
   const leitura = contador ? canonicoDoDigitado(form?.medidor_leitura, LIMITES_ABASTECIMENTO.LEITURA) : null;
   return {
     empresa_id: empresaId,
     bem_id: idDe(form?.bem),
     tanque_id: idDe(form?.tanque_id),
-    tipo_combustivel_id: idDe(form?.tipo_combustivel_id),
     produto_id: idDe(form?.produto),
     local_estoque_id: idDe(form?.local_estoque_id),
     data_operacional: texto(form?.data_operacional),
-    quantidade_litros: litros,
+    quantidade,
     medidor_leitura: leitura,
     tanque_cheio: form?.tanque_cheio === true,
     observacao: textoOuNulo(form?.observacao),
@@ -250,14 +250,14 @@ export const montarCorpoPrevia = (empresaId, form) => {
 
 /**
  * Corpo da CONFIRMAÇÃO (A4) SEM `operation_id` (o serviço põe a chave
- * persistente): o mesmo da prévia + o fator (`conversao_id`/`conversao_versao`)
- * que a prévia mostrou. Sem fator no plano não há confirmação.
+ * persistente): EXATAMENTE o da prévia. D-PROD-161: sem fator, o plano não
+ * acrescenta nada ao corpo (o servidor relê tudo sob as travas); ele só tem
+ * de existir — sem revisão não há confirmação.
  * @param {string} empresaId @param {any} form @param {any} plano
  */
 export const montarCorpoConfirmacao = (empresaId, form, plano) => {
-  const conversao = plano?.conversao;
-  if (!conversao || typeof conversao.id !== 'string' || !Number.isInteger(conversao.versao)) throw new RangeError('conversao_ausente_no_plano');
-  return { ...montarCorpoPrevia(empresaId, form), conversao_id: conversao.id, conversao_versao: conversao.versao };
+  if (!plano || typeof plano !== 'object') throw new RangeError('plano_ausente');
+  return montarCorpoPrevia(empresaId, form);
 };
 
 /**
@@ -265,47 +265,6 @@ export const montarCorpoConfirmacao = (empresaId, form, plano) => {
  * @param {string} empresaId @param {any} registro @param {string} motivo
  */
 export const montarCorpoCancelamento = (empresaId, registro, motivo) => ({ empresa_id: empresaId, versao: registro?.versao, motivo: texto(motivo) });
-
-/**
- * Corpo do NOVO FATOR (A14). `form.kg_por_litro` é o texto digitado (pt-BR);
- * `vigenteId` = id do fator vigente lido para o par (ou null quando não há).
- * @param {string} empresaId
- * @param {{ tipo_combustivel_id: string|null, produto_id: string|null, kg_por_litro: string, declara_estoque_em_kg: boolean }} form
- * @param {string|null} vigenteId
- */
-export const montarCorpoConversao = (empresaId, form, vigenteId) => {
-  const fator = canonicoDoDigitado(form?.kg_por_litro, LIMITES_ABASTECIMENTO.FATOR);
-  if (!fator) throw new RangeError('kg_por_litro_invalido');
-  return {
-    empresa_id: empresaId,
-    tipo_combustivel_id: idDe(form?.tipo_combustivel_id),
-    produto_id: idDe(form?.produto_id),
-    kg_por_litro: fator,
-    declara_estoque_em_kg: form?.declara_estoque_em_kg === true,
-    conversao_vigente_id: typeof vigenteId === 'string' && vigenteId ? vigenteId : null,
-  };
-};
-
-/**
- * Validação local do fator: 0 < f ≤ 10, até 6 casas, declaração marcada.
- * @param {{ tipo_combustivel_id?: string|null, produto_id?: string|null, kg_por_litro?: string, declara_estoque_em_kg?: boolean }} form
- * @returns {{ erros: Record<string, string> }}
- */
-export const validarConversao = (form) => {
-  /** @type {Record<string, string>} */
-  const erros = {};
-  if (!idDe(form?.tipo_combustivel_id)) erros.tipo_combustivel_id = 'Escolha o combustível.';
-  if (!idDe(form?.produto_id)) erros.produto_id = 'Escolha o produto.';
-  const fator = lerNumeroLocal(form?.kg_por_litro, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.FATOR);
-  if (!fator.ok) {
-    erros.kg_por_litro =
-      fator.motivo === 'vazio' ? 'Informe o fator kg/L.' : fator.motivo === 'casas' ? 'No máximo 6 casas decimais.' : 'Fator inválido (use vírgula para decimais, ex.: 0,84).';
-  } else if (!ehPositivo(/** @type {string} */ (fator.valor)) || comparar(/** @type {string} */ (fator.valor), FATOR_MAXIMO) > 0) {
-    erros.kg_por_litro = 'Informe um fator maior que zero e até 10.';
-  }
-  if (form?.declara_estoque_em_kg !== true) erros.declara_estoque_em_kg = 'Marque a declaração de que o estoque está em KG.';
-  return { erros };
-};
 
 /**
  * Assinatura estável do que a prévia viu: se mudar depois da prévia, a prévia
@@ -316,11 +275,10 @@ export const assinaturaDoFormulario = (form) =>
   JSON.stringify([
     idDe(form?.bem),
     idDe(form?.tanque_id),
-    idDe(form?.tipo_combustivel_id),
     idDe(form?.produto),
     idDe(form?.local_estoque_id),
     texto(form?.data_operacional),
-    canonicoDoDigitado(form?.quantidade_litros, LIMITES_ABASTECIMENTO.LITROS) ?? texto(form?.quantidade_litros),
+    canonicoDoDigitado(form?.quantidade, LIMITES_ABASTECIMENTO.QUANTIDADE) ?? texto(form?.quantidade),
     canonicoDoDigitado(form?.medidor_leitura, LIMITES_ABASTECIMENTO.LEITURA) ?? texto(form?.medidor_leitura),
     form?.tanque_cheio === true,
     texto(form?.observacao),
@@ -333,10 +291,22 @@ export const assinaturaDoFormulario = (form) =>
 export const formatarLitros = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 4, casasMax: 4 });
 /** Litros sem zeros à direita ("180.0000" → "180"; "80.5000" → "80,5"). @param {unknown} v */
 export const formatarLitrosCurto = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 0, casasMax: 4 });
-/** "67.2000" → "67,2000". @param {unknown} v */
-export const formatarKg = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 4, casasMax: 4 });
-/** "0.840000" → "0,840000" (6 casas fixas). @param {unknown} v */
-export const formatarFator = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 6, casasMax: 6 });
+/**
+ * Quantidade na unidade do Produto, 4 casas fixas: ("120.0000", "L") →
+ * "120,0000 L"; ("80.0000", "KG") → "80,0000 kg". Sem unidade conhecida, só o número.
+ * @param {unknown} v @param {unknown} unidade
+ */
+export const formatarQuantidade = (v, unidade) => {
+  const numero = formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 4, casasMax: 4 });
+  const rotulo = rotuloDaUnidade(unidade);
+  return rotulo ? `${numero} ${rotulo}` : numero;
+};
+/** Como `formatarQuantidade`, sem zeros à direita ("80.0000", "L" → "80 L"). @param {unknown} v @param {unknown} unidade */
+export const formatarQuantidadeCurta = (v, unidade) => {
+  const numero = formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 0, casasMax: 4 });
+  const rotulo = rotuloDaUnidade(unidade);
+  return rotulo ? `${numero} ${rotulo}` : numero;
+};
 /** Leitura do medidor ("1550.5000" → "1.550,5"). @param {unknown} v */
 export const formatarLeitura = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 0, casasMax: 4 });
 /** Custo em reais (até 4 casas: "5.2768" → "R$ 5,2768"; "354.6000" → "R$ 354,60"). @param {unknown} v */
@@ -358,22 +328,26 @@ export const rotuloDoBem = (bem) => {
 };
 
 /**
- * Totais EXATOS (BigInt) de litros e KG dos abastecimentos CONFIRMADOS de uma
- * lista: "0.1" + "0.2" = "0.3", nunca 0,30000000000000004.
+ * Totais EXATOS (BigInt) dos abastecimentos CONFIRMADOS de uma lista, POR
+ * UNIDADE (litros e quilos nunca se somam): "0.1" + "0.2" = "0.3", nunca
+ * 0,30000000000000004. `totais` só traz as unidades presentes, L antes de KG.
  * @param {any[]} itens
- * @returns {{ litros: string, kg: string, quantidade: number }}
+ * @returns {{ quantidade: number, totais: Array<{ unidade: 'L'|'KG', total: string }> }}
  */
 export const totaisConfirmados = (itens) => {
   const confirmados = (Array.isArray(itens) ? itens : []).filter((i) => i?.status === 'CONFIRMADO');
-  const litros = confirmados.map((i) => i.quantidade_litros).filter(ehCanonico);
-  const kg = confirmados.map((i) => i.quantidade_kg).filter(ehCanonico);
-  return { litros: somar(litros, 4), kg: somar(kg, 4), quantidade: confirmados.length };
+  /** @type {Array<{ unidade: 'L'|'KG', total: string }>} */
+  const totais = [];
+  for (const unidade of /** @type {Array<'L'|'KG'>} */ (UNIDADES_ABASTECIMENTO)) {
+    const valores = confirmados.filter((i) => i?.unidade === unidade).map((i) => i.quantidade).filter(ehCanonico);
+    if (valores.length) totais.push({ unidade, total: somar(valores, 4) });
+  }
+  return { quantidade: confirmados.length, totais };
 };
 
 // ─── Conferência das respostas (§6.1) ───────────────────────────────────
 
 const RE_4 = /^\d+\.\d{4}$/;
-const RE_6 = /^\d+\.\d{6}$/;
 const RE_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 /** @param {unknown} v @returns {v is Record<string, any>} */
@@ -391,19 +365,30 @@ const exigirFormato = (v, onde, valor, re, nulo = false) => {
   if (nulo && valor === null) return;
   if (typeof valor !== 'string' || !re.test(valor)) v.push(`${onde}: formato inválido (${JSON.stringify(valor)})`);
 };
+/** @param {string[]} v @param {string} onde @param {unknown} valor @param {boolean} [nulo] */
+const exigirUnidade = (v, onde, valor, nulo = false) => {
+  if (nulo && valor === null) return;
+  if (!ehUnidadeDeAbastecimento(valor)) v.push(`${onde}: unidade inválida (${JSON.stringify(valor)})`);
+};
+/** Campos que saíram com a D-PROD-161 (fator, tipo de combustível, litros e KG separados). */
+const CHAVES_REMOVIDAS = ['tipo_combustivel', 'conversao', 'quantidade_litros', 'quantidade_kg', 'kg_por_litro', 'custo_unitario_kg'];
+/** @param {string[]} v @param {string} onde @param {Record<string, any>} obj */
+const recusarRemovidas = (v, onde, obj) => {
+  for (const k of CHAVES_REMOVIDAS) if (Object.prototype.hasOwnProperty.call(obj, k)) v.push(`${onde}.${k}: campo removido pela D-PROD-161`);
+};
 
 const CHAVES_DETALHE = [
-  'id', 'empresa_id', 'numero', 'status', 'versao', 'data_operacional', 'bem', 'tanque', 'tipo_combustivel', 'produto', 'local_estoque', 'conversao',
-  'quantidade_litros', 'kg_por_litro', 'quantidade_kg', 'custo_total', 'custo_unitario_kg', 'tanque_cheio', 'medidor', 'observacao', 'referencia_externa',
-  'movimentacao', 'estorno', 'fatias', 'cancelamento', 'criado_por', 'consumo', 'efeito_cancelamento_medidor', 'created_date', 'updated_date',
+  'id', 'empresa_id', 'numero', 'status', 'versao', 'data_operacional', 'bem', 'tanque', 'produto', 'local_estoque', 'quantidade', 'unidade',
+  'custo_total', 'custo_unitario', 'tanque_cheio', 'medidor', 'observacao', 'referencia_externa', 'movimentacao', 'estorno', 'fatias', 'cancelamento',
+  'criado_por', 'consumo', 'efeito_cancelamento_medidor', 'created_date', 'updated_date',
 ];
 const CHAVES_RESUMO = [
-  'id', 'numero', 'status', 'versao', 'data_operacional', 'bem', 'tanque', 'tipo_combustivel', 'produto', 'local_estoque', 'quantidade_litros', 'quantidade_kg',
-  'kg_por_litro', 'custo_total', 'tanque_cheio', 'medidor', 'referencia_externa', 'created_date', 'updated_date',
+  'id', 'numero', 'status', 'versao', 'data_operacional', 'bem', 'tanque', 'produto', 'local_estoque', 'quantidade', 'unidade', 'custo_total',
+  'tanque_cheio', 'medidor', 'referencia_externa', 'created_date', 'updated_date',
 ];
-const CHAVES_CONVERSAO = [
-  'id', 'empresa_id', 'tipo_combustivel', 'produto', 'sequencia', 'kg_por_litro', 'declara_estoque_em_kg', 'ativo', 'versao', 'encerrado_em', 'criado_por',
-  'encerrado_por', 'created_date', 'updated_date',
+const CHAVES_PLANO = [
+  'empresa_id', 'data_operacional', 'hoje', 'bem', 'tanque', 'produto', 'local_estoque', 'quantidade', 'unidade', 'confere_capacidade', 'estoque', 'fifo',
+  'medidor', 'tanque_cheio', 'custo_e_estimativa',
 ];
 
 /** @param {string[]} v @param {string} onde @param {any} m */
@@ -413,10 +398,11 @@ const conferirMovimento = (v, onde, m) => {
     v.push(`${onde}: não é objeto`);
     return;
   }
-  exigirChaves(v, onde, m, ['id', 'numero', 'status', 'tipo_movimentacao', 'tipo_detalhado', 'quantidade_kg', 'valor_unitario', 'valor_total']);
-  exigirFormato(v, `${onde}.quantidade_kg`, m.quantidade_kg, RE_4);
+  exigirChaves(v, onde, m, ['id', 'numero', 'status', 'tipo_movimentacao', 'tipo_detalhado', 'quantidade', 'unidade', 'valor_unitario', 'valor_total']);
+  exigirFormato(v, `${onde}.quantidade`, m.quantidade, RE_4);
   exigirFormato(v, `${onde}.valor_unitario`, m.valor_unitario, RE_4);
   exigirFormato(v, `${onde}.valor_total`, m.valor_total, RE_4);
+  if (m.unidade !== null && typeof m.unidade !== 'string') v.push(`${onde}.unidade: não é texto`);
 };
 
 /** @param {string[]} v @param {string} onde @param {any} medidor */
@@ -429,8 +415,8 @@ const conferirMedidor = (v, onde, medidor) => {
   if (medidor.tipo === 'SEM_MEDIDOR' && medidor.leitura !== null) v.push(`${onde}.leitura: SEM_MEDIDOR com leitura`);
 };
 
-/** @param {string[]} v @param {string} onde @param {any} fatias @param {string} chaveLote */
-const conferirFatias = (v, onde, fatias, chaveLote) => {
+/** @param {string[]} v @param {string} onde @param {any} fatias */
+const conferirFatias = (v, onde, fatias) => {
   if (!Array.isArray(fatias)) {
     v.push(`${onde}: não é lista`);
     return;
@@ -442,44 +428,50 @@ const conferirFatias = (v, onde, fatias, chaveLote) => {
       return;
     }
     if (!Number.isInteger(f.ordem)) v.push(`${o}.ordem: não é inteiro`);
-    exigirFormato(v, `${o}.${chaveLote}`, f[chaveLote], RE_DIA, true);
-    exigirFormato(v, `${o}.quantidade_kg`, f.quantidade_kg, RE_4);
+    exigirFormato(v, `${o}.data_lote`, f.data_lote, RE_DIA, true);
+    exigirFormato(v, `${o}.quantidade`, f.quantidade, RE_4);
     exigirFormato(v, `${o}.custo_unitario`, f.custo_unitario, RE_4);
     exigirFormato(v, `${o}.valor`, f.valor, RE_4);
   });
 };
 
+/** @param {string[]} v @param {string} onde @param {any} c */
+const conferirConsumoDoAbastecimento = (v, onde, c) => {
+  if (!ehObjeto(c)) {
+    v.push(`${onde}: não é objeto`);
+    return;
+  }
+  exigirChaves(v, onde, c, ['situacao', 'motivo', 'metrica', 'unidade_metrica', 'intervalo', 'quantidade', 'unidade', 'valor']);
+  if (!['CALCULADO', 'DADOS_INSUFICIENTES', 'NAO_APLICAVEL'].includes(c.situacao)) v.push(`${onde}.situacao: inválida`);
+  exigirFormato(v, `${onde}.valor`, c.valor, RE_4, true);
+  exigirFormato(v, `${onde}.quantidade`, c.quantidade, RE_4, true);
+  exigirFormato(v, `${onde}.intervalo`, c.intervalo, RE_4, true);
+  exigirUnidade(v, `${onde}.unidade`, c.unidade, true);
+  if (Object.prototype.hasOwnProperty.call(c, 'litros')) v.push(`${onde}.litros: campo removido pela D-PROD-161`);
+};
+
 /** @param {string[]} v @param {string} onde @param {any} d @param {boolean} detalhe */
 const conferirAbastecimento = (v, onde, d, detalhe) => {
   exigirChaves(v, onde, d, detalhe ? CHAVES_DETALHE : CHAVES_RESUMO);
+  recusarRemovidas(v, onde, d);
   if (!STATUS_ABASTECIMENTO.includes(d.status)) v.push(`${onde}.status: inválido (${JSON.stringify(d.status)})`);
   if (!Number.isInteger(d.versao) || d.versao < 1) v.push(`${onde}.versao: inválida`);
   exigirFormato(v, `${onde}.data_operacional`, d.data_operacional, RE_DIA);
-  exigirFormato(v, `${onde}.quantidade_litros`, d.quantidade_litros, RE_4);
-  exigirFormato(v, `${onde}.kg_por_litro`, d.kg_por_litro, RE_6);
-  exigirFormato(v, `${onde}.quantidade_kg`, d.quantidade_kg, RE_4);
+  exigirFormato(v, `${onde}.quantidade`, d.quantidade, RE_4);
+  exigirUnidade(v, `${onde}.unidade`, d.unidade);
   exigirFormato(v, `${onde}.custo_total`, d.custo_total, RE_4);
   if (typeof d.tanque_cheio !== 'boolean') v.push(`${onde}.tanque_cheio: não é booleano`);
   conferirMedidor(v, `${onde}.medidor`, d.medidor);
   if (!detalhe) return;
-  exigirFormato(v, `${onde}.custo_unitario_kg`, d.custo_unitario_kg, RE_4);
+  exigirFormato(v, `${onde}.custo_unitario`, d.custo_unitario, RE_4);
   if (ehObjeto(d.tanque)) exigirFormato(v, `${onde}.tanque.capacidade_litros`, d.tanque.capacidade_litros, RE_4, true);
   conferirMovimento(v, `${onde}.movimentacao`, d.movimentacao);
   if (d.movimentacao === null) v.push(`${onde}.movimentacao: ausente`);
   conferirMovimento(v, `${onde}.estorno`, d.estorno);
   if (d.status === 'CANCELADO' && (d.estorno === null || d.cancelamento === null)) v.push(`${onde}: CANCELADO sem estorno/cancelamento`);
   if (d.status === 'CONFIRMADO' && (d.estorno !== null || d.cancelamento !== null)) v.push(`${onde}: CONFIRMADO com estorno/cancelamento`);
-  conferirFatias(v, `${onde}.fatias`, d.fatias, 'data_lote');
-};
-
-/** @param {string[]} v @param {string} onde @param {any} c */
-const conferirConversao = (v, onde, c) => {
-  exigirChaves(v, onde, c, CHAVES_CONVERSAO);
-  exigirFormato(v, `${onde}.kg_por_litro`, c.kg_por_litro, RE_6);
-  if (!Number.isInteger(c.sequencia) || c.sequencia < 1) v.push(`${onde}.sequencia: inválida`);
-  if (!Number.isInteger(c.versao) || c.versao < 1) v.push(`${onde}.versao: inválida`);
-  if (c.declara_estoque_em_kg !== true) v.push(`${onde}.declara_estoque_em_kg: deve ser true`);
-  if (typeof c.ativo !== 'boolean') v.push(`${onde}.ativo: não é booleano`);
+  conferirFatias(v, `${onde}.fatias`, d.fatias);
+  conferirConsumoDoAbastecimento(v, `${onde}.consumo`, d.consumo);
 };
 
 /** @param {string[]} v @param {any} r */
@@ -495,46 +487,49 @@ const conferirPrevia = (v, r) => {
     v.push('plano: não é objeto');
     return;
   }
-  exigirChaves(v, 'plano', p, ['empresa_id', 'data_operacional', 'hoje', 'bem', 'tanque', 'tipo_combustivel', 'produto', 'local_estoque', 'conversao', 'quantidade_litros', 'quantidade_kg', 'estoque', 'fifo', 'medidor', 'tanque_cheio', 'custo_e_estimativa']);
+  exigirChaves(v, 'plano', p, CHAVES_PLANO);
+  recusarRemovidas(v, 'plano', p);
   exigirFormato(v, 'plano.data_operacional', p.data_operacional, RE_DIA);
   exigirFormato(v, 'plano.hoje', p.hoje, RE_DIA);
-  exigirFormato(v, 'plano.quantidade_litros', p.quantidade_litros, RE_4);
-  exigirFormato(v, 'plano.quantidade_kg', p.quantidade_kg, RE_4, true);
-  if (p.conversao !== null) {
-    if (!ehObjeto(p.conversao)) v.push('plano.conversao: não é objeto');
-    else exigirFormato(v, 'plano.conversao.kg_por_litro', p.conversao.kg_por_litro, RE_6);
-  }
+  exigirFormato(v, 'plano.quantidade', p.quantidade, RE_4);
+  exigirUnidade(v, 'plano.unidade', p.unidade, true);
+  if (typeof p.confere_capacidade !== 'boolean') v.push('plano.confere_capacidade: não é booleano');
+  else if (p.confere_capacidade !== (p.unidade === 'L')) v.push('plano.confere_capacidade: só vale para Produto em L');
   if (ehObjeto(p.tanque)) exigirFormato(v, 'plano.tanque.capacidade_litros', p.tanque.capacidade_litros, RE_4, true);
   if (ehObjeto(p.estoque)) {
-    exigirFormato(v, 'plano.estoque.saldo_local_kg', p.estoque.saldo_local_kg, RE_4);
-    exigirFormato(v, 'plano.estoque.estoque_atual_kg', p.estoque.estoque_atual_kg, RE_4);
+    exigirFormato(v, 'plano.estoque.saldo_local', p.estoque.saldo_local, RE_4);
+    exigirFormato(v, 'plano.estoque.estoque_atual', p.estoque.estoque_atual, RE_4);
+    exigirUnidade(v, 'plano.estoque.unidade', p.estoque.unidade);
   }
   if (ehObjeto(p.fifo)) {
-    exigirFormato(v, 'plano.fifo.disponivel_kg', p.fifo.disponivel_kg, RE_4);
+    exigirFormato(v, 'plano.fifo.disponivel', p.fifo.disponivel, RE_4);
     exigirFormato(v, 'plano.fifo.custo_total_estimado', p.fifo.custo_total_estimado, RE_4, true);
     exigirFormato(v, 'plano.fifo.custo_unitario_estimado', p.fifo.custo_unitario_estimado, RE_4, true);
-    conferirFatias(v, 'plano.fifo.fatias', p.fifo.fatias, 'data_lote');
+    conferirFatias(v, 'plano.fifo.fatias', p.fifo.fatias);
   }
   if (ehObjeto(p.medidor)) exigirFormato(v, 'plano.medidor.leitura', p.medidor.leitura, RE_4, true);
 };
 
 /** @param {string[]} v @param {any} r */
 const conferirConsumo = (v, r) => {
-  exigirChaves(v, 'consumo', r, ['bem', 'situacao_geral', 'metrica', 'unidade_metrica', 'metodologia', 'intervalos']);
+  exigirChaves(v, 'consumo', r, ['bem', 'situacao_geral', 'metodologia', 'intervalos']);
   if (!['DISPONIVEL', 'NAO_APLICAVEL'].includes(r.situacao_geral)) v.push('consumo.situacao_geral: inválida');
   (Array.isArray(r.intervalos) ? r.intervalos : []).forEach((/** @type {any} */ it, /** @type {number} */ i) => {
     const o = `consumo.intervalos[${i}]`;
     if (!['CALCULADO', 'DADOS_INSUFICIENTES'].includes(it?.situacao)) v.push(`${o}.situacao: inválida`);
     exigirFormato(v, `${o}.valor`, it?.valor, RE_4, true);
-    exigirFormato(v, `${o}.litros`, it?.litros, RE_4, true);
+    exigirFormato(v, `${o}.quantidade`, it?.quantidade, RE_4, true);
     exigirFormato(v, `${o}.intervalo`, it?.intervalo, RE_4, true);
+    exigirUnidade(v, `${o}.unidade`, it?.unidade ?? null, true);
+    if (ehObjeto(it) && !Object.prototype.hasOwnProperty.call(it, 'unidade_metrica')) v.push(`${o}.unidade_metrica: ausente`);
+    if (ehObjeto(it) && Object.prototype.hasOwnProperty.call(it, 'litros')) v.push(`${o}.litros: campo removido pela D-PROD-161`);
   });
 };
 
 /**
- * Violações do contrato §6.1 numa resposta do servidor (lista vazia = conforme).
- * Reconhece pela forma: prévia (`plano`), página (`items`), consumo
- * (`intervalos`), fator (`sequencia` + `declara_estoque_em_kg`) ou detalhe.
+ * Violações do contrato §6.1 (revisto pela D-PROD-161) numa resposta do
+ * servidor (lista vazia = conforme). Reconhece pela forma: prévia (`plano`),
+ * página (`items`), consumo (`intervalos`) ou detalhe.
  * @param {unknown} body
  * @returns {string[]}
  */
@@ -546,11 +541,9 @@ export const conferirRespostaAbastecimento = (body) => {
   else if (Array.isArray(body.items)) {
     body.items.forEach((/** @type {any} */ item, /** @type {number} */ i) => {
       if (!ehObjeto(item)) v.push(`items[${i}]: não é objeto`);
-      else if (Object.prototype.hasOwnProperty.call(item, 'sequencia')) conferirConversao(v, `items[${i}]`, item);
       else conferirAbastecimento(v, `items[${i}]`, item, false);
     });
   } else if (Array.isArray(body.intervalos)) conferirConsumo(v, body);
-  else if (Object.prototype.hasOwnProperty.call(body, 'sequencia') && Object.prototype.hasOwnProperty.call(body, 'declara_estoque_em_kg')) conferirConversao(v, 'conversao', body);
   else conferirAbastecimento(v, 'abastecimento', body, true);
   return v;
 };

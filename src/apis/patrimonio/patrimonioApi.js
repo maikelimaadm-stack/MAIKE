@@ -11,8 +11,9 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { CAMINHOS_CATALOGO, RECURSOS_OPCOES_ABASTECIMENTO, UNIDADES_FILTRO_PRODUTOS, operacoesNativas } from './patrimonioNativePort.js';
+import { CAMINHOS_CATALOGO, RECURSOS_OPCOES_ABASTECIMENTO, operacoesNativas } from './patrimonioNativePort.js';
 import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
+import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
 
 /**
  * Recursos de opções (A3): os de catálogo (famílias, tipos) não pedem empresa;
@@ -175,7 +176,7 @@ export const listOpcoesBemPatrimonial = async (recurso, filtros = {}) => {
   assertArgument(RECURSOS_OPCOES_PATRIMONIO.includes(recurso), 'recurso', contexto);
   if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso)) assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
   if (recurso === 'produtos' && filtros.unidade != null) {
-    assertArgument(typeof filtros.unidade === 'string' && UNIDADES_FILTRO_PRODUTOS.includes(filtros.unidade), 'unidade', contexto);
+    assertArgument(typeof filtros.unidade === 'string' && UNIDADES_ESTOQUE_TANQUE.includes(filtros.unidade), 'unidade', contexto);
   }
   const bruto = await runProviderCall(() => operacoesNativas.opcoes(recurso, filtros), contexto);
   return paginaDeOpcoes(bruto);

@@ -3,27 +3,20 @@ import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido } from "@/lib/diaCivil";
-import {
-  UNIDADE_MEDIDOR,
-  formatarCusto,
-  formatarDiaAbastecimento,
-  formatarKg,
-  formatarLeitura,
-  formatarLitros,
-  rotuloDoBem,
-} from "@/lib/abastecimentoRegras";
+import { UNIDADE_MEDIDOR, formatarCusto, formatarDiaAbastecimento, formatarLeitura, formatarQuantidade, rotuloDoBem } from "@/lib/abastecimentoRegras";
 import { ROTULO_STATUS_ABASTECIMENTO } from "@/services/abastecimentoService";
 
 /**
- * UX-02 (D-PROD-160): preferências de coluna em chave NOVA — a v1 guardava a
- * coluna "Combustível", que saiu da lista (o operador vê o PRODUTO).
+ * Preferências de coluna em chave NOVA a cada mudança do conjunto de colunas:
+ * a v1 guardava "Combustível" (saiu na UX-02, D-PROD-160) e a v2 guardava
+ * "Litros" e "KG" (D-PROD-161: viraram UMA coluna "Quantidade", número + a
+ * unidade do Produto). Uma preferência antiga não ressuscita coluna que saiu.
  */
-export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
+export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v3";
 
 /**
- * Padrão: Data | Máquina/Veículo | Produto | Litros | Medidor | Situação. Os
- * dados técnicos ficam como colunas opcionais (desligadas); o tipo de
- * combustível aparece só na consulta (detalhe técnico).
+ * Padrão: Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação.
+ * Os dados técnicos ficam como colunas opcionais (desligadas).
  *
  * Larguras (tablet, 820 px): a grade tem ~712 px úteis; tirando a coluna de
  * seleção (36) e a barra de rolagem vertical (~15), sobram ~660 px, e as 6
@@ -33,31 +26,25 @@ export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
  * seta de ordenação).
  *
  * Prioridade: o PRODUTO vem antes do rótulo inteiro do cabeçalho
- * "Máquina/Veículo". Vários Produtos do mesmo combustível só se distinguem
- * pela última palavra ("Diesel S10 granel" × "Diesel S10 posto"), e no tablet
- * não há hover para o `title`. Por isso o Produto tem 130 (até ~111 px de
- * texto: "Gasolina comum" 109, "Diesel S10 granel" 108 cabem inteiros) e a
- * Máquina/Veículo cede: com 124, o RÓTULO "Máquina/Veículo" (pede 157) sai
- * com reticências no tablet — exceção aceita, porque a célula já identifica a
- * máquina ("TP-02 — Trator TP-02": o código vem primeiro; tudo no `title`).
- * Os outros rótulos cabem inteiros ("Situação" pede 103). A Data cabe inteira
- * (a mais larga de 2026, "04/04/2026", pede 101) e Litros cabe até
- * "999,9999 L" (pede 95). "1.200,0000 L" pediria 105 e passaria da soma: com
- * 4 dígitos inteiros o valor sai cortado, com `title`. Nomes de Produto
- * maiores que ~111 px (ex.: "DIESEL S10 GRANEL" em maiúsculas) cortam, com
- * `title`. As larguras são mínimas: no desktop a grade estica as colunas para
- * ocupar a linha.
+ * "Máquina/Veículo" (os Produtos de um tanque se distinguem pela última
+ * palavra e no tablet não há hover para o `title`): o Produto tem 130 (até
+ * ~111 px de texto). D-PROD-161: a coluna "Quantidade" (número + "L"/"kg")
+ * tem 124 — o RÓTULO "Quantidade" inteiro (pede ~123) e até "999,9999 kg"
+ * (pede ~102). Quem cede é a Máquina/Veículo, com 97: o RÓTULO dela sai com
+ * reticências no tablet (exceção já aceita na UX-02) e a célula mostra o
+ * código da frota, que vem primeiro ("TP-02 — Tr…"; tudo no `title`). A Data
+ * cabe inteira (a mais larga de 2026, "04/04/2026", pede 101). As larguras
+ * são mínimas: no desktop a grade estica as colunas para ocupar a linha.
  */
 export const ABASTECIMENTOS_COLUNAS = [
   { id: "data_operacional", label: "Data", default: true, sortable: true, width: 101 },
-  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 124 },
+  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 97 },
   { id: "produto", label: "Produto", default: true, sortable: true, width: 130 },
-  { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 97 },
+  { id: "quantidade", label: "Quantidade", default: true, sortable: true, align: "right", width: 124 },
   { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 100 },
   { id: "status", label: "Situação", default: true, sortable: true, width: 103 },
   { id: "numero", label: "Nº", default: false, sortable: true, width: 70 },
   { id: "tanque", label: "Tanque", default: false, sortable: true, width: 140 },
-  { id: "quantidade_kg", label: "KG", default: false, sortable: true, align: "right", width: 110 },
   { id: "custo_total", label: "Custo", default: false, sortable: true, align: "right", width: 120 },
   { id: "tanque_cheio", label: "Tanque cheio", default: false, sortable: true, align: "center", width: 100 },
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
@@ -65,13 +52,15 @@ export const ABASTECIMENTOS_COLUNAS = [
 
 /**
  * Cards (celular): a máquina é o título e a Situação vai no subtítulo
- * (`cardsCodeColId="status"`); os campos são Produto, Litros e Data. No celular
+ * (`cardsCodeColId="status"`); os campos são Produto, Quantidade e Data. No celular
  * a grade só mostra 3 campos (D-PROD-88), então a Situação não pode depender
  * da lista de campos: sem ela um Cancelado não se distingue de um Confirmado.
  */
-export const ABASTECIMENTOS_CAMPOS_CARD = ["produto", "quantidade_litros", "data_operacional", "status"];
+export const ABASTECIMENTOS_CAMPOS_CARD = ["produto", "quantidade", "data_operacional", "status"];
 
-const COLUNAS_DECIMAIS = Object.freeze({ quantidade_litros: "quantidade_litros", quantidade_kg: "quantidade_kg", custo_total: "custo_total", numero: "numero" });
+const COLUNAS_DECIMAIS = Object.freeze({ quantidade: "quantidade", custo_total: "custo_total", numero: "numero" });
+/** L antes de KG (e qualquer outra por último) ao ordenar a Quantidade. @param {unknown} u */
+const ordemDaUnidade = (u) => (u === "L" ? 0 : u === "KG" ? 1 : 2);
 
 /** @param {any} item @param {string} colId */
 const canonicoDa = (item, colId) => {
@@ -104,6 +93,8 @@ export const compararAbastecimentosParaOrdenar = (a, b, colId) => {
   const va = canonicoDa(a, colId);
   const vb = canonicoDa(b, colId);
   if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+  // Quantidade: litros e quilos não se comparam — agrupa pela unidade (L antes de kg) e ordena pelo número dentro dela.
+  if (colId === "quantidade" && a?.unidade !== b?.unidade) return ordemDaUnidade(a?.unidade) - ordemDaUnidade(b?.unidade);
   return comparar(va, vb);
 };
 
@@ -114,8 +105,7 @@ export const valorDoCampoAbastecimento = (item, id) => {
   if (id === "bem") return rotuloDoBem(item.bem);
   if (id === "tanque") return String(item.tanque?.identificador ?? "");
   if (id === "produto") return String(item.produto?.nome ?? "");
-  if (id === "quantidade_litros") return item.quantidade_litros ? `${formatarLitros(item.quantidade_litros)} L` : "";
-  if (id === "quantidade_kg") return item.quantidade_kg ? `${formatarKg(item.quantidade_kg)} kg` : "";
+  if (id === "quantidade") return item.quantidade ? formatarQuantidade(item.quantidade, item.unidade) : "";
   if (id === "custo_total") return item.custo_total ? formatarCusto(item.custo_total) : "";
   if (id === "leitura") {
     const leitura = item.medidor?.leitura;

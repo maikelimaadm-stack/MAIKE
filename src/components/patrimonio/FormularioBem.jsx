@@ -1,20 +1,24 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroRapidoSheet from "@/components/common/CadastroRapidoSheet";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
-import { notifyWarning } from "@/lib/maikeNotify";
+import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { formatarDia, hojeNoFuso } from "@/lib/diaCivil";
 import { formatarNumero } from "@/lib/dinheiroDecimal";
+import { lerErroGestao } from "@/lib/gestaoErros";
+import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
-import MedicoesBem from "@/components/patrimonio/MedicoesBem";
 import MedidorBem from "@/components/patrimonio/MedidorBem";
 import TanquesBem from "@/components/patrimonio/TanquesBem";
 import AquisicaoDepreciacaoBem from "@/components/patrimonio/AquisicaoDepreciacaoBem";
-import { listarOpcoesBem, listarOpcoesCompletasBem } from "@/services/bemPatrimonialService";
-import { perfisDoTipo } from "@/services/patrimonioCatalogoService";
+import FormularioFamilia from "@/components/patrimonio/FormularioFamilia";
+import FormularioTipo from "@/components/patrimonio/FormularioTipo";
+import { listarOpcoesBem } from "@/services/bemPatrimonialService";
+import { RECURSOS_CATALOGO, buscarCatalogoPorNome, criarCatalogo } from "@/services/patrimonioCatalogoService";
 import { PROPRIEDADES, ROTULO_NATUREZA, ROTULO_PROPRIEDADE, UFS, campoAplicavel, capacidadesDaNatureza, ehMedidorContador } from "@/lib/patrimonioDominio";
 import {
   ABAS_BEM,
@@ -24,7 +28,6 @@ import {
   abaDoCampo,
   estadoInicialDoBem,
   formaDoEstado,
-  medicaoDoPerfil,
   medidorCorrigivel,
   mostraLeituraAtual,
   rotuloDoCentro,
@@ -32,30 +35,142 @@ import {
 } from "@/components/patrimonio/bemFormulario";
 
 export const FORMULARIO_BEM_ID = "formulario-bem-patrimonial-base1";
+const FORMULARIO_FAMILIA_RAPIDA_ID = "formulario-familia-rapida-bem";
+const FORMULARIO_TIPO_RAPIDO_ID = "formulario-tipo-rapido-bem";
 
 /** @typedef {import('./bemFormulario').EstadoBem} EstadoBem */
+/** @typedef {import('./TanquesBem').ProdutoRecusado} ProdutoRecusado */
 
-const CHAVE_PERFIS_COMPLETOS = [...CHAVE_OPCOES_PATRIMONIO, "perfis-medicao-completo"];
-const buscarPerfisCompletos = () => listarOpcoesCompletasBem("perfis-medicao", null);
+/**
+ * Ações de catálogo dentro do Bem (`acoesDeCatalogoNoBem`, D-PROD-161).
+ * @typedef {{ criarCatalogo: boolean, produtosDoTanque: boolean }} AcoesCatalogoDoBem
+ */
 
 /** @param {any} o */
 const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
+/** Texto digitado na busca → nome inicial do cadastro rápido (como digitado; o campo só exibe em maiúsculas). @param {string} busca */
+const nomeInicial = (busca) => String(busca ?? "").trim();
+
 /**
- * Formulário do Bem Patrimonial (D-PROD-157), com abas Base1:
+ * "+ Nova família" / "+ Novo tipo" do formulário do Bem (D-PROD-161, D-PROD-95):
+ * o cadastro rápido abre por cima, com Nome (+ Natureza na família). O código é
+ * gerado no servidor (P-05). Criou → o item fica escolhido no bem. 409 de nome
+ * repetido → "Já existe…" com "Usar a existente" (procura o homônimo ATIVO).
+ *
+ * Fica FORA do `<form>` do bem: o evento de envio do formulário rápido (num
+ * portal) não pode chegar ao `onSubmit` do bem.
+ *
+ * @param {{
+ *   pedido: { recurso: 'familias'|'tipos', nome: string, naturezaFixa: string|null, familia: { id: string, rotulo: string, natureza: string|null }|null } | null,
+ *   onFechar: () => void,
+ *   onEscolher: (recurso: 'familias'|'tipos', opcao: any) => void,
+ * }} props
+ */
+function CadastroRapidoCatalogoBem({ pedido, onFechar, onEscolher }) {
+  const queryClient = useQueryClient();
+  const [salvando, setSalvando] = useState(false);
+  const [duplicado, setDuplicado] = useState(/** @type {{ nome: string } | null} */ (null));
+  const [procurando, setProcurando] = useState(false);
+  const recurso = pedido?.recurso ?? "familias";
+  const ehFamilia = recurso === RECURSOS_CATALOGO.FAMILIAS;
+
+  const fechar = () => {
+    if (salvando || procurando) return;
+    setDuplicado(null);
+    onFechar();
+  };
+
+  /** @param {Record<string, any>} dados */
+  const salvar = async (dados) => {
+    if (!pedido || salvando) return;
+    setSalvando(true);
+    setDuplicado(null);
+    try {
+      const criado = await criarCatalogo(recurso, dados);
+      await queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_PATRIMONIO });
+      notifySuccess("Sucesso", ehFamilia ? "Família patrimonial criada" : "Tipo patrimonial criado");
+      onEscolher(recurso, criado);
+      onFechar();
+    } catch (erro) {
+      if (lerErroGestao(erro).code === "PATRIMONIO_NOME_DUPLICADO") setDuplicado({ nome: String(dados.nome ?? "") });
+      else notifyWarning("Atenção", mensagemErroPatrimonio(erro, ehFamilia ? "Não foi possível salvar a família." : "Não foi possível salvar o tipo."));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const usarExistente = async () => {
+    if (!pedido || !duplicado || procurando) return;
+    setProcurando(true);
+    try {
+      const existente = await buscarCatalogoPorNome(recurso, duplicado.nome, { familiaId: ehFamilia ? null : (pedido.familia?.id ?? null) });
+      if (!existente) {
+        notifyWarning(
+          "Atenção",
+          `${ehFamilia ? "A família com este nome está inativa" : "O tipo com este nome está inativo"} (ou não está disponível): reative em “⋯ › Gerenciar famílias e tipos” ou use outro nome.`,
+        );
+        return;
+      }
+      if (ehFamilia && pedido.naturezaFixa && existente.natureza !== pedido.naturezaFixa) {
+        const natureza = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[existente.natureza] ?? "outra natureza";
+        notifyWarning("Atenção", `A família existente é de ${natureza}: a natureza do bem não muda. Use outro nome.`);
+        return;
+      }
+      setDuplicado(null);
+      onEscolher(recurso, existente);
+      onFechar();
+    } catch (erro) {
+      notifyWarning("Atenção", mensagemErroPatrimonio(erro, "Não foi possível procurar o cadastro existente."));
+    } finally {
+      setProcurando(false);
+    }
+  };
+
+  const formId = ehFamilia ? FORMULARIO_FAMILIA_RAPIDA_ID : FORMULARIO_TIPO_RAPIDO_ID;
+  return (
+    <CadastroRapidoSheet open={Boolean(pedido)} onClose={fechar} title={ehFamilia ? "Nova família" : "Novo tipo"} formId={formId} saving={salvando || procurando}>
+      {pedido ? (
+        <div data-testid={ehFamilia ? "bem-familia-rapida" : "bem-tipo-rapido"}>
+          {ehFamilia ? (
+            <FormularioFamilia rapido formId={formId} naturezaFixa={pedido.naturezaFixa} initialData={{ nome: pedido.nome }} onSubmit={salvar} />
+          ) : (
+            <FormularioTipo rapido formId={formId} familiaFixa={pedido.familia} initialData={{ nome: pedido.nome }} onSubmit={salvar} />
+          )}
+          {duplicado ? (
+            <div className="px-3 pb-3">
+              <AvisoGestao testId="bem-catalogo-duplicado">
+                <p>{ehFamilia ? "Já existe uma família com este nome." : "Já existe um tipo com este nome nesta família."} Nada foi gravado.</p>
+                <button type="button" className="mt-1 min-h-8 rounded-full border border-amber-300 bg-white px-3 font-medium" onClick={usarExistente} disabled={procurando}>
+                  {procurando ? "Procurando…" : "Usar a existente"}
+                </button>
+              </AvisoGestao>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </CadastroRapidoSheet>
+  );
+}
+
+/**
+ * Formulário do Bem Patrimonial (D-PROD-157; D-PROD-161), com abas Base1:
  *  - Identificação: propriedade, responsáveis, localização e características
  *    (os campos de placa, chassi, série, potência, construção e
  *    compatibilidade aparecem só para a natureza que os admite — §2);
- *  - Medições (só benfeitorias); Operação (medidor e, para máquinas, veículos
- *    e equipamentos, os tanques); Aquisição e depreciação (com a prévia).
+ *  - Operação (medidor e, para máquinas, veículos e equipamentos, os tanques
+ *    com os Produtos aceitos); Aquisição e depreciação (com a prévia).
  *
- * A família define a NATUREZA, que não muda depois de gravada: na edição só
- * entram famílias da mesma natureza. Trocar a família limpa o tipo. Ao
- * escolher o tipo de uma benfeitoria sem medições, os perfis sugeridos dele
- * viram as primeiras medições (só os perfis ativos).
+ * Família e Tipo têm "+ Nova família"/"+ Novo tipo" (quem cadastra OU edita
+ * bem: `criarCatalogo`): o item criado fica escolhido. A família define a
+ * NATUREZA, que não muda depois de gravada: na edição só entram famílias da
+ * mesma natureza (e a família nova nasce com a natureza do bem, achado D6).
+ * Trocar a família limpa o tipo.
  *
  * Sem chave "Ativo": inativar/reativar é ação própria da tela. O envio entrega
  * a FORMA do corpo (`formaDeEdicaoDoBem`); a tela decide POST ou PATCH mínimo.
+ * `produtoRecusado` = o Produto aceito que o servidor recusou no último envio
+ * (422 `TANQUE_PRODUTO_INVALIDO`): a aba Operação o mostra marcado.
  *
  * @param {{
  *   detalhe?: any,
@@ -64,15 +179,35 @@ const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome 
  *   fuso?: string|null,
  *   readOnly?: boolean,
  *   onSubmit: (forma: Record<string, any>) => void,
+ *   acoesCatalogo?: AcoesCatalogoDoBem,
+ *   produtoRecusado?: ProdutoRecusado|null,
+ *   onRetirarRecusado?: () => void,
  * }} props
  */
-export default function FormularioBem({ detalhe = null, duplicarDe = null, empresaId, fuso = null, readOnly = false, onSubmit }) {
-  const queryClient = useQueryClient();
+export default function FormularioBem({
+  detalhe = null,
+  duplicarDe = null,
+  empresaId,
+  fuso = null,
+  readOnly = false,
+  onSubmit,
+  acoesCatalogo = { criarCatalogo: false, produtosDoTanque: false },
+  produtoRecusado = null,
+  onRetirarRecusado = undefined,
+}) {
   const editando = Boolean(detalhe?.id);
   const [form, setForm] = useState(() => estadoInicialDoBem(editando ? detalhe : duplicarDe, { duplicar: !editando && Boolean(duplicarDe) }));
-  const [aba, setAba] = useState(/** @type {string} */ (ABAS_BEM.IDENTIFICACAO));
+  const [aba, setAba] = useState(/** @type {string} */ (produtoRecusado ? ABAS_BEM.OPERACAO : ABAS_BEM.IDENTIFICACAO));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
-  const pedidoDoTipo = useRef(0);
+  const [cadastroRapido, setCadastroRapido] = useState(
+    /** @type {{ recurso: 'familias'|'tipos', nome: string, naturezaFixa: string|null, familia: { id: string, rotulo: string, natureza: string|null }|null } | null} */ (null),
+  );
+  const podeCriarCatalogo = !readOnly && acoesCatalogo.criarCatalogo === true;
+
+  // O servidor recusou um Produto aceito (422): a aba dos tanques mostra qual.
+  useEffect(() => {
+    if (produtoRecusado) setAba(ABAS_BEM.OPERACAO);
+  }, [produtoRecusado]);
 
   const natureza = form.familia?.natureza ?? null;
   const cap = capacidadesDaNatureza(natureza);
@@ -84,17 +219,6 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
   const medidorOperacional = editando ? (detalhe.medidor_operacional ?? null) : null;
   const contexto = { editando, medidorOriginal, hoje, medidorOperacional };
   const tipoDoMedidorFixo = editando && ehMedidorContador(medidorOriginal?.tipo) && !medidorCorrigivel(medidorOriginal, medidorOperacional);
-
-  const perfisQuery = useQuery({
-    queryKey: CHAVE_PERFIS_COMPLETOS,
-    queryFn: buscarPerfisCompletos,
-    enabled: !readOnly && cap?.medicoes === true,
-    staleTime: 60 * 1000,
-  });
-  const perfisAtivos = useMemo(
-    () => (perfisQuery.data ? new Map(perfisQuery.data.itens.map((/** @type {any} */ p) => [String(p.id), p])) : null),
-    [perfisQuery.data],
-  );
 
   /** Tira o erro da chave e das chaves de dentro dela (`medidor` → `medidor.tipo`). @param {string} chave */
   const limparErro = (chave) =>
@@ -122,25 +246,21 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
     limparErro("familia");
   };
 
-  const escolherTipo = (opcao) => {
-    set("tipo", referenciaDaOpcao(opcao));
-    const sugeridos = perfisDoTipo(opcao) ?? [];
-    if (readOnly || natureza !== "BENFEITORIA" || !sugeridos.length || form.medicoes.length) return;
-    // Perfis sugeridos do tipo viram as primeiras medições (só os ATIVOS; o
-    // inativo não pode ser adicionado). A escolha mais recente do tipo vence.
-    const pedido = ++pedidoDoTipo.current;
-    queryClient
-      .fetchQuery({ queryKey: CHAVE_PERFIS_COMPLETOS, queryFn: buscarPerfisCompletos, staleTime: 60 * 1000 })
-      .then(({ itens }) => {
-        if (pedido !== pedidoDoTipo.current) return;
-        const porId = new Map(itens.map((/** @type {any} */ p) => [String(p.id), p]));
-        const novas = sugeridos.filter((s) => porId.has(s.perfil_id)).map((s) => medicaoDoPerfil(porId.get(s.perfil_id), s.principal));
-        if (novas.length) setForm((prev) => (prev.medicoes.length ? prev : { ...prev, medicoes: novas }));
-      })
-      .catch(() => {
-        // Sem a lista de perfis não há pré-preenchimento: as medições continuam
-        // sendo adicionadas à mão pelo seletor da aba Medições.
-      });
+  const escolherTipo = (opcao) => set("tipo", referenciaDaOpcao(opcao));
+
+  /** "+ Nova família": na edição, a natureza fica a do bem (achado D6). @param {string} busca */
+  const pedirNovaFamilia = (busca) =>
+    setCadastroRapido({ recurso: "familias", nome: nomeInicial(busca), naturezaFixa: editando ? (detalhe.natureza ?? null) : null, familia: null });
+  /** "+ Novo tipo": na família escolhida no bem. @param {string} busca */
+  const pedirNovoTipo = (busca) => {
+    if (!form.familia) return;
+    setCadastroRapido({ recurso: "tipos", nome: nomeInicial(busca), naturezaFixa: null, familia: { id: form.familia.id, rotulo: form.familia.rotulo, natureza: form.familia.natureza } });
+  };
+  /** O item criado (ou o existente escolhido) fica escolhido no bem. @param {'familias'|'tipos'} recurso @param {any} opcao */
+  const escolherDoCadastroRapido = (recurso, opcao) => {
+    if (!opcao || typeof opcao !== "object" || !opcao.id) return;
+    if (recurso === RECURSOS_CATALOGO.FAMILIAS) escolherFamilia(opcao);
+    else escolherTipo(opcao);
   };
 
   const escolherPropriedade = (valor) => {
@@ -154,8 +274,6 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
     setForm((prev) => ({ ...prev, medidor: { ...prev.medidor, ...mudanca } }));
     limparErro("medidor");
   };
-  /** @param {(atual: EstadoBem['medicoes']) => EstadoBem['medicoes']} atualizar */
-  const alterarMedicoes = (atualizar) => setForm((prev) => ({ ...prev, medicoes: atualizar(prev.medicoes) }));
   /** @param {(atual: EstadoBem['tanques']) => EstadoBem['tanques']} atualizar */
   const alterarTanques = (atualizar) => setForm((prev) => ({ ...prev, tanques: atualizar(prev.tanques) }));
   /** @param {Partial<EstadoBem['aquisicao']>} mudanca */
@@ -191,7 +309,6 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
 
   /** @type {Array<{ id: string, label: string }>} */
   const abas = [{ id: ABAS_BEM.IDENTIFICACAO, label: "Identificação" }];
-  if (cap?.medicoes) abas.push({ id: ABAS_BEM.MEDICOES, label: "Medições" });
   if (cap && cap.medidor !== "PROIBIDO") abas.push({ id: ABAS_BEM.OPERACAO, label: "Operação" });
   abas.push({ id: ABAS_BEM.AQUISICAO, label: "Aquisição e depreciação" });
 
@@ -360,17 +477,24 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
       />
       {cap?.tanques ? (
         <>
-          <SecaoForm titulo="Tanques de combustível" />
-          <TanquesBem tanques={form.tanques} onChange={alterarTanques} readOnly={readOnly} erros={erros} limparErro={limparErro} />
+          <SecaoForm titulo="Tanques" />
+          <TanquesBem
+            tanques={form.tanques}
+            onChange={alterarTanques}
+            readOnly={readOnly}
+            erros={erros}
+            limparErro={limparErro}
+            empresaId={empresaId}
+            podeListarProdutos={acoesCatalogo.produtosDoTanque === true}
+            recusa={produtoRecusado}
+            onRetirarRecusado={onRetirarRecusado}
+          />
         </>
       ) : null}
     </div>
   );
 
   const renderAba = (/** @type {string} */ id) => {
-    if (id === ABAS_BEM.MEDICOES) {
-      return <MedicoesBem medicoes={form.medicoes} onChange={alterarMedicoes} perfisAtivos={perfisAtivos} readOnly={readOnly} erros={erros} limparErro={limparErro} />;
-    }
     if (id === ABAS_BEM.OPERACAO) return operacao();
     if (id === ABAS_BEM.AQUISICAO) {
       return (
@@ -428,6 +552,8 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
             textoVazio="— Escolha a família —"
             erro={erros.familia || undefined}
             span={4}
+            onCriarNovo={podeCriarCatalogo ? pedirNovaFamilia : undefined}
+            rotuloCriarNovo="Nova família"
           />
           <CampoTexto label="Natureza" span={2} value={rotuloNatureza} onChange={() => {}} readOnly />
           <SeletorPaginadoGestao
@@ -443,11 +569,13 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
             textoVazio="— Escolha o tipo —"
             erro={erros.tipo || undefined}
             span={6}
+            onCriarNovo={podeCriarCatalogo && form.familia ? pedirNovoTipo : undefined}
+            rotuloCriarNovo="Novo tipo"
           />
           {!natureza && !readOnly ? (
             <div className="col-span-12">
               <AvisoGestao tone="blue" testId="bem-escolha-familia">
-                Escolha a família: a natureza dela (benfeitoria, máquina, veículo…) define as abas e os campos do bem e não muda depois.
+                Escolha a família (ou crie uma em “+ Nova família”): a natureza dela (benfeitoria, máquina, veículo…) define as abas e os campos do bem e não muda depois.
               </AvisoGestao>
             </div>
           ) : null}
@@ -463,6 +591,7 @@ export default function FormularioBem({ detalhe = null, duplicarDe = null, empre
           </div>
         </form>
       </div>
+      <CadastroRapidoCatalogoBem pedido={cadastroRapido} onFechar={() => setCadastroRapido(null)} onEscolher={escolherDoCadastroRapido} />
     </CadastroFormShell>
   );
 }

@@ -1,27 +1,29 @@
 /**
- * D-PROD-159 — tela Abastecimentos montada de verdade (página, motor Base1,
- * service, API, porta e nativeHttpClient reais) sobre o backend falso
- * `abastecimentosFakeCore` (códigos/field/reason reais do contrato §6, decimais
- * como texto, idempotência por `operation_id`). Mocks só da borda: sessão e o
- * refresh do cache do Mapa.
+ * D-PROD-159, simplificada pela D-PROD-161 — tela Abastecimentos montada de
+ * verdade (página, motor Base1, service, API, porta e nativeHttpClient reais)
+ * sobre o backend falso `abastecimentosFakeCore` (códigos/field/reason reais,
+ * decimais como texto, idempotência por `operation_id`). Mocks só da borda:
+ * sessão e o refresh do cache do Mapa.
  *
- *  FE1 estados: sem empresa (nada lido), carregando, sem `ver`, sem fuso, vazio, erro;
- *  FE2 lista: filtros com a query EXATA de A1, "Carregar mais" (cursor), detalhe;
- *  FE3 formulário (UX-02, D-PROD-160): máquina → PRODUTO (o tipo vem da opção
- *      do servidor; nenhuma etapa de combustível) → local; flex; trocar o bem
- *      limpa os dependentes; leitura só em contador; texto pt-BR;
- *  FE4 revisão (prévia sem comando): resumo humano + KG; fator, FIFO e custo
- *      "estimativa" em "Detalhes do estoque"; fator ausente; mudar campo
- *      invalida a revisão;
- *  FE5 confirmação: corpo EXATO de A4, duplo clique = 1 POST, 504 → incerto e
- *      repetir com o MESMO operation_id, "Consultar" por operation_id,
- *      IDEMPOTENCY_CONFLICT, replay, invalidação de estoque/Mapa/bem;
- *  permissões negadas por padrão; totais sem float.
+ *  FE1 estados: sem empresa (nada lido), carregando, sem `ver`, sem fuso, vazio,
+ *      erro; nenhum botão de "Fatores kg/L";
+ *  FE2 lista: filtros com a query EXATA de A1, "Carregar mais" (cursor),
+ *      detalhe (quantidade + unidade, custo por L), totais por unidade;
+ *  FE3 formulário: máquina → PRODUTO (dos Produtos aceitos do tanque) → local;
+ *      flex; trocar o bem limpa os dependentes; leitura só em contador; texto
+ *      pt-BR; "Quantidade abastecida (L)";
+ *  FE4 revisão (prévia sem comando): resumo humano + baixa EXATA em L; FIFO e
+ *      custo "estimativa" em "Detalhes do estoque"; valor acima do teto e
+ *      saldo insuficiente com a unidade; mudar campo invalida a revisão;
+ *  FE5 confirmação: corpo EXATO de A4 (sem fator nem tipo), duplo clique = 1
+ *      POST, 504 → incerto e repetir com o MESMO operation_id, "Consultar" por
+ *      operation_id, IDEMPOTENCY_CONFLICT, replay, invalidação de estoque/Mapa/bem;
+ *  consumo L/h, kg/h e "unidades misturadas"; permissões negadas por padrão.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react';
 import { erroServidor, escolherOpcao } from './fixtures/gestaoBackendFake.js';
-import { semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
+import { acrescentarProduto, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
 import { abrirDetalhesDoEstoque, abrirNovo, chamadasDe, digitar, escolherNoSeletor, escolherProduto, esperarProdutoMarcado, montar, pedirPrevia, permissaoCom, preencherTrator, prepararAmbiente } from './fixtures/abastecimentosTela.jsx';
 
 const sessao = vi.hoisted(() => ({ permissao: /** @type {any} */ (null), clienteId: 'cli-1', pendente: false }));
@@ -37,7 +39,6 @@ vi.mock('@/services/mapaCacheService', async (importOriginal) => ({
   refreshMapaCacheEntry: vi.fn(async () => []),
 }));
 
-const TODAS = { novo: true, salvar: true, cancelar: true, configurar_conversao: true };
 const CHAVE_PENDENTE = 'maike_lancamento_pendente:abastecimento:cli-1:operador:criar:emp-1:novo';
 
 let amb;
@@ -61,12 +62,14 @@ const esperar = (ms = 30) => act(async () => { await new Promise((r) => setTimeo
 
 const semearTrator = (extra = {}) =>
   semearAbastecimento(amb.estado, {
-    bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-    data_operacional: '2026-06-10', quantidade_litros: '10', medidor_leitura: '1530.5', tanque_cheio: false, ...extra,
+    bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1',
+    data_operacional: '2026-06-10', quantidade: '10', medidor_leitura: '1530.5', tanque_cheio: false, ...extra,
   });
+/** Produto em KG aceito pelo tanque do trator (500 kg no local l1). */
+const aceitarKgNoTrator = () => acrescentarProduto(amb.estado, 'p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000', custo: '4.0000', tanques: [['b1', 'tq1']] });
 
 describe('FE1 — estados da tela', () => {
-  it('sem empresa real: aviso e nada é lido (nem Novo nem Fatores)', async () => {
+  it('sem empresa real: aviso e nada é lido (nem Novo; o botão "Fatores kg/L" não existe mais)', async () => {
     window.localStorage.setItem('empresa_selecionada_id', 'cli-1');
     await montar();
     expect(await screen.findByTestId('abastecimento-sem-empresa')).toHaveTextContent('Selecione uma fazenda para ver e lançar abastecimentos.');
@@ -84,7 +87,7 @@ describe('FE1 — estados da tela', () => {
     expect(listagens()).toEqual([]);
   });
 
-  it('sem a linha pat-abastecimentos (negado por padrão): sem lista, sem Novo, sem Fatores', async () => {
+  it('sem a linha pat-abastecimentos (negado por padrão): sem lista, sem Novo', async () => {
     sessao.permissao = { user_email: 'operador', modulos_permitidos: ['patrimonio'], permissoes_telas: [{ tela_id: 'pat-bens-patrimoniais', visualizar: true, novo: true, salvar: true, editar: true, inativar: true }] };
     await montar();
     expect(await screen.findByTestId('abastecimento-sem-permissao')).toHaveTextContent('Você não tem permissão para ver os abastecimentos desta fazenda.');
@@ -157,18 +160,22 @@ describe('FE2 — lista, filtros e detalhe', () => {
     expect(listagens().length).toBe(antes);
   });
 
-  it('abre o DETALHE com empresa_id: litros, fator snapshot, KG, custo FIFO, lotes, movimento e leitura', async () => {
-    await semearTrator({ quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: true });
+  it('abre o DETALHE com empresa_id: quantidade + unidade, custo FIFO por L, lotes, movimento e leitura; sem tipo nem fator', async () => {
+    await semearTrator({ quantidade: '80', medidor_leitura: '1550.5', tanque_cheio: true });
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-1'));
     const consulta = await screen.findByTestId('abastecimento-consulta');
     expect(chamadasDe(amb.backend, 'GET', '/patrimonio-abastecimentos/ab-1')[0].query).toEqual({ empresa_id: 'emp-1' });
-    expect(within(consulta).getByTestId('consulta-litros')).toHaveTextContent('80,0000 L');
-    expect(within(consulta).getByTestId('consulta-fator')).toHaveTextContent('0,840000 kg/L (versão 1)');
-    expect(within(consulta).getByTestId('consulta-kg')).toHaveTextContent('67,2000 kg');
-    expect(within(consulta).getByTestId('consulta-custo').textContent).toMatch(/R\$\s354,60 \(R\$\s5,2768\/kg\)/);
-    expect(within(within(consulta).getByTestId('consulta-fatias')).getAllByRole('row')).toHaveLength(3);
+    expect(within(consulta).getByTestId('consulta-quantidade')).toHaveTextContent('80,0000 L');
+    // 50 L × 5,20 + 30 L × 5,50 = 425,00 → 5,3125 por litro.
+    expect(within(consulta).getByTestId('consulta-custo').textContent).toMatch(/R\$\s425,00 \(R\$\s5,3125\/L\)/);
+    const fatias = within(consulta).getByTestId('consulta-fatias');
+    expect(within(fatias).getAllByRole('row')).toHaveLength(3);
+    expect(within(fatias).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Ordem', 'Lote de', 'Quantidade (L)', 'Custo/L', 'Valor']);
     expect(within(consulta).getByTestId('consulta-movimento')).toHaveTextContent(/Saída de estoque nº 41/);
+    expect(within(consulta).getByTestId('consulta-movimento').textContent).toMatch(/80,0000 L × R\$\s5,3125\/L = R\$\s425,00/);
+    for (const id of ['consulta-tipo', 'consulta-fator', 'consulta-kg', 'consulta-litros']) expect(within(consulta).queryByTestId(id)).toBeNull();
+    expect(consulta).not.toHaveTextContent(/kg\/L|Tipo de combustível|Fator/);
     expect(within(consulta).getByTestId('consulta-leitura')).toHaveTextContent('1.550,5 h');
     expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('Dados insuficientes');
     expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('não há abastecimento anterior com tanque cheio neste tanque');
@@ -176,22 +183,31 @@ describe('FE2 — lista, filtros e detalhe', () => {
     expect(within(consulta).queryByTestId('abastecimento-cancelar')).toBeNull();
   });
 
-  it('totais da lista sem float: 0,1 L + 0,2 L = 0,3000 L (e o KG exato)', async () => {
-    await semearTrator({ quantidade_litros: '0.1', medidor_leitura: '1525.0' });
-    await semearTrator({ quantidade_litros: '0.2', medidor_leitura: '1526.0' });
+  it('totais da lista sem float e POR UNIDADE: 0,1 L + 0,2 L = 0,3000 L; os quilos à parte (nunca se somam com litros)', async () => {
+    aceitarKgNoTrator();
+    await semearTrator({ quantidade: '0.1', medidor_leitura: '1525.0' });
+    await semearTrator({ quantidade: '0.2', medidor_leitura: '1526.0' });
+    await semearTrator({ produto_id: 'p6', quantidade: '45.5', medidor_leitura: '1527.0' });
     await montar();
-    expect(await screen.findByTestId('abastecimento-totais')).toHaveTextContent('Confirmados na lista: 2 · 0,3000 L · 0,2520 kg');
+    expect(await screen.findByTestId('abastecimento-totais')).toHaveTextContent('Confirmados na lista: 3 · 0,3000 L · 45,5000 kg');
+    // A coluna Quantidade mostra o número com a unidade de CADA abastecimento.
+    expect(screen.getByTestId('abastecimento-bem-ab-3').closest('tr')).toHaveTextContent('45,5000 kg');
+    expect(screen.getByTestId('abastecimento-bem-ab-1').closest('tr')).toHaveTextContent('0,1000 L');
     expect(0.1 + 0.2).not.toBe(0.3);
   });
 });
 
 describe('FE3 — formulário', () => {
-  it('máquina → Produto (único: já marcado) → local automático; sem etapa de combustível; trocar o bem limpa os dependentes', async () => {
+  it('máquina → Produto (único aceito: já marcado) → local automático; sem etapa de combustível; trocar o bem limpa os dependentes', async () => {
     await montar();
     const form = await abrirNovo();
-    // Sem máquina não há escolha de Produto.
+    // Sem máquina não há escolha de Produto; sem Produto a quantidade não tem unidade.
     expect(within(form).queryByTestId('abastecimento-produto')).toBeNull();
+    expect(within(form).getByText('Quantidade abastecida')).toBeTruthy();
     await preencherTrator(form, { tanqueCheio: false });
+    // A unidade do Produto (L) no rótulo; Produto em L não tem a dica de quilos.
+    expect(within(form).getByText('Quantidade abastecida (L)')).toBeTruthy();
+    expect(within(form).queryByTestId('abastecimento-dica-kg')).toBeNull();
     expect(within(form).getByTestId('abastecimento-ultima-leitura')).toHaveTextContent('Última leitura: 1.520,5 h em 01/06/2026 (cadastro do bem)');
     // O tipo de combustível NUNCA é etapa nem rótulo do formulário.
     expect(within(form).queryByTestId('abastecimento-combustivel')).toBeNull();
@@ -206,7 +222,7 @@ describe('FE3 — formulário', () => {
     const grupo = await within(form).findByTestId('abastecimento-produto');
     expect(within(grupo).getAllByRole('radio').map((r) => [r.textContent, r.getAttribute('aria-checked')])).toEqual([
       ['Etanol hidratado', 'false'],
-      ['Gasolina comum (sem fator kg/L)', 'false'],
+      ['Gasolina comum', 'false'],
     ]);
     expect(within(form).queryByTestId('abastecimento-local-auto')).toBeNull();
     expect(within(form).getByTestId('abastecimento-leitura')).toHaveValue('');
@@ -214,31 +230,33 @@ describe('FE3 — formulário', () => {
     await escolherProduto(form, 'Etanol hidratado');
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Sai do estoque: Posto da fazenda'));
     expect(chamadasDe(amb.backend, 'GET', '/patrimonio-abastecimentos-opcoes/produtos-do-bem').at(-1).query).toEqual({ empresa_id: 'emp-1', bem_id: 'b2', limit: '100' });
-    // As leituras antigas (tanque → combustível → produtos do tipo) não são mais usadas pelo formulário.
+    // As leituras antigas (tanque → combustível → produtos do tipo) e os fatores não são usados pelo formulário.
     for (const rota of ['tanques', 'tipos', 'produtos']) expect(chamadasDe(amb.backend, 'GET', `/patrimonio-abastecimentos-opcoes/${rota}`)).toEqual([]);
+    expect(amb.backend.chamadas.filter((c) => c.path.startsWith('/patrimonio-conversoes'))).toEqual([]);
   });
 
-  it('bem sem medidor não pede leitura e o corpo leva medidor_leitura null; litros em texto pt-BR (0,1 → "0.1")', async () => {
+  it('bem sem medidor não pede leitura e o corpo leva medidor_leitura null; quantidade em texto pt-BR (0,1 → "0.1")', async () => {
     await montar();
     const form = await abrirNovo();
     await escolherNoSeletor(form, 'abastecimento-bem', /Gerador/);
     await esperarProdutoMarcado(form, 'Diesel S10 granel');
     expect(within(form).queryByTestId('abastecimento-leitura')).toBeNull();
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
-    digitar(form, 'abastecimento-litros', '0,1');
+    digitar(form, 'abastecimento-quantidade', '0,1');
     await pedirPrevia(form);
     expect(previas()[0].body).toEqual({
-      empresa_id: 'emp-1', bem_id: 'b3', tanque_id: 'tq3', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-      data_operacional: amb.estado.hoje, quantidade_litros: '0.1', medidor_leitura: null, tanque_cheio: false, observacao: null, referencia_externa: null,
+      empresa_id: 'emp-1', bem_id: 'b3', tanque_id: 'tq3', produto_id: 'p1', local_estoque_id: 'l1',
+      data_operacional: amb.estado.hoje, quantidade: '0.1', medidor_leitura: null, tanque_cheio: false, observacao: null, referencia_externa: null,
     });
   });
 
-  it('validação local antes da revisão: obrigatórios, leitura do contador, litros acima da capacidade — nada é enviado', async () => {
+  it('validação local antes da revisão: obrigatórios, leitura do contador, litros acima da capacidade (Produto em L) — nada é enviado', async () => {
     await montar();
     const form = await abrirNovo();
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     expect(await within(form).findByText('Escolha a máquina ou veículo.')).toBeTruthy();
-    await preencherTrator(form, { litros: '180,0001', leitura: null });
+    expect(within(form).getByText('Informe a quantidade abastecida.')).toBeTruthy();
+    await preencherTrator(form, { quantidade: '180,0001', leitura: null });
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     expect(await within(form).findByText('Os litros passam da capacidade nominal do tanque.')).toBeTruthy();
     expect(within(form).getByText('Informe a leitura do medidor.')).toBeTruthy();
@@ -248,7 +266,7 @@ describe('FE3 — formulário', () => {
 });
 
 describe('FE4 — revisão (prévia)', () => {
-  it('revisão SEM comando: resumo humano e baixa em KG; fator, FIFO e custo "estimativa" em Detalhes do estoque; mudar campo invalida', async () => {
+  it('revisão SEM comando: resumo humano e baixa EXATA em L; FIFO e custo "estimativa" em Detalhes do estoque; mudar campo invalida', async () => {
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
@@ -256,72 +274,55 @@ describe('FE4 — revisão (prévia)', () => {
     expect(confirmacoes()).toEqual([]);
     expect(previas()).toHaveLength(1);
     expect(within(dialogo).getByRole('heading', { name: 'Revisar abastecimento' })).toBeTruthy();
-    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('TP-02 — Trator TP-02 · Diesel S10 granel · 80 L. Baixa de 67,2000 kg do estoque em Tanque diesel sede.');
-    expect(within(dialogo).getByTestId('previa-kg')).toHaveTextContent('67,2000 kg');
+    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('TP-02 — Trator TP-02 · Diesel S10 granel · 80 L. Baixa de 80,0000 L do estoque em Tanque diesel sede.');
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('80,0000 L');
+    expect(within(dialogo).queryByTestId('previa-dica-kg')).toBeNull();
     const detalhes = abrirDetalhesDoEstoque(dialogo);
-    expect(within(detalhes).getByTestId('previa-fator')).toHaveTextContent('0,840000 kg/L (versão 1)');
-    expect(within(detalhes).getByTestId('previa-custo')).toHaveTextContent(/R\$\s354,60/);
+    expect(within(detalhes).getByTestId('previa-capacidade')).toHaveTextContent('conferida (Produto em litros)');
+    expect(within(detalhes).getByTestId('previa-custo')).toHaveTextContent(/R\$\s425,00 \(R\$\s5,3125\/L\)/);
     expect(within(detalhes).getByTestId('previa-custo')).toHaveTextContent('estimativa; o custo final é calculado na confirmação');
+    expect(within(detalhes).getByTestId('previa-saldo')).toHaveTextContent('150,0000 L');
     const linhas = within(within(detalhes).getByTestId('previa-fatias')).getAllByRole('row');
     expect(linhas.map((l) => l.textContent)).toEqual([
-      expect.stringContaining('Lote de'),
+      expect.stringMatching(/Lote de.*Quantidade \(L\).*Custo\/L.*Valor/),
       expect.stringMatching(/01\/06\/2026.*50,0000.*5,20.*260,00/),
-      expect.stringMatching(/03\/06\/2026.*17,2000.*5,50.*94,60/),
+      expect.stringMatching(/03\/06\/2026.*30,0000.*5,50.*165,00/),
     ]);
+    expect(dialogo).not.toHaveTextContent(/kg\/L|Fator|Tipo de combustível/);
     expect(within(dialogo).getByTestId('abastecimento-confirmar')).toHaveTextContent('Confirmar abastecimento');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Voltar' }));
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
     expect(within(form).getByTestId('abastecimento-reabrir-previa')).toHaveTextContent('Voltar à revisão');
-    digitar(form, 'abastecimento-litros', '81');
+    digitar(form, 'abastecimento-quantidade', '81');
     expect(await within(form).findByTestId('abastecimento-previa-invalidada')).toHaveTextContent('Os dados mudaram desde a revisão: revise de novo antes de confirmar.');
     expect(within(form).queryByTestId('abastecimento-reabrir-previa')).toBeNull();
   });
 
-  it('bloqueio de quantidade (0 kg arredondado; acima do teto do estoque): a revisão não mostra o KG como baixa', async () => {
-    amb.estado.conversoes.find((c) => c.id === 'f1').kg_por_litro = '0.400000';
+  it('valor acima do teto do estoque (bloqueio de quantidade do servidor): a revisão não mostra a quantidade como baixa', async () => {
+    amb.estado.lotes.find((l) => l.id === 'lote-A').custo = '9999999999.0000';
     await montar();
     const form = await abrirNovo();
-    await preencherTrator(form, { litros: '0,0001', tanqueCheio: false });
+    await preencherTrator(form, { quantidade: '2', tanqueCheio: false });
     const dialogo = await pedirPrevia(form);
     expect(within(dialogo).getByTestId('previa-bloqueios').querySelector('[data-codigo="OPERACAO_VALORES_INVALIDOS"]')).toBeTruthy();
     expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('Nada foi gravado: confira abaixo o que impede a confirmação.');
     expect(within(dialogo).getByTestId('previa-resumo')).not.toHaveTextContent(/Baixa de/);
-    expect(within(dialogo).getByTestId('previa-kg')).toHaveTextContent(/^—$/);
-    expect(within(abrirDetalhesDoEstoque(dialogo)).getByTestId('previa-fator')).toHaveTextContent('0,400000 kg/L');
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent(/^—$/);
+    // O que foi digitado continua à vista, na unidade do Produto.
+    expect(within(dialogo).getByTestId('previa-quantidade')).toHaveTextContent('2 L');
     expect(within(dialogo).queryByTestId('abastecimento-confirmar')).toBeNull();
   });
 
-  it('fator ausente: bloqueio legível, sem Confirmar; "Configurar fator kg/L" só com configurar_conversao', async () => {
-    const preencherFlexGasolina = async (form) => {
-      await escolherNoSeletor(form, 'abastecimento-bem', /Caminhonete flex/);
-      await escolherProduto(form, 'Gasolina comum (sem fator kg/L)');
-      expect(within(form).getByTestId('abastecimento-sem-fator')).toHaveTextContent('Configure o fator kg/L deste Produto nesta fazenda antes de abastecer.');
-      await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Posto da fazenda'));
-      digitar(form, 'abastecimento-litros', '30');
-      digitar(form, 'abastecimento-leitura', '35300');
-    };
+  it('saldo insuficiente: bloqueio legível na unidade do Produto (L), sem Confirmar; a baixa pedida continua visível', async () => {
     await montar();
-    let form = await abrirNovo();
-    await preencherFlexGasolina(form);
-    expect(within(form).queryByTestId('abastecimento-form-configurar-fator')).toBeNull();
-    expect(within(form).getByTestId('abastecimento-sem-fator')).toHaveTextContent('Peça a quem configura o fator kg/L.');
-    let dialogo = await pedirPrevia(form);
-    expect(within(dialogo).getByTestId('previa-bloqueios')).toHaveTextContent('Não há fator kg/L configurado para este Produto nesta fazenda. Configure o fator antes de confirmar.');
-    expect(within(dialogo).getByTestId('previa-bloqueios')).not.toHaveTextContent('Nada foi gravado');
+    const form = await abrirNovo();
+    await preencherTrator(form, { quantidade: '160', tanqueCheio: false });
+    const dialogo = await pedirPrevia(form);
+    const bloqueios = within(dialogo).getByTestId('previa-bloqueios');
+    expect(bloqueios).toHaveTextContent('Saldo insuficiente deste Produto neste local: disponível 150 L, pedido 160 L.');
+    expect(bloqueios).not.toHaveTextContent('Nada foi gravado');
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('160,0000 L');
     expect(within(dialogo).queryByTestId('abastecimento-confirmar')).toBeNull();
-    expect(within(dialogo).queryByTestId('abastecimento-configurar-fator')).toBeNull();
-    cleanup();
-
-    sessao.permissao = permissaoCom(TODAS);
-    await montar();
-    form = await abrirNovo();
-    await preencherFlexGasolina(form);
-    dialogo = await pedirPrevia(form);
-    fireEvent.click(within(dialogo).getByTestId('abastecimento-configurar-fator'));
-    const conversoes = await screen.findByTestId('conversoes-combustivel');
-    expect(within(conversoes).getByTestId('conversao-tipo')).toHaveTextContent('Gasolina');
-    expect(within(conversoes).getByTestId('conversao-produto')).toHaveTextContent('Gasolina comum');
-    expect(within(conversoes).getByTestId('conversao-vigente')).toHaveTextContent('Este par não tem fator vigente: salvar cria uma nova versão.');
   });
 });
 
@@ -355,12 +356,12 @@ describe('FE5 — confirmação idempotente', () => {
     expect(await screen.findByTestId('abastecimento-consulta')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(1);
     expect(confirmacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-      data_operacional: amb.estado.hoje, quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: true, observacao: null, referencia_externa: null,
-      conversao_id: 'f1', conversao_versao: 1, operation_id: expect.stringMatching(/^lanc-[A-Za-z0-9_.:-]{8,123}$/),
+      empresa_id: 'emp-1', bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1',
+      data_operacional: amb.estado.hoje, quantidade: '80', medidor_leitura: '1550.5', tanque_cheio: true, observacao: null, referencia_externa: null,
+      operation_id: expect.stringMatching(/^lanc-[A-Za-z0-9_.:-]{8,123}$/),
     });
-    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque.')).toBeTruthy();
-    expect(screen.getByTestId('consulta-kg')).toHaveTextContent('67,2000 kg');
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 80,0000 L baixados do estoque.')).toBeTruthy();
+    expect(screen.getByTestId('consulta-quantidade')).toHaveTextContent('80,0000 L');
     expect(refreshMapaCacheEntry).toHaveBeenCalledWith('estoqueLotes', 'emp-1', { force: true });
     expect(refreshMapaCacheEntry).toHaveBeenCalledWith('movimentacaoEstoque', 'emp-1', { force: true });
     expect(eventos).toEqual([{ cacheKeys: ['estoqueLotes'] }]);
@@ -368,8 +369,9 @@ describe('FE5 — confirmação idempotente', () => {
     expect(qc.getQueryState(['bens-patrimoniais', 'detalhe', 'emp-1', 'b1']).isInvalidated).toBe(true);
     expect(qc.getQueryState(['saldo-deposito', 'emp-1']).isInvalidated).toBe(true);
     expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
-    // Estoque baixado exatamente pelos lotes (FIFO).
-    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '82.8000']);
+    // Estoque baixado EXATAMENTE em 80 L pelos lotes (FIFO: 50 do A + 30 do B), sem conversão.
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '70.0000']);
+    expect(amb.estado.produtos.find((p) => p.id === 'p1').estoque_atual).toBe('70.0000');
     window.removeEventListener('atualizar-mapa', ouvir);
   });
 
@@ -384,7 +386,7 @@ describe('FE5 — confirmação idempotente', () => {
     expect(screen.queryByText(/confirmado:/)).toBeNull();
     expect(JSON.parse(window.localStorage.getItem(CHAVE_PENDENTE)).operation_id).toBe(confirmacoes()[0].body.operation_id);
     await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
-    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 80,0000 L baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(2);
     expect(confirmacoes()[1].body.operation_id).toBe(confirmacoes()[0].body.operation_id);
     expect(amb.estado.abastecimentos).toHaveLength(1);
@@ -438,11 +440,11 @@ describe('FE5 — confirmação idempotente', () => {
       'O abastecimento nº 1 foi gravado, mas não foi possível abri-lo agora. Consulte de novo ou abra pela lista; repetir o mesmo envio não grava outro.',
     );
     await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
-    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 80,0000 L baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(2);
     expect(confirmacoes()[1].body.operation_id).toBe(chave);
     expect(amb.estado.abastecimentos).toHaveLength(1);
-    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '82.8000']);
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '70.0000']);
     expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
   });
 
@@ -461,7 +463,7 @@ describe('FE5 — confirmação idempotente', () => {
     await within(dialogo).findByTestId('resultado-incerto');
     expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
     await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
-    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 80,0000 L baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(2);
     expect(confirmacoes()[1].body.operation_id).toBe(confirmacoes()[0].body.operation_id);
     expect(amb.estado.abastecimentos).toHaveLength(1);
@@ -488,14 +490,14 @@ describe('FE5 — confirmação idempotente', () => {
     expect(within(dialogo).queryByTestId('erro-envio')).toBeNull();
     expect(within(dialogo).getByTestId('botao-consultar-resultado')).toBeTruthy();
     await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
-    expect(await screen.findByText(/Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque\./)).toBeTruthy();
+    expect(await screen.findByText(/Abastecimento nº 1 confirmado: 80,0000 L baixados do estoque\./)).toBeTruthy();
     const chaves = confirmacoes().map((c) => c.body.operation_id);
     expect(chaves).toHaveLength(3);
     expect(new Set(chaves).size).toBe(1);
     expect(amb.estado.abastecimentos).toHaveLength(1);
   });
 
-  it('IDEMPOTENCY_CONFLICT com mensagem própria; fator encerrado entre prévia e confirmação → 422 legível', async () => {
+  it('IDEMPOTENCY_CONFLICT com mensagem própria; 422 ABASTECIMENTO_PRODUTO_NAO_ACEITO aponta para os Produtos aceitos em Bens', async () => {
     amb.estado.proxima = erroServidor(409, 'IDEMPOTENCY_CONFLICT', { details: { operation_id: 'x', tipo_operacao: 'confirmar_abastecimento_bem' } });
     await montar();
     const form = await abrirNovo();
@@ -507,40 +509,74 @@ describe('FE5 — confirmação idempotente', () => {
     );
     // Recusa definitiva libera a pendência.
     expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
-    amb.estado.conversoes.find((c) => c.id === 'f1').ativo = false;
+    // Resposta forçada (o estado do fake não muda: as opções relidas continuam as mesmas e a revisão segue aberta).
+    amb.estado.proxima = erroServidor(422, 'ABASTECIMENTO_PRODUTO_NAO_ACEITO', { field: 'produto_id', reason: 'nao_aceito_pelo_tanque', details: { field: 'produto_id', reason: 'nao_aceito_pelo_tanque' } });
     await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
     await waitFor(() =>
       expect(within(dialogo).getByTestId('erro-envio')).toHaveTextContent(
-        'Não há fator kg/L configurado para este Produto nesta fazenda. Configure o fator antes de confirmar. Nada foi gravado.',
+        'O tanque escolhido não aceita este Produto. Marque o Produto nos Produtos aceitos do tanque em Bens Patrimoniais. Nada foi gravado.',
       ),
     );
     expect(amb.estado.abastecimentos).toEqual([]);
   });
 });
 
-describe('Consumo do bem', () => {
-  it('horímetro TP-02: 3º abastecimento 5 L/h; 1º e 2º com "dados insuficientes"; painel com metodologia', async () => {
+describe('Consumo do bem (D-PROD-161, P-03: métrica pela unidade do Produto)', () => {
+  it('horímetro TP-02 em L: 3º abastecimento 5 L/h; 1º e 2º com "dados insuficientes"; painel com metodologia', async () => {
     amb.estado.lotes.find((l) => l.id === 'lote-B').disponivel = '500.0000';
-    await semearTrator({ data_operacional: '2026-06-05', medidor_leitura: '1530.5', quantidade_litros: '100', tanque_cheio: true });
-    await semearTrator({ data_operacional: '2026-06-08', medidor_leitura: '1540.5', quantidade_litros: '40', tanque_cheio: false });
-    await semearTrator({ data_operacional: '2026-06-10', medidor_leitura: '1550.5', quantidade_litros: '60', tanque_cheio: true });
+    amb.estado.produtos.find((p) => p.id === 'p1').estoque_atual = '550.0000';
+    await semearTrator({ data_operacional: '2026-06-05', medidor_leitura: '1530.5', quantidade: '100', tanque_cheio: true });
+    await semearTrator({ data_operacional: '2026-06-08', medidor_leitura: '1540.5', quantidade: '40', tanque_cheio: false });
+    await semearTrator({ data_operacional: '2026-06-10', medidor_leitura: '1550.5', quantidade: '60', tanque_cheio: true });
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-3'));
     const consulta = await screen.findByTestId('abastecimento-consulta');
     expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('Consumo: 5 L/h');
+    expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('100,0000 L em 20 h desde o tanque cheio anterior.');
     fireEvent.click(within(consulta).getByTestId('abastecimento-ver-consumo-bem'));
     const painel = await screen.findByTestId('painel-consumo-bem');
     const linhas = await within(painel).findAllByRole('row');
     expect(linhas.map((l) => l.textContent)).toEqual([
-      expect.stringContaining('Tanque'),
+      expect.stringMatching(/Tanque.*Quantidade/),
       expect.stringMatching(/10\/06\/2026.*20 h.*100,0000 L.*5 L\/h/),
       expect.stringMatching(/05\/06\/2026.*dados insuficientes/),
     ]);
     expect(within(painel).getByTestId('consumo-metodologia')).toHaveTextContent('Método do tanque cheio');
   });
 
+  it('Produto em KG: kg/h no horímetro; intervalo com L e kg misturados → "dados insuficientes" (nunca soma litro com quilo)', async () => {
+    aceitarKgNoTrator();
+    await semearTrator({ produto_id: 'p6', data_operacional: '2026-06-05', medidor_leitura: '1530.5', quantidade: '100', tanque_cheio: true });
+    await semearTrator({ produto_id: 'p6', data_operacional: '2026-06-10', medidor_leitura: '1550.5', quantidade: '60', tanque_cheio: true });
+    await semearTrator({ data_operacional: '2026-06-11', medidor_leitura: '1555.5', quantidade: '10', tanque_cheio: false });
+    await semearTrator({ produto_id: 'p6', data_operacional: '2026-06-12', medidor_leitura: '1560.5', quantidade: '20', tanque_cheio: true });
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-2'));
+    let consulta = await screen.findByTestId('abastecimento-consulta');
+    expect(within(consulta).getByTestId('consulta-quantidade')).toHaveTextContent('60,0000 kg');
+    expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('Consumo: 3 kg/h');
+    expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('60,0000 kg em 20 h desde o tanque cheio anterior.');
+    fireEvent.click(within(consulta).getByTestId('abastecimento-ver-consumo-bem'));
+    const painel = await screen.findByTestId('painel-consumo-bem');
+    const linhas = await within(painel).findAllByRole('row');
+    expect(linhas.map((l) => l.textContent)).toEqual([
+      expect.stringMatching(/Tanque.*Quantidade/),
+      expect.stringMatching(/12\/06\/2026.*10 h.*dados insuficientes/),
+      expect.stringMatching(/10\/06\/2026.*20 h.*60,0000 kg.*3 kg\/h/),
+      expect.stringMatching(/05\/06\/2026.*dados insuficientes/),
+    ]);
+    fireEvent.click(within(painel).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByTestId('painel-consumo-bem')).toBeNull());
+    cleanup();
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-4'));
+    consulta = await screen.findByTestId('abastecimento-consulta');
+    expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('Dados insuficientes');
+    expect(within(consulta).getByTestId('abastecimento-consumo')).toHaveTextContent('o intervalo tem abastecimentos em litros e em quilos, que não se somam');
+  });
+
   it('bem sem medidor: consumo não se aplica', async () => {
-    await semearAbastecimento(amb.estado, { bem_id: 'b3', tanque_id: 'tq3', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1', data_operacional: '2026-06-10', quantidade_litros: '10', tanque_cheio: true });
+    await semearAbastecimento(amb.estado, { bem_id: 'b3', tanque_id: 'tq3', produto_id: 'p1', local_estoque_id: 'l1', data_operacional: '2026-06-10', quantidade: '10', tanque_cheio: true });
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-1'));
     const consulta = await screen.findByTestId('abastecimento-consulta');

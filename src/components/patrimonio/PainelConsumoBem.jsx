@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as UiDialog from "@/components/ui/dialog";
 import { consumoDoBem } from "@/services/abastecimentoService";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
-import { formatarDiaAbastecimento, formatarLeitura, formatarLitros, rotuloDoBem } from "@/lib/abastecimentoRegras";
+import { UNIDADE_MEDIDOR, formatarDiaAbastecimento, formatarLeitura, formatarQuantidade, rotuloDoBem } from "@/lib/abastecimentoRegras";
 import { MOTIVO_CONSUMO } from "@/components/patrimonio/ConsultaAbastecimento";
 import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 
@@ -18,8 +18,10 @@ const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 export const chaveConsumoBem = (empresaId, bemId) => ["patrimonio-abastecimentos", "consumo", empresaId, bemId];
 
 /**
- * Consumo do bem pelo método do tanque cheio (km/L no odômetro, L/h no
- * horímetro). Sem dois tanques cheios consecutivos com leitura: "dados
+ * Consumo do bem pelo método do tanque cheio. D-PROD-161 (P-03): a métrica é
+ * de CADA intervalo, pela unidade do Produto (odômetro: km/L ou km/kg;
+ * horímetro: L/h ou kg/h); litros e quilos misturados no intervalo não têm
+ * métrica. Sem dois tanques cheios consecutivos com leitura: "dados
  * insuficientes". Sem medidor ou de ciclos: não se aplica.
  * @param {{ aberto: boolean, empresaId: string|null, bem: any, onFechar: () => void }} props
  */
@@ -34,7 +36,8 @@ export default function PainelConsumoBem({ aberto, empresaId, bem, onFechar }) {
   const dados = /** @type {any} */ (consulta.data ?? null);
   const intervalos = Array.isArray(dados?.intervalos) ? dados.intervalos : [];
   const naoAplica = dados?.situacao_geral === "NAO_APLICAVEL";
-  const unidadeIntervalo = dados?.metrica === "KM_POR_LITRO" ? "km" : "h";
+  // A unidade do intervalo vem do MEDIDOR do bem (km no odômetro, h no horímetro), mesmo sem métrica.
+  const unidadeIntervalo = UNIDADE_MEDIDOR[String(dados?.bem?.medidor_tipo ?? "")] ?? "";
 
   let corpo;
   if (consulta.isLoading) corpo = <p role="status">Carregando consumo…</p>;
@@ -58,7 +61,7 @@ export default function PainelConsumoBem({ aberto, empresaId, bem, onFechar }) {
               <th className="py-1 pr-2">Tanque</th>
               <th className="py-1 pr-2">De → até</th>
               <th className="py-1 pr-2 text-right">Intervalo</th>
-              <th className="py-1 pr-2 text-right">Litros</th>
+              <th className="py-1 pr-2 text-right">Quantidade</th>
               <th className="py-1 text-right">Consumo</th>
             </tr>
           </thead>
@@ -69,12 +72,12 @@ export default function PainelConsumoBem({ aberto, empresaId, bem, onFechar }) {
                 <td className="py-1 pr-2">
                   {it.data_inicial ? formatarDiaAbastecimento(it.data_inicial) : "—"} → {formatarDiaAbastecimento(it.data_final)}
                 </td>
-                <td className="py-1 pr-2 text-right tabular-nums">{it.intervalo ? `${formatarLeitura(it.intervalo)} ${unidadeIntervalo}` : "—"}</td>
-                <td className="py-1 pr-2 text-right tabular-nums">{it.litros ? `${formatarLitros(it.litros)} L` : "—"}</td>
+                <td className="py-1 pr-2 text-right tabular-nums">{it.intervalo ? `${formatarLeitura(it.intervalo)}${unidadeIntervalo ? ` ${unidadeIntervalo}` : ""}` : "—"}</td>
+                <td className="py-1 pr-2 text-right tabular-nums">{it.quantidade ? formatarQuantidade(it.quantidade, it.unidade) : "—"}</td>
                 <td className="py-1 text-right">
                   {it.situacao === "CALCULADO" ? (
                     <span className="font-semibold tabular-nums">
-                      {formatarLeitura(it.valor)} {dados.unidade_metrica}
+                      {formatarLeitura(it.valor)} {it.unidade_metrica}
                     </span>
                   ) : (
                     <span className="text-[var(--mg-text-2,#475569)]" title={MOTIVO_CONSUMO[String(it.motivo ?? "")] ?? undefined}>

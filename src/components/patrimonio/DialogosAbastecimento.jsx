@@ -3,14 +3,16 @@ import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
 import * as UiDialog from "@/components/ui/dialog";
 import { mensagemDoBloqueioAbastecimento, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import {
+  DICA_PRODUTO_EM_KG,
   UNIDADE_MEDIDOR,
   formatarCusto,
   formatarDiaAbastecimento,
-  formatarFator,
-  formatarKg,
   formatarLeitura,
   formatarLitrosCurto,
-  kgDaBaixaNaPrevia,
+  formatarQuantidade,
+  formatarQuantidadeCurta,
+  quantidadeDaBaixaNaPrevia,
+  rotuloDaUnidade,
   rotuloDoBem,
 } from "@/lib/abastecimentoRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
@@ -132,37 +134,38 @@ function Linha({ rotulo, valor, testId = undefined }) {
 
 /**
  * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
- * (UX-02, D-PROD-160). Resumo humano: máquina, Produto, litros, medidor, tanque
- * cheio, data, local e a baixa em KG. Os dados técnicos (tipo de combustível,
- * tanque, fator kg/L e versão, custo estimado, saldo e lotes FIFO) ficam em
- * "Detalhes do estoque", recolhido. Com bloqueio não há "Confirmar".
- * `onConsultar` devolve o texto do resultado da consulta (ou null quando achou
- * e o diálogo fecha).
+ * (D-PROD-161). Resumo humano: máquina, Produto, quantidade na unidade do
+ * Produto, medidor, tanque cheio, data, local e a baixa do estoque (EXATAMENTE
+ * a quantidade digitada, "120,0000 L" ou "80,0000 kg"). Os dados técnicos
+ * (tanque, custo estimado por L/kg, saldo e lotes FIFO) ficam em "Detalhes do
+ * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
+ * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
+ * null quando achou e o diálogo fecha).
  * @param {{
  *   aberto: boolean,
  *   previa: { plano: any, bloqueios: any[] } | null,
  *   podeConfirmar: boolean,
- *   podeConfigurarFator: boolean,
  *   onFechar: () => void,
  *   onConfirmar: (arg: unknown, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => Promise<string|null>,
- *   onConfigurarFator: () => void,
  * }} props
  */
-export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, podeConfigurarFator, onFechar, onConfirmar, onConsultar, onConfigurarFator }) {
+export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFechar, onConfirmar, onConsultar }) {
   const { estado, disparar, setEstado } = useEnvioAbastecimento(onConfirmar, "Não foi possível confirmar o abastecimento. Nada foi gravado.");
   const [detalhesAbertos, setDetalhesAbertos] = useState(false);
   const enviando = estado.fase === "enviando";
   const plano = previa?.plano ?? null;
   const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
-  const semFator = bloqueios.some((/** @type {any} */ b) => b?.code === "ABASTECIMENTO_CONVERSAO_AUSENTE");
   const fifo = plano?.fifo ?? null;
   const fatias = Array.isArray(fifo?.fatias) ? fifo.fatias : [];
   const medidor = plano?.medidor ?? null;
   const unidade = UNIDADE_MEDIDOR[String(medidor?.tipo ?? "")] ?? "";
-  // Com bloqueio de quantidade (0 kg arredondado, acima do teto) o KG do plano não é baixa: não aparece como tal.
-  const kgBaixa = kgDaBaixaNaPrevia(previa);
-  const litros = plano?.quantidade_litros ? `${formatarLitrosCurto(plano.quantidade_litros)} L` : "—";
+  // Unidade de estoque do Produto (L ou KG; null se o Produto não está em nenhuma delas).
+  const unidadeEstoque = plano?.unidade ?? null;
+  const porUnidade = rotuloDaUnidade(unidadeEstoque);
+  // Com bloqueio de quantidade (zero, acima do teto) ou Produto fora de L/KG a quantidade não é baixa: não aparece como tal.
+  const baixa = quantidadeDaBaixaNaPrevia(previa);
+  const quantidade = plano?.quantidade ? formatarQuantidadeCurta(plano.quantidade, unidadeEstoque) : "—";
 
   const consultar = async () => {
     const texto = await onConsultar();
@@ -175,24 +178,29 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
         <DialogHeader>
           <DialogTitle>Revisar abastecimento</DialogTitle>
           <DialogDescription data-testid="previa-resumo" className="break-words">
-            {kgBaixa
-              ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${litros}. Baixa de ${formatarKg(kgBaixa)} kg do estoque em ${
+            {baixa
+              ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${
                   plano.local_estoque?.nome ?? "local"
                 }.`
               : "Nada foi gravado: confira abaixo o que impede a confirmação."}
           </DialogDescription>
         </DialogHeader>
+        {unidadeEstoque === "KG" ? (
+          <p role="note" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="previa-dica-kg">
+            {DICA_PRODUTO_EM_KG}
+          </p>
+        ) : null}
         <dl className="min-w-0" data-testid="previa-dados">
           <Linha rotulo="Máquina/Veículo" testId="previa-bem" valor={rotuloDoBem(plano?.bem) || "—"} />
           <Linha rotulo="Produto" testId="previa-produto" valor={plano?.produto?.nome ?? "—"} />
-          <Linha rotulo="Litros" testId="previa-litros" valor={litros} />
+          <Linha rotulo="Quantidade" testId="previa-quantidade" valor={quantidade} />
           {medidor?.leitura ? (
             <Linha rotulo="Leitura do medidor" testId="previa-leitura" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
           ) : null}
           <Linha rotulo="Completou o tanque" testId="previa-tanque-cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
           <Linha rotulo="Data" testId="previa-data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
           <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
-          <Linha rotulo="Baixa no estoque" testId="previa-kg" valor={kgBaixa ? `${formatarKg(kgBaixa)} kg` : "—"} />
+          <Linha rotulo="Baixa do estoque" testId="previa-baixa" valor={baixa ? formatarQuantidade(baixa, unidadeEstoque) : "—"} />
         </dl>
         <div className="min-w-0">
           <button
@@ -207,7 +215,6 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
           {detalhesAbertos ? (
             <div className="mt-1 min-w-0 rounded-md border border-slate-200 p-2" data-testid="previa-detalhes-conteudo">
               <dl className="min-w-0">
-                <Linha rotulo="Tipo de combustível" testId="previa-tipo" valor={plano?.tipo_combustivel?.nome ?? "—"} />
                 <Linha
                   rotulo="Tanque"
                   testId="previa-tanque"
@@ -217,13 +224,19 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                       : "—"
                   }
                 />
-                <Linha
-                  rotulo="Fator kg/L"
-                  testId="previa-fator"
-                  valor={
-                    plano?.conversao ? `${formatarFator(plano.conversao.kg_por_litro)} kg/L (versão ${plano.conversao.sequencia ?? plano.conversao.versao})` : "Sem fator kg/L configurado"
-                  }
-                />
+                {plano?.tanque ? (
+                  <Linha
+                    rotulo="Capacidade do tanque"
+                    testId="previa-capacidade"
+                    valor={
+                      plano.confere_capacidade
+                        ? "conferida (Produto em litros)"
+                        : unidadeEstoque === "KG"
+                          ? "não conferida (Produto em quilos: a capacidade é em litros)"
+                          : "não conferida"
+                    }
+                  />
+                ) : null}
                 <Linha
                   rotulo="Custo estimado"
                   testId="previa-custo"
@@ -231,7 +244,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                     fifo?.custo_total_estimado ? (
                       <>
                         {formatarCusto(fifo.custo_total_estimado)}
-                        {fifo.custo_unitario_estimado ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/kg)` : ""}
+                        {fifo.custo_unitario_estimado && porUnidade ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/${porUnidade})` : ""}
                         <span className="block text-[11px] font-normal text-[var(--mg-text-2,#475569)]">estimativa; o custo final é calculado na confirmação</span>
                       </>
                     ) : (
@@ -239,7 +252,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                     )
                   }
                 />
-                {plano?.estoque ? <Linha rotulo="Saldo no local" testId="previa-saldo" valor={`${formatarKg(plano.estoque.saldo_local_kg)} kg`} /> : null}
+                {plano?.estoque ? <Linha rotulo="Saldo no local" testId="previa-saldo" valor={formatarQuantidade(plano.estoque.saldo_local, plano.estoque.unidade)} /> : null}
               </dl>
               {fatias.length ? (
                 <div className="mt-2 min-w-0 overflow-x-auto">
@@ -248,8 +261,8 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                     <thead>
                       <tr className="text-left text-[var(--mg-text-2,#475569)]">
                         <th className="py-1 pr-2">Lote de</th>
-                        <th className="py-1 pr-2 text-right">KG</th>
-                        <th className="py-1 pr-2 text-right">Custo/kg</th>
+                        <th className="py-1 pr-2 text-right">{porUnidade ? `Quantidade (${porUnidade})` : "Quantidade"}</th>
+                        <th className="py-1 pr-2 text-right">{porUnidade ? `Custo/${porUnidade}` : "Custo"}</th>
                         <th className="py-1 text-right">Valor</th>
                       </tr>
                     </thead>
@@ -257,7 +270,7 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                       {fatias.map((/** @type {any} */ f) => (
                         <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
                           <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
-                          <td className="py-1 pr-2 text-right tabular-nums">{formatarKg(f.quantidade_kg)}</td>
+                          <td className="py-1 pr-2 text-right tabular-nums">{formatarQuantidade(f.quantidade, null)}</td>
                           <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
                           <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
                         </tr>
@@ -279,11 +292,6 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, pode
                 </li>
               ))}
             </ul>
-            {semFator && podeConfigurarFator ? (
-              <button type="button" className={`${BOTAO_SECUNDARIO} mt-2`} onClick={onConfigurarFator} data-testid="abastecimento-configurar-fator">
-                Configurar fator kg/L
-              </button>
-            ) : null}
           </div>
         ) : null}
         <AvisoEnvioAbastecimento
@@ -351,7 +359,7 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
         <DialogHeader>
           <DialogTitle>Cancelar abastecimento {registro?.numero ? `nº ${registro.numero}` : ""}</DialogTitle>
           <DialogDescription>
-            O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarKg(registro?.quantidade_kg)} kg de{" "}
+            O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
             {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
           </DialogDescription>
         </DialogHeader>

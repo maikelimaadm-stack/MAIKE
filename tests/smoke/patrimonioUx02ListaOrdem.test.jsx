@@ -47,7 +47,7 @@ afterEach(() => {
 
 const semear = (data_operacional, medidor_leitura) =>
   semearAbastecimento(amb.estado, {
-    bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1', quantidade_litros: '10', data_operacional, medidor_leitura,
+    bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1', quantidade: '10', data_operacional, medidor_leitura,
   });
 
 /** Ids das linhas da tabela, de cima para baixo (a coluna Nº é opcional: o id vem da célula da máquina). */
@@ -114,7 +114,7 @@ describe('UX-02 L1 — ordem padrão da lista = ordem do servidor (Nº desc)', (
  * layout: aqui fica o ORÇAMENTO, com as medidas tiradas no Chromium com a
  * fonte da tela (DM Sans; 14 px em ≤ 1023 px, `mk-unificado.css`; cabeçalho
  * 600). A prova na tela real é o E2E-1 (`conferirLista`: rótulos e células de
- * Data/Litros/Medidor/Situação sem corte e coluna Produto ≥ 128 px em 820 px).
+ * Data/Quantidade/Medidor/Situação sem corte e coluna Produto ≥ 128 px em 820 px).
  * Célula: padding 0 9px + borda 1px (`cadastro-base1.css`) = 19 px. Cabeçalho:
  * + gap 4 + botão do menu 20 = 43 px. Grade útil em 820 px ≈ 712 px − 36 da
  * seleção − 15 da barra de rolagem vertical ≈ 660 → orçamento de 655.
@@ -126,9 +126,16 @@ describe('UX-02 L1 — ordem padrão da lista = ordem do servidor (Nº desc)', (
  * há hover para o `title`.
  * A célula da máquina já diz qual é a máquina, então o rótulo "Máquina/Veículo"
  * (pede 157) é a ÚNICA exceção aceita: no tablet ele sai com reticências.
+ *
+ * D-PROD-161: "Litros" e "KG" viraram UMA coluna "Quantidade" (número + "L" ou
+ * "kg"). Ela pede o rótulo inteiro (~80 px de texto: 76,5 medidos com a fonte
+ * estática do ensaio × 1,05, a razão entre os 6 rótulos acima e a mesma medida)
+ * e "999,9999 kg" (82,7, medida igual à de "999,9999 L" = 75,2 acima). Quem
+ * cede os 27 px é a Máquina/Veículo (124 → 97), cuja célula continua mostrando
+ * o código da frota, que vem primeiro.
  */
-describe('UX-02 L2 — larguras padrão cabem em 820 px sem cortar o Produto, a Data nem os números', () => {
-  const ROTULO = { data_operacional: 31.7, bem: 113.8, produto: 54.0, quantidade_litros: 38.5, leitura: 56.3, status: 59.3 };
+describe('UX-02 L2 (revisto pela D-PROD-161) — larguras padrão cabem em 820 px sem cortar o Produto, a Data, a Quantidade nem os números', () => {
+  const ROTULO = { data_operacional: 31.7, bem: 113.8, produto: 54.0, quantidade: 80.3, leitura: 56.3, status: 59.3 };
   /** Cabeçalho que pode cortar no tablet (decisão do orquestrador, rodada 2). */
   const ROTULO_PODE_CORTAR = ['bem'];
   const MAIOR_VALOR = {
@@ -137,14 +144,14 @@ describe('UX-02 L2 — larguras padrão cabem em 820 px sem cortar o Produto, a 
     // de 111 px de texto: cabem inteiros; "DIESEL S10 GRANEL" (127, maiúsculas)
     // e "Diesel S10 estoque novo" (157) continuam cortando, com `title`.
     produto: ['texto de 111 px ("Gasolina comum" 109, "Diesel S10 granel" 108, "Etanol hidratado" 107, "Diesel S10 posto" 106)', 111],
-    quantidade_litros: ['999,9999 L', 75.2], // cortava a partir de "100,0000 L"
+    quantidade: ['999,9999 kg', 82.7], // a unidade mais larga ("kg"); "999,9999 L" pede 75,2
     leitura: ['123.456 km', 72.6],
     status: ['Confirmado', 80.7], // o selo, com padding e borda
   };
 
   it('soma ≤ 655 px; cada coluna cabe o rótulo inteiro (+43, exceto Máquina/Veículo) e o maior valor esperado (+19)', () => {
     const padrao = ABASTECIMENTOS_COLUNAS.filter((c) => c.default);
-    expect(padrao.map((c) => c.id)).toEqual(['data_operacional', 'bem', 'produto', 'quantidade_litros', 'leitura', 'status']);
+    expect(padrao.map((c) => c.id)).toEqual(['data_operacional', 'bem', 'produto', 'quantidade', 'leitura', 'status']);
     expect(padrao.reduce((s, c) => s + c.width, 0)).toBeLessThanOrEqual(655);
     const faltas = padrao.flatMap((c) => {
       const f = [];

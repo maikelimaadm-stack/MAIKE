@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings2 } from "lucide-react";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaAbastecimentos, { ABASTECIMENTOS_CAMPOS_CARD, ABASTECIMENTOS_COLUNAS, ABASTECIMENTOS_STORAGE_KEY, valorDoCampoAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
 import FormularioAbastecimento, { FORMULARIO_ABASTECIMENTO_ID, chaveProdutosDoBem } from "@/components/patrimonio/FormularioAbastecimento";
 import ConsultaAbastecimento from "@/components/patrimonio/ConsultaAbastecimento";
 import PainelConsumoBem from "@/components/patrimonio/PainelConsumoBem";
-import ConversoesCombustivel from "@/components/patrimonio/ConversoesCombustivel";
 import { DialogoCancelarAbastecimento, DialogoPreviaAbastecimento } from "@/components/patrimonio/DialogosAbastecimento";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
@@ -19,7 +17,16 @@ import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { ehNaoEncontradoPatrimonio, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
-import { assinaturaDoFormulario, formatarKg, formatarLitros, formularioVazio, rotuloDoBem, tanqueDoFormulario, totaisConfirmados, validarFormulario } from "@/lib/abastecimentoRegras";
+import {
+  assinaturaDoFormulario,
+  formatarQuantidade,
+  formularioVazio,
+  rotuloDoBem,
+  tanqueDoFormulario,
+  totaisConfirmados,
+  unidadeDoFormulario,
+  validarFormulario,
+} from "@/lib/abastecimentoRegras";
 import { listEmpresas } from "@/services/empresaService";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
@@ -65,18 +72,17 @@ const ehConsultaDeEstoque = (chave) =>
   ].includes(chave[0]) ||
     (chave[0] === "mapa-cache" && chave[1] === "estoqueLotes"));
 
-/** Códigos que mudam a verdade da tela: relê tanques, saldos, fatores e opções. */
+/** Códigos que mudam a verdade da tela: relê tanques, saldos e opções. */
 const RELER_NOS_ERROS = new Set([
-  "ABASTECIMENTO_CONVERSAO_ALTERADA",
-  "ABASTECIMENTO_CONVERSAO_AUSENTE",
   "ESTOQUE_SALDO_INSUFICIENTE",
   "ABASTECIMENTO_TANQUE_INVALIDO",
   "ABASTECIMENTO_LOCAL_INVALIDO",
   "ABASTECIMENTO_BEM_INELEGIVEL",
-  "COMBUSTIVEL_PRODUTO_INVALIDO",
-  // Tanque deixou de aceitar o combustível (ou ele saiu de litros) / estoque do Produto saiu de KG:
-  // a opção do formulário ficou velha; relida, a reconciliação tira o par que saiu.
-  "TANQUE_COMBUSTIVEL_INCOMPATIVEL",
+  // D-PROD-161: o tanque deixou de aceitar o Produto (aceite retirado em Bens), o Produto ficou inativo
+  // ou foi para outra fazenda, ou a unidade dele saiu de L/KG: a opção do formulário ficou velha;
+  // relida, a reconciliação tira o Produto que saiu.
+  "ABASTECIMENTO_PRODUTO_NAO_ACEITO",
+  "ABASTECIMENTO_PRODUTO_INVALIDO",
   "ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL",
   "ABASTECIMENTO_STATUS_INVALIDO",
   "PATRIMONIO_VERSAO_CONFLITO",
@@ -87,18 +93,21 @@ const RELER_NOS_ERROS = new Set([
 ]);
 
 /**
- * Abastecimentos (Patrimônio e Frota P1-02, D-PROD-159) — da EMPRESA selecionada.
+ * Abastecimentos (Patrimônio e Frota P1-02, D-PROD-159; simplificados pela
+ * D-PROD-161) — da EMPRESA selecionada.
  *
  * Lista keyset com filtros (bem, produto, situação, período) e busca no
- * servidor (nº, referência). Novo abastecimento (UX-02, D-PROD-160): máquina →
- * PRODUTO (o tipo de combustível vem da opção do servidor) → litros/medidor →
- * REVISÃO = prévia no servidor (sem escrita: KG, fator e versão, lotes FIFO,
- * custo estimado, medidor, bloqueios) → confirmação com `operation_id` persistente (duplo
- * clique = 1 envio; sem resposta = resultado incerto, nunca sucesso; repetir
- * reaproveita a chave). O registro gravado é só CONSULTA: litros, KG, fator
- * usado, custo FIFO final, lotes, movimento e estorno, leitura, consumo; o
- * cancelamento (ação própria `cancelar`) estorna exatamente aos lotes de origem.
- * Fatores kg/L (ação `configurar_conversao`) ficam num painel próprio.
+ * servidor (nº, referência); coluna Quantidade = número + unidade do Produto.
+ * Novo abastecimento: máquina → PRODUTO (dos "Produtos aceitos" dos tanques do
+ * bem) → tanque (se > 1) → local → quantidade na unidade do Produto (L ou kg) →
+ * medidor → "Completou o tanque?" → REVISÃO = prévia no servidor (sem escrita:
+ * baixa EXATA na unidade do Produto, lotes FIFO, custo estimado, medidor,
+ * bloqueios) → confirmação com `operation_id` persistente (duplo clique = 1
+ * envio; sem resposta = resultado incerto, nunca sucesso; repetir reaproveita a
+ * chave). O registro gravado é só CONSULTA: quantidade e unidade, custo FIFO
+ * final, lotes, movimento e estorno, leitura, consumo; o cancelamento (ação
+ * própria `cancelar`) estorna exatamente aos lotes de origem. Sem fator kg/L e
+ * sem tipo de combustível (D-PROD-161).
  *
  * Salvaguardas de Gestão: sem empresa real nada é lido; trocar de empresa
  * fecha registro e diálogos e descarta respostas atrasadas.
@@ -143,7 +152,6 @@ export default function AbastecimentosTela() {
   const [previando, setPreviando] = useState(false);
   const previandoRef = useRef(false);
   const [cancelando, setCancelando] = useState(/** @type {any} */ (null));
-  const [conversoes, setConversoes] = useState(/** @type {{ aberto: boolean, par: any }} */ ({ aberto: false, par: null }));
   const [consumoBem, setConsumoBem] = useState(/** @type {any} */ (null));
 
   const listEnabled = Boolean(empresaId) && acoes.ver && !periodoInvertido;
@@ -198,7 +206,6 @@ export default function AbastecimentosTela() {
     setPrevia(null);
     setPreviaAberta(false);
     setCancelando(null);
-    setConversoes({ aberto: false, par: null });
     setConsumoBem(null);
     setBemFiltro(null);
     setProdutoFiltro(null);
@@ -270,9 +277,10 @@ export default function AbastecimentosTela() {
   const concluirComando = (registro, emp, tipo) => {
     avisarEstoqueAlterado(registro, emp);
     const repetido = registro?.replay === true ? " (envio repetido: nada foi duplicado)" : "";
-    const kg = formatarKg(registro?.quantidade_kg);
-    if (tipo === "confirmar") notifySuccess("Abastecimento confirmado", `Abastecimento nº ${registro?.numero ?? ""} confirmado: ${kg} kg baixados do estoque.${repetido}`);
-    else notifySuccess("Abastecimento cancelado", `Abastecimento nº ${registro?.numero ?? ""} cancelado: ${kg} kg devolvidos aos lotes de origem.${repetido}`);
+    // A quantidade na unidade GRAVADA no abastecimento (L ou kg), nunca "kg" fixo.
+    const quantidade = formatarQuantidade(registro?.quantidade, registro?.unidade);
+    if (tipo === "confirmar") notifySuccess("Abastecimento confirmado", `Abastecimento nº ${registro?.numero ?? ""} confirmado: ${quantidade} baixados do estoque.${repetido}`);
+    else notifySuccess("Abastecimento cancelado", `Abastecimento nº ${registro?.numero ?? ""} cancelado: ${quantidade} devolvidos aos lotes de origem.${repetido}`);
     if (!daEmpresaAtual(emp)) return;
     if (tipo === "confirmar") {
       setPreviaAberta(false);
@@ -298,8 +306,8 @@ export default function AbastecimentosTela() {
 
   const pedirPrevia = async () => {
     if (!empresaId || !acoes.criar || previandoRef.current) return;
-    // Capacidade do tanque escolhido entre os que aceitam o Produto (opção do servidor).
-    const v = validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null });
+    // Capacidade (litros) do tanque escolhido entre os que aceitam o Produto (opção do servidor): só vale para Produto em L.
+    const v = validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null, unidade: unidadeDoFormulario(form) });
     setErros(v.erros);
     if (Object.keys(v.erros).length) {
       notifyWarning("Atenção", "Revise os campos destacados.");
@@ -315,21 +323,17 @@ export default function AbastecimentosTela() {
       if (!daEmpresaAtual(emp)) return;
       seqPrevia.current += 1;
       setPrevia({ seq: seqPrevia.current, assinatura, form: snapshot, resposta, empresaId: emp });
-      // Bloqueio que muda a verdade da tela (vínculo, produto, tanque, combustível inativo…) relê como a
+      // Bloqueio que muda a verdade da tela (aceite retirado, Produto inativo, tanque inativo…) relê como a
       // recusa da confirmação: a reconciliação do formulário tira a escolha que saiu e oferece a nova.
+      const unidadeServidor = resposta.plano?.produto?.unidade_principal_estoque ?? null;
       if ((Array.isArray(resposta.bloqueios) ? resposta.bloqueios : []).some((b) => RELER_NOS_ERROS.has(String(b?.code ?? "")))) {
         queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
         queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_ABASTECIMENTO });
-      }
-      // O fator do formulário acompanha o que o servidor leu agora; se mudou, as opções do bem são relidas.
-      const conversao = resposta.plano?.conversao ?? null;
-      const antes = snapshot.produto?.conversao ?? null;
-      if ((antes?.id ?? null) !== (conversao?.id ?? null) || (antes?.versao ?? null) !== (conversao?.versao ?? null)) {
+      } else if (unidadeServidor && unidadeServidor !== (snapshot.produto?.unidade_principal_estoque ?? null)) {
+        // Sem bloqueio, mas a unidade do Produto que o servidor leu agora difere da opção do formulário (L ↔ KG):
+        // relê só as opções do bem (a reconciliação reaplica a opção nova; a revisão já mostra a unidade do servidor).
         queryClient.invalidateQueries({ queryKey: chaveProdutosDoBem(emp, snapshot.bem?.id ? String(snapshot.bem.id) : null) });
       }
-      setFormEstado((f) =>
-        f.produto?.id && String(f.produto.id) === String(resposta.plano?.produto?.id ?? f.produto.id) ? { ...f, produto: { ...f.produto, conversao, pronto: Boolean(conversao) } } : f,
-      );
       setPreviaAberta(true);
     } catch (erro) {
       reagirAoErro(erro, emp);
@@ -410,27 +414,6 @@ export default function AbastecimentosTela() {
     }
   };
 
-  // ─── Fatores kg/L ───────────────────────────────────────────────────
-  /** @param {any} par */
-  const abrirConversoes = (par) => {
-    setPreviaAberta(false);
-    setConversoes({ aberto: true, par: acoes.configurarConversao ? par : null });
-  };
-  /**
-   * Fator novo do par do formulário: o Produto passa a estar pronto, a revisão
-   * antiga deixa de valer e as opções do bem são relidas (o servidor confirma).
-   * @param {any} c
-   */
-  const aoSalvarFator = (c) => {
-    setPrevia(null);
-    setFormEstado((f) =>
-      f.produto?.id && String(f.produto.id) === String(c?.produto?.id) && String(f.tipo_combustivel_id) === String(c?.tipo_combustivel?.id)
-        ? { ...f, produto: { ...f.produto, conversao: { id: c.id, versao: c.versao, sequencia: c.sequencia, kg_por_litro: c.kg_por_litro }, pronto: true } }
-        : f,
-    );
-    queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "produtos-do-bem"] });
-  };
-
   // ─── Avisos e filtros ───────────────────────────────────────────────
   const listErrorMessage = useMemo(
     () => mensagemErroAbastecimento(controller.listaQueryError, "Não foi possível carregar os abastecimentos. Verifique sua conexão e tente novamente."),
@@ -505,7 +488,8 @@ export default function AbastecimentosTela() {
       {listaVazia ? <AvisoGestao testId="abastecimento-lista-vazia">Nenhum abastecimento encontrado com estes filtros.</AvisoGestao> : null}
       {totais && totais.quantidade ? (
         <p className="mb-2 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="abastecimento-totais">
-          Confirmados na lista: {totais.quantidade} · {formatarLitros(totais.litros)} L · {formatarKg(totais.kg)} kg
+          Confirmados na lista: {totais.quantidade}
+          {totais.totais.map((t) => ` · ${formatarQuantidade(t.total, t.unidade)}`).join("")}
         </p>
       ) : null}
     </>
@@ -539,24 +523,21 @@ export default function AbastecimentosTela() {
           hoje={hoje}
           erros={erros}
           limparErro={limparErro}
-          podeConfigurarFator={acoes.configurarConversao}
           previando={previando}
           situacaoPrevia={situacaoPrevia}
           onPrevia={pedirPrevia}
           onReabrirPrevia={() => setPreviaAberta(true)}
-          onConfigurarFator={abrirConversoes}
         />
       );
     }
   }
 
   const registroAtual = idAberto ? (detalhe ?? registroLista) : null;
-  const planoPrevia = previa?.resposta?.plano ?? null;
 
   return (
-    // Os botões seguem a regra EXATA do servidor (novo|salvar, cancelar,
-    // configurar_conversao): a heurística de texto do Layout não se aplica
-    // ("Confirmar abastecimento" não exige `salvar`).
+    // Os botões seguem a regra EXATA do servidor (novo|salvar, cancelar):
+    // a heurística de texto do Layout não se aplica ("Confirmar
+    // abastecimento" não exige `salvar`).
     <div data-permissao-explicita="" className="contents">
       <CadastroBase1Screen
         permissaoExplicita
@@ -574,19 +555,7 @@ export default function AbastecimentosTela() {
         showDuplicate={false}
         showDelete={false}
         extraToolbar={
-          empresaId && acoes.ver ? (
-            <>
-              <FiltroOpcoes rotulo="Filtrar por situação" value={statusFiltro} onChange={setStatusFiltro} opcoes={OPCOES_SITUACAO} />
-              <button
-                type="button"
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-xs font-medium hover:bg-slate-50"
-                onClick={() => setConversoes({ aberto: true, par: null })}
-                data-testid="abastecimento-fatores"
-              >
-                <Settings2 size={14} aria-hidden /> Fatores kg/L
-              </button>
-            </>
-          ) : null
+          empresaId && acoes.ver ? <FiltroOpcoes rotulo="Filtrar por situação" value={statusFiltro} onChange={setStatusFiltro} opcoes={OPCOES_SITUACAO} /> : null
         }
         deleteDialog={{
           title: "Cancelar abastecimento",
@@ -621,16 +590,9 @@ export default function AbastecimentosTela() {
           aberto={previaAberta && situacaoPrevia === "valida"}
           previa={previa.resposta}
           podeConfirmar={acoes.criar}
-          podeConfigurarFator={acoes.configurarConversao}
           onFechar={() => setPreviaAberta(false)}
           onConfirmar={confirmarDaPrevia}
           onConsultar={consultarConfirmacao}
-          onConfigurarFator={() =>
-            abrirConversoes({
-              tipo: planoPrevia?.tipo_combustivel ? { id: String(planoPrevia.tipo_combustivel.id), nome: String(planoPrevia.tipo_combustivel.nome ?? "") } : null,
-              produto: planoPrevia?.produto ? { id: String(planoPrevia.produto.id), nome: String(planoPrevia.produto.nome ?? ""), conversao: null } : null,
-            })
-          }
         />
       ) : null}
 
@@ -644,15 +606,6 @@ export default function AbastecimentosTela() {
           onConsultar={consultarCancelamento}
         />
       ) : null}
-
-      <ConversoesCombustivel
-        aberto={conversoes.aberto && Boolean(empresaId) && acoes.ver}
-        empresaId={empresaId}
-        podeConfigurar={acoes.configurarConversao}
-        parInicial={conversoes.par}
-        onFechar={() => setConversoes({ aberto: false, par: null })}
-        onSalvo={aoSalvarFator}
-      />
 
       <PainelConsumoBem aberto={Boolean(consumoBem)} empresaId={empresaId} bem={consumoBem} onFechar={() => setConsumoBem(null)} />
     </div>

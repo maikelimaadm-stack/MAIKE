@@ -8,6 +8,7 @@ import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen
 import GradePatrimonio from "@/components/patrimonio/GradePatrimonio";
 import { BENS_CAMPOS_CARD, GRADE_BENS } from "@/components/patrimonio/TabelaBens";
 import FormularioBem, { FORMULARIO_BEM_ID } from "@/components/patrimonio/FormularioBem";
+import GerenciarFamiliasTiposDialog, { QUERY_CATALOGO } from "@/components/patrimonio/GerenciarFamiliasTiposDialog";
 import { CHAVE_OPCOES_PATRIMONIO } from "@/components/patrimonio/bemFormulario";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
@@ -16,6 +17,8 @@ import { useAcoesTelaPatrimonio, useEmpresaRealSelecionadaId } from "@/hooks/use
 import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
 import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 import { ehConflitoDeVersaoPatrimonio, ehNaoEncontradoPatrimonio, mensagemErroPatrimonio } from "@/lib/patrimonioErros";
+import { lerErroGestao } from "@/lib/gestaoErros";
+import { instalarCatalogoPadrao, resumoCatalogoPadrao } from "@/services/patrimonioCatalogoService";
 
 const QUERY_RAIZ = "bens-patrimoniais";
 
@@ -23,6 +26,50 @@ const OPCOES_FILTRO_NATUREZA = [{ value: "TODAS", label: "Todas as naturezas" },
 
 const MENSAGEM_VERSAO =
   "Este bem foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
+
+/**
+ * Produto aceito que o servidor recusou (422 `TANQUE_PRODUTO_INVALIDO`, que
+ * aponta `tanques[i].produto_ids` e o `produto_id`): a aba Operação o marca
+ * com o motivo para o usuário retirá-lo no mesmo envio (achado D1).
+ * @param {unknown} erro
+ * @returns {{ indice: number, produto_id: string, reason: string } | null}
+ */
+const produtoRecusadoDoErro = (erro) => {
+  const { code, field, reason, details } = lerErroGestao(erro);
+  if (code !== "TANQUE_PRODUTO_INVALIDO" || typeof details.produto_id !== "string" || !details.produto_id) return null;
+  const m = /^tanques\[(\d+)\]/.exec(String(field ?? details.field ?? ""));
+  if (!m) return null;
+  return { indice: Number(m[1]), produto_id: details.produto_id, reason: reason ?? "inexistente" };
+};
+
+/**
+ * Resumo da instalação do catálogo padrão (D-PROD-161: só famílias e tipos).
+ * @param {{ resumo: { criados: string, existentes: string, conflitos: string[] }, onFechar: () => void }} props
+ */
+function ResumoCatalogoPadrao({ resumo, onFechar }) {
+  return (
+    <AvisoGestao tone="blue" testId="patrimonio-catalogo-padrao-resumo">
+      <p className="font-semibold">Catálogo padrão instalado.</p>
+      <p>Criados: {resumo.criados}.</p>
+      <p>Já existiam: {resumo.existentes}.</p>
+      {resumo.conflitos.length ? (
+        <>
+          <p>Conflitos ({resumo.conflitos.length}) — nada foi alterado nesses itens:</p>
+          <ul className="list-disc pl-5">
+            {resumo.conflitos.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p>Sem conflitos.</p>
+      )}
+      <button type="button" className="mt-1 underline" onClick={onFechar}>
+        Fechar resumo
+      </button>
+    </AvisoGestao>
+  );
+}
 
 /**
  * Bens Patrimoniais (D-PROD-157) — inventário da EMPRESA selecionada.
@@ -37,6 +84,11 @@ const MENSAGEM_VERSAO =
  * Inativar/reativar é ação do menu, com confirmação, e exige a ação extra
  * `inativar` (nada é apagado). Conflito de versão recarrega o registro.
  *
+ * D-PROD-161: famílias e tipos vivem aqui. O "⋯" traz "Gerenciar famílias e
+ * tipos" (para quem vê Bens) e "Instalar catálogo padrão" (só administrador,
+ * P-06); o formulário tem "+ Nova família"/"+ Novo tipo" e os Produtos aceitos
+ * de cada tanque.
+ *
  * Mesmas salvaguardas de Gestão: sem empresa real nada é lido nem gravado;
  * trocar de empresa fecha o registro; resposta atrasada da empresa anterior
  * não mexe no registro aberto da empresa nova.
@@ -49,6 +101,9 @@ export default function BensPatrimoniaisTela() {
   const [natureza, setNatureza] = useState("TODAS");
   const [familiaFiltro, setFamiliaFiltro] = useState("TODAS");
   const [origemDuplicacao, setOrigemDuplicacao] = useState(/** @type {string|null} */ (null));
+  const [gerenciarAberto, setGerenciarAberto] = useState(false);
+  const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
+  const [produtoRecusado, setProdutoRecusado] = useState(/** @type {ReturnType<typeof produtoRecusadoDoErro>} */ (null));
   const submitRef = useRef(/** @type {(forma: Record<string, any>) => void} */ (() => {}));
   const podeGravar = Boolean(empresaId);
 
@@ -134,6 +189,7 @@ export default function BensPatrimoniaisTela() {
     empresaAnterior.current = empresaId;
     closeForm();
     setOrigemDuplicacao(null);
+    setProdutoRecusado(null);
   }, [empresaId, closeForm]);
   const empresaAtual = useRef(empresaId);
   empresaAtual.current = empresaId;
@@ -172,6 +228,7 @@ export default function BensPatrimoniaisTela() {
     queryClient.setQueryData([QUERY_RAIZ, "detalhe", emp, String(registro.id)], registro);
     if (!daEmpresaAtual({ empresaId: emp })) return;
     setOrigemDuplicacao(null);
+    setProdutoRecusado(null);
     controller.recordHelpers.recordBeforeNewRef.current = null;
     controller.setEditingItem(registro);
     controller.setIsEditing(false);
@@ -195,10 +252,13 @@ export default function BensPatrimoniaisTela() {
       controller.recordHelpers.closeForm();
     } else if (v.comRegistro && ehConflitoDeVersaoPatrimonio(err)) {
       invalidarLista();
+      setProdutoRecusado(null);
       queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "detalhe", v.empresaId] });
       notifyWarning("Atenção", MENSAGEM_VERSAO);
       return;
     }
+    // O formulário continua aberto: o Produto recusado fica marcado no tanque.
+    setProdutoRecusado(produtoRecusadoDoErro(err));
     notifyWarning("Atenção", mensagemErroPatrimonio(err, fallback));
   };
 
@@ -289,7 +349,7 @@ export default function BensPatrimoniaisTela() {
       titulo: `${verbo} bem patrimonial`,
       descricao: ativo
         ? `Reativar "${alvo.nome || "bem"}"? Ele volta a aparecer entre os bens ativos (a família e o tipo precisam estar ativos).`
-        : `Inativar "${alvo.nome || "bem"}"? Ele sai da lista de ativos, mas continua legível com medições, medidor e tanques. Nada é apagado.`,
+        : `Inativar "${alvo.nome || "bem"}"? Ele sai da lista de ativos, mas continua legível com medidor e tanques. Nada é apagado.`,
       textoConfirmar: verbo,
       perigo: !ativo,
     });
@@ -308,19 +368,53 @@ export default function BensPatrimoniaisTela() {
     return controller.visibleRows.find((b) => String(b.id) === String(ids[0])) ?? null;
   }, [controller.showForm, controller.isEditing, idAberto, detalhe, registroLista, controller.chrome.selectedIds, controller.visibleRows]);
 
-  const acoesDoMenu =
-    empresaId && acoes.inativar && alvo && Number.isInteger(alvo.versao)
-      ? [
-          {
-            key: alvo.ativo === false ? "reativar" : "inativar",
-            label: alvo.ativo === false ? "Reativar bem patrimonial" : "Inativar bem patrimonial",
-            disabled: situacaoMutation.isPending,
-            onSelect: () => {
-              pedirSituacao(alvo, alvo.ativo === false);
-            },
-          },
-        ]
-      : null;
+  const padraoMutation = useMutation({
+    mutationFn: () => instalarCatalogoPadrao(),
+    onSuccess: (resultado) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_CATALOGO] });
+      queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_PATRIMONIO });
+      setResumoPadrao(resumoCatalogoPadrao(resultado));
+      notifySuccess("Catálogo padrão", "Instalação concluída. Confira o resumo acima da lista.");
+    },
+    onError: (err) => notifyWarning("Atenção", mensagemErroPatrimonio(err, "Não foi possível instalar o catálogo padrão.")),
+  });
+
+  const pedirCatalogoPadrao = async () => {
+    const ok = await confirmar({
+      titulo: "Instalar catálogo padrão",
+      descricao:
+        "Cria só o que ainda falta, pelo código: famílias e tipos de uso comum. Nada do que já existe é alterado; itens com o mesmo código e outra classificação aparecem como conflito.",
+      textoConfirmar: "Instalar",
+    });
+    if (ok) padraoMutation.mutate();
+  };
+
+  /** @type {Array<{ key: string, label: string, disabled?: boolean, onSelect: () => void }>} */
+  const acoesDoMenu = [];
+  if (empresaId && acoes.inativar && alvo && Number.isInteger(alvo.versao)) {
+    acoesDoMenu.push({
+      key: alvo.ativo === false ? "reativar" : "inativar",
+      label: alvo.ativo === false ? "Reativar bem patrimonial" : "Inativar bem patrimonial",
+      disabled: situacaoMutation.isPending,
+      onSelect: () => {
+        pedirSituacao(alvo, alvo.ativo === false);
+      },
+    });
+  }
+  // D-PROD-161: famílias e tipos (catálogo do tenant, não pedem empresa) são do cadastro de Bens.
+  if (acoes.ver) {
+    acoesDoMenu.push({ key: "gerenciar-catalogo", label: "Gerenciar famílias e tipos", onSelect: () => setGerenciarAberto(true) });
+  }
+  if (acoes.administrador) {
+    acoesDoMenu.push({
+      key: "catalogo-padrao",
+      label: "Instalar catálogo padrão",
+      disabled: padraoMutation.isPending,
+      onSelect: () => {
+        pedirCatalogoPadrao();
+      },
+    });
+  }
 
   const listErrorMessage = useMemo(
     () => mensagemErroPatrimonio(controller.listaQueryError, "Não foi possível carregar os bens patrimoniais. Verifique sua conexão e tente novamente."),
@@ -333,6 +427,13 @@ export default function BensPatrimoniaisTela() {
   } else if (!acoes.carregando && !acoes.ver) {
     aviso = <AvisoGestao testId="patrimonio-sem-permissao">Você não tem permissão para visualizar Bens Patrimoniais.</AvisoGestao>;
   }
+  const banner =
+    aviso || resumoPadrao ? (
+      <>
+        {aviso}
+        {resumoPadrao ? <ResumoCatalogoPadrao resumo={resumoPadrao} onFechar={() => setResumoPadrao(null)} /> : null}
+      </>
+    ) : null;
 
   // ─── Conteúdo do registro ─────────────────────────────────────────────
   let conteudoRegistro = null;
@@ -354,6 +455,9 @@ export default function BensPatrimoniaisTela() {
           fuso={fusoDaEmpresa}
           readOnly={!controller.isEditing}
           onSubmit={controller.handleSubmit}
+          acoesCatalogo={{ criarCatalogo: acoes.criarCatalogo, produtosDoTanque: acoes.produtosDoTanque }}
+          produtoRecusado={produtoRecusado}
+          onRetirarRecusado={() => setProdutoRecusado(null)}
         />
       );
     }
@@ -365,6 +469,7 @@ export default function BensPatrimoniaisTela() {
   /** Cancelar a edição de um registro gravado descarta o digitado: o formulário remonta do detalhe. */
   const cancelarEdicao = () => {
     if (controller.isEditing && controller.editingItem?.id) controller.recordHelpers.bumpFormEpoch();
+    setProdutoRecusado(null);
     controller.cancelForm();
   };
 
@@ -381,7 +486,7 @@ export default function BensPatrimoniaisTela() {
         controller={{ ...controller, saving, handleDuplicateSelected: duplicar, cancelForm: cancelarEdicao }}
         listErrorMessage={listErrorMessage}
         recordCode={registroAtual?.numero != null ? String(registroAtual.numero) : undefined}
-        listBanner={aviso}
+        listBanner={banner}
         showCreate={podeGravar && acoes.criar}
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
@@ -393,7 +498,7 @@ export default function BensPatrimoniaisTela() {
             <FiltroSituacao value={situacao} onChange={setSituacao} />
           </>
         }
-        additionalMoreActions={acoesDoMenu}
+        additionalMoreActions={acoesDoMenu.length ? acoesDoMenu : null}
         deleteDialog={{
           title: "Inativar bem patrimonial",
           confirmText: "Inativar",
@@ -421,6 +526,13 @@ export default function BensPatrimoniaisTela() {
           />
         }
       />
+      {gerenciarAberto ? (
+        <GerenciarFamiliasTiposDialog
+          aberto
+          onFechar={() => setGerenciarAberto(false)}
+          acoes={{ criarCatalogo: acoes.criarCatalogo, editarCatalogo: acoes.editarCatalogo, inativarCatalogo: acoes.inativarCatalogo }}
+        />
+      ) : null}
     </div>
   );
 }
