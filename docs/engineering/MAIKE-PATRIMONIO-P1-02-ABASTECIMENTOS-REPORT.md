@@ -2,9 +2,9 @@
 
 Decisão: **D-PROD-159** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `a23477414cf2b2512143868d57c5ec68fa9501ab` (PRs #232 Patrimônio P1-01 e #234 Gestão P3-03 mergeadas).
 Branch: `claude/maike-patrimonio-p1-02-abastecimentos` · PR [#235](https://github.com/maikelimaadm-stack/MAIKE/pull/235) (**DRAFT**) · código final `6dd34014`; o HEAD final é o commit de documentação logo acima, com CI registrada na PR.
-Runbook de release (não executado): [`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md).
+Runbook de release (migration aplicada em produção em 2026-11-10 13:18:33 UTC; merge e deploy pendentes): [`MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md).
 
-> **`SCHEMA_APPLIED_PRODUCTION: NÃO`.** Nenhum DDL foi executado em Supabase, Vercel, staging ou qualquer banco remoto. Todos os testes rodaram em PostgreSQL 16/17 **local** e descartável. A PR fica em **DRAFT** até a revisão humana e o GO expresso da migration.
+> **`SCHEMA_APPLIED_PRODUCTION: SIM` desde 2026-11-10 13:18:33 UTC** (GO expresso do proprietário, caminho B do runbook, postcheck completo no §11 do runbook). Até o fechamento da missão, nenhum DDL tinha sido executado em banco remoto. Todos os testes rodaram em PostgreSQL 16/17 **local** e descartável. A PR fica em **DRAFT** até a revisão humana e o GO expresso da migration.
 
 ## 1. O que entra e o que fica fora
 
@@ -283,7 +283,7 @@ Orçamento de CI: a suíte levava ~20,5 min antes desta PR; os arquivos novos de
 |---|---|
 | CODE_READY | SIM — `verify:all` 39/39 local e CI verde em `6dd34014`; o fluxo completo (fator → bem/tanque/produto/local → prévia → confirmar → baixa KG/FIFO/custo → histórico → cancelar/estornar) funciona na API e na tela (INT-1 e E2E-1) |
 | SCHEMA_READY_LOCAL | SIM — banco novo local (PG16 e PG17): 39 migrations, reexecução sem pendências, `migrate diff` 0, upgrade de 38 → 39 só acrescenta, rollback ensaiado |
-| SCHEMA_APPLIED_PRODUCTION | **NÃO** — nenhum DDL remoto |
+| SCHEMA_APPLIED_PRODUCTION | **SIM** — 2026-11-10 13:18:33 UTC, caminho B, com GO expresso; postcheck do §6 conferido (runbook §11) |
 | MERGE_READY | **NÃO** — depende da revisão humana, do GO expresso da migration e da aplicação conferida pelo runbook |
 | OPERATIONAL_RELEASE_READY | NÃO |
 

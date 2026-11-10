@@ -1,7 +1,11 @@
 # MAIKE — Patrimônio P1-02: runbook de release expand-only (D-PROD-159)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PRODUCTION: NÃO`.** Nada deste runbook foi
-> rodado contra o Supabase ou a Vercel; nenhum DDL remoto foi executado. A PR está em
+> **Estado: MIGRATION APLICADA EM PRODUÇÃO em 2026-11-10 às 13:18:33 UTC (caminho B),
+> com GO expresso do proprietário. `SCHEMA_APPLIED_PRODUCTION: SIM`.** Preflight, ensaio,
+> transação e postcheck no §11. Merge, deploy, smoke e concessão de permissões continuam
+> **pendentes** (a PR segue em DRAFT). Texto original abaixo, mantido como roteiro:
+>
+> ~~Estado: NÃO EXECUTADO.~~ A PR está em
 > **DRAFT**. O runbook só pode começar com **GO expresso e escrito do proprietário** que
 > cite esta migration, o alvo, o caminho (A ou B) e o `<SHA_APROVADO>` (HEAD da PR com
 > CI verde).
@@ -533,15 +537,15 @@ explícito e decisão do proprietário (ver o runbook da P3-01, §9.3).
 
 | Campo | Valor |
 |---|---|
-| GO do proprietário (texto e data/hora UTC) | `<pendente>` |
-| Caminho (A runner / B conector) | `<pendente>` |
-| `<SHA_APROVADO>` e run de CI | `<pendente>` (HEAD final da PR #235 no momento da aprovação; código final da missão `6dd34014`) |
-| `system_identifier` e vínculo Vercel ↔ Supabase | `<pendente>` |
-| Histórico antes | `<pendente>` |
-| SHA-256 calculado no §4.3 | `<pendente>` |
-| Evidência de backup | `<pendente>` |
-| Classificador e ensaio local | `<pendente>` |
-| Resultado da transação | `<pendente>` |
-| Postcheck do §6 | `<pendente>` |
+| GO do proprietário (texto e data/hora UTC) | "autorizo a migração pode fazer" — mensagem do proprietário na sessão de 2026-11-10, recebida antes do preflight das 13:14 UTC. Cobre só esta migration, no alvo de produção |
+| Caminho (A runner / B conector) | **B** — conector Supabase, uma chamada `execute_sql` com o SQL do §5 (guardas + `migration.sql` íntegro + `INSERT` em `_prisma_migrations`), o mesmo caminho da P3-01/02/03 e da P1-01 |
+| `<SHA_APROVADO>` e run de CI | `8ef9594ad4b4edf1266ccecc13e720fe4efd8f62` (HEAD da PR #235 no GO), CI `verify:all` verde: run 42763959362 (22 min 12 s); código final `6dd34014`, run 42761888698 |
+| `system_identifier` e vínculo Vercel ↔ Supabase | `7692130048193495360`, PostgreSQL 17.11. Variáveis `POSTGRES_*`/`SUPABASE_*` do projeto Vercel `maike` vindas da integração Supabase `icfg_UsO8…` (conferidos só os nomes) |
+| Histórico antes | 38 concluídas / 0 com falha; P3-03 `3f3af00e…df890b` e P1-01 `b8818ba8…ffd64dc` concluídas; P1-02 ausente; 0 das 3 tabelas; 82 tabelas; 0 transação longa (13:14 e 13:16 UTC). `conferirHistoricoRemoto` × arquivos do SHA: `ok: true`, `pendentes: [20261110200000_patrimonio_p1_02_abastecimentos]`, 0 falhas. Contagens: Cliente 2, Usuario 5, Empresa 2, BemPatrimonial 0, TanqueBem 0, TipoCombustivelProduto 0, LocalEstoque 1, MovimentacaoEstoque 3, EstoqueLoteNota 2. Impressão digital das antigas: `TOTAL|2223|e711b87221ebe312b0a45f21dd09e6fc` (coluna 1153 `299e8955…`, constraint 345 `3a2aba25…`, fk_entrando 166 `0a68ff87…`, indice 395 `7bb7b114…`, politica 82 `3a004c29…`, tabela 82 `779872a8…`) |
+| SHA-256 calculado no §4.3 | `20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba` (= `MIGRATIONS_APROVADAS`) |
+| Evidência de backup | API de gestão (`GET …/database/backups`, 13:14 UTC): backup físico `COMPLETED` id 2221222670 em 2026-11-10 05:49:27 UTC (anterior à janela); PITR desligado |
+| Classificador e ensaio local | `premerge-migrate.mjs --sha 8ef9594a…`: só a P1-02, `expand: true`, 3 tabelas novas, 0 colunas em tabela antiga, 0 violações, exit 0. Ensaio PG17.11 local (cluster `7706296865171723100`, banco com as 38 da `main`), SQL exato do §5: com o id de produção → `RELEASE_BLOCKED: alvo divergente`; com o id local → `COMMIT`, 39/0, 85 tabelas, RLS sem FORCE, `migrate diff --exit-code` 0 contra o schema do SHA; repetir → `migration já registrada`; rollback §9.1 sem modo de ensaio → `alvo divergente`; com o modo de ensaio → 38/0 e 82 tabelas; reaplicar → 39 |
+| Resultado da transação | `COMMIT`; linha da P1-02 com `finished_at` 2026-11-10 13:18:33.836812 UTC, `checksum` `20f8f960…5fba`, `applied_steps_count` 1, última pelo nome |
+| Postcheck do §6 | itens 1–11 conferidos (13:19 UTC): 39/0; md5 das outras 38 linhas igual ao de antes (`8673dcac…`); 85 tabelas; RLS sim/FORCE não nas 3; colunas 16/34/10; p/f/c 3/17/13 (1/4/4 · 1/10/8 · 1/3/1), todas as FKs `CASCADE`/`RESTRICT`; índices 25 (1/4/2 · 1/6/6 · 1/3/1); 1 `maike_backend_all` `ALL` `{maike_vercel}` por tabela; 0 grants e 0 privilégios para `anon`/`authenticated`/`PUBLIC`, demais grantees = `TipoCombustivelProduto` (`maike_vercel`, `postgres`, `service_role`); 3 novas com 0 linhas e contagens antigas iguais; impressão digital das antigas **idêntica** nas 7 linhas; advisor de segurança sem alertas. Item 12: `GET https://www.makgestao.com/api/native/health` → 200, banco up, release `a2347741` (runtime antigo); erros de runtime só o aviso antigo `FSTDEP023` (desde 23/10) |
 | Merge, deployment e smoke | `<pendente>` |
 | Concessão de permissões pelo proprietário | `<pendente>` |
