@@ -230,14 +230,10 @@ const carregarEstado = async (tx, cli, empresaId, entrada, { hoje, fuso }) => {
     where: { cliente_id_id: { cliente_id: cli, id: entrada.tipo_combustivel_id } },
     select: { id: true, codigo: true, nome: true, unidade: true, ativo: true },
   });
-  let vinculo = await tx.tipoCombustivelProduto.findFirst({
+  const vinculo = await tx.tipoCombustivelProduto.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, produto_id: entrada.produto_id },
     select: { id: true, ativo: true },
   });
-  if (!vinculo || !vinculo.ativo) {
-    const atual = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { id: true, ativo: true, produto_id: true } });
-    if (atual) { vinculo = { id: atual.id, ativo: true }; entrada.produto_id = atual.produto_id; }
-  }
   const conversao = await tx.conversaoCombustivelProduto.findFirst({
     where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: entrada.tipo_combustivel_id, produto_id: entrada.produto_id, ativo: true },
     select: { id: true, versao: true, sequencia: true, kg_por_litro: true },
