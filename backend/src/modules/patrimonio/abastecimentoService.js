@@ -151,8 +151,6 @@ const INCLUIR_DETALHE = Object.freeze({
 export const carregarDetalhe = async (db, cli, empresaId, id) => {
   const r = await db.abastecimentoBem.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, include: INCLUIR_DETALHE });
   if (!r) throw naoEncontrado();
-  const vigenteDoProduto = await db.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: r.produto_id, ativo: true }, select: { tipoCombustivel: { select: { id: true, codigo: true, nome: true } } } });
-  if (vigenteDoProduto) r.conversao.vinculo.tipoCombustivel = vigenteDoProduto.tipoCombustivel;
   const consumo = await consumoDoAbastecimento(db, cli, r);
   let efeito = null;
   if (r.status === STATUS_CONFIRMADO && ehContador(r.medidor_tipo) && r.medidor_leitura !== null) {
@@ -485,7 +483,8 @@ export const cancelar = async (contexto, id, corpo) => {
             const cadastro = pontoDoCadastro(bem);
             const leituraAntes = leituraVigente(cadastro, await pisoOperacional(tx, cli, antes.bem_id, bem?.medidor_tipo ?? null));
             await travarProdutosEstoque(tx, cli, empresaId, [antes.produto_id]); // R8
-            const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
+            const vigente = await tx.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: antes.tipo_combustivel_id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { produto_id: true } });
+            const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: vigente?.produto_id ?? antes.produto_id } } });
             if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             const [orig] = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id, status, movimento_filho_id FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${antes.movimentacao_estoque_id} FOR UPDATE`
