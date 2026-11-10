@@ -212,7 +212,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
     // Resumo do conjunto INTEIRO (sem `q`, sem `cursor`).
     const total = await tx.produto.count({ where: elegivel });
     const comFator = await tx.produto.count({
-      where: { ...elegivel, vinculosCombustivel: { some: { ...baseVinculo, conversoes: { some: { ativo: true } } } } },
+      where: { ...elegivel, vinculosCombustivel: { some: { empresa_id: empresaId, conversoes: { some: { ativo: true } } } } },
     });
     const foraDeKg = await tx.produto.count({
       where: { cliente_id: cli, empresa_id: empresaId, ativo: true, unidade_principal_estoque: { not: 'KG' }, vinculosCombustivel: { some: baseVinculo } },

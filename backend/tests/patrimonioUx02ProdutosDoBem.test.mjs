@@ -225,6 +225,17 @@ describe('PB-01..04 — opções completas (TP-02, flex, multi-tanque, vários P
     });
     assert.equal(await prisma().conversaoCombustivelProduto.count({ where: { cliente_id: s.c, produto_id: posto.id } }), 0, 'nenhum fator foi criado ou reaproveitado');
     assert.deepEqual(r.resumo, { motivo_sem_opcao: null, total: 2, sem_fator: 1, fora_de_kg: 0, tipos_sem_produto: [] });
+
+    // o MESMO Produto passa de S10 para S500 (F3): o fator do par antigo (S10, granel) não serve ao par novo
+    await situacaoVinculo(s, s.vinculos.diesel.id, false);
+    await vincular(s, s.comb.DIESEL_S500, s.e1, s.diesel);
+    const g = await pdb(s, s.gerador);
+    assert.deepEqual(g.itens.map((i) => [i.id, i.tipo_combustivel.codigo, i.conversao, i.pronto]), [
+      [s.diesel.id, 'DIESEL_S500', null, false],
+      [posto.id, 'DIESEL_S10', null, false],
+    ], 'o tipo vem do vínculo ATIVO; o fator vigente do par inativo não aparece');
+    assert.deepEqual(g.resumo, { motivo_sem_opcao: null, total: 2, sem_fator: 2, fora_de_kg: 1, tipos_sem_produto: [] });
+    assert.deepEqual((await pdb(s, s.trator)).itens.map((i) => i.id), [posto.id], 'o trator (só S10) deixa de oferecer o granel');
   });
 });
 
