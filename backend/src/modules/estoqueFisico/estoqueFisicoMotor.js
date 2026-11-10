@@ -38,7 +38,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { travarEscopo } from '../gestao/gestaoComum.js';
 import { reservarNumero, reservarNumeros, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { CASAS_CUSTO, CASAS_QUANTIDADE, LIMITE_ESTOQUE, ZERO, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
+import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, LIMITE_ESTOQUE, ZERO, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
 
 export const ENTIDADE_MOVIMENTO = 'MovimentacaoEstoque';
 export const ORIGEM_SISTEMA = 'operacao_financeira';
@@ -150,9 +150,9 @@ export const kgDeEntrada = (valor, { field = 'quantidade' } = {}) => {
   if (!bruto || bruto.isNaN()) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade inválida', { details: { field, reason: 'format' } });
   }
-  if (bruto.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ field });
   const kg = bruto.toDecimalPlaces(CASAS_QUANTIDADE, Dec.ROUND_HALF_UP);
   if (!kg.gt(0)) throw quantidadeZero({ field });
+  if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ field, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   return kg;
 };
 
@@ -424,11 +424,21 @@ export const consumirFifo = (lotes, kg) => {
   return { suficiente, disponivel, fatias, valorTotal, valorUnitario };
 };
 
-/** Lotes elegíveis ao FIFO de um produto num local de uma empresa. */
-export const lotesFifo = (tx, clienteId, empresaId, produtoId, localId) =>
+/**
+ * Lotes elegíveis ao FIFO de um produto num local de uma empresa. D-PROD-161:
+ * `procedencia: true` também lê nº/série do documento e fornecedor (rateio da
+ * suplementação e cópia exata da camada na transferência); sem o 6º argumento,
+ * nada muda para os chamadores da P3/P1.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} produtoId @param {string} localId
+ * @param {{ procedencia?: boolean }} [o]
+ */
+export const lotesFifo = (tx, clienteId, empresaId, produtoId, localId, { procedencia = false } = {}) =>
   tx.estoqueLoteNota.findMany({
     where: { cliente_id: clienteId, empresa_id: empresaId, produto_id: produtoId, local_estoque_id: localId, status: 'Disponivel', quantidade_disponivel: { gt: 0 } },
-    select: { id: true, quantidade_disponivel: true, quantidade_entrada: true, custo_unitario: true, data_documento: true, createdAt: true },
+    select: {
+      id: true, quantidade_disponivel: true, quantidade_entrada: true, custo_unitario: true, data_documento: true, createdAt: true,
+      ...(procedencia ? { numero_documento: true, serie_documento: true, fornecedor_id: true, fornecedor_nome: true } : {}),
+    },
   });
 
 export const saldoLoteInsuficiente = (details) =>
@@ -446,23 +456,29 @@ export const estoqueAtualInsuficiente = (details) =>
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
  * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
  * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`).
+ * D-PROD-161: também é a baixa da suplementação (`origem.sistema = ORIGEM_SUPLEMENTACAO`),
+ * com os opcionais aditivos `instante` (data_movimentacao; padrão meio-dia UTC
+ * de `dia`), `procedencia` (fatias com a linha do lote) e `complemento`
+ * (colunas extras da allowlist `COLUNAS_COMPLEMENTO`, calculadas sobre o plano).
  * @param {any} tx
  * @param {{auth: any}} ctx
- * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia: string,
+ * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, dia?: string, instante?: Date,
  *   documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
- *   origem: {operacaoId: string, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown> }} a
+ *   origem: {operacaoId: string|null, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
+ *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any }) => Record<string, unknown> }} a
  */
 export const aplicarSaidaFifo = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
+  exigirProdutoDaEmpresa(a);
+  const instante = a.instante ?? (a.dia ? instanteDoDia(a.dia) : null);
+  if (!(instante instanceof Date) || Number.isNaN(instante.getTime())) throw new Error('aplicarSaidaFifo: dia ou instante obrigatório');
   const kg = dec(a.quantidadeKg);
   const extra = { produto_id: a.produto.id, local_estoque_id: a.local.id, ...(a.contextoErro ?? {}) };
   // D-PROD-159 (M5): kg <= 0 faria `decrement` negativo (= aumento) e > limite estouraria a coluna.
-  if (!kg.gt(0)) {
-    throw new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...extra }) });
-  }
+  if (!kg.gt(0)) throw quantidadeZero(extra);
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
-  const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id);
+  const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id, { procedencia: Boolean(a.procedencia) });
   const fifo = consumirFifo(lotes, kg);
   if (!fifo.suficiente) {
     throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
@@ -472,15 +488,20 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
     throw estoqueAtualInsuficiente({ ...extra, estoque_atual: estoqueAtual.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
   }
   if (fifo.valorTotal.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, valor_total: fifo.valorTotal.toFixed(CASAS_CUSTO) });
+  const porId = new Map(lotes.map((l) => [l.id, l]));
+  const fatias = fifo.fatias.map((f) => (a.procedencia ? { ...f, lote: porId.get(f.lote_id) } : f));
+  const publicas = fatias.map((f) => fatiaPublica(f, Boolean(a.procedencia)));
+  const colunasExtras = complementoDe(a.complemento, { fatias: publicas, valorTotal: fifo.valorTotal, valorUnitario: fifo.valorUnitario });
   const saldoAntes = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.local.id);
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const movimento = await tx.movimentacaoEstoque.create({
     data: {
       ...camposComuns(auth, a),
+      ...colunasExtras,
       numero_movimentacao: numero,
       tipo_movimentacao: 'Saída',
       tipo_detalhado: a.origem.tipoDetalhado ?? 'venda_financeiro',
-      data_movimentacao: instanteDoDia(a.dia),
+      data_movimentacao: instante,
       quantidade: paraBanco(kg, CASAS_QUANTIDADE),
       valor_unitario: paraBanco(fifo.valorUnitario, CASAS_CUSTO),
       valor_total: paraBanco(fifo.valorTotal, CASAS_CUSTO),
@@ -489,31 +510,148 @@ export const aplicarSaidaFifo = async (tx, ctx, a) => {
       cliente_nome: a.parceiro?.nome ?? null,
       motivo_movimentacao: a.origem.motivo ?? 'Saída por lançamento financeiro confirmado',
       modo_saida_fifo: 'FIFO',
-      lotes_consumidos: fifo.fatias.map((f) => ({
-        lote_id: f.lote_id,
-        quantidade: f.quantidade.toFixed(CASAS_QUANTIDADE),
-        custo_unitario: f.custo_unitario.toFixed(CASAS_CUSTO),
-      })),
+      lotes_consumidos: fifo.fatias.map(fatiaGravada),
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(saldoAntes.minus(kg), CASAS_QUANTIDADE),
     },
   });
-  for (const f of fifo.fatias) {
-    const novo = f.anterior.minus(f.quantidade);
-    const r = await tx.estoqueLoteNota.updateMany({
-      where: { cliente_id: cli, id: f.lote_id, status: 'Disponivel', quantidade_disponivel: paraBanco(f.anterior, CASAS_QUANTIDADE) },
-      data: { quantidade_disponivel: paraBanco(novo, CASAS_QUANTIDADE), status: novo.gt(0) ? 'Disponivel' : 'Esgotado' },
-    });
-    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: f.lote_id });
-  }
+  await consumirCamadas(tx, cli, fifo.fatias);
   await decrementarEstoqueAtual(tx, cli, a.produto.id, kg, (valor) =>
     estoqueAtualInsuficiente({ ...extra, estoque_atual: valor.plus(kg).toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) })
   );
   return {
     movimento,
-    fatias: fifo.fatias.map((f) => ({ lote_id: f.lote_id, quantidade: f.quantidade, custo_unitario: f.custo_unitario })),
+    fatias: publicas,
     valor_total: fifo.valorTotal,
     valor_unitario: fifo.valorUnitario,
+  };
+};
+
+/**
+ * D-PROD-161 — TRANSFERÊNCIA entre locais da MESMA empresa e produto. Consome
+ * FIFO na origem (CAS) e cria, no destino, uma camada por fatia com o MESMO
+ * custo, a MESMA `data_documento` (a de origem; sem data, o dia UTC de
+ * `instante` — nunca o ano 2001 do `String(Date).slice`) e a MESMA procedência
+ * (nulo continua nulo). Grava o par pai/filho (Saída `transferencia_enviada`,
+ * Entrada `transferencia_recebida`) e a linhagem em `lotes_consumidos[].lote_destino_id`
+ * (JSON, sem FK). NÃO lê nem altera `estoque_atual`, nem o total da empresa.
+ * Exige: produto travado (`travarProdutosEstoque`) e locais travados
+ * (`exigirLocaisEstoque`); números PROVISÓRIOS (quem chama numera no fim).
+ * @param {any} tx @param {{auth: any}} ctx
+ * @param {{ empresaId: string, produto: any, origem: {id: string, nome: string}, destino: {id: string, nome: string},
+ *   quantidadeKg: any, instante: Date, numeros: { saida: string, entrada: string },
+ *   complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any }) => { observacoes?: string, custo_medio_antes?: string, custo_medio_depois?: string },
+ *   contextoErro?: Record<string, unknown> }} a
+ * @returns {Promise<{ saida: any, entrada: any, valor_total: any, valor_unitario: any,
+ *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any, custo_unitario: any, lote: any }> }>}
+ */
+export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
+  const auth = exigirAuthContext(ctx?.auth);
+  const cli = auth.clienteId;
+  // 1–3: tudo validado antes de qualquer leitura de lote
+  if (a.origem.id === a.destino.id) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'Origem e destino devem ser distintos', { details: { field: 'local_destino_id', reason: 'invalid' } });
+  }
+  exigirProdutoDaEmpresa(a);
+  if (!(a.instante instanceof Date) || Number.isNaN(a.instante.getTime())) throw new Error('aplicarTransferenciaEstoque: instante obrigatório');
+  if (!a.numeros?.saida || !a.numeros?.entrada) throw new Error('aplicarTransferenciaEstoque: números provisórios obrigatórios');
+  const kg = dec(a.quantidadeKg);
+  const extra = { produto_id: a.produto.id, local_estoque_id: a.origem.id, ...(a.contextoErro ?? {}) };
+  if (!kg.gt(0)) throw quantidadeZero(extra);
+  if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
+  // 4–5: plano FIFO na origem e limites, ainda sem escrever
+  const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.origem.id, { procedencia: true });
+  const fifo = consumirFifo(lotes, kg);
+  if (!fifo.suficiente) {
+    throw saldoLoteInsuficiente({ ...extra, disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: kg.toFixed(CASAS_QUANTIDADE) });
+  }
+  if (fifo.valorTotal.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, valor_total: fifo.valorTotal.toFixed(CASAS_CUSTO) });
+  const saldoOrigem = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.origem.id);
+  const saldoDestino = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.destino.id);
+  if (saldoDestino.plus(kg).gt(LIMITE_ESTOQUE)) {
+    throw excedeLimiteEstoque({ ...extra, local_estoque_id: a.destino.id, saldo_destino: saldoDestino.toFixed(CASAS_QUANTIDADE), quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
+  }
+  const porId = new Map(lotes.map((l) => [l.id, l]));
+  const fatias = fifo.fatias.map((f) => ({ ...f, lote: porId.get(f.lote_id) }));
+  const colunasExtras = complementoDe(a.complemento, {
+    fatias: fatias.map((f) => fatiaPublica(f, true)), valorTotal: fifo.valorTotal, valorUnitario: fifo.valorUnitario,
+  });
+  const comum = {
+    ...camposComuns(auth, { ...a, origem: { sistema: ORIGEM_DEPOSITO, operacaoId: null } }),
+    ...colunasExtras,
+    data_movimentacao: a.instante,
+    quantidade: paraBanco(kg, CASAS_QUANTIDADE),
+    valor_unitario: paraBanco(fifo.valorUnitario, CASAS_CUSTO),
+    valor_total: paraBanco(fifo.valorTotal, CASAS_CUSTO),
+    local_estoque_origem: a.origem.id,
+    local_origem: a.origem.nome ?? null,
+    local_estoque_destino: a.destino.id,
+    local_destino: a.destino.nome ?? null,
+    motivo_movimentacao: 'Transferência entre locais de estoque',
+    total_movimentacoes_grupo: 2,
+  };
+  // 6–7: saída + CAS na origem
+  const saida = await tx.movimentacaoEstoque.create({
+    data: {
+      ...comum,
+      numero_movimentacao: String(a.numeros.saida),
+      tipo_movimentacao: 'Saída',
+      tipo_detalhado: 'transferencia_enviada',
+      modo_saida_fifo: 'FIFO',
+      lotes_consumidos: fatias.map(fatiaGravada),
+      is_registro_principal: true,
+      numero_movimentacao_seq: 1,
+      saldo_antes: paraBanco(saldoOrigem, CASAS_QUANTIDADE),
+      saldo_depois: paraBanco(saldoOrigem.minus(kg), CASAS_QUANTIDADE),
+    },
+  });
+  await consumirCamadas(tx, cli, fatias);
+  // 8–9: entrada + camadas de destino (custo, data e procedência da origem)
+  const entrada = await tx.movimentacaoEstoque.create({
+    data: {
+      ...comum,
+      numero_movimentacao: String(a.numeros.entrada),
+      tipo_movimentacao: 'Entrada',
+      tipo_detalhado: 'transferencia_recebida',
+      movimento_pai_id: saida.id,
+      is_registro_principal: false,
+      numero_movimentacao_seq: 2,
+      saldo_antes: paraBanco(saldoDestino, CASAS_QUANTIDADE),
+      saldo_depois: paraBanco(saldoDestino.plus(kg), CASAS_QUANTIDADE),
+    },
+  });
+  const diaDoInstante = a.instante.toISOString().slice(0, 10);
+  /** @type {string[]} */
+  const destinos = [];
+  for (const f of fatias) {
+    const camada = await criarCamadaEntrada(tx, cli, {
+      empresaId: a.empresaId,
+      produto: a.produto,
+      local: a.destino,
+      kg: f.quantidade,
+      custoKg: f.custo_unitario,
+      dataDocumento: f.lote.data_documento ?? comoDia(diaDoInstante),
+      procedencia: {
+        numero_documento: f.lote.numero_documento ?? null,
+        serie_documento: f.lote.serie_documento ?? null,
+        fornecedor_id: f.lote.fornecedor_id ?? null,
+        fornecedor_nome: f.lote.fornecedor_nome ?? null,
+      },
+      movimentoEntradaId: entrada.id,
+    });
+    destinos.push(camada.id);
+  }
+  // 10: pai → filho e linhagem (JSON, sem FK)
+  const saidaFinal = await tx.movimentacaoEstoque.update({
+    where: { cliente_id_id: { cliente_id: cli, id: saida.id } },
+    data: { movimento_filho_id: entrada.id, lotes_consumidos: fatias.map((f, k) => ({ ...fatiaGravada(f), lote_destino_id: destinos[k] })) },
+  });
+  return {
+    saida: saidaFinal,
+    entrada,
+    valor_total: fifo.valorTotal,
+    valor_unitario: fifo.valorUnitario,
+    fatias: fatias.map((f, k) => ({ lote_id: f.lote_id, lote_destino_id: destinos[k], quantidade: f.quantidade, custo_unitario: f.custo_unitario, lote: f.lote })),
   };
 };
 

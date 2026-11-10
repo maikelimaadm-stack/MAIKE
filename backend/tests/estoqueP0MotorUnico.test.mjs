@@ -67,11 +67,6 @@ const transferir = (s, e, produto, origem, destino, quantidade, extra = {}) =>
 /** `[status, code, field, reason]` (o tradutor HTTP põe field/reason no topo do corpo). */
 const recusa = (r) => [r.statusCode, codigo(r), r.json().field ?? null, motivo(r) ?? null];
 const fatiasDoMovimento = (m) => (m.lotes_consumidos ?? []).map((f) => [f.lote_id, f.quantidade, f.custo_unitario]);
-const contagens = async (s) => {
-  const w = { where: { cliente_id: s.c } };
-  const p = prisma();
-  return [await p.estoqueLoteNota.count(w), await p.movimentacaoEstoque.count(w), await p.operacaoIdempotente.count(w), await p.auditLog.count(w)];
-};
 
 /** Lote direto no banco com id/createdAt escolhidos (empate de data, data nula). */
 const loteCom = (s, e, produto, local, { id, kg, custo = '2.0000', dia: d = null, createdAt }) =>
