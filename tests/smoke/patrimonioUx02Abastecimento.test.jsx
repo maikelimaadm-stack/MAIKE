@@ -571,6 +571,27 @@ describe('UX-A12 — lista', () => {
     expect(card).not.toHaveTextContent(/Combustível|kg/);
     expect(screen.queryByRole('columnheader')).toBeNull();
   });
+
+  it('celular (390 px): o card mostra a Situação (Cancelado ≠ Confirmado sem abrir o registro) — contrato §1.4', async () => {
+    window.matchMedia = vi.fn().mockImplementation((q) => ({ matches: /max-width:\s*639px/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
+    window.innerWidth = 390;
+    const antigo = await semear({ data_operacional: '2026-06-08', medidor_leitura: '1530.0' });
+    await semear({ data_operacional: '2026-06-10', medidor_leitura: '1535.0' });
+    amb.estado.abastecimentos.find((a) => a.id === antigo.id).status = 'CANCELADO';
+    await montar();
+    await waitFor(() => expect(screen.getAllByTestId('b1-card')).toHaveLength(2));
+    const cardDo = (dia) => screen.getAllByTestId('b1-card').find((c) => c.textContent.includes(dia));
+    expect(cardDo('10/06/2026')).toHaveTextContent('Confirmado');
+    expect(cardDo('10/06/2026')).not.toHaveTextContent('Cancelado');
+    expect(cardDo('08/06/2026')).toHaveTextContent('Cancelado');
+    expect(cardDo('08/06/2026')).not.toHaveTextContent('Confirmado');
+    // Continua: máquina no título + Produto · Litros · Data.
+    for (const c of screen.getAllByTestId('b1-card')) {
+      expect(c.querySelector('.mg-b1-card__title')).toHaveTextContent('TP-02 — Trator TP-02');
+      expect(c).toHaveTextContent('Diesel S10 granel');
+      expect(c).toHaveTextContent('10,0000 L');
+    }
+  });
 });
 
 describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
