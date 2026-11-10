@@ -151,6 +151,8 @@ const INCLUIR_DETALHE = Object.freeze({
 export const carregarDetalhe = async (db, cli, empresaId, id) => {
   const r = await db.abastecimentoBem.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id }, include: INCLUIR_DETALHE });
   if (!r) throw naoEncontrado();
+  const vigenteDoProduto = await db.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: r.produto_id, ativo: true }, select: { tipoCombustivel: { select: { id: true, codigo: true, nome: true } } } });
+  if (vigenteDoProduto) r.conversao.vinculo.tipoCombustivel = vigenteDoProduto.tipoCombustivel;
   const consumo = await consumoDoAbastecimento(db, cli, r);
   let efeito = null;
   if (r.status === STATUS_CONFIRMADO && ehContador(r.medidor_tipo) && r.medidor_leitura !== null) {
@@ -269,12 +271,7 @@ export const listar = async (contexto, query = {}) => {
   if (de || ate) where.data_operacional = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { referencia_externa: { contains: q, mode: 'insensitive' } }] : [];
-  const env = await listarKeyset(prisma.abastecimentoBem, { where, busca, query, include: INCLUIR_RESUMO, mapItem: comoAbastecimentoResumo });
-  for (const it of env.items) {
-    const v = await prisma.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: it.tipo_combustivel.id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { produto: { select: { id: true, nome_produto: true } } } });
-    if (v) it.produto = { id: v.produto.id, nome: v.produto.nome_produto };
-  }
-  return env;
+  return listarKeyset(prisma.abastecimentoBem, { where, busca, query, include: INCLUIR_RESUMO, mapItem: comoAbastecimentoResumo });
 };
 
 /** Detalhe (A2), numa leitura consistente. @param {any} contexto @param {string} id @param {Record<string, any>} [query] */
