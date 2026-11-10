@@ -94,6 +94,8 @@ describe('UX-A01 — fluxo TP-02: máquina → Produto → litros → medidor �
   it('sem etapa Combustível: o único Produto já vem marcado; corpos A3/A4 EXATOS de antes', async () => {
     await montar();
     const form = await abrirNovo();
+    // Data pré-preenchida com o "hoje" da fazenda.
+    expect(within(form).getByTestId('abastecimento-data')).toHaveValue(amb.estado.hoje);
     await preencherTrator(form);
     const grupo = within(form).getByTestId('abastecimento-produto');
     expect(grupo.getAttribute('aria-label')).toBe('Produto');
