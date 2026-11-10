@@ -28,7 +28,7 @@ Legenda: **MANTIDO** = sem mudança de comportamento; **MIGRADO→X** = passa pe
 | W4 | `estornarEntrada` | (oráculo de teste) | — | **MANTIDO** (base do estorno de transferência na P1) |
 | W5 | `estornarEmLote` | Financeiro: cancelar, excluir, retificar | — | **MANTIDO** |
 | W6 | `numerarMovimentos` / `numeroMovimentoProvisorio` | Abastecimento | Numera no fim | **MANTIDO**; passa a servir também a suplementação e a transferência |
-| W7 | `atualizarProcedencia` | Retificar NO_LUGAR | Metadado | **MANTIDO** |
+| W7 | `atualizarProcedencia` | Retificar NO_LUGAR | Metadado só no lote da compra | **MANTIDO** na regra. A partir da R2 (A-03), leva fornecedor e nº do documento também às camadas derivadas por transferência, com linhagem JSON validada e auditoria `ACAO_PROCEDENCIA_LOTE`. Quantidade, custo, situação e datas ficam intactos |
 | W8 | Financeiro confirmar/cancelar/retificar/excluir | `/operacoes-financeiras/*` | Só chama o motor | **MANTIDO** — zero linhas em `operacaoFinanceiraService.js`/`operacaoFinanceiraPlano.js` |
 | W9 | Abastecimento confirmar/cancelar | `/abastecimentos/*` | Só chama o motor | **MANTIDO** — zero linhas em `abastecimentoService.js`/`abastecimentoPlano.js` |
 | W10 | `comandoSaidaSuplementacao` | `POST /movimentacoes-estoque/comandos/saida-suplementacao` | FIFO próprio em `Number`; lote gravado com valor **absoluto sem CAS**; sem limite; local não validado; número reservado no meio; `estoque_atual` conferido depois de gravar; sem `lotes_consumidos` | **MIGRADO→`aplicarSaidaFifo`** (origem `suplementacao`), numeração no fim, releitura; contrato externo preservado (§5) |
@@ -95,6 +95,11 @@ Legenda: **MANTIDO** = sem mudança de comportamento; **MIGRADO→X** = passa pe
   - 422 `OPERACAO_VALORES_INVALIDOS` (`quantidade_estoque_zero`, `valor_excede_limite_estoque`) e 422 `ESTOQUE_LOCAL_INVALIDO` no lugar de 201 com 0.0000 ou 500;
   - 400 `REQUEST_VALIDATION_FAILED` para `data_movimentacao` com formato inválido ou dia inexistente;
   - `[RATEIO_FIFO]` montado em Decimal; se passar de 2000 caracteres, corta só o bloco gerado (antes dava 500).
+  - **Data da camada de destino (R2, A-02):**
+    - recebe a `data_documento` da camada de origem;
+    - se a origem é legada e não tem data, recebe o dia UTC do `createdAt` dela, que é exatamente a chave FIFO `COALESCE(data_documento, createdAt)` que a origem tinha;
+    - a `data_movimentacao` do comando é só o metadado do fato e nunca muda a idade FIFO;
+    - antes da R2, o destino de uma origem sem data recebia o dia da movimentação, até 0001-01-01.
 
 ### 5.1 Celular: folha "Local de Destino" atrás do diálogo (R2, pré-existente)
 
@@ -174,7 +179,7 @@ Ver W13–W18 e W27–W28. A ordem das recusas preserva os testes de concorrênc
 - `LIMITACAO_LEGADA`:
   - evidência relevante de escritor fora do protocolo;
   - lote sem movimento de entrada;
-  - lote de transferência com ano 2001;
+  - lote de transferência **legado** com ano 2001. A camada com linhagem do motor (a saída-pai cita a camada em `lote_destino_id`) não entra nessa regra; se for adulterada, cai em `DIVERGENCIA_REAL` (R2, A-01);
   - resíduo de Number;
   - lote excluído fora do motor (`lote_excluido_fora_do_motor`).
 - `DIVERGENCIA_REAL`: invariante quebrado com proveniência do protocolo, inclusive `linhagem_transferencia_diverge` (R2). Na transferência do motor, `lote_destino_id` tem de apontar para a camada do filho, no local de destino, com a mesma quantidade e o mesmo custo.
@@ -183,7 +188,12 @@ Ver W13–W18 e W27–W28. A ordem das recusas preserva os testes de concorrênc
   - quantidade, situação ou vínculo do lote.
 
   Nunca rebaixam `DIVERGENCIA_REAL`: renomeação, procedência, custo, fornecedor ou documento do lote, nome ou preço do produto, quantidade igual em outro formato.
-- **Recibo legado** (suplementação sem `lotes_consumidos`): ligado ao movimento por `LATERAL` na janela de ±10 min e usado só quando o movimento não tem `lotes_consumidos` (nunca conta duas vezes).
+- **Recibo legado** (suplementação sem `lotes_consumidos`): usado só quando o movimento não tem `lotes_consumidos`, então nunca conta duas vezes. A janela é de ±10 min.
+  - No R1, o recibo era ligado ao movimento por um `LATERAL` por saída, com custo O(saídas × recibos).
+  - Desde a R2 (LC-2), as janelas das saídas legadas da página são fundidas em intervalos, cada intervalo é lido uma vez pelo índice `(cliente_id, createdAt)` e o recibo é casado por hash.
+  - A pré-contagem da chave passou a `1 + lotes + movimentos + 2 × recibos`, então o recibo entra no orçamento.
+  - Medido com uma rajada de 20.000 recibos: o produto foi de 26 s com 409 para 346 ms COMPROVADA, e a chamada 3 do tenant A de 26,3 s com 409 para 1,6 s.
+  - Com isso, as divergências achadas na varredura do tenant A subiram de 5/9 para 9/9.
 - **Filtro de local:** não mascara a inconsistência do cache, que é global. `cobertura.nivel_produto = 'todos_os_locais'` e I1 continua conferido em todos os locais.
 - **Nunca corrige**: não há chamada de escrita no módulo.
   - A única cadeia `.update(` é a do HMAC do cursor, e o teste R9 exige exatamente uma.
@@ -281,10 +291,27 @@ _(preenchido ao fim da integração e da revisão)_
 - **R7** a P0 não recalcula o cache; divergências legadas ficam só reportadas.
 - **R8** estorno de suplementação e de transferência continua indisponível (a UI já estava suspensa); vem na P1, no motor.
 - **R12** `data_movimentacao` ausente continua sendo o instante atual (validar "hoje da fazenda" exige fuso em toda empresa).
-- **R13** fila offline legada: escritas antigas no IndexedDB seriam recusadas pelo backend se o replay fosse religado (hoje não está); uma criação de produto antiga com `estoque_atual` ≠ 0 seria reenviada sem o campo.
+- **R13 fila offline legada.**
+  - Hoje o replay não tem chamador.
+  - Desde a R2 (LC-3), um `create` ou `delete` antigo de movimento ou lote no IndexedDB fica **retido no cliente**, em quarentena `OFFLINE_ENTITY_UNSUPPORTED`. Ele não é enviado nem apagado, e o resto da fila segue.
+  - Ele não chega ao backend. Se chegasse, seria 409.
+  - Uma criação de produto antiga com `estoque_atual` ≠ 0 seria reenviada sem o campo.
+  - Liberar ou descartar o item retido pela UI fica para a P1.
 - **R16** o front ainda manda o próprio bloco `[RATEIO_FIFO]`; o servidor acrescenta o dele.
 - **R18** a baixa de suplementação e o evento de suplementação continuam em duas transações (comando único fica para a P1).
-- **Pré-existente:** `PATCH /produtos` sem `empresa_id` e sem `estoque_atual` lê o estado anterior sem trava; o AuditLog pode registrar `dados_anteriores.estoque_atual` defasado em relação ao motor (o formulário real sempre reenvia `empresa_id`, então trava).
+- **Corrigido na R2 (B-01, B-02, LC-1):** a leitura sem trava gerava evidência falsa no AuditLog.
+  - Afetava o `PATCH /produtos` sem `empresa_id` e sem `estoque_atual`, e a renomeação benigna do lote.
+  - Numa corrida com uma baixa, o AuditLog registrava 100→90 de `estoque_atual` ou de `quantidade_disponivel`, que o PATCH não escreveu.
+  - A reconciliação tomava isso como escrita fora do motor e rebaixava uma divergência real para `LIMITACAO_LEGADA`.
+  - Agora as duas rotas leem a linha sob `FOR NO KEY UPDATE`. Uma corrida natural de 150 rodadas deu 0 divergência.
+  - AuditLogs gravados antes desta correção continuam indistinguíveis do legado.
+- **B-03, pré-existente na `main`:** o replay idempotente devolve como **número** os Decimal que o 201 devolve como **string**. Ids, números de movimento e rateio são iguais.
+  - Mudar isso altera o formato do recibo gravado e o contrato do replay; fica para a P1.
+  - Nenhum consumidor em `src/` depende do tipo, e o fingerprint não muda.
+- **`data_movimentacao` sem faixa plausível:** desde a R2 (A-02) ela é só metadado do fato. Não define a data nem a idade FIFO de nenhuma camada. Validar a faixa fica com o R12, na P1.
+- **LC-2, resíduo:** o recibo legado já é lido de forma linear e entra no orçamento.
+  - Continua um limite físico: um produto com milhões de recibos na janela é lido de uma vez, e o resultado é 409 fail-closed.
+  - A saída é o índice `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`, que é DDL e fica para a P1. É o mesmo tipo de bloqueio que o R2-1.
 - **Colisão de numeração:** a PR #237 (DRAFT) anuncia a D-PROD-160 e mexe nos mesmos documentos; o merge posterior resolve só texto.
 - **BLOCKER-R2-1: produto gigantesco numa chave.** Arquitetural, não explorável; vai para a P1.
   - Uma chave nunca é partida, porque I1 e I2 precisam do produto inteiro.
