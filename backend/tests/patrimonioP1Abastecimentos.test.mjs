@@ -401,6 +401,16 @@ describe('P1-02 — combustível, fazenda e fator', () => {
     assert.deepEqual(erro(rv), [409, 'ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_vigente_id', 'vigente_divergente']);
     const rnulo = await s.configurarFator(s.e1, s.comb.DIESEL_S10, s.diesel, '0.860000', null, s.contaFator.token);
     assert.deepEqual(erro(rnulo), [409, 'ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_vigente_id', 'vigente_divergente']);
+    const versaoErrada = await A.confirmar(s.operador.token, { ...corpoVisto, operation_id: opId(), conversao_id: f2.id, conversao_versao: 2 });
+    assert.deepEqual(erro(versaoErrada), [409, 'ABASTECIMENTO_CONVERSAO_ALTERADA', 'conversao_id', 'conversao_alterada'], 'mesmo id com outra versão');
+    // faixa e declaração do fator (0 < f ≤ 10, 6 casas, estoque declarado em KG)
+    const fator = (kg, extra = {}) => A.req('POST', '/patrimonio-conversoes-combustivel', s.contaFator.token, {
+      empresa_id: s.e1.id, tipo_combustivel_id: s.comb.DIESEL_S10, produto_id: s.diesel.id, kg_por_litro: kg, declara_estoque_em_kg: true, conversao_vigente_id: f2.id, ...extra,
+    });
+    assert.deepEqual(erro(await fator('10.000001')), [422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', 'kg_por_litro', 'fator_acima_do_teto']);
+    assert.deepEqual(erro(await fator('0.000000')), [422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', 'kg_por_litro', 'fator_nao_positivo']);
+    assert.deepEqual(erro(await fator('0.850000', { declara_estoque_em_kg: false })), [422, 'ABASTECIMENTO_CONVERSAO_INVALIDA', 'declara_estoque_em_kg', 'declaracao_obrigatoria']);
+    assert.equal(erro(await fator('0.8500001'))[0], 400, '7 casas');
     assert.equal(await fotoAbastecimento(s.c), antes);
 
     const rp = await A.ok(A.previa(s.operador.token, previaDe(corpoVisto)));
