@@ -2,7 +2,7 @@
  * Portais .b1ref recebem os mesmos tokens que a página de origem.
  * Inputs mobile conservam os 16px de mk-unificado.css para evitar zoom no iOS.
  */
-:is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet) {
+:is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet, .mk-base1-sheet) {
   --mk-font-list: 12px;
   --mk-font-field: 13px;
   --mk-font-heading: 12px;
@@ -11,7 +11,6 @@
   --mk-font-float-rest: 12px;
   --mk-font-float-up: 9px;
   --mk-action-font: 12px;
-  --mk-action-height: 28px;
   --mk-text: #111827;
   --mk-text-strong: #111827;
   --mk-text-muted: #6b7280;
@@ -20,6 +19,8 @@
   --mg-text-3: #9ca3af;
   font-size: var(--mk-font-list);
   color: var(--mk-text);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Títulos de página e registro: a mesma hierarquia em todas as telas Base1. */
@@ -57,6 +58,14 @@
 
 /* Não tocar em .req, erros, badges, estados ou cores dos ícones. */
 
+/* Textos internos tinham tamanho próprio de 16px no seletor mobile. */
+.mk-base1-sheet :is(.mgs__label, .mgs__label > div, .fpc__nome):not(#mk-padrao) {
+  font-size: var(--mk-font-list) !important;
+}
+.mk-base1-sheet :is(.mgs__code, .mgs__count, .mgs__mais, .fpc__resumo):not(#mk-padrao) {
+  font-size: 11px !important;
+}
+
 /* Portais de configuração não herdam a página: cada peça usa a mesma régua. */
 :is(.cadastro-b1, .b1ref, .mk-config-sheet, .mk-column-filter-sheet)
   :is(.dlin-l, .mg-b1-row__title, .mk-colcfg__nome, .mk-config-restore, .mk-colcfg__restaurar,
@@ -70,22 +79,4 @@
 }
 :is(.mk-config-sheet, .mk-column-filter-sheet) .mk-sheet__aside:not(#mk-padrao) {
   font-size: 11px;
-}
-:is(.cadastro-b1, .b1ref, .mk-config-sheet)
-  :is(.dmid-btn, .mk-colcfg__ordem button, .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) {
-  height: var(--mk-action-height) !important;
-  min-height: var(--mk-action-height) !important;
-  font-size: var(--mk-action-font) !important;
-}
-:is(.cadastro-b1, .b1ref, .mk-config-sheet)
-  :is(.dmid-btn, .mk-colcfg__ordem button):not(#mk-padrao) {
-  width: var(--mk-action-height) !important;
-  min-width: var(--mk-action-height) !important;
-}
-
-/* Mantém a área de toque, com a mesma fonte compacta do desktop. */
-@media (max-width: 1023px) {
-  :is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet) {
-    --mk-action-height: 40px;
-  }
 }

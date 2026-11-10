@@ -89,7 +89,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
 
   if (celular) {
     return (
-      <MobileSheet open onClose={() => fechar.current()} label="Filtrar por campo" title="Filtrar por campo" role="menu">
+      <MobileSheet className="mk-base1-sheet" open onClose={() => fechar.current()} label="Filtrar por campo" title="Filtrar por campo" role="menu">
         <div className="fpc fpc--sheet">{conteudo}</div>
       </MobileSheet>
     );
