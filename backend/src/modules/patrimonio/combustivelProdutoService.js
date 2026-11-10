@@ -255,8 +255,7 @@ export const vincular = async (contexto, tipoId, entrada) => {
           data: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: tipo.id, produto_id: produtoId, ativo: true, ativo_chave: true },
           select: SELECAO,
         });
-        const outroM29 = await tx.conversaoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: tipo.id, ativo: true, NOT: { produto_id: produtoId } }, select: { kg_por_litro: true } });
-        if (outroM29) await tx.conversaoCombustivelProduto.create({ data: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: tipo.id, produto_id: produtoId, sequencia: 1, kg_por_litro: outroM29.kg_por_litro, declara_estoque_em_kg: true, ativo: true, ativo_chave: true } });
+        await tx.tanqueBemCombustivel.updateMany({ where: { cliente_id: cli, combustivel_id: tipo.id }, data: { updatedAt: new Date() } });
         await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: criado.id, dadosNovos: paraAuditoria(criado) }, tx);
         return comoVinculoPublico(criado);
       }),
