@@ -46,6 +46,12 @@
  *      ação (Novo, Cancelar, Novo fator); a API real recusa 403 os comandos
  *      e nada muda no banco.
  *  Toda resposta ≥ 400 da API real observada pelas telas é divergência.
+ *  Em TODA captura (lista, formulário, revisão…): a página não rola na
+ *  horizontal (`scrollingElement.scrollWidth <= clientWidth + 1`). Lista
+ *  (passos 5 e 8): tabela com as colunas exatas Data | Máquina/Veículo |
+ *  Produto | Litros | Medidor | Situação (sem "Combustível"); no celular,
+ *  cards com a máquina/veículo no título + Produto, Litros e Data. Formulário:
+ *  nenhum rótulo/campo/etapa "Combustível" nem o tipo "Diesel S10".
  *
  * Uso:
  *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_e2e?host=/tmp \
@@ -297,6 +303,12 @@ const executarLargura = async (browser, largura) => {
       await page.screenshot({ path: path.join(OUT, arquivo), fullPage: false });
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
       conferir(sw <= largura, `${arquivo}: rolagem horizontal (${sw} > ${largura})`);
+      // UX-02: a PÁGINA não rola na horizontal (lista, formulário e revisão em todas as larguras).
+      const rol = await page.evaluate(() => {
+        const e = document.scrollingElement || document.documentElement;
+        return { sw: e.scrollWidth, cw: e.clientWidth };
+      });
+      conferir(rol.sw <= rol.cw + 1, `${arquivo}: rolagem horizontal da página (scrollingElement.scrollWidth ${rol.sw} > clientWidth ${rol.cw} + 1)`);
       return arquivo;
     };
     const visivel = (loc) => loc.filter({ visible: true }).first();
@@ -322,6 +334,52 @@ const executarLargura = async (browser, largura) => {
     const irParaLista = async () => {
       await page.goto(`${WEB}/abastecimentos`, { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('networkidle').catch(() => {});
+    };
+    const esperarNaLista = (registro) =>
+      page.waitForFunction(
+        ({ id, litros }) =>
+          [...document.querySelectorAll(`[data-testid="abastecimento-bem-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
+          [...document.querySelectorAll('[data-testid="b1-card"]')].some((e) => e.textContent?.includes(litros) && e.getClientRects().length > 0),
+        { id: registro.id, litros: registro.litros },
+      );
+    /**
+     * UX-02: confere a LISTA padrão com o registro (e captura). Tabela (≥ 640
+     * px; obrigatória em ≥ 1024): colunas exatas Data | Máquina/Veículo |
+     * Produto | Litros | Medidor | Situação, sem "Combustível", e a linha com a
+     * máquina, o Produto, os litros e a data. Celular (< 640): cards com a
+     * máquina/veículo no título + Produto, Litros e Data (sem tabela).
+     */
+    const conferirLista = async (registro, etapa) => {
+      await irParaLista();
+      await esperarNaLista(registro);
+      const [ano, mes, dia] = String(s.hoje).split('-');
+      const dataBr = `${dia}/${mes}/${ano}`;
+      const cabecalhos = (await page.getByRole('columnheader').filter({ visible: true }).allTextContents()).map((t) => t.trim()).filter(Boolean);
+      if (largura >= 1024) conferir(cabecalhos.length > 0, `[${rotulo}] ${ator}: lista sem tabela em ${largura} px`);
+      if (movel) conferir(cabecalhos.length === 0, `[${rotulo}] ${ator}: lista em tabela no celular (${cabecalhos.join(' | ')})`);
+      if (cabecalhos.length) {
+        igual(cabecalhos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] ${ator}: colunas padrão da lista`);
+        conferir(!cabecalhos.some((c) => /combust/i.test(c)), `[${rotulo}] ${ator}: coluna de combustível na lista (${cabecalhos.join(' | ')})`);
+        const linha = visivel(page.locator('tr').filter({ has: page.getByTestId(`abastecimento-bem-${registro.id}`) }));
+        const txt = (await linha.innerText()).replace(/\s+/g, ' ');
+        conferir(
+          txt.includes('TP-02') && txt.includes('DIESEL S10 GRANEL') && txt.includes(registro.litros) && txt.includes(dataBr),
+          `[${rotulo}] ${ator}: linha da lista sem máquina/Produto/litros/data (${txt})`,
+        );
+      }
+      if (movel) {
+        const card = visivel(page.getByTestId('b1-card').filter({ hasText: registro.litros }));
+        const titulo = (await card.locator('.mg-b1-card__title').innerText().catch(() => '')).trim();
+        conferir(titulo.includes('TP-02') && titulo.includes('Trator TP-02'), `[${rotulo}] ${ator}: título do card sem a máquina/veículo (${titulo})`);
+        const rotulos = (await card.locator('.mg-b1-card__label').allInnerTexts()).map((t) => t.trim().replace(/:$/, ''));
+        const valores = (await card.locator('.mg-b1-card__value').allInnerTexts()).map((t) => t.trim());
+        const campos = Object.fromEntries(rotulos.map((r, i) => [r, valores[i]]));
+        igual(campos.Produto, 'DIESEL S10 GRANEL', `[${rotulo}] ${ator}: card — Produto`);
+        igual(campos.Litros, registro.litros, `[${rotulo}] ${ator}: card — Litros`);
+        igual(campos.Data, dataBr, `[${rotulo}] ${ator}: card — Data`);
+        conferir(!rotulos.some((r) => /combust/i.test(r)), `[${rotulo}] ${ator}: card com combustível (${rotulos.join(', ')})`);
+      }
+      await shot(etapa);
     };
     /**
      * Abre o abastecimento pela lista: na tabela pela célula da máquina (o Nº
@@ -349,7 +407,7 @@ const executarLargura = async (browser, largura) => {
       fechado = true;
       await ctx.close().catch(() => {});
     };
-    const a = { ator, page, requisicoes, shot, visivel, clicar, preencher, escolher, irParaLista, abrirNaLista, fechar, aberto: () => !fechado };
+    const a = { ator, page, requisicoes, shot, visivel, clicar, preencher, escolher, irParaLista, conferirLista, abrirNaLista, fechar, aberto: () => !fechado };
     atores.push(a);
     return a;
   };
@@ -370,7 +428,7 @@ const executarLargura = async (browser, largura) => {
   };
 
   const dono = await abrirAtor('dono', token);
-  const { page, shot, visivel, clicar, preencher, escolher, irParaLista, abrirNaLista } = dono;
+  const { page, shot, visivel, clicar, preencher, escolher, irParaLista, conferirLista, abrirNaLista } = dono;
   const bemAntes = await bemCru(s);
   const reg = {};
 
@@ -390,6 +448,12 @@ const executarLargura = async (browser, largura) => {
     await visivel(page.getByTestId('abastecimento-local-auto').filter({ hasText: 'Sai do estoque: TANQUE DIESEL SEDE' })).waitFor();
     igual(await page.getByTestId('abastecimento-combustivel').count(), 0, `[${rotulo}] o formulário ainda tem a etapa "Combustível"`);
     igual(await form.getByRole('radio', { name: 'Diesel S10', exact: true }).count(), 0, `[${rotulo}] o tipo "Diesel S10" aparece como escolha no formulário`);
+    // UX-02: nenhuma ETAPA "Combustível" (rótulo, legenda ou campo) no formulário; o tipo não é exibido.
+    igual(await form.getByText(/^\s*(Tipo de )?[Cc]ombust[íi]vel\s*\*?\s*$/).filter({ visible: true }).count(), 0, `[${rotulo}] o formulário tem rótulo/etapa "Combustível"`);
+    igual(await form.getByLabel(/^\s*(Tipo de )?[Cc]ombust[íi]vel\s*\*?\s*$/).count(), 0, `[${rotulo}] o formulário tem campo "Combustível"`);
+    igual(await form.getByText('Diesel S10', { exact: true }).filter({ visible: true }).count(), 0, `[${rotulo}] o formulário mostra o tipo "Diesel S10"`);
+    const rotulosForm = (await form.locator('label, legend, [role="radiogroup"]').filter({ visible: true }).allInnerTexts()).map((t) => t.split('\n')[0].trim()).filter(Boolean);
+    conferir(!rotulosForm.some((t) => /^combust[íi]vel\b/i.test(t)), `[${rotulo}] etapa de combustível no formulário (${rotulosForm.join(' / ')})`);
     igual(await visivel(page.getByTestId('abastecimento-data')).inputValue(), s.hoje, `[${rotulo}] data padrão do formulário (hoje no fuso da fazenda)`);
     await preencher('abastecimento-litros', litros);
     await preencher('abastecimento-leitura', leitura);
@@ -500,6 +564,7 @@ const executarLargura = async (browser, largura) => {
     });
 
     await passo('5 histórico: lista e consulta', async () => {
+      await conferirLista(reg.primeiro, 'lista');
       await abrirNaLista(reg.primeiro);
       const kg = await visivel(page.getByTestId('consulta-kg')).innerText();
       const fator = await visivel(page.getByTestId('consulta-fator')).innerText();
@@ -646,19 +711,9 @@ const executarLargura = async (browser, largura) => {
 
     await passo('8 usuário só visualizar: sem botões na tela e 403 na API', async () => {
       const vis = await abrirAtor('vis', tokenVis);
-      await vis.irParaLista();
-      await vis.page.waitForFunction(
-        (id) => [...document.querySelectorAll(`[data-testid="abastecimento-bem-${id}"]`)].some((e) => e.getClientRects().length > 0) ||
-          [...document.querySelectorAll('[data-testid="b1-card"]')].some((e) => e.getClientRects().length > 0),
-        reg.segundo.id,
-      );
-      // Lista padrão (UX-02): Data | Máquina/Veículo | Produto | Litros | Medidor | Situação — sem "Combustível".
-      const cabecalhos = (await vis.page.getByRole('columnheader').filter({ visible: true }).allTextContents()).map((t) => t.trim()).filter(Boolean);
-      if (cabecalhos.length) {
-        igual(cabecalhos.join(' | '), 'Data | Máquina/Veículo | Produto | Litros | Medidor | Situação', `[${rotulo}] colunas padrão da lista`);
-      }
+      // Lista padrão (UX-02): Data | Máquina/Veículo | Produto | Litros | Medidor | Situação — sem "Combustível"; cards no celular.
+      await vis.conferirLista(reg.segundo, 'lista');
       igual(await vis.page.getByRole('button', { name: 'Novo abastecimento' }).filter({ visible: true }).count(), 0, `[${rotulo}] só-visualizar vê "Novo abastecimento"`);
-      await vis.shot('lista');
       await vis.abrirNaLista(reg.segundo);
       igual(await vis.page.getByTestId('abastecimento-cancelar').filter({ visible: true }).count(), 0, `[${rotulo}] só-visualizar vê "Cancelar"`);
       await vis.shot('consulta');

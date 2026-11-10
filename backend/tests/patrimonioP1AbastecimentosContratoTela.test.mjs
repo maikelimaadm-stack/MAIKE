@@ -6,7 +6,8 @@
  * corpos que a TELA monta a partir do formulário como o usuário o preenche:
  * texto pt-BR com vírgula decimal ("80,0", "1550,5", "0,84"), as OPÇÕES do
  * próprio servidor (A7 bens, A16 produtos do bem — D-PROD-160/UX-02: o
- * operador escolhe o PRODUTO e o tipo vem do vínculo ativo —, A12 locais) e a
+ * operador escolhe o PRODUTO e o tipo vem do vínculo ativo, aplicado ao
+ * formulário pelo helper real `opcaoNoFormulario` —, A12 locais) e a
  * chave `lanc-<uuid>` do serviço. Percorre A3 sem fator (fail-closed) → A14 → A13 →
  * A3 → A4 → replay → A1 (`operation_id`) → A2 → A6 → A5 → replay do A5 → A15,
  * e exige em TODA resposta `conferirRespostaAbastecimento(body) = []` (a forma
@@ -39,6 +40,10 @@ import {
   montarCorpoConfirmacao,
   montarCorpoConversao,
   montarCorpoPrevia,
+  opcaoNoFormulario,
+  produtoAutomatico,
+  situacaoDaEscolha,
+  tanqueDoFormulario,
   validarFormulario,
 } from '../../src/lib/abastecimentoRegras.js';
 import { hojeNoFuso } from '../../src/lib/diaCivil.js';
@@ -74,9 +79,12 @@ const conforme = (body, onde) => assert.deepEqual(conferirRespostaAbastecimento(
  * Preenche o formulário COMO A TELA (UX-02): bem → PRODUTO (A16, o tipo e os
  * tanques vêm da opção do servidor) → local, sempre a partir das opções do
  * servidor (`FormularioAbastecimento.jsx`). O mapeamento opção → formulário é
- * o do contrato UX-02 §2.6, INLINE (a fase de integração troca por
- * `opcaoNoFormulario`). `unico` (padrão): a resposta tem de ser completa com 1
- * opção (a tela auto-seleciona); senão o item é escolhido pelo `produto.id`.
+ * o HELPER REAL da tela (`opcaoNoFormulario`, contrato UX-02 §2.6/§4.2), a
+ * auto-escolha é `produtoAutomatico` e a capacidade que a validação local usa
+ * vem de `tanqueDoFormulario` — o corpo enviado à API é o que o formulário
+ * real monta a partir da resposta real de `produtos-do-bem`. `unico` (padrão):
+ * a resposta tem de ser completa com 1 opção (a tela auto-seleciona); senão
+ * nada é auto-escolhido e o item é escolhido pelo `produto.id`.
  * @param {any} s @param {string} tok
  * @param {{ bemId: string, tipoId: string, produtoId: string, litros: string, leitura?: string, tanqueCheio?: boolean, data?: string, unico?: boolean }} p
  */
@@ -86,31 +94,41 @@ const preencher = async (s, tok, p) => {
   assert.ok(bem, 'o bem aparece no seletor do formulário');
   const opcoes = await A.ok(A.produtosDoBem(tok, s.e1.id, bem.id));
   assert.equal(opcoes.bem.id, bem.id, 'a resposta é do bem do formulário');
-  if (p.unico !== false) assert.deepEqual([opcoes.itens.length, opcoes.has_more], [1, false], 'resposta completa com 1 Produto → a tela auto-seleciona');
-  const item = opcoes.itens.find((x) => x.produto.id === p.produtoId);
+  const automatico = produtoAutomatico(opcoes, bem.id);
+  let item;
+  if (p.unico !== false) {
+    assert.deepEqual([opcoes.itens.length, opcoes.has_more], [1, false], 'resposta completa com 1 Produto → a tela auto-seleciona');
+    assert.ok(automatico, 'a tela escolhe sozinha o Produto único');
+    item = automatico;
+  } else {
+    assert.equal(automatico, null, 'mais de uma opção → a tela NÃO escolhe sozinha (o operador escolhe)');
+    item = opcoes.itens.find((x) => x.produto.id === p.produtoId);
+  }
   assert.ok(item, 'o Produto aparece entre os do bem');
+  assert.equal(item.produto.id, p.produtoId, 'o Produto escolhido é o esperado');
   assert.equal(item.tipo_combustivel.id, p.tipoId, 'o tipo vem do vínculo ativo (servidor), nunca de escolha na tela');
   assert.equal(item.tanques.length, 1, 'um tanque aceita o Produto → a tela não pergunta o tanque');
-  const tanque = item.tanques[0];
-  const locais = await A.ok(A.opcoes(tok, 'locais', `empresa_id=${s.e1.id}&produto_id=${item.produto.id}`));
-  assert.equal(locais.itens.length, 1, 'um local com saldo → a tela auto-seleciona');
   const hoje = hojeNoFuso(FUSO, new Date(String(process.env.MAIKE_TESTE_AGORA)));
   assert.equal(hoje, HOJE);
-  // contrato UX-02 §2.6 (as MESMAS chaves de hoje; `montarCorpo*` não mudam)
-  const produto = { ...item.produto, conversao: item.conversao, tipo_combustivel: item.tipo_combustivel, tanques: item.tanques, pronto: item.pronto };
+  // a tela: escolhe o bem (form em branco) e aplica a opção com o helper real (as MESMAS chaves; `montarCorpo*` não mudam)
+  const comProduto = opcaoNoFormulario({ ...formularioVazio(hoje), bem }, item);
+  assert.equal(comProduto.local_estoque_id, null, 'Produto novo no formulário → o local é escolhido depois dele');
+  const tanque = tanqueDoFormulario(comProduto);
+  assert.deepEqual(tanque, item.tanques[0], 'o tanque do formulário é o único da opção do servidor');
+  const locais = await A.ok(A.opcoes(tok, 'locais', `empresa_id=${s.e1.id}&produto_id=${comProduto.produto.id}`));
+  assert.equal(locais.itens.length, 1, 'um local com saldo → a tela auto-seleciona');
   const form = {
-    ...formularioVazio(hoje),
-    bem,
-    produto,
-    tipo_combustivel_id: item.tipo_combustivel.id,
-    tanque_id: item.tanques.length === 1 ? item.tanques[0].id : null,
+    ...comProduto,
     local_estoque_id: String(locais.itens[0].local_estoque_id),
     data_operacional: p.data ?? '2027-06-10',
     quantidade_litros: p.litros,
     medidor_leitura: p.leitura ?? '',
     tanque_cheio: p.tanqueCheio === true,
   };
-  assert.deepEqual(validarFormulario(form, { hoje, capacidadeLitros: tanque.capacidade_litros }).erros, {}, 'formulário válido para a tela');
+  assert.equal(situacaoDaEscolha(opcoes, form), 'presente', 'a escolha segue entre as opções do servidor (a tela não a limpa)');
+  const { produto } = form;
+  assert.deepEqual([produto.conversao, produto.pronto, produto.tipo_combustivel, produto.tanques], [item.conversao, item.pronto, item.tipo_combustivel, item.tanques], 'fator, prontidão, tipo e tanques do formulário = os da opção do servidor');
+  assert.deepEqual(validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null }).erros, {}, 'formulário válido para a tela');
   const corpo = montarCorpoPrevia(s.e1.id, form);
   assert.deepEqual([corpo.bem_id, corpo.tanque_id, corpo.tipo_combustivel_id, corpo.produto_id], [p.bemId, tanque.id, p.tipoId, p.produtoId], 'ids do corpo = os da opção do servidor');
   return { form, tanque, produto, hoje };
