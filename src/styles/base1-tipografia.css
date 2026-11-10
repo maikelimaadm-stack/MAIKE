@@ -12,7 +12,6 @@
   --mk-font-float-up: 9px;
   --mk-action-font: 12px;
   --mk-action-height: 28px;
-  --mk-action-icon: 16px;
   --mk-text: #111827;
   --mk-text-strong: #111827;
   --mk-text-muted: #6b7280;
@@ -88,6 +87,5 @@
 @media (max-width: 1023px) {
   :is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet) {
     --mk-action-height: 40px;
-    --mk-action-icon: 17px;
   }
 }
