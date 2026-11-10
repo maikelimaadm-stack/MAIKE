@@ -40,7 +40,12 @@ export const ABASTECIMENTOS_COLUNAS = [
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
 ];
 
-/** Cards (celular): a máquina é o título; Produto, Litros, Data e Situação. */
+/**
+ * Cards (celular): a máquina é o título e a Situação vai no subtítulo
+ * (`cardsCodeColId="status"`); os campos são Produto, Litros e Data. No celular
+ * a grade só mostra 3 campos (D-PROD-88), então a Situação não pode depender
+ * da lista de campos: sem ela um Cancelado não se distingue de um Confirmado.
+ */
 export const ABASTECIMENTOS_CAMPOS_CARD = ["produto", "quantidade_litros", "data_operacional", "status"];
 
 const COLUNAS_DECIMAIS = Object.freeze({ quantidade_litros: "quantidade_litros", quantidade_kg: "quantidade_kg", custo_total: "custo_total", numero: "numero" });
@@ -154,7 +159,7 @@ export default function TabelaAbastecimentos(props) {
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
       cardsTitleColId="bem"
-      cardsCodeColId="numero"
+      cardsCodeColId="status"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
