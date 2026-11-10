@@ -134,6 +134,11 @@ const medir = async (c, filtro = {}, orcamento = undefined, { semSeqscan = true 
               const de = (l) => (l.find((t) => t.tabela === 'AuditLog') ?? { seq_tup_read: 0, idx_tup_fetch: 0 });
               const n = de(depoisDbg).seq_tup_read + de(depoisDbg).idx_tup_fetch - de(antesDbg).seq_tup_read - de(antesDbg).idx_tup_fetch;
               console.error('DBG', n, textoSql(args).text.trim().replace(/\s+/g, ' ').slice(0, 80));
+              if (n > 50) {
+                const q = textoSql(args);
+                const plano = await alvo.$queryRawUnsafe(`EXPLAIN (ANALYZE, BUFFERS) ${q.text}`, ...q.values);
+                console.error(plano.map((r) => r['QUERY PLAN']).join('\n'));
+              }
             }
             consultas.push({ ...textoSql(args), linhas: Array.isArray(res) ? res.length : 0, prop: String(prop) });
             return res;
