@@ -146,6 +146,7 @@ export const fingerprintDaConfirmacao = (e) => ({
   bem_id: e.bem_id,
   tanque_id: e.tanque_id,
   tipo_combustivel_id: e.tipo_combustivel_id,
+  produto_id: e.produto_id,
   local_estoque_id: e.local_estoque_id,
   data_operacional: e.data_operacional,
   quantidade_litros: e.quantidade_litros,
