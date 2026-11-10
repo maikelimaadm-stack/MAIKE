@@ -24,14 +24,19 @@ export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v2";
  * Padrão: Data | Máquina/Veículo | Produto | Litros | Medidor | Situação. Os
  * dados técnicos ficam como colunas opcionais (desligadas); o tipo de
  * combustível aparece só na consulta (detalhe técnico).
+ *
+ * Larguras: a soma das 6 colunas padrão (654 px + a de seleção) cabe na grade
+ * do tablet (820 px, ~712 px úteis), então a Situação aparece sem rolar a
+ * tabela por dentro. As larguras são mínimas: no desktop a grade estica as
+ * colunas para ocupar a linha.
  */
 export const ABASTECIMENTOS_COLUNAS = [
-  { id: "data_operacional", label: "Data", default: true, sortable: true, width: 100 },
-  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 220 },
-  { id: "produto", label: "Produto", default: true, sortable: true, width: 200 },
-  { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 110 },
-  { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 120 },
-  { id: "status", label: "Situação", default: true, sortable: true, width: 110 },
+  { id: "data_operacional", label: "Data", default: true, sortable: true, width: 96 },
+  { id: "bem", label: "Máquina/Veículo", default: true, sortable: true, width: 146 },
+  { id: "produto", label: "Produto", default: true, sortable: true, width: 136 },
+  { id: "quantidade_litros", label: "Litros", default: true, sortable: true, align: "right", width: 88 },
+  { id: "leitura", label: "Medidor", default: true, sortable: true, align: "right", width: 88 },
+  { id: "status", label: "Situação", default: true, sortable: true, width: 100 },
   { id: "numero", label: "Nº", default: false, sortable: true, width: 70 },
   { id: "tanque", label: "Tanque", default: false, sortable: true, width: 140 },
   { id: "quantidade_kg", label: "KG", default: false, sortable: true, align: "right", width: 110 },
