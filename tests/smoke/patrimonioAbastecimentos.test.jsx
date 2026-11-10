@@ -398,6 +398,39 @@ describe('FE5 — confirmação idempotente', () => {
     expect(confirmacoes()).toHaveLength(2);
   });
 
+  it('FE-02: "Consultar" acha o envio mas o detalhe falha → a pendência FICA e repetir manda a MESMA chave (replay; o estoque não é baixado duas vezes)', async () => {
+    amb.estado.proxima = 'gravar-e-perder';
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    const dialogo = await pedirPrevia(form);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    await within(dialogo).findByTestId('resultado-incerto');
+    const chave = confirmacoes()[0].body.operation_id;
+    let falhou = false;
+    amb.falhar = (req) => {
+      if (!falhou && req.method === 'GET' && /^\/patrimonio-abastecimentos\/ab-/.test(req.path)) {
+        falhou = true;
+        return erroServidor(503, 'PROVIDER_UNAVAILABLE');
+      }
+      return null;
+    };
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-consultar-resultado')));
+    const consulta = await within(dialogo).findByTestId('consulta-resultado');
+    expect(falhou).toBe(true);
+    expect(JSON.parse(window.localStorage.getItem(CHAVE_PENDENTE) ?? 'null')?.operation_id).toBe(chave);
+    expect(consulta).toHaveTextContent(
+      'O abastecimento nº 1 foi gravado, mas não foi possível abri-lo agora. Consulte de novo ou abra pela lista; repetir o mesmo envio não grava outro.',
+    );
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 67,2000 kg baixados do estoque. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(confirmacoes()).toHaveLength(2);
+    expect(confirmacoes()[1].body.operation_id).toBe(chave);
+    expect(amb.estado.abastecimentos).toHaveLength(1);
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '82.8000']);
+    expect(window.localStorage.getItem(CHAVE_PENDENTE)).toBeNull();
+  });
+
   it('IDEMPOTENCY_CONFLICT com mensagem própria; fator encerrado entre prévia e confirmação → 422 legível', async () => {
     amb.estado.proxima = erroServidor(409, 'IDEMPOTENCY_CONFLICT', { details: { operation_id: 'x', tipo_operacao: 'confirmar_abastecimento_bem' } });
     await montar();

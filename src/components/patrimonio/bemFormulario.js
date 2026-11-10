@@ -380,9 +380,13 @@ export const validarBem = (e, ctx) => {
         const operacional = ctx.medidorOperacional ?? null;
         const corrigindo =
           inicial !== null && medidorCorrigivel(original, operacional) && (e.medidor.tipo !== original.tipo || comparar(inicial, original.leitura_inicial) !== 0);
+        // O abastecimento nunca grava o cadastro (D4): o piso operacional só vale para um
+        // ajuste de verdade (leitura ou data mudadas), como no servidor; editar outro campo passa.
+        const ajustando =
+          e.medidor.data_leitura !== original.data_leitura || (atual.ok && atual.valor !== null && comparar(atual.valor, original.leitura_atual) !== 0);
         if (!atual.ok || atual.valor === null) erros['medidor.leitura_atual'] = 'Informe a leitura atual (até 4 casas)';
         else if (ini.ok && ini.valor !== null && comparar(atual.valor, ini.valor) < 0) erros['medidor.leitura_atual'] = 'A leitura atual não pode ser menor que a inicial';
-        else if (operacional && typeof operacional.leitura === 'string' && comparar(atual.valor, operacional.leitura) < 0) {
+        else if (operacional && typeof operacional.leitura === 'string' && ajustando && comparar(atual.valor, operacional.leitura) < 0) {
           erros['medidor.leitura_atual'] = 'A leitura atual não pode ser menor que a registrada pelo último abastecimento';
         }
         else if (corrigindo && inicial !== null && comparar(atual.valor, inicial) !== 0) {

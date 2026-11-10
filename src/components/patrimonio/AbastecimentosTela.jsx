@@ -349,8 +349,15 @@ export default function AbastecimentosTela() {
       const pagina = await listarAbastecimentosPagina(emp, { operationId: pendencia.operation_id, limit: 1 });
       const achado = pagina.items?.[0];
       if (!achado?.id) return "O envio não foi gravado. Você pode repetir o mesmo envio.";
+      // A pendência só sai DEPOIS do detalhe: se ele falhar, repetir manda a MESMA chave (replay), nunca um 2º abastecimento.
+      let registro;
+      try {
+        registro = await detalharAbastecimento(emp, String(achado.id));
+      } catch {
+        const numero = achado.numero ? ` nº ${achado.numero}` : "";
+        return `O abastecimento${numero} foi gravado, mas não foi possível abri-lo agora. Consulte de novo ou abra pela lista; repetir o mesmo envio não grava outro.`;
+      }
       limparPendenciaDoAbastecimento(escopo, ACAO_CONFIRMAR, emp, ALVO_NOVO_ABASTECIMENTO);
-      const registro = await detalharAbastecimento(emp, String(achado.id));
       concluirComando(registro, emp, "confirmar");
       return null;
     } catch (erro) {
