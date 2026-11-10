@@ -361,12 +361,11 @@ const executarLargura = async (browser, largura) => {
    * tablet o aviso do canto superior direito cobre o "Trocar empresa" do topo.
    */
   const fecharAvisos = async () => {
-    const botoes = page.locator('.mg-toast-host').getByRole('button', { name: 'Fechar', exact: true });
-    for (let i = 0; i < 5 && (await botoes.filter({ visible: true }).count()); i += 1) {
-      await botoes.filter({ visible: true }).first().click().catch(() => {});
-      await page.waitForTimeout(150);
+    const botoes = page.locator('.mg-toast-host').getByRole('button', { name: 'Fechar', exact: true }).filter({ visible: true });
+    for (let i = 0; i < 8 && (await botoes.count()); i += 1) {
+      await botoes.first().click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(200);
     }
-    await page.locator('.mg-toast-host').filter({ visible: true }).first().waitFor({ state: 'hidden', timeout: 6000 }).catch(() => {});
   };
 
   /** Troca de fazenda PELA TELA: seletor do topo (≥ 1024 px) ou "Trocar empresa" (folha). */
@@ -616,7 +615,8 @@ const executarLargura = async (browser, largura) => {
       );
       igual(await prisma.conversaoCombustivelProduto.count({ where: { cliente_id: s.cliente_id } }), 1, `[${rotulo}] fatores no banco`);
       await visivel(page.getByTestId(`conversao-${fator.id}`)).waitFor();
-      await page.keyboard.press('Escape');
+      await page.getByTestId('conversao-form').filter({ visible: true }).first().waitFor({ state: 'hidden' }).catch(() => {});
+      await clicar(dlg.getByRole('button', { name: 'Fechar', exact: true }));
       await dlg.waitFor({ state: 'hidden' });
       reg.fatorA = fator;
     });
@@ -766,7 +766,11 @@ const executarLargura = async (browser, largura) => {
       igual(`${fatorB.kg_por_litro.toFixed(6)}:${fatorB.sequencia}:${fatorB.tipo_combustivel_id === reg.tipo.id}`, '0.830000:1:true', `[${rotulo}] fator do Produto novo no banco`);
       const fatorAAgora = await prisma.conversaoCombustivelProduto.findFirst({ where: { cliente_id: s.cliente_id, id: reg.fatorA.id } });
       igual(json(fatorAAgora), json(reg.fatorA), `[${rotulo}] o fator do Diesel mudou com a configuração do Produto novo`);
-      await page.keyboard.press('Escape');
+      // A tela termina de gravar (a linha nova aparece e o formulário do fator fecha) antes de "Fechar".
+      await visivel(page.getByTestId(`conversao-${fatorB.id}`)).waitFor();
+      await page.getByTestId('conversao-form').filter({ visible: true }).first().waitFor({ state: 'hidden' }).catch(() => {});
+      await esperarAviso(/Fator 0,830000 kg\/L vigente \(versão 1\)\./, `[${rotulo}] aviso "Fator … vigente" do Produto novo ausente`);
+      await clicar(dlg.getByRole('button', { name: 'Fechar', exact: true }));
       await dlg.waitFor({ state: 'hidden' });
       await esperarProdutoMarcado(B.nome);
       igual(await page.getByTestId('abastecimento-sem-fator').filter({ visible: true }).count(), 0, `[${rotulo}] aviso de fator continua depois de configurar`);

@@ -205,7 +205,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
     }
     if (!tiposAceitos.size) return vazio('tanque_sem_combustivel');
 
-    const baseVinculo = { empresa_id: empresaId, tipo_combustivel_id: { in: [...tiposAceitos.keys()] } };
+    const baseVinculo = { empresa_id: empresaId, ativo: true, tipo_combustivel_id: { in: [...tiposAceitos.keys()] } };
     // `Produto.empresa_id` no próprio filtro: vínculo incoerente (produto movido) nunca entra.
     const elegivel = { cliente_id: cli, empresa_id: empresaId, ativo: true, unidade_principal_estoque: 'KG', vinculosCombustivel: { some: baseVinculo } };
 

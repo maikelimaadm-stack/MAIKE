@@ -269,7 +269,12 @@ export const listar = async (contexto, query = {}) => {
   if (de || ate) where.data_operacional = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
   const q = termoDeBusca(query.q);
   const busca = q ? [{ numero: { contains: q } }, { referencia_externa: { contains: q, mode: 'insensitive' } }] : [];
-  return listarKeyset(prisma.abastecimentoBem, { where, busca, query, include: INCLUIR_RESUMO, mapItem: comoAbastecimentoResumo });
+  const env = await listarKeyset(prisma.abastecimentoBem, { where, busca, query, include: INCLUIR_RESUMO, mapItem: comoAbastecimentoResumo });
+  for (const it of env.items) {
+    const v = await prisma.tipoCombustivelProduto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, tipo_combustivel_id: it.tipo_combustivel.id, ativo: true }, orderBy: { createdAt: 'desc' }, select: { produto: { select: { id: true, nome_produto: true } } } });
+    if (v) it.produto = { id: v.produto.id, nome: v.produto.nome_produto };
+  }
+  return env;
 };
 
 /** Detalhe (A2), numa leitura consistente. @param {any} contexto @param {string} id @param {Record<string, any>} [query] */
