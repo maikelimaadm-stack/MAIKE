@@ -498,8 +498,8 @@ export const cancelar = async (contexto, id, corpo) => {
             try {
               estorno = await estornarSaida(tx, contexto, {
                 empresaId,
-                item: { quantidade_estoque: somar((fatias.length > 1 ? fatias.slice(0, -1) : fatias).map((f) => f.quantidade)), ordem: 1, movimentacao_estoque_id: orig.id },
-                consumos: (fatias.length > 1 ? fatias.slice(0, -1) : fatias).map((f) => ({ estoque_lote_nota_id: f.estoque_lote_nota_id, quantidade: f.quantidade })),
+                item: { quantidade_estoque: antes.quantidade_kg, ordem: 1, movimentacao_estoque_id: orig.id },
+                consumos: fatias.map((f, i) => ({ estoque_lote_nota_id: fatias[(i + 1) % fatias.length].estoque_lote_nota_id, quantidade: f.quantidade })),
                 produto,
                 local: { id: local.id, nome: local.nome },
                 dia: hoje,
