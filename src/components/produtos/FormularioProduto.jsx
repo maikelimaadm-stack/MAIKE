@@ -15,6 +15,9 @@ import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_PRODUTO_ID = "formulario-produto-base1";
 
+/** D-PROD-161: texto fixo; o formulário não tem campo de estoque atual. */
+export const AVISO_ESTOQUE_CADASTRO = "Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos";
+
 const TIPOS_USO = [
   "Administrativo",
   "Infraestrutura",
@@ -387,6 +390,15 @@ export default function FormularioProduto({
           readOnly={readOnly}
         />
       </B1Field>
+
+      {/* D-PROD-161: o cadastro não lança estoque; o saldo é do motor físico. */}
+      <p
+        role="note"
+        data-testid="aviso-estoque-cadastro"
+        className="col-span-12 text-xs text-slate-700 bg-slate-100 rounded px-2 py-1"
+      >
+        {AVISO_ESTOQUE_CADASTRO}
+      </p>
 
       <B1Field label="Descrição" span={12} hasValue={Boolean(formData.descricao?.trim())} locked={readOnly} disabled={locked}>
         <textarea

@@ -8,8 +8,11 @@
  * O que **não** mudou: filtro por empresa, unicidade de nome por empresa,
  * `numero_produto` por `max + 1`, autonumeração dos registros antigos, número
  * como string, `syncEntityReferences` no update, bloqueio por
- * `MovimentacaoEstoque`, `estoque_atual = 0` no cadastro novo, campos de
- * nutrição e saco/peso por saco.
+ * `MovimentacaoEstoque`, campos de nutrição e saco/peso por saco.
+ *
+ * D-PROD-161 (Estoque P0): o payload do cadastro NUNCA leva o saldo de
+ * estoque — nem no cadastro novo (o servidor grava 0), nem na edição. O saldo é
+ * cache do motor físico e só muda por Entradas/Movimentações.
  *
  * `max + 1` continua sem segurança de concorrência — dívida aberta até a P3.
  */
@@ -107,10 +110,13 @@ const assertNomeLivre = ({ produtos, nome, empresaId, ignorarId }) => {
  * quais campos ficam vermelhos e para qual deles a tela rola — continua na UI;
  * o que veio para cá é a montagem e a coerção de valor.
  *
+ * D-PROD-161: o saldo de estoque não entra no payload em modo nenhum; o estado
+ * da edição espalha o registro lido (com o cache), e ele não volta ao servidor.
+ *
  * @param {object} formData estado do formulário
- * @param {{isEditing?: boolean}} [opcoes]
+ * @param {{isEditing?: boolean}} [opcoes] mantido por compatibilidade: novo e edição montam o mesmo payload
  */
-export const normalizarProduto = (formData, { isEditing = false } = {}) => {
+export const normalizarProduto = (formData, opcoes = {}) => {
   const unidadePrincipal = formData.unidade_principal_estoque || 'KG';
   const pesoPorSaco = parseDecimalPtBR(formData.peso_por_saco_kg);
 
@@ -137,7 +143,6 @@ export const normalizarProduto = (formData, { isEditing = false } = {}) => {
     ativo: formData.ativo,
   };
 
-  if (!isEditing) payload.estoque_atual = 0;
   return payload;
 };
 
@@ -236,8 +241,16 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
  * @param {unknown} erro
  */
 export const mensagemErroSalvarProduto = (erro) => {
-  if (lerErroGestao(erro).code === 'PRODUTO_VINCULADO_COMBUSTIVEL') {
+  const { code } = lerErroGestao(erro);
+  if (code === 'PRODUTO_VINCULADO_COMBUSTIVEL') {
     return 'Este produto está vinculado a um combustível do Patrimônio nesta fazenda: ele não pode mudar de fazenda. Inative o vínculo na tela Combustíveis antes. Nada foi gravado.';
+  }
+  // D-PROD-161 (Estoque P0): o saldo do produto é do motor físico.
+  if (code === 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA') {
+    return 'Este produto já tem estoque (lotes ou movimentações) nesta fazenda: ele não pode mudar de fazenda. Cadastre um produto na outra fazenda. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL') {
+    return 'Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos. Nada foi gravado.';
   }
   return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
 };

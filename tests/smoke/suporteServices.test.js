@@ -163,10 +163,13 @@ describe('PR — produtos', () => {
     expect(produtos.deleteProduto).toHaveBeenCalledWith('p1');
   });
 
-  it('PR8 — payload novo zera estoque_atual; edição não mexe', () => {
+  it('PR8 — payload nunca leva estoque_atual (D-PROD-161): nem no cadastro novo, nem na edição, nem vindo do formulário', () => {
     const base = { nome_produto: 'sal', codigo_interno: 'a1', unidade_medida: 'kg', ativo: true };
-    expect(produtoSvc.normalizarProduto(base).estoque_atual).toBe(0);
-    expect(produtoSvc.normalizarProduto(base, { isEditing: true }).estoque_atual).toBeUndefined();
+    expect(produtoSvc.normalizarProduto(base)).not.toHaveProperty('estoque_atual');
+    expect(produtoSvc.normalizarProduto(base, { isEditing: true })).not.toHaveProperty('estoque_atual');
+    // a edição espalha o registro lido (com o cache) no estado do formulário: o cache não volta
+    expect(produtoSvc.normalizarProduto({ ...base, estoque_atual: 250 }, { isEditing: true })).not.toHaveProperty('estoque_atual');
+    expect(produtoSvc.normalizarProduto({ ...base, estoque_atual: 250 })).not.toHaveProperty('estoque_atual');
   });
 
   it('PR9 — payload sobe em maiúsculas e lê vírgula decimal', () => {
@@ -224,25 +227,63 @@ describe('CSV — importação e exportação de produtos', () => {
 
   it('CSV1 — vírgula decimal é lida corretamente', () => {
     const { validos } = csv.parseCsvDeProdutos(
-      `${CABECALHO}\nMILHO;M1;789;RAÇÃO;desc;KG;10,50;15,00;100;10;obs`,
+      `${CABECALHO}\nMILHO;M1;789;RAÇÃO;desc;KG;10,50;15,00;0;10,5;obs`,
       { empresaId: EMPRESA },
     );
     expect(validos).toHaveLength(1);
     expect(validos[0].preco_custo).toBe(10.5);
     expect(validos[0].preco_venda).toBe(15);
+    expect(validos[0].estoque_minimo).toBe(10.5);
     expect(validos[0].numero_produto).toBeUndefined();
     expect(validos[0].empresa_id).toBe(EMPRESA);
   });
 
   it('CSV2 — linha sem nome vira erro', () => {
     const { validos, erros } = csv.parseCsvDeProdutos(
-      `${CABECALHO}\n;;;;;;;;;;\nSAL;S1;;;;KG;1;2;3;4;`,
+      `${CABECALHO}\n;;;;;;;;;;\nSAL;S1;;;;KG;1;2;;4;`,
       { empresaId: EMPRESA },
     );
     expect(erros).toHaveLength(1);
     expect(erros[0].linha).toBe(2);
     expect(validos).toHaveLength(1);
     expect(validos[0].nome_produto).toBe('SAL');
+  });
+
+  it('CSV6 — Estoque ≠ 0 vira erro explícito de linha (D-PROD-161): o saldo entra por Entradas/Movimentações', () => {
+    const { validos, erros } = csv.parseCsvDeProdutos(
+      `${CABECALHO}\nMILHO;M1;789;RAÇÃO;desc;KG;10,50;15,00;100;10;obs\nSAL;S1;;;;KG;1;2;3;4;\nUREIA;U1;;;;KG;1;2;0,5;;\nFARELO;F1;;;;KG;1;2;-2;;\nCAL;C1;;;;KG;1;2;abc;;`,
+      { empresaId: EMPRESA },
+    );
+    expect(validos).toEqual([]);
+    expect(erros.map((e) => e.linha)).toEqual([2, 3, 4, 5, 6]);
+    for (const erro of erros) {
+      expect(erro.erro).toBe(csv.MENSAGEM_ESTOQUE_NAO_IMPORTADO);
+      expect(erro.erro).toMatch(/Estoque não é importado pelo Cadastro de Produtos/);
+      expect(erro.erro).toMatch(/Entradas\/Movimentações/);
+      expect(erro.erro).toMatch(/use 0 ou deixe vazio/);
+    }
+    expect(erros[0].dados).toBe('MILHO;M1;789;RAÇÃO;desc;KG;10,50;15,00;100;10;obs');
+  });
+
+  it('CSV7 — Estoque vazio, 0 ou 0,00 → linha válida SEM estoque_atual', () => {
+    const { validos, erros } = csv.parseCsvDeProdutos(
+      `${CABECALHO}\nA;;;;;;;;;;\nB;;;;;;;;0;;\nC;;;;;;;;0,00;;\nD;;;;;;;;  ;;\nE;;;;;;;;0.0;;`,
+      { empresaId: EMPRESA },
+    );
+    expect(erros).toEqual([]);
+    expect(validos.map((p) => p.nome_produto)).toEqual(['A', 'B', 'C', 'D', 'E']);
+    for (const produto of validos) expect(produto).not.toHaveProperty('estoque_atual');
+  });
+
+  it('CSV8 — o template ensina Estoque 0; a exportação continua mostrando o saldo (só leitura)', () => {
+    const [cabecalho, exemplo] = csv.montarTemplateCsv().split('\n');
+    const estoque = cabecalho.split(';').indexOf('Estoque');
+    expect(exemplo.split(';')[estoque]).toBe('0');
+    // o template reimportado é válido
+    const { validos, erros } = csv.parseCsvDeProdutos(csv.montarTemplateCsv(), { empresaId: EMPRESA });
+    expect([validos.length, erros.length]).toEqual([1, 0]);
+    const exportado = csv.montarCsvDeProdutos([{ nome_produto: 'SAL', unidade_medida: 'KG', estoque_atual: 42.5 }]);
+    expect(exportado.split('\n')[1].split(';')[8]).toBe('42.5');
   });
 
   it('CSV3 — não atribui numero_produto no parse (SSOT backend)', () => {

@@ -117,6 +117,20 @@ export const contarMovimentacoesPorProduto = async (tx, clienteId, produtoId) =>
     where: { cliente_id: clienteId, produto_id: produtoId },
   });
 
+/**
+ * D-PROD-161: lotes de estoque do produto, em QUALQUER empresa e situação
+ * (índice `(cliente_id, produto_id)` de EstoqueLoteNota). Não há FK de lote para
+ * Produto: sem esta contagem, excluir ou mudar a fazenda do produto deixaria o
+ * lote órfão ou em outra fazenda.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} produtoId
+ */
+export const contarLotesPorProduto = async (tx, clienteId, produtoId) =>
+  tx.estoqueLoteNota.count({
+    where: { cliente_id: clienteId, produto_id: produtoId },
+  });
+
 export const buscarProduto = async (clienteId, id, tx) => {
   const cliente = tx || getPrismaClient();
   return cliente.produto.findUnique({

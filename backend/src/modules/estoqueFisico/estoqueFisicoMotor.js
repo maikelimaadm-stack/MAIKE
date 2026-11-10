@@ -17,6 +17,20 @@
  *  - lote baixado/devolvido por compare-and-set (CAS) sobre o valor lido sob
  *    trava: um escritor fora do protocolo vira 409, nunca saldo fantasma;
  *  - nada aqui altera `preco_custo`.
+ *
+ * D-PROD-161 (Estoque P0) — MOTOR FÍSICO ÚNICO: a suplementação e a
+ * transferência entre locais também passam por aqui (`aplicarSaidaFifo` com
+ * `ORIGEM_SUPLEMENTACAO` e `aplicarTransferenciaEstoque`); não existe mais
+ * FIFO próprio em Number. Toda primitiva valida TUDO antes da primeira escrita,
+ * e toda recusa desfaz a transação inteira de quem chama.
+ *
+ * ORDEM CANÔNICA DE TRAVAS (todos os escritores de estoque):
+ *   recibo (L0) → documento (cabeçalho, Bem ou linha, se houver) → advisory de
+ *   escopo (vínculo) → `LocalEstoque` FOR KEY SHARE em ordem de id
+ *   (`exigirLocaisEstoque`) → produtos (advisory + FOR UPDATE crescente,
+ *   `travarProdutosEstoque`) → títulos/perfil/Empresa FOR SHARE (financeiro) →
+ *   lotes (FOR UPDATE crescente ou CAS) e movimentos originais → INSERTs →
+ *   Produto ± → sequência NO FIM (`numerarMovimentos`) → AuditLog → recibo.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -30,7 +44,18 @@ export const ENTIDADE_MOVIMENTO = 'MovimentacaoEstoque';
 export const ORIGEM_SISTEMA = 'operacao_financeira';
 /** D-PROD-159: origem do movimento do abastecimento de bem patrimonial (nunca lançamento financeiro). 24 chars (VarChar(32)). */
 export const ORIGEM_ABASTECIMENTO = 'abastecimento_patrimonio';
-const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO]);
+/** D-PROD-161: origem da baixa de suplementação (cocho). Mesmo valor gravado antes da P0. 13 chars. */
+export const ORIGEM_SUPLEMENTACAO = 'suplementacao';
+/** D-PROD-161: origem da transferência entre locais (depósito). Mesmo valor gravado antes da P0. */
+export const ORIGEM_DEPOSITO = 'deposito';
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
+/** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 novas mantêm os valores gravados antes da P0. */
+const EXCLUSAO_SOMENTE_EM = Object.freeze({
+  [ORIGEM_SISTEMA]: ORIGEM_SISTEMA,
+  [ORIGEM_ABASTECIMENTO]: ORIGEM_ABASTECIMENTO,
+  [ORIGEM_SUPLEMENTACAO]: 'cocho',
+  [ORIGEM_DEPOSITO]: 'deposito',
+});
 
 /** Chave da trava por produto (a mesma em TODOS os escritores de estoque). */
 export const chaveTravaProduto = (clienteId, empresaId, produtoId) => `estoque:produto:${clienteId}:${empresaId}:${produtoId}`;
@@ -60,7 +85,8 @@ const comoDia = (dia) => new Date(`${dia}T00:00:00.000Z`);
 const instanteDoDia = (dia) => new Date(`${dia}T12:00:00.000Z`);
 
 /**
- * Ordem FIFO idêntica à de `movimentacoesEstoque/fifoEstoque.js`: chave
+ * Ordem FIFO ÚNICA de todos os escritores (D-PROD-161: o FIFO paralelo da
+ * suplementação/transferência foi removido): chave
  * `COALESCE(data_documento, createdAt)` crescente, desempate por id.
  * @template {{ id: string, data_documento?: Date|null, createdAt: Date }} T
  * @param {T[]} lotes
@@ -87,6 +113,152 @@ const excedeLimiteEstoque = (details) =>
 
 const conflitoDeEstoque = (details) =>
   new AppError('CONCURRENCY_CONFLICT', 'o estoque do lote mudou durante a operação; tente de novo com a mesma operation_id', { details });
+
+const quantidadeZero = (details) =>
+  new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...details }) });
+
+/**
+ * D-PROD-161 — guarda fail-closed de TODA primitiva, antes de qualquer leitura:
+ * o produto tem de ser da empresa do efeito (quem chama já conferiu; um erro de
+ * programação nunca cria lote/movimento cruzado entre fazendas).
+ */
+const exigirProdutoDaEmpresa = (a) => {
+  if (!a.produto || a.produto.empresa_id !== a.empresaId) {
+    throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado nesta empresa');
+  }
+};
+
+/**
+ * D-PROD-161 — kg vindo do corpo JSON (number|string|Decimal) → `Dec`
+ * arredondado UMA vez em ROUND_HALF_UP(4), na fronteira. Usa `new Dec(String(v))`
+ * porque `dec()` recusa float (o navegador converte SACO→KG em float).
+ * ≤ 0 → 422 `quantidade_estoque_zero`; > LIMITE_ESTOQUE → 422 `valor_excede_limite_estoque`.
+ * @param {unknown} valor @param {{field?: string}} [o]
+ * @returns {InstanceType<typeof Dec>}
+ */
+export const kgDeEntrada = (valor, { field = 'quantidade' } = {}) => {
+  /** @type {InstanceType<typeof Dec>|null} */
+  let bruto = null;
+  if (valor instanceof Dec) bruto = dec(valor);
+  else if (typeof valor === 'number' || typeof valor === 'string' || (valor && typeof valor === 'object' && typeof /** @type {any} */ (valor).toFixed === 'function')) {
+    try {
+      bruto = new Dec(String(valor).trim());
+    } catch {
+      bruto = null;
+    }
+  }
+  if (!bruto || bruto.isNaN()) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade inválida', { details: { field, reason: 'format' } });
+  }
+  if (bruto.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ field });
+  const kg = bruto.toDecimalPlaces(CASAS_QUANTIDADE, Dec.ROUND_HALF_UP);
+  if (!kg.gt(0)) throw quantidadeZero({ field });
+  return kg;
+};
+
+const localInvalido = (field, reason) =>
+  new AppError(
+    'ESTOQUE_LOCAL_INVALIDO',
+    reason === 'local_inativo' ? 'o local de estoque de destino está inativo; nada foi gravado' : 'local de estoque não encontrado; nada foi gravado',
+    { details: { field, reason } },
+  );
+
+/**
+ * D-PROD-161 — valida e TRAVA os locais do comando num único
+ * `SELECT … WHERE cliente_id AND id = ANY ORDER BY id FOR KEY SHARE` (não
+ * disputa com a renomeação, que é NO KEY UPDATE, nem com o abastecimento;
+ * segura o DELETE do local até o commit). Chamar ANTES de `travarProdutosEstoque`.
+ * Local de outro tenant = inexistente (mesmo corpo de erro: sem oráculo).
+ * @param {any} tx @param {string} clienteId
+ * @param {Array<{ id: string, field: 'local_origem_id'|'local_destino_id', exigirAtivo: boolean }>} pedidos
+ * @returns {Promise<Map<string, { id: string, nome: string, ativo: boolean }>>}
+ * @throws 422 ESTOQUE_LOCAL_INVALIDO { field, reason: 'local_inexistente'|'local_inativo' }
+ */
+export const exigirLocaisEstoque = async (tx, clienteId, pedidos) => {
+  const ids = [...new Set(pedidos.map((x) => x.id).filter((v) => typeof v === 'string' && v))].sort();
+  const linhas = /** @type {any[]} */ (ids.length
+    ? await tx.$queryRaw`SELECT id, nome, ativo FROM "LocalEstoque" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR KEY SHARE`
+    : []);
+  /** @type {Map<string, { id: string, nome: string, ativo: boolean }>} */
+  const locais = new Map(linhas.map((l) => [l.id, { id: l.id, nome: l.nome, ativo: l.ativo }]));
+  for (const pedido of pedidos) {
+    const local = locais.get(pedido.id);
+    if (!local) throw localInvalido(pedido.field, 'local_inexistente');
+    if (pedido.exigirAtivo && !local.ativo) throw localInvalido(pedido.field, 'local_inativo');
+  }
+  return locais;
+};
+
+/**
+ * D-PROD-161 — consumo de camadas por CAS (o laço da saída FIFO, extraído sem
+ * mudança): `updateMany` onde o lote ainda está 'Disponivel' com o MESMO saldo
+ * lido sob a trava do produto; um escritor fora do protocolo vira 409.
+ * @param {any} tx @param {string} clienteId
+ * @param {Array<{ lote_id: string, quantidade: any, anterior: any }>} fatias
+ * @throws 409 CONCURRENCY_CONFLICT { lote_id } se count ≠ 1
+ */
+export const consumirCamadas = async (tx, clienteId, fatias) => {
+  for (const f of fatias) {
+    const anterior = dec(f.anterior);
+    const novo = anterior.minus(dec(f.quantidade));
+    const r = await tx.estoqueLoteNota.updateMany({
+      where: { cliente_id: clienteId, id: f.lote_id, status: 'Disponivel', quantidade_disponivel: paraBanco(anterior, CASAS_QUANTIDADE) },
+      data: { quantidade_disponivel: paraBanco(novo, CASAS_QUANTIDADE), status: novo.gt(0) ? 'Disponivel' : 'Esgotado' },
+    });
+    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: f.lote_id });
+  }
+};
+
+/**
+ * D-PROD-161 — criação de camada (lote 'Disponivel' com entrada = disponível),
+ * extraída de `aplicarEntradaEstoque` sem mudar o comportamento; a transferência
+ * cria a camada de destino com o custo, a data e a procedência da camada de origem.
+ * @param {any} tx @param {string} clienteId
+ * @param {{ empresaId: string, produto: any, local: {id: string, nome?: string|null}, kg: any, custoKg: any, dataDocumento: Date,
+ *   procedencia: Record<string, string|null>, movimentoEntradaId: string }} c
+ */
+const criarCamadaEntrada = (tx, clienteId, c) =>
+  tx.estoqueLoteNota.create({
+    data: {
+      cliente_id: clienteId,
+      empresa_id: c.empresaId,
+      produto_id: c.produto.id,
+      produto_nome: c.produto.nome_produto ?? null,
+      local_estoque_id: c.local.id,
+      local_estoque_nome: c.local.nome ?? null,
+      ...c.procedencia,
+      data_documento: c.dataDocumento,
+      custo_unitario: paraBanco(c.custoKg, CASAS_CUSTO),
+      quantidade_entrada: paraBanco(c.kg, CASAS_QUANTIDADE),
+      quantidade_disponivel: paraBanco(c.kg, CASAS_QUANTIDADE),
+      movimentacao_entrada_id: c.movimentoEntradaId,
+      status: 'Disponivel',
+    },
+  });
+
+/**
+ * D-PROD-161 — colunas extras que a suplementação/transferência acrescentam ao
+ * movimento. Quantidade, valores, local, tipo e `lotes_consumidos` vêm sempre do núcleo.
+ */
+const COLUNAS_COMPLEMENTO = new Set([
+  'area_vinculada_id', 'area_vinculada_nome', 'tipo_vinculo', 'centro_custo_nome', 'deposito_id',
+  'ponto_suplementacao_id', 'observacoes', 'custo_medio_antes', 'custo_medio_depois',
+]);
+/** Fora da allowlist → erro de programação (500), nunca coluna gravada. */
+const complementoDe = (fn, plano) => {
+  if (!fn) return {};
+  const extra = fn(plano) ?? {};
+  for (const chave of Object.keys(extra)) {
+    if (!COLUNAS_COMPLEMENTO.has(chave)) throw new Error(`estoque: coluna de complemento não permitida: ${chave}`);
+  }
+  return extra;
+};
+
+/** Fatia pública (sem o saldo `anterior` do CAS), com a linha do lote só quando pedida. */
+const fatiaPublica = (f, comLote) => ({
+  lote_id: f.lote_id, quantidade: f.quantidade, custo_unitario: f.custo_unitario, ...(comLote ? { lote: f.lote } : {}),
+});
+const fatiaGravada = (f) => ({ lote_id: f.lote_id, quantidade: dec(f.quantidade).toFixed(CASAS_QUANTIDADE), custo_unitario: dec(f.custo_unitario).toFixed(CASAS_CUSTO) });
 
 /** Σ dos lotes Disponivel do produto NAQUELE local e empresa (saldo por local). */
 const saldoNoLocal = async (tx, clienteId, empresaId, produtoId, localId) => {
@@ -135,7 +307,7 @@ const camposComuns = (auth, a) => {
     lancamento_origem_id: a.origem.operacaoId,
     origem_sistema: sistema,
     bloqueado_exclusao_estoque: true,
-    exclusao_somente_em: sistema,
+    exclusao_somente_em: EXCLUSAO_SOMENTE_EM[/** @type {keyof typeof EXCLUSAO_SOMENTE_EM} */ (sistema)],
     is_registro_principal: true,
     numero_movimentacao_seq: 1,
     total_movimentacoes_grupo: 1,
@@ -179,6 +351,7 @@ const incrementarEstoqueAtual = async (tx, clienteId, produtoId, kg) => {
 export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
+  exigirProdutoDaEmpresa(a);
   const kg = dec(a.quantidadeKg);
   const custoKg = dec(a.custoUnitarioKg);
   const valorTotal = dec(a.valorTotal);
@@ -211,24 +384,15 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
       saldo_depois: paraBanco(saldoAntes.plus(kg), CASAS_QUANTIDADE),
     },
   });
-  const lote = await tx.estoqueLoteNota.create({
-    data: {
-      cliente_id: cli,
-      empresa_id: a.empresaId,
-      produto_id: a.produto.id,
-      produto_nome: a.produto.nome_produto ?? null,
-      local_estoque_id: a.local.id,
-      local_estoque_nome: a.local.nome ?? null,
-      numero_documento: a.documento?.numero ?? null,
-      data_documento: comoDia(a.dia),
-      fornecedor_id: a.parceiro?.id ?? null,
-      fornecedor_nome: a.parceiro?.nome ?? null,
-      custo_unitario: paraBanco(custoKg, CASAS_CUSTO),
-      quantidade_entrada: paraBanco(kg, CASAS_QUANTIDADE),
-      quantidade_disponivel: paraBanco(kg, CASAS_QUANTIDADE),
-      movimentacao_entrada_id: movimento.id,
-      status: 'Disponivel',
-    },
+  const lote = await criarCamadaEntrada(tx, cli, {
+    empresaId: a.empresaId,
+    produto: a.produto,
+    local: a.local,
+    kg,
+    custoKg,
+    dataDocumento: comoDia(a.dia),
+    procedencia: { numero_documento: a.documento?.numero ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null },
+    movimentoEntradaId: movimento.id,
   });
   const estoqueDepois = await incrementarEstoqueAtual(tx, cli, a.produto.id, kg);
   return { lote, movimento, estoque_atual: estoqueDepois };
