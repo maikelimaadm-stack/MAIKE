@@ -8,6 +8,7 @@ import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
+import FiltrosRapidos from "@/components/cadastro/base1/FiltrosRapidos";
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
@@ -62,6 +63,7 @@ export function colunasBase1(defs) {
  * @param {1|2|3|4} [props.cardsPerRow]
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
+ * @param {string[]} [props.quickFilterIds] filtros que começam na faixa de filtros rápidos (padrão: derivados das colunas)
  * @param {(item: object) => boolean} [props.cardsInativo] marca o card com a tag "Inativo" (padrão: coluna `ativo-badge`)
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
@@ -100,6 +102,7 @@ export default function CadastroBase1Grade({
   cardsTitleColId,
   cardsCodeColId,
   cardsInativo,
+  quickFilterIds,
   referenceHeaders: referenceHeadersProp,
   configureColumnsAnchorRef,
   colunaSelecao = true,
@@ -357,6 +360,39 @@ export default function CadastroBase1Grade({
       />
     );
   };
+
+  const faixaDeFiltrosRapidos = referenceHeaders ? (
+    <FiltrosRapidos
+      columns={dataCols}
+      rows={rows}
+      rowsFor={(colId) => {
+        const q = searchQuery.trim().toLowerCase();
+        return rows.filter((m) => {
+          if (q && !(matchesSearch ? matchesSearch(m, q) : defaultMatchesSearch(m, q))) return false;
+          return dataCols.every((col) => {
+            const filtro = col.id === colId ? null : headerFilters[col.id];
+            if (!filtro) return true;
+            return casaNoFiltroColuna(filtro, tipoFiltroDaColuna(col.id, col), String(getFieldValue(m, col.id) ?? ""));
+          });
+        });
+      }}
+      getFieldValue={getFieldValue}
+      filters={headerFilters}
+      onFilterChange={(colId, filtro) =>
+        setHeaderFilters((p) => {
+          const n = { ...p };
+          if (filtro) n[colId] = filtro;
+          else delete n[colId];
+          return n;
+        })
+      }
+      onClearFilters={() => setHeaderFilters({})}
+      sort={sortConfig}
+      onSortChange={(key, dir) => setSortConfig({ key, direction: dir })}
+      storageKey={storageKey}
+      defaultIds={quickFilterIds}
+    />
+  ) : null;
 
   const painelFiltroPorCampo =
     referenceHeaders && filtroPorCampo?.aberto ? (
@@ -667,12 +703,14 @@ export default function CadastroBase1Grade({
           ? dataCols.map((c) => renderReferenceFilter(c.id))
           : dataCols.map((c) => renderFilterPopover(c.id))}
         {painelFiltroPorCampo}
+        {faixaDeFiltrosRapidos}
       </>
     );
   }
 
   return (
     <>
+      {faixaDeFiltrosRapidos}
       <Base1Grid
         referenceHeaders={referenceHeaders}
         referenceExtendedColumnMenu={referenceHeaders}

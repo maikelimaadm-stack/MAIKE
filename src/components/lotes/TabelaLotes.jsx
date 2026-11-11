@@ -64,6 +64,9 @@ export const getLoteFieldValue = (lote, colId) => {
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
 
+/** Filtros que começam na faixa (D-PROD-161); o usuário troca em "+ Filtro". */
+const FILTROS_RAPIDOS = ["status", "categoria_manejo", "sexo", "setor"];
+
 /** @param {any} lote */
 const loteInativo = (lote) => String(lote?.status ?? "").trim().toLowerCase() === "inativo";
 
@@ -385,6 +388,7 @@ export default function TabelaLotes({
         cardsTitleColId="nome"
         cardsCodeColId="codigo"
         cardsInativo={loteInativo}
+        quickFilterIds={FILTROS_RAPIDOS}
         referenceHeaders={BASE1_LISTA_INTEGRADA_VISUAL.grade.referenceHeaders}
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}

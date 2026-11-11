@@ -37,6 +37,7 @@ import {
 } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
+import { FiltrosRapidosSlotContext } from "./FiltrosRapidos";
 import { cn } from "@/lib/utils";
 
 /**
@@ -172,6 +173,8 @@ export default function CadastroListaChrome({
     return Boolean(searchValue);
   });
   const stripRef = useRef(null);
+  // Lugar da faixa de filtros rápidos (a grade desenha nela por portal — D-PROD-161).
+  const [filtrosRapidosSlot, setFiltrosRapidosSlot] = useState(/** @type {HTMLElement | null} */ (null));
   const searchRowRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   // Celular: sem "Carregar mais" — carrega 200 por vez ao chegar perto do fim.
@@ -777,6 +780,7 @@ export default function CadastroListaChrome({
 
   return (
     <PortalComprasSkinProvider active={skinAtivo}>
+    <FiltrosRapidosSlotContext.Provider value={filtrosRapidosSlot}>
     <div
       className={cn(
         "flex min-h-0 min-w-0 flex-1 flex-col gap-2",
@@ -798,6 +802,9 @@ export default function CadastroListaChrome({
         >
           {joinedShell && !barraNoCabecalho ? toolbarRow : null}
           {joinedShell ? pillsRail : null}
+          {joinedShell && !recordMode && !celular ? (
+            <div ref={setFiltrosRapidosSlot} className="b1-fr-slot" data-b1-fr-slot="" />
+          ) : null}
           {shellBody}
           {listSummary}
         </div>
@@ -808,6 +815,7 @@ export default function CadastroListaChrome({
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
+    </FiltrosRapidosSlotContext.Provider>
     </PortalComprasSkinProvider>
   );
 }
