@@ -69,7 +69,8 @@ export default function CadastroLotes() {
 
   const controller = useCadastroBase1FullListController({
     storageKey: STORAGE_KEY,
-    columnIds: COLUNAS_DISPONIVEIS.map((c) => c.id),
+    // Campos padrão dos cards: o essencial (D-PROD-161). O usuário troca em "Campos dos cards".
+    columnIds: ["nome", "categoria_manejo", "sexo", "cabecas", "peso", "setor", "area", "data", "sistema_produtivo"],
     listEnabled: Boolean(empresaSelecionadaId),
     queryKey: ["lotes-cadastro", empresaSelecionadaId],
     fetchAll,

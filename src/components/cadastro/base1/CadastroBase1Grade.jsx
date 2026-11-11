@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { isCadastroAtivo, readCadastroAtivoValue } from "@/lib/cadastroAtivoStatus";
 import { usePortalComprasSkin } from "@/components/cadastro/base1/portalComprasSkinContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasLegacyDialog from "@/components/cadastro/base1/ConfiguracaoColunasLegacyDialog";
@@ -19,7 +20,7 @@ import {
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
-import { composeCadastroBase1RenderCell } from "@/components/cadastro/base1/cadastroBase1CellKind";
+import { composeCadastroBase1RenderCell, papeisDasColunasBase1 } from "@/components/cadastro/base1/cadastroBase1CellKind";
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
@@ -61,6 +62,7 @@ export function colunasBase1(defs) {
  * @param {1|2|3|4} [props.cardsPerRow]
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
+ * @param {(item: object) => boolean} [props.cardsInativo] marca o card com a tag "Inativo" (padrão: coluna `ativo-badge`)
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
  * @param {boolean} [props.colunaSelecao] coluna de checkbox (SSOT `BASE1_GRADE_REFERENCE_HEADERS`)
@@ -97,6 +99,7 @@ export default function CadastroBase1Grade({
   cardsPerRow = 4,
   cardsTitleColId,
   cardsCodeColId,
+  cardsInativo,
   referenceHeaders: referenceHeadersProp,
   configureColumnsAnchorRef,
   colunaSelecao = true,
@@ -285,10 +288,23 @@ export default function CadastroBase1Grade({
     [dataCols, renderCell],
   );
 
+  const papeis = useMemo(
+    () => papeisDasColunasBase1(dataCols, cardsTitleColId, cardsCodeColId),
+    [dataCols, cardsTitleColId, cardsCodeColId],
+  );
+  const colunaAtivo = useMemo(() => dataCols.find((c) => c.cellKind === "ativo-badge"), [dataCols]);
+  const ehInativo = useMemo(() => {
+    if (cardsInativo) return cardsInativo;
+    if (!colunaAtivo) return undefined;
+    const campo = colunaAtivo.statusField ?? colunaAtivo.id;
+    return (/** @type {object} */ item) => !isCadastroAtivo(readCadastroAtivoValue(item, campo));
+  }, [cardsInativo, colunaAtivo]);
+
   const gridColumns = useMemo(
     () =>
       colunasOrdenadas.map((c) => ({
         key: c.id,
+        papel: c.id === papeis.titleCol?.id ? "titulo" : c.id === papeis.codeCol?.id ? "codigo" : undefined,
         label: c.label,
         sortable: c.sortable !== false,
         align: c.align,
@@ -300,7 +316,7 @@ export default function CadastroBase1Grade({
           return getFieldValue(r, c.id) || "–";
         },
       })),
-    [colunasOrdenadas, columnWidths, getFieldValue, composedRenderCell],
+    [colunasOrdenadas, columnWidths, getFieldValue, composedRenderCell, papeis],
   );
 
   const selectedSet = useMemo(() => new Set(selectedItems.map(String)), [selectedItems]);
@@ -644,6 +660,7 @@ export default function CadastroBase1Grade({
           rowKey={rowKey}
           titleColId={cardsTitleColId}
           codeColId={cardsCodeColId}
+          isInactive={ehInativo}
           emptyText={emptyText}
         />
         {referenceHeaders

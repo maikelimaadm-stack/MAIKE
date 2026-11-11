@@ -314,6 +314,9 @@ export default function Base1Grid({
                 i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
                 c.align === "right" && "!text-right tabular-nums",
                 c.align === "center" && "text-center",
+                c.papel === "titulo" && "b1-td--nome",
+                c.papel === "codigo" && "b1-td--cod",
+                (!t || t === "-" || t === "–") && "b1-td--vazio",
               )}
             >
               {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}

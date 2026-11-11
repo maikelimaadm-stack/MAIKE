@@ -4,12 +4,25 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
 import campoEngine from "@/services/campoEngine";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 
+/** Nome das cores do identificador (as mesmas do formulário), para a amostra da coluna Cor. */
+const NOMES_DAS_CORES = Object.freeze({
+  "#f8f9fa": "Branco",
+  "#d8dee2": "Cinza claro",
+  "#2c303e": "Preto",
+  "#0d67ad": "Azul escuro",
+  "#61aad9": "Azul celeste",
+  "#efcb19": "Amarelo",
+  "#92ca25": "Verde claro",
+  "#f5a01b": "Laranja",
+  "#966fe1": "Roxo",
+});
+
 export const COLUNAS_DISPONIVEIS = [
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
   { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
   { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 90 },
-  { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 100 },
+  { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 130, cellKind: "cor", statusField: "identificador_cor", corNomes: NOMES_DAS_CORES },
   // Cadastro = lançamento da entrada (D-PROD-85): a quantidade lançada, que
   // nenhuma movimentação/saída do mapa altera. O id "cabecas" é o do layout salvo.
   { id: "cabecas", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110 },
@@ -50,6 +63,9 @@ export const getLoteFieldValue = (lote, colId) => {
 };
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
+
+/** @param {any} lote */
+const loteInativo = (lote) => String(lote?.status ?? "").trim().toLowerCase() === "inativo";
 
 /** Referência estável quando a prop `lotes` é omitida (evita ciclo via matchesSearch). */
 const EMPTY_LOTES = [];
@@ -364,7 +380,8 @@ export default function TabelaLotes({
         cardFields={cardFields}
         cardsPerRow={cardsPerRow}
         cardsTitleColId="nome"
-        cardsCodeColId="numero_lote"
+        cardsCodeColId="codigo"
+        cardsInativo={loteInativo}
         referenceHeaders={BASE1_LISTA_INTEGRADA_VISUAL.grade.referenceHeaders}
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}

@@ -38,6 +38,7 @@ const gridCls = {
  * @param {(row: object) => string} [props.rowKey]
  * @param {string} [props.titleColId]
  * @param {string} [props.codeColId]
+ * @param {(item: object) => boolean} [props.isInactive] mostra a tag "Inativo" ao lado do código
  * @param {string} [props.emptyText]
  */
 export function Base1Cards({
@@ -55,6 +56,7 @@ export function Base1Cards({
   rowKey,
   titleColId,
   codeColId,
+  isInactive,
   emptyText = "Nenhum registro encontrado",
 }) {
   const byKey = new Map(columns.map((c) => [c.id, c]));
@@ -159,7 +161,7 @@ export function Base1Cards({
             }}
           >
             <div
-              className="b1-card__select absolute left-3 top-3 z-[1]"
+              className="b1-card__select absolute right-3 top-3 z-[1]"
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
             >
@@ -173,23 +175,28 @@ export function Base1Cards({
                 }}
               />
             </div>
-            <div className="flex items-center gap-2 pl-7">
+            <div className="flex items-center gap-2 pr-7">
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white">
                 {initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
               </span>
               <span className="mg-b1-card__head">
                 <span className="mg-b1-card__title">{t}</span>
-                {code ? <span className="mg-b1-card__sub">{code}</span> : null}
+                {code || isInactive?.(r) ? (
+                  <span className="mg-b1-card__sub b1-card__sub">
+                    {code ? `${codeCol?.label ?? ""} ${code}`.trim() : null}
+                    {isInactive?.(r) ? <span className="b1-tag-inativo">Inativo</span> : null}
+                  </span>
+                ) : null}
               </span>
             </div>
             <dl className="mg-b1-card__fields">
               {shown.map((c) => (
-                <React.Fragment key={c.id}>
-                  <dt className="mg-b1-card__label">{c.label}:</dt>
+                <div className="b1-card__par" key={c.id}>
+                  <dt className="mg-b1-card__label">{c.label}</dt>
                   <dd className="mg-b1-card__value" title={String(text(c, r))}>
                     {renderCell ? renderCell(r, c.id) : text(c, r)}
                   </dd>
-                </React.Fragment>
+                </div>
               ))}
             </dl>
           </div>
