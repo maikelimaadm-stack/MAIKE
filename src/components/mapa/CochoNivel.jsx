@@ -23,7 +23,7 @@ export default function CochoNivel({ percent = 0, label = "Nível estimado do co
             <path
               data-cocho-nivel={nivel}
               d={preenchimento}
-              fill="#d2d7db"
+              fill={COCHO_APARENCIA.subicone.sal}
             />
           </g>
         )}
