@@ -96,7 +96,9 @@ const conditionMatches = (current, expected, sourceField) => {
   return currentValues.has(expectedText);
 };
 
+/** Largura em doze avos a partir de 768px; `field.span` vence os atalhos `wide`/`compact`/`medium`. */
 function spanForField(field) {
+  if (Number.isInteger(field.span)) return field.span;
   if (field.wide) return 12;
   if (field.compact) return 4;
   if (field.medium) return 8;
@@ -130,6 +132,7 @@ function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
       required={field.required}
       error={error ? String(error) : undefined}
       span={spanForField(field)}
+      spanLg={field.spanLg}
       hasValue={hasFieldValue(field, value, values)}
       locked={readOnly}
       disabled={readOnly}
@@ -213,6 +216,7 @@ export default function DynamicFormRenderer({
           key={field.id}
           label={configuredField.label}
           span={spanForField(configuredField)}
+          spanLg={configuredField.spanLg}
           checked={checked}
           onChange={
             fieldReadOnly

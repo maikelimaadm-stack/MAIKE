@@ -41,11 +41,11 @@ describe('V3 — AutocompleteGenerico no desktop', () => {
 describe('V3 — formulário e estilos', () => {
   const css = () => readFileSync('src/styles/maike-mobile-shell.css', 'utf8');
 
-  it('V3-3 — Sistema Produtivo é campo de altura livre com pílulas de marcar', () => {
-    expect(readFileSync('src/components/dynamic/DynamicFormRenderer.jsx', 'utf8')).toMatch(/field\.type === "checkbox" && typeof field\.render === "function"/);
+  it('V3-3 — Sistema Produtivo é campo de marcar vários que abre a janela de opções (D-PROD-161)', () => {
     const lote = readFileSync('src/components/lotes/FormularioLote.jsx', 'utf8');
-    expect(lote).toMatch(/className="b1-multi"/);
-    expect(lote).toMatch(/role="checkbox" aria-checked=\{checked\}/);
+    expect(lote).toMatch(/type: "multiselect"/);
+    expect(lote).toMatch(/<B1MultiSelecao rotulo="Sistema Produtivo"/);
+    expect(lote).not.toMatch(/className="b1-multi"/);
   });
 
   it('V3-4 — datas nativas alinhadas à esquerda dentro do campo (Safari do iPhone)', () => {

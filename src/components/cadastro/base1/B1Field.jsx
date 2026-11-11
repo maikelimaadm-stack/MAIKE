@@ -17,6 +17,22 @@ const SPAN = {
   12: "md:col-span-12",
 };
 
+/** Largura própria do desktop (≥ 1024px), quando difere da do tablet. */
+const SPAN_LG = {
+  1: "lg:col-span-1",
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
+  7: "lg:col-span-7",
+  8: "lg:col-span-8",
+  9: "lg:col-span-9",
+  10: "lg:col-span-10",
+  11: "lg:col-span-11",
+  12: "lg:col-span-12",
+};
+
 /**
  * Campo flutuante Modelo Base1 (paridade CONTROLE-DE-ESTOQUE / B1Field).
  *
@@ -25,6 +41,7 @@ const SPAN = {
  * @param {boolean} [props.required]
  * @param {string | boolean} [props.error] texto do erro; `true` mostra "Campo obrigatório"
  * @param {number} [props.span]
+ * @param {number} [props.spanLg] largura no desktop (≥ 1024px); sem ela vale `span`
  * @param {boolean} [props.hasValue]
  * @param {boolean} [props.multiline]
  * @param {boolean} [props.disabled]
@@ -40,6 +57,7 @@ export default function B1Field({
   required = false,
   error,
   span = 6,
+  spanLg = undefined,
   hasValue = true,
   multiline = false,
   disabled = false,
@@ -68,7 +86,7 @@ export default function B1Field({
     : children;
 
   return (
-    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", className)}>
+    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", spanLg ? SPAN_LG[spanLg] : null, className)}>
       <div
         className={cn(
           "mg-field",

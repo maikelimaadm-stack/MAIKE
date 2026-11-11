@@ -1113,3 +1113,61 @@
 .mk-base1-sheet :is(.mk-sheet__close, .mk-sheet__new):not(#mk-a):not(#mk-b):not(#mk-c) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.045) !important;
 }
+
+/* ── Marcar vários do campo (Sistema Produtivo): mesma janela dos filtros do mapa,
+      só que no modelo de lista do cadastro — sem caixinha, ✓ verde à direita ── */
+.mk-map-multi-popup.b1-multi-pop:not(#mk-a):not(#mk-b) {
+  padding: 4px;
+  border: 1px solid #e8e7e2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.b1-multi-pop .mk-map-multi-title:not(#mk-a):not(#mk-b) {
+  padding: 6px 12px 4px;
+  color: #73726c;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.b1-multi-pop .mk-map-multi-options:not(#mk-a):not(#mk-b) {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.b1-multi-pop .mk-map-multi-options label:not(#mk-a):not(#mk-b) {
+  position: relative;
+  min-height: 32px;
+  padding: 4px 34px 4px 12px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent;
+  color: #141413;
+  font-weight: 400;
+  cursor: pointer;
+}
+.b1-multi-pop .mk-map-multi-options label:not(#mk-a):not(#mk-b):is(:hover, :focus-within) {
+  background-color: #f1f1ee;
+}
+.b1-multi-pop .mk-map-multi-options label:not(#mk-a):not(#mk-b) input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.b1-multi-pop .mk-map-multi-options label:not(#mk-a):not(#mk-b):has(input:checked) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+}
+@media (max-width: 1023px) {
+  .b1-multi-pop .mk-map-multi-options label:not(#mk-a):not(#mk-b) {
+    min-height: 40px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
