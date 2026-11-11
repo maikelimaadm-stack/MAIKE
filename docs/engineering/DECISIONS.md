@@ -6000,7 +6000,33 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Permissões antigas gravadas em `Permissao.permissoes_telas` (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`, `pat-combustiveis` e `configurar_conversao`) ficam inertes; nada é concedido automaticamente. Quem só tinha as telas antigas perde a criação de família e tipo, que agora é de Bens.
 - **Fora** (cada item só com decisão própria): manutenção, ordens de serviço, peças, compras do Patrimônio, custo/hora, apuração de depreciação, transferência entre fazendas, saldo de tanque, abastecimento em unidade que não seja `L` nem `KG` (ex.: GNV em m³), conversão entre unidades por fator ou densidade, suplementação com Produto em L (continua como hoje; os produtos dela são de Nutrição Animal), mapas novos e dashboards.
 - **Integração com a D-PROD-161 (merge da `main` `e8472481`, PR #238, Estoque P0-01):** valem as duas. Do lado da D-PROD-161: motor físico único (suplementação e transferência pelo motor), Produto é cadastro, `estoque_atual` cache derivado e somente leitura, escritas genéricas fechadas, reconciliação somente leitura. Do lado desta: o rótulo `'L'` do movimento vem do Produto em `camposComuns` (vale para compra, venda, abastecimento, suplementação e transferência), e KG e SACO saem `'KG'` em todos (a transferência deixou de copiar `produto.unidade_medida`, mudança declarada da D-PROD-161; o teste P7 de `produtoUnidadeLitros` passou a esperar `'KG'`); a troca de unidade envolvendo L segue o P-10 e roda depois da trava `FOR NO KEY UPDATE` que a D-PROD-161 pôs em todo PATCH de Produto; a troca de fazenda confere primeiro o aceite em tanque (`PRODUTO_EM_TANQUE_PATRIMONIO`) e depois o estoque (`PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA`); a exclusão conta movimentos, lotes, itens de lançamento e aceites em tanque. Os testes da D-PROD-161 que montavam o abastecimento antigo (kg com fator) passaram ao abastecimento em L (AB-X, K1, R1b, C10b, AB11 c).
-- **Estado:** em implementação na branch `claude/new-session-abgn5w` (base `e39d318b`, com a `main` `e8472481` integrada por merge; schema e migration no commit `8442e9f5`); PR draft. `SCHEMA_APPLIED_PRODUCTION = NÃO`, `MERGE_READY = NÃO`, `OPERATIONAL_RELEASE_READY = NÃO`. Pendem do proprietário: a revisão da PR, a aprovação das emendas do `00` e do `07`, a escolha do backup se alguma das 13 tiver linhas (dump `--data-only` feito por ele ou "não há volta parcial; aceito") e a resposta ao P-10.
-- Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md). Runbook de release (não executado): [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
+- **Estado:** em produção desde 2026-11-11. A migration foi aplicada pelo caminho B, com a impressão aprovada `a35b7cbb0569`; a PR #239 foi mergeada em `87e8a5ca` e o deploy está READY; o postcheck R1–R9 e o C1–C4 deram ok (registro no §11 do runbook). Parte do que foi decidido aqui é revista pela D-PROD-163: Família, Área, Localização e unidades dos Produtos aceitos.
+- Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md). Runbook de release (executado em 2026-11-11): [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
 
-<!-- Próxima decisão: D-PROD-163 -->
+## D-PROD-163 — Patrimônio SIMPLIFICA-02: Produtos aceitos em qualquer unidade, sem Área e Localização no Bem, Família fora da tela ("Tipo de bem" + "Tipo" editável)
+
+> **Autorização explícita do proprietário:** pedido de 2026-11-11, feito depois de testar em produção o Patrimônio da D-PROD-162. Ele respondeu às perguntas da missão **MAIKE-PATRIMONIO-SIMPLIFICA-02** com as opções "Família some", "Tipo de bem + Tipo" e "Junta tudo numa PR só" (a PR #241, que já registrava a release da D-PROD-162).
+
+- **Contexto:** em produção os 2 Produtos do cliente estão em SACO, e o tanque só aceitava Produto em L ou KG. As 5 famílias padrão repetem a natureza do bem: Benfeitorias, Máquinas, Veículos, Implementos e Equipamentos.
+- **Decisões:**
+  1. **Produtos aceitos em qualquer unidade.** Valem Produtos em L, KG e SACO. O abastecimento baixa exatamente a quantidade digitada, na unidade de estoque do Produto: litros para L; quilos para KG e para SACO, porque o SACO guarda o estoque em kg. `AbastecimentoBem.unidade` continua `L`/`KG` (SACO grava `KG`). A capacidade do tanque só é conferida para Produto em litros.
+  2. **Área e Localização saem do cadastro do Bem**, por enquanto. Saem de todas as telas de Bens. As colunas `area_id` e `localizacao_descricao` ficam no banco, e o que já estiver gravado nelas não é apagado.
+  3. **Família sai da tela e deixa de ser cadastrável.** O Bem passa a ter duas escolhas:
+     - **"Tipo de bem"**: a lista fixa de natureza (Benfeitoria, Máquina, Veículo, Implemento, Equipamento, Outro). O rótulo "Natureza" muda em toda a área de Bens.
+     - **"Tipo"**: cadastro do usuário, filtrado pelo Tipo de bem, com "+ Novo tipo" e "Gerenciar tipos" (listar, renomear e excluir).
+  4. **Por trás, uma família pré-cadastrada por natureza.** A família `OUTROS` (natureza `OUTRO`) entra no catálogo padrão. O sistema garante o catálogo sozinho e de forma idempotente: deixa de existir o botão "Instalar catálogo padrão". Os tipos padrão de uma família só são criados quando a própria família é criada, para que um tipo padrão excluído não volte.
+     - Tipos novos vão para a família padrão da natureza.
+     - Tipos de famílias antigas criadas à mão continuam valendo, sob a natureza delas.
+     - O Bem deixa de enviar `familia_id`: o backend deriva a família do tipo e exige a mesma natureza.
+     - As rotas de criar e editar família saem.
+  5. **Excluir tipo.** Um tipo sem nenhum bem é excluído de verdade, com auditoria. Um tipo em uso recebe 409 `PATRIMONIO_TIPO_EM_USO` com a contagem de bens.
+- **Sem migration:** nada muda no schema. A release é o merge seguido do deploy.
+- **Supera em parte a D-PROD-162** em quatro pontos:
+  - "Família e Tipo escolhidos e criados no formulário";
+  - "+ Nova família";
+  - "Instalar catálogo padrão";
+  - "Produtos aceitos em L ou KG".
+  O resto da D-PROD-162 continua valendo.
+- **Estado:** em implementação na branch `claude/new-session-abgn5w`, junto da PR #241. Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-164 -->
