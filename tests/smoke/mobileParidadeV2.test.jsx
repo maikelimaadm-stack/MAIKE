@@ -72,7 +72,7 @@ describe('PAR — seletores', () => {
 });
 
 describe('PAR — lista', () => {
-  it('PAR6 — resumo em palavras: total da lista e, quando houver, a seleção (D-PROD-161)', () => {
+  it('PAR6 — resumo em palavras: total da lista e, quando houver, a seleção (D-PROD-163)', () => {
     const fonte = readFileSync('src/components/cadastro/base1/CadastroListaChrome.jsx', 'utf8');
     expect(fonte.indexOf('b1-sum__total')).toBeGreaterThan(0);
     expect(fonte.indexOf('b1-sum__sel')).toBeGreaterThan(fonte.indexOf('b1-sum__total'));

@@ -108,7 +108,7 @@ describe('V4 — Enter funciona como Tab e o último salva', () => {
 });
 
 describe('V4 — + da lista de seleção cadastra um novo', () => {
-  it('V4-4 — celular: + dentro da linha de pesquisa da folha chama onCreateNew com a pesquisa (D-PROD-161)', async () => {
+  it('V4-4 — celular: + dentro da linha de pesquisa da folha chama onCreateNew com a pesquisa (D-PROD-163)', async () => {
     midia(true);
     const { default: AutocompleteGenerico } = await import('@/components/financeiro/AutocompleteGenerico');
     const onCreateNew = vi.fn();

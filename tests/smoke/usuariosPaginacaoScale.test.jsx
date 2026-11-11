@@ -62,7 +62,7 @@ const backendFalso = (prefixo) => {
   };
 };
 
-/** Métricas do rodapé Base1 (D-PROD-161: texto em palavras; os números ficam em `data-*` do `.mg-summary`). */
+/** Métricas do rodapé Base1 (D-PROD-163: texto em palavras; os números ficam em `data-*` do `.mg-summary`). */
 const rodape = () => {
   const el = /** @type {HTMLElement | null} */ (document.querySelector(".mg-summary"));
   const num = (chave) => (el?.dataset?.[chave] != null ? Number(el.dataset[chave]) : null);

@@ -18,7 +18,7 @@ import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./sele
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
-/** Caixa de marcar da grade: 18px, como no design (D-PROD-161). */
+/** Caixa de marcar da grade: 18px, como no design (D-PROD-163). */
 const CAIXA_DA_GRADE = Object.freeze({ width: 18, height: 18 });
 
 const ROW_ESTIMATE_PX = 32;

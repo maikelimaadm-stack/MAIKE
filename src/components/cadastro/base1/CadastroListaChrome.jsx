@@ -177,7 +177,7 @@ export default function CadastroListaChrome({
     return Boolean(searchValue);
   });
   const stripRef = useRef(null);
-  // Lugar da faixa de filtros rápidos (a grade desenha nela por portal — D-PROD-161).
+  // Lugar da faixa de filtros rápidos (a grade desenha nela por portal — D-PROD-163).
   const [filtrosRapidosSlot, setFiltrosRapidosSlot] = useState(/** @type {HTMLElement | null} */ (null));
   const [navNoFormulario, setNavNoFormulario] = useState(0);
   const registrarNavNoFormulario = useCallback(() => {
@@ -415,7 +415,7 @@ export default function CadastroListaChrome({
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
-  // Formulário que mostra ‹ › na linha das abas (D-PROD-161) dispensa a faixa de cabeçalho do registro.
+  // Formulário que mostra ‹ › na linha das abas (D-PROD-163) dispensa a faixa de cabeçalho do registro.
   const recordHeaderNode =
     navNoFormulario > 0
       ? null
@@ -635,7 +635,7 @@ export default function CadastroListaChrome({
         </div>
       ) : secondaryToolsLocked && !(showAttachControl && !(recordMode && recordEditing)) ? null : (
         // Na edição este grupo ficaria vazio; vazio, o "ml-auto" dele dividiria o espaço com Anexos/Salvar
-        // e os puxaria para o meio da barra (no design o grupo não existe na edição — D-PROD-161).
+        // e os puxaria para o meio da barra (no design o grupo não existe na edição — D-PROD-163).
         <div className="mg-toolbar__btns ml-auto flex items-center flex-wrap">
           {!secondaryToolsLocked && onClearFilters ? (
             <FluidSlot open={filtersActive}>
@@ -763,7 +763,7 @@ export default function CadastroListaChrome({
     </nav>
   ) : null;
 
-  // Rodapé em palavras (D-PROD-161): "12 lotes" / "5 de 12 lotes" · "1 selecionado".
+  // Rodapé em palavras (D-PROD-163): "12 lotes" / "5 de 12 lotes" · "1 selecionado".
   // Some na edição, no celular e no registro fora do desktop. Os números ficam em data-* (testes e leitores).
   const nomesContagem = nomesDaContagem(searchPlaceholder, contagemNomes);
   const mostrados = filtrados ?? listados ?? 0;

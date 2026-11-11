@@ -69,7 +69,7 @@ describe("FormularioLote — Base1 tabs e Ativo", () => {
     expect(screen.getByRole("tab", { name: "Observações" })).toBeTruthy();
   });
 
-  it("Ativo é chave em caixa, na linha de base dos campos (D-PROD-161)", async () => {
+  it("Ativo é chave em caixa, na linha de base dos campos (D-PROD-163)", async () => {
     await renderForm();
     const statusField = document.querySelector('[data-field="status"]');
     expect(statusField).toBeTruthy();

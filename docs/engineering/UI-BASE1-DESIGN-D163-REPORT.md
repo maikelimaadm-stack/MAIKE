@@ -1,11 +1,11 @@
-# UI-BASE1-DESIGN-D161 — relatório
+# UI-BASE1-DESIGN-D163 — relatório
 
-**Fatia:** design "Cadastro de Lote" no motor Base1 (D-PROD-161; paridade medida em D-PROD-162).
+**Fatia:** design "Cadastro de Lote" no motor Base1 (D-PROD-163; paridade medida em D-PROD-164).
 **Tipo:** visual (UI) e comportamento de tela. Sem migration, domínio, rota, página, config de escopo ou dependência nova.
 **Fonte da verdade:** `docs/design/cadastro-de-lote/cadastro-de-lote.dc.html` (roda com o `support.js` de `docs/design/detalhes-do-lote/`).
 **Pedido do proprietário:** repassar a configuração ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema; depois, "100% igual", medido no sistema real e não em capturas.
 
-## Como a paridade foi medida (D-PROD-162)
+## Como a paridade foi medida (D-PROD-164)
 
 Comparação automática no navegador (Chromium), estado por estado, nos três tamanhos (desktop 1280×900, tablet 820×1180, celular 390×844):
 
@@ -38,7 +38,7 @@ Como o porte é no motor, vale para todas as telas Base1. O Mapa Geral não muda
 
 ## Resultado (medição final)
 
-Arquivo completo: `docs/engineering/evidencias/base1-design-d161/paridade-RESUMO.txt`.
+Arquivo completo: `docs/engineering/evidencias/base1-design-d163/paridade-RESUMO.txt`.
 
 | Tamanho | Estados | Elementos sem par (por lado) | Estilos diferentes por estado |
 |---|---|---|---|
@@ -53,7 +53,7 @@ O que sobra, em todos os estados, é só:
 3. **Artefatos do arquivo do design:** ícones de cadeado e calendário quebrados no design (o arquivo trocou `viewBox` por `sc-camel-view-box`); preto `#000` × `#0a0a0a` no texto da casca (o protótipo não tem a variável de cor do tema); nomes de ícone do Lucide (`table-2` × `table2`).
 4. **Comportamento do sistema mantido:** painel de correção da entrada (R1) no registro em edição; "Carregar mais" apagado quando não há mais registros; foco do teclado vai para a lista aberta (o visual de campo aberto foi reproduzido); dica "Novo setor" no "+" (o design diz "Novo").
 
-## Mudanças de comportamento (decididas em D-PROD-162)
+## Mudanças de comportamento (decididas em D-PROD-164)
 
 - Rodapé em palavras ("12 lotes", "5 de 12 lotes · 1 selecionado"); some no celular e no registro fora do desktop. Os números ficam em `data-*` do `.mg-summary`.
 - ‹ › do registro seguem a ordem que a lista mostra (antes: a ordem dos dados).

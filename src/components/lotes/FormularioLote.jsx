@@ -42,7 +42,7 @@ const FL = ({ label, required, error, children, dataField, wide = false, compact
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
 
 /**
- * Grupos de campos de cada painel (D-PROD-161): cada grupo tem a sua grade, como no design.
+ * Grupos de campos de cada painel (D-PROD-163): cada grupo tem a sua grade, como no design.
  * Campo que a configuração de layout mover para outro lugar entra no último grupo do painel.
  */
 const GRUPOS_DO_FORMULARIO = Object.freeze({
@@ -366,7 +366,7 @@ export default function FormularioLote({
 
     if (Object.keys(nextErrors).length === 0) return true;
 
-    // Campo numérico VAZIO é obrigatório não preenchido (aviso "Campos obrigatórios", como no design — D-PROD-161);
+    // Campo numérico VAZIO é obrigatório não preenchido (aviso "Campos obrigatórios", como no design — D-PROD-163);
     // "Número inválido" só quando há número digitado errado.
     const numerosDigitadosInvalidos = numerosInvalidos.filter((campo) => !isEmptyValue(formData?.[campo]));
     setNoticeDialog(
@@ -548,7 +548,7 @@ export default function FormularioLote({
   [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData, useBase1Visual, categoriaVisualIdDoLote]);
 
   const defaultLayout = {
-    // Ordem e larguras do design (D-PROD-161): Descrição · Código · Data · Ativo numa linha só.
+    // Ordem e larguras do design (D-PROD-163): Descrição · Código · Data · Ativo numa linha só.
     principal: ["nome", "numero_lote", "data_entrada", "status"],
     geral: ["setor_id", "area_entrada_id", "categoria_manejo_id", "sexo", "raca_predominante", "quantidade_cabecas", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
     compra: ["motivo_entrada", "fornecedor_id", "motivo_ajuste", "motivo_outros", "cidade_origem", "estado_origem", "nota_fiscal", "numero_gta", "chave_nfe", "valor_total_compra", "valor_por_cabeca", "valor_frete"],
@@ -612,7 +612,7 @@ export default function FormularioLote({
         grupos={GRUPOS_DO_FORMULARIO}
         />
       {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69).
-          No visual Base1 ele é a dica sob o campo Categoria de Manejo (D-PROD-161). */}
+          No visual Base1 ele é a dica sob o campo Categoria de Manejo (D-PROD-163). */}
       {useBase1Visual ? null : (
         <IconeOficialLotePreview
           categoriaVisualId={categoriaVisualIdDoLote}
@@ -733,7 +733,7 @@ export default function FormularioLote({
               )}
             </div>
           ) : null}
-          {/* D-PROD-161: no visual Base1 os campos principais ficam dentro do cartão da primeira aba. */}
+          {/* D-PROD-163: no visual Base1 os campos principais ficam dentro do cartão da primeira aba. */}
           {useBase1Visual ? null : (
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
             <div className="px-4 md:px-8 py-1 max-w-[780px]">

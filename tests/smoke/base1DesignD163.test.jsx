@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 — acabamento do design "Cadastro de Lote" no motor Base1.
+ * D-PROD-163 — acabamento do design "Cadastro de Lote" no motor Base1.
  */
 import React from "react";
 import fs from "node:fs";
@@ -37,7 +37,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("D-PROD-161 — abas e campo", () => {
+describe("D-PROD-163 — abas e campo", () => {
   it("desktop: abas em pílula e cartão com o nome da aba", () => {
     const { container } = render(<Abas />);
     expect(container.querySelector(".b1-abas-fora")).toBeTruthy();

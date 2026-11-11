@@ -21,7 +21,7 @@ function CustomTabMarker() {
   );
 }
 
-/** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-161). */
+/** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-163). */
 function useEmpilhado() {
   const consulta = "(max-width: 1023px)";
   const ler = () =>
@@ -61,7 +61,7 @@ function usePrefersReducedMotion() {
  * @param {string} props.value aba ativa (controlada)
  * @param {(id: string) => void} props.onChange
  * @param {(panelId: string) => import('react').ReactNode} props.renderPanel
- * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-161: o design tem só abas — sem lista lateral)
+ * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-163: o design tem só abas — sem lista lateral)
  * @param {boolean} [props.animate] fade ao trocar aba
  * @param {string|number} [props.animationKey] muda ao trocar registro — suprime animação na 1ª pintura
  * @param {string} [props.className]

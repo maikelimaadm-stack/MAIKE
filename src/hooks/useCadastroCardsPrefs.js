@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
  * @param {string} storageKey prefixo localStorage da grade
  * @param {string[]} defaultFieldKeys colunas padrão nos cards
  */
-/** Celular mostra até 8 campos por card por padrão — "o essencial" do design (D-PROD-161, antes 3 pela D-PROD-88); escolha salva vale sempre. */
+/** Celular mostra até 8 campos por card por padrão — "o essencial" do design (D-PROD-163, antes 3 pela D-PROD-88); escolha salva vale sempre. */
 const camposPadrao = (keys) => {
   const celular = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 639px)").matches;
   if (!celular) return keys;

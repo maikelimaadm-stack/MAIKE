@@ -123,7 +123,7 @@ export default function B1Field({
 }
 
 /**
- * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-161: "chave (Ativo) em caixa").
+ * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-163: "chave (Ativo) em caixa").
  *
  * @param {object} props
  * @param {string} props.label

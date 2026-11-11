@@ -10,7 +10,7 @@ export const CADASTRO_BASE1_CELL_KIND = Object.freeze({
   SITUACAO: "situacao",
 });
 
-/** Ponto da situação na lista (D-PROD-161): verde quando ativo, cinza quando inativo. */
+/** Ponto da situação na lista (D-PROD-163): verde quando ativo, cinza quando inativo. */
 const COR_SITUACAO = Object.freeze({ ativo: "#22c55e", inativo: "#A3A29C" });
 
 /**
@@ -74,7 +74,7 @@ export function renderCadastroBase1CellKind(item, col) {
     return <PontoDaSituacao ativo={situacaoAtiva(bruto)} rotulo={textoDaSituacao(bruto)} />;
   }
   if (col.cellKind === CADASTRO_BASE1_CELL_KIND.COR) {
-    // Amostra + nome da cor (D-PROD-161). A tela informa `corNomes` (hex → nome).
+    // Amostra + nome da cor (D-PROD-163). A tela informa `corNomes` (hex → nome).
     const hex = String(/** @type {Record<string, unknown>} */ (item)?.[col.statusField ?? col.id] ?? "").trim();
     if (!/^#[0-9a-fA-F]{3,8}$/.test(hex)) return null;
     const nome = col.corNomes?.[hex.toLowerCase()] ?? hex;

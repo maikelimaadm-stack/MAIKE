@@ -41,7 +41,7 @@ describe('V3 — AutocompleteGenerico no desktop', () => {
 describe('V3 — formulário e estilos', () => {
   const css = () => readFileSync('src/styles/maike-mobile-shell.css', 'utf8');
 
-  it('V3-3 — Sistema Produtivo é campo de marcar vários que abre a janela de opções (D-PROD-161)', () => {
+  it('V3-3 — Sistema Produtivo é campo de marcar vários que abre a janela de opções (D-PROD-163)', () => {
     const lote = readFileSync('src/components/lotes/FormularioLote.jsx', 'utf8');
     expect(lote).toMatch(/type: "multiselect"/);
     expect(lote).toMatch(/<B1MultiSelecao rotulo="Sistema Produtivo"/);

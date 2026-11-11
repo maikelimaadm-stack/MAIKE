@@ -1,5 +1,5 @@
 /*
- * Modelo Base1 — PROPOSTAS do design "Cadastro de Lote" (D-PROD-161), portadas mecanicamente.
+ * Modelo Base1 — PROPOSTAS do design "Cadastro de Lote" (D-PROD-163), portadas mecanicamente.
  * Fonte: docs/design/cadastro-de-lote/cadastro-de-lote.dc.html (bloco "/*mk-topnav*\/" até "Tailwind (config do MAIKE)").
  * Tradução: @container dev -> @media; .mkx-root e peças compartilhadas -> body:has(.cadastro-b1--full-page)
  * (só quando uma tela Base1 está aberta; o Mapa Geral não muda); cqw -> vw.

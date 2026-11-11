@@ -1,5 +1,5 @@
 /**
- * SSOT da situação `ativo` — Motor Base1 (cellKind; desde a D-PROD-161 a grade mostra ponto colorido + texto).
+ * SSOT da situação `ativo` — Motor Base1 (cellKind; desde a D-PROD-163 a grade mostra ponto colorido + texto).
  */
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -31,7 +31,7 @@ describe('Situação ativo — unitário', () => {
     expect(getCadastroAtivoFieldValue({})).toBe('Ativo');
   });
 
-  it('célula da grade: ponto verde para ativo e cinza para inativo, com aria-label coerente (D-PROD-161)', () => {
+  it('célula da grade: ponto verde para ativo e cinza para inativo, com aria-label coerente (D-PROD-163)', () => {
     const col = { id: 'ativo', cellKind: /** @type {'ativo-badge'} */ ('ativo-badge') };
     const { rerender } = render(<>{renderCadastroBase1CellKind({ ativo: true }, col)}</>);
     let badge = screen.getByTestId('cadastro-ativo-badge');

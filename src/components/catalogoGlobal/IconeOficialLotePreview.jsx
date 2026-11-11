@@ -19,7 +19,7 @@ export const CHAVE_ICONES_LOTE = ["catalogo-global", "lote", "icones-publicados"
 
 /**
  * @param {{ categoriaVisualId?: string|null, categoriaManejoSelecionada?: boolean, variante?: 'bloco'|'dica' }} props
- * `variante="dica"` (D-PROD-161): linha de apoio sob o campo Categoria de Manejo, como no design —
+ * `variante="dica"` (D-PROD-163): linha de apoio sob o campo Categoria de Manejo, como no design —
  * amostra de 12px + "Ícone oficial MAIKE"; sem categoria escolhida não mostra nada.
  */
 export default function IconeOficialLotePreview({ categoriaVisualId = null, categoriaManejoSelecionada = false, variante = "bloco" }) {

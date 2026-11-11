@@ -135,7 +135,7 @@ export default function AutocompleteGenerico({
           onClose={() => setOpen(false)}
           label={titulo}
           title={titulo}
-          // "+" fica dentro da linha de pesquisa, como no painel do desktop (D-PROD-161).
+          // "+" fica dentro da linha de pesquisa, como no painel do desktop (D-PROD-163).
           headerAction={null}
           aside={items.length > 8 ? `${fmt(items.length)} registros` : null}
           footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}

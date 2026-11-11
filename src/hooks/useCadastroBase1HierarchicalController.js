@@ -85,7 +85,7 @@ export function useCadastroBase1HierarchicalController(config) {
   // Linhas da lista: a ordem dos dados (a grade ordena e filtra por conta própria).
   const visibleRows = linhasFiltradas;
 
-  // ‹ › do registro seguem a ordem que a grade mostra (D-PROD-161), publicada por OrdemDaListaContext.
+  // ‹ › do registro seguem a ordem que a grade mostra (D-PROD-163), publicada por OrdemDaListaContext.
   const [ordemDaLista, setOrdemDaLista] = useState(/** @type {object[] | null} */ (null));
   const definirOrdemDaLista = useCallback((/** @type {object[]} */ linhas) => {
     setOrdemDaLista((atual) =>

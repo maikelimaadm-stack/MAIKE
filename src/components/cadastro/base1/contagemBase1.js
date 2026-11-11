@@ -1,5 +1,5 @@
 /**
- * Contagem da lista em palavras (D-PROD-161): "12 lotes", "5 de 12 lotes", "1 selecionado".
+ * Contagem da lista em palavras (D-PROD-163): "12 lotes", "5 de 12 lotes", "1 selecionado".
  * O nome vem da tela (`{ um, varios }`) ou, sem ele, da pesquisa da barra ("Buscar lotes…" → lote/lotes).
  */
 

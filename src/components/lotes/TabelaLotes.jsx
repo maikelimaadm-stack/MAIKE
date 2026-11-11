@@ -64,10 +64,10 @@ export const getLoteFieldValue = (lote, colId) => {
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
 
-/** Filtros que começam na faixa (D-PROD-161); o usuário troca em "+ Filtro". */
+/** Filtros que começam na faixa (D-PROD-163); o usuário troca em "+ Filtro". */
 const FILTROS_RAPIDOS = ["status", "categoria_manejo", "sexo", "setor"];
 
-/** "Ordenar" da faixa em palavras (D-PROD-161). */
+/** "Ordenar" da faixa em palavras (D-PROD-163). */
 const ORDENS_DA_FAIXA = Object.freeze([
   { key: "nome", dir: /** @type {'asc'} */ ("asc"), label: "Nome (A → Z)" },
   { key: "nome", dir: /** @type {'desc'} */ ("desc"), label: "Nome (Z → A)" },
@@ -81,7 +81,7 @@ const ORDENS_DA_FAIXA = Object.freeze([
   { key: "peso", dir: /** @type {'asc'} */ ("asc"), label: "Mais leves primeiro" },
 ]);
 
-/** Ordem dos campos em "+ Filtro" (D-PROD-161): primeiro os de escolha, depois o resto. */
+/** Ordem dos campos em "+ Filtro" (D-PROD-163): primeiro os de escolha, depois o resto. */
 const CAMPOS_DA_FAIXA = Object.freeze([
   "status", "categoria_manejo", "categoria", "sexo", "setor", "area", "cabecas", "peso", "data", "sistema_produtivo", "motivo",
   "raca", "fornecedor", "identificador", "sigla", "cor", "valor", "valor_por_cabeca", "valor_frete", "cidade_origem",

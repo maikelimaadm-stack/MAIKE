@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 import { IconBtn } from "./Base1Ui";
 
 /**
- * Navegação entre registros dentro do formulário (D-PROD-161, proposta 6.24 do design):
+ * Navegação entre registros dentro do formulário (D-PROD-163, proposta 6.24 do design):
  * no desktop ‹ › fica na linha das abas, à direita; no tablet, numa linha própria acima das seções;
  * a faixa de cabeçalho do registro deixa de existir quando o formulário mostra a navegação.
  *
