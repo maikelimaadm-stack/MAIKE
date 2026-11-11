@@ -128,14 +128,14 @@ describe('UX-A02 — auto-seleção só com a resposta COMPLETA', () => {
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
     const seletor = await within(form).findByTestId('abastecimento-produto');
     expect(seletor.tagName).toBe('BUTTON');
-    expect(seletor).toHaveTextContent('— Escolha o Produto —');
+    expect(seletor).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
     expect(within(form).queryAllByRole('radio', { name: /Diesel/ })).toEqual([]);
     await esperar();
     expect(locaisLidos()).toEqual([]);
     expect(produtosDoBem()[0].query).toEqual({ empresa_id: 'emp-1', bem_id: 'b1', limit: '100' });
     fireEvent.click(seletor);
-    const primeira = await within(form).findByRole('option', { name: /Diesel S10 granel/ });
-    expect(within(form).queryByRole('option', { name: /Diesel S10 posto/ })).toBeNull();
+    const primeira = await screen.findByRole('option', { name: /Diesel S10 granel/ });
+    expect(screen.queryByRole('option', { name: /Diesel S10 posto/ })).toBeNull();
     fireEvent.click(primeira);
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
     expect(within(form).getByTestId('abastecimento-produto')).toHaveTextContent('Diesel S10 granel');
@@ -183,13 +183,13 @@ describe('UX-A03 — vários Produtos aceitos pelo tanque', () => {
     await waitFor(() => expect(seletor.tagName).toBe('BUTTON'));
     expect(within(form).queryByRole('radiogroup', { name: 'Produto' })).toBeNull();
     fireEvent.click(seletor);
-    const opcoes = await within(form).findAllByRole('option');
+    const opcoes = await screen.findAllByRole('option');
     expect(opcoes).toHaveLength(7);
     expect(opcoes.find((o) => /Diesel extra 3/.test(o.textContent))).toHaveTextContent('Diesel extra 3kg');
     expect(opcoes.find((o) => /Diesel extra 2/.test(o.textContent))).toHaveTextContent('Diesel extra 2L');
-    fireEvent.change(within(form).getByRole('searchbox', { name: 'Buscar produto' }), { target: { value: 'extra 5' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar produto' }), { target: { value: 'extra 5' } });
     await waitFor(() => expect(produtosDoBem().at(-1).query).toEqual({ empresa_id: 'emp-1', bem_id: 'b1', q: 'extra 5', limit: '50' }));
-    fireEvent.click(await within(form).findByRole('option', { name: /Diesel extra 5/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Diesel extra 5/ }));
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
     expect(within(form).getByTestId('abastecimento-produto')).toHaveTextContent('Diesel extra 5');
   });

@@ -135,8 +135,8 @@ const salvar = () => fireEvent.click(screen.getByRole('button', { name: 'Salvar'
 const aba = (nome) => fireEvent.click(screen.getByRole('tab', { name: nome }));
 const escolherNoSeletor = async (form, testId, nome) => {
   fireEvent.click(within(form).getByTestId(testId));
-  fireEvent.click(await within(form).findByRole('option', { name: nome }));
-  await waitFor(() => expect(within(form).queryByTestId(`${testId}-painel`)).toBeNull());
+  fireEvent.click(await screen.findByRole('option', { name: nome }));
+  await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
 };
 const tratorNovoComTanque = async () => {
   await screen.findByTestId('bem-nome-b1');
@@ -168,7 +168,7 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     const { form, tanque } = await tratorNovoComTanque();
     expect(within(tanque).getByTestId('bem-tanque-sem-produto-0')).toHaveTextContent('Este tanque não pode ser abastecido até ter um Produto aceito.');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    const painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    const painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     expect(await within(painel).findByRole('option', { name: /Diesel S10.*DS10 · L/ })).toBeTruthy();
     fireEvent.click(within(painel).getByRole('option', { name: /Arla 32.*ARLA · kg/ }));
     await escolherNoSeletor(form, 'bem-tanque-seletor-produto-0', /Diesel S10/);
@@ -194,11 +194,11 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     expect(within(form).getByTestId('bem-tanques-nota')).toHaveTextContent(NOTA_NOVA);
     expect(within(form).getByTestId('bem-tanques-nota').textContent).not.toMatch(/em litros \(L\) ou quilos \(kg\)/);
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    const painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    const painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     expect(await within(painel).findByRole('option', { name: /Diesel S10.*DS10 · L/ })).toBeTruthy();
     expect(within(painel).getByRole('option', { name: /Arla 32.*ARLA · kg/ })).toBeTruthy();
     fireEvent.click(within(painel).getByRole('option', { name: /Sal mineral.*SAL · kg · saco/ }));
-    await waitFor(() => expect(within(form).queryByTestId('bem-tanque-seletor-produto-0-painel')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('bem-tanque-seletor-produto-0-painel')).toBeNull());
     const chip = within(tanque).getByTestId('bem-tanque-0-produto-pd6');
     expect(chip).toHaveTextContent(/Sal mineral.*kg · saco/);
     expect(chip).not.toHaveAttribute('data-motivo');
@@ -215,33 +215,33 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Litros (L)');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    let painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    let painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Diesel S10/ });
     expect(within(painel).queryByRole('option', { name: /Arla 32/ })).toBeNull();
     expect(pedidosDeProdutos().at(-1).query).toMatchObject({ empresa_id: 'emp-1', unidade: 'L' });
-    fireEvent.click(within(painel).getByRole('button', { name: /Fechar seleção/ }));
+    fireEvent.keyDown(painel, { key: 'Escape' });
     // jsdom: o popover do próximo B1Select só abre depois que as opções anteriores sumirem.
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Quilos (kg)');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Arla 32/ });
     expect(within(painel).queryByRole('option', { name: /Diesel S10/ })).toBeNull();
     expect(within(painel).queryByRole('option', { name: /Sal mineral/ })).toBeNull();
     expect(pedidosDeProdutos().at(-1).query).toMatchObject({ unidade: 'KG' });
-    fireEvent.click(within(painel).getByRole('button', { name: /Fechar seleção/ }));
+    fireEvent.keyDown(painel, { key: 'Escape' });
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Sacos (estoque em kg)');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Sal mineral/ });
     expect(within(painel).queryByRole('option', { name: /Arla 32/ })).toBeNull();
     expect(pedidosDeProdutos().at(-1).query).toMatchObject({ unidade: 'SACO' });
-    fireEvent.click(within(painel).getByRole('button', { name: /Fechar seleção/ }));
+    fireEvent.keyDown(painel, { key: 'Escape' });
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Todos');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Arla 32/ });
     expect(pedidosDeProdutos().at(-1).query.unidade).toBeUndefined();
   });

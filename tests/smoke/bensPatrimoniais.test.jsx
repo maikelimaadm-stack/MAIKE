@@ -199,8 +199,8 @@ const salvar = () => fireEvent.click(screen.getByRole('button', { name: 'Salvar'
 const editar = () => fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
 const escolherNoSeletor = async (form, testId, nome) => {
   fireEvent.click(within(form).getByTestId(testId));
-  fireEvent.click(await within(form).findByRole('option', { name: nome }));
-  await waitFor(() => expect(within(form).queryByTestId(`${testId}-painel`)).toBeNull());
+  fireEvent.click(await screen.findByRole('option', { name: nome }));
+  await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
 };
 const aba = (nome) => fireEvent.click(screen.getByRole('tab', { name: nome }));
 /** Aceita um Produto no tanque `i` pelo seletor paginado (D-PROD-162). */
@@ -447,7 +447,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     for (const campo of [/^Placa/, /^Chassi/, /^Número de série/, /^Material/, /^Compatibilidade/]) expect(within(form).queryByLabelText(campo)).toBeNull();
     expect(within(form).queryByTestId('bem-potencia')).toBeNull();
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
-    expect(within(form).queryByTestId('bem-seletor-tipo-painel')).toBeNull();
+    expect(screen.queryByTestId('bem-seletor-tipo-painel')).toBeNull();
     expect(backend.chamadas.some((c) => c.path === '/bens-patrimoniais-opcoes/tipos')).toBe(false);
   });
 
@@ -489,7 +489,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     const form = await novoDoTipoDeBem('Bem', 'Máquina', /Trator de pneus/);
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus');
     await escolherTipoDeBem(form, 'Benfeitoria');
-    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('— Escolha o tipo —');
+    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     salvar();
     expect(await within(form).findByText('Escolha o tipo')).toBeTruthy();
@@ -934,10 +934,10 @@ describe('Bens — regras finas do formulário', () => {
     expect(tipoDeBem).toBeDisabled();
     expect(tipoDeBem).toHaveTextContent('Benfeitoria');
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
-    expect(await within(form).findByRole('option', { name: /^Curral/ })).toBeTruthy();
-    expect(within(form).queryByRole('option', { name: /^Trator de pneus/ })).toBeNull();
+    expect(await screen.findByRole('option', { name: /^Curral/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /^Trator de pneus/ })).toBeNull();
     expect(backend.chamadas.filter((c) => c.path === '/bens-patrimoniais-opcoes/tipos').at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });
-    fireEvent.keyDown(within(form).getByTestId('bem-seletor-tipo-painel'), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByTestId('bem-seletor-tipo-painel'), { key: 'Escape' });
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Alvenaria' } });
     salvar();
