@@ -9,6 +9,20 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Proposta em revisão (2026-11-11) — MAIKE-ESTOQUE-P1-01-GOVERNANCA: contrato do Estoque P1 e emenda proposta (D-PROD-176, PROPOSTA)
+
+| Campo | Valor |
+|---|---|
+| Status | **PROPOSTA, aguardando aprovação expressa do proprietário.** Não é missão de implementação e não muda comportamento |
+| Decisão | D-PROD-176 registrada como **proposta pendente** (não vigente) |
+| Branch / PR | `claude/maike-estoque-p1-01-governanca-proposta`, base `origin/main` `74ad3b86`, PR DRAFT só de documentação |
+| Escopo | Proposta de emenda (texto para 00 e 07, **sem editá-los**, A10); contrato do Estoque P1 (entrada manual com 3 motivos, deduplicação nos dois sentidos com a Central, implantação só sem histórico, lote do fabricante sem saldo e sem custo, unidades KG/SACO/L sem conversão, sequência de slices) |
+| Código / schema / migration | **Nenhum** |
+| Produção | Intocada. Só SELECT de leitura na análise P1-00 |
+| Ainda vale | A proibição de entrada avulsa (expansão D-PROD-155 na constituição e nota D-PROD-155 no 07) até a ratificação |
+| Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-176 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-176 |
+| Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
+
 ## Missão ativa (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
 
 | Campo | Valor |

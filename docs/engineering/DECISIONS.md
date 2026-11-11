@@ -6248,4 +6248,50 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - o instantâneo do seletor da Gestão (`seletorPaginadoCriarNovo`) só troca a classe do campo.
 - **Evidência:** relatório [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md); imagens em `docs/engineering/evidencias/fontes-d175/`.
 
-<!-- Próxima decisão: D-PROD-176 -->
+## D-PROD-176 — PROPOSTA PENDENTE DE APROVAÇÃO: Estoque P1, entrada manual documentada, lote do fabricante e sequência de slices
+
+> **STATUS: PROPOSTA, AGUARDANDO APROVAÇÃO EXPRESSA DO PROPRIETÁRIO.**
+>
+> Esta entrada **não é decisão vigente** e **não autoriza** código, migration, tela, rota nem permissão. O número fica **reservado** para a proposta, para evitar colisão com outras PRs.
+>
+> - **Precedente parcial:** a D-PROD-154 é só anunciada pela PR #229, aberta e não mergeada. Diferente dela, esta reserva fica gravada na `main` se esta PR for mergeada.
+> - **O merge desta PR não aprova nem ratifica a D-PROD-176.** Isso difere do padrão D-PROD-22/155/157/159/162, em que o merge manual materializava a aprovação.
+> - **Ratificação:** exige o texto incorporado em `00` e `07` e uma nota posterior datada nesta entrada ("ratificada em <data> por <responsável>, texto em <SHA>").
+> - **Recusa:** se recusada, recebe a nota "recusada em <data>". O número não é reaproveitado (append-only), o título não muda e vale a última nota.
+>
+> Enquanto não houver nota posterior "ratificada em <data>", continuam valendo, sem mudança:
+> - a expansão D-PROD-155 na constituição e a nota D-PROD-155 no `07-DO-NOT-DO.md` ("não há tela avulsa de entrada");
+> - a D-PROD-08 e as notas dela;
+> - a D-PROD-161.
+>
+> Agente de IA não emenda a constituição (`08-REGRAS-DE-IA.md` A10; `00-CONSTITUICAO.md` §4). Por isso o texto da emenda está só proposto, em documento à parte.
+
+- **Data:** 2026-11-11.
+- **Missão:** MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1, derivada da análise somente leitura MAIKE-ESTOQUE-P1-00.
+- **Base:** `origin/main` `74ad3b86`.
+- **Proposta:**
+  - **Entrada manual documentada.** Um documento de Entrada de Estoque, confirmado só pelo motor único, com 3 motivos fechados:
+    - saldo de implantação: uma única vez por produto e empresa, e só sem nenhum histórico físico em nenhum local;
+    - doação;
+    - outra causa, com justificativa e permissão própria.
+  - Doação e outra causa **não** servem para registrar saldo antigo.
+  - **O que a entrada manual não é:** compra, título, conta a pagar, receita, inventário ou ajuste, devolução, transferência entre empresas ou entrada por nota fiscal.
+  - **Deduplicação documental** quando houver parceiro e documento: entrada × compra, entrada × venda e entrada × entrada, e, no sentido inverso, em todos os caminhos da P3 que gravam o documento (confirmar, retificar, prévia). A liberação da operação fica bloqueada enquanto o caminho recíproco não existir.
+  - **Lote do fabricante** (model candidato `ProdutoLoteFabricante`): identidade comercial (fabricante, número, fabricação, validade), N camadas → 1 lote, **sem saldo e sem custo**. A camada física (`EstoqueLoteNota`) continua sendo a única fonte de saldo. FIFO não muda; validade só gera aviso.
+  - **Sequência de slices** P1-02..P1-13, com ratificação humana **antes da P1-02, da P1-05 e da P1-06**. Dividir a P1-02 (R-SPLIT) só com autorização expressa.
+- **Pendente de ratificação:**
+  - R-EMENDA (texto para 00 e 07);
+  - R-MOTIVOS;
+  - R-IMPL (implantação após cancelamento; decidir antes da R-EMENDA);
+  - R-DATA (data retroativa);
+  - R-DEDUPE (muda a confirmação da P3);
+  - R-LOTE (identidade com discriminador e nome do model);
+  - R-ORDEM (P1-07 antes ou depois da tela);
+  - R-SPLIT (dividir a P1-02).
+- **Fora:** qualquer código, schema, migration, página, rota, permissão ou mudança no escopo.
+- **Documentos:**
+  - proposta de emenda: [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md);
+  - contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md);
+  - relatório: [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-177 -->

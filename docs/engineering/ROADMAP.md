@@ -465,6 +465,25 @@ reconciliação, registrados na D-PROD-161:
 - **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
 - **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
 
+> **Nota prospectiva (2026-11-11, PROPOSTA D-PROD-176, não ratificada; não integra o track autorizado acima):** a proposta de contrato do Estoque P1 **tira "ajuste" e "devolução"** da futura entrada manual. Ela fica com 3 motivos:
+> - saldo de implantação;
+> - doação;
+> - outra causa com justificativa.
+>
+> Inventário/ajuste e devolução passam a exigir comandos e decisões próprios.
+>
+> Sequência proposta, uma PR por slice:
+> 1. ratificação humana da emenda (procedimento da §4 da constituição);
+> 2. P1-02: endurecimento do motor;
+> 3. P1-03: índices;
+> 4. P1-04: consultas paginadas;
+> 5. P1-05: backend da entrada;
+> 6. P1-06: tela;
+> 7. P1-07/08: lote do fabricante;
+> 8. P1-09+: linhagem, estornos, reconciliação v3, inventário/ajuste e offline.
+>
+> Nada disso está autorizado. A ratificação deve preceder a P1-02, a P1-05 e a P1-06. DDL só com runbook e GO antes do merge. Ver [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) e [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md).
+
 ## Track autorizado — Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
 
 Decisão do proprietário de 2026-11-10. O grupo **Patrimônio e Frota** fica com duas
