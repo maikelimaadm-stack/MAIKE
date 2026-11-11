@@ -1,7 +1,8 @@
 /**
- * D-PROD-168 — pedidos do proprietário:
- *  - no celular os filtros abrem nas MESMAS janelas do tablet (faixa com pílulas e "+ Filtro", "Filtrar por campo",
- *    filtro do cabeçalho da coluna), não mais nas folhas de baixo;
+ * D-PROD-168 / D-PROD-171 — pedidos do proprietário:
+ *  - no celular, só o menu da coluna da tabela ("⋮": filtro avançado, autoajustar, congelar, ocultar) abre como
+ *    "Mais opções" (a janela flutuante); os filtros (funil "Filtros", pílulas, filtro do campo e da coluna) continuam
+ *    nas folhas de baixo do celular, como antes da D-PROD-168 (D-PROD-171 revoga essa parte dela);
  *  - nas listas de marcar vários a caixa de marcar aparece À DIREITA, com o ✓ dentro quando marcada;
  *  - campos de marcar vários usam a lista do Sistema Produtivo (`B1MultiSelecao`), que aceita `{ value, label }`.
  */
@@ -70,35 +71,21 @@ afterEach(() => {
   localStorage.removeItem("teste_celular_filtrosRapidos");
 });
 
-describe("celular = tablet nos filtros", () => {
-  it("a faixa aparece no celular (Ordenar, pílulas, + Filtro) e a pílula abre a janela da faixa", () => {
+describe("celular: só o menu da coluna abre como 'Mais opções'; os filtros ficam nas folhas", () => {
+  it("sem a faixa de pílulas no celular (os filtros abrem pelo funil, na folha 'Filtros')", () => {
     render(<Faixa />);
-    expect(screen.getByTestId("b1-filtros-rapidos")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Adicionar ou tirar filtros" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Sexo/ }));
-    const janela = screen.getByRole("dialog", { name: "Sexo" });
-    expect(janela).toHaveClass("mk-sel-pop", "b1-fr-pop");
-    semFolhaDeBaixo();
+    expect(screen.queryByRole("button", { name: "Adicionar ou tirar filtros" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Sexo/ })).toBeNull();
   });
 
-  it("+ Filtro abre a janela de campos, não a folha", () => {
-    render(<Faixa />);
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar ou tirar filtros" }));
-    expect(screen.getByRole("dialog", { name: "Filtros rápidos" })).toHaveClass("mk-sel-pop");
-    semFolhaDeBaixo();
-  });
-
-  it("'Filtrar por campo' é a janela do tablet, abaixo do botão", () => {
+  it("'Filtrar por campo' abre na folha de baixo", () => {
     const ancora = /** @type {DOMRect} */ ({ left: 20, right: 60, top: 100, bottom: 136, width: 40, height: 36, x: 20, y: 100, toJSON() {} });
     render(<FiltroPorCampo colunas={COLS} filtros={{}} ancora={ancora} onEscolher={() => {}} onFechar={() => {}} />);
-    const menu = screen.getByRole("menu", { name: "Filtrar por campo" });
-    expect(menu).toHaveClass("fpc", "fpc--pop");
-    expect(menu.style.top).toBe("142px");
-    expect(menu.style.left).toBe("20px");
-    semFolhaDeBaixo();
+    expect(document.querySelector(".mk-sheet-root")).not.toBeNull();
+    expect(document.querySelector(".fpc--pop")).toBeNull();
   });
 
-  it("o filtro do cabeçalho da coluna é a janela flutuante do tablet", () => {
+  it("o filtro do cabeçalho da coluna abre na folha de baixo", () => {
     render(
       <>
         <table>
@@ -122,21 +109,23 @@ describe("celular = tablet nos filtros", () => {
         />
       </>,
     );
-    expect(screen.getByRole("dialog", { name: "Filtrar coluna Sexo" })).toHaveClass("b1-col-pop");
-    semFolhaDeBaixo();
+    expect(document.querySelector(".mk-sheet-root")).not.toBeNull();
+    expect(document.querySelector(".b1-col-pop")).toBeNull();
   });
 
-  it("o código das telas não chama mais as folhas de baixo para filtros", () => {
+  it("código: o menu da coluna não usa a folha (abre como 'Mais opções'); os filtros usam", () => {
     const ler = (p) => readFileSync(join(process.cwd(), p), "utf8");
-    for (const arquivo of ["FiltrosRapidos.jsx", "FiltroPorCampo.jsx", "CadastroColunaFiltro.jsx", "Base1Grid.jsx", "CadastroBase1Grade.jsx"]) {
-      const fonte = ler(`src/components/cadastro/base1/${arquivo}`);
-      expect(fonte, arquivo).not.toMatch(/MobileSheet|useCelular/);
+    expect(ler("src/components/cadastro/base1/Base1Grid.jsx")).not.toMatch(/MobileSheet|useCelular/);
+    for (const arquivo of ["FiltrosRapidos.jsx", "FiltroPorCampo.jsx", "CadastroColunaFiltro.jsx"]) {
+      expect(ler(`src/components/cadastro/base1/${arquivo}`), arquivo).toMatch(/MobileSheet/);
     }
+    expect(ler("src/components/cadastro/base1/CadastroBase1Grade.jsx")).toMatch(/menuCelularAberto=\{menuFiltrosCelular\}/);
   });
 });
 
 describe("caixa de marcar à direita", () => {
   it("janela do filtro: 'Todos' e cada valor têm a caixa; Ordenar continua só com o ✓", () => {
+    vi.unstubAllGlobals(); // desktop: a faixa de pílulas aparece
     render(<Faixa />);
     fireEvent.click(screen.getByRole("button", { name: /Sexo/ }));
     const opcoes = within(screen.getByRole("dialog", { name: "Sexo" })).getAllByRole("option");

@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, Search, X } from "lucide-react";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import { ROTULO_OPERADOR } from "./cadastroColunaFiltroLogic";
 
 /** Resumo curto do filtro ativo: "> 100", "entre 1 e 3", "2 valores". */
@@ -16,7 +17,7 @@ function resumoDoFiltro(f) {
 
 /**
  * Painel do botão Filtros: as colunas visíveis, na ordem da tabela. Tocar numa
- * coluna abre o filtro dela (o mesmo do cabeçalho). No celular, a mesma janela do tablet (D-PROD-168).
+ * coluna abre o filtro dela (o mesmo do cabeçalho). Celular: folha de baixo.
  *
  * @param {{
  *   colunas: Array<{ id: string, label: string }>,
@@ -27,6 +28,7 @@ function resumoDoFiltro(f) {
  * }} props
  */
 export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, onFechar }) {
+  const celular = useCelular();
   const [busca, setBusca] = React.useState("");
   const painel = React.useRef(/** @type {HTMLDivElement | null} */ (null));
   const fechar = React.useRef(onFechar);
@@ -35,6 +37,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
   const vistas = colunas.filter((c) => c.label.toLowerCase().includes(termo));
 
   React.useEffect(() => {
+    if (celular) return undefined;
     const fora = (event) => {
       if (painel.current?.contains(/** @type {Node} */ (event.target))) return;
       if (/** @type {Element} */ (event.target)?.closest?.('[data-testid="b1-field-filter"]')) return;
@@ -49,7 +52,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
       document.removeEventListener("pointerdown", fora, true);
       document.removeEventListener("keydown", teclado);
     };
-  }, []);
+  }, [celular]);
 
   const conteudo = (
     <>
@@ -84,7 +87,14 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
     </>
   );
 
-  // Celular igual ao tablet (pedido do proprietário, D-PROD-168): a mesma janela abaixo do botão, não a folha de baixo.
+  if (celular) {
+    return (
+      <MobileSheet className="mk-base1-sheet" open onClose={() => fechar.current()} label="Filtrar por campo" title="Filtrar por campo" role="menu">
+        <div className="fpc fpc--sheet">{conteudo}</div>
+      </MobileSheet>
+    );
+  }
+
   // Como no design (D-PROD-164): alinhado à esquerda do botão quando cabe; senão, à direita dele; senão, centrado.
   const largura = 260;
   const margem = 8;
