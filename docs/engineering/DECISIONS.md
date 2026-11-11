@@ -6223,4 +6223,29 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Testes:** `tests/smoke/cadastroMapaMotor.test.jsx` (novo) cobre a tela, o adaptador de lista e a junção dos pontos. O caso de `importarAreasDialog.test.jsx` sobre a barra das áreas passa a abrir "Importar áreas" em "Mais opções".
 - **Evidência:** relatório [`UI-CADASTRO-MAPA-D174-REPORT.md`](./UI-CADASTRO-MAPA-D174-REPORT.md); imagens em `docs/engineering/evidencias/cadastro-mapa-d174/`.
 
-<!-- Próxima decisão: D-PROD-175 -->
+## D-PROD-175 — Fontes voltam ao estilo e ao tamanho da prévia escolhida pelo proprietário (DM Sans, como antes da D-PROD-167)
+
+- **Pedido do proprietário (2026-11-11):**
+  - "ta tudo errado as fontes estão enormes, faça o seguinte deixe as fontes do tamanho que estava no anterior deixe do mesmo tamanho que está no mobile";
+  - "o estilo e tamanho das fontes eu quero deixe igual está aqui nessa visualização do vercel (prévia `maike-funzkhxes`, tela `/produtos`) […] nesse que tava nas tabelas etc".
+- **Referência:** a prévia `maike-funzkhxes` é o commit `836344f` (D-PROD-165). Ela é anterior ao padrão de tipografia (D-PROD-167) e ao mapa com a tipografia do motor (D-PROD-173).
+- **Decisão:** o sistema volta à fonte e aos tamanhos dessa prévia:
+  - texto em DM Sans (saem a Open Sans e a Lato), escala padrão do Tailwind (`text-xs` em 12 px);
+  - campos, listas, cabeçalhos de tabela, janelas, menus, dicas e avisos nos tamanhos de antes da D-PROD-167;
+  - mapa: Detalhes do Lote, painéis, manejos e janelas nos tamanhos de antes da D-PROD-173 (texto de 10,5 px); rótulos sobre o mapa (nome do pasto, cabeças, siglas) e card de medição como na prévia;
+  - colunas das listas na largura que cada tela define (sai o aumento de 14/12 da D-PROD-167).
+- **Como:** o código da D-PROD-173 e o da D-PROD-167 foram desfeitos por reversão. Cada arquivo volta ao que era antes delas.
+- **Fica:**
+  - os documentos das duas decisões, como histórico;
+  - o que veio depois e não é fonte: Gestão, Patrimônio e Cadastro de Áreas no motor (D-PROD-169 a D-PROD-174) e filtros do celular (D-PROD-171). Essas telas usam a tipografia do motor e seguem a volta sozinhas;
+  - o título de seção dos formulários de gestão em 11 px (D-PROD-165), pedido do proprietário depois da prévia.
+- **Medição:** mesmas telas e mesmo backend falso, na prévia e na versão nova, em 1366 e 390 px. Produtos, Lotes (lista e registro), o Mapa Geral e o Detalhes do Lote ficam iguais à prévia em família, tamanho e peso de cada texto. As únicas diferenças são telas refeitas no motor depois da prévia, que agora seguem o motor: o painel do perfil financeiro e as pílulas de filtro de Bens e Lançamentos.
+- **Revoga:** a D-PROD-167 (padrão de tipografia Open Sans e Lato, escala 13–46) e a D-PROD-173 (mapa com a tipografia do motor).
+- **Testes:**
+  - `tests/smoke/tipografiaPreviaD175.test.js` (novo) segura a volta: DM Sans no `index.html`, no corpo e no motor; nenhuma tela pede Open Sans ou Lato; escala padrão do Tailwind; largura das colunas; número de cabeças em 9,5 px;
+  - sai `tipografiaSistema.test.js`, que testava o padrão revogado;
+  - `contagemLote`, `mapaRotulosSemBagunca` e `detalhesLoteVisualGesto` voltam aos valores de antes;
+  - o instantâneo do seletor da Gestão (`seletorPaginadoCriarNovo`) só troca a classe do campo.
+- **Evidência:** relatório [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md); imagens em `docs/engineering/evidencias/fontes-d175/`.
+
+<!-- Próxima decisão: D-PROD-176 -->

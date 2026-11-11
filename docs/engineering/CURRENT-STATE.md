@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-11) — UI-CADASTRO-MAPA: Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174)
+## Missão ativa (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-175**, pedida pelo proprietário em 2026-11-11: "as fontes estão enormes […] deixe as fontes do tamanho que estava no anterior" e "o estilo e tamanho das fontes eu quero deixe igual está aqui nessa visualização do vercel" (prévia `maike-funzkhxes`, commit `836344f`) |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-174 |
+| Escopo | Reversão do código da D-PROD-173 e da D-PROD-167: DM Sans e os tamanhos de antes em todo o sistema e no mapa. Medido igual à prévia em Produtos, Lotes, Mapa Geral e Detalhes do Lote (1366 e 390 px). Ficam as telas no motor da D-PROD-169 a D-PROD-174 |
+| Migration | Nenhuma |
+| Release | Merge e deploy, depois do OK do proprietário nas imagens |
+| Relatório | [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-CADASTRO-MAPA: Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174)
 
 | Campo | Valor |
 |---|---|
