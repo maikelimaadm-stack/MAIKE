@@ -179,6 +179,13 @@ describe('PL-3 — mensagens do service', () => {
       const erro = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason, details: { id: 'p1', de: 'KG', para: 'L' } });
       expect(svc.mensagemErroSalvarProduto(erro)).toBe(`${inicio}: ${NOVO}`);
     }
+    // Saindo de litros (L → KG/SACO): a sugestão é cadastrar o Produto novo na unidade de destino, não em litros.
+    const saindoDeLitros = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'estoque', details: { id: 'p1', de: 'L', para: 'KG' } });
+    expect(svc.mensagemErroSalvarProduto(saindoDeLitros)).toBe(
+      'Este produto tem estoque: a unidade de estoque não muda de ou para litros. Cadastre um Produto novo em quilos (KG). Nada foi gravado.',
+    );
+    const paraSaco = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'lotes', details: { id: 'p1', de: 'L', para: 'SACO' } });
+    expect(svc.mensagemErroSalvarProduto(paraSaco)).toMatch(/Cadastre um Produto novo em sacos \(SACO\)\./);
     const tanque = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'aceito_em_tanque', details: { id: 'p1', de: 'KG', para: 'SACO', tanques: [] } });
     expect(svc.mensagemErroSalvarProduto(tanque)).toMatch(/Produtos aceitos de um tanque.*litros \(L\) ou quilos \(KG\)/);
     respostaFake = { status: 500, body: { code: 'INTERNAL_ERROR', message: 'erro interno', request_id: 'r4' } };

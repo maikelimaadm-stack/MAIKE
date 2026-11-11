@@ -272,7 +272,10 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
       const de = typeof details.de === 'string' && details.de ? details.de : null;
       const para = typeof details.para === 'string' && details.para ? details.para : null;
       const troca = de && para ? ` (${de} → ${para})` : '';
-      return `Este Produto já tem ${tem}: a unidade de estoque não muda${troca}. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. ${NADA}`;
+      const sugestao = de === 'L' && para && para !== 'L'
+        ? (para === 'SACO' ? 'Cadastre um Produto novo em sacos (SACO).' : `Cadastre um Produto novo em quilos (${para}).`)
+        : 'Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”.';
+      return `Este Produto já tem ${tem}: a unidade de estoque não muda${troca}. ${sugestao} ${NADA}`;
     }
     case 'REQUEST_VALIDATION_FAILED':
       if (reason === 'valor_deve_ser_texto') {

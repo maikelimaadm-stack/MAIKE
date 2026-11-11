@@ -245,6 +245,21 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
 };
 
 /**
+ * Sugestão do 409 PRODUTO_UNIDADE_EM_USO pela direção da troca: entrando em
+ * litros, um Produto novo em litros; saindo de litros, um Produto novo na
+ * unidade de destino.
+ * @param {Record<string, any>} details
+ */
+export const sugestaoProdutoNovo = (details) => {
+  const de = typeof details?.de === 'string' ? details.de : null;
+  const para = typeof details?.para === 'string' ? details.para : null;
+  if (de === 'L' && para && para !== 'L') {
+    return para === 'SACO' ? 'Cadastre um Produto novo em sacos (SACO).' : `Cadastre um Produto novo em quilos (${para === 'KG' ? 'KG' : para}).`;
+  }
+  return 'Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”.';
+};
+
+/**
  * Mensagem de falha ao salvar o produto (D-PROD-161). Diz o que fazer quando:
  *  - o produto está nos Produtos aceitos de um tanque e muda de fazenda
  *    (409 PRODUTO_EM_TANQUE_PATRIMONIO);
@@ -255,7 +270,7 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
  * @param {unknown} erro
  */
 export const mensagemErroSalvarProduto = (erro) => {
-  const { code, reason } = lerErroGestao(erro);
+  const { code, reason, details } = lerErroGestao(erro);
   if (code === 'PRODUTO_EM_TANQUE_PATRIMONIO') {
     return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial: ele não pode mudar de fazenda. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais antes. Nada foi gravado.';
   }
@@ -264,7 +279,7 @@ export const mensagemErroSalvarProduto = (erro) => {
       return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que só usa estoque em litros (L) ou quilos (KG). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
     }
     const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
-    return `${motivo}: a unidade de estoque não muda de ou para litros. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. Nada foi gravado.`;
+    return `${motivo}: a unidade de estoque não muda de ou para litros. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;
   }
   return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
 };
