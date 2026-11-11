@@ -157,7 +157,8 @@ const rascunhoP3 = async (s, direcao, kg, preco) => {
   return A.ok(A.req('POST', '/operacoes-financeiras', s.token, {
     empresa_id: s.e1.id, direcao, conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: (direcao === 'PAGAR' ? e.forn : e.cli).id, data_emissao: '2027-06-10', data_operacional: '2027-06-10',
     efeito_fisico_confirmado: true,
-    itens: [{ tipo_item: 'MERCADORIA', produto_id: s.diesel.id, local_estoque_id: s.local.id, unidade: 'KG', quantidade: kg, valor_unitario: preco }],
+    // D-PROD-162: o diesel do cenário é Produto em L → o item da P3 vai em L (sem fator).
+    itens: [{ tipo_item: 'MERCADORIA', produto_id: s.diesel.id, local_estoque_id: s.local.id, unidade: s.diesel.unidade_principal_estoque === 'L' ? 'L' : 'KG', quantidade: kg, valor_unitario: preco }],
     rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: (direcao === 'PAGAR' ? e.desp : e.rec).id, percentual: '100' }], parcelas: [{ vencimento: '2027-07-10', valor: total }],
     operation_id: opId(),
   }), 201);
@@ -173,7 +174,7 @@ describe('K1 — compra × venda × suplementação × transferência × abastec
     const p = prisma();
     const inicial = await somaDisponivel({ cliente_id: s.c, produto_id: s.diesel.id });
     assert.equal(inicial.toFixed(4), await estoqueAtual(s.diesel));
-    const kgAbast = D('8.4'); // 10 L × 0,84
+    const kgAbast = D('10'); // 10 L do Produto em L (D-PROD-162: o abastecimento baixa a quantidade digitada, sem fator)
     let esperado = inicial;
     /** @type {any} */ let vendaAnterior = null;
     /** @type {any} */ let abastAnterior = null;
@@ -188,7 +189,7 @@ describe('K1 — compra × venda × suplementação × transferência × abastec
         ['transferência', () => A.req('POST', URL_TRANSF, s.token, {
           operation_id: opId(), empresa_id: s.e1.id, produto_id: s.diesel.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 3,
         })],
-        ['abastecimento', () => AB.confirmar(s.operador.token, corpoGerador(s, { quantidade_litros: '10', operation_id: opIdAb() }))],
+        ['abastecimento', () => AB.confirmar(s.operador.token, corpoGerador(s, { quantidade: '10', operation_id: opIdAb() }))],
         ...(vendaAnterior ? [['estorno da venda anterior', () => cancelarP3(s, vendaAnterior)]] : []),
         ...(abastAnterior ? [['estorno do abastecimento anterior', () => AB.cancelar(s.contaCancelar.token, abastAnterior.id, { empresa_id: s.e1.id, versao: 1, motivo: 'corrida K1', operation_id: opIdAb() })]] : []),
       ];

@@ -19,6 +19,8 @@ import {
   moverItemDoFormulario,
   parcelaVazia,
   produtoAceitaSaco,
+  produtoEmLitros,
+  unidadeAoEscolherProduto,
   rateioVazio,
   removerItemDoFormulario,
   temDadosPorItem,
@@ -64,6 +66,9 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
   const saldoDoLocal = item.local ? (saldos.data ?? []).find((s) => String(s.local_estoque_id) === String(item.local.id)) : null;
   const faltaSaldo = venda && saldoDoLocal && resumoItem?.kg && comparar(resumoItem.kg, saldoDoLocal.disponivel_kg) > 0;
   const aceitaSaco = produtoAceitaSaco(item.produto);
+  // D-PROD-162: Produto em litros só aceita a unidade L, e o estoque dele é mostrado em L.
+  const emLitros = produtoEmLitros(item.produto);
+  const unidadeEstoque = emLitros ? "L" : "kg";
   const base = `itens.${indice}`;
 
   return (
@@ -125,11 +130,17 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
               readOnly={readOnly}
               erro={erroDe(`${base}.produto`)}
               rotuloDaOpcao={rotuloProduto}
-              detalheDaOpcao={(o) => (o?.unidade_principal_estoque === "SACO" && o?.peso_por_saco_kg ? `saco de ${formatarNumero(String(o.peso_por_saco_kg), { locale, casasMax: 4 })} kg` : null)}
+              detalheDaOpcao={(o) =>
+                o?.unidade_principal_estoque === "SACO" && o?.peso_por_saco_kg
+                  ? `saco de ${formatarNumero(String(o.peso_por_saco_kg), { locale, casasMax: 4 })} kg`
+                  : produtoEmLitros(o)
+                    ? "estoque em litros (L)"
+                    : null
+              }
               onChange={(o) =>
                 alterar({
                   produto: o ? { id: String(o.id), rotulo: rotuloProduto(o), unidade_principal_estoque: o.unidade_principal_estoque, peso_por_saco_kg: o.peso_por_saco_kg == null ? null : String(o.peso_por_saco_kg) } : null,
-                  unidade: "KG",
+                  unidade: unidadeAoEscolherProduto(o),
                 })
               }
             />
@@ -160,7 +171,7 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
                           onClick={() => alterar({ local: { id: String(s.local_estoque_id), rotulo: s.local_nome } })}
                           className="rounded-full border border-[var(--mg-divider,#cbd5e1)] px-2 py-0.5 uppercase hover:bg-slate-50"
                         >
-                          {s.local_nome}: {formatarNumero(s.disponivel_kg, { locale, casasMax: 4 })} kg
+                          {s.local_nome}: {formatarNumero(s.disponivel_kg, { locale, casasMax: 4 })} {unidadeEstoque}
                         </button>
                       ))}
                     </span>
@@ -172,8 +183,15 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
             ) : null}
             <B1Field label="Unidade" span={4} hasValue locked={readOnly} disabled={readOnly} error={erroDe(`${base}.unidade`)}>
               <B1Select aria-label={`Unidade do item ${indice + 1}`} value={item.unidade} onChange={(e) => alterar({ unidade: e.target.value })} disabled={readOnly} className={B1_FIELD_CTL_CLS}>
-                <option value="KG">KG</option>
-                {aceitaSaco || item.unidade === "SACO" ? <option value="SACO">SACO</option> : null}
+                {emLitros ? (
+                  <option value="L">L</option>
+                ) : (
+                  <>
+                    <option value="KG">KG</option>
+                    {aceitaSaco || item.unidade === "SACO" ? <option value="SACO">SACO</option> : null}
+                    {item.unidade === "L" ? <option value="L">L</option> : null}
+                  </>
+                )}
               </B1Select>
             </B1Field>
           </>
@@ -228,9 +246,9 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
         ) : null}
         {mercadoria && resumoItem?.kg ? (
           <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`item-${indice}-kg`}>
-            {direcao === "PAGAR" ? "Entra no estoque" : "Sai do estoque"}: {formatarNumero(resumoItem.kg, { locale, casasMax: 4 })} kg
+            {direcao === "PAGAR" ? "Entra no estoque" : "Sai do estoque"}: {formatarNumero(resumoItem.kg, { locale, casasMax: 4 })} {unidadeEstoque}
             {item.unidade === "SACO" ? " (convertido pelo peso do saco)" : ""}
-            {faltaSaldo ? <strong className="ml-1 text-amber-800">— acima do saldo deste local ({formatarNumero(saldoDoLocal.disponivel_kg, { locale, casasMax: 4 })} kg)</strong> : null}
+            {faltaSaldo ? <strong className="ml-1 text-amber-800">— acima do saldo deste local ({formatarNumero(saldoDoLocal.disponivel_kg, { locale, casasMax: 4 })} {unidadeEstoque})</strong> : null}
           </p>
         ) : null}
       </div>

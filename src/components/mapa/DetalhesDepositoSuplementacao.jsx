@@ -12,7 +12,7 @@ import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
-import { formatKg } from "../suplementacao/formatters";
+import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -97,12 +97,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
   }, [pontosSuplementacao, deposito.id]);
 
+  // D-PROD-162 (P-11): Produto com estoque em LITROS aparece no saldo por produto com "L", sem sacos,
+  // e fica fora dos indicadores em kg (saldo, necessidade, % e último registro). Sem Produto em L, nada muda.
   const saldosAgrupados = useMemo(() => {
     const mapa = new Map();
     lotesNota.forEach((lote) => {
       const produto = produtos.find((item) => item.id === lote.produto_id);
-      const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
-      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0 };
+      const emLitros = produto?.unidade_principal_estoque === "L";
+      const pesoPorSaco = emLitros ? 0 : Number(produto?.peso_por_saco_kg || 0);
+      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0, ...(emLitros ? { emLitros: true } : {}) };
       current.saldo += lote.quantidade_disponivel || 0;
       current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(lote.quantidade_disponivel || 0, pesoPorSaco) : 0;
       mapa.set(lote.produto_id, current);
@@ -111,8 +114,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   }, [lotesNota, produtos]);
 
   const indicador = useMemo(() => {
-    return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes);
-  }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes]);
+    return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos);
+  }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos]);
 
   const iconePonto = useMemo(() => {
     const categoriaPonto = normalizeText(deposito?.categoria_ponto || "");
@@ -214,8 +217,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                     <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{item.emLitros ? "—" : <>{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</>}</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900" data-testid={item.emLitros ? `saldo-litros-${item.produto_id}` : undefined}>{item.emLitros ? `${formatDecimal(item.saldo)} L` : formatKg(item.saldo)}</div>
                   </div>
                 </div>
             )}

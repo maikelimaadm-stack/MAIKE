@@ -164,9 +164,9 @@ describe('R1 — fixture consistente: 0 achados em todas as classes', () => {
   test('R1b: abastecimento confirmado + abastecimento cancelado (fatias FK por lote) → 0 achados no diesel', async () => {
     const s = await montarAbastecimento(app, { lotes: false });
     const AB = acoesAbastecimento(app);
-    await s.compraP3(s.e1, s.diesel, s.local, { kg: '200.0000', preco: '5.00' });
+    await s.compraP3(s.e1, s.diesel, s.local, { quantidade: '200.0000', preco: '5.00' });
     await AB.confirmarOk(s.operador.token, corpoAbastecimento(s));
-    const d2 = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s, { quantidade_litros: '50', medidor_leitura: '1600.5' }));
+    const d2 = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s, { quantidade: '50', medidor_leitura: '1600.5' }));
     const rc = await AB.cancelar(s.contaCancelar.token, d2.id, { empresa_id: s.e1.id, versao: 1, motivo: 'lançado no bem errado', operation_id: opId() });
     assert.equal(rc.statusCode, 200, rc.body);
     const rel = await relatorio(s, { empresa_id: s.e1.id, produto_id: s.diesel.id });

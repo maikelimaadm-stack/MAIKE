@@ -74,6 +74,9 @@ export function Selo({ status, rotulo, testId = undefined }) {
   );
 }
 
+/** D-PROD-162: unidade de estoque do item (L para item em litros; kg para KG e SACO). @param {any} i */
+const unidadeDoEstoque = (i) => (i?.unidade === "L" ? "L" : "kg");
+
 /** @param {{ rotulo: string, children: React.ReactNode, span?: string }} props */
 /** Linha de estorno que o servidor devolve junto das baixas (só exibição). @param {any} l */
 const ehLinhaDeEstorno = (l) => l?.tipo === "ESTORNO";
@@ -284,7 +287,8 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                     <Dado rotulo="Local">{i.local_estoque_nome || "—"}</Dado>
                     <Dado rotulo="Quantidade">
                       {formatarNumero(i.quantidade, { locale, casasMax: 4 })} {i.unidade}
-                      {i.quantidade_estoque && i.unidade !== "KG" ? ` (${formatarNumero(i.quantidade_estoque, { locale, casasMax: 4 })} kg)` : ""}
+                      {/* D-PROD-162: o "(… kg)" é só do SACO (o mesmo de antes para KG/SACO/UN); item em L não o ganha. */}
+                      {i.quantidade_estoque && i.unidade === "SACO" ? ` (${formatarNumero(i.quantidade_estoque, { locale, casasMax: 4 })} kg)` : ""}
                     </Dado>
                     <Dado rotulo="Valor unitário">{formatarNumero(i.valor_unitario, { locale, casasMin: c.casas, casasMax: 6 })}</Dado>
                     {/* Custo de aquisição líquido: subtotal, desconto/acréscimo rateados, líquido e, na compra, o custo do lote. */}
@@ -304,7 +308,7 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                           {i.movimentacao_estorno_id ? ` · estornado (movimento ${i.movimentacao_estorno_id})` : ""}
                           {Array.isArray(i.consumos) && i.consumos.length
                             ? ` · FIFO: ${i.consumos
-                                .map((/** @type {any} */ k) => `lote ${k.estoque_lote_nota_id} ${formatarNumero(k.quantidade, { locale, casasMax: 4 })} kg a ${formatarNumero(k.custo_unitario, { locale, casasMin: 2, casasMax: 4 })}/kg`)
+                                .map((/** @type {any} */ k) => `lote ${k.estoque_lote_nota_id} ${formatarNumero(k.quantidade, { locale, casasMax: 4 })} ${unidadeDoEstoque(i)} a ${formatarNumero(k.custo_unitario, { locale, casasMin: 2, casasMax: 4 })}/${unidadeDoEstoque(i)}`)
                                 .join("; ")}`
                             : ""}
                         </span>
@@ -316,7 +320,9 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
               {itens.every(temRateioDoItem) ? (
                 <div className="col-span-12 min-w-0 space-y-1">
                   <TotaisRateioItens itens={itens} valorTotal={d.valor_total} c={c} testId="consulta-rateio-totais" />
-                  {itens.some((/** @type {any} */ i) => typeof i.residuo_custo === "string") ? <NotaResiduoCusto testId="consulta-rateio-nota-residuo" /> : null}
+                  {itens.some((/** @type {any} */ i) => typeof i.residuo_custo === "string") ? (
+                    <NotaResiduoCusto testId="consulta-rateio-nota-residuo" comLitros={itens.some((/** @type {any} */ i) => i.unidade === "L")} />
+                  ) : null}
                 </div>
               ) : null}
             </>

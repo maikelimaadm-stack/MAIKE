@@ -43,7 +43,18 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Usuario', 'sessao_epoca'],
   // MAIKE-SAAS-ADMIN-S04-P2: login e guarda leem a troca obrigatória de senha.
   ['Usuario', 'troca_senha_pendente'],
+  // D-PROD-162 (Patrimônio SIMPLIFICA-01): o abastecimento em L/KG e os Produtos aceitos por tanque.
+  ['AbastecimentoBem', 'quantidade'],
+  ['AbastecimentoBem', 'unidade'],
+  ['TanqueBemProduto', 'produto_id'],
 ]);
+
+/**
+ * D-PROD-162: a lista da consulta de colunas é MONTADA de COLUNAS_EXIGIDAS
+ * (antes era escrita à mão e podia divergir). Identificadores fixos deste
+ * arquivo, sem entrada externa.
+ */
+const PARES_EXIGIDOS = COLUNAS_EXIGIDAS.map(([t, c]) => `('${t}','${c}')`).join(',');
 
 /**
  * As consultas, todas SELECT. Ficam exportadas para o runbook e para quem
@@ -53,7 +64,7 @@ export const CONSULTAS = Object.freeze({
   migrations: `SELECT migration_name, finished_at IS NOT NULL AS concluida, rolled_back_at IS NOT NULL AS revertida
                  FROM "_prisma_migrations"`,
   colunas: `SELECT table_name, column_name FROM information_schema.columns
-             WHERE table_schema = 'public' AND (table_name, column_name) IN (('Usuario','papel_tenant'),('CategoriaManejo','catalogo_categoria_visual_id'),('Lote','excluido_em'),('Lote','excluido_por_usuario_id'),('Cliente','sessao_epoca'),('Usuario','sessao_epoca'),('Usuario','troca_senha_pendente'))`,
+             WHERE table_schema = 'public' AND (table_name, column_name) IN (${PARES_EXIGIDOS})`,
   tabelas: `SELECT c.relname AS tabela, c.relrowsecurity AS rls
               FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
              WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1::text[])`,

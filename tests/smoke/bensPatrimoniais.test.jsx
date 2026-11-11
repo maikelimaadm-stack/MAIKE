@@ -3,11 +3,13 @@
  * formulário em abas, service, API, porta e nativeHttpClient reais). Mocks só
  * da borda: `fetch` (backend falso) e a sessão (usuário/permissão efetiva).
  *
- *  - criação com o corpo EXATO do POST: trator TP-02 (horímetro + tanque diesel
- *    S10 de 180 L), caminhonete flex UT-04 (odômetro + um tanque gasolina e
- *    etanol de 80 L), curral com duas medições (área principal + cabeças);
+ *  - criação com o corpo EXATO do POST: trator TP-02 (horímetro + tanque de
+ *    180 L que aceita o Produto Diesel S10), caminhonete flex UT-04 (odômetro +
+ *    um tanque de 80 L que aceita Gasolina e Etanol), curral (sem medições:
+ *    D-PROD-162);
  *  - seções e campos condicionais pela natureza da família (espelho da matriz
- *    §2: medições, medidor obrigatório/opcional, tanques, placa, chassi…);
+ *    §2: medidor obrigatório/opcional, tanques, placa, chassi…; sem aba
+ *    Medições, D-PROD-162);
  *  - prévia de depreciação rotulada como simulação (1.250,00 por mês);
  *  - edição com PATCH mínimo + `versao`; 409/422 mostram a mensagem do
  *    patrimônio e mantêm o formulário; conflito de versão relê o detalhe;
@@ -15,7 +17,8 @@
  *  - referências da fazenda, aquisição/depreciação e troca de propriedade com
  *    o corpo HTTP exato; cancelar a edição descarta o digitado; correção do
  *    medidor não envia o que o servidor recusa; "hoje" da leitura no fuso da
- *    fazenda; duplicar não leva combustível inativo.
+ *    fazenda; duplicar só leva os Produtos aceitos que ainda servem (ativos,
+ *    em L ou KG).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -49,22 +52,19 @@ const FAMILIAS = [
   { id: 'f6', codigo: 'OUTROS', nome: 'Outros bens', natureza: 'OUTRO' },
 ];
 const TIPOS = {
-  f1: [{ id: 't1', codigo: 'CURRAL', nome: 'Curral', familia_id: 'f1', perfis: [{ perfil_id: 'p1', principal: true }, { perfil_id: 'p2', principal: false }] }],
-  f2: [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', familia_id: 'f2', perfis: [] }],
-  f3: [{ id: 't3', codigo: 'CAMINHONETE', nome: 'Caminhonete', familia_id: 'f3', perfis: [] }],
-  f4: [{ id: 't4', codigo: 'ROCADEIRA', nome: 'Roçadeira', familia_id: 'f4', perfis: [] }],
-  f5: [{ id: 't5', codigo: 'GERADOR', nome: 'Gerador', familia_id: 'f5', perfis: [] }],
-  f6: [{ id: 't6', codigo: 'BALSA', nome: 'Balsa', familia_id: 'f6', perfis: [] }],
+  f1: [{ id: 't1', codigo: 'CURRAL', nome: 'Curral', familia_id: 'f1' }],
+  f2: [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', familia_id: 'f2' }],
+  f3: [{ id: 't3', codigo: 'CAMINHONETE', nome: 'Caminhonete', familia_id: 'f3' }],
+  f4: [{ id: 't4', codigo: 'ROCADEIRA', nome: 'Roçadeira', familia_id: 'f4' }],
+  f5: [{ id: 't5', codigo: 'GERADOR', nome: 'Gerador', familia_id: 'f5' }],
+  f6: [{ id: 't6', codigo: 'BALSA', nome: 'Balsa', familia_id: 'f6' }],
 };
-const PERFIS = [
-  { id: 'p1', codigo: 'AREA', nome: 'Área', dimensao: 'AREA', finalidade: 'DIMENSAO', unidade_canonica: 'm2', unidades_permitidas: ['m2', 'ha'] },
-  { id: 'p2', codigo: 'CAPACIDADE_ANIMAL', nome: 'Capacidade animal', dimensao: 'CABECAS', finalidade: 'CAPACIDADE', unidade_canonica: 'cab', unidades_permitidas: ['cab'] },
-];
-const COMBUSTIVEIS = [
-  { id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L' },
-  { id: 'c2', codigo: 'GASOLINA', nome: 'Gasolina', unidade: 'L' },
-  { id: 'c3', codigo: 'ETANOL', nome: 'Etanol', unidade: 'L' },
-  { id: 'c4', codigo: 'GNV', nome: 'GNV', unidade: 'm3' },
+/** Produtos ativos da fazenda em L ou KG (D-PROD-162: o que um tanque pode aceitar). */
+const PRODUTOS = [
+  { id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L' },
+  { id: 'pd2', nome: 'Gasolina', codigo_interno: null, unidade_principal_estoque: 'L' },
+  { id: 'pd3', nome: 'Etanol', codigo_interno: null, unidade_principal_estoque: 'L' },
+  { id: 'pd4', nome: 'Arla 32', codigo_interno: 'ARLA', unidade_principal_estoque: 'KG' },
 ];
 /** Opções da EMPRESA (seletores do bem). */
 const OPCOES_DA_EMPRESA = {
@@ -87,8 +87,10 @@ const detalheTrator = (versao = 4) => ({
   localizacao_descricao: null, marca: 'Valtra', modelo: 'A950', ano_fabricacao: 2020, ano_modelo: 2021, numero_serie: 'SN-1', chassi: null, placa: null, placa_uf: null, renavam: null,
   potencia_cv: '95.0000', material: null, ano_conclusao: null, compatibilidade: null, especificacoes: null, observacoes: null,
   medidor: { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1300.0000', data_leitura: '2026-11-01', origem: 'AJUSTE_CADASTRO' },
-  medicoes: [],
-  tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true, combustiveis: [{ id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L', ativo: true }] }],
+  tanques: [{
+    id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
+    produtos: [{ produto_id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true }],
+  }],
   aquisicao: { data_aquisicao: null, data_disponibilidade: null, valor_aquisicao: null, custo_incorporacao: null, fornecedor: null, documento_referencia: null, garantia_ate: null },
   depreciacao: { depreciavel: false, metodo: null, vida_util_meses: null, residual_modo: null, valor_residual: null, residual_percentual: null, data_inicio_depreciacao: null, previa: null },
   consumo: null,
@@ -103,10 +105,6 @@ const detalheCurral = () => ({
   tipo: { id: 't1', codigo: 'CURRAL', nome: 'Curral', ativo: true },
   marca: null, modelo: null, ano_fabricacao: null, ano_modelo: null, numero_serie: null, potencia_cv: null, material: 'Madeira', ano_conclusao: 2019,
   medidor: null, tanques: [],
-  medicoes: [
-    { id: 'm1', perfil: { id: 'p1', codigo: 'AREA', nome: 'Área', dimensao: 'AREA', ativo: true }, rotulo: null, valor_informado: '1200.0000', unidade_informada: 'm2', valor_normalizado: '1200.0000', unidade_canonica: 'm2', principal: true },
-    { id: 'm2', perfil: { id: 'p2', codigo: 'CAPACIDADE_ANIMAL', nome: 'Capacidade animal', dimensao: 'CABECAS', ativo: true }, rotulo: null, valor_informado: '150.0000', unidade_informada: 'cab', valor_normalizado: '150.0000', unidade_canonica: 'cab', principal: false },
-  ],
 });
 const RESUMO_OUTRA_EMPRESA = { ...RESUMO_TRATOR, id: 'b5', numero: '1', codigo_frota: 'TP-02', nome: 'Trator da outra fazenda', versao: 1 };
 const PREVIA = {
@@ -162,8 +160,9 @@ beforeEach(async () => {
     if (method === 'PATCH' && path === '/bens-patrimoniais/b2') return { status: 200, body: { ...detalheCurral(), versao: 3 } };
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/familias') return opcoes(FAMILIAS);
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS[query.get('familia_id')] ?? []);
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/perfis-medicao') return opcoes(PERFIS);
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/combustiveis') return opcoes(COMBUSTIVEIS);
+    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/produtos') {
+      return opcoes(PRODUTOS.filter((p) => !query.get('unidade') || p.unidade_principal_estoque === query.get('unidade')));
+    }
     if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return opcoes(OPCOES_DA_EMPRESA[path.split('/')[2]] ?? []);
     if (method === 'POST' && path === '/bens-patrimoniais-previa-depreciacao') return { status: 200, body: PREVIA };
     if (method === 'POST' && path === '/bens-patrimoniais') {
@@ -173,7 +172,7 @@ beforeEach(async () => {
         status: 201,
         body: {
           id: 'b9', numero: '8', versao: 1, ativo: true, nome: body.nome, natureza: familia.natureza, codigo_frota: body.codigo_frota ?? null,
-          familia: { ...familia, ativo: true }, tipo: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome, ativo: true }, propriedade: 'PROPRIO', medicoes: [], tanques: [], medidor: null,
+          familia: { ...familia, ativo: true }, tipo: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome, ativo: true }, propriedade: 'PROPRIO', tanques: [], medidor: null,
         },
       };
     }
@@ -213,6 +212,8 @@ const escolherNoSeletor = async (form, testId, nome) => {
   await waitFor(() => expect(within(form).queryByTestId(`${testId}-painel`)).toBeNull());
 };
 const aba = (nome) => fireEvent.click(screen.getByRole('tab', { name: nome }));
+/** Aceita um Produto no tanque `i` pelo seletor paginado (D-PROD-162). */
+const aceitarProduto = async (form, i, nome) => escolherNoSeletor(form, `bem-tanque-seletor-produto-${i}`, nome);
 const abas = () => screen.getAllByRole('tab').map((t) => t.textContent.trim());
 const novo = async () => {
   await screen.findByTestId('bem-nome-b1');
@@ -279,7 +280,7 @@ describe('Bens — lista e empresa', () => {
 });
 
 describe('Bens — criação (corpo exato)', () => {
-  it('trator TP-02 com horímetro e tanque diesel S10 de 180 L; sem aba Medições; GNV fora do tanque', async () => {
+  it('trator TP-02 com horímetro e tanque de 180 L que aceita o Produto Diesel S10; sem aba Medições', async () => {
     await montar();
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Trator TP-02' } });
@@ -298,8 +299,14 @@ describe('Bens — criação (corpo exato)', () => {
     const tanque = within(form).getByTestId('bem-tanque-0');
     fireEvent.change(within(tanque).getByLabelText(/^Identificador/), { target: { value: 'Principal' } });
     fireEvent.change(within(tanque).getByLabelText('Capacidade (L)'), { target: { value: '180' } });
-    fireEvent.click(await within(tanque).findByRole('checkbox', { name: 'Diesel S10' }));
-    expect(within(tanque).queryByRole('checkbox', { name: 'GNV' })).toBeNull();
+    expect(within(tanque).getByTestId('bem-tanque-sem-produto-0')).toHaveTextContent('Este tanque não pode ser abastecido até ter um Produto aceito.');
+    await aceitarProduto(form, 0, /Diesel S10/);
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd1')).toHaveTextContent(/Diesel S10/);
+    expect(within(tanque).queryByTestId('bem-tanque-sem-produto-0')).toBeNull();
+    // Os Produtos aceitos são da fazenda (empresa na query), sem filtro de unidade por padrão.
+    const pedidos = backend.chamadas.filter((c) => c.path === '/bens-patrimoniais-opcoes/produtos');
+    expect(pedidos.length).toBeGreaterThan(0);
+    expect(pedidos.every((c) => c.query.empresa_id === 'emp-1' && c.query.unidade === undefined)).toBe(true);
 
     salvar();
     await screen.findByText('Bem patrimonial criado');
@@ -310,7 +317,7 @@ describe('Bens — criação (corpo exato)', () => {
       body: {
         empresa_id: 'emp-1', nome: 'Trator TP-02', familia_id: 'f2', tipo_id: 't2', codigo_frota: 'TP-02', propriedade: 'PROPRIO',
         medidor: { tipo: 'HORIMETRO', leitura_inicial: '1250', data_leitura: '2026-11-01' },
-        tanques: [{ identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'] }],
+        tanques: [{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }],
       },
     }));
     // Depois de criar, o registro fica aberto em modo leitura com o detalhe devolvido.
@@ -318,7 +325,7 @@ describe('Bens — criação (corpo exato)', () => {
     expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/).readOnly).toBe(true);
   });
 
-  it('caminhonete flex UT-04: odômetro, placa Mercosul normalizada e um tanque gasolina + etanol de 80 L', async () => {
+  it('caminhonete flex UT-04: odômetro, placa Mercosul normalizada e um tanque de 80 L que aceita Gasolina e Etanol', async () => {
     await montar();
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Caminhonete UT-04' } });
@@ -337,47 +344,37 @@ describe('Bens — criação (corpo exato)', () => {
     const tanque = within(form).getByTestId('bem-tanque-0');
     fireEvent.change(within(tanque).getByLabelText(/^Identificador/), { target: { value: 'Único' } });
     fireEvent.change(within(tanque).getByLabelText('Capacidade (L)'), { target: { value: '80' } });
-    fireEvent.click(await within(tanque).findByRole('checkbox', { name: 'Gasolina' }));
-    fireEvent.click(within(tanque).getByRole('checkbox', { name: 'Etanol' }));
-    expect(within(tanque).getByRole('checkbox', { name: 'Gasolina' }).getAttribute('aria-checked')).toBe('true');
-    expect(within(tanque).getByRole('checkbox', { name: 'Diesel S10' }).getAttribute('aria-checked')).toBe('false');
+    await aceitarProduto(form, 0, /Gasolina/);
+    await aceitarProduto(form, 0, /Etanol/);
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd2')).toBeTruthy();
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd3')).toBeTruthy();
+    expect(within(tanque).queryByTestId('bem-tanque-0-produto-pd1')).toBeNull();
     salvar();
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()).toHaveLength(1);
     expect(mutacoes()[0].body).toEqual({
       empresa_id: 'emp-1', nome: 'Caminhonete UT-04', familia_id: 'f3', tipo_id: 't3', codigo_frota: 'UT-04', propriedade: 'PROPRIO', placa: 'ABC1D23', placa_uf: 'MS',
       medidor: { tipo: 'ODOMETRO', leitura_inicial: '45300.5', data_leitura: '2026-11-02' },
-      tanques: [{ identificador: 'Único', capacidade_litros: '80', combustivel_ids: ['c2', 'c3'] }],
+      tanques: [{ identificador: 'Único', capacidade_litros: '80', produto_ids: ['pd2', 'pd3'] }],
     });
   });
 
-  it('curral: os perfis sugeridos do tipo viram 2 medições (área principal + cabeças inteiras); sem aba Operação', async () => {
+  it('curral (D-PROD-162): sem aba Medições nem Operação; material e ano de conclusão vão no POST, nunca medicoes', async () => {
     await montar();
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Curral de manejo' } });
     await escolherNoSeletor(form, 'bem-seletor-familia', /^Benfeitorias/);
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Curral/);
-    expect(screen.queryByRole('tab', { name: 'Operação' })).toBeNull();
-    expect(within(form).getByLabelText(/^Material/)).toBeTruthy();
-    aba('Medições');
-    const area = await within(form).findByTestId('bem-medicao-0');
-    const cabecas = within(form).getByTestId('bem-medicao-1');
-    expect(within(area).getByRole('button', { name: 'Medição principal: Área' }).getAttribute('aria-pressed')).toBe('true');
-    expect(within(cabecas).getByRole('button', { name: 'Medição principal: Capacidade animal' }).getAttribute('aria-pressed')).toBe('false');
-    await escolherOpcao(within(area).getByRole('combobox', { name: 'Unidade' }), 'hectares (ha)');
-    fireEvent.change(within(area).getByTestId('bem-medicao-valor-0'), { target: { value: '0,12' } });
-    fireEvent.change(within(cabecas).getByTestId('bem-medicao-valor-1'), { target: { value: '150,5' } });
-    salvar();
-    await screen.findByText('Número inteiro maior que zero');
-    expect(mutacoes()).toHaveLength(0);
-    fireEvent.change(within(cabecas).getByTestId('bem-medicao-valor-1'), { target: { value: '150' } });
+    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Madeira' } });
+    fireEvent.change(within(form).getByLabelText(/^Ano de conclusão/), { target: { value: '2019' } });
     salvar();
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()).toHaveLength(1);
     expect(mutacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', nome: 'Curral de manejo', familia_id: 'f1', tipo_id: 't1', propriedade: 'PROPRIO',
-      medicoes: [{ perfil_id: 'p1', valor: '0.12', unidade: 'ha', principal: true }, { perfil_id: 'p2', valor: '150', unidade: 'cab' }],
+      empresa_id: 'emp-1', nome: 'Curral de manejo', familia_id: 'f1', tipo_id: 't1', propriedade: 'PROPRIO', material: 'Madeira', ano_conclusao: 2019,
     });
+    expect(backend.chamadas.some((c) => /perfis-medicao|combustiveis/.test(c.path))).toBe(false);
   });
 
   it('implemento: medidor opcional (voltar para "Não se aplica" tira o medidor do corpo), sem tanques; compatibilidade e série aparecem', async () => {
@@ -413,7 +410,7 @@ describe('Bens — criação (corpo exato)', () => {
     expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', nome: 'Balsa do açude', familia_id: 'f6', tipo_id: 't6', propriedade: 'PROPRIO', medidor: { tipo: 'SEM_MEDIDOR' } });
   });
 
-  it('equipamento: medidor obrigatório e tanque com combustível obrigatório (validação local, nada enviado)', async () => {
+  it('equipamento: medidor obrigatório (validação local, nada enviado); tanque sem Produto aceito não é exigido (P-01)', async () => {
     await montar();
     const form = await novoDaFamilia('Gerador 50 kVA', /^Equipamentos/, /Gerador/);
     aba('Operação');
@@ -427,9 +424,13 @@ describe('Bens — criação (corpo exato)', () => {
     // A validação leva para a aba do primeiro erro (Operação) e marca os campos.
     expect(screen.getByRole('tab', { name: 'Operação' }).getAttribute('aria-selected')).toBe('true');
     expect(within(form).getByText('Escolha o medidor (ou "Sem medidor")')).toBeTruthy();
-    expect(within(form).getByText('Escolha ao menos um combustível')).toBeTruthy();
+    expect(within(form).getByTestId('bem-tanque-sem-produto-0')).toBeTruthy();
     await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     expect(mutacoes()).toEqual([]);
+    await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Sem medidor');
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '120', produto_ids: [] }]);
   });
 });
 
@@ -448,7 +449,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
 
   /** [família, abas, campos presentes, campos ausentes, tanques?, medidor obrigatório?] */
   const MATRIZ = [
-    [/^Benfeitorias/, ['Identificação', 'Medições', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
+    [/^Benfeitorias/, ['Identificação', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
     [/^Máquinas/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Chassi/, /^Número de série/], [/^Placa/, /^Renavam/, /^Material/, /^Compatibilidade/], true, true],
     [/^Veículos/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Placa/, /^Renavam/, /^Chassi/, /^Número de série/], [/^Material/, /^Compatibilidade/], true, true],
     [/^Implementos/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/, /^Compatibilidade/], [/^Placa/, /^Chassi/, /^Material/], false, false],
@@ -485,7 +486,7 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus');
     await escolherNoSeletor(form, 'bem-seletor-familia', /^Benfeitorias/);
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('— Escolha o tipo —');
-    expect(abas()).toEqual(['Identificação', 'Medições', 'Aquisição e depreciação']);
+    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     salvar();
     expect(await within(form).findByText('Escolha o tipo')).toBeTruthy();
     expect(mutacoes()).toEqual([]);
@@ -556,7 +557,7 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     await screen.findByText('Bem patrimonial atualizado');
     expect(mutacoes()[0].body).toEqual({
       empresa_id: 'emp-1', versao: 4,
-      tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'], ativo: false }],
+      tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'], ativo: false }],
     });
   });
 
@@ -632,31 +633,40 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
       empresa_id: 'emp-1', nome: 'Trator TP-02', familia_id: 'f2', tipo_id: 't2', codigo_frota: 'TP-03', propriedade: 'PROPRIO',
       marca: 'Valtra', modelo: 'A950', ano_fabricacao: 2020, ano_modelo: 2021, potencia_cv: '95',
       medidor: { tipo: 'HORIMETRO', leitura_inicial: '0', data_leitura: '2026-11-03' },
-      tanques: [{ identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'] }],
+      tanques: [{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }],
     });
   });
 
-  it('duplicar não pré-seleciona combustível inativo do tanque de origem (nem como opção)', async () => {
+  it('duplicar só copia os Produtos aceitos que ainda servem (nem o inativo, nem o que saiu de L/KG)', async () => {
     extraDoTrator = {
       tanques: [{
         id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
-        combustiveis: [{ id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L', ativo: true }, { id: 'c9', codigo: 'DIESEL_S500', nome: 'Diesel S500', unidade: 'L', ativo: false }],
+        produtos: [
+          { produto_id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true },
+          { produto_id: 'pd9', nome: 'Diesel S500', codigo_interno: null, unidade_principal_estoque: 'L', produto_ativo: false },
+          { produto_id: 'pd8', nome: 'Ração ensacada', codigo_interno: null, unidade_principal_estoque: 'SACO', produto_ativo: true },
+        ],
       }],
     };
     await montar();
     await abrirTrator();
+    aba('Operação');
+    // No registro aberto os dois aparecem riscados, com o motivo.
+    expect(screen.getByTestId('bem-tanque-0-produto-pd9')).toHaveAttribute('data-motivo', 'inativo');
+    expect(screen.getByTestId('bem-tanque-0-produto-pd8')).toHaveAttribute('data-motivo', 'unidade não aceita');
     fireEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
     const form = await screen.findByTestId('b1-form');
     await waitFor(() => expect(within(form).getByLabelText(/^Nome/).value).toBe('Trator TP-02'));
     aba('Operação');
     const tanque = within(form).getByTestId('bem-tanque-0');
-    expect(await within(tanque).findByRole('checkbox', { name: 'Diesel S10' })).toHaveAttribute('aria-checked', 'true');
-    expect(within(tanque).queryByRole('checkbox', { name: /Diesel S500/ })).toBeNull();
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd1')).toBeTruthy();
+    expect(within(tanque).queryByTestId('bem-tanque-0-produto-pd9')).toBeNull();
+    expect(within(tanque).queryByTestId('bem-tanque-0-produto-pd8')).toBeNull();
     fireEvent.change(within(form).getByLabelText('Leitura inicial (h)'), { target: { value: '0' } });
     fireEvent.change(within(form).getByTestId('bem-medidor-data'), { target: { value: '2026-11-03' } });
     salvar();
     await screen.findByText('Bem patrimonial criado');
-    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'] }]);
+    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }]);
   });
 
   it('cancelar a edição descarta o digitado: volta ao gravado e o próximo PATCH não leva o descartado', async () => {
@@ -846,18 +856,17 @@ describe('Bens — regras finas do formulário', () => {
     ]);
   });
 
-  it('422 de uma medição com field medicoes[1].valor (o servidor não manda índice nos details) mostra a linha', async () => {
+  it('422 da capacidade de um tanque com field tanques[0].capacidade_litros mostra a linha e mantém o digitado', async () => {
     await montar();
-    fireEvent.doubleClick(await screen.findByTestId('bem-nome-b2'));
-    await screen.findByTestId('b1-form');
+    await abrirTrator();
     editar();
     const form = screen.getByTestId('b1-form');
-    aba('Medições');
-    fireEvent.change(within(form).getByTestId('bem-medicao-valor-1'), { target: { value: '160' } });
-    proxima = erroServidor(422, 'MEDICAO_VALOR_INVALIDO', { field: 'medicoes[1].valor', reason: 'deve_ser_inteiro' });
+    aba('Operação');
+    fireEvent.change(within(form).getByLabelText('Capacidade (L)'), { target: { value: '200' } });
+    proxima = erroServidor(422, 'TANQUE_CAPACIDADE_INVALIDA', { field: 'tanques[0].capacidade_litros', reason: 'capacidade_invalida' });
     salvar();
-    expect(await screen.findByText(/informe um número inteiro \(linha 2\)/)).toBeTruthy();
-    expect(within(screen.getByTestId('b1-form')).getByTestId('bem-medicao-valor-1').value).toBe('160');
+    expect(await screen.findByText(/Capacidade do tanque inválida \(linha 1\)/)).toBeTruthy();
+    expect(within(screen.getByTestId('b1-form')).getByLabelText('Capacidade (L)').value).toBe('200');
   });
 
   it('"hoje" da leitura é o dia da FAZENDA (fuso da empresa no resumo de empresas), não o do navegador', async () => {
@@ -879,7 +888,7 @@ describe('Bens — regras finas do formulário', () => {
     expect(mutacoes()[0].body.medidor).toEqual({ tipo: 'HORIMETRO', leitura_inicial: '0', data_leitura: '2027-06-14' });
   });
 
-  it('benfeitoria gravada: unidades da medição vêm do perfil ativo; família de outra natureza é recusada na tela', async () => {
+  it('benfeitoria gravada: família de outra natureza é recusada na tela; o PATCH leva só o que mudou (nunca medicoes)', async () => {
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('bem-nome-b2'));
     await screen.findByTestId('b1-form');
@@ -888,14 +897,11 @@ describe('Bens — regras finas do formulário', () => {
     fireEvent.click(within(form).getByTestId('bem-seletor-familia'));
     fireEvent.click(await within(form).findByRole('option', { name: /^Máquinas/ }));
     await within(form).findByText('A natureza do bem não muda: escolha uma família de Benfeitoria.');
-    aba('Medições');
-    const area = within(form).getByTestId('bem-medicao-0');
-    await escolherOpcao(within(area).getByRole('combobox', { name: 'Unidade' }), 'hectares (ha)');
-    fireEvent.change(within(area).getByTestId('bem-medicao-valor-0'), { target: { value: '0,12' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Tirar a medição Capacidade animal' }));
+    expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
+    fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Alvenaria' } });
     salvar();
     await screen.findByText('Bem patrimonial atualizado');
-    expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 2, medicoes: [{ id: 'm1', perfil_id: 'p1', valor: '0.12', unidade: 'ha', principal: true }] });
+    expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 2, material: 'Alvenaria' });
   });
 
   it('409 do servidor na criação (código de frota duplicado) mantém o formulário com o que foi digitado', async () => {

@@ -1,15 +1,17 @@
 /**
- * D-PROD-157 — rotas dos catálogos do Patrimônio e Frota (do TENANT, sem
- * `empresa_id`): famílias, tipos, perfis de medição, combustíveis e a
- * instalação do catálogo padrão.
+ * D-PROD-157 / D-PROD-162 — rotas dos catálogos do Patrimônio e Frota (do
+ * TENANT, sem `empresa_id`): famílias, tipos e a instalação do catálogo padrão.
+ * Perfis de medição e combustíveis saíram (D-PROD-162: as rotas respondem 404).
  *
  * Corpo e query FECHADOS (`additionalProperties: false`); tenant só da sessão
- * (`cliente_id` no corpo → 400 na barreira global); cada rota exige a ação da
- * PRÓPRIA tela (`GUARDAS.patrimonio*`): ver = visualizar, criar = novo|salvar,
- * editar = editar|salvar e, quando o corpo traz `ativo`, a ação extra
- * `inativar`. Campos imutáveis (`codigo`, `natureza`, `familia_id`,
- * `dimensao`, `finalidade`, `unidade`) ficam fora do schema do PATCH → 400.
- * Sem DELETE: inativação por PATCH.
+ * (`cliente_id` no corpo → 400 na barreira global). Famílias e tipos vivem no
+ * cadastro de Bens: as guardas são da tela `pat-bens-patrimoniais`
+ * (`GUARDAS.patrimonioFamilias/Tipos`): ver = Bens visualizar, criar = Bens
+ * novo|salvar|editar ("+ Nova família"/"+ Novo tipo" de quem cadastra OU edita
+ * bem), editar = Bens editar|salvar e, quando o corpo traz `ativo`, a ação extra
+ * `inativar`. `codigo` é opcional no POST (o servidor gera do nome, P-05).
+ * Campos imutáveis (`codigo`, `natureza`, `familia_id`) ficam fora do schema do
+ * PATCH → 400; `perfis` no corpo do tipo → 400. Sem DELETE: inativação por PATCH.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -17,10 +19,8 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import * as familias from './familiaPatrimonialService.js';
 import * as tipos from './tipoPatrimonialService.js';
-import * as perfis from './perfilMedicaoService.js';
-import * as combustiveis from './tipoCombustivelService.js';
 import { instalarCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
-import { FINALIDADES_PERFIL, NATUREZAS, NOMES_DIMENSOES, UNIDADES_COMBUSTIVEL } from './patrimonioDominio.js';
+import { NATUREZAS } from './patrimonioDominio.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const CODIGO = { type: 'string', minLength: 2, maxLength: 32, pattern: '^[A-Za-z0-9_]{2,32}$' };
@@ -52,36 +52,17 @@ const atualizarCom = (properties) => ({
   body: { type: 'object', required: ['versao'], minProperties: 2, additionalProperties: false, properties: { versao: VERSAO, ...properties, ativo: { type: 'boolean' } } },
 });
 
-/** Perfis sugeridos do tipo: o teto real (10) é regra de negócio (422); o schema só barra abuso. */
-const PERFIS_DO_TIPO = {
-  type: 'array',
-  maxItems: 50,
-  items: { type: 'object', required: ['perfil_id'], additionalProperties: false, properties: { perfil_id: ID, principal: { type: ['boolean', 'null'] } } },
-};
-/** Unidades: o domínio por dimensão é regra de negócio (422 `PERFIL_UNIDADES_INVALIDAS`). */
-const UNIDADES = { type: 'array', maxItems: 10, items: { type: 'string', minLength: 1, maxLength: 8 } };
-
 const FAMILIA_LISTAR = listar({ natureza: ENUM(NATUREZAS) });
-const FAMILIA_CRIAR = criarCom(['codigo', 'nome', 'natureza'], {
+const FAMILIA_CRIAR = criarCom(['nome', 'natureza'], {
   codigo: CODIGO, nome: NOME, natureza: ENUM(NATUREZAS), descricao: TEXTO(500), ordem: INTEIRO_NULO(0, 9999), vida_util_meses_padrao: VIDA_UTIL,
 });
 const FAMILIA_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500), ordem: INTEIRO_NULO(0, 9999), vida_util_meses_padrao: VIDA_UTIL });
 
 const TIPO_LISTAR = listar({ familia_id: ID });
-const TIPO_CRIAR = criarCom(['familia_id', 'codigo', 'nome'], {
-  familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, perfis: PERFIS_DO_TIPO,
+const TIPO_CRIAR = criarCom(['familia_id', 'nome'], {
+  familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL,
 });
-const TIPO_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, perfis: PERFIS_DO_TIPO });
-
-const PERFIL_LISTAR = listar();
-const PERFIL_CRIAR = criarCom(['codigo', 'nome', 'dimensao', 'finalidade', 'unidades_permitidas'], {
-  codigo: CODIGO, nome: NOME, dimensao: ENUM(NOMES_DIMENSOES), finalidade: ENUM(FINALIDADES_PERFIL), unidades_permitidas: UNIDADES, descricao: TEXTO(500),
-});
-const PERFIL_ATUALIZAR = atualizarCom({ nome: NOME, unidades_permitidas: UNIDADES, descricao: TEXTO(500) });
-
-const COMBUSTIVEL_LISTAR = listar();
-const COMBUSTIVEL_CRIAR = criarCom(['codigo', 'nome'], { codigo: CODIGO, nome: NOME, unidade: ENUM(UNIDADES_COMBUSTIVEL), descricao: TEXTO(500) });
-const COMBUSTIVEL_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500) });
+const TIPO_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL });
 
 const CATALOGO_PADRAO = { body: { type: ['object', 'null'], additionalProperties: false, properties: {} } };
 
@@ -114,10 +95,6 @@ const registrarRecurso = (app, base, g, servico, schemas) => {
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
   registrarRecurso(app, '/patrimonio-familias', GUARDAS.patrimonioFamilias, familias, { listar: FAMILIA_LISTAR, criar: FAMILIA_CRIAR, atualizar: FAMILIA_ATUALIZAR });
   registrarRecurso(app, '/patrimonio-tipos', GUARDAS.patrimonioTipos, tipos, { listar: TIPO_LISTAR, criar: TIPO_CRIAR, atualizar: TIPO_ATUALIZAR });
-  registrarRecurso(app, '/patrimonio-perfis-medicao', GUARDAS.patrimonioPerfisMedicao, perfis, { listar: PERFIL_LISTAR, criar: PERFIL_CRIAR, atualizar: PERFIL_ATUALIZAR });
-  registrarRecurso(app, '/patrimonio-combustiveis', GUARDAS.patrimonioCombustiveis, combustiveis, {
-    listar: COMBUSTIVEL_LISTAR, criar: COMBUSTIVEL_CRIAR, atualizar: COMBUSTIVEL_ATUALIZAR,
-  });
   // Idempotente (cria só o que falta): 200 com o resumo, também quando nada é criado.
   app.post('/patrimonio-catalogo-padrao', { onRequest: [app.autenticar], preHandler: [GUARDAS.patrimonioCatalogoPadrao], schema: CATALOGO_PADRAO }, async (request) =>
     instalarCatalogoPadrao(ctx(request)));

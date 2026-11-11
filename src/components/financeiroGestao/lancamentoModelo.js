@@ -112,10 +112,15 @@ export const formularioDoDetalhe = (d, ctx) => {
   const itens = (Array.isArray(d?.itens) ? d.itens : []).map((/** @type {any} */ i) => ({
     chave: novaChaveLinha(),
     tipo_item: i.tipo_item === 'SERVICO' ? 'SERVICO' : 'MERCADORIA',
-    produto: ref(i.produto_id, i.produto_nome, i.unidade === 'SACO' ? { unidade_principal_estoque: 'SACO', peso_por_saco_kg: t(i.fator_kg) } : {}),
+    // D-PROD-162: item em L só existe para Produto em L: o detalhe preserva `L` e marca o Produto.
+    produto: ref(
+      i.produto_id,
+      i.produto_nome,
+      i.unidade === 'SACO' ? { unidade_principal_estoque: 'SACO', peso_por_saco_kg: t(i.fator_kg) } : i.unidade === 'L' ? { unidade_principal_estoque: 'L' } : {},
+    ),
     local: ref(i.local_estoque_id, i.local_estoque_nome),
     descricao: t(i.descricao),
-    unidade: i.unidade === 'SACO' || i.unidade === 'UN' ? i.unidade : 'KG',
+    unidade: i.unidade === 'SACO' || i.unidade === 'UN' || i.unidade === 'L' ? i.unidade : 'KG',
     quantidade: numero(i.quantidade, 4),
     valor_unitario: numero(i.valor_unitario, 6),
   }));
@@ -386,6 +391,12 @@ const pesoDoSaco = (produto) => {
 
 /** O produto aceita SACO? (só com unidade principal SACO e peso por saco > 0). @param {any} produto */
 export const produtoAceitaSaco = (produto) => produto?.unidade_principal_estoque === 'SACO' && pesoDoSaco(produto) !== null;
+
+/** D-PROD-162: o produto é controlado em litros? (só ele aceita — e exige — a unidade L). @param {any} produto */
+export const produtoEmLitros = (produto) => produto?.unidade_principal_estoque === 'L';
+
+/** D-PROD-162: unidade do item ao escolher o produto (Produto em L → L; os outros → KG, como antes). @param {any} produto */
+export const unidadeAoEscolherProduto = (produto) => (produtoEmLitros(produto) ? 'L' : 'KG');
 
 // ─── Rateio POR ITEM (D-PROD-156) ────────────────────────────────────────
 
@@ -698,12 +709,16 @@ export const calcularResumo = (form, ctx) => {
       if (!item.produto) e.produto = 'Escolha o produto';
       if (!item.local) e.local = 'Escolha o local de estoque';
       if (item.unidade === 'SACO' && !produtoAceitaSaco(item.produto)) e.unidade = 'Este produto não é controlado em sacos';
-      if (item.unidade !== 'KG' && item.unidade !== 'SACO') e.unidade = 'Use KG ou SACO';
+      if (item.unidade !== 'KG' && item.unidade !== 'SACO' && item.unidade !== 'L') e.unidade = 'Use KG ou SACO';
+      // D-PROD-162: Produto em L só com item L; item L só com Produto em L (o servidor confere igual).
+      else if (produtoEmLitros(item.produto) && item.unidade !== 'L') e.unidade = 'Este produto é controlado em litros (L)';
+      else if (!produtoEmLitros(item.produto) && item.unidade === 'L') e.unidade = 'Use KG ou SACO';
       if (q.valor && !q.erro) {
+        // fator 1 para KG e para L (a quantidade em estoque fica em litros); SACO usa o peso do saco.
         const fator = item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
         if (fator) {
           kg = multiplicarArredondar(q.valor, fator, 4);
-          if (!ehPositivo(kg)) e.quantidade = 'A quantidade em kg ficaria zero';
+          if (!ehPositivo(kg)) e.quantidade = item.unidade === 'L' ? 'A quantidade em L ficaria zero' : 'A quantidade em kg ficaria zero';
           else if (comparar(kg, LIMITE_ESTOQUE) > 0) e.quantidade = 'Acima do limite do estoque';
         }
       }

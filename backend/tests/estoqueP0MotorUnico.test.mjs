@@ -673,10 +673,10 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('AB-X — abastecimento (litros) sobre a camada transferida', () => {
-  test('transferir 50 kg do local 2 (camada de 06-02) para o tanque: o abastecimento consome FIFO A (06-01) e depois a camada transferida (06-02), antes de B (06-03); fator antigo intocado por versão nova; o cancelamento devolve cada fatia à SUA camada', async () => {
+  test('transferir 50 L do local 2 (camada de 06-02) para o tanque: o abastecimento consome FIFO A (06-01) e depois a camada transferida (06-02), antes de B (06-03); quantidade e custo na unidade do Produto (L, sem fator — D-PROD-162); o cancelamento devolve cada fatia à SUA camada', async () => {
     const s = await montarAbastecimento(app);
     const p = prisma();
-    const l2 = await s.lote(s.e1, s.diesel, s.local2, { kg: '60.0000', custo: '5.0000', dia: '2027-06-02' });
+    const l2 = await s.lote(s.e1, s.diesel, s.local2, { quantidade: '60.0000', custo: '5.0000', dia: '2027-06-02' });
     const rt = await A.req('POST', URL_TRANSF, s.token, {
       operation_id: opIdAb(), empresa_id: s.e1.id, produto_id: s.diesel.id, local_origem_id: s.local2.id, local_destino_id: s.local.id, quantidade: 50,
     });
@@ -684,15 +684,11 @@ describe('AB-X — abastecimento (litros) sobre a camada transferida', () => {
     const T = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: s.c, movimentacao_entrada_id: rt.json().movimentacao_entrada.id } });
     assert.deepEqual([T.local_estoque_id, dia(T.data_documento), q4(T.quantidade_disponivel), q4(T.custo_unitario)], [s.local.id, '2027-06-02', '50.0000', '5.0000']);
     assert.equal(q4((await lote(l2.id)).quantidade_disponivel), '10.0000');
-    const d = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s)); // 80 L × 0,84 = 67,2 kg
+    const d = await AB.confirmarOk(s.operador.token, corpoAbastecimento(s)); // 80 L do Produto em L (D-PROD-162: sem fator)
     const fatias = (await p.abastecimentoBemConsumoLote.findMany({ where: { abastecimento_id: d.id }, orderBy: { ordem: 'asc' } })).map((f) => [f.estoque_lote_nota_id, q4(f.quantidade), q4(f.custo_unitario)]);
-    assert.deepEqual(fatias, [[s.lotes.dieselA.id, '50.0000', '5.2000'], [T.id, '17.2000', '5.0000']]);
+    assert.deepEqual(fatias, [[s.lotes.dieselA.id, '50.0000', '5.2000'], [T.id, '30.0000', '5.0000']]);
     const linha = await p.abastecimentoBem.findUnique({ where: { id: d.id } });
-    assert.deepEqual([q4(linha.quantidade_kg), q4(linha.custo_total), q4(linha.custo_unitario_kg), D(linha.kg_por_litro).toFixed(6)], ['67.2000', '346.0000', '5.1488', '0.840000']);
-    // versão nova do fator: o documento antigo mantém o fator gravado
-    const nova = await s.configurarFator(s.e1, s.comb.DIESEL_S10, s.diesel, '0.850000', s.fator.diesel.id);
-    assert.equal(nova.statusCode, 201, nova.body);
-    assert.equal(D((await p.abastecimentoBem.findUnique({ where: { id: d.id } })).kg_por_litro).toFixed(6), '0.840000');
+    assert.deepEqual([q4(linha.quantidade), linha.unidade, q4(linha.custo_total), q4(linha.custo_unitario)], ['80.0000', 'L', '410.0000', '5.1250']);
     const c = await AB.cancelar(s.contaCancelar.token, d.id, { empresa_id: s.e1.id, versao: 1, motivo: 'lançado no bem errado', operation_id: opIdAb() });
     assert.equal(c.statusCode, 200, c.body);
     assert.deepEqual(

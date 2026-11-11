@@ -32,6 +32,14 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
+/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). */
+const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS", L: "LITROS (L)" });
+const rotuloUnidadeEstoque = (u) => (u === "SACO" || u === "L" ? ROTULO_UNIDADE_ESTOQUE[u] : ROTULO_UNIDADE_ESTOQUE.KG);
+
+/** Sigla ou descrição de unidade de medida que é de litros (L, LT, LTS, LITRO, LITROS...). */
+const ehUnidadeDeLitros = (sigla, descricao) =>
+  /^(L|LT|LTS|LITROS?)$/i.test(String(sigla ?? "").trim()) || /LITRO/i.test(String(descricao ?? ""));
+
 /**
  * Leitura ÚNICA dos campos com máscara (D-PROD-161): o MESMO número serve para
  * exibir (`formatarMoedaInput`) e para enviar. O texto do estado é o que o
@@ -164,6 +172,14 @@ export default function FormularioProduto({
   );
 
   const marcasItems = useMemo(() => marcas.map((m) => ({ id: m.nome, nome: m.nome })), [marcas]);
+
+  // D-PROD-162 (achado D5): estoque em LITROS com uma unidade de medida que não é de
+  // litros pede conferência (aviso, não bloqueia).
+  const unidadeMedidaEscolhida = unidadesItems.find((u) => u.id === formData.unidade_medida);
+  const avisoLitros =
+    formData.unidade_principal_estoque === "L" &&
+    Boolean(String(formData.unidade_medida ?? "").trim()) &&
+    !ehUnidadeDeLitros(formData.unidade_medida, unidadeMedidaEscolhida?.descricao);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -543,7 +559,7 @@ export default function FormularioProduto({
           <input
             type="text"
             readOnly
-            value={formData.unidade_principal_estoque === "SACO" ? "SACOS" : "QUILOGRAMAS (KG)"}
+            value={rotuloUnidadeEstoque(formData.unidade_principal_estoque)}
             className={B1_FIELD_CTL_CLS}
           />
         ) : (
@@ -552,11 +568,18 @@ export default function FormularioProduto({
             onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
             className={B1_FIELD_CTL_CLS}
           >
-            <option value="KG">QUILOGRAMAS (KG)</option>
-            <option value="SACO">SACOS</option>
+            <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
+            <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option>
+            <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
           </B1Select>
         )}
       </B1Field>
+
+      {avisoLitros ? (
+        <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-unidade-litros">
+          A unidade de medida do cadastro não é de litros; confira.
+        </p>
+      ) : null}
 
       {formData.unidade_principal_estoque === "SACO" ? (
         <B1Field

@@ -54,9 +54,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 
 import { motivoAlvoProtegido } from '../auth/alvoProtegido.mjs';
-import { conferirAlvos } from './alvoBancoLib.mjs';
+import { CONSULTA_HISTORICO, conferirAlvos, executorPrisma } from './alvoBancoLib.mjs';
+import { contractsPendentes } from './premergeMigrateLib.mjs';
 
 /** Códigos estáveis. Fazem parte do contrato — não renomear sem migrar o gate. */
 export const CODIGOS_DEPLOY_MIGRATION = Object.freeze({
@@ -64,6 +66,8 @@ export const CODIGOS_DEPLOY_MIGRATION = Object.freeze({
   URL_INVALIDA: 'DEPLOY-MIGRATION-URL-INVALID',
   POOLER_INSEGURO: 'DEPLOY-MIGRATION-UNSAFE-POOLER',
   ALVO_NAO_CONFERIDO: 'DEPLOY-MIGRATION-TARGET-UNVERIFIED',
+  // D-PROD-162: migration CONTRACT pendente no alvo remoto sem MIGRATION_CONTRACT_AUTORIZADO = decisão.
+  CONTRACT_NAO_AUTORIZADO: 'DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED',
 });
 
 /** Nome da variável. Server-only: nunca com prefixo `VITE_`. */
@@ -198,6 +202,68 @@ export const executarMigrationsDeDeploy = ({
 /** Variável com o `system_identifier` esperado do alvo remoto (não é segredo). */
 export const VARIAVEL_DE_ALVO_ESPERADO = 'MIGRATION_EXPECTED_SYSTEM_IDENTIFIER';
 
+/** Pastas de migration do repositório (as mesmas que o `prisma migrate deploy` aplica). */
+const RAIZ_MIGRATIONS = 'backend/prisma/migrations';
+
+/**
+ * Barreira do CONTRACT (D-PROD-162), antes de qualquer DDL.
+ *
+ * Uma migration CONTRACT (MIGRATIONS_CONTRACT_APROVADAS) APAGA dados: no alvo
+ * remoto (ou com `MIGRATION_EXIGIR_CONFERENCIA=sim`) ela só é aplicada se
+ * `MIGRATION_CONTRACT_AUTORIZADO` for EXATAMENTE a decisão dela. Só o
+ * `premerge-migrate --aplicar --contract <decisão>` define essa variável; um
+ * `npm run deploy:migrate` à mão ou o `release-migrate.yml` recusam enquanto o
+ * CONTRACT estiver pendente no alvo. Depois de aplicado (linha concluída e não
+ * revertida no histórico), nada muda para as releases seguintes. Local e CI
+ * seguem livres. Histórico ilegível → falha fechada. Nunca imprime URL.
+ *
+ * @param {{env?: NodeJS.ProcessEnv, urlMigracao?: string, lerHistorico?: (url: string) => Promise<any[]>,
+ *          raiz?: string, log?: (m: string) => void, erro?: (m: string) => void}} [opcoes]
+ * @returns {Promise<boolean>} pode migrar?
+ */
+export const exigirContractAutorizado = async ({
+  env = process.env,
+  urlMigracao = env[VARIAVEL_DE_MIGRATION],
+  lerHistorico = (url) => executorPrisma(url, CONSULTA_HISTORICO),
+  raiz = RAIZ_MIGRATIONS,
+  log = console.log,
+  erro = console.error,
+} = {}) => {
+  if (!validarUrlDeMigration(urlMigracao).ok) return true; // o runner recusa com o código próprio
+  const remoto = motivoAlvoProtegido({}, urlMigracao) !== null;
+  if (!remoto && env.MIGRATION_EXIGIR_CONFERENCIA !== 'sim') return true;
+  const falhar = (motivo) => {
+    erro(`deploy:migrate — FALHOU [${CODIGOS_DEPLOY_MIGRATION.CONTRACT_NAO_AUTORIZADO}]\n\n  ${motivo}\n  Nenhuma migration foi executada.\n`);
+    return false;
+  };
+  let locais;
+  try {
+    locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+    return falhar('pastas de migration ilegíveis: não dá para saber se há CONTRACT a aplicar.');
+  }
+  if (!contractsPendentes({ locais, linhas: [] }).length) return true; // nenhuma migration CONTRACT nesta árvore
+  let linhas;
+  try {
+    linhas = await lerHistorico(urlMigracao);
+  } catch (e) {
+    // Mensagem do driver pode conter host/usuário: só o código sai daqui.
+    const codigo = /** @type {any} */ (e)?.code ?? /** @type {any} */ (e)?.errorCode ?? 'erro';
+    return falhar(`histórico do alvo ilegível (${codigo}): não dá para provar que a migration CONTRACT já foi aplicada.`);
+  }
+  const pendentes = contractsPendentes({ locais, linhas });
+  const semAutorizacao = pendentes.filter((p) => env.MIGRATION_CONTRACT_AUTORIZADO !== p.decisao);
+  if (semAutorizacao.length) {
+    return falhar(
+      `migration CONTRACT pendente no alvo: ${semAutorizacao.map((p) => `${p.nome} (${p.decisao})`).join(', ')}. ` +
+        'Ela apaga dados e só é aplicada pelo premerge-migrate --aplicar --contract <decisão>, com o GO do proprietário ' +
+        '(MIGRATION_CONTRACT_AUTORIZADO ausente ou diferente da decisão).'
+    );
+  }
+  if (pendentes.length) log(`deploy:migrate — CONTRACT autorizado: ${pendentes.map((p) => `${p.nome} (${p.decisao})`).join(', ')}.`);
+  return true;
+};
+
 /** Conexão do runtime exatamente como o backend a resolve (dotenv + prioridade). */
 const resolverRuntimeDoBackend = async () => (await import('../../backend/src/config/env.js')).env.databaseUrl;
 
@@ -207,9 +273,11 @@ const resolverRuntimeDoBackend = async () => (await import('../../backend/src/co
  * Banco remoto (ou `MIGRATION_EXIGIR_CONFERENCIA=sim`) só migra se a conexão de
  * migration e a do runtime forem o MESMO banco lógico e o cluster for o
  * esperado em `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`. Local segue como antes.
+ * Com o alvo conferido, aplica a barreira do CONTRACT (D-PROD-162).
  *
  * @param {{env?: NodeJS.ProcessEnv, conferir?: typeof conferirAlvos,
  *          resolverRuntime?: () => Promise<string|null|undefined>,
+ *          lerHistorico?: (url: string) => Promise<any[]>,
  *          log?: (m: string) => void, erro?: (m: string) => void}} [opcoes]
  * @returns {Promise<boolean>} pode migrar?
  */
@@ -217,6 +285,7 @@ export const exigirAlvoConferido = async ({
   env = process.env,
   conferir = conferirAlvos,
   resolverRuntime = resolverRuntimeDoBackend,
+  lerHistorico,
   log = console.log,
   erro = console.error,
 } = {}) => {
@@ -234,7 +303,7 @@ export const exigirAlvoConferido = async ({
   const v = await conferir({ esperadoSid, urlRuntime, urlMigracao });
   if (!v.ok) return falhar(v.falhas.join('\n  '));
   log(`deploy:migrate — alvo conferido nas duas conexões (${v.resumo}).`);
-  return true;
+  return exigirContractAutorizado({ env, urlMigracao, ...(lerHistorico ? { lerHistorico } : {}), log, erro });
 };
 
 /* c8 ignore start — entrada de CLI, exercitada pelos testes via a função exportada */

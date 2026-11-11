@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
-  Boxes,
   Briefcase,
   Building2,
   ChevronRight,
@@ -9,8 +8,6 @@ import {
   Droplet,
   Droplets,
   Folder,
-  Fuel,
-  Gauge,
   Layers,
   LayoutGrid,
   ListChecks,
@@ -22,7 +19,6 @@ import {
   ReceiptText,
   Ruler,
   Search,
-  Shapes,
   Shield,
   SlidersHorizontal,
   Tag,
@@ -62,14 +58,10 @@ export const ICONE_TELA = {
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
   LancamentosFinanceiros: ReceiptText,
-  // D-PROD-157 — Patrimônio e Frota.
+  // D-PROD-157 — Patrimônio e Frota (D-PROD-162: só Bens e Abastecimentos).
   BensPatrimoniais: Tractor,
   // D-PROD-159 — Abastecimentos (Droplets ≠ Droplet dos Bebedouros).
   Abastecimentos: Droplets,
-  FamiliasPatrimoniais: Boxes,
-  TiposPatrimoniais: Shapes,
-  PerfisMedicao: Gauge,
-  Combustiveis: Fuel,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;

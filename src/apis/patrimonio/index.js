@@ -12,12 +12,7 @@ export {
   updateBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
-  listProdutosElegiveisBemPatrimonial,
-  listProdutosDoCombustivelPage,
-  createVinculoCombustivelProduto,
-  updateVinculoCombustivelProduto,
-  listOpcoesProdutosCombustivel,
-  // D-PROD-159 — Abastecimentos e fatores kg/L.
+  // D-PROD-159 — Abastecimentos (D-PROD-162: sem fatores kg/L, sem vínculo combustível × produto).
   RECURSOS_OPCOES_ABASTECIMENTO,
   PADRAO_OPERATION_ID_ABASTECIMENTO,
   listAbastecimentosPage,
@@ -27,7 +22,4 @@ export {
   cancelarAbastecimento,
   listOpcoesAbastecimento,
   getConsumoAbastecimento,
-  listConversoesCombustivelPage,
-  createConversaoCombustivel,
-  encerrarConversaoCombustivel,
 } from './patrimonioApi.js';

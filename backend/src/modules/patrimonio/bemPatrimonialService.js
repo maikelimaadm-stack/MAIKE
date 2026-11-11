@@ -1,6 +1,7 @@
 /**
- * D-PROD-157 — Bens patrimoniais (da EMPRESA): lista, detalhe, criação,
- * edição do agregado (medições, medidor e tanques) e prévia de depreciação.
+ * D-PROD-157 / D-PROD-162 — Bens patrimoniais (da EMPRESA): lista, detalhe,
+ * criação, edição do agregado (medidor, tanques e os Produtos aceitos por
+ * tanque) e prévia de depreciação.
  *
  * Regras:
  *  - `cliente_id` só da sessão; `empresa_id` (query ou corpo) é ESCOPO,
@@ -12,10 +13,11 @@
  *    `travarEscopo('patrimonio:frota:<cli>:<emp>:<codigo>')` e o unique do
  *    banco como última barreira → 409 `BEM_CODIGO_FROTA_DUPLICADO`;
  *  - escrita numa transação, na ordem do A5: trava a linha do bem (PATCH) e
- *    confere a `versao` → lê família/tipo/perfis/combustíveis com FOR SHARE →
- *    mescla banco + corpo e valida TUDO sobre o estado final → medições →
- *    tanques → UPDATE com CAS da versão (uma vez por PATCH efetivo) →
- *    auditoria (allowlist, sem texto livre) na mesma transação;
+ *    confere a `versao` → lê família/tipo com FOR SHARE → mescla banco +
+ *    corpo e valida TUDO sobre o estado final → tanques e Produtos aceitos
+ *    (acrescentados lidos FOR KEY SHARE) → UPDATE com CAS da versão (uma vez
+ *    por PATCH efetivo) → auditoria (allowlist, sem texto livre) na mesma
+ *    transação;
  *  - PATCH sem mudança efetiva devolve o atual sem gravar, auditar nem
  *    incrementar a versão;
  *  - nada aqui toca estoque, financeiro, consumo ou contabilidade: a
@@ -37,7 +39,7 @@ import {
   validarAquisicaoEDepreciacao,
 } from './bemPatrimonialRegras.js';
 import { ehContador, pisoOperacional } from './abastecimentoMedidor.js';
-import { sincronizarMedicoes, sincronizarTanques, validarMedicoes, validarTanques } from './bemPatrimonialFilhos.js';
+import { revalidarAceitesDoBem, sincronizarTanques, validarTanques } from './bemPatrimonialFilhos.js';
 import { simularDepreciacaoLinear } from './depreciacaoLinear.js';
 import { atualizarComVersao, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset, termoDeBusca } from './patrimonioComum.js';
 import { CAPACIDADES_POR_NATUREZA } from './patrimonioDominio.js';
@@ -65,23 +67,40 @@ const INCLUIR = Object.freeze({
   responsavel: { select: { id: true, nome: true } },
   centroCusto: { select: { id: true, numero: true, nome: true } },
   area: { select: { id: true, nome: true } },
-  medicoes: {
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: {
-      id: true, perfil_id: true, rotulo: true, valor_informado: true, unidade_informada: true, valor_normalizado: true, unidade_canonica: true, principal: true,
-      perfil: { select: { id: true, codigo: true, nome: true, dimensao: true, ativo: true } },
-    },
-  },
   tanques: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {
       id: true, identificador: true, capacidade_litros: true, observacao: true, ativo: true,
-      combustiveis: { select: { combustivel_id: true, combustivel: { select: { id: true, codigo: true, nome: true, unidade: true, ativo: true } } } },
+      // D-PROD-162 — Produtos ACEITOS (só os ativos); as linhas inativas são lidas à parte para validar.
+      produtos: {
+        where: { ativo: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { produto_id: true, produto: { select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, ativo: true } } },
+      },
     },
   },
 });
 
 const buscar = (db, clienteId, empresaId, id) => db.bemPatrimonial.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, include: INCLUIR });
+
+/**
+ * Tanques gravados com TODAS as linhas de Produto aceito (ativas e inativas),
+ * `produtos: [{produto_id, ativo}]`, na forma que `validarTanques` e
+ * `sincronizarTanques` esperam. Lido dentro da transação, sob a trava do bem.
+ * @param {any} tx @param {string} clienteId @param {Array<Record<string, any>>} tanques
+ */
+const comTodosOsAceites = async (tx, clienteId, tanques) => {
+  if (!tanques.length) return [];
+  const linhas = await tx.tanqueBemProduto.findMany({
+    where: { cliente_id: clienteId, tanque_id: { in: tanques.map((t) => t.id) } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { tanque_id: true, produto_id: true, ativo: true },
+  });
+  return tanques.map((t) => ({
+    ...t,
+    produtos: linhas.filter((l) => l.tanque_id === t.id).map((l) => ({ produto_id: l.produto_id, ativo: l.ativo })),
+  }));
+};
 
 const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
 
@@ -89,7 +108,8 @@ const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
  * Detalhe (A13, forma FIXA): referências como objetos, medidor/aquisição/
  * depreciação em blocos (sem repetir as colunas planas), decimais em string
  * (medidas, leituras, capacidade e potência com 4 casas; dinheiro 2;
- * percentual 4), `consumo` sempre null neste slice.
+ * percentual 4), `consumo` sempre null neste slice. Tanques com os Produtos
+ * aceitos ATIVOS (`produto_ativo` = situação atual do Produto), por nome e id.
  * D-PROD-159: `medidor_operacional` = maior leitura registrada por abastecimento
  * CONFIRMADO (`{leitura, data, abastecimento_id}`) ou null — o abastecimento
  * nunca grava as colunas do medidor do bem.
@@ -98,7 +118,6 @@ const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
  */
 export const comoBemPublico = (r, operacional = null) => {
   const e = estadoDoRegistro(r);
-  const medicoes = [...r.medicoes].sort((a, b) => Number(b.principal === true) - Number(a.principal === true));
   return {
     id: r.id,
     empresa_id: r.empresa_id,
@@ -135,26 +154,22 @@ export const comoBemPublico = (r, operacional = null) => {
     observacoes: e.observacoes,
     medidor: medidorDoEstado(e),
     medidor_operacional: operacional ? { leitura: operacional.leitura, data: operacional.data, abastecimento_id: operacional.abastecimento_id } : null,
-    medicoes: medicoes.map((m) => ({
-      id: m.id,
-      perfil: { id: m.perfil.id, codigo: m.perfil.codigo, nome: m.perfil.nome, dimensao: m.perfil.dimensao, ativo: m.perfil.ativo },
-      rotulo: m.rotulo ?? null,
-      valor_informado: texto(m.valor_informado, CASAS_MEDIDA),
-      unidade_informada: m.unidade_informada,
-      valor_normalizado: texto(m.valor_normalizado, CASAS_MEDIDA),
-      unidade_canonica: m.unidade_canonica,
-      principal: m.principal === true,
-    })),
     tanques: r.tanques.map((t) => ({
       id: t.id,
       identificador: t.identificador,
       capacidade_litros: texto(t.capacidade_litros, CASAS_MEDIDA),
       observacao: t.observacao ?? null,
       ativo: t.ativo,
-      combustiveis: t.combustiveis
-        .map((v) => v.combustivel)
-        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR') || a.id.localeCompare(b.id))
-        .map((c) => ({ id: c.id, codigo: c.codigo, nome: c.nome, unidade: c.unidade, ativo: c.ativo })),
+      produtos: t.produtos
+        .map((v) => v.produto)
+        .sort((a, b) => a.nome_produto.localeCompare(b.nome_produto, 'pt-BR') || a.id.localeCompare(b.id))
+        .map((p) => ({
+          produto_id: p.id,
+          nome: p.nome_produto,
+          codigo_interno: p.codigo_interno ?? null,
+          unidade_principal_estoque: p.unidade_principal_estoque,
+          produto_ativo: p.ativo,
+        })),
     })),
     aquisicao: {
       data_aquisicao: e.data_aquisicao,
@@ -203,9 +218,9 @@ const comoResumo = (r) => ({
 
 /**
  * Auditoria por allowlist: ids, número, código de frota, classificação,
- * situação, medidor, sinal de depreciação e a forma das medições/tanques
- * (perfil, valor normalizado, combustíveis). Sem nome, descrições,
- * observações, rótulos, identificadores, documentos nem placa/chassi/renavam.
+ * situação, medidor, sinal de depreciação e a forma dos tanques (situação,
+ * capacidade e os ids dos Produtos aceitos ativos, ordenados). Sem nome,
+ * descrições, observações, identificadores, documentos nem placa/chassi/renavam.
  * @param {any} r  bem lido com `INCLUIR`
  */
 const paraAuditoria = (r) => {
@@ -230,26 +245,18 @@ const paraAuditoria = (r) => {
     depreciavel: r.depreciavel,
     vida_util_meses: e.vida_util_meses,
     residual_modo: e.residual_modo,
-    medicoes: r.medicoes.map((m) => ({
-      id: m.id,
-      perfil_id: m.perfil_id,
-      valor_normalizado: texto(m.valor_normalizado, CASAS_MEDIDA),
-      unidade_canonica: m.unidade_canonica,
-      principal: m.principal === true,
-    })),
     tanques: r.tanques.map((t) => ({
       id: t.id,
       ativo: t.ativo,
       capacidade_litros: texto(t.capacidade_litros, CASAS_MEDIDA),
-      combustivel_ids: t.combustiveis.map((c) => c.combustivel_id).sort(),
+      produto_ids: t.produtos.map((p) => p.produto_id).sort(),
     })),
   };
 };
 
 /** NOMES dos campos alterados (as colunas do medidor viram `medidor`). */
-const nomesAlterados = (dados, mudouMedicoes, mudouTanques) => {
+const nomesAlterados = (dados, mudouTanques) => {
   const nomes = new Set(Object.keys(dados).map((c) => (c.startsWith('medidor_') ? 'medidor' : c)));
-  if (mudouMedicoes) nomes.add('medicoes');
   if (mudouTanques) nomes.add('tanques');
   return [...nomes];
 };
@@ -434,8 +441,7 @@ export const criar = async (contexto, entrada) => {
     const medidor = await decidirMedidor({ natureza, estado: ESTADO_NOVO, pedido: entrada.medidor, criacao: true, hoje: hojeDe(tx, cli, empresaId) });
     if (medidor.colunas) Object.assign(estado, medidor.colunas);
     const capacidades = CAPACIDADES_POR_NATUREZA[natureza];
-    const medicoes = capacidades.medicoes ? await validarMedicoes(tx, cli, entrada.medicoes ?? [], []) : null;
-    const tanques = capacidades.tanques ? await validarTanques(tx, cli, entrada.tanques ?? [], []) : null;
+    const tanques = capacidades.tanques ? await validarTanques(tx, cli, empresaId, entrada.tanques ?? [], []) : null;
     validarAquisicaoEDepreciacao(estado);
     await exigirCodigoFrotaLivre(tx, cli, empresaId, estado.codigo_frota, null);
     const numero = String(await reservarNumero(tx, { clienteId: cli, entidade: ENTIDADE, escopoTipo: ESCOPO_TENANT }));
@@ -443,7 +449,6 @@ export const criar = async (contexto, entrada) => {
       data: { cliente_id: cli, empresa_id: empresaId, numero, natureza, ...paraGravacao(estado) },
       select: { id: true },
     });
-    if (medicoes?.desejadas.length) await sincronizarMedicoes(tx, cli, id, medicoes.desejadas, []);
     if (tanques?.desejados.length) await sincronizarTanques(tx, cli, id, tanques.desejados, []);
     const r = await buscar(tx, cli, empresaId, id);
     await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(r) }, tx);
@@ -491,17 +496,18 @@ export const atualizar = async (contexto, id, entrada) => {
     const medidor = await decidirMedidor({ natureza, estado: antes, pedido: entrada.medidor, criacao: false, hoje: hojeDe(tx, cli, empresaId), piso });
     if (medidor.colunas) Object.assign(estado, medidor.colunas);
     const capacidades = CAPACIDADES_POR_NATUREZA[natureza];
-    const medicoes = capacidades.medicoes && entrada.medicoes !== undefined ? await validarMedicoes(tx, cli, entrada.medicoes, atual.medicoes) : null;
-    const tanques = capacidades.tanques && entrada.tanques !== undefined ? await validarTanques(tx, cli, entrada.tanques, atual.tanques) : null;
+    // D-PROD-162: reativar o bem revalida os Produtos aceitos dos tanques ativos (achado D1).
+    const reativandoBem = estado.ativo === true && !antes.ativo;
+    const gravados = capacidades.tanques && (entrada.tanques !== undefined || reativandoBem) ? await comTodosOsAceites(tx, cli, atual.tanques) : [];
+    const tanques = capacidades.tanques && entrada.tanques !== undefined ? await validarTanques(tx, cli, empresaId, entrada.tanques, gravados, { reativandoBem }) : null;
+    if (capacidades.tanques && !tanques && reativandoBem) await revalidarAceitesDoBem(tx, cli, empresaId, gravados);
     validarAquisicaoEDepreciacao(estado);
 
     const dados = diferencas(antes, estado);
-    const mudouMedicoes = medicoes?.mudou === true;
     const mudouTanques = tanques?.mudou === true;
-    if (!Object.keys(dados).length && !mudouMedicoes && !mudouTanques) return comoBemPublico(atual, piso);
+    if (!Object.keys(dados).length && !mudouTanques) return comoBemPublico(atual, piso);
     if ('codigo_frota' in dados) await exigirCodigoFrotaLivre(tx, cli, empresaId, dados.codigo_frota, id);
-    if (mudouMedicoes) await sincronizarMedicoes(tx, cli, id, medicoes.desejadas, atual.medicoes);
-    if (mudouTanques) await sincronizarTanques(tx, cli, id, tanques.desejados, atual.tanques);
+    if (mudouTanques) await sincronizarTanques(tx, cli, id, tanques.desejados, gravados);
     await atualizarComVersao(tx.bemPatrimonial, { clienteId: cli, id, versao: entrada.versao, data: paraGravacao(dados) });
     const depois = await buscar(tx, cli, empresaId, id);
     /** @type {Array<{ acao: string, entidade: string, entidadeId: string, dadosAnteriores: unknown, dadosNovos: unknown }>} */
@@ -511,7 +517,7 @@ export const atualizar = async (contexto, id, entrada) => {
         entidade: ENTIDADE,
         entidadeId: id,
         dadosAnteriores: paraAuditoria(atual),
-        dadosNovos: { ...paraAuditoria(depois), campos_alterados: nomesAlterados(dados, mudouMedicoes, mudouTanques) },
+        dadosNovos: { ...paraAuditoria(depois), campos_alterados: nomesAlterados(dados, mudouTanques) },
       },
     ];
     if (medidor.correcao) {
