@@ -100,7 +100,7 @@ function gravarFaixa(chave, ids) {
 }
 
 /** Coluna sem condição no filtro rápido (só marcar valores): situação e cor. */
-const semCondicao = (/** @type {{ cellKind?: string } | undefined} */ col) =>
+export const semCondicao = (/** @type {{ cellKind?: string } | undefined} */ col) =>
   col?.cellKind === "ativo-badge" || col?.cellKind === "situacao" || col?.cellKind === "cor";
 
 /** @param {string} v dd/mm/aaaa → aaaa-mm-dd (campo de data) */
@@ -232,7 +232,8 @@ function CampoDaJanela({ valor, onChange, onLimpar, placeholder = "Pesquisar…"
 
 /**
  * Janela do filtro de uma pílula: pesquisa (ou valor da condição), "Condição ⌄", valores para marcar com a contagem,
- * e no rodapé ✕ · contagem · ✓. Tudo é rascunho até o ✓ (D-PROD-163).
+ * e no rodapé ✕ · contagem · ✓. Tudo é rascunho até o ✓ (D-PROD-163). O filtro do cabeçalho da coluna usa esta mesma
+ * janela (`CadastroColunaFiltro`, D-PROD-165).
  * @param {{
  *   rotulo: string,
  *   tipo: 'texto'|'num'|'data',
@@ -249,7 +250,7 @@ function CampoDaJanela({ valor, onChange, onLimpar, placeholder = "Pesquisar…"
  *   onConta?: (texto: string) => void,
  * }} props
  */
-function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, valoresDaBase, atual, contarComo, onAplicar, onCancelar, semRodape = false, controleRef = undefined, onConta = undefined }) {
+export function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, valoresDaBase, atual, contarComo, onAplicar, onCancelar, semRodape = false, controleRef = undefined, onConta = undefined }) {
   const [rasc, setRasc] = useState(/** @type {RascunhoDoFiltro} */ ({
     valores: atual?.valores ? [...atual.valores] : null,
     op: atual?.op ?? "",

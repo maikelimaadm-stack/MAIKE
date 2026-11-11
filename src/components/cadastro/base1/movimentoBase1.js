@@ -20,7 +20,7 @@ import React from "react";
  */
 
 const INVOLUCRO = "[data-radix-popper-content-wrapper]";
-const JANELA = `${INVOLUCRO}, .fpc--pop, .fpop:not(.fpop--sheet), .mk-sheet-root`;
+const JANELA = `${INVOLUCRO}, .fpc--pop, .b1-col-pop, .mk-sheet-root`;
 const SO_ABRE = ".b1-fr-regra__lista, .mg-search-suggest, .mdlc, .mg-confirm-dialog";
 const CENTRO = ".mdlc, .mg-confirm-dialog";
 const APERTA = 'button, [role="button"], [role="option"], [role="menuitem"]';
@@ -316,7 +316,7 @@ export function iniciarMovimentoBase1() {
   const aoRolar = (e) => {
     if (aperto) solta(true);
     const t = e.target;
-    if (t instanceof Element && t.closest(`${INVOLUCRO}, .mk-sheet-root, .fpc--pop`)) rolagens.set(t, t.scrollTop);
+    if (t instanceof Element && t.closest(`${INVOLUCRO}, .mk-sheet-root, .fpc--pop, .b1-col-pop`)) rolagens.set(t, t.scrollTop);
   };
 
   /**

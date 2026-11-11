@@ -352,11 +352,28 @@ export default function CadastroBase1Grade({
     return new Set(Object.entries(filtrosColunas).filter(([, v]) => (v || []).length).map(([k]) => k));
   }, [filtrosColunas, headerFilters, referenceHeaders]);
 
+  /**
+   * Linhas que passam pela busca e pelos OUTROS filtros: dão as opções e a contagem do filtro de uma coluna — a
+   * janela da pílula e a do cabeçalho mostram o mesmo (D-PROD-165).
+   * @param {string} colId
+   */
+  const linhasDoFiltro = (colId) => {
+    const q = searchQuery.trim().toLowerCase();
+    return rows.filter((m) => {
+      if (q && !(matchesSearch ? matchesSearch(m, q) : defaultMatchesSearch(m, q))) return false;
+      return dataCols.every((col) => {
+        const filtro = col.id === colId ? null : headerFilters[col.id];
+        if (!filtro) return true;
+        return casaNoFiltroColuna(filtro, tipoFiltroDaColuna(col.id, col), String(getFieldValue(m, col.id) ?? ""));
+      });
+    });
+  };
+
   const renderReferenceFilter = (colunaId) => {
     if (!referenceHeaders || menuFiltroAberto !== colunaId) return null;
     const col = dataCols.find((c) => c.id === colunaId);
     const colLabel = col?.label ?? colunaId;
-    const valores = rows.map((r) => String(getFieldValue(r, colunaId) ?? ""));
+    const valores = linhasDoFiltro(colunaId).map((r) => String(getFieldValue(r, colunaId) ?? ""));
     const ancora = `[data-testid="b1-list"] [data-b1-col-menu="${colunaId}"]`;
     return (
       <CadastroColunaFiltro
@@ -365,6 +382,8 @@ export default function CadastroBase1Grade({
         tipo={tipoFiltroDaColuna(colunaId, col)}
         ancora={ancora}
         valores={valores}
+        coluna={col}
+        totais={rows.length}
         atual={headerFilters[colunaId] ?? null}
         ancoraReserva={filtroPorCampo?.ancora ?? null}
         onAplicar={(f) => {
@@ -389,17 +408,7 @@ export default function CadastroBase1Grade({
     <FiltrosRapidos
       columns={dataCols}
       rows={rows}
-      rowsFor={(colId) => {
-        const q = searchQuery.trim().toLowerCase();
-        return rows.filter((m) => {
-          if (q && !(matchesSearch ? matchesSearch(m, q) : defaultMatchesSearch(m, q))) return false;
-          return dataCols.every((col) => {
-            const filtro = col.id === colId ? null : headerFilters[col.id];
-            if (!filtro) return true;
-            return casaNoFiltroColuna(filtro, tipoFiltroDaColuna(col.id, col), String(getFieldValue(m, col.id) ?? ""));
-          });
-        });
-      }}
+      rowsFor={linhasDoFiltro}
       getFieldValue={getFieldValue}
       filters={headerFilters}
       onFilterChange={(colId, filtro) =>

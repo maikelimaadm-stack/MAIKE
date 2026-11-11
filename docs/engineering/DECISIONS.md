@@ -6048,7 +6048,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga:** a ordem "Listados, Filtrados, Totais, Selecionados" do rodapé (PAR6) e o botão de lista lateral das abas; complementa a D-PROD-163.
 - **Evidência:** `docs/engineering/evidencias/base1-design-d163/` (`paridade-*.png` = design | sistema | diferenças; `paridade-RESUMO.txt`; movimento: `movimento-RESUMO.txt`, `movimento-ordem.png` e `movimento-mais-opcoes.png` com quadros congelados aos 60, 150 e 300 ms; outras telas: `telas-*-antes-depois.png` e `telas-celular-*.png`); testes `tests/smoke/base1TelasDesign.test.jsx`, `base1Movimento.test.jsx`, `base1FiltrosRapidos.test.jsx`, `base1DesignD163.test.jsx`, `cadastroAtivoBadge.test.jsx`, `mobileParidadeV2.test.jsx`, `mobileShellV2.test.jsx`, `mobileV4Ios.test.jsx`, `formularioLoteBase1Tabs.test.jsx`, `base1PanelTabs.test.jsx`, `catalogoGlobalLote.test.jsx`.
 
-## D-PROD-165 — Motor Base1: correções da revisão do proprietário (trocar de lista, lentidão)
+## D-PROD-165 — Motor Base1: correções da revisão do proprietário (trocar de lista, lentidão, filtro do cabeçalho)
 
 - **Contexto:** revendo a D-PROD-164 no sistema, o proprietário relatou que, com uma lista aberta, clicar em outra "dava bug: em vez de abrir, fecha", e "muita lentidão".
 - **Decisão (trocar de lista):** reproduzido no navegador — também na `main` (8/8 trocas entre campos do formulário de Lotes falhavam; pílulas da faixa e menus de coluna idem). Duas causas, as duas corrigidas em `src/components/cadastro/base1/janelaUnica.js`:
@@ -6061,8 +6061,9 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - `div:has(+ [role="dialog"] > .mg-confirm-dialog)` → classes `mg-confirm-dialog__fundo` e `__camada` no `ConfirmDialog`;
   - `.mg-shell:has(.b1-fr)` → `.mg-shell[data-b1-faixa]`, posto pela faixa de filtros.
   - Resultado (estilo recalculado): rolar a lista 40 passos 1.812 ms na `main` → 340 ms, quadros travados 72 → 13; abrir e fechar o menu de coluna 3× 293 ms → 119 ms, sem nenhum recálculo da página inteira.
+- **Decisão (filtro do cabeçalho):** o proprietário pediu os filtros dos cabeçalhos "no mesmo estilo de filtragem" das janelas da faixa. O filtro aberto pelo menu da coluna ("Abrir filtro avançado") e pelo "Filtrar por campo" passa a ser a **mesma janela** das pílulas (`JanelaDoFiltro`): pesquisa com "Condição ⌄", "Todos" e os valores com ✓ e a contagem, rodapé ✕ · "6 de 12 lotes" · ✓, tudo rascunho até o ✓, opções e contagem considerando a busca e os outros filtros (como na pílula); abre logo abaixo do cabeçalho e nasce do botão com o movimento do design; no celular, folha de baixo com ✓ no topo. Saem o "Limpar filtro de …" (vale "Todos" + ✓ ou o ✕ da pílula), o "(Selecionar Tudo)" e o seletor de condição separado (`SeletorDeOperador`, órfão, removido).
 - **Regra (CSS):** nada de `:has()` com descendente ancorado em `<body>`, `<html>` ou `<form>`, nem `:has()` de irmão num `div` qualquer — o teste `tests/smoke/base1Desempenho.test.jsx` barra esses padrões em `src/styles`.
 - **Ajusta:** a D-PROD-164 — as peças compartilhadas do design ficam sob `body.b1-tela` (não mais `body:has(...)`).
-- **Evidência:** `tests/smoke/base1TrocaDeJanela.test.jsx` (falha sem a correção) e `base1Desempenho.test.jsx`; números e método no relatório `UI-BASE1-DESIGN-D163-REPORT.md` (seção "Revisão do proprietário: trocar de lista e lentidão").
+- **Evidência:** `tests/smoke/base1TrocaDeJanela.test.jsx` (falha sem a correção), `base1Desempenho.test.jsx` e `base1FiltroCabecalho.test.jsx`; `filtro-cabecalho-antes-depois.png` em `docs/engineering/evidencias/base1-design-d163/`; números e método no relatório `UI-BASE1-DESIGN-D163-REPORT.md` (seção "Revisão do proprietário: trocar de lista e lentidão").
 
 <!-- Próxima decisão: D-PROD-166 -->

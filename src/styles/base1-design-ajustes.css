@@ -126,3 +126,9 @@ body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
 .cadastro-b1 .mg-b1-form-grid > .b1-secao-form:first-child:not(#mk-padrao) {
   margin-top: 0;
 }
+
+/* Filtro do cabeçalho da coluna (D-PROD-165): a mesma janela do filtro das pílulas (`mk-sel-pop b1-lista-pop b1-fr-pop`),
+   posicionada pela própria tela logo abaixo do cabeçalho — sem o invólucro do Radix, ela mesma é fixa. */
+.mk-sel-pop.b1-col-pop {
+  position: fixed;
+}

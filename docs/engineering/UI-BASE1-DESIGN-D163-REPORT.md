@@ -129,6 +129,8 @@ As duas primeiras, cada uma sozinha, já faziam a página inteira recalcular ao 
 
 O resto do custo de abrir janela é o movimento do design (a janela nascendo do botão), que roda só durante a animação. O desenho não mudou: 44 estados (Lotes, Parceiros, Produtos, Empresa × lista, pílula aberta, menu de coluna, novo, registro, excluir; desktop e celular) comparados pixel a pixel antes × depois, todos iguais.
 
+**Filtro do cabeçalho.** O menu da coluna ("Abrir filtro avançado") e o "Filtrar por campo" abrem a mesma janela das pílulas da faixa (antes: "Limpar filtro de …", seletor de condição, "Procurar valor…", "(Selecionar Tudo)" e caixas de marcar). Conferido no navegador: abre logo abaixo do cabeçalho, foco na pesquisa, marcar mostra a prévia ("6 de 12 lotes"), ✓ filtra a lista e a pílula da mesma coluna mostra o filtro, reabrir mostra o marcado, "Todos" + ✓ tira o filtro, condição "é igual a FÊMEA" filtra, Esc e clique fora fecham, nasce do botão (460 ms) e volta a ele (210 ms) como as outras janelas. Imagem: `filtro-cabecalho-antes-depois.png` (esquerda: antes; direita: agora).
+
 ## Verificação
 
 - Navegador real: medição acima (`paridade-*.png` = design | sistema | diferenças em vermelho; `design-*`/`app-*` = capturas).
