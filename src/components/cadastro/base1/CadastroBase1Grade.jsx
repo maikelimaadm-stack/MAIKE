@@ -9,6 +9,7 @@ import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
 import FiltrosRapidos from "@/components/cadastro/base1/FiltrosRapidos";
+import { useCelular } from "@/components/common/MobileSheet";
 import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
@@ -138,12 +139,17 @@ export default function CadastroBase1Grade({
   const [headerFilters, setHeaderFilters] = useState({});
   /** Painel "Filtrar por campo" (botão Filtros do chrome); `ancora` também posiciona o filtro escolhido. */
   const [filtroPorCampo, setFiltroPorCampo] = useState(/** @type {{ aberto: boolean, ancora: DOMRect | null } | null} */ (null));
+  const [menuFiltrosCelular, setMenuFiltrosCelular] = useState(false);
+  const celularDaGrade = useCelular();
+  const celularRef = useRef(celularDaGrade);
+  celularRef.current = celularDaGrade;
 
   useEffect(() => {
     if (!referenceHeaders) return undefined;
-    // O funil abre "Filtrar por campo" — no celular também, como no tablet (pedido do proprietário, D-PROD-168).
+    // Celular com a faixa de filtros: o funil abre a lista "Filtros" (D-PROD-164, 6.10); senão, "Filtrar por campo".
     const abrir = (event) => {
-      setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+      if (celularRef.current && referenceHeaders) setMenuFiltrosCelular(true);
+      else setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
     };
     document.addEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
     return () => document.removeEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
@@ -423,6 +429,8 @@ export default function CadastroBase1Grade({
       mostrados={filtrados.length}
       ordens={quickSortOptions}
       camposDaFaixa={quickFilterFieldOrder}
+      menuCelularAberto={menuFiltrosCelular}
+      onMenuCelularChange={setMenuFiltrosCelular}
     />
   ) : null;
 

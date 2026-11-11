@@ -281,6 +281,7 @@ body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:280px;min-width:0}
 body.b1-tela .b1-fr-pop__cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 8px 0}
 body.b1-tela .b1-fr-pop__titulo{font-weight:600;color:#373733}
 body.b1-tela .b1-fr-pop__aside{color:#73726C;white-space:nowrap}
+body.b1-tela .b1-fr-sheet{display:flex;min-height:0;flex-direction:column;gap:8px}
 body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-padrao){display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-weight:400;color:var(--mk-text, #373733)}
 body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:hover{background:rgba(20, 20, 19, .03)}
 body.b1-tela .b1-fr-box{display:inline-flex;width:16px;height:16px;flex:0 0 16px;align-items:center;justify-content:center;box-sizing:border-box;border:1.5px solid #D1D0CA;border-radius:4px;background:#fff;color:transparent;transition:background-color .12s ease, border-color .12s ease}
@@ -728,6 +729,7 @@ body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b) svg{color:#5
 
 /* ---- "Filtrar por campo" */
 body.b1-tela .fpc:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .fpc.fpc--sheet:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;box-shadow:none}
 body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
 body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{height:36px !important;min-height:36px !important;margin:-4px -4px 4px;padding:0 10px 0 16px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
 body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) .mk-pill__icon{display:none}

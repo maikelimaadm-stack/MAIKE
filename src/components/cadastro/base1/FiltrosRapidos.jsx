@@ -6,6 +6,7 @@ import { focoFicaOndeEsta, trocaJanela } from "./janelaUnica";
 import { casaNoFiltroColuna, operadoresParaTipo, tipoFiltroDaColuna } from "./cadastroColunaFiltroLogic";
 import { cn } from "@/lib/utils";
 import { nomesDaContagem, textoDoTotal } from "./contagemBase1";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
 /**
  * Faixa de filtros rápidos do motor Base1 (D-PROD-164).
@@ -384,7 +385,7 @@ export function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, val
   const pesquisavel = comCondicao || valores.length > 8;
   const filtrandoPorRegra = comRegra;
   const conta = contarComo(limpo());
-  // Quem mostra o ✓ e a contagem fora desta janela (ex.: uma folha) pede o controle e a contagem por aqui.
+  // Na folha do celular o ✓ e a contagem ficam no topo da folha (fora desta janela).
   if (controleRef) controleRef.current = { aplicar: () => onAplicar(limpo()) };
   useEffect(() => {
     onConta?.(conta);
@@ -475,6 +476,8 @@ export function JanelaDoFiltro({ rotulo, tipo, comCondicao, corNomes, ehCor, val
  * @param {Array<{ key: string; dir: 'asc'|'desc'; label: string }>} [props.ordens] opções de "Ordenar" em palavras da tela
  *   (sem elas, saem das colunas)
  * @param {string[]} [props.camposDaFaixa] ordem dos campos em "+ Filtro" (sem ela, a ordem das colunas)
+ * @param {boolean} [props.menuCelularAberto] celular: o funil da barra pediu a lista "Filtros"
+ * @param {(aberto: boolean) => void} [props.onMenuCelularChange]
  */
 export default function FiltrosRapidos({
   columns,
@@ -491,6 +494,8 @@ export default function FiltrosRapidos({
   mostrados = undefined,
   ordens: ordensDaTela = undefined,
   camposDaFaixa = undefined,
+  menuCelularAberto = false,
+  onMenuCelularChange = undefined,
 }) {
   const slot = useContext(FiltrosRapidosSlotContext);
   const nomes = useContext(ContagemNomesContext);
@@ -502,7 +507,8 @@ export default function FiltrosRapidos({
     casca.setAttribute("data-b1-faixa", "");
     return () => casca.removeAttribute("data-b1-faixa");
   }, [slot]);
-  // Celular igual ao tablet (pedido do proprietário, D-PROD-168): a mesma faixa de pílulas e as mesmas janelas.
+  // Celular (D-PROD-164): sem a faixa de pílulas — fica só o resumo; os filtros abrem pelo funil da barra.
+  const celular = useCelular();
   const chipsRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const arrasto = useRef(/** @type {null | { x: number, pos: number, andou: boolean }} */ (null));
   const arrastou = useRef(false);
@@ -575,6 +581,14 @@ export default function FiltrosRapidos({
   const [salvos, setSalvos] = useState(() => lerFaixa(chave));
   const [aberto, setAberto] = useState(/** @type {string | null} */ (null));
   const [buscaCampo, setBuscaCampo] = useState("");
+  // Celular (D-PROD-164, 6.10): o funil abre a folha "Filtros"; dela se vai a Ordenar, a cada filtro e ao "+".
+  const [folha, setFolha] = useState(/** @type {null | 'menu' | 'ordem' | 'mais' | { fr: string }} */ (null));
+  const [contaDaFolha, setContaDaFolha] = useState("");
+  const controleDaFolha = useRef(/** @type {null | { aplicar: () => void }} */ (null));
+  useEffect(() => {
+    if (celular && menuCelularAberto && !folha) setFolha("menu");
+    if (!menuCelularAberto && folha) setFolha(null);
+  }, [celular, menuCelularAberto]);
 
   useEffect(() => {
     setSalvos(lerFaixa(chave));
@@ -666,6 +680,8 @@ export default function FiltrosRapidos({
         onCancelar={onCancelar}
         onAplicar={onAplicar}
         semRodape={semRodape}
+        controleRef={semRodape ? controleDaFolha : undefined}
+        onConta={semRodape ? setContaDaFolha : undefined}
       />
     );
   };
@@ -719,11 +735,137 @@ export default function FiltrosRapidos({
   const ordemAberta = aberto === "#ordem";
   const maisAberto = aberto === "#mais";
 
+  const fecharFolhas = () => {
+    setFolha(null);
+    onMenuCelularChange?.(false);
+  };
+  const voltarAoMenu = () => setFolha("menu");
+  /** @param {() => void} aoTocar @param {string} rotulo */
+  const botaoOk = (aoTocar, rotulo = "Aplicar") => (
+    <button type="button" className="mk-sheet__new mk-btn-ok" aria-label={rotulo} title={rotulo} onClick={aoTocar}>
+      <Check aria-hidden />
+    </button>
+  );
+  let folhaCelular = null;
+  if (celular && folha) {
+    let titulo = "";
+    let aside = "";
+    /** @type {React.ReactNode} */
+    let acao = null;
+    /** @type {React.ReactNode} */
+    let corpo = null;
+    let aoFechar = voltarAoMenu;
+    if (folha === "menu") {
+      titulo = "Filtros";
+      aside = conta;
+      aoFechar = fecharFolhas;
+      acao = (
+        <button
+          type="button"
+          className="mk-sheet__new"
+          aria-label="Adicionar filtro"
+          title="Adicionar filtro"
+          onClick={() => {
+            setBuscaCampo("");
+            setFolha("mais");
+          }}
+        >
+          <Plus aria-hidden />
+        </button>
+      );
+      const itens = [
+        { id: "#ordem", rotulo: "Ordenar", valor: ordemAtual, ativo: false },
+        ...naFaixa.map((id) => {
+          const info = infoDoFiltro(id);
+          return { id, rotulo: info.rotulo, valor: info.valor || "Todos", ativo: info.ativo };
+        }),
+      ];
+      corpo = (
+        <>
+          <div className="mk-sel-lista b1-lista b1-fr-lista" role="list" aria-label="Filtros">
+            {itens.map((it) => (
+              <button
+                key={it.id}
+                type="button"
+                className={cn("mk-sel-op b1-fr-op b1-fr-nav", it.ativo && "is-on")}
+                onClick={() => setFolha(it.id === "#ordem" ? "ordem" : { fr: it.id })}
+              >
+                <span className="b1-fr-op__txt">{it.rotulo}</span>
+                <span className="b1-fr-nav__val">{it.valor}</span>
+                <ChevronRight className="b1-fr-nav__seta" size={16} aria-hidden />
+              </button>
+            ))}
+          </div>
+          {temFiltro ? (
+            <button type="button" className="b1-fr-menu__limpar" onClick={onClearFilters}>
+              Limpar filtros
+            </button>
+          ) : null}
+        </>
+      );
+    } else if (folha === "ordem") {
+      titulo = "Ordenar";
+      aside = "Escolha quem vem primeiro";
+      acao = botaoOk(voltarAoMenu);
+      corpo = (
+        <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-multiselectable="true" aria-label="Ordenar">
+          {ordens.map((o) => (
+            <LinhaDaJanela
+              key={`${o.key}:${o.dir}`}
+              rotulo={o.label}
+              unica
+              on={o.key === sort.key && o.dir === (sort.direction === "desc" ? "desc" : "asc")}
+              onClick={() => {
+                onSortChange(o.key, o.dir);
+                fecharFolhas();
+              }}
+            />
+          ))}
+        </div>
+      );
+    } else if (folha === "mais") {
+      titulo = "Filtros rápidos";
+      aside = "Marque o que aparece na faixa";
+      acao = botaoOk(voltarAoMenu);
+      corpo = (
+        <>
+          {camposDoMais.length > 8 ? <CampoDaJanela valor={buscaCampo} onChange={setBuscaCampo} onLimpar={() => setBuscaCampo("")} /> : null}
+          <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-multiselectable="true" aria-label="Filtros rápidos">
+            {camposDoMais
+              .filter((c) => !termoCampo || rotuloDoFiltro(c).toLowerCase().includes(termoCampo))
+              .map((c) => (
+                <LinhaDaJanela key={c.id} rotulo={rotuloDoFiltro(c)} on={naFaixa.includes(c.id)} onClick={() => alternarNaFaixa(c.id)} />
+              ))}
+          </div>
+        </>
+      );
+    } else {
+      const id = folha.fr;
+      titulo = infoDoFiltro(id).rotulo || id;
+      aside = contaDaFolha;
+      acao = botaoOk(() => controleDaFolha.current?.aplicar());
+      corpo = janelaDoFiltro(id, {
+        semRodape: true,
+        onCancelar: voltarAoMenu,
+        onAplicar: (novo) => {
+          onFilterChange(id, novo);
+          fecharFolhas();
+        },
+      });
+    }
+    folhaCelular = (
+      <MobileSheet open onClose={aoFechar} label={titulo} title={titulo} aside={aside} headerAction={acao} className="mk-base1-sheet" role="dialog">
+        <div className="b1-lista-pop b1-fr-sheet">{corpo}</div>
+      </MobileSheet>
+    );
+  }
 
   return (
     <>
+    {folhaCelular}
     {createPortal(
     <div className="b1-fr no-print" data-testid="b1-filtros-rapidos">
+      {celular ? null : (
       <div className="b1-fr__faixa">
         <div className="b1-fr__trilho">
           <button
@@ -838,6 +980,7 @@ export default function FiltrosRapidos({
           </div>
         </JanelaDaFaixa>
       </div>
+      )}
       <div className="b1-fr__resumo" aria-live="polite" data-conta={conta}>
         {temFiltro ? (
           <button type="button" className="b1-fr__limpar" onClick={onClearFilters}>

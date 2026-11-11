@@ -6144,4 +6144,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Não muda:** regras, textos, envios, permissões, ids de teste e nomes acessíveis. Os Produtos aceitos do tanque continuam com pílulas e o seletor com busca no servidor: a lista de Produtos da fazenda pode ser grande e é paginada.
 - **Evidência:** `tests/smoke/b1Janela.test.jsx`; caso novo em `tests/smoke/bensGerenciarTipos.test.jsx`; imagens em `docs/engineering/evidencias/patrimonio-simplifica-02/`; seção 7 do relatório `MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-171 -->
+## D-PROD-171 — Celular: só o menu da coluna abre como "Mais opções"; os filtros voltam às folhas de baixo
+
+- **Contexto:** a D-PROD-168 entendeu o pedido "a abertura de seleção de filtros de cabeçalhos no mobile tem que ser igual em tablet" como "todos os filtros do celular iguais aos do tablet". No celular, a faixa de pílulas passou a aparecer e o funil, o "Filtrar por campo" e o filtro do cabeçalho passaram a abrir nas janelas do tablet. O proprietário esclareceu que o pedido era só o menu "⋮" da coluna da tabela (abrir filtro avançado, autoajustar, congelar, ocultar), que no celular deve abrir como o botão "Mais opções". Filtros e listas deviam ficar como estavam.
+- **Decisão:**
+  - **Volta como era antes da D-PROD-168:**
+    - a faixa sem pílulas no celular, só com o resumo;
+    - o funil abre a folha "Filtros", e dela se vai a Ordenar, a cada filtro e ao "+";
+    - o "Filtrar por campo" e o filtro do cabeçalho abrem na folha de baixo, com o CSS das folhas (`.fpc--sheet`, `.b1-fr-sheet`).
+  - **Fica da D-PROD-168:**
+    - o menu "⋮" da coluna abre no celular como o "Mais opções", na mesma janela flutuante e na mesma largura (226 px). A folha dele, e o CSS dela, não voltam;
+    - as caixas de marcar à direita, inclusive no "Todos";
+    - os campos de marcar vários em lista.
+- **Revoga em parte:** a D-PROD-168, na parte "celular = tablet" dos filtros.
+- **Evidência:** `tests/smoke/base1FiltrosCelularCaixas.test.jsx`; imagem `docs/engineering/evidencias/base1-design-d164/celular-menu-coluna-como-mais-opcoes.png` (menu "⋮" da coluna, "Mais opções" e a folha "Filtros", em 390 px).
+
+<!-- Próxima decisão: D-PROD-172 -->

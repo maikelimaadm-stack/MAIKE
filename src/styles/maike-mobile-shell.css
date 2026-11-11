@@ -671,6 +671,11 @@
   font-size: 12.5px;
 }
 
+.fpc--sheet {
+  flex: 1 1 auto;
+  padding: 0 8px 10px;
+}
+
 .fpc__titulo {
   flex-shrink: 0;
   padding: 6px 10px;
@@ -688,6 +693,14 @@
 
 .fpc__busca input {
   font-size: 12px;
+}
+
+.fpc--sheet .fpc__busca {
+  height: 44px;
+}
+
+.fpc--sheet .fpc__busca input {
+  font-size: 16px;
 }
 
 .fpc__lista {
@@ -720,6 +733,12 @@
   background: var(--mk-sup-fundo, #F9F9F7);
 }
 
+.fpc--sheet .fpc__item {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
 .fpc__ic {
   display: flex;
   flex-shrink: 0;
@@ -748,6 +767,10 @@
   white-space: nowrap;
 }
 
+.fpc--sheet .fpc__resumo {
+  font-size: 13px;
+}
+
 .fpc__chev {
   display: flex;
   color: #a3a29c;
@@ -759,6 +782,11 @@
   color: #b2b1ab;
   font-size: 11.5px;
   text-align: center;
+}
+
+.fpc--sheet .fpc__vazio {
+  color: #73726c;
+  font-size: 13px;
 }
 
 /* Navegação entre registros no celular — centralizada no rodapé */
@@ -1952,6 +1980,10 @@ form[data-mk-lanc] button[class*="border-dashed"] {
 .mk-sheet .fpc__resumo {
   color: #15803d;
   font-size: 15px;
+}
+
+.mk-sheet .fpc--sheet {
+  padding: 0;
 }
 
 .mk-sheet .fpc__busca {
