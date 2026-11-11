@@ -35,7 +35,7 @@ export default function ConfirmDialog({
       <DialogPortal>
         <DialogPrimitive.Overlay
           className={cn(
-            "fixed inset-0 z-[70] bg-black/45",
+            "mg-confirm-dialog__fundo fixed inset-0 z-[70] bg-black/45",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           )}
@@ -44,7 +44,7 @@ export default function ConfirmDialog({
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
           className={cn(
-            "fixed inset-0 z-[71] flex items-center justify-center p-4",
+            "mg-confirm-dialog__camada fixed inset-0 z-[71] flex items-center justify-center p-4",
             "border-0 bg-transparent shadow-none outline-none",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",

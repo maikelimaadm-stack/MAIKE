@@ -1,0 +1,217 @@
+/*
+ * Modelo Base1 — tokens da raiz que o design usa (D-PROD-164), gerados da cópia do CSS do sistema dentro do design
+ * (as variáveis de .mkx-root, com a paleta quente). Valem só quando uma tela Base1 está aberta; o Mapa Geral não muda.
+ * Vêm ANTES de base1-design.css (as propostas do design podem redefinir alguns). Tokens de fonte ficam de fora.
+ */
+body.b1-tela {
+  --mk-safe-top: env(safe-area-inset-top, 0px);
+  --mk-ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+}
+body.b1-tela {
+  --mk-sw-w: 60px;
+  --mk-sw-h: 28px;
+  --mk-sw-g: 2px;
+  --mk-sw-knob: 38px;
+  --mk-sw-knob-press: 44px;
+  --mk-sw-on: var(--mg-accent, #40de63);
+  --mk-sw-off: #e4e4e7;
+  --mk-sw-off-press: #d9d9de;
+  --mk-sw-sombra:
+    0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --mk-sw-mola: cubic-bezier(0.3, 1.35, 0.5, 1);
+  --mk-sw-tempo: 0.42s;
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  body.b1-tela {
+    --mk-sw-mola: linear(
+      0,
+      0.22 6%,
+      0.64 14%,
+      0.95 23%,
+      1.08 31%,
+      1.1 36%,
+      1.06 44%,
+      1.01 55%,
+      0.995 67%,
+      1 82%,
+      1
+    );
+    --mk-sw-tempo: 0.5s;
+  }
+}
+body.b1-tela {
+  --mk-sw-vidro-escala: 1.38;
+  --mk-sw-vidro-tempo: 0.55s;
+}
+@media (min-width: 1024px) {
+  body.b1-tela {
+    --mk-sw-w: 36px;
+    --mk-sw-h: 20px;
+    --mk-sw-g: 2px;
+    --mk-sw-knob: 16px;
+    --mk-sw-knob-press: 16px;
+    --mk-sw-vidro-escala: 1;
+    --mk-sw-sombra: 0 1px 2px rgba(0, 0, 0, 0.18);
+    --mk-sw-mola: cubic-bezier(0.25, 0.8, 0.3, 1);
+    --mk-sw-tempo: 0.2s;
+  }
+}
+body.b1-tela {
+  --mk-sup-fundo: #f9f9f7;
+  --mk-sup-cartao: #ffffff;
+  --mk-sup-borda: #eeede9;
+  --mk-sup-raio: 14px;
+  --mk-sup-sombra: 0 1px 2px rgba(20, 20, 19, 0.05);
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: var(--mk-sup-fundo, #f9f9f7);
+  --mk-btn-ativo: #eeede9;
+  --mk-btn-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
+  --mk-chip-bg: var(--mk-sup-fundo, #f9f9f7);
+}
+body.b1-tela {
+  --mk-search-height: 36px;
+  --mk-filter-row-height: 36px;
+}
+@media (max-width: 639px) {
+  body.b1-tela {
+    --mk-search-height: 44px;
+    --mk-filter-row-height: 44px;
+  }
+}
+body.b1-tela {
+  --mk-toggle-w: 49.5px;
+  --mk-toggle-h: 22px;
+}
+@media (min-width: 1024px) {
+  body.b1-tela {
+    --mk-toggle-w: 45px;
+    --mk-toggle-h: 20px;
+  }
+}
+body.b1-tela {
+  --mk-list-divider: #eeede9;
+}
+body.b1-tela {
+  --mk-list-row-height: 40px;
+}
+@media (min-width: 1024px) {
+  body.b1-tela {
+    --mk-list-row-height: 36px;
+  }
+}
+@media (max-width: 639px) {
+  body.b1-tela {
+    --mk-filter-row-height: 40px;
+  }
+}
+body.b1-tela {
+  --mk-sup-raio: 12px;
+  --mk-cartao-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+@media (min-width: 1024px) {
+  body.b1-tela {
+    --mk-cartao-sombra:
+      0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+  }
+}
+body.b1-tela {
+  --mk-action-height: 32px;
+  --mk-action-height-touch: 40px;
+  --mk-action-icon: 14px;
+  --mk-action-icon-touch: 17px;
+  --mk-action-stroke: 2.25;
+  --mk-action-font: 13px;
+  --mk-action-fg: #373733;
+  --mk-action-fg-green: #16a34a;
+  --mk-action-fg-red: #dc2626;
+  --mk-action-fg-muted: #6b6a66;
+  --mk-action-positive-bg: var(--mg-accent, #40de63);
+  --mk-action-positive-hover: var(--mg-accent-hover, #36c956);
+  --mk-action-positive-fg: #ffffff;
+  --mk-icon-edit: var(--mk-action-fg-muted);
+  --mk-icon-close: #73726c;
+  --mk-icon-danger: var(--mk-action-fg-red);
+  --mk-icon-field: #a3a29c;
+  --mk-icon-positive: var(--mk-action-fg-green);
+  --mk-text: #373733;
+  --mk-text-strong: #262624;
+  --mk-text-muted: #73726c;
+  --mk-list-row-height: 36px;
+  --mk-filter-row-height: 36px;
+  --mk-check-size: 14px;
+  --mk-check-on: #32d65e;
+  --mk-check-row-on: #fff;
+  --mk-search-height: 36px;
+  --mk-glass-bg: var(--mk-sup-fundo, #f9f9f7);
+  --mk-glass-border: rgba(255, 255, 255, 0.8);
+}
+body.b1-tela {
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: var(--mk-sup-fundo, #f9f9f7);
+  --mk-btn-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
+}
+@media (max-width: 1023px) {
+  body.b1-tela {
+    --mk-action-height: var(--mk-action-height-touch);
+    --mk-action-icon: var(--mk-action-icon-touch);
+    --mk-action-font: 14px;
+    --mk-list-row-height: 40px;
+    --mk-filter-row-height: 40px;
+  }
+}
+
+/* Cores frias literais do CSS do sistema viram var(--mkq-<hex>, <hex>) (a própria cor como reserva); com tela Base1
+   aberta a variável recebe o neutro quente do design. Fora disso (Mapa Geral etc.) nada muda. */
+body.b1-tela {
+  --mkq-0f172a: #141413;
+  --mkq-1e293b: #262624;
+  --mkq-1f2937: #262624;
+  --mkq-292a2d: #262624;
+  --mkq-334155: #373733;
+  --mkq-374151: #373733;
+  --mkq-475569: #52514e;
+  --mkq-5b6b80: #6b6a66;
+  --mkq-64748b: #73726c;
+  --mkq-6b7280: #73726c;
+  --mkq-94a3b8: #a3a29c;
+  --mkq-9ca3af: #a3a29c;
+  --mkq-cbd5e1: #d1d0ca;
+  --mkq-d1d5db: #d1d0ca;
+  --mkq-e2e8f0: #e8e7e2;
+  --mkq-e5e7eb: #e8e7e2;
+  --mkq-e7eaee: #ecebe6;
+  --mkq-eceef1: #eeede9;
+  --mkq-eef0f2: #efefeb;
+  --mkq-eef1f4: #eeede9;
+  --mkq-f1f4f6: #f2f2ef;
+  --mkq-fafcfe: #f9f9f7;
+  --mkq-rgb-15-23-42: 20, 20, 19;
+}
+
+/* Tailwind (tailwind.config.js): slate/gray usam var(--mkq-tw-<família>-<tom>, <cor padrão>); aqui, com tela Base1
+   aberta, recebem o neutro quente do design — as mesmas classes, sem mudar a cascata. */
+body.b1-tela {
+  --mkq-tw-slate-50: 249 249 247;
+  --mkq-tw-slate-100: 242 242 239;
+  --mkq-tw-slate-200: 232 231 226;
+  --mkq-tw-slate-300: 209 208 202;
+  --mkq-tw-slate-400: 163 162 156;
+  --mkq-tw-slate-500: 115 114 108;
+  --mkq-tw-slate-600: 82 81 78;
+  --mkq-tw-slate-700: 55 55 51;
+  --mkq-tw-slate-800: 38 38 36;
+  --mkq-tw-slate-900: 20 20 19;
+  --mkq-tw-slate-950: 10 10 9;
+  --mkq-tw-gray-50: 249 249 247;
+  --mkq-tw-gray-100: 242 242 239;
+  --mkq-tw-gray-200: 232 231 226;
+  --mkq-tw-gray-300: 209 208 202;
+  --mkq-tw-gray-400: 163 162 156;
+  --mkq-tw-gray-500: 115 114 108;
+  --mkq-tw-gray-600: 82 81 78;
+  --mkq-tw-gray-700: 55 55 51;
+  --mkq-tw-gray-800: 38 38 36;
+  --mkq-tw-gray-900: 20 20 19;
+  --mkq-tw-gray-950: 10 10 9;
+}

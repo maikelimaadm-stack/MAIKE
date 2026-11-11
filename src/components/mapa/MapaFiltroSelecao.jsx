@@ -32,9 +32,9 @@ export default function MapaFiltroSelecao({ value, onChange, children, className
       <div className="mk-map-multi-title">{rotulo}</div>
       {opcoes.length > 8 && <input type="search" aria-label={`Pesquisar ${rotulo}`} placeholder="Procurar opção..." value={busca} onChange={e => setBusca(e.target.value)} />}
       <div className="mk-map-multi-options">
-        {padrao && <label><input type="checkbox" checked={todas} onChange={() => onChange({ target: { value: padrao.value } })} /><span>{padrao.label}</span></label>}
+        {padrao && <label><span>{padrao.label}</span><input type="checkbox" checked={todas} onChange={() => onChange({ target: { value: padrao.value } })} /></label>}
         {opcoes.slice(1).filter(o => o.label.toLocaleLowerCase('pt-BR').includes(busca.toLocaleLowerCase('pt-BR'))).map(o => <label key={o.value}>
-          <input type="checkbox" checked={selecionados.includes(o.value)} onChange={() => marcar(o.value)} /><span>{o.label}</span>
+          <span>{o.label}</span><input type="checkbox" checked={selecionados.includes(o.value)} onChange={() => marcar(o.value)} />
         </label>)}
       </div>
     </PopoverContent></Portal>

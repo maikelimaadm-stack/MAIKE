@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { AvisoGestao, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
@@ -93,7 +94,7 @@ export default function FormularioTipo({ onSubmit, initialData = null, readOnly 
   return (
     <CadastroFormShell embedded title={editando ? "Editar tipo patrimonial" : "Novo tipo patrimonial"}>
       <div className="mg-b1-record-form">
-        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="tipo-form">
+        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="tipo-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Identificação" />
           {editando || travada ? (
             <CampoTexto label="Família" span={rapido ? 8 : 8} value={form.familia?.rotulo ?? ""} onChange={() => {}} readOnly />

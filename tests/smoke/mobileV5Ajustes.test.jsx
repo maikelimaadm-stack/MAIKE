@@ -52,10 +52,12 @@ describe('V5 — edição', () => {
 
 describe('V5 — filtros e colunas', () => {
   it('V5-3 — filtro da coluna: Cancelar à esquerda, Aplicar à direita', () => {
-    const fonte = codigo('src/components/cadastro/base1/CadastroColunaFiltro.jsx');
-    const rodape = fonte.slice(fonte.indexOf('className="fpop-f"'));
-    expect(rodape.indexOf('aria-label="Cancelar"')).toBeLessThan(rodape.indexOf('fpop-zero'));
-    expect(rodape.indexOf('fpop-zero')).toBeLessThan(rodape.indexOf('aria-label="Aplicar"'));
+    // D-PROD-166: o filtro do cabeçalho é a janela do filtro da faixa (rodapé ✕ · contagem · ✓).
+    expect(codigo('src/components/cadastro/base1/CadastroColunaFiltro.jsx')).toMatch(/<JanelaDoFiltro\b/);
+    const fonte = codigo('src/components/cadastro/base1/FiltrosRapidos.jsx');
+    const rodape = fonte.slice(fonte.indexOf('className="b1-fr-acoes"'));
+    expect(rodape.indexOf('aria-label="Cancelar"')).toBeLessThan(rodape.indexOf('b1-fr-acoes__conta'));
+    expect(rodape.indexOf('b1-fr-acoes__conta')).toBeLessThan(rodape.indexOf('aria-label="Aplicar"'));
   });
 
   it('V5-4 — colunas no celular: chave mostra/oculta, ↑↓ reordena e ✓ aplica', async () => {

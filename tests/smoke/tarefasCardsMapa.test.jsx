@@ -37,7 +37,7 @@ describe("Tarefas em cards (D-PROD-133)", () => {
     expect(cerca).toBeTruthy();
     expect(within(/** @type {HTMLElement} */ (cerca)).getByText("Pendente")).toBeTruthy();
     expect(cerca?.textContent).toContain("08/11/2026");
-    expect(screen.getByText("Totais: 2")).toBeTruthy();
+    expect(screen.getByText("2 tarefas")).toBeTruthy();
   });
 
   it("+ cria nova tarefa; selecionar e editar abre a tarefa escolhida", () => {
@@ -47,7 +47,7 @@ describe("Tarefas em cards (D-PROD-133)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Nova tarefa/ })[0]);
     expect(onAdd).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("checkbox", { name: "Selecionar Limpar bebedouro" }));
-    expect(screen.getByText("Selecionados: 1")).toBeTruthy();
+    expect(screen.getByText("1 selecionado")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: /^Editar/ })[0]);
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "t2" }));
   });

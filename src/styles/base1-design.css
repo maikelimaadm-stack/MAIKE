@@ -1,0 +1,891 @@
+/*
+ * Modelo Base1 — PROPOSTAS do design "Cadastro de Lote" (D-PROD-164), portadas mecanicamente.
+ * Fonte: docs/design/cadastro-de-lote/cadastro-de-lote.dc.html (bloco "/*mk-topnav*\/" até "Tailwind (config do MAIKE)").
+ * Tradução: @container dev -> @media; .mkx-root e peças compartilhadas -> body.b1-tela
+ * (só quando uma tela Base1 está aberta; o Mapa Geral não muda); cqw -> vw.
+ * TAMANHO DE FONTE NÃO VEM DAQUI: todo font-size do design foi descartado — vale base1-tipografia.css.
+ * Não edite à mão: os acertos do app ficam em base1-design-ajustes.css.
+ */
+/*mk-topnav*/
+body.b1-tela .mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
+body.b1-tela .mk-topnav{border-bottom:1px solid var(--mk-sup-borda, #EEEDE9);box-shadow:none}
+body.b1-tela .mk-topnav .mk-topnav-item{position:relative;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;gap:6px;min-height:40px;padding:0 12px;border:0;border-radius:0;background:transparent;box-shadow:none;color:#373733;font-weight:500;white-space:nowrap;cursor:pointer;transition:color 120ms ease}
+body.b1-tela .mk-topnav .mk-topnav-item:hover{color:#141413}
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]{color:#16a34a}
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]::after{content:'';position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#16a34a;border-radius:2px 2px 0 0}
+body.b1-tela .mk-topnav .mk-topnav-item:focus-visible{outline:2px solid #5acbe9;outline-offset:-3px}
+body.b1-tela .mk-topnav .relative.group{align-self:stretch;display:flex}
+body.b1-tela header.mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
+body.b1-tela .mk-topnav .relative.group > .absolute{top:100%;margin-top:0}
+/* Proposta (celular/tablet): sem abas — cada aba do desktop vira um cartão.
+   No celular os campos ficam um embaixo do outro (regra do próprio sistema: .mg-b1-form-grid > * 1 / -1). */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--secoes:not(#mk-padrao){padding:0;background:transparent;border-radius:0;box-shadow:none;overflow:hidden}
+.cadastro-b1 .mg-form-scroll.b1-form--secoes > form:not(#mk-padrao){background:transparent}
+.cadastro-b1 .b1-form--secoes .b1-form-rolagem:not(#mk-padrao){padding-right:0;scrollbar-width:none}
+.cadastro-b1 .b1-form--secoes .b1-form-rolagem::-webkit-scrollbar{display:none}
+
+/* seções: cartão branco com o nome da seção dentro (sem ícone), campos logo abaixo */
+.cadastro-b1 .b1-secoes{display:flex;flex-direction:column;gap:12px;padding:2px 2px 12px}
+.cadastro-b1 .b1-secao{min-width:0}
+.cadastro-b1 .b1-secao__cartao{min-width:0;padding:12px;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08))}
+.cadastro-b1 .b1-secao__cab{display:flex;align-items:center;gap:8px;min-height:18px;margin:0 0 10px;padding:0 2px}
+.cadastro-b1 .b1-secao__titulo{margin:0;font-weight:600;line-height:1.3;letter-spacing:0;text-transform:none;color:#73726C}
+.cadastro-b1 .b1-secao__pend{margin-left:auto;font-weight:600;line-height:1.3;color:#dc2626;white-space:nowrap}
+
+/* Proposta (desktop): abas ficam em cima, fora do cartão do lançamento;
+   o cartão branco traz o nome da aba e os campos (como na tela de bens: abas → cartão "Dados") */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--abas-fora:not(#mk-padrao){padding:0;background:transparent;border-radius:0;box-shadow:none}
+.cadastro-b1 .mg-form-scroll.b1-form--abas-fora > form:not(#mk-padrao){background:transparent}
+.cadastro-b1 .b1-form--abas-fora .b1-form-rolagem:not(#mk-padrao){padding:0 0 24px 2px}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-root:not(#mk-padrao){min-height:0;padding:0 0 2px}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-rail{position:sticky;top:0;z-index:3;margin:0 0 10px;background:var(--mk-sup-fundo, #F9F9F7)}
+.cadastro-b1 .b1-aba-cartao{min-width:0;padding:12px 14px 16px;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08))}
+.cadastro-b1 .b1-aba-cartao__cab{display:flex;align-items:center;min-height:20px;margin:0 0 12px}
+.cadastro-b1 .b1-aba-cartao__titulo{margin:0;font-weight:600;line-height:1.3;color:var(--mg-text-1, #141413)}
+
+/* Proposta (desktop): linha das abas sem bordas; seleção no padrão dos botões de visualização do sistema
+   (grupo branco com sombra + realce verde claro na aba escolhida, igual ao .view-seg) */
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-rail{align-items:center;gap:8px;padding:2px 2px 0}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-strip{flex:0 1 auto;gap:2px;padding:3px;border:0;border-radius:999px;background:var(--mk-btn-bg, #fff);box-shadow:var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1))}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tab{min-height:30px;padding:0 14px;border-radius:999px;color:#52514E;font-weight:500;transition:background-color .16s ease, color .16s ease}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tab:hover{background:rgba(20, 20, 19, 0.04);color:#262624}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tab.is-active{background:rgba(64, 222, 99, 0.14);color:#262624;font-weight:600}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tab.is-active::after{content:none}
+
+/* Proposta (desktop): posição do rótulo no padrão dos botões de visualização do sistema (.view-seg):
+   Rótulo antes | acima | dentro do campo (Portal de Compras do CONTROLE-DE-ESTOQUE) */
+.cadastro-b1 .b1-form--abas-fora .b1-visu{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.cadastro-b1 .b1-visu .view-seg svg{width:15px;height:15px}
+
+/* ── posição do rótulo (desktop) — densidades do Portal de Compras aplicadas ao campo do sistema (.mg-field) ── */
+/* acima e antes: a caixa passa a ser o controle; o rótulo sai da caixa */
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):not(#mk-padrao){min-height:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch) .mg-field__control{box-sizing:border-box;border:1px solid transparent;border-radius:var(--mg-radius-control, 8px);background:var(--mg-gray-fill);box-shadow:var(--mg-field-edge-shadow);transition:background .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s cubic-bezier(.2,.8,.2,1)}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-has-value:not(.mg-field--disabled):not(.mg-field--locked) .mg-field__control{background:#fff;border-color:#ECEBE6;box-shadow:none}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:is(:focus-within, .is-open):not(.mg-field--disabled) .mg-field__control{box-shadow:var(--mg-focus-ring)}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.is-invalid .mg-field__control{background:#fff;border-color:rgba(239, 68, 68, 0.35);box-shadow:inset 0 0 0 1px rgba(239, 68, 68, 0.12)}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field--disabled .mg-field__control{background:var(--mk-sup-fundo, #F9F9F7);box-shadow:none}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input){padding-top:0 !important;padding-bottom:0 !important;align-items:center !important}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field--multiline .mg-field__control textarea{padding:8px 10px !important}
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-padrao){padding:0;font-weight:500;line-height:14px;color:#73726C;white-space:normal;overflow:visible;max-width:none}
+
+/* rótulo acima: nome em cima, caixa embaixo */
+.cadastro-b1 form[data-densidade="rotulo-acima"] .mg-field:not(.mg-field--switch):not(#mk-padrao){grid-template-rows:auto var(--mg-field-h);row-gap:4px}
+.cadastro-b1 form[data-densidade="rotulo-acima"] .mg-field--multiline:not(#mk-padrao){grid-template-rows:auto auto}
+.cadastro-b1 form[data-densidade="rotulo-acima"] .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-padrao){grid-row:1;align-self:end;justify-self:start;padding:0 2px}
+.cadastro-b1 form[data-densidade="rotulo-acima"] .mg-field:not(.mg-field--switch) .mg-field__control{grid-row:2}
+
+/* rótulo antes do campo (padrão do Portal de Compras): rótulo de 126px à direita com ":", caixa a partir de 136px */
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field:not(.mg-field--switch):not(#mk-padrao){grid-template-columns:126px minmax(0, 1fr);grid-template-rows:var(--mg-field-h);column-gap:10px}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field--multiline:not(#mk-padrao){grid-template-rows:auto}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-padrao){grid-column:1;grid-row:1;align-self:center;justify-self:stretch;display:block;text-align:right;overflow-wrap:break-word}
+/* ":" colado no nome, antes do "*" — o nome pode quebrar em duas linhas, nunca o ":" ou o "*" sozinhos */
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field__label:not(:has(.req))::after{content:":"}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field__label .req{white-space:nowrap}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field__label .req::before{content:":";color:#73726C;font-weight:500}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field--multiline .mg-field__label:not(#mk-padrao){align-self:start;padding-top:10px}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field:not(.mg-field--switch) .mg-field__control{grid-column:2;grid-row:1}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-field-msg{padding-left:136px}
+/* com o rótulo à frente cada campo precisa de largura: duas colunas; texto longo e ícone na linha inteira */
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > *{grid-column:span 6 / span 6 !important}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > .col-span-12:is(:has(.mg-field--multiline), :has([data-testid="icone-oficial-lote"])),.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > [data-field]:is(:has(.mg-field--multiline), :has([data-testid="icone-oficial-lote"])){grid-column:1 / -1 !important}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row{display:grid;grid-template-columns:126px auto;column-gap:10px;justify-content:start;align-items:center;min-height:var(--mg-field-h)}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row__label{justify-self:end;text-align:right;font-weight:500;color:#73726C}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row__label::after{content:":"}
+
+
+/* Proposta (desktop): listas de seleção no MESMO modelo da lista do celular — vidro claro, pesquisa limpa (branca,
+   sem borda nem anel verde) e uma lista só: "Novo" na primeira linha e as opções logo abaixo, na mesma lista */
+body.b1-tela .mk-sel-pop.b1-lista-pop:not(#mk-padrao){padding:6px;gap:6px;border:1px solid var(--mk-glass-border, rgba(255, 255, 255, .8));border-radius:14px;background:var(--mk-glass-bg, #F9F9F7);-webkit-backdrop-filter:blur(22px) saturate(135%);backdrop-filter:blur(22px) saturate(135%);box-shadow:0 8px 28px rgba(20, 20, 19, .1), inset 0 1px 0 rgba(255, 255, 255, .8)}
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-padrao),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-padrao){flex:0 0 auto;height:34px;margin:0;padding:0 12px;gap:8px;border:0;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(20, 20, 19, .05)}
+body.b1-tela .b1-lista-pop .b1-lista-busca input::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao){border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
+body.b1-tela .b1-lista-pop .mk-sel-op{margin:0}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo:not(#mk-padrao){gap:8px;color:#16a34a;font-weight:600}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo:hover{background:rgba(64, 222, 99, .08)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo svg{flex-shrink:0}
+
+/* Proposta: caixa de seleção do card à DIREITA (antes à esquerda); no celular ela some (regra do sistema) e o espaço volta */
+@media (max-width: 639px){.cadastro-b1--full-page .b1-card .pr-7{padding-right:0}}
+
+/* Proposta (celular): topo no estilo do app do Claude — fundo creme (#F9F9F7), botões redondos de 44px brancos com
+   sombra suave e ícone grafite, título centralizado em negrito com subtítulo cinza logo abaixo */
+@media (max-width: 639px){
+  body.b1-tela:not(#mk-padrao){--mk-sup-fundo:#F9F9F7;--mk-btn-bg:#FFFFFF;--mk-btn-sombra:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);--mk-action-height-touch:44px;--mk-action-icon-touch:20px;--mk-action-fg:#373733;--mk-action-fg-muted:#373733;--mk-icon-close:#373733;background:#F9F9F7 !important}
+  body.b1-tela header.mk-topnav-header:not(#mk-padrao),
+body.b1-tela .mk-mhdr:not(#mk-padrao),
+body.b1-tela .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){background:transparent !important;border-bottom:0 !important;box-shadow:none !important}
+  /* as duas versões do topo: botão à esquerda · título no meio · botão(ões) à direita */
+  body.b1-tela .mk-mhdr:not(#mk-padrao){display:grid;grid-template-columns:44px minmax(0, 1fr) auto;align-items:center;gap:10px;min-height:64px;padding:6px 14px}
+  body.b1-tela .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){grid-template-columns:auto minmax(0, 1fr) auto}
+  body.b1-tela .mk-mhdr__back:not(#mk-padrao){width:44px;height:44px}
+  body.b1-tela .mk-mhdr__main:not(#mk-padrao),
+body.b1-tela .mk-mhdr__center:not(#mk-padrao){align-items:center;text-align:center;padding:0}
+  body.b1-tela .mk-mhdr__title:not(#mk-padrao){font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#141413;text-align:center}
+  body.b1-tela .mk-mhdr__sub:not(#mk-padrao){justify-content:center;gap:4px;margin-top:1px;line-height:1.3;color:#52514E}
+  body.b1-tela .mk-mhdr__sub svg{color:#52514E}
+  /* botões redondos brancos (Descartar, Anexos, Voltar) — o Salvar continua verde */
+  body.b1-tela :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao){background:#FFFFFF !important;color:#373733 !important}
+  body.b1-tela :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao) svg{color:#373733 !important}
+  /* avatar do usuário: o mesmo botão redondo, com a inicial */
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"]:not(#mk-padrao){width:44px;height:44px;min-width:44px;padding:0 !important;border-radius:999px;background:#FFFFFF;box-shadow:var(--mk-btn-sombra)}
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"] > div:not(#mk-padrao){width:auto;height:auto;background:transparent}
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"] > div > span:not(#mk-padrao){color:#373733;font-weight:600}
+  /* barra de ações logo abaixo: os mesmos ícones grafite dos botões do topo (Excluir segue vermelho, Novo verde) */
+  body.b1-tela .cadastro-b1--portal-compras:not(#mk-padrao){--portal-acao-fg:#373733}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   PROPOSTA "PROFISSIONAL" — mesmas cores do sistema (verde #40de63 + cinzas), só organização, hierarquia e estados
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. CAMPO DE LANÇAMENTO ──────────────────────────────────────────────────────────────────────────────────────
+   Um campo só, com estados claros: normal (branco + borda), passar o mouse, foco (borda verde + anel), erro
+   (borda vermelha + mensagem), travado (cinza + cadeado: valor gerado pelo sistema) e leitura (sem caixa, só linha). */
+.cadastro-b1 form[data-densidade]{--cp-borda:#DEDDD8;--cp-borda-hover:#CAC9C3;--cp-foco:var(--mg-accent, #40de63);--cp-anel:0 0 0 3px rgba(64, 222, 99, .18);--cp-erro:#dc2626;--cp-anel-erro:0 0 0 3px rgba(220, 38, 38, .12);--cp-travado:#F5F5F2;--cp-linha:#EAE9E4;--cp-rotulo:#73726C;--cp-valor:#141413}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-field--switch:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch) .mg-field__control:not(#mk-padrao){background-color:#fff;border:1px solid var(--cp-borda);border-radius:8px;box-shadow:0 1px 1px rgba(20, 20, 19, .03);transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease}
+@media (hover: hover) and (pointer: fine){.cadastro-b1 form[data-densidade="compacto"] .mg-field:hover:not(.mg-field--disabled):not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-field--switch:hover:not(.mg-field--disabled):not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):hover:not(.mg-field--disabled) .mg-field__control:not(#mk-padrao){border-color:var(--cp-borda-hover)}}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.mg-field--locked:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-field--switch.mg-field--locked:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch).mg-field--locked .mg-field__control:not(#mk-padrao){background-color:var(--cp-travado);border-color:var(--cp-linha);box-shadow:none}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field:is(:focus-within, :has([aria-expanded="true"])):not(.mg-field--disabled):not(.mg-field--switch):not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch):is(:focus-within, :has([aria-expanded="true"])):not(.mg-field--disabled):not(.mg-field--switch) .mg-field__control:not(#mk-padrao){border-color:var(--cp-foco);box-shadow:var(--cp-anel)}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.is-invalid:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-field--switch.is-invalid:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch).is-invalid .mg-field__control:not(#mk-padrao){background-color:#fff;border-color:var(--cp-erro);box-shadow:none}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.is-invalid:is(:focus-within, :has([aria-expanded="true"])):not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch).is-invalid:is(:focus-within, :has([aria-expanded="true"])) .mg-field__control:not(#mk-padrao){border-color:var(--cp-erro);box-shadow:var(--cp-anel-erro)}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.mg-field--disabled:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field.mg-field--switch.mg-field--disabled:not(#mk-padrao),
+.cadastro-b1 form:is([data-densidade="rotulo-acima"], [data-densidade="rotulo-a-frente"]) .mg-field:not(.mg-field--switch).mg-field--disabled .mg-field__control:not(#mk-padrao){background-color:transparent;border-color:transparent;border-bottom-color:var(--cp-linha);border-radius:0;box-shadow:none}
+
+/* rótulo e valor: o rótulo orienta (cinza, médio); o valor é o dado (escuro, médio); números alinhados entre si */
+.cadastro-b1 form[data-densidade] .mg-field__label:not(#mk-padrao){color:#73726C;font-weight:500}
+.cadastro-b1 form[data-densidade="compacto"] .mg-field:is(.mg-has-value, :focus-within, .mg-field--multiline):not(.mg-field--switch) .mg-field__label:not(#mk-padrao){color:var(--cp-rotulo);font-weight:600;letter-spacing:.01em}
+.cadastro-b1 form[data-densidade] .mg-field:focus-within:not(.mg-field--disabled):not(.mg-field--switch):not(.is-invalid) .mg-field__label:not(#mk-padrao){color:#15803d}
+.cadastro-b1 form[data-densidade] .mg-field.is-invalid .mg-field__label:not(#mk-padrao){color:var(--cp-erro)}
+.cadastro-b1 form[data-densidade] .mg-field__control :is(input, textarea):not(#mk-padrao){color:var(--cp-valor);font-weight:500}
+.cadastro-b1 form[data-densidade] .b1-campo--num .mg-field__control input{font-variant-numeric:tabular-nums}
+.cadastro-b1 form[data-densidade] .mg-field--locked .mg-field__control input:not(#mk-padrao){color:#73726C}
+.cadastro-b1 form[data-densidade] .mg-field.mg-field--locked .mg-field__control:not(#mk-padrao){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:13px 13px}
+.cadastro-b1 form[data-densidade] .mg-field--locked .mg-field__control input[type="number"]:not(#mk-padrao){padding-right:30px !important}
+/* ícones do campo: discretos; "limpar" só aparece ao passar o mouse ou com foco; leitura não mostra seta nem calendário */
+.cadastro-b1 form[data-densidade] .mk-ac-chev{width:16px;height:16px;color:#A3A29C;transition:color .15s ease}
+.cadastro-b1 form[data-densidade] .mg-field:focus-within .mk-ac-chev{color:#52514E}
+@media (hover: hover) and (pointer: fine){.cadastro-b1 form[data-densidade] .mg-field button[aria-label="Limpar"]{opacity:0;transition:opacity .15s ease}.cadastro-b1 form[data-densidade] .mg-field:is(:hover, :focus-within) button[aria-label="Limpar"]{opacity:1}}
+.cadastro-b1 form[data-densidade] .mg-field--disabled .mk-ac-chev{display:none}
+.cadastro-b1 form[data-densidade] .mg-field--disabled .mg-field__control input:not(#mk-padrao){background-image:none !important;cursor:default}
+/* chave (Ativo) em caixa, na mesma linha de base dos campos */
+.cadastro-b1 form[data-densidade] .mg-field--switch .mg-field__label:not(#mk-padrao){color:var(--cp-valor);font-weight:500}
+.cadastro-b1 form[data-densidade] .mg-field--switch .mg-field__control{border:0;background:transparent;box-shadow:none}
+.cadastro-b1 form[data-densidade="rotulo-acima"] .mg-field--switch{margin-top:18px}
+/* mensagem de erro (texto de verdade, com ícone) e dica sob o campo */
+.cadastro-b1 form[data-densidade] .mg-b1-field-msg{display:flex;align-items:center;gap:4px;margin:4px 2px 0;font-weight:500;line-height:1.3;color:var(--cp-erro)}
+.cadastro-b1 form[data-densidade] .mg-b1-field-msg .b1-msg-ic{flex:0 0 12px;width:12px;height:12px}
+.cadastro-b1 .b1-campo-dica{display:flex;align-items:center;gap:6px;margin:4px 2px 0;line-height:1.3;color:#73726C}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-campo-dica{padding-left:136px}
+.cadastro-b1 .b1-campo-dica__cor{flex:0 0 12px;width:12px;height:12px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(20, 20, 19, .12)}
+
+/* ── 2. GRUPOS DENTRO DO PAINEL (tablet e desktop) ───────────────────────────────────────────────────────────── */
+.cadastro-b1 .b1-grupo + .b1-grupo{margin-top:18px}
+.cadastro-b1 .b1-grupo__cab{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.cadastro-b1 .b1-grupo__titulo{margin:0;font-weight:600;line-height:1.3;color:#73726C;white-space:nowrap}
+.cadastro-b1 .b1-grupo__linha{flex:1 1 auto;height:1px;background:#EEEDE9}
+@media (max-width: 639px){.cadastro-b1 .b1-grupo__cab{display:none}.cadastro-b1 .b1-grupo + .b1-grupo{margin-top:12px}}
+@media (min-width: 640px){.cadastro-b1 .b1-aba-cartao:not(#mk-padrao){padding:16px 18px 20px}.cadastro-b1 .b1-aba-cartao__cab{justify-content:space-between;margin-bottom:14px}.cadastro-b1 .b1-secao__cartao{padding:14px 16px 18px}.cadastro-b1 .b1-secao__cab{margin-bottom:12px}.cadastro-b1 .b1-secao__titulo{color:var(--mg-text-1, #373733)}}
+.cadastro-b1 .b1-aba-dot{width:6px;height:6px;flex:0 0 6px;margin-left:2px;border-radius:999px;background:#dc2626}
+
+/* ── 3. CABEÇALHO DO REGISTRO (tablet e desktop): quem é o lote, situação e números principais ───────────────── */
+@media (min-width: 640px){
+  .cadastro-b1 .mg-shell--join-table > .b1-reg-cab[data-testid="cadastro-record-header"]:not(#mk-padrao){display:flex;flex-wrap:wrap;align-items:center;gap:12px 14px;margin:0 2px 10px;padding:12px 14px;border:0;border-radius:12px;background:#fff !important;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .08))}
+  .cadastro-b1 .b1-reg-cab__tile{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:0 0 40px;border-radius:10px;background:var(--mg-accent, #40de63);color:#fff;font-weight:700;letter-spacing:.02em}
+  .cadastro-b1 .b1-reg-cab__id{display:flex;min-width:0;flex:1 1 220px;flex-direction:column;gap:3px}
+  .cadastro-b1 .b1-reg-cab__linha{display:flex;min-width:0;align-items:center;gap:8px}
+  .cadastro-b1 .b1-reg-cab__nome:not(#mk-padrao){min-width:0;overflow:hidden;font-weight:600;line-height:1.25;letter-spacing:-.01em;color:#141413;text-overflow:ellipsis;white-space:nowrap}
+  .cadastro-b1 .b1-reg-status{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;background:#F1F1EE;color:#373733;font-weight:600;line-height:1}
+  .cadastro-b1 .b1-reg-status__dot{width:6px;height:6px;border-radius:999px;background:#22c55e}
+  .cadastro-b1 .b1-reg-status.is-off .b1-reg-status__dot{background:#A3A29C}
+  .cadastro-b1 .b1-reg-cab__meta{display:flex;min-width:0;flex-wrap:wrap;line-height:1.3;color:#73726C}
+  .cadastro-b1 .b1-reg-cab__meta > span + span::before{content:"·";margin:0 7px;color:#D1D0CA}
+  .cadastro-b1 .b1-reg-cab__fatos{display:flex;flex:0 0 auto;margin:0}
+  .cadastro-b1 .b1-reg-fato{display:flex;min-width:0;flex-direction:column;gap:2px;padding:0 16px;border-left:1px solid #EEEDE9}
+  .cadastro-b1 .b1-reg-fato dt{font-weight:500;line-height:1.2;color:#73726C;white-space:nowrap}
+  .cadastro-b1 .b1-reg-fato dd{margin:0;font-weight:600;line-height:1.25;color:#141413;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cadastro-b1 .b1-reg-cab__nav{margin-left:2px}
+  .cadastro-b1 .b1-reg-cab__nav .mg-b1-record-nav{min-width:38px;text-align:center;font-variant-numeric:tabular-nums;color:#73726C}
+}
+@media (min-width: 640px) and (max-width: 1023px){
+  .cadastro-b1 .b1-reg-cab__fatos{order:3;flex:1 0 100%;padding-top:10px;border-top:1px solid #EEEDE9}
+  .cadastro-b1 .b1-reg-fato{flex:1 1 0}
+  .cadastro-b1 .b1-reg-fato:first-child{padding-left:2px;border-left:0}
+}
+
+/* ── 4. LISTA: cor com amostra + nome; rodapé de contagem compacto no desktop ────────────────────────────────── */
+.cadastro-b1 .b1-cor-dot{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(20, 20, 19, .14);vertical-align:-1px}
+@media (min-width: 1024px){.cadastro-b1 .mg-summary .mg-summary__counts:not(#mk-padrao){display:flex;flex-wrap:wrap;gap:4px 28px}}
+
+/* leitura: sem asterisco de obrigatório (nada a preencher) */
+.cadastro-b1 form[data-densidade] .mg-field--disabled .mg-field__label .req{display:none}
+/* cabeçalho, abas e cartão na mesma largura (sem a reserva da barra de rolagem) */
+@media (min-width: 640px){.cadastro-b1 .mg-form-scroll:is(.b1-form--abas-fora, .b1-form--secoes):not(#mk-padrao),
+.cadastro-b1 :is(.b1-form--abas-fora, .b1-form--secoes) .b1-form-rolagem:not(#mk-padrao){scrollbar-gutter:auto}}
+/* rótulo antes do campo: a chave segue a mesma régua (nome à direita, chave ao lado, sem caixa) */
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field.mg-field--switch.mg-has-value:not(#mk-padrao){display:grid;grid-template-columns:126px auto;justify-content:start;column-gap:10px;border-color:transparent;background-color:transparent;box-shadow:none}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field--switch .mg-field__label:not(#mk-padrao){max-width:none;padding:0;justify-self:end;color:#73726C}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-field--switch .mg-field__control{padding:0;justify-content:flex-start}
+@media (min-width: 1024px){.cadastro-b1 .b1-form--abas-fora .b1-form-rolagem:not(#mk-padrao){padding-right:2px}}
+
+/* ── 5. FILTROS RÁPIDOS ──────────────────────────────────────────────────────────────────────────────────────────
+   Uma faixa de "pílulas" acima da lista: cada uma é uma pergunta simples (Situação? Categoria? Sexo? Setor?).
+   Tocar abre uma lista de marcar, com a quantidade de lotes de cada opção. O que está filtrando fica verde e
+   mostra o valor; o total "5 de 12 lotes" fica sempre à vista. "+ Filtro" escolhe quais pílulas aparecem. */
+.cadastro-b1 .b1-fr{display:flex;min-width:0;flex:0 0 auto;align-items:center;gap:6px 14px;margin:0 0 6px;padding:0 2px}
+.cadastro-b1 .b1-fr__chips{display:flex;min-width:0;flex:1 1 auto;align-items:center;gap:6px;padding:3px 2px 5px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.cadastro-b1 .b1-fr__chips::-webkit-scrollbar{display:none}
+.cadastro-b1 .b1-fr-chip{display:inline-flex;flex:0 0 auto;align-items:center;height:30px;border-radius:999px;background:var(--mk-btn-bg, #fff);box-shadow:var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, .1));color:#373733;line-height:1;transition:background-color .15s ease}
+.cadastro-b1 .b1-fr-chip__btn{display:inline-flex;height:100%;align-items:center;gap:6px;padding:0 10px 0 12px;border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;white-space:nowrap;cursor:pointer}
+.cadastro-b1 .b1-fr-chip__rot{font-weight:500;color:#52514E}
+.cadastro-b1 .b1-fr-chip__seta{flex:0 0 14px;color:#A3A29C;transition:transform .15s ease}
+.cadastro-b1 .b1-fr-chip.is-open .b1-fr-chip__seta{transform:rotate(180deg)}
+.cadastro-b1 .b1-fr-chip.is-on{background:#e6f9ea}
+.cadastro-b1 .b1-fr-chip.is-on .b1-fr-chip__btn{padding-right:4px}
+.cadastro-b1 .b1-fr-chip.is-on .b1-fr-chip__rot::after{content:":"}
+.cadastro-b1 .b1-fr-chip__val{max-width:160px;overflow:hidden;font-weight:600;color:#14532d;text-overflow:ellipsis}
+.cadastro-b1 .b1-fr-chip__x{display:inline-flex;width:22px;height:22px;flex:0 0 22px;align-items:center;justify-content:center;margin-right:4px;padding:0;border:0;border-radius:999px;background:transparent;color:#3f6b4b;cursor:pointer}
+.cadastro-b1 .b1-fr-chip__x:hover{background:rgba(20, 83, 45, .1)}
+.cadastro-b1 .b1-fr-chip__btn:focus-visible,
+.cadastro-b1 .b1-fr-chip__x:focus-visible,
+.cadastro-b1 .b1-fr-add:focus-visible,
+.cadastro-b1 .b1-fr__limpar:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+.cadastro-b1 .b1-fr-add{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;height:30px;padding:0 12px 0 10px;border:0;border-radius:999px;background:var(--mk-btn-bg, #fff);box-shadow:var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, .1));color:#373733;font:inherit;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s ease}
+.cadastro-b1 .b1-fr-add:hover,
+.cadastro-b1 .b1-fr-add.is-open{background:#F1F1EE;color:#262624}
+.cadastro-b1 .b1-fr-add svg{color:#73726C}
+.cadastro-b1 .b1-fr__resumo{display:flex;flex:0 0 auto;align-items:center;gap:10px;line-height:1.3;color:#73726C;white-space:nowrap}
+.cadastro-b1 .b1-fr__conta{font-weight:600;color:#373733;font-variant-numeric:tabular-nums}
+.cadastro-b1 .b1-fr__limpar{padding:4px 2px;border:0;background:transparent;color:#52514E;font:inherit;font-weight:600;text-decoration:underline;text-decoration-color:#D1D0CA;text-underline-offset:3px;cursor:pointer}
+.cadastro-b1 .b1-fr__limpar:hover{color:#141413;text-decoration-color:#73726C}
+/* toque (tablet e celular): pílulas mais altas */
+@media (max-width: 1023px){.cadastro-b1 .b1-fr-chip,
+.cadastro-b1 .b1-fr-add{height:36px}.cadastro-b1 .b1-fr-chip__x{width:26px;height:26px;flex-basis:26px}}
+/* celular: pílulas numa linha que desliza; o total numa linha própria logo abaixo */
+@media (max-width: 639px){.cadastro-b1 .b1-fr{flex-direction:column;align-items:stretch;gap:2px;margin:0 -8px 4px;padding:0}.cadastro-b1 .b1-fr__chips{padding:3px 10px 6px}.cadastro-b1 .b1-fr__resumo{justify-content:space-between;padding:0 14px 2px}}
+
+/* lista de marcar do filtro rápido (popover no desktop/tablet, folha no celular) */
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:280px;min-width:0}
+body.b1-tela .b1-fr-pop__cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 8px 0}
+body.b1-tela .b1-fr-pop__titulo{font-weight:600;color:#373733}
+body.b1-tela .b1-fr-pop__aside{color:#73726C;white-space:nowrap}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-padrao){display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-weight:400;color:var(--mk-text, #373733)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:hover{background:rgba(20, 20, 19, .03)}
+body.b1-tela .b1-fr-box{display:inline-flex;width:16px;height:16px;flex:0 0 16px;align-items:center;justify-content:center;box-sizing:border-box;border:1.5px solid #D1D0CA;border-radius:4px;background:#fff;color:transparent;transition:background-color .12s ease, border-color .12s ease}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box{border-color:#32d65e;background:#32d65e;color:#fff}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-op__txt{font-weight:600;color:#141413}
+body.b1-tela .b1-fr-op__txt{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-op__n{min-width:22px;flex:0 0 auto;color:#A3A29C;text-align:right;font-variant-numeric:tabular-nums}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:36px}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--link:not(#mk-padrao){color:#52514E}
+body.b1-tela .b1-fr-op--link svg{flex:0 0 auto;color:#A3A29C}
+@media (max-width: 1023px){body.b1-tela .b1-fr-box{width:20px;height:20px;flex-basis:20px;border-radius:6px}body.b1-tela .b1-fr-box svg{width:12px;height:12px}body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:40px}}
+body.b1-tela .b1-fr-pop__cab{flex-wrap:wrap;row-gap:2px}
+body.b1-tela .b1-fr-pop__titulo{white-space:nowrap}
+body.b1-tela .b1-lista-pop .b1-cor-dot{display:inline-block;width:10px;height:10px;flex:0 0 10px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(20, 20, 19, .14)}
+
+/* ── 6. LISTA DE LOTES: MENOS ESPAÇO, MAIS LEITURA ───────────────────────────────────────────────────────────── */
+/* 6.1 desktop: título na mesma linha dos botões (uma faixa a menos) e barras mais baixas */
+.cadastro-b1 .b1-tb-titulo{display:none}
+@media (min-width: 1024px){
+  .cadastro-b1.cadastro-b1--full-page > .cadastro-b1__page-title{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;border:0}
+  .cadastro-b1 .b1-tb-titulo{display:inline-flex;flex:0 0 auto;align-items:center;margin-right:6px;padding-right:14px;border-right:1px solid #E8E7E2;font-weight:600;line-height:1.25;letter-spacing:-.01em;color:var(--mg-text-1, #373733);white-space:nowrap}
+  .cadastro-b1--full-page .mg-toolbar.mg-toolbar--responsive:not(#mk-padrao){padding:0}
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-padrao){align-items:center;padding:2px 0 4px}
+  .cadastro-b1--full-page .mg-shell.mg-shell--join-table:not(#mk-padrao){gap:6px}
+  .cadastro-b1 .b1-fr{margin-bottom:2px}
+}
+/* 6.3 tabela (desktop e tablet): só linhas horizontais, cabeçalho discreto, nome em destaque, vazio apagado */
+.cadastro-b1 .mg-grid thead th:not(#mk-padrao){background:#F7F7F4;color:#52514E;font-weight:600;border-right:0;border-bottom:1px solid #E8E7E2}
+.cadastro-b1 .mg-grid thead th.th-select.sticky:not(#mk-padrao){background:#F7F7F4}
+.cadastro-b1 .mg-grid tbody td:not(#mk-padrao){border-right:0;border-bottom:1px solid #EEEDE9}
+.cadastro-b1 .mg-grid tbody td.is-frozen-anchor:not(#mk-padrao),
+.cadastro-b1 .mg-grid thead th.is-frozen-anchor:not(#mk-padrao){border-right:1px solid #E8E7E2}
+.cadastro-b1 .mg-grid tbody td.b1-td--nome:not(#mk-padrao){font-weight:600;color:#141413}
+.cadastro-b1 .mg-grid tbody td.b1-td--cod:not(#mk-padrao){color:#73726C;font-variant-numeric:tabular-nums}
+.cadastro-b1 .mg-grid tbody td.b1-td--vazio:not(#mk-padrao){color:#D1D0CA}
+.cadastro-b1 .mg-grid tfoot td:not(#mk-padrao){border-right:0;border-top:1px solid #E8E7E2;background:#F7F7F4}
+@media (hover: hover) and (pointer: fine){
+  .cadastro-b1 .mg-grid thead th:hover .mg-grid-resize-handle{background:linear-gradient(to right, transparent 2px, #D1D0CA 2px, #D1D0CA 3px, transparent 3px)}
+  .cadastro-b1 .mg-grid tbody tr:not(.selected):hover td:not(#mk-padrao){background:#F7F7F4}
+}
+/* 6.4 rodapé: uma tira fina colada na tabela, em palavras ("12 lotes · 1 selecionado") */
+@media (min-width: 640px){
+  .cadastro-b1 .mg-shell--join-table > .mg-summary:not(#mk-padrao){align-items:center;flex-direction:row;min-height:0;margin-top:-6px;padding:4px 10px 4px 14px;border:0;border-top:1px solid #EEEDE9;border-radius:0 0 12px 12px;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .08))}
+  .cadastro-b1 .mg-shell--join-table:has(> .mg-summary) > :is(.mg-shell__body, .mg-shell__scroll):not(#mk-padrao){border-bottom-right-radius:0;border-bottom-left-radius:0}
+  .cadastro-b1 .mg-summary .mg-summary__counts:not(#mk-padrao){display:flex;flex-wrap:wrap;align-items:center;gap:2px 0}
+  .cadastro-b1 .b1-sum__total{font-weight:600;color:#373733}
+  .cadastro-b1 .b1-sum__sel{color:#73726C}
+  .cadastro-b1 .b1-sum__sel::before{content:"·";margin:0 8px;color:#D1D0CA}
+}
+@media (min-width: 640px) and (max-width: 1023px){.cadastro-b1 .mg-shell--join-table > .mg-summary:not(#mk-padrao){margin-top:-8px}}
+
+/* 6.5 pílula de ordenação e separador */
+.cadastro-b1 .b1-fr-chip--ordem .b1-fr-chip__ic{flex:0 0 14px;color:#73726C}
+.cadastro-b1 .b1-fr-chip--ordem .b1-fr-chip__val{font-weight:500;color:#373733}
+.cadastro-b1 .b1-fr__sep{width:1px;height:18px;flex:0 0 1px;margin:0 2px;background:#E8E7E2}
+body.b1-tela .b1-fr-box--unica{border-color:transparent !important;background:transparent !important;color:transparent}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box--unica{color:#16a34a}
+body.b1-tela .b1-fr-box--unica svg{width:14px;height:14px}
+
+/* 6.6 celular: "tabela" = lista compacta (uma linha por lote, o essencial) */
+.cadastro-b1 .b1-lista-compacta:not(#mk-padrao){padding:0;border:0;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .08));overflow-y:auto}
+.cadastro-b1 .b1-lin{display:flex;align-items:center;gap:10px;min-height:54px;padding:7px 4px 7px 14px;border-bottom:1px solid #EEEDE9;cursor:pointer;-webkit-user-select:none;user-select:none}
+.cadastro-b1 .b1-lin:last-child{border-bottom:0}
+.cadastro-b1 .b1-lin.is-selected{background:var(--mg-selection-bg, rgba(64, 222, 99, .1));box-shadow:inset 3px 0 0 var(--mg-accent, #40de63)}
+.cadastro-b1 .b1-lin__txt{display:flex;min-width:0;flex:1 1 auto;flex-direction:column;gap:2px}
+.cadastro-b1 .b1-lin__titulo{display:flex;min-width:0;align-items:center;gap:6px;overflow:hidden;font-weight:600;line-height:1.25;color:#141413;text-overflow:ellipsis;white-space:nowrap}
+.cadastro-b1 .b1-lin__sub{overflow:hidden;line-height:1.3;color:#73726C;text-overflow:ellipsis;white-space:nowrap}
+.cadastro-b1 .b1-lin__num{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-end;gap:1px}
+.cadastro-b1 .b1-lin__n{font-weight:600;line-height:1.2;color:#141413;font-variant-numeric:tabular-nums}
+.cadastro-b1 .b1-lin__nrot{line-height:1.2;color:#73726C}
+.cadastro-b1 .b1-lin__abrir{display:inline-flex;width:36px;height:40px;flex:0 0 36px;align-items:center;justify-content:center;padding:0;border:0;border-radius:10px;background:transparent;color:#A3A29C;cursor:pointer}
+.cadastro-b1 .b1-lin__abrir:active{background:rgba(20, 20, 19, .06)}
+.cadastro-b1 .b1-tag-inativo{display:inline-flex;flex:0 0 auto;align-items:center;height:16px;margin-left:6px;padding:0 6px;border-radius:999px;background:#F1F1EE;color:#73726C;font-weight:600;line-height:1}
+.cadastro-b1 .b1-lin__titulo .b1-tag-inativo{margin-left:0}
+
+/* 6.7 cards: mesmo conteúdo em todas as telas (o essencial), rótulo em cima do valor em duas colunas */
+.cadastro-b1 .b1-card:not(#mk-padrao){padding:12px}
+.cadastro-b1 .mg-b1-cards-grid{gap:10px}
+.cadastro-b1 .b1-card__sub{display:flex;align-items:center;line-height:1.3;color:#73726C}
+.cadastro-b1 .b1-card .mg-b1-card__title{color:#141413}
+.cadastro-b1 .b1-card .mg-b1-card__fields:not(#mk-padrao){display:grid;grid-template-columns:repeat(2, minmax(0, 1fr)) !important;gap:8px 12px;margin-top:10px;padding-top:10px;border-top:1px solid #EEEDE9}
+.cadastro-b1 .b1-card__par{display:flex;min-width:0;flex-direction:column;gap:1px}
+.cadastro-b1 .b1-card .mg-b1-card__label:not(#mk-padrao){line-height:1.2;color:#73726C}
+.cadastro-b1 .b1-card .mg-b1-card__value{margin:0;line-height:1.3;color:#141413}
+/* tablet: o total já está no rodapé da lista; na faixa fica só o "Limpar filtros" */
+@media (min-width: 640px) and (max-width: 1023px){.cadastro-b1 .b1-fr__conta{display:none}}
+
+/* 6.8 "+ Filtro" sempre à vista: fica fora da parte que desliza (no celular não some mais no fim da faixa) */
+.cadastro-b1 .b1-fr__faixa{display:flex;min-width:0;flex:1 1 auto;align-items:center;gap:6px}
+.cadastro-b1 .b1-fr__trilho{position:relative;display:flex;min-width:0;flex:0 1 auto;align-items:center}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips{flex:0 1 auto}
+.cadastro-b1 .b1-fr__faixa > .b1-fr__sep{margin:0}
+/* 6.8b muitos filtros: a faixa rola de lado e as pontas esmaecem de leve só onde há filtro escondido */
+@property --b1-esc-ini{syntax:'<length>';inherits:false;initial-value:0px}
+@property --b1-esc-fim{syntax:'<length>';inherits:false;initial-value:0px}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips{--b1-esc-ini:0px;--b1-esc-fim:0px;-webkit-mask-image:linear-gradient(to right, transparent 0, #000 var(--b1-esc-ini), #000 calc(100% - var(--b1-esc-fim)), transparent 100%);mask-image:linear-gradient(to right, transparent 0, #000 var(--b1-esc-ini), #000 calc(100% - var(--b1-esc-fim)), transparent 100%);transition:--b1-esc-ini .2s ease, --b1-esc-fim .2s ease}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips[data-esc-ini]{--b1-esc-ini:52px}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips[data-esc-fim]{--b1-esc-fim:52px}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips[data-arrastando]{cursor:grabbing;user-select:none}
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips[data-arrastando] *{cursor:grabbing}
+/* setas nas pontas: aparecem só do lado onde ainda há filtro escondido */
+.cadastro-b1 .b1-fr__seta{position:absolute;top:50%;z-index:2;display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;margin-top:-14px;padding:0;border:0;border-radius:999px;background:var(--mk-btn-bg, #fff);box-shadow:0 1px 4px rgba(20, 20, 19, .16);color:#373733;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease, visibility .18s ease, background-color .15s ease}
+.cadastro-b1 .b1-fr__seta--ini{left:0}
+.cadastro-b1 .b1-fr__seta--fim{right:0}
+.cadastro-b1 .b1-fr__seta:hover{background:#F1F1EE;color:#141413}
+.cadastro-b1 .b1-fr__trilho[data-esc-ini] > .b1-fr__seta--ini,
+.cadastro-b1 .b1-fr__trilho[data-esc-fim] > .b1-fr__seta--fim{opacity:1;visibility:visible;pointer-events:auto}
+@media (max-width: 1023px){.cadastro-b1 .b1-fr__seta{width:30px;height:30px;margin-top:-16px}}
+
+/* 6.9 regra do filtro (operadores em palavras simples): Qualquer · Igual a · A partir de · Até · Entre … */
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:300px}
+body.b1-tela .b1-fr-regra{display:flex;flex:0 0 auto;flex-direction:column;gap:8px;padding:8px;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
+body.b1-tela .b1-fr-regra__ops{display:flex;flex-wrap:wrap;gap:6px}
+body.b1-tela .b1-fr-regra__op{height:28px;padding:0 10px;border:1px solid #DEDDD8;border-radius:999px;background:#fff;color:#52514E;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .12s ease, border-color .12s ease}
+body.b1-tela .b1-fr-regra__op:hover{border-color:#CAC9C3}
+body.b1-tela .b1-fr-regra__op.is-on{border-color:transparent;background:#e6f9ea;color:#14532d;font-weight:600}
+body.b1-tela .b1-fr-regra__vals{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+body.b1-tela .b1-fr-regra__v:not(#mk-padrao){min-width:0;flex:1 1 110px;height:34px;box-sizing:border-box;padding:0 10px;border:1px solid #DEDDD8;border-radius:8px;background:#fff;color:#141413;font:inherit;font-weight:500;outline:none}
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){border-color:var(--mg-accent, #40de63);background:#fff;box-shadow:0 0 0 3px rgba(64, 222, 99, .18)}
+body.b1-tela .b1-fr-regra__e{flex:0 0 auto;color:#73726C}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__op{height:34px;padding:0 12px}body.b1-tela .b1-fr-regra__v:not(#mk-padrao){height:40px}}
+
+/* 6.10 celular: sem faixa de pílulas — o funil abre a lista "Filtros" (com "+" em cima para adicionar);
+   na tela fica só a linha do total */
+@media (max-width: 639px){.cadastro-b1 .b1-fr{margin:0 0 2px;padding:0}.cadastro-b1 .b1-fr__resumo{padding:0 6px 2px}}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-nav:not(#mk-padrao){gap:10px}
+body.b1-tela .b1-fr-nav__val{max-width:55%;flex:0 1 auto;overflow:hidden;color:#A3A29C;text-align:right;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-nav.is-on .b1-fr-nav__val{font-weight:600;color:#15803d}
+body.b1-tela .b1-fr-nav__seta{flex:0 0 16px;color:#D1D0CA}
+body.b1-tela .b1-fr-menu__limpar{align-self:center;margin-top:2px;padding:8px 12px;border:0;background:transparent;color:#52514E;font:inherit;font-weight:600;text-decoration:underline;text-decoration-color:#D1D0CA;text-underline-offset:3px;cursor:pointer}
+
+/* 6.11 condição do filtro em LISTA, igual ao filtro do cabeçalho da tabela (botão que abre as opções) */
+body.b1-tela .b1-fr-regra__sel{display:flex;width:100%;height:30px;box-sizing:border-box;align-items:center;gap:8px;padding:0 10px 0 12px;border:0;border-radius:999px;background:#ECEBE6;box-shadow:none;color:#141413;font:inherit;font-weight:500;text-align:left;cursor:pointer;outline:0}
+body.b1-tela .b1-fr-regra__sel:hover{background:#E9E8E3}
+body.b1-tela .b1-fr-regra__sel[aria-expanded="true"],
+body.b1-tela .b1-fr-regra__sel:focus,
+body.b1-tela .b1-fr-regra__sel:focus-visible{border:0;background:#ECEBE6;box-shadow:none;outline:0}
+body.b1-tela .b1-fr-regra__sel-l{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-regra__sel-c{flex:0 0 14px;color:#6B6A66;transition:transform .15s ease}
+body.b1-tela .b1-fr-regra__sel[aria-expanded="true"] .b1-fr-regra__sel-c{transform:rotate(180deg)}
+body.b1-tela .b1-fr-regra__lista{display:flex;flex-direction:column;margin:-2px 0 0;border:1px solid #EEEDE9;border-radius:10px;overflow:hidden}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:30px;padding-top:4px;padding-bottom:4px}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-padrao){background:#f1fcf4;color:#15803d;font-weight:600}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__sel{height:40px}body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:40px}}
+
+/* 6.12 linha marcada: as células fixas (caixa de seleção e colunas congeladas) ficam opacas — o texto que passa por baixo ao rolar de lado não aparece mais */
+.cadastro-b1 tr[data-testid="b1-row"][aria-selected="true"] > td.sticky:not(#mk-padrao){background-color:#fff !important;background-image:linear-gradient(rgba(64, 222, 99, .12), rgba(64, 222, 99, .12)) !important}
+
+/* 6.13 filtro rápido: condição sem cartão branco; lista de condições abre por cima (não empurra nada); valor sempre à vista e limpo; botão Aplicar */
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){overflow:visible}
+body.b1-tela .b1-fr-regra{position:relative;gap:2px;padding:2px 0 0;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .b1-fr-regra__lista{position:absolute;top:36px;right:0;left:0;z-index:6;max-height:264px;margin:0;border:1px solid #ECEBE6;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(20, 20, 19, .16), 0 2px 6px rgba(20, 20, 19, .06);overflow-y:auto}
+body.b1-tela .b1-fr-regra__vals{flex-wrap:nowrap;gap:8px;padding:0 4px}
+body.b1-tela .b1-fr-regra__v:not(#mk-padrao),
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){min-width:0;flex:1 1 0;height:32px;padding:0 8px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none;color:#141413;font-weight:500;outline:0}
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){border-bottom-color:var(--mg-accent, #40de63)}
+body.b1-tela .b1-fr-regra__v::placeholder{color:#A3A29C;font-weight:400;opacity:1}
+/* pesquisa da lista: a mesma pílula branca de todas as listas (padrão único) */
+body.b1-tela .b1-fr-acoes{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;padding:6px 4px 2px}
+body.b1-tela .b1-fr-acoes__limpar{height:30px;margin-right:auto;padding:0 10px;border:0;border-radius:999px;background:transparent;color:#52514E;font:inherit;font-weight:500;cursor:pointer}
+body.b1-tela .b1-fr-acoes__limpar:hover{background:#EEEDE9;color:#141413}
+body.b1-tela .b1-fr-acoes__aplicar{display:inline-flex;height:30px;align-items:center;gap:6px;padding:0 14px 0 11px;border:0;border-radius:999px;background:var(--mg-accent, #40de63);box-shadow:0 1px 3px rgba(20, 20, 19, .12);color:#fff;font:inherit;font-weight:600;cursor:pointer;transition:filter .15s ease}
+body.b1-tela .b1-fr-acoes__aplicar:hover{filter:brightness(.96)}
+body.b1-tela .b1-fr-acoes__aplicar:focus-visible,
+body.b1-tela .b1-fr-acoes__limpar:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__lista{top:46px;max-height:330px}body.b1-tela .b1-fr-regra__v:not(#mk-padrao),
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){height:40px}body.b1-tela .b1-fr-acoes__limpar,
+body.b1-tela .b1-fr-acoes__aplicar{height:36px}}
+
+/* 6.14 rodapé do filtro igual ao do sistema: X cancela · ✓ (visto) aplica */
+body.b1-tela .b1-fr-acoes{justify-content:space-between;padding:6px 2px 2px}
+body.b1-tela .b1-fr-acoes__limpar{margin:0}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-padrao){display:inline-flex;width:auto;height:auto;padding:0;gap:0;box-shadow:none}
+
+/* 6.15 PADRÃO ÚNICO DE ALTURA — desktop 32 · tablet 40 · celular: botões 44, linhas e campos 40
+   (campos do formulário com rótulo dentro, navegação e ícones dentro de campo ficam de fora) */
+@media (min-width: 1024px){
+  /* botões e pílulas: 32 */
+  .cadastro-b1 .b1-fr-chip:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){height:32px}
+  body.b1-tela .b1-fr-regra__sel:not(#mk-a):not(#mk-b){height:32px}
+  body.b1-tela .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:38px}
+  .cadastro-b1 .b1-panel-tab:not(#mk-a):not(#mk-b){height:32px;min-height:32px}
+  .cadastro-b1 .mg-pill-select:not(#mk-a):not(#mk-b){height:32px !important;min-height:32px !important}
+  /* campos de pesquisa: 32 */
+  .cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b){height:32px !important;min-height:32px !important}
+  body.b1-tela .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc__busca:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:32px}
+  body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
+  /* linhas de lista e de menu: 32 */
+  body.b1-tela .mk-sel-op:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc__item:not(#mk-a):not(#mk-b),
+body.b1-tela .mg-b1-menuitem:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-options label:not(#mk-a):not(#mk-b){min-height:32px;padding-top:4px;padding-bottom:4px}
+}
+@media (min-width: 640px) and (max-width: 1023px){
+  /* botões e pílulas: 40 */
+  .cadastro-b1 .b1-fr-chip:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){height:40px}
+  .cadastro-b1 .mg-pill-select:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
+  body.b1-tela .mk-thdr__empresa:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
+  .cadastro-b1 .view-seg:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
+  .cadastro-b1 .view-seg:not(#mk-a):not(#mk-b) > button{width:34px !important;min-width:34px !important;height:34px !important;min-height:34px !important}
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
+}
+@media (max-width: 639px){
+  /* linhas e campos: 40 */
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
+}
+
+/* 6.16 UM PADRÃO DE COR E FUNDO PARA AS TRÊS TELAS (desktop = tablet = celular)
+   fundo da tela e das janelas: creme #F9F9F7 · cartões e listas: branco · botões: #FFFFFF com a mesma sombra · ícones: grafite #373733 */
+body.b1-tela:not(#mk-a):not(#mk-b),
+body.b1-tela:not(#mk-a):not(#mk-b) .cadastro-b1{
+  --mk-sup-fundo:#F9F9F7;--mk-btn-bg:#FFFFFF;--mk-btn-hover:#F1F1EE;
+  --mk-btn-sombra:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);
+  --mk-cartao-sombra:0 1px 3px rgba(20, 20, 19, .1);
+  --mk-action-fg:#373733;--mk-action-fg-muted:#373733;--mk-icon-close:#373733;--portal-acao-fg:#373733;--portal-acao-bg:#FFFFFF;
+}
+body.b1-tela:not(#mk-a):not(#mk-b){background:#F9F9F7 !important}
+/* botões neutros (ícone e texto): mesma cor de ícone/texto e mesmo fundo em todo lugar */
+.cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
+.cadastro-b1 .view-seg button:not([aria-pressed="true"]):not(.is-active):not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet__close:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b){color:#373733 !important}
+.cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b) svg,
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b) svg,
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b) svg{color:#373733 !important}
+.cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
+.cadastro-b1 .view-seg:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet__close:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b){background-color:#FFFFFF !important;box-shadow:var(--mk-btn-sombra) !important}
+body.b1-tela .mk-sheet__new:not(#mk-a):not(#mk-b),
+.cadastro-b1 .tb-btn.tb-btn-green.mg-act-ic:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-mhdr__round:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){box-shadow:var(--mk-btn-sombra) !important}
+/* pílulas de filtro e "+ Filtro": o mesmo botão */
+.cadastro-b1 .b1-fr-chip:not(.is-on):not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-fr__seta:not(#mk-a):not(#mk-b){background-color:#FFFFFF;box-shadow:var(--mk-btn-sombra);color:#373733}
+/* cartões (tabela, cards, registro, seções, listas): branco com a mesma sombra */
+.cadastro-b1 .mg-shell__body:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-summary:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-card:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-reg-cab:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-aba-cartao:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mk-sel-lista:not(#mk-a):not(#mk-b){box-shadow:var(--mk-cartao-sombra)}
+/* janelas (lista do campo, filtro, menus, lista de marcar): mesmo fundo creme */
+body.b1-tela .mk-sel-pop:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-popup:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet:not(#mk-a):not(#mk-b){background-color:#F9F9F7}
+/* título de seção igual nas três telas */
+.cadastro-b1 :is(.b1-secao__titulo, .b1-aba-cartao__titulo):not(#mk-a):not(#mk-b){color:#373733;font-weight:600}
+/* caixa de marcar: mesmo canto */
+body.b1-tela .b1-fr-box:not(#mk-a):not(#mk-b){border-radius:5px}
+/* celular: campo de valor do filtro também sem fundo (igual desktop e tablet) */
+body.b1-tela .mk-sheet .b1-fr-regra__v:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border-bottom-color:var(--mg-accent, #40de63)}
+/* celular: lista do campo igual à do desktop (linha divisória e escolhido em destaque) */
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){border-bottom:1px solid #EEEDE9}
+body.b1-tela .mk-sheet .mgs__op:last-child:not(#mk-a):not(#mk-b){border-bottom:0}
+body.b1-tela .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .13);font-weight:600}
+
+/* 6.17 tabela: botão de opções da coluna (⋮) sempre à vista, com área de toque maior no tablet e no celular */
+.cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b){opacity:1;color:#73726C}
+.cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b) svg{width:14px !important;height:14px !important}
+@media (max-width: 1023px){
+  .cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b){width:32px !important;min-width:32px !important;height:32px !important;min-height:32px !important;margin-right:-6px}
+  .cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b) svg{width:16px !important;height:16px !important}
+}
+/* 6.16b acertos finos do padrão único */
+body.b1-tela .mk-sheet .mk-sheet__close:not(#mk-a):not(#mk-b):not(#mk-c),
+body.b1-tela .mk-sheet .mk-sheet__new:not(#mk-a):not(#mk-b):not(#mk-c){box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
+body.b1-tela .b1-fr-pop__titulo:not(#mk-a):not(#mk-b){color:#262624}
+
+/* 6.18 filtro com UM campo só (modelo de pesquisa das listas); "Está entre" mostra dois lado a lado */
+body.b1-tela .b1-fr-campos{display:flex;flex:0 0 auto;gap:6px;min-width:0}
+body.b1-tela .b1-fr-campos > .mk-sel-busca:not(#mk-a):not(#mk-b){width:0;min-width:0;flex:1 1 0}
+body.b1-tela .b1-fr-campos .b1-fr-campo:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-fr-campos .b1-fr-campo:focus:not(#mk-a):not(#mk-b){width:100%;min-width:0;height:100%;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit}
+body.b1-tela .b1-fr-campos .b1-fr-campo::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-fr-regra:not(#mk-a):not(#mk-b){padding-bottom:0}
+
+/* 6.19 rodapé do filtro: X · [Tirar da faixa] [Limpar] · ✓ — tudo centralizado, mesmo botão do resto do sistema */
+body.b1-tela .b1-fr-acoes:not(#mk-a):not(#mk-b){display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:8px;padding:8px 2px 2px}
+body.b1-tela .b1-fr-acoes__meio{display:flex;min-width:0;flex:1 1 auto;align-items:center;justify-content:center;gap:6px}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){display:inline-flex;width:32px;min-width:32px;height:32px;min-height:32px;flex:0 0 32px;align-items:center;justify-content:center;margin:0;padding:0;gap:0;border:0;border-radius:999px;cursor:pointer;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b){background:#FFFFFF;color:#373733}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){background:var(--mg-accent, #40de63);color:#fff}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b):hover{filter:brightness(.96)}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar) svg{display:block;flex:0 0 auto;margin:0}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){display:inline-flex;height:32px;min-width:0;align-items:center;justify-content:center;gap:6px;margin:0;padding:0 12px;border:0;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);color:#373733;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn svg{flex:0 0 auto;color:#73726C}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar, .b1-fr-acoes__btn):focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+@media (min-width: 640px) and (max-width: 1023px){
+  body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-a):not(#mk-b){width:340px}
+  body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
+  body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 14px}
+}
+@media (max-width: 639px){
+  body.b1-tela .b1-fr-acoes:not(#mk-a):not(#mk-b){padding:10px 2px 4px}
+  body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 16px}
+}
+/* 6.20 pílulas de filtro: a sombra não é mais cortada pela faixa que rola (fica igual à dos outros botões) */
+.cadastro-b1 .b1-fr__trilho > .b1-fr__chips:not(#mk-a):not(#mk-b){margin:-8px -8px -12px;padding:8px 8px 12px}
+.cadastro-b1 .b1-fr__trilho:not(#mk-a):not(#mk-b){padding:3px 2px 5px}
+.cadastro-b1 .b1-fr-chip:not(#mk-a):not(#mk-b),
+.cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045)}
+
+/* 6.21 cabeçalho da tabela branco (nas três telas) */
+.cadastro-b1 .mg-grid thead th:not(#mk-a):not(#mk-b){background:#fff !important}
+.cadastro-b1 .mg-grid thead th:not(#mk-a):not(#mk-b){border-bottom:1px solid #E8E7E2}
+/* 6.22 muitos registros: só um bloco é desenhado; o resto entra ao rolar ou no botão */
+.cadastro-b1 .b1-mais{position:sticky;left:0;display:flex;box-sizing:border-box;width:100%;max-width:100vw;align-items:center;justify-content:center;gap:10px;padding:10px 12px 12px;color:#73726C}
+.cadastro-b1 .b1-mais__btn{height:32px;padding:0 14px;border:0;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);color:#373733;font:inherit;font-weight:600;cursor:pointer}
+.cadastro-b1 .b1-mais__btn:hover{background:#F1F1EE}
+@media (max-width: 1023px){.cadastro-b1 .b1-mais__btn{height:40px;padding:0 16px}}
+body.b1-tela .b1-fr-maisopc{padding:8px 12px;border-top:1px solid #EEEDE9;color:#73726C;text-align:center}
+/* 6.23 título acima da barra (posição que você escolheu no editor): sem o tracinho que separava dos botões */
+.cadastro-b1 > .b1-tb-titulo:not(#mk-a):not(#mk-b){margin:0;padding:2px 2px 0;border-right:0}
+
+/* 6.24 registro: nome e código na barra de botões (depois deles); ‹ › na linha das abas, à direita; sem o cartão de cabeçalho */
+.cadastro-b1 .b1-reg-id{order:99;display:inline-flex;min-width:0;flex:0 1 auto;align-items:baseline;gap:8px;margin-left:8px;padding-left:12px;border-left:1px solid #E8E7E2;overflow:hidden;white-space:nowrap}
+.cadastro-b1 .b1-reg-id__nome{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.3;letter-spacing:-.01em;color:#141413}
+.cadastro-b1 .b1-reg-id__cod{flex:0 0 auto;font-weight:500;color:#73726C}
+.cadastro-b1 .mg-toolbar__row--actions:has(> .b1-reg-id){min-width:0;flex:1 1 auto}
+.cadastro-b1 .b1-reg-nav{display:inline-flex;flex:0 0 auto;align-items:center;gap:4px;margin-left:auto}
+.cadastro-b1 .b1-reg-nav .mg-b1-record-nav{min-width:44px;padding:0 4px;color:#73726C;font-variant-numeric:tabular-nums;text-align:center}
+.cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-rail:not(#mk-a):not(#mk-b){display:flex;align-items:center}
+.cadastro-b1 .b1-reg-navlinha{display:flex;justify-content:flex-end;margin:0 0 8px;padding:0 2px}
+.cadastro-b1 [data-testid="b1-toolbar"] .mg-toolbar__btns:not(#mk-a):not(#mk-b){order:100}
+
+/* 6.25 formulário sem os nomes de grupo (Lote, Localização, Animais…): os campos seguem direto, com o mesmo espaço entre as linhas */
+.cadastro-b1 .b1-grupo + .b1-grupo:not(#mk-a):not(#mk-b){margin-top:var(--b1-grupo-vao, 12px)}
+
+/* 6.26 estilo do app (referência enviada): botões brancos redondos com sombra macia sobre fundo claro quente; texto grafite, legenda cinza */
+body.b1-tela .mk-mhdr__title:not(#mk-a):not(#mk-b){color:#141413;font-weight:700}
+body.b1-tela .mk-mhdr__sub:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-mhdr__sub:not(#mk-a):not(#mk-b) svg{color:#6B6A66}
+
+/* 6.27 ÍCONES no estilo da referência: traço fino e arredondado, um pouco maiores dentro do botão, grafite */
+body.b1-tela:not(#mk-a):not(#mk-b),
+body.b1-tela:not(#mk-a):not(#mk-b) .cadastro-b1{--mk-action-stroke:1.75;--mk-action-icon:16px;--mk-action-icon-touch:20px}
+body.b1-tela svg.lucide:not(.mg-check__icon):not(#mk-a):not(#mk-b){stroke-width:1.75 !important;stroke-linecap:round;stroke-linejoin:round}
+/* tamanho do desenho dentro do botão: desktop 16 (botão 32) · tablet 20 (botão 40) · celular 22 (botão 44) */
+body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{box-sizing:content-box;width:16px !important;height:16px !important;padding:0 !important;flex:0 0 auto}
+@media (min-width: 640px) and (max-width: 1023px){
+  body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn, .mk-thdr__icone):not(#mk-a):not(#mk-b) svg{width:20px !important;height:20px !important}
+}
+@media (max-width: 639px){
+  body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{width:22px !important;height:22px !important}
+  body.b1-tela .mk-tabbar__item:not(#mk-a):not(#mk-b) svg{width:22px;height:22px}
+}
+
+/* 6.28 LISTAS E PESQUISA no modelo do Claude (referência enviada):
+   janela branca · pesquisa lisa, sem caixa, com uma linha embaixo de ponta a ponta · "+" de cadastrar dentro do campo, à direita ·
+   linhas sem risco entre elas, realce arredondado ao passar · escolhido marcado com o visto à direita */
+body.b1-tela .mk-sel-pop.b1-lista-pop:not(#mk-a):not(#mk-b){gap:0;padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .b1-pq{display:flex;flex:0 0 auto;box-sizing:border-box;align-items:center;gap:2px;min-height:36px;margin:-4px -4px 4px;padding:0 6px 0 16px;border-bottom:1px solid #E8E7E2;background:transparent}
+body.b1-tela .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){min-width:0;width:100%;height:36px;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit;font-weight:400}
+body.b1-tela .b1-pq .b1-pq__in::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-pq__btn{display:inline-flex;width:28px;height:28px;flex:0 0 28px;align-items:center;justify-content:center;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:#73726C;cursor:pointer;transition:background-color .12s ease, color .12s ease}
+body.b1-tela .b1-pq__btn:hover{background:#F1F1EE;color:#141413}
+body.b1-tela .b1-pq__btn:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+body.b1-tela .b1-pq__novo{color:#373733}
+body.b1-tela .b1-pq:focus-within{border-bottom-color:#D1D0CA}
+/* a lista deixa de ser um cartão dentro da janela */
+body.b1-tela .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;scrollbar-width:thin;scrollbar-color:#D1D0CA transparent}
+/* linhas */
+body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b):is(:hover, .is-hi),
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b):is(:hover, .is-hi){background:#F1F1EE}
+body.b1-tela .b1-lista-pop .mk-sel-op .mk-sel-op__check:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op svg.lucide-check:not(#mk-a):not(#mk-b){flex:0 0 auto;margin-left:auto;color:#16a34a}
+body.b1-tela .b1-lista-pop .mk-sel-vazio:not(#mk-a):not(#mk-b){padding:10px 12px;color:#73726C}
+/* filtro: mesma janela branca; a caixa de marcar continua à esquerda */
+body.b1-tela .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:6px}
+body.b1-tela .b1-fr-pop .b1-pq{margin:2px -6px 4px}
+body.b1-tela .b1-fr-campos:not(#mk-a):not(#mk-b){gap:0}
+body.b1-tela .b1-fr-campos > .b1-pq{min-width:0;flex:1 1 0}
+body.b1-tela .b1-fr-campos > .b1-pq + .b1-pq{border-left:1px solid #E8E7E2}
+body.b1-tela .b1-fr-maisopc:not(#mk-a):not(#mk-b){border-top:0}
+/* celular (folha): mesmo modelo, com alturas de toque */
+body.b1-tela .mk-sheet .b1-pq{min-height:44px;margin:0 -4px 6px;padding:0 4px 0 12px}
+body.b1-tela .mk-sheet .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
+body.b1-tela .mk-sheet .b1-pq__btn{width:40px;height:40px;flex-basis:40px;border-radius:999px}
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
+@media (min-width: 640px) and (max-width: 1023px){
+  body.b1-tela .b1-pq{min-height:44px}body.b1-tela .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
+  body.b1-tela .b1-pq__btn{width:36px;height:36px;flex-basis:36px}
+  body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
+}
+/* folha do celular: mesma janela branca das listas */
+body.b1-tela .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){background-color:#fff}
+
+/* 6.29 O MESMO MODELO EM TODA LISTAGEM (filtros, ordenar, "+ Filtro", menus, colunas, campos dos cards, sistema produtivo, quantidade, sugestões):
+   janela branca · linhas sem risco · realce arredondado · escolhido com o visto verde à direita · pesquisa lisa com uma linha embaixo */
+body.b1-tela{--b1-visto:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")}
+
+/* ---- filtros / ordenar / "+ Filtro": sai a caixinha da esquerda, entra o visto à direita */
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){gap:8px;padding-left:12px;padding-right:10px}
+body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;border-radius:0;background:transparent !important;color:transparent}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box:not(#mk-a):not(#mk-b){color:#16a34a}
+body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:16px;height:16px;stroke-width:1.9}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-op__txt:not(#mk-a):not(#mk-b){font-weight:400;color:#141413}
+body.b1-tela .b1-fr-op .b1-fr-op__n:not(#mk-a):not(#mk-b){color:#A3A29C}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b) .b1-fr-op__txt{font-weight:400}
+/* condições (É igual a, Contém…): mesma janela e mesmas linhas */
+body.b1-tela .b1-fr-regra__lista:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+/* celular: lista "Filtros" */
+body.b1-tela .b1-fr-nav .b1-fr-nav__seta:not(#mk-a):not(#mk-b){color:#A3A29C}
+body.b1-tela .b1-fr-nav.is-on .b1-fr-nav__val:not(#mk-a):not(#mk-b){font-weight:500;color:#16a34a}
+
+/* ---- menus (Mais opções, opções da coluna) */
+body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2 !important;border-radius:12px;background:#fff !important;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06) !important;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b):hover:not(:disabled){background:#F1F1EE}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b) svg{color:#52514E}
+
+/* ---- "Filtrar por campo" */
+body.b1-tela .fpc:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{height:36px !important;min-height:36px !important;margin:-4px -4px 4px;padding:0 10px 0 16px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) .mk-pill__icon{display:none}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:36px !important;min-height:0 !important;padding:0;background:transparent}
+body.b1-tela .fpc .fpc__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .fpc .fpc__chev:not(#mk-a):not(#mk-b){color:#A3A29C}
+
+/* ---- sugestões da pesquisa */
+body.b1-tela .mg-search-suggest:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b){padding:6px 12px;border:0 !important;border-radius:8px;background:transparent}
+body.b1-tela .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b):is(:hover, .is-hi, .is-active, [aria-selected="true"]){background:#F1F1EE}
+
+/* ---- quantidade de registros (100, 200…) */
+body.b1-tela .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mg-pill-select-panel .cmd-panel-options:not(#mk-a):not(#mk-b){padding:0;border:0;background:transparent;box-shadow:none}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 30px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b){background:var(--b1-visto) no-repeat right 8px center / 16px 16px transparent}
+body.b1-tela .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b):hover{background-color:#F1F1EE}
+
+/* ---- Sistema Produtivo (lista de marcar) */
+body.b1-tela .mk-map-multi-popup:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-title:not(#mk-a):not(#mk-b){padding:6px 12px 4px;color:#73726C;font-weight:500}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options:not(#mk-a):not(#mk-b){gap:0;padding:0;border:0;background:transparent}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b){position:relative;min-height:32px;padding:4px 34px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400;cursor:pointer}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b) input{position:absolute;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):has(input:checked){background-image:var(--b1-visto);background-repeat:no-repeat;background-position:right 10px center;background-size:16px 16px}
+
+/* ---- Colunas da tabela e Campos dos cards */
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b):focus-within{padding:0 8px 0 12px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) > svg{display:none}
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{background:transparent}
+body.b1-tela .dbox .dbox-l:not(#mk-a):not(#mk-b){padding:4px;border-color:#E8E7E2;border-radius:12px;background:#fff}
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .dbox .dlin.sel:not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .14)}
+body.b1-tela .mk-config-options:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:none}
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;background:transparent !important;color:#16a34a}
+body.b1-tela .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b) svg{width:14px;height:14px;stroke:#16a34a;stroke-width:1.6}
+@media (max-width: 1023px){
+  body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b),
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b),
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:40px;padding-top:6px;padding-bottom:6px}
+  body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within,
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:44px !important}
+  body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){width:20px;height:20px;flex-basis:20px}body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:18px;height:18px}
+}
+body.b1-tela .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){width:auto !important;min-width:112px !important}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b) .truncate{overflow:visible;text-overflow:clip}
+
+/* 6.30 CAMPOS, FILTROS E LISTAGENS IGUAIS: tudo que tem pesquisa começa pela mesma linha de pesquisa (lisa, com uma linha embaixo);
+   o que é próprio de cada janela fica DENTRO dessa linha, à direita: "+" (cadastrar) na lista do campo, "Condição ⌄" no filtro */
+body.b1-tela .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:4px}
+body.b1-tela .b1-fr-pop .b1-pq:not(#mk-a):not(#mk-b){margin:-4px -4px 4px}
+body.b1-tela .b1-fr-campos:not(#mk-a):not(#mk-b){position:relative;display:flex;flex:0 0 auto;flex-direction:column;gap:0}
+body.b1-tela .b1-fr-campos > .b1-pq:not(#mk-a):not(#mk-b){width:auto;flex:0 0 auto}
+body.b1-tela .b1-fr-campos > .b1-pq + .b1-pq:not(#mk-a):not(#mk-b){margin-top:0;border-left:0}
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){display:inline-flex;width:auto;max-width:58%;height:28px;flex:0 0 auto;align-items:center;gap:4px;margin:0;padding:0 6px 0 8px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:#73726C;font:inherit;font-weight:400;white-space:nowrap;cursor:pointer}
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):hover,
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b)[aria-expanded="true"]{background:#F1F1EE;color:#141413}
+body.b1-tela .b1-pq .b1-pq__cond.is-on:not(#mk-a):not(#mk-b){color:#141413;font-weight:500}
+body.b1-tela .b1-pq .b1-pq__cond .b1-fr-regra__sel-l{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+body.b1-tela .b1-pq .b1-pq__cond .b1-fr-regra__sel-c{flex:0 0 14px;color:currentColor;opacity:.7}
+body.b1-tela .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:calc(100% - 2px);right:0;left:auto;width:min(100%, 232px)}
+body.b1-tela .b1-fr-acoes__conta{min-width:0;overflow:hidden;color:#73726C;text-overflow:ellipsis;white-space:nowrap}
+/* "Filtrar por campo": a pesquisa encosta no topo, igual às outras */
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{margin-top:-4px}
+/* pesquisa da barra de cima: o mesmo campo liso com a linha embaixo */
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-search-pill.is-active:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-search-pill:focus-within:not(#mk-a):not(#mk-b){border:0 !important;border-bottom:1px solid #D1D0CA !important;border-radius:0 !important;background:transparent !important;box-shadow:none !important;padding-left:4px;padding-right:2px}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) > svg.lucide-search{display:none}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input{background:transparent;color:#141413}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input::placeholder{color:#A3A29C;opacity:1}
+@media (max-width: 1023px){
+  body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){height:36px}
+}
+body.b1-tela .mk-sheet .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){width:min(100%, 280px)}
+
+/* 6.32 MOVIMENTO (nada de cor ou desenho novo: só como as coisas abrem, fecham e respondem ao toque)
+   a) menus e janelas NASCEM DO BOTÃO (o contorno do botão cresce até virar a janela; o conteúdo vem do desfoque; passa um
+      pouco do tamanho e assenta) e voltam para ele ao fechar. As medidas são calculadas no clique, em px — ver iniciarMovimento().
+      Aqui só se desligam as animações antigas dessas janelas, para não brigarem com a nova. */
+@keyframes mk-surge{from{opacity:0}}
+@keyframes mk-some{to{opacity:0}}
+@keyframes mk-folha-sai{to{translate:0 calc(100% + 24px)}}
+@keyframes mk-entra{from{opacity:0;translate:0 6px}}
+@keyframes mk-entra-lado{from{opacity:0;translate:14px 0}}
+@keyframes mk-empurra{from{opacity:.2;translate:34% 0}}
+@keyframes mk-empurra-d{from{opacity:0;translate:32px 0}}
+@keyframes mk-estala{0%{scale:.4;opacity:0}60%{scale:1.14;opacity:1}100%{scale:1}}
+body.b1-tela :is([data-radix-popper-content-wrapper] > *, .fpc--pop, .fpop.pop, .b1-fr-regra__lista, .mg-search-suggest, .mdlc, .mg-confirm-dialog):not(#mk-a):not(#mk-b){animation:none !important}
+body.b1-tela [data-mk-abre]{will-change:transform, clip-path, opacity}
+body.b1-tela .mk-fantasmas{position:static;width:0;height:0;flex:0 0 0;overflow:visible;pointer-events:none}
+body.b1-tela .mk-fantasmas *{pointer-events:none !important}
+body.b1-tela .mk-fantasmas [data-mk-fantasma] *{animation:none !important}
+/* o menu de "⋮" cobre o botão, como no aplicativo: sem escurecer a tela por trás */
+body.b1-tela .mg-mais-opcoes-scrim:not(#mk-a){background:transparent}
+/* b) folha do celular: sobe desacelerando (curva das folhas do iPhone) com o fundo escurecendo junto; ao fechar, desce */
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet:not(#mk-a):not(#mk-b){animation:mk-sheet-in .5s cubic-bezier(.32, .72, 0, 1)}
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet-scrim{animation:mk-surge .36s ease}
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet__body > *{animation:mk-entra .26s cubic-bezier(.2, .8, .2, 1) backwards}
+body.b1-tela .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-folha-sai .3s cubic-bezier(.4, 0, .7, .2) forwards !important}
+body.b1-tela .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet-scrim:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-some .28s ease forwards !important}
+/* c) toque: o botão cede e volta com mola — feito no clique (iniciarMovimento), sem mexer nas transições que já existiam */
+/* d) detalhes: o visto estala ao marcar; telas entram suaves; abrir um lote empurra a ficha pela direita */
+body.b1-tela :is(svg.mk-sel-op__check, svg.mg-check__icon, .b1-fr-box > svg, .fopt-c > svg, .fck svg){animation:mk-estala .26s cubic-bezier(.3, 1.4, .4, 1)}
+body.b1-tela :is(.mg-toolbar__row--search, .b1-reg-nav){animation:mk-entra-lado .26s cubic-bezier(.2, .8, .2, 1) backwards}
+body.b1-tela :is(.mg-b1-cards-grid, .b1-linhas){animation:mk-surge .24s ease backwards}
+body.b1-tela .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra .46s cubic-bezier(.32, .72, 0, 1) backwards !important}
+@media (min-width: 1024px){body.b1-tela .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra-d .32s cubic-bezier(.2, .8, .2, 1) backwards !important}}
+body.b1-tela .mg-toast-host{animation:mk-entra .3s cubic-bezier(.2, 1.1, .3, 1) backwards}
+@media (prefers-reduced-motion: reduce){
+  body.b1-tela *,
+body.b1-tela *::before,
+body.b1-tela *::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}
+}
+
+/* 6.33 ALINHAMENTO: botões, filtros e listas na mesma régua
+   a) barra de ações: quando o grupo "Novo…" some (edição), não sobra o espaço de 8px na frente dos outros botões */
+.cadastro-b1 .mg-toolbar__row--actions > .mg-fluid-slot--primary:not(.is-open):not(#mk-a){margin-right:-8px}
+/* b) computador: os dois grupos de botões na mesma altura; filtros e abas começam na mesma régua do "Novo" e da tabela */
+@media (min-width: 1024px){
+  .cadastro-b1 .mg-toolbar__row--actions:not(#mk-a):not(#mk-b){padding-top:3px;padding-bottom:3px}
+  .cadastro-b1 .b1-form--abas-fora .b1-panel-tabs-rail:not(#mk-a):not(#mk-b){margin-left:-4px;margin-right:-4px}
+}
+@media (min-width: 768px){
+  .cadastro-b1 .b1-fr:not(#mk-a):not(#mk-b){margin-left:-4px}
+  .cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){margin-bottom:2px}
+}
+/* c) tablet: botões da barra na mesma régua da tabela (sem o recuo de 10px); setas ‹ › na régua do "mais opções" */
+@media (min-width: 768px) and (max-width: 1023px){
+  .cadastro-b1 .mg-toolbar:not(#mk-a):not(#mk-b){padding-left:0 !important;padding-right:0 !important}
+  .cadastro-b1 .b1-reg-navlinha:not(#mk-a){padding-left:0;padding-right:0}
+}
+/* d) celular: botões do cabeçalho na mesma régua dos de baixo (8px); funil na mesma altura da lupa */
+@media (max-width: 767px){
+  body.b1-tela .mk-mhdr:not(#mk-a):not(#mk-b){padding-left:8px;padding-right:8px}
+  .cadastro-b1 .mg-toolbar__btns > .mg-filtros-btn:not(#mk-a):not(#mk-b){align-self:flex-start;margin-top:4px}
+}
+/* e) celular: o menu do "⋮" da coluna com o mesmo desenho do "mais opções" (canto, respiro e espaço entre ícone e nome) */
+@media (max-width: 767px){
+  body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel):not(#mk-a):not(#mk-b){width:auto;min-width:240px;padding:6px;border-radius:26px}
+  body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel) .mg-b1-menuitem:not(#mk-a):not(#mk-b){gap:16px}
+}
+/* f) lista de um campo: da largura do campo (antes parava em 480px e ficava menor que ele) */
+body.b1-tela [data-radix-popper-content-wrapper] > .mk-sel-pop.b1-lista-pop:not(.b1-fr-pop):not(#mk-a):not(#mk-b){max-width:calc(100vw - 16px)}
+

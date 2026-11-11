@@ -133,7 +133,7 @@
 }
 .b1ref .foperadores .fopt.on:not(#mk-padrao) {
   background: rgba(64, 222, 99, 0.14);
-  color: #292a2d;
+  color: #262624;
 }
 .b1ref :is(.fselb-c, .fopt-c):not(#mk-padrao) svg { width: 16px; height: 16px; }
 .cadastro-b1 .cmd-panel__search:not(#mk-padrao) {
@@ -151,12 +151,12 @@
   background: transparent !important;
 }
 :is(.mk-pill__icon, .mg-search-pill-icon):not(.mg-search-pill-clear *):not(#mk-padrao) {
-  color: var(--mk-icon-field, #9ca3af) !important;
+  color: var(--mk-icon-field, var(--mkq-9ca3af, #9ca3af)) !important;
 }
 :is(.mk-pill__clear, .mg-search-pill-clear):not(#mk-padrao),
 :is(.mk-pill__clear, .mg-search-pill-clear):not(#mk-padrao) svg,
 .mg-search-pill-clear .mg-search-pill-icon:not(#mk-padrao) {
-  color: var(--mk-icon-close, #64748b) !important;
+  color: var(--mk-icon-close, var(--mkq-64748b, #64748b)) !important;
 }
 
 /* No tablet e desktop os dois botões do rodapé têm a mesma caixa. */

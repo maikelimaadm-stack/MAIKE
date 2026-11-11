@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import B1Field, { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -51,13 +53,10 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
     setInvalidos((prev) => prev.filter((c) => c !== campo));
   };
 
-  const alternarPapel = (id) => {
+  /** @param {string[]} proximos papéis marcados, na ordem da lista */
+  const definirPapeis = (proximos) => {
     if (readOnly) return;
-    setForm((prev) => ({
-      ...prev,
-      papeis: prev.papeis.includes(id) ? prev.papeis.filter((p) => p !== id) : [...prev.papeis, id],
-    }));
-
+    setForm((prev) => ({ ...prev, papeis: proximos }));
     setInvalidos((prev) => prev.filter((c) => c !== "papeis"));
   };
 
@@ -98,7 +97,7 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
   return (
     <CadastroFormShell embedded={variant === "embedded"} title={initialData?.id ? "Editar parceiro" : "Novo parceiro"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_PARCEIRO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
+        <form id={FORMULARIO_PARCEIRO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Identificação" />
           <CampoSelect label="Tipo de pessoa" required span={4} value={form.tipo_pessoa} onChange={(v) => set("tipo_pessoa", v)} options={TIPOS_PESSOA} readOnly={readOnly} />
           <CampoTexto label="Nome" required span={8} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={255} error={invalidos.includes("nome") ? "Obrigatório" : undefined} placeholder="NOME DO PARCEIRO" />
@@ -117,22 +116,17 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
           )}
 
           <SecaoForm titulo="Papéis" />
+          {/* Marcar vários (D-PROD-168): a mesma lista do Sistema Produtivo, com a caixa de marcar à direita. */}
+          <B1Field label="Papéis do parceiro" span={12} hasValue={form.papeis.length > 0} disabled={readOnly} required={!initialData?.id || (Array.isArray(initialData?.papeis) && initialData.papeis.length > 0)}>
+            <B1MultiSelecao
+              rotulo="Papéis do parceiro"
+              opcoes={PAPEIS_PARCEIRO.map((p) => ({ value: p.id, label: p.label }))}
+              valor={form.papeis}
+              onChange={definirPapeis}
+              disabled={readOnly}
+            />
+          </B1Field>
           <div className="col-span-12">
-            <div className="b1-multi" role="group" aria-label="Papéis do parceiro">
-              {PAPEIS_PARCEIRO.map((p) => {
-                const on = form.papeis.includes(p.id);
-                return (
-                  <button key={p.id} type="button" role="checkbox" aria-checked={on} disabled={readOnly} onClick={() => alternarPapel(p.id)} className={`b1-multi__op${on ? " is-on" : ""}`}>
-                    {on ? (
-                      <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                        <path d="M2 6l3 3 5-6" />
-                      </svg>
-                    ) : null}
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
             {invalidos.includes("papeis") ? (
               <p className="mt-1 text-[11px] text-red-700" role="alert" data-testid="parceiro-papeis-obrigatorio">
                 Escolha ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros).
@@ -151,9 +145,9 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
           <CampoTexto label="Responsável" span={4} value={form.nome_responsavel} onChange={(v) => set("nome_responsavel", v)} readOnly={readOnly} maxLength={255} />
 
           <SecaoForm titulo="Endereço" />
-          <CampoTexto label="Endereço" span={6} value={form.endereco} onChange={(v) => set("endereco", v)} readOnly={readOnly} maxLength={255} />
+          <CampoTexto label="Endereço" span={5} value={form.endereco} onChange={(v) => set("endereco", v)} readOnly={readOnly} maxLength={255} />
           <CampoTexto label="Cidade" span={3} value={form.cidade} onChange={(v) => set("cidade", v)} readOnly={readOnly} maxLength={128} />
-          <CampoTexto label="Estado" span={1} value={form.estado} onChange={(v) => set("estado", v)} readOnly={readOnly} maxLength={2} />
+          <CampoTexto label="Estado" span={2} value={form.estado} onChange={(v) => set("estado", v)} readOnly={readOnly} maxLength={2} />
           <CampoTexto label="CEP" span={2} value={form.cep} onChange={(v) => set("cep", v)} readOnly={readOnly} inputMode="numeric" maxLength={16} />
 
           <SecaoForm titulo="Observações" />

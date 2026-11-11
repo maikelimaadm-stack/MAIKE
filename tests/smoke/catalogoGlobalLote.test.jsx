@@ -227,9 +227,9 @@ describe("FormularioLote mostra o ícone da categoria de manejo escolhida", () =
   };
   const status = () => screen.getByTestId("icone-oficial-lote").getAttribute("data-status");
 
-  it("novo lote sem categoria: fallback discreto", async () => {
+  it("novo lote sem categoria: sem dica sob o campo (D-PROD-164)", async () => {
     await renderLote({ initialData: null, isEditing: false });
-    expect(status()).toBe("sem_categoria");
+    expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
   });
 
   it("editar lote: prévia real da categoria vinculada", async () => {

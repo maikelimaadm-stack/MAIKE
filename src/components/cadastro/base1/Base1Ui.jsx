@@ -28,6 +28,7 @@ export { default as B1Switch } from "./B1Switch";
 export { default as B1ChaveRow } from "./B1ChaveRow";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { focoFicaOndeEsta } from "./janelaUnica";
 
 /** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { active?: boolean; size?: 'sm'|'md'; danger?: boolean; title?: string; }} IconBtnProps */
 /** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, IconBtnProps>} */
@@ -170,6 +171,7 @@ export function B1Popover({
       <PopoverContent
         align={align}
         sideOffset={6}
+        onCloseAutoFocus={focoFicaOndeEsta}
         className={cn(
           "cadastro-b1 mg-b1-glass-pop z-50 w-72 rounded-[14px] border-0 bg-transparent p-3 text-[12.5px] shadow-none outline-none",
           "data-[state=open]:animate-none data-[state=closed]:animate-none",
@@ -274,8 +276,9 @@ export function MenuList({ items, onPick }) {
  * @param {(checked: boolean) => void} [props.onChange]
  * @param {boolean} [props.disabled]
  * @param {string} [props.className]
+ * @param {import('react').CSSProperties} [props.boxStyle] estilo da caixa (a grade usa 18px, como no design — D-PROD-164)
  */
-export function MgCheck({ checked, indeterminate, onChange, disabled, className, ...p }) {
+export function MgCheck({ checked, indeterminate, onChange, disabled, className, boxStyle = undefined, ...p }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     if (ref.current) ref.current.indeterminate = Boolean(indeterminate) && !checked;
@@ -289,6 +292,7 @@ export function MgCheck({ checked, indeterminate, onChange, disabled, className,
         disabled && "is-locked",
         className,
       )}
+      style={boxStyle}
       onClick={(e) => e.stopPropagation()}
     >
       <input

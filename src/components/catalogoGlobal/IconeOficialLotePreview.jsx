@@ -18,9 +18,11 @@ import { carregarIconesOficiaisLote, resolverIconeOficialDoLote } from "@/servic
 export const CHAVE_ICONES_LOTE = ["catalogo-global", "lote", "icones-publicados"];
 
 /**
- * @param {{ categoriaVisualId?: string|null, categoriaManejoSelecionada?: boolean }} props
+ * @param {{ categoriaVisualId?: string|null, categoriaManejoSelecionada?: boolean, variante?: 'bloco'|'dica' }} props
+ * `variante="dica"` (D-PROD-164): linha de apoio sob o campo Categoria de Manejo, como no design —
+ * amostra de 12px + "Ícone oficial MAIKE"; sem categoria escolhida não mostra nada.
  */
-export default function IconeOficialLotePreview({ categoriaVisualId = null, categoriaManejoSelecionada = false }) {
+export default function IconeOficialLotePreview({ categoriaVisualId = null, categoriaManejoSelecionada = false, variante = "bloco" }) {
   const { data, isError, isLoading } = useQuery({
     queryKey: CHAVE_ICONES_LOTE,
     queryFn: carregarIconesOficiaisLote,
@@ -74,6 +76,41 @@ export default function IconeOficialLotePreview({ categoriaVisualId = null, cate
     );
   } else {
     conteudo = "Categoria oficial sem ícone publicado ainda.";
+  }
+
+  if (variante === "dica") {
+    if (status === "sem_categoria") return null;
+    const ok = r.status === "ok" && Boolean(categoriaVisualId) && !isError && !isLoading;
+    const texto = ok
+      ? "Ícone oficial MAIKE"
+      : status === "mapeamento_pendente"
+        ? "Sem ícone oficial: categoria ainda não ligada ao catálogo MAK Gestão"
+        : typeof conteudo === "string"
+          ? conteudo
+          : "";
+    const mostrarImagem = ok && url && !imagemFalhou;
+    return (
+      <p
+        className="b1-campo-dica"
+        data-testid="icone-oficial-lote"
+        data-status={status}
+        data-icone-id={r.status === "ok" ? r.icone.id : undefined}
+      >
+        {ok ? (
+          <span
+            className="b1-campo-dica__cor"
+            style={{ backgroundColor: r.icone.cor_fallback || "#fff", overflow: "hidden" }}
+            aria-hidden={mostrarImagem ? undefined : "true"}
+            data-testid="icone-oficial-lote-moldura"
+          >
+            {mostrarImagem ? (
+              <img src={url} alt="Ícone oficial do lote" className="h-full w-full object-contain" onError={() => setImagemFalhou(true)} />
+            ) : null}
+          </span>
+        ) : null}
+        {texto}
+      </p>
+    );
   }
 
   return (

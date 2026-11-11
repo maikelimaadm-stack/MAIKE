@@ -1,0 +1,174 @@
+/*
+ * Modelo Base1 — acertos do app para ficar igual ao design (D-PROD-164).
+ * Cada regra existe porque o DOM ou o CSS atual do sistema difere da cópia que o design usou; o comentário diz qual.
+ * Sem tamanho de fonte (vale base1-tipografia.css).
+ */
+
+/* A faixa de filtros é desenhada por portal num "lugar" do chrome; o lugar não tem caixa,
+   então a faixa fica como filha direta do cartão da lista, igual ao design. */
+.cadastro-b1 .b1-fr-slot {
+  display: contents;
+}
+
+/* O design desenha a barra da LISTA com o grupo Cancelar/Salvar escondido dentro da linha de ações; com isso as regras
+   ":has(.mg-act-salvar)" do sistema também valem na lista (linha de ações em flex, ocupando o espaço livre, com a
+   altura mínima de 48px no desktop). Aqui o grupo só existe na edição (sem botões escondidos alcançáveis pelo teclado),
+   então a linha recebe na lista o mesmo resultado dessas regras. */
+.cadastro-b1 .mg-toolbar__row--actions:not(#mk-a) {
+  flex: 1 1 auto;
+}
+@media (min-width: 1024px) {
+  .cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-a) {
+    display: flex;
+    justify-content: flex-start;
+  }
+}
+
+/* Cabeçalho: no design o seletor da fazenda ocupa a largura toda do seu espaço (w-full da versão do componente usada
+   lá), o que o deixa mais largo e aproxima os botões de ícone ao lado. */
+body.b1-tela header.mk-topnav-header button[role="combobox"] {
+  width: 100%;
+}
+
+/* Com a faixa de filtros rápidos, "Limpar filtros" fica na faixa (como no design); o atalho escondido da barra
+   não ocupa lugar (senão sobra um espaço entre o funil e a lupa). `data-b1-faixa` (posto pela faixa) e não
+   `:has(.b1-fr)`: o `:has()` recalculava o estilo da lista inteira a cada mudança dentro dela (D-PROD-166). */
+.cadastro-b1 .mg-shell[data-b1-faixa] .mg-toolbar__btns > .mg-fluid-slot:not(#mk-a) {
+  display: none;
+}
+
+/* Trilho lateral (tablet) e barra inferior (celular): no sistema os itens são links (<a>), no design botões; o texto
+   e o ícone ficam centralizados como num botão. */
+body.b1-tela :is(.mk-rail__item, .mk-tabbar__item) {
+  text-align: center;
+}
+
+/* Campo travado (código, valor calculado): o sistema pinta o texto com -webkit-text-fill-color cinza-frio; no design o
+   texto usa a cor do próprio campo (#73726C, das propostas) e o controle herda a cor do cartão. */
+.cadastro-b1 .mg-field--locked .mg-field__control:not(#mk-a) {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+.cadastro-b1 .mg-field--locked :is(input, select, textarea, .cmd-display):not(#mk-a) {
+  -webkit-text-fill-color: currentColor;
+}
+
+/* No design o <form> é filho direto da área de rolagem; aqui há o invólucro do CadastroFormShell no meio.
+   As duas regras do design que dependem disso (fundo transparente do formulário com abas fora / seções). */
+.cadastro-b1 .mg-form-scroll:is(.b1-form--secoes, .b1-form--abas-fora) > div > form:not(#mk-padrao) {
+  background: transparent;
+}
+
+/* Chave em modo leitura: o sistema marca aria-readonly (cursor normal); no design ela aparece desabilitada. */
+.cadastro-b1 .mg-field--switch .b1-switch:disabled:not(#mk-a) {
+  cursor: not-allowed;
+}
+
+/* Campo com a lista aberta: no design o foco continua no campo (seta escura pelo :focus-within); aqui o foco vai para a
+   lista (teclado), então o mesmo visual vem do estado aberto (.is-open). */
+.cadastro-b1 form[data-densidade] .mg-field.is-open .mk-ac-chev:not(#mk-a) {
+  color: #52514E;
+}
+/* …e o rótulo do campo aberto fica como o do campo com foco no design (verde, 600, espaçamento .01em) — também no
+   celular, onde a folha da lista é modal e leva o foco (D-PROD-165). */
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.is-open:not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
+  color: var(--cp-rotulo);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.cadastro-b1 form[data-densidade] .mg-field.is-open:not(.mg-field--disabled):not(.mg-field--switch):not(.is-invalid) .mg-field__label:not(#mk-padrao) {
+  color: #15803d;
+}
+
+/* Lista "por página" (100, 200…): no design a lista de opções tem canto de 10px (estilo na própria marcação). */
+body.b1-tela .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
+  border-radius: 10px;
+}
+
+/* Confirmar exclusão: no design o fundo escuro e a caixa aparecem e somem sem esmaecer (a marcação do design não tem o
+   animate-in/animate-out do Radix); o movimento do design não alcança esse diálogo (6.32, D-PROD-165).
+   Por classe, não por `:has()`: `div:has(+ [role="dialog"] > …)` valia para todo `div` e, a cada janela que abria ou
+   fechava no <body>, fazia o Chrome recalcular o estilo da página inteira (D-PROD-166). */
+body.b1-tela :is(.mg-confirm-dialog__fundo, .mg-confirm-dialog__camada):not(#mk-a) {
+  animation: none !important;
+}
+
+/* ‹ › do registro: entram deslizando só quando o registro abre. Aqui trocar de registro remonta o formulário (no design,
+   não); a navegação de um registro para o outro fica parada, como no design (D-PROD-165). */
+body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
+  animation: none;
+}
+
+/* Registro sem abas (D-PROD-165), tablet e desktop (`data-b1-painel`): o mesmo desenho do registro com abas do
+   design — fundo da página, ‹ › numa linha acima (`b1-reg-navlinha`) e o formulário no cartão branco do tamanho
+   do conteúdo (o cartão da aba, `b1-aba-cartao`). Sem isso ficava numa folha branca até o fim da tela.
+   `b1-form-embutido`: grade de campos dentro de outro cartão (ex.: vínculos do centro de custo, D-PROD-168) — só os
+   campos, sem um segundo cartão; o `:where` não muda a especificidade da regra. */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll[data-b1-painel]:not(#mk-padrao) {
+  padding: 2px 2px 24px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cadastro-b1 .mg-form-scroll[data-b1-painel] form[data-densidade]:where(:not(.b1-form-embutido)):not(#mk-padrao):not(#mk-b) {
+  flex: 0 0 auto;
+  padding: 16px 18px 20px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08));
+}
+
+/* Títulos de seção dos formulários de Gestão e Patrimônio (`SecaoForm`) usam o título de grupo do design; no
+   celular o design esconde o título do grupo do Lote, mas aqui ele separa Contato, Endereço… então fica. */
+.cadastro-b1 .b1-grupo__cab.b1-secao-form:not(#mk-padrao) {
+  display: flex;
+  margin: 6px 0 0;
+}
+.cadastro-b1 .mg-b1-form-grid > .b1-secao-form:first-child:not(#mk-padrao) {
+  margin-top: 0;
+}
+
+/* Filtro do cabeçalho da coluna (D-PROD-166): a mesma janela do filtro das pílulas (`mk-sel-pop b1-lista-pop b1-fr-pop`),
+   posicionada pela própria tela logo abaixo do cabeçalho — sem o invólucro do Radix, ela mesma é fixa. */
+.mk-sel-pop.b1-col-pop {
+  position: fixed;
+}
+
+/* Escolha múltipla com caixa de marcar à DIREITA (pedido do proprietário, D-PROD-168). No design a caixa ficava
+   escondida e só o ✓ aparecia; agora a caixa aparece, à direita, com o ✓ dentro quando marcada:
+   - campos de marcar vários (Sistema Produtivo, Papéis, centros…) e listas do mapa (`.mk-map-multi-options`);
+   - valores do filtro, "Todos" e "+ Filtro" nas janelas da faixa e do cabeçalho (`.b1-fr-box`).
+   Escolha única (Ordenar: `.b1-fr-box--unica`) continua só com o ✓. */
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):not(#mk-c) {
+  padding-right: 12px;
+  background-image: none !important;
+}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):not(#mk-c) input {
+  position: static;
+  width: 18px;
+  height: 18px;
+  opacity: 1;
+  pointer-events: auto;
+}
+body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) {
+  order: 9;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  border: 1.5px solid #D1D0CA !important;
+  border-radius: 5px;
+  background: #fff !important;
+  color: transparent;
+}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) {
+  border-color: #32d65e !important;
+  background: #32d65e !important;
+  color: #fff;
+}
+body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.2;
+}
