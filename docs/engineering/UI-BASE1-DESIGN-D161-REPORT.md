@@ -35,7 +35,7 @@ Está no design e não entrou:
 - setas e esmaecimento na rolagem lateral da faixa;
 - seleção múltipla em janela (Sistema Produtivo continua em pílulas); no celular o "+" de cadastrar continua no topo da folha, não dentro da pesquisa;
 - movimento de abrir e fechar;
-- campos do Lote reorganizados dentro da aba Geral;
+- larguras exatas dos campos do Lote (o design usa Descrição 5 · Código 2 · Data 3 · Ativo 2 numa linha; aqui os campos principais entraram no cartão da aba Geral com as larguras atuais);
 - rodapé em palavras ("12 lotes · 1 selecionado") — contraria o teste PAR6 de `mobileParidadeV2`.
 
 Limitações conhecidas da faixa de filtros: filtros e ordenação continuam locais à grade (como antes) e somem ao abrir um registro; nas telas paginadas no servidor o filtro vale para as linhas já carregadas (como o filtro de coluna); o total da janela usa a palavra "registros".

@@ -573,6 +573,31 @@ export default function FormularioLote({
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
 
+  const camposPrincipais = (
+    <>
+      <DynamicFormRenderer
+        panels={activeLayoutConfig.panels}
+        fields={dynamicFields}
+        layout={activeLayoutConfig.layout}
+        hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+        lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+        requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+        visibilityRules={activeLayoutConfig.visibilityRules || {}}
+        activePanelId="principal"
+        values={formData}
+        errors={errors}
+        onChange={handleChange}
+        readOnly={isReadOnly}
+        visualVariant={useBase1Visual ? "base1" : "legacy"}
+        />
+              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
+      <IconeOficialLotePreview
+        categoriaVisualId={categoriaVisualIdDoLote}
+        categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
+              />
+    </>
+  );
+
   if (layoutConfigOpen) {
     return (
       <section className="w-full h-full max-w-full bg-white overflow-hidden">
@@ -683,30 +708,14 @@ export default function FormularioLote({
               )}
             </div>
           ) : null}
+          {/* D-PROD-161: no visual Base1 os campos principais ficam dentro do cartão da primeira aba. */}
+          {useBase1Visual ? null : (
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-            <div className={useBase1Visual ? "px-2 py-1 w-full" : "px-4 md:px-8 py-1 max-w-[780px]"}>
-              <DynamicFormRenderer
-                panels={activeLayoutConfig.panels}
-                fields={dynamicFields}
-                layout={activeLayoutConfig.layout}
-                hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-                lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-                requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-                visibilityRules={activeLayoutConfig.visibilityRules || {}}
-                activePanelId="principal"
-                values={formData}
-                errors={errors}
-                onChange={handleChange}
-                readOnly={isReadOnly}
-                visualVariant={useBase1Visual ? "base1" : "legacy"}
-                />
-              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
-              <IconeOficialLotePreview
-                categoriaVisualId={categoriaVisualIdDoLote}
-                categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
-              />
+            <div className="px-4 md:px-8 py-1 max-w-[780px]">
+              {camposPrincipais}
             </div>
           </fieldset>
+          )}
 
           {useBase1Visual ? (
             <Base1PanelTabs
@@ -726,6 +735,7 @@ export default function FormularioLote({
                   }
                 >
                   <div className="w-full space-y-1">
+                    {panelId === tabs[0]?.id ? camposPrincipais : null}
                     <DynamicFormRenderer
                       panels={tabs}
                       fields={dynamicFields}
