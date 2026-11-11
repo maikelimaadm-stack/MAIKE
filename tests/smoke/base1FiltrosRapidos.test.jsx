@@ -77,9 +77,27 @@ describe("FiltrosRapidos", () => {
     expect(onFilterChange).toHaveBeenCalledWith("sexo", null);
   });
 
-  it("coluna filtrada por outro caminho também ganha pílula, com o resumo da condição", () => {
+  it("coluna filtrada por outro caminho também ganha pílula, com a condição em palavras", () => {
     render(<Tela filters={{ peso: { op: "mai", v1: "15", v2: "", valores: null } }} />);
-    expect(screen.getByText("> 15")).toBeTruthy();
+    expect(screen.getByText("é maior do que 15")).toBeTruthy();
+  });
+
+  it("a condição fica dentro da janela do filtro: escolher, digitar e aplicar (D-PROD-161)", () => {
+    const onFilterChange = vi.fn();
+    render(<Tela onFilterChange={onFilterChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar ou tirar filtros" }));
+    fireEvent.click(screen.getByRole("option", { name: "Peso" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Peso/ }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Condição" }));
+    fireEvent.click(screen.getByRole("option", { name: "É maior do que" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Pesquisar" }), { target: { value: "15" } });
+    expect(screen.getByText("2 de 3 registros")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+    const [col, filtro] = onFilterChange.mock.calls[0];
+    expect(col).toBe("peso");
+    expect(filtro.op).toBe("mai");
+    expect(filtro.v1).toBe("15");
+    expect(filtro.valores).toBeNull();
   });
 
   it("Ordenar troca a ordem em palavras simples", () => {

@@ -123,7 +123,7 @@ export default function PainelSelecao({
           sideOffset={4}
           avoidCollisions
           collisionPadding={8}
-          className={cn("mk-sel-pop", className)}
+          className={cn("mk-sel-pop b1-lista-pop", className)}
           onKeyDown={onKeyDown}
           onOpenAutoFocus={(e) => {
             if (!pesquisavel) e.preventDefault();
@@ -145,7 +145,7 @@ export default function PainelSelecao({
           }}
         >
           {pesquisavel ? (
-            <div className="mk-sel-busca b1-pq">
+            <div className="b1-pq">
               <input
                 autoFocus
                 className="b1-pq__in"
@@ -171,12 +171,12 @@ export default function PainelSelecao({
                     onCriarNovo(busca.trim());
                   }}
                 >
-                  <Plus size={16} aria-hidden />
+                  <Plus size={17} aria-hidden />
                 </button>
               ) : null}
             </div>
           ) : null}
-          <div className="mk-sel-lista" role="listbox" aria-label={rotulo} ref={listaRef}>
+          <div className="mk-sel-lista b1-lista" role="listbox" aria-label={rotulo} ref={listaRef}>
             {!vistos.length ? <div className="mk-sel-vazio">{termo ? "Nenhum item encontrado" : vazio}</div> : null}
             {vistos.map((o, i) => {
               const on = o.value === valor;

@@ -67,6 +67,27 @@ const STORAGE_KEY = "colunas_cadastro_lotes";
 /** Filtros que começam na faixa (D-PROD-161); o usuário troca em "+ Filtro". */
 const FILTROS_RAPIDOS = ["status", "categoria_manejo", "sexo", "setor"];
 
+/** "Ordenar" da faixa em palavras (D-PROD-161). */
+const ORDENS_DA_FAIXA = Object.freeze([
+  { key: "nome", dir: /** @type {'asc'} */ ("asc"), label: "Nome (A → Z)" },
+  { key: "nome", dir: /** @type {'desc'} */ ("desc"), label: "Nome (Z → A)" },
+  { key: "codigo", dir: /** @type {'asc'} */ ("asc"), label: "Código (menor primeiro)" },
+  { key: "codigo", dir: /** @type {'desc'} */ ("desc"), label: "Código (maior primeiro)" },
+  { key: "cabecas", dir: /** @type {'desc'} */ ("desc"), label: "Mais cabeças primeiro" },
+  { key: "cabecas", dir: /** @type {'asc'} */ ("asc"), label: "Menos cabeças primeiro" },
+  { key: "data", dir: /** @type {'desc'} */ ("desc"), label: "Entrada mais recente" },
+  { key: "data", dir: /** @type {'asc'} */ ("asc"), label: "Entrada mais antiga" },
+  { key: "peso", dir: /** @type {'desc'} */ ("desc"), label: "Mais pesados primeiro" },
+  { key: "peso", dir: /** @type {'asc'} */ ("asc"), label: "Mais leves primeiro" },
+]);
+
+/** Ordem dos campos em "+ Filtro" (D-PROD-161): primeiro os de escolha, depois o resto. */
+const CAMPOS_DA_FAIXA = Object.freeze([
+  "status", "categoria_manejo", "categoria", "sexo", "setor", "area", "cabecas", "peso", "data", "sistema_produtivo", "motivo",
+  "raca", "fornecedor", "identificador", "sigla", "cor", "valor", "valor_por_cabeca", "valor_frete", "cidade_origem",
+  "estado_origem", "origem", "nota_fiscal", "numero_gta", "codigo", "nome", "observacoes",
+]);
+
 /** @param {any} lote */
 const loteInativo = (lote) => String(lote?.status ?? "").trim().toLowerCase() === "inativo";
 
@@ -389,6 +410,8 @@ export default function TabelaLotes({
         cardsCodeColId="codigo"
         cardsInativo={loteInativo}
         quickFilterIds={FILTROS_RAPIDOS}
+        quickSortOptions={/** @type {any} */ (ORDENS_DA_FAIXA)}
+        quickFilterFieldOrder={/** @type {any} */ (CAMPOS_DA_FAIXA)}
         referenceHeaders={BASE1_LISTA_INTEGRADA_VISUAL.grade.referenceHeaders}
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}

@@ -62,3 +62,14 @@ body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
 .cadastro-b1 .mg-field--switch .b1-switch:disabled:not(#mk-a) {
   cursor: not-allowed;
 }
+
+/* Campo com a lista aberta: no design o foco continua no campo (seta escura pelo :focus-within); aqui o foco vai para a
+   lista (teclado), então o mesmo visual vem do estado aberto (.is-open). */
+.cadastro-b1 form[data-densidade] .mg-field.is-open .mk-ac-chev:not(#mk-a) {
+  color: #52514E;
+}
+
+/* Lista "por página" (100, 200…): no design a lista de opções tem canto de 10px (estilo na própria marcação). */
+body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
+  border-radius: 10px;
+}

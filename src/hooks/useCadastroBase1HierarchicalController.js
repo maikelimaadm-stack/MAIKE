@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { naOrdemDaLista } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { useCadastroBase1FullList } from "@/hooks/useCadastroBase1FullList";
@@ -76,12 +77,25 @@ export function useCadastroBase1HierarchicalController(config) {
     [chrome.appliedSearch, searchPickId],
   );
 
-  const recordNavRows = useMemo(
+  const linhasFiltradas = useMemo(
     () => config.filterRecordNavRows(lista.items, listCtx),
     [lista.items, listCtx, config],
   );
 
-  const visibleRows = useMemo(() => recordNavRows, [recordNavRows]);
+  // Linhas da lista: a ordem dos dados (a grade ordena e filtra por conta própria).
+  const visibleRows = linhasFiltradas;
+
+  // ‹ › do registro seguem a ordem que a grade mostra (D-PROD-161), publicada por OrdemDaListaContext.
+  const [ordemDaLista, setOrdemDaLista] = useState(/** @type {object[] | null} */ (null));
+  const definirOrdemDaLista = useCallback((/** @type {object[]} */ linhas) => {
+    setOrdemDaLista((atual) =>
+      atual && atual.length === linhas.length && atual.every((l, i) => l === linhas[i]) ? atual : linhas,
+    );
+  }, []);
+  const recordNavRows = useMemo(
+    () => naOrdemDaLista(ordemDaLista, linhasFiltradas, config.getRowId),
+    [ordemDaLista, linhasFiltradas, config],
+  );
 
   const searchMatchCount = useMemo(() => {
     const q = chrome.appliedSearch.trim().toLowerCase();
@@ -419,6 +433,7 @@ export function useCadastroBase1HierarchicalController(config) {
     recordIndex,
     recordNavRows,
     goRecord,
+    definirOrdemDaLista,
     matchesSearch,
     searchSuggestions,
     saving: false,

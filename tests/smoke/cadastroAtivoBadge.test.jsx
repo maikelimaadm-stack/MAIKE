@@ -1,10 +1,10 @@
 /**
- * SSOT badge `ativo` — Motor Base1 (CadastroAtivoBadge + cellKind).
+ * SSOT da situação `ativo` — Motor Base1 (cellKind; desde a D-PROD-161 a grade mostra ponto colorido + texto).
  */
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within, cleanup } from '@testing-library/react';
-import CadastroAtivoBadge from '@/components/cadastro/base1/CadastroAtivoBadge';
+import { renderCadastroBase1CellKind } from '@/components/cadastro/base1/cadastroBase1CellKind';
 import {
   cadastroAtivoLabel,
   getCadastroAtivoFieldValue,
@@ -18,7 +18,7 @@ import path from 'node:path';
 
 const readSrc = (rel) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
 
-describe('CadastroAtivoBadge — unitário', () => {
+describe('Situação ativo — unitário', () => {
   beforeEach(() => cleanup());
 
   it('rótulos e semântica para true, false e undefined (legado ativo)', () => {
@@ -31,18 +31,19 @@ describe('CadastroAtivoBadge — unitário', () => {
     expect(getCadastroAtivoFieldValue({})).toBe('Ativo');
   });
 
-  it('renderiza classes e aria-label coerentes', () => {
-    const { rerender } = render(<CadastroAtivoBadge value={true} />);
+  it('célula da grade: ponto verde para ativo e cinza para inativo, com aria-label coerente (D-PROD-161)', () => {
+    const col = { id: 'ativo', cellKind: /** @type {'ativo-badge'} */ ('ativo-badge') };
+    const { rerender } = render(<>{renderCadastroBase1CellKind({ ativo: true }, col)}</>);
     let badge = screen.getByTestId('cadastro-ativo-badge');
     expect(badge.getAttribute('data-ativo')).toBe('true');
     expect(badge.getAttribute('aria-label')).toBe('Ativo');
-    expect(badge.className).toMatch(/emerald/);
+    expect(/** @type {HTMLElement} */ (badge.querySelector('.b1-cor-dot')).style.backgroundColor).toBe('rgb(34, 197, 94)');
 
-    rerender(<CadastroAtivoBadge value={false} />);
+    rerender(<>{renderCadastroBase1CellKind({ ativo: false }, col)}</>);
     badge = screen.getByTestId('cadastro-ativo-badge');
     expect(badge.getAttribute('data-ativo')).toBe('false');
     expect(badge.textContent).toBe('Inativo');
-    expect(badge.className).toMatch(/slate/);
+    expect(/** @type {HTMLElement} */ (badge.querySelector('.b1-cor-dot')).style.backgroundColor).toBe('rgb(163, 162, 156)');
   });
 });
 

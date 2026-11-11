@@ -9,6 +9,7 @@ import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
 import FiltrosRapidos from "@/components/cadastro/base1/FiltrosRapidos";
+import { useCelular } from "@/components/common/MobileSheet";
 import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
@@ -65,6 +66,8 @@ export function colunasBase1(defs) {
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
  * @param {string[]} [props.quickFilterIds] filtros que começam na faixa de filtros rápidos (padrão: derivados das colunas)
+ * @param {Array<{ key: string; dir: 'asc'|'desc'; label: string }>} [props.quickSortOptions] "Ordenar" da faixa em palavras da tela
+ * @param {string[]} [props.quickFilterFieldOrder] ordem dos campos em "+ Filtro" da faixa
  * @param {(item: object) => boolean} [props.cardsInativo] marca o card com a tag "Inativo" (padrão: coluna `ativo-badge`)
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
@@ -104,6 +107,8 @@ export default function CadastroBase1Grade({
   cardsCodeColId,
   cardsInativo,
   quickFilterIds,
+  quickSortOptions = undefined,
+  quickFilterFieldOrder = undefined,
   referenceHeaders: referenceHeadersProp,
   configureColumnsAnchorRef,
   colunaSelecao = true,
@@ -131,10 +136,18 @@ export default function CadastroBase1Grade({
   const [headerFilters, setHeaderFilters] = useState({});
   /** Painel "Filtrar por campo" (botão Filtros do chrome); `ancora` também posiciona o filtro escolhido. */
   const [filtroPorCampo, setFiltroPorCampo] = useState(/** @type {{ aberto: boolean, ancora: DOMRect | null } | null} */ (null));
+  const [menuFiltrosCelular, setMenuFiltrosCelular] = useState(false);
+  const celularDaGrade = useCelular();
+  const celularRef = useRef(celularDaGrade);
+  celularRef.current = celularDaGrade;
 
   useEffect(() => {
     if (!referenceHeaders) return undefined;
-    const abrir = (event) => setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+    // Celular com a faixa de filtros: o funil abre a lista "Filtros" (D-PROD-161, 6.10); senão, "Filtrar por campo".
+    const abrir = (event) => {
+      if (celularRef.current && referenceHeaders) setMenuFiltrosCelular(true);
+      else setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+    };
     document.addEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
     return () => document.removeEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
   }, [referenceHeaders]);
@@ -402,6 +415,10 @@ export default function CadastroBase1Grade({
       storageKey={storageKey}
       defaultIds={quickFilterIds}
       mostrados={filtrados.length}
+      ordens={quickSortOptions}
+      camposDaFaixa={quickFilterFieldOrder}
+      menuCelularAberto={menuFiltrosCelular}
+      onMenuCelularChange={setMenuFiltrosCelular}
     />
   ) : null;
 

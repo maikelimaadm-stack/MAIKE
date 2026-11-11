@@ -188,3 +188,30 @@ body:has(.cadastro-b1--full-page) {
   --mkq-fafcfe: #f9f9f7;
   --mkq-rgb-15-23-42: 20, 20, 19;
 }
+
+/* Tailwind (tailwind.config.js): slate/gray usam var(--mkq-tw-<família>-<tom>, <cor padrão>); aqui, com tela Base1
+   aberta, recebem o neutro quente do design — as mesmas classes, sem mudar a cascata. */
+body:has(.cadastro-b1--full-page) {
+  --mkq-tw-slate-50: 249 249 247;
+  --mkq-tw-slate-100: 242 242 239;
+  --mkq-tw-slate-200: 232 231 226;
+  --mkq-tw-slate-300: 209 208 202;
+  --mkq-tw-slate-400: 163 162 156;
+  --mkq-tw-slate-500: 115 114 108;
+  --mkq-tw-slate-600: 82 81 78;
+  --mkq-tw-slate-700: 55 55 51;
+  --mkq-tw-slate-800: 38 38 36;
+  --mkq-tw-slate-900: 20 20 19;
+  --mkq-tw-slate-950: 10 10 9;
+  --mkq-tw-gray-50: 249 249 247;
+  --mkq-tw-gray-100: 242 242 239;
+  --mkq-tw-gray-200: 232 231 226;
+  --mkq-tw-gray-300: 209 208 202;
+  --mkq-tw-gray-400: 163 162 156;
+  --mkq-tw-gray-500: 115 114 108;
+  --mkq-tw-gray-600: 82 81 78;
+  --mkq-tw-gray-700: 55 55 51;
+  --mkq-tw-gray-800: 38 38 36;
+  --mkq-tw-gray-900: 20 20 19;
+  --mkq-tw-gray-950: 10 10 9;
+}

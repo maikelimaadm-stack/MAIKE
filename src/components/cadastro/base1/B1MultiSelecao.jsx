@@ -40,6 +40,14 @@ export default function B1MultiSelecao({
   );
   const marcados = opcoes.filter((o) => valor.includes(o));
 
+  // Campo aberto (como no design): `is-open` no .mg-field enquanto a janela está aberta.
+  React.useEffect(() => {
+    const el = wrapperRef.current?.closest(".mg-field");
+    if (!el) return undefined;
+    el.classList.toggle("is-open", open);
+    return () => el.classList.remove("is-open");
+  }, [open]);
+
   const alternar = (opcao) => {
     // Mantém a ordem da lista de opções, não a ordem dos cliques.
     const proximos = valor.includes(opcao) ? valor.filter((v) => v !== opcao) : [...valor, opcao];
@@ -87,7 +95,7 @@ export default function B1MultiSelecao({
           sideOffset={5}
           collisionPadding={8}
           aria-label={rotulo}
-          className="mk-map-multi-popup b1-multi-pop"
+          className="mk-map-multi-popup"
           onInteractOutside={(e) => {
             // Clique no próprio campo: quem abre e fecha é o campo.
             const el = campo();

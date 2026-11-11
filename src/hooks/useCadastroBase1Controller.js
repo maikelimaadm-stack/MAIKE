@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { naOrdemDaLista } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroListaPagination } from "@/hooks/useCadastroListaPagination";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
@@ -195,24 +196,10 @@ export function useCadastroBase1Controller(config) {
       atual && atual.length === linhas.length && atual.every((l, i) => l === linhas[i]) ? atual : linhas,
     );
   }, []);
-  const recordNavRows = useMemo(() => {
-    if (!ordemDaLista) return visibleRows;
-    // Linhas frescas (a lista pode ter sido recarregada) na ordem da grade; o que é novo vai para o fim.
-    const porId = new Map(visibleRows.map((row) => [String(config.getRowId(row)), row]));
-    const vistos = new Set();
-    const ordenadas = [];
-    for (const l of ordemDaLista) {
-      const id = String(config.getRowId(l));
-      const fresca = porId.get(id);
-      if (fresca && !vistos.has(id)) {
-        ordenadas.push(fresca);
-        vistos.add(id);
-      }
-    }
-    if (!ordenadas.length) return visibleRows;
-    for (const row of visibleRows) if (!vistos.has(String(config.getRowId(row)))) ordenadas.push(row);
-    return ordenadas;
-  }, [ordemDaLista, visibleRows, config]);
+  const recordNavRows = useMemo(
+    () => naOrdemDaLista(ordemDaLista, visibleRows, config.getRowId),
+    [ordemDaLista, visibleRows, config],
+  );
 
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
