@@ -58,6 +58,12 @@ const COLUNAS = Object.freeze({
   tipos: TIPOS_COLUNAS.filter((c) => c.default && c.id !== "ativo"),
 });
 const VALOR_DO_CAMPO = Object.freeze({ familias: getFamiliaFieldValue, tipos: getTipoFieldValue });
+/**
+ * No celular (< 640 px) o código (gerado pelo nome, P-05) e a vida útil saem da
+ * lista: com eles a tabela não cabe no diálogo e "Editar"/"Inativar" ficavam
+ * fora da tela. Os dois continuam no formulário de edição.
+ */
+const OCULTAS_NO_CELULAR = new Set(["codigo", "vida_util"]);
 
 const TEXTOS = Object.freeze({
   familias: {
@@ -344,7 +350,7 @@ export default function GerenciarFamiliasTiposDialog({ aberto, onFechar, acoes }
               <thead>
                 <tr className="text-left text-[var(--mg-text-2,#475569)]">
                   {colunas.map((c) => (
-                    <th key={c.id} className="py-1 pr-2">
+                    <th key={c.id} className={`py-1 pr-2 ${OCULTAS_NO_CELULAR.has(c.id) ? "hidden sm:table-cell" : ""}`}>
                       {c.label}
                     </th>
                   ))}
@@ -356,7 +362,7 @@ export default function GerenciarFamiliasTiposDialog({ aberto, onFechar, acoes }
                 {itens.map((r) => (
                   <tr key={r.id} className="border-t border-slate-100" data-testid={`gerenciar-${recurso}-${r.id}`}>
                     {colunas.map((c) => (
-                      <td key={c.id} className={`py-1 pr-2 ${c.id === "codigo" ? "font-mono" : ""} ${c.id === "nome" ? "uppercase" : ""}`}>
+                      <td key={c.id} className={`py-1 pr-2 ${OCULTAS_NO_CELULAR.has(c.id) ? "hidden sm:table-cell" : ""} ${c.id === "codigo" ? "font-mono" : ""} ${c.id === "nome" ? "uppercase" : ""}`}>
                         {valorDoCampo(r, c.id) || "–"}
                       </td>
                     ))}

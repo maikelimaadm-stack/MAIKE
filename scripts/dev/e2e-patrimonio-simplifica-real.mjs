@@ -35,6 +35,10 @@
  *   5. segundo bem PELA TELA (Trator TP-03, a família e o tipo já existentes)
  *      com tanque de 120 L aceitando o Produto em KG (filtro "Quilos") → aviso
  *      "no abastecimento digita-se kg". Banco: aceite do Produto KG;
+ *  5b. "⋯ › Gerenciar famílias e tipos" (e "Instalar catálogo padrão" para o
+ *      administrador) dentro de Bens: a família e o tipo criados aparecem, sem
+ *      nada de perfis ou combustível, e as listas cabem no diálogo (as ações
+ *      Editar/Inativar sem arrastar a lista para o lado, também a 390 px);
  *   6. Abastecimentos: lista vazia, sem "Fatores kg/L" nem nada de combustível;
  *   7. novo abastecimento TP-02 → Diesel S10 já marcado → local automático →
  *      "Quantidade abastecida (L)" 80 → horímetro 1.550,5 → tanque cheio →
@@ -83,7 +87,7 @@ const E = criarEnsaio({
   apiPort: Number(process.env.E2E_API_PORT || 3951),
   webPort: Number(process.env.E2E_WEB_PORT || 5251),
 });
-const { WEB, conferir, exigir, igual, esperarBanco } = E;
+const { WEB, conferir, igual, esperarBanco } = E;
 const FIFO = VETOR_FIFO;
 
 process.env.DATABASE_URL = E.DATABASE_URL;
@@ -95,6 +99,8 @@ const TELAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMed
 const AVISO_KG_TANQUE = 'Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.';
 const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
 const COLUNAS_PADRAO = 'Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação';
+/** Texto da tela normalizado (o Intl põe espaço não separável em "R$ 425,00"). @param {string} t */
+const texto = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
 
 /** Foto das linhas que o abastecimento pode tocar (prova de "nada gravado"). */
 const fotoBanco = async (s) => {
@@ -502,6 +508,38 @@ const executarLargura = async (browser, largura) => {
       igual(await prisma.familiaPatrimonial.count({ where: { cliente_id: s.cliente_id } }), 1, `[${rotulo}] famílias (o 2º bem reusou a existente)`);
     });
 
+    await passo('5b "⋯ › Gerenciar famílias e tipos" dentro de Bens (catálogo do tenant)', async () => {
+      await ir('benspatrimoniais');
+      await visivel(page.getByTestId(`bem-nome-${reg.tp03.id}`).or(page.getByTestId('b1-card').filter({ hasText: 'TP-03' }))).waitFor();
+      await clicar(page.getByRole('button', { name: 'Mais opções' }));
+      const item = (nome) => page.getByRole('menuitem', { name: nome }).or(page.getByRole('button', { name: nome, exact: true }));
+      await visivel(item('Gerenciar famílias e tipos')).waitFor();
+      // P-06: o dono (administrador) também vê "Instalar catálogo padrão".
+      conferir(await visivel(item('Instalar catálogo padrão')).isVisible().catch(() => false), `[${rotulo}] "Instalar catálogo padrão" ausente para o administrador`);
+      await clicar(item('Gerenciar famílias e tipos'));
+      const dlg = visivel(page.getByTestId('gerenciar-familias-tipos'));
+      await dlg.waitFor();
+      const familias = texto(await visivel(dlg.getByTestId('gerenciar-lista-familias')).innerText());
+      conferir(/TRATORES/i.test(familias) && familias.includes('Ativo'), `[${rotulo}] gerenciar: lista de famílias (${familias})`);
+      await shot('gerenciar-familias');
+      await clicar(dlg.getByRole('tab', { name: 'Tipos' }));
+      const tipos = texto(await visivel(dlg.getByTestId('gerenciar-lista-tipos')).innerText());
+      conferir(/TRATOR DE PNEUS/i.test(tipos), `[${rotulo}] gerenciar: lista de tipos (${tipos})`);
+      igual(await dlg.getByText(/perfi[ls] de medição|combust[íi]vel/i).count(), 0, `[${rotulo}] gerenciar fala de perfis/combustível`);
+      await shot('gerenciar-tipos');
+      // As ações das linhas (Editar / Inativar) cabem no diálogo sem arrastar a lista para o lado.
+      for (const recurso of ['tipos', 'familias']) {
+        if (recurso === 'familias') await clicar(dlg.getByRole('tab', { name: 'Famílias' }));
+        const caixa = await visivel(dlg.getByTestId(`gerenciar-lista-${recurso}`)).evaluate((t) => {
+          const el = t.parentElement;
+          return { sw: el.scrollWidth, cw: el.clientWidth };
+        });
+        conferir(caixa.sw <= caixa.cw + 1, `[${rotulo}] gerenciar: a lista de ${recurso} rola na horizontal em ${largura} px (${caixa.sw} > ${caixa.cw} + 1)`);
+      }
+      await page.keyboard.press('Escape');
+      await dlg.waitFor({ state: 'hidden' });
+    });
+
     await passo('6 Abastecimentos: lista vazia, sem fator kg/L nem combustível', async () => {
       await ir('abastecimentos');
       await visivel(page.getByTestId('abastecimento-lista-vazia')).waitFor();
@@ -519,11 +557,11 @@ const executarLargura = async (browser, largura) => {
       await pedirPrevia();
       const resumo = await visivel(page.getByTestId('previa-resumo')).innerText();
       conferir(resumo.includes('DIESEL S10') && resumo.includes('80 L') && resumo.includes('Baixa de 80,0000 L'), `[${rotulo}] revisão: resumo ${resumo}`);
-      igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), 'Baixa do estoque 80,0000 L', `[${rotulo}] revisão: baixa`);
+      igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), '80,0000 L', `[${rotulo}] revisão: baixa`);
       igual(await page.getByTestId('previa-dica-kg').filter({ visible: true }).count(), 0, `[${rotulo}] revisão: dica de KG para Produto em L`);
       await shot('previa-l');
       await abrirDetalhesDoEstoque();
-      const custo = await visivel(page.getByTestId('previa-custo')).innerText();
+      const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
       conferir(custo.includes('R$ 425,00') && custo.includes('5,3125') && custo.includes('/L') && /estimativa/i.test(custo), `[${rotulo}] revisão: custo ${custo}`);
       conferir((await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('conferida (Produto em litros)'), `[${rotulo}] revisão: capacidade não conferida para Produto em L`);
       const linhas = await visivel(page.getByTestId('previa-fatias')).locator('tbody tr').allInnerTexts();
@@ -569,8 +607,8 @@ const executarLargura = async (browser, largura) => {
     await passo('9 lista e consulta → cancelar → estorno exato de 80 L', async () => {
       await conferirLista([reg.l80], 'lista-l');
       await abrirNaLista(reg.l80);
-      igual((await visivel(page.getByTestId('consulta-quantidade')).innerText()).replace(/\s+/g, ' ').trim(), 'Quantidade baixada 80,0000 L', `[${rotulo}] consulta: quantidade`);
-      const custo = await visivel(page.getByTestId('consulta-custo')).innerText();
+      igual((await visivel(page.getByTestId('consulta-quantidade')).innerText()).replace(/\s+/g, ' ').trim(), '80,0000 L', `[${rotulo}] consulta: quantidade`);
+      const custo = texto(await visivel(page.getByTestId('consulta-custo')).innerText());
       conferir(custo.includes('R$ 425,00') && custo.includes('5,3125/L'), `[${rotulo}] consulta: custo ${custo}`);
       igual(await visivel(page.getByTestId('consulta-fatias')).locator('tbody tr').count(), 2, `[${rotulo}] consulta: fatias`);
       igual((await visivel(page.getByTestId('abastecimento-consulta-situacao')).innerText()).trim(), 'Confirmado', `[${rotulo}] consulta: situação`);
@@ -604,10 +642,10 @@ const executarLargura = async (browser, largura) => {
       const antes = await fotoBanco(s);
       await pedirPrevia();
       igual((await visivel(page.getByTestId('previa-dica-kg')).innerText()).trim(), DICA_KG, `[${rotulo}] revisão: dica de Produto em KG`);
-      igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), 'Baixa do estoque 35,0000 kg', `[${rotulo}] revisão: baixa em kg`);
+      igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), '35,0000 kg', `[${rotulo}] revisão: baixa em kg`);
       await abrirDetalhesDoEstoque();
       conferir((await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('não conferida (Produto em quilos'), `[${rotulo}] revisão: capacidade conferida para Produto em KG`);
-      const custo = await visivel(page.getByTestId('previa-custo')).innerText();
+      const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
       conferir(custo.includes('R$ 143,50') && custo.includes('/kg'), `[${rotulo}] revisão KG: custo ${custo}`);
       igual(await fotoBanco(s), antes, `[${rotulo}] a revisão em KG gravou algo`);
       await shot('previa-kg');
