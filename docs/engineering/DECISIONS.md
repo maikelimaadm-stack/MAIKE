@@ -5831,4 +5831,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga em parte:** D-PROD-149 (fundo `#FAFCFE`) e as cores de texto da D-PROD-150, só dentro do motor Base1.
 - **Evidência:** `docs/engineering/evidencias/base1-design-d161/`; teste `tests/smoke/base1DesignD161.test.jsx`; relatório `docs/engineering/UI-BASE1-DESIGN-D161-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-162 -->
+## D-PROD-162 — Motor Base1: paridade medida com o design "Cadastro de Lote"
+
+- **Contexto:** o proprietário reavaliou a D-PROD-161 e pediu a tela "100% igual" ao design, conferida no sistema real (não em capturas), mantendo o tamanho de fonte do sistema.
+- **Decisão (método):** a igualdade passa a ser **medida**: o design e o sistema rodam lado a lado no navegador, cada elemento é casado e comparado (posição, tamanho, estilo calculado) nos três tamanhos; toda diferença é corrigida na regra que vence ou explicada. Resultado e método no relatório `docs/engineering/UI-BASE1-DESIGN-D161-REPORT.md`.
+- **Decisão (CSS):**
+  - o CSS de propostas do design é portado **inteiro e mecanicamente** em `src/styles/base1-design.css` (`@container` → `@media`; peças compartilhadas sob `body:has(.cadastro-b1--full-page)`; nenhum `font-size`); os acertos do app ficam à parte, comentados, em `base1-design-ajustes.css`;
+  - a paleta quente das peças compartilhadas e do Tailwind chega por **variáveis com a cor original de reserva** (`var(--mkq-<hex>, <hex>)`, `--mkq-tw-slate-*`/`--mkq-tw-gray-*` em `tailwind.config.js`), definidas só com tela Base1 aberta — cascata e especificidade não mudam e o Mapa Geral fica como está;
+  - `base1-tipografia.css` fica só com tamanhos e pesos (as cores de texto seguem o design).
+- **Decisão (comportamento):** rodapé da lista em palavras ("12 lotes", "5 de 12 lotes · 1 selecionado"), escondido no celular e no registro fora do desktop; ‹ › do registro na linha das abas (desktop) ou acima das seções (tablet), na ordem que a lista mostra, sem a faixa de cabeçalho do registro; abas sem lista lateral; "Ativo" como chave em caixa; situação na grade com ponto colorido (sai o selo `CadastroAtivoBadge`); campo numérico vazio ao salvar avisa "Campos obrigatórios"; no celular o funil abre a lista "Filtros" da faixa; condição do filtro dentro da janela da pílula; listas de seleção na largura do campo, com o "+" dentro da pesquisa (também na folha do celular).
+- **Fica diferente de propósito:** tamanhos de fonte (do sistema); painel de correção da entrada (R1); "Carregar mais" apagado quando não há mais registros; foco do teclado na lista aberta; dica "Novo setor"; ícones de cadeado/calendário (no arquivo do design estão quebrados por `sc-camel-view-box`).
+- **Revoga:** a ordem "Listados, Filtrados, Totais, Selecionados" do rodapé (PAR6) e o botão de lista lateral das abas; complementa a D-PROD-161.
+- **Evidência:** `docs/engineering/evidencias/base1-design-d161/` (`paridade-*.png` = design | sistema | diferenças; `paridade-RESUMO.txt`); testes `tests/smoke/base1FiltrosRapidos.test.jsx`, `base1DesignD161.test.jsx`, `cadastroAtivoBadge.test.jsx`, `mobileParidadeV2.test.jsx`, `mobileShellV2.test.jsx`, `mobileV4Ios.test.jsx`, `formularioLoteBase1Tabs.test.jsx`, `base1PanelTabs.test.jsx`, `catalogoGlobalLote.test.jsx`.
+
+<!-- Próxima decisão: D-PROD-163 -->

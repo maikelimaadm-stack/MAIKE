@@ -1,61 +1,73 @@
 # UI-BASE1-DESIGN-D161 — relatório
 
-**Fatia:** acabamento do design "Cadastro de Lote" no motor Base1 (D-PROD-161).
-**Tipo:** visual (UI). Sem migration, domínio, rota, página, config ou dependência nova.
+**Fatia:** design "Cadastro de Lote" no motor Base1 (D-PROD-161; paridade medida em D-PROD-162).
+**Tipo:** visual (UI) e comportamento de tela. Sem migration, domínio, rota, página, config de escopo ou dependência nova.
 **Fonte da verdade:** `docs/design/cadastro-de-lote/cadastro-de-lote.dc.html` (roda com o `support.js` de `docs/design/detalhes-do-lote/`).
-**Pedido do proprietário:** repassar a configuração ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema.
+**Pedido do proprietário:** repassar a configuração ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema; depois, "100% igual", medido no sistema real e não em capturas.
+
+## Como a paridade foi medida (D-PROD-162)
+
+Comparação automática no navegador (Chromium), estado por estado, nos três tamanhos (desktop 1280×900, tablet 820×1180, celular 390×844):
+
+1. o design roda no próprio protótipo (moldura do aparelho); o sistema roda de verdade (Vite, com backend falso com os mesmos 12 lotes do design);
+2. cada elemento visível dos dois lados é casado por tag + classes do motor + rótulo/texto;
+3. para cada par: posição e tamanho (tolerância 1 px) e estilo calculado (cor, fundo, bordas, cantos, sombra, espaçamentos, peso, opacidade, traço de ícone, cursor, cor visível do texto);
+4. lista o que existe só de um lado, e gera captura dos dois lados com mapa de diferenças em pixels;
+5. para cada diferença, a regra CSS vencedora é localizada (DevTools Protocol) para corrigir na origem.
+
+Estados medidos (os mesmos do design): lista, linha selecionada, registro em leitura, registro em edição, novo com erros, pílula de filtro, Ordenar, "+ Filtro", pesquisa, funil, menu da coluna, mais opções, cards, tabela no celular, lista do campo (Setor), Sistema Produtivo, quantidade por página e excluir — 43 combinações estado × tamanho.
 
 ## O que foi feito
 
-| Peça | Arquivos |
+| Peça | Onde |
 |---|---|
-| Paleta quente no lugar (251 declarações, só regras do escopo do motor) | `src/styles/cadastro-base1.css`, `cadastro-b1-portal.css`, `cadastro-b1-controls.css`, `cadastro-b1ref.css`, `maike-mobile-shell.css`, `maike-notify.css`, `mk-filtros.css`, `mk-superficie.css`, `base1-tipografia.css` |
-| Camada do design (tokens, botões, ícones, tabela, rodapé, abas, campo) | `src/styles/base1-design.css` (novo), `src/index.css` |
-| Abas em pílula, cartão com título, seções empilhadas abaixo de 1024 px, ponto de pendência | `src/components/cadastro/base1/Base1PanelTabs.jsx` |
-| Mensagem de erro com ícone; "Campo obrigatório" no lugar de "true" | `src/components/cadastro/base1/B1Field.jsx` |
-| Papéis de célula (título, código, vazio), tipo de célula `cor`, tag "Inativo" | `Base1Grid.jsx`, `CadastroBase1Grade.jsx`, `cadastroBase1CellKind.jsx`, `Base1Cards.jsx` |
-| Faixa de filtros rápidos e pílula de ordenação | `FiltrosRapidos.jsx` (novo), `CadastroListaChrome.jsx`, `CadastroBase1Grade.jsx` |
-| Lotes: coluna Cor com amostra, campos padrão dos cards, pílulas iniciais | `src/components/lotes/TabelaLotes.jsx`, `src/pages/CadastroLotes.jsx` |
-| Cards no celular: até 8 campos por padrão | `src/hooks/useCadastroCardsPrefs.js` |
-| Lista de seleção dos campos com pesquisa lisa e "+"; folha de lista no celular | `src/components/common/PainelSelecao.jsx`, `src/components/financeiro/AutocompleteGenerico.jsx` |
-| Pesquisa da barra, listas de configuração, cabeçalho do celular nas telas Base1 | `src/styles/base1-design.css` |
-| Testes | `tests/smoke/base1DesignD161.test.jsx`, `tests/smoke/base1FiltrosRapidos.test.jsx` |
+| CSS de propostas do design portado **inteiro e mecanicamente** (`@container` → `@media`, peças compartilhadas sob `body:has(.cadastro-b1--full-page)`, nenhum `font-size`) | `src/styles/base1-design.css` |
+| Tokens da raiz do design; cores frias literais do CSS do sistema viram `var(--mkq-<hex>, <hex>)` (quentes só com tela Base1 aberta) | `src/styles/base1-design-tokens.css` + 15 arquivos de `src/styles/` (só o valor da cor muda) |
+| slate/gray do Tailwind em variável com a cor padrão de reserva | `tailwind.config.js`, `src/styles/base1-design-tokens.css` |
+| Hex arbitrários frios em classes (`bg-[#FAFCFE]`…) | `src/styles/base1-paleta-tailwind.css` |
+| Acertos do app para o design (cada um com o porquê) | `src/styles/base1-design-ajustes.css` |
+| Tipografia só com tamanhos (as cores seguem o design) | `src/styles/base1-tipografia.css` |
+| Título visível do desktop, faixa de filtros (faixa/trilho/setas, janelas, condição, lista "Filtros" no celular), rodapé em palavras | `CadastroWorkspace.jsx`, `FiltrosRapidos.jsx`, `CadastroListaChrome.jsx`, `contagemBase1.js`, `CadastroBase1Grade.jsx` |
+| Grade: ponto de situação, título da célula de cor pelo nome, "0" não é vazio, caixa de 18 px | `cadastroBase1CellKind.jsx`, `Base1Grid.jsx`, `Base1Ui.jsx` |
+| Registro: ‹ › na linha das abas (desktop) ou acima das seções (tablet), na ordem da grade; sem a faixa de cabeçalho; sem lista lateral | `registroNavBase1.jsx`, `ordemDaListaBase1.js`, `Base1PanelTabs.jsx`, controladores |
+| Formulário: grupos, chave em caixa, campo travado, campo numérico, dica do ícone oficial sob a categoria, Sistema Produtivo em janela, larguras do design | `DynamicFormRenderer.jsx`, `B1Field.jsx`, `B1MultiSelecao.jsx`, `FormularioLote.jsx`, `IconeOficialLotePreview.jsx` |
+| Listas de seleção dos campos no modelo do design (largura do campo, "+" na pesquisa, nome do campo) | `PainelSelecao.jsx`, `AutocompleteGenerico.jsx` |
+| "Filtrar por campo" sem título e alinhado como no design | `FiltroPorCampo.jsx` |
 
-Como o porte é no motor, vale para todas as telas Base1. Só três formulários usam abas (Lotes, Bens, Empresa); os demais recebem paleta, campo, tabela e botões.
+Como o porte é no motor, vale para todas as telas Base1. O Mapa Geral não muda: tudo o que é compartilhado só muda com uma tela Base1 aberta.
 
-## Como a paleta foi portada
+## Resultado (medição final)
 
-O design traz uma cópia do CSS do sistema já recolorida. Um script comparou regra a regra essa cópia com o CSS real e trocou só a cor, só onde o seletor é do motor. As 73 declarações de seletores compartilhados com o mapa e a casca (folha, pílulas, cabeçalhos) **não** foram tocadas.
+Arquivo completo: `docs/engineering/evidencias/base1-design-d161/paridade-RESUMO.txt`.
 
-## O que ficou de fora
+| Tamanho | Estados | Elementos sem par (por lado) | Estilos diferentes por estado |
+|---|---|---|---|
+| Desktop | 17 | 5–8 na lista e janelas (dados e nomes de ícone) | 18–31, todos explicados abaixo |
+| Tablet | 17 | 7–11 (idem) | 11–36 |
+| Celular | 8 | 6–13 (idem) | 21–26 |
 
-Está no design e não entrou:
+O que sobra, em todos os estados, é só:
 
-- condição/operadores dentro do filtro rápido (seguem no filtro avançado do menu da coluna) e a lista "Filtros" do celular (no celular não há faixa; o funil abre o "Filtrar por campo" de antes);
-- setas e esmaecimento na rolagem lateral da faixa;
-- seleção múltipla em janela (Sistema Produtivo continua em pílulas); no celular o "+" de cadastrar continua no topo da folha, não dentro da pesquisa;
-- movimento de abrir e fechar;
-- larguras exatas dos campos do Lote (o design usa Descrição 5 · Código 2 · Data 3 · Ativo 2 numa linha; aqui os campos principais entraram no cartão da aba Geral com as larguras atuais);
-- rodapé em palavras ("12 lotes · 1 selecionado") — contraria o teste PAR6 de `mobileParidadeV2`.
+1. **Tamanho de fonte** (pedido do proprietário: vale o do sistema). Ex.: tabela 12 px no sistema × 13 px no design; título da página 13 × 15 px — por isso a lista fica 4 px mais alta no desktop; rótulos e chips mudam a largura em 1–4 px.
+2. **Dados do ambiente de teste:** nome do usuário ("Usuario" × "Maike") e um módulo a mais no menu (Patrimônio e Frota); ícone oficial da categoria (o backend falso não tem o vínculo do catálogo).
+3. **Artefatos do arquivo do design:** ícones de cadeado e calendário quebrados no design (o arquivo trocou `viewBox` por `sc-camel-view-box`); preto `#000` × `#0a0a0a` no texto da casca (o protótipo não tem a variável de cor do tema); nomes de ícone do Lucide (`table-2` × `table2`).
+4. **Comportamento do sistema mantido:** painel de correção da entrada (R1) no registro em edição; "Carregar mais" apagado quando não há mais registros; foco do teclado vai para a lista aberta (o visual de campo aberto foi reproduzido); dica "Novo setor" no "+" (o design diz "Novo").
 
-Limitações conhecidas da faixa de filtros: filtros e ordenação continuam locais à grade (como antes) e somem ao abrir um registro; nas telas paginadas no servidor o filtro vale para as linhas já carregadas (como o filtro de coluna); o total da janela usa a palavra "registros".
+## Mudanças de comportamento (decididas em D-PROD-162)
 
-Motivo do recorte: a leitura em paralelo do motor foi interrompida pelo limite de uso da conta; o que entrou é o que pôde ser conferido no navegador.
-
-## Diferenças em relação ao design
-
-1. **Tamanhos de fonte:** todos os do sistema, por pedido.
-2. **Cartão da aba:** no design o fundo do registro é creme e o cartão é branco com sombra. Aqui o registro continua numa superfície branca e o cartão da aba tem borda fina, porque Lotes, Bens e Empresa têm campos acima das abas que ficariam soltos no fundo.
-3. **Botão de lista lateral das abas:** mantido (o design não o mostra; há teste e preferência salva).
-4. **Caixa de seleção de 18 px e chave:** diferenças vindas de cópia antiga do CSS no design; vale o repositório.
+- Rodapé em palavras ("12 lotes", "5 de 12 lotes · 1 selecionado"); some no celular e no registro fora do desktop. Os números ficam em `data-*` do `.mg-summary`.
+- ‹ › do registro seguem a ordem que a lista mostra (antes: a ordem dos dados).
+- Salvar com campo numérico vazio avisa "Campos obrigatórios" ("Número inválido" só com número digitado errado).
+- Celular: o funil abre a lista "Filtros" da faixa (antes: "Filtrar por campo").
+- Abas sem a opção de lista lateral; "Ativo" como chave em caixa; situação na grade com ponto colorido (o selo antigo saiu).
 
 ## Verificação
 
-- Navegador real (Chromium, backend falso, 1280/820/390 px): lista, registro em leitura e edição, novo com erros, cards, busca, menus. Capturas em `docs/engineering/evidencias/base1-design-d161/` (`design-*` e `app-*`).
-- `npm run verify:all`: ver o PR. `test:backend` exige PostgreSQL, que não existe neste contêiner; a fatia não toca o backend.
+- Navegador real: medição acima (`paridade-*.png` = design | sistema | diferenças em vermelho; `design-*`/`app-*` = capturas).
+- Testes: suíte de fumaça inteira passando; testes atualizados onde fixavam o comportamento antigo (rodapé, selo de situação, lista lateral, "+" da folha, chave do Ativo, dica do ícone) e testes novos (condição dentro da janela do filtro).
+- `lint`, `gate:types`, `gate:source-closure`, `gate:import-integrity`, `gate:no-secrets`, `gate:base44`, `gate:product-scope`, `gate:governance-paths`. `test:backend` exige PostgreSQL, que não existe neste contêiner; a fatia não toca o backend.
 
-## Pendências e decisões para o proprietário
+## Pendências para o proprietário
 
-- Portar o restante da lista acima (uma fatia por peça).
-- Rodapé em palavras: revoga a ordem "Listados, Filtrados, Totais, Selecionados"?
-- Levar a paleta quente ao Mapa Geral e à casca?
+- Movimento (proposta 6.32): a parte em CSS veio no porte; os efeitos que no design dependem de script (botão que cede e volta com mola no toque, ficha empurrada pela direita ao abrir um lote) não foram portados.
+- Levar a paleta quente ao Mapa Geral e à casca fora das telas Base1?
