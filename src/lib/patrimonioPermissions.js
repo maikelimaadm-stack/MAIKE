@@ -11,7 +11,7 @@
  *
  * D-PROD-162: só DUAS telas (Bens Patrimoniais e Abastecimentos). Os tipos
  * vivem dentro do cadastro de Bens e seguem as ações da tela de Bens
- * (`acoesDeCatalogoNoBem`; D-PROD-163: a família saiu da tela). As linhas antigas gravadas em `permissoes_telas`
+ * (`acoesDeCatalogoNoBem`; D-PROD-169: a família saiu da tela). As linhas antigas gravadas em `permissoes_telas`
  * (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`,
  * `pat-combustiveis` e a ação `configurar_conversao` de Abastecimentos) ficam
  * INERTES: nada aqui as lê.
@@ -51,14 +51,14 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
 };
 
 /**
- * D-PROD-162 / D-PROD-163 — os tipos e os "Produtos aceitos" do tanque DENTRO
- * do cadastro de Bens (a família saiu da tela na D-PROD-163). Espelho de
+ * D-PROD-162 / D-PROD-169 — os tipos e os "Produtos aceitos" do tanque DENTRO
+ * do cadastro de Bens (a família saiu da tela na D-PROD-169). Espelho de
  * `GUARDAS.patrimonioTipos` e de `GUARDAS.patrimonioBens.opcoesProdutos`,
  * todos sobre a tela de Bens:
  *  - criarCatalogo    = "+ Novo tipo": Bens novo|salvar|editar
  *                       (`BENS_CRIAR_OU_EDITAR`: quem cadastra OU edita bem);
  *  - editarCatalogo   = renomear: Bens editar|salvar (`edicaoPatrimonio`);
- *  - excluirCatalogo  = excluir tipo sem bem (D-PROD-163, "Gerenciar tipos"):
+ *  - excluirCatalogo  = excluir tipo sem bem (D-PROD-169, "Gerenciar tipos"):
  *                       a mesma de renomear — Bens editar|salvar
  *                       (`GUARDAS.patrimonioTipos.excluir`);
  *  - inativarCatalogo = reativar (ou inativar) tipo antigo: Bens `inativar`;

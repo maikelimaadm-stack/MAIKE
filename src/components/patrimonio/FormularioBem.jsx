@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { B1CartaoCampos, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroRapidoSheet from "@/components/common/CadastroRapidoSheet";
@@ -51,7 +52,7 @@ const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome 
 const nomeInicial = (busca) => String(busca ?? "").trim();
 
 /**
- * "+ Novo tipo" do formulário do Bem (D-PROD-163, D-PROD-95): o cadastro
+ * "+ Novo tipo" do formulário do Bem (D-PROD-169, D-PROD-95): o cadastro
  * rápido abre por cima, com o Tipo de bem do bem (travado) e o Nome. O POST vai
  * com `{natureza, nome}`: o servidor põe o tipo na família padrão do Tipo de
  * bem e gera o código (P-05). Criou → o tipo fica escolhido no bem. 409 de nome
@@ -139,15 +140,15 @@ function CadastroRapidoTipoBem({ pedido, onFechar, onEscolher }) {
 }
 
 /**
- * Formulário do Bem Patrimonial (D-PROD-157; D-PROD-162; D-PROD-163), com abas Base1:
+ * Formulário do Bem Patrimonial (D-PROD-157; D-PROD-162; D-PROD-169), com abas Base1:
  *  - Identificação: propriedade, responsáveis e características (os campos de
  *    placa, chassi, série, potência, construção e compatibilidade aparecem só
- *    para o Tipo de bem que os admite — §2). D-PROD-163: Área e Localização
+ *    para o Tipo de bem que os admite — §2). D-PROD-169: Área e Localização
  *    saíram da tela (o que já estiver gravado nelas fica como está);
  *  - Operação (medidor e, para máquinas, veículos e equipamentos, os tanques
  *    com os Produtos aceitos); Aquisição e depreciação (com a prévia).
  *
- * D-PROD-163: o bem tem duas escolhas — o "Tipo de bem" (a natureza, lista
+ * D-PROD-169: o bem tem duas escolhas — o "Tipo de bem" (a natureza, lista
  * fixa) e o "Tipo" (cadastro do usuário, só os tipos ativos do Tipo de bem).
  * Sem família na tela. O "+ Novo tipo" (quem cadastra OU edita bem:
  * `criarCatalogo`) cria no Tipo de bem do bem e o tipo criado fica escolhido.
@@ -196,7 +197,7 @@ export default function FormularioBem({
 
   // Consulta (somente leitura): o formulário espelha o detalhe. Um detalhe relido
   // sem versão nova do bem (ex.: o tipo dele renomeado em "⋯ › Gerenciar tipos",
-  // D-PROD-163) atualiza a tela sem remontar — a aba aberta continua. Na edição
+  // D-PROD-169) atualiza a tela sem remontar — a aba aberta continua. Na edição
   // o digitado nunca é trocado.
   const detalheMostrado = useRef(detalhe);
   useEffect(() => {
@@ -494,61 +495,64 @@ export default function FormularioBem({
   return (
     <CadastroFormShell embedded title={editando ? "Editar bem patrimonial" : "Novo bem patrimonial"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
-          <CampoTexto
-            label="Nº patrimonial"
-            span={2}
-            value={editando ? String(detalhe.numero ?? "") : ""}
-            onChange={() => {}}
-            readOnly
-            placeholder="GERADO AO SALVAR"
-          />
-          <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
-          <CampoTexto
-            label="Código de frota"
-            span={editando ? 2 : 4}
-            value={form.codigo_frota}
-            onChange={(v) => set("codigo_frota", v)}
-            readOnly={readOnly}
-            maxLength={16}
-            error={erros.codigo_frota}
-            placeholder="EX.: TP-02"
-          />
-          {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
-          <CampoSelect
-            label="Tipo de bem"
-            value={form.natureza}
-            onChange={escolherNatureza}
-            options={OPCOES_TIPO_DE_BEM}
-            placeholder="— Escolha o tipo de bem —"
-            readOnly={readOnly || editando}
-            required
-            error={erros.natureza || undefined}
-            span={4}
-          />
-          <SeletorPaginadoGestao
-            rotulo="Tipo"
-            testId="bem-seletor-tipo"
-            chave={["patrimonio", "tipos", natureza]}
-            buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, natureza })}
-            value={form.tipo}
-            onChange={escolherTipo}
-            readOnly={readOnly}
-            bloqueadoMotivo={natureza ? null : "Escolha o tipo de bem primeiro"}
-            obrigatorio
-            textoVazio="— Escolha o tipo —"
-            erro={erros.tipo || undefined}
-            span={8}
-            onCriarNovo={podeCriarCatalogo && natureza ? pedirNovoTipo : undefined}
-            rotuloCriarNovo="Novo tipo"
-          />
-          {!natureza && !readOnly ? (
-            <div className="col-span-12">
-              <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
-                Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
-              </AvisoGestao>
-            </div>
-          ) : null}
+        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-165). */}
+          <B1CartaoCampos>
+            <CampoTexto
+              label="Nº patrimonial"
+              span={2}
+              value={editando ? String(detalhe.numero ?? "") : ""}
+              onChange={() => {}}
+              readOnly
+              placeholder="GERADO AO SALVAR"
+            />
+            <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
+            <CampoTexto
+              label="Código de frota"
+              span={editando ? 2 : 4}
+              value={form.codigo_frota}
+              onChange={(v) => set("codigo_frota", v)}
+              readOnly={readOnly}
+              maxLength={16}
+              error={erros.codigo_frota}
+              placeholder="EX.: TP-02"
+            />
+            {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
+            <CampoSelect
+              label="Tipo de bem"
+              value={form.natureza}
+              onChange={escolherNatureza}
+              options={OPCOES_TIPO_DE_BEM}
+              placeholder="— Escolha o tipo de bem —"
+              readOnly={readOnly || editando}
+              required
+              error={erros.natureza || undefined}
+              span={4}
+            />
+            <SeletorPaginadoGestao
+              rotulo="Tipo"
+              testId="bem-seletor-tipo"
+              chave={["patrimonio", "tipos", natureza]}
+              buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, natureza })}
+              value={form.tipo}
+              onChange={escolherTipo}
+              readOnly={readOnly}
+              bloqueadoMotivo={natureza ? null : "Escolha o tipo de bem primeiro"}
+              obrigatorio
+              textoVazio="— Escolha o tipo —"
+              erro={erros.tipo || undefined}
+              span={8}
+              onCriarNovo={podeCriarCatalogo && natureza ? pedirNovoTipo : undefined}
+              rotuloCriarNovo="Novo tipo"
+            />
+            {!natureza && !readOnly ? (
+              <div className="col-span-12">
+                <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
+                  Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
+                </AvisoGestao>
+              </div>
+            ) : null}
+          </B1CartaoCampos>
           <div className="col-span-12">
             <Base1PanelTabs
               tabs={abas}

@@ -9,7 +9,7 @@
  *    inexistente → o mesmo 404 `BEM_PATRIMONIAL_NAO_ENCONTRADO`;
  *  - `numero` pela sequência do tenant (`reservarNumero`, ESCOPO_TENANT) e
  *    `natureza` copiada da família: ambos IMUTÁVEIS;
- *  - D-PROD-163: o corpo traz "Tipo de bem" (`natureza`) + "Tipo" (`tipo_id`)
+ *  - D-PROD-169: o corpo traz "Tipo de bem" (`natureza`) + "Tipo" (`tipo_id`)
  *    SEM `familia_id`: a família é a do TIPO e a natureza do tipo tem de ser a
  *    do bem (senão 422 `BEM_TIPO_NATUREZA_INCOMPATIVEL`). `familia_id`
  *    continua aceito por compatibilidade e tem de bater com o tipo. O catálogo
@@ -304,7 +304,7 @@ const carregarClassificacao = async (tx, clienteId, { familiaId, tipoId }) => {
 const rotulo = (n) => ROTULO_NATUREZA[/** @type {keyof typeof ROTULO_NATUREZA} */ (n)] ?? n;
 
 /**
- * 422 D-PROD-163: o tipo (ou a família informada) é de outro "Tipo de bem".
+ * 422 D-PROD-169: o tipo (ou a família informada) é de outro "Tipo de bem".
  * @param {string} field @param {string} natureza  a do bem/pedida @param {string} naturezaTipo
  */
 const naturezaIncompativel = (field, natureza, naturezaTipo) =>
@@ -519,7 +519,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const natureza = atual.natureza;
     const antes = estadoDoRegistro(atual);
 
-    // D-PROD-163: `natureza` no corpo só confere (imutável).
+    // D-PROD-169: `natureza` no corpo só confere (imutável).
     if (entrada.natureza !== undefined && entrada.natureza !== natureza) {
       throw new AppError('BEM_NATUREZA_IMUTAVEL', `o tipo de bem não muda depois do cadastro (este bem é "${rotulo(natureza)}"); nada foi gravado`, {
         details: { field: 'natureza', reason: 'natureza_diferente', natureza, natureza_pedida: entrada.natureza },

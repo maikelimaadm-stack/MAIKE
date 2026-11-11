@@ -1,5 +1,5 @@
 /**
- * D-PROD-162 / D-PROD-163 — infraestrutura comum dos ensaios ponta a ponta
+ * D-PROD-162 / D-PROD-169 — infraestrutura comum dos ensaios ponta a ponta
  * REAIS de Patrimônio e Frota (`e2e-patrimonio-simplifica-real.mjs` e
  * `e2e-abastecimentos-real.mjs`): sobe o backend Fastify REAL
  * (`backend/src/server.js`) contra um PostgreSQL LOCAL e o Vite apontando para
@@ -11,7 +11,7 @@
  * Toda resposta ≥ 400 da API real observada por uma tela entra como
  * divergência, salvo as que o roteiro declara esperadas (`fecharLargura`,
  * filtros `esperadas` — ex.: o 409 `PATRIMONIO_TIPO_EM_USO` da exclusão de um
- * tipo em uso, D-PROD-163). SÓ roda contra PostgreSQL local (`exigirBancoLocal`).
+ * tipo em uso, D-PROD-169). SÓ roda contra PostgreSQL local (`exigirBancoLocal`).
  */
 import fs from 'node:fs';
 import path from 'node:path';

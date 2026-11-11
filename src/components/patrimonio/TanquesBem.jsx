@@ -22,7 +22,7 @@ const nomeDoTanque = (t, i) => t.identificador.trim() || String(i + 1);
  */
 const seloDaUnidade = (u) => (u ? /** @type {Record<string, string>} */ (SELO_UNIDADE_DO_PRODUTO)[u] ?? u : "?");
 
-/** Filtro de unidade do seletor (achado D8; D-PROD-163 com os sacos): Todos (padrão), Litros, Quilos, Sacos. */
+/** Filtro de unidade do seletor (achado D8; D-PROD-169 com os sacos): Todos (padrão), Litros, Quilos, Sacos. */
 const OPCOES_FILTRO_UNIDADE = [
   { value: "TODAS", label: "Todos" },
   { value: "L", label: "Litros (L)" },
@@ -40,7 +40,7 @@ const MOTIVO_RECUSA = /** @type {Record<string, string>} */ ({
 
 export const AVISO_TANQUE_SEM_PRODUTO = "Este tanque não pode ser abastecido até ter um Produto aceito.";
 export const AVISO_PRODUTO_EM_KG = "Produto em quilos ou em sacos tem estoque em quilos: no abastecimento digita-se kg, não sacos nem os litros da bomba.";
-/** Regra dos Produtos aceitos (D-PROD-163), sob os tanques. */
+/** Regra dos Produtos aceitos (D-PROD-169), sob os tanques. */
 export const NOTA_PRODUTOS_ACEITOS =
   "Os Produtos aceitos vêm do estoque desta fazenda, em qualquer unidade (litros, quilos ou sacos). O abastecimento baixa do estoque exatamente a quantidade digitada, na unidade de estoque do Produto (litros para L; quilos para KG e SACO); a capacidade do tanque só é conferida para Produto em litros.";
 
@@ -59,7 +59,7 @@ const motivoDoProduto = (p, recusa) => {
 
 /**
  * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-162;
- * D-PROD-163): identificador, capacidade em litros, observação e os **Produtos
+ * D-PROD-169): identificador, capacidade em litros, observação e os **Produtos
  * aceitos** — Produtos ativos do estoque DESTA fazenda, em QUALQUER unidade de
  * estoque (litros `L`, quilos `KG` ou sacos `SACO`), escolhidos por um seletor
  * paginado (busca por nome/código no servidor, selo da unidade de estoque em

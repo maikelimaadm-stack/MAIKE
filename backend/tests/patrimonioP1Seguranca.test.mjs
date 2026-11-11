@@ -123,7 +123,7 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         assert.deepEqual(corpoErro(r), referencia, `${metodo} ${url}: sem oráculo`);
       }
     }
-    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência (D-PROD-163: família não tem rota).
+    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência (D-PROD-169: família não tem rota).
     for (const [base, id, codigo] of [['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']]) {
       assert.deepEqual(erro(await req('GET', `${base}/${id}`, b.token)).slice(0, 2), [404, codigo], base);
       assert.deepEqual(corpoErro(await req('GET', `${base}/${id}`, b.token)), corpoErro(await req('GET', `${base}/${INEXISTENTE}`, b.token)), `${base}: sem oráculo`);
@@ -172,14 +172,14 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
       ['POST cliente_id no medidor', post(corpoTrator(s, { codigo_frota: null, medidor: { tipo: 'SEM_MEDIDOR', cliente_id: s.c } }))],
       ['POST campo extra', post(corpoTrator(s, { codigo_frota: null, desconhecido: 1 }))],
       ['POST numero', post(corpoTrator(s, { codigo_frota: null, numero: '99' }))],
-      // D-PROD-163: `natureza` ("Tipo de bem") entrou no corpo; fora da lista FIXA → 400.
+      // D-PROD-169: `natureza` ("Tipo de bem") entrou no corpo; fora da lista FIXA → 400.
       ['POST natureza fora da lista', post(corpoTrator(s, { codigo_frota: null, natureza: 'FROTA' }))],
       ['POST id', post(corpoTrator(s, { codigo_frota: null, id: INEXISTENTE }))],
       ['POST versao', post(corpoTrator(s, { codigo_frota: null, versao: 1 }))],
       ['POST ativo', post(corpoTrator(s, { codigo_frota: null, ativo: false }))],
       ['POST consumo', post(corpoTrator(s, { codigo_frota: null, consumo: null }))],
       ['POST sem empresa', post(sem(corpoTrator(s, { codigo_frota: null }), 'empresa_id'))],
-      // D-PROD-163: sem `familia_id` é o contrato novo (a família vem do tipo); sem TIPO → 400.
+      // D-PROD-169: sem `familia_id` é o contrato novo (a família vem do tipo); sem TIPO → 400.
       ['POST sem tipo', post(sem(corpoTrator(s, { codigo_frota: null }), 'tipo_id'))],
       ['POST id malformado', post(corpoTrator(s, { codigo_frota: null, familia_id: 'x;drop' }))],
       ['PATCH cliente_id', patch(t.id, { cliente_id: s.c })],
@@ -369,7 +369,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
         ['PATCH com correção do medidor (2 eventos)', req('PATCH', `/bens-patrimoniais/${trator.id}`, s.token, { empresa_id: s.e1.id, versao: 1, medidor: { tipo: 'CICLOS', leitura_inicial: '1', data_leitura: '2027-06-01' } })],
         ['POST tipo por natureza (código gerado)', req('POST', '/patrimonio-tipos', s.token, { natureza: 'OUTRO', nome: 'Não grava' })],
         ['POST tipo', req('POST', '/patrimonio-tipos', s.token, { familia_id: s.fam.MAQUINAS, nome: 'Não grava' })],
-        ['DELETE tipo (D-PROD-163)', req('DELETE', `/patrimonio-tipos/${s.tip.GALPAO}?versao=1`, s.token)],
+        ['DELETE tipo (D-PROD-169)', req('DELETE', `/patrimonio-tipos/${s.tip.GALPAO}?versao=1`, s.token)],
         ['PATCH tipo', req('PATCH', `/patrimonio-tipos/${s.tip.CURRAL}`, s.token, { versao: 1, nome: 'Não grava' })],
       ];
       for (const [rotulo, pedido] of pedidos) {
@@ -378,7 +378,7 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
         assert.equal(r.json().message, 'erro interno', `${rotulo}: sem detalhe`);
       }
       // Instalar o padrão num tenant vazio também desfaz tudo (nenhuma das 19 linhas fica); idem a garantia
-      // automática da D-PROD-163 (primeira leitura de tipos).
+      // automática da D-PROD-169 (primeira leitura de tipos).
       const vazio = await montarPatrimonio(app, { catalogo: false });
       const vazioAntes = await contagens(vazio.c);
       assert.ok((await req('POST', '/patrimonio-catalogo-padrao', vazio.token, {})).statusCode >= 500);

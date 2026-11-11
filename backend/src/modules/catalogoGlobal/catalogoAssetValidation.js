@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 
 import { env } from '../../config/env.js';
 import { catalogoAssetInvalid } from '../../shared/errors/AppError.js';
+import { pareceSvg, validarSvgEstatico } from '../../shared/imagens/svgEstatico.js';
 
-const MIMES_PERMITIDOS = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const MIMES_PERMITIDOS = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
 
 /** Limites efetivos do validador — expostos ao MAIKE Admin para a UI não manter regra paralela. */
 export const limitesUploadCatalogo = () => ({ mimes: [...MIMES_PERMITIDOS], max_bytes: env.catalogoAssetMaxBytes });
@@ -27,7 +28,7 @@ export const detectarMimeReal = (buffer) => {
   ) {
     return 'image/gif';
   }
-  if (buffer.length >= 5 && buffer.toString('utf8', 0, 5).toLowerCase().includes('<svg')) {
+  if (pareceSvg(buffer)) {
     return 'image/svg+xml';
   }
   return null;
@@ -36,6 +37,7 @@ export const detectarMimeReal = (buffer) => {
 /** @param {Buffer} buffer */
 export const lerDimensoesImagem = (buffer) => {
   const mime = detectarMimeReal(buffer);
+  if (mime === 'image/svg+xml') return validarSvgEstatico(buffer);
   if (mime === 'image/png' && buffer.length >= 24) {
     return { largura: buffer.readUInt32BE(16), altura: buffer.readUInt32BE(20) };
   }
@@ -72,12 +74,18 @@ export const validarBufferAssetCatalogo = (buffer, mimeDeclarado) => {
   }
   const mimeReal = detectarMimeReal(buffer);
   if (!mimeReal || !MIMES_PERMITIDOS.has(mimeReal)) {
-    throw catalogoAssetInvalid('tipo de imagem não permitido (SVG e formatos desconhecidos reprovados)');
+    throw catalogoAssetInvalid('tipo de imagem não permitido');
   }
   if (mimeDeclarado && mimeDeclarado !== mimeReal) {
     throw catalogoAssetInvalid('Content-Type não corresponde ao conteúdo real');
   }
-  const { largura, altura } = lerDimensoesImagem(buffer);
+  let dimensoes;
+  try {
+    dimensoes = lerDimensoesImagem(buffer);
+  } catch {
+    throw catalogoAssetInvalid('SVG inválido: use um vetor estático, sem scripts, imagens embutidas ou links externos');
+  }
+  const { largura, altura } = dimensoes;
   const sha256 = createHash('sha256').update(buffer).digest('hex');
   return { mime: mimeReal, sha256, largura, altura, bytes: buffer.length };
 };

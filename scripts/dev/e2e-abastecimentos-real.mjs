@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-159 / D-PROD-162 / D-PROD-163 — PROVA DE USO REAL ponta a ponta da
+ * D-PROD-159 / D-PROD-162 / D-PROD-169 — PROVA DE USO REAL ponta a ponta da
  * tela Abastecimentos (Patrimônio e Frota). Tela real + backend Fastify REAL +
  * Vite + PostgreSQL LOCAL, conduzidos pelo Playwright (Chromium já instalado;
  * nada é instalado); depois de cada passo confere o BANCO (Prisma).
@@ -8,7 +8,7 @@
  * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01): sem tipo de combustível, sem
  * vínculo combustível × produto e sem fator kg/L. O tanque aceita Produtos
  * do estoque; o abastecimento baixa EXATAMENTE a quantidade digitada, na
- * unidade de estoque do Produto. D-PROD-163 (MAIKE-PATRIMONIO-SIMPLIFICA-02):
+ * unidade de estoque do Produto. D-PROD-169 (MAIKE-PATRIMONIO-SIMPLIFICA-02):
  * o tanque aceita Produto em QUALQUER unidade (L, KG ou SACO; o SACO guarda e
  * abastece em kg) e o bem é cadastrado com "Tipo de bem" + "Tipo", sem
  * família, área nem localização. O aceite humano do fluxo de cadastro (Produto
@@ -538,7 +538,7 @@ const executarLargura = async (browser, largura) => {
       const form = visivel(page.getByTestId('b1-form'));
       await form.waitFor();
       await clicar(page.getByRole('button', { name: 'Editar', exact: true }));
-      // D-PROD-163: sem Família, Área nem Localização; o "Tipo de bem" não muda depois de gravado.
+      // D-PROD-169: sem Família, Área nem Localização; o "Tipo de bem" não muda depois de gravado.
       for (const re of [/^Fam[íi]lia/, /^[ÁA]rea/, /^Localiza/, /^Natureza/]) {
         igual(await form.getByLabel(re).filter({ visible: true }).count(), 0, `[${rotulo}] edição do bem: campo ${re.source} presente`);
       }
@@ -727,4 +727,4 @@ try {
   await E.encerrarProcessos();
   await closePrismaClient();
 }
-process.exit(E.concluir('OK: D-PROD-163 — abastecimento em L (capacidade), KG e SACO (kg, sem capacidade) com baixa e estorno exatos, troca de aceite pela edição do bem sem Família/Área/Localização; tela real + backend real + PostgreSQL local sem divergências.'));
+process.exit(E.concluir('OK: D-PROD-169 — abastecimento em L (capacidade), KG e SACO (kg, sem capacidade) com baixa e estorno exatos, troca de aceite pela edição do bem sem Família/Área/Localização; tela real + backend real + PostgreSQL local sem divergências.'));

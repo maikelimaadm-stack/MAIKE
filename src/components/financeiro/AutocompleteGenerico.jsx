@@ -64,6 +64,11 @@ export default function AutocompleteGenerico({
   const controlePainel = useRef(null);
   // Desktop/tablet: o campo inteiro (o `.mg-field`) é a âncora do painel.
   const ancora = useCallback(() => wrapperRef.current?.closest(".mg-field") ?? wrapperRef.current, []);
+  // Nome da lista = nome do campo ("Setor"), como no design; sem campo, sai do texto de busca.
+  const rotuloDoCampo = () => {
+    const doCampo = wrapperRef.current?.closest(".mg-field, .cadastro-b1-form-field")?.querySelector("label")?.textContent || "";
+    return doCampo.replace(/\s*\*\s*$/, "").trim() || placeholder.replace(/^buscar\s*/i, "").replace(/\.+$/, "") || "opções";
+  };
 
   // Celular (D-PROD-161): a folha é modal (`aria-modal`). Ao abrir, o foco
   // entra nela (opção marcada ou a primeira — botão, não abre teclado
@@ -87,6 +92,16 @@ export default function AutocompleteGenerico({
     const campo = inputRef.current;
     const perdido = !ativo || ativo === document.body || !ativo.isConnected || (campo && ativo !== campo && ativo.contains(campo));
     if (perdido && campo?.isConnected) campo.focus({ preventScroll: true });
+  }, [open, celular]);
+
+  // Celular: com a folha aberta o foco está dentro dela, então o campo marca `is-open` para ficar com o visual de
+  // campo aberto do design (rótulo em cima, seta escura), como no painel do desktop (D-PROD-165).
+  useEffect(() => {
+    if (!celular) return undefined;
+    const campo = wrapperRef.current?.closest(".mg-field");
+    if (!campo) return undefined;
+    campo.classList.toggle("is-open", open);
+    return () => campo.classList.remove("is-open");
   }, [open, celular]);
 
   if (celular) {
@@ -125,40 +140,43 @@ export default function AutocompleteGenerico({
           style={uppercaseDisplay ? { textTransform: 'uppercase', caretColor: 'transparent' } : { caretColor: 'transparent' }} />
         <ChevronDown className="mk-ac-chev" aria-hidden />
         <MobileSheet
+          className="mk-base1-sheet"
           open={open}
           onClose={() => setOpen(false)}
           label={titulo}
           title={titulo}
-          headerAction={onCreateNew ?
-          <button type="button" className="mk-sheet__new" aria-label={createNewLabel} title={createNewLabel} onClick={() => criarNovo(buscaCelular)}>
-              <Plus size={22} aria-hidden />
-            </button> :
-          null}
+          // "+" fica dentro da linha de pesquisa, como no painel do desktop (D-PROD-164).
+          headerAction={null}
           aside={items.length > 8 ? `${fmt(items.length)} registros` : null}
           footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}
         >
-          {items.length > 8 ? <div className="mk-pill mgs__busca">
-            {buscaCelular ? (
-              <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setBuscaCelular("")}>
-                <X size={14} />
-              </button>
-            ) : (
-              <span className="mk-pill__icon" aria-hidden>
-                <Search size={14} />
-              </span>
-            )}
-            <input
-              value={buscaCelular}
-              onChange={(e) => setBuscaCelular(e.target.value)}
-              placeholder={`Pesquisar ${titulo}…`}
-              aria-label={`Pesquisar ${titulo}`}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && vistos[0]) {
-                  e.preventDefault();
-                  handleSelect(vistos[0]);
-                }
-              }} />
-          </div> : null}
+          {items.length > 8 || onCreateNew ? (
+            <div className="b1-pq b1-pq--folha">
+              <input
+                className="b1-pq__in"
+                value={buscaCelular}
+                onChange={(e) => setBuscaCelular(e.target.value)}
+                placeholder={`Pesquisar ${titulo}…`}
+                aria-label={`Pesquisar ${titulo}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && vistos[0]) {
+                    e.preventDefault();
+                    handleSelect(vistos[0]);
+                  }
+                }}
+              />
+              {buscaCelular ? (
+                <button type="button" className="b1-pq__btn b1-pq__x" tabIndex={-1} aria-label="Limpar pesquisa" title="Limpar pesquisa" onClick={() => setBuscaCelular("")}>
+                  <X size={14} aria-hidden />
+                </button>
+              ) : null}
+              {onCreateNew ? (
+                <button type="button" className="b1-pq__btn b1-pq__novo" aria-label={createNewLabel} title={createNewLabel} onClick={() => criarNovo(buscaCelular)}>
+                  <Plus size={20} aria-hidden />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {termo ? <div className="mgs__count">{fmt(encontrados.length)} encontrado{encontrados.length === 1 ? "" : "s"}</div> : null}
           <div ref={listaCelularRef} className="mgs__lista" role="listbox" aria-label={titulo}>
             {!vistos.length ? <div className="mgs__vazio">Nenhum registro encontrado</div> : null}
@@ -206,7 +224,7 @@ export default function AutocompleteGenerico({
         if (item) handleSelect(item);
       }}
       buscaInicial={buscaInicial}
-      rotulo={placeholder.replace(/^buscar\s*/i, "").replace(/\.+$/, "") || "opções"}
+      rotulo={rotuloDoCampo()}
       onCriarNovo={onCreateNew && !bloqueado ? criarNovo : undefined}
       rotuloNovo={createNewLabel}
       vazio={items.length ? "Nenhum item" : "Nenhuma opção disponível"}>

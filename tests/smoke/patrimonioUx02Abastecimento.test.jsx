@@ -290,7 +290,7 @@ describe('UX-A05 — Produto em KG (achado D8)', () => {
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
   });
 
-  it('D-PROD-163: Produto em SACO abastece em kg — rótulo "(kg)", dica de saco, baixa e registro em kg, capacidade não conferida', async () => {
+  it('D-PROD-169: Produto em SACO abastece em kg — rótulo "(kg)", dica de saco, baixa e registro em kg, capacidade não conferida', async () => {
     novoProdutoNoTrator('p8', 'Sal mineral (saco)', { unidade: 'SACO', lote: '300.0000', custo: '2.0000' });
     await montar();
     const form = await abrirNovo();
@@ -380,7 +380,7 @@ describe('UX-A06 — nenhum Produto para o bem (cada motivo do servidor, resolvi
     expect(aviso).not.toHaveTextContent('Peça a quem cuida');
   });
 
-  it('produto_unidade_incompativel (o Produto aceito está numa unidade fora de L/KG/SACO — D-PROD-163: SACO serve)', async () => {
+  it('produto_unidade_incompativel (o Produto aceito está numa unidade fora de L/KG/SACO — D-PROD-169: SACO serve)', async () => {
     amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'UN';
     expect(await avisoDoTrator()).toHaveTextContent(
       'O Produto aceito não tem estoque em litros (L), quilos (KG) nem sacos (SACO): o abastecimento não é possível. Aceite no tanque outro Produto em Bens Patrimoniais › Operação › Tanques.',

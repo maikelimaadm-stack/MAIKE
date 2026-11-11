@@ -13,7 +13,7 @@
  * servidor) e a tela só mostra a unidade dele. A capacidade do tanque é em
  * litros e só é conferida para Produto em `L`.
  *
- * D-PROD-163: o Produto pode estar em QUALQUER unidade de estoque (`L`, `KG`
+ * D-PROD-169: o Produto pode estar em QUALQUER unidade de estoque (`L`, `KG`
  * ou `SACO`). A quantidade é digitada na unidade EFETIVA do estoque: litros
  * para `L`; quilos para `KG` e para `SACO` (o SACO guarda o estoque em kg). O
  * abastecimento gravado continua com `unidade` `L` ou `KG` (SACO grava `KG`).
@@ -45,7 +45,7 @@ export const STATUS_ABASTECIMENTO = Object.freeze(['CONFIRMADO', 'CANCELADO']);
  */
 export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
 /**
- * Unidades de estoque do PRODUTO que o abastecimento aceita (D-PROD-163):
+ * Unidades de estoque do PRODUTO que o abastecimento aceita (D-PROD-169):
  * litros, quilos e sacos.
  */
 export const UNIDADES_PRODUTO_ABASTECIMENTO = Object.freeze(['L', 'KG', 'SACO']);
@@ -58,7 +58,7 @@ export const ROTULO_UNIDADE_ABASTECIMENTO = Object.freeze(/** @type {Record<stri
  * Quantidade e de novo na Revisão.
  */
 export const DICA_PRODUTO_EM_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
-/** D-PROD-163: o Produto em sacos guarda o estoque em quilos — digita-se kg, não sacos. */
+/** D-PROD-169: o Produto em sacos guarda o estoque em quilos — digita-se kg, não sacos. */
 export const DICA_PRODUTO_EM_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 
 /** @param {unknown} u @returns {u is 'L'|'KG'} */

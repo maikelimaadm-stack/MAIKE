@@ -17,7 +17,7 @@
  *      (ou o bem) com o Produto já em outra fazenda/unidade → 422; retirando-o
  *      no mesmo PATCH → 200.
  *  T6. Achado D12: `GET /bens-patrimoniais-opcoes/produtos` — só ativos, da
- *      fazenda, L, KG ou SACO (D-PROD-163; nunca outra unidade nem outro tenant); `unidade` filtra;
+ *      fazenda, L, KG ou SACO (D-PROD-169; nunca outra unidade nem outro tenant); `unidade` filtra;
  *      busca; paginação estável.
  *  T7. Integração com o Produto (F4): a troca de fazenda/unidade do Produto não
  *      é travada por aceite que não vale; retirado sem histórico, o Produto
@@ -137,7 +137,7 @@ describe('T2 — recusas do Produto aceito', () => {
   test('unidade fora de L/KG/SACO, outra fazenda, outro tenant (sem oráculo), inativo, repetido e mais de 20 → 422 TANQUE_PRODUTO_INVALIDO com field/reason; 400 para medicoes/combustivel_ids/sem produto_ids; nada gravado', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
-    // D-PROD-163: SACO passou a ser aceito; a recusa por unidade fica para unidade legada fora de L/KG/SACO.
+    // D-PROD-169: SACO passou a ser aceito; a recusa por unidade fica para unidade legada fora de L/KG/SACO.
     const saco = await produto(s, 'UN', { nome: 'Peça avulsa' });
     const daE2 = await produtoL(s, { empresa: s.e2, nome: 'Diesel da fazenda 2' });
     const alheio = await produtoL(outro, { nome: 'Diesel alheio' });
@@ -274,7 +274,7 @@ describe('T5 — reativação revalida os aceites (achado D1)', () => {
     const reativa = await patchBem(s, inat, { tanques: tanquesDe(inat).map((t) => ({ ...t, ativo: true })) });
     assert.deepEqual(erro(reativa), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'outra_empresa'], reativa.body);
     assert.equal(reativa.json().details.produto_id, diesel.id);
-    // Unidade que deixou de ser L/KG/SACO (dado legado) também é pega (D-PROD-163: SACO passou a ser aceito).
+    // Unidade que deixou de ser L/KG/SACO (dado legado) também é pega (D-PROD-169: SACO passou a ser aceito).
     await prisma().produto.update({ where: { id: diesel.id }, data: { empresa_id: s.e1.id, unidade_principal_estoque: 'UN' } });
     assert.deepEqual(erro(await patchBem(s, inat, { tanques: tanquesDe(inat).map((t) => ({ ...t, ativo: true })) })).slice(0, 4), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'unidade_incompativel']);
     assert.equal(await fotoPatrimonio(s.c), antes, 'as recusas não gravaram nada');
@@ -301,7 +301,7 @@ describe('T5 — reativação revalida os aceites (achado D1)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('T6 — opções de Produtos para o tanque (achado D12)', () => {
-  test('só ativos, da fazenda, L, KG ou SACO (D-PROD-163); `unidade` filtra; busca por nome ou código; keyset estável; empresa obrigatória; outro tenant nunca aparece', async () => {
+  test('só ativos, da fazenda, L, KG ou SACO (D-PROD-169); `unidade` filtra; busca por nome ou código; keyset estável; empresa obrigatória; outro tenant nunca aparece', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
     const criados = {

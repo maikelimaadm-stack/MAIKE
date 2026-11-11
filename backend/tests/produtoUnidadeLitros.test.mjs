@@ -11,8 +11,8 @@
  *      `movimentos` → `lancamentos` (item da Gestão P3, rascunho inclusive);
  *      `details.de/para`; nada gravado;
  *  P3. KG ↔ SACO sem tanque: como hoje (P-08), mesmo com estoque e lotes
- *      (D-PROD-163: também com tanque — SACO é aceito em tanque);
- *  P4. unidade nova fora de {L, KG, SACO} (D-PROD-163) com ACEITE QUE VALE (tanque ativo de bem
+ *      (D-PROD-169: também com tanque — SACO é aceito em tanque);
+ *  P4. unidade nova fora de {L, KG, SACO} (D-PROD-169) com ACEITE QUE VALE (tanque ativo de bem
  *      ativo) → 409 `aceito_em_tanque` com `details.tanques`; aceite em tanque
  *      inativo não trava; KG aceito → L (sem histórico) passa;
  *  P5. troca de fazenda com aceite que vale → 409 `PRODUTO_EM_TANQUE_PATRIMONIO`
@@ -175,12 +175,12 @@ describe('P3 — KG ↔ SACO sem tanque continua como hoje (P-08)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('P4 — unidade fora de {L, KG, SACO} com aceite que vale (D-PROD-163)', () => {
+describe('P4 — unidade fora de {L, KG, SACO} com aceite que vale (D-PROD-169)', () => {
   test('aceito em tanque ativo → KG ↔ SACO passa (mesma unidade efetiva kg); unidade fora de L/KG/SACO recusada (aceito_em_tanque + tanques); KG aceito → L passa; tanque inativo não trava', async () => {
     const s = await montar();
     const graxa = await produtoNovo(s, 'KG');
     const trator = await criarBem(s, corpoTrator(s, { tanques: [tanqueCom([graxa.id], { identificador: 'Reserva' })] }));
-    // D-PROD-163: SACO é aceito em tanque (abastece em kg) — KG → SACO → KG com aceite que vale: 200.
+    // D-PROD-169: SACO é aceito em tanque (abastece em kg) — KG → SACO → KG com aceite que vale: 200.
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'SACO', peso_por_saco_kg: 25 })).statusCode, 200);
     assert.equal(await unidadeGravada(graxa), 'SACO');
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'KG' })).statusCode, 200);

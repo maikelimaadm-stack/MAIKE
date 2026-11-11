@@ -5,7 +5,7 @@
  * A8 tanques (com os Produtos aceitos), A11 produtos do filtro, A12 locais e
  * A16 `produtos-do-bem` com a semântica do serviço real (bem ativo → tanques
  * ativos → aceites ATIVOS → Produto ativo, da fazenda, em L, KG ou SACO —
- * D-PROD-163 —; `resumo` do conjunto inteiro). A baixa é EXATAMENTE a
+ * D-PROD-169 —; `resumo` do conjunto inteiro). A baixa é EXATAMENTE a
  * `quantidade` do corpo, na unidade EFETIVA do estoque do Produto (L; KG para
  * KG e SACO), sem fator; a capacidade (litros) só vale para Produto em L.
  * Decimais como TEXTO com 4 casas, datas AAAA-MM-DD, corpo FECHADO (campo
@@ -21,7 +21,7 @@ import { hojeNoFuso } from '../../../src/lib/diaCivil.js';
 export const EMPRESA = 'emp-1';
 export const TS = '2026-11-08T12:00:00.000Z';
 const LIMITE_ESTOQUE = '9999999999.9999';
-/** D-PROD-163: unidades do Produto que o tanque aceita (L, KG, SACO); a do abastecimento é a EFETIVA (SACO → KG). */
+/** D-PROD-169: unidades do Produto que o tanque aceita (L, KG, SACO); a do abastecimento é a EFETIVA (SACO → KG). */
 const UNIDADES = ['L', 'KG', 'SACO'];
 const unidadeEfetiva = (u) => (u === 'L' ? 'L' : u === 'KG' || u === 'SACO' ? 'KG' : null);
 const rotuloUnidade = (u) => (u === 'L' ? 'L' : u === 'KG' ? 'kg' : (u ?? '—'));

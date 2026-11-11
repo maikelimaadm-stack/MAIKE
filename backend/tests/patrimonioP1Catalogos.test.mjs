@@ -1,9 +1,9 @@
 /**
- * D-PROD-157 / D-PROD-162 / D-PROD-163 — Patrimônio: CATÁLOGOS do tenant
+ * D-PROD-157 / D-PROD-162 / D-PROD-169 — Patrimônio: CATÁLOGOS do tenant
  * (famílias, tipos e o catálogo padrão). PostgreSQL real, HTTP autenticado,
  * prova por persistência. D-PROD-162: perfis de medição e combustíveis saíram
  * (rotas 404); famílias e tipos têm as guardas da tela de Bens; `codigo`
- * opcional. D-PROD-163: o CADASTRO de família saiu (POST/PATCH → 404; só
+ * opcional. D-PROD-169: o CADASTRO de família saiu (POST/PATCH → 404; só
  * leitura); 6 famílias padrão (com OUTROS); tipo por "Tipo de bem" (natureza).
  * A garantia automática, o DELETE de tipo e o bem sem `familia_id` estão em
  * `patrimonioSimplifica02.test.mjs`.
@@ -11,10 +11,10 @@
  *  K1. Instalador explícito do catálogo padrão (6 famílias, 13 tipos):
  *      idempotente (2ª chamada cria 0), isolado por tenant, corrida instala uma
  *      vez, conflitos do A9 sem alterar nada e sem P2002 abortar; só
- *      administrador real ou `is_admin`. D-PROD-163: as regras de tipo da
+ *      administrador real ou `is_admin`. D-PROD-169: as regras de tipo da
  *      garantia valem aqui — tipo padrão ausente só nasce na família padrão
  *      criada na chamada (excluído não volta) e o nome é único no Tipo de bem.
- *  K2. Famílias: nenhuma rota (D-PROD-163, achado de revisão): leitura,
+ *  K2. Famílias: nenhuma rota (D-PROD-169, achado de revisão): leitura,
  *      opções e escrita → 404; a família só aparece dentro do tipo.
  *  K3. Tipos: família (compatibilidade) inexistente/inativa/de outro tenant
  *      recusada; `perfis` → 400; familia_id/código/natureza imutáveis; nome
@@ -58,7 +58,7 @@ const todos = async (tok, base) => (await ok(req('GET', `${base}?limit=100`, tok
 const porCodigo = (itens, fn) => Object.fromEntries(itens.map((i) => [i.codigo, fn(i)]));
 const conflitosOrdenados = (r) => r.conflitos.map((x) => `${x.recurso}:${x.codigo}:${x.motivo}`).sort();
 
-/** Família/tipo MANUAL direto no banco (D-PROD-163: o cadastro de família saiu da API; dado antigo de produção). */
+/** Família/tipo MANUAL direto no banco (D-PROD-169: o cadastro de família saiu da API; dado antigo de produção). */
 const familiaNoBanco = (c, dados) => prisma().familiaPatrimonial.create({ data: { cliente_id: c, ...dados } });
 const tipoNoBanco = (c, dados) => prisma().tipoPatrimonial.create({ data: { cliente_id: c, ...dados } });
 
@@ -144,7 +144,7 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     assert.deepEqual(r2.existentes, { familias: 3, tipos: 3 });
   });
 
-  test('A9 / D-PROD-163: família padrão que já existia é existente e NÃO recebe os tipos padrão ausentes; nome exato já usado no Tipo de bem vira nome_em_uso; 200 sem P2002', async () => {
+  test('A9 / D-PROD-169: família padrão que já existia é existente e NÃO recebe os tipos padrão ausentes; nome exato já usado no Tipo de bem vira nome_em_uso; 200 sem P2002', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
     // Família BENFEITORIAS correta (ativa, mesma natureza): conta como existente; a ausência dos tipos padrão nela é do usuário.
@@ -180,7 +180,7 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     assert.deepEqual(r2.existentes, { familias: 6, tipos: 6 });
   });
 
-  test('D-PROD-163: o instalador não faz voltar tipo padrão excluído e não repete nome no mesmo Tipo de bem (família antiga de outra classificação)', async () => {
+  test('D-PROD-169: o instalador não faz voltar tipo padrão excluído e não repete nome no mesmo Tipo de bem (família antiga de outra classificação)', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
     // (1) A 1ª leitura garante o catálogo (cria GALPAO e CURRAL na família padrão BENFEITORIAS).
@@ -204,7 +204,7 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     assert.equal(await prisma().tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: { in: ['GALPAO', 'CURRAL'] } } }), 0);
   });
 
-  test('D-PROD-163: família padrão criada pelo instalador pula o tipo padrão cujo nome já existe em OUTRA família do mesmo Tipo de bem (nome_em_uso)', async () => {
+  test('D-PROD-169: família padrão criada pelo instalador pula o tipo padrão cujo nome já existe em OUTRA família do mesmo Tipo de bem (nome_em_uso)', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     // Sem nenhuma leitura antes (sem garantia): família antiga de benfeitoria com "galpão" (outra caixa).
     const instalacoes = await familiaNoBanco(s.c, { codigo: 'INSTALACOES', nome: 'Instalações', natureza: 'BENFEITORIA' });
@@ -237,14 +237,14 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('K2 — famílias (sem rota: D-PROD-163)', () => {
+describe('K2 — famílias (sem rota: D-PROD-169)', () => {
   test('nenhuma rota de família existe (leitura, opções nem escrita → 404) e nada muda; a família só aparece dentro do tipo', async () => {
     const s = await montarPatrimonio(app);
     const t = s.token;
     const galpoes = await familiaNoBanco(s.c, { codigo: 'GALPOES_X', nome: 'Galpões e armazéns', natureza: 'BENFEITORIA', descricao: 'Antiga', ordem: 7, vida_util_meses_padrao: 240 });
     await tipoNoBanco(s.c, { familia_id: galpoes.id, codigo: 'ARMAZEM', nome: 'Armazém' });
 
-    // D-PROD-163: o cadastro de família saiu e nenhuma tela lê família — nem leitura nem opções por HTTP.
+    // D-PROD-169: o cadastro de família saiu e nenhuma tela lê família — nem leitura nem opções por HTTP.
     const antes = await prisma().familiaPatrimonial.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } });
     for (const [metodo, url, corpo] of [
       ['GET', '/patrimonio-familias', undefined],
@@ -493,7 +493,7 @@ describe('K5 — permissões pelas ações de Bens e opções de seletor', () =>
     assert.equal((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?q=%25', t))).itens.length, 0, 'busca literal');
     assert.equal((await req('GET', '/bens-patrimoniais-opcoes/tipos?cursor=bGl4bw', t)).statusCode, 400);
     assert.equal((await req('GET', '/bens-patrimoniais-opcoes/tipos?limit=101', t)).statusCode, 400);
-    // D-PROD-163: famílias e áreas saíram do formulário do bem (sem rota).
+    // D-PROD-169: famílias e áreas saíram do formulário do bem (sem rota).
     for (const url of [
       '/bens-patrimoniais-opcoes/desconhecido', '/bens-patrimoniais-opcoes/perfis-medicao', '/bens-patrimoniais-opcoes/combustiveis',
       '/bens-patrimoniais-opcoes/familias', `/bens-patrimoniais-opcoes/areas?empresa_id=${s.e1.id}`,

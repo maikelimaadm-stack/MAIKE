@@ -120,9 +120,9 @@ describe('MSH — chrome Base1', () => {
     expect(tela).toMatch(/aria-label="Cancelar"/);
   });
 
-  it('MSH10 — resumo some na edição; navegação ≪ ‹ n/N › ≫ no celular', () => {
+  it('MSH10 — resumo some na edição, no celular e no registro fora do desktop (D-PROD-164); navegação ≪ ‹ n/N › ≫ no celular', () => {
     const fonte = chrome();
-    expect(fonte).toMatch(/const listSummary = recordMode && recordEditing \? null/);
+    expect(fonte).toMatch(/const listSummary = \(recordMode && recordEditing\) \|\| celular \|\| \(recordMode && !desktop\) \? null/);
     for (const a of ['Primeiro registro', 'Registro anterior', 'Próximo registro', 'Último registro']) {
       expect(fonte).toContain(a);
     }

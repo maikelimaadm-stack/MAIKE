@@ -6,7 +6,7 @@
  * invalida `["permissao-efetiva"]` ao gravar, e o cache é compartilhado.
  *
  * Os tipos são do TENANT e não pedem empresa (D-PROD-162: vivem dentro do
- * cadastro de Bens e seguem as ações dele; D-PROD-163: sem família na tela); os
+ * cadastro de Bens e seguem as ações dele; D-PROD-169: sem família na tela); os
  * bens e os abastecimentos pedem a empresa REAL (`useEmpresaRealSelecionadaId`).
  */
 import { useQuery } from '@tanstack/react-query';

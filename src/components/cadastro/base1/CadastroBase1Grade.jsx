@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { isCadastroAtivo, readCadastroAtivoValue } from "@/lib/cadastroAtivoStatus";
 import { usePortalComprasSkin } from "@/components/cadastro/base1/portalComprasSkinContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasLegacyDialog from "@/components/cadastro/base1/ConfiguracaoColunasLegacyDialog";
@@ -7,11 +8,15 @@ import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
+import FiltrosRapidos from "@/components/cadastro/base1/FiltrosRapidos";
+import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
+import { focoFicaOndeEsta, trocaJanela } from "@/components/cadastro/base1/janelaUnica";
 import {
   clampColumnPrefsToVisible,
+  larguraPadraoDaColuna,
   loadCadastroBase1ColumnPrefs,
   MAX_COL_WIDTH,
   MIN_COL_WIDTH,
@@ -19,7 +24,8 @@ import {
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
-import { composeCadastroBase1RenderCell } from "@/components/cadastro/base1/cadastroBase1CellKind";
+import { composeCadastroBase1RenderCell, papeisDasColunasBase1, textoDoTipoDeCelulaBase1 } from "@/components/cadastro/base1/cadastroBase1CellKind";
+
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
@@ -61,6 +67,10 @@ export function colunasBase1(defs) {
  * @param {1|2|3|4} [props.cardsPerRow]
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
+ * @param {string[]} [props.quickFilterIds] filtros que começam na faixa de filtros rápidos (padrão: derivados das colunas)
+ * @param {Array<{ key: string; dir: 'asc'|'desc'; label: string }>} [props.quickSortOptions] "Ordenar" da faixa em palavras da tela
+ * @param {string[]} [props.quickFilterFieldOrder] ordem dos campos em "+ Filtro" da faixa
+ * @param {(item: object) => boolean} [props.cardsInativo] marca o card com a tag "Inativo" (padrão: coluna `ativo-badge`)
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
  * @param {boolean} [props.colunaSelecao] coluna de checkbox (SSOT `BASE1_GRADE_REFERENCE_HEADERS`)
@@ -97,6 +107,10 @@ export default function CadastroBase1Grade({
   cardsPerRow = 4,
   cardsTitleColId,
   cardsCodeColId,
+  cardsInativo,
+  quickFilterIds,
+  quickSortOptions = undefined,
+  quickFilterFieldOrder = undefined,
   referenceHeaders: referenceHeadersProp,
   configureColumnsAnchorRef,
   colunaSelecao = true,
@@ -127,7 +141,10 @@ export default function CadastroBase1Grade({
 
   useEffect(() => {
     if (!referenceHeaders) return undefined;
-    const abrir = (event) => setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+    // O funil abre "Filtrar por campo" — no celular também, como no tablet (pedido do proprietário, D-PROD-168).
+    const abrir = (event) => {
+      setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+    };
     document.addEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
     return () => document.removeEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
   }, [referenceHeaders]);
@@ -264,6 +281,12 @@ export default function CadastroBase1Grade({
     onDisplayChange?.({ rows: ordenados, selectedIds: selectedItems.map(String) });
   }, [ordenados, selectedItems, onDisplayChange]);
 
+  // ‹ › do registro seguem a ordem que a pessoa vê (D-PROD-164).
+  const definirOrdemDaLista = React.useContext(OrdemDaListaContext);
+  useEffect(() => {
+    definirOrdemDaLista?.(ordenados);
+  }, [ordenados, definirOrdemDaLista]);
+
   useEffect(() => {
     onListMetrics?.({
       filtrados: ordenados.length,
@@ -285,22 +308,38 @@ export default function CadastroBase1Grade({
     [dataCols, renderCell],
   );
 
+  const papeis = useMemo(
+    () => papeisDasColunasBase1(dataCols, cardsTitleColId, cardsCodeColId),
+    [dataCols, cardsTitleColId, cardsCodeColId],
+  );
+  const colunaAtivo = useMemo(() => dataCols.find((c) => c.cellKind === "ativo-badge" || c.cellKind === "situacao"), [dataCols]);
+  const ehInativo = useMemo(() => {
+    if (cardsInativo) return cardsInativo;
+    if (!colunaAtivo) return undefined;
+    const campo = colunaAtivo.statusField ?? colunaAtivo.id;
+    if (colunaAtivo.cellKind === "situacao") {
+      return (/** @type {object} */ item) => String(readCadastroAtivoValue(item, campo) ?? "").trim().toLowerCase() === "inativo";
+    }
+    return (/** @type {object} */ item) => !isCadastroAtivo(readCadastroAtivoValue(item, campo));
+  }, [cardsInativo, colunaAtivo]);
+
   const gridColumns = useMemo(
     () =>
       colunasOrdenadas.map((c) => ({
         key: c.id,
+        papel: c.id === papeis.titleCol?.id ? "titulo" : c.id === papeis.codeCol?.id ? "codigo" : undefined,
         label: c.label,
         sortable: c.sortable !== false,
         align: c.align,
-        width: columnWidths[c.id] || c.width,
-        text: (r) => getFieldValue(r, c.id),
+        width: columnWidths[c.id] || larguraPadraoDaColuna(c),
+        text: (r) => textoDoTipoDeCelulaBase1(r, c) ?? getFieldValue(r, c.id),
         render: (r) => {
           const node = composedRenderCell(r, c.id);
           if (node !== undefined && node !== null) return node;
           return getFieldValue(r, c.id) || "–";
         },
       })),
-    [colunasOrdenadas, columnWidths, getFieldValue, composedRenderCell],
+    [colunasOrdenadas, columnWidths, getFieldValue, composedRenderCell, papeis],
   );
 
   const selectedSet = useMemo(() => new Set(selectedItems.map(String)), [selectedItems]);
@@ -309,11 +348,28 @@ export default function CadastroBase1Grade({
     return new Set(Object.entries(filtrosColunas).filter(([, v]) => (v || []).length).map(([k]) => k));
   }, [filtrosColunas, headerFilters, referenceHeaders]);
 
+  /**
+   * Linhas que passam pela busca e pelos OUTROS filtros: dão as opções e a contagem do filtro de uma coluna — a
+   * janela da pílula e a do cabeçalho mostram o mesmo (D-PROD-166).
+   * @param {string} colId
+   */
+  const linhasDoFiltro = (colId) => {
+    const q = searchQuery.trim().toLowerCase();
+    return rows.filter((m) => {
+      if (q && !(matchesSearch ? matchesSearch(m, q) : defaultMatchesSearch(m, q))) return false;
+      return dataCols.every((col) => {
+        const filtro = col.id === colId ? null : headerFilters[col.id];
+        if (!filtro) return true;
+        return casaNoFiltroColuna(filtro, tipoFiltroDaColuna(col.id, col), String(getFieldValue(m, col.id) ?? ""));
+      });
+    });
+  };
+
   const renderReferenceFilter = (colunaId) => {
     if (!referenceHeaders || menuFiltroAberto !== colunaId) return null;
     const col = dataCols.find((c) => c.id === colunaId);
     const colLabel = col?.label ?? colunaId;
-    const valores = rows.map((r) => String(getFieldValue(r, colunaId) ?? ""));
+    const valores = linhasDoFiltro(colunaId).map((r) => String(getFieldValue(r, colunaId) ?? ""));
     const ancora = `[data-testid="b1-list"] [data-b1-col-menu="${colunaId}"]`;
     return (
       <CadastroColunaFiltro
@@ -322,6 +378,8 @@ export default function CadastroBase1Grade({
         tipo={tipoFiltroDaColuna(colunaId, col)}
         ancora={ancora}
         valores={valores}
+        coluna={col}
+        totais={rows.length}
         atual={headerFilters[colunaId] ?? null}
         ancoraReserva={filtroPorCampo?.ancora ?? null}
         onAplicar={(f) => {
@@ -341,6 +399,32 @@ export default function CadastroBase1Grade({
       />
     );
   };
+
+  const faixaDeFiltrosRapidos = referenceHeaders ? (
+    <FiltrosRapidos
+      columns={dataCols}
+      rows={rows}
+      rowsFor={linhasDoFiltro}
+      getFieldValue={getFieldValue}
+      filters={headerFilters}
+      onFilterChange={(colId, filtro) =>
+        setHeaderFilters((p) => {
+          const n = { ...p };
+          if (filtro) n[colId] = filtro;
+          else delete n[colId];
+          return n;
+        })
+      }
+      onClearFilters={() => setHeaderFilters({})}
+      sort={sortConfig}
+      onSortChange={(key, dir) => setSortConfig({ key, direction: dir })}
+      storageKey={storageKey}
+      defaultIds={quickFilterIds}
+      mostrados={filtrados.length}
+      ordens={quickSortOptions}
+      camposDaFaixa={quickFilterFieldOrder}
+    />
+  ) : null;
 
   const painelFiltroPorCampo =
     referenceHeaders && filtroPorCampo?.aberto ? (
@@ -478,7 +562,9 @@ export default function CadastroBase1Grade({
         key={colunaId}
         open={menuFiltroAberto === colunaId}
         onOpenChange={(open) => {
-          setMenuFiltroAberto(open ? colunaId : null);
+          // Fechar só vale para a janela aberta: o "clique fora" da anterior chega depois que esta abriu.
+          if (!open && menuFiltroAberto !== colunaId) return;
+          setMenuFiltroAberto((m) => trocaJanela(m, colunaId, open));
           setBuscaFiltroMenu("");
           setFiltroTemp(
             open ? { colunaId, valores: [...(filtrosColunas[colunaId] || [])] } : { colunaId: null, valores: [] },
@@ -493,6 +579,7 @@ export default function CadastroBase1Grade({
           align="end"
           side="bottom"
           sideOffset={4}
+          onCloseAutoFocus={focoFicaOndeEsta}
           className="cadastro-b1 w-[310px] p-0 z-[9999] rounded-[10px] border border-[var(--mg-divider)] bg-[var(--mg-bg-card)] shadow-md"
         >
           <div className="mg-b1-col-filter-menu">
@@ -612,7 +699,7 @@ export default function CadastroBase1Grade({
   const restaurarColunas = () => {
     applyVisibleKeys(defaultVisible);
     setColunasOrdem(dataCols.map((c) => c.id));
-    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
+    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, larguraPadraoDaColuna(c)])));
     setFrozenCount(0);
     setAutoFitKeys(new Set());
   };
@@ -644,18 +731,21 @@ export default function CadastroBase1Grade({
           rowKey={rowKey}
           titleColId={cardsTitleColId}
           codeColId={cardsCodeColId}
+          isInactive={ehInativo}
           emptyText={emptyText}
         />
         {referenceHeaders
           ? dataCols.map((c) => renderReferenceFilter(c.id))
           : dataCols.map((c) => renderFilterPopover(c.id))}
         {painelFiltroPorCampo}
+        {faixaDeFiltrosRapidos}
       </>
     );
   }
 
   return (
     <>
+      {faixaDeFiltrosRapidos}
       <Base1Grid
         referenceHeaders={referenceHeaders}
         referenceExtendedColumnMenu={referenceHeaders}

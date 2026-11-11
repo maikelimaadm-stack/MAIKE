@@ -6,7 +6,7 @@
  *  - D-PROD-162: a baixa é EXATAMENTE a quantidade digitada, na unidade de
  *    estoque do Produto (`L` ou `KG`), sem nenhuma conversão; o Produto tem de
  *    estar nos "Produtos aceitos" (ativos) do tanque (`TanqueBemProduto`);
- *  - D-PROD-163: Produto em qualquer unidade (L, KG ou SACO); a unidade do
+ *  - D-PROD-169: Produto em qualquer unidade (L, KG ou SACO); a unidade do
  *    abastecimento é a EFETIVA do estoque (SACO guarda kg → `KG`);
  *  - prévia: mesma função de plano da confirmação, sem trava, sem escrita e
  *    sem recibo (RepeatableRead só de leitura);
@@ -387,7 +387,7 @@ export const confirmar = async (contexto, corpo) => {
               local_estoque_id: estado.local.id,
               data_operacional: comoData(entrada.data_operacional),
               quantidade: quantidade.toFixed(CASAS_QUANTIDADE),
-              unidade: /** @type {string} */ (plano.unidade), // unidade EFETIVA do estoque do Produto (L | KG; SACO → KG, D-PROD-163)
+              unidade: /** @type {string} */ (plano.unidade), // unidade EFETIVA do estoque do Produto (L | KG; SACO → KG, D-PROD-169)
               custo_total: paraBanco(saida.valor_total, CASAS_CUSTO),
               custo_unitario: paraBanco(saida.valor_unitario, CASAS_CUSTO),
               tanque_cheio: entrada.tanque_cheio,

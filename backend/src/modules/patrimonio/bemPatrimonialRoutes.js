@@ -11,7 +11,7 @@
  * `empresa_id` é só escopo). Sem DELETE: inativação por PATCH.
  * D-PROD-162: `medicoes` e `combustivel_ids` saíram do contrato (→ 400); cada
  * tanque traz `produto_ids` (Produtos do estoque aceitos).
- * D-PROD-163 (SIMPLIFICA-02): o bem é cadastrado com "Tipo de bem"
+ * D-PROD-169 (SIMPLIFICA-02): o bem é cadastrado com "Tipo de bem"
  * (`natureza`) + "Tipo" (`tipo_id`), SEM `familia_id` (o servidor deriva a
  * família do tipo; `familia_id` continua aceito por compatibilidade e tem de
  * bater). `natureza` no PATCH só confere (imutável: diferente → 409). Produtos
@@ -124,7 +124,7 @@ const DEPRECIACAO = {
 /** Campos do bem comuns ao POST e ao PATCH (formatos; o domínio é 422 no service). */
 const CAMPOS_DO_BEM = {
   nome: NOME,
-  // D-PROD-163: "Tipo de bem" + "Tipo"; `familia_id` só por compatibilidade (o servidor deriva do tipo).
+  // D-PROD-169: "Tipo de bem" + "Tipo"; `familia_id` só por compatibilidade (o servidor deriva do tipo).
   natureza: ENUM(NATUREZAS),
   familia_id: ID,
   tipo_id: ID,
@@ -239,7 +239,7 @@ const consultaDeOpcoes = (obrigatorios, extras = {}) => ({
 const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID, natureza: ENUM(NATUREZAS) });
 /** Dependem da empresa: `empresa_id` obrigatório. */
 const OPCOES_DA_EMPRESA = consultaDeOpcoes(['empresa_id']);
-/** D-PROD-162 / D-PROD-163: Produtos que o tanque pode aceitar (ativos, da fazenda, L, KG ou SACO); `unidade` filtra (achado D8). */
+/** D-PROD-162 / D-PROD-169: Produtos que o tanque pode aceitar (ativos, da fazenda, L, KG ou SACO); `unidade` filtra (achado D8). */
 const OPCOES_PRODUTOS = consultaDeOpcoes(['empresa_id'], { unidade: ENUM(UNIDADES_PRODUTO_TANQUE) });
 
 const ctx = (request) => {
@@ -270,7 +270,7 @@ export const registrarBemPatrimonialRoutes = async (app) => {
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));
 
-  // Opções de catálogo: os tipos do formulário do bem (D-PROD-162: guarda de Bens; D-PROD-163: por `natureza`, com o
+  // Opções de catálogo: os tipos do formulário do bem (D-PROD-162: guarda de Bens; D-PROD-169: por `natureza`, com o
   // catálogo padrão garantido antes; as opções de famílias saíram — nenhuma tela escolhe família).
   const catalogo = { ...autenticado, preHandler: [g.opcoesCatalogo] };
   app.get('/bens-patrimoniais-opcoes/tipos', { ...catalogo, schema: OPCOES_TIPOS }, async (request) => tipos.opcoes(ctx(request), consulta(request)));

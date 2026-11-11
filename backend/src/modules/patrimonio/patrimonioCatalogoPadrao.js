@@ -1,8 +1,8 @@
 /**
- * D-PROD-157 / D-PROD-162 / D-PROD-163 — catálogo PADRÃO do Patrimônio
+ * D-PROD-157 / D-PROD-162 / D-PROD-169 — catálogo PADRÃO do Patrimônio
  * (instalado pelo serviço, nunca por seed na migration).
  *
- * D-PROD-163 (SIMPLIFICA-02): o cadastro de família saiu da tela. O usuário
+ * D-PROD-169 (SIMPLIFICA-02): o cadastro de família saiu da tela. O usuário
  * escolhe o "Tipo de bem" (a natureza: lista FIXA) e o "Tipo" (cadastro
  * editável). Por trás, cada natureza tem UMA família padrão (`FAMILIAS_PADRAO`,
  * agora 6 com `OUTROS`), GARANTIDA automaticamente no tenant por
@@ -40,7 +40,7 @@
  *    `exigirLivre` e a garantia) é pré-checado antes do INSERT →
  *    `nome_em_uso`: um P2002 nunca aborta a transação.
  * Resposta: `{ criados, existentes, conflitos }` (contagens por recurso:
- * familias, tipos). A tela não o chama mais (D-PROD-163).
+ * familias, tipos). A tela não o chama mais (D-PROD-169).
  *
  * `BEBEDOURO_FIXO` é só um tipo de benfeitoria: não substitui nem se liga ao
  * Bebedouro do Mapa.
@@ -56,7 +56,7 @@ import { ENTIDADE as ENTIDADE_TIPO, paraAuditoria as auditoriaTipo } from './tip
 import { nomeIgual, travarCatalogo } from './patrimonioComum.js';
 import { ROTULO_NATUREZA } from './patrimonioDominio.js';
 
-/** Famílias padrão (vida útil padrão em meses): UMA por natureza (D-PROD-163). */
+/** Famílias padrão (vida útil padrão em meses): UMA por natureza (D-PROD-169). */
 export const FAMILIAS_PADRAO = Object.freeze([
   Object.freeze({ codigo: 'BENFEITORIAS', nome: 'Benfeitorias e instalações', natureza: 'BENFEITORIA', vida_util_meses_padrao: 300, ordem: 1 }),
   Object.freeze({ codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA', vida_util_meses_padrao: 120, ordem: 2 }),
@@ -94,7 +94,7 @@ const MAX_NOMES_ALTERNATIVOS = 20;
 
 const contadores = () => ({ familias: 0, tipos: 0 });
 
-// ─── garantia automática (D-PROD-163) ───────────────────────────────────────
+// ─── garantia automática (D-PROD-169) ───────────────────────────────────────
 
 /**
  * 422: não há família padrão ATIVA desta natureza (ausente, inativa ou com
@@ -271,7 +271,7 @@ export const instalarCatalogoPadrao = async (contexto) => {
           conflito('tipos', t.codigo, 'dependencia_em_conflito');
           continue;
         }
-        // Família padrão que já existia: tipo padrão ausente foi excluído pelo usuário e não volta (D-PROD-163).
+        // Família padrão que já existia: tipo padrão ausente foi excluído pelo usuário e não volta (D-PROD-169).
         if (!criadasAgora.has(t.familia)) continue;
         if (await nomeEmUso(tx.tipoPatrimonial, t.nome, { familia: { natureza: NATUREZA_DA_FAMILIA_PADRAO[t.familia] } })) {
           conflito('tipos', t.codigo, 'nome_em_uso');

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { CheckCircle2, Save, Trash2 } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
@@ -377,7 +378,7 @@ export default function FormularioLancamento({
   return (
     <CadastroFormShell embedded title={titulo}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_LANCAMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
+        <form id={FORMULARIO_LANCAMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
           {duplicarDe ? (
             <div className="col-span-12 min-w-0">
               <AvisoGestao tone="blue" testId="faixa-copia">

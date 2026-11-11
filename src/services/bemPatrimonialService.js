@@ -1,6 +1,6 @@
 /**
  * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-162 e
- * pela D-PROD-163).
+ * pela D-PROD-169).
  *
  * O bem pertence a uma EMPRESA (fazenda): sem empresa real não há leitura nem
  * gravação. O bem é a raiz do agregado — medidor e tanques (com os Produtos
@@ -8,7 +8,7 @@
  * (concorrência otimista). D-PROD-162: saíram as medições físicas e os
  * combustíveis do tanque; cada tanque aceita Produtos do estoque da fazenda.
  *
- * D-PROD-163: o bem tem o "Tipo de bem" (`natureza`, só no POST — ela não muda
+ * D-PROD-169: o bem tem o "Tipo de bem" (`natureza`, só no POST — ela não muda
  * depois) e o `tipo_id`; a família NÃO vai (o servidor a deriva do tipo). Área
  * e Localização saíram da tela: o corpo não leva `area_id` nem
  * `localizacao_descricao` (o PATCH mínimo nunca os manda, e o que já estiver
@@ -46,7 +46,7 @@ const RESOURCE = 'BemPatrimonial';
 
 /**
  * Campos escalares do corpo (POST e PATCH). `numero`, `natureza` e `empresa_id`
- * não são editáveis (a `natureza` vai só no POST, à parte). D-PROD-163: sem
+ * não são editáveis (a `natureza` vai só no POST, à parte). D-PROD-169: sem
  * `familia_id` (derivada do tipo no servidor), `area_id` e `localizacao_descricao`.
  */
 export const CAMPOS_ESCALARES_BEM = Object.freeze([
@@ -304,7 +304,7 @@ export const criarBem = async (empresaId, dados) => {
   const empresa = exigirEmpresa(empresaId, 'criarBem', RESOURCE);
   /** @type {Record<string, any>} */
   const corpo = { empresa_id: empresa };
-  // D-PROD-163: o Tipo de bem vai no POST (o servidor confere com a natureza do tipo).
+  // D-PROD-169: o Tipo de bem vai no POST (o servidor confere com a natureza do tipo).
   const natureza = limpo(dados?.natureza);
   if (natureza !== null) corpo.natureza = natureza;
   for (const campo of CAMPOS_ESCALARES_BEM) {
@@ -394,8 +394,8 @@ export const simularDepreciacao = async (empresaId, parametros) => {
  * Uma página de opções ATIVAS para os seletores do bem. Responsáveis,
  * parceiros, centros de custo e `produtos` pedem a empresa (sem ela não há
  * busca); `tipos` (catálogo do tenant) não depende dela e aceita `natureza`
- * (D-PROD-163: os tipos do "Tipo de bem"). `produtos` (D-PROD-162;
- * D-PROD-163) = Produtos ativos da fazenda, em L, KG ou SACO, que um tanque
+ * (D-PROD-169: os tipos do "Tipo de bem"). `produtos` (D-PROD-162;
+ * D-PROD-169) = Produtos ativos da fazenda, em L, KG ou SACO, que um tanque
  * pode aceitar; `unidade` (`L` | `KG` | `SACO`) filtra.
  * @param {'tipos'|'produtos'|'responsaveis'|'parceiros'|'centros-custo'} recurso
  * @param {string|null} empresaId

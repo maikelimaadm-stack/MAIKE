@@ -10,7 +10,7 @@
  *  - duplicar não pré-seleciona tipo inativo (nem de família inativa) e só
  *    copia os Produtos aceitos que ainda servem (ativos, em L, KG ou SACO —
  *    D-PROD-162/163);
- *  - D-PROD-163: o estado tem o "Tipo de bem" (`natureza`) no lugar da
+ *  - D-PROD-169: o estado tem o "Tipo de bem" (`natureza`) no lugar da
  *    família; a forma do corpo leva `natureza` + `tipo_id`, sem `familia_id`,
  *    `area_id` nem `localizacao_descricao`;
  *  - os tanques vão com `produto_ids` (P-01: `[]` é válido; P-02: até 20);
@@ -101,7 +101,7 @@ describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativ
     expect(estadoInicialDoBem(null).natureza).toBe('');
   });
 
-  it('Produto aceito inativo ou fora de L/KG/SACO sai do tanque copiado (SACO fica, D-PROD-163); no próprio bem continua legível', () => {
+  it('Produto aceito inativo ou fora de L/KG/SACO sai do tanque copiado (SACO fica, D-PROD-169); no próprio bem continua legível', () => {
     const tanques = [{
       id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
       produtos: [
@@ -131,14 +131,14 @@ describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativ
     expect('medicoes' in e).toBe(false);
   });
 
-  it('D-PROD-163: o estado não tem Área nem Localização, mesmo que o detalhe as traga', () => {
+  it('D-PROD-169: o estado não tem Área nem Localização, mesmo que o detalhe as traga', () => {
     const e = estadoInicialDoBem(detalheTrator({ area: { id: 'a1', nome: 'Retiro Sul' }, localizacao_descricao: 'Galpão' }));
     expect('area' in e).toBe(false);
     expect('localizacao_descricao' in e).toBe(false);
   });
 });
 
-describe('validarBem / formaDoEstado — Tipo de bem + tipo, sem família (D-PROD-163)', () => {
+describe('validarBem / formaDoEstado — Tipo de bem + tipo, sem família (D-PROD-169)', () => {
   const ctxNovo = { editando: false, medidorOriginal: null, hoje: '2026-11-09' };
 
   it('sem Tipo de bem: erro "Escolha o tipo de bem" (e o tipo também é cobrado)', () => {

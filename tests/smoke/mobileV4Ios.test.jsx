@@ -108,7 +108,7 @@ describe('V4 — Enter funciona como Tab e o último salva', () => {
 });
 
 describe('V4 — + da lista de seleção cadastra um novo', () => {
-  it('V4-4 — celular: + à direita do título da folha chama onCreateNew com a pesquisa', async () => {
+  it('V4-4 — celular: + dentro da linha de pesquisa da folha chama onCreateNew com a pesquisa (D-PROD-164)', async () => {
     midia(true);
     const { default: AutocompleteGenerico } = await import('@/components/financeiro/AutocompleteGenerico');
     const onCreateNew = vi.fn();
@@ -124,7 +124,8 @@ describe('V4 — + da lista de seleção cadastra um novo', () => {
     );
     await act(async () => fireEvent.click(screen.getByPlaceholderText('BUSCAR SETOR...')));
     const mais = screen.getByRole('button', { name: 'Novo setor' });
-    expect(mais.closest('.mk-sheet__head')).not.toBeNull();
+    expect(mais.closest('.b1-pq--folha')).not.toBeNull();
+    expect(mais.closest('.mk-sheet__head')).toBeNull();
     await act(async () => fireEvent.click(mais));
     expect(onCreateNew).toHaveBeenCalledWith('');
     expect(screen.queryByRole('option', { name: 'Setor Norte' })).toBeNull();

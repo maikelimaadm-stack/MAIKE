@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -58,7 +59,7 @@ export default function FormularioCentro({ formId, rotulo, onSubmit, initialData
   return (
     <CadastroFormShell embedded title={initialData?.id ? `Editar ${rotulo}` : `Novo ${rotulo}`}>
       <div className="mg-b1-record-form">
-        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
+        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Identificação" />
           <CampoTexto
             label="Nome"

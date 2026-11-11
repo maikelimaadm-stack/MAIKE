@@ -4,8 +4,8 @@
  *
  *  P1. Famílias e tipos vivem no cadastro de Bens: ver = Bens visualizar;
  *      criar tipo = Bens novo|salvar|editar; renomear = Bens editar|salvar;
- *      inativar/reativar = Bens `inativar`; excluir tipo (D-PROD-163) = Bens
- *      editar|salvar; família sem rota (D-PROD-163: leitura, opções e escrita → 404).
+ *      inativar/reativar = Bens `inativar`; excluir tipo (D-PROD-169) = Bens
+ *      editar|salvar; família sem rota (D-PROD-169: leitura, opções e escrita → 404).
  *      Opções de catálogo = Bens visualizar.
  *  P2. Linhas ANTIGAS (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
  *      `pat-perfis-medicao`, `pat-combustiveis` com tudo ligado, e
@@ -66,7 +66,7 @@ describe('P1 — famílias e tipos pelas ações de Bens', () => {
       assert.equal((await req('GET', url, null)).statusCode, 401, `sem sessão ${url}`);
     }
 
-    // D-PROD-163: nenhuma rota de família (nem leitura), nem para o administrador.
+    // D-PROD-169: nenhuma rota de família (nem leitura), nem para o administrador.
     assert.equal((await req('GET', '/patrimonio-familias', s.token)).statusCode, 404);
     assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias', s.token)).statusCode, 404);
     assert.equal((await req('POST', '/patrimonio-familias', s.token, { nome: 'Nova', natureza: 'OUTRO' })).statusCode, 404);
@@ -210,7 +210,7 @@ describe('P4 — rotas removidas, catálogo padrão e outro tenant', () => {
       const patch = await req('PATCH', `${base}/${alvo}`, outro.token, { versao: 1, nome: 'Invasão' });
       assert.deepEqual(erro(patch).slice(0, 2), [404, codigo]);
       assert.deepEqual(corpoErro(patch), corpoErro(await req('PATCH', `${base}/${INEXISTENTE}`, outro.token, { versao: 1, nome: 'Invasão' })));
-      // D-PROD-163: DELETE de tipo alheio = o mesmo 404 de um id que não existe; nada apagado.
+      // D-PROD-169: DELETE de tipo alheio = o mesmo 404 de um id que não existe; nada apagado.
       const exclusao = await req('DELETE', `${base}/${alvo}?versao=1`, outro.token);
       assert.deepEqual(erro(exclusao).slice(0, 2), [404, codigo]);
       assert.deepEqual(corpoErro(exclusao), corpoErro(await req('DELETE', `${base}/${INEXISTENTE}?versao=1`, outro.token)));

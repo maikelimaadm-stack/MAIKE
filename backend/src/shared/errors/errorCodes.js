@@ -153,8 +153,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   TIPO_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica tipo patrimonial deste tenant' },
   BEM_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica bem patrimonial desta empresa neste tenant' },
   PATRIMONIO_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este código neste tenant; nada foi gravado' },
-  PATRIMONIO_NOME_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este nome neste tenant (no tipo: neste tipo de bem/natureza, D-PROD-163); nada foi gravado' },
-  // D-PROD-163 (SIMPLIFICA-02) — catálogo garantido por "Tipo de bem" (natureza) e exclusão de tipo.
+  PATRIMONIO_NOME_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este nome neste tenant (no tipo: neste tipo de bem/natureza, D-PROD-169); nada foi gravado' },
+  // D-PROD-169 (SIMPLIFICA-02) — catálogo garantido por "Tipo de bem" (natureza) e exclusão de tipo.
   PATRIMONIO_TIPO_EM_USO: { http: 409, meaning: 'o tipo é usado por bem(ns) ativo(s) ou inativo(s) (details.bens): troque o tipo desses bens antes de excluir; nada foi apagado' },
   PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL: { http: 422, meaning: 'não há família padrão ativa para o tipo de bem (details.natureza/codigo_familia): ela existe inativa ou com outra natureza e não é alterada automaticamente; nada foi gravado' },
   BEM_TIPO_NATUREZA_INCOMPATIVEL: { http: 422, meaning: 'o tipo escolhido é de outro tipo de bem (details.natureza/natureza_tipo); nada foi gravado' },
@@ -184,7 +184,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   DEPRECIACAO_PARAMETROS_INVALIDOS: { http: 422, meaning: 'parâmetros de depreciação incompletos ou presentes em bem não depreciável (details.field); nada foi gravado' },
   PATRIMONIO_DATA_INVALIDA: { http: 422, meaning: 'data inexistente ou fora de ordem (disponibilidade antes da aquisição, início da depreciação antes da disponibilidade); nada foi gravado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
-  // do Produto (L ou KG; D-PROD-163: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
+  // do Produto (L ou KG; D-PROD-169: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },
   ABASTECIMENTO_STATUS_INVALIDO: { http: 409, meaning: 'o abastecimento não está CONFIRMADO (details.status): já foi cancelado; nada foi alterado' },
   ABASTECIMENTO_BEM_INELEGIVEL: { http: 422, meaning: 'bem inativo ou de natureza sem tanque (details.reason: bem_inativo | natureza_sem_tanque); nada foi gravado' },

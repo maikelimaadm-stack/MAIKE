@@ -1,6 +1,6 @@
 /**
  * Estado do formulário do Bem Patrimonial (D-PROD-157, simplificado pela
- * D-PROD-162: sem medições físicas; e pela D-PROD-163: o bem escolhe o "Tipo
+ * D-PROD-162: sem medições físicas; e pela D-PROD-169: o bem escolhe o "Tipo
  * de bem" — a natureza — e o Tipo, sem família, Área nem Localização; cada
  * tanque aceita Produtos do estoque da fazenda em L, KG ou SACO) — funções
  * PURAS, sem React: do detalhe do servidor (A13) para o estado da tela (textos
@@ -423,7 +423,7 @@ const ouNulo = (t) => (t.trim() ? t.trim() : null);
 
 /**
  * Estado (já validado) → forma do corpo (`formaDeEdicaoDoBem`). Campos e blocos
- * que a natureza não admite saem vazios. D-PROD-163: `natureza` + `tipo_id`
+ * que a natureza não admite saem vazios. D-PROD-169: `natureza` + `tipo_id`
  * (sem `familia_id`, `area_id` nem `localizacao_descricao`); a `natureza` só
  * vai no POST (o service não a manda no PATCH).
  * @param {EstadoBem} e @param {ContextoBem} ctx

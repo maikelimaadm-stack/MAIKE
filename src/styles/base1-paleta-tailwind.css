@@ -1,0 +1,25 @@
+/*
+ * Modelo Base1 — paleta quente nas classes do Tailwind (D-PROD-164).
+ * Só as cores HEX arbitrárias frias usadas em classes (ex.: bg-[#FAFCFE]); slate/gray com nome usam variável
+ * (tailwind.config.js + base1-design-tokens.css). Estas recebem a cor do design só quando uma tela Base1 está aberta
+ * (body.b1-tela). O Mapa Geral e as demais telas não mudam.
+ * Arquivo gerado — 5 classes; para refazer, rode o gerador descrito no relatório da D-PROD-164.
+ */
+body.b1-tela .bg-\[\#FAFCFE\] {
+    --tw-bg-opacity: 1;
+    background-color: rgb(249 249 247 / var(--tw-bg-opacity, 1))
+}
+body.b1-tela .bg-\[\#FAFCFE\]\/50 {
+    background-color: rgb(249 249 247 / 0.5)
+}
+body.b1-tela .bg-\[\#FAFCFE\]\/80 {
+    background-color: rgb(249 249 247 / 0.8)
+}
+body.b1-tela .text-\[\#94a3b8\] {
+    --tw-text-opacity: 1;
+    color: rgb(163 162 156 / var(--tw-text-opacity, 1))
+}
+body.b1-tela .hover\:bg-\[\#FAFCFE\]:hover {
+    --tw-bg-opacity: 1;
+    background-color: rgb(249 249 247 / var(--tw-bg-opacity, 1))
+}

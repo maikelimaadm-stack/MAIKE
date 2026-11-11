@@ -8,7 +8,7 @@
  *
  * D-PROD-162: saem o catálogo de tipos de combustível (A9), os produtos por
  * tipo com o fator (A10) e todo fator kg/L; tudo sai dos "Produtos aceitos"
- * (`TanqueBemProduto`) de cada tanque. D-PROD-163: em qualquer unidade (L, KG
+ * (`TanqueBemProduto`) de cada tanque. D-PROD-169: em qualquer unidade (L, KG
  * ou SACO); cada Produto traz `unidade_abastecimento` (a unidade EFETIVA do
  * estoque, em que a quantidade é digitada: `L` para L, `KG` para KG e SACO).
  */
@@ -259,7 +259,7 @@ export const opcoesProdutosFiltro = async (contexto, query = {}) => {
 /**
  * A12: locais ATIVOS com saldo (lotes Disponível > 0) do produto NA empresa.
  * `disponivel` está na unidade EFETIVA do estoque (`unidade`: L ou KG; SACO →
- * KG, D-PROD-163); `unidade_principal_estoque` é a do cadastro do Produto.
+ * KG, D-PROD-169); `unidade_principal_estoque` é a do cadastro do Produto.
  */
 export const opcoesLocais = async (contexto, query = {}) => {
   const { cli, prisma, empresaId } = await inicio(contexto, query);

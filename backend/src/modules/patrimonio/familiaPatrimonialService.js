@@ -1,8 +1,8 @@
 /**
- * D-PROD-157 / D-PROD-162 / D-PROD-163 — Famílias patrimoniais (catálogo do
+ * D-PROD-157 / D-PROD-162 / D-PROD-169 — Famílias patrimoniais (catálogo do
  * TENANT, sem empresa).
  *
- * D-PROD-163 (SIMPLIFICA-02): o CADASTRO de família saiu e nenhuma tela lê
+ * D-PROD-169 (SIMPLIFICA-02): o CADASTRO de família saiu e nenhuma tela lê
  * família, então não há mais rota de família (nem leitura nem opções → 404).
  * Cada "Tipo de bem" (natureza) tem a sua família PADRÃO, garantida
  * automaticamente por `garantirCatalogoPadrao` (`patrimonioCatalogoPadrao.js`);

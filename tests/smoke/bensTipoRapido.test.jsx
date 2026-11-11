@@ -1,5 +1,5 @@
 /**
- * D-PROD-163 (MAIKE-PATRIMONIO-SIMPLIFICA-02) — "Tipo de bem" + "Tipo" no
+ * D-PROD-169 (MAIKE-PATRIMONIO-SIMPLIFICA-02) — "Tipo de bem" + "Tipo" no
  * formulário do Bem, com "+ Novo tipo" (cadastro rápido, D-PROD-95), com a tela
  * real (página, motor Base1, formulário, services, API, porta e
  * nativeHttpClient). Mocks só da borda: `fetch` (backend falso) e a sessão.
@@ -152,7 +152,7 @@ const pedirNovoTipo = async (form, busca) => {
 /** O ✓ do cadastro rápido (folha do celular no jsdom). */
 const salvarRapido = (folha) => fireEvent.click(within(folha).getByRole('button', { name: 'Salvar' }));
 
-describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-163)', () => {
+describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
   it('o formulário não tem Família: "Tipo de bem" é a lista fixa e o Tipo fica bloqueado até escolher', async () => {
     await montar();
     const form = await novoBem();

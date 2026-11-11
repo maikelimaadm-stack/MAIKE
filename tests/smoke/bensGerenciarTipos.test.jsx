@@ -1,5 +1,5 @@
 /**
- * D-PROD-163 (MAIKE-PATRIMONIO-SIMPLIFICA-02) — "⋯ › Gerenciar tipos" no
+ * D-PROD-169 (MAIKE-PATRIMONIO-SIMPLIFICA-02) — "⋯ › Gerenciar tipos" no
  * cadastro de Bens (o cadastro de família saiu, e o "Instalar catálogo padrão"
  * também: o servidor garante o catálogo sozinho). Tela real; mocks só da borda.
  *
@@ -159,7 +159,7 @@ const abrirGerenciar = async () => {
   return dialogo;
 };
 
-describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-163)', () => {
+describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-169)', () => {
   it('quem só vê Bens tem "Gerenciar tipos"; não há mais família nem "Instalar catálogo padrão" (nem para o administrador)', async () => {
     sessao.permissao = permissaoCom({}, { is_admin: true });
     await montar();

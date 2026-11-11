@@ -186,7 +186,7 @@ describe('PL-3 — mensagens do service', () => {
     );
     const paraSaco = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'lotes', details: { id: 'p1', de: 'L', para: 'SACO' } });
     expect(svc.mensagemErroSalvarProduto(paraSaco)).toMatch(/Cadastre um Produto novo em sacos \(SACO\)\./);
-    // D-PROD-163: o tanque aceita L, KG e SACO; o 409 por tanque só vem para unidade fora delas.
+    // D-PROD-169: o tanque aceita L, KG e SACO; o 409 por tanque só vem para unidade fora delas.
     const tanque = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'aceito_em_tanque', details: { id: 'p1', de: 'KG', para: 'UN', tanques: [] } });
     expect(svc.mensagemErroSalvarProduto(tanque)).toMatch(/Produtos aceitos de um tanque.*litros \(L\), quilos \(KG\) ou sacos \(SACO\)/);
     respostaFake = { status: 500, body: { code: 'INTERNAL_ERROR', message: 'erro interno', request_id: 'r4' } };

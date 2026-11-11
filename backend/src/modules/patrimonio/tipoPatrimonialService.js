@@ -1,9 +1,9 @@
 /**
- * D-PROD-157 / D-PROD-162 / D-PROD-163 — Tipos patrimoniais (catálogo do
+ * D-PROD-157 / D-PROD-162 / D-PROD-169 — Tipos patrimoniais (catálogo do
  * TENANT, sem empresa), criados, renomeados e EXCLUÍDOS dentro do cadastro de
  * Bens ("Gerenciar tipos").
  *
- * D-PROD-163 (SIMPLIFICA-02): o usuário não vê família. O tipo pertence a um
+ * D-PROD-169 (SIMPLIFICA-02): o usuário não vê família. O tipo pertence a um
  * "Tipo de bem" (a natureza da família dele):
  *  - antes de listar, de dar as opções do formulário e de criar, o catálogo
  *    padrão é GARANTIDO (`garantirCatalogoPadrao`: as 6 famílias padrão e, só
@@ -72,7 +72,7 @@ export const tipoEmUso = (bens) =>
     { details: { field: 'id', reason: 'tipo_em_uso', bens } }
   );
 
-/** Forma pública (sem tenant). D-PROD-163: `natureza` (da família) e `bens_em_uso`. */
+/** Forma pública (sem tenant). D-PROD-169: `natureza` (da família) e `bens_em_uso`. */
 export const comoTipoPublico = (r) => ({
   id: r.id,
   familia_id: r.familia_id,
@@ -250,7 +250,7 @@ const ehViolacaoDeFk = (erro) => {
 };
 
 /**
- * DELETE (D-PROD-163): exclusão FÍSICA do tipo sem nenhum bem (ativo ou
+ * DELETE (D-PROD-169): exclusão FÍSICA do tipo sem nenhum bem (ativo ou
  * inativo, de qualquer fazenda). Ordem: trava do catálogo → `FOR UPDATE` do
  * tipo (espera o `FOR SHARE` do cadastro de bem em voo) → CAS da versão →
  * contagem dos bens (READ COMMITTED: vê o bem já confirmado) → DELETE →
@@ -281,7 +281,7 @@ export const excluir = async (contexto, id, query = {}) => {
 
 /**
  * Opções de seletor (formulário do bem): tipos ATIVOS de famílias ATIVAS,
- * filtro `natureza` (D-PROD-163) e/ou `familia_id`, em ordem alfabética,
+ * filtro `natureza` (D-PROD-169) e/ou `familia_id`, em ordem alfabética,
  * `{id, codigo, nome, familia_id, natureza}`. Garante o catálogo antes.
  */
 export const opcoes = async (contexto, query = {}) => {

@@ -603,7 +603,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
     // Natureza nunca muda: família de outra natureza → 409, medidor e tanques intactos.
     const nat = await recusa(s, patch(s, trator.id, { versao: 1, familia_id: s.fam.VEICULOS, tipo_id: s.tip.CAMINHONETE }), [409, 'BEM_NATUREZA_IMUTAVEL', 'familia_id', 'natureza_diferente']);
     assert.deepEqual(nat.json().details, { natureza: 'MAQUINA', natureza_familia: 'VEICULO' });
-    // Mesma natureza: permitido, preserva medidor e tanques. D-PROD-163: o cadastro de família saiu da API;
+    // Mesma natureza: permitido, preserva medidor e tanques. D-PROD-169: o cadastro de família saiu da API;
     // uma família MANUAL antiga (dado de produção) entra direto no banco e continua utilizável pelos tipos dela.
     const pesadas = await prisma().familiaPatrimonial.create({ data: { cliente_id: s.c, codigo: 'MAQ_PESADAS', nome: 'Máquinas pesadas', natureza: 'MAQUINA' } });
     const escav = await ok(req('POST', '/patrimonio-tipos', s.token, { familia_id: pesadas.id, codigo: 'ESCAVADEIRA', nome: 'Escavadeira' }), 201);
@@ -738,7 +738,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('B7 — opções da fazenda', () => {
-  test('responsáveis (usuários ativos, só {id, nome}), parceiros e centros ativos da fazenda; empresa obrigatória e do tenant; keyset e busca; áreas sem rota (D-PROD-163)', async () => {
+  test('responsáveis (usuários ativos, só {id, nome}), parceiros e centros ativos da fazenda; empresa obrigatória e do tenant; keyset e busca; áreas sem rota (D-PROD-169)', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
     const inativo = await s.conta(null, { ativo: false });
@@ -761,7 +761,7 @@ describe('B7 — opções da fazenda', () => {
     assert.deepEqual((await opcoes('parceiros')).itens, [{ id: s.parceiro1.id, nome: 'Agropecuária Parceira' }], 'só ativos desta fazenda');
     assert.deepEqual((await opcoes('parceiros', '', s.e2.id)).itens, [{ id: s.parceiro2.id, nome: 'Parceiro da Fazenda 2' }]);
     assert.deepEqual((await opcoes('centros-custo')).itens, [{ id: s.centro1.id, numero: s.centro1.numero, nome: 'Máquinas e frota' }]);
-    // D-PROD-163: a Área saiu do cadastro do Bem — o seletor não existe mais.
+    // D-PROD-169: a Área saiu do cadastro do Bem — o seletor não existe mais.
     assert.equal((await req('GET', `/bens-patrimoniais-opcoes/areas?empresa_id=${s.e1.id}`, s.token)).statusCode, 404);
     for (const recurso of ['responsaveis', 'parceiros', 'centros-custo']) {
       assert.equal((await req('GET', `/bens-patrimoniais-opcoes/${recurso}`, s.token)).statusCode, 400, `${recurso} sem empresa`);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -124,6 +124,7 @@ export default function FormularioCategoriaManejo({
       className="b1 mg-b1-form-grid w-full min-h-0"
       noValidate
       data-testid="b1-form-categoria-manejo"
+      data-densidade={DENSIDADE_BASE1}
     >
       <B1Field
         label="Nome da Categoria"
@@ -317,7 +318,7 @@ export default function FormularioCategoriaManejo({
         />
       </B1Field>
 
-      <div className="col-span-12 font-semibold text-xs text-slate-700 pt-1">Previsão de GMD Mensal</div>
+      <B1TituloGrupo titulo="Previsão de GMD Mensal" />
 
       {MESES.map((mes) => (
         <B1Field

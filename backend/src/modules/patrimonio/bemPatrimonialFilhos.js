@@ -15,7 +15,7 @@
  * sem repetição. Só o que é ACRESCENTADO (novo, reativado, ou o conjunto de um
  * tanque/bem que volta a ficar ativo — achado D1) é validado: Produto do
  * tenant, da MESMA fazenda do bem, ativo e com estoque em L, KG ou SACO
- * (D-PROD-163: qualquer unidade do cadastro de Produtos); lido antes
+ * (D-PROD-169: qualquer unidade do cadastro de Produtos); lido antes
  * com `FOR KEY SHARE` (espera a troca de fazenda/unidade do Produto em voo,
  * que toma `FOR UPDATE`). Um aceite mantido não é revalidado: o abastecimento
  * relê o Produto e o recusa.

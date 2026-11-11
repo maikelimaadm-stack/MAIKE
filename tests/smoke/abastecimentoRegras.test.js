@@ -184,7 +184,7 @@ describe('validação local', () => {
     expect(validarFormulario(formTrator({ quantidade: '180' }), ctx).erros.quantidade).toBeUndefined();
     // Produto em KG: o número da capacidade (litros) NÃO limita os quilos.
     expect(validarFormulario(formTrator({ produto: PRODUTO_KG, quantidade: '500' }), ctx).erros.quantidade).toBeUndefined();
-    // D-PROD-163: Produto em SACO baixa em kg — a capacidade (litros) também não limita.
+    // D-PROD-169: Produto em SACO baixa em kg — a capacidade (litros) também não limita.
     expect(validarFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' }, quantidade: '500' }), ctx).erros.quantidade).toBeUndefined();
     expect(validarFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' }, quantidade: '500' }), { ...ctx, unidade: 'SACO' }).erros.quantidade).toBeUndefined();
     // Unidade desconhecida (Produto fora de L/KG/SACO): a tela não promete capacidade; o servidor bloqueia o Produto.
@@ -196,7 +196,7 @@ describe('validação local', () => {
     });
   });
 
-  it('unidade do formulário: a unidade EFETIVA do estoque do Produto (L; KG e SACO → KG, D-PROD-163), senão null', () => {
+  it('unidade do formulário: a unidade EFETIVA do estoque do Produto (L; KG e SACO → KG, D-PROD-169), senão null', () => {
     expect(unidadeDoFormulario(formTrator())).toBe('L');
     expect(unidadeDoFormulario(formTrator({ produto: PRODUTO_KG }))).toBe('KG');
     expect(unidadeDoFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' } }))).toBe('KG');
@@ -204,7 +204,7 @@ describe('validação local', () => {
     expect(unidadeDoFormulario(formularioVazio('2026-06-15'))).toBeNull();
   });
 
-  it('D-PROD-163: unidades do Produto (L, KG, SACO) × unidade gravada (L, KG); dica por unidade do Produto', () => {
+  it('D-PROD-169: unidades do Produto (L, KG, SACO) × unidade gravada (L, KG); dica por unidade do Produto', () => {
     expect([...UNIDADES_PRODUTO_ABASTECIMENTO]).toEqual(['L', 'KG', 'SACO']);
     expect([...UNIDADES_ABASTECIMENTO]).toEqual(['L', 'KG']);
     expect(['L', 'KG', 'SACO', 'UN', null].map(unidadeDoAbastecimentoDoProduto)).toEqual(['L', 'KG', 'KG', null, null]);

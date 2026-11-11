@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
@@ -6,11 +7,11 @@ import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA, ehNatureza } from "@/lib/patrimo
 
 export const FORMULARIO_TIPO_ID = "formulario-tipo-patrimonial-base1";
 
-/** Opções do "Tipo de bem" (a lista FIXA de natureza, D-PROD-163). */
+/** Opções do "Tipo de bem" (a lista FIXA de natureza, D-PROD-169). */
 export const OPCOES_TIPO_DE_BEM = NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }));
 
 /**
- * Formulário do NOVO tipo (D-PROD-163): "Tipo de bem" (a natureza, lista fixa)
+ * Formulário do NOVO tipo (D-PROD-169): "Tipo de bem" (a natureza, lista fixa)
  * e Nome. O servidor põe o tipo na família padrão do Tipo de bem e gera o
  * código a partir do nome (P-05): ninguém cadastra família.
  *  - `naturezaFixa`: o Tipo de bem vem travado, só leitura (o "+ Novo tipo" do
@@ -55,7 +56,7 @@ export default function FormularioTipo({ onSubmit, initialData = null, naturezaF
   return (
     <CadastroFormShell embedded title="Novo tipo">
       <div className="mg-b1-record-form">
-        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="tipo-form">
+        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="tipo-form" data-densidade={DENSIDADE_BASE1}>
           {travada ? (
             <CampoTexto label="Tipo de bem" span={12} value={rotuloNatureza} onChange={() => {}} readOnly />
           ) : (

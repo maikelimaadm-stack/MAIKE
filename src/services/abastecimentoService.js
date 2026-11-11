@@ -4,7 +4,7 @@
  *
  * Abastecimento CONFIRMADO de um bem da EMPRESA: o Produto vem dos "Produtos
  * aceitos" do tanque e a baixa física FIFO do estoque é EXATAMENTE a
- * quantidade digitada, na unidade de estoque do Produto (L ou KG; D-PROD-163: SACO em kg), sem fator
+ * quantidade digitada, na unidade de estoque do Produto (L ou KG; D-PROD-169: SACO em kg), sem fator
  * nem conversão. Nenhum lançamento financeiro é criado. Sem rascunho: a tela
  * pede a PRÉVIA (sem escrita) com o formulário e só então confirma.
  *

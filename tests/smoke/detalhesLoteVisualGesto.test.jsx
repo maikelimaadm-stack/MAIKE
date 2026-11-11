@@ -85,8 +85,9 @@ describe("Ajustes D-PROD-125", () => {
   it("identificador do lote no mapa: bolinha menor, borda fina, encostada na figura", () => {
     const mapa = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(mapa).toContain("left:calc(50% + 22px);top:calc(50% - 24px)");
-    expect(mapa).toContain("width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;");
-    expect(mapa).toContain("font-size:6px");
+    // padrão de tipografia (D-PROD-167): tag no marcador 10px / 500 — o ponto cresce para caber a sigla
+    expect(mapa).toContain("width:18px;height:18px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;");
+    expect(mapa).toContain("font-size:10px;font-weight:500");
   });
 });
 

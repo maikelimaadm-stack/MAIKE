@@ -1,8 +1,8 @@
 /**
  * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162
- * e pela D-PROD-163). Só online; tenant só no JWT.
+ * e pela D-PROD-169). Só online; tenant só no JWT.
  *
- * Catálogo do TENANT: nenhuma rota de catálogo leva `empresa_id`. D-PROD-163:
+ * Catálogo do TENANT: nenhuma rota de catálogo leva `empresa_id`. D-PROD-169:
  * a tela só usa os TIPOS (`/patrimonio-tipos`, filtro `natureza`, com
  * DELETE); a família saiu da tela (o servidor resolve a família padrão da
  * natureza) e a instalação do catálogo padrão deixou de ser chamada. Bens
@@ -17,7 +17,7 @@
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
 
-/** Caminho de cada catálogo (recurso → rota). D-PROD-163: só os tipos (a família saiu da tela). */
+/** Caminho de cada catálogo (recurso → rota). D-PROD-169: só os tipos (a família saiu da tela). */
 export const CAMINHOS_CATALOGO = Object.freeze({
   tipos: '/patrimonio-tipos',
 });
@@ -61,7 +61,7 @@ const comQuery = (caminho, params) => {
 };
 
 /**
- * Listagem keyset de um catálogo: `q`, `ativo` e `natureza` (D-PROD-163: o
+ * Listagem keyset de um catálogo: `q`, `ativo` e `natureza` (D-PROD-169: o
  * "Tipo de bem" — os tipos da natureza, pela família deles).
  * @param {string} recurso @param {Record<string, unknown>} [filtros]
  */
@@ -90,7 +90,7 @@ export const montarCaminhoListagemBens = (filtros = {}) => {
 
 /**
  * Opções do formulário do bem: `empresa_id`, `natureza` (só em `tipos`,
- * D-PROD-163: os tipos ATIVOS do "Tipo de bem") e, só em `produtos` (Produtos
+ * D-PROD-169: os tipos ATIVOS do "Tipo de bem") e, só em `produtos` (Produtos
  * que o tanque aceita), `unidade` (`L` | `KG` | `SACO`); mais `q`, `limit` e
  * `cursor`.
  * @param {string} recurso @param {Record<string, unknown>} [filtros]
@@ -112,7 +112,7 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
 const doCatalogo = (recurso, id) => `${caminhoDoCatalogo(recurso)}/${encodeURIComponent(id)}`;
 
 /**
- * DELETE de um item do catálogo (D-PROD-163: só tipos) com a `versao` lida
+ * DELETE de um item do catálogo (D-PROD-169: só tipos) com a `versao` lida
  * (concorrência otimista, como o PATCH) na query: `/patrimonio-tipos/:id?versao=N`.
  * @param {string} recurso @param {string} id @param {number} versao
  */

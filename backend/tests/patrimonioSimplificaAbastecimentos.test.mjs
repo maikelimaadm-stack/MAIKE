@@ -128,7 +128,7 @@ describe('D-PROD-162 — a baixa é a quantidade digitada, na unidade do Produto
   test('Produto não aceito, aceite desligado, outra fazenda, inativo, outro tenant e unidade fora de L/KG/SACO → 422 com o motivo; nada gravado', async () => {
     const s = await montarAbastecimento(app);
     const outro = await montarAbastecimento(app);
-    // D-PROD-163: SACO abastece (em kg); a recusa por unidade fica para unidade legada fora de L/KG/SACO.
+    // D-PROD-169: SACO abastece (em kg); a recusa por unidade fica para unidade legada fora de L/KG/SACO.
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.emSaco.id}`;
     const antes = await fotoAbastecimento([s.c, outro.c]);
     const recusa = async (extra, esperado, rotulo) => {
@@ -295,7 +295,7 @@ describe('D-PROD-162 — Produtos do bem (A16) e dois tanques', () => {
     // tanque sem Produto aceito (P-01)
     const vazio = await novoBem('Trator vazio', 'TV-01', [{ identificador: 'Tanque', capacidade_litros: '100', produto_ids: [] }]);
     assert.equal((await resumo(vazio)).motivo_sem_opcao, 'tanque_sem_produto');
-    // Produto aceito que virou SACO (por fora) continua servindo (D-PROD-163: abastece em kg);
+    // Produto aceito que virou SACO (por fora) continua servindo (D-PROD-169: abastece em kg);
     // virou uma unidade fora de L/KG/SACO (dado legado) → unidade incompatível
     const saco = await novoBem('Trator saco', 'TS-01', [{ identificador: 'Tanque', capacidade_litros: '100', produto_ids: [s.gasolina.id] }]);
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'SACO' WHERE id = ${s.gasolina.id}`;

@@ -6,7 +6,7 @@
  * códigos; um que chegue cai no texto genérico). Entram os Produtos aceitos
  * pelo tanque, o Produto no tanque do Patrimônio e a unidade de estoque.
  *
- * D-PROD-163: o tanque aceita Produto em L, KG ou SACO; a família saiu da tela
+ * D-PROD-169: o tanque aceita Produto em L, KG ou SACO; a família saiu da tela
  * ("Tipo de bem" = natureza; o tipo é cadastro do usuário, que pode ser
  * excluído quando nenhum bem o usa — `PATRIMONIO_TIPO_EM_USO`).
  *
@@ -33,7 +33,7 @@ const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   ordem: 'Ordem',
   vida_util_meses_padrao: 'Vida útil padrão',
   vida_util_meses_sugerida: 'Vida útil sugerida',
-  // D-PROD-163: a família não aparece na tela; um erro nela é um erro do tipo escolhido.
+  // D-PROD-169: a família não aparece na tela; um erro nela é um erro do tipo escolhido.
   familia_id: 'Tipo',
   tipo_id: 'Tipo',
   unidade: 'Unidade',
@@ -206,7 +206,7 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
       return `Já existe um cadastro com este código. Use outro nome (o código é gerado a partir dele) ou outro código. ${NADA}`;
     case 'PATRIMONIO_NOME_DUPLICADO':
       return `Já existe um tipo com este nome neste tipo de bem. Use outro nome. ${NADA}`;
-    // D-PROD-163: exclusão de tipo só sem bem nenhum (ativo ou inativo) usando o tipo.
+    // D-PROD-169: exclusão de tipo só sem bem nenhum (ativo ou inativo) usando o tipo.
     case 'PATRIMONIO_TIPO_EM_USO': {
       const bens = Number.isInteger(details.bens) ? details.bens : null;
       return bens !== null

@@ -2,7 +2,7 @@
  * D-PROD-159, revisto pela D-PROD-162 — cenário compartilhado dos testes do
  * abastecimento e do consumo. Não é arquivo de teste (sem `.test.`): monta,
  * sobre `montarPatrimonio` (P1-01), Produtos REAIS em litros (`L`) e em quilos
- * (`KG`), um Produto em SACO (D-PROD-163: aceito em tanque e abastecido em kg), locais, lotes FIFO
+ * (`KG`), um Produto em SACO (D-PROD-169: aceito em tanque e abastecido em kg), locais, lotes FIFO
  * coerentes com `estoque_atual`, os bens do aceite com os "Produtos aceitos"
  * de cada tanque PELA API do cadastro de Bens (trator TP-02 com horímetro e
  * tanque de 180 L aceitando o diesel em L e o diesel em kg; caminhonete flex

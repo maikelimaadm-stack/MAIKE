@@ -9,7 +9,7 @@
  *    D-PROD-162);
  *  - seções e campos condicionais pelo "Tipo de bem" (a natureza; espelho da
  *    matriz §2: medidor obrigatório/opcional, tanques, placa, chassi…; sem aba
- *    Medições, D-PROD-162). D-PROD-163: sem Família na tela, o POST vai com
+ *    Medições, D-PROD-162). D-PROD-169: sem Família na tela, o POST vai com
  *    `natureza` + `tipo_id` (sem `familia_id`) e sem Área nem Localização;
  *  - prévia de depreciação rotulada como simulação (1.250,00 por mês);
  *  - edição com PATCH mínimo + `versao`; 409/422 mostram a mensagem do
@@ -44,7 +44,7 @@ const permissaoCom = (acoes) => ({
 });
 
 const opcoes = (itens) => ({ status: 200, body: { itens, has_more: false, next_cursor: null } });
-/** Tipos ATIVOS por "Tipo de bem" (D-PROD-163: `?natureza=`; sem família na tela). */
+/** Tipos ATIVOS por "Tipo de bem" (D-PROD-169: `?natureza=`; sem família na tela). */
 const TIPOS = {
   BENFEITORIA: [{ id: 't1', codigo: 'CURRAL', nome: 'Curral', natureza: 'BENFEITORIA' }],
   MAQUINA: [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', natureza: 'MAQUINA' }],
@@ -215,7 +215,7 @@ const abrirTrator = async () => {
   fireEvent.doubleClick(await screen.findByTestId('bem-nome-b1'));
   return screen.findByTestId('b1-form');
 };
-/** Escolhe o "Tipo de bem" (a natureza, lista fixa — D-PROD-163). */
+/** Escolhe o "Tipo de bem" (a natureza, lista fixa — D-PROD-169). */
 const escolherTipoDeBem = async (form, rotulo) => {
   await escolherOpcao(within(form).getByRole('combobox', { name: 'Tipo de bem' }), rotulo);
   // jsdom: o próximo seletor só abre depois que as opções deste sumirem.
@@ -640,7 +640,7 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     });
   });
 
-  it('duplicar só copia os Produtos aceitos que ainda servem (D-PROD-163: SACO serve; nem o inativo, nem o de unidade fora de L/KG/SACO)', async () => {
+  it('duplicar só copia os Produtos aceitos que ainda servem (D-PROD-169: SACO serve; nem o inativo, nem o de unidade fora de L/KG/SACO)', async () => {
     extraDoTrator = {
       tanques: [{
         id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
@@ -691,7 +691,7 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, marca: 'Massey' } })]);
   });
 
-  it('D-PROD-163: Área e Localização gravadas não aparecem e o PATCH não as manda (nem apaga)', async () => {
+  it('D-PROD-169: Área e Localização gravadas não aparecem e o PATCH não as manda (nem apaga)', async () => {
     extraDoTrator = { area: { id: 'a1', nome: 'Retiro Sul' }, area_id: 'a1', localizacao_descricao: 'Galpão de máquinas' };
     await montar();
     const form = await abrirTrator();
@@ -707,7 +707,7 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, marca: 'Massey' } })]);
   });
 
-  it('D-PROD-163: a lista mostra "Tipo de bem" e não tem coluna Família', async () => {
+  it('D-PROD-169: a lista mostra "Tipo de bem" e não tem coluna Família', async () => {
     await montar();
     await screen.findByTestId('bem-nome-b1');
     const cabecalhos = screen.getAllByRole('columnheader').map((c) => c.textContent.trim());
@@ -723,7 +723,7 @@ describe('Bens — referências da fazenda, aquisição e propriedade (corpo exa
     const form = await novoDoTipoDeBem('Balsa do açude', 'Outro', /Balsa/);
     await escolherNoSeletor(form, 'bem-seletor-responsavel', 'João Vaqueiro');
     await escolherNoSeletor(form, 'bem-seletor-centro-custo', /Manutenção/);
-    // D-PROD-163: Área e Localização saíram do cadastro do bem.
+    // D-PROD-169: Área e Localização saíram do cadastro do bem.
     expect(within(form).queryByTestId('bem-seletor-area')).toBeNull();
     expect(within(form).queryByLabelText(/^Localização/)).toBeNull();
     expect(within(form).getByTestId('bem-seletor-centro-custo')).toHaveTextContent('12 · Manutenção');

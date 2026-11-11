@@ -59,7 +59,7 @@ export const DEFAULT_MENU = [
     // D-PROD-159 — P1-02: abastecimentos e consumo da frota (sem manutenção nem financeiro).
     // D-PROD-162 — só Bens Patrimoniais (famílias, tipos e os Produtos aceitos pelos tanques
     // ficam DENTRO do cadastro do bem) e Abastecimentos (baixa exata na unidade do Produto, L ou KG).
-    // D-PROD-163 — sem família na tela ("Tipo de bem" + Tipo); Produtos aceitos em L, KG ou SACO (SACO abastece em kg).
+    // D-PROD-169 — sem família na tela ("Tipo de bem" + Tipo); Produtos aceitos em L, KG ou SACO (SACO abastece em kg).
     id: "patrimonio",
     title: "Patrimônio e Frota",
     icon: "Truck",

@@ -137,7 +137,7 @@ function Linha({ rotulo, valor, testId = undefined }) {
  * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
  * (D-PROD-162). Resumo humano: máquina, Produto, quantidade na unidade do
  * Produto, medidor, tanque cheio, data, local e a baixa do estoque (EXATAMENTE
- * a quantidade digitada, "120,0000 L" ou "80,0000 kg"; D-PROD-163: Produto em
+ * a quantidade digitada, "120,0000 L" ou "80,0000 kg"; D-PROD-169: Produto em
  * SACO baixa em kg, a unidade do estoque dele). Os dados técnicos
  * (tanque, custo estimado por L/kg, saldo e lotes FIFO) ficam em "Detalhes do
  * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não

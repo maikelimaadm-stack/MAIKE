@@ -252,7 +252,7 @@ describe('INT-1 — corpos da tela na API real (L, KG e flex)', () => {
     // "O tanque escolhido não aceita este Produto…" (o Produto mudou entre a abertura e a prévia)
     const naoAceito = so(await bloqueios({}, { produto_id: s.arla.id }), 'ABASTECIMENTO_PRODUTO_NAO_ACEITO');
     assert.deepEqual([naoAceito.field, naoAceito.reason], ['produto_id', 'nao_aceito_pelo_tanque']);
-    // "O Produto não está em L, KG nem SACO ({unidade})." — D-PROD-163: SACO abastece (em kg); só unidade legada fora delas recusa.
+    // "O Produto não está em L, KG nem SACO ({unidade})." — D-PROD-169: SACO abastece (em kg); só unidade legada fora delas recusa.
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.emSaco.id}`;
     const unidade = so(await bloqueios({}, { produto_id: s.emSaco.id }), 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL');
     assert.deepEqual([unidade.field, unidade.reason, unidade.details.unidade], ['produto_id', 'unidade_nao_aceita', 'UN']);

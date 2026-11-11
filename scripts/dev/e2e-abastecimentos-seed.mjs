@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-159 / D-PROD-162 / D-PROD-163 — semente dos ensaios ponta a ponta
+ * D-PROD-159 / D-PROD-162 / D-PROD-169 — semente dos ensaios ponta a ponta
  * REAIS de Patrimônio e Frota (tela real + backend Fastify real + PostgreSQL
  * LOCAL). Molde: `e2e-lancamentos-seed.mjs` (Central Única de Lançamentos).
  *
@@ -10,7 +10,7 @@
  * digitada, na unidade de estoque do Produto. O estoque em litros entra pela
  * compra da Gestão P3 em `L` (a API real), nunca por "saldo inicial" fingido.
  *
- * D-PROD-163 (MAIKE-PATRIMONIO-SIMPLIFICA-02): o tanque aceita Produto em
+ * D-PROD-169 (MAIKE-PATRIMONIO-SIMPLIFICA-02): o tanque aceita Produto em
  * QUALQUER unidade (L, KG ou SACO; o SACO guarda estoque em kg e abastece em
  * kg). O bem vai com "Tipo de bem" (`natureza`) + `tipo_id`, SEM `familia_id`
  * (o servidor deriva a família do tipo); o catálogo padrão (uma família por
@@ -70,7 +70,7 @@ export const COMPRAS_DIESEL = Object.freeze(
 /** Compra do Produto em QUILOS (um lote só). */
 export const COMPRA_KG = Object.freeze({ quantidade: '200.0000', custo: '4.1000', diasAtras: 20 });
 /**
- * D-PROD-163 — compra do Produto em SACOS (um lote só): 5 sacos de 50 kg a
+ * D-PROD-169 — compra do Produto em SACOS (um lote só): 5 sacos de 50 kg a
  * R$ 200,00 o saco = 250 kg a R$ 4,0000/kg (o estoque do SACO é em kg).
  */
 export const COMPRA_SACO = Object.freeze({ sacos: '5', pesoSacoKg: '50', custoSaco: '200.0000', kg: '250.0000', custoKg: '4.0000', diasAtras: 15 });
@@ -241,7 +241,7 @@ export const criarProdutoPelaApi = async (s, api, p) =>
   );
 
 /**
- * Ids dos tipos do catálogo do tenant por código (D-PROD-163). A leitura de
+ * Ids dos tipos do catálogo do tenant por código (D-PROD-169). A leitura de
  * `GET /patrimonio-tipos` GARANTE o catálogo padrão (uma família padrão por
  * natureza + os tipos padrão) antes de responder: a semente não instala nada.
  * @param {ApiDono} api @returns {Promise<Record<string, { id: string, natureza: string }>>}

@@ -10,7 +10,7 @@
  *  - ícones próprios no celular para o grupo e para as duas telas;
  *  - regra de botões = a do servidor (`GUARDAS.patrimonio*`): novo|salvar,
  *    editar|salvar e a ação extra `inativar` (sem atalho); padrão negado;
- *    os tipos (dentro de Bens; D-PROD-163: sem família na tela) seguem as
+ *    os tipos (dentro de Bens; D-PROD-169: sem família na tela) seguem as
  *    ações da tela de Bens (excluir tipo = editar|salvar);
  *  - paridade lida no código do servidor (autorizacaoTela.js e guardasRotas.js);
  *  - shell real: o grupo aparece só para quem tem alguma das telas; dentro do
@@ -313,7 +313,7 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     expect(acoesDaTelaAbastecimento({ user_email: 'x', is_admin: true })).toEqual({ ver: true, criar: true, cancelar: true });
   });
 
-  it('tipos dentro de Bens (D-PROD-163): criar = novo|salvar|editar; renomear e excluir = editar|salvar; reativar = extra inativar; Produtos do tanque = novo|salvar|editar', () => {
+  it('tipos dentro de Bens (D-PROD-169): criar = novo|salvar|editar; renomear e excluir = editar|salvar; reativar = extra inativar; Produtos do tanque = novo|salvar|editar', () => {
     const T = TELAS_PATRIMONIO.BENS;
     const nada = { criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false };
     expect(acoesDeCatalogoNoBem(null)).toEqual(nada);
@@ -475,7 +475,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     const bens = trecho(guardas, 'patrimonioBens: {', '},');
     expect(bens).toMatch(/opcoesCatalogo:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
     expect(bens).toMatch(/opcoesProdutos:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
-    // D-PROD-163: família não tem mais rota (nem leitura): o cadastro dela saiu e nenhuma tela a lê.
+    // D-PROD-169: família não tem mais rota (nem leitura): o cadastro dela saiu e nenhuma tela a lê.
     expect(guardas).not.toMatch(/patrimonioFamilias\s*:/);
     const tipos = trecho(guardas, 'patrimonioTipos: {', '\n  },');
     expect(tipos).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) e D-PROD-163
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) e D-PROD-169
  * (MAIKE-PATRIMONIO-SIMPLIFICA-02) — ACEITE HUMANO em navegador real: tela
  * real + backend Fastify REAL + Vite + PostgreSQL LOCAL; conduz as telas pelo
  * Playwright (Chromium já instalado; nada é instalado) e confere o BANCO
@@ -101,15 +101,15 @@ const prisma = getPrismaClient();
 
 /** Rotas das telas removidas pela D-PROD-162 (minúsculas = `createPageUrl`; PascalCase = links antigos). */
 const TELAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
-/** D-PROD-163: aviso do tanque para Produto em KG ou SACO (estoque em kg). */
+/** D-PROD-169: aviso do tanque para Produto em KG ou SACO (estoque em kg). */
 const AVISO_KG_TANQUE = 'Produto em quilos ou em sacos tem estoque em quilos: no abastecimento digita-se kg, não sacos nem os litros da bomba.';
-/** D-PROD-163: a regra dos Produtos aceitos, na tela do tanque. */
+/** D-PROD-169: a regra dos Produtos aceitos, na tela do tanque. */
 const NOTA_PRODUTOS_ACEITOS =
   'Os Produtos aceitos vêm do estoque desta fazenda, em qualquer unidade (litros, quilos ou sacos). O abastecimento baixa do estoque exatamente a quantidade digitada, na unidade de estoque do Produto (litros para L; quilos para KG e SACO); a capacidade do tanque só é conferida para Produto em litros.';
 const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
 const DICA_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 const COLUNAS_PADRAO = 'Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação';
-/** Códigos das 6 famílias padrão (uma por natureza) que o servidor garante sozinho (D-PROD-163). */
+/** Códigos das 6 famílias padrão (uma por natureza) que o servidor garante sozinho (D-PROD-169). */
 const FAMILIAS_PADRAO = 'BENFEITORIAS:BENFEITORIA|EQUIPAMENTOS:EQUIPAMENTO|IMPLEMENTOS:IMPLEMENTO|MAQUINAS:MAQUINA|OUTROS:OUTRO|VEICULOS:VEICULO';
 /** Texto da tela normalizado (o Intl põe espaço não separável em "R$ 425,00"). @param {string} t */
 const texto = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -236,7 +236,7 @@ const executarLargura = async (browser, largura) => {
     await escolherNoCombo(form.getByRole('combobox', { name: /^Tipo de bem/ }), nome);
     await page.getByTestId('bem-escolha-tipo-de-bem').filter({ visible: true }).waitFor({ state: 'detached' }).catch(() => {});
   };
-  /** O formulário do Bem não tem Família, Área nem Localização (D-PROD-163). */
+  /** O formulário do Bem não tem Família, Área nem Localização (D-PROD-169). */
   const conferirSemCamposAntigos = async (form, onde) => {
     for (const re of [/^Fam[íi]lia/, /^[ÁA]rea/, /^Localiza/, /^Natureza/]) {
       igual(await form.getByLabel(re).filter({ visible: true }).count(), 0, `[${rotulo}] ${onde}: campo ${re.source} presente`);
@@ -285,7 +285,7 @@ const executarLargura = async (browser, largura) => {
       'Este tanque não pode ser abastecido até ter um Produto aceito.',
       `[${rotulo}] tanque sem Produto: aviso`,
     );
-    // D-PROD-163: a regra nova (qualquer unidade) aparece no tanque.
+    // D-PROD-169: a regra nova (qualquer unidade) aparece no tanque.
     igual(texto(await visivel(page.getByTestId('bem-tanques-nota')).innerText()), NOTA_PRODUTOS_ACEITOS, `[${rotulo}] texto da regra dos Produtos aceitos`);
     for (const p of t.produtos) await aceitarProduto(tanque, p);
     igual(await page.getByTestId('bem-tanque-sem-produto-0').filter({ visible: true }).count(), 0, `[${rotulo}] aviso de tanque sem Produto continua com Produto aceito`);
@@ -453,7 +453,7 @@ const executarLargura = async (browser, largura) => {
     await clicar(page.getByRole('button', { name: 'Mais opções' }));
     const item = (nome) => page.getByRole('menuitem', { name: nome }).or(page.getByRole('button', { name: nome, exact: true }));
     await visivel(item('Gerenciar tipos')).waitFor();
-    // D-PROD-163: sem família e sem "Instalar catálogo padrão" (o servidor garante o catálogo sozinho).
+    // D-PROD-169: sem família e sem "Instalar catálogo padrão" (o servidor garante o catálogo sozinho).
     igual(await item(/fam[íi]lia/i).filter({ visible: true }).count(), 0, `[${rotulo}] menu "⋯" com item de família`);
     igual(await item('Instalar catálogo padrão').filter({ visible: true }).count(), 0, `[${rotulo}] menu "⋯" com "Instalar catálogo padrão"`);
     await clicar(item('Gerenciar tipos'));
@@ -920,6 +920,6 @@ try {
 }
 process.exit(
   E.concluir(
-    'OK: aceite D-PROD-163 — Produtos em L, KG e SACO aceitos no tanque, Bens com "Tipo de bem" + "Tipo" (+ Novo tipo) sem Família/Área/Localização, "Gerenciar tipos" (renomear, excluir, recusa em uso), abastecimento e estorno exatos (L com capacidade; kg sem); tela real + backend real + PostgreSQL local sem divergências.',
+    'OK: aceite D-PROD-169 — Produtos em L, KG e SACO aceitos no tanque, Bens com "Tipo de bem" + "Tipo" (+ Novo tipo) sem Família/Área/Localização, "Gerenciar tipos" (renomear, excluir, recusa em uso), abastecimento e estorno exatos (L com capacidade; kg sem); tela real + backend real + PostgreSQL local sem divergências.',
   ),
 );

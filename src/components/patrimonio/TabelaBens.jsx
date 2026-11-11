@@ -4,7 +4,7 @@ import { ROTULO_MEDIDOR, ROTULO_NATUREZA, ROTULO_PROPRIEDADE } from "@/lib/patri
 
 /**
  * Colunas da lista de Bens Patrimoniais (D-PROD-157) — resumo da listagem do
- * servidor. D-PROD-163: "Natureza" virou "Tipo de bem" e a coluna Família saiu
+ * servidor. D-PROD-169: "Natureza" virou "Tipo de bem" e a coluna Família saiu
  * (uma preferência antiga de coluna com "familia" é ignorada: o id não existe mais).
  */
 export const BENS_COLUNAS = [

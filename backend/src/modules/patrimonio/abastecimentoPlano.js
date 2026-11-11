@@ -11,7 +11,7 @@
  * tanque (em litros) só é conferida para Produto em `L`. Decimais em `Dec`
  * (decimalFinanceiro), nunca Number.
  *
- * D-PROD-163: Produto em QUALQUER unidade do cadastro (L, KG ou SACO). A
+ * D-PROD-169: Produto em QUALQUER unidade do cadastro (L, KG ou SACO). A
  * unidade do abastecimento é a unidade EFETIVA do estoque: `L` para L e `KG`
  * para KG e SACO (SACO guarda estoque em kg); a quantidade digitada é em kg
  * para SACO, sem conversão por peso do saco.
@@ -45,7 +45,7 @@ export const STATUS_CANCELADO = 'CANCELADO';
 
 /**
  * A unidade de estoque do Produto é uma das que o tanque aceita (L, KG ou SACO;
- * D-PROD-163)? A unidade do abastecimento é a EFETIVA (`unidadeEfetivaDoEstoque`).
+ * D-PROD-169)? A unidade do abastecimento é a EFETIVA (`unidadeEfetivaDoEstoque`).
  * @param {unknown} u
  */
 export const unidadeDoAbastecimento = (u) => unidadeEfetivaDoEstoque(u) !== null;
@@ -318,7 +318,7 @@ export const planejarAbastecimento = (entrada, estado) => {
   if (produto && !unidadeAceita) {
     bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita', { unidade: produto.unidade_principal_estoque }));
   }
-  /** Unidade EFETIVA do estoque (D-PROD-163: SACO → KG). @type {'L'|'KG'|null} */
+  /** Unidade EFETIVA do estoque (D-PROD-169: SACO → KG). @type {'L'|'KG'|null} */
   const unidade = unidadeAceita ? unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) : null;
   // B6 (só com tanque e produto: sem eles o par não existe)
   if (tanque && produto && !(tanque.produtos ?? []).some((a) => a.produto_id === produto.id && a.ativo)) {

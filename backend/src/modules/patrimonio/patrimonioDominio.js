@@ -7,7 +7,7 @@
  * Prisma); mudar uma lista exige migration nova.
  *
  * D-PROD-162: saem perfis de medição, medições físicas, catálogo de
- * combustíveis e fator kg/L. D-PROD-163: cada tanque aceita Produtos do
+ * combustíveis e fator kg/L. D-PROD-169: cada tanque aceita Produtos do
  * estoque em qualquer unidade (L, KG ou SACO); o abastecimento é em L ou KG.
  */
 
@@ -104,7 +104,7 @@ export const MAX_PRODUTOS_POR_TANQUE = 20;
  */
 export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
 /**
- * D-PROD-163 (SIMPLIFICA-02) — unidades de estoque do Produto que um tanque
+ * D-PROD-169 (SIMPLIFICA-02) — unidades de estoque do Produto que um tanque
  * ACEITA: qualquer unidade do cadastro de Produtos (L, KG e SACO). SACO guarda
  * estoque em kg (`estoqueFisicoMotor.js`), então abastece em KG.
  */

@@ -20,7 +20,7 @@ import { lerErroGestao } from "@/lib/gestaoErros";
 
 const QUERY_RAIZ = "bens-patrimoniais";
 
-/** Filtro pelo "Tipo de bem" (a natureza, D-PROD-163). */
+/** Filtro pelo "Tipo de bem" (a natureza, D-PROD-169). */
 const OPCOES_FILTRO_TIPO_DE_BEM = [{ value: "TODAS", label: "Todos os tipos de bem" }, ...NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }))];
 
 const MENSAGEM_VERSAO =

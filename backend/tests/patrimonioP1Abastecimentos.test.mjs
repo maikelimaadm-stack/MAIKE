@@ -393,7 +393,7 @@ describe('P1-02 — Produtos aceitos e fazenda', () => {
 describe('P1-02 — estoque, capacidade e idempotência', () => {
   test('AB7: sem lote no local / lotes insuficientes / estoque_atual legado menor / unidade fora de L/KG/SACO / local inativo ou inexistente → 422; nada gravado', async () => {
     const s = await montarAbastecimento(app);
-    // D-PROD-163: SACO passou a abastecer (em kg); a recusa por unidade vale para unidade fora de L/KG/SACO (dado legado).
+    // D-PROD-169: SACO passou a abastecer (em kg); a recusa por unidade vale para unidade fora de L/KG/SACO (dado legado).
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.emSaco.id}`;
     const antes = await fotoAbastecimento(s.c);
     const semLote = await A.confirmar(s.operador.token, corpoAbastecimento(s, { local_estoque_id: s.local2.id }));

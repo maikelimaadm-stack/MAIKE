@@ -1,13 +1,13 @@
 /**
- * D-PROD-162 / D-PROD-163 — porta e API do Patrimônio depois da simplificação,
+ * D-PROD-162 / D-PROD-169 — porta e API do Patrimônio depois da simplificação,
  * e as mensagens novas de `patrimonioErros`.
  *
- *  - catálogo (D-PROD-163): só TIPOS na tela — POST `{natureza, nome}` sem
+ *  - catálogo (D-PROD-169): só TIPOS na tela — POST `{natureza, nome}` sem
  *    `familia_id` (o servidor resolve a família padrão), PATCH com `versao`,
  *    DELETE `/patrimonio-tipos/:id?versao=N`; o `codigo` é opcional no POST
  *    (gerado no servidor a partir do nome, P-05); família e catálogo padrão
  *    saíram da API da tela;
- *  - bem (D-PROD-163): POST com `natureza` + `tipo_id`, sem `familia_id`;
+ *  - bem (D-PROD-169): POST com `natureza` + `tipo_id`, sem `familia_id`;
  *    PATCH sem `familia_id` nem `natureza`;
  *  - opções do bem: `tipos` aceita `natureza`; `produtos` (Produtos que um
  *    tanque aceita) pede a empresa e aceita o filtro `unidade` (`L` | `KG` |
@@ -73,7 +73,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('API-1 — catálogo: só tipos, por Tipo de bem (D-PROD-163); código opcional', () => {
+describe('API-1 — catálogo: só tipos, por Tipo de bem (D-PROD-169); código opcional', () => {
   it('CAMINHOS_CATALOGO tem só tipos; famílias, perfis e combustíveis são recurso inválido (falha antes da rede)', async () => {
     const { api, porta } = await carregar();
     expect(Object.keys(porta.CAMINHOS_CATALOGO)).toEqual(['tipos']);
@@ -130,7 +130,7 @@ describe('API-1 — catálogo: só tipos, por Tipo de bem (D-PROD-163); código 
   });
 });
 
-describe('API-1b — bem com Tipo de bem + tipo, sem família (D-PROD-163)', () => {
+describe('API-1b — bem com Tipo de bem + tipo, sem família (D-PROD-169)', () => {
   it('POST do bem exige natureza e tipo_id e recusa familia_id antes da rede; PATCH recusa familia_id e natureza', async () => {
     const { api } = await carregar();
     await api.createBemPatrimonial({ empresa_id: 'emp-1', natureza: 'MAQUINA', tipo_id: 't1', nome: 'Trator' });
@@ -171,7 +171,7 @@ describe('API-2 — opções do bem: Produtos que o tanque aceita', () => {
     expect(pagina).toEqual({ itens: [{ id: 'p1', nome: 'Diesel S10 (L)', codigo_interno: 'DS10', unidade_principal_estoque: 'L' }], has_more: false, next_cursor: null });
     expect(backend.chamadas).toHaveLength(1);
     expect(backend.chamadas[0]).toMatchObject({ method: 'GET', path: '/bens-patrimoniais-opcoes/produtos', query: { empresa_id: 'emp-1', q: 'die', unidade: 'L', limit: '20', cursor: 'c1' } });
-    // Sem `unidade`: todas (o servidor decide); D-PROD-163: SACO é filtro válido; unidade fora de L/KG/SACO falha antes da rede.
+    // Sem `unidade`: todas (o servidor decide); D-PROD-169: SACO é filtro válido; unidade fora de L/KG/SACO falha antes da rede.
     await api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1' });
     expect(backend.chamadas[1].query).toEqual({ empresa_id: 'emp-1' });
     await api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1', unidade: 'SACO' });
@@ -294,7 +294,7 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
     expect(msg({ disponivel: '100.0000', solicitado: '120.0000', unidade: 'L' })).toBe('Saldo insuficiente deste Produto neste local: disponível 100 L, pedido 120 L. Nada foi gravado.');
     expect(msg({ disponivel: '80.5000', solicitado: '90.0000', unidade: 'KG' })).toBe('Saldo insuficiente deste Produto neste local: disponível 80,5 kg, pedido 90 kg. Nada foi gravado.');
     expect(msg({ disponivel: '1.0000', solicitado: '2.0000' })).toBe('Saldo insuficiente deste Produto neste local: disponível 1, pedido 2. Nada foi gravado.');
-    // D-PROD-163: Produto em SACO guarda o estoque em kg.
+    // D-PROD-169: Produto em SACO guarda o estoque em kg.
     expect(msg({ disponivel: '50.0000', solicitado: '60.0000', unidade: 'SACO' })).toBe('Saldo insuficiente deste Produto neste local: disponível 50 kg, pedido 60 kg. Nada foi gravado.');
   });
 
@@ -372,7 +372,7 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
   });
 });
 
-describe('ERR-2 — mensagens da D-PROD-163 (tipo em uso, Tipo de bem)', () => {
+describe('ERR-2 — mensagens da D-PROD-169 (tipo em uso, Tipo de bem)', () => {
   it('PATRIMONIO_TIPO_EM_USO com a contagem; família padrão indisponível; tipo de outro Tipo de bem; nome repetido', async () => {
     const { erros } = await carregar();
     const msg = (corpo) => erros.mensagemErroPatrimonio(erroDoServidor(corpo), 'x');
@@ -404,7 +404,7 @@ describe('DOM-1 — domínio do front sem medições, perfis e combustíveis', (
     ]) {
       expect(nome in dominio, nome).toBe(false);
     }
-    // D-PROD-163: SACO guarda o estoque em kg; o selo do Produto aceito diz que ele é em sacos.
+    // D-PROD-169: SACO guarda o estoque em kg; o selo do Produto aceito diz que ele é em sacos.
     expect(dominio.ROTULO_UNIDADE_ESTOQUE).toEqual({ L: 'L', KG: 'kg', SACO: 'kg' });
     expect(dominio.SELO_UNIDADE_DO_PRODUTO).toEqual({ L: 'L', KG: 'kg', SACO: 'kg · saco' });
     expect([...dominio.UNIDADES_ESTOQUE_TANQUE]).toEqual(['L', 'KG', 'SACO']);

@@ -19,6 +19,7 @@ import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
+import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
@@ -39,6 +40,23 @@ const FL = ({ label, required, error, children, dataField, wide = false, compact
 
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
+
+/**
+ * Grupos de campos de cada painel (D-PROD-164): cada grupo tem a sua grade, como no design.
+ * Campo que a configuração de layout mover para outro lugar entra no último grupo do painel.
+ */
+const GRUPOS_DO_FORMULARIO = Object.freeze({
+  principal: [["nome", "numero_lote", "data_entrada", "status"]],
+  geral: [
+    ["setor_id", "area_entrada_id"],
+    ["categoria_manejo_id", "sexo", "raca_predominante", "quantidade_cabecas", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
+  ],
+  compra: [
+    ["motivo_entrada", "fornecedor_id", "motivo_ajuste", "motivo_outros"],
+    ["cidade_origem", "estado_origem", "nota_fiscal", "numero_gta", "chave_nfe"],
+    ["valor_total_compra", "valor_por_cabeca", "valor_frete"],
+  ],
+});
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
 const UPPERCASE_FIELDS = [
 "nome",
@@ -348,8 +366,11 @@ export default function FormularioLote({
 
     if (Object.keys(nextErrors).length === 0) return true;
 
+    // Campo numérico VAZIO é obrigatório não preenchido (aviso "Campos obrigatórios", como no design — D-PROD-164);
+    // "Número inválido" só quando há número digitado errado.
+    const numerosDigitadosInvalidos = numerosInvalidos.filter((campo) => !isEmptyValue(formData?.[campo]));
     setNoticeDialog(
-      numerosInvalidos.length
+      numerosDigitadosInvalidos.length
         ? { open: true, title: "Número inválido", description: "Quantidade de cabeças deve ser um número inteiro positivo (sem casas decimais) e o peso, um número válido. Nada foi salvo." }
         : { open: true, title: "Campos obrigatórios", description: "Preencha os campos obrigatórios antes de salvar o lote." }
     );
@@ -358,14 +379,6 @@ export default function FormularioLote({
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
     element?.focus?.();
     return false;
-  };
-  const toggleSistemaProdutivo = (sistema) => {
-    if (isReadOnly) return;
-    const atuais = parseSistemasProdutivos(formData.sistema_produtivo);
-    const proximos = atuais.includes(sistema) ?
-    atuais.filter((item) => item !== sistema) :
-    [...atuais, sistema];
-    handleChange("sistema_produtivo", proximos);
   };
 
   const handleSubmit = (e) => {
@@ -470,28 +483,32 @@ export default function FormularioLote({
 
 
   const dynamicFields = useMemo(() => [
-  { id: "nome", name: "nome", label: "Descrição", type: "text", required: true, errorKey: "nome", wide: true, render: () => <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /> },
+  { id: "nome", name: "nome", span: 12, spanLg: 5, label: "Descrição", type: "text", required: true, errorKey: "nome", wide: true, render: () => <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /> },
   {
     id: "status",
     name: "status",
     label: "Ativo",
     type: "switch",
     compact: true,
+    span: 4,
+    spanLg: 2,
     switchGetChecked: (v) => v !== "Inativo",
     switchToValue: (checked) => (checked ? "Ativo" : "Inativo"),
   },
-  { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-[#FAFCFE] px-1" /> },
-  { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
+  { id: "numero_lote", name: "numero_lote", span: 4, spanLg: 2, label: "Código", type: "text", compact: true, readOnly: true, getValue: (v) => v.numero_lote || (isReadOnly ? "" : "Automático"), render: () => <Input value={formData.numero_lote || (isReadOnly ? "" : "Automático")} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-[#FAFCFE] px-1" /> },
+  { id: "data_entrada", name: "data_entrada", span: 4, spanLg: 3, label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   // Em edição, setor e área de entrada são registro histórico: trocar o setor
   // apagaria a área de entrada (só leitura) e travaria o salvar.
-  { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => {if (isReadOnly || quantidadesSomenteLeitura) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "setor", nome })} createNewLabel="Novo setor" placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
+  { id: "setor_id", name: "setor_id", span: 6, spanLg: 6, label: "Setor", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => {if (isReadOnly || quantidadesSomenteLeitura) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "setor", nome })} createNewLabel="Novo setor" placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
   // Em edição, a área de entrada é registro histórico (o servidor não a aceita
   // em PATCH); a posição física muda só por manejo no mapa.
-  { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
+  { id: "area_entrada_id", name: "area_entrada_id", span: 6, spanLg: 6, label: "Área de Entrada", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
   quantidadesSomenteLeitura
     ? {
         id: "quantidade_cabecas",
         name: "quantidade_cabecas",
+        span: 4,
+        spanLg: 3,
         label: "Cabeças",
         type: "text",
         readOnly: true,
@@ -505,35 +522,36 @@ export default function FormularioLote({
       }
     // R3: texto com teclado numérico — o que foi digitado fica no campo e é
     // validado (inteiro positivo), nunca truncado nem trocado por vazio.
-    : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
-  { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
-  { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
-  { id: "peso_medio_kg", name: "peso_medio_kg", label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
-  { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="b1-multi" role="group" aria-label="Sistema Produtivo">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <button key={item} type="button" role="checkbox" aria-checked={checked} disabled={isReadOnly} onClick={() => toggleSistemaProdutivo(item)} className={`b1-multi__op${checked ? " is-on" : ""}`}>{checked ? <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M2 6l3 3 5-6" /></svg> : null}{item}</button>;})}</div> },
-  { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
-  { id: "fornecedor_id", name: "fornecedor_id", label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedoresOpcoes, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "cidade_origem", name: "cidade_origem", label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "estado_origem", name: "estado_origem", label: "Estado Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "estado_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "nota_fiscal", name: "nota_fiscal", label: "Nota Fiscal", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "nota_fiscal", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "chave_nfe", name: "chave_nfe", label: "Chave NF-e", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "chave_nfe", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "numero_gta", name: "numero_gta", label: "Nº GTA", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "numero_gta", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "valor_total_compra", name: "valor_total_compra", label: "Valor Total (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_total_compra", totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "valor_por_cabeca", name: "valor_por_cabeca", label: "Valor p/ Cabeça (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_por_cabeca", readOnly: true, totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "valor_frete", name: "valor_frete", label: "Valor Frete", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_frete", totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
-  { id: "motivo_ajuste", name: "motivo_ajuste", label: "Motivo do Ajuste", type: "textarea", required: isMotivoEntrada("AJUSTE"), wide: true, errorKey: "motivo_ajuste", defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "AJUSTE" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "AJUSTE" },
-  { id: "motivo_outros", name: "motivo_outros", label: "Motivo", type: "textarea", required: isMotivoEntrada("OUTROS"), wide: true, errorKey: "motivo_outros", defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "OUTROS" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "OUTROS" },
-  { id: "identificador_nome", name: "identificador_nome", label: "Identificador (Nome)", type: "text", uppercase: true, placeholder: "EX: CONFINAMENTO" },
-  { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
-  { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
-  { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData]);
+    : { id: "quantidade_cabecas", name: "quantidade_cabecas", span: 4, spanLg: 3, label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", dica: useBase1Visual ? <IconeOficialLotePreview variante="dica" categoriaVisualId={categoriaVisualIdDoLote} categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)} /> : undefined, span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
+  { id: "sexo", name: "sexo", span: 6, spanLg: 3, label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
+  { id: "raca_predominante", name: "raca_predominante", span: 6, spanLg: 3, label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
+  { id: "peso_medio_kg", name: "peso_medio_kg", span: 4, spanLg: 3, label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
+  { id: "idade_media_meses", name: "idade_media_meses", span: 4, spanLg: 3, label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
+  { id: "sistema_produtivo", name: "sistema_produtivo", span: 12, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" placeholder="SELECIONE..." opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
+  { id: "motivo_entrada", name: "motivo_entrada", span: 6, spanLg: 4, label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
+  { id: "fornecedor_id", name: "fornecedor_id", span: 6, spanLg: 8, label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedoresOpcoes, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "cidade_origem", name: "cidade_origem", span: 8, spanLg: 4, label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "estado_origem", name: "estado_origem", span: 4, spanLg: 2, label: "Estado Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "estado_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "nota_fiscal", name: "nota_fiscal", span: 6, spanLg: 3, label: "Nota Fiscal", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "nota_fiscal", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "chave_nfe", name: "chave_nfe", span: 12, spanLg: 12, label: "Chave NF-e", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "chave_nfe", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "numero_gta", name: "numero_gta", span: 6, spanLg: 3, label: "Nº GTA", type: "text", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "numero_gta", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_total_compra", name: "valor_total_compra", span: 4, spanLg: 3, label: "Valor Total (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_total_compra", totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_por_cabeca", name: "valor_por_cabeca", span: 4, spanLg: 3, label: "Valor p/ Cabeça (R$)", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_por_cabeca", readOnly: true, totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "valor_frete", name: "valor_frete", span: 4, spanLg: 3, label: "Valor Frete", type: "number", required: isMotivoEntrada("COMPRA"), compact: true, errorKey: "valor_frete", totalizable: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
+  { id: "motivo_ajuste", name: "motivo_ajuste", span: 12, spanLg: 12, label: "Motivo do Ajuste", type: "textarea", required: isMotivoEntrada("AJUSTE"), wide: true, errorKey: "motivo_ajuste", defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "AJUSTE" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "AJUSTE" },
+  { id: "motivo_outros", name: "motivo_outros", span: 12, spanLg: 12, label: "Motivo", type: "textarea", required: isMotivoEntrada("OUTROS"), wide: true, errorKey: "motivo_outros", defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "OUTROS" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "OUTROS" },
+  { id: "identificador_nome", name: "identificador_nome", span: 12, spanLg: 6, label: "Identificador (Nome)", type: "text", uppercase: true, placeholder: "EX: CONFINAMENTO" },
+  { id: "identificador_sigla", name: "identificador_sigla", span: 6, spanLg: 3, label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
+  { id: "identificador_cor", name: "identificador_cor", span: 6, spanLg: 3, label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
+  { id: "observacoes", name: "observacoes", span: 12, spanLg: 12, label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData, useBase1Visual, categoriaVisualIdDoLote]);
 
   const defaultLayout = {
-    principal: ["nome", "status", "numero_lote"],
-    geral: ["data_entrada", "setor_id", "area_entrada_id", "quantidade_cabecas", "categoria_manejo_id", "sexo", "raca_predominante", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
-    compra: ["motivo_entrada", "fornecedor_id", "cidade_origem", "estado_origem", "nota_fiscal", "chave_nfe", "numero_gta", "valor_total_compra", "valor_por_cabeca", "valor_frete", "motivo_ajuste", "motivo_outros"],
+    // Ordem e larguras do design (D-PROD-164): Descrição · Código · Data · Ativo numa linha só.
+    principal: ["nome", "numero_lote", "data_entrada", "status"],
+    geral: ["setor_id", "area_entrada_id", "categoria_manejo_id", "sexo", "raca_predominante", "quantidade_cabecas", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
+    compra: ["motivo_entrada", "fornecedor_id", "motivo_ajuste", "motivo_outros", "cidade_origem", "estado_origem", "nota_fiscal", "numero_gta", "chave_nfe", "valor_total_compra", "valor_por_cabeca", "valor_frete"],
     identificacao: ["identificador_nome", "identificador_sigla", "identificador_cor"],
     observacoes: ["observacoes"]
   };
@@ -541,7 +559,9 @@ export default function FormularioLote({
   const activeLayoutConfig = (() => {
     const source = formLayoutConfig || { panels: basePanels, layout: defaultLayout, hiddenFieldIds: [], lockedFieldIds: [], requiredFieldIds: [], aggregationConfig: {}, visibilityRules: {} };
     const panels = source.panels?.some((panel) => panel.id === "principal") ? source.panels : [basePanels[0], ...(source.panels || basePanels)];
-    const principalFields = source.layout?.principal?.length ? source.layout.principal : defaultLayout.principal;
+    // Configuração salva sem painel principal herda o padrão — menos o que ela já pôs em outro painel.
+    const emOutrosPaineis = new Set(Object.entries(source.layout || {}).flatMap(([painel, ids]) => (painel === "principal" ? [] : ids || [])));
+    const principalFields = source.layout?.principal?.length ? source.layout.principal : defaultLayout.principal.filter((id) => !emOutrosPaineis.has(id));
     return {
       ...source,
       panels,
@@ -572,6 +592,35 @@ export default function FormularioLote({
   };
 
   const operationLabel = isDuplicating ? "NOVO REGISTRO DUPLICADO" : isEditing ? editMode ? "EDIÇÃO DE REGISTRO" : "VISUALIZAÇÃO DE REGISTRO" : "NOVO REGISTRO";
+
+  const camposPrincipais = (
+    <>
+      <DynamicFormRenderer
+        panels={activeLayoutConfig.panels}
+        fields={dynamicFields}
+        layout={activeLayoutConfig.layout}
+        hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+        lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+        requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+        visibilityRules={activeLayoutConfig.visibilityRules || {}}
+        activePanelId="principal"
+        values={formData}
+        errors={errors}
+        onChange={handleChange}
+        readOnly={isReadOnly}
+        visualVariant={useBase1Visual ? "base1" : "legacy"}
+        grupos={GRUPOS_DO_FORMULARIO}
+        />
+      {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69).
+          No visual Base1 ele é a dica sob o campo Categoria de Manejo (D-PROD-164). */}
+      {useBase1Visual ? null : (
+        <IconeOficialLotePreview
+          categoriaVisualId={categoriaVisualIdDoLote}
+          categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
+        />
+      )}
+    </>
+  );
 
   if (layoutConfigOpen) {
     return (
@@ -612,6 +661,7 @@ export default function FormularioLote({
         onSubmit={handleSubmit}
         className={`bg-white h-full min-h-0 overflow-hidden flex flex-col ${useBase1Visual ? "cadastro-b1" : ""}`}
         noValidate
+        data-densidade={useBase1Visual ? "compacto" : undefined}
       >
         {!embedded ? (
           <LegacyRecordToolbar
@@ -647,7 +697,7 @@ export default function FormularioLote({
         ) : null}
 
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2">
+        <div className={`flex-1 min-h-0 overflow-y-auto pb-6 pr-2${useBase1Visual ? " b1-form-rolagem" : ""}`}>
           {isEditing && !isDuplicating && correcaoEntrada ? (
             <div
               role="status"
@@ -683,30 +733,14 @@ export default function FormularioLote({
               )}
             </div>
           ) : null}
+          {/* D-PROD-164: no visual Base1 os campos principais ficam dentro do cartão da primeira aba. */}
+          {useBase1Visual ? null : (
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-            <div className={useBase1Visual ? "px-2 py-1 w-full" : "px-4 md:px-8 py-1 max-w-[780px]"}>
-              <DynamicFormRenderer
-                panels={activeLayoutConfig.panels}
-                fields={dynamicFields}
-                layout={activeLayoutConfig.layout}
-                hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-                lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-                requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-                visibilityRules={activeLayoutConfig.visibilityRules || {}}
-                activePanelId="principal"
-                values={formData}
-                errors={errors}
-                onChange={handleChange}
-                readOnly={isReadOnly}
-                visualVariant={useBase1Visual ? "base1" : "legacy"}
-                />
-              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
-              <IconeOficialLotePreview
-                categoriaVisualId={categoriaVisualIdDoLote}
-                categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
-              />
+            <div className="px-4 md:px-8 py-1 max-w-[780px]">
+              {camposPrincipais}
             </div>
           </fieldset>
+          )}
 
           {useBase1Visual ? (
             <Base1PanelTabs
@@ -725,23 +759,23 @@ export default function FormularioLote({
                       : "min-w-0 border-0 p-0 m-0"
                   }
                 >
-                  <div className="w-full space-y-1">
-                    <DynamicFormRenderer
-                      panels={tabs}
-                      fields={dynamicFields}
-                      layout={activeLayoutConfig.layout}
-                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-                      lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-                      requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-                      visibilityRules={activeLayoutConfig.visibilityRules || {}}
-                      activePanelId={panelId}
-                      values={formData}
-                      errors={errors}
-                      onChange={handleChange}
-                      readOnly={isReadOnly}
-                      visualVariant="base1"
-                    />
-                  </div>
+                  {panelId === tabs[0]?.id ? camposPrincipais : null}
+                  <DynamicFormRenderer
+                    panels={tabs}
+                    fields={dynamicFields}
+                    layout={activeLayoutConfig.layout}
+                    hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                    lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+                    requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+                    visibilityRules={activeLayoutConfig.visibilityRules || {}}
+                    activePanelId={panelId}
+                    values={formData}
+                    errors={errors}
+                    onChange={handleChange}
+                    readOnly={isReadOnly}
+                    visualVariant="base1"
+                    grupos={GRUPOS_DO_FORMULARIO}
+                  />
                 </fieldset>
               )}
             />

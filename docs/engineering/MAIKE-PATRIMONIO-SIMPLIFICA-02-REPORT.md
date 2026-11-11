@@ -1,6 +1,6 @@
 # MAIKE-PATRIMONIO-SIMPLIFICA-02 — Produtos aceitos em qualquer unidade, sem Área e Localização, Família fora da tela
 
-Decisão: **D-PROD-163** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `87e8a5ca`, o merge da PR #239 (SIMPLIFICA-01, D-PROD-162).
+Decisão: **D-PROD-169** ([`DECISIONS.md`](./DECISIONS.md)). Base: `origin/main` `87e8a5ca`, o merge da PR #239 (SIMPLIFICA-01, D-PROD-162).
 Branch: `claude/new-session-abgn5w` · PR #241, junto do registro da release da D-PROD-162.
 
 ## 1. Pedido do proprietário (2026-11-11)

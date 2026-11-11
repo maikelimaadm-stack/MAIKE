@@ -1,14 +1,14 @@
 /**
- * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) e D-PROD-163
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) e D-PROD-169
  * (SIMPLIFICA-02) — "Produtos aceitos" de cada tanque do bem, com a tela real
  * (página, motor Base1, formulário, services, API, porta e nativeHttpClient).
  * Mocks só da borda: `fetch` (backend falso) e a sessão.
  *
  *  - seletor paginado sobre `GET /bens-patrimoniais-opcoes/produtos` (empresa
  *    na query), com o selo da unidade de estoque em cada opção (`L`, `kg` e,
- *    D-PROD-163, o Produto em SACO como `kg · saco`) e o filtro opcional
+ *    D-PROD-169, o Produto em SACO como `kg · saco`) e o filtro opcional
  *    Litros | Quilos | Sacos | Todos (query `unidade`, achado D8);
- *  - D-PROD-163: Produto em QUALQUER unidade (L, KG ou SACO) é aceito, e a
+ *  - D-PROD-169: Produto em QUALQUER unidade (L, KG ou SACO) é aceito, e a
  *    nota dos tanques traz a regra nova (baixa na unidade de estoque: litros
  *    para L; quilos para KG e SACO; capacidade só para L);
  *  - chips removíveis; tanque sem Produto mostra o aviso P-01; Produto em KG
@@ -45,7 +45,7 @@ const permissaoCom = (acoes) => ({
 const opcoes = (itens) => ({ status: 200, body: { itens, has_more: false, next_cursor: null } });
 
 const TIPOS = [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', natureza: 'MAQUINA' }];
-/** D-PROD-163: Produtos ativos da fazenda em QUALQUER unidade (os 2 Produtos de produção estão em SACO). */
+/** D-PROD-169: Produtos ativos da fazenda em QUALQUER unidade (os 2 Produtos de produção estão em SACO). */
 const PRODUTOS = [
   { id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L' },
   { id: 'pd4', nome: 'Arla 32', codigo_interno: 'ARLA', unidade_principal_estoque: 'KG' },
@@ -188,7 +188,7 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     expect(pedidosDeProdutos().every((c) => c.query.empresa_id === 'emp-1')).toBe(true);
   });
 
-  it('D-PROD-163: Produto em SACO aparece e é aceito (selo "kg · saco"); a nota traz a regra nova; aviso de kg; POST com produto_ids', async () => {
+  it('D-PROD-169: Produto em SACO aparece e é aceito (selo "kg · saco"); a nota traz a regra nova; aviso de kg; POST com produto_ids', async () => {
     await montar();
     const { form, tanque } = await tratorNovoComTanque();
     expect(within(form).getByTestId('bem-tanques-nota')).toHaveTextContent(NOTA_NOVA);

@@ -1,9 +1,9 @@
 /**
  * Service do catálogo de Patrimônio e Frota: os TIPOS de bem do usuário
- * (D-PROD-157; D-PROD-162: dentro do cadastro de Bens; D-PROD-163: a família
+ * (D-PROD-157; D-PROD-162: dentro do cadastro de Bens; D-PROD-169: a família
  * saiu da tela).
  *
- * D-PROD-163: o bem tem duas escolhas — o "Tipo de bem" (a natureza, lista
+ * D-PROD-169: o bem tem duas escolhas — o "Tipo de bem" (a natureza, lista
  * FIXA: Benfeitoria, Máquina, Veículo, Implemento, Equipamento, Outro) e o
  * "Tipo" (este cadastro, filtrado pelo Tipo de bem). Por trás, o servidor usa
  * uma família padrão por natureza: o tipo novo vai com `{natureza, nome}` e o
@@ -33,7 +33,7 @@ export const RECURSOS_CATALOGO = Object.freeze({
 /** Código de catálogo: maiúsculas, dígitos e sublinhado (2 a 32). */
 export const PADRAO_CODIGO_CATALOGO = /^[A-Z0-9_]{2,32}$/;
 
-/** Campos aceitos na criação e na edição do tipo (D-PROD-163: `natureza` no lugar de `familia_id`). */
+/** Campos aceitos na criação e na edição do tipo (D-PROD-169: `natureza` no lugar de `familia_id`). */
 const CAMPOS = Object.freeze({
   tipos: Object.freeze({
     criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida']),
@@ -122,7 +122,7 @@ export const alterarSituacaoCatalogo = (recurso, original, ativo) =>
   updatePatrimonioCatalogo(recurso, original.id, { versao: original.versao, ativo: ativo === true });
 
 /**
- * Exclui o tipo de verdade (D-PROD-163), com a `versao` lida. O servidor
+ * Exclui o tipo de verdade (D-PROD-169), com a `versao` lida. O servidor
  * recusa com 409 `PATRIMONIO_TIPO_EM_USO` (`details.bens`) quando algum bem —
  * ativo ou inativo — usa o tipo.
  * @param {string} recurso @param {{ id: string, versao: number }} original

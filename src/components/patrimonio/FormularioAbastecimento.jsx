@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -84,7 +85,7 @@ function ErroDoCampo({ texto }) {
  * Máquina/Veículo → PRODUTO (o nome real do estoque, dos "Produtos aceitos"
  * dos tanques do bem, opção do SERVIDOR) → tanque (só se o Produto é aceito em
  * mais de um) → local (automático com um só) → data → "Quantidade abastecida"
- * na unidade de estoque do Produto (L; kg para KG e para SACO — D-PROD-163 —,
+ * na unidade de estoque do Produto (L; kg para KG e para SACO — D-PROD-169 —,
  * com a dica fixa) → medidor →
  * "Completou o tanque?" → Mais detalhes → Revisar. Sem tipo de combustível e
  * sem fator kg/L. Trocar um campo limpa os que dependem dele. Nada é gravado
@@ -280,7 +281,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
   return (
     <CadastroFormShell embedded title="Novo abastecimento">
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form">
+        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Máquina e Produto" />
           <SeletorPaginadoGestao
             rotulo="Máquina/Veículo"

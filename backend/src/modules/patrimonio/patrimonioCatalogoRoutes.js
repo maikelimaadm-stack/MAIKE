@@ -1,10 +1,10 @@
 /**
- * D-PROD-157 / D-PROD-162 / D-PROD-163 — rotas dos catálogos do Patrimônio e
+ * D-PROD-157 / D-PROD-162 / D-PROD-169 — rotas dos catálogos do Patrimônio e
  * Frota (do TENANT, sem `empresa_id`): tipos e a instalação explícita do
  * catálogo padrão. Perfis de medição e combustíveis saíram (D-PROD-162: as
  * rotas respondem 404).
  *
- * D-PROD-163 (SIMPLIFICA-02): o cadastro de família saiu da tela e NENHUMA
+ * D-PROD-169 (SIMPLIFICA-02): o cadastro de família saiu da tela e NENHUMA
  * rota de família existe mais (POST/PATCH e também GET → 404): nenhuma tela lê
  * família — ela aparece só dentro do tipo (`familia`, `natureza`). O
  * tipo é criado por "Tipo de bem" (`natureza`, sem `familia_id`: o servidor
@@ -60,7 +60,7 @@ const listar = (filtros = {}) => ({
 const DETALHE = { params: PARAMS };
 
 const TIPO_LISTAR = listar({ familia_id: ID, natureza: ENUM(NATUREZAS) });
-/** D-PROD-163: `natureza` (o "Tipo de bem") OU `familia_id` (compatibilidade); a falta dos dois é 400 no service. */
+/** D-PROD-169: `natureza` (o "Tipo de bem") OU `familia_id` (compatibilidade); a falta dos dois é 400 no service. */
 const TIPO_CRIAR = {
   body: {
     type: 'object',
@@ -99,7 +99,7 @@ const consulta = (request) => /** @type {any} */ (request.query);
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
 
-  // Famílias: sem rota (D-PROD-163). A família só aparece dentro do tipo.
+  // Famílias: sem rota (D-PROD-169). A família só aparece dentro do tipo.
 
   // Tipos: lista keyset, detalhe, POST (201), PATCH (CAS) e DELETE (CAS, 204).
   const gt = GUARDAS.patrimonioTipos;

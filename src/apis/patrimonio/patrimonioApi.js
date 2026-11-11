@@ -1,9 +1,9 @@
 /**
  * API do módulo Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162 e
- * pela D-PROD-163). Online só; página keyset do motor Base1; opções de seletor
+ * pela D-PROD-169). Online só; página keyset do motor Base1; opções de seletor
  * paginadas no servidor (sem teto).
  *
- * Catálogo do tenant: nunca `empresa_id`. D-PROD-163: a tela só mexe nos
+ * Catálogo do tenant: nunca `empresa_id`. D-PROD-169: a tela só mexe nos
  * TIPOS — criados com `{natureza, nome}` (o servidor põe o tipo na família
  * padrão da natureza; `familia_id` não vai), renomeados por PATCH com `versao`
  * e excluídos por DELETE com `versao` (409 `PATRIMONIO_TIPO_EM_USO` quando
@@ -22,9 +22,9 @@ import { UNIDADES_ESTOQUE_TANQUE, ehNatureza } from '@/lib/patrimonioDominio';
 
 /**
  * Recursos de opções (A3): `tipos` (catálogo do tenant) não pede empresa; os
- * demais pedem. `produtos` (D-PROD-162; D-PROD-163) = Produtos ativos da
+ * demais pedem. `produtos` (D-PROD-162; D-PROD-169) = Produtos ativos da
  * fazenda, em L, KG ou SACO, que um tanque pode aceitar (filtro opcional
- * `unidade`). D-PROD-163: saíram `familias` e `areas` (a tela não as usa mais).
+ * `unidade`). D-PROD-169: saíram `familias` e `areas` (a tela não as usa mais).
  */
 export const RECURSOS_OPCOES_PATRIMONIO = Object.freeze(['tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo']);
 export const RECURSOS_OPCOES_DA_EMPRESA = Object.freeze(['produtos', 'responsaveis', 'parceiros', 'centros-custo']);
@@ -54,7 +54,7 @@ export const listPatrimonioCatalogoPage = async (recurso, filtros = {}) => {
 };
 
 /**
- * POST de tipo (D-PROD-163): `{natureza, nome, codigo?, descricao?,
+ * POST de tipo (D-PROD-169): `{natureza, nome, codigo?, descricao?,
  * vida_util_meses_sugerida?}`. `natureza` = o "Tipo de bem" (o servidor põe o
  * tipo na família padrão dela; `familia_id` não vai); `nome` obrigatório;
  * `codigo` opcional (P-05: sem ele o servidor gera a partir do nome) e, se
@@ -89,7 +89,7 @@ export const updatePatrimonioCatalogo = async (recurso, id, corpo) => {
 };
 
 /**
- * DELETE de um tipo (D-PROD-163) com a `versao` lida: 204 quando nenhum bem
+ * DELETE de um tipo (D-PROD-169) com a `versao` lida: 204 quando nenhum bem
  * (ativo ou inativo) usa o tipo; 409 `PATRIMONIO_TIPO_EM_USO` (`details.bens`)
  * quando algum usa; 409 `PATRIMONIO_VERSAO_CONFLITO` quando outra pessoa mexeu
  * no tipo antes.
@@ -121,7 +121,7 @@ export const getBemPatrimonial = async (id, empresaId) => {
 };
 
 /**
- * POST do bem (D-PROD-163): `natureza` (o "Tipo de bem") + `tipo_id`, sem
+ * POST do bem (D-PROD-169): `natureza` (o "Tipo de bem") + `tipo_id`, sem
  * `familia_id` (o servidor a deriva do tipo e exige a mesma natureza).
  * @param {Record<string, unknown>} corpo
  */
@@ -137,7 +137,7 @@ export const createBemPatrimonial = async (corpo) => {
 /**
  * PATCH mínimo do agregado (bem + medidor + tanques com os Produtos aceitos) com `versao`.
  * `numero` e `natureza` nunca vão (imutáveis); `familia_id` também não
- * (D-PROD-163: o servidor a deriva do `tipo_id`); `empresa_id` é só escopo.
+ * (D-PROD-169: o servidor a deriva do `tipo_id`); `empresa_id` é só escopo.
  * @param {string} id @param {Record<string, unknown>} corpo
  */
 export const updateBemPatrimonial = async (id, corpo) => {
@@ -162,9 +162,9 @@ export const previaDepreciacaoBemPatrimonial = async (corpo) => {
 
 /**
  * Uma página de opções ATIVAS de um seletor (keyset nome+id). Em `produtos`
- * (D-PROD-162; D-PROD-163), cada item é `{ id, nome, codigo_interno,
+ * (D-PROD-162; D-PROD-169), cada item é `{ id, nome, codigo_interno,
  * unidade_principal_estoque }` e `unidade` (`L` | `KG` | `SACO`) filtra; sem
- * ela, vêm todas. Em `tipos` (D-PROD-163), `natureza` filtra pelo "Tipo de bem".
+ * ela, vêm todas. Em `tipos` (D-PROD-169), `natureza` filtra pelo "Tipo de bem".
  * @param {string} recurso
  * @param {{ empresa_id?: string|null, q?: string, cursor?: string|null, limit?: number, natureza?: string|null, unidade?: 'L'|'KG'|'SACO'|null }} [filtros]
  * @returns {Promise<{ itens: any[], has_more: boolean, next_cursor: string|null }>}
@@ -202,7 +202,7 @@ const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
 /**
  * Corpo base da prévia e da confirmação (schema FECHADO no servidor).
  * D-PROD-162: `quantidade` na unidade de estoque do Produto (L; kg para KG e,
- * D-PROD-163, para SACO); saíram
+ * D-PROD-169, para SACO); saíram
  * `tipo_combustivel_id`, `quantidade_litros` e `conversao_*` (o servidor
  * responderia 400 — aqui falha antes da rede).
  */

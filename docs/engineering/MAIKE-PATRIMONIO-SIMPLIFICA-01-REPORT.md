@@ -214,7 +214,7 @@ item "Integração com a D-PROD-161").
 
 **Numeração:** a `main` já usava a D-PROD-161. Tudo o que é desta missão passou a
 **D-PROD-162** (código, testes, migration, runbook, gate CONTRACT, docs); o marcador foi para
-D-PROD-163. Hashes novos da migration no §4.
+D-PROD-169. Hashes novos da migration no §4.
 
 **Conflitos e como foram resolvidos:**
 

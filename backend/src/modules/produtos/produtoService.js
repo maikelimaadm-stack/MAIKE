@@ -151,7 +151,7 @@ const camposDe = (entrada) => {
 };
 
 /**
- * D-PROD-162 / D-PROD-163: unidades de estoque que um tanque do Patrimônio
+ * D-PROD-162 / D-PROD-169: unidades de estoque que um tanque do Patrimônio
  * aceita — qualquer unidade do cadastro (L, KG ou SACO; SACO abastece em kg).
  * Espelho de `UNIDADES_PRODUTO_TANQUE` (patrimonio/patrimonioDominio.js).
  */
@@ -190,7 +190,7 @@ const unidadeEmUso = (id, de, para, reason, extra = {}) =>
  *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da
  *    Gestão P3, rascunho inclusive), nessa ordem;
  *  - unidade nova fora de {L, KG, SACO} com aceite que vale → `aceito_em_tanque`
- *    (D-PROD-163: SACO entrou; KG ↔ SACO de Produto aceito em tanque passa —
+ *    (D-PROD-169: SACO entrou; KG ↔ SACO de Produto aceito em tanque passa —
  *    a unidade EFETIVA do estoque continua kg);
  *  - KG ↔ SACO: como antes (P-08), com ou sem tanque.
  * Corre com a linha do Produto já travada (advisory de estoque + FOR UPDATE).

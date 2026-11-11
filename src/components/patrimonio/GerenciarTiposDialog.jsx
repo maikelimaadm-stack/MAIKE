@@ -77,7 +77,7 @@ const textoDosBens = (r) => {
 };
 
 /**
- * "⋯ › Gerenciar tipos" do cadastro de Bens (D-PROD-163). O usuário não
+ * "⋯ › Gerenciar tipos" do cadastro de Bens (D-PROD-169). O usuário não
  * cadastra família: cada tipo pertence a um "Tipo de bem" (a natureza, lista
  * fixa) e o servidor guarda o tipo na família padrão dele.
  *

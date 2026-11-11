@@ -2,7 +2,7 @@
    Reproduz a sombra dos detalhes, inclusive o ajuste do desktop. */
 :root {
   --mk-sup-raio: 12px;
-  --mk-cartao-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --mk-cartao-sombra: 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
 }
 @media (min-width: 1024px) {
   :root { --mk-cartao-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025); }

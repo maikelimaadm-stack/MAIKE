@@ -8,7 +8,7 @@
  * D-PROD-162: saíram as medições físicas (dimensões, unidades físicas,
  * finalidades de perfil) e as unidades de combustível.
  *
- * D-PROD-163: o tanque aceita Produtos do estoque em QUALQUER unidade de
+ * D-PROD-169: o tanque aceita Produtos do estoque em QUALQUER unidade de
  * estoque (`L`, `KG` ou `SACO`). A unidade EFETIVA do estoque é litros para
  * `L` e quilos para `KG` e `SACO` (o SACO guarda o estoque em kg). Na tela de
  * Bens, "Natureza" passa a se chamar "Tipo de bem" (mesma lista fixa).
@@ -28,10 +28,10 @@ export const ROTULO_NATUREZA = Object.freeze({
 /** @param {unknown} v @returns {v is 'BENFEITORIA'|'MAQUINA'|'VEICULO'|'IMPLEMENTO'|'EQUIPAMENTO'|'OUTRO'} */
 export const ehNatureza = (v) => typeof v === 'string' && NATUREZAS_PATRIMONIO.includes(v);
 
-// ─── Unidade de estoque do Produto no tanque (D-PROD-162, D-PROD-163) ────
+// ─── Unidade de estoque do Produto no tanque (D-PROD-162, D-PROD-169) ────
 
 /**
- * Unidades de estoque do Produto que um tanque aceita (D-PROD-163: qualquer
+ * Unidades de estoque do Produto que um tanque aceita (D-PROD-169: qualquer
  * unidade de estoque do cadastro de Produtos — litros, quilos ou sacos).
  */
 export const UNIDADES_ESTOQUE_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
