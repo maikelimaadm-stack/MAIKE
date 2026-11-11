@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-11) — MAIKE-PATRIMONIO-SIMPLIFICA-02: Produtos aceitos em qualquer unidade, sem Área/Localização, Família fora da tela (D-PROD-169)
+## Missão ativa (2026-11-11) — UI-GESTAO-MOTOR: Gestão, Patrimônio e Financeiro no padrão do motor Base1 (D-PROD-172)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-172**, pedida pelo proprietário em 2026-11-11: filtros fora da barra (na faixa do motor), campos, listagem e escolha iguais ao motor em Bens, Abastecimentos e no financeiro. Antes dela, na mesma branch: **D-PROD-171** (PR #243, mergeada em `899df140`), que devolveu os filtros do celular às folhas e deixou só o menu "⋮" da coluna como "Mais opções" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` `899df140` |
+| Escopo | Filtros da tela como pílulas da faixa (Centros, Parceiros, Naturezas, Bens, Abastecimentos, Lançamentos); `CampoSelect` com pesquisa, MAIÚSCULAS e ✕ (sem opção vazia); `SeletorPaginadoGestao` na janela das listas do motor; painel de perfil financeiro no cartão do motor. Fora: Cadastro de Áreas, Pontos e Linhas e fontes do Mapa Geral (próxima missão) |
+| Migration | Nenhuma |
+| Release | Merge e deploy; nada é gravado de outro jeito |
+| Relatório | [`UI-GESTAO-MOTOR-D172-REPORT.md`](./UI-GESTAO-MOTOR-D172-REPORT.md) |
+
+## Missão anterior (2026-11-11) — MAIKE-PATRIMONIO-SIMPLIFICA-02: Produtos aceitos em qualquer unidade, sem Área/Localização, Família fora da tela (D-PROD-169)
 
 | Campo | Valor |
 |---|---|
