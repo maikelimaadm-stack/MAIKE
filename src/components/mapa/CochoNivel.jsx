@@ -8,12 +8,13 @@ export default function CochoNivel({ percent = 0, label = "Nível estimado do co
   const saltId = `sal-${instanceId}`;
   const fracao = Number.isFinite(percent) ? Math.max(0, Math.min(1, percent)) : 0;
   const nivel = Math.round(fracao * 100);
-  const topo = forma.limites.y + forma.strokeWidth / 2;
+  const amplitudeMaxima = Math.min(8, forma.limites.width * 0.035);
+  const topo = forma.limites.y + forma.strokeWidth / 2 + amplitudeMaxima;
   const fundo = forma.limites.y + forma.limites.height - forma.strokeWidth / 2;
   const y = fundo - (fundo - topo) * fracao;
-  const onda = Math.min(3, (fundo - y) / 2, (y - topo) / 2);
+  const onda = Math.min(amplitudeMaxima, (fundo - y) * 0.4);
   const esquerda = forma.limites.x;
-  const larguraOnda = forma.limites.width / 4;
+  const larguraOnda = forma.limites.width / 6;
   const direita = esquerda + forma.limites.width;
   const base = forma.limites.y + forma.limites.height + forma.strokeWidth;
 
@@ -21,12 +22,12 @@ export default function CochoNivel({ percent = 0, label = "Nível estimado do co
     <div className="flex flex-col items-center gap-1" role="img" aria-label={`${label}: ${nivel}%`}>
       <svg viewBox={forma.viewBox} width={forma.width} height={forma.height} className="h-auto w-[156px] max-w-full" aria-hidden="true">
         <defs>
-          <pattern id={saltId} width="12" height="11" patternUnits="userSpaceOnUse">
-            <rect width="12" height="11" fill="#d2d7db" />
-            <circle cx="2" cy="2.5" r="0.8" fill="#a6afb6" opacity="0.75" />
-            <circle cx="8.5" cy="7" r="0.65" fill="#a6afb6" opacity="0.65" />
-            <circle cx="8" cy="2" r="1" fill="#f8fafb" opacity="0.9" />
-            <circle cx="3.5" cy="8" r="0.8" fill="#f8fafb" opacity="0.85" />
+          <pattern id={saltId} width="62" height="42" patternUnits="userSpaceOnUse">
+            <rect width="62" height="42" fill="#d2d7db" />
+            <circle cx="9" cy="10" r="2.6" fill="#a6afb6" />
+            <circle cx="36" cy="27" r="2.4" fill="#a6afb6" />
+            <circle cx="56" cy="9" r="2.2" fill="#a6afb6" />
+            <circle cx="12" cy="34" r="2.5" fill="#a6afb6" />
           </pattern>
           <clipPath id={clipId}>
             <path d={forma.corpo} />
@@ -39,7 +40,7 @@ export default function CochoNivel({ percent = 0, label = "Nível estimado do co
           <g clipPath={`url(#${clipId})`}>
             <path
               data-cocho-nivel={nivel}
-              d={`M${esquerda} ${y} Q${esquerda + larguraOnda / 2} ${y - onda * 2} ${esquerda + larguraOnda} ${y} T${esquerda + larguraOnda * 2} ${y} T${esquerda + larguraOnda * 3} ${y} T${direita} ${y} L${direita} ${base} H${esquerda}Z`}
+              d={`M${esquerda} ${y} Q${esquerda + larguraOnda / 2} ${y - onda * 2} ${esquerda + larguraOnda} ${y} T${esquerda + larguraOnda * 2} ${y} T${esquerda + larguraOnda * 3} ${y} T${esquerda + larguraOnda * 4} ${y} T${esquerda + larguraOnda * 5} ${y} T${direita} ${y} L${direita} ${base} H${esquerda}Z`}
               fill={`url(#${saltId})`}
             />
           </g>
