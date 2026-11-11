@@ -1,5 +1,5 @@
 import React from "react";
-import { useDlUi, COR, TIPO, CartaoDl, Chevron } from "@/components/mapa/detalhes-lote/pecas";
+import { useDlUi, COR, CartaoDl, Chevron } from "@/components/mapa/detalhes-lote/pecas";
 import CartaoLote from "@/components/mapa/detalhes-lote/CartaoLote";
 
 /** @typedef {import('./catalogo').LoteVm} LoteVm */
@@ -82,14 +82,15 @@ export default function VistaLote({ modelo, estado }) {
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              ...TIPO.item,
-              lineHeight: 1.25,
+              fontSize: 11,
+              fontWeight: 700,
+              lineHeight: 1.2,
               color: COR.titulo,
             }}
           >
             {lote ? lote.nome : "—"}
           </div>
-          <div style={{ ...TIPO.rotulo, lineHeight: 1.25, color: COR.meta }}>{`${posicao}${dica}`}</div>
+          <div style={{ fontSize: 9, fontWeight: 600, lineHeight: 1.2, color: COR.meta }}>{`${posicao}${dica}`}</div>
         </div>
         <button
           type="button"
@@ -108,7 +109,7 @@ export default function VistaLote({ modelo, estado }) {
         <CartaoLote lote={lote} estado={estado} />
       ) : (
         <CartaoDl padding="10px 12px">
-          <span style={{ ...TIPO.rotulo, color: COR.meta }}>
+          <span style={{ fontSize: 11, color: COR.meta }}>
             {estado.alertaAtivo || modelo.lotes.length > 0
               ? "Nenhum lote com esse alerta. Troque o filtro para ver os outros."
               : "Nenhum lote na área."}

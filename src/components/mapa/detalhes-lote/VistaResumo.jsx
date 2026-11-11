@@ -2,7 +2,6 @@ import React from "react";
 import {
   useDlUi,
   COR,
-  TIPO,
   CartaoDl,
   PilulaTitulo,
   TituloSecao,
@@ -55,7 +54,7 @@ export default function VistaResumo({ modelo, estado }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0 4px" }}>
           <PilulaTitulo>{`Lotes da área · ${contagem}`}</PilulaTitulo>
           {temVarios ? (
-            <span style={{ ...TIPO.selo, color: COR.meta, whiteSpace: "nowrap" }}>{modelo.resumo.faixa}</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: COR.meta, whiteSpace: "nowrap" }}>{modelo.resumo.faixa}</span>
           ) : null}
         </div>
 
@@ -81,7 +80,7 @@ export default function VistaResumo({ modelo, estado }) {
         })}
 
         {visiveis.length === 0 ? (
-          <div style={{ padding: "8px 0", ...TIPO.rotulo, color: COR.meta }}>
+          <div style={{ padding: "8px 0", fontSize: 11, color: COR.meta }}>
             {estado.alertaAtivo ? "Nenhum lote com esse alerta." : "Nenhum lote na área."}
           </div>
         ) : null}

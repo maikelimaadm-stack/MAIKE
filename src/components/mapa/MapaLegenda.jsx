@@ -40,7 +40,7 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
     <div className="mk-map-legend absolute bottom-20 md:bottom-16 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg max-w-[200px]">
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between px-3 py-1.5 mk-tipo-grupo text-slate-700"
+        className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-700 uppercase"
       >
         <span>{modoLabel}</span>
         {collapsed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -50,7 +50,7 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
           {items.map(([label, cor]) => (
             <div key={label} className="flex items-center gap-2">
               <div className="w-3 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: cor, border: '1px solid rgba(0,0,0,0.15)' }} />
-              <span className="text-sm text-slate-700 leading-tight">{label}</span>
+              <span className="text-[10px] text-slate-700 leading-tight">{label}</span>
             </div>
           ))}
         </div>

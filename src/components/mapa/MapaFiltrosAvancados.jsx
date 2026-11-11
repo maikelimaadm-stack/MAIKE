@@ -221,7 +221,7 @@ export default function MapaFiltrosAvancados({
                 aria-pressed={ativo}
                 size="sm"
                 onClick={() => setModoColoracao(modo.id)}
-                className={`mk-map-color-button h-8 text-xs justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
+                className={`mk-map-color-button h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
 
                   <span className="truncate">{modo.label}</span>
                 </Button>);
@@ -232,16 +232,16 @@ export default function MapaFiltrosAvancados({
           {/* Legenda do modo ativo */}
           {modoColoracao !== 'padrao' &&
         <div className="mt-3 bg-[#FAFCFE] rounded-lg p-2.5 space-y-1">
-              <div className="mk-tipo-grupo text-slate-600 mb-1">Legenda</div>
+              <div className="text-[10px] font-bold text-slate-600 uppercase mb-1">Legenda</div>
               {modoColoracao === 'tipo_cultura' && Object.entries(CORES_TIPO_CULTURA).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
               {modoColoracao === 'aproveitamento' && Object.entries(CORES_APROVEITAMENTO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
               {modoColoracao === 'ocupacao' && Object.entries(CORES_OCUPACAO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
-              {modoColoracao === 'categoria_gado' && <div className="text-xs text-slate-500">Cada categoria de manejo terá uma cor distinta</div>}
-              {modoColoracao === 'tipo_pastagem' && <div className="text-xs text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>}
+              {modoColoracao === 'categoria_gado' && <div className="text-[10px] text-slate-500">Cada categoria de manejo terá uma cor distinta</div>}
+              {modoColoracao === 'tipo_pastagem' && <div className="text-[10px] text-slate-500">Cada tipo de pastagem terá uma cor distinta</div>}
               {modoColoracao === 'ua_ha' &&
           <>
                   {Object.entries(CORES_UA_HA).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
-                  <div className="text-xs text-slate-500 mt-1 italic">* Usa área efetiva (pastejada). 1 UA = 450 kg PV</div>
+                  <div className="text-[9px] text-slate-500 mt-1 italic">* Usa área efetiva (pastejada). 1 UA = 450 kg PV</div>
                 </>
           }
               {modoColoracao === 'situacao_pasto' && Object.entries(CORES_SITUACAO_PASTO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
@@ -358,7 +358,7 @@ function LegendaItem({ cor, label }) {
   return (
     <div className="flex items-center gap-2">
       <div className="w-3 h-3 rounded-sm border border-white/50" style={{ backgroundColor: cor }} />
-      <span className="text-sm text-slate-700">{label}</span>
+      <span className="text-[11px] text-slate-700">{label}</span>
     </div>);
 
 }

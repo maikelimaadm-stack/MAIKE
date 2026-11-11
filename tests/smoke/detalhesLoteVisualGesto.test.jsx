@@ -32,23 +32,21 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
   });
 
   it("nomes de área e lote em texto simples, sem o amarelo", () => {
-    // UI-DETALHES-LOTE-V8: nome do lote e título da área em pílula de título (texto #374151), sem amarelo.
-    // D-PROD-173: a pílula usa o título de cartão do motor (Lato 13 px / 600).
+    // UI-DETALHES-LOTE-V8: nome do lote e título da área em pílula de título (texto #374151, 700), sem amarelo.
     expect(cartoesTudo).toMatch(/<PilulaTitulo>\{`Lote: \$\{lote\.nome\}`\}<\/PilulaTitulo>/);
     // D-PROD-144: o nome da área sai do cartão e do lote; vai no cabeçalho do diálogo.
     for (const f of [detalhes, area, cartoesTudo]) expect(f).not.toMatch(/mk-dl__area-nome/);
     expect(area).toMatch(/<PilulaTitulo>Informações da Área<\/PilulaTitulo>/);
     for (const f of [detalhes, area, cartoesTudo, pecas]) expect(f).not.toMatch(/yellow|amber/);
-    expect(pecas).toMatch(/export function PilulaTitulo[\s\S]*?color: COR\.texto,[\s\S]*?\.\.\.TIPO\.titulo,/);
-    expect(pecas).toMatch(/titulo: Object\.freeze\(\{ fontFamily: "var\(--mk-fonte-titulo\)", fontSize: 13, fontWeight: 600 \}\)/);
+    expect(pecas).toMatch(/export function PilulaTitulo[\s\S]*?color: COR\.texto,[\s\S]*?fontWeight: 700,/);
     expect(pecas).toMatch(/texto: "#374151"/);
   });
 });
 
 describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () => {
-  it("rótulo e valor numa linha só, sem quebra; o tamanho vem da tipografia do motor (D-PROD-173)", () => {
-    expect(css).toMatch(/\.mk-dl__linha \{[^}]*overflow: hidden;[^}]*white-space: nowrap;[^}]*font-size: inherit;/);
-    expect(css).toMatch(/\.mk-dl__chip \{[^}]*font-size: 13px;/);
+  it("rótulo e valor no mesmo tamanho do Categoria de Manejo, sem quebra de linha", () => {
+    expect(css).toMatch(/\.mk-dl__linha \{[^}]*overflow: hidden;[^}]*white-space: nowrap;[^}]*font-size: 10\.5px;/);
+    expect(css).toMatch(/\.mk-dl__chip \{[^}]*font-size: 10\.5px;/);
     expect(css).toMatch(/\.mk-dl__icone \{[^}]*\}/);
     expect(css).not.toMatch(/\.mk-dl__icone \{[^}]*background/);
   });

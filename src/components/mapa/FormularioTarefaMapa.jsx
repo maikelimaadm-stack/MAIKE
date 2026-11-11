@@ -447,7 +447,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         <section className="mk-ll__item">
           <div className="mk-ll__item-head justify-between">
             <div className="mk-ll__item-titulo">Fotos da tarefa</div>
-            {isOffline && <span className="flex items-center gap-1 text-xs text-amber-600"><WifiOff className="w-3 h-3" />Offline — fotos salvas localmente</span>}
+            {isOffline && <span className="flex items-center gap-1 text-[10px] text-amber-600"><WifiOff className="w-3 h-3" />Offline — fotos salvas localmente</span>}
           </div>
           <div className="flex flex-wrap gap-2">
             {/* Fotos já salvas */}
@@ -466,18 +466,18 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
                 <button type="button" onClick={() => removeNewImage(idx)} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <X className="w-2.5 h-2.5" />
                 </button>
-                <div className="absolute bottom-0 left-0 right-0 bg-emerald-500/80 text-white text-xs text-center leading-tight py-0.5">NOVA</div>
+                <div className="absolute bottom-0 left-0 right-0 bg-emerald-500/80 text-white text-[8px] text-center leading-tight py-0.5">NOVA</div>
               </div>
             ))}
             {/* Botão adicionar */}
             <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors">
               <ImagePlus className="w-5 h-5 text-slate-400" />
-              <span className="text-xs text-slate-400 mt-0.5">Adicionar</span>
+              <span className="text-[9px] text-slate-400 mt-0.5">Adicionar</span>
               <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
             </label>
           </div>
           {pendingImageFiles.length > 0 && (
-            <p className="text-xs text-emerald-700 pl-1">{pendingImageFiles.length} foto(s) nova(s) {isOffline ? '— serão enviadas ao sincronizar' : '— serão enviadas ao salvar'}</p>
+            <p className="text-[10px] text-emerald-700 pl-1">{pendingImageFiles.length} foto(s) nova(s) {isOffline ? '— serão enviadas ao sincronizar' : '— serão enviadas ao salvar'}</p>
           )}
         </section>
 

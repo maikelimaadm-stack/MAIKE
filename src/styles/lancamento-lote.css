@@ -34,7 +34,7 @@
 
 .mk-ll-dlg__titulo:not(#mk-padrao) {
   overflow: hidden;
-  font-size: 20px; /* título de janela do motor (D-PROD-167) */
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.25;
   color: var(--mkq-1f2937, #1f2937);
@@ -45,7 +45,7 @@
 .mk-ll-dlg__lotes:not(#mk-padrao) {
   overflow: hidden;
   margin-top: 1px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--mkq-64748b, #64748b);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -112,7 +112,7 @@
 }
 
 .mk-ll-dlg.is-tela .mk-ll-dlg__titulo:not(#mk-padrao) {
-  font-size: 20px;
+  font-size: 17px;
 }
 
 .mk-ll-dlg.is-tela > .mk-ll {
@@ -235,7 +235,7 @@
 
 .mk-ll__item-titulo {
   overflow: hidden;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--mkq-334155, #334155);
   text-overflow: ellipsis;
@@ -244,12 +244,12 @@
 }
 
 .mk-ll__item-sub {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--mkq-64748b, #64748b);
 }
 
 .mk-ll__item-rodape {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--mkq-64748b, #64748b);
 }
 
@@ -293,7 +293,7 @@
   border-radius: 10px;
   background: transparent;
   color: var(--mkq-334155, #334155);
-  font-size: var(--mk-action-font, 14px);
+  font-size: var(--mk-action-font, 12px);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -321,8 +321,8 @@
 
 .mk-ll__seg-rotulo {
   padding-left: 2px;
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--mkq-64748b, #64748b);
 }
 
@@ -347,7 +347,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--mkq-475569, #475569);
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -371,7 +371,7 @@
   border: 1px solid var(--mkq-e2e8f0, #e2e8f0);
   border-radius: 10px;
   background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
-  font-size: 13px;
+  font-size: 12px;
   color: var(--mkq-334155, #334155);
 }
 
@@ -417,7 +417,7 @@
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  font-size: var(--mk-action-font, 14px);
+  font-size: var(--mk-action-font, 12px);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -469,7 +469,7 @@
   border-radius: 10px;
   background: #fff;
   color: var(--mkq-334155, #334155);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -482,11 +482,11 @@
 
 .mk-ll__opcao > span:last-child {
   color: var(--mkq-64748b, #64748b);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .mk-ll__texto {
-  font-size: 14px;
+  font-size: 12.5px;
   color: var(--mkq-475569, #475569);
 }
 
@@ -501,7 +501,7 @@
 
   .mk-ll__seg-op {
     height: var(--mk-action-height-touch, 40px);
-    font-size: 14px;
+    font-size: 13px;
     white-space: normal;
     line-height: 1.1;
   }
@@ -561,7 +561,7 @@
 }
 
 .mk-hist__desc {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--mkq-64748b, #64748b);
 }
 
@@ -591,7 +591,6 @@
 }
 
 .mk-hist__secao-titulo {
-  font-family: var(--mk-fonte-titulo);
   font-size: 13px;
   font-weight: 600;
   color: var(--mkq-334155, #334155);
@@ -665,15 +664,15 @@
 }
 
 .mk-tar__campo dt {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--mkq-64748b, #64748b);
 }
 
 .mk-tar__campo dd {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--mkq-1f2937, #1f2937);
 }
 
@@ -720,7 +719,7 @@
   border-radius: 12px;
   background: #fff;
   box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1));
-  font-size: 14px;
+  font-size: 12px;
 }
 
 /* Celular: três campos por linha (D-PROD-144). */
@@ -781,13 +780,13 @@
 }
 
 
-/* Campo: rótulo e valor numa linha só; se não couber, o texto corre devagar (D-PROD-124).
-   O tamanho vem de quem usa (a tipografia do motor no Detalhes do Lote, D-PROD-173). */
+/* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
+   se não couber, o texto corre devagar (D-PROD-124). */
 .mk-dl__linha {
   overflow: hidden;
   white-space: nowrap;
-  font-size: inherit;
-  line-height: 1.25;
+  font-size: 10.5px;
+  line-height: 1.2;
 }
 
 .mk-dl__correr {
@@ -856,9 +855,8 @@
   border-radius: 999px;
   background: #e6f7fc;
   color: var(--mkq-374151, #374151);
-  font-family: var(--mk-fonte-titulo);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -897,8 +895,8 @@
   border-radius: 999px;
   background: transparent;
   color: var(--mkq-64748b, #64748b);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 10.5px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -956,13 +954,13 @@
 }
 
 .mk-dl .mk-al--embaixo .mk-al__quadro {
-  font-size: 14px;
+  font-size: 11px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.05);
 }
 
 .mk-dl .mk-al--embaixo .mk-al__grupo-titulo {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .mk-dl .mk-al--embaixo .mk-al__quadro:hover {
@@ -973,7 +971,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 2px 16px;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* ── Detalhes do Lote: botão único + quadros de ações (D-PROD-119) ───── */
@@ -988,7 +986,7 @@
   border-radius: 12px;
   background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   color: var(--mkq-1f2937, #1f2937);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -1082,7 +1080,7 @@
 
 .mk-al__titulo {
   flex: 1 1 auto;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--mkq-1f2937, #1f2937);
   text-align: center;
@@ -1126,7 +1124,7 @@
 
 .mk-al__grupo-titulo {
   padding-left: 2px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--mkq-64748b, #64748b);
@@ -1152,7 +1150,7 @@
   border-radius: 16px;
   background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   color: var(--mkq-1f2937, #1f2937);
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
   line-height: 1.15;
   text-align: center;
@@ -1205,7 +1203,7 @@
   .mk-al__folha .mk-al__quadro {
     min-height: 96px;
     background: #fff;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .mk-al__folha .mk-al__quadro svg {
@@ -1233,7 +1231,7 @@
   gap: 4px;
   padding: 8px 4px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .mk-al--embaixo .mk-al__quadro svg {
@@ -1288,7 +1286,7 @@
   .mk-al__folha .mk-al__quadro {
     min-height: 84px;
     padding: 8px 2px;
-    font-size: 14px;
+    font-size: 11px;
   }
 }
 
@@ -1316,7 +1314,7 @@
   gap: 6px;
   min-width: 0;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.3;
   color: var(--mkq-64748b, #64748b);
 }

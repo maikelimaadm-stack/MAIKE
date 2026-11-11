@@ -34,7 +34,7 @@
   min-width: 0;
   min-height: 0;
   color: var(--mkq-374151, #374151);
-  font-size: 14px; /* texto do motor Base1 (D-PROD-173) */
+  font-size: 13px;
 }
 
 /* lancamento-lote.css tem `.mk-ll > * { flex-shrink: 0 }`, com a MESMA
@@ -71,7 +71,7 @@
 
 .mk-ll-dlg:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__titulo:not(#mk-padrao) {
   margin: 0;
-  font-size: 20px !important; /* título de janela do motor (D-PROD-167) */
+  font-size: 15px !important;
   font-weight: 600;
   line-height: 1.3;
   color: var(--mkq-292a2d, #292a2d);
@@ -79,7 +79,7 @@
 
 .mk-ll-dlg:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__lotes:not(#mk-padrao) {
   margin: 1px 0 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--mkq-64748b, #64748b);
 }
 
@@ -126,7 +126,7 @@
 }
 
 .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl8) .mk-ll-dlg__titulo:not(#mk-padrao) {
-  font-size: 20px !important;
+  font-size: 16px !important;
   text-align: center;
 }
 
@@ -196,7 +196,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--mkq-64748b, #64748b);
-  font-size: 14px; /* abas do motor: 14 / 600 */
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -211,7 +211,7 @@
 
 .mk-dl8[data-modo="celular"] .mk-dl8__aba:not(#mk-padrao) {
   height: 40px;
-  font-size: 14px;
+  font-size: 12.5px;
 }
 
 .mk-dl8__aba[aria-selected="true"]:not(#mk-padrao) {
@@ -230,13 +230,13 @@
   align-items: center;
   justify-content: center;
   min-width: 18px;
-  height: 20px;
-  padding: 0 6px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: 999px;
   background: #e6f7fc;
   color: var(--mkq-374151, #374151);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -338,15 +338,14 @@
   gap: 8px;
 }
 
-/* Quadro: linha, ícone 24 + nome 14/500 (mockup 412–428 e folha 433–462; tipografia do motor, D-PROD-173) */
+/* Quadro: linha, ícone 24 + nome 13/500 (mockup 412–428 e folha 433–462) */
 :is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__grupo-titulo:not(#mk-padrao) {
   margin: 0;
   padding-left: 2px;
-  font-family: var(--mk-fonte-titulo);
-  font-size: 13px !important; /* grupo das listas do motor: Lato 13 / 600, MAIÚSCULAS */
+  font-size: 11px !important;
   font-weight: 600;
   line-height: 1.5;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.02em;
   color: var(--mkq-64748b, #64748b);
   text-transform: uppercase;
 }
@@ -365,7 +364,7 @@
   background: #fff;
   box-shadow: 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
   color: var(--mkq-292a2d, #292a2d);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.35;
   text-align: left;
@@ -396,7 +395,7 @@
 
 :is(.mk-dl8 .mk-al--embaixo, .mk-dl8-folha) .mk-al__quadro:not(#mk-padrao) span {
   min-width: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.35;
   overflow-wrap: normal;
 }
@@ -437,7 +436,7 @@
 
 /* O app força 16px em button[role=combobox] (evita zoom do iOS em campo de
    digitação). Aqui os comboboxes são botões que só abrem o popup — sem zoom —
-   e, com a tipografia do motor (D-PROD-173), ficam em 14px (Filtrar / Mostrar informações). */
+   e o mockup pede 12px (Filtrar / Mostrar informações). */
 .mk-dl8 button[role="combobox"]:not(#mk-padrao) {
-  font-size: 14px !important;
+  font-size: 12px !important;
 }

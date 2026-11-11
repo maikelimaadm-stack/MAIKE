@@ -107,7 +107,7 @@ function LinhaImportacao({
               onChange={(e) => onAlterar(l.ref, "nome", e.target.value)}
               className={`h-7 min-w-[140px] text-xs uppercase ${invalida("nome") ? invalidoClass : ""}`}
             />
-            {l.nomeOrigem === "sugerido" && <div className="text-xs text-amber-700">Nome sugerido — confira</div>}
+            {l.nomeOrigem === "sugerido" && <div className="text-[10px] text-amber-700">Nome sugerido — confira</div>}
           </td>
           <td className="p-1">
             <SeletorImportacao aria-label={`Setor ${l.origem}`} disabled={bloqueada} className={`${selectClass} ${invalida("setor_id") ? invalidoClass : ""}`} value={l.setor_id} onChange={(e) => onAlterar(l.ref, "setor_id", e.target.value)}>
@@ -127,7 +127,7 @@ function LinhaImportacao({
           </td>
           <td className="whitespace-nowrap p-1 text-right tabular-nums" data-testid={`hectares-${l.ref}`}>
             {formatHectaresPt(l.hectares)}
-            {infra && <div className="text-xs text-slate-500">grava 0 ha (infraestrutura)</div>}
+            {infra && <div className="text-[10px] text-slate-500">grava 0 ha (infraestrutura)</div>}
           </td>
           <td className="p-1">
             {infra ? (
@@ -207,7 +207,7 @@ function LinhaImportacao({
                 </ul>
               )}
               {l.avisos.map((a) => (
-                <div key={a} className="text-xs text-amber-700">{a}</div>
+                <div key={a} className="text-[10px] text-amber-700">{a}</div>
               ))}
             </td>
           </tr>

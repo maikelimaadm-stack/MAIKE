@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { COR, TIPO, CartaoDl, PilulaTitulo } from "@/components/mapa/detalhes-lote/pecas";
+import { COR, CartaoDl, PilulaTitulo } from "@/components/mapa/detalhes-lote/pecas";
 import { ordenarLotes } from "@/components/mapa/detalhes-lote/catalogo";
 import LinhaLote from "./LinhaLote";
 
@@ -20,7 +20,7 @@ export default function ListaCompactaLotes({ modelo, onAbrir }) {
     <CartaoDl gap={0} padding="4px 10px">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0 4px" }}>
         <PilulaTitulo>{`Lotes da área · ${lotes.length}`}</PilulaTitulo>
-        <span style={{ ...TIPO.rotulo, color: COR.meta }}>toque para abrir</span>
+        <span style={{ fontSize: 9, fontWeight: 600, color: COR.meta }}>toque para abrir</span>
       </div>
       {lotes.map((lote, i) => (
         <LinhaLote key={lote.id} lote={lote} primeira={i === 0 && !modelo.temVarios} onClick={() => onAbrir(lote.id)} />

@@ -616,7 +616,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                   data-testid="importacao-input-arquivo"
                   onChange={(e) => lerArquivo(e.target.files?.[0])}
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-[11px] text-slate-500">
                   Aceita .kml (Google Earth), .geojson e .json com GeoJSON. Até {formatarBytes(LIMITES_ARQUIVO.maxBytes)} e{" "}
                   {LIMITES_ARQUIVO.maxElementos} elementos. Só polígonos viram áreas; pontos e linhas são ignorados.
                 </p>
@@ -697,7 +697,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                 </div>
               )}
 
-              <div data-testid="importacao-contadores" className="flex min-w-0 flex-wrap gap-1 text-sm">
+              <div data-testid="importacao-contadores" className="flex min-w-0 flex-wrap gap-1 text-[11px]">
                 {[
                   ["Identificados", contadores.identificados, "bg-slate-100 text-slate-700"],
                   ["Áreas", contadores.areas, "bg-slate-100 text-slate-700"],
@@ -725,7 +725,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                     Preencher em massa nas {selecionadas.size} área(s) selecionada(s)
                   </div>
                   <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Setor
                       <SeletorImportacao aria-label="Setor em massa" className={selectClass} value={massa.setor_id ?? ""} onChange={(e) => setMassa((m) => ({ ...m, setor_id: e.target.value }))}>
                         <option value="">—</option>
@@ -734,7 +734,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Tipo de uso
                       <SeletorImportacao aria-label="Tipo de uso em massa" className={selectClass} value={massa.tipo_cultura ?? ""} onChange={(e) => setMassa((m) => ({ ...m, tipo_cultura: e.target.value }))}>
                         <option value="">—</option>
@@ -743,7 +743,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Tipo de cultura
                       <SeletorImportacao aria-label="Tipo de cultura em massa" className={selectClass} value={massa.tipo_pastagem ?? ""} onChange={(e) => setMassa((m) => ({ ...m, tipo_pastagem: e.target.value }))}>
                         <option value="">—</option>
@@ -752,7 +752,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Infraestrutura
                       <SeletorImportacao aria-label="Infraestrutura em massa" className={selectClass} value={massa.tipo_infraestrutura ?? ""} onChange={(e) => setMassa((m) => ({ ...m, tipo_infraestrutura: e.target.value }))}>
                         <option value="">—</option>
@@ -761,7 +761,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Aproveitamento
                       <SeletorImportacao aria-label="Aproveitamento em massa" className={selectClass} value={massa.aproveitamento ?? ""} onChange={(e) => setMassa((m) => ({ ...m, aproveitamento: e.target.value }))}>
                         <option value="">—</option>
@@ -770,7 +770,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="text-xs text-slate-600">
+                    <label className="text-[11px] text-slate-600">
                       Cor
                       <SeletorImportacao aria-label="Cor em massa" className={selectClass} value={massa.cor ?? ""} onChange={(e) => setMassa((m) => ({ ...m, cor: e.target.value }))}>
                         <option value="">—</option>
@@ -779,7 +779,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                         ))}
                       </SeletorImportacao>
                     </label>
-                    <label className="col-span-2 text-xs text-slate-600">
+                    <label className="col-span-2 text-[11px] text-slate-600">
                       Área pastejada/arável (ha)
                       <div className="flex gap-1">
                         <SeletorImportacao
@@ -809,7 +809,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                     <Button type="button" size="sm" className="h-7 text-xs" disabled={travado || selecionadas.size === 0 || camposEmMassaPreenchidos().length === 0} onClick={pedirAplicacaoEmMassa}>
                       Aplicar à seleção
                     </Button>
-                    <span className="mx-1 text-xs text-slate-500">Nomes vazios:</span>
+                    <span className="mx-1 text-[11px] text-slate-500">Nomes vazios:</span>
                     <Input aria-label="Prefixo para nomes vazios" className="h-7 w-24 text-xs uppercase" value={prefixoNome} onChange={(e) => setPrefixoNome(e.target.value)} />
                     <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={travado} onClick={numerarNomesVazios}>
                       Numerar
@@ -837,7 +837,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
 
               <div className="max-h-[42vh] min-w-0 overflow-auto rounded border border-slate-200">
                 <table className="w-full min-w-[960px] text-xs" data-testid="importacao-tabela">
-                  <thead className="sticky top-0 z-10 bg-slate-100 text-left text-xs text-slate-600">
+                  <thead className="sticky top-0 z-10 bg-slate-100 text-left text-[11px] text-slate-600">
                     <tr>
                       <th className="p-1"><span className="sr-only">Selecionar</span></th>
                       <th className="p-1">Origem</th>
@@ -908,7 +908,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
               )}
 
               {bloqueios.length > 0 && estado !== "desconhecido" && (
-                <ul data-testid="importacao-bloqueios" className="list-inside list-disc text-xs text-slate-600">
+                <ul data-testid="importacao-bloqueios" className="list-inside list-disc text-[11px] text-slate-600">
                   {bloqueios.map((b) => (
                     <li key={b}>{b}</li>
                   ))}
@@ -965,14 +965,14 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                   restantes: <strong data-testid="acumulado-restantes">{restantesImportaveis}</strong> · inválidos:{" "}
                   {leitura?.contagem?.invalidos ?? 0} · ignorados (ponto/linha): {leitura?.contagem?.ignorados ?? 0}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-[11px] text-slate-500">
                   Cada confirmação grava até {maxPorLote} áreas e é tudo-ou-nada só dentro dela. Lotes já gravados não são
                   desfeitos por uma confirmação seguinte.
                 </div>
               </div>
               <div className="max-h-[40vh] overflow-auto rounded border border-slate-200">
                 <table className="w-full min-w-[420px] text-xs">
-                  <thead className="bg-slate-100 text-left text-xs text-slate-600">
+                  <thead className="bg-slate-100 text-left text-[11px] text-slate-600">
                     <tr>
                       <th className="p-1">Nº</th>
                       <th className="p-1">Nome</th>
