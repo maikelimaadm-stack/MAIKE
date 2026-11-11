@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   alterarSituacaoNatureza,
@@ -10,7 +11,6 @@ import {
 import { notifyError, notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
-import B1Select from "@/components/cadastro/base1/B1Select";
 import TabelaNaturezas, {
   NATUREZAS_CAMPOS_CARD,
   NATUREZAS_COLUNAS,
@@ -18,31 +18,13 @@ import TabelaNaturezas, {
   getNaturezaFieldValue,
 } from "@/components/gestao/TabelaNaturezas";
 import FormularioNatureza, { FORMULARIO_NATUREZA_ID } from "@/components/gestao/FormularioNatureza";
-import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, ativoDoFiltro, filtroSituacaoDaTela } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaGestao, useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 import { TELAS_GESTAO } from "@/lib/gestaoPermissions";
 import { ehNaoEncontradoGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 
 const QUERY_RAIZ = "naturezas-financeiras-gestao";
-
-/** Filtro de tipo (padrão Despesa: Receita e Despesa nunca se misturam por padrão). */
-export function FiltroTipoNatureza({ value, onChange }) {
-  return (
-    <div className="inline-flex h-8 min-w-[104px] items-center rounded-full border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-xs font-medium">
-      <B1Select
-        aria-label="Filtrar por tipo"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex w-full items-center justify-between gap-1.5 whitespace-nowrap bg-transparent text-xs"
-      >
-        <option value="DESPESA">Despesa</option>
-        <option value="RECEITA">Receita</option>
-        <option value="TODOS">Todos</option>
-      </B1Select>
-    </div>
-  );
-}
 
 /**
  * Naturezas Financeiras gerenciais (D-PROD-153) — catálogo RECEITA/DESPESA com
@@ -241,10 +223,30 @@ export default function NaturezasFinanceirasTela() {
     aviso = <AvisoGestao testId="gestao-sem-permissao">Você não tem permissão para visualizar Naturezas Financeiras.</AvisoGestao>;
   }
 
+  // Filtros da consulta como pílulas na faixa do motor, não na barra (D-PROD-172).
+  const filtrosDaTela = [
+    {
+      id: "tipo",
+      rotulo: "Tipo",
+      nome: "Filtrar por tipo",
+      opcoes: [
+        { value: "DESPESA", label: "Despesa" },
+        { value: "RECEITA", label: "Receita" },
+        { value: "TODOS", label: "Todos" },
+      ],
+      valor: tipoFiltro,
+      padrao: "DESPESA",
+      onChange: setTipoFiltro,
+      coluna: "tipo",
+    },
+    filtroSituacaoDaTela(situacao, setSituacao),
+  ];
+
   return (
     // A visibilidade dos botões já segue a regra EXATA do servidor (editar OU
     // salvar; novo OU salvar) — a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Naturezas Financeiras"
@@ -259,12 +261,6 @@ export default function NaturezasFinanceirasTela() {
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
         showDelete={podeGravar && acoes.editar}
-        extraToolbar={
-          <>
-            <FiltroTipoNatureza value={tipoFiltro} onChange={setTipoFiltro} />
-            <FiltroSituacao value={situacao} onChange={setSituacao} />
-          </>
-        }
         additionalMoreActions={
           podeReativar
             ? [{ key: "reativar", label: "Reativar natureza financeira", onSelect: () => reativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: String(registroAtual.id) }) }]
@@ -304,6 +300,7 @@ export default function NaturezasFinanceirasTela() {
           />
         }
       />
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }

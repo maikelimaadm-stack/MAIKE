@@ -6159,4 +6159,22 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga em parte:** a D-PROD-168, na parte "celular = tablet" dos filtros.
 - **Evidência:** `tests/smoke/base1FiltrosCelularCaixas.test.jsx`; imagem `docs/engineering/evidencias/base1-design-d164/celular-menu-coluna-como-mais-opcoes.png` (menu "⋮" da coluna, "Mais opções" e a folha "Filtros", em 390 px).
 
-<!-- Próxima decisão: D-PROD-172 -->
+## D-PROD-172 — Gestão, Patrimônio e Financeiro no padrão do motor Base1: filtros na faixa, campos e listas de escolha do motor
+
+- **Pedido do proprietário (2026-11-11):** Bens e Patrimônio "parece que está até certo, porém há vários campos, modelos de listagem, está diferente"; "tem uns filtros lá em cima, do lado do botão de mais […] não pode ter, tem que ser igual o motor base 1 […] Parte de filtros, essas coisas, a listagem, escolha"; no financeiro, "Campos, etc. Algumas coisas, formatação, botão até tá, mas é o restante não tá".
+- **Decisão:**
+  - **Filtros da tela na faixa do motor, não na barra.** Os filtros que cada tela tinha ao lado do "+ Novo" viram pílulas da faixa de filtros do motor, logo depois de Ordenar (`FiltrosDaTelaContext` em `FiltrosRapidos`):
+    - Centros de custo e de resultado, Parceiros: Situação;
+    - Naturezas financeiras: Tipo (padrão Despesa) e Situação;
+    - Bens patrimoniais: Tipo de bem e Situação; Abastecimentos: Situação;
+    - Lançamentos financeiros: Direção, Situação e Registro (padrão Operacionais).
+  - **Como a pílula funciona:** mostra o rótulo e o valor (o valor padrão sem destaque); escolher usa a janela do motor com ✓; o ✕ da pílula e o "Limpar filtros" voltam ao padrão; a pílula automática da mesma coluna some, para não haver dois filtros iguais; no celular, cada filtro vira uma linha da folha "Filtros" (D-PROD-171). O filtro continua indo ao servidor como antes.
+  - **Campo de escolha do motor nos formulários de Gestão** (`CampoSelect`, com as props novas `pesquisa="sempre"`, `semOpcaoVazia` e `maiusculas` do `B1Select`): sempre com "Pesquisar…", opções em MAIÚSCULAS, sem a opção vazia ("— Escolha —", "— Nenhum —", "— Nenhum (raiz) —"); campo vazio fica vazio, e o ✕ no campo limpa o que não é obrigatório.
+  - **Seletor de servidor no desenho do motor** (`SeletorPaginadoGestao`: produto, parceiro, natureza, centro, bem, responsável…): abre a janela das listas do motor presa ao campo (no celular, a folha de baixo), com a pesquisa do motor, código, nome e detalhe em cada linha, ✓ no escolhido, "+ Novo …" ao lado da pesquisa e "Carregar mais" no fim. Saem a lista dentro do formulário, a opção "— Nenhum —" (o ✕ do campo limpa) e o botão "Fechar seleção" (Esc ou clique fora). A busca, a paginação e o que é gravado não mudam.
+  - **Perfil financeiro da empresa** (Lançamentos, antes do primeiro lançamento e em "Perfil financeiro"): cartão de campos do motor, nota azul, os três campos de escolha do motor e os botões verde e cinza do rodapé dos formulários.
+- **Não muda:** regras, permissões, envios ao servidor, textos de aviso e os botões de escolha segmentada (A pagar/A receber, Sim/Não…), que o proprietário disse estarem certos.
+- **Testes:** as consultas às opções vão ao portal (`screen`); campo vazio é conferido por `data-placeholder`; Esc no lugar de "Fechar seleção"; "Limpar" no lugar de "— Nenhum —". Os snapshots em linha de `seletorPaginadoCriarNovo.test.jsx` (guarda de não regressão da D-PROD-162) são regravados uma vez, de propósito, e passam a cobrir também a janela aberta.
+- **Fora desta decisão:** o Cadastro de Áreas, Pontos e Linhas e as fontes do Mapa Geral (próxima missão).
+- **Evidência:** relatório [`UI-GESTAO-MOTOR-D172-REPORT.md`](./UI-GESTAO-MOTOR-D172-REPORT.md); imagens em `docs/engineering/evidencias/gestao-motor-d172/`.
+
+<!-- Próxima decisão: D-PROD-173 -->

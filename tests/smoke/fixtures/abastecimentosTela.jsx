@@ -63,8 +63,8 @@ export const escolherNoSeletor = async (raiz, testId, nome) => {
   // anterior assenta; clicar antes não abre o painel e a opção nunca aparece.
   await waitFor(() => expect(within(raiz).getByTestId(testId)).not.toBeDisabled());
   fireEvent.click(within(raiz).getByTestId(testId));
-  fireEvent.click(await within(raiz).findByRole('option', { name: nome }));
-  await waitFor(() => expect(within(raiz).queryByTestId(`${testId}-painel`)).toBeNull());
+  fireEvent.click(await screen.findByRole('option', { name: nome }));
+  await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
 };
 
 export const abrirNovo = async () => {

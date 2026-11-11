@@ -144,7 +144,7 @@ const tipoDeBem = (form) => within(form).getByRole('combobox', { name: 'Tipo de 
 /** Abre o seletor de tipo, digita a busca e clica no "+ Novo tipo". */
 const pedirNovoTipo = async (form, busca) => {
   fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
-  const painel = await within(form).findByTestId('bem-seletor-tipo-painel');
+  const painel = await screen.findByTestId('bem-seletor-tipo-painel');
   if (busca) fireEvent.change(within(painel).getByRole('searchbox'), { target: { value: busca } });
   fireEvent.click(within(painel).getByRole('button', { name: '+ Novo tipo' }));
   return screen.findByRole('dialog', { name: 'Novo tipo' });
@@ -162,12 +162,13 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     expect(within(form).getByTestId('bem-escolha-tipo-de-bem')).toHaveTextContent('Escolha o tipo de bem');
     fireEvent.click(tipoDeBem(form));
     const nomes = (await screen.findAllByRole('option')).map((o) => o.textContent.trim());
-    expect(nomes).toEqual(['— Escolha o tipo de bem —', 'Benfeitoria', 'Máquina', 'Veículo', 'Implemento', 'Equipamento', 'Outro']);
+    // D-PROD-172: sem a opção vazia na lista (campo de escolha do motor).
+    expect(nomes).toEqual(['Benfeitoria', 'Máquina', 'Veículo', 'Implemento', 'Equipamento', 'Outro']);
     fireEvent.click(tipoDeBem(form));
     // Tipo bloqueado antes do Tipo de bem: o painel não abre nem há "+".
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-    expect(within(form).queryByTestId('bem-seletor-tipo-painel')).toBeNull();
+    expect(screen.queryByTestId('bem-seletor-tipo-painel')).toBeNull();
     expect(screen.queryByRole('button', { name: '+ Novo tipo' })).toBeNull();
     expect(opcoesDeTipos()).toEqual([]);
   });
@@ -179,7 +180,7 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     expect(within(form).queryByTestId('bem-escolha-tipo-de-bem')).toBeNull();
     expect(abas()).toEqual(['Identificação', 'Operação', 'Aquisição e depreciação']);
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
-    const painel = await within(form).findByTestId('bem-seletor-tipo-painel');
+    const painel = await screen.findByTestId('bem-seletor-tipo-painel');
     expect(await within(painel).findByRole('option', { name: /^Trator de pneus/ })).toBeTruthy();
     expect(within(painel).getByRole('option', { name: /^Tipo do teste/ })).toBeTruthy();
     expect(within(painel).queryByRole('option', { name: /^Curral/ })).toBeNull();
@@ -189,10 +190,10 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     await waitFor(() => expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus'));
 
     await escolherOpcao(tipoDeBem(form), 'Benfeitoria');
-    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('— Escolha o tipo —');
+    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
-    expect(await within(form).findByRole('option', { name: /^Curral/ })).toBeTruthy();
+    expect(await screen.findByRole('option', { name: /^Curral/ })).toBeTruthy();
     expect(opcoesDeTipos().at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });
   });
 
@@ -252,7 +253,7 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     fireEvent.click(within(await within(folha).findByTestId('bem-catalogo-duplicado')).getByRole('button', { name: 'Usar o existente' }));
     expect(await screen.findByText(/O tipo com este nome está inativo/)).toBeTruthy();
     expect(screen.getByRole('dialog', { name: 'Novo tipo' })).toBeTruthy();
-    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('— Escolha o tipo —');
+    expect(within(form).getByTestId('bem-seletor-tipo')).toHaveAttribute('data-placeholder'); // vazio: D-PROD-172
   });
 
   it('EDIÇÃO: o Tipo de bem fica travado; o "+ Novo tipo" cria no Tipo de bem do bem e o PATCH leva só tipo_id', async () => {
@@ -280,7 +281,7 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     expect(tipoDeBem(form)).toBeDisabled();
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-    expect(within(form).queryByTestId('bem-seletor-tipo-painel')).toBeNull();
+    expect(screen.queryByTestId('bem-seletor-tipo-painel')).toBeNull();
     expect(screen.queryByRole('button', { name: '+ Novo tipo' })).toBeNull();
   });
 });

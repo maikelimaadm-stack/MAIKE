@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina } from "@/services/bemPatrimonialService";
 import { listEmpresas } from "@/services/empresaService";
@@ -9,8 +10,7 @@ import GradePatrimonio from "@/components/patrimonio/GradePatrimonio";
 import { BENS_CAMPOS_CARD, GRADE_BENS } from "@/components/patrimonio/TabelaBens";
 import FormularioBem, { FORMULARIO_BEM_ID } from "@/components/patrimonio/FormularioBem";
 import GerenciarTiposDialog from "@/components/patrimonio/GerenciarTiposDialog";
-import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
-import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, ativoDoFiltro, filtroSituacaoDaTela } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaPatrimonio, useEmpresaRealSelecionadaId } from "@/hooks/usePatrimonioSessao";
 import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
@@ -384,10 +384,26 @@ export default function BensPatrimoniaisTela() {
     controller.cancelForm();
   };
 
+  // Filtros da consulta como pílulas na faixa do motor, não na barra (D-PROD-172).
+  const filtrosDaTela = [
+    {
+      id: "natureza",
+      rotulo: "Tipo de bem",
+      nome: "Filtrar por tipo de bem",
+      opcoes: OPCOES_FILTRO_TIPO_DE_BEM,
+      valor: natureza,
+      padrao: "TODAS",
+      onChange: setNatureza,
+      coluna: "natureza",
+    },
+    filtroSituacaoDaTela(situacao, setSituacao),
+  ];
+
   return (
     // Os botões já seguem a regra EXATA do servidor (novo|salvar, editar|salvar,
     // inativar) — a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Bens Patrimoniais"
@@ -402,12 +418,6 @@ export default function BensPatrimoniaisTela() {
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
         showDelete={false}
-        extraToolbar={
-          <>
-            <FiltroOpcoes rotulo="Filtrar por tipo de bem" value={natureza} onChange={setNatureza} opcoes={OPCOES_FILTRO_TIPO_DE_BEM} />
-            <FiltroSituacao value={situacao} onChange={setSituacao} />
-          </>
-        }
         additionalMoreActions={acoesDoMenu.length ? acoesDoMenu : null}
         deleteDialog={{
           title: "Inativar bem patrimonial",
@@ -448,6 +458,7 @@ export default function BensPatrimoniaisTela() {
           }}
         />
       ) : null}
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }

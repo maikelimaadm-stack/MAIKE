@@ -15,6 +15,17 @@ import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
  * dona dos filtros e da ordenação — não existe um segundo estado de filtro.
  */
 
+/**
+ * Filtro que a TELA controla (consulta ao servidor: situação, tipo de bem, direção…), desenhado como pílula de escolha
+ * única na faixa — no lugar dos seletores que ficavam na barra ao lado do "+ Novo" (D-PROD-172). No celular entra na
+ * folha "Filtros". `nome` é o nome acessível ("Filtrar por situação"); `coluna`, a coluna da grade que ele já cobre
+ * (a pílula automática dela não aparece, para não haver duas).
+ * @typedef {{ id: string, rotulo: string, nome: string, opcoes: Array<{ value: string, label: string }>, valor: string,
+ *   padrao: string, onChange: (valor: string) => void, coluna?: string }} FiltroDaTela
+ */
+/** @type {React.Context<FiltroDaTela[]>} */
+export const FiltrosDaTelaContext = React.createContext(/** @type {FiltroDaTela[]} */ ([]));
+
 /** @type {React.Context<HTMLElement | null>} */
 export const FiltrosRapidosSlotContext = React.createContext(/** @type {HTMLElement | null} */ (null));
 
@@ -499,6 +510,7 @@ export default function FiltrosRapidos({
 }) {
   const slot = useContext(FiltrosRapidosSlotContext);
   const nomes = useContext(ContagemNomesContext);
+  const daTela = useContext(FiltrosDaTelaContext);
   // Com a faixa na página, a casca da lista ganha `data-b1-faixa` (o CSS usava `.mg-shell:has(.b1-fr)`, que fazia o
   // Chrome recalcular o estilo da lista inteira a cada mudança dentro dela — D-PROD-166).
   useLayoutEffect(() => {
@@ -582,7 +594,7 @@ export default function FiltrosRapidos({
   const [aberto, setAberto] = useState(/** @type {string | null} */ (null));
   const [buscaCampo, setBuscaCampo] = useState("");
   // Celular (D-PROD-164, 6.10): o funil abre a folha "Filtros"; dela se vai a Ordenar, a cada filtro e ao "+".
-  const [folha, setFolha] = useState(/** @type {null | 'menu' | 'ordem' | 'mais' | { fr: string }} */ (null));
+  const [folha, setFolha] = useState(/** @type {null | 'menu' | 'ordem' | 'mais' | { fr: string } | { tela: string }} */ (null));
   const [contaDaFolha, setContaDaFolha] = useState("");
   const controleDaFolha = useRef(/** @type {null | { aplicar: () => void }} */ (null));
   useEffect(() => {
@@ -599,7 +611,11 @@ export default function FiltrosRapidos({
     () => (defaultIds ? defaultIds : filtrosRapidosAutomaticos(columns, rows, getFieldValue)),
     [defaultIds, columns, rows, getFieldValue],
   );
-  const fixos = useMemo(() => (salvos ?? automaticos).filter((id) => porId.has(id)), [salvos, automaticos, porId]);
+  const cobertas = useMemo(() => new Set(daTela.map((f) => f.coluna).filter(Boolean)), [daTela]);
+  const fixos = useMemo(
+    () => (salvos ?? automaticos.filter((id) => !cobertas.has(id))).filter((id) => porId.has(id)),
+    [salvos, automaticos, porId, cobertas],
+  );
   // Coluna filtrada por outro caminho (menu ⋮, "Filtrar por campo") também aparece na faixa.
   const naFaixa = useMemo(
     () => [...fixos, ...Object.keys(filters).filter((id) => porId.has(id) && !fixos.includes(id))],
@@ -617,7 +633,14 @@ export default function FiltrosRapidos({
   const ordemAtual =
     ordens.find((o) => o.key === sort.key && o.dir === (sort.direction === "desc" ? "desc" : "asc"))?.label ??
     `${porId.get(sort.key)?.label ?? "Ordenar"} ${sort.direction === "desc" ? "↓" : "↑"}`;
-  const temFiltro = Object.keys(filters).length > 0;
+  const telaFora = daTela.filter((f) => f.valor !== f.padrao);
+  const temFiltro = Object.keys(filters).length > 0 || telaFora.length > 0;
+  const limparTudo = () => {
+    onClearFilters();
+    for (const f of telaFora) f.onChange(f.padrao);
+  };
+  /** @param {FiltroDaTela} f */
+  const rotuloAtual = (f) => f.opcoes.find((o) => o.value === f.valor)?.label ?? f.valor;
 
   /** @param {string} id */
   const alternarNaFaixa = (id) => {
@@ -732,6 +755,58 @@ export default function FiltrosRapidos({
     );
   };
 
+  /** Pílula de um filtro da tela: escolha única, como "Ordenar"; o ✕ volta ao padrão. @param {FiltroDaTela} f */
+  const chipDaTela = (f) => {
+    const idJanela = `#tela:${f.id}`;
+    const aberta = aberto === idJanela;
+    const ativo = f.valor !== f.padrao;
+    return (
+      <span key={idJanela} className={cn("b1-fr-chip", ativo && "is-on", aberta && "is-open")}>
+        <JanelaDaFaixa
+          open={aberta}
+          onOpenChange={(o) => setAberto((a) => trocaJanela(a, idJanela, o))}
+          rotulo={f.rotulo}
+          trigger={
+            <button type="button" role="combobox" className="b1-fr-chip__btn" aria-haspopup="dialog" aria-expanded={aberta} aria-label={f.nome} title={f.nome}>
+              <span className="b1-fr-chip__rot">{f.rotulo}</span>
+              <span className={cn("b1-fr-chip__val", !ativo && "b1-fr-chip__val--padrao")}>{rotuloAtual(f)}</span>
+              {!ativo ? <ChevronDown className="b1-fr-chip__seta" size={14} aria-hidden /> : null}
+            </button>
+          }
+        >
+          <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-label={f.rotulo}>
+            {f.opcoes.map((o) => (
+              <LinhaDaJanela
+                key={o.value}
+                rotulo={o.label}
+                unica
+                on={o.value === f.valor}
+                onClick={() => {
+                  f.onChange(o.value);
+                  setAberto(null);
+                }}
+              />
+            ))}
+          </div>
+        </JanelaDaFaixa>
+        {ativo ? (
+          <button
+            type="button"
+            className="b1-fr-chip__x"
+            aria-label={`Tirar filtro de ${f.rotulo}`}
+            title={`Tirar filtro de ${f.rotulo}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              f.onChange(f.padrao);
+            }}
+          >
+            <X size={13} aria-hidden />
+          </button>
+        ) : null}
+      </span>
+    );
+  };
+
   const ordemAberta = aberto === "#ordem";
   const maisAberto = aberto === "#mais";
 
@@ -775,6 +850,7 @@ export default function FiltrosRapidos({
       );
       const itens = [
         { id: "#ordem", rotulo: "Ordenar", valor: ordemAtual, ativo: false },
+        ...daTela.map((f) => ({ id: `#tela:${f.id}`, rotulo: f.rotulo, valor: rotuloAtual(f), ativo: f.valor !== f.padrao })),
         ...naFaixa.map((id) => {
           const info = infoDoFiltro(id);
           return { id, rotulo: info.rotulo, valor: info.valor || "Todos", ativo: info.ativo };
@@ -788,7 +864,9 @@ export default function FiltrosRapidos({
                 key={it.id}
                 type="button"
                 className={cn("mk-sel-op b1-fr-op b1-fr-nav", it.ativo && "is-on")}
-                onClick={() => setFolha(it.id === "#ordem" ? "ordem" : { fr: it.id })}
+                onClick={() =>
+                  setFolha(it.id === "#ordem" ? "ordem" : it.id.startsWith("#tela:") ? { tela: it.id.slice(6) } : { fr: it.id })
+                }
               >
                 <span className="b1-fr-op__txt">{it.rotulo}</span>
                 <span className="b1-fr-nav__val">{it.valor}</span>
@@ -797,7 +875,7 @@ export default function FiltrosRapidos({
             ))}
           </div>
           {temFiltro ? (
-            <button type="button" className="b1-fr-menu__limpar" onClick={onClearFilters}>
+            <button type="button" className="b1-fr-menu__limpar" onClick={limparTudo}>
               Limpar filtros
             </button>
           ) : null}
@@ -823,6 +901,26 @@ export default function FiltrosRapidos({
           ))}
         </div>
       );
+    } else if (typeof folha === "object" && "tela" in folha) {
+      const f = daTela.find((x) => x.id === folha.tela);
+      titulo = f?.rotulo ?? "";
+      acao = botaoOk(voltarAoMenu);
+      corpo = f ? (
+        <div className="mk-sel-lista b1-lista b1-fr-lista" role="listbox" aria-label={f.rotulo}>
+          {f.opcoes.map((o) => (
+            <LinhaDaJanela
+              key={o.value}
+              rotulo={o.label}
+              unica
+              on={o.value === f.valor}
+              onClick={() => {
+                f.onChange(o.value);
+                fecharFolhas();
+              }}
+            />
+          ))}
+        </div>
+      ) : null;
     } else if (folha === "mais") {
       titulo = "Filtros rápidos";
       aside = "Marque o que aparece na faixa";
@@ -929,6 +1027,7 @@ export default function FiltrosRapidos({
               </JanelaDaFaixa>
             </span>
             <span className="b1-fr__sep" aria-hidden="true" />
+            {daTela.map(chipDaTela)}
             {naFaixa.map(chipDoFiltro)}
           </div>
           <button
@@ -983,7 +1082,7 @@ export default function FiltrosRapidos({
       )}
       <div className="b1-fr__resumo" aria-live="polite" data-conta={conta}>
         {temFiltro ? (
-          <button type="button" className="b1-fr__limpar" onClick={onClearFilters}>
+          <button type="button" className="b1-fr__limpar" onClick={limparTudo}>
             Limpar filtros
           </button>
         ) : null}
