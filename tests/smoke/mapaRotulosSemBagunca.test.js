@@ -131,8 +131,7 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
 describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
   it("fonte suave: cresce ao aproximar, diminui ao afastar, sem pulos grandes", () => {
     expect(fontesRotuloPorZoom(10)).toEqual({ nome: 10, ha: 9 });
-    // padrão de tipografia (D-PROD-167): de perto, nome 12px e área 10px
-    expect(fontesRotuloPorZoom(18)).toEqual({ nome: 12, ha: 10 });
+    expect(fontesRotuloPorZoom(18)).toEqual({ nome: 12, ha: 11 });
     let antes = fontesRotuloPorZoom(12).nome;
     for (let z = 12.1; z <= 18; z += 0.1) {
       const agora = fontesRotuloPorZoom(z).nome;

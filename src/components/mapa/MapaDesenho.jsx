@@ -1405,7 +1405,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 <div data-testid="medidas-area" className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold text-center">
                   <div>Área: {formatHectaresPt(areaHectares(currentPoints))} ha</div>
                   {fechadoParaMedir && (
-                    <div className="text-sm font-normal">Perímetro: {formatDistanciaPt(comprimentoMetros([...currentPoints, currentPoints[0]]))}</div>
+                    <div className="text-[11px] font-normal">Perímetro: {formatDistanciaPt(comprimentoMetros([...currentPoints, currentPoints[0]]))}</div>
                   )}
                 </div>
               </div>

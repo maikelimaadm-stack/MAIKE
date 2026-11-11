@@ -86,7 +86,7 @@
   height: var(--mk-mapa-alto);
   min-width: var(--mk-mapa-alto);
   padding: 0 14px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--mkq-334155, #334155);
   -webkit-tap-highlight-color: transparent;
@@ -167,8 +167,8 @@
   gap: 5px;
   padding: 0 0 2px;
   border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--mkq-334155, #334155);
 }
 .mk-mapa-camada__mini {
@@ -225,9 +225,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--mk-mapa-texto);
 }
-.mk-mapa-resumo__num small { font-size: 13px; font-weight: 400; color: var(--mk-mapa-suave); }
+.mk-mapa-resumo__num small { font-size: 11px; font-weight: 600; color: var(--mk-mapa-suave); }
 .mk-mapa-resumo__num--verde { color: var(--mk-mapa-verde); }
-.mk-mapa-resumo__rot { margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--mk-mapa-suave); }
+.mk-mapa-resumo__rot { margin-top: 2px; font-size: 10.5px; font-weight: 500; color: var(--mk-mapa-suave); }
 
 /* Controles nativos do MapLibre (zoom) no mesmo desenho */
 .mk-mapa .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin: 0 var(--mk-mapa-gap) var(--mk-mapa-gap) 0; }
@@ -311,19 +311,19 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 6px 18px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.14);
-  font-size: 14px;
+  font-size: 12px;
   color: var(--mkq-1e293b, #1e293b);
   animation: mk-mapa-pop 0.16s ease-out;
 }
 .mk-mapa-aviso--info { padding: 6px 12px; border-radius: 9999px; }
 .mk-mapa-aviso__ic { flex: none; color: #d97706; }
 .mk-mapa-aviso__txt { display: flex; min-width: 0; flex-direction: column; line-height: 1.25; }
-.mk-mapa-aviso__txt strong { font-weight: 600; }
+.mk-mapa-aviso__txt strong { font-weight: 650; }
 .mk-mapa-aviso__txt span {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--mk-mapa-suave, var(--mkq-64748b, #64748b));
 }
 .mk-mapa-aviso__btn {
@@ -332,7 +332,7 @@
   padding: 0 10px;
   border-radius: 9px;
   background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--mk-mapa-verde, #15803d);
 }
@@ -386,8 +386,8 @@
 .mk-vis__secao + .mk-vis__secao { margin-top: 12px; }
 .mk-vis__titulo {
   margin: 0 0 6px 2px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--mk-mapa-suave);
@@ -410,7 +410,7 @@
   min-width: 0;
   height: 30px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--mkq-475569, #475569);
 }
@@ -430,7 +430,7 @@
   border-radius: 9999px;
   border: 1px solid var(--mkq-e2e8f0, #e2e8f0);
   background: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--mkq-334155, #334155);
 }
@@ -448,7 +448,7 @@
   height: 32px;
   padding: 0 10px;
   text-align: left;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--mkq-334155, #334155);
 }
 .mk-vis__linha:hover { background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE)); }

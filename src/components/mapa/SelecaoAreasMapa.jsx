@@ -484,7 +484,7 @@ export default function SelecaoAreasMapa({
         <div className="absolute inset-x-4 top-1/3 z-30 bg-white rounded-lg shadow-lg p-4 space-y-2 max-w-md mx-auto">
           <p className="text-sm font-semibold text-slate-900">Mapa indisponível</p>
           <p className="text-xs text-slate-600">{mapError}</p>
-          {satNote ? <p className="text-xs text-slate-500">{satNote}</p> : null}
+          {satNote ? <p className="text-[11px] text-slate-500">{satNote}</p> : null}
           <Button type="button" onClick={retryMap} className="w-full h-9 bg-emerald-600 hover:bg-emerald-700">
             Tentar novamente
           </Button>
@@ -506,7 +506,7 @@ export default function SelecaoAreasMapa({
           Clique nas áreas do mapa para vincular ao cocho
           {selectedCount > 0 ? ` · ${selectedCount} selecionada(s)` : ""}
           {satNote ? (
-            <div className="mt-1 text-xs text-slate-500">
+            <div className="mt-1 text-[10px] text-slate-500">
               Basemap: ruas (OpenFreeMap). Legado usava satélite.
             </div>
           ) : null}
@@ -569,7 +569,7 @@ export default function SelecaoAreasMapa({
             </DropdownMenuContent>
           </DropdownMenu>
           {satNote ? (
-            <div className="rounded bg-white/90 px-2 py-1 text-xs text-slate-500 shadow max-w-[14rem] text-right">
+            <div className="rounded bg-white/90 px-2 py-1 text-[10px] text-slate-500 shadow max-w-[14rem] text-right">
               Ruas (OpenFreeMap). {satNote}
             </div>
           ) : null}
@@ -741,7 +741,7 @@ export default function SelecaoAreasMapa({
                 className="h-8 text-xs"
                 placeholder="1"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 As áreas selecionadas serão ordenadas por Nome (A→Z) e receberão códigos sequenciais.
                 Conflitos com códigos existentes abortam sem aplicar.
               </p>

@@ -646,7 +646,7 @@ function LayoutShell({ children, currentPageName }) {
                                 key={sub.id}
                                 to={createPageUrl(sub.url)}
                                 onClick={(e) => aoClicarMenu(e, createPageUrl(sub.url))}
-                                className={`block px-4 py-2 text-sm hover:bg-[#FAFCFE] ${
+                                className={`block px-4 py-2 text-xs hover:bg-[#FAFCFE] ${
                                 location.pathname === createPageUrl(sub.url) ?
                                 'bg-emerald-50 text-emerald-800 font-medium' :
                                 'text-slate-700'}`
@@ -726,7 +726,7 @@ function LayoutShell({ children, currentPageName }) {
               sort(([a], [b]) => a.localeCompare(b)).
               map(([categoria, pages]) =>
               <div key={categoria}>
-                    <h3 className="mk-grupo-lista text-xs font-semibold text-slate-500 uppercase mb-2 px-2">{categoria}</h3>
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">{categoria}</h3>
                     <div className="space-y-1">
                       {pages.sort((a, b) => a.title.localeCompare(b.title)).map((page) =>
                   <Link

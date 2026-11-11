@@ -1,20 +1,19 @@
-/* Motor Base1: tamanhos e pesos de fonte. Desde a D-PROD-167 seguem o padrão de tipografia do sistema
- * (Open Sans; texto 14px, subtítulo 13px, títulos em Lato; escala 13 · 14 · 16 · 18 · 20 · 24 · 30 · 34 · 46).
+/* Motor Base1: escala do CONTROLE-DE-ESTOQUE, preservando as superfícies.
  * Só TAMANHO (e peso) de fonte: as cores de texto seguem o design (D-PROD-164) e vêm de base1-design.css.
  * Portais .b1ref recebem os mesmos tokens que a página de origem.
  * Inputs mobile conservam os 16px de mk-unificado.css para evitar zoom no iOS.
  */
 :is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet, .mk-base1-sheet, .mg-dp-panel) {
-  --mk-font-list: 14px;
-  --mk-font-field: 14px;
-  --mk-font-heading: 14px;
-  --mk-font-title: 18px;
-  --mk-font-search: 14px;
-  --mk-font-float-rest: 14px;
-  --mk-font-float-up: 12px;
-  --mk-action-font: 14px;
+  --mk-font-list: 12px;
+  --mk-font-field: 13px;
+  --mk-font-heading: 12px;
+  --mk-font-title: 13px;
+  --mk-font-search: 12px;
+  --mk-font-float-rest: 12px;
+  --mk-font-float-up: 9px;
+  --mk-action-font: 12px;
   font-size: var(--mk-font-list);
-  font-family: var(--mk-fonte-texto);
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -23,31 +22,25 @@
 .cadastro-b1 :is(h1, .mg-card-title, .mg-b1-record-heading):not(#mk-padrao) {
   font-size: var(--mk-font-title) !important;
   font-weight: 600;
-  font-family: var(--mk-fonte-titulo);
-  line-height: 1.25;
 }
-/* Subtítulo de item da lista: 13px / 400 (D-PROD-167). */
 .cadastro-b1 :is(.mg-b1-form-header__subtitle, .mg-b1-record-count, .mg-b1-card__sub):not(#mk-padrao) {
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 11px;
 }
-/* Títulos de grupo e de seção dos formulários: Lato 13px / 600 (o passo menor da escala; D-PROD-167). */
-.cadastro-b1 :is(.b1-grupo__titulo, .b1-grupo__titulo--secao):not(#mk-padrao) {
-  font-family: var(--mk-fonte-titulo);
-  font-size: 13px;
-  font-weight: 600;
+/* Título de seção dos formulários de gestão (Parceiros, Centros, Naturezas…): 11px, o tamanho que o sistema já usava
+   (o título de grupo do design trocou o desenho, não o tamanho — D-PROD-166). */
+.cadastro-b1 .b1-grupo__titulo--secao:not(#mk-padrao) {
+  font-size: 11px;
 }
 
-/* Cabeçalho de tabela: 14px / 600 (D-PROD-167). */
+/* Cabeçalho ligeiramente mais suave que os valores, como na grade de referência. */
 .cadastro-b1 .mg-grid thead th:not(#mk-padrao) {
   font-weight: 600;
 }
 .cadastro-b1 .mg-grid :is(tfoot th, tfoot td):not(#mk-padrao) {
   font-size: var(--mk-font-list) !important;
 }
-/* Título de item da lista: 14px / 600 (D-PROD-167). */
 .cadastro-b1 .mg-b1-card__title:not(#mk-padrao) {
-  font-size: 14px !important;
+  font-size: 12.5px !important;
   font-weight: 600;
 }
 .cadastro-b1 :is(.mg-b1-card__fields, .mg-b1-card__label, .mg-b1-card__value):not(#mk-padrao) {
@@ -61,7 +54,7 @@
   font-size: var(--mk-font-list) !important;
 }
 .mk-base1-sheet :is(.mgs__code, .mgs__count, .mgs__mais, .fpc__resumo):not(#mk-padrao) {
-  font-size: 13px !important;
+  font-size: 11px !important;
 }
 
 /* Portais de configuração não herdam a página: cada peça usa a mesma régua. */
@@ -72,8 +65,8 @@
 }
 :is(.cadastro-b1, .b1ref, .mk-config-sheet, .mk-column-filter-sheet)
   :is(.mg-b1-row__hint, .cmd-option__code):not(#mk-padrao) {
-  font-size: 13px !important;
+  font-size: 11px !important;
 }
 :is(.mk-config-sheet, .mk-column-filter-sheet) .mk-sheet__aside:not(#mk-padrao) {
-  font-size: 13px;
+  font-size: 11px;
 }

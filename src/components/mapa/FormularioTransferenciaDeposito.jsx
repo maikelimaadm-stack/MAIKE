@@ -135,11 +135,11 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         <form onSubmit={handleSubmit} className="space-y-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
-              <label className="text-xs text-slate-500 pl-1 leading-none">Data da movimentação <span className="text-red-500">*</span></label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Data da movimentação <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={dataMovimentacao} onChange={(e) => setDataMovimentacao(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
             </div>
             <div>
-              <label className="text-xs text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">{direction === "entrada" ? "Local de Origem" : "Local de Destino"} <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
                 <AutocompleteGenerico
                   items={outrosLocais}
@@ -154,7 +154,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
               </div>
             </div>
             <div>
-              <label className="text-xs text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto de Suplementação <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={produtoId} onValueChange={(v) => { setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId}>
                 <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                 <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.nome_produto} ({p.unidade_medida || "KG"})</SelectItem>)}</SelectContent>
@@ -164,7 +164,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
             <div>
-              <label className="text-xs text-slate-500 pl-1 leading-none">Unidade</label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Unidade</label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={unidadeInput} onValueChange={setUnidadeInput} disabled={!suportaSacos}>
                 <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -174,12 +174,12 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
               </Select></div>
             </div>
             <div>
-              <label className="text-xs text-slate-500 pl-1 leading-none">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"}) <span className="text-red-500">*</span></label>
+              <label className="text-[12px] text-slate-500 pl-1 leading-none">Quantidade ({unidadeInput === "SACO" ? "sacas" : "kg"}) <span className="text-red-500">*</span></label>
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" placeholder="0,00" /></div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Origem: <span className="font-semibold text-slate-900">{localOrigemNome || "-"}</span></div>
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Destino: <span className="font-semibold text-slate-900">{localDestinoNome || "-"}</span></div>
             <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Saldo (kg): <span className="font-semibold text-slate-900">{formatQuantidadeTecnica(saldoDisponivel, 3)}</span></div>
@@ -187,7 +187,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
           </div>
 
           <div>
-            <label className="text-xs text-slate-500 pl-1 leading-none">Observações</label>
+            <label className="text-[12px] text-slate-500 pl-1 leading-none">Observações</label>
             <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
           </div>
 

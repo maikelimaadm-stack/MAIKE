@@ -331,26 +331,26 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                 <div className="flex items-center gap-3 pl-1">
                   <div className="flex items-center gap-1">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${alertaGrafico ? "bg-red-500" : "bg-lime-400"}`} />
-                    <span className="text-xs text-slate-500">Saldo ciclo</span>
+                    <span className="text-[8px] text-slate-500">Saldo ciclo</span>
                   </div>
                   {percentCapacidade !== null &&
                   <div className="flex items-center gap-1">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${percentCapacidade < 0.2 ? "bg-red-400" : "bg-blue-400"}`} />
-                      <span className="text-xs text-slate-500">Capac. cocho</span>
+                      <span className="text-[8px] text-slate-500">Capac. cocho</span>
                     </div>
                   }
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
-                  {consumoBase > 0 && <div className="text-xs text-slate-600 mt-0.5">{formatKg(consumoBase)}/dia</div>}
+                  {consumoBase > 0 && <div className="text-[11px] text-slate-600 mt-0.5">{formatKg(consumoBase)}/dia</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Duração estimada</div>
                   <div className="text-sm font-bold text-slate-900">{baseDuracaoTotal > 0 ? `${formatDecimal(baseDuracaoTotal, 0, true)} dia(s)` : '-'}</div>
-                  {diasRestantes > 0 && <div className="text-xs text-slate-600 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
+                  {diasRestantes > 0 && <div className="text-[11px] text-slate-600 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Próxima Reposição</div>
@@ -387,7 +387,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
           const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
           const proxReposicao = durEst > 0 && dataBase ? new Date(dataBase.getTime() + durEst * 86400000).toLocaleDateString("pt-BR") : null;
           return (
-            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-1 text-xs space-y-0">
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-1 text-[11px] space-y-0">
             <div className="flex items-center justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <span className="text-slate-500 px-1">Data: {formatDateBR(ultimoEvento.data_lancamento)}</span>
@@ -400,7 +400,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                 duracaoEstimada={durEst}
                 proximaReposicao={proxReposicao} />
               
-            {ultimoEvento.observacoes && <div className="break-words text-xs italic text-slate-500">{ultimoEvento.observacoes}</div>}
+            {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
           </div>);
         })() :
         <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
@@ -408,7 +408,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       </CardSection>
 
       <CardSection title="Informações do Cocho">
-        <div className="space-y-1 text-sm">
+        <div className="space-y-1 text-[10px]">
           
 
 
@@ -459,7 +459,7 @@ function CardInfo({ label, value }) {
 function CardSection({ title, children }) {
   return (
     <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">
-      <div className="mk-tipo-titulo text-slate-900">{title}</div>
+      <div className="text-[11px] font-bold text-slate-900">{title}</div>
       {children}
     </div>);
 

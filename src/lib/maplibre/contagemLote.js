@@ -5,7 +5,7 @@
  * quantidade de um lote), e milhar separado por ponto: 5000 → "5.000".
  */
 
-export const FONTE_CONTAGEM_PX = 13; // padrão de tipografia (D-PROD-167): número de cabeças 13px / 500
+export const FONTE_CONTAGEM_PX = 9.5;
 
 /** @param {number|string|null|undefined} total @returns {string} */
 export const formatarContagem = (total) => {

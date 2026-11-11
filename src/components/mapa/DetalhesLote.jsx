@@ -664,7 +664,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   <LancLoteForm onSubmit={(e) => { e.preventDefault(); if (!enviandoJuncao) confirmarJuncao(lotePrincipalJuncao, outrosLotes); }}>
                   <LancLoteAviso tom="verde">
                     <p className="font-semibold">Lote principal: {lotePrincipalJuncao.nome}</p>
-                    <p className="text-sm">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção (prévia; o servidor confere tudo ao confirmar)</p>
+                    <p className="text-[11px]">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção (prévia; o servidor confere tudo ao confirmar)</p>
                   </LancLoteAviso>
                   {!previaJuncao(lotesParaJuntar).pesoConhecido && (
                     <p role="note" data-testid="aviso-peso-juncao" className="mk-ll__aviso mk-ll__aviso--ambar">
