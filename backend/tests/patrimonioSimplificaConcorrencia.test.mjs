@@ -179,7 +179,8 @@ describe('D-PROD-161 — corridas do abastecimento com aceites e unidades', () =
       () => A.req('PATCH', `/produtos/${s.diesel.id}`, s.token, { unidade_principal_estoque: 'KG' }));
     assert.equal(c.r1.statusCode, 201, c.r1.body);
     assert.deepEqual(erro(c.r2).slice(0, 2), [409, 'PRODUTO_UNIDADE_EM_USO'], c.r2.body);
-    assert.ok(['estoque', 'lotes', 'movimentos'].includes(c.r2.json().details?.reason), c.r2.body);
+    // `field`/`reason` saem de `details` para o topo do corpo (errorHandler.js:115-122)
+    assert.ok(['estoque', 'lotes', 'movimentos'].includes(erro(c.r2)[3]), c.r2.body);
     assert.equal((await prisma().produto.findUnique({ where: { id: s.diesel.id } })).unidade_principal_estoque, 'L');
     assert.deepEqual([c.r1.json().unidade, (await prisma().abastecimentoBem.findUnique({ where: { id: c.r1.json().id } })).unidade], ['L', 'L']);
     // o cancelamento continua exato (unidade efetiva igual)
