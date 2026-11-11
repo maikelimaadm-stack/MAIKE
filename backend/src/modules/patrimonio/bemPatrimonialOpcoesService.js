@@ -1,10 +1,10 @@
 /**
  * D-PROD-157 (A3) / D-PROD-162 — opções dos seletores do formulário do bem que
- * dependem da EMPRESA: responsáveis, parceiros, centros de custo, áreas e os
- * Produtos que um tanque pode aceitar. As de catálogo (famílias e tipos) são
- * do tenant e ficam nos services de cada catálogo (`opcoes`). D-PROD-163: a
- * tela de Bens deixou de mostrar Área (as opções de áreas ficam para quem já
- * as usa; nada é apagado).
+ * dependem da EMPRESA: responsáveis, parceiros, centros de custo e os
+ * Produtos que um tanque pode aceitar. As de catálogo (tipos) são do tenant e
+ * ficam no service do tipo (`opcoes`). D-PROD-163: a tela de Bens deixou de
+ * mostrar Área, e as opções de áreas saíram (sem consumidor; o `area_id` já
+ * gravado não é apagado e o servidor continua aceitando o campo).
  *
  * Só ATIVOS, keyset (nome, id) crescente, busca literal no servidor e
  * envelope `{ itens, has_more, next_cursor }` (limite padrão 50, máx. 100).
@@ -72,21 +72,6 @@ export const opcoesCentrosCusto = async (contexto, query = {}) => {
     limit,
     cursor,
     mapear: (linhas) => linhas.map((c) => ({ id: c.id, numero: c.numero, nome: c.nome })),
-  });
-};
-
-/** Áreas (pastagens) ATIVAS da empresa, `{id, nome}`. */
-export const opcoesAreas = async (contexto, query = {}) => {
-  const { prisma, clienteId, empresaId, limit, cursor, q } = await escopo(contexto, query);
-  /** @type {any[]} */
-  const filtros = [{ cliente_id: clienteId, empresa_id: empresaId, ativo: true }];
-  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero_area: { contains: q } }] });
-  return paginarPorNome(prisma.areaPastagem, {
-    where: { AND: filtros },
-    select: { id: true, nome: true },
-    limit,
-    cursor,
-    mapear: (linhas) => linhas.map((a) => ({ id: a.id, nome: a.nome })),
   });
 };
 

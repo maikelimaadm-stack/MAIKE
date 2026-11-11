@@ -5,7 +5,7 @@
  *  P1. Famílias e tipos vivem no cadastro de Bens: ver = Bens visualizar;
  *      criar tipo = Bens novo|salvar|editar; renomear = Bens editar|salvar;
  *      inativar/reativar = Bens `inativar`; excluir tipo (D-PROD-163) = Bens
- *      editar|salvar; família só leitura (D-PROD-163: POST/PATCH → 404).
+ *      editar|salvar; família sem rota (D-PROD-163: leitura, opções e escrita → 404).
  *      Opções de catálogo = Bens visualizar.
  *  P2. Linhas ANTIGAS (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
  *      `pat-perfis-medicao`, `pat-combustiveis` com tudo ligado, e
@@ -48,7 +48,7 @@ const versaoDa = async (delegado, id) => (await /** @type {any} */ (prisma())[de
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('P1 — famílias e tipos pelas ações de Bens', () => {
-  test('Bens novo cria tipo; Bens editar cria e renomeia; salvar renomeia; excluir = editar|salvar; ativo exige inativar; ver = visualizar; família só leitura; nada sem a ação', async () => {
+  test('Bens novo cria tipo; Bens editar cria e renomeia; salvar renomeia; excluir = editar|salvar; ativo exige inativar; ver = visualizar; família sem rota; nada sem a ação', async () => {
     const s = await montarPatrimonio(app);
     const soVer = await s.contaCom(linha(BENS, { visualizar: true }));
     const soNovo = await s.contaCom(linha(BENS, { visualizar: true, novo: true }));
@@ -59,14 +59,16 @@ describe('P1 — famílias e tipos pelas ações de Bens', () => {
     const semVisualizar = await s.contaCom(linha(BENS, { novo: true, salvar: true, editar: true, inativar: true }));
 
     // Ver: listas, detalhes e opções de catálogo.
-    const leituras = ['/patrimonio-familias', `/patrimonio-familias/${s.fam.MAQUINAS}`, '/patrimonio-tipos', `/patrimonio-tipos/${s.tip.TRATOR_PNEUS}`, '/bens-patrimoniais-opcoes/familias', '/bens-patrimoniais-opcoes/tipos'];
+    const leituras = ['/patrimonio-tipos', `/patrimonio-tipos/${s.tip.TRATOR_PNEUS}`, '/bens-patrimoniais-opcoes/tipos'];
     for (const url of leituras) {
       assert.equal((await req('GET', url, soVer.token)).statusCode, 200, `visualizar ${url}`);
       assert.deepEqual(erro(await req('GET', url, semVisualizar.token)).slice(0, 2), [403, 'ACAO_NAO_PERMITIDA'], `sem visualizar ${url}`);
       assert.equal((await req('GET', url, null)).statusCode, 401, `sem sessão ${url}`);
     }
 
-    // D-PROD-163: família só leitura — POST/PATCH não existem, nem para o administrador.
+    // D-PROD-163: nenhuma rota de família (nem leitura), nem para o administrador.
+    assert.equal((await req('GET', '/patrimonio-familias', s.token)).statusCode, 404);
+    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias', s.token)).statusCode, 404);
     assert.equal((await req('POST', '/patrimonio-familias', s.token, { nome: 'Nova', natureza: 'OUTRO' })).statusCode, 404);
     assert.equal((await req('PATCH', `/patrimonio-familias/${s.fam.MAQUINAS}`, s.token, { versao: 1, nome: 'Renomeada' })).statusCode, 404);
 
@@ -120,11 +122,10 @@ describe('P2 — linhas antigas de permissão ficam inertes', () => {
     const soConversao = await s.contaCom(linha(TELAS.abastecimentos, { visualizar: true, configurar_conversao: true }));
     const antes = await fotoPatrimonio(s.c);
     const rotas = [
-      ['GET', '/patrimonio-familias'], ['GET', `/patrimonio-familias/${s.fam.MAQUINAS}`],
       ['GET', '/patrimonio-tipos'], ['GET', `/patrimonio-tipos/${s.tip.TRATOR_PNEUS}`], ['POST', '/patrimonio-tipos', { familia_id: s.fam.MAQUINAS, nome: 'Antigo' }],
       ['POST', '/patrimonio-tipos', { natureza: 'MAQUINA', nome: 'Antigo' }], ['PATCH', `/patrimonio-tipos/${s.tip.TRATOR_PNEUS}`, { versao: 1, nome: 'Antigo' }],
       ['DELETE', `/patrimonio-tipos/${s.tip.GALPAO}?versao=1`],
-      ['GET', '/bens-patrimoniais-opcoes/familias'], ['GET', '/bens-patrimoniais-opcoes/tipos'], ['GET', `/bens-patrimoniais-opcoes/produtos?empresa_id=${s.e1.id}`],
+      ['GET', '/bens-patrimoniais-opcoes/tipos'], ['GET', `/bens-patrimoniais-opcoes/produtos?empresa_id=${s.e1.id}`],
       ['GET', `/bens-patrimoniais?empresa_id=${s.e1.id}`], ['POST', '/patrimonio-catalogo-padrao', {}],
       ['GET', `/patrimonio-abastecimentos?empresa_id=${s.e1.id}`],
     ];
@@ -140,7 +141,7 @@ describe('P2 — linhas antigas de permissão ficam inertes', () => {
     };
     for (const [metodo, url, corpo] of [
       ['POST', '/patrimonio-abastecimentos-previa', previa], ['POST', '/patrimonio-abastecimentos', { ...previa, tanque_cheio: false, operation_id: 'op-conversao-0001' }],
-      ['POST', '/patrimonio-tipos', { natureza: 'OUTRO', nome: 'Conversão' }], ['GET', '/patrimonio-familias'],
+      ['POST', '/patrimonio-tipos', { natureza: 'OUTRO', nome: 'Conversão' }], ['GET', '/patrimonio-tipos'],
       ['POST', `/patrimonio-abastecimentos/${INEXISTENTE}/cancelar`, { empresa_id: s.e1.id, versao: 1, motivo: 'tentativa', operation_id: 'op-conversao-0002' }],
     ]) {
       assert.equal((await req(metodo, url, soConversao.token, corpo)).statusCode, 403, `configurar_conversao ${metodo} ${url}`);
@@ -202,11 +203,10 @@ describe('P4 — rotas removidas, catálogo padrão e outro tenant', () => {
     const fam = await prisma().familiaPatrimonial.findFirst({ where: { cliente_id: s.c, codigo: 'MAQUINAS' } });
     const tipo = await prisma().tipoPatrimonial.findFirst({ where: { cliente_id: s.c, codigo: 'TRATOR_PNEUS' } });
     const antes = await fotoPatrimonio([s.c, outro.c]);
-    for (const [base, alvo, codigo] of [['/patrimonio-familias', fam.id, 'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA'], ['/patrimonio-tipos', tipo.id, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']]) {
+    for (const [base, alvo, codigo] of [['/patrimonio-tipos', tipo.id, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']]) {
       const alheio = await req('GET', `${base}/${alvo}`, outro.token);
       assert.deepEqual(erro(alheio).slice(0, 2), [404, codigo], base);
       assert.deepEqual(corpoErro(alheio), corpoErro(await req('GET', `${base}/${INEXISTENTE}`, outro.token)), `${base}: sem oráculo`);
-      if (base === '/patrimonio-familias') continue; // D-PROD-163: família só leitura (PATCH nem existe)
       const patch = await req('PATCH', `${base}/${alvo}`, outro.token, { versao: 1, nome: 'Invasão' });
       assert.deepEqual(erro(patch).slice(0, 2), [404, codigo]);
       assert.deepEqual(corpoErro(patch), corpoErro(await req('PATCH', `${base}/${INEXISTENTE}`, outro.token, { versao: 1, nome: 'Invasão' })));

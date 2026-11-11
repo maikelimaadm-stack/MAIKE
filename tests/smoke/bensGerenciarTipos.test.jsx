@@ -8,7 +8,9 @@
  *  - a lista vem de `/patrimonio-tipos` (sem `empresa_id`), com o Tipo de bem
  *    e a contagem de bens de cada tipo; o filtro "Tipo de bem" vai na query
  *    `natureza`, a busca em `q`;
- *  - "Renomear" na linha: PATCH `{versao, nome}`; Escape/Cancelar descarta;
+ *  - "Renomear" na linha: PATCH `{versao, nome}`; Escape (no campo, sem fechar
+ *    o diálogo) e Cancelar descartam; renomear relê a lista de Bens e o bem
+ *    aberto (a grade e o campo Tipo mostram o nome novo);
  *  - "Excluir" pede confirmação e manda `DELETE /patrimonio-tipos/:id?versao=N`;
  *    409 `PATRIMONIO_TIPO_EM_USO` mostra "Este tipo está em uso por N bem(ns).
  *    Troque o tipo desses bens antes de excluir."; 409 de versão relê a lista;
@@ -51,6 +53,25 @@ const RESUMO_TRATOR = {
   id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA',
   tipo: { id: 't2', nome: 'Trator de pneus' }, propriedade: 'PROPRIO', medidor_tipo: 'HORIMETRO', ativo: true, versao: 4,
 };
+/** O nome ATUAL do tipo t2 (o servidor real devolve o nome gravado do tipo no resumo e no detalhe). */
+const tipoDoTrator = () => {
+  const t = tipos.find((x) => x.id === 't2');
+  return { id: 't2', codigo: 'TRATOR_PNEUS', nome: t?.nome ?? 'Trator de pneus', ativo: true };
+};
+const detalheTrator = () => ({
+  ...RESUMO_TRATOR,
+  empresa_id: 'emp-1',
+  familia: { id: 'f2', codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA', ativo: true },
+  tipo: tipoDoTrator(),
+  proprietario: null, responsavel: null, centro_custo: null, area: null,
+  localizacao_descricao: null, marca: 'Valtra', modelo: 'A950', ano_fabricacao: 2020, ano_modelo: 2021, numero_serie: 'SN-1', chassi: null, placa: null, placa_uf: null, renavam: null,
+  potencia_cv: '95.0000', material: null, ano_conclusao: null, compatibilidade: null, especificacoes: null, observacoes: null,
+  medidor: { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1300.0000', data_leitura: '2026-11-01', origem: 'AJUSTE_CADASTRO' },
+  tanques: [],
+  aquisicao: { data_aquisicao: null, data_disponibilidade: null, valor_aquisicao: null, custo_incorporacao: null, fornecedor: null, documento_referencia: null, garantia_ate: null },
+  depreciacao: { depreciavel: false, metodo: null, vida_util_meses: null, residual_modo: null, valor_residual: null, residual_percentual: null, data_inicio_depreciacao: null, previa: null },
+  consumo: null,
+});
 
 let backend;
 /** @type {any[]} */
@@ -76,7 +97,8 @@ beforeEach(async () => {
       proxima = null;
       return r;
     }
-    if (method === 'GET' && path === '/bens-patrimoniais') return { status: 200, body: envelope([RESUMO_TRATOR]) };
+    if (method === 'GET' && path === '/bens-patrimoniais') return { status: 200, body: envelope([{ ...RESUMO_TRATOR, tipo: { id: 't2', nome: tipoDoTrator().nome } }]) };
+    if (method === 'GET' && path === '/bens-patrimoniais/b1') return { status: 200, body: detalheTrator() };
     if (method === 'GET' && path === '/empresas') return { status: 200, body: [{ id: 'emp-1', numero_empresa: 1, nome: 'Fazenda Boa Vista', fuso_horario: 'America/Sao_Paulo' }] };
     if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return { status: 200, body: { itens: [], has_more: false, next_cursor: null } };
     if (method === 'GET' && path === '/patrimonio-tipos') {
@@ -188,6 +210,61 @@ describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-163)', () => {
     await screen.findByText('Tipo renomeado');
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/patrimonio-tipos/t1', body: { versao: 1, nome: 'Curral de manejo' } })]);
     await waitFor(() => expect(within(dialogo).getByTestId('gerenciar-tipos-t1')).toHaveTextContent('Curral de manejo'));
+  });
+
+  it('Escape no campo "Renomear" cancela só a renomeação: o diálogo continua aberto e nada é enviado', async () => {
+    await montar();
+    const dialogo = await abrirGerenciar();
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Renomear Curral' }));
+    const campo = within(dialogo).getByRole('textbox', { name: 'Novo nome do tipo Curral' });
+    fireEvent.change(campo, { target: { value: 'Curral X' } });
+    await act(async () => {
+      fireEvent.keyDown(campo, { key: 'Escape' });
+    });
+    expect(screen.getByTestId('gerenciar-tipos')).toBeTruthy();
+    expect(within(screen.getByTestId('gerenciar-tipos')).queryByRole('textbox', { name: 'Novo nome do tipo Curral' })).toBeNull();
+    expect(within(screen.getByTestId('gerenciar-tipos')).getByTestId('gerenciar-tipos-t1')).toHaveTextContent('Curral');
+    expect(mutacoes()).toEqual([]);
+    // Sem renomeação aberta, o Escape volta a fechar o diálogo.
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByTestId('gerenciar-tipos')).toBeNull());
+  });
+
+  it('renomear o tipo de um bem relê a lista de Bens: a grade mostra o nome novo depois de fechar o diálogo', async () => {
+    await montar();
+    expect(await screen.findByTestId('bem-nome-b1')).toBeTruthy();
+    expect(within(screen.getByTestId('bem-nome-b1').closest('tr')).getByText('Trator de pneus')).toBeTruthy();
+    const leiturasAntes = backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/bens-patrimoniais').length;
+    const dialogo = await abrirGerenciar();
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Renomear Trator de pneus' }));
+    fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Novo nome do tipo Trator de pneus' }), { target: { value: 'Trator agricola' } });
+    fireEvent.click(within(within(dialogo).getByTestId('gerenciar-tipos-t2')).getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Tipo renomeado');
+    await waitFor(() => expect(backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/bens-patrimoniais').length).toBeGreaterThan(leiturasAntes));
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(within(screen.getByTestId('bem-nome-b1').closest('tr')).getByText('Trator agricola')).toBeTruthy());
+    expect(within(screen.getByTestId('bem-nome-b1').closest('tr')).queryByText('Trator de pneus')).toBeNull();
+  });
+
+  it('bem aberto (consulta): renomear o tipo dele relê o detalhe e o campo Tipo mostra o nome novo', async () => {
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('bem-nome-b1'));
+    const form = await screen.findByTestId('b1-form');
+    await waitFor(() => expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus'));
+    const leiturasAntes = backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/bens-patrimoniais/b1').length;
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções' }));
+    fireEvent.click(await screen.findByText('Gerenciar tipos'));
+    const dialogo = await screen.findByTestId('gerenciar-tipos');
+    await within(dialogo).findByTestId('gerenciar-lista-tipos');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Renomear Trator de pneus' }));
+    fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Novo nome do tipo Trator de pneus' }), { target: { value: 'Trator agricola' } });
+    fireEvent.click(within(within(dialogo).getByTestId('gerenciar-tipos-t2')).getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Tipo renomeado');
+    await waitFor(() => expect(backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/bens-patrimoniais/b1').length).toBeGreaterThan(leiturasAntes));
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(within(screen.getByTestId('b1-form')).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator agricola'));
   });
 
   it('"Excluir" pede confirmação e manda DELETE com a versao; o tipo sai da lista', async () => {

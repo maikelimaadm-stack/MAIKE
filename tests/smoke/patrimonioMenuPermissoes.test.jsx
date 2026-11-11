@@ -475,11 +475,8 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     const bens = trecho(guardas, 'patrimonioBens: {', '},');
     expect(bens).toMatch(/opcoesCatalogo:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
     expect(bens).toMatch(/opcoesProdutos:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
-    // D-PROD-163: família só leitura (o cadastro dela saiu da tela).
-    const familias = guardas.match(/patrimonioFamilias:\s*\{([^\n]*)\},/);
-    expect(familias, 'patrimonioFamilias').toBeTruthy();
-    expect(familias[1]).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
-    expect(familias[1]).not.toMatch(/criar|editar|excluir/);
+    // D-PROD-163: família não tem mais rota (nem leitura): o cadastro dela saiu e nenhuma tela a lê.
+    expect(guardas).not.toMatch(/patrimonioFamilias\s*:/);
     const tipos = trecho(guardas, 'patrimonioTipos: {', '\n  },');
     expect(tipos).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
     expect(tipos).toMatch(/criar:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);

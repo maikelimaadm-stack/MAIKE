@@ -1,7 +1,7 @@
 /**
  * D-PROD-157 / D-PROD-162 — rotas dos bens patrimoniais (por EMPRESA), da
  * prévia de depreciação e das opções dos seletores do formulário do bem
- * (famílias, tipos, Produtos aceitos pelo tanque e os da empresa).
+ * (tipos, Produtos aceitos pelo tanque e os da empresa).
  *
  * Corpo e query FECHADOS (`additionalProperties: false`); tenant só da sessão
  * (`cliente_id` no corpo → 400 na barreira global); guardas da tela
@@ -17,7 +17,8 @@
  * bater). `natureza` no PATCH só confere (imutável: diferente → 409). Produtos
  * aceitos em qualquer unidade (L, KG ou SACO). Área e localização saíram da
  * tela, mas o servidor continua aceitando `area_id`/`localizacao_descricao`
- * (valores gravados não são apagados).
+ * (valores gravados não são apagados). Sem consumidor na tela, as opções de
+ * FAMÍLIAS e de ÁREAS saíram (rotas → 404).
  *
  * Decimais são STRING. O Fastify COERGE tipos (`coerceTypes: 'array'`): um
  * número JSON num campo decimal viraria string já corrompida pelo float. Por
@@ -29,10 +30,9 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
-import * as familias from './familiaPatrimonialService.js';
 import * as tipos from './tipoPatrimonialService.js';
 import { atualizar, criar, detalhar, listar, previaDepreciacao } from './bemPatrimonialService.js';
-import { opcoesAreas, opcoesCentrosCusto, opcoesParceiros, opcoesProdutosParaTanque, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
+import { opcoesCentrosCusto, opcoesParceiros, opcoesProdutosParaTanque, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
 import { PADRAO_DINHEIRO, PADRAO_MEDIDA, PADRAO_PERCENTUAL } from './bemPatrimonialRegras.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO, recusarCoercaoPatrimonio } from './patrimonioComum.js';
 import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS, UNIDADES_PRODUTO_TANQUE } from './patrimonioDominio.js';
@@ -236,7 +236,6 @@ const consultaDeOpcoes = (obrigatorios, extras = {}) => ({
   },
 });
 /** Catálogo do tenant: `empresa_id` opcional e ignorado. */
-const OPCOES_CATALOGO = consultaDeOpcoes([]);
 const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID, natureza: ENUM(NATUREZAS) });
 /** Dependem da empresa: `empresa_id` obrigatório. */
 const OPCOES_DA_EMPRESA = consultaDeOpcoes(['empresa_id']);
@@ -271,10 +270,9 @@ export const registrarBemPatrimonialRoutes = async (app) => {
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));
 
-  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-162: guarda de Bens; D-PROD-163: tipos por `natureza`,
-  // com o catálogo padrão garantido antes).
+  // Opções de catálogo: os tipos do formulário do bem (D-PROD-162: guarda de Bens; D-PROD-163: por `natureza`, com o
+  // catálogo padrão garantido antes; as opções de famílias saíram — nenhuma tela escolhe família).
   const catalogo = { ...autenticado, preHandler: [g.opcoesCatalogo] };
-  app.get('/bens-patrimoniais-opcoes/familias', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) => familias.opcoes(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/tipos', { ...catalogo, schema: OPCOES_TIPOS }, async (request) => tipos.opcoes(ctx(request), consulta(request)));
   // D-PROD-162: "Produtos aceitos" do tanque — quem cadastra OU edita bem (ver sozinho não lista produtos da fazenda).
   app.get('/bens-patrimoniais-opcoes/produtos', { ...autenticado, preHandler: [g.opcoesProdutos], schema: OPCOES_PRODUTOS }, async (request) =>
@@ -284,5 +282,4 @@ export const registrarBemPatrimonialRoutes = async (app) => {
   app.get('/bens-patrimoniais-opcoes/responsaveis', daEmpresa, async (request) => opcoesResponsaveis(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/parceiros', daEmpresa, async (request) => opcoesParceiros(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/centros-custo', daEmpresa, async (request) => opcoesCentrosCusto(ctx(request), consulta(request)));
-  app.get('/bens-patrimoniais-opcoes/areas', daEmpresa, async (request) => opcoesAreas(ctx(request), consulta(request)));
 };

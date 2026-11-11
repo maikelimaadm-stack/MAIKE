@@ -53,14 +53,6 @@ export const listPatrimonioCatalogoPage = async (recurso, filtros = {}) => {
   return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
 };
 
-/** @param {string} recurso @param {string} id */
-export const getPatrimonioCatalogo = async (recurso, id) => {
-  const contexto = ctx('getPatrimonioCatalogo', String(recurso));
-  assertArgument(ehCatalogo(recurso), 'recurso', contexto);
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => operacoesNativas.catalogoGet(recurso, id), contexto);
-};
-
 /**
  * POST de tipo (D-PROD-163): `{natureza, nome, codigo?, descricao?,
  * vida_util_meses_sugerida?}`. `natureza` = o "Tipo de bem" (o servidor põe o

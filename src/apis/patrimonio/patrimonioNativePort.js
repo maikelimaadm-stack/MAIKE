@@ -187,8 +187,6 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
   catalogoListPage: (recurso, filtros = {}) =>
     nativeRequest(montarCaminhoListagemCatalogo(recurso, filtros), { autenticado: true }, ctx('listPatrimonioCatalogoPage', recursoDoCatalogo(recurso))),
-  /** @param {string} recurso @param {string} id */
-  catalogoGet: (recurso, id) => nativeRequest(doCatalogo(recurso, id), { autenticado: true }, ctx('getPatrimonioCatalogo', recursoDoCatalogo(recurso), { id })),
   /** @param {string} recurso @param {Record<string, unknown>} corpo */
   catalogoCreate: (recurso, corpo) =>
     nativeRequest(caminhoDoCatalogo(recurso), { method: 'POST', body: corpo, autenticado: true }, ctx('createPatrimonioCatalogo', recursoDoCatalogo(recurso))),

@@ -26,15 +26,19 @@
  *
  * O instalador explícito `POST /patrimonio-catalogo-padrao` continua
  * (idempotente, administrador): cria só o que falta, por `codigo`, sob a trava
- * do catálogo (A9):
+ * do catálogo (A9), com as MESMAS regras da garantia para os tipos:
  *  - item existente com o MESMO código conta como "existente" só se tiver a
  *    mesma natureza (família) ou família (tipo) E estiver ativo; senão vai a
  *    `conflitos` com o motivo (`natureza_divergente`, `familia_divergente` ou
  *    `inativo`) e nada é alterado nele;
  *  - tipo cuja família está em conflito é pulado com `dependencia_em_conflito`;
- *  - NOME já usado por outro código (sem diferenciar maiúsculas; no tipo,
- *    dentro da família) é pré-checado antes do INSERT → `nome_em_uso`: um
- *    P2002 nunca aborta a transação.
+ *  - tipo padrão AUSENTE só é criado na família padrão criada NESTA chamada
+ *    (como na garantia): na família que já existia, a ausência é escolha do
+ *    usuário (excluiu o tipo) e ele NÃO volta — nem vira conflito;
+ *  - NOME já usado por outro código (sem diferenciar maiúsculas; na família,
+ *    pelo nome; no tipo, em TODO o tipo de bem — a natureza —, como
+ *    `exigirLivre` e a garantia) é pré-checado antes do INSERT →
+ *    `nome_em_uso`: um P2002 nunca aborta a transação.
  * Resposta: `{ criados, existentes, conflitos }` (contagens por recurso:
  * familias, tipos). A tela não o chama mais (D-PROD-163).
  *
@@ -64,6 +68,8 @@ export const FAMILIAS_PADRAO = Object.freeze([
 
 /** Natureza → código da família padrão (derivado de `FAMILIAS_PADRAO`). */
 export const FAMILIA_PADRAO_POR_NATUREZA = Object.freeze(Object.fromEntries(FAMILIAS_PADRAO.map((f) => [f.natureza, f.codigo])));
+/** Código da família padrão → natureza (o inverso). */
+const NATUREZA_DA_FAMILIA_PADRAO = Object.freeze(Object.fromEntries(FAMILIAS_PADRAO.map((f) => [f.codigo, f.natureza])));
 
 /** Tipos padrão: família por CÓDIGO. */
 export const TIPOS_PADRAO = Object.freeze([
@@ -226,6 +232,8 @@ export const instalarCatalogoPadrao = async (contexto) => {
 
       /** código → id das famílias utilizáveis pelos tipos */
       const familiasOk = new Map();
+      /** códigos das famílias padrão criadas NESTA chamada (só elas recebem tipos padrão ausentes) */
+      const criadasAgora = new Set();
       for (const f of FAMILIAS_PADRAO) {
         const atual = await tx.familiaPatrimonial.findFirst({ where: { cliente_id: cli, codigo: f.codigo }, select: { id: true, natureza: true, ativo: true } });
         if (atual) {
@@ -246,6 +254,7 @@ export const instalarCatalogoPadrao = async (contexto) => {
         });
         criados.familias += 1;
         familiasOk.set(f.codigo, r.id);
+        criadasAgora.add(f.codigo);
         eventos.push({ acao: 'create', entidade: ENTIDADE_FAMILIA, entidadeId: r.id, dadosNovos: auditoriaFamilia(r) });
       }
 
@@ -262,7 +271,9 @@ export const instalarCatalogoPadrao = async (contexto) => {
           conflito('tipos', t.codigo, 'dependencia_em_conflito');
           continue;
         }
-        if (await nomeEmUso(tx.tipoPatrimonial, t.nome, { familia_id: familiaId })) {
+        // Família padrão que já existia: tipo padrão ausente foi excluído pelo usuário e não volta (D-PROD-163).
+        if (!criadasAgora.has(t.familia)) continue;
+        if (await nomeEmUso(tx.tipoPatrimonial, t.nome, { familia: { natureza: NATUREZA_DA_FAMILIA_PADRAO[t.familia] } })) {
           conflito('tipos', t.codigo, 'nome_em_uso');
           continue;
         }

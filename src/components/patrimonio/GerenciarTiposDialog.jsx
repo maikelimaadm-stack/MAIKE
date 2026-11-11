@@ -30,6 +30,8 @@ const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 
 /** Raiz das consultas da lista de tipos (o cadastro rápido e a gravação invalidam por ela). */
 export const QUERY_CATALOGO = "patrimonio-catalogo";
+/** Raiz das consultas dos Bens (página da grade e detalhe: `BensPatrimoniaisTela`). */
+const QUERY_BENS = "bens-patrimoniais";
 
 const POR_PAGINA = 50;
 const ESPERA_BUSCA_MS = 300;
@@ -84,11 +86,13 @@ const textoDosBens = (r) => {
  * (`acoesDeCatalogoNoBem`):
  *  - "+ Novo tipo" (`criarCatalogo`): Tipo de bem + Nome, POST `{natureza, nome}`;
  *  - "Renomear" na própria linha (`editarCatalogo`): PATCH `{versao, nome}`;
+ *    Escape no campo cancela só a renomeação (o diálogo continua aberto);
  *  - "Excluir" (`excluirCatalogo`), com confirmação: DELETE com `versao`. Tipo
  *    em uso por algum bem → 409 `PATRIMONIO_TIPO_EM_USO`, e a linha mostra
  *    "Este tipo está em uso por N bem(ns)…";
  *  - "Reativar" um tipo antigo inativo (`inativarCatalogo`).
- * Conflito de versão relê a lista (nada foi gravado).
+ * Conflito de versão relê a lista (nada foi gravado). Renomear, reativar e
+ * excluir relêem também os Bens (grade e bem aberto mostram o nome do tipo).
  *
  * Responsivo sem rolagem horizontal: cada tipo é uma linha que quebra (nome e
  * dados à esquerda, ações abaixo no celular). No celular, as escolhas (filtro
@@ -146,9 +150,27 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
     return saida;
   }, [lista.data]);
 
-  const invalidar = () => {
+  /**
+   * Relê a lista de tipos e as opções do formulário. Renomear, reativar,
+   * excluir e o conflito (alguém mudou o tipo) relêem também os Bens
+   * (`QUERY_BENS`: a página da grade e o detalhe do bem aberto), que mostram o
+   * nome do tipo; criar não muda nenhum bem.
+   * @param {{ bens?: boolean }} [opcoes]
+   */
+  const invalidar = ({ bens = true } = {}) => {
     queryClient.invalidateQueries({ queryKey: [QUERY_CATALOGO] });
     queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_PATRIMONIO });
+    if (bens) queryClient.invalidateQueries({ queryKey: [QUERY_BENS] });
+  };
+
+  /**
+   * Descarta a renomeação (botão Cancelar e Escape). O Radix ouve o Escape no
+   * `document` antes do campo, por isso o Escape é tratado no `onEscapeKeyDown`
+   * do diálogo, que não fecha o diálogo enquanto há renomeação aberta.
+   */
+  const cancelarRenomear = () => {
+    setRenomeando(null);
+    setErroRenomear(null);
   };
 
   /** Erro comum: versão (relê), tipo que sumiu (relê) ou a mensagem do patrimônio. @param {unknown} erro @param {string} fallback */
@@ -173,7 +195,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
     try {
       await criarCatalogo(RECURSO, dados);
       notifySuccess("Sucesso", "Tipo criado");
-      invalidar();
+      invalidar({ bens: false });
       setNovo(false);
     } catch (erro) {
       tratarErro(erro, "Não foi possível criar o tipo.");
@@ -263,6 +285,15 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
       }}
     >
       <DialogContent
+        onEscapeKeyDown={(/** @type {KeyboardEvent} */ e) => {
+          // Folha do celular aberta: quem decide é o `onOpenChange` (fecha só a folha).
+          if (alvoFolha?.querySelector(".mk-sheet-root")) return;
+          // Renomeação aberta: o Escape cancela só ela; o diálogo fica.
+          if (renomeando) {
+            e.preventDefault();
+            cancelarRenomear();
+          }
+        }}
         data-permissao-explicita=""
         data-testid="gerenciar-tipos"
         className="max-h-[92vh] max-w-3xl overflow-y-auto max-sm:inset-0 max-sm:m-auto max-sm:h-fit max-sm:transform-none max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-0 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-0"
@@ -357,13 +388,6 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                               setRenomeando({ id, nome: e.target.value });
                               setErroRenomear(null);
                             }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Escape") {
-                                e.stopPropagation();
-                                setRenomeando(null);
-                                setErroRenomear(null);
-                              }
-                            }}
                             maxLength={120}
                             autoFocus
                             className="h-9 min-w-0 flex-[1_1_160px] rounded border border-[var(--mg-divider,#cbd5e1)] px-2 text-[13px] uppercase"
@@ -375,10 +399,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             <button
                               type="button"
                               className={BOTAO_LINHA}
-                              onClick={() => {
-                                setRenomeando(null);
-                                setErroRenomear(null);
-                              }}
+                              onClick={cancelarRenomear}
                               disabled={salvando}
                             >
                               Cancelar

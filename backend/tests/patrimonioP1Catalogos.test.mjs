@@ -11,9 +11,11 @@
  *  K1. Instalador explícito do catálogo padrão (6 famílias, 13 tipos):
  *      idempotente (2ª chamada cria 0), isolado por tenant, corrida instala uma
  *      vez, conflitos do A9 sem alterar nada e sem P2002 abortar; só
- *      administrador real ou `is_admin`.
- *  K2. Famílias: só leitura (lista keyset, filtros, busca literal, detalhe,
- *      404 cruzado sem oráculo); POST/PATCH/DELETE → 404.
+ *      administrador real ou `is_admin`. D-PROD-163: as regras de tipo da
+ *      garantia valem aqui — tipo padrão ausente só nasce na família padrão
+ *      criada na chamada (excluído não volta) e o nome é único no Tipo de bem.
+ *  K2. Famílias: nenhuma rota (D-PROD-163, achado de revisão): leitura,
+ *      opções e escrita → 404; a família só aparece dentro do tipo.
  *  K3. Tipos: família (compatibilidade) inexistente/inativa/de outro tenant
  *      recusada; `perfis` → 400; familia_id/código/natureza imutáveis; nome
  *      único no tipo de bem; corridas de nome; curingas literais.
@@ -27,7 +29,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { TELAS, TELAS_ANTIGAS, corpoErro, erro, http, linha, montarPatrimonio, prisma, tudo } from './patrimonioP1Cenario.mjs';
+import { TELAS, TELAS_ANTIGAS, erro, http, linha, montarPatrimonio, prisma, tudo } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -78,7 +80,7 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     assert.equal(await prisma().auditLog.count({ where: { cliente_id: a.c, acao: 'create' } }), 19, 'sem auditoria na 2ª');
 
     // Conteúdo do padrão.
-    const familias = porCodigo(await todos(a.token, '/patrimonio-familias'), (f) => [f.natureza, f.vida_util_meses_padrao]);
+    const familias = porCodigo(await prisma().familiaPatrimonial.findMany({ where: { cliente_id: a.c } }), (f) => [f.natureza, f.vida_util_meses_padrao]);
     assert.deepEqual(familias, {
       BENFEITORIAS: ['BENFEITORIA', 300], EQUIPAMENTOS: ['EQUIPAMENTO', 120], IMPLEMENTOS: ['IMPLEMENTO', 120], MAQUINAS: ['MAQUINA', 120], OUTROS: ['OUTRO', 120],
       VEICULOS: ['VEICULO', 60],
@@ -92,8 +94,8 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     // Perfis e combustíveis saíram do produto: as rotas não existem.
     for (const url of ['/patrimonio-perfis-medicao', '/patrimonio-combustiveis']) assert.equal((await req('GET', url, a.token)).statusCode, 404, url);
 
-    // Isolado por tenant: B não viu nada de A (a leitura de FAMÍLIAS não garante o catálogo) e instala o seu.
-    assert.equal((await ok(req('GET', '/patrimonio-familias', b.token))).total, 0);
+    // Isolado por tenant: B não tem nada de A e instala o seu.
+    assert.equal(await prisma().familiaPatrimonial.count({ where: { cliente_id: b.c } }), 0);
     assert.deepEqual((await ok(instalar(b.token))).criados, PADRAO);
     assert.equal(await prisma().familiaPatrimonial.count({ where: { cliente_id: a.c } }), 6);
     assert.equal(await prisma().familiaPatrimonial.count({ where: { cliente_id: b.c } }), 6);
@@ -142,25 +144,27 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
     assert.deepEqual(r2.existentes, { familias: 3, tipos: 3 });
   });
 
-  test('A9: nome já usado por TIPO (na mesma família) vira nome_em_uso; o resto instala; 200 sem P2002 abortar a transação', async () => {
+  test('A9 / D-PROD-163: família padrão que já existia é existente e NÃO recebe os tipos padrão ausentes; nome exato já usado no Tipo de bem vira nome_em_uso; 200 sem P2002', async () => {
     const s = await montarPatrimonio(app, { catalogo: false });
     const t = s.token;
-    // Família BENFEITORIAS correta (ativa, mesma natureza): conta como existente e os tipos dela são instalados nela.
+    // Família BENFEITORIAS correta (ativa, mesma natureza): conta como existente; a ausência dos tipos padrão nela é do usuário.
     const benf = await familiaNoBanco(s.c, { codigo: 'BENFEITORIAS', nome: 'Benfeitorias da fazenda', natureza: 'BENFEITORIA' });
-    // Nome EXATO do padrão: o unique [cliente_id, familia_id, nome] diferencia maiúsculas, então só o nome exato bateria em P2002.
     const meuGalpao = await tipoNoBanco(s.c, { familia_id: benf.id, codigo: 'MEU_GALPAO', nome: 'Galpão' });
+    // Nome EXATO de um tipo padrão em OUTRA família do mesmo Tipo de bem da família que o instalador vai criar (VEICULOS).
+    const frota = await familiaNoBanco(s.c, { codigo: 'FROTA', nome: 'Frota leve', natureza: 'VEICULO' });
+    await tipoNoBanco(s.c, { familia_id: frota.id, codigo: 'MINHA_CAMINHONETE', nome: 'Caminhonete' });
     const antes = JSON.stringify([
       await prisma().tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
       await prisma().familiaPatrimonial.findUnique({ where: { id: benf.id } }),
     ]);
 
     const r = await ok(instalar(t));
-    assert.deepEqual(conflitosOrdenados(r), ['tipos:GALPAO:nome_em_uso']);
-    assert.deepEqual(r.criados, { familias: 5, tipos: 12 });
+    assert.deepEqual(conflitosOrdenados(r), ['tipos:CAMINHONETE:nome_em_uso']);
+    assert.deepEqual(r.criados, { familias: 5, tipos: 6 }, 'MAQUINAS 2, VEICULOS 1 (CAMINHAO), IMPLEMENTOS 1, EQUIPAMENTOS 2; nada em BENFEITORIAS');
     assert.deepEqual(r.existentes, { familias: 1, tipos: 0 });
     const p = prisma();
-    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: 'GALPAO' } }), 0);
-    assert.equal((await p.tipoPatrimonial.findFirst({ where: { cliente_id: s.c, codigo: 'CURRAL' } }))?.familia_id, benf.id, 'tipos do padrão entram na família existente');
+    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, familia_id: benf.id } }), 1, 'tipos padrão não entram na família que já existia');
+    assert.equal(await p.tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: { in: ['GALPAO', 'CURRAL', 'CAMINHONETE'] } } }), 0);
     assert.equal(
       JSON.stringify([
         await p.tipoPatrimonial.findUnique({ where: { id: meuGalpao.id } }),
@@ -169,10 +173,52 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
       antes,
       'MEU_GALPAO e a família intactos',
     );
-    // Idempotente: a 2ª chamada repete os conflitos e não cria nada.
+    // Idempotente: a 2ª chamada não cria nada (as famílias já existem; nenhum conflito novo).
     const r2 = await ok(instalar(t));
-    assert.deepEqual(conflitosOrdenados(r2), conflitosOrdenados(r));
+    assert.deepEqual(conflitosOrdenados(r2), []);
     assert.deepEqual(r2.criados, ZERO);
+    assert.deepEqual(r2.existentes, { familias: 6, tipos: 6 });
+  });
+
+  test('D-PROD-163: o instalador não faz voltar tipo padrão excluído e não repete nome no mesmo Tipo de bem (família antiga de outra classificação)', async () => {
+    const s = await montarPatrimonio(app, { catalogo: false });
+    const t = s.token;
+    // (1) A 1ª leitura garante o catálogo (cria GALPAO e CURRAL na família padrão BENFEITORIAS).
+    const tiposAntes = await todos(t, '/patrimonio-tipos');
+    const galpao = tiposAntes.find((x) => x.codigo === 'GALPAO');
+    const curral = tiposAntes.find((x) => x.codigo === 'CURRAL');
+    // (2) O usuário exclui os dois.
+    assert.equal((await req('DELETE', `/patrimonio-tipos/${galpao.id}?versao=${galpao.versao}`, t)).statusCode, 204);
+    assert.equal((await req('DELETE', `/patrimonio-tipos/${curral.id}?versao=${curral.versao}`, t)).statusCode, 204);
+    // (3) Família antiga de benfeitoria, criada à mão na SIMPLIFICA-01, com um "Galpão" próprio.
+    const instalacoes = await familiaNoBanco(s.c, { codigo: 'INSTALACOES', nome: 'Instalações', natureza: 'BENFEITORIA' });
+    await tipoNoBanco(s.c, { familia_id: instalacoes.id, codigo: 'GALPAO_ANTIGO', nome: 'Galpão' });
+
+    // (4) O administrador chama o instalador: nada é recriado.
+    const r = await ok(instalar(t));
+    assert.deepEqual(r.criados, ZERO, 'nem GALPAO nem CURRAL voltam');
+    assert.deepEqual(r.existentes, { familias: 6, tipos: 11 });
+    assert.deepEqual(r.conflitos, [], 'tipo padrão excluído não é conflito: simplesmente não volta');
+    const benf = (await ok(req('GET', '/patrimonio-tipos?natureza=BENFEITORIA&limit=100', t))).items;
+    assert.deepEqual(benf.filter((x) => x.nome.toLowerCase() === 'galpão').map((x) => x.codigo), ['GALPAO_ANTIGO'], 'um só "Galpão" no Tipo de bem');
+    assert.equal(await prisma().tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: { in: ['GALPAO', 'CURRAL'] } } }), 0);
+  });
+
+  test('D-PROD-163: família padrão criada pelo instalador pula o tipo padrão cujo nome já existe em OUTRA família do mesmo Tipo de bem (nome_em_uso)', async () => {
+    const s = await montarPatrimonio(app, { catalogo: false });
+    // Sem nenhuma leitura antes (sem garantia): família antiga de benfeitoria com "galpão" (outra caixa).
+    const instalacoes = await familiaNoBanco(s.c, { codigo: 'INSTALACOES', nome: 'Instalações', natureza: 'BENFEITORIA' });
+    await tipoNoBanco(s.c, { familia_id: instalacoes.id, codigo: 'GALPAO_ANTIGO', nome: 'galpão' });
+    // Mesmo nome em OUTRO Tipo de bem não conflita.
+    const oficina = await familiaNoBanco(s.c, { codigo: 'OFICINA', nome: 'Oficina', natureza: 'EQUIPAMENTO' });
+    await tipoNoBanco(s.c, { familia_id: oficina.id, codigo: 'CURRAL_MOVEL', nome: 'Curral' });
+
+    const r = await ok(instalar(s.token));
+    assert.deepEqual(conflitosOrdenados(r), ['tipos:GALPAO:nome_em_uso']);
+    assert.deepEqual(r.criados, { familias: 6, tipos: 12 });
+    const benf = (await todos(s.token, '/patrimonio-tipos')).filter((x) => x.natureza === 'BENFEITORIA' && x.nome.toLowerCase() === 'galpão');
+    assert.deepEqual(benf.map((x) => x.codigo), ['GALPAO_ANTIGO']);
+    assert.equal(await prisma().tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: 'CURRAL' } }), 1, 'Curral de equipamento não impede o Curral de benfeitoria');
   });
 
   test('só administrador real ou is_admin; corpo fechado; sem sessão 401', async () => {
@@ -191,33 +237,20 @@ describe('K1 — catálogo padrão (instalador explícito)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('K2 — famílias (só leitura)', () => {
-  test('lista keyset, filtros, busca literal, detalhe, 404 cruzado sem oráculo; POST/PATCH/DELETE não existem (404) e nada muda', async () => {
+describe('K2 — famílias (sem rota: D-PROD-163)', () => {
+  test('nenhuma rota de família existe (leitura, opções nem escrita → 404) e nada muda; a família só aparece dentro do tipo', async () => {
     const s = await montarPatrimonio(app);
-    const outro = await montarPatrimonio(app);
     const t = s.token;
     const galpoes = await familiaNoBanco(s.c, { codigo: 'GALPOES_X', nome: 'Galpões e armazéns', natureza: 'BENFEITORIA', descricao: 'Antiga', ordem: 7, vida_util_meses_padrao: 240 });
-    const f = await ok(req('GET', `/patrimonio-familias/${galpoes.id}`, t));
-    assert.deepEqual(Object.keys(f).sort(), ['ativo', 'codigo', 'created_date', 'descricao', 'id', 'natureza', 'nome', 'ordem', 'updated_date', 'versao', 'vida_util_meses_padrao']);
-    assert.deepEqual([f.codigo, f.versao, f.ativo, f.ordem, f.vida_util_meses_padrao], ['GALPOES_X', 1, true, 7, 240]);
+    await tipoNoBanco(s.c, { familia_id: galpoes.id, codigo: 'ARMAZEM', nome: 'Armazém' });
 
-    // Listagem: keyset (createdAt desc), total sem o cursor, filtros e busca literal.
-    const p1 = await ok(req('GET', '/patrimonio-familias?limit=4', t));
-    assert.deepEqual([p1.total, p1.items.length, p1.has_more, p1.items[0].id], [7, 4, true, galpoes.id]);
-    const p2 = await ok(req('GET', `/patrimonio-familias?limit=4&cursor=${encodeURIComponent(p1.next_cursor)}`, t));
-    assert.deepEqual([p2.total, p2.items.length, p2.has_more], [7, 3, false]);
-    assert.equal(new Set([...p1.items, ...p2.items].map((i) => i.id)).size, 7);
-    assert.equal((await ok(req('GET', '/patrimonio-familias?natureza=BENFEITORIA', t))).total, 2);
-    assert.deepEqual((await ok(req('GET', '/patrimonio-familias?q=galp', t))).items.map((i) => i.id), [galpoes.id]);
-    assert.equal((await ok(req('GET', '/patrimonio-familias?q=%25', t))).total, 0, 'q=% é literal');
-    assert.deepEqual((await ok(req('GET', '/patrimonio-familias?q=_', t))).items.map((i) => i.id), [galpoes.id], 'q=_ é literal (só o código com sublinhado)');
-    assert.equal((await req('GET', '/patrimonio-familias?cursor=lixo', t)).statusCode, 400);
-    assert.equal((await req('GET', '/patrimonio-familias?natureza=FROTA', t)).statusCode, 400);
-    assert.equal((await ok(req('GET', '/patrimonio-familias?ativo=false', t))).total, 0);
-
-    // D-PROD-163: o cadastro de família saiu — nenhuma escrita por HTTP.
+    // D-PROD-163: o cadastro de família saiu e nenhuma tela lê família — nem leitura nem opções por HTTP.
     const antes = await prisma().familiaPatrimonial.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } });
     for (const [metodo, url, corpo] of [
+      ['GET', '/patrimonio-familias', undefined],
+      ['GET', '/patrimonio-familias?natureza=BENFEITORIA', undefined],
+      ['GET', `/patrimonio-familias/${galpoes.id}`, undefined],
+      ['GET', '/bens-patrimoniais-opcoes/familias', undefined],
       ['POST', '/patrimonio-familias', { codigo: 'NOVA', nome: 'Nova', natureza: 'OUTRO' }],
       ['PATCH', `/patrimonio-familias/${galpoes.id}`, { versao: 1, nome: 'Renomeada' }],
       ['PATCH', `/patrimonio-familias/${galpoes.id}`, { versao: 1, ativo: false }],
@@ -227,11 +260,9 @@ describe('K2 — famílias (só leitura)', () => {
     }
     assert.deepEqual(await prisma().familiaPatrimonial.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), antes, 'nada mudou');
 
-    // 404 cruzado sem oráculo: o corpo é o mesmo de um id inexistente.
-    const alheia = await req('GET', `/patrimonio-familias/${galpoes.id}`, outro.token);
-    const inexistente = await req('GET', `/patrimonio-familias/${INEXISTENTE}`, outro.token);
-    assert.deepEqual(erro(alheia).slice(0, 2), [404, 'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA']);
-    assert.deepEqual(corpoErro(alheia), corpoErro(inexistente));
+    // A família continua visível só como dado do tipo (Tipo de bem = natureza da família).
+    const armazem = (await todos(t, '/patrimonio-tipos')).find((x) => x.codigo === 'ARMAZEM');
+    assert.deepEqual([armazem.natureza, armazem.familia_id, armazem.familia.codigo], ['BENFEITORIA', galpoes.id, 'GALPOES_X']);
   });
 });
 
@@ -413,7 +444,7 @@ describe('K5 — permissões pelas ações de Bens e opções de seletor', () =>
     const patch = (conta, corpo) => req('PATCH', `/patrimonio-tipos/${id}`, conta.token, corpo);
     const versao = async () => (await prisma().tipoPatrimonial.findUnique({ where: { id } })).versao;
 
-    for (const url of ['/patrimonio-familias', `/patrimonio-familias/${s.fam.EQUIPAMENTOS}`, '/patrimonio-tipos', `/patrimonio-tipos/${id}`]) {
+    for (const url of ['/patrimonio-tipos', `/patrimonio-tipos/${id}`]) {
       assert.equal((await req('GET', url, soVer.token)).statusCode, 200, url);
     }
     assert.deepEqual(erro(await req('POST', '/patrimonio-tipos', soVer.token, { nome: 'Negado', natureza: 'OUTRO' })).slice(0, 2), [403, 'ACAO_NAO_PERMITIDA']);
@@ -427,13 +458,13 @@ describe('K5 — permissões pelas ações de Bens e opções de seletor', () =>
     assert.equal((await ok(patch(soEditar, { versao: 1, nome: 'Gerador a diesel' }))).versao, 2);
     assert.equal((await ok(patch(soInativar, { versao: 2, ativo: false }))).ativo, false);
     const antigas = await s.contaCom(...Object.values(TELAS_ANTIGAS).map(tudo));
-    for (const url of ['/patrimonio-familias', '/patrimonio-tipos', '/bens-patrimoniais-opcoes/familias', '/bens-patrimoniais-opcoes/tipos']) {
+    for (const url of ['/patrimonio-tipos', '/bens-patrimoniais-opcoes/tipos']) {
       assert.equal((await req('GET', url, antigas.token)).statusCode, 403, `telas antigas ${url}`);
       assert.equal((await req('GET', url, null)).statusCode, 401, url);
     }
     const desativado = await s.contaCom(tudo(bens));
     await prisma().usuario.update({ where: { id: desativado.id }, data: { ativo: false } });
-    assert.equal((await req('GET', '/patrimonio-familias', desativado.token)).statusCode, 401, 'sessão de conta desativada não vale');
+    assert.equal((await req('GET', '/patrimonio-tipos', desativado.token)).statusCode, 401, 'sessão de conta desativada não vale');
   });
 
   test('opções de catálogo: só Bens visualizar; só ativos (tipo de família inativa fora), ordem por nome, keyset, busca, formas fixas (tipo com natureza), filtros de família e natureza, empresa_id opcional, cursor adulterado 400', async () => {
@@ -444,31 +475,34 @@ describe('K5 — permissões pelas ações de Bens e opções de seletor', () =>
     const nomes = [];
     let cursor = null;
     do {
-      const r = await ok(req('GET', `/bens-patrimoniais-opcoes/familias?limit=2${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, t));
+      const r = await ok(req('GET', `/bens-patrimoniais-opcoes/tipos?natureza=BENFEITORIA&limit=2${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, t));
       for (const i of r.itens) {
-        assert.deepEqual(Object.keys(i).sort(), ['codigo', 'id', 'natureza', 'nome']);
+        assert.deepEqual(Object.keys(i).sort(), ['codigo', 'familia_id', 'id', 'natureza', 'nome']);
         nomes.push(i.nome);
       }
       cursor = r.next_cursor;
       assert.equal(r.has_more, cursor !== null);
     } while (cursor);
-    assert.deepEqual(nomes, ['Benfeitorias e instalações', 'Implementos', 'Máquinas', 'Outros', 'Veículos'], 'ordem por nome; inativa fora');
+    assert.deepEqual(nomes, ['Bebedouro fixo', 'Cerca de arame', 'Cerca elétrica', 'Curral', 'Galpão', 'Reservatório'], 'ordem por nome, keyset');
     const tipos = await ok(req('GET', `/bens-patrimoniais-opcoes/tipos?familia_id=${s.fam.BENFEITORIAS}&empresa_id=${s.e1.id}`, t));
     assert.equal(tipos.itens.length, 6);
     assert.deepEqual(tipos.itens.find((i) => i.codigo === 'CURRAL'), { id: s.tip.CURRAL, codigo: 'CURRAL', nome: 'Curral', familia_id: s.fam.BENFEITORIAS, natureza: 'BENFEITORIA' });
     assert.deepEqual((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?q=trator', t))).itens.map((i) => i.codigo), ['TRATOR_ESTEIRAS', 'TRATOR_PNEUS']);
     assert.deepEqual((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?natureza=VEICULO', t))).itens.map((i) => i.codigo).sort(), ['CAMINHAO', 'CAMINHONETE']);
     assert.deepEqual((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?natureza=EQUIPAMENTO', t))).itens, [], 'família inativa: tipos fora das opções');
-    assert.equal((await ok(req('GET', '/bens-patrimoniais-opcoes/familias?q=%25', t))).itens.length, 0, 'busca literal');
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias?cursor=bGl4bw', t)).statusCode, 400);
-    assert.equal((await req('GET', `/bens-patrimoniais-opcoes/familias?familia_id=${s.fam.MAQUINAS}`, t)).statusCode, 400, 'familia_id só em /tipos');
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias?limit=101', t)).statusCode, 400);
-    for (const url of ['/bens-patrimoniais-opcoes/desconhecido', '/bens-patrimoniais-opcoes/perfis-medicao', '/bens-patrimoniais-opcoes/combustiveis']) {
+    assert.equal((await ok(req('GET', '/bens-patrimoniais-opcoes/tipos?q=%25', t))).itens.length, 0, 'busca literal');
+    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/tipos?cursor=bGl4bw', t)).statusCode, 400);
+    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/tipos?limit=101', t)).statusCode, 400);
+    // D-PROD-163: famílias e áreas saíram do formulário do bem (sem rota).
+    for (const url of [
+      '/bens-patrimoniais-opcoes/desconhecido', '/bens-patrimoniais-opcoes/perfis-medicao', '/bens-patrimoniais-opcoes/combustiveis',
+      '/bens-patrimoniais-opcoes/familias', `/bens-patrimoniais-opcoes/areas?empresa_id=${s.e1.id}`,
+    ]) {
       assert.equal((await req('GET', url, t)).statusCode, 404, url);
     }
     // Só a tela de Abastecimentos (ou só as antigas) não lista o catálogo.
     const doAbastecimento = await s.contaCom(tudo(TELAS.abastecimentos));
-    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/familias', doAbastecimento.token)).statusCode, 403);
+    assert.equal((await req('GET', '/bens-patrimoniais-opcoes/tipos', doAbastecimento.token)).statusCode, 403);
     // O catálogo é do tenant: nada de outro tenant aparece.
     const outro = await montarPatrimonio(app);
     const doOutro = await ok(req('GET', '/bens-patrimoniais-opcoes/tipos', outro.token));

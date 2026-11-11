@@ -256,16 +256,15 @@ export const GUARDAS = Object.freeze({
   // extra `inativar`. Sem DELETE de bem; D-PROD-163: DELETE só de tipo sem uso.
   patrimonioBens: {
     ...patrimonio(T.PATRIMONIO_BENS),
-    // A3: opções de CATÁLOGO (famílias e tipos do formulário do bem).
+    // A3: opções de CATÁLOGO (os tipos do formulário do bem; D-PROD-163: famílias saíram).
     opcoesCatalogo: porTela(T.PATRIMONIO_BENS, 'visualizar'),
     // "Produtos aceitos" do tanque: quem cadastra OU edita bem; ver sozinho não lista produtos da fazenda.
     opcoesProdutos: porQualquer(...BENS_CRIAR_OU_EDITAR),
   },
   // D-PROD-162: famílias e tipos vivem no cadastro de Bens; quem cadastra OU edita bem cria tipo pelo "+".
   // Renomear/descrever = Bens editar|salvar; inativar/reativar = Bens `inativar` (`edicaoPatrimonio`).
-  // D-PROD-163: o cadastro de família saiu (só leitura); excluir tipo ("Gerenciar tipos") = Bens editar|salvar,
+  // D-PROD-163: família não tem mais rota (nem leitura); excluir tipo ("Gerenciar tipos") = Bens editar|salvar,
   // a mesma permissão de renomear.
-  patrimonioFamilias: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar') },
   patrimonioTipos: {
     ver: porTela(T.PATRIMONIO_BENS, 'visualizar'),
     criar: porQualquer(...BENS_CRIAR_OU_EDITAR),

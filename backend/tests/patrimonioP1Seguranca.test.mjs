@@ -114,7 +114,7 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         ['POST', '/bens-patrimoniais', corpoTrator(b, { empresa_id: empresa })],
         ['PATCH', `/bens-patrimoniais/${alvo.id}`, { empresa_id: empresa, versao: 1, nome: 'Invasão' }],
         ['POST', '/bens-patrimoniais-previa-depreciacao', { empresa_id: empresa, valor_aquisicao: '100.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 12, data_inicio_depreciacao: '2026-01-01' }],
-        ...['responsaveis', 'parceiros', 'centros-custo', 'areas', 'produtos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
+        ...['responsaveis', 'parceiros', 'centros-custo', 'produtos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
       ];
       const referencia = corpoErro(await req('GET', `/bens-patrimoniais?empresa_id=${INEXISTENTE}`, b.token));
       for (const [metodo, url, corpo] of rotas) {
@@ -123,10 +123,8 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         assert.deepEqual(corpoErro(r), referencia, `${metodo} ${url}: sem oráculo`);
       }
     }
-    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência.
-    for (const [base, id, codigo] of [
-      ['/patrimonio-familias', a.fam.MAQUINAS, 'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA'], ['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO'],
-    ]) {
+    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência (D-PROD-163: família não tem rota).
+    for (const [base, id, codigo] of [['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']]) {
       assert.deepEqual(erro(await req('GET', `${base}/${id}`, b.token)).slice(0, 2), [404, codigo], base);
       assert.deepEqual(corpoErro(await req('GET', `${base}/${id}`, b.token)), corpoErro(await req('GET', `${base}/${INEXISTENTE}`, b.token)), `${base}: sem oráculo`);
       assert.equal((await req('PATCH', `${base}/${id}`, b.token, { versao: 1, nome: 'Invasão' })).statusCode, 404, base);
@@ -259,8 +257,8 @@ describe('S3 — permissões por ação nos bens (A4)', () => {
     const previaCorpo = { empresa_id: e, valor_aquisicao: '100.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 12, data_inicio_depreciacao: '2026-01-01' };
     const leituras = [
       ['GET', `/bens-patrimoniais?empresa_id=${e}`], ['GET', `/bens-patrimoniais/${b.id}?empresa_id=${e}`], ['POST', '/bens-patrimoniais-previa-depreciacao', previaCorpo],
-      ...['responsaveis', 'parceiros', 'centros-custo', 'areas'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${e}`]),
-      ...['familias', 'tipos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}`]),
+      ...['responsaveis', 'parceiros', 'centros-custo'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${e}`]),
+      ['GET', '/bens-patrimoniais-opcoes/tipos'],
     ];
     const escritas = [['POST', '/bens-patrimoniais', corpoImplemento(s)], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, nome: 'X' }], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, ativo: false }]];
     const antes = await fotoPatrimonio(s.c);

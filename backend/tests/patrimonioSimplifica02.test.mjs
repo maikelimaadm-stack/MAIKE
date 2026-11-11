@@ -21,7 +21,8 @@
  *  C4. Bem sem `familia_id`: a família vem do tipo; natureza divergente → 422
  *      BEM_TIPO_NATUREZA_INCOMPATIVEL; tipo de família manual antiga continua
  *      utilizável; PATCH troca o tipo (e a família) sem `familia_id`.
- *  C5. Mutações de família saíram (POST/PATCH → 404); leitura continua.
+ *  C5. Rotas de família saíram (POST/PATCH e também a leitura e as opções →
+ *      404, nenhuma tela as lia); opções de área também (Área saiu do Bem).
  *  C6. Produto SACO aceito no tanque e abastecido em kg: baixa EXATA, sem
  *      conferir capacidade; L continua conferindo; unidade fora de L/KG/SACO
  *      continua recusada; KG ↔ SACO de Produto aceito em tanque é permitido.
@@ -368,10 +369,14 @@ describe('C4 — bem sem familia_id (a família vem do tipo)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C5 — cadastro de família saiu', () => {
-  test('POST/PATCH de família → 404 (com e sem sessão); leitura continua; nada gravado', async () => {
+  test('nenhuma rota de família (leitura, opções e escrita → 404, com e sem sessão) nem de opções de área; nada gravado', async () => {
     const s = await montarPatrimonio(app);
     const antes = await familias(s.c);
     for (const [metodo, url, corpo] of [
+      ['GET', '/patrimonio-familias', undefined],
+      ['GET', `/patrimonio-familias/${s.fam.MAQUINAS}`, undefined],
+      ['GET', '/bens-patrimoniais-opcoes/familias', undefined],
+      ['GET', `/bens-patrimoniais-opcoes/areas?empresa_id=${s.e1.id}`, undefined],
       ['POST', '/patrimonio-familias', { nome: 'Nova', natureza: 'OUTRO' }],
       ['PATCH', `/patrimonio-familias/${s.fam.MAQUINAS}`, { versao: 1, nome: 'Renomeada' }],
       ['PATCH', `/patrimonio-familias/${s.fam.MAQUINAS}`, { versao: 1, ativo: false }],
@@ -381,8 +386,6 @@ describe('C5 — cadastro de família saiu', () => {
       assert.equal((await req(metodo, url, null, corpo)).statusCode, 404, `${metodo} ${url} sem sessão`);
     }
     assert.deepEqual(await familias(s.c), antes);
-    assert.equal((await ok(req('GET', '/patrimonio-familias', s.token))).total, 6);
-    assert.equal((await ok(req('GET', `/patrimonio-familias/${s.fam.MAQUINAS}`, s.token))).codigo, 'MAQUINAS');
   });
 });
 

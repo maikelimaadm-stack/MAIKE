@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroRapidoSheet from "@/components/common/CadastroRapidoSheet";
@@ -193,6 +193,17 @@ export default function FormularioBem({
   useEffect(() => {
     if (produtoRecusado) setAba(ABAS_BEM.OPERACAO);
   }, [produtoRecusado]);
+
+  // Consulta (somente leitura): o formulário espelha o detalhe. Um detalhe relido
+  // sem versão nova do bem (ex.: o tipo dele renomeado em "⋯ › Gerenciar tipos",
+  // D-PROD-163) atualiza a tela sem remontar — a aba aberta continua. Na edição
+  // o digitado nunca é trocado.
+  const detalheMostrado = useRef(detalhe);
+  useEffect(() => {
+    if (!readOnly || !editando || detalhe === detalheMostrado.current) return;
+    detalheMostrado.current = detalhe;
+    setForm(estadoInicialDoBem(detalhe, { duplicar: false }));
+  }, [detalhe, readOnly, editando]);
 
   const natureza = ehNatureza(form.natureza) ? form.natureza : null;
   const cap = capacidadesDaNatureza(natureza);

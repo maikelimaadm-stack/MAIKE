@@ -738,7 +738,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('B7 — opções da fazenda', () => {
-  test('responsáveis (usuários ativos, só {id, nome}), parceiros, centros e áreas ativos da fazenda; empresa obrigatória e do tenant; keyset e busca', async () => {
+  test('responsáveis (usuários ativos, só {id, nome}), parceiros e centros ativos da fazenda; empresa obrigatória e do tenant; keyset e busca; áreas sem rota (D-PROD-163)', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
     const inativo = await s.conta(null, { ativo: false });
@@ -761,9 +761,9 @@ describe('B7 — opções da fazenda', () => {
     assert.deepEqual((await opcoes('parceiros')).itens, [{ id: s.parceiro1.id, nome: 'Agropecuária Parceira' }], 'só ativos desta fazenda');
     assert.deepEqual((await opcoes('parceiros', '', s.e2.id)).itens, [{ id: s.parceiro2.id, nome: 'Parceiro da Fazenda 2' }]);
     assert.deepEqual((await opcoes('centros-custo')).itens, [{ id: s.centro1.id, numero: s.centro1.numero, nome: 'Máquinas e frota' }]);
-    assert.deepEqual((await opcoes('areas')).itens, [{ id: s.area1.id, nome: 'Retiro' }]);
-    assert.deepEqual((await opcoes('areas', '&q=sede')).itens, []);
-    for (const recurso of ['responsaveis', 'parceiros', 'centros-custo', 'areas']) {
+    // D-PROD-163: a Área saiu do cadastro do Bem — o seletor não existe mais.
+    assert.equal((await req('GET', `/bens-patrimoniais-opcoes/areas?empresa_id=${s.e1.id}`, s.token)).statusCode, 404);
+    for (const recurso of ['responsaveis', 'parceiros', 'centros-custo']) {
       assert.equal((await req('GET', `/bens-patrimoniais-opcoes/${recurso}`, s.token)).statusCode, 400, `${recurso} sem empresa`);
       assert.deepEqual(erro(await req('GET', `/bens-patrimoniais-opcoes/${recurso}?empresa_id=${outro.e1.id}`, s.token)).slice(0, 2), [404, 'EMPRESA_NOT_FOUND'], recurso);
       assert.equal((await req('GET', `/bens-patrimoniais-opcoes/${recurso}?empresa_id=${s.e1.id}&familia_id=${s.fam.MAQUINAS}`, s.token)).statusCode, 400, `${recurso} com familia_id`);

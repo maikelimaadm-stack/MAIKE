@@ -20,7 +20,6 @@
 
 import {
   listPatrimonioCatalogoPage,
-  getPatrimonioCatalogo,
   createPatrimonioCatalogo,
   updatePatrimonioCatalogo,
   deletePatrimonioCatalogo,
@@ -76,9 +75,6 @@ export const listarCatalogoPagina = (recurso, opts = {}) =>
     ativo: opts.ativo,
     natureza: opts.natureza || undefined,
   });
-
-/** @param {string} recurso @param {string} id */
-export const detalharCatalogo = (recurso, id) => getPatrimonioCatalogo(recurso, id);
 
 /**
  * Criação: só os campos do catálogo, sem vazios (o servidor aplica os padrões).

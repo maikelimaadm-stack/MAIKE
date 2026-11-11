@@ -6018,7 +6018,8 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
      - Tipos novos vão para a família padrão da natureza.
      - Tipos de famílias antigas criadas à mão continuam valendo, sob a natureza delas.
      - O Bem deixa de enviar `familia_id`: o backend deriva a família do tipo e exige a mesma natureza.
-     - As rotas de criar e editar família saem.
+     - As rotas de criar e editar família saem. Como nenhuma tela lê família, a leitura (`GET /patrimonio-familias` e `/:id`) e as opções de famílias também saem; com a Área fora do Bem, as opções de áreas (`/bens-patrimoniais-opcoes/areas`) saem junto. Essas rotas respondem 404, e a família aparece só dentro do tipo.
+     - O instalador `POST /patrimonio-catalogo-padrao`, que continua para o administrador, segue as mesmas regras da garantia: o tipo padrão que falta só é criado na família padrão criada naquela chamada, e o nome do tipo é único dentro do Tipo de bem.
   5. **Excluir tipo.** Um tipo sem nenhum bem é excluído de verdade, com auditoria. Um tipo em uso recebe 409 `PATRIMONIO_TIPO_EM_USO` com a contagem de bens.
 - **Sem migration:** nada muda no schema. A release é o merge seguido do deploy.
 - **Supera em parte a D-PROD-162** em quatro pontos:

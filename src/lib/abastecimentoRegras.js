@@ -68,7 +68,8 @@ export const ehUnidadeDeAbastecimento = (u) => typeof u === 'string' && UNIDADES
  * estoque): `L` → `L`; `KG` e `SACO` → `KG`; outra → null.
  * @param {unknown} u @returns {'L'|'KG'|null}
  */
-export const unidadeDoAbastecimentoDoProduto = (u) => (u === 'L' ? 'L' : u === 'KG' || u === 'SACO' ? 'KG' : null);
+export const unidadeDoAbastecimentoDoProduto = (u) =>
+  typeof u === 'string' && UNIDADES_PRODUTO_ABASTECIMENTO.includes(u) ? (u === 'L' ? 'L' : 'KG') : null;
 /** "L" / "kg" (SACO → "kg"; '' quando a unidade não é de abastecimento). @param {unknown} u */
 export const rotuloDaUnidade = (u) => {
   const efetiva = unidadeDoAbastecimentoDoProduto(u);

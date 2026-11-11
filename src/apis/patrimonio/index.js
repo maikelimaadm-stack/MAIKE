@@ -2,7 +2,6 @@ export {
   RECURSOS_OPCOES_PATRIMONIO,
   RECURSOS_OPCOES_DA_EMPRESA,
   listPatrimonioCatalogoPage,
-  getPatrimonioCatalogo,
   createPatrimonioCatalogo,
   updatePatrimonioCatalogo,
   deletePatrimonioCatalogo,
