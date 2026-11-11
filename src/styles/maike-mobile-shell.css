@@ -1438,8 +1438,8 @@
  * Botões dos formulários de lançamento no padrão Base1 (pílula): o principal
  * verde #40de63 com texto branco, os secundários brancos (D-PROD-147).
  */
-form:has(.mk-lanc) button[class*="bg-emerald-6"],
-form:has(.mk-lanc) button[class*="bg-green-6"] {
+form[data-mk-lanc] button[class*="bg-emerald-6"],
+form[data-mk-lanc] button[class*="bg-green-6"] {
   height: var(--mg-btn-h, 28px) !important;
   padding: 0 14px !important;
   border: 1px solid transparent !important;
@@ -1451,12 +1451,12 @@ form:has(.mk-lanc) button[class*="bg-green-6"] {
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
 }
 
-form:has(.mk-lanc) button[class*="bg-emerald-6"]:hover:not(:disabled),
-form:has(.mk-lanc) button[class*="bg-green-6"]:hover:not(:disabled) {
+form[data-mk-lanc] button[class*="bg-emerald-6"]:hover:not(:disabled),
+form[data-mk-lanc] button[class*="bg-green-6"]:hover:not(:disabled) {
   background: #36c956 !important;
 }
 
-form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]):not([class*="border-dashed"]) {
+form[data-mk-lanc] button[class*="border-input"]:not([role="combobox"]):not([class*="border-dashed"]) {
   height: var(--mg-btn-h, 28px) !important;
   padding: 0 14px !important;
   border: 1px solid transparent !important;
@@ -1468,18 +1468,18 @@ form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]):not([cla
   box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1)) !important;
 }
 
-form:has(.mk-lanc) button[class*="border-dashed"] {
+form[data-mk-lanc] button[class*="border-dashed"] {
   border-radius: 999px !important;
 }
 
 @media (max-width: 639px) {
-  form:has(.mk-lanc) {
+  form[data-mk-lanc] {
     --mg-btn-h: 44px;
   }
 
-  form:has(.mk-lanc) button[class*="bg-emerald-6"],
-  form:has(.mk-lanc) button[class*="bg-green-6"],
-  form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]) {
+  form[data-mk-lanc] button[class*="bg-emerald-6"],
+  form[data-mk-lanc] button[class*="bg-green-6"],
+  form[data-mk-lanc] button[class*="border-input"]:not([role="combobox"]) {
     font-size: 14px !important;
   }
 }

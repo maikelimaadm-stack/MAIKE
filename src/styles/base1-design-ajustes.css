@@ -26,19 +26,20 @@
 
 /* Cabeçalho: no design o seletor da fazenda ocupa a largura toda do seu espaço (w-full da versão do componente usada
    lá), o que o deixa mais largo e aproxima os botões de ícone ao lado. */
-body:has(.cadastro-b1--full-page) header.mk-topnav-header button[role="combobox"] {
+body.b1-tela header.mk-topnav-header button[role="combobox"] {
   width: 100%;
 }
 
 /* Com a faixa de filtros rápidos, "Limpar filtros" fica na faixa (como no design); o atalho escondido da barra
-   não ocupa lugar (senão sobra um espaço entre o funil e a lupa). */
-.cadastro-b1 .mg-shell:has(.b1-fr) .mg-toolbar__btns > .mg-fluid-slot:not(#mk-a) {
+   não ocupa lugar (senão sobra um espaço entre o funil e a lupa). `data-b1-faixa` (posto pela faixa) e não
+   `:has(.b1-fr)`: o `:has()` recalculava o estilo da lista inteira a cada mudança dentro dela (D-PROD-165). */
+.cadastro-b1 .mg-shell[data-b1-faixa] .mg-toolbar__btns > .mg-fluid-slot:not(#mk-a) {
   display: none;
 }
 
 /* Trilho lateral (tablet) e barra inferior (celular): no sistema os itens são links (<a>), no design botões; o texto
    e o ícone ficam centralizados como num botão. */
-body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
+body.b1-tela :is(.mk-rail__item, .mk-tabbar__item) {
   text-align: center;
 }
 
@@ -80,19 +81,21 @@ body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
 }
 
 /* Lista "por página" (100, 200…): no design a lista de opções tem canto de 10px (estilo na própria marcação). */
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
+body.b1-tela .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
   border-radius: 10px;
 }
 
 /* Confirmar exclusão: no design o fundo escuro e a caixa aparecem e somem sem esmaecer (a marcação do design não tem o
-   animate-in/animate-out do Radix); o movimento do design não alcança esse diálogo (6.32, D-PROD-164). */
-body:has(.cadastro-b1--full-page) :is([role="dialog"]:has(> .mg-confirm-dialog), div:has(+ [role="dialog"] > .mg-confirm-dialog)):not(#mk-a) {
+   animate-in/animate-out do Radix); o movimento do design não alcança esse diálogo (6.32, D-PROD-164).
+   Por classe, não por `:has()`: `div:has(+ [role="dialog"] > …)` valia para todo `div` e, a cada janela que abria ou
+   fechava no <body>, fazia o Chrome recalcular o estilo da página inteira (D-PROD-165). */
+body.b1-tela :is(.mg-confirm-dialog__fundo, .mg-confirm-dialog__camada):not(#mk-a) {
   animation: none !important;
 }
 
 /* ‹ › do registro: entram deslizando só quando o registro abre. Aqui trocar de registro remonta o formulário (no design,
    não); a navegação de um registro para o outro fica parada, como no design (D-PROD-164). */
-body:has(.cadastro-b1--full-page) .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
+body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
   animation: none;
 }
 

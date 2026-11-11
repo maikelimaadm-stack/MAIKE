@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, us
 import { createPortal } from "react-dom";
 import { ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
+import { focoFicaOndeEsta, trocaJanela } from "./janelaUnica";
 import { casaNoFiltroColuna, operadoresParaTipo, tipoFiltroDaColuna } from "./cadastroColunaFiltroLogic";
 import { cn } from "@/lib/utils";
 import { nomesDaContagem, textoDoTotal } from "./contagemBase1";
@@ -161,6 +162,7 @@ function JanelaDaFaixa({ open, onOpenChange, trigger, rotulo, children }) {
             e.preventDefault();
             if (alvo instanceof HTMLElement) alvo.focus();
           }}
+          onCloseAutoFocus={focoFicaOndeEsta}
         >
           {children}
         </Popover.Content>
@@ -496,6 +498,14 @@ export default function FiltrosRapidos({
 }) {
   const slot = useContext(FiltrosRapidosSlotContext);
   const nomes = useContext(ContagemNomesContext);
+  // Com a faixa na página, a casca da lista ganha `data-b1-faixa` (o CSS usava `.mg-shell:has(.b1-fr)`, que fazia o
+  // Chrome recalcular o estilo da lista inteira a cada mudança dentro dela — D-PROD-165).
+  useLayoutEffect(() => {
+    const casca = slot?.closest(".mg-shell");
+    if (!casca) return undefined;
+    casca.setAttribute("data-b1-faixa", "");
+    return () => casca.removeAttribute("data-b1-faixa");
+  }, [slot]);
   // Celular (D-PROD-163): sem a faixa de pílulas — fica só o resumo; os filtros abrem pelo funil da barra.
   const celular = useCelular();
   const chipsRef = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -683,7 +693,7 @@ export default function FiltrosRapidos({
       <span key={id} className={cn("b1-fr-chip", ativo && "is-on", aberta && "is-open")}>
         <JanelaDaFaixa
           open={aberta}
-          onOpenChange={(o) => setAberto(o ? id : null)}
+          onOpenChange={(o) => setAberto((a) => trocaJanela(a, id, o))}
           rotulo={rotulo || id}
           trigger={
             <button type="button" className="b1-fr-chip__btn" aria-haspopup="dialog" aria-expanded={aberta}>
@@ -891,7 +901,7 @@ export default function FiltrosRapidos({
             <span className={cn("b1-fr-chip b1-fr-chip--ordem", ordemAberta && "is-open")}>
               <JanelaDaFaixa
                 open={ordemAberta}
-                onOpenChange={(o) => setAberto(o ? "#ordem" : null)}
+                onOpenChange={(o) => setAberto((a) => trocaJanela(a, "#ordem", o))}
                 rotulo="Ordenar"
                 trigger={
                   <button type="button" className="b1-fr-chip__btn" aria-haspopup="dialog" aria-expanded={ordemAberta} aria-label="Ordenar" title="Ordenar">
@@ -938,7 +948,8 @@ export default function FiltrosRapidos({
         <JanelaDaFaixa
           open={maisAberto}
           onOpenChange={(o) => {
-            setAberto(o ? "#mais" : null);
+            if (!o && !maisAberto) return; // fechamento atrasado de outra janela da faixa (ver `trocaJanela`)
+            setAberto((a) => trocaJanela(a, "#mais", o));
             setBuscaCampo("");
           }}
           rotulo="Filtros rápidos"

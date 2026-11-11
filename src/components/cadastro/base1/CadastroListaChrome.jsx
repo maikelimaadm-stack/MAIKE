@@ -40,6 +40,7 @@ import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
 import { nomesDaContagem, textoDaSelecao, textoDoTotal } from "@/components/cadastro/base1/contagemBase1";
 import { ContagemNomesContext, FiltrosRapidosSlotContext } from "./FiltrosRapidos";
 import { NavegacaoDoRegistro, RegistroNavContext, temNavegacao } from "./registroNavBase1";
+import { trocaJanela } from "./janelaUnica";
 import { cn } from "@/lib/utils";
 
 /**
@@ -338,9 +339,9 @@ export default function CadastroListaChrome({
     cardsToolbar && viewMode === "cards" && React.isValidElement(cardsToolbar)
       ? React.cloneElement(cardsToolbar, {
           layoutOpen: cardsPanel === "layout",
-          onLayoutOpenChange: (o) => setCardsPanel(o ? "layout" : null),
+          onLayoutOpenChange: (o) => setCardsPanel((p) => trocaJanela(p, "layout", o)),
           fieldsOpen: cardsPanel === "fields",
-          onFieldsOpenChange: (o) => setCardsPanel(o ? "fields" : null),
+          onFieldsOpenChange: (o) => setCardsPanel((p) => trocaJanela(p, "fields", o)),
         })
       : null;
 

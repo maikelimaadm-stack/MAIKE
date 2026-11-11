@@ -4,6 +4,7 @@ import { Check, Loader2, X } from "lucide-react";
 import MobileSheet, { useMediaQuery } from "@/components/common/MobileSheet";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { useMovimentoBase1 } from "@/components/cadastro/base1/movimentoBase1";
+import { useCascoBase1 } from "@/components/cadastro/base1/telaBase1";
 
 /**
  * Cadastro rápido aberto pelo + de uma lista de seleção (D-PROD-95): o
@@ -29,6 +30,7 @@ export default function CadastroRapidoSheet({ open, onClose, title, formId, savi
   const desktop = useMediaQuery("(min-width: 1024px)");
   // O formulário aberto aqui é uma tela Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-164).
   useMovimentoBase1(open);
+  const casco = useCascoBase1();
 
   if (desktop) {
     return (
@@ -55,7 +57,7 @@ export default function CadastroRapidoSheet({ open, onClose, title, formId, savi
               </div>
             </div>
             <div className="mk-crd__body">
-              <div className="mk-cr__corpo cadastro-b1 cadastro-b1--full-page">{children}</div>
+              <div ref={casco} className="mk-cr__corpo cadastro-b1 cadastro-b1--full-page">{children}</div>
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
@@ -84,7 +86,7 @@ export default function CadastroRapidoSheet({ open, onClose, title, formId, savi
         </button>
       }
     >
-      <div className="mk-cr__corpo cadastro-b1 cadastro-b1--full-page">{children}</div>
+      <div ref={casco} className="mk-cr__corpo cadastro-b1 cadastro-b1--full-page">{children}</div>
     </MobileSheet>
   );
 }

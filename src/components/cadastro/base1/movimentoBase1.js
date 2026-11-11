@@ -12,7 +12,7 @@ import React from "react";
  * - Com "reduzir movimento" do sistema, nada disso acontece.
  *
  * Fica ligado só enquanto uma tela Base1 está aberta (mesma condição do CSS:
- * `body:has(.cadastro-b1--full-page)`): o Mapa Geral não muda. Sem `Element.animate` (jsdom), não liga.
+ * `body.b1-tela`, ligada por `useCascoBase1`): o Mapa Geral não muda. Sem `Element.animate` (jsdom), não liga.
  *
  * Tradução do protótipo para o app: a raiz do protótipo (`.mkx-root`) é o `document.body`, onde os portais
  * montam as janelas; `.mkx-popper` é o invólucro do Radix (`[data-radix-popper-content-wrapper]`); não há

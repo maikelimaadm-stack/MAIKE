@@ -97,6 +97,38 @@ Arquivo completo: `docs/engineering/evidencias/base1-design-d163/movimento-RESUM
 - Todas as telas do motor: campos no desenho do design; registro sem abas sem a faixa de cabeçalho (‹ › numa linha acima); chave "Ativo" em caixa; títulos de seção sem caixa alta.
 - Com tela Base1 aberta: janelas abrem e fecham com o movimento do design; o painel da aba não esmaece mais ao abrir, criar ou trocar de registro (só ao trocar de aba); "Confirmar exclusão" aparece e some sem esmaecer; no celular, o ✕ e o toque fora fecham a folha na hora e a cópia faz a descida (arrastar para fechar continua igual).
 
+## Revisão do proprietário: trocar de lista e lentidão (D-PROD-165)
+
+**Trocar de lista.** Reproduzido no navegador com o backend de teste, abrindo uma lista e clicando no botão de outra (mouse real):
+
+| Onde | `main` | antes | agora |
+|---|---|---|---|
+| Campos do formulário de Lotes (Setor, Área, Categoria, Sexo, Sistema produtivo) | 8/8 falham | 12/12 falham | 12/12 abrem |
+| Pílulas da faixa (Ordenar, filtros, "+ Filtro") | — | 12/16 falham | 16/16 abrem |
+| Menus de coluna | 10/10 falham | 10/10 falham | 10/10 abrem |
+| Entre grupos (pílula ↔ coluna ↔ Mais opções ↔ por página), Lotes/Parceiros/Produtos | — | — | 132/132 abrem |
+
+Causas: (1) a janela que fechava puxava o foco de volta para o próprio botão/campo, e a janela nova, sem o foco, fechava; (2) nos grupos com uma janela por vez, o "clique fora" confirmado depois do clique apagava a janela nova. Esc e Enter num item continuam devolvendo o foco ao botão/campo.
+
+**Lentidão.** Medida com 3.000 lotes, `main` × branch, pelo Chrome (`Performance.getMetrics`, trace com rastreio de invalidação de estilo e estatística por seletor). O custo estava no recálculo de estilo: a cada passo de rolagem o Chrome marcava todos os ancestrais da tabela como "afetados por `:has()`" e recalculava ~4.300 elementos. Achado por bisseção (removendo regras do CSS carregado e medindo de novo):
+
+| Regra | Origem | Troca |
+|---|---|---|
+| `body:has(.cadastro-b1--full-page) …` (316 regras) | design (D-PROD-164) | `body.b1-tela …` |
+| `form:has(.mk-lanc) …` | `main` (D-PROD-147) | `form[data-mk-lanc] …` |
+| `div:has(+ [role="dialog"] > .mg-confirm-dialog)` | ajustes (D-PROD-164) | classes no fundo e na camada do `ConfirmDialog` |
+| `.mg-shell:has(.b1-fr) …` | ajustes (D-PROD-164) | `.mg-shell[data-b1-faixa] …` |
+
+As duas primeiras, cada uma sozinha, já faziam a página inteira recalcular ao rolar; a terceira, ao abrir e fechar qualquer janela (o `#root` virava candidato do `:has()` de irmão).
+
+| Ação (estilo recalculado) | `main` | antes | agora |
+|---|---|---|---|
+| Rolar a lista, 40 passos | 1.812 ms, 72 quadros travados | ~2.070 ms, 67 travados | 340 ms, 13 travados |
+| Rolar a lista, 25 passos (trace) | 1.071 ms | ~1.300 ms (maior: 4.415 elementos) | 220 ms (maior: 378) |
+| Abrir e fechar o menu de coluna 3× | 32 ms | 293 ms (6 recálculos da página inteira) | 119 ms (nenhum; maior: 137 elementos) |
+
+O resto do custo de abrir janela é o movimento do design (a janela nascendo do botão), que roda só durante a animação. O desenho não mudou: 44 estados (Lotes, Parceiros, Produtos, Empresa × lista, pílula aberta, menu de coluna, novo, registro, excluir; desktop e celular) comparados pixel a pixel antes × depois, todos iguais.
+
 ## Verificação
 
 - Navegador real: medição acima (`paridade-*.png` = design | sistema | diferenças em vermelho; `design-*`/`app-*` = capturas).

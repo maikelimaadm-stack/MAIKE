@@ -14,6 +14,7 @@ import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBas
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
+import { focoFicaOndeEsta, trocaJanela } from "@/components/cadastro/base1/janelaUnica";
 import {
   clampColumnPrefsToVisible,
   loadCadastroBase1ColumnPrefs,
@@ -558,7 +559,9 @@ export default function CadastroBase1Grade({
         key={colunaId}
         open={menuFiltroAberto === colunaId}
         onOpenChange={(open) => {
-          setMenuFiltroAberto(open ? colunaId : null);
+          // Fechar só vale para a janela aberta: o "clique fora" da anterior chega depois que esta abriu.
+          if (!open && menuFiltroAberto !== colunaId) return;
+          setMenuFiltroAberto((m) => trocaJanela(m, colunaId, open));
           setBuscaFiltroMenu("");
           setFiltroTemp(
             open ? { colunaId, valores: [...(filtrosColunas[colunaId] || [])] } : { colunaId: null, valores: [] },
@@ -573,6 +576,7 @@ export default function CadastroBase1Grade({
           align="end"
           side="bottom"
           sideOffset={4}
+          onCloseAutoFocus={focoFicaOndeEsta}
           className="cadastro-b1 w-[310px] p-0 z-[9999] rounded-[10px] border border-[var(--mg-divider)] bg-[var(--mg-bg-card)] shadow-md"
         >
           <div className="mg-b1-col-filter-menu">

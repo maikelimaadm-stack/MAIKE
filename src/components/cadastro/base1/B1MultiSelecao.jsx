@@ -1,6 +1,7 @@
 import React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown } from "lucide-react";
+import { focoFicaOndeEsta } from "./janelaUnica";
 
 /**
  * Campo de marcar vários do motor Base1 (D-PROD-163): no lugar das pílulas, o
@@ -33,6 +34,8 @@ export default function B1MultiSelecao({
 }) {
   const [open, setOpen] = React.useState(false);
   const wrapperRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  // Fechou porque o usuário foi para outro lugar (clique ou foco fora): o foco fica onde ele foi.
+  const saiuParaFora = React.useRef(false);
   const campo = React.useCallback(() => wrapperRef.current?.closest(".mg-field") ?? wrapperRef.current, []);
   const ancoraRef = React.useMemo(
     () => ({ current: { getBoundingClientRect: () => (campo() ?? document.body).getBoundingClientRect() } }),
@@ -45,6 +48,7 @@ export default function B1MultiSelecao({
     const el = wrapperRef.current?.closest(".mg-field");
     if (!el) return undefined;
     el.classList.toggle("is-open", open);
+    if (open) saiuParaFora.current = false;
     return () => el.classList.remove("is-open");
   }, [open]);
 
@@ -100,8 +104,15 @@ export default function B1MultiSelecao({
             // Clique no próprio campo: quem abre e fecha é o campo.
             const el = campo();
             if (el && e.target instanceof Node && el.contains(e.target)) e.preventDefault();
+            else saiuParaFora.current = true;
           }}
           onCloseAutoFocus={(e) => {
+            // Fechou por clique/foco em outro lugar (ex.: outra lista): o foco fica lá, senão a outra lista fechava.
+            if (saiuParaFora.current || focoFicaOndeEsta(e)) {
+              saiuParaFora.current = false;
+              e.preventDefault();
+              return;
+            }
             const alvo = wrapperRef.current?.querySelector("input");
             if (alvo) {
               e.preventDefault();

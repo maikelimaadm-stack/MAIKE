@@ -3,11 +3,11 @@
  * (as variáveis de .mkx-root, com a paleta quente). Valem só quando uma tela Base1 está aberta; o Mapa Geral não muda.
  * Vêm ANTES de base1-design.css (as propostas do design podem redefinir alguns). Tokens de fonte ficam de fora.
  */
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-safe-top: env(safe-area-inset-top, 0px);
   --mk-ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-sw-w: 60px;
   --mk-sw-h: 28px;
   --mk-sw-g: 2px;
@@ -23,7 +23,7 @@ body:has(.cadastro-b1--full-page) {
   --mk-sw-tempo: 0.42s;
 }
 @supports (transition-timing-function: linear(0, 1)) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-sw-mola: linear(
       0,
       0.22 6%,
@@ -40,12 +40,12 @@ body:has(.cadastro-b1--full-page) {
     --mk-sw-tempo: 0.5s;
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-sw-vidro-escala: 1.38;
   --mk-sw-vidro-tempo: 0.55s;
 }
 @media (min-width: 1024px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-sw-w: 36px;
     --mk-sw-h: 20px;
     --mk-sw-g: 2px;
@@ -57,7 +57,7 @@ body:has(.cadastro-b1--full-page) {
     --mk-sw-tempo: 0.2s;
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-sup-fundo: #f9f9f7;
   --mk-sup-cartao: #ffffff;
   --mk-sup-borda: #eeede9;
@@ -69,53 +69,53 @@ body:has(.cadastro-b1--full-page) {
   --mk-btn-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
   --mk-chip-bg: var(--mk-sup-fundo, #f9f9f7);
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-search-height: 36px;
   --mk-filter-row-height: 36px;
 }
 @media (max-width: 639px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-search-height: 44px;
     --mk-filter-row-height: 44px;
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-toggle-w: 49.5px;
   --mk-toggle-h: 22px;
 }
 @media (min-width: 1024px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-toggle-w: 45px;
     --mk-toggle-h: 20px;
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-list-divider: #eeede9;
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-list-row-height: 40px;
 }
 @media (min-width: 1024px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-list-row-height: 36px;
   }
 }
 @media (max-width: 639px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-filter-row-height: 40px;
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-sup-raio: 12px;
   --mk-cartao-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
 }
 @media (min-width: 1024px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-cartao-sombra:
       0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
   }
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-action-height: 32px;
   --mk-action-height-touch: 40px;
   --mk-action-icon: 14px;
@@ -146,13 +146,13 @@ body:has(.cadastro-b1--full-page) {
   --mk-glass-bg: var(--mk-sup-fundo, #f9f9f7);
   --mk-glass-border: rgba(255, 255, 255, 0.8);
 }
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mk-btn-bg: #ffffff;
   --mk-btn-hover: var(--mk-sup-fundo, #f9f9f7);
   --mk-btn-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
 }
 @media (max-width: 1023px) {
-  body:has(.cadastro-b1--full-page) {
+  body.b1-tela {
     --mk-action-height: var(--mk-action-height-touch);
     --mk-action-icon: var(--mk-action-icon-touch);
     --mk-action-font: 14px;
@@ -163,7 +163,7 @@ body:has(.cadastro-b1--full-page) {
 
 /* Cores frias literais do CSS do sistema viram var(--mkq-<hex>, <hex>) (a própria cor como reserva); com tela Base1
    aberta a variável recebe o neutro quente do design. Fora disso (Mapa Geral etc.) nada muda. */
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mkq-0f172a: #141413;
   --mkq-1e293b: #262624;
   --mkq-1f2937: #262624;
@@ -191,7 +191,7 @@ body:has(.cadastro-b1--full-page) {
 
 /* Tailwind (tailwind.config.js): slate/gray usam var(--mkq-tw-<família>-<tom>, <cor padrão>); aqui, com tela Base1
    aberta, recebem o neutro quente do design — as mesmas classes, sem mudar a cascata. */
-body:has(.cadastro-b1--full-page) {
+body.b1-tela {
   --mkq-tw-slate-50: 249 249 247;
   --mkq-tw-slate-100: 242 242 239;
   --mkq-tw-slate-200: 232 231 226;

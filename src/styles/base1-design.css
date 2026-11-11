@@ -1,22 +1,22 @@
 /*
  * Modelo Base1 — PROPOSTAS do design "Cadastro de Lote" (D-PROD-163), portadas mecanicamente.
  * Fonte: docs/design/cadastro-de-lote/cadastro-de-lote.dc.html (bloco "/*mk-topnav*\/" até "Tailwind (config do MAIKE)").
- * Tradução: @container dev -> @media; .mkx-root e peças compartilhadas -> body:has(.cadastro-b1--full-page)
+ * Tradução: @container dev -> @media; .mkx-root e peças compartilhadas -> body.b1-tela
  * (só quando uma tela Base1 está aberta; o Mapa Geral não muda); cqw -> vw.
  * TAMANHO DE FONTE NÃO VEM DAQUI: todo font-size do design foi descartado — vale base1-tipografia.css.
  * Não edite à mão: os acertos do app ficam em base1-design-ajustes.css.
  */
 /*mk-topnav*/
-body:has(.cadastro-b1--full-page) .mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
-body:has(.cadastro-b1--full-page) .mk-topnav{border-bottom:1px solid var(--mk-sup-borda, #EEEDE9);box-shadow:none}
-body:has(.cadastro-b1--full-page) .mk-topnav .mk-topnav-item{position:relative;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;gap:6px;min-height:40px;padding:0 12px;border:0;border-radius:0;background:transparent;box-shadow:none;color:#373733;font-weight:500;white-space:nowrap;cursor:pointer;transition:color 120ms ease}
-body:has(.cadastro-b1--full-page) .mk-topnav .mk-topnav-item:hover{color:#141413}
-body:has(.cadastro-b1--full-page) .mk-topnav .mk-topnav-item[data-active="true"]{color:#16a34a}
-body:has(.cadastro-b1--full-page) .mk-topnav .mk-topnav-item[data-active="true"]::after{content:'';position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#16a34a;border-radius:2px 2px 0 0}
-body:has(.cadastro-b1--full-page) .mk-topnav .mk-topnav-item:focus-visible{outline:2px solid #5acbe9;outline-offset:-3px}
-body:has(.cadastro-b1--full-page) .mk-topnav .relative.group{align-self:stretch;display:flex}
-body:has(.cadastro-b1--full-page) header.mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
-body:has(.cadastro-b1--full-page) .mk-topnav .relative.group > .absolute{top:100%;margin-top:0}
+body.b1-tela .mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
+body.b1-tela .mk-topnav{border-bottom:1px solid var(--mk-sup-borda, #EEEDE9);box-shadow:none}
+body.b1-tela .mk-topnav .mk-topnav-item{position:relative;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;gap:6px;min-height:40px;padding:0 12px;border:0;border-radius:0;background:transparent;box-shadow:none;color:#373733;font-weight:500;white-space:nowrap;cursor:pointer;transition:color 120ms ease}
+body.b1-tela .mk-topnav .mk-topnav-item:hover{color:#141413}
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]{color:#16a34a}
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]::after{content:'';position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#16a34a;border-radius:2px 2px 0 0}
+body.b1-tela .mk-topnav .mk-topnav-item:focus-visible{outline:2px solid #5acbe9;outline-offset:-3px}
+body.b1-tela .mk-topnav .relative.group{align-self:stretch;display:flex}
+body.b1-tela header.mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
+body.b1-tela .mk-topnav .relative.group > .absolute{top:100%;margin-top:0}
 /* Proposta (celular/tablet): sem abas — cada aba do desktop vira um cartão.
    No celular os campos ficam um embaixo do outro (regra do próprio sistema: .mg-b1-form-grid > * 1 / -1). */
 .cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--secoes:not(#mk-padrao){padding:0;background:transparent;border-radius:0;box-shadow:none;overflow:hidden}
@@ -88,7 +88,7 @@ body:has(.cadastro-b1--full-page) .mk-topnav .relative.group > .absolute{top:100
 .cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-field-msg{padding-left:136px}
 /* com o rótulo à frente cada campo precisa de largura: duas colunas; texto longo e ícone na linha inteira */
 .cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > *{grid-column:span 6 / span 6 !important}
-.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > :is(:has(.mg-field--multiline), :has([data-testid="icone-oficial-lote"])){grid-column:1 / -1 !important}
+.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > .col-span-12:is(:has(.mg-field--multiline), :has([data-testid="icone-oficial-lote"])),.cadastro-b1 form[data-densidade="rotulo-a-frente"] .mg-b1-form-grid > [data-field]:is(:has(.mg-field--multiline), :has([data-testid="icone-oficial-lote"])){grid-column:1 / -1 !important}
 .cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row{display:grid;grid-template-columns:126px auto;column-gap:10px;justify-content:start;align-items:center;min-height:var(--mg-field-h)}
 .cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row__label{justify-self:end;text-align:right;font-weight:500;color:#73726C}
 .cadastro-b1 form[data-densidade="rotulo-a-frente"] .b1-chave-row__label::after{content:":"}
@@ -96,15 +96,15 @@ body:has(.cadastro-b1--full-page) .mk-topnav .relative.group > .absolute{top:100
 
 /* Proposta (desktop): listas de seleção no MESMO modelo da lista do celular — vidro claro, pesquisa limpa (branca,
    sem borda nem anel verde) e uma lista só: "Novo" na primeira linha e as opções logo abaixo, na mesma lista */
-body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-lista-pop:not(#mk-padrao){padding:6px;gap:6px;border:1px solid var(--mk-glass-border, rgba(255, 255, 255, .8));border-radius:14px;background:var(--mk-glass-bg, #F9F9F7);-webkit-backdrop-filter:blur(22px) saturate(135%);backdrop-filter:blur(22px) saturate(135%);box-shadow:0 8px 28px rgba(20, 20, 19, .1), inset 0 1px 0 rgba(255, 255, 255, .8)}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-padrao){flex:0 0 auto;height:34px;margin:0;padding:0 12px;gap:8px;border:0;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(20, 20, 19, .05)}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .b1-lista-busca input::placeholder{color:#A3A29C;opacity:1}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao){border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op{margin:0}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-lista-novo:not(#mk-padrao){gap:8px;color:#16a34a;font-weight:600}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-lista-novo:hover{background:rgba(64, 222, 99, .08)}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-lista-novo svg{flex-shrink:0}
+body.b1-tela .mk-sel-pop.b1-lista-pop:not(#mk-padrao){padding:6px;gap:6px;border:1px solid var(--mk-glass-border, rgba(255, 255, 255, .8));border-radius:14px;background:var(--mk-glass-bg, #F9F9F7);-webkit-backdrop-filter:blur(22px) saturate(135%);backdrop-filter:blur(22px) saturate(135%);box-shadow:0 8px 28px rgba(20, 20, 19, .1), inset 0 1px 0 rgba(255, 255, 255, .8)}
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-padrao),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-padrao){flex:0 0 auto;height:34px;margin:0;padding:0 12px;gap:8px;border:0;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(20, 20, 19, .05)}
+body.b1-tela .b1-lista-pop .b1-lista-busca input::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-lista-pop .mk-sel-lista.b1-lista:not(#mk-padrao){border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
+body.b1-tela .b1-lista-pop .mk-sel-op{margin:0}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo:not(#mk-padrao){gap:8px;color:#16a34a;font-weight:600}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo:hover{background:rgba(64, 222, 99, .08)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-lista-novo svg{flex-shrink:0}
 
 /* Proposta: caixa de seleção do card à DIREITA (antes à esquerda); no celular ela some (regra do sistema) e o espaço volta */
 @media (max-width: 639px){.cadastro-b1--full-page .b1-card .pr-7{padding-right:0}}
@@ -112,28 +112,28 @@ body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-lista-novo svg{fle
 /* Proposta (celular): topo no estilo do app do Claude — fundo creme (#F9F9F7), botões redondos de 44px brancos com
    sombra suave e ícone grafite, título centralizado em negrito com subtítulo cinza logo abaixo */
 @media (max-width: 639px){
-  body:has(.cadastro-b1--full-page):not(#mk-padrao){--mk-sup-fundo:#F9F9F7;--mk-btn-bg:#FFFFFF;--mk-btn-sombra:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);--mk-action-height-touch:44px;--mk-action-icon-touch:20px;--mk-action-fg:#373733;--mk-action-fg-muted:#373733;--mk-icon-close:#373733;background:#F9F9F7 !important}
-  body:has(.cadastro-b1--full-page) header.mk-topnav-header:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .mk-mhdr:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){background:transparent !important;border-bottom:0 !important;box-shadow:none !important}
+  body.b1-tela:not(#mk-padrao){--mk-sup-fundo:#F9F9F7;--mk-btn-bg:#FFFFFF;--mk-btn-sombra:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);--mk-action-height-touch:44px;--mk-action-icon-touch:20px;--mk-action-fg:#373733;--mk-action-fg-muted:#373733;--mk-icon-close:#373733;background:#F9F9F7 !important}
+  body.b1-tela header.mk-topnav-header:not(#mk-padrao),
+body.b1-tela .mk-mhdr:not(#mk-padrao),
+body.b1-tela .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){background:transparent !important;border-bottom:0 !important;box-shadow:none !important}
   /* as duas versões do topo: botão à esquerda · título no meio · botão(ões) à direita */
-  body:has(.cadastro-b1--full-page) .mk-mhdr:not(#mk-padrao){display:grid;grid-template-columns:44px minmax(0, 1fr) auto;align-items:center;gap:10px;min-height:64px;padding:6px 14px}
-  body:has(.cadastro-b1--full-page) .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){grid-template-columns:auto minmax(0, 1fr) auto}
-  body:has(.cadastro-b1--full-page) .mk-mhdr__back:not(#mk-padrao){width:44px;height:44px}
-  body:has(.cadastro-b1--full-page) .mk-mhdr__main:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .mk-mhdr__center:not(#mk-padrao){align-items:center;text-align:center;padding:0}
-  body:has(.cadastro-b1--full-page) .mk-mhdr__title:not(#mk-padrao){font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#141413;text-align:center}
-  body:has(.cadastro-b1--full-page) .mk-mhdr__sub:not(#mk-padrao){justify-content:center;gap:4px;margin-top:1px;line-height:1.3;color:#52514E}
-  body:has(.cadastro-b1--full-page) .mk-mhdr__sub svg{color:#52514E}
+  body.b1-tela .mk-mhdr:not(#mk-padrao){display:grid;grid-template-columns:44px minmax(0, 1fr) auto;align-items:center;gap:10px;min-height:64px;padding:6px 14px}
+  body.b1-tela .mk-mhdr.mk-mhdr--edit:not(#mk-padrao){grid-template-columns:auto minmax(0, 1fr) auto}
+  body.b1-tela .mk-mhdr__back:not(#mk-padrao){width:44px;height:44px}
+  body.b1-tela .mk-mhdr__main:not(#mk-padrao),
+body.b1-tela .mk-mhdr__center:not(#mk-padrao){align-items:center;text-align:center;padding:0}
+  body.b1-tela .mk-mhdr__title:not(#mk-padrao){font-weight:700;line-height:1.25;letter-spacing:-.01em;color:#141413;text-align:center}
+  body.b1-tela .mk-mhdr__sub:not(#mk-padrao){justify-content:center;gap:4px;margin-top:1px;line-height:1.3;color:#52514E}
+  body.b1-tela .mk-mhdr__sub svg{color:#52514E}
   /* botões redondos brancos (Descartar, Anexos, Voltar) — o Salvar continua verde */
-  body:has(.cadastro-b1--full-page) :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao){background:#FFFFFF !important;color:#373733 !important}
-  body:has(.cadastro-b1--full-page) :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao) svg{color:#373733 !important}
+  body.b1-tela :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao){background:#FFFFFF !important;color:#373733 !important}
+  body.b1-tela :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-padrao) svg{color:#373733 !important}
   /* avatar do usuário: o mesmo botão redondo, com a inicial */
-  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"]:not(#mk-padrao){width:44px;height:44px;min-width:44px;padding:0 !important;border-radius:999px;background:#FFFFFF;box-shadow:var(--mk-btn-sombra)}
-  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"] > div:not(#mk-padrao){width:auto;height:auto;background:transparent}
-  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"] > div > span:not(#mk-padrao){color:#373733;font-weight:600}
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"]:not(#mk-padrao){width:44px;height:44px;min-width:44px;padding:0 !important;border-radius:999px;background:#FFFFFF;box-shadow:var(--mk-btn-sombra)}
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"] > div:not(#mk-padrao){width:auto;height:auto;background:transparent}
+  body.b1-tela .mk-mhdr > [aria-haspopup="menu"] > div > span:not(#mk-padrao){color:#373733;font-weight:600}
   /* barra de ações logo abaixo: os mesmos ícones grafite dos botões do topo (Excluir segue vermelho, Novo verde) */
-  body:has(.cadastro-b1--full-page) .cadastro-b1--portal-compras:not(#mk-padrao){--portal-acao-fg:#373733}
+  body.b1-tela .cadastro-b1--portal-compras:not(#mk-padrao){--portal-acao-fg:#373733}
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -277,25 +277,25 @@ body:has(.cadastro-b1--full-page) .mk-mhdr__center:not(#mk-padrao){align-items:c
 @media (max-width: 639px){.cadastro-b1 .b1-fr{flex-direction:column;align-items:stretch;gap:2px;margin:0 -8px 4px;padding:0}.cadastro-b1 .b1-fr__chips{padding:3px 10px 6px}.cadastro-b1 .b1-fr__resumo{justify-content:space-between;padding:0 14px 2px}}
 
 /* lista de marcar do filtro rápido (popover no desktop/tablet, folha no celular) */
-body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:280px;min-width:0}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 8px 0}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__titulo{font-weight:600;color:#373733}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__aside{color:#73726C;white-space:nowrap}
-body:has(.cadastro-b1--full-page) .b1-fr-sheet{display:flex;min-height:0;flex-direction:column;gap:8px}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-padrao){display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-weight:400;color:var(--mk-text, #373733)}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op:hover{background:rgba(20, 20, 19, .03)}
-body:has(.cadastro-b1--full-page) .b1-fr-box{display:inline-flex;width:16px;height:16px;flex:0 0 16px;align-items:center;justify-content:center;box-sizing:border-box;border:1.5px solid #D1D0CA;border-radius:4px;background:#fff;color:transparent;transition:background-color .12s ease, border-color .12s ease}
-body:has(.cadastro-b1--full-page) .b1-fr-op[aria-selected="true"] .b1-fr-box{border-color:#32d65e;background:#32d65e;color:#fff}
-body:has(.cadastro-b1--full-page) .b1-fr-op[aria-selected="true"] .b1-fr-op__txt{font-weight:600;color:#141413}
-body:has(.cadastro-b1--full-page) .b1-fr-op__txt{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body:has(.cadastro-b1--full-page) .b1-fr-op__n{min-width:22px;flex:0 0 auto;color:#A3A29C;text-align:right;font-variant-numeric:tabular-nums}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:36px}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--link:not(#mk-padrao){color:#52514E}
-body:has(.cadastro-b1--full-page) .b1-fr-op--link svg{flex:0 0 auto;color:#A3A29C}
-@media (max-width: 1023px){body:has(.cadastro-b1--full-page) .b1-fr-box{width:20px;height:20px;flex-basis:20px;border-radius:6px}body:has(.cadastro-b1--full-page) .b1-fr-box svg{width:12px;height:12px}body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:40px}}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__cab{flex-wrap:wrap;row-gap:2px}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__titulo{white-space:nowrap}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .b1-cor-dot{display:inline-block;width:10px;height:10px;flex:0 0 10px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(20, 20, 19, .14)}
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:280px;min-width:0}
+body.b1-tela .b1-fr-pop__cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:4px 8px 0}
+body.b1-tela .b1-fr-pop__titulo{font-weight:600;color:#373733}
+body.b1-tela .b1-fr-pop__aside{color:#73726C;white-space:nowrap}
+body.b1-tela .b1-fr-sheet{display:flex;min-height:0;flex-direction:column;gap:8px}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-padrao){display:flex;width:100%;align-items:center;gap:10px;text-align:left;font-weight:400;color:var(--mk-text, #373733)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:hover{background:rgba(20, 20, 19, .03)}
+body.b1-tela .b1-fr-box{display:inline-flex;width:16px;height:16px;flex:0 0 16px;align-items:center;justify-content:center;box-sizing:border-box;border:1.5px solid #D1D0CA;border-radius:4px;background:#fff;color:transparent;transition:background-color .12s ease, border-color .12s ease}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box{border-color:#32d65e;background:#32d65e;color:#fff}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-op__txt{font-weight:600;color:#141413}
+body.b1-tela .b1-fr-op__txt{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-op__n{min-width:22px;flex:0 0 auto;color:#A3A29C;text-align:right;font-variant-numeric:tabular-nums}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:36px}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--link:not(#mk-padrao){color:#52514E}
+body.b1-tela .b1-fr-op--link svg{flex:0 0 auto;color:#A3A29C}
+@media (max-width: 1023px){body.b1-tela .b1-fr-box{width:20px;height:20px;flex-basis:20px;border-radius:6px}body.b1-tela .b1-fr-box svg{width:12px;height:12px}body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-padrao){padding-left:40px}}
+body.b1-tela .b1-fr-pop__cab{flex-wrap:wrap;row-gap:2px}
+body.b1-tela .b1-fr-pop__titulo{white-space:nowrap}
+body.b1-tela .b1-lista-pop .b1-cor-dot{display:inline-block;width:10px;height:10px;flex:0 0 10px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(20, 20, 19, .14)}
 
 /* ── 6. LISTA DE LOTES: MENOS ESPAÇO, MAIS LEITURA ───────────────────────────────────────────────────────────── */
 /* 6.1 desktop: título na mesma linha dos botões (uma faixa a menos) e barras mais baixas */
@@ -337,9 +337,9 @@ body:has(.cadastro-b1--full-page) .b1-lista-pop .b1-cor-dot{display:inline-block
 .cadastro-b1 .b1-fr-chip--ordem .b1-fr-chip__ic{flex:0 0 14px;color:#73726C}
 .cadastro-b1 .b1-fr-chip--ordem .b1-fr-chip__val{font-weight:500;color:#373733}
 .cadastro-b1 .b1-fr__sep{width:1px;height:18px;flex:0 0 1px;margin:0 2px;background:#E8E7E2}
-body:has(.cadastro-b1--full-page) .b1-fr-box--unica{border-color:transparent !important;background:transparent !important;color:transparent}
-body:has(.cadastro-b1--full-page) .b1-fr-op[aria-selected="true"] .b1-fr-box--unica{color:#16a34a}
-body:has(.cadastro-b1--full-page) .b1-fr-box--unica svg{width:14px;height:14px}
+body.b1-tela .b1-fr-box--unica{border-color:transparent !important;background:transparent !important;color:transparent}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box--unica{color:#16a34a}
+body.b1-tela .b1-fr-box--unica svg{width:14px;height:14px}
 
 /* 6.6 celular: "tabela" = lista compacta (uma linha por lote, o essencial) */
 .cadastro-b1 .b1-lista-compacta:not(#mk-padrao){padding:0;border:0;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .08));overflow-y:auto}
@@ -392,69 +392,69 @@ body:has(.cadastro-b1--full-page) .b1-fr-box--unica svg{width:14px;height:14px}
 @media (max-width: 1023px){.cadastro-b1 .b1-fr__seta{width:30px;height:30px;margin-top:-16px}}
 
 /* 6.9 regra do filtro (operadores em palavras simples): Qualquer · Igual a · A partir de · Até · Entre … */
-body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:300px}
-body:has(.cadastro-b1--full-page) .b1-fr-regra{display:flex;flex:0 0 auto;flex-direction:column;gap:8px;padding:8px;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__ops{display:flex;flex-wrap:wrap;gap:6px}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__op{height:28px;padding:0 10px;border:1px solid #DEDDD8;border-radius:999px;background:#fff;color:#52514E;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .12s ease, border-color .12s ease}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__op:hover{border-color:#CAC9C3}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__op.is-on{border-color:transparent;background:#e6f9ea;color:#14532d;font-weight:600}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__vals{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:not(#mk-padrao){min-width:0;flex:1 1 110px;height:34px;box-sizing:border-box;padding:0 10px;border:1px solid #DEDDD8;border-radius:8px;background:#fff;color:#141413;font:inherit;font-weight:500;outline:none}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:focus:not(#mk-padrao){border-color:var(--mg-accent, #40de63);background:#fff;box-shadow:0 0 0 3px rgba(64, 222, 99, .18)}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__e{flex:0 0 auto;color:#73726C}
-@media (max-width: 1023px){body:has(.cadastro-b1--full-page) .b1-fr-regra__op{height:34px;padding:0 12px}body:has(.cadastro-b1--full-page) .b1-fr-regra__v:not(#mk-padrao){height:40px}}
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){width:300px}
+body.b1-tela .b1-fr-regra{display:flex;flex:0 0 auto;flex-direction:column;gap:8px;padding:8px;border-radius:12px;background:#fff;box-shadow:var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, .1))}
+body.b1-tela .b1-fr-regra__ops{display:flex;flex-wrap:wrap;gap:6px}
+body.b1-tela .b1-fr-regra__op{height:28px;padding:0 10px;border:1px solid #DEDDD8;border-radius:999px;background:#fff;color:#52514E;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .12s ease, border-color .12s ease}
+body.b1-tela .b1-fr-regra__op:hover{border-color:#CAC9C3}
+body.b1-tela .b1-fr-regra__op.is-on{border-color:transparent;background:#e6f9ea;color:#14532d;font-weight:600}
+body.b1-tela .b1-fr-regra__vals{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+body.b1-tela .b1-fr-regra__v:not(#mk-padrao){min-width:0;flex:1 1 110px;height:34px;box-sizing:border-box;padding:0 10px;border:1px solid #DEDDD8;border-radius:8px;background:#fff;color:#141413;font:inherit;font-weight:500;outline:none}
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){border-color:var(--mg-accent, #40de63);background:#fff;box-shadow:0 0 0 3px rgba(64, 222, 99, .18)}
+body.b1-tela .b1-fr-regra__e{flex:0 0 auto;color:#73726C}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__op{height:34px;padding:0 12px}body.b1-tela .b1-fr-regra__v:not(#mk-padrao){height:40px}}
 
 /* 6.10 celular: sem faixa de pílulas — o funil abre a lista "Filtros" (com "+" em cima para adicionar);
    na tela fica só a linha do total */
 @media (max-width: 639px){.cadastro-b1 .b1-fr{margin:0 0 2px;padding:0}.cadastro-b1 .b1-fr__resumo{padding:0 6px 2px}}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-nav:not(#mk-padrao){gap:10px}
-body:has(.cadastro-b1--full-page) .b1-fr-nav__val{max-width:55%;flex:0 1 auto;overflow:hidden;color:#A3A29C;text-align:right;text-overflow:ellipsis;white-space:nowrap}
-body:has(.cadastro-b1--full-page) .b1-fr-nav.is-on .b1-fr-nav__val{font-weight:600;color:#15803d}
-body:has(.cadastro-b1--full-page) .b1-fr-nav__seta{flex:0 0 16px;color:#D1D0CA}
-body:has(.cadastro-b1--full-page) .b1-fr-menu__limpar{align-self:center;margin-top:2px;padding:8px 12px;border:0;background:transparent;color:#52514E;font:inherit;font-weight:600;text-decoration:underline;text-decoration-color:#D1D0CA;text-underline-offset:3px;cursor:pointer}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-nav:not(#mk-padrao){gap:10px}
+body.b1-tela .b1-fr-nav__val{max-width:55%;flex:0 1 auto;overflow:hidden;color:#A3A29C;text-align:right;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-nav.is-on .b1-fr-nav__val{font-weight:600;color:#15803d}
+body.b1-tela .b1-fr-nav__seta{flex:0 0 16px;color:#D1D0CA}
+body.b1-tela .b1-fr-menu__limpar{align-self:center;margin-top:2px;padding:8px 12px;border:0;background:transparent;color:#52514E;font:inherit;font-weight:600;text-decoration:underline;text-decoration-color:#D1D0CA;text-underline-offset:3px;cursor:pointer}
 
 /* 6.11 condição do filtro em LISTA, igual ao filtro do cabeçalho da tabela (botão que abre as opções) */
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel{display:flex;width:100%;height:30px;box-sizing:border-box;align-items:center;gap:8px;padding:0 10px 0 12px;border:0;border-radius:999px;background:#ECEBE6;box-shadow:none;color:#141413;font:inherit;font-weight:500;text-align:left;cursor:pointer;outline:0}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel:hover{background:#E9E8E3}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel[aria-expanded="true"],
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel:focus,
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel:focus-visible{border:0;background:#ECEBE6;box-shadow:none;outline:0}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel-l{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel-c{flex:0 0 14px;color:#6B6A66;transition:transform .15s ease}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__sel[aria-expanded="true"] .b1-fr-regra__sel-c{transform:rotate(180deg)}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__lista{display:flex;flex-direction:column;margin:-2px 0 0;border:1px solid #EEEDE9;border-radius:10px;overflow:hidden}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:30px;padding-top:4px;padding-bottom:4px}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-padrao){background:#f1fcf4;color:#15803d;font-weight:600}
-@media (max-width: 1023px){body:has(.cadastro-b1--full-page) .b1-fr-regra__sel{height:40px}body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:40px}}
+body.b1-tela .b1-fr-regra__sel{display:flex;width:100%;height:30px;box-sizing:border-box;align-items:center;gap:8px;padding:0 10px 0 12px;border:0;border-radius:999px;background:#ECEBE6;box-shadow:none;color:#141413;font:inherit;font-weight:500;text-align:left;cursor:pointer;outline:0}
+body.b1-tela .b1-fr-regra__sel:hover{background:#E9E8E3}
+body.b1-tela .b1-fr-regra__sel[aria-expanded="true"],
+body.b1-tela .b1-fr-regra__sel:focus,
+body.b1-tela .b1-fr-regra__sel:focus-visible{border:0;background:#ECEBE6;box-shadow:none;outline:0}
+body.b1-tela .b1-fr-regra__sel-l{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-fr-regra__sel-c{flex:0 0 14px;color:#6B6A66;transition:transform .15s ease}
+body.b1-tela .b1-fr-regra__sel[aria-expanded="true"] .b1-fr-regra__sel-c{transform:rotate(180deg)}
+body.b1-tela .b1-fr-regra__lista{display:flex;flex-direction:column;margin:-2px 0 0;border:1px solid #EEEDE9;border-radius:10px;overflow:hidden}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:30px;padding-top:4px;padding-bottom:4px}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-padrao){background:#f1fcf4;color:#15803d;font-weight:600}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__sel{height:40px}body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt:not(#mk-padrao){min-height:40px}}
 
 /* 6.12 linha marcada: as células fixas (caixa de seleção e colunas congeladas) ficam opacas — o texto que passa por baixo ao rolar de lado não aparece mais */
 .cadastro-b1 tr[data-testid="b1-row"][aria-selected="true"] > td.sticky:not(#mk-padrao){background-color:#fff !important;background-image:linear-gradient(rgba(64, 222, 99, .12), rgba(64, 222, 99, .12)) !important}
 
 /* 6.13 filtro rápido: condição sem cartão branco; lista de condições abre por cima (não empurra nada); valor sempre à vista e limpo; botão Aplicar */
-body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-fr-pop:not(#mk-padrao){overflow:visible}
-body:has(.cadastro-b1--full-page) .b1-fr-regra{position:relative;gap:2px;padding:2px 0 0;border-radius:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__lista{position:absolute;top:36px;right:0;left:0;z-index:6;max-height:264px;margin:0;border:1px solid #ECEBE6;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(20, 20, 19, .16), 0 2px 6px rgba(20, 20, 19, .06);overflow-y:auto}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__vals{flex-wrap:nowrap;gap:8px;padding:0 4px}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:focus:not(#mk-padrao){min-width:0;flex:1 1 0;height:32px;padding:0 8px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none;color:#141413;font-weight:500;outline:0}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:focus:not(#mk-padrao){border-bottom-color:var(--mg-accent, #40de63)}
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v::placeholder{color:#A3A29C;font-weight:400;opacity:1}
+body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-padrao){overflow:visible}
+body.b1-tela .b1-fr-regra{position:relative;gap:2px;padding:2px 0 0;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .b1-fr-regra__lista{position:absolute;top:36px;right:0;left:0;z-index:6;max-height:264px;margin:0;border:1px solid #ECEBE6;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(20, 20, 19, .16), 0 2px 6px rgba(20, 20, 19, .06);overflow-y:auto}
+body.b1-tela .b1-fr-regra__vals{flex-wrap:nowrap;gap:8px;padding:0 4px}
+body.b1-tela .b1-fr-regra__v:not(#mk-padrao),
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){min-width:0;flex:1 1 0;height:32px;padding:0 8px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none;color:#141413;font-weight:500;outline:0}
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){border-bottom-color:var(--mg-accent, #40de63)}
+body.b1-tela .b1-fr-regra__v::placeholder{color:#A3A29C;font-weight:400;opacity:1}
 /* pesquisa da lista: a mesma pílula branca de todas as listas (padrão único) */
-body:has(.cadastro-b1--full-page) .b1-fr-acoes{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;padding:6px 4px 2px}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__limpar{height:30px;margin-right:auto;padding:0 10px;border:0;border-radius:999px;background:transparent;color:#52514E;font:inherit;font-weight:500;cursor:pointer}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__limpar:hover{background:#EEEDE9;color:#141413}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__aplicar{display:inline-flex;height:30px;align-items:center;gap:6px;padding:0 14px 0 11px;border:0;border-radius:999px;background:var(--mg-accent, #40de63);box-shadow:0 1px 3px rgba(20, 20, 19, .12);color:#fff;font:inherit;font-weight:600;cursor:pointer;transition:filter .15s ease}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__aplicar:hover{filter:brightness(.96)}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__aplicar:focus-visible,
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__limpar:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
-@media (max-width: 1023px){body:has(.cadastro-b1--full-page) .b1-fr-regra__lista{top:46px;max-height:330px}body:has(.cadastro-b1--full-page) .b1-fr-regra__v:not(#mk-padrao),
-body:has(.cadastro-b1--full-page) .b1-fr-regra__v:focus:not(#mk-padrao){height:40px}body:has(.cadastro-b1--full-page) .b1-fr-acoes__limpar,
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__aplicar{height:36px}}
+body.b1-tela .b1-fr-acoes{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;padding:6px 4px 2px}
+body.b1-tela .b1-fr-acoes__limpar{height:30px;margin-right:auto;padding:0 10px;border:0;border-radius:999px;background:transparent;color:#52514E;font:inherit;font-weight:500;cursor:pointer}
+body.b1-tela .b1-fr-acoes__limpar:hover{background:#EEEDE9;color:#141413}
+body.b1-tela .b1-fr-acoes__aplicar{display:inline-flex;height:30px;align-items:center;gap:6px;padding:0 14px 0 11px;border:0;border-radius:999px;background:var(--mg-accent, #40de63);box-shadow:0 1px 3px rgba(20, 20, 19, .12);color:#fff;font:inherit;font-weight:600;cursor:pointer;transition:filter .15s ease}
+body.b1-tela .b1-fr-acoes__aplicar:hover{filter:brightness(.96)}
+body.b1-tela .b1-fr-acoes__aplicar:focus-visible,
+body.b1-tela .b1-fr-acoes__limpar:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+@media (max-width: 1023px){body.b1-tela .b1-fr-regra__lista{top:46px;max-height:330px}body.b1-tela .b1-fr-regra__v:not(#mk-padrao),
+body.b1-tela .b1-fr-regra__v:focus:not(#mk-padrao){height:40px}body.b1-tela .b1-fr-acoes__limpar,
+body.b1-tela .b1-fr-acoes__aplicar{height:36px}}
 
 /* 6.14 rodapé do filtro igual ao do sistema: X cancela · ✓ (visto) aplica */
-body:has(.cadastro-b1--full-page) .b1-fr-acoes{justify-content:space-between;padding:6px 2px 2px}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__limpar{margin:0}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-padrao){display:inline-flex;width:auto;height:auto;padding:0;gap:0;box-shadow:none}
+body.b1-tela .b1-fr-acoes{justify-content:space-between;padding:6px 2px 2px}
+body.b1-tela .b1-fr-acoes__limpar{margin:0}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-padrao){display:inline-flex;width:auto;height:auto;padding:0;gap:0;box-shadow:none}
 
 /* 6.15 PADRÃO ÚNICO DE ALTURA — desktop 32 · tablet 40 · celular: botões 44, linhas e campos 40
    (campos do formulário com rótulo dentro, navegação e ícones dentro de campo ficam de fora) */
@@ -462,71 +462,71 @@ body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-pad
   /* botões e pílulas: 32 */
   .cadastro-b1 .b1-fr-chip:not(#mk-a):not(#mk-b),
 .cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){height:32px}
-  body:has(.cadastro-b1--full-page) .b1-fr-regra__sel:not(#mk-a):not(#mk-b){height:32px}
-  body:has(.cadastro-b1--full-page) .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:38px}
+  body.b1-tela .b1-fr-regra__sel:not(#mk-a):not(#mk-b){height:32px}
+  body.b1-tela .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:38px}
   .cadastro-b1 .b1-panel-tab:not(#mk-a):not(#mk-b){height:32px;min-height:32px}
   .cadastro-b1 .mg-pill-select:not(#mk-a):not(#mk-b){height:32px !important;min-height:32px !important}
   /* campos de pesquisa: 32 */
   .cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b){height:32px !important;min-height:32px !important}
-  body:has(.cadastro-b1--full-page) .fpc__busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc__busca:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
-  body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:32px}
-  body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
+  body.b1-tela .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc__busca:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:32px}
+  body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{height:32px !important;min-height:32px !important}
   /* linhas de lista e de menu: 32 */
-  body:has(.cadastro-b1--full-page) .mk-sel-op:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc__item:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mg-b1-menuitem:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-map-multi-options label:not(#mk-a):not(#mk-b){min-height:32px;padding-top:4px;padding-bottom:4px}
+  body.b1-tela .mk-sel-op:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc__item:not(#mk-a):not(#mk-b),
+body.b1-tela .mg-b1-menuitem:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-options label:not(#mk-a):not(#mk-b){min-height:32px;padding-top:4px;padding-bottom:4px}
 }
 @media (min-width: 640px) and (max-width: 1023px){
   /* botões e pílulas: 40 */
   .cadastro-b1 .b1-fr-chip:not(#mk-a):not(#mk-b),
 .cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b){height:40px}
   .cadastro-b1 .mg-pill-select:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
-  body:has(.cadastro-b1--full-page) .mk-thdr__empresa:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
+  body.b1-tela .mk-thdr__empresa:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
   .cadastro-b1 .view-seg:not(#mk-a):not(#mk-b){height:40px !important;min-height:40px !important}
   .cadastro-b1 .view-seg:not(#mk-a):not(#mk-b) > button{width:34px !important;min-width:34px !important;height:34px !important;min-height:34px !important}
-  body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
 }
 @media (max-width: 639px){
   /* linhas e campos: 40 */
-  body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
+  body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-busca.b1-lista-busca:focus-within:not(#mk-a):not(#mk-b){height:40px}
 }
 
 /* 6.16 UM PADRÃO DE COR E FUNDO PARA AS TRÊS TELAS (desktop = tablet = celular)
    fundo da tela e das janelas: creme #F9F9F7 · cartões e listas: branco · botões: #FFFFFF com a mesma sombra · ícones: grafite #373733 */
-body:has(.cadastro-b1--full-page):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page):not(#mk-a):not(#mk-b) .cadastro-b1{
+body.b1-tela:not(#mk-a):not(#mk-b),
+body.b1-tela:not(#mk-a):not(#mk-b) .cadastro-b1{
   --mk-sup-fundo:#F9F9F7;--mk-btn-bg:#FFFFFF;--mk-btn-hover:#F1F1EE;
   --mk-btn-sombra:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);
   --mk-cartao-sombra:0 1px 3px rgba(20, 20, 19, .1);
   --mk-action-fg:#373733;--mk-action-fg-muted:#373733;--mk-icon-close:#373733;--portal-acao-fg:#373733;--portal-acao-bg:#FFFFFF;
 }
-body:has(.cadastro-b1--full-page):not(#mk-a):not(#mk-b){background:#F9F9F7 !important}
+body.b1-tela:not(#mk-a):not(#mk-b){background:#F9F9F7 !important}
 /* botões neutros (ícone e texto): mesma cor de ícone/texto e mesmo fundo em todo lugar */
 .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
 .cadastro-b1 .view-seg button:not([aria-pressed="true"]):not(.is-active):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet__close:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet__close:not(#mk-a):not(#mk-b),
 .cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b){color:#373733 !important}
 .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b) svg,
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b) svg,
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b) svg{color:#373733 !important}
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b) svg,
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b) svg{color:#373733 !important}
 .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-gray:not(#mk-a):not(#mk-b),
+body.b1-tela .tb-btn.tb-btn-icon:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-active):not(#mk-a):not(#mk-b),
 .cadastro-b1 .view-seg:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet__close:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet__close:not(#mk-a):not(#mk-b),
 .cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b){background-color:#FFFFFF !important;box-shadow:var(--mk-btn-sombra) !important}
-body:has(.cadastro-b1--full-page) .mk-sheet__new:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet__new:not(#mk-a):not(#mk-b),
 .cadastro-b1 .tb-btn.tb-btn-green.mg-act-ic:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-mhdr__round:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){box-shadow:var(--mk-btn-sombra) !important}
+body.b1-tela .mk-mhdr__round:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){box-shadow:var(--mk-btn-sombra) !important}
 /* pílulas de filtro e "+ Filtro": o mesmo botão */
 .cadastro-b1 .b1-fr-chip:not(.is-on):not(#mk-a):not(#mk-b),
 .cadastro-b1 .b1-fr-add:not(#mk-a):not(#mk-b),
@@ -537,24 +537,24 @@ body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):
 .cadastro-b1 .b1-card:not(#mk-a):not(#mk-b),
 .cadastro-b1 .b1-reg-cab:not(#mk-a):not(#mk-b),
 .cadastro-b1 .b1-aba-cartao:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .mk-sel-lista:not(#mk-a):not(#mk-b){box-shadow:var(--mk-cartao-sombra)}
+body.b1-tela .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mk-sel-lista:not(#mk-a):not(#mk-b){box-shadow:var(--mk-cartao-sombra)}
 /* janelas (lista do campo, filtro, menus, lista de marcar): mesmo fundo creme */
-body:has(.cadastro-b1--full-page) .mk-sel-pop:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet:not(#mk-a):not(#mk-b){background-color:#F9F9F7}
+body.b1-tela .mk-sel-pop:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-popup:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet:not(#mk-a):not(#mk-b){background-color:#F9F9F7}
 /* título de seção igual nas três telas */
 .cadastro-b1 :is(.b1-secao__titulo, .b1-aba-cartao__titulo):not(#mk-a):not(#mk-b){color:#373733;font-weight:600}
 /* caixa de marcar: mesmo canto */
-body:has(.cadastro-b1--full-page) .b1-fr-box:not(#mk-a):not(#mk-b){border-radius:5px}
+body.b1-tela .b1-fr-box:not(#mk-a):not(#mk-b){border-radius:5px}
 /* celular: campo de valor do filtro também sem fundo (igual desktop e tablet) */
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-fr-regra__v:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border-bottom-color:var(--mg-accent, #40de63)}
+body.b1-tela .mk-sheet .b1-fr-regra__v:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .mk-sheet .b1-fr-regra__v:focus:not(#mk-a):not(#mk-b){border-bottom-color:var(--mg-accent, #40de63)}
 /* celular: lista do campo igual à do desktop (linha divisória e escolhido em destaque) */
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){border-bottom:1px solid #EEEDE9}
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:last-child:not(#mk-a):not(#mk-b){border-bottom:0}
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .13);font-weight:600}
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){border-bottom:1px solid #EEEDE9}
+body.b1-tela .mk-sheet .mgs__op:last-child:not(#mk-a):not(#mk-b){border-bottom:0}
+body.b1-tela .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .13);font-weight:600}
 
 /* 6.17 tabela: botão de opções da coluna (⋮) sempre à vista, com área de toque maior no tablet e no celular */
 .cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b){opacity:1;color:#73726C}
@@ -564,39 +564,39 @@ body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:is(.is-on, .is-selected, [a
   .cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b) svg{width:16px !important;height:16px !important}
 }
 /* 6.16b acertos finos do padrão único */
-body:has(.cadastro-b1--full-page) .mk-sheet .mk-sheet__close:not(#mk-a):not(#mk-b):not(#mk-c),
-body:has(.cadastro-b1--full-page) .mk-sheet .mk-sheet__new:not(#mk-a):not(#mk-b):not(#mk-c){box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
-body:has(.cadastro-b1--full-page) .b1-fr-pop__titulo:not(#mk-a):not(#mk-b){color:#262624}
+body.b1-tela .mk-sheet .mk-sheet__close:not(#mk-a):not(#mk-b):not(#mk-c),
+body.b1-tela .mk-sheet .mk-sheet__new:not(#mk-a):not(#mk-b):not(#mk-c){box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
+body.b1-tela .b1-fr-pop__titulo:not(#mk-a):not(#mk-b){color:#262624}
 
 /* 6.18 filtro com UM campo só (modelo de pesquisa das listas); "Está entre" mostra dois lado a lado */
-body:has(.cadastro-b1--full-page) .b1-fr-campos{display:flex;flex:0 0 auto;gap:6px;min-width:0}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .mk-sel-busca:not(#mk-a):not(#mk-b){width:0;min-width:0;flex:1 1 0}
-body:has(.cadastro-b1--full-page) .b1-fr-campos .b1-fr-campo:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-fr-campos .b1-fr-campo:focus:not(#mk-a):not(#mk-b){width:100%;min-width:0;height:100%;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit}
-body:has(.cadastro-b1--full-page) .b1-fr-campos .b1-fr-campo::placeholder{color:#A3A29C;opacity:1}
-body:has(.cadastro-b1--full-page) .b1-fr-regra:not(#mk-a):not(#mk-b){padding-bottom:0}
+body.b1-tela .b1-fr-campos{display:flex;flex:0 0 auto;gap:6px;min-width:0}
+body.b1-tela .b1-fr-campos > .mk-sel-busca:not(#mk-a):not(#mk-b){width:0;min-width:0;flex:1 1 0}
+body.b1-tela .b1-fr-campos .b1-fr-campo:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-fr-campos .b1-fr-campo:focus:not(#mk-a):not(#mk-b){width:100%;min-width:0;height:100%;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit}
+body.b1-tela .b1-fr-campos .b1-fr-campo::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-fr-regra:not(#mk-a):not(#mk-b){padding-bottom:0}
 
 /* 6.19 rodapé do filtro: X · [Tirar da faixa] [Limpar] · ✓ — tudo centralizado, mesmo botão do resto do sistema */
-body:has(.cadastro-b1--full-page) .b1-fr-acoes:not(#mk-a):not(#mk-b){display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:8px;padding:8px 2px 2px}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__meio{display:flex;min-width:0;flex:1 1 auto;align-items:center;justify-content:center;gap:6px}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){display:inline-flex;width:32px;min-width:32px;height:32px;min-height:32px;flex:0 0 32px;align-items:center;justify-content:center;margin:0;padding:0;gap:0;border:0;border-radius:999px;cursor:pointer;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b){background:#FFFFFF;color:#373733}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){background:var(--mg-accent, #40de63);color:#fff}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b):hover{filter:brightness(.96)}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar) svg{display:block;flex:0 0 auto;margin:0}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){display:inline-flex;height:32px;min-width:0;align-items:center;justify-content:center;gap:6px;margin:0;padding:0 12px;border:0;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);color:#373733;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__btn svg{flex:0 0 auto;color:#73726C}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar, .b1-fr-acoes__btn):focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+body.b1-tela .b1-fr-acoes:not(#mk-a):not(#mk-b){display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:8px;padding:8px 2px 2px}
+body.b1-tela .b1-fr-acoes__meio{display:flex;min-width:0;flex:1 1 auto;align-items:center;justify-content:center;gap:6px}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){display:inline-flex;width:32px;min-width:32px;height:32px;min-height:32px;flex:0 0 32px;align-items:center;justify-content:center;margin:0;padding:0;gap:0;border:0;border-radius:999px;cursor:pointer;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045) !important}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b){background:#FFFFFF;color:#373733}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__x:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b){background:var(--mg-accent, #40de63);color:#fff}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__aplicar:not(#mk-a):not(#mk-b):hover{filter:brightness(.96)}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar) svg{display:block;flex:0 0 auto;margin:0}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){display:inline-flex;height:32px;min-width:0;align-items:center;justify-content:center;gap:6px;margin:0;padding:0 12px;border:0;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);color:#373733;font:inherit;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn svg{flex:0 0 auto;color:#73726C}
+body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar, .b1-fr-acoes__btn):focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
 @media (min-width: 640px) and (max-width: 1023px){
-  body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-fr-pop:not(#mk-a):not(#mk-b){width:340px}
-  body:has(.cadastro-b1--full-page) .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
-  body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 14px}
+  body.b1-tela .mk-sel-pop.b1-fr-pop:not(#mk-a):not(#mk-b){width:340px}
+  body.b1-tela .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes__aplicar):not(#mk-a):not(#mk-b){width:40px;min-width:40px;height:40px;min-height:40px;flex-basis:40px}
+  body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 14px}
 }
 @media (max-width: 639px){
-  body:has(.cadastro-b1--full-page) .b1-fr-acoes:not(#mk-a):not(#mk-b){padding:10px 2px 4px}
-  body:has(.cadastro-b1--full-page) .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 16px}
+  body.b1-tela .b1-fr-acoes:not(#mk-a):not(#mk-b){padding:10px 2px 4px}
+  body.b1-tela .b1-fr-acoes .b1-fr-acoes__btn:not(#mk-a):not(#mk-b){height:40px;padding:0 16px}
 }
 /* 6.20 pílulas de filtro: a sombra não é mais cortada pela faixa que rola (fica igual à dos outros botões) */
 .cadastro-b1 .b1-fr__trilho > .b1-fr__chips:not(#mk-a):not(#mk-b){margin:-8px -8px -12px;padding:8px 8px 12px}
@@ -612,7 +612,7 @@ body:has(.cadastro-b1--full-page) .b1-fr-acoes :is(.b1-fr-acoes__x, .b1-fr-acoes
 .cadastro-b1 .b1-mais__btn{height:32px;padding:0 14px;border:0;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0, 0, 0, .05), 0 2px 10px rgba(0, 0, 0, .045);color:#373733;font:inherit;font-weight:600;cursor:pointer}
 .cadastro-b1 .b1-mais__btn:hover{background:#F1F1EE}
 @media (max-width: 1023px){.cadastro-b1 .b1-mais__btn{height:40px;padding:0 16px}}
-body:has(.cadastro-b1--full-page) .b1-fr-maisopc{padding:8px 12px;border-top:1px solid #EEEDE9;color:#73726C;text-align:center}
+body.b1-tela .b1-fr-maisopc{padding:8px 12px;border-top:1px solid #EEEDE9;color:#73726C;text-align:center}
 /* 6.23 título acima da barra (posição que você escolheu no editor): sem o tracinho que separava dos botões */
 .cadastro-b1 > .b1-tb-titulo:not(#mk-a):not(#mk-b){margin:0;padding:2px 2px 0;border-right:0}
 
@@ -631,184 +631,184 @@ body:has(.cadastro-b1--full-page) .b1-fr-maisopc{padding:8px 12px;border-top:1px
 .cadastro-b1 .b1-grupo + .b1-grupo:not(#mk-a):not(#mk-b){margin-top:var(--b1-grupo-vao, 12px)}
 
 /* 6.26 estilo do app (referência enviada): botões brancos redondos com sombra macia sobre fundo claro quente; texto grafite, legenda cinza */
-body:has(.cadastro-b1--full-page) .mk-mhdr__title:not(#mk-a):not(#mk-b){color:#141413;font-weight:700}
-body:has(.cadastro-b1--full-page) .mk-mhdr__sub:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-mhdr__sub:not(#mk-a):not(#mk-b) svg{color:#6B6A66}
+body.b1-tela .mk-mhdr__title:not(#mk-a):not(#mk-b){color:#141413;font-weight:700}
+body.b1-tela .mk-mhdr__sub:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-mhdr__sub:not(#mk-a):not(#mk-b) svg{color:#6B6A66}
 
 /* 6.27 ÍCONES no estilo da referência: traço fino e arredondado, um pouco maiores dentro do botão, grafite */
-body:has(.cadastro-b1--full-page):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page):not(#mk-a):not(#mk-b) .cadastro-b1{--mk-action-stroke:1.75;--mk-action-icon:16px;--mk-action-icon-touch:20px}
-body:has(.cadastro-b1--full-page) svg.lucide:not(.mg-check__icon):not(#mk-a):not(#mk-b){stroke-width:1.75 !important;stroke-linecap:round;stroke-linejoin:round}
+body.b1-tela:not(#mk-a):not(#mk-b),
+body.b1-tela:not(#mk-a):not(#mk-b) .cadastro-b1{--mk-action-stroke:1.75;--mk-action-icon:16px;--mk-action-icon-touch:20px}
+body.b1-tela svg.lucide:not(.mg-check__icon):not(#mk-a):not(#mk-b){stroke-width:1.75 !important;stroke-linecap:round;stroke-linejoin:round}
 /* tamanho do desenho dentro do botão: desktop 16 (botão 32) · tablet 20 (botão 40) · celular 22 (botão 44) */
-body:has(.cadastro-b1--full-page) :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{box-sizing:content-box;width:16px !important;height:16px !important;padding:0 !important;flex:0 0 auto}
+body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{box-sizing:content-box;width:16px !important;height:16px !important;padding:0 !important;flex:0 0 auto}
 @media (min-width: 640px) and (max-width: 1023px){
-  body:has(.cadastro-b1--full-page) :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn, .mk-thdr__icone):not(#mk-a):not(#mk-b) svg{width:20px !important;height:20px !important}
+  body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn, .mk-thdr__icone):not(#mk-a):not(#mk-b) svg{width:20px !important;height:20px !important}
 }
 @media (max-width: 639px){
-  body:has(.cadastro-b1--full-page) :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{width:22px !important;height:22px !important}
-  body:has(.cadastro-b1--full-page) .mk-tabbar__item:not(#mk-a):not(#mk-b) svg{width:22px;height:22px}
+  body.b1-tela :is(.tb-btn, .view-seg button, .b1-fr-acoes__x, .b1-fr-acoes__aplicar, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-mhdr__back, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg{width:22px !important;height:22px !important}
+  body.b1-tela .mk-tabbar__item:not(#mk-a):not(#mk-b) svg{width:22px;height:22px}
 }
 
 /* 6.28 LISTAS E PESQUISA no modelo do Claude (referência enviada):
    janela branca · pesquisa lisa, sem caixa, com uma linha embaixo de ponta a ponta · "+" de cadastrar dentro do campo, à direita ·
    linhas sem risco entre elas, realce arredondado ao passar · escolhido marcado com o visto à direita */
-body:has(.cadastro-b1--full-page) .mk-sel-pop.b1-lista-pop:not(#mk-a):not(#mk-b){gap:0;padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .b1-pq{display:flex;flex:0 0 auto;box-sizing:border-box;align-items:center;gap:2px;min-height:36px;margin:-4px -4px 4px;padding:0 6px 0 16px;border-bottom:1px solid #E8E7E2;background:transparent}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){min-width:0;width:100%;height:36px;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit;font-weight:400}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__in::placeholder{color:#A3A29C;opacity:1}
-body:has(.cadastro-b1--full-page) .b1-pq__btn{display:inline-flex;width:28px;height:28px;flex:0 0 28px;align-items:center;justify-content:center;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:#73726C;cursor:pointer;transition:background-color .12s ease, color .12s ease}
-body:has(.cadastro-b1--full-page) .b1-pq__btn:hover{background:#F1F1EE;color:#141413}
-body:has(.cadastro-b1--full-page) .b1-pq__btn:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
-body:has(.cadastro-b1--full-page) .b1-pq__novo{color:#373733}
-body:has(.cadastro-b1--full-page) .b1-pq:focus-within{border-bottom-color:#D1D0CA}
+body.b1-tela .mk-sel-pop.b1-lista-pop:not(#mk-a):not(#mk-b){gap:0;padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .b1-pq{display:flex;flex:0 0 auto;box-sizing:border-box;align-items:center;gap:2px;min-height:36px;margin:-4px -4px 4px;padding:0 6px 0 16px;border-bottom:1px solid #E8E7E2;background:transparent}
+body.b1-tela .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){min-width:0;width:100%;height:36px;min-height:0;flex:1 1 auto;margin:0;padding:0;border:0 !important;border-radius:0;background:transparent !important;box-shadow:none !important;outline:0;color:#141413;font:inherit;font-weight:400}
+body.b1-tela .b1-pq .b1-pq__in::placeholder{color:#A3A29C;opacity:1}
+body.b1-tela .b1-pq__btn{display:inline-flex;width:28px;height:28px;flex:0 0 28px;align-items:center;justify-content:center;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:#73726C;cursor:pointer;transition:background-color .12s ease, color .12s ease}
+body.b1-tela .b1-pq__btn:hover{background:#F1F1EE;color:#141413}
+body.b1-tela .b1-pq__btn:focus-visible{outline:2px solid #5acbe9;outline-offset:1px}
+body.b1-tela .b1-pq__novo{color:#373733}
+body.b1-tela .b1-pq:focus-within{border-bottom-color:#D1D0CA}
 /* a lista deixa de ser um cartão dentro da janela */
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;scrollbar-width:thin;scrollbar-color:#D1D0CA transparent}
+body.b1-tela .b1-lista-pop .mk-sel-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;scrollbar-width:thin;scrollbar-color:#D1D0CA transparent}
 /* linhas */
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b):is(:hover, .is-hi),
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b):is(:hover, .is-hi){background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op .mk-sel-op__check:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op svg.lucide-check:not(#mk-a):not(#mk-b){flex:0 0 auto;margin-left:auto;color:#16a34a}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-vazio:not(#mk-a):not(#mk-b){padding:10px 12px;color:#73726C}
+body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b):is(:hover, .is-hi),
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op:is(.is-on, .is-selected, [aria-selected="true"]):not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op:is(.is-on, [aria-selected="true"]):not(#mk-a):not(#mk-b):is(:hover, .is-hi){background:#F1F1EE}
+body.b1-tela .b1-lista-pop .mk-sel-op .mk-sel-op__check:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .mgs__op svg.lucide-check:not(#mk-a):not(#mk-b){flex:0 0 auto;margin-left:auto;color:#16a34a}
+body.b1-tela .b1-lista-pop .mk-sel-vazio:not(#mk-a):not(#mk-b){padding:10px 12px;color:#73726C}
 /* filtro: mesma janela branca; a caixa de marcar continua à esquerda */
-body:has(.cadastro-b1--full-page) .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:6px}
-body:has(.cadastro-b1--full-page) .b1-fr-pop .b1-pq{margin:2px -6px 4px}
-body:has(.cadastro-b1--full-page) .b1-fr-campos:not(#mk-a):not(#mk-b){gap:0}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .b1-pq{min-width:0;flex:1 1 0}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .b1-pq + .b1-pq{border-left:1px solid #E8E7E2}
-body:has(.cadastro-b1--full-page) .b1-fr-maisopc:not(#mk-a):not(#mk-b){border-top:0}
+body.b1-tela .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:6px}
+body.b1-tela .b1-fr-pop .b1-pq{margin:2px -6px 4px}
+body.b1-tela .b1-fr-campos:not(#mk-a):not(#mk-b){gap:0}
+body.b1-tela .b1-fr-campos > .b1-pq{min-width:0;flex:1 1 0}
+body.b1-tela .b1-fr-campos > .b1-pq + .b1-pq{border-left:1px solid #E8E7E2}
+body.b1-tela .b1-fr-maisopc:not(#mk-a):not(#mk-b){border-top:0}
 /* celular (folha): mesmo modelo, com alturas de toque */
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-pq{min-height:44px;margin:0 -4px 6px;padding:0 4px 0 12px}
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-pq__btn{width:40px;height:40px;flex-basis:40px;border-radius:999px}
-body:has(.cadastro-b1--full-page) .mk-sheet .mgs__op:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
+body.b1-tela .mk-sheet .b1-pq{min-height:44px;margin:0 -4px 6px;padding:0 4px 0 12px}
+body.b1-tela .mk-sheet .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
+body.b1-tela .mk-sheet .b1-pq__btn{width:40px;height:40px;flex-basis:40px;border-radius:999px}
+body.b1-tela .mk-sheet .mgs__op:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-sheet .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
 @media (min-width: 640px) and (max-width: 1023px){
-  body:has(.cadastro-b1--full-page) .b1-pq{min-height:44px}body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
-  body:has(.cadastro-b1--full-page) .b1-pq__btn{width:36px;height:36px;flex-basis:36px}
-  body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
+  body.b1-tela .b1-pq{min-height:44px}body.b1-tela .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__in:focus:not(#mk-a):not(#mk-b){height:44px}
+  body.b1-tela .b1-pq__btn{width:36px;height:36px;flex-basis:36px}
+  body.b1-tela .b1-lista-pop .mk-sel-op:not(#mk-a):not(#mk-b){min-height:40px;padding:6px 12px}
 }
 /* folha do celular: mesma janela branca das listas */
-body:has(.cadastro-b1--full-page) .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){background-color:#fff}
+body.b1-tela .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){background-color:#fff}
 
 /* 6.29 O MESMO MODELO EM TODA LISTAGEM (filtros, ordenar, "+ Filtro", menus, colunas, campos dos cards, sistema produtivo, quantidade, sugestões):
    janela branca · linhas sem risco · realce arredondado · escolhido com o visto verde à direita · pesquisa lisa com uma linha embaixo */
-body:has(.cadastro-b1--full-page){--b1-visto:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")}
+body.b1-tela{--b1-visto:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")}
 
 /* ---- filtros / ordenar / "+ Filtro": sai a caixinha da esquerda, entra o visto à direita */
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){gap:8px;padding-left:12px;padding-right:10px}
-body:has(.cadastro-b1--full-page) .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;border-radius:0;background:transparent !important;color:transparent}
-body:has(.cadastro-b1--full-page) .b1-fr-op[aria-selected="true"] .b1-fr-box:not(#mk-a):not(#mk-b){color:#16a34a}
-body:has(.cadastro-b1--full-page) .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:16px;height:16px;stroke-width:1.9}
-body:has(.cadastro-b1--full-page) .b1-fr-op[aria-selected="true"] .b1-fr-op__txt:not(#mk-a):not(#mk-b){font-weight:400;color:#141413}
-body:has(.cadastro-b1--full-page) .b1-fr-op .b1-fr-op__n:not(#mk-a):not(#mk-b){color:#A3A29C}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){font-weight:400}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b) .b1-fr-op__txt{font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){gap:8px;padding-left:12px;padding-right:10px}
+body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;border-radius:0;background:transparent !important;color:transparent}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box:not(#mk-a):not(#mk-b){color:#16a34a}
+body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:16px;height:16px;stroke-width:1.9}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-op__txt:not(#mk-a):not(#mk-b){font-weight:400;color:#141413}
+body.b1-tela .b1-fr-op .b1-fr-op__n:not(#mk-a):not(#mk-b){color:#A3A29C}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b){font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-op--todos:not(#mk-a):not(#mk-b) .b1-fr-op__txt{font-weight:400}
 /* condições (É igual a, Contém…): mesma janela e mesmas linhas */
-body:has(.cadastro-b1--full-page) .b1-fr-regra__lista:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
-body:has(.cadastro-b1--full-page) .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .b1-fr-regra__lista:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b){background:transparent;color:#141413;font-weight:400}
+body.b1-tela .b1-lista-pop .mk-sel-op.b1-fr-regra__opt.is-on:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
 /* celular: lista "Filtros" */
-body:has(.cadastro-b1--full-page) .b1-fr-nav .b1-fr-nav__seta:not(#mk-a):not(#mk-b){color:#A3A29C}
-body:has(.cadastro-b1--full-page) .b1-fr-nav.is-on .b1-fr-nav__val:not(#mk-a):not(#mk-b){font-weight:500;color:#16a34a}
+body.b1-tela .b1-fr-nav .b1-fr-nav__seta:not(#mk-a):not(#mk-b){color:#A3A29C}
+body.b1-tela .b1-fr-nav.is-on .b1-fr-nav__val:not(#mk-a):not(#mk-b){font-weight:500;color:#16a34a}
 
 /* ---- menus (Mais opções, opções da coluna) */
-body:has(.cadastro-b1--full-page) [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2 !important;border-radius:12px;background:#fff !important;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06) !important;-webkit-backdrop-filter:none;backdrop-filter:none}
-body:has(.cadastro-b1--full-page) .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
-body:has(.cadastro-b1--full-page) .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b):hover:not(:disabled){background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b) svg{color:#52514E}
+body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2 !important;border-radius:12px;background:#fff !important;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06) !important;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b):hover:not(:disabled){background:#F1F1EE}
+body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b) svg{color:#52514E}
 
 /* ---- "Filtrar por campo" */
-body:has(.cadastro-b1--full-page) .fpc:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .fpc.fpc--sheet:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;box-shadow:none}
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{height:36px !important;min-height:36px !important;margin:-4px -4px 4px;padding:0 10px 0 16px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b) .mk-pill__icon{display:none}
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:36px !important;min-height:0 !important;padding:0;background:transparent}
-body:has(.cadastro-b1--full-page) .fpc .fpc__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .fpc .fpc__item:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
-body:has(.cadastro-b1--full-page) .fpc .fpc__item:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .fpc .fpc__chev:not(#mk-a):not(#mk-b){color:#A3A29C}
+body.b1-tela .fpc:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .fpc.fpc--sheet:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;box-shadow:none}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{height:36px !important;min-height:36px !important;margin:-4px -4px 4px;padding:0 10px 0 16px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) .mk-pill__icon{display:none}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:36px !important;min-height:0 !important;padding:0;background:transparent}
+body.b1-tela .fpc .fpc__lista:not(#mk-a):not(#mk-b){padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .fpc .fpc__chev:not(#mk-a):not(#mk-b){color:#A3A29C}
 
 /* ---- sugestões da pesquisa */
-body:has(.cadastro-b1--full-page) .mg-search-suggest:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b){padding:6px 12px;border:0 !important;border-radius:8px;background:transparent}
-body:has(.cadastro-b1--full-page) .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b):is(:hover, .is-hi, .is-active, [aria-selected="true"]){background:#F1F1EE}
+body.b1-tela .mg-search-suggest:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b){padding:6px 12px;border:0 !important;border-radius:8px;background:transparent}
+body.b1-tela .mg-search-suggest .mg-search-suggest__item:not(#mk-a):not(#mk-b):is(:hover, .is-hi, .is-active, [aria-selected="true"]){background:#F1F1EE}
 
 /* ---- quantidade de registros (100, 200…) */
-body:has(.cadastro-b1--full-page) .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-panel-options:not(#mk-a):not(#mk-b){padding:0;border:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 30px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b){background:var(--b1-visto) no-repeat right 8px center / 16px 16px transparent}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b):hover{background-color:#F1F1EE}
+body.b1-tela .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mg-pill-select-panel .cmd-panel-options:not(#mk-a):not(#mk-b){padding:0;border:0;background:transparent;box-shadow:none}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 30px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b){background:var(--b1-visto) no-repeat right 8px center / 16px 16px transparent}
+body.b1-tela .mg-pill-select-panel .cmd-option.selected:not(#mk-a):not(#mk-b):hover{background-color:#F1F1EE}
 
 /* ---- Sistema Produtivo (lista de marcar) */
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-title:not(#mk-a):not(#mk-b){padding:6px 12px 4px;color:#73726C;font-weight:500}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options:not(#mk-a):not(#mk-b){gap:0;padding:0;border:0;background:transparent}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b){position:relative;min-height:32px;padding:4px 34px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400;cursor:pointer}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b) input{position:absolute;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):has(input:checked){background-image:var(--b1-visto);background-repeat:no-repeat;background-position:right 10px center;background-size:16px 16px}
+body.b1-tela .mk-map-multi-popup:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06)}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-title:not(#mk-a):not(#mk-b){padding:6px 12px 4px;color:#73726C;font-weight:500}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options:not(#mk-a):not(#mk-b){gap:0;padding:0;border:0;background:transparent}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b){position:relative;min-height:32px;padding:4px 34px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413;font-weight:400;cursor:pointer}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b) input{position:absolute;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):has(input:checked){background-image:var(--b1-visto);background-repeat:no-repeat;background-position:right 10px center;background-size:16px 16px}
 
 /* ---- Colunas da tabela e Campos dos cards */
-body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b):focus-within{padding:0 8px 0 12px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
-body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) > svg{display:none}
-body:has(.cadastro-b1--full-page) .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{background:transparent}
-body:has(.cadastro-b1--full-page) .dbox .dbox-l:not(#mk-a):not(#mk-b){padding:4px;border-color:#E8E7E2;border-radius:12px;background:#fff}
-body:has(.cadastro-b1--full-page) .dbox .dlin:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
-body:has(.cadastro-b1--full-page) .dbox .dlin:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .dbox .dlin.sel:not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .14)}
-body:has(.cadastro-b1--full-page) .mk-config-options:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:none}
-body:has(.cadastro-b1--full-page) .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
-body:has(.cadastro-b1--full-page) .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
-body:has(.cadastro-b1--full-page) .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;background:transparent !important;color:#16a34a}
-body:has(.cadastro-b1--full-page) .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b) svg{width:14px;height:14px;stroke:#16a34a;stroke-width:1.6}
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b),
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b):focus-within{padding:0 8px 0 12px;border:0;border-bottom:1px solid #E8E7E2;border-radius:0;background:transparent;box-shadow:none}
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) > svg{display:none}
+body.b1-tela .cfgb.cfgb-lista:not(#mk-a):not(#mk-b) input{background:transparent}
+body.b1-tela .dbox .dbox-l:not(#mk-a):not(#mk-b){padding:4px;border-color:#E8E7E2;border-radius:12px;background:#fff}
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .dbox .dlin.sel:not(#mk-a):not(#mk-b){background:rgba(64, 222, 99, .14)}
+body.b1-tela .mk-config-options:not(#mk-a):not(#mk-b){padding:4px;border:1px solid #E8E7E2;border-radius:12px;background:#fff;box-shadow:none}
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:32px;padding:4px 10px 4px 12px;border:0 !important;border-radius:8px;background:transparent;color:#141413}
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b):hover{background:#F1F1EE}
+body.b1-tela .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b){order:9;width:18px;height:18px;flex:0 0 18px;margin:0;border:0 !important;background:transparent !important;color:#16a34a}
+body.b1-tela .mk-config-options .mg-b1-row .mg-b1-check:not(#mk-a):not(#mk-b) svg{width:14px;height:14px;stroke:#16a34a;stroke-width:1.6}
 @media (max-width: 1023px){
-  body:has(.cadastro-b1--full-page) .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc .fpc__item:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .dbox .dlin:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:40px;padding-top:6px;padding-bottom:6px}
-  body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within,
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:44px !important}
-  body:has(.cadastro-b1--full-page) .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){width:20px;height:20px;flex-basis:20px}body:has(.cadastro-b1--full-page) .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:18px;height:18px}
+  body.b1-tela .mg-b1-glass-pop .mg-b1-menuitem:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__item:not(#mk-a):not(#mk-b),
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b),
+body.b1-tela .dbox .dlin:not(#mk-a):not(#mk-b),
+body.b1-tela .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b){min-height:40px;padding-top:6px;padding-bottom:6px}
+  body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within,
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b) input{height:44px !important}
+  body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b){width:20px;height:20px;flex-basis:20px}body.b1-tela .b1-fr-op .b1-fr-box:not(#mk-a):not(#mk-b) svg{width:18px;height:18px}
 }
-body:has(.cadastro-b1--full-page) .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){width:auto !important;min-width:112px !important}
-body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b) .truncate{overflow:visible;text-overflow:clip}
+body.b1-tela .cmd-panel.mg-pill-select-panel:not(#mk-a):not(#mk-b){width:auto !important;min-width:112px !important}
+body.b1-tela .mg-pill-select-panel .cmd-option:not(#mk-a):not(#mk-b) .truncate{overflow:visible;text-overflow:clip}
 
 /* 6.30 CAMPOS, FILTROS E LISTAGENS IGUAIS: tudo que tem pesquisa começa pela mesma linha de pesquisa (lisa, com uma linha embaixo);
    o que é próprio de cada janela fica DENTRO dessa linha, à direita: "+" (cadastrar) na lista do campo, "Condição ⌄" no filtro */
-body:has(.cadastro-b1--full-page) .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:4px}
-body:has(.cadastro-b1--full-page) .b1-fr-pop .b1-pq:not(#mk-a):not(#mk-b){margin:-4px -4px 4px}
-body:has(.cadastro-b1--full-page) .b1-fr-campos:not(#mk-a):not(#mk-b){position:relative;display:flex;flex:0 0 auto;flex-direction:column;gap:0}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .b1-pq:not(#mk-a):not(#mk-b){width:auto;flex:0 0 auto}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .b1-pq + .b1-pq:not(#mk-a):not(#mk-b){margin-top:0;border-left:0}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){display:inline-flex;width:auto;max-width:58%;height:28px;flex:0 0 auto;align-items:center;gap:4px;margin:0;padding:0 6px 0 8px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:#73726C;font:inherit;font-weight:400;white-space:nowrap;cursor:pointer}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):hover,
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b)[aria-expanded="true"]{background:#F1F1EE;color:#141413}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond.is-on:not(#mk-a):not(#mk-b){color:#141413;font-weight:500}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond .b1-fr-regra__sel-l{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond .b1-fr-regra__sel-c{flex:0 0 14px;color:currentColor;opacity:.7}
-body:has(.cadastro-b1--full-page) .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:calc(100% - 2px);right:0;left:auto;width:min(100%, 232px)}
-body:has(.cadastro-b1--full-page) .b1-fr-acoes__conta{min-width:0;overflow:hidden;color:#73726C;text-overflow:ellipsis;white-space:nowrap}
+body.b1-tela .b1-lista-pop.b1-fr-pop:not(#mk-a):not(#mk-b){padding:4px}
+body.b1-tela .b1-fr-pop .b1-pq:not(#mk-a):not(#mk-b){margin:-4px -4px 4px}
+body.b1-tela .b1-fr-campos:not(#mk-a):not(#mk-b){position:relative;display:flex;flex:0 0 auto;flex-direction:column;gap:0}
+body.b1-tela .b1-fr-campos > .b1-pq:not(#mk-a):not(#mk-b){width:auto;flex:0 0 auto}
+body.b1-tela .b1-fr-campos > .b1-pq + .b1-pq:not(#mk-a):not(#mk-b){margin-top:0;border-left:0}
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){display:inline-flex;width:auto;max-width:58%;height:28px;flex:0 0 auto;align-items:center;gap:4px;margin:0;padding:0 6px 0 8px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:#73726C;font:inherit;font-weight:400;white-space:nowrap;cursor:pointer}
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):hover,
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b)[aria-expanded="true"]{background:#F1F1EE;color:#141413}
+body.b1-tela .b1-pq .b1-pq__cond.is-on:not(#mk-a):not(#mk-b){color:#141413;font-weight:500}
+body.b1-tela .b1-pq .b1-pq__cond .b1-fr-regra__sel-l{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+body.b1-tela .b1-pq .b1-pq__cond .b1-fr-regra__sel-c{flex:0 0 14px;color:currentColor;opacity:.7}
+body.b1-tela .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){top:calc(100% - 2px);right:0;left:auto;width:min(100%, 232px)}
+body.b1-tela .b1-fr-acoes__conta{min-width:0;overflow:hidden;color:#73726C;text-overflow:ellipsis;white-space:nowrap}
 /* "Filtrar por campo": a pesquisa encosta no topo, igual às outras */
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{margin-top:-4px}
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b),
+body.b1-tela .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-within{margin-top:-4px}
 /* pesquisa da barra de cima: o mesmo campo liso com a linha embaixo */
 .cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b),
 .cadastro-b1 .mg-search-pill.is-active:not(#mk-a):not(#mk-b),
@@ -817,10 +817,10 @@ body:has(.cadastro-b1--full-page) .fpc .fpc__busca:not(#mk-a):not(#mk-b):focus-w
 .cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input{background:transparent;color:#141413}
 .cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input::placeholder{color:#A3A29C;opacity:1}
 @media (max-width: 1023px){
-  body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
-body:has(.cadastro-b1--full-page) .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){height:36px}
+  body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-pq .b1-pq__cond:not(#mk-a):not(#mk-b):is(:focus, :focus-visible, [aria-expanded="true"]){height:36px}
 }
-body:has(.cadastro-b1--full-page) .mk-sheet .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){width:min(100%, 280px)}
+body.b1-tela .mk-sheet .b1-fr-campos > .b1-fr-regra__lista:not(#mk-a):not(#mk-b){width:min(100%, 280px)}
 
 /* 6.32 MOVIMENTO (nada de cor ou desenho novo: só como as coisas abrem, fecham e respondem ao toque)
    a) menus e janelas NASCEM DO BOTÃO (o contorno do botão cresce até virar a janela; o conteúdo vem do desfoque; passa um
@@ -834,31 +834,31 @@ body:has(.cadastro-b1--full-page) .mk-sheet .b1-fr-campos > .b1-fr-regra__lista:
 @keyframes mk-empurra{from{opacity:.2;translate:34% 0}}
 @keyframes mk-empurra-d{from{opacity:0;translate:32px 0}}
 @keyframes mk-estala{0%{scale:.4;opacity:0}60%{scale:1.14;opacity:1}100%{scale:1}}
-body:has(.cadastro-b1--full-page) :is([data-radix-popper-content-wrapper] > *, .fpc--pop, .fpop.pop, .b1-fr-regra__lista, .mg-search-suggest, .mdlc, .mg-confirm-dialog):not(#mk-a):not(#mk-b){animation:none !important}
-body:has(.cadastro-b1--full-page) [data-mk-abre]{will-change:transform, clip-path, opacity}
-body:has(.cadastro-b1--full-page) .mk-fantasmas{position:static;width:0;height:0;flex:0 0 0;overflow:visible;pointer-events:none}
-body:has(.cadastro-b1--full-page) .mk-fantasmas *{pointer-events:none !important}
-body:has(.cadastro-b1--full-page) .mk-fantasmas [data-mk-fantasma] *{animation:none !important}
+body.b1-tela :is([data-radix-popper-content-wrapper] > *, .fpc--pop, .fpop.pop, .b1-fr-regra__lista, .mg-search-suggest, .mdlc, .mg-confirm-dialog):not(#mk-a):not(#mk-b){animation:none !important}
+body.b1-tela [data-mk-abre]{will-change:transform, clip-path, opacity}
+body.b1-tela .mk-fantasmas{position:static;width:0;height:0;flex:0 0 0;overflow:visible;pointer-events:none}
+body.b1-tela .mk-fantasmas *{pointer-events:none !important}
+body.b1-tela .mk-fantasmas [data-mk-fantasma] *{animation:none !important}
 /* o menu de "⋮" cobre o botão, como no aplicativo: sem escurecer a tela por trás */
-body:has(.cadastro-b1--full-page) .mg-mais-opcoes-scrim:not(#mk-a){background:transparent}
+body.b1-tela .mg-mais-opcoes-scrim:not(#mk-a){background:transparent}
 /* b) folha do celular: sobe desacelerando (curva das folhas do iPhone) com o fundo escurecendo junto; ao fechar, desce */
-body:has(.cadastro-b1--full-page) .mk-sheet-root:not([data-mk-fecha]) .mk-sheet:not(#mk-a):not(#mk-b){animation:mk-sheet-in .5s cubic-bezier(.32, .72, 0, 1)}
-body:has(.cadastro-b1--full-page) .mk-sheet-root:not([data-mk-fecha]) .mk-sheet-scrim{animation:mk-surge .36s ease}
-body:has(.cadastro-b1--full-page) .mk-sheet-root:not([data-mk-fecha]) .mk-sheet__body > *{animation:mk-entra .26s cubic-bezier(.2, .8, .2, 1) backwards}
-body:has(.cadastro-b1--full-page) .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-folha-sai .3s cubic-bezier(.4, 0, .7, .2) forwards !important}
-body:has(.cadastro-b1--full-page) .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet-scrim:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-some .28s ease forwards !important}
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet:not(#mk-a):not(#mk-b){animation:mk-sheet-in .5s cubic-bezier(.32, .72, 0, 1)}
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet-scrim{animation:mk-surge .36s ease}
+body.b1-tela .mk-sheet-root:not([data-mk-fecha]) .mk-sheet__body > *{animation:mk-entra .26s cubic-bezier(.2, .8, .2, 1) backwards}
+body.b1-tela .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-folha-sai .3s cubic-bezier(.4, 0, .7, .2) forwards !important}
+body.b1-tela .mk-fantasmas .mk-sheet-root[data-mk-fecha] .mk-sheet-scrim:not(#mk-a):not(#mk-b):not(#mk-c){animation:mk-some .28s ease forwards !important}
 /* c) toque: o botão cede e volta com mola — feito no clique (iniciarMovimento), sem mexer nas transições que já existiam */
 /* d) detalhes: o visto estala ao marcar; telas entram suaves; abrir um lote empurra a ficha pela direita */
-body:has(.cadastro-b1--full-page) :is(svg.mk-sel-op__check, svg.mg-check__icon, .b1-fr-box > svg, .fopt-c > svg, .fck svg){animation:mk-estala .26s cubic-bezier(.3, 1.4, .4, 1)}
-body:has(.cadastro-b1--full-page) :is(.mg-toolbar__row--search, .b1-reg-nav){animation:mk-entra-lado .26s cubic-bezier(.2, .8, .2, 1) backwards}
-body:has(.cadastro-b1--full-page) :is(.mg-b1-cards-grid, .b1-linhas){animation:mk-surge .24s ease backwards}
-body:has(.cadastro-b1--full-page) .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra .46s cubic-bezier(.32, .72, 0, 1) backwards !important}
-@media (min-width: 1024px){body:has(.cadastro-b1--full-page) .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra-d .32s cubic-bezier(.2, .8, .2, 1) backwards !important}}
-body:has(.cadastro-b1--full-page) .mg-toast-host{animation:mk-entra .3s cubic-bezier(.2, 1.1, .3, 1) backwards}
+body.b1-tela :is(svg.mk-sel-op__check, svg.mg-check__icon, .b1-fr-box > svg, .fopt-c > svg, .fck svg){animation:mk-estala .26s cubic-bezier(.3, 1.4, .4, 1)}
+body.b1-tela :is(.mg-toolbar__row--search, .b1-reg-nav){animation:mk-entra-lado .26s cubic-bezier(.2, .8, .2, 1) backwards}
+body.b1-tela :is(.mg-b1-cards-grid, .b1-linhas){animation:mk-surge .24s ease backwards}
+body.b1-tela .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra .46s cubic-bezier(.32, .72, 0, 1) backwards !important}
+@media (min-width: 1024px){body.b1-tela .mg-form-scroll:not(#mk-a):not(#mk-b){animation:mk-empurra-d .32s cubic-bezier(.2, .8, .2, 1) backwards !important}}
+body.b1-tela .mg-toast-host{animation:mk-entra .3s cubic-bezier(.2, 1.1, .3, 1) backwards}
 @media (prefers-reduced-motion: reduce){
-  body:has(.cadastro-b1--full-page) *,
-body:has(.cadastro-b1--full-page) *::before,
-body:has(.cadastro-b1--full-page) *::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}
+  body.b1-tela *,
+body.b1-tela *::before,
+body.b1-tela *::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}
 }
 
 /* 6.33 ALINHAMENTO: botões, filtros e listas na mesma régua
@@ -880,14 +880,14 @@ body:has(.cadastro-b1--full-page) *::after{animation-duration:.01ms !important;a
 }
 /* d) celular: botões do cabeçalho na mesma régua dos de baixo (8px); funil na mesma altura da lupa */
 @media (max-width: 767px){
-  body:has(.cadastro-b1--full-page) .mk-mhdr:not(#mk-a):not(#mk-b){padding-left:8px;padding-right:8px}
+  body.b1-tela .mk-mhdr:not(#mk-a):not(#mk-b){padding-left:8px;padding-right:8px}
   .cadastro-b1 .mg-toolbar__btns > .mg-filtros-btn:not(#mk-a):not(#mk-b){align-self:flex-start;margin-top:4px}
 }
 /* e) celular: o menu do "⋮" da coluna com o mesmo desenho do "mais opções" (canto, respiro e espaço entre ícone e nome) */
 @media (max-width: 767px){
-  body:has(.cadastro-b1--full-page) [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel):not(#mk-a):not(#mk-b){width:auto;min-width:240px;padding:6px;border-radius:26px}
-  body:has(.cadastro-b1--full-page) [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel) .mg-b1-menuitem:not(#mk-a):not(#mk-b){gap:16px}
+  body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel):not(#mk-a):not(#mk-b){width:auto;min-width:240px;padding:6px;border-radius:26px}
+  body.b1-tela [data-radix-popper-content-wrapper] > .mg-b1-glass-pop:not(.mg-mais-opcoes):not(.mg-pill-select-panel) .mg-b1-menuitem:not(#mk-a):not(#mk-b){gap:16px}
 }
 /* f) lista de um campo: da largura do campo (antes parava em 480px e ficava menor que ele) */
-body:has(.cadastro-b1--full-page) [data-radix-popper-content-wrapper] > .mk-sel-pop.b1-lista-pop:not(.b1-fr-pop):not(#mk-a):not(#mk-b){max-width:calc(100vw - 16px)}
+body.b1-tela [data-radix-popper-content-wrapper] > .mk-sel-pop.b1-lista-pop:not(.b1-fr-pop):not(#mk-a):not(#mk-b){max-width:calc(100vw - 16px)}
 

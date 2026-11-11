@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
+import { trocaJanela } from "./janelaUnica";
 import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
@@ -503,7 +504,7 @@ export default function Base1Grid({
                         className={cn("w-52 p-1", portalSkin && "b1-portal-compras")}
                         align="start"
                         open={menuFor === c.key}
-                        onOpenChange={(o) => setMenuFor(o ? c.key : null)}
+                        onOpenChange={(o) => setMenuFor((m) => trocaJanela(m, c.key, o))}
                         trigger={
                           <button
                             type="button"

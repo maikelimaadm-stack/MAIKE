@@ -1,6 +1,9 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
+/** Quantos campos de lançamento cada `<form>` tem (o atributo sai quando o último sai). */
+const camposPorForm = new WeakMap();
+
 /**
  * Campo dos formulários de lançamento (pesagem, nascimento, morte, abate,
  * movimentação, tarefa, bebedouro, suplementação…) no padrão `.mg-field` do
@@ -49,6 +52,25 @@ export default function LancField({ label, required = false, error = false, data
   }, [idGerado]);
 
   React.useLayoutEffect(ler);
+
+  // Marca o <form> que tem campo de lançamento (`form[data-mk-lanc]`): o CSS dos botões desses formulários usava
+  // `form:has(.mk-lanc)`, e esse `:has()` com descendente fazia o Chrome recalcular o estilo da página inteira a
+  // cada mudança no DOM, em qualquer tela (D-PROD-165). Atributo, não classe: o React não mexe nele.
+  React.useLayoutEffect(() => {
+    const form = ref.current?.closest("form");
+    if (!form) return undefined;
+    camposPorForm.set(form, (camposPorForm.get(form) || 0) + 1);
+    form.setAttribute("data-mk-lanc", "");
+    return () => {
+      const resta = (camposPorForm.get(form) || 1) - 1;
+      if (resta > 0) {
+        camposPorForm.set(form, resta);
+        return;
+      }
+      camposPorForm.delete(form);
+      form.removeAttribute("data-mk-lanc");
+    };
+  }, []);
 
   return (
     <div data-field={dataField} className={cn("cadastro-b1 mk-lanc", className)} ref={ref} onInput={ler} onChange={ler} onBlur={ler}>

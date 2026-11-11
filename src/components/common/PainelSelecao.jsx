@@ -2,6 +2,7 @@ import React from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { focoFicaOndeEsta } from "@/components/cadastro/base1/janelaUnica";
 
 /** Teto de opções desenhadas — listas de cadastro podem ter milhares. */
 const LIMITE = 200;
@@ -62,9 +63,12 @@ export default function PainelSelecao({
   const [busca, setBusca] = React.useState(buscaInicial);
   const [hi, setHi] = React.useState(0);
   const listaRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  // Fechou porque o usuário foi para outro lugar (clique ou foco fora): o foco fica onde ele foi.
+  const saiuParaFora = React.useRef(false);
 
   React.useEffect(() => {
     if (!open) return;
+    saiuParaFora.current = false;
     setBusca(buscaInicial);
   }, [open, buscaInicial]);
 
@@ -133,8 +137,16 @@ export default function PainelSelecao({
             // — senão fechava no pointerdown e reabria no click.
             const campo = ancora?.();
             if (campo && e.target instanceof Node && campo.contains(e.target)) e.preventDefault();
+            else saiuParaFora.current = true;
           }}
           onCloseAutoFocus={(e) => {
+            // Fechou por clique/foco em outro lugar (ex.: o usuário abriu OUTRA lista): o foco fica lá.
+            // Antes ele voltava para este campo e, com isso, a lista recém-aberta fechava sozinha.
+            if (saiuParaFora.current || focoFicaOndeEsta(e)) {
+              saiuParaFora.current = false;
+              e.preventDefault();
+              return;
+            }
             // Foco volta para o campo (Tab/Enter seguem dali).
             const campo = ancora?.();
             const alvo = campo?.querySelector("input, button, [tabindex]");

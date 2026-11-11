@@ -6048,4 +6048,21 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga:** a ordem "Listados, Filtrados, Totais, Selecionados" do rodapé (PAR6) e o botão de lista lateral das abas; complementa a D-PROD-163.
 - **Evidência:** `docs/engineering/evidencias/base1-design-d163/` (`paridade-*.png` = design | sistema | diferenças; `paridade-RESUMO.txt`; movimento: `movimento-RESUMO.txt`, `movimento-ordem.png` e `movimento-mais-opcoes.png` com quadros congelados aos 60, 150 e 300 ms; outras telas: `telas-*-antes-depois.png` e `telas-celular-*.png`); testes `tests/smoke/base1TelasDesign.test.jsx`, `base1Movimento.test.jsx`, `base1FiltrosRapidos.test.jsx`, `base1DesignD163.test.jsx`, `cadastroAtivoBadge.test.jsx`, `mobileParidadeV2.test.jsx`, `mobileShellV2.test.jsx`, `mobileV4Ios.test.jsx`, `formularioLoteBase1Tabs.test.jsx`, `base1PanelTabs.test.jsx`, `catalogoGlobalLote.test.jsx`.
 
-<!-- Próxima decisão: D-PROD-165 -->
+## D-PROD-165 — Motor Base1: correções da revisão do proprietário (trocar de lista, lentidão)
+
+- **Contexto:** revendo a D-PROD-164 no sistema, o proprietário relatou que, com uma lista aberta, clicar em outra "dava bug: em vez de abrir, fecha", e "muita lentidão".
+- **Decisão (trocar de lista):** reproduzido no navegador — também na `main` (8/8 trocas entre campos do formulário de Lotes falhavam; pílulas da faixa e menus de coluna idem). Duas causas, as duas corrigidas em `src/components/cadastro/base1/janelaUnica.js`:
+  - a janela que fechava devolvia o foco ao próprio campo/botão mesmo quando o usuário tinha clicado em outro lugar — o foco saía da janela recém-aberta e ela fechava. Agora o foco só volta ao botão quando se perdeu (Esc, escolher um item); se já está noutro botão ou janela, fica lá (`focoFicaOndeEsta`: `PainelSelecao`, `B1MultiSelecao`, `B1Popover`, janelas da faixa e filtro da grade);
+  - nos grupos com uma janela aberta por vez (pílulas da faixa, menus de coluna, painéis dos cards) o "clique fora" que o Radix confirma depois do clique zerava o estado do grupo e apagava a janela nova: fechar só vale para a janela que está aberta (`trocaJanela`).
+  - Medido: 12/12 trocas no formulário de Lotes, 16/16 nas pílulas, 10/10 nos menus de coluna e 132 trocas entre grupos diferentes (Lotes, Parceiros, Produtos); Esc e Enter continuam devolvendo o foco ao botão/campo.
+- **Decisão (lentidão):** medido com 3.000 lotes (rolar a lista, abrir/fechar janela, abrir registro, digitar), `main` × branch: o custo estava no estilo — regras `:has()` faziam o Chrome recalcular o estilo da página inteira (~4.300 elementos) a cada mudança no DOM. Cada uma virou uma marca posta pelo componente, com o mesmo alcance e o mesmo desenho (44 estados de tela comparados pixel a pixel antes × depois: iguais):
+  - `body:has(.cadastro-b1--full-page)` (CSS do design, D-PROD-164) → `body.b1-tela`, ligada pelo casco Base1 (`useCascoBase1`, `telaBase1.js`) em `CadastroWorkspace`, `CadastroRapidoSheet` e `TarefasCardsMapa`;
+  - `form:has(.mk-lanc)` (já na `main`, D-PROD-147) → `form[data-mk-lanc]`, posto pelo `LancField`;
+  - `div:has(+ [role="dialog"] > .mg-confirm-dialog)` → classes `mg-confirm-dialog__fundo` e `__camada` no `ConfirmDialog`;
+  - `.mg-shell:has(.b1-fr)` → `.mg-shell[data-b1-faixa]`, posto pela faixa de filtros.
+  - Resultado (estilo recalculado): rolar a lista 40 passos 1.812 ms na `main` → 340 ms, quadros travados 72 → 13; abrir e fechar o menu de coluna 3× 293 ms → 119 ms, sem nenhum recálculo da página inteira.
+- **Regra (CSS):** nada de `:has()` com descendente ancorado em `<body>`, `<html>` ou `<form>`, nem `:has()` de irmão num `div` qualquer — o teste `tests/smoke/base1Desempenho.test.jsx` barra esses padrões em `src/styles`.
+- **Ajusta:** a D-PROD-164 — as peças compartilhadas do design ficam sob `body.b1-tela` (não mais `body:has(...)`).
+- **Evidência:** `tests/smoke/base1TrocaDeJanela.test.jsx` (falha sem a correção) e `base1Desempenho.test.jsx`; números e método no relatório `UI-BASE1-DESIGN-D163-REPORT.md` (seção "Revisão do proprietário: trocar de lista e lentidão").
+
+<!-- Próxima decisão: D-PROD-166 -->
