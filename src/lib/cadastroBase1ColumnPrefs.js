@@ -34,6 +34,16 @@ function normalizeIdList(raw, knownIds) {
  * @param {unknown} raw
  * @param {string[]} knownIds
  */
+/**
+ * Largura padrão de uma coluna. As telas a definem em px para o texto da lista de 12px; com o padrão de tipografia
+ * (D-PROD-167) a lista passou a 14px e a largura padrão cresce na mesma proporção — senão os nomes longos cortavam.
+ * Larguras que o usuário arrastou (guardadas) ficam como estão.
+ * @param {{ width?: number }} c
+ */
+export function larguraPadraoDaColuna(c) {
+  return Math.round((c?.width || 160) * (14 / 12));
+}
+
 export function normalizeColumnWidths(defaults, raw, knownIds) {
   const known = new Set(knownIds);
   const out = { ...defaults };
@@ -118,7 +128,7 @@ function readJson(key) {
  */
 export function loadCadastroBase1ColumnPrefs(storageKey, dataCols) {
   const knownIds = dataCols.map((c) => c.id);
-  const defaults = Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160]));
+  const defaults = Object.fromEntries(dataCols.map((c) => [c.id, larguraPadraoDaColuna(c)]));
   const defaultVisible = dataCols.filter((c) => c.default !== false).map((c) => c.id);
 
   const unified = readJson(`${storageKey}_prefs`);

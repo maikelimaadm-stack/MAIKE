@@ -6077,4 +6077,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Ajusta:** a D-PROD-165 — as peças compartilhadas do design ficam sob `body.b1-tela` (não mais `body:has(...)`).
 - **Evidência:** `tests/smoke/base1TrocaDeJanela.test.jsx` (falha sem a correção), `base1Desempenho.test.jsx` e `base1FiltroCabecalho.test.jsx`; `filtro-cabecalho-antes-depois.png` em `docs/engineering/evidencias/base1-design-d164/`; números e método no relatório `UI-BASE1-DESIGN-D164-REPORT.md` (seção "Revisão do proprietário: trocar de lista e lentidão").
 
-<!-- Próxima decisão: D-PROD-167 -->
+## D-PROD-167 — Padrão de tipografia do sistema (Open Sans e Lato, escala 13–46)
+
+- **Contexto:** o proprietário pediu, por escrito, um padrão de fontes e tamanhos para o sistema, tirado de uma referência que ele colou: Open Sans no texto, Lato em títulos e números; tamanhos por elemento; escala 13 · 14 · 16 · 18 · 20 · 24 · 30 · 34 · 46 px; linha 1.5 no texto e 1.25 em títulos; espaçamento 0.3px. Substitui, para a tipografia, o "manter o tamanho de fonte do sistema" das D-PROD-164/165/166.
+- **Decisão (fontes):** Open Sans (300–700) e Lato (400 e 700) pelo Google Fonts, como a DM Sans era carregada (sem dependência nova); `--mk-fonte-texto` e `--mk-fonte-titulo` em `mk-unificado.css`. A fonte de ícones da referência (própria de outra empresa) **não** entra — os ícones do sistema continuam os mesmos.
+- **Decisão (tamanhos):**
+  - texto (body), listas, campos e botões 14px; rótulo do campo 14px / 300 (o rótulo flutuante sobe a 12px para caber na caixa); valor do campo 14px / 400; select 14px / 600; no toque, campo 16px com caixa de ~48px;
+  - título de item da lista 14px / 600, subtítulo 13px / 400; cabeçalho de tabela 14px / 600; abas do topo 14px / 600; itens do submenu 14px / 400;
+  - título de janela (diálogo, folha, confirmação, aviso) 20px / 600; toast 16px (título) e 14px (detalhe) / 500; dica (tooltip) 14px / 400;
+  - cabeçalho de grupo nas listas e menus: Lato 13px, maiúsculas, 600; título de grupo e de seção dos formulários Base1: Lato 13px / 600; título da tela Base1: Lato 18px / 600;
+  - mapa: nome do pasto 12px / 400, branco com sombra, e área 10px no zoom de perto (afastando, os dois continuam diminuindo como na D-PROD-129); número de cabeças no marcador 13px / 500; tags (identificadores) no marcador 10px / 500, com o ponto em 18px para caber a sigla; card de medição (Animais · Peso méd. · Áreas): valor Lato 30px / 400, unidade 13px;
+  - Tailwind: `text-xs` passa a 13px, `4xl` 34px e `5xl` 46px (o resto da escala já coincidia).
+- **Consequência:** a largura padrão das colunas das grades cresce na mesma proporção do texto da lista (12 → 14px, `larguraPadraoDaColuna`), senão os nomes longos cortavam; larguras que o usuário arrastou ficam como estão.
+- **Fica como está (fora da tabela pedida):** legendas sob os ícones do trilho do tablet e da barra do celular; painéis densos com tamanho próprio já aprovados (Detalhes do Lote, legenda e insights do mapa). Aplicar a escala também neles é um pedido à parte.
+- **Evidência:** `tests/smoke/tipografiaSistema.test.js`; testes atualizados (`mapaRotulosSemBagunca`, `contagemLote`, `detalhesLoteVisualGesto`); capturas antes × depois no relatório `UI-BASE1-DESIGN-D164-REPORT.md` (seção "Padrão de tipografia").
+
+<!-- Próxima decisão: D-PROD-168 -->

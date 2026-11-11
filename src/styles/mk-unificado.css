@@ -10,7 +10,7 @@
   --mk-action-icon: 14px;
   --mk-action-icon-touch: 17px;
   --mk-action-stroke: 2.25;
-  --mk-action-font: 13px;
+  --mk-action-font: 14px; /* D-PROD-167: botões 14px */
   --mk-action-fg: var(--mkq-334155, #334155);
   --mk-action-fg-green: #16a34a;
   --mk-action-fg-red: #dc2626;
@@ -25,15 +25,18 @@
   --mk-icon-danger: var(--mk-action-fg-red);   /* Excluir / Remover */
   --mk-icon-field: var(--mkq-9ca3af, #9ca3af);                    /* chevron, lupa e adornos de campo */
   --mk-icon-positive: var(--mk-action-fg-green); /* + em botão tracejado / texto */
-  /* Tipografia do sistema (legível em desktop; mobile/tablet sobe no media abaixo) */
-  --mk-font-list: 13px;
-  --mk-font-field: 13px;
-  --mk-font-heading: 13px;
-  --mk-font-title: 15px;
-  --mk-font-search: 13px;
-  /* Label flutuante (LancField / mg-field): descanso vs subida */
-  --mk-font-float-rest: 12px;
-  --mk-font-float-up: 10px;
+  /* Tipografia do sistema — padrão D-PROD-167 (Open Sans; escala 13 · 14 · 16 · 18 · 20 · 24 · 30 · 34 · 46):
+     texto e listas 14px, campos 14px, rótulos 14px, títulos de janela/folha 20px. */
+  --mk-fonte-texto: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mk-fonte-titulo: "Lato", "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mk-font-list: 14px;
+  --mk-font-field: 14px;
+  --mk-font-heading: 14px;
+  --mk-font-title: 20px;
+  --mk-font-search: 14px;
+  /* Label flutuante (LancField / mg-field): descanso (14px, como o rótulo do padrão) vs subida (cabe na caixa) */
+  --mk-font-float-rest: 14px;
+  --mk-font-float-up: 12px;
   --mk-text: var(--mkq-334155, #334155);
   --mk-text-strong: var(--mkq-292a2d, #292a2d);
   --mk-text-muted: var(--mkq-64748b, #64748b);
@@ -66,7 +69,7 @@
   min-height: var(--mk-action-height) !important;
   border-radius: 999px !important;
   font-size: var(--mk-action-font) !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important; /* D-PROD-167: botões 14px / 400 */
   color: var(--mk-action-fg);
   gap: 6px;
 }
@@ -440,12 +443,12 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
     --mk-action-icon: var(--mk-action-icon-touch);
     --mk-action-font: 14px;
     --mk-font-list: 14px;
-    --mk-font-field: 14px;
+    --mk-font-field: 16px; /* toque: campo 16px (D-PROD-167; e o iOS não dá zoom) */
     --mk-font-heading: 14px;
-    --mk-font-title: 16px;
+    --mk-font-title: 20px;
     --mk-font-search: 14px;
-    --mk-font-float-rest: 14px;
-    --mk-font-float-up: 11px;
+    --mk-font-float-rest: 16px;
+    --mk-font-float-up: 12px;
     --mk-list-row-height: 40px;
     --mk-filter-row-height: 40px;
   }

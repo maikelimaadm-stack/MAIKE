@@ -133,6 +133,10 @@ O resto do custo de abrir janela é o movimento do design (a janela nascendo do 
 
 **Fontes.** Medido texto a texto (tamanho calculado de cada texto visível, pareado pelo conteúdo) entre a `main` e esta branch, em 18 telas do motor × lista, novo, registro e janelas em 1366 px, e 6 delas também em 820 e 390 px. Aumento real encontrado: título de seção dos formulários de gestão, 11px → 12px — corrigido (volta a 11px). Os demais apontamentos eram estado do campo (vazio × preenchido) ou textos iguais casados com outro elemento.
 
+## Padrão de tipografia (D-PROD-167)
+
+Pedido do proprietário: Open Sans no texto, Lato em títulos e números, tamanhos por elemento e escala 13–46 px. Aplicado pelos tokens de tamanho (`mk-unificado.css`, `base1-tipografia.css`), pela base do `body` e por `tipografia-sistema.css` (peças com tamanho próprio: abas do topo, rótulos, select, títulos de janela, toast, cabeçalho de grupo, card de medição do mapa, menu de módulos). No mapa, o nome do pasto (12px / 400, branco com sombra), a área (10px), o número de cabeças (13px / 500) e as tags (10px / 500) mudam no código do marcador. Conferido no navegador, `main` × branch: lista, formulário e confirmação no desktop e no celular (sem texto sobreposto; nomes longos cabem com a largura padrão das colunas ajustada à fonte). Imagens (esquerda: antes; direita: agora): `tipografia-lista-antes-depois.png`, `tipografia-formulario-antes-depois.png`, `tipografia-celular-antes-depois.png`.
+
 ## Verificação
 
 - Navegador real: medição acima (`paridade-*.png` = design | sistema | diferenças em vermelho; `design-*`/`app-*` = capturas).

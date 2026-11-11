@@ -17,6 +17,7 @@ import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import { focoFicaOndeEsta, trocaJanela } from "@/components/cadastro/base1/janelaUnica";
 import {
   clampColumnPrefsToVisible,
+  larguraPadraoDaColuna,
   loadCadastroBase1ColumnPrefs,
   MAX_COL_WIDTH,
   MIN_COL_WIDTH,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
 import { composeCadastroBase1RenderCell, papeisDasColunasBase1, textoDoTipoDeCelulaBase1 } from "@/components/cadastro/base1/cadastroBase1CellKind";
+
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
@@ -335,7 +337,7 @@ export default function CadastroBase1Grade({
         label: c.label,
         sortable: c.sortable !== false,
         align: c.align,
-        width: columnWidths[c.id] || c.width,
+        width: columnWidths[c.id] || larguraPadraoDaColuna(c),
         text: (r) => textoDoTipoDeCelulaBase1(r, c) ?? getFieldValue(r, c.id),
         render: (r) => {
           const node = composedRenderCell(r, c.id);
@@ -705,7 +707,7 @@ export default function CadastroBase1Grade({
   const restaurarColunas = () => {
     applyVisibleKeys(defaultVisible);
     setColunasOrdem(dataCols.map((c) => c.id));
-    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
+    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, larguraPadraoDaColuna(c)])));
     setFrozenCount(0);
     setAutoFitKeys(new Set());
   };

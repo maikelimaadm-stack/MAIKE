@@ -19,13 +19,21 @@
 @import "./styles/base1-paleta-tailwind.css";
 @import "./styles/base1-design-ajustes.css";
 @import "./styles/base1-tipografia.css";
+@import "./styles/tipografia-sistema.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Tipografia do sistema (D-PROD-167): Open Sans no texto (14px, linha 1.5, espaçamento 0.3px); títulos com linha 1.25. */
 body {
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--mk-fonte-texto, "Open Sans", ui-sans-serif, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.3px;
+}
+:is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.25;
 }
 
 
