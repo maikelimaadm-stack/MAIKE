@@ -83,23 +83,29 @@ export function AvisoGestao({ children, tone = "amber", testId = undefined }) {
   );
 }
 
-/** Filtro de situação (ativos / inativos / todos) para a barra da lista. */
-export function FiltroSituacao({ value, onChange }) {
-  return (
-    <div className="inline-flex h-8 min-w-[104px] items-center rounded-full border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-xs font-medium">
-      <B1Select
-        aria-label="Filtrar por situação"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex w-full items-center justify-between gap-1.5 whitespace-nowrap bg-transparent text-xs"
-      >
-        <option value="ativos">Ativos</option>
-        <option value="inativos">Inativos</option>
-        <option value="todos">Todos</option>
-      </B1Select>
-    </div>
-  );
-}
+/** Situações de um cadastro na consulta ao servidor (ativos / inativos / todos). */
+export const OPCOES_SITUACAO_CADASTRO = Object.freeze([
+  { value: "ativos", label: "Ativos" },
+  { value: "inativos", label: "Inativos" },
+  { value: "todos", label: "Todos" },
+]);
+
+/**
+ * Filtro de situação da tela (consulta ao servidor), como pílula na faixa de filtros do motor — e não mais na barra
+ * ao lado do "+ Novo" (D-PROD-172). Padrão "Ativos"; cobre a coluna "Ativo" da grade.
+ * @param {string} valor @param {(v: string) => void} onChange
+ * @returns {import("@/components/cadastro/base1/FiltrosRapidos").FiltroDaTela}
+ */
+export const filtroSituacaoDaTela = (valor, onChange) => ({
+  id: "situacao",
+  rotulo: "Situação",
+  nome: "Filtrar por situação",
+  opcoes: [...OPCOES_SITUACAO_CADASTRO],
+  valor,
+  padrao: "ativos",
+  onChange,
+  coluna: "ativo",
+});
 
 /** @param {string} situacao @returns {boolean|undefined} */
 export const ativoDoFiltro = (situacao) => (situacao === "ativos" ? true : situacao === "inativos" ? false : undefined);

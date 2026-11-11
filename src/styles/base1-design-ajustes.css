@@ -431,3 +431,10 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
     margin-left: 0;
   }
 }
+
+/* Filtro da tela no valor padrão (ex.: Situação "Ativos"): o valor aparece, mas sem o verde de filtro aplicado,
+   como o valor de "Ordenar" (D-PROD-172). */
+.cadastro-b1 .b1-fr-chip__val.b1-fr-chip__val--padrao:not(#mk-a) {
+  font-weight: 500;
+  color: #373733;
+}

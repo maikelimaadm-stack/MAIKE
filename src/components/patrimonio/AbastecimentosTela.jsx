@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaAbastecimentos, { ABASTECIMENTOS_CAMPOS_CARD, ABASTECIMENTOS_COLUNAS, ABASTECIMENTOS_STORAGE_KEY, valorDoCampoAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
@@ -6,7 +7,6 @@ import FormularioAbastecimento, { FORMULARIO_ABASTECIMENTO_ID, chaveProdutosDoBe
 import ConsultaAbastecimento from "@/components/patrimonio/ConsultaAbastecimento";
 import PainelConsumoBem from "@/components/patrimonio/PainelConsumoBem";
 import { DialogoCancelarAbastecimento, DialogoPreviaAbastecimento } from "@/components/patrimonio/DialogosAbastecimento";
-import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -534,11 +534,18 @@ export default function AbastecimentosTela() {
 
   const registroAtual = idAberto ? (detalhe ?? registroLista) : null;
 
+  // Filtro da consulta como pílula na faixa do motor, não na barra (D-PROD-172).
+  const filtrosDaTela =
+    empresaId && acoes.ver
+      ? [{ id: "status", rotulo: "Situação", nome: "Filtrar por situação", opcoes: OPCOES_SITUACAO, valor: statusFiltro, padrao: "TODOS", onChange: setStatusFiltro, coluna: "status" }]
+      : [];
+
   return (
     // Os botões seguem a regra EXATA do servidor (novo|salvar, cancelar):
     // a heurística de texto do Layout não se aplica ("Confirmar
     // abastecimento" não exige `salvar`).
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Abastecimentos"
@@ -554,9 +561,6 @@ export default function AbastecimentosTela() {
         showEdit={false}
         showDuplicate={false}
         showDelete={false}
-        extraToolbar={
-          empresaId && acoes.ver ? <FiltroOpcoes rotulo="Filtrar por situação" value={statusFiltro} onChange={setStatusFiltro} opcoes={OPCOES_SITUACAO} /> : null
-        }
         deleteDialog={{
           title: "Cancelar abastecimento",
           confirmText: "Cancelar",
@@ -608,6 +612,7 @@ export default function AbastecimentosTela() {
       ) : null}
 
       <PainelConsumoBem aberto={Boolean(consumoBem)} empresaId={empresaId} bem={consumoBem} onFechar={() => setConsumoBem(null)} />
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }

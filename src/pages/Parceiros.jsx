@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   alterarSituacaoParceiro,
@@ -17,7 +18,7 @@ import TabelaParceiros, {
   getParceiroFieldValue,
 } from "@/components/gestao/TabelaParceiros";
 import FormularioParceiro, { FORMULARIO_PARCEIRO_ID } from "@/components/gestao/FormularioParceiro";
-import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, ativoDoFiltro, filtroSituacaoDaTela } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaGestao, useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 import { TELAS_GESTAO } from "@/lib/gestaoPermissions";
@@ -218,10 +219,13 @@ export default function Parceiros() {
     aviso = <AvisoGestao testId="gestao-sem-permissao">Você não tem permissão para visualizar Parceiros.</AvisoGestao>;
   }
 
+  const filtrosDaTela = [filtroSituacaoDaTela(situacao, setSituacao)];
+
   return (
     // A visibilidade dos botões já segue a regra EXATA do servidor (editar OU
     // salvar; novo OU salvar) — a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Parceiros"
@@ -236,7 +240,6 @@ export default function Parceiros() {
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
         showDelete={podeGravar && acoes.editar}
-        extraToolbar={<FiltroSituacao value={situacao} onChange={setSituacao} />}
         additionalMoreActions={
           podeReativar
             ? [{ key: "reativar", label: "Reativar parceiro", onSelect: () => reativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: String(registroAtual.id) }) }]
@@ -276,6 +279,7 @@ export default function Parceiros() {
           />
         }
       />
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }
