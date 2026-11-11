@@ -1,19 +1,20 @@
 /**
  * Estado do formulário do Bem Patrimonial (D-PROD-157, simplificado pela
- * D-PROD-162: sem medições físicas; cada tanque aceita Produtos do estoque da
- * fazenda, em L ou KG) — funções PURAS, sem
- * React: do detalhe do servidor (A13) para o estado da tela (textos
+ * D-PROD-162: sem medições físicas; e pela D-PROD-169: o bem escolhe o "Tipo
+ * de bem" — a natureza — e o Tipo, sem família, Área nem Localização; cada
+ * tanque aceita Produtos do estoque da fazenda em L, KG ou SACO) — funções
+ * PURAS, sem React: do detalhe do servidor (A13) para o estado da tela (textos
  * localizados), validação local e do estado para a forma do corpo que o
  * `bemPatrimonialService` envia (POST completo ou PATCH mínimo).
  *
  * Números digitados são TEXTO em pt-BR ("1.250,5") e só viram decimal
  * canônico ("1250.5") na conversão, com `lerNumeroLocal` (sem float). Campos
  * que a natureza não admite (matriz §2) nunca vão preenchidos: a conversão os
- * zera, mesmo que a pessoa tenha digitado antes de trocar a família.
+ * zera, mesmo que a pessoa tenha digitado antes de trocar o Tipo de bem.
  */
 
 import { comparar, lerNumeroLocal, paraTextoDeEdicao, somar } from '@/lib/dinheiroDecimal';
-import { MAX_PRODUTOS_POR_TANQUE, UNIDADES_ESTOQUE_TANQUE, campoAplicavel, capacidadesDaNatureza, ehMedidorContador } from '@/lib/patrimonioDominio';
+import { MAX_PRODUTOS_POR_TANQUE, UNIDADES_ESTOQUE_TANQUE, campoAplicavel, capacidadesDaNatureza, ehMedidorContador, ehNatureza } from '@/lib/patrimonioDominio';
 import { lerInteiro, textoDoInteiro } from '@/components/patrimonio/PatrimonioFormParts';
 
 export const LOCALE_BEM = 'pt-BR';
@@ -30,7 +31,7 @@ export const LIMITE_TANQUES_ATIVOS = 10;
 /** Produtos aceitos ativos por tanque (P-02). */
 export const LIMITE_PRODUTOS_POR_TANQUE = MAX_PRODUTOS_POR_TANQUE;
 
-/** Prefixo das consultas de opções do patrimônio (o cadastro rápido e o "Gerenciar famílias e tipos" invalidam por ele). */
+/** Prefixo das consultas de opções do patrimônio (o cadastro rápido e o "Gerenciar tipos" invalidam por ele). */
 export const CHAVE_OPCOES_PATRIMONIO = Object.freeze(['lancamentos-financeiros-gestao', 'opcoes', 'patrimonio']);
 
 export const ABAS_BEM = Object.freeze({
@@ -53,9 +54,9 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
  * @typedef {{ depreciavel: boolean, vida: string, vidaUnidade: 'MESES'|'ANOS', residual_modo: 'VALOR'|'PERCENTUAL', valor_residual: string, residual_percentual: string, data_inicio_depreciacao: string }} DepreciacaoForm
  * @typedef {{
  *   nome: string, codigo_frota: string,
- *   familia: (Referencia & { natureza: string|null })|null, tipo: Referencia|null,
- *   propriedade: string, proprietario: Referencia|null, responsavel: Referencia|null, centro_custo: Referencia|null, area: Referencia|null,
- *   localizacao_descricao: string, marca: string, modelo: string, ano_fabricacao: string, ano_modelo: string,
+ *   natureza: string, tipo: Referencia|null,
+ *   propriedade: string, proprietario: Referencia|null, responsavel: Referencia|null, centro_custo: Referencia|null,
+ *   marca: string, modelo: string, ano_fabricacao: string, ano_modelo: string,
  *   numero_serie: string, chassi: string, placa: string, placa_uf: string, renavam: string, potencia_cv: string,
  *   material: string, ano_conclusao: string, compatibilidade: string, especificacoes: string, observacoes: string,
  *   medidor: MedidorForm, tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
@@ -111,7 +112,7 @@ export const produtoDoTanque = (p) => {
   return { id, rotulo: texto(p.nome), unidade, ativo: p.produto_ativo !== false && p.ativo !== false };
 };
 
-/** O Produto aceito ainda serve para abastecer pela tela (ativo e em L ou KG)? @param {ProdutoDoTanque} p */
+/** O Produto aceito ainda serve para abastecer pela tela (ativo e em L, KG ou SACO)? @param {ProdutoDoTanque} p */
 export const produtoUtilizavel = (p) => p.ativo && typeof p.unidade === 'string' && UNIDADES_ESTOQUE_TANQUE.includes(p.unidade);
 
 /**
@@ -119,9 +120,10 @@ export const produtoUtilizavel = (p) => p.ativo && typeof p.unidade === 'string'
  * duplicar, sai sem o que identifica o bem físico (código de frota, série,
  * chassi, placa, renavam), sem leituras do medidor, sem ids de tanques e só
  * com os tanques ativos. O inativo é legível no registro, mas não é escolhido
- * para um bem novo: a cópia sai sem a família e o tipo inativos e só com os
- * Produtos aceitos que ainda servem (ativos, em L ou KG) — o servidor
- * recusaria os outros num bem novo.
+ * para um bem novo: a cópia sai sem o tipo inativo (ou de família inativa) e
+ * só com os Produtos aceitos que ainda servem (ativos, em L, KG ou SACO) — o
+ * servidor recusaria os outros num bem novo. O Tipo de bem (natureza) vem do
+ * detalhe (ou da família dele, nos detalhes antigos).
  * @param {any} detalhe @param {{ duplicar?: boolean }} [opcoes]
  * @returns {EstadoBem}
  */
@@ -129,7 +131,7 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
   const d = detalhe && typeof detalhe === 'object' ? detalhe : {};
   /** Na cópia, referência inativa não vem marcada. @param {any} ref */
   const usavel = (ref) => !duplicar || ref?.ativo !== false;
-  const familia = d.familia?.id && usavel(d.familia) ? { id: String(d.familia.id), rotulo: texto(d.familia.nome), natureza: d.familia.natureza ?? d.natureza ?? null } : null;
+  const natureza = ehNatureza(d.natureza) ? d.natureza : ehNatureza(d.familia?.natureza) ? d.familia.natureza : '';
   const medidor = d.medidor && typeof d.medidor === 'object' ? d.medidor : null;
   const aq = d.aquisicao && typeof d.aquisicao === 'object' ? d.aquisicao : {};
   const dp = d.depreciacao && typeof d.depreciacao === 'object' ? d.depreciacao : {};
@@ -139,14 +141,12 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
   return {
     nome: texto(d.nome),
     codigo_frota: identidade('codigo_frota'),
-    familia,
-    tipo: duplicar && (!familia || !usavel(d.tipo)) ? null : referencia(d.tipo),
+    natureza,
+    tipo: duplicar && (!usavel(d.tipo) || !usavel(d.familia)) ? null : referencia(d.tipo),
     propriedade: texto(d.propriedade) || 'PROPRIO',
     proprietario: referencia(d.proprietario),
     responsavel: referencia(d.responsavel),
     centro_custo: d.centro_custo?.id ? { id: String(d.centro_custo.id), rotulo: rotuloDoCentro(d.centro_custo) } : null,
-    area: referencia(d.area),
-    localizacao_descricao: texto(d.localizacao_descricao),
     marca: texto(d.marca),
     modelo: texto(d.modelo),
     ano_fabricacao: textoDoInteiro(d.ano_fabricacao),
@@ -301,12 +301,12 @@ const validarParametrosDepreciacao = (e, erros) => {
 export const validarBem = (e, ctx) => {
   /** @type {Record<string, string>} */
   const erros = {};
-  const natureza = e.familia?.natureza ?? null;
+  const natureza = e.natureza || null;
   const cap = capacidadesDaNatureza(natureza);
   const aplica = (/** @type {string} */ campo) => campoAplicavel(natureza, campo);
 
   if (!e.nome.trim()) erros.nome = 'Obrigatório';
-  if (!e.familia?.id) erros.familia = 'Escolha a família';
+  if (!ehNatureza(natureza)) erros.natureza = 'Escolha o tipo de bem';
   if (!e.tipo?.id) erros.tipo = 'Escolha o tipo';
   const codigo = normalizarCodigoFrota(e.codigo_frota);
   if (codigo && (codigo.length > 16 || !PADRAO_CODIGO_FROTA.test(codigo))) erros.codigo_frota = 'Letras e números, separados por espaço ou hífen (ex.: TP-02)';
@@ -423,12 +423,14 @@ const ouNulo = (t) => (t.trim() ? t.trim() : null);
 
 /**
  * Estado (já validado) → forma do corpo (`formaDeEdicaoDoBem`). Campos e blocos
- * que a natureza não admite saem vazios.
+ * que a natureza não admite saem vazios. D-PROD-169: `natureza` + `tipo_id`
+ * (sem `familia_id`, `area_id` nem `localizacao_descricao`); a `natureza` só
+ * vai no POST (o service não a manda no PATCH).
  * @param {EstadoBem} e @param {ContextoBem} ctx
  * @returns {Record<string, any>}
  */
 export const formaDoEstado = (e, ctx) => {
-  const natureza = e.familia?.natureza ?? null;
+  const natureza = e.natureza || null;
   const cap = capacidadesDaNatureza(natureza);
   /** @template T @param {string} campo @param {T} valor @returns {T|null} */
   const seAplica = (campo, valor) => (campoAplicavel(natureza, campo) ? valor : null);
@@ -459,15 +461,13 @@ export const formaDoEstado = (e, ctx) => {
   const placa = normalizarPlaca(e.placa);
   return {
     nome: e.nome.trim(),
-    familia_id: e.familia?.id ?? null,
+    natureza,
     tipo_id: e.tipo?.id ?? null,
     codigo_frota: normalizarCodigoFrota(e.codigo_frota) || null,
     propriedade: e.propriedade || 'PROPRIO',
     proprietario_parceiro_id: e.propriedade !== 'PROPRIO' ? (e.proprietario?.id ?? null) : null,
     responsavel_usuario_id: e.responsavel?.id ?? null,
     centro_custo_id: e.centro_custo?.id ?? null,
-    area_id: e.area?.id ?? null,
-    localizacao_descricao: ouNulo(e.localizacao_descricao),
     marca: ouNulo(e.marca),
     modelo: ouNulo(e.modelo),
     ano_fabricacao: inteiro(e.ano_fabricacao),

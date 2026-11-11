@@ -1,8 +1,10 @@
 /**
  * D-PROD-157 (A3) / D-PROD-162 — opções dos seletores do formulário do bem que
- * dependem da EMPRESA: responsáveis, parceiros, centros de custo, áreas e os
- * Produtos que um tanque pode aceitar. As de catálogo (famílias e tipos) são
- * do tenant e ficam nos services de cada catálogo (`opcoes`).
+ * dependem da EMPRESA: responsáveis, parceiros, centros de custo e os
+ * Produtos que um tanque pode aceitar. As de catálogo (tipos) são do tenant e
+ * ficam no service do tipo (`opcoes`). D-PROD-169: a tela de Bens deixou de
+ * mostrar Área, e as opções de áreas saíram (sem consumidor; o `area_id` já
+ * gravado não é apagado e o servidor continua aceitando o campo).
  *
  * Só ATIVOS, keyset (nome, id) crescente, busca literal no servidor e
  * envelope `{ itens, has_more, next_cursor }` (limite padrão 50, máx. 100).
@@ -15,7 +17,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { paginacaoOpcoes, paginarPorNome } from './patrimonioComum.js';
-import { UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
+import { UNIDADES_PRODUTO_TANQUE } from './patrimonioDominio.js';
 
 /**
  * Escopo comum: tenant da sessão, empresa validada, paginação e busca.
@@ -73,30 +75,16 @@ export const opcoesCentrosCusto = async (contexto, query = {}) => {
   });
 };
 
-/** Áreas (pastagens) ATIVAS da empresa, `{id, nome}`. */
-export const opcoesAreas = async (contexto, query = {}) => {
-  const { prisma, clienteId, empresaId, limit, cursor, q } = await escopo(contexto, query);
-  /** @type {any[]} */
-  const filtros = [{ cliente_id: clienteId, empresa_id: empresaId, ativo: true }];
-  if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero_area: { contains: q } }] });
-  return paginarPorNome(prisma.areaPastagem, {
-    where: { AND: filtros },
-    select: { id: true, nome: true },
-    limit,
-    cursor,
-    mapear: (linhas) => linhas.map((a) => ({ id: a.id, nome: a.nome })),
-  });
-};
-
 /**
- * D-PROD-162 — Produtos que o tanque pode ACEITAR: ATIVOS, da empresa, com
- * estoque em L ou KG (nunca SACO, outra fazenda ou outro tenant), por nome e
- * id; `q` em nome ou código interno; `unidade` (L|KG) filtra (achado D8).
+ * D-PROD-162 / D-PROD-169 — Produtos que o tanque pode ACEITAR: ATIVOS, da
+ * empresa, em QUALQUER unidade do cadastro de Produtos (L, KG ou SACO; nunca
+ * outra fazenda ou outro tenant), por nome e id; `q` em nome ou código
+ * interno; `unidade` (L|KG|SACO) filtra (achado D8).
  * Sem preço, saldo ou custo: `{id, nome, codigo_interno, unidade_principal_estoque}`.
  */
 export const opcoesProdutosParaTanque = async (contexto, query = {}) => {
   const { prisma, clienteId, empresaId, limit, cursor, q } = await escopo(contexto, query);
-  const unidades = UNIDADES_ABASTECIMENTO.includes(query.unidade) ? [query.unidade] : [...UNIDADES_ABASTECIMENTO];
+  const unidades = UNIDADES_PRODUTO_TANQUE.includes(query.unidade) ? [query.unidade] : [...UNIDADES_PRODUTO_TANQUE];
   /** @type {any[]} */
   const filtros = [{ cliente_id: clienteId, empresa_id: empresaId, ativo: true, unidade_principal_estoque: { in: unidades } }];
   if (q) filtros.push({ OR: [{ nome_produto: { contains: q, mode: 'insensitive' } }, { codigo_interno: { contains: q, mode: 'insensitive' } }] });

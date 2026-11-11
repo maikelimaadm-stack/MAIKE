@@ -6,8 +6,12 @@
  * (422 `BEM_CAMPO_NAO_APLICAVEL` etc.); nada aqui decide gravação.
  *
  * D-PROD-162: saíram as medições físicas (dimensões, unidades físicas,
- * finalidades de perfil) e as unidades de combustível. O tanque aceita
- * Produtos do estoque em litros (`L`) ou quilos (`KG`).
+ * finalidades de perfil) e as unidades de combustível.
+ *
+ * D-PROD-169: o tanque aceita Produtos do estoque em QUALQUER unidade de
+ * estoque (`L`, `KG` ou `SACO`). A unidade EFETIVA do estoque é litros para
+ * `L` e quilos para `KG` e `SACO` (o SACO guarda o estoque em kg). Na tela de
+ * Bens, "Natureza" passa a se chamar "Tipo de bem" (mesma lista fixa).
  */
 
 export const NATUREZAS_PATRIMONIO = Object.freeze(['BENFEITORIA', 'MAQUINA', 'VEICULO', 'IMPLEMENTO', 'EQUIPAMENTO', 'OUTRO']);
@@ -24,18 +28,41 @@ export const ROTULO_NATUREZA = Object.freeze({
 /** @param {unknown} v @returns {v is 'BENFEITORIA'|'MAQUINA'|'VEICULO'|'IMPLEMENTO'|'EQUIPAMENTO'|'OUTRO'} */
 export const ehNatureza = (v) => typeof v === 'string' && NATUREZAS_PATRIMONIO.includes(v);
 
-// ─── Unidade de estoque do Produto no tanque (D-PROD-162) ────────────────
+// ─── Unidade de estoque do Produto no tanque (D-PROD-162, D-PROD-169) ────
 
-/** Unidades de estoque que um tanque aceita e o abastecimento baixa (`UNIDADES_ABASTECIMENTO` no servidor). */
-export const UNIDADES_ESTOQUE_TANQUE = Object.freeze(['L', 'KG']);
+/**
+ * Unidades de estoque do Produto que um tanque aceita (D-PROD-169: qualquer
+ * unidade de estoque do cadastro de Produtos — litros, quilos ou sacos).
+ */
+export const UNIDADES_ESTOQUE_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
+
+/**
+ * Unidade EFETIVA do estoque (a do abastecimento, `AbastecimentoBem.unidade`):
+ * `L` fica em litros; `KG` e `SACO` guardam o estoque em quilos.
+ */
+export const UNIDADE_EFETIVA_DO_ESTOQUE = Object.freeze({ L: 'L', KG: 'KG', SACO: 'KG' });
+
+/** `L` → `L`; `KG`/`SACO` → `KG`; outra (ou nada) → `null`. @param {unknown} u @returns {'L'|'KG'|null} */
+export const unidadeEfetivaDoEstoque = (u) =>
+  typeof u === 'string' && Object.prototype.hasOwnProperty.call(UNIDADE_EFETIVA_DO_ESTOQUE, u)
+    ? /** @type {'L'|'KG'} */ (/** @type {Record<string, string>} */ (UNIDADE_EFETIVA_DO_ESTOQUE)[u])
+    : null;
 
 /** Produtos aceitos ATIVOS por tanque (P-02; `MAX_PRODUTOS_POR_TANQUE` no servidor). */
 export const MAX_PRODUTOS_POR_TANQUE = 20;
 
-/** Selo curto da unidade de estoque do Produto ("120 L", "80 kg"). */
+/** Rótulo curto da unidade de estoque ("120 L", "80 kg"); SACO guarda em kg. */
 export const ROTULO_UNIDADE_ESTOQUE = Object.freeze({
   L: 'L',
   KG: 'kg',
+  SACO: 'kg',
+});
+
+/** Selo do Produto aceito no tanque: a unidade de estoque e, no SACO, que o Produto é em sacos. */
+export const SELO_UNIDADE_DO_PRODUTO = Object.freeze({
+  L: 'L',
+  KG: 'kg',
+  SACO: 'kg · saco',
 });
 
 // ─── Medidor (máquinas, veículos, equipamentos) ──────────────────────────

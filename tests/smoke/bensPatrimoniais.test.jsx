@@ -7,9 +7,10 @@
  *    180 L que aceita o Produto Diesel S10), caminhonete flex UT-04 (odômetro +
  *    um tanque de 80 L que aceita Gasolina e Etanol), curral (sem medições:
  *    D-PROD-162);
- *  - seções e campos condicionais pela natureza da família (espelho da matriz
- *    §2: medidor obrigatório/opcional, tanques, placa, chassi…; sem aba
- *    Medições, D-PROD-162);
+ *  - seções e campos condicionais pelo "Tipo de bem" (a natureza; espelho da
+ *    matriz §2: medidor obrigatório/opcional, tanques, placa, chassi…; sem aba
+ *    Medições, D-PROD-162). D-PROD-169: sem Família na tela, o POST vai com
+ *    `natureza` + `tipo_id` (sem `familia_id`) e sem Área nem Localização;
  *  - prévia de depreciação rotulada como simulação (1.250,00 por mês);
  *  - edição com PATCH mínimo + `versao`; 409/422 mostram a mensagem do
  *    patrimônio e mantêm o formulário; conflito de versão relê o detalhe;
@@ -18,7 +19,7 @@
  *    o corpo HTTP exato; cancelar a edição descarta o digitado; correção do
  *    medidor não envia o que o servidor recusa; "hoje" da leitura no fuso da
  *    fazenda; duplicar só leva os Produtos aceitos que ainda servem (ativos,
- *    em L ou KG).
+ *    em L, KG ou SACO).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -43,21 +44,14 @@ const permissaoCom = (acoes) => ({
 });
 
 const opcoes = (itens) => ({ status: 200, body: { itens, has_more: false, next_cursor: null } });
-const FAMILIAS = [
-  { id: 'f1', codigo: 'BENFEITORIAS', nome: 'Benfeitorias e instalações', natureza: 'BENFEITORIA' },
-  { id: 'f2', codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA' },
-  { id: 'f3', codigo: 'VEICULOS', nome: 'Veículos', natureza: 'VEICULO' },
-  { id: 'f4', codigo: 'IMPLEMENTOS', nome: 'Implementos', natureza: 'IMPLEMENTO' },
-  { id: 'f5', codigo: 'EQUIPAMENTOS', nome: 'Equipamentos', natureza: 'EQUIPAMENTO' },
-  { id: 'f6', codigo: 'OUTROS', nome: 'Outros bens', natureza: 'OUTRO' },
-];
+/** Tipos ATIVOS por "Tipo de bem" (D-PROD-169: `?natureza=`; sem família na tela). */
 const TIPOS = {
-  f1: [{ id: 't1', codigo: 'CURRAL', nome: 'Curral', familia_id: 'f1' }],
-  f2: [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', familia_id: 'f2' }],
-  f3: [{ id: 't3', codigo: 'CAMINHONETE', nome: 'Caminhonete', familia_id: 'f3' }],
-  f4: [{ id: 't4', codigo: 'ROCADEIRA', nome: 'Roçadeira', familia_id: 'f4' }],
-  f5: [{ id: 't5', codigo: 'GERADOR', nome: 'Gerador', familia_id: 'f5' }],
-  f6: [{ id: 't6', codigo: 'BALSA', nome: 'Balsa', familia_id: 'f6' }],
+  BENFEITORIA: [{ id: 't1', codigo: 'CURRAL', nome: 'Curral', natureza: 'BENFEITORIA' }],
+  MAQUINA: [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', natureza: 'MAQUINA' }],
+  VEICULO: [{ id: 't3', codigo: 'CAMINHONETE', nome: 'Caminhonete', natureza: 'VEICULO' }],
+  IMPLEMENTO: [{ id: 't4', codigo: 'ROCADEIRA', nome: 'Roçadeira', natureza: 'IMPLEMENTO' }],
+  EQUIPAMENTO: [{ id: 't5', codigo: 'GERADOR', nome: 'Gerador', natureza: 'EQUIPAMENTO' }],
+  OUTRO: [{ id: 't6', codigo: 'BALSA', nome: 'Balsa', natureza: 'OUTRO' }],
 };
 /** Produtos ativos da fazenda em L ou KG (D-PROD-162: o que um tanque pode aceitar). */
 const PRODUTOS = [
@@ -70,7 +64,6 @@ const PRODUTOS = [
 const OPCOES_DA_EMPRESA = {
   responsaveis: [{ id: 'u7', nome: 'João Vaqueiro' }],
   'centros-custo': [{ id: 'cc1', numero: '12', nome: 'Manutenção' }],
-  areas: [{ id: 'a1', nome: 'Retiro Sul' }],
   parceiros: [{ id: 'pc1', nome: 'Agro Máquinas' }, { id: 'pc2', nome: 'Vizinho da Divisa' }],
 };
 const RESUMO_TRATOR = {
@@ -150,7 +143,7 @@ beforeEach(async () => {
     }
     if (method === 'GET' && path === '/bens-patrimoniais') {
       const itens = query.get('empresa_id') === 'emp-2' ? [RESUMO_OUTRA_EMPRESA] : [{ ...RESUMO_TRATOR, versao: versaoDetalhe }, RESUMO_CURRAL];
-      return { status: 200, body: envelope(itens.filter((b) => !query.get('familia_id') || b.familia.id === query.get('familia_id'))) };
+      return { status: 200, body: envelope(itens.filter((b) => !query.get('natureza') || b.natureza === query.get('natureza'))) };
     }
     if (method === 'GET' && path === '/empresas') return { status: 200, body: empresasDoBackend };
     if (method === 'GET' && path === '/bens-patrimoniais/b1') {
@@ -158,21 +151,19 @@ beforeEach(async () => {
     }
     if (method === 'GET' && path === '/bens-patrimoniais/b2') return { status: 200, body: detalheCurral() };
     if (method === 'PATCH' && path === '/bens-patrimoniais/b2') return { status: 200, body: { ...detalheCurral(), versao: 3 } };
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/familias') return opcoes(FAMILIAS);
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS[query.get('familia_id')] ?? []);
+    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS[query.get('natureza')] ?? []);
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/produtos') {
       return opcoes(PRODUTOS.filter((p) => !query.get('unidade') || p.unidade_principal_estoque === query.get('unidade')));
     }
     if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return opcoes(OPCOES_DA_EMPRESA[path.split('/')[2]] ?? []);
     if (method === 'POST' && path === '/bens-patrimoniais-previa-depreciacao') return { status: 200, body: PREVIA };
     if (method === 'POST' && path === '/bens-patrimoniais') {
-      const familia = FAMILIAS.find((f) => f.id === body.familia_id);
       const tipo = Object.values(TIPOS).flat().find((t) => t.id === body.tipo_id);
       return {
         status: 201,
         body: {
-          id: 'b9', numero: '8', versao: 1, ativo: true, nome: body.nome, natureza: familia.natureza, codigo_frota: body.codigo_frota ?? null,
-          familia: { ...familia, ativo: true }, tipo: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome, ativo: true }, propriedade: 'PROPRIO', tanques: [], medidor: null,
+          id: 'b9', numero: '8', versao: 1, ativo: true, nome: body.nome, natureza: body.natureza, codigo_frota: body.codigo_frota ?? null,
+          tipo: { id: tipo.id, codigo: tipo.codigo, nome: tipo.nome, ativo: true }, propriedade: 'PROPRIO', tanques: [], medidor: null,
         },
       };
     }
@@ -224,11 +215,17 @@ const abrirTrator = async () => {
   fireEvent.doubleClick(await screen.findByTestId('bem-nome-b1'));
   return screen.findByTestId('b1-form');
 };
-/** Novo bem com nome, família e tipo escolhidos. */
-const novoDaFamilia = async (nome, familia, tipo) => {
+/** Escolhe o "Tipo de bem" (a natureza, lista fixa — D-PROD-169). */
+const escolherTipoDeBem = async (form, rotulo) => {
+  await escolherOpcao(within(form).getByRole('combobox', { name: 'Tipo de bem' }), rotulo);
+  // jsdom: o próximo seletor só abre depois que as opções deste sumirem.
+  await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
+};
+/** Novo bem com nome, Tipo de bem e tipo escolhidos. */
+const novoDoTipoDeBem = async (nome, tipoDeBem, tipo) => {
   const form = await novo();
   fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: nome } });
-  await escolherNoSeletor(form, 'bem-seletor-familia', familia);
+  await escolherTipoDeBem(form, tipoDeBem);
   await escolherNoSeletor(form, 'bem-seletor-tipo', tipo);
   return form;
 };
@@ -261,11 +258,17 @@ describe('Bens — lista e empresa', () => {
     expect(listagens()).toEqual([]);
   });
 
-  it('filtro de família manda familia_id; trocar de empresa fecha o registro e relê com a nova empresa', async () => {
+  it('filtro de Tipo de bem manda natureza (sem filtro de família); trocar de empresa fecha o registro e relê com a nova empresa', async () => {
     await montar();
     await screen.findByTestId('bem-nome-b1');
-    await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por família' }), 'Máquinas');
-    await waitFor(() => expect(listagens().some((c) => c.query.familia_id === 'f2' && c.query.empresa_id === 'emp-1')).toBe(true));
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por família' })).toBeNull();
+    expect(await rotulosDasOpcoes(screen.getByRole('combobox', { name: 'Filtrar por tipo de bem' }))).toEqual([
+      'Todos os tipos de bem', 'Benfeitoria', 'Máquina', 'Veículo', 'Implemento', 'Equipamento', 'Outro',
+    ]);
+    await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
+    await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por tipo de bem' }), 'Máquina');
+    await waitFor(() => expect(listagens().some((c) => c.query.natureza === 'MAQUINA' && c.query.empresa_id === 'emp-1')).toBe(true));
+    expect(listagens().every((c) => c.query.familia_id === undefined)).toBe(true);
     await waitFor(() => expect(screen.queryByTestId('bem-nome-b2')).toBeNull());
     await abrirTrator();
     const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
@@ -285,9 +288,9 @@ describe('Bens — criação (corpo exato)', () => {
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Trator TP-02' } });
     fireEvent.change(within(form).getByLabelText(/^Código de frota/), { target: { value: ' tp-02 ' } });
-    await escolherNoSeletor(form, 'bem-seletor-familia', /^Máquinas/);
+    await escolherTipoDeBem(form, 'Máquina');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Trator de pneus/);
-    expect(backend.chamadas.find((c) => c.path === '/bens-patrimoniais-opcoes/tipos').query).toMatchObject({ familia_id: 'f2' });
+    expect(backend.chamadas.find((c) => c.path === '/bens-patrimoniais-opcoes/tipos').query).toEqual({ natureza: 'MAQUINA', limit: '50' });
     expect(backend.chamadas.filter((c) => c.path.startsWith('/bens-patrimoniais-opcoes/')).every((c) => c.query.empresa_id === undefined)).toBe(true);
     expect(screen.queryByRole('tab', { name: 'Medições' })).toBeNull();
 
@@ -315,7 +318,7 @@ describe('Bens — criação (corpo exato)', () => {
       method: 'POST',
       path: '/bens-patrimoniais',
       body: {
-        empresa_id: 'emp-1', nome: 'Trator TP-02', familia_id: 'f2', tipo_id: 't2', codigo_frota: 'TP-02', propriedade: 'PROPRIO',
+        empresa_id: 'emp-1', nome: 'Trator TP-02', natureza: 'MAQUINA', tipo_id: 't2', codigo_frota: 'TP-02', propriedade: 'PROPRIO',
         medidor: { tipo: 'HORIMETRO', leitura_inicial: '1250', data_leitura: '2026-11-01' },
         tanques: [{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }],
       },
@@ -330,7 +333,7 @@ describe('Bens — criação (corpo exato)', () => {
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Caminhonete UT-04' } });
     fireEvent.change(within(form).getByLabelText(/^Código de frota/), { target: { value: 'ut-04' } });
-    await escolherNoSeletor(form, 'bem-seletor-familia', /^Veículos/);
+    await escolherTipoDeBem(form, 'Veículo');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Caminhonete/);
     fireEvent.change(within(form).getByLabelText(/^Placa/), { target: { value: 'abc-1d23' } });
     await escolherOpcao(within(form).getByRole('combobox', { name: 'UF da placa' }), 'MS');
@@ -353,7 +356,7 @@ describe('Bens — criação (corpo exato)', () => {
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()).toHaveLength(1);
     expect(mutacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', nome: 'Caminhonete UT-04', familia_id: 'f3', tipo_id: 't3', codigo_frota: 'UT-04', propriedade: 'PROPRIO', placa: 'ABC1D23', placa_uf: 'MS',
+      empresa_id: 'emp-1', nome: 'Caminhonete UT-04', natureza: 'VEICULO', tipo_id: 't3', codigo_frota: 'UT-04', propriedade: 'PROPRIO', placa: 'ABC1D23', placa_uf: 'MS',
       medidor: { tipo: 'ODOMETRO', leitura_inicial: '45300.5', data_leitura: '2026-11-02' },
       tanques: [{ identificador: 'Único', capacidade_litros: '80', produto_ids: ['pd2', 'pd3'] }],
     });
@@ -363,7 +366,7 @@ describe('Bens — criação (corpo exato)', () => {
     await montar();
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Curral de manejo' } });
-    await escolherNoSeletor(form, 'bem-seletor-familia', /^Benfeitorias/);
+    await escolherTipoDeBem(form, 'Benfeitoria');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Curral/);
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Madeira' } });
@@ -372,14 +375,14 @@ describe('Bens — criação (corpo exato)', () => {
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()).toHaveLength(1);
     expect(mutacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', nome: 'Curral de manejo', familia_id: 'f1', tipo_id: 't1', propriedade: 'PROPRIO', material: 'Madeira', ano_conclusao: 2019,
+      empresa_id: 'emp-1', nome: 'Curral de manejo', natureza: 'BENFEITORIA', tipo_id: 't1', propriedade: 'PROPRIO', material: 'Madeira', ano_conclusao: 2019,
     });
     expect(backend.chamadas.some((c) => /perfis-medicao|combustiveis/.test(c.path))).toBe(false);
   });
 
   it('implemento: medidor opcional (voltar para "Não se aplica" tira o medidor do corpo), sem tanques; compatibilidade e série aparecem', async () => {
     await montar();
-    const form = await novoDaFamilia('Roçadeira R1', /^Implementos/, /Roçadeira/);
+    const form = await novoDoTipoDeBem('Roçadeira R1', 'Implemento', /Roçadeira/);
     fireEvent.change(within(form).getByLabelText(/^Compatibilidade/), { target: { value: 'Tratores acima de 75 cv' } });
     fireEvent.change(within(form).getByLabelText(/^Número de série/), { target: { value: 'RC-77' } });
     aba('Operação');
@@ -394,25 +397,25 @@ describe('Bens — criação (corpo exato)', () => {
     salvar();
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', nome: 'Roçadeira R1', familia_id: 'f4', tipo_id: 't4', propriedade: 'PROPRIO', numero_serie: 'RC-77', compatibilidade: 'Tratores acima de 75 cv',
+      empresa_id: 'emp-1', nome: 'Roçadeira R1', natureza: 'IMPLEMENTO', tipo_id: 't4', propriedade: 'PROPRIO', numero_serie: 'RC-77', compatibilidade: 'Tratores acima de 75 cv',
     });
   });
 
   it('outro bem: "Sem medidor" vai como {tipo: SEM_MEDIDOR} e não pede leitura', async () => {
     await montar();
-    const form = await novoDaFamilia('Balsa do açude', /^Outros bens/, /Balsa/);
+    const form = await novoDoTipoDeBem('Balsa do açude', 'Outro', /Balsa/);
     aba('Operação');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Sem medidor');
     expect(within(form).queryByTestId('bem-medidor-leitura-inicial')).toBeNull();
     expect(within(form).queryByTestId('bem-medidor-data')).toBeNull();
     salvar();
     await screen.findByText('Bem patrimonial criado');
-    expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', nome: 'Balsa do açude', familia_id: 'f6', tipo_id: 't6', propriedade: 'PROPRIO', medidor: { tipo: 'SEM_MEDIDOR' } });
+    expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', nome: 'Balsa do açude', natureza: 'OUTRO', tipo_id: 't6', propriedade: 'PROPRIO', medidor: { tipo: 'SEM_MEDIDOR' } });
   });
 
   it('equipamento: medidor obrigatório (validação local, nada enviado); tanque sem Produto aceito não é exigido (P-01)', async () => {
     await montar();
-    const form = await novoDaFamilia('Gerador 50 kVA', /^Equipamentos/, /Gerador/);
+    const form = await novoDoTipoDeBem('Gerador 50 kVA', 'Equipamento', /Gerador/);
     aba('Operação');
     fireEvent.click(within(form).getByRole('button', { name: 'Adicionar tanque' }));
     const tanque = within(form).getByTestId('bem-tanque-0');
@@ -435,10 +438,10 @@ describe('Bens — criação (corpo exato)', () => {
 });
 
 describe('Bens — seções e campos condicionais pela natureza', () => {
-  it('antes da família: aviso, só Identificação e Aquisição, tipo bloqueado e nenhum campo de natureza', async () => {
+  it('antes do Tipo de bem: aviso, só Identificação e Aquisição, tipo bloqueado e nenhum campo de natureza', async () => {
     await montar();
     const form = await novo();
-    expect(within(form).getByTestId('bem-escolha-familia')).toBeTruthy();
+    expect(within(form).getByTestId('bem-escolha-tipo-de-bem')).toBeTruthy();
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     for (const campo of [/^Placa/, /^Chassi/, /^Número de série/, /^Material/, /^Compatibilidade/]) expect(within(form).queryByLabelText(campo)).toBeNull();
     expect(within(form).queryByTestId('bem-potencia')).toBeNull();
@@ -447,20 +450,20 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     expect(backend.chamadas.some((c) => c.path === '/bens-patrimoniais-opcoes/tipos')).toBe(false);
   });
 
-  /** [família, abas, campos presentes, campos ausentes, tanques?, medidor obrigatório?] */
+  /** [Tipo de bem, abas, campos presentes, campos ausentes, tanques?, medidor obrigatório?] */
   const MATRIZ = [
-    [/^Benfeitorias/, ['Identificação', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
-    [/^Máquinas/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Chassi/, /^Número de série/], [/^Placa/, /^Renavam/, /^Material/, /^Compatibilidade/], true, true],
-    [/^Veículos/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Placa/, /^Renavam/, /^Chassi/, /^Número de série/], [/^Material/, /^Compatibilidade/], true, true],
-    [/^Implementos/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/, /^Compatibilidade/], [/^Placa/, /^Chassi/, /^Material/], false, false],
-    [/^Equipamentos/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], true, true],
-    [/^Outros bens/, ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], false, false],
+    ['Benfeitoria', ['Identificação', 'Aquisição e depreciação'], [/^Material/, /^Ano de conclusão/], [/^Placa/, /^Chassi/, /^Número de série/, /^Compatibilidade/], null, null],
+    ['Máquina', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Chassi/, /^Número de série/], [/^Placa/, /^Renavam/, /^Material/, /^Compatibilidade/], true, true],
+    ['Veículo', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Placa/, /^Renavam/, /^Chassi/, /^Número de série/], [/^Material/, /^Compatibilidade/], true, true],
+    ['Implemento', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/, /^Compatibilidade/], [/^Placa/, /^Chassi/, /^Material/], false, false],
+    ['Equipamento', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], true, true],
+    ['Outro', ['Identificação', 'Operação', 'Aquisição e depreciação'], [/^Número de série/], [/^Placa/, /^Chassi/, /^Material/, /^Compatibilidade/], false, false],
   ];
-  it.each(MATRIZ)('família %s: abas, campos e operação conforme a natureza', async (familia, abasEsperadas, presentes, ausentes, comTanques, medidorObrigatorio) => {
+  it.each(MATRIZ)('Tipo de bem %s: abas, campos e operação conforme a natureza', async (tipoDeBem, abasEsperadas, presentes, ausentes, comTanques, medidorObrigatorio) => {
     await montar();
     const form = await novo();
-    await escolherNoSeletor(form, 'bem-seletor-familia', familia);
-    expect(within(form).queryByTestId('bem-escolha-familia')).toBeNull();
+    await escolherTipoDeBem(form, tipoDeBem);
+    expect(within(form).queryByTestId('bem-escolha-tipo-de-bem')).toBeNull();
     expect(abas()).toEqual(abasEsperadas);
     for (const campo of presentes) expect(within(form).getByLabelText(campo), String(campo)).toBeTruthy();
     for (const campo of ausentes) expect(within(form).queryByLabelText(campo), String(campo)).toBeNull();
@@ -480,11 +483,11 @@ describe('Bens — seções e campos condicionais pela natureza', () => {
     ]);
   });
 
-  it('trocar a família de um bem novo limpa o tipo e troca as abas', async () => {
+  it('trocar o Tipo de bem de um bem novo limpa o tipo e troca as abas', async () => {
     await montar();
-    const form = await novoDaFamilia('Bem', /^Máquinas/, /Trator de pneus/);
+    const form = await novoDoTipoDeBem('Bem', 'Máquina', /Trator de pneus/);
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('Trator de pneus');
-    await escolherNoSeletor(form, 'bem-seletor-familia', /^Benfeitorias/);
+    await escolherTipoDeBem(form, 'Benfeitoria');
     expect(within(form).getByTestId('bem-seletor-tipo')).toHaveTextContent('— Escolha o tipo —');
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     salvar();
@@ -595,9 +598,9 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     await abrirTrator();
     editar();
     fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Marca/), { target: { value: 'Massey' } });
-    proxima = erroServidor(409, 'BEM_NATUREZA_IMUTAVEL', { details: { field: 'familia_id' } });
+    proxima = erroServidor(409, 'BEM_NATUREZA_IMUTAVEL', { details: { field: 'natureza' } });
     salvar();
-    expect(await screen.findByText(/A natureza do bem não muda/)).toBeTruthy();
+    expect(await screen.findByText(/O tipo de bem não muda depois de gravado/)).toBeTruthy();
     expect(within(screen.getByTestId('b1-form')).getByLabelText(/^Marca/).value).toBe('Massey');
     expect(mutacoes()[0].body).toEqual({ empresa_id: 'emp-1', versao: 4, marca: 'Massey' });
   });
@@ -630,21 +633,22 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     salvar();
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()[0].body).toEqual({
-      empresa_id: 'emp-1', nome: 'Trator TP-02', familia_id: 'f2', tipo_id: 't2', codigo_frota: 'TP-03', propriedade: 'PROPRIO',
+      empresa_id: 'emp-1', nome: 'Trator TP-02', natureza: 'MAQUINA', tipo_id: 't2', codigo_frota: 'TP-03', propriedade: 'PROPRIO',
       marca: 'Valtra', modelo: 'A950', ano_fabricacao: 2020, ano_modelo: 2021, potencia_cv: '95',
       medidor: { tipo: 'HORIMETRO', leitura_inicial: '0', data_leitura: '2026-11-03' },
       tanques: [{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }],
     });
   });
 
-  it('duplicar só copia os Produtos aceitos que ainda servem (nem o inativo, nem o que saiu de L/KG)', async () => {
+  it('duplicar só copia os Produtos aceitos que ainda servem (D-PROD-169: SACO serve; nem o inativo, nem o de unidade fora de L/KG/SACO)', async () => {
     extraDoTrator = {
       tanques: [{
         id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
         produtos: [
           { produto_id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true },
           { produto_id: 'pd9', nome: 'Diesel S500', codigo_interno: null, unidade_principal_estoque: 'L', produto_ativo: false },
-          { produto_id: 'pd8', nome: 'Ração ensacada', codigo_interno: null, unidade_principal_estoque: 'SACO', produto_ativo: true },
+          { produto_id: 'pd8', nome: 'Graxa avulsa', codigo_interno: null, unidade_principal_estoque: 'UN', produto_ativo: true },
+          { produto_id: 'pd7', nome: 'Ração ensacada', codigo_interno: null, unidade_principal_estoque: 'SACO', produto_ativo: true },
         ],
       }],
     };
@@ -654,6 +658,8 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     // No registro aberto os dois aparecem riscados, com o motivo.
     expect(screen.getByTestId('bem-tanque-0-produto-pd9')).toHaveAttribute('data-motivo', 'inativo');
     expect(screen.getByTestId('bem-tanque-0-produto-pd8')).toHaveAttribute('data-motivo', 'unidade não aceita');
+    expect(screen.getByTestId('bem-tanque-0-produto-pd7')).not.toHaveAttribute('data-motivo');
+    expect(screen.getByTestId('bem-tanque-0-produto-pd7')).toHaveTextContent('kg · saco');
     fireEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
     const form = await screen.findByTestId('b1-form');
     await waitFor(() => expect(within(form).getByLabelText(/^Nome/).value).toBe('Trator TP-02'));
@@ -662,11 +668,12 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     expect(within(tanque).getByTestId('bem-tanque-0-produto-pd1')).toBeTruthy();
     expect(within(tanque).queryByTestId('bem-tanque-0-produto-pd9')).toBeNull();
     expect(within(tanque).queryByTestId('bem-tanque-0-produto-pd8')).toBeNull();
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd7')).toBeTruthy();
     fireEvent.change(within(form).getByLabelText('Leitura inicial (h)'), { target: { value: '0' } });
     fireEvent.change(within(form).getByTestId('bem-medidor-data'), { target: { value: '2026-11-03' } });
     salvar();
     await screen.findByText('Bem patrimonial criado');
-    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'] }]);
+    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1', 'pd7'] }]);
   });
 
   it('cancelar a edição descarta o digitado: volta ao gravado e o próximo PATCH não leva o descartado', async () => {
@@ -683,15 +690,42 @@ describe('Bens — edição (PATCH mínimo com versao)', () => {
     await screen.findByText('Bem patrimonial atualizado');
     expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, marca: 'Massey' } })]);
   });
+
+  it('D-PROD-169: Área e Localização gravadas não aparecem e o PATCH não as manda (nem apaga)', async () => {
+    extraDoTrator = { area: { id: 'a1', nome: 'Retiro Sul' }, area_id: 'a1', localizacao_descricao: 'Galpão de máquinas' };
+    await montar();
+    const form = await abrirTrator();
+    expect(within(form).queryByTestId('bem-seletor-area')).toBeNull();
+    expect(within(form).queryByLabelText(/^Área/)).toBeNull();
+    expect(within(form).queryByLabelText(/^Localização/)).toBeNull();
+    expect(within(form).queryByText('Galpão de máquinas')).toBeNull();
+    expect(within(form).getByRole('combobox', { name: 'Tipo de bem' })).toHaveTextContent('Máquina');
+    editar();
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Marca/), { target: { value: 'Massey' } });
+    salvar();
+    await screen.findByText('Bem patrimonial atualizado');
+    expect(mutacoes()).toEqual([expect.objectContaining({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 4, marca: 'Massey' } })]);
+  });
+
+  it('D-PROD-169: a lista mostra "Tipo de bem" e não tem coluna Família', async () => {
+    await montar();
+    await screen.findByTestId('bem-nome-b1');
+    const cabecalhos = screen.getAllByRole('columnheader').map((c) => c.textContent.trim());
+    expect(cabecalhos.some((t) => t.includes('Tipo de bem'))).toBe(true);
+    expect(cabecalhos.some((t) => /Família|Natureza/.test(t))).toBe(false);
+    expect(within(screen.getByTestId('bem-nome-b1').closest('tr')).getByText('Máquina')).toBeTruthy();
+  });
 });
 
 describe('Bens — referências da fazenda, aquisição e propriedade (corpo exato)', () => {
-  it('responsável, centro, área, fornecedor, aquisição e depreciação: POST com os ids, o bloco aquisicao e a vida útil em meses', async () => {
+  it('responsável, centro, fornecedor, aquisição e depreciação: POST com os ids (sem área nem localização), o bloco aquisicao e a vida útil em meses', async () => {
     await montar();
-    const form = await novoDaFamilia('Balsa do açude', /^Outros bens/, /Balsa/);
+    const form = await novoDoTipoDeBem('Balsa do açude', 'Outro', /Balsa/);
     await escolherNoSeletor(form, 'bem-seletor-responsavel', 'João Vaqueiro');
     await escolherNoSeletor(form, 'bem-seletor-centro-custo', /Manutenção/);
-    await escolherNoSeletor(form, 'bem-seletor-area', 'Retiro Sul');
+    // D-PROD-169: Área e Localização saíram do cadastro do bem.
+    expect(within(form).queryByTestId('bem-seletor-area')).toBeNull();
+    expect(within(form).queryByLabelText(/^Localização/)).toBeNull();
     expect(within(form).getByTestId('bem-seletor-centro-custo')).toHaveTextContent('12 · Manutenção');
     aba('Aquisição e depreciação');
     fireEvent.change(within(form).getByLabelText('Valor de aquisição (R$)'), { target: { value: '200.000,00' } });
@@ -707,15 +741,16 @@ describe('Bens — referências da fazenda, aquisição e propriedade (corpo exa
         method: 'POST',
         path: '/bens-patrimoniais',
         body: {
-          empresa_id: 'emp-1', nome: 'Balsa do açude', familia_id: 'f6', tipo_id: 't6', propriedade: 'PROPRIO',
-          responsavel_usuario_id: 'u7', centro_custo_id: 'cc1', area_id: 'a1',
+          empresa_id: 'emp-1', nome: 'Balsa do açude', natureza: 'OUTRO', tipo_id: 't6', propriedade: 'PROPRIO',
+          responsavel_usuario_id: 'u7', centro_custo_id: 'cc1',
           aquisicao: { valor_aquisicao: '200000', fornecedor_parceiro_id: 'pc1' },
           depreciacao: { depreciavel: true, metodo: 'LINEAR', vida_util_meses: 120, residual_modo: 'VALOR', valor_residual: '50000', data_inicio_depreciacao: '2026-01-01' },
         },
       }),
     ]);
-    const opcoesDaFazenda = backend.chamadas.filter((c) => /^\/bens-patrimoniais-opcoes\/(responsaveis|centros-custo|areas|parceiros)$/.test(c.path));
-    expect(opcoesDaFazenda.length).toBeGreaterThanOrEqual(4);
+    const opcoesDaFazenda = backend.chamadas.filter((c) => /^\/bens-patrimoniais-opcoes\/(responsaveis|centros-custo|parceiros)$/.test(c.path));
+    expect(opcoesDaFazenda.length).toBeGreaterThanOrEqual(3);
+    expect(backend.chamadas.some((c) => c.path === '/bens-patrimoniais-opcoes/areas')).toBe(false);
     expect(opcoesDaFazenda.every((c) => c.query.empresa_id === 'emp-1')).toBe(true);
   });
 
@@ -876,7 +911,7 @@ describe('Bens — regras finas do formulário', () => {
     empresasDoBackend = [{ id: 'emp-1', numero_empresa: 1, nome: 'Fazenda Boa Vista', fuso_horario: 'America/Cuiaba' }];
     await montar();
     await waitFor(() => expect(backend.chamadas.some((c) => c.method === 'GET' && c.path === '/empresas')).toBe(true));
-    const form = await novoDaFamilia('Trator novo', /^Máquinas/, /Trator de pneus/);
+    const form = await novoDoTipoDeBem('Trator novo', 'Máquina', /Trator de pneus/);
     aba('Operação');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Horímetro');
     const data = within(form).getByTestId('bem-medidor-data');
@@ -888,15 +923,20 @@ describe('Bens — regras finas do formulário', () => {
     expect(mutacoes()[0].body.medidor).toEqual({ tipo: 'HORIMETRO', leitura_inicial: '0', data_leitura: '2027-06-14' });
   });
 
-  it('benfeitoria gravada: família de outra natureza é recusada na tela; o PATCH leva só o que mudou (nunca medicoes)', async () => {
+  it('benfeitoria gravada: o Tipo de bem fica travado (só tipos de Benfeitoria); o PATCH leva só o que mudou (nunca medicoes)', async () => {
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('bem-nome-b2'));
     await screen.findByTestId('b1-form');
     editar();
     const form = screen.getByTestId('b1-form');
-    fireEvent.click(within(form).getByTestId('bem-seletor-familia'));
-    fireEvent.click(await within(form).findByRole('option', { name: /^Máquinas/ }));
-    await within(form).findByText('A natureza do bem não muda: escolha uma família de Benfeitoria.');
+    const tipoDeBem = within(form).getByRole('combobox', { name: 'Tipo de bem' });
+    expect(tipoDeBem).toBeDisabled();
+    expect(tipoDeBem).toHaveTextContent('Benfeitoria');
+    fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));
+    expect(await within(form).findByRole('option', { name: /^Curral/ })).toBeTruthy();
+    expect(within(form).queryByRole('option', { name: /^Trator de pneus/ })).toBeNull();
+    expect(backend.chamadas.filter((c) => c.path === '/bens-patrimoniais-opcoes/tipos').at(-1).query).toMatchObject({ natureza: 'BENFEITORIA' });
+    fireEvent.keyDown(within(form).getByTestId('bem-seletor-tipo-painel'), { key: 'Escape' });
     expect(abas()).toEqual(['Identificação', 'Aquisição e depreciação']);
     fireEvent.change(within(form).getByLabelText(/^Material/), { target: { value: 'Alvenaria' } });
     salvar();
@@ -909,7 +949,7 @@ describe('Bens — regras finas do formulário', () => {
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Trator novo' } });
     fireEvent.change(within(form).getByLabelText(/^Código de frota/), { target: { value: 'TP-02' } });
-    await escolherNoSeletor(form, 'bem-seletor-familia', /^Máquinas/);
+    await escolherTipoDeBem(form, 'Máquina');
     await escolherNoSeletor(form, 'bem-seletor-tipo', /Trator de pneus/);
     aba('Operação');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Sem medidor');
@@ -924,7 +964,7 @@ describe('Bens — regras finas do formulário', () => {
 
   it('422 do servidor na criação (placa inválida) mostra a mensagem do campo e mantém o formulário', async () => {
     await montar();
-    const form = await novoDaFamilia('Caminhão', /^Veículos/, /Caminhonete/);
+    const form = await novoDoTipoDeBem('Caminhão', 'Veículo', /Caminhonete/);
     fireEvent.change(within(form).getByLabelText(/^Placa/), { target: { value: 'ABC1D23' } });
     aba('Operação');
     await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Sem medidor');

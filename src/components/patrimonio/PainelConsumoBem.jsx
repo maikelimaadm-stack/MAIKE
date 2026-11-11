@@ -1,18 +1,11 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import * as UiDialog from "@/components/ui/dialog";
+import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { consumoDoBem } from "@/services/abastecimentoService";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import { UNIDADE_MEDIDOR, formatarDiaAbastecimento, formatarLeitura, formatarQuantidade, rotuloDoBem } from "@/lib/abastecimentoRegras";
 import { MOTIVO_CONSUMO } from "@/components/patrimonio/ConsultaAbastecimento";
 import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
-
-const Dialog = /** @type {any} */ (UiDialog.Dialog);
-const DialogContent = /** @type {any} */ (UiDialog.DialogContent);
-const DialogDescription = /** @type {any} */ (UiDialog.DialogDescription);
-const DialogFooter = /** @type {any} */ (UiDialog.DialogFooter);
-const DialogHeader = /** @type {any} */ (UiDialog.DialogHeader);
-const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 
 /** Chave do consumo do bem (prefixo da tela: confirmar/cancelar invalida). @param {string|null} empresaId @param {string|null} bemId */
 export const chaveConsumoBem = (empresaId, bemId) => ["patrimonio-abastecimentos", "consumo", empresaId, bemId];
@@ -94,24 +87,21 @@ export default function PainelConsumoBem({ aberto, empresaId, bem, onFechar }) {
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(/** @type {boolean} */ o) => (!o ? onFechar() : undefined)}>
-      <DialogContent data-permissao-explicita="" data-testid="painel-consumo-bem" className="max-h-[92vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Consumo de {rotuloDoBem(dados?.bem ?? bem) || "bem"}</DialogTitle>
-          <DialogDescription>Entre dois abastecimentos confirmados com tanque cheio no mesmo tanque.</DialogDescription>
-        </DialogHeader>
-        <div className="min-w-0 text-[13px]">{corpo}</div>
-        {dados?.metodologia ? (
-          <p className="text-[11px] text-[var(--mg-text-2,#475569)]" data-testid="consumo-metodologia">
-            {dados.metodologia}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar}>
-            Fechar
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <B1Janela
+      aberto={aberto}
+      onFechar={onFechar}
+      titulo={`Consumo de ${rotuloDoBem(dados?.bem ?? bem) || "bem"}`}
+      descricao="Entre dois abastecimentos confirmados com tanque cheio no mesmo tanque."
+      testId="painel-consumo-bem"
+      contentProps={{ "data-permissao-explicita": "" }}
+    >
+      {/* Fecha pelo ✕ do cabeçalho da janela do motor (D-PROD-169). */}
+      <div className="min-w-0">{corpo}</div>
+      {dados?.metodologia ? (
+        <p className="b1-janela__nota" data-testid="consumo-metodologia">
+          {dados.metodologia}
+        </p>
+      ) : null}
+    </B1Janela>
   );
 }

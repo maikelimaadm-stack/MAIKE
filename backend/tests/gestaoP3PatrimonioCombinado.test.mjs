@@ -170,7 +170,7 @@ describe('C2 — produto com item financeiro E aceito num tanque de bem', () => 
     assert.equal(await prisma().produto.count({ where: { cliente_id: s.c, id: e.milho.id } }), 1, 'o produto continua existindo');
 
     // Produto aceito num tanque + rascunho (sem movimento): o bloqueio financeiro vem primeiro;
-    // descartado o rascunho, só o aceite do tanque segura. (O SACO não entra em tanque: o sal, em KG.)
+    // descartado o rascunho, só o aceite do tanque segura (o sal, em KG).
     const bemSal = await aceitar(s, e, e.sal);
     const rascunho = await A.criar(s.token, docCom(e, s.local, [{ produto: e.sal, unidade: 'KG', quantidade: '1', valor_unitario: '1.00' }]));
     assert.equal((await produtoBloqueado(s, e.sal, 'lançamentos financeiros')).quantidade, 1);

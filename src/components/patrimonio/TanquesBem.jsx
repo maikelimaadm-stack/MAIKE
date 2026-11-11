@@ -5,7 +5,7 @@ import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/Gestao
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { listarOpcoesBem } from "@/services/bemPatrimonialService";
-import { ROTULO_UNIDADE_ESTOQUE, UNIDADES_ESTOQUE_TANQUE } from "@/lib/patrimonioDominio";
+import { SELO_UNIDADE_DO_PRODUTO, UNIDADES_ESTOQUE_TANQUE, unidadeEfetivaDoEstoque } from "@/lib/patrimonioDominio";
 import { LIMITES_BEM, LIMITE_PRODUTOS_POR_TANQUE, LIMITE_TANQUES_ATIVOS, LOCALE_BEM, novaChave, produtoDoTanque } from "@/components/patrimonio/bemFormulario";
 
 /** @typedef {import('./bemFormulario').TanqueForm} TanqueForm */
@@ -15,14 +15,19 @@ import { LIMITES_BEM, LIMITE_PRODUTOS_POR_TANQUE, LIMITE_TANQUES_ATIVOS, LOCALE_
 /** Nome do tanque para leitores de tela: o identificador ou o número da linha. @param {TanqueForm} t @param {number} i */
 const nomeDoTanque = (t, i) => t.identificador.trim() || String(i + 1);
 
-/** Selo curto da unidade de estoque ("L", "kg"); outra (legada) vai como veio. @param {string|null} u */
-const seloDaUnidade = (u) => (u ? /** @type {Record<string, string>} */ (ROTULO_UNIDADE_ESTOQUE)[u] ?? u : "?");
+/**
+ * Selo da unidade de estoque do Produto ("L", "kg"; SACO = "kg · saco", porque o
+ * saco guarda o estoque em quilos); outra (legada) vai como veio.
+ * @param {string|null} u
+ */
+const seloDaUnidade = (u) => (u ? /** @type {Record<string, string>} */ (SELO_UNIDADE_DO_PRODUTO)[u] ?? u : "?");
 
-/** Filtro de unidade do seletor (achado D8): Todos (padrão), Litros, Quilos. */
+/** Filtro de unidade do seletor (achado D8; D-PROD-169 com os sacos): Todos (padrão), Litros, Quilos, Sacos. */
 const OPCOES_FILTRO_UNIDADE = [
   { value: "TODAS", label: "Todos" },
   { value: "L", label: "Litros (L)" },
   { value: "KG", label: "Quilos (kg)" },
+  { value: "SACO", label: "Sacos (estoque em kg)" },
 ];
 
 /** Motivo por que um Produto aceito já não serve (riscado na tela). */
@@ -34,12 +39,15 @@ const MOTIVO_RECUSA = /** @type {Record<string, string>} */ ({
 });
 
 export const AVISO_TANQUE_SEM_PRODUTO = "Este tanque não pode ser abastecido até ter um Produto aceito.";
-export const AVISO_PRODUTO_EM_KG = "Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.";
+export const AVISO_PRODUTO_EM_KG = "Produto em quilos ou em sacos tem estoque em quilos: no abastecimento digita-se kg, não sacos nem os litros da bomba.";
+/** Regra dos Produtos aceitos (D-PROD-169), sob os tanques. */
+export const NOTA_PRODUTOS_ACEITOS =
+  "Os Produtos aceitos vêm do estoque desta fazenda, em qualquer unidade (litros, quilos ou sacos). O abastecimento baixa do estoque exatamente a quantidade digitada, na unidade de estoque do Produto (litros para L; quilos para KG e SACO); a capacidade do tanque só é conferida para Produto em litros.";
 
 /**
  * Motivo de recusa de um Produto aceito: o que o servidor apontou no último
  * envio (422 `TANQUE_PRODUTO_INVALIDO`, inclusive "outra fazenda") ou o que o
- * detalhe já mostra (Produto inativo; unidade fora de L e KG). `null` = serve.
+ * detalhe já mostra (Produto inativo; unidade fora de L, KG e SACO). `null` = serve.
  * @param {ProdutoDoTanque} p @param {ProdutoRecusado|null} recusa
  */
 const motivoDoProduto = (p, recusa) => {
@@ -50,16 +58,17 @@ const motivoDoProduto = (p, recusa) => {
 };
 
 /**
- * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-162):
- * identificador, capacidade em litros, observação e os **Produtos aceitos** —
- * Produtos ativos do estoque DESTA fazenda, em litros (`L`) ou quilos (`KG`),
- * escolhidos por um seletor paginado (busca por nome/código no servidor, selo
- * da unidade em cada opção, filtro opcional Litros | Quilos | Todos). Até 20
- * por tanque (P-02). Tanque sem Produto pode ser gravado: a tela avisa que ele
- * não pode ser abastecido (P-01). Produto em quilos aceito: aviso de que no
- * abastecimento se digita kg (achado D8).
+ * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-162;
+ * D-PROD-169): identificador, capacidade em litros, observação e os **Produtos
+ * aceitos** — Produtos ativos do estoque DESTA fazenda, em QUALQUER unidade de
+ * estoque (litros `L`, quilos `KG` ou sacos `SACO`), escolhidos por um seletor
+ * paginado (busca por nome/código no servidor, selo da unidade de estoque em
+ * cada opção — o SACO aparece em kg —, filtro opcional Litros | Quilos | Sacos
+ * | Todos). Até 20 por tanque (P-02). Tanque sem Produto pode ser gravado: a
+ * tela avisa que ele não pode ser abastecido (P-01). Produto em quilos ou em
+ * sacos aceito: aviso de que no abastecimento se digita kg (achado D8).
  *
- * Produto aceito que ficou inativo, de outra fazenda ou fora de L e KG aparece
+ * Produto aceito que ficou inativo, de outra fazenda ou fora de L/KG/SACO aparece
  * riscado com o motivo e pode ser retirado (o "outra fazenda" vem do 422 do
  * servidor, que aponta o Produto: `recusa`).
  *
@@ -143,7 +152,7 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
         const filtro = filtros[t.chave] ?? "TODAS";
         const cheio = t.produtos.length >= LIMITE_PRODUTOS_POR_TANQUE;
         const recusaDaLinha = recusa && recusa.indice === i ? recusa : null;
-        const temKg = t.produtos.some((p) => p.unidade === "KG");
+        const temKg = t.produtos.some((p) => unidadeEfetivaDoEstoque(p.unidade) === "KG");
         return (
           <div key={t.chave} className="col-span-12 grid grid-cols-12 gap-x-3 gap-y-2 rounded-md border border-[var(--mg-divider,#cbd5e1)] p-2" data-testid={`bem-tanque-${i}`}>
             <div className="col-span-12 flex min-h-8 flex-wrap items-center gap-2 text-[13px]">
@@ -262,7 +271,7 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
                   testId={`bem-tanque-seletor-produto-${i}`}
                   chave={["patrimonio", "produtos-tanque", empresaId, filtro]}
                   buscar={({ q, cursor, limit }) =>
-                    listarOpcoesBem("produtos", empresaId, { q, cursor, limit, unidade: filtro === "TODAS" ? null : /** @type {'L'|'KG'} */ (filtro) })
+                    listarOpcoesBem("produtos", empresaId, { q, cursor, limit, unidade: filtro === "TODAS" ? null : /** @type {'L'|'KG'|'SACO'} */ (filtro) })
                   }
                   value={null}
                   onChange={(o) => aceitar(t, i, o)}
@@ -304,8 +313,7 @@ export default function TanquesBem({ tanques, onChange, readOnly, erros, limparE
       {!readOnly && tanques.length ? (
         <div className="col-span-12">
           <AvisoGestao tone="blue" testId="bem-tanques-nota">
-            Os Produtos aceitos vêm do estoque desta fazenda, em litros (L) ou quilos (kg). O abastecimento baixa do estoque exatamente a quantidade digitada, na
-            unidade do Produto; a capacidade do tanque só é conferida para Produto em litros.
+            {NOTA_PRODUTOS_ACEITOS}
           </AvisoGestao>
         </div>
       ) : null}

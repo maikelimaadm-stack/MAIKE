@@ -6,6 +6,8 @@
  *  - D-PROD-162: a baixa é EXATAMENTE a quantidade digitada, na unidade de
  *    estoque do Produto (`L` ou `KG`), sem nenhuma conversão; o Produto tem de
  *    estar nos "Produtos aceitos" (ativos) do tanque (`TanqueBemProduto`);
+ *  - D-PROD-169: Produto em qualquer unidade (L, KG ou SACO); a unidade do
+ *    abastecimento é a EFETIVA do estoque (SACO guarda kg → `KG`);
  *  - prévia: mesma função de plano da confirmação, sem trava, sem escrita e
  *    sem recibo (RepeatableRead só de leitura);
  *  - confirmação: idempotente por `operation_id` (recibo v2 + unique), travas
@@ -45,7 +47,7 @@ import {
   fingerprintDoCancelamento, normalizarCancelamento, normalizarConfirmacao, normalizarPrevia, paraAuditoria, planejarAbastecimento,
 } from './abastecimentoPlano.js';
 import { atualizarComVersao, comoData, diaDe, diaDoCorpo, listarKeyset, termoDeBusca, versaoConflito } from './patrimonioComum.js';
-import { UNIDADE_DO_MEDIDOR } from './patrimonioDominio.js';
+import { UNIDADE_DO_MEDIDOR, unidadeEfetivaDoEstoque } from './patrimonioDominio.js';
 
 /** Leitura consistente sem trava (prévia, detalhe). */
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
@@ -75,8 +77,6 @@ const MENSAGENS_BLOQUEIO_CANCELAMENTO = Object.freeze({
 const cancelamentoBloqueado = (reason, extra = {}) =>
   new AppError('ABASTECIMENTO_CANCELAMENTO_BLOQUEADO', MENSAGENS_BLOQUEIO_CANCELAMENTO[reason], { details: { field: 'abastecimento', reason, ...extra } });
 
-/** Unidade EFETIVA do estoque: L fica em litros; KG e SACO guardam estoque em kg. @param {string|null|undefined} u */
-const unidadeEfetiva = (u) => (u === 'L' ? 'L' : 'KG');
 
 /**
  * `create` do abastecimento. A FK `(cliente_id, tanque_id, produto_id)` →
@@ -387,7 +387,7 @@ export const confirmar = async (contexto, corpo) => {
               local_estoque_id: estado.local.id,
               data_operacional: comoData(entrada.data_operacional),
               quantidade: quantidade.toFixed(CASAS_QUANTIDADE),
-              unidade: /** @type {string} */ (plano.unidade), // snapshot de Produto.unidade_principal_estoque (L|KG)
+              unidade: /** @type {string} */ (plano.unidade), // unidade EFETIVA do estoque do Produto (L | KG; SACO → KG, D-PROD-169)
               custo_total: paraBanco(saida.valor_total, CASAS_CUSTO),
               custo_unitario: paraBanco(saida.valor_unitario, CASAS_CUSTO),
               tanque_cheio: entrada.tanque_cheio,
@@ -492,9 +492,9 @@ export const cancelar = async (contexto, id, corpo) => {
             const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
             if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
             // D-PROD-162 (achado D7): compara a unidade EFETIVA do estoque (L → L; KG/SACO → kg). KG ↔ SACO
-            // guardam estoque em kg e não bloqueiam o estorno exato; só a troca que envolve L bloqueia
-            // (defensivo: a troca de unidade do Produto já é recusada com movimento).
-            if (unidadeEfetiva(produto.unidade_principal_estoque) !== unidadeEfetiva(antes.unidade)) {
+            // guardam estoque em kg e não bloqueiam o estorno exato; só a troca que envolve L (ou para uma
+            // unidade fora de L/KG/SACO) bloqueia (defensivo: a troca de unidade do Produto já é recusada com movimento).
+            if (unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) !== unidadeEfetivaDoEstoque(antes.unidade)) {
               throw cancelamentoBloqueado('unidade_mudou', { unidade_abastecimento: antes.unidade, unidade_produto: produto.unidade_principal_estoque });
             }
             const [orig] = /** @type {any[]} */ (

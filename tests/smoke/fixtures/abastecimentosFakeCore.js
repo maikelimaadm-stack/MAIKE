@@ -4,9 +4,10 @@
  * ou API real. Segue o contrato §4.9/§4.11 da D-PROD-162: rotas A1–A6, A7 bens,
  * A8 tanques (com os Produtos aceitos), A11 produtos do filtro, A12 locais e
  * A16 `produtos-do-bem` com a semântica do serviço real (bem ativo → tanques
- * ativos → aceites ATIVOS → Produto ativo, da fazenda, em L ou KG; `resumo` do
- * conjunto inteiro). A baixa é EXATAMENTE a `quantidade` do corpo, na unidade
- * do Produto, sem fator; a capacidade (litros) só vale para Produto em L.
+ * ativos → aceites ATIVOS → Produto ativo, da fazenda, em L, KG ou SACO —
+ * D-PROD-169 —; `resumo` do conjunto inteiro). A baixa é EXATAMENTE a
+ * `quantidade` do corpo, na unidade EFETIVA do estoque do Produto (L; KG para
+ * KG e SACO), sem fator; a capacidade (litros) só vale para Produto em L.
  * Decimais como TEXTO com 4 casas, datas AAAA-MM-DD, corpo FECHADO (campo
  * antigo → 400), `operation_id` idempotente (replay 200 `replay:true`; mesmo
  * id + corpo diferente → 409 IDEMPOTENCY_CONFLICT), `versao` com
@@ -20,7 +21,9 @@ import { hojeNoFuso } from '../../../src/lib/diaCivil.js';
 export const EMPRESA = 'emp-1';
 export const TS = '2026-11-08T12:00:00.000Z';
 const LIMITE_ESTOQUE = '9999999999.9999';
-const UNIDADES = ['L', 'KG'];
+/** D-PROD-169: unidades do Produto que o tanque aceita (L, KG, SACO); a do abastecimento é a EFETIVA (SACO → KG). */
+const UNIDADES = ['L', 'KG', 'SACO'];
+const unidadeEfetiva = (u) => (u === 'L' ? 'L' : u === 'KG' || u === 'SACO' ? 'KG' : null);
 const rotuloUnidade = (u) => (u === 'L' ? 'L' : u === 'KG' ? 'kg' : (u ?? '—'));
 
 const erro = (status, code, extra = {}) => ({ status, body: { code, message: 'texto do servidor (falso)', request_id: 'req_fake', ...extra } });
@@ -49,7 +52,7 @@ const filtrarQ = (lista, query, campos) => {
 /**
  * Estado inicial (cada teste cria o seu). Cenários extras (multi-tanque, vários
  * Produtos por tanque, aceite retirado, Produto inativo/de outra fazenda, unidade
- * fora de L/KG) são montados no teste mutando o estado ANTES de montar a tela:
+ * fora de L/KG/SACO) são montados no teste mutando o estado ANTES de montar a tela:
  * `tanques[bem][i].ativo`/`produtos` (ids dos Produtos aceitos ATIVOS),
  * `produtos[i].ativo`/`empresa`/`unidade_principal_estoque`.
  */
@@ -163,7 +166,7 @@ const planejar = (e, c) => {
   // B5
   const unidadeAceita = Boolean(produto) && UNIDADES.includes(produto.unidade_principal_estoque);
   if (produto && !unidadeAceita) b('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita', { unidade: produto.unidade_principal_estoque });
-  const unidade = unidadeAceita ? produto.unidade_principal_estoque : null;
+  const unidade = unidadeAceita ? unidadeEfetiva(produto.unidade_principal_estoque) : null;
   // B6
   if (tanque && produto && !(tanque.produtos ?? []).includes(produto.id)) b('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque');
   // B7
@@ -215,7 +218,12 @@ const planejar = (e, c) => {
     hoje: e.hoje,
     bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo },
     tanque: tanque ? { id: tanque.id, identificador: tanque.identificador, capacidade_litros: tanque.capacidade_litros, ativo: tanque.ativo !== false } : null,
-    produto: produto ? { id: produto.id, nome: produto.nome, codigo_interno: produto.codigo_interno ?? null, unidade_principal_estoque: produto.unidade_principal_estoque } : null,
+    produto: produto
+      ? {
+          id: produto.id, nome: produto.nome, codigo_interno: produto.codigo_interno ?? null, unidade_principal_estoque: produto.unidade_principal_estoque,
+          unidade_abastecimento: unidadeEfetiva(produto.unidade_principal_estoque),
+        }
+      : null,
     local_estoque: localNome ? { id: c.local_estoque_id, nome: localNome } : null,
     quantidade,
     unidade,
@@ -297,7 +305,7 @@ const produtosDoBem = async (e, query) => {
   const pag = pagina(filtrados, consulta);
   const itens = pag.itens.map((p) => ({
     id: p.id,
-    produto: { id: p.id, nome: p.nome, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque },
+    produto: { id: p.id, nome: p.nome, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque, unidade_abastecimento: unidadeEfetiva(p.unidade_principal_estoque) },
     tanques: (tanquesPorProduto.get(p.id) ?? []).map((t) => ({ ...t })),
     pronto: true,
   }));
@@ -498,7 +506,7 @@ export const rotearAbastecimentos = async (e, { method, path, query, body }) => 
     if (!produto) return erro(404, 'PRODUTO_NOT_FOUND', { field: 'produto_id', reason: 'produto_nao_encontrado' });
     const porLocal = new Map();
     for (const l of e.lotes.filter((x) => x.produto === produto.id && ehPositivo(x.disponivel))) porLocal.set(l.local, somar([porLocal.get(l.local) ?? '0', l.disponivel], 4));
-    return { status: 200, body: { itens: [...porLocal.entries()].map(([id, saldo]) => ({ local_estoque_id: id, local_nome: e.locais[id], disponivel: saldo, unidade: produto.unidade_principal_estoque })) } };
+    return { status: 200, body: { itens: [...porLocal.entries()].map(([id, saldo]) => ({ local_estoque_id: id, local_nome: e.locais[id], disponivel: saldo, unidade: unidadeEfetiva(produto.unidade_principal_estoque), unidade_principal_estoque: produto.unidade_principal_estoque })) } };
   }
 
   // ─── Lista e detalhe ───
