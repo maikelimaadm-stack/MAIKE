@@ -73,7 +73,7 @@ export default function SeletorImportacao({ value, onChange, children, className
         className={`flex h-7 items-center justify-between gap-1 whitespace-nowrap px-2 text-left text-xs disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
       >
         <span className="truncate">{rotuloAtual}</span>
-        <span aria-hidden className="text-[10px] opacity-60">▾</span>
+        <span aria-hidden className="text-sm opacity-60">▾</span>
       </button>
     );
   }

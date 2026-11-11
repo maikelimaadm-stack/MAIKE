@@ -252,10 +252,10 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       {/* D-PROD-118: dentro do diálogo o título é a tarefa; aqui ficam status, prioridade e as ações. */}
       {!noDialogo ? <div className="mk-hist__secao-titulo">Tarefa: {currentTarefa.titulo}</div> : null}
       <div className="mk-tar__chips">
-        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
+        <Badge variant="outline" className={`rounded-full text-xs border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
           Status: {currentTarefa.status}
         </Badge>
-        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${prioridadeClassName}`}>
+        <Badge variant="outline" className={`rounded-full text-xs border-transparent shadow-none ${prioridadeClassName}`}>
           Prioridade: {prioridade}
         </Badge>
       </div>
@@ -291,7 +291,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
 
       <section className="mk-ll__item">
         <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Últimos eventos</div></header>
-        <div className="space-y-2 text-[11px]">
+        <div className="space-y-2 text-sm">
           {loadingHistorico ? (
             <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-3">
               <div className="animate-spin w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full" />

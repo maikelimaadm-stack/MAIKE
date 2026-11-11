@@ -367,7 +367,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
                   {insight.valores.map((v, i) => (
                     <div key={i} className="text-center p-1.5 bg-white/70 rounded">
                       <div className="text-lg font-bold text-slate-900">{v.valor}</div>
-                      <div className="text-[10px] text-slate-600">{v.label}</div>
+                      <div className="text-xs text-slate-600">{v.label}</div>
                     </div>
                   ))}
                 </div>
@@ -380,7 +380,7 @@ export default function MapaInsights({ lotes, areas, eventosSupl, pontosSuplemen
               {insight.lista && (
                 <div className="space-y-1">
                   {insight.lista.map((item, i) => (
-                    <div key={i} className="text-[11px] text-slate-700 flex items-start gap-1.5">
+                    <div key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
                       <span className="text-slate-400 mt-0.5">•</span>
                       <span>{item}</span>
                     </div>

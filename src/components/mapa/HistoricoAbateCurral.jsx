@@ -79,14 +79,14 @@ export default function HistoricoAbateCurral({ areaId }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-1">
-                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
+                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-xs text-slate-700 border-slate-300 bg-white">
                       {formatDateOnly(item.data)}
                     </span>
-                    <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
+                    <Badge variant="outline" className="text-xs text-slate-700 border-slate-300 bg-white">
                       Abate
                     </Badge>
                     {item.cancelado && (
-                      <Badge variant="outline" className="text-[10px] text-red-800 border-red-300 bg-red-50">
+                      <Badge variant="outline" className="text-xs text-red-800 border-red-300 bg-red-50">
                         Cancelado
                       </Badge>
                     )}
@@ -94,7 +94,7 @@ export default function HistoricoAbateCurral({ areaId }) {
 
                   <div className="text-xs font-semibold text-slate-900">{item.lote || "Sem lote"}</div>
 
-                  <div className="space-y-0.5 text-[10px] text-slate-600">
+                  <div className="space-y-0.5 text-xs text-slate-600">
                     {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
                     <div><strong>Data:</strong> {formatDateOnly(item.data)}</div>
                     {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}

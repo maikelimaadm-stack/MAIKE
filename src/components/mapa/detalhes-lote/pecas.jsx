@@ -23,6 +23,22 @@ export const COR = {
   barra: "#5ACBE9",
 };
 
+/*
+ * Tipografia do motor Base1 (D-PROD-167) no Detalhes do Lote (D-PROD-173): a mesma escala dos cadastros.
+ * Texto e valores 14 px; rótulo e texto de apoio 13 px; nome do lote como título de item 14 px / 600;
+ * título de cartão e de seção em Lato 13 px / 600 (o de seção em MAIÚSCULAS, como os grupos das listas).
+ * Nada abaixo de 13 px. Cores e medidas do mockup v8 continuam as mesmas.
+ */
+export const TIPO = Object.freeze({
+  texto: Object.freeze({ fontSize: 14, fontWeight: 400 }),
+  valor: Object.freeze({ fontSize: 14, fontWeight: 500 }),
+  rotulo: Object.freeze({ fontSize: 13, fontWeight: 400 }),
+  item: Object.freeze({ fontSize: 14, fontWeight: 600 }),
+  selo: Object.freeze({ fontSize: 13, fontWeight: 600 }),
+  titulo: Object.freeze({ fontFamily: "var(--mk-fonte-titulo)", fontSize: 13, fontWeight: 600 }),
+  grupo: Object.freeze({ fontFamily: "var(--mk-fonte-titulo)", fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }),
+});
+
 const SOMBRA_DESKTOP = "0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025)";
 const SOMBRA_TELA = "0 1px 3px rgba(15, 23, 42, 0.1)";
 
@@ -92,7 +108,7 @@ export function CartaoDl({ children, gap = 8, padding = "10px", style }) {
         borderRadius: 12,
         background: "#fff",
         boxShadow: ui.sombra,
-        fontSize: 12,
+        ...TIPO.texto,
         ...style,
       }}
     >
@@ -115,9 +131,7 @@ export function PilulaTitulo({ children }) {
         borderRadius: 999,
         background: COR.destaque,
         color: COR.texto,
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "0.01em",
+        ...TIPO.titulo,
         lineHeight: 1.25,
       }}
     >
@@ -146,8 +160,7 @@ export function PilulaSituacao({ situacao }) {
         border: `1px solid ${t.borda}`,
         background: t.fundo,
         color: t.texto,
-        fontSize: 10,
-        fontWeight: 700,
+        ...TIPO.selo,
         lineHeight: 1.2,
         whiteSpace: "nowrap",
       }}
@@ -189,7 +202,7 @@ export function IconeCategoria({ url, tamanho = 22, alt = "" }) {
 }
 
 /**
- * Título de seção (eyebrow 9px caixa alta) com a linha fina à direita.
+ * Título de seção (grupo em MAIÚSCULAS, Lato 13 px) com a linha fina à direita.
  * @param {{ children?: React.ReactNode, direita?: React.ReactNode }} props
  */
 export function TituloSecao({ children, direita }) {
@@ -200,11 +213,8 @@ export function TituloSecao({ children, direita }) {
         alignItems: "center",
         gap: 6,
         marginBottom: 1,
-        fontSize: 9,
-        fontWeight: 700,
+        ...TIPO.grupo,
         color: COR.meta,
-        textTransform: "uppercase",
-        letterSpacing: "0.05em",
       }}
     >
       {children}
@@ -245,17 +255,15 @@ export function GradeCampos({ campos, colunas, variante = "topico" }) {
               whiteSpace: quebra ? "normal" : "nowrap",
               overflowWrap: "anywhere",
               textOverflow: "ellipsis",
-              fontSize: 10.5,
-              lineHeight: 1.2,
-              fontWeight: 600,
+              ...TIPO.valor,
+              lineHeight: 1.3,
               color: c.cor || COR.texto,
             }
           : {
               overflowWrap: "anywhere",
               whiteSpace: "normal",
-              fontSize: 10.5,
-              lineHeight: 1.25,
-              fontWeight: 600,
+              ...TIPO.valor,
+              lineHeight: 1.3,
               color: c.cor || COR.texto,
             };
         return (
@@ -265,9 +273,8 @@ export function GradeCampos({ campos, colunas, variante = "topico" }) {
                 overflow: info ? "hidden" : undefined,
                 whiteSpace: info && !ui.celular ? "nowrap" : "normal",
                 textOverflow: info ? "ellipsis" : undefined,
-                fontSize: 10.5,
-                lineHeight: 1.15,
-                fontWeight: 500,
+                ...TIPO.rotulo,
+                lineHeight: 1.25,
                 color: COR.meta,
               }}
             >
@@ -305,7 +312,7 @@ export function GradeCampos({ campos, colunas, variante = "topico" }) {
 }
 
 /**
- * Quatro números (rótulo eyebrow em cima, valor embaixo).
+ * Quatro números (rótulo em cima, valor embaixo).
  * @param {{ itens: Array<{ rotulo: React.ReactNode, texto: React.ReactNode, cor?: string }> }} props
  */
 export function NumerosDl({ itens }) {
@@ -314,14 +321,13 @@ export function NumerosDl({ itens }) {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "0 6px" }}>
       {lista.map((it, i) => (
         <div key={i} style={{ minWidth: 0, padding: "5px 0", borderTop: `1px solid ${COR.divisor}` }}>
-          <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2, letterSpacing: "0.05em", textTransform: "uppercase", color: COR.meta }}>{it.rotulo}</div>
+          <div style={{ ...TIPO.rotulo, lineHeight: 1.25, color: COR.meta }}>{it.rotulo}</div>
           <div
             style={{
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              fontSize: 10.5,
-              fontWeight: 600,
+              ...TIPO.valor,
               lineHeight: 1.3,
               color: it.cor || COR.texto,
               fontVariantNumeric: "tabular-nums",

@@ -1,6 +1,6 @@
 import { useEffect, useId } from 'react';
 import { SECOES_LOTE } from '@/components/mapa/detalhes-lote/catalogo';
-import { COR, useAlturaPopup, useDlUi } from '@/components/mapa/detalhes-lote/pecas';
+import { COR, TIPO, useAlturaPopup, useDlUi } from '@/components/mapa/detalhes-lote/pecas';
 
 /** @typedef {import('./useEstadoLotes').EstadoLotes} EstadoLotes */
 /** @typedef {import('./useEstadoLotes').Vista} Vista */
@@ -36,7 +36,7 @@ function OpcaoCheck({ on, rotulo, primeira, linhaToque, onClick }) {
       style={{
         display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: linhaToque,
         padding: '6px 8px', border: 0, borderTop: `1px solid ${primeira ? 'transparent' : COR.divisor}`,
-        background: 'transparent', color: COR.texto, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+        background: 'transparent', color: COR.texto, ...TIPO.texto, textAlign: 'left', cursor: 'pointer',
       }}
     >
       <span
@@ -104,7 +104,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '100%',
                 padding: `0 ${celular ? 12 : 16}px`, border: 0, borderRadius: 999,
                 background: ativa ? COR.ativo : 'transparent', color: COR.titulo,
-                fontSize: celular ? 12 : 13, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer',
+                fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer',
               }}
             >
               {v.rotulo}
@@ -123,7 +123,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
           {!celular && (
             <label
               htmlFor={idCampo}
-              style={{ whiteSpace: 'nowrap', fontSize: 12, fontWeight: 500, lineHeight: 1.25, color: COR.texto }}
+              style={{ whiteSpace: 'nowrap', ...TIPO.rotulo, lineHeight: 1.25, color: COR.texto }}
             >
               Filtrar
             </label>
@@ -141,7 +141,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
               flex: '1 1 auto', width: celular ? '100%' : 240, minWidth: 0, height: 30, padding: '0 8px',
-              border: 0, borderRadius: 8, background: COR.fundo, color: COR.texto, fontSize: 12,
+              border: 0, borderRadius: 8, background: COR.fundo, color: COR.texto, ...TIPO.texto,
               textAlign: 'left', cursor: 'pointer',
             }}
           >
@@ -197,8 +197,8 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
               </div>
               <div
                 style={{
-                  marginTop: 6, padding: '8px 8px 2px', borderTop: `1px solid ${COR.divisor}`, fontSize: 9,
-                  fontWeight: 700, color: COR.meta, textTransform: 'uppercase', letterSpacing: '0.05em',
+                  marginTop: 6, padding: '8px 8px 2px', borderTop: `1px solid ${COR.divisor}`,
+                  ...TIPO.grupo, color: COR.meta,
                 }}
               >
                 Alertas
@@ -216,7 +216,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: ui.linhaToque,
                         padding: '6px 8px', border: 0, borderTop: `1px solid ${i === 0 ? 'transparent' : COR.divisor}`,
-                        background: 'transparent', color: COR.texto, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                        background: 'transparent', color: COR.texto, ...TIPO.texto, textAlign: 'left', cursor: 'pointer',
                       }}
                     >
                       <span
@@ -231,7 +231,7 @@ export default function ControlesLotes({ modelo: _modelo, estado }) {
                       </span>
                       <span
                         style={{
-                          flex: '0 0 auto', fontSize: 11, fontWeight: 700, color: COR.meta,
+                          flex: '0 0 auto', ...TIPO.selo, color: COR.meta,
                           fontVariantNumeric: 'tabular-nums',
                         }}
                       >

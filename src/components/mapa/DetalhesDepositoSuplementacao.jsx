@@ -177,7 +177,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
-      <div className="space-y-1 text-[10px]">
+      <div className="space-y-1 text-sm">
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
           <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
             <div className="flex items-center gap-3">
@@ -188,7 +188,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                   fillClassName={indicador?.isCritical ? "bg-red-500" : "bg-lime-400"} />
 
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-sm">
               <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                 <div className="text-slate-500">Saldo atual kg</div>
                 <div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div>
@@ -208,7 +208,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
-          <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
+          <div className="mk-tipo-titulo text-slate-900">Saldo por Produto</div>
           {saldosAgrupados.length === 0 ?
           <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div> :
 
@@ -229,32 +229,32 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
-          <div className="text-[11px] font-bold text-slate-900">Último Registro</div>
+          <div className="mk-tipo-titulo text-slate-900">Último Registro</div>
           {ultimoRegistro ?
           <div className="space-y-1.5">
               <div className="text-xs font-semibold text-slate-900">{ultimoRegistro.produto_nome}</div>
               <div>
-                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Movimentação</div>
-                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                <div className="mk-tipo-grupo text-slate-500 mb-0.5">Movimentação</div>
+                <div className="grid grid-cols-2 gap-1 text-sm">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Tipo</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_movimentacao}</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Data</div><div className="font-semibold text-slate-900">{new Date(ultimoRegistro.data_movimentacao).toLocaleDateString("pt-BR")}</div></div>
                 </div>
               </div>
               <div>
-                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Quantidade</div>
-                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                <div className="mk-tipo-grupo text-slate-500 mb-0.5">Quantidade</div>
+                <div className="grid grid-cols-2 gap-1 text-sm">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade kg</div><div className="font-semibold text-slate-900">{formatKg(ultimoRegistro.quantidade || 0)}</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Quantidade sacos</div><div className="font-semibold text-slate-900">{ultimoRegistroSacos != null ? ultimoRegistroSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</div></div>
                 </div>
               </div>
               <div>
-                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Local</div>
-                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                <div className="mk-tipo-grupo text-slate-500 mb-0.5">Local</div>
+                <div className="grid grid-cols-2 gap-1 text-sm">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Origem</div><div className="font-semibold text-slate-900">{ultimoRegistro.local_origem || "-"}</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Destino</div><div className="font-semibold text-slate-900">{ultimoRegistro.tipo_detalhado === "suplementacao" ? "Suplementação" : ultimoRegistro.local_destino || "-"}</div></div>
                 </div>
               </div>
-              {ultimoRegistro.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {ultimoRegistro.observacoes}</div>}
+              {ultimoRegistro.observacoes && <div className="text-xs text-slate-500 break-words">Obs: {ultimoRegistro.observacoes}</div>}
             </div> :
 
           <div className="text-xs text-slate-500">Nenhum registro ainda.</div>
@@ -264,7 +264,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
-          <div className="text-[11px] font-bold text-slate-900">Pastos atendidos pela saída do estoque</div>
+          <div className="mk-tipo-titulo text-slate-900">Pastos atendidos pela saída do estoque</div>
           {cochosVinculados.length === 0 ?
           <div className="text-xs text-slate-500">Nenhum cocho vinculado a este depósito.</div> :
 
@@ -281,8 +281,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
               cocho.area_vinculada_nomes.join(', ') :
               cocho.area_vinculada_nome || 'Sem pasto vinculado';
               return <div key={cocho.id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-1 py-1">
-                  <div className="text-[10px] text-slate-500">Cocho: {cocho.nome_ponto}</div>
-                  <div className="text-[10px] text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
+                  <div className="text-xs text-slate-500">Cocho: {cocho.nome_ponto}</div>
+                  <div className="text-xs text-slate-500">Saída do estoque para: {pastosAtendidos}</div>
                 </div>;
             })}
             </div>
@@ -292,8 +292,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
-          <div className="text-[11px] font-bold text-slate-900">Informações do Depósito</div>
-          <div className="space-y-1 text-[10px]">
+          <div className="mk-tipo-titulo text-slate-900">Informações do Depósito</div>
+          <div className="space-y-1 text-sm">
             
 
 

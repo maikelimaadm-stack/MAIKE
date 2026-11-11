@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-11) — UI-GESTAO-MOTOR: Gestão, Patrimônio e Financeiro no padrão do motor Base1 (D-PROD-172)
+## Missão ativa (2026-11-11) — UI-MAPA-TIPOGRAFIA: o Mapa Geral com a tipografia do motor Base1 (D-PROD-173)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-173**, pedida pelo proprietário em 2026-11-11: "ajuste todas as fontes do meu mapa para igual a fonte do motor base 1 […] Detalhes de lote, etc" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-172 |
+| Escopo | Detalhes do Lote (tabela de papéis `TIPO`), Filtros e Visualização, manejos e janelas abertos pelo mapa: texto 14 px, apoio 13 px, títulos em Lato 13 px / 600, nada abaixo de 13 px fora as peças do próprio motor. Ficam os rótulos desenhados sobre o mapa e a atribuição. Fora: Cadastro de Áreas, Pontos e Linhas no motor (D-PROD-174) |
+| Migration | Nenhuma |
+| Release | Merge e deploy |
+| Relatório | [`UI-MAPA-TIPOGRAFIA-D173-REPORT.md`](./UI-MAPA-TIPOGRAFIA-D173-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-GESTAO-MOTOR: Gestão, Patrimônio e Financeiro no padrão do motor Base1 (D-PROD-172)
 
 | Campo | Valor |
 |---|---|

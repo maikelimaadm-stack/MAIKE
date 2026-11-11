@@ -178,7 +178,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 .mk-map-list-sheet .mk-sheet__body { min-width: 0; overscroll-behavior: contain; }
 .mk-map-list-sheet .mk-ll { min-width: 0; }
 .mk-map-list-sheet .mk-ll-dlg__slot:empty { display: none; }
-.mk-map-list-subtitle { margin: 0; padding: 0 16px 8px; font-size: 12px; color: var(--mkq-64748b, #64748b); overflow-wrap: anywhere; }
+.mk-map-list-subtitle { margin: 0; padding: 0 16px 8px; font-size: 13px; color: var(--mkq-64748b, #64748b); overflow-wrap: anywhere; }
 @media (max-width: 639px) {
   .mk-map-list-sheet .mk-map-task-panel { overflow: visible; }
   .mk-map-list-sheet .mk-map-task-panel .cadastro-b1--full-page { height: auto; max-height: none; }
@@ -187,10 +187,10 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 /* Ações e escolhas têm folha com gestos; detalhes continuam em tela. */
 .mk-map-action-choices .mk-al__quadros { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; }
 .mk-map-action-choices .mk-al__quadro { min-width: 0; min-height: 72px; padding: 10px 6px; }
-.mk-map-action-choices .mk-al__quadro span { overflow-wrap: anywhere; font-size: 12px; }
+.mk-map-action-choices .mk-al__quadro span { overflow-wrap: anywhere; font-size: 14px; }
 .mk-map-action-choices .mk-al__quadro svg:not(.mk-al__img) { width: 16px; height: 16px; }
 .mk-map-action-choices .mk-al__grupos { gap: 12px; }
-.mk-map-action-choices .mk-al__grupo-titulo { font-size: 12px; }
+.mk-map-action-choices .mk-al__grupo-titulo { font-size: 13px; }
 
 /* Controles compactos sem herdar os campos altos dos cadastros mobile. */
 .mk-map-filter-sheet:not(#mk-padrao) { width: min(320px, 100vw); }
@@ -339,15 +339,16 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 }
 
 /*
- * Filtros / Camadas / Visualização — densidade única e alinhada (D-PROD-151).
+ * Filtros / Camadas / Visualização — densidade única e alinhada (D-PROD-151); desde a D-PROD-173 com a
+ * tipografia do motor Base1: linhas 14px e títulos de seção em Lato 13px / 600.
  * Campos sem checkbox começam no X do checkbox (borda esquerda da linha),
  * como na main original — não indentados pela coluna do check.
  */
 :is(.mk-map-filters--clean, .mk-vis):not(#mk-padrao) {
   --mk-map-row: 32px;
   --mk-map-control: 26px;
-  --mk-map-font: 12px;
-  --mk-map-title: 12px;
+  --mk-map-font: 14px;
+  --mk-map-title: 13px;
   --mk-map-pad-x: 10px;
   --mk-map-check: var(--mk-check-size, 14px);
   --mk-map-check-gap: 8px;
@@ -390,6 +391,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   margin: 0;
 }
 .mk-map-filters--clean .mk-map-filter-heading > span {
+  font-family: var(--mk-fonte-titulo);
   font-size: var(--mk-map-title) !important;
   font-weight: 600 !important;
   text-transform: none !important;
@@ -433,7 +435,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   justify-content: flex-start;
   text-align: left;
   font-size: var(--mk-map-font) !important;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--mkq-334155, #334155);
   cursor: pointer;
 }
@@ -442,10 +444,11 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   height: var(--mk-map-check);
   flex: 0 0 var(--mk-map-check);
 }
-/* Campos sem check: rótulo | controle — rótulo no X do checkbox das camadas. */
+/* Campos sem check: rótulo | controle — rótulo no X do checkbox das camadas.
+   Rótulo de 13px (D-PROD-173): a coluna dele cresce para "Sistema Produtivo" e "Peso Máximo (kg)" caberem. */
 .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   column-gap: 10px;
   justify-items: stretch;
   text-align: left;
@@ -483,8 +486,8 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   text-overflow: ellipsis;
   text-align: left !important;
   justify-self: start;
-  font-size: var(--mk-map-font) !important;
-  font-weight: 500 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
   line-height: 1.25 !important;
   color: var(--mkq-475569, #475569) !important;
 }
@@ -525,7 +528,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   }
   .mk-map-filters--clean .mk-map-filter-fields > div:not(#mk-padrao) {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) !important;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) !important;
     width: 100% !important;
   }
   .mk-map-filters--clean .mk-map-filter-fields :is(input, select):not(#mk-padrao) {
@@ -569,6 +572,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 
 /* Visualização: mesma densidade das listagens de Filtros/Camadas. */
 .mk-vis .mk-vis__titulo:not(#mk-padrao) {
+  font-family: var(--mk-fonte-titulo);
   font-size: var(--mk-map-title, 13px) !important;
   font-weight: 600;
   color: var(--mkq-64748b, #64748b);
