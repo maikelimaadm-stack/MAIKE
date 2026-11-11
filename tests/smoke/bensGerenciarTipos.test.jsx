@@ -14,7 +14,10 @@
  *    Troque o tipo desses bens antes de excluir."; 409 de versão relê a lista;
  *  - "+ Novo tipo" cria `{natureza, nome}`;
  *  - permissões: Renomear/Excluir = Bens editar|salvar; Novo = novo|salvar|editar;
- *    Reativar (tipo antigo inativo) = `inativar`; só ver = só a lista.
+ *    Reativar (tipo antigo inativo) = `inativar`; só ver = só a lista;
+ *  - celular (achado do E2E real a 390 px): a folha das escolhas (filtro "Tipo
+ *    de bem" e o "Tipo de bem" do "+ Novo tipo") nasce DENTRO do diálogo, com
+ *    toque; Escape fecha só a folha (padrão da D-PROD-161).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -276,5 +279,90 @@ describe('Gerenciar tipos — permissões (espelho das guardas do servidor)', ()
     expect(within(dialogo).queryByRole('button', { name: /^(Renomear|Excluir|Reativar) / })).toBeNull();
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
     expect(mutacoes()).toEqual([]);
+  });
+});
+
+describe('Gerenciar tipos — celular (folha das escolhas dentro do diálogo)', () => {
+  /** @type {any} */
+  let matchMediaOriginal;
+  beforeEach(() => {
+    matchMediaOriginal = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((q) => ({
+      matches: /max-width:\s*639px/.test(q),
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+    }));
+  });
+  afterEach(() => {
+    window.matchMedia = matchMediaOriginal;
+  });
+  /** Toque real: pointerdown, pointerup e click em tarefas separadas. @param {Element} el */
+  const tocar = async (el) => {
+    await act(async () => {
+      fireEvent.pointerDown(el);
+    });
+    await act(async () => {
+      fireEvent.pointerUp(el);
+    });
+    await act(async () => {
+      fireEvent.click(el);
+    });
+  };
+  /** A camada (Radix) mais próxima com `pointer-events` explícito não pode desligar o toque. @param {Element|null} el */
+  const peHerdado = (el) => {
+    for (let n = /** @type {any} */ (el); n; n = n.parentElement) {
+      if (n.style?.pointerEvents) return n.style.pointerEvents;
+    }
+    return '';
+  };
+
+  /** No celular a lista é de cartões (sem a célula `bem-nome-*`): espera o bem e abre "⋯ › Gerenciar tipos". */
+  const abrirGerenciarNoCelular = async () => {
+    await screen.findAllByText(/Trator TP-02/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções' }));
+    fireEvent.click(await screen.findByText('Gerenciar tipos'));
+    const dialogo = await screen.findByTestId('gerenciar-tipos');
+    await within(dialogo).findByTestId('gerenciar-lista-tipos');
+    return dialogo;
+  };
+
+  it('o filtro "Tipo de bem" abre a folha DENTRO do diálogo, com toque; tocar na opção filtra; Escape fecha só a folha', async () => {
+    await montar();
+    const dialogo = await abrirGerenciarNoCelular();
+    await tocar(within(dialogo).getByRole('combobox', { name: 'Filtrar por tipo de bem' }));
+    const opcao = await screen.findByRole('option', { name: 'Máquina', hidden: true });
+    const folha = opcao.closest('.mk-sheet-root');
+    expect(folha).toBeTruthy();
+    expect(dialogo.contains(folha)).toBe(true);
+    expect(opcao.closest('[aria-hidden="true"]')).toBeNull();
+    expect(peHerdado(opcao)).not.toBe('none');
+    await tocar(opcao);
+    await waitFor(() => expect(listagens().at(-1).query).toMatchObject({ natureza: 'MAQUINA' }));
+    await waitFor(() => expect(within(dialogo).queryByTestId('gerenciar-tipos-t1')).toBeNull());
+
+    await tocar(within(dialogo).getByRole('combobox', { name: 'Filtrar por tipo de bem' }));
+    await screen.findByRole('option', { name: 'Veículo', hidden: true });
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByRole('option', { name: 'Veículo', hidden: true })).toBeNull());
+    expect(dialogo.isConnected).toBe(true);
+    expect(screen.getByTestId('gerenciar-tipos')).toBeTruthy();
+  });
+
+  it('"+ Novo tipo": o "Tipo de bem" do formulário também abre a folha dentro do diálogo', async () => {
+    await montar();
+    const dialogo = await abrirGerenciarNoCelular();
+    fireEvent.click(within(dialogo).getByTestId('gerenciar-novo'));
+    const form = within(dialogo).getByTestId('gerenciar-form');
+    await tocar(within(form).getByRole('combobox', { name: 'Tipo de bem' }));
+    const opcao = await screen.findByRole('option', { name: 'Equipamento', hidden: true });
+    expect(dialogo.contains(opcao.closest('.mk-sheet-root'))).toBe(true);
+    expect(peHerdado(opcao)).not.toBe('none');
+    await tocar(opcao);
+    await waitFor(() => expect(within(form).getByRole('combobox', { name: 'Tipo de bem' })).toHaveTextContent('Equipamento'));
   });
 });

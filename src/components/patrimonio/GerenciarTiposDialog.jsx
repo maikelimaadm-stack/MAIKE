@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import * as UiDialog from "@/components/ui/dialog";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { lerErroGestao } from "@/lib/gestaoErros";
@@ -90,7 +91,13 @@ const textoDosBens = (r) => {
  * Conflito de versão relê a lista (nada foi gravado).
  *
  * Responsivo sem rolagem horizontal: cada tipo é uma linha que quebra (nome e
- * dados à esquerda, ações abaixo no celular).
+ * dados à esquerda, ações abaixo no celular). No celular, as escolhas (filtro
+ * "Tipo de bem" e o "Tipo de bem" do "+ Novo tipo") abrem em folha de baixo
+ * (`B1Select` → `MobileSheet`): a folha nasce DENTRO deste diálogo (padrão da
+ * D-PROD-161, `DetalhesDepositoSuplementacao`), senão o diálogo do Radix
+ * bloqueia o toque nela; no celular o diálogo centraliza sem `transform`, para
+ * a folha (`position: fixed`) ocupar a tela e não o cartão; com a folha aberta,
+ * o pedido de fechar o diálogo (Escape) fecha só a folha.
  *
  * @param {{
  *   aberto: boolean,
@@ -108,6 +115,8 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   const [erroRenomear, setErroRenomear] = useState(/** @type {string|null} */ (null));
   const [emUso, setEmUso] = useState(/** @type {Record<string, string>} */ ({}));
   const [salvando, setSalvando] = useState(false);
+  // Alvo das folhas do celular (B1Select) DENTRO do diálogo.
+  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
 
   const lista = useInfiniteQuery({
     queryKey: [QUERY_CATALOGO, RECURSO, "gerenciar", natureza, q],
@@ -244,187 +253,202 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   };
 
   return (
-    <Dialog open={aberto} onOpenChange={(/** @type {boolean} */ o) => (!o && !salvando ? onFechar() : undefined)}>
-      <DialogContent data-permissao-explicita="" data-testid="gerenciar-tipos" className="max-h-[92vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Gerenciar tipos</DialogTitle>
-          <DialogDescription>
-            Os tipos valem para todas as fazendas da conta. Cada tipo pertence a um Tipo de bem (benfeitoria, máquina, veículo, implemento, equipamento ou
-            outro). Só dá para excluir um tipo que nenhum bem usa: troque antes o tipo desses bens.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog
+      open={aberto}
+      onOpenChange={(/** @type {boolean} */ o) => {
+        if (o || salvando) return;
+        // Folha do celular aberta dentro do diálogo: o Escape fecha só a folha.
+        if (alvoFolha?.querySelector(".mk-sheet-root")) return;
+        onFechar();
+      }}
+    >
+      <DialogContent
+        data-permissao-explicita=""
+        data-testid="gerenciar-tipos"
+        className="max-h-[92vh] max-w-3xl overflow-y-auto max-sm:inset-0 max-sm:m-auto max-sm:h-fit max-sm:transform-none max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-0 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-0"
+      >
+        <MobileSheetPortalCtx.Provider value={alvoFolha}>
+          <DialogHeader>
+            <DialogTitle>Gerenciar tipos</DialogTitle>
+            <DialogDescription>
+              Os tipos valem para todas as fazendas da conta. Cada tipo pertence a um Tipo de bem (benfeitoria, máquina, veículo, implemento, equipamento ou
+              outro). Só dá para excluir um tipo que nenhum bem usa: troque antes o tipo desses bens.
+            </DialogDescription>
+          </DialogHeader>
 
-        {novo ? (
-          <div className="min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] p-2" data-testid="gerenciar-form">
-            <FormularioTipo key="novo" formId={FORM_TIPO_ID} naturezaInicial={natureza !== "TODAS" ? natureza : null} onSubmit={criar} />
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
-              <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setNovo(false)} disabled={salvando}>
-                Descartar
-              </button>
-              <button type="submit" form={FORM_TIPO_ID} className={BOTAO_PRIMARIO} disabled={salvando} data-testid="gerenciar-salvar">
-                {salvando ? "Salvando…" : "Criar tipo"}
-              </button>
+          {novo ? (
+            <div className="min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] p-2" data-testid="gerenciar-form">
+              <FormularioTipo key="novo" formId={FORM_TIPO_ID} naturezaInicial={natureza !== "TODAS" ? natureza : null} onSubmit={criar} />
+              <div className="mt-2 flex flex-wrap justify-end gap-2">
+                <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setNovo(false)} disabled={salvando}>
+                  Descartar
+                </button>
+                <button type="submit" form={FORM_TIPO_ID} className={BOTAO_PRIMARIO} disabled={salvando} data-testid="gerenciar-salvar">
+                  {salvando ? "Salvando…" : "Criar tipo"}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-[1_1_220px] items-center gap-2 rounded border border-[var(--mg-divider,#cbd5e1)] px-2">
-            <Search aria-hidden size={14} className="shrink-0 text-[var(--mg-text-3,#94a3b8)]" />
-            <input
-              type="search"
-              aria-label="Buscar tipos"
-              placeholder="Buscar por nome…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="h-10 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-              autoComplete="off"
-              maxLength={120}
-            />
-          </div>
-          <FiltroOpcoes rotulo="Filtrar por tipo de bem" value={natureza} onChange={setNatureza} opcoes={OPCOES_TIPO_DE_BEM} />
-          {acoes.criarCatalogo && !novo ? (
-            <button type="button" className={`${BOTAO_PRIMARIO} ml-auto`} onClick={() => setNovo(true)} data-testid="gerenciar-novo">
-              <Plus size={16} aria-hidden /> Novo tipo
-            </button>
           ) : null}
-        </div>
 
-        <div className="min-w-0">
-          {lista.isLoading ? (
-            <p role="status" className="text-[13px]">
-              Carregando…
-            </p>
-          ) : lista.isError ? (
-            <div role="alert" className="text-[13px] text-red-800">
-              {mensagemErroPatrimonio(lista.error, "Não foi possível carregar os tipos.")}{" "}
-              <button type="button" className="underline" onClick={() => lista.refetch()}>
-                Tentar novamente
-              </button>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-[1_1_220px] items-center gap-2 rounded border border-[var(--mg-divider,#cbd5e1)] px-2">
+              <Search aria-hidden size={14} className="shrink-0 text-[var(--mg-text-3,#94a3b8)]" />
+              <input
+                type="search"
+                aria-label="Buscar tipos"
+                placeholder="Buscar por nome…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="h-10 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+                autoComplete="off"
+                maxLength={120}
+              />
             </div>
-          ) : !itens.length ? (
-            <p className="text-[13px]" data-testid="gerenciar-vazio">
-              Nenhum tipo encontrado.
-            </p>
-          ) : (
-            <ul className="min-w-0 divide-y divide-slate-100" data-testid="gerenciar-lista-tipos" aria-label="Tipos">
-              {itens.map((r) => {
-                const id = String(r.id);
-                const nome = String(r.nome ?? "");
-                const n = naturezaDoTipo(r);
-                const bens = textoDosBens(r);
-                const inativo = r.ativo === false;
-                const editandoEste = renomeando?.id === id;
-                const comVersao = Number.isInteger(r.versao);
-                return (
-                  <li key={id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 py-2" data-testid={`gerenciar-tipos-${id}`}>
-                    {editandoEste ? (
-                      <form
-                        className="flex min-w-0 flex-[1_1_240px] flex-wrap items-center gap-2"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          salvarNome(r);
-                        }}
-                        noValidate
-                      >
-                        <input
-                          type="text"
-                          aria-label={`Novo nome do tipo ${nome}`}
-                          value={renomeando.nome}
-                          onChange={(e) => {
-                            setRenomeando({ id, nome: e.target.value });
-                            setErroRenomear(null);
+            <FiltroOpcoes rotulo="Filtrar por tipo de bem" value={natureza} onChange={setNatureza} opcoes={OPCOES_TIPO_DE_BEM} />
+            {acoes.criarCatalogo && !novo ? (
+              <button type="button" className={`${BOTAO_PRIMARIO} ml-auto`} onClick={() => setNovo(true)} data-testid="gerenciar-novo">
+                <Plus size={16} aria-hidden /> Novo tipo
+              </button>
+            ) : null}
+          </div>
+
+          <div className="min-w-0">
+            {lista.isLoading ? (
+              <p role="status" className="text-[13px]">
+                Carregando…
+              </p>
+            ) : lista.isError ? (
+              <div role="alert" className="text-[13px] text-red-800">
+                {mensagemErroPatrimonio(lista.error, "Não foi possível carregar os tipos.")}{" "}
+                <button type="button" className="underline" onClick={() => lista.refetch()}>
+                  Tentar novamente
+                </button>
+              </div>
+            ) : !itens.length ? (
+              <p className="text-[13px]" data-testid="gerenciar-vazio">
+                Nenhum tipo encontrado.
+              </p>
+            ) : (
+              <ul className="min-w-0 divide-y divide-slate-100" data-testid="gerenciar-lista-tipos" aria-label="Tipos">
+                {itens.map((r) => {
+                  const id = String(r.id);
+                  const nome = String(r.nome ?? "");
+                  const n = naturezaDoTipo(r);
+                  const bens = textoDosBens(r);
+                  const inativo = r.ativo === false;
+                  const editandoEste = renomeando?.id === id;
+                  const comVersao = Number.isInteger(r.versao);
+                  return (
+                    <li key={id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 py-2" data-testid={`gerenciar-tipos-${id}`}>
+                      {editandoEste ? (
+                        <form
+                          className="flex min-w-0 flex-[1_1_240px] flex-wrap items-center gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            salvarNome(r);
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") {
-                              e.stopPropagation();
-                              setRenomeando(null);
-                              setErroRenomear(null);
-                            }
-                          }}
-                          maxLength={120}
-                          autoFocus
-                          className="h-9 min-w-0 flex-[1_1_160px] rounded border border-[var(--mg-divider,#cbd5e1)] px-2 text-[13px] uppercase"
-                        />
-                        <span className="inline-flex gap-1">
-                          <button type="submit" className={BOTAO_LINHA} disabled={salvando}>
-                            {salvando ? "Salvando…" : "Salvar"}
-                          </button>
-                          <button
-                            type="button"
-                            className={BOTAO_LINHA}
-                            onClick={() => {
-                              setRenomeando(null);
+                          noValidate
+                        >
+                          <input
+                            type="text"
+                            aria-label={`Novo nome do tipo ${nome}`}
+                            value={renomeando.nome}
+                            onChange={(e) => {
+                              setRenomeando({ id, nome: e.target.value });
                               setErroRenomear(null);
                             }}
-                            disabled={salvando}
-                          >
-                            Cancelar
-                          </button>
-                        </span>
-                        {erroRenomear ? (
-                          <p role="alert" className="w-full text-[11px] text-red-700">
-                            {erroRenomear}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                e.stopPropagation();
+                                setRenomeando(null);
+                                setErroRenomear(null);
+                              }
+                            }}
+                            maxLength={120}
+                            autoFocus
+                            className="h-9 min-w-0 flex-[1_1_160px] rounded border border-[var(--mg-divider,#cbd5e1)] px-2 text-[13px] uppercase"
+                          />
+                          <span className="inline-flex gap-1">
+                            <button type="submit" className={BOTAO_LINHA} disabled={salvando}>
+                              {salvando ? "Salvando…" : "Salvar"}
+                            </button>
+                            <button
+                              type="button"
+                              className={BOTAO_LINHA}
+                              onClick={() => {
+                                setRenomeando(null);
+                                setErroRenomear(null);
+                              }}
+                              disabled={salvando}
+                            >
+                              Cancelar
+                            </button>
+                          </span>
+                          {erroRenomear ? (
+                            <p role="alert" className="w-full text-[11px] text-red-700">
+                              {erroRenomear}
+                            </p>
+                          ) : null}
+                        </form>
+                      ) : (
+                        <div className="min-w-0 flex-[1_1_200px]">
+                          <p className="break-words text-[13px] font-medium uppercase">{nome || "–"}</p>
+                          <p className="text-[11px] text-[var(--mg-text-2,#475569)]" data-testid={`gerenciar-tipos-${id}-dados`}>
+                            {[n ? ROTULO_NATUREZA[n] : "Tipo de bem não informado", bens, inativo ? "Inativo" : null].filter(Boolean).join(" · ")}
                           </p>
-                        ) : null}
-                      </form>
-                    ) : (
-                      <div className="min-w-0 flex-[1_1_200px]">
-                        <p className="break-words text-[13px] font-medium uppercase">{nome || "–"}</p>
-                        <p className="text-[11px] text-[var(--mg-text-2,#475569)]" data-testid={`gerenciar-tipos-${id}-dados`}>
-                          {[n ? ROTULO_NATUREZA[n] : "Tipo de bem não informado", bens, inativo ? "Inativo" : null].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
+                      {!editandoEste ? (
+                        <span className="inline-flex flex-wrap justify-end gap-1">
+                          {acoes.editarCatalogo && comVersao ? (
+                            <button
+                              type="button"
+                              className={BOTAO_LINHA}
+                              onClick={() => {
+                                setRenomeando({ id, nome });
+                                setErroRenomear(null);
+                              }}
+                              disabled={salvando}
+                              aria-label={`Renomear ${nome || "tipo"}`}
+                            >
+                              Renomear
+                            </button>
+                          ) : null}
+                          {acoes.inativarCatalogo && inativo && comVersao ? (
+                            <button type="button" className={BOTAO_LINHA} onClick={() => reativar(r)} disabled={salvando} aria-label={`Reativar ${nome || "tipo"}`}>
+                              Reativar
+                            </button>
+                          ) : null}
+                          {acoes.excluirCatalogo && comVersao ? (
+                            <button type="button" className={BOTAO_LINHA_PERIGO} onClick={() => excluir(r)} disabled={salvando} aria-label={`Excluir ${nome || "tipo"}`}>
+                              Excluir
+                            </button>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      {emUso[id] ? (
+                        <p role="alert" className="w-full text-[11px] text-amber-800" data-testid={`gerenciar-tipo-em-uso-${id}`}>
+                          {emUso[id]}
                         </p>
-                      </div>
-                    )}
-                    {!editandoEste ? (
-                      <span className="inline-flex flex-wrap justify-end gap-1">
-                        {acoes.editarCatalogo && comVersao ? (
-                          <button
-                            type="button"
-                            className={BOTAO_LINHA}
-                            onClick={() => {
-                              setRenomeando({ id, nome });
-                              setErroRenomear(null);
-                            }}
-                            disabled={salvando}
-                            aria-label={`Renomear ${nome || "tipo"}`}
-                          >
-                            Renomear
-                          </button>
-                        ) : null}
-                        {acoes.inativarCatalogo && inativo && comVersao ? (
-                          <button type="button" className={BOTAO_LINHA} onClick={() => reativar(r)} disabled={salvando} aria-label={`Reativar ${nome || "tipo"}`}>
-                            Reativar
-                          </button>
-                        ) : null}
-                        {acoes.excluirCatalogo && comVersao ? (
-                          <button type="button" className={BOTAO_LINHA_PERIGO} onClick={() => excluir(r)} disabled={salvando} aria-label={`Excluir ${nome || "tipo"}`}>
-                            Excluir
-                          </button>
-                        ) : null}
-                      </span>
-                    ) : null}
-                    {emUso[id] ? (
-                      <p role="alert" className="w-full text-[11px] text-amber-800" data-testid={`gerenciar-tipo-em-uso-${id}`}>
-                        {emUso[id]}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {lista.hasNextPage ? (
-            <button type="button" className={`${BOTAO_SECUNDARIO} mt-2`} onClick={() => lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
-              {lista.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {lista.hasNextPage ? (
+              <button type="button" className={`${BOTAO_SECUNDARIO} mt-2`} onClick={() => lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
+                {lista.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+              </button>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={salvando}>
+              Fechar
             </button>
-          ) : null}
-        </div>
-        <DialogFooter>
-          <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={salvando}>
-            Fechar
-          </button>
-        </DialogFooter>
+          </DialogFooter>
+        </MobileSheetPortalCtx.Provider>
+        <div ref={setAlvoFolha} className="contents" data-testid="gerenciar-tipos-alvo-folha" />
       </DialogContent>
     </Dialog>
   );
