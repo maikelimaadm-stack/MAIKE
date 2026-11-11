@@ -280,6 +280,11 @@ export function iniciarMovimentoBase1() {
   const aoCancelar = () => solta(true);
   /** @param {MouseEvent} e */
   const aoClicar = (e) => {
+    // Clique de teclado (Enter/Espaço: `detail` 0, sem coordenadas) nunca é desviado nem engolido.
+    if (e.detail === 0) {
+      botao = null;
+      return;
+    }
     // segundo toque no mesmo lugar, com a janela ainda nascendo, não escolhe o item que apareceu embaixo do dedo
     const N = nascendo;
     if (

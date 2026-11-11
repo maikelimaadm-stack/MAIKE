@@ -163,6 +163,23 @@ describe("movimento do design no motor Base1 (6.32)", () => {
     expect(document.querySelector("[data-mk-fantasma]")).toBeNull();
   });
 
+  it("clique de teclado (detail 0) nunca é desviado para o botão apertado antes", () => {
+    desligar = ligarMovimentoBase1();
+    document.body.innerHTML =
+      '<div class="cadastro-b1 cadastro-b1--full-page"><button type="button" aria-label="Canto">a</button><button type="button" aria-label="Outro">b</button></div>';
+    const canto = screen.getByRole("button", { name: "Canto" });
+    const outro = screen.getByRole("button", { name: "Outro" });
+    retangulo(canto, { left: 0, top: 0, width: 40, height: 40 });
+    const noCanto = vi.fn();
+    const noOutro = vi.fn();
+    canto.addEventListener("click", noCanto);
+    outro.addEventListener("click", noOutro);
+    ponteiro(canto, "pointerdown", { x: 20, y: 20 }); // apertou e arrastou para fora: nenhum clique
+    outro.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0, clientX: 0, clientY: 0 }));
+    expect(noOutro).toHaveBeenCalledTimes(1);
+    expect(noCanto).not.toHaveBeenCalled();
+  });
+
   it("pílula nova na faixa de filtros aparece crescendo", async () => {
     desligar = ligarMovimentoBase1();
     document.body.innerHTML = '<div class="cadastro-b1 cadastro-b1--full-page"><div class="b1-fr__chips"></div></div>';
