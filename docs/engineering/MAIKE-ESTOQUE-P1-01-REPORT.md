@@ -98,7 +98,33 @@ Também conferido e correto:
 - 00, 07 e 08 intocados.
 
 ## 7. Gates e CI
-_(registrado abaixo, com saídas e exit codes reais)_
+Os resultados abaixo foram rodados no HEAD `3b49eac1`, o commit que traz o conteúdo da
+proposta, com a árvore limpa. O commit seguinte só preenche esta seção. O CI do SHA final
+fica registrado na própria PR.
+
+| Comando | Exit | Saída (última linha) |
+|---|---|---|
+| `npm run gate:governance-paths` | 0 | `gate:governance-paths — PASSOU (documentos, links e gates coerentes)` |
+| `npm run gate:product-scope` | 0 | `gate:product-scope — PASSOU (24 páginas, 35 entidades, 0 function(s))` |
+| `npm run gate:no-secrets` | 0 | `gate:no-secrets — PASSOU (2619 arquivos verificados, 0 segredos)` |
+| `npm run test:gates` | 0 | `# tests 739 # pass 739 # fail 0` |
+| `npm run verify:all` (integral) | 0 | `TODAS AS ETAPAS PASSARAM` (40 etapas, 1591,0 s) |
+
+O `verify:all` rodou em PostgreSQL 17.11 local e descartável, num banco novo e vazio, com
+`NODE_ENV` vazio. As principais contagens foram:
+- `test:backend`: 1630 testes, 1625 passaram, 0 falharam, 5 marcados `todo`;
+- vitest: 200 arquivos e 2447 testes, todos passaram;
+- `lint`, `gate:types`, `typecheck:backend`, `build` e `build:admin` passaram;
+- `gate:tenancy`, `gate:indices`, `gate:deploy-migrations` e `gate:base44` passaram.
+
+Nenhum banco remoto foi tocado.
+
+`git diff --name-status origin/main...HEAD` lista exatamente os seis documentos da §2:
+- M `CURRENT-STATE.md`, `DECISIONS.md` e `ROADMAP.md`;
+- A `MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`, `MAIKE-ESTOQUE-P1-01-REPORT.md` e
+  `MAIKE-ESTOQUE-P1-CONTRATO.md`.
+
+Não há código, schema, migration, escopo, teste nem workflow no diff.
 
 ## 8. Situação
 - `FILES_CHANGED`: só os 6 arquivos de documentação da §2.
