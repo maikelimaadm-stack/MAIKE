@@ -249,10 +249,10 @@
   box-sizing: border-box;
   width: min(440px, calc(100vw - 24px));
   overflow: hidden;
-  border: 1px solid #e7eaee;
+  border: 1px solid var(--mkq-e7eaee, #e7eaee);
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.26);
+  box-shadow: 0 24px 64px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.26);
 }
 
 .mg-alerta__cab {
@@ -265,13 +265,13 @@
 .mg-alerta__titulo {
   font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
 
 .mg-alerta__texto {
   font-size: 13px;
   line-height: 1.45;
-  color: #475569;
+  color: var(--mkq-475569, #475569);
 }
 
 .mg-alerta__rodape {
@@ -279,8 +279,8 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 11px 14px;
-  border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  border-top: 1px solid var(--mkq-f1f4f6, #f1f4f6);
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
 }
 
 .mg-alerta__botao {
@@ -292,8 +292,8 @@
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #475569;
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
+  color: var(--mkq-475569, #475569);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -313,7 +313,7 @@
 }
 
 .mg-alerta__botao--acao.mg-alerta__botao--perigo {
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   color: #dc2626;
 }
 

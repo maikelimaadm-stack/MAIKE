@@ -11,19 +11,19 @@
   --mk-action-icon-touch: 17px;
   --mk-action-stroke: 2.25;
   --mk-action-font: 13px;
-  --mk-action-fg: #334155;
+  --mk-action-fg: var(--mkq-334155, #334155);
   --mk-action-fg-green: #16a34a;
   --mk-action-fg-red: #dc2626;
-  --mk-action-fg-muted: #5b6b80;
+  --mk-action-fg-muted: var(--mkq-5b6b80, #5b6b80);
   /* Positivos (Novo / Adicionar / Salvar / Aplicar): verde do sistema + letra branca */
   --mk-action-positive-bg: var(--mg-accent, #40de63);
   --mk-action-positive-hover: var(--mg-accent-hover, #36c956);
   --mk-action-positive-fg: #ffffff;
   /* Ícones por papel — a mesma ação = a mesma cor em todo o sistema */
   --mk-icon-edit: var(--mk-action-fg-muted);   /* Editar / lápis */
-  --mk-icon-close: #64748b;                    /* ✕ Fechar / Cancelar / Limpar */
+  --mk-icon-close: var(--mkq-64748b, #64748b);                    /* ✕ Fechar / Cancelar / Limpar */
   --mk-icon-danger: var(--mk-action-fg-red);   /* Excluir / Remover */
-  --mk-icon-field: #9ca3af;                    /* chevron, lupa e adornos de campo */
+  --mk-icon-field: var(--mkq-9ca3af, #9ca3af);                    /* chevron, lupa e adornos de campo */
   --mk-icon-positive: var(--mk-action-fg-green); /* + em botão tracejado / texto */
   /* Tipografia do sistema (legível em desktop; mobile/tablet sobe no media abaixo) */
   --mk-font-list: 13px;
@@ -34,16 +34,16 @@
   /* Label flutuante (LancField / mg-field): descanso vs subida */
   --mk-font-float-rest: 12px;
   --mk-font-float-up: 10px;
-  --mk-text: #334155;
-  --mk-text-strong: #292a2d;
-  --mk-text-muted: #64748b;
+  --mk-text: var(--mkq-334155, #334155);
+  --mk-text-strong: var(--mkq-292a2d, #292a2d);
+  --mk-text-muted: var(--mkq-64748b, #64748b);
   --mk-list-row-height: 36px;
   --mk-filter-row-height: 36px;
   --mk-check-size: 14px;
   --mk-check-on: #32d65e;
   --mk-check-row-on: #fff;
   --mk-search-height: 36px;
-  --mk-glass-bg: var(--mk-sup-fundo, #FAFCFE);
+  --mk-glass-bg: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   --mk-glass-border: rgba(255, 255, 255, .8);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
@@ -102,7 +102,7 @@
   min-width: 14px;
   min-height: 14px;
   border-radius: 3px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mkq-cbd5e1, #cbd5e1);
   box-shadow: none;
 }
 /* Os botões de linha com role=checkbox não são o desenho do check. */
@@ -156,7 +156,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   -webkit-backdrop-filter: blur(22px) saturate(135%);
   backdrop-filter: blur(22px) saturate(135%);
   border: 1px solid var(--mk-glass-border);
-  box-shadow: 0 8px 28px rgba(15, 23, 42, .1), inset 0 1px 0 rgba(255, 255, 255, .8);
+  box-shadow: 0 8px 28px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), .1), inset 0 1px 0 rgba(255, 255, 255, .8);
 }
 .mk-map-filter-host--right > .mk-map-filter-sheet { margin-left: auto; }
 .mk-map-filter-sheet:not(#mk-padrao) { padding: 10px; }
@@ -205,7 +205,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   height: var(--mk-check-size);
   flex: none;
   box-sizing: border-box;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mkq-cbd5e1, #cbd5e1);
   border-radius: 3px;
   background: #fff;
 }
@@ -217,7 +217,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 /* Selecionado: só o checkbox verde muda — fundo permanece branco (sem cinza). */
 .mk-check-row[aria-checked="true"]:not(#mk-padrao),
 .mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) {
-  color: #334155;
+  color: var(--mkq-334155, #334155);
   background: var(--mk-check-row-on);
 }
 .mk-check-row[aria-checked="true"]:hover:not(#mk-padrao),
@@ -234,7 +234,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   color: var(--mk-text);
 }
 @media (prefers-reduced-transparency: reduce) {
-  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: #FAFCFE; backdrop-filter: none; }
+  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: var(--mkq-fafcfe, #FAFCFE); backdrop-filter: none; }
 }
 
 /* As barras flutuantes do mapa acompanham o vidro dos painéis. */
@@ -286,11 +286,11 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 /* Botões de ação: branco sólido (D-PROD-147). Painéis flutuantes seguem o vidro acima. */
 :root {
   --mk-btn-bg: #ffffff;
-  --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
-  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --mk-btn-hover: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
+  --mk-btn-sombra: 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
-  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --mk-btn-sombra: 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
   --portal-acao-bg: var(--mk-btn-bg);
   --portal-acao-hover: var(--mk-btn-hover);
 }
@@ -303,8 +303,8 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: #334155; }
-.mk-ui-button.bg-primary:not(#mk-padrao) { color: #334155; }
+.mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: var(--mkq-334155, #334155); }
+.mk-ui-button.bg-primary:not(#mk-padrao) { color: var(--mkq-334155, #334155); }
 .mk-ui-button.bg-destructive:not(#mk-padrao) { color: #dc2626; }
 :is(.mk-mhdr__round, .mk-mhdr__back > span):not(#mk-padrao) {
   box-sizing: border-box;
@@ -484,7 +484,7 @@ input[type="checkbox"]:not(.mg-check__input):not(.sr-only) {
   height: 14px;
   padding: 0;
   margin: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mkq-cbd5e1, #cbd5e1);
   border-radius: 3px;
   background: #fff;
   vertical-align: middle;

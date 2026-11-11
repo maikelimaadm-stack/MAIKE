@@ -21,7 +21,7 @@ import {
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
-import { composeCadastroBase1RenderCell, papeisDasColunasBase1 } from "@/components/cadastro/base1/cadastroBase1CellKind";
+import { composeCadastroBase1RenderCell, papeisDasColunasBase1, textoDoTipoDeCelulaBase1 } from "@/components/cadastro/base1/cadastroBase1CellKind";
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
@@ -295,11 +295,14 @@ export default function CadastroBase1Grade({
     () => papeisDasColunasBase1(dataCols, cardsTitleColId, cardsCodeColId),
     [dataCols, cardsTitleColId, cardsCodeColId],
   );
-  const colunaAtivo = useMemo(() => dataCols.find((c) => c.cellKind === "ativo-badge"), [dataCols]);
+  const colunaAtivo = useMemo(() => dataCols.find((c) => c.cellKind === "ativo-badge" || c.cellKind === "situacao"), [dataCols]);
   const ehInativo = useMemo(() => {
     if (cardsInativo) return cardsInativo;
     if (!colunaAtivo) return undefined;
     const campo = colunaAtivo.statusField ?? colunaAtivo.id;
+    if (colunaAtivo.cellKind === "situacao") {
+      return (/** @type {object} */ item) => String(readCadastroAtivoValue(item, campo) ?? "").trim().toLowerCase() === "inativo";
+    }
     return (/** @type {object} */ item) => !isCadastroAtivo(readCadastroAtivoValue(item, campo));
   }, [cardsInativo, colunaAtivo]);
 
@@ -312,7 +315,7 @@ export default function CadastroBase1Grade({
         sortable: c.sortable !== false,
         align: c.align,
         width: columnWidths[c.id] || c.width,
-        text: (r) => getFieldValue(r, c.id),
+        text: (r) => textoDoTipoDeCelulaBase1(r, c) ?? getFieldValue(r, c.id),
         render: (r) => {
           const node = composedRenderCell(r, c.id);
           if (node !== undefined && node !== null) return node;
@@ -391,6 +394,7 @@ export default function CadastroBase1Grade({
       onSortChange={(key, dir) => setSortConfig({ key, direction: dir })}
       storageKey={storageKey}
       defaultIds={quickFilterIds}
+      mostrados={filtrados.length}
     />
   ) : null;
 

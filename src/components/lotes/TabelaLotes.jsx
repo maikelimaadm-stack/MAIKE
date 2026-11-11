@@ -35,7 +35,7 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "sistema_produtivo", label: "Sistema Reprodutivo", default: true, sortable: true, align: "left", width: 180 },
   { id: "motivo", label: "Motivo", default: true, sortable: true, align: "left", width: 140 },
   { id: "data", label: "Data Entrada", default: true, sortable: true, align: "left", width: 120 },
-  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 100 },
+  { id: "status", label: "Status", default: true, sortable: true, align: "left", width: 100, cellKind: /** @type {'situacao'} */ ("situacao") },
   { id: "valor", label: "Valor Total", default: true, sortable: true, align: "right", width: 140 },
   { id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 160 },
   { id: "origem", label: "Origem", default: true, sortable: true, align: "left", width: 140 },

@@ -62,14 +62,11 @@ const backendFalso = (prefixo) => {
   };
 };
 
-/** Métricas do rodapé Base1 (`.mg-summary__item`: "Listados: N", "Totais: M"). */
+/** Métricas do rodapé Base1 (D-PROD-161: texto em palavras; os números ficam em `data-*` do `.mg-summary`). */
 const rodape = () => {
-  const itens = [...document.querySelectorAll(".mg-summary__item")].map((e) => e.textContent || "");
-  const num = (rotulo) => {
-    const item = itens.find((t) => t.startsWith(`${rotulo}:`));
-    return item ? Number(item.slice(rotulo.length + 1).trim()) : null;
-  };
-  return { listados: num("Listados"), totais: num("Totais") };
+  const el = /** @type {HTMLElement | null} */ (document.querySelector(".mg-summary"));
+  const num = (chave) => (el?.dataset?.[chave] != null ? Number(el.dataset[chave]) : null);
+  return { listados: num("listados"), totais: num("totais") };
 };
 
 /** Campo de busca: abre a pílula se a toolbar estiver recolhida. */

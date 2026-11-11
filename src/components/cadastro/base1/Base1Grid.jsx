@@ -18,6 +18,9 @@ import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./sele
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
+/** Caixa de marcar da grade: 18px, como no design (D-PROD-161). */
+const CAIXA_DA_GRADE = Object.freeze({ width: 18, height: 18 });
+
 const ROW_ESTIMATE_PX = 32;
 /** Abaixo disso o custo do virtualizer não compensa. */
 const VIRTUALIZE_FROM = 80;
@@ -292,7 +295,7 @@ export default function Base1Grid({
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
+            <MgCheck aria-label="Selecionar linha" boxStyle={CAIXA_DA_GRADE} checked={on} onChange={() => onToggle(id)} />
           </td>
         ) : null}
         {columns.map((c, i) => {
@@ -316,7 +319,7 @@ export default function Base1Grid({
                 c.align === "center" && "text-center",
                 c.papel === "titulo" && "b1-td--nome",
                 c.papel === "codigo" && "b1-td--cod",
-                (!t || t === "-" || t === "–") && "b1-td--vazio",
+                (t == null || String(t).trim() === "" || t === "-" || t === "–") && "b1-td--vazio",
               )}
             >
               {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
@@ -336,6 +339,7 @@ export default function Base1Grid({
               <th className={cn("th-select", selectCongelado && "sticky left-0 z-[4]")}>
                 <MgCheck
                   aria-label="Selecionar todos"
+                  boxStyle={CAIXA_DA_GRADE}
                   checked={allOn}
                   indeterminate={someOn}
                   onChange={(on) => onToggleAll(on)}

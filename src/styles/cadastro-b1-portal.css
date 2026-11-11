@@ -83,7 +83,7 @@
   border-color: transparent !important;
   box-shadow: none !important;
   background: transparent !important;
-  color: #475569 !important;
+  color: var(--mkq-475569, #475569) !important;
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu:hover {

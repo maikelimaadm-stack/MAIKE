@@ -60,7 +60,7 @@
   border: 0;
   border-radius: 999px;
   background: #fff;
-  color: #475569;
+  color: var(--mkq-475569, #475569);
   box-shadow: var(--mk-btn-sombra);
 }
 .mk-config-dialog .dmid-btn:not(#mk-padrao) { width: var(--mk-action-height); height: var(--mk-action-height); padding: 0; }
@@ -120,16 +120,16 @@
   width: 32px;
   min-height: 44px;
   flex: 0 0 32px;
-  color: #94a3b8;
+  color: var(--mkq-94a3b8, #94a3b8);
   cursor: grab;
   touch-action: none;
 }
-.mk-colcfg__drag-handle:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; border-radius: 8px; }
+.mk-colcfg__drag-handle:focus-visible { outline: 2px solid var(--mkq-64748b, #64748b); outline-offset: -2px; border-radius: 8px; }
 .mk-colcfg__drag-handle svg { width: 16px; height: 16px; }
 .mk-colcfg:not(#mk-padrao) { will-change: auto; }
 .mk-colcfg .mk-colcfg__row.is-reordering:not(#mk-padrao) {
   background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 24px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.18);
   cursor: grabbing;
 }
 .mk-colcfg .mk-sheet__body { overflow: hidden; }
@@ -143,4 +143,4 @@
 
 .mk-colcfg .mk-colcfg__row.is-draggable { cursor: grab; }
 .mk-colcfg .mk-colcfg__row .mk-colcfg__drag-handle { pointer-events: none; touch-action: auto; }
-.mk-colcfg .mk-colcfg__row.is-draggable:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; }
+.mk-colcfg .mk-colcfg__row.is-draggable:focus-visible { outline: 2px solid var(--mkq-64748b, #64748b); outline-offset: -2px; }

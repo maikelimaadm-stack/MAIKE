@@ -37,7 +37,8 @@ import {
 } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
-import { FiltrosRapidosSlotContext } from "./FiltrosRapidos";
+import { nomesDaContagem, textoDaSelecao, textoDoTotal } from "@/components/cadastro/base1/contagemBase1";
+import { ContagemNomesContext, FiltrosRapidosSlotContext } from "./FiltrosRapidos";
 import { cn } from "@/lib/utils";
 
 /**
@@ -99,6 +100,7 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.recordSaving]
  * @param {boolean} [props.recordPermissaoExplicita] o ✓ do cabeçalho do celular já segue a regra do servidor (`data-permissao-explicita`)
  * @param {() => void} [props.onRecordBack] voltar do registro para a lista (botão voltar do celular)
+ * @param {{ um: string, varios: string }} [props.contagemNomes] nome do registro no rodapé ("lote"/"lotes"); sem ele, sai da pesquisa da barra
  * @param {boolean} [props.fieldFilterAvailable] botão Filtros → "Filtrar por campo" (grade Base1 com cabeçalhos de referência)
  */
 export default function CadastroListaChrome({
@@ -118,6 +120,7 @@ export default function CadastroListaChrome({
   searchCommittedValue = "",
   searchActive = false,
   searchPlaceholder,
+  contagemNomes = undefined,
   searchSuggestions = [],
   onSearchSuggestionPick,
   onConfigureColumns,
@@ -740,13 +743,23 @@ export default function CadastroListaChrome({
     </nav>
   ) : null;
 
-  const listSummary = recordMode && recordEditing ? null : (
-    <div className="mg-summary no-print">
+  // Rodapé em palavras (D-PROD-161): "12 lotes" / "5 de 12 lotes" · "1 selecionado".
+  // Some na edição, no celular e no registro fora do desktop. Os números ficam em data-* (testes e leitores).
+  const nomesContagem = nomesDaContagem(searchPlaceholder, contagemNomes);
+  const mostrados = filtrados ?? listados ?? 0;
+  const textoTotal = textoDoTotal({ mostrados, totais: totais ?? mostrados, nomes: nomesContagem });
+  const textoSelecao = textoDaSelecao(selectedCount ?? 0);
+  const listSummary = (recordMode && recordEditing) || celular || (recordMode && !desktop) ? null : (
+    <div
+      className="mg-summary no-print"
+      data-listados={listados}
+      data-filtrados={filtrados}
+      data-totais={totais}
+      data-selecionados={selectedCount}
+    >
       <div className="mg-summary__counts">
-        <span className="mg-summary__item">Listados: {listados}</span>
-        <span className="mg-summary__item">Filtrados: {filtrados}</span>
-        <span className="mg-summary__item">Totais: {totais}</span>
-        <span className="mg-summary__item">Selecionados: {selectedCount}</span>
+        <span className="mg-summary__item b1-sum__total">{textoTotal}</span>
+        {textoSelecao ? <span className="mg-summary__item b1-sum__sel">{textoSelecao}</span> : null}
       </div>
       {loadingMore && celular ? <span className="mg-summary__loading">Carregando…</span> : null}
       {!celular && (onPageSizeChange || onLoadMore) ? (
@@ -781,6 +794,7 @@ export default function CadastroListaChrome({
   return (
     <PortalComprasSkinProvider active={skinAtivo}>
     <FiltrosRapidosSlotContext.Provider value={filtrosRapidosSlot}>
+    <ContagemNomesContext.Provider value={nomesContagem}>
     <div
       className={cn(
         "flex min-h-0 min-w-0 flex-1 flex-col gap-2",
@@ -802,7 +816,7 @@ export default function CadastroListaChrome({
         >
           {joinedShell && !barraNoCabecalho ? toolbarRow : null}
           {joinedShell ? pillsRail : null}
-          {joinedShell && !recordMode && !celular ? (
+          {joinedShell && !recordMode ? (
             <div ref={setFiltrosRapidosSlot} className="b1-fr-slot" data-b1-fr-slot="" />
           ) : null}
           {shellBody}
@@ -815,6 +829,7 @@ export default function CadastroListaChrome({
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
+    </ContagemNomesContext.Provider>
     </FiltrosRapidosSlotContext.Provider>
     </PortalComprasSkinProvider>
   );

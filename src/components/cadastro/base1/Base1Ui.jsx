@@ -274,8 +274,9 @@ export function MenuList({ items, onPick }) {
  * @param {(checked: boolean) => void} [props.onChange]
  * @param {boolean} [props.disabled]
  * @param {string} [props.className]
+ * @param {import('react').CSSProperties} [props.boxStyle] estilo da caixa (a grade usa 18px, como no design — D-PROD-161)
  */
-export function MgCheck({ checked, indeterminate, onChange, disabled, className, ...p }) {
+export function MgCheck({ checked, indeterminate, onChange, disabled, className, boxStyle = undefined, ...p }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     if (ref.current) ref.current.indeterminate = Boolean(indeterminate) && !checked;
@@ -289,6 +290,7 @@ export function MgCheck({ checked, indeterminate, onChange, disabled, className,
         disabled && "is-locked",
         className,
       )}
+      style={boxStyle}
       onClick={(e) => e.stopPropagation()}
     >
       <input

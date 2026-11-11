@@ -1,25 +1,77 @@
 import React from "react";
-import CadastroAtivoBadge from "@/components/cadastro/base1/CadastroAtivoBadge";
-import { readCadastroAtivoValue } from "@/lib/cadastroAtivoStatus";
+import { cadastroAtivoLabel, isCadastroAtivo, readCadastroAtivoValue } from "@/lib/cadastroAtivoStatus";
 
-/** @typedef {'ativo-badge' | 'cor'} CadastroBase1CellKind */
+/** @typedef {'ativo-badge' | 'cor' | 'situacao'} CadastroBase1CellKind */
 
 export const CADASTRO_BASE1_CELL_KIND = Object.freeze({
   ATIVO_BADGE: "ativo-badge",
   COR: "cor",
+  /** Situação em texto ("Ativo"/"Inativo"), com o mesmo ponto colorido do `ativo-badge`. */
+  SITUACAO: "situacao",
 });
+
+/** Ponto da situação na lista (D-PROD-161): verde quando ativo, cinza quando inativo. */
+const COR_SITUACAO = Object.freeze({ ativo: "#22c55e", inativo: "#A3A29C" });
+
+/**
+ * @param {{ ativo: boolean, rotulo: string }} props
+ */
+function PontoDaSituacao({ ativo, rotulo }) {
+  return (
+    <span data-testid="cadastro-ativo-badge" data-ativo={ativo ? "true" : "false"} aria-label={rotulo}>
+      <span
+        className="b1-cor-dot"
+        style={{ backgroundColor: ativo ? COR_SITUACAO.ativo : COR_SITUACAO.inativo }}
+        aria-hidden="true"
+      />
+      {rotulo}
+    </span>
+  );
+}
+
+/** @param {unknown} valor */
+const textoDaSituacao = (valor) => {
+  const t = String(valor ?? "").trim();
+  return t || "Ativo";
+};
+/** @param {unknown} valor */
+const situacaoAtiva = (valor) => textoDaSituacao(valor).toLowerCase() !== "inativo";
+
+/**
+ * Texto da célula para título, largura automática e filtros — o que a pessoa lê, não o valor gravado
+ * (cor: o nome, não o código; situação: "Ativo"/"Inativo").
+ *
+ * @param {object} item
+ * @param {{ id: string; cellKind?: CadastroBase1CellKind; statusField?: string; corNomes?: Readonly<Record<string, string>> } | undefined} col
+ * @returns {string | null} `null` quando a coluna não tem tipo próprio
+ */
+export function textoDoTipoDeCelulaBase1(item, col) {
+  if (!col?.cellKind) return null;
+  const bruto = /** @type {Record<string, unknown>} */ (item)?.[col.statusField ?? col.id];
+  if (col.cellKind === CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE) return cadastroAtivoLabel(readCadastroAtivoValue(item, col.statusField ?? col.id));
+  if (col.cellKind === CADASTRO_BASE1_CELL_KIND.SITUACAO) return textoDaSituacao(bruto);
+  if (col.cellKind === CADASTRO_BASE1_CELL_KIND.COR) {
+    const hex = String(bruto ?? "").trim();
+    if (!hex) return "";
+    return col.corNomes?.[hex.toLowerCase()] ?? hex;
+  }
+  return null;
+}
 
 /**
  * @param {object} item
- * @param {{ id: string; cellKind?: CadastroBase1CellKind; statusField?: string; corNomes?: Record<string, string> } | undefined} col
+ * @param {{ id: string; cellKind?: CadastroBase1CellKind; statusField?: string; corNomes?: Readonly<Record<string, string>> } | undefined} col
  * @returns {import('react').ReactNode | null}
  */
 export function renderCadastroBase1CellKind(item, col) {
   if (!col?.cellKind) return null;
   if (col.cellKind === CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE) {
-    const fieldId = col.statusField ?? col.id;
-    const raw = readCadastroAtivoValue(item, fieldId);
-    return <CadastroAtivoBadge value={raw} />;
+    const raw = readCadastroAtivoValue(item, col.statusField ?? col.id);
+    return <PontoDaSituacao ativo={isCadastroAtivo(raw)} rotulo={cadastroAtivoLabel(raw)} />;
+  }
+  if (col.cellKind === CADASTRO_BASE1_CELL_KIND.SITUACAO) {
+    const bruto = /** @type {Record<string, unknown>} */ (item)?.[col.statusField ?? col.id];
+    return <PontoDaSituacao ativo={situacaoAtiva(bruto)} rotulo={textoDaSituacao(bruto)} />;
   }
   if (col.cellKind === CADASTRO_BASE1_CELL_KIND.COR) {
     // Amostra + nome da cor (D-PROD-161). A tela informa `corNomes` (hex → nome).

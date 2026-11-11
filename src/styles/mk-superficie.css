@@ -12,16 +12,16 @@
  */
 
 :root {
-  --mk-sup-fundo: #FAFCFE;
+  --mk-sup-fundo: var(--mkq-fafcfe, #FAFCFE);
   --mk-sup-cartao: #ffffff;
-  --mk-sup-borda: #eceef1;
+  --mk-sup-borda: var(--mkq-eceef1, #eceef1);
   --mk-sup-raio: 14px;
-  --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --mk-sup-sombra: 0 1px 2px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.05);
   --mk-btn-bg: #ffffff;
-  --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
-  --mk-btn-ativo: #eef1f4;
-  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
-  --mk-chip-bg: var(--mk-sup-fundo, #FAFCFE);
+  --mk-btn-hover: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
+  --mk-btn-ativo: var(--mkq-eef1f4, #eef1f4);
+  --mk-btn-sombra: 0 1px 3px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
+  --mk-chip-bg: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
 }
 
 /* Tokens antigos apontando para os novos */
@@ -347,7 +347,7 @@
 }
 .mk-ll__btn--verde:not(#mk-padrao) svg { color: #fff !important; }
 .mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
-.mk-ll__btn--cinza:not(#mk-padrao) { color: var(--mk-action-fg, #334155); }
+.mk-ll__btn--cinza:not(#mk-padrao) { color: var(--mk-action-fg, var(--mkq-334155, #334155)); }
 
 :is(.mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
   width: var(--mk-action-icon) !important;
@@ -535,7 +535,7 @@
   .cadastro-b1,
   .mk-ll-dlg {
     --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
-    --mk-btn-hover: var(--mk-sup-fundo, #FAFCFE);
+    --mk-btn-hover: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   }
 
   .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-padrao) {
@@ -587,7 +587,7 @@
 .view-seg button[aria-pressed="true"]:not(#mk-padrao) svg,
 .view-seg button.is-active:not(#mk-padrao) svg,
 .view-seg button[data-state="on"]:not(#mk-padrao) svg {
-  color: #292a2d !important;
+  color: var(--mkq-292a2d, #292a2d) !important;
 }
 
 @media (min-width: 1024px) {

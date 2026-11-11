@@ -1,0 +1,43 @@
+/*
+ * Modelo Base1 — acertos do app para ficar igual ao design (D-PROD-161).
+ * Cada regra existe porque o DOM ou o CSS atual do sistema difere da cópia que o design usou; o comentário diz qual.
+ * Sem tamanho de fonte (vale base1-tipografia.css).
+ */
+
+/* A faixa de filtros é desenhada por portal num "lugar" do chrome; o lugar não tem caixa,
+   então a faixa fica como filha direta do cartão da lista, igual ao design. */
+.cadastro-b1 .b1-fr-slot {
+  display: contents;
+}
+
+/* O design desenha a barra da LISTA com o grupo Cancelar/Salvar escondido dentro da linha de ações; com isso as regras
+   ":has(.mg-act-salvar)" do sistema também valem na lista (linha de ações em flex, ocupando o espaço livre, com a
+   altura mínima de 48px no desktop). Aqui o grupo só existe na edição (sem botões escondidos alcançáveis pelo teclado),
+   então a linha recebe na lista o mesmo resultado dessas regras. */
+.cadastro-b1 .mg-toolbar__row--actions:not(#mk-a) {
+  flex: 1 1 auto;
+}
+@media (min-width: 1024px) {
+  .cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-a) {
+    display: flex;
+    justify-content: flex-start;
+  }
+}
+
+/* Cabeçalho: no design o seletor da fazenda ocupa a largura toda do seu espaço (w-full da versão do componente usada
+   lá), o que o deixa mais largo e aproxima os botões de ícone ao lado. */
+body:has(.cadastro-b1--full-page) header.mk-topnav-header button[role="combobox"] {
+  width: 100%;
+}
+
+/* Com a faixa de filtros rápidos, "Limpar filtros" fica na faixa (como no design); o atalho escondido da barra
+   não ocupa lugar (senão sobra um espaço entre o funil e a lupa). */
+.cadastro-b1 .mg-shell:has(.b1-fr) .mg-toolbar__btns > .mg-fluid-slot:not(#mk-a) {
+  display: none;
+}
+
+/* Trilho lateral (tablet) e barra inferior (celular): no sistema os itens são links (<a>), no design botões; o texto
+   e o ícone ficam centralizados como num botão. */
+body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
+  text-align: center;
+}
