@@ -162,7 +162,8 @@ describe('Bens — "Tipo de bem" + "Tipo" sem Família (D-PROD-169)', () => {
     expect(within(form).getByTestId('bem-escolha-tipo-de-bem')).toHaveTextContent('Escolha o tipo de bem');
     fireEvent.click(tipoDeBem(form));
     const nomes = (await screen.findAllByRole('option')).map((o) => o.textContent.trim());
-    expect(nomes).toEqual(['— Escolha o tipo de bem —', 'Benfeitoria', 'Máquina', 'Veículo', 'Implemento', 'Equipamento', 'Outro']);
+    // D-PROD-172: sem a opção vazia na lista (campo de escolha do motor).
+    expect(nomes).toEqual(['Benfeitoria', 'Máquina', 'Veículo', 'Implemento', 'Equipamento', 'Outro']);
     fireEvent.click(tipoDeBem(form));
     // Tipo bloqueado antes do Tipo de bem: o painel não abre nem há "+".
     fireEvent.click(within(form).getByTestId('bem-seletor-tipo'));

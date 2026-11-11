@@ -51,14 +51,25 @@ export function CampoTexto({
 }
 
 /**
- * Seletor Base1 (`B1Select`: painel no desktop, folha no celular).
+ * Seletor Base1 (`B1Select`: painel no desktop, folha no celular), no desenho do campo de escolha do motor
+ * (D-PROD-172): "Pesquisar…" em toda lista, opções em MAIÚSCULAS e sem a opção vazia — o `placeholder` só diz
+ * que o campo aceita ficar vazio, e quem limpa é o ✕ do campo.
  * @param {{ label: string, value: string, onChange: (v: string) => void, options: Array<{ value: string, label: string }>,
  *   readOnly?: boolean, required?: boolean, error?: string, span?: number, placeholder?: string }} props
  */
 export function CampoSelect({ label, value, onChange, options, readOnly = false, required = false, error = undefined, span = 6, placeholder = undefined }) {
   return (
     <B1Field label={label} required={required} span={span} hasValue={Boolean(value)} locked={readOnly} disabled={readOnly} error={error}>
-      <B1Select aria-label={label} value={value ?? ""} onChange={(e) => onChange(e.target.value)} disabled={readOnly} className={B1_FIELD_CTL_CLS}>
+      <B1Select
+        aria-label={label}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={readOnly}
+        className={B1_FIELD_CTL_CLS}
+        pesquisa="sempre"
+        semOpcaoVazia
+        maiusculas
+      >
         {placeholder !== undefined ? <option value="">{placeholder}</option> : null}
         {options.map((o) => (
           <option key={o.value} value={o.value}>

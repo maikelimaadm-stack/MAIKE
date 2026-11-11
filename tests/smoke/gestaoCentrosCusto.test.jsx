@@ -149,7 +149,8 @@ describe('Centros de Custo — formulário e hierarquia', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     const select = within(screen.getByTestId('b1-form')).getByLabelText(/Centro pai/);
     await esperarPais();
-    expect(await rotulosDasOpcoes(select)).toEqual(['— Nenhum (raiz) —', 'AGRICULTURA', 'PECUÁRIA']);
+    // D-PROD-172: sem a opção vazia na lista; "raiz" é o ✕ (Limpar) do campo.
+    expect(await rotulosDasOpcoes(select)).toEqual(['AGRICULTURA', 'PECUÁRIA']);
   });
 
   it('mudar o pai envia só pai_id; virar raiz envia pai_id=null', async () => {
@@ -159,7 +160,8 @@ describe('Centros de Custo — formulário e hierarquia', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     const select = within(screen.getByTestId('b1-form')).getByLabelText(/Centro pai/);
     await esperarPais();
-    await escolherOpcao(select, '— Nenhum (raiz) —');
+    // D-PROD-172: virar raiz = o ✕ (Limpar) do campo "Centro pai".
+    fireEvent.click(within(select.closest('.mg-field')).getByRole('button', { name: 'Limpar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Centro de custo atualizado');
     expect(backend.chamadas.find((c) => c.method === 'PATCH').body).toEqual({ empresa_id: 'emp-1', pai_id: null });

@@ -438,3 +438,9 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
   font-weight: 500;
   color: #373733;
 }
+
+/* Lista do campo de escolha da Gestão no desenho do motor: opções em MAIÚSCULAS, como no campo (D-PROD-172). */
+.mk-sel-pop.b1-maiusculas .mk-sel-op__label,
+.b1-maiusculas .mgs__label {
+  text-transform: uppercase;
+}

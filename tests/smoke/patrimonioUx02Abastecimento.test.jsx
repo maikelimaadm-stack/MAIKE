@@ -452,7 +452,8 @@ describe('UX-A07/A08 — local do estoque', () => {
     await esperarProdutoMarcado(form, 'Diesel S10 granel');
     const local = await within(form).findByRole('combobox', { name: 'De qual local do estoque?' });
     const nomes = await rotulosDasOpcoes(local);
-    expect(nomes).toEqual(['— Escolha o local —', 'Tanque diesel sede', 'Posto da fazenda']);
+    // D-PROD-172: sem a opção vazia na lista (campo de escolha do motor).
+    expect(nomes).toEqual(['Tanque diesel sede', 'Posto da fazenda']);
     expect(nomes.join(' ')).not.toMatch(/\bkg\b|\bL\b|lote|dispon/i);
     expect(within(form).queryByTestId('abastecimento-local-auto')).toBeNull();
     digitar(form, 'abastecimento-quantidade', '20');
