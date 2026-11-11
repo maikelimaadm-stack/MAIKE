@@ -1,4 +1,5 @@
 import React from "react";
+import { CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SPAN = {
@@ -22,7 +23,7 @@ const SPAN = {
  * @param {object} props
  * @param {string} props.label
  * @param {boolean} [props.required]
- * @param {string} [props.error]
+ * @param {string | boolean} [props.error] texto do erro; `true` mostra "Campo obrigatório"
  * @param {number} [props.span]
  * @param {boolean} [props.hasValue]
  * @param {boolean} [props.multiline]
@@ -88,7 +89,8 @@ export default function B1Field({
       </div>
       {error ? (
         <p id={errId} className="mg-b1-field-msg" role="alert">
-          {error}
+          <CircleAlert className="b1-msg-ic" size={12} aria-hidden />
+          {error === true || error === "true" ? "Campo obrigatório" : String(error)}
         </p>
       ) : null}
     </div>

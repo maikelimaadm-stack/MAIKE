@@ -1,0 +1,313 @@
+/* D-PROD-161 — Motor Base1: acabamento do design "Cadastro de Lote".
+ * Fonte: docs/design/cadastro-de-lote/ (propostas 1, 2, 4, 6.3, 6.4, 6.15–6.17, 6.21, 6.27).
+ * Regras:
+ *  - Só o escopo do motor (.cadastro-b1 e seus portais). Mapa Geral e casca não mudam aqui.
+ *  - NENHUM tamanho de fonte: quem manda é base1-tipografia.css (carregado depois).
+ *  - A paleta quente foi trocada no lugar, nos arquivos do motor; aqui ficam só os tokens.
+ */
+:is(.cadastro-b1, .b1ref, .mk-column-filter-sheet, .mk-config-sheet, .mk-base1-sheet, .mg-dp-panel) {
+  --mk-sup-fundo: #f9f9f7;
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: #f1f1ee;
+  --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.045);
+  --mk-cartao-sombra: 0 1px 3px rgba(20, 20, 19, 0.1);
+  --mk-action-fg: #373733;
+  --mk-action-fg-muted: #373733;
+  --mk-icon-close: #373733;
+  --mk-icon-edit: #373733;
+  --mk-icon-field: #a3a29c;
+  --portal-acao-fg: #373733;
+  --portal-acao-bg: #ffffff;
+  --mk-action-stroke: 1.75;
+  --mk-action-icon: 16px;
+  --mk-action-icon-touch: 20px;
+  --cp-borda: #deddd8;
+  --cp-borda-hover: #cac9c3;
+  --cp-foco: var(--mg-accent, #40de63);
+  --cp-anel: 0 0 0 3px rgba(64, 222, 99, 0.18);
+  --cp-erro: #dc2626;
+  --cp-anel-erro: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  --cp-travado: #f5f5f2;
+  --cp-linha: #eae9e4;
+  --cp-rotulo: #73726c;
+  --cp-valor: #141413;
+}
+
+/* ── Botões e ícones: neutros grafite, branco com sombra macia, traço fino ── */
+.cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
+.cadastro-b1 .view-seg button:not([aria-pressed="true"]):not(.is-active):not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b) {
+  color: #373733 !important;
+}
+.cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b) svg {
+  color: #373733 !important;
+}
+.cadastro-b1 .tb-btn:not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-a):not(#mk-b),
+.cadastro-b1 .view-seg:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-rec-pager__btn:not(#mk-a):not(#mk-b) {
+  box-shadow: var(--mk-btn-sombra) !important;
+}
+.cadastro-b1 svg.lucide:not(.mg-check__icon):not(#mk-a):not(#mk-b) {
+  stroke-width: 1.75 !important;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (min-width: 1024px) {
+  .cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-a):not(#mk-b) svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  .cadastro-b1 .mg-pill-select:not(#mk-a):not(#mk-b) {
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .cadastro-b1 :is(.tb-btn, .view-seg button, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+@media (max-width: 639px) {
+  .cadastro-b1 :is(.tb-btn, .view-seg button, .mg-rec-pager__btn):not(#mk-a):not(#mk-b) svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+/* ── Tabela: só linhas horizontais, cabeçalho branco, ⋮ sempre à vista ── */
+.cadastro-b1 .mg-grid thead th:not(#mk-a):not(#mk-b) {
+  background: #fff !important;
+  color: #52514e;
+  font-weight: 600;
+  border-right: 0;
+  border-bottom: 1px solid #e8e7e2;
+}
+.cadastro-b1 .mg-grid tbody td:not(#mk-padrao) {
+  border-right: 0;
+  border-bottom: 1px solid #eeede9;
+}
+.cadastro-b1 .mg-grid :is(tbody td, thead th).is-frozen-anchor:not(#mk-a):not(#mk-b) {
+  border-right: 1px solid #e8e7e2;
+}
+.cadastro-b1 .mg-grid tfoot td:not(#mk-padrao) {
+  border-right: 0;
+  border-top: 1px solid #e8e7e2;
+  background: #f7f7f4;
+}
+.cadastro-b1 .mg-grid thead th .th-menu:not(#mk-a):not(#mk-b) {
+  opacity: 1;
+  color: #73726c;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cadastro-b1 .mg-grid tbody tr:not(.selected):hover td:not(#mk-padrao) {
+    background: #f7f7f4;
+  }
+}
+.cadastro-b1 tr[data-testid="b1-row"][aria-selected="true"] > td.sticky:not(#mk-padrao) {
+  background-color: #fff !important;
+  background-image: linear-gradient(rgba(64, 222, 99, 0.12), rgba(64, 222, 99, 0.12)) !important;
+}
+.cadastro-b1 .b1-cor-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(20, 20, 19, 0.14);
+  vertical-align: -1px;
+}
+
+/* ── Rodapé: tira fina colada na lista ── */
+@media (min-width: 640px) {
+  .cadastro-b1 .mg-shell--join-table > .mg-summary:not(#mk-padrao) {
+    align-items: center;
+    min-height: 0;
+    padding: 4px 10px 4px 14px;
+    border: 0;
+    border-top: 1px solid #eeede9;
+    box-shadow: var(--mk-cartao-sombra);
+  }
+  .cadastro-b1 .mg-summary .mg-summary__item:first-child {
+    font-weight: 600;
+    color: #373733;
+  }
+}
+
+/* ── Abas: pílulas num grupo branco; a aba escolhida fica verde-clara ── */
+.cadastro-b1 .b1-abas-fora > .b1-panel-tabs-rail {
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 2px;
+}
+.cadastro-b1 .b1-abas-fora .b1-panel-tabs-strip:not(#mk-padrao) {
+  flex: 0 1 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mk-btn-bg, #fff);
+  box-shadow: var(--mk-btn-sombra);
+  scrollbar-width: none;
+}
+.cadastro-b1 .b1-abas-fora .b1-panel-tab:not(#mk-padrao) {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #52514e;
+  font-weight: 500;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.cadastro-b1 .b1-abas-fora .b1-panel-tab:hover {
+  background: rgba(20, 20, 19, 0.04);
+  color: #262624;
+}
+.cadastro-b1 .b1-abas-fora .b1-panel-tab.is-active:not(#mk-padrao) {
+  background: rgba(64, 222, 99, 0.14);
+  color: #262624;
+  font-weight: 600;
+}
+.cadastro-b1 .b1-abas-fora .b1-panel-tab.is-active::after {
+  content: none;
+}
+.cadastro-b1 .b1-aba-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: #dc2626;
+}
+
+/* cartão da aba (desktop) e seções empilhadas (tablet e celular) */
+.cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao) {
+  min-width: 0;
+  padding: 14px 16px 18px;
+  border: 1px solid #ecebe6;
+  border-radius: 12px;
+  background: #fff;
+}
+.cadastro-b1 :is(.b1-aba-cartao__cab, .b1-secao__cab) {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  margin: 0 0 12px;
+}
+.cadastro-b1 :is(.b1-aba-cartao__titulo, .b1-secao__titulo) {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #373733;
+}
+.cadastro-b1 .b1-secoes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (max-width: 639px) {
+  .cadastro-b1 .b1-secao__cartao {
+    padding: 12px;
+  }
+}
+
+/* ── Campo do formulário de registro: caixa branca com borda e estados claros ──
+   (os lançamentos do mapa usam .mk-lanc e ficam como estão) */
+.cadastro-b1 :not(.mk-lanc) > .mg-field:not(#mk-padrao) {
+  background-color: #fff;
+  border: 1px solid var(--cp-borda);
+  border-radius: 8px;
+  box-shadow: 0 1px 1px rgba(20, 20, 19, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cadastro-b1 :not(.mk-lanc) > .mg-field:hover:not(.mg-field--disabled):not(#mk-padrao) {
+    border-color: var(--cp-borda-hover);
+  }
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field.mg-field--locked:not(#mk-padrao) {
+  background-color: var(--cp-travado);
+  border-color: var(--cp-linha);
+  box-shadow: none;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field:is(:focus-within, .is-open, :has([aria-expanded="true"])):not(.mg-field--disabled):not(.mg-field--switch):not(#mk-padrao) {
+  border-color: var(--cp-foco);
+  box-shadow: var(--cp-anel);
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field.is-invalid:not(#mk-padrao) {
+  background-color: #fff;
+  border-color: var(--cp-erro);
+  box-shadow: none;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field.is-invalid:is(:focus-within, .is-open):not(#mk-padrao) {
+  box-shadow: var(--cp-anel-erro);
+}
+/* leitura: sem caixa, só a linha de baixo */
+.cadastro-b1 :not(.mk-lanc) > .mg-field.mg-field--disabled:not(#mk-padrao) {
+  background-color: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--cp-linha);
+  border-radius: 0;
+  box-shadow: none;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field .mg-field__label:not(#mk-padrao) {
+  color: var(--cp-rotulo);
+  font-weight: 500;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field:is(.mg-has-value, :focus-within, .mg-field--multiline):not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field:focus-within:not(.mg-field--disabled):not(.mg-field--switch):not(.is-invalid) .mg-field__label:not(#mk-padrao) {
+  color: #15803d;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field.is-invalid .mg-field__label:not(#mk-padrao) {
+  color: var(--cp-erro);
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field .mg-field__control :is(input, textarea):not(#mk-padrao) {
+  color: var(--cp-valor);
+  font-weight: 500;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field--locked .mg-field__control input:not(#mk-padrao) {
+  color: #73726c;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field--switch .mg-field__label:not(#mk-padrao) {
+  color: var(--cp-valor);
+  font-weight: 500;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field--disabled .mg-field__label .req {
+  display: none;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field .mk-ac-chev {
+  color: #a3a29c;
+  transition: color 0.15s ease;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field:focus-within .mk-ac-chev {
+  color: #52514e;
+}
+.cadastro-b1 :not(.mk-lanc) > .mg-field--disabled .mk-ac-chev {
+  display: none;
+}
+/* mensagem de erro com ícone */
+.cadastro-b1 .mg-b1-field-msg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 2px 0;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--cp-erro);
+}
+.cadastro-b1 .mg-b1-field-msg .b1-msg-ic {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cadastro-b1 .mg-field,
+  .cadastro-b1 .b1-panel-tab {
+    transition: none;
+  }
+}

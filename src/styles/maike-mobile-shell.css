@@ -515,8 +515,8 @@
 .b1ref .fpop .chk {
   width: 20px;
   height: 20px;
-  border: 1.5px solid #e7eaee;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  border: 1.5px solid #ecebe6;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.06);
 }
 
 .b1ref .fpop .chk svg {
@@ -533,7 +533,7 @@
 }
 
 .b1ref .fpop .fmi-limpar {
-  color: #9ca3af;
+  color: #a3a29c;
 }
 
 .b1ref .fpop .fmi-limpar.is-on {
@@ -602,7 +602,7 @@
 .b1ref .fpop--sheet .pr {
   min-height: 44px;
   height: 44px;
-  color: #334155;
+  color: #373733;
   font-size: 16px;
   font-weight: 500;
 }
@@ -612,7 +612,7 @@
 }
 
 .b1ref .fpop--sheet .dvaz {
-  color: #6b7280;
+  color: #73726c;
   font-size: 13px;
 }
 
@@ -656,7 +656,7 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  color: #334155;
+  color: #373733;
 }
 
 .fpc--pop {
@@ -664,10 +664,10 @@
   z-index: 10000;
   width: 260px;
   padding: 4px;
-  border: 1px solid #e7eaee;
+  border: 1px solid #ecebe6;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 18px 40px rgba(20, 20, 19, 0.18);
   font-size: 12.5px;
 }
 
@@ -679,7 +679,7 @@
 .fpc__titulo {
   flex-shrink: 0;
   padding: 6px 10px;
-  color: #6b7280;
+  color: #73726c;
   font-size: 12px;
   font-weight: 600;
 }
@@ -723,14 +723,14 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #334155;
+  color: #373733;
   font-size: 12.5px;
   text-align: left;
   cursor: pointer;
 }
 
 .fpc__item:hover {
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
 }
 
 .fpc--sheet .fpc__item {
@@ -742,7 +742,7 @@
 .fpc__ic {
   display: flex;
   flex-shrink: 0;
-  color: #5b6b80;
+  color: #6b6a66;
 }
 
 .fpc__ic.is-on {
@@ -773,19 +773,19 @@
 
 .fpc__chev {
   display: flex;
-  color: #9ca3af;
+  color: #a3a29c;
 }
 
 .fpc__vazio {
   display: block;
   padding: 14px 10px;
-  color: #a9b2bd;
+  color: #b2b1ab;
   font-size: 11.5px;
   text-align: center;
 }
 
 .fpc--sheet .fpc__vazio {
-  color: #6b7280;
+  color: #73726c;
   font-size: 13px;
 }
 
@@ -798,7 +798,7 @@
   gap: 8px;
   margin: 0 -8px -8px;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid #e7eaee;
+  border-top: 1px solid #ecebe6;
   background: #fff;
 }
 
@@ -812,8 +812,8 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #5b6b80;
+  background: var(--mk-sup-fundo, #F9F9F7);
+  color: #6b6a66;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
   cursor: pointer;
   transition: background 0.13s, color 0.13s, box-shadow 0.13s;
@@ -826,7 +826,7 @@
 
 .mg-rec-pager__pos {
   min-width: 44px;
-  color: #6b7280;
+  color: #73726c;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -834,7 +834,7 @@
 }
 
 .cadastro-b1 .mg-summary__loading {
-  color: #9ca3af;
+  color: #a3a29c;
   font-size: 11px;
 }
 
@@ -879,7 +879,7 @@
     margin: -8px -10px 0;
     padding: 8px 12px;
     overflow-x: auto;
-    border-bottom: 1px solid #e7eaee;
+    border-bottom: 1px solid #ecebe6;
     scrollbar-width: none;
   }
 
@@ -1049,7 +1049,7 @@
   position: fixed;
   inset: 0;
   z-index: 49;
-  background: rgba(15, 23, 42, 0.16);
+  background: rgba(20, 20, 19, 0.16);
   pointer-events: none;
 }
 
@@ -1059,10 +1059,10 @@
     min-width: 236px;
     max-width: calc(100vw - 24px);
     padding: 6px !important;
-    border: 1px solid #e7eaee !important;
+    border: 1px solid #ecebe6 !important;
     border-radius: 18px !important;
     background: #fff !important;
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24) !important;
+    box-shadow: 0 18px 44px rgba(20, 20, 19, 0.24) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
@@ -1072,7 +1072,7 @@
     min-height: 48px;
     padding: 0 10px;
     border-radius: 12px;
-    color: #334155;
+    color: #373733;
     font-size: 16px;
     font-weight: 500;
   }
@@ -1080,7 +1080,7 @@
   .mg-mais-opcoes .mg-b1-menuitem svg {
     width: 16px;
     height: 16px;
-    color: #5b6b80 !important;
+    color: #6b6a66 !important;
   }
 
   /* Diálogos dos cards: cabeçalho que comporta botões de 44px, checks maiores */
@@ -1143,7 +1143,7 @@
   min-height: 48px;
   padding: 0 8px;
   border-radius: 8px;
-  color: #334155;
+  color: #373733;
   font-size: 16px;
 }
 
@@ -1381,7 +1381,7 @@
   flex-shrink: 0;
   width: 12px;
   height: 12px;
-  color: #9ca3af;
+  color: #a3a29c;
 }
 
 /* ── Cards: título com o código embaixo (protótipo v2) ─────────────────── */
@@ -1398,7 +1398,7 @@
 }
 
 .cadastro-b1 .mg-b1-card__sub {
-  color: #6b7280;
+  color: #73726c;
   font-size: 12px;
 }
 
@@ -1505,8 +1505,8 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #475569;
+  background: var(--mk-sup-fundo, #F9F9F7);
+  color: #52514e;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1643,8 +1643,8 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .cadastro-b1 button[class*="border-input"][class*="bg-background"]:not([role="combobox"]) {
   border: 1px solid transparent !important;
   border-radius: 999px !important;
-  background: var(--mk-sup-fundo, #FAFCFE) !important;
-  color: #334155 !important;
+  background: var(--mk-sup-fundo, #F9F9F7) !important;
+  color: #373733 !important;
   font-weight: 600 !important;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
 }
@@ -3324,7 +3324,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 
 /* Cards: só os cards, sem o painel branco por trás */
 .cadastro-b1 .mg-shell__scroll:not(#mk-padrao) {
-  background: var(--mg-page-bg, #FAFCFE) !important;
+  background: var(--mg-page-bg, #F9F9F7) !important;
 }
 
 /* Configurar colunas no celular (lista dos Ajustes do iPhone) */

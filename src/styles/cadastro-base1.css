@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 8px;
   box-sizing: border-box;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
 }
 
 .cadastro-b1__page-title {
@@ -41,22 +41,22 @@
   --mg-accent-light: rgba(64, 222, 99, 0.12);
   --mg-blue: #2899f5;
   --mg-red: #dc2626;
-  --mg-ink: #334155;
-  --mg-icon: #5b6b80;
+  --mg-ink: #373733;
+  --mg-icon: #6b6a66;
   /* Preto padrão suave (não #000 / #0f172a forte) — grade, formulário, títulos */
-  --mg-text-1: #334155;
-  --mg-text-2: #6b7280;
-  --mg-text-3: #9ca3af;
-  --mg-bg-page: var(--mk-sup-fundo, #FAFCFE);
+  --mg-text-1: #373733;
+  --mg-text-2: #73726c;
+  --mg-text-3: #a3a29c;
+  --mg-bg-page: var(--mk-sup-fundo, #F9F9F7);
   --mg-bg-card: #ffffff;
-  --mg-gray-fill: var(--mk-sup-fundo, #FAFCFE);
-  --mg-gray-fill2: #e5e7eb;
-  --mg-divider: #e7eaee;
-  --mg-container-border: 1px solid #e7eaee;
-  --mg-table-line: #e7eaee;
+  --mg-gray-fill: var(--mk-sup-fundo, #F9F9F7);
+  --mg-gray-fill2: #e8e7e2;
+  --mg-divider: #ecebe6;
+  --mg-container-border: 1px solid #ecebe6;
+  --mg-table-line: #ecebe6;
   --mg-radius-card: 12px;
   --mg-radius-control: 8px;
-  --mg-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 2px 6px rgba(15, 23, 42, 0.02);
+  --mg-card-shadow: 0 1px 2px rgba(20, 20, 19, 0.03), 0 2px 6px rgba(20, 20, 19, 0.02);
   --mg-focus-border: rgba(64, 222, 99, 0.35);
   --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
   --mg-btn-h: 28px;
@@ -64,12 +64,12 @@
   --mg-btn-font-compact: var(--mk-font-list, 13px);
   --mg-toolbar-h: 36px;
   --mg-field-h: 38px;
-  --mg-field-edge-shadow: inset 0 1px 2px rgba(100, 116, 139, 0.05),
-    inset 1px 0 1px rgba(148, 163, 184, 0.07), inset -1px 0 1px rgba(148, 163, 184, 0.07);
+  --mg-field-edge-shadow: inset 0 1px 2px rgba(115, 114, 108, 0.05),
+    inset 1px 0 1px rgba(163, 162, 156, 0.07), inset -1px 0 1px rgba(163, 162, 156, 0.07);
   --mg-selection-bg: rgba(64, 222, 99, 0.12);
-  --mg-row-alt: #FAFCFE;
+  --mg-row-alt: #F9F9F7;
   --mg-row-hover: #eef6ff;
-  --mg-overlay-bg: rgba(15, 23, 42, 0.45);
+  --mg-overlay-bg: rgba(20, 20, 19, 0.45);
   --mg-z-overlay: 40;
   --mg-z-dialog: 50;
   --mg-page-gap: 8px;
@@ -80,7 +80,7 @@
   gap: 8px;
   min-height: 0;
   font-size: var(--mk-font-list, 13px);
-  color: var(--mk-text, #334155);
+  color: var(--mk-text, #373733);
 }
 
 .cadastro-b1 .tb-btn {
@@ -121,7 +121,7 @@
 }
 
 .cadastro-b1 .tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE);
+  background: var(--mk-btn-hover, #F9F9F7);
   color: #15803d;
 }
 
@@ -131,7 +131,7 @@
 }
 
 .cadastro-b1 .tb-btn-gray:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE);
+  background: var(--mk-btn-hover, #F9F9F7);
 }
 
 .cadastro-b1 .tb-btn-red {
@@ -158,7 +158,7 @@
 }
 
 .cadastro-b1 .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE);
+  background: var(--mk-btn-hover, #F9F9F7);
 }
 
 /* Botões de visto (OK / Aplicar / Pronto): branco + ícone verde */
@@ -171,7 +171,7 @@
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE);
+  background: var(--mk-btn-hover, #F9F9F7);
   border-color: transparent;
   color: #15803d;
 }
@@ -189,7 +189,7 @@
 .cadastro-b1 .tb-btn-outline {
   background: #fff;
   color: var(--mg-text-1);
-  border-color: #dfe2e7;
+  border-color: #deddd8;
 }
 
 .cadastro-b1 .tb-btn-outline:hover:not(:disabled) {
@@ -380,7 +380,7 @@
 
 .cadastro-b1 .mg-shell {
   background: var(--mg-bg-card);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(20, 20, 19, 0.06);
   border-radius: 14px;
   box-shadow: var(--mg-card-shadow);
   overflow: hidden;
@@ -455,7 +455,7 @@
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: #475569;
+  color: #52514e;
   border-top: 1px solid var(--mg-table-line);
   background: #fff;
 }
@@ -530,7 +530,7 @@
 .cadastro-b1 .view-seg button[aria-pressed="true"] {
   background: #fff;
   color: var(--mg-accent);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.06);
 }
 
 .cadastro-b1 .view-seg svg {
@@ -556,9 +556,9 @@
   max-height: min(320px, 55vh);
   overflow: hidden;
   border-radius: 12px;
-  border: 1px solid #dfe2e7;
+  border: 1px solid #deddd8;
   background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 24px rgba(20, 20, 19, 0.12);
 }
 
 .cadastro-b1 .mg-search-suggest__list {
@@ -615,8 +615,8 @@
   align-items: center;
   gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
-  border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  border-top: 1px solid #f2f2ef;
+  background: var(--mk-sup-fundo, #F9F9F7);
 }
 
 .cadastro-b1 .mg-search-pill {
@@ -702,12 +702,12 @@
 }
 
 .cadastro-b1 .mg-search-pill-clear .mg-search-pill-icon {
-  color: var(--mk-icon-close, #64748b);
+  color: var(--mk-icon-close, #73726c);
   margin-right: 0;
 }
 
 .cadastro-b1 .mg-search-pill-clear:hover .mg-search-pill-icon {
-  color: var(--mk-action-fg, #334155);
+  color: var(--mk-action-fg, #373733);
 }
 
 .cadastro-b1 .mg-card-title {
@@ -775,7 +775,7 @@
   height: 30px;
   padding: 0 9px;
   background: #fff;
-  color: #334155;
+  color: #373733;
   font-size: 12px;
   font-weight: 600;
   text-align: left;
@@ -802,7 +802,7 @@
 .cadastro-b1 .mg-grid tfoot td {
   position: sticky;
   bottom: 0;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
   z-index: 3;
 }
 
@@ -844,7 +844,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  color: #475569;
+  color: #52514e;
   border-radius: 999px;
 }
 
@@ -870,7 +870,7 @@
 
 .cadastro-b1 .mg-grid th.is-frozen-anchor,
 .cadastro-b1 .mg-grid td.is-frozen-anchor {
-  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.22);
+  box-shadow: 4px 0 8px -4px rgba(20, 20, 19, 0.22);
 }
 
 .cadastro-b1 .mg-grid .th-estado {
@@ -879,7 +879,7 @@
   align-items: center;
   gap: 2px;
   margin-left: 2px;
-  color: #94a3b8;
+  color: #a3a29c;
 }
 
 .cadastro-b1 .mg-grid .th-estado-btn {
@@ -892,7 +892,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #94a3b8;
+  color: #a3a29c;
   cursor: pointer;
 }
 
@@ -971,7 +971,7 @@
   border-radius: 50%;
   border: 1.5px solid var(--mg-divider);
   background: var(--mg-bg-card);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.06);
   cursor: pointer;
   vertical-align: middle;
 }
@@ -1036,7 +1036,7 @@
   min-width: 4.5rem;
   border-radius: 999px;
   background: #fff;
-  border: 1px solid #dfe2e7;
+  border: 1px solid #deddd8;
   box-shadow: var(--mg-field-edge-shadow);
   padding: 0 28px 0 12px !important;
   font-size: 12px;
@@ -1161,7 +1161,7 @@
 
 .cadastro-b1 .mg-field.mg-has-value:not(.mg-field--disabled):not(.mg-field--locked) {
   background: #fff;
-  border-color: #e7eaee;
+  border-color: #ecebe6;
   box-shadow: none;
 }
 
@@ -1187,7 +1187,7 @@
 }
 
 .cadastro-b1 .mg-field--disabled {
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
   border-color: transparent;
   box-shadow: none;
   pointer-events: none;
@@ -1258,7 +1258,7 @@
 .cadastro-b1 .cadastro-b1-form-field > div:last-child {
   margin-top: 2px;
   border-radius: var(--mg-radius-control);
-  border: 1px solid #dfe2e7;
+  border: 1px solid #deddd8;
   background: #fff;
   box-shadow: var(--mg-field-edge-shadow);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -1326,7 +1326,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #d1d0ca;
   background: var(--mg-bg-card);
   color: #fff;
 }
@@ -1476,8 +1476,8 @@
 @media (hover: hover) and (pointer: fine) {
   .cadastro-b1 .b1-card:hover:not(.is-selected) {
     box-shadow:
-      0 4px 14px rgba(15, 23, 42, 0.07),
-      0 1px 3px rgba(15, 23, 42, 0.04);
+      0 4px 14px rgba(20, 20, 19, 0.07),
+      0 1px 3px rgba(20, 20, 19, 0.04);
   }
 }
 
@@ -1897,7 +1897,7 @@
   .cadastro-b1--full-page .b1-card {
     border-radius: 14px;
     padding: 14px;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(20, 20, 19, 0.06);
   }
 
   .cadastro-b1--full-page .mg-empty-state,
@@ -1930,7 +1930,7 @@
   border-radius: 0;
   box-shadow: none;
   background: #fff;
-  border-bottom: 1px solid #eef1f4;
+  border-bottom: 1px solid #eeede9;
   gap: var(--portal-espaco, 8px);
   padding: 4px 11px;
 }
@@ -1939,7 +1939,7 @@
 .cadastro-b1 .mg-shell--join-table > [data-testid="cadastro-record-header"] {
   flex-shrink: 0;
   background: #fff !important;
-  border-bottom: 1px solid #eef1f4;
+  border-bottom: 1px solid #eeede9;
 }
 
 .cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
@@ -1953,7 +1953,7 @@
   border-radius: 0;
   box-shadow: none;
   background: #fff;
-  border-bottom: 1px solid #eef1f4;
+  border-bottom: 1px solid #eeede9;
 }
 
 .cadastro-b1 .mg-shell--join-table > .mg-shell__body,
@@ -1988,7 +1988,7 @@
   gap: 4px;
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: #73726c;
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
@@ -1997,7 +1997,7 @@
 }
 
 .cadastro-b1 .fchip-lim:hover {
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
   color: var(--mg-text-1);
 }
 
@@ -2046,7 +2046,7 @@
   border-radius: 999px;
   border: 1px solid transparent;
   background: var(--mg-gray-fill);
-  color: var(--mg-icon, #64748b);
+  color: var(--mg-icon, #73726c);
   cursor: pointer;
   transition: background 0.12s, box-shadow 0.22s;
 }
@@ -2073,8 +2073,8 @@
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  border-bottom: 1px solid #d0d5dc;
-  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.05);
+  border-bottom: 1px solid #d5d4ce;
+  box-shadow: inset 0 1px 0 rgba(20, 20, 19, 0.05);
   scrollbar-width: thin;
 }
 
@@ -2135,9 +2135,9 @@
   border-radius: 12px;
   background: #fff;
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 1px 2px rgba(20, 20, 19, 0.04),
     0 0 0 1px rgba(255, 255, 255, 0.96),
-    0 0 0 2px rgba(226, 232, 240, 0.62);
+    0 0 0 2px rgba(232, 231, 226, 0.62);
   padding: 8px 8px 12px;
   align-self: stretch;
   box-sizing: border-box;
@@ -2178,8 +2178,8 @@
 }
 
 .cadastro-b1 .b1-panel-list__tab:hover {
-  color: #3b4e63;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  color: #4a4946;
+  background: var(--mk-sup-fundo, #F9F9F7);
 }
 
 .cadastro-b1 .b1-panel-list__tab.is-active {

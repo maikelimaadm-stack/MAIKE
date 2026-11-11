@@ -133,7 +133,7 @@
 }
 .b1ref .foperadores .fopt.on:not(#mk-padrao) {
   background: rgba(64, 222, 99, 0.14);
-  color: #292a2d;
+  color: #262624;
 }
 .b1ref :is(.fselb-c, .fopt-c):not(#mk-padrao) svg { width: 16px; height: 16px; }
 .cadastro-b1 .cmd-panel__search:not(#mk-padrao) {

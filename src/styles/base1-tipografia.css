@@ -11,12 +11,12 @@
   --mk-font-float-rest: 12px;
   --mk-font-float-up: 9px;
   --mk-action-font: 12px;
-  --mk-text: #111827;
-  --mk-text-strong: #111827;
-  --mk-text-muted: #6b7280;
-  --mg-text-1: #111827;
-  --mg-text-2: #6b7280;
-  --mg-text-3: #9ca3af;
+  --mk-text: #141413;
+  --mk-text-strong: #141413;
+  --mk-text-muted: #73726c;
+  --mg-text-1: #141413;
+  --mg-text-2: #73726c;
+  --mg-text-3: #a3a29c;
   font-size: var(--mk-font-list);
   font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   color: var(--mk-text);
@@ -37,7 +37,7 @@
 
 /* Cabeçalho ligeiramente mais suave que os valores, como na grade de referência. */
 .cadastro-b1 .mg-grid thead th:not(#mk-padrao) {
-  color: #334155;
+  color: #373733;
   font-weight: 600;
 }
 .cadastro-b1 .mg-grid :is(tfoot th, tfoot td):not(#mk-padrao) {

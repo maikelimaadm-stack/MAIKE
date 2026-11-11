@@ -40,6 +40,25 @@ function writePanelStyle(preferenceKey, style) {
   }
 }
 
+/** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-161). */
+function useEmpilhado() {
+  const consulta = "(max-width: 1023px)";
+  const ler = () =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? Boolean(window.matchMedia(consulta).matches)
+      : false;
+  const [empilhado, setEmpilhado] = React.useState(ler);
+  React.useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const mq = window.matchMedia(consulta);
+    const aplicar = () => setEmpilhado(Boolean(mq.matches));
+    aplicar();
+    mq.addEventListener?.("change", aplicar);
+    return () => mq.removeEventListener?.("change", aplicar);
+  }, []);
+  return empilhado;
+}
+
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(false);
   React.useEffect(() => {
@@ -77,6 +96,26 @@ export default function Base1PanelTabs({
   className,
 }) {
   const reducedMotion = usePrefersReducedMotion();
+  const empilhado = useEmpilhado();
+  const raizRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  const [pendentes, setPendentes] = React.useState(/** @type {Record<string, boolean>} */ ({}));
+
+  // Ponto vermelho na aba que tem campo inválido — lido do DOM, vale para qualquer formulário.
+  React.useLayoutEffect(() => {
+    const raiz = raizRef.current;
+    if (!raiz) return;
+    /** @type {Record<string, boolean>} */
+    const proximo = {};
+    raiz.querySelectorAll("[data-b1-painel]").forEach((el) => {
+      const id = el.getAttribute("data-b1-painel");
+      if (id && el.querySelector(".mg-field.is-invalid")) proximo[id] = true;
+    });
+    setPendentes((atual) => {
+      const a = Object.keys(atual).sort().join("|");
+      const b = Object.keys(proximo).sort().join("|");
+      return a === b ? atual : proximo;
+    });
+  });
   const [panelStyle, setPanelStyle] = React.useState(() => readPanelStyle(preferenceKey));
   const tabRefs = React.useRef({});
   const prevAnimationKey = React.useRef(animationKey);
@@ -206,6 +245,7 @@ export default function Base1PanelTabs({
       >
         {!sidebar && isCustom ? <CustomTabMarker /> : null}
         {tab.label}
+        {pendentes[tab.id] ? <span className="b1-aba-dot" title="Campos pendentes" aria-hidden="true" /> : null}
       </button>
     );
   });
@@ -230,8 +270,14 @@ export default function Base1PanelTabs({
         role="tabpanel"
         aria-labelledby={tabId}
         hidden={!active}
-        className={cn(!active && "hidden", motionClass)}
+        data-b1-painel={tab.id}
+        className={cn(!active && "hidden", !sidebar && "b1-aba-cartao", motionClass)}
       >
+        {!sidebar ? (
+          <div className="b1-aba-cartao__cab">
+            <h3 className="b1-aba-cartao__titulo">{tab.label}</h3>
+          </div>
+        ) : null}
         {renderPanel(tab.id)}
       </div>
     );
@@ -243,9 +289,36 @@ export default function Base1PanelTabs({
     return <div className={cn("b1-panel-tabs-single", className)}>{panelsBody}</div>;
   }
 
+  if (empilhado) {
+    return (
+      <div ref={raizRef} className={cn("b1-secoes", className)}>
+        {tabs
+          .filter((tab) => !tab.disabled)
+          .map((tab) => (
+            <section
+              key={tab.id}
+              className="b1-secao"
+              id={`b1-secao-${tab.id}`}
+              aria-labelledby={`b1-secao-${tab.id}-t`}
+              data-b1-painel={tab.id}
+            >
+              <div className="b1-secao__cartao">
+                <div className="b1-secao__cab">
+                  <h3 className="b1-secao__titulo" id={`b1-secao-${tab.id}-t`}>
+                    {tab.label}
+                  </h3>
+                </div>
+                {renderPanel(tab.id)}
+              </div>
+            </section>
+          ))}
+      </div>
+    );
+  }
+
   if (sidebar) {
     return (
-      <div className={cn("b1-panel-sidebar-layout", className)}>
+      <div ref={raizRef} className={cn("b1-panel-sidebar-layout", className)}>
         <aside className="b1-panel-sidebar-layout__tabs">
           <div className="b1-panel-list" role="tablist" aria-orientation="vertical">
             <div className="b1-panel-list__leading">{toggleBtn}</div>
@@ -258,7 +331,7 @@ export default function Base1PanelTabs({
   }
 
   return (
-    <div className={cn("b1-panel-tabs-root", className)}>
+    <div ref={raizRef} className={cn("b1-panel-tabs-root b1-abas-fora", className)}>
       <div className="b1-panel-tabs-rail">
         <div className="b1-panel-tabs-rail__leading">{toggleBtn}</div>
         <div className="b1-panel-tabs-strip" role="tablist" aria-orientation="horizontal">

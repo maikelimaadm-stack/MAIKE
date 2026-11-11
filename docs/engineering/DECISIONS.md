@@ -5812,4 +5812,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) em **DRAFT**, branch `claude/maike-patrimonio-ux-02-abastecimento-produto`, base `e3ea4c39`. Sem migration e sem deploy. `MERGE_READY = NÃO` até a revisão humana e o merge manual.
 - Relatório: [`MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md`](./MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-161 -->
+## D-PROD-161 — Motor Base1: acabamento do design "Cadastro de Lote" (paleta quente, campo com estados, abas em pílula, seções empilhadas)
+
+- **Contexto:** o proprietário desenhou a tela Cadastro de Lotes no Claude Design e pediu que a configuração fosse repassada ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema. Fonte: `docs/design/cadastro-de-lote/cadastro-de-lote.dc.html`.
+- **Decisão (o que entrou):**
+  - **Paleta:** os cinzas azulados do motor viram neutros quentes (`#FAFCFE`→`#F9F9F7`, `#334155`→`#373733`, `#111827`→`#141413`, `#6b7280`/`#64748b`→`#73726C`, `#9ca3af`→`#A3A29C`, `#e7eaee`→`#ECEBE6`, sombras `15,23,42`→`20,20,19`), trocados no lugar só nas regras do escopo do motor. O verde não muda.
+  - **Camada nova** `src/styles/base1-design.css`, carregada antes de `base1-tipografia.css` e sem nenhum `font-size`: botões neutros grafite com sombra macia, ícones com traço 1,75 (16/20/22 px por largura), tabela só com linhas horizontais e cabeçalho branco, rodapé em tira fina, campo de registro em caixa branca com borda e estados (passar o mouse, foco verde com anel, erro vermelho, travado cinza, leitura só com a linha de baixo).
+  - **Abas (`Base1PanelTabs`):** no desktop, pílulas num grupo branco e painel em cartão com o nome da aba; abaixo de 1024 px não há abas — cada painel vira uma seção empilhada. A aba com campo inválido ganha um ponto vermelho.
+  - **Erro de campo (`B1Field`):** ícone + texto; erro booleano mostra "Campo obrigatório" (antes aparecia "true").
+- **Fora desta fatia (existe no design, não foi portado):** faixa de filtros rápidos e pílula de ordenação; listas de seleção no modelo novo; cards em duas colunas com tag "Inativo"; bolinha de cor na coluna Cor; cabeçalho do celular; movimento de abrir/fechar; reorganização dos campos do Lote dentro da aba Geral; rodapé em palavras ("12 lotes · 1 selecionado") — este último contraria o teste PAR6 (`mobileParidadeV2`) e pede decisão própria.
+- **Não muda:** Mapa Geral, lançamentos do mapa (`.mk-lanc`), casca do aplicativo, tamanhos de fonte, dados, rotas e escopo.
+- **Revoga em parte:** D-PROD-149 (fundo `#FAFCFE`) e as cores de texto da D-PROD-150, só dentro do motor Base1.
+- **Evidência:** `docs/engineering/evidencias/base1-design-d161/`; teste `tests/smoke/base1DesignD161.test.jsx`; relatório `docs/engineering/UI-BASE1-DESIGN-D161-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-162 -->

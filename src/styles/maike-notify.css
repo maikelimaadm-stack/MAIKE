@@ -13,11 +13,11 @@
   padding: 14px 14px 14px 12px;
   border-radius: 14px;
   background: #fff;
-  border: 1px solid #e8ecf0;
+  border: 1px solid #ecebe6;
   box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.12),
-    0 2px 6px rgba(15, 23, 42, 0.06);
-  color: #334155;
+    0 10px 28px rgba(20, 20, 19, 0.12),
+    0 2px 6px rgba(20, 20, 19, 0.06);
+  color: #373733;
 }
 
 .mg-toast--so-titulo {
@@ -56,7 +56,7 @@
 }
 
 .mg-toast__icon--info {
-  background: #64748b;
+  background: #73726c;
   color: #fff;
 }
 
@@ -75,7 +75,7 @@
   font-size: 13.5px;
   font-weight: 700;
   line-height: 1.25;
-  color: #334155;
+  color: #373733;
 }
 
 .mg-toast__desc {
@@ -83,7 +83,7 @@
   font-size: 12.5px;
   font-weight: 400;
   line-height: 1.35;
-  color: #64748b;
+  color: #73726c;
 }
 
 .mg-toast__close {
@@ -98,14 +98,14 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #94a3b8;
+  color: #a3a29c;
   cursor: pointer;
   line-height: 0;
 }
 
 .mg-toast__close:hover {
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #475569;
+  background: var(--mk-sup-fundo, #F9F9F7);
+  color: #52514e;
 }
 
 /* Confirmação centrada — Cancelar (X) + Excluir (lixeira vermelha) */
@@ -117,8 +117,8 @@
   overflow: hidden;
   border-radius: 16px;
   background: #fff;
-  border: 1px solid #e7eaee;
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.26);
+  border: 1px solid #ecebe6;
+  box-shadow: 0 24px 64px rgba(20, 20, 19, 0.26);
 }
 
 .mg-confirm-dialog__h {
@@ -128,20 +128,20 @@
   gap: 8px;
   min-height: 46px;
   padding: 0 18px;
-  border-bottom: 1px solid #f1f4f6;
+  border-bottom: 1px solid #f2f2ef;
 }
 
 .mg-confirm-dialog__t {
   font-size: 13.5px;
   font-weight: 600;
-  color: #334155;
+  color: #373733;
 }
 
 .mg-confirm-dialog__b {
   padding: 18px 18px 16px;
   font-size: 13px;
   line-height: 1.45;
-  color: #475569;
+  color: #52514e;
 }
 
 .mg-confirm-dialog__f {
@@ -150,25 +150,25 @@
   align-items: center;
   gap: 8px;
   padding: 11px 14px;
-  border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  border-top: 1px solid #f2f2ef;
+  background: var(--mk-sup-fundo, #F9F9F7);
 }
 
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-gray {
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #475569;
+  background: var(--mk-sup-fundo, #F9F9F7);
+  color: #52514e;
   box-shadow: none;
 }
 
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-gray:hover:not(:disabled) {
   background: #e8eaed;
-  color: #334155;
+  color: #373733;
 }
 
 /* Excluir: igual ao toolbar — fundo cinza, texto e lixeira vermelhos */
 .mg-confirm-dialog .mg-confirm-dialog__f .mg-confirm-dialog__excluir,
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-red.mg-confirm-dialog__excluir {
-  background: var(--mk-sup-fundo, #FAFCFE) !important;
+  background: var(--mk-sup-fundo, #F9F9F7) !important;
   color: #dc2626 !important;
   border-color: transparent !important;
   box-shadow: none !important;
