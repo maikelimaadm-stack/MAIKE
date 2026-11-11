@@ -26,6 +26,11 @@ function useValorAtrasado(valor, ms) {
  * valor atual aparece mesmo fora da página carregada. O painel é inline (fica
  * dentro da tela e do `data-permissao-explicita`).
  *
+ * D-PROD-162: `onCriarNovo` (opcional) põe no painel aberto o botão
+ * "+ {rotuloCriarNovo}" (cadastro rápido, D-PROD-95), que recebe o texto da
+ * busca e fecha o painel. Sem `onCriarNovo` a renderização é a de sempre (a
+ * P3 usa este componente; snapshot em `seletorPaginadoCriarNovo.test.jsx`).
+ *
  * @param {{
  *   rotulo: string,
  *   testId: string,
@@ -43,6 +48,8 @@ function useValorAtrasado(valor, ms) {
  *   erro?: string,
  *   span?: number,
  *   maiusculas?: boolean,
+ *   onCriarNovo?: (busca: string) => void,
+ *   rotuloCriarNovo?: string,
  * }} props
  */
 export default function SeletorPaginadoGestao({
@@ -62,6 +69,8 @@ export default function SeletorPaginadoGestao({
   erro = undefined,
   span = 6,
   maiusculas = true,
+  onCriarNovo = undefined,
+  rotuloCriarNovo = "Cadastrar novo",
 }) {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
@@ -104,6 +113,13 @@ export default function SeletorPaginadoGestao({
     onChange(opcao);
     setAberto(false);
     setBusca("");
+  };
+
+  const criarNovo = () => {
+    const termo = busca.trim();
+    setAberto(false);
+    setBusca("");
+    onCriarNovo?.(termo);
   };
 
   const exibido = value?.rotulo || (bloqueadoMotivo && !readOnly ? bloqueadoMotivo : textoVazio);
@@ -207,6 +223,16 @@ export default function SeletorPaginadoGestao({
               className="mt-1 h-10 w-full rounded border border-[var(--mg-divider,#cbd5e1)] text-xs font-medium"
             >
               {consulta.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+            </button>
+          ) : null}
+          {onCriarNovo ? (
+            <button
+              type="button"
+              onClick={criarNovo}
+              className="mt-1 h-10 w-full rounded border border-emerald-300 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
+              data-testid={`${testId}-criar-novo`}
+            >
+              + {rotuloCriarNovo}
             </button>
           ) : null}
         </div>

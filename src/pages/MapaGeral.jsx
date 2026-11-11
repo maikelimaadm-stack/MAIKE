@@ -420,7 +420,7 @@ export default function MapaGeral() {
   const pontosSuplementacaoDecorados = useMemo(() => {
     return pontosSuplementacao.map((ponto) => {
       const indicadorBase = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
-      getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, []) :
+      getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, [], produtos) :
       getCochoIndicator(ponto, eventosSupl);
       const alertaInfo = alertasMapa.alertasPonto.get(ponto.id);
       const alertaPrincipal = alertaInfo?.alertas?.[0] || null;
@@ -433,7 +433,7 @@ export default function MapaGeral() {
         alertas_inteligentes: showAlertas ? alertaInfo?.alertas || [] : []
       };
     });
-  }, [pontosSuplementacao, lotes, estoqueLotes, eventosSupl, alertasMapa, showAlertas]);
+  }, [pontosSuplementacao, lotes, estoqueLotes, produtos, eventosSupl, alertasMapa, showAlertas]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {

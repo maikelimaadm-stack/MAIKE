@@ -1,21 +1,22 @@
 /**
- * D-PROD-157 — grupo "Patrimônio e Frota" no menu, no celular e no gerenciador
- * de permissões (Patrimônio P1-01: cadastros e inventário).
+ * D-PROD-157 / D-PROD-162 — grupo "Patrimônio e Frota" no menu, no celular e no
+ * gerenciador de permissões.
  *
- *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as seis telas
- *    `pat-*` (D-PROD-159: Abastecimentos em 2º); os domínios legados de máquinas,
+ *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as DUAS telas
+ *    `pat-*` (Bens Patrimoniais e Abastecimentos; D-PROD-162 tirou Famílias,
+ *    Tipos, Perfis de Medição e Combustíveis); os domínios legados de máquinas,
  *    abastecimento e ativos fixos (e as entidades Base44 deles) continuam
  *    proibidos e intactos;
- *  - ícones próprios no celular para o grupo e para cada uma das seis telas;
+ *  - ícones próprios no celular para o grupo e para as duas telas;
  *  - regra de botões = a do servidor (`GUARDAS.patrimonio*`): novo|salvar,
  *    editar|salvar e a ação extra `inativar` (sem atalho); padrão negado;
+ *    famílias e tipos (dentro de Bens) seguem as ações da tela de Bens;
  *  - paridade lida no código do servidor (autorizacaoTela.js e guardasRotas.js);
  *  - shell real: o grupo aparece só para quem tem alguma das telas; dentro do
  *    Layout, a tela de bens declara `permissaoExplicita` (o "Adicionar tanque"
  *    de quem só edita não é barrado pela leitura do texto do botão);
- *  - tela Permissões: as cinco telas de cadastro com as 7 ações +
- *    "INATIVAR/REATIVAR" e Abastecimentos com "CANCELAR/ESTORNAR ABASTECIMENTO" e
- *    "CONFIGURAR FATOR KG/L", todas desligadas por padrão;
+ *  - tela Permissões: Bens com as 7 ações + "INATIVAR/REATIVAR" e Abastecimentos
+ *    com "CANCELAR/ESTORNAR ABASTECIMENTO" (o fator kg/L saiu), todas desligadas;
  *  - Abastecimentos dentro do shell: "Confirmar abastecimento" segue a regra do
  *    servidor (novo|salvar), não a leitura do texto ("confirmar" = salvar).
  * Mocks só da borda: `fetch` (backend falso) e a sessão (`@/apis/session`).
@@ -25,7 +26,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, act, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as lucide from 'lucide-react';
 import { API_FAKE, envelope, instalarBackendFake } from './fixtures/gestaoBackendFake.js';
 
@@ -48,15 +49,26 @@ vi.mock('@/apis/session', async (importOriginal) => ({
 import { DEFAULT_MENU, getMenuModules } from '@/lib/menuConfig';
 import { PAGES } from '@/pages.config';
 import { ACTION_KEYS, ACTION_LABELS, canAccessPage, createRestrictedPagePermission, detectPermissionAction, EXTRA_ACTION_KEYS_BY_PAGE } from '@/lib/permissions';
-import { ACOES_EXTRAS_ABASTECIMENTO, ACOES_EXTRAS_PATRIMONIO, MODULO_PATRIMONIO, TELAS_PATRIMONIO, acoesDaTelaAbastecimento, acoesDaTelaPatrimonio } from '@/lib/patrimonioPermissions';
+import {
+  ACOES_EXTRAS_ABASTECIMENTO,
+  ACOES_EXTRAS_PATRIMONIO,
+  MODULO_PATRIMONIO,
+  TELAS_PATRIMONIO,
+  acoesDaTelaAbastecimento,
+  acoesDaTelaPatrimonio,
+  acoesDeCatalogoNoBem,
+} from '@/lib/patrimonioPermissions';
 import { criarEstadoAbastecimentos, rotearAbastecimentos } from './fixtures/abastecimentosFakeCore.js';
 import { preencherTrator } from './fixtures/abastecimentosTela.jsx';
 import { ICONE_MODULO, ICONE_TELA } from '@/components/navigation/MobileModulesView';
 
-/** As seis telas na ordem do menu: [id, título, página]. */
+/** As duas telas na ordem do menu: [id, título, página]. */
 const TELAS = [
   ['pat-bens-patrimoniais', 'Bens Patrimoniais', 'BensPatrimoniais'],
   ['pat-abastecimentos', 'Abastecimentos', 'Abastecimentos'],
+];
+/** D-PROD-162: as quatro telas que saíram (página, menu, rota, escopo e Vercel). */
+const TELAS_REMOVIDAS = [
   ['pat-familias-patrimoniais', 'Famílias Patrimoniais', 'FamiliasPatrimoniais'],
   ['pat-tipos-patrimoniais', 'Tipos Patrimoniais', 'TiposPatrimoniais'],
   ['pat-perfis-medicao', 'Perfis de Medição', 'PerfisMedicao'],
@@ -64,7 +76,7 @@ const TELAS = [
 ];
 const PAGINAS = TELAS.map(([, , pagina]) => pagina);
 const TITULOS = TELAS.map(([, titulo]) => titulo);
-/** As cinco telas de CADASTRO (extra `inativar`); Abastecimentos tem extras próprias. */
+/** A tela de CADASTRO (extra `inativar`); Abastecimentos tem a extra própria. */
 const CADASTROS = TELAS.filter(([id]) => id !== 'pat-abastecimentos');
 const TELA_ABASTECIMENTO = 'pat-abastecimentos';
 /** Nomes proibidos pelo escopo para a tela nova (D-PROD-159). */
@@ -114,15 +126,21 @@ const DETALHE_TRATOR = {
   placa: null, placa_uf: null, renavam: null, potencia_cv: null, material: null, ano_conclusao: null, compatibilidade: null,
   especificacoes: null, observacoes: null,
   medidor: { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1300.0000', data_leitura: '2026-11-01', origem: 'AJUSTE_CADASTRO' },
-  medicoes: [],
-  tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true, combustiveis: [{ id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L', ativo: true }] }],
+  // D-PROD-162: tanque com os Produtos aceitos (sem medições, sem combustíveis).
+  tanques: [
+    {
+      id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
+      produtos: [{ produto_id: 'p1', nome: 'Diesel S10 (L)', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true }],
+    },
+  ],
   aquisicao: { data_aquisicao: null, data_disponibilidade: null, valor_aquisicao: null, custo_incorporacao: null, fornecedor: null, documento_referencia: null, garantia_ate: null },
   depreciacao: { depreciavel: false, metodo: null, vida_util_meses: null, residual_modo: null, valor_residual: null, residual_percentual: null, data_inicio_depreciacao: null, previa: null },
   consumo: null,
 };
-const COMBUSTIVEIS = [
-  { id: 'c1', codigo: 'DIESEL_S10', nome: 'Diesel S10', unidade: 'L' },
-  { id: 'c4', codigo: 'GNV', nome: 'GNV', unidade: 'm3' },
+/** Opções de `GET /bens-patrimoniais-opcoes/produtos` (ativos, da fazenda, L ou KG). */
+const PRODUTOS_ACEITAVEIS = [
+  { id: 'p1', nome: 'Diesel S10 (L)', codigo_interno: 'DS10', unidade_principal_estoque: 'L' },
+  { id: 'p2', nome: 'Arla 32', codigo_interno: 'ARLA', unidade_principal_estoque: 'L' },
 ];
 
 let backend;
@@ -172,7 +190,7 @@ beforeEach(async () => {
   backend = instalarBackendFake(({ method, path, query, body }) => {
     if (method === 'GET' && path === '/bens-patrimoniais') return { status: 200, body: envelope([RESUMO_TRATOR]) };
     if (method === 'GET' && path === '/bens-patrimoniais/b1') return { status: 200, body: DETALHE_TRATOR };
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/combustiveis') return { status: 200, body: { itens: COMBUSTIVEIS, has_more: false, next_cursor: null } };
+    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/produtos') return { status: 200, body: { itens: PRODUTOS_ACEITAVEIS, has_more: false, next_cursor: null } };
     if (method === 'GET' && path.startsWith('/bens-patrimoniais-opcoes/')) return { status: 200, body: { itens: [], has_more: false, next_cursor: null } };
     if (method === 'PATCH' && path === '/bens-patrimoniais/b1') return { status: 200, body: { ...DETALHE_TRATOR, versao: body.versao + 1 } };
     if (method === 'GET') return { status: 200, body: [] };
@@ -186,12 +204,19 @@ afterEach(() => {
 });
 
 describe('PAT-M1 — SSOT de menu, páginas, escopo e ícones', () => {
-  it('grupo patrimonio "Patrimônio e Frota" com exatamente as seis telas pat-* (Abastecimentos em 2º)', () => {
+  it('grupo patrimonio "Patrimônio e Frota" com exatamente as duas telas pat-* (Bens e Abastecimentos)', () => {
     const grupo = DEFAULT_MENU.find((m) => m.id === MODULO_PATRIMONIO);
     expect(grupo.title).toBe('Patrimônio e Frota');
     expect(grupo.submenu).toEqual(TELAS.map(([id, title, url]) => ({ id, title, url })));
-    expect(Object.values(TELAS_PATRIMONIO)).toEqual(TELAS.map(([id]) => id));
+    expect(TELAS_PATRIMONIO).toEqual({ BENS: 'pat-bens-patrimoniais', ABASTECIMENTOS: 'pat-abastecimentos' });
     for (const p of PAGINAS) expect(typeof PAGES[p], p).toBe('function');
+    // D-PROD-162: as quatro telas antigas não são página, nem item de menu, nem arquivo.
+    const idsDoMenu = DEFAULT_MENU.flatMap((m) => m.submenu.map((t) => t.id));
+    for (const [id, , pagina] of TELAS_REMOVIDAS) {
+      expect(PAGES[pagina], pagina).toBeUndefined();
+      expect(idsDoMenu, id).not.toContain(id);
+      expect(existsSync(`src/pages/${pagina}.jsx`), pagina).toBe(false);
+    }
     // Ícone do grupo no menu é um nome real do lucide (o mesmo componente do celular).
     expect(lucide[grupo.icon]).toBeTruthy();
     expect(ICONE_MODULO[MODULO_PATRIMONIO]).toBe(lucide[grupo.icon]);
@@ -200,7 +225,7 @@ describe('PAT-M1 — SSOT de menu, páginas, escopo e ícones', () => {
     expect(fora.some((id) => id.startsWith('pat-'))).toBe(false);
   });
 
-  it('ícones próprios no celular: grupo e seis telas, distintos entre si e diferentes de Package', () => {
+  it('ícones próprios no celular: grupo e as duas telas, distintos entre si e diferentes de Package', () => {
     expect(ICONE_MODULO[MODULO_PATRIMONIO]).toBeTruthy();
     expect(ICONE_MODULO[MODULO_PATRIMONIO]).not.toBe(lucide.Package);
     const outrosModulos = Object.entries(ICONE_MODULO).filter(([id]) => id !== MODULO_PATRIMONIO).map(([, icone]) => icone);
@@ -210,15 +235,18 @@ describe('PAT-M1 — SSOT de menu, páginas, escopo e ícones', () => {
       expect(ICONE_TELA[url], url).not.toBe(lucide.Package);
       expect(ICONE_TELA[url], url).not.toBe(lucide.Folder);
     }
-    expect(new Set(PAGINAS.map((u) => ICONE_TELA[u])).size).toBe(6);
+    expect(new Set(PAGINAS.map((u) => ICONE_TELA[u])).size).toBe(2);
+    // As telas removidas não têm ícone (nada sobra no celular).
+    for (const [, , pagina] of TELAS_REMOVIDAS) expect(ICONE_TELA[pagina], pagina).toBeUndefined();
     // Abastecimentos: gotas (≠ a gota dos Bebedouros).
     expect(ICONE_TELA.Abastecimentos).toBe(lucide.Droplets);
     expect(ICONE_TELA.Abastecimentos).not.toBe(ICONE_TELA.Bebedouros);
   });
 
-  it('manifesto: as seis páginas permitidas; forbiddenDomains e entidades Base44 proibidas continuam intactos', () => {
+  it('manifesto: as duas páginas permitidas, as quatro antigas fora; forbiddenDomains e entidades Base44 proibidas continuam intactos', () => {
     const scope = JSON.parse(readFileSync('config/mapa-manejo-scope.json', 'utf8'));
     expect(scope.allowedPages).toEqual(expect.arrayContaining(PAGINAS));
+    for (const [, , pagina] of TELAS_REMOVIDAS) expect(scope.allowedPages, pagina).not.toContain(pagina);
     expect(new Set(scope.allowedPages)).toEqual(new Set(Object.keys(PAGES)));
     // Nada saiu da lista de domínios proibidos; o legado de frota segue proibido.
     expect(scope.forbiddenDomains).toEqual(expect.arrayContaining(DOMINIOS_PROIBIDOS_ANTES));
@@ -259,32 +287,48 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     expect(acoesDaTelaPatrimonio(comAcoes(T, { excluir: true, editar: true, salvar: true }), T).inativar).toBe(false);
   });
 
-  it('cada tela com as SUAS ações: liberar Bens não libera os catálogos nem Abastecimentos', () => {
+  it('cada tela com as SUAS ações: liberar Bens não libera Abastecimentos (e vice-versa)', () => {
     const perm = comAcoes(TELAS_PATRIMONIO.BENS, { novo: true, editar: true, inativar: true, cancelar: true, configurar_conversao: true });
-    for (const t of [TELAS_PATRIMONIO.FAMILIAS, TELAS_PATRIMONIO.TIPOS, TELAS_PATRIMONIO.PERFIS_MEDICAO, TELAS_PATRIMONIO.COMBUSTIVEIS]) {
-      expect(acoesDaTelaPatrimonio(perm, t), t).toEqual({ ver: false, criar: false, editar: false, inativar: false });
-    }
-    expect(acoesDaTelaAbastecimento(perm)).toEqual({ ver: false, criar: false, cancelar: false, configurarConversao: false });
+    expect(acoesDaTelaAbastecimento(perm)).toEqual({ ver: false, criar: false, cancelar: false });
+    const soAbastecimento = comAcoes(TELA_ABASTECIMENTO, { novo: true, editar: true, salvar: true, inativar: true, cancelar: true });
+    expect(acoesDaTelaPatrimonio(soAbastecimento, TELAS_PATRIMONIO.BENS)).toEqual({ ver: false, criar: false, editar: false, inativar: false });
+    expect(acoesDeCatalogoNoBem(soAbastecimento)).toEqual({ criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
   });
 
-  it('Abastecimentos: ver = visualizar; criar = novo|salvar; cancelar e configurar_conversao só pelas extras; padrão negado', () => {
+  it('Abastecimentos: ver = visualizar; criar = novo|salvar; cancelar só pela extra; o fator kg/L saiu; padrão negado', () => {
     const T = TELA_ABASTECIMENTO;
-    const nada = { ver: false, criar: false, cancelar: false, configurarConversao: false };
+    const nada = { ver: false, criar: false, cancelar: false };
     expect(acoesDaTelaAbastecimento(null)).toEqual(nada);
     expect(acoesDaTelaAbastecimento(registro([MODULO_PATRIMONIO], []))).toEqual(nada);
     expect(acoesDaTelaAbastecimento(registro([], [tela(MODULO_PATRIMONIO, T, { visualizar: true, novo: true })]))).toEqual(nada);
-    expect(acoesDaTelaAbastecimento(comAcoes(T, {}))).toEqual({ ver: true, criar: false, cancelar: false, configurarConversao: false });
-    expect(acoesDaTelaAbastecimento(comAcoes(T, { novo: true }))).toEqual({ ver: true, criar: true, cancelar: false, configurarConversao: false });
-    expect(acoesDaTelaAbastecimento(comAcoes(T, { salvar: true }))).toEqual({ ver: true, criar: true, cancelar: false, configurarConversao: false });
-    // Sem atalho: editar/excluir/salvar não cancelam nem configuram o fator.
-    expect(acoesDaTelaAbastecimento(comAcoes(T, { editar: true, excluir: true, salvar: true }))).toMatchObject({ cancelar: false, configurarConversao: false });
-    expect(acoesDaTelaAbastecimento(comAcoes(T, { cancelar: true }))).toEqual({ ver: true, criar: false, cancelar: true, configurarConversao: false });
-    expect(acoesDaTelaAbastecimento(comAcoes(T, { configurar_conversao: true }))).toEqual({ ver: true, criar: false, cancelar: false, configurarConversao: true });
-    expect(acoesDaTelaAbastecimento({ user_email: 'x', is_admin: true })).toEqual({ ver: true, criar: true, cancelar: true, configurarConversao: true });
+    expect(acoesDaTelaAbastecimento(comAcoes(T, {}))).toEqual({ ver: true, criar: false, cancelar: false });
+    expect(acoesDaTelaAbastecimento(comAcoes(T, { novo: true }))).toEqual({ ver: true, criar: true, cancelar: false });
+    expect(acoesDaTelaAbastecimento(comAcoes(T, { salvar: true }))).toEqual({ ver: true, criar: true, cancelar: false });
+    // Sem atalho: editar/excluir/salvar não cancelam.
+    expect(acoesDaTelaAbastecimento(comAcoes(T, { editar: true, excluir: true, salvar: true }))).toMatchObject({ cancelar: false });
+    expect(acoesDaTelaAbastecimento(comAcoes(T, { cancelar: true }))).toEqual({ ver: true, criar: false, cancelar: true });
+    // `configurar_conversao` gravado numa linha antiga não dá nada (D-PROD-162).
+    expect(acoesDaTelaAbastecimento(comAcoes(T, { configurar_conversao: true }))).toEqual({ ver: true, criar: false, cancelar: false });
+    expect(acoesDaTelaAbastecimento({ user_email: 'x', is_admin: true })).toEqual({ ver: true, criar: true, cancelar: true });
+  });
+
+  it('famílias e tipos dentro de Bens: criar = novo|salvar|editar; editar = editar|salvar; inativar = extra; Produtos do tanque = novo|salvar|editar', () => {
+    const T = TELAS_PATRIMONIO.BENS;
+    const nada = { criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false };
+    expect(acoesDeCatalogoNoBem(null)).toEqual(nada);
+    expect(acoesDeCatalogoNoBem(registro([MODULO_PATRIMONIO], []))).toEqual(nada);
+    expect(acoesDeCatalogoNoBem(comAcoes(T, {}))).toEqual(nada);
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { novo: true }))).toEqual({ criarCatalogo: true, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { editar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { salvar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { inativar: true }))).toEqual({ criarCatalogo: false, editarCatalogo: false, inativarCatalogo: true, produtosDoTanque: false });
+    // Ação ligada sem visualizar → nada (fail-closed, como `telaPermite`).
+    expect(acoesDeCatalogoNoBem(registro([MODULO_PATRIMONIO], [tela(MODULO_PATRIMONIO, T, { novo: true, editar: true, inativar: true })]))).toEqual(nada);
+    expect(acoesDeCatalogoNoBem({ user_email: 'x', is_admin: true })).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: true, produtosDoTanque: true });
   });
 
   it('sem registro / sem módulo / sem linha → nada; ação ligada sem visualizar → nada; is_admin → tudo', () => {
-    const T = TELAS_PATRIMONIO.COMBUSTIVEIS;
+    const T = TELAS_PATRIMONIO.BENS;
     const nada = { ver: false, criar: false, editar: false, inativar: false };
     expect(acoesDaTelaPatrimonio(null, T)).toEqual(nada);
     expect(acoesDaTelaPatrimonio(registro([], [tela(MODULO_PATRIMONIO, T, { visualizar: true, inativar: true })]), T)).toEqual(nada);
@@ -293,18 +337,21 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     expect(acoesDaTelaPatrimonio({ user_email: 'x', is_admin: true }, T)).toEqual({ ver: true, criar: true, editar: true, inativar: true });
   });
 
-  it('permissão restrita criada pelo gerenciador vem toda desligada: "inativar" nas cinco de cadastro, cancelar/fator em Abastecimentos', () => {
+  it('permissão restrita criada pelo gerenciador vem toda desligada: "inativar" em Bens, "cancelar" em Abastecimentos', () => {
     const mod = getMenuModules(DEFAULT_MENU).find((m) => m.id === MODULO_PATRIMONIO);
     expect(mod.pages.map((p) => p.id)).toEqual(TELAS.map(([id]) => id));
     for (const page of mod.pages) {
       const p = createRestrictedPagePermission(mod.id, mod.title, page);
-      const extras = page.id === TELA_ABASTECIMENTO ? ['cancelar', 'configurar_conversao'] : ['inativar'];
+      const extras = page.id === TELA_ABASTECIMENTO ? ['cancelar'] : ['inativar'];
       expect(p.modulo_id).toBe(MODULO_PATRIMONIO);
       expect([...ACTION_KEYS, ...extras].every((a) => p[a] === false), page.id).toBe(true);
       expect(canAccessPage(registro([MODULO_PATRIMONIO], [p]), page.id, MODULO_PATRIMONIO)).toBe(false);
       expect(EXTRA_ACTION_KEYS_BY_PAGE[page.id]).toEqual(extras);
+      expect('configurar_conversao' in p, page.id).toBe(false);
     }
-    expect(ACTION_LABELS.configurar_conversao).toBe('configurar fator de conversão kg/L');
+    // D-PROD-162: o fator kg/L saiu; as telas antigas não têm mais ações extras.
+    expect(ACTION_LABELS.configurar_conversao).toBeUndefined();
+    expect(Object.keys(EXTRA_ACTION_KEYS_BY_PAGE).filter((id) => id.startsWith('pat-')).sort()).toEqual(['pat-abastecimentos', 'pat-bens-patrimoniais']);
     // As telas de outros módulos não ganham a chave.
     const parceiros = getMenuModules(DEFAULT_MENU).find((m) => m.id === 'gestao-rural').pages.find((p) => p.id === 'ges-parceiros');
     expect('inativar' in createRestrictedPagePermission('gestao-rural', 'Gestão Rural', parceiros)).toBe(false);
@@ -343,7 +390,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     }
   });
 
-  it('ACOES_PATRIMONIO_EXTRAS do servidor = ações extras das cinco telas de cadastro no navegador', () => {
+  it('ACOES_PATRIMONIO_EXTRAS do servidor = ações extras da tela de Bens no navegador', () => {
     const lista = autorizacao.match(/ACOES_PATRIMONIO_EXTRAS\s*=\s*Object\.freeze\(\[([^\]]*)\]/);
     expect(lista, 'ACOES_PATRIMONIO_EXTRAS ausente em autorizacaoTela.js').toBeTruthy();
     const extrasServidor = [...lista[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
@@ -355,12 +402,12 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     const lista = autorizacao.match(/ACOES_ABASTECIMENTO_EXTRAS\s*=\s*Object\.freeze\(\[([^\]]*)\]/);
     expect(lista, 'ACOES_ABASTECIMENTO_EXTRAS ausente em autorizacaoTela.js').toBeTruthy();
     const extrasServidor = [...lista[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
-    expect(extrasServidor).toEqual(['cancelar', 'configurar_conversao']);
+    expect(extrasServidor).toEqual(['cancelar']);
     expect([...ACOES_EXTRAS_ABASTECIMENTO]).toEqual(extrasServidor);
     expect([...EXTRA_ACTION_KEYS_BY_PAGE[TELA_ABASTECIMENTO]]).toEqual(extrasServidor);
   });
 
-  it('GUARDAS.patrimonioAbastecimentos: ver/criar/cancelar/configurarConversao batem com acoesDaTelaAbastecimento', () => {
+  it('GUARDAS.patrimonioAbastecimentos: ver/criar/cancelar batem com acoesDaTelaAbastecimento (sem configurarConversao)', () => {
     const bloco = trecho(guardas, 'patrimonioAbastecimentos: {', '},');
     expect(bloco).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_ABASTECIMENTOS,\s*'visualizar'\)/);
     const linhaCriar = bloco.match(/criar:\s*porQualquer\(([^\n]*)\),/);
@@ -368,21 +415,23 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     const criar = [...linhaCriar[1].matchAll(/\[T\.PATRIMONIO_ABASTECIMENTOS,\s*'([a-z_]+)'\]/g)].map((m) => m[1]);
     expect(criar.sort()).toEqual(['novo', 'salvar']);
     expect(bloco).toMatch(/cancelar:\s*porTela\(T\.PATRIMONIO_ABASTECIMENTOS,\s*'cancelar'\)/);
-    expect(bloco).toMatch(/configurarConversao:\s*porTela\(T\.PATRIMONIO_ABASTECIMENTOS,\s*'configurar_conversao'\)/);
+    expect(bloco).not.toMatch(/configurarConversao|configurar_conversao/);
+    expect(guardas).not.toMatch(/configurar_conversao/);
     for (const acao of [...ACTION_KEYS.filter((a) => a !== 'visualizar'), 'cancelar', 'configurar_conversao', 'inativar']) {
       const a = acoesDaTelaAbastecimento(comAcoes(TELA_ABASTECIMENTO, { [acao]: true }));
+      expect(Object.keys(a).sort(), acao).toEqual(['cancelar', 'criar', 'ver']);
       expect(a.criar, `${acao}:criar`).toBe(criar.includes(acao));
       expect(a.cancelar, `${acao}:cancelar`).toBe(acao === 'cancelar');
-      expect(a.configurarConversao, `${acao}:configurarConversao`).toBe(acao === 'configurar_conversao');
     }
   });
 
   it('GUARDAS.patrimonio*: ver/criar/editar/inativar do servidor batem com acoesDaTelaPatrimonio, ação por ação', () => {
-    // Cada tela usa a fábrica `patrimonio(T.PATRIMONIO_X)`; o catálogo padrão é só do administrador.
-    for (const [guarda, chave] of [['patrimonioBens', 'BENS'], ['patrimonioFamilias', 'FAMILIAS'], ['patrimonioTipos', 'TIPOS'], ['patrimonioPerfisMedicao', 'PERFIS_MEDICAO'], ['patrimonioCombustiveis', 'COMBUSTIVEIS']]) {
-      expect(guardas, guarda).toMatch(new RegExp(`${guarda}:\\s*(?:\\{\\s*\\.\\.\\.)?patrimonio\\(T\\.PATRIMONIO_${chave}\\)`));
-    }
+    // Bens usa a fábrica `patrimonio(T.PATRIMONIO_BENS)`; o catálogo padrão é só do administrador.
+    expect(guardas).toMatch(/patrimonioBens:\s*\{\s*\.\.\.patrimonio\(T\.PATRIMONIO_BENS\)/);
     expect(guardas).toMatch(/patrimonioCatalogoPadrao:\s*adminOuIsAdmin\(\)/);
+    // D-PROD-162: sem guarda de perfis nem de combustíveis; nenhuma guarda pede as telas antigas.
+    expect(guardas).not.toMatch(/patrimonioPerfisMedicao|patrimonioCombustiveis/);
+    expect(guardas).not.toMatch(/PATRIMONIO_(FAMILIAS|TIPOS|PERFIS_MEDICAO|COMBUSTIVEIS)\b/);
 
     const fabrica = trecho(guardas, 'const patrimonio = (alvo) => ({', '});');
     const ver = [...fabrica.matchAll(/ver:\s*porTela\(alvo,\s*'([a-z_]+)'\)/g)].map((m) => m[1]);
@@ -413,6 +462,36 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
       }
     }
   });
+
+  it('famílias, tipos e Produtos do tanque (D-PROD-162): guardas do servidor sobre Bens = acoesDeCatalogoNoBem, ação por ação', () => {
+    const linhaBens = guardas.match(/const BENS_CRIAR_OU_EDITAR\s*=\s*\[(.*)\];/);
+    expect(linhaBens, 'BENS_CRIAR_OU_EDITAR ausente em guardasRotas.js').toBeTruthy();
+    const criarOuEditar = [...linhaBens[1].matchAll(/\[T\.PATRIMONIO_BENS,\s*'([a-z_]+)'\]/g)].map((m) => m[1]);
+    expect(criarOuEditar.sort()).toEqual(['editar', 'novo', 'salvar']);
+
+    const bens = trecho(guardas, 'patrimonioBens: {', '},');
+    expect(bens).toMatch(/opcoesCatalogo:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
+    expect(bens).toMatch(/opcoesProdutos:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
+    for (const guarda of ['patrimonioFamilias', 'patrimonioTipos']) {
+      const linha = guardas.match(new RegExp(`${guarda}:\\s*\\{([^\\n]*)\\},`));
+      expect(linha, guarda).toBeTruthy();
+      expect(linha[1], guarda).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
+      expect(linha[1], guarda).toMatch(/criar:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
+      expect(linha[1], guarda).toMatch(/editar:\s*edicaoPatrimonio\(T\.PATRIMONIO_BENS\)/);
+    }
+
+    const edicao = trecho(guardas, 'const edicaoPatrimonio = (alvo) =>', '});');
+    const exigeEdicao = [...edicao.matchAll(/telaPermite\(aut,\s*alvo,\s*'([a-z_]+)'\)/g)].map((m) => m[1]);
+    const editar = exigeEdicao.filter((a) => ACTION_KEYS.includes(a));
+    const inativar = exigeEdicao.filter((a) => !ACTION_KEYS.includes(a));
+    for (const acao of [...ACTION_KEYS.filter((a) => a !== 'visualizar'), 'inativar', 'cancelar']) {
+      const a = acoesDeCatalogoNoBem(comAcoes(TELAS_PATRIMONIO.BENS, { [acao]: true }));
+      expect(a.criarCatalogo, `${acao}:criarCatalogo`).toBe(criarOuEditar.includes(acao));
+      expect(a.produtosDoTanque, `${acao}:produtosDoTanque`).toBe(criarOuEditar.includes(acao));
+      expect(a.editarCatalogo, `${acao}:editarCatalogo`).toBe(editar.includes(acao));
+      expect(a.inativarCatalogo, `${acao}:inativarCatalogo`).toBe(inativar.includes(acao));
+    }
+  });
 });
 
 describe('PAT-M3 — menu do shell real', () => {
@@ -424,16 +503,6 @@ describe('PAT-M3 — menu do shell real', () => {
     expect((await screen.findAllByText('Patrimônio e Frota')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Bens Patrimoniais').length).toBeGreaterThan(0);
     for (const t of TITULOS.slice(1)) expect(screen.queryByText(t), t).toBeNull();
-  });
-
-  it('quem tem só Combustíveis vê o grupo só com ela', async () => {
-    sessao.permissoes = [
-      registro(['mapa', MODULO_PATRIMONIO], [tela('mapa', 'pec-mapa-geral', { visualizar: true }), tela(MODULO_PATRIMONIO, 'pat-combustiveis', { visualizar: true })]),
-    ];
-    await renderShell();
-    expect((await screen.findAllByText('Patrimônio e Frota')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Combustíveis').length).toBeGreaterThan(0);
-    for (const t of TITULOS.filter((x) => x !== 'Combustíveis')) expect(screen.queryByText(t), t).toBeNull();
   });
 
   it('quem tem só Abastecimentos vê o grupo só com ela', async () => {
@@ -461,16 +530,17 @@ describe('PAT-M3 — menu do shell real', () => {
     expect(screen.queryByText('Patrimônio e Frota')).toBeNull();
   });
 
-  it('administrador da fazenda vê o grupo e as seis telas', async () => {
+  it('administrador da fazenda vê o grupo e as duas telas (nenhuma das quatro antigas)', async () => {
     sessao.usuario = admin;
     await renderShell();
     expect((await screen.findAllByText('Patrimônio e Frota')).length).toBeGreaterThan(0);
     for (const t of TITULOS) expect(screen.getAllByText(t).length, t).toBeGreaterThan(0);
+    for (const [, t] of TELAS_REMOVIDAS) expect(screen.queryByText(t), t).toBeNull();
   });
 });
 
 describe('PAT-M3b — Bens dentro do shell: permissão explícita', () => {
-  it('quem só edita adiciona um tanque (o Layout não lê "Adicionar" como "novo") e grava pelo ✓ do cabeçalho', async () => {
+  it('quem só edita adiciona um tanque (o Layout não lê "Adicionar" como "novo") e grava pelo ✓ do cabeçalho, com os Produtos aceitos', async () => {
     sessao.permissoes = [registro([MODULO_PATRIMONIO], [tela(MODULO_PATRIMONIO, 'pat-bens-patrimoniais', { visualizar: true, editar: true })])];
     await renderShell({ rota: '/benspatrimoniais', pagina: 'BensPatrimoniais' });
     const celula = await screen.findByTestId('bem-nome-b1', {}, { timeout: 3000 });
@@ -488,7 +558,7 @@ describe('PAT-M3b — Bens dentro do shell: permissão explícita', () => {
     const tanque = within(form).getByTestId('bem-tanque-1');
     fireEvent.change(within(tanque).getByLabelText(/^Identificador/), { target: { value: 'Reserva' } });
     fireEvent.change(within(tanque).getByLabelText('Capacidade (L)'), { target: { value: '60' } });
-    fireEvent.click(await within(tanque).findByRole('checkbox', { name: 'Diesel S10' }));
+    // P-01: o tanque novo pode ficar sem Produto aceito (o abastecimento é que recusa).
     const botao = await vi.waitFor(() => {
       const b = document.querySelector('.mk-mhdr__round--salvar');
       if (!b) throw new Error('sem ✓');
@@ -506,11 +576,15 @@ describe('PAT-M3b — Bens dentro do shell: permissão explícita', () => {
         empresa_id: 'emp-1',
         versao: 4,
         tanques: [
-          { id: 'tq1', identificador: 'Principal', capacidade_litros: '180', combustivel_ids: ['c1'], ativo: true },
-          { identificador: 'Reserva', capacidade_litros: '60', combustivel_ids: ['c1'] },
+          { id: 'tq1', identificador: 'Principal', capacidade_litros: '180', produto_ids: ['p1'], ativo: true },
+          { identificador: 'Reserva', capacidade_litros: '60', produto_ids: [] },
         ],
       },
     });
+    // D-PROD-162: nada de medições nem de combustíveis no corpo.
+    const patch = backend.chamadas.find((c) => c.method === 'PATCH');
+    expect('medicoes' in patch.body).toBe(false);
+    expect(patch.body.tanques.some((t) => 'combustivel_ids' in t)).toBe(false);
   });
 });
 
@@ -539,7 +613,7 @@ describe('PAT-M3c — Abastecimentos dentro do shell: permissão explícita', ()
   });
 });
 
-describe('PAT-M4 — tela Permissões lista as seis telas com as ações e as extras de cada uma', () => {
+describe('PAT-M4 — tela Permissões lista as duas telas com as ações e a extra de cada uma', () => {
   it('módulo Patrimônio e Frota aparece no gerenciador com as telas e todas as ações desligadas', async () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
     const { default: FormularioUsuario } = await import('@/components/usuarios/FormularioUsuario');
@@ -550,6 +624,10 @@ describe('PAT-M4 — tela Permissões lista as seis telas com as ações e as ex
     await act(async () => {
       caixaModulo.click();
     });
+    // Só as duas telas no cartão do módulo; nenhuma das quatro antigas.
+    const cartaoModulo = screen.getByText('Patrimônio e Frota', { selector: 'label.text-xs' }).closest('.rounded-lg');
+    expect(within(cartaoModulo).getByText('2 TELAS')).toBeTruthy();
+    for (const [, t] of TELAS_REMOVIDAS) expect(screen.queryByText(t, { selector: 'p.font-semibold' }), t).toBeNull();
     for (const t of CADASTROS.map(([, titulo]) => titulo)) {
       const cartao = screen.getByText(t, { selector: 'p.font-semibold' }).closest('.rounded-lg');
       const caixas = within(cartao).getAllByRole('checkbox');
@@ -564,13 +642,14 @@ describe('PAT-M4 — tela Permissões lista as seis telas com as ações e as ex
       expect(within(cartao).queryByText('CONFIRMAR LANÇAMENTO')).toBeNull();
       expect(within(cartao).queryByText('CANCELAR/ESTORNAR ABASTECIMENTO')).toBeNull();
     }
-    // Abastecimentos: visualizar + 6 ações + cancelar/estornar + fator kg/L, todas desligadas.
+    // Abastecimentos: visualizar + 6 ações + cancelar/estornar, todas desligadas (o fator kg/L saiu).
     const cartao = screen.getByText('Abastecimentos', { selector: 'p.font-semibold' }).closest('.rounded-lg');
     const caixas = within(cartao).getAllByRole('checkbox');
-    expect(caixas).toHaveLength(9);
+    expect(caixas).toHaveLength(8);
     expect(caixas.every((c) => c.getAttribute('aria-checked') === 'false')).toBe(true);
     expect(within(cartao).getByText('CANCELAR/ESTORNAR ABASTECIMENTO')).toBeTruthy();
-    expect(within(cartao).getByText('CONFIGURAR FATOR KG/L')).toBeTruthy();
+    expect(within(cartao).queryByText('CONFIGURAR FATOR KG/L')).toBeNull();
+    expect(screen.queryByText('CONFIGURAR FATOR KG/L')).toBeNull();
     expect(within(cartao).getByText('Ações do abastecimento')).toBeTruthy();
     expect(within(cartao).queryByText('CANCELAR LANÇAMENTO')).toBeNull();
     expect(within(cartao).queryByText('INATIVAR/REATIVAR')).toBeNull();

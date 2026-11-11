@@ -1,6 +1,7 @@
 /**
- * D-PROD-157 — rotas dos bens patrimoniais (por EMPRESA), da prévia de
- * depreciação e das opções dos seletores do formulário do bem.
+ * D-PROD-157 / D-PROD-162 — rotas dos bens patrimoniais (por EMPRESA), da
+ * prévia de depreciação e das opções dos seletores do formulário do bem
+ * (famílias, tipos, Produtos aceitos pelo tanque e os da empresa).
  *
  * Corpo e query FECHADOS (`additionalProperties: false`); tenant só da sessão
  * (`cliente_id` no corpo → 400 na barreira global); guardas da tela
@@ -8,6 +9,8 @@
  * editar|salvar e, quando o corpo traz `ativo`, a ação extra `inativar`).
  * `numero`, `natureza` e `empresa_id` não se editam (fora do schema do PATCH
  * → 400; `empresa_id` é só escopo). Sem DELETE: inativação por PATCH.
+ * D-PROD-162: `medicoes` e `combustivel_ids` saíram do contrato (→ 400); cada
+ * tanque traz `produto_ids` (Produtos do estoque aceitos, L ou KG).
  *
  * Decimais são STRING. O Fastify COERGE tipos (`coerceTypes: 'array'`): um
  * número JSON num campo decimal viraria string já corrompida pelo float. Por
@@ -21,14 +24,11 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import * as familias from './familiaPatrimonialService.js';
 import * as tipos from './tipoPatrimonialService.js';
-import * as perfis from './perfilMedicaoService.js';
-import * as combustiveis from './tipoCombustivelService.js';
 import { atualizar, criar, detalhar, listar, previaDepreciacao } from './bemPatrimonialService.js';
-import { opcoesAreas, opcoesCentrosCusto, opcoesParceiros, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
-import { produtosElegiveisDoBem } from './combustivelProdutoService.js';
+import { opcoesAreas, opcoesCentrosCusto, opcoesParceiros, opcoesProdutosParaTanque, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
 import { PADRAO_DINHEIRO, PADRAO_MEDIDA, PADRAO_PERCENTUAL } from './bemPatrimonialRegras.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO, recusarCoercaoPatrimonio } from './patrimonioComum.js';
-import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS } from './patrimonioDominio.js';
+import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS, UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -63,38 +63,23 @@ const medidor = (edicao) => ({
   },
 });
 
-/** Medições: o teto real (20) é regra de negócio (422); o schema só barra abuso. */
-const medicoes = (edicao) => ({
-  type: 'array',
-  maxItems: 50,
-  items: {
-    type: 'object',
-    required: ['perfil_id', 'valor', 'unidade'],
-    additionalProperties: false,
-    properties: {
-      ...(edicao ? { id: ID } : {}),
-      perfil_id: ID,
-      valor: MEDIDA,
-      unidade: { type: 'string', minLength: 1, maxLength: 8 },
-      rotulo: TEXTO(80),
-      principal: { type: ['boolean', 'null'] },
-    },
-  },
-});
-
-/** Tanques: o teto real (10 ativos) é regra de negócio (422); `id`/`ativo` só no PATCH. */
+/**
+ * Tanques: o teto real (10 ativos; 20 Produtos aceitos por tanque, sem
+ * repetição) é regra de negócio (422); o schema só barra abuso. `id`/`ativo`
+ * só no PATCH. `produto_ids` é obrigatório (pode ser vazio, P-01).
+ */
 const tanques = (edicao) => ({
   type: 'array',
   maxItems: 30,
   items: {
     type: 'object',
-    required: ['identificador', 'capacidade_litros', 'combustivel_ids'],
+    required: ['identificador', 'capacidade_litros', 'produto_ids'],
     additionalProperties: false,
     properties: {
       ...(edicao ? { id: ID, ativo: { type: 'boolean' } } : {}),
       identificador: { type: 'string', minLength: 1, maxLength: 40 },
       capacidade_litros: MEDIDA,
-      combustivel_ids: { type: 'array', maxItems: 20, items: ID },
+      produto_ids: { type: 'array', maxItems: 50, items: ID },
       observacao: TEXTO(255),
     },
   },
@@ -165,7 +150,7 @@ const CRIAR = {
     type: 'object',
     required: ['empresa_id', 'nome', 'familia_id', 'tipo_id'],
     additionalProperties: false,
-    properties: { empresa_id: ID, ...CAMPOS_DO_BEM, medidor: medidor(false), medicoes: medicoes(false), tanques: tanques(false) },
+    properties: { empresa_id: ID, ...CAMPOS_DO_BEM, medidor: medidor(false), tanques: tanques(false) },
   },
 };
 
@@ -181,7 +166,6 @@ const ATUALIZAR = {
       versao: VERSAO,
       ...CAMPOS_DO_BEM,
       medidor: medidor(true),
-      medicoes: medicoes(true),
       tanques: tanques(true),
       ativo: { type: 'boolean' },
     },
@@ -207,11 +191,6 @@ const LISTAR = {
 };
 
 const DETALHE = { params: PARAMS, querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } } };
-/** D-PROD-157 (R2): produtos elegíveis do bem (contrato de leitura para a P1-02). */
-const ELEGIVEIS = {
-  params: PARAMS,
-  querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID, tanque_id: ID } },
-};
 
 const PREVIA = {
   body: {
@@ -252,6 +231,8 @@ const OPCOES_CATALOGO = consultaDeOpcoes([]);
 const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID });
 /** Dependem da empresa: `empresa_id` obrigatório. */
 const OPCOES_DA_EMPRESA = consultaDeOpcoes(['empresa_id']);
+/** D-PROD-162: Produtos que o tanque pode aceitar (ativos, da fazenda, L ou KG); `unidade` filtra (achado D8). */
+const OPCOES_PRODUTOS = consultaDeOpcoes(['empresa_id'], { unidade: ENUM(UNIDADES_ABASTECIMENTO) });
 
 const ctx = (request) => {
   exigirAuthContext(request.contexto.auth);
@@ -277,22 +258,17 @@ export const registrarBemPatrimonialRoutes = async (app) => {
     reply.status(201).send(await criar(ctx(request), corpo(request))));
   app.patch('/bens-patrimoniais/:id', { ...autenticado, preHandler: [g.editar], schema: ATUALIZAR }, async (request) =>
     atualizar(ctx(request), idDe(request), corpo(request)));
-  // D-PROD-157 (R2): produtos elegíveis por tanque (leitura; sem preço, saldo ou custo).
-  app.get('/bens-patrimoniais/:id/produtos-elegiveis', { ...autenticado, preHandler: [g.ver], schema: ELEGIVEIS }, async (request) => {
-    const q = consulta(request);
-    return produtosElegiveisDoBem(ctx(request), { empresaId: q.empresa_id, bemId: idDe(request), tanqueId: q.tanque_id ?? null });
-  });
   // Prévia: só cálculo, nada é gravado (guarda de leitura).
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));
 
-  // Opções de catálogo: servem o formulário do bem E o do tipo (A3).
+  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-162: guarda de Bens).
   const catalogo = { ...autenticado, preHandler: [g.opcoesCatalogo] };
   app.get('/bens-patrimoniais-opcoes/familias', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) => familias.opcoes(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/tipos', { ...catalogo, schema: OPCOES_TIPOS }, async (request) => tipos.opcoes(ctx(request), consulta(request)));
-  app.get('/bens-patrimoniais-opcoes/perfis-medicao', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) => perfis.opcoes(ctx(request), consulta(request)));
-  app.get('/bens-patrimoniais-opcoes/combustiveis', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) =>
-    combustiveis.opcoes(ctx(request), consulta(request)));
+  // D-PROD-162: "Produtos aceitos" do tanque — quem cadastra OU edita bem (ver sozinho não lista produtos da fazenda).
+  app.get('/bens-patrimoniais-opcoes/produtos', { ...autenticado, preHandler: [g.opcoesProdutos], schema: OPCOES_PRODUTOS }, async (request) =>
+    opcoesProdutosParaTanque(ctx(request), consulta(request)));
   // Opções da empresa: guarda de leitura dos bens.
   const daEmpresa = { ...autenticado, preHandler: [g.ver], schema: OPCOES_DA_EMPRESA };
   app.get('/bens-patrimoniais-opcoes/responsaveis', daEmpresa, async (request) => opcoesResponsaveis(ctx(request), consulta(request)));

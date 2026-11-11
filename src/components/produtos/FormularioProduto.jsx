@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { formatarMoedaInput, parseMoedaInput } from "@/components/financeiro/moedaUtils";
+import { parseDecimalPtBR } from "@/domain/numeroPtBR";
 import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -14,6 +15,9 @@ import { notifyWarning } from "@/lib/maikeNotify";
 import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_PRODUTO_ID = "formulario-produto-base1";
+
+/** D-PROD-161: texto fixo; o formulário não tem campo de estoque atual. */
+export const AVISO_ESTOQUE_CADASTRO = "Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos";
 
 const TIPOS_USO = [
   "Administrativo",
@@ -28,10 +32,49 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
+/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). */
+const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS", L: "LITROS (L)" });
+const rotuloUnidadeEstoque = (u) => (u === "SACO" || u === "L" ? ROTULO_UNIDADE_ESTOQUE[u] : ROTULO_UNIDADE_ESTOQUE.KG);
+
+/** Sigla ou descrição de unidade de medida que é de litros (L, LT, LTS, LITRO, LITROS...). */
+const ehUnidadeDeLitros = (sigla, descricao) =>
+  /^(L|LT|LTS|LITROS?)$/i.test(String(sigla ?? "").trim()) || /LITRO/i.test(String(descricao ?? ""));
+
+/**
+ * Leitura ÚNICA dos campos com máscara (D-PROD-161): o MESMO número serve para
+ * exibir (`formatarMoedaInput`) e para enviar. O texto do estado é o que o
+ * usuário digitou sobre a máscara de centavos ("0,002" → 0,02); lê-lo de outro
+ * jeito no envio gravava outro valor (o Peso por saco vira o fator SACO→KG).
+ */
 const parseNumero = (val) => {
   if (val === null || val === undefined || val === "") return 0;
   if (typeof val === "number") return val;
   return parseMoedaInput(val);
+};
+
+/** Campos com máscara numérica no formulário. */
+const CAMPOS_MASCARADOS = [
+  "preco_custo",
+  "preco_venda",
+  "estoque_minimo",
+  "percentual_consumo_pv",
+  "consumo_minimo_pv",
+  "consumo_maximo_pv",
+  "peso_por_saco_kg",
+];
+
+/**
+ * Valor lido do servidor ainda não é texto de máscara: decimal canônico
+ * ("30.0000") vira número uma vez, para a máscara não o ler como 300000 centavos.
+ */
+const valoresIniciaisMascarados = (dados) => {
+  const saida = {};
+  for (const campo of CAMPOS_MASCARADOS) {
+    if (typeof dados?.[campo] !== "string") continue;
+    const numero = parseDecimalPtBR(dados[campo]);
+    saida[campo] = numero ?? "";
+  }
+  return saida;
 };
 
 export default function FormularioProduto({
@@ -72,7 +115,7 @@ export default function FormularioProduto({
       observacoes: "",
       ativo: true,
     };
-    if (initialData) return { ...defaults, ...initialData, ativo: initialData.ativo !== false };
+    if (initialData) return { ...defaults, ...initialData, ...valoresIniciaisMascarados(initialData), ativo: initialData.ativo !== false };
     return defaults;
   });
 
@@ -130,6 +173,14 @@ export default function FormularioProduto({
 
   const marcasItems = useMemo(() => marcas.map((m) => ({ id: m.nome, nome: m.nome })), [marcas]);
 
+  // D-PROD-162 (achado D5): estoque em LITROS com uma unidade de medida que não é de
+  // litros pede conferência (aviso, não bloqueia).
+  const unidadeMedidaEscolhida = unidadesItems.find((u) => u.id === formData.unidade_medida);
+  const avisoLitros =
+    formData.unidade_principal_estoque === "L" &&
+    Boolean(String(formData.unidade_medida ?? "").trim()) &&
+    !ehUnidadeDeLitros(formData.unidade_medida, unidadeMedidaEscolhida?.descricao);
+
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setInvalidFields((prev) => prev.filter((f) => f !== field));
@@ -177,7 +228,9 @@ export default function FormularioProduto({
       return;
     }
 
-    onSubmit(normalizarProduto(formData, { isEditing }));
+    // Envia o número EXIBIDO de cada campo com máscara (mesma leitura da tela).
+    const exibidos = Object.fromEntries(CAMPOS_MASCARADOS.map((campo) => [campo, parseNumero(formData[campo])]));
+    onSubmit(normalizarProduto({ ...formData, ...exibidos }, { isEditing }));
   };
 
   const acCls = `${B1_FIELD_CTL_CLS} w-full min-w-0`;
@@ -388,6 +441,15 @@ export default function FormularioProduto({
         />
       </B1Field>
 
+      {/* D-PROD-161: o cadastro não lança estoque; o saldo é do motor físico. */}
+      <p
+        role="note"
+        data-testid="aviso-estoque-cadastro"
+        className="col-span-12 text-xs text-slate-700 bg-slate-100 rounded px-2 py-1"
+      >
+        {AVISO_ESTOQUE_CADASTRO}
+      </p>
+
       <B1Field label="Descrição" span={12} hasValue={Boolean(formData.descricao?.trim())} locked={readOnly} disabled={locked}>
         <textarea
           value={formData.descricao}
@@ -497,7 +559,7 @@ export default function FormularioProduto({
           <input
             type="text"
             readOnly
-            value={formData.unidade_principal_estoque === "SACO" ? "SACOS" : "QUILOGRAMAS (KG)"}
+            value={rotuloUnidadeEstoque(formData.unidade_principal_estoque)}
             className={B1_FIELD_CTL_CLS}
           />
         ) : (
@@ -506,11 +568,18 @@ export default function FormularioProduto({
             onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
             className={B1_FIELD_CTL_CLS}
           >
-            <option value="KG">QUILOGRAMAS (KG)</option>
-            <option value="SACO">SACOS</option>
+            <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
+            <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option>
+            <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
           </B1Select>
         )}
       </B1Field>
+
+      {avisoLitros ? (
+        <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-unidade-litros">
+          A unidade de medida do cadastro não é de litros; confira.
+        </p>
+      ) : null}
 
       {formData.unidade_principal_estoque === "SACO" ? (
         <B1Field

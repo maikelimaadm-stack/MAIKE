@@ -2,10 +2,18 @@
 /**
  * Gera trechos Prisma + migration SQL + módulos backend mínimos (P5.4).
  * Uso único na missão — não entra em verify:all.
+ *
+ * Desde a D-PROD-161 a execução passa por `p54-guarda-estoque.mjs`: nenhum model
+ * de estoque físico (EstoqueLoteNota, MovimentacaoEstoque, Produto com
+ * `estoque_atual`) é derivado do legado aqui. O schema do estoque é
+ * `backend/prisma/schema.prisma` com migrations versionadas. A recusa por nome vem
+ * antes de ler qualquer insumo, e nada é gravado quando há recusa.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { gerarSemEscritaDeEstoque } from './p54-guarda-estoque.mjs';
 
 const ROOT = join(import.meta.dirname, '../..');
 
@@ -54,6 +62,10 @@ const prismaField = (name, prop, required) => {
   return `  ${name}${optional ? '?' : ''} ${prismaType(prop)}${dbType}${suffix}`;
 };
 
+/**
+ * Lista histórica da P5.4, mantida como registro. As duas últimas entradas são
+ * do estoque físico, então a execução normal é recusada (D-PROD-161, fail-closed).
+ */
 const ENTITIES = [
   { file: 'Empresa.jsonc', model: 'Empresa', tenantOnly: true, numero: null },
   { file: 'Permissao.jsonc', model: 'Permissao', tenantOnly: true, numero: null },
@@ -67,7 +79,7 @@ const ENTITIES = [
 
 const SKIP_PROPS = new Set(['id', 'created_date', 'updated_date', 'created_by']);
 
-for (const ent of ENTITIES) {
+const renderizarModel = (ent) => {
   const raw = readFileSync(join(ROOT, 'base44/entities', ent.file), 'utf8');
   const schema = JSON.parse(raw.replace(/\/\/.*$/gm, '').replace(/,\s*}/g, '}').replace(/,\s*]/g, ']'));
   const required = new Set(schema.required || []);
@@ -93,17 +105,24 @@ for (const ent of ENTITIES) {
   lines.push('}');
   lines.push('');
 
-  ent.prismaBlock = lines.join('\n');
+  return lines.join('\n');
+};
+
+const SNIPPET = 'scripts/scaffold/p54-prisma-snippet.txt';
+
+const renderizar = (entidades) => {
+  for (const ent of entidades) ent.prismaBlock = renderizarModel(ent);
+  return [{ caminho: SNIPPET, conteudo: entidades.map((e) => e.prismaBlock).join('\n\n') }];
+};
+
+if (gerarSemEscritaDeEstoque({ gerador: 'p54-generate', raiz: ROOT, entidades: ENTITIES, renderizar })) {
+  const clienteRelations = ENTITIES.map((e) => `  ${e.model.charAt(0).toLowerCase() + e.model.slice(1)}s ${e.model}[]`).join('\n');
+
+  console.log('--- Cliente relations ---');
+  console.log(clienteRelations);
+  console.log('--- Models ---');
+  for (const ent of ENTITIES) {
+    console.log('\n' + ent.prismaBlock);
+  }
+  console.log(`\nWrote ${SNIPPET}`);
 }
-
-const clienteRelations = ENTITIES.map((e) => `  ${e.model.charAt(0).toLowerCase() + e.model.slice(1)}s ${e.model}[]`).join('\n');
-
-console.log('--- Cliente relations ---');
-console.log(clienteRelations);
-console.log('--- Models ---');
-for (const ent of ENTITIES) {
-  console.log('\n' + ent.prismaBlock);
-}
-
-writeFileSync(join(ROOT, 'scripts/scaffold/p54-prisma-snippet.txt'), ENTITIES.map((e) => e.prismaBlock).join('\n\n'));
-console.log('\nWrote scripts/scaffold/p54-prisma-snippet.txt');

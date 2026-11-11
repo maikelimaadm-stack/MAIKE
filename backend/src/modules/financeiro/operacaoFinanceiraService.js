@@ -253,6 +253,8 @@ const MENSAGENS = Object.freeze({
   produto_nao_encontrado: 'produto não encontrado nesta empresa',
   produto_inativo: 'produto inativo',
   unidade_invalida: 'unidade incompatível com o produto (SACO exige produto em SACO com peso por saco)',
+  // D-PROD-162: item em L × Produto não-L (ou o contrário); o `reason` é o mesmo.
+  unidade_invalida_litros: 'unidade incompatível com o produto (litros (L) só para produto com estoque em L, e produto em L só com a unidade L)',
   local_nao_encontrado: 'local de estoque não encontrado',
   local_inativo: 'local de estoque inativo',
   natureza_nao_encontrada: 'natureza financeira não encontrada nesta empresa',
@@ -289,6 +291,9 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
     else if (!prod.ativo) add('produto_id', 'produto_inativo', extra);
     else if (it.unidade === 'SACO' && !(prod.unidade_principal_estoque === 'SACO' && prod.peso_por_saco_kg != null && dec(prod.peso_por_saco_kg).gt(0))) {
       add('unidade', 'unidade_invalida', extra);
+    } else if ((it.unidade === 'L') !== (prod.unidade_principal_estoque === 'L')) {
+      // D-PROD-162 (§4.7): item L só com Produto em L, e Produto em L só com item L.
+      add('unidade', 'unidade_invalida', { ...extra, unidade_produto: prod.unidade_principal_estoque ?? null });
     }
     const loc = refs.locais.get(it.local_estoque_id);
     if (!loc) add('local_estoque_id', 'local_nao_encontrado', extra);
@@ -322,7 +327,10 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
 
 const exigirReferencias = (doc, refs, perfil) => {
   const [primeiro] = problemasDeReferencia(doc, refs, perfil);
-  if (primeiro) throw new AppError(primeiro.code, `${MENSAGENS[/** @type {keyof typeof MENSAGENS} */ (primeiro.reason)] ?? 'referência inválida'}; nada foi gravado`, { details: primeiro.details });
+  if (!primeiro) return;
+  // D-PROD-162: a recusa L × não-L leva `unidade_produto` e o texto próprio; as de antes, o mesmo texto.
+  const chave = primeiro.reason === 'unidade_invalida' && 'unidade_produto' in primeiro.details ? 'unidade_invalida_litros' : primeiro.reason;
+  throw new AppError(primeiro.code, `${MENSAGENS[/** @type {keyof typeof MENSAGENS} */ (chave)] ?? 'referência inválida'}; nada foi gravado`, { details: primeiro.details });
 };
 
 const exigirMetodo = (perfil, metodo, field = 'metodo') => {

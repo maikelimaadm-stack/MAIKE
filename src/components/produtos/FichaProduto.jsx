@@ -37,6 +37,8 @@ export default function FichaProduto({ produto, open, onClose, empresa: empresaP
 
   const estoqueAbaixoMinimo =
     (produto.estoque_minimo || 0) > 0 && (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
+  // D-PROD-162 (achado D5): Produto com estoque em litros mostra "L"; KG e SACO, a unidade de medida como antes.
+  const unidadeDoEstoque = produto.unidade_principal_estoque === 'L' ? 'L' : produto.unidade_medida;
   const margemLucro = produto.preco_custo > 0 
     ? (((produto.preco_venda - produto.preco_custo) / produto.preco_custo) * 100).toFixed(2) 
     : 0;
@@ -173,7 +175,7 @@ export default function FichaProduto({ produto, open, onClose, empresa: empresaP
             <div className={estoqueAbaixoMinimo ? 'bg-orange-100 p-3 rounded' : ''}>
               <p className="text-xs text-gray-600 uppercase">Estoque Atual</p>
               <p className={`font-bold text-2xl ${estoqueAbaixoMinimo ? 'text-orange-700' : 'text-slate-900'}`}>
-                {formatarNumero(produto.estoque_atual || 0)} {produto.unidade_medida}
+                {formatarNumero(produto.estoque_atual || 0)} {unidadeDoEstoque}
               </p>
               {estoqueAbaixoMinimo && (
                 <p className="text-xs text-orange-700 font-semibold mt-1">⚠️ Estoque abaixo do mínimo!</p>
@@ -181,7 +183,7 @@ export default function FichaProduto({ produto, open, onClose, empresa: empresaP
             </div>
             <div>
               <p className="text-xs text-gray-600 uppercase">Estoque Mínimo</p>
-              <p className="font-bold text-2xl">{formatarNumero(produto.estoque_minimo || 0)} {produto.unidade_medida}</p>
+              <p className="font-bold text-2xl">{formatarNumero(produto.estoque_minimo || 0)} {unidadeDoEstoque}</p>
             </div>
           </div>
 

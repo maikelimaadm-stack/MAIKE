@@ -8,8 +8,11 @@
  * O que **não** mudou: filtro por empresa, unicidade de nome por empresa,
  * `numero_produto` por `max + 1`, autonumeração dos registros antigos, número
  * como string, `syncEntityReferences` no update, bloqueio por
- * `MovimentacaoEstoque`, `estoque_atual = 0` no cadastro novo, campos de
- * nutrição e saco/peso por saco.
+ * `MovimentacaoEstoque`, campos de nutrição e saco/peso por saco.
+ *
+ * D-PROD-161 (Estoque P0): o payload do cadastro NUNCA leva o saldo de
+ * estoque — nem no cadastro novo (o servidor grava 0), nem na edição. O saldo é
+ * cache do motor físico e só muda por Entradas/Movimentações.
  *
  * `max + 1` continua sem segurança de concorrência — dívida aberta até a P3.
  */
@@ -107,10 +110,13 @@ const assertNomeLivre = ({ produtos, nome, empresaId, ignorarId }) => {
  * quais campos ficam vermelhos e para qual deles a tela rola — continua na UI;
  * o que veio para cá é a montagem e a coerção de valor.
  *
+ * D-PROD-161: o saldo de estoque não entra no payload em modo nenhum; o estado
+ * da edição espalha o registro lido (com o cache), e ele não volta ao servidor.
+ *
  * @param {object} formData estado do formulário
- * @param {{isEditing?: boolean}} [opcoes]
+ * @param {{isEditing?: boolean}} [opcoes] mantido por compatibilidade: novo e edição montam o mesmo payload
  */
-export const normalizarProduto = (formData, { isEditing = false } = {}) => {
+export const normalizarProduto = (formData, opcoes = {}) => {
   const unidadePrincipal = formData.unidade_principal_estoque || 'KG';
   const pesoPorSaco = parseDecimalPtBR(formData.peso_por_saco_kg);
 
@@ -137,7 +143,6 @@ export const normalizarProduto = (formData, { isEditing = false } = {}) => {
     ativo: formData.ativo,
   };
 
-  if (!isEditing) payload.estoque_atual = 0;
   return payload;
 };
 
@@ -212,11 +217,23 @@ export const isProdutoDeleteBlockedError = (erro) =>
   hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED);
 
 const VINCULO_ESTOQUE = 'movimentações de estoque';
+const VINCULO_TANQUES = 'tanques do patrimônio';
+
+/**
+ * D-PROD-162 (padrão P-10): por que a unidade de estoque não muda
+ * (409 PRODUTO_UNIDADE_EM_USO, `reason`).
+ */
+const MOTIVO_UNIDADE_EM_USO = Object.freeze({
+  estoque: 'Este produto tem estoque',
+  lotes: 'Este produto tem lotes de estoque',
+  movimentos: 'Este produto tem movimentações de estoque',
+  lancamentos: 'Este produto está em lançamentos financeiros',
+});
 
 /**
  * Frase do bloqueio de exclusão com o vínculo REAL que o servidor informou
  * (`details.vinculo`: movimentações de estoque, lançamentos financeiros ou
- * combustíveis do patrimônio) e a quantidade.
+ * tanques do patrimônio — D-PROD-162) e a quantidade.
  * @param {unknown} erro
  */
 export const mensagemExclusaoProdutoBloqueada = (erro) => {
@@ -226,18 +243,58 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
   if (vinculo === VINCULO_ESTOQUE) {
     return `Este produto já possui ${quantidade} registro(s) lançados em ${VINCULO_ESTOQUE} e não pode ser excluído.`;
   }
+  if (vinculo === VINCULO_TANQUES) {
+    return `Este produto está nos Produtos aceitos de ${quantidade} tanque(s) de bens patrimoniais e não pode ser excluído. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais ou inative o produto.`;
+  }
   return `Este produto possui ${quantidade} registro(s) em ${vinculo} e não pode ser excluído. Inative o produto em vez de excluí-lo.`;
 };
 
 /**
- * Mensagem de falha ao salvar o produto. Mudar de fazenda um produto com
- * vínculo ATIVO a combustível do Patrimônio (409 PRODUTO_VINCULADO_COMBUSTIVEL,
- * D-PROD-157 R2) diz o que fazer; o resto segue a mensagem pública do código.
+ * Sugestão do 409 PRODUTO_UNIDADE_EM_USO pela direção da troca: entrando em
+ * litros, um Produto novo em litros; saindo de litros, um Produto novo na
+ * unidade de destino.
+ * @param {Record<string, any>} details
+ */
+export const sugestaoProdutoNovo = (details) => {
+  const de = typeof details?.de === 'string' ? details.de : null;
+  const para = typeof details?.para === 'string' ? details.para : null;
+  if (de === 'L' && para && para !== 'L') {
+    return para === 'SACO' ? 'Cadastre um Produto novo em sacos (SACO).' : `Cadastre um Produto novo em quilos (${para === 'KG' ? 'KG' : para}).`;
+  }
+  return 'Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”.';
+};
+
+/**
+ * Mensagem de falha ao salvar o produto (D-PROD-162). Diz o que fazer quando:
+ *  - o produto está nos Produtos aceitos de um tanque e muda de fazenda
+ *    (409 PRODUTO_EM_TANQUE_PATRIMONIO);
+ *  - a unidade de estoque não pode mudar (409 PRODUTO_UNIDADE_EM_USO, por
+ *    `reason`: estoque, lotes, movimentos, lançamentos — padrão P-10 — ou
+ *    aceito em tanque);
+ *  - D-PROD-161 (Estoque P0): o produto com estoque muda de fazenda
+ *    (409 PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA) ou o corpo tenta gravar o saldo
+ *    (422 PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL);
+ * o resto segue a mensagem pública do código.
  * @param {unknown} erro
  */
 export const mensagemErroSalvarProduto = (erro) => {
-  if (lerErroGestao(erro).code === 'PRODUTO_VINCULADO_COMBUSTIVEL') {
-    return 'Este produto está vinculado a um combustível do Patrimônio nesta fazenda: ele não pode mudar de fazenda. Inative o vínculo na tela Combustíveis antes. Nada foi gravado.';
+  const { code, reason, details } = lerErroGestao(erro);
+  if (code === 'PRODUTO_EM_TANQUE_PATRIMONIO') {
+    return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial: ele não pode mudar de fazenda. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais antes. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_UNIDADE_EM_USO') {
+    if (reason === 'aceito_em_tanque') {
+      return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que só usa estoque em litros (L) ou quilos (KG). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
+    }
+    const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
+    return `${motivo}: a unidade de estoque não muda de ou para litros. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;
+  }
+  // D-PROD-161 (Estoque P0): o saldo do produto é do motor físico.
+  if (code === 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA') {
+    return 'Este produto já tem estoque (lotes ou movimentações) nesta fazenda: ele não pode mudar de fazenda. Cadastre um produto na outra fazenda. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL') {
+    return 'Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos. Nada foi gravado.';
   }
   return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
 };

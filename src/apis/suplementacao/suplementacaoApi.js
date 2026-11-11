@@ -21,19 +21,11 @@ import {
   deleteSuplementacaoLoteNativo,
 } from '@/apis/suplementacao-lotes';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
-import { listProdutos as apiListProdutos, updateProduto as apiUpdateProduto } from '@/apis/produtos';
-import {
-  listMovimentacoesEstoque as apiListMovimentacoesEstoque,
-  createMovimentacaoEstoque as apiCreateMovimentacaoEstoque,
-  updateMovimentacaoEstoque as apiUpdateMovimentacaoEstoque,
-  deleteMovimentacaoEstoque as apiDeleteMovimentacaoEstoque,
-} from '@/apis/movimentacoes-estoque';
+import { listProdutos as apiListProdutos } from '@/apis/produtos';
+import { listMovimentacoesEstoque as apiListMovimentacoesEstoque } from '@/apis/movimentacoes-estoque';
 import {
   listLotesNotaEstoque as apiListLotesNota,
   filterLotesNotaEstoque as apiFilterLotesNota,
-  createLoteNotaEstoque as apiCreateLoteNota,
-  updateLoteNotaEstoque as apiUpdateLoteNota,
-  deleteLoteNotaEstoque as apiDeleteLoteNota,
 } from '@/apis/estoque-lotes-nota';
 import { listPontosSuplementacao as apiListPontosSuplementacao } from '@/apis/pontos-suplementacao';
 import { listLotes } from '../lotes/index.js';
@@ -112,6 +104,11 @@ export const deleteLoteSuplementacao = async (id) => {
 };
 
 // ── Estoque consumido pela suplementação ──────────────────────────────────
+//
+// D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): só LEITURA. A baixa e a transferência
+// vão pelos comandos transacionais (`suplementacaoEstoqueService`), e a
+// reversão pelo navegador foi cortada. As escritas genéricas de movimento,
+// lote e `estoque_atual` (create/update/delete) que só ela usava saíram daqui.
 
 export const listMovimentacoesEstoque = async (opcoes = {}) =>
   comoLista(
@@ -120,31 +117,6 @@ export const listMovimentacoesEstoque = async (opcoes = {}) =>
       ctx('listMovimentacoesEstoque')
     )
   );
-
-export const createMovimentacaoEstoque = async (dados) => {
-  const contexto = ctx('createMovimentacaoEstoque');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => apiCreateMovimentacaoEstoque(dados), contexto);
-};
-
-export const updateMovimentacaoEstoque = async (id, dados) => {
-  const contexto = ctx('updateMovimentacaoEstoque');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => apiUpdateMovimentacaoEstoque(id, dados), {
-    ...contexto,
-    details: { id },
-  });
-};
-
-export const deleteMovimentacaoEstoque = async (id) => {
-  const contexto = ctx('deleteMovimentacaoEstoque');
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => apiDeleteMovimentacaoEstoque(id), {
-    ...contexto,
-    details: { id },
-  });
-};
 
 export const listLotesNota = async () =>
   comoLista(await runProviderCall(() => apiListLotesNota(), ctx('listLotesNota')));
@@ -155,36 +127,10 @@ export const filterLotesNota = async (criterio) => {
   return comoLista(await runProviderCall(() => apiFilterLotesNota(criterio), contexto));
 };
 
-export const createLoteNota = async (dados) => {
-  const contexto = ctx('createLoteNota');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => apiCreateLoteNota(dados), contexto);
-};
-
-export const updateLoteNota = async (id, dados) => {
-  const contexto = ctx('updateLoteNota');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => apiUpdateLoteNota(id, dados), { ...contexto, details: { id } });
-};
-
-export const deleteLoteNota = async (id) => {
-  const contexto = ctx('deleteLoteNota');
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => apiDeleteLoteNota(id), { ...contexto, details: { id } });
-};
-
 // ── Leituras de apoio ─────────────────────────────────────────────────────
 
 export const listProdutos = async () =>
   comoLista(await runProviderCall(() => apiListProdutos(), ctx('listProdutos')));
-
-export const updateProduto = async (id, dados) => {
-  const contexto = ctx('updateProduto');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => apiUpdateProduto(id, dados), { ...contexto, details: { id } });
-};
 
 export const listLotesRebanho = async () =>
   comoLista(await runProviderCall(() => listLotes(), ctx('listLotesRebanho')));

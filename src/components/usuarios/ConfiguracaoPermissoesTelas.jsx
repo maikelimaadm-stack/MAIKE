@@ -31,11 +31,12 @@ const EXTRA_ACTION_LABELS = {
 /**
  * Rótulos POR TELA (D-PROD-159), consultados antes dos globais: em Abastecimentos
  * `cancelar` estorna o abastecimento (a Central segue "CANCELAR LANÇAMENTO").
+ * D-PROD-162: o fator kg/L (`configurar_conversao`) saiu; uma linha antiga que
+ * ainda o tenha fica no JSON, sem caixa nem efeito.
  */
 const EXTRA_ACTION_LABELS_POR_TELA = {
   "pat-abastecimentos": {
     cancelar: "CANCELAR/ESTORNAR ABASTECIMENTO",
-    configurar_conversao: "CONFIGURAR FATOR KG/L",
   },
 };
 
@@ -44,7 +45,7 @@ const rotuloDaAcaoExtra = (pageId, action) => EXTRA_ACTION_LABELS_POR_TELA[pageI
 
 /**
  * Título do bloco de ações extras: a Central de Lançamentos age sobre o
- * lançamento; Abastecimentos sobre o abastecimento; as demais `pat-*` sobre o cadastro.
+ * lançamento; Abastecimentos sobre o abastecimento; Bens Patrimoniais sobre o cadastro.
  */
 const tituloDasAcoesExtras = (pageId) =>
   pageId === "ges-lancamentos-financeiros" ? "Ações do lançamento" : pageId === "pat-abastecimentos" ? "Ações do abastecimento" : "Ações do cadastro";
@@ -53,6 +54,9 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
   const modulosPermitidos = formData.modulos_permitidos || [];
   const permissoesTelas = formData.permissoes_telas || [];
   const mobileMenuIds = formData.mobile_menu_ids || [];
+  // Telas que existem no menu. Um id antigo gravado (ex.: telas removidas pela
+  // D-PROD-162) fica no JSON, mas não aparece nem conta no limite de 4 botões.
+  const idsDeTelasDoMenu = new Set(modules.flatMap((module) => (module.pages || []).map((page) => page.id)));
   const mapaGeralPermissions = normalizeMapaGeralPermissions(formData.mapa_geral_permissoes);
 
   const handleToggleModulo = (moduleId) => {
@@ -105,7 +109,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
       return;
     }
 
-    if (mobileMenuIds.length >= 4) {
+    if (mobileMenuIds.filter((id) => idsDeTelasDoMenu.has(id)).length >= 4) {
       toast.error("Selecione no máximo 4 telas para o menu mobile.");
       return;
     }

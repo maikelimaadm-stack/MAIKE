@@ -15,6 +15,12 @@
  *
  * Rateio e parcelas são SEMPRE sobre `valor_total` (após desconto/acréscimo).
  *
+ * D-PROD-162: mercadoria aceita também `L` (litros), só para Produto com estoque
+ * em L (regra de referência do serviço). Item `L` tem fator 1 (como o KG) e a
+ * sua "quantidade em kg" (`quantidade_estoque`, `kg`, `custo_kg`) fica em
+ * LITROS: os nomes das colunas antigas não mudam. Para KG, SACO e UN o plano é
+ * byte a byte o de antes (teste `gestaoP3UnidadeLitros`).
+ *
  * Escopo do rateio gerencial (D-PROD-156, P3-02), EXCLUSIVO por documento:
  *  - GERAL (padrão; NULL no banco = GERAL): `rateios` do documento, como na
  *    P3-01, sobre `valor_total`; nenhum item traz linhas;
@@ -52,7 +58,14 @@ export const RATEIO_MODOS = Object.freeze(['VALOR', 'PERCENTUAL']);
 export const RATEIO_ESCOPOS = Object.freeze(['GERAL', 'POR_ITEM']);
 export const ESCOPO_PADRAO = 'GERAL';
 export const TIPOS_ITEM = Object.freeze(['MERCADORIA', 'SERVICO']);
-export const UNIDADES = Object.freeze(['KG', 'SACO', 'UN']);
+/**
+ * D-PROD-162: `L` (litros) só para Produto com estoque em L (regra de referência
+ * do serviço); KG, SACO e UN como antes. Item `L` guarda `fator_kg = 1` e
+ * `quantidade_estoque` em LITROS (as colunas antigas mantêm o nome).
+ */
+export const UNIDADES = Object.freeze(['KG', 'SACO', 'UN', 'L']);
+/** Unidade de estoque do item (nas mensagens): `L` para item em litros; kg para KG e SACO. */
+const unidadeDeEstoqueDoItem = (it) => (it?.unidade === 'L' ? 'L' : 'kg');
 export const MAX_ITENS = 200;
 export const MAX_RATEIOS = 50;
 /** D-PROD-156: linhas do rateio por item (por item e no documento inteiro). */
@@ -188,7 +201,7 @@ const normalizarItem = (it, indice) => {
   if (it.tipo_item === 'MERCADORIA') {
     if (!presente(it.produto_id)) throw invalido('produto_id é obrigatório para mercadoria', { field: 'produto_id', reason: 'obrigatorio', ...extra });
     if (!presente(it.local_estoque_id)) throw invalido('local_estoque_id é obrigatório para mercadoria', { field: 'local_estoque_id', reason: 'obrigatorio', ...extra });
-    if (it.unidade !== 'KG' && it.unidade !== 'SACO') throw invalido('mercadoria usa a unidade KG ou SACO', { field: 'unidade', reason: 'unidade_invalida', ...extra });
+    if (it.unidade !== 'KG' && it.unidade !== 'SACO' && it.unidade !== 'L') throw invalido('mercadoria usa a unidade KG, SACO ou L', { field: 'unidade', reason: 'unidade_invalida', ...extra });
     return { ...base, produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, descricao: textoLinha(it.descricao, 'descricao', {}, extra) };
   }
   if (presente(it.produto_id)) throw invalido('serviço não tem produto', { field: 'produto_id', reason: 'nao_permitido_em_servico', ...extra });
@@ -331,7 +344,10 @@ export const planejarOperacao = (doc, referencias) => {
     const total = texto(somar(comCusto.map((i) => i.residuo_custo)), CASAS_RESIDUO);
     avisos.push({
       codigo: 'residuo_custo_estoque',
-      mensagem: `o custo por kg do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e kg × custo (resíduo total ${total}) não entra no custo FIFO do estoque`,
+      // D-PROD-162: com item em L o texto não fala em kg; sem item em L, o de antes.
+      mensagem: comCusto.some((i) => i.unidade === 'L')
+        ? `o custo unitário do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e quantidade × custo unitário (resíduo total ${total}) não entra no custo FIFO do estoque`
+        : `o custo por kg do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e kg × custo (resíduo total ${total}) não entra no custo FIFO do estoque`,
       residuo_total: total,
     });
   }
@@ -364,17 +380,20 @@ const planejarItem = (it, indice, referencias, casas) => {
   if (!valorTotal.gt(0)) throw valoresInvalidos('o subtotal do item (quantidade × valor unitário) arredondado na moeda é zero', { field: 'valor_unitario', reason: 'item_valor_zero', ...extra });
   if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
-  const fator = it.unidade === 'KG' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
+  // D-PROD-162: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
+  const fator = it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
   const kg = arredondar(it.quantidade.times(fator), CASAS_QUANTIDADE);
-  if (!kg.gt(0)) throw valoresInvalidos('a quantidade em kg (arredondada a 4 casas) é zero', { field: 'quantidade', reason: 'quantidade_estoque_zero', ...extra });
+  if (!kg.gt(0)) throw valoresInvalidos(`a quantidade em ${unidadeDeEstoqueDoItem(it)} (arredondada a 4 casas) é zero`, { field: 'quantidade', reason: 'quantidade_estoque_zero', ...extra });
   const acima = [['valor_total', valorTotal], ['quantidade', kg]].find(([, v]) => dec(v).gt(LIMITE_ESTOQUE));
-  if (acima) throw excedeLimiteEstoque(acima[0], extra);
+  if (acima) throw excedeLimiteEstoque(acima[0], extra, it);
   return { ...it, valor_total: valorTotal, fator_kg: fator, quantidade_estoque: kg };
 };
 
-const excedeLimiteEstoque = (field, extra) =>
-  valoresInvalidos('mercadoria acima do limite das colunas de estoque (9.999.999.999,9999 em kg, custo por kg e valor)', { field, reason: 'valor_excede_limite_estoque', ...extra });
+const excedeLimiteEstoque = (field, extra, it) => {
+  const u = unidadeDeEstoqueDoItem(it);
+  return valoresInvalidos(`mercadoria acima do limite das colunas de estoque (9.999.999.999,9999 em ${u}, custo por ${u} e valor)`, { field, reason: 'valor_excede_limite_estoque', ...extra });
+};
 
 /** Valor na escala da moeda → inteiro de unidades mínimas (exige estar na escala). */
 const unidadesDe = (x, casas) => {
@@ -461,11 +480,11 @@ const planejarCustoLiquido = (doc, itens, casas) => {
     const kg = it.quantidade_estoque;
     const custoKg = arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
     const acima = [['valor_total', liquido], ['valor_unitario', custoKg]].find(([, v]) => v.gt(LIMITE_ESTOQUE));
-    if (acima) throw excedeLimiteEstoque(acima[0], { colecao: 'itens', indice });
+    if (acima) throw excedeLimiteEstoque(acima[0], { colecao: 'itens', indice }, it);
     const bruto = liquido.minus(kg.times(custoKg));
     const residuo = bruto.isZero() ? ZERO : bruto;
     if (residuo.abs().gt(Dec.max(u, liquido.times(LIMITE_RESIDUO_RELATIVO)))) {
-      throw valoresInvalidos('o custo por kg com 4 casas não representa o valor líquido desta linha (o resíduo passa de 0,1% do líquido da linha, mínimo 1 unidade da moeda); revise quantidade, unidade ou valores', {
+      throw valoresInvalidos(`o custo por ${unidadeDeEstoqueDoItem(it)} com 4 casas não representa o valor líquido desta linha (o resíduo passa de 0,1% do líquido da linha, mínimo 1 unidade da moeda); revise quantidade, unidade ou valores`, {
         field: 'valor_unitario', reason: 'custo_kg_nao_representavel', ...extra,
         valor_liquido: texto(liquido, casas), quantidade_estoque: texto(kg, CASAS_QUANTIDADE), custo_kg: texto(custoKg, CASAS_CUSTO), residuo_custo: texto(residuo, CASAS_RESIDUO),
       });

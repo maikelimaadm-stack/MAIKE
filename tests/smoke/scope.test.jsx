@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
-// pages.config importa as 16 páginas, que importam o cliente Base44.
+// pages.config importa as páginas registradas, que importavam o cliente Base44.
 // Sem este mock o SDK real tentaria rede durante a coleta.
 vi.mock('@/api/base44Client', async () => {
   const { createBase44Stub } = await import('./base44Stub.js');
@@ -58,6 +58,20 @@ describe('escopo do produto', () => {
     for (const page of flattenMenuPages(DEFAULT_MENU)) {
       expect(permitidas.has(page.url), `menu aponta para ${page.url}`).toBe(true);
     }
+  });
+
+  it('D-PROD-162: Famílias, Tipos, Perfis de Medição e Combustíveis saíram (página, registro, manifesto e menu)', () => {
+    const removidas = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
+    const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
+    for (const nome of removidas) {
+      expect(PAGES[nome], nome).toBeUndefined();
+      expect(scope.allowedPages, nome).not.toContain(nome);
+      expect(doMenu, nome).not.toContain(nome);
+      expect(existsSync(`src/pages/${nome}.jsx`), nome).toBe(false);
+    }
+    // Patrimônio e Frota fica com as duas páginas.
+    expect(scope.allowedPages.filter((p) => ['BensPatrimoniais', 'Abastecimentos'].includes(p))).toEqual(['BensPatrimoniais', 'Abastecimentos']);
+    expect(scope.allowedPages).toHaveLength(24);
   });
 
   it('PageNotFound continua registrado como catch-all', () => {

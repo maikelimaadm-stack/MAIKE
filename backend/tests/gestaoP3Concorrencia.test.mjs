@@ -189,7 +189,11 @@ describe('C1 — CONCORRENCIA-1: PATCH/DELETE administrativo de lote × venda qu
 describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancelar', () => {
   // Detentor e observador no pool do TESTE (`aux`); as vítimas, no pool do
   // app, em ondas de 3 para caber em qualquer pool ≥ 3.
-  test('com produto, sequência de movimentos, perfil e movimento original segurados por 6 s (as travas da confirmação/cancelamento), suplementação, transferência, POST e PATCH de movimento, PATCH de produto, PATCH e DELETE de lote e PUT do perfil esperam e concluem (nunca 500); a retentativa com a mesma operation_id aplica uma vez só', async () => {
+  // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o POST genérico de movimento não
+  // grava nem reserva número (409 imediato, provado em estoqueP0EscritaDireta
+  // D1b) e sai das vítimas; PATCH/DELETE de lote LIVRE continuam vítimas que
+  // ESPERAM a trava do produto e então recusam 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA.
+  test('com produto, sequência de movimentos, perfil e movimento original segurados por 6 s (as travas da confirmação/cancelamento), suplementação, transferência, PATCH de movimento, PATCH de produto e PUT do perfil esperam e concluem (nunca 500); PATCH e DELETE de lote livre esperam e recusam 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA sem efeito; a retentativa com a mesma operation_id aplica uma vez só', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -210,9 +214,6 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     const pedidos = {
       'suplementação (mesmo produto: trava do produto)': () => A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, corpoSup),
       'transferência (OUTRO produto: sequência de movimentos)': () => A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, corpoTransf),
-      'POST /movimentacoes-estoque (sequência de movimentos)': () => A.req('POST', '/movimentacoes-estoque', s.token, {
-        empresa_id: e.id, tipo_movimentacao: 'Entrada', data_movimentacao: '2027-06-10T12:00:00.000Z', produto_id: e.milho.id, quantidade: 3, unidade_medida: 'KG', local_estoque_destino: s.local.id,
-      }),
       'PATCH /produtos (linha do produto)': () => A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
       'PUT do perfil (perfil em FOR SHARE)': () => A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
       'PATCH de lote livre (trava do produto)': () => A.req('PATCH', `/estoque-lotes-nota/${livre.id}`, s.token, { custo_unitario: 2.5 }),
@@ -222,7 +223,7 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     // [vítimas da onda, quantas têm de ficar paradas nas travas] — o PATCH de
     // lote livre pode ou não parar (custo não é coluna restrita), como antes.
     const ondas = [
-      [['suplementação (mesmo produto: trava do produto)', 'transferência (OUTRO produto: sequência de movimentos)', 'POST /movimentacoes-estoque (sequência de movimentos)'], 3],
+      [['suplementação (mesmo produto: trava do produto)', 'transferência (OUTRO produto: sequência de movimentos)'], 2],
       [['PATCH /produtos (linha do produto)', 'PUT do perfil (perfil em FOR SHARE)', 'PATCH de lote livre (trava do produto)'], 2],
       [['PATCH /movimentacoes-estoque (linha do movimento original)', 'DELETE de lote livre (trava do produto)'], 2],
     ];
@@ -250,7 +251,16 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
       }
     }
     const tabela = Object.entries(vitimas).map(([nome, v]) => `${nome}: ${resumo(v)}`).join('\n');
-    for (const [nome, v] of Object.entries(vitimas)) assert.ok(v.r.statusCode < 300, `${nome} → ${v.r.body}\n${tabela}`);
+    const recusadas = ['PATCH de lote livre (trava do produto)', 'DELETE de lote livre (trava do produto)'];
+    for (const [nome, v] of Object.entries(vitimas)) {
+      if (recusadas.includes(nome)) continue;
+      assert.ok(v.r.statusCode < 300, `${nome} → ${v.r.body}\n${tabela}`);
+    }
+    // D-PROD-161: lote livre não muda de custo nem some por rota genérica — a
+    // recusa vem DEPOIS de esperar a trava (nunca 500, nunca timeout).
+    for (const nome of recusadas) {
+      assert.equal(`${vitimas[nome].r.statusCode} ${corpoDe(vitimas[nome].r)?.code}`, '409 ESTOQUE_ESCRITA_DIRETA_RECUSADA', `${nome} → ${vitimas[nome].r.body}\n${tabela}`);
+    }
     // retentativa com a MESMA operation_id: replay, efeito uma vez só
     const sup2 = await A.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', s.token, corpoSup);
     const tr2 = await A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, corpoTransf);
@@ -264,7 +274,8 @@ describe('C2 — CONCORRENCIA-2/3 e ESTOQUE-2: travas longas de confirmar/cancel
     const perfil = await p.perfilFinanceiroEmpresa.findFirst({ where: { cliente_id: s.c, empresa_id: e.id } });
     assert.equal(perfil.locale, 'pt-PT');
     assert.equal((await p.movimentacaoEstoque.findUnique({ where: { id: original.id } })).local_destino, nomeNovo, 'renomeação gravada no movimento');
-    assert.equal(await p.estoqueLoteNota.count({ where: { id: livre2.id } }), 0, 'lote livre excluído');
+    assert.equal(await p.estoqueLoteNota.count({ where: { id: livre2.id } }), 1, 'lote livre NÃO excluído (D-PROD-161)');
+    assert.equal((await p.estoqueLoteNota.findUnique({ where: { id: livre.id } })).custo_unitario.toFixed(4), '2.0000', 'custo do lote livre intacto (D-PROD-161)');
     assert.equal(await p.auditLog.count({ where: { cliente_id: s.c, acao: 'perfil_financeiro.atualizar' } }), 1, 'locale gravado exatamente uma vez');
   });
 
@@ -344,7 +355,11 @@ describe('C7 — CRITICO-1 (rodada 2): comandos chamados com os 20 s do navegado
    * e, AINDA COM A TRAVA SEGURA, já não pode haver transação dela no banco:
    * nada pode commitar depois. Ondas de até 3 vítimas (cabe em pool ≥ 3).
    */
-  test('suplementação, transferência, POST e PATCH de movimento, PATCH de produto, PATCH e DELETE de lote e PUT do perfil: 409 em ≈ 8 s (< 12 s), nenhuma transação viva depois do 409, nada gravado depois de soltar a trava; o reenvio com chave NOVA aplica uma vez', async (t) => {
+  // D-PROD-161 (F3): o POST genérico de movimento não espera mais trava nenhuma
+  // (409 ESTOQUE_ESCRITA_DIRETA_RECUSADA imediato, estoqueP0EscritaDireta D1b):
+  // sai da onda 1. PATCH e DELETE de lote seguem vítimas: esperam a trava do
+  // produto ANTES da recusa e, presos além do lock_timeout, dão 409 CONCURRENCY_CONFLICT.
+  test('suplementação, transferência, PATCH de movimento, PATCH de produto, PATCH e DELETE de lote e PUT do perfil: 409 em ≈ 8 s (< 12 s), nenhuma transação viva depois do 409, nada gravado depois de soltar a trava; o reenvio com chave NOVA aplica uma vez', async (t) => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -366,9 +381,6 @@ describe('C7 — CRITICO-1 (rodada 2): comandos chamados com os 20 s do navegado
       'transferência (formulário antigo, chave K2)': () => A.req('POST', '/movimentacoes-estoque/comandos/transferencia-locais', s.token, {
         operation_id: k2, empresa_id: e.id, produto_id: e.milho.id, local_origem_id: s.local.id, local_destino_id: s.local2.id, quantidade: 10,
       }),
-      'POST /movimentacoes-estoque': () => A.req('POST', '/movimentacoes-estoque', s.token, {
-        empresa_id: e.id, tipo_movimentacao: 'Entrada', data_movimentacao: '2027-06-10T12:00:00.000Z', produto_id: e.milho.id, quantidade: 3, unidade_medida: 'KG', local_estoque_destino: s.local.id,
-      }),
       'PATCH /produtos': () => A.req('PATCH', `/produtos/${e.sal.id}`, s.token, { estoque_minimo: 3 }),
       'PATCH de lote': () => A.req('PATCH', `/estoque-lotes-nota/${loteP.id}`, s.token, { custo_unitario: 2.5 }),
       'DELETE de lote': () => A.req('DELETE', `/estoque-lotes-nota/${loteD.id}`, s.token),
@@ -376,7 +388,7 @@ describe('C7 — CRITICO-1 (rodada 2): comandos chamados com os 20 s do navegado
       'PUT do perfil (tela nova, 20 s padrão)': () => A.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: e.id, pais: 'BR', moeda: 'BRL', locale: 'pt-PT' }),
     };
     const ondas = [
-      ['suplementação (formulário antigo, chave K1)', 'transferência (formulário antigo, chave K2)', 'POST /movimentacoes-estoque'],
+      ['suplementação (formulário antigo, chave K1)', 'transferência (formulário antigo, chave K2)'],
       ['PATCH /produtos', 'PATCH de lote', 'DELETE de lote'],
       ['PATCH /movimentacoes-estoque (renomeação de depósito)', 'PUT do perfil (tela nova, 20 s padrão)'],
     ];

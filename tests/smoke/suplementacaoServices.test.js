@@ -3,7 +3,13 @@
  *
  * Migração de fronteira, não reescrita de domínio: o que se prova aqui é que o
  * I/O saiu dos arquivos `Utils` sem mudar o resultado — FIFO, baixa,
- * transferência pareada, reversão por custo, fechamento e reabertura de período.
+ * transferência pareada, fechamento e reabertura de período.
+ *
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): a reversão pelo navegador (por custo,
+ * com PATCH/POST/DELETE genéricos de lote e movimento e PATCH de
+ * `estoque_atual`) foi cortada — as três funções falham fechadas SEM I/O (SR) —
+ * e a API da suplementação perdeu as escritas genéricas de estoque. O mock
+ * abaixo espelha a API real (SM), então nenhum service pode voltar a usá-las.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -12,11 +18,9 @@ const suplementacao = {
   listEventos: vi.fn(), filterEventos: vi.fn(), createEvento: vi.fn(), updateEvento: vi.fn(), deleteEvento: vi.fn(),
   listLotesSuplementacao: vi.fn(), bulkCreateLotesSuplementacao: vi.fn(),
   updateLoteSuplementacao: vi.fn(), deleteLoteSuplementacao: vi.fn(),
-  listMovimentacoesEstoque: vi.fn(), createMovimentacaoEstoque: vi.fn(),
-  updateMovimentacaoEstoque: vi.fn(), deleteMovimentacaoEstoque: vi.fn(),
-  listLotesNota: vi.fn(), filterLotesNota: vi.fn(), createLoteNota: vi.fn(),
-  updateLoteNota: vi.fn(), deleteLoteNota: vi.fn(),
-  listProdutos: vi.fn(), updateProduto: vi.fn(),
+  listMovimentacoesEstoque: vi.fn(),
+  listLotesNota: vi.fn(), filterLotesNota: vi.fn(),
+  listProdutos: vi.fn(),
   listLotesRebanho: vi.fn(), listMovimentacoesPecuarias: vi.fn(),
   listAreas: vi.fn(), listPontosSuplementacao: vi.fn(),
   MOVIMENTACAO_RECENTE_ORDER: '-created_date',
@@ -48,6 +52,14 @@ const supSvc = await import('@/services/suplementacaoService');
 const puros = await import('@/components/suplementacao/estoqueSuplementacaoUtils');
 const consumo = await import('@/components/utils/consumoUtils');
 const { API_ERROR_CODES, hasApiErrorCode } = await import('@/apis/_core/ApiError');
+/** A API REAL (sem o mock), para provar que o mock a espelha e que as escritas genéricas saíram. */
+const apiReal = await vi.importActual('@/apis/suplementacao');
+
+/** Toda função mockada que foi chamada (API da suplementação e comandos). */
+const chamadasDeApi = () =>
+  Object.entries({ ...suplementacao, ...comandosEstoque, ...comandosSuplementacao })
+    .filter(([, fn]) => fn?.mock?.calls?.length)
+    .map(([nome]) => nome);
 
 const EMPRESA = 'emp-1';
 const PRODUTO = {
@@ -66,9 +78,7 @@ beforeEach(() => {
   for (const fn of Object.values(suplementacao)) {
     if (typeof fn?.mockResolvedValue === 'function') fn.mockResolvedValue([]);
   }
-  suplementacao.createMovimentacaoEstoque.mockImplementation(async (d) => ({ id: `mov-${d.tipo_movimentacao}`, ...d }));
   suplementacao.createEvento.mockImplementation(async (d) => ({ id: 'evt-1', ...d }));
-  suplementacao.createLoteNota.mockImplementation(async (d) => ({ id: 'novo-lote', ...d }));
   comandosEstoque.comandoSaidaSuplementacao.mockImplementation(async (body) => ({
     committed: true,
     operation_id: body.operation_id,
@@ -163,7 +173,9 @@ describe('SB — baixa de suplementação', () => {
         quantidade: 80,
       })
     );
-    expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
+    // D-PROD-161: o caminho genérico nem existe mais na API; só o comando escreve.
+    expect(apiReal.createMovimentacaoEstoque).toBeUndefined();
+    expect(chamadasDeApi()).toEqual(['comandoSaidaSuplementacao']);
     expect(r.committed).toBe(true);
     expect(r.rateio).toHaveLength(2);
   });
@@ -185,7 +197,9 @@ describe('SB — baixa de suplementação', () => {
         localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO', lotesNota: lotesNota(),
       })
     ).rejects.toSatisfy((erro) => hasApiErrorCode(erro, API_ERROR_CODES.INVALID_ARGUMENT));
-    expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
+    // nenhuma escrita: nem o comando (D-PROD-161: o genérico não existe mais)
+    expect(comandosEstoque.comandoSaidaSuplementacao).not.toHaveBeenCalled();
+    expect(chamadasDeApi()).toEqual([]);
   });
 
   it('SB4 — falha de rede no comando propaga (sem sucesso parcial local)', async () => {
@@ -210,7 +224,8 @@ describe('ST — transferência entre locais', () => {
     expect(comandosEstoque.comandoTransferenciaEntreLocais).toHaveBeenCalledWith(
       expect.objectContaining({ empresa_id: EMPRESA, quantidade: 70 })
     );
-    expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
+    expect(apiReal.createMovimentacaoEstoque).toBeUndefined();
+    expect(chamadasDeApi()).toEqual(['comandoTransferenciaEntreLocais']);
     expect(r.movimentacaoSaida?.id).toBe('mov-Saída');
     expect(r.rateio).toHaveLength(2);
   });
@@ -229,37 +244,57 @@ describe('ST — transferência entre locais', () => {
 
 // ── Reversão ──────────────────────────────────────────────────────────────
 
-describe('SR — reversão', () => {
-  it('SR1 — restauração prefere lote com custo compatível', async () => {
+describe('SM — o mock espelha a API real da suplementação', () => {
+  it('SM1 — mesmas exportações (nenhum service usa nome que a API não tem)', () => {
+    expect(Object.keys(suplementacao).sort()).toEqual(Object.keys(apiReal).sort());
+  });
+
+  it('SM2 — sem escrita genérica de movimento, lote ou estoque_atual (D-PROD-161)', () => {
+    for (const nome of ['createMovimentacaoEstoque', 'updateMovimentacaoEstoque', 'deleteMovimentacaoEstoque', 'createLoteNota', 'updateLoteNota', 'deleteLoteNota', 'updateProduto']) {
+      expect(apiReal[nome], nome).toBeUndefined();
+    }
+  });
+});
+
+/**
+ * D-PROD-161 (F3): antes, a reversão restaurava por custo (PATCH/POST de lote),
+ * reescrevia `estoque_atual` e apagava movimentos e lotes com chamadas
+ * genéricas, sem transação (já suspensa na UI, D-PROD-94a). Agora as três
+ * funções mantêm a assinatura e rejeitam com ApiError SEM NENHUMA chamada —
+ * nem de leitura. O estorno de verdade virá do motor (P1).
+ */
+const suspenso = (operacao) => (erro) =>
+  hasApiErrorCode(erro, API_ERROR_CODES.OPERATION_FAILED)
+  && erro.operation === operacao
+  && erro.details?.motivo === 'estorno_suspenso_motor_unico';
+
+describe('SR — reversão pelo navegador: fail-closed sem I/O', () => {
+  it('SR1 — restauração com lote de custo compatível: rejeita sem ler nem escrever', async () => {
     suplementacao.listLotesNota.mockResolvedValue([
       { id: 'l1', produto_id: 'prod-1', local_estoque_id: 'loc-1', custo_unitario: 2, quantidade_disponivel: 5 },
     ]);
     suplementacao.listProdutos.mockResolvedValue([{ id: 'prod-1', estoque_atual: 50 }]);
 
-    await historicoSvc.restaurarEstoqueNoLocal({
+    await expect(historicoSvc.restaurarEstoqueNoLocal({
       empresaId: EMPRESA, produtoId: 'prod-1', produtoNome: 'MILHO', quantidade: 10,
       localEstoqueId: 'loc-1', localEstoqueNome: 'GALPÃO', custoUnitario: 2,
-    });
+    })).rejects.toSatisfy(suspenso('restaurarEstoqueNoLocal'));
 
-    expect(suplementacao.updateLoteNota).toHaveBeenCalledWith('l1', { quantidade_disponivel: 15, status: 'Disponivel' });
-    expect(suplementacao.createLoteNota).not.toHaveBeenCalled();
-    expect(suplementacao.updateProduto).toHaveBeenCalledWith('prod-1', { estoque_atual: 60 });
+    expect(chamadasDeApi()).toEqual([]);
   });
 
-  it('SR2 — sem custo compatível, cria lote REVERSAO', async () => {
+  it('SR2 — restauração sem custo compatível: rejeita sem criar lote REVERSAO', async () => {
     suplementacao.listLotesNota.mockResolvedValue([
       { id: 'l1', produto_id: 'prod-1', local_estoque_id: 'loc-1', custo_unitario: 9, quantidade_disponivel: 5 },
     ]);
-    await historicoSvc.restaurarEstoqueNoLocal({
+    await expect(historicoSvc.restaurarEstoqueNoLocal({
       empresaId: EMPRESA, produtoId: 'prod-1', produtoNome: 'MILHO', quantidade: 10,
       localEstoqueId: 'loc-1', localEstoqueNome: 'GALPÃO', custoUnitario: 2,
-    });
-    expect(suplementacao.createLoteNota).toHaveBeenCalledWith(expect.objectContaining({
-      numero_documento: 'REVERSAO', serie_documento: 'REV', quantidade_disponivel: 10,
-    }));
+    })).rejects.toSatisfy(suspenso('restaurarEstoqueNoLocal'));
+    expect(chamadasDeApi()).toEqual([]);
   });
 
-  it('SR3 — excluir evento apaga lotes, reabre o período anterior e reverte o estoque', async () => {
+  it('SR3 — excluir evento: rejeita sem apagar lotes, sem reabrir período, sem reverter estoque e sem apagar o evento', async () => {
     const evento = { id: 'e2', empresa_id: EMPRESA, ponto_suplementacao_id: 'p1', movimentacao_estoque_id: 'mov-9', data_lancamento: '2026-03-01' };
     suplementacao.listLotesSuplementacao.mockResolvedValue([
       { id: 'sl1', suplementacao_evento_id: 'e2' },
@@ -273,32 +308,28 @@ describe('SR — reversão', () => {
       { id: 'mov-9', produto_id: 'prod-1', quantidade: 10, local_estoque_origem: 'loc-1', local_origem: 'GALPÃO', valor_unitario: 2 },
     ]);
 
-    const r = await historicoSvc.excluirEventoSuplementacaoComReversao({
+    await expect(historicoSvc.excluirEventoSuplementacaoComReversao({
       evento, ponto: { deposito_origem_id: 'd1' },
-    });
+    })).rejects.toSatisfy(suspenso('excluirEventoSuplementacaoComReversao'));
 
-    expect(suplementacao.deleteLoteSuplementacao).toHaveBeenCalledWith('sl1');
-    expect(suplementacao.deleteLoteSuplementacao).not.toHaveBeenCalledWith('sl0');
-    expect(suplementacao.updateEvento).toHaveBeenCalledWith('e1', { dias_periodo: null, consumo_diario_grupo_kg: null });
-    expect(suplementacao.deleteMovimentacaoEstoque).toHaveBeenCalledWith('mov-9');
-    expect(suplementacao.deleteEvento).toHaveBeenCalledWith('e2');
-    expect(r.etapas).toContain('evento_excluido');
+    expect(suplementacao.deleteLoteSuplementacao).not.toHaveBeenCalled();
+    expect(suplementacao.updateEvento).not.toHaveBeenCalled();
+    expect(suplementacao.deleteEvento).not.toHaveBeenCalled();
+    expect(chamadasDeApi()).toEqual([]);
   });
 
-  it('SR4 — falha no meio da reversão vira erro parcial com as etapas concluídas', async () => {
+  it('SR4 — sem etapa concluída: nunca há operação parcial (nada é tentado)', async () => {
     const evento = { id: 'e2', empresa_id: EMPRESA, ponto_suplementacao_id: 'p1' };
     suplementacao.listLotesSuplementacao.mockResolvedValue([{ id: 'sl1', suplementacao_evento_id: 'e2' }]);
     suplementacao.listEventos.mockRejectedValue(new Error('rede'));
 
-    await expect(
-      historicoSvc.excluirEventoSuplementacaoComReversao({ evento, ponto: {} })
-    ).rejects.toSatisfy(
-      (erro) => hasApiErrorCode(erro, API_ERROR_CODES.SUPLEMENTACAO_PARTIAL_OPERATION)
-        && erro.details.etapas.includes('lotes_do_evento')
-    );
+    const erro = await historicoSvc.excluirEventoSuplementacaoComReversao({ evento, ponto: {} }).then(() => null, (e) => e);
+    expect(suspenso('excluirEventoSuplementacaoComReversao')(erro)).toBe(true);
+    expect(erro.details).toEqual({ motivo: 'estorno_suspenso_motor_unico' }); // sem `etapas`: nenhuma concluída
+    expect(chamadasDeApi()).toEqual([]);
   });
 
-  it('SR5 — transferência revertida devolve só o saldo disponível', async () => {
+  it('SR5 — transferência: rejeita sem apagar lotes do destino, sem devolver à origem e sem apagar movimentos', async () => {
     const entrada = {
       id: 'mov-in', tipo_movimentacao: 'Entrada', movimento_pai_id: 'mov-out',
       empresa_id: EMPRESA, produto_id: 'prod-1', produto_nome: 'MILHO',
@@ -308,25 +339,21 @@ describe('SR — reversão', () => {
       entrada, { id: 'mov-out', tipo_movimentacao: 'Saída', movimento_filho_id: 'mov-in' },
     ]);
     suplementacao.listLotesNota.mockResolvedValue([
-      // 50 chegaram, 30 já foram consumidos no destino: só 20 voltam.
       { id: 'dest-1', movimentacao_entrada_id: 'mov-in', custo_unitario: 2, quantidade_disponivel: 20 },
       { id: 'orig-1', produto_id: 'prod-1', local_estoque_id: 'loc-1', custo_unitario: 2, quantidade_disponivel: 5 },
     ]);
 
-    const r = await historicoSvc.excluirTransferenciaDeposito({ movimentacao: entrada });
-
-    expect(suplementacao.deleteLoteNota).toHaveBeenCalledWith('dest-1');
-    expect(suplementacao.updateLoteNota).toHaveBeenCalledWith('orig-1', { quantidade_disponivel: 25, status: 'Disponivel' });
-    expect(suplementacao.deleteMovimentacaoEstoque).toHaveBeenCalledWith('mov-in');
-    expect(suplementacao.deleteMovimentacaoEstoque).toHaveBeenCalledWith('mov-out');
-    expect(r.etapas).toContain('saida_excluida');
+    await expect(historicoSvc.excluirTransferenciaDeposito({ movimentacao: entrada }))
+      .rejects.toSatisfy(suspenso('excluirTransferenciaDeposito'));
+    expect(chamadasDeApi()).toEqual([]);
   });
 
-  it('SR6 — transferência sem entrada localizada é argumento inválido', async () => {
+  it('SR6 — transferência sem entrada localizada: a mesma recusa, sem nem listar', async () => {
     suplementacao.listMovimentacoesEstoque.mockResolvedValue([]);
     await expect(
       historicoSvc.excluirTransferenciaDeposito({ movimentacao: { id: 'x', tipo_movimentacao: 'Saída' } })
-    ).rejects.toSatisfy((erro) => hasApiErrorCode(erro, API_ERROR_CODES.INVALID_ARGUMENT));
+    ).rejects.toSatisfy(suspenso('excluirTransferenciaDeposito'));
+    expect(suplementacao.listMovimentacoesEstoque).not.toHaveBeenCalled();
   });
 });
 

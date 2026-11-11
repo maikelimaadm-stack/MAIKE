@@ -182,6 +182,15 @@ Para adicionar uma página ou entidade:
 - **Backend sem banco não testa.** `npm run test:backend` **falha** sem
   `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
   ter verificado nada.
+- **Recrie o banco de teste local antes do 1º `verify:all` com a migration da
+  D-PROD-162** (`20261110300000_patrimonio_simplifica`). Ela apaga as tabelas do
+  Patrimônio e, de propósito, recusa um banco que tenha linhas nelas sem a impressão
+  aprovada, ou abastecimento CONFIRMADO. Um banco local com sobras de rodadas antigas
+  (testes interrompidos, sementes de E2E) faz o `deploy:migrate` do `test:backend`
+  falhar com a mensagem `D-PROD-162: …`. A CI não é afetada: ela sobe banco novo. Para
+  recomeçar: `docker compose down -v && npm run db:up` (o `-v` apaga o volume local
+  `maike_pgdata`; só `npm run db:down` mantém os dados) ou, num PostgreSQL próprio,
+  `dropdb`/`createdb` do banco de teste. Nunca aponte isso para um banco remoto.
 - **Function Base44 não pode indexar `entities` com variável.** Use acesso
   literal ou um registro literal local — senão `gate:product-scope` reprova com
   `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` (D-PROD-15).

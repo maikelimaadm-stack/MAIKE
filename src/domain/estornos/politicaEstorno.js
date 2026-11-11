@@ -10,8 +10,12 @@
  * SUSPENSOS na interface — fail-closed: o botão não aparece e o handler recusa
  * antes de qualquer chamada.
  *
- * Isto NÃO protege o backend: `DELETE`/`PATCH` genéricos continuam expostos e
- * são escopo da R2.
+ * Desde a D-PROD-161 (MAIKE-ESTOQUE-P0-01) o backend também fecha esse
+ * caminho: POST genérico de movimento e de lote, PATCH de coluna operacional e
+ * DELETE de lote respondem 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (ou
+ * `REGISTRO_OPERACIONAL_IMUTAVEL` quando o lote está vinculado), e
+ * `suplementacaoHistoricoService` falha fechada sem I/O. O estorno de verdade
+ * (no motor físico, transacional) continua para a P1.
  */
 
 export const MENSAGEM_ESTORNO_SUSPENSO =
