@@ -664,3 +664,29 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
   font-size: var(--mk-font-list) !important;
   color: var(--mk-text);
 }
+
+/*
+ * Listas de marcar (escolha múltipla) — caixa de marcar à DIREITA de cada opção, com o ✓ dentro quando marcada
+ * (pedido do proprietário, D-PROD-168): filtros do mapa e campos de marcar vários (Sistema Produtivo, Papéis…).
+ */
+.mk-map-multi-options label:not(#mk-a):not(#mk-b) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mk-map-multi-options label:not(#mk-a):not(#mk-b) > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mk-map-multi-options label:not(#mk-a):not(#mk-b) > input[type="checkbox"] {
+  position: static;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+  accent-color: var(--mk-check-on, #32d65e);
+}

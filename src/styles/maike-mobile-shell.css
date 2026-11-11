@@ -671,11 +671,6 @@
   font-size: 12.5px;
 }
 
-.fpc--sheet {
-  flex: 1 1 auto;
-  padding: 0 8px 10px;
-}
-
 .fpc__titulo {
   flex-shrink: 0;
   padding: 6px 10px;
@@ -693,14 +688,6 @@
 
 .fpc__busca input {
   font-size: 12px;
-}
-
-.fpc--sheet .fpc__busca {
-  height: 44px;
-}
-
-.fpc--sheet .fpc__busca input {
-  font-size: 16px;
 }
 
 .fpc__lista {
@@ -733,12 +720,6 @@
   background: var(--mk-sup-fundo, #F9F9F7);
 }
 
-.fpc--sheet .fpc__item {
-  height: 48px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .fpc__ic {
   display: flex;
   flex-shrink: 0;
@@ -767,10 +748,6 @@
   white-space: nowrap;
 }
 
-.fpc--sheet .fpc__resumo {
-  font-size: 13px;
-}
-
 .fpc__chev {
   display: flex;
   color: #a3a29c;
@@ -782,11 +759,6 @@
   color: #b2b1ab;
   font-size: 11.5px;
   text-align: center;
-}
-
-.fpc--sheet .fpc__vazio {
-  color: #73726c;
-  font-size: 13px;
 }
 
 /* Navegação entre registros no celular — centralizada no rodapé */
@@ -1131,20 +1103,6 @@
   .cadastro-b1 .mg-b1-cards-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
-}
-
-/* Menu da coluna na folha de baixo */
-.mg-col-menu-sheet .mk-sheet__body {
-  padding: 0 8px 10px;
-}
-
-.mg-col-menu-sheet .mg-b1-menuitem {
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 8px;
-  border-radius: 8px;
-  color: #373733;
-  font-size: 16px;
 }
 
 /* Editar/Duplicar/Excluir ficam na faixa de ações (antes iam para o menu ⋮ abaixo de 1024px). */
@@ -1996,10 +1954,6 @@ form[data-mk-lanc] button[class*="border-dashed"] {
   font-size: 15px;
 }
 
-.mk-sheet .fpc--sheet {
-  padding: 0;
-}
-
 .mk-sheet .fpc__busca {
   margin-bottom: 10px;
 }
@@ -2008,16 +1962,6 @@ form[data-mk-lanc] button[class*="border-dashed"] {
 .mk-sheet .fpc__vazio {
   color: #8a8a86;
   font-size: 15px;
-}
-
-/* Menu da coluna: mesmos cartões */
-.mg-col-menu-sheet .mk-sheet__body {
-  gap: 10px;
-  padding: 4px 20px 16px;
-}
-
-.mg-col-menu-sheet .mk-sheet__body > [role="menu"] {
-  gap: 10px;
 }
 
 .mk-sheet .mg-b1-menuitem {
@@ -2291,8 +2235,7 @@ form[data-mk-lanc] button[class*="border-dashed"] {
 /* Listas de opções: um cartão branco com linhas divisórias (agrupado do iOS) */
 .mk-sheet .mgs__lista,
 .mk-sheet .fpc__lista,
-.mk-sheet .mk-co__list,
-.mg-col-menu-sheet .mk-sheet__body > [role="menu"] {
+.mk-sheet .mk-co__list {
   flex: 0 0 auto;
   gap: 0;
   margin: 4px 16px 12px;
@@ -2300,15 +2243,6 @@ form[data-mk-lanc] button[class*="border-dashed"] {
   overflow: hidden;
   border-radius: 26px;
   background: #fff;
-}
-
-.mg-col-menu-sheet .mk-sheet__body {
-  gap: 12px;
-  padding: 4px 0 16px;
-}
-
-.mg-col-menu-sheet .mk-sheet__body > [role="menu"] {
-  margin: 0 16px;
 }
 
 .mk-sheet .mgs__op,

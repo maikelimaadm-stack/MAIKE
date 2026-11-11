@@ -137,6 +137,15 @@ O resto do custo de abrir janela é o movimento do design (a janela nascendo do 
 
 Pedido do proprietário: Open Sans no texto, Lato em títulos e números, tamanhos por elemento e escala 13–46 px. Aplicado pelos tokens de tamanho (`mk-unificado.css`, `base1-tipografia.css`), pela base do `body` e por `tipografia-sistema.css` (peças com tamanho próprio: abas do topo, rótulos, select, títulos de janela, toast, cabeçalho de grupo, card de medição do mapa, menu de módulos). No mapa, o nome do pasto (12px / 400, branco com sombra), a área (10px), o número de cabeças (13px / 500) e as tags (10px / 500) mudam no código do marcador. Conferido no navegador, `main` × branch: lista, formulário e confirmação no desktop e no celular (sem texto sobreposto; nomes longos cabem com a largura padrão das colunas ajustada à fonte). Imagens (esquerda: antes; direita: agora): `tipografia-lista-antes-depois.png`, `tipografia-formulario-antes-depois.png`, `tipografia-celular-antes-depois.png`.
 
+## Filtros no celular e caixa de marcar à direita (D-PROD-168)
+
+- **Celular igual ao tablet:** a faixa de filtros aparece no celular; o funil abre "Procurar campo…" (todos os campos), e o campo, a pílula e o menu da coluna abrem nas mesmas janelas do tablet. Conferido no iPhone 13 (emulado): faixa com 5 pílulas, funil → "Filtrar por campo", Sexo → janela do filtro, Situação → janela da pílula. Imagem: `celular-filtros-igual-tablet.png`.
+- **Caixa à direita:** janela de filtro (Todos, Fêmea, Macho ✓, Misto, com a contagem antes da caixa), Sistema Produtivo (Cria, Recria ✓…) e Papéis do Parceiro (Fornecedor ✓, Cliente…). Imagem: `caixas-a-direita.png`.
+- **Centros de resultado do centro de custo:** "Alterar vínculos" abre o campo de lista (título "Centros de resultado"), com o mesmo desenho dos campos do formulário em edição (borda, raio e fundo medidos iguais) e sem um segundo cartão dentro da seção. Conferido em 1366 px e no celular (390 px). Imagem: `centros-resultado-lista.png`.
+- **Limpeza:** o CSS das folhas de baixo que deixaram de existir saiu (`.fpc--sheet`, `.b1-fr-sheet`, `.mg-col-menu-sheet`).
+- **Testes:** `base1FiltrosCelularCaixas.test.jsx` (celular com a faixa, janelas do tablet sem folha, caixa nas linhas, lista com `{ value, label }`, filtros do mapa); Parceiros, Centros de Custo e vínculos N:N marcam pela lista, com as mesmas regras de gravação.
+- **Teste da main corrigido:** `maikeAdmin.test.jsx` ainda esperava as mensagens de antes da PR #242 ("Exporte o ícone…", "SVG não é aceito") e deixava a CI da main vermelha; passa a esperar as mensagens atuais do painel ("Otimize o arquivo…", "Formato não aceito (image/svg+xml)…"). Nenhuma mudança de produto.
+
 ## Verificação
 
 - Navegador real: medição acima (`paridade-*.png` = design | sistema | diferenças em vermelho; `design-*`/`app-*` = capturas).

@@ -1,7 +1,5 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
-import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import { casaNoFiltroColuna } from "./cadastroColunaFiltroLogic";
 import { ContagemNomesContext, JanelaDoFiltro, semCondicao } from "./FiltrosRapidos";
 import { textoDoTotal } from "./contagemBase1";
@@ -16,7 +14,7 @@ const ALTURA_MAX = 380;
 /**
  * Filtro do cabeçalho da coluna — a MESMA janela do filtro das pílulas da faixa (D-PROD-166): pesquisa com
  * "Condição ⌄", "Todos" e os valores com ✓ e a contagem; no rodapé ✕ · "5 de 12 lotes" · ✓. Tudo é rascunho até o ✓.
- * Abre logo abaixo do cabeçalho (acima, se não couber); no celular, na folha de baixo, como a pílula.
+ * Abre logo abaixo do cabeçalho (acima, se não couber); no celular, igual ao tablet (D-PROD-168).
  *
  * @param {{
  *   rotulo: string,
@@ -45,15 +43,11 @@ export default function CadastroColunaFiltro({
   onAplicar,
   onFechar,
 }) {
-  const celular = useCelular();
   const nomes = React.useContext(ContagemNomesContext);
   const [pos, setPos] = React.useState(/** @type {React.CSSProperties} */ ({ visibility: "hidden" }));
   const janela = React.useRef(/** @type {HTMLDivElement | null} */ (null));
   const fechar = React.useRef(onFechar);
   fechar.current = onFechar;
-  // Celular: o ✓ e a contagem ficam no topo da folha (fora da janela), como na pílula.
-  const controleDaFolha = React.useRef(/** @type {null | { aplicar: () => void }} */ (null));
-  const [contaDaFolha, setContaDaFolha] = React.useState("");
 
   const reposicionar = React.useCallback(() => {
     // Sem cabeçalho visível (cards, coluna fora da tela): usa o botão Filtros.
@@ -75,19 +69,19 @@ export default function CadastroColunaFiltro({
   }, [ancora, ancoraReserva]);
 
   React.useLayoutEffect(() => {
-    if (!celular) reposicionar();
-  }, [reposicionar, celular]);
+    reposicionar();
+  }, [reposicionar]);
 
   // Como na janela da pílula: o foco vai para a pesquisa (quando houver) — depois de posicionada, porque uma
   // janela ainda invisível não recebe foco.
   const visivel = pos.visibility === "visible";
   const focou = React.useRef(false);
   React.useEffect(() => {
-    if (celular || !visivel || focou.current) return;
+    if (!visivel || focou.current) return;
     focou.current = true;
     const alvo = janela.current?.querySelector(".b1-fr-campo");
     if (alvo instanceof HTMLElement) alvo.focus({ preventScroll: true });
-  }, [celular, visivel]);
+  }, [visivel]);
 
   React.useEffect(() => {
     const teclado = (e) => {
@@ -97,7 +91,6 @@ export default function CadastroColunaFiltro({
       fechar.current();
     };
     const fora = (e) => {
-      if (celular) return;
       const th = document.querySelector(ancora)?.closest("th") ?? null;
       if (!deveFecharFiltroPorFora({ alvo: e.target, ponto: e, shell: janela.current, ancora: th })) return;
       fechar.current();
@@ -117,7 +110,7 @@ export default function CadastroColunaFiltro({
       window.removeEventListener("resize", scroll);
       window.removeEventListener("scroll", scroll, true);
     };
-  }, [ancora, reposicionar, celular]);
+  }, [ancora, reposicionar]);
 
   /** @param {{ op: string, v1: string, v2: string, valores: Set<string> | null } | null} previa */
   const contarComo = (previa) =>
@@ -127,8 +120,7 @@ export default function CadastroColunaFiltro({
       nomes,
     });
 
-  /** @param {boolean} semRodape */
-  const corpo = (semRodape) => (
+  const corpo = (
     <JanelaDoFiltro
       rotulo={rotulo}
       tipo={tipo}
@@ -140,40 +132,10 @@ export default function CadastroColunaFiltro({
       contarComo={contarComo}
       onAplicar={onAplicar}
       onCancelar={onFechar}
-      semRodape={semRodape}
-      controleRef={semRodape ? controleDaFolha : undefined}
-      onConta={semRodape ? setContaDaFolha : undefined}
     />
   );
 
-  if (celular) {
-    return (
-      <MobileSheet
-        open
-        initialLarge
-        onClose={() => fechar.current()}
-        label={`Filtrar coluna ${rotulo}`}
-        title={rotulo}
-        aside={contaDaFolha}
-        className="mk-base1-sheet"
-        role="dialog"
-        headerAction={
-          <button
-            type="button"
-            className="mk-sheet__new mk-btn-ok"
-            aria-label="Aplicar"
-            title="Aplicar"
-            onClick={() => controleDaFolha.current?.aplicar()}
-          >
-            <Check aria-hidden />
-          </button>
-        }
-      >
-        <div className="b1-lista-pop b1-fr-sheet">{corpo(true)}</div>
-      </MobileSheet>
-    );
-  }
-
+  // Celular igual ao tablet (pedido do proprietário, D-PROD-168): a mesma janela abaixo do cabeçalho, não a folha.
   return createPortal(
     <div
       ref={janela}
@@ -182,7 +144,7 @@ export default function CadastroColunaFiltro({
       aria-label={`Filtrar coluna ${rotulo}`}
       style={pos}
     >
-      {corpo(false)}
+      {corpo}
     </div>,
     document.body,
   );

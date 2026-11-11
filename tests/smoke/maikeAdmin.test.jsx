@@ -211,9 +211,9 @@ describe('Ícones: principal + subícone, troca com id estável', () => {
     const chamadas = servidor({});
     render(<Icones dados={{ ...DADOS, limites: { ...DADOS.limites, max_bytes: 4 } }} executar={executar} />);
     escolherArquivo('^Imagem principal', new File([PNG], 'grande.png', { type: 'image/png' }));
-    expect(await screen.findByText(/acima do limite de 0 KB\. Exporte o ícone em tamanho menor/)).toBeInTheDocument();
+    expect(await screen.findByText(/acima do limite de 0 KB\. Otimize o arquivo/)).toBeInTheDocument();
     escolherArquivo('^Imagem principal', new File(['<svg/>'], 'x.svg', { type: 'image/svg+xml' }));
-    expect(await screen.findByText(/SVG não é aceito/)).toBeInTheDocument();
+    expect(await screen.findByText(/Formato não aceito \(image\/svg\+xml\)/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Criar ícone' })).toBeDisabled();
     expect(chamadas).toHaveLength(0);
   });

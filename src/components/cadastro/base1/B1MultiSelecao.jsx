@@ -7,11 +7,12 @@ import { focoFicaOndeEsta } from "./janelaUnica";
  * Campo de marcar vários do motor Base1 (D-PROD-164): no lugar das pílulas, o
  * campo mostra o que está marcado e abre a mesma janela de marcar dos filtros
  * do mapa (`mk-map-multi-popup`), ancorada ao campo inteiro e alinhada à
- * direita, em todos os tamanhos de tela.
+ * direita, em todos os tamanhos de tela. Cada opção tem a caixa de marcar à
+ * direita (D-PROD-168). Opção: texto (valor = rótulo) ou `{ value, label }`.
  *
  * @param {{
  *   rotulo: string,
- *   opcoes: string[],
+ *   opcoes: Array<string | { value: string, label: string }>,
  *   valor: string[],
  *   onChange: (proximos: string[]) => void,
  *   disabled?: boolean,
@@ -41,7 +42,8 @@ export default function B1MultiSelecao({
     () => ({ current: { getBoundingClientRect: () => (campo() ?? document.body).getBoundingClientRect() } }),
     [campo],
   );
-  const marcados = opcoes.filter((o) => valor.includes(o));
+  const itens = opcoes.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
+  const marcados = itens.filter((o) => valor.includes(o.value));
 
   // Campo aberto (como no design): `is-open` no .mg-field enquanto a janela está aberta.
   React.useEffect(() => {
@@ -52,10 +54,11 @@ export default function B1MultiSelecao({
     return () => el.classList.remove("is-open");
   }, [open]);
 
+  /** @param {string} opcao valor da opção */
   const alternar = (opcao) => {
     // Mantém a ordem da lista de opções, não a ordem dos cliques.
     const proximos = valor.includes(opcao) ? valor.filter((v) => v !== opcao) : [...valor, opcao];
-    onChange(opcoes.filter((o) => proximos.includes(o)));
+    onChange(itens.filter((o) => proximos.includes(o.value)).map((o) => o.value));
   };
 
   return (
@@ -71,7 +74,7 @@ export default function B1MultiSelecao({
         <input
           id={id}
           readOnly
-          value={marcados.join(", ")}
+          value={marcados.map((o) => o.label).join(", ")}
           placeholder={placeholder}
           disabled={disabled}
           role="combobox"
@@ -122,10 +125,10 @@ export default function B1MultiSelecao({
         >
           <div className="mk-map-multi-title">{rotulo}</div>
           <div className="mk-map-multi-options">
-            {opcoes.map((o) => (
-              <label key={o}>
-                <input type="checkbox" checked={valor.includes(o)} onChange={() => alternar(o)} />
-                <span>{o}</span>
+            {itens.map((o) => (
+              <label key={o.value}>
+                <span>{o.label}</span>
+                <input type="checkbox" checked={valor.includes(o.value)} onChange={() => alternar(o.value)} disabled={disabled} />
               </label>
             ))}
           </div>

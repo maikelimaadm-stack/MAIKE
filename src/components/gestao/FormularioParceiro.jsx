@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import B1Field, { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -52,13 +53,10 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
     setInvalidos((prev) => prev.filter((c) => c !== campo));
   };
 
-  const alternarPapel = (id) => {
+  /** @param {string[]} proximos papéis marcados, na ordem da lista */
+  const definirPapeis = (proximos) => {
     if (readOnly) return;
-    setForm((prev) => ({
-      ...prev,
-      papeis: prev.papeis.includes(id) ? prev.papeis.filter((p) => p !== id) : [...prev.papeis, id],
-    }));
-
+    setForm((prev) => ({ ...prev, papeis: proximos }));
     setInvalidos((prev) => prev.filter((c) => c !== "papeis"));
   };
 
@@ -118,22 +116,17 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
           )}
 
           <SecaoForm titulo="Papéis" />
+          {/* Marcar vários (D-PROD-168): a mesma lista do Sistema Produtivo, com a caixa de marcar à direita. */}
+          <B1Field label="Papéis do parceiro" span={12} hasValue={form.papeis.length > 0} disabled={readOnly} required={!initialData?.id || (Array.isArray(initialData?.papeis) && initialData.papeis.length > 0)}>
+            <B1MultiSelecao
+              rotulo="Papéis do parceiro"
+              opcoes={PAPEIS_PARCEIRO.map((p) => ({ value: p.id, label: p.label }))}
+              valor={form.papeis}
+              onChange={definirPapeis}
+              disabled={readOnly}
+            />
+          </B1Field>
           <div className="col-span-12">
-            <div className="b1-multi" role="group" aria-label="Papéis do parceiro">
-              {PAPEIS_PARCEIRO.map((p) => {
-                const on = form.papeis.includes(p.id);
-                return (
-                  <button key={p.id} type="button" role="checkbox" aria-checked={on} disabled={readOnly} onClick={() => alternarPapel(p.id)} className={`b1-multi__op${on ? " is-on" : ""}`}>
-                    {on ? (
-                      <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                        <path d="M2 6l3 3 5-6" />
-                      </svg>
-                    ) : null}
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
             {invalidos.includes("papeis") ? (
               <p className="mt-1 text-[11px] text-red-700" role="alert" data-testid="parceiro-papeis-obrigatorio">
                 Escolha ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros).

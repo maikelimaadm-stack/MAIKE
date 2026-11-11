@@ -101,7 +101,9 @@ body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
 
 /* Registro sem abas (D-PROD-165), tablet e desktop (`data-b1-painel`): o mesmo desenho do registro com abas do
    design — fundo da página, ‹ › numa linha acima (`b1-reg-navlinha`) e o formulário no cartão branco do tamanho
-   do conteúdo (o cartão da aba, `b1-aba-cartao`). Sem isso ficava numa folha branca até o fim da tela. */
+   do conteúdo (o cartão da aba, `b1-aba-cartao`). Sem isso ficava numa folha branca até o fim da tela.
+   `b1-form-embutido`: grade de campos dentro de outro cartão (ex.: vínculos do centro de custo, D-PROD-168) — só os
+   campos, sem um segundo cartão; o `:where` não muda a especificidade da regra. */
 .cadastro-b1 .mg-shell--join-table > .mg-form-scroll[data-b1-painel]:not(#mk-padrao) {
   padding: 2px 2px 24px;
   border-color: transparent;
@@ -109,7 +111,7 @@ body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
   background: transparent;
   box-shadow: none;
 }
-.cadastro-b1 .mg-form-scroll[data-b1-painel] form[data-densidade]:not(#mk-padrao):not(#mk-b) {
+.cadastro-b1 .mg-form-scroll[data-b1-painel] form[data-densidade]:where(:not(.b1-form-embutido)):not(#mk-padrao):not(#mk-b) {
   flex: 0 0 auto;
   padding: 16px 18px 20px;
   border-radius: 12px;
@@ -131,4 +133,42 @@ body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
    posicionada pela própria tela logo abaixo do cabeçalho — sem o invólucro do Radix, ela mesma é fixa. */
 .mk-sel-pop.b1-col-pop {
   position: fixed;
+}
+
+/* Escolha múltipla com caixa de marcar à DIREITA (pedido do proprietário, D-PROD-168). No design a caixa ficava
+   escondida e só o ✓ aparecia; agora a caixa aparece, à direita, com o ✓ dentro quando marcada:
+   - campos de marcar vários (Sistema Produtivo, Papéis, centros…) e listas do mapa (`.mk-map-multi-options`);
+   - valores do filtro, "Todos" e "+ Filtro" nas janelas da faixa e do cabeçalho (`.b1-fr-box`).
+   Escolha única (Ordenar: `.b1-fr-box--unica`) continua só com o ✓. */
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):not(#mk-c) {
+  padding-right: 12px;
+  background-image: none !important;
+}
+body.b1-tela .mk-map-multi-popup .mk-map-multi-options label:not(#mk-a):not(#mk-b):not(#mk-c) input {
+  position: static;
+  width: 18px;
+  height: 18px;
+  opacity: 1;
+  pointer-events: auto;
+}
+body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) {
+  order: 9;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  border: 1.5px solid #D1D0CA !important;
+  border-radius: 5px;
+  background: #fff !important;
+  color: transparent;
+}
+body.b1-tela .b1-fr-op[aria-selected="true"] .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) {
+  border-color: #32d65e !important;
+  background: #32d65e !important;
+  color: #fff;
+}
+body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):not(#mk-c) svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.2;
 }

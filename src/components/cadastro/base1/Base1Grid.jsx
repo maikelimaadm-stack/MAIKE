@@ -17,7 +17,6 @@ import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
 import { trocaJanela } from "./janelaUnica";
 import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
-import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
 /** Caixa de marcar da grade: 18px, como no design (D-PROD-164). */
 const CAIXA_DA_GRADE = Object.freeze({ width: 18, height: 18 });
@@ -90,7 +89,6 @@ export default function Base1Grid({
   colunaSelecao = true,
 }) {
   const portalSkin = usePortalComprasSkin();
-  const celular = useCelular();
   const key = rowKey ?? ((r) => String(r.id));
   const allOn = rows.length > 0 && rows.every((r) => selected.has(key(r)));
   const someOn = !allOn && rows.some((r) => selected.has(key(r)));
@@ -477,28 +475,6 @@ export default function Base1Grid({
                       >
                         <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
                       </button>
-                    ) : itens.length && celular ? (
-                      <>
-                        <button
-                          type="button"
-                          data-b1-col-menu={c.key}
-                          aria-label={`Abrir menu da coluna ${c.label}`}
-                          className="th-menu"
-                          onClick={() => setMenuFor(c.key)}
-                        >
-                          <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
-                        </button>
-                        <MobileSheet
-                          open={menuFor === c.key}
-                          onClose={() => setMenuFor(null)}
-                          label={`Menu da coluna ${c.label}`}
-                          title={c.label}
-                          role="menu"
-                          className="mg-col-menu-sheet"
-                        >
-                          <MenuList onPick={(k) => escolherNoMenu(k, c, i, fitOn, isAnchor)} items={itens} />
-                        </MobileSheet>
-                      </>
                     ) : itens.length ? (
                       <B1Popover
                         className={cn("w-52 p-1", portalSkin && "b1-portal-compras")}
