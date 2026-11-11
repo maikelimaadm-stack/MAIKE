@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -277,7 +278,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
   return (
     <CadastroFormShell embedded title="Novo abastecimento">
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form">
+        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Máquina e Produto" />
           <SeletorPaginadoGestao
             rotulo="Máquina/Veículo"

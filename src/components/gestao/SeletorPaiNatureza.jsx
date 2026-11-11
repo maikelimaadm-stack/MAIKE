@@ -83,7 +83,8 @@ export default function SeletorPaiNatureza({ empresaId, tipo, excluirId = null, 
 
   return (
     <>
-      <B1Field label={rotuloCampo} span={span} hasValue locked={readOnly} disabled={bloqueado} open={aberto}>
+      {/* Bloqueado até escolher o tipo: caixa travada (cinza), não o modo leitura do design (D-PROD-164). */}
+      <B1Field label={rotuloCampo} span={span} hasValue locked={readOnly || bloqueado} disabled={readOnly} open={aberto}>
         <button
           type="button"
           aria-haspopup="listbox"

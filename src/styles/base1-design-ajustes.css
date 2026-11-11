@@ -68,6 +68,16 @@ body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
 .cadastro-b1 form[data-densidade] .mg-field.is-open .mk-ac-chev:not(#mk-a) {
   color: #52514E;
 }
+/* …e o rótulo do campo aberto fica como o do campo com foco no design (verde, 600, espaçamento .01em) — também no
+   celular, onde a folha da lista é modal e leva o foco (D-PROD-164). */
+.cadastro-b1 form[data-densidade="compacto"] .mg-field.is-open:not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
+  color: var(--cp-rotulo);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.cadastro-b1 form[data-densidade] .mg-field.is-open:not(.mg-field--disabled):not(.mg-field--switch):not(.is-invalid) .mg-field__label:not(#mk-padrao) {
+  color: #15803d;
+}
 
 /* Lista "por página" (100, 200…): no design a lista de opções tem canto de 10px (estilo na própria marcação). */
 body:has(.cadastro-b1--full-page) .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
@@ -84,4 +94,32 @@ body:has(.cadastro-b1--full-page) :is([role="dialog"]:has(> .mg-confirm-dialog),
    não); a navegação de um registro para o outro fica parada, como no design (D-PROD-164). */
 body:has(.cadastro-b1--full-page) .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
   animation: none;
+}
+
+/* Registro sem abas (D-PROD-164), tablet e desktop (`data-b1-painel`): o mesmo desenho do registro com abas do
+   design — fundo da página, ‹ › numa linha acima (`b1-reg-navlinha`) e o formulário no cartão branco do tamanho
+   do conteúdo (o cartão da aba, `b1-aba-cartao`). Sem isso ficava numa folha branca até o fim da tela. */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll[data-b1-painel]:not(#mk-padrao) {
+  padding: 2px 2px 24px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cadastro-b1 .mg-form-scroll[data-b1-painel] form[data-densidade]:not(#mk-padrao):not(#mk-b) {
+  flex: 0 0 auto;
+  padding: 16px 18px 20px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--mk-cartao-sombra, 0 1px 3px rgba(20, 20, 19, 0.08));
+}
+
+/* Títulos de seção dos formulários de Gestão e Patrimônio (`SecaoForm`) usam o título de grupo do design; no
+   celular o design esconde o título do grupo do Lote, mas aqui ele separa Contato, Endereço… então fica. */
+.cadastro-b1 .b1-grupo__cab.b1-secao-form:not(#mk-padrao) {
+  display: flex;
+  margin: 6px 0 0;
+}
+.cadastro-b1 .mg-b1-form-grid > .b1-secao-form:first-child:not(#mk-padrao) {
+  margin-top: 0;
 }

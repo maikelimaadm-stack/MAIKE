@@ -153,6 +153,41 @@ export function B1CampoChave({ label, span = 6, spanLg = undefined, checked, onC
 }
 
 /**
+ * Título de grupo dentro do formulário Base1 (linha inteira): o do design "Cadastro de Lote" (D-PROD-164) —
+ * nome do grupo e uma linha fina até o fim.
+ * @param {{ titulo: import("react").ReactNode, children?: import("react").ReactNode }} props
+ */
+export function B1TituloGrupo({ titulo, children = null }) {
+  return (
+    <div className="col-span-12 b1-grupo__cab b1-secao-form">
+      <h3 className="b1-grupo__titulo">{titulo}</h3>
+      <span className="b1-grupo__linha" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Cartão de campos do formulário Base1 (linha inteira): no design todo campo fica dentro de um cartão branco
+ * (o cartão da aba). Para campos que ficam fora das abas — ex.: a identificação da empresa acima delas (D-PROD-164).
+ * @param {{ children: import("react").ReactNode, className?: string }} props
+ */
+export function B1CartaoCampos({ children, className = undefined }) {
+  return (
+    <div className={cn("col-span-12 b1-aba-cartao b1-cartao-campos", className)}>
+      <div className="b1 mg-b1-form-grid">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Densidade do formulário Base1 (D-PROD-164): a do design "Cadastro de Lote" é `compacto` — campo em caixa
+ * branca com o rótulo no topo, por dentro. O CSS do design só vale para `<form data-densidade>`; todo
+ * formulário do motor leva `data-densidade={DENSIDADE_BASE1}` (sem ela o campo fica no desenho antigo).
+ */
+export const DENSIDADE_BASE1 = "compacto";
+
+/**
  * Controle dentro de `.mg-field` — paridade `ctl` do ResourceForm (CONTROLE-DE-ESTOQUE).
  * Preferir esta classe em formulários Base1 novos; `B1_FIELD_INPUT_CLS` permanece para legado.
  */

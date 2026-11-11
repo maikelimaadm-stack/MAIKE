@@ -35,7 +35,8 @@ const SPAN_LG = {
 
 /**
  * Linha Sim/Não do cadastro Base1 (paridade `ChaveSimNao` / `data-chave` — CONTROLE-DE-ESTOQUE).
- * Grupo compacto: rótulo + switch + Sim/Não adjacentes — sem caixa nem `mg-field`.
+ * Desde a D-PROD-164 é a "chave em caixa" do design "Cadastro de Lote" em todas as telas: rótulo e chave
+ * dentro da mesma caixa do campo (`mg-field mg-field--switch`), como o "Ativo" do Lote.
  *
  * @param {object} props
  * @param {string} props.label
@@ -71,16 +72,20 @@ export default function B1ChaveRow({
       className={cn("col-span-12", SPAN[span] ?? "md:col-span-12", spanLg ? SPAN_LG[spanLg] : null, className)}
       data-field={dataField}
     >
-      <div className="b1-chave-row" data-chave-row>
-        <span className="b1-chave-row__label" id={`${id}-label`}>{label}</span>
-        <B1Switch
-          id={id}
-          checked={checked}
-          onChange={onChange}
-          disabled={disabled}
-          ariaLabel={ariaLabel ?? label}
-          showText={showText}
-        />
+      <div className={cn("mg-field mg-field--switch mg-has-value", disabled && "mg-field--disabled")} data-chave-row="">
+        <span className="mg-field__label" id={`${id}-label`}>
+          {label}
+        </span>
+        <div className="mg-field__control">
+          <B1Switch
+            id={id}
+            checked={checked}
+            onChange={onChange}
+            disabled={disabled}
+            ariaLabel={ariaLabel ?? label}
+            showText={showText}
+          />
+        </div>
       </div>
     </div>
   );

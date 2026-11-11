@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
@@ -87,7 +88,7 @@ export default function FormularioFamilia({ onSubmit, initialData = null, readOn
   return (
     <CadastroFormShell embedded title={editando ? "Editar família patrimonial" : "Nova família patrimonial"}>
       <div className="mg-b1-record-form">
-        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="familia-form">
+        <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="familia-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Identificação" />
           {!rapido ? (
             <CampoTexto

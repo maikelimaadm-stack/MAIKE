@@ -39,7 +39,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
 import { nomesDaContagem, textoDaSelecao, textoDoTotal } from "@/components/cadastro/base1/contagemBase1";
 import { ContagemNomesContext, FiltrosRapidosSlotContext } from "./FiltrosRapidos";
-import { RegistroNavContext } from "./registroNavBase1";
+import { NavegacaoDoRegistro, RegistroNavContext, temNavegacao } from "./registroNavBase1";
 import { cn } from "@/lib/utils";
 
 /**
@@ -421,9 +421,15 @@ export default function CadastroListaChrome({
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
+  // Registro sem abas (D-PROD-164), no tablet e no desktop: o mesmo desenho do registro com abas do design —
+  // sem a faixa de cabeçalho, ‹ › numa linha acima e o formulário num cartão do tamanho do conteúdo
+  // (`data-b1-painel`). No celular fica como estava (título e ‹ › na casca). É atributo, não classe: as abas
+  // põem `b1-form--abas-fora` na mesma caixa direto no DOM, e trocar o `className` apagaria essa classe.
+  const painelUnico = recordMode && navNoFormulario === 0 && !celular;
+
   // Formulário que mostra ‹ › na linha das abas (D-PROD-163) dispensa a faixa de cabeçalho do registro.
   const recordHeaderNode =
-    navNoFormulario > 0
+    navNoFormulario > 0 || painelUnico
       ? null
       : recordMode && recordHeader && React.isValidElement(recordHeader)
         ? React.cloneElement(recordHeader, { joinShell: joinedShell })
@@ -432,7 +438,14 @@ export default function CadastroListaChrome({
   const shellBody = recordMode ? (
     <>
       {recordHeaderNode}
-      <div className={listBodyClass}>{recordBody}</div>
+      <div className={listBodyClass} data-b1-painel={painelUnico ? "" : undefined}>
+        {painelUnico && temNavegacao(contextoNav.info) ? (
+          <div className="b1-reg-navlinha">
+            <NavegacaoDoRegistro info={contextoNav.info} />
+          </div>
+        ) : null}
+        {recordBody}
+      </div>
     </>
   ) : (
     <div className={listBodyClass}>{children}</div>

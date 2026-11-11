@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { B1CartaoCampos, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQueryClient } from "@tanstack/react-query";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroRapidoSheet from "@/components/common/CadastroRapidoSheet";
@@ -518,67 +519,70 @@ export default function FormularioBem({
   return (
     <CadastroFormShell embedded title={editando ? "Editar bem patrimonial" : "Novo bem patrimonial"}>
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form">
-          <CampoTexto
-            label="Nº patrimonial"
-            span={2}
-            value={editando ? String(detalhe.numero ?? "") : ""}
-            onChange={() => {}}
-            readOnly
-            placeholder="GERADO AO SALVAR"
-          />
-          <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
-          <CampoTexto
-            label="Código de frota"
-            span={editando ? 2 : 4}
-            value={form.codigo_frota}
-            onChange={(v) => set("codigo_frota", v)}
-            readOnly={readOnly}
-            maxLength={16}
-            error={erros.codigo_frota}
-            placeholder="EX.: TP-02"
-          />
-          {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
-          <SeletorPaginadoGestao
-            rotulo="Família"
-            testId="bem-seletor-familia"
-            chave={["patrimonio", "familias"]}
-            buscar={({ q, cursor, limit }) => listarOpcoesBem("familias", null, { q, cursor, limit })}
-            value={form.familia ? { id: form.familia.id, rotulo: form.familia.rotulo } : null}
-            onChange={escolherFamilia}
-            detalheDaOpcao={(o) => /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[o?.natureza] ?? null}
-            readOnly={readOnly}
-            obrigatorio
-            textoVazio="— Escolha a família —"
-            erro={erros.familia || undefined}
-            span={4}
-            onCriarNovo={podeCriarCatalogo ? pedirNovaFamilia : undefined}
-            rotuloCriarNovo="Nova família"
-          />
-          <CampoTexto label="Natureza" span={2} value={rotuloNatureza} onChange={() => {}} readOnly />
-          <SeletorPaginadoGestao
-            rotulo="Tipo"
-            testId="bem-seletor-tipo"
-            chave={["patrimonio", "tipos", form.familia?.id ?? null]}
-            buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, familiaId: form.familia?.id ?? null })}
-            value={form.tipo}
-            onChange={escolherTipo}
-            readOnly={readOnly}
-            bloqueadoMotivo={form.familia ? null : "Escolha a família primeiro"}
-            obrigatorio
-            textoVazio="— Escolha o tipo —"
-            erro={erros.tipo || undefined}
-            span={6}
-            onCriarNovo={podeCriarCatalogo && form.familia ? pedirNovoTipo : undefined}
-            rotuloCriarNovo="Novo tipo"
-          />
-          {!natureza && !readOnly ? (
-            <div className="col-span-12">
-              <AvisoGestao tone="blue" testId="bem-escolha-familia">
-                Escolha a família (ou crie uma em “+ Nova família”): a natureza dela (benfeitoria, máquina, veículo…) define as abas e os campos do bem e não muda depois.
-              </AvisoGestao>
-            </div>
-          ) : null}
+        <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
+          {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-164). */}
+          <B1CartaoCampos>
+            <CampoTexto
+              label="Nº patrimonial"
+              span={2}
+              value={editando ? String(detalhe.numero ?? "") : ""}
+              onChange={() => {}}
+              readOnly
+              placeholder="GERADO AO SALVAR"
+            />
+            <CampoTexto label="Nome" required span={6} value={form.nome} onChange={(v) => set("nome", v)} readOnly={readOnly} maxLength={120} error={erros.nome} placeholder="EX.: TRATOR TP-02" />
+            <CampoTexto
+              label="Código de frota"
+              span={editando ? 2 : 4}
+              value={form.codigo_frota}
+              onChange={(v) => set("codigo_frota", v)}
+              readOnly={readOnly}
+              maxLength={16}
+              error={erros.codigo_frota}
+              placeholder="EX.: TP-02"
+            />
+            {editando ? <CampoTexto label="Situação" span={2} value={detalhe.ativo === false ? "Inativo" : "Ativo"} onChange={() => {}} readOnly /> : null}
+            <SeletorPaginadoGestao
+              rotulo="Família"
+              testId="bem-seletor-familia"
+              chave={["patrimonio", "familias"]}
+              buscar={({ q, cursor, limit }) => listarOpcoesBem("familias", null, { q, cursor, limit })}
+              value={form.familia ? { id: form.familia.id, rotulo: form.familia.rotulo } : null}
+              onChange={escolherFamilia}
+              detalheDaOpcao={(o) => /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[o?.natureza] ?? null}
+              readOnly={readOnly}
+              obrigatorio
+              textoVazio="— Escolha a família —"
+              erro={erros.familia || undefined}
+              span={4}
+              onCriarNovo={podeCriarCatalogo ? pedirNovaFamilia : undefined}
+              rotuloCriarNovo="Nova família"
+            />
+            <CampoTexto label="Natureza" span={2} value={rotuloNatureza} onChange={() => {}} readOnly />
+            <SeletorPaginadoGestao
+              rotulo="Tipo"
+              testId="bem-seletor-tipo"
+              chave={["patrimonio", "tipos", form.familia?.id ?? null]}
+              buscar={({ q, cursor, limit }) => listarOpcoesBem("tipos", null, { q, cursor, limit, familiaId: form.familia?.id ?? null })}
+              value={form.tipo}
+              onChange={escolherTipo}
+              readOnly={readOnly}
+              bloqueadoMotivo={form.familia ? null : "Escolha a família primeiro"}
+              obrigatorio
+              textoVazio="— Escolha o tipo —"
+              erro={erros.tipo || undefined}
+              span={6}
+              onCriarNovo={podeCriarCatalogo && form.familia ? pedirNovoTipo : undefined}
+              rotuloCriarNovo="Novo tipo"
+            />
+            {!natureza && !readOnly ? (
+              <div className="col-span-12">
+                <AvisoGestao tone="blue" testId="bem-escolha-familia">
+                  Escolha a família (ou crie uma em “+ Nova família”): a natureza dela (benfeitoria, máquina, veículo…) define as abas e os campos do bem e não muda depois.
+                </AvisoGestao>
+              </div>
+            ) : null}
+          </B1CartaoCampos>
           <div className="col-span-12">
             <Base1PanelTabs
               tabs={abas}

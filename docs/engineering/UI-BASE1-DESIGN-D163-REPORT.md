@@ -42,6 +42,21 @@ Estados medidos (os mesmos do design): lista, linha selecionada, registro em lei
 
 Como o porte é no motor, vale para todas as telas Base1. O Mapa Geral não muda: tudo o que é compartilhado só muda com uma tela Base1 aberta.
 
+### Todas as telas do motor, não só Lotes
+
+Conferindo as outras telas no sistema rodando, só o formulário de Lotes estava no desenho do design: o CSS do design desenha o campo apenas num `<form data-densidade>`, e os outros 18 formulários do motor não tinham a marca — continuavam com o campo cinza de rótulo por dentro, a faixa "Novo X" no topo, a chave "Ativo" solta, títulos de seção em caixa alta e o registro numa folha branca até o fim da tela.
+
+| Peça | Onde |
+|---|---|
+| Densidade do design (`compacto`) em todo formulário do motor | `B1Field.jsx` (`DENSIDADE_BASE1`) + 18 formulários |
+| Registro sem abas: sem a faixa antiga, ‹ › numa linha acima, formulário no cartão do tamanho do conteúdo (tablet e desktop) | `CadastroListaChrome.jsx` (`data-b1-painel`), `base1-design-ajustes.css` |
+| Chave Sim/Não em caixa (o "Ativo" do Lote) | `B1ChaveRow.jsx` |
+| Título de grupo do design (nome + linha) no lugar dos títulos em caixa alta | `B1TituloGrupo` (`B1Field.jsx`), `SecaoForm`, Produtos, Categorias de manejo |
+| Campos fora das abas num cartão (Empresa, Bem) | `B1CartaoCampos` (`B1Field.jsx`) |
+| Seletor vazio sem "SELECIONE" por cima do rótulo; "Natureza pai" travado; Usuários na grade; Estado de Parceiros mais largo | `B1Select.jsx`, `SeletorPaiNatureza.jsx`, `FormularioContaAcesso.jsx`, `FormularioParceiro.jsx` |
+
+Evidências: `telas-setores-novo-antes-depois.png`, `telas-parceiros-novo-antes-depois.png`, `telas-empresa-novo-antes-depois.png` e `telas-celular-novo-setores-parceiros-produtos-marcas.png`. Teste: `tests/smoke/base1TelasDesign.test.jsx` (inclusive a regressão em que trocar o `className` da rolagem apagava as abas em pílula).
+
 ## Resultado (medição final)
 
 Arquivo completo: `docs/engineering/evidencias/base1-design-d163/paridade-RESUMO.txt`.
@@ -79,6 +94,7 @@ Arquivo completo: `docs/engineering/evidencias/base1-design-d163/movimento-RESUM
 - Salvar com campo numérico vazio avisa "Campos obrigatórios" ("Número inválido" só com número digitado errado).
 - Celular: o funil abre a lista "Filtros" da faixa (antes: "Filtrar por campo").
 - Abas sem a opção de lista lateral; "Ativo" como chave em caixa; situação na grade com ponto colorido (o selo antigo saiu).
+- Todas as telas do motor: campos no desenho do design; registro sem abas sem a faixa de cabeçalho (‹ › numa linha acima); chave "Ativo" em caixa; títulos de seção sem caixa alta.
 - Com tela Base1 aberta: janelas abrem e fecham com o movimento do design; o painel da aba não esmaece mais ao abrir, criar ou trocar de registro (só ao trocar de aba); "Confirmar exclusão" aparece e some sem esmaecer; no celular, o ✕ e o toque fora fecham a folha na hora e a cópia faz a descida (arrastar para fechar continua igual).
 
 ## Verificação

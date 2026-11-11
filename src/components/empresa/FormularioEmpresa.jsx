@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
 import { projetarPayloadEmpresa } from "@/services/empresaWritePayload";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1CartaoCampos } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
@@ -481,62 +481,66 @@ export default function FormularioEmpresa({
       className="b1 mg-b1-form-grid w-full min-h-0 grid grid-cols-12 gap-x-3 gap-y-2"
       noValidate
       data-testid="b1-form-empresa"
+      data-densidade={DENSIDADE_BASE1}
     >
-      <B1Field label="Nº da Empresa" span={3} hasValue locked disabled>
-        <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-[#FAFCFE]`} />
-      </B1Field>
-      <B1Field
-        label="Apelido"
-        required
-        span={3}
-        hasValue={Boolean(formData.apelido?.trim())}
-        locked={readOnly}
-        disabled={readOnly}
-        error={invalidFields.includes("apelido") ? "Obrigatório" : undefined}
-      >
-        <input
-          type="text"
-          value={formData.apelido}
-          onChange={(e) => handleChange("apelido", e.target.value)}
-          placeholder="FAZENDA PALMITAL"
-          className={`${B1_FIELD_CTL_CLS} uppercase`}
-          readOnly={readOnly}
-        />
-      </B1Field>
-      <B1Field
-        label="Nome/Razão Social"
-        required
-        span={4}
-        hasValue={Boolean(formData.nome?.trim())}
-        locked={readOnly}
-        disabled={readOnly}
-        error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
-      >
-        <input
-          type="text"
-          value={formData.nome}
-          onChange={(e) => handleChange("nome", e.target.value)}
-          placeholder="NOME COMPLETO"
-          className={`${B1_FIELD_CTL_CLS} uppercase`}
-          readOnly={readOnly}
-        />
-      </B1Field>
-      <B1Field
-        label="Tipo"
-        required
-        span={2}
-        hasValue={Boolean(formData.tipo_pessoa)}
-        locked={readOnly}
-        disabled={readOnly}
-      >
-        <MgSelect
-          value={formData.tipo_pessoa}
-          onChange={readOnly ? () => {} : (v) => handleChange("tipo_pessoa", v)}
-          options={TIPO_OPTIONS}
+      {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-164). */}
+      <B1CartaoCampos>
+        <B1Field label="Nº da Empresa" span={3} hasValue locked disabled>
+          <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-[#FAFCFE]`} />
+        </B1Field>
+        <B1Field
+          label="Apelido"
+          required
+          span={3}
+          hasValue={Boolean(formData.apelido?.trim())}
+          locked={readOnly}
           disabled={readOnly}
-          ariaLabel="Tipo de pessoa"
-        />
-      </B1Field>
+          error={invalidFields.includes("apelido") ? "Obrigatório" : undefined}
+        >
+          <input
+            type="text"
+            value={formData.apelido}
+            onChange={(e) => handleChange("apelido", e.target.value)}
+            placeholder="FAZENDA PALMITAL"
+            className={`${B1_FIELD_CTL_CLS} uppercase`}
+            readOnly={readOnly}
+          />
+        </B1Field>
+        <B1Field
+          label="Nome/Razão Social"
+          required
+          span={4}
+          hasValue={Boolean(formData.nome?.trim())}
+          locked={readOnly}
+          disabled={readOnly}
+          error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
+        >
+          <input
+            type="text"
+            value={formData.nome}
+            onChange={(e) => handleChange("nome", e.target.value)}
+            placeholder="NOME COMPLETO"
+            className={`${B1_FIELD_CTL_CLS} uppercase`}
+            readOnly={readOnly}
+          />
+        </B1Field>
+        <B1Field
+          label="Tipo"
+          required
+          span={2}
+          hasValue={Boolean(formData.tipo_pessoa)}
+          locked={readOnly}
+          disabled={readOnly}
+        >
+          <MgSelect
+            value={formData.tipo_pessoa}
+            onChange={readOnly ? () => {} : (v) => handleChange("tipo_pessoa", v)}
+            options={TIPO_OPTIONS}
+            disabled={readOnly}
+            ariaLabel="Tipo de pessoa"
+          />
+        </B1Field>
+      </B1CartaoCampos>
 
       <div className="col-span-12">
         <Base1PanelTabs

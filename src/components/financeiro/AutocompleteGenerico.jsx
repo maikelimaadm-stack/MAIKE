@@ -94,6 +94,16 @@ export default function AutocompleteGenerico({
     if (perdido && campo?.isConnected) campo.focus({ preventScroll: true });
   }, [open, celular]);
 
+  // Celular: com a folha aberta o foco está dentro dela, então o campo marca `is-open` para ficar com o visual de
+  // campo aberto do design (rótulo em cima, seta escura), como no painel do desktop (D-PROD-164).
+  useEffect(() => {
+    if (!celular) return undefined;
+    const campo = wrapperRef.current?.closest(".mg-field");
+    if (!campo) return undefined;
+    campo.classList.toggle("is-open", open);
+    return () => campo.classList.remove("is-open");
+  }, [open, celular]);
+
   if (celular) {
     const termo = buscaCelular.trim().toLowerCase();
     const encontrados = termo

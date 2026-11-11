@@ -1,15 +1,13 @@
 import React from "react";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
 
-/** Título de seção do formulário Base1 (ocupa a linha inteira). */
+/**
+ * Título de seção do formulário Base1 (ocupa a linha inteira). Desde a D-PROD-164 é o título de grupo do
+ * design "Cadastro de Lote" (`B1TituloGrupo`): nome do grupo e uma linha fina até o fim.
+ */
 export function SecaoForm({ titulo, children = null }) {
-  return (
-    <div className="col-span-12 mt-1 border-b border-[var(--mg-divider)] pb-0.5">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">{titulo}</h3>
-      {children}
-    </div>
-  );
+  return <B1TituloGrupo titulo={titulo}>{children}</B1TituloGrupo>;
 }
 
 /**
