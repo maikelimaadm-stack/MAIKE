@@ -371,8 +371,10 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   });
 });
 
-describe("Cadastro do Mapa — botão na aba Áreas", () => {
-  it("'Importar áreas' aparece na aba Áreas e abre o assistente; desenhar, selecionar e GPS continuam lá", async () => {
+describe("Cadastro do Mapa — 'Importar áreas' na aba Áreas", () => {
+  // D-PROD-174: a tela é do motor Base1. "+ Novo" desenha a área no mapa; GPS, seleção no mapa e importação ficam
+  // em "Mais opções", como as ações próprias das outras telas do motor (ex.: "Gerenciar tipos" de Bens).
+  it("'Importar áreas' fica em 'Mais opções' da aba Áreas e abre o assistente; desenhar, selecionar e GPS continuam lá", async () => {
     vi.doMock("@/services/mapaService", () => ({
       listarSetoresAtivos: async () => SETORES,
       listarAreasAtivas: async () => [],
@@ -390,10 +392,13 @@ describe("Cadastro do Mapa — botão na aba Áreas", () => {
         <MapaCadastro />
       </QueryClientProvider>
     );
-    for (const nome of ["Desenhar no Mapa", "Selecionar no Mapa", "Usar GPS"]) {
-      expect(screen.getByRole("button", { name: nome })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Áreas", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Novo" })).toBeInTheDocument(); // desenhar no mapa
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    for (const nome of ["Nova área por GPS", "Selecionar no mapa"]) {
+      expect(screen.getByText(nome)).toBeInTheDocument();
     }
-    fireEvent.click(screen.getByRole("button", { name: /Importar áreas/ }));
+    fireEvent.click(screen.getByText("Importar áreas"));
     expect(await screen.findByText(/Etapa 1 de 3/)).toBeInTheDocument();
     expect(apis.importarAreas).not.toHaveBeenCalled();
     vi.doUnmock("@/services/mapaService");

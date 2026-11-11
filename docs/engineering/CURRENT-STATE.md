@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-11) — UI-MAPA-TIPOGRAFIA: o Mapa Geral com a tipografia do motor Base1 (D-PROD-173)
+## Missão ativa (2026-11-11) — UI-CADASTRO-MAPA: Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-174**, pedida pelo proprietário em 2026-11-11: "Já aproveite e já ajuste também para cadastro de áreas, etc" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-173 |
+| Escopo | Cada aba (Áreas, Pontos, Linhas) vira uma tela do motor: barra, faixa, grade e cards, registro. "+ Novo" desenha no mapa; GPS, seleção no mapa, importação, pontos em lote e ações em lote das áreas em "Mais opções"; "Editar no mapa" no registro. Formulário da Área com campos e listas do motor; Ponto e Linha com a lista do motor (`SelectDoMotor`) e travados em leitura. Saem as tabelas antigas |
+| Migration | Nenhuma |
+| Release | Merge e deploy |
+| Relatório | [`UI-CADASTRO-MAPA-D174-REPORT.md`](./UI-CADASTRO-MAPA-D174-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-MAPA-TIPOGRAFIA: o Mapa Geral com a tipografia do motor Base1 (D-PROD-173)
 
 | Campo | Valor |
 |---|---|
