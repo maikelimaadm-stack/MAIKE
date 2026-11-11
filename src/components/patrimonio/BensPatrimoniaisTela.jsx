@@ -43,7 +43,7 @@ const produtoRecusadoDoErro = (erro) => {
 };
 
 /**
- * Resumo da instalação do catálogo padrão (D-PROD-161: só famílias e tipos).
+ * Resumo da instalação do catálogo padrão (D-PROD-162: só famílias e tipos).
  * @param {{ resumo: { criados: string, existentes: string, conflitos: string[] }, onFechar: () => void }} props
  */
 function ResumoCatalogoPadrao({ resumo, onFechar }) {
@@ -84,7 +84,7 @@ function ResumoCatalogoPadrao({ resumo, onFechar }) {
  * Inativar/reativar é ação do menu, com confirmação, e exige a ação extra
  * `inativar` (nada é apagado). Conflito de versão recarrega o registro.
  *
- * D-PROD-161: famílias e tipos vivem aqui. O "⋯" traz "Gerenciar famílias e
+ * D-PROD-162: famílias e tipos vivem aqui. O "⋯" traz "Gerenciar famílias e
  * tipos" (para quem vê Bens) e "Instalar catálogo padrão" (só administrador,
  * P-06); o formulário tem "+ Nova família"/"+ Novo tipo" e os Produtos aceitos
  * de cada tanque.
@@ -401,7 +401,7 @@ export default function BensPatrimoniaisTela() {
       },
     });
   }
-  // D-PROD-161: famílias e tipos (catálogo do tenant, não pedem empresa) são do cadastro de Bens.
+  // D-PROD-162: famílias e tipos (catálogo do tenant, não pedem empresa) são do cadastro de Bens.
   if (acoes.ver) {
     acoesDoMenu.push({ key: "gerenciar-catalogo", label: "Gerenciar famílias e tipos", onSelect: () => setGerenciarAberto(true) });
   }

@@ -54,6 +54,7 @@ import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.j
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
 import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoqueLoteNotaRoutes.js';
 import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
+import { registrarEstoqueFisicoRoutes } from './modules/estoqueFisico/estoqueFisicoRoutes.js';
 import { registrarMovimentacaoMapaRoutes } from './modules/movimentacoesMapa/movimentacaoMapaRoutes.js';
 import { registrarRebanhoLedgerRoutes } from './modules/rebanhoLedger/rebanhoLedgerRoutes.js';
 import { registrarMovimentacaoPecuariaRoutes } from './modules/movimentacoesPecuaria/movimentacaoPecuariaRoutes.js';
@@ -214,13 +215,13 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarNaturezaFinanceiraRoutes);
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   await app.register(registrarOperacaoFinanceiraRoutes);
-  // D-PROD-157 / D-PROD-161 — Patrimônio e Frota: famílias e tipos (do tenant,
+  // D-PROD-157 / D-PROD-162 — Patrimônio e Frota: famílias e tipos (do tenant,
   // mantidos no cadastro de Bens) e bens da empresa com tanques e os Produtos
   // aceitos por tanque (sem estoque/financeiro; a depreciação é só prévia
-  // simulada). O vínculo combustível × produto e o fator kg/L saíram (D-PROD-161).
+  // simulada). O vínculo combustível × produto e o fator kg/L saíram (D-PROD-162).
   await app.register(registrarPatrimonioCatalogoRoutes);
   await app.register(registrarBemPatrimonialRoutes);
-  // D-PROD-159 / D-PROD-161 — abastecimentos: baixa EXATA da quantidade digitada,
+  // D-PROD-159 / D-PROD-162 — abastecimentos: baixa EXATA da quantidade digitada,
   // na unidade de estoque do Produto (L ou KG), pelo motor de estoque.
   await app.register(registrarAbastecimentoRoutes);
   await app.register(registrarCategoriaManejoRoutes);
@@ -228,6 +229,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarPontoSuplementacaoRoutes);
   await app.register(registrarEstoqueLoteNotaRoutes);
   await app.register(registrarMovimentacaoEstoqueRoutes);
+  await app.register(registrarEstoqueFisicoRoutes); // D-PROD-161: reconciliação somente leitura
   await app.register(registrarMovimentacaoMapaRoutes);
   await app.register(registrarRebanhoLedgerRoutes);
   await app.register(registrarMovimentacaoPecuariaRoutes);

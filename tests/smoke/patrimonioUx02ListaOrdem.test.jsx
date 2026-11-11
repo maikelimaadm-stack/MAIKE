@@ -127,14 +127,14 @@ describe('UX-02 L1 — ordem padrão da lista = ordem do servidor (Nº desc)', (
  * A célula da máquina já diz qual é a máquina, então o rótulo "Máquina/Veículo"
  * (pede 157) é a ÚNICA exceção aceita: no tablet ele sai com reticências.
  *
- * D-PROD-161: "Litros" e "KG" viraram UMA coluna "Quantidade" (número + "L" ou
+ * D-PROD-162: "Litros" e "KG" viraram UMA coluna "Quantidade" (número + "L" ou
  * "kg"). Ela pede o rótulo inteiro (~80 px de texto: 76,5 medidos com a fonte
  * estática do ensaio × 1,05, a razão entre os 6 rótulos acima e a mesma medida)
  * e "999,9999 kg" (82,7, medida igual à de "999,9999 L" = 75,2 acima). Quem
  * cede os 27 px é a Máquina/Veículo (124 → 97), cuja célula continua mostrando
  * o código da frota, que vem primeiro.
  */
-describe('UX-02 L2 (revisto pela D-PROD-161) — larguras padrão cabem em 820 px sem cortar o Produto, a Data, a Quantidade nem os números', () => {
+describe('UX-02 L2 (revisto pela D-PROD-162) — larguras padrão cabem em 820 px sem cortar o Produto, a Data, a Quantidade nem os números', () => {
   const ROTULO = { data_operacional: 31.7, bem: 113.8, produto: 54.0, quantidade: 80.3, leitura: 56.3, status: 59.3 };
   /** Cabeçalho que pode cortar no tablet (decisão do orquestrador, rodada 2). */
   const ROTULO_PODE_CORTAR = ['bem'];

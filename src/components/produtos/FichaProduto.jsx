@@ -37,7 +37,7 @@ export default function FichaProduto({ produto, open, onClose, empresa: empresaP
 
   const estoqueAbaixoMinimo =
     (produto.estoque_minimo || 0) > 0 && (produto.estoque_atual || 0) <= (produto.estoque_minimo || 0);
-  // D-PROD-161 (achado D5): Produto com estoque em litros mostra "L"; KG e SACO, a unidade de medida como antes.
+  // D-PROD-162 (achado D5): Produto com estoque em litros mostra "L"; KG e SACO, a unidade de medida como antes.
   const unidadeDoEstoque = produto.unidade_principal_estoque === 'L' ? 'L' : produto.unidade_medida;
   const margemLucro = produto.preco_custo > 0 
     ? (((produto.preco_venda - produto.preco_custo) / produto.preco_custo) * 100).toFixed(2) 

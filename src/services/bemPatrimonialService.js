@@ -1,10 +1,10 @@
 /**
- * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-161).
+ * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-162).
  *
  * O bem pertence a uma EMPRESA (fazenda): sem empresa real não há leitura nem
  * gravação. O bem é a raiz do agregado — medidor e tanques (com os Produtos
  * aceitos) só mudam pelo POST/PATCH do próprio bem, com `versao`
- * (concorrência otimista). D-PROD-161: saíram as medições físicas e os
+ * (concorrência otimista). D-PROD-162: saíram as medições físicas e os
  * combustíveis do tanque; cada tanque aceita Produtos do estoque da fazenda
  * (unidade L ou KG).
  *
@@ -385,7 +385,7 @@ export const simularDepreciacao = async (empresaId, parametros) => {
  * Uma página de opções ATIVAS para os seletores do bem. Responsáveis,
  * parceiros, centros de custo, áreas e `produtos` pedem a empresa (sem ela não
  * há busca); os de catálogo não dependem dela. `tipos` aceita `familiaId`.
- * `produtos` (D-PROD-161) = Produtos ativos da fazenda em L ou KG que um
+ * `produtos` (D-PROD-162) = Produtos ativos da fazenda em L ou KG que um
  * tanque pode aceitar; `unidade` (`L` | `KG`) filtra.
  * @param {'familias'|'tipos'|'produtos'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
  * @param {string|null} empresaId

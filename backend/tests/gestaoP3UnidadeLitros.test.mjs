@@ -1,9 +1,9 @@
 /**
- * D-PROD-161 (F4, §4.7 e §4.8) — Gestão P3 em LITROS, só para Produto em L.
+ * D-PROD-162 (F4, §4.7 e §4.8) — Gestão P3 em LITROS, só para Produto em L.
  *
  *  U1. PURO, byte a byte: para KG, SACO e UN, o plano (`normalizarDocumento` +
  *      `planejarOperacao`), as recusas (código, mensagem e details) e as
- *      recusas de referência são IDÊNTICOS aos de antes da D-PROD-161: o
+ *      recusas de referência são IDÊNTICOS aos de antes da D-PROD-162: o
  *      sha256 do JSON canônico foi calculado no HEAD `e39d318b` (antes desta
  *      missão) sobre os vetores compartilhados `rateioCabecalhoVetores.json` e
  *      um lote de casos de borda (kg zero, limites, resíduo, unidade errada);
@@ -37,7 +37,7 @@ import { dec } from '../src/modules/financeiro/decimalFinanceiro.js';
 const VETORES = JSON.parse(readFileSync(new URL('../../tests/smoke/fixtures/rateioCabecalhoVetores.json', import.meta.url), 'utf8'));
 
 /**
- * sha256 calculados no HEAD `e39d318b` (antes da D-PROD-161), com este mesmo
+ * sha256 calculados no HEAD `e39d318b` (antes da D-PROD-162), com este mesmo
  * arquivo: qualquer mudança no caminho KG/SACO/UN muda o hash.
  */
 const HASH_PURO_ANTES = 'ab57fc5d2d901ccd0002d018ac6bb1cdd629d75bf8d51ea12ad381b41c754389';

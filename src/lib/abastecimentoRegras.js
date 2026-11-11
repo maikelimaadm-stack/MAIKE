@@ -1,13 +1,13 @@
 /**
  * Regras PURAS da tela Abastecimentos (Patrimônio P1-02, D-PROD-159; revistas
- * pela D-PROD-161, SIMPLIFICA-01).
+ * pela D-PROD-162, SIMPLIFICA-01).
  *
  * Sem React, sem rede, sem `@/`: só imports relativos com `.js` — o teste de
  * integração do backend (INT-1) importa este módulo no Node e manda à API REAL
  * os corpos que ele monta. Quantidades viajam como TEXTO canônico ("80.5"):
  * nada de `Number`/`parseFloat` em quantidade, leitura ou custo.
  *
- * D-PROD-161: o abastecimento baixa do estoque EXATAMENTE a quantidade
+ * D-PROD-162: o abastecimento baixa do estoque EXATAMENTE a quantidade
  * digitada, na unidade de estoque do Produto (`L` ou `KG`). Não existe fator
  * kg/L nem tipo de combustível: o Produto vem dos "Produtos aceitos" do tanque
  * (opção do servidor) e a tela só mostra a unidade dele. A capacidade do
@@ -34,13 +34,13 @@ export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const MEDIDORES_CONTADOR = Object.freeze(['HORIMETRO', 'ODOMETRO', 'CICLOS']);
 export const STATUS_ABASTECIMENTO = Object.freeze(['CONFIRMADO', 'CANCELADO']);
 
-/** Unidades de estoque que o abastecimento aceita (D-PROD-161; `UNIDADES_ABASTECIMENTO` no servidor). */
+/** Unidades de estoque que o abastecimento aceita (D-PROD-162; `UNIDADES_ABASTECIMENTO` no servidor). */
 export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
 /** Rótulo curto da unidade (`L` / `kg`), o mesmo do servidor (`rotuloDaUnidade`). */
 export const ROTULO_UNIDADE_ABASTECIMENTO = Object.freeze(/** @type {Record<string, string>} */ ({ L: 'L', KG: 'kg' }));
 
 /**
- * Dica fixa do Produto controlado em quilos (achado D8 da D-PROD-161): o
+ * Dica fixa do Produto controlado em quilos (achado D8 da D-PROD-162): o
  * frentista lê litros na bomba, mas a baixa é em kg. Aparece sob o campo
  * Quantidade e de novo na Revisão.
  */
@@ -224,7 +224,7 @@ export const validarFormulario = (form, ctx = {}) => {
 /**
  * Corpo da PRÉVIA (A3): decimais canônicos, leitura null quando o bem não tem
  * contador, textos aparados ou null. Recusa (lança) o que não converte —
- * `validarFormulario` vem antes. D-PROD-161: `quantidade` na unidade do
+ * `validarFormulario` vem antes. D-PROD-162: `quantidade` na unidade do
  * Produto; sem `tipo_combustivel_id` (o servidor responderia 400).
  * @param {string} empresaId @param {any} form
  */
@@ -250,7 +250,7 @@ export const montarCorpoPrevia = (empresaId, form) => {
 
 /**
  * Corpo da CONFIRMAÇÃO (A4) SEM `operation_id` (o serviço põe a chave
- * persistente): EXATAMENTE o da prévia. D-PROD-161: sem fator, o plano não
+ * persistente): EXATAMENTE o da prévia. D-PROD-162: sem fator, o plano não
  * acrescenta nada ao corpo (o servidor relê tudo sob as travas); ele só tem
  * de existir — sem revisão não há confirmação.
  * @param {string} empresaId @param {any} form @param {any} plano
@@ -370,11 +370,11 @@ const exigirUnidade = (v, onde, valor, nulo = false) => {
   if (nulo && valor === null) return;
   if (!ehUnidadeDeAbastecimento(valor)) v.push(`${onde}: unidade inválida (${JSON.stringify(valor)})`);
 };
-/** Campos que saíram com a D-PROD-161 (fator, tipo de combustível, litros e KG separados). */
+/** Campos que saíram com a D-PROD-162 (fator, tipo de combustível, litros e KG separados). */
 const CHAVES_REMOVIDAS = ['tipo_combustivel', 'conversao', 'quantidade_litros', 'quantidade_kg', 'kg_por_litro', 'custo_unitario_kg'];
 /** @param {string[]} v @param {string} onde @param {Record<string, any>} obj */
 const recusarRemovidas = (v, onde, obj) => {
-  for (const k of CHAVES_REMOVIDAS) if (Object.prototype.hasOwnProperty.call(obj, k)) v.push(`${onde}.${k}: campo removido pela D-PROD-161`);
+  for (const k of CHAVES_REMOVIDAS) if (Object.prototype.hasOwnProperty.call(obj, k)) v.push(`${onde}.${k}: campo removido pela D-PROD-162`);
 };
 
 const CHAVES_DETALHE = [
@@ -447,7 +447,7 @@ const conferirConsumoDoAbastecimento = (v, onde, c) => {
   exigirFormato(v, `${onde}.quantidade`, c.quantidade, RE_4, true);
   exigirFormato(v, `${onde}.intervalo`, c.intervalo, RE_4, true);
   exigirUnidade(v, `${onde}.unidade`, c.unidade, true);
-  if (Object.prototype.hasOwnProperty.call(c, 'litros')) v.push(`${onde}.litros: campo removido pela D-PROD-161`);
+  if (Object.prototype.hasOwnProperty.call(c, 'litros')) v.push(`${onde}.litros: campo removido pela D-PROD-162`);
 };
 
 /** @param {string[]} v @param {string} onde @param {any} d @param {boolean} detalhe */
@@ -522,12 +522,12 @@ const conferirConsumo = (v, r) => {
     exigirFormato(v, `${o}.intervalo`, it?.intervalo, RE_4, true);
     exigirUnidade(v, `${o}.unidade`, it?.unidade ?? null, true);
     if (ehObjeto(it) && !Object.prototype.hasOwnProperty.call(it, 'unidade_metrica')) v.push(`${o}.unidade_metrica: ausente`);
-    if (ehObjeto(it) && Object.prototype.hasOwnProperty.call(it, 'litros')) v.push(`${o}.litros: campo removido pela D-PROD-161`);
+    if (ehObjeto(it) && Object.prototype.hasOwnProperty.call(it, 'litros')) v.push(`${o}.litros: campo removido pela D-PROD-162`);
   });
 };
 
 /**
- * Violações do contrato §6.1 (revisto pela D-PROD-161) numa resposta do
+ * Violações do contrato §6.1 (revisto pela D-PROD-162) numa resposta do
  * servidor (lista vazia = conforme). Reconhece pela forma: prévia (`plano`),
  * página (`items`), consumo (`intervalos`) ou detalhe.
  * @param {unknown} body

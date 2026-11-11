@@ -28,7 +28,7 @@ export const ACTION_LABELS = {
  *    abastecimento) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`.
  * As telas antigas (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
  * `pat-perfis-medicao`, `pat-combustiveis`) e a ação `configurar_conversao`
- * saíram (D-PROD-161): linhas já gravadas ficam inertes no JSON.
+ * saíram (D-PROD-162): linhas já gravadas ficam inertes no JSON.
  */
 const ACOES_EXTRAS_PATRIMONIO = Object.freeze(["inativar"]);
 

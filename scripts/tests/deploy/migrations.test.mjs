@@ -216,7 +216,7 @@ function readFonte() {
   return readFileSync(join(aqui, '../../deploy/run-migrations.mjs'), 'utf8');
 }
 
-describe('B11 (D-PROD-161) — o runner oficial não aplica um CONTRACT pendente sem autorização', () => {
+describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente sem autorização', () => {
   const NOME_C = '20261110300000_patrimonio_simplifica';
   const REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
   const LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
@@ -239,7 +239,7 @@ describe('B11 (D-PROD-161) — o runner oficial não aplica um CONTRACT pendente
   };
 
   test('B11-1 alvo remoto com o CONTRACT pendente e SEM a variável → recusa com código estável, sem URL', async () => {
-    for (const autorizado of [undefined, '', 'D-PROD-999', 'd-prod-161']) {
+    for (const autorizado of [undefined, '', 'D-PROD-999', 'd-prod-162']) {
       const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }) };
       const r = await rodar(env, () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')]);
       assert.equal(r.pode, false, String(autorizado));
@@ -266,7 +266,7 @@ describe('B11 (D-PROD-161) — o runner oficial não aplica um CONTRACT pendente
   });
 
   test('B11-3 com MIGRATION_CONTRACT_AUTORIZADO = decisão exata → segue', async () => {
-    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-161' }, () => []);
+    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-162' }, () => []);
     assert.equal(r.pode, true);
     assert.equal(r.leu, 1);
   });
@@ -295,7 +295,7 @@ describe('B11 (D-PROD-161) — o runner oficial não aplica um CONTRACT pendente
     assert.equal(leu, 0);
     assert.equal(await exigirAlvoConferido({ env, conferir: async () => ({ ok: true, falhas: [], resumo: '' }), ...silencio }), false);
     assert.equal(leu, 1);
-    assert.equal(await exigirAlvoConferido({ env: { ...env, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-161' }, conferir: async () => ({ ok: true, falhas: [], resumo: '' }), ...silencio }), true);
+    assert.equal(await exigirAlvoConferido({ env: { ...env, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-162' }, conferir: async () => ({ ok: true, falhas: [], resumo: '' }), ...silencio }), true);
   });
 
   test('B11-7 a única fonte de MIGRATION_CONTRACT_AUTORIZADO no repositório é o premerge (o release-migrate.yml não a define)', () => {

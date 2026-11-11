@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * D-PROD-159 / D-PROD-161 — PROVA DE USO REAL ponta a ponta da tela
+ * D-PROD-159 / D-PROD-162 — PROVA DE USO REAL ponta a ponta da tela
  * Abastecimentos (Patrimônio e Frota). Tela real + backend Fastify REAL +
  * Vite + PostgreSQL LOCAL, conduzidos pelo Playwright (Chromium já instalado;
  * nada é instalado); depois de cada passo confere o BANCO (Prisma).
  *
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01): sem tipo de combustível, sem
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01): sem tipo de combustível, sem
  * vínculo combustível × produto e sem fator kg/L. O tanque aceita Produtos
  * do estoque; o abastecimento baixa EXATAMENTE a quantidade digitada, na
  * unidade do Produto (L ou KG). O aceite humano do fluxo de cadastro (Produto
@@ -608,7 +608,7 @@ const executarLargura = async (browser, largura) => {
       for (const [k, r] of Object.entries(recusas)) igual(`${r.status}:${r.corpo?.code}`, '403:ACAO_NAO_PERMITIDA', `[${rotulo}] API só-visualizar: ${k}`);
       const leitura = await E.api(tokenVis, 'GET', `/api/native/patrimonio-abastecimentos/${reg.segundo.id}?empresa_id=${s.empresa.id}`);
       igual(`${leitura.status}:${leitura.corpo?.quantidade}:${leitura.corpo?.unidade}:${leitura.corpo?.produto?.nome}`, '200:30.0000:L:DIESEL S10 GRANEL', `[${rotulo}] API só-visualizar: detalhe`);
-      // Rotas de fator e de combustível removidas (D-PROD-161, P-09): 404, nem para o dono.
+      // Rotas de fator e de combustível removidas (D-PROD-162, P-09): 404, nem para o dono.
       for (const caminho of ['/patrimonio-conversoes-combustivel', '/patrimonio-combustiveis', '/patrimonio-perfis-medicao', `/patrimonio-abastecimentos-opcoes/tipos?empresa_id=${s.empresa.id}`]) {
         const r = await E.api(token, 'GET', `/api/native${caminho}`);
         igual(r.status, 404, `[${rotulo}] rota removida GET ${caminho.split('?')[0]}`);

@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — FE6: cancelamento do abastecimento
+ * D-PROD-159, revisto pela D-PROD-162 — FE6: cancelamento do abastecimento
  * (estorno exato) na tela real sobre o backend falso. Exige a ação `cancelar`,
  * motivo (3..500) e ciência; avisa quando a leitura operacional do medidor
  * muda; a quantidade devolvida aparece na unidade GRAVADA no abastecimento (L

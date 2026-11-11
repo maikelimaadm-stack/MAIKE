@@ -66,7 +66,7 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
   const saldoDoLocal = item.local ? (saldos.data ?? []).find((s) => String(s.local_estoque_id) === String(item.local.id)) : null;
   const faltaSaldo = venda && saldoDoLocal && resumoItem?.kg && comparar(resumoItem.kg, saldoDoLocal.disponivel_kg) > 0;
   const aceitaSaco = produtoAceitaSaco(item.produto);
-  // D-PROD-161: Produto em litros só aceita a unidade L, e o estoque dele é mostrado em L.
+  // D-PROD-162: Produto em litros só aceita a unidade L, e o estoque dele é mostrado em L.
   const emLitros = produtoEmLitros(item.produto);
   const unidadeEstoque = emLitros ? "L" : "kg";
   const base = `itens.${indice}`;

@@ -1,5 +1,5 @@
 /**
- * Patrimônio e Frota (D-PROD-157, simplificado pela D-PROD-161) — espelho EXATO
+ * Patrimônio e Frota (D-PROD-157, simplificado pela D-PROD-162) — espelho EXATO
  * dos guardas do servidor (`GUARDAS.patrimonio*` em
  * backend/src/shared/auth/guardasRotas.js; ids das telas em `TELAS.PATRIMONIO_*`
  * de backend/src/shared/auth/autorizacaoTela.js):
@@ -9,7 +9,7 @@
  *  - inativar = ação extra `inativar` (inativar E reativar; sem atalho por
  *               editar/salvar — guarda `edicaoPatrimonio` do servidor).
  *
- * D-PROD-161: só DUAS telas (Bens Patrimoniais e Abastecimentos). Famílias e
+ * D-PROD-162: só DUAS telas (Bens Patrimoniais e Abastecimentos). Famílias e
  * tipos vivem dentro do cadastro de Bens e seguem as ações da tela de Bens
  * (`acoesDeCatalogoNoBem`). As linhas antigas gravadas em `permissoes_telas`
  * (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`,
@@ -51,7 +51,7 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
 };
 
 /**
- * D-PROD-161 — famílias, tipos e os "Produtos aceitos" do tanque DENTRO do
+ * D-PROD-162 — famílias, tipos e os "Produtos aceitos" do tanque DENTRO do
  * cadastro de Bens. Espelho de `GUARDAS.patrimonioFamilias`/`patrimonioTipos`
  * e de `GUARDAS.patrimonioBens.opcoesProdutos`, todos sobre a tela de Bens:
  *  - criarCatalogo    = "+ Nova família"/"+ Novo tipo": Bens novo|salvar|editar
@@ -77,7 +77,7 @@ export const acoesDeCatalogoNoBem = (permissao) => {
 /**
  * D-PROD-159 (Patrimônio P1-02) — ação EXTRA da tela Abastecimentos
  * (`ACOES_ABASTECIMENTO_EXTRAS` no servidor): cancelar/estornar o abastecimento
- * confirmado. D-PROD-161: o fator kg/L (`configurar_conversao`) saiu; gravado
+ * confirmado. D-PROD-162: o fator kg/L (`configurar_conversao`) saiu; gravado
  * numa linha antiga, fica inerte.
  */
 export const ACAO_CANCELAR_ABASTECIMENTO = 'cancelar';

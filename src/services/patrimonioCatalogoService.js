@@ -1,7 +1,7 @@
 /**
  * Service dos catálogos de Patrimônio e Frota (D-PROD-157): famílias e tipos.
  *
- * D-PROD-161: os catálogos vivem DENTRO do cadastro de Bens (as guardas são as
+ * D-PROD-162: os catálogos vivem DENTRO do cadastro de Bens (as guardas são as
  * da tela de Bens; ver `acoesDeCatalogoNoBem`) e saíram os perfis de medição e
  * os combustíveis. O `codigo` é opcional na criação (P-05): sem ele o servidor
  * o gera a partir do nome.
@@ -150,7 +150,7 @@ const listaDeContagens = (c) =>
     .join(', ');
 
 /**
- * Resumo legível da instalação do catálogo padrão (D-PROD-161: só famílias e tipos).
+ * Resumo legível da instalação do catálogo padrão (D-PROD-162: só famílias e tipos).
  * @param {{ criados: any, existentes: any, conflitos: Array<{ recurso: string, codigo: string, motivo: string }> }} r
  * @returns {{ criados: string, existentes: string, conflitos: string[] }}
  */

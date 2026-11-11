@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — Patrimônio P1-02: abastecimento e
+ * D-PROD-159, revisto pela D-PROD-162 — Patrimônio P1-02: abastecimento e
  * consumo (matriz FUNCIONAL, PostgreSQL real + HTTP autenticado).
  *
  *  - AB1/AB10: aceite TP-02 com o diesel em LITROS — prévia (zero escrita) →
@@ -60,10 +60,10 @@ const estoqueAtual = async (produtoId) => (await prisma().produto.findUnique({ w
 const bemCru = (id) => prisma().bemPatrimonial.findUnique({ where: { id } });
 const cancelarCorpo = (versao = 1, extra = {}) => ({ versao, motivo: 'lançado no bem errado', operation_id: opId(), ...extra });
 const movimentosAbastecimento = (c) => prisma().movimentacaoEstoque.count({ where: { cliente_id: c, origem_sistema: 'abastecimento_patrimonio' } });
-/** Campos que saíram com o fator kg/L e o tipo de combustível (D-PROD-161): nunca voltam numa resposta. */
+/** Campos que saíram com o fator kg/L e o tipo de combustível (D-PROD-162): nunca voltam numa resposta. */
 const CAMPOS_REMOVIDOS = Object.freeze(['tipo_combustivel', 'tipo_combustivel_id', 'conversao', 'conversao_id', 'kg_por_litro', 'quantidade_litros', 'quantidade_kg', 'custo_unitario_kg']);
 const semCamposRemovidos = (obj, rotulo) => {
-  for (const c of CAMPOS_REMOVIDOS) assert.equal(Object.prototype.hasOwnProperty.call(obj, c), false, `${rotulo}: ${c} saiu (D-PROD-161)`);
+  for (const c of CAMPOS_REMOVIDOS) assert.equal(Object.prototype.hasOwnProperty.call(obj, c), false, `${rotulo}: ${c} saiu (D-PROD-162)`);
 };
 
 describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
@@ -147,7 +147,7 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.equal(mov.lancamento_origem_id, d.id);
     assert.equal(mov.motivo_movimentacao, 'Saída por abastecimento de bem patrimonial');
     assert.equal(mov.quantidade.toFixed(4), '80.0000');
-    assert.equal(mov.unidade_medida, 'L', 'o rótulo do movimento vem do Produto (D-PROD-161 §4.8)');
+    assert.equal(mov.unidade_medida, 'L', 'o rótulo do movimento vem do Produto (D-PROD-162 §4.8)');
     assert.equal(mov.local_estoque_origem, s.local.id);
     assert.deepEqual(mov.lotes_consumidos, [
       { lote_id: s.lotes.dieselA.id, quantidade: '50.0000', custo_unitario: '5.2000' },
@@ -163,7 +163,7 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.deepEqual([linhaDb.quantidade.toFixed(4), linhaDb.unidade, linhaDb.custo_unitario.toFixed(4)], ['80.0000', 'L', '5.3125']);
     assert.equal(await prisma().operacaoFinanceira.count({ where: { cliente_id: s.c } }), 0, 'nenhum lançamento financeiro');
     const recibo = await prisma().operacaoIdempotente.findMany({ where: { cliente_id: s.c, operation_key: corpo.operation_id } });
-    assert.deepEqual(recibo.map((r) => [r.tipo_operacao, r.status]), [['confirmar_abastecimento_bem_v2', 'committed']], 'recibo v2 (D-PROD-161)');
+    assert.deepEqual(recibo.map((r) => [r.tipo_operacao, r.status]), [['confirmar_abastecimento_bem_v2', 'committed']], 'recibo v2 (D-PROD-162)');
     const audit = await prisma().auditLog.findMany({ where: { cliente_id: s.c, acao: 'abastecimento_bem.confirmar' } });
     assert.equal(audit.length, 1);
     assert.equal(audit[0].entidade_id, d.id);
@@ -501,7 +501,16 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
       bem_id: s.caminhonete.id, tanque_id: s.caminhonete.tanques[0].id, produto_id: s.gasolina.id, quantidade: '30', medidor_leitura: '35300',
     }));
     await A.ok(s.patchAceites(s.caminhonete, [[s.etanol.id]]));
-    await A.ok(A.req('PATCH', `/produtos/${s.gasolina.id}`, s.token, { empresa_id: s.e2.id }));
+    // D-PROD-161 (Estoque P0): produto com lote, movimento ou cache ≠ 0 não muda mais de fazenda pela API
+    // (409 PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA, nada gravado). O estado "produto movido de fazenda" só
+    // existe como dado legado (anterior à P0); ele é emulado direto no banco para manter provada a defesa
+    // `produto_mudou_de_fazenda` do cancelamento.
+    const fotoAntesPatch = await fotoAbastecimento(s.c);
+    const patchEmpresa = await A.req('PATCH', `/produtos/${s.gasolina.id}`, s.token, { empresa_id: s.e2.id });
+    assert.equal(patchEmpresa.statusCode, 409, patchEmpresa.body);
+    assert.equal(patchEmpresa.json().code, 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA');
+    assert.equal(await fotoAbastecimento(s.c), fotoAntesPatch);
+    await prisma().$executeRaw`UPDATE "Produto" SET empresa_id = ${s.e2.id} WHERE id = ${s.gasolina.id}`;
     const fotoC = await fotoAbastecimento(s.c);
     const mudou = await A.cancelar(s.contaCancelar.token, g.id, { empresa_id: s.e1.id, ...cancelarCorpo() });
     assert.deepEqual(erro(mudou), [409, 'ABASTECIMENTO_CANCELAMENTO_BLOQUEADO', 'abastecimento', 'produto_mudou_de_fazenda']);
@@ -812,7 +821,7 @@ describe('P1-02 — permissões e isolamento', () => {
       ['GET', '/patrimonio-abastecimentos-opcoes/tipos'],
       ['GET', `/patrimonio-abastecimentos-opcoes/produtos?empresa_id=${s.e1.id}&tipo_combustivel_id=x`],
     ]) {
-      assert.equal((await A.req(metodo, url, s.token, corpo)).statusCode, 404, `${metodo} ${url} saiu (D-PROD-161)`);
+      assert.equal((await A.req(metodo, url, s.token, corpo)).statusCode, 404, `${metodo} ${url} saiu (D-PROD-162)`);
     }
     assert.equal(await fotoAbastecimento(s.c), antes);
     // o administrador real passa

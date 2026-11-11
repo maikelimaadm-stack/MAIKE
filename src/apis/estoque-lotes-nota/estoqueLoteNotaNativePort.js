@@ -1,5 +1,12 @@
 /**
  * Porta nativa de EstoqueLoteNota (P5.4).
+ *
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): sem `create` e sem `delete`. Lote só
+ * nasce de uma entrada (compra confirmada) ou de uma transferência, e nunca é
+ * apagado (o backend responde 409). Como o adaptador offline só expõe as
+ * operações que existem, não há como enfileirar essas escritas. Ficam a
+ * leitura e o `update` — a renomeação do local (`local_estoque_nome`) feita
+ * pelo FormularioPonto.
  */
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
@@ -43,19 +50,11 @@ const operacoesNativas = Object.freeze({
     }
     return nativeRequest(`${CAMINHO}${queryDeFiltro(criterio)}`, { autenticado: true }, ctx('filterEstoqueLoteNota'));
   },
-  create: (dados) =>
-    nativeRequest(CAMINHO, { method: 'POST', body: dados, autenticado: true }, ctx('createEstoqueLoteNota')),
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
       { method: 'PATCH', body: dados, autenticado: true },
       ctx('updateEstoqueLoteNota')
-    ),
-  delete: (id) =>
-    nativeRequest(
-      `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'DELETE', autenticado: true },
-      ctx('deleteEstoqueLoteNota')
     ),
 });
 

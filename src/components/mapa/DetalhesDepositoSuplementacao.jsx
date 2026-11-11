@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
@@ -23,6 +24,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
+  // Alvo das folhas do celular DENTRO do diálogo da transferência (D-PROD-161).
+  const [alvoFolhaTransferencia, setAlvoFolhaTransferencia] = useState(/** @type {HTMLElement | null} */ (null));
 
   const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
@@ -94,7 +97,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
   }, [pontosSuplementacao, deposito.id]);
 
-  // D-PROD-161 (P-11): Produto com estoque em LITROS aparece no saldo por produto com "L", sem sacos,
+  // D-PROD-162 (P-11): Produto com estoque em LITROS aparece no saldo por produto com "L", sem sacos,
   // e fica fora dos indicadores em kg (saldo, necessidade, % e último registro). Sem Produto em L, nada muda.
   const saldosAgrupados = useMemo(() => {
     const mapa = new Map();
@@ -314,10 +317,29 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         </CardContent>
       </Card>
 
-      <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
-        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto">
+      {/*
+        D-PROD-161: este diálogo abre POR CIMA do "Depósito de Suplementação"
+        (LancLoteDialogo), que entrega aos filhos o alvo das folhas do celular.
+        Herdado, a folha "Local" nascia no diálogo de BAIXO — aria-hidden, sem
+        toque e atrás deste. Aqui ela nasce DENTRO deste diálogo (camada de
+        cima: foco, toque e leitor de tela); no celular ele centraliza sem
+        transform para a folha (position: fixed) ocupar a tela, não o cartão;
+        Escape com a folha aberta fecha só a folha (o pedido de fechar o
+        diálogo é ignorado enquanto houver folha aberta dentro dele).
+      */}
+      <Dialog
+        open={showTransferencia}
+        onOpenChange={(aberto) => {
+          if (!aberto && alvoFolhaTransferencia?.querySelector(".mk-sheet-root")) return;
+          setShowTransferencia(aberto);
+        }}>
+        <DialogContent
+          className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto max-sm:inset-0 max-sm:m-auto max-sm:h-fit max-sm:transform-none max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-0 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-0">
           <DialogHeader><DialogTitle className="text-sm">{transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
-          <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+          <MobileSheetPortalCtx.Provider value={alvoFolhaTransferencia}>
+            <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+          </MobileSheetPortalCtx.Provider>
+          <div ref={setAlvoFolhaTransferencia} className="contents" />
         </DialogContent>
       </Dialog>
 

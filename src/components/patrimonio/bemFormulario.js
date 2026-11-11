@@ -1,6 +1,6 @@
 /**
  * Estado do formulário do Bem Patrimonial (D-PROD-157, simplificado pela
- * D-PROD-161: sem medições físicas; cada tanque aceita Produtos do estoque da
+ * D-PROD-162: sem medições físicas; cada tanque aceita Produtos do estoque da
  * fazenda, em L ou KG) — funções PURAS, sem
  * React: do detalhe do servidor (A13) para o estado da tela (textos
  * localizados), validação local e do estado para a forma do corpo que o

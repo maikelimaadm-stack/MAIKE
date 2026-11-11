@@ -146,8 +146,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a exclusão do lançamento confirmado não é permitida agora (details.motivos: liquidação, documento histórico, dependência física); nada foi alterado',
   },
-  // D-PROD-157 / D-PROD-161 — Patrimônio: cadastros de inventário (famílias e tipos do tenant, bens da empresa,
-  // tanques e os Produtos aceitos por tanque). D-PROD-161 tirou perfis, medições, combustíveis e o fator kg/L.
+  // D-PROD-157 / D-PROD-162 — Patrimônio: cadastros de inventário (famílias e tipos do tenant, bens da empresa,
+  // tanques e os Produtos aceitos por tanque). D-PROD-162 tirou perfis, medições, combustíveis e o fator kg/L.
   PATRIMONIO_VERSAO_CONFLITO: { http: 409, meaning: 'o registro mudou desde a leitura (details.versao_atual/versao_informada); recarregue; nada foi gravado' },
   FAMILIA_PATRIMONIAL_NAO_ENCONTRADA: { http: 404, meaning: 'id não identifica família patrimonial deste tenant' },
   TIPO_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica tipo patrimonial deste tenant' },
@@ -179,7 +179,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   DEPRECIACAO_RESIDUAL_INVALIDO: { http: 422, meaning: 'valor residual maior que o custo do bem ou percentual fora de 0 a 100; nada foi gravado' },
   DEPRECIACAO_PARAMETROS_INVALIDOS: { http: 422, meaning: 'parâmetros de depreciação incompletos ou presentes em bem não depreciável (details.field); nada foi gravado' },
   PATRIMONIO_DATA_INVALIDA: { http: 422, meaning: 'data inexistente ou fora de ordem (disponibilidade antes da aquisição, início da depreciação antes da disponibilidade); nada foi gravado' },
-  // D-PROD-159 / D-PROD-161 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
+  // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
   // do Produto (L ou KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },
   ABASTECIMENTO_STATUS_INVALIDO: { http: 409, meaning: 'o abastecimento não está CONFIRMADO (details.status): já foi cancelado; nada foi alterado' },
@@ -274,9 +274,9 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   PRODUTO_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'produto possui movimentações de estoque, itens de lançamento financeiro (D-PROD-155) ou é aceito por tanque de bem do Patrimônio (D-PROD-161, details.vinculo = tanques do patrimônio) e não pode ser excluído',
+    meaning: 'produto possui movimentações de estoque, itens de lançamento financeiro (D-PROD-155) ou é aceito por tanque de bem do Patrimônio (D-PROD-162, details.vinculo = tanques do patrimônio) e não pode ser excluído',
   },
-  // D-PROD-161 — Produto aceito por tanque do Patrimônio e unidade de estoque em litros (L).
+  // D-PROD-162 — Produto aceito por tanque do Patrimônio e unidade de estoque em litros (L).
   PRODUTO_EM_TANQUE_PATRIMONIO: { http: 409, meaning: 'Produto aceito (ativo) em tanque ativo de bem ativo do Patrimônio não muda de fazenda (details.tanques); tire-o dos Produtos aceitos do tanque antes; nada foi gravado' },
   PRODUTO_UNIDADE_EM_USO: { http: 409, meaning: 'a unidade de estoque do Produto não muda (details.reason: estoque | lotes | movimentos | lancamentos | aceito_em_tanque; details.de/para); nada foi gravado' },
   // R2A (D-PROD-99): declarados para o 404 entre tenants não virar 500.
@@ -322,6 +322,23 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REGISTRO_OPERACIONAL_IMUTAVEL: {
     http: 409,
     meaning: 'campo operacional (quantidade, tipo, vínculo, data, custo, saldo) não é alterável por PATCH genérico',
+  },
+  // D-PROD-161 — Estoque P0: motor físico único; entrada ≠ movimentação.
+  ESTOQUE_ESCRITA_DIRETA_RECUSADA: {
+    http: 409,
+    meaning: 'movimento e lote de estoque só nascem, mudam de saldo/custo/situação ou deixam de existir pelos comandos do motor físico (compra/venda confirmada, suplementação, transferência, abastecimento e seus cancelamentos); escrita direta recusada (details.entidade, details.operacao, details.campos); nada foi gravado',
+  },
+  PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL: {
+    http: 422,
+    meaning: 'estoque_atual é cache derivado das entradas e movimentações e não é campo do cadastro: POST só aceita 0 ou ausente e PATCH só o valor atual (sem efeito); details.field=estoque_atual, reason=somente_leitura; nada foi gravado',
+  },
+  PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA: {
+    http: 409,
+    meaning: 'produto com lote, movimento de estoque ou estoque_atual diferente de zero não muda de empresa (lotes e movimentos ficariam na fazenda antiga); details.lotes, details.movimentos; nada foi gravado',
+  },
+  ESTOQUE_LOCAL_INVALIDO: {
+    http: 422,
+    meaning: 'local de estoque do comando inexistente neste tenant (reason local_inexistente, também de outro tenant, sem oráculo) ou destino inativo (reason local_inativo); details.field=local_origem_id|local_destino_id; nada foi gravado',
   },
   CAMPO_RESERVADO_CANCELAMENTO: {
     http: 400,

@@ -19,6 +19,9 @@ const CAMPOS = Object.freeze({
   unidade_medida: { type: ['string', 'null'], maxLength: 32 },
   preco_custo: { type: ['number', 'null'] },
   preco_venda: { type: ['number', 'null'] },
+  // D-PROD-161: continua no schema só para o cliente antigo que manda 0 não
+  // receber 400 (additionalProperties:false). É cache do motor físico: o service
+  // aceita 0/ausente no POST e o valor atual no PATCH (sem efeito); o resto → 422.
   estoque_atual: { type: 'number' },
   estoque_minimo: { type: 'number' },
   local_estoque: { type: ['string', 'null'], maxLength: 255 },

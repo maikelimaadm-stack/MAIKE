@@ -6,10 +6,10 @@
  *  - criação com o corpo EXATO do POST: trator TP-02 (horímetro + tanque de
  *    180 L que aceita o Produto Diesel S10), caminhonete flex UT-04 (odômetro +
  *    um tanque de 80 L que aceita Gasolina e Etanol), curral (sem medições:
- *    D-PROD-161);
+ *    D-PROD-162);
  *  - seções e campos condicionais pela natureza da família (espelho da matriz
  *    §2: medidor obrigatório/opcional, tanques, placa, chassi…; sem aba
- *    Medições, D-PROD-161);
+ *    Medições, D-PROD-162);
  *  - prévia de depreciação rotulada como simulação (1.250,00 por mês);
  *  - edição com PATCH mínimo + `versao`; 409/422 mostram a mensagem do
  *    patrimônio e mantêm o formulário; conflito de versão relê o detalhe;
@@ -59,7 +59,7 @@ const TIPOS = {
   f5: [{ id: 't5', codigo: 'GERADOR', nome: 'Gerador', familia_id: 'f5' }],
   f6: [{ id: 't6', codigo: 'BALSA', nome: 'Balsa', familia_id: 'f6' }],
 };
-/** Produtos ativos da fazenda em L ou KG (D-PROD-161: o que um tanque pode aceitar). */
+/** Produtos ativos da fazenda em L ou KG (D-PROD-162: o que um tanque pode aceitar). */
 const PRODUTOS = [
   { id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L' },
   { id: 'pd2', nome: 'Gasolina', codigo_interno: null, unidade_principal_estoque: 'L' },
@@ -212,7 +212,7 @@ const escolherNoSeletor = async (form, testId, nome) => {
   await waitFor(() => expect(within(form).queryByTestId(`${testId}-painel`)).toBeNull());
 };
 const aba = (nome) => fireEvent.click(screen.getByRole('tab', { name: nome }));
-/** Aceita um Produto no tanque `i` pelo seletor paginado (D-PROD-161). */
+/** Aceita um Produto no tanque `i` pelo seletor paginado (D-PROD-162). */
 const aceitarProduto = async (form, i, nome) => escolherNoSeletor(form, `bem-tanque-seletor-produto-${i}`, nome);
 const abas = () => screen.getAllByRole('tab').map((t) => t.textContent.trim());
 const novo = async () => {
@@ -359,7 +359,7 @@ describe('Bens — criação (corpo exato)', () => {
     });
   });
 
-  it('curral (D-PROD-161): sem aba Medições nem Operação; material e ano de conclusão vão no POST, nunca medicoes', async () => {
+  it('curral (D-PROD-162): sem aba Medições nem Operação; material e ano de conclusão vão no POST, nunca medicoes', async () => {
     await montar();
     const form = await novo();
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Curral de manejo' } });

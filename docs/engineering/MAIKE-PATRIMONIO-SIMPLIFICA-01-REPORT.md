@@ -1,6 +1,6 @@
 # MAIKE-PATRIMONIO-SIMPLIFICA-01 — O Patrimônio recomeça do zero, simplificado
 
-Decisão: **D-PROD-161** ([`DECISIONS.md`](./DECISIONS.md)). A branch nasceu sobre `origin/main`
+Decisão: **D-PROD-162** ([`DECISIONS.md`](./DECISIONS.md)). A branch nasceu sobre `origin/main`
 `e39d318b` (merge da PR #237, Patrimônio UX-02).
 Branch: `claude/new-session-abgn5w` · PR `<número>` (**DRAFT**) · código verificado: `<HEAD>`.
 Runbook de release (não executado):
@@ -57,17 +57,17 @@ rótulo do movimento de Produto em L muda), lotes de nota, empresas, fornecedore
   menu só com Bens e Abastecimentos, sem tipo de combustível e sem fator kg/L.
 - **GO escrito de 2026-11-10 para a limpeza em produção** (palavras literais): "pode apaguar oque
   tiver lançado dessas tabelas", "olha pode fazer não precisa pedir confirmação ok, pode fazer",
-  "ok apague oque tiver faça oque tem que fazer". Alcance e limites na D-PROD-161.
+  "ok apague oque tiver faça oque tem que fazer". Alcance e limites na D-PROD-162.
 - **Padrões P-01…P-12** do contrato (o proprietário não respondeu explicitamente): registrados
-  na D-PROD-161, com o porquê de cada um.
+  na D-PROD-162, com o porquê de cada um.
 
 ## 4. Banco: migration CONTRACT
 
 | Item | Valor |
 |---|---|
 | Migration | `20261110300000_patrimonio_simplifica` |
-| SHA-256 do arquivo | `ea1edf7ec3b494233a8d48c7b160ad179c8d8e9b92cc6c041228f116907302c4` |
-| Hash da guarda | `6fbcabd9358eebcd87f0a272b0072cca76bfaa4779314c8426fd13037490794e` |
+| SHA-256 do arquivo | `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222` |
+| Hash da guarda | `28d6c422968d961bbecd40459a7e6a337f36b9d66c121982f9c295065c149046` |
 | Hash do DO de RLS das 7 | `6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e` |
 | Tabelas | 85 → **79** (13 apagadas; 6 recriadas; `TanqueBemProduto` nova) |
 | Migrations | 39 → **40** |
@@ -76,10 +76,20 @@ rótulo do movimento de Produto em L muda), lotes de nota, empresas, fornecedore
 | Guarda | 0 CONFIRMADO; impressão das contagens igual à do preflight; papel dono das 13; nada criado fora das migrations; `lock_timeout` 5 s |
 | Gate | modo CONTRACT fechado no premerge e autorização `MIGRATION_CONTRACT_AUTORIZADO` no runner |
 
+**Renumeração no merge da `main` `e8472481` (PR #238, D-PROD-161):** a migration só trocou o
+identificador D-PROD-161 → **D-PROD-162** nos comentários e nas mensagens `RAISE EXCEPTION`
+da guarda; nenhuma instrução SQL mudou. Por isso o SHA-256 do arquivo passou de
+`ea1edf7ec3b494233a8d48c7b160ad179c8d8e9b92cc6c041228f116907302c4` para o da tabela acima, e o
+corpo normalizado da guarda de `6fbcabd9358eebcd87f0a272b0072cca76bfaa4779314c8426fd13037490794e`
+para `28d6c422…9046`; o DO de RLS não mudou. Os pinos de `premergeMigrateLib.mjs` e de
+`premerge-migrate.test.mjs` foram atualizados, e o classificador continua CONTRACT com 13
+removidas, 4 alargamentos e 7 novas. O caminho B abaixo foi ensaiado com o arquivo anterior;
+o atual foi reensaiado só em banco local (testes do §10).
+
 Provas reais (PG 16 local descartável):
 - `backend/tests/patrimonioSimplificaMigration.test.mjs`: 14/14. Parte de 39 migrations/85 tabelas com 2 clientes. Os 10 RED recusam com a mensagem própria, e nada muda em nenhum deles: CONFIRMADO, FK de fora, visão, trava (`55P03` em ~6,2 s), sem impressão, impressão errada, papel que não é o dono, gatilho, política, publicação. O runner sem a decisão recusa com `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`. O GREEN pelo `npm run deploy:migrate` dá 40/0 e 79 tabelas, as 7 vazias, dono/ACL iguais, RLS sem FORCE e PK/FK/CHECK/índices 7/31/32/55. A `fingerprint_v2` fica idêntica, os CHECKs aceitam `'L'`, o estoque fica idêntico e o `migrate diff` dá 0. A 2ª execução responde "No pending".
 - CLI `scripts/dev/ensaio-patrimonio-simplifica.mjs`: OK (10 RED, recusa sem autorização e GREEN completo).
-- **Caminho B (envelope do conector), ensaiado em 2026-11-11** com o arquivo exato (sha256 `ea1edf7e…02c4`), 1 cliente e 15 linhas semeadas:
+- **Caminho B (envelope do conector), ensaiado em 2026-11-11** com o arquivo exato de então (sha256 `ea1edf7e…02c4`, ainda com o identificador D-PROD-161; ver a renumeração abaixo), 1 cliente e 15 linhas semeadas:
   - impressão errada: recusa ("contagens … não são as aprovadas"), 85 tabelas intactas;
   - impressão certa: COMMIT, 79 tabelas, 40/0, estrutura 7·31·32·55, colunas 31/10/54/12/9/7/11, CHECKs com `'L'`;
   - repetir: `RELEASE_BLOCKED: migration já registrada`.
@@ -133,7 +143,7 @@ Ver `git diff --stat origin/main...HEAD` na PR [#239](https://github.com/maikeli
 - **Backend completo** (integração, banco novo): 1497 testes, 0 fail depois do ajuste da linha 182 de `patrimonioSimplificaConcorrencia.test.mjs` (5/5), 5 todo já existentes.
 - **Smoke:** 184 arquivos, 2293/2293.
 - **Gates:** 721/721.
-- **E2E-1** `scripts/dev/e2e-patrimonio-simplifica-real.mjs` (aceite D-PROD-161): **36/36** passos (12 por largura, 1280/820/390), EXIT=0. Cobre Produto "Diesel S10" em L pela tela; compras P3 em L e KG; "+ Nova família" e "+ Novo tipo"; tanque com Produto aceito; abastecimento de 80 L (baixa FIFO 50+30, R$ 425,00); cancelamento com estorno exato; abastecimento de 35 kg num bem com Produto em KG; menu com 2 telas; rotas removidas caindo em "Página não encontrada"; sem rolagem horizontal.
+- **E2E-1** `scripts/dev/e2e-patrimonio-simplifica-real.mjs` (aceite D-PROD-162): **36/36** passos (12 por largura, 1280/820/390), EXIT=0. Cobre Produto "Diesel S10" em L pela tela; compras P3 em L e KG; "+ Nova família" e "+ Novo tipo"; tanque com Produto aceito; abastecimento de 80 L (baixa FIFO 50+30, R$ 425,00); cancelamento com estorno exato; abastecimento de 35 kg num bem com Produto em KG; menu com 2 telas; rotas removidas caindo em "Página não encontrada"; sem rolagem horizontal.
 - **E2E-2** `scripts/dev/e2e-abastecimentos-real.mjs`: **30/30** (10 por largura), EXIT=0. Cobre replay e resposta perdida com uma baixa só; troca A→B pela tela de Bens com o histórico intacto; tanque sem Produto; só-visualizar com 403; rotas removidas.
 
 ## 11. `verify:all` e CI
@@ -155,8 +165,9 @@ Ver `git diff --stat origin/main...HEAD` na PR [#239](https://github.com/maikeli
    conexão direta ou caminho B.
 6. **Unidade de Produto legada** (texto livre): valor diferente de `L`/`KG`/`SACO` fica fora do
    abastecimento (falha fechada). A contagem por unidade sai no preflight.
-7. **Suplementação com Produto em L:** baixa o número digitado como hoje, rotulado pela
-   `unidade_medida`. Os produtos dela são de Nutrição Animal; fica fora do escopo.
+7. **Suplementação com Produto em L:** baixa o número digitado como hoje. Depois do merge da
+   D-PROD-161 ela passa pelo motor único e o movimento sai rotulado `'L'` (o rótulo vem do
+   Produto em `camposComuns`). Os produtos dela são de Nutrição Animal; fica fora do escopo.
 8. **Nomes de coluna em kg com valor em L:** `OperacaoFinanceiraItem.fator_kg` = 1 e
    `quantidade_estoque` em L para item L; os parâmetros `quantidadeKg` do motor recebem L. As
    colunas não são renomeadas (tabela antiga).
@@ -184,3 +195,50 @@ Ver `git diff --stat origin/main...HEAD` na PR [#239](https://github.com/maikeli
 
 `SCHEMA_APPLIED_PRODUCTION = NÃO` · `MERGE_READY = NÃO` · `OPERATIONAL_RELEASE_READY = NÃO`.
 O preflight de produção de 2026-11-11 (só leitura) encontrou 13 linhas, num só dos 2 clientes, 0 CONFIRMADO e a impressão `a35b7cbb0569`. A aplicação segue o runbook, e o resultado fica registrado no §11 dele.
+
+## 16. Integração com a `main` `e8472481` (PR #238, Estoque P0-01, D-PROD-161)
+
+Merge `--no-ff` da `main` (sem rebase). A PR #238 não tem migration nem mudança de schema; a
+SIMPLIFICA-01 continua com uma migration só. Valem as duas intenções (detalhe na D-PROD-162,
+item "Integração com a D-PROD-161").
+
+**Numeração:** a `main` já usava a D-PROD-161. Tudo o que é desta missão passou a
+**D-PROD-162** (código, testes, migration, runbook, gate CONTRACT, docs); o marcador foi para
+D-PROD-163. Hashes novos da migration no §4.
+
+**Conflitos e como foram resolvidos:**
+
+| Arquivo | Resolução |
+|---|---|
+| `estoqueFisicoMotor.js` | As duas notas da `aplicarSaidaFifo` (unidade do Produto + opcionais da suplementação). `camposComuns` da `main` com o rótulo `'L'` desta missão (merge automático) |
+| `movimentacaoEstoqueComandoService.js` | Lado da `main` (transferência pelo motor). O rótulo `'L'` da transferência agora sai de `camposComuns`; a linha própria da D5 saiu junto com o FIFO antigo |
+| `backend/.../produtoService.js` | Os dois blocos de regras. PATCH: trava `FOR NO KEY UPDATE` sempre (D-PROD-161), antes dela a trava de estoque quando a unidade muda (P-10), conferência de concorrência e `estoque_atual` só igual ao atual. Troca de fazenda: aceite em tanque e depois estoque. Exclusão: movimentos, lotes, itens de lançamento, aceites |
+| `src/services/produtoService.js` | Mensagens de tanque/unidade desta missão + mensagens de estoque da D-PROD-161; sai `PRODUTO_VINCULADO_COMBUSTIVEL` (código removido aqui) |
+| `FormularioProduto.jsx` | Rótulos de unidade e aviso de litros + leitura única das máscaras (D-PROD-161) |
+| `patrimonioP1Abastecimentos.test.mjs` (AB11 c) | Aceite retirado do tanque; o PATCH de fazenda dá 409 `PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA` e o estado legado é emulado no banco, como na `main` |
+| `patrimonioP1AbastecimentosConcorrencia.test.mjs` (C10b) | Cenário novo da `main` (PATCH de saldo em lote livre → 409, sem efeito) em litros: 100 L, abastecimento de 80 L, sobra 20 L |
+| `patrimonioUx02TrocaAssociacao.test.mjs` | Continua **apagado**. O caso novo da `main` (TA-05b, `produto_mudou_de_fazenda` com o estado legado emulado) está coberto pelo AB11 c no modelo novo |
+| `CURRENT-STATE.md`, `DECISIONS.md`, `ROADMAP.md`, cobertura de permissões | As duas missões; a da `main` registrada como mergeada. Cobertura: 299 → **280** linhas de rota (contadas) |
+
+**Ajustes de integração fora dos conflitos** (mudança mínima): os testes da D-PROD-161 que
+montavam o abastecimento antigo (kg com fator) passaram ao Produto em L — `estoqueP0MotorUnico`
+(AB-X: fatias 50 + 30 L, custo 410,00, sem fator), `estoqueP0MotorConcorrencia` (K1: item P3 em
+L, 10 L por abastecimento) e `estoqueP0Reconciliacao` (R1b). O P7 de `produtoUnidadeLitros`
+passou a esperar `'KG'` na transferência de Produto KG (mudança declarada da D-PROD-161).
+
+**Testes depois do merge** (PG 16 local, banco novo `maike_simp_merge` migrado pelo
+`deploy:migrate`, 40 migrations):
+
+| Verificação | Resultado |
+|---|---|
+| `prisma validate` / `prisma:generate` | ok |
+| `lint` | 0 erros (2 avisos já existentes) |
+| `gate:types` / `typecheck:backend` | PASSOU / exit 0 |
+| `test:gates` | 739/739 |
+| `gate:governance-paths`, `gate:tenancy`, `gate:indices` | PASSOU (78 models, 64 tenant-scoped; 158 índices, 141 uniques) |
+| Smoke (`vitest`) | 189 arquivos, 2334/2334 |
+| Backend: 41 arquivos (`patrimonio*`, `produto*`, `estoque*`, `gestaoP3*`, `movimentac*`, `lote*`; inclui `patrimonioSimplificaMigration`) | 609 testes: 604 pass, 0 fail, 5 todo |
+| Backend: 4 arquivos da `main` que tocam estoque/produto (`autorizacaoIntegradaBloqueadores`, `cadastrosEstoqueNativo`, `estabP0LancamentosNativo`, `p54Base44ExitNativo`) | 36/36 |
+| Classificador real sobre a migration | CONTRACT, 0 violações: 13 removidas, 4 instruções de alargamento (2 CHECKs), 7 novas |
+
+O `verify:all` integral e os E2E não foram rodados de novo depois do merge.

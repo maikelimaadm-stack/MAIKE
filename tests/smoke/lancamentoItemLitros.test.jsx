@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (F4, §5.3) — item da Gestão P3 em LITROS, só para Produto em L.
+ * D-PROD-162 (F4, §5.3) — item da Gestão P3 em LITROS, só para Produto em L.
  *
  *  LIT-1. modelo: escolher um Produto em L põe a unidade `L`; os outros, `KG`
  *         (como antes); o detalhe do servidor preserva `L` e marca o Produto;

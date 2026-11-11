@@ -1,8 +1,8 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — Patrimônio P1-02: abastecimento ×
+ * D-PROD-159, revisto pela D-PROD-162 — Patrimônio P1-02: abastecimento ×
  * segurança (S1–S9). PostgreSQL real, HTTP autenticado, prova por linhas gravadas.
  *
- *  S1 401 sem sessão (ou token inválido) nas 11 rotas (D-PROD-161: saem A9, A10
+ *  S1 401 sem sessão (ou token inválido) nas 11 rotas (D-PROD-162: saem A9, A10
  *     e as 3 do fator kg/L, que respondem 404; `configurar_conversao` fica inerte)
  *  S2 403 pela matriz da tela `pat-abastecimentos` (negado por padrão; ações extras próprias)
  *  S3 404 entre tenants e fazendas, sem oráculo (mesmo corpo do inexistente)
@@ -66,7 +66,7 @@ const rotas = (s, { ab }) => [
   ['A16', 'ver', 'GET', `/patrimonio-abastecimentos-opcoes/produtos-do-bem?empresa_id=${s.e1.id}&bem_id=${s.trator.id}`],
 ];
 
-/** As rotas que a D-PROD-161 removeu: 404 de rota inexistente, com ou sem sessão. */
+/** As rotas que a D-PROD-162 removeu: 404 de rota inexistente, com ou sem sessão. */
 const ROTAS_REMOVIDAS = (s) => [
   ['GET', '/patrimonio-abastecimentos-opcoes/tipos'],
   ['GET', `/patrimonio-abastecimentos-opcoes/produtos?empresa_id=${s.e1.id}&tipo_combustivel_id=qualquer`],
@@ -84,7 +84,7 @@ describe('S1–S2 — sessão e permissões da tela pat-abastecimentos', () => {
     const R = rotas(s, ids);
     assert.equal(R.length, 11);
     for (const [metodo, url, corpo] of ROTAS_REMOVIDAS(s)) {
-      for (const token of [null, s.token]) assert.equal((await A.req(metodo, url, token, corpo)).statusCode, 404, `${metodo} ${url} saiu (D-PROD-161)`);
+      for (const token of [null, s.token]) assert.equal((await A.req(metodo, url, token, corpo)).statusCode, 404, `${metodo} ${url} saiu (D-PROD-162)`);
     }
 
     // ── S1 ──
@@ -318,7 +318,7 @@ describe('S6–S8 — o banco é a última rede', () => {
     // o DO pula o REVOKE e a política, e o S6 acima não exercita nenhum dos dois. Aqui os papéis
     // são criados (CREATE ROLE é transacional), o default do Supabase é simulado e o DO
     // EXATO do migration.sql roda de novo (é idempotente). Tudo volta no ROLLBACK.
-    // D-PROD-161: as tabelas foram (re)criadas pela migration da simplificação; o DO de RLS é o dela
+    // D-PROD-162: as tabelas foram (re)criadas pela migration da simplificação; o DO de RLS é o dela
     // (o outro DO da migration é a guarda do modo CONTRACT, que não se roda de novo).
     const sql = readFileSync(new URL('../prisma/migrations/20261110300000_patrimonio_simplifica/migration.sql', import.meta.url), 'utf8');
     const blocos = (sql.match(/^DO \$\$[\s\S]*?^END \$\$;/gm) ?? []).filter((b) => b.includes("pol_name constant text := 'maike_backend_all'"));
@@ -408,7 +408,7 @@ describe('S6–S8 — o banco é a última rede', () => {
     await recusa(AB(`status = 'CANCELADO'`), /AbastecimentoBem_status_check/, 'CANCELADO sem estorno');
     await recusa(AB(`status = 'ESTORNADO'`), /AbastecimentoBem_status_check/, 'status fora do domínio');
     await recusa(AB(`status = 'CANCELADO', movimentacao_estorno_id = movimentacao_estoque_id, cancelado_em = now(), motivo_cancelamento = 'estorno direto'`), /AbastecimentoBem_movimentos_check|AbastecimentoBem_cliente_id_movimentacao_estorno_id_key/, 'estorno = o próprio movimento');
-    // FKs novas (D-PROD-161 P-07): o banco garante produto aceito pelo tanque, tanque do bem e bem da fazenda
+    // FKs novas (D-PROD-162 P-07): o banco garante produto aceito pelo tanque, tanque do bem e bem da fazenda
     await recusa(AB(`produto_id = '${s.gasolina.id}'`), /AbastecimentoBem_cliente_id_tanque_id_produto_id_fkey|foreign key/i, 'Produto que o tanque não aceita');
     await recusa(AB(`tanque_id = '${s.caminhonete.tanques[0].id}'`), /AbastecimentoBem_cliente_id_bem_id_tanque_id_fkey|foreign key/i, 'tanque de OUTRO bem');
     await recusa(AB(`empresa_id = '${s.e2.id}'`), /foreign key/i, 'abastecimento mudado de fazenda (bem/fatias da e1)');

@@ -5,7 +5,7 @@
  * Mesmas consultas (e chaves) de `useAcoesTelaGestao`: a tela Permissões
  * invalida `["permissao-efetiva"]` ao gravar, e o cache é compartilhado.
  *
- * Famílias e tipos são do TENANT e não pedem empresa (D-PROD-161: vivem dentro
+ * Famílias e tipos são do TENANT e não pedem empresa (D-PROD-162: vivem dentro
  * do cadastro de Bens e seguem as ações dele); os bens e os abastecimentos pedem
  * a empresa REAL (`useEmpresaRealSelecionadaId`).
  */
@@ -45,7 +45,7 @@ const usePermissaoEfetivaPatrimonio = () => {
 };
 
 /**
- * Ações da tela (`ver`, `criar`, `editar`, `inativar`) e, D-PROD-161, as de
+ * Ações da tela (`ver`, `criar`, `editar`, `inativar`) e, D-PROD-162, as de
  * famílias, tipos e Produtos aceitos DENTRO do cadastro de Bens
  * (`acoesDeCatalogoNoBem`: `criarCatalogo`, `editarCatalogo`,
  * `inativarCatalogo`, `produtosDoTanque` — sempre sobre a tela de Bens).
@@ -62,7 +62,7 @@ export const useAcoesTelaPatrimonio = (tela) => {
 /**
  * Ações da tela Abastecimentos (D-PROD-159): ver, criar (prévia e confirmação)
  * e cancelar/estornar — espelho de `GUARDAS.patrimonioAbastecimentos`. O fator
- * kg/L saiu (D-PROD-161).
+ * kg/L saiu (D-PROD-162).
  * @returns {{ ver: boolean, criar: boolean, cancelar: boolean, carregando: boolean, administrador: boolean, login: string|null }}
  */
 export const useAcoesTelaAbastecimento = () => {

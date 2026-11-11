@@ -28,7 +28,7 @@ const PAGINAS_COLISAO_HISTORICA = [
  * Todas as páginas permitidas (24: +3 de Gestão Rural, D-PROD-146; +1 Naturezas
  * Financeiras, D-PROD-153; +1 Lançamentos Financeiros, D-PROD-155; +5 Patrimônio
  * e Frota, D-PROD-157; +1 Abastecimentos, D-PROD-159; −4 Famílias, Tipos, Perfis
- * de Medição e Combustíveis, D-PROD-161).
+ * de Medição e Combustíveis, D-PROD-162).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
@@ -57,7 +57,7 @@ const TODAS_PAGINAS_SPA = [
   'Abastecimentos',
 ];
 
-/** D-PROD-161: páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app). */
+/** D-PROD-162: páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app). */
 const PAGINAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
 
 describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {
@@ -143,7 +143,7 @@ describe('VERCEL-SPA — matriz das páginas', () => {
     expect(rewrites).toHaveLength(2 + 4 * 24);
   });
 
-  it('as quatro páginas removidas pela D-PROD-161 não têm rewrite (nem no vercel.json)', () => {
+  it('as quatro páginas removidas pela D-PROD-162 não têm rewrite (nem no vercel.json)', () => {
     for (const nome of PAGINAS_REMOVIDAS) {
       for (const source of [`/${nome.toLowerCase()}`, `/${nome.toLowerCase()}/`, `/${nome}`, `/${nome}/`]) {
         expect(rewrites.find((r) => r.source === source), source).toBeUndefined();

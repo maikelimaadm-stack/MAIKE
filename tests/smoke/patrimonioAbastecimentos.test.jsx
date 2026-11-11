@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, simplificada pela D-PROD-161 — tela Abastecimentos montada de
+ * D-PROD-159, simplificada pela D-PROD-162 — tela Abastecimentos montada de
  * verdade (página, motor Base1, service, API, porta e nativeHttpClient reais)
  * sobre o backend falso `abastecimentosFakeCore` (códigos/field/reason reais,
  * decimais como texto, idempotência por `operation_id`). Mocks só da borda:
@@ -521,7 +521,7 @@ describe('FE5 — confirmação idempotente', () => {
   });
 });
 
-describe('Consumo do bem (D-PROD-161, P-03: métrica pela unidade do Produto)', () => {
+describe('Consumo do bem (D-PROD-162, P-03: métrica pela unidade do Produto)', () => {
   it('horímetro TP-02 em L: 3º abastecimento 5 L/h; 1º e 2º com "dados insuficientes"; painel com metodologia', async () => {
     amb.estado.lotes.find((l) => l.id === 'lote-B').disponivel = '500.0000';
     amb.estado.produtos.find((p) => p.id === 'p1').estoque_atual = '550.0000';

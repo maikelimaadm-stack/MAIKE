@@ -1,7 +1,7 @@
 /**
- * D-PROD-157 / D-PROD-161 — catálogo PADRÃO do Patrimônio (instalado pelo
+ * D-PROD-157 / D-PROD-162 — catálogo PADRÃO do Patrimônio (instalado pelo
  * serviço, nunca por seed na migration) e o instalador IDEMPOTENTE
- * `POST /patrimonio-catalogo-padrao`. D-PROD-161: só famílias e tipos (perfis
+ * `POST /patrimonio-catalogo-padrao`. D-PROD-162: só famílias e tipos (perfis
  * de medição e combustíveis saíram do produto).
  *
  * Cria só o que falta, por `codigo`, sob a trava do catálogo do tenant (A9):

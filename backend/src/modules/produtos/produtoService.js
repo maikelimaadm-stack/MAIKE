@@ -1,5 +1,21 @@
 /**
  * Serviço de Produto (P5.2, D-PROD-48).
+ *
+ * D-PROD-161 (Estoque P0): o Cadastro de Produtos NÃO lança estoque.
+ * `estoque_atual` é cache DERIVADO das entradas e movimentações e só o motor
+ * físico (`estoqueFisicoMotor.js`, `{increment}`/`{decrement}` conferidos sob
+ * `travarProdutosEstoque`) o altera. Aqui:
+ *  - POST grava SEMPRE 0; o campo ausente ou numericamente 0 é aceito (cliente
+ *    antigo), qualquer outro valor → 422 PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL;
+ *  - PATCH nunca o escreve: presente no corpo, a linha é travada (FOR NO KEY
+ *    UPDATE, espera o FOR UPDATE do motor) e relida; igual ao atual a 4 casas é
+ *    ignorado, diferente → 422. Sem escrita absoluta, sem lost update;
+ *  - produto com lote, movimento ou cache ≠ 0 não muda de empresa (409
+ *    PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA): lotes e movimentos ficariam na
+ *    fazenda antiga;
+ *  - produto com lote não é excluído (409 PRODUTO_DELETE_BLOCKED, vínculo
+ *    'lotes de estoque'): o lote ficaria órfão;
+ *  - `preco_custo` é preço de referência: nunca altera lote, movimento ou fatia.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -16,7 +32,7 @@ import {
 } from '../../shared/pagination/keysetCursor.js';
 import { AppError, produtoNotFound, produtoNomeConflito, produtoDeleteBlocked } from '../../shared/errors/AppError.js';
 import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { dec } from '../financeiro/decimalFinanceiro.js';
+import { CASAS_QUANTIDADE, Dec, dec } from '../financeiro/decimalFinanceiro.js';
 import {
   listarProdutos,
   listarProdutosPagina,
@@ -27,6 +43,7 @@ import {
   atualizarProdutoPorId,
   excluirProdutoPorId,
   contarMovimentacoesPorProduto,
+  contarLotesPorProduto,
 } from './produtoRepository.js';
 
 export const ENTIDADE_SEQUENCIA = 'Produto';
@@ -107,7 +124,8 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   unidade_medida: (v) => textoOuNulo(v),
   preco_custo: (v) => decimalOuNulo(v),
   preco_venda: (v) => decimalOuNulo(v),
-  estoque_atual: (v) => decimalComDefault(v, 0),
+  // D-PROD-161: `estoque_atual` NÃO é campo editável (cache do motor físico);
+  // o corpo que o traz é conferido por `estoqueInformado`/`exigir*` abaixo.
   estoque_minimo: (v) => decimalComDefault(v, 0),
   local_estoque: (v) => textoOuNulo(v),
   tipo_consumo: (v) => textoOuNulo(v),
@@ -132,11 +150,11 @@ const camposDe = (entrada) => {
   return saida;
 };
 
-/** D-PROD-161: unidades de estoque que um tanque do Patrimônio aceita (e o abastecimento baixa). */
+/** D-PROD-162: unidades de estoque que um tanque do Patrimônio aceita (e o abastecimento baixa). */
 const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG']);
 
 /**
- * D-PROD-161 (achado D1): o aceite que VALE — ativo, num tanque ativo de um bem
+ * D-PROD-162 (achado D1): o aceite que VALE — ativo, num tanque ativo de um bem
  * ativo. Aceite em tanque inativo (ou de bem inativo) não trava o Produto: o
  * abastecimento relê o Produto e o recusa, e reativar o tanque/bem revalida.
  * @param {string} clienteId @param {string} produtoId
@@ -163,7 +181,7 @@ const unidadeEmUso = (id, de, para, reason, extra = {}) =>
   });
 
 /**
- * D-PROD-161 (§4.6, padrões P-08 e P-10) — a troca da unidade de estoque.
+ * D-PROD-162 (§4.6, padrões P-08 e P-10) — a troca da unidade de estoque.
  *  - envolvendo `L` (de L ou para L): só sem histórico — `estoque` (≠ 0) →
  *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da
  *    Gestão P3, rascunho inclusive), nessa ordem;
@@ -184,6 +202,79 @@ const conferirTrocaDeUnidade = async (tx, clienteId, anterior, para) => {
   if (!UNIDADES_DO_TANQUE.includes(para)) {
     const tanques = await tanquesQueAceitam(tx, clienteId, id);
     if (tanques.length) throw unidadeEmUso(id, de, para, 'aceito_em_tanque', { tanques });
+  }
+};
+
+// ─── D-PROD-161: estoque_atual somente leitura ──────────────────────────────
+const ESTOQUE_ATUAL_SOMENTE_LEITURA = Object.freeze({ field: 'estoque_atual', reason: 'somente_leitura' });
+
+const estoqueAtualNaoEditavel = (mensagem) =>
+  new AppError('PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL', `${mensagem}; o estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos; nada foi gravado`, {
+    details: { ...ESTOQUE_ATUAL_SOMENTE_LEITURA },
+  });
+
+/** O corpo trouxe a chave `estoque_atual` (qualquer valor)? */
+const estoqueInformado = (entrada) => Object.prototype.hasOwnProperty.call(entrada ?? {}, 'estoque_atual');
+
+/**
+ * Valor do corpo → Dec SEM arredondar. O JSON entrega `number` (float):
+ * `new Dec(String(n))`, porque `dec()` recusa float. Não numérico, vazio ou não
+ * finito → null (quem chama recusa).
+ * @param {unknown} valor
+ * @returns {InstanceType<typeof Dec>|null}
+ */
+const estoqueDoCorpo = (valor) => {
+  if (typeof valor === 'number' && !Number.isFinite(valor)) return null;
+  if (typeof valor !== 'number' && (typeof valor !== 'string' || !valor.trim())) return null;
+  try {
+    const d = new Dec(String(valor).trim());
+    return d.isFinite() ? d : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * POST: ausente ou numericamente 0 segue (o servidor grava 0); qualquer outro
+ * valor → 422, sem arredondar: 0,00001 não é 0 (o cadastro não cria saldo nenhum).
+ * @param {Record<string, unknown>} entrada
+ */
+const exigirEstoqueZeroNaCriacao = (entrada) => {
+  if (!estoqueInformado(entrada)) return;
+  const valor = estoqueDoCorpo(entrada.estoque_atual);
+  if (valor === null || !valor.isZero()) {
+    throw estoqueAtualNaoEditavel('estoque_atual não é informado no cadastro do produto: só 0 ou ausente');
+  }
+};
+
+/**
+ * PATCH: com a linha JÁ travada e relida, o valor do corpo arredondado UMA vez
+ * (ROUND_HALF_UP, 4 casas: a escala da coluna) tem de ser o atual (sem efeito);
+ * diferente → 422. O valor nunca é gravado.
+ * @param {Record<string, unknown>} entrada @param {{estoque_atual: unknown}} atual
+ */
+const exigirEstoqueIgualAoAtual = (entrada, atual) => {
+  if (!estoqueInformado(entrada)) return;
+  const valor = estoqueDoCorpo(entrada.estoque_atual);
+  if (valor === null || !valor.toDecimalPlaces(CASAS_QUANTIDADE, Dec.ROUND_HALF_UP).equals(dec(atual.estoque_atual))) {
+    throw estoqueAtualNaoEditavel('estoque_atual não é editável pelo cadastro do produto: só o valor atual (sem efeito) é aceito');
+  }
+};
+
+/**
+ * Troca de empresa (linha já em FOR UPDATE): lote, movimento ou cache ≠ 0
+ * ficariam na fazenda antiga → 409. Lotes de qualquer situação contam.
+ */
+const exigirProdutoSemEstoqueParaTrocarEmpresa = async (tx, clienteId, anterior) => {
+  const lotes = await contarLotesPorProduto(tx, clienteId, anterior.id);
+  const movimentos = await contarMovimentacoesPorProduto(tx, clienteId, anterior.id);
+  const cache = dec(anterior.estoque_atual);
+  if (lotes > 0 || movimentos > 0 || !cache.isZero()) {
+    throw new AppError(
+      'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA',
+      'produto com lote, movimento de estoque ou estoque atual diferente de zero não muda de fazenda: lotes e movimentos ficariam na fazenda antiga; cadastre um produto na fazenda nova; nada foi gravado',
+      { details: { id: anterior.id, lotes, movimentos, estoque_atual: cache.toFixed(CASAS_QUANTIDADE) } }
+    );
   }
 };
 
@@ -237,6 +328,8 @@ export const listarPagina = async (contexto, query = {}) => {
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  // D-PROD-161: antes de qualquer leitura/escrita (nem número, nem auditoria).
+  exigirEstoqueZeroNaCriacao(entrada);
   const prisma = getPrismaClient();
   const campos = camposDe(entrada);
 
@@ -257,7 +350,8 @@ export const criar = async (contexto, entrada) => {
       ...campos,
       cliente_id: auth.clienteId,
       numero_produto: String(numero),
-      estoque_atual: campos.estoque_atual ?? 0,
+      // D-PROD-161: o cadastro nunca cria saldo (o motor físico é a única porta).
+      estoque_atual: 0,
       estoque_minimo: campos.estoque_minimo ?? 0,
       unidade_principal_estoque: campos.unidade_principal_estoque ?? 'KG',
     });
@@ -284,7 +378,7 @@ export const atualizar = async (contexto, id, entrada) => {
   // valores absolutos: repetir depois do 409 leva ao mesmo estado.
   return emTransacao(TRANSACAO_CURTA, async (tx) => {
     const campos = camposDe(entrada);
-    // D-PROD-161 (§4.6): trocar a unidade de estoque toma a MESMA trava dos
+    // D-PROD-162 (§4.6): trocar a unidade de estoque toma a MESMA trava dos
     // escritores de estoque (advisory `estoque:produto:*` → FOR UPDATE, nesta
     // ordem: sem deadlock com confirmação/cancelamento/abastecimento) ANTES de
     // qualquer outra trava do Produto. A unidade é lida sem trava só para saber
@@ -293,7 +387,7 @@ export const atualizar = async (contexto, id, entrada) => {
     if (campos.unidade_principal_estoque !== undefined && !lida) throw produtoNotFound();
     const trocaUnidade = Boolean(lida) && campos.unidade_principal_estoque !== (lida.unidade_principal_estoque ?? 'KG');
     if (trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
-    // D-PROD-157 (R2) / D-PROD-161: o aceite ATIVO do Produto num tanque do
+    // D-PROD-157 (R2) / D-PROD-162: o aceite ATIVO do Produto num tanque do
     // Patrimônio exige que ele continue na MESMA empresa (invariante do serviço:
     // Produto não tem unique por empresa). Corpo com `empresa_id` (o formulário
     // sempre reenvia a que leu) ou com a unidade trava a linha ANTES de ler o
@@ -304,9 +398,17 @@ export const atualizar = async (contexto, id, entrada) => {
     //    Produto a um tanque;
     //  - só se a fazenda MUDA sobe para FOR UPDATE (espera quem segura o
     //    produto em KEY SHARE, como um aceite em voo), relê e conta.
-    if (campos.empresa_id !== undefined || campos.unidade_principal_estoque !== undefined) {
-      await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
-    }
+    //  - D-PROD-161: corpo com `estoque_atual` também trava (FOR NO KEY UPDATE
+    //    espera o FOR UPDATE de `travarProdutosEstoque`): a comparação usa o
+    //    cache que o motor acabou de commitar, e o valor nunca é gravado.
+    //  - D-PROD-161 (R2, achado B-02/LC-1): e QUALQUER corpo trava antes de ler,
+    //    não só com `empresa_id`/`estoque_atual`. Sem isso, o PATCH de um cliente
+    //    de API com só `{nome_produto}` lia o cache velho e, depois de esperar a
+    //    baixa do motor no UPDATE, auditava `estoque_atual` 100→90 — uma escrita
+    //    de cache que não fez e que a reconciliação toma como escritor fora do
+    //    motor. É a mesma trava que o UPDATE já pegaria, só que antes da
+    //    leitura: nenhuma trava nova antes dela, sem ciclo.
+    await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     let anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
     if (lida && ((anterior.unidade_principal_estoque ?? 'KG') !== (lida.unidade_principal_estoque ?? 'KG') || anterior.empresa_id !== lida.empresa_id)) {
@@ -314,6 +416,7 @@ export const atualizar = async (contexto, id, entrada) => {
         details: { id },
       });
     }
+    exigirEstoqueIgualAoAtual(entrada, anterior);
 
     if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
       await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
@@ -327,6 +430,9 @@ export const atualizar = async (contexto, id, entrada) => {
           details: { field: 'empresa_id', reason: 'aceito_em_tanque', id, tanques },
         });
       }
+      // D-PROD-161: depois do aceite em tanque do Patrimônio (antes, do vínculo a
+      // combustível; código e ordem de antes).
+      await exigirProdutoSemEstoqueParaTrocarEmpresa(tx, auth.clienteId, anterior);
     }
     if (trocaUnidade) await conferirTrocaDeUnidade(tx, auth.clienteId, anterior, String(campos.unidade_principal_estoque));
     if (campos.nome_produto && campos.nome_produto !== anterior.nome_produto) {
@@ -367,7 +473,7 @@ export const excluir = async (contexto, id) => {
   const prisma = getPrismaClient();
 
   await prisma.$transaction(async (tx) => {
-    // D-PROD-157 (R2) / D-PROD-161: trava o produto ANTES das contagens (padrão
+    // D-PROD-157 (R2) / D-PROD-162: trava o produto ANTES das contagens (padrão
     // da exclusão do parceiro): quem o está acrescentando a um tanque do
     // Patrimônio segura a linha (FOR KEY SHARE) e esta exclusão espera o commit;
     // a contagem já o vê e o 409 sai no lugar do 403 da FK.
@@ -379,6 +485,14 @@ export const excluir = async (contexto, id) => {
     if (quantidade > 0) {
       throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
     }
+    // D-PROD-161: lote (de qualquer situação) sem movimento — legado ou import —
+    // também segura o produto: a exclusão deixaria o lote órfão (sem FK).
+    const lotes = await contarLotesPorProduto(tx, auth.clienteId, id);
+    if (lotes > 0) {
+      throw new AppError('PRODUTO_DELETE_BLOCKED', 'não é possível excluir produto com lotes de estoque; inative-o', {
+        details: { id, vinculo: 'lotes de estoque', quantidade: lotes },
+      });
+    }
     // D-PROD-155 (§8.5): item de lançamento financeiro (rascunho inclusive) segura
     // o produto pela FK RESTRICT; 409 em vez do enganoso 403.
     const itensFinanceiros = await tx.operacaoFinanceiraItem.count({ where: { cliente_id: auth.clienteId, produto_id: id } });
@@ -387,7 +501,7 @@ export const excluir = async (contexto, id) => {
         details: { id, vinculo: 'lançamentos financeiros', quantidade: itensFinanceiros },
       });
     }
-    // D-PROD-161 (§4.6): as linhas de `TanqueBemProduto` que SOBRAM (ativas, ou
+    // D-PROD-162 (§4.6): as linhas de `TanqueBemProduto` que SOBRAM (ativas, ou
     // inativas com histórico — o sync do bem apaga a retirada sem abastecimento)
     // seguram o produto pela FK RESTRICT; 409, nunca 403. Com histórico há
     // movimento, e a contagem de movimentos acima já bloqueou.

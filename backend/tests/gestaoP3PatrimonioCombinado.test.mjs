@@ -1,7 +1,7 @@
 /**
- * D-PROD-158 × D-PROD-157 × D-PROD-161 — comportamento COMBINADO da Gestão
+ * D-PROD-158 × D-PROD-157 × D-PROD-162 — comportamento COMBINADO da Gestão
  * P3-03 (retificar/excluir lançamentos) com o Patrimônio (bens e Produtos
- * aceitos pelos tanques, D-PROD-161), que chegaram à mesma base pelo merge de
+ * aceitos pelos tanques, D-PROD-162), que chegaram à mesma base pelo merge de
  * `main` na P3-03. Cada frente tinha os seus testes; nenhum exercitava as duas
  * juntas. PostgreSQL real, HTTP autenticado, prova pelas linhas do tenant.
  *
@@ -15,7 +15,7 @@
  *      exclusão; trocar a fazenda → 409 PRODUTO_EM_TANQUE_PATRIMONIO; com
  *      rascunho, o bloqueio financeiro vem primeiro e, descartado o rascunho, o
  *      aceite do tanque continua segurando;
- *  C2b. (D-PROD-161) compra P3 de diesel em L → abastecimento de 80 L (tanque de 100 L) → o
+ *  C2b. (D-PROD-162) compra P3 de diesel em L → abastecimento de 80 L (tanque de 100 L) → o
  *      cancelamento do abastecimento devolve ao MESMO lote → o cancelamento da
  *      compra estorna o lote intacto; tudo rotulado `L`;
  *  C3. permissões cruzadas: a concessão total de uma frente não abre a outra
@@ -59,7 +59,7 @@ const montar = async () => {
   const p = prisma();
   return { ...s, fam: await porCodigo(p.familiaPatrimonial, s.c), tip: await porCodigo(p.tipoPatrimonial, s.c) };
 };
-/** Trator com um tanque de 100 L que aceita os Produtos dados (D-PROD-161; P-01: pode ser nenhum). */
+/** Trator com um tanque de 100 L que aceita os Produtos dados (D-PROD-162; P-01: pode ser nenhum). */
 const trator = (s, e, extra = {}, produtoIds = []) => ({
   empresa_id: e.id,
   nome: `Trator ${randomUUID().slice(0, 6)}`,
@@ -113,7 +113,7 @@ const trocaDeFazendaRecusada = async (s, produto, empresaDestino, bem) => {
   assert.equal(await estado(s.c), antes, 'nada gravado');
 };
 
-/** Bem com um tanque que aceita o Produto (o aceite nasce pelo POST do bem, D-PROD-161). */
+/** Bem com um tanque que aceita o Produto (o aceite nasce pelo POST do bem, D-PROD-162). */
 const aceitar = (s, e, produto) => criarBem(s, trator(s, e, {}, [produto.id]));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ describe('C2 — produto com item financeiro E aceito num tanque de bem', () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('C2b — compra P3 em L → abastecimento em L → cancelamentos (D-PROD-161)', () => {
+describe('C2b — compra P3 em L → abastecimento em L → cancelamentos (D-PROD-162)', () => {
   test('lote/movimentos/estoque em L do começo ao fim; o estorno do abastecimento devolve ao mesmo lote e a compra cancela', async () => {
     const s = await montar();
     const e = s.e1;

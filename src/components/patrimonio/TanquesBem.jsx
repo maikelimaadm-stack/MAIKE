@@ -50,7 +50,7 @@ const motivoDoProduto = (p, recusa) => {
 };
 
 /**
- * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-161):
+ * Tanques de máquinas, veículos e equipamentos (D-PROD-157; D-PROD-162):
  * identificador, capacidade em litros, observação e os **Produtos aceitos** —
  * Produtos ativos do estoque DESTA fazenda, em litros (`L`) ou quilos (`KG`),
  * escolhidos por um seletor paginado (busca por nome/código no servidor, selo

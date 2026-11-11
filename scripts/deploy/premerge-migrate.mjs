@@ -20,7 +20,7 @@
  *     ⊆ manifesto) — senão PREMERGE_MIGRATIONS_NAO_COMPROVADAS.
  *  5. Só `--aplicar` executa o runner oficial `npm run deploy:migrate` (que
  *     refaz a conferência de alvo e recusa o pooler). Nenhum segundo executor de DDL.
- *  6. Modo CONTRACT (D-PROD-161): a migration CONTRACT tem de ser a ÚNICA nova
+ *  6. Modo CONTRACT (D-PROD-162): a migration CONTRACT tem de ser a ÚNICA nova
  *     (CONTRACT_NAO_ISOLADO); `--verificar-alvo`/`--aplicar` exigem
  *     `--contract <decisão>` exato (CONTRACT_NAO_AUTORIZADO), ANTES de qualquer
  *     conexão; `--contract` sem CONTRACT na release é CONTRACT_INESPERADO. Só
@@ -31,7 +31,7 @@
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex>                    (análise local)
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --verificar-alvo   (+ alvo, só leitura)
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --aplicar          (+ alvo, aplica)
- *   … --verificar-alvo --contract D-PROD-161 / … --aplicar --contract D-PROD-161   (release CONTRACT)
+ *   … --verificar-alvo --contract D-PROD-162 / … --aplicar --contract D-PROD-162   (release CONTRACT)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -57,7 +57,7 @@ if (args.includes('--base')) recusar('BASE_FIXA', 'a base da release é sempre o
 const sha = valor('--sha');
 const aplicar = args.includes('--aplicar');
 const verificarAlvo = aplicar || args.includes('--verificar-alvo');
-// D-PROD-161: `--contract` sem valor conta como informado e vazio (nunca autoriza nada).
+// D-PROD-162: `--contract` sem valor conta como informado e vazio (nunca autoriza nada).
 const autorizacaoContract = args.includes('--contract') ? (valor('--contract') ?? '') : undefined;
 if (!sha || !/^[0-9a-f]{40}$/.test(sha)) recusar('SHA_INVALIDO', '--sha com 40 caracteres hexadecimais é obrigatório');
 if (git('rev-parse', 'HEAD') !== sha) recusar('HEAD_DIVERGENTE', 'HEAD não é o SHA aprovado (faça checkout exato dele)');
@@ -82,7 +82,7 @@ const faltamNoDiff = migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, nomesNo
 console.log(JSON.stringify({ sha, main: mainRemota, migrations_novas: nomesNovas, expand: c.expand, modo: c.modo, contract: c.contract, tabelas_novas: c.tabelas_novas, colunas_novas_em_tabelas_antigas: c.colunas_novas_em_tabelas_antigas, violacoes: c.violacoes }, null, 2));
 // Código estável mantido: qualquer violação (EXPAND ou recorte CONTRACT) recusa com MIGRATIONS_NAO_EXPAND.
 if (!c.ok) recusar('MIGRATIONS_NAO_EXPAND', 'migrations fora da allowlist/manifesto da release');
-// D-PROD-161: isolamento e --contract inesperado já na análise local; a autorização só é exigida para tocar o alvo.
+// D-PROD-162: isolamento e --contract inesperado já na análise local; a autorização só é exigida para tocar o alvo.
 const rc = conferirReleaseContract({ nomesNovas, classificacao: c, autorizacao: autorizacaoContract });
 if (rc.codigo === 'CONTRACT_NAO_ISOLADO') recusar(rc.codigo, 'a migration CONTRACT tem de ser a única migration nova da release');
 if (rc.codigo === 'CONTRACT_INESPERADO') recusar(rc.codigo, '--contract informado, mas a release não tem migration CONTRACT');

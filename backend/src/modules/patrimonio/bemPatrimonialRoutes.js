@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 / D-PROD-161 — rotas dos bens patrimoniais (por EMPRESA), da
+ * D-PROD-157 / D-PROD-162 — rotas dos bens patrimoniais (por EMPRESA), da
  * prévia de depreciação e das opções dos seletores do formulário do bem
  * (famílias, tipos, Produtos aceitos pelo tanque e os da empresa).
  *
@@ -9,7 +9,7 @@
  * editar|salvar e, quando o corpo traz `ativo`, a ação extra `inativar`).
  * `numero`, `natureza` e `empresa_id` não se editam (fora do schema do PATCH
  * → 400; `empresa_id` é só escopo). Sem DELETE: inativação por PATCH.
- * D-PROD-161: `medicoes` e `combustivel_ids` saíram do contrato (→ 400); cada
+ * D-PROD-162: `medicoes` e `combustivel_ids` saíram do contrato (→ 400); cada
  * tanque traz `produto_ids` (Produtos do estoque aceitos, L ou KG).
  *
  * Decimais são STRING. O Fastify COERGE tipos (`coerceTypes: 'array'`): um
@@ -231,7 +231,7 @@ const OPCOES_CATALOGO = consultaDeOpcoes([]);
 const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID });
 /** Dependem da empresa: `empresa_id` obrigatório. */
 const OPCOES_DA_EMPRESA = consultaDeOpcoes(['empresa_id']);
-/** D-PROD-161: Produtos que o tanque pode aceitar (ativos, da fazenda, L ou KG); `unidade` filtra (achado D8). */
+/** D-PROD-162: Produtos que o tanque pode aceitar (ativos, da fazenda, L ou KG); `unidade` filtra (achado D8). */
 const OPCOES_PRODUTOS = consultaDeOpcoes(['empresa_id'], { unidade: ENUM(UNIDADES_ABASTECIMENTO) });
 
 const ctx = (request) => {
@@ -262,11 +262,11 @@ export const registrarBemPatrimonialRoutes = async (app) => {
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));
 
-  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-161: guarda de Bens).
+  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-162: guarda de Bens).
   const catalogo = { ...autenticado, preHandler: [g.opcoesCatalogo] };
   app.get('/bens-patrimoniais-opcoes/familias', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) => familias.opcoes(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/tipos', { ...catalogo, schema: OPCOES_TIPOS }, async (request) => tipos.opcoes(ctx(request), consulta(request)));
-  // D-PROD-161: "Produtos aceitos" do tanque — quem cadastra OU edita bem (ver sozinho não lista produtos da fazenda).
+  // D-PROD-162: "Produtos aceitos" do tanque — quem cadastra OU edita bem (ver sozinho não lista produtos da fazenda).
   app.get('/bens-patrimoniais-opcoes/produtos', { ...autenticado, preHandler: [g.opcoesProdutos], schema: OPCOES_PRODUTOS }, async (request) =>
     opcoesProdutosParaTanque(ctx(request), consulta(request)));
   // Opções da empresa: guarda de leitura dos bens.

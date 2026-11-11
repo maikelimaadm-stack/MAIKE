@@ -79,7 +79,7 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
 };
 
 /**
- * D-PROD-161 (achado B8): a migration CONTRACT do Patrimônio recusa banco com
+ * D-PROD-162 (achado B8): a migration CONTRACT do Patrimônio recusa banco com
  * abastecimento CONFIRMADO e banco com linhas nas tabelas que ela apaga sem a
  * impressão aprovada. A CI nasce vazia e não é afetada; um banco de teste LOCAL
  * com sobras de rodadas antigas (CONFIRMADO, sementes E2E) é. A dica só orienta
@@ -87,7 +87,7 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * sozinho NÃO recria: o volume `maike_pgdata` continua; é preciso o `-v`.)
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
-  'Se a saída acima cita D-PROD-161, o banco de teste local tem sobras de rodadas antigas: ' +
+  'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
   'recrie-o (docker compose down -v && npm run db:up, que apaga o volume LOCAL do docker-compose; ' +
   'ou dropdb/createdb do banco de teste) e rode de novo.';
 

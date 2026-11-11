@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — Patrimônio P1-02: INTEGRAÇÃO TELA × API
+ * D-PROD-159, revisto pela D-PROD-162 — Patrimônio P1-02: INTEGRAÇÃO TELA × API
  * (INT-1).
  *
  * Importa o módulo PURO da tela (`src/lib/abastecimentoRegras.js`, só imports
@@ -11,13 +11,13 @@
  * e a chave `lanc-<uuid>` do serviço. Percorre A3 → A4 → replay → A1
  * (`operation_id`) → A2 → A6 → A5 → replay do A5, em LITROS e em QUILOS, e
  * exige em TODA resposta `conferirRespostaAbastecimento(body) = []` (a forma
- * que a tela lê). D-PROD-161: a quantidade que a tela mostra como baixa
+ * que a tela lê). D-PROD-162: a quantidade que a tela mostra como baixa
  * (`quantidadeDaBaixaNaPrevia`) é EXATAMENTE a do servidor, na unidade do
  * Produto, sem conversão; a capacidade só vale para Produto em L. Os
  * bloqueios/erros reais têm de trazer os `details` que as mensagens da tela
  * (`patrimonioErros.js`) leem; o consumo CALCULADO tem a forma do painel.
  *
- * Contrato da tela (F5c, D-PROD-161 §5.4): o formulário guarda a quantidade em
+ * Contrato da tela (F5c, D-PROD-162 §5.4): o formulário guarda a quantidade em
  * `quantidade` (texto digitado) e `montarCorpoPrevia`/`montarCorpoConfirmacao`
  * mandam `quantidade` sem `tipo_combustivel_id`/`conversao_*`.
  *
@@ -102,7 +102,7 @@ const preencher = async (s, tok, p) => {
   }
   assert.ok(item, 'o Produto aparece entre os do bem');
   assert.equal(item.produto.id, p.produtoId, 'o Produto escolhido é o esperado');
-  for (const campo of ['tipo_combustivel', 'conversao', 'bloqueios']) assert.equal(Object.prototype.hasOwnProperty.call(item, campo), false, `a opção não traz ${campo} (D-PROD-161)`);
+  for (const campo of ['tipo_combustivel', 'conversao', 'bloqueios']) assert.equal(Object.prototype.hasOwnProperty.call(item, campo), false, `a opção não traz ${campo} (D-PROD-162)`);
   assert.equal(item.tanques.length, 1, 'um tanque aceita o Produto → a tela não pergunta o tanque');
   const hoje = hojeNoFuso(FUSO, new Date(String(process.env.MAIKE_TESTE_AGORA)));
   assert.equal(hoje, HOJE);

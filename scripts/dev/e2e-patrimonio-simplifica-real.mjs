@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — ACEITE HUMANO da missão em
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — ACEITE HUMANO da missão em
  * navegador real: tela real + backend Fastify REAL + Vite + PostgreSQL LOCAL;
  * conduz as telas pelo Playwright (Chromium já instalado; nada é instalado) e
  * confere o BANCO (Prisma) depois de cada passo. Substitui o E2E-2 da UX-02
@@ -94,7 +94,7 @@ process.env.DATABASE_URL = E.DATABASE_URL;
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
 const prisma = getPrismaClient();
 
-/** Rotas das telas removidas pela D-PROD-161 (minúsculas = `createPageUrl`; PascalCase = links antigos). */
+/** Rotas das telas removidas pela D-PROD-162 (minúsculas = `createPageUrl`; PascalCase = links antigos). */
 const TELAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
 const AVISO_KG_TANQUE = 'Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.';
 const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
@@ -692,4 +692,4 @@ try {
   await E.encerrarProcessos();
   await closePrismaClient();
 }
-process.exit(E.concluir('OK: aceite D-PROD-161 — Produto em L e em KG, Bens com "+ Nova família/tipo" e Produtos aceitos, abastecimento e estorno exatos; tela real + backend real + PostgreSQL local sem divergências.'));
+process.exit(E.concluir('OK: aceite D-PROD-162 — Produto em L e em KG, Bens com "+ Nova família/tipo" e Produtos aceitos, abastecimento e estorno exatos; tela real + backend real + PostgreSQL local sem divergências.'));

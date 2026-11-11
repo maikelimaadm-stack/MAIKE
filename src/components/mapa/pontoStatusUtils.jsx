@@ -74,7 +74,7 @@ export function getCochoIndicator(ponto, eventos = []) {
  * Indicador do depósito (saldo, % da capacidade, alerta de estoque mínimo e
  * último registro), tudo em kg.
  *
- * D-PROD-161 (padrão P-11): `produtos` (opcional) diz quais Produtos têm
+ * D-PROD-162 (padrão P-11): `produtos` (opcional) diz quais Produtos têm
  * estoque em LITROS; os lotes deles ficam fora do saldo em kg e o movimento
  * rotulado `L` fica fora do "último registro". Sem `produtos`, ou sem Produto
  * em L, o resultado é idêntico ao de antes.

@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 / D-PROD-161 — Bens patrimoniais (da EMPRESA): lista, detalhe,
+ * D-PROD-157 / D-PROD-162 — Bens patrimoniais (da EMPRESA): lista, detalhe,
  * criação, edição do agregado (medidor, tanques e os Produtos aceitos por
  * tanque) e prévia de depreciação.
  *
@@ -71,7 +71,7 @@ const INCLUIR = Object.freeze({
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {
       id: true, identificador: true, capacidade_litros: true, observacao: true, ativo: true,
-      // D-PROD-161 — Produtos ACEITOS (só os ativos); as linhas inativas são lidas à parte para validar.
+      // D-PROD-162 — Produtos ACEITOS (só os ativos); as linhas inativas são lidas à parte para validar.
       produtos: {
         where: { ativo: true },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -496,7 +496,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const medidor = await decidirMedidor({ natureza, estado: antes, pedido: entrada.medidor, criacao: false, hoje: hojeDe(tx, cli, empresaId), piso });
     if (medidor.colunas) Object.assign(estado, medidor.colunas);
     const capacidades = CAPACIDADES_POR_NATUREZA[natureza];
-    // D-PROD-161: reativar o bem revalida os Produtos aceitos dos tanques ativos (achado D1).
+    // D-PROD-162: reativar o bem revalida os Produtos aceitos dos tanques ativos (achado D1).
     const reativandoBem = estado.ativo === true && !antes.ativo;
     const gravados = capacidades.tanques && (entrada.tanques !== undefined || reativandoBem) ? await comTodosOsAceites(tx, cli, atual.tanques) : [];
     const tanques = capacidades.tanques && entrada.tanques !== undefined ? await validarTanques(tx, cli, empresaId, entrada.tanques, gravados, { reativandoBem }) : null;

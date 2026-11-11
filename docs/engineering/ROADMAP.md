@@ -372,7 +372,7 @@ o merge veio antes da migration, ver D-PROD-157). Relatório:
 **Próximos passos (cada um com decisão própria):** P1-02 Abastecimentos/Consumo
 (D-PROD-159, abaixo), depois manutenção, apuração mensal de depreciação por
 competência e transferência entre fazendas. As telas de famílias, tipos, perfis e
-combustíveis e o vínculo combustível × produto são **superados pela D-PROD-161**
+combustíveis e o vínculo combustível × produto são **superados pela D-PROD-162**
 (SIMPLIFICA-01, abaixo).
 
 ## Track autorizado — Patrimônio P1-02: abastecimentos e consumo de combustível (D-PROD-159)
@@ -402,7 +402,7 @@ serviço, peças, compras, custo/hora, apuração de depreciação, transferênc
 fazendas, saldo de tanque, GNV em tanque de litros, mapas e dashboards.
 
 O fator kg/L, a conversão de litros em KG e o "Produto obrigatoriamente em KG" são
-**superados pela D-PROD-161** (SIMPLIFICA-01, abaixo): o abastecimento passa a baixar a
+**superados pela D-PROD-162** (SIMPLIFICA-01, abaixo): o abastecimento passa a baixar a
 quantidade na unidade do Produto (L ou KG).
 
 ## Track autorizado — Patrimônio UX-02: abastecimento orientado pelo Produto associado (D-PROD-160)
@@ -426,9 +426,46 @@ SIMPLIFICA-01), sem migration. Relatório:
 
 **Limites registrados** (mudar exige decisão própria e schema): um Produto só pode
 estar ativo num combustível por fazenda; o fator kg/L é por par combustível ×
-Produto. **Superados pela D-PROD-161** (abaixo), que tira o combustível e o fator.
+Produto. **Superados pela D-PROD-162** (abaixo), que tira o combustível e o fator.
 
-## Track autorizado — Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-161)
+## Track autorizado — Estoque P0-01: motor físico único, ENTRADA ≠ MOVIMENTAÇÃO (D-PROD-161)
+
+Consolida o estoque físico num **único motor** (`estoqueFisicoMotor.js`), sem tela
+nova e **sem DDL**. ENTRADA (hoje só a compra confirmada da Central de Lançamentos)
+é o único lugar onde nasce quantidade; MOVIMENTAÇÃO (venda, abastecimento,
+suplementação e transferência entre locais) só baixa ou muda de lugar o que entrou.
+Suplementação e transferência saem do segundo FIFO em `Number` (`fifoEstoque.js`,
+apagado) e passam ao FIFO Decimal com CAS do motor; a transferência deixa de gravar o
+lote de destino com ano 2001. O Cadastro de Produtos não lança estoque
+(`estoque_atual` é cache derivado e somente leitura; CSV sem estoque; troca de empresa
+e exclusão bloqueadas com estoque). As escritas genéricas de movimento e de lote
+respondem 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (fica só a renomeação benigna do
+local). Uma reconciliação **somente leitura** (`GET /estoque-fisico/reconciliacao`,
+SO_ADMIN) classifica divergências sem corrigir nada. A reconciliação tem trabalho
+limitado por chamada e cursor assinado por HMAC e amarrado ao tenant e ao escopo.
+Ela só declara a conclusão global COMPROVADA num snapshot único; em várias chamadas
+o resultado é INCONCLUSIVO, nunca OK.
+No fechamento R2 também entraram:
+- a correção das máscaras do Cadastro de Produtos (o valor exibido agora é o gravado);
+- a folha "Local de Destino" do celular, que passou a abrir dentro do diálogo certo.
+
+**Estado:** PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238)
+**mergeada** na `main` (`e8472481`, 2026-11-11 00:27:25 UTC; registrado pela
+SIMPLIFICA-01), sem migration (`SCHEMA_APPLIED_PROD = N/A`). Relatório:
+[`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md).
+
+**Próximo (P1, só design nesta fase; cada item com decisão própria):** documento de
+Entrada de Estoque manual (implantação de saldo, ajuste, doação, devolução) pelo
+motor; lote de fabricante e validade; linhagem estruturada com FK e tabela de fatias;
+estorno de suplementação e de transferência no motor; CHECKs/FKs de integridade e
+saneamento auditado com GO (lotes de 2001, `Disponivel` com 0, recálculo de cache);
+consulta/histórico por lote com contrato próprio. Bloqueios arquiteturais da
+reconciliação, registrados na D-PROD-161:
+- **R2-1:** partição de um produto gigantesco por local;
+- **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
+- **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
+
+## Track autorizado — Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
 
 Decisão do proprietário de 2026-11-10. O grupo **Patrimônio e Frota** fica com duas
 páginas: **Bens Patrimoniais** e **Abastecimentos**. Famílias e Tipos são escolhidos e
@@ -446,6 +483,9 @@ apaga as 13 tabelas do Patrimônio, com os dados de todos os clientes, alarga 2 
 item da compra P3 para aceitar `'L'` e cria 7 tabelas no formato novo: 39 → 40 migrations,
 85 → 79 tabelas. Ela recusa se houver abastecimento CONFIRMADO, se as contagens não forem
 as do preflight ou se o papel não for o dono das tabelas.
+
+Integra a D-PROD-161 (motor físico único, mergeada antes): o rótulo `L` do movimento
+vem do Produto no motor único, que também grava a suplementação e a transferência.
 
 **Estado:** em implementação, PR draft. Migration **não aplicada** em nenhum ambiente
 remoto. Release pelo runbook

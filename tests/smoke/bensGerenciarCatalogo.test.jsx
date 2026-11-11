@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — "⋯ › Gerenciar famílias
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — "⋯ › Gerenciar famílias
  * e tipos" e "⋯ › Instalar catálogo padrão" no cadastro de Bens (as telas
  * Famílias/Tipos/Perfis/Combustíveis saíram). Tela real; mocks só da borda.
  *
@@ -147,7 +147,7 @@ const abrirGerenciar = async () => {
   return dialogo;
 };
 
-describe('Bens — "⋯" do catálogo (D-PROD-161)', () => {
+describe('Bens — "⋯" do catálogo (D-PROD-162)', () => {
   it('quem só vê Bens tem "Gerenciar famílias e tipos"; "Instalar catálogo padrão" só para o administrador', async () => {
     sessao.permissao = permissaoCom({});
     await montar();

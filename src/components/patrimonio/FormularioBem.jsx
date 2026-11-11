@@ -42,7 +42,7 @@ const FORMULARIO_TIPO_RAPIDO_ID = "formulario-tipo-rapido-bem";
 /** @typedef {import('./TanquesBem').ProdutoRecusado} ProdutoRecusado */
 
 /**
- * Ações de catálogo dentro do Bem (`acoesDeCatalogoNoBem`, D-PROD-161).
+ * Ações de catálogo dentro do Bem (`acoesDeCatalogoNoBem`, D-PROD-162).
  * @typedef {{ criarCatalogo: boolean, produtosDoTanque: boolean }} AcoesCatalogoDoBem
  */
 
@@ -53,7 +53,7 @@ const referenciaDaOpcao = (o) => (o ? { id: String(o.id), rotulo: String(o.nome 
 const nomeInicial = (busca) => String(busca ?? "").trim();
 
 /**
- * "+ Nova família" / "+ Novo tipo" do formulário do Bem (D-PROD-161, D-PROD-95):
+ * "+ Nova família" / "+ Novo tipo" do formulário do Bem (D-PROD-162, D-PROD-95):
  * o cadastro rápido abre por cima, com Nome (+ Natureza na família). O código é
  * gerado no servidor (P-05). Criou → o item fica escolhido no bem. 409 de nome
  * repetido → "Já existe…" com "Usar a existente" (procura o homônimo ATIVO).
@@ -154,7 +154,7 @@ function CadastroRapidoCatalogoBem({ pedido, onFechar, onEscolher }) {
 }
 
 /**
- * Formulário do Bem Patrimonial (D-PROD-157; D-PROD-161), com abas Base1:
+ * Formulário do Bem Patrimonial (D-PROD-157; D-PROD-162), com abas Base1:
  *  - Identificação: propriedade, responsáveis, localização e características
  *    (os campos de placa, chassi, série, potência, construção e
  *    compatibilidade aparecem só para a natureza que os admite — §2);

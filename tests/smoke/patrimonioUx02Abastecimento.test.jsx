@@ -1,5 +1,5 @@
 /**
- * D-PROD-160 (Patrimônio UX-02), revista pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-160 (Patrimônio UX-02), revista pela D-PROD-162 (SIMPLIFICA-01) —
  * Novo abastecimento orientado por PRODUTO, na tela real (página, motor Base1,
  * service, API, porta e nativeHttpClient reais) sobre o backend falso, cuja
  * rota A16 `produtos-do-bem` segue a semântica do serviço real: os "Produtos
@@ -702,7 +702,7 @@ describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
   });
 });
 
-describe('UX-02 revisão final (revista pela D-PROD-161) — formulário', () => {
+describe('UX-02 revisão final (revista pela D-PROD-162) — formulário', () => {
   /** Guarda o corpo de cada resposta da prévia (`rotear(req)` decide a resposta; `null` = fake normal). */
   const registrarPrevias = (rotear = (req) => rotearAbastecimentos(amb.estado, req)) => {
     const respostas = [];

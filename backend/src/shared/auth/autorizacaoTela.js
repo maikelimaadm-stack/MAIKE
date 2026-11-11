@@ -57,7 +57,7 @@ export const TELAS = Object.freeze({
   // D-PROD-155 — Gestão P3-01: Central Única de Lançamentos (gerencial).
   LANCAMENTOS_FINANCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-lancamentos-financeiros' }),
   // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário). Módulo
-  // próprio de menu; sem concessão automática a perfis antigos. D-PROD-161:
+  // próprio de menu; sem concessão automática a perfis antigos. D-PROD-162:
   // famílias e tipos vivem DENTRO do cadastro de Bens; as telas
   // `pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`
   // e `pat-combustiveis` saíram (linhas antigas em `permissoes_telas` ficam
@@ -77,7 +77,7 @@ export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'e
 export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquidar', 'estornar_liquidacao', 'cancelar']);
 
 /**
- * D-PROD-157 / D-PROD-161 — ação EXTRA das duas telas do Patrimônio (Bens e
+ * D-PROD-157 / D-PROD-162 — ação EXTRA das duas telas do Patrimônio (Bens e
  * Abastecimentos): inativar ou reativar o registro (PATCH com `ativo`; em Bens
  * vale também para famílias e tipos). Gravada na própria linha da tela em
  * `permissoes_telas`; ausente/não booleano = negado. Mesma lista no navegador
@@ -86,9 +86,9 @@ export const ACOES_LANCAMENTOS_FINANCEIROS = Object.freeze(['confirmar', 'liquid
 export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
 
 /**
- * D-PROD-159 / D-PROD-161 — ação EXTRA da tela `pat-abastecimentos`:
+ * D-PROD-159 / D-PROD-162 — ação EXTRA da tela `pat-abastecimentos`:
  * cancelar/estornar o abastecimento confirmado. Separada de
- * ACOES_PATRIMONIO_EXTRAS. O fator kg/L saiu (D-PROD-161): `configurar_conversao`
+ * ACOES_PATRIMONIO_EXTRAS. O fator kg/L saiu (D-PROD-162): `configurar_conversao`
  * gravado numa linha antiga fica inerte. Ausente/não booleano = negado. Mesma
  * lista no navegador (teste de paridade).
  */

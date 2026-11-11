@@ -1,7 +1,7 @@
 /**
- * D-PROD-157 / D-PROD-161 — Patrimônio: CATÁLOGOS do tenant (famílias, tipos
+ * D-PROD-157 / D-PROD-162 — Patrimônio: CATÁLOGOS do tenant (famílias, tipos
  * e o catálogo padrão). PostgreSQL real, HTTP autenticado, prova por
- * persistência. D-PROD-161: perfis de medição e combustíveis saíram (rotas
+ * persistência. D-PROD-162: perfis de medição e combustíveis saíram (rotas
  * 404); famílias e tipos têm as guardas da tela de Bens; `codigo` opcional.
  *
  *  K1. Catálogo padrão (só famílias e tipos): idempotente (2ª chamada cria 0),
@@ -348,7 +348,7 @@ describe('K3 — tipos', () => {
     assert.deepEqual(erro(await tipo({ familia_id: fam.id, nome: 'Novo' })), [422, 'BEM_REFERENCIA_INVALIDA', 'familia_id', 'inativo'], 'sem código: a família é conferida igual');
     assert.equal(await prisma().tipoPatrimonial.count({ where: { cliente_id: s.c, codigo: 'NOVO' } }), 0);
 
-    // D-PROD-161: perfis saíram do contrato.
+    // D-PROD-162: perfis saíram do contrato.
     for (const corpo of [
       { familia_id: s.fam.BENFEITORIAS, codigo: 'POCILGA', nome: 'Pocilga', perfis: [] },
       { familia_id: s.fam.BENFEITORIAS, nome: 'Pocilga', perfis: [{ perfil_id: INEXISTENTE }] },

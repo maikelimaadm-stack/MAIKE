@@ -43,14 +43,14 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Usuario', 'sessao_epoca'],
   // MAIKE-SAAS-ADMIN-S04-P2: login e guarda leem a troca obrigatória de senha.
   ['Usuario', 'troca_senha_pendente'],
-  // D-PROD-161 (Patrimônio SIMPLIFICA-01): o abastecimento em L/KG e os Produtos aceitos por tanque.
+  // D-PROD-162 (Patrimônio SIMPLIFICA-01): o abastecimento em L/KG e os Produtos aceitos por tanque.
   ['AbastecimentoBem', 'quantidade'],
   ['AbastecimentoBem', 'unidade'],
   ['TanqueBemProduto', 'produto_id'],
 ]);
 
 /**
- * D-PROD-161: a lista da consulta de colunas é MONTADA de COLUNAS_EXIGIDAS
+ * D-PROD-162: a lista da consulta de colunas é MONTADA de COLUNAS_EXIGIDAS
  * (antes era escrita à mão e podia divergir). Identificadores fixos deste
  * arquivo, sem entrada externa.
  */

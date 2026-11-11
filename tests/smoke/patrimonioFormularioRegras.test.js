@@ -8,7 +8,7 @@
  *    leitura atual é a própria inicial — a tela não envia o que o servidor
  *    recusa com MEDIDOR_LEITURA_INVALIDA/atual_diferente_da_inicial;
  *  - duplicar não pré-seleciona família nem tipo inativos e só copia os
- *    Produtos aceitos que ainda servem (ativos, em L ou KG — D-PROD-161);
+ *    Produtos aceitos que ainda servem (ativos, em L ou KG — D-PROD-162);
  *  - os tanques vão com `produto_ids` (P-01: `[]` é válido; P-02: até 20);
  *  - MEDIDOR_LEITURA_INVALIDA por `reason`; TANQUE_PRODUTO_INVALIDO por
  *    `reason`, com a linha do tanque tirada do `field`
@@ -112,13 +112,13 @@ describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativ
     ]);
   });
 
-  it('o estado não tem medições (D-PROD-161), mesmo que um detalhe antigo as traga', () => {
+  it('o estado não tem medições (D-PROD-162), mesmo que um detalhe antigo as traga', () => {
     const e = estadoInicialDoBem(detalheTrator({ medicoes: [{ id: 'm1', perfil: { id: 'p1' }, valor_informado: '1', unidade_informada: 'm2' }] }));
     expect('medicoes' in e).toBe(false);
   });
 });
 
-describe('formaDoEstado / validarBem — tanques com Produtos aceitos (D-PROD-161)', () => {
+describe('formaDoEstado / validarBem — tanques com Produtos aceitos (D-PROD-162)', () => {
   const ctx = { editando: true, medidorOriginal: MEDIDOR_AJUSTADO, hoje: '2026-11-09' };
 
   it('produto_ids na ordem da tela; tanque sem Produto vai com [] e passa na validação (P-01); sem medicoes no corpo', () => {

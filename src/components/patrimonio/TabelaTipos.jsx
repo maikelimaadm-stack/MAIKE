@@ -3,7 +3,7 @@ import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 import { textoMeses } from "@/components/patrimonio/TabelaFamilias";
 
-/** Colunas da lista de Tipos Patrimoniais (D-PROD-157; D-PROD-161: sem "Perfis sugeridos"). */
+/** Colunas da lista de Tipos Patrimoniais (D-PROD-157; D-PROD-162: sem "Perfis sugeridos"). */
 export const TIPOS_COLUNAS = [
   { id: "codigo", label: "Código", default: true, sortable: true, width: 140 },
   { id: "nome", label: "Tipo", default: true, sortable: true, width: 240 },

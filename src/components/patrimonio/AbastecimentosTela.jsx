@@ -78,7 +78,7 @@ const RELER_NOS_ERROS = new Set([
   "ABASTECIMENTO_TANQUE_INVALIDO",
   "ABASTECIMENTO_LOCAL_INVALIDO",
   "ABASTECIMENTO_BEM_INELEGIVEL",
-  // D-PROD-161: o tanque deixou de aceitar o Produto (aceite retirado em Bens), o Produto ficou inativo
+  // D-PROD-162: o tanque deixou de aceitar o Produto (aceite retirado em Bens), o Produto ficou inativo
   // ou foi para outra fazenda, ou a unidade dele saiu de L/KG: a opção do formulário ficou velha;
   // relida, a reconciliação tira o Produto que saiu.
   "ABASTECIMENTO_PRODUTO_NAO_ACEITO",
@@ -94,7 +94,7 @@ const RELER_NOS_ERROS = new Set([
 
 /**
  * Abastecimentos (Patrimônio e Frota P1-02, D-PROD-159; simplificados pela
- * D-PROD-161) — da EMPRESA selecionada.
+ * D-PROD-162) — da EMPRESA selecionada.
  *
  * Lista keyset com filtros (bem, produto, situação, período) e busca no
  * servidor (nº, referência); coluna Quantidade = número + unidade do Produto.
@@ -107,7 +107,7 @@ const RELER_NOS_ERROS = new Set([
  * chave). O registro gravado é só CONSULTA: quantidade e unidade, custo FIFO
  * final, lotes, movimento e estorno, leitura, consumo; o cancelamento (ação
  * própria `cancelar`) estorna exatamente aos lotes de origem. Sem fator kg/L e
- * sem tipo de combustível (D-PROD-161).
+ * sem tipo de combustível (D-PROD-162).
  *
  * Salvaguardas de Gestão: sem empresa real nada é lido; trocar de empresa
  * fecha registro e diálogos e descarta respostas atrasadas.

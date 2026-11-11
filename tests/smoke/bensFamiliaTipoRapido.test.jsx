@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — "+ Nova família" e
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — "+ Nova família" e
  * "+ Novo tipo" DENTRO do formulário do Bem (cadastro rápido, D-PROD-95),
  * com a tela real (página, motor Base1, formulário, services, API, porta e
  * nativeHttpClient). Mocks só da borda: `fetch` (backend falso) e a sessão.
@@ -166,7 +166,7 @@ const pedirNovo = async (form, testId, busca, rotulo) => {
 /** O ✓ do cadastro rápido (folha do celular no jsdom). */
 const salvarRapido = (folha) => fireEvent.click(within(folha).getByRole('button', { name: 'Salvar' }));
 
-describe('Bens — "+ Nova família" e "+ Novo tipo" (D-PROD-161)', () => {
+describe('Bens — "+ Nova família" e "+ Novo tipo" (D-PROD-162)', () => {
   it('bem novo: cria a família (Nome da busca + Natureza, sem código) e o tipo; os dois ficam escolhidos e o POST do bem os usa', async () => {
     await montar();
     const form = await novoBem();

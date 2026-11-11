@@ -44,7 +44,7 @@ const ROTULO_NATUREZA_CURTO = /** @type {Record<string, string>} */ ({ MAQUINA: 
 
 /**
  * Texto de cada motivo de "nenhum Produto" do servidor (`resumo.motivo_sem_opcao`,
- * D-PROD-161): tudo se resolve no cadastro de Bens (Produtos aceitos do tanque).
+ * D-PROD-162): tudo se resolve no cadastro de Bens (Produtos aceitos do tanque).
  */
 export const TEXTO_SEM_PRODUTO = Object.freeze(
   /** @type {Record<string, string>} */ ({
@@ -80,7 +80,7 @@ function ErroDoCampo({ texto }) {
 }
 
 /**
- * Formulário do NOVO abastecimento (o estado vive na tela). D-PROD-161:
+ * Formulário do NOVO abastecimento (o estado vive na tela). D-PROD-162:
  * Máquina/Veículo → PRODUTO (o nome real do estoque, dos "Produtos aceitos"
  * dos tanques do bem, opção do SERVIDOR) → tanque (só se o Produto é aceito em
  * mais de um) → local (automático com um só) → data → "Quantidade abastecida"

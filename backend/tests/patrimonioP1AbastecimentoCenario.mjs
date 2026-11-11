@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — cenário compartilhado dos testes do
+ * D-PROD-159, revisto pela D-PROD-162 — cenário compartilhado dos testes do
  * abastecimento e do consumo. Não é arquivo de teste (sem `.test.`): monta,
  * sobre `montarPatrimonio` (P1-01), Produtos REAIS em litros (`L`) e em quilos
  * (`KG`), um Produto em SACO (fora do abastecimento), locais, lotes FIFO
@@ -9,7 +9,7 @@
  * com odômetro aceitando gasolina e etanol; gerador sem medidor) e contas por
  * permissão da tela `pat-abastecimentos`.
  *
- * Sem tipo de combustível, sem vínculo e sem fator kg/L (saíram na D-PROD-161).
+ * Sem tipo de combustível, sem vínculo e sem fator kg/L (saíram na D-PROD-162).
  * Tudo contra PostgreSQL real e HTTP autenticado (`app.inject`). "Hoje" da
  * fazenda = 2027-06-15 (relógio de teste do cenário da P1-01).
  */
@@ -28,7 +28,7 @@ const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir'
 /** Linha de permissão da tela Abastecimentos com só as ações dadas ligadas. */
 export const linhaAbastecimento = (acoes = {}) => ({ modulo_id: MODULO, tela_id: TELA_ABASTECIMENTO, ...Object.fromEntries(ACOES.map((a) => [a, false])), ...acoes });
 
-/** As tabelas do abastecimento (D-PROD-161: `ConversaoCombustivelProduto` saiu; o aceite do tanque entrou). */
+/** As tabelas do abastecimento (D-PROD-162: `ConversaoCombustivelProduto` saiu; o aceite do tanque entrou). */
 export const TABELAS_ABASTECIMENTO = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'TanqueBemProduto']);
 
 export const opId = () => `abast-${randomUUID()}`;
@@ -59,7 +59,7 @@ export const fotoAbastecimento = async (clienteIds) => {
 
 let n = 0;
 
-/** Item de tanque para o PATCH do bem (D-PROD-161: com `produto_ids`). @param {any} t @param {string[]} produtoIds @param {Record<string, unknown>} [extra] */
+/** Item de tanque para o PATCH do bem (D-PROD-162: com `produto_ids`). @param {any} t @param {string[]} produtoIds @param {Record<string, unknown>} [extra] */
 export const itemTanque = (t, produtoIds, extra = {}) => ({
   id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao ?? null, produto_ids: produtoIds, ...extra,
 });
@@ -109,7 +109,7 @@ export const montarAbastecimento = async (app, { lotes = true } = {}) => {
   };
   /**
    * Corpo de uma compra PAGAR com 1 mercadoria na unidade do Produto (L para
-   * Produto em L, KG para os outros; D-PROD-161 §4.7). Total em Decimal, 2 casas.
+   * Produto em L, KG para os outros; D-PROD-162 §4.7). Total em Decimal, 2 casas.
    * @param {any} empresa @param {any} prod @param {any} loc @param {{ quantidade: string, preco: string, dia?: string }} a
    */
   const docCompraP3 = async (empresa, prod, loc, { quantidade, preco, dia = '2027-06-10' }) => {

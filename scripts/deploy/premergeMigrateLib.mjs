@@ -21,7 +21,7 @@
  *     Qualquer outra coisa (CREATE OR REPLACE FUNCTION/VIEW, TRIGGER, GRANT,
  *     REVOKE, COPY, INSERT, SELECT, UPDATE, DELETE, TRUNCATE, DROP, RENAME,
  *     ALTER COLUMN, CHECK/UNIQUE em tabela antiga, DO desconhecido) → violação.
- *  3. Modo CONTRACT (D-PROD-161; exceção FECHADA aprovada pelo proprietário à
+ *  3. Modo CONTRACT (D-PROD-162; exceção FECHADA aprovada pelo proprietário à
  *     D-PROD-72 item 3 e à D-PROD-107 R7): só para o NOME de migration listado
  *     em MIGRATIONS_CONTRACT_APROVADAS (que também está no manifesto). Recorte
  *     prévio, com conteúdo pinado: a PRIMEIRA instrução é a guarda `DO $$ … $$`
@@ -31,7 +31,7 @@
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
- *     isolada e autorizada pela decisão exata (`--contract D-PROD-161`), e o
+ *     isolada e autorizada pela decisão exata (`--contract D-PROD-162`), e o
  *     runner oficial (`run-migrations.mjs`) recusa aplicar um CONTRACT pendente
  *     no alvo remoto sem `MIGRATION_CONTRACT_AUTORIZADO` igual à decisão.
  *  4. Conferência do alvo (somente leitura): `_prisma_migrations` × arquivos
@@ -64,8 +64,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261110100000_patrimonio_p1_01_cadastros': 'b8818ba8f16528580b7ba6053b0c89f07f0d4fd434955f4b9c5830a62ffd64dc',
   // D-PROD-159 (Patrimônio P1-02): ConversaoCombustivelProduto, AbastecimentoBem e AbastecimentoBemConsumoLote — só tabelas novas.
   '20261110200000_patrimonio_p1_02_abastecimentos': '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba',
-  // D-PROD-161 (Patrimônio SIMPLIFICA-01): CONTRACT aprovado pelo proprietário — apaga as 13 tabelas do Patrimônio, alarga 2 CHECKs de OperacaoFinanceiraItem (L) e cria as 7 novas.
-  '20261110300000_patrimonio_simplifica': 'ea1edf7ec3b494233a8d48c7b160ad179c8d8e9b92cc6c041228f116907302c4',
+  // D-PROD-162 (Patrimônio SIMPLIFICA-01): CONTRACT aprovado pelo proprietário — apaga as 13 tabelas do Patrimônio, alarga 2 CHECKs de OperacaoFinanceiraItem (L) e cria as 7 novas.
+  '20261110300000_patrimonio_simplifica': '787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -85,15 +85,15 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '01dbf9ae4875444fa77082d37e1b71da655f217ecc25cc95a4d1b8a4a108a0a3',
   // D-PROD-159 (Patrimônio P1-02): RLS/REVOKE das 3 tabelas de abastecimento (mesmo corpo, lista nova).
   'ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd',
-  // D-PROD-161: RLS/REVOKE das 7 tabelas do Patrimônio simplificado (mesmo corpo, lista nova).
+  // D-PROD-162: RLS/REVOKE das 7 tabelas do Patrimônio simplificado (mesmo corpo, lista nova).
   '6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e',
 ]);
 
-/** D-PROD-161: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
+/** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
-    decisao: 'D-PROD-161',
-    guarda_sha256: '6fbcabd9358eebcd87f0a272b0072cca76bfaa4779314c8426fd13037490794e',
+    decisao: 'D-PROD-162',
+    guarda_sha256: '28d6c422968d961bbecd40459a7e6a337f36b9d66c121982f9c295065c149046',
     drop: Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto',
       'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial',
       'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']),
@@ -181,7 +181,7 @@ const constraintsAlargadas = (alterAntigas) =>
   alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 
 /**
- * D-PROD-161 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
+ * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
  * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
  */
@@ -257,7 +257,7 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
 };
 
 /**
- * D-PROD-161 — a release com CONTRACT é ISOLADA (a migration CONTRACT é a única
+ * D-PROD-162 — a release com CONTRACT é ISOLADA (a migration CONTRACT é a única
  * nova) e só é verificada/aplicada com a decisão exata; `--contract` numa release
  * sem CONTRACT é recusado (CONTRACT_INESPERADO). Puro.
  * @param {{nomesNovas: string[], classificacao: {contract: Array<{decisao: string}>}, autorizacao?: string|null}} e
@@ -272,7 +272,7 @@ export const conferirReleaseContract = ({ nomesNovas, classificacao, autorizacao
 };
 
 /**
- * D-PROD-161 — ambiente do subprocesso `npm run deploy:migrate` do premerge.
+ * D-PROD-162 — ambiente do subprocesso `npm run deploy:migrate` do premerge.
  * `MIGRATION_CONTRACT_AUTORIZADO` (lido por `run-migrations.mjs`) só vai quando a
  * release é CONTRACT e a decisão informada conferiu; nunca é herdado do ambiente.
  */
@@ -285,7 +285,7 @@ export const envDoDeployMigrate = ({ env, classificacao, autorizacao }) => {
 };
 
 /**
- * D-PROD-161 — migrations CONTRACT presentes nas pastas locais e ainda NÃO
+ * D-PROD-162 — migrations CONTRACT presentes nas pastas locais e ainda NÃO
  * concluídas (concluída = `finished_at` e sem `rolled_back_at`) no histórico do
  * alvo. Usado pelo runner oficial para exigir a autorização. Puro.
  * @param {{locais: string[], linhas: Array<{migration_name: string, finished_at: any, rolled_back_at: any}>, contratos?: Record<string, {decisao: string}>}} e

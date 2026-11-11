@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 / D-PROD-161 — Tipos patrimoniais (catálogo do TENANT, sem
+ * D-PROD-157 / D-PROD-162 — Tipos patrimoniais (catálogo do TENANT, sem
  * empresa), criados e mantidos DENTRO do cadastro de Bens.
  *
  * Regras (além das comuns do catálogo — ver `familiaPatrimonialService.js`):
@@ -8,7 +8,7 @@
  *    `BEM_REFERENCIA_INVALIDA` field `familia_id`, reason `inexistente|inativo`);
  *  - nome único DENTRO da família (sem diferenciar maiúsculas); código único no
  *    tenant; sem `codigo` no POST, o servidor o gera do nome (P-05);
- *  - D-PROD-161: os perfis de medição sugeridos saíram (`perfis` no corpo → 400).
+ *  - D-PROD-162: os perfis de medição sugeridos saíram (`perfis` no corpo → 400).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';

@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 — porta e API do Patrimônio depois da simplificação, e as
+ * D-PROD-162 — porta e API do Patrimônio depois da simplificação, e as
  * mensagens novas de `patrimonioErros`.
  *
  *  - catálogos: só famílias e tipos; o `codigo` é opcional no POST (gerado no
@@ -212,7 +212,7 @@ describe('API-3 — abastecimento em quantidade da unidade do Produto', () => {
   });
 });
 
-describe('ERR-1 — mensagens novas (D-PROD-161)', () => {
+describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
   it('TANQUE_PRODUTO_INVALIDO segue a reason e aponta a linha do tanque', async () => {
     const { erros } = await carregar();
     const msg = (reason, details = {}) =>

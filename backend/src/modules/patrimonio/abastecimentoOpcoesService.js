@@ -1,12 +1,12 @@
 /**
- * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-162 (SIMPLIFICA-01) —
  * seletores PRÓPRIOS da tela `pat-abastecimentos` (C12): bens, tanques (com os
  * Produtos aceitos), produtos do bem, produtos do filtro e locais com saldo.
  * Nenhuma dependência das telas de bens ou da Central: quem só tem
  * Abastecimentos não leva 403. Só leitura, sem trava (o comando relê tudo sob
  * as travas).
  *
- * D-PROD-161: saem o catálogo de tipos de combustível (A9), os produtos por
+ * D-PROD-162: saem o catálogo de tipos de combustível (A9), os produtos por
  * tipo com o fator (A10) e todo fator kg/L; tudo sai dos "Produtos aceitos"
  * (`TanqueBemProduto`) de cada tanque, em `L` ou `KG`.
  */
@@ -133,7 +133,7 @@ export const opcoesTanques = async (contexto, query = {}) => {
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 
 /**
- * A16 (D-PROD-160, revista pela D-PROD-161): PRODUTOS que o operador pode
+ * A16 (D-PROD-160, revista pela D-PROD-162): PRODUTOS que o operador pode
  * escolher para o bem, lidos dos "Produtos aceitos" (`TanqueBemProduto`) dos
  * tanques ATIVOS do bem. Elegível = aceite ATIVO num tanque ATIVO ∧ Produto
  * ativo ∧ `empresa_id` = do bem ∧ unidade de estoque `L` ou `KG`. Cada item

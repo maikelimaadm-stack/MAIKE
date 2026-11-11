@@ -26,7 +26,7 @@ function useValorAtrasado(valor, ms) {
  * valor atual aparece mesmo fora da página carregada. O painel é inline (fica
  * dentro da tela e do `data-permissao-explicita`).
  *
- * D-PROD-161: `onCriarNovo` (opcional) põe no painel aberto o botão
+ * D-PROD-162: `onCriarNovo` (opcional) põe no painel aberto o botão
  * "+ {rotuloCriarNovo}" (cadastro rápido, D-PROD-95), que recebe o texto da
  * busca e fecha o painel. Sem `onCriarNovo` a renderização é a de sempre (a
  * P3 usa este componente; snapshot em `seletorPaginadoCriarNovo.test.jsx`).

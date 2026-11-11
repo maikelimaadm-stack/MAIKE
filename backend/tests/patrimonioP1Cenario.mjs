@@ -1,10 +1,10 @@
 /**
- * D-PROD-157 / D-PROD-161 — cenário compartilhado dos testes do Patrimônio
+ * D-PROD-157 / D-PROD-162 — cenário compartilhado dos testes do Patrimônio
  * (cadastros de Patrimônio e Frota). Não é arquivo de teste (sem `.test.`):
  * só monta tenants, contas por permissão, Produtos do estoque para os tanques,
  * corpos de bens e fotografias.
  *
- * D-PROD-161: duas telas (Bens e Abastecimentos); famílias e tipos dentro de
+ * D-PROD-162: duas telas (Bens e Abastecimentos); famílias e tipos dentro de
  * Bens; sem perfis de medição, medições, combustíveis nem fator kg/L. Cada
  * tanque traz `produto_ids` (Produtos em L ou KG da fazenda do bem).
  *
@@ -33,7 +33,7 @@ export const TELAS = Object.freeze({
   abastecimentos: 'pat-abastecimentos',
 });
 /**
- * Telas REMOVIDAS pela D-PROD-161: uma linha gravada com elas em
+ * Telas REMOVIDAS pela D-PROD-162: uma linha gravada com elas em
  * `permissoes_telas` fica inerte (nenhuma guarda as pede).
  */
 export const TELAS_ANTIGAS = Object.freeze({
@@ -42,7 +42,7 @@ export const TELAS_ANTIGAS = Object.freeze({
   perfis: 'pat-perfis-medicao',
   combustiveis: 'pat-combustiveis',
 });
-/** As 7 tabelas (re)criadas pela migration `20261110300000_patrimonio_simplifica` (D-PROD-161). */
+/** As 7 tabelas (re)criadas pela migration `20261110300000_patrimonio_simplifica` (D-PROD-162). */
 export const TABELAS_PATRIMONIO = Object.freeze([
   'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial',
 ]);
@@ -209,7 +209,7 @@ export const montarPatrimonio = async (app, { fuso = FUSO, catalogo = true } = {
   };
 };
 
-// ─── Produtos do estoque para os tanques (D-PROD-161) ───────────────────────
+// ─── Produtos do estoque para os tanques (D-PROD-162) ───────────────────────
 
 let produtosCriados = 0;
 /**

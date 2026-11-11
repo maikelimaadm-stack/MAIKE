@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — FE8: regras PURAS da tela
+ * D-PROD-159, revisto pela D-PROD-162 — FE8: regras PURAS da tela
  * Abastecimentos (`src/lib/abastecimentoRegras.js`).
  *
  *  - quantidade = TODOS os vetores compartilhados com o servidor
@@ -103,7 +103,7 @@ describe('quantidade = vetores do servidor (a baixa é o número digitado, sem c
   });
 });
 
-describe('corpos montados (decimais como TEXTO canônico; D-PROD-161 sem tipo, sem fator)', () => {
+describe('corpos montados (decimais como TEXTO canônico; D-PROD-162 sem tipo, sem fator)', () => {
   it('prévia: quantidade e leitura do pt-BR para o canônico; textos aparados ou null; nenhum campo removido', () => {
     const corpo = montarCorpoPrevia('emp-1', formTrator());
     expect(corpo).toEqual({
@@ -147,7 +147,7 @@ describe('corpos montados (decimais como TEXTO canônico; D-PROD-161 sem tipo, s
     expect(LIMITES_ABASTECIMENTO).toEqual({ QUANTIDADE: { inteiros: 10, casas: 4 }, LEITURA: { inteiros: 10, casas: 4 } });
   });
 
-  it('nada de fator kg/L nem de conversão no módulo (D-PROD-161)', () => {
+  it('nada de fator kg/L nem de conversão no módulo (D-PROD-162)', () => {
     for (const nome of ['estimarKg', 'kgDaBaixaNaPrevia', 'montarCorpoConversao', 'validarConversao', 'formatarKg', 'formatarFator', 'FATOR_MAXIMO']) expect(regras).not.toHaveProperty(nome);
   });
 });
@@ -195,7 +195,7 @@ describe('validação local', () => {
   });
 });
 
-describe('conferirRespostaAbastecimento (§6.1 revisto pela D-PROD-161)', () => {
+describe('conferirRespostaAbastecimento (§6.1 revisto pela D-PROD-162)', () => {
   it('detalhe, lista, prévia e consumo do backend falso são conformes (L e KG)', async () => {
     const e = criarEstadoAbastecimentos();
     acrescentarProduto(e, 'p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000', tanques: [['b1', 'tq1']] });
@@ -213,7 +213,7 @@ describe('conferirRespostaAbastecimento (§6.1 revisto pela D-PROD-161)', () => 
     expect(conferirRespostaAbastecimento(previa.body)).toEqual([]);
     const consumo = await rotearAbastecimentos(e, { method: 'GET', path: '/patrimonio-abastecimentos-consumo', query: q('empresa_id=emp-1&bem_id=b1'), body: null });
     expect(conferirRespostaAbastecimento(consumo.body)).toEqual([]);
-    // As rotas de fator e de tipo não existem mais no fake (D-PROD-161).
+    // As rotas de fator e de tipo não existem mais no fake (D-PROD-162).
     for (const path of ['/patrimonio-conversoes-combustivel', '/patrimonio-abastecimentos-opcoes/tipos', '/patrimonio-abastecimentos-opcoes/produtos']) {
       expect(await rotearAbastecimentos(e, { method: 'GET', path, query: q('empresa_id=emp-1'), body: null })).toBeUndefined();
     }

@@ -74,7 +74,7 @@ export function Selo({ status, rotulo, testId = undefined }) {
   );
 }
 
-/** D-PROD-161: unidade de estoque do item (L para item em litros; kg para KG e SACO). @param {any} i */
+/** D-PROD-162: unidade de estoque do item (L para item em litros; kg para KG e SACO). @param {any} i */
 const unidadeDoEstoque = (i) => (i?.unidade === "L" ? "L" : "kg");
 
 /** @param {{ rotulo: string, children: React.ReactNode, span?: string }} props */
@@ -287,7 +287,7 @@ export default function ConsultaLancamento({ detalhe: d, perfil, fuso, acoes, on
                     <Dado rotulo="Local">{i.local_estoque_nome || "—"}</Dado>
                     <Dado rotulo="Quantidade">
                       {formatarNumero(i.quantidade, { locale, casasMax: 4 })} {i.unidade}
-                      {/* D-PROD-161: o "(… kg)" é só do SACO (o mesmo de antes para KG/SACO/UN); item em L não o ganha. */}
+                      {/* D-PROD-162: o "(… kg)" é só do SACO (o mesmo de antes para KG/SACO/UN); item em L não o ganha. */}
                       {i.quantidade_estoque && i.unidade === "SACO" ? ` (${formatarNumero(i.quantidade_estoque, { locale, casasMax: 4 })} kg)` : ""}
                     </Dado>
                     <Dado rotulo="Valor unitário">{formatarNumero(i.valor_unitario, { locale, casasMin: c.casas, casasMax: 6 })}</Dado>

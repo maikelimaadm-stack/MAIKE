@@ -1,7 +1,7 @@
 /**
- * D-PROD-157 / D-PROD-161 — Patrimônio: BENS PATRIMONIAIS (por fazenda).
+ * D-PROD-157 / D-PROD-162 — Patrimônio: BENS PATRIMONIAIS (por fazenda).
  * PostgreSQL real, HTTP autenticado, prova por persistência (fotografia das
- * tabelas). D-PROD-161: sem medições físicas; cada tanque aceita Produtos do
+ * tabelas). D-PROD-162: sem medições físicas; cada tanque aceita Produtos do
  * estoque (L ou KG) — as regras do Produto aceito estão em
  * `patrimonioSimplificaTanqueProdutos.test.mjs`.
  *
@@ -96,7 +96,7 @@ const PREVIA_ACEITE = {
   vida_util_meses: 120, quota_mensal: '1250.00', ultima_quota: '1250.00', quota_anual: '15000.00', taxa_anual_percentual: '10.0000',
   primeira_competencia: '2026-03', ultima_competencia: '2036-02', valor_contabil: null, depreciacao_acumulada: null, aviso: AVISO,
 };
-/** Produto aceito na forma pública do tanque (D-PROD-161). */
+/** Produto aceito na forma pública do tanque (D-PROD-162). */
 const produtoDe = (p, ativo = true) => ({ produto_id: p.id, nome: p.nome_produto, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque, produto_ativo: ativo });
 /** Item de tanque do PATCH a partir do tanque público (mantém os Produtos aceitos). */
 const item = (t, extra = {}) => ({
@@ -130,7 +130,7 @@ describe('B1 — aceite do proprietário: um bem de cada natureza, relido', () =
     }
     assert.deepEqual(todos.map((b) => b.numero), ['1', '2', '3', '4', '5', '6', '7']);
 
-    // Benfeitorias: sem medidor nem tanque (D-PROD-161: sem medições físicas).
+    // Benfeitorias: sem medidor nem tanque (D-PROD-162: sem medições físicas).
     assert.equal(cerca.natureza, 'BENFEITORIA');
     assert.deepEqual(cerca.familia, { id: s.fam.BENFEITORIAS, codigo: 'BENFEITORIAS', nome: 'Benfeitorias e instalações', natureza: 'BENFEITORIA', ativo: true });
     assert.deepEqual(cerca.tipo, { id: s.tip.CERCA_ARAME, codigo: 'CERCA_ARAME', nome: 'Cerca de arame', ativo: true });
@@ -187,7 +187,7 @@ describe('B3 — tanques e Produtos aceitos', () => {
     await recusa400(s, trator([tanque({ identificador: '   ' })]), 'identificador em branco');
     await recusa400(s, trator([tanque({ id: INEXISTENTE })]), 'id de tanque no POST');
     await recusa400(s, trator([tanque({ ativo: true })]), 'ativo de tanque no POST');
-    await recusa400(s, trator([{ identificador: 'T', capacidade_litros: '10', combustivel_ids: [] }]), 'combustivel_ids saiu (D-PROD-161)');
+    await recusa400(s, trator([{ identificador: 'T', capacidade_litros: '10', combustivel_ids: [] }]), 'combustivel_ids saiu (D-PROD-162)');
     await recusa(s, criar(s, corpoImplemento(s, { tanques: [tanque()] })), [422, 'BEM_CAMPO_NAO_APLICAVEL', 'tanques', 'nao_aplicavel']);
     await recusa(s, criar(s, corpoCerca(s, { tanques: [tanque()] })), [422, 'BEM_CAMPO_NAO_APLICAVEL', 'tanques', 'nao_aplicavel']);
     const onze = Array.from({ length: 11 }, (_, i) => tanque({ identificador: `T${i + 1}` }));

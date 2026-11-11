@@ -1,11 +1,24 @@
 #!/usr/bin/env node
-/** Gera módulos backend CRUD tenant-scoped (P5.4). */
+/**
+ * Gera módulos backend CRUD tenant-scoped (P5.4).
+ *
+ * Fora do `verify:all`. Desde a D-PROD-161 a execução passa por
+ * `p54-guarda-estoque.mjs`: nenhum escritor genérico de estoque físico sai daqui
+ * (EstoqueLoteNota, MovimentacaoEstoque, Produto.estoque_atual), e a recusa vem
+ * antes de qualquer escrita.
+ */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { gerarSemEscritaDeEstoque } from './p54-guarda-estoque.mjs';
 
 const ROOT = join(import.meta.dirname, '../..');
 
+/**
+ * Lista histórica da P5.4, mantida como registro. As duas últimas entradas são
+ * do estoque físico, então a execução normal é recusada (D-PROD-161, fail-closed).
+ * Esses módulos hoje são blindados à mão e não devem ser regenerados.
+ */
 const ENTITIES = [
   {
     model: 'Empresa',
@@ -318,12 +331,16 @@ ${
 `;
 };
 
-for (const e of ENTITIES) {
-  const base = join(ROOT, 'backend/src/modules', e.folder);
-  mkdirSync(base, { recursive: true });
-  writeFileSync(join(base, `${e.singular}Repository.js`), repositoryJs(e));
-  writeFileSync(join(base, `${e.singular}Service.js`), serviceJs(e));
-  writeFileSync(join(base, `${e.singular}Routes.js`), routesJs(e));
-}
+const renderizar = (entidades) =>
+  entidades.flatMap((e) => {
+    const base = `backend/src/modules/${e.folder}`;
+    return [
+      { caminho: `${base}/${e.singular}Repository.js`, conteudo: repositoryJs(e) },
+      { caminho: `${base}/${e.singular}Service.js`, conteudo: serviceJs(e) },
+      { caminho: `${base}/${e.singular}Routes.js`, conteudo: routesJs(e) },
+    ];
+  });
 
-console.log('Generated backend modules for', ENTITIES.length, 'entities');
+if (gerarSemEscritaDeEstoque({ gerador: 'p54-backend', raiz: ROOT, entidades: ENTITIES, renderizar })) {
+  console.log('Generated backend modules for', ENTITIES.length, 'entities');
+}

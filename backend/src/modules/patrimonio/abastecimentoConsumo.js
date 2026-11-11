@@ -1,12 +1,12 @@
 /**
- * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-162 (SIMPLIFICA-01) —
  * consumo pelo método do TANQUE CHEIO (D11), calculado no banco por SQL com
  * janela (sem carregar as linhas do bem no Node; a LISTA não traz consumo, o
  * detalhe e `GET /patrimonio-abastecimentos-consumo` trazem).
  *
  * Entre dois abastecimentos CONFIRMADOS do MESMO tanque marcados como tanque
  * cheio: quantidade = Σ dos abastecimentos confirmados do tanque depois do 1º
- * até o 2º (inclusive), na unidade do Produto (D-PROD-161, P-03). A métrica
+ * até o 2º (inclusive), na unidade do Produto (D-PROD-162, P-03). A métrica
  * depende do medidor e da unidade: ODOMETRO + L = km/L, ODOMETRO + KG = km/kg,
  * HORIMETRO + L = L/h, HORIMETRO + KG = kg/h. Intervalo com L e KG misturados
  * não tem métrica (`unidades_misturadas`): nunca se soma litro com quilo.

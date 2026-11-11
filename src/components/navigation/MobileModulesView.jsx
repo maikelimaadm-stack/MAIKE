@@ -58,7 +58,7 @@ export const ICONE_TELA = {
   CentrosResultado: PieChart,
   NaturezasFinanceiras: ListTree,
   LancamentosFinanceiros: ReceiptText,
-  // D-PROD-157 — Patrimônio e Frota (D-PROD-161: só Bens e Abastecimentos).
+  // D-PROD-157 — Patrimônio e Frota (D-PROD-162: só Bens e Abastecimentos).
   BensPatrimoniais: Tractor,
   // D-PROD-159 — Abastecimentos (Droplets ≠ Droplet dos Bebedouros).
   Abastecimentos: Droplets,

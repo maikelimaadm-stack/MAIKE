@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 — permissões antigas do Patrimônio ficam INERTES.
+ * D-PROD-162 — permissões antigas do Patrimônio ficam INERTES.
  *
  * As telas `pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
  * `pat-perfis-medicao` e `pat-combustiveis` saíram, e a ação
@@ -65,7 +65,7 @@ const operador = { id: 'u-op', login: 'vaqueiro', email: 'vaqueiro', nome: 'Vaqu
 const tela = (modulo_id, tela_id, acoes = {}) => ({
   modulo_id, tela_id, visualizar: false, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...acoes,
 });
-/** Linha antiga com TUDO ligado (como um administrador teria deixado antes da D-PROD-161). */
+/** Linha antiga com TUDO ligado (como um administrador teria deixado antes da D-PROD-162). */
 const linhaAntigaTudo = (tela_id) =>
   tela(MODULO_PATRIMONIO, tela_id, { visualizar: true, novo: true, salvar: true, editar: true, excluir: true, importar: true, exportar: true, inativar: true });
 const LINHAS_ANTIGAS = ANTIGAS.map(([id]) => linhaAntigaTudo(id));

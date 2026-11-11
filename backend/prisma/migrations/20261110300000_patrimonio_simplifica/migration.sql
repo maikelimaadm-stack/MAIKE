@@ -1,4 +1,4 @@
--- D-PROD-161 — MAIKE Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero.
+-- D-PROD-162 — MAIKE Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero.
 -- Decisão do proprietário (2026-11-10): sem Perfis de medição, sem medições de
 -- benfeitoria, sem Tipo de combustível, sem fator kg/L; Família e Tipo ficam no
 -- cadastro de Bens; cada TANQUE do bem aceita Produtos do estoque
@@ -7,7 +7,7 @@
 -- P3 aceitam Litros (L).
 --
 -- MODO CONTRACT (exceção aprovada pelo proprietário à D-PROD-72 item 3 e à
--- D-PROD-107 R7, registrada na D-PROD-161): esta migration APAGA as 13 tabelas
+-- D-PROD-107 R7, registrada na D-PROD-162): esta migration APAGA as 13 tabelas
 -- do Patrimônio (com o que houver lançado nelas, em TODOS os clientes), ALARGA
 -- 2 CHECKs de OperacaoFinanceiraItem para aceitar 'L' e cria as 7 tabelas do
 -- formato novo. O classificador do premerge só a aceita pela entrada fechada de
@@ -59,11 +59,11 @@ BEGIN
   FOREACH tbl IN ARRAY apagadas
   LOOP
     IF to_regclass(format('public.%I', tbl)) IS NULL THEN
-      RAISE EXCEPTION 'D-PROD-161: a tabela public.% não existe: schema fora do esperado; nada foi alterado', tbl;
+      RAISE EXCEPTION 'D-PROD-162: a tabela public.% não existe: schema fora do esperado; nada foi alterado', tbl;
     END IF;
   END LOOP;
   IF to_regclass('public."TanqueBemProduto"') IS NOT NULL THEN
-    RAISE EXCEPTION 'D-PROD-161: public.TanqueBemProduto já existe: migration já aplicada ou schema fora do esperado; nada foi alterado';
+    RAISE EXCEPTION 'D-PROD-162: public.TanqueBemProduto já existe: migration já aplicada ou schema fora do esperado; nada foi alterado';
   END IF;
   LOCK TABLE public."AbastecimentoBemConsumoLote", public."AbastecimentoBem", public."ConversaoCombustivelProduto", public."TipoCombustivelProduto", public."TanqueBemCombustivel", public."TanqueBem", public."MedicaoBem", public."BemPatrimonial", public."TipoPatrimonialPerfil", public."TipoPatrimonial", public."FamiliaPatrimonial", public."PerfilMedicao", public."TipoCombustivel" IN ACCESS EXCLUSIVE MODE;
   SELECT array_agg(c.oid) INTO oids
@@ -73,11 +73,11 @@ BEGIN
     FROM pg_class c
    WHERE c.oid = ANY (oids) AND pg_get_userbyid(c.relowner) <> current_user;
   IF estranhos IS NOT NULL THEN
-    RAISE EXCEPTION 'D-PROD-161: o papel da conexão (%) não é o dono das tabelas apagadas (%): as novas ficariam com outro dono e outros privilégios; nada foi alterado', current_user, estranhos;
+    RAISE EXCEPTION 'D-PROD-162: o papel da conexão (%) não é o dono das tabelas apagadas (%): as novas ficariam com outro dono e outros privilégios; nada foi alterado', current_user, estranhos;
   END IF;
   SELECT count(*) INTO n_confirmados FROM public."AbastecimentoBem" WHERE "status" = 'CONFIRMADO';
   IF n_confirmados > 0 THEN
-    RAISE EXCEPTION 'D-PROD-161: há % abastecimento(s) CONFIRMADO(s): apagar não devolve o estoque baixado; cancele com estorno exato e peça novo GO; nada foi alterado', n_confirmados;
+    RAISE EXCEPTION 'D-PROD-162: há % abastecimento(s) CONFIRMADO(s): apagar não devolve o estoque baixado; cancele com estorno exato e peça novo GO; nada foi alterado', n_confirmados;
   END IF;
   FOREACH tbl IN ARRAY apagadas
   LOOP
@@ -88,26 +88,26 @@ BEGIN
   END LOOP;
   impressao := left(md5(array_to_string(linhas, E'\n')), 12);
   IF (total > 0 OR esperada IS NOT NULL) AND esperada IS DISTINCT FROM impressao THEN
-    RAISE EXCEPTION 'D-PROD-161: as contagens das tabelas apagadas (% linhas) não são as aprovadas no GO (maike.simplifica_impressao = %): refaça o preflight e peça novo GO; nada foi alterado', total, coalesce(esperada, 'ausente');
+    RAISE EXCEPTION 'D-PROD-162: as contagens das tabelas apagadas (% linhas) não são as aprovadas no GO (maike.simplifica_impressao = %): refaça o preflight e peça novo GO; nada foi alterado', total, coalesce(esperada, 'ausente');
   END IF;
   SELECT string_agg(k.conrelid::regclass::text || '.' || k.conname, ', ' ORDER BY k.conname) INTO externas
     FROM pg_constraint k
    WHERE k.contype = 'f' AND k.confrelid = ANY (oids) AND NOT (k.conrelid = ANY (oids));
   IF externas IS NOT NULL THEN
-    RAISE EXCEPTION 'D-PROD-161: FK de fora do Patrimônio aponta para as tabelas apagadas (%); nada foi alterado', externas;
+    RAISE EXCEPTION 'D-PROD-162: FK de fora do Patrimônio aponta para as tabelas apagadas (%); nada foi alterado', externas;
   END IF;
   SELECT string_agg(DISTINCT r.ev_class::regclass::text, ', ') INTO dependentes
     FROM pg_depend d JOIN pg_rewrite r ON r.oid = d.objid
    WHERE d.classid = 'pg_rewrite'::regclass AND d.refobjid = ANY (oids) AND NOT (r.ev_class = ANY (oids));
   IF dependentes IS NOT NULL THEN
-    RAISE EXCEPTION 'D-PROD-161: visão ou regra depende das tabelas apagadas (%); nada foi alterado', dependentes;
+    RAISE EXCEPTION 'D-PROD-162: visão ou regra depende das tabelas apagadas (%); nada foi alterado', dependentes;
   END IF;
   SELECT string_agg(x.objeto, ', ' ORDER BY x.objeto) INTO estranhos
     FROM (SELECT t.tgrelid::regclass::text || ' gatilho ' || t.tgname AS objeto FROM pg_trigger t WHERE t.tgrelid = ANY (oids) AND NOT t.tgisinternal
           UNION ALL SELECT p.polrelid::regclass::text || ' política ' || p.polname FROM pg_policy p WHERE p.polrelid = ANY (oids) AND p.polname <> 'maike_backend_all'
           UNION ALL SELECT pr.prrelid::regclass::text || ' publicação ' || pb.pubname FROM pg_publication_rel pr JOIN pg_publication pb ON pb.oid = pr.prpubid WHERE pr.prrelid = ANY (oids)) x;
   IF estranhos IS NOT NULL THEN
-    RAISE EXCEPTION 'D-PROD-161: objeto criado fora das migrations nas tabelas apagadas (%): o DROP o apagaria em silêncio; nada foi alterado', estranhos;
+    RAISE EXCEPTION 'D-PROD-162: objeto criado fora das migrations nas tabelas apagadas (%): o DROP o apagaria em silêncio; nada foi alterado', estranhos;
   END IF;
 END $$;
 

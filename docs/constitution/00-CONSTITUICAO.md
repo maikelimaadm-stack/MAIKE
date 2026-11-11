@@ -59,7 +59,7 @@ manutenção, peças, ordens de serviço, compras, custo/hora, apuração ou lan
 depreciação, transferência entre fazendas, saldo de tanque, mapas e dashboards. Texto
 redigido pelo agente; vale com a aprovação explícita do proprietário no merge manual (§4).
 
-**Revisão autorizada pelo proprietário (D-PROD-161):** **Patrimônio e Frota simplificado**
+**Revisão autorizada pelo proprietário (D-PROD-162):** **Patrimônio e Frota simplificado**
 (missão MAIKE-PATRIMONIO-SIMPLIFICA-01). Ficam só duas páginas: `BensPatrimoniais` e
 `Abastecimentos`. Famílias e tipos continuam como dados do tenant, criados e mantidos
 **dentro** do cadastro de Bens. Saem os perfis de medição, as medições físicas de
@@ -70,7 +70,7 @@ quilos `KG`), sem nenhuma conversão entre unidades. A capacidade do tanque, em 
 é conferida para Produto em litros; Produto em quilos pode ser aceito num tanque, e então
 a capacidade não é conferida. O Produto e a compra/venda da Gestão P3 passam a aceitar a
 unidade `L`; KG e SACO continuam como antes. Por decisão única do proprietário, a
-migration da D-PROD-161 apagou as tabelas do Patrimônio de todos os clientes, com recusa
+migration da D-PROD-162 apagou as tabelas do Patrimônio de todos os clientes, com recusa
 se houvesse abastecimento CONFIRMADO. Nos dois parágrafos acima, esta revisão supera:
 "perfis de medição", "medições físicas", "combustíveis" como catálogo, "tanques com
 combustíveis permitidos", "o vínculo de cada combustível aos Produtos", "no estoque em KG"

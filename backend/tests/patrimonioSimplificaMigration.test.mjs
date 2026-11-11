@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — a migration CONTRACT
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — a migration CONTRACT
  * `20261110300000_patrimonio_simplifica` de ponta a ponta, contra PostgreSQL
  * real, num banco PRÓPRIO criado e apagado por este teste (o banco da suíte não
  * é tocado).
@@ -70,7 +70,7 @@ after(async () => {
   await encerrar();
 });
 
-describe('D-PROD-161 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
+describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
   test('SM-01 partida: 39 migrations da main, 85 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, 39);

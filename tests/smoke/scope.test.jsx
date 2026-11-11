@@ -60,7 +60,7 @@ describe('escopo do produto', () => {
     }
   });
 
-  it('D-PROD-161: Famílias, Tipos, Perfis de Medição e Combustíveis saíram (página, registro, manifesto e menu)', () => {
+  it('D-PROD-162: Famílias, Tipos, Perfis de Medição e Combustíveis saíram (página, registro, manifesto e menu)', () => {
     const removidas = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
     const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
     for (const nome of removidas) {

@@ -1,7 +1,7 @@
 /**
- * D-PROD-157 / D-PROD-161 — rotas dos catálogos do Patrimônio e Frota (do
+ * D-PROD-157 / D-PROD-162 — rotas dos catálogos do Patrimônio e Frota (do
  * TENANT, sem `empresa_id`): famílias, tipos e a instalação do catálogo padrão.
- * Perfis de medição e combustíveis saíram (D-PROD-161: as rotas respondem 404).
+ * Perfis de medição e combustíveis saíram (D-PROD-162: as rotas respondem 404).
  *
  * Corpo e query FECHADOS (`additionalProperties: false`); tenant só da sessão
  * (`cliente_id` no corpo → 400 na barreira global). Famílias e tipos vivem no

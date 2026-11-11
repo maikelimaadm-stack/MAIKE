@@ -1,9 +1,9 @@
 /**
- * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-162 (SIMPLIFICA-01) —
  * abastecimento de bem patrimonial com baixa FÍSICA real pelo motor de
  * estoque (FIFO), sem lançamento financeiro.
  *
- *  - D-PROD-161: a baixa é EXATAMENTE a quantidade digitada, na unidade de
+ *  - D-PROD-162: a baixa é EXATAMENTE a quantidade digitada, na unidade de
  *    estoque do Produto (`L` ou `KG`), sem nenhuma conversão; o Produto tem de
  *    estar nos "Produtos aceitos" (ativos) do tanque (`TanqueBemProduto`);
  *  - prévia: mesma função de plano da confirmação, sem trava, sem escrita e
@@ -351,7 +351,7 @@ export const confirmar = async (contexto, corpo) => {
               await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${entrada.bem_id} FOR UPDATE`
             ); // R3
             if (!bemTravado.length) throw bemNaoEncontrado();
-            // D-PROD-161: sem R5/R6 (vínculo e tipo de combustível saíram). O aceite do tanque só
+            // D-PROD-162: sem R5/R6 (vínculo e tipo de combustível saíram). O aceite do tanque só
             // muda pelo PATCH do bem, que também toma o FOR UPDATE do Bem (R3) acima.
             await tx.$queryRaw`SELECT id FROM "LocalEstoque" WHERE cliente_id = ${cli} AND id = ${entrada.local_estoque_id} FOR KEY SHARE`; // R7
             await travarProdutosEstoque(tx, cli, empresaId, [entrada.produto_id]); // R8
@@ -364,7 +364,7 @@ export const confirmar = async (contexto, corpo) => {
               empresaId,
               produto: estado.produto,
               local: { id: estado.local.id, nome: estado.local.nome },
-              quantidadeKg: quantidade, // D-PROD-161: na unidade de estoque do Produto (L ou KG), sem conversão
+              quantidadeKg: quantidade, // D-PROD-162: na unidade de estoque do Produto (L ou KG), sem conversão
               dia: entrada.data_operacional,
               documento: { numero: entrada.referencia_externa, data: entrada.data_operacional },
               origem: { sistema: ORIGEM_ABASTECIMENTO, operacaoId: id, tipoDetalhado: TIPO_DETALHADO_SAIDA, motivo: MOTIVO_SAIDA },
@@ -491,7 +491,7 @@ export const cancelar = async (contexto, id, corpo) => {
             await travarProdutosEstoque(tx, cli, empresaId, [antes.produto_id]); // R8
             const produto = await tx.produto.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: antes.produto_id } } });
             if (!produto || produto.empresa_id !== empresaId) throw cancelamentoBloqueado('produto_mudou_de_fazenda');
-            // D-PROD-161 (achado D7): compara a unidade EFETIVA do estoque (L → L; KG/SACO → kg). KG ↔ SACO
+            // D-PROD-162 (achado D7): compara a unidade EFETIVA do estoque (L → L; KG/SACO → kg). KG ↔ SACO
             // guardam estoque em kg e não bloqueiam o estorno exato; só a troca que envolve L bloqueia
             // (defensivo: a troca de unidade do Produto já é recusada com movimento).
             if (unidadeEfetiva(produto.unidade_principal_estoque) !== unidadeEfetiva(antes.unidade)) {

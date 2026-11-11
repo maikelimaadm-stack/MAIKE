@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 — peças comuns do Patrimônio e Frota (P1-01; D-PROD-161). Pequenas
+ * D-PROD-157 — peças comuns do Patrimônio e Frota (P1-01; D-PROD-162). Pequenas
  * e explícitas; o texto, a empresa e a trava vêm de `gestao/gestaoComum.js`
  * (D14: estender o que existe, sem solução paralela).
  */
@@ -112,7 +112,7 @@ const RADICAL_MAXIMO = 28;
 const SUFIXO_MAXIMO = 99;
 
 /**
- * Radical do código gerado a partir do NOME (D-PROD-161, P-05): sem acentos
+ * Radical do código gerado a partir do NOME (D-PROD-162, P-05): sem acentos
  * (NFD), MAIÚSCULAS, cada trecho fora de `[A-Z0-9]` vira `_`, sem `_` nas
  * pontas, até 28 caracteres; com menos de 2, `ITEM`. Ex.: "Galpão de máquinas"
  * → `GALPAO_DE_MAQUINAS`.

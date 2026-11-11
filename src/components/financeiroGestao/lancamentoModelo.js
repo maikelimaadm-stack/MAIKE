@@ -112,7 +112,7 @@ export const formularioDoDetalhe = (d, ctx) => {
   const itens = (Array.isArray(d?.itens) ? d.itens : []).map((/** @type {any} */ i) => ({
     chave: novaChaveLinha(),
     tipo_item: i.tipo_item === 'SERVICO' ? 'SERVICO' : 'MERCADORIA',
-    // D-PROD-161: item em L só existe para Produto em L: o detalhe preserva `L` e marca o Produto.
+    // D-PROD-162: item em L só existe para Produto em L: o detalhe preserva `L` e marca o Produto.
     produto: ref(
       i.produto_id,
       i.produto_nome,
@@ -392,10 +392,10 @@ const pesoDoSaco = (produto) => {
 /** O produto aceita SACO? (só com unidade principal SACO e peso por saco > 0). @param {any} produto */
 export const produtoAceitaSaco = (produto) => produto?.unidade_principal_estoque === 'SACO' && pesoDoSaco(produto) !== null;
 
-/** D-PROD-161: o produto é controlado em litros? (só ele aceita — e exige — a unidade L). @param {any} produto */
+/** D-PROD-162: o produto é controlado em litros? (só ele aceita — e exige — a unidade L). @param {any} produto */
 export const produtoEmLitros = (produto) => produto?.unidade_principal_estoque === 'L';
 
-/** D-PROD-161: unidade do item ao escolher o produto (Produto em L → L; os outros → KG, como antes). @param {any} produto */
+/** D-PROD-162: unidade do item ao escolher o produto (Produto em L → L; os outros → KG, como antes). @param {any} produto */
 export const unidadeAoEscolherProduto = (produto) => (produtoEmLitros(produto) ? 'L' : 'KG');
 
 // ─── Rateio POR ITEM (D-PROD-156) ────────────────────────────────────────
@@ -710,7 +710,7 @@ export const calcularResumo = (form, ctx) => {
       if (!item.local) e.local = 'Escolha o local de estoque';
       if (item.unidade === 'SACO' && !produtoAceitaSaco(item.produto)) e.unidade = 'Este produto não é controlado em sacos';
       if (item.unidade !== 'KG' && item.unidade !== 'SACO' && item.unidade !== 'L') e.unidade = 'Use KG ou SACO';
-      // D-PROD-161: Produto em L só com item L; item L só com Produto em L (o servidor confere igual).
+      // D-PROD-162: Produto em L só com item L; item L só com Produto em L (o servidor confere igual).
       else if (produtoEmLitros(item.produto) && item.unidade !== 'L') e.unidade = 'Este produto é controlado em litros (L)';
       else if (!produtoEmLitros(item.produto) && item.unidade === 'L') e.unidade = 'Use KG ou SACO';
       if (q.valor && !q.erro) {

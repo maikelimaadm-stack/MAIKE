@@ -1,5 +1,5 @@
 /**
- * D-PROD-157 (A3) / D-PROD-161 — opções dos seletores do formulário do bem que
+ * D-PROD-157 (A3) / D-PROD-162 — opções dos seletores do formulário do bem que
  * dependem da EMPRESA: responsáveis, parceiros, centros de custo, áreas e os
  * Produtos que um tanque pode aceitar. As de catálogo (famílias e tipos) são
  * do tenant e ficam nos services de cada catálogo (`opcoes`).
@@ -89,7 +89,7 @@ export const opcoesAreas = async (contexto, query = {}) => {
 };
 
 /**
- * D-PROD-161 — Produtos que o tanque pode ACEITAR: ATIVOS, da empresa, com
+ * D-PROD-162 — Produtos que o tanque pode ACEITAR: ATIVOS, da empresa, com
  * estoque em L ou KG (nunca SACO, outra fazenda ou outro tenant), por nome e
  * id; `q` em nome ou código interno; `unidade` (L|KG) filtra (achado D8).
  * Sem preço, saldo ou custo: `{id, nome, codigo_interno, unidade_principal_estoque}`.

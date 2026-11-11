@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — `SeletorPaginadoGestao`
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — `SeletorPaginadoGestao`
  * ganha as props OPCIONAIS `onCriarNovo(busca)` e `rotuloCriarNovo` (o "+ Nova
  * família"/"+ Novo tipo" do cadastro de Bens).
  *
@@ -66,7 +66,7 @@ describe('SeletorPaginadoGestao — sem onCriarNovo a renderização é a de hoj
   });
 });
 
-describe('SeletorPaginadoGestao — onCriarNovo (D-PROD-161)', () => {
+describe('SeletorPaginadoGestao — onCriarNovo (D-PROD-162)', () => {
   it('o painel mostra "+ <rótulo>"; o clique chama onCriarNovo com a busca aparada e fecha o painel', async () => {
     const onCriarNovo = vi.fn();
     montar({ buscar: buscarFake(), onCriarNovo, rotuloCriarNovo: 'Nova família' });

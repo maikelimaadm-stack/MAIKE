@@ -1,7 +1,7 @@
 /**
  * Mensagens em português dos erros de Patrimônio e Frota (D-PROD-157).
  *
- * D-PROD-161: saíram os textos de perfis de medição, medições, combustíveis,
+ * D-PROD-162: saíram os textos de perfis de medição, medições, combustíveis,
  * vínculo combustível × produto e fator kg/L (o servidor não manda mais esses
  * códigos; um que chegue cai no texto genérico). Entram os Produtos aceitos
  * pelo tanque, o Produto no tanque do Patrimônio e a unidade de estoque.
@@ -75,7 +75,7 @@ const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   leitura_inicial: 'Leitura inicial',
   leitura_atual: 'Leitura atual',
   produto_id: 'Produto',
-  // D-PROD-159 / D-PROD-161 — Abastecimentos (quantidade na unidade do Produto).
+  // D-PROD-159 / D-PROD-162 — Abastecimentos (quantidade na unidade do Produto).
   quantidade: 'Quantidade',
   medidor_leitura: 'Leitura do medidor',
   tanque_id: 'Tanque',
@@ -121,7 +121,7 @@ const CAMPO_INVALIDO = /** @type {Record<string, string>} */ ({
 const unidadeDeEstoque = (u) => (typeof u === 'string' && u ? /** @type {Record<string, string>} */ (ROTULO_UNIDADE_ESTOQUE)[u] ?? u : null);
 
 /**
- * `TANQUE_PRODUTO_INVALIDO` por `reason` (D-PROD-161). `linha` = " (linha N)"
+ * `TANQUE_PRODUTO_INVALIDO` por `reason` (D-PROD-162). `linha` = " (linha N)"
  * do tanque; `details.unidade`/`details.maximo` quando o servidor os manda.
  * @param {string|null} reason @param {string} linha @param {Record<string, any>} details
  */
@@ -244,7 +244,7 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'TANQUE_CAPACIDADE_INVALIDA':
       return `Capacidade do tanque inválida${naLinha(field)}: informe os litros, maior que zero. ${NADA}`;
     case 'TANQUE_PRODUTO_INVALIDO':
-      // D-PROD-161: o servidor aponta `tanques[i].produto_ids` em `field`/`details.field`.
+      // D-PROD-162: o servidor aponta `tanques[i].produto_ids` em `field`/`details.field`.
       return `${tanqueProdutoInvalido(reason, naLinha(field ?? (typeof details.field === 'string' ? details.field : null)), details)} ${NADA}`;
     case 'TANQUE_REMOCAO_NAO_PERMITIDA':
       return `Tanque já gravado não pode ser retirado: inative o tanque. ${NADA}`;
@@ -260,7 +260,7 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
       return `Depreciação incompleta ou incoerente: com a depreciação ligada, informe valor de aquisição, vida útil, início e o residual (por valor ou por percentual); desligada, não informe parâmetros. ${NADA}`;
     case 'PATRIMONIO_DATA_INVALIDA':
       return `Data inválida${campo ? ` em "${campo}"` : ''}: confira o dia e a ordem (disponibilidade não antes da aquisição; início da depreciação não antes da disponibilidade). ${NADA}`;
-    // ─── Produto aceito por tanque do Patrimônio (D-PROD-161) ───
+    // ─── Produto aceito por tanque do Patrimônio (D-PROD-162) ───
     case 'PRODUTO_EM_TANQUE_PATRIMONIO':
       return `Este Produto é aceito em tanque de bem do Patrimônio${tanquesDoProduto(details.tanques)}: ele não muda de fazenda. Tire-o dos Produtos aceitos do tanque em Bens Patrimoniais antes. ${NADA}`;
     case 'PRODUTO_UNIDADE_EM_USO': {
@@ -304,7 +304,7 @@ const MOTIVO_CANCELAMENTO_BLOQUEADO = /** @type {Record<string, string>} */ ({
   lote_indisponivel_para_devolucao: 'um lote de origem foi estornado ou removido',
   devolucao_excede_entrada: 'a devolução passaria da entrada do lote de origem',
   estoque_excede_limite: 'o estoque do produto passaria do limite',
-  // D-PROD-161 (achado D7): só a troca que envolve L bloqueia o estorno exato.
+  // D-PROD-162 (achado D7): só a troca que envolve L bloqueia o estorno exato.
   unidade_mudou: 'a unidade de estoque do Produto mudou desde o abastecimento',
 });
 
@@ -328,7 +328,7 @@ export const mensagemErroAbastecimento = (erro, fallback) => {
     case 'ABASTECIMENTO_TANQUE_INVALIDO':
       if (reason === 'tanque_inativo') return `O tanque está inativo. ${NADA}`;
       return `O tanque não pertence mais a este bem. ${NADA}`;
-    // D-PROD-161: o Produto vem dos Produtos aceitos do tanque; baixa exata na unidade dele (L ou KG).
+    // D-PROD-162: o Produto vem dos Produtos aceitos do tanque; baixa exata na unidade dele (L ou KG).
     case 'ABASTECIMENTO_PRODUTO_INVALIDO':
       if (reason === 'outra_empresa') return `O Produto é de outra fazenda. ${NADA}`;
       if (reason === 'inativo') return `O Produto está inativo. ${NADA}`;

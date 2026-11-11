@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (F4, padrão P-11, achado D3) — o depósito do Mapa Geral soma só
+ * D-PROD-162 (F4, padrão P-11, achado D3) — o depósito do Mapa Geral soma só
  * Produtos com estoque em kg.
  *
  *  DEP-1. `getDepositoIndicator`: no MESMO local, um lote de ração em KG e um

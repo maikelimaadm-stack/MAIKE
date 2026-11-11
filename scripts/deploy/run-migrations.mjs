@@ -66,7 +66,7 @@ export const CODIGOS_DEPLOY_MIGRATION = Object.freeze({
   URL_INVALIDA: 'DEPLOY-MIGRATION-URL-INVALID',
   POOLER_INSEGURO: 'DEPLOY-MIGRATION-UNSAFE-POOLER',
   ALVO_NAO_CONFERIDO: 'DEPLOY-MIGRATION-TARGET-UNVERIFIED',
-  // D-PROD-161: migration CONTRACT pendente no alvo remoto sem MIGRATION_CONTRACT_AUTORIZADO = decisão.
+  // D-PROD-162: migration CONTRACT pendente no alvo remoto sem MIGRATION_CONTRACT_AUTORIZADO = decisão.
   CONTRACT_NAO_AUTORIZADO: 'DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED',
 });
 
@@ -206,7 +206,7 @@ export const VARIAVEL_DE_ALVO_ESPERADO = 'MIGRATION_EXPECTED_SYSTEM_IDENTIFIER';
 const RAIZ_MIGRATIONS = 'backend/prisma/migrations';
 
 /**
- * Barreira do CONTRACT (D-PROD-161), antes de qualquer DDL.
+ * Barreira do CONTRACT (D-PROD-162), antes de qualquer DDL.
  *
  * Uma migration CONTRACT (MIGRATIONS_CONTRACT_APROVADAS) APAGA dados: no alvo
  * remoto (ou com `MIGRATION_EXIGIR_CONFERENCIA=sim`) ela só é aplicada se
@@ -273,7 +273,7 @@ const resolverRuntimeDoBackend = async () => (await import('../../backend/src/co
  * Banco remoto (ou `MIGRATION_EXIGIR_CONFERENCIA=sim`) só migra se a conexão de
  * migration e a do runtime forem o MESMO banco lógico e o cluster for o
  * esperado em `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`. Local segue como antes.
- * Com o alvo conferido, aplica a barreira do CONTRACT (D-PROD-161).
+ * Com o alvo conferido, aplica a barreira do CONTRACT (D-PROD-162).
  *
  * @param {{env?: NodeJS.ProcessEnv, conferir?: typeof conferirAlvos,
  *          resolverRuntime?: () => Promise<string|null|undefined>,

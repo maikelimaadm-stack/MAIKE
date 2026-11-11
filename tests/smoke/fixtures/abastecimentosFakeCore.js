@@ -1,7 +1,7 @@
 /**
  * Backend FALSO de Abastecimentos (Patrimônio P1-02, D-PROD-159; revisto pela
- * D-PROD-161, SIMPLIFICA-01) — só para os testes RTL. Nada aqui fala com banco
- * ou API real. Segue o contrato §4.9/§4.11 da D-PROD-161: rotas A1–A6, A7 bens,
+ * D-PROD-162, SIMPLIFICA-01) — só para os testes RTL. Nada aqui fala com banco
+ * ou API real. Segue o contrato §4.9/§4.11 da D-PROD-162: rotas A1–A6, A7 bens,
  * A8 tanques (com os Produtos aceitos), A11 produtos do filtro, A12 locais e
  * A16 `produtos-do-bem` com a semântica do serviço real (bem ativo → tanques
  * ativos → aceites ATIVOS → Produto ativo, da fazenda, em L ou KG; `resumo` do
@@ -135,7 +135,7 @@ const consumirFifo = (lotes, quantidade) => {
   return { suficiente: !ehPositivo(falta), disponivel, fatias };
 };
 
-/** Mesmo plano na prévia e na confirmação (D-PROD-161 §4.9, ordem fixa B0..B10). */
+/** Mesmo plano na prévia e na confirmação (D-PROD-162 §4.9, ordem fixa B0..B10). */
 const planejar = (e, c) => {
   const bloqueios = [];
   const b = (code, field, reason, details = {}) => bloqueios.push({ code, field, reason, details });
@@ -240,7 +240,7 @@ const porNomeEId = (a, b) => (a.nome < b.nome ? -1 : a.nome > b.nome ? 1 : a.id 
 const motivoDoProduto = (p) => (p.ativo === false ? 'inativo' : empresaDoProduto(p) !== EMPRESA ? 'outra_empresa' : !UNIDADES.includes(p.unidade_principal_estoque) ? 'unidade_nao_aceita' : null);
 
 /**
- * A16 `produtos-do-bem` (D-PROD-161 §4.9): a MESMA semântica do serviço real.
+ * A16 `produtos-do-bem` (D-PROD-162 §4.9): a MESMA semântica do serviço real.
  * Elegível = aceite ATIVO num tanque ATIVO do bem ∧ Produto ativo ∧ da fazenda
  * do bem ∧ unidade L ou KG. Cada item traz os tanques que o aceitam. `resumo`
  * sobre o conjunto inteiro (ignora `q` e `cursor`).
@@ -450,7 +450,7 @@ const empresaOk = (v) => v === EMPRESA;
 
 /**
  * Roteia uma chamada (mesma assinatura de `instalarBackendFake`). `undefined` = rota ausente.
- * D-PROD-161: as rotas removidas (`tipos`, `produtos`, fatores kg/L) não existem (404 do fake).
+ * D-PROD-162: as rotas removidas (`tipos`, `produtos`, fatores kg/L) não existem (404 do fake).
  * @param {ReturnType<typeof criarEstadoAbastecimentos>} e
  */
 export const rotearAbastecimentos = async (e, { method, path, query, body }) => {

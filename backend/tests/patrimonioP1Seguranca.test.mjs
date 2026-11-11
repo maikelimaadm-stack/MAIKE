@@ -1,6 +1,6 @@
 /**
- * D-PROD-157 / D-PROD-161 — Patrimônio: SEGURANÇA e BANCO. PostgreSQL real,
- * HTTP autenticado, prova por fotografia das linhas. D-PROD-161: sem perfis,
+ * D-PROD-157 / D-PROD-162 — Patrimônio: SEGURANÇA e BANCO. PostgreSQL real,
+ * HTTP autenticado, prova por fotografia das linhas. D-PROD-162: sem perfis,
  * medições e combustíveis; tanques com Produtos aceitos (`TanqueBemProduto`);
  * as 7 tabelas da migration `20261110300000_patrimonio_simplifica`.
  *
@@ -168,8 +168,8 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
     const casos400 = [
       ['POST cliente_id', post(corpoTrator(s, { codigo_frota: null, cliente_id: s.c }))],
       ['POST cliente_id em tanque', post(corpoTrator(s, { codigo_frota: null, tanques: [{ ...tanque, cliente_id: s.c }] }))],
-      ['POST medicoes (D-PROD-161)', post(corpoCurral(s, { medicoes: [] }))],
-      ['POST combustivel_ids (D-PROD-161)', post(corpoTrator(s, { codigo_frota: null, tanques: [{ ...tanque, combustivel_ids: [] }] }))],
+      ['POST medicoes (D-PROD-162)', post(corpoCurral(s, { medicoes: [] }))],
+      ['POST combustivel_ids (D-PROD-162)', post(corpoTrator(s, { codigo_frota: null, tanques: [{ ...tanque, combustivel_ids: [] }] }))],
       ['POST cliente_id na aquisição', post(corpoTrator(s, { codigo_frota: null, aquisicao: { cliente_id: s.c } }))],
       ['POST cliente_id no medidor', post(corpoTrator(s, { codigo_frota: null, medidor: { tipo: 'SEM_MEDIDOR', cliente_id: s.c } }))],
       ['POST campo extra', post(corpoTrator(s, { codigo_frota: null, desconhecido: 1 }))],
@@ -191,7 +191,7 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
       ['PATCH sem empresa', req('PATCH', `/bens-patrimoniais/${t.id}`, s.token, { versao: 1, nome: 'X' })],
       ['PATCH versão zero', patch(t.id, { versao: 0, nome: 'X' })],
       ['PATCH campo extra', patch(t.id, { extra: true })],
-      ['PATCH medicoes (D-PROD-161)', patch(curral.id, { medicoes: [] })],
+      ['PATCH medicoes (D-PROD-162)', patch(curral.id, { medicoes: [] })],
       ['PATCH cliente_id em tanque', patch(t.id, { tanques: [{ id: t.tanques[0].id, ...tanque, cliente_id: s.c }] })],
       ['GET detalhe com cliente_id', req('GET', `/bens-patrimoniais/${t.id}?empresa_id=${s.e1.id}&cliente_id=${s.c}`, s.token)],
       ['GET detalhe sem empresa', req('GET', `/bens-patrimoniais/${t.id}`, s.token)],
@@ -706,7 +706,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     assert.equal(await prisma().tanqueBemProduto.count({ where: { cliente_id: s.c } }), 1);
     const existentes = /** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${[...TABELAS_PATRIMONIO]}::text[])`);
     assert.equal(existentes.length, 7);
-    // As tabelas removidas pela D-PROD-161 não existem mais.
+    // As tabelas removidas pela D-PROD-162 não existem mais.
     const removidas = ['ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TipoCombustivel', 'MedicaoBem', 'TipoPatrimonialPerfil', 'PerfilMedicao'];
     assert.deepEqual(/** @type {any[]} */ (await prisma().$queryRaw`SELECT relname FROM pg_class WHERE relkind = 'r' AND relname = ANY(${removidas}::text[])`), []);
   });
@@ -742,7 +742,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     // O histórico REAL do banco local: aplicado → nada pendente; sem a linha (desfeito) → pendente.
     const real = avaliarPreflight({ ...base, migrations: /** @type {any} */ (await prisma().$queryRawUnsafe(CONSULTAS.migrations)) });
     assert.deepEqual(real.resumo.pendentes, []);
-    // D-PROD-161: as colunas exigidas (quantidade/unidade do abastecimento e o Produto aceito) existem no banco real.
+    // D-PROD-162: as colunas exigidas (quantidade/unidade do abastecimento e o Produto aceito) existem no banco real.
     for (const par of [['AbastecimentoBem', 'quantidade'], ['AbastecimentoBem', 'unidade'], ['TanqueBemProduto', 'produto_id']]) {
       assert.ok(COLUNAS_EXIGIDAS.some(([t, c]) => t === par[0] && c === par[1]), `COLUNAS_EXIGIDAS com ${par.join('.')}`);
     }

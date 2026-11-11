@@ -31,7 +31,7 @@ const EXTRA_ACTION_LABELS = {
 /**
  * Rótulos POR TELA (D-PROD-159), consultados antes dos globais: em Abastecimentos
  * `cancelar` estorna o abastecimento (a Central segue "CANCELAR LANÇAMENTO").
- * D-PROD-161: o fator kg/L (`configurar_conversao`) saiu; uma linha antiga que
+ * D-PROD-162: o fator kg/L (`configurar_conversao`) saiu; uma linha antiga que
  * ainda o tenha fica no JSON, sem caixa nem efeito.
  */
 const EXTRA_ACTION_LABELS_POR_TELA = {
@@ -55,7 +55,7 @@ export default function ConfiguracaoPermissoesTelas({ formData, onChange, module
   const permissoesTelas = formData.permissoes_telas || [];
   const mobileMenuIds = formData.mobile_menu_ids || [];
   // Telas que existem no menu. Um id antigo gravado (ex.: telas removidas pela
-  // D-PROD-161) fica no JSON, mas não aparece nem conta no limite de 4 botões.
+  // D-PROD-162) fica no JSON, mas não aparece nem conta no limite de 4 botões.
   const idsDeTelasDoMenu = new Set(modules.flatMap((module) => (module.pages || []).map((page) => page.id)));
   const mapaGeralPermissions = normalizeMapaGeralPermissions(formData.mapa_geral_permissoes);
 

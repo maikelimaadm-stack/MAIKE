@@ -8,8 +8,11 @@
  * O que **não** mudou: filtro por empresa, unicidade de nome por empresa,
  * `numero_produto` por `max + 1`, autonumeração dos registros antigos, número
  * como string, `syncEntityReferences` no update, bloqueio por
- * `MovimentacaoEstoque`, `estoque_atual = 0` no cadastro novo, campos de
- * nutrição e saco/peso por saco.
+ * `MovimentacaoEstoque`, campos de nutrição e saco/peso por saco.
+ *
+ * D-PROD-161 (Estoque P0): o payload do cadastro NUNCA leva o saldo de
+ * estoque — nem no cadastro novo (o servidor grava 0), nem na edição. O saldo é
+ * cache do motor físico e só muda por Entradas/Movimentações.
  *
  * `max + 1` continua sem segurança de concorrência — dívida aberta até a P3.
  */
@@ -107,10 +110,13 @@ const assertNomeLivre = ({ produtos, nome, empresaId, ignorarId }) => {
  * quais campos ficam vermelhos e para qual deles a tela rola — continua na UI;
  * o que veio para cá é a montagem e a coerção de valor.
  *
+ * D-PROD-161: o saldo de estoque não entra no payload em modo nenhum; o estado
+ * da edição espalha o registro lido (com o cache), e ele não volta ao servidor.
+ *
  * @param {object} formData estado do formulário
- * @param {{isEditing?: boolean}} [opcoes]
+ * @param {{isEditing?: boolean}} [opcoes] mantido por compatibilidade: novo e edição montam o mesmo payload
  */
-export const normalizarProduto = (formData, { isEditing = false } = {}) => {
+export const normalizarProduto = (formData, opcoes = {}) => {
   const unidadePrincipal = formData.unidade_principal_estoque || 'KG';
   const pesoPorSaco = parseDecimalPtBR(formData.peso_por_saco_kg);
 
@@ -137,7 +143,6 @@ export const normalizarProduto = (formData, { isEditing = false } = {}) => {
     ativo: formData.ativo,
   };
 
-  if (!isEditing) payload.estoque_atual = 0;
   return payload;
 };
 
@@ -215,7 +220,7 @@ const VINCULO_ESTOQUE = 'movimentações de estoque';
 const VINCULO_TANQUES = 'tanques do patrimônio';
 
 /**
- * D-PROD-161 (padrão P-10): por que a unidade de estoque não muda
+ * D-PROD-162 (padrão P-10): por que a unidade de estoque não muda
  * (409 PRODUTO_UNIDADE_EM_USO, `reason`).
  */
 const MOTIVO_UNIDADE_EM_USO = Object.freeze({
@@ -228,7 +233,7 @@ const MOTIVO_UNIDADE_EM_USO = Object.freeze({
 /**
  * Frase do bloqueio de exclusão com o vínculo REAL que o servidor informou
  * (`details.vinculo`: movimentações de estoque, lançamentos financeiros ou
- * tanques do patrimônio — D-PROD-161) e a quantidade.
+ * tanques do patrimônio — D-PROD-162) e a quantidade.
  * @param {unknown} erro
  */
 export const mensagemExclusaoProdutoBloqueada = (erro) => {
@@ -260,12 +265,15 @@ export const sugestaoProdutoNovo = (details) => {
 };
 
 /**
- * Mensagem de falha ao salvar o produto (D-PROD-161). Diz o que fazer quando:
+ * Mensagem de falha ao salvar o produto (D-PROD-162). Diz o que fazer quando:
  *  - o produto está nos Produtos aceitos de um tanque e muda de fazenda
  *    (409 PRODUTO_EM_TANQUE_PATRIMONIO);
  *  - a unidade de estoque não pode mudar (409 PRODUTO_UNIDADE_EM_USO, por
  *    `reason`: estoque, lotes, movimentos, lançamentos — padrão P-10 — ou
  *    aceito em tanque);
+ *  - D-PROD-161 (Estoque P0): o produto com estoque muda de fazenda
+ *    (409 PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA) ou o corpo tenta gravar o saldo
+ *    (422 PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL);
  * o resto segue a mensagem pública do código.
  * @param {unknown} erro
  */
@@ -280,6 +288,13 @@ export const mensagemErroSalvarProduto = (erro) => {
     }
     const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
     return `${motivo}: a unidade de estoque não muda de ou para litros. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;
+  }
+  // D-PROD-161 (Estoque P0): o saldo do produto é do motor físico.
+  if (code === 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA') {
+    return 'Este produto já tem estoque (lotes ou movimentações) nesta fazenda: ele não pode mudar de fazenda. Cadastre um produto na outra fazenda. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL') {
+    return 'Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos. Nada foi gravado.';
   }
   return getApiErrorMessage(erro, 'Não foi possível salvar o produto.');
 };

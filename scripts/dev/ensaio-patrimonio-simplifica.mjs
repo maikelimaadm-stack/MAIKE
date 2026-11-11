@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — ensaio LOCAL automatizado da
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — ensaio LOCAL automatizado da
  * migration CONTRACT `20261110300000_patrimonio_simplifica` (contrato §7.4).
  *
  * Só banco LOCAL e descartável: a URL tem de apontar para esta máquina
@@ -20,7 +20,7 @@
  *     "remoto" simulado): cada um tem de recusar e não mudar nada; a falha
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
- *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-161 e a impressão
+ *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
  *     na URL) e confere: 40 concluídas, 79 tabelas, as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 72 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
@@ -50,7 +50,7 @@ const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261110300000_patrimonio_simplifica';
-export const DECISAO = 'D-PROD-161';
+export const DECISAO = 'D-PROD-162';
 /** As 13 tabelas apagadas, na ordem da guarda e dos DROP. */
 export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
@@ -112,7 +112,7 @@ const SQL_TABELAS_PUBLIC = `SELECT count(*)::int AS n FROM pg_class c JOIN pg_na
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 export const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`ensaio D-PROD-161: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`ensaio D-PROD-162: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 
@@ -155,7 +155,7 @@ export const aplicarMigrationsDaMain = async (url) => {
     for (const d of readdirSync(MIGRATIONS)) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`ensaio D-PROD-161: as migrations da main não subiram (exit ${r.status})`);
+    if (r.status !== 0) throw new Error(`ensaio D-PROD-162: as migrations da main não subiram (exit ${r.status})`);
     return r;
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -303,7 +303,7 @@ export const semear = async (db, { clientes = 2, bens = 1, cancelados = 1 } = {}
         const ab = id('abast', a);
         await inserir(db, 'MovimentacaoEstoque', { id: `${ab}-saida`, cliente_id: c, empresa_id: id('emp'), numero_movimentacao: `MOV-S${a}`, tipo_movimentacao: 'Saída', data_movimentacao: sql("'2026-11-01'"), produto_id: id('prod'), quantidade: 84, unidade_medida: 'KG', valor_unitario: 6, valor_total: 504, origem_sistema: 'abastecimento_patrimonio' });
         await inserir(db, 'MovimentacaoEstoque', { id: `${ab}-estorno`, cliente_id: c, empresa_id: id('emp'), numero_movimentacao: `MOV-E${a}`, tipo_movimentacao: 'Entrada', data_movimentacao: sql("'2026-11-02'"), produto_id: id('prod'), quantidade: 84, unidade_medida: 'KG', valor_unitario: 6, valor_total: 504, origem_sistema: 'abastecimento_patrimonio', movimento_pai_id: `${ab}-saida` });
-        await inserir(db, 'AbastecimentoBem', { id: ab, cliente_id: c, empresa_id: id('emp'), numero: `ABS-${String(a).padStart(4, '0')}`, status: 'CANCELADO', bem_id: id('bem'), tanque_id: id('tanque'), tipo_combustivel_id: id('comb'), produto_id: id('prod'), local_estoque_id: id('local'), conversao_id: id('conv'), data_operacional: sql("'2026-11-01'"), quantidade_litros: 100, kg_por_litro: 0.84, quantidade_kg: 84, custo_total: 504, custo_unitario_kg: 6, medidor_tipo: 'SEM_MEDIDOR', operation_id: `op-ensaio-cancelado-${a}`, movimentacao_estoque_id: `${ab}-saida`, movimentacao_estorno_id: `${ab}-estorno`, criado_por_usuario_id: id('usr'), cancelado_por_usuario_id: id('usr'), cancelado_em: sql('now()'), motivo_cancelamento: 'Ensaio D-PROD-161' });
+        await inserir(db, 'AbastecimentoBem', { id: ab, cliente_id: c, empresa_id: id('emp'), numero: `ABS-${String(a).padStart(4, '0')}`, status: 'CANCELADO', bem_id: id('bem'), tanque_id: id('tanque'), tipo_combustivel_id: id('comb'), produto_id: id('prod'), local_estoque_id: id('local'), conversao_id: id('conv'), data_operacional: sql("'2026-11-01'"), quantidade_litros: 100, kg_por_litro: 0.84, quantidade_kg: 84, custo_total: 504, custo_unitario_kg: 6, medidor_tipo: 'SEM_MEDIDOR', operation_id: `op-ensaio-cancelado-${a}`, movimentacao_estoque_id: `${ab}-saida`, movimentacao_estorno_id: `${ab}-estorno`, criado_por_usuario_id: id('usr'), cancelado_por_usuario_id: id('usr'), cancelado_em: sql('now()'), motivo_cancelamento: 'Ensaio D-PROD-162' });
         await inserir(db, 'AbastecimentoBemConsumoLote', { id: `${ab}-fatia`, cliente_id: c, empresa_id: id('emp'), abastecimento_id: ab, estoque_lote_nota_id: id('lote'), ordem: 1, quantidade: 84, custo_unitario: 6 });
       }
     }
@@ -319,7 +319,7 @@ export const semear = async (db, { clientes = 2, bens = 1, cancelados = 1 } = {}
 export const CENARIOS_RED = Object.freeze([
   {
     id: 'confirmado',
-    esperado: /D-PROD-161: há 1 abastecimento\(s\) CONFIRMADO\(s\)/,
+    esperado: /D-PROD-162: há 1 abastecimento\(s\) CONFIRMADO\(s\)/,
     impressao: 'certa',
     preparar: async (db) => {
       const c = 'sim-c1';
@@ -333,14 +333,14 @@ export const CENARIOS_RED = Object.freeze([
   },
   {
     id: 'fk_de_fora',
-    esperado: /D-PROD-161: FK de fora do Patrimônio aponta para as tabelas apagadas \(.*Intruso/,
+    esperado: /D-PROD-162: FK de fora do Patrimônio aponta para as tabelas apagadas \(.*Intruso/,
     impressao: 'certa',
     preparar: (db) => db.$executeRawUnsafe(`CREATE TABLE "Intruso" ("id" TEXT PRIMARY KEY, "cliente_id" VARCHAR(64), "combustivel_id" VARCHAR(64), CONSTRAINT "Intruso_combustivel_fkey" FOREIGN KEY ("cliente_id", "combustivel_id") REFERENCES "TipoCombustivel"("cliente_id", "id"))`),
     desfazer: (db) => db.$executeRawUnsafe(`DROP TABLE "Intruso"`),
   },
   {
     id: 'visao_dependente',
-    esperado: /D-PROD-161: visão ou regra depende das tabelas apagadas \(v_intrusa\)/,
+    esperado: /D-PROD-162: visão ou regra depende das tabelas apagadas \(v_intrusa\)/,
     impressao: 'certa',
     preparar: (db) => db.$executeRawUnsafe(`CREATE VIEW v_intrusa AS SELECT id, codigo FROM "PerfilMedicao"`),
     desfazer: (db) => db.$executeRawUnsafe(`DROP VIEW v_intrusa`),
@@ -450,7 +450,7 @@ if (ehEntradaDireta()) {
   };
   const base = exigirUrlLocal(valor('--url', process.env.MAIKE_ENSAIO_URL));
   const banco = valor('--banco', 'maike_ensaio_simplifica');
-  if (!/^maike_[a-z0-9_]+$/.test(banco)) throw new Error('ensaio D-PROD-161: --banco tem de ser maike_<letras/números>');
+  if (!/^maike_[a-z0-9_]+$/.test(banco)) throw new Error('ensaio D-PROD-162: --banco tem de ser maike_<letras/números>');
   const { PrismaClient } = await import('@prisma/client');
   const admin = new PrismaClient({ datasourceUrl: base });
   const url = comBanco(base, banco);
@@ -514,7 +514,7 @@ if (ehEntradaDireta()) {
     await admin.$disconnect();
   }
   console.log(JSON.stringify(relatorio, (k, v) => (typeof v === 'bigint' ? Number(v) : v), 2));
-  console.log(`ensaio D-PROD-161: ${relatorio.ok ? 'OK' : 'FALHOU'} (banco local ${banco}; nada fora desta máquina foi tocado)`);
+  console.log(`ensaio D-PROD-162: ${relatorio.ok ? 'OK' : 'FALHOU'} (banco local ${banco}; nada fora desta máquina foi tocado)`);
   process.exit(relatorio.ok ? 0 : 1);
 }
 /* c8 ignore stop */

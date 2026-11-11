@@ -1,5 +1,5 @@
 /**
- * API do módulo Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-161).
+ * API do módulo Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162).
  * Online só; página keyset do motor Base1; opções de seletor paginadas no
  * servidor (sem teto).
  *
@@ -17,7 +17,7 @@ import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
 
 /**
  * Recursos de opções (A3): os de catálogo (famílias, tipos) não pedem empresa;
- * os demais pedem. `produtos` (D-PROD-161) = Produtos ativos da fazenda, em L
+ * os demais pedem. `produtos` (D-PROD-162) = Produtos ativos da fazenda, em L
  * ou KG, que um tanque pode aceitar (filtro opcional `unidade`).
  */
 export const RECURSOS_OPCOES_PATRIMONIO = Object.freeze(['familias', 'tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo', 'areas']);
@@ -57,7 +57,7 @@ export const getPatrimonioCatalogo = async (recurso, id) => {
 /**
  * POST de família ou tipo. `nome` obrigatório; `codigo` opcional (P-05: sem ele
  * o servidor gera a partir do nome) e, se vier, não vazio. Nunca `empresa_id`
- * nem `perfis` (D-PROD-161: o servidor responderia 400).
+ * nem `perfis` (D-PROD-162: o servidor responderia 400).
  * @param {string} recurso @param {Record<string, unknown>} corpo
  */
 export const createPatrimonioCatalogo = async (recurso, corpo) => {
@@ -96,7 +96,7 @@ const contagens = (v) => {
 
 /**
  * Instala o catálogo padrão (idempotente: cria só o que falta por código).
- * D-PROD-161: só famílias e tipos (perfis e combustíveis saíram).
+ * D-PROD-162: só famílias e tipos (perfis e combustíveis saíram).
  * @returns {Promise<{ criados: { familias: number, tipos: number },
  *   existentes: { familias: number, tipos: number },
  *   conflitos: Array<{ recurso: string, codigo: string, motivo: string }> }>}
@@ -165,7 +165,7 @@ export const previaDepreciacaoBemPatrimonial = async (corpo) => {
 
 /**
  * Uma página de opções ATIVAS de um seletor (keyset nome+id). Em `produtos`
- * (D-PROD-161), cada item é `{ id, nome, codigo_interno, unidade_principal_estoque }`
+ * (D-PROD-162), cada item é `{ id, nome, codigo_interno, unidade_principal_estoque }`
  * e `unidade` (`L` | `KG`) filtra; sem ela, vêm L e KG.
  * @param {string} recurso
  * @param {{ empresa_id?: string|null, q?: string, cursor?: string|null, limit?: number, familia_id?: string|null, unidade?: 'L'|'KG'|null }} [filtros]
@@ -194,7 +194,7 @@ const paginaDeOpcoes = (bruto) => {
   return { itens, has_more: Boolean(o.has_more === true && proximo), next_cursor: proximo };
 };
 
-// ─── Abastecimentos (D-PROD-159, simplificados pela D-PROD-161) ──────────
+// ─── Abastecimentos (D-PROD-159, simplificados pela D-PROD-162) ──────────
 
 export { RECURSOS_OPCOES_ABASTECIMENTO };
 
@@ -202,7 +202,7 @@ const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
 
 /**
  * Corpo base da prévia e da confirmação (schema FECHADO no servidor).
- * D-PROD-161: `quantidade` na unidade de estoque do Produto (L ou KG); saíram
+ * D-PROD-162: `quantidade` na unidade de estoque do Produto (L ou KG); saíram
  * `tipo_combustivel_id`, `quantidade_litros` e `conversao_*` (o servidor
  * responderia 400 — aqui falha antes da rede).
  */
@@ -288,7 +288,7 @@ export const previaAbastecimento = async (corpo) => {
 
 /**
  * Confirmação (A4): corpo EXATO com `operation_id` (idempotência; recibo v2 no
- * servidor). D-PROD-161: sem fator — a baixa é a `quantidade` digitada.
+ * servidor). D-PROD-162: sem fator — a baixa é a `quantidade` digitada.
  * @param {Record<string, unknown>} corpo
  */
 export const confirmarAbastecimento = async (corpo) => {

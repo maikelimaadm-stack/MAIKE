@@ -1,9 +1,9 @@
 /**
- * D-PROD-157 / D-PROD-161 — grupo "Patrimônio e Frota" no menu, no celular e no
+ * D-PROD-157 / D-PROD-162 — grupo "Patrimônio e Frota" no menu, no celular e no
  * gerenciador de permissões.
  *
  *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as DUAS telas
- *    `pat-*` (Bens Patrimoniais e Abastecimentos; D-PROD-161 tirou Famílias,
+ *    `pat-*` (Bens Patrimoniais e Abastecimentos; D-PROD-162 tirou Famílias,
  *    Tipos, Perfis de Medição e Combustíveis); os domínios legados de máquinas,
  *    abastecimento e ativos fixos (e as entidades Base44 deles) continuam
  *    proibidos e intactos;
@@ -67,7 +67,7 @@ const TELAS = [
   ['pat-bens-patrimoniais', 'Bens Patrimoniais', 'BensPatrimoniais'],
   ['pat-abastecimentos', 'Abastecimentos', 'Abastecimentos'],
 ];
-/** D-PROD-161: as quatro telas que saíram (página, menu, rota, escopo e Vercel). */
+/** D-PROD-162: as quatro telas que saíram (página, menu, rota, escopo e Vercel). */
 const TELAS_REMOVIDAS = [
   ['pat-familias-patrimoniais', 'Famílias Patrimoniais', 'FamiliasPatrimoniais'],
   ['pat-tipos-patrimoniais', 'Tipos Patrimoniais', 'TiposPatrimoniais'],
@@ -126,7 +126,7 @@ const DETALHE_TRATOR = {
   placa: null, placa_uf: null, renavam: null, potencia_cv: null, material: null, ano_conclusao: null, compatibilidade: null,
   especificacoes: null, observacoes: null,
   medidor: { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1250.0000', leitura_atual: '1300.0000', data_leitura: '2026-11-01', origem: 'AJUSTE_CADASTRO' },
-  // D-PROD-161: tanque com os Produtos aceitos (sem medições, sem combustíveis).
+  // D-PROD-162: tanque com os Produtos aceitos (sem medições, sem combustíveis).
   tanques: [
     {
       id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
@@ -210,7 +210,7 @@ describe('PAT-M1 — SSOT de menu, páginas, escopo e ícones', () => {
     expect(grupo.submenu).toEqual(TELAS.map(([id, title, url]) => ({ id, title, url })));
     expect(TELAS_PATRIMONIO).toEqual({ BENS: 'pat-bens-patrimoniais', ABASTECIMENTOS: 'pat-abastecimentos' });
     for (const p of PAGINAS) expect(typeof PAGES[p], p).toBe('function');
-    // D-PROD-161: as quatro telas antigas não são página, nem item de menu, nem arquivo.
+    // D-PROD-162: as quatro telas antigas não são página, nem item de menu, nem arquivo.
     const idsDoMenu = DEFAULT_MENU.flatMap((m) => m.submenu.map((t) => t.id));
     for (const [id, , pagina] of TELAS_REMOVIDAS) {
       expect(PAGES[pagina], pagina).toBeUndefined();
@@ -307,7 +307,7 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     // Sem atalho: editar/excluir/salvar não cancelam.
     expect(acoesDaTelaAbastecimento(comAcoes(T, { editar: true, excluir: true, salvar: true }))).toMatchObject({ cancelar: false });
     expect(acoesDaTelaAbastecimento(comAcoes(T, { cancelar: true }))).toEqual({ ver: true, criar: false, cancelar: true });
-    // `configurar_conversao` gravado numa linha antiga não dá nada (D-PROD-161).
+    // `configurar_conversao` gravado numa linha antiga não dá nada (D-PROD-162).
     expect(acoesDaTelaAbastecimento(comAcoes(T, { configurar_conversao: true }))).toEqual({ ver: true, criar: false, cancelar: false });
     expect(acoesDaTelaAbastecimento({ user_email: 'x', is_admin: true })).toEqual({ ver: true, criar: true, cancelar: true });
   });
@@ -349,7 +349,7 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
       expect(EXTRA_ACTION_KEYS_BY_PAGE[page.id]).toEqual(extras);
       expect('configurar_conversao' in p, page.id).toBe(false);
     }
-    // D-PROD-161: o fator kg/L saiu; as telas antigas não têm mais ações extras.
+    // D-PROD-162: o fator kg/L saiu; as telas antigas não têm mais ações extras.
     expect(ACTION_LABELS.configurar_conversao).toBeUndefined();
     expect(Object.keys(EXTRA_ACTION_KEYS_BY_PAGE).filter((id) => id.startsWith('pat-')).sort()).toEqual(['pat-abastecimentos', 'pat-bens-patrimoniais']);
     // As telas de outros módulos não ganham a chave.
@@ -429,7 +429,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     // Bens usa a fábrica `patrimonio(T.PATRIMONIO_BENS)`; o catálogo padrão é só do administrador.
     expect(guardas).toMatch(/patrimonioBens:\s*\{\s*\.\.\.patrimonio\(T\.PATRIMONIO_BENS\)/);
     expect(guardas).toMatch(/patrimonioCatalogoPadrao:\s*adminOuIsAdmin\(\)/);
-    // D-PROD-161: sem guarda de perfis nem de combustíveis; nenhuma guarda pede as telas antigas.
+    // D-PROD-162: sem guarda de perfis nem de combustíveis; nenhuma guarda pede as telas antigas.
     expect(guardas).not.toMatch(/patrimonioPerfisMedicao|patrimonioCombustiveis/);
     expect(guardas).not.toMatch(/PATRIMONIO_(FAMILIAS|TIPOS|PERFIS_MEDICAO|COMBUSTIVEIS)\b/);
 
@@ -463,7 +463,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     }
   });
 
-  it('famílias, tipos e Produtos do tanque (D-PROD-161): guardas do servidor sobre Bens = acoesDeCatalogoNoBem, ação por ação', () => {
+  it('famílias, tipos e Produtos do tanque (D-PROD-162): guardas do servidor sobre Bens = acoesDeCatalogoNoBem, ação por ação', () => {
     const linhaBens = guardas.match(/const BENS_CRIAR_OU_EDITAR\s*=\s*\[(.*)\];/);
     expect(linhaBens, 'BENS_CRIAR_OU_EDITAR ausente em guardasRotas.js').toBeTruthy();
     const criarOuEditar = [...linhaBens[1].matchAll(/\[T\.PATRIMONIO_BENS,\s*'([a-z_]+)'\]/g)].map((m) => m[1]);
@@ -581,7 +581,7 @@ describe('PAT-M3b — Bens dentro do shell: permissão explícita', () => {
         ],
       },
     });
-    // D-PROD-161: nada de medições nem de combustíveis no corpo.
+    // D-PROD-162: nada de medições nem de combustíveis no corpo.
     const patch = backend.chamadas.find((c) => c.method === 'PATCH');
     expect('medicoes' in patch.body).toBe(false);
     expect(patch.body.tanques.some((t) => 'combustivel_ids' in t)).toBe(false);

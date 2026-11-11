@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — abastecimento na unidade do
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — abastecimento na unidade do
  * Produto, contra PostgreSQL real e HTTP autenticado (contrato §4.9 e §6.1.3).
  *
  *  - L: compra P3 de 1.000 L → abastecer 120 L → lote −120, `estoque_atual`
@@ -62,7 +62,7 @@ const cru = async (id) => {
 };
 const somaFatias = (fatias) => fatias.reduce((t, f) => t.plus(f.quantidade.times(f.custo_unitario).toDecimalPlaces(4)), fatias[0].quantidade.times(0));
 
-describe('D-PROD-161 — a baixa é a quantidade digitada, na unidade do Produto', () => {
+describe('D-PROD-162 — a baixa é a quantidade digitada, na unidade do Produto', () => {
   test('L: compra P3 de 1.000 L → abastecer 120 L; KG: compra 500 kg → abastecer 80 kg; cancelar devolve exatamente aos mesmos lotes', async () => {
     const s = await montarAbastecimento(app);
     const compraL = await s.compraP3(s.e1, s.diesel, s.local2, { quantidade: '1000', preco: '5.50' });
@@ -206,7 +206,7 @@ describe('D-PROD-161 — a baixa é a quantidade digitada, na unidade do Produto
   });
 });
 
-describe('D-PROD-161 — idempotência v2', () => {
+describe('D-PROD-162 — idempotência v2', () => {
   test('mesma chave + mesmo corpo → 200 replay; corpo diferente → 409 auditado; corpo v1 → 400; recibo v1 com a mesma operation_id nunca é reaproveitado', async () => {
     const s = await montarAbastecimento(app);
     const corpo = corpoAbastecimento(s, { quantidade: '30' });
@@ -226,7 +226,7 @@ describe('D-PROD-161 — idempotência v2', () => {
     delete v1.quantidade;
     assert.deepEqual(erro(await A.confirmar(s.operador.token, v1)).slice(0, 2), [400, 'REQUEST_VALIDATION_FAILED']);
 
-    // recibo v1 (antes da D-PROD-161) com a MESMA chave: a confirmação v2 é operação nova
+    // recibo v1 (antes da D-PROD-162) com a MESMA chave: a confirmação v2 é operação nova
     const chave = opId();
     for (const tipo of ['confirmar_abastecimento_bem', 'cancelar_abastecimento_bem']) {
       await prisma().operacaoIdempotente.create({
@@ -245,7 +245,7 @@ describe('D-PROD-161 — idempotência v2', () => {
   });
 });
 
-describe('D-PROD-161 — Produtos do bem (A16) e dois tanques', () => {
+describe('D-PROD-162 — Produtos do bem (A16) e dois tanques', () => {
   test('2 tanques: A aceita diesel e B aceita Arla → cada Produto com o SEU tanque; diesel no B → 422; resumo coerente', async () => {
     const s = await montarAbastecimento(app);
     const bem = await A.ok(A.req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, {
@@ -321,7 +321,7 @@ describe('D-PROD-161 — Produtos do bem (A16) e dois tanques', () => {
   });
 });
 
-describe('D-PROD-161 — consumo na unidade do Produto', () => {
+describe('D-PROD-162 — consumo na unidade do Produto', () => {
   test('kg/h entre dois cheios em KG; L e KG misturados no intervalo → unidades_misturadas (nunca soma litro com quilo)', async () => {
     const s = await montarAbastecimento(app);
     const c = (extra) => corpoAbastecimento(s, { produto_id: s.dieselKg.id, ...extra });
@@ -342,7 +342,7 @@ describe('D-PROD-161 — consumo na unidade do Produto', () => {
   });
 });
 
-describe('D-PROD-161 — FK do aceite é a última rede', () => {
+describe('D-PROD-162 — FK do aceite é a última rede', () => {
   test('aceite apagado entre a leitura e o INSERT (forçado por SQL) → 422 ABASTECIMENTO_PRODUTO_NAO_ACEITO, nunca 500; nada gravado', async () => {
     const s = await montarAbastecimento(app);
     // um gatilho apaga o aceite logo antes do INSERT do abastecimento (simula um escritor fora do protocolo)

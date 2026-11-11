@@ -22,7 +22,7 @@ export const MOTIVO_CONSUMO = Object.freeze(
     medidor_trocado: "o medidor mudou entre os dois tanques cheios",
     intervalo_nao_positivo: "a leitura não avançou entre os dois tanques cheios",
     quantidade_nao_positiva: "a quantidade abastecida entre os dois tanques cheios não é positiva",
-    // D-PROD-161 (P-03): litros e quilos nunca se somam.
+    // D-PROD-162 (P-03): litros e quilos nunca se somam.
     unidades_misturadas: "o intervalo tem abastecimentos em litros e em quilos, que não se somam",
     sem_medidor: "o bem não tem medidor",
     medidor_ciclos: "o medidor é de ciclos (sem métrica de consumo)",
@@ -100,7 +100,7 @@ export function ConsumoDoAbastecimento({ consumo }) {
  * cadastro de Bens não reescreve o histórico), quantidade baixada na unidade
  * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo FIFO
  * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
- * consumo. D-PROD-161: sem tipo de combustível e sem fator.
+ * consumo. D-PROD-162: sem tipo de combustível e sem fator.
  * @param {{ detalhe: any, podeCancelar: boolean, onCancelar: () => void, onVerConsumo: () => void, fuso?: string|null }} props
  */
 export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCancelar, onVerConsumo, fuso = null }) {

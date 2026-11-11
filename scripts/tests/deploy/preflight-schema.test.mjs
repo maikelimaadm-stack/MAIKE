@@ -25,7 +25,7 @@ const COLUNAS_OK = [
   { table_name: 'Cliente', column_name: 'sessao_epoca' },
   { table_name: 'Usuario', column_name: 'sessao_epoca' },
   { table_name: 'Usuario', column_name: 'troca_senha_pendente' },
-  // D-PROD-161: o backend do Patrimônio simplificado lê estas colunas.
+  // D-PROD-162: o backend do Patrimônio simplificado lê estas colunas.
   { table_name: 'AbastecimentoBem', column_name: 'quantidade' },
   { table_name: 'AbastecimentoBem', column_name: 'unidade' },
   { table_name: 'TanqueBemProduto', column_name: 'produto_id' },
@@ -114,7 +114,7 @@ test('PR167-R1: falta qualquer coluna da exclusão lógica do Lote → reprovado
   }
 });
 
-test('B12 (D-PROD-161): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS — todo par exigido aparece nela; as colunas do Patrimônio simplificado são exigidas', () => {
+test('B12 (D-PROD-162): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS — todo par exigido aparece nela; as colunas do Patrimônio simplificado são exigidas', () => {
   for (const [t, c] of COLUNAS_EXIGIDAS) assert.ok(CONSULTAS.colunas.includes(`('${t}','${c}')`), `${t}.${c} fora da consulta`);
   const pares = [...CONSULTAS.colunas.matchAll(/\('([A-Za-z_]+)','([A-Za-z_]+)'\)/g)].map((x) => `${x[1]}.${x[2]}`);
   assert.deepEqual(pares, COLUNAS_EXIGIDAS.map(([t, c]) => `${t}.${c}`), 'nada a mais nem a menos na consulta');

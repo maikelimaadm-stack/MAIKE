@@ -12,7 +12,7 @@ export {
   updateBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
-  // D-PROD-159 — Abastecimentos (D-PROD-161: sem fatores kg/L, sem vínculo combustível × produto).
+  // D-PROD-159 — Abastecimentos (D-PROD-162: sem fatores kg/L, sem vínculo combustível × produto).
   RECURSOS_OPCOES_ABASTECIMENTO,
   PADRAO_OPERATION_ID_ABASTECIMENTO,
   listAbastecimentosPage,

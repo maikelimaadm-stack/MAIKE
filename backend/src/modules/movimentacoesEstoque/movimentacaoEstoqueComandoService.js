@@ -1,8 +1,21 @@
 /**
  * Comandos transacionais de movimentação de estoque (ESTAB-P0-01).
+ *
+ * D-PROD-161 (Estoque P0, motor físico único): a suplementação e a
+ * transferência entre locais não têm mais FIFO próprio em Number. Elas só
+ * validam a entrada e chamam o motor (`estoqueFisicoMotor.js`):
+ *  - suplementação → `aplicarSaidaFifo` com `ORIGEM_SUPLEMENTACAO` (CAS no lote,
+ *    decremento conferido do cache, `lotes_consumidos`);
+ *  - transferência → `aplicarTransferenciaEstoque` (camadas de destino com o
+ *    custo, a data e a procedência da origem; cache intocado).
+ * Ordem de travas: recibo → local (FOR KEY SHARE) → produto → lotes (CAS) →
+ * INSERTs → Produto ± → sequência NO FIM (`numerarMovimentos`) → AuditLog.
+ *
+ * Contrato externo preservado (§3.4 da SPEC P0): rotas, schemas, status
+ * 201/200, chaves do corpo, `rateio[]` com números e o fingerprint de
+ * idempotência (quantidade em Number, mesmas chaves e ordem) — um recibo antigo
+ * continua dando replay. Todas as validações novas ficam DENTRO de `executar`.
  */
-import { Prisma } from '@prisma/client';
-
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
@@ -10,19 +23,38 @@ import { TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConco
 import { buscarRegistro as buscarEmpresa } from '../empresas/empresaRepository.js';
 import { buscarProduto } from '../produtos/produtoRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { buscarRegistro as buscarLoteNota, inserirRegistro as inserirLoteNota, atualizarRegistroPorId as atualizarLoteNota } from '../estoqueLotesNota/estoqueLoteNotaRepository.js';
-import { inserirRegistro, atualizarRegistroPorId } from './movimentacaoEstoqueRepository.js';
 import { comoPublico, ENTIDADE_SEQUENCIA } from './movimentacaoEstoqueService.js';
-import { buildRateioObservacao, calcularRateioFifo, parseNumero } from './fifoEstoque.js';
-import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
+import {
+  ENTIDADE_MOVIMENTO,
+  ORIGEM_SUPLEMENTACAO,
+  aplicarSaidaFifo,
+  aplicarTransferenciaEstoque,
+  exigirLocaisEstoque,
+  kgDeEntrada,
+  numerarMovimentos,
+  numeroMovimentoProvisorio,
+  travarProdutosEstoque,
+} from '../estoqueFisico/estoqueFisicoMotor.js';
 
 const TIPO_SAIDA = 'saida_suplementacao';
 const TIPO_TRANSFERENCIA = 'transferencia_locais';
 
-const dec = (valor) => {
-  if (valor instanceof Prisma.Decimal) return valor.toNumber();
-  return parseNumero(valor);
+// Uma sequência ÚNICA de movimentos por tenant: o motor numera no fim com a
+// mesma entidade que o CRUD de movimentos usa (fail-closed se divergirem).
+if (ENTIDADE_SEQUENCIA !== ENTIDADE_MOVIMENTO) {
+  throw new Error(`sequência de movimentos divergente: ${ENTIDADE_SEQUENCIA} × ${ENTIDADE_MOVIMENTO}`);
+}
+
+/**
+ * Quantidade do corpo para o FINGERPRINT de idempotência (formato congelado:
+ * Number, mesmas chaves e ordem). Nunca decide saldo nem custo: o kg do efeito
+ * é `kgDeEntrada` (Decimal, HALF_UP(4) uma vez).
+ * @param {unknown} valor
+ */
+const parseNumero = (valor) => {
+  const n = Number(valor);
+  return Number.isFinite(n) ? n : 0;
 };
 
 /** @param {string} operationId */
@@ -63,58 +95,74 @@ const exigirProdutoDaEmpresa = async (tx, clienteId, produtoId, empresaId) => {
   return produto;
 };
 
-/**
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- * @param {string} clienteId
- * @param {{ empresa_id: string; produto_id: string; local_estoque_id: string }} filtro
- */
-const listarLotesFifo = async (tx, clienteId, filtro) =>
-  tx.estoqueLoteNota.findMany({
-    where: {
-      cliente_id: clienteId,
-      empresa_id: filtro.empresa_id,
-      produto_id: filtro.produto_id,
-      local_estoque_id: filtro.local_estoque_id,
-      status: 'Disponivel',
-      quantidade_disponivel: { gt: 0 },
-    },
-    orderBy: [{ data_documento: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-  });
+const DIA_ISO = /^\d{4}-\d{2}-\d{2}/;
 
 /**
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- * @param {string} clienteId
- * @param {Array<Record<string, unknown>>} rateio
+ * Instante do movimento: meio-dia UTC do dia `AAAA-MM-DD` informado; ausente →
+ * agora (como antes). D-PROD-161: formato inválido ou dia inexistente → 400
+ * (antes virava `Invalid Date` e 500 no INSERT).
+ * @param {unknown} valor
  */
-const aplicarBaixaFifo = async (tx, clienteId, rateio) => {
-  for (const item of rateio) {
-    const loteId = String(item.lote_id);
-    const consumo = parseNumero(item.quantidade_consumida);
-    const lote = await buscarLoteNota(clienteId, loteId, tx);
-    if (!lote) {
-      throw new AppError('ESTOQUE_LOTE_NOT_FOUND', 'Lote de nota não encontrado', {
-        details: { lote_id: loteId },
-      });
-    }
-    const saldoAtual = dec(lote.quantidade_disponivel);
-    if (consumo > saldoAtual) {
-      throw new AppError('ESTOQUE_SALDO_INSUFICIENTE', 'Saldo insuficiente no lote para baixa FIFO', {
-        details: { lote_id: loteId, field: 'quantidade_disponivel' },
-      });
-    }
-    const novoSaldo = saldoAtual - consumo;
-    await atualizarLoteNota(tx, clienteId, loteId, {
-      quantidade_disponivel: novoSaldo,
-      status: novoSaldo > 0 ? 'Disponivel' : 'Esgotado',
-    });
-  }
-};
-
 const dataMovimentacaoDeEntrada = (valor) => {
   if (!valor) return new Date();
-  const texto = String(valor).slice(0, 10);
-  return new Date(`${texto}T12:00:00.000Z`);
+  const texto = String(valor);
+  const dia = texto.slice(0, 10);
+  const instante = DIA_ISO.test(texto) ? new Date(`${dia}T12:00:00.000Z`) : null;
+  if (!instante || Number.isNaN(instante.getTime()) || instante.toISOString().slice(0, 10) !== dia) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'data_movimentacao inválida (use AAAA-MM-DD)', {
+      details: { field: 'data_movimentacao', reason: 'format' },
+    });
+  }
+  return instante;
 };
+
+/** `custo_medio_antes` informativo (preço de custo do cadastro; nunca entra em lote, fatia ou valor). */
+const custoMedioAntes = (produto) => paraBanco(dec(produto.preco_custo ?? 0), CASAS_CUSTO);
+
+/** VarChar(2000) de `MovimentacaoEstoque.observacoes` (schema.prisma). */
+const LIMITE_OBSERVACOES = 2000;
+const ROTULO_RATEIO = '[RATEIO_FIFO] ';
+
+/**
+ * Observações do usuário (≤ 2000 pelo schema da rota) + `\n[RATEIO_FIFO] NF: q kg | …`
+ * com q em Decimal HALF_UP(3). Se passar de 2000 caracteres, corta SÓ o bloco
+ * gerado (com reticências) e nunca o texto do usuário; sem espaço útil, o bloco sai.
+ * @param {unknown} texto
+ * @param {Array<{ quantidade: any, lote: { numero_documento?: string|null } }>} fatias
+ */
+const comporObservacoes = (texto, fatias) => {
+  const usuario = typeof texto === 'string' ? texto : '';
+  const partes = fatias.map((f) => `${f.lote?.numero_documento || 'S/N'}: ${dec(f.quantidade).toFixed(3, Dec.ROUND_HALF_UP)} kg`);
+  const gerado = partes.length ? [...`${ROTULO_RATEIO}${partes.join(' | ')}`] : [];
+  const cabe = LIMITE_OBSERVACOES - [...usuario].length - (usuario ? 1 : 0);
+  let bloco = '';
+  if (gerado.length <= cabe) bloco = gerado.join('');
+  else if (cabe > ROTULO_RATEIO.length + 1) bloco = `${gerado.slice(0, cabe - 1).join('')}…`;
+  return [usuario, bloco].filter(Boolean).join('\n');
+};
+
+/**
+ * `rateio[]` da resposta no formato externo de antes da P0 (números JSON), com
+ * os valores vindos do Decimal do motor; `lote_destino_id` só na transferência (aditivo).
+ * @param {Array<{ lote_id: string, quantidade: any, custo_unitario: any, lote: any, lote_destino_id?: string }>} fatias
+ */
+const rateioLegado = (fatias) =>
+  fatias.map((f) => ({
+    lote_id: f.lote_id,
+    numero_documento: f.lote.numero_documento || 'S/N',
+    serie_documento: f.lote.serie_documento || '',
+    data_documento: f.lote.data_documento ?? null,
+    fornecedor_id: f.lote.fornecedor_id ?? null,
+    fornecedor_nome: f.lote.fornecedor_nome ?? null,
+    quantidade_consumida: Number(dec(f.quantidade).toFixed(CASAS_QUANTIDADE)),
+    custo_unitario: Number(dec(f.custo_unitario).toFixed(CASAS_CUSTO)),
+    valor_total: Number(dec(f.quantidade).times(dec(f.custo_unitario)).toString()),
+    ...(f.lote_destino_id ? { lote_destino_id: f.lote_destino_id } : {}),
+  }));
+
+/** Movimento relido depois de `numerarMovimentos` (sem isso a resposta/recibo/auditoria sairiam com `p-…`). */
+const relerMovimento = (tx, clienteId, id) =>
+  tx.movimentacaoEstoque.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id } } });
 
 /**
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
@@ -122,6 +170,7 @@ const dataMovimentacaoDeEntrada = (valor) => {
  */
 export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
   const operationKey = exigirOperationId(String(entrada.operation_id ?? ''));
   const empresaId = String(entrada.empresa_id || '').trim();
   const produtoId = String(entrada.produto_id || '').trim();
@@ -148,113 +197,53 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   // CONCURRENCY_CONFLICT definitivo (nada gravado, nem depois).
   const resultado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
-      clienteId: auth.clienteId,
+      clienteId: cli,
       operationKey,
       tipoOperacao: TIPO_SAIDA,
       fingerprint,
       executar: async () => {
-        await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
+        await exigirEmpresaDoTenant(tx, cli, empresaId);
+        const instante = dataMovimentacaoDeEntrada(entrada.data_movimentacao);
+        const kg = kgDeEntrada(entrada.quantidade);
+        // D-PROD-161: local validado e travado ANTES do produto (a origem pode estar
+        // inativa, para consumir o resto); o nome vem do banco, não do corpo.
+        const locais = await exigirLocaisEstoque(tx, cli, [{ id: localOrigemId, field: 'local_origem_id', exigirAtivo: false }]);
         // D-PROD-155 (§3/§8.4): trava do produto (a MESMA chave do lançamento
-        // financeiro) ANTES de ler produto e lotes, e antes da sequência. Sem
-        // ela, duas baixas simultâneas liam o mesmo `estoque_atual` (lost update).
-        await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
-        const produto = await exigirProdutoDaEmpresa(tx, auth.clienteId, produtoId, empresaId);
-        const lotes = await listarLotesFifo(tx, auth.clienteId, {
-          empresa_id: empresaId,
-          produto_id: produtoId,
-          local_estoque_id: localOrigemId,
+        // financeiro) ANTES de ler produto e lotes.
+        await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
+        const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
+        const local = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));
+        const saida = await aplicarSaidaFifo(tx, contexto, {
+          empresaId,
+          produto,
+          local: { id: local.id, nome: local.nome },
+          quantidadeKg: kg,
+          instante,
+          origem: { sistema: ORIGEM_SUPLEMENTACAO, operacaoId: null, tipoDetalhado: 'suplementacao', motivo: 'Baixa automática de suplementação' },
+          numeroMovimento: numeroMovimentoProvisorio(),
+          procedencia: true,
+          contextoErro: { field: 'quantidade' },
+          complemento: (plano) => ({
+            area_vinculada_id: entrada.area_id ?? null,
+            area_vinculada_nome: entrada.area_nome ?? null,
+            tipo_vinculo: entrada.area_id ? 'area' : null,
+            centro_custo_nome: entrada.area_nome ?? null,
+            deposito_id: entrada.deposito_id ?? null,
+            ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
+            observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
+            custo_medio_antes: custoMedioAntes(produto),
+            custo_medio_depois: paraBanco(plano.valorUnitario, CASAS_CUSTO),
+          }),
         });
-
-        const fifo = calcularRateioFifo({
-          lotesNota: lotes,
-          produtoId,
-          localEstoqueId: localOrigemId,
-          quantidade,
-        });
-        if (!fifo.sucesso) {
-          throw new AppError('ESTOQUE_SALDO_INSUFICIENTE', fifo.erro || 'Baixa inviável', {
-            details: { field: 'quantidade', reason: 'insufficient' },
-          });
-        }
-
-        const saldoAntes = lotes.reduce((t, l) => t + dec(l.quantidade_disponivel), 0);
-        const numero = String(
-          await reservarNumero(tx, {
-            clienteId: auth.clienteId,
-            entidade: ENTIDADE_SEQUENCIA,
-            escopoTipo: ESCOPO_TENANT,
-          })
-        );
-
-        const obsRateio = buildRateioObservacao(fifo.rateio);
-        const observacoes = [entrada.observacoes, obsRateio ? `[RATEIO_FIFO] ${obsRateio}` : '']
-          .filter(Boolean)
-          .join('\n');
-
-        const movimentacao = await inserirRegistro(tx, {
-          cliente_id: auth.clienteId,
-          empresa_id: empresaId,
-          numero_movimentacao: numero,
-          tipo_movimentacao: 'Saída',
-          tipo_detalhado: 'suplementacao',
-          data_movimentacao: dataMovimentacaoDeEntrada(entrada.data_movimentacao),
-          produto_id: produtoId,
-          produto_nome: produto.nome_produto,
-          produto_codigo: produto.codigo_interno || produto.codigo_barras || '',
-          produto_categoria: produto.categoria,
-          quantidade,
-          unidade_medida: produto.unidade_medida || 'KG',
-          valor_unitario: fifo.custoMedioPonderado,
-          valor_total: fifo.valorTotal,
-          local_estoque_origem: localOrigemId,
-          local_origem: entrada.local_origem_nome ?? null,
-          area_vinculada_id: entrada.area_id ?? null,
-          area_vinculada_nome: entrada.area_nome ?? null,
-          tipo_vinculo: entrada.area_id ? 'area' : null,
-          centro_custo_nome: entrada.area_nome ?? null,
-          motivo_movimentacao: 'Baixa automática de suplementação',
-          observacoes,
-          origem_sistema: 'suplementacao',
-          deposito_id: entrada.deposito_id ?? null,
-          ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
-          bloqueado_exclusao_estoque: true,
-          exclusao_somente_em: 'cocho',
-          is_registro_principal: true,
-          numero_movimentacao_seq: 1,
-          total_movimentacoes_grupo: 1,
-          saldo_antes: saldoAntes,
-          saldo_depois: saldoAntes - quantidade,
-          custo_medio_antes: dec(produto.preco_custo),
-          custo_medio_depois: fifo.custoMedioPonderado,
-          usuario_responsavel: auth.login || 'Sistema',
-          status: 'Ativa',
-        });
-
-        await aplicarBaixaFifo(tx, auth.clienteId, fifo.rateio);
-
-        const estoqueAtual = dec(produto.estoque_atual);
-        const novoEstoque = estoqueAtual - quantidade;
-        const negativo = () =>
-          new AppError('ESTOQUE_SALDO_INSUFICIENTE', 'Estoque do produto ficaria negativo', {
-            details: { field: 'estoque_atual' },
-          });
-        if (novoEstoque < 0) throw negativo();
-        // D-PROD-155: decremento relativo (nunca o valor absoluto lido antes),
-        // conferido depois: um resultado negativo desfaz a transação.
-        const atualizado = await tx.produto.update({
-          where: { cliente_id_id: { cliente_id: auth.clienteId, id: produtoId } },
-          data: { estoque_atual: { decrement: quantidade } },
-          select: { estoque_atual: true },
-        });
-        if (atualizado.estoque_atual.lt(0)) throw negativo();
-
-        const publico = comoPublico(movimentacao);
+        // Sequência de movimentos só no FIM (W24): não prende a numeração do tenant durante os efeitos.
+        await numerarMovimentos(tx, cli, [saida.movimento.id]);
+        const publico = comoPublico(await relerMovimento(tx, cli, saida.movimento.id));
         await registrarEvento(
           contexto,
           {
             acao: 'create',
             entidade: 'MovimentacaoEstoque',
-            entidadeId: movimentacao.id,
+            entidadeId: saida.movimento.id,
             dadosNovos: publico,
           },
           tx
@@ -265,7 +254,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
           operation_id: operationKey,
           replay: false,
           movimentacao: publico,
-          rateio: fifo.rateio,
+          rateio: rateioLegado(/** @type {any[]} */ (saida.fatias)),
         };
         return { httpStatus: 201, body };
       },
@@ -285,6 +274,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
  */
 export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
   const operationKey = exigirOperationId(String(entrada.operation_id ?? ''));
   const empresaId = String(entrada.empresa_id || '').trim();
   const produtoId = String(entrada.produto_id || '').trim();
@@ -316,154 +306,50 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   // CONCURRENCY_CONFLICT definitivo (nada gravado, nem depois).
   const resultado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const idem = await executarComIdempotencia(tx, {
-      clienteId: auth.clienteId,
+      clienteId: cli,
       operationKey,
       tipoOperacao: TIPO_TRANSFERENCIA,
       fingerprint,
       executar: async () => {
-        await exigirEmpresaDoTenant(tx, auth.clienteId, empresaId);
-        // D-PROD-155 (§3/§8.4): mesma trava do produto antes de ler lotes e reservar números.
-        await travarProdutosEstoque(tx, auth.clienteId, empresaId, [produtoId]);
-        const produto = await exigirProdutoDaEmpresa(tx, auth.clienteId, produtoId, empresaId);
-        const lotes = await listarLotesFifo(tx, auth.clienteId, {
-          empresa_id: empresaId,
-          produto_id: produtoId,
-          local_estoque_id: localOrigemId,
+        await exigirEmpresaDoTenant(tx, cli, empresaId);
+        const instante = dataMovimentacaoDeEntrada(entrada.data_movimentacao);
+        const kg = kgDeEntrada(entrada.quantidade);
+        // D-PROD-161: origem e destino num único SELECT … FOR KEY SHARE em ordem
+        // de id, antes do produto; destino tem de estar ativo.
+        const locais = await exigirLocaisEstoque(tx, cli, [
+          { id: localOrigemId, field: 'local_origem_id', exigirAtivo: false },
+          { id: localDestinoId, field: 'local_destino_id', exigirAtivo: true },
+        ]);
+        // D-PROD-155 (§3/§8.4): mesma trava do produto antes de ler lotes.
+        await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
+        const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
+        const origem = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));
+        const destino = /** @type {{ id: string, nome: string }} */ (locais.get(localDestinoId));
+        const t = await aplicarTransferenciaEstoque(tx, contexto, {
+          empresaId,
+          produto,
+          origem: { id: origem.id, nome: origem.nome },
+          destino: { id: destino.id, nome: destino.nome },
+          quantidadeKg: kg,
+          instante,
+          numeros: { saida: numeroMovimentoProvisorio(), entrada: numeroMovimentoProvisorio() },
+          contextoErro: { field: 'quantidade' },
+          complemento: (plano) => ({
+            observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
+            custo_medio_antes: custoMedioAntes(produto),
+            custo_medio_depois: paraBanco(plano.valorUnitario, CASAS_CUSTO),
+          }),
         });
-
-        const fifo = calcularRateioFifo({
-          lotesNota: lotes,
-          produtoId,
-          localEstoqueId: localOrigemId,
-          quantidade,
-        });
-        if (!fifo.sucesso) {
-          throw new AppError('ESTOQUE_SALDO_INSUFICIENTE', fifo.erro || 'Transferência inviável', {
-            details: { field: 'quantidade', reason: 'insufficient' },
-          });
-        }
-
-        const lotesDestino = await tx.estoqueLoteNota.findMany({
-          where: {
-            cliente_id: auth.clienteId,
-            empresa_id: empresaId,
-            produto_id: produtoId,
-            local_estoque_id: localDestinoId,
-            status: 'Disponivel',
-          },
-        });
-        const saldoDestino = lotesDestino.reduce((t, l) => t + dec(l.quantidade_disponivel), 0);
-        const saldoOrigem = lotes.reduce((t, l) => t + dec(l.quantidade_disponivel), 0);
-
-        const numeroSaida = String(
-          await reservarNumero(tx, {
-            clienteId: auth.clienteId,
-            entidade: ENTIDADE_SEQUENCIA,
-            escopoTipo: ESCOPO_TENANT,
-          })
-        );
-        const numeroEntrada = String(
-          await reservarNumero(tx, {
-            clienteId: auth.clienteId,
-            entidade: ENTIDADE_SEQUENCIA,
-            escopoTipo: ESCOPO_TENANT,
-          })
-        );
-
-        const obsRateio = buildRateioObservacao(fifo.rateio);
-        const observacoes = [entrada.observacoes, obsRateio ? `[RATEIO_FIFO] ${obsRateio}` : '']
-          .filter(Boolean)
-          .join('\n');
-        const dataMov = dataMovimentacaoDeEntrada(entrada.data_movimentacao);
-        const comum = {
-          cliente_id: auth.clienteId,
-          empresa_id: empresaId,
-          data_movimentacao: dataMov,
-          produto_id: produtoId,
-          produto_nome: produto.nome_produto,
-          produto_codigo: produto.codigo_interno || produto.codigo_barras || '',
-          produto_categoria: produto.categoria,
-          quantidade,
-          // D-PROD-161 (achado D5): Produto em L rotula a transferência 'L'; os outros, como antes.
-          unidade_medida: produto.unidade_principal_estoque === 'L' ? 'L' : (produto.unidade_medida || 'KG'),
-          valor_unitario: fifo.custoMedioPonderado,
-          valor_total: fifo.valorTotal,
-          local_estoque_origem: localOrigemId,
-          local_origem: entrada.local_origem_nome ?? null,
-          local_estoque_destino: localDestinoId,
-          local_destino: entrada.local_destino_nome ?? null,
-          motivo_movimentacao: 'Transferência entre locais de estoque',
-          observacoes,
-          origem_sistema: 'deposito',
-          bloqueado_exclusao_estoque: true,
-          exclusao_somente_em: 'deposito',
-          custo_medio_antes: dec(produto.preco_custo),
-          custo_medio_depois: fifo.custoMedioPonderado,
-          usuario_responsavel: auth.login || 'Sistema',
-          status: 'Ativa',
-        };
-
-        const movimentacaoSaida = await inserirRegistro(tx, {
-          ...comum,
-          numero_movimentacao: numeroSaida,
-          tipo_movimentacao: 'Saída',
-          tipo_detalhado: 'transferencia_enviada',
-          is_registro_principal: true,
-          numero_movimentacao_seq: 1,
-          total_movimentacoes_grupo: 2,
-          saldo_antes: saldoOrigem,
-          saldo_depois: saldoOrigem - quantidade,
-        });
-
-        await aplicarBaixaFifo(tx, auth.clienteId, fifo.rateio);
-
-        const movimentacaoEntrada = await inserirRegistro(tx, {
-          ...comum,
-          numero_movimentacao: numeroEntrada,
-          tipo_movimentacao: 'Entrada',
-          tipo_detalhado: 'transferencia_recebida',
-          movimento_pai_id: movimentacaoSaida.id,
-          is_registro_principal: false,
-          numero_movimentacao_seq: 2,
-          total_movimentacoes_grupo: 2,
-          saldo_antes: saldoDestino,
-          saldo_depois: saldoDestino + quantidade,
-        });
-
-        await atualizarRegistroPorId(tx, auth.clienteId, movimentacaoSaida.id, {
-          movimento_filho_id: movimentacaoEntrada.id,
-          total_movimentacoes_grupo: 2,
-        });
-
-        for (const item of fifo.rateio) {
-          await inserirLoteNota(tx, {
-            cliente_id: auth.clienteId,
-            empresa_id: empresaId,
-            produto_id: produtoId,
-            produto_nome: produto.nome_produto,
-            local_estoque_id: localDestinoId,
-            local_estoque_nome: entrada.local_destino_nome ?? null,
-            numero_documento: item.numero_documento,
-            serie_documento: item.serie_documento,
-            data_documento: item.data_documento ? new Date(String(item.data_documento).slice(0, 10)) : dataMov,
-            fornecedor_id: item.fornecedor_id,
-            fornecedor_nome: item.fornecedor_nome,
-            custo_unitario: item.custo_unitario,
-            quantidade_entrada: item.quantidade_consumida,
-            quantidade_disponivel: item.quantidade_consumida,
-            movimentacao_entrada_id: movimentacaoEntrada.id,
-            status: 'Disponivel',
-          });
-        }
-
-        const publicoSaida = comoPublico(movimentacaoSaida);
-        const publicoEntrada = comoPublico(movimentacaoEntrada);
+        // Saída = n, entrada = n + 1, reservados no FIM (W24).
+        await numerarMovimentos(tx, cli, [t.saida.id, t.entrada.id]);
+        const publicoSaida = comoPublico(await relerMovimento(tx, cli, t.saida.id));
+        const publicoEntrada = comoPublico(await relerMovimento(tx, cli, t.entrada.id));
         await registrarEvento(
           contexto,
           {
             acao: 'create',
             entidade: 'MovimentacaoEstoque',
-            entidadeId: movimentacaoSaida.id,
+            entidadeId: t.saida.id,
             dadosNovos: publicoSaida,
           },
           tx
@@ -473,7 +359,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
           {
             acao: 'create',
             entidade: 'MovimentacaoEstoque',
-            entidadeId: movimentacaoEntrada.id,
+            entidadeId: t.entrada.id,
             dadosNovos: publicoEntrada,
           },
           tx
@@ -485,7 +371,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
           replay: false,
           movimentacao_saida: publicoSaida,
           movimentacao_entrada: publicoEntrada,
-          rateio: fifo.rateio,
+          rateio: rateioLegado(t.fatias),
         };
         return { httpStatus: 201, body };
       },

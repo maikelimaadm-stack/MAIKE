@@ -50,7 +50,7 @@ function Celula({ rotulo, testId = undefined, destaque = false, children }) {
 export function ValoresRateadosDoItem({ item, c, prefixo }) {
   const dinheiro = (/** @type {unknown} */ v) => formatarMoeda(lido(v) ?? "", c);
   const custo = lido(item?.custo_kg);
-  // D-PROD-161: item em litros mostra o custo por L; KG, SACO e UN, como antes (por kg).
+  // D-PROD-162: item em litros mostra o custo por L; KG, SACO e UN, como antes (por kg).
   const porUnidade = item?.unidade === "L" ? "L" : "kg";
   const residuo = lido(item?.residuo_custo);
   const comRateio = temRateioDoItem(item);
@@ -124,7 +124,7 @@ export function TotaisRateioItens({ itens, valorTotal, c, testId }) {
 }
 
 /**
- * Explicação curta da diferença de arredondamento do custo. D-PROD-161: com
+ * Explicação curta da diferença de arredondamento do custo. D-PROD-162: com
  * item em litros no documento (`comLitros`), o texto não fala em kg; sem item
  * em L, o texto de sempre.
  * @param {{ testId: string, comLitros?: boolean }} props

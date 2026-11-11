@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * D-PROD-159 / D-PROD-161 — semente dos ensaios ponta a ponta REAIS de
+ * D-PROD-159 / D-PROD-162 — semente dos ensaios ponta a ponta REAIS de
  * Patrimônio e Frota (tela real + backend Fastify real + PostgreSQL LOCAL).
  * Molde: `e2e-lancamentos-seed.mjs` (Central Única de Lançamentos).
  *
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01): não há mais tipo de
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01): não há mais tipo de
  * combustível, vínculo combustível × produto nem fator kg/L. O tanque do bem
  * aceita PRODUTOS do estoque (L ou KG) e o abastecimento baixa exatamente a
  * quantidade digitada, na unidade do Produto. O estoque em litros entra pela
@@ -70,7 +70,7 @@ export const somarDias = (d, n) => {
   return t.toISOString().slice(0, 10);
 };
 
-/** Ações gravadas numa linha de Permissão (ausente = negado; D-PROD-161: sem `configurar_conversao`). */
+/** Ações gravadas numa linha de Permissão (ausente = negado; D-PROD-162: sem `configurar_conversao`). */
 const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar', 'inativar', 'cancelar']);
 /** Linha de uma tela do Patrimônio com TODAS as ações explícitas. */
 export const linhaTela = (telaId, acoes = {}) => ({

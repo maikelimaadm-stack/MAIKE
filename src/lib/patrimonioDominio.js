@@ -5,7 +5,7 @@
  * seções/campos o formulário mostra). Quem valida é o servidor
  * (422 `BEM_CAMPO_NAO_APLICAVEL` etc.); nada aqui decide gravação.
  *
- * D-PROD-161: saíram as medições físicas (dimensões, unidades físicas,
+ * D-PROD-162: saíram as medições físicas (dimensões, unidades físicas,
  * finalidades de perfil) e as unidades de combustível. O tanque aceita
  * Produtos do estoque em litros (`L`) ou quilos (`KG`).
  */
@@ -24,7 +24,7 @@ export const ROTULO_NATUREZA = Object.freeze({
 /** @param {unknown} v @returns {v is 'BENFEITORIA'|'MAQUINA'|'VEICULO'|'IMPLEMENTO'|'EQUIPAMENTO'|'OUTRO'} */
 export const ehNatureza = (v) => typeof v === 'string' && NATUREZAS_PATRIMONIO.includes(v);
 
-// ─── Unidade de estoque do Produto no tanque (D-PROD-161) ────────────────
+// ─── Unidade de estoque do Produto no tanque (D-PROD-162) ────────────────
 
 /** Unidades de estoque que um tanque aceita e o abastecimento baixa (`UNIDADES_ABASTECIMENTO` no servidor). */
 export const UNIDADES_ESTOQUE_TANQUE = Object.freeze(['L', 'KG']);

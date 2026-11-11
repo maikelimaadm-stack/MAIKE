@@ -1,4 +1,4 @@
-# MAIKE — Patrimônio SIMPLIFICA-01: runbook de release CONTRACT (D-PROD-161)
+# MAIKE — Patrimônio SIMPLIFICA-01: runbook de release CONTRACT (D-PROD-162)
 
 > **Estado: NÃO EXECUTADO.** Nada foi lido nem escrito em produção. Este arquivo é o
 > **esqueleto** do runbook (frente F0): seções e fatos fixos do contrato da missão. A
@@ -7,16 +7,16 @@
 > do caminho B) e confere tudo contra o arquivo do `<SHA_APROVADO>`.
 >
 > **GO escrito do proprietário (2026-11-10), palavras literais, registradas na
-> [D-PROD-161](./DECISIONS.md):** "pode apaguar oque tiver lançado dessas tabelas", "olha pode
+> [D-PROD-162](./DECISIONS.md):** "pode apaguar oque tiver lançado dessas tabelas", "olha pode
 > fazer não precisa pedir confirmação ok, pode fazer", "ok apague oque tiver faça oque tem que
-> fazer". O alcance e os limites desse GO estão na D-PROD-161: ele autoriza o ato e dispensa
+> fazer". O alcance e os limites desse GO estão na D-PROD-162: ele autoriza o ato e dispensa
 > novo pedido de confirmação, mas **não** dispensa nenhuma barreira deste runbook. Os fatos que
 > o §2 lista são lidos e anotados no §11 **antes** de aplicar; qualquer divergência do esperado
 > é `RELEASE_BLOCKED` (§10).
 >
 > Valores entre `<…>` são preenchidos na hora da execução, sempre a partir de leituras reais.
 
-Decisão: [D-PROD-161](./DECISIONS.md). Relatório:
+Decisão: [D-PROD-162](./DECISIONS.md). Relatório:
 [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md).
 Modelo: [runbook da P1-02](./MAIKE-PATRIMONIO-P1-02-RUNBOOK-RELEASE.md) (§0–§11) e o
 precedente de operação destrutiva autorizada da D-PROD-73.
@@ -26,13 +26,13 @@ precedente de operação destrutiva autorizada da D-PROD-73.
 | Item | Valor |
 |---|---|
 | Migration | `20261110300000_patrimonio_simplifica` |
-| Natureza | **CONTRACT** (exceção única da D-PROD-161 à D-PROD-72 item 3 e à D-PROD-107 R7), numa transação: (1) guarda DO; (2) **apaga as 13 tabelas do Patrimônio**, com os dados de todos os clientes; (3) **alarga 2 CHECKs** de `OperacaoFinanceiraItem` para aceitar `'L'`; (4) cria **7 tabelas** no formato novo, com RLS e REVOKE |
+| Natureza | **CONTRACT** (exceção única da D-PROD-162 à D-PROD-72 item 3 e à D-PROD-107 R7), numa transação: (1) guarda DO; (2) **apaga as 13 tabelas do Patrimônio**, com os dados de todos os clientes; (3) **alarga 2 CHECKs** de `OperacaoFinanceiraItem` para aceitar `'L'`; (4) cria **7 tabelas** no formato novo, com RLS e REVOKE |
 | Tabelas apagadas e não recriadas (7) | `ConversaoCombustivelProduto`, `TipoCombustivelProduto`, `TanqueBemCombustivel`, `TipoCombustivel`, `MedicaoBem`, `TipoPatrimonialPerfil`, `PerfilMedicao` |
 | Tabelas apagadas e recriadas vazias (6) | `FamiliaPatrimonial`, `TipoPatrimonial`, `BemPatrimonial`, `TanqueBem`, `AbastecimentoBem` (formato novo), `AbastecimentoBemConsumoLote` (igual) |
 | Tabela nova (1) | `TanqueBemProduto` |
 | Única tabela antiga alterada | `OperacaoFinanceiraItem`: `OperacaoFinanceiraItem_unidade_check` e `OperacaoFinanceiraItem_forma_check` com o mesmo texto da P3-01 mais `'L'`. Toda linha válida antes continua válida |
-| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `ea1edf7ec3b494233a8d48c7b160ad179c8d8e9b92cc6c041228f116907302c4` |
-| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `6fbcabd9358eebcd87f0a272b0072cca76bfaa4779314c8426fd13037490794e` |
+| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222` |
+| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `28d6c422968d961bbecd40459a7e6a337f36b9d66c121982f9c295065c149046` |
 | Hash do DO de RLS das 7 (`DO_RLS_APROVADOS`) | `6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e` |
 | Classificador | `modo: CONTRACT`; 13 removidas na ordem; 4 alargamentos; `tabelas_novas` = as 7; `colunas_novas_em_tabelas_antigas: []`; 0 violações |
 | `_prisma_migrations` | antes **39** concluídas / 0 em aberto; depois **40** |
@@ -49,13 +49,13 @@ todo o Patrimônio (Bens, Abastecimentos, catálogos), `DELETE /produtos/:id`,
 ## 1. Caminho
 
 - **Caminho A (padrão, D-PROD-74):** runner oficial `premerge-migrate.mjs --sha <SHA_APROVADO>`,
-  primeiro com `--verificar-alvo --contract D-PROD-161` e depois com
-  `--aplicar --contract D-PROD-161`, numa máquina protegida do operador. Detalhes no §5.
+  primeiro com `--verificar-alvo --contract D-PROD-162` e depois com
+  `--aplicar --contract D-PROD-162`, numa máquina protegida do operador. Detalhes no §5.
 - **Caminho B (conector Supabase, uma transação):** só com GO que cite o desvio da D-PROD-74,
   como na P1-01 e na P1-02. Envelope no §5.
 - O `npm run deploy:migrate` à mão e o `release-migrate.yml` **recusam** esta migration
   (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver pendente no alvo: só o
-  `premerge-migrate --aplicar --contract D-PROD-161` passa `MIGRATION_CONTRACT_AUTORIZADO`.
+  `premerge-migrate --aplicar --contract D-PROD-162` passa `MIGRATION_CONTRACT_AUTORIZADO`.
 
 ## 2. Pré-requisitos e GOs
 
@@ -76,8 +76,8 @@ ensaio (§4.8) e o registro do §11.
 
 | GO | O quê | Situação |
 |---|---|---|
-| GO-1 | rodar o preflight só leitura em produção (§4) | coberto pelo GO escrito de 2026-11-10 (D-PROD-161) |
-| GO-2 | aplicar a migration CONTRACT e mergear em seguida | coberto pelo GO escrito de 2026-11-10 (D-PROD-161), no alcance registrado lá. **Antes de aplicar**, anotar no §11: migration e sha256 do arquivo, alvo `7692130048193495360`, caminho A ou B, `<SHA_APROVADO>` com CI verde e Preview READY, as contagens por tabela e por cliente das 13 e a **impressão** `<hex12>`, o backup (§4.7), a estimativa da janela em minutos e o próximo nº de bem e de abastecimento por cliente (P-04) |
+| GO-1 | rodar o preflight só leitura em produção (§4) | coberto pelo GO escrito de 2026-11-10 (D-PROD-162) |
+| GO-2 | aplicar a migration CONTRACT e mergear em seguida | coberto pelo GO escrito de 2026-11-10 (D-PROD-162), no alcance registrado lá. **Antes de aplicar**, anotar no §11: migration e sha256 do arquivo, alvo `7692130048193495360`, caminho A ou B, `<SHA_APROVADO>` com CI verde e Preview READY, as contagens por tabela e por cliente das 13 e a **impressão** `<hex12>`, o backup (§4.7), a estimativa da janela em minutos e o próximo nº de bem e de abastecimento por cliente (P-04) |
 | GO-3 | (só se houver CONFIRMADO, §5.2) cancelar os CONFIRMADOS pelo app | **não coberto**: pedir ao proprietário, com a lista |
 | GO-4 | (só se preciso) reversão §9 ou GRANT corretivo (R4 do §6) | **não coberto**: pedir ao proprietário, com a operação exata |
 
@@ -198,7 +198,7 @@ SELECT pid, state, now() - xact_start AS idade, left(query, 80) FROM pg_stat_act
 - o classificador local (`premerge-migrate --sha <SHA>`): exit 0, `modo: CONTRACT`,
   13 removidas, 4 alargamentos, 7 novas, 0 violações;
 - o checksum: `git show <SHA>:backend/prisma/migrations/20261110300000_patrimonio_simplifica/migration.sql | sha256sum`
-  = o do manifesto (`ea1edf7e…02c4`).
+  = o do manifesto (`787d6d11…4222`).
 
 ### 4.7 Backup
 
@@ -226,8 +226,8 @@ imitem o preflight: por cliente e por tabela, inclusive CANCELADO com movimentos
 impressão; impressão errada; conexão com papel que não é o dono; gatilho, política e
 publicação criados à mão; FK e visão de fora.
 
-**GREEN, caminho A pelo runner:** `--verificar-alvo --contract D-PROD-161` e
-`--aplicar --contract D-PROD-161`, com o `system_identifier` local e a URL com
+**GREEN, caminho A pelo runner:** `--verificar-alvo --contract D-PROD-162` e
+`--aplicar --contract D-PROD-162`, com o `system_identifier` local e a URL com
 `options=-c%20lock_timeout%3D5s%20-c%20maike.simplifica_impressao%3D<impressão local>`.
 Esperado: 40/0 e 79 tabelas; `fingerprint_v2.sql` idêntica e os 2 CHECKs com `'L'`; dono e
 ACL das 7 iguais aos das 13; md5 de estoque idêntico; `migrate diff --exit-code` 0;
@@ -254,8 +254,8 @@ Registrar tudo no §11.
 - O usuário da URL é o **dono** das 13 (bloco C).
 
 ```bash
-node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-161
-node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-161   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-161 ao deploy:migrate
+node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-162
+node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-162   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 ao deploy:migrate
 ```
 
 Se o pooler de sessão descartar o `options`, a guarda recusa com `= ausente` (falha fechada,
@@ -284,7 +284,7 @@ conector: ele tem de ser o dono das 13 (bloco C).
 
 A guarda recusa e a release **para**. O caso vai ao proprietário com a lista nº / bem /
 produto / quantidade / data por cliente. A saída é cancelar cada um **pelo app**
-(`POST /patrimonio-abastecimentos/:id/cancelar`, motivo "Limpeza D-PROD-161"), o que estorna
+(`POST /patrimonio-abastecimentos/:id/cancelar`, motivo "Limpeza D-PROD-162"), o que estorna
 exatamente e devolve o estoque. Isso é escrita em produção e exige o **GO-3**. Depois, refazer
 o preflight (a impressão muda). **Nunca apagar CONFIRMADO por SQL.**
 
@@ -352,7 +352,7 @@ primeira escrita.
 - `system_identifier` divergente;
 - histórico ≠ 39/0, ou P1-01 / P1-02 ausente ou com checksum divergente;
 - a migration já registrada, ou `TanqueBemProduto` já existente;
-- checksum do arquivo do SHA diferente do manifesto (`ea1edf7e…02c4`);
+- checksum do arquivo do SHA diferente do manifesto (`787d6d11…4222`);
 - classificador fora do esperado (não `CONTRACT`, ≠ 13 removidas, ≠ 4 alargamentos, ≠ 7 novas,
   ou qualquer violação);
 - sem prova de backup `COMPLETED`;

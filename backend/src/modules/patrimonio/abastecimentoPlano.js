@@ -1,10 +1,10 @@
 /**
- * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-162 (SIMPLIFICA-01) —
  * regras PURAS do abastecimento (sem banco): normalização dos corpos,
  * fingerprint canônico da idempotência (v2), série do medidor e o PLANO único
  * que a prévia mostra e a confirmação executa (mesma função, mesmo estado).
  *
- * D-PROD-161: o abastecimento baixa do estoque EXATAMENTE a quantidade
+ * D-PROD-162: o abastecimento baixa do estoque EXATAMENTE a quantidade
  * digitada, na unidade de estoque do Produto (`L` ou `KG`), com 4 casas.
  * Nenhuma conversão entre unidades (nem fator, nem densidade, nem `1 L = 1 KG`):
  * o número digitado é o número que o motor de estoque recebe. A capacidade do
@@ -22,7 +22,7 @@ import { CAPACIDADES_POR_NATUREZA, UNIDADES_ABASTECIMENTO, UNIDADE_DO_MEDIDOR } 
 
 export const ENTIDADE = 'AbastecimentoBem';
 /**
- * D-PROD-161: tipos NOVOS do recibo de idempotência. O recibo v1
+ * D-PROD-162: tipos NOVOS do recibo de idempotência. O recibo v1
  * (`confirmar_abastecimento_bem`/`cancelar_abastecimento_bem`, corpo com litros,
  * tipo e fator) nunca é reaproveitado: o unique do recibo inclui o tipo.
  */
@@ -38,7 +38,7 @@ export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const STATUS_CONFIRMADO = 'CONFIRMADO';
 export const STATUS_CANCELADO = 'CANCELADO';
 
-/** A unidade de estoque é uma das que o abastecimento aceita (`L`, `KG`; D-PROD-161)? @param {unknown} u */
+/** A unidade de estoque é uma das que o abastecimento aceita (`L`, `KG`; D-PROD-162)? @param {unknown} u */
 export const unidadeDoAbastecimento = (u) => typeof u === 'string' && UNIDADES_ABASTECIMENTO.includes(u);
 /** Rótulo curto da unidade nas mensagens (`L` / `kg`). @param {string|null|undefined} u */
 export const rotuloDaUnidade = (u) => (u === 'L' ? 'L' : u === 'KG' ? 'kg' : (u ?? '—'));
@@ -130,7 +130,7 @@ export const normalizarCancelamento = (id, corpo) => {
   return { id, empresa_id: c.empresa_id, versao: c.versao, operation_id: c.operation_id, motivo };
 };
 
-// ─── fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-161) ──────────
+// ─── fingerprint canônico (ordem FIXA de chaves; v2 da D-PROD-162) ──────────
 
 /** @param {any} e Entrada normalizada da confirmação */
 export const fingerprintDaConfirmacao = (e) => ({
@@ -274,7 +274,7 @@ const q4 = (v) => dec(v).toFixed(CASAS_QUANTIDADE);
  * confirmação lança o primeiro. Bloqueios dependentes são pulados quando a
  * base falta (sem tanque ou sem produto não avalia o aceite; sem unidade L não
  * confere a capacidade; sem produto/local válidos não avalia o estoque).
- * D-PROD-161: a prévia e a confirmação têm EXATAMENTE os mesmos bloqueios (sem
+ * D-PROD-162: a prévia e a confirmação têm EXATAMENTE os mesmos bloqueios (sem
  * fator visto na prévia não há o que divergir entre as duas).
  * @param {any} entrada Entrada normalizada
  * @param {any} estado `carregarEstado` (o mesmo formato na prévia e na confirmação)
@@ -318,7 +318,7 @@ export const planejarAbastecimento = (entrada, estado) => {
   // B7
   if (!local) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente'));
   else if (!local.ativo) bloqueios.push(bloqueio('ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'));
-  // B8a — a capacidade do tanque é em litros: só conferida para Produto em L (D-PROD-161)
+  // B8a — a capacidade do tanque é em litros: só conferida para Produto em L (D-PROD-162)
   const confereCapacidade = unidade === 'L';
   if (confereCapacidade && tanque && quantidade.gt(dec(tanque.capacidade_litros))) {
     bloqueios.push(bloqueio('ABASTECIMENTO_EXCEDE_CAPACIDADE', 'quantidade', 'excede_capacidade_tanque', { capacidade_litros: q4(tanque.capacidade_litros) }));

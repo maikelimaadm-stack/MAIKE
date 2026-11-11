@@ -67,18 +67,18 @@ Violação exige **rollback**, não flexibilização da regra.
 > avulsa (tela ou rota própria) ou mover estoque a partir de um lançamento fora do
 > comando composto da confirmação e do cancelamento; e somar dinheiro com float.
 
-> **Nota (D-PROD-157, revista pela D-PROD-161):** o cadastro de Patrimônio e Frota é a
+> **Nota (D-PROD-157, revista pela D-PROD-162):** o cadastro de Patrimônio e Frota é a
 > página `BensPatrimoniais` (famílias, tipos e tanques dentro dela). Ela é a única exceção
 > de máquinas/combustível autorizada, nos limites das decisões. As páginas
 > `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e `Combustiveis` foram
-> removidas pela D-PROD-161 e não voltam sem decisão própria.
+> removidas pela D-PROD-162 e não voltam sem decisão própria.
 > Continuam proibidos: reabrir as páginas legadas `CadastroMaquinas`, `AtivosFixos`,
 > `LancamentosAbastecimento` e `FichaControleCombustivel`; recriar os schemas Base44
 > `Maquina`, `TipoAtivo`, `Implemento`, `ManutencaoMaquina` e `AbastecimentoMaquina`;
 > e, sem decisão própria, abastecimento, manutenção, custo/hora, apuração ou
 > lançamento de depreciação e transferência entre fazendas.
 
-> **Nota (D-PROD-159, revista pela D-PROD-161):** a página `Abastecimentos` é a única
+> **Nota (D-PROD-159, revista pela D-PROD-162):** a página `Abastecimentos` é a única
 > exceção de abastecimento autorizada, nos limites das decisões. O abastecimento baixa
 > **exatamente** a quantidade digitada na unidade de estoque do Produto (`L` ou `KG`).
 > Continua proibido:
@@ -92,10 +92,10 @@ Violação exige **rollback**, não flexibilização da regra.
 > - criar ou fingir `OperacaoFinanceira` para representar abastecimento;
 > - gravar leitura de abastecimento em `BemPatrimonial` ou com proveniência falsa;
 > - apagar abastecimento (só cancelar com estorno exato). A única exceção foi a limpeza
->   única da D-PROD-161, que recusaria se houvesse abastecimento CONFIRMADO;
+>   única da D-PROD-162, que recusaria se houvesse abastecimento CONFIRMADO;
 > - conceder a tela ou a ação `cancelar` a perfis existentes por padrão;
 > - reabrir `LancamentosAbastecimento`, `FichaControleCombustivel`, `AbastecimentoMaquina`,
 >   `ConfiguracaoFatoresConsumo` ou as telas de combustível e fator removidas pela
->   D-PROD-161;
+>   D-PROD-162;
 > - sem decisão própria: manutenção, custo/hora, saldo de tanque e abastecimento em
 >   unidade que não seja `L` nem `KG` (ex.: GNV em m³).

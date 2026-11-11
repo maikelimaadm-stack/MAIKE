@@ -15,7 +15,7 @@
  *
  * Rateio e parcelas são SEMPRE sobre `valor_total` (após desconto/acréscimo).
  *
- * D-PROD-161: mercadoria aceita também `L` (litros), só para Produto com estoque
+ * D-PROD-162: mercadoria aceita também `L` (litros), só para Produto com estoque
  * em L (regra de referência do serviço). Item `L` tem fator 1 (como o KG) e a
  * sua "quantidade em kg" (`quantidade_estoque`, `kg`, `custo_kg`) fica em
  * LITROS: os nomes das colunas antigas não mudam. Para KG, SACO e UN o plano é
@@ -59,7 +59,7 @@ export const RATEIO_ESCOPOS = Object.freeze(['GERAL', 'POR_ITEM']);
 export const ESCOPO_PADRAO = 'GERAL';
 export const TIPOS_ITEM = Object.freeze(['MERCADORIA', 'SERVICO']);
 /**
- * D-PROD-161: `L` (litros) só para Produto com estoque em L (regra de referência
+ * D-PROD-162: `L` (litros) só para Produto com estoque em L (regra de referência
  * do serviço); KG, SACO e UN como antes. Item `L` guarda `fator_kg = 1` e
  * `quantidade_estoque` em LITROS (as colunas antigas mantêm o nome).
  */
@@ -344,7 +344,7 @@ export const planejarOperacao = (doc, referencias) => {
     const total = texto(somar(comCusto.map((i) => i.residuo_custo)), CASAS_RESIDUO);
     avisos.push({
       codigo: 'residuo_custo_estoque',
-      // D-PROD-161: com item em L o texto não fala em kg; sem item em L, o de antes.
+      // D-PROD-162: com item em L o texto não fala em kg; sem item em L, o de antes.
       mensagem: comCusto.some((i) => i.unidade === 'L')
         ? `o custo unitário do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e quantidade × custo unitário (resíduo total ${total}) não entra no custo FIFO do estoque`
         : `o custo por kg do lote tem 4 casas; a diferença de arredondamento entre o valor líquido e kg × custo (resíduo total ${total}) não entra no custo FIFO do estoque`,
@@ -380,7 +380,7 @@ const planejarItem = (it, indice, referencias, casas) => {
   if (!valorTotal.gt(0)) throw valoresInvalidos('o subtotal do item (quantidade × valor unitário) arredondado na moeda é zero', { field: 'valor_unitario', reason: 'item_valor_zero', ...extra });
   if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
-  // D-PROD-161: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
+  // D-PROD-162: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
   const fator = it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
   const kg = arredondar(it.quantidade.times(fator), CASAS_QUANTIDADE);

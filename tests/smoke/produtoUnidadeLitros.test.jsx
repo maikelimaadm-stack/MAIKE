@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (F4, §5.3) — Produto em LITROS na tela Produtos.
+ * D-PROD-162 (F4, §5.3) — Produto em LITROS na tela Produtos.
  *
  *  PL-1. formulário: a unidade principal de estoque oferece "LITROS (L)"
  *        (KG e SACOS como antes); em leitura, "LITROS (L)"; escolher L com

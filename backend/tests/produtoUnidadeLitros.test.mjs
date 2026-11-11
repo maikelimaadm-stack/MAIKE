@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (F4, §4.6) — Produto em LITROS e a troca da unidade de estoque.
+ * D-PROD-162 (F4, §4.6) — Produto em LITROS e a troca da unidade de estoque.
  * PostgreSQL real, HTTP autenticado; a prova de "nada gravado" é a fotografia
  * das linhas do tenant.
  *
@@ -231,7 +231,7 @@ describe('P6 — exclusão com aceite em tanque', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('P7 — transferência entre depósitos', () => {
-  test('Produto em L → movimentos L; Produto KG com unidade_medida "kg" → como antes', async () => {
+  test('Produto em L → movimentos L; Produto KG com unidade_medida "kg" → \'KG\' (D-PROD-161: a transferência passa pelo motor único, que rotula em kg)', async () => {
     const s = await montar();
     const diesel = await produtoNovo(s, 'L', { estoque_atual: '100', unidade_medida: 'kg' });
     const racao = await produtoNovo(s, 'KG', { estoque_atual: '100', unidade_medida: 'kg' });
@@ -245,6 +245,7 @@ describe('P7 — transferência entre depósitos', () => {
       return movs.map((m) => m.unidade_medida);
     };
     assert.deepEqual(await rotulos(diesel), ['L', 'L']);
-    assert.deepEqual(await rotulos(racao), ['kg', 'kg']);
+    // D-PROD-161 (Estoque P0): o rótulo deixou de vir de `produto.unidade_medida`; KG e SACO saem 'KG'.
+    assert.deepEqual(await rotulos(racao), ['KG', 'KG']);
   });
 });

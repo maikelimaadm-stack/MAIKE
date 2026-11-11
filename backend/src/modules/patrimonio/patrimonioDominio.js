@@ -1,12 +1,12 @@
 /**
- * D-PROD-157 — domínios FECHADOS do Patrimônio e Frota (P1-01; D-PROD-161).
+ * D-PROD-157 — domínios FECHADOS do Patrimônio e Frota (P1-01; D-PROD-162).
  *
  * O servidor é a fonte: o navegador espelha só os RÓTULOS. Cada lista aqui tem
  * o seu CHECK na migration (P1-01 `20261110100000_patrimonio_p1_01_cadastros`,
- * recriada pela D-PROD-161 `20261110300000_patrimonio_simplifica`; sem enum
+ * recriada pela D-PROD-162 `20261110300000_patrimonio_simplifica`; sem enum
  * Prisma); mudar uma lista exige migration nova.
  *
- * D-PROD-161: saem perfis de medição, medições físicas, catálogo de
+ * D-PROD-162: saem perfis de medição, medições físicas, catálogo de
  * combustíveis e fator kg/L. Cada tanque aceita Produtos do estoque em L ou KG.
  */
 
@@ -93,10 +93,10 @@ export const PADRAO_RENAVAM = /^\d{9,11}$/;
 /** Limites por agregado. */
 /** Conta só tanques ATIVOS; o identificador de tanque inativo continua reservado. */
 export const MAX_TANQUES_ATIVOS_POR_BEM = 10;
-/** D-PROD-161 (P-02) — Produtos aceitos ATIVOS por tanque (o mesmo teto do antigo `combustivel_ids`). */
+/** D-PROD-162 (P-02) — Produtos aceitos ATIVOS por tanque (o mesmo teto do antigo `combustivel_ids`). */
 export const MAX_PRODUTOS_POR_TANQUE = 20;
 /**
- * D-PROD-161 — unidades de estoque do Produto que um tanque aceita e que o
+ * D-PROD-162 — unidades de estoque do Produto que um tanque aceita e que o
  * abastecimento baixa (exatamente a quantidade digitada; sem conversão).
  * A capacidade do tanque (litros) só é conferida para Produto em L.
  */

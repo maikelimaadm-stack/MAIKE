@@ -9,7 +9,7 @@ import { ROTULO_STATUS_ABASTECIMENTO } from "@/services/abastecimentoService";
 /**
  * Preferências de coluna em chave NOVA a cada mudança do conjunto de colunas:
  * a v1 guardava "Combustível" (saiu na UX-02, D-PROD-160) e a v2 guardava
- * "Litros" e "KG" (D-PROD-161: viraram UMA coluna "Quantidade", número + a
+ * "Litros" e "KG" (D-PROD-162: viraram UMA coluna "Quantidade", número + a
  * unidade do Produto). Uma preferência antiga não ressuscita coluna que saiu.
  */
 export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v3";
@@ -28,7 +28,7 @@ export const ABASTECIMENTOS_STORAGE_KEY = "colunas_abastecimentos_v3";
  * Prioridade: o PRODUTO vem antes do rótulo inteiro do cabeçalho
  * "Máquina/Veículo" (os Produtos de um tanque se distinguem pela última
  * palavra e no tablet não há hover para o `title`): o Produto tem 130 (até
- * ~111 px de texto). D-PROD-161: a coluna "Quantidade" (número + "L"/"kg")
+ * ~111 px de texto). D-PROD-162: a coluna "Quantidade" (número + "L"/"kg")
  * tem 124 — o RÓTULO "Quantidade" inteiro (pede ~123) e até "999,9999 kg"
  * (pede ~102). Quem cede é a Máquina/Veículo, com 97: o RÓTULO dela sai com
  * reticências no tablet (exceção já aceita na UX-02) e a célula mostra o

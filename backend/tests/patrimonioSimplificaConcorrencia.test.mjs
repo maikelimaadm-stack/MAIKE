@@ -1,5 +1,5 @@
 /**
- * D-PROD-161 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — corridas do abastecimento com
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — corridas do abastecimento com
  * os Produtos aceitos e a unidade do Produto (contrato §6.1.4). PostgreSQL
  * real, HTTP autenticado, prova por linhas gravadas.
  *
@@ -127,7 +127,7 @@ const nunca500 = (...rs) => {
 };
 const aceiteDe = (s, produto) => prisma().tanqueBemProduto.findFirst({ where: { cliente_id: s.c, tanque_id: s.trator.tanques[0].id, produto_id: produto.id } });
 
-describe('D-PROD-161 — corridas do abastecimento com aceites e unidades', () => {
+describe('D-PROD-162 — corridas do abastecimento com aceites e unidades', () => {
   test('(a) duas confirmações de 200 kg com 300 kg no lote: uma 201 e uma 422 saldo_lote_insuficiente; (f) mesma chave em paralelo: uma baixa só', async () => {
     const s = await montarAbastecimento(app);
     const c = (extra = {}) => corpoAbastecimento(s, { produto_id: s.dieselKg.id, quantidade: '200', ...extra });

@@ -1,5 +1,5 @@
 /**
- * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-161 (SIMPLIFICA-01) —
+ * D-PROD-159 (Patrimônio P1-02), revisto pela D-PROD-162 (SIMPLIFICA-01) —
  * rotas dos abastecimentos de bens (tela `pat-abastecimentos`, 11 rotas):
  *
  *  - `GET  /patrimonio-abastecimentos` (ver) — lista keyset com filtros
@@ -14,7 +14,7 @@
  *    `resumo` do conjunto inteiro (só leitura)
  *  - `GET  /patrimonio-abastecimentos-opcoes/locais` (criar) — locais com saldo
  *
- * D-PROD-161: saem as opções de tipos e de produtos por tipo e as 3 rotas do
+ * D-PROD-162: saem as opções de tipos e de produtos por tipo e as 3 rotas do
  * fator kg/L (`/patrimonio-conversoes-combustivel*`): respondem 404 (rota
  * inexistente). A quantidade é a do Produto (`L` ou `KG`), sem conversão.
  *

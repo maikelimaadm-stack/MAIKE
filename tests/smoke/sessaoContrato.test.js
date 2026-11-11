@@ -167,7 +167,6 @@ describe('SE11 — o catálogo de códigos P1.4 não tem órfão', () => {
     'GRUPO_ATIVIDADE_DELETE_BLOCKED',
     'TIPO_TAREFA_DELETE_BLOCKED',
     'PERMISSAO_SELF_DELETE_BLOCKED',
-    'SUPLEMENTACAO_PARTIAL_OPERATION',
     'OFFLINE_ENTITY_UNSUPPORTED',
   ];
 
@@ -197,13 +196,22 @@ describe('SE11 — o catálogo de códigos P1.4 não tem órfão', () => {
     expect(orfaos, `códigos catalogados sem consumidor em src/: ${orfaos.join(', ')}`).toEqual([]);
   });
 
+  // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): a reversão pelo navegador
+  // (suplementacaoHistoricoService), único consumidor, passou a falhar fechada
+  // sem I/O — não há mais operação parcial a relatar. O código sai do catálogo
+  // pela mesma regra que removeu PRODUTO_PARTIAL_IMPORT.
+  it('o catálogo não contém SUPLEMENTACAO_PARTIAL_OPERATION', async () => {
+    const { API_ERROR_CODES } = await import('@/apis/_core/ApiError');
+    expect(Object.keys(API_ERROR_CODES)).not.toContain('SUPLEMENTACAO_PARTIAL_OPERATION');
+  });
+
   it('o catálogo não contém PRODUTO_PARTIAL_IMPORT', async () => {
     const { API_ERROR_CODES } = await import('@/apis/_core/ApiError');
     expect(Object.keys(API_ERROR_CODES)).not.toContain('PRODUTO_PARTIAL_IMPORT');
   });
 
-  it('são 11 códigos da P1.4, não 12', () => {
-    expect(CODIGOS_P14).toHaveLength(11);
+  it('são 10 códigos da P1.4 ainda vivos (12 − PRODUTO_PARTIAL_IMPORT − SUPLEMENTACAO_PARTIAL_OPERATION)', () => {
+    expect(CODIGOS_P14).toHaveLength(10);
   });
 });
 

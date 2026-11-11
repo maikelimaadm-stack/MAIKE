@@ -1,5 +1,5 @@
 {
-  "decisao": "D-PROD-161",
+  "decisao": "D-PROD-162",
   "regra_quantidade": "o abastecimento baixa do estoque EXATAMENTE a quantidade digitada, na unidade de estoque do Produto (L ou KG), em texto canonico com 4 casas; nenhuma conversao entre unidades; quantidade <= 0 e recusada (OPERACAO_VALORES_INVALIDOS / quantidade_nao_positiva); texto fora de ^\\d{1,10}(\\.\\d{1,4})?$ e recusado pelo servidor com 400 (REQUEST_VALIDATION_FAILED)",
   "regra_capacidade": "a capacidade do tanque e em litros e so e conferida para Produto em L (ABASTECIMENTO_EXCEDE_CAPACIDADE); Produto em KG nunca e comparado com a capacidade",
   "quantidade": [

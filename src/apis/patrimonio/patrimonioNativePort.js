@@ -1,12 +1,12 @@
 /**
- * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-161).
+ * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162).
  * Só online; tenant só no JWT.
  *
  * Catálogos (famílias e tipos) são do TENANT: nenhuma rota de catálogo leva
  * `empresa_id`. Bens pertencem a uma empresa: `empresa_id` vai na query da
  * leitura e no corpo da gravação. Os Produtos que um tanque aceita vêm da opção
  * `/bens-patrimoniais-opcoes/produtos` (empresa obrigatória, filtro `unidade`
- * `L`|`KG`). Saíram (D-PROD-161, as rotas respondem 404): perfis de medição,
+ * `L`|`KG`). Saíram (D-PROD-162, as rotas respondem 404): perfis de medição,
  * combustíveis, vínculo combustível × produto, produtos elegíveis do bem e os
  * fatores kg/L.
  */
@@ -102,7 +102,7 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
   if (empresa) params.set('empresa_id', empresa);
   const familia = texto(filtros.familia_id);
   if (familia) params.set('familia_id', familia);
-  // D-PROD-161 (achado D8): filtro opcional dos Produtos que o tanque aceita.
+  // D-PROD-162 (achado D8): filtro opcional dos Produtos que o tanque aceita.
   const unidade = texto(filtros.unidade);
   if (recurso === 'produtos' && unidade && UNIDADES_ESTOQUE_TANQUE.includes(unidade)) params.set('unidade', unidade);
   paginacao(params, filtros);
@@ -116,13 +116,13 @@ const doBem = (id) => `${CAMINHO_BENS}/${encodeURIComponent(id)}`;
 /** @param {string} caminho @param {string} empresaId */
 const comEmpresa = (caminho, empresaId) => `${caminho}?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`;
 
-// ─── Abastecimentos (D-PROD-159, simplificados pela D-PROD-161) ─────────
+// ─── Abastecimentos (D-PROD-159, simplificados pela D-PROD-162) ─────────
 /**
  * Abastecimentos da EMPRESA (Patrimônio P1-02). Prefixo próprio
  * (`/patrimonio-abastecimentos…`); as opções da tela são rotas DESTA tela
  * (`/patrimonio-abastecimentos-opcoes/<recurso>`), montadas por template —
  * nenhuma rota é a da porta de Produtos ou de Locais. Decimais (quantidade na
- * unidade do Produto, leitura) viajam como TEXTO canônico. D-PROD-161: saíram
+ * unidade do Produto, leitura) viajam como TEXTO canônico. D-PROD-162: saíram
  * as opções `tipos` e `produtos` (por tipo) e os fatores kg/L.
  */
 const CAMINHO_ABASTECIMENTOS = '/patrimonio-abastecimentos';
@@ -136,7 +136,7 @@ export const TIMEOUT_COMANDO_ABASTECIMENTO_MS = 60000;
 /**
  * Recursos de opção da tela Abastecimentos (guardados pela própria tela).
  * `produtos-do-bem` (A16): os Produtos aceitos pelos tanques ativos do bem, com
- * os tanques de cada um (D-PROD-161: sem tipo de combustível nem fator).
+ * os tanques de cada um (D-PROD-162: sem tipo de combustível nem fator).
  */
 export const RECURSOS_OPCOES_ABASTECIMENTO = Object.freeze(['bens', 'tanques', 'produtos-filtro', 'locais', 'produtos-do-bem']);
 

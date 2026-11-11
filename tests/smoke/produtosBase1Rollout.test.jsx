@@ -1,6 +1,6 @@
 /**
  * MOTORBASE1-ROLLOUT-04 — Produtos consome motor Base1 + paginação nativa.
- * D-PROD-161: o formulário do Produto oferece a unidade de estoque LITROS (L)
+ * D-PROD-162: o formulário do Produto oferece a unidade de estoque LITROS (L)
  * (comportamento completo em produtoUnidadeLitros.test.jsx).
  */
 import React from "react";
@@ -108,7 +108,7 @@ describe("Produtos — rollout MotorBase1", () => {
     expect(firstCall[0]).toBe("emp-1");
   });
 
-  it("D-PROD-161: o formulário oferece KG, SACOS e LITROS (L) como unidade principal de estoque", async () => {
+  it("D-PROD-162: o formulário oferece KG, SACOS e LITROS (L) como unidade principal de estoque", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const code = fs.readFileSync(path.join(process.cwd(), "src/components/produtos/FormularioProduto.jsx"), "utf8");

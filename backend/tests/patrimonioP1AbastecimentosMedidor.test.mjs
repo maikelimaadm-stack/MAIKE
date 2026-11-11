@@ -1,5 +1,5 @@
 /**
- * D-PROD-159, revisto pela D-PROD-161 — Patrimônio P1-02: medidor operacional
+ * D-PROD-159, revisto pela D-PROD-162 — Patrimônio P1-02: medidor operacional
  * e consumo (M1–M9, PostgreSQL real + HTTP autenticado).
  *
  *  - M1/M2: consumo pelo método do tanque cheio com os vetores `consumo` de
@@ -17,7 +17,7 @@
  *  - M7: tanque cheio de OUTRO tanque não fecha intervalo; flex soma gasolina
  *    e etanol no mesmo tanque;
  *  - M8: o abastecimento não muda `BemPatrimonial.versao` (PATCH aberto antes grava);
- *  - M9 (D-PROD-161, P-03): Produto em KG → kg/h e km/kg (vetores `horimetro_kg`
+ *  - M9 (D-PROD-162, P-03): Produto em KG → kg/h e km/kg (vetores `horimetro_kg`
  *    e `odometro_kg`); litros e quilos no mesmo intervalo → `unidades_misturadas`.
  */
 
@@ -104,7 +104,7 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
     assert.equal(v.cadastro.leitura, '1520.5000');
     const r = await A.ok(A.consumo(s.leitor.token, s.e1.id, s.trator.id));
     assert.deepEqual([r.bem.id, r.bem.medidor_tipo, r.bem.medidor_unidade, r.situacao_geral], [s.trator.id, 'HORIMETRO', 'h', 'DISPONIVEL']);
-    assert.equal(Object.prototype.hasOwnProperty.call(r, 'metrica'), false, 'D-PROD-161: a métrica vem em cada intervalo (depende da unidade)');
+    assert.equal(Object.prototype.hasOwnProperty.call(r, 'metrica'), false, 'D-PROD-162: a métrica vem em cada intervalo (depende da unidade)');
     assert.ok(r.metodologia.includes('L/h ou kg/h = quantidade ÷ horas'));
     const [ultimo, primeiro] = r.intervalos;
     assert.equal(r.intervalos.length, 2, 'só os tanques cheios entram na janela');
@@ -375,7 +375,7 @@ describe('P1-02 — tanques e versão do bem', () => {
   });
 });
 
-describe('D-PROD-161 — consumo na unidade do Produto (P-03)', () => {
+describe('D-PROD-162 — consumo na unidade do Produto (P-03)', () => {
   test('M9: Produto em KG → kg/h (horimetro_kg) e km/kg (odometro_kg); L e KG no mesmo intervalo → unidades_misturadas sem métrica', async () => {
     const s = await montarAbastecimento(app);
     await s.lote(s.e1, s.diesel, s.local, { quantidade: '100.0000', custo: '5.8000', dia: '2027-06-04' });

@@ -20,7 +20,7 @@ const familiaDoRegistro = (item) => {
 };
 
 /**
- * Formulário do Tipo Patrimonial (D-PROD-157; D-PROD-161: vive dentro do
+ * Formulário do Tipo Patrimonial (D-PROD-157; D-PROD-162: vive dentro do
  * cadastro de Bens e não tem mais perfis de medição).
  *  - criação: família escolhida por seletor paginado (só ativas) e nome; o
  *    código é opcional (P-05: vazio, o servidor o gera a partir do nome);

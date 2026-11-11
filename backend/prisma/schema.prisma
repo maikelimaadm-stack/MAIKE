@@ -119,7 +119,7 @@ model Cliente {
   tiposPatrimoniais            TipoPatrimonial[]
   bensPatrimoniais             BemPatrimonial[]
   tanquesBem                   TanqueBem[]
-  // D-PROD-161 — Produtos do estoque aceitos por tanque.
+  // D-PROD-162 — Produtos do estoque aceitos por tanque.
   tanquesBemProdutos           TanqueBemProduto[]
   // D-PROD-159/161 — Patrimônio: abastecimentos e fatias FIFO.
   abastecimentosBem            AbastecimentoBem[]
@@ -2085,9 +2085,9 @@ model OperacaoFinanceira {
 }
 
 /// Item do documento COM_PRODUTOS. MERCADORIA mexe no estoque (KG) pelo motor
-/// físico na confirmação; SERVICO não mexe em estoque. D-PROD-161: item de
+/// físico na confirmação; SERVICO não mexe em estoque. D-PROD-162: item de
 /// Produto em litros usa `unidade = 'L'`, `fator_kg = 1` e `quantidade_estoque`
-/// em L (as colunas mantêm o nome; CHECKs alargados na migration da D-PROD-161).
+/// em L (as colunas mantêm o nome; CHECKs alargados na migration da D-PROD-162).
 model OperacaoFinanceiraItem {
   id                      String   @id @default(cuid())
   cliente_id              String   @db.VarChar(64)
@@ -2366,7 +2366,7 @@ model OperacaoFinanceiraEvento {
 
 // ---------------------------------------------------------------------------
 // D-PROD-157 — Patrimônio e Frota P1-01: cadastros nativos de inventário,
-// simplificados pela D-PROD-161 (sem perfis de medição, medições de benfeitoria,
+// simplificados pela D-PROD-162 (sem perfis de medição, medições de benfeitoria,
 // catálogo de combustíveis e fator kg/L). Catálogos do TENANT (família e tipo;
 // sem empresa, como UnidadeMedida/LocalEstoque) e o bem da EMPRESA (fazenda
 // atual, FK composta). O bem é a raiz do agregado: medidor, tanques e os
@@ -2551,7 +2551,7 @@ model TanqueBem {
   @@index([cliente_id, createdAt, id])
 }
 
-/// D-PROD-161 — Produto do estoque ACEITO por um tanque do bem (substitui
+/// D-PROD-162 — Produto do estoque ACEITO por um tanque do bem (substitui
 /// TipoCombustivel, TanqueBemCombustivel, TipoCombustivelProduto e o fator).
 /// Apagado só quando retirado sem nenhum abastecimento; com histórico, o sync
 /// só desliga `ativo` (a FK do abastecimento segura o par). Coerência Produto.empresa_id =
@@ -2577,7 +2577,7 @@ model TanqueBemProduto {
   @@index([cliente_id, createdAt, id])
 }
 
-/// D-PROD-161 — abastecimento CONFIRMADO de um bem da EMPRESA: `quantidade`
+/// D-PROD-162 — abastecimento CONFIRMADO de um bem da EMPRESA: `quantidade`
 /// na unidade do Produto (`unidade` = snapshot de unidade_principal_estoque,
 /// L ou KG; CHECK), baixada EXATAMENTE pelo motor de estoque (FIFO), sem
 /// conversão. Sem DELETE: CANCELADO com estorno exato.
@@ -2642,7 +2642,7 @@ model AbastecimentoBem {
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-159 (Patrimônio P1-02; D-PROD-161) — fatia FIFO consumida pelo
+/// D-PROD-159 (Patrimônio P1-02; D-PROD-162) — fatia FIFO consumida pelo
 /// abastecimento: de qual lote, quanto (na unidade do abastecimento, L ou KG) e
 /// a que custo, na ordem FIFO. O cancelamento devolve cada fatia ao SEU lote
 /// (Σ quantidade = `quantidade` do abastecimento, na unidade dele, conferido no serviço).

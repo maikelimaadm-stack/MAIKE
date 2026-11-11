@@ -18,7 +18,7 @@ const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
 export const chaveConsumoBem = (empresaId, bemId) => ["patrimonio-abastecimentos", "consumo", empresaId, bemId];
 
 /**
- * Consumo do bem pelo método do tanque cheio. D-PROD-161 (P-03): a métrica é
+ * Consumo do bem pelo método do tanque cheio. D-PROD-162 (P-03): a métrica é
  * de CADA intervalo, pela unidade do Produto (odômetro: km/L ou km/kg;
  * horímetro: L/h ou kg/h); litros e quilos misturados no intervalo não têm
  * métrica. Sem dois tanques cheios consecutivos com leitura: "dados
