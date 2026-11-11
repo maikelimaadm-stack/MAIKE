@@ -12,7 +12,7 @@ import {
 
 const FloatingField = ({ label, required, error, children }) => (
   <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
+    <label className="text-xs text-slate-500 pl-1 leading-none">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>

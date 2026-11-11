@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useState } from "react";
-import { useDlUi, COR, CartaoDl, PilulaTitulo, IconeCategoria, TituloSecao, GradeCampos, Chevron, useAlturaPopup } from "@/components/mapa/detalhes-lote/pecas";
+import { useDlUi, COR, TIPO, CartaoDl, PilulaTitulo, IconeCategoria, TituloSecao, GradeCampos, Chevron, useAlturaPopup } from "@/components/mapa/detalhes-lote/pecas";
 import { SECOES_AREA, TONS, VAZIO } from "@/components/mapa/detalhes-lote/catalogo";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
@@ -79,7 +79,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
         >
           <label
             htmlFor={idCampo}
-            style={{ overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 12, fontWeight: 500, lineHeight: 1.25, color: COR.texto }}
+            style={{ overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", ...TIPO.rotulo, lineHeight: 1.25, color: COR.texto }}
           >
             {ui.celular ? "Mostrar" : "Mostrar informações"}
           </label>
@@ -105,7 +105,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
               borderRadius: 8,
               background: COR.fundo,
               color: COR.texto,
-              fontSize: 12,
+              ...TIPO.texto,
               textAlign: "left",
               cursor: "pointer",
             }}
@@ -135,7 +135,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
                 ...estiloRolagem,
               }}
             >
-              <div style={{ padding: "6px 8px", fontSize: 13, fontWeight: 600, color: COR.meta }}>Mostrar informações</div>
+              <div style={{ padding: "6px 8px", ...TIPO.grupo, color: COR.meta }}>Mostrar informações</div>
               {opcoes.map((op, i) => (
                 <button
                   key={op.rotulo}
@@ -154,7 +154,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
                     borderTop: `1px solid ${i === 0 ? "transparent" : COR.divisor}`,
                     background: "transparent",
                     color: COR.texto,
-                    fontSize: 13,
+                    ...TIPO.texto,
                     textAlign: "left",
                     cursor: "pointer",
                   }}
@@ -188,7 +188,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <PilulaTitulo>Informações da Área</PilulaTitulo>
           {area.faixaCurta ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 600, color: COR.texto, whiteSpace: "nowrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, ...TIPO.selo, color: COR.texto, whiteSpace: "nowrap" }}>
               <span aria-hidden="true" style={{ width: 7, height: 7, flex: "0 0 auto", borderRadius: 999, background: area.faixa?.cor || COR.marcador }} />
               {area.faixaCurta}
             </span>
@@ -210,7 +210,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
         <CartaoDl gap={8}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <PilulaTitulo>Categorias na área</PilulaTitulo>
-            <span style={{ fontSize: 10.5, fontWeight: 500, color: COR.meta }}>{area.cabTotal && area.cabTotal !== VAZIO ? `${area.cabTotal} cab` : VAZIO}</span>
+            <span style={{ ...TIPO.rotulo, color: COR.meta }}>{area.cabTotal && area.cabTotal !== VAZIO ? `${area.cabTotal} cab` : VAZIO}</span>
           </div>
           <div aria-hidden="true" style={{ display: "flex", height: 6, borderRadius: 999, overflow: "hidden", background: COR.divisor, gap: 2 }}>
             {categorias.map((cat) => (
@@ -238,14 +238,13 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    fontSize: 10.5,
-                    fontWeight: 600,
+                    ...TIPO.valor,
                     color: COR.texto,
                   }}
                 >
                   {cat.nome}
                 </span>
-                <span style={{ fontSize: 10.5, fontWeight: 500, color: COR.meta, whiteSpace: "nowrap" }}>{cat.resumo}</span>
+                <span style={{ ...TIPO.rotulo, color: COR.meta, whiteSpace: "nowrap" }}>{cat.resumo}</span>
                 <span
                   style={{
                     display: "inline-flex",
@@ -253,8 +252,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
                     gap: 4,
                     minWidth: 38,
                     justifyContent: "flex-end",
-                    fontSize: 10.5,
-                    fontWeight: 700,
+                    ...TIPO.item,
                     color: COR.texto,
                   }}
                 >
@@ -270,7 +268,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
       {(area.alertas || []).map((al, i) => {
         const cor = (TONS[al.tom] || TONS.atencao).texto;
         return (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 4px", fontSize: 10.5, fontWeight: 600, color: cor }}>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 4px", ...TIPO.selo, color: cor }}>
             <span aria-hidden="true" style={{ width: 7, height: 7, flex: "0 0 auto", borderRadius: 999, background: cor }} />
             {al.frase}
           </div>

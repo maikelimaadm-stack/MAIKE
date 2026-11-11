@@ -1,5 +1,5 @@
 import React from "react";
-import { useDlUi, COR } from "@/components/mapa/detalhes-lote/pecas";
+import { useDlUi, COR, TIPO } from "@/components/mapa/detalhes-lote/pecas";
 import { colunasAtivas, TONS } from "@/components/mapa/detalhes-lote/catalogo";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
@@ -9,15 +9,21 @@ import { colunasAtivas, TONS } from "@/components/mapa/detalhes-lote/catalogo";
 
 const SEP = `1px solid ${COR.divisor}`;
 
+// As larguras do mockup v8 foram medidas com texto de 10,5 px; com a tipografia do motor (14 px, D-PROD-173)
+// crescem na mesma proporção, senão os números e os títulos cortariam.
+const ESCALA = 14 / 10.5;
+/** @param {number} px */
+const escala = (px) => Math.round(px * ESCALA);
+
 // Piso de largura = maior palavra do cabeçalho, para o título quebrar em 2 linhas
 // sem invadir a coluna vizinha (mockup v8, script linhas 900–904).
 /** @param {string} rotulo */
 const palavraMax = (rotulo) => Math.max(...String(rotulo).split(/[ /]+/).map((w) => w.length));
 /** @param {string} rotulo */
-const pisoCab = (rotulo) => Math.min(170, Math.max(46, palavraMax(rotulo) * 6.7 + 26));
+const pisoCab = (rotulo) => escala(Math.min(170, Math.max(46, palavraMax(rotulo) * 6.7 + 26)));
 // No celular o piso é curto: o título quebra em 2 linhas em vez de alargar a coluna.
 /** @param {string} rotulo */
-const pisoCabCel = (rotulo) => Math.min(84, Math.max(40, palavraMax(rotulo) * 6.2 + 14));
+const pisoCabCel = (rotulo) => escala(Math.min(84, Math.max(40, palavraMax(rotulo) * 6.2 + 14)));
 
 /** @param {CampoDef[]} cols @param {number} i */
 const primeiraDoGrupo = (cols, i) => i === 0 || cols[i - 1].secao !== cols[i].secao;
@@ -26,10 +32,10 @@ const primeiraDoGrupo = (cols, i) => i === 0 || cols[i - 1].secao !== cols[i].se
 const FIXA = { position: "sticky", left: 0, zIndex: 1, borderRight: SEP, minWidth: 0, overflow: "hidden" };
 
 /** @type {React.CSSProperties} */
-const EYEBROW = { fontSize: 9, fontWeight: 700, color: COR.meta, textTransform: "uppercase", letterSpacing: "0.05em" };
+const EYEBROW = { ...TIPO.grupo, color: COR.meta };
 
 /** @type {React.CSSProperties} */
-const AVISO = { padding: "10px 12px", borderTop: SEP, fontSize: 11, color: COR.meta };
+const AVISO = { padding: "10px 12px", borderTop: SEP, ...TIPO.rotulo, color: COR.meta };
 
 /**
  * Vista Lista da aba Lotes: tabela em grid com as colunas das seções marcadas em
@@ -46,8 +52,8 @@ export default function VistaLista({ modelo, estado }) {
   const ord = estado.ordenar;
 
   const gridCols = celular
-    ? `120px ${cols.map((c) => `${Math.max(c.larguraCel, pisoCabCel(c.rotulo))}px`).join(" ")}`
-    : `190px ${cols.map((c) => `minmax(${Math.max(c.larguraDesk, pisoCab(c.rotulo))}px, 1fr)`).join(" ")}`;
+    ? `${escala(120)}px ${cols.map((c) => `${Math.max(escala(c.larguraCel), pisoCabCel(c.rotulo))}px`).join(" ")}`
+    : `${escala(190)}px ${cols.map((c) => `minmax(${Math.max(escala(c.larguraDesk), pisoCab(c.rotulo))}px, 1fr)`).join(" ")}`;
   const celPad = celular ? "6px 6px" : "6px 10px";
   const celPadTh = celular ? "4px 6px 6px" : "4px 10px 6px";
   const barraLarg = celular ? 22 : 32;
@@ -76,9 +82,9 @@ export default function VistaLista({ modelo, estado }) {
     padding: 0,
     border: 0,
     background: "transparent",
-    fontSize: 10.5,
-    fontWeight: 500,
-    lineHeight: 1.2,
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1.25,
     textAlign: "left",
     whiteSpace: "normal",
     overflowWrap: "anywhere",
@@ -88,7 +94,7 @@ export default function VistaLista({ modelo, estado }) {
   return (
     <div style={{ borderRadius: 12, background: "#fff", boxShadow: ui.sombra, overflow: "hidden" }}>
       <div data-sem-deslize="" style={{ overflowX: "auto", overscrollBehaviorX: "contain" }}>
-        <div style={{ width: "max-content", minWidth: "100%", fontSize: 10.5, color: COR.texto }}>
+        <div style={{ width: "max-content", minWidth: "100%", ...TIPO.texto, color: COR.texto }}>
           {cols.length > 0 && (
             <div style={{ ...linhaGrid, background: COR.fundo }}>
               <div style={{ ...FIXA, ...EYEBROW, padding: "6px 10px 2px", background: COR.fundo }}>Lote</div>
@@ -125,7 +131,7 @@ export default function VistaLista({ modelo, estado }) {
               }}
             >
               <button type="button" onClick={() => estado.ordenarPor("nome")} style={{ ...botaoCab, color: corCab("nome") }}>
-                Nome<span style={{ flex: "0 0 auto", fontSize: 9 }}>{seta("nome")}</span>
+                Nome<span style={{ flex: "0 0 auto", fontSize: 13 }}>{seta("nome")}</span>
               </button>
             </div>
             {cols.map((c, i) => (
@@ -147,7 +153,7 @@ export default function VistaLista({ modelo, estado }) {
                   style={{ ...botaoCab, color: corCab(c.chave), hyphens: "auto" }}
                 >
                   <span style={{ minWidth: 0 }}>{c.rotulo}</span>
-                  <span style={{ flex: "0 0 auto", fontSize: 9 }}>{seta(c.chave)}</span>
+                  <span style={{ flex: "0 0 auto", fontSize: 13 }}>{seta(c.chave)}</span>
                 </button>
               </div>
             ))}
@@ -165,7 +171,7 @@ export default function VistaLista({ modelo, estado }) {
             />
           ))}
 
-          <div style={{ ...linhaGrid, background: COR.fundo, borderTop: SEP, fontWeight: 700 }}>
+          <div style={{ ...linhaGrid, background: COR.fundo, borderTop: SEP, fontWeight: 600 }}>
             <div style={{ ...FIXA, padding: celPad, background: COR.fundo }}>Total da área</div>
             {cols.map((c, i) => (
               <div
@@ -204,10 +210,10 @@ function LinhaTabela({ lote, cols, primeira, linhaGrid, celPad, barraLarg }) {
     <div style={{ ...linhaGrid, borderTop: `1px solid ${primeira ? "transparent" : COR.divisor}`, background: "#fff" }}>
       <div style={{ ...FIXA, display: "flex", alignItems: "center", gap: 8, minWidth: 0, padding: celPad, background: "#fff" }}>
         <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden" }} title={lote.nome}>
-          <span style={{ display: "flex", alignItems: "flex-start", gap: 5, minWidth: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.25 }}>
+          <span style={{ display: "flex", alignItems: "flex-start", gap: 5, minWidth: 0, ...TIPO.item, lineHeight: 1.25 }}>
             <span
               title={lote.situacao?.rotulo}
-              style={{ width: 7, height: 7, flex: "0 0 auto", marginTop: 3, borderRadius: 999, background: tom.texto }}
+              style={{ width: 7, height: 7, flex: "0 0 auto", marginTop: 5, borderRadius: 999, background: tom.texto }}
             />
             {/* Nome longo quebra em até 2 linhas e corta com reticências: nunca invade a coluna vizinha. */}
             <span style={{ minWidth: 0, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{lote.nome}</span>
@@ -217,8 +223,7 @@ function LinhaTabela({ lote, cols, primeira, linhaGrid, celPad, barraLarg }) {
               display: "block",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              fontSize: 10,
-              fontWeight: 500,
+              ...TIPO.rotulo,
               color: COR.meta,
               whiteSpace: "nowrap",
             }}
@@ -242,7 +247,7 @@ function LinhaTabela({ lote, cols, primeira, linhaGrid, celPad, barraLarg }) {
               borderLeft: primeiraDoGrupo(cols, i) ? SEP : 0,
               whiteSpace: cel?.quebra ? "normal" : "nowrap",
               overflowWrap: "anywhere",
-              fontWeight: 600,
+              fontWeight: 400,
               color: cel?.cor || COR.texto,
               fontVariantNumeric: "tabular-nums",
             }}

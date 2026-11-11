@@ -6177,4 +6177,24 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora desta decisão:** o Cadastro de Áreas, Pontos e Linhas e as fontes do Mapa Geral (próxima missão).
 - **Evidência:** relatório [`UI-GESTAO-MOTOR-D172-REPORT.md`](./UI-GESTAO-MOTOR-D172-REPORT.md); imagens em `docs/engineering/evidencias/gestao-motor-d172/`.
 
-<!-- Próxima decisão: D-PROD-173 -->
+## D-PROD-173 — Mapa com a tipografia do motor Base1: Detalhes do Lote, painéis, manejos e janelas do mapa
+
+- **Pedido do proprietário (2026-11-11):** "ajuste todas as fontes do meu mapa para igual a fonte do motor base 1, fazendo favor, tá? Detalhes de lote, etc".
+- **Contexto:** a D-PROD-167 levou a escala de tipografia ao sistema, mas deixou de fora "painéis densos com tamanho próprio já aprovados (Detalhes do Lote, legenda e insights do mapa)". O mapa ficou com textos de 9 a 12,5 px ao lado das telas do motor em 13 a 14 px.
+- **Decisão:** tudo o que o Mapa Geral mostra fora do desenho do mapa segue a escala do motor (D-PROD-167), sem nada abaixo de 13 px além das peças do próprio motor (rótulo do campo quando sobe, 12 px):
+  - texto, valores, linhas de lista e botões: 14 px; rótulos e texto de apoio: 13 px;
+  - título de cartão e de seção: Lato 13 px / 600; grupo: Lato 13 px / 600 em MAIÚSCULAS;
+  - abas: 14 px / 600; título de janela: 20 px / 600; subtítulo da janela: 13 px.
+- **Onde:**
+  - **Detalhes do Lote:** tabela de papéis `TIPO` em `detalhes-lote/pecas.jsx`, usada por todas as peças (cartões, grades de campos, números, pílulas, títulos de seção, vistas Resumo, Lote e Lista, filtros e menus). As colunas da vista Lista crescem na proporção do texto (14 / 10,5). O cartão de lote da aba Tudo passa a 3 colunas no desktop e no tablet, para os rótulos caberem inteiros. Abas, subtítulo e quadros de manejo vão para 14 px.
+  - **Filtros e Visualização do mapa:** linhas de 14 px; títulos de seção em Lato 13 px / 600; rótulos dos campos de filtro em 13 px, com a coluna do rótulo maior.
+  - **Janelas abertas pelo mapa:** manejos (Pesagem, Movimentação, Morte, Nascimento…), Ações do lote, Históricos, Tarefas, depósito e cocho de suplementação, filtros avançados, legenda, insights, aviso do satélite e os botões do mapa.
+- **Fica como está:**
+  - os rótulos desenhados sobre o mapa (nome do pasto, hectares, cabeças, siglas), que seguem o zoom (D-PROD-129 e D-PROD-167), e as medidas do desenho;
+  - a atribuição do mapa base;
+  - o rodapé das listas do motor ("0 tarefas"), que já é o do motor.
+  - Cores, espaçamentos e regras não mudam.
+- **Testes:** `detalhesLoteVisualGesto.test.jsx` acompanha a mudança. Ele confere que a pílula usa o título do motor, que `.mk-dl__linha` herda o tamanho de quem a usa e que `.mk-dl__chip` tem 13 px.
+- **Evidência:** relatório [`UI-MAPA-TIPOGRAFIA-D173-REPORT.md`](./UI-MAPA-TIPOGRAFIA-D173-REPORT.md); imagens de antes e depois em `docs/engineering/evidencias/mapa-tipografia-d173/`.
+
+<!-- Próxima decisão: D-PROD-174 -->

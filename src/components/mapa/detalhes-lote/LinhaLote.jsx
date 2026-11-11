@@ -1,5 +1,5 @@
 import React from "react";
-import { useDlUi, COR, IconeCategoria, PilulaSituacao, Chevron } from "@/components/mapa/detalhes-lote/pecas";
+import { useDlUi, COR, TIPO, IconeCategoria, PilulaSituacao, Chevron } from "@/components/mapa/detalhes-lote/pecas";
 
 /** @typedef {import('./catalogo').LoteVm} LoteVm */
 
@@ -47,8 +47,8 @@ export default function LinhaLote({ lote, onClick, expandido, primeira = false }
         <IconeCategoria url={lote.iconeUrl} tamanho={22} alt={lote.categoria} />
       </span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ ...umaLinha, fontSize: 11, fontWeight: 700, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</span>
-        <span style={{ ...umaLinha, fontSize: 10, fontWeight: 600, lineHeight: 1.3, color: COR.meta }}>
+        <span style={{ ...umaLinha, ...TIPO.item, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</span>
+        <span style={{ ...umaLinha, ...TIPO.rotulo, lineHeight: 1.3, color: COR.meta }}>
           {`${lote.categoria} · ${lote.textos.cab} cab · peso ${lote.textos.peso}`}
         </span>
       </span>

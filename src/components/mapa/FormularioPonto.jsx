@@ -689,7 +689,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                 <Label className="text-xs">Áreas vinculadas *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
+                    <p className="text-xs text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-20 overflow-y-auto pr-1">
@@ -779,7 +779,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
                 <Label className="text-xs">Pastos vinculados *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-[11px] text-slate-500">Selecione um ou mais pastos atendidos por este mesmo bebedouro.</p>
+                    <p className="text-xs text-slate-500">Selecione um ou mais pastos atendidos por este mesmo bebedouro.</p>
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-20 overflow-y-auto pr-1">

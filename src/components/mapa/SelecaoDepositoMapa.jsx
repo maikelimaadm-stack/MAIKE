@@ -435,7 +435,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
         >
           <div>
             <p className="text-xs font-bold uppercase text-slate-900">Selecionar depósito no mapa</p>
-            <p className="text-[11px] text-slate-600">Toque em um depósito para vincular ao cocho.</p>
+            <p className="text-xs text-slate-600">Toque em um depósito para vincular ao cocho.</p>
           </div>
 
           <div className="space-y-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-xs">
@@ -445,10 +445,10 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
           </div>
 
           {!cochoEstavel && (
-            <p className="text-[11px] text-amber-800">Cocho sem coordenada válida — distância indisponível.</p>
+            <p className="text-xs text-amber-800">Cocho sem coordenada válida — distância indisponível.</p>
           )}
 
-          {carregandoDados && <p className="text-[11px] text-slate-600">Carregando depósitos…</p>}
+          {carregandoDados && <p className="text-xs text-slate-600">Carregando depósitos…</p>}
 
           {erroDados && (
             <div role="alert" className="space-y-1 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800">
@@ -460,11 +460,11 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
           )}
 
           {!carregandoDados && !erroDados && depositos.length === 0 && (
-            <p className="text-[11px] text-slate-600">Nenhum depósito ativo com coordenadas nesta empresa.</p>
+            <p className="text-xs text-slate-600">Nenhum depósito ativo com coordenadas nesta empresa.</p>
           )}
 
           {depositoSelecionadoId != null && depositoSelecionadoId !== "" && !depositoSelecionado && !carregandoDados && !erroDados && (
-            <p data-testid="deposito-obsoleto" className="text-[11px] text-amber-800">
+            <p data-testid="deposito-obsoleto" className="text-xs text-amber-800">
               O depósito vinculado não está disponível nesta empresa. Selecione um depósito no mapa.
             </p>
           )}
@@ -478,7 +478,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
             </div>
           )}
 
-          {satNote ? <p className="text-[10px] text-slate-500">{satNote}</p> : null}
+          {satNote ? <p className="text-xs text-slate-500">{satNote}</p> : null}
         </div>
 
         <div

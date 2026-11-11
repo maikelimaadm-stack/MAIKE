@@ -2,6 +2,7 @@ import React from "react";
 import {
   useDlUi,
   COR,
+  TIPO,
   CartaoDl,
   PilulaSituacao,
   IconeCategoria,
@@ -67,21 +68,18 @@ export function CorpoCartaoLote({ lote, estado }) {
                     border: 0,
                     background: "transparent",
                     color: COR.meta,
-                    fontSize: 9,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
+                    ...TIPO.grupo,
                     textAlign: "left",
                     cursor: "pointer",
                   }}
                 >
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <span aria-hidden="true" style={{ display: "inline-block", width: 9, fontSize: 9, color: COR.meta }}>
+                    <span aria-hidden="true" style={{ display: "inline-block", width: 10, fontSize: 13, color: COR.meta }}>
                       {aberto ? "▾" : "▸"}
                     </span>
                     {tp.titulo}
                   </span>
-                  <span style={{ flex: "0 0 auto", fontSize: 9, fontWeight: 600, letterSpacing: 0, textTransform: "none", color: COR.meta }}>
+                  <span style={{ flex: "0 0 auto", ...TIPO.rotulo, fontFamily: "var(--mk-fonte-texto)", letterSpacing: 0, textTransform: "none", color: COR.meta }}>
                     {aberto ? "ocultar" : `${tp.campos.length} dados`}
                   </span>
                 </button>
@@ -112,8 +110,7 @@ export function CorpoCartaoLote({ lote, estado }) {
                   border: `1px solid ${tom.borda}`,
                   background: tom.fundo,
                   color: tom.texto,
-                  fontSize: 10.5,
-                  fontWeight: 600,
+                  ...TIPO.selo,
                   lineHeight: 1.3,
                 }}
               >
@@ -149,8 +146,8 @@ export default function CartaoLote({ lote, estado }) {
             <IconeCategoria url={lote.iconeUrl} tamanho={32} alt={lote.categoria} />
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ ...umaLinha, fontSize: 11, fontWeight: 700, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</div>
-            <div style={{ ...umaLinha, fontSize: 10, fontWeight: 600, lineHeight: 1.3, color: COR.meta }}>{lote.sub}</div>
+            <div style={{ ...umaLinha, ...TIPO.item, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</div>
+            <div style={{ ...umaLinha, ...TIPO.rotulo, lineHeight: 1.3, color: COR.meta }}>{lote.sub}</div>
           </div>
         </div>
         <span style={{ display: "inline-flex", flex: "0 0 auto" }}>
