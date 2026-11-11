@@ -366,28 +366,28 @@ primeira escrita.
 - a `main` andou depois do SHA aprovado;
 - qualquer divergência no postcheck rápido (§6): não mergear.
 
-## 11. Registro de execução (preencher só quando executado)
+## 11. Registro de execução (2026-11-11, executado)
 
 | Campo | Valor |
 |---|---|
-| GO do proprietário (texto e data/hora UTC) | |
-| Caminho (A runner / B conector) | |
-| `<SHA_APROVADO>`, run de CI e Preview READY | |
-| Pré-requisitos do §2 (PR pronta, `mergeable_state`, branch atualizada, `main` congelada) | |
-| `system_identifier`, versão e vínculo Vercel ↔ Supabase (só nomes) | |
-| Histórico antes (bloco A) | |
-| Contagens por tabela e por cliente das 13 (bloco B) e impressão | |
-| Bloco C (objetos fora das migrations, dono, ACL, `current_user`) | |
-| Bloco D (histórico, próximo nº por cliente, permissões antigas, Produto por unidade, CHECKs) | |
-| Bloco E (FKs de fora, transações longas) | |
-| Impressão digital das que ficam (`fingerprint_v2.sql`, produção) | |
-| SHA-256 calculado (§4.6) | |
-| Classificador local (§4.6) | |
-| Evidência de backup e escolha (a)/(b) (§4.7) | |
-| Duração do último build de produção (estimativa da janela) | |
-| Ensaio local (§4.8) | |
-| Resultado da transação | |
-| Postcheck rápido (§6, R1–R9) | |
-| Merge | |
-| Deploy READY e postcheck completo (§8, C1–C4) | |
-| Encerramento da janela de reversão pelo proprietário (P-12) | |
+| GO do proprietário (texto e data/hora UTC) | GO de 2026-11-10/11 no chat: "pode apaguar oque tiver lançado dessas tabelas", "Recomeçar o Patrimônio do zero", "ok apague oque tiver faça oque tem que fazer", "go, pode fazer" e, para o reenvio, "Manda" (~05:26 UTC) |
+| Caminho (A runner / B conector) | **B**: uma `execute_sql` do conector Supabase, com o envelope do §5 (DO `$alvo$` + `SET LOCAL maike.simplifica_impressao` + `migration.sql` + `INSERT` em `_prisma_migrations`). A 1ª tentativa (02:29 UTC) expirou na confirmação do conector e não executou; reenviada às ~05:27 UTC |
+| `<SHA_APROVADO>`, run de CI e Preview READY | `fa880a38d2598c906976dbc2fa873865b2ca05f0`; `quality` run 42943336499 verde (02:03→02:28 UTC); Vercel Preview Comments ok |
+| Pré-requisitos do §2 (PR pronta, `mergeable_state`, branch atualizada, `main` congelada) | PR #239 `mergeable_state = clean`; `main` em `e8472481` (contida no head) de 00:49 até o merge |
+| `system_identifier`, versão e vínculo Vercel ↔ Supabase (só nomes) | `7692130048193495360`; projeto Vercel `maike` ↔ Supabase `uuemcasqcdjucflulkne` |
+| Histórico antes (bloco A) | 39 concluídas / 0 em aberto; P1-02 com checksum `20f8f960…5fba` |
+| Contagens por tabela e por cliente das 13 (bloco B) e impressão | 13 linhas, em 1 dos 2 clientes; impressão `a35b7cbb0569` (conferida às 00:40, 02:06 e 02:29 UTC e pela guarda na transação) |
+| Bloco C (objetos fora das migrations, dono, ACL, `current_user`) | `current_user = postgres` = dono das 13; 0 FK externa; 0 visão; 0 gatilho/política/publicação inesperados |
+| Bloco D (histórico, próximo nº por cliente, permissões antigas, Produto por unidade, CHECKs) | Produto em `L` = 0; item P3 em `L` = 0; resíduos sem FK ficam como histórico |
+| Bloco E (FKs de fora, transações longas) | 0 FK de fora; 0 transação longa (> 30 s) |
+| Impressão digital das que ficam (`fingerprint_v2.sql`, produção) | TOTAL 1884 `89c875da8382bb12220710a3552fc192` · coluna 1008 `094c0d13…` · constraint 263 `a1a1658c…` · fk_entrando 137 `9f3b30ca…` · indice 332 `991bd43b…` · politica 72 `48deb1a7…` · tabela 72 `8cd7dc10…` |
+| SHA-256 calculado (§4.6) | `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222` (arquivo no head; o pacote do caminho B contém o arquivo literalmente) |
+| Classificador local (§4.6) | CONTRACT aprovado pela entrada `D-PROD-162` (gates 739/739) |
+| Evidência de backup e escolha (a)/(b) (§4.7) | **Desvio:** o agente não obteve a prova do último backup físico (sem token da API de gestão; o conector não lista backups). O proprietário mandou apagar o que houvesse e recomeçar do zero, sem dump: equivale à escolha **(b)** "não há volta parcial; aceito" |
+| Duração do último build de produção (estimativa da janela) | build do merge: ~61 s (05:31:47 → 05:32:48 UTC) |
+| Ensaio local (§4.8) | PG 16 local: impressão errada → recusa sem mudança; impressão certa → 79 tabelas e 40/0; repetir → "migration já registrada" |
+| Resultado da transação | `COMMIT` sem erro (~05:27 UTC) |
+| Postcheck rápido (§6, R1–R9) | R1 40/0, nova com `787d6d11…4222` e `applied_steps_count = 1`; R2 79 tabelas, 0 antigas, 7 novas; R3 RLS sem FORCE, `maike_backend_all` ALL `{maike_vercel}` nas 7, 0 para `anon`/`authenticated`; R4 dono `postgres`, ACL `{postgres=arwdDxtm, service_role=arwdDxtm, maike_vercel=arwd}`, CRUD do `maike_vercel` nas 7; R5 12·11·54·9·7·31·10, 7·31·32, 55; R6 0 linhas; R7 impressão das 72 idêntica e CHECKs com `'L'`; R8 estoque idêntico (mov 3 `2054032f…`, lotes 2 `f6e723d9…`, produtos 2 `1578d240…`); R9 estrutura das 7 novas idêntica à do PG local migrado pelo arquivo (266 itens, `1a270c8dcd84bd2b3286ddba266bee60`) |
+| Merge | PR #239 → `main` `87e8a5ca28dacacbb761c0c927f0896395b8d4af` (~05:31 UTC) |
+| Deploy READY e postcheck completo (§8, C1–C4) | `dpl_ASteapwtB8wqjNbGRACtZnWehmXc` READY em `www.makgestao.com`; C1 `/api/native/health` 200, `banco: up`, release `87e8a5ca…`; C2 advisor de segurança sem alertas; C3 `/BensPatrimoniais` 200 e API do Patrimônio responde 401 sem sessão (telas logadas não abertas pelo agente: sem credenciais); C4 logs de produção sem erro novo (só o aviso antigo `FSTDEP023` do Fastify) |
+| Encerramento da janela de reversão pelo proprietário (P-12) | pendente: o proprietário faz a primeira escrita |

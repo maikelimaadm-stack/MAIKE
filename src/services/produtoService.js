@@ -284,7 +284,7 @@ export const mensagemErroSalvarProduto = (erro) => {
   }
   if (code === 'PRODUTO_UNIDADE_EM_USO') {
     if (reason === 'aceito_em_tanque') {
-      return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que só usa estoque em litros (L) ou quilos (KG). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
+      return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que usa estoque em litros (L), quilos (KG) ou sacos (SACO). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
     }
     const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
     return `${motivo}: a unidade de estoque não muda de ou para litros. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;

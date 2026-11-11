@@ -10,7 +10,8 @@
  *  - ícones próprios no celular para o grupo e para as duas telas;
  *  - regra de botões = a do servidor (`GUARDAS.patrimonio*`): novo|salvar,
  *    editar|salvar e a ação extra `inativar` (sem atalho); padrão negado;
- *    famílias e tipos (dentro de Bens) seguem as ações da tela de Bens;
+ *    os tipos (dentro de Bens; D-PROD-169: sem família na tela) seguem as
+ *    ações da tela de Bens (excluir tipo = editar|salvar);
  *  - paridade lida no código do servidor (autorizacaoTela.js e guardasRotas.js);
  *  - shell real: o grupo aparece só para quem tem alguma das telas; dentro do
  *    Layout, a tela de bens declara `permissaoExplicita` (o "Adicionar tanque"
@@ -292,7 +293,7 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     expect(acoesDaTelaAbastecimento(perm)).toEqual({ ver: false, criar: false, cancelar: false });
     const soAbastecimento = comAcoes(TELA_ABASTECIMENTO, { novo: true, editar: true, salvar: true, inativar: true, cancelar: true });
     expect(acoesDaTelaPatrimonio(soAbastecimento, TELAS_PATRIMONIO.BENS)).toEqual({ ver: false, criar: false, editar: false, inativar: false });
-    expect(acoesDeCatalogoNoBem(soAbastecimento)).toEqual({ criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
+    expect(acoesDeCatalogoNoBem(soAbastecimento)).toEqual({ criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
   });
 
   it('Abastecimentos: ver = visualizar; criar = novo|salvar; cancelar só pela extra; o fator kg/L saiu; padrão negado', () => {
@@ -312,19 +313,21 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     expect(acoesDaTelaAbastecimento({ user_email: 'x', is_admin: true })).toEqual({ ver: true, criar: true, cancelar: true });
   });
 
-  it('famílias e tipos dentro de Bens: criar = novo|salvar|editar; editar = editar|salvar; inativar = extra; Produtos do tanque = novo|salvar|editar', () => {
+  it('tipos dentro de Bens (D-PROD-169): criar = novo|salvar|editar; renomear e excluir = editar|salvar; reativar = extra inativar; Produtos do tanque = novo|salvar|editar', () => {
     const T = TELAS_PATRIMONIO.BENS;
-    const nada = { criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false };
+    const nada = { criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false };
     expect(acoesDeCatalogoNoBem(null)).toEqual(nada);
     expect(acoesDeCatalogoNoBem(registro([MODULO_PATRIMONIO], []))).toEqual(nada);
     expect(acoesDeCatalogoNoBem(comAcoes(T, {}))).toEqual(nada);
-    expect(acoesDeCatalogoNoBem(comAcoes(T, { novo: true }))).toEqual({ criarCatalogo: true, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: true });
-    expect(acoesDeCatalogoNoBem(comAcoes(T, { editar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
-    expect(acoesDeCatalogoNoBem(comAcoes(T, { salvar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
-    expect(acoesDeCatalogoNoBem(comAcoes(T, { inativar: true }))).toEqual({ criarCatalogo: false, editarCatalogo: false, inativarCatalogo: true, produtosDoTanque: false });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { novo: true }))).toEqual({ criarCatalogo: true, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { editar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, excluirCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { salvar: true }))).toEqual({ criarCatalogo: true, editarCatalogo: true, excluirCatalogo: true, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { inativar: true }))).toEqual({ criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: true, produtosDoTanque: false });
+    // `excluir` da tela de Bens não exclui tipo (a guarda do servidor é editar|salvar).
+    expect(acoesDeCatalogoNoBem(comAcoes(T, { excluir: true }))).toEqual(nada);
     // Ação ligada sem visualizar → nada (fail-closed, como `telaPermite`).
     expect(acoesDeCatalogoNoBem(registro([MODULO_PATRIMONIO], [tela(MODULO_PATRIMONIO, T, { novo: true, editar: true, inativar: true })]))).toEqual(nada);
-    expect(acoesDeCatalogoNoBem({ user_email: 'x', is_admin: true })).toEqual({ criarCatalogo: true, editarCatalogo: true, inativarCatalogo: true, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem({ user_email: 'x', is_admin: true })).toEqual({ criarCatalogo: true, editarCatalogo: true, excluirCatalogo: true, inativarCatalogo: true, produtosDoTanque: true });
   });
 
   it('sem registro / sem módulo / sem linha → nada; ação ligada sem visualizar → nada; is_admin → tudo', () => {
@@ -463,7 +466,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     }
   });
 
-  it('famílias, tipos e Produtos do tanque (D-PROD-162): guardas do servidor sobre Bens = acoesDeCatalogoNoBem, ação por ação', () => {
+  it('tipos e Produtos do tanque (D-PROD-162/163): guardas do servidor sobre Bens = acoesDeCatalogoNoBem, ação por ação', () => {
     const linhaBens = guardas.match(/const BENS_CRIAR_OU_EDITAR\s*=\s*\[(.*)\];/);
     expect(linhaBens, 'BENS_CRIAR_OU_EDITAR ausente em guardasRotas.js').toBeTruthy();
     const criarOuEditar = [...linhaBens[1].matchAll(/\[T\.PATRIMONIO_BENS,\s*'([a-z_]+)'\]/g)].map((m) => m[1]);
@@ -472,13 +475,16 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
     const bens = trecho(guardas, 'patrimonioBens: {', '},');
     expect(bens).toMatch(/opcoesCatalogo:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
     expect(bens).toMatch(/opcoesProdutos:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
-    for (const guarda of ['patrimonioFamilias', 'patrimonioTipos']) {
-      const linha = guardas.match(new RegExp(`${guarda}:\\s*\\{([^\\n]*)\\},`));
-      expect(linha, guarda).toBeTruthy();
-      expect(linha[1], guarda).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
-      expect(linha[1], guarda).toMatch(/criar:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
-      expect(linha[1], guarda).toMatch(/editar:\s*edicaoPatrimonio\(T\.PATRIMONIO_BENS\)/);
-    }
+    // D-PROD-169: família não tem mais rota (nem leitura): o cadastro dela saiu e nenhuma tela a lê.
+    expect(guardas).not.toMatch(/patrimonioFamilias\s*:/);
+    const tipos = trecho(guardas, 'patrimonioTipos: {', '\n  },');
+    expect(tipos).toMatch(/ver:\s*porTela\(T\.PATRIMONIO_BENS,\s*'visualizar'\)/);
+    expect(tipos).toMatch(/criar:\s*porQualquer\(\.\.\.BENS_CRIAR_OU_EDITAR\)/);
+    expect(tipos).toMatch(/editar:\s*edicaoPatrimonio\(T\.PATRIMONIO_BENS\)/);
+    const linhaExcluir = tipos.match(/excluir:\s*porQualquer\(([^\n]*)\),?\n/);
+    expect(linhaExcluir, 'patrimonioTipos.excluir').toBeTruthy();
+    const excluir = [...linhaExcluir[1].matchAll(/\[T\.PATRIMONIO_BENS,\s*'([a-z_]+)'\]/g)].map((m) => m[1]);
+    expect(excluir.sort()).toEqual(['editar', 'salvar']);
 
     const edicao = trecho(guardas, 'const edicaoPatrimonio = (alvo) =>', '});');
     const exigeEdicao = [...edicao.matchAll(/telaPermite\(aut,\s*alvo,\s*'([a-z_]+)'\)/g)].map((m) => m[1]);
@@ -489,6 +495,7 @@ describe('PAT-M2b — paridade lida no código do servidor', () => {
       expect(a.criarCatalogo, `${acao}:criarCatalogo`).toBe(criarOuEditar.includes(acao));
       expect(a.produtosDoTanque, `${acao}:produtosDoTanque`).toBe(criarOuEditar.includes(acao));
       expect(a.editarCatalogo, `${acao}:editarCatalogo`).toBe(editar.includes(acao));
+      expect(a.excluirCatalogo, `${acao}:excluirCatalogo`).toBe(excluir.includes(acao));
       expect(a.inativarCatalogo, `${acao}:inativarCatalogo`).toBe(inativar.includes(acao));
     }
   });

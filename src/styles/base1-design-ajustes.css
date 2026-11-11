@@ -172,3 +172,262 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
   height: 12px;
   stroke-width: 2.2;
 }
+
+/* Janela do motor sobre o Radix Dialog (`B1Janela`, D-PROD-169: "⋯ › Gerenciar tipos" de Bens, prévia e cancelamento
+   do abastecimento, consumo do bem): o mesmo desenho de "Configurar colunas" (`b1ref .mdlc`) — fundo quente, cartão
+   branco de 16px, cabeçalho com o título e o ✕, corpo que rola e rodapé com os botões do motor.
+   A camada (`b1-janela__camada`) ocupa a tela e centraliza sem `transform`: a folha do celular (`position: fixed`)
+   que nasce dentro dela ocupa a tela, e não o cartão. A janela leva `cadastro-b1`, porque o portal fica fora da tela
+   e sem isso os campos do formulário dentro dela perdiam o desenho do motor. */
+.b1-janela__fundo {
+  background: rgba(20, 20, 19, 0.34);
+}
+.b1ref.b1-janela__camada:not(#mk-a) {
+  background: transparent;
+}
+.b1ref .mdlc.b1-janela:not(#mk-a) {
+  width: 680px;
+  height: auto;
+  max-width: 100%;
+  max-height: min(86vh, 720px);
+}
+.b1ref .b1-janela__corpo:not(#mk-a) {
+  gap: 12px;
+  padding: 14px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.b1-janela__nota {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #73726C;
+  overflow-wrap: anywhere;
+}
+.b1ref .b1-janela__rodape:not(#mk-a) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+/* Janela de revisão/confirmação (prévia e cancelamento do abastecimento): mais estreita. */
+.b1ref .mdlc.b1-janela.b1-janela--estreita:not(#mk-a) {
+  width: 560px;
+}
+/* Linhas "rótulo · valor" das janelas (prévia do abastecimento): rótulo 13px, valor 14px. */
+.b1-janela__linha {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid #F2F2EF;
+}
+.b1-janela__linha > dt {
+  color: #73726C;
+  font-size: 13px;
+}
+.b1-janela__linha > dd {
+  min-width: 0;
+  margin: 0;
+  color: #373733;
+  font-size: var(--mk-font-list, 14px);
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.b1-janela__rotulo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: #73726C;
+  font-size: 13px;
+}
+.b1-janela__ctl {
+  width: 100%;
+  min-width: 0;
+  min-height: 80px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #D1D0CA;
+  border-radius: 8px;
+  background: #fff;
+  color: #141413;
+  font: inherit;
+  font-size: var(--mk-font-field, 14px);
+  outline: none;
+  resize: vertical;
+}
+.b1-janela__ctl:focus {
+  border-color: #32d65e;
+  box-shadow: 0 0 0 3px rgba(50, 214, 94, 0.18);
+}
+/* Gerenciar tipos: a pesquisa e o filtro ficam parados; só a lista rola. */
+.b1ref .b1-gerenciar .b1-janela__corpo:not(#mk-a) {
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.b1-gerenciar__novo {
+  flex-shrink: 0;
+  padding: 12px;
+  border: 1px solid #ECEBE6;
+  border-radius: 12px;
+  background: #fff;
+}
+.b1-gerenciar__novo-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.b1-gerenciar__barra {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.b1-gerenciar__busca.mk-pill:not(#mk-a) {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 36px;
+  gap: 8px;
+  padding: 0 12px;
+  color: #A3A29C;
+}
+.b1-gerenciar__busca input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #141413;
+  font: inherit;
+  font-size: var(--mk-font-search, 14px);
+  outline: none;
+}
+.b1-gerenciar__busca input::-webkit-search-cancel-button {
+  display: none;
+}
+.b1-gerenciar__busca .xlim {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #73726C;
+  cursor: pointer;
+}
+.b1-gerenciar__novo-btn {
+  margin-left: auto;
+}
+.b1-gerenciar__rolagem {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 -18px;
+  padding: 0 18px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.b1-gerenciar__lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b1-gerenciar__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid #F2F2EF;
+}
+.b1-gerenciar__item:last-child {
+  border-bottom: 0;
+}
+.b1-gerenciar__txt {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.b1-gerenciar__nome {
+  margin: 0;
+  color: #373733;
+  font-size: var(--mk-font-list, 14px);
+  font-weight: 600;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.b1-gerenciar__dados {
+  margin: 2px 0 0;
+  color: #73726C;
+  font-size: 13px;
+}
+.b1-gerenciar__acoes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.b1-gerenciar__renomear {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.b1-gerenciar__campo {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid #D1D0CA;
+  border-radius: 8px;
+  background: #fff;
+  color: #141413;
+  font: inherit;
+  font-size: var(--mk-font-field, 14px);
+  text-transform: uppercase;
+  outline: none;
+}
+.b1-gerenciar__campo:focus {
+  border-color: #32d65e;
+  box-shadow: 0 0 0 3px rgba(50, 214, 94, 0.18);
+}
+.b1-gerenciar__aviso {
+  flex-basis: 100%;
+  margin: 0;
+  color: #92400e;
+  font-size: 13px;
+}
+.b1-gerenciar__aviso--erro {
+  color: #b91c1c;
+}
+.b1-gerenciar__estado {
+  margin: 0;
+  padding: 12px 0;
+  color: #73726C;
+  font-size: var(--mk-font-list, 14px);
+}
+.b1-gerenciar__estado--erro {
+  color: #b91c1c;
+}
+.b1-gerenciar__mais {
+  margin-top: 8px;
+}
+@media (max-width: 639px) {
+  .b1ref .mdlc.b1-janela:not(#mk-a) {
+    max-height: 92vh;
+  }
+  .b1-gerenciar__novo-btn {
+    margin-left: 0;
+  }
+}

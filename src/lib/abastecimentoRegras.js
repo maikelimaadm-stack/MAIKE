@@ -8,10 +8,15 @@
  * nada de `Number`/`parseFloat` em quantidade, leitura ou custo.
  *
  * D-PROD-162: o abastecimento baixa do estoque EXATAMENTE a quantidade
- * digitada, na unidade de estoque do Produto (`L` ou `KG`). Não existe fator
- * kg/L nem tipo de combustível: o Produto vem dos "Produtos aceitos" do tanque
- * (opção do servidor) e a tela só mostra a unidade dele. A capacidade do
- * tanque é em litros e só é conferida para Produto em `L`.
+ * digitada, na unidade de estoque do Produto. Não existe fator kg/L nem tipo
+ * de combustível: o Produto vem dos "Produtos aceitos" do tanque (opção do
+ * servidor) e a tela só mostra a unidade dele. A capacidade do tanque é em
+ * litros e só é conferida para Produto em `L`.
+ *
+ * D-PROD-169: o Produto pode estar em QUALQUER unidade de estoque (`L`, `KG`
+ * ou `SACO`). A quantidade é digitada na unidade EFETIVA do estoque: litros
+ * para `L`; quilos para `KG` e para `SACO` (o SACO guarda o estoque em kg). O
+ * abastecimento gravado continua com `unidade` `L` ou `KG` (SACO grava `KG`).
  *
  * O formulário guarda o texto DIGITADO no formato do Brasil ("80,5"); os
  * `montarCorpo*` convertem para o canônico com `lerNumeroLocal` (nunca
@@ -34,8 +39,16 @@ export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const MEDIDORES_CONTADOR = Object.freeze(['HORIMETRO', 'ODOMETRO', 'CICLOS']);
 export const STATUS_ABASTECIMENTO = Object.freeze(['CONFIRMADO', 'CANCELADO']);
 
-/** Unidades de estoque que o abastecimento aceita (D-PROD-162; `UNIDADES_ABASTECIMENTO` no servidor). */
+/**
+ * Unidade GRAVADA no abastecimento (`AbastecimentoBem.unidade`, a unidade
+ * efetiva do estoque; `UNIDADES_ABASTECIMENTO` no servidor): `L` ou `KG`.
+ */
 export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
+/**
+ * Unidades de estoque do PRODUTO que o abastecimento aceita (D-PROD-169):
+ * litros, quilos e sacos.
+ */
+export const UNIDADES_PRODUTO_ABASTECIMENTO = Object.freeze(['L', 'KG', 'SACO']);
 /** Rótulo curto da unidade (`L` / `kg`), o mesmo do servidor (`rotuloDaUnidade`). */
 export const ROTULO_UNIDADE_ABASTECIMENTO = Object.freeze(/** @type {Record<string, string>} */ ({ L: 'L', KG: 'kg' }));
 
@@ -45,11 +58,29 @@ export const ROTULO_UNIDADE_ABASTECIMENTO = Object.freeze(/** @type {Record<stri
  * Quantidade e de novo na Revisão.
  */
 export const DICA_PRODUTO_EM_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
+/** D-PROD-169: o Produto em sacos guarda o estoque em quilos — digita-se kg, não sacos. */
+export const DICA_PRODUTO_EM_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 
 /** @param {unknown} u @returns {u is 'L'|'KG'} */
 export const ehUnidadeDeAbastecimento = (u) => typeof u === 'string' && UNIDADES_ABASTECIMENTO.includes(u);
-/** "L" / "kg" (ou '' quando a unidade não é de abastecimento). @param {unknown} u */
-export const rotuloDaUnidade = (u) => (ehUnidadeDeAbastecimento(u) ? ROTULO_UNIDADE_ABASTECIMENTO[u] : '');
+/**
+ * Unidade em que a quantidade é digitada e baixada (a unidade EFETIVA do
+ * estoque): `L` → `L`; `KG` e `SACO` → `KG`; outra → null.
+ * @param {unknown} u @returns {'L'|'KG'|null}
+ */
+export const unidadeDoAbastecimentoDoProduto = (u) =>
+  typeof u === 'string' && UNIDADES_PRODUTO_ABASTECIMENTO.includes(u) ? (u === 'L' ? 'L' : 'KG') : null;
+/** "L" / "kg" (SACO → "kg"; '' quando a unidade não é de abastecimento). @param {unknown} u */
+export const rotuloDaUnidade = (u) => {
+  const efetiva = unidadeDoAbastecimentoDoProduto(u);
+  return efetiva ? ROTULO_UNIDADE_ABASTECIMENTO[efetiva] : '';
+};
+/**
+ * Dica sob a quantidade (e na Revisão) pela unidade de estoque do PRODUTO:
+ * KG → kg, não litros; SACO → kg, não sacos; L (ou desconhecida) → nenhuma.
+ * @param {unknown} u @returns {string|null}
+ */
+export const dicaDaUnidadeDoProduto = (u) => (u === 'KG' ? DICA_PRODUTO_EM_KG : u === 'SACO' ? DICA_PRODUTO_EM_SACO : null);
 
 /** @param {unknown} tipo */
 export const medidorExigeLeitura = (tipo) => typeof tipo === 'string' && MEDIDORES_CONTADOR.includes(tipo);
@@ -76,14 +107,14 @@ const MOTIVOS_SEM_BAIXA = new Set(['quantidade_nao_positiva', 'valor_excede_limi
 /**
  * Quantidade que a revisão mostra como baixa do estoque: a do plano (na
  * unidade do Produto), ou null quando o servidor bloqueou a quantidade ou o
- * Produto não está em L nem em KG (aí "baixa de 0 L" ao lado do bloqueio só
- * confunde: nada seria baixado). A unidade é `plano.unidade`.
+ * Produto não está em L, KG nem SACO (aí "baixa de 0 L" ao lado do bloqueio
+ * só confunde: nada seria baixado). A unidade é `plano.unidade`.
  * @param {{ plano?: any, bloqueios?: any[] } | null | undefined} previa
  * @returns {string|null}
  */
 export const quantidadeDaBaixaNaPrevia = (previa) => {
   const quantidade = previa?.plano?.quantidade;
-  if (!ehCanonico(quantidade) || !ehPositivo(quantidade) || !ehUnidadeDeAbastecimento(previa?.plano?.unidade)) return null;
+  if (!ehCanonico(quantidade) || !ehPositivo(quantidade) || !unidadeDoAbastecimentoDoProduto(previa?.plano?.unidade)) return null;
   const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
   const semBaixa = bloqueios.some((/** @type {any} */ b) => b?.code === 'OPERACAO_VALORES_INVALIDOS' && MOTIVOS_SEM_BAIXA.has(String(b?.reason ?? '')));
   return semBaixa ? null : /** @type {string} */ (quantidade);
@@ -168,11 +199,12 @@ export const tanqueDoFormulario = (form) => {
   return id ? (tanques.find((/** @type {any} */ t) => String(t?.id) === id) ?? null) : null;
 };
 
-/** Unidade de estoque do Produto do formulário (`L`/`KG`), ou null. @param {any} form @returns {'L'|'KG'|null} */
-export const unidadeDoFormulario = (form) => {
-  const u = form?.produto?.unidade_principal_estoque;
-  return ehUnidadeDeAbastecimento(u) ? u : null;
-};
+/**
+ * Unidade em que a quantidade do formulário é digitada (`L`/`KG`, a unidade
+ * EFETIVA do estoque do Produto: SACO → `KG`), ou null.
+ * @param {any} form @returns {'L'|'KG'|null}
+ */
+export const unidadeDoFormulario = (form) => unidadeDoAbastecimentoDoProduto(form?.produto?.unidade_principal_estoque);
 
 /** Tipo do medidor do bem escolhido (opção `bens`: `medidor.tipo`). @param {any} form */
 export const medidorDoFormulario = (form) => {
@@ -187,7 +219,7 @@ const mensagemDoNumero = (motivo) =>
 /**
  * Validação LOCAL (o servidor confere tudo de novo, sob trava). Mensagens em
  * pt-BR. A capacidade (em litros) só é conferida quando a unidade é `L`; a
- * unidade vem de `ctx.unidade` ou do Produto do formulário.
+ * unidade vem de `ctx.unidade` ou do Produto do formulário (SACO conta como kg).
  * @param {any} form
  * @param {{ hoje?: string|null, capacidadeLitros?: string|null, unidade?: string|null }} [ctx]
  * @returns {{ erros: Record<string, string> }}
@@ -205,7 +237,7 @@ export const validarFormulario = (form, ctx = {}) => {
   const dia = texto(form?.data_operacional);
   if (!ehDiaValido(dia)) erros.data_operacional = 'Informe a data do abastecimento.';
   else if (ctx.hoje && ehDiaValido(ctx.hoje) && dia > ctx.hoje) erros.data_operacional = 'A data não pode ser posterior a hoje na fazenda.';
-  const unidade = ctx.unidade === undefined ? unidadeDoFormulario(form) : ehUnidadeDeAbastecimento(ctx.unidade) ? ctx.unidade : null;
+  const unidade = ctx.unidade === undefined ? unidadeDoFormulario(form) : unidadeDoAbastecimentoDoProduto(ctx.unidade);
   const quantidade = lerNumeroLocal(form?.quantidade, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.QUANTIDADE);
   if (!quantidade.ok) erros.quantidade = quantidade.motivo === 'vazio' ? 'Informe a quantidade abastecida.' : mensagemDoNumero(String(quantidade.motivo));
   else if (!ehPositivo(/** @type {string} */ (quantidade.valor))) erros.quantidade = 'Informe uma quantidade maior que zero.';
@@ -293,7 +325,8 @@ export const formatarLitros = (v) => formatarNumero(v, { locale: LOCALE_ABASTECI
 export const formatarLitrosCurto = (v) => formatarNumero(v, { locale: LOCALE_ABASTECIMENTO, casasMin: 0, casasMax: 4 });
 /**
  * Quantidade na unidade do Produto, 4 casas fixas: ("120.0000", "L") →
- * "120,0000 L"; ("80.0000", "KG") → "80,0000 kg". Sem unidade conhecida, só o número.
+ * "120,0000 L"; ("80.0000", "KG") → "80,0000 kg" (SACO também em kg). Sem
+ * unidade conhecida, só o número.
  * @param {unknown} v @param {unknown} unidade
  */
 export const formatarQuantidade = (v, unidade) => {

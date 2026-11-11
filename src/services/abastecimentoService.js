@@ -4,7 +4,7 @@
  *
  * Abastecimento CONFIRMADO de um bem da EMPRESA: o Produto vem dos "Produtos
  * aceitos" do tanque e a baixa física FIFO do estoque é EXATAMENTE a
- * quantidade digitada, na unidade de estoque do Produto (L ou KG), sem fator
+ * quantidade digitada, na unidade de estoque do Produto (L ou KG; D-PROD-169: SACO em kg), sem fator
  * nem conversão. Nenhum lançamento financeiro é criado. Sem rascunho: a tela
  * pede a PRÉVIA (sem escrita) com o formulário e só então confirma.
  *
@@ -170,7 +170,7 @@ export const listarOpcoesAbastecimento = async (recurso, empresaId, opts = {}) =
 /**
  * Produtos que o operador escolhe para o bem (A16, D-PROD-160 revista pela
  * D-PROD-162): cada item é um PRODUTO aceito (ativo) por algum tanque ativo do
- * bem, ativo, da fazenda e em L ou KG, com os tanques que o aceitam; `resumo`
+ * bem, ativo, da fazenda e em L, KG ou SACO, com os tanques que o aceitam; `resumo`
  * é do conjunto inteiro (motivo quando não há opção). Sem empresa ou sem bem:
  * vazio, nada é lido.
  * @param {string|null} empresaId @param {string|null} bemId

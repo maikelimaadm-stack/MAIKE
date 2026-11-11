@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 /**
- * D-PROD-159 / D-PROD-162 — PROVA DE USO REAL ponta a ponta da tela
- * Abastecimentos (Patrimônio e Frota). Tela real + backend Fastify REAL +
+ * D-PROD-159 / D-PROD-162 / D-PROD-169 — PROVA DE USO REAL ponta a ponta da
+ * tela Abastecimentos (Patrimônio e Frota). Tela real + backend Fastify REAL +
  * Vite + PostgreSQL LOCAL, conduzidos pelo Playwright (Chromium já instalado;
  * nada é instalado); depois de cada passo confere o BANCO (Prisma).
  *
  * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01): sem tipo de combustível, sem
  * vínculo combustível × produto e sem fator kg/L. O tanque aceita Produtos
  * do estoque; o abastecimento baixa EXATAMENTE a quantidade digitada, na
- * unidade do Produto (L ou KG). O aceite humano do fluxo de cadastro (Produto
- * e Bem pela tela) está em `e2e-patrimonio-simplifica-real.mjs`; este roteiro
- * cobre a tela de Abastecimentos com a semente pela API real
- * (`e2e-abastecimentos-seed.mjs#semearAbastecimentoE2E`: Produtos em L e KG,
- * compras P3 em L e KG, bens com os Produtos aceitos).
+ * unidade de estoque do Produto. D-PROD-169 (MAIKE-PATRIMONIO-SIMPLIFICA-02):
+ * o tanque aceita Produto em QUALQUER unidade (L, KG ou SACO; o SACO guarda e
+ * abastece em kg) e o bem é cadastrado com "Tipo de bem" + "Tipo", sem
+ * família, área nem localização. O aceite humano do fluxo de cadastro (Produto
+ * e Bem pela tela, "Gerenciar tipos") está em
+ * `e2e-patrimonio-simplifica-real.mjs`; este roteiro cobre a tela de
+ * Abastecimentos com a semente pela API real
+ * (`e2e-abastecimentos-seed.mjs#semearAbastecimentoE2E`: Produtos em L, KG e
+ * SACO, compras P3 em L, KG e SACO, bens com `natureza` + `tipo_id` e os
+ * Produtos aceitos).
  *
  * Roteiro (em 1280, 820 e 390 px; cada largura num tenant próprio; "hoje" =
  * dia real no fuso da fazenda):
@@ -40,12 +45,18 @@
  *  7b. envio que NÃO chega → "Consultar" diz "não foi gravado" → "Repetir"
  *      com a resposta perdida → "Consultar" acha pela `operation_id`; UMA
  *      baixa só (10 L);
- *   8. troca do Produto aceito PELA TELA de Bens (A → B): no TP-02 tira o
- *      DIESEL S10 GRANEL e aceita o DIESEL S10 ESTOQUE NOVO → banco: o aceite
- *      antigo, que tem histórico, fica inativo (a linha é mantida); o novo
- *      ativo. Novo abastecimento oferece só o Produto novo (20 L, baixa só nos
- *      lotes dele); a consulta do abastecimento antigo ainda mostra o Produto
- *      antigo e o cancelamento dele devolve exatamente aos lotes antigos;
+ *   8. troca do Produto aceito PELA TELA de Bens (A → B): a edição do TP-02 não
+ *      tem Família, Área nem Localização e o "Tipo de bem" fica travado; tira o
+ *      DIESEL S10 GRANEL e aceita o DIESEL S10 ESTOQUE NOVO → o PATCH não leva
+ *      `familia_id`, `natureza`, `area_id` nem `localizacao_descricao`; banco:
+ *      o aceite antigo, que tem histórico, fica inativo (a linha é mantida); o
+ *      novo ativo. Novo abastecimento oferece só o Produto novo (20 L, baixa só
+ *      nos lotes dele); a consulta do abastecimento antigo ainda mostra o
+ *      Produto antigo e o cancelamento dele devolve exatamente aos lotes antigos;
+ *  8b. Produto em SACO (TP-03 aceita o Produto em KG e a UREIA em SACO): os dois
+ *      aparecem para escolher; a UREIA abastece em kg (dica de sacos), 140 kg
+ *      num tanque de 120 L sem conferir capacidade → baixa EXATA de 140 kg (lote
+ *      110 kg, não 140 sacos) e o cancelamento devolve exatamente 140 kg;
  *   9. usuário só com `visualizar`: vê lista e consulta, nenhum botão de
  *      ação; a API real recusa 403 os comandos e nada muda no banco; as rotas
  *      de fator e de combustível removidas respondem 404 e o corpo antigo
@@ -57,7 +68,7 @@
  *  grade sem rolagem horizontal.
  *
  * Uso:
- *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_simp_e2e2?host=/tmp \
+ *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_s2_e2e2?host=/tmp \
  *     node scripts/dev/e2e-abastecimentos-real.mjs [pasta-das-capturas]
  * Variáveis opcionais: E2E_API_PORT (3952), E2E_WEB_PORT (5252),
  * E2E_LARGURAS ("1280,820,390"). O banco precisa estar migrado
@@ -88,6 +99,7 @@ const E = criarEnsaio({
 const { WEB, conferir, exigir, igual, esperarBanco } = E;
 const FIFO = VETOR_FIFO;
 const COLUNAS_PADRAO = 'Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação';
+const DICA_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 const TEXTO_TANQUE_SEM_PRODUTO = 'Os tanques deste bem não têm Produto aceito. Marque os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.';
 /** Texto da tela normalizado (o Intl põe espaço não separável em "R$ 425,00"). @param {string} t */
 const texto = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
@@ -526,6 +538,18 @@ const executarLargura = async (browser, largura) => {
       const form = visivel(page.getByTestId('b1-form'));
       await form.waitFor();
       await clicar(page.getByRole('button', { name: 'Editar', exact: true }));
+      // D-PROD-169: sem Família, Área nem Localização; o "Tipo de bem" não muda depois de gravado.
+      for (const re of [/^Fam[íi]lia/, /^[ÁA]rea/, /^Localiza/, /^Natureza/]) {
+        igual(await form.getByLabel(re).filter({ visible: true }).count(), 0, `[${rotulo}] edição do bem: campo ${re.source} presente`);
+      }
+      const tipoDeBem = visivel(form.getByRole('combobox', { name: /^Tipo de bem/ }));
+      igual(`${texto(await tipoDeBem.innerText()).toUpperCase()}:${await tipoDeBem.isDisabled()}`, 'MÁQUINA:true', `[${rotulo}] edição do bem: Tipo de bem travado`);
+      conferir(/TRATOR DE PNEUS/i.test(texto(await visivel(form.getByTestId('bem-seletor-tipo')).innerText())), `[${rotulo}] edição do bem: Tipo`);
+      const patches = [];
+      const ouvirPatch = (req) => {
+        if (req.method() === 'PATCH' && new URL(req.url()).pathname === `/api/native/bens-patrimoniais/${s.trator.id}`) patches.push(JSON.parse(req.postData() || '{}'));
+      };
+      page.on('request', ouvirPatch);
       await clicar(page.getByRole('tab', { name: 'Operação' }));
       await visivel(page.getByTestId(`bem-tanque-0-produto-${s.produto.id}`)).waitFor();
       await clicar(page.getByRole('button', { name: /^Tirar DIESEL S10 GRANEL dos Produtos aceitos do tanque/ }));
@@ -537,6 +561,10 @@ const executarLargura = async (browser, largura) => {
       await shot('troca-aceite');
       await clicar(page.getByRole('button', { name: 'Salvar', exact: true }));
       conferir(await esperarAviso('Bem patrimonial atualizado', 15000), `[${rotulo}] aviso "Bem patrimonial atualizado" ausente`);
+      page.off('request', ouvirPatch);
+      igual(patches.length, 1, `[${rotulo}] PATCH do bem enviados`);
+      const proibidos = ['familia_id', 'natureza', 'area_id', 'localizacao_descricao'].filter((k) => Object.prototype.hasOwnProperty.call(patches[0] ?? {}, k));
+      igual(proibidos.join(', '), '', `[${rotulo}] o PATCH do bem levou campo que saiu da tela`);
       await esperarBanco(
         async () => (await aceitesDe(s, s.trator.tanque_id)).some((a) => a.produto_id === s.produtoNovo.id && a.ativo),
         'aceite do Produto novo gravado',
@@ -585,9 +613,62 @@ const executarLargura = async (browser, largura) => {
       await shot('cancelado-depois-da-troca');
     });
 
+    await passo('8b Produto em SACO no TP-03: escolha entre 2 Produtos, kg, baixa e estorno exatos', async () => {
+      const bemKgAntes = await bemCru(s, s.tratorKg.id);
+      await dono.irParaLista();
+      await clicar(page.getByRole('button', { name: 'Novo abastecimento' }));
+      const form = visivel(page.getByTestId('abastecimento-form'));
+      await form.waitFor();
+      await escolher(form, 'abastecimento-bem', /TP-03/);
+      const radios = page.getByTestId('abastecimento-produto').getByRole('radio').filter({ visible: true });
+      await radios.first().waitFor();
+      igual((await radios.allInnerTexts()).map(texto).sort().join(' | '), 'DIESEL S500 GRANEL | UREIA GRANULADA', `[${rotulo}] Produtos aceitos oferecidos para o TP-03 (KG e SACO)`);
+      await clicar(page.getByTestId('abastecimento-produto').getByRole('radio', { name: 'UREIA GRANULADA', exact: true }));
+      await visivel(page.getByTestId('abastecimento-local-auto').filter({ hasText: 'Sai do estoque: DEPÓSITO DE GRANEL' })).waitFor();
+      conferir(await visivel(form.getByText('Quantidade abastecida (kg)')).isVisible().catch(() => false), `[${rotulo}] campo "Quantidade abastecida (kg)" ausente para Produto em SACO`);
+      igual(texto(await visivel(page.getByTestId('abastecimento-dica-kg')).innerText()), DICA_SACO, `[${rotulo}] dica do Produto em sacos`);
+      await preencher('abastecimento-quantidade', '140');
+      await preencher('abastecimento-leitura', '805');
+      await shot('formulario-saco');
+      const antes = await fotoBanco(s);
+      await pedirPrevia();
+      igual(texto(await visivel(page.getByTestId('previa-baixa')).innerText()), '140,0000 kg', `[${rotulo}] revisão SACO: baixa em kg`);
+      await abrirDetalhesDoEstoque();
+      conferir(texto(await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('não conferida (Produto em quilos'), `[${rotulo}] revisão SACO: capacidade conferida`);
+      const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
+      conferir(custo.includes('R$ 560,00') && custo.includes('R$ 4,00/kg'), `[${rotulo}] revisão SACO: custo ${custo}`);
+      igual(await page.getByTestId('previa-bloqueios').count(), 0, `[${rotulo}] revisão SACO com bloqueio`);
+      igual(await fotoBanco(s), antes, `[${rotulo}] a revisão SACO gravou algo`);
+      await shot('previa-saco');
+      await clicar(page.getByTestId('abastecimento-confirmar'));
+      await visivel(page.getByTestId('abastecimento-consulta')).waitFor({ timeout: 30000 });
+      conferir(await esperarAviso(/confirmado: 140,0000 kg baixados do estoque\./), `[${rotulo}] aviso de confirmação SACO ausente`);
+      const ab = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, produto_id: s.produtoSaco.id, status: 'CONFIRMADO' } }), 'abastecimento SACO');
+      igual(`${dec(ab.quantidade)}:${ab.unidade}:${dec(ab.custo_total)}:${dec(ab.custo_unitario)}`, '140.0000:KG:560.0000:4.0000', `[${rotulo}] abastecimento SACO no banco`);
+      const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: ab.movimentacao_estoque_id } });
+      igual(`${mov.tipo_movimentacao}:${mov.unidade_medida}:${dec(mov.quantidade)}`, 'Saída:KG:140.0000', `[${rotulo}] saída do Produto em SACO`);
+      igual(await lotesDe(s, s.produtoSaco.id), '110.0000:Disponivel', `[${rotulo}] lote do Produto em SACO após a baixa exata`);
+      igual(await estoqueDe(s, s.produtoSaco.id), '110.0000', `[${rotulo}] estoque_atual do Produto em SACO após a baixa`);
+      igual(await lotesDe(s, s.produtoKg.id), '200.0000:Disponivel', `[${rotulo}] o Produto em KG foi tocado`);
+      await clicar(page.getByTestId('abastecimento-cancelar'));
+      await visivel(page.getByTestId('dialogo-cancelamento-abastecimento')).waitFor();
+      await visivel(page.getByTestId('cancelamento-motivo')).fill('Produto errado no lançamento');
+      await visivel(page.getByTestId('cancelamento-ciente')).check();
+      await visivel(page.getByTestId('cancelamento-enviar')).click();
+      conferir(await esperarAviso(/cancelado: 140,0000 kg devolvidos aos lotes de origem\./, 15000), `[${rotulo}] aviso do cancelamento SACO ausente`);
+      const cancelado = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, id: ab.id, status: 'CANCELADO' } }), 'abastecimento SACO cancelado');
+      const est = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: cancelado.movimentacao_estorno_id } });
+      igual(`${est?.tipo_movimentacao}:${est?.unidade_medida}:${dec(est?.quantidade)}:${dec(est?.valor_total)}`, 'Entrada:KG:140.0000:560.0000', `[${rotulo}] estorno do Produto em SACO`);
+      igual(await lotesDe(s, s.produtoSaco.id), '250.0000:Disponivel', `[${rotulo}] lote do Produto em SACO após o estorno exato`);
+      igual(await estoqueDe(s, s.produtoSaco.id), '250.0000', `[${rotulo}] estoque_atual do Produto em SACO após o estorno`);
+      igual(await bemCru(s, s.tratorKg.id), bemKgAntes, `[${rotulo}] o abastecimento SACO alterou o TP-03`);
+      reg.saco = { id: ab.id, frota: 'TP-03', produto: 'UREIA GRANULADA', quantidade: '140,0000 kg', situacao: 'Cancelado' };
+      await shot('cancelado-saco');
+    });
+
     await passo('9 usuário só visualizar: sem botões na tela, 403 na API; rotas removidas 404; corpo antigo 400', async () => {
       const vis = await abrirAtor('vis', tokenVis);
-      await vis.conferirLista([reg.quarto, reg.segundo, { ...reg.primeiro }, reg.terceiro], 'lista');
+      await vis.conferirLista([reg.saco, reg.quarto, reg.segundo, { ...reg.primeiro }, reg.terceiro], 'lista');
       igual(await vis.page.getByRole('button', { name: 'Novo abastecimento' }).filter({ visible: true }).count(), 0, `[${rotulo}] só-visualizar vê "Novo abastecimento"`);
       igual(await vis.page.getByTestId('abastecimento-fatores').count(), 0, `[${rotulo}] só-visualizar vê "Fatores kg/L"`);
       await vis.abrirNaLista(reg.segundo);
@@ -646,4 +727,4 @@ try {
   await E.encerrarProcessos();
   await closePrismaClient();
 }
-process.exit(E.concluir('OK: tela real + backend real + PostgreSQL local sem divergências.'));
+process.exit(E.concluir('OK: D-PROD-169 — abastecimento em L (capacidade), KG e SACO (kg, sem capacidade) com baixa e estorno exatos, troca de aceite pela edição do bem sem Família/Área/Localização; tela real + backend real + PostgreSQL local sem divergências.'));

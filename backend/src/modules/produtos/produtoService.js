@@ -150,8 +150,12 @@ const camposDe = (entrada) => {
   return saida;
 };
 
-/** D-PROD-162: unidades de estoque que um tanque do Patrimônio aceita (e o abastecimento baixa). */
-const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG']);
+/**
+ * D-PROD-162 / D-PROD-169: unidades de estoque que um tanque do Patrimônio
+ * aceita — qualquer unidade do cadastro (L, KG ou SACO; SACO abastece em kg).
+ * Espelho de `UNIDADES_PRODUTO_TANQUE` (patrimonio/patrimonioDominio.js).
+ */
+const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
 
 /**
  * D-PROD-162 (achado D1): o aceite que VALE — ativo, num tanque ativo de um bem
@@ -175,7 +179,7 @@ const tanquesQueAceitam = async (tx, clienteId, produtoId) => {
 
 const unidadeEmUso = (id, de, para, reason, extra = {}) =>
   new AppError('PRODUTO_UNIDADE_EM_USO', reason === 'aceito_em_tanque'
-    ? 'produto aceito em tanque de bem patrimonial só usa estoque em L ou KG; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens antes; nada foi gravado'
+    ? 'produto aceito em tanque de bem patrimonial só usa estoque em L, KG ou SACO; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens antes; nada foi gravado'
     : 'a unidade de estoque não muda de ou para litros (L) num produto com estoque, lotes, movimentos ou lançamentos; cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”; nada foi gravado', {
     details: { field: 'unidade_principal_estoque', reason, id, de, para, ...extra },
   });
@@ -185,8 +189,10 @@ const unidadeEmUso = (id, de, para, reason, extra = {}) =>
  *  - envolvendo `L` (de L ou para L): só sem histórico — `estoque` (≠ 0) →
  *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da
  *    Gestão P3, rascunho inclusive), nessa ordem;
- *  - unidade nova fora de {L, KG} com aceite que vale → `aceito_em_tanque`;
- *  - KG ↔ SACO sem tanque: como antes (P-08).
+ *  - unidade nova fora de {L, KG, SACO} com aceite que vale → `aceito_em_tanque`
+ *    (D-PROD-169: SACO entrou; KG ↔ SACO de Produto aceito em tanque passa —
+ *    a unidade EFETIVA do estoque continua kg);
+ *  - KG ↔ SACO: como antes (P-08), com ou sem tanque.
  * Corre com a linha do Produto já travada (advisory de estoque + FOR UPDATE).
  */
 const conferirTrocaDeUnidade = async (tx, clienteId, anterior, para) => {

@@ -1,65 +1,70 @@
 #!/usr/bin/env node
 /**
- * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) — ACEITE HUMANO da missão em
- * navegador real: tela real + backend Fastify REAL + Vite + PostgreSQL LOCAL;
- * conduz as telas pelo Playwright (Chromium já instalado; nada é instalado) e
- * confere o BANCO (Prisma) depois de cada passo. Substitui o E2E-2 da UX-02
- * (`e2e-abastecimentos-ux02-real.mjs`, cujos passos de Combustíveis e de fator
- * kg/L perderam o objeto).
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01) e D-PROD-169
+ * (MAIKE-PATRIMONIO-SIMPLIFICA-02) — ACEITE HUMANO em navegador real: tela
+ * real + backend Fastify REAL + Vite + PostgreSQL LOCAL; conduz as telas pelo
+ * Playwright (Chromium já instalado; nada é instalado) e confere o BANCO
+ * (Prisma) depois de cada passo.
  *
- * "No cadastro de Produto crio o Diesel S10 em Litros; no cadastro do Bem crio
- *  a família e o tipo pelo '+ Novo', cadastro o Trator com o tanque e marco o
- *  Produto aceito; abasteço 80 L e o estoque baixa exatamente 80 L, FIFO. Um
- *  Produto em quilos também pode ser aceito num tanque, e então digito kg.
- *  O menu de Patrimônio e Frota só tem Bens Patrimoniais e Abastecimentos."
+ * "No cadastro de Produto crio o Diesel S10 em Litros, o Diesel S500 em quilos
+ *  e a Ureia em SACOS; no cadastro do Bem escolho o Tipo de bem (Máquina) e o
+ *  Tipo — ou crio um tipo novo pelo '+ Novo tipo' —, sem família, área nem
+ *  localização; o tanque aceita Produto em qualquer unidade. Em '⋯ › Gerenciar
+ *  tipos' vejo a lista, renomeio, excluo um tipo que ninguém usa e não consigo
+ *  excluir um tipo em uso. Abasteço 80 L (capacidade conferida) e 150 kg de
+ *  Ureia (Produto em sacos: digito kg; a capacidade em litros não é conferida)
+ *  e o estoque baixa exatamente o que digitei; o cancelamento devolve
+ *  exatamente o mesmo."
  *
  * Roteiro (em 1280, 820 e 390 px; cada largura num tenant próprio semeado
  * pelo BANCO por `e2e-abastecimentos-seed.mjs#semearBancoBase` — SEM Produto,
  * SEM família/tipo e SEM bem; "hoje" = dia real no fuso da fazenda):
  *   1. menu "Patrimônio e Frota" com exatamente Bens Patrimoniais e
- *      Abastecimentos (topo no desktop; "Módulos" no tablet/celular); nenhum
- *      link para Famílias, Tipos, Perfis de medição ou Combustíveis; as rotas
- *      removidas (minúsculas e PascalCase) caem em "Página não encontrada";
- *   2. Produtos PELA TELA: "Diesel S10" com estoque em LITROS (L) e unidade de
- *      medida L (sem o aviso de unidade); "Diesel S500 granel" em QUILOS (KG)
- *      — escolher LITROS com unidade de medida KG mostra o aviso (achado D5) e
- *      voltar a KG o tira. Banco: `unidade_principal_estoque` L e KG;
- *   3. compras P3 pela API real (o estoque em litros só entra assim): 50 L a
- *      5,2000/L e 100 L a 5,5000/L (vetor `fifo`); 200 kg a 4,1000/kg. Banco:
- *      lotes, movimentos rotulados `L`/`KG` e `estoque_atual` 150 / 200;
- *   4. Bens PELA TELA: novo bem → "+ Nova família" (Nome da busca + Natureza
- *      Máquina; sem código) → "+ Novo tipo" (família travada) → Trator TP-02
- *      com horímetro e um tanque de 180 L → "Aceitar Produto" → Diesel S10
- *      (selo L). Banco: família MAQUINA com código gerado, tipo, bem, tanque e
- *      UM `TanqueBemProduto` ativo com o Diesel S10;
- *   5. segundo bem PELA TELA (Trator TP-03, a família e o tipo já existentes)
- *      com tanque de 120 L aceitando o Produto em KG (filtro "Quilos") → aviso
- *      "no abastecimento digita-se kg". Banco: aceite do Produto KG;
- *  5b. "⋯ › Gerenciar famílias e tipos" (e "Instalar catálogo padrão" para o
- *      administrador) dentro de Bens: a família e o tipo criados aparecem, sem
- *      nada de perfis ou combustível, e as listas cabem no diálogo (as ações
- *      Editar/Inativar sem arrastar a lista para o lado, também a 390 px);
- *   6. Abastecimentos: lista vazia, sem "Fatores kg/L" nem nada de combustível;
- *   7. novo abastecimento TP-02 → Diesel S10 já marcado → local automático →
- *      "Quantidade abastecida (L)" 80 → horímetro 1.550,5 → tanque cheio →
- *      "Revisar abastecimento": baixa de 80,0000 L, capacidade conferida,
- *      custo estimado R$ 425,00 (R$ 5,3125/L) em 2 lotes FIFO; nada gravado;
- *   8. confirmar → banco: quantidade 80, unidade L, custo FIFO 425,0000 e
- *      5,3125/L, Saída rotulada `L` de 80, 2 fatias (50 + 30), lotes 0 / 70,
- *      `estoque_atual` 70; o bem não muda; nenhum lançamento financeiro novo;
- *   9. lista (colunas Data | Máquina/Veículo | Produto | Quantidade | Medidor
- *      | Situação; cards no celular) e consulta (80,0000 L; R$ 425,00 por L) →
- *      cancelar (motivo + ciência) → banco: CANCELADO versão 2, Entrada de
- *      estorno de 80 L e 425,0000, lotes 50 / 100, `estoque_atual` 150;
- *  10. abastecimento do TP-03 em KG: "Quantidade abastecida (kg)" com a dica
- *      fixa (formulário e revisão), capacidade NÃO conferida, 35 kg → banco:
- *      unidade KG, Saída rotulada `KG` de 35, lote 165, `estoque_atual` 165;
- *  11. lista final: o 80,0000 L Cancelado e o 35,0000 kg Confirmado.
+ *      Abastecimentos; nenhum link para Famílias, Tipos, Perfis de medição ou
+ *      Combustíveis; as rotas removidas caem em "Página não encontrada";
+ *   2. Produtos PELA TELA: "Diesel S10" em LITROS (L), "Diesel S500 granel" em
+ *      QUILOS (KG, com o aviso de litros ao trocar) e "Ureia granulada" em
+ *      SACOS (peso por saco 50 kg). Banco: `unidade_principal_estoque` L, KG,
+ *      SACO e o peso do saco;
+ *   3. compras P3 pela API real: 50 L + 100 L (vetor `fifo`), 200 kg e 5 sacos
+ *      (= 250 kg a R$ 4,0000/kg). Banco: lotes e `estoque_atual` 150 / 200 / 250;
+ *   4. Bem PELA TELA: sem "Família", "Área" nem "Localização"; o Tipo fica
+ *      bloqueado até escolher o "Tipo de bem" (Máquina); os tipos oferecidos são
+ *      só os de Máquina (o catálogo padrão garantido pelo servidor, sem botão);
+ *      "+ Novo tipo" (Tipo de bem travado) → "Trator cafeeiro" → Trator TP-02
+ *      com horímetro e tanque de 180 L aceitando o Diesel S10 (selo L). Banco:
+ *      as 6 famílias padrão, o tipo novo na família padrão MAQUINAS, o bem com
+ *      natureza MAQUINA, sem área/localização, e o aceite;
+ *   5. segundo bem (TP-03, tipo padrão "Trator de pneus") com tanque de 120 L
+ *      aceitando o Produto em KG e o Produto em SACO (filtro "Sacos", selo
+ *      "kg · saco", aviso de kg, texto novo da regra). Banco: 2 aceites;
+ *  5b. lista de Bens com a coluna "Tipo de bem" e sem "Família"; consulta do
+ *      bem sem Família/Área/Localização e com o Tipo de bem travado;
+ *  5c. "⋯ › Gerenciar tipos" (sem família e sem "Instalar catálogo padrão"):
+ *      lista com Tipo de bem e bens em uso, filtro por Tipo de bem, renomear
+ *      (PATCH com versão), excluir um tipo livre (DELETE → some do banco) e
+ *      tentar excluir um tipo em uso (409 → "Este tipo está em uso por 1
+ *      bem(ns). Troque o tipo desses bens antes de excluir.", nada apagado);
+ *   6. Abastecimentos: lista vazia, sem "Fatores kg/L" nem combustível;
+ *   7. TP-02 em L: 181 L num tanque de 180 L é barrado na tela (capacidade
+ *      conferida para Produto em litros); 80 L → revisão: baixa de 80,0000 L,
+ *      capacidade conferida, custo FIFO R$ 425,00 em 2 lotes; nada gravado;
+ *   8. confirmar → banco: 80 L, unidade L, FIFO exato, `estoque_atual` 70;
+ *   9. lista e consulta → cancelar → estorno exato de 80 L (`estoque_atual` 150);
+ *  10. TP-03 com Produto em SACO: escolhe a Ureia entre os 2 Produtos aceitos,
+ *      "Quantidade abastecida (kg)" com a dica de sacos, 150 kg num tanque de
+ *      120 L (capacidade NÃO conferida) → revisão em kg (R$ 600,00, R$ 4,0000/kg)
+ *      → confirmar → banco: unidade KG, baixa EXATA de 150 kg (não 150 sacos),
+ *      lote 100, `estoque_atual` 100 → cancelar → estorno EXATO de 150 kg
+ *      (lote 250, `estoque_atual` 250);
+ *  11. TP-03 com Produto em KG: 35 kg → banco: unidade KG, lote 165;
+ *  12. lista final: 80,0000 L e 150,0000 kg Cancelados; 35,0000 kg Confirmado.
  *  Em TODA captura: sem rolagem horizontal da página. Toda resposta ≥ 400 da
- *  API real observada pelas telas é divergência.
+ *  API real observada pelas telas é divergência, salvo a recusa esperada da
+ *  exclusão do tipo em uso (409 `PATRIMONIO_TIPO_EM_USO`).
  *
  * Uso:
- *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_simp_e2e1?host=/tmp \
+ *   DATABASE_URL=postgresql://postgres@localhost:5433/maike_s2_e2e1?host=/tmp \
  *     node scripts/dev/e2e-patrimonio-simplifica-real.mjs [pasta-das-capturas]
  * Variáveis opcionais: E2E_API_PORT (3951), E2E_WEB_PORT (5251),
  * E2E_LARGURAS ("1280,820,390"). O banco precisa estar migrado
@@ -69,7 +74,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { COMPRA_KG, VETOR_FIFO, comprarDieselEmLitros, comprarPelaP3, definirPerfilFinanceiro, semearBancoBase, somarDias } from './e2e-abastecimentos-seed.mjs';
+import { COMPRA_KG, COMPRA_SACO, VETOR_FIFO, comprarDieselEmLitros, comprarPelaP3, definirPerfilFinanceiro, semearBancoBase, somarDias } from './e2e-abastecimentos-seed.mjs';
 import { Divergencia, carregarChromium, criarEnsaio, dec } from './e2e-patrimonio-comum.mjs';
 
 const chromium = await carregarChromium();
@@ -96,9 +101,16 @@ const prisma = getPrismaClient();
 
 /** Rotas das telas removidas pela D-PROD-162 (minúsculas = `createPageUrl`; PascalCase = links antigos). */
 const TELAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
-const AVISO_KG_TANQUE = 'Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.';
+/** D-PROD-169: aviso do tanque para Produto em KG ou SACO (estoque em kg). */
+const AVISO_KG_TANQUE = 'Produto em quilos ou em sacos tem estoque em quilos: no abastecimento digita-se kg, não sacos nem os litros da bomba.';
+/** D-PROD-169: a regra dos Produtos aceitos, na tela do tanque. */
+const NOTA_PRODUTOS_ACEITOS =
+  'Os Produtos aceitos vêm do estoque desta fazenda, em qualquer unidade (litros, quilos ou sacos). O abastecimento baixa do estoque exatamente a quantidade digitada, na unidade de estoque do Produto (litros para L; quilos para KG e SACO); a capacidade do tanque só é conferida para Produto em litros.';
 const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
+const DICA_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 const COLUNAS_PADRAO = 'Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação';
+/** Códigos das 6 famílias padrão (uma por natureza) que o servidor garante sozinho (D-PROD-169). */
+const FAMILIAS_PADRAO = 'BENFEITORIAS:BENFEITORIA|EQUIPAMENTOS:EQUIPAMENTO|IMPLEMENTOS:IMPLEMENTO|MAQUINAS:MAQUINA|OUTROS:OUTRO|VEICULOS:VEICULO';
 /** Texto da tela normalizado (o Intl põe espaço não separável em "R$ 425,00"). @param {string} t */
 const texto = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
 
@@ -127,6 +139,11 @@ const bemCru = async (s, bemId) => {
   const b = await prisma.bemPatrimonial.findFirst({ where: { cliente_id: s.cliente_id, id: bemId } });
   return `${b.versao}:${b.medidor_tipo}:${dec(b.medidor_leitura_atual)}:${b.medidor_origem}:${String(b.medidor_data_leitura?.toISOString?.() ?? b.medidor_data_leitura)}:${b.updatedAt?.toISOString?.() ?? ''}`;
 };
+/** Famílias do tenant (código:natureza), em ordem de código. */
+const familiasDe = async (s) =>
+  (await prisma.familiaPatrimonial.findMany({ where: { cliente_id: s.cliente_id }, orderBy: { codigo: 'asc' }, select: { codigo: true, natureza: true } }))
+    .map((f) => `${f.codigo}:${f.natureza}`)
+    .join('|');
 
 // ─── Roteiro por largura ────────────────────────────────────────────────────
 const executarLargura = async (browser, largura) => {
@@ -167,7 +184,7 @@ const executarLargura = async (browser, largura) => {
 
   /**
    * Cadastro de Produto PELA TELA. Devolve a linha gravada.
-   * @param {{ nome: string, codigo: string, unidadeMedida: RegExp, local: RegExp, estoque: 'L'|'KG', conferirAviso?: boolean }} p
+   * @param {{ nome: string, codigo: string, unidadeMedida: RegExp, local: RegExp, estoque: 'L'|'KG'|'SACO', siglaMedida: string, pesoSaco?: string, conferirAviso?: boolean }} p
    */
   const cadastrarProduto = async (p) => {
     await ir('produtos');
@@ -191,7 +208,13 @@ const executarLargura = async (browser, largura) => {
       igual(await page.getByTestId('aviso-unidade-litros').filter({ visible: true }).count(), 0, `[${rotulo}] Produto: aviso de litros continua com KG`);
     }
     if (p.estoque === 'L') await escolherNoCombo(combo, 'LITROS (L)');
-    igual((await visivel(combo).innerText()).trim(), p.estoque === 'L' ? 'LITROS (L)' : 'QUILOGRAMAS (KG)', `[${rotulo}] Produto ${p.nome}: unidade principal de estoque na tela`);
+    if (p.estoque === 'SACO') {
+      await escolherNoCombo(combo, 'SACOS');
+      // Máscara de centavos do campo: "5000" = 50,00 kg por saco.
+      await preencher(form.getByLabel(/^Peso por saco/), String(p.pesoSaco ?? '5000'));
+    }
+    const rotuloEstoque = { L: 'LITROS (L)', KG: 'QUILOGRAMAS (KG)', SACO: 'SACOS' }[p.estoque];
+    igual((await visivel(combo).innerText()).trim(), rotuloEstoque, `[${rotulo}] Produto ${p.nome}: unidade principal de estoque na tela`);
     if (p.estoque === 'L') igual(await page.getByTestId('aviso-unidade-litros').filter({ visible: true }).count(), 0, `[${rotulo}] Produto em L com unidade L: aviso indevido`);
     await shot(`produto-${p.codigo.toLowerCase()}`);
     await clicar(botao('Salvar'));
@@ -201,23 +224,24 @@ const executarLargura = async (browser, largura) => {
       `Produto ${p.nome} gravado`,
     );
     igual(
-      `${linha.nome_produto.toUpperCase()}:${linha.unidade_principal_estoque}:${linha.unidade_medida}:${linha.empresa_id === s.empresa.id}:${linha.ativo}:${dec(linha.estoque_atual)}`,
-      `${p.nome.toUpperCase()}:${p.estoque}:${p.estoque}:true:true:0.0000`,
+      `${linha.nome_produto.toUpperCase()}:${linha.unidade_principal_estoque}:${linha.unidade_medida}:${linha.empresa_id === s.empresa.id}:${linha.ativo}:${dec(linha.estoque_atual)}:${dec(linha.peso_por_saco_kg)}`,
+      `${p.nome.toUpperCase()}:${p.estoque}:${p.siglaMedida}:true:true:0.0000:${p.estoque === 'SACO' ? '50.0000' : null}`,
       `[${rotulo}] Produto ${p.nome} no banco`,
     );
     return linha;
   };
 
-  /** Painel do seletor de família/tipo do Bem: busca e "+ Nova…". */
-  const pedirCadastroRapido = async (form, testId, busca, titulo) => {
-    await clicar(form.getByTestId(testId));
-    const painel = visivel(page.getByTestId(`${testId}-painel`));
-    await painel.waitFor();
-    await painel.getByRole('searchbox').fill(busca);
-    await clicar(page.getByTestId(`${testId}-criar-novo`));
-    const folha = visivel(page.getByRole('dialog', { name: titulo }));
-    await folha.waitFor();
-    return folha;
+  /** Escolhe o "Tipo de bem" (CampoSelect) no formulário do Bem. */
+  const escolherTipoDeBem = async (form, nome) => {
+    await escolherNoCombo(form.getByRole('combobox', { name: /^Tipo de bem/ }), nome);
+    await page.getByTestId('bem-escolha-tipo-de-bem').filter({ visible: true }).waitFor({ state: 'detached' }).catch(() => {});
+  };
+  /** O formulário do Bem não tem Família, Área nem Localização (D-PROD-169). */
+  const conferirSemCamposAntigos = async (form, onde) => {
+    for (const re of [/^Fam[íi]lia/, /^[ÁA]rea/, /^Localiza/, /^Natureza/]) {
+      igual(await form.getByLabel(re).filter({ visible: true }).count(), 0, `[${rotulo}] ${onde}: campo ${re.source} presente`);
+    }
+    igual(await form.getByText(/fam[íi]lia/i).filter({ visible: true }).count(), 0, `[${rotulo}] ${onde}: fala de família`);
   };
   /** Medidor horímetro + leitura inicial na aba Operação. */
   const preencherMedidor = async (form, leitura) => {
@@ -226,7 +250,29 @@ const executarLargura = async (browser, largura) => {
     await preencher('bem-medidor-leitura-inicial', leitura);
     await preencher('bem-medidor-data', somarDias(s.hoje, -10));
   };
-  /** Tanque novo na aba Operação (índice 0) com o Produto aceito. */
+  /**
+   * Aceita um Produto no tanque 0 pelo seletor (com filtro de unidade opcional).
+   * @param {{ produto: RegExp, produtoId: string, selo: string, filtro?: string, seloFiltro?: string }} t
+   */
+  const aceitarProduto = async (tanque, t) => {
+    if (t.filtro) await escolherNoCombo(tanque.getByRole('combobox', { name: 'Unidade' }), t.filtro);
+    await clicar(tanque.getByTestId('bem-tanque-seletor-produto-0'));
+    const painel = visivel(page.getByTestId('bem-tanque-seletor-produto-0-painel'));
+    await painel.waitFor();
+    const opcao = painel.getByRole('option', { name: t.produto });
+    await opcao.first().waitFor();
+    const textoOpcao = texto(await opcao.first().innerText());
+    conferir(textoOpcao.includes(t.selo), `[${rotulo}] opção do Produto aceito sem o selo "${t.selo}" (${textoOpcao})`);
+    if (t.filtro) {
+      const todas = (await painel.getByRole('option').allInnerTexts()).map(texto);
+      conferir(todas.length > 0 && todas.every((x) => x.includes(t.seloFiltro ?? t.selo)), `[${rotulo}] filtro "${t.filtro}" deixou passar outra unidade (${todas.join(' / ')})`);
+    }
+    await opcao.first().click();
+    const chip = visivel(page.getByTestId(`bem-tanque-0-produto-${t.produtoId}`));
+    await chip.waitFor();
+    conferir(texto(await chip.innerText()).includes(t.selo), `[${rotulo}] chip do Produto aceito sem o selo ${t.selo}`);
+  };
+  /** Tanque novo na aba Operação (índice 0) com os Produtos aceitos. */
   const preencherTanque = async (form, t) => {
     await clicar(form.getByRole('button', { name: 'Adicionar tanque' }));
     const tanque = visivel(page.getByTestId('bem-tanque-0'));
@@ -239,39 +285,30 @@ const executarLargura = async (browser, largura) => {
       'Este tanque não pode ser abastecido até ter um Produto aceito.',
       `[${rotulo}] tanque sem Produto: aviso`,
     );
-    if (t.filtro) await escolherNoCombo(tanque.getByRole('combobox', { name: 'Unidade' }), t.filtro);
-    await clicar(tanque.getByTestId('bem-tanque-seletor-produto-0'));
-    const painel = visivel(page.getByTestId('bem-tanque-seletor-produto-0-painel'));
-    await painel.waitFor();
-    const opcao = painel.getByRole('option', { name: t.produto });
-    await opcao.first().waitFor();
-    const textoOpcao = (await opcao.first().innerText()).replace(/\s+/g, ' ');
-    conferir(textoOpcao.includes(t.selo), `[${rotulo}] opção do Produto aceito sem o selo "${t.selo}" (${textoOpcao})`);
-    if (t.filtro) {
-      const todas = (await painel.getByRole('option').allInnerTexts()).map((x) => x.replace(/\s+/g, ' '));
-      conferir(todas.every((x) => x.includes(t.selo)), `[${rotulo}] filtro "${t.filtro}" deixou passar outra unidade (${todas.join(' / ')})`);
-    }
-    await opcao.first().click();
-    const chip = visivel(page.getByTestId(`bem-tanque-0-produto-${t.produtoId}`));
-    await chip.waitFor();
-    conferir((await chip.innerText()).includes(t.selo), `[${rotulo}] chip do Produto aceito sem o selo ${t.selo}`);
+    // D-PROD-169: a regra nova (qualquer unidade) aparece no tanque.
+    igual(texto(await visivel(page.getByTestId('bem-tanques-nota')).innerText()), NOTA_PRODUTOS_ACEITOS, `[${rotulo}] texto da regra dos Produtos aceitos`);
+    for (const p of t.produtos) await aceitarProduto(tanque, p);
     igual(await page.getByTestId('bem-tanque-sem-produto-0').filter({ visible: true }).count(), 0, `[${rotulo}] aviso de tanque sem Produto continua com Produto aceito`);
     return tanque;
   };
   const conferirBemGravado = async (codigoFrota, esperado) => {
     const bem = await esperarBanco(
-      () => prisma.bemPatrimonial.findFirst({ where: { cliente_id: s.cliente_id, codigo_frota: codigoFrota }, include: { tanques: { include: { produtos: true } }, familia: true, tipo: true } }),
+      () =>
+        prisma.bemPatrimonial.findFirst({
+          where: { cliente_id: s.cliente_id, codigo_frota: codigoFrota },
+          include: { tanques: { include: { produtos: { orderBy: { createdAt: 'asc' } } } }, familia: true, tipo: true },
+        }),
       `bem ${codigoFrota} gravado`,
     );
     const t = bem.tanques[0];
     igual(
-      `${bem.nome}:${bem.familia.nome}:${bem.familia.natureza}:${bem.tipo.nome}:${bem.medidor_tipo}:${dec(bem.medidor_leitura_atual)}:${bem.tanques.length}:${t?.identificador}:${dec(t?.capacidade_litros)}:${t?.ativo}`,
+      `${bem.nome}:${bem.natureza}:${bem.familia.codigo}:${bem.familia.natureza}:${bem.tipo.nome}:${bem.tipo.familia_id === bem.familia_id}:${bem.area_id}:${bem.localizacao_descricao}:${bem.medidor_tipo}:${dec(bem.medidor_leitura_atual)}:${bem.tanques.length}:${t?.identificador}:${dec(t?.capacidade_litros)}:${t?.ativo}`,
       esperado.bem,
       `[${rotulo}] bem ${codigoFrota} no banco`,
     );
     igual(
-      (t?.produtos ?? []).map((p) => `${p.produto_id === esperado.produtoId}:${p.ativo}`).join('|'),
-      'true:true',
+      (t?.produtos ?? []).map((p) => `${esperado.produtoIds.indexOf(p.produto_id)}:${p.ativo}`).join('|'),
+      esperado.produtoIds.map((_id, i) => `${i}:true`).join('|'),
       `[${rotulo}] Produtos aceitos do tanque de ${codigoFrota} no banco`,
     );
     return bem;
@@ -312,7 +349,7 @@ const executarLargura = async (browser, largura) => {
       conferir(ruins.length === 0, `[${rotulo}] rótulo de coluna cortado em ${largura} px: ${ruins.join(', ')}`);
       for (const r of registros) {
         const linha = visivel(page.locator('tr').filter({ has: page.getByTestId(`abastecimento-bem-${r.id}`) }));
-        const txt = (await linha.innerText()).replace(/\s+/g, ' ');
+        const txt = texto(await linha.innerText());
         conferir(txt.includes(r.frota) && txt.includes(r.produto) && txt.includes(r.quantidade) && txt.includes(dataBr), `[${rotulo}] linha da lista sem máquina/Produto/quantidade/data (${txt})`);
         igual((await visivel(page.getByTestId(`abastecimento-situacao-${r.id}`)).innerText()).trim(), r.situacao, `[${rotulo}] linha ${r.quantidade} — Situação`);
       }
@@ -323,7 +360,7 @@ const executarLargura = async (browser, largura) => {
         const titulo = (await card.locator('.mg-b1-card__title').innerText().catch(() => '')).trim();
         conferir(titulo.includes(r.frota), `[${rotulo}] título do card sem a máquina (${titulo})`);
         const rotulos = (await card.locator('.mg-b1-card__label').allInnerTexts()).map((t) => t.trim().replace(/:$/, ''));
-        const valores = (await card.locator('.mg-b1-card__value').allInnerTexts()).map((t) => t.trim());
+        const valores = (await card.locator('.mg-b1-card__value').allInnerTexts()).map((t) => texto(t));
         const campos = Object.fromEntries(rotulos.map((rr, i) => [rr, valores[i]]));
         igual(campos.Produto, r.produto, `[${rotulo}] card ${r.quantidade} — Produto`);
         igual(campos.Quantidade, r.quantidade, `[${rotulo}] card ${r.quantidade} — Quantidade`);
@@ -350,12 +387,22 @@ const executarLargura = async (browser, largura) => {
     await visivel(page.getByTestId('abastecimento-consulta')).waitFor();
   };
 
-  /** Novo abastecimento até a revisão. @param {{ frota: RegExp, produto: string, local: string, unidade: 'L'|'KG', quantidade: string, leitura: string, cheio: boolean }} a */
+  /**
+   * Novo abastecimento até a revisão.
+   * @param {{ frota: RegExp, produto: string, escolherProduto?: boolean, local: string, unidade: 'L'|'KG', dica: string|null, quantidade: string, leitura: string, cheio: boolean }} a
+   */
   const preencherAbastecimento = async (a) => {
     await clicar(page.getByRole('button', { name: 'Novo abastecimento' }));
     const form = visivel(page.getByTestId('abastecimento-form'));
     await form.waitFor();
     await escolher(form, 'abastecimento-bem', a.frota);
+    if (a.escolherProduto) {
+      // Mais de um Produto aceito: nenhum vem marcado; a pessoa escolhe.
+      const radios = page.getByTestId('abastecimento-produto').getByRole('radio').filter({ visible: true });
+      await radios.first().waitFor();
+      igual(await radios.count(), 2, `[${rotulo}] Produtos oferecidos para ${a.frota.source}`);
+      await clicar(page.getByTestId('abastecimento-produto').getByRole('radio', { name: a.produto, exact: true }));
+    }
     // Um só Produto aceito: já vem marcado (sem etapa de combustível nem de fator).
     await page.waitForFunction(
       (nome) =>
@@ -366,9 +413,8 @@ const executarLargura = async (browser, largura) => {
     igual(await form.getByText(/combust[íi]vel|fator|kg\/L/i).filter({ visible: true }).count(), 0, `[${rotulo}] formulário fala de combustível/fator`);
     const rotuloQtd = a.unidade === 'L' ? 'Quantidade abastecida (L)' : 'Quantidade abastecida (kg)';
     conferir(await visivel(form.getByText(rotuloQtd, { exact: false })).isVisible().catch(() => false), `[${rotulo}] campo "${rotuloQtd}" ausente`);
-    const dica = await page.getByTestId('abastecimento-dica-kg').filter({ visible: true }).count();
-    if (a.unidade === 'KG') igual((await visivel(page.getByTestId('abastecimento-dica-kg')).innerText()).trim(), DICA_KG, `[${rotulo}] dica de Produto em KG no formulário`);
-    else igual(dica, 0, `[${rotulo}] dica de KG para Produto em L`);
+    if (a.dica) igual((await visivel(page.getByTestId('abastecimento-dica-kg')).innerText()).trim(), a.dica, `[${rotulo}] dica da unidade do Produto no formulário`);
+    else igual(await page.getByTestId('abastecimento-dica-kg').filter({ visible: true }).count(), 0, `[${rotulo}] dica de kg para Produto em L`);
     igual(await visivel(page.getByTestId('abastecimento-data')).inputValue(), s.hoje, `[${rotulo}] data padrão do formulário (hoje no fuso da fazenda)`);
     await preencher('abastecimento-quantidade', a.quantidade);
     await preencher('abastecimento-leitura', a.leitura);
@@ -389,6 +435,37 @@ const executarLargura = async (browser, largura) => {
     await b.click();
     await visivel(page.getByTestId('previa-detalhes-conteudo')).waitFor();
   };
+  /** Cancela o abastecimento aberto na consulta (motivo + ciência) e espera o aviso. */
+  const cancelarAberto = async (motivo, avisoRe) => {
+    await clicar(page.getByTestId('abastecimento-cancelar'));
+    await visivel(page.getByTestId('dialogo-cancelamento-abastecimento')).waitFor();
+    const enviar = visivel(page.getByTestId('cancelamento-enviar'));
+    conferir(await enviar.isDisabled(), `[${rotulo}] cancelar habilitado sem motivo/ciência`);
+    await visivel(page.getByTestId('cancelamento-motivo')).fill(motivo);
+    await visivel(page.getByTestId('cancelamento-ciente')).check();
+    await shot('cancelamento');
+    await enviar.click();
+    conferir(await esperarAviso(avisoRe, 15000), `[${rotulo}] aviso de cancelamento ausente (${avisoRe.source})`);
+  };
+
+  /** "⋯ › Gerenciar tipos" da tela de Bens: devolve o diálogo aberto. */
+  const abrirGerenciarTipos = async () => {
+    await clicar(page.getByRole('button', { name: 'Mais opções' }));
+    const item = (nome) => page.getByRole('menuitem', { name: nome }).or(page.getByRole('button', { name: nome, exact: true }));
+    await visivel(item('Gerenciar tipos')).waitFor();
+    // D-PROD-169: sem família e sem "Instalar catálogo padrão" (o servidor garante o catálogo sozinho).
+    igual(await item(/fam[íi]lia/i).filter({ visible: true }).count(), 0, `[${rotulo}] menu "⋯" com item de família`);
+    igual(await item('Instalar catálogo padrão').filter({ visible: true }).count(), 0, `[${rotulo}] menu "⋯" com "Instalar catálogo padrão"`);
+    await clicar(item('Gerenciar tipos'));
+    const dlg = visivel(page.getByTestId('gerenciar-tipos'));
+    await dlg.waitFor();
+    await visivel(dlg.getByTestId('gerenciar-lista-tipos')).waitFor();
+    return dlg;
+  };
+  /** Linha de um tipo no "Gerenciar tipos" (dados = "Máquina · 1 bem"). */
+  const linhaDoTipo = (dlg, id) => visivel(dlg.getByTestId(`gerenciar-tipos-${id}`));
+  const dadosDoTipo = async (dlg, id) => texto(await visivel(dlg.getByTestId(`gerenciar-tipos-${id}-dados`)).innerText());
+  const tipoPorNome = (nome) => prisma.tipoPatrimonial.findFirst({ where: { cliente_id: s.cliente_id, nome }, include: { familia: true } });
 
   try {
     await passo('1 menu só com Bens e Abastecimentos; telas removidas = 404', async () => {
@@ -429,115 +506,221 @@ const executarLargura = async (browser, largura) => {
       await shot('tela-removida-404');
     });
 
-    await passo('2 Produtos pela tela: Diesel S10 em LITROS e Diesel S500 granel em KG', async () => {
-      reg.diesel = await cadastrarProduto({ nome: 'Diesel S10', codigo: 'DS10', unidadeMedida: /^L - LITRO/, local: /TANQUE DIESEL SEDE/, estoque: 'L' });
-      reg.granel = await cadastrarProduto({ nome: 'Diesel S500 granel', codigo: 'DS500', unidadeMedida: /^KG - QUILOGRAMA/, local: /DEPÓSITO DE GRANEL/, estoque: 'KG', conferirAviso: true });
+    await passo('2 Produtos pela tela: Diesel S10 em LITROS, Diesel S500 granel em KG e Ureia granulada em SACOS', async () => {
+      reg.diesel = await cadastrarProduto({ nome: 'Diesel S10', codigo: 'DS10', unidadeMedida: /^L - LITRO/, siglaMedida: 'L', local: /TANQUE DIESEL SEDE/, estoque: 'L' });
+      reg.granel = await cadastrarProduto({ nome: 'Diesel S500 granel', codigo: 'DS500', unidadeMedida: /^KG - QUILOGRAMA/, siglaMedida: 'KG', local: /DEPÓSITO DE GRANEL/, estoque: 'KG', conferirAviso: true });
+      reg.ureia = await cadastrarProduto({ nome: 'Ureia granulada', codigo: 'UREIA', unidadeMedida: /^SC - SACO/, siglaMedida: 'SC', local: /DEPÓSITO DE GRANEL/, estoque: 'SACO', pesoSaco: '5000' });
     });
 
-    await passo('3 compras P3 (API real) em L e em KG', async () => {
+    await passo('3 compras P3 (API real) em L, em KG e em SACOS', async () => {
       await definirPerfilFinanceiro(s, apiDono);
       await comprarDieselEmLitros(s, apiDono, reg.diesel.id);
       await comprarPelaP3(s, apiDono, { produto_id: reg.granel.id, local_id: s.localKg.id, unidade: 'KG', quantidade: COMPRA_KG.quantidade, custo: COMPRA_KG.custo, dia: somarDias(s.hoje, -COMPRA_KG.diasAtras), documento: 'NF-GRANEL-1' });
+      await comprarPelaP3(s, apiDono, { produto_id: reg.ureia.id, local_id: s.localKg.id, unidade: 'SACO', quantidade: COMPRA_SACO.sacos, custo: COMPRA_SACO.custoSaco, dia: somarDias(s.hoje, -COMPRA_SACO.diasAtras), documento: 'NF-UREIA-1' });
       igual(await lotesDe(s, reg.diesel.id), '50.0000:Disponivel|100.0000:Disponivel', `[${rotulo}] lotes do Diesel S10 após as compras`);
       igual(await estoqueDe(s, reg.diesel.id), '150.0000', `[${rotulo}] estoque_atual do Diesel S10 após as compras`);
       igual(await lotesDe(s, reg.granel.id), '200.0000:Disponivel', `[${rotulo}] lote do Produto em KG`);
+      // SACO guarda estoque em kg: 5 sacos de 50 kg = 250 kg (R$ 200,00 o saco = R$ 4,0000/kg).
+      igual(await lotesDe(s, reg.ureia.id), `${COMPRA_SACO.kg}:Disponivel`, `[${rotulo}] lote do Produto em SACO (em kg)`);
+      igual(await estoqueDe(s, reg.ureia.id), COMPRA_SACO.kg, `[${rotulo}] estoque_atual do Produto em SACO (em kg)`);
+      const loteUreia = await prisma.estoqueLoteNota.findFirst({ where: { cliente_id: s.cliente_id, produto_id: reg.ureia.id } });
+      igual(dec(loteUreia.custo_unitario), COMPRA_SACO.custoKg, `[${rotulo}] custo por kg do lote do Produto em SACO`);
       const rotulos = await prisma.movimentacaoEstoque.findMany({ where: { cliente_id: s.cliente_id }, orderBy: { createdAt: 'asc' }, select: { produto_id: true, unidade_medida: true } });
-      igual(rotulos.map((m) => `${m.produto_id === reg.diesel.id ? 'DS10' : 'DS500'}:${m.unidade_medida}`).join('|'), 'DS10:L|DS10:L|DS500:KG', `[${rotulo}] rótulo dos movimentos das compras`);
+      const sigla = (id) => (id === reg.diesel.id ? 'DS10' : id === reg.granel.id ? 'DS500' : 'UREIA');
+      igual(rotulos.map((m) => `${sigla(m.produto_id)}:${m.unidade_medida}`).join('|'), 'DS10:L|DS10:L|DS500:KG|UREIA:KG', `[${rotulo}] rótulo dos movimentos das compras`);
       reg.financeiro = await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } });
-      igual(reg.financeiro, 3, `[${rotulo}] lançamentos P3 das compras`);
+      igual(reg.financeiro, 4, `[${rotulo}] lançamentos P3 das compras`);
     });
 
-    await passo('4 Bem pela tela: "+ Nova família", "+ Novo tipo", tanque com o Produto aceito', async () => {
+    await passo('4 Bem pela tela: "Tipo de bem" + "+ Novo tipo", sem Família/Área/Localização, tanque com Produto em L', async () => {
+      igual(await familiasDe(s), '', `[${rotulo}] famílias antes de abrir o cadastro de Bens`);
       await ir('benspatrimoniais');
       await clicar(botao('Novo'));
       const form = visivel(page.getByTestId('b1-form'));
       await form.waitFor();
-      await visivel(page.getByTestId('bem-escolha-familia')).waitFor();
-      const folha = await pedirCadastroRapido(form, 'bem-seletor-familia', 'Tratores', 'Nova família');
-      igual(await visivel(folha.getByLabel(/^Nome/)).inputValue(), 'Tratores', `[${rotulo}] "+ Nova família": nome vindo da busca`);
-      igual(await folha.getByLabel(/^Código/).count(), 0, `[${rotulo}] "+ Nova família" pede código`);
-      await escolherNoCombo(folha.getByRole('combobox', { name: 'Natureza' }), 'Máquina');
-      await shot('nova-familia');
-      await clicar(folha.getByRole('button', { name: 'Salvar' }));
-      conferir(await esperarAviso('Família patrimonial criada'), `[${rotulo}] aviso "Família patrimonial criada" ausente`);
-      await folha.waitFor({ state: 'hidden' });
-      await visivel(form.getByTestId('bem-seletor-familia').filter({ hasText: /Tratores/i })).waitFor();
-      igual(await visivel(form.getByLabel(/^Natureza/)).inputValue(), 'Máquina', `[${rotulo}] natureza do bem após a família nova`);
-      const folhaTipo = await pedirCadastroRapido(form, 'bem-seletor-tipo', 'Trator de pneus', 'Novo tipo');
-      const familiaNoTipo = visivel(folhaTipo.getByLabel(/^Família/));
-      igual(`${await familiaNoTipo.inputValue()}:${await familiaNoTipo.getAttribute('readonly') !== null}`, 'Tratores:true', `[${rotulo}] "+ Novo tipo": família travada`);
+      await visivel(page.getByTestId('bem-escolha-tipo-de-bem')).waitFor();
+      await conferirSemCamposAntigos(form, 'novo bem');
+      // O Tipo fica bloqueado até escolher o Tipo de bem.
+      const seletorTipo = visivel(form.getByTestId('bem-seletor-tipo'));
+      igual(`${await seletorTipo.isDisabled()}:${texto(await seletorTipo.innerText())}`, 'true:Escolha o tipo de bem primeiro', `[${rotulo}] Tipo bloqueado até escolher o Tipo de bem`);
+      await shot('bem-sem-tipo-de-bem');
+      // "Tipo de bem" = a lista FIXA de natureza.
+      await clicar(form.getByRole('combobox', { name: /^Tipo de bem/ }));
+      const opcoes = (await page.getByRole('option').filter({ visible: true }).allInnerTexts()).map(texto).filter((t) => t && !t.startsWith('—'));
+      igual(opcoes.join(' | '), 'Benfeitoria | Máquina | Veículo | Implemento | Equipamento | Outro', `[${rotulo}] opções do "Tipo de bem"`);
+      await visivel(page.getByRole('option', { name: 'Máquina', exact: true })).click();
+      // Os tipos oferecidos são só os de Máquina (o catálogo padrão foi garantido pelo servidor, sem botão).
+      await clicar(form.getByTestId('bem-seletor-tipo'));
+      const painel = visivel(page.getByTestId('bem-seletor-tipo-painel'));
+      await painel.waitFor();
+      await painel.getByRole('option', { name: /Trator de pneus/i }).first().waitFor();
+      const tiposMaquina = (await painel.getByRole('option').allInnerTexts()).map(texto).filter(Boolean);
+      igual(tiposMaquina.map((t) => t.toUpperCase()).sort().join(' | '), 'TRATOR DE ESTEIRAS | TRATOR DE PNEUS', `[${rotulo}] tipos oferecidos para Máquina`);
+      igual(await familiasDe(s), FAMILIAS_PADRAO, `[${rotulo}] famílias padrão garantidas pelo servidor (uma por natureza)`);
+      await shot('bem-tipos-maquina');
+      // "+ Novo tipo" com o Tipo de bem do bem, travado.
+      await painel.getByRole('searchbox').fill('Trator cafeeiro');
+      await clicar(page.getByTestId('bem-seletor-tipo-criar-novo'));
+      const folha = visivel(page.getByRole('dialog', { name: 'Novo tipo' }));
+      await folha.waitFor();
+      igual(await visivel(folha.getByLabel(/^Nome/)).inputValue(), 'Trator cafeeiro', `[${rotulo}] "+ Novo tipo": nome vindo da busca`);
+      const tipoDeBem = visivel(folha.getByLabel(/^Tipo de bem/));
+      igual(`${await tipoDeBem.inputValue()}:${(await tipoDeBem.getAttribute('readonly')) !== null}`, 'Máquina:true', `[${rotulo}] "+ Novo tipo": Tipo de bem travado`);
+      igual(await folha.getByLabel(/^Código|^Fam[íi]lia/).count(), 0, `[${rotulo}] "+ Novo tipo" pede código ou família`);
       await shot('novo-tipo');
-      await clicar(folhaTipo.getByRole('button', { name: 'Salvar' }));
-      conferir(await esperarAviso('Tipo patrimonial criado'), `[${rotulo}] aviso "Tipo patrimonial criado" ausente`);
-      await folhaTipo.waitFor({ state: 'hidden' });
-      await visivel(form.getByTestId('bem-seletor-tipo').filter({ hasText: /Trator de pneus/i })).waitFor();
-      const familia = await prisma.familiaPatrimonial.findFirst({ where: { cliente_id: s.cliente_id }, include: { tipos: true } });
+      await clicar(folha.getByRole('button', { name: 'Salvar' }));
+      conferir(await esperarAviso('Tipo criado'), `[${rotulo}] aviso "Tipo criado" ausente`);
+      await folha.waitFor({ state: 'hidden' });
+      await visivel(form.getByTestId('bem-seletor-tipo').filter({ hasText: /Trator cafeeiro/i })).waitFor();
+      const novoTipo = await tipoPorNome('Trator cafeeiro');
       igual(
-        `${familia?.nome}:${familia?.natureza}:${familia?.codigo}:${familia?.tipos.map((t) => `${t.nome}/${t.codigo}`).join(',')}`,
-        'Tratores:MAQUINA:TRATORES:Trator de pneus/TRATOR_DE_PNEUS',
-        `[${rotulo}] família e tipo criados pelo "+ Novo" (código gerado no servidor)`,
+        `${novoTipo?.codigo}:${novoTipo?.familia?.codigo}:${novoTipo?.familia?.natureza}:${novoTipo?.ativo}:${novoTipo?.versao}`,
+        'TRATOR_CAFEEIRO:MAQUINAS:MAQUINA:true:1',
+        `[${rotulo}] tipo criado pelo "+ Novo tipo" (na família padrão da natureza; código gerado no servidor)`,
       );
+      reg.tipoNovo = novoTipo;
       await preencher(form.getByLabel(/^Nome/).first(), 'Trator TP-02');
       await preencher(form.getByLabel(/^Código de frota/), 'TP-02');
       await preencherMedidor(form, '1.520,5');
-      await preencherTanque(form, { identificador: 'Principal', capacidade: '180', produto: /Diesel S10/i, produtoId: reg.diesel.id, selo: 'L' });
-      igual(await page.getByTestId('bem-tanque-aviso-kg-0').filter({ visible: true }).count(), 0, `[${rotulo}] aviso de KG para Produto em L`);
+      await conferirSemCamposAntigos(form, 'aba Operação');
+      await preencherTanque(form, { identificador: 'Principal', capacidade: '180', produtos: [{ produto: /Diesel S10/i, produtoId: reg.diesel.id, selo: 'L' }] });
+      igual(await page.getByTestId('bem-tanque-aviso-kg-0').filter({ visible: true }).count(), 0, `[${rotulo}] aviso de kg para Produto em L`);
       await shot('bem-tanque-produto-l');
       await clicar(botao('Salvar'));
       conferir(await esperarAviso('Bem patrimonial criado'), `[${rotulo}] aviso "Bem patrimonial criado" ausente`);
-      reg.tp02 = await conferirBemGravado('TP-02', { bem: 'Trator TP-02:Tratores:MAQUINA:Trator de pneus:HORIMETRO:1520.5000:1:Principal:180.0000:true', produtoId: reg.diesel.id });
+      reg.tp02 = await conferirBemGravado('TP-02', {
+        bem: 'Trator TP-02:MAQUINA:MAQUINAS:MAQUINA:Trator cafeeiro:true:null:null:HORIMETRO:1520.5000:1:Principal:180.0000:true',
+        produtoIds: [reg.diesel.id],
+      });
       await shot('bem-tp02-salvo');
     });
 
-    await passo('5 segundo bem pela tela com Produto em KG aceito (aviso de kg)', async () => {
+    await passo('5 segundo bem: tipo padrão e tanque aceitando Produto em KG e em SACO', async () => {
       await ir('benspatrimoniais');
       await clicar(botao('Novo'));
       const form = visivel(page.getByTestId('b1-form'));
       await form.waitFor();
-      await escolher(form, 'bem-seletor-familia', /Tratores/i);
+      await escolherTipoDeBem(form, 'Máquina');
       await escolher(form, 'bem-seletor-tipo', /Trator de pneus/i);
       await preencher(form.getByLabel(/^Nome/).first(), 'Trator TP-03');
       await preencher(form.getByLabel(/^Código de frota/), 'TP-03');
       await preencherMedidor(form, '800');
-      await preencherTanque(form, { identificador: 'Único', capacidade: '120', produto: /Diesel S500 granel/i, produtoId: reg.granel.id, selo: 'kg', filtro: 'Quilos (kg)' });
-      igual((await visivel(page.getByTestId('bem-tanque-aviso-kg-0')).innerText()).trim(), AVISO_KG_TANQUE, `[${rotulo}] aviso de Produto em KG no tanque`);
-      await shot('bem-tanque-produto-kg');
+      const tanque = await preencherTanque(form, {
+        identificador: 'Único',
+        capacidade: '120',
+        produtos: [
+          { produto: /Diesel S500 granel/i, produtoId: reg.granel.id, selo: 'kg', filtro: 'Quilos (kg)' },
+          { produto: /Ureia granulada/i, produtoId: reg.ureia.id, selo: 'kg · saco', filtro: 'Sacos (estoque em kg)' },
+        ],
+      });
+      igual(texto(await visivel(page.getByTestId('bem-tanque-aviso-kg-0')).innerText()), AVISO_KG_TANQUE, `[${rotulo}] aviso de Produto em KG/SACO no tanque`);
+      igual(await tanque.getByTestId(/^bem-tanque-0-produto-/).count(), 2, `[${rotulo}] Produtos aceitos no tanque do TP-03 (tela)`);
+      await shot('bem-tanque-produto-kg-saco');
       await clicar(botao('Salvar'));
       conferir(await esperarAviso('Bem patrimonial criado'), `[${rotulo}] aviso "Bem patrimonial criado" ausente (TP-03)`);
-      reg.tp03 = await conferirBemGravado('TP-03', { bem: 'Trator TP-03:Tratores:MAQUINA:Trator de pneus:HORIMETRO:800.0000:1:Único:120.0000:true', produtoId: reg.granel.id });
-      igual(await prisma.familiaPatrimonial.count({ where: { cliente_id: s.cliente_id } }), 1, `[${rotulo}] famílias (o 2º bem reusou a existente)`);
+      reg.tp03 = await conferirBemGravado('TP-03', {
+        bem: 'Trator TP-03:MAQUINA:MAQUINAS:MAQUINA:Trator de pneus:true:null:null:HORIMETRO:800.0000:1:Único:120.0000:true',
+        produtoIds: [reg.granel.id, reg.ureia.id],
+      });
+      igual(await familiasDe(s), FAMILIAS_PADRAO, `[${rotulo}] famílias (nenhuma criada pelo usuário)`);
     });
 
-    await passo('5b "⋯ › Gerenciar famílias e tipos" dentro de Bens (catálogo do tenant)', async () => {
+    await passo('5b lista de Bens com "Tipo de bem" (sem Família) e consulta sem Família/Área/Localização', async () => {
+      await ir('benspatrimoniais');
+      const alvo = page.getByTestId(`bem-nome-${reg.tp02.id}`).or(page.getByTestId('b1-card').filter({ hasText: 'TP-02' }));
+      await visivel(alvo).waitFor();
+      const cabecalhos = (await page.getByRole('columnheader').filter({ visible: true }).allTextContents()).map((t) => t.trim()).filter(Boolean);
+      if (desktop) conferir(cabecalhos.includes('Tipo de bem') && cabecalhos.includes('Tipo'), `[${rotulo}] lista de Bens sem as colunas "Tipo de bem" e "Tipo" (${cabecalhos.join(' | ')})`);
+      conferir(!cabecalhos.some((c) => /fam[íi]lia|natureza|[áa]rea|localiza/i.test(c)), `[${rotulo}] lista de Bens com coluna antiga (${cabecalhos.join(' | ')})`);
+      conferir(await visivel(page.getByRole('combobox', { name: 'Filtrar por tipo de bem' })).isVisible().catch(() => false), `[${rotulo}] filtro "Tipo de bem" ausente na lista de Bens`);
+      if (cabecalhos.length) {
+        const linha = texto(await visivel(page.locator('tr').filter({ has: page.getByTestId(`bem-nome-${reg.tp02.id}`) })).innerText());
+        conferir(linha.includes('Máquina') && /Trator cafeeiro/i.test(linha), `[${rotulo}] linha do TP-02 sem Tipo de bem/Tipo (${linha})`);
+      }
+      await shot('lista-bens');
+      await visivel(alvo).dblclick();
+      const form = visivel(page.getByTestId('b1-form'));
+      await form.waitFor();
+      await conferirSemCamposAntigos(form, 'consulta do bem');
+      const tipoDeBem = visivel(form.getByRole('combobox', { name: /^Tipo de bem/ }));
+      igual(`${texto(await tipoDeBem.innerText()).toUpperCase()}:${await tipoDeBem.isDisabled()}`, 'MÁQUINA:true', `[${rotulo}] consulta: Tipo de bem (travado)`);
+      conferir(/Trator cafeeiro/i.test(texto(await visivel(form.getByTestId('bem-seletor-tipo')).innerText())), `[${rotulo}] consulta: Tipo`);
+      await shot('consulta-bem');
+    });
+
+    await passo('5c "⋯ › Gerenciar tipos": lista, renomear, excluir livre e recusa do tipo em uso', async () => {
       await ir('benspatrimoniais');
       await visivel(page.getByTestId(`bem-nome-${reg.tp03.id}`).or(page.getByTestId('b1-card').filter({ hasText: 'TP-03' }))).waitFor();
-      await clicar(page.getByRole('button', { name: 'Mais opções' }));
-      const item = (nome) => page.getByRole('menuitem', { name: nome }).or(page.getByRole('button', { name: nome, exact: true }));
-      await visivel(item('Gerenciar famílias e tipos')).waitFor();
-      // P-06: o dono (administrador) também vê "Instalar catálogo padrão".
-      conferir(await visivel(item('Instalar catálogo padrão')).isVisible().catch(() => false), `[${rotulo}] "Instalar catálogo padrão" ausente para o administrador`);
-      await clicar(item('Gerenciar famílias e tipos'));
-      const dlg = visivel(page.getByTestId('gerenciar-familias-tipos'));
-      await dlg.waitFor();
-      const familias = texto(await visivel(dlg.getByTestId('gerenciar-lista-familias')).innerText());
-      conferir(/TRATORES/i.test(familias) && familias.includes('Ativo'), `[${rotulo}] gerenciar: lista de famílias (${familias})`);
-      await shot('gerenciar-familias');
-      await clicar(dlg.getByRole('tab', { name: 'Tipos' }));
-      const tipos = texto(await visivel(dlg.getByTestId('gerenciar-lista-tipos')).innerText());
-      conferir(/TRATOR DE PNEUS/i.test(tipos), `[${rotulo}] gerenciar: lista de tipos (${tipos})`);
-      igual(await dlg.getByText(/perfi[ls] de medição|combust[íi]vel/i).count(), 0, `[${rotulo}] gerenciar fala de perfis/combustível`);
+      const dlg = await abrirGerenciarTipos();
+      const pneus = await tipoPorNome('Trator de pneus');
+      const rocadeira = await tipoPorNome('Roçadeira');
+      igual(`${pneus?.familia?.codigo}:${rocadeira?.familia?.codigo}`, 'MAQUINAS:IMPLEMENTOS', `[${rotulo}] tipos padrão nas famílias padrão`);
+      igual(await dadosDoTipo(dlg, reg.tipoNovo.id), 'Máquina · 1 bem', `[${rotulo}] gerenciar: Trator cafeeiro`);
+      igual(await dadosDoTipo(dlg, pneus.id), 'Máquina · 1 bem', `[${rotulo}] gerenciar: Trator de pneus`);
+      igual(await dadosDoTipo(dlg, rocadeira.id), 'Implemento · Nenhum bem', `[${rotulo}] gerenciar: Roçadeira`);
+      igual(await dlg.getByText(/fam[íi]lia|perfi[ls] de medição|combust[íi]vel/i).count(), 0, `[${rotulo}] gerenciar fala de família/perfis/combustível`);
       await shot('gerenciar-tipos');
-      // As ações das linhas (Editar / Inativar) cabem no diálogo sem arrastar a lista para o lado.
-      for (const recurso of ['tipos', 'familias']) {
-        if (recurso === 'familias') await clicar(dlg.getByRole('tab', { name: 'Famílias' }));
-        const caixa = await visivel(dlg.getByTestId(`gerenciar-lista-${recurso}`)).evaluate((t) => {
-          const el = t.parentElement;
-          return { sw: el.scrollWidth, cw: el.clientWidth };
-        });
-        conferir(caixa.sw <= caixa.cw + 1, `[${rotulo}] gerenciar: a lista de ${recurso} rola na horizontal em ${largura} px (${caixa.sw} > ${caixa.cw} + 1)`);
-      }
+      // Filtro pelo Tipo de bem.
+      await escolherNoCombo(dlg.getByRole('combobox', { name: 'Filtrar por tipo de bem' }), 'Máquina');
+      await page.waitForFunction(
+        (id) => !document.querySelector(`[data-testid="gerenciar-tipos-${id}"]`) && document.querySelector('[data-testid="gerenciar-lista-tipos"]'),
+        rocadeira.id,
+      );
+      const maquinas = (await visivel(dlg.getByTestId('gerenciar-lista-tipos')).locator('li p.uppercase').allInnerTexts()).map((t) => texto(t).toUpperCase()).sort();
+      igual(maquinas.join(' | '), 'TRATOR CAFEEIRO | TRATOR DE ESTEIRAS | TRATOR DE PNEUS', `[${rotulo}] gerenciar: filtro Máquina`);
+      await shot('gerenciar-filtro-maquina');
+      // As ações das linhas cabem no diálogo sem arrastar a lista para o lado.
+      const caixa = await visivel(dlg.getByTestId('gerenciar-lista-tipos')).evaluate((t) => {
+        const el = t.parentElement;
+        return { sw: el.scrollWidth, cw: el.clientWidth, dsw: t.closest('[role="dialog"]')?.scrollWidth ?? 0, dcw: t.closest('[role="dialog"]')?.clientWidth ?? 0 };
+      });
+      conferir(caixa.sw <= caixa.cw + 1 && caixa.dsw <= caixa.dcw + 1, `[${rotulo}] gerenciar: a lista rola na horizontal em ${largura} px (${JSON.stringify(caixa)})`);
+
+      // Renomear (PATCH com a versão lida).
+      await clicar(linhaDoTipo(dlg, reg.tipoNovo.id).getByRole('button', { name: /^Renomear/ }));
+      await preencher(dlg.getByRole('textbox', { name: /^Novo nome do tipo/ }), 'Trator cafeeiro 4x4');
+      await shot('gerenciar-renomear');
+      await clicar(linhaDoTipo(dlg, reg.tipoNovo.id).getByRole('button', { name: 'Salvar', exact: true }));
+      conferir(await esperarAviso('Tipo renomeado'), `[${rotulo}] aviso "Tipo renomeado" ausente`);
+      const renomeado = await esperarBanco(
+        () => prisma.tipoPatrimonial.findFirst({ where: { cliente_id: s.cliente_id, id: reg.tipoNovo.id, nome: 'Trator cafeeiro 4x4' } }),
+        'tipo renomeado',
+      );
+      igual(`${renomeado.versao}:${renomeado.codigo}:${renomeado.familia_id === reg.tipoNovo.familia_id}`, '2:TRATOR_CAFEEIRO:true', `[${rotulo}] renomear: versão, código e família`);
+      await visivel(linhaDoTipo(dlg, reg.tipoNovo.id).getByText(/Trator cafeeiro 4x4/i)).waitFor();
+
+      // Tentar excluir um tipo EM USO: 409 com a mensagem, nada apagado.
+      await clicar(linhaDoTipo(dlg, pneus.id).getByRole('button', { name: /^Excluir/ }));
+      const confirma = visivel(page.getByRole('alertdialog'));
+      await confirma.waitFor();
+      await clicar(confirma.getByRole('button', { name: 'Excluir', exact: true }));
+      const emUso = visivel(dlg.getByTestId(`gerenciar-tipo-em-uso-${pneus.id}`));
+      await emUso.waitFor();
+      igual(texto(await emUso.innerText()), 'Este tipo está em uso por 1 bem(ns). Troque o tipo desses bens antes de excluir.', `[${rotulo}] gerenciar: mensagem do tipo em uso`);
+      igual(await prisma.tipoPatrimonial.count({ where: { cliente_id: s.cliente_id, id: pneus.id } }), 1, `[${rotulo}] o tipo em uso foi apagado`);
+      await shot('gerenciar-tipo-em-uso');
+
+      // Excluir um tipo LIVRE (Roçadeira, de Implemento): some do banco e da lista.
+      await escolherNoCombo(dlg.getByRole('combobox', { name: 'Filtrar por tipo de bem' }), 'Implemento');
+      await linhaDoTipo(dlg, rocadeira.id).waitFor();
+      await clicar(linhaDoTipo(dlg, rocadeira.id).getByRole('button', { name: /^Excluir/ }));
+      const confirma2 = visivel(page.getByRole('alertdialog'));
+      await confirma2.waitFor();
+      await clicar(confirma2.getByRole('button', { name: 'Excluir', exact: true }));
+      conferir(await esperarAviso('Tipo excluído'), `[${rotulo}] aviso "Tipo excluído" ausente`);
+      await esperarBanco(async () => (await prisma.tipoPatrimonial.count({ where: { cliente_id: s.cliente_id, id: rocadeira.id } })) === 0, 'tipo livre excluído');
+      await page.waitForFunction((id) => !document.querySelector(`[data-testid="gerenciar-tipos-${id}"]`), rocadeira.id);
+      igual(
+        await prisma.auditLog.count({ where: { cliente_id: s.cliente_id, entidade_id: rocadeira.id, acao: 'delete', usuario_id: s.usuario_id } }),
+        1,
+        `[${rotulo}] auditoria da exclusão do tipo`,
+      );
+      await shot('gerenciar-tipo-excluido');
       await page.keyboard.press('Escape');
       await dlg.waitFor({ state: 'hidden' });
+      // O tipo excluído não volta (a família padrão já existe) e o renomeado aparece no bem.
+      const outra = await apiDono('GET', '/patrimonio-tipos?natureza=IMPLEMENTO&limit=100');
+      igual(`${outra.status}:${(outra.corpo?.items ?? []).some((t) => t.id === rocadeira.id || t.codigo === 'ROCADEIRA')}`, '200:false', `[${rotulo}] o tipo padrão excluído voltou`);
     });
 
     await passo('6 Abastecimentos: lista vazia, sem fator kg/L nem combustível', async () => {
@@ -550,15 +733,23 @@ const executarLargura = async (browser, largura) => {
       await shot('abastecimentos-vazio');
     });
 
-    await passo('7 abastecer 80 L → revisão (nada gravado)', async () => {
-      await preencherAbastecimento({ frota: /TP-02/, produto: 'DIESEL S10', local: 'TANQUE DIESEL SEDE', unidade: 'L', quantidade: '80', leitura: '1.550,5', cheio: true });
-      await shot('formulario-l');
+    await passo('7 Produto em L: capacidade conferida (181 L barrado); 80 L → revisão (nada gravado)', async () => {
+      await preencherAbastecimento({ frota: /TP-02/, produto: 'DIESEL S10', local: 'TANQUE DIESEL SEDE', unidade: 'L', dica: null, quantidade: '181', leitura: '1.550,5', cheio: true });
       const antes = await fotoBanco(s);
+      await clicar(page.getByTestId('abastecimento-previa'));
+      conferir(
+        await visivel(page.getByText('Os litros passam da capacidade nominal do tanque.')).waitFor({ timeout: 8000 }).then(() => true, () => false),
+        `[${rotulo}] 181 L num tanque de 180 L não foi barrado (capacidade conferida para Produto em L)`,
+      );
+      igual(await page.getByTestId('dialogo-previa-abastecimento').filter({ visible: true }).count(), 0, `[${rotulo}] revisão aberta acima da capacidade`);
+      await shot('formulario-l-acima-da-capacidade');
+      await preencher('abastecimento-quantidade', '80');
+      await shot('formulario-l');
       await pedirPrevia();
       const resumo = await visivel(page.getByTestId('previa-resumo')).innerText();
       conferir(resumo.includes('DIESEL S10') && resumo.includes('80 L') && resumo.includes('Baixa de 80,0000 L'), `[${rotulo}] revisão: resumo ${resumo}`);
       igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), '80,0000 L', `[${rotulo}] revisão: baixa`);
-      igual(await page.getByTestId('previa-dica-kg').filter({ visible: true }).count(), 0, `[${rotulo}] revisão: dica de KG para Produto em L`);
+      igual(await page.getByTestId('previa-dica-kg').filter({ visible: true }).count(), 0, `[${rotulo}] revisão: dica de kg para Produto em L`);
       await shot('previa-l');
       await abrirDetalhesDoEstoque();
       const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
@@ -598,6 +789,7 @@ const executarLargura = async (browser, largura) => {
       igual(await lotesDe(s, reg.diesel.id), '0.0000:Esgotado|70.0000:Disponivel', `[${rotulo}] lotes após a baixa de 80 L`);
       igual(await estoqueDe(s, reg.diesel.id), '70.0000', `[${rotulo}] estoque_atual após a baixa de 80 L`);
       igual(await lotesDe(s, reg.granel.id), '200.0000:Disponivel', `[${rotulo}] o Produto em KG foi tocado`);
+      igual(await lotesDe(s, reg.ureia.id), `${COMPRA_SACO.kg}:Disponivel`, `[${rotulo}] o Produto em SACO foi tocado`);
       igual(await bemCru(s, reg.tp02.id), reg.bemTp02, `[${rotulo}] o abastecimento alterou o bem`);
       igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } }), reg.financeiro, `[${rotulo}] lançamento financeiro criado pelo abastecimento`);
       reg.l80 = { id: ab.id, frota: 'TP-02', produto: 'DIESEL S10', quantidade: '80,0000 L', situacao: 'Confirmado' };
@@ -613,15 +805,7 @@ const executarLargura = async (browser, largura) => {
       igual(await visivel(page.getByTestId('consulta-fatias')).locator('tbody tr').count(), 2, `[${rotulo}] consulta: fatias`);
       igual((await visivel(page.getByTestId('abastecimento-consulta-situacao')).innerText()).trim(), 'Confirmado', `[${rotulo}] consulta: situação`);
       await shot('consulta-l');
-      await clicar(page.getByTestId('abastecimento-cancelar'));
-      await visivel(page.getByTestId('dialogo-cancelamento-abastecimento')).waitFor();
-      const enviar = visivel(page.getByTestId('cancelamento-enviar'));
-      conferir(await enviar.isDisabled(), `[${rotulo}] cancelar habilitado sem motivo/ciência`);
-      await visivel(page.getByTestId('cancelamento-motivo')).fill('Lançado no bem errado');
-      await visivel(page.getByTestId('cancelamento-ciente')).check();
-      await shot('cancelamento');
-      await enviar.click();
-      conferir(await esperarAviso(/cancelado: 80,0000 L devolvidos aos lotes de origem\./, 15000), `[${rotulo}] aviso de cancelamento (80,0000 L) ausente`);
+      await cancelarAberto('Lançado no bem errado', /cancelado: 80,0000 L devolvidos aos lotes de origem\./);
       const ab = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, id: reg.l80.id, status: 'CANCELADO' } }), 'abastecimento cancelado');
       igual(`${ab.versao}:${ab.motivo_cancelamento}`, '2:Lançado no bem errado', `[${rotulo}] cancelamento no banco`);
       const est = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: ab.movimentacao_estorno_id } });
@@ -635,16 +819,56 @@ const executarLargura = async (browser, largura) => {
       await shot('cancelado-l');
     });
 
-    await passo('10 abastecer o Produto em KG (TP-03): dica de kg, capacidade não conferida', async () => {
+    await passo('10 Produto em SACO (TP-03): kg, capacidade não conferida, baixa exata de 150 kg e estorno exato', async () => {
       await ir('abastecimentos');
-      await preencherAbastecimento({ frota: /TP-03/, produto: 'DIESEL S500 GRANEL', local: 'DEPÓSITO DE GRANEL', unidade: 'KG', quantidade: '35', leitura: '810', cheio: false });
+      await preencherAbastecimento({ frota: /TP-03/, produto: 'UREIA GRANULADA', escolherProduto: true, local: 'DEPÓSITO DE GRANEL', unidade: 'KG', dica: DICA_SACO, quantidade: '150', leitura: '805', cheio: false });
+      await shot('formulario-saco');
+      const antes = await fotoBanco(s);
+      await pedirPrevia();
+      igual(texto(await visivel(page.getByTestId('previa-dica-kg')).innerText()), DICA_SACO, `[${rotulo}] revisão: dica do Produto em sacos`);
+      igual(texto(await visivel(page.getByTestId('previa-baixa')).innerText()), '150,0000 kg', `[${rotulo}] revisão: baixa em kg (não em sacos)`);
+      await abrirDetalhesDoEstoque();
+      // 150 kg num tanque de 120 L: a capacidade (em litros) não é conferida para Produto em kg.
+      conferir(texto(await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('não conferida (Produto em quilos'), `[${rotulo}] revisão: capacidade conferida para Produto em SACO`);
+      const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
+      conferir(custo.includes('R$ 600,00') && custo.includes('R$ 4,00/kg'), `[${rotulo}] revisão SACO: custo ${custo}`);
+      igual(await page.getByTestId('previa-bloqueios').count(), 0, `[${rotulo}] revisão SACO com bloqueio`);
+      igual(await fotoBanco(s), antes, `[${rotulo}] a revisão em SACO gravou algo`);
+      await shot('previa-saco');
+      await clicar(page.getByTestId('abastecimento-confirmar'));
+      await visivel(page.getByTestId('abastecimento-consulta')).waitFor({ timeout: 30000 });
+      conferir(await esperarAviso(/confirmado: 150,0000 kg baixados do estoque\./, 8000), `[${rotulo}] aviso de confirmação (150,0000 kg) ausente`);
+      const ab = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, status: 'CONFIRMADO', bem_id: reg.tp03.id, produto_id: reg.ureia.id } }), 'abastecimento SACO confirmado');
+      igual(`${dec(ab.quantidade)}:${ab.unidade}:${dec(ab.custo_total)}:${dec(ab.custo_unitario)}`, '150.0000:KG:600.0000:4.0000', `[${rotulo}] abastecimento SACO no banco (unidade KG)`);
+      const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: ab.movimentacao_estoque_id } });
+      igual(`${mov.tipo_movimentacao}:${mov.unidade_medida}:${dec(mov.quantidade)}:${dec(mov.valor_total)}`, 'Saída:KG:150.0000:600.0000', `[${rotulo}] movimento de saída do Produto em SACO`);
+      igual(await lotesDe(s, reg.ureia.id), '100.0000:Disponivel', `[${rotulo}] lote do Produto em SACO após a baixa exata de 150 kg`);
+      igual(await estoqueDe(s, reg.ureia.id), '100.0000', `[${rotulo}] estoque_atual do Produto em SACO após a baixa`);
+      igual(await lotesDe(s, reg.granel.id), '200.0000:Disponivel', `[${rotulo}] o Produto em KG foi tocado pelo abastecimento em SACO`);
+      igual(await bemCru(s, reg.tp03.id), reg.bemTp03, `[${rotulo}] o abastecimento alterou o TP-03`);
+      igual(texto(await visivel(page.getByTestId('consulta-quantidade')).innerText()), '150,0000 kg', `[${rotulo}] consulta SACO: quantidade`);
+      await shot('confirmado-saco');
+      await cancelarAberto('Produto errado', /cancelado: 150,0000 kg devolvidos aos lotes de origem\./);
+      const cancelado = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, id: ab.id, status: 'CANCELADO' } }), 'abastecimento SACO cancelado');
+      const est = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: cancelado.movimentacao_estorno_id } });
+      igual(`${est?.tipo_movimentacao}:${est?.tipo_detalhado}:${est?.unidade_medida}:${dec(est?.quantidade)}:${dec(est?.valor_total)}`, 'Entrada:estorno_abastecimento:KG:150.0000:600.0000', `[${rotulo}] estorno do Produto em SACO`);
+      igual(await lotesDe(s, reg.ureia.id), `${COMPRA_SACO.kg}:Disponivel`, `[${rotulo}] lote do Produto em SACO após o estorno exato`);
+      igual(await estoqueDe(s, reg.ureia.id), COMPRA_SACO.kg, `[${rotulo}] estoque_atual do Produto em SACO após o estorno`);
+      await visivel(page.getByTestId('consulta-estorno')).waitFor();
+      reg.saco150 = { id: ab.id, frota: 'TP-03', produto: 'UREIA GRANULADA', quantidade: '150,0000 kg', situacao: 'Cancelado' };
+      await shot('cancelado-saco');
+    });
+
+    await passo('11 Produto em KG (TP-03): 35 kg, dica de kg, baixa exata', async () => {
+      await ir('abastecimentos');
+      await preencherAbastecimento({ frota: /TP-03/, produto: 'DIESEL S500 GRANEL', escolherProduto: true, local: 'DEPÓSITO DE GRANEL', unidade: 'KG', dica: DICA_KG, quantidade: '35', leitura: '810', cheio: false });
       await shot('formulario-kg');
       const antes = await fotoBanco(s);
       await pedirPrevia();
-      igual((await visivel(page.getByTestId('previa-dica-kg')).innerText()).trim(), DICA_KG, `[${rotulo}] revisão: dica de Produto em KG`);
-      igual((await visivel(page.getByTestId('previa-baixa')).innerText()).replace(/\s+/g, ' ').trim(), '35,0000 kg', `[${rotulo}] revisão: baixa em kg`);
+      igual(texto(await visivel(page.getByTestId('previa-dica-kg')).innerText()), DICA_KG, `[${rotulo}] revisão: dica de Produto em KG`);
+      igual(texto(await visivel(page.getByTestId('previa-baixa')).innerText()), '35,0000 kg', `[${rotulo}] revisão: baixa em kg`);
       await abrirDetalhesDoEstoque();
-      conferir((await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('não conferida (Produto em quilos'), `[${rotulo}] revisão: capacidade conferida para Produto em KG`);
+      conferir(texto(await visivel(page.getByTestId('previa-capacidade')).innerText()).includes('não conferida (Produto em quilos'), `[${rotulo}] revisão: capacidade conferida para Produto em KG`);
       const custo = texto(await visivel(page.getByTestId('previa-custo')).innerText());
       conferir(custo.includes('R$ 143,50') && custo.includes('/kg'), `[${rotulo}] revisão KG: custo ${custo}`);
       igual(await fotoBanco(s), antes, `[${rotulo}] a revisão em KG gravou algo`);
@@ -652,27 +876,29 @@ const executarLargura = async (browser, largura) => {
       await clicar(page.getByTestId('abastecimento-confirmar'));
       await visivel(page.getByTestId('abastecimento-consulta')).waitFor({ timeout: 30000 });
       conferir(await esperarAviso(/confirmado: 35,0000 kg baixados do estoque\./, 8000), `[${rotulo}] aviso de confirmação (35,0000 kg) ausente`);
-      const ab = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, status: 'CONFIRMADO', bem_id: reg.tp03.id } }), 'abastecimento KG confirmado');
-      igual(`${dec(ab.quantidade)}:${ab.unidade}:${dec(ab.custo_total)}:${dec(ab.custo_unitario)}:${ab.produto_id === reg.granel.id}`, '35.0000:KG:143.5000:4.1000:true', `[${rotulo}] abastecimento KG no banco`);
+      const ab = await esperarBanco(() => prisma.abastecimentoBem.findFirst({ where: { cliente_id: s.cliente_id, status: 'CONFIRMADO', bem_id: reg.tp03.id, produto_id: reg.granel.id } }), 'abastecimento KG confirmado');
+      igual(`${dec(ab.quantidade)}:${ab.unidade}:${dec(ab.custo_total)}:${dec(ab.custo_unitario)}`, '35.0000:KG:143.5000:4.1000', `[${rotulo}] abastecimento KG no banco`);
       const mov = await prisma.movimentacaoEstoque.findFirst({ where: { cliente_id: s.cliente_id, id: ab.movimentacao_estoque_id } });
       igual(`${mov.tipo_movimentacao}:${mov.unidade_medida}:${dec(mov.quantidade)}:${dec(mov.valor_total)}`, 'Saída:KG:35.0000:143.5000', `[${rotulo}] movimento de saída KG`);
       igual(await lotesDe(s, reg.granel.id), '165.0000:Disponivel', `[${rotulo}] lote do Produto em KG após a baixa`);
       igual(await estoqueDe(s, reg.granel.id), '165.0000', `[${rotulo}] estoque_atual do Produto em KG`);
       igual(await lotesDe(s, reg.diesel.id), '50.0000:Disponivel|100.0000:Disponivel', `[${rotulo}] o Diesel S10 foi tocado pelo abastecimento em KG`);
+      igual(await lotesDe(s, reg.ureia.id), `${COMPRA_SACO.kg}:Disponivel`, `[${rotulo}] o Produto em SACO foi tocado pelo abastecimento em KG`);
       igual(await bemCru(s, reg.tp03.id), reg.bemTp03, `[${rotulo}] o abastecimento alterou o TP-03`);
       reg.kg35 = { id: ab.id, frota: 'TP-03', produto: 'DIESEL S500 GRANEL', quantidade: '35,0000 kg', situacao: 'Confirmado' };
       await shot('confirmado-kg');
     });
 
-    await passo('11 lista final: 80,0000 L cancelado e 35,0000 kg confirmado', async () => {
-      await conferirLista([reg.kg35, reg.l80], 'lista-final');
+    await passo('12 lista final: 80,0000 L e 150,0000 kg cancelados; 35,0000 kg confirmado', async () => {
+      await conferirLista([reg.kg35, reg.saco150, reg.l80], 'lista-final');
       igual(await prisma.operacaoFinanceira.count({ where: { cliente_id: s.cliente_id } }), reg.financeiro, `[${rotulo}] lançamentos financeiros ao fim`);
     });
   } catch (erro) {
     if (!(erro instanceof Divergencia)) console.error(`  [${rotulo}] interrompido: ${String(erro?.message || erro).split('\n')[0]}`);
   } finally {
     await new Promise((r) => setTimeout(r, 400)); // corpos das últimas respostas ainda em leitura
-    E.fecharLargura(rotulo, registro);
+    // Única recusa esperada: excluir o tipo em uso (409 PATRIMONIO_TIPO_EM_USO).
+    E.fecharLargura(rotulo, registro, [(r) => r.metodo === 'DELETE' && r.status === 409 && /^\/api\/native\/patrimonio-tipos\/[^/?]+\?versao=\d+$/.test(r.caminho) && /PATRIMONIO_TIPO_EM_USO/.test(r.texto)]);
     for (const at of atores) await at.fechar();
   }
 };
@@ -692,4 +918,8 @@ try {
   await E.encerrarProcessos();
   await closePrismaClient();
 }
-process.exit(E.concluir('OK: aceite D-PROD-162 — Produto em L e em KG, Bens com "+ Nova família/tipo" e Produtos aceitos, abastecimento e estorno exatos; tela real + backend real + PostgreSQL local sem divergências.'));
+process.exit(
+  E.concluir(
+    'OK: aceite D-PROD-169 — Produtos em L, KG e SACO aceitos no tanque, Bens com "Tipo de bem" + "Tipo" (+ Novo tipo) sem Família/Área/Localização, "Gerenciar tipos" (renomear, excluir, recusa em uso), abastecimento e estorno exatos (L com capacidade; kg sem); tela real + backend real + PostgreSQL local sem divergências.',
+  ),
+);

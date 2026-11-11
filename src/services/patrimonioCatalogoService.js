@@ -1,43 +1,42 @@
 /**
- * Service dos catálogos de Patrimônio e Frota (D-PROD-157): famílias e tipos.
+ * Service do catálogo de Patrimônio e Frota: os TIPOS de bem do usuário
+ * (D-PROD-157; D-PROD-162: dentro do cadastro de Bens; D-PROD-169: a família
+ * saiu da tela).
  *
- * D-PROD-162: os catálogos vivem DENTRO do cadastro de Bens (as guardas são as
- * da tela de Bens; ver `acoesDeCatalogoNoBem`) e saíram os perfis de medição e
- * os combustíveis. O `codigo` é opcional na criação (P-05): sem ele o servidor
- * o gera a partir do nome.
+ * D-PROD-169: o bem tem duas escolhas — o "Tipo de bem" (a natureza, lista
+ * FIXA: Benfeitoria, Máquina, Veículo, Implemento, Equipamento, Outro) e o
+ * "Tipo" (este cadastro, filtrado pelo Tipo de bem). Por trás, o servidor usa
+ * uma família padrão por natureza: o tipo novo vai com `{natureza, nome}` e o
+ * servidor resolve a família (garantindo o catálogo padrão sozinho). Ninguém
+ * cadastra família.
  *
- * Catálogos são do TENANT (sem empresa): o bem pode mudar de fazenda no futuro
- * sem quebrar referência. Sem exclusão física: inativar/reativar é PATCH só com
- * `{versao, ativo}` (exige a ação `inativar` da tela de Bens); a edição comum
- * nunca leva `ativo`. Campos de classificação (código, natureza, família) só
- * vão na criação — o servidor os trata como imutáveis.
+ * As guardas são as da tela de Bens (`acoesDeCatalogoNoBem`). O `codigo` é
+ * opcional na criação (P-05: sem ele o servidor o gera a partir do nome).
+ * Catálogo do TENANT (sem empresa). Renomear = PATCH mínimo com `versao`;
+ * excluir = DELETE com `versao`, só quando nenhum bem usa o tipo (senão 409
+ * `PATRIMONIO_TIPO_EM_USO`, com a contagem). Reativar um tipo antigo inativo
+ * continua sendo PATCH `{versao, ativo:true}` (ação `inativar` de Bens).
  */
 
 import {
   listPatrimonioCatalogoPage,
-  getPatrimonioCatalogo,
   createPatrimonioCatalogo,
   updatePatrimonioCatalogo,
-  instalarPatrimonioCatalogoPadrao,
+  deletePatrimonioCatalogo,
   listOpcoesBemPatrimonial,
 } from '@/apis/patrimonio';
 
 export const RECURSOS_CATALOGO = Object.freeze({
-  FAMILIAS: 'familias',
   TIPOS: 'tipos',
 });
 
 /** Código de catálogo: maiúsculas, dígitos e sublinhado (2 a 32). */
 export const PADRAO_CODIGO_CATALOGO = /^[A-Z0-9_]{2,32}$/;
 
-/** Campos aceitos na criação e na edição de cada catálogo. */
+/** Campos aceitos na criação e na edição do tipo (D-PROD-169: `natureza` no lugar de `familia_id`). */
 const CAMPOS = Object.freeze({
-  familias: Object.freeze({
-    criacao: Object.freeze(['codigo', 'nome', 'natureza', 'descricao', 'ordem', 'vida_util_meses_padrao']),
-    edicao: Object.freeze(['nome', 'descricao', 'ordem', 'vida_util_meses_padrao']),
-  }),
   tipos: Object.freeze({
-    criacao: Object.freeze(['familia_id', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida']),
+    criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida']),
     edicao: Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida']),
   }),
 });
@@ -63,8 +62,10 @@ const paraCorpo = (v) => {
 };
 
 /**
+ * Página keyset dos tipos (o "Gerenciar tipos"): `natureza` filtra pelo Tipo
+ * de bem; sem `ativo`, vêm ativos e inativos.
  * @param {string} recurso
- * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean, natureza?: string|null, familiaId?: string|null }} [opts]
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean, natureza?: string|null }} [opts]
  */
 export const listarCatalogoPagina = (recurso, opts = {}) =>
   listPatrimonioCatalogoPage(recurso, {
@@ -73,15 +74,12 @@ export const listarCatalogoPagina = (recurso, opts = {}) =>
     q: opts.q,
     ativo: opts.ativo,
     natureza: opts.natureza || undefined,
-    familia_id: opts.familiaId || undefined,
   });
-
-/** @param {string} recurso @param {string} id */
-export const detalharCatalogo = (recurso, id) => getPatrimonioCatalogo(recurso, id);
 
 /**
  * Criação: só os campos do catálogo, sem vazios (o servidor aplica os padrões).
- * Sem `codigo` (ou vazio) o servidor o gera do nome (P-05).
+ * O tipo vai com `natureza` (o Tipo de bem) e `nome`; sem `codigo` (ou vazio)
+ * o servidor o gera do nome (P-05).
  * @param {string} recurso @param {Record<string, any>} dados
  */
 export const criarCatalogo = (recurso, dados) => {
@@ -116,81 +114,50 @@ export const atualizarCatalogo = async (recurso, original, dados) => {
 };
 
 /**
- * Inativar (`ativo:false`) ou reativar (`ativo:true`): o corpo leva só
- * `versao` e `ativo` — o servidor exige a ação `inativar` nesse caso.
+ * Reativar (`ativo:true`) um tipo antigo inativo — ou inativar (`false`): o
+ * corpo leva só `versao` e `ativo` (o servidor exige a ação `inativar` de Bens).
  * @param {string} recurso @param {{ id: string, versao: number }} original @param {boolean} ativo
  */
 export const alterarSituacaoCatalogo = (recurso, original, ativo) =>
   updatePatrimonioCatalogo(recurso, original.id, { versao: original.versao, ativo: ativo === true });
 
-/** Catálogo padrão (só administrador): cria o que falta por código; devolve o resumo. */
-export const instalarCatalogoPadrao = () => instalarPatrimonioCatalogoPadrao();
-
-const ROTULO_RECURSO_PADRAO = /** @type {Record<string, [string, string]>} */ ({
-  familias: ['família', 'famílias'],
-  tipos: ['tipo', 'tipos'],
-});
-
-const MOTIVO_CONFLITO = /** @type {Record<string, string>} */ ({
-  natureza_divergente: 'já existe com outra natureza',
-  familia_divergente: 'já existe em outra família',
-  inativo: 'já existe, mas está inativo',
-  dependencia_em_conflito: 'depende de um item em conflito',
-  nome_em_uso: 'o nome já é usado por outro código',
-});
-
-/** @param {{ familias: number, tipos: number }} c */
-const listaDeContagens = (c) =>
-  ['familias', 'tipos']
-    .map((k) => {
-      const n = /** @type {Record<string, number>} */ (c)[k] ?? 0;
-      const [um, varios] = ROTULO_RECURSO_PADRAO[k];
-      return `${n} ${n === 1 ? um : varios}`;
-    })
-    .join(', ');
-
 /**
- * Resumo legível da instalação do catálogo padrão (D-PROD-162: só famílias e tipos).
- * @param {{ criados: any, existentes: any, conflitos: Array<{ recurso: string, codigo: string, motivo: string }> }} r
- * @returns {{ criados: string, existentes: string, conflitos: string[] }}
+ * Exclui o tipo de verdade (D-PROD-169), com a `versao` lida. O servidor
+ * recusa com 409 `PATRIMONIO_TIPO_EM_USO` (`details.bens`) quando algum bem —
+ * ativo ou inativo — usa o tipo.
+ * @param {string} recurso @param {{ id: string, versao: number }} original
  */
-export const resumoCatalogoPadrao = (r) => ({
-  criados: listaDeContagens(r.criados),
-  existentes: listaDeContagens(r.existentes),
-  conflitos: r.conflitos.map((c) => {
-    const [um] = ROTULO_RECURSO_PADRAO[c.recurso] ?? [c.recurso];
-    return `${um} ${c.codigo}: ${MOTIVO_CONFLITO[c.motivo] ?? c.motivo}`;
-  }),
-});
+export const excluirCatalogo = (recurso, original) => deletePatrimonioCatalogo(recurso, original.id, original.versao);
 
 /**
- * Uma página de opções ATIVAS de catálogo (famílias, tipos) para os seletores
- * — sem empresa (catálogo do tenant). `tipos` aceita `familiaId`.
- * @param {'familias'|'tipos'} recurso
- * @param {{ q?: string, cursor?: string|null, limit?: number, familiaId?: string|null }} [opts]
+ * Uma página de tipos ATIVOS para o seletor do bem — sem empresa (catálogo do
+ * tenant). `natureza` (o Tipo de bem) filtra: entram os tipos das famílias
+ * daquela natureza, inclusive os de famílias antigas criadas à mão.
+ * @param {'tipos'} recurso
+ * @param {{ q?: string, cursor?: string|null, limit?: number, natureza?: string|null }} [opts]
  */
 export const listarOpcoesCatalogo = (recurso, opts = {}) =>
   listOpcoesBemPatrimonial(recurso, {
     q: opts.q?.trim() || undefined,
     cursor: opts.cursor || undefined,
     limit: opts.limit ?? 50,
-    familia_id: opts.familiaId || undefined,
+    natureza: opts.natureza || undefined,
   });
 
 /** Nome comparável (sem diferenciar maiúsculas nem espaços repetidos), como o servidor. @param {unknown} nome */
 const nomeComparavel = (nome) => String(nome ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
 
 /**
- * "Usar a existente" depois de um 409 `PATRIMONIO_NOME_DUPLICADO` no cadastro
- * rápido: procura, entre as opções ATIVAS, o item com o MESMO nome (tipo:
- * dentro da família). `null` quando o homônimo está inativo (ele não pode ser
- * escolhido para um bem: reative-o em "Gerenciar famílias e tipos").
- * @param {'familias'|'tipos'} recurso @param {string} nome @param {{ familiaId?: string|null }} [opts]
+ * "Usar o existente" depois de um 409 `PATRIMONIO_NOME_DUPLICADO` no cadastro
+ * rápido: procura, entre os tipos ATIVOS do Tipo de bem, o de MESMO nome.
+ * `null` quando o homônimo está inativo (ele não pode ser escolhido para um
+ * bem: reative-o em "Gerenciar tipos").
+ * @param {'tipos'} recurso @param {string} nome @param {{ natureza?: string|null }} [opts]
  * @returns {Promise<any|null>}
  */
 export const buscarCatalogoPorNome = async (recurso, nome, opts = {}) => {
   const alvo = nomeComparavel(nome);
   if (!alvo) return null;
-  const pagina = await listarOpcoesCatalogo(recurso, { q: String(nome).trim(), limit: 50, familiaId: opts.familiaId ?? null });
+  const pagina = await listarOpcoesCatalogo(recurso, { q: String(nome).trim(), limit: 50, natureza: opts.natureza ?? null });
   return pagina.itens.find((o) => o && nomeComparavel(o.nome) === alvo) ?? null;
 };
