@@ -63,3 +63,15 @@ O teste E2E no celular achou mais um defeito, já corrigido: o filtro do "Gerenc
 ## 6. Situação
 
 `MIGRATION = NÃO` · release = merge + deploy · CI e merge registrados no corpo da PR #241.
+
+## 7. Integração com o motor Base1 (PR #240) e janelas do motor (D-PROD-170)
+
+A pedido do proprietário, a PR #241 entrou no modelo Base1 antes do merge.
+
+- **Merge da `main` com a #240 (D-PROD-164 a D-PROD-168) e a #242 (D-PROD-163, SVG):** a decisão desta missão passa de D-PROD-163 a **D-PROD-169** (código, testes, scripts E2E e documentos). A lista de Bens ganha a faixa de filtros, a tabela e o rodapé do design. O registro ganha o cartão de identificação (Nº, Nome, Código de frota, Situação, Tipo de bem e Tipo), as abas em pílula e os campos do design. Conflitos resolvidos: `FormularioBem` (os campos novos no cartão do design), `FormularioTipo` (densidade do motor) e `FormularioFamilia` (continua removido).
+- **Janelas (D-PROD-170):** "Gerenciar tipos", prévia e cancelamento do abastecimento e consumo do bem passam à janela do motor (`B1Janela`). Antes e depois em `evidencias/patrimonio-simplifica-02/`:
+  - `gerenciar-tipos-antes-depois.png`: fundo quente; ✕ no cabeçalho; pesquisa em pílula; "+ Novo tipo" como o "+ Novo"; Renomear e Excluir como na barra;
+  - `novo-tipo-antes-depois.png`: os campos do "+ Novo tipo" voltam ao desenho do formulário (antes, sem caixa e com a seta solta);
+  - `gerenciar-tipos-celular.png`: 390 px; as ações descem para baixo do nome e a folha das escolhas continua dentro da janela.
+- **Conferido no navegador** (1366 e 390 px; backend falso, só leitura): lista, registro em leitura e em edição (Identificação e Operação com tanques), "Gerenciar tipos" e "+ Novo tipo".
+- **Testes:** `b1Janela.test.jsx` (novo) e um caso novo em `bensGerenciarTipos.test.jsx`. Os testes de Patrimônio passam sem mudança de regra: Bens, tipos, tanques, abastecimentos, cancelamento e permissões.

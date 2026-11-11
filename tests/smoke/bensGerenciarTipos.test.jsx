@@ -306,6 +306,21 @@ describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-169)', () => {
     await waitFor(() => expect(listagens().length).toBeGreaterThan(antes));
   });
 
+  it('D-PROD-170: janela do motor Base1 — cartão do motor com o ✕, botões do motor e o "+ Novo tipo" no desenho do formulário', async () => {
+    await montar();
+    const dialogo = await abrirGerenciar();
+    // A camada leva o escopo do motor (o portal fica fora da tela) e o cartão é o de "Configurar colunas".
+    expect(dialogo).toHaveClass('b1ref', 'cadastro-b1');
+    expect(dialogo.querySelector('.mdlc.b1-janela .mdl-h .mdl-t')).toHaveTextContent('Gerenciar tipos');
+    expect(within(dialogo).getByTestId('gerenciar-novo')).toHaveClass('tb-btn', 'tb-btn-green');
+    expect(within(dialogo).getByRole('button', { name: 'Excluir Curral' })).toHaveClass('tb-btn', 'tb-btn-red');
+    expect(within(dialogo).getByRole('searchbox', { name: 'Buscar tipos' }).closest('.mk-pill')).not.toBeNull();
+    fireEvent.click(within(dialogo).getByTestId('gerenciar-novo'));
+    const form = within(dialogo).getByTestId('gerenciar-form');
+    // O formulário do tipo é um formulário do motor dentro do escopo Base1 (sem isso os campos perdiam o desenho).
+    expect(form.querySelector('form[data-densidade="compacto"]')?.closest('.cadastro-b1')).toBe(dialogo);
+  });
+
   it('"+ Novo tipo" no diálogo: Tipo de bem (vem do filtro) + Nome; POST {natureza, nome}', async () => {
     await montar();
     const dialogo = await abrirGerenciar();

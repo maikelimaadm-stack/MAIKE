@@ -6130,4 +6130,18 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   O resto da D-PROD-162 continua valendo.
 - **Estado:** implementada e verificada na branch `claude/new-session-abgn5w`, junto da PR #241; a release é merge e deploy, sem migration. Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-170 -->
+## D-PROD-170 — Patrimônio no modelo do motor Base1: janelas do motor (`B1Janela`) e botões do motor
+
+- **Contexto:** o proprietário pediu que a PR #241 (SIMPLIFICA-02) entrasse no modelo Base1 antes do merge. Ela nasceu sobre a `main` de antes da PR #240 (design "Cadastro de Lote" no motor, D-PROD-164 a D-PROD-168). Com o merge da #240, lista, faixa de filtros, registro e formulários de Bens e de Abastecimentos já ganham o desenho do motor. As janelas de Patrimônio, porém, usavam o diálogo genérico: fundo preto, botão verde-escuro, pesquisa quadrada, textos de 11 a 13 px. No "+ Novo tipo", os campos perdiam o desenho, porque o portal fica fora da tela e sem o escopo `cadastro-b1`.
+- **Decisão:**
+  - **`B1Janela`** (`src/components/cadastro/base1/B1Janela.jsx`) é a janela do motor sobre o Radix Dialog, com o desenho de "Configurar colunas" (`b1ref .mdlc`):
+    - fundo quente; cartão branco de 16 px; título 20/600 e ✕ (Fechar) no cabeçalho; corpo que rola; rodapé opcional com os botões do motor;
+    - leva `cadastro-b1`, então os campos e botões dentro dela têm o desenho do motor;
+    - centraliza sem `transform`, então a folha do celular aberta dentro dela ocupa a tela;
+    - `podeFechar` trava o ✕ e o Escape (enviando); `aoPedirFechar` deixa a folha do celular fechar primeiro.
+  - **Usam a `B1Janela`:** "⋯ › Gerenciar tipos" de Bens, que também ganha pesquisa em pílula, "+ Novo tipo" verde como o "+ Novo", linhas com o nome em 14/600 e os dados em 13 px, e Renomear/Reativar/Excluir nos botões da barra; a prévia e o cancelamento do abastecimento; o consumo do bem.
+  - **Botões de Patrimônio** (`BOTAO_*` de `DialogosAbastecimento`) passam às classes do motor: verde para confirmar, vermelho para a ação destrutiva (igual a "Excluir" da barra) e neutro.
+- **Não muda:** regras, textos, envios, permissões, ids de teste e nomes acessíveis. Os Produtos aceitos do tanque continuam com pílulas e o seletor com busca no servidor: a lista de Produtos da fazenda pode ser grande e é paginada.
+- **Evidência:** `tests/smoke/b1Janela.test.jsx`; caso novo em `tests/smoke/bensGerenciarTipos.test.jsx`; imagens em `docs/engineering/evidencias/patrimonio-simplifica-02/`; seção 7 do relatório `MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-171 -->

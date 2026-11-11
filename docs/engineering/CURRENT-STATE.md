@@ -13,8 +13,8 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-169**, pedida pelo proprietário em 2026-11-11 depois de testar a SIMPLIFICA-01 em produção. Respostas: "Família some", "Tipo de bem + Tipo", "Junta tudo numa PR só" |
-| Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `87e8a5ca` (merge da PR #239). Vai junto da PR [#241](https://github.com/maikelimaadm-stack/MAIKE/pull/241), que registra a release da D-PROD-162 |
+| Decisão | **D-PROD-169**, pedida pelo proprietário em 2026-11-11 depois de testar a SIMPLIFICA-01 em produção. Respostas: "Família some", "Tipo de bem + Tipo", "Junta tudo numa PR só". **D-PROD-170**: Patrimônio no modelo do motor Base1 (janelas `B1Janela` e botões do motor), pedido do proprietário antes do merge |
+| Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `87e8a5ca` (merge da PR #239), com a `main` da PR #242 (SVG, D-PROD-163) e da PR #240 (motor Base1, D-PROD-164 a D-PROD-168) integrada por merge. Vai junto da PR [#241](https://github.com/maikelimaadm-stack/MAIKE/pull/241), que registra a release da D-PROD-162 |
 | Escopo | **Tanque e abastecimento:** Produtos aceitos em L, KG ou SACO; SACO abastece em kg, a unidade de estoque. **Bem:** saem Área e Localização; sai a Família; a lista fixa "Tipo de bem" (natureza) vem com o "Tipo" do usuário, com "+ Novo tipo" e "Gerenciar tipos" (listar, renomear, excluir; tipo em uso → 409 `PATRIMONIO_TIPO_EM_USO`). **Catálogo:** garantido automaticamente, com a família padrão `OUTROS` |
 | Migration | Nenhuma |
 | Release | Merge e deploy; não há escrita no banco |

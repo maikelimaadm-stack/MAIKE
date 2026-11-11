@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
-import * as UiDialog from "@/components/ui/dialog";
+import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { mensagemDoBloqueioAbastecimento, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import {
   UNIDADE_MEDIDOR,
@@ -18,21 +18,12 @@ import {
 } from "@/lib/abastecimentoRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
-// Os componentes de `ui/dialog` são forwardRef sem tipos: aqui valem como `any`.
-const Dialog = /** @type {any} */ (UiDialog.Dialog);
-const DialogContent = /** @type {any} */ (UiDialog.DialogContent);
-const DialogDescription = /** @type {any} */ (UiDialog.DialogDescription);
-const DialogFooter = /** @type {any} */ (UiDialog.DialogFooter);
-const DialogHeader = /** @type {any} */ (UiDialog.DialogHeader);
-const DialogTitle = /** @type {any} */ (UiDialog.DialogTitle);
-
-export const CTL_DIALOGO = "w-full min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-[14px] outline-none focus:border-emerald-500";
-export const BOTAO_PRIMARIO =
-  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60";
-export const BOTAO_PERIGO =
-  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-red-600 px-4 text-[13px] font-semibold text-white hover:bg-red-700 disabled:opacity-60";
-export const BOTAO_SECUNDARIO =
-  "inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--mg-divider,#cbd5e1)] bg-white px-4 text-[13px] font-medium hover:bg-slate-50 disabled:opacity-60";
+/** Campo de texto das janelas (motivo do cancelamento): o desenho do campo do motor Base1. */
+export const CTL_DIALOGO = "b1-janela__ctl";
+// Botões do motor Base1 (D-PROD-169): verde = confirmar, vermelho = ação destrutiva (como "Excluir" da barra), neutro.
+export const BOTAO_PRIMARIO = "tb-btn tb-btn-green";
+export const BOTAO_PERIGO = "tb-btn tb-btn-red";
+export const BOTAO_SECUNDARIO = "tb-btn";
 
 /**
  * Estado do envio: "incerto" = sem resposta definitiva (rede/prazo/5xx) — NUNCA
@@ -124,9 +115,9 @@ export function AvisoEnvioAbastecimento({ estado, onRepetir = null, onConsultar 
 /** @param {{ rotulo: string, valor: React.ReactNode, testId?: string }} props */
 function Linha({ rotulo, valor, testId = undefined }) {
   return (
-    <div className="flex min-w-0 flex-wrap justify-between gap-x-3 border-b border-slate-100 py-1">
-      <dt className="text-[12px] text-[var(--mg-text-2,#475569)]">{rotulo}</dt>
-      <dd className="min-w-0 break-words text-right text-[13px] font-medium" data-testid={testId}>
+    <div className="b1-janela__linha">
+      <dt>{rotulo}</dt>
+      <dd data-testid={testId}>
         {valor}
       </dd>
     </div>
@@ -177,134 +168,24 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
   };
 
   return (
-    <Dialog open={aberto} onOpenChange={(/** @type {boolean} */ o) => (!o && !enviando ? onFechar() : undefined)}>
-      <DialogContent data-permissao-explicita="" data-testid="dialogo-previa-abastecimento" className="max-h-[92vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Revisar abastecimento</DialogTitle>
-          <DialogDescription data-testid="previa-resumo" className="break-words">
-            {baixa
-              ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${
-                  plano.local_estoque?.nome ?? "local"
-                }.`
-              : "Nada foi gravado: confira abaixo o que impede a confirmação."}
-          </DialogDescription>
-        </DialogHeader>
-        {dicaDaUnidade ? (
-          <p role="note" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="previa-dica-kg">
-            {dicaDaUnidade}
-          </p>
-        ) : null}
-        <dl className="min-w-0" data-testid="previa-dados">
-          <Linha rotulo="Máquina/Veículo" testId="previa-bem" valor={rotuloDoBem(plano?.bem) || "—"} />
-          <Linha rotulo="Produto" testId="previa-produto" valor={plano?.produto?.nome ?? "—"} />
-          <Linha rotulo="Quantidade" testId="previa-quantidade" valor={quantidade} />
-          {medidor?.leitura ? (
-            <Linha rotulo="Leitura do medidor" testId="previa-leitura" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
-          ) : null}
-          <Linha rotulo="Completou o tanque" testId="previa-tanque-cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
-          <Linha rotulo="Data" testId="previa-data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
-          <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
-          <Linha rotulo="Baixa do estoque" testId="previa-baixa" valor={baixa ? formatarQuantidade(baixa, unidadeEstoque) : "—"} />
-        </dl>
-        <div className="min-w-0">
-          <button
-            type="button"
-            className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-[13px] font-medium hover:bg-slate-50"
-            aria-expanded={detalhesAbertos}
-            onClick={() => setDetalhesAbertos((v) => !v)}
-            data-testid="previa-detalhes-estoque"
-          >
-            {detalhesAbertos ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />} Detalhes do estoque
-          </button>
-          {detalhesAbertos ? (
-            <div className="mt-1 min-w-0 rounded-md border border-slate-200 p-2" data-testid="previa-detalhes-conteudo">
-              <dl className="min-w-0">
-                <Linha
-                  rotulo="Tanque"
-                  testId="previa-tanque"
-                  valor={
-                    plano?.tanque
-                      ? `${plano.tanque.identificador ?? ""}${plano.tanque.capacidade_litros ? ` (${formatarLitrosCurto(plano.tanque.capacidade_litros)} L)` : ""}`
-                      : "—"
-                  }
-                />
-                {plano?.tanque ? (
-                  <Linha
-                    rotulo="Capacidade do tanque"
-                    testId="previa-capacidade"
-                    valor={
-                      plano.confere_capacidade
-                        ? "conferida (Produto em litros)"
-                        : unidadeEstoque === "KG"
-                          ? "não conferida (Produto em quilos: a capacidade é em litros)"
-                          : "não conferida"
-                    }
-                  />
-                ) : null}
-                <Linha
-                  rotulo="Custo estimado"
-                  testId="previa-custo"
-                  valor={
-                    fifo?.custo_total_estimado ? (
-                      <>
-                        {formatarCusto(fifo.custo_total_estimado)}
-                        {fifo.custo_unitario_estimado && porUnidade ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/${porUnidade})` : ""}
-                        <span className="block text-[11px] font-normal text-[var(--mg-text-2,#475569)]">estimativa; o custo final é calculado na confirmação</span>
-                      </>
-                    ) : (
-                      "—"
-                    )
-                  }
-                />
-                {plano?.estoque ? <Linha rotulo="Saldo no local" testId="previa-saldo" valor={formatarQuantidade(plano.estoque.saldo_local, plano.estoque.unidade)} /> : null}
-              </dl>
-              {fatias.length ? (
-                <div className="mt-2 min-w-0 overflow-x-auto">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">Lotes consumidos (FIFO)</p>
-                  <table className="w-full text-[12px]" data-testid="previa-fatias">
-                    <thead>
-                      <tr className="text-left text-[var(--mg-text-2,#475569)]">
-                        <th className="py-1 pr-2">Lote de</th>
-                        <th className="py-1 pr-2 text-right">{porUnidade ? `Quantidade (${porUnidade})` : "Quantidade"}</th>
-                        <th className="py-1 pr-2 text-right">{porUnidade ? `Custo/${porUnidade}` : "Custo"}</th>
-                        <th className="py-1 text-right">Valor</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fatias.map((/** @type {any} */ f) => (
-                        <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
-                          <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
-                          <td className="py-1 pr-2 text-right tabular-nums">{formatarQuantidade(f.quantidade, null)}</td>
-                          <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
-                          <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        {bloqueios.length ? (
-          <div role="alert" data-testid="previa-bloqueios" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
-            <p className="font-semibold">Não dá para confirmar agora:</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              {bloqueios.map((/** @type {any} */ b, /** @type {number} */ k) => (
-                <li key={k} className="break-words" data-codigo={b?.code}>
-                  {mensagemDoBloqueioAbastecimento(b)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <AvisoEnvioAbastecimento
-          estado={estado}
-          objeto="o abastecimento"
-          onConsultar={consultar}
-          onRepetir={podeConfirmar && !bloqueios.length ? () => disparar(null) : null}
-        />
-        <DialogFooter className="gap-2 sm:gap-2">
+    <B1Janela
+      aberto={aberto}
+      onFechar={onFechar}
+      podeFechar={!enviando}
+      titulo="Revisar abastecimento"
+      descricao={
+        baixa
+          ? `${rotuloDoBem(plano.bem)} · ${plano.produto?.nome ?? "Produto"} · ${quantidade}. Baixa de ${formatarQuantidade(baixa, unidadeEstoque)} do estoque em ${
+              plano.local_estoque?.nome ?? "local"
+            }.`
+          : "Nada foi gravado: confira abaixo o que impede a confirmação."
+      }
+      descricaoProps={{ "data-testid": "previa-resumo" }}
+      className="b1-janela--estreita"
+      testId="dialogo-previa-abastecimento"
+      contentProps={{ "data-permissao-explicita": "" }}
+      rodape={
+        <>
           <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={enviando}>
             Voltar
           </button>
@@ -314,9 +195,125 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
               {enviando ? "Confirmando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Confirmar abastecimento"}
             </button>
           ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      {dicaDaUnidade ? (
+        <p role="note" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="previa-dica-kg">
+          {dicaDaUnidade}
+        </p>
+      ) : null}
+      <dl className="min-w-0" data-testid="previa-dados">
+        <Linha rotulo="Máquina/Veículo" testId="previa-bem" valor={rotuloDoBem(plano?.bem) || "—"} />
+        <Linha rotulo="Produto" testId="previa-produto" valor={plano?.produto?.nome ?? "—"} />
+        <Linha rotulo="Quantidade" testId="previa-quantidade" valor={quantidade} />
+        {medidor?.leitura ? (
+          <Linha rotulo="Leitura do medidor" testId="previa-leitura" valor={`${formatarLeitura(medidor.leitura)}${unidade ? ` ${unidade}` : ""}`} />
+        ) : null}
+        <Linha rotulo="Completou o tanque" testId="previa-tanque-cheio" valor={plano?.tanque_cheio ? "Sim" : "Não"} />
+        <Linha rotulo="Data" testId="previa-data" valor={formatarDiaAbastecimento(plano?.data_operacional)} />
+        <Linha rotulo="Sai do estoque" testId="previa-local" valor={plano?.local_estoque?.nome ?? "—"} />
+        <Linha rotulo="Baixa do estoque" testId="previa-baixa" valor={baixa ? formatarQuantidade(baixa, unidadeEstoque) : "—"} />
+      </dl>
+      <div className="min-w-0">
+        <button
+          type="button"
+          className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-[13px] font-medium hover:bg-slate-50"
+          aria-expanded={detalhesAbertos}
+          onClick={() => setDetalhesAbertos((v) => !v)}
+          data-testid="previa-detalhes-estoque"
+        >
+          {detalhesAbertos ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />} Detalhes do estoque
+        </button>
+        {detalhesAbertos ? (
+          <div className="mt-1 min-w-0 rounded-md border border-slate-200 p-2" data-testid="previa-detalhes-conteudo">
+            <dl className="min-w-0">
+              <Linha
+                rotulo="Tanque"
+                testId="previa-tanque"
+                valor={
+                  plano?.tanque
+                    ? `${plano.tanque.identificador ?? ""}${plano.tanque.capacidade_litros ? ` (${formatarLitrosCurto(plano.tanque.capacidade_litros)} L)` : ""}`
+                    : "—"
+                }
+              />
+              {plano?.tanque ? (
+                <Linha
+                  rotulo="Capacidade do tanque"
+                  testId="previa-capacidade"
+                  valor={
+                    plano.confere_capacidade
+                      ? "conferida (Produto em litros)"
+                      : unidadeEstoque === "KG"
+                        ? "não conferida (Produto em quilos: a capacidade é em litros)"
+                        : "não conferida"
+                  }
+                />
+              ) : null}
+              <Linha
+                rotulo="Custo estimado"
+                testId="previa-custo"
+                valor={
+                  fifo?.custo_total_estimado ? (
+                    <>
+                      {formatarCusto(fifo.custo_total_estimado)}
+                      {fifo.custo_unitario_estimado && porUnidade ? ` (${formatarCusto(fifo.custo_unitario_estimado)}/${porUnidade})` : ""}
+                      <span className="block text-[11px] font-normal text-[var(--mg-text-2,#475569)]">estimativa; o custo final é calculado na confirmação</span>
+                    </>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              {plano?.estoque ? <Linha rotulo="Saldo no local" testId="previa-saldo" valor={formatarQuantidade(plano.estoque.saldo_local, plano.estoque.unidade)} /> : null}
+            </dl>
+            {fatias.length ? (
+              <div className="mt-2 min-w-0 overflow-x-auto">
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]">Lotes consumidos (FIFO)</p>
+                <table className="w-full text-[12px]" data-testid="previa-fatias">
+                  <thead>
+                    <tr className="text-left text-[var(--mg-text-2,#475569)]">
+                      <th className="py-1 pr-2">Lote de</th>
+                      <th className="py-1 pr-2 text-right">{porUnidade ? `Quantidade (${porUnidade})` : "Quantidade"}</th>
+                      <th className="py-1 pr-2 text-right">{porUnidade ? `Custo/${porUnidade}` : "Custo"}</th>
+                      <th className="py-1 text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fatias.map((/** @type {any} */ f) => (
+                      <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
+                        <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
+                        <td className="py-1 pr-2 text-right tabular-nums">{formatarQuantidade(f.quantidade, null)}</td>
+                        <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
+                        <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {bloqueios.length ? (
+        <div role="alert" data-testid="previa-bloqueios" className="min-w-0 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
+          <p className="font-semibold">Não dá para confirmar agora:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {bloqueios.map((/** @type {any} */ b, /** @type {number} */ k) => (
+              <li key={k} className="break-words" data-codigo={b?.code}>
+                {mensagemDoBloqueioAbastecimento(b)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <AvisoEnvioAbastecimento
+        estado={estado}
+        objeto="o abastecimento"
+        onConsultar={consultar}
+        onRepetir={podeConfirmar && !bloqueios.length ? () => disparar(null) : null}
+      />
+    </B1Janela>
   );
 }
 
@@ -358,47 +355,22 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
   };
 
   return (
-    <Dialog open={aberto} onOpenChange={(/** @type {boolean} */ o) => (!o && !enviando ? onFechar() : undefined)}>
-      <DialogContent data-permissao-explicita="" data-testid="dialogo-cancelamento-abastecimento" className="max-h-[92vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Cancelar abastecimento {registro?.numero ? `nº ${registro.numero}` : ""}</DialogTitle>
-          <DialogDescription>
-            O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
-            {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
-          </DialogDescription>
-        </DialogHeader>
-        {efeito?.muda ? (
-          <p role="status" data-testid="cancelamento-aviso-medidor" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900">
-            A leitura operacional do medidor passará de {antes ?? "—"} {textoDepois}.
-          </p>
-        ) : null}
-        <label className="min-w-0 text-[12px]">
-          Motivo (obrigatório, de 3 a 500 caracteres)
-          <textarea
-            className={`${CTL_DIALOGO} h-20 py-2`}
-            value={motivo}
-            maxLength={500}
-            onChange={(e) => setMotivo(e.target.value)}
-            aria-label="Motivo do cancelamento"
-            data-testid="cancelamento-motivo"
-            disabled={enviando}
-          />
-        </label>
-        {motivoCurto ? <p className="text-[12px] text-red-700">Informe pelo menos 3 caracteres.</p> : null}
-        <label className="flex min-w-0 items-start gap-2 text-[13px]">
-          <input
-            type="checkbox"
-            className="mt-0.5 shrink-0 accent-red-600"
-            style={{ width: 20, height: 20 }}
-            checked={ciente}
-            disabled={enviando}
-            onChange={(e) => setCiente(e.target.checked)}
-            data-testid="cancelamento-ciente"
-          />
-          <span className="min-w-0 break-words">Estou ciente: o estoque baixado volta aos lotes de origem e este abastecimento deixa de contar no consumo.</span>
-        </label>
-        <AvisoEnvioAbastecimento estado={estado} objeto="o cancelamento" onConsultar={consultar} onRepetir={bloqueado ? null : () => disparar(motivoLimpo)} />
-        <DialogFooter className="gap-2 sm:gap-2">
+    <B1Janela
+      aberto={aberto}
+      onFechar={onFechar}
+      podeFechar={!enviando}
+      titulo={`Cancelar abastecimento ${registro?.numero ? `nº ${registro.numero}` : ""}`.trim()}
+      descricao={
+        <>
+          O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
+          {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
+        </>
+      }
+      className="b1-janela--estreita"
+      testId="dialogo-cancelamento-abastecimento"
+      contentProps={{ "data-permissao-explicita": "" }}
+      rodape={
+        <>
           <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} disabled={enviando}>
             Voltar
           </button>
@@ -406,8 +378,40 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
             {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
             {enviando ? "Cancelando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Cancelar abastecimento"}
           </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      {efeito?.muda ? (
+        <p role="status" data-testid="cancelamento-aviso-medidor" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900">
+          A leitura operacional do medidor passará de {antes ?? "—"} {textoDepois}.
+        </p>
+      ) : null}
+      <label className="b1-janela__rotulo">
+        Motivo (obrigatório, de 3 a 500 caracteres)
+        <textarea
+          className={CTL_DIALOGO}
+          value={motivo}
+          maxLength={500}
+          onChange={(e) => setMotivo(e.target.value)}
+          aria-label="Motivo do cancelamento"
+          data-testid="cancelamento-motivo"
+          disabled={enviando}
+        />
+      </label>
+      {motivoCurto ? <p className="text-[12px] text-red-700">Informe pelo menos 3 caracteres.</p> : null}
+      <label className="flex min-w-0 items-start gap-2 text-[13px]">
+        <input
+          type="checkbox"
+          className="mt-0.5 shrink-0 accent-red-600"
+          style={{ width: 20, height: 20 }}
+          checked={ciente}
+          disabled={enviando}
+          onChange={(e) => setCiente(e.target.checked)}
+          data-testid="cancelamento-ciente"
+        />
+        <span className="min-w-0 break-words">Estou ciente: o estoque baixado volta aos lotes de origem e este abastecimento deixa de contar no consumo.</span>
+      </label>
+      <AvisoEnvioAbastecimento estado={estado} objeto="o cancelamento" onConsultar={consultar} onRepetir={bloqueado ? null : () => disparar(motivoLimpo)} />
+    </B1Janela>
   );
 }
