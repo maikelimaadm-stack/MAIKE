@@ -22,6 +22,20 @@ function useValorAtrasado(valor, ms) {
 }
 
 /**
+ * Filho do `B1Field`: ele põe no filho o `id` do `<label for>` (e, com erro, `aria-invalid`/`aria-describedby`).
+ * Aqui esses atributos vão para o BOTÃO do campo; a caixa em volta só posiciona o ✕ de limpar.
+ * @param {{ caixaRef: React.Ref<HTMLDivElement>, botao: (doCampo: Record<string, any>) => React.ReactNode, extra?: React.ReactNode } & Record<string, any>} props
+ */
+function CaixaDoCampo({ caixaRef, botao, extra = null, ...doCampo }) {
+  return (
+    <div ref={caixaRef} className="relative mk-sel-campo w-full">
+      {botao(doCampo)}
+      {extra}
+    </div>
+  );
+}
+
+/**
  * Seletor PAGINADO e pesquisado no servidor (D-PROD-155), genérico para as
  * opções da Central de Lançamentos (parceiro, produto, local, natureza,
  * centros), do Patrimônio e da Gestão. Nunca carrega "tudo": a busca vai ao
@@ -59,20 +73,6 @@ function useValorAtrasado(valor, ms) {
  *   rotuloCriarNovo?: string,
  * }} props `textoVazio` fica por compatibilidade: no desenho do motor o campo vazio não escreve nada.
  */
-/**
- * Filho do `B1Field`: ele põe no filho o `id` do `<label for>` (e, com erro, `aria-invalid`/`aria-describedby`).
- * Aqui esses atributos vão para o BOTÃO do campo; a caixa em volta só posiciona o ✕ de limpar.
- * @param {{ caixaRef: React.Ref<HTMLDivElement>, botao: (doCampo: Record<string, any>) => React.ReactNode, extra?: React.ReactNode } & Record<string, any>} props
- */
-function CaixaDoCampo({ caixaRef, botao, extra = null, ...doCampo }) {
-  return (
-    <div ref={caixaRef} className="relative mk-sel-campo w-full">
-      {botao(doCampo)}
-      {extra}
-    </div>
-  );
-}
-
 export default function SeletorPaginadoGestao({
   rotulo,
   testId,
