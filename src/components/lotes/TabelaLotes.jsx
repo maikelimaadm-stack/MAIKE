@@ -22,7 +22,7 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "nome", label: "Nome", default: true, sortable: true, align: "left", width: 200 },
   { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
   { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 90 },
-  { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 130, cellKind: "cor", statusField: "identificador_cor", corNomes: NOMES_DAS_CORES },
+  { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 130, cellKind: /** @type {'cor'} */ ("cor"), statusField: "identificador_cor", corNomes: NOMES_DAS_CORES },
   // Cadastro = lançamento da entrada (D-PROD-85): a quantidade lançada, que
   // nenhuma movimentação/saída do mapa altera. O id "cabecas" é o do layout salvo.
   { id: "cabecas", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110 },
@@ -96,6 +96,9 @@ function displayPayloadEquivalent(prev, next) {
  * @property {string} [align]
  * @property {number} [width]
  * @property {string} [agregacao_tipo]
+ * @property {string} [cellKind]
+ * @property {string} [statusField]
+ * @property {Readonly<Record<string, string>>} [corNomes]
  * @property {string} [agregacao]
  * @property {string} [tipo]
  * @property {string} [field_type]

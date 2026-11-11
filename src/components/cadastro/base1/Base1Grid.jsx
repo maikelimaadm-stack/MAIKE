@@ -28,7 +28,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * Grade Modelo Base1 (referência CONTROLE-DE-ESTOQUE / frota equipamentos).
  *
  * @param {object} props
- * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; pinned?: 'left'; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
+ * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; pinned?: 'left'; papel?: 'titulo' | 'codigo'; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
  * @param {object[]} props.rows
  * @param {boolean} [props.loading]
  * @param {{ key: string; dir: 'asc'|'desc' }} [props.sort]
