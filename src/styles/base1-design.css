@@ -981,3 +981,135 @@
     padding-bottom: 6px;
   }
 }
+
+/* ── Celular: topo das telas Base1 — botões redondos brancos de 44px, título centralizado.
+   Só vale quando uma tela do motor está na frente; o Mapa Geral fica como está. ── */
+@media (max-width: 639px) {
+  body:has(.cadastro-b1--full-page) :is(header.mk-topnav-header, .mk-mhdr, .mk-mhdr.mk-mhdr--edit):not(#mk-a):not(#mk-b) {
+    background: transparent !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr:not(#mk-a):not(#mk-b) {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 64px;
+    padding: 6px 8px;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr.mk-mhdr--edit:not(#mk-a):not(#mk-b) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr__back:not(#mk-a):not(#mk-b) {
+    width: 44px;
+    height: 44px;
+  }
+  body:has(.cadastro-b1--full-page) :is(.mk-mhdr__main, .mk-mhdr__center):not(#mk-a):not(#mk-b) {
+    align-items: center;
+    padding: 0;
+    text-align: center;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr__title:not(#mk-a):not(#mk-b) {
+    color: #141413;
+    font-weight: 700;
+    text-align: center;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr__sub:not(#mk-a):not(#mk-b) {
+    justify-content: center;
+    gap: 4px;
+    margin-top: 1px;
+    color: #6b6a66;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr__sub:not(#mk-a):not(#mk-b) svg {
+    color: #6b6a66;
+  }
+  body:has(.cadastro-b1--full-page) :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-a):not(#mk-b) {
+    background: #fff !important;
+    color: #373733 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.045) !important;
+  }
+  body:has(.cadastro-b1--full-page) :is(.mk-mhdr__round:not(.mk-mhdr__round--salvar), .mk-mhdr__back > span):not(#mk-a):not(#mk-b) svg {
+    color: #373733 !important;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"]:not(#mk-a):not(#mk-b) {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0 !important;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.045);
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"] > div:not(#mk-a):not(#mk-b) {
+    width: auto;
+    height: auto;
+    background: transparent;
+  }
+  body:has(.cadastro-b1--full-page) .mk-mhdr > [aria-haspopup="menu"] > div > span:not(#mk-a):not(#mk-b) {
+    color: #373733;
+    font-weight: 600;
+  }
+}
+
+/* ── Celular: folha de lista do motor (seleção de campo, selects, "Filtrar por campo") no mesmo modelo:
+   folha branca, pesquisa lisa com linha embaixo, linhas sem risco, escolhido com o visto verde ── */
+.mk-sheet.mk-base1-sheet:not(#mk-a):not(#mk-b):not(#mk-c),
+.mk-sheet.mk-base1-sheet .mk-sheet__body:not(#mk-a):not(#mk-b) {
+  background-color: #fff;
+}
+.mk-base1-sheet :is(.mgs__busca, .fpc__busca).mk-pill:not(#mk-a):not(#mk-b),
+.mk-base1-sheet :is(.mgs__busca, .fpc__busca).mk-pill:focus-within:not(#mk-a):not(#mk-b) {
+  height: 44px;
+  min-height: 44px;
+  margin: 0 12px 6px;
+  padding: 0 4px;
+  border: 0 !important;
+  border-bottom: 1px solid #e8e7e2 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.mk-base1-sheet :is(.mgs__busca, .fpc__busca).mk-pill:not(#mk-a):not(#mk-b) .mk-pill__icon {
+  display: none;
+}
+.mk-base1-sheet :is(.mgs__busca, .fpc__busca).mk-pill:not(#mk-a):not(#mk-b) input {
+  background: transparent;
+  color: #141413;
+}
+.mk-base1-sheet :is(.mgs__lista, .fpc__lista):not(#mk-a):not(#mk-b) {
+  margin: 0 8px 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.mk-base1-sheet :is(.mgs__op, .fpc__item):not(#mk-a):not(#mk-b) {
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: #141413;
+  font-weight: 400;
+}
+.mk-base1-sheet :is(.mgs__op, .fpc__item):not(#mk-a):not(#mk-b)::before {
+  content: none;
+}
+.mk-base1-sheet :is(.mgs__op, .fpc__item):not(#mk-a):not(#mk-b):active {
+  background: #f1f1ee;
+}
+.mk-base1-sheet .mgs__op.is-on:not(#mk-a):not(#mk-b) {
+  background: transparent;
+  color: #141413;
+}
+.mk-base1-sheet .mgs__op:not(#mk-a):not(#mk-b) svg.lucide-check {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #16a34a;
+}
+.mk-base1-sheet :is(.mk-sheet__close, .mk-sheet__new):not(#mk-a):not(#mk-b):not(#mk-c) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.045) !important;
+}

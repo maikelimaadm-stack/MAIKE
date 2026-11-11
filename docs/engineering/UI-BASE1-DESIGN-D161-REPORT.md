@@ -17,6 +17,8 @@
 | Faixa de filtros rápidos e pílula de ordenação | `FiltrosRapidos.jsx` (novo), `CadastroListaChrome.jsx`, `CadastroBase1Grade.jsx` |
 | Lotes: coluna Cor com amostra, campos padrão dos cards, pílulas iniciais | `src/components/lotes/TabelaLotes.jsx`, `src/pages/CadastroLotes.jsx` |
 | Cards no celular: até 8 campos por padrão | `src/hooks/useCadastroCardsPrefs.js` |
+| Lista de seleção dos campos com pesquisa lisa e "+"; folha de lista no celular | `src/components/common/PainelSelecao.jsx`, `src/components/financeiro/AutocompleteGenerico.jsx` |
+| Pesquisa da barra, listas de configuração, cabeçalho do celular nas telas Base1 | `src/styles/base1-design.css` |
 | Testes | `tests/smoke/base1DesignD161.test.jsx`, `tests/smoke/base1FiltrosRapidos.test.jsx` |
 
 Como o porte é no motor, vale para todas as telas Base1. Só três formulários usam abas (Lotes, Bens, Empresa); os demais recebem paleta, campo, tabela e botões.
@@ -31,8 +33,7 @@ Está no design e não entrou:
 
 - condição/operadores dentro do filtro rápido (seguem no filtro avançado do menu da coluna) e a lista "Filtros" do celular (no celular não há faixa; o funil abre o "Filtrar por campo" de antes);
 - setas e esmaecimento na rolagem lateral da faixa;
-- listas de seleção dos campos do formulário no modelo novo e seleção múltipla em janela;
-- cabeçalho do celular e demais mudanças da casca;
+- seleção múltipla em janela (Sistema Produtivo continua em pílulas); no celular o "+" de cadastrar continua no topo da folha, não dentro da pesquisa;
 - movimento de abrir e fechar;
 - campos do Lote reorganizados dentro da aba Geral;
 - rodapé em palavras ("12 lotes · 1 selecionado") — contraria o teste PAR6 de `mobileParidadeV2`.

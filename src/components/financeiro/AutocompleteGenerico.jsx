@@ -101,6 +101,7 @@ export default function AutocompleteGenerico({
           style={uppercaseDisplay ? { textTransform: 'uppercase', caretColor: 'transparent' } : { caretColor: 'transparent' }} />
         <ChevronDown className="mk-ac-chev" aria-hidden />
         <MobileSheet
+          className="mk-base1-sheet"
           open={open}
           onClose={() => setOpen(false)}
           label={titulo}
