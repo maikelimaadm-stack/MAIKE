@@ -1,13 +1,15 @@
 /**
- * D-PROD-159 — FE6: cancelamento do abastecimento (estorno exato) na tela real
- * sobre o backend falso. Exige a ação `cancelar`, motivo (3..500) e ciência;
- * avisa quando a leitura operacional do medidor muda; corpo EXATO de A5 com
- * `operation_id`; resultado incerto repete a MESMA chave; recusas legíveis.
+ * D-PROD-159, revisto pela D-PROD-162 — FE6: cancelamento do abastecimento
+ * (estorno exato) na tela real sobre o backend falso. Exige a ação `cancelar`,
+ * motivo (3..500) e ciência; avisa quando a leitura operacional do medidor
+ * muda; a quantidade devolvida aparece na unidade GRAVADA no abastecimento (L
+ * ou kg); corpo EXATO de A5 com `operation_id`; resultado incerto repete a
+ * MESMA chave; recusas legíveis (inclusive `unidade_mudou`).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react';
 import { erroServidor } from './fixtures/gestaoBackendFake.js';
-import { semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
+import { acrescentarProduto, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
 import { montar, permissaoCom, prepararAmbiente } from './fixtures/abastecimentosTela.jsx';
 
 const sessao = vi.hoisted(() => ({ permissao: /** @type {any} */ (null), clienteId: 'cli-1' }));
@@ -30,8 +32,8 @@ beforeEach(async () => {
   amb = await prepararAmbiente(vi);
   // Abastecimento confirmado do trator com leitura 1550,5 h (a leitura operacional vigente).
   await semearAbastecimento(amb.estado, {
-    bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-    data_operacional: '2026-06-10', quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: true,
+    bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1',
+    data_operacional: '2026-06-10', quantidade: '80', medidor_leitura: '1550.5', tanque_cheio: true,
   });
 });
 
@@ -71,7 +73,7 @@ describe('FE6 — cancelamento', () => {
     expect(within(dialogo).getByTestId('cancelamento-aviso-medidor')).toHaveTextContent(
       'A leitura operacional do medidor passará de 1.550,5 h (10/06/2026) para a leitura do cadastro, 1.520,5 h (01/06/2026).',
     );
-    expect(dialogo).toHaveTextContent('O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem (67,2000 kg de Diesel S10 granel)');
+    expect(dialogo).toHaveTextContent('O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem (80,0000 L de Diesel S10 granel)');
     const enviar = within(dialogo).getByTestId('cancelamento-enviar');
     expect(enviar).toBeDisabled();
     fireEvent.change(within(dialogo).getByTestId('cancelamento-motivo'), { target: { value: 'ab' } });
@@ -81,7 +83,7 @@ describe('FE6 — cancelamento', () => {
     fireEvent.change(within(dialogo).getByTestId('cancelamento-motivo'), { target: { value: '  Lançado em duplicidade  ' } });
     expect(enviar).not.toBeDisabled();
     await act(async () => fireEvent.click(enviar));
-    expect(await screen.findByText('Abastecimento nº 1 cancelado: 67,2000 kg devolvidos aos lotes de origem.')).toBeTruthy();
+    expect(await screen.findByText('Abastecimento nº 1 cancelado: 80,0000 L devolvidos aos lotes de origem.')).toBeTruthy();
     expect(cancelamentos()).toHaveLength(1);
     expect(cancelamentos()[0].body).toEqual({ empresa_id: 'emp-1', versao: 1, motivo: 'Lançado em duplicidade', operation_id: expect.stringMatching(/^lanc-[A-Za-z0-9_.:-]{8,123}$/) });
     await waitFor(() => expect(screen.queryByTestId('dialogo-cancelamento-abastecimento')).toBeNull());
@@ -104,15 +106,15 @@ describe('FE6 — cancelamento', () => {
     const chave = cancelamentos()[0].body.operation_id;
     expect(JSON.parse(window.localStorage.getItem(CHAVE_PENDENTE)).operation_id).toBe(chave);
     await act(async () => fireEvent.click(within(dialogo).getByTestId('botao-repetir-envio')));
-    expect(await screen.findByText('Abastecimento nº 1 cancelado: 67,2000 kg devolvidos aos lotes de origem. (envio repetido: nada foi duplicado)')).toBeTruthy();
+    expect(await screen.findByText('Abastecimento nº 1 cancelado: 80,0000 L devolvidos aos lotes de origem. (envio repetido: nada foi duplicado)')).toBeTruthy();
     expect(cancelamentos()[1].body.operation_id).toBe(chave);
     cleanup();
 
     // "Consultar": o detalhe relido mostra CANCELADO → a pendência sai e o diálogo fecha.
     amb = await prepararAmbiente(vi);
     await semearAbastecimento(amb.estado, {
-      bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-      data_operacional: '2026-06-10', quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: true,
+      bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1',
+      data_operacional: '2026-06-10', quantidade: '80', medidor_leitura: '1550.5', tanque_cheio: true,
     });
     amb.estado.proxima = 'gravar-e-perder';
     dialogo = await abrirDialogo();
@@ -137,5 +139,37 @@ describe('FE6 — cancelamento', () => {
     await act(async () => fireEvent.click(within(dialogo).getByTestId('cancelamento-enviar')));
     await waitFor(() => expect(within(dialogo).getByTestId('erro-envio')).toHaveTextContent('Este abastecimento já foi cancelado. Nada foi alterado.'));
     expect(amb.estado.abastecimentos[0].status).toBe('CONFIRMADO');
+  });
+
+  it('Produto em KG: o diálogo e o aviso falam em kg; o estorno devolve os mesmos quilos aos lotes', async () => {
+    acrescentarProduto(amb.estado, 'p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000', tanques: [['b1', 'tq1']] });
+    await semearAbastecimento(amb.estado, {
+      bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p6', local_estoque_id: 'l1', data_operacional: '2026-06-11', quantidade: '250', medidor_leitura: '1560', tanque_cheio: false,
+    });
+    expect(amb.estado.lotes.find((l) => l.id === 'lote-p6').disponivel).toBe('250.0000');
+    await montar();
+    fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-2'));
+    const consulta = await screen.findByTestId('abastecimento-consulta');
+    expect(within(consulta).getByTestId('consulta-quantidade')).toHaveTextContent('250,0000 kg');
+    fireEvent.click(within(consulta).getByTestId('abastecimento-cancelar'));
+    const dialogo = await screen.findByTestId('dialogo-cancelamento-abastecimento');
+    expect(dialogo).toHaveTextContent('(250,0000 kg de Diesel pesado (kg))');
+    preencher(dialogo);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('cancelamento-enviar')));
+    expect(await screen.findByText('Abastecimento nº 2 cancelado: 250,0000 kg devolvidos aos lotes de origem.')).toBeTruthy();
+    expect(amb.estado.lotes.find((l) => l.id === 'lote-p6').disponivel).toBe('500.0000');
+    expect(amb.estado.produtos.find((p) => p.id === 'p6').estoque_atual).toBe('500.0000');
+  });
+
+  it('409 unidade_mudou (a unidade do Produto saiu de L depois do abastecimento): mensagem legível, nada alterado', async () => {
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'KG';
+    const dialogo = await abrirDialogo();
+    preencher(dialogo);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('cancelamento-enviar')));
+    expect(await within(dialogo).findByTestId('erro-envio')).toHaveTextContent(
+      'O estorno exato não é seguro agora (a unidade de estoque do Produto mudou desde o abastecimento). Nada foi alterado.',
+    );
+    expect(amb.estado.abastecimentos[0].status).toBe('CONFIRMADO');
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['0.0000', '70.0000']);
   });
 });

@@ -7,6 +7,12 @@
  * arquivo. Daqui para baixo é texto entra, dado sai.
  *
  * Sem React, sem provider, sem `window`.
+ *
+ * D-PROD-161 (Estoque P0): a coluna `Estoque` continua no lugar (compatibilidade
+ * com planilhas), mas o Cadastro de Produtos não importa saldo: vazia ou 0 dá
+ * linha válida SEM `estoque_atual`; qualquer outro valor é erro explícito de
+ * linha. O saldo entra por Entradas/Movimentações. A exportação continua
+ * mostrando o saldo atual (somente leitura).
  */
 
 import { parseDecimalPtBR } from '@/domain/numeroPtBR';
@@ -24,8 +30,22 @@ export const COLUNAS_EXPORTACAO = Object.freeze([
 
 const LINHA_EXEMPLO = Object.freeze([
   'PRODUTO EXEMPLO', '001', '7891234567890', 'CATEGORIA', 'DESCRIÇÃO', 'UN',
-  '10,50', '15,00', '100', '10', 'OBS',
+  '10,50', '15,00', '0', '10', 'OBS',
 ]);
+
+/** Posição da coluna `Estoque` na importação. */
+const COLUNA_ESTOQUE = COLUNAS_IMPORTACAO.indexOf('Estoque');
+
+/** Erro de linha para Estoque ≠ 0/vazio (D-PROD-161). */
+export const MENSAGEM_ESTOQUE_NAO_IMPORTADO =
+  'Estoque não é importado pelo Cadastro de Produtos: o saldo entra por Entradas/Movimentações (use 0 ou deixe vazio)';
+
+/** Célula Estoque vazia ou numericamente 0 (aceita `0`, `0,00`, `0.0`). Texto não numérico não é 0. */
+const estoqueVazioOuZero = (valor) => {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return true;
+  return parseDecimalPtBR(texto) === 0;
+};
 
 const maiusculoOuIndefinido = (valor) => {
   const texto = String(valor ?? '').trim();
@@ -76,7 +96,8 @@ export const montarCsvDeErros = (erros) =>
  * Converte o texto do CSV em registros prontos para persistir.
  *
  * Numeração (`numero_produto`) é atribuída pelo backend na criação — o CSV não
- * envia número. Linha sem nome é erro.
+ * envia número. Linha sem nome é erro. Linha com Estoque ≠ 0/vazio é erro
+ * (D-PROD-161): o registro válido nunca leva `estoque_atual`.
  *
  * @param {string} texto conteúdo do arquivo, já lido pela UI
  * @param {{empresaId: string}} p
@@ -105,13 +126,17 @@ export const parseCsvDeProdutos = (texto, { empresaId }) => {
       unidade_medida: maiusculoOuIndefinido(valores[5]) || 'UN',
       preco_custo: parseDecimalPtBR(valores[6]) ?? 0,
       preco_venda: parseDecimalPtBR(valores[7]) ?? 0,
-      estoque_atual: parseDecimalPtBR(valores[8]) ?? 0,
       estoque_minimo: parseDecimalPtBR(valores[9]) ?? 0,
       observacoes: maiusculoOuIndefinido(valores[10]),
     };
 
     if (!produto.nome_produto) {
       erros.push({ linha: i + 1, erro: 'Nome obrigatório', dados: linhas[i] });
+      continue;
+    }
+
+    if (!estoqueVazioOuZero(valores[COLUNA_ESTOQUE])) {
+      erros.push({ linha: i + 1, erro: MENSAGEM_ESTOQUE_NAO_IMPORTADO, dados: linhas[i] });
       continue;
     }
 

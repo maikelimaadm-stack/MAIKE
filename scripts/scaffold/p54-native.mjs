@@ -1,9 +1,23 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+/**
+ * Gera portas nativas do front com CRUD genérico (P5.4).
+ *
+ * Fora do `verify:all`. Desde a D-PROD-161 a execução passa por
+ * `p54-guarda-estoque.mjs`: nenhuma porta com `create`/`delete` (ou escrita de
+ * corpo livre) sobre estoque físico ou Produto sai daqui, e a recusa vem antes
+ * de qualquer escrita.
+ */
 import { join } from 'node:path';
+
+import { gerarSemEscritaDeEstoque } from './p54-guarda-estoque.mjs';
 
 const ROOT = join(import.meta.dirname, '../..');
 
+/**
+ * Lista histórica da P5.4, mantida como registro. As duas últimas entradas são
+ * do estoque físico, então a execução normal é recusada (D-PROD-161, fail-closed).
+ * As portas de estoque hoje não têm `create`/`delete` e não devem ser regeneradas.
+ */
 const PORTS = [
   { entity: 'Empresa', port: 'empresaPort', path: '/empresas', dir: 'empresa' },
   { entity: 'Permissao', port: 'permissaoPort', path: '/permissoes', dir: 'permissoes' },
@@ -15,7 +29,7 @@ const PORTS = [
   { entity: 'MovimentacaoEstoque', port: 'movimentacaoEstoquePort', path: '/movimentacoes-estoque', dir: 'movimentacoes-estoque', listLimit: true },
 ];
 
-for (const p of PORTS) {
+const renderizarPorta = (p) => {
   const file = `${p.port.replace('Port', 'NativePort')}.js`;
   const filterLine = p.filter
     ? `  filter: (criterio) =>
@@ -85,9 +99,11 @@ export const ${p.port} = offlineStorageDisponivel()
     })
   : operacoesNativas;
 `;
-  const dir = join(ROOT, 'src/apis', p.dir);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, file), content);
-}
+  return { caminho: `src/apis/${p.dir}/${file}`, conteudo: content };
+};
 
-console.log('Native ports OK');
+const renderizar = (portas) => portas.map(renderizarPorta);
+
+if (gerarSemEscritaDeEstoque({ gerador: 'p54-native', raiz: ROOT, entidades: PORTS, renderizar })) {
+  console.log('Native ports OK');
+}

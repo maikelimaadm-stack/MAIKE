@@ -1,28 +1,30 @@
 /**
- * D-PROD-160 (Patrimônio UX-02) — Novo abastecimento orientado por PRODUTO, na
- * tela real (página, motor Base1, service, API, porta e nativeHttpClient reais)
- * sobre o backend falso, cuja rota A16 `produtos-do-bem` segue a semântica do
- * serviço real (contrato UX-02 §2.3). O operador escolhe a máquina e o PRODUTO
- * (nome real do estoque); o tipo de combustível vem da opção do servidor e
- * NUNCA é etapa do formulário. O corpo de A3/A4 é o MESMO de antes.
+ * D-PROD-160 (Patrimônio UX-02), revista pela D-PROD-162 (SIMPLIFICA-01) —
+ * Novo abastecimento orientado por PRODUTO, na tela real (página, motor Base1,
+ * service, API, porta e nativeHttpClient reais) sobre o backend falso, cuja
+ * rota A16 `produtos-do-bem` segue a semântica do serviço real: os "Produtos
+ * aceitos" (ativos) dos tanques ativos do bem, Produto ativo, da fazenda, em L
+ * ou KG. O operador escolhe a máquina e o PRODUTO (nome real do estoque); não
+ * há tipo de combustível nem fator kg/L. A baixa é EXATAMENTE a quantidade
+ * digitada, na unidade do Produto.
  *
- *  UX-A01 fluxo TP-02 sem etapa Combustível; corpos A3/A4 exatos
+ *  UX-A01 fluxo TP-02 sem etapa Combustível; corpos A3/A4 exatos (sem tipo/fator)
  *  UX-A02 auto-seleção só com has_more=false (página parcial → seletor, nada escolhido)
- *  UX-A03 2..6 Produtos → botões; >6 → seletor com busca; ids da opção no corpo
- *  UX-A04 multi-tanque → "Qual tanque será abastecido?" obrigatório
- *  UX-A05 flex com Produto sem fator → aviso; "Configurar fator kg/L" só com a ação
- *  UX-A06 nenhum Produto: cada motivo; vínculo e fator em mensagens separadas
+ *  UX-A03 2..6 Produtos → botões; >6 → seletor com busca e selo de unidade; ids da opção no corpo
+ *  UX-A04 multi-tanque → "Qual tanque será abastecido?"; D2 com 2 tanques (A aceita Diesel, B aceita Arla): o tanque segue o Produto
+ *  UX-A05 Produto em KG (achado D8): rótulo "(kg)", dica fixa no formulário e na revisão, capacidade não conferida
+ *  UX-A06 nenhum Produto: cada motivo do servidor, apontando para Bens Patrimoniais
  *  UX-A07 sem saldo · UX-A08 vários locais
  *  UX-A09 resposta atrasada do bem anterior não auto-escolhe no bem novo
- *  UX-A10 A→B: 422 sem_vinculo_ativo na confirmação → relê → escolhe B
+ *  UX-A10 troca do aceite A → B no tanque: 422 na confirmação → relê → escolhe B; o histórico fica com A
  *  UX-A11 revisão: resumo humano, "Detalhes do estoque" recolhido; mudar invalida
- *  UX-A12 lista: colunas padrão exatas, sem "Combustível"; celular (cards)
+ *  UX-A12 lista: colunas padrão exatas (Quantidade com a unidade), preferência antiga não volta; celular (cards)
  *  UX-A13 teclado/acessibilidade e 390 px sem largura fixa
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react';
 import { escolherOpcao, rotulosDasOpcoes } from './fixtures/gestaoBackendFake.js';
-import { previaComUnidadeDoProduto, rotearAbastecimentos, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
+import { acrescentarProduto, rotearAbastecimentos, semearAbastecimento } from './fixtures/abastecimentosFakeCore.js';
 import {
   abrirDetalhesDoEstoque,
   abrirNovo,
@@ -52,7 +54,7 @@ vi.mock('@/services/mapaCacheService', async (importOriginal) => ({
   refreshMapaCacheEntry: vi.fn(async () => []),
 }));
 
-const TODAS = { novo: true, salvar: true, cancelar: true, configurar_conversao: true };
+const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
 
 let amb;
 let matchMediaOriginal;
@@ -78,20 +80,20 @@ const locaisLidos = () => chamadasDe(amb.backend, 'GET', '/patrimonio-abastecime
 const esperar = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 const radios = (raiz) => within(raiz).getAllByRole('radio').map((r) => [r.textContent, r.getAttribute('aria-checked')]);
 
-/** Mais um Produto do estoque da fazenda associado (vínculo ativo) a um combustível. */
-const novoProduto = (id, nome, tipo, { fator = null, lote = '100.0000', local = 'l1', ...extra } = {}) => {
-  amb.estado.produtos.push({ id, nome, codigo_interno: id.toUpperCase(), unidade_principal_estoque: 'KG', tipo, estoque_atual: lote, ...extra });
-  if (lote) amb.estado.lotes.push({ id: `lote-${id}`, produto: id, local, dia: '2026-06-04', disponivel: lote, custo: '5.0000' });
-  if (fator) amb.estado.conversoes.push({ id: `f-${id}`, tipo, produto: id, sequencia: 1, kg_por_litro: fator, ativo: true, versao: 1, encerrado_em: null, criado_por: { id: 'u1', login: 'gerente' } });
+/** Mais um Produto do estoque da fazenda, aceito (ativo) pelo tanque principal do trator. */
+const novoProdutoNoTrator = (id, nome, extra = {}) => acrescentarProduto(amb.estado, id, nome, { tanques: [['b1', 'tq1']], ...extra });
+/** O tanque principal do trator passa a aceitar SÓ estes Produtos (o PATCH do bem no cadastro de Bens). */
+const aceitesDoTrator = (ids) => {
+  amb.estado.tanques.b1[0].produtos = [...ids];
 };
 
 const CORPO_TP02 = (hoje) => ({
-  empresa_id: 'emp-1', bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1',
-  data_operacional: hoje, quantidade_litros: '80', medidor_leitura: '1550.5', tanque_cheio: true, observacao: null, referencia_externa: null,
+  empresa_id: 'emp-1', bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1',
+  data_operacional: hoje, quantidade: '80', medidor_leitura: '1550.5', tanque_cheio: true, observacao: null, referencia_externa: null,
 });
 
-describe('UX-A01 — fluxo TP-02: máquina → Produto → litros → medidor → revisar → confirmar', () => {
-  it('sem etapa Combustível: o único Produto já vem marcado; corpos A3/A4 EXATOS de antes', async () => {
+describe('UX-A01 — fluxo TP-02: máquina → Produto → quantidade → medidor → revisar → confirmar', () => {
+  it('sem etapa Combustível: o único Produto aceito já vem marcado; corpos A3/A4 EXATOS, sem tipo nem fator', async () => {
     await montar();
     const form = await abrirNovo();
     // Data pré-preenchida com o "hoje" da fazenda.
@@ -100,26 +102,25 @@ describe('UX-A01 — fluxo TP-02: máquina → Produto → litros → medidor �
     const grupo = within(form).getByTestId('abastecimento-produto');
     expect(grupo.getAttribute('aria-label')).toBe('Produto');
     expect(radios(grupo)).toEqual([['Diesel S10 granel', 'true']]);
-    // "Diesel S10" (o tipo) não é rótulo, radio nem etapa.
-    expect(within(form).queryByRole('radio', { name: 'Diesel S10' })).toBeNull();
-    expect(within(form).queryByText('Diesel S10', { exact: true })).toBeNull();
     expect(within(form).queryByRole('radiogroup', { name: /combust/i })).toBeNull();
     expect(within(form).queryByTestId('abastecimento-tanque')).toBeNull();
+    expect(form).not.toHaveTextContent(/fator|kg\/L/i);
     const dialogo = await pedirPrevia(form);
     expect(previas()[0].body).toEqual(CORPO_TP02(amb.estado.hoje));
     await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
     expect(await screen.findByTestId('abastecimento-consulta')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(1);
-    expect(confirmacoes()[0].body).toEqual({ ...CORPO_TP02(amb.estado.hoje), conversao_id: 'f1', conversao_versao: 1, operation_id: expect.stringMatching(/^lanc-/) });
+    expect(confirmacoes()[0].body).toEqual({ ...CORPO_TP02(amb.estado.hoje), operation_id: expect.stringMatching(/^lanc-/) });
     expect(screen.getByTestId('consulta-produto')).toHaveTextContent('Diesel S10 granel');
-    expect(screen.getByTestId('consulta-tipo')).toHaveTextContent('Diesel S10');
-    expect(screen.getByText('Tipo de combustível (classificação)')).toBeTruthy();
+    expect(screen.getByTestId('consulta-quantidade')).toHaveTextContent('80,0000 L');
+    expect(screen.queryByTestId('consulta-tipo')).toBeNull();
+    expect(screen.queryByText('Tipo de combustível (classificação)')).toBeNull();
   });
 });
 
 describe('UX-A02 — auto-seleção só com a resposta COMPLETA', () => {
   it('página parcial (has_more): seletor paginado, NADA escolhido, nenhum saldo lido; escolher pelo seletor aplica a opção', async () => {
-    novoProduto('p5', 'Diesel S10 posto', 'c1', { fator: '0.830000' });
+    novoProdutoNoTrator('p5', 'Diesel S10 posto');
     amb.estado.paginaProdutosDoBem = 1;
     await montar();
     const form = await abrirNovo();
@@ -140,7 +141,7 @@ describe('UX-A02 — auto-seleção só com a resposta COMPLETA', () => {
   });
 
   it('resposta completa com 2 Produtos: botões, nenhum marcado (nunca escolhe sozinho)', async () => {
-    novoProduto('p5', 'Diesel S10 posto', 'c1', { fator: '0.830000' });
+    novoProdutoNoTrator('p5', 'Diesel S10 posto');
     await montar();
     const form = await abrirNovo();
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
@@ -157,25 +158,23 @@ describe('UX-A02 — auto-seleção só com a resposta COMPLETA', () => {
   });
 });
 
-describe('UX-A03 — vários Produtos do mesmo combustível', () => {
-  it('2..6 → botões com o NOME real; o corpo leva tipo/produto/tanque da opção do servidor', async () => {
-    novoProduto('p5', 'Diesel S10 posto', 'c1', { fator: '0.830000' });
+describe('UX-A03 — vários Produtos aceitos pelo tanque', () => {
+  it('2..6 → botões com o NOME real; o corpo leva produto/tanque da opção do servidor; a baixa é o número digitado', async () => {
+    novoProdutoNoTrator('p5', 'Diesel S10 posto');
     await montar();
     const form = await abrirNovo();
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
     await escolherProduto(form, 'Diesel S10 posto');
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
-    digitar(form, 'abastecimento-litros', '40');
+    digitar(form, 'abastecimento-quantidade', '40');
     digitar(form, 'abastecimento-leitura', '1.560');
     const dialogo = await pedirPrevia(form);
-    expect(previas()[0].body).toMatchObject({ bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p5', local_estoque_id: 'l1', quantidade_litros: '40' });
-    expect(within(abrirDetalhesDoEstoque(dialogo)).getByTestId('previa-fator')).toHaveTextContent('0,830000 kg/L');
-    // O fator do granel NÃO aparece no posto: 40 × 0,83 = 33,2 kg.
-    expect(within(dialogo).getByTestId('previa-kg')).toHaveTextContent('33,2000 kg');
+    expect(previas()[0].body).toMatchObject({ bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p5', local_estoque_id: 'l1', quantidade: '40' });
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('40,0000 L');
   });
 
-  it('mais de 6 Produtos completos → seletor paginado com busca (rótulo = nome do Produto; "sem fator kg/L" no detalhe)', async () => {
-    for (let i = 1; i <= 6; i += 1) novoProduto(`px${i}`, `Diesel extra ${i}`, 'c1', { fator: i === 3 ? null : '0.840000' });
+  it('mais de 6 Produtos completos → seletor paginado com busca (rótulo = nome do Produto; a unidade L/kg no detalhe)', async () => {
+    for (let i = 1; i <= 6; i += 1) novoProdutoNoTrator(`px${i}`, `Diesel extra ${i}`, { unidade: i === 3 ? 'KG' : 'L' });
     await montar();
     const form = await abrirNovo();
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
@@ -185,7 +184,8 @@ describe('UX-A03 — vários Produtos do mesmo combustível', () => {
     fireEvent.click(seletor);
     const opcoes = await within(form).findAllByRole('option');
     expect(opcoes).toHaveLength(7);
-    expect(opcoes.find((o) => /Diesel extra 3/.test(o.textContent))).toHaveTextContent('Diesel extra 3sem fator kg/L');
+    expect(opcoes.find((o) => /Diesel extra 3/.test(o.textContent))).toHaveTextContent('Diesel extra 3kg');
+    expect(opcoes.find((o) => /Diesel extra 2/.test(o.textContent))).toHaveTextContent('Diesel extra 2L');
     fireEvent.change(within(form).getByRole('searchbox', { name: 'Buscar produto' }), { target: { value: 'extra 5' } });
     await waitFor(() => expect(produtosDoBem().at(-1).query).toEqual({ empresa_id: 'emp-1', bem_id: 'b1', q: 'extra 5', limit: '50' }));
     fireEvent.click(await within(form).findByRole('option', { name: /Diesel extra 5/ }));
@@ -197,8 +197,8 @@ describe('UX-A03 — vários Produtos do mesmo combustível', () => {
 describe('UX-A04 — multi-tanque', () => {
   it('Produto aceito em 2 tanques ativos → "Qual tanque será abastecido?" obrigatório; o inativo não aparece; capacidade do escolhido', async () => {
     amb.estado.tanques.b1.push(
-      { id: 'tqB', identificador: 'Tanque reserva', capacidade_litros: '60.0000', combustiveis: ['c1'] },
-      { id: 'tqC', identificador: 'Tanque antigo', capacidade_litros: '90.0000', combustiveis: ['c1'], ativo: false },
+      { id: 'tqB', identificador: 'Tanque reserva', capacidade_litros: '60.0000', produtos: ['p1'] },
+      { id: 'tqC', identificador: 'Tanque antigo', capacidade_litros: '90.0000', produtos: ['p1'], ativo: false },
     );
     await montar();
     const form = await abrirNovo();
@@ -210,7 +210,7 @@ describe('UX-A04 — multi-tanque', () => {
       ['Tanque principal (180 L)', 'false'],
       ['Tanque reserva (60 L)', 'false'],
     ]);
-    digitar(form, 'abastecimento-litros', '70');
+    digitar(form, 'abastecimento-quantidade', '70');
     digitar(form, 'abastecimento-leitura', '1.560');
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     expect(await within(form).findByText('Escolha qual tanque será abastecido.')).toBeTruthy();
@@ -218,77 +218,108 @@ describe('UX-A04 — multi-tanque', () => {
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     expect(await within(form).findByText('Os litros passam da capacidade nominal do tanque.')).toBeTruthy();
     expect(previas()).toEqual([]);
-    digitar(form, 'abastecimento-litros', '50');
+    digitar(form, 'abastecimento-quantidade', '50');
     const dialogo = await pedirPrevia(form);
-    expect(previas()[0].body).toMatchObject({ tanque_id: 'tqB', tipo_combustivel_id: 'c1', produto_id: 'p1' });
+    expect(previas()[0].body).toMatchObject({ tanque_id: 'tqB', produto_id: 'p1' });
     expect(within(abrirDetalhesDoEstoque(dialogo)).getByTestId('previa-tanque')).toHaveTextContent('Tanque reserva (60 L)');
   });
 
-  it('flex + dois tanques de combustíveis diferentes: cada Produto só no tanque que aceita o seu tipo (sem perguntar)', async () => {
-    amb.estado.tanques.b2.push({ id: 'tq2b', identificador: 'Tanque diesel', capacidade_litros: '100.0000', combustiveis: ['c1'] });
+  it('D2 com 2 tanques (achado D12): A aceita o Diesel e B aceita o Arla → cada Produto só no seu tanque, sem perguntar; a capacidade é a do tanque do Produto', async () => {
+    amb.estado.tanques.b1.push({ id: 'tqB', identificador: 'Tanque do Arla', capacidade_litros: '40.0000', produtos: [] });
+    acrescentarProduto(amb.estado, 'p7', 'Arla 32', { tanques: [['b1', 'tqB']] });
     await montar();
     const form = await abrirNovo();
-    await escolherNoSeletor(form, 'abastecimento-bem', /Caminhonete flex/);
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
     const grupo = await within(form).findByTestId('abastecimento-produto');
-    expect(radios(grupo).map(([t]) => t)).toEqual(['Diesel S10 granel', 'Etanol hidratado', 'Gasolina comum (sem fator kg/L)']);
+    expect(radios(grupo)).toEqual([
+      ['Arla 32', 'false'],
+      ['Diesel S10 granel', 'false'],
+    ]);
+    // Diesel: só o tanque A o aceita → sem pergunta de tanque.
     await escolherProduto(form, 'Diesel S10 granel');
     expect(within(form).queryByTestId('abastecimento-tanque')).toBeNull();
-    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toBeTruthy());
-    digitar(form, 'abastecimento-litros', '10');
-    digitar(form, 'abastecimento-leitura', '35300');
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
+    digitar(form, 'abastecimento-quantidade', '50');
+    digitar(form, 'abastecimento-leitura', '1.560');
     await pedirPrevia(form);
-    expect(previas()[0].body).toMatchObject({ tanque_id: 'tq2b', tipo_combustivel_id: 'c1', produto_id: 'p1' });
+    expect(previas()[0].body).toMatchObject({ produto_id: 'p1', tanque_id: 'tq1' });
+    fireEvent.click(within(screen.getByTestId('dialogo-previa-abastecimento')).getByRole('button', { name: 'Voltar' }));
+    await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
+    // Arla: o tanque segue o Produto (B, 40 L): 50 L passam da capacidade dele.
+    await escolherProduto(form, 'Arla 32');
+    expect(within(form).queryByTestId('abastecimento-tanque')).toBeNull();
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    expect(await within(form).findByText('Os litros passam da capacidade nominal do tanque.')).toBeTruthy();
+    expect(previas()).toHaveLength(1);
+    digitar(form, 'abastecimento-quantidade', '30');
+    const dialogo = await pedirPrevia(form);
+    expect(previas().at(-1).body).toMatchObject({ produto_id: 'p7', tanque_id: 'tqB', quantidade: '30' });
+    expect(within(abrirDetalhesDoEstoque(dialogo)).getByTestId('previa-tanque')).toHaveTextContent('Tanque do Arla (40 L)');
   });
 });
 
-describe('UX-A05 — Produto sem fator kg/L (flex: Gasolina)', () => {
-  it('aviso de fator separado do de associação; "Configurar fator kg/L" só com configurar_conversao; salvar o fator libera a revisão', async () => {
+describe('UX-A05 — Produto em KG (achado D8)', () => {
+  it('rótulo "(kg)" e dica fixa sob a quantidade e na revisão; 250 kg num tanque de 180 L passa (a capacidade é só para L); baixa e toast em kg', async () => {
+    novoProdutoNoTrator('p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000', custo: '4.0000' });
+    await montar();
+    const form = await abrirNovo();
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
+    await escolherProduto(form, 'Diesel pesado (kg)');
+    expect(within(form).getByText('Quantidade abastecida (kg)')).toBeTruthy();
+    expect(within(form).getByTestId('abastecimento-dica-kg')).toHaveTextContent(DICA_KG);
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
+    digitar(form, 'abastecimento-quantidade', '250');
+    digitar(form, 'abastecimento-leitura', '1.560');
+    const dialogo = await pedirPrevia(form);
+    expect(previas()[0].body).toMatchObject({ produto_id: 'p6', tanque_id: 'tq1', quantidade: '250' });
+    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
+    expect(within(dialogo).getByTestId('previa-dica-kg')).toHaveTextContent(DICA_KG);
+    expect(within(dialogo).getByTestId('previa-resumo')).toHaveTextContent('TP-02 — Trator TP-02 · Diesel pesado (kg) · 250 kg. Baixa de 250,0000 kg do estoque em Tanque diesel sede.');
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('250,0000 kg');
+    const detalhes = abrirDetalhesDoEstoque(dialogo);
+    expect(within(detalhes).getByTestId('previa-capacidade')).toHaveTextContent('não conferida (Produto em quilos: a capacidade é em litros)');
+    expect(within(detalhes).getByTestId('previa-custo')).toHaveTextContent(/R\$\s1\.000,00 \(R\$\s4,00\/kg\)/);
+    expect(within(detalhes).getByTestId('previa-saldo')).toHaveTextContent('500,0000 kg');
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 250,0000 kg baixados do estoque.')).toBeTruthy();
+    expect(screen.getByTestId('consulta-quantidade')).toHaveTextContent('250,0000 kg');
+    expect(amb.estado.lotes.find((l) => l.id === 'lote-p6').disponivel).toBe('250.0000');
+    // Os lotes do Diesel em L não foram tocados (nenhuma conversão entre Produtos/unidades).
+    expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
+  });
+
+  it('trocar de Produto em KG para Produto em L tira a dica e volta o rótulo "(L)"; a capacidade volta a valer', async () => {
+    novoProdutoNoTrator('p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000' });
+    await montar();
+    const form = await abrirNovo();
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
+    await escolherProduto(form, 'Diesel pesado (kg)');
+    expect(within(form).getByTestId('abastecimento-dica-kg')).toBeTruthy();
+    digitar(form, 'abastecimento-quantidade', '250');
+    await escolherProduto(form, 'Diesel S10 granel');
+    expect(within(form).queryByTestId('abastecimento-dica-kg')).toBeNull();
+    expect(within(form).getByText('Quantidade abastecida (L)')).toBeTruthy();
+    digitar(form, 'abastecimento-leitura', '1.560');
+    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
+    expect(await within(form).findByText('Os litros passam da capacidade nominal do tanque.')).toBeTruthy();
+    expect(previas()).toEqual([]);
+  });
+
+  it('a ação antiga configurar_conversao não dá nada: sem "Fatores kg/L", sem aviso de fator, nenhuma rota de fator chamada', async () => {
     sessao.permissao = permissaoCom({ novo: true, configurar_conversao: true });
     await montar();
     const form = await abrirNovo();
-    await escolherNoSeletor(form, 'abastecimento-bem', /Caminhonete flex/);
-    await escolherProduto(form, 'Gasolina comum (sem fator kg/L)');
-    const aviso = within(form).getByTestId('abastecimento-sem-fator');
-    expect(aviso).toHaveTextContent('Configure o fator kg/L deste Produto nesta fazenda antes de abastecer.');
-    expect(aviso).not.toHaveTextContent(/Associe|Combustíveis/);
-    expect(within(form).queryByTestId('abastecimento-sem-produto')).toBeNull();
-    fireEvent.click(within(form).getByTestId('abastecimento-form-configurar-fator'));
-    const painel = await screen.findByTestId('conversoes-combustivel');
-    expect(within(painel).getByTestId('conversao-tipo')).toHaveTextContent('Gasolina');
-    expect(within(painel).getByTestId('conversao-produto')).toHaveTextContent('Gasolina comum');
-    const campo = within(painel).getByTestId('conversao-fator');
-    fireEvent.change(campo, { target: { value: '0,745' } });
-    fireEvent.blur(campo);
-    fireEvent.click(within(painel).getByTestId('conversao-declaracao'));
-    await act(async () => fireEvent.click(within(painel).getByTestId('conversao-salvar')));
-    await waitFor(() => expect(chamadasDe(amb.backend, 'POST', '/patrimonio-conversoes-combustivel')).toHaveLength(1));
-    expect(chamadasDe(amb.backend, 'POST', '/patrimonio-conversoes-combustivel')[0].body).toEqual({
-      empresa_id: 'emp-1', tipo_combustivel_id: 'c2', produto_id: 'p2', kg_por_litro: '0.745', declara_estoque_em_kg: true, conversao_vigente_id: null,
-    });
-    fireEvent.click(within(painel).getByRole('button', { name: 'Fechar' }));
-    await waitFor(() => expect(screen.queryByTestId('conversoes-combustivel')).toBeNull());
-    await waitFor(() => expect(within(form).queryByTestId('abastecimento-sem-fator')).toBeNull());
-    await esperarProdutoMarcado(form, 'Gasolina comum');
-    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Posto da fazenda'));
-    digitar(form, 'abastecimento-litros', '30');
-    digitar(form, 'abastecimento-leitura', '35300');
-    const dialogo = await pedirPrevia(form);
-    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
-    expect(within(abrirDetalhesDoEstoque(dialogo)).getByTestId('previa-fator')).toHaveTextContent('0,745000 kg/L (versão 1)');
-    expect(within(dialogo).getByTestId('abastecimento-confirmar')).toBeTruthy();
-  });
-
-  it('sem configurar_conversao: sem botão, "Peça a quem configura o fator kg/L."', async () => {
-    await montar();
-    const form = await abrirNovo();
-    await escolherNoSeletor(form, 'abastecimento-bem', /Caminhonete flex/);
-    await escolherProduto(form, 'Gasolina comum (sem fator kg/L)');
-    expect(within(form).getByTestId('abastecimento-sem-fator')).toHaveTextContent('Peça a quem configura o fator kg/L.');
-    expect(within(form).queryByTestId('abastecimento-form-configurar-fator')).toBeNull();
+    await preencherTrator(form);
+    expect(screen.queryByTestId('abastecimento-fatores')).toBeNull();
+    expect(screen.queryByText(/Fatores kg\/L|Configurar fator/)).toBeNull();
+    expect(within(form).queryByTestId('abastecimento-sem-fator')).toBeNull();
+    await pedirPrevia(form);
+    expect(amb.backend.chamadas.filter((c) => c.path.startsWith('/patrimonio-conversoes'))).toEqual([]);
   });
 });
 
-describe('UX-A06 — nenhum Produto para o bem (cada motivo do servidor)', () => {
+describe('UX-A06 — nenhum Produto para o bem (cada motivo do servidor, resolvido em Bens Patrimoniais)', () => {
   /** Monta, escolhe o trator e devolve o aviso. */
   const avisoDoTrator = async () => {
     await montar();
@@ -303,39 +334,47 @@ describe('UX-A06 — nenhum Produto para o bem (cada motivo do servidor)', () =>
     return aviso;
   };
 
-  it('nenhum_produto_associado: orienta associar no cadastro de Combustíveis; sem link sem a permissão; nada sobre fator', async () => {
-    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
+  it('tanque_sem_produto: orienta marcar os Produtos aceitos em Bens; sem link sem a permissão de ver Bens; nada sobre combustível ou fator', async () => {
+    aceitesDoTrator([]);
     const aviso = await avisoDoTrator();
     expect(aviso).toHaveTextContent(
-      'Nenhum Produto desta fazenda está associado aos combustíveis deste bem. Associe um Produto ao combustível no cadastro de Combustíveis. Combustível sem Produto: Diesel S10. Peça a quem cuida do cadastro de Combustíveis.',
+      'Os tanques deste bem não têm Produto aceito. Marque os Produtos aceitos em Bens Patrimoniais › Operação › Tanques. Peça a quem cuida do cadastro de Bens Patrimoniais.',
     );
-    expect(aviso).not.toHaveTextContent(/fator/i);
+    expect(aviso).not.toHaveTextContent(/fator|Combustíveis/i);
     expect(within(aviso).queryByRole('link')).toBeNull();
   });
 
-  it('nenhum_produto_associado com permissão de criar em Combustíveis: link "Abrir Combustíveis"', async () => {
-    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
-    sessao.permissao = { ...permissaoCom({ novo: true }), permissoes_telas: [...permissaoCom({ novo: true }).permissoes_telas, { tela_id: 'pat-combustiveis', visualizar: true, novo: true }] };
+  it('tanque_sem_produto com permissão de ver Bens: link "Abrir Bens Patrimoniais"', async () => {
+    aceitesDoTrator([]);
+    sessao.permissao = { ...permissaoCom({ novo: true }), permissoes_telas: [...permissaoCom({ novo: true }).permissoes_telas, { tela_id: 'pat-bens-patrimoniais', visualizar: true }] };
     const aviso = await avisoDoTrator();
-    expect(within(aviso).getByRole('link', { name: 'Abrir Combustíveis' }).getAttribute('href')).toBe('/combustiveis');
+    expect(within(aviso).getByRole('link', { name: 'Abrir Bens Patrimoniais' }).getAttribute('href')).toBe('/benspatrimoniais');
     expect(aviso).not.toHaveTextContent('Peça a quem cuida');
   });
 
-  it('produto_unidade_nao_kg', async () => {
-    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'L';
+  it('produto_unidade_incompativel (o Produto aceito está em SACO)', async () => {
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'SACO';
     expect(await avisoDoTrator()).toHaveTextContent(
-      'O Produto associado tem estoque em outra unidade (não KG): o abastecimento só baixa estoque em KG. Ajuste a unidade de estoque do Produto.',
+      'O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível. Aceite no tanque um Produto em L ou em KG em Bens Patrimoniais › Operação › Tanques.',
     );
   });
 
-  it('tanque_sem_combustivel (combustível inativo)', async () => {
-    amb.estado.tipos.find((t) => t.id === 'c1').ativo = false;
+  it('produto_inativo_ou_outra_fazenda (inativo; de outra fazenda)', async () => {
+    amb.estado.produtos.find((p) => p.id === 'p1').ativo = false;
     expect(await avisoDoTrator()).toHaveTextContent(
-      'Os tanques deste bem não têm combustível permitido ativo em litros. Ajuste os combustíveis permitidos no cadastro do bem.',
+      'Os Produtos aceitos pelos tanques deste bem estão inativos ou são de outra fazenda. Ajuste os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.',
     );
+    cleanup();
+    amb.estado.produtos.find((p) => p.id === 'p1').ativo = true;
+    amb.estado.produtos.find((p) => p.id === 'p1').empresa = 'emp-2';
+    expect(await avisoDoTrator()).toHaveTextContent('Os Produtos aceitos pelos tanques deste bem estão inativos ou são de outra fazenda.');
   });
 
   it('sem_tanque_ativo (tanque inativado depois da lista de bens)', async () => {
+    amb.falhar = (req) =>
+      req.method === 'GET' && req.path === '/patrimonio-abastecimentos-opcoes/bens'
+        ? { status: 200, body: { itens: [{ id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA', ativo: true, medidor: amb.estado.bens[0].medidor }], has_more: false, next_cursor: null } }
+        : null;
     amb.estado.tanques.b1[0].ativo = false;
     expect(await avisoDoTrator()).toHaveTextContent('Este bem não tem tanque ativo. Cadastre ou reative um tanque no cadastro do bem.');
   });
@@ -370,14 +409,14 @@ describe('UX-A07/A08 — local do estoque', () => {
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
     await esperarProdutoMarcado(form, 'Diesel S10 granel');
     expect(await within(form).findByTestId('abastecimento-sem-saldo')).toHaveTextContent('Sem saldo deste Produto nesta fazenda.');
-    digitar(form, 'abastecimento-litros', '10');
+    digitar(form, 'abastecimento-quantidade', '10');
     digitar(form, 'abastecimento-leitura', '1.560');
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     await esperar();
     expect(previas()).toEqual([]);
   });
 
-  it('vários locais com saldo: "De qual local do estoque?" (só o nome, sem kg nem lotes), obrigatório', async () => {
+  it('vários locais com saldo: "De qual local do estoque?" (só o nome, sem quantidade nem lotes), obrigatório', async () => {
     amb.estado.lotes.push({ id: 'lote-P', produto: 'p1', local: 'l2', dia: '2026-06-05', disponivel: '40.0000', custo: '5.0000' });
     await montar();
     const form = await abrirNovo();
@@ -386,12 +425,12 @@ describe('UX-A07/A08 — local do estoque', () => {
     const local = await within(form).findByRole('combobox', { name: 'De qual local do estoque?' });
     const nomes = await rotulosDasOpcoes(local);
     expect(nomes).toEqual(['— Escolha o local —', 'Tanque diesel sede', 'Posto da fazenda']);
-    expect(nomes.join(' ')).not.toMatch(/kg|lote|dispon/i);
+    expect(nomes.join(' ')).not.toMatch(/\bkg\b|\bL\b|lote|dispon/i);
     expect(within(form).queryByTestId('abastecimento-local-auto')).toBeNull();
-    digitar(form, 'abastecimento-litros', '20');
+    digitar(form, 'abastecimento-quantidade', '20');
     digitar(form, 'abastecimento-leitura', '1.560');
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
-    expect(await within(form).findByText('Escolha de qual local do estoque sai o combustível.')).toBeTruthy();
+    expect(await within(form).findByText('Escolha de qual local do estoque sai o Produto.')).toBeTruthy();
     expect(previas()).toEqual([]);
     await escolherOpcao(local, 'Posto da fazenda');
     await pedirPrevia(form);
@@ -418,7 +457,7 @@ describe('UX-A09 — resposta atrasada', () => {
     });
     expect(radios(grupo)).toEqual([
       ['Etanol hidratado', 'false'],
-      ['Gasolina comum (sem fator kg/L)', 'false'],
+      ['Gasolina comum', 'false'],
     ]);
     expect(locaisLidos()).toEqual([]);
     // Escolhe no flex e volta ao trator: o Produto do flex sai; o do trator (único) é marcado.
@@ -427,23 +466,22 @@ describe('UX-A09 — resposta atrasada', () => {
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
     await esperarProdutoMarcado(form, 'Diesel S10 granel');
     expect(within(form).queryByRole('radio', { name: 'Etanol hidratado' })).toBeNull();
-    digitar(form, 'abastecimento-litros', '10');
+    digitar(form, 'abastecimento-quantidade', '10');
     digitar(form, 'abastecimento-leitura', '1.560');
     await pedirPrevia(form);
-    expect(previas()[0].body).toMatchObject({ bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1' });
+    expect(previas()[0].body).toMatchObject({ bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1' });
   });
 });
 
-describe('UX-A10 — associação trocada A → B no cadastro de Combustíveis (sem editar o bem)', () => {
-  it('confirmação com A recusada (422 sem_vinculo_ativo) → a tela relê, avisa e o operador escolhe B; nada de A é trocado em silêncio', async () => {
+describe('UX-A10 — Produtos aceitos trocados A → B no tanque (cadastro de Bens)', () => {
+  it('confirmação com A recusada (422 ABASTECIMENTO_PRODUTO_NAO_ACEITO) → a tela relê, avisa e o operador escolhe B; nada de A é trocado em silêncio', async () => {
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     const dialogo = await pedirPrevia(form);
-    // Entre a revisão e a confirmação: o vínculo de A sai e B entra no MESMO Diesel S10.
-    const tanquesAntes = JSON.stringify(amb.estado.tanques);
-    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
-    novoProduto('p4', 'Diesel S10 estoque novo', 'c1', { fator: '0.830000' });
+    // Entre a revisão e a confirmação: o tanque deixa de aceitar A e passa a aceitar B.
+    acrescentarProduto(amb.estado, 'p4', 'Diesel S10 estoque novo');
+    aceitesDoTrator(['p4']);
     await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
     expect(confirmacoes()).toHaveLength(1);
     expect(confirmacoes()[0].body.produto_id).toBe('p1');
@@ -455,61 +493,60 @@ describe('UX-A10 — associação trocada A → B no cadastro de Combustíveis (
     expect(within(form).queryByTestId('abastecimento-produto-indisponivel')).toBeNull();
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
     const dialogoB = await pedirPrevia(form);
-    expect(previas().at(-1).body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p4', tanque_id: 'tq1', quantidade_litros: '80' });
-    expect(within(dialogoB).getByTestId('previa-kg')).toHaveTextContent('66,4000 kg');
+    expect(previas().at(-1).body).toMatchObject({ produto_id: 'p4', tanque_id: 'tq1', quantidade: '80' });
+    expect(within(dialogoB).getByTestId('previa-baixa')).toHaveTextContent('80,0000 L');
     await act(async () => fireEvent.click(within(dialogoB).getByTestId('abastecimento-confirmar')));
     expect(await screen.findByTestId('abastecimento-consulta')).toBeTruthy();
-    expect(confirmacoes().at(-1).body).toMatchObject({ produto_id: 'p4', conversao_id: 'f-p4', conversao_versao: 1 });
+    expect(confirmacoes().at(-1).body).toMatchObject({ produto_id: 'p4' });
+    expect(confirmacoes().at(-1).body).not.toHaveProperty('conversao_id');
     expect(amb.estado.abastecimentos.map((a) => a.produto_id)).toEqual(['p4']);
-    // Lotes de A intactos; o bem e seus tanques não foram tocados.
+    // Lotes de A intactos.
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
-    expect(JSON.stringify(amb.estado.tanques)).toBe(tanquesAntes);
   });
 
-  it('histórico: o abastecimento feito com A continua A (Produto, fator) depois da troca para B', async () => {
+  it('histórico: o abastecimento feito com A continua A (Produto, quantidade, unidade) depois da troca para B', async () => {
     await semearAbastecimento(amb.estado, {
-      bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1', data_operacional: '2026-06-10', quantidade_litros: '80', medidor_leitura: '1550.5',
+      bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1', data_operacional: '2026-06-10', quantidade: '80', medidor_leitura: '1550.5',
     });
-    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
-    novoProduto('p4', 'Diesel S10 estoque novo', 'c1', { fator: '0.830000' });
+    acrescentarProduto(amb.estado, 'p4', 'Diesel S10 estoque novo');
+    aceitesDoTrator(['p4']);
     await montar();
     fireEvent.doubleClick(await screen.findByTestId('abastecimento-bem-ab-1'));
     const consulta = await screen.findByTestId('abastecimento-consulta');
     expect(within(consulta).getByTestId('consulta-produto')).toHaveTextContent('Diesel S10 granel');
-    expect(within(consulta).getByTestId('consulta-fator')).toHaveTextContent('0,840000 kg/L (versão 1)');
-    expect(within(consulta).getByTestId('consulta-kg')).toHaveTextContent('67,2000 kg');
+    expect(within(consulta).getByTestId('consulta-quantidade')).toHaveTextContent('80,0000 L');
   });
 });
 
 describe('UX-A11 — revisão', () => {
-  it('resumo humano; "Detalhes do estoque" recolhido (tipo, tanque, fator, custo, saldo, FIFO); mudar "Completou o tanque?" invalida', async () => {
+  it('resumo humano; "Detalhes do estoque" recolhido (tanque, capacidade, custo, saldo, FIFO); mudar "Completou o tanque?" invalida', async () => {
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     const dialogo = await pedirPrevia(form);
     const dados = within(dialogo).getByTestId('previa-dados');
     expect([...dados.querySelectorAll('dt')].map((d) => d.textContent)).toEqual([
-      'Máquina/Veículo', 'Produto', 'Litros', 'Leitura do medidor', 'Completou o tanque', 'Data', 'Sai do estoque', 'Baixa no estoque',
+      'Máquina/Veículo', 'Produto', 'Quantidade', 'Leitura do medidor', 'Completou o tanque', 'Data', 'Sai do estoque', 'Baixa do estoque',
     ]);
     expect(within(dialogo).getByTestId('previa-produto')).toHaveTextContent('Diesel S10 granel');
-    expect(within(dialogo).getByTestId('previa-litros')).toHaveTextContent('80 L');
+    expect(within(dialogo).getByTestId('previa-quantidade')).toHaveTextContent('80 L');
     expect(within(dialogo).getByTestId('previa-leitura')).toHaveTextContent('1.550,5 h');
     expect(within(dialogo).getByTestId('previa-tanque-cheio')).toHaveTextContent('Sim');
     expect(within(dialogo).getByTestId('previa-local')).toHaveTextContent('Tanque diesel sede');
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('80,0000 L');
     // Recolhido: nada técnico renderizado.
     const botao = within(dialogo).getByTestId('previa-detalhes-estoque');
     expect(botao.getAttribute('aria-expanded')).toBe('false');
-    for (const id of ['previa-tipo', 'previa-tanque', 'previa-fator', 'previa-custo', 'previa-fatias']) expect(within(dialogo).queryByTestId(id)).toBeNull();
-    expect(within(dialogo).queryByText('Diesel S10', { exact: true })).toBeNull();
+    for (const id of ['previa-tanque', 'previa-capacidade', 'previa-custo', 'previa-saldo', 'previa-fatias']) expect(within(dialogo).queryByTestId(id)).toBeNull();
     const detalhes = abrirDetalhesDoEstoque(dialogo);
     expect(botao.getAttribute('aria-expanded')).toBe('true');
-    expect(within(detalhes).getByTestId('previa-tipo')).toHaveTextContent('Diesel S10');
     expect(within(detalhes).getByTestId('previa-tanque')).toHaveTextContent('Tanque principal (180 L)');
-    expect(within(detalhes).getByTestId('previa-fator')).toHaveTextContent('0,840000 kg/L (versão 1)');
-    expect(within(detalhes).getByTestId('previa-saldo')).toHaveTextContent('150,0000 kg');
+    expect(within(detalhes).getByTestId('previa-saldo')).toHaveTextContent('150,0000 L');
     expect(within(within(detalhes).getByTestId('previa-fatias')).getAllByRole('row')).toHaveLength(3);
+    // Sem tipo de combustível nem fator, nem recolhidos.
+    for (const id of ['previa-tipo', 'previa-fator']) expect(within(dialogo).queryByTestId(id)).toBeNull();
     fireEvent.click(botao);
-    expect(within(dialogo).queryByTestId('previa-fator')).toBeNull();
+    expect(within(dialogo).queryByTestId('previa-saldo')).toBeNull();
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Voltar' }));
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
     responderTanqueCheio(form, false);
@@ -538,28 +575,28 @@ describe('UX-A11 — revisão', () => {
 describe('UX-A12 — lista', () => {
   const semear = (extra) =>
     semearAbastecimento(amb.estado, {
-      bem_id: 'b1', tanque_id: 'tq1', tipo_combustivel_id: 'c1', produto_id: 'p1', local_estoque_id: 'l1', quantidade_litros: '10', ...extra,
+      bem_id: 'b1', tanque_id: 'tq1', produto_id: 'p1', local_estoque_id: 'l1', quantidade: '10', ...extra,
     });
 
-  it('colunas padrão Data | Máquina/Veículo | Produto | Litros | Medidor | Situação (sem "Combustível"); mais recente primeiro', async () => {
-    // Preferência antiga (v1, com a coluna Combustível) não ressuscita a coluna.
+  it('colunas padrão Data | Máquina/Veículo | Produto | Quantidade | Medidor | Situação (sem "Litros"/"KG"); mais recente primeiro', async () => {
+    // Preferências antigas (v1 com Combustível; v2 com Litros e KG) não ressuscitam colunas que saíram.
     window.localStorage.setItem('colunas_abastecimentos_v1', JSON.stringify({ order: ['tipo_combustivel'], visible: { tipo_combustivel: true } }));
+    window.localStorage.setItem('colunas_abastecimentos_v2', JSON.stringify({ order: ['quantidade_kg', 'quantidade_litros'], visible: { quantidade_kg: true, quantidade_litros: true } }));
     await semear({ data_operacional: '2026-06-05', medidor_leitura: '1525.0' });
     await semear({ data_operacional: '2026-06-10', medidor_leitura: '1535.0' });
     await semear({ data_operacional: '2026-06-08', medidor_leitura: '1530.0' });
     await montar();
     await screen.findByTestId('abastecimento-bem-ab-1');
     const cabecalhos = screen.getAllByRole('columnheader').map((c) => c.textContent.trim()).filter(Boolean);
-    expect(cabecalhos).toEqual(['Data', 'Máquina/Veículo', 'Produto', 'Litros', 'Medidor', 'Situação']);
-    expect(cabecalhos).not.toContain('Combustível');
+    expect(cabecalhos).toEqual(['Data', 'Máquina/Veículo', 'Produto', 'Quantidade', 'Medidor', 'Situação']);
+    for (const antigo of ['Combustível', 'Litros', 'KG']) expect(cabecalhos).not.toContain(antigo);
     const linhas = screen.getAllByRole('row').slice(1);
     expect(linhas.find((l) => l.textContent.includes('10/06/2026'))).toHaveTextContent(/10\/06\/2026.*TP-02 — Trator TP-02.*Diesel S10 granel.*10,0000 L.*1.535 h.*Confirmado/);
     // Ordem padrão = Nº desc, a do servidor (createdAt desc): o último lançado primeiro (L1; ver patrimonioUx02ListaOrdem).
     expect(linhas.map((l) => (l.textContent.match(/\d{2}\/06\/2026/) ?? [''])[0])).toEqual(['08/06/2026', '10/06/2026', '05/06/2026']);
-    expect(screen.queryByText('Diesel S10', { exact: true })).toBeNull();
   });
 
-  it('celular (390 px): cards com máquina + Produto + litros + data, sem tabela', async () => {
+  it('celular (390 px): cards com máquina + Produto + quantidade + data, sem tabela', async () => {
     window.matchMedia = vi.fn().mockImplementation((q) => ({ matches: /max-width:\s*639px/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
     window.innerWidth = 390;
     await semear({ data_operacional: '2026-06-10', medidor_leitura: '1535.0' });
@@ -586,7 +623,7 @@ describe('UX-A12 — lista', () => {
     expect(cardDo('10/06/2026')).not.toHaveTextContent('Cancelado');
     expect(cardDo('08/06/2026')).toHaveTextContent('Cancelado');
     expect(cardDo('08/06/2026')).not.toHaveTextContent('Confirmado');
-    // Continua: máquina no título + Produto · Litros · Data.
+    // Continua: máquina no título + Produto · Quantidade · Data.
     for (const c of screen.getAllByTestId('b1-card')) {
       expect(c.querySelector('.mg-b1-card__title')).toHaveTextContent('TP-02 — Trator TP-02');
       expect(c).toHaveTextContent('Diesel S10 granel');
@@ -597,7 +634,7 @@ describe('UX-A12 — lista', () => {
 
 describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
   it('escolhas são botões nativos com role=radio/aria-checked; recolhíveis com aria-expanded; sem largura fixa que force rolagem', async () => {
-    novoProduto('p5', 'Diesel S10 posto', 'c1', { fator: '0.830000' });
+    novoProdutoNoTrator('p5', 'Diesel S10 posto');
     await montar();
     const form = await abrirNovo();
     await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
@@ -623,12 +660,14 @@ describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
     expect(within(form).getByText('Referência externa')).toBeTruthy();
     const tanqueCheio = within(form).getByTestId('abastecimento-tanque-cheio');
     expect(radios(tanqueCheio)).toEqual([['Sim', 'false'], ['Não', 'true']]);
+    // O campo de quantidade tem nome acessível com a unidade do Produto.
+    expect(within(form).getByLabelText(/^Quantidade abastecida \(L\)/)).toBe(within(form).getByTestId('abastecimento-quantidade'));
     // 390 px: nada de largura mínima fixa, nowrap ou rolagem horizontal no formulário.
     for (const el of [form, ...form.querySelectorAll('*')]) {
       const cls = String(el.getAttribute('class') ?? '');
       expect(cls, cls).not.toMatch(/(^|\s)(whitespace-nowrap|overflow-x-auto|w-screen)(\s|$)|min-w-\[|(^|\s)w-\[\d{3,}px\]/);
     }
-    digitar(form, 'abastecimento-litros', '10');
+    digitar(form, 'abastecimento-quantidade', '10');
     digitar(form, 'abastecimento-leitura', '1.560');
     const dialogo = await pedirPrevia(form);
     const detalhes = within(dialogo).getByTestId('previa-detalhes-estoque');
@@ -663,18 +702,34 @@ describe('UX-A13 — teclado, acessibilidade e 390 px', () => {
   });
 });
 
-describe('UX-02 revisão final — formulário', () => {
-  it('F1: A→B ANTES de "Revisar": o bloqueio da revisão (200, sem_vinculo_ativo) relê os Produtos do bem; A sai com aviso, B é oferecido e nada de A é confirmado', async () => {
+describe('UX-02 revisão final (revista pela D-PROD-162) — formulário', () => {
+  /** Guarda o corpo de cada resposta da prévia (`rotear(req)` decide a resposta; `null` = fake normal). */
+  const registrarPrevias = (rotear = (req) => rotearAbastecimentos(amb.estado, req)) => {
+    const respostas = [];
+    amb.falhar = (req) => {
+      if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos-previa') return null;
+      return Promise.resolve(rotear(req)).then((r) => {
+        respostas.push(r.body);
+        return r;
+      });
+    };
+    return respostas;
+  };
+  const codigosDe = (resposta) => (resposta?.bloqueios ?? []).map((b) => `${b.code}:${b.reason}`);
+
+  it('F1: aceite trocado A→B ANTES de "Revisar": o bloqueio da revisão (200, nao_aceito_pelo_tanque) relê os Produtos do bem; A sai com aviso, B é oferecido e nada de A é confirmado', async () => {
+    const respostas = registrarPrevias();
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     expect(produtosDoBem()).toHaveLength(1);
-    // Antes de revisar: o vínculo de A sai e B entra no MESMO Diesel S10 (cadastro de Combustíveis).
-    amb.estado.produtos.find((p) => p.id === 'p1').vinculo_ativo = false;
-    novoProduto('p4', 'Diesel S10 estoque novo', 'c1', { fator: '0.830000' });
+    // Antes de revisar: o tanque deixa de aceitar A e passa a aceitar B (cadastro de Bens).
+    acrescentarProduto(amb.estado, 'p4', 'Diesel S10 estoque novo');
+    aceitesDoTrator(['p4']);
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
-    await waitFor(() => expect(previas()).toHaveLength(1));
+    await waitFor(() => expect(respostas).toHaveLength(1));
     expect(previas()[0].body.produto_id).toBe('p1');
+    expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_NAO_ACEITO:nao_aceito_pelo_tanque']);
     // A revisão responde 200 COM o bloqueio: a tela relê os Produtos do bem e a reconciliação tira A.
     expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
     expect(produtosDoBem().length).toBeGreaterThan(1);
@@ -686,12 +741,12 @@ describe('UX-02 revisão final — formulário', () => {
     expect(within(form).queryByTestId('abastecimento-produto-indisponivel')).toBeNull();
     await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
     const dialogoB = await pedirPrevia(form);
-    expect(previas().at(-1).body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p4', tanque_id: 'tq1', quantidade_litros: '80' });
-    expect(within(dialogoB).getByTestId('previa-kg')).toHaveTextContent('66,4000 kg');
+    expect(previas().at(-1).body).toMatchObject({ produto_id: 'p4', tanque_id: 'tq1', quantidade: '80' });
+    expect(within(dialogoB).getByTestId('previa-baixa')).toHaveTextContent('80,0000 L');
     await act(async () => fireEvent.click(within(dialogoB).getByTestId('abastecimento-confirmar')));
     expect(await screen.findByTestId('abastecimento-consulta')).toBeTruthy();
     expect(confirmacoes()).toHaveLength(1);
-    expect(confirmacoes()[0].body).toMatchObject({ produto_id: 'p4', conversao_id: 'f-p4', conversao_versao: 1 });
+    expect(confirmacoes()[0].body).toMatchObject({ produto_id: 'p4' });
     expect(amb.estado.abastecimentos.map((a) => a.produto_id)).toEqual(['p4']);
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
   });
@@ -723,65 +778,45 @@ describe('UX-02 revisão final — formulário', () => {
     expect(previas()[0].body).toEqual(CORPO_TP02(amb.estado.hoje));
   });
 
-  /** Guarda o corpo de cada resposta da prévia (`rotear(req)` decide a resposta; `null` = fake normal). */
-  const registrarPrevias = (rotear = (req) => rotearAbastecimentos(amb.estado, req)) => {
-    const respostas = [];
-    amb.falhar = (req) => {
-      if (req.method !== 'POST' || req.path !== '/patrimonio-abastecimentos-previa') return null;
-      return Promise.resolve(rotear(req)).then((r) => {
-        respostas.push(r.body);
-        return r;
-      });
-    };
-    return respostas;
-  };
-  const codigosDe = (resposta) => (resposta?.bloqueios ?? []).map((b) => `${b.code}:${b.reason}`);
-
-  it('F1: o tanque deixa de aceitar o Diesel S10 ANTES de "Revisar" (200, TANQUE_COMBUSTIVEL_INCOMPATIVEL) relê uma vez: A sai com aviso e o par velho não é revisado de novo nem confirmado', async () => {
+  it('F1: o tanque passa a aceitar só a Gasolina ANTES de "Revisar" (200, nao_aceito_pelo_tanque) relê uma vez: A sai com aviso e o Produto velho não é revisado de novo nem confirmado', async () => {
     const respostas = registrarPrevias();
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     expect(produtosDoBem()).toHaveLength(1);
-    // Antes de revisar: o tanque do trator passa a aceitar só Gasolina (cadastro do bem).
-    amb.estado.tanques.b1[0].combustiveis = ['c2'];
+    aceitesDoTrator(['p2']);
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     await waitFor(() => expect(respostas).toHaveLength(1));
-    expect(previas()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
-    expect(codigosDe(respostas[0])).toEqual(['TANQUE_COMBUSTIVEL_INCOMPATIVEL:nao_aceito_pelo_tanque']);
-    // A tela relê os Produtos do bem e a reconciliação tira A (mesmo aviso do vínculo inativado).
+    expect(previas()[0].body).toMatchObject({ produto_id: 'p1', tanque_id: 'tq1' });
+    expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_NAO_ACEITO:nao_aceito_pelo_tanque']);
     expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
     expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
-    // O servidor só oferece o que o tanque aceita agora (Gasolina, sem fator): nada marcado em silêncio.
-    expect(radios(within(form).getByTestId('abastecimento-produto'))).toEqual([['Gasolina comum (sem fator kg/L)', 'false']]);
+    // O servidor só oferece o que o tanque aceita agora (a Gasolina): a escolha que SAIU não é trocada em
+    // silêncio por outra — nem pela opção única —, o operador escolhe de novo.
+    expect(radios(within(form).getByTestId('abastecimento-produto'))).toEqual([['Gasolina comum', 'false']]);
     // Uma releitura só: sem laço, nada mais é lido nem revisado sozinho.
     expect(produtosDoBem()).toHaveLength(2);
     await esperar(200);
     expect(produtosDoBem()).toHaveLength(2);
     expect(previas()).toHaveLength(1);
-    // "Revisar" de novo, sem Produto, não manda o par velho (fica na validação local).
-    await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
-    await esperar(50);
-    expect(previas()).toHaveLength(1);
-    expect(produtosDoBem()).toHaveLength(2);
     expect(confirmacoes()).toEqual([]);
     expect(amb.estado.abastecimentos).toEqual([]);
   });
 
-  it('F1: o tanque deixa de aceitar o Diesel S10 DEPOIS de "Revisar" (422 TANQUE_COMBUSTIVEL_INCOMPATIVEL na confirmação) relê do mesmo jeito; nada é gravado', async () => {
+  it('F1: o tanque deixa de aceitar o Diesel DEPOIS de "Revisar" (422 ABASTECIMENTO_PRODUTO_NAO_ACEITO na confirmação) relê do mesmo jeito; nada é gravado', async () => {
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     const dialogo = await pedirPrevia(form);
     expect(produtosDoBem()).toHaveLength(1);
-    amb.estado.tanques.b1[0].combustiveis = ['c2'];
+    aceitesDoTrator([]);
     await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
     expect(confirmacoes()).toHaveLength(1);
-    expect(confirmacoes()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
+    expect(confirmacoes()[0].body).toMatchObject({ produto_id: 'p1', tanque_id: 'tq1' });
     expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
-    expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
+    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('Os tanques deste bem não têm Produto aceito.');
     expect(produtosDoBem()).toHaveLength(2);
     await esperar(200);
     expect(produtosDoBem()).toHaveLength(2);
@@ -790,21 +825,38 @@ describe('UX-02 revisão final — formulário', () => {
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
   });
 
-  it('F1: o estoque do Produto deixa de ser KG ANTES de "Revisar" (200, ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL) relê uma vez: A sai e aparece o motivo do servidor; nada é confirmado', async () => {
-    const respostas = registrarPrevias((req) => previaComUnidadeDoProduto(amb.estado, req));
+  it('a unidade do Produto muda de L para KG ANTES de "Revisar" (sem bloqueio): a revisão mostra kg e a dica, e o formulário relê a opção (rótulo "(kg)")', async () => {
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     expect(produtosDoBem()).toHaveLength(1);
-    // Antes de revisar: a unidade de estoque do Produto passa a ser litro (cadastro de Produtos).
-    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'L';
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'KG';
+    const dialogo = await pedirPrevia(form);
+    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('80,0000 kg');
+    expect(within(dialogo).getByTestId('previa-dica-kg')).toBeTruthy();
+    await waitFor(() => expect(produtosDoBem()).toHaveLength(2));
+    await waitFor(() => expect(within(form).getByText('Quantidade abastecida (kg)')).toBeTruthy());
+    expect(within(form).getByTestId('abastecimento-dica-kg')).toBeTruthy();
+    // A unidade não faz parte do que a revisão viu (o número e o Produto são os mesmos): ela continua válida.
+    expect(within(form).queryByTestId('abastecimento-previa-invalidada')).toBeNull();
+  });
+
+  it('F1: o estoque do Produto sai de L/KG ANTES de "Revisar" (200, ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL) relê uma vez: A sai e aparece o motivo do servidor; nada é confirmado', async () => {
+    const respostas = registrarPrevias();
+    await montar();
+    const form = await abrirNovo();
+    await preencherTrator(form);
+    expect(produtosDoBem()).toHaveLength(1);
+    // Antes de revisar: a unidade de estoque do Produto passa a ser SACO (cadastro de Produtos).
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'SACO';
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     await waitFor(() => expect(respostas).toHaveLength(1));
-    expect(previas()[0].body).toMatchObject({ tipo_combustivel_id: 'c1', produto_id: 'p1', tanque_id: 'tq1' });
-    expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL:unidade_estoque_nao_kg']);
+    expect(previas()[0].body).toMatchObject({ produto_id: 'p1', tanque_id: 'tq1' });
+    expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL:unidade_nao_aceita']);
     expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
-    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('O Produto associado tem estoque em outra unidade (não KG): o abastecimento só baixa estoque em KG. Ajuste a unidade de estoque do Produto.');
+    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível.');
     expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
     expect(produtosDoBem()).toHaveLength(2);
     await esperar(200);

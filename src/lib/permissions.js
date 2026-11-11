@@ -13,7 +13,6 @@ export const ACTION_LABELS = {
   estornar_liquidacao: "estornar baixas",
   cancelar: "cancelar lançamentos",
   inativar: "inativar ou reativar registros",
-  configurar_conversao: "configurar fator de conversão kg/L",
 };
 
 /**
@@ -21,22 +20,22 @@ export const ACTION_LABELS = {
  * `permissoes_telas` (sem coluna nova: `telaPermite` do servidor testa
  * `linha[acao] === true` para qualquer nome).
  *  - Central de Lançamentos: espelho de `GUARDAS.operacaoFinanceira`;
- *  - Patrimônio e Frota (D-PROD-157): `inativar` (inativar e reativar) nas cinco
- *    telas `pat-*` — espelho de `ACOES_PATRIMONIO_EXTRAS` e da guarda
- *    `edicaoPatrimonio` (backend/src/shared/auth/guardasRotas.js);
- *  - Abastecimentos (D-PROD-159): `cancelar` (cancelar/estornar o abastecimento)
- *    e `configurar_conversao` (fator kg/L) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`.
+ *  - Patrimônio e Frota (D-PROD-157/161): `inativar` (inativar e reativar) em
+ *    Bens Patrimoniais (vale também para famílias e tipos, que vivem nela) —
+ *    espelho de `ACOES_PATRIMONIO_EXTRAS` e da guarda `edicaoPatrimonio`
+ *    (backend/src/shared/auth/guardasRotas.js);
+ *  - Abastecimentos (D-PROD-159/161): `cancelar` (cancelar/estornar o
+ *    abastecimento) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`.
+ * As telas antigas (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
+ * `pat-perfis-medicao`, `pat-combustiveis`) e a ação `configurar_conversao`
+ * saíram (D-PROD-162): linhas já gravadas ficam inertes no JSON.
  */
 const ACOES_EXTRAS_PATRIMONIO = Object.freeze(["inativar"]);
 
 export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
   "ges-lancamentos-financeiros": Object.freeze(["confirmar", "liquidar", "estornar_liquidacao", "cancelar"]),
   "pat-bens-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
-  "pat-familias-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
-  "pat-tipos-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
-  "pat-perfis-medicao": ACOES_EXTRAS_PATRIMONIO,
-  "pat-combustiveis": ACOES_EXTRAS_PATRIMONIO,
-  "pat-abastecimentos": Object.freeze(["cancelar", "configurar_conversao"]),
+  "pat-abastecimentos": Object.freeze(["cancelar"]),
 });
 
 /** @param {string} pageId @returns {readonly string[]} */

@@ -177,12 +177,20 @@ describe('F5/F7 — lote de nota: saldo e custo só do admin real; nome conferid
     assert.equal(Number(d.custo_unitario), 1);
   });
 
-  test('F5 controle: admin real ajusta o saldo (estorno) → 200', async () => {
+  // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o saldo do lote só muda pelo motor
+  // físico. O admin real passa da barreira de autoridade (não recebe o 403 do
+  // F5), mas o PATCH de saldo/situação do lote livre é recusado — e nada muda.
+  test('F5 controle: admin real passa a autoridade, mas o PATCH de saldo do lote livre → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA; nada muda', async () => {
     const A = await adminReal();
     const { nota } = await montar(A);
     const r = await req('PATCH', `/estoque-lotes-nota/${nota.id}`, A.token, { quantidade_disponivel: 12, status: 'Disponivel' });
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(Number((await prisma().estoqueLoteNota.findUnique({ where: { id: nota.id } })).quantidade_disponivel), 12);
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'ESTOQUE_ESCRITA_DIRETA_RECUSADA');
+    assert.deepEqual(r.json().details, { entidade: 'EstoqueLoteNota', operacao: 'editar', campos: ['quantidade_disponivel', 'status'] });
+    const d = await prisma().estoqueLoteNota.findUnique({ where: { id: nota.id } });
+    assert.equal(Number(d.quantidade_disponivel), 10);
+    assert.equal(d.status, 'Disponivel');
+    assert.equal(d.updatedAt.getTime(), nota.updatedAt.getTime(), 'lote intacto');
   });
 
   test('F7 Mapa Cadastro editar: nome inventado → 422 NOME_LOCAL_DIVERGENTE; nome do local (renomeado antes) → 200', async () => {

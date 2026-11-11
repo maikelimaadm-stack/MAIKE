@@ -24,14 +24,19 @@ export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => 
     .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
 };
 
-export const obterSaldoTransferivelProduto = ({ produto, lotesNota, localEstoqueId, localEstoqueNome }) => {
-  const saldoLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localEstoqueId);
-  if (saldoLocal > 0) return saldoLocal;
-  if (normalizeText(produto?.local_estoque) === normalizeText(localEstoqueNome) && Number(produto?.estoque_atual || 0) > 0) {
-    return Number(produto.estoque_atual || 0);
-  }
-  return 0;
-};
+/**
+ * Saldo transferível do produto num local: Σ disponível dos LOTES daquele local.
+ *
+ * D-PROD-161 (Estoque P0): sem lote no local o saldo é 0. O fallback antigo para
+ * o cache do cadastro (`estoque_atual` + `local_estoque` com o mesmo nome) saiu:
+ * ele oferecia saldo que o servidor recusa (a transferência consome lotes FIFO).
+ * `localEstoqueNome` continua aceito na assinatura, sem efeito, pelos chamadores.
+ *
+ * @param {{ produto: any, lotesNota: any[], localEstoqueId: string, localEstoqueNome?: string }} p
+ * @returns {number}
+ */
+export const obterSaldoTransferivelProduto = ({ produto, lotesNota, localEstoqueId }) =>
+  obterSaldoProdutoLocal(lotesNota, produto.id, localEstoqueId);
 
 /**
  * Próximo número de movimentação a partir de uma lista **já carregada**.

@@ -6,12 +6,10 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
-import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import {
   listarRegistros,
   buscarRegistro,
-  inserirRegistro,
   atualizarRegistroPorId,
 } from './movimentacaoEstoqueRepository.js';
 
@@ -37,36 +35,28 @@ export const listar = async (contexto, filtros = {}) => {
   return registros.map(comoPublico);
 };
 
-/** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
+/**
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3, SPEC §2 W13): movimento de estoque é o
+ * FATO do motor físico — só nasce pelos comandos (compra/venda confirmada,
+ * suplementação, transferência, abastecimento e seus cancelamentos), na mesma
+ * transação do efeito no lote e no cache. O POST genérico inseria fato sem
+ * saldo, forjava `origem_sistema`/`lotes_consumidos` e ocupava a sequência do
+ * tenant. A rota fica registrada (gates P5.4) e a ordem das recusas anteriores
+ * também: schema (400) → guarda SO_ADMIN (403) → colunas graváveis (400, a
+ * matriz de relações) → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA. Sem transação,
+ * sem reservar número e sem auditoria: nada é gravado.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} entrada
+ * @returns {Promise<never>}
+ */
 export const criar = async (contexto, entrada) => {
-  const auth = exigirAuthContext(contexto?.auth);
-  // D-PROD-155 (§8.4): a sequência de movimentos do tenant pode estar presa por
-  // uma confirmação/cancelamento: espera em vez de estourar os 5 s padrão (500),
-  // mas só até caber nos 20 s do navegador (TRANSACAO_CURTA). Sem operation_id,
-  // o POST NÃO é idempotente; o 409 garante que esta tentativa voltou inteira
-  // e não commita depois (nada gravado).
-  const criado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
-    /** @type {Record<string, unknown>} */
-    const dados = { ...exigirSomenteColunasGravaveis('MovimentacaoEstoque', entrada), cliente_id: auth.clienteId };
-    if (Object.prototype.hasOwnProperty.call(dados, 'numero_movimentacao')) {
-      delete dados.numero_movimentacao;
-    }
-    dados.numero_movimentacao = String(
-      await reservarNumero(tx, {
-        clienteId: auth.clienteId,
-        entidade: ENTIDADE_SEQUENCIA,
-        escopoTipo: ESCOPO_TENANT,
-      })
-    );
-    const registro = await inserirRegistro(tx, dados);
-    await registrarEvento(
-      contexto,
-      { acao: 'create', entidade: 'MovimentacaoEstoque', entidadeId: registro.id, dadosNovos: comoPublico(registro) },
-      tx
-    );
-    return registro;
-  }, {}, MENSAGEM_CONFLITO_SEM_CHAVE);
-  return comoPublico(criado);
+  exigirAuthContext(contexto?.auth);
+  exigirSomenteColunasGravaveis('MovimentacaoEstoque', entrada);
+  throw new AppError(
+    'ESTOQUE_ESCRITA_DIRETA_RECUSADA',
+    'movimento de estoque só nasce pelos comandos do estoque (compra ou venda confirmada, suplementação, transferência, abastecimento); nada foi gravado',
+    { details: { entidade: 'MovimentacaoEstoque', operacao: 'criar' } }
+  );
 };
 
 /**

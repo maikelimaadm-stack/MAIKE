@@ -8,10 +8,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
-import { formatKg } from "../suplementacao/formatters";
+import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -23,6 +24,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
+  // Alvo das folhas do celular DENTRO do diálogo da transferência (D-PROD-161).
+  const [alvoFolhaTransferencia, setAlvoFolhaTransferencia] = useState(/** @type {HTMLElement | null} */ (null));
 
   const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
@@ -94,12 +97,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     return pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
   }, [pontosSuplementacao, deposito.id]);
 
+  // D-PROD-162 (P-11): Produto com estoque em LITROS aparece no saldo por produto com "L", sem sacos,
+  // e fica fora dos indicadores em kg (saldo, necessidade, % e último registro). Sem Produto em L, nada muda.
   const saldosAgrupados = useMemo(() => {
     const mapa = new Map();
     lotesNota.forEach((lote) => {
       const produto = produtos.find((item) => item.id === lote.produto_id);
-      const pesoPorSaco = Number(produto?.peso_por_saco_kg || 0);
-      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0 };
+      const emLitros = produto?.unidade_principal_estoque === "L";
+      const pesoPorSaco = emLitros ? 0 : Number(produto?.peso_por_saco_kg || 0);
+      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0, ...(emLitros ? { emLitros: true } : {}) };
       current.saldo += lote.quantidade_disponivel || 0;
       current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(lote.quantidade_disponivel || 0, pesoPorSaco) : 0;
       mapa.set(lote.produto_id, current);
@@ -108,8 +114,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   }, [lotesNota, produtos]);
 
   const indicador = useMemo(() => {
-    return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes);
-  }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes]);
+    return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos);
+  }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos]);
 
   const iconePonto = useMemo(() => {
     const categoriaPonto = normalizeText(deposito?.categoria_ponto || "");
@@ -211,8 +217,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                     <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{formatKg(item.saldo)}</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900">{item.emLitros ? "—" : <>{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</>}</div>
+                    <div className="whitespace-nowrap font-semibold text-slate-900" data-testid={item.emLitros ? `saldo-litros-${item.produto_id}` : undefined}>{item.emLitros ? `${formatDecimal(item.saldo)} L` : formatKg(item.saldo)}</div>
                   </div>
                 </div>
             )}
@@ -311,10 +317,29 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         </CardContent>
       </Card>
 
-      <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
-        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto">
+      {/*
+        D-PROD-161: este diálogo abre POR CIMA do "Depósito de Suplementação"
+        (LancLoteDialogo), que entrega aos filhos o alvo das folhas do celular.
+        Herdado, a folha "Local" nascia no diálogo de BAIXO — aria-hidden, sem
+        toque e atrás deste. Aqui ela nasce DENTRO deste diálogo (camada de
+        cima: foco, toque e leitor de tela); no celular ele centraliza sem
+        transform para a folha (position: fixed) ocupar a tela, não o cartão;
+        Escape com a folha aberta fecha só a folha (o pedido de fechar o
+        diálogo é ignorado enquanto houver folha aberta dentro dele).
+      */}
+      <Dialog
+        open={showTransferencia}
+        onOpenChange={(aberto) => {
+          if (!aberto && alvoFolhaTransferencia?.querySelector(".mk-sheet-root")) return;
+          setShowTransferencia(aberto);
+        }}>
+        <DialogContent
+          className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto max-sm:inset-0 max-sm:m-auto max-sm:h-fit max-sm:transform-none max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-0 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-0">
           <DialogHeader><DialogTitle className="text-sm">{transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
-          <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+          <MobileSheetPortalCtx.Provider value={alvoFolhaTransferencia}>
+            <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+          </MobileSheetPortalCtx.Provider>
+          <div ref={setAlvoFolhaTransferencia} className="contents" />
         </DialogContent>
       </Dialog>
 

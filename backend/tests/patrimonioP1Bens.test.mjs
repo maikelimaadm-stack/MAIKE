@@ -1,18 +1,17 @@
 /**
- * D-PROD-157 — Patrimônio P1-01: BENS PATRIMONIAIS (por fazenda). PostgreSQL
- * real, HTTP autenticado, prova por persistência (fotografia das tabelas).
+ * D-PROD-157 / D-PROD-162 — Patrimônio: BENS PATRIMONIAIS (por fazenda).
+ * PostgreSQL real, HTTP autenticado, prova por persistência (fotografia das
+ * tabelas). D-PROD-162: sem medições físicas; cada tanque aceita Produtos do
+ * estoque (L ou KG) — as regras do Produto aceito estão em
+ * `patrimonioSimplificaTanqueProdutos.test.mjs`.
  *
- *  B1. Aceite do proprietário: um bem de cada (cerca 1.250 m; curral m² +
- *      cabeças; reservatório L; trator TP-02 horímetro + diesel S10 180 L;
- *      caminhonete flex UT-04 odômetro 80 L; implemento sem motor/tanque;
- *      gerador "sem medidor"), relidos idênticos na forma fixa do A13; estoque
- *      e financeiro intactos.
- *  B2. Medições: conversões exatas, m²→L recusado, zero/negativo/não numérico/
- *      overflow, inteiro em cabeças/quantidade (A10), limites, sync do PATCH
- *      com troca da principal (A5).
- *  B3. Tanques: flex aceito, combustível inexistente/inativo/GNV recusado,
- *      identificador, capacidade, limite de ativos (A11), troca de
- *      identificadores (A5), tanque nunca removido.
+ *  B1. Aceite do proprietário: um bem de cada (cerca, curral, reservatório;
+ *      trator TP-02 horímetro + tanque de 180 L com Diesel S10 em L;
+ *      caminhonete UT-04 odômetro + tanque de 80 L com Gasolina e Etanol;
+ *      implemento sem motor/tanque; gerador "sem medidor"), relidos idênticos
+ *      na forma fixa do A13; estoque e financeiro intactos.
+ *  B3. Tanques: Produtos aceitos, identificador, capacidade, natureza, limite
+ *      de ativos (A11), troca de identificadores (A5), tanque nunca removido.
  *  B4. Medidor (A2): obrigatoriedade por natureza, transições, correção de
  *      cadastro auditada, ajuste, imutáveis depois do ajuste, regressão sem
  *      mutação parcial, empresa sem fuso.
@@ -29,7 +28,7 @@ import assert from 'node:assert/strict';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import {
   ESTOQUE_FINANCEIRO_VAZIOS, HOJE, contagemForaDoPatrimonio, contagens, corpoCaminhonete, corpoCerca, corpoCurral, corpoGerador, corpoImplemento, corpoReservatorio,
-  corpoTrator, erro, fotoPatrimonio, http, montarPatrimonio, prisma,
+  corpoTrator, erro, fotoPatrimonio, http, montarPatrimonio, prisma, produtoL, tanqueCom,
 } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -82,7 +81,7 @@ const recusa400 = async (s, pedido, rotulo) => {
 /** Chaves FIXAS do detalhe (A13). */
 const CHAVES_DETALHE = [
   'ano_conclusao', 'ano_fabricacao', 'ano_modelo', 'aquisicao', 'area', 'ativo', 'centro_custo', 'chassi', 'codigo_frota', 'compatibilidade', 'consumo',
-  'created_date', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medicoes', 'medidor',
+  'created_date', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medidor',
   'medidor_operacional', 'modelo', 'natureza', 'nome', 'numero', 'numero_serie', 'observacoes', 'placa', 'placa_uf', 'potencia_cv', 'propriedade', 'proprietario', 'renavam',
   'responsavel', 'tanques', 'tipo', 'updated_date', 'versao',
 ];
@@ -97,22 +96,26 @@ const PREVIA_ACEITE = {
   vida_util_meses: 120, quota_mensal: '1250.00', ultima_quota: '1250.00', quota_anual: '15000.00', taxa_anual_percentual: '10.0000',
   primeira_competencia: '2026-03', ultima_competencia: '2036-02', valor_contabil: null, depreciacao_acumulada: null, aviso: AVISO,
 };
-const perfilDe = (s, codigo) => {
-  const nomes = { EXTENSAO: ['Extensão', 'EXTENSAO'], AREA: ['Área', 'AREA'], VOLUME: ['Volume', 'VOLUME'], CAPACIDADE_ANIMAL: ['Capacidade animal', 'CABECAS'], QUANTIDADE: ['Quantidade', 'QUANTIDADE'] };
-  return { id: s.per[codigo], codigo, nome: nomes[codigo][0], dimensao: nomes[codigo][1], ativo: true };
-};
-const combustivelDe = (s, codigo, nome, ativo = true) => ({ id: s.comb[codigo], codigo, nome, unidade: 'L', ativo });
+/** Produto aceito na forma pública do tanque (D-PROD-162). */
+const produtoDe = (p, ativo = true) => ({ produto_id: p.id, nome: p.nome_produto, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque, produto_ativo: ativo });
+/** Item de tanque do PATCH a partir do tanque público (mantém os Produtos aceitos). */
+const item = (t, extra = {}) => ({
+  id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao, produto_ids: t.produtos.map((p) => p.produto_id), ...extra,
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('B1 — aceite do proprietário: um bem de cada natureza, relido', () => {
-  test('cerca 1.250 m, curral m² + cabeças, reservatório L, trator TP-02, caminhonete flex UT-04, implemento e gerador sem medidor; detalhe fixo; nada em estoque/financeiro', async () => {
+  test('cerca, curral, reservatório, trator TP-02 (Diesel S10 em L), caminhonete UT-04 (Gasolina + Etanol em L), implemento e gerador sem medidor; detalhe fixo; nada em estoque/financeiro', async () => {
     const s = await montarPatrimonio(app);
+    const diesel = await produtoL(s, { nome: 'Diesel S10', codigo_interno: 'DS10' });
+    const gasolina = await produtoL(s, { nome: 'Gasolina' });
+    const etanol = await produtoL(s, { nome: 'Etanol' });
     const estoqueAntes = await contagemForaDoPatrimonio(s.c);
     const cerca = await criarOk(s, corpoCerca(s));
     const curral = await criarOk(s, corpoCurral(s));
     const reservatorio = await criarOk(s, corpoReservatorio(s));
-    const trator = await criarOk(s, corpoTrator(s));
-    const caminhonete = await criarOk(s, corpoCaminhonete(s));
+    const trator = await criarOk(s, corpoTrator(s, { tanques: [tanqueCom([diesel.id])] }));
+    const caminhonete = await criarOk(s, corpoCaminhonete(s, { tanques: [tanqueCom([gasolina.id, etanol.id], { identificador: 'Tanque', capacidade_litros: '80' })] }));
     const implemento = await criarOk(s, corpoImplemento(s));
     const gerador = await criarOk(s, corpoGerador(s));
     const todos = [cerca, curral, reservatorio, trator, caminhonete, implemento, gerador];
@@ -127,183 +130,55 @@ describe('B1 — aceite do proprietário: um bem de cada natureza, relido', () =
     }
     assert.deepEqual(todos.map((b) => b.numero), ['1', '2', '3', '4', '5', '6', '7']);
 
-    // Cerca: 1,25 km = 1.250 m.
+    // Benfeitorias: sem medidor nem tanque (D-PROD-162: sem medições físicas).
     assert.equal(cerca.natureza, 'BENFEITORIA');
     assert.deepEqual(cerca.familia, { id: s.fam.BENFEITORIAS, codigo: 'BENFEITORIAS', nome: 'Benfeitorias e instalações', natureza: 'BENFEITORIA', ativo: true });
     assert.deepEqual(cerca.tipo, { id: s.tip.CERCA_ARAME, codigo: 'CERCA_ARAME', nome: 'Cerca de arame', ativo: true });
-    assert.deepEqual(semId(cerca.medicoes), [
-      { perfil: perfilDe(s, 'EXTENSAO'), rotulo: null, valor_informado: '1.2500', unidade_informada: 'km', valor_normalizado: '1250.0000', unidade_canonica: 'm', principal: true },
-    ]);
     assert.deepEqual([cerca.medidor, cerca.tanques], [null, []]);
-    // Curral: 0,5 ha = 5.000 m² (principal) e 200 cabeças.
-    assert.deepEqual(semId(curral.medicoes), [
-      { perfil: perfilDe(s, 'AREA'), rotulo: 'Área coberta', valor_informado: '0.5000', unidade_informada: 'ha', valor_normalizado: '5000.0000', unidade_canonica: 'm2', principal: true },
-      { perfil: perfilDe(s, 'CAPACIDADE_ANIMAL'), rotulo: null, valor_informado: '200.0000', unidade_informada: 'cab', valor_normalizado: '200.0000', unidade_canonica: 'cab', principal: false },
-    ]);
-    assert.deepEqual([curral.material, curral.ano_conclusao, curral.medidor], ['Madeira de lei', 2019, null]);
-    // Reservatório: 20 m³ = 20.000 L.
-    assert.deepEqual(semId(reservatorio.medicoes).map((m) => [m.valor_informado, m.unidade_informada, m.valor_normalizado, m.unidade_canonica]), [['20.0000', 'm3', '20000.0000', 'L']]);
-    // Trator TP-02: código de frota normalizado e diferente do número; horímetro; diesel S10 180 L.
+    assert.deepEqual([curral.material, curral.ano_conclusao, curral.medidor, curral.tanques], ['Madeira de lei', 2019, null, []]);
+    assert.deepEqual([reservatorio.tipo.codigo, reservatorio.tanques], ['RESERVATORIO', []]);
+    // Trator TP-02: código de frota normalizado e diferente do número; horímetro; tanque de 180 L com Diesel S10 (L).
     assert.deepEqual([trator.codigo_frota, trator.numero, trator.natureza, trator.marca, trator.modelo, trator.ano_fabricacao, trator.potencia_cv], ['TP-02', '4', 'MAQUINA', 'Valtra', 'A950', 2018, '95.0000']);
     assert.deepEqual(trator.medidor, { tipo: 'HORIMETRO', unidade: 'h', leitura_inicial: '1520.5000', leitura_atual: '1520.5000', data_leitura: '2027-06-01', origem: 'CADASTRO_INICIAL' });
-    assert.deepEqual(semId(trator.tanques), [
-      { identificador: 'Tanque principal', capacidade_litros: '180.0000', observacao: null, ativo: true, combustiveis: [combustivelDe(s, 'DIESEL_S10', 'Diesel S10')] },
-    ]);
-    assert.deepEqual(trator.medicoes, []);
-    // Caminhonete flex UT-04: placa Mercosul normalizada, odômetro, tanque único gasolina + etanol.
+    assert.deepEqual(semId(trator.tanques), [{ identificador: 'Tanque principal', capacidade_litros: '180.0000', observacao: null, ativo: true, produtos: [produtoDe(diesel)] }]);
+    // Caminhonete UT-04: placa Mercosul normalizada, odômetro, tanque único com Etanol e Gasolina (por nome).
     assert.deepEqual([caminhonete.natureza, caminhonete.codigo_frota, caminhonete.placa, caminhonete.placa_uf, caminhonete.renavam, caminhonete.chassi], ['VEICULO', 'UT-04', 'ABC1D23', 'SP', '12345678901', '9BWZZZ377VT004251']);
     assert.deepEqual(caminhonete.medidor, { tipo: 'ODOMETRO', unidade: 'km', leitura_inicial: '35210.0000', leitura_atual: '35210.0000', data_leitura: '2027-05-30', origem: 'CADASTRO_INICIAL' });
-    assert.deepEqual(semId(caminhonete.tanques), [
-      { identificador: 'Tanque', capacidade_litros: '80.0000', observacao: null, ativo: true, combustiveis: [combustivelDe(s, 'ETANOL', 'Etanol'), combustivelDe(s, 'GASOLINA', 'Gasolina')] },
-    ]);
+    assert.deepEqual(semId(caminhonete.tanques), [{ identificador: 'Tanque', capacidade_litros: '80.0000', observacao: null, ativo: true, produtos: [produtoDe(etanol), produtoDe(gasolina)] }]);
     // Implemento: sem motor, sem tanque, sem medidor.
-    assert.deepEqual([implemento.natureza, implemento.medidor, implemento.tanques, implemento.medicoes, implemento.potencia_cv], ['IMPLEMENTO', null, [], [], null]);
+    assert.deepEqual([implemento.natureza, implemento.medidor, implemento.tanques, implemento.potencia_cv], ['IMPLEMENTO', null, [], null]);
     assert.deepEqual([implemento.numero_serie, implemento.compatibilidade], ['RC-2020-778', 'Tratores acima de 75 cv']);
-    // Gerador "sem medidor": medidor declarado, sem leitura e sem consumo.
+    // Gerador "sem medidor": medidor declarado, sem leitura e sem consumo; tanque padrão sem Produto (P-01).
     assert.deepEqual(gerador.medidor, { tipo: 'SEM_MEDIDOR', unidade: null, leitura_inicial: null, leitura_atual: null, data_leitura: null, origem: null });
     assert.equal(gerador.consumo, null);
 
-    // Linhas filhas gravadas e nada fora do Patrimônio.
+    // Linhas filhas gravadas e nada fora do Patrimônio (o Produto não é criado nem alterado pelo bem).
     const p = prisma();
-    assert.equal(await p.medicaoBem.count({ where: { cliente_id: s.c } }), 4);
     assert.equal(await p.tanqueBem.count({ where: { cliente_id: s.c } }), 2);
-    assert.equal(await p.tanqueBemCombustivel.count({ where: { cliente_id: s.c } }), 3);
+    assert.equal(await p.tanqueBemProduto.count({ where: { cliente_id: s.c } }), 3);
     assert.equal(await p.auditLog.count({ where: { cliente_id: s.c, entidade: 'BemPatrimonial', acao: 'create' } }), 7);
     assert.deepEqual(await contagemForaDoPatrimonio(s.c), estoqueAntes, 'nenhuma linha fora do Patrimônio (estoque/financeiro inclusive)');
     for (const m of ESTOQUE_FINANCEIRO_VAZIOS) assert.equal(estoqueAntes[m], 0, `${m}: vazio antes do cadastro`);
+    assert.deepEqual(
+      (await p.produto.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } })).map((x) => [x.id, x.estoque_atual.toString(), x.ativo, x.empresa_id]),
+      [diesel, gasolina, etanol].sort((a, b) => a.id.localeCompare(b.id)).map((x) => [x.id, '0', true, s.e1.id]),
+      'os Produtos aceitos ficam como estavam',
+    );
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('B2 — medições físicas', () => {
-  test('conversões exatas (1 km = 1000 m, 1 ha = 10000 m², 1 m³ = 1000 L) e recusas: m²→L, zero, negativo, não numérico, overflow, inteiro, repetição, principal, limite, natureza', async () => {
+describe('B3 — tanques e Produtos aceitos', () => {
+  test('Produtos aceitos (tanque novo, vazio = P-01); capacidade, identificador, natureza, limite de ativos; id/ativo no POST 400; equipamento leva tanque', async () => {
     const s = await montarPatrimonio(app);
-    const outro = await montarPatrimonio(app);
-    const benf = (tipo, medicoes, extra = {}) => ({ empresa_id: s.e1.id, nome: `Benfeitoria ${tipo}`, familia_id: s.fam.BENFEITORIAS, tipo_id: s.tip[tipo], medicoes, ...extra });
-    const med = (perfil, valor, unidade, extra = {}) => ({ perfil_id: s.per[perfil], valor, unidade, ...extra });
-    const norm = (b) => b.medicoes.map((m) => [m.valor_informado, m.unidade_informada, m.valor_normalizado, m.unidade_canonica]);
-    assert.deepEqual(norm(await criarOk(s, benf('CERCA_ELETRICA', [med('EXTENSAO', '1', 'km')]))), [['1.0000', 'km', '1000.0000', 'm']]);
-    assert.deepEqual(norm(await criarOk(s, benf('GALPAO', [med('AREA', '1', 'ha')]))), [['1.0000', 'ha', '10000.0000', 'm2']]);
-    assert.deepEqual(norm(await criarOk(s, benf('BEBEDOURO_FIXO', [med('VOLUME', '1', 'm3')]))), [['1.0000', 'm3', '1000.0000', 'L']]);
-    assert.deepEqual(norm(await criarOk(s, benf('GALPAO', [med('AREA', '0.0001', 'ha')]))), [['0.0001', 'ha', '1.0000', 'm2']]);
-    assert.deepEqual(norm(await criarOk(s, benf('CERCA_ARAME', [med('EXTENSAO', '9999999999.9999', 'km')]))), [['9999999999.9999', 'km', '9999999999999.9000', 'm']], 'teto do informado converte sem perder casas');
-    // Sem principal marcada, a primeira vira principal; a contagem inteira aceita "200.0".
-    const semPrincipal = await criarOk(s, benf('CURRAL', [med('AREA', '2', 'm2'), med('CAPACIDADE_ANIMAL', '200.0', 'cab')]));
-    assert.deepEqual(semPrincipal.medicoes.map((m) => [m.perfil.codigo, m.principal]), [['AREA', true], ['CAPACIDADE_ANIMAL', false]]);
-
-    const reservatorio = (valor, unidade = 'L') => criar(s, benf('RESERVATORIO', [med('VOLUME', valor, unidade)]));
-    await recusa(s, reservatorio('10', 'm2'), [422, 'MEDICAO_UNIDADE_INCOMPATIVEL', 'medicoes[0].unidade', 'unidade_incompativel']);
-    await recusa(s, criar(s, benf('CERCA_ARAME', [med('EXTENSAO', '10', 'h')])), [422, 'MEDICAO_UNIDADE_INCOMPATIVEL', 'medicoes[0].unidade', 'unidade_incompativel']);
-    await recusa(s, reservatorio('0'), [422, 'MEDICAO_VALOR_INVALIDO', 'medicoes[0].valor', 'nao_positivo']);
-    await recusa(s, reservatorio('0.0000'), [422, 'MEDICAO_VALOR_INVALIDO', 'medicoes[0].valor', 'nao_positivo']);
-    for (const valor of ['-1', 'abc', '1e3', '1,5', '99999999999', '1.12345', '']) await recusa400(s, reservatorio(valor), `valor ${JSON.stringify(valor)}`);
-    const numero = await recusa400(s, criar(s, benf('RESERVATORIO', [med('VOLUME', 10, 'L')])), 'número JSON');
-    assert.deepEqual([numero.json().field, numero.json().reason, numero.json().details], ['medicoes[0].valor', 'valor_deve_ser_texto', { campo: 'medicoes[0].valor' }]);
-    // A10: cabeças e quantidade são contagem.
-    await recusa(s, criar(s, benf('CURRAL', [med('AREA', '1', 'ha'), med('CAPACIDADE_ANIMAL', '10.5', 'cab')])), [422, 'MEDICAO_VALOR_INVALIDO', 'medicoes[1].valor', 'deve_ser_inteiro']);
-    await recusa(s, criar(s, benf('GALPAO', [med('QUANTIDADE', '2.5', 'un')])), [422, 'MEDICAO_VALOR_INVALIDO', 'medicoes[0].valor', 'deve_ser_inteiro']);
-    // Repetição, principal, referência e limite.
-    await recusa(s, criar(s, benf('CURRAL', [med('AREA', '1', 'ha'), med('AREA', '2', 'm2')])), [422, 'MEDICAO_PERFIL_DUPLICADO', 'medicoes[1].perfil_id', 'perfil_repetido']);
-    await recusa(s, criar(s, benf('CURRAL', [med('AREA', '1', 'ha', { principal: true }), med('CAPACIDADE_ANIMAL', '5', 'cab', { principal: true })])), [422, 'MEDICAO_PRINCIPAL_DUPLICADA', 'medicoes', 'principal_duplicada']);
-    await recusa(s, criar(s, benf('CURRAL', [{ perfil_id: INEXISTENTE, valor: '1', unidade: 'm2' }])), [422, 'BEM_REFERENCIA_INVALIDA', 'medicoes[0].perfil_id', 'inexistente']);
-    await recusa(s, criar(s, benf('CURRAL', [{ perfil_id: outro.per.AREA, valor: '1', unidade: 'm2' }])), [422, 'BEM_REFERENCIA_INVALIDA', 'medicoes[0].perfil_id', 'inexistente']);
-    await recusa(s, criar(s, benf('CURRAL', Array.from({ length: 21 }, () => med('AREA', '1', 'm2')))), [422, 'MEDICAO_LIMITE_EXCEDIDO', 'medicoes', 'limite']);
-    await recusa400(s, criar(s, benf('CURRAL', [{ ...med('AREA', '1', 'm2'), id: INEXISTENTE }])), 'id de medição no POST');
-    await ok(req('PATCH', `/patrimonio-perfis-medicao/${s.per.QUANTIDADE}`, s.token, { versao: 1, ativo: false }));
-    await recusa(s, criar(s, benf('GALPAO', [med('QUANTIDADE', '3', 'un')])), [422, 'BEM_REFERENCIA_INVALIDA', 'medicoes[0].perfil_id', 'inativo']);
-    // Medição só em benfeitoria: lista vazia passa, lista com item não.
-    const naoAplic = await recusa(s, criar(s, corpoTrator(s, { codigo_frota: null, medicoes: [med('AREA', '1', 'ha')] })), [422, 'BEM_CAMPO_NAO_APLICAVEL', 'medicoes', 'nao_aplicavel']);
-    assert.deepEqual(naoAplic.json().details, { natureza: 'MAQUINA' });
-    assert.deepEqual((await criarOk(s, corpoTrator(s, { codigo_frota: null, medicoes: [] }))).medicoes, []);
-  });
-
-  test('PATCH é sync: troca da principal (A5), atualiza a mantida, remove a ausente, cria a nova; perfil de medição gravada é imutável; perfil inativo já gravado fica', async () => {
-    const s = await montarPatrimonio(app);
-    const curral = await criarOk(s, corpoCurral(s));
-    const outroBem = await criarOk(s, corpoCerca(s));
-    const area = curral.medicoes.find((m) => m.perfil.codigo === 'AREA');
-    const cab = curral.medicoes.find((m) => m.perfil.codigo === 'CAPACIDADE_ANIMAL');
-    const itemArea = (extra = {}) => ({ id: area.id, perfil_id: s.per.AREA, valor: '0.5', unidade: 'ha', rotulo: 'Área coberta', ...extra });
-    const itemCab = (extra = {}) => ({ id: cab.id, perfil_id: s.per.CAPACIDADE_ANIMAL, valor: '200', unidade: 'cab', ...extra });
-
-    // A5: a nova principal vem primeiro; nenhuma colisão no unique (cliente_id, bem_id, principal).
-    const troca = await patchOk(s, curral.id, { versao: 1, medicoes: [itemCab({ principal: true }), itemArea()] });
-    assert.equal(troca.versao, 2);
-    assert.deepEqual(troca.medicoes.map((m) => [m.id, m.principal]), [[cab.id, true], [area.id, false]]);
-    const linhas = await prisma().medicaoBem.findMany({ where: { cliente_id: s.c, bem_id: curral.id }, orderBy: { id: 'asc' } });
-    assert.deepEqual(Object.fromEntries(linhas.map((l) => [l.id, l.principal])), { [area.id]: null, [cab.id]: true }, 'principal só true ou NULL');
-    // Mesma lista: sem mudança efetiva.
-    assert.equal((await patchOk(s, curral.id, { versao: 2, medicoes: [itemCab({ principal: true }), itemArea()] })).versao, 2);
-
-    // Atualiza a mantida (1 ha), remove a ausente (cabeças) e cria a nova (quantidade).
-    const sync = await patchOk(s, curral.id, { versao: 2, medicoes: [itemArea({ valor: '1' }), { perfil_id: s.per.QUANTIDADE, valor: '3', unidade: 'un' }] });
-    assert.deepEqual(sync.medicoes.map((m) => [m.perfil.codigo, m.valor_normalizado, m.unidade_canonica, m.principal]), [['AREA', '10000.0000', 'm2', true], ['QUANTIDADE', '3.0000', 'un', false]]);
-    assert.equal(sync.medicoes[0].id, area.id, 'a mantida conserva o id');
-    assert.equal(await prisma().medicaoBem.count({ where: { cliente_id: s.c, id: cab.id } }), 0, 'a ausente foi removida');
-    const quantidade = sync.medicoes[1];
-
-    // Perfil de medição gravada não muda; id de outro bem não serve.
-    await recusa(s, patch(s, curral.id, { versao: 3, medicoes: [itemArea({ perfil_id: s.per.VOLUME, unidade: 'L' })] }), [422, 'MEDICAO_PERFIL_DUPLICADO', 'medicoes[0].perfil_id', 'perfil_imutavel']);
-    await recusa(s, patch(s, curral.id, { versao: 3, medicoes: [{ id: outroBem.medicoes[0].id, perfil_id: s.per.EXTENSAO, valor: '1', unidade: 'km' }] }), [422, 'BEM_REFERENCIA_INVALIDA', 'medicoes[0].id', 'inexistente']);
-
-    // Perfil inativado depois de gravado: fica no bem, inclusive recriado sem id; num bem novo, não entra.
-    await ok(req('PATCH', `/patrimonio-perfis-medicao/${s.per.QUANTIDADE}`, s.token, { versao: 1, ativo: false }));
-    assert.equal((await patchOk(s, curral.id, { versao: 3, nome: 'Curral reformado' })).medicoes[1].perfil.ativo, false);
-    const recriada = await patchOk(s, curral.id, { versao: 4, medicoes: [itemArea({ valor: '1' }), { perfil_id: s.per.QUANTIDADE, valor: '4', unidade: 'un' }] });
-    assert.notEqual(recriada.medicoes[1].id, quantidade.id);
-    assert.equal(recriada.medicoes[1].valor_normalizado, '4.0000');
-    await recusa(s, criar(s, corpoCurral(s, { medicoes: [{ perfil_id: s.per.QUANTIDADE, valor: '1', unidade: 'un' }] })), [422, 'BEM_REFERENCIA_INVALIDA', 'medicoes[0].perfil_id', 'inativo']);
-
-    // Lista vazia remove todas; a auditoria registra a forma (sem rótulo).
-    assert.deepEqual((await patchOk(s, curral.id, { versao: 5, medicoes: [] })).medicoes, []);
-    const eventos = await prisma().auditLog.findMany({ where: { cliente_id: s.c, entidade: 'BemPatrimonial', entidade_id: curral.id, acao: 'update' }, orderBy: { createdAt: 'asc' } });
-    assert.deepEqual(eventos.map((e) => /** @type {any} */ (e.dados_novos).campos_alterados), [['medicoes'], ['medicoes'], ['nome'], ['medicoes'], ['medicoes']]);
-    const formaAntes = /** @type {any} */ (eventos[0].dados_anteriores).medicoes;
-    assert.deepEqual(formaAntes.map((m) => Object.keys(m).sort()), [['id', 'perfil_id', 'principal', 'unidade_canonica', 'valor_normalizado'], ['id', 'perfil_id', 'principal', 'unidade_canonica', 'valor_normalizado']]);
-    assert.ok(!JSON.stringify(eventos).includes('Área coberta'), 'rótulo fora da auditoria');
-  });
-
-  test('corrida (A5.2): remover uma unidade do perfil × gravar medição nessa unidade nunca terminam as duas', async () => {
-    const s = await montarPatrimonio(app);
-    for (let i = 0; i < 5; i += 1) {
-      const perfil = await ok(req('POST', '/patrimonio-perfis-medicao', s.token, { codigo: `PISO_${i}`, nome: `Piso ${i}`, dimensao: 'AREA', finalidade: 'DIMENSAO', unidades_permitidas: ['m2', 'ha'] }), 201);
-      const [bem, ajuste] = await Promise.all([
-        criar(s, { empresa_id: s.e1.id, nome: `Galpão ${i}`, familia_id: s.fam.BENFEITORIAS, tipo_id: s.tip.GALPAO, medicoes: [{ perfil_id: perfil.id, valor: '1', unidade: 'ha' }] }),
-        req('PATCH', `/patrimonio-perfis-medicao/${perfil.id}`, s.token, { versao: 1, unidades_permitidas: ['m2'] }),
-      ]);
-      const par = [bem.statusCode, ajuste.statusCode];
-      assert.ok(
-        (par[0] === 201 && par[1] === 409 && ajuste.json().code === 'PERFIL_UNIDADE_EM_USO') ||
-          (par[0] === 422 && bem.json().code === 'MEDICAO_UNIDADE_INCOMPATIVEL' && par[1] === 200),
-        `rodada ${i}: ${par} ${bem.body} ${ajuste.body}`
-      );
-      const final = await prisma().perfilMedicao.findUnique({ where: { id: perfil.id } });
-      const emHa = await prisma().medicaoBem.count({ where: { cliente_id: s.c, perfil_id: perfil.id, unidade_informada: 'ha' } });
-      assert.ok(final.unidades_permitidas.includes('ha') || emHa === 0, `rodada ${i}: medição em ha num perfil sem ha`);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe('B3 — tanques e combustíveis', () => {
-  test('flex aceito; combustível inexistente, de outro tenant, inativo ou GNV recusado; vazio, repetido, capacidade, identificador, natureza e limite de ativos', async () => {
-    const s = await montarPatrimonio(app);
-    const outro = await montarPatrimonio(app);
-    await ok(req('PATCH', `/patrimonio-combustiveis/${s.comb.DIESEL_S500}`, s.token, { versao: 1, ativo: false }));
-    const tanque = (extra = {}) => ({ identificador: 'Tanque principal', capacidade_litros: '180', combustivel_ids: [s.comb.DIESEL_S10], ...extra });
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    const tanque = (extra = {}) => tanqueCom([diesel.id], extra);
     const trator = (tanques) => criar(s, corpoTrator(s, { codigo_frota: null, tanques }));
-    const comb = (ids) => trator([tanque({ combustivel_ids: ids })]);
 
-    const flex = await criarOk(s, corpoCaminhonete(s));
-    assert.deepEqual(flex.tanques[0].combustiveis.map((c) => c.codigo), ['ETANOL', 'GASOLINA']);
-    const r1 = await recusa(s, comb([INEXISTENTE]), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[0].combustivel_ids', 'inexistente']);
-    assert.deepEqual(r1.json().details, { combustivel_id: INEXISTENTE });
-    await recusa(s, comb([outro.comb.DIESEL_S10]), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[0].combustivel_ids', 'inexistente']);
-    await recusa(s, comb([s.comb.DIESEL_S10, s.comb.DIESEL_S500]), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[0].combustivel_ids', 'inativo']);
-    const gnv = await recusa(s, comb([s.comb.GNV]), [422, 'TANQUE_COMBUSTIVEL_INCOMPATIVEL', 'tanques[0].combustivel_ids', 'unidade_incompativel']);
-    assert.deepEqual(gnv.json().details, { combustivel_id: s.comb.GNV, unidade: 'm3' });
-    await recusa(s, comb([]), [422, 'TANQUE_COMBUSTIVEL_OBRIGATORIO', 'tanques[0].combustivel_ids', 'vazio']);
-    await recusa(s, comb([s.comb.DIESEL_S10, s.comb.DIESEL_S10]), [422, 'TANQUE_COMBUSTIVEL_OBRIGATORIO', 'tanques[0].combustivel_ids', 'repetido']);
+    const comDiesel = await ok(trator([tanque()]), 201);
+    assert.deepEqual(comDiesel.tanques[0].produtos.map((x) => x.nome), ['Diesel S10']);
+    assert.deepEqual((await ok(trator([tanqueCom([])]), 201)).tanques[0].produtos, [], 'tanque sem Produto aceito (P-01)');
+    await recusa(s, trator([tanque({ produto_ids: [INEXISTENTE] })]), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'inexistente']);
     await recusa(s, trator([tanque({ capacidade_litros: '0' })]), [422, 'TANQUE_CAPACIDADE_INVALIDA', 'tanques[0].capacidade_litros', 'capacidade_invalida']);
     for (const capacidade of ['-5', '180.12345', 'cem', '99999999999']) await recusa400(s, trator([tanque({ capacidade_litros: capacidade })]), `capacidade ${capacidade}`);
     const num = await recusa400(s, trator([tanque({ capacidade_litros: 180 })]), 'capacidade número JSON');
@@ -312,6 +187,7 @@ describe('B3 — tanques e combustíveis', () => {
     await recusa400(s, trator([tanque({ identificador: '   ' })]), 'identificador em branco');
     await recusa400(s, trator([tanque({ id: INEXISTENTE })]), 'id de tanque no POST');
     await recusa400(s, trator([tanque({ ativo: true })]), 'ativo de tanque no POST');
+    await recusa400(s, trator([{ identificador: 'T', capacidade_litros: '10', combustivel_ids: [] }]), 'combustivel_ids saiu (D-PROD-162)');
     await recusa(s, criar(s, corpoImplemento(s, { tanques: [tanque()] })), [422, 'BEM_CAMPO_NAO_APLICAVEL', 'tanques', 'nao_aplicavel']);
     await recusa(s, criar(s, corpoCerca(s, { tanques: [tanque()] })), [422, 'BEM_CAMPO_NAO_APLICAVEL', 'tanques', 'nao_aplicavel']);
     const onze = Array.from({ length: 11 }, (_, i) => tanque({ identificador: `T${i + 1}` }));
@@ -322,69 +198,68 @@ describe('B3 — tanques e combustíveis', () => {
     assert.equal((await criarOk(s, corpoGerador(s, { tanques: [tanque()] }))).tanques.length, 1);
   });
 
-  test('PATCH: tanque ausente 422, novo inativo 400, id repetido/de outro bem 422; troca de identificadores (A5); combustível inativado fica; inativo libera vaga e reserva o identificador', async () => {
+  test('PATCH: tanque ausente 422, novo inativo 400, id repetido/de outro bem 422; troca de identificadores (A5); Produto inativado fica; inativo libera vaga e reserva o identificador', async () => {
     const s = await montarPatrimonio(app);
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
+    const s500 = await produtoL(s, { nome: 'Diesel S500' });
     const foraAntes = await contagemForaDoPatrimonio(s.c);
     const trator = await criarOk(s, corpoTrator(s, {
-      tanques: [
-        { identificador: 'Tanque principal', capacidade_litros: '180', combustivel_ids: [s.comb.DIESEL_S10] },
-        { identificador: 'Tanque auxiliar', capacidade_litros: '60', combustivel_ids: [s.comb.DIESEL_S10, s.comb.DIESEL_S500], observacao: 'na traseira' },
-      ],
+      tanques: [tanqueCom([diesel.id]), tanqueCom([diesel.id, s500.id], { identificador: 'Tanque auxiliar', capacidade_litros: '60', observacao: 'na traseira' })],
     }));
     const outroBem = await criarOk(s, corpoCaminhonete(s));
     const [principal, auxiliar] = trator.tanques;
-    const item = (t, extra = {}) => ({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao, combustivel_ids: t.combustiveis.map((c) => c.id), ...extra });
 
     const ausente = await recusa(s, patch(s, trator.id, { versao: 1, tanques: [item(principal)] }), [422, 'TANQUE_REMOCAO_NAO_PERMITIDA', 'tanques', 'tanque_ausente']);
     assert.deepEqual(ausente.json().details, { tanque_id: auxiliar.id });
-    const novoInativo = await recusa400(s, patch(s, trator.id, { versao: 1, tanques: [item(principal), item(auxiliar), { identificador: 'Reserva', capacidade_litros: '20', combustivel_ids: [s.comb.DIESEL_S10], ativo: false }] }), 'tanque novo inativo');
+    const novoInativo = await recusa400(s, patch(s, trator.id, { versao: 1, tanques: [item(principal), item(auxiliar), { ...tanqueCom([diesel.id], { identificador: 'Reserva', capacidade_litros: '20' }), ativo: false }] }), 'tanque novo inativo');
     assert.deepEqual([novoInativo.json().field, novoInativo.json().reason], ['tanques[2].ativo', 'tanque_novo_inativo']);
     await recusa(s, patch(s, trator.id, { versao: 1, tanques: [item(principal), item(principal, { identificador: 'Outro' }), item(auxiliar)] }), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[1].id', 'repetido']);
     await recusa(s, patch(s, trator.id, { versao: 1, tanques: [item(outroBem.tanques[0]), item(principal), item(auxiliar)] }), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[0].id', 'inexistente']);
+    await recusa400(s, patch(s, trator.id, { versao: 1, tanques: [{ ...item(principal), produto_ids: undefined }, item(auxiliar)] }), 'tanque sem produto_ids');
 
     // A5: trocar os identificadores entre dois tanques no mesmo PATCH.
     const troca = await patchOk(s, trator.id, { versao: 1, tanques: [item(principal, { identificador: 'Tanque auxiliar' }), item(auxiliar, { identificador: 'Tanque principal' })] });
     assert.equal(troca.versao, 2);
     assert.deepEqual(Object.fromEntries(troca.tanques.map((t) => [t.id, t.identificador])), { [principal.id]: 'Tanque auxiliar', [auxiliar.id]: 'Tanque principal' });
 
-    // Combustível inativado depois de vinculado permanece; acrescentá-lo a outro tanque, não.
-    await ok(req('PATCH', `/patrimonio-combustiveis/${s.comb.DIESEL_S500}`, s.token, { versao: 1, ativo: false }));
+    // Produto inativado depois de aceito permanece; acrescentá-lo a outro tanque, não.
+    await prisma().produto.update({ where: { id: s500.id }, data: { ativo: false } });
     const [p2, a2] = troca.tanques;
     const mantem = await patchOk(s, trator.id, { versao: 2, tanques: [item(p2), item(a2, { capacidade_litros: '65' })] });
-    assert.deepEqual(mantem.tanques[1].combustiveis.map((c) => [c.codigo, c.ativo]), [['DIESEL_S10', true], ['DIESEL_S500', false]]);
+    assert.deepEqual(mantem.tanques[1].produtos.map((x) => [x.nome, x.produto_ativo]), [['Diesel S10', true], ['Diesel S500', false]]);
     assert.equal(mantem.tanques[1].capacidade_litros, '65.0000');
-    await recusa(s, patch(s, trator.id, { versao: 3, tanques: [item(p2, { combustivel_ids: [s.comb.DIESEL_S10, s.comb.DIESEL_S500] }), item(a2)] }), [422, 'BEM_REFERENCIA_INVALIDA', 'tanques[0].combustivel_ids', 'inativo']);
+    await recusa(s, patch(s, trator.id, { versao: 3, tanques: [item(p2, { produto_ids: [diesel.id, s500.id] }), item(a2)] }), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'inativo']);
 
-    // Inativar (com ou sem combustível) e o identificador continua reservado; o tanque nunca sai.
-    const inat = await patchOk(s, trator.id, { versao: 3, tanques: [item(p2), item(a2, { ativo: false, combustivel_ids: [] })] });
-    assert.deepEqual(inat.tanques.map((t) => [t.identificador, t.ativo, t.combustiveis.length]), [['Tanque auxiliar', true, 1], ['Tanque principal', false, 0]]);
+    // Inativar (com ou sem Produto) e o identificador continua reservado; o tanque nunca sai.
+    const inat = await patchOk(s, trator.id, { versao: 3, tanques: [item(p2), item(a2, { ativo: false, produto_ids: [] })] });
+    assert.deepEqual(inat.tanques.map((t) => [t.identificador, t.ativo, t.produtos.length]), [['Tanque auxiliar', true, 1], ['Tanque principal', false, 0]]);
     const t3 = inat.tanques;
-    await recusa(s, patch(s, trator.id, { versao: 4, tanques: [item(t3[0]), item(t3[1]), { identificador: 'TANQUE PRINCIPAL', capacidade_litros: '30', combustivel_ids: [s.comb.DIESEL_S10] }] }), [422, 'TANQUE_IDENTIFICADOR_DUPLICADO', 'tanques[2].identificador', 'identificador_repetido']);
-    await recusa(s, patch(s, trator.id, { versao: 4, tanques: [item(t3[0]), item(t3[1], { ativo: true })] }), [422, 'TANQUE_COMBUSTIVEL_OBRIGATORIO', 'tanques[1].combustivel_ids', 'vazio']);
+    await recusa(s, patch(s, trator.id, { versao: 4, tanques: [item(t3[0]), item(t3[1]), tanqueCom([diesel.id], { identificador: 'TANQUE PRINCIPAL', capacidade_litros: '30' })] }), [422, 'TANQUE_IDENTIFICADOR_DUPLICADO', 'tanques[2].identificador', 'identificador_repetido']);
+    // Reativar sem Produto aceito é permitido (P-01).
+    const reat = await patchOk(s, trator.id, { versao: 4, tanques: [item(t3[0]), item(t3[1], { ativo: true })] });
+    assert.deepEqual(reat.tanques.map((t) => [t.ativo, t.produtos.length]), [[true, 1], [true, 0]]);
     assert.equal(await prisma().tanqueBem.count({ where: { cliente_id: s.c, bem_id: trator.id } }), 2);
 
     // A11: o limite conta só os ATIVOS.
-    const dez = await criarOk(s, corpoTrator(s, { codigo_frota: null, tanques: Array.from({ length: 10 }, (_, i) => ({ identificador: `T${i + 1}`, capacidade_litros: '10', combustivel_ids: [s.comb.DIESEL_S10] })) }));
+    const dez = await criarOk(s, corpoTrator(s, { codigo_frota: null, tanques: Array.from({ length: 10 }, (_, i) => tanqueCom([diesel.id], { identificador: `T${i + 1}`, capacidade_litros: '10' })) }));
     const todos = dez.tanques.map((t) => item(t));
-    const novo = { identificador: 'T11', capacidade_litros: '10', combustivel_ids: [s.comb.DIESEL_S10] };
+    const novo = tanqueCom([diesel.id], { identificador: 'T11', capacidade_litros: '10' });
     await recusa(s, patch(s, dez.id, { versao: 1, tanques: [...todos, novo] }), [422, 'TANQUE_LIMITE_EXCEDIDO', 'tanques', 'limite']);
     const comInativo = await patchOk(s, dez.id, { versao: 1, tanques: [{ ...todos[0], ativo: false }, ...todos.slice(1), novo] });
     assert.deepEqual([comInativo.tanques.length, comInativo.tanques.filter((t) => t.ativo).length], [11, 10]);
     const foraDepois = await contagemForaDoPatrimonio(s.c);
+    // Contagem por tabela fora das 7 (a inativação do S500, feita pelo próprio teste, não muda contagem).
     assert.deepEqual(foraDepois, foraAntes, 'nenhum efeito fora do Patrimônio (estoque/financeiro inclusive)');
     for (const m of ESTOQUE_FINANCEIRO_VAZIOS) assert.equal(foraDepois[m], 0, m);
   });
 
   test('A5: o temporário da troca nunca colide com um identificador digitado — `~<id de outro tanque>` é um nome comum, em qualquer ordem da lista, e não trava o PATCH seguinte', async () => {
     const s = await montarPatrimonio(app);
+    const diesel = await produtoL(s, { nome: 'Diesel S10' });
     const doisTanques = () => corpoTrator(s, {
       codigo_frota: null,
-      tanques: [
-        { identificador: 'A', capacidade_litros: '100', combustivel_ids: [s.comb.DIESEL_S10] },
-        { identificador: 'B', capacidade_litros: '50', combustivel_ids: [s.comb.DIESEL_S10] },
-      ],
+      tanques: [tanqueCom([diesel.id], { identificador: 'A', capacidade_litros: '100' }), tanqueCom([diesel.id], { identificador: 'B', capacidade_litros: '50' })],
     });
-    const item = (t, extra = {}) => ({ id: t.id, identificador: t.identificador, capacidade_litros: t.capacidade_litros, observacao: t.observacao, combustivel_ids: t.combustiveis.map((c) => c.id), ...extra });
     const tanquesDe = (bem) => Object.fromEntries(bem.tanques.map((t) => [t.identificador, t]));
     const identificadores = (bem) => Object.fromEntries(bem.tanques.map((t) => [t.id, t.identificador]));
     const gravados = async (bemId) => Object.fromEntries((await prisma().tanqueBem.findMany({ where: { cliente_id: s.c, bem_id: bemId } })).map((t) => [t.id, t.identificador]));
@@ -707,7 +582,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
       const r = await recusa(s, criar(s, corpo), [422, 'BEM_CAMPO_NAO_APLICAVEL', campo, 'nao_aplicavel']);
       assert.deepEqual(r.json().details, { natureza }, campo);
     }
-    const vazio = await criarOk(s, corpoTrator(s, { codigo_frota: null, placa: null, renavam: '', material: null, tanques: [], medicoes: [] }));
+    const vazio = await criarOk(s, corpoTrator(s, { codigo_frota: null, placa: null, renavam: '', material: null, tanques: [] }));
     assert.deepEqual([vazio.placa, vazio.renavam, vazio.material], [null, null, null], 'null e vazio passam e não gravam nada');
     await recusa400(s, criar(s, corpoTrator(s, { codigo_frota: null, nome: '<script>x</script>' })), 'marcação no nome');
     await recusa400(s, criar(s, corpoTrator(s, { codigo_frota: null, observacoes: 'linha\u0000nula' })), 'caractere de controle');
@@ -801,8 +676,8 @@ describe('B6 — frota, identificação, classificação, referências, versão 
     const t = await criarOk(s, corpoTrator(s));
     const conflito = await recusa(s, patch(s, t.id, { versao: 2, nome: 'Outro' }), [409, 'PATRIMONIO_VERSAO_CONFLITO', null, null]);
     assert.deepEqual(conflito.json().details, { versao_atual: 1, versao_informada: 2 });
-    const tanques = t.tanques.map((x) => ({ id: x.id, identificador: x.identificador, capacidade_litros: '180', combustivel_ids: x.combustiveis.map((c) => c.id) }));
-    const igual = await patchOk(s, t.id, { versao: 1, nome: 'Trator TP-02', codigo_frota: 'tp-02', potencia_cv: '95.0', medidor: { tipo: 'HORIMETRO' }, tanques, medicoes: [], placa: null });
+    const tanques = t.tanques.map((x) => ({ id: x.id, identificador: x.identificador, capacidade_litros: '180', produto_ids: x.produtos.map((c) => c.produto_id) }));
+    const igual = await patchOk(s, t.id, { versao: 1, nome: 'Trator TP-02', codigo_frota: 'tp-02', potencia_cv: '95.0', medidor: { tipo: 'HORIMETRO' }, tanques, placa: null });
     assert.deepEqual(igual, t, 'PATCH sem mudança devolve o atual, mesma versão');
     assert.equal(await prisma().auditLog.count({ where: { cliente_id: s.c, entidade_id: t.id, acao: 'update' } }), 0);
     const [a, b] = await Promise.all([patch(s, t.id, { versao: 1, nome: 'Nome A' }), patch(s, t.id, { versao: 1, nome: 'Nome B' })]);

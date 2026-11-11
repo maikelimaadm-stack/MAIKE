@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import PainelSelecao from "@/components/common/PainelSelecao";
@@ -69,6 +69,30 @@ export default function AutocompleteGenerico({
     const doCampo = wrapperRef.current?.closest(".mg-field, .cadastro-b1-form-field")?.querySelector("label")?.textContent || "";
     return doCampo.replace(/\s*\*\s*$/, "").trim() || placeholder.replace(/^buscar\s*/i, "").replace(/\.+$/, "") || "opções";
   };
+
+  // Celular (D-PROD-161): a folha é modal (`aria-modal`). Ao abrir, o foco
+  // entra nela (opção marcada ou a primeira — botão, não abre teclado
+  // virtual); ao fechar, volta ao campo se ficou perdido (a opção sumiu).
+  const listaCelularRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+  const focoNaFolhaRef = useRef(false);
+  useEffect(() => {
+    if (!celular) return;
+    if (open) {
+      const lista = listaCelularRef.current;
+      const alvo = lista?.querySelector('[role="option"][aria-selected="true"]') || lista?.querySelector('[role="option"]');
+      if (alvo instanceof HTMLElement) {
+        alvo.focus({ preventScroll: true });
+        focoNaFolhaRef.current = true;
+      }
+      return;
+    }
+    if (!focoNaFolhaRef.current) return;
+    focoNaFolhaRef.current = false;
+    const ativo = document.activeElement;
+    const campo = inputRef.current;
+    const perdido = !ativo || ativo === document.body || !ativo.isConnected || (campo && ativo !== campo && ativo.contains(campo));
+    if (perdido && campo?.isConnected) campo.focus({ preventScroll: true });
+  }, [open, celular]);
 
   if (celular) {
     const termo = buscaCelular.trim().toLowerCase();
@@ -144,7 +168,7 @@ export default function AutocompleteGenerico({
             </div>
           ) : null}
           {termo ? <div className="mgs__count">{fmt(encontrados.length)} encontrado{encontrados.length === 1 ? "" : "s"}</div> : null}
-          <div className="mgs__lista" role="listbox" aria-label={titulo}>
+          <div ref={listaCelularRef} className="mgs__lista" role="listbox" aria-label={titulo}>
             {!vistos.length ? <div className="mgs__vazio">Nenhum registro encontrado</div> : null}
             {vistos.map((item) => {
               const on = item.id === value;

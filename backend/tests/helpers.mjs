@@ -120,25 +120,20 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
-  // D-PROD-157: Patrimônio e Frota (filhas antes das mães; sem autorreferência).
-  // Antes do bloco de Gestão porque o bem referencia o centro de custo, e antes
-  // do laço porque referencia Empresa, Fornecedor, Usuario e AreaPastagem (RESTRICT).
-  // R2: o vínculo combustível × produto referencia TipoCombustivel, Produto e
-  // Empresa (RESTRICT): sai antes deles.
-  // D-PROD-159: fatias → abastecimento → fator (referenciam lote, movimento, bem, tanque, local, vínculo, usuário — RESTRICT).
+  // D-PROD-157/161: Patrimônio e Frota simplificado (filhas antes das mães; sem
+  // autorreferência). Antes do bloco de Gestão porque o bem referencia o centro
+  // de custo, e antes do laço porque referencia Empresa, Fornecedor, Usuario e
+  // AreaPastagem (RESTRICT).
+  // D-PROD-159/161: fatias → abastecimento (referenciam lote, movimento, bem,
+  // tanque, Produto aceito, local e usuário — RESTRICT) → Produto aceito pelo
+  // tanque (referencia tanque e Produto) → tanque → bem → tipo → família.
   await prisma.abastecimentoBemConsumoLote.deleteMany({});
   await prisma.abastecimentoBem.deleteMany({});
-  await prisma.conversaoCombustivelProduto.deleteMany({});
-  await prisma.tipoCombustivelProduto.deleteMany({});
-  await prisma.tanqueBemCombustivel.deleteMany({});
+  await prisma.tanqueBemProduto.deleteMany({});
   await prisma.tanqueBem.deleteMany({});
-  await prisma.medicaoBem.deleteMany({});
   await prisma.bemPatrimonial.deleteMany({});
-  await prisma.tipoPatrimonialPerfil.deleteMany({});
   await prisma.tipoPatrimonial.deleteMany({});
   await prisma.familiaPatrimonial.deleteMany({});
-  await prisma.perfilMedicao.deleteMany({});
-  await prisma.tipoCombustivel.deleteMany({});
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});

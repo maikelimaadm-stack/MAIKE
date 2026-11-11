@@ -1,5 +1,11 @@
 /**
  * Porta nativa de MovimentacaoEstoque (P5.4).
+ *
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): sem `create` e sem `delete`. Movimento
+ * de estoque só nasce pelos comandos transacionais (`movimentacaoEstoqueComandosApi`)
+ * e nunca é apagado (o backend responde 409). Como o adaptador offline só expõe
+ * as operações que existem, não há como enfileirar essas escritas. Ficam a
+ * leitura e o `update` — a renomeação do local feita pelo FormularioPonto.
  */
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
@@ -31,19 +37,11 @@ const operacoesNativas = Object.freeze({
     return nativeRequest(`${CAMINHO}${qs}`, { autenticado: true }, ctx('listMovimentacaoEstoque'));
   },
 
-  create: (dados) =>
-    nativeRequest(CAMINHO, { method: 'POST', body: dados, autenticado: true }, ctx('createMovimentacaoEstoque')),
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
       { method: 'PATCH', body: dados, autenticado: true },
       ctx('updateMovimentacaoEstoque')
-    ),
-  delete: (id) =>
-    nativeRequest(
-      `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'DELETE', autenticado: true },
-      ctx('deleteMovimentacaoEstoque')
     ),
 });
 

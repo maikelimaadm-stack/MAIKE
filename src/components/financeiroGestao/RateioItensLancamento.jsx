@@ -50,6 +50,8 @@ function Celula({ rotulo, testId = undefined, destaque = false, children }) {
 export function ValoresRateadosDoItem({ item, c, prefixo }) {
   const dinheiro = (/** @type {unknown} */ v) => formatarMoeda(lido(v) ?? "", c);
   const custo = lido(item?.custo_kg);
+  // D-PROD-162: item em litros mostra o custo por L; KG, SACO e UN, como antes (por kg).
+  const porUnidade = item?.unidade === "L" ? "L" : "kg";
   const residuo = lido(item?.residuo_custo);
   const comRateio = temRateioDoItem(item);
   return (
@@ -71,8 +73,8 @@ export function ValoresRateadosDoItem({ item, c, prefixo }) {
         </>
       ) : null}
       {custo !== null ? (
-        <Celula rotulo="Custo/kg (líquido)" testId={`${prefixo}-custo-kg`}>
-          {formatarMoeda(custo, { ...c, casasMax: 4 })}/kg
+        <Celula rotulo={`Custo/${porUnidade} (líquido)`} testId={`${prefixo}-custo-kg`}>
+          {formatarMoeda(custo, { ...c, casasMax: 4 })}/{porUnidade}
         </Celula>
       ) : null}
       {residuo !== null ? (
@@ -121,12 +123,26 @@ export function TotaisRateioItens({ itens, valorTotal, c, testId }) {
   );
 }
 
-/** Explicação curta da diferença de arredondamento do custo. @param {{ testId: string }} props */
-export function NotaResiduoCusto({ testId }) {
+/**
+ * Explicação curta da diferença de arredondamento do custo. D-PROD-162: com
+ * item em litros no documento (`comLitros`), o texto não fala em kg; sem item
+ * em L, o texto de sempre.
+ * @param {{ testId: string, comLitros?: boolean }} props
+ */
+export function NotaResiduoCusto({ testId, comLitros = false }) {
   return (
     <p className="min-w-0 break-words text-[11px] text-[var(--mg-text-2,#475569)]" data-testid={testId}>
-      Diferença de arredondamento do custo = líquido − kg × custo/kg. O custo por kg do estoque tem 4 casas: essa diferença fica fora do custo FIFO
-      (não entra no lote) e o título continua com o valor total.
+      {comLitros ? (
+        <>
+          Diferença de arredondamento do custo = líquido − quantidade × custo unitário. O custo unitário do estoque tem 4 casas: essa diferença fica fora
+          do custo FIFO (não entra no lote) e o título continua com o valor total.
+        </>
+      ) : (
+        <>
+          Diferença de arredondamento do custo = líquido − kg × custo/kg. O custo por kg do estoque tem 4 casas: essa diferença fica fora do custo FIFO
+          (não entra no lote) e o título continua com o valor total.
+        </>
+      )}
     </p>
   );
 }
@@ -265,7 +281,7 @@ export default function RateioItensLancamento({ itens, nomes, valorTotal, c, tes
         </div>
       ))}
       {ordenados.every(temRateioDoItem) ? <TotaisRateioItens itens={ordenados} valorTotal={valorTotal} c={c} testId={`${testId}-totais`} /> : null}
-      {comResiduo ? <NotaResiduoCusto testId={`${testId}-nota-residuo`} /> : null}
+      {comResiduo ? <NotaResiduoCusto testId={`${testId}-nota-residuo`} comLitros={ordenados.some((i) => i?.unidade === "L")} /> : null}
       {porItem && Array.isArray(consolidado) ? <ResumoConsolidado linhas={consolidado} valorTotal={valorTotal} nomes={nomesRateio} c={c} testId={`${testId}-consolidado`} /> : null}
     </section>
   );

@@ -5,10 +5,10 @@ import {
   UNIDADE_MEDIDOR,
   formatarCusto,
   formatarDiaAbastecimento,
-  formatarFator,
-  formatarKg,
   formatarLeitura,
   formatarLitros,
+  formatarQuantidade,
+  rotuloDaUnidade,
   rotuloDoBem,
 } from "@/lib/abastecimentoRegras";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
@@ -21,6 +21,9 @@ export const MOTIVO_CONSUMO = Object.freeze(
     nao_e_tanque_cheio: "este abastecimento não completou o tanque",
     medidor_trocado: "o medidor mudou entre os dois tanques cheios",
     intervalo_nao_positivo: "a leitura não avançou entre os dois tanques cheios",
+    quantidade_nao_positiva: "a quantidade abastecida entre os dois tanques cheios não é positiva",
+    // D-PROD-162 (P-03): litros e quilos nunca se somam.
+    unidades_misturadas: "o intervalo tem abastecimentos em litros e em quilos, que não se somam",
     sem_medidor: "o bem não tem medidor",
     medidor_ciclos: "o medidor é de ciclos (sem métrica de consumo)",
     cancelado: "o abastecimento foi cancelado",
@@ -39,16 +42,23 @@ function Campo({ rotulo, children, testId = undefined, span = "sm:col-span-1" })
   );
 }
 
-/** @param {{ titulo: string, mov: any, testId: string }} props */
-function Movimento({ titulo, mov, testId }) {
+/** Unidade do intervalo do medidor (km no odômetro; h no horímetro), pela métrica. @param {unknown} metrica */
+export const unidadeDoIntervalo = (metrica) => (typeof metrica === "string" && metrica.startsWith("KM_") ? "km" : "h");
+
+/** @param {{ titulo: string, mov: any, testId: string, unidade: string|null }} props */
+function Movimento({ titulo, mov, testId, unidade }) {
   if (!mov) return null;
+  // O movimento rotula a sua unidade (`unidade_medida`); sem ela, a do abastecimento.
+  const u = mov.unidade ?? unidade;
+  const por = rotuloDaUnidade(u);
   return (
     <div className="min-w-0 rounded-md border border-slate-200 p-2 text-[12px]" data-testid={testId}>
       <p className="font-semibold">
         {titulo} nº {mov.numero ?? "—"} · {mov.tipo_movimentacao ?? ""} · {mov.status ?? ""}
       </p>
       <p className="text-[var(--mg-text-2,#475569)]">
-        {formatarKg(mov.quantidade_kg)} kg × {formatarCusto(mov.valor_unitario)}/kg = {formatarCusto(mov.valor_total)}
+        {formatarQuantidade(mov.quantidade, u)} × {formatarCusto(mov.valor_unitario)}
+        {por ? `/${por}` : ""} = {formatarCusto(mov.valor_total)}
       </p>
     </div>
   );
@@ -77,7 +87,7 @@ export function ConsumoDoAbastecimento({ consumo }) {
         Consumo: {formatarLeitura(consumo.valor)} {consumo.unidade_metrica}
       </p>
       <p className="text-[var(--mg-text-2,#475569)]">
-        {formatarLitros(consumo.litros)} L em {formatarLeitura(consumo.intervalo)} {consumo.unidade_metrica === "km/L" ? "km" : "h"} desde o tanque cheio anterior.
+        {formatarQuantidade(consumo.quantidade, consumo.unidade)} em {formatarLeitura(consumo.intervalo)} {unidadeDoIntervalo(consumo.metrica)} desde o tanque cheio anterior.
       </p>
       {consumo.metodologia ? <p className="mt-1 text-[11px] text-[var(--mg-text-2,#475569)]">{consumo.metodologia}</p> : null}
     </div>
@@ -86,16 +96,18 @@ export function ConsumoDoAbastecimento({ consumo }) {
 
 /**
  * Consulta de um abastecimento (fato confirmado ou cancelado; nada se edita):
- * máquina, PRODUTO (o da época: trocar a associação no cadastro de Combustíveis
- * não reescreve o histórico), litros, KG, leitura do medidor; no detalhe
- * técnico, tanque, tipo de combustível (classificação), fator usado (snapshot e
- * versão), custo FIFO FINAL, lotes, movimento e estorno; situação, cancelamento
- * e consumo.
+ * máquina, PRODUTO (o da época: trocar os Produtos aceitos do tanque no
+ * cadastro de Bens não reescreve o histórico), quantidade baixada na unidade
+ * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo FIFO
+ * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
+ * consumo. D-PROD-162: sem tipo de combustível e sem fator.
  * @param {{ detalhe: any, podeCancelar: boolean, onCancelar: () => void, onVerConsumo: () => void, fuso?: string|null }} props
  */
 export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCancelar, onVerConsumo, fuso = null }) {
   const unidade = UNIDADE_MEDIDOR[String(d?.medidor?.tipo ?? "")] ?? "";
   const fatias = Array.isArray(d?.fatias) ? d.fatias : [];
+  // A unidade GRAVADA no abastecimento (snapshot): a do Produto pode ter mudado depois.
+  const porUnidade = rotuloDaUnidade(d?.unidade);
   return (
     <div className="cadastro-b1 min-w-0 p-3" data-testid="abastecimento-consulta">
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -108,14 +120,11 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
           {rotuloDoBem(d.bem)}
         </Campo>
         <Campo rotulo="Produto" testId="consulta-produto">
-          {d.produto?.nome ?? "—"} {d.produto?.unidade_principal_estoque ? `(${d.produto.unidade_principal_estoque})` : ""}
+          {d.produto?.nome ?? "—"}
         </Campo>
         <Campo rotulo="Local de estoque">{d.local_estoque?.nome ?? "—"}</Campo>
-        <Campo rotulo="Litros" testId="consulta-litros">
-          {formatarLitros(d.quantidade_litros)} L
-        </Campo>
-        <Campo rotulo="KG baixados" testId="consulta-kg">
-          {formatarKg(d.quantidade_kg)} kg
+        <Campo rotulo="Quantidade baixada" testId="consulta-quantidade">
+          {formatarQuantidade(d.quantidade, d.unidade)}
         </Campo>
         <Campo rotulo="Leitura do medidor" testId="consulta-leitura">
           {d.medidor?.leitura ? `${formatarLeitura(d.medidor.leitura)} ${unidade}` : d.medidor?.tipo === "SEM_MEDIDOR" ? "Sem medidor" : "—"}
@@ -125,14 +134,9 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
           {d.tanque?.identificador ?? "—"}
           {d.tanque?.capacidade_litros ? ` (${formatarLitros(d.tanque.capacidade_litros)} L)` : ""}
         </Campo>
-        <Campo rotulo="Tipo de combustível (classificação)" testId="consulta-tipo">
-          {d.tipo_combustivel?.nome ?? "—"}
-        </Campo>
-        <Campo rotulo="Fator usado" testId="consulta-fator">
-          {formatarFator(d.kg_por_litro)} kg/L{d.conversao ? ` (versão ${d.conversao.sequencia ?? d.conversao.versao}${d.conversao.vigente === false ? ", já substituída" : ""})` : ""}
-        </Campo>
         <Campo rotulo="Custo FIFO" testId="consulta-custo">
-          {formatarCusto(d.custo_total)} ({formatarCusto(d.custo_unitario_kg)}/kg)
+          {formatarCusto(d.custo_total)}
+          {d.custo_unitario ? ` (${formatarCusto(d.custo_unitario)}${porUnidade ? `/${porUnidade}` : ""})` : ""}
         </Campo>
         <Campo rotulo="Referência externa">{d.referencia_externa || "—"}</Campo>
         {d.observacao ? (
@@ -153,8 +157,8 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
               <tr className="text-left text-[var(--mg-text-2,#475569)]">
                 <th className="py-1 pr-2">Ordem</th>
                 <th className="py-1 pr-2">Lote de</th>
-                <th className="py-1 pr-2 text-right">KG</th>
-                <th className="py-1 pr-2 text-right">Custo/kg</th>
+                <th className="py-1 pr-2 text-right">{porUnidade ? `Quantidade (${porUnidade})` : "Quantidade"}</th>
+                <th className="py-1 pr-2 text-right">{porUnidade ? `Custo/${porUnidade}` : "Custo"}</th>
                 <th className="py-1 text-right">Valor</th>
               </tr>
             </thead>
@@ -163,7 +167,7 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
                 <tr key={`${f.ordem}-${f.lote_id}`} className="border-t border-slate-100">
                   <td className="py-1 pr-2">{f.ordem}</td>
                   <td className="py-1 pr-2">{formatarDiaAbastecimento(f.data_lote)}</td>
-                  <td className="py-1 pr-2 text-right tabular-nums">{formatarKg(f.quantidade_kg)}</td>
+                  <td className="py-1 pr-2 text-right tabular-nums">{formatarQuantidade(f.quantidade, null)}</td>
                   <td className="py-1 pr-2 text-right tabular-nums">{formatarCusto(f.custo_unitario)}</td>
                   <td className="py-1 text-right tabular-nums">{formatarCusto(f.valor)}</td>
                 </tr>
@@ -174,8 +178,8 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
       ) : null}
 
       <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-        <Movimento titulo="Saída de estoque" mov={d.movimentacao} testId="consulta-movimento" />
-        <Movimento titulo="Estorno" mov={d.estorno} testId="consulta-estorno" />
+        <Movimento titulo="Saída de estoque" mov={d.movimentacao} testId="consulta-movimento" unidade={d.unidade ?? null} />
+        <Movimento titulo="Estorno" mov={d.estorno} testId="consulta-estorno" unidade={d.unidade ?? null} />
       </div>
 
       {d.cancelamento ? (

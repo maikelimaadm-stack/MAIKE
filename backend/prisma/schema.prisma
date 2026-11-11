@@ -117,17 +117,11 @@ model Cliente {
   // D-PROD-157 — Patrimônio e Frota P1-01 (cadastros de inventário).
   familiasPatrimoniais         FamiliaPatrimonial[]
   tiposPatrimoniais            TipoPatrimonial[]
-  tiposPatrimoniaisPerfis      TipoPatrimonialPerfil[]
-  perfisMedicao                PerfilMedicao[]
-  tiposCombustivel             TipoCombustivel[]
   bensPatrimoniais             BemPatrimonial[]
-  medicoesBem                  MedicaoBem[]
   tanquesBem                   TanqueBem[]
-  tanquesBemCombustiveis       TanqueBemCombustivel[]
-  // D-PROD-157 (R2) — combustível × produto por empresa.
-  tiposCombustivelProdutos     TipoCombustivelProduto[]
-  // D-PROD-159 — Patrimônio P1-02: fatores kg/L, abastecimentos e fatias FIFO.
-  conversoesCombustivel        ConversaoCombustivelProduto[]
+  // D-PROD-162 — Produtos do estoque aceitos por tanque.
+  tanquesBemProdutos           TanqueBemProduto[]
+  // D-PROD-159/161 — Patrimônio: abastecimentos e fatias FIFO.
   abastecimentosBem            AbastecimentoBem[]
   abastecimentosBemConsumos    AbastecimentoBemConsumoLote[]
 
@@ -186,9 +180,7 @@ model Usuario {
   operacoesFinanceirasEventos     OperacaoFinanceiraEvento[]    @relation("OperacaoFinanceiraEventoUsuario")
   // D-PROD-157 — responsável pelo bem patrimonial (FK composta por tenant).
   bensPatrimoniaisResponsavel     BemPatrimonial[]              @relation("BemPatrimonialResponsavel")
-  // D-PROD-159 — autores do fator kg/L e do abastecimento (FK composta por tenant).
-  conversoesCombustivelCriadas    ConversaoCombustivelProduto[] @relation("ConversaoCombustivelCriadoPor")
-  conversoesCombustivelEncerradas ConversaoCombustivelProduto[] @relation("ConversaoCombustivelEncerradoPor")
+  // D-PROD-159/161 — autores do abastecimento (FK composta por tenant).
   abastecimentosCriados           AbastecimentoBem[]            @relation("AbastecimentoBemCriadoPor")
   abastecimentosCancelados        AbastecimentoBem[]            @relation("AbastecimentoBemCanceladoPor")
 
@@ -867,7 +859,8 @@ model Produto {
   // D-PROD-155 — itens de lançamento deste produto.
   itensFinanceiros OperacaoFinanceiraItem[]
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
-  vinculosCombustivel TipoCombustivelProduto[]
+  tanquesAceitos    TanqueBemProduto[]
+  abastecimentosBem AbastecimentoBem[]
 
   @@unique([cliente_id, numero_produto])
   @@unique([cliente_id, id])
@@ -1010,7 +1003,6 @@ model Empresa {
   // D-PROD-157 — bens patrimoniais da fazenda (catálogos são do tenant).
   bensPatrimoniais       BemPatrimonial[]
   // D-PROD-157 (R2) — produtos da fazenda vinculados a tipos de combustível.
-  tiposCombustivelProdutos TipoCombustivelProduto[]
   // D-PROD-159 — abastecimentos dos bens da fazenda.
   abastecimentosBem      AbastecimentoBem[]
   @@unique([cliente_id, id])
@@ -2093,7 +2085,9 @@ model OperacaoFinanceira {
 }
 
 /// Item do documento COM_PRODUTOS. MERCADORIA mexe no estoque (KG) pelo motor
-/// físico na confirmação; SERVICO não mexe em estoque.
+/// físico na confirmação; SERVICO não mexe em estoque. D-PROD-162: item de
+/// Produto em litros usa `unidade = 'L'`, `fator_kg = 1` e `quantidade_estoque`
+/// em L (as colunas mantêm o nome; CHECKs alargados na migration da D-PROD-162).
 model OperacaoFinanceiraItem {
   id                      String   @id @default(cuid())
   cliente_id              String   @db.VarChar(64)
@@ -2371,18 +2365,19 @@ model OperacaoFinanceiraEvento {
 }
 
 // ---------------------------------------------------------------------------
-// D-PROD-157 — Patrimônio e Frota P1-01: cadastros nativos de inventário.
-// Catálogos do TENANT (família, tipo, perfil de medição, combustível; sem
-// empresa, como UnidadeMedida/LocalEstoque) e o bem da EMPRESA (fazenda atual,
-// FK composta). O bem é a raiz do agregado: medições, medidor e tanques só
-// mudam pelo POST/PATCH do bem, numa transação, com CAS por `versao`. Sem
-// abastecimento, manutenção, consumo, estoque, financeiro ou contabilidade: a
-// depreciação é só PRÉVIA simulada (nada é gravado). Domínios fechados por
-// CHECK SQL (sem enum Prisma); toda FK para tabela tenant inclui `cliente_id`.
+// D-PROD-157 — Patrimônio e Frota P1-01: cadastros nativos de inventário,
+// simplificados pela D-PROD-162 (sem perfis de medição, medições de benfeitoria,
+// catálogo de combustíveis e fator kg/L). Catálogos do TENANT (família e tipo;
+// sem empresa, como UnidadeMedida/LocalEstoque) e o bem da EMPRESA (fazenda
+// atual, FK composta). O bem é a raiz do agregado: medidor, tanques e os
+// Produtos aceitos por tanque só mudam pelo POST/PATCH do bem, numa transação,
+// com CAS por `versao`. A depreciação é só PRÉVIA simulada (nada é gravado).
+// Domínios fechados por CHECK SQL (sem enum Prisma); toda FK para tabela
+// tenant inclui `cliente_id`.
 // ---------------------------------------------------------------------------
 
 /// Família patrimonial ("Máquinas", "Benfeitorias"...). `natureza` define as
-/// capacidades do bem (medições, medidor, tanques); IMUTÁVEL depois de criada.
+/// capacidades do bem (medidor, tanques); IMUTÁVEL depois de criada.
 /// Domínios (CHECK): natureza BENFEITORIA|MAQUINA|VEICULO|IMPLEMENTO|EQUIPAMENTO|OUTRO;
 /// codigo `^[A-Z0-9_]{2,32}$`; ordem 0..9999; vida útil 1..1200 meses.
 model FamiliaPatrimonial {
@@ -2427,90 +2422,12 @@ model TipoPatrimonial {
 
   cliente Cliente                 @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   familia FamiliaPatrimonial      @relation(fields: [cliente_id, familia_id], references: [cliente_id, id], onDelete: Restrict)
-  perfis  TipoPatrimonialPerfil[]
   bens    BemPatrimonial[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, codigo])
   @@unique([cliente_id, familia_id, nome])
   @@index([cliente_id, familia_id, ativo])
-  @@index([cliente_id, createdAt, id])
-}
-
-/// Perfil de medição sugerido para o tipo (sync completo pelo POST/PATCH do
-/// tipo). `principal` é `true` ou NULL (CHECK): a unique com `principal`
-/// garante no máximo UM principal por tipo (NULLs não colidem).
-model TipoPatrimonialPerfil {
-  id         String   @id @default(cuid())
-  cliente_id String   @db.VarChar(64)
-  tipo_id    String   @db.VarChar(64)
-  perfil_id  String   @db.VarChar(64)
-  principal  Boolean?
-  ordem      Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  cliente Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tipo    TipoPatrimonial @relation(fields: [cliente_id, tipo_id], references: [cliente_id, id], onDelete: Restrict)
-  perfil  PerfilMedicao   @relation(fields: [cliente_id, perfil_id], references: [cliente_id, id], onDelete: Restrict)
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, tipo_id, perfil_id])
-  @@unique([cliente_id, tipo_id, principal])
-  @@index([cliente_id, createdAt, id])
-}
-
-/// Perfil de medição física (Extensão, Área, Volume...). `dimensao` e
-/// `finalidade` IMUTÁVEIS; `unidade_canonica` derivada da dimensão (CHECK:
-/// EXTENSAO→m, AREA→m2, VOLUME→L, MASSA→kg, QUANTIDADE→un, CABECAS→cab);
-/// `unidades_permitidas` ⊂ unidades da dimensão e contém a canônica (CHECK).
-model PerfilMedicao {
-  id                  String   @id @default(cuid())
-  cliente_id          String   @db.VarChar(64)
-  codigo              String   @db.VarChar(32)
-  nome                String   @db.VarChar(120)
-  dimensao            String   @db.VarChar(16)
-  finalidade          String   @db.VarChar(16)
-  unidade_canonica    String   @db.VarChar(8)
-  unidades_permitidas String[]
-  descricao           String?  @db.VarChar(500)
-  ativo               Boolean  @default(true)
-  versao              Int      @default(1)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  cliente     Cliente                 @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tiposPerfis TipoPatrimonialPerfil[]
-  medicoes    MedicaoBem[]
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, codigo])
-  @@unique([cliente_id, nome])
-  @@index([cliente_id, createdAt, id])
-}
-
-/// Tipo de combustível (catálogo CLASSIFICATÓRIO: sem preço, custo, saldo nem
-/// Produto neste slice). `unidade` L | m3 (CHECK), IMUTÁVEL.
-model TipoCombustivel {
-  id         String   @id @default(cuid())
-  cliente_id String   @db.VarChar(64)
-  codigo     String   @db.VarChar(32)
-  nome       String   @db.VarChar(120)
-  unidade    String   @default("L") @db.VarChar(4)
-  descricao  String?  @db.VarChar(500)
-  ativo      Boolean  @default(true)
-  versao     Int      @default(1)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  cliente  Cliente                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tanques  TanqueBemCombustivel[]
-  // D-PROD-157 (R2) — produtos reais vinculados, por empresa.
-  produtos TipoCombustivelProduto[]
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, codigo])
-  @@unique([cliente_id, nome])
   @@index([cliente_id, createdAt, id])
 }
 
@@ -2587,12 +2504,12 @@ model BemPatrimonial {
   responsavel  Usuario?           @relation("BemPatrimonialResponsavel", fields: [cliente_id, responsavel_usuario_id], references: [cliente_id, id], onDelete: Restrict)
   centroCusto  CentroCusto?       @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
   area         AreaPastagem?      @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
-  medicoes     MedicaoBem[]
   tanques      TanqueBem[]
   // D-PROD-159 — abastecimentos do bem (a leitura do medidor do abastecimento vive lá).
   abastecimentos AbastecimentoBem[]
 
   @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
   /// Código de frota único por empresa quando presente (NULLs não colidem).
   @@unique([cliente_id, empresa_id, codigo_frota])
@@ -2606,35 +2523,6 @@ model BemPatrimonial {
   @@index([cliente_id, responsavel_usuario_id])
   @@index([cliente_id, empresa_id, centro_custo_id])
   @@index([cliente_id, area_id])
-}
-
-/// Medição física de benfeitoria (atributo do bem): valor informado na
-/// unidade escolhida e normalizado na canônica do perfil por fator EXATO
-/// (km=1000 m, ha=10000 m², m³=1000 L, t=1000 kg; CHECK). Um perfil por bem;
-/// `principal` true|NULL, no máximo um por bem.
-model MedicaoBem {
-  id                String   @id @default(cuid())
-  cliente_id        String   @db.VarChar(64)
-  bem_id            String   @db.VarChar(64)
-  perfil_id         String   @db.VarChar(64)
-  rotulo            String?  @db.VarChar(80)
-  valor_informado   Decimal  @db.Decimal(14, 4)
-  unidade_informada String   @db.VarChar(8)
-  valor_normalizado Decimal  @db.Decimal(22, 4)
-  unidade_canonica  String   @db.VarChar(8)
-  principal         Boolean?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  bem     BemPatrimonial @relation(fields: [cliente_id, bem_id], references: [cliente_id, id], onDelete: Restrict)
-  perfil  PerfilMedicao  @relation(fields: [cliente_id, perfil_id], references: [cliente_id, id], onDelete: Restrict)
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, bem_id, perfil_id])
-  @@unique([cliente_id, bem_id, principal])
-  @@index([cliente_id, perfil_id])
-  @@index([cliente_id, createdAt, id])
 }
 
 /// Tanque de combustível do bem (MAQUINA/VEICULO/EQUIPAMENTO). Nunca removido,
@@ -2653,162 +2541,65 @@ model TanqueBem {
 
   cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   bem          BemPatrimonial         @relation(fields: [cliente_id, bem_id], references: [cliente_id, id], onDelete: Restrict)
-  combustiveis TanqueBemCombustivel[]
+  produtos     TanqueBemProduto[]
   // D-PROD-159 — abastecimentos neste tanque.
   abastecimentos AbastecimentoBem[]
 
   @@unique([cliente_id, id])
+  @@unique([cliente_id, bem_id, id])
   @@unique([cliente_id, bem_id, identificador])
   @@index([cliente_id, createdAt, id])
 }
 
-/// Combustível aceito pelo tanque (N:N; o tanque flex tem mais de um). Vínculo
-/// é atributo do tanque: o sync do bem o remove fisicamente (auditado).
-model TanqueBemCombustivel {
-  id             String   @id @default(cuid())
-  cliente_id     String   @db.VarChar(64)
-  tanque_id      String   @db.VarChar(64)
-  combustivel_id String   @db.VarChar(64)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+/// D-PROD-162 — Produto do estoque ACEITO por um tanque do bem (substitui
+/// TipoCombustivel, TanqueBemCombustivel, TipoCombustivelProduto e o fator).
+/// Apagado só quando retirado sem nenhum abastecimento; com histórico, o sync
+/// só desliga `ativo` (a FK do abastecimento segura o par). Coerência Produto.empresa_id =
+/// bem.empresa_id é invariante do SERVIÇO (Produto, tabela antiga, não tem
+/// unique por empresa).
+model TanqueBemProduto {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  tanque_id  String   @db.VarChar(64)
+  produto_id String   @db.VarChar(64)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  cliente     Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tanque      TanqueBem       @relation(fields: [cliente_id, tanque_id], references: [cliente_id, id], onDelete: Restrict)
-  combustivel TipoCombustivel @relation(fields: [cliente_id, combustivel_id], references: [cliente_id, id], onDelete: Restrict)
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, tanque_id, combustivel_id])
-  @@index([cliente_id, combustivel_id])
-  @@index([cliente_id, createdAt, id])
-}
-
-/// D-PROD-157 (R2) — vínculo POR EMPRESA entre um tipo de combustível (catálogo
-/// do tenant) e um Produto REAL da fazenda. Sem efeito em estoque, financeiro,
-/// FIFO, custo ou unidade: é classificação explícita para a P1-02 oferecer só
-/// os produtos compatíveis com o tanque e a empresa (nenhuma conversão L↔KG).
-///
-/// Integridade: FKs compostas com o tenant para Empresa, TipoCombustivel e
-/// Produto. `Produto` NÃO tem `@@unique([cliente_id, empresa_id, id])` (tabela
-/// antiga, expand-only): a coerência `Produto.empresa_id = empresa_id` é
-/// invariante do SERVICE (FOR KEY SHARE na criação/reativação; a troca de
-/// empresa do produto com vínculo ATIVO é recusada em `produtoService`).
-/// Sem DELETE: inativação (`ativo=false`, `ativo_chave=NULL`; CHECK). No
-/// máximo UM vínculo ATIVO por produto na empresa (`ativo_chave=true` + unique;
-/// NULLs não colidem) e nunca o mesmo par repetido (reativa-se o existente).
-model TipoCombustivelProduto {
-  id                  String   @id @default(cuid())
-  cliente_id          String   @db.VarChar(64)
-  empresa_id          String   @db.VarChar(64)
-  tipo_combustivel_id String   @db.VarChar(64)
-  produto_id          String   @db.VarChar(64)
-  ativo               Boolean  @default(true)
-  /// `true` quando ativo, NULL quando inativo (CHECK): dá ao unique
-  /// [cliente_id, empresa_id, produto_id, ativo_chave] o papel de "um ativo".
-  ativo_chave         Boolean?
-  versao              Int      @default(1)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  cliente         Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  empresa         Empresa         @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
-  tipoCombustivel TipoCombustivel @relation(fields: [cliente_id, tipo_combustivel_id], references: [cliente_id, id], onDelete: Restrict)
-  produto         Produto         @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
-  // D-PROD-159 — versões do fator kg/L deste par (empresa, tipo, produto).
-  conversoes      ConversaoCombustivelProduto[]
-
-  @@unique([cliente_id, id])
-  @@unique([cliente_id, empresa_id, tipo_combustivel_id, produto_id], map: "TipoCombustivelProduto_par_key")
-  @@unique([cliente_id, empresa_id, produto_id, ativo_chave], map: "TipoCombustivelProduto_produto_ativo_key")
-  @@index([cliente_id, empresa_id, tipo_combustivel_id, ativo], map: "TipoCombustivelProduto_empresa_tipo_ativo_idx")
-  @@index([cliente_id, produto_id])
-  @@index([cliente_id, tipo_combustivel_id])
-  @@index([cliente_id, empresa_id, createdAt, id])
-}
-
-/// D-PROD-159 (Patrimônio P1-02) — fator de conversão kg/L INFORMADO pelo
-/// responsável, por EMPRESA × tipo de combustível × Produto (o par do vínculo
-/// R2, FK para `TipoCombustivelProduto_par_key`). Parâmetro operacional, NUNCA
-/// densidade presumida: nada é inferido do nome, do combustível, do preço ou de
-/// fonte externa; `declara_estoque_em_kg` (CHECK = true) registra a declaração
-/// de que o estoque do produto está em KG. Linhas IMUTÁVEIS salvo o
-/// encerramento (`ativo`, `ativo_chave`, `encerrado_*`, `versao`): alterar o
-/// fator = encerrar a vigente + criar a próxima `sequencia`, sob a trava do
-/// vínculo. No máximo UMA vigente por par (`ativo_chave` true|NULL + unique).
-model ConversaoCombustivelProduto {
-  id                       String    @id @default(cuid())
-  cliente_id               String    @db.VarChar(64)
-  empresa_id               String    @db.VarChar(64)
-  tipo_combustivel_id      String    @db.VarChar(64)
-  produto_id               String    @db.VarChar(64)
-  /// 1, 2, 3… por par (histórico de versões do fator; unique).
-  sequencia                Int
-  /// kg por litro, 6 casas, 0 < f <= 10 (CHECK). Informado; nunca inferido.
-  kg_por_litro             Decimal   @db.Decimal(10, 6)
-  declara_estoque_em_kg    Boolean
-  ativo                    Boolean   @default(true)
-  /// `true` quando vigente, NULL quando encerrada (CHECK): unique "uma vigente".
-  ativo_chave              Boolean?
-  encerrado_em             DateTime?
-  criado_por_usuario_id    String?   @db.VarChar(64)
-  encerrado_por_usuario_id String?   @db.VarChar(64)
-  versao                   Int       @default(1)
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-
-  cliente        Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  vinculo        TipoCombustivelProduto @relation(fields: [cliente_id, empresa_id, tipo_combustivel_id, produto_id], references: [cliente_id, empresa_id, tipo_combustivel_id, produto_id], onDelete: Restrict, map: "ConversaoCombustivelProduto_vinculo_fkey")
-  criadoPor      Usuario?               @relation("ConversaoCombustivelCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ConversaoCombustivelProduto_criado_por_fkey")
-  encerradoPor   Usuario?               @relation("ConversaoCombustivelEncerradoPor", fields: [cliente_id, encerrado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ConversaoCombustivelProduto_encerrado_por_fkey")
+  cliente        Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tanque         TanqueBem          @relation(fields: [cliente_id, tanque_id], references: [cliente_id, id], onDelete: Restrict)
+  produto        Produto            @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
   abastecimentos AbastecimentoBem[]
 
   @@unique([cliente_id, id])
-  /// Alvo da FK do abastecimento: o fator usado é do MESMO par (empresa, tipo, produto).
-  @@unique([cliente_id, empresa_id, tipo_combustivel_id, produto_id, id], map: "ConversaoCombustivelProduto_par_id_key")
-  @@unique([cliente_id, empresa_id, tipo_combustivel_id, produto_id, sequencia], map: "ConversaoCombustivelProduto_par_sequencia_key")
-  @@unique([cliente_id, empresa_id, tipo_combustivel_id, produto_id, ativo_chave], map: "ConversaoCombustivelProduto_par_vigente_key")
-  @@index([cliente_id, empresa_id, createdAt, id], map: "ConversaoCombustivelProduto_empresa_keyset_idx")
+  @@unique([cliente_id, tanque_id, produto_id])
   @@index([cliente_id, produto_id])
+  @@index([cliente_id, createdAt, id])
 }
 
-/// D-PROD-159 (Patrimônio P1-02) — abastecimento CONFIRMADO de um bem da
-/// EMPRESA: fato em LITROS + KG convertido UMA vez (ROUND_HALF_UP 4 casas;
-/// CHECK `quantidade_kg = round(quantidade_litros * kg_por_litro, 4)`) +
-/// snapshot do fator + custo FIFO final + o movimento físico de SAÍDA do motor
-/// de estoque (origem `abastecimento_patrimonio`, nunca lançamento financeiro).
-/// Sem DELETE: CANCELADO com estorno pai/filho (`movimentacao_estorno_id`). A
-/// leitura do medidor vive AQUI (`medidor_origem` = 'ABASTECIMENTO', CHECK):
-/// o abastecimento NUNCA grava colunas de `BemPatrimonial`. `operation_id` do
-/// cliente único por tenant (defesa final da idempotência). Coerência
-/// bem/tanque/produto/empresa é invariante do serviço (tabelas antigas sem
-/// unique composto), revalidada sob trava.
+/// D-PROD-162 — abastecimento CONFIRMADO de um bem da EMPRESA: `quantidade`
+/// na unidade do Produto (`unidade` = snapshot de unidade_principal_estoque,
+/// L ou KG; CHECK), baixada EXATAMENTE pelo motor de estoque (FIFO), sem
+/// conversão. Sem DELETE: CANCELADO com estorno exato.
 model AbastecimentoBem {
   id                       String    @id @default(cuid())
   cliente_id               String    @db.VarChar(64)
   empresa_id               String    @db.VarChar(64)
   numero                   String    @db.VarChar(32)
-  /// CONFIRMADO | CANCELADO (CHECK com a forma do cancelamento).
   status                   String    @db.VarChar(16)
   bem_id                   String    @db.VarChar(64)
   tanque_id                String    @db.VarChar(64)
-  tipo_combustivel_id      String    @db.VarChar(64)
   produto_id               String    @db.VarChar(64)
   local_estoque_id         String    @db.VarChar(64)
-  conversao_id             String    @db.VarChar(64)
   data_operacional         DateTime  @db.Date
-  quantidade_litros        Decimal   @db.Decimal(14, 4)
-  /// Snapshot do fator usado (o da `conversao_id`).
-  kg_por_litro             Decimal   @db.Decimal(10, 6)
-  quantidade_kg            Decimal   @db.Decimal(14, 4)
-  /// Custo FIFO FINAL (valor e unitário do movimento de saída).
+  quantidade               Decimal   @db.Decimal(14, 4)
+  unidade                  String    @db.VarChar(4)
   custo_total              Decimal   @db.Decimal(14, 4)
-  custo_unitario_kg        Decimal   @db.Decimal(14, 4)
-  /// Declarado pelo operador (base do consumo km/L ou L/h).
+  custo_unitario           Decimal   @db.Decimal(14, 4)
   tanque_cheio             Boolean   @default(false)
-  /// Snapshot do medidor do bem: SEM_MEDIDOR | HORIMETRO(h) | ODOMETRO(km) | CICLOS(ciclos).
   medidor_tipo             String    @db.VarChar(16)
   medidor_unidade          String?   @db.VarChar(8)
   medidor_leitura          Decimal?  @db.Decimal(14, 4)
-  /// 'ABASTECIMENTO' quando há leitura (CHECK); nunca gravado no bem.
   medidor_origem           String?   @db.VarChar(24)
   observacao               String?   @db.VarChar(500)
   referencia_externa       String?   @db.VarChar(64)
@@ -2825,10 +2616,11 @@ model AbastecimentoBem {
 
   cliente             Cliente                       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa             Empresa                       @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
-  bem                 BemPatrimonial                @relation(fields: [cliente_id, bem_id], references: [cliente_id, id], onDelete: Restrict)
-  tanque              TanqueBem                     @relation(fields: [cliente_id, tanque_id], references: [cliente_id, id], onDelete: Restrict)
+  bem                 BemPatrimonial                @relation(fields: [cliente_id, empresa_id, bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  tanque              TanqueBem                     @relation(fields: [cliente_id, bem_id, tanque_id], references: [cliente_id, bem_id, id], onDelete: Restrict)
+  produto             Produto                       @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+  aceite              TanqueBemProduto              @relation(fields: [cliente_id, tanque_id, produto_id], references: [cliente_id, tanque_id, produto_id], onDelete: Restrict)
   localEstoque        LocalEstoque                  @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
-  conversao           ConversaoCombustivelProduto   @relation(fields: [cliente_id, empresa_id, tipo_combustivel_id, produto_id, conversao_id], references: [cliente_id, empresa_id, tipo_combustivel_id, produto_id, id], onDelete: Restrict, map: "AbastecimentoBem_conversao_fkey")
   movimentacao        MovimentacaoEstoque           @relation("AbastecimentoBemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_movimentacao_fkey")
   movimentacaoEstorno MovimentacaoEstoque?          @relation("AbastecimentoBemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_estorno_fkey")
   criadoPor           Usuario?                      @relation("AbastecimentoBemCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AbastecimentoBem_criado_por_fkey")
@@ -2836,26 +2628,24 @@ model AbastecimentoBem {
   consumos            AbastecimentoBemConsumoLote[]
 
   @@unique([cliente_id, id])
-  /// Alvo da FK das fatias FIFO (a fatia é da MESMA empresa).
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
-  /// Defesa final da idempotência (além do recibo `OperacaoIdempotente`).
   @@unique([cliente_id, operation_id])
   @@unique([cliente_id, movimentacao_estoque_id])
   @@unique([cliente_id, movimentacao_estorno_id])
   @@index([cliente_id, empresa_id, createdAt, id])
   @@index([cliente_id, empresa_id, bem_id, createdAt, id], map: "AbastecimentoBem_empresa_bem_keyset_idx")
-  /// Série do medidor e consumo (por bem/tanque, status, data).
   @@index([cliente_id, bem_id, status, data_operacional], map: "AbastecimentoBem_bem_status_data_idx")
   @@index([cliente_id, tanque_id, status, data_operacional], map: "AbastecimentoBem_tanque_status_data_idx")
   @@index([cliente_id, empresa_id, produto_id])
-  /// Bloqueio de exclusão de local e checagem da FK.
+  @@index([cliente_id, produto_id])
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-159 (Patrimônio P1-02) — fatia FIFO consumida pelo abastecimento: de
-/// qual lote, quanto (KG) e a que custo, na ordem FIFO. O cancelamento devolve
-/// cada fatia ao SEU lote (Σ quantidade = `quantidade_kg`, conferido no serviço).
+/// D-PROD-159 (Patrimônio P1-02; D-PROD-162) — fatia FIFO consumida pelo
+/// abastecimento: de qual lote, quanto (na unidade do abastecimento, L ou KG) e
+/// a que custo, na ordem FIFO. O cancelamento devolve cada fatia ao SEU lote
+/// (Σ quantidade = `quantidade` do abastecimento, na unidade dele, conferido no serviço).
 model AbastecimentoBemConsumoLote {
   id                   String   @id @default(cuid())
   cliente_id           String   @db.VarChar(64)

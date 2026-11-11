@@ -36,6 +36,8 @@ const SEM_TENANT_KEY = "__SEM_TENANT__";
 /** Marca a parte da chave que é tenant, para não confundir com nome de entidade. */
 const TENANT_PREFIXO = "cli:";
 const OFFLINE_SYNC_EVENT = "offline-entity-queue-updated";
+/** Operações que a fila grava (as únicas que o replay sabe aplicar). */
+const OPERACOES_DA_FILA = Object.freeze(["create", "update", "delete"]);
 
 export const getOfflineSyncEventName = () => OFFLINE_SYNC_EVENT;
 
@@ -725,8 +727,18 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
  * (quarentena) e o replay SEGUE com o resto da fila; o retorno avisa com
  * `OFFLINE_DELETE_QUARANTINED` e `quarentenados`.
  *
+ * D-PROD-161 (R2, achado LC-3): item cuja operação (`create`/`update`/`delete`)
+ * a porta da entidade NÃO tem mais — o `create`/`delete` de MovimentacaoEstoque
+ * e de EstoqueLoteNota gravados por uma versão anterior (desde a P0 o saldo só
+ * muda pelos comandos do motor) — não é enviado nem apagado por heurística:
+ * fica RETIDO na fila (`quarentena.codigo = OFFLINE_ENTITY_UNSUPPORTED`, com a
+ * operação) e o replay SEGUE com o resto; o retorno avisa com
+ * `OFFLINE_ENTITY_UNSUPPORTED` e `retidos`. Antes, `operations.create`
+ * inexistente estourava TypeError e travava a fila inteira, de todas as
+ * entidades (o defeito que a P4.1-R1 documentou para o Setor).
+ *
  * @returns {Promise<{success: boolean, code?: string, error?: unknown, pendentes?: number,
- *                    pulados?: number, descartados?: number, quarentenados?: number}>}
+ *                    pulados?: number, descartados?: number, quarentenados?: number, retidos?: number}>}
  */
 export const syncOfflineEntityQueue = async (onProgress) => {
   if (!estaOnline()) return { success: false, code: "OFFLINE" };
@@ -740,6 +752,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   let pulados = 0;
   let descartados = 0;
   let quarentenados = 0;
+  let retidos = 0;
 
   for (let i = 0; i < emOrdem.length; i += 1) {
     const item = emOrdem[i];
@@ -785,6 +798,18 @@ export const syncOfflineEntityQueue = async (onProgress) => {
         emitirMudancaDeFila();
       }
       quarentenados += 1;
+      continue;
+    }
+
+    if (OPERACOES_DA_FILA.includes(item.operation) && typeof operations[item.operation] !== "function") {
+      // Operação que a porta não tem mais (LC-3): retida, nunca enviada nem apagada; o replay segue.
+      if (!item.quarentena) {
+        await storage.atualizarNaFila(item.id, {
+          quarentena: { codigo: API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED, operacao: item.operation, em: new Date().toISOString() },
+        });
+        emitirMudancaDeFila();
+      }
+      retidos += 1;
       continue;
     }
 
@@ -837,6 +862,17 @@ export const syncOfflineEntityQueue = async (onProgress) => {
     }
   }
 
+  if (retidos) {
+    return {
+      success: false,
+      code: API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED,
+      pendentes: pulados + quarentenados + retidos,
+      pulados,
+      descartados,
+      quarentenados,
+      retidos,
+    };
+  }
   if (quarentenados) {
     return {
       success: false,
@@ -845,9 +881,10 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       pulados,
       descartados,
       quarentenados,
+      retidos,
     };
   }
-  return { success: true, pendentes: pulados, pulados, descartados, quarentenados };
+  return { success: true, pendentes: pulados, pulados, descartados, quarentenados, retidos };
 };
 
 let listenerInstalado = false;

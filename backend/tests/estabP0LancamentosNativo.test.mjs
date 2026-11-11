@@ -34,7 +34,13 @@ const tenantAutenticado = async () => {
   return { token: corpo.token, clienteId: cliente.id };
 };
 
-const seedMinimoEstoque = async (token) => {
+/**
+ * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o cadastro de produto não credita
+ * estoque e o POST genérico de lote foi cortado (409). O saldo inicial do
+ * cenário vira FIXTURE DE BANCO coerente — lote + `estoque_atual` —, como os
+ * demais cenários da P3 (`loteLegado`).
+ */
+const seedMinimoEstoque = async (token, clienteId) => {
   const emp = await app.inject({
     method: 'POST',
     url: '/empresas',
@@ -60,7 +66,6 @@ const seedMinimoEstoque = async (token) => {
     payload: {
       empresa_id: empresaId,
       nome_produto: 'SAL MINERAL',
-      estoque_atual: 100,
       estoque_minimo: 0,
       unidade_principal_estoque: 'KG',
       ativo: true,
@@ -69,27 +74,26 @@ const seedMinimoEstoque = async (token) => {
   assert.equal(prod.statusCode, 201);
   const produtoId = prod.json().id;
 
-  const lote = await app.inject({
-    method: 'POST',
-    url: '/estoque-lotes-nota',
-    headers: auth(token),
-    payload: {
+  const prisma = getPrismaClient();
+  const lote = await prisma.estoqueLoteNota.create({
+    data: {
+      cliente_id: clienteId,
       empresa_id: empresaId,
       produto_id: produtoId,
       produto_nome: 'SAL MINERAL',
       local_estoque_id: localId,
       local_estoque_nome: 'DEPOSITO A',
       numero_documento: 'NF-1',
-      data_documento: '2026-01-15T00:00:00.000Z',
-      custo_unitario: 2.5,
-      quantidade_entrada: 100,
-      quantidade_disponivel: 100,
+      data_documento: new Date('2026-01-15T00:00:00.000Z'),
+      custo_unitario: '2.5',
+      quantidade_entrada: '100',
+      quantidade_disponivel: '100',
       status: 'Disponivel',
     },
   });
-  assert.equal(lote.statusCode, 201);
+  await prisma.produto.update({ where: { cliente_id_id: { cliente_id: clienteId, id: produtoId } }, data: { estoque_atual: '100' } });
 
-  return { empresaId, localId, produtoId, loteId: lote.json().id };
+  return { empresaId, localId, produtoId, loteId: lote.id };
 };
 
 describe('ESTAB-P0 — contratos HTTP', () => {
@@ -106,8 +110,8 @@ describe('ESTAB-P0 — contratos HTTP', () => {
   });
 
   test('GET /estoque-lotes-nota/:id retorna lote do tenant', async () => {
-    const { token } = await tenantAutenticado();
-    const { loteId } = await seedMinimoEstoque(token);
+    const { token, clienteId } = await tenantAutenticado();
+    const { loteId } = await seedMinimoEstoque(token, clienteId);
     const r = await app.inject({
       method: 'GET',
       url: `/estoque-lotes-nota/${loteId}`,
@@ -118,8 +122,8 @@ describe('ESTAB-P0 — contratos HTTP', () => {
   });
 
   test('GET /movimentacoes-estoque?limit=1 aplica take no SQL', async () => {
-    const { token } = await tenantAutenticado();
-    const base = await seedMinimoEstoque(token);
+    const { token, clienteId } = await tenantAutenticado();
+    const base = await seedMinimoEstoque(token, clienteId);
     const op = randomUUID();
     await app.inject({
       method: 'POST',
@@ -146,7 +150,7 @@ describe('ESTAB-P0 — contratos HTTP', () => {
 describe('ESTAB-P0 — comando saída suplementação', () => {
   test('commit atômico + replay idempotente', async () => {
     const { token, clienteId } = await tenantAutenticado();
-    const base = await seedMinimoEstoque(token);
+    const base = await seedMinimoEstoque(token, clienteId);
     const operationId = randomUUID();
     const payload = {
       operation_id: operationId,
@@ -190,7 +194,7 @@ describe('ESTAB-P0 — comando saída suplementação', () => {
 
   test('R1 D-PROD-90: corrida com a mesma operation_id não vira 500 nem baixa estoque duas vezes', async () => {
     const { token, clienteId } = await tenantAutenticado();
-    const base = await seedMinimoEstoque(token);
+    const base = await seedMinimoEstoque(token, clienteId);
     const payload = {
       operation_id: randomUUID(),
       empresa_id: base.empresaId,
@@ -221,9 +225,12 @@ describe('ESTAB-P0 — comando saída suplementação', () => {
     assert.equal(Number(lote.quantidade_disponivel), 90);
   });
 
-  test('numero_movimentacao do cliente é ignorado no POST legado', async () => {
-    const { token } = await tenantAutenticado();
-    const base = await seedMinimoEstoque(token);
+  // D-PROD-161 (F3): o POST legado não grava mais nada — nem o número do
+  // cliente nem um número da sequência. A numeração continua íntegra: o
+  // primeiro movimento real do tenant (comando) recebe o PRIMEIRO número.
+  test('POST legado recusado (409 ESTOQUE_ESCRITA_DIRETA_RECUSADA) com numero_movimentacao do cliente; sequência intacta', async () => {
+    const { token, clienteId } = await tenantAutenticado();
+    const base = await seedMinimoEstoque(token, clienteId);
     const r = await app.inject({
       method: 'POST',
       url: '/movimentacoes-estoque',
@@ -238,8 +245,20 @@ describe('ESTAB-P0 — comando saída suplementação', () => {
         unidade_medida: 'KG',
       },
     });
-    assert.equal(r.statusCode, 201);
-    assert.notEqual(r.json().numero_movimentacao, '99999');
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'ESTOQUE_ESCRITA_DIRETA_RECUSADA');
+    const prisma = getPrismaClient();
+    assert.equal(await prisma.movimentacaoEstoque.count({ where: { cliente_id: clienteId } }), 0, 'nenhum movimento');
+    assert.equal(await prisma.entidadeCodigoSequencia.count({ where: { cliente_id: clienteId, entidade: 'MovimentacaoEstoque' } }), 0, 'sequência não reservada');
+    const sup = await app.inject({
+      method: 'POST',
+      url: '/movimentacoes-estoque/comandos/saida-suplementacao',
+      headers: auth(token),
+      payload: { operation_id: randomUUID(), empresa_id: base.empresaId, produto_id: base.produtoId, local_origem_id: base.localId, quantidade: 1 },
+    });
+    assert.equal(sup.statusCode, 201, sup.body);
+    assert.equal(sup.json().movimentacao.numero_movimentacao, '1', 'o primeiro movimento real recebe o primeiro número');
+    assert.equal(await prisma.movimentacaoEstoque.count({ where: { cliente_id: clienteId, numero_movimentacao: '99999' } }), 0);
   });
 });
 

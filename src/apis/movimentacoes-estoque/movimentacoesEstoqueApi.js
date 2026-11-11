@@ -1,12 +1,14 @@
-/** API pública de MovimentacaoEstoque (P5.4). */
+/**
+ * API pública de MovimentacaoEstoque (P5.4).
+ *
+ * D-PROD-161 (F3): sem create/delete genéricos — escrita só pelos comandos.
+ */
 import { movimentacaoEstoquePort } from './movimentacaoEstoqueNativePort.js';
 
 export const listMovimentacoesEstoque = (ordenacao, limite) =>
   movimentacaoEstoquePort.list(ordenacao, limite);
 
-export const createMovimentacaoEstoque = (dados) => movimentacaoEstoquePort.create(dados);
 export const updateMovimentacaoEstoque = (id, dados) => movimentacaoEstoquePort.update(id, dados);
-export const deleteMovimentacaoEstoque = (id) => movimentacaoEstoquePort.delete(id);
 
 export {
   comandoSaidaSuplementacao,

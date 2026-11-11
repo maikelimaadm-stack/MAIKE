@@ -7,11 +7,13 @@
  *    (tipo trocado ou leitura inicial mudada num medidor corrigível), a
  *    leitura atual é a própria inicial — a tela não envia o que o servidor
  *    recusa com MEDIDOR_LEITURA_INVALIDA/atual_diferente_da_inicial;
- *  - duplicar não pré-seleciona família, tipo, perfil nem combustível inativos;
- *  - MEDIDOR_LEITURA_INVALIDA por `reason`; PERFIL_UNIDADE_EM_USO com
- *    `details.unidades` (lista); linha dos filhos tirada do `field`
- *    (`medicoes[1].valor`); negação de administrador (ACAO_NAO_PERMITIDA com
- *    `details.exige`).
+ *  - duplicar não pré-seleciona família nem tipo inativos e só copia os
+ *    Produtos aceitos que ainda servem (ativos, em L ou KG — D-PROD-162);
+ *  - os tanques vão com `produto_ids` (P-01: `[]` é válido; P-02: até 20);
+ *  - MEDIDOR_LEITURA_INVALIDA por `reason`; TANQUE_PRODUTO_INVALIDO por
+ *    `reason`, com a linha do tanque tirada do `field`
+ *    (`tanques[1].produto_ids`); negação de administrador
+ *    (ACAO_NAO_PERMITIDA com `details.exige`).
  */
 import { describe, it, expect } from 'vitest';
 import { estadoInicialDoBem, formaDoEstado, validarBem } from '@/components/patrimonio/bemFormulario';
@@ -28,8 +30,10 @@ const detalheTrator = (extra = {}) => ({
   familia: { id: 'f2', codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA', ativo: true },
   tipo: { id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', ativo: true },
   medidor: MEDIDOR_CORRIGIVEL,
-  medicoes: [],
-  tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true, combustiveis: [{ id: 'c1', nome: 'Diesel S10', unidade: 'L', ativo: true }] }],
+  tanques: [{
+    id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
+    produtos: [{ produto_id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true }],
+  }],
   ...extra,
 });
 
@@ -85,35 +89,56 @@ describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativ
     expect(e.tipo).toBeNull();
   });
 
-  it('combustível inativo sai do tanque copiado (marcado e entre as opções)', () => {
+  it('Produto aceito inativo ou fora de L/KG sai do tanque copiado; no próprio bem continua legível', () => {
     const tanques = [{
       id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
-      combustiveis: [{ id: 'c1', nome: 'Diesel S10', unidade: 'L', ativo: true }, { id: 'c9', nome: 'Diesel S500', unidade: 'L', ativo: false }],
+      produtos: [
+        { produto_id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L', produto_ativo: true },
+        { produto_id: 'pd4', nome: 'Arla 32', codigo_interno: null, unidade_principal_estoque: 'KG', produto_ativo: true },
+        { produto_id: 'pd9', nome: 'Diesel S500', codigo_interno: null, unidade_principal_estoque: 'L', produto_ativo: false },
+        { produto_id: 'pd8', nome: 'Ração ensacada', codigo_interno: null, unidade_principal_estoque: 'SACO', produto_ativo: true },
+      ],
     }];
     const copia = estadoInicialDoBem(detalheTrator({ tanques }), { duplicar: true });
-    expect(copia.tanques[0].combustivel_ids).toEqual(['c1']);
-    expect(copia.tanques[0].combustiveis.map((c) => c.id)).toEqual(['c1']);
-    // Na edição do próprio bem o inativo continua legível e vinculado.
+    expect(copia.tanques[0].produtos).toEqual([
+      { id: 'pd1', rotulo: 'Diesel S10', unidade: 'L', ativo: true },
+      { id: 'pd4', rotulo: 'Arla 32', unidade: 'KG', ativo: true },
+    ]);
+    expect(copia.tanques[0].id).toBeNull();
+    // Na edição do próprio bem os quatro continuam (o inativo e o SACO aparecem riscados na tela).
     const aberto = estadoInicialDoBem(detalheTrator({ tanques }));
-    expect(aberto.tanques[0].combustivel_ids).toEqual(['c1', 'c9']);
+    expect(aberto.tanques[0].produtos.map((p) => [p.id, p.ativo, p.unidade])).toEqual([
+      ['pd1', true, 'L'], ['pd4', true, 'KG'], ['pd9', false, 'L'], ['pd8', true, 'SACO'],
+    ]);
   });
 
-  it('medição de perfil inativo não é copiada (nem como principal)', () => {
-    const curral = detalheTrator({
-      natureza: 'BENFEITORIA',
-      familia: { id: 'f1', nome: 'Benfeitorias', natureza: 'BENFEITORIA', ativo: true },
-      tipo: { id: 't1', nome: 'Curral', ativo: true },
-      medidor: null,
-      tanques: [],
-      medicoes: [
-        { id: 'm1', perfil: { id: 'p1', codigo: 'AREA', nome: 'Área', dimensao: 'AREA', ativo: false }, valor_informado: '1200.0000', unidade_informada: 'm2', principal: true },
-        { id: 'm2', perfil: { id: 'p2', codigo: 'CAPACIDADE_ANIMAL', nome: 'Capacidade animal', dimensao: 'CABECAS', ativo: true }, valor_informado: '150.0000', unidade_informada: 'cab', principal: false },
-      ],
-    });
-    const copia = estadoInicialDoBem(curral, { duplicar: true });
-    expect(copia.medicoes.map((m) => m.perfil.id)).toEqual(['p2']);
-    expect(copia.medicoes.some((m) => m.principal)).toBe(false);
-    expect(estadoInicialDoBem(curral).medicoes.map((m) => m.perfil.id)).toEqual(['p1', 'p2']);
+  it('o estado não tem medições (D-PROD-162), mesmo que um detalhe antigo as traga', () => {
+    const e = estadoInicialDoBem(detalheTrator({ medicoes: [{ id: 'm1', perfil: { id: 'p1' }, valor_informado: '1', unidade_informada: 'm2' }] }));
+    expect('medicoes' in e).toBe(false);
+  });
+});
+
+describe('formaDoEstado / validarBem — tanques com Produtos aceitos (D-PROD-162)', () => {
+  const ctx = { editando: true, medidorOriginal: MEDIDOR_AJUSTADO, hoje: '2026-11-09' };
+
+  it('produto_ids na ordem da tela; tanque sem Produto vai com [] e passa na validação (P-01); sem medicoes no corpo', () => {
+    const detalhe = detalheTrator({ medidor: MEDIDOR_AJUSTADO });
+    const e = estadoInicialDoBem(detalhe);
+    const comNovo = { ...e, tanques: [...e.tanques, { chave: 'novo', id: null, identificador: 'Reserva', capacidade: '50', observacao: '', ativo: true, produtos: [] }] };
+    expect(validarBem(comNovo, ctx)).toEqual({});
+    const forma = formaDoEstado(comNovo, ctx);
+    expect(forma.tanques).toEqual([
+      { id: 'tq1', identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1'], observacao: null, ativo: true },
+      { id: undefined, identificador: 'Reserva', capacidade_litros: '50', produto_ids: [], observacao: null, ativo: true },
+    ]);
+    expect('medicoes' in forma).toBe(false);
+  });
+
+  it('mais de 20 Produtos no tanque é erro local na linha (P-02)', () => {
+    const e = estadoInicialDoBem(detalheTrator({ medidor: MEDIDOR_AJUSTADO }));
+    const produtos = Array.from({ length: 21 }, (_, i) => ({ id: `pd-${i}`, rotulo: `P${i}`, unidade: 'L', ativo: true }));
+    const erros = validarBem({ ...e, tanques: [{ ...e.tanques[0], produtos }] }, ctx);
+    expect(erros['tanques.0.produtos']).toBe('No máximo 20 Produtos aceitos por tanque');
   });
 });
 
@@ -128,18 +153,16 @@ describe('mensagemErroPatrimonio — corpos reais do servidor', () => {
     expect(msg({ code: 'MEDIDOR_LEITURA_INVALIDA', field: 'medidor.leitura_inicial', reason: 'formato' })).toBe('Leitura do medidor inválida: informe um número maior ou igual a zero. Nada foi gravado.');
   });
 
-  it('PERFIL_UNIDADE_EM_USO lê details.unidades (lista)', () => {
-    expect(msg({ code: 'PERFIL_UNIDADE_EM_USO', field: 'unidades_permitidas', reason: 'unidade_em_uso', details: { unidades: ['ha'] } })).toMatch(/hectares \(ha\)/);
-    const varias = msg({ code: 'PERFIL_UNIDADE_EM_USO', field: 'unidades_permitidas', reason: 'unidade_em_uso', details: { unidades: ['ha', 'm2'] } });
-    expect(varias).toMatch(/unidades \(hectares \(ha\), m²\)/);
+  it('TANQUE_PRODUTO_INVALIDO segue a reason e tira a linha do tanque do field (tanques[i].produto_ids)', () => {
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[1].produto_ids', reason: 'outra_empresa', details: { produto_id: 'pd1' } })).toMatch(/\(linha 2\).*outra fazenda/);
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'inativo', details: { produto_id: 'pd1' } })).toMatch(/\(linha 1\).*inativo/);
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'unidade_incompativel', details: { produto_id: 'pd8', unidade: 'SACO' } })).toMatch(/em SACO/);
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'limite', details: { maximo: 20 } })).toMatch(/no máximo 20 Produtos/);
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[2].produto_ids', reason: 'inexistente', details: { produto_id: 'x' } })).toMatch(/\(linha 3\).*não existe nesta fazenda/);
   });
 
-  it('linha do filho vem do field (medicoes[i] / tanques[i]), que é o que o servidor manda', () => {
-    expect(msg({ code: 'MEDICAO_VALOR_INVALIDO', field: 'medicoes[1].valor', reason: 'deve_ser_inteiro' })).toMatch(/\(linha 2\)/);
-    expect(msg({ code: 'MEDICAO_VALOR_INVALIDO', field: 'medicoes[1].valor', reason: 'nao_positivo' })).toMatch(/\(linha 2\)/);
-    expect(msg({ code: 'MEDICAO_UNIDADE_INCOMPATIVEL', field: 'medicoes[0].unidade', reason: 'unidade_incompativel', details: { unidades_permitidas: ['m2'] } })).toMatch(/\(linha 1\)/);
+  it('linha do filho vem do field (tanques[i]), que é o que o servidor manda', () => {
     expect(msg({ code: 'TANQUE_CAPACIDADE_INVALIDA', field: 'tanques[2].capacidade_litros', reason: 'capacidade_invalida' })).toMatch(/\(linha 3\)/);
-    expect(msg({ code: 'TANQUE_COMBUSTIVEL_OBRIGATORIO', field: 'tanques[0].combustivel_ids', reason: 'vazio' })).toMatch(/\(linha 1\)/);
   });
 
   it('ACAO_NAO_PERMITIDA que exige administrador diz isso; as demais continuam genéricas', () => {
