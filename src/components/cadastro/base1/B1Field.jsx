@@ -154,13 +154,14 @@ export function B1CampoChave({ label, span = 6, spanLg = undefined, checked, onC
 
 /**
  * Título de grupo dentro do formulário Base1 (linha inteira): o do design "Cadastro de Lote" (D-PROD-164) —
- * nome do grupo e uma linha fina até o fim.
- * @param {{ titulo: import("react").ReactNode, children?: import("react").ReactNode }} props
+ * nome do grupo e uma linha fina até o fim. `secao`: título de seção dos formulários de gestão (`SecaoForm`), que no
+ * sistema tem letra menor (11px) que o título de grupo (D-PROD-165: o tamanho de fonte é o do sistema).
+ * @param {{ titulo: import("react").ReactNode, children?: import("react").ReactNode, secao?: boolean }} props
  */
-export function B1TituloGrupo({ titulo, children = null }) {
+export function B1TituloGrupo({ titulo, children = null, secao = false }) {
   return (
     <div className="col-span-12 b1-grupo__cab b1-secao-form">
-      <h3 className="b1-grupo__titulo">{titulo}</h3>
+      <h3 className={cn("b1-grupo__titulo", secao && "b1-grupo__titulo--secao")}>{titulo}</h3>
       <span className="b1-grupo__linha" aria-hidden="true" />
       {children}
     </div>

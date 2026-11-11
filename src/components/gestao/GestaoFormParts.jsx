@@ -7,7 +7,11 @@ import B1Select from "@/components/cadastro/base1/B1Select";
  * design "Cadastro de Lote" (`B1TituloGrupo`): nome do grupo e uma linha fina até o fim.
  */
 export function SecaoForm({ titulo, children = null }) {
-  return <B1TituloGrupo titulo={titulo}>{children}</B1TituloGrupo>;
+  return (
+    <B1TituloGrupo titulo={titulo} secao>
+      {children}
+    </B1TituloGrupo>
+  );
 }
 
 /**

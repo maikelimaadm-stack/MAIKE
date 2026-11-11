@@ -26,6 +26,11 @@
 .cadastro-b1 :is(.mg-b1-form-header__subtitle, .mg-b1-record-count, .mg-b1-card__sub):not(#mk-padrao) {
   font-size: 11px;
 }
+/* Título de seção dos formulários de gestão (Parceiros, Centros, Naturezas…): 11px, o tamanho que o sistema já usava
+   (o título de grupo do design trocou o desenho, não o tamanho — D-PROD-165). */
+.cadastro-b1 .b1-grupo__titulo--secao:not(#mk-padrao) {
+  font-size: 11px;
+}
 
 /* Cabeçalho ligeiramente mais suave que os valores, como na grade de referência. */
 .cadastro-b1 .mg-grid thead th:not(#mk-padrao) {
