@@ -41,3 +41,24 @@ body:has(.cadastro-b1--full-page) header.mk-topnav-header button[role="combobox"
 body:has(.cadastro-b1--full-page) :is(.mk-rail__item, .mk-tabbar__item) {
   text-align: center;
 }
+
+/* Campo travado (código, valor calculado): o sistema pinta o texto com -webkit-text-fill-color cinza-frio; no design o
+   texto usa a cor do próprio campo (#73726C, das propostas) e o controle herda a cor do cartão. */
+.cadastro-b1 .mg-field--locked .mg-field__control:not(#mk-a) {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+.cadastro-b1 .mg-field--locked :is(input, select, textarea, .cmd-display):not(#mk-a) {
+  -webkit-text-fill-color: currentColor;
+}
+
+/* No design o <form> é filho direto da área de rolagem; aqui há o invólucro do CadastroFormShell no meio.
+   As duas regras do design que dependem disso (fundo transparente do formulário com abas fora / seções). */
+.cadastro-b1 .mg-form-scroll:is(.b1-form--secoes, .b1-form--abas-fora) > div > form:not(#mk-padrao) {
+  background: transparent;
+}
+
+/* Chave em modo leitura: o sistema marca aria-readonly (cursor normal); no design ela aparece desabilitada. */
+.cadastro-b1 .mg-field--switch .b1-switch:disabled:not(#mk-a) {
+  cursor: not-allowed;
+}

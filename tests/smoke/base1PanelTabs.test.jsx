@@ -60,14 +60,11 @@ describe("Base1PanelTabs", () => {
     expect(screen.getByRole("tab", { name: "Motivo" }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("alterna para lista lateral e persiste preferência", () => {
+  it("só abas, sem lista lateral — mesmo com preferência antiga salva (D-PROD-161)", () => {
+    localStorage.setItem("test_b1_panel_style", "sidebar");
     render(<Harness />);
-    const toggle = screen.getByRole("button", { name: /lista lateral/i });
-    fireEvent.click(toggle);
-    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("vertical");
-    expect(localStorage.getItem("test_b1_panel_style")).toBe("sidebar");
-    fireEvent.click(screen.getByRole("button", { name: /abas horizontais/i }));
-    expect(localStorage.getItem("test_b1_panel_style")).toBe("tabs");
+    expect(screen.queryByRole("button", { name: /lista lateral|abas horizontais/i })).toBeNull();
+    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("horizontal");
   });
 
   it("tolera storage inválido", () => {

@@ -40,6 +40,23 @@ const FL = ({ label, required, error, children, dataField, wide = false, compact
 
 
 const SISTEMAS = ["Cria", "Recria", "Engorda", "Ciclo Completo"];
+
+/**
+ * Grupos de campos de cada painel (D-PROD-161): cada grupo tem a sua grade, como no design.
+ * Campo que a configuração de layout mover para outro lugar entra no último grupo do painel.
+ */
+const GRUPOS_DO_FORMULARIO = Object.freeze({
+  principal: [["nome", "numero_lote", "data_entrada", "status"]],
+  geral: [
+    ["setor_id", "area_entrada_id"],
+    ["categoria_manejo_id", "sexo", "raca_predominante", "quantidade_cabecas", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
+  ],
+  compra: [
+    ["motivo_entrada", "fornecedor_id", "motivo_ajuste", "motivo_outros"],
+    ["cidade_origem", "estado_origem", "nota_fiscal", "numero_gta", "chave_nfe"],
+    ["valor_total_compra", "valor_por_cabeca", "valor_frete"],
+  ],
+});
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
 const UPPERCASE_FIELDS = [
 "nome",
@@ -349,8 +366,11 @@ export default function FormularioLote({
 
     if (Object.keys(nextErrors).length === 0) return true;
 
+    // Campo numérico VAZIO é obrigatório não preenchido (aviso "Campos obrigatórios", como no design — D-PROD-161);
+    // "Número inválido" só quando há número digitado errado.
+    const numerosDigitadosInvalidos = numerosInvalidos.filter((campo) => !isEmptyValue(formData?.[campo]));
     setNoticeDialog(
-      numerosInvalidos.length
+      numerosDigitadosInvalidos.length
         ? { open: true, title: "Número inválido", description: "Quantidade de cabeças deve ser um número inteiro positivo (sem casas decimais) e o peso, um número válido. Nada foi salvo." }
         : { open: true, title: "Campos obrigatórios", description: "Preencha os campos obrigatórios antes de salvar o lote." }
     );
@@ -475,7 +495,7 @@ export default function FormularioLote({
     switchGetChecked: (v) => v !== "Inativo",
     switchToValue: (checked) => (checked ? "Ativo" : "Inativo"),
   },
-  { id: "numero_lote", name: "numero_lote", span: 4, spanLg: 2, label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-[#FAFCFE] px-1" /> },
+  { id: "numero_lote", name: "numero_lote", span: 4, spanLg: 2, label: "Código", type: "text", compact: true, readOnly: true, getValue: (v) => v.numero_lote || (isReadOnly ? "" : "Automático"), render: () => <Input value={formData.numero_lote || (isReadOnly ? "" : "Automático")} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-[#FAFCFE] px-1" /> },
   { id: "data_entrada", name: "data_entrada", span: 4, spanLg: 3, label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   // Em edição, setor e área de entrada são registro histórico: trocar o setor
   // apagaria a área de entrada (só leitura) e travaria o salvar.
@@ -503,12 +523,12 @@ export default function FormularioLote({
     // R3: texto com teclado numérico — o que foi digitado fica no campo e é
     // validado (inteiro positivo), nunca truncado nem trocado por vazio.
     : { id: "quantidade_cabecas", name: "quantidade_cabecas", span: 4, spanLg: 3, label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", dica: useBase1Visual ? <IconeOficialLotePreview variante="dica" categoriaVisualId={categoriaVisualIdDoLote} categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)} /> : undefined, span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
   { id: "sexo", name: "sexo", span: 6, spanLg: 3, label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", span: 6, spanLg: 3, label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
   { id: "peso_medio_kg", name: "peso_medio_kg", span: 4, spanLg: 3, label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
   { id: "idade_media_meses", name: "idade_media_meses", span: 4, spanLg: 3, label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
-  { id: "sistema_produtivo", name: "sistema_produtivo", span: 12, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
+  { id: "sistema_produtivo", name: "sistema_produtivo", span: 12, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" placeholder="SELECIONE..." opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
   { id: "motivo_entrada", name: "motivo_entrada", span: 6, spanLg: 4, label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
   { id: "fornecedor_id", name: "fornecedor_id", span: 6, spanLg: 8, label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedoresOpcoes, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
   { id: "cidade_origem", name: "cidade_origem", span: 8, spanLg: 4, label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
@@ -525,7 +545,7 @@ export default function FormularioLote({
   { id: "identificador_sigla", name: "identificador_sigla", span: 6, spanLg: 3, label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", span: 6, spanLg: 3, label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", span: 12, spanLg: 12, label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData]);
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData, useBase1Visual, categoriaVisualIdDoLote]);
 
   const defaultLayout = {
     // Ordem e larguras do design (D-PROD-161): Descrição · Código · Data · Ativo numa linha só.
@@ -589,12 +609,16 @@ export default function FormularioLote({
         onChange={handleChange}
         readOnly={isReadOnly}
         visualVariant={useBase1Visual ? "base1" : "legacy"}
+        grupos={GRUPOS_DO_FORMULARIO}
         />
-              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
-      <IconeOficialLotePreview
-        categoriaVisualId={categoriaVisualIdDoLote}
-        categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
-              />
+      {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69).
+          No visual Base1 ele é a dica sob o campo Categoria de Manejo (D-PROD-161). */}
+      {useBase1Visual ? null : (
+        <IconeOficialLotePreview
+          categoriaVisualId={categoriaVisualIdDoLote}
+          categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
+        />
+      )}
     </>
   );
 
@@ -637,6 +661,7 @@ export default function FormularioLote({
         onSubmit={handleSubmit}
         className={`bg-white h-full min-h-0 overflow-hidden flex flex-col ${useBase1Visual ? "cadastro-b1" : ""}`}
         noValidate
+        data-densidade={useBase1Visual ? "compacto" : undefined}
       >
         {!embedded ? (
           <LegacyRecordToolbar
@@ -672,7 +697,7 @@ export default function FormularioLote({
         ) : null}
 
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2">
+        <div className={`flex-1 min-h-0 overflow-y-auto pb-6 pr-2${useBase1Visual ? " b1-form-rolagem" : ""}`}>
           {isEditing && !isDuplicating && correcaoEntrada ? (
             <div
               role="status"
@@ -734,24 +759,23 @@ export default function FormularioLote({
                       : "min-w-0 border-0 p-0 m-0"
                   }
                 >
-                  <div className="w-full space-y-1">
-                    {panelId === tabs[0]?.id ? camposPrincipais : null}
-                    <DynamicFormRenderer
-                      panels={tabs}
-                      fields={dynamicFields}
-                      layout={activeLayoutConfig.layout}
-                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-                      lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-                      requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-                      visibilityRules={activeLayoutConfig.visibilityRules || {}}
-                      activePanelId={panelId}
-                      values={formData}
-                      errors={errors}
-                      onChange={handleChange}
-                      readOnly={isReadOnly}
-                      visualVariant="base1"
-                    />
-                  </div>
+                  {panelId === tabs[0]?.id ? camposPrincipais : null}
+                  <DynamicFormRenderer
+                    panels={tabs}
+                    fields={dynamicFields}
+                    layout={activeLayoutConfig.layout}
+                    hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                    lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+                    requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+                    visibilityRules={activeLayoutConfig.visibilityRules || {}}
+                    activePanelId={panelId}
+                    values={formData}
+                    errors={errors}
+                    onChange={handleChange}
+                    readOnly={isReadOnly}
+                    visualVariant="base1"
+                    grupos={GRUPOS_DO_FORMULARIO}
+                  />
                 </fieldset>
               )}
             />

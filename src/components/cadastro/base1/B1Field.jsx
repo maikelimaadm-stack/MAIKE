@@ -1,6 +1,7 @@
 import React from "react";
 import { CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import B1Switch from "./B1Switch";
 
 const SPAN = {
   1: "md:col-span-1",
@@ -49,7 +50,9 @@ const SPAN_LG = {
  * @param {boolean} [props.open] seletor aberto (`is-open`)
  * @param {'default'|'switch'} [props.variant] `switch` para Sim/Não (B1Switch)
  * @param {import('react').ReactNode} props.children
- * @param {string} [props.className]
+ * @param {string} [props.className] classe da coluna (div externa)
+ * @param {string} [props.fieldClassName] classe extra do `.mg-field` (ex.: `b1-campo--num`)
+ * @param {import('react').ReactNode} [props.dica] linha de apoio sob o campo (some quando há erro)
  * @param {string} [props.controlId]
  */
 export default function B1Field({
@@ -66,6 +69,8 @@ export default function B1Field({
   variant = "default",
   children,
   className,
+  fieldClassName = undefined,
+  dica = undefined,
   controlId,
 }) {
   const generated = React.useId();
@@ -97,6 +102,7 @@ export default function B1Field({
           multiline && "mg-field--multiline",
           open && "is-open",
           error && "is-invalid",
+          fieldClassName,
         )}
       >
         <label htmlFor={id} className="mg-field__label">
@@ -111,6 +117,37 @@ export default function B1Field({
           {error === true || error === "true" ? "Campo obrigatório" : String(error)}
         </p>
       ) : null}
+      {!error && dica ? dica : null}
+    </div>
+  );
+}
+
+/**
+ * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-161: "chave (Ativo) em caixa").
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {number} [props.span]
+ * @param {number} [props.spanLg]
+ * @param {boolean} props.checked
+ * @param {(v: boolean) => void} [props.onChange]
+ * @param {boolean} [props.disabled]
+ * @param {string} [props.dataField]
+ * @param {string} [props.controlId]
+ */
+export function B1CampoChave({ label, span = 6, spanLg = undefined, checked, onChange, disabled = false, dataField, controlId }) {
+  const generated = React.useId();
+  const id = controlId ?? generated;
+  return (
+    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", spanLg ? SPAN_LG[spanLg] : null)} data-field={dataField}>
+      <div className={cn("mg-field mg-field--switch mg-has-value", disabled && "mg-field--disabled")} data-chave-row="">
+        <span className="mg-field__label" id={`${id}-label`}>
+          {label}
+        </span>
+        <div className="mg-field__control">
+          <B1Switch id={id} checked={checked} onChange={onChange} disabled={disabled} ariaLabel={label} />
+        </div>
+      </div>
     </div>
   );
 }

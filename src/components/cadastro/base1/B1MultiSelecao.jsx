@@ -63,7 +63,7 @@ export default function B1MultiSelecao({
           placeholder={placeholder}
           disabled={disabled}
           role="combobox"
-          aria-label={rotulo}
+          aria-label={id ? undefined : rotulo}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-invalid={ariaInvalid}

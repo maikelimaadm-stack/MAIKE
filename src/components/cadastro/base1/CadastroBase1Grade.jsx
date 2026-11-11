@@ -9,6 +9,7 @@ import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
 import FiltrosRapidos from "@/components/cadastro/base1/FiltrosRapidos";
+import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
@@ -269,6 +270,12 @@ export default function CadastroBase1Grade({
   useEffect(() => {
     onDisplayChange?.({ rows: ordenados, selectedIds: selectedItems.map(String) });
   }, [ordenados, selectedItems, onDisplayChange]);
+
+  // ‹ › do registro seguem a ordem que a pessoa vê (D-PROD-161).
+  const definirOrdemDaLista = React.useContext(OrdemDaListaContext);
+  useEffect(() => {
+    definirOrdemDaLista?.(ordenados);
+  }, [ordenados, definirOrdemDaLista]);
 
   useEffect(() => {
     onListMetrics?.({

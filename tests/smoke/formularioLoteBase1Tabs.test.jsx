@@ -69,12 +69,12 @@ describe("FormularioLote — Base1 tabs e Ativo", () => {
     expect(screen.getByRole("tab", { name: "Observações" })).toBeTruthy();
   });
 
-  it("Ativo usa B1ChaveRow sem mg-field--switch", async () => {
+  it("Ativo é chave em caixa, na linha de base dos campos (D-PROD-161)", async () => {
     await renderForm();
     const statusField = document.querySelector('[data-field="status"]');
     expect(statusField).toBeTruthy();
     expect(statusField.querySelector("[data-chave-row]")).toBeTruthy();
-    expect(statusField.querySelector(".mg-field--switch")).toBeNull();
+    expect(statusField.querySelector(".mg-field.mg-field--switch")).toBeTruthy();
     expect(within(statusField).getByRole("switch")).toBeTruthy();
   });
 

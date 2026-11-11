@@ -3,8 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import ToggleSwitch from "@/components/common/ToggleSwitch";
-import B1Field from "@/components/cadastro/base1/B1Field";
-import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
+import B1Field, { B1CampoChave } from "@/components/cadastro/base1/B1Field";
 import {
   CADASTRO_AC_INPUT_CLS,
   CADASTRO_INPUT_CLS,
@@ -125,6 +124,9 @@ function hasFieldValue(field, value, values = {}) {
   return String(value).trim() !== "";
 }
 
+/** Campo de número (alinhamento próprio no design — D-PROD-161). */
+const ehCampoNumerico = (field) => field.type === "number" || field.inputMode === "numeric" || field.inputMode === "decimal";
+
 function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
   return (
     <B1Field
@@ -134,10 +136,13 @@ function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
       span={spanForField(field)}
       spanLg={field.spanLg}
       hasValue={hasFieldValue(field, value, values)}
-      locked={readOnly}
+      // Leitura: campo apagado; edição de campo que o sistema preenche (código, valor calculado): travado.
+      locked={readOnly || Boolean(field.readOnly)}
       disabled={readOnly}
       multiline={field.type === "textarea" || (field.type === "checkbox" && typeof field.render === "function")}
       variant={field.type === "switch" ? "switch" : "default"}
+      fieldClassName={ehCampoNumerico(field) ? "b1-campo--num" : undefined}
+      dica={typeof field.dica === "function" ? field.dica(values) : field.dica}
     >
       {children}
     </B1Field>
@@ -178,6 +183,7 @@ export default function DynamicFormRenderer({
   readOnly = false,
   context = {},
   visualVariant = "legacy",
+  grupos = undefined,
 }) {
   const activePanel = panels.find((panel) => panel.id === activePanelId) || panels[0];
   const activeFieldIds = layout?.[activePanel?.id] || [];
@@ -212,7 +218,7 @@ export default function DynamicFormRenderer({
     if (useBase1 && configuredField.type === "switch" && !configuredField.render) {
       const checked = resolveSwitchChecked(configuredField, value, values);
       return (
-        <B1ChaveRow
+        <B1CampoChave
           key={field.id}
           label={configuredField.label}
           span={spanForField(configuredField)}
@@ -225,7 +231,6 @@ export default function DynamicFormRenderer({
                   onChange(configuredField.name, resolveSwitchToValue(configuredField, nextChecked, values))
           }
           disabled={fieldReadOnly}
-          ariaLabel={configuredField.label}
           dataField={configuredField.dataField || configuredField.name}
         />
       );
@@ -270,13 +275,44 @@ export default function DynamicFormRenderer({
     );
   };
 
+  if (!useBase1) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+        {visibleFields.length === 0 ? (
+          <div className="col-span-full text-xs text-slate-500 py-2">Nenhum campo configurado para este painel.</div>
+        ) : (
+          visibleFields.map((field) => renderField(field))
+        )}
+      </div>
+    );
+  }
+
+  // Base1 (D-PROD-161): os campos vêm em grupos (`b1-grupo`), cada um com a sua grade — como no design.
+  // Sem `grupos`, o painel é um grupo só; campo fora de qualquer grupo entra no último.
+  const gruposDoPainel = (grupos?.[activePanel.id] ?? []).filter((g) => Array.isArray(g) && g.length);
+  /** @type {object[][]} */
+  const blocos = gruposDoPainel.length ? gruposDoPainel.map(() => []) : [[]];
+  for (const field of visibleFields) {
+    const i = gruposDoPainel.findIndex((g) => g.includes(field.id));
+    blocos[i >= 0 ? i : blocos.length - 1].push(field);
+  }
+  const preenchidos = blocos.filter((b) => b.length);
+  if (!preenchidos.length) {
+    return (
+      <div className="b1-grupo">
+        <div className="b1 mg-b1-form-grid w-full min-h-0 col-span-12">
+          <div className="col-span-full text-xs text-slate-500 py-2">Nenhum campo configurado para este painel.</div>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={useBase1 ? "b1 mg-b1-form-grid w-full min-h-0 col-span-12" : "grid grid-cols-1 lg:grid-cols-2 gap-1"}>
-      {visibleFields.length === 0 ? (
-        <div className="col-span-full text-xs text-slate-500 py-2">Nenhum campo configurado para este painel.</div>
-      ) : (
-        visibleFields.map((field) => renderField(field))
-      )}
-    </div>
+    <>
+      {preenchidos.map((bloco) => (
+        <div key={bloco[0].id} className="b1-grupo">
+          <div className="b1 mg-b1-form-grid w-full min-h-0 col-span-12">{bloco.map((field) => renderField(field))}</div>
+        </div>
+      ))}
+    </>
   );
 }

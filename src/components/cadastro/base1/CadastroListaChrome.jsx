@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -39,6 +39,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
 import { nomesDaContagem, textoDaSelecao, textoDoTotal } from "@/components/cadastro/base1/contagemBase1";
 import { ContagemNomesContext, FiltrosRapidosSlotContext } from "./FiltrosRapidos";
+import { RegistroNavContext } from "./registroNavBase1";
 import { cn } from "@/lib/utils";
 
 /**
@@ -178,6 +179,11 @@ export default function CadastroListaChrome({
   const stripRef = useRef(null);
   // Lugar da faixa de filtros rápidos (a grade desenha nela por portal — D-PROD-161).
   const [filtrosRapidosSlot, setFiltrosRapidosSlot] = useState(/** @type {HTMLElement | null} */ (null));
+  const [navNoFormulario, setNavNoFormulario] = useState(0);
+  const registrarNavNoFormulario = useCallback(() => {
+    setNavNoFormulario((n) => n + 1);
+    return () => setNavNoFormulario((n) => n - 1);
+  }, []);
   const searchRowRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   // Celular: sem "Carregar mais" — carrega 200 por vez ao chegar perto do fim.
@@ -340,6 +346,15 @@ export default function CadastroListaChrome({
 
   /** Props do `CadastroRecordHeader` — o celular usa título e navegação fora do cabeçalho. */
   const recordInfo = recordMode && React.isValidElement(recordHeader) ? /** @type {any} */ (recordHeader.props) : null;
+  const contextoNav = useMemo(
+    () => ({
+      info: recordInfo
+        ? { index: recordInfo.index ?? 0, total: recordInfo.total ?? 0, onGo: recordInfo.onGo, navDisabled: recordInfo.navDisabled }
+        : null,
+      registrar: registrarNavNoFormulario,
+    }),
+    [recordInfo?.index, recordInfo?.total, recordInfo?.onGo, recordInfo?.navDisabled, Boolean(recordInfo), registrarNavNoFormulario],
+  );
   usePublishMobileShell(
     recordMode
       ? {
@@ -400,10 +415,13 @@ export default function CadastroListaChrome({
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
+  // Formulário que mostra ‹ › na linha das abas (D-PROD-161) dispensa a faixa de cabeçalho do registro.
   const recordHeaderNode =
-    recordMode && recordHeader && React.isValidElement(recordHeader)
-      ? React.cloneElement(recordHeader, { joinShell: joinedShell })
-      : recordHeader;
+    navNoFormulario > 0
+      ? null
+      : recordMode && recordHeader && React.isValidElement(recordHeader)
+        ? React.cloneElement(recordHeader, { joinShell: joinedShell })
+        : recordHeader;
 
   const shellBody = recordMode ? (
     <>
@@ -615,7 +633,9 @@ export default function CadastroListaChrome({
           ) : null}
           {!celular ? maisOpcoesPopover : null}
         </div>
-      ) : (
+      ) : secondaryToolsLocked && !(showAttachControl && !(recordMode && recordEditing)) ? null : (
+        // Na edição este grupo ficaria vazio; vazio, o "ml-auto" dele dividiria o espaço com Anexos/Salvar
+        // e os puxaria para o meio da barra (no design o grupo não existe na edição — D-PROD-161).
         <div className="mg-toolbar__btns ml-auto flex items-center flex-wrap">
           {!secondaryToolsLocked && onClearFilters ? (
             <FluidSlot open={filtersActive}>
@@ -795,6 +815,7 @@ export default function CadastroListaChrome({
     <PortalComprasSkinProvider active={skinAtivo}>
     <FiltrosRapidosSlotContext.Provider value={filtrosRapidosSlot}>
     <ContagemNomesContext.Provider value={nomesContagem}>
+    <RegistroNavContext.Provider value={contextoNav}>
     <div
       className={cn(
         "flex min-h-0 min-w-0 flex-1 flex-col gap-2",
@@ -829,6 +850,7 @@ export default function CadastroListaChrome({
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
+    </RegistroNavContext.Provider>
     </ContagemNomesContext.Provider>
     </FiltrosRapidosSlotContext.Provider>
     </PortalComprasSkinProvider>

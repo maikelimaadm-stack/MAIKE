@@ -1,6 +1,7 @@
 import React from "react";
-import { LayoutGrid, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCelular } from "@/components/common/MobileSheet";
+import { NavegacaoDoRegistro, temNavegacao, useNavegacaoDoRegistro } from "./registroNavBase1";
 
 const SYSTEM_PANEL_IDS = new Set([
   "geral",
@@ -18,26 +19,6 @@ function CustomTabMarker() {
       aria-hidden
     />
   );
-}
-
-function readPanelStyle(preferenceKey) {
-  if (!preferenceKey) return "tabs";
-  try {
-    const raw = localStorage.getItem(preferenceKey);
-    if (raw === "sidebar" || raw === "tabs") return raw;
-  } catch {
-    /* storage indisponível */
-  }
-  return "tabs";
-}
-
-function writePanelStyle(preferenceKey, style) {
-  if (!preferenceKey) return;
-  try {
-    localStorage.setItem(preferenceKey, style);
-  } catch {
-    /* ignore */
-  }
 }
 
 /** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-161). */
@@ -80,7 +61,7 @@ function usePrefersReducedMotion() {
  * @param {string} props.value aba ativa (controlada)
  * @param {(id: string) => void} props.onChange
  * @param {(panelId: string) => import('react').ReactNode} props.renderPanel
- * @param {string} [props.preferenceKey] persiste só tabs|sidebar
+ * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-161: o design tem só abas — sem lista lateral)
  * @param {boolean} [props.animate] fade ao trocar aba
  * @param {string|number} [props.animationKey] muda ao trocar registro — suprime animação na 1ª pintura
  * @param {string} [props.className]
@@ -116,7 +97,9 @@ export default function Base1PanelTabs({
       return a === b ? atual : proximo;
     });
   });
-  const [panelStyle, setPanelStyle] = React.useState(() => readPanelStyle(preferenceKey));
+  const celular = useCelular();
+  // ‹ › do registro: na linha das abas (desktop) ou numa linha acima das seções (tablet); no celular fica no rodapé.
+  const navInfo = useNavegacaoDoRegistro(!celular && tabs.length > 1);
   const tabRefs = React.useRef({});
   const prevAnimationKey = React.useRef(animationKey);
   const skipNextAnimation = React.useRef(false);
@@ -142,18 +125,18 @@ export default function Base1PanelTabs({
     const el = tabRefs.current[current];
     if (!el?.scrollIntoView) return;
     el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
-  }, [current, panelStyle, reducedMotion]);
+  }, [current, reducedMotion]);
 
-  const toggleStyle = () => {
-    const next = panelStyle === "sidebar" ? "tabs" : "sidebar";
-    setPanelStyle(next);
-    writePanelStyle(preferenceKey, next);
-  };
+  // O contêiner de rolagem do formulário recebe o modo do design: abas fora do cartão ou seções empilhadas.
+  React.useLayoutEffect(() => {
+    const scroll = raizRef.current?.closest(".mg-form-scroll");
+    if (!scroll || tabs.length < 2) return undefined;
+    const cls = empilhado ? "b1-form--secoes" : "b1-form--abas-fora";
+    scroll.classList.add(cls);
+    return () => scroll.classList.remove(cls);
+  }, [empilhado, tabs.length]);
 
-  const sidebar = panelStyle === "sidebar";
-  const toggleLabel = sidebar
-    ? "Mostrar painéis em abas horizontais"
-    : "Mostrar painéis em lista lateral";
+  const sidebar = false;
 
   const focusTab = (id) => {
     tabRefs.current[id]?.focus?.();
@@ -203,19 +186,6 @@ export default function Base1PanelTabs({
       }
     }
   };
-
-  const toggleBtn = (
-    <button
-      type="button"
-      className={cn("b1-panel-nav-btn b1-panel-style-toggle", sidebar && "is-active")}
-      onClick={toggleStyle}
-      title={toggleLabel}
-      aria-label={toggleLabel}
-      aria-pressed={sidebar}
-    >
-      {sidebar ? <LayoutGrid strokeWidth={2.1} aria-hidden /> : <PanelLeft strokeWidth={2.1} aria-hidden />}
-    </button>
-  );
 
   const tabButtons = tabs.map((tab) => {
     const active = current === tab.id;
@@ -291,6 +261,12 @@ export default function Base1PanelTabs({
 
   if (empilhado) {
     return (
+      <>
+      {temNavegacao(navInfo) ? (
+        <div className="b1-reg-navlinha">
+          <NavegacaoDoRegistro info={navInfo} />
+        </div>
+      ) : null}
       <div ref={raizRef} className={cn("b1-secoes", className)}>
         {tabs
           .filter((tab) => !tab.disabled)
@@ -313,30 +289,17 @@ export default function Base1PanelTabs({
             </section>
           ))}
       </div>
-    );
-  }
-
-  if (sidebar) {
-    return (
-      <div ref={raizRef} className={cn("b1-panel-sidebar-layout", className)}>
-        <aside className="b1-panel-sidebar-layout__tabs">
-          <div className="b1-panel-list" role="tablist" aria-orientation="vertical">
-            <div className="b1-panel-list__leading">{toggleBtn}</div>
-            {tabButtons}
-          </div>
-        </aside>
-        <div className="b1-panel-sidebar-layout__content">{panelsBody}</div>
-      </div>
+      </>
     );
   }
 
   return (
     <div ref={raizRef} className={cn("b1-panel-tabs-root b1-abas-fora", className)}>
       <div className="b1-panel-tabs-rail">
-        <div className="b1-panel-tabs-rail__leading">{toggleBtn}</div>
         <div className="b1-panel-tabs-strip" role="tablist" aria-orientation="horizontal">
           {tabButtons}
         </div>
+        <NavegacaoDoRegistro info={navInfo} />
       </div>
       {panelsBody}
     </div>

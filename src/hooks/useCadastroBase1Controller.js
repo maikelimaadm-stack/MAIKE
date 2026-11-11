@@ -50,6 +50,7 @@ import { notifyWarning } from "@/lib/maikeNotify";
  * @property {number} recordIndex
  * @property {object[]} recordNavRows
  * @property {(index: number) => void} goRecord
+ * @property {(linhas: object[]) => void} [definirOrdemDaLista] a grade informa a ordem em que mostra as linhas
  * @property {(item: object) => boolean} matchesSearch
  * @property {Array<{ id: string, label: string, secondary?: string }>} searchSuggestions
  * @property {(item: object|null) => void} [setEditingItem]
@@ -186,7 +187,32 @@ export function useCadastroBase1Controller(config) {
     [config, editingItem],
   );
 
-  const recordNavRows = useMemo(() => visibleRows, [visibleRows]);
+  // Ordem da grade (ordenação e filtros da tela), publicada por OrdemDaListaContext — D-PROD-161.
+  // Sem ela (tela sem grade Base1), vale a ordem dos dados.
+  const [ordemDaLista, setOrdemDaLista] = useState(/** @type {object[] | null} */ (null));
+  const definirOrdemDaLista = useCallback((/** @type {object[]} */ linhas) => {
+    setOrdemDaLista((atual) =>
+      atual && atual.length === linhas.length && atual.every((l, i) => l === linhas[i]) ? atual : linhas,
+    );
+  }, []);
+  const recordNavRows = useMemo(() => {
+    if (!ordemDaLista) return visibleRows;
+    // Linhas frescas (a lista pode ter sido recarregada) na ordem da grade; o que é novo vai para o fim.
+    const porId = new Map(visibleRows.map((row) => [String(config.getRowId(row)), row]));
+    const vistos = new Set();
+    const ordenadas = [];
+    for (const l of ordemDaLista) {
+      const id = String(config.getRowId(l));
+      const fresca = porId.get(id);
+      if (fresca && !vistos.has(id)) {
+        ordenadas.push(fresca);
+        vistos.add(id);
+      }
+    }
+    if (!ordenadas.length) return visibleRows;
+    for (const row of visibleRows) if (!vistos.has(String(config.getRowId(row)))) ordenadas.push(row);
+    return ordenadas;
+  }, [ordemDaLista, visibleRows, config]);
 
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
@@ -457,6 +483,7 @@ export function useCadastroBase1Controller(config) {
     recordIndex,
     recordNavRows,
     goRecord,
+    definirOrdemDaLista,
     matchesSearch,
     searchSuggestions,
     saving: Boolean(config.saving),
