@@ -791,3 +791,193 @@
     padding-bottom: 6px;
   }
 }
+
+/* ── Lista de seleção dos campos (PainelSelecao): janela branca, pesquisa lisa com linha embaixo,
+   "+" de cadastrar dentro da pesquisa, linhas sem risco e escolhido com o visto verde ── */
+.mk-sel-pop:not(#mk-a):not(#mk-b) {
+  gap: 0;
+  padding: 4px;
+  border: 1px solid #e8e7e2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: #141413;
+}
+.mk-sel-pop .mk-sel-busca.b1-pq:not(#mk-a):not(#mk-b),
+.mk-sel-pop .mk-sel-busca.b1-pq:focus-within:not(#mk-a):not(#mk-b) {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  height: auto;
+  min-height: 36px;
+  margin: -4px -4px 4px;
+  padding: 0 6px 0 16px;
+  border: 0;
+  border-bottom: 1px solid #e8e7e2;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.mk-sel-pop .mk-sel-busca.b1-pq:focus-within:not(#mk-a):not(#mk-b) {
+  border-bottom-color: #d1d0ca;
+}
+.mk-sel-pop .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b) {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0;
+  color: #141413;
+}
+.mk-sel-pop .b1-pq__in::placeholder {
+  color: #a3a29c;
+  opacity: 1;
+}
+.mk-sel-pop .b1-pq__btn:not(#mk-a):not(#mk-b) {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #73726c;
+  cursor: pointer;
+}
+.mk-sel-pop .b1-pq__btn:not(#mk-a):not(#mk-b):hover {
+  background: #f1f1ee;
+  color: #141413;
+}
+.mk-sel-pop .b1-pq__novo:not(#mk-a):not(#mk-b) {
+  color: #373733;
+}
+.mk-sel-pop .mk-sel-lista:not(#mk-a):not(#mk-b) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d0ca transparent;
+}
+.mk-sel-pop .mk-sel-op:not(#mk-a):not(#mk-b) {
+  min-height: 32px;
+  margin: 0;
+  padding: 4px 12px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent;
+  color: #141413;
+  font-weight: 400;
+}
+.mk-sel-pop .mk-sel-op:not(#mk-a):not(#mk-b):is(:hover, .is-hi) {
+  background: #f1f1ee;
+}
+.mk-sel-pop .mk-sel-op .mk-sel-op__check:not(#mk-a):not(#mk-b) {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #16a34a;
+}
+.mk-sel-pop .mk-sel-vazio:not(#mk-a):not(#mk-b) {
+  padding: 10px 12px;
+  color: #73726c;
+}
+@media (max-width: 1023px) {
+  .mk-sel-pop .mk-sel-busca.b1-pq:not(#mk-a):not(#mk-b) {
+    min-height: 44px;
+  }
+  .mk-sel-pop .b1-pq .b1-pq__in:not(#mk-a):not(#mk-b) {
+    height: 44px;
+  }
+  .mk-sel-pop .b1-pq__btn:not(#mk-a):not(#mk-b) {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .mk-sel-pop .mk-sel-op:not(#mk-a):not(#mk-b) {
+    min-height: 40px;
+    padding: 6px 12px;
+  }
+}
+
+/* ── Pesquisa da barra de cima: o mesmo campo liso com a linha embaixo ── */
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-search-pill.is-active:not(#mk-a):not(#mk-b),
+.cadastro-b1 .mg-search-pill:focus-within:not(#mk-a):not(#mk-b) {
+  border: 0 !important;
+  border-bottom: 1px solid #d1d0ca !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-left: 4px;
+  padding-right: 2px;
+}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) > svg.lucide-search {
+  display: none;
+}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input {
+  background: transparent;
+  color: #141413;
+}
+.cadastro-b1 .mg-search-pill:not(#mk-a):not(#mk-b) input::placeholder {
+  color: #a3a29c;
+  opacity: 1;
+}
+
+/* ── Configurar colunas / campos dos cards: listas brancas, linhas sem risco ── */
+:is(.cadastro-b1, .b1ref) .dbox .dbox-l:not(#mk-a):not(#mk-b) {
+  padding: 4px;
+  border-color: #e8e7e2;
+  border-radius: 12px;
+  background: #fff;
+}
+:is(.cadastro-b1, .b1ref) .dbox .dlin:not(#mk-a):not(#mk-b) {
+  min-height: 32px;
+  padding: 4px 10px 4px 12px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent;
+  color: #141413;
+}
+:is(.cadastro-b1, .b1ref) .dbox .dlin:not(#mk-a):not(#mk-b):hover {
+  background: #f1f1ee;
+}
+:is(.cadastro-b1, .b1ref) .dbox .dlin.sel:not(#mk-a):not(#mk-b) {
+  background: rgba(64, 222, 99, 0.14);
+}
+:is(.cadastro-b1, .b1ref) .mk-config-options:not(#mk-a):not(#mk-b) {
+  padding: 4px;
+  border: 1px solid #e8e7e2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+}
+:is(.cadastro-b1, .b1ref) .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b) {
+  min-height: 32px;
+  padding: 4px 10px 4px 12px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent;
+  color: #141413;
+}
+:is(.cadastro-b1, .b1ref) .mk-config-options .mg-b1-row:not(#mk-a):not(#mk-b):hover {
+  background: #f1f1ee;
+}
+@media (max-width: 1023px) {
+  :is(.cadastro-b1, .b1ref) :is(.dbox .dlin, .mk-config-options .mg-b1-row):not(#mk-a):not(#mk-b) {
+    min-height: 40px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}

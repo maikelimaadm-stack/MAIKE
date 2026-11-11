@@ -1,6 +1,6 @@
 import React from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Teto de opções desenhadas — listas de cadastro podem ter milhares. */
@@ -145,22 +145,35 @@ export default function PainelSelecao({
           }}
         >
           {pesquisavel ? (
-            <div className="mk-sel-busca">
-              {busca ? (
-                <button type="button" className="mk-sel-busca__limpar" aria-label="Limpar pesquisa" onClick={() => setBusca("")}>
-                  <X size={14} aria-hidden />
-                </button>
-              ) : (
-                <Search size={14} aria-hidden className="mk-sel-busca__ic" />
-              )}
+            <div className="mk-sel-busca b1-pq">
               <input
                 autoFocus
+                className="b1-pq__in"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Pesquisar…"
                 aria-label={`Pesquisar ${rotulo}`}
                 data-enter-livre
               />
+              {busca ? (
+                <button type="button" className="mk-sel-busca__limpar b1-pq__btn" aria-label="Limpar pesquisa" title="Limpar pesquisa" onClick={() => setBusca("")}>
+                  <X size={14} aria-hidden />
+                </button>
+              ) : null}
+              {onCriarNovo ? (
+                <button
+                  type="button"
+                  className="b1-pq__btn b1-pq__novo"
+                  aria-label={rotuloNovo}
+                  title={rotuloNovo}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onCriarNovo(busca.trim());
+                  }}
+                >
+                  <Plus size={16} aria-hidden />
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div className="mk-sel-lista" role="listbox" aria-label={rotulo} ref={listaRef}>
@@ -193,7 +206,7 @@ export default function PainelSelecao({
               Mostrando {LIMITE} de {filtrados.length.toLocaleString("pt-BR")} · refine a pesquisa
             </div>
           ) : null}
-          {onCriarNovo ? (
+          {onCriarNovo && !pesquisavel ? (
             <button
               type="button"
               className="mk-sel-novo"
