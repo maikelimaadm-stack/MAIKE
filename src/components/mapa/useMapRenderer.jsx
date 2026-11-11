@@ -472,10 +472,9 @@ export default function useMapRenderer(mapInstanceRef) {
         el.className = "mg-area-label";
         el.dataset.area = id;
         el.style.cssText =
-          // Padrão de tipografia (D-PROD-167): nome do pasto 12px / 400, branco com sombra; área 10px / 400.
-          "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;font-family:\"Open Sans\",Arial,sans-serif;letter-spacing:0.3px;text-shadow:0 1px 2px rgba(0,0,0,.85),0 0 4px rgba(0,0,0,.55);";
+          "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;font-family:Inter,Arial,sans-serif;";
         const titulo = document.createElement("div");
-        titulo.style.fontWeight = "400";
+        titulo.style.fontWeight = "700";
         const ha = document.createElement("div");
         ha.style.opacity = "0.95";
         const extra = document.createElement("div");
@@ -700,7 +699,7 @@ export default function useMapRenderer(mapInstanceRef) {
             // Quantidade de cabeças: cinza, abaixo da figura, com halo claro para
             // ler sobre o ícone (D-PROD-82). Tamanho fixo e milhar com ponto,
             // texto em `preencherLote` (D-PROD-111).
-            `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:500;font-family:"Open Sans",Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
+            `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           // Identificador no canto de cima à direita, só uma bordinha dentro da figura (D-PROD-125).
@@ -843,7 +842,7 @@ function preencherLote(entry, { totalCabecas, identificadores, totalAlertas, bli
       const d = document.createElement("div");
       d.title = i.nome || i.sigla || "";
       d.style.cssText =
-        "width:18px;height:18px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;font-family:\"Open Sans\",Arial,sans-serif;color:#fff;line-height:1;overflow:hidden;";
+        "width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;line-height:1;overflow:hidden;";
       d.style.background = i.cor;
       d.textContent = i.sigla ? String(i.sigla).substring(0, 2) : "";
       return d;

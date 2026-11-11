@@ -302,14 +302,13 @@ export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobra
  * Fonte do nome do pasto acompanhando o zoom SUAVEMENTE (D-PROD-129): cresce ao
  * aproximar e diminui ao afastar, como os nomes de um mapa, em vez de pular de
  * 10 → 11 → 12 px só no fim do zoom. 10 px até o zoom 13, 12 px a partir do 17
- * (de ¼ em ¼ px); o "ha" fica 2 px menor (mínimo 9). No zoom de perto vale o padrão de tipografia
- * (D-PROD-167): nome do pasto 12px, área 10px.
+ * (de ¼ em ¼ px); o "ha" fica 1 px menor (mínimo 9).
  * @param {number} zoom
  */
 export function fontesRotuloPorZoom(zoom) {
   const z = Number.isFinite(zoom) ? zoom : 0;
   const nome = Math.round(Math.max(10, Math.min(12, 10 + (z - 13) * 0.5)) * 4) / 4;
-  return { nome, ha: Math.max(9, nome - 2) };
+  return { nome, ha: Math.max(9, nome - 1) };
 }
 
 /**

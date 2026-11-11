@@ -18,13 +18,6 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
-      // Escala de tipografia do sistema (D-PROD-167): 13 · 14 · 16 · 18 · 20 · 24 · 30 · 34 · 46 px
-      // (o Tailwind já tem 14, 16, 18, 20, 24 e 30; mudam o `xs`, o `4xl` e o `5xl`). Linha 1.5 no texto, 1.25 nos títulos.
-      fontSize: {
-        xs: ['13px', { lineHeight: '1.125rem' }],
-        '4xl': ['34px', { lineHeight: '1.25' }],
-        '5xl': ['46px', { lineHeight: '1.25' }],
-      },
       // Somente fundos neutros; textos e bordas preservam a paleta original.
       backgroundColor: Object.fromEntries(
         ['gray', 'slate', 'zinc', 'neutral', 'stone'].map((family) => [family, {
