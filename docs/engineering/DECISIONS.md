@@ -6197,4 +6197,30 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Testes:** `detalhesLoteVisualGesto.test.jsx` acompanha a mudança. Ele confere que a pílula usa o título do motor, que `.mk-dl__linha` herda o tamanho de quem a usa e que `.mk-dl__chip` tem 13 px.
 - **Evidência:** relatório [`UI-MAPA-TIPOGRAFIA-D173-REPORT.md`](./UI-MAPA-TIPOGRAFIA-D173-REPORT.md); imagens de antes e depois em `docs/engineering/evidencias/mapa-tipografia-d173/`.
 
-<!-- Próxima decisão: D-PROD-174 -->
+## D-PROD-174 — Cadastro de Áreas, Pontos e Linhas no motor Base1
+
+- **Pedido do proprietário (2026-11-11):** "Já aproveite e já ajuste também para cadastro de áreas, etc", no mesmo pedido de deixar campos, listagem, escolha e formatação iguais ao motor Base1.
+- **Contexto:** o Cadastro de Áreas, Pontos e Linhas (`MapaCadastro`) era uma tela própria:
+  - barra com quatro botões de ação, abas largas e três grades antigas (com funil em cada coluna e menu "⋮" em cada linha);
+  - edição dos detalhes num painel lateral, com campos e listas do shadcn.
+- **Decisão:** cada aba (Áreas, Pontos, Linhas) vira uma tela do motor, com o motor de lista completa (`useCadastroBase1FullListController` + `CadastroBase1Screen`):
+  - barra do motor, faixa de filtros, grade e cards, configuração de colunas, exportação, seleção, Excluir e registro com navegação ‹ ›;
+  - as abas ficam no desenho das abas do motor, acima da lista.
+- **Onde ficam as ações:**
+  - **"+ Novo"** desenha a área ou a linha no mapa, ou marca o ponto, como fazia "Desenhar no Mapa" / "Marcar no Mapa".
+  - **"Mais opções"**, no mesmo lugar das ações próprias de outras telas do motor (como "Gerenciar tipos" de Bens):
+    - Áreas: nova por GPS, selecionar no mapa, importar áreas e as ações em lote (definir setor, definir cor, reatribuir códigos). As ações em lote só ficam ativas com área selecionada e abrem a janela do motor (`B1Janela`);
+    - Pontos: novo por GPS e cadastrar em lote;
+    - Linhas: nova por GPS.
+  - **No registro:** abrir uma linha mostra os detalhes travados; "Editar" libera, e Salvar/Cancelar ficam na barra. "Editar no mapa" ("posição" ou "traçado", conforme a aba) fica em "Mais opções".
+  - **Excluir:** vale para a seleção da lista e para o registro, com as mesmas regras, mensagens e invalidações de antes. O evento `atualizar-mapa` continua.
+- **Formulários:**
+  - **Área:** passa aos campos e às listas do motor (`B1Field`, `B1Select`), na mesma ordem e com a mesma validação e gravação. No painel do desenho fica em uma coluna, com Cancelar/Salvar; no registro, usa a grade do motor.
+  - **Ponto e Linha:** já usavam o campo do motor (`LancField`). As listas passam à do motor pelo `SelectDoMotor`, um adaptador com a interface do Select antigo, em que "Selecione…" vira o campo vazio. No registro, os campos ficam no cartão do motor e travados até o "Editar" (um `fieldset` desabilitado; o `LancField` mostra o cadeado).
+  - Nos três, quem salva no registro é a barra do motor, pelo `id` do formulário. A gravação continua dentro de cada formulário, igual à do painel do desenho.
+- **Sai:** `TabelaAreasGeo`, `TabelaPontosGeo`, `TabelaLinhasGeo` e `ConfiguracaoColunasMapaDialog`, sem uso. As colunas e as regras de leitura de cada aba, inclusive a junção do ponto com a suplementação e o bebedouro, foram para `src/components/mapa/cadastro/colunasCadastroMapa.js`, sem mudança.
+- **Não muda:** o desenho no mapa, a captura por GPS, a seleção no mapa, a importação, o cadastro de pontos em lote, as regras, as validações e as chamadas ao servidor. Sem migration.
+- **Testes:** `tests/smoke/cadastroMapaMotor.test.jsx` (novo) cobre a tela, o adaptador de lista e a junção dos pontos. O caso de `importarAreasDialog.test.jsx` sobre a barra das áreas passa a abrir "Importar áreas" em "Mais opções".
+- **Evidência:** relatório [`UI-CADASTRO-MAPA-D174-REPORT.md`](./UI-CADASTRO-MAPA-D174-REPORT.md); imagens em `docs/engineering/evidencias/cadastro-mapa-d174/`.
+
+<!-- Próxima decisão: D-PROD-175 -->

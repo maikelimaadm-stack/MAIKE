@@ -26,6 +26,8 @@ export default function LancField({ label, required = false, error = false, data
   const ref = React.useRef(/** @type {HTMLDivElement | null} */ (null));
   const [temValor, setTemValor] = React.useState(false);
   const [multilinha, setMultilinha] = React.useState(false);
+  // Dentro de um <fieldset disabled> (registro em leitura do motor, D-PROD-174) o campo fica travado, como o B1Field `locked`.
+  const [travado, setTravado] = React.useState(false);
   const idGerado = React.useId();
   const [alvoId, setAlvoId] = React.useState(/** @type {string | undefined} */ (undefined));
 
@@ -43,6 +45,7 @@ export default function LancField({ label, required = false, error = false, data
     if (!valor && !campo && !combo) valor = (el.querySelector(".mg-field__control")?.textContent ?? "").trim() !== "";
     setTemValor(valor);
     setMultilinha(Boolean(el.querySelector("textarea")));
+    setTravado(Boolean(el.closest("fieldset:disabled")));
     // Nome acessível: o rótulo aponta para o controle (input, textarea ou combobox).
     const alvo = campo ?? combo;
     if (alvo) {
@@ -79,6 +82,7 @@ export default function LancField({ label, required = false, error = false, data
           "mg-field",
           temValor && "mg-has-value",
           multilinha && "mg-field--multiline",
+          travado && "mg-field--locked",
           error && "is-invalid",
         )}
       >

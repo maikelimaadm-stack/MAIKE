@@ -444,3 +444,8 @@ body.b1-tela .b1-fr-op .b1-fr-box:not(.b1-fr-box--unica):not(#mk-a):not(#mk-b):n
 .b1-maiusculas .mgs__label {
   text-transform: uppercase;
 }
+
+/* Campo travado (registro em leitura): a lista não abre, então sai a seta e fica só o cadeado (D-PROD-174). */
+.cadastro-b1 .mg-field--locked .b1-select-btn__c:not(#mk-a) {
+  display: none;
+}
