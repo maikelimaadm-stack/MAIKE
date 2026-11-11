@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import CochoNivel from '../../src/components/mapa/CochoNivel';
+import { resolverIconeSuplementacao } from '../../src/lib/maplibre/mapaGeralRender';
 afterEach(cleanup);
 describe('Cocho com nível vetorial', () => {
   it('mostra o saldo calculado e recorta o alimento dentro do cocho', () => {
@@ -27,5 +28,23 @@ describe('Cocho com nível vetorial', () => {
     const { container } = render(<><CochoNivel percent={.2} /><CochoNivel percent={.8} /></>);
     const ids = [...container.querySelectorAll('clipPath')].map(e => e.id);
     expect(new Set(ids).size).toBe(2);
+  });
+});
+
+describe('Cocho no marcador do mapa', () => {
+  it('leva o nível calculado ao marcador e deixa o vazio sem produto', () => {
+    const svg = (percent) => {
+      const { iconUrl } = resolverIconeSuplementacao({ categoria_ponto: 'COCHO', indicador_percentual: percent });
+      return new DOMParser().parseFromString(decodeURIComponent(iconUrl.split(',')[1]), 'image/svg+xml');
+    };
+    const cheio = svg(1);
+    const metade = svg(.5);
+    const vazio = svg(0);
+    expect(cheio.querySelector('parsererror')).toBeNull();
+    expect(cheio.querySelector('svg > path').getAttribute('fill')).toBe('#fff');
+    expect(cheio.querySelector('svg > path').hasAttribute('stroke')).toBe(false);
+    expect(cheio.querySelector('[clip-path]').getAttribute('d')).not.toBe(metade.querySelector('[clip-path]').getAttribute('d'));
+    expect(vazio.querySelector('[clip-path]')).toBeNull();
+    expect(vazio.querySelector('svg svg > path:last-child').getAttribute('stroke')).toBe('#65717a');
   });
 });

@@ -1,22 +1,12 @@
 import React, { useId } from "react";
-import { COCHO_DESCOBERTO_FORMA as forma } from "@/assets/icones/cocho-descoberto";
+import { COCHO_DESCOBERTO_FORMA as forma, geometriaNivelCocho } from "@/assets/icones/cocho-descoberto";
 
 /** O nível varia dentro do SVG escolhido para o modelo de cocho. */
 export default function CochoNivel({ percent = 0, label = "Nível estimado do cocho" }) {
   const instanceId = useId().replace(/:/g, "");
   const clipId = `cocho-${instanceId}`;
   const saltId = `sal-${instanceId}`;
-  const fracao = Number.isFinite(percent) ? Math.max(0, Math.min(1, percent)) : 0;
-  const nivel = Math.round(fracao * 100);
-  const amplitudeMaxima = Math.min(8, forma.limites.width * 0.035);
-  const topo = forma.limites.y + forma.strokeWidth / 2 + amplitudeMaxima;
-  const fundo = forma.limites.y + forma.limites.height - forma.strokeWidth / 2;
-  const y = fundo - (fundo - topo) * fracao;
-  const onda = Math.min(amplitudeMaxima, (fundo - y) * 0.4);
-  const esquerda = forma.limites.x;
-  const larguraOnda = forma.limites.width / 6;
-  const direita = esquerda + forma.limites.width;
-  const base = forma.limites.y + forma.limites.height + forma.strokeWidth;
+  const { fracao, nivel, preenchimento } = geometriaNivelCocho(percent);
 
   return (
     <div className="flex flex-col items-center gap-1" role="img" aria-label={`${label}: ${nivel}%`}>
@@ -40,7 +30,7 @@ export default function CochoNivel({ percent = 0, label = "Nível estimado do co
           <g clipPath={`url(#${clipId})`}>
             <path
               data-cocho-nivel={nivel}
-              d={`M${esquerda} ${y} Q${esquerda + larguraOnda / 2} ${y - onda * 2} ${esquerda + larguraOnda} ${y} T${esquerda + larguraOnda * 2} ${y} T${esquerda + larguraOnda * 3} ${y} T${esquerda + larguraOnda * 4} ${y} T${esquerda + larguraOnda * 5} ${y} T${direita} ${y} L${direita} ${base} H${esquerda}Z`}
+              d={preenchimento}
               fill={`url(#${saltId})`}
             />
           </g>

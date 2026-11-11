@@ -636,6 +636,7 @@ export default function useMapRenderer(mapInstanceRef) {
         const c = parseVertex(ponto.coordenadas);
         if (!c) continue;
         const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
+        const baseSize = categoria.includes("COCHO") ? 54 : 40;
         const key = prefix + ponto.id;
         const ref = { ponto };
         itens.push({
@@ -643,7 +644,7 @@ export default function useMapRenderer(mapInstanceRef) {
           lngLat: [c.lng, c.lat],
           estado: JSON.stringify([c.lat, c.lng, ponto.nome_ponto, iconUrl, categoria]),
           criar: () => {
-            const entry = criarMarcadorClicavel({ iconUrl, baseSize: 40, cor, titulo: ponto.nome_ponto }, () => {
+            const entry = criarMarcadorClicavel({ iconUrl, baseSize, cor, titulo: ponto.nome_ponto }, () => {
               const p = markersRef.current.get(key)?.ultimo?.ref?.ponto || ponto;
               onClick?.(p);
             });
@@ -652,7 +653,7 @@ export default function useMapRenderer(mapInstanceRef) {
           },
           atualizar: (entry) => {
             entry.el.title = String(ponto.nome_ponto || "");
-            aplicarCorpo(entry.el, { iconUrl, baseSize: 40, cor });
+            aplicarCorpo(entry.el, { iconUrl, baseSize, cor });
           },
           ref,
         });
