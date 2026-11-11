@@ -6028,6 +6028,6 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - "Instalar catálogo padrão";
   - "Produtos aceitos em L ou KG".
   O resto da D-PROD-162 continua valendo.
-- **Estado:** em implementação na branch `claude/new-session-abgn5w`, junto da PR #241. Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md).
+- **Estado:** implementada e verificada na branch `claude/new-session-abgn5w`, junto da PR #241; a release é merge e deploy, sem migration. Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md).
 
 <!-- Próxima decisão: D-PROD-164 -->
