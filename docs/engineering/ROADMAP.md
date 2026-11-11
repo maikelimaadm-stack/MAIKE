@@ -472,17 +472,24 @@ reconciliação, registrados na D-PROD-161:
 >
 > Inventário/ajuste e devolução passam a exigir comandos e decisões próprios.
 >
+> **Revisão R2 da proposta (2026-11-11, ainda não ratificada):** o documento de entrada terá **Editar** e **Excluir**, sem "Cancelar" como ação do usuário.
+> - Edição confirmada = revisão versionada pelo motor.
+> - Exclusão = lógica, com estorno integral.
+> - As duas só valem sem dependência física e sem impacto no FIFO.
+> - Nenhum fato é reescrito ou apagado.
+>
 > Sequência proposta, uma PR por slice:
 > 1. ratificação humana da emenda (procedimento da §4 da constituição);
 > 2. P1-02: endurecimento do motor;
 > 3. P1-03: índices;
 > 4. P1-04: consultas paginadas;
-> 5. P1-05: backend da entrada;
-> 6. P1-06: tela;
-> 7. P1-07/08: lote do fabricante;
-> 8. P1-09+: linhagem, estornos, reconciliação v3, inventário/ajuste e offline.
+> 5. P1-05a: backend da entrada (documento, confirmar, excluir; todo o DDL);
+> 6. P1-05b: edição de entrada confirmada (revisão versionada);
+> 7. P1-06: tela, só depois da P1-05a e da P1-05b;
+> 8. P1-07/08: lote do fabricante;
+> 9. P1-09+: linhagem, estornos, reconciliação v3, inventário/ajuste e offline.
 >
-> Nada disso está autorizado. A ratificação deve preceder a P1-02, a P1-05 e a P1-06. DDL só com runbook e GO antes do merge. Ver [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) e [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md).
+> Nada disso está autorizado nem entregue. A ratificação deve preceder a P1-02, a P1-05a, a P1-05b e a P1-06. DDL só com runbook e GO antes do merge. Ver [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) e [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md).
 
 ## Track autorizado — Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
 

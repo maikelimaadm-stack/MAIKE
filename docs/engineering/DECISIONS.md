@@ -6267,22 +6267,28 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 > Agente de IA não emenda a constituição (`08-REGRAS-DE-IA.md` A10; `00-CONSTITUICAO.md` §4). Por isso o texto da emenda está só proposto, em documento à parte.
 
 - **Data:** 2026-11-11.
-- **Missão:** MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1, derivada da análise somente leitura MAIKE-ESTOQUE-P1-00.
+- **Missão:** MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1, derivada da análise somente leitura MAIKE-ESTOQUE-P1-00. Revista na **R2** (MAIKE-ESTOQUE-P1-01-GOVERNANCA-R2, mesma data e mesma PR), **ainda como proposta**.
 - **Base:** `origin/main` `74ad3b86`.
 - **Proposta:**
   - **Entrada manual documentada.** Um documento de Entrada de Estoque, confirmado só pelo motor único, com 3 motivos fechados:
-    - saldo de implantação: uma única vez por produto e empresa, e só sem nenhum histórico físico em nenhum local;
+    - saldo de implantação: uma única vez por produto e empresa, e só sem nenhum histórico físico em nenhum local. Na R2, a implantação ativa é corrigida por edição, e uma nova implantação só é aceita depois de a anterior estar `EXCLUIDA` (variante proposta da R-IMPL; a alternativa é nunca reimplantar);
     - doação;
     - outra causa, com justificativa e permissão própria.
   - Doação e outra causa **não** servem para registrar saldo antigo.
+  - **Editar e Excluir (R2, a pedido do proprietário).** O usuário edita e exclui a entrada; "Cancelar" deixa de ser a ação do documento. O estado `CANCELADA` sai e entra `EXCLUIDA`. As regras:
+    - rascunho: edição e exclusão livres, com versão;
+    - confirmada sem dependência física: a edição é uma **revisão versionada** do mesmo documento, que estorna pelo motor só o que muda e aplica o novo numa única transação; a exclusão é **lógica**, com estorno integral, motivo, autor e histórico consultável;
+    - confirmada com dependência (camada consumida, transferida ou citada por outro fato, mesmo que depois estornado) ou com impacto no FIFO de baixas já feitas: só observação e justificativa são editáveis; a tela explica o motivo e o próximo passo;
+    - nunca se reescreve nem se apaga movimento ou camada; não há exclusão parcial nem restauração.
   - **O que a entrada manual não é:** compra, título, conta a pagar, receita, inventário ou ajuste, devolução, transferência entre empresas ou entrada por nota fiscal.
   - **Deduplicação documental** quando houver parceiro e documento: entrada × compra, entrada × venda e entrada × entrada, e, no sentido inverso, em todos os caminhos da P3 que gravam o documento (confirmar, retificar, prévia). A liberação da operação fica bloqueada enquanto o caminho recíproco não existir.
   - **Lote do fabricante** (model candidato `ProdutoLoteFabricante`): identidade comercial (fabricante, número, fabricação, validade), N camadas → 1 lote, **sem saldo e sem custo**. A camada física (`EstoqueLoteNota`) continua sendo a única fonte de saldo. FIFO não muda; validade só gera aviso.
-  - **Sequência de slices** P1-02..P1-13, com ratificação humana **antes da P1-02, da P1-05 e da P1-06**. Dividir a P1-02 (R-SPLIT) só com autorização expressa.
+  - **Sequência de slices** P1-02..P1-13, com ratificação humana **antes da P1-02, da P1-05a, da P1-05b e da P1-06**. Na R2, a P1-05 virou P1-05a (documento, confirmar, excluir, com todo o DDL) e P1-05b (editar confirmada), e a tela P1-06 só depois das duas. Dividir a P1-02 (R-SPLIT) só com autorização expressa.
 - **Pendente de ratificação:**
   - R-EMENDA (texto para 00 e 07);
   - R-MOTIVOS;
-  - R-IMPL (implantação após cancelamento; decidir antes da R-EMENDA);
+  - R-IMPL (refeita na R2: correção por edição, reimplantação só após exclusão ou nunca; decidir antes da R-EMENDA);
+  - R-EDICAO-EXCLUSAO (nova na R2: `EXCLUIDA` × `CANCELADO` + `excluido_em`; baixa estornada continua bloqueando; janela FIFO; recibos excluídos; permissões compostas; sem restaurar; divisão P1-05a/05b);
   - R-DATA (data retroativa);
   - R-DEDUPE (muda a confirmação da P3);
   - R-LOTE (identidade com discriminador e nome do model);

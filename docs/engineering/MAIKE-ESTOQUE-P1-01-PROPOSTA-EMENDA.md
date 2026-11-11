@@ -11,6 +11,7 @@
 > - Missão: MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1.
 > - Base: `origin/main` `74ad3b868ff947f0153c969c51852748690f78a2`.
 > - Contrato técnico: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md).
+> - **Revisão R2 (2026-11-11, ainda PROPOSTA):** a pedido do proprietário, o texto proposto passa a autorizar **Editar** e **Excluir** a entrada, com controles, versão e trilha auditável. Ele proíbe expressamente reescrever ou apagar fatos físicos. "Cancelar" deixa de ser a ação do usuário. O texto da R1 está no histórico do git desta PR (commit `3b49eac1`) e foi substituído pelo abaixo.
 
 ## 1. Por que o agente não edita a constituição
 
@@ -52,38 +53,54 @@ Hoje esses casos empurram o usuário a duas saídas ruins:
 - deduplicação documental com a Central nos dois sentidos e entre entradas (contrato §3, A5);
 - nenhum domínio proibido reaberto.
 
+**Feedback do proprietário (R2).** A entrada deve ter **Editar** e **Excluir**, e o usuário não quer depender de "Cancelar" para corrigir. A proposta atende a isso sem abrir mão da imutabilidade dos fatos:
+- a edição confirmada é uma **revisão** que estorna pelo motor e aplica de novo;
+- a exclusão é **lógica**, com estorno integral;
+- ambas só valem quando nenhuma camada da entrada foi usada e o FIFO de baixas passadas não muda;
+- com dependência, só se editam observação e justificativa, e a tela explica o motivo e o próximo passo.
+
 ## 3. Texto exato proposto — `docs/constitution/00-CONSTITUICAO.md`
 
 **Onde:** inserir um parágrafo novo **depois** do parágrafo "Revisão autorizada pelo proprietário (D-PROD-162)", ou seja, depois da linha que termina em "no merge manual (§4).", e **antes** de "## 2. Princípios fundadores". O parágrafo vai precedido e seguido de uma linha em branco.
 
-**Texto a vigorar SOMENTE após a ratificação (literal, variante estrita):**
+**Texto a vigorar SOMENTE após a ratificação (literal; variante proposta da R-IMPL):**
 
 ```markdown
 **Expansão autorizada pelo proprietário (D-PROD-176):** **Estoque — entrada manual
 documentada** (missão MAIKE-ESTOQUE-P1). Além da compra confirmada da Central Única de
 Lançamentos, a quantidade de estoque também pode nascer de um **documento de Entrada de
 Estoque** confirmado, só pelo motor de estoque único e só por um destes motivos fechados:
-saldo de implantação (uma única vez por produto e empresa, e só se o produto não tiver
-nenhum histórico físico em nenhum local), doação e outra causa com justificativa e
-permissão própria. Doação e outra causa não servem para registrar saldo antigo. A entrada
-manual não é compra, não cria título, conta a pagar nem receita, e não pode duplicar um
-lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o
-outro. O rascunho não mexe no estoque; a confirmação cria fato e camada; o cancelamento
-só estorna se nada tiver sido consumido ou transferido. O Cadastro de Produtos continua
-sem lançar estoque. Continua **fora**: entrada por compra fora da Central, ajuste ou
-inventário, devolução, transferência entre empresas, entrada por nota fiscal, edição de
-saldo e qualquer escritor genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta
-parte, esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expansão
-D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
-com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
+saldo de implantação, doação e outra causa com justificativa e permissão própria. O saldo
+de implantação vale uma única vez por produto e empresa e só se o produto não tiver
+nenhum histórico físico em nenhum local; os fatos de uma implantação excluída, que por
+regra nunca teve consumo, não contam como histórico. Doação e outra causa não servem para
+registrar saldo antigo. A entrada manual não é compra, não cria título, conta a pagar nem
+receita, e não pode duplicar um lançamento da Central nem outra entrada: com o mesmo
+parceiro e documento, um bloqueia o outro. O usuário pode **editar** e **excluir** a
+entrada. O rascunho não mexe no estoque. Na entrada confirmada, editar quantidade, custo,
+unidade, produto, local, data, motivo, parceiro ou documento, ou excluí-la, só é aceito
+quando nenhuma camada dela foi consumida, transferida ou citada por outro fato, mesmo que
+depois estornado, e quando a mudança não altera o FIFO de baixas já feitas; com
+dependência, só se editam observação e justificativa. A edição vira uma nova revisão do
+mesmo documento, que estorna pelo motor o que muda e aplica a versão nova numa só
+transação; a exclusão estorna tudo e deixa o documento EXCLUÍDO, fora da lista ativa mas
+consultável. Nenhum movimento ou camada de estoque é reescrito ou apagado, e cada revisão
+e cada exclusão ficam registradas com autor, data, motivo e valores antes e depois. Não
+há exclusão nem estorno parcial. O Cadastro de Produtos continua sem lançar estoque.
+Continua **fora**: entrada por compra fora da Central, ajuste ou inventário, devolução,
+transferência entre empresas, entrada por nota fiscal, edição de saldo e qualquer escritor
+genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta parte, esta expansão supera
+apenas o trecho "não há tela avulsa de entrada" da expansão D-PROD-155; o resto da
+D-PROD-155 continua valendo. Texto proposto pelo agente; vale só com a aprovação
+explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
 ```
 
-**Variante aberta (só se a R-IMPL for aprovada; ver contrato §3, A3).** Trocar `nenhum histórico físico em nenhum local)` por:
+**Variante estrita (se a R-IMPL for recusada; ver contrato §3, A3, item 8).** Apagar a oração `; os fatos de uma implantação excluída, que por regra nunca teve consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`.
 
-```markdown
-nenhum histórico físico em nenhum local, salvo os fatos de implantações canceladas sem
-consumo)
-```
+**Diferença em relação à R1:**
+- sai "o cancelamento só estorna se nada tiver sido consumido ou transferido";
+- entram editar e excluir, a revisão versionada, a janela FIFO, a regra de dependência (inclusive baixa estornada), o estado excluído consultável, a proibição de reescrever ou apagar fatos e a trilha auditável;
+- a variante "aberta" da R1 ("implantações canceladas sem consumo") vira a variante **proposta**, agora com implantação **excluída**.
 
 ## 4. Texto exato proposto — `docs/constitution/07-DO-NOT-DO.md`
 
@@ -91,30 +108,45 @@ consumo)
 
 **Onde:** inserir **ao final do arquivo**, depois da nota "Nota (D-PROD-159, revista pela D-PROD-162)". A posição mantém a ordem cronológica das notas (155, 157, 159, 176). O bloco vai precedido de uma linha em branco, para não se fundir com o blockquote anterior.
 
-**Texto a vigorar SOMENTE após a ratificação (literal):**
+**Texto a vigorar SOMENTE após a ratificação (literal; variante proposta da R-IMPL):**
 
 ```markdown
 > **Nota (D-PROD-176):** o documento de Entrada de Estoque, nos limites da decisão e da
 > expansão constitucional, é a única exceção à proibição de "criar entrada de estoque
-> avulsa" da nota D-PROD-155. Continua proibido:
+> avulsa" da nota D-PROD-155. O usuário edita e exclui a entrada; não existe "cancelar"
+> como ação dela. Continua proibido:
 > - lançar estoque pelo Cadastro de Produtos, por CSV, por rota genérica de movimento ou de
 >   lote, ou por qualquer caminho fora do motor de estoque (`estoqueFisicoMotor.js`);
 > - usar a entrada manual como compra, inventário/ajuste, devolução, transferência entre
->   empresas ou entrada por nota fiscal, ou criar título, conta a pagar ou receita a partir
->   dela;
+>   empresas ou entrada por nota fiscal, ou criar, alterar ou cancelar título, conta a
+>   pagar ou receita a partir dela, inclusive ao editá-la ou excluí-la;
 > - usar doação ou outra causa para registrar saldo antigo (pré-existente);
-> - confirmar uma entrada manual com o mesmo parceiro e documento de um lançamento
->   confirmado da Central (a pagar ou a receber) ou de outra entrada confirmada;
-> - implantar saldo de um produto que já tenha histórico físico em qualquer local;
-> - cancelar uma entrada cujas camadas já foram consumidas ou transferidas, ou estorná-la
->   em parte;
+> - confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um
+>   lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada
+>   confirmada;
+> - implantar saldo de um produto que já tenha histórico físico em qualquer local, salvo
+>   os fatos de implantações excluídas;
+> - editar quantidade, custo, unidade, produto, local, data, motivo, parceiro ou documento
+>   de uma entrada confirmada, ou excluí-la, quando alguma camada dela foi consumida,
+>   transferida ou citada por outro fato (mesmo que depois estornado), ou quando a mudança
+>   alteraria o FIFO de baixas já feitas;
+> - corrigir uma entrada confirmada reescrevendo ou apagando movimento ou camada de estoque
+>   (`UPDATE` de quantidade, custo, data, local, produto ou procedência, ou `DELETE`), em
+>   vez de uma nova revisão pelo motor; recalcular o custo de baixas passadas;
+> - editar ou excluir a entrada sem motivo, sem autor, sem versão ou sem registrar os
+>   valores antes e depois; excluir ou estornar em parte; restaurar entrada excluída;
 > - conceder a tela ou as ações da entrada a perfis existentes por padrão;
 > - reabrir qualquer nome de `forbiddenDomains` (`config/mapa-manejo-scope.json`), em
 >   especial `MovimentacoesEstoque`, `LancamentoProdutosEstoque`, `RelatoriosEstoque`,
 >   `Relatorios`, `Dashboard` e `Home`.
 ```
 
-Variante aberta da R-IMPL: acrescentar ", salvo os fatos de implantações canceladas sem consumo" ao item "implantar saldo…".
+**Variante estrita da R-IMPL:** o item "implantar saldo…" termina em "em qualquer local", sem a ressalva das implantações excluídas.
+
+**Diferença em relação à R1:**
+- sai "cancelar uma entrada cujas camadas já foram consumidas ou transferidas, ou estorná-la em parte";
+- entram as proibições de editar ou excluir com dependência ou impacto FIFO, de reescrever ou apagar fatos, de recalcular custo, de editar sem trilha, de exclusão parcial e de restauração;
+- a dedupe passa a valer também na edição.
 
 ### 4.2 Esclarecimento sobre SACO no abastecimento
 
@@ -187,9 +219,12 @@ por
 - Não cria página nem rota.
 - Não concede permissão.
 - Não autoriza código: cada slice continua precisando da própria missão e, se houver DDL, de GO e runbook.
+- Não autoriza editar ou excluir **qualquer outro** documento ou fato de estoque: compra, venda, abastecimento, suplementação, transferência, movimento ou camada. A edição e a exclusão valem só para o documento de Entrada de Estoque e só pelas regras do contrato (A8).
 
 ## 5. Como ratificar (decisão do proprietário)
-1. **Decidir a R-IMPL antes** (variante estrita ou aberta), porque ela muda o texto da §3 e da §4.1.
+1. **Decidir a R-IMPL antes** (variante proposta ou estrita), porque ela muda o texto da §3 e da §4.1.
+   - Junto, decidir a **R-EDICAO-EXCLUSAO** (contrato §8), que dá o sentido técnico das frases sobre editar e excluir.
+   - **Nem esta PR nem o merge dela ratificam a proposta.**
 2. Aprovar ou ajustar os textos da §3 e da §4.
 3. Incorporar o texto nos dois arquivos de uma destas formas:
    - **(a)** o próprio proprietário edita e mergeia;
@@ -198,7 +233,7 @@ por
      - Sem autorização escrita que nomeie a PR e o texto, só vale o caminho (a).
 4. Registrar na D-PROD-176 uma nota posterior: "ratificada em <data> por <responsável>, texto incorporado em <SHA>".
    - Se for recusada: nota "recusada em <data>". O número não é reaproveitado (registro append-only).
-5. Só depois disso começam a P1-02, a P1-05 e a P1-06.
+5. Só depois disso começam a P1-02, a P1-05a, a P1-05b e a P1-06.
    - A divisão da P1-02 em uma parte sem a origem de entrada manual (R-SPLIT, contrato §8) só vale com autorização expressa.
 
 ## 6. Conflitos de hierarquia mapeados
@@ -212,3 +247,5 @@ por
 | `DECISIONS.md` D-PROD-08 (nota da D-PROD-155): "não há tela avulsa de entrada" | 4 | Direto | Nota posterior datada, só depois da ratificação. O texto original fica preservado |
 | `DECISIONS.md` D-PROD-161 e `ROADMAP.md`: a entrada manual da P1 incluía "ajuste" e "devolução" | 4–5 | Escopo: a proposta **exclui** os dois | A D-PROD-176, se ratificada, delimitará os motivos. O ROADMAP ganha uma nota prospectiva, sem reescrever o histórico |
 | `config/mapa-manejo-scope.json` | 6 | Nenhum agora | A página candidata `EntradasEstoque` só entraria no escopo na P1-06 |
+| `DECISIONS.md` D-PROD-158 (P3): exclusão de confirmado como `CANCELADO` + `excluido_em`; procedência reescrita no lugar (`atualizarProcedencia`) | 4 | **Não é conflito.** É divergência de desenho entre domínios. A entrada usa `EXCLUIDA` e nunca reescreve procedência | Declarada no contrato (A5, A6, A8). A P3 não muda |
+| `DECISIONS.md` D-PROD-110 (rebanho): "não existe edição de movimento confirmado", com exclusão física | 4 | **Não é conflito.** Vale só para movimentos do rebanho | A entrada de estoque tem edição versionada e exclusão só lógica (contrato A8) |
