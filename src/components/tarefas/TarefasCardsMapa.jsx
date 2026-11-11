@@ -6,6 +6,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+import { useMovimentoBase1 } from "@/components/cadastro/base1/movimentoBase1";
 
 /**
  * Campos da tarefa, na ordem dos cards e do "Filtrar por campo".
@@ -57,6 +58,8 @@ const dataBR = (v) => {
  * }} props
  */
 export default function TarefasCardsMapa({ tarefas, onAdd, onEdit, onDelete, normalizeTaskPriority = (p) => p }) {
+  // Os cards usam o casco Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-164).
+  useMovimentoBase1();
   const cardsPrefs = useCadastroCardsPrefs(STORAGE_KEY, CAMPOS_PADRAO);
   const [busca, setBusca] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");

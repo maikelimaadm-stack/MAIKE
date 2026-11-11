@@ -2,6 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { movimentoBase1Ligado } from "@/components/cadastro/base1/movimentoBase1";
 
 /** Altura média ao abrir (cartão flutuante); a grande vai até perto do topo. */
 const FRACAO_MEDIA = 0.62;
@@ -85,7 +86,9 @@ export default function MobileSheet({
 
   const fecharAnimado = React.useCallback(() => {
     const folha = sheetRef.current;
-    if (!folha || !window.matchMedia?.("(max-width: 639px)").matches) {
+    // Com tela Base1 aberta, a saída é a do design (D-PROD-164): a folha sai na hora e a cópia deixada
+    // pelo movimento desce (`mk-folha-sai`), partindo de onde o dedo largou.
+    if (!folha || !window.matchMedia?.("(max-width: 639px)").matches || movimentoBase1Ligado()) {
       fecharRef.current?.();
       return;
     }

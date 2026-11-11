@@ -13,7 +13,7 @@ import { IconBtn } from "./Base1Ui";
 
 /**
  * @typedef {{ index: number, total: number, onGo?: (index: number) => void, navDisabled?: boolean }} InfoDaNavegacao
- * @typedef {{ info: InfoDaNavegacao | null, registrar: () => () => void }} ContextoDaNavegacao
+ * @typedef {{ info: InfoDaNavegacao | null, registrar: () => () => void, navJaEntrou?: { current: boolean } }} ContextoDaNavegacao
  */
 
 /** @type {React.Context<ContextoDaNavegacao | null>} */
@@ -45,12 +45,20 @@ export const temNavegacao = (info) => Boolean(info && info.onGo && info.total > 
  * @param {{ info: InfoDaNavegacao | null }} props
  */
 export function NavegacaoDoRegistro({ info }) {
-  if (!temNavegacao(info) || !info || !info.onGo) return null;
+  const marca = React.useContext(RegistroNavContext)?.navJaEntrou;
+  const visivel = temNavegacao(info);
+  // Entra deslizando (`mk-entra-lado`) só quando o registro abre. Trocar de registro remonta o formulário,
+  // mas no design a navegação fica parada (D-PROD-164).
+  const [entra] = React.useState(() => !marca?.current);
+  React.useEffect(() => {
+    if (visivel && marca) marca.current = true;
+  }, [visivel, marca]);
+  if (!visivel || !info || !info.onGo) return null;
   const { index, total, onGo, navDisabled = false } = info;
   const inicio = navDisabled || index <= 0;
   const fim = navDisabled || index >= total - 1;
   return (
-    <span className="b1-reg-nav" data-testid="cadastro-record-nav">
+    <span className={entra ? "b1-reg-nav" : "b1-reg-nav b1-reg-nav--fica"} data-testid="cadastro-record-nav">
       <IconBtn size="sm" aria-label="Primeiro registro" disabled={inicio} onClick={() => onGo(0)}>
         <ChevronsLeft className="h-4 w-4" />
       </IconBtn>

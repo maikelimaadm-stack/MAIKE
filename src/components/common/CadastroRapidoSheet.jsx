@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Check, Loader2, X } from "lucide-react";
 import MobileSheet, { useMediaQuery } from "@/components/common/MobileSheet";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import { useMovimentoBase1 } from "@/components/cadastro/base1/movimentoBase1";
 
 /**
  * Cadastro rápido aberto pelo + de uma lista de seleção (D-PROD-95): o
@@ -26,6 +27,8 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  */
 export default function CadastroRapidoSheet({ open, onClose, title, formId, saving = false, children }) {
   const desktop = useMediaQuery("(min-width: 1024px)");
+  // O formulário aberto aqui é uma tela Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-164).
+  useMovimentoBase1(open);
 
   if (desktop) {
     return (

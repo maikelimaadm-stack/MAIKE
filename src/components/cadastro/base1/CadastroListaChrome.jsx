@@ -184,6 +184,11 @@ export default function CadastroListaChrome({
     setNavNoFormulario((n) => n + 1);
     return () => setNavNoFormulario((n) => n - 1);
   }, []);
+  // ‹ › entram deslizando só quando o registro abre; ir de um registro a outro não repete (D-PROD-164).
+  const navJaEntrou = useRef(false);
+  useEffect(() => {
+    if (!recordMode) navJaEntrou.current = false;
+  }, [recordMode]);
   const searchRowRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   // Celular: sem "Carregar mais" — carrega 200 por vez ao chegar perto do fim.
@@ -352,6 +357,7 @@ export default function CadastroListaChrome({
         ? { index: recordInfo.index ?? 0, total: recordInfo.total ?? 0, onGo: recordInfo.onGo, navDisabled: recordInfo.navDisabled }
         : null,
       registrar: registrarNavNoFormulario,
+      navJaEntrou,
     }),
     [recordInfo?.index, recordInfo?.total, recordInfo?.onGo, recordInfo?.navDisabled, Boolean(recordInfo), registrarNavNoFormulario],
   );

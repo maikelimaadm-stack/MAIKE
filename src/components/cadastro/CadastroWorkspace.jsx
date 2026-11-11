@@ -1,5 +1,6 @@
 import React from "react";
 import CadastroWorkspaceHeader from "@/components/cadastro/base1/CadastroWorkspaceHeader";
+import { useMovimentoBase1 } from "@/components/cadastro/base1/movimentoBase1";
 
 /**
  * Shell de cadastro inspirado no workspace Frota (UX-01 piloto).
@@ -27,6 +28,8 @@ export default function CadastroWorkspace({
   children,
 }) {
   const isDetail = mode === "detail";
+  // Movimento do design (toque, janelas que nascem do botão) enquanto a tela Base1 está aberta (D-PROD-164).
+  useMovimentoBase1(pageLayout === "base1-list");
 
   if (pageLayout === "base1-list") {
     return (

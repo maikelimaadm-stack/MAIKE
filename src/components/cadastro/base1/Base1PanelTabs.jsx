@@ -63,7 +63,7 @@ function usePrefersReducedMotion() {
  * @param {(panelId: string) => import('react').ReactNode} props.renderPanel
  * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-163: o design tem só abas — sem lista lateral)
  * @param {boolean} [props.animate] fade ao trocar aba
- * @param {string|number} [props.animationKey] muda ao trocar registro — suprime animação na 1ª pintura
+ * @param {string|number} [props.animationKey] muda ao trocar registro — a troca de registro não anima
  * @param {string} [props.className]
  */
 export default function Base1PanelTabs({
@@ -101,19 +101,19 @@ export default function Base1PanelTabs({
   // ‹ › do registro: na linha das abas (desktop) ou numa linha acima das seções (tablet); no celular fica no rodapé.
   const navInfo = useNavegacaoDoRegistro(!celular && tabs.length > 1);
   const tabRefs = React.useRef({});
-  const prevAnimationKey = React.useRef(animationKey);
-  const skipNextAnimation = React.useRef(false);
-
-  React.useEffect(() => {
-    if (prevAnimationKey.current !== animationKey) {
-      prevAnimationKey.current = animationKey;
-      skipNextAnimation.current = true;
-    }
-  }, [animationKey]);
 
   const validIds = React.useMemo(() => tabs.filter((t) => !t.disabled).map((t) => t.id), [tabs]);
   const current =
     validIds.includes(value) ? value : validIds[0] ?? tabs[0]?.id ?? "";
+
+  // O painel só esmaece quando a aba muda dentro do mesmo registro — nunca ao abrir um registro,
+  // criar ou trocar de registro (como no design, D-PROD-164: `abaAnim` só no clique da aba).
+  const [anterior, setAnterior] = React.useState({ aba: current, chave: animationKey });
+  const [animarAba, setAnimarAba] = React.useState(false);
+  if (anterior.aba !== current || anterior.chave !== animationKey) {
+    setAnterior({ aba: current, chave: animationKey });
+    setAnimarAba(anterior.chave === animationKey);
+  }
 
   React.useEffect(() => {
     if (!current) return;
@@ -225,14 +225,7 @@ export default function Base1PanelTabs({
     const active = current === tab.id;
     const panelId = `b1-panel-${tab.id}`;
     const tabId = `b1-panel-tab-${tab.id}`;
-    let motionClass = "";
-    if (active && shouldAnimate) {
-      if (skipNextAnimation.current) {
-        skipNextAnimation.current = false;
-      } else {
-        motionClass = "b1-panel-motion--animate";
-      }
-    }
+    const motionClass = active && shouldAnimate && animarAba ? "b1-panel-motion--animate" : "";
     return (
       <div
         key={tab.id}
