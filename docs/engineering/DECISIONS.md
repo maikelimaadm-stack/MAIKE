@@ -6013,5 +6013,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Storage:** extensão `.svg` e `Content-Type: image/svg+xml`, sem transformar os caminhos em pixels. Nenhuma alteração de bucket, política ou credencial remota nesta entrega.
 - **Validação:** `backend/tests/svgEstatico.test.mjs` cobre arquivo de 1000 px, MIME, gradientes/referências internas, conteúdo ativo, peso máximo, upload comum e cabeçalho do Storage. O SVG enviado pelo proprietário foi aceito pelo validador local com 30.036 bytes, sem alteração de hash.
 
-<!-- Próxima decisão: D-PROD-164 -->
+## D-PROD-164 — Nível estimado dentro do SVG de cocho
+
+**Data:** 2026-11-11.
+
+**Decisão:** nos detalhes de pontos da categoria Cocho, substituir as barras por um cocho vetorial cujo alimento é recortado na área interna. O nível usa saldo estimado / capacidade física quando cadastrada; sem capacidade usa saldo / disponível inicial do ciclo e informa essa referência. Não altera o cálculo diário de consumo, estoque ou lançamentos. A tela reavalia a passagem do dia enquanto aberta. O gerenciador oferece o mesmo SVG estático para upload pelo fluxo existente; escolher o modelo não salva o cadastro automaticamente. Não há migration nem cadastro automático em produção.
+
+<!-- Próxima decisão: D-PROD-165 -->
 
