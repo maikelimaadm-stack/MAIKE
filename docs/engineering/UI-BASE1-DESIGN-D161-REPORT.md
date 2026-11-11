@@ -13,7 +13,11 @@
 | Camada do design (tokens, botões, ícones, tabela, rodapé, abas, campo) | `src/styles/base1-design.css` (novo), `src/index.css` |
 | Abas em pílula, cartão com título, seções empilhadas abaixo de 1024 px, ponto de pendência | `src/components/cadastro/base1/Base1PanelTabs.jsx` |
 | Mensagem de erro com ícone; "Campo obrigatório" no lugar de "true" | `src/components/cadastro/base1/B1Field.jsx` |
-| Teste | `tests/smoke/base1DesignD161.test.jsx` |
+| Papéis de célula (título, código, vazio), tipo de célula `cor`, tag "Inativo" | `Base1Grid.jsx`, `CadastroBase1Grade.jsx`, `cadastroBase1CellKind.jsx`, `Base1Cards.jsx` |
+| Faixa de filtros rápidos e pílula de ordenação | `FiltrosRapidos.jsx` (novo), `CadastroListaChrome.jsx`, `CadastroBase1Grade.jsx` |
+| Lotes: coluna Cor com amostra, campos padrão dos cards, pílulas iniciais | `src/components/lotes/TabelaLotes.jsx`, `src/pages/CadastroLotes.jsx` |
+| Cards no celular: até 8 campos por padrão | `src/hooks/useCadastroCardsPrefs.js` |
+| Testes | `tests/smoke/base1DesignD161.test.jsx`, `tests/smoke/base1FiltrosRapidos.test.jsx` |
 
 Como o porte é no motor, vale para todas as telas Base1. Só três formulários usam abas (Lotes, Bens, Empresa); os demais recebem paleta, campo, tabela e botões.
 
@@ -23,17 +27,19 @@ O design traz uma cópia do CSS do sistema já recolorida. Um script comparou re
 
 ## O que ficou de fora
 
-Está no design e não entrou nesta fatia:
+Está no design e não entrou:
 
-- faixa de filtros rápidos, pílula de ordenação e "+ Filtro";
-- listas de seleção e menus no modelo novo (janela branca, pesquisa com linha);
-- cards em duas colunas com tag "Inativo"; bolinha de cor na coluna Cor; nome em negrito na tabela;
+- condição/operadores dentro do filtro rápido (seguem no filtro avançado do menu da coluna) e a lista "Filtros" do celular (no celular não há faixa; o funil abre o "Filtrar por campo" de antes);
+- setas e esmaecimento na rolagem lateral da faixa;
+- listas de seleção dos campos do formulário no modelo novo e seleção múltipla em janela;
 - cabeçalho do celular e demais mudanças da casca;
 - movimento de abrir e fechar;
 - campos do Lote reorganizados dentro da aba Geral;
 - rodapé em palavras ("12 lotes · 1 selecionado") — contraria o teste PAR6 de `mobileParidadeV2`.
 
-Motivo: a leitura em paralelo do motor foi interrompida pelo limite de uso da conta; o que entrou é o que pôde ser conferido no navegador por uma pessoa só.
+Limitações conhecidas da faixa de filtros: filtros e ordenação continuam locais à grade (como antes) e somem ao abrir um registro; nas telas paginadas no servidor o filtro vale para as linhas já carregadas (como o filtro de coluna); o total da janela usa a palavra "registros".
+
+Motivo do recorte: a leitura em paralelo do motor foi interrompida pelo limite de uso da conta; o que entrou é o que pôde ser conferido no navegador.
 
 ## Diferenças em relação ao design
 
