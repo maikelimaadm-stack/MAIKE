@@ -37,7 +37,9 @@ export const DEMO = Object.freeze({
     numero_produto: 'SEED-P01',
     nome_produto: 'Sal mineral demo',
     unidade_medida: 'KG',
-    estoque_atual: 100,
+    // D-PROD-161 (Estoque P0, W25): o seed não cria saldo sem fato. Estoque só
+    // entra por Entradas/Movimentações (motor físico); o cadastro nasce com 0.
+    estoque_atual: 0,
   },
   lote: {
     numero_lote: 'SEED-L01',

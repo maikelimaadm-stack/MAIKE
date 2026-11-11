@@ -582,7 +582,7 @@ describe('C9 — P3 longa segurando o produto', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C10 — PATCH administrativo de lote × abastecimento', () => {
-  test('abastecimento segura → PATCH do lote espera e recusa 409 REGISTRO_OPERACIONAL_IMUTAVEL; PATCH segura → o abastecimento espera e consome o saldo NOVO (sem saldo fantasma)', async () => {
+  test('abastecimento segura → PATCH do lote espera e recusa 409 REGISTRO_OPERACIONAL_IMUTAVEL; PATCH de saldo em lote LIVRE → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA sem efeito e o abastecimento consome o saldo REAL (sem saldo fantasma)', async () => {
     const s = await montarAbastecimento(app);
     const a = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, corpoAbastecimento(s)),
       () => A.req('PATCH', `/estoque-lotes-nota/${s.lotes.dieselA.id}`, s.token, { quantidade_disponivel: 40 }));
@@ -591,16 +591,23 @@ describe('C10 — PATCH administrativo de lote × abastecimento', () => {
     assert.deepEqual([a.r2.json().code, a.r2.json().details.vinculo], ['REGISTRO_OPERACIONAL_IMUTAVEL', 'abastecimento_bem']);
     assert.equal(await loteKg(s.lotes.dieselA.id), '0.0000 Esgotado', 'o PATCH não ressuscitou o saldo baixado');
     assert.equal(await coerente(s, s.diesel, 'C10a'), '82.8000');
-    // lote livre no local 2 (100 kg); PATCH para 70 segura (parado na auditoria); o abastecimento no local 2 espera
+    // D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): lote LIVRE no local 2 (100 kg). O
+    // PATCH de saldo (para 70) não grava mais nada — 409 depois da trava
+    // produto → lote, sem auditoria —, então não há mais "PATCH segurando" para
+    // o abastecimento esperar. O abastecimento seguinte consome o saldo REAL.
     const l2 = await s.lote(s.e1, s.diesel, s.local2, { kg: '100.0000', custo: '5.0000', dia: '2027-06-02' });
-    const b = await corrida(s, { tabela: 'AuditLog', condicao: `NEW.entidade = 'EstoqueLoteNota'` },
-      () => A.req('PATCH', `/estoque-lotes-nota/${l2.id}`, s.token, { quantidade_disponivel: 70 }),
-      () => A.confirmar(s.operador.token, corpoAbastecimento(s, { local_estoque_id: s.local2.id })));
-    assert.equal(b.r1.statusCode, 200, b.r1.body);
-    assert.equal(b.r2.statusCode, 201, b.r2.body);
-    assert.deepEqual(await fatiasDe(b.r2.json().id), [[l2.id, '67.2000']]);
-    assert.equal(await loteKg(l2.id), '2.8000 Disponivel', 'baixa sobre o saldo gravado pelo PATCH (70 − 67,2), não sobre o lido antes (100)');
-    semConflito(a.r1, a.r2, b.r1, b.r2);
+    const auditLote = () => contar(s, 'auditLog', { entidade: 'EstoqueLoteNota', entidade_id: l2.id });
+    const patch = await A.req('PATCH', `/estoque-lotes-nota/${l2.id}`, s.token, { quantidade_disponivel: 70 });
+    assert.deepEqual(erro(patch).slice(0, 2), [409, 'ESTOQUE_ESCRITA_DIRETA_RECUSADA'], patch.body);
+    assert.equal(await loteKg(l2.id), '100.0000 Disponivel', 'o PATCH recusado não mexeu no lote');
+    assert.equal(await auditLote(), 0, 'nenhuma auditoria de alteração do lote');
+    assert.equal(await coerente(s, s.diesel, 'C10b depois do PATCH recusado'), '182.8000');
+    const b = await A.confirmar(s.operador.token, corpoAbastecimento(s, { local_estoque_id: s.local2.id }));
+    assert.equal(b.statusCode, 201, b.body);
+    assert.deepEqual(await fatiasDe(b.json().id), [[l2.id, '67.2000']]);
+    assert.equal(await loteKg(l2.id), '32.8000 Disponivel', 'baixa sobre o saldo real (100 − 67,2): o PATCH recusado não deixou saldo fantasma');
+    assert.equal(await coerente(s, s.diesel, 'C10b'), '115.6000');
+    semConflito(a.r1, a.r2, patch, b);
   });
 });
 

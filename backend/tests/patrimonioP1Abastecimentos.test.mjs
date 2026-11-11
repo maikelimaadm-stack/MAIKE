@@ -587,7 +587,16 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
       conversao_id: s.fator.gasolina.id, conversao_versao: 1, quantidade_litros: '30', medidor_leitura: '35300',
     }));
     await A.ok(A.req('PATCH', `/patrimonio-combustivel-produtos/${s.vinculos.gasolina.id}`, s.token, { empresa_id: s.e1.id, versao: s.vinculos.gasolina.versao, ativo: false }));
-    await A.ok(A.req('PATCH', `/produtos/${s.gasolina.id}`, s.token, { empresa_id: s.e2.id }));
+    // D-PROD-161 (Estoque P0): produto com lote, movimento ou cache ≠ 0 não muda mais de fazenda pela API
+    // (409 PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA, nada gravado). O estado "produto movido de fazenda" só
+    // existe como dado legado (anterior à P0); ele é emulado direto no banco para manter provada a defesa
+    // `produto_mudou_de_fazenda` do cancelamento.
+    const fotoAntesPatch = await fotoAbastecimento(s.c);
+    const patchEmpresa = await A.req('PATCH', `/produtos/${s.gasolina.id}`, s.token, { empresa_id: s.e2.id });
+    assert.equal(patchEmpresa.statusCode, 409, patchEmpresa.body);
+    assert.equal(patchEmpresa.json().code, 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA');
+    assert.equal(await fotoAbastecimento(s.c), fotoAntesPatch);
+    await prisma().$executeRaw`UPDATE "Produto" SET empresa_id = ${s.e2.id} WHERE id = ${s.gasolina.id}`;
     const fotoC = await fotoAbastecimento(s.c);
     const mudou = await A.cancelar(s.contaCancelar.token, g.id, { empresa_id: s.e1.id, ...cancelarCorpo() });
     assert.deepEqual(erro(mudou), [409, 'ABASTECIMENTO_CANCELAMENTO_BLOQUEADO', 'abastecimento', 'produto_mudou_de_fazenda']);

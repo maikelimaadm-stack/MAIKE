@@ -1,5 +1,9 @@
 /**
  * Porta nativa de Produto (P5.2, D-PROD-48).
+ *
+ * D-PROD-161 (Estoque P0): o saldo de estoque não está na allowlist de envio. É
+ * cache do motor físico (Entradas/Movimentações): POST e PATCH nunca o levam,
+ * nem quando um chamador antigo ainda o manda (a allowlist o descarta).
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -27,7 +31,6 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'unidade_medida',
   'preco_custo',
   'preco_venda',
-  'estoque_atual',
   'estoque_minimo',
   'local_estoque',
   'tipo_consumo',

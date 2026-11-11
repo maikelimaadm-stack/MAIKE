@@ -188,6 +188,8 @@ export const GUARDAS = Object.freeze({
     editar: porQualquer(...MAPA_CAD_EDITAR.map((o) => ({ de: o, campos: ['local_estoque_nome'] }))),
     excluir: SO_ADMIN,
   },
+  // D-PROD-161 (Estoque P0): reconciliação somente leitura do estoque físico; sem tela no produto atual.
+  estoqueFisico: { reconciliar: SO_ADMIN },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),
   // Espelhado no navegador por `src/lib/bebedouroPermissions.js` (os botões

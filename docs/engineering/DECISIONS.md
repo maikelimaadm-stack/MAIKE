@@ -5812,4 +5812,110 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) em **DRAFT**, branch `claude/maike-patrimonio-ux-02-abastecimento-produto`, base `e3ea4c39`. Sem migration e sem deploy. `MERGE_READY = NÃO` até a revisão humana e o merge manual.
 - Relatório: [`MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md`](./MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-161 -->
+## D-PROD-161 — Estoque P0-01: motor físico único; ENTRADA ≠ MOVIMENTAÇÃO; Produto é cadastro e `estoque_atual` é cache derivado (zero DDL)
+
+> **Autorização explícita do proprietário:** pedida na missão **MAIKE-ESTOQUE-P0-01** (2026-11-10), sobre a `main` `e3ea4c39` (PRs #232, #234 e #235 mergeadas). A missão manda **consolidar** o estoque físico num único motor, separar ENTRADA de MOVIMENTAÇÃO, tirar do Cadastro de Produtos qualquer efeito de estoque e fechar as escritas genéricas, **sem** criar telas novas de entrada, lotes comerciais, painel de movimentações, inventário, relatórios ou históricos, e **sem DDL**. O texto foi redigido pelo agente; o merge depende da revisão e do merge manual do proprietário.
+>
+> **Numeração:** a `main` dizia `Próxima decisão: D-PROD-160`, mas a PR #237 (Patrimônio UX-02) já anunciava a D-PROD-160 e foi mergeada antes desta (`e39d318b`). Para não duplicar o identificador, esta decisão é a **D-PROD-161**; a D-PROD-160 continua sendo da PR #237. A D-PROD-154 continua reservada pela PR #229.
+
+- **Contexto:**
+  - Depois da D-PROD-155 (compra/venda pelo comando composto) e da D-PROD-159 (abastecimento), o motor `backend/src/modules/estoqueFisico/estoqueFisicoMotor.js` era o caminho certo (Decimal, FIFO por lote, CAS, `{increment}`/`{decrement}` conferidos, numeração no fim), mas **não era o único**.
+  - A suplementação e a transferência entre locais (`movimentacaoEstoqueComandoService.js`) tinham um **segundo FIFO** em `Number` (`fifoEstoque.js`), gravavam o lote com valor **absoluto sem CAS**, não validavam local nem limite, reservavam o número no meio da transação, conferiam `estoque_atual` depois de gravar e não deixavam `lotes_consumidos`. A transferência gravava o lote de destino com o ano **2001** (`String(Date).slice(0,10)`), o que o tornava o mais antigo do FIFO do destino.
+  - O Cadastro de Produtos criava saldo sem fato (`estoque_atual` no POST, no PATCH absoluto com *lost update* contra o motor, e no CSV) e deixava trocar a empresa de produto com estoque e apagar produto com lote (órfão).
+  - `POST /movimentacoes-estoque`, `POST/PATCH/DELETE /estoque-lotes-nota` e a reversão de suplementação do navegador (`suplementacaoHistoricoService.js`, atrás de bandeira desligada) eram escritores genéricos fora do motor.
+- **Decisão — modelo (sem DDL):**
+  - **ENTRADA** é o único lugar onde nasce quantidade nova. Hoje só existe a compra confirmada da Central de Lançamentos (`aplicarEntradaEstoque`). A entrada manual (recebimento, implantação de saldo, ajuste) fica para a P1, com documento próprio.
+  - **MOVIMENTAÇÃO** só muda onde está ou baixa o que já entrou: venda, abastecimento, suplementação e transferência. Todas passam pelo motor.
+  - **Produto** é catálogo. `estoque_atual` é **cache derivado** de Σ `quantidade_disponivel` dos lotes `Disponivel` da empresa e só muda pelo motor.
+  - **Lote** (`EstoqueLoteNota`) é camada de quantidade e custo; nasce de uma ENTRADA ou de uma TRANSFERÊNCIA (camada de destino com o **mesmo custo, a mesma data e a mesma procedência** da camada de origem). **Movimento** é o fato.
+- **Decisão — motor único (só adições; nenhuma assinatura existente muda):**
+  - origens novas `ORIGEM_SUPLEMENTACAO = 'suplementacao'` e `ORIGEM_DEPOSITO = 'deposito'` (os mesmos valores já gravados, com o mesmo `exclusao_somente_em`);
+  - `kgDeEntrada`: o kg do corpo JSON vira Decimal **uma vez** (`ROUND_HALF_UP`, 4 casas); ≤ 0 → 422 `OPERACAO_VALORES_INVALIDOS` `quantidade_estoque_zero`; acima de `LIMITE_ESTOQUE` → 422 `valor_excede_limite_estoque`;
+  - `exigirLocaisEstoque`: valida e trava os locais (`FOR KEY SHARE`, ordem de id) **antes** do produto; local de outro tenant tem o mesmo corpo de local inexistente (sem oráculo);
+  - `consumirCamadas` (o laço CAS extraído), `criarCamadaEntrada` (privado), `lotesFifo` com procedência opcional;
+  - `aplicarSaidaFifo` ganha os opcionais `instante`, `procedencia` e `complemento` (allowlist de colunas; quantidade, valores, local, tipo e `lotes_consumidos` vêm sempre do núcleo);
+  - **nova** `aplicarTransferenciaEstoque`: valida tudo antes da primeira escrita, baixa a origem por CAS, cria as camadas de destino, liga Saída/Entrada (pai/filho), grava `lote_destino_id` em `lotes_consumidos` (JSON, **sem FK**; não se alega rastreabilidade de raiz) e **não** toca `estoque_atual` nem o total da empresa;
+  - guarda fail-closed nas primitivas: produto de outra empresa → 404 `PRODUTO_NOT_FOUND` antes de qualquer leitura;
+  - **ordem canônica de travas** documentada no cabeçalho do motor: recibo → documento → advisory de escopo → `LocalEstoque` FOR KEY SHARE → produtos (advisory + FOR UPDATE crescente) → títulos/perfil → lotes (CAS) → INSERTs → Produto ± → sequência no fim → AuditLog → recibo.
+- **Decisão — suplementação e transferência migradas:** `fifoEstoque.js` foi **apagado**. Os dois comandos seguem empresa → data → kg → local → produto → motor → `numerarMovimentos` no fim → releitura → auditoria. Rotas, schemas, guardas, status, chaves da resposta e o **fingerprint de idempotência** ficam congelados (um recibo antigo continua dando replay). Mudanças observáveis: `unidade_medida = 'KG'`, `lotes_consumidos` e `modo_saida_fifo = 'FIFO'` preenchidos, valores pela regra Decimal do motor, nome do local vindo do banco, `movimento_filho_id` preenchido, recusas com `saldo_lote_insuficiente`/`estoque_atual_insuficiente` (antes `insufficient`), 400 em `data_movimentacao` inválida e 422 no lugar de 500. A FIFO **não muda** de regra: `COALESCE(data_documento, createdAt)` crescente e desempate por id, numa função só (`ordenarFifo`/`lotesFifo`).
+- **Decisão — Cadastro de Produtos não lança estoque:**
+  - `POST /produtos` grava sempre 0; campo ausente ou 0 é aceito; qualquer outro valor → 422 **`PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL`** (nada gravado);
+  - `PATCH /produtos/:id` nunca escreve `estoque_atual`; com o campo no corpo, a linha é travada (`FOR NO KEY UPDATE`) e relida: igual ao atual (4 casas) é aceito sem efeito, diferente → 422;
+  - trocar `empresa_id` de produto com lote, movimento ou cache ≠ 0 → 409 **`PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA`**;
+  - `DELETE` de produto com lote → 409 `PRODUTO_DELETE_BLOCKED` (`vinculo: 'lotes de estoque'`);
+  - CSV não importa estoque (Estoque vazio ou 0; outro valor é erro de linha); a porta e o service do front nunca enviam `estoque_atual`; o formulário mostra "Estoque é alterado em Entradas/Movimentações, não no Cadastro de Produtos"; o saldo transferível do front vem só dos lotes do local.
+- **Decisão — escritas genéricas fechadas:**
+  - `POST /movimentacoes-estoque` e `POST /estoque-lotes-nota` → 409 **`ESTOQUE_ESCRITA_DIRETA_RECUSADA`** depois do schema e da allowlist de colunas; sem transação, sem número reservado, sem auditoria;
+  - `PATCH /estoque-lotes-nota/:id` **restrito** à renomeação benigna `local_estoque_nome` (usada pelo Mapa ao salvar depósito); qualquer outra coluna → 403 para não-admin, depois trava → 409 `REGISTRO_OPERACIONAL_IMUTAVEL` se vinculado → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` se livre;
+  - `DELETE /estoque-lotes-nota/:id` nunca apaga (mesma ordem de recusas);
+  - `PATCH`/`DELETE /movimentacoes-estoque/:id`, os GETs e os comandos específicos ficam como estão;
+  - no front, `create`/`delete` saem das portas de movimento e de lote e dos wrappers sem chamador; a reversão do navegador passa a ser fail-closed sem I/O (o estorno de verdade vem na P1, no motor).
+- **Decisão — reconciliação somente leitura:** `backend/src/modules/estoqueFisico/reconciliacaoEstoque.js` e `GET /estoque-fisico/reconciliacao`.
+  - Guarda `GUARDAS.estoqueFisico.reconciliar`: só o administrador real do tenant.
+  - `RepeatableRead` + `READ ONLY`, tenant só do `auth_context` e `cliente_id` em toda consulta.
+  - Classifica cache × lotes, saldo por local, lote, movimento, linhagem e evidência fora do protocolo em `OK`, `DIVERGENCIA_REAL`, `LIMITACAO_LEGADA` e `DADOS_INSUFICIENTES`.
+  - **Nunca corrige**: não há função de escrita no módulo.
+- **Decisão — volume limitado e fail-closed (R1):**
+  - A varredura anda em páginas por keyset, com orçamento por chamada (`ORCAMENTO_PADRAO`):
+    - páginas: 200 chaves e 20.000 linhas;
+    - por chamada: 250.000 linhas e 8 s;
+    - por instrução: 15 s;
+    - por consulta: 20.000 anomalias; por chamada, 250.000 linhas de auditoria.
+  - Na transação, só nela: `plan_cache_mode=force_custom_plan`, `jit=off` e `statement_timeout=15000ms`. O 57014 vira 409 `CONCURRENCY_CONFLICT`.
+  - O AuditLog só rebaixa para `LIMITACAO_LEGADA` quando prova escrita de `estoque_atual` ou de quantidade, situação ou vínculo do lote. Renomeação, procedência, custo e nome nunca rebaixam.
+  - O recibo legado sem `lotes_consumidos` é ligado ao movimento por `LATERAL` na janela de ±10 min.
+- **Decisão — fechamento rigoroso (R2):**
+  - **Chaves:** a página anda por ids de Produto **e** pelos `produto_id` órfãos de lote e de movimento. Órfãos antes, entre e depois dos produtos, e o tenant sem produto, entram no orçamento. A chave pesada abre a chamada seguinte sozinha e nunca é pulada.
+  - **Linhas suspeitas:** Q3 e Q4 devolvem só o que é suspeito, com teto declarado (`paginas_truncadas`).
+  - **Exclusões legadas** são uma fase própria e paginada (`exclusoes` e depois `exclusoes_sem_id`). Cada uma vira achado, `lote_excluido_fora_do_motor` ou `lote_excluido_produto_inexistente`; nenhuma é omitida.
+  - **Regra nova** `linhagem_transferencia_diverge`.
+  - **Cobertura:** `fim_do_escopo`, `snapshot_unico`, `fase`, `cumulativa`, `conclusao_global`/`conclusao_global_comprovada` e `motivos_inconclusiva`.
+    - `COMPROVADA` só existe com o escopo inteiro num único snapshot.
+    - Várias chamadas terminam em `INCONCLUSIVO`, com `OK = null`. Nunca é um OK falso.
+  - **Cursor v2:** `base64url(estado ‖ HMAC-SHA256)`, com chave HKDF do `AUTH_SECRET` e rótulo próprio.
+    - Amarrado a tenant, empresa, produto, local, limite e versão, com validade de 24 h.
+    - Qualquer desvio dá o mesmo 400 `cursor_invalido`, antes de ir ao banco e sem oráculo.
+    - Sai o `cursor_de_outro_escopo`, e o cursor R1 deixa de valer.
+  - **Idas ao banco:** 3 fixas (+1 com empresa), mais 5 por página, mais 1 por bloco de exclusões, mais 1 da busca de evidência quando necessária. Substitui o "4 fixas + 5 por página" do R1.
+  - **Números e RED/GREEN:** no relatório §9.
+- **Bloqueios arquiteturais registrados (não executados: pedem DDL ou execução fora do HTTP):**
+  - **R2-1:** produto com mais de ~1,5 milhão de linhas numa chave. Fail-closed por `statement_timeout`, mas não fecha.
+  - **R2-2:** AuditLog de lote sem índice por produto. Pede índice de expressão (DDL).
+  - **R2-3:** sem snapshot global entre requisições. Pede job assíncrono com snapshot exportado.
+
+  Os três vão para a P1, com decisão própria.
+- **Decisão — máscaras e folha do celular (R2):**
+  - O Cadastro de Produtos grava o mesmo valor que exibe, com uma leitura única do campo.
+    - Antes, "25,00" kg por saco gravava 2,5 e uma compra de 4 SACO gerava 10 kg em vez de 100.
+    - Era um bloqueador de integridade, corrigido com RED→GREEN.
+  - Na "Saída do Depósito", a folha "Local de Destino" do celular abre dentro do diálogo de cima, não mais atrás do diálogo `aria-hidden` de baixo.
+  - Nenhuma mudança de API.
+- **Decisão — blindagem contra regeneração do CRUD inseguro:** os geradores `scripts/scaffold/p54-*.mjs` recusam (exit 2, `[SCAFFOLD_ESTOQUE_RECUSADO]`, nada gravado) qualquer execução que gere escritor genérico de `EstoqueLoteNota`, `MovimentacaoEstoque` ou `Produto.estoque_atual`; teste no `test:gates`.
+- **Mudança deliberada de contrato registrada em teste legado:** o AB11 do Patrimônio P1-02 e o TA-05b do Patrimônio UX-02 (PR #237, vindo da `main` no merge `e39d318b`) trocavam pela API a empresa de um produto com estoque; com esta decisão isso responde 409 `PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA`, e o estado "produto movido de fazenda" passa a existir só como dado legado (emulado no banco de teste para manter provada a defesa `produto_mudou_de_fazenda`). `SUPLEMENTACAO_PARTIAL_OPERATION` sai do catálogo do front (sem consumidor após a reversão fail-closed).
+- **Decisão — achados das lentes A/B/C (R2), todos com RED→GREEN:**
+  - **A-01:** `data_transferencia_2001` só vale para camada **legada**. A camada com linhagem do motor, se adulterada, é `DIVERGENCIA_REAL`.
+  - **A-02:** a camada de destino de uma origem sem data herda a idade FIFO da origem, o dia UTC de `createdAt`. A `data_movimentacao` é só metadado do fato. Isso muda o passo 9 de §3.2 da SPEC.
+  - **A-03:** a retificação NO_LUGAR leva fornecedor e documento também às camadas derivadas por transferência.
+    - A linhagem JSON é validada contra `movimentacao_entrada_id` = `movimento_filho_id`, no mesmo produto e na mesma empresa.
+    - Cada camada é auditada como procedência.
+  - **B-01, B-02 e LC-1:** a renomeação de lote e o `PATCH /produtos` leem a linha sob `FOR NO KEY UPDATE`.
+    - Assim o AuditLog não registra mais quantidade ou cache que o PATCH não escreveu, e uma divergência real deixa de ser rebaixada.
+    - Não há ciclo de travas novo.
+    - AuditLogs gravados antes desta correção ficam indistinguíveis do legado.
+  - **LC-2:** o recibo legado é lido por intervalos, com custo O(N+M) em vez de O(N×M), e é contado no orçamento (`1 + lotes + movimentos + 2 × recibos`).
+    - O resíduo é um produto com milhões de recibos: 409 fail-closed.
+    - Resolver exige o índice `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`, que é DDL e fica para a P1.
+  - **LC-3:** um item legado de estoque na fila offline, sem a operação na porta, fica **retido no cliente** em quarentena `OFFLINE_ENTITY_UNSUPPORTED`.
+    - Não é enviado nem apagado, e o resto da fila segue.
+    - Corrige o texto anterior, que dizia que esse item seria recusado pelo backend.
+  - **Não corrigido:** B-03, que já existia na `main`. O replay devolve como número os Decimal que o 201 devolve como string; mudar isso altera o recibo gravado e o contrato. Fica para a P1, sem mudar o fingerprint.
+  - **Adiado:** validar a faixa de `data_movimentacao`, com o R12 (fuso por empresa), na P1.
+- **Erros novos** (bloco D-PROD-161 de `errorCodes.js`, 4): `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (409), `PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL` (422), `PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA` (409), `ESTOQUE_LOCAL_INVALIDO` (422).
+- **Banco: ZERO DDL.** Nenhuma migration nova; `git diff origin/main -- backend/prisma` vazio. A fatia da suplementação e da transferência fica em `MovimentacaoEstoque.lotes_consumidos` (coluna existente) e a linhagem em JSON + `movimentacao_entrada_id`.
+- **O que NÃO muda:** `operacaoFinanceiraService.js`, `operacaoFinanceiraPlano.js`, `abastecimentoService.js`, `abastecimentoPlano.js` e `decimalFinanceiro.js` (zero linhas); `consumirFifo`, `ordenarFifo`, `estornarEmLote`, `estornarEntrada`, `estornarSaida`, `numerarMovimentos` e `travarProdutosEstoque`. `atualizarProcedencia` mantém a regra e, desde a R2 (A-03), propaga a procedência às camadas derivadas por transferência; o domínio pecuário `Lote`; as prévias do financeiro e do abastecimento.
+- **Fora (P1, cada item com decisão própria e, quando houver DDL, migration expand-only, runbook e GO):** documento de Entrada de Estoque manual; lote de fabricante e validade; linhagem estruturada com FK (`lote_origem_id`/`lote_raiz_id`, tabela de fatias); estorno de suplementação e de transferência no motor; CHECKs e FKs de integridade; saneamento auditado (lotes de 2001, `Disponivel` com 0, recálculo de cache); consulta/histórico por lote.
+- **Relação com decisões anteriores (nenhuma é reescrita):** consolida a D-PROD-155/156/158/159 (motor, `decimalFinanceiro`, idempotência, `reservarNumero`, auditoria) como **único** escritor do estoque físico; supera, só no trecho de estoque, o comportamento herdado do P5.x/P6 em que o cadastro e os CRUDs genéricos escreviam saldo.
+- **Estado:** PR **DRAFT** [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238). `SCHEMA_APPLIED_PROD = N/A` (sem migration). O merge depende da revisão e do merge manual do proprietário.
+- Relatório: [`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-162 -->

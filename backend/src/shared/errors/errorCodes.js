@@ -338,6 +338,23 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'campo operacional (quantidade, tipo, vínculo, data, custo, saldo) não é alterável por PATCH genérico',
   },
+  // D-PROD-161 — Estoque P0: motor físico único; entrada ≠ movimentação.
+  ESTOQUE_ESCRITA_DIRETA_RECUSADA: {
+    http: 409,
+    meaning: 'movimento e lote de estoque só nascem, mudam de saldo/custo/situação ou deixam de existir pelos comandos do motor físico (compra/venda confirmada, suplementação, transferência, abastecimento e seus cancelamentos); escrita direta recusada (details.entidade, details.operacao, details.campos); nada foi gravado',
+  },
+  PRODUTO_ESTOQUE_ATUAL_NAO_EDITAVEL: {
+    http: 422,
+    meaning: 'estoque_atual é cache derivado das entradas e movimentações e não é campo do cadastro: POST só aceita 0 ou ausente e PATCH só o valor atual (sem efeito); details.field=estoque_atual, reason=somente_leitura; nada foi gravado',
+  },
+  PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA: {
+    http: 409,
+    meaning: 'produto com lote, movimento de estoque ou estoque_atual diferente de zero não muda de empresa (lotes e movimentos ficariam na fazenda antiga); details.lotes, details.movimentos; nada foi gravado',
+  },
+  ESTOQUE_LOCAL_INVALIDO: {
+    http: 422,
+    meaning: 'local de estoque do comando inexistente neste tenant (reason local_inexistente, também de outro tenant, sem oráculo) ou destino inativo (reason local_inativo); details.field=local_origem_id|local_destino_id; nada foi gravado',
+  },
   CAMPO_RESERVADO_CANCELAMENTO: {
     http: 400,
     meaning: 'campos de situação/cancelamento são do servidor e não aceitos no corpo',

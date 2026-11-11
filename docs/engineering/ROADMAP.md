@@ -413,14 +413,50 @@ sem editar o bem e sem reescrever o histórico; o novo Produto precisa do seu pr
 fator kg/L. Backend: uma rota nova só de leitura
 (`GET /patrimonio-abastecimentos-opcoes/produtos-do-bem`); nenhuma API mutativa muda.
 
-**Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) em
-**DRAFT**, sem migration e sem deploy; o merge depende da revisão humana e do merge
-manual. Relatório:
+**Estado:** PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237)
+**mergeada** na `main` (`e39d318b`), sem migration. Relatório:
 [`MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md`](./MAIKE-PATRIMONIO-UX-02-ABASTECIMENTO-PRODUTO-REPORT.md).
 
 **Limites registrados** (mudar exige decisão própria e schema): um Produto só pode
 estar ativo num combustível por fazenda; o fator kg/L é por par combustível ×
 Produto.
+
+## Track autorizado — Estoque P0-01: motor físico único, ENTRADA ≠ MOVIMENTAÇÃO (D-PROD-161)
+
+Consolida o estoque físico num **único motor** (`estoqueFisicoMotor.js`), sem tela
+nova e **sem DDL**. ENTRADA (hoje só a compra confirmada da Central de Lançamentos)
+é o único lugar onde nasce quantidade; MOVIMENTAÇÃO (venda, abastecimento,
+suplementação e transferência entre locais) só baixa ou muda de lugar o que entrou.
+Suplementação e transferência saem do segundo FIFO em `Number` (`fifoEstoque.js`,
+apagado) e passam ao FIFO Decimal com CAS do motor; a transferência deixa de gravar o
+lote de destino com ano 2001. O Cadastro de Produtos não lança estoque
+(`estoque_atual` é cache derivado e somente leitura; CSV sem estoque; troca de empresa
+e exclusão bloqueadas com estoque). As escritas genéricas de movimento e de lote
+respondem 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA` (fica só a renomeação benigna do
+local). Uma reconciliação **somente leitura** (`GET /estoque-fisico/reconciliacao`,
+SO_ADMIN) classifica divergências sem corrigir nada. A reconciliação tem trabalho
+limitado por chamada e cursor assinado por HMAC e amarrado ao tenant e ao escopo.
+Ela só declara a conclusão global COMPROVADA num snapshot único; em várias chamadas
+o resultado é INCONCLUSIVO, nunca OK.
+No fechamento R2 também entraram:
+- a correção das máscaras do Cadastro de Produtos (o valor exibido agora é o gravado);
+- a folha "Local de Destino" do celular, que passou a abrir dentro do diálogo certo.
+
+**Estado:** PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238) em
+**DRAFT**. Sem migration (`SCHEMA_APPLIED_PROD = N/A`); o merge depende da revisão e
+do merge manual do proprietário. Relatório:
+[`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md).
+
+**Próximo (P1, só design nesta fase; cada item com decisão própria):** documento de
+Entrada de Estoque manual (implantação de saldo, ajuste, doação, devolução) pelo
+motor; lote de fabricante e validade; linhagem estruturada com FK e tabela de fatias;
+estorno de suplementação e de transferência no motor; CHECKs/FKs de integridade e
+saneamento auditado com GO (lotes de 2001, `Disponivel` com 0, recálculo de cache);
+consulta/histórico por lote com contrato próprio. Bloqueios arquiteturais da
+reconciliação, registrados na D-PROD-161:
+- **R2-1:** partição de um produto gigantesco por local;
+- **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
+- **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
 
 ## Fora do roadmap
 

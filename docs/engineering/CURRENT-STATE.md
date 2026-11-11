@@ -9,12 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-10) — MAIKE-PATRIMONIO-UX-02: abastecimento orientado pelo Produto associado ao combustível (D-PROD-160)
+## Missão ativa (2026-11-10) — MAIKE-ESTOQUE-P0-01: motor físico único, ENTRADA ≠ MOVIMENTAÇÃO (D-PROD-161)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-161** (a D-PROD-160 é a da PR #237, já mergeada), autorizada pelo proprietário na missão (2026-11-10) |
+| Branch / PR | `claude/maike-estoque-p0-motor-unico-01`, base `origin/main` `e3ea4c39` (PRs #232, #234 e #235 mergeadas), com a `main` integrada por merge · PR [#238](https://github.com/maikelimaadm-stack/MAIKE/pull/238) em **DRAFT** |
+| Escopo | Um único motor físico (`estoqueFisicoMotor.js`): suplementação e transferência entre locais migradas para o FIFO Decimal com CAS (o segundo FIFO em `Number`, `fifoEstoque.js`, foi apagado; corrigido o lote de destino com ano 2001); Cadastro de Produtos sem efeito de estoque (`estoque_atual` é cache derivado: POST só 0, PATCH só o valor atual sem efeito, troca de empresa e DELETE bloqueados com estoque, CSV sem estoque, aviso no formulário); escritas genéricas fechadas (`POST /movimentacoes-estoque`, `POST`/`DELETE /estoque-lotes-nota` e `PATCH` de lote fora da renomeação → 409 `ESTOQUE_ESCRITA_DIRETA_RECUSADA`); reconciliação somente leitura `GET /estoque-fisico/reconciliacao` (só administrador real). A reconciliação tem orçamento por chamada, páginas por chave de produto (órfãos incluídos) e exclusões legadas como fase própria. O cursor é HMAC amarrado ao tenant e ao escopo, e a conclusão global só é COMPROVADA num snapshot único. Bloqueios R2-1/2/3 ficam registrados para a P1. No fechamento R2 também entraram as máscaras do Cadastro de Produtos (o valor exibido agora é o gravado) e a folha "Local de Destino" do celular dentro do diálogo certo. Nenhuma tela nova |
+| Migration | **Nenhuma (zero DDL)**: `git diff origin/main -- backend/prisma` vazio. `SCHEMA_APPLIED_PROD = N/A` |
+| Produção (só leitura) | Preflight 2026-11-10 15:50 UTC: 39/39 migrations, 0 produto com cache divergente, 0 lote fora de faixa/situação, 0 lote de transferência com ano 2001, 0 saldo sem fato, 0 número provisório, 0 movimento fora do protocolo (2 produtos, 2 lotes, 3 movimentos, 1 local). Nada foi corrigido nem escrito |
+| Release | Sem migration: o merge manual do proprietário publica o código. Nada a aplicar no banco |
+| Testes / CI | Pós-merge da `main` (`6da66a55`), em PG17 local novo: `verify:all` integral PASS; backend 1593/1598 (0 fail, 5 todo); testes de tela 2353/2353; gates 716/716. E2E reais nos pools 3 e 5, sem 5xx: estoque 8/8 em 1280/390/412, Central Financeira 68/68, Patrimônio 27/27, UX-02 25/25. CI `quality` verde ([run 42917240485](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/42917240485)). Detalhes no relatório §11 |
+| Relatório | [`MAIKE-ESTOQUE-P0-01-REPORT.md`](./MAIKE-ESTOQUE-P0-01-REPORT.md) |
+| Antes dela | Patrimônio UX-02 (D-PROD-160): PR #237 mergeada na `main` (`e39d318b`), sem migration |
+
+## Missão anterior (2026-11-10) — MAIKE-PATRIMONIO-UX-02: abastecimento orientado pelo Produto associado ao combustível (D-PROD-160)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-160**, autorizada pelo proprietário na missão (2026-11-10). Refina só a UX e a leitura de elegibilidade da D-PROD-159; nenhuma decisão anterior é reescrita |
-| Branch / PR | `claude/maike-patrimonio-ux-02-abastecimento-produto`, base `origin/main` `e3ea4c39` (merge da PR #235) · PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) em **DRAFT** · HEAD final e CI registrados no relatório |
+| Branch / PR | `claude/maike-patrimonio-ux-02-abastecimento-produto`, base `origin/main` `e3ea4c39` (merge da PR #235) · PR [#237](https://github.com/maikelimaadm-stack/MAIKE/pull/237) **mergeada** (`e39d318b`) · HEAD final e CI registrados no relatório |
 | Escopo | **Combustíveis:** seção "Produtos associados nesta fazenda" no cadastro e na edição (Associados, Inativos, Disponíveis; vários de uma vez; o combustível novo já sai com os Produtos, com resultado explícito e repetição só do que falhou). **Novo abastecimento:** Máquina/Veículo → **Produto** (o nome real; o tipo de combustível sai do fluxo) → tanque só se houver mais de um → local automático com um só saldo → litros, medidor, "Completou o tanque?" → "Revisar abastecimento" → confirmar. Lista com Data, Máquina/Veículo, Produto, Litros, Medidor e Situação. Trocar o Produto associado vale para os próximos abastecimentos, sem editar o bem e sem reescrever o histórico. **Fora:** schema, migration, FIFO, custo, medidor, estorno, RLS, concorrência, APIs mutativas, `TanquesBem.jsx`, mapas e financeiro |
 | Backend | Só uma rota nova, **de leitura**: `GET /patrimonio-abastecimentos-opcoes/produtos-do-bem` (A16, guarda `pat-abastecimentos` `visualizar`, instantâneo RepeatableRead só leitura, resumo do conjunto inteiro). As 16 rotas da tela continuam classe **a** ([cobertura](./MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md)). Os corpos de prévia, confirmação, cancelamento, vínculo e fator não mudam |
 | Migration | **Nenhuma.** `schema.prisma` e migrations intocados; repositório e produção continuam com 39 migrations e 85 tabelas |

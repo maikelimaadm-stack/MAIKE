@@ -597,10 +597,19 @@ describe('TA-05..06 — cancelamentos depois da troca', () => {
     const s = await montarAbastecimento(app);
     const f = await faseA(s);
     const { B } = await trocarParaB(s);
-    // o vínculo de A está inativo: a fazenda do Produto A pode mudar (produtoService). O homônimo da
+    // o vínculo de A está inativo; a fazenda do Produto A (com estoque) só muda como dado legado (ver abaixo). O homônimo da
     // Fazenda 2 do cenário (`diesel2`) é renomeado antes: `Produto` é único por (tenant, empresa, nome).
     await prisma().produto.update({ where: { id: s.diesel2.id }, data: { nome_produto: 'Diesel S10 granel F2' } });
-    await A.ok(A.req('PATCH', `/produtos/${s.diesel.id}`, s.token, { empresa_id: s.e2.id }));
+    // D-PROD-161 (Estoque P0): produto com lote, movimento ou cache ≠ 0 não muda mais de fazenda pela API
+    // (409 PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA, nada gravado). O estado "produto movido de fazenda" só
+    // existe como dado legado (anterior à P0); ele é emulado direto no banco, como no AB11, para manter
+    // provada a defesa `produto_mudou_de_fazenda` do cancelamento.
+    const fotoAntesPatch = await fotoAbastecimento(s.c);
+    const patchEmpresa = await A.req('PATCH', `/produtos/${s.diesel.id}`, s.token, { empresa_id: s.e2.id });
+    assert.equal(patchEmpresa.statusCode, 409, patchEmpresa.body);
+    assert.equal(patchEmpresa.json().code, 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA');
+    assert.equal(await fotoAbastecimento(s.c), fotoAntesPatch, 'PATCH recusado: nada gravado');
+    await prisma().$executeRaw`UPDATE "Produto" SET empresa_id = ${s.e2.id} WHERE id = ${s.diesel.id}`;
     const antes = await fotoAbastecimento(s.c);
     const lotesB = await lotesDe(s, B);
     const r = await A.cancelar(s.contaCancelar.token, f.xa.id, { empresa_id: s.e1.id, versao: 1, motivo: 'lançado no produto errado', operation_id: opId() });
