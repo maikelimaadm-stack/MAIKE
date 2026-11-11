@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * Movimento do design "Cadastro de Lote" (proposta 6.32, D-PROD-164) — a parte que no design é feita
+ * Movimento do design "Cadastro de Lote" (proposta 6.32, D-PROD-165) — a parte que no design é feita
  * por script (`iniciarMovimento()`); a parte em CSS está em `src/styles/base1-design.css`.
  * Nada de cor ou desenho novo: só como as coisas abrem, fecham e respondem ao toque.
  *

@@ -55,7 +55,7 @@ export default function LancField({ label, required = false, error = false, data
 
   // Marca o <form> que tem campo de lançamento (`form[data-mk-lanc]`): o CSS dos botões desses formulários usava
   // `form:has(.mk-lanc)`, e esse `:has()` com descendente fazia o Chrome recalcular o estilo da página inteira a
-  // cada mudança no DOM, em qualquer tela (D-PROD-165). Atributo, não classe: o React não mexe nele.
+  // cada mudança no DOM, em qualquer tela (D-PROD-166). Atributo, não classe: o React não mexe nele.
   React.useLayoutEffect(() => {
     const form = ref.current?.closest("form");
     if (!form) return undefined;

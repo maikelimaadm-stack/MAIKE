@@ -1,5 +1,5 @@
 /**
- * D-PROD-164 — movimento do design "Cadastro de Lote" (proposta 6.32) no motor Base1:
+ * D-PROD-165 — movimento do design "Cadastro de Lote" (proposta 6.32) no motor Base1:
  * aperto com mola, janela que nasce do botão e volta para ele, pílula nova que cresce,
  * folha do celular que sai na hora (a cópia desce), painel que só esmaece ao trocar de aba
  * e ‹ › que não repetem a entrada ao trocar de registro.

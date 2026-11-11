@@ -1,5 +1,5 @@
 /**
- * D-PROD-163 — faixa de filtros rápidos do motor Base1.
+ * D-PROD-164 — faixa de filtros rápidos do motor Base1.
  */
 import React from "react";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
@@ -82,7 +82,7 @@ describe("FiltrosRapidos", () => {
     expect(screen.getByText("é maior do que 15")).toBeTruthy();
   });
 
-  it("a condição fica dentro da janela do filtro: escolher, digitar e aplicar (D-PROD-163)", () => {
+  it("a condição fica dentro da janela do filtro: escolher, digitar e aplicar (D-PROD-164)", () => {
     const onFilterChange = vi.fn();
     render(<Tela onFilterChange={onFilterChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Adicionar ou tirar filtros" }));

@@ -1,5 +1,5 @@
 /**
- * D-PROD-165 — lentidão: alguns `:has()` faziam o Chrome recalcular o estilo da página INTEIRA a cada mudança no DOM
+ * D-PROD-166 — lentidão: alguns `:has()` faziam o Chrome recalcular o estilo da página INTEIRA a cada mudança no DOM
  * (rolar a lista, abrir/fechar janela, digitar). Medido com 3.000 lotes: rolar a lista caiu de ~1,3 s para ~0,2 s de
  * estilo; abrir/fechar janela deixou de recalcular a página toda.
  *  - `body:has(.cadastro-b1--full-page)` virou `body.b1-tela`, posta pelo casco Base1 (`useCascoBase1`);

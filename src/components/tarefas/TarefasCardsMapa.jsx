@@ -59,7 +59,7 @@ const dataBR = (v) => {
  * }} props
  */
 export default function TarefasCardsMapa({ tarefas, onAdd, onEdit, onDelete, normalizeTaskPriority = (p) => p }) {
-  // Os cards usam o casco Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-164).
+  // Os cards usam o casco Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-165).
   useMovimentoBase1();
   const casco = useCascoBase1();
   const cardsPrefs = useCadastroCardsPrefs(STORAGE_KEY, CAMPOS_PADRAO);

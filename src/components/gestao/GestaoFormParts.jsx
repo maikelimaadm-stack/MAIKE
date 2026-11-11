@@ -3,7 +3,7 @@ import B1Field, { B1_FIELD_CTL_CLS, B1TituloGrupo } from "@/components/cadastro/
 import B1Select from "@/components/cadastro/base1/B1Select";
 
 /**
- * Título de seção do formulário Base1 (ocupa a linha inteira). Desde a D-PROD-164 é o título de grupo do
+ * Título de seção do formulário Base1 (ocupa a linha inteira). Desde a D-PROD-165 é o título de grupo do
  * design "Cadastro de Lote" (`B1TituloGrupo`): nome do grupo e uma linha fina até o fim.
  */
 export function SecaoForm({ titulo, children = null }) {

@@ -188,7 +188,7 @@ export function useCadastroBase1Controller(config) {
     [config, editingItem],
   );
 
-  // Ordem da grade (ordenação e filtros da tela), publicada por OrdemDaListaContext — D-PROD-163.
+  // Ordem da grade (ordenação e filtros da tela), publicada por OrdemDaListaContext — D-PROD-164.
   // Sem ela (tela sem grade Base1), vale a ordem dos dados.
   const [ordemDaLista, setOrdemDaLista] = useState(/** @type {object[] | null} */ (null));
   const definirOrdemDaLista = useCallback((/** @type {object[]} */ linhas) => {

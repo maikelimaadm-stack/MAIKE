@@ -1,5 +1,5 @@
 /**
- * D-PROD-164 — o desenho do design "Cadastro de Lote" vale para TODAS as telas do motor Base1, não só Lotes:
+ * D-PROD-165 — o desenho do design "Cadastro de Lote" vale para TODAS as telas do motor Base1, não só Lotes:
  * densidade `compacto` em todo formulário, registro sem abas no cartão (sem a faixa de cabeçalho antiga),
  * chave "Ativo" em caixa, título de grupo do design e seletor sem "SELECIONE" por cima do rótulo.
  */
@@ -105,7 +105,7 @@ describe("peças do formulário no desenho do design", () => {
     expect([...titulos].map((t) => t.textContent)).toEqual(["Contato", "Unidade de Estoque"]);
     expect(document.querySelectorAll(".b1-grupo__cab .b1-grupo__linha")).toHaveLength(2);
     expect(titulos[0].className).not.toMatch(/uppercase/);
-    // D-PROD-165: o título de seção dos formulários de gestão mantém o tamanho do sistema (11px, classe própria);
+    // D-PROD-166: o título de seção dos formulários de gestão mantém o tamanho do sistema (11px, classe própria);
     // o título de grupo (Produtos, Categorias de manejo) segue com o tamanho que já tinha.
     expect(titulos[0]).toHaveClass("b1-grupo__titulo--secao");
     expect(titulos[1]).not.toHaveClass("b1-grupo__titulo--secao");

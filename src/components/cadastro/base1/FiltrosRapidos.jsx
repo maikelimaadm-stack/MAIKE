@@ -9,7 +9,7 @@ import { nomesDaContagem, textoDoTotal } from "./contagemBase1";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
 /**
- * Faixa de filtros rápidos do motor Base1 (D-PROD-163).
+ * Faixa de filtros rápidos do motor Base1 (D-PROD-164).
  *
  * O chrome da lista oferece o lugar (`FiltrosRapidosSlotContext`); quem desenha é a grade,
  * dona dos filtros e da ordenação — não existe um segundo estado de filtro.
@@ -232,8 +232,8 @@ function CampoDaJanela({ valor, onChange, onLimpar, placeholder = "Pesquisar…"
 
 /**
  * Janela do filtro de uma pílula: pesquisa (ou valor da condição), "Condição ⌄", valores para marcar com a contagem,
- * e no rodapé ✕ · contagem · ✓. Tudo é rascunho até o ✓ (D-PROD-163). O filtro do cabeçalho da coluna usa esta mesma
- * janela (`CadastroColunaFiltro`, D-PROD-165).
+ * e no rodapé ✕ · contagem · ✓. Tudo é rascunho até o ✓ (D-PROD-164). O filtro do cabeçalho da coluna usa esta mesma
+ * janela (`CadastroColunaFiltro`, D-PROD-166).
  * @param {{
  *   rotulo: string,
  *   tipo: 'texto'|'num'|'data',
@@ -500,14 +500,14 @@ export default function FiltrosRapidos({
   const slot = useContext(FiltrosRapidosSlotContext);
   const nomes = useContext(ContagemNomesContext);
   // Com a faixa na página, a casca da lista ganha `data-b1-faixa` (o CSS usava `.mg-shell:has(.b1-fr)`, que fazia o
-  // Chrome recalcular o estilo da lista inteira a cada mudança dentro dela — D-PROD-165).
+  // Chrome recalcular o estilo da lista inteira a cada mudança dentro dela — D-PROD-166).
   useLayoutEffect(() => {
     const casca = slot?.closest(".mg-shell");
     if (!casca) return undefined;
     casca.setAttribute("data-b1-faixa", "");
     return () => casca.removeAttribute("data-b1-faixa");
   }, [slot]);
-  // Celular (D-PROD-163): sem a faixa de pílulas — fica só o resumo; os filtros abrem pelo funil da barra.
+  // Celular (D-PROD-164): sem a faixa de pílulas — fica só o resumo; os filtros abrem pelo funil da barra.
   const celular = useCelular();
   const chipsRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const arrasto = useRef(/** @type {null | { x: number, pos: number, andou: boolean }} */ (null));
@@ -581,7 +581,7 @@ export default function FiltrosRapidos({
   const [salvos, setSalvos] = useState(() => lerFaixa(chave));
   const [aberto, setAberto] = useState(/** @type {string | null} */ (null));
   const [buscaCampo, setBuscaCampo] = useState("");
-  // Celular (D-PROD-163, 6.10): o funil abre a folha "Filtros"; dela se vai a Ordenar, a cada filtro e ao "+".
+  // Celular (D-PROD-164, 6.10): o funil abre a folha "Filtros"; dela se vai a Ordenar, a cada filtro e ao "+".
   const [folha, setFolha] = useState(/** @type {null | 'menu' | 'ordem' | 'mais' | { fr: string }} */ (null));
   const [contaDaFolha, setContaDaFolha] = useState("");
   const controleDaFolha = useRef(/** @type {null | { aplicar: () => void }} */ (null));

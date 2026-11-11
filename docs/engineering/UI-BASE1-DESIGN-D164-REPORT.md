@@ -1,12 +1,12 @@
-# UI-BASE1-DESIGN-D163 — relatório
+# UI-BASE1-DESIGN-D164 — relatório
 
-**Fatia:** design "Cadastro de Lote" no motor Base1 (D-PROD-163; paridade medida em D-PROD-164).
+**Fatia:** design "Cadastro de Lote" no motor Base1 (D-PROD-164; paridade medida em D-PROD-165; correções da revisão do proprietário em D-PROD-166).
 **Tipo:** visual (UI) e comportamento de tela. Sem migration, domínio, rota, página, config de escopo ou dependência nova.
 **Fonte da verdade:** `docs/design/cadastro-de-lote/cadastro-de-lote.dc.html` (roda com o `support.js` de `docs/design/detalhes-do-lote/`).
 **Pedido do proprietário:** repassar a configuração ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema; depois, "100% igual", medido no sistema real e não em capturas.
-**Numeração:** nasceu como D-PROD-161/162; no merge da `main` (que já tinha a D-PROD-161 do Estoque P0-01 e a D-PROD-162 do Patrimônio SIMPLIFICA-01) passou a D-PROD-163/164, com código, testes, relatório e evidências.
+**Numeração:** nasceu como D-PROD-161/162; no primeiro merge da `main` (que já tinha a D-PROD-161 do Estoque P0-01 e a D-PROD-162 do Patrimônio SIMPLIFICA-01) passou a D-PROD-163/164; no segundo, a PR #242 (SVG estático nos ícones) já tinha levado a D-PROD-163, e as decisões desta fatia ficaram **D-PROD-164** (design no motor), **D-PROD-165** (paridade medida) e **D-PROD-166** (correções da revisão do proprietário), com código, testes, relatório (`UI-BASE1-DESIGN-D164-REPORT.md`) e evidências (`evidencias/base1-design-d164/`) renumerados.
 
-## Como a paridade foi medida (D-PROD-164)
+## Como a paridade foi medida (D-PROD-165)
 
 Comparação automática no navegador (Chromium), estado por estado, nos três tamanhos (desktop 1280×900, tablet 820×1180, celular 390×844):
 
@@ -59,7 +59,7 @@ Evidências: `telas-setores-novo-antes-depois.png`, `telas-parceiros-novo-antes-
 
 ## Resultado (medição final)
 
-Arquivo completo: `docs/engineering/evidencias/base1-design-d163/paridade-RESUMO.txt`.
+Arquivo completo: `docs/engineering/evidencias/base1-design-d164/paridade-RESUMO.txt`.
 
 | Tamanho | Estados | Elementos sem par (por lado) | Estilos diferentes por estado |
 |---|---|---|---|
@@ -76,7 +76,7 @@ O que sobra, em todos os estados, é só:
 
 ### Movimento
 
-Arquivo completo: `docs/engineering/evidencias/base1-design-d163/movimento-RESUMO.txt`; quadros congelados em `movimento-ordem.png` e `movimento-mais-opcoes.png` (esquerda = design, direita = sistema).
+Arquivo completo: `docs/engineering/evidencias/base1-design-d164/movimento-RESUMO.txt`; quadros congelados em `movimento-ordem.png` e `movimento-mais-opcoes.png` (esquerda = design, direita = sistema).
 
 | | Animações do design | Idênticas no sistema | Só px diferente | Explicadas |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@ Arquivo completo: `docs/engineering/evidencias/base1-design-d163/movimento-RESUM
 - **Próximo registro:** aqui o formulário remonta ao trocar de registro (no design, não). Por isso a mola continua no botão novo (mesmo lugar, mesmo nome, mesmo ponto da curva) e ‹ › não repetem a entrada — na tela, igual ao design.
 - **Arquivo do design:** no tablet, a área de rolagem do design fica por cima de ‹ › e eles não recebem o clique; no sistema funcionam.
 
-## Mudanças de comportamento (decididas em D-PROD-164)
+## Mudanças de comportamento (decididas em D-PROD-165)
 
 - Rodapé em palavras ("12 lotes", "5 de 12 lotes · 1 selecionado"); some no celular e no registro fora do desktop. Os números ficam em `data-*` do `.mg-summary`.
 - ‹ › do registro seguem a ordem que a lista mostra (antes: a ordem dos dados).
@@ -97,7 +97,7 @@ Arquivo completo: `docs/engineering/evidencias/base1-design-d163/movimento-RESUM
 - Todas as telas do motor: campos no desenho do design; registro sem abas sem a faixa de cabeçalho (‹ › numa linha acima); chave "Ativo" em caixa; títulos de seção sem caixa alta.
 - Com tela Base1 aberta: janelas abrem e fecham com o movimento do design; o painel da aba não esmaece mais ao abrir, criar ou trocar de registro (só ao trocar de aba); "Confirmar exclusão" aparece e some sem esmaecer; no celular, o ✕ e o toque fora fecham a folha na hora e a cópia faz a descida (arrastar para fechar continua igual).
 
-## Revisão do proprietário: trocar de lista e lentidão (D-PROD-165)
+## Revisão do proprietário: trocar de lista e lentidão (D-PROD-166)
 
 **Trocar de lista.** Reproduzido no navegador com o backend de teste, abrindo uma lista e clicando no botão de outra (mouse real):
 
@@ -114,10 +114,10 @@ Causas: (1) a janela que fechava puxava o foco de volta para o próprio botão/c
 
 | Regra | Origem | Troca |
 |---|---|---|
-| `body:has(.cadastro-b1--full-page) …` (316 regras) | design (D-PROD-164) | `body.b1-tela …` |
+| `body:has(.cadastro-b1--full-page) …` (316 regras) | design (D-PROD-165) | `body.b1-tela …` |
 | `form:has(.mk-lanc) …` | `main` (D-PROD-147) | `form[data-mk-lanc] …` |
-| `div:has(+ [role="dialog"] > .mg-confirm-dialog)` | ajustes (D-PROD-164) | classes no fundo e na camada do `ConfirmDialog` |
-| `.mg-shell:has(.b1-fr) …` | ajustes (D-PROD-164) | `.mg-shell[data-b1-faixa] …` |
+| `div:has(+ [role="dialog"] > .mg-confirm-dialog)` | ajustes (D-PROD-165) | classes no fundo e na camada do `ConfirmDialog` |
+| `.mg-shell:has(.b1-fr) …` | ajustes (D-PROD-165) | `.mg-shell[data-b1-faixa] …` |
 
 As duas primeiras, cada uma sozinha, já faziam a página inteira recalcular ao rolar; a terceira, ao abrir e fechar qualquer janela (o `#root` virava candidato do `:has()` de irmão).
 

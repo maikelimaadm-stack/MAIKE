@@ -1,5 +1,5 @@
 /**
- * D-PROD-165 — o filtro do cabeçalho da coluna é a MESMA janela do filtro das pílulas da faixa: pesquisa com
+ * D-PROD-166 — o filtro do cabeçalho da coluna é a MESMA janela do filtro das pílulas da faixa: pesquisa com
  * "Condição ⌄", "Todos" e os valores com ✓ e a contagem; rodapé ✕ · "N de M" · ✓; tudo rascunho até o ✓.
  */
 import React from "react";

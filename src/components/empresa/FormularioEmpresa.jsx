@@ -483,7 +483,7 @@ export default function FormularioEmpresa({
       data-testid="b1-form-empresa"
       data-densidade={DENSIDADE_BASE1}
     >
-      {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-164). */}
+      {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-165). */}
       <B1CartaoCampos>
         <B1Field label="Nº da Empresa" span={3} hasValue locked disabled>
           <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-[#FAFCFE]`} />

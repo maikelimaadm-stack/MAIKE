@@ -29,7 +29,7 @@ export default function CadastroWorkspace({
   children,
 }) {
   const isDetail = mode === "detail";
-  // Movimento do design (toque, janelas que nascem do botão) enquanto a tela Base1 está aberta (D-PROD-164).
+  // Movimento do design (toque, janelas que nascem do botão) enquanto a tela Base1 está aberta (D-PROD-165).
   useMovimentoBase1(pageLayout === "base1-list");
   const casco = useCascoBase1();
 
@@ -41,7 +41,7 @@ export default function CadastroWorkspace({
             {title}
           </h1>
         ) : null}
-        {/* Desktop (D-PROD-163): o h1 fica só para leitores de tela e o título visível é este. */}
+        {/* Desktop (D-PROD-164): o h1 fica só para leitores de tela e o título visível é este. */}
         {title ? (
           <span className="b1-tb-titulo" aria-hidden="true">
             {title}

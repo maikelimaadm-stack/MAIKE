@@ -1,5 +1,5 @@
 /*
- * Modelo Base1 — acertos do app para ficar igual ao design (D-PROD-163).
+ * Modelo Base1 — acertos do app para ficar igual ao design (D-PROD-164).
  * Cada regra existe porque o DOM ou o CSS atual do sistema difere da cópia que o design usou; o comentário diz qual.
  * Sem tamanho de fonte (vale base1-tipografia.css).
  */
@@ -32,7 +32,7 @@ body.b1-tela header.mk-topnav-header button[role="combobox"] {
 
 /* Com a faixa de filtros rápidos, "Limpar filtros" fica na faixa (como no design); o atalho escondido da barra
    não ocupa lugar (senão sobra um espaço entre o funil e a lupa). `data-b1-faixa` (posto pela faixa) e não
-   `:has(.b1-fr)`: o `:has()` recalculava o estilo da lista inteira a cada mudança dentro dela (D-PROD-165). */
+   `:has(.b1-fr)`: o `:has()` recalculava o estilo da lista inteira a cada mudança dentro dela (D-PROD-166). */
 .cadastro-b1 .mg-shell[data-b1-faixa] .mg-toolbar__btns > .mg-fluid-slot:not(#mk-a) {
   display: none;
 }
@@ -70,7 +70,7 @@ body.b1-tela :is(.mk-rail__item, .mk-tabbar__item) {
   color: #52514E;
 }
 /* …e o rótulo do campo aberto fica como o do campo com foco no design (verde, 600, espaçamento .01em) — também no
-   celular, onde a folha da lista é modal e leva o foco (D-PROD-164). */
+   celular, onde a folha da lista é modal e leva o foco (D-PROD-165). */
 .cadastro-b1 form[data-densidade="compacto"] .mg-field.is-open:not(.mg-field--switch) .mg-field__label:not(#mk-padrao) {
   color: var(--cp-rotulo);
   font-weight: 600;
@@ -86,20 +86,20 @@ body.b1-tela .mg-pill-select-panel .cmd-panel-options:not(#mk-a) {
 }
 
 /* Confirmar exclusão: no design o fundo escuro e a caixa aparecem e somem sem esmaecer (a marcação do design não tem o
-   animate-in/animate-out do Radix); o movimento do design não alcança esse diálogo (6.32, D-PROD-164).
+   animate-in/animate-out do Radix); o movimento do design não alcança esse diálogo (6.32, D-PROD-165).
    Por classe, não por `:has()`: `div:has(+ [role="dialog"] > …)` valia para todo `div` e, a cada janela que abria ou
-   fechava no <body>, fazia o Chrome recalcular o estilo da página inteira (D-PROD-165). */
+   fechava no <body>, fazia o Chrome recalcular o estilo da página inteira (D-PROD-166). */
 body.b1-tela :is(.mg-confirm-dialog__fundo, .mg-confirm-dialog__camada):not(#mk-a) {
   animation: none !important;
 }
 
 /* ‹ › do registro: entram deslizando só quando o registro abre. Aqui trocar de registro remonta o formulário (no design,
-   não); a navegação de um registro para o outro fica parada, como no design (D-PROD-164). */
+   não); a navegação de um registro para o outro fica parada, como no design (D-PROD-165). */
 body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
   animation: none;
 }
 
-/* Registro sem abas (D-PROD-164), tablet e desktop (`data-b1-painel`): o mesmo desenho do registro com abas do
+/* Registro sem abas (D-PROD-165), tablet e desktop (`data-b1-painel`): o mesmo desenho do registro com abas do
    design — fundo da página, ‹ › numa linha acima (`b1-reg-navlinha`) e o formulário no cartão branco do tamanho
    do conteúdo (o cartão da aba, `b1-aba-cartao`). Sem isso ficava numa folha branca até o fim da tela. */
 .cadastro-b1 .mg-shell--join-table > .mg-form-scroll[data-b1-painel]:not(#mk-padrao) {
@@ -127,7 +127,7 @@ body.b1-tela .b1-reg-nav.b1-reg-nav--fica:not(#mk-a):not(#mk-b) {
   margin-top: 0;
 }
 
-/* Filtro do cabeçalho da coluna (D-PROD-165): a mesma janela do filtro das pílulas (`mk-sel-pop b1-lista-pop b1-fr-pop`),
+/* Filtro do cabeçalho da coluna (D-PROD-166): a mesma janela do filtro das pílulas (`mk-sel-pop b1-lista-pop b1-fr-pop`),
    posicionada pela própria tela logo abaixo do cabeçalho — sem o invólucro do Radix, ela mesma é fixa. */
 .mk-sel-pop.b1-col-pop {
   position: fixed;

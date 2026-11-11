@@ -49,7 +49,7 @@ export default function B1Select(props) {
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
   // "SELECIONE" com valor-sentinela (ex.: `__VAZIO__`) também é vazio para o campo: o rótulo faz o papel de
-  // marcador e o texto não fica por cima dele (D-PROD-164). Na lista ele continua, para poder limpar.
+  // marcador e o texto não fica por cima dele (D-PROD-165). Na lista ele continua, para poder limpar.
   const vazio = !atual || atual.value === "" || /^selecione/i.test(atual.label.trim());
   // Fora da lista só o "Selecione…" (ou opção vazia sem rótulo). Uma opção vazia
   // com nome — ex.: "SEM VÍNCULO" — é uma escolha válida.

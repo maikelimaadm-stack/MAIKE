@@ -124,7 +124,7 @@ function hasFieldValue(field, value, values = {}) {
   return String(value).trim() !== "";
 }
 
-/** Campo de número (alinhamento próprio no design — D-PROD-163). */
+/** Campo de número (alinhamento próprio no design — D-PROD-164). */
 const ehCampoNumerico = (field) => field.type === "number" || field.inputMode === "numeric" || field.inputMode === "decimal";
 
 function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
@@ -287,7 +287,7 @@ export default function DynamicFormRenderer({
     );
   }
 
-  // Base1 (D-PROD-163): os campos vêm em grupos (`b1-grupo`), cada um com a sua grade — como no design.
+  // Base1 (D-PROD-164): os campos vêm em grupos (`b1-grupo`), cada um com a sua grade — como no design.
   // Sem `grupos`, o painel é um grupo só; campo fora de qualquer grupo entra no último.
   const gruposDoPainel = (grupos?.[activePanel.id] ?? []).filter((g) => Array.isArray(g) && g.length);
   /** @type {object[][]} */

@@ -1,5 +1,5 @@
 /**
- * D-PROD-165 — com uma lista/janela aberta, clicar no botão de OUTRA abre a outra (antes ela abria e fechava
+ * D-PROD-166 — com uma lista/janela aberta, clicar no botão de OUTRA abre a outra (antes ela abria e fechava
  * na hora). Duas causas, as duas cobertas aqui:
  *  1. a janela que fechava devolvia o foco ao próprio botão/campo, tirando o foco da janela nova (que fechava);
  *  2. nos grupos com UMA janela aberta por vez (pílulas, menus de coluna), o fechamento atrasado da anterior

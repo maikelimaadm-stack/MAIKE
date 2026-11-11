@@ -14,7 +14,7 @@ import {
 const ALTURA_MAX = 380;
 
 /**
- * Filtro do cabeçalho da coluna — a MESMA janela do filtro das pílulas da faixa (D-PROD-165): pesquisa com
+ * Filtro do cabeçalho da coluna — a MESMA janela do filtro das pílulas da faixa (D-PROD-166): pesquisa com
  * "Condição ⌄", "Todos" e os valores com ✓ e a contagem; no rodapé ✕ · "5 de 12 lotes" · ✓. Tudo é rascunho até o ✓.
  * Abre logo abaixo do cabeçalho (acima, se não couber); no celular, na folha de baixo, como a pílula.
  *

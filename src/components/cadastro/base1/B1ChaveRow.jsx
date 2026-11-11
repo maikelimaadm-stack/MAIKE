@@ -35,7 +35,7 @@ const SPAN_LG = {
 
 /**
  * Linha Sim/Não do cadastro Base1 (paridade `ChaveSimNao` / `data-chave` — CONTROLE-DE-ESTOQUE).
- * Desde a D-PROD-164 é a "chave em caixa" do design "Cadastro de Lote" em todas as telas: rótulo e chave
+ * Desde a D-PROD-165 é a "chave em caixa" do design "Cadastro de Lote" em todas as telas: rótulo e chave
  * dentro da mesma caixa do campo (`mg-field mg-field--switch`), como o "Ativo" do Lote.
  *
  * @param {object} props

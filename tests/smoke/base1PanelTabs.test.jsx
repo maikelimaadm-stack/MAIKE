@@ -60,7 +60,7 @@ describe("Base1PanelTabs", () => {
     expect(screen.getByRole("tab", { name: "Motivo" }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("só abas, sem lista lateral — mesmo com preferência antiga salva (D-PROD-163)", () => {
+  it("só abas, sem lista lateral — mesmo com preferência antiga salva (D-PROD-164)", () => {
     localStorage.setItem("test_b1_panel_style", "sidebar");
     render(<Harness />);
     expect(screen.queryByRole("button", { name: /lista lateral|abas horizontais/i })).toBeNull();

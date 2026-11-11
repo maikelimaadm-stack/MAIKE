@@ -276,7 +276,7 @@ export function MenuList({ items, onPick }) {
  * @param {(checked: boolean) => void} [props.onChange]
  * @param {boolean} [props.disabled]
  * @param {string} [props.className]
- * @param {import('react').CSSProperties} [props.boxStyle] estilo da caixa (a grade usa 18px, como no design — D-PROD-163)
+ * @param {import('react').CSSProperties} [props.boxStyle] estilo da caixa (a grade usa 18px, como no design — D-PROD-164)
  */
 export function MgCheck({ checked, indeterminate, onChange, disabled, className, boxStyle = undefined, ...p }) {
   const ref = React.useRef(null);

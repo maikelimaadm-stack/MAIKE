@@ -227,7 +227,7 @@ describe("FormularioLote mostra o ícone da categoria de manejo escolhida", () =
   };
   const status = () => screen.getByTestId("icone-oficial-lote").getAttribute("data-status");
 
-  it("novo lote sem categoria: sem dica sob o campo (D-PROD-163)", async () => {
+  it("novo lote sem categoria: sem dica sob o campo (D-PROD-164)", async () => {
     await renderLote({ initialData: null, isEditing: false });
     expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
   });

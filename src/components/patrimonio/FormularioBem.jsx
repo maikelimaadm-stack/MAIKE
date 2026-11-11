@@ -520,7 +520,7 @@ export default function FormularioBem({
     <CadastroFormShell embedded title={editando ? "Editar bem patrimonial" : "Novo bem patrimonial"}>
       <div className="mg-b1-record-form">
         <form id={FORMULARIO_BEM_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="b1-form" data-densidade={DENSIDADE_BASE1}>
-          {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-164). */}
+          {/* Identificação fora das abas: no design todo campo fica num cartão (D-PROD-165). */}
           <B1CartaoCampos>
             <CampoTexto
               label="Nº patrimonial"

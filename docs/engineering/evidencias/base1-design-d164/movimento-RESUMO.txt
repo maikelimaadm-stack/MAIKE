@@ -1,4 +1,4 @@
-MOVIMENTO (proposta 6.32) — design × sistema real, medido no navegador (D-PROD-164)
+MOVIMENTO (proposta 6.32) — design × sistema real, medido no navegador (D-PROD-165)
 
 Método: cada ação é feita no protótipo do design e no app real; todo Element.animate() (script) e todo
 animationstart (CSS) é gravado com alvo, quadros-chave, duração, curva e preenchimento, e comparado entrada a entrada.

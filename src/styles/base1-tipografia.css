@@ -1,5 +1,5 @@
 /* Motor Base1: escala do CONTROLE-DE-ESTOQUE, preservando as superfícies.
- * Só TAMANHO (e peso) de fonte: as cores de texto seguem o design (D-PROD-163) e vêm de base1-design.css.
+ * Só TAMANHO (e peso) de fonte: as cores de texto seguem o design (D-PROD-164) e vêm de base1-design.css.
  * Portais .b1ref recebem os mesmos tokens que a página de origem.
  * Inputs mobile conservam os 16px de mk-unificado.css para evitar zoom no iOS.
  */
@@ -27,7 +27,7 @@
   font-size: 11px;
 }
 /* Título de seção dos formulários de gestão (Parceiros, Centros, Naturezas…): 11px, o tamanho que o sistema já usava
-   (o título de grupo do design trocou o desenho, não o tamanho — D-PROD-165). */
+   (o título de grupo do design trocou o desenho, não o tamanho — D-PROD-166). */
 .cadastro-b1 .b1-grupo__titulo--secao:not(#mk-padrao) {
   font-size: 11px;
 }

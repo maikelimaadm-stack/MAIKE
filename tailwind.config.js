@@ -1,5 +1,5 @@
 /**
- * slate/gray com a cor em variável (D-PROD-163): sem a variável vale a cor padrão do Tailwind;
+ * slate/gray com a cor em variável (D-PROD-164): sem a variável vale a cor padrão do Tailwind;
  * com uma tela Base1 aberta, base1-design-tokens.css define o neutro quente do design.
  * A cascata e a especificidade das classes não mudam.
  */

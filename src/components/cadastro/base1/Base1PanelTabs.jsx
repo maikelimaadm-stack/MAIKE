@@ -21,7 +21,7 @@ function CustomTabMarker() {
   );
 }
 
-/** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-163). */
+/** Abaixo do desktop não há abas: cada painel vira uma seção empilhada (D-PROD-164). */
 function useEmpilhado() {
   const consulta = "(max-width: 1023px)";
   const ler = () =>
@@ -61,7 +61,7 @@ function usePrefersReducedMotion() {
  * @param {string} props.value aba ativa (controlada)
  * @param {(id: string) => void} props.onChange
  * @param {(panelId: string) => import('react').ReactNode} props.renderPanel
- * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-163: o design tem só abas — sem lista lateral)
+ * @param {string} [props.preferenceKey] (sem uso desde a D-PROD-164: o design tem só abas — sem lista lateral)
  * @param {boolean} [props.animate] fade ao trocar aba
  * @param {string|number} [props.animationKey] muda ao trocar registro — a troca de registro não anima
  * @param {string} [props.className]
@@ -107,7 +107,7 @@ export default function Base1PanelTabs({
     validIds.includes(value) ? value : validIds[0] ?? tabs[0]?.id ?? "";
 
   // O painel só esmaece quando a aba muda dentro do mesmo registro — nunca ao abrir um registro,
-  // criar ou trocar de registro (como no design, D-PROD-164: `abaAnim` só no clique da aba).
+  // criar ou trocar de registro (como no design, D-PROD-165: `abaAnim` só no clique da aba).
   const [anterior, setAnterior] = React.useState({ aba: current, chave: animationKey });
   const [animarAba, setAnimarAba] = React.useState(false);
   if (anterior.aba !== current || anterior.chave !== animationKey) {

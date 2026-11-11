@@ -95,7 +95,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
     );
   }
 
-  // Como no design (D-PROD-163): alinhado à esquerda do botão quando cabe; senão, à direita dele; senão, centrado.
+  // Como no design (D-PROD-164): alinhado à esquerda do botão quando cabe; senão, à direita dele; senão, centrado.
   const largura = 260;
   const margem = 8;
   const teto = window.innerWidth - largura - margem;
@@ -116,7 +116,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
       aria-label="Filtrar por campo"
       style={{ left, top, maxHeight: Math.max(200, window.innerHeight - top - 12) }}
     >
-      {/* Sem título: a pesquisa encosta no topo, igual às outras janelas (D-PROD-163). */}
+      {/* Sem título: a pesquisa encosta no topo, igual às outras janelas (D-PROD-164). */}
       {conteudo}
     </div>,
     document.body,

@@ -5,6 +5,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { attachmentInvalid } from '../../shared/errors/AppError.js';
 import { validarMimeType, validarTamanhoBytes } from '../anexos/attachmentValidation.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
+import { validarSvgEstatico } from '../../shared/imagens/svgEstatico.js';
 
 const LIMITE_DATA_URL = 5 * 1024 * 1024;
 /**
@@ -33,9 +34,16 @@ export const registrarArquivoUploadRoutes = async (app) => {
     const { conteudo_base64, mime_type } = /** @type {{conteudo_base64: string, mime_type: string}} */ (
       request.body
     );
-    const mime = validarMimeType(mime_type);
+    const mime = mime_type === 'image/svg+xml' ? mime_type : validarMimeType(mime_type);
     const buffer = Buffer.from(conteudo_base64, 'base64');
     validarTamanhoBytes(buffer.length);
+    if (mime === 'image/svg+xml') {
+      try {
+        validarSvgEstatico(buffer);
+      } catch {
+        throw attachmentInvalid('SVG inválido ou acima de 512 KB: use um vetor estático, sem scripts, imagens embutidas ou links externos');
+      }
+    }
     if (buffer.length > LIMITE_DATA_URL) {
       throw attachmentInvalid('arquivo excede limite para upload nativo');
     }

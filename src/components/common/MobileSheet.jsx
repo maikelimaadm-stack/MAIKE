@@ -86,7 +86,7 @@ export default function MobileSheet({
 
   const fecharAnimado = React.useCallback(() => {
     const folha = sheetRef.current;
-    // Com tela Base1 aberta, a saída é a do design (D-PROD-164): a folha sai na hora e a cópia deixada
+    // Com tela Base1 aberta, a saída é a do design (D-PROD-165): a folha sai na hora e a cópia deixada
     // pelo movimento desce (`mk-folha-sai`), partindo de onde o dedo largou.
     if (!folha || !window.matchMedia?.("(max-width: 639px)").matches || movimentoBase1Ligado()) {
       fecharRef.current?.();

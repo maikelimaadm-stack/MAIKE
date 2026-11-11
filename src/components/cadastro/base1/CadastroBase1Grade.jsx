@@ -144,7 +144,7 @@ export default function CadastroBase1Grade({
 
   useEffect(() => {
     if (!referenceHeaders) return undefined;
-    // Celular com a faixa de filtros: o funil abre a lista "Filtros" (D-PROD-163, 6.10); senão, "Filtrar por campo".
+    // Celular com a faixa de filtros: o funil abre a lista "Filtros" (D-PROD-164, 6.10); senão, "Filtrar por campo".
     const abrir = (event) => {
       if (celularRef.current && referenceHeaders) setMenuFiltrosCelular(true);
       else setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
@@ -285,7 +285,7 @@ export default function CadastroBase1Grade({
     onDisplayChange?.({ rows: ordenados, selectedIds: selectedItems.map(String) });
   }, [ordenados, selectedItems, onDisplayChange]);
 
-  // ‹ › do registro seguem a ordem que a pessoa vê (D-PROD-163).
+  // ‹ › do registro seguem a ordem que a pessoa vê (D-PROD-164).
   const definirOrdemDaLista = React.useContext(OrdemDaListaContext);
   useEffect(() => {
     definirOrdemDaLista?.(ordenados);
@@ -354,7 +354,7 @@ export default function CadastroBase1Grade({
 
   /**
    * Linhas que passam pela busca e pelos OUTROS filtros: dão as opções e a contagem do filtro de uma coluna — a
-   * janela da pílula e a do cabeçalho mostram o mesmo (D-PROD-165).
+   * janela da pílula e a do cabeçalho mostram o mesmo (D-PROD-166).
    * @param {string} colId
    */
   const linhasDoFiltro = (colId) => {

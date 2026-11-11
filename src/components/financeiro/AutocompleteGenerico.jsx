@@ -95,7 +95,7 @@ export default function AutocompleteGenerico({
   }, [open, celular]);
 
   // Celular: com a folha aberta o foco está dentro dela, então o campo marca `is-open` para ficar com o visual de
-  // campo aberto do design (rótulo em cima, seta escura), como no painel do desktop (D-PROD-164).
+  // campo aberto do design (rótulo em cima, seta escura), como no painel do desktop (D-PROD-165).
   useEffect(() => {
     if (!celular) return undefined;
     const campo = wrapperRef.current?.closest(".mg-field");
@@ -145,7 +145,7 @@ export default function AutocompleteGenerico({
           onClose={() => setOpen(false)}
           label={titulo}
           title={titulo}
-          // "+" fica dentro da linha de pesquisa, como no painel do desktop (D-PROD-163).
+          // "+" fica dentro da linha de pesquisa, como no painel do desktop (D-PROD-164).
           headerAction={null}
           aside={items.length > 8 ? `${fmt(items.length)} registros` : null}
           footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}

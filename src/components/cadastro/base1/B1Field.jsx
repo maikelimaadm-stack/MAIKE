@@ -123,7 +123,7 @@ export default function B1Field({
 }
 
 /**
- * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-163: "chave (Ativo) em caixa").
+ * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-164: "chave (Ativo) em caixa").
  *
  * @param {object} props
  * @param {string} props.label
@@ -153,9 +153,9 @@ export function B1CampoChave({ label, span = 6, spanLg = undefined, checked, onC
 }
 
 /**
- * Título de grupo dentro do formulário Base1 (linha inteira): o do design "Cadastro de Lote" (D-PROD-164) —
+ * Título de grupo dentro do formulário Base1 (linha inteira): o do design "Cadastro de Lote" (D-PROD-165) —
  * nome do grupo e uma linha fina até o fim. `secao`: título de seção dos formulários de gestão (`SecaoForm`), que no
- * sistema tem letra menor (11px) que o título de grupo (D-PROD-165: o tamanho de fonte é o do sistema).
+ * sistema tem letra menor (11px) que o título de grupo (D-PROD-166: o tamanho de fonte é o do sistema).
  * @param {{ titulo: import("react").ReactNode, children?: import("react").ReactNode, secao?: boolean }} props
  */
 export function B1TituloGrupo({ titulo, children = null, secao = false }) {
@@ -170,7 +170,7 @@ export function B1TituloGrupo({ titulo, children = null, secao = false }) {
 
 /**
  * Cartão de campos do formulário Base1 (linha inteira): no design todo campo fica dentro de um cartão branco
- * (o cartão da aba). Para campos que ficam fora das abas — ex.: a identificação da empresa acima delas (D-PROD-164).
+ * (o cartão da aba). Para campos que ficam fora das abas — ex.: a identificação da empresa acima delas (D-PROD-165).
  * @param {{ children: import("react").ReactNode, className?: string }} props
  */
 export function B1CartaoCampos({ children, className = undefined }) {
@@ -182,7 +182,7 @@ export function B1CartaoCampos({ children, className = undefined }) {
 }
 
 /**
- * Densidade do formulário Base1 (D-PROD-164): a do design "Cadastro de Lote" é `compacto` — campo em caixa
+ * Densidade do formulário Base1 (D-PROD-165): a do design "Cadastro de Lote" é `compacto` — campo em caixa
  * branca com o rótulo no topo, por dentro. O CSS do design só vale para `<form data-densidade>`; todo
  * formulário do motor leva `data-densidade={DENSIDADE_BASE1}` (sem ela o campo fica no desenho antigo).
  */
