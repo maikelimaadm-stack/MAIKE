@@ -7,8 +7,12 @@
  *    (tipo trocado ou leitura inicial mudada num medidor corrigível), a
  *    leitura atual é a própria inicial — a tela não envia o que o servidor
  *    recusa com MEDIDOR_LEITURA_INVALIDA/atual_diferente_da_inicial;
- *  - duplicar não pré-seleciona família nem tipo inativos e só copia os
- *    Produtos aceitos que ainda servem (ativos, em L ou KG — D-PROD-162);
+ *  - duplicar não pré-seleciona tipo inativo (nem de família inativa) e só
+ *    copia os Produtos aceitos que ainda servem (ativos, em L, KG ou SACO —
+ *    D-PROD-162/163);
+ *  - D-PROD-163: o estado tem o "Tipo de bem" (`natureza`) no lugar da
+ *    família; a forma do corpo leva `natureza` + `tipo_id`, sem `familia_id`,
+ *    `area_id` nem `localizacao_descricao`;
  *  - os tanques vão com `produto_ids` (P-01: `[]` é válido; P-02: até 20);
  *  - MEDIDOR_LEITURA_INVALIDA por `reason`; TANQUE_PRODUTO_INVALIDO por
  *    `reason`, com a linha do tanque tirada do `field`
@@ -77,19 +81,27 @@ describe('validarBem — correção do cadastro do medidor (A2)', () => {
 });
 
 describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativo', () => {
-  it('família inativa: sem família e sem tipo', () => {
+  it('família (escondida) inativa: mantém o Tipo de bem, sem tipo', () => {
     const e = estadoInicialDoBem(detalheTrator({ familia: { id: 'f2', nome: 'Máquinas', natureza: 'MAQUINA', ativo: false } }), { duplicar: true });
-    expect(e.familia).toBeNull();
+    expect(e.natureza).toBe('MAQUINA');
     expect(e.tipo).toBeNull();
+    expect('familia' in e).toBe(false);
   });
 
-  it('tipo inativo (família ativa): mantém a família, sem tipo', () => {
+  it('tipo inativo: mantém o Tipo de bem, sem tipo; tipo ativo vem escolhido', () => {
     const e = estadoInicialDoBem(detalheTrator({ tipo: { id: 't2', nome: 'Trator de pneus', ativo: false } }), { duplicar: true });
-    expect(e.familia).toEqual({ id: 'f2', rotulo: 'Máquinas', natureza: 'MAQUINA' });
+    expect(e.natureza).toBe('MAQUINA');
     expect(e.tipo).toBeNull();
+    expect(estadoInicialDoBem(detalheTrator(), { duplicar: true }).tipo).toEqual({ id: 't2', rotulo: 'Trator de pneus' });
   });
 
-  it('Produto aceito inativo ou fora de L/KG sai do tanque copiado; no próprio bem continua legível', () => {
+  it('Tipo de bem vem da natureza do detalhe (ou da família, em detalhe antigo); sem nada, vazio', () => {
+    expect(estadoInicialDoBem(detalheTrator()).natureza).toBe('MAQUINA');
+    expect(estadoInicialDoBem(detalheTrator({ natureza: undefined })).natureza).toBe('MAQUINA');
+    expect(estadoInicialDoBem(null).natureza).toBe('');
+  });
+
+  it('Produto aceito inativo ou fora de L/KG/SACO sai do tanque copiado (SACO fica, D-PROD-163); no próprio bem continua legível', () => {
     const tanques = [{
       id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
       produtos: [
@@ -97,24 +109,52 @@ describe('estadoInicialDoBem — duplicar não pré-seleciona o que está inativ
         { produto_id: 'pd4', nome: 'Arla 32', codigo_interno: null, unidade_principal_estoque: 'KG', produto_ativo: true },
         { produto_id: 'pd9', nome: 'Diesel S500', codigo_interno: null, unidade_principal_estoque: 'L', produto_ativo: false },
         { produto_id: 'pd8', nome: 'Ração ensacada', codigo_interno: null, unidade_principal_estoque: 'SACO', produto_ativo: true },
+        { produto_id: 'pd7', nome: 'Graxa avulsa', codigo_interno: null, unidade_principal_estoque: 'UN', produto_ativo: true },
       ],
     }];
     const copia = estadoInicialDoBem(detalheTrator({ tanques }), { duplicar: true });
     expect(copia.tanques[0].produtos).toEqual([
       { id: 'pd1', rotulo: 'Diesel S10', unidade: 'L', ativo: true },
       { id: 'pd4', rotulo: 'Arla 32', unidade: 'KG', ativo: true },
+      { id: 'pd8', rotulo: 'Ração ensacada', unidade: 'SACO', ativo: true },
     ]);
     expect(copia.tanques[0].id).toBeNull();
-    // Na edição do próprio bem os quatro continuam (o inativo e o SACO aparecem riscados na tela).
+    // Na edição do próprio bem todos continuam (o inativo e o de unidade fora de L/KG/SACO aparecem riscados na tela).
     const aberto = estadoInicialDoBem(detalheTrator({ tanques }));
     expect(aberto.tanques[0].produtos.map((p) => [p.id, p.ativo, p.unidade])).toEqual([
-      ['pd1', true, 'L'], ['pd4', true, 'KG'], ['pd9', false, 'L'], ['pd8', true, 'SACO'],
+      ['pd1', true, 'L'], ['pd4', true, 'KG'], ['pd9', false, 'L'], ['pd8', true, 'SACO'], ['pd7', true, 'UN'],
     ]);
   });
 
   it('o estado não tem medições (D-PROD-162), mesmo que um detalhe antigo as traga', () => {
     const e = estadoInicialDoBem(detalheTrator({ medicoes: [{ id: 'm1', perfil: { id: 'p1' }, valor_informado: '1', unidade_informada: 'm2' }] }));
     expect('medicoes' in e).toBe(false);
+  });
+
+  it('D-PROD-163: o estado não tem Área nem Localização, mesmo que o detalhe as traga', () => {
+    const e = estadoInicialDoBem(detalheTrator({ area: { id: 'a1', nome: 'Retiro Sul' }, localizacao_descricao: 'Galpão' }));
+    expect('area' in e).toBe(false);
+    expect('localizacao_descricao' in e).toBe(false);
+  });
+});
+
+describe('validarBem / formaDoEstado — Tipo de bem + tipo, sem família (D-PROD-163)', () => {
+  const ctxNovo = { editando: false, medidorOriginal: null, hoje: '2026-11-09' };
+
+  it('sem Tipo de bem: erro "Escolha o tipo de bem" (e o tipo também é cobrado)', () => {
+    const e = { ...estadoInicialDoBem(null), nome: 'Bem' };
+    const erros = validarBem(e, ctxNovo);
+    expect(erros.natureza).toBe('Escolha o tipo de bem');
+    expect(erros.tipo).toBe('Escolha o tipo');
+    expect('familia' in erros).toBe(false);
+  });
+
+  it('a forma do corpo leva natureza + tipo_id, sem familia_id, area_id nem localizacao_descricao', () => {
+    const e = estadoInicialDoBem(detalheTrator({ medidor: MEDIDOR_AJUSTADO, area: { id: 'a1', nome: 'Retiro Sul' }, localizacao_descricao: 'Galpão' }));
+    const forma = formaDoEstado(e, { editando: true, medidorOriginal: MEDIDOR_AJUSTADO, hoje: '2026-11-09' });
+    expect(forma.natureza).toBe('MAQUINA');
+    expect(forma.tipo_id).toBe('t2');
+    for (const campo of ['familia_id', 'area_id', 'localizacao_descricao']) expect(campo in forma, campo).toBe(false);
   });
 });
 
@@ -156,7 +196,7 @@ describe('mensagemErroPatrimonio — corpos reais do servidor', () => {
   it('TANQUE_PRODUTO_INVALIDO segue a reason e tira a linha do tanque do field (tanques[i].produto_ids)', () => {
     expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[1].produto_ids', reason: 'outra_empresa', details: { produto_id: 'pd1' } })).toMatch(/\(linha 2\).*outra fazenda/);
     expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'inativo', details: { produto_id: 'pd1' } })).toMatch(/\(linha 1\).*inativo/);
-    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'unidade_incompativel', details: { produto_id: 'pd8', unidade: 'SACO' } })).toMatch(/em SACO/);
+    expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'unidade_incompativel', details: { produto_id: 'pd8', unidade: 'UN' } })).toMatch(/em UN/);
     expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[0].produto_ids', reason: 'limite', details: { maximo: 20 } })).toMatch(/no máximo 20 Produtos/);
     expect(msg({ code: 'TANQUE_PRODUTO_INVALIDO', field: 'tanques[2].produto_ids', reason: 'inexistente', details: { produto_id: 'x' } })).toMatch(/\(linha 3\).*não existe nesta fazenda/);
   });

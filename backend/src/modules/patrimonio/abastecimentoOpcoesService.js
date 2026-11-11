@@ -8,7 +8,9 @@
  *
  * D-PROD-162: saem o catálogo de tipos de combustível (A9), os produtos por
  * tipo com o fator (A10) e todo fator kg/L; tudo sai dos "Produtos aceitos"
- * (`TanqueBemProduto`) de cada tanque, em `L` ou `KG`.
+ * (`TanqueBemProduto`) de cada tanque. D-PROD-163: em qualquer unidade (L, KG
+ * ou SACO); cada Produto traz `unidade_abastecimento` (a unidade EFETIVA do
+ * estoque, em que a quantidade é digitada: `L` para L, `KG` para KG e SACO).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -20,7 +22,7 @@ import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { ehContador, leituraVigente, pisoOperacional, pontoDoCadastro } from './abastecimentoMedidor.js';
 import { NATUREZAS_COM_TANQUE, unidadeDoAbastecimento } from './abastecimentoPlano.js';
 import { paginacaoOpcoes, paginarPorNome } from './patrimonioComum.js';
-import { UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
+import { UNIDADES_PRODUTO_TANQUE, unidadeEfetivaDoEstoque } from './patrimonioDominio.js';
 
 const bemNaoEncontrado = () =>
   new AppError('BEM_PATRIMONIAL_NAO_ENCONTRADO', 'bem patrimonial não encontrado nesta fazenda', { details: { field: 'bem_id', reason: 'bem_inexistente' } });
@@ -71,7 +73,7 @@ const bemPublico = async (db, cli, bem) => {
 };
 /**
  * Por que um Produto aceito NÃO serve para abastecer agora (null = serve).
- * Ordem: inativo → outra fazenda → unidade fora de L/KG.
+ * Ordem: inativo → outra fazenda → unidade fora de L/KG/SACO.
  * @param {{ ativo: boolean, empresa_id: string, unidade_principal_estoque: string }} p @param {string} empresaId
  * @returns {null|'inativo'|'outra_empresa'|'unidade_nao_aceita'}
  */
@@ -122,7 +124,13 @@ export const opcoesTanques = async (contexto, query = {}) => {
         .map((p) => {
           const motivo = motivoDoProduto(p, empresaId);
           return {
-            id: p.id, nome: p.nome_produto, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque, elegivel: motivo === null, motivo,
+            id: p.id,
+            nome: p.nome_produto,
+            codigo_interno: p.codigo_interno ?? null,
+            unidade_principal_estoque: p.unidade_principal_estoque,
+            unidade_abastecimento: unidadeEfetivaDoEstoque(p.unidade_principal_estoque),
+            elegivel: motivo === null,
+            motivo,
           };
         }),
     })),
@@ -136,7 +144,7 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /*
  * A16 (D-PROD-160, revista pela D-PROD-162): PRODUTOS que o operador pode
  * escolher para o bem, lidos dos "Produtos aceitos" (`TanqueBemProduto`) dos
  * tanques ATIVOS do bem. Elegível = aceite ATIVO num tanque ATIVO ∧ Produto
- * ativo ∧ `empresa_id` = do bem ∧ unidade de estoque `L` ou `KG`. Cada item
+ * ativo ∧ `empresa_id` = do bem ∧ unidade de estoque `L`, `KG` ou `SACO`. Cada item
  * traz os tanques do bem que o aceitam (o seletor de tanque segue o Produto).
  * Sem tipo de combustível e sem fator. Envelope `{bem, itens, has_more,
  * next_cursor, resumo}`; `resumo` é do conjunto INTEIRO (ignora `q`/`cursor`).
@@ -196,7 +204,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
 
     // `Produto.empresa_id` e a unidade no próprio filtro: aceite incoerente (produto movido) nunca entra.
     const elegivel = {
-      cliente_id: cli, empresa_id: empresaId, ativo: true, unidade_principal_estoque: { in: [...UNIDADES_ABASTECIMENTO] }, id: { in: [...aceitos.keys()] },
+      cliente_id: cli, empresa_id: empresaId, ativo: true, unidade_principal_estoque: { in: [...UNIDADES_PRODUTO_TANQUE] }, id: { in: [...aceitos.keys()] },
     };
     /** @type {any} */
     const busca = q ? { OR: [{ nome_produto: { contains: q, mode: 'insensitive' } }, { codigo_interno: { contains: q, mode: 'insensitive' } }] } : null;
@@ -209,7 +217,13 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
       mapear: (linhas) =>
         linhas.map((p) => ({
           id: p.id,
-          produto: { id: p.id, nome: p.nome_produto, codigo_interno: p.codigo_interno ?? null, unidade_principal_estoque: p.unidade_principal_estoque },
+          produto: {
+            id: p.id,
+            nome: p.nome_produto,
+            codigo_interno: p.codigo_interno ?? null,
+            unidade_principal_estoque: p.unidade_principal_estoque,
+            unidade_abastecimento: unidadeEfetivaDoEstoque(p.unidade_principal_estoque),
+          },
           tanques: (tanquesPorProduto.get(p.id) ?? []).map((t) => ({ ...t })),
           pronto: true,
         })),
@@ -242,7 +256,11 @@ export const opcoesProdutosFiltro = async (contexto, query = {}) => {
   });
 };
 
-/** A12: locais ATIVOS com saldo (lotes Disponível > 0) do produto NA empresa, na unidade de estoque do Produto. */
+/**
+ * A12: locais ATIVOS com saldo (lotes Disponível > 0) do produto NA empresa.
+ * `disponivel` está na unidade EFETIVA do estoque (`unidade`: L ou KG; SACO →
+ * KG, D-PROD-163); `unidade_principal_estoque` é a do cadastro do Produto.
+ */
 export const opcoesLocais = async (contexto, query = {}) => {
   const { cli, prisma, empresaId } = await inicio(contexto, query);
   const produto = await prisma.produto.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: query.produto_id }, select: { id: true, unidade_principal_estoque: true } });
@@ -262,6 +280,12 @@ export const opcoesLocais = async (contexto, query = {}) => {
   return {
     itens: locais
       .sort((a, b) => comparar(a.nome, b.nome) || comparar(a.id, b.id))
-      .map((l) => ({ local_estoque_id: l.id, local_nome: l.nome, disponivel: t4(saldo.get(l.id) ?? 0), unidade: produto.unidade_principal_estoque })),
+      .map((l) => ({
+        local_estoque_id: l.id,
+        local_nome: l.nome,
+        disponivel: t4(saldo.get(l.id) ?? 0),
+        unidade: unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) ?? produto.unidade_principal_estoque,
+        unidade_principal_estoque: produto.unidade_principal_estoque,
+      })),
   };
 };

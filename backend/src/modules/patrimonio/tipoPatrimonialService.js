@@ -1,13 +1,30 @@
 /**
- * D-PROD-157 / D-PROD-162 — Tipos patrimoniais (catálogo do TENANT, sem
- * empresa), criados e mantidos DENTRO do cadastro de Bens.
+ * D-PROD-157 / D-PROD-162 / D-PROD-163 — Tipos patrimoniais (catálogo do
+ * TENANT, sem empresa), criados, renomeados e EXCLUÍDOS dentro do cadastro de
+ * Bens ("Gerenciar tipos").
  *
- * Regras (além das comuns do catálogo — ver `familiaPatrimonialService.js`):
- *  - o tipo pertence a UMA família (`familia_id` IMUTÁVEL); a família tem de
- *    existir no tenant e estar ATIVA na criação (senão 422
- *    `BEM_REFERENCIA_INVALIDA` field `familia_id`, reason `inexistente|inativo`);
- *  - nome único DENTRO da família (sem diferenciar maiúsculas); código único no
- *    tenant; sem `codigo` no POST, o servidor o gera do nome (P-05);
+ * D-PROD-163 (SIMPLIFICA-02): o usuário não vê família. O tipo pertence a um
+ * "Tipo de bem" (a natureza da família dele):
+ *  - antes de listar, de dar as opções do formulário e de criar, o catálogo
+ *    padrão é GARANTIDO (`garantirCatalogoPadrao`: as 6 famílias padrão e, só
+ *    para as criadas naquela chamada, os tipos padrão);
+ *  - POST `{ natureza, nome, ... }` sem `familia_id`: o servidor resolve a
+ *    família PADRÃO ATIVA da natureza (`familiaPadraoDaNatureza`; sem ela →
+ *    422 `PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL`). Com `familia_id`
+ *    (compatibilidade): família do tenant, ATIVA e — se a natureza vier — da
+ *    mesma natureza (422 `BEM_REFERENCIA_INVALIDA` field `familia_id`, reason
+ *    `inexistente|inativo|natureza_diferente`);
+ *  - nome único DENTRO do tipo de bem (todas as famílias da natureza), sem
+ *    diferenciar maiúsculas, sob a trava do catálogo; o unique do banco
+ *    (por família) é a última barreira. Código único no tenant; sem `codigo`
+ *    no POST, o servidor o gera do nome (P-05);
+ *  - GET lista com filtro `natureza` (join `familia.natureza`); cada item traz
+ *    `natureza` e `bens_em_uso` (bens ativos OU inativos de qualquer fazenda);
+ *  - DELETE com CAS por `versao` (query): exclusão FÍSICA só sem nenhum bem
+ *    (ativo ou inativo) usando o tipo; senão 409 `PATRIMONIO_TIPO_EM_USO`
+ *    `{ bens }`. A trava do catálogo + `FOR UPDATE` do tipo serializam com o
+ *    cadastro do bem (que lê o tipo `FOR SHARE`): nunca sobra bem órfão;
+ *  - `familia_id`, `codigo` e `natureza` IMUTÁVEIS (fora do schema do PATCH);
  *  - D-PROD-162: os perfis de medição sugeridos saíram (`perfis` no corpo → 400).
  */
 
@@ -16,11 +33,13 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { iso, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { familiaPadraoDaNatureza, garantirCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
 import {
   atualizarComVersao, camposAlterados, codigoDisponivel, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
   nomeDuplicado, nomeIgual, paginacaoOpcoes, paginarPorNome, termoDeBusca, travarCatalogo,
 } from './patrimonioComum.js';
+import { NATUREZAS } from './patrimonioDominio.js';
 
 export const ENTIDADE = 'TipoPatrimonial';
 
@@ -28,25 +47,44 @@ const SELECAO = Object.freeze({
   id: true, familia_id: true, codigo: true, nome: true, descricao: true, vida_util_meses_sugerida: true,
   ativo: true, versao: true, createdAt: true, updatedAt: true,
   familia: { select: { id: true, codigo: true, nome: true, natureza: true, ativo: true } },
+  _count: { select: { bens: true } },
 });
 
 export const naoEncontrado = () => new AppError('TIPO_PATRIMONIAL_NAO_ENCONTRADO', 'tipo patrimonial não encontrado');
-const familiaInvalida = (reason) =>
-  new AppError('BEM_REFERENCIA_INVALIDA', reason === 'inativo' ? 'a família escolhida está inativa; nada foi gravado' : 'família não encontrada; nada foi gravado', {
-    details: { field: 'familia_id', reason },
-  });
+const MENSAGENS_FAMILIA = Object.freeze({
+  inexistente: 'família não encontrada; nada foi gravado',
+  inativo: 'a família escolhida está inativa; nada foi gravado',
+  natureza_diferente: 'a família informada é de outro tipo de bem; nada foi gravado',
+});
+/** @param {keyof typeof MENSAGENS_FAMILIA} reason */
+const familiaInvalida = (reason) => new AppError('BEM_REFERENCIA_INVALIDA', MENSAGENS_FAMILIA[reason], { details: { field: 'familia_id', reason } });
 
-/** Forma pública (sem tenant). */
+/**
+ * 409 do DELETE: o tipo é usado por bem(ns) ativo(s) ou inativo(s).
+ * @param {number|null} bens  null só no caminho defensivo da FK (sem contagem confiável)
+ */
+export const tipoEmUso = (bens) =>
+  new AppError(
+    'PATRIMONIO_TIPO_EM_USO',
+    bens === null
+      ? 'Este tipo está em uso por bem(ns). Troque o tipo desses bens antes de excluir.'
+      : `Este tipo está em uso por ${bens} bem(ns). Troque o tipo desses bens antes de excluir.`,
+    { details: { field: 'id', reason: 'tipo_em_uso', bens } }
+  );
+
+/** Forma pública (sem tenant). D-PROD-163: `natureza` (da família) e `bens_em_uso`. */
 export const comoTipoPublico = (r) => ({
   id: r.id,
   familia_id: r.familia_id,
   familia: r.familia ? { id: r.familia.id, codigo: r.familia.codigo, nome: r.familia.nome, natureza: r.familia.natureza, ativo: r.familia.ativo } : null,
+  natureza: r.familia?.natureza ?? null,
   codigo: r.codigo,
   nome: r.nome,
   descricao: r.descricao ?? null,
   vida_util_meses_sugerida: r.vida_util_meses_sugerida ?? null,
   ativo: r.ativo,
   versao: r.versao,
+  bens_em_uso: r._count?.bens ?? 0,
   created_date: iso(r.createdAt),
   updated_date: iso(r.updatedAt),
 });
@@ -63,21 +101,28 @@ const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_s
 
 const buscar = (db, clienteId, id) => db.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, id }, select: SELECAO });
 
+/** @param {unknown} n @returns {string} */
+const exigirNatureza = (n) => {
+  if (typeof n !== 'string' || !NATUREZAS.includes(n)) throw invalido('natureza inválida', { field: 'natureza', reason: 'natureza_invalida' });
+  return n;
+};
+
 /**
- * Código e nome livres (sob a trava do catálogo); campo ausente não é conferido.
+ * Código (no tenant) e nome (no TIPO DE BEM, sem diferenciar maiúsculas)
+ * livres, sob a trava do catálogo; campo ausente não é conferido.
  * @param {any} tx
  * @param {string} clienteId
- * @param {{ codigo?: string, nome?: string, familiaId?: string }} campos
+ * @param {{ codigo?: string, nome?: string, natureza?: string }} campos
  * @param {string|null} [ignorarId]
  */
-const exigirLivre = async (tx, clienteId, { codigo, nome, familiaId }, ignorarId = null) => {
+const exigirLivre = async (tx, clienteId, { codigo, nome, natureza }, ignorarId = null) => {
   const fora = ignorarId ? { NOT: { id: ignorarId } } : {};
   if (codigo !== undefined && (await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, codigo, ...fora }, select: { id: true } }))) {
     throw codigoDuplicado();
   }
   if (
     nome !== undefined &&
-    (await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, familia_id: familiaId, nome: nomeIgual(nome), ...fora }, select: { id: true } }))
+    (await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, nome: nomeIgual(nome), familia: { natureza }, ...fora }, select: { id: true } }))
   ) {
     throw nomeDuplicado();
   }
@@ -88,11 +133,13 @@ const transacao = (fn) => comUnicosEstaveis(() => emTransacao(TRANSACAO_CURTA, f
 
 export const listar = async (contexto, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
+  await garantirCatalogoPadrao(contexto);
   /** @type {Record<string, any>} */
   const where = { cliente_id: auth.clienteId };
   const ativo = lerAtivo(query.ativo);
   if (ativo !== null) where.ativo = ativo;
   if (typeof query.familia_id === 'string' && query.familia_id) where.familia_id = query.familia_id;
+  if (query.natureza !== undefined) where.familia = { natureza: exigirNatureza(query.natureza) };
   const q = termoDeBusca(query.q);
   const busca = q
     ? [{ codigo: { contains: q, mode: 'insensitive' } }, { nome: { contains: q, mode: 'insensitive' } }, { descricao: { contains: q, mode: 'insensitive' } }]
@@ -107,19 +154,40 @@ export const detalhar = async (contexto, id) => {
   return comoTipoPublico(r);
 };
 
+/**
+ * Família do tipo novo: a informada (compatibilidade, conferida) ou a padrão
+ * ATIVA da natureza. Sob a trava do catálogo.
+ * @param {any} tx @param {string} cli @param {{ familia_id?: unknown, natureza?: unknown }} entrada
+ * @returns {Promise<{ id: string, natureza: string }>}
+ */
+const resolverFamilia = async (tx, cli, entrada) => {
+  const natureza = entrada.natureza === undefined ? null : exigirNatureza(entrada.natureza);
+  if (entrada.familia_id !== undefined) {
+    if (typeof entrada.familia_id !== 'string' || !entrada.familia_id) throw familiaInvalida('inexistente');
+    const familia = await tx.familiaPatrimonial.findFirst({ where: { cliente_id: cli, id: entrada.familia_id }, select: { id: true, natureza: true, ativo: true } });
+    if (!familia) throw familiaInvalida('inexistente');
+    if (natureza && familia.natureza !== natureza) throw familiaInvalida('natureza_diferente');
+    if (!familia.ativo) throw familiaInvalida('inativo');
+    return familia;
+  }
+  if (!natureza) throw invalido('informe o tipo de bem (natureza) do tipo', { field: 'natureza', reason: 'obrigatorio' });
+  return familiaPadraoDaNatureza(tx, cli, natureza);
+};
+
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
   const codigoInformado = entrada.codigo === undefined ? null : codigoDoCorpo(entrada.codigo);
   const nome = /** @type {string} */ (textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true }));
   const descricao = textoDoCorpo(entrada.descricao, 'descricao') ?? null;
+  if (entrada.familia_id === undefined && entrada.natureza === undefined) {
+    throw invalido('informe o tipo de bem (natureza) do tipo', { field: 'natureza', reason: 'obrigatorio' });
+  }
+  await garantirCatalogoPadrao(contexto);
   return transacao(async (tx) => {
     await travarCatalogo(tx, cli);
-    if (typeof entrada.familia_id !== 'string' || !entrada.familia_id) throw familiaInvalida('inexistente');
-    const familia = await tx.familiaPatrimonial.findFirst({ where: { cliente_id: cli, id: entrada.familia_id }, select: { id: true, natureza: true, ativo: true } });
-    if (!familia) throw familiaInvalida('inexistente');
-    if (!familia.ativo) throw familiaInvalida('inativo');
-    await exigirLivre(tx, cli, { ...(codigoInformado ? { codigo: codigoInformado } : {}), nome, familiaId: familia.id });
+    const familia = await resolverFamilia(tx, cli, entrada);
+    await exigirLivre(tx, cli, { ...(codigoInformado ? { codigo: codigoInformado } : {}), nome, natureza: familia.natureza });
     const codigo = codigoInformado ?? (await codigoDisponivel(tx, cli, 'tipoPatrimonial', nome));
     const criado = await tx.tipoPatrimonial.create({
       data: { cliente_id: cli, familia_id: familia.id, codigo, nome, descricao, vida_util_meses_sugerida: entrada.vida_util_meses_sugerida ?? null },
@@ -145,7 +213,7 @@ export const atualizar = async (contexto, id, entrada) => {
     if (entrada.nome !== undefined) {
       const nome = /** @type {string} */ (textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true }));
       if (nome !== antes.nome) {
-        if (nome.toLowerCase() !== antes.nome.toLowerCase()) await exigirLivre(tx, cli, { nome, familiaId: antes.familia_id }, id);
+        if (nome.toLowerCase() !== antes.nome.toLowerCase()) await exigirLivre(tx, cli, { nome, natureza: antes.familia.natureza }, id);
         dados.nome = nome;
       }
     }
@@ -175,22 +243,60 @@ export const atualizar = async (contexto, id, entrada) => {
   });
 };
 
+/** A exclusão bateu na FK do bem (caminho defensivo: a contagem sob trava já a evita). */
+const ehViolacaoDeFk = (erro) => {
+  const e = /** @type {any} */ (erro);
+  return e?.code === 'P2003' || /foreign key/i.test(String(e?.message ?? ''));
+};
+
 /**
- * Opções de seletor: tipos ATIVOS (filtro `familia_id`), em ordem alfabética,
- * `{id, codigo, nome, familia_id}`.
+ * DELETE (D-PROD-163): exclusão FÍSICA do tipo sem nenhum bem (ativo ou
+ * inativo, de qualquer fazenda). Ordem: trava do catálogo → `FOR UPDATE` do
+ * tipo (espera o `FOR SHARE` do cadastro de bem em voo) → CAS da versão →
+ * contagem dos bens (READ COMMITTED: vê o bem já confirmado) → DELETE →
+ * auditoria na mesma transação.
+ * @param {any} contexto @param {string} id @param {{ versao?: number }} [query]
+ */
+export const excluir = async (contexto, id, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
+  const versao = Number(query.versao);
+  return transacao(async (tx) => {
+    await travarCatalogo(tx, cli);
+    await tx.$queryRaw`SELECT id FROM "TipoPatrimonial" WHERE cliente_id = ${cli} AND id = ${id} FOR UPDATE`;
+    const antes = await buscar(tx, cli, id);
+    if (!antes) throw naoEncontrado();
+    exigirVersao(antes, versao);
+    const bens = await tx.bemPatrimonial.count({ where: { cliente_id: cli, tipo_id: id } });
+    if (bens > 0) throw tipoEmUso(bens);
+    try {
+      await tx.tipoPatrimonial.delete({ where: { cliente_id_id: { cliente_id: cli, id } } });
+    } catch (erro) {
+      if (ehViolacaoDeFk(erro)) throw tipoEmUso(null);
+      throw erro;
+    }
+    await registrarEvento(contexto, { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(antes) }, tx);
+  });
+};
+
+/**
+ * Opções de seletor (formulário do bem): tipos ATIVOS de famílias ATIVAS,
+ * filtro `natureza` (D-PROD-163) e/ou `familia_id`, em ordem alfabética,
+ * `{id, codigo, nome, familia_id, natureza}`. Garante o catálogo antes.
  */
 export const opcoes = async (contexto, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
+  await garantirCatalogoPadrao(contexto);
   const { limit, cursor, q } = paginacaoOpcoes(query);
   /** @type {any[]} */
-  const filtros = [{ cliente_id: auth.clienteId, ativo: true }];
+  const filtros = [{ cliente_id: auth.clienteId, ativo: true, familia: { ativo: true, ...(query.natureza !== undefined ? { natureza: exigirNatureza(query.natureza) } : {}) } }];
   if (typeof query.familia_id === 'string' && query.familia_id) filtros.push({ familia_id: query.familia_id });
   if (q) filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { codigo: { contains: q, mode: 'insensitive' } }] });
   return paginarPorNome(getPrismaClient().tipoPatrimonial, {
     where: { AND: filtros },
-    select: { id: true, codigo: true, nome: true, familia_id: true },
+    select: { id: true, codigo: true, nome: true, familia_id: true, familia: { select: { natureza: true } } },
     limit,
     cursor,
-    mapear: (linhas) => linhas.map((r) => ({ id: r.id, codigo: r.codigo, nome: r.nome, familia_id: r.familia_id })),
+    mapear: (linhas) => linhas.map((r) => ({ id: r.id, codigo: r.codigo, nome: r.nome, familia_id: r.familia_id, natureza: r.familia.natureza })),
   });
 };

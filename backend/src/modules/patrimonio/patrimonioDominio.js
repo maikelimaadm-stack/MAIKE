@@ -7,7 +7,8 @@
  * Prisma); mudar uma lista exige migration nova.
  *
  * D-PROD-162: saem perfis de medição, medições físicas, catálogo de
- * combustíveis e fator kg/L. Cada tanque aceita Produtos do estoque em L ou KG.
+ * combustíveis e fator kg/L. D-PROD-163: cada tanque aceita Produtos do
+ * estoque em qualquer unidade (L, KG ou SACO); o abastecimento é em L ou KG.
  */
 
 export const NATUREZAS = Object.freeze(['BENFEITORIA', 'MAQUINA', 'VEICULO', 'IMPLEMENTO', 'EQUIPAMENTO', 'OUTRO']);
@@ -96,11 +97,35 @@ export const MAX_TANQUES_ATIVOS_POR_BEM = 10;
 /** D-PROD-162 (P-02) — Produtos aceitos ATIVOS por tanque (o mesmo teto do antigo `combustivel_ids`). */
 export const MAX_PRODUTOS_POR_TANQUE = 20;
 /**
- * D-PROD-162 — unidades de estoque do Produto que um tanque aceita e que o
- * abastecimento baixa (exatamente a quantidade digitada; sem conversão).
- * A capacidade do tanque (litros) só é conferida para Produto em L.
+ * D-PROD-162 — unidades do ABASTECIMENTO (`AbastecimentoBem.unidade`, CHECK do
+ * banco): a unidade EFETIVA do estoque do Produto. O abastecimento baixa
+ * exatamente a quantidade digitada nessa unidade, sem conversão. A capacidade
+ * do tanque (litros) só é conferida para Produto em L.
  */
 export const UNIDADES_ABASTECIMENTO = Object.freeze(['L', 'KG']);
+/**
+ * D-PROD-163 (SIMPLIFICA-02) — unidades de estoque do Produto que um tanque
+ * ACEITA: qualquer unidade do cadastro de Produtos (L, KG e SACO). SACO guarda
+ * estoque em kg (`estoqueFisicoMotor.js`), então abastece em KG.
+ */
+export const UNIDADES_PRODUTO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
+/**
+ * Unidade EFETIVA do estoque do Produto (a do abastecimento): `L` para L; `KG`
+ * para KG e SACO; `null` para unidade que o tanque não aceita.
+ * @param {unknown} u  `Produto.unidade_principal_estoque`
+ * @returns {'L'|'KG'|null}
+ */
+export const unidadeEfetivaDoEstoque = (u) => (u === 'L' ? 'L' : u === 'KG' || u === 'SACO' ? 'KG' : null);
+
+/** Rótulo pt-BR do "Tipo de bem" (natureza) nas mensagens do servidor (o navegador tem os seus). */
+export const ROTULO_NATUREZA = Object.freeze({
+  BENFEITORIA: 'Benfeitoria',
+  MAQUINA: 'Máquina',
+  VEICULO: 'Veículo',
+  IMPLEMENTO: 'Implemento',
+  EQUIPAMENTO: 'Equipamento',
+  OUTRO: 'Outro',
+});
 
 /** Faixas inteiras do cadastro (CHECKs da migration). */
 export const FAIXA_ORDEM_FAMILIA = Object.freeze({ min: 0, max: 9999 });

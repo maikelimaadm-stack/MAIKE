@@ -3,8 +3,8 @@ import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
 import * as UiDialog from "@/components/ui/dialog";
 import { mensagemDoBloqueioAbastecimento, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import {
-  DICA_PRODUTO_EM_KG,
   UNIDADE_MEDIDOR,
+  dicaDaUnidadeDoProduto,
   formatarCusto,
   formatarDiaAbastecimento,
   formatarLeitura,
@@ -14,6 +14,7 @@ import {
   quantidadeDaBaixaNaPrevia,
   rotuloDaUnidade,
   rotuloDoBem,
+  unidadeDoAbastecimentoDoProduto,
 } from "@/lib/abastecimentoRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -136,7 +137,8 @@ function Linha({ rotulo, valor, testId = undefined }) {
  * Revisão (prévia SEM escrita do servidor) + confirmação do abastecimento
  * (D-PROD-162). Resumo humano: máquina, Produto, quantidade na unidade do
  * Produto, medidor, tanque cheio, data, local e a baixa do estoque (EXATAMENTE
- * a quantidade digitada, "120,0000 L" ou "80,0000 kg"). Os dados técnicos
+ * a quantidade digitada, "120,0000 L" ou "80,0000 kg"; D-PROD-163: Produto em
+ * SACO baixa em kg, a unidade do estoque dele). Os dados técnicos
  * (tanque, custo estimado por L/kg, saldo e lotes FIFO) ficam em "Detalhes do
  * estoque", recolhido. Sem tipo de combustível e sem fator. Com bloqueio não
  * há "Confirmar". `onConsultar` devolve o texto do resultado da consulta (ou
@@ -160,10 +162,12 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
   const fatias = Array.isArray(fifo?.fatias) ? fifo.fatias : [];
   const medidor = plano?.medidor ?? null;
   const unidade = UNIDADE_MEDIDOR[String(medidor?.tipo ?? "")] ?? "";
-  // Unidade de estoque do Produto (L ou KG; null se o Produto não está em nenhuma delas).
-  const unidadeEstoque = plano?.unidade ?? null;
+  // Unidade EFETIVA do estoque do Produto (L ou KG — SACO guarda em kg; null se não for nenhuma delas).
+  const unidadeEstoque = unidadeDoAbastecimentoDoProduto(plano?.unidade ?? null);
   const porUnidade = rotuloDaUnidade(unidadeEstoque);
-  // Com bloqueio de quantidade (zero, acima do teto) ou Produto fora de L/KG a quantidade não é baixa: não aparece como tal.
+  // Dica pela unidade do PRODUTO (KG: kg, não litros; SACO: kg, não sacos); sem ela no plano, a da unidade efetiva.
+  const dicaDaUnidade = dicaDaUnidadeDoProduto(plano?.produto?.unidade_principal_estoque ?? unidadeEstoque);
+  // Com bloqueio de quantidade (zero, acima do teto) ou Produto fora de L/KG/SACO a quantidade não é baixa: não aparece como tal.
   const baixa = quantidadeDaBaixaNaPrevia(previa);
   const quantidade = plano?.quantidade ? formatarQuantidadeCurta(plano.quantidade, unidadeEstoque) : "—";
 
@@ -185,9 +189,9 @@ export function DialogoPreviaAbastecimento({ aberto, previa, podeConfirmar, onFe
               : "Nada foi gravado: confira abaixo o que impede a confirmação."}
           </DialogDescription>
         </DialogHeader>
-        {unidadeEstoque === "KG" ? (
+        {dicaDaUnidade ? (
           <p role="note" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="previa-dica-kg">
-            {DICA_PRODUTO_EM_KG}
+            {dicaDaUnidade}
           </p>
         ) : null}
         <dl className="min-w-0" data-testid="previa-dados">

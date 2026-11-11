@@ -1,11 +1,17 @@
 /**
- * D-PROD-162 — porta e API do Patrimônio depois da simplificação, e as
- * mensagens novas de `patrimonioErros`.
+ * D-PROD-162 / D-PROD-163 — porta e API do Patrimônio depois da simplificação,
+ * e as mensagens novas de `patrimonioErros`.
  *
- *  - catálogos: só famílias e tipos; o `codigo` é opcional no POST (gerado no
- *    servidor a partir do nome, P-05); o catálogo padrão conta só famílias e tipos;
- *  - opções do bem: `produtos` (Produtos que um tanque aceita) pede a empresa e
- *    aceita o filtro `unidade` (`L` | `KG`); perfis e combustíveis saíram;
+ *  - catálogo (D-PROD-163): só TIPOS na tela — POST `{natureza, nome}` sem
+ *    `familia_id` (o servidor resolve a família padrão), PATCH com `versao`,
+ *    DELETE `/patrimonio-tipos/:id?versao=N`; o `codigo` é opcional no POST
+ *    (gerado no servidor a partir do nome, P-05); família e catálogo padrão
+ *    saíram da API da tela;
+ *  - bem (D-PROD-163): POST com `natureza` + `tipo_id`, sem `familia_id`;
+ *    PATCH sem `familia_id` nem `natureza`;
+ *  - opções do bem: `tipos` aceita `natureza`; `produtos` (Produtos que um
+ *    tanque aceita) pede a empresa e aceita o filtro `unidade` (`L` | `KG` |
+ *    `SACO`); perfis, combustíveis, famílias e áreas saíram;
  *  - abastecimento: `quantidade` na unidade do Produto; sem `tipo_combustivel_id`,
  *    `quantidade_litros` nem `conversao_*` (corpo antigo falha ANTES da rede);
  *    opções sem `tipos`/`produtos`; os fatores kg/L saíram da API;
@@ -48,18 +54,12 @@ beforeEach(async () => {
   const { setNativeToken } = await import('@/lib/auth/nativeTokenStorage');
   setNativeToken('jwt.teste');
   backend = instalarBackendFake(({ method, path }) => {
-    if (method === 'POST' && path === '/patrimonio-familias') return { status: 201, body: { id: 'f1', codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA', versao: 1 } };
-    if (method === 'POST' && path === '/patrimonio-tipos') return { status: 201, body: { id: 't1', codigo: 'TRATOR', nome: 'Trator', versao: 1 } };
-    if (method === 'POST' && path === '/patrimonio-catalogo-padrao') {
-      return {
-        status: 200,
-        body: {
-          criados: { familias: 6, tipos: 14, perfis: 9, combustiveis: 4 },
-          existentes: { familias: 0, tipos: 1 },
-          conflitos: [{ recurso: 'tipos', codigo: 'TRATOR', motivo: 'nome_em_uso', extra: 'x' }],
-        },
-      };
-    }
+    if (method === 'POST' && path === '/patrimonio-tipos') return { status: 201, body: { id: 't1', codigo: 'TRATOR', nome: 'Trator', natureza: 'MAQUINA', versao: 1 } };
+    if (method === 'DELETE' && path === '/patrimonio-tipos/t1') return { status: 204 };
+    if (method === 'GET' && path === '/patrimonio-tipos') return { status: 200, body: { items: [], next_cursor: null, has_more: false } };
+    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return { status: 200, body: { itens: [], has_more: false, next_cursor: null } };
+    if (method === 'POST' && path === '/bens-patrimoniais') return { status: 201, body: { id: 'b1' } };
+    if (method === 'PATCH' && path === '/bens-patrimoniais/b1') return { status: 200, body: { id: 'b1' } };
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/produtos') {
       return { status: 200, body: { itens: [{ id: 'p1', nome: 'Diesel S10 (L)', codigo_interno: 'DS10', unidade_principal_estoque: 'L' }], has_more: false, next_cursor: null } };
     }
@@ -73,55 +73,95 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('API-1 — catálogos: só famílias e tipos; código opcional', () => {
-  it('CAMINHOS_CATALOGO tem só famílias e tipos; perfis e combustíveis são recurso inválido (falha antes da rede)', async () => {
+describe('API-1 — catálogo: só tipos, por Tipo de bem (D-PROD-163); código opcional', () => {
+  it('CAMINHOS_CATALOGO tem só tipos; famílias, perfis e combustíveis são recurso inválido (falha antes da rede)', async () => {
     const { api, porta } = await carregar();
-    expect(Object.keys(porta.CAMINHOS_CATALOGO)).toEqual(['familias', 'tipos']);
-    for (const recurso of ['perfis-medicao', 'combustiveis']) {
+    expect(Object.keys(porta.CAMINHOS_CATALOGO)).toEqual(['tipos']);
+    for (const recurso of ['familias', 'perfis-medicao', 'combustiveis']) {
       await expect(api.listPatrimonioCatalogoPage(recurso, {}), recurso).rejects.toBeTruthy();
-      await expect(api.createPatrimonioCatalogo(recurso, { codigo: 'X1', nome: 'X' }), recurso).rejects.toBeTruthy();
+      await expect(api.createPatrimonioCatalogo(recurso, { natureza: 'MAQUINA', nome: 'X' }), recurso).rejects.toBeTruthy();
+      await expect(api.deletePatrimonioCatalogo(recurso, 'x1', 1), recurso).rejects.toBeTruthy();
     }
+    expect('instalarPatrimonioCatalogoPadrao' in api).toBe(false);
+    expect(Object.keys(porta.operacoesNativas)).not.toContain('catalogoPadrao');
     expect(backend.chamadas).toEqual([]);
   });
 
-  it('POST de família e de tipo SEM código (o servidor gera do nome, P-05); com código também vai', async () => {
+  it('POST de tipo com {natureza, nome} SEM familia_id nem código (o servidor resolve a família e gera o código); com código também vai', async () => {
     const { api } = await carregar();
-    await api.createPatrimonioCatalogo('familias', { nome: 'Máquinas', natureza: 'MAQUINA' });
-    await api.createPatrimonioCatalogo('tipos', { familia_id: 'f1', nome: 'Trator' });
-    await api.createPatrimonioCatalogo('familias', { codigo: 'VEICULOS', nome: 'Veículos', natureza: 'VEICULO' });
+    await api.createPatrimonioCatalogo('tipos', { natureza: 'MAQUINA', nome: 'Trator' });
+    await api.createPatrimonioCatalogo('tipos', { natureza: 'VEICULO', codigo: 'CAMINHONETE', nome: 'Caminhonete' });
     expect(backend.chamadas.map(({ method, path, body }) => ({ method, path, body }))).toEqual([
-      { method: 'POST', path: '/patrimonio-familias', body: { nome: 'Máquinas', natureza: 'MAQUINA' } },
-      { method: 'POST', path: '/patrimonio-tipos', body: { familia_id: 'f1', nome: 'Trator' } },
-      { method: 'POST', path: '/patrimonio-familias', body: { codigo: 'VEICULOS', nome: 'Veículos', natureza: 'VEICULO' } },
+      { method: 'POST', path: '/patrimonio-tipos', body: { natureza: 'MAQUINA', nome: 'Trator' } },
+      { method: 'POST', path: '/patrimonio-tipos', body: { natureza: 'VEICULO', codigo: 'CAMINHONETE', nome: 'Caminhonete' } },
     ]);
   });
 
-  it('POST sem nome, com código vazio, com empresa_id ou com perfis falha antes da rede', async () => {
+  it('POST sem natureza, com natureza fora da lista, com familia_id, sem nome, com código vazio, com empresa_id ou com perfis falha antes da rede', async () => {
     const { api } = await carregar();
-    await expect(api.createPatrimonioCatalogo('familias', { natureza: 'MAQUINA' })).rejects.toBeTruthy();
-    await expect(api.createPatrimonioCatalogo('familias', { codigo: '', nome: 'Máquinas', natureza: 'MAQUINA' })).rejects.toBeTruthy();
-    await expect(api.createPatrimonioCatalogo('familias', { nome: 'Máquinas', natureza: 'MAQUINA', empresa_id: 'emp-1' })).rejects.toBeTruthy();
-    await expect(api.createPatrimonioCatalogo('tipos', { familia_id: 'f1', nome: 'Curral', perfis: [] })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { nome: 'Trator' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'NAVIO', nome: 'Balsa' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'MAQUINA', familia_id: 'f1', nome: 'Trator' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'MAQUINA' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'MAQUINA', codigo: '', nome: 'Trator' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'MAQUINA', nome: 'Trator', empresa_id: 'emp-1' })).rejects.toBeTruthy();
+    await expect(api.createPatrimonioCatalogo('tipos', { natureza: 'BENFEITORIA', nome: 'Curral', perfis: [] })).rejects.toBeTruthy();
     expect(backend.chamadas).toEqual([]);
   });
 
-  it('catálogo padrão: contagens só de famílias e tipos; conflitos só com recurso, código e motivo', async () => {
+  it('listagem dos tipos com `natureza`; DELETE com a versao na query (204 → sem corpo); sem versao falha antes da rede', async () => {
+    const { api, porta } = await carregar();
+    await api.listPatrimonioCatalogoPage('tipos', { natureza: 'MAQUINA', q: ' trat ', limit: 50 });
+    expect(backend.chamadas[0]).toMatchObject({ method: 'GET', path: '/patrimonio-tipos', query: { natureza: 'MAQUINA', q: 'trat', limit: '50' } });
+    await expect(api.listPatrimonioCatalogoPage('tipos', { natureza: 'NAVIO' })).rejects.toBeTruthy();
+    expect(await api.deletePatrimonioCatalogo('tipos', 't1', 3)).toBeUndefined();
+    expect(backend.chamadas[1]).toMatchObject({ method: 'DELETE', path: '/patrimonio-tipos/t1', query: { versao: '3' }, body: null });
+    for (const versao of [undefined, 0, '3', 1.5]) await expect(api.deletePatrimonioCatalogo('tipos', 't1', versao), String(versao)).rejects.toBeTruthy();
+    expect(backend.chamadas).toHaveLength(2);
+    expect(porta.montarCaminhoExclusaoCatalogo('tipos', 't 1', 7)).toBe('/patrimonio-tipos/t%201?versao=7');
+  });
+
+  it('PATCH de tipo (renomear) com versao; natureza, familia_id e código nunca vão', async () => {
     const { api } = await carregar();
-    expect(await api.instalarPatrimonioCatalogoPadrao()).toEqual({
-      criados: { familias: 6, tipos: 14 },
-      existentes: { familias: 0, tipos: 1 },
-      conflitos: [{ recurso: 'tipos', codigo: 'TRATOR', motivo: 'nome_em_uso' }],
-    });
+    for (const campo of ['natureza', 'familia_id', 'codigo']) {
+      await expect(api.updatePatrimonioCatalogo('tipos', 't1', { versao: 2, nome: 'X', [campo]: 'Y' }), campo).rejects.toBeTruthy();
+    }
+    expect(backend.chamadas).toEqual([]);
+  });
+});
+
+describe('API-1b — bem com Tipo de bem + tipo, sem família (D-PROD-163)', () => {
+  it('POST do bem exige natureza e tipo_id e recusa familia_id antes da rede; PATCH recusa familia_id e natureza', async () => {
+    const { api } = await carregar();
+    await api.createBemPatrimonial({ empresa_id: 'emp-1', natureza: 'MAQUINA', tipo_id: 't1', nome: 'Trator' });
+    expect(backend.chamadas[0]).toMatchObject({ method: 'POST', path: '/bens-patrimoniais', body: { empresa_id: 'emp-1', natureza: 'MAQUINA', tipo_id: 't1', nome: 'Trator' } });
+    await expect(api.createBemPatrimonial({ empresa_id: 'emp-1', tipo_id: 't1', nome: 'Trator' })).rejects.toBeTruthy();
+    await expect(api.createBemPatrimonial({ empresa_id: 'emp-1', natureza: 'MAQUINA', nome: 'Trator' })).rejects.toBeTruthy();
+    await expect(api.createBemPatrimonial({ empresa_id: 'emp-1', natureza: 'MAQUINA', familia_id: 'f2', tipo_id: 't1', nome: 'Trator' })).rejects.toBeTruthy();
+    await api.updateBemPatrimonial('b1', { empresa_id: 'emp-1', versao: 2, tipo_id: 't2' });
+    expect(backend.chamadas[1]).toMatchObject({ method: 'PATCH', path: '/bens-patrimoniais/b1', body: { empresa_id: 'emp-1', versao: 2, tipo_id: 't2' } });
+    await expect(api.updateBemPatrimonial('b1', { empresa_id: 'emp-1', versao: 2, familia_id: 'f2' })).rejects.toBeTruthy();
+    await expect(api.updateBemPatrimonial('b1', { empresa_id: 'emp-1', versao: 2, natureza: 'MAQUINA' })).rejects.toBeTruthy();
+    expect(backend.chamadas).toHaveLength(2);
+  });
+
+  it('opções de tipos pelo Tipo de bem: `?natureza=` (sem familia_id); natureza fora da lista falha antes da rede', async () => {
+    const { api, porta } = await carregar();
+    await api.listOpcoesBemPatrimonial('tipos', { natureza: 'VEICULO', q: 'cam', limit: 50 });
+    expect(backend.chamadas[0]).toMatchObject({ method: 'GET', path: '/bens-patrimoniais-opcoes/tipos', query: { natureza: 'VEICULO', q: 'cam', limit: '50' } });
+    await expect(api.listOpcoesBemPatrimonial('tipos', { natureza: 'NAVIO' })).rejects.toBeTruthy();
+    expect(porta.montarCaminhoOpcoes('tipos', { natureza: 'MAQUINA', familia_id: 'f2' })).toBe('/bens-patrimoniais-opcoes/tipos?natureza=MAQUINA');
+    expect(backend.chamadas).toHaveLength(1);
   });
 });
 
 describe('API-2 — opções do bem: Produtos que o tanque aceita', () => {
-  it('RECURSOS_OPCOES_PATRIMONIO troca perfis/combustíveis por produtos; produtos pede a empresa', async () => {
+  it('RECURSOS_OPCOES_PATRIMONIO: tipos, produtos e as referências da fazenda (sem famílias nem áreas); produtos pede a empresa', async () => {
     const { api } = await carregar();
-    expect([...api.RECURSOS_OPCOES_PATRIMONIO]).toEqual(['familias', 'tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo', 'areas']);
-    expect(api.RECURSOS_OPCOES_DA_EMPRESA).toContain('produtos');
+    expect([...api.RECURSOS_OPCOES_PATRIMONIO]).toEqual(['tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo']);
+    expect([...api.RECURSOS_OPCOES_DA_EMPRESA]).toEqual(['produtos', 'responsaveis', 'parceiros', 'centros-custo']);
     await expect(api.listOpcoesBemPatrimonial('produtos', {})).rejects.toBeTruthy();
-    for (const recurso of ['perfis-medicao', 'combustiveis']) await expect(api.listOpcoesBemPatrimonial(recurso, {}), recurso).rejects.toBeTruthy();
+    for (const recurso of ['perfis-medicao', 'combustiveis', 'familias', 'areas']) await expect(api.listOpcoesBemPatrimonial(recurso, { empresa_id: 'emp-1' }), recurso).rejects.toBeTruthy();
     expect(backend.chamadas).toEqual([]);
   });
 
@@ -131,17 +171,20 @@ describe('API-2 — opções do bem: Produtos que o tanque aceita', () => {
     expect(pagina).toEqual({ itens: [{ id: 'p1', nome: 'Diesel S10 (L)', codigo_interno: 'DS10', unidade_principal_estoque: 'L' }], has_more: false, next_cursor: null });
     expect(backend.chamadas).toHaveLength(1);
     expect(backend.chamadas[0]).toMatchObject({ method: 'GET', path: '/bens-patrimoniais-opcoes/produtos', query: { empresa_id: 'emp-1', q: 'die', unidade: 'L', limit: '20', cursor: 'c1' } });
-    // Sem `unidade`: L e KG (o servidor decide); unidade fora de L/KG falha antes da rede.
+    // Sem `unidade`: todas (o servidor decide); D-PROD-163: SACO é filtro válido; unidade fora de L/KG/SACO falha antes da rede.
     await api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1' });
     expect(backend.chamadas[1].query).toEqual({ empresa_id: 'emp-1' });
-    await expect(api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1', unidade: 'SACO' })).rejects.toBeTruthy();
-    expect(backend.chamadas).toHaveLength(2);
+    await api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1', unidade: 'SACO' });
+    expect(backend.chamadas[2].query).toEqual({ empresa_id: 'emp-1', unidade: 'SACO' });
+    await expect(api.listOpcoesBemPatrimonial('produtos', { empresa_id: 'emp-1', unidade: 'UN' })).rejects.toBeTruthy();
+    expect(backend.chamadas).toHaveLength(3);
   });
 
-  it('a porta só monta `unidade` nas opções de produtos (famílias e tipos não levam o filtro)', async () => {
+  it('a porta só monta `unidade` nas opções de produtos e `natureza` nas de tipos', async () => {
     const { porta } = await carregar();
-    expect(porta.montarCaminhoOpcoes('produtos', { empresa_id: 'emp-1', unidade: 'KG' })).toBe('/bens-patrimoniais-opcoes/produtos?empresa_id=emp-1&unidade=KG');
-    expect(porta.montarCaminhoOpcoes('familias', { unidade: 'KG', q: 'maq' })).toBe('/bens-patrimoniais-opcoes/familias?q=maq');
+    expect(porta.montarCaminhoOpcoes('produtos', { empresa_id: 'emp-1', unidade: 'KG', natureza: 'MAQUINA' })).toBe('/bens-patrimoniais-opcoes/produtos?empresa_id=emp-1&unidade=KG');
+    expect(porta.montarCaminhoOpcoes('produtos', { empresa_id: 'emp-1', unidade: 'SACO' })).toBe('/bens-patrimoniais-opcoes/produtos?empresa_id=emp-1&unidade=SACO');
+    expect(porta.montarCaminhoOpcoes('tipos', { unidade: 'KG', q: 'maq' })).toBe('/bens-patrimoniais-opcoes/tipos?q=maq');
   });
 
   it('saíram da API: produtos elegíveis do bem, vínculos combustível × produto e fatores kg/L', async () => {
@@ -220,7 +263,7 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
     expect(msg('inexistente')).toBe('Um Produto aceito do tanque (linha 2) não existe nesta fazenda (ou não está mais disponível). Retire-o e escolha outro. Nada foi gravado.');
     expect(msg('outra_empresa')).toBe('Um Produto aceito do tanque (linha 2) é de outra fazenda: só Produtos desta fazenda podem ser aceitos. Nada foi gravado.');
     expect(msg('inativo')).toBe('Um Produto aceito do tanque (linha 2) está inativo: só Produtos ativos podem ser acrescentados. Nada foi gravado.');
-    expect(msg('unidade_incompativel', { unidade: 'SACO' })).toBe('Um Produto aceito do tanque (linha 2) tem estoque em SACO: o tanque só aceita Produto em litros (L) ou em quilos (KG). Nada foi gravado.');
+    expect(msg('unidade_incompativel', { unidade: 'UN' })).toBe('Um Produto aceito do tanque (linha 2) tem estoque em UN: o tanque aceita Produto em litros (L), quilos (KG) ou sacos (SACO). Nada foi gravado.');
     expect(msg('repetido')).toBe('O mesmo Produto aparece mais de uma vez nos Produtos aceitos do tanque (linha 2). Nada foi gravado.');
     expect(msg('limite', { maximo: 20 })).toBe('Um tanque aceita no máximo 20 Produtos ativos (linha 2). Nada foi gravado.');
   });
@@ -234,8 +277,8 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
     expect(msg('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'nao_aceito_pelo_tanque')).toBe(
       'O tanque escolhido não aceita este Produto. Marque o Produto nos Produtos aceitos do tanque em Bens Patrimoniais. Nada foi gravado.',
     );
-    expect(msg('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'unidade_nao_aceita', { unidade: 'SACO' })).toBe(
-      'O estoque deste Produto está em SACO, não em litros (L) nem em quilos (KG): ele não pode ser abastecido. Nada foi gravado.',
+    expect(msg('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'unidade_nao_aceita', { unidade: 'UN' })).toBe(
+      'O estoque deste Produto está em UN, não em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser abastecido. Nada foi gravado.',
     );
     expect(msg('ABASTECIMENTO_EXCEDE_CAPACIDADE', 'excede_capacidade_tanque', { capacidade_litros: '180.0000' })).toBe(
       'A quantidade em litros passa da capacidade nominal do tanque (180 L). Nada foi gravado.',
@@ -251,6 +294,8 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
     expect(msg({ disponivel: '100.0000', solicitado: '120.0000', unidade: 'L' })).toBe('Saldo insuficiente deste Produto neste local: disponível 100 L, pedido 120 L. Nada foi gravado.');
     expect(msg({ disponivel: '80.5000', solicitado: '90.0000', unidade: 'KG' })).toBe('Saldo insuficiente deste Produto neste local: disponível 80,5 kg, pedido 90 kg. Nada foi gravado.');
     expect(msg({ disponivel: '1.0000', solicitado: '2.0000' })).toBe('Saldo insuficiente deste Produto neste local: disponível 1, pedido 2. Nada foi gravado.');
+    // D-PROD-163: Produto em SACO guarda o estoque em kg.
+    expect(msg({ disponivel: '50.0000', solicitado: '60.0000', unidade: 'SACO' })).toBe('Saldo insuficiente deste Produto neste local: disponível 50 kg, pedido 60 kg. Nada foi gravado.');
   });
 
   it('cancelamento bloqueado por unidade_mudou; bloqueio da prévia sem "Nada foi gravado."', async () => {
@@ -285,8 +330,8 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
     expect(unidade('lotes')).toContain('já tem lotes');
     expect(unidade('movimentos')).toContain('já tem movimentos de estoque');
     expect(unidade('lancamentos')).toContain('já tem itens em lançamentos');
-    expect(msg({ code: 'PRODUTO_UNIDADE_EM_USO', reason: 'aceito_em_tanque', details: { reason: 'aceito_em_tanque', de: 'KG', para: 'SACO' } })).toBe(
-      'Este Produto é aceito em tanque de bem do Patrimônio: a unidade de estoque só pode ser L ou KG enquanto ele estiver aceito. Tire-o dos Produtos aceitos do tanque antes. Nada foi gravado.',
+    expect(msg({ code: 'PRODUTO_UNIDADE_EM_USO', reason: 'aceito_em_tanque', details: { reason: 'aceito_em_tanque', de: 'KG', para: 'UN' } })).toBe(
+      'Este Produto é aceito em tanque de bem do Patrimônio: a unidade de estoque só pode ser L, KG ou SACO enquanto ele estiver aceito. Tire-o dos Produtos aceitos do tanque antes. Nada foi gravado.',
     );
   });
 
@@ -327,6 +372,29 @@ describe('ERR-1 — mensagens novas (D-PROD-162)', () => {
   });
 });
 
+describe('ERR-2 — mensagens da D-PROD-163 (tipo em uso, Tipo de bem)', () => {
+  it('PATRIMONIO_TIPO_EM_USO com a contagem; família padrão indisponível; tipo de outro Tipo de bem; nome repetido', async () => {
+    const { erros } = await carregar();
+    const msg = (corpo) => erros.mensagemErroPatrimonio(erroDoServidor(corpo), 'x');
+    expect(msg({ code: 'PATRIMONIO_TIPO_EM_USO', details: { field: 'id', reason: 'tipo_em_uso', bens: 3 } })).toBe(
+      'Este tipo está em uso por 3 bem(ns). Troque o tipo desses bens antes de excluir.',
+    );
+    expect(msg({ code: 'PATRIMONIO_TIPO_EM_USO', details: { bens: null } })).toBe('Este tipo está em uso por bens. Troque o tipo desses bens antes de excluir.');
+    expect(msg({ code: 'PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL', details: { natureza: 'MAQUINA', codigo_familia: 'MAQUINAS' } })).toBe(
+      'O cadastro padrão do tipo de bem Máquina está inativo ou foi alterado: não há onde guardar o tipo. Peça ao administrador para corrigir. Nada foi gravado.',
+    );
+    expect(msg({ code: 'BEM_TIPO_NATUREZA_INCOMPATIVEL', details: { natureza: 'VEICULO', natureza_tipo: 'MAQUINA' } })).toBe(
+      'O tipo escolhido é de Máquina: escolha um tipo de Veículo. Nada foi gravado.',
+    );
+    expect(msg({ code: 'PATRIMONIO_NOME_DUPLICADO', field: 'nome' })).toBe('Já existe um tipo com este nome neste tipo de bem. Use outro nome. Nada foi gravado.');
+    expect(msg({ code: 'BEM_NATUREZA_IMUTAVEL', details: { field: 'natureza' } })).toBe(
+      'O tipo de bem não muda depois de gravado: escolha um tipo do mesmo tipo de bem. Nada foi gravado.',
+    );
+    expect(msg({ code: 'REQUEST_VALIDATION_FAILED', field: 'natureza' })).toBe('Dados inválidos no campo "Tipo de bem". Revise e tente novamente.');
+    expect(msg({ code: 'BEM_CLASSIFICACAO_INATIVA' })).not.toMatch(/família/i);
+  });
+});
+
 describe('DOM-1 — domínio do front sem medições, perfis e combustíveis', () => {
   it('saem dimensões, unidades físicas, finalidades e unidades de combustível; entra o rótulo da unidade de estoque', async () => {
     const { dominio } = await carregar();
@@ -336,7 +404,11 @@ describe('DOM-1 — domínio do front sem medições, perfis e combustíveis', (
     ]) {
       expect(nome in dominio, nome).toBe(false);
     }
-    expect(dominio.ROTULO_UNIDADE_ESTOQUE).toEqual({ L: 'L', KG: 'kg' });
+    // D-PROD-163: SACO guarda o estoque em kg; o selo do Produto aceito diz que ele é em sacos.
+    expect(dominio.ROTULO_UNIDADE_ESTOQUE).toEqual({ L: 'L', KG: 'kg', SACO: 'kg' });
+    expect(dominio.SELO_UNIDADE_DO_PRODUTO).toEqual({ L: 'L', KG: 'kg', SACO: 'kg · saco' });
+    expect([...dominio.UNIDADES_ESTOQUE_TANQUE]).toEqual(['L', 'KG', 'SACO']);
+    expect(['L', 'KG', 'SACO', 'UN', null].map(dominio.unidadeEfetivaDoEstoque)).toEqual(['L', 'KG', 'KG', null, null]);
     for (const natureza of dominio.NATUREZAS_PATRIMONIO) {
       expect('medicoes' in dominio.CAPACIDADES_DA_NATUREZA[natureza], natureza).toBe(false);
     }

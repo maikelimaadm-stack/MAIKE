@@ -1,160 +1,94 @@
 import React, { useState } from "react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { AvisoGestao, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
-import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
-import { lerInteiro, normalizarCodigoCatalogo, textoDoInteiro } from "@/components/patrimonio/PatrimonioFormParts";
-import { nomeDaFamiliaDoTipo, naturezaDaFamiliaDoTipo } from "@/components/patrimonio/TabelaTipos";
-import { ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
-import { PADRAO_CODIGO_CATALOGO, RECURSOS_CATALOGO, listarOpcoesCatalogo } from "@/services/patrimonioCatalogoService";
+import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA, ehNatureza } from "@/lib/patrimonioDominio";
 
 export const FORMULARIO_TIPO_ID = "formulario-tipo-patrimonial-base1";
 
-/** @typedef {{ id: string, rotulo: string, natureza: string|null }} FamiliaDoTipo */
-
-/** @param {any} item @returns {FamiliaDoTipo|null} */
-const familiaDoRegistro = (item) => {
-  const id = item?.familia_id ?? item?.familia?.id;
-  if (typeof id !== "string" || !id) return null;
-  return { id, rotulo: nomeDaFamiliaDoTipo(item) || "Família atual", natureza: naturezaDaFamiliaDoTipo(item) };
-};
+/** Opções do "Tipo de bem" (a lista FIXA de natureza, D-PROD-163). */
+export const OPCOES_TIPO_DE_BEM = NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }));
 
 /**
- * Formulário do Tipo Patrimonial (D-PROD-157; D-PROD-162: vive dentro do
- * cadastro de Bens e não tem mais perfis de medição).
- *  - criação: família escolhida por seletor paginado (só ativas) e nome; o
- *    código é opcional (P-05: vazio, o servidor o gera a partir do nome);
- *  - `familiaFixa`: a família vem travada, só leitura (o "+ Novo tipo" do
- *    formulário do Bem cria o tipo na família escolhida no bem);
- *  - `rapido`: só Nome (com a família travada);
- *  - edição: família e código só leitura (imutáveis no servidor).
+ * Formulário do NOVO tipo (D-PROD-163): "Tipo de bem" (a natureza, lista fixa)
+ * e Nome. O servidor põe o tipo na família padrão do Tipo de bem e gera o
+ * código a partir do nome (P-05): ninguém cadastra família.
+ *  - `naturezaFixa`: o Tipo de bem vem travado, só leitura (o "+ Novo tipo" do
+ *    formulário do Bem cria o tipo no Tipo de bem escolhido no bem);
+ *  - sem ela, o Tipo de bem é escolhido aqui (o "+ Novo tipo" do "Gerenciar
+ *    tipos"), começando por `naturezaInicial`.
+ * Renomear é na própria lista do "Gerenciar tipos" (PATCH com `versao`).
  *
  * @param {{
- *   onSubmit: (dados: object) => void,
- *   initialData?: any,
- *   readOnly?: boolean,
- *   rapido?: boolean,
- *   familiaFixa?: FamiliaDoTipo|null,
+ *   onSubmit: (dados: { natureza: string, nome: string }) => void,
+ *   initialData?: { nome?: string } | null,
+ *   naturezaFixa?: string|null,
+ *   naturezaInicial?: string|null,
  *   formId?: string,
  * }} props
  */
-export default function FormularioTipo({ onSubmit, initialData = null, readOnly = false, rapido = false, familiaFixa = null, formId = FORMULARIO_TIPO_ID }) {
-  const editando = Boolean(initialData?.id);
-  const travada = !editando && Boolean(familiaFixa?.id);
-  const [form, setForm] = useState(() => ({
-    familia: travada ? familiaFixa : familiaDoRegistro(initialData),
-    codigo: editando ? String(initialData.codigo ?? "") : "",
-    nome: initialData?.nome || "",
-    vida: textoDoInteiro(initialData?.vida_util_meses_sugerida),
-    descricao: initialData?.descricao || "",
-  }));
+export default function FormularioTipo({ onSubmit, initialData = null, naturezaFixa = null, naturezaInicial = null, formId = FORMULARIO_TIPO_ID }) {
+  const travada = ehNatureza(naturezaFixa);
+  const [natureza, setNatureza] = useState(() => (travada ? String(naturezaFixa) : ehNatureza(naturezaInicial) ? String(naturezaInicial) : ""));
+  const [nome, setNome] = useState(() => String(initialData?.nome ?? ""));
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
 
-  const natureza = form.familia?.natureza ?? null;
-
-  const set = (campo, valor) => {
-    setForm((prev) => ({ ...prev, [campo]: valor }));
-    setErros((e) => ({ ...e, [campo]: "" }));
-  };
-
-  const escolherFamilia = (opcao) => {
-    const familia = opcao ? { id: String(opcao.id), rotulo: String(opcao.nome ?? ""), natureza: typeof opcao.natureza === "string" ? opcao.natureza : null } : null;
-    set("familia", familia);
-  };
-
+  /** @param {React.FormEvent} e */
   const enviar = (e) => {
     e.preventDefault();
     // O formulário pode abrir por cima de outro (cadastro rápido): o envio não sobe.
     e.stopPropagation();
-    if (readOnly) return;
-    const codigo = normalizarCodigoCatalogo(form.codigo);
-    const vida = lerInteiro(form.vida, { min: 1, max: 1200 });
     /** @type {Record<string, string>} */
     const novos = {};
-    if (!editando && !form.familia?.id) novos.familia = "Escolha a família";
-    if (!editando && codigo && !PADRAO_CODIGO_CATALOGO.test(codigo)) novos.codigo = "Use de 2 a 32 letras maiúsculas, números ou _ (ou deixe vazio)";
-    if (!form.nome.trim()) novos.nome = "Obrigatório";
-    if (!vida.ok) novos.vida = "Meses: número inteiro de 1 a 1200";
+    if (!ehNatureza(natureza)) novos.natureza = "Escolha o tipo de bem";
+    if (!nome.trim()) novos.nome = "Obrigatório";
     if (Object.keys(novos).length) {
       setErros(novos);
       notifyWarning("Atenção", "Revise os campos destacados.");
       return;
     }
-    if (rapido) {
-      onSubmit({ familia_id: form.familia?.id, nome: form.nome.trim() });
-      return;
-    }
-    const comum = { nome: form.nome.trim(), descricao: form.descricao, vida_util_meses_sugerida: vida.ok ? vida.valor : null };
-    onSubmit(editando ? comum : { familia_id: form.familia?.id, ...(codigo ? { codigo } : {}), ...comum });
+    onSubmit({ natureza, nome: nome.trim() });
   };
 
-  const rotuloNatureza = natureza ? /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[natureza] ?? "" : "";
+  const rotuloNatureza = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[natureza] ?? "";
 
   return (
-    <CadastroFormShell embedded title={editando ? "Editar tipo patrimonial" : "Novo tipo patrimonial"}>
+    <CadastroFormShell embedded title="Novo tipo">
       <div className="mg-b1-record-form">
         <form id={formId} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="tipo-form">
-          <SecaoForm titulo="Identificação" />
-          {editando || travada ? (
-            <CampoTexto label="Família" span={rapido ? 8 : 8} value={form.familia?.rotulo ?? ""} onChange={() => {}} readOnly />
+          {travada ? (
+            <CampoTexto label="Tipo de bem" span={12} value={rotuloNatureza} onChange={() => {}} readOnly />
           ) : (
-            <SeletorPaginadoGestao
-              rotulo="Família"
-              testId="tipo-seletor-familia"
-              chave={["patrimonio", RECURSOS_CATALOGO.FAMILIAS]}
-              buscar={({ q, cursor, limit }) => listarOpcoesCatalogo(RECURSOS_CATALOGO.FAMILIAS, { q, cursor, limit })}
-              value={form.familia ? { id: form.familia.id, rotulo: form.familia.rotulo } : null}
-              onChange={escolherFamilia}
-              detalheDaOpcao={(o) => /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[o?.natureza] ?? null}
-              readOnly={readOnly}
-              obrigatorio
-              textoVazio="— Escolha a família —"
-              erro={erros.familia || undefined}
-              span={8}
+            <CampoSelect
+              label="Tipo de bem"
+              required
+              span={12}
+              value={natureza}
+              onChange={(v) => {
+                setNatureza(v);
+                setErros((x) => ({ ...x, natureza: "" }));
+              }}
+              options={OPCOES_TIPO_DE_BEM}
+              placeholder="— Escolha o tipo de bem —"
+              error={erros.natureza || undefined}
             />
           )}
-          <CampoTexto label="Natureza" span={4} value={rotuloNatureza} onChange={() => {}} readOnly />
-          {!rapido ? (
-            <CampoTexto
-              label="Código"
-              span={4}
-              value={form.codigo}
-              onChange={(v) => set("codigo", v)}
-              readOnly={readOnly || editando}
-              maxLength={32}
-              error={erros.codigo || undefined}
-              placeholder={editando ? undefined : "GERADO PELO NOME"}
-            />
-          ) : null}
           <CampoTexto
             label="Nome"
             required
-            span={rapido ? 12 : 8}
-            value={form.nome}
-            onChange={(v) => set("nome", v)}
-            readOnly={readOnly}
+            span={12}
+            value={nome}
+            onChange={(v) => {
+              setNome(v);
+              setErros((x) => ({ ...x, nome: "" }));
+            }}
             maxLength={120}
             error={erros.nome || undefined}
-            placeholder="NOME DO TIPO"
+            placeholder="EX.: TRATOR DE PNEUS"
           />
-          {!rapido ? (
-            <>
-              <CampoTexto
-                label="Vida útil sugerida (meses)"
-                span={4}
-                value={form.vida}
-                onChange={(v) => set("vida", v)}
-                readOnly={readOnly}
-                inputMode="numeric"
-                maxLength={4}
-                error={erros.vida || undefined}
-              />
-              <CampoTexto label="Descrição" span={8} value={form.descricao} onChange={(v) => set("descricao", v)} readOnly={readOnly} maxLength={500} />
-            </>
-          ) : null}
           <div className="col-span-12">
-            <AvisoGestao tone="blue" testId="tipo-nota-familia">
-              A família do tipo não muda depois de criada.{!rapido && !editando ? " Sem código, ele é gerado a partir do nome." : ""}
+            <AvisoGestao tone="blue" testId="tipo-nota-tipo-de-bem">
+              O tipo fica no Tipo de bem escolhido{travada ? " (o deste bem)" : ""} e não muda de Tipo de bem depois de criado. O nome pode ser trocado em “⋯ › Gerenciar tipos”.
             </AvisoGestao>
           </div>
         </form>

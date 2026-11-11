@@ -125,9 +125,11 @@ describe('D-PROD-162 — a baixa é a quantidade digitada, na unidade do Produto
     assert.deepEqual([rp.bloqueios, rp.plano.confere_capacidade], [[], false]);
   });
 
-  test('Produto não aceito, aceite desligado, outra fazenda, inativo, outro tenant e SACO → 422 com o motivo; nada gravado', async () => {
+  test('Produto não aceito, aceite desligado, outra fazenda, inativo, outro tenant e unidade fora de L/KG/SACO → 422 com o motivo; nada gravado', async () => {
     const s = await montarAbastecimento(app);
     const outro = await montarAbastecimento(app);
+    // D-PROD-163: SACO abastece (em kg); a recusa por unidade fica para unidade legada fora de L/KG/SACO.
+    await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.emSaco.id}`;
     const antes = await fotoAbastecimento([s.c, outro.c]);
     const recusa = async (extra, esperado, rotulo) => {
       const rp = await A.ok(A.previa(s.operador.token, corpoPrevia(s, extra)));
@@ -137,7 +139,7 @@ describe('D-PROD-162 — a baixa é a quantidade digitada, na unidade do Produto
     await recusa({ produto_id: s.arla.id }, [422, 'ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque'], 'Arla no tanque de diesel');
     await recusa({ produto_id: s.diesel2.id }, [422, 'ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'outra_empresa'], 'Produto da outra fazenda');
     await recusa({ produto_id: outro.diesel.id }, [422, 'ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'inexistente'], 'Produto de outro tenant (sem oráculo)');
-    await recusa({ produto_id: s.emSaco.id }, [422, 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita'], 'Produto em SACO');
+    await recusa({ produto_id: s.emSaco.id }, [422, 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita'], 'Produto em UN (legado)');
     assert.equal(await fotoAbastecimento([s.c, outro.c]), antes);
     // inativo: o aceite fica, o abastecimento recusa
     await A.ok(A.req('PATCH', `/produtos/${s.diesel.id}`, s.token, { ativo: false }));
@@ -274,7 +276,7 @@ describe('D-PROD-162 — Produtos do bem (A16) e dois tanques', () => {
     assert.deepEqual(erro(await A.confirmar(s.operador.token, corpo(tb, s.arla, { quantidade: '40.0001', medidor_leitura: '1552' }))), [422, 'ABASTECIMENTO_EXCEDE_CAPACIDADE', 'quantidade', 'excede_capacidade_tanque']);
   });
 
-  test('A16: motivos do resumo (bem inativo, sem tanque ativo, tanque sem Produto, unidade fora de L/KG, inativo ou de outra fazenda), busca e paginação estável; só leitura', async () => {
+  test('A16: motivos do resumo (bem inativo, sem tanque ativo, tanque sem Produto, unidade fora de L/KG/SACO, inativo ou de outra fazenda), busca e paginação estável; só leitura', async () => {
     const s = await montarAbastecimento(app);
     const tok = s.operador.token;
     const novoBem = (nome, frota, tanques) => A.ok(A.req('POST', '/bens-patrimoniais', s.token, corpoTrator(s, { nome, codigo_frota: frota, tanques })), 201);
@@ -293,9 +295,14 @@ describe('D-PROD-162 — Produtos do bem (A16) e dois tanques', () => {
     // tanque sem Produto aceito (P-01)
     const vazio = await novoBem('Trator vazio', 'TV-01', [{ identificador: 'Tanque', capacidade_litros: '100', produto_ids: [] }]);
     assert.equal((await resumo(vazio)).motivo_sem_opcao, 'tanque_sem_produto');
-    // Produto aceito que virou SACO (por fora) → unidade fora de L/KG
+    // Produto aceito que virou SACO (por fora) continua servindo (D-PROD-163: abastece em kg);
+    // virou uma unidade fora de L/KG/SACO (dado legado) → unidade incompatível
     const saco = await novoBem('Trator saco', 'TS-01', [{ identificador: 'Tanque', capacidade_litros: '100', produto_ids: [s.gasolina.id] }]);
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'SACO' WHERE id = ${s.gasolina.id}`;
+    assert.deepEqual(await resumo(saco), { motivo_sem_opcao: null, total: 1, fora_de_unidade: 0, inativos_ou_outra_fazenda: 0 });
+    const emSaco = await A.ok(A.produtosDoBem(tok, s.e1.id, saco.id));
+    assert.deepEqual([emSaco.itens[0].produto.unidade_principal_estoque, emSaco.itens[0].produto.unidade_abastecimento], ['SACO', 'KG']);
+    await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.gasolina.id}`;
     assert.deepEqual(await resumo(saco), { motivo_sem_opcao: 'produto_unidade_incompativel', total: 0, fora_de_unidade: 1, inativos_ou_outra_fazenda: 0 });
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'L' WHERE id = ${s.gasolina.id}`;
     // Produto aceito inativado → inativo ou de outra fazenda

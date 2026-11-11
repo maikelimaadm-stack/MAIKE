@@ -2,13 +2,16 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { ROTULO_MEDIDOR, ROTULO_NATUREZA, ROTULO_PROPRIEDADE } from "@/lib/patrimonioDominio";
 
-/** Colunas da lista de Bens Patrimoniais (D-PROD-157) — resumo da listagem do servidor. */
+/**
+ * Colunas da lista de Bens Patrimoniais (D-PROD-157) — resumo da listagem do
+ * servidor. D-PROD-163: "Natureza" virou "Tipo de bem" e a coluna Família saiu
+ * (uma preferência antiga de coluna com "familia" é ignorada: o id não existe mais).
+ */
 export const BENS_COLUNAS = [
   { id: "numero", label: "Nº patrimonial", default: true, sortable: true, width: 110 },
   { id: "codigo_frota", label: "Código de frota", default: true, sortable: true, width: 130 },
   { id: "nome", label: "Bem", default: true, sortable: true, width: 260 },
-  { id: "natureza", label: "Natureza", default: true, sortable: true, width: 120 },
-  { id: "familia", label: "Família", default: false, sortable: true, width: 200 },
+  { id: "natureza", label: "Tipo de bem", default: true, sortable: true, width: 130 },
   { id: "tipo", label: "Tipo", default: true, sortable: true, width: 200 },
   { id: "propriedade", label: "Propriedade", default: false, sortable: true, width: 120 },
   { id: "medidor", label: "Medidor", default: false, sortable: true, width: 140 },
@@ -27,7 +30,6 @@ export function getBemFieldValue(item, id) {
   if (id === "codigo_frota") return item.codigo_frota || "";
   if (id === "nome") return item.nome || "";
   if (id === "natureza") return rotulo(ROTULO_NATUREZA, item.natureza);
-  if (id === "familia") return String(item.familia?.nome ?? "");
   if (id === "tipo") return String(item.tipo?.nome ?? "");
   if (id === "propriedade") return rotulo(ROTULO_PROPRIEDADE, item.propriedade);
   if (id === "medidor") return rotulo(ROTULO_MEDIDOR, item.medidor_tipo ?? item.medidor?.tipo);

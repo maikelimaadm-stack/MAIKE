@@ -58,7 +58,7 @@ const patrimonio = (alvo) => ({
 });
 
 /**
- * D-PROD-162 — quem CADASTRA ou EDITA bem: cria família/tipo pelo "+" do
+ * D-PROD-162 / D-PROD-163 — quem CADASTRA ou EDITA bem: cria tipo pelo "+" do
  * formulário e lista os Produtos que um tanque pode aceitar.
  */
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
@@ -253,7 +253,7 @@ export const GUARDAS = Object.freeze({
   perfilFinanceiro: { ver: porTela(T.LANCAMENTOS_FINANCEIROS, 'visualizar'), editar: adminOuIsAdmin() },
   // D-PROD-157 / D-PROD-162 — Patrimônio e Frota: duas telas (Bens e
   // Abastecimentos); inativar e reativar (PATCH com `ativo`) exigem a ação
-  // extra `inativar`. Sem DELETE.
+  // extra `inativar`. Sem DELETE de bem; D-PROD-163: DELETE só de tipo sem uso.
   patrimonioBens: {
     ...patrimonio(T.PATRIMONIO_BENS),
     // A3: opções de CATÁLOGO (famílias e tipos do formulário do bem).
@@ -261,10 +261,17 @@ export const GUARDAS = Object.freeze({
     // "Produtos aceitos" do tanque: quem cadastra OU edita bem; ver sozinho não lista produtos da fazenda.
     opcoesProdutos: porQualquer(...BENS_CRIAR_OU_EDITAR),
   },
-  // D-PROD-162: famílias e tipos vivem no cadastro de Bens; quem cadastra OU edita bem cria pelo "+".
+  // D-PROD-162: famílias e tipos vivem no cadastro de Bens; quem cadastra OU edita bem cria tipo pelo "+".
   // Renomear/descrever = Bens editar|salvar; inativar/reativar = Bens `inativar` (`edicaoPatrimonio`).
-  patrimonioFamilias: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar'), criar: porQualquer(...BENS_CRIAR_OU_EDITAR), editar: edicaoPatrimonio(T.PATRIMONIO_BENS) },
-  patrimonioTipos: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar'), criar: porQualquer(...BENS_CRIAR_OU_EDITAR), editar: edicaoPatrimonio(T.PATRIMONIO_BENS) },
+  // D-PROD-163: o cadastro de família saiu (só leitura); excluir tipo ("Gerenciar tipos") = Bens editar|salvar,
+  // a mesma permissão de renomear.
+  patrimonioFamilias: { ver: porTela(T.PATRIMONIO_BENS, 'visualizar') },
+  patrimonioTipos: {
+    ver: porTela(T.PATRIMONIO_BENS, 'visualizar'),
+    criar: porQualquer(...BENS_CRIAR_OU_EDITAR),
+    editar: edicaoPatrimonio(T.PATRIMONIO_BENS),
+    excluir: porQualquer([T.PATRIMONIO_BENS, 'editar'], [T.PATRIMONIO_BENS, 'salvar']),
+  },
   // D-PROD-159 / D-PROD-162 — Abastecimentos. Prévia e confirmação = novo|salvar;
   // cancelar/estornar é ação extra própria; leitura e seletores = visualizar DESTA
   // tela (não dependem da tela de bens nem da Central); saldos = criar. O fator kg/L saiu.

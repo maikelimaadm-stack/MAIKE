@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina, listarOpcoesCompletasBem } from "@/services/bemPatrimonialService";
+import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina } from "@/services/bemPatrimonialService";
 import { listEmpresas } from "@/services/empresaService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -8,8 +8,7 @@ import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen
 import GradePatrimonio from "@/components/patrimonio/GradePatrimonio";
 import { BENS_CAMPOS_CARD, GRADE_BENS } from "@/components/patrimonio/TabelaBens";
 import FormularioBem, { FORMULARIO_BEM_ID } from "@/components/patrimonio/FormularioBem";
-import GerenciarFamiliasTiposDialog, { QUERY_CATALOGO } from "@/components/patrimonio/GerenciarFamiliasTiposDialog";
-import { CHAVE_OPCOES_PATRIMONIO } from "@/components/patrimonio/bemFormulario";
+import GerenciarTiposDialog from "@/components/patrimonio/GerenciarTiposDialog";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
@@ -18,11 +17,11 @@ import { TELAS_PATRIMONIO } from "@/lib/patrimonioPermissions";
 import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA } from "@/lib/patrimonioDominio";
 import { ehConflitoDeVersaoPatrimonio, ehNaoEncontradoPatrimonio, mensagemErroPatrimonio } from "@/lib/patrimonioErros";
 import { lerErroGestao } from "@/lib/gestaoErros";
-import { instalarCatalogoPadrao, resumoCatalogoPadrao } from "@/services/patrimonioCatalogoService";
 
 const QUERY_RAIZ = "bens-patrimoniais";
 
-const OPCOES_FILTRO_NATUREZA = [{ value: "TODAS", label: "Todas as naturezas" }, ...NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }))];
+/** Filtro pelo "Tipo de bem" (a natureza, D-PROD-163). */
+const OPCOES_FILTRO_TIPO_DE_BEM = [{ value: "TODAS", label: "Todos os tipos de bem" }, ...NATUREZAS_PATRIMONIO.map((n) => ({ value: n, label: ROTULO_NATUREZA[n] }))];
 
 const MENSAGEM_VERSAO =
   "Este bem foi alterado por outra pessoa enquanto você editava. O registro foi recarregado com a versão atual: confira e refaça a alteração. Nada foi gravado.";
@@ -43,39 +42,10 @@ const produtoRecusadoDoErro = (erro) => {
 };
 
 /**
- * Resumo da instalação do catálogo padrão (D-PROD-162: só famílias e tipos).
- * @param {{ resumo: { criados: string, existentes: string, conflitos: string[] }, onFechar: () => void }} props
- */
-function ResumoCatalogoPadrao({ resumo, onFechar }) {
-  return (
-    <AvisoGestao tone="blue" testId="patrimonio-catalogo-padrao-resumo">
-      <p className="font-semibold">Catálogo padrão instalado.</p>
-      <p>Criados: {resumo.criados}.</p>
-      <p>Já existiam: {resumo.existentes}.</p>
-      {resumo.conflitos.length ? (
-        <>
-          <p>Conflitos ({resumo.conflitos.length}) — nada foi alterado nesses itens:</p>
-          <ul className="list-disc pl-5">
-            {resumo.conflitos.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <p>Sem conflitos.</p>
-      )}
-      <button type="button" className="mt-1 underline" onClick={onFechar}>
-        Fechar resumo
-      </button>
-    </AvisoGestao>
-  );
-}
-
-/**
  * Bens Patrimoniais (D-PROD-157) — inventário da EMPRESA selecionada.
  *
  * Lista keyset com busca no servidor (nome, número, código de frota, placa,
- * série) e filtros de natureza, família e situação. O registro aberto lê o
+ * série) e filtros de Tipo de bem e situação. O registro aberto lê o
  * DETALHE completo (a lista traz só o resumo) e mostra o `FormularioBem` em
  * abas; criar manda o corpo completo e editar manda o PATCH mínimo com
  * `versao` (blocos aninhados inteiros, listas completas). Duplicar parte do
@@ -84,10 +54,11 @@ function ResumoCatalogoPadrao({ resumo, onFechar }) {
  * Inativar/reativar é ação do menu, com confirmação, e exige a ação extra
  * `inativar` (nada é apagado). Conflito de versão recarrega o registro.
  *
- * D-PROD-162: famílias e tipos vivem aqui. O "⋯" traz "Gerenciar famílias e
- * tipos" (para quem vê Bens) e "Instalar catálogo padrão" (só administrador,
- * P-06); o formulário tem "+ Nova família"/"+ Novo tipo" e os Produtos aceitos
- * de cada tanque.
+ * D-PROD-162/163: os tipos vivem aqui. O "⋯" traz "Gerenciar tipos" (para quem
+ * vê Bens: listar, renomear, excluir); o formulário tem o "Tipo de bem" (a
+ * natureza, lista fixa), o Tipo com "+ Novo tipo" e os Produtos aceitos de cada
+ * tanque. Sem família na tela (nem coluna, nem filtro) e sem "Instalar catálogo
+ * padrão": o servidor garante o catálogo sozinho.
  *
  * Mesmas salvaguardas de Gestão: sem empresa real nada é lido nem gravado;
  * trocar de empresa fecha o registro; resposta atrasada da empresa anterior
@@ -99,33 +70,11 @@ export default function BensPatrimoniaisTela() {
   const acoes = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.BENS);
   const [situacao, setSituacao] = useState("ativos");
   const [natureza, setNatureza] = useState("TODAS");
-  const [familiaFiltro, setFamiliaFiltro] = useState("TODAS");
   const [origemDuplicacao, setOrigemDuplicacao] = useState(/** @type {string|null} */ (null));
   const [gerenciarAberto, setGerenciarAberto] = useState(false);
-  const [resumoPadrao, setResumoPadrao] = useState(/** @type {ReturnType<typeof resumoCatalogoPadrao>|null} */ (null));
   const [produtoRecusado, setProdutoRecusado] = useState(/** @type {ReturnType<typeof produtoRecusadoDoErro>} */ (null));
   const submitRef = useRef(/** @type {(forma: Record<string, any>) => void} */ (() => {}));
   const podeGravar = Boolean(empresaId);
-
-  // Famílias do filtro: catálogo do tenant (pequeno), só as ativas.
-  const familiasQuery = useQuery({
-    queryKey: [...CHAVE_OPCOES_PATRIMONIO, "familias-filtro"],
-    queryFn: () => listarOpcoesCompletasBem("familias", null),
-    enabled: acoes.ver,
-    staleTime: 60 * 1000,
-  });
-  const opcoesFamilia = useMemo(() => {
-    const itens = (familiasQuery.data?.itens ?? []).filter((f) => natureza === "TODAS" || f?.natureza === natureza);
-    return [{ value: "TODAS", label: "Todas as famílias" }, ...itens.map((f) => ({ value: String(f.id), label: String(f.nome ?? "") }))];
-  }, [familiasQuery.data, natureza]);
-  // Família de outra natureza (ou que saiu da lista) deixa de filtrar.
-  const familiaEfetiva = opcoesFamilia.some((o) => o.value === familiaFiltro) ? familiaFiltro : "TODAS";
-  /** Trocar a natureza esquece a família de outra natureza (ela não volta sozinha depois). @param {string} valor */
-  const mudarNatureza = (valor) => {
-    setNatureza(valor);
-    const familia = (familiasQuery.data?.itens ?? []).find((f) => String(f?.id) === familiaFiltro);
-    if (valor !== "TODAS" && familia && familia.natureza !== valor) setFamiliaFiltro("TODAS");
-  };
 
   const fetchPage = useCallback(
     ({ limit, cursor, q }) =>
@@ -135,16 +84,15 @@ export default function BensPatrimoniaisTela() {
         q: q || undefined,
         ativo: ativoDoFiltro(situacao),
         natureza: natureza !== "TODAS" ? natureza : undefined,
-        familiaId: familiaEfetiva !== "TODAS" ? familiaEfetiva : undefined,
       }),
-    [empresaId, situacao, natureza, familiaEfetiva],
+    [empresaId, situacao, natureza],
   );
 
   const controller = useCadastroBase1Controller({
     storageKey: GRADE_BENS.storageKey,
     columnIds: BENS_CAMPOS_CARD,
     listEnabled: Boolean(empresaId) && acoes.ver,
-    queryKey: [QUERY_RAIZ, "page", empresaId, situacao, natureza, familiaEfetiva],
+    queryKey: [QUERY_RAIZ, "page", empresaId, situacao, natureza],
     fetchPage,
     duplicateLabelField: "nome",
     searchPlaceholder: "Buscar bens…",
@@ -153,7 +101,7 @@ export default function BensPatrimoniaisTela() {
     getExportFieldValue: GRADE_BENS.getFieldValue,
     getRecordTitle: (item) => (item?.id ? item.nome || "Bem patrimonial" : "Novo bem patrimonial"),
     getRecordCode: (item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
-    getSearchHaystack: (b) => [b.numero, b.codigo_frota, b.nome, b.tipo?.nome, b.familia?.nome].filter((v) => v != null).join(" "),
+    getSearchHaystack: (b) => [b.numero, b.codigo_frota, b.nome, b.tipo?.nome].filter((v) => v != null).join(" "),
     mapSearchSuggestion: (b) => ({ id: String(b.id), label: b.nome || "Bem patrimonial", secondary: b.codigo_frota || (b.numero != null ? String(b.numero) : undefined) }),
     matchRowId: (b, id) => String(b.id) === String(id),
     getRowId: (b) => String(b.id),
@@ -348,7 +296,7 @@ export default function BensPatrimoniaisTela() {
     const ok = await confirmar({
       titulo: `${verbo} bem patrimonial`,
       descricao: ativo
-        ? `Reativar "${alvo.nome || "bem"}"? Ele volta a aparecer entre os bens ativos (a família e o tipo precisam estar ativos).`
+        ? `Reativar "${alvo.nome || "bem"}"? Ele volta a aparecer entre os bens ativos (o tipo dele precisa estar ativo).`
         : `Inativar "${alvo.nome || "bem"}"? Ele sai da lista de ativos, mas continua legível com medidor e tanques. Nada é apagado.`,
       textoConfirmar: verbo,
       perigo: !ativo,
@@ -368,27 +316,6 @@ export default function BensPatrimoniaisTela() {
     return controller.visibleRows.find((b) => String(b.id) === String(ids[0])) ?? null;
   }, [controller.showForm, controller.isEditing, idAberto, detalhe, registroLista, controller.chrome.selectedIds, controller.visibleRows]);
 
-  const padraoMutation = useMutation({
-    mutationFn: () => instalarCatalogoPadrao(),
-    onSuccess: (resultado) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_CATALOGO] });
-      queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_PATRIMONIO });
-      setResumoPadrao(resumoCatalogoPadrao(resultado));
-      notifySuccess("Catálogo padrão", "Instalação concluída. Confira o resumo acima da lista.");
-    },
-    onError: (err) => notifyWarning("Atenção", mensagemErroPatrimonio(err, "Não foi possível instalar o catálogo padrão.")),
-  });
-
-  const pedirCatalogoPadrao = async () => {
-    const ok = await confirmar({
-      titulo: "Instalar catálogo padrão",
-      descricao:
-        "Cria só o que ainda falta, pelo código: famílias e tipos de uso comum. Nada do que já existe é alterado; itens com o mesmo código e outra classificação aparecem como conflito.",
-      textoConfirmar: "Instalar",
-    });
-    if (ok) padraoMutation.mutate();
-  };
-
   /** @type {Array<{ key: string, label: string, disabled?: boolean, onSelect: () => void }>} */
   const acoesDoMenu = [];
   if (empresaId && acoes.inativar && alvo && Number.isInteger(alvo.versao)) {
@@ -401,19 +328,9 @@ export default function BensPatrimoniaisTela() {
       },
     });
   }
-  // D-PROD-162: famílias e tipos (catálogo do tenant, não pedem empresa) são do cadastro de Bens.
+  // D-PROD-162/163: os tipos (catálogo do tenant, não pedem empresa) são do cadastro de Bens.
   if (acoes.ver) {
-    acoesDoMenu.push({ key: "gerenciar-catalogo", label: "Gerenciar famílias e tipos", onSelect: () => setGerenciarAberto(true) });
-  }
-  if (acoes.administrador) {
-    acoesDoMenu.push({
-      key: "catalogo-padrao",
-      label: "Instalar catálogo padrão",
-      disabled: padraoMutation.isPending,
-      onSelect: () => {
-        pedirCatalogoPadrao();
-      },
-    });
+    acoesDoMenu.push({ key: "gerenciar-tipos", label: "Gerenciar tipos", onSelect: () => setGerenciarAberto(true) });
   }
 
   const listErrorMessage = useMemo(
@@ -427,13 +344,7 @@ export default function BensPatrimoniaisTela() {
   } else if (!acoes.carregando && !acoes.ver) {
     aviso = <AvisoGestao testId="patrimonio-sem-permissao">Você não tem permissão para visualizar Bens Patrimoniais.</AvisoGestao>;
   }
-  const banner =
-    aviso || resumoPadrao ? (
-      <>
-        {aviso}
-        {resumoPadrao ? <ResumoCatalogoPadrao resumo={resumoPadrao} onFechar={() => setResumoPadrao(null)} /> : null}
-      </>
-    ) : null;
+  const banner = aviso;
 
   // ─── Conteúdo do registro ─────────────────────────────────────────────
   let conteudoRegistro = null;
@@ -493,8 +404,7 @@ export default function BensPatrimoniaisTela() {
         showDelete={false}
         extraToolbar={
           <>
-            <FiltroOpcoes rotulo="Filtrar por natureza" value={natureza} onChange={mudarNatureza} opcoes={OPCOES_FILTRO_NATUREZA} />
-            <FiltroOpcoes rotulo="Filtrar por família" value={familiaEfetiva} onChange={setFamiliaFiltro} opcoes={opcoesFamilia} />
+            <FiltroOpcoes rotulo="Filtrar por tipo de bem" value={natureza} onChange={setNatureza} opcoes={OPCOES_FILTRO_TIPO_DE_BEM} />
             <FiltroSituacao value={situacao} onChange={setSituacao} />
           </>
         }
@@ -527,10 +437,15 @@ export default function BensPatrimoniaisTela() {
         }
       />
       {gerenciarAberto ? (
-        <GerenciarFamiliasTiposDialog
+        <GerenciarTiposDialog
           aberto
           onFechar={() => setGerenciarAberto(false)}
-          acoes={{ criarCatalogo: acoes.criarCatalogo, editarCatalogo: acoes.editarCatalogo, inativarCatalogo: acoes.inativarCatalogo }}
+          acoes={{
+            criarCatalogo: acoes.criarCatalogo,
+            editarCatalogo: acoes.editarCatalogo,
+            excluirCatalogo: acoes.excluirCatalogo,
+            inativarCatalogo: acoes.inativarCatalogo,
+          }}
         />
       ) : null}
     </div>

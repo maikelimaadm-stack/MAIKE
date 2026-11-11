@@ -55,6 +55,7 @@ vi.mock('@/services/mapaCacheService', async (importOriginal) => ({
 }));
 
 const DICA_KG = 'Este Produto é controlado em quilos: digite kg, não os litros da bomba.';
+const DICA_SACO = 'Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).';
 
 let amb;
 let matchMediaOriginal;
@@ -289,6 +290,33 @@ describe('UX-A05 — Produto em KG (achado D8)', () => {
     expect(amb.estado.lotes.filter((l) => l.produto === 'p1').map((l) => l.disponivel)).toEqual(['50.0000', '100.0000']);
   });
 
+  it('D-PROD-163: Produto em SACO abastece em kg — rótulo "(kg)", dica de saco, baixa e registro em kg, capacidade não conferida', async () => {
+    novoProdutoNoTrator('p8', 'Sal mineral (saco)', { unidade: 'SACO', lote: '300.0000', custo: '2.0000' });
+    await montar();
+    const form = await abrirNovo();
+    await escolherNoSeletor(form, 'abastecimento-bem', /Trator TP-02/);
+    await escolherProduto(form, 'Sal mineral (saco)');
+    expect(within(form).getByText('Quantidade abastecida (kg)')).toBeTruthy();
+    expect(within(form).getByTestId('abastecimento-dica-kg')).toHaveTextContent(DICA_SACO);
+    await waitFor(() => expect(within(form).getByTestId('abastecimento-local-auto')).toHaveTextContent('Tanque diesel sede'));
+    digitar(form, 'abastecimento-quantidade', '200');
+    digitar(form, 'abastecimento-leitura', '1.560');
+    const dialogo = await pedirPrevia(form);
+    expect(previas()[0].body).toMatchObject({ produto_id: 'p8', tanque_id: 'tq1', quantidade: '200' });
+    expect(within(dialogo).queryByTestId('previa-bloqueios')).toBeNull();
+    expect(within(dialogo).getByTestId('previa-dica-kg')).toHaveTextContent(DICA_SACO);
+    expect(within(dialogo).getByTestId('previa-baixa')).toHaveTextContent('200,0000 kg');
+    const detalhes = abrirDetalhesDoEstoque(dialogo);
+    expect(within(detalhes).getByTestId('previa-capacidade')).toHaveTextContent('não conferida (Produto em quilos: a capacidade é em litros)');
+    expect(within(detalhes).getByTestId('previa-saldo')).toHaveTextContent('300,0000 kg');
+    await act(async () => fireEvent.click(within(dialogo).getByTestId('abastecimento-confirmar')));
+    expect(await screen.findByText('Abastecimento nº 1 confirmado: 200,0000 kg baixados do estoque.')).toBeTruthy();
+    expect(screen.getByTestId('consulta-quantidade')).toHaveTextContent('200,0000 kg');
+    // A baixa é EXATAMENTE a quantidade digitada (kg), e o abastecimento grava `KG` (SACO → KG).
+    expect(amb.estado.lotes.find((l) => l.id === 'lote-p8').disponivel).toBe('100.0000');
+    expect(amb.estado.abastecimentos[0].unidade).toBe('KG');
+  });
+
   it('trocar de Produto em KG para Produto em L tira a dica e volta o rótulo "(L)"; a capacidade volta a valer', async () => {
     novoProdutoNoTrator('p6', 'Diesel pesado (kg)', { unidade: 'KG', lote: '500.0000' });
     await montar();
@@ -352,10 +380,10 @@ describe('UX-A06 — nenhum Produto para o bem (cada motivo do servidor, resolvi
     expect(aviso).not.toHaveTextContent('Peça a quem cuida');
   });
 
-  it('produto_unidade_incompativel (o Produto aceito está em SACO)', async () => {
-    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'SACO';
+  it('produto_unidade_incompativel (o Produto aceito está numa unidade fora de L/KG/SACO — D-PROD-163: SACO serve)', async () => {
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'UN';
     expect(await avisoDoTrator()).toHaveTextContent(
-      'O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível. Aceite no tanque um Produto em L ou em KG em Bens Patrimoniais › Operação › Tanques.',
+      'O Produto aceito não tem estoque em litros (L), quilos (KG) nem sacos (SACO): o abastecimento não é possível. Aceite no tanque outro Produto em Bens Patrimoniais › Operação › Tanques.',
     );
   });
 
@@ -842,21 +870,21 @@ describe('UX-02 revisão final (revista pela D-PROD-162) — formulário', () =>
     expect(within(form).queryByTestId('abastecimento-previa-invalidada')).toBeNull();
   });
 
-  it('F1: o estoque do Produto sai de L/KG ANTES de "Revisar" (200, ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL) relê uma vez: A sai e aparece o motivo do servidor; nada é confirmado', async () => {
+  it('F1: o estoque do Produto sai de L/KG/SACO ANTES de "Revisar" (200, ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL) relê uma vez: A sai e aparece o motivo do servidor; nada é confirmado', async () => {
     const respostas = registrarPrevias();
     await montar();
     const form = await abrirNovo();
     await preencherTrator(form);
     expect(produtosDoBem()).toHaveLength(1);
-    // Antes de revisar: a unidade de estoque do Produto passa a ser SACO (cadastro de Produtos).
-    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'SACO';
+    // Antes de revisar: a unidade de estoque do Produto passa a uma fora de L/KG/SACO (legada).
+    amb.estado.produtos.find((p) => p.id === 'p1').unidade_principal_estoque = 'UN';
     await act(async () => fireEvent.click(within(form).getByTestId('abastecimento-previa')));
     await waitFor(() => expect(respostas).toHaveLength(1));
     expect(previas()[0].body).toMatchObject({ produto_id: 'p1', tanque_id: 'tq1' });
     expect(codigosDe(respostas[0])).toEqual(['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL:unidade_nao_aceita']);
     expect(await within(form).findByTestId('abastecimento-produto-indisponivel')).toHaveTextContent('O Produto escolhido deixou de estar disponível para este bem. Escolha de novo.');
     await waitFor(() => expect(screen.queryByTestId('dialogo-previa-abastecimento')).toBeNull());
-    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível.');
+    expect(within(form).getByTestId('abastecimento-sem-produto')).toHaveTextContent('O Produto aceito não tem estoque em litros (L), quilos (KG) nem sacos (SACO): o abastecimento não é possível.');
     expect(within(form).queryByRole('radio', { name: 'Diesel S10 granel' })).toBeNull();
     expect(produtosDoBem()).toHaveLength(2);
     await esperar(200);

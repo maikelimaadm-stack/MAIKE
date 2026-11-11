@@ -1,31 +1,31 @@
 /**
- * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162).
- * Só online; tenant só no JWT.
+ * Porta nativa de Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162
+ * e pela D-PROD-163). Só online; tenant só no JWT.
  *
- * Catálogos (famílias e tipos) são do TENANT: nenhuma rota de catálogo leva
- * `empresa_id`. Bens pertencem a uma empresa: `empresa_id` vai na query da
- * leitura e no corpo da gravação. Os Produtos que um tanque aceita vêm da opção
+ * Catálogo do TENANT: nenhuma rota de catálogo leva `empresa_id`. D-PROD-163:
+ * a tela só usa os TIPOS (`/patrimonio-tipos`, filtro `natureza`, com
+ * DELETE); a família saiu da tela (o servidor resolve a família padrão da
+ * natureza) e a instalação do catálogo padrão deixou de ser chamada. Bens
+ * pertencem a uma empresa: `empresa_id` vai na query da leitura e no corpo da
+ * gravação. Os Produtos que um tanque aceita vêm da opção
  * `/bens-patrimoniais-opcoes/produtos` (empresa obrigatória, filtro `unidade`
- * `L`|`KG`). Saíram (D-PROD-162, as rotas respondem 404): perfis de medição,
- * combustíveis, vínculo combustível × produto, produtos elegíveis do bem e os
- * fatores kg/L.
+ * `L`|`KG`|`SACO`). Saíram (D-PROD-162, as rotas respondem 404): perfis de
+ * medição, combustíveis, vínculo combustível × produto, produtos elegíveis do
+ * bem e os fatores kg/L.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
 
-/** Caminho de cada catálogo (recurso → rota). */
+/** Caminho de cada catálogo (recurso → rota). D-PROD-163: só os tipos (a família saiu da tela). */
 export const CAMINHOS_CATALOGO = Object.freeze({
-  familias: '/patrimonio-familias',
   tipos: '/patrimonio-tipos',
 });
 
 const RECURSO_DO_CATALOGO = Object.freeze({
-  familias: 'FamiliaPatrimonial',
   tipos: 'TipoPatrimonial',
 });
 
-const CAMINHO_CATALOGO_PADRAO = '/patrimonio-catalogo-padrao';
 const CAMINHO_BENS = '/bens-patrimoniais';
 const CAMINHO_PREVIA = '/bens-patrimoniais-previa-depreciacao';
 const CAMINHO_OPCOES = '/bens-patrimoniais-opcoes';
@@ -61,8 +61,8 @@ const comQuery = (caminho, params) => {
 };
 
 /**
- * Listagem keyset de um catálogo: `q`, `ativo`, `natureza` (famílias) e
- * `familia_id` (tipos).
+ * Listagem keyset de um catálogo: `q`, `ativo` e `natureza` (D-PROD-163: o
+ * "Tipo de bem" — os tipos da natureza, pela família deles).
  * @param {string} recurso @param {Record<string, unknown>} [filtros]
  */
 export const montarCaminhoListagemCatalogo = (recurso, filtros = {}) => {
@@ -70,8 +70,6 @@ export const montarCaminhoListagemCatalogo = (recurso, filtros = {}) => {
   if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
   const natureza = texto(filtros.natureza);
   if (natureza) params.set('natureza', natureza);
-  const familia = texto(filtros.familia_id);
-  if (familia) params.set('familia_id', familia);
   paginacao(params, filtros);
   return comQuery(caminhoDoCatalogo(recurso), params);
 };
@@ -82,7 +80,7 @@ export const montarCaminhoListagemBens = (filtros = {}) => {
   const empresa = texto(filtros.empresa_id);
   if (empresa) params.set('empresa_id', empresa);
   if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
-  for (const chave of ['familia_id', 'tipo_id', 'natureza']) {
+  for (const chave of ['tipo_id', 'natureza']) {
     const valor = texto(filtros[chave]);
     if (valor) params.set(chave, valor);
   }
@@ -91,17 +89,18 @@ export const montarCaminhoListagemBens = (filtros = {}) => {
 };
 
 /**
- * Opções do formulário do bem: `empresa_id`, `familia_id` (tipos) e, só em
- * `produtos` (Produtos que o tanque aceita), `unidade` (`L` | `KG`); mais `q`,
- * `limit` e `cursor`.
+ * Opções do formulário do bem: `empresa_id`, `natureza` (só em `tipos`,
+ * D-PROD-163: os tipos ATIVOS do "Tipo de bem") e, só em `produtos` (Produtos
+ * que o tanque aceita), `unidade` (`L` | `KG` | `SACO`); mais `q`, `limit` e
+ * `cursor`.
  * @param {string} recurso @param {Record<string, unknown>} [filtros]
  */
 export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
   const params = new URLSearchParams();
   const empresa = texto(filtros.empresa_id);
   if (empresa) params.set('empresa_id', empresa);
-  const familia = texto(filtros.familia_id);
-  if (familia) params.set('familia_id', familia);
+  const natureza = texto(filtros.natureza);
+  if (recurso === 'tipos' && natureza) params.set('natureza', natureza);
   // D-PROD-162 (achado D8): filtro opcional dos Produtos que o tanque aceita.
   const unidade = texto(filtros.unidade);
   if (recurso === 'produtos' && unidade && UNIDADES_ESTOQUE_TANQUE.includes(unidade)) params.set('unidade', unidade);
@@ -111,6 +110,14 @@ export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
 
 /** @param {string} recurso @param {string} id */
 const doCatalogo = (recurso, id) => `${caminhoDoCatalogo(recurso)}/${encodeURIComponent(id)}`;
+
+/**
+ * DELETE de um item do catálogo (D-PROD-163: só tipos) com a `versao` lida
+ * (concorrência otimista, como o PATCH) na query: `/patrimonio-tipos/:id?versao=N`.
+ * @param {string} recurso @param {string} id @param {number} versao
+ */
+export const montarCaminhoExclusaoCatalogo = (recurso, id, versao) =>
+  `${doCatalogo(recurso, id)}?${new URLSearchParams({ versao: String(versao) }).toString()}`;
 /** @param {string} id */
 const doBem = (id) => `${CAMINHO_BENS}/${encodeURIComponent(id)}`;
 /** @param {string} caminho @param {string} empresaId */
@@ -188,8 +195,13 @@ export const operacoesNativas = Object.freeze({
   /** @param {string} recurso @param {string} id @param {Record<string, unknown>} corpo */
   catalogoUpdate: (recurso, id, corpo) =>
     nativeRequest(doCatalogo(recurso, id), { method: 'PATCH', body: corpo, autenticado: true }, ctx('updatePatrimonioCatalogo', recursoDoCatalogo(recurso), { id })),
-  catalogoPadrao: () =>
-    nativeRequest(CAMINHO_CATALOGO_PADRAO, { method: 'POST', body: {}, autenticado: true }, ctx('instalarPatrimonioCatalogoPadrao', 'PatrimonioCatalogoPadrao')),
+  /** @param {string} recurso @param {string} id @param {number} versao */
+  catalogoDelete: (recurso, id, versao) =>
+    nativeRequest(
+      montarCaminhoExclusaoCatalogo(recurso, id, versao),
+      { method: 'DELETE', autenticado: true },
+      ctx('deletePatrimonioCatalogo', recursoDoCatalogo(recurso), { id }),
+    ),
   /** @param {Record<string, unknown>} [filtros] */
   bensListPage: (filtros = {}) => nativeRequest(montarCaminhoListagemBens(filtros), { autenticado: true }, ctx('listBensPatrimoniaisPage', RESOURCE_BEM)),
   /** @param {string} id @param {string} empresaId */

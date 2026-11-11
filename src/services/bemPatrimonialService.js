@@ -1,20 +1,27 @@
 /**
- * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-162).
+ * Service dos Bens Patrimoniais (D-PROD-157, simplificado pela D-PROD-162 e
+ * pela D-PROD-163).
  *
  * O bem pertence a uma EMPRESA (fazenda): sem empresa real não há leitura nem
  * gravação. O bem é a raiz do agregado — medidor e tanques (com os Produtos
  * aceitos) só mudam pelo POST/PATCH do próprio bem, com `versao`
  * (concorrência otimista). D-PROD-162: saíram as medições físicas e os
- * combustíveis do tanque; cada tanque aceita Produtos do estoque da fazenda
- * (unidade L ou KG).
+ * combustíveis do tanque; cada tanque aceita Produtos do estoque da fazenda.
+ *
+ * D-PROD-163: o bem tem o "Tipo de bem" (`natureza`, só no POST — ela não muda
+ * depois) e o `tipo_id`; a família NÃO vai (o servidor a deriva do tipo). Área
+ * e Localização saíram da tela: o corpo não leva `area_id` nem
+ * `localizacao_descricao` (o PATCH mínimo nunca os manda, e o que já estiver
+ * gravado neles fica como está). Os Produtos aceitos podem estar em L, KG ou
+ * SACO.
  *
  * Formas:
  *  - DETALHE (resposta do servidor, A13): referências como objetos
- *    (`familia{…}`, `proprietario{…}`, `aquisicao.fornecedor{…}`…), medidor e
+ *    (`tipo{…}`, `proprietario{…}`, `aquisicao.fornecedor{…}`…), medidor e
  *    blocos aninhados, decimais em string canônica; `tanques[i].produtos =
  *    [{produto_id, nome, codigo_interno, unidade_principal_estoque, produto_ativo}]`.
  *  - CORPO (o que a tela monta e o servidor recebe, §4.11): ids planos
- *    (`familia_id`, `proprietario_parceiro_id`…), `medidor{tipo, leitura_*,
+ *    (`tipo_id`, `proprietario_parceiro_id`…), `natureza` no POST, `medidor{tipo, leitura_*,
  *    data_leitura}`, `tanques[{id?, identificador, capacidade_litros,
  *    produto_ids, observacao?, ativo?}]` (`produto_ids` sempre presente, pode
  *    ser `[]`: P-01), `aquisicao{…}`, `depreciacao{depreciavel, …}`. Decimais
@@ -37,18 +44,19 @@ import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
 
 const RESOURCE = 'BemPatrimonial';
 
-/** Campos escalares do corpo (POST e PATCH). `numero`, `natureza` e `empresa_id` não são editáveis. */
+/**
+ * Campos escalares do corpo (POST e PATCH). `numero`, `natureza` e `empresa_id`
+ * não são editáveis (a `natureza` vai só no POST, à parte). D-PROD-163: sem
+ * `familia_id` (derivada do tipo no servidor), `area_id` e `localizacao_descricao`.
+ */
 export const CAMPOS_ESCALARES_BEM = Object.freeze([
   'nome',
-  'familia_id',
   'tipo_id',
   'codigo_frota',
   'propriedade',
   'proprietario_parceiro_id',
   'responsavel_usuario_id',
   'centro_custo_id',
-  'area_id',
-  'localizacao_descricao',
   'marca',
   'modelo',
   'ano_fabricacao',
@@ -219,12 +227,11 @@ export const formaDeEdicaoDoBem = (detalhe) => {
   /** @type {Record<string, any>} */
   const forma = {};
   for (const campo of CAMPOS_ESCALARES_BEM) forma[campo] = d[campo] ?? null;
-  forma.familia_id = idDe(d.familia) ?? d.familia_id ?? null;
+  forma.natureza = d.natureza ?? d.familia?.natureza ?? null;
   forma.tipo_id = idDe(d.tipo) ?? d.tipo_id ?? null;
   forma.proprietario_parceiro_id = idDe(d.proprietario) ?? d.proprietario_parceiro_id ?? null;
   forma.responsavel_usuario_id = idDe(d.responsavel) ?? d.responsavel_usuario_id ?? null;
   forma.centro_custo_id = idDe(d.centro_custo) ?? d.centro_custo_id ?? null;
-  forma.area_id = idDe(d.area) ?? d.area_id ?? null;
   forma.medidor = ehObjeto(d.medidor)
     ? { tipo: d.medidor.tipo ?? null, leitura_inicial: d.medidor.leitura_inicial ?? null, leitura_atual: d.medidor.leitura_atual ?? null, data_leitura: d.medidor.data_leitura ?? null }
     : null;
@@ -266,7 +273,7 @@ export const formaDeEdicaoDoBem = (detalhe) => {
 
 /**
  * @param {string|null} empresaId
- * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean, natureza?: string|null, familiaId?: string|null, tipoId?: string|null }} [opts]
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean, natureza?: string|null, tipoId?: string|null }} [opts]
  */
 export const listarBensPagina = async (empresaId, opts = {}) => {
   if (!empresaId) return paginaVazia(opts.limit);
@@ -277,7 +284,6 @@ export const listarBensPagina = async (empresaId, opts = {}) => {
     q: opts.q,
     ativo: opts.ativo,
     natureza: opts.natureza || undefined,
-    familia_id: opts.familiaId || undefined,
     tipo_id: opts.tipoId || undefined,
   });
 };
@@ -289,8 +295,8 @@ export const detalharBem = async (empresaId, id) => {
 };
 
 /**
- * Criação: escalares não vazios + blocos/listas informados, numa transação no
- * servidor. Tanques novos não levam `id` nem `ativo`; o medidor não leva
+ * Criação: `natureza` (o Tipo de bem) + escalares não vazios + blocos/listas
+ * informados, numa transação no servidor. Tanques novos não levam `id` nem `ativo`; o medidor não leva
  * `leitura_atual`; a depreciação só vai quando ligada (desligada é o padrão).
  * @param {string|null} empresaId @param {Record<string, any>} dados corpo (forma de edição)
  */
@@ -298,6 +304,9 @@ export const criarBem = async (empresaId, dados) => {
   const empresa = exigirEmpresa(empresaId, 'criarBem', RESOURCE);
   /** @type {Record<string, any>} */
   const corpo = { empresa_id: empresa };
+  // D-PROD-163: o Tipo de bem vai no POST (o servidor confere com a natureza do tipo).
+  const natureza = limpo(dados?.natureza);
+  if (natureza !== null) corpo.natureza = natureza;
   for (const campo of CAMPOS_ESCALARES_BEM) {
     const valor = limpo(dados?.[campo]);
     if (valor !== null) corpo[campo] = valor;
@@ -383,13 +392,14 @@ export const simularDepreciacao = async (empresaId, parametros) => {
 
 /**
  * Uma página de opções ATIVAS para os seletores do bem. Responsáveis,
- * parceiros, centros de custo, áreas e `produtos` pedem a empresa (sem ela não
- * há busca); os de catálogo não dependem dela. `tipos` aceita `familiaId`.
- * `produtos` (D-PROD-162) = Produtos ativos da fazenda em L ou KG que um
- * tanque pode aceitar; `unidade` (`L` | `KG`) filtra.
- * @param {'familias'|'tipos'|'produtos'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
+ * parceiros, centros de custo e `produtos` pedem a empresa (sem ela não há
+ * busca); `tipos` (catálogo do tenant) não depende dela e aceita `natureza`
+ * (D-PROD-163: os tipos do "Tipo de bem"). `produtos` (D-PROD-162;
+ * D-PROD-163) = Produtos ativos da fazenda, em L, KG ou SACO, que um tanque
+ * pode aceitar; `unidade` (`L` | `KG` | `SACO`) filtra.
+ * @param {'tipos'|'produtos'|'responsaveis'|'parceiros'|'centros-custo'} recurso
  * @param {string|null} empresaId
- * @param {{ q?: string, cursor?: string|null, limit?: number, familiaId?: string|null, unidade?: 'L'|'KG'|null }} [opts]
+ * @param {{ q?: string, cursor?: string|null, limit?: number, natureza?: string|null, unidade?: 'L'|'KG'|'SACO'|null }} [opts]
  */
 export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
   if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso) && !empresaId) return { itens: [], has_more: false, next_cursor: null };
@@ -398,39 +408,7 @@ export const listarOpcoesBem = async (recurso, empresaId, opts = {}) => {
     q: opts.q?.trim() || undefined,
     cursor: opts.cursor || undefined,
     limit: opts.limit ?? 50,
-    familia_id: opts.familiaId || undefined,
+    ...(recurso === 'tipos' && opts.natureza ? { natureza: opts.natureza } : {}),
     ...(recurso === 'produtos' && opts.unidade ? { unidade: opts.unidade } : {}),
   });
-};
-
-/** Páginas lidas, no máximo, por `listarOpcoesCompletasBem` (100 itens cada). */
-export const PAGINAS_MAXIMAS_OPCOES = 20;
-
-/**
- * Todas as opções ATIVAS de um recurso pequeno (as famílias do filtro da
- * lista), seguindo `next_cursor` página a página.
- * `completo` é `false` quando o recurso tem mais que
- * `PAGINAS_MAXIMAS_OPCOES` × 100 itens — a tela avisa que a lista é parcial.
- * @param {'familias'|'tipos'|'responsaveis'|'parceiros'|'centros-custo'|'areas'} recurso
- * @param {string|null} empresaId
- * @param {{ familiaId?: string|null }} [opts]
- * @returns {Promise<{ itens: any[], completo: boolean }>}
- */
-export const listarOpcoesCompletasBem = async (recurso, empresaId, opts = {}) => {
-  /** @type {any[]} */
-  const itens = [];
-  const vistos = new Set();
-  /** @type {string|null} */
-  let cursor = null;
-  for (let pagina = 0; pagina < PAGINAS_MAXIMAS_OPCOES; pagina += 1) {
-    const r = await listarOpcoesBem(recurso, empresaId, { cursor, limit: 100, familiaId: opts.familiaId });
-    for (const item of r.itens) {
-      if (!item || vistos.has(item.id)) continue;
-      vistos.add(item.id);
-      itens.push(item);
-    }
-    if (!r.has_more || !r.next_cursor || r.next_cursor === cursor) return { itens, completo: true };
-    cursor = r.next_cursor;
-  }
-  return { itens, completo: false };
 };

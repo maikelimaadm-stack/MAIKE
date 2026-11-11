@@ -6,7 +6,7 @@
  *
  * D-PROD-162: duas telas (Bens e Abastecimentos); famílias e tipos dentro de
  * Bens; sem perfis de medição, medições, combustíveis nem fator kg/L. Cada
- * tanque traz `produto_ids` (Produtos em L ou KG da fazenda do bem).
+ * tanque traz `produto_ids` (Produtos da fazenda do bem; D-PROD-163: L, KG ou SACO).
  *
  * Tudo contra PostgreSQL real e HTTP autenticado (`app.inject`). O "hoje" da
  * fazenda é o do relógio de teste: o runner define `MAIKE_TESTE_AGORA` com este

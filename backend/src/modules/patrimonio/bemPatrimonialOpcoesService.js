@@ -2,7 +2,9 @@
  * D-PROD-157 (A3) / D-PROD-162 — opções dos seletores do formulário do bem que
  * dependem da EMPRESA: responsáveis, parceiros, centros de custo, áreas e os
  * Produtos que um tanque pode aceitar. As de catálogo (famílias e tipos) são
- * do tenant e ficam nos services de cada catálogo (`opcoes`).
+ * do tenant e ficam nos services de cada catálogo (`opcoes`). D-PROD-163: a
+ * tela de Bens deixou de mostrar Área (as opções de áreas ficam para quem já
+ * as usa; nada é apagado).
  *
  * Só ATIVOS, keyset (nome, id) crescente, busca literal no servidor e
  * envelope `{ itens, has_more, next_cursor }` (limite padrão 50, máx. 100).
@@ -15,7 +17,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { paginacaoOpcoes, paginarPorNome } from './patrimonioComum.js';
-import { UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
+import { UNIDADES_PRODUTO_TANQUE } from './patrimonioDominio.js';
 
 /**
  * Escopo comum: tenant da sessão, empresa validada, paginação e busca.
@@ -89,14 +91,15 @@ export const opcoesAreas = async (contexto, query = {}) => {
 };
 
 /**
- * D-PROD-162 — Produtos que o tanque pode ACEITAR: ATIVOS, da empresa, com
- * estoque em L ou KG (nunca SACO, outra fazenda ou outro tenant), por nome e
- * id; `q` em nome ou código interno; `unidade` (L|KG) filtra (achado D8).
+ * D-PROD-162 / D-PROD-163 — Produtos que o tanque pode ACEITAR: ATIVOS, da
+ * empresa, em QUALQUER unidade do cadastro de Produtos (L, KG ou SACO; nunca
+ * outra fazenda ou outro tenant), por nome e id; `q` em nome ou código
+ * interno; `unidade` (L|KG|SACO) filtra (achado D8).
  * Sem preço, saldo ou custo: `{id, nome, codigo_interno, unidade_principal_estoque}`.
  */
 export const opcoesProdutosParaTanque = async (contexto, query = {}) => {
   const { prisma, clienteId, empresaId, limit, cursor, q } = await escopo(contexto, query);
-  const unidades = UNIDADES_ABASTECIMENTO.includes(query.unidade) ? [query.unidade] : [...UNIDADES_ABASTECIMENTO];
+  const unidades = UNIDADES_PRODUTO_TANQUE.includes(query.unidade) ? [query.unidade] : [...UNIDADES_PRODUTO_TANQUE];
   /** @type {any[]} */
   const filtros = [{ cliente_id: clienteId, empresa_id: empresaId, ativo: true, unidade_principal_estoque: { in: unidades } }];
   if (q) filtros.push({ OR: [{ nome_produto: { contains: q, mode: 'insensitive' } }, { codigo_interno: { contains: q, mode: 'insensitive' } }] });

@@ -7,10 +7,17 @@
  * (`cliente_id` no corpo → 400 na barreira global); guardas da tela
  * `pat-bens-patrimoniais` (ver = visualizar; criar = novo|salvar; editar =
  * editar|salvar e, quando o corpo traz `ativo`, a ação extra `inativar`).
- * `numero`, `natureza` e `empresa_id` não se editam (fora do schema do PATCH
- * → 400; `empresa_id` é só escopo). Sem DELETE: inativação por PATCH.
+ * `numero` e `empresa_id` não se editam (fora do schema do PATCH → 400;
+ * `empresa_id` é só escopo). Sem DELETE: inativação por PATCH.
  * D-PROD-162: `medicoes` e `combustivel_ids` saíram do contrato (→ 400); cada
- * tanque traz `produto_ids` (Produtos do estoque aceitos, L ou KG).
+ * tanque traz `produto_ids` (Produtos do estoque aceitos).
+ * D-PROD-163 (SIMPLIFICA-02): o bem é cadastrado com "Tipo de bem"
+ * (`natureza`) + "Tipo" (`tipo_id`), SEM `familia_id` (o servidor deriva a
+ * família do tipo; `familia_id` continua aceito por compatibilidade e tem de
+ * bater). `natureza` no PATCH só confere (imutável: diferente → 409). Produtos
+ * aceitos em qualquer unidade (L, KG ou SACO). Área e localização saíram da
+ * tela, mas o servidor continua aceitando `area_id`/`localizacao_descricao`
+ * (valores gravados não são apagados).
  *
  * Decimais são STRING. O Fastify COERGE tipos (`coerceTypes: 'array'`): um
  * número JSON num campo decimal viraria string já corrompida pelo float. Por
@@ -28,7 +35,7 @@ import { atualizar, criar, detalhar, listar, previaDepreciacao } from './bemPatr
 import { opcoesAreas, opcoesCentrosCusto, opcoesParceiros, opcoesProdutosParaTanque, opcoesResponsaveis } from './bemPatrimonialOpcoesService.js';
 import { PADRAO_DINHEIRO, PADRAO_MEDIDA, PADRAO_PERCENTUAL } from './bemPatrimonialRegras.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO, recusarCoercaoPatrimonio } from './patrimonioComum.js';
-import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS, UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
+import { MEDIDOR_TIPOS, METODOS_DEPRECIACAO, NATUREZAS, PROPRIEDADES, RESIDUAL_MODOS, UNIDADES_PRODUTO_TANQUE } from './patrimonioDominio.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -117,6 +124,8 @@ const DEPRECIACAO = {
 /** Campos do bem comuns ao POST e ao PATCH (formatos; o domínio é 422 no service). */
 const CAMPOS_DO_BEM = {
   nome: NOME,
+  // D-PROD-163: "Tipo de bem" + "Tipo"; `familia_id` só por compatibilidade (o servidor deriva do tipo).
+  natureza: ENUM(NATUREZAS),
   familia_id: ID,
   tipo_id: ID,
   codigo_frota: TEXTO(32),
@@ -148,7 +157,7 @@ const CAMPOS_DO_BEM = {
 const CRIAR = {
   body: {
     type: 'object',
-    required: ['empresa_id', 'nome', 'familia_id', 'tipo_id'],
+    required: ['empresa_id', 'nome', 'tipo_id'],
     additionalProperties: false,
     properties: { empresa_id: ID, ...CAMPOS_DO_BEM, medidor: medidor(false), tanques: tanques(false) },
   },
@@ -228,11 +237,11 @@ const consultaDeOpcoes = (obrigatorios, extras = {}) => ({
 });
 /** Catálogo do tenant: `empresa_id` opcional e ignorado. */
 const OPCOES_CATALOGO = consultaDeOpcoes([]);
-const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID });
+const OPCOES_TIPOS = consultaDeOpcoes([], { familia_id: ID, natureza: ENUM(NATUREZAS) });
 /** Dependem da empresa: `empresa_id` obrigatório. */
 const OPCOES_DA_EMPRESA = consultaDeOpcoes(['empresa_id']);
-/** D-PROD-162: Produtos que o tanque pode aceitar (ativos, da fazenda, L ou KG); `unidade` filtra (achado D8). */
-const OPCOES_PRODUTOS = consultaDeOpcoes(['empresa_id'], { unidade: ENUM(UNIDADES_ABASTECIMENTO) });
+/** D-PROD-162 / D-PROD-163: Produtos que o tanque pode aceitar (ativos, da fazenda, L, KG ou SACO); `unidade` filtra (achado D8). */
+const OPCOES_PRODUTOS = consultaDeOpcoes(['empresa_id'], { unidade: ENUM(UNIDADES_PRODUTO_TANQUE) });
 
 const ctx = (request) => {
   exigirAuthContext(request.contexto.auth);
@@ -262,7 +271,8 @@ export const registrarBemPatrimonialRoutes = async (app) => {
   app.post('/bens-patrimoniais-previa-depreciacao', { ...autenticado, preHandler: [g.ver], schema: PREVIA }, async (request) =>
     previaDepreciacao(ctx(request), corpo(request)));
 
-  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-162: guarda de Bens).
+  // Opções de catálogo (famílias e tipos do formulário do bem, D-PROD-162: guarda de Bens; D-PROD-163: tipos por `natureza`,
+  // com o catálogo padrão garantido antes).
   const catalogo = { ...autenticado, preHandler: [g.opcoesCatalogo] };
   app.get('/bens-patrimoniais-opcoes/familias', { ...catalogo, schema: OPCOES_CATALOGO }, async (request) => familias.opcoes(ctx(request), consulta(request)));
   app.get('/bens-patrimoniais-opcoes/tipos', { ...catalogo, schema: OPCOES_TIPOS }, async (request) => tipos.opcoes(ctx(request), consulta(request)));

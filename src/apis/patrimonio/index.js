@@ -5,7 +5,7 @@ export {
   getPatrimonioCatalogo,
   createPatrimonioCatalogo,
   updatePatrimonioCatalogo,
-  instalarPatrimonioCatalogoPadrao,
+  deletePatrimonioCatalogo,
   listBensPatrimoniaisPage,
   getBemPatrimonial,
   createBemPatrimonial,

@@ -1,27 +1,33 @@
 /**
- * API do módulo Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162).
- * Online só; página keyset do motor Base1; opções de seletor paginadas no
- * servidor (sem teto).
+ * API do módulo Patrimônio e Frota (D-PROD-157, simplificada pela D-PROD-162 e
+ * pela D-PROD-163). Online só; página keyset do motor Base1; opções de seletor
+ * paginadas no servidor (sem teto).
  *
- * Catálogos do tenant (famílias e tipos): nunca `empresa_id`; o `codigo` é
- * opcional no POST (P-05: o servidor o gera do nome). Bens e os Produtos que um
- * tanque aceita: `empresa_id` obrigatório (query na leitura, corpo na
- * gravação). PATCH sempre com `versao` (CAS). Abastecimento: `quantidade` na
- * unidade de estoque do Produto (L ou KG), sem conversão nem fator.
+ * Catálogo do tenant: nunca `empresa_id`. D-PROD-163: a tela só mexe nos
+ * TIPOS — criados com `{natureza, nome}` (o servidor põe o tipo na família
+ * padrão da natureza; `familia_id` não vai), renomeados por PATCH com `versao`
+ * e excluídos por DELETE com `versao` (409 `PATRIMONIO_TIPO_EM_USO` quando
+ * algum bem usa o tipo); o `codigo` é opcional no POST (P-05). Bens e os
+ * Produtos que um tanque aceita: `empresa_id` obrigatório (query na leitura,
+ * corpo na gravação); o bem vai com `natureza` + `tipo_id` (sem `familia_id`:
+ * o servidor a deriva do tipo). PATCH sempre com `versao` (CAS). Abastecimento:
+ * `quantidade` na unidade de estoque do Produto (L; kg para KG e SACO), sem
+ * conversão nem fator.
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { CAMINHOS_CATALOGO, RECURSOS_OPCOES_ABASTECIMENTO, operacoesNativas } from './patrimonioNativePort.js';
 import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
-import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
+import { UNIDADES_ESTOQUE_TANQUE, ehNatureza } from '@/lib/patrimonioDominio';
 
 /**
- * Recursos de opções (A3): os de catálogo (famílias, tipos) não pedem empresa;
- * os demais pedem. `produtos` (D-PROD-162) = Produtos ativos da fazenda, em L
- * ou KG, que um tanque pode aceitar (filtro opcional `unidade`).
+ * Recursos de opções (A3): `tipos` (catálogo do tenant) não pede empresa; os
+ * demais pedem. `produtos` (D-PROD-162; D-PROD-163) = Produtos ativos da
+ * fazenda, em L, KG ou SACO, que um tanque pode aceitar (filtro opcional
+ * `unidade`). D-PROD-163: saíram `familias` e `areas` (a tela não as usa mais).
  */
-export const RECURSOS_OPCOES_PATRIMONIO = Object.freeze(['familias', 'tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo', 'areas']);
-export const RECURSOS_OPCOES_DA_EMPRESA = Object.freeze(['produtos', 'responsaveis', 'parceiros', 'centros-custo', 'areas']);
+export const RECURSOS_OPCOES_PATRIMONIO = Object.freeze(['tipos', 'produtos', 'responsaveis', 'parceiros', 'centros-custo']);
+export const RECURSOS_OPCOES_DA_EMPRESA = Object.freeze(['produtos', 'responsaveis', 'parceiros', 'centros-custo']);
 
 /** @param {unknown} v */
 const isId = (v) => typeof v === 'string' && v.trim().length > 0;
@@ -42,6 +48,7 @@ const ctx = (operation, resource) => ({ operation, resource });
 export const listPatrimonioCatalogoPage = async (recurso, filtros = {}) => {
   const contexto = ctx('listPatrimonioCatalogoPage', String(recurso));
   assertArgument(ehCatalogo(recurso), 'recurso', contexto);
+  assertArgument(filtros.natureza == null || ehNatureza(filtros.natureza), 'natureza', contexto);
   const bruto = await runProviderCall(() => operacoesNativas.catalogoListPage(recurso, filtros), contexto);
   return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
 };
@@ -55,15 +62,18 @@ export const getPatrimonioCatalogo = async (recurso, id) => {
 };
 
 /**
- * POST de família ou tipo. `nome` obrigatório; `codigo` opcional (P-05: sem ele
- * o servidor gera a partir do nome) e, se vier, não vazio. Nunca `empresa_id`
- * nem `perfis` (D-PROD-162: o servidor responderia 400).
+ * POST de tipo (D-PROD-163): `{natureza, nome, codigo?, descricao?,
+ * vida_util_meses_sugerida?}`. `natureza` = o "Tipo de bem" (o servidor põe o
+ * tipo na família padrão dela; `familia_id` não vai); `nome` obrigatório;
+ * `codigo` opcional (P-05: sem ele o servidor gera a partir do nome) e, se
+ * vier, não vazio. Nunca `empresa_id` nem `perfis` (o servidor responderia 400).
  * @param {string} recurso @param {Record<string, unknown>} corpo
  */
 export const createPatrimonioCatalogo = async (recurso, corpo) => {
   const contexto = ctx('createPatrimonioCatalogo', String(recurso));
   assertArgument(ehCatalogo(recurso), 'recurso', contexto);
   assertArgument(isObjeto(corpo) && !tem(corpo, 'empresa_id'), 'empresa_id', contexto);
+  assertArgument(ehNatureza(corpo.natureza) && !tem(corpo, 'familia_id'), 'natureza', contexto);
   assertArgument(isId(corpo.nome), 'nome', contexto);
   assertArgument(!tem(corpo, 'codigo') || isId(corpo.codigo), 'codigo', contexto);
   assertArgument(!tem(corpo, 'perfis'), 'perfis', contexto);
@@ -86,32 +96,19 @@ export const updatePatrimonioCatalogo = async (recurso, id, corpo) => {
   return runProviderCall(() => operacoesNativas.catalogoUpdate(recurso, id, corpo), { ...contexto, details: { id } });
 };
 
-/** @param {unknown} v */
-const contagens = (v) => {
-  const o = isObjeto(v) ? v : {};
-  /** @param {unknown} n */
-  const n = (n) => (Number.isInteger(n) && /** @type {number} */ (n) >= 0 ? /** @type {number} */ (n) : 0);
-  return { familias: n(o.familias), tipos: n(o.tipos) };
-};
-
 /**
- * Instala o catálogo padrão (idempotente: cria só o que falta por código).
- * D-PROD-162: só famílias e tipos (perfis e combustíveis saíram).
- * @returns {Promise<{ criados: { familias: number, tipos: number },
- *   existentes: { familias: number, tipos: number },
- *   conflitos: Array<{ recurso: string, codigo: string, motivo: string }> }>}
+ * DELETE de um tipo (D-PROD-163) com a `versao` lida: 204 quando nenhum bem
+ * (ativo ou inativo) usa o tipo; 409 `PATRIMONIO_TIPO_EM_USO` (`details.bens`)
+ * quando algum usa; 409 `PATRIMONIO_VERSAO_CONFLITO` quando outra pessoa mexeu
+ * no tipo antes.
+ * @param {string} recurso @param {string} id @param {number} versao
  */
-export const instalarPatrimonioCatalogoPadrao = async () => {
-  const contexto = ctx('instalarPatrimonioCatalogoPadrao', 'PatrimonioCatalogoPadrao');
-  const bruto = /** @type {any} */ (await runProviderCall(() => operacoesNativas.catalogoPadrao(), contexto));
-  const conflitos = isObjeto(bruto) && Array.isArray(bruto.conflitos) ? bruto.conflitos : [];
-  return {
-    criados: contagens(bruto?.criados),
-    existentes: contagens(bruto?.existentes),
-    conflitos: conflitos
-      .filter(isObjeto)
-      .map((c) => ({ recurso: String(c.recurso ?? ''), codigo: String(c.codigo ?? ''), motivo: String(c.motivo ?? '') })),
-  };
+export const deletePatrimonioCatalogo = async (recurso, id, versao) => {
+  const contexto = ctx('deletePatrimonioCatalogo', String(recurso));
+  assertArgument(ehCatalogo(recurso), 'recurso', contexto);
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(ehVersao(versao), 'versao', contexto);
+  await runProviderCall(() => operacoesNativas.catalogoDelete(recurso, id, versao), { ...contexto, details: { id } });
 };
 
 // ─── Bens ────────────────────────────────────────────────────────────────
@@ -131,17 +128,24 @@ export const getBemPatrimonial = async (id, empresaId) => {
   return runProviderCall(() => operacoesNativas.bemGet(id, empresaId), contexto);
 };
 
-/** @param {Record<string, unknown>} corpo */
+/**
+ * POST do bem (D-PROD-163): `natureza` (o "Tipo de bem") + `tipo_id`, sem
+ * `familia_id` (o servidor a deriva do tipo e exige a mesma natureza).
+ * @param {Record<string, unknown>} corpo
+ */
 export const createBemPatrimonial = async (corpo) => {
   const contexto = ctx('createBemPatrimonial', 'BemPatrimonial');
   assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
-  assertArgument(isId(corpo.familia_id) && isId(corpo.tipo_id), 'familia_id', contexto);
+  assertArgument(ehNatureza(corpo.natureza), 'natureza', contexto);
+  assertArgument(isId(corpo.tipo_id), 'tipo_id', contexto);
+  assertArgument(!tem(corpo, 'familia_id'), 'familia_id', contexto);
   return runProviderCall(() => operacoesNativas.bemCreate(corpo), contexto);
 };
 
 /**
  * PATCH mínimo do agregado (bem + medidor + tanques com os Produtos aceitos) com `versao`.
- * `numero` e `natureza` nunca vão (imutáveis); `empresa_id` é só escopo.
+ * `numero` e `natureza` nunca vão (imutáveis); `familia_id` também não
+ * (D-PROD-163: o servidor a deriva do `tipo_id`); `empresa_id` é só escopo.
  * @param {string} id @param {Record<string, unknown>} corpo
  */
 export const updateBemPatrimonial = async (id, corpo) => {
@@ -150,6 +154,7 @@ export const updateBemPatrimonial = async (id, corpo) => {
   assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'empresa_id', contexto);
   assertArgument(ehVersao(corpo.versao), 'versao', contexto);
   assertArgument(!tem(corpo, 'numero') && !tem(corpo, 'natureza'), 'numero', contexto);
+  assertArgument(!tem(corpo, 'familia_id'), 'familia_id', contexto);
   return runProviderCall(() => operacoesNativas.bemUpdate(id, corpo), { ...contexto, details: { id } });
 };
 
@@ -165,16 +170,18 @@ export const previaDepreciacaoBemPatrimonial = async (corpo) => {
 
 /**
  * Uma página de opções ATIVAS de um seletor (keyset nome+id). Em `produtos`
- * (D-PROD-162), cada item é `{ id, nome, codigo_interno, unidade_principal_estoque }`
- * e `unidade` (`L` | `KG`) filtra; sem ela, vêm L e KG.
+ * (D-PROD-162; D-PROD-163), cada item é `{ id, nome, codigo_interno,
+ * unidade_principal_estoque }` e `unidade` (`L` | `KG` | `SACO`) filtra; sem
+ * ela, vêm todas. Em `tipos` (D-PROD-163), `natureza` filtra pelo "Tipo de bem".
  * @param {string} recurso
- * @param {{ empresa_id?: string|null, q?: string, cursor?: string|null, limit?: number, familia_id?: string|null, unidade?: 'L'|'KG'|null }} [filtros]
+ * @param {{ empresa_id?: string|null, q?: string, cursor?: string|null, limit?: number, natureza?: string|null, unidade?: 'L'|'KG'|'SACO'|null }} [filtros]
  * @returns {Promise<{ itens: any[], has_more: boolean, next_cursor: string|null }>}
  */
 export const listOpcoesBemPatrimonial = async (recurso, filtros = {}) => {
   const contexto = ctx('listOpcoesBemPatrimonial', 'BemPatrimonial');
   assertArgument(RECURSOS_OPCOES_PATRIMONIO.includes(recurso), 'recurso', contexto);
   if (RECURSOS_OPCOES_DA_EMPRESA.includes(recurso)) assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  if (recurso === 'tipos' && filtros.natureza != null) assertArgument(ehNatureza(filtros.natureza), 'natureza', contexto);
   if (recurso === 'produtos' && filtros.unidade != null) {
     assertArgument(typeof filtros.unidade === 'string' && UNIDADES_ESTOQUE_TANQUE.includes(filtros.unidade), 'unidade', contexto);
   }
@@ -202,7 +209,8 @@ const RESOURCE_ABASTECIMENTO = 'AbastecimentoBem';
 
 /**
  * Corpo base da prévia e da confirmação (schema FECHADO no servidor).
- * D-PROD-162: `quantidade` na unidade de estoque do Produto (L ou KG); saíram
+ * D-PROD-162: `quantidade` na unidade de estoque do Produto (L; kg para KG e,
+ * D-PROD-163, para SACO); saíram
  * `tipo_combustivel_id`, `quantidade_litros` e `conversao_*` (o servidor
  * responderia 400 — aqui falha antes da rede).
  */

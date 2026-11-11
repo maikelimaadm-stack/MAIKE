@@ -10,7 +10,7 @@
  *  - AB2 flex (um tanque aceita gasolina e etanol; Produto não aceito → 422);
  *    AB3 duas fazendas do mesmo tenant; AB6 todos os vetores de quantidade de
  *    `tests/smoke/fixtures/abastecimentoVetores.json` (sem conversão); AB7
- *    estoque (sem lote, insuficiente, `estoque_atual` legado, unidade SACO,
+ *    estoque (sem lote, insuficiente, `estoque_atual` legado, unidade fora de L/KG/SACO,
  *    local); AB8 capacidade (só para Produto em L) e parciais; AB11
  *    cancelamento bloqueado; AB12 inativações e aceite retirado com a tela
  *    aberta; AB13 efeitos na P3 (D14); AB14 X1; AB15 lista/detalhe; AB16 opções;
@@ -79,7 +79,7 @@ describe('P1-02 — fluxo feliz do aceite (TP-02, diesel em litros)', () => {
     assert.deepEqual(bloqueios, []);
     semCamposRemovidos(plano, 'plano');
     assert.deepEqual([plano.quantidade, plano.unidade, plano.confere_capacidade], ['80.0000', 'L', true]);
-    assert.deepEqual(plano.produto, { id: s.diesel.id, nome: 'Diesel S10 (L)', codigo_interno: null, unidade_principal_estoque: 'L' });
+    assert.deepEqual(plano.produto, { id: s.diesel.id, nome: 'Diesel S10 (L)', codigo_interno: null, unidade_principal_estoque: 'L', unidade_abastecimento: 'L' });
     assert.deepEqual(plano.tanque, { id: s.trator.tanques[0].id, identificador: 'Tanque principal', capacidade_litros: '180.0000', ativo: true });
     assert.equal(plano.custo_e_estimativa, true);
     assert.equal(plano.fifo.suficiente, true);
@@ -391,8 +391,10 @@ describe('P1-02 — Produtos aceitos e fazenda', () => {
 });
 
 describe('P1-02 — estoque, capacidade e idempotência', () => {
-  test('AB7: sem lote no local / lotes insuficientes / estoque_atual legado menor / unidade SACO / local inativo ou inexistente → 422; nada gravado', async () => {
+  test('AB7: sem lote no local / lotes insuficientes / estoque_atual legado menor / unidade fora de L/KG/SACO / local inativo ou inexistente → 422; nada gravado', async () => {
     const s = await montarAbastecimento(app);
+    // D-PROD-163: SACO passou a abastecer (em kg); a recusa por unidade vale para unidade fora de L/KG/SACO (dado legado).
+    await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${s.emSaco.id}`;
     const antes = await fotoAbastecimento(s.c);
     const semLote = await A.confirmar(s.operador.token, corpoAbastecimento(s, { local_estoque_id: s.local2.id }));
     assert.deepEqual(erro(semLote), [422, 'ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente']);
@@ -405,10 +407,10 @@ describe('P1-02 — estoque, capacidade e idempotência', () => {
     assert.deepEqual(erro(inativo), [422, 'ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo']);
     const inexistente = await A.confirmar(s.operador.token, corpoAbastecimento(s, { local_estoque_id: 'local-que-nao-existe' }));
     assert.deepEqual(erro(inexistente), [422, 'ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inexistente']);
-    // SACO não é L nem KG: recusado antes do aceite e do estoque (e nunca convertido)
+    // UN não é L, KG nem SACO: recusado antes do aceite e do estoque (e nunca convertido)
     const saco = corpoAbastecimento(s, { bem_id: s.gerador.id, tanque_id: s.gerador.tanques[0].id, produto_id: s.emSaco.id, medidor_leitura: null, quantidade: '10' });
     const rpS = await A.ok(A.previa(s.operador.token, previaDe(saco)));
-    assert.deepEqual([rpS.bloqueios[0].code, rpS.bloqueios[0].reason, rpS.bloqueios[0].details.unidade], ['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'unidade_nao_aceita', 'SACO']);
+    assert.deepEqual([rpS.bloqueios[0].code, rpS.bloqueios[0].reason, rpS.bloqueios[0].details.unidade], ['ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'unidade_nao_aceita', 'UN']);
     assert.deepEqual([rpS.plano.unidade, rpS.plano.fifo, rpS.plano.estoque], [null, null, null]);
     assert.deepEqual(erro(await A.confirmar(s.operador.token, saco)), [422, 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita']);
     assert.equal(await fotoAbastecimento(s.c), antes);
@@ -606,7 +608,7 @@ describe('P1-02 — inativações com a tela aberta (entre a prévia e a confirm
     const tanque = (extra, ids = ACEITES) => () => patchBem((b) => ({ tanques: [itemTanque(b.tanques[0], ids, extra)] }));
 
     await comTelaAberta('produto', produto(false), [422, 'ABASTECIMENTO_PRODUTO_INVALIDO', 'produto_id', 'inativo'], produto(true));
-    await comTelaAberta('unidade do produto', unidadeSql('SACO'), [422, 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita'], unidadeSql('L'));
+    await comTelaAberta('unidade do produto', unidadeSql('UN'), [422, 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita'], unidadeSql('L'));
     await comTelaAberta('local', local(false), [422, 'ABASTECIMENTO_LOCAL_INVALIDO', 'local_estoque_id', 'local_inativo'], local(true));
     await comTelaAberta('tanque', tanque({ ativo: false }), [422, 'ABASTECIMENTO_TANQUE_INVALIDO', 'tanque_id', 'tanque_inativo'], tanque({ ativo: true }));
     await comTelaAberta('bem', () => patchBem(() => ({ ativo: false })), [422, 'ABASTECIMENTO_BEM_INELEGIVEL', 'bem_id', 'bem_inativo'], () => patchBem(() => ({ ativo: true })));
@@ -739,8 +741,8 @@ describe('P1-02 — lista, detalhe e opções', () => {
     assert.deepEqual(t0.itens, [{
       id: s.trator.tanques[0].id, identificador: 'Tanque principal', capacidade_litros: '180.0000',
       produtos: [
-        { id: s.diesel.id, nome: 'Diesel S10 (L)', codigo_interno: null, unidade_principal_estoque: 'L', elegivel: true, motivo: null },
-        { id: s.dieselKg.id, nome: 'Diesel S10 granel (kg)', codigo_interno: null, unidade_principal_estoque: 'KG', elegivel: true, motivo: null },
+        { id: s.diesel.id, nome: 'Diesel S10 (L)', codigo_interno: null, unidade_principal_estoque: 'L', unidade_abastecimento: 'L', elegivel: true, motivo: null },
+        { id: s.dieselKg.id, nome: 'Diesel S10 granel (kg)', codigo_interno: null, unidade_principal_estoque: 'KG', unidade_abastecimento: 'KG', elegivel: true, motivo: null },
       ],
     }]);
     semCamposRemovidos(t0.itens[0], 'tanque');
@@ -766,8 +768,8 @@ describe('P1-02 — lista, detalhe e opções', () => {
     await s.lote(s.e1, s.diesel, s.local2, { quantidade: '5.0000', custo: '5.0000', dia: '2027-06-02' });
     const loc = await A.ok(A.opcoes(tok, 'locais', `${q}&produto_id=${s.diesel.id}`));
     assert.deepEqual(loc.itens, [
-      { local_estoque_id: s.local2.id, local_nome: s.local2.nome, disponivel: '5.0000', unidade: 'L' },
-      { local_estoque_id: s.local.id, local_nome: s.local.nome, disponivel: '70.0000', unidade: 'L' },
+      { local_estoque_id: s.local2.id, local_nome: s.local2.nome, disponivel: '5.0000', unidade: 'L', unidade_principal_estoque: 'L' },
+      { local_estoque_id: s.local.id, local_nome: s.local.nome, disponivel: '70.0000', unidade: 'L', unidade_principal_estoque: 'L' },
     ]);
     const locKg = await A.ok(A.opcoes(tok, 'locais', `${q}&produto_id=${s.dieselKg.id}`));
     assert.deepEqual(locKg.itens.map((l) => [l.local_estoque_id, l.disponivel, l.unidade]), [[s.local.id, '300.0000', 'KG']]);

@@ -153,7 +153,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   TIPO_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica tipo patrimonial deste tenant' },
   BEM_PATRIMONIAL_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica bem patrimonial desta empresa neste tenant' },
   PATRIMONIO_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este código neste tenant; nada foi gravado' },
-  PATRIMONIO_NOME_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este nome neste tenant (no tipo: nesta família); nada foi gravado' },
+  PATRIMONIO_NOME_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este nome neste tenant (no tipo: neste tipo de bem/natureza, D-PROD-163); nada foi gravado' },
+  // D-PROD-163 (SIMPLIFICA-02) — catálogo garantido por "Tipo de bem" (natureza) e exclusão de tipo.
+  PATRIMONIO_TIPO_EM_USO: { http: 409, meaning: 'o tipo é usado por bem(ns) ativo(s) ou inativo(s) (details.bens): troque o tipo desses bens antes de excluir; nada foi apagado' },
+  PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL: { http: 422, meaning: 'não há família padrão ativa para o tipo de bem (details.natureza/codigo_familia): ela existe inativa ou com outra natureza e não é alterada automaticamente; nada foi gravado' },
+  BEM_TIPO_NATUREZA_INCOMPATIVEL: { http: 422, meaning: 'o tipo escolhido é de outro tipo de bem (details.natureza/natureza_tipo); nada foi gravado' },
   BEM_REFERENCIA_INVALIDA: { http: 422, meaning: 'família, tipo, parceiro, responsável, centro, área ou tanque recusado (details.field/reason); nada foi gravado' },
   BEM_TIPO_FAMILIA_INCOMPATIVEL: { http: 422, meaning: 'o tipo não pertence à família informada; nada foi gravado' },
   BEM_NATUREZA_IMUTAVEL: { http: 409, meaning: 'a natureza do bem não muda: a família nova é de outra natureza; nada foi gravado' },
@@ -173,14 +177,14 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   TANQUE_CAPACIDADE_INVALIDA: { http: 422, meaning: 'capacidade do tanque zero, negativa ou acima do limite; nada foi gravado' },
   TANQUE_REMOCAO_NAO_PERMITIDA: { http: 422, meaning: 'tanque existente não é removido do bem: inative o tanque; nada foi gravado' },
   TANQUE_LIMITE_EXCEDIDO: { http: 422, meaning: 'mais tanques ativos que o limite por bem; nada foi gravado' },
-  TANQUE_PRODUTO_INVALIDO: { http: 422, meaning: 'Produto aceito recusado no tanque (details.field = tanques[i].produto_ids; reason: inexistente — também de outro tenant, sem oráculo — | outra_empresa | inativo | unidade_incompativel (+details.unidade) | repetido | limite (+details.maximo)); nada foi gravado' },
+  TANQUE_PRODUTO_INVALIDO: { http: 422, meaning: 'Produto aceito recusado no tanque (details.field = tanques[i].produto_ids; reason: inexistente — também de outro tenant, sem oráculo — | outra_empresa | inativo | unidade_incompativel — fora de L/KG/SACO (+details.unidade) | repetido | limite (+details.maximo)); nada foi gravado' },
   DEPRECIACAO_BEM_NAO_PROPRIO: { http: 422, meaning: 'só bem de propriedade PROPRIO tem parâmetros de depreciação; nada foi gravado' },
   DEPRECIACAO_VIDA_UTIL_INVALIDA: { http: 422, meaning: 'vida útil fora de 1 a 1200 meses; nada foi gravado' },
   DEPRECIACAO_RESIDUAL_INVALIDO: { http: 422, meaning: 'valor residual maior que o custo do bem ou percentual fora de 0 a 100; nada foi gravado' },
   DEPRECIACAO_PARAMETROS_INVALIDOS: { http: 422, meaning: 'parâmetros de depreciação incompletos ou presentes em bem não depreciável (details.field); nada foi gravado' },
   PATRIMONIO_DATA_INVALIDA: { http: 422, meaning: 'data inexistente ou fora de ordem (disponibilidade antes da aquisição, início da depreciação antes da disponibilidade); nada foi gravado' },
   // D-PROD-159 / D-PROD-162 — abastecimento e consumo: baixa EXATA da quantidade digitada, na unidade de estoque
-  // do Produto (L ou KG), pelo motor de estoque; sem conversão nem fator.
+  // do Produto (L ou KG; D-PROD-163: SACO abastece em KG), pelo motor de estoque; sem conversão nem fator.
   ABASTECIMENTO_NAO_ENCONTRADO: { http: 404, meaning: 'id não identifica abastecimento desta fazenda neste tenant' },
   ABASTECIMENTO_STATUS_INVALIDO: { http: 409, meaning: 'o abastecimento não está CONFIRMADO (details.status): já foi cancelado; nada foi alterado' },
   ABASTECIMENTO_BEM_INELEGIVEL: { http: 422, meaning: 'bem inativo ou de natureza sem tanque (details.reason: bem_inativo | natureza_sem_tanque); nada foi gravado' },
@@ -188,7 +192,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ABASTECIMENTO_LOCAL_INVALIDO: { http: 422, meaning: 'local de estoque inexistente neste tenant ou inativo (details.reason: local_inexistente | local_inativo); nada foi gravado' },
   ABASTECIMENTO_PRODUTO_INVALIDO: { http: 422, meaning: 'Produto recusado no abastecimento (details.reason: inexistente — também de outro tenant, sem oráculo — | outra_empresa | inativo); nada foi gravado' },
   ABASTECIMENTO_PRODUTO_NAO_ACEITO: { http: 422, meaning: 'o tanque escolhido não aceita este Produto (details.reason: nao_aceito_pelo_tanque); nada foi gravado' },
-  ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: { http: 422, meaning: 'o estoque do Produto não está em L nem em KG (details.unidade); nada foi gravado' },
+  ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: { http: 422, meaning: 'o estoque do Produto não está em L, KG nem SACO (details.unidade); nada foi gravado' },
   ABASTECIMENTO_EXCEDE_CAPACIDADE: { http: 422, meaning: 'a quantidade em litros passa da capacidade nominal do tanque (details.capacidade_litros); só conferida para Produto em L; nada foi gravado' },
   ABASTECIMENTO_DATA_FUTURA: { http: 422, meaning: 'data do abastecimento posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado' },
   ABASTECIMENTO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o estorno exato não é seguro agora (details.reason: produto_mudou_de_fazenda | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | unidade_mudou); nada foi alterado' },

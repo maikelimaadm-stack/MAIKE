@@ -6,6 +6,10 @@
  * códigos; um que chegue cai no texto genérico). Entram os Produtos aceitos
  * pelo tanque, o Produto no tanque do Patrimônio e a unidade de estoque.
  *
+ * D-PROD-163: o tanque aceita Produto em L, KG ou SACO; a família saiu da tela
+ * ("Tipo de bem" = natureza; o tipo é cadastro do usuário, que pode ser
+ * excluído quando nenhum bem o usa — `PATRIMONIO_TIPO_EM_USO`).
+ *
  * Mesmo transporte de Gestão: o `nativeHttpClient` só preserva códigos
  * catalogados; os códigos de patrimônio chegam no corpo do servidor guardado em
  * `erro.cause`. Lemos SÓ `code`, `field`, `reason` e `details` (via
@@ -24,12 +28,13 @@ const NADA = 'Nada foi gravado.';
 const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   codigo: 'Código',
   nome: 'Nome',
-  natureza: 'Natureza',
+  natureza: 'Tipo de bem',
   descricao: 'Descrição',
   ordem: 'Ordem',
   vida_util_meses_padrao: 'Vida útil padrão',
   vida_util_meses_sugerida: 'Vida útil sugerida',
-  familia_id: 'Família',
+  // D-PROD-163: a família não aparece na tela; um erro nela é um erro do tipo escolhido.
+  familia_id: 'Tipo',
   tipo_id: 'Tipo',
   unidade: 'Unidade',
   empresa_id: 'Empresa',
@@ -134,7 +139,7 @@ const tanqueProdutoInvalido = (reason, linha, details) => {
       return `${doTanque} está inativo: só Produtos ativos podem ser acrescentados.`;
     case 'unidade_incompativel': {
       const unidade = typeof details.unidade === 'string' && details.unidade ? details.unidade : null;
-      return `${doTanque} tem estoque ${unidade ? `em ${unidade}` : 'fora de L e KG'}: o tanque só aceita Produto em litros (L) ou em quilos (KG).`;
+      return `${doTanque} tem estoque ${unidade ? `em ${unidade}` : 'fora de L, KG e SACO'}: o tanque aceita Produto em litros (L), quilos (KG) ou sacos (SACO).`;
     }
     case 'repetido':
       return `O mesmo Produto aparece mais de uma vez nos Produtos aceitos do tanque${linha}.`;
@@ -200,17 +205,33 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
       // P-05: sem código no POST, o servidor o gera do nome; esgotados os sufixos, 409.
       return `Já existe um cadastro com este código. Use outro nome (o código é gerado a partir dele) ou outro código. ${NADA}`;
     case 'PATRIMONIO_NOME_DUPLICADO':
-      return `Já existe um cadastro com este nome (no tipo, dentro da mesma família). Use outro nome. ${NADA}`;
+      return `Já existe um tipo com este nome neste tipo de bem. Use outro nome. ${NADA}`;
+    // D-PROD-163: exclusão de tipo só sem bem nenhum (ativo ou inativo) usando o tipo.
+    case 'PATRIMONIO_TIPO_EM_USO': {
+      const bens = Number.isInteger(details.bens) ? details.bens : null;
+      return bens !== null
+        ? `Este tipo está em uso por ${bens} bem(ns). Troque o tipo desses bens antes de excluir.`
+        : 'Este tipo está em uso por bens. Troque o tipo desses bens antes de excluir.';
+    }
+    case 'PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL': {
+      const natureza = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[String(details.natureza ?? '')];
+      return `O cadastro padrão ${natureza ? `do tipo de bem ${natureza}` : 'deste tipo de bem'} está inativo ou foi alterado: não há onde guardar o tipo. Peça ao administrador para corrigir. ${NADA}`;
+    }
+    case 'BEM_TIPO_NATUREZA_INCOMPATIVEL': {
+      const doBem = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[String(details.natureza ?? '')];
+      const doTipo = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[String(details.natureza_tipo ?? '')];
+      return `O tipo escolhido é ${doTipo ? `de ${doTipo}` : 'de outro tipo de bem'}: escolha um tipo ${doBem ? `de ${doBem}` : 'do tipo de bem do bem'}. ${NADA}`;
+    }
     case 'BEM_REFERENCIA_INVALIDA':
       if (reason === 'inativo') return `${campo ? `"${campo}"` : 'O item escolhido'} está inativo: escolha um ativo. ${NADA}`;
       return `${campo ? `A escolha em "${campo}"` : 'Uma das escolhas'} não é válida (não existe mais, é de outra empresa ou está inativa). Escolha outra. ${NADA}`;
     case 'BEM_TIPO_FAMILIA_INCOMPATIVEL':
-      return `O tipo escolhido não pertence à família escolhida. ${NADA}`;
+      return `O tipo escolhido não combina com o tipo de bem. Escolha outro tipo. ${NADA}`;
     case 'BEM_NATUREZA_IMUTAVEL':
-      return `A natureza do bem não muda: escolha uma família da mesma natureza. ${NADA}`;
+      return `O tipo de bem não muda depois de gravado: escolha um tipo do mesmo tipo de bem. ${NADA}`;
     case 'BEM_CAMPO_NAO_APLICAVEL': {
       const natureza = /** @type {Record<string, string>} */ (ROTULO_NATUREZA)[String(details.natureza ?? '')];
-      return `${campo ? `"${campo}"` : 'Um dos campos'} não se aplica a ${natureza ? `bens de natureza ${natureza}` : 'esta natureza de bem'}. ${NADA}`;
+      return `${campo ? `"${campo}"` : 'Um dos campos'} não se aplica ${natureza ? `ao tipo de bem ${natureza}` : 'a este tipo de bem'}. ${NADA}`;
     }
     case 'BEM_CAMPO_INVALIDO':
       return `${CAMPO_INVALIDO[String(field ?? '')] ?? `Valor inválido em "${campo ?? 'campo'}".`} ${NADA}`;
@@ -219,7 +240,7 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'BEM_CODIGO_FROTA_INVALIDO':
       return `Código de frota inválido: use letras e números, separados por espaço ou hífen (ex.: TP-02). ${NADA}`;
     case 'BEM_CLASSIFICACAO_INATIVA':
-      return `Para reativar o bem, a família e o tipo dele precisam estar ativos. Reative-os antes. ${NADA}`;
+      return `Para reativar o bem, o tipo dele precisa estar ativo. Reative o tipo em “⋯ › Gerenciar tipos” antes. ${NADA}`;
     case 'MEDIDOR_OBRIGATORIO':
       return `Máquinas, veículos e equipamentos precisam de medidor (escolha "Sem medidor" se não houver). ${NADA}`;
     case 'MEDIDOR_TIPO_IMUTAVEL':
@@ -266,7 +287,7 @@ export const mensagemErroPatrimonio = (erro, fallback) => {
     case 'PRODUTO_UNIDADE_EM_USO': {
       const porque = reason ?? (typeof details.reason === 'string' ? details.reason : null);
       if (porque === 'aceito_em_tanque') {
-        return `Este Produto é aceito em tanque de bem do Patrimônio: a unidade de estoque só pode ser L ou KG enquanto ele estiver aceito. Tire-o dos Produtos aceitos do tanque antes. ${NADA}`;
+        return `Este Produto é aceito em tanque de bem do Patrimônio: a unidade de estoque só pode ser L, KG ou SACO enquanto ele estiver aceito. Tire-o dos Produtos aceitos do tanque antes. ${NADA}`;
       }
       const tem = UNIDADE_EM_USO[porque ?? ''] ?? 'estoque, lotes ou movimentos';
       const de = typeof details.de === 'string' && details.de ? details.de : null;
@@ -328,7 +349,7 @@ export const mensagemErroAbastecimento = (erro, fallback) => {
     case 'ABASTECIMENTO_TANQUE_INVALIDO':
       if (reason === 'tanque_inativo') return `O tanque está inativo. ${NADA}`;
       return `O tanque não pertence mais a este bem. ${NADA}`;
-    // D-PROD-162: o Produto vem dos Produtos aceitos do tanque; baixa exata na unidade dele (L ou KG).
+    // D-PROD-162/163: o Produto vem dos Produtos aceitos do tanque; baixa exata na unidade de estoque dele (L; kg para KG e SACO).
     case 'ABASTECIMENTO_PRODUTO_INVALIDO':
       if (reason === 'outra_empresa') return `O Produto é de outra fazenda. ${NADA}`;
       if (reason === 'inativo') return `O Produto está inativo. ${NADA}`;
@@ -337,7 +358,7 @@ export const mensagemErroAbastecimento = (erro, fallback) => {
       return `O tanque escolhido não aceita este Produto. Marque o Produto nos Produtos aceitos do tanque em Bens Patrimoniais. ${NADA}`;
     case 'ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL': {
       const unidade = typeof details.unidade === 'string' && details.unidade ? details.unidade : null;
-      return `O estoque deste Produto ${unidade ? `está em ${unidade}, não` : 'não está'} em litros (L) nem em quilos (KG): ele não pode ser abastecido. ${NADA}`;
+      return `O estoque deste Produto ${unidade ? `está em ${unidade}, não` : 'não está'} em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser abastecido. ${NADA}`;
     }
     case 'ABASTECIMENTO_LOCAL_INVALIDO':
       return `O local de estoque não existe mais ou está inativo. ${NADA}`;

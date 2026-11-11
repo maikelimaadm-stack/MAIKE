@@ -14,7 +14,8 @@
  * Produtos aceitos (`produto_ids`, obrigatório; pode ser `[]`, P-01): até 20,
  * sem repetição. Só o que é ACRESCENTADO (novo, reativado, ou o conjunto de um
  * tanque/bem que volta a ficar ativo — achado D1) é validado: Produto do
- * tenant, da MESMA fazenda do bem, ativo e com estoque em L ou KG; lido antes
+ * tenant, da MESMA fazenda do bem, ativo e com estoque em L, KG ou SACO
+ * (D-PROD-163: qualquer unidade do cadastro de Produtos); lido antes
  * com `FOR KEY SHARE` (espera a troca de fazenda/unidade do Produto em voo,
  * que toma `FOR UPDATE`). Um aceite mantido não é revalidado: o abastecimento
  * relê o Produto e o recusa.
@@ -28,7 +29,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { dec, texto } from '../financeiro/decimalFinanceiro.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { PADRAO_MEDIDA, referenciaInvalida } from './bemPatrimonialRegras.js';
-import { MAX_PRODUTOS_POR_TANQUE, MAX_TANQUES_ATIVOS_POR_BEM, UNIDADES_ABASTECIMENTO } from './patrimonioDominio.js';
+import { MAX_PRODUTOS_POR_TANQUE, MAX_TANQUES_ATIVOS_POR_BEM, UNIDADES_PRODUTO_TANQUE } from './patrimonioDominio.js';
 
 /** Escala da capacidade (`DECIMAL(14,4)`). */
 const CASAS_MEDIDA = 4;
@@ -42,7 +43,7 @@ const MENSAGENS_PRODUTO = Object.freeze({
   inexistente: 'Produto não encontrado',
   outra_empresa: 'o Produto é de outra fazenda: o tanque só aceita Produtos da fazenda do bem',
   inativo: 'Produto inativo não pode ser acrescentado ao tanque',
-  unidade_incompativel: 'o tanque só aceita Produto com estoque em litros (L) ou em quilos (KG)',
+  unidade_incompativel: 'o tanque só aceita Produto com estoque em litros (L), quilos (KG) ou sacos (SACO)',
   repetido: 'o mesmo Produto aparece mais de uma vez no tanque',
   limite: `um tanque aceita no máximo ${MAX_PRODUTOS_POR_TANQUE} Produtos`,
 });
@@ -84,7 +85,7 @@ const validarProdutosAcrescentados = async (tx, clienteId, empresaId, porTanque)
       if (!p) throw produtoInvalido(indice, 'inexistente', { produto_id: id });
       if (p.empresa_id !== empresaId) throw produtoInvalido(indice, 'outra_empresa', { produto_id: id });
       if (!p.ativo) throw produtoInvalido(indice, 'inativo', { produto_id: id });
-      if (!UNIDADES_ABASTECIMENTO.includes(p.unidade_principal_estoque)) {
+      if (!UNIDADES_PRODUTO_TANQUE.includes(p.unidade_principal_estoque)) {
         throw produtoInvalido(indice, 'unidade_incompativel', { produto_id: id, unidade: p.unidade_principal_estoque ?? null });
       }
     }

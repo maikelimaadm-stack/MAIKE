@@ -5,9 +5,9 @@
  * Mesmas consultas (e chaves) de `useAcoesTelaGestao`: a tela Permissões
  * invalida `["permissao-efetiva"]` ao gravar, e o cache é compartilhado.
  *
- * Famílias e tipos são do TENANT e não pedem empresa (D-PROD-162: vivem dentro
- * do cadastro de Bens e seguem as ações dele); os bens e os abastecimentos pedem
- * a empresa REAL (`useEmpresaRealSelecionadaId`).
+ * Os tipos são do TENANT e não pedem empresa (D-PROD-162: vivem dentro do
+ * cadastro de Bens e seguem as ações dele; D-PROD-163: sem família na tela); os
+ * bens e os abastecimentos pedem a empresa REAL (`useEmpresaRealSelecionadaId`).
  */
 import { useQuery } from '@tanstack/react-query';
 import { carregarPermissaoEfetiva, getCurrentUser } from '@/services/sessionService';
@@ -45,13 +45,14 @@ const usePermissaoEfetivaPatrimonio = () => {
 };
 
 /**
- * Ações da tela (`ver`, `criar`, `editar`, `inativar`) e, D-PROD-162, as de
- * famílias, tipos e Produtos aceitos DENTRO do cadastro de Bens
+ * Ações da tela (`ver`, `criar`, `editar`, `inativar`) e, D-PROD-162/163, as
+ * dos tipos e dos Produtos aceitos DENTRO do cadastro de Bens
  * (`acoesDeCatalogoNoBem`: `criarCatalogo`, `editarCatalogo`,
- * `inativarCatalogo`, `produtosDoTanque` — sempre sobre a tela de Bens).
+ * `excluirCatalogo`, `inativarCatalogo`, `produtosDoTanque` — sempre sobre a
+ * tela de Bens).
  * @param {string} tela id da tela (`TELAS_PATRIMONIO`)
  * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean,
- *   criarCatalogo: boolean, editarCatalogo: boolean, inativarCatalogo: boolean, produtosDoTanque: boolean,
+ *   criarCatalogo: boolean, editarCatalogo: boolean, excluirCatalogo: boolean, inativarCatalogo: boolean, produtosDoTanque: boolean,
  *   carregando: boolean, administrador: boolean, login: string|null }}
  */
 export const useAcoesTelaPatrimonio = (tela) => {

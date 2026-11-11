@@ -1,17 +1,29 @@
 /**
- * D-PROD-157 / D-PROD-162 — rotas dos catálogos do Patrimônio e Frota (do
- * TENANT, sem `empresa_id`): famílias, tipos e a instalação do catálogo padrão.
- * Perfis de medição e combustíveis saíram (D-PROD-162: as rotas respondem 404).
+ * D-PROD-157 / D-PROD-162 / D-PROD-163 — rotas dos catálogos do Patrimônio e
+ * Frota (do TENANT, sem `empresa_id`): famílias (só leitura), tipos e a
+ * instalação explícita do catálogo padrão. Perfis de medição e combustíveis
+ * saíram (D-PROD-162: as rotas respondem 404).
+ *
+ * D-PROD-163 (SIMPLIFICA-02): o cadastro de família saiu da tela — POST e
+ * PATCH de família não existem mais (404); GET de família fica (leitura). O
+ * tipo é criado por "Tipo de bem" (`natureza`, sem `familia_id`: o servidor
+ * resolve a família padrão; `familia_id` continua aceito por compatibilidade
+ * e é conferido), listado com filtro `natureza`, renomeado (PATCH com CAS) e
+ * EXCLUÍDO (`DELETE /patrimonio-tipos/:id?versao=N` → 204; em uso → 409
+ * `PATRIMONIO_TIPO_EM_USO`). O catálogo padrão é garantido pelo serviço; o
+ * `POST /patrimonio-catalogo-padrao` (idempotente) fica para o administrador,
+ * mas a tela não o chama mais.
  *
  * Corpo e query FECHADOS (`additionalProperties: false`); tenant só da sessão
- * (`cliente_id` no corpo → 400 na barreira global). Famílias e tipos vivem no
- * cadastro de Bens: as guardas são da tela `pat-bens-patrimoniais`
- * (`GUARDAS.patrimonioFamilias/Tipos`): ver = Bens visualizar, criar = Bens
- * novo|salvar|editar ("+ Nova família"/"+ Novo tipo" de quem cadastra OU edita
- * bem), editar = Bens editar|salvar e, quando o corpo traz `ativo`, a ação extra
- * `inativar`. `codigo` é opcional no POST (o servidor gera do nome, P-05).
- * Campos imutáveis (`codigo`, `natureza`, `familia_id`) ficam fora do schema do
- * PATCH → 400; `perfis` no corpo do tipo → 400. Sem DELETE: inativação por PATCH.
+ * (`cliente_id` no corpo → 400 na barreira global). Tipos vivem no cadastro
+ * de Bens: as guardas são da tela `pat-bens-patrimoniais`
+ * (`GUARDAS.patrimonioTipos`): ver = Bens visualizar, criar = Bens
+ * novo|salvar|editar ("+ Novo tipo" de quem cadastra OU edita bem), editar =
+ * Bens editar|salvar e, quando o corpo traz `ativo`, a ação extra `inativar`;
+ * excluir = Bens editar|salvar (a mesma de renomear, no "Gerenciar tipos").
+ * `codigo` é opcional no POST (o servidor gera do nome, P-05). Campos
+ * imutáveis (`codigo`, `natureza`, `familia_id`) ficam fora do schema do PATCH
+ * → 400; `perfis` no corpo do tipo → 400.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -46,23 +58,34 @@ const listar = (filtros = {}) => ({
   },
 });
 const DETALHE = { params: PARAMS };
-const criarCom = (required, properties) => ({ body: { type: 'object', required, additionalProperties: false, properties } });
-const atualizarCom = (properties) => ({
-  params: PARAMS,
-  body: { type: 'object', required: ['versao'], minProperties: 2, additionalProperties: false, properties: { versao: VERSAO, ...properties, ativo: { type: 'boolean' } } },
-});
 
 const FAMILIA_LISTAR = listar({ natureza: ENUM(NATUREZAS) });
-const FAMILIA_CRIAR = criarCom(['nome', 'natureza'], {
-  codigo: CODIGO, nome: NOME, natureza: ENUM(NATUREZAS), descricao: TEXTO(500), ordem: INTEIRO_NULO(0, 9999), vida_util_meses_padrao: VIDA_UTIL,
-});
-const FAMILIA_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500), ordem: INTEIRO_NULO(0, 9999), vida_util_meses_padrao: VIDA_UTIL });
 
-const TIPO_LISTAR = listar({ familia_id: ID });
-const TIPO_CRIAR = criarCom(['familia_id', 'nome'], {
-  familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL,
-});
-const TIPO_ATUALIZAR = atualizarCom({ nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL });
+const TIPO_LISTAR = listar({ familia_id: ID, natureza: ENUM(NATUREZAS) });
+/** D-PROD-163: `natureza` (o "Tipo de bem") OU `familia_id` (compatibilidade); a falta dos dois é 400 no service. */
+const TIPO_CRIAR = {
+  body: {
+    type: 'object',
+    required: ['nome'],
+    additionalProperties: false,
+    properties: { natureza: ENUM(NATUREZAS), familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL },
+  },
+};
+const TIPO_ATUALIZAR = {
+  params: PARAMS,
+  body: {
+    type: 'object',
+    required: ['versao'],
+    minProperties: 2,
+    additionalProperties: false,
+    properties: { versao: VERSAO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, ativo: { type: 'boolean' } },
+  },
+};
+/** DELETE: a versão lida vai na query (CAS), como o descarte de rascunho da Gestão P3. */
+const TIPO_EXCLUIR = {
+  params: PARAMS,
+  querystring: { type: 'object', required: ['versao'], additionalProperties: false, properties: { versao: VERSAO } },
+};
 
 const CATALOGO_PADRAO = { body: { type: ['object', 'null'], additionalProperties: false, properties: {} } };
 
@@ -74,28 +97,29 @@ const idDe = (request) => /** @type {any} */ (request.params).id;
 const corpo = (request) => /** @type {any} */ (request.body);
 const consulta = (request) => /** @type {any} */ (request.query);
 
-/**
- * Um recurso de catálogo: lista keyset, detalhe, POST (201) e PATCH (CAS).
- * @param {import('fastify').FastifyInstance} app
- * @param {string} base
- * @param {{ ver: any, criar: any, editar: any }} g
- * @param {{ listar: Function, detalhar: Function, criar: Function, atualizar: Function }} servico
- * @param {{ listar: any, criar: any, atualizar: any }} schemas
- */
-const registrarRecurso = (app, base, g, servico, schemas) => {
-  app.get(base, { onRequest: [app.autenticar], preHandler: [g.ver], schema: schemas.listar }, async (request) => servico.listar(ctx(request), consulta(request)));
-  app.get(`${base}/:id`, { onRequest: [app.autenticar], preHandler: [g.ver], schema: DETALHE }, async (request) => servico.detalhar(ctx(request), idDe(request)));
-  app.post(base, { onRequest: [app.autenticar], preHandler: [g.criar], schema: schemas.criar }, async (request, reply) =>
-    reply.status(201).send(await servico.criar(ctx(request), corpo(request))));
-  app.patch(`${base}/:id`, { onRequest: [app.autenticar], preHandler: [g.editar], schema: schemas.atualizar }, async (request) =>
-    servico.atualizar(ctx(request), idDe(request), corpo(request)));
-};
-
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
-  registrarRecurso(app, '/patrimonio-familias', GUARDAS.patrimonioFamilias, familias, { listar: FAMILIA_LISTAR, criar: FAMILIA_CRIAR, atualizar: FAMILIA_ATUALIZAR });
-  registrarRecurso(app, '/patrimonio-tipos', GUARDAS.patrimonioTipos, tipos, { listar: TIPO_LISTAR, criar: TIPO_CRIAR, atualizar: TIPO_ATUALIZAR });
+  const autenticado = { onRequest: [app.autenticar] };
+
+  // Famílias: SÓ leitura (D-PROD-163: POST/PATCH saíram → 404).
+  const gf = GUARDAS.patrimonioFamilias;
+  app.get('/patrimonio-familias', { ...autenticado, preHandler: [gf.ver], schema: FAMILIA_LISTAR }, async (request) => familias.listar(ctx(request), consulta(request)));
+  app.get('/patrimonio-familias/:id', { ...autenticado, preHandler: [gf.ver], schema: DETALHE }, async (request) => familias.detalhar(ctx(request), idDe(request)));
+
+  // Tipos: lista keyset, detalhe, POST (201), PATCH (CAS) e DELETE (CAS, 204).
+  const gt = GUARDAS.patrimonioTipos;
+  app.get('/patrimonio-tipos', { ...autenticado, preHandler: [gt.ver], schema: TIPO_LISTAR }, async (request) => tipos.listar(ctx(request), consulta(request)));
+  app.get('/patrimonio-tipos/:id', { ...autenticado, preHandler: [gt.ver], schema: DETALHE }, async (request) => tipos.detalhar(ctx(request), idDe(request)));
+  app.post('/patrimonio-tipos', { ...autenticado, preHandler: [gt.criar], schema: TIPO_CRIAR }, async (request, reply) =>
+    reply.status(201).send(await tipos.criar(ctx(request), corpo(request))));
+  app.patch('/patrimonio-tipos/:id', { ...autenticado, preHandler: [gt.editar], schema: TIPO_ATUALIZAR }, async (request) =>
+    tipos.atualizar(ctx(request), idDe(request), corpo(request)));
+  app.delete('/patrimonio-tipos/:id', { ...autenticado, preHandler: [gt.excluir], schema: TIPO_EXCLUIR }, async (request, reply) => {
+    await tipos.excluir(ctx(request), idDe(request), consulta(request));
+    return reply.status(204).send();
+  });
+
   // Idempotente (cria só o que falta): 200 com o resumo, também quando nada é criado.
-  app.post('/patrimonio-catalogo-padrao', { onRequest: [app.autenticar], preHandler: [GUARDAS.patrimonioCatalogoPadrao], schema: CATALOGO_PADRAO }, async (request) =>
+  app.post('/patrimonio-catalogo-padrao', { ...autenticado, preHandler: [GUARDAS.patrimonioCatalogoPadrao], schema: CATALOGO_PADRAO }, async (request) =>
     instalarCatalogoPadrao(ctx(request)));
 };

@@ -603,8 +603,9 @@ describe('B6 — frota, identificação, classificação, referências, versão 
     // Natureza nunca muda: família de outra natureza → 409, medidor e tanques intactos.
     const nat = await recusa(s, patch(s, trator.id, { versao: 1, familia_id: s.fam.VEICULOS, tipo_id: s.tip.CAMINHONETE }), [409, 'BEM_NATUREZA_IMUTAVEL', 'familia_id', 'natureza_diferente']);
     assert.deepEqual(nat.json().details, { natureza: 'MAQUINA', natureza_familia: 'VEICULO' });
-    // Mesma natureza: permitido, preserva medidor e tanques.
-    const pesadas = await ok(req('POST', '/patrimonio-familias', s.token, { codigo: 'MAQ_PESADAS', nome: 'Máquinas pesadas', natureza: 'MAQUINA' }), 201);
+    // Mesma natureza: permitido, preserva medidor e tanques. D-PROD-163: o cadastro de família saiu da API;
+    // uma família MANUAL antiga (dado de produção) entra direto no banco e continua utilizável pelos tipos dela.
+    const pesadas = await prisma().familiaPatrimonial.create({ data: { cliente_id: s.c, codigo: 'MAQ_PESADAS', nome: 'Máquinas pesadas', natureza: 'MAQUINA' } });
     const escav = await ok(req('POST', '/patrimonio-tipos', s.token, { familia_id: pesadas.id, codigo: 'ESCAVADEIRA', nome: 'Escavadeira' }), 201);
     await recusa(s, patch(s, trator.id, { versao: 1, familia_id: pesadas.id }), [422, 'BEM_TIPO_FAMILIA_INCOMPATIVEL', 'tipo_id', 'tipo_de_outra_familia']);
     const trocado = await patchOk(s, trator.id, { versao: 1, familia_id: pesadas.id, tipo_id: escav.id });
@@ -614,7 +615,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
     // Inativar mantém tudo legível; classificação inativada aparece como inativa no bem.
     const inativo = await patchOk(s, trator.id, { versao: 2, ativo: false });
     assert.deepEqual([inativo.ativo, inativo.versao], [false, 3]);
-    await ok(req('PATCH', `/patrimonio-familias/${pesadas.id}`, s.token, { versao: 1, ativo: false }));
+    await prisma().familiaPatrimonial.update({ where: { id: pesadas.id }, data: { ativo: false } });
     await ok(req('PATCH', `/patrimonio-tipos/${escav.id}`, s.token, { versao: 1, ativo: false }));
     const legivel = await detalhe(s, trator.id);
     assert.deepEqual([legivel.familia.ativo, legivel.tipo.ativo, legivel.tanques.length, legivel.medidor.tipo], [false, false, 1, 'HORIMETRO']);
@@ -622,7 +623,7 @@ describe('B6 — frota, identificação, classificação, referências, versão 
     assert.equal((await patchOk(s, trator.id, { versao: 3, nome: 'Trator TP-02 (parado)' })).versao, 4);
     // Reativar com família ou tipo inativo → 409.
     await recusa(s, patch(s, trator.id, { versao: 4, ativo: true }), [409, 'BEM_CLASSIFICACAO_INATIVA', 'familia_id', 'classificacao_inativa']);
-    await ok(req('PATCH', `/patrimonio-familias/${pesadas.id}`, s.token, { versao: 2, ativo: true }));
+    await prisma().familiaPatrimonial.update({ where: { id: pesadas.id }, data: { ativo: true } });
     await recusa(s, patch(s, trator.id, { versao: 4, ativo: true }), [409, 'BEM_CLASSIFICACAO_INATIVA', 'tipo_id', 'classificacao_inativa']);
     await ok(req('PATCH', `/patrimonio-tipos/${escav.id}`, s.token, { versao: 2, ativo: true }));
     assert.equal((await patchOk(s, trator.id, { versao: 4, ativo: true })).ativo, true);
