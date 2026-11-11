@@ -76,25 +76,44 @@ rótulo do movimento de Produto em L muda), lotes de nota, empresas, fornecedore
 | Guarda | 0 CONFIRMADO; impressão das contagens igual à do preflight; papel dono das 13; nada criado fora das migrations; `lock_timeout` 5 s |
 | Gate | modo CONTRACT fechado no premerge e autorização `MIGRATION_CONTRACT_AUTORIZADO` no runner |
 
-**[a preencher]** provas do ensaio da migration (RED e GREEN), com a saída real.
+Provas reais (PG 16 local descartável):
+- `backend/tests/patrimonioSimplificaMigration.test.mjs`: 14/14. Parte de 39 migrations/85 tabelas com 2 clientes. Os 10 RED recusam com a mensagem própria, e nada muda em nenhum deles: CONFIRMADO, FK de fora, visão, trava (`55P03` em ~6,2 s), sem impressão, impressão errada, papel que não é o dono, gatilho, política, publicação. O runner sem a decisão recusa com `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`. O GREEN pelo `npm run deploy:migrate` dá 40/0 e 79 tabelas, as 7 vazias, dono/ACL iguais, RLS sem FORCE e PK/FK/CHECK/índices 7/31/32/55. A `fingerprint_v2` fica idêntica, os CHECKs aceitam `'L'`, o estoque fica idêntico e o `migrate diff` dá 0. A 2ª execução responde "No pending".
+- CLI `scripts/dev/ensaio-patrimonio-simplifica.mjs`: OK (10 RED, recusa sem autorização e GREEN completo).
+- **Caminho B (envelope do conector), ensaiado em 2026-11-11** com o arquivo exato (sha256 `ea1edf7e…02c4`), 1 cliente e 15 linhas semeadas:
+  - impressão errada: recusa ("contagens … não são as aprovadas"), 85 tabelas intactas;
+  - impressão certa: COMMIT, 79 tabelas, 40/0, estrutura 7·31·32·55, colunas 31/10/54/12/9/7/11, CHECKs com `'L'`;
+  - repetir: `RELEASE_BLOCKED: migration já registrada`.
 
 ## 5. Gate CONTRACT e runner
 
-**[a preencher]** classificador (testes B1, B1f, B8-0, B8a–B8r, B9, B10), runner (B11),
-preflight de schema (B12), com as contagens reais de `node --test`.
+Feitos RED → GREEN:
+- `scripts/tests/deploy/premerge-migrate.test.mjs`: 31/31 (B1, B1f, B8-0, B8a–B8r, B9 em repositório git descartável, B10);
+- `migrations.test.mjs` com o B11;
+- `preflight-schema.test.mjs`: 10/10 (B12);
+- `alvo-banco.test.mjs`: 26/26 (AB-05 com `lerHistorico` injetado).
+
+No total, `scripts/tests/deploy`: 80/80, e `npm run test:gates`: 721/721.
 
 ## 6. Backend
 
-**[a preencher]** bens e tanques (Produtos aceitos), famílias e tipos, abastecimento, consumo,
-Produto em L, P3 em L, erros, rotas removidas (404) e rota nova.
+O contrato §4 foi implementado:
+- **Bens e tanques:** tanques com Produtos aceitos (`TanqueBemProduto`; mesma fazenda, ativo, L ou KG, até 20 por tanque). Um aceite retirado sem histórico é apagado; com histórico, é inativado.
+- **Famílias e tipos:** `codigo` opcional, gerado do nome; guardas aceitam `pat-bens-patrimoniais`; o catálogo padrão traz só famílias e tipos.
+- **Abastecimento:** a quantidade é na unidade do Produto (L ou KG) e a capacidade só é conferida em L. O consumo sai por unidade (km/L, L/h, km/kg, kg/h). Fingerprint v2 e tipos novos de `OperacaoIdempotente`.
+- **Produto e P3:** o Produto aceita `L`, e a troca de unidade envolvendo L só vale para Produto nunca usado (P-10). A compra P3 aceita L só para Produto em L; KG e SACO ficam iguais. O movimento de estoque é rotulado pela unidade do Produto.
+- **Removido:** perfis, combustíveis, vínculos, fatores e medições. As rotas removidas respondem 404.
 
 ## 7. Frontend
 
-**[a preencher]** menu, escopo, Vercel, permissões, Bens, Abastecimentos, Produto, P3 e Mapa Geral.
+- **Menu:** "Patrimônio e Frota" fica só com Bens Patrimoniais e Abastecimentos. As 4 páginas foram removidas do escopo, do `vercel.json` e das permissões; as permissões antigas ficam inertes.
+- **Bens:** Família e Tipo com "+ Novo" no formulário; "⋯ > Gerenciar famílias e tipos" e "Instalar catálogo padrão" (só admin); tanques com "Produtos aceitos"; sem a aba Medições.
+- **Abastecimentos:** Máquina → Produto → Tanque (se houver mais de um) → Local → Quantidade (na unidade do Produto) → Medidor → Completou o tanque? → Revisar → Confirmar. Sem Fatores, com dica fixa para Produto em kg. A lista mostra "Quantidade" com a unidade.
+- **Produto:** opção "Litros (L)".
+- **P3 e Mapa:** a P3 trata item em L, e o depósito do Mapa soma só os Produtos em kg (P-11).
 
 ## 8. Arquivos alterados
 
-**[a preencher]** por frente (F0–F6): criados, editados e apagados.
+Ver `git diff --stat origin/main...HEAD` na PR [#239](https://github.com/maikelimaadm-stack/MAIKE/pull/239) e os relatos das frentes (tabela de arquivos do §8 do contrato). As exclusões incluem os serviços de perfil, combustível, vínculo e conversão, os componentes de Combustíveis, Perfis e Medições, as 4 páginas e os E2E da UX-02.
 
 ## 9. Perguntas ao proprietário
 
@@ -111,12 +130,15 @@ Produto em L, P3 em L, erros, rotas removidas (404) e rota nova.
 
 ## 10. Provas de testes
 
-**[a preencher]** contagens reais de `node --test` e `vitest` por arquivo (backend, gates,
-smoke) e o E2E local.
+- **Backend completo** (integração, banco novo): 1497 testes, 0 fail depois do ajuste da linha 182 de `patrimonioSimplificaConcorrencia.test.mjs` (5/5), 5 todo já existentes.
+- **Smoke:** 184 arquivos, 2293/2293.
+- **Gates:** 721/721.
+- **E2E-1** `scripts/dev/e2e-patrimonio-simplifica-real.mjs` (aceite D-PROD-161): **36/36** passos (12 por largura, 1280/820/390), EXIT=0. Cobre Produto "Diesel S10" em L pela tela; compras P3 em L e KG; "+ Nova família" e "+ Novo tipo"; tanque com Produto aceito; abastecimento de 80 L (baixa FIFO 50+30, R$ 425,00); cancelamento com estorno exato; abastecimento de 35 kg num bem com Produto em KG; menu com 2 telas; rotas removidas caindo em "Página não encontrada"; sem rolagem horizontal.
+- **E2E-2** `scripts/dev/e2e-abastecimentos-real.mjs`: **30/30** (10 por largura), EXIT=0. Cobre replay e resposta perdida com uma baixa só; troca A→B pela tela de Bens com o histórico intacto; tanque sem Produto; só-visualizar com 403; rotas removidas.
 
 ## 11. `verify:all` e CI
 
-**[a preencher]** saída do `verify:all` no HEAD e o run de CI.
+`npm run verify:all` local (integração, banco novo): **39/39 etapas PASS**, 1218,0 s. O CI da PR #239 roda o mesmo `verify:all`; resultado no corpo da PR.
 
 ## 12. Riscos residuais
 
@@ -148,13 +170,17 @@ smoke) e o E2E local.
 
 ## 13. Desvios do contrato
 
-**[a preencher]** cada desvio, com o motivo.
+1. A F6 corrigiu `GerenciarFamiliasTiposDialog.jsx`: a 390 px os botões Editar e Inativar ficavam cortados. Abaixo de 640 px saem as colunas Código e Vida útil (as duas continuam no formulário).
+2. Os E2E foram divididos em dois roteiros mais um módulo comum (`e2e-patrimonio-comum.mjs`).
+3. O teste `alvo-banco.test.mjs` (fora da lista do §8) ganhou o `lerHistorico` injetado.
 
 ## 14. O que NÃO foi feito
 
-**[a preencher]**
+- O passo só com teclado da UX-02 (390 px) não foi portado para os E2E novos.
+- O rótulo "Leitura inicial" do medidor sai com reticências a 820 px no cadastro do Bem. O defeito é anterior à missão.
+- O ramo do papel `maike_vercel` não foi exercitado no cluster local. Em produção ele é conferido pelo postcheck R3/R4.
 
 ## 15. Situação
 
 `SCHEMA_APPLIED_PRODUCTION = NÃO` · `MERGE_READY = NÃO` · `OPERATIONAL_RELEASE_READY = NÃO`.
-**[a preencher]** HEAD final, CI e o que falta para o GO de aplicação.
+O preflight de produção de 2026-11-11 (só leitura) encontrou 13 linhas, num só dos 2 clientes, 0 CONFIRMADO e a impressão `a35b7cbb0569`. A aplicação segue o runbook, e o resultado fica registrado no §11 dele.
