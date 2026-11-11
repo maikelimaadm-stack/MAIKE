@@ -90,7 +90,7 @@ const armazenamentoSupabase = () => {
         headers: {
           Authorization: `Bearer ${key}`,
           apikey: key,
-          'Content-Type': 'application/octet-stream',
+          'Content-Type': extensao === 'svg' ? 'image/svg+xml' : 'application/octet-stream',
           'x-upsert': 'false',
         },
         body: buffer,
@@ -143,6 +143,7 @@ export const criarArmazenamentoCatalogo = (substituto) => {
 };
 
 export const extensaoDeMime = (mime) => {
+  if (mime === 'image/svg+xml') return 'svg';
   if (mime === 'image/png') return 'png';
   if (mime === 'image/jpeg') return 'jpg';
   if (mime === 'image/webp') return 'webp';

@@ -6003,4 +6003,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Estado:** em implementação na branch `claude/new-session-abgn5w` (base `e39d318b`, com a `main` `e8472481` integrada por merge; schema e migration no commit `8442e9f5`); PR draft. `SCHEMA_APPLIED_PRODUCTION = NÃO`, `MERGE_READY = NÃO`, `OPERATIONAL_RELEASE_READY = NÃO`. Pendem do proprietário: a revisão da PR, a aprovação das emendas do `00` e do `07`, a escolha do backup se alguma das 13 tiver linhas (dump `--data-only` feito por ele ou "não há volta parcial; aceito") e a resposta ao P-10.
 - Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md). Runbook de release (não executado): [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
 
-<!-- Próxima decisão: D-PROD-163 -->
+---
+
+## D-PROD-163 — SVG estático nos ícones e subícones
+
+- **Contexto:** o proprietário pediu que o cadastro aceite seu SVG vetorial de cerca de 29 KB, em vez de recusá-lo por formato ou sugerir redução de dimensões raster. A mudança parte da `main`, sem os experimentos de marcadores do mapa.
+- **Decisão:** o upload nativo de arquivos e o catálogo oficial aceitam `image/svg+xml` após análise XML por `saxes` (dependência de produção fixada no lockfile). O SVG é preservado em vetor, com os bytes originais; os ajustes PNG continuam iguais.
+- **Contrato:** SVG até 512 KB e dentro do limite de upload configurado; dimensões ou `viewBox` positivos; somente gráficos estáticos. Scripts, eventos, HTML, animação, DTD, imagens embutidas e referências externas são recusados. Não há aumento do limite geral, nova rota, entidade ou migration. Isso substitui somente a recusa absoluta de SVG do catálogo; autenticação, permissões e tenancy permanecem iguais.
+- **Storage:** extensão `.svg` e `Content-Type: image/svg+xml`, sem transformar os caminhos em pixels. Nenhuma alteração de bucket, política ou credencial remota nesta entrega.
+- **Validação:** `backend/tests/svgEstatico.test.mjs` cobre arquivo de 1000 px, MIME, gradientes/referências internas, conteúdo ativo, peso máximo, upload comum e cabeçalho do Storage. O SVG enviado pelo proprietário foi aceito pelo validador local com 30.036 bytes, sem alteração de hash.
+
+<!-- Próxima decisão: D-PROD-164 -->
+

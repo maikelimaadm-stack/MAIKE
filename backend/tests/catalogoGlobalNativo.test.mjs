@@ -265,7 +265,7 @@ describe('catálogo global — operador e CRUD', () => {
 });
 
 describe('catálogo global — validação asset', () => {
-  test('CG-06 SVG reprovado', () => {
+  test('CG-06 SVG com script reprovado', () => {
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
     assert.throws(() => validarBufferAssetCatalogo(svg, 'image/svg+xml'), (e) => e.code === 'CATALOGO_ASSET_INVALID');
   });

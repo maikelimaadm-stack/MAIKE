@@ -19,7 +19,7 @@ const usePrevia = (arquivo) => {
 };
 
 const limitesTexto = (l) =>
-  `${l.mimes.map((m) => m.split('/')[1].toUpperCase()).join(', ')} · até ${Math.round(l.max_bytes / 1024)} KB · SVG não aceito`;
+  `${l.mimes.map((m) => m === 'image/svg+xml' ? 'SVG' : m.split('/')[1].toUpperCase()).join(', ')} · até ${Math.round(l.max_bytes / 1024)} KB`;
 
 /** Seletor de arquivo com prévia local e checagem antecipada dos limites do backend. */
 const EscolherImagem = ({ id, rotulo, limites, arquivo, onArquivo, opcional = false }) => {
