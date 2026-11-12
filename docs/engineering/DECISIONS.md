@@ -6248,14 +6248,27 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - o instantâneo do seletor da Gestão (`seletorPaginadoCriarNovo`) só troca a classe do campo.
 - **Evidência:** relatório [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md); imagens em `docs/engineering/evidencias/fontes-d175/`.
 
-## D-PROD-176 — PROPOSTA PENDENTE DE APROVAÇÃO: Estoque P1, entrada manual documentada, lote do fabricante e sequência de slices
+## D-PROD-176 — Ícones vetoriais com nível para cochos e depósitos
 
+**Data:** 2026-11-11.
+
+**Decisão:** os marcadores de cochos e depósitos usam a mesma bolinha branca, borda cinza suave e ponteira arredondada, menores que os marcadores de lotes. O preenchimento cinza ondulado indica o nível; os subícones têm cores mais claras. Depósito usa o SVG cilíndrico fornecido pelo proprietário, mais largo e baixo, sem linhas internas nem sacos.
+
+- **Cocho:** o detalhe usa saldo estimado / capacidade física quando cadastrada; sem capacidade, saldo / disponível inicial do ciclo, com a referência informada. O marcador mantém o indicador de consumo existente. Não altera o cálculo diário de consumo nem lançamentos; o detalhe reavalia a passagem do dia enquanto aberto.
+- **Depósito:** o nível usa saldo em kg / estoque mínimo cadastrado, limitado visualmente a 100%; o detalhe informa o percentual real sobre o mínimo, inclusive acima de 100%. Sem mínimo, informa a falta da configuração. Produtos em litros permanecem fora do indicador em kg; a capacidade continua sendo usada para calcular a necessidade de reposição.
+- **Cadastro e filtro:** o gerenciador oferece o SVG estático de cocho pelo upload existente, sem salvar automaticamente. Depósitos continuam na camada e no filtro existentes. Sem migration nem cadastro automático em produção.
+- **Validação:** testes de nível vetorial, estoque mínimo, isolamento de produtos em litros, renderização do mapa, compilação, integridade de imports e catraca de tipos.
+
+## D-PROD-177 — PROPOSTA PENDENTE DE APROVAÇÃO: Estoque P1, entrada manual documentada, lote do fabricante e sequência de slices
+
+> **Renumeração (2026-11-12):** esta proposta nasceu como D-PROD-176 na PR #248. Antes dela, a PR #249 foi mergeada na `main` (`fecbc18c`) com outra D-PROD-176 (ícones de cochos e depósitos), que permanece intacta acima. Ao integrar a `main`, a proposta passou a ser a **D-PROD-177**. Nada mais mudou com a renumeração.
+>
 > **STATUS: PROPOSTA, AGUARDANDO APROVAÇÃO EXPRESSA DO PROPRIETÁRIO.**
 >
 > Esta entrada **não é decisão vigente** e **não autoriza** código, migration, tela, rota nem permissão. O número fica **reservado** para a proposta, para evitar colisão com outras PRs.
 >
 > - **Precedente parcial:** a D-PROD-154 é só anunciada pela PR #229, aberta e não mergeada. Diferente dela, esta reserva fica gravada na `main` se esta PR for mergeada.
-> - **O merge desta PR não aprova nem ratifica a D-PROD-176.** Isso difere do padrão D-PROD-22/155/157/159/162, em que o merge manual materializava a aprovação.
+> - **O merge desta PR não aprova nem ratifica a D-PROD-177.** Isso difere do padrão D-PROD-22/155/157/159/162, em que o merge manual materializava a aprovação.
 > - **Ratificação:** exige o texto incorporado em `00` e `07` e uma nota posterior datada nesta entrada ("ratificada em <data> por <responsável>, texto em <SHA>").
 > - **Recusa:** se recusada, recebe a nota "recusada em <data>". O número não é reaproveitado (append-only), o título não muda e vale a última nota.
 >
@@ -6303,4 +6316,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md);
   - relatório: [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-177 -->
+<!-- Próxima decisão: D-PROD-178 -->

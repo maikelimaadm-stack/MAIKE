@@ -465,7 +465,7 @@ reconciliação, registrados na D-PROD-161:
 - **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
 - **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
 
-> **Nota prospectiva (2026-11-11, PROPOSTA D-PROD-176, não ratificada; não integra o track autorizado acima):** a proposta de contrato do Estoque P1 **tira "ajuste" e "devolução"** da futura entrada manual. Ela fica com 3 motivos:
+> **Nota prospectiva (2026-11-11, PROPOSTA D-PROD-177, não ratificada; não integra o track autorizado acima):** a proposta de contrato do Estoque P1 **tira "ajuste" e "devolução"** da futura entrada manual. Ela fica com 3 motivos:
 > - saldo de implantação;
 > - doação;
 > - outra causa com justificativa.

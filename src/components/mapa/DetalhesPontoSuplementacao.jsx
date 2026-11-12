@@ -1,5 +1,5 @@
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import FormularioLancamentoSuplementacao from "../suplementacao/FormularioLancam
 import HistoricoSuplementacaoPonto from "../suplementacao/HistoricoSuplementacaoPonto";
 import DetalhesDepositoSuplementacao from "./DetalhesDepositoSuplementacao";
 import PontoPercentIcon from "./PontoPercentIcon";
+import CochoNivel from "./CochoNivel";
 
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import CardMetricaEvento from "../suplementacao/CardMetricaEvento";
@@ -49,7 +50,13 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [agora, setAgora] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setAgora(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const isDeposito = normalizeText(ponto?.categoria_ponto) === "DEPOSITO";
+  const isCocho = normalizeText(ponto?.categoria_ponto) === "COCHO";
 
 
 
@@ -162,7 +169,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
   const iconeExibicao = subIconePonto;
   const ultimoEvento = indicador.latestRecord;
-  const diasSemLancamento = ultimoEvento ? diffLocalDays(ultimoEvento.data_lancamento) : null;
+  const diasSemLancamento = ultimoEvento ? diffLocalDays(ultimoEvento.data_lancamento, agora) : null;
   const totalFornecido = eventos.reduce((total, evento) => total + (evento.quantidade_total_kg || 0), 0);
   const areaIdsRelacionadas = Array.isArray(ponto.area_vinculada_ids) && ponto.area_vinculada_ids.length > 0 ?
   ponto.area_vinculada_ids :
@@ -306,6 +313,15 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
         return (
           <CardSection title="Saldo estimado no cocho">
             <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
+              {isCocho ? (
+                <div className="flex flex-col items-center gap-1 py-2">
+                  <CochoNivel percent={percentCapacidade ?? percentConsumo} />
+                  <span className="text-[10px] text-slate-500">
+                    {percentCapacidade !== null ? "Da capacidade cadastrada" : "Do saldo inicial do ciclo"}
+                  </span>
+                  {percentCapacidade === null && <span className="max-w-[180px] text-center text-[10px] text-slate-500">Cadastre a capacidade em kg para mostrar a ocupação do cocho.</span>}
+                </div>
+              ) : (
               <div className="pb-1 flex flex-col gap-1">
                 <div className="flex items-end gap-3">
                   {/* Gráfico 1: Consumo estimado */}
@@ -341,6 +357,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                   }
                 </div>
               </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
                 <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>

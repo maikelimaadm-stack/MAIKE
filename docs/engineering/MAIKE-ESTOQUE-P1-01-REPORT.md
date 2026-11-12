@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1 — Relatório
 
-> **STATUS: PROPOSTA DE GOVERNANÇA, só documentação.** Nenhum código, schema, migration, tela, rota, permissão, escopo ou dado de produção foi alterado. A constituição **não** foi emendada (A10). A D-PROD-176 está registrada como **proposta pendente**, não como decisão vigente.
+> **STATUS: PROPOSTA DE GOVERNANÇA, só documentação.** Nenhum código, schema, migration, tela, rota, permissão, escopo ou dado de produção foi alterado. A constituição **não** foi emendada (A10). A D-PROD-177 está registrada como **proposta pendente**, não como decisão vigente.
 
 ## 1. Identidade
 - **Repositório:** `maikelimaadm-stack/MAIKE`.
@@ -10,6 +10,7 @@
   - Não há PR de estoque em curso. A branch planejada não existia.
 - **Numeração:** a `main` dizia `Próxima decisão: D-PROD-176`. Nenhuma PR aberta anuncia a 176.
   - A 176 foi **reservada como proposta** e o marcador avançou para D-PROD-177, no mesmo padrão de reserva da D-PROD-154 pela #229.
+  - **Superado em 2026-11-12:** a PR #249 entrou na `main` com outra D-PROD-176. A proposta passou a ser a **D-PROD-177**, com o marcador em D-PROD-178 (§9.8).
 
 ## 2. Documentos produzidos ou alterados (allowlist da missão)
 
@@ -18,7 +19,7 @@
 | [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) | **Novo.** Texto exato proposto para `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`, justificativa, conflitos de hierarquia e caminho de ratificação. As normas **não** foram editadas |
 | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) | **Novo.** Contrato de projeto (A–E), matriz Antes → Proposta → Pré-requisito → Slice, pontos a ratificar |
 | `MAIKE-ESTOQUE-P1-01-REPORT.md` | **Novo.** Este relatório |
-| `DECISIONS.md` | Entrada **D-PROD-176 — PROPOSTA PENDENTE DE APROVAÇÃO** e marcador 177. Nenhuma decisão antiga foi alterada |
+| `DECISIONS.md` | Entrada **D-PROD-177 — PROPOSTA PENDENTE DE APROVAÇÃO** (nascida como 176; ver §9.8) e marcador 178. Nenhuma decisão antiga foi alterada |
 | `ROADMAP.md` | Nota prospectiva no track do Estoque P0-01, sem reescrever o histórico |
 | `CURRENT-STATE.md` | Seção "Proposta em revisão" no topo, com status PROPOSTA |
 
@@ -214,7 +215,7 @@ A Entrada de Estoque deve ter as ações **Editar** e **Excluir**. O proprietár
 
 | Tema (achados) | Sev. | Correção |
 |---|---|---|
-| Alcance da dependência diferente entre contrato (por item) e emenda, D-PROD-176 e UX (por documento) (C1, C20, C28, C36, C45) | ALTO | Alcance **por documento** em todos os textos; por item vira a alternativa (k). Listas de 00 e 07 completadas (fator, custo zero, incluir ou retirar item) |
+| Alcance da dependência diferente entre contrato (por item) e emenda, D-PROD-177 e UX (por documento) (C1, C20, C28, C36, C45) | ALTO | Alcance **por documento** em todos os textos; por item vira a alternativa (k). Listas de 00 e 07 completadas (fator, custo zero, incluir ou retirar item) |
 | Implantação: "exceção única" × edição; "uma única vez" × reimplantação; troca de produto ou motivo deixava `P` sem caminho; condição 3 impossível na edição (C2, C6, C23, C29, C30, C31, C38, C43) | ALTO | Exceções (i) e (ii) por FK; condição 3 exata; "no máximo uma ativa"; motivo imutável (classe I); variante estrita avisa antes da exclusão |
 | P8 e janela tratavam os estornos do próprio motor como "saída sem rastro" (C3, C11, C33) | ALTO | P8 exclui estorno de entrada (`movimento_pai_id` + `tipo_detalhado`) |
 | Janela contava camada `Estornado` como tocada; isenção e empate mal provados; conjunto do próprio documento (C5, C12, C14, C15, C16) | ALTO | "Tocada" redefinida; regra exata pela ordem `(chave, id)`, conferida depois de criar a camada; isenção removida (a correção normal passa pela própria regra) |
@@ -228,7 +229,7 @@ A Entrada de Estoque deve ter as ações **Editar** e **Excluir**. O proprietár
 | (b) e (c) fechados no texto da emenda e abertos no contrato (C34, C46) | MÉDIO | Texto incorpora a proposta, e a emenda dá a frase literal da alternativa |
 | "Data da revisão" ambígua (C9, C17, C26, C32, C39, C51) | BAIXO | Definida: data da entrada informada no documento; estornos com data de hoje sem efeito FIFO |
 | Ordem de travas incompatível; "igual ao financeiro" falso (C7, C27) | BAIXO | Advisories antes de camadas e movimentos; "compatível" com o financeiro; regra única para várias chaves |
-| Condição FIFO literal "alterar o FIFO de baixas" (C19) | BAIXO | Reescrita como regra de posição na fila, em 00, 07 e D-PROD-176 |
+| Condição FIFO literal "alterar o FIFO de baixas" (C19) | BAIXO | Reescrita como regra de posição na fila, em 00, 07 e D-PROD-177 |
 | Citações de código e permissões (C10, C13, C40, C50) | BAIXO | `operacaoFinanceiraService.js:384-401`; `tipo_detalhado` `VarChar(128)`; endurecimento mira `estornarEmLote`; excluir = análogo, não igual, à D-PROD-158; nomes da lista |
 | Modelo: par único só entre vigentes; exclusão do Produto pela FK (C42) | BAIXO | Par único entre vigentes; 409 `PRODUTO_DELETE_BLOCKED` contando as linhas |
 | Saída legada filtrada por data, embora o FIFO não olhe data (C18) | BAIXO | Qualquer saída sem rastro no par recusa |
@@ -247,7 +248,7 @@ A Entrada de Estoque deve ter as ações **Editar** e **Excluir**. O proprietár
    - (l): motivo imutável.
 3. **R-EMENDA:** texto de 00 e 07, incorporado pelo rito da §4 da constituição (caminho (a) ou (b) da proposta de emenda, §5).
 4. **R-MOTIVOS**, **R-DATA**, **R-DEDUPE** (inclui RECEBER e os avisos), **R-CONVERSAO**, **R-LOTE**, **R-ORDEM** e **R-SPLIT**.
-5. Nota de ratificação, ou de recusa, na D-PROD-176.
+5. Nota de ratificação, ou de recusa, na D-PROD-177.
 
 Nem esta PR nem o merge dela ratificam a proposta. A P1-02, a P1-05a, a P1-05b e a P1-06 só começam depois da ratificação, cada uma com missão própria. DDL só com runbook e GO.
 
@@ -280,4 +281,16 @@ Os comandos abaixo rodaram no HEAD `44ba3c18`, o commit que traz todo o conteúd
 
 O diff contra `docs/constitution`, `README_AI.md`, `AGENTS.md`, `CLAUDE.md`, `config`, `src`, `backend`, `apps`, `base44`, `scripts`, `package.json`, `vercel.json` e `.github` está **vazio**.
 
-No `DECISIONS.md`, só mudou a entrada D-PROD-176, a última do arquivo. O marcador continua em D-PROD-177.
+No `DECISIONS.md` do commit `44ba3c18`, só mudou a entrada da proposta, a última do arquivo. A renumeração está na §9.8.
+
+### 9.8 Integração da `main` e renumeração (2026-11-12)
+- **O que aconteceu:**
+  - depois do commit `92beaa0f`, a PR #249 (ícones de cocho e depósito) foi mergeada na `main` (`fecbc18c`) com a **D-PROD-176 — Ícones vetoriais com nível para cochos e depósitos**;
+  - a PR #248 ficou em conflito no `DECISIONS.md` (`mergeable_state: dirty`).
+- **Como foi integrada:**
+  - a `main` entrou por **merge** (sem rebase e sem force-push);
+  - a D-PROD-176 da `main` ficou **intacta**;
+  - a proposta desta PR passou a ser a **D-PROD-177**, com uma nota de renumeração na própria entrada, e o marcador foi para **D-PROD-178**;
+  - as referências à proposta foram trocadas para D-PROD-177 no contrato, na proposta de emenda (inclusive no texto literal proposto para 00 e 07), neste relatório, no ROADMAP e no CURRENT-STATE;
+  - as frases históricas da R1 sobre a numeração (§1) foram mantidas, com a observação "superado".
+- **O que não mudou:** nenhuma regra mudou com a renumeração.

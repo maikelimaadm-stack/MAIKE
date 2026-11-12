@@ -3,7 +3,7 @@
 > **STATUS: PROPOSTA, AGUARDANDO APROVAÇÃO EXPRESSA DO PROPRIETÁRIO.**
 > Este documento é **contrato de projeto**: descreve como as próximas PRs do estoque devem funcionar. **Nada aqui está implementado** e nada aqui autoriza código, migration, tela ou rota.
 > - A entrada manual de estoque continua **proibida** pela constituição (`00-CONSTITUICAO.md`, expansão D-PROD-155) e pelo `07-DO-NOT-DO.md` (nota D-PROD-155) até a ratificação da emenda proposta em [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md).
-> - Decisão candidata: **D-PROD-176**, registrada em `DECISIONS.md` como proposta pendente, nunca como autorização.
+> - Decisão candidata: **D-PROD-177**, registrada em `DECISIONS.md` como proposta pendente, nunca como autorização.
 > - Missão: MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1, derivada da análise somente leitura MAIKE-ESTOQUE-P1-00. Aquela análise **não está versionada** no repositório: tudo o que se aproveita dela está reescrito aqui, com evidência `arquivo:linha`.
 > - **O merge desta PR não aprova nem ratifica nada** (ver §8).
 > - Base auditada: `origin/main` `74ad3b868ff947f0153c969c51852748690f78a2`.
@@ -694,7 +694,7 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
 
 | Ordem | Slice | Entrega | DDL | Depende de |
 |---|---|---|---|---|
-| 1 | **P1-01 governança** (esta PR) | Proposta de emenda, contrato, D-PROD-176 proposta | não | — |
+| 1 | **P1-01 governança** (esta PR) | Proposta de emenda, contrato, D-PROD-177 proposta | não | — |
 | 2 | **Ratificação humana** | O proprietário decide primeiro a R-IMPL e depois aprova o texto da emenda e o incorpora pelo fluxo constitucional (§4 da constituição; A10 impede o agente) | não | 1 |
 | 3 | P1-02 endurecimento do motor | §6.2, M3, M4, M5, M6 | não | 2 (a P1-02 inteira; ver R-SPLIT) |
 | 4 | P1-03 índices | LC-2, R2-2, keyset | só índices | 1 |
@@ -732,7 +732,7 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
 
 ## 8. Pontos que dependem de ratificação humana
 
-> **O merge desta PR não aprova nem ratifica nada.** Isso difere do padrão em que o merge manual do proprietário materializa a aprovação (D-PROD-22/155/157/159/162). Aqui a ratificação exige o texto incorporado em `00` e `07` pelo fluxo da proposta de emenda (§5) e uma nota posterior datada na D-PROD-176.
+> **O merge desta PR não aprova nem ratifica nada.** Isso difere do padrão em que o merge manual do proprietário materializa a aprovação (D-PROD-22/155/157/159/162). Aqui a ratificação exige o texto incorporado em `00` e `07` pelo fluxo da proposta de emenda (§5) e uma nota posterior datada na D-PROD-177.
 
 - **R-EMENDA:** texto de [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) para `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`.
 - **R-MOTIVOS:** os 3 motivos do 1º slice, a exclusão de COMPRA, AJUSTE, DEVOLUCAO e afins, a proibição de usar DOACAO/OUTRA para saldo pré-existente e a ausência de caminho, no 1º slice, para produto com histórico e saldo antigo não registrado.
@@ -776,6 +776,6 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
     - Se a alternativa for escolhida, a A8.1, a A8.2, a A8.3, a A8.7, a A3 e o texto proposto para 00 e 07 mudam juntos;
   - (l) motivo da entrada imutável (classe I).
 - **Textos da emenda e pontos abertos:** o texto proposto para 00 e 07 já incorpora as propostas (b) (baixa estornada bloqueia), (c) (janela FIFO só na entrada) e (k) (alcance por documento). Se a ratificação escolher outra opção, a proposta de emenda (§5) indica a frase literal que muda.
-- **D-PROD-176:** número e texto da decisão.
+- **D-PROD-177:** número e texto da decisão.
 
 > O proprietário deverá aprovar expressamente o texto proposto e ratificar pelo fluxo constitucional antes da P1-02, da P1-05a, da P1-05b e da P1-06.

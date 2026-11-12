@@ -7,7 +7,7 @@
 >   - a proibição de entrada de estoque avulsa (a **expansão** D-PROD-155 no `00` e a **nota** D-PROD-155 no `07`);
 >   - a D-PROD-08 e as notas posteriores dela.
 > - **O merge desta PR de documentação não equivale à emenda nem a aprova.** Isso difere do padrão D-PROD-22/155/157/159/162, em que o merge manual materializava a aprovação.
-> - Decisão candidata: **D-PROD-176** (proposta pendente em `DECISIONS.md`).
+> - Decisão candidata: **D-PROD-177** (proposta pendente em `DECISIONS.md`).
 > - Missão: MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1.
 > - Base: `origin/main` `74ad3b868ff947f0153c969c51852748690f78a2`.
 > - Contrato técnico: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md).
@@ -23,7 +23,7 @@
   "Agente de IA não emenda a constituição — apenas propõe."
 - **Hierarquia normativa** (`00-CONSTITUICAO.md` §3): constituição > `07-DO-NOT-DO.md` > `08-REGRAS-DE-IA.md` > `DECISIONS.md` > `ROADMAP.md` > escopo.
   - Uma decisão (nível 4) não supera a proibição do `07` (nível 2) nem a expansão da constituição (nível 1).
-  - Por isso, a D-PROD-176 sozinha **não** libera a entrada manual: a emenda precisa estar nos dois textos superiores.
+  - Por isso, a D-PROD-177 sozinha **não** libera a entrada manual: a emenda precisa estar nos dois textos superiores.
 
 **Mecanismo já usado no repositório (descrito, não presumido):**
 - Nas D-PROD-155, 157, 159 e 162, o agente redigiu o texto **dentro** dos arquivos constitucionais.
@@ -66,7 +66,7 @@ Hoje esses casos empurram o usuário a duas saídas ruins:
 **Texto a vigorar SOMENTE após a ratificação (literal; variante proposta da R-IMPL):**
 
 ```markdown
-**Expansão autorizada pelo proprietário (D-PROD-176):** **Estoque — entrada manual
+**Expansão autorizada pelo proprietário (D-PROD-177):** **Estoque — entrada manual
 documentada** (missão MAIKE-ESTOQUE-P1). Além da compra confirmada da Central Única de
 Lançamentos, a quantidade de estoque também pode nascer de um **documento de Entrada de
 Estoque** confirmado, só pelo motor de estoque único e só por um destes motivos fechados:
@@ -96,7 +96,7 @@ devolução, transferência entre empresas, entrada por nota fiscal, edição de
 qualquer escritor genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta parte,
 esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expansão
 D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
-com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
+com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-177.
 ```
 
 **Frases que mudam se a ratificação escolher outra opção** (contrato §8):
@@ -119,7 +119,7 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 **Texto a vigorar SOMENTE após a ratificação (literal; variante proposta da R-IMPL):**
 
 ```markdown
-> **Nota (D-PROD-176):** o documento de Entrada de Estoque, nos limites da decisão e da
+> **Nota (D-PROD-177):** o documento de Entrada de Estoque, nos limites da decisão e da
 > expansão constitucional, é a única exceção à proibição de "criar entrada de estoque
 > avulsa" da nota D-PROD-155. O usuário edita e exclui a entrada; não existe "cancelar"
 > como ação dela. Continua proibido:
@@ -249,7 +249,7 @@ por
    - **(b)** o proprietário autoriza **por escrito** uma PR de agente nomeada, citando o texto exato aprovado; a PR copia só esse texto, e o proprietário a mergeia manualmente.
      - A PR (b) só é compatível com a A10 pela leitura de precedente de que o merge manual do proprietário materializa a aprovação (D-PROD-22/155/157/159/162).
      - Sem autorização escrita que nomeie a PR e o texto, só vale o caminho (a).
-4. Registrar na D-PROD-176 uma nota posterior: "ratificada em <data> por <responsável>, texto incorporado em <SHA>".
+4. Registrar na D-PROD-177 uma nota posterior: "ratificada em <data> por <responsável>, texto incorporado em <SHA>".
    - Se for recusada: nota "recusada em <data>". O número não é reaproveitado (registro append-only).
 5. Só depois disso começam a P1-02, a P1-05a, a P1-05b e a P1-06.
    - A divisão da P1-02 em uma parte sem a origem de entrada manual (R-SPLIT, contrato §8) só vale com autorização expressa.
@@ -258,12 +258,12 @@ por
 
 | Texto vigente | Nível | Conflito com a proposta | Como fica |
 |---|---|---|---|
-| `00-CONSTITUICAO.md`, expansão D-PROD-155: "não há tela avulsa de entrada" | 1 | Direto | Superado **só nesse trecho** pela expansão D-PROD-176 (§3), se ratificada |
+| `00-CONSTITUICAO.md`, expansão D-PROD-155: "não há tela avulsa de entrada" | 1 | Direto | Superado **só nesse trecho** pela expansão D-PROD-177 (§3), se ratificada |
 | `00-CONSTITUICAO.md`, revisão D-PROD-162: "litros `L` ou quilos `KG`" | 1 | Não menciona o SACO da D-PROD-169 | Esclarecimento proposto na §4.2 |
-| `07-DO-NOT-DO.md`, nota D-PROD-155: "criar entrada de estoque avulsa (tela ou rota própria)" | 2 | Direto | Exceção pela nota D-PROD-176 (§4.1), se ratificada |
+| `07-DO-NOT-DO.md`, nota D-PROD-155: "criar entrada de estoque avulsa (tela ou rota própria)" | 2 | Direto | Exceção pela nota D-PROD-177 (§4.1), se ratificada |
 | `07-DO-NOT-DO.md`, nota D-PROD-159/162: "`L` ou `KG`" (quatro trechos) | 2 | Conflito **pré-existente** com a D-PROD-169 (nível 4 não supera nível 2) | Esclarecimento §4.2. Até lá, prevalece o `07` |
 | `DECISIONS.md` D-PROD-08 (nota da D-PROD-155): "não há tela avulsa de entrada" | 4 | Direto | Nota posterior datada, só depois da ratificação. O texto original fica preservado |
-| `DECISIONS.md` D-PROD-161 e `ROADMAP.md`: a entrada manual da P1 incluía "ajuste" e "devolução" | 4–5 | Escopo: a proposta **exclui** os dois | A D-PROD-176, se ratificada, delimitará os motivos. O ROADMAP ganha uma nota prospectiva, sem reescrever o histórico |
+| `DECISIONS.md` D-PROD-161 e `ROADMAP.md`: a entrada manual da P1 incluía "ajuste" e "devolução" | 4–5 | Escopo: a proposta **exclui** os dois | A D-PROD-177, se ratificada, delimitará os motivos. O ROADMAP ganha uma nota prospectiva, sem reescrever o histórico |
 | `config/mapa-manejo-scope.json` | 6 | Nenhum agora | A página candidata `EntradasEstoque` só entraria no escopo na P1-06 |
 | `DECISIONS.md` D-PROD-158 (P3): exclusão de confirmado como `CANCELADO` + `excluido_em`; procedência reescrita no lugar (`atualizarProcedencia`) | 4 | **Não é conflito.** É divergência de desenho entre domínios. A entrada usa `EXCLUIDA` e nunca reescreve procedência | Declarada no contrato (A5, A6, A8). A P3 não muda |
 | `DECISIONS.md` D-PROD-110 (rebanho): "não existe edição de movimento confirmado", com exclusão física | 4 | **Não é conflito.** Vale só para movimentos do rebanho | A entrada de estoque tem edição versionada e exclusão só lógica (contrato A8) |
