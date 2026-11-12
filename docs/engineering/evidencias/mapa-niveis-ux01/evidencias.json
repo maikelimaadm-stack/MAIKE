@@ -1,0 +1,240 @@
+{
+  "passos": [
+    {
+      "largura": "w1280",
+      "nome": "1 Mapa: ícone, título e selo dos marcadores vêm do SSOT (cocho 75%, depósito cheio com \"!\")",
+      "ok": true
+    },
+    {
+      "largura": "w1280",
+      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "ok": true
+    },
+    {
+      "largura": "w1280",
+      "nome": "3 Detalhe do depósito: 200% (300 kg acima), ícone cheio, mínimo 100 kg com 500 kg acima, saldo 600 kg",
+      "ok": true
+    },
+    {
+      "largura": "w1280",
+      "nome": "4 Virada do dia (São Paulo): o MESMO marcador vai de 75% a 50% à meia-noite, sem refetch; detalhe 50% e \"No lançamento\" continua",
+      "ok": true
+    },
+    {
+      "largura": "w390",
+      "nome": "1 Mapa: ícone, título e selo dos marcadores vêm do SSOT (cocho 75%, depósito cheio com \"!\")",
+      "ok": true
+    },
+    {
+      "largura": "w390",
+      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "ok": true
+    },
+    {
+      "largura": "w390",
+      "nome": "3 Detalhe do depósito: 200% (300 kg acima), ícone cheio, mínimo 100 kg com 500 kg acima, saldo 600 kg",
+      "ok": true
+    },
+    {
+      "largura": "w390",
+      "nome": "4 Virada do dia (São Paulo): o MESMO marcador vai de 75% a 50% à meia-noite, sem refetch; detalhe 50% e \"No lançamento\" continua",
+      "ok": true
+    },
+    {
+      "largura": "w412",
+      "nome": "1 Mapa: ícone, título e selo dos marcadores vêm do SSOT (cocho 75%, depósito cheio com \"!\")",
+      "ok": true
+    },
+    {
+      "largura": "w412",
+      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "ok": true
+    },
+    {
+      "largura": "w412",
+      "nome": "3 Detalhe do depósito: 200% (300 kg acima), ícone cheio, mínimo 100 kg com 500 kg acima, saldo 600 kg",
+      "ok": true
+    },
+    {
+      "largura": "w412",
+      "nome": "4 Virada do dia (São Paulo): o MESMO marcador vai de 75% a 50% à meia-noite, sem refetch; detalhe 50% e \"No lançamento\" continua",
+      "ok": true
+    }
+  ],
+  "evidencias": {
+    "w1280": {
+      "dias": {
+        "hoje": "2026-11-11",
+        "ontem": "2026-11-10"
+      },
+      "marcador_cocho": {
+        "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
+        "selo": null
+      },
+      "marcador_deposito": {
+        "title": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "aria": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "nivelIcone": "100",
+        "selo": "excesso",
+        "seloTexto": "!",
+        "seloAriaHidden": "true"
+      },
+      "detalhe_cocho": {
+        "ontem": "2026-11-10",
+        "proxima": "14/11/2026"
+      },
+      "02-detalhe-cocho_regiao": {
+        "l": 227,
+        "r": 1053,
+        "sw": 824,
+        "cw": 824,
+        "vw": 1280,
+        "estouro": 0
+      },
+      "03-detalhe-deposito_regiao": {
+        "l": 227,
+        "r": 1053,
+        "sw": 824,
+        "cw": 824,
+        "vw": 1280,
+        "estouro": 0
+      },
+      "virada": {
+        "de": "2026-11-11",
+        "para": "2026-11-12",
+        "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
+        "leituras_eventos": 0
+      },
+      "05-detalhe-cocho-apos-virada_regiao": {
+        "l": 227,
+        "r": 1053,
+        "sw": 824,
+        "cw": 824,
+        "vw": 1280,
+        "estouro": 0
+      },
+      "escritas_das_telas": []
+    },
+    "w390": {
+      "dias": {
+        "hoje": "2026-11-11",
+        "ontem": "2026-11-10"
+      },
+      "marcador_cocho": {
+        "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
+        "selo": null
+      },
+      "marcador_deposito": {
+        "title": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "aria": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "nivelIcone": "100",
+        "selo": "excesso",
+        "seloTexto": "!",
+        "seloAriaHidden": "true"
+      },
+      "detalhe_cocho": {
+        "ontem": "2026-11-10",
+        "proxima": "14/11/2026"
+      },
+      "02-detalhe-cocho_regiao": {
+        "l": 25,
+        "r": 365,
+        "sw": 338,
+        "cw": 338,
+        "vw": 390,
+        "estouro": 0
+      },
+      "03-detalhe-deposito_regiao": {
+        "l": 25,
+        "r": 365,
+        "sw": 338,
+        "cw": 338,
+        "vw": 390,
+        "estouro": 0
+      },
+      "virada": {
+        "de": "2026-11-11",
+        "para": "2026-11-12",
+        "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
+        "leituras_eventos": 0
+      },
+      "05-detalhe-cocho-apos-virada_regiao": {
+        "l": 25,
+        "r": 365,
+        "sw": 338,
+        "cw": 338,
+        "vw": 390,
+        "estouro": 0
+      },
+      "escritas_das_telas": []
+    },
+    "w412": {
+      "dias": {
+        "hoje": "2026-11-11",
+        "ontem": "2026-11-10"
+      },
+      "marcador_cocho": {
+        "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
+        "selo": null
+      },
+      "marcador_deposito": {
+        "title": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "aria": "DEPÓSITO DA SEDE NÍVEIS — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg acima).",
+        "nivelIcone": "100",
+        "selo": "excesso",
+        "seloTexto": "!",
+        "seloAriaHidden": "true"
+      },
+      "detalhe_cocho": {
+        "ontem": "2026-11-10",
+        "proxima": "14/11/2026"
+      },
+      "02-detalhe-cocho_regiao": {
+        "l": 25,
+        "r": 387,
+        "sw": 360,
+        "cw": 360,
+        "vw": 412,
+        "estouro": 0
+      },
+      "03-detalhe-deposito_regiao": {
+        "l": 25,
+        "r": 387,
+        "sw": 360,
+        "cw": 360,
+        "vw": 412,
+        "estouro": 0
+      },
+      "virada": {
+        "de": "2026-11-11",
+        "para": "2026-11-12",
+        "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
+        "leituras_eventos": 0
+      },
+      "05-detalhe-cocho-apos-virada_regiao": {
+        "l": 25,
+        "r": 387,
+        "sw": 360,
+        "cw": 360,
+        "vw": 412,
+        "estouro": 0
+      },
+      "escritas_das_telas": []
+    }
+  },
+  "respostas_api_roteiro": [
+    "PUT /perfis-financeiros-empresa → 200",
+    "POST /operacoes-financeiras → 201",
+    "POST /operacoes-financeiras/cmwcyimav00077dgjls2untia/confirmar → 200",
+    "POST /suplementacao-eventos → 201",
+    "PUT /perfis-financeiros-empresa → 200",
+    "POST /operacoes-financeiras → 201",
+    "POST /operacoes-financeiras/cmwcyj109000w7dgj2k3w1u23/confirmar → 200",
+    "POST /suplementacao-eventos → 201",
+    "PUT /perfis-financeiros-empresa → 200",
+    "POST /operacoes-financeiras → 201",
+    "POST /operacoes-financeiras/cmwcyj938001l7dgjxrlh3jz6/confirmar → 200",
+    "POST /suplementacao-eventos → 201"
+  ],
+  "falhas": []
+}
