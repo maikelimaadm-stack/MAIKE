@@ -6259,4 +6259,52 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Cadastro e filtro:** o gerenciador oferece o SVG estático de cocho pelo upload existente, sem salvar automaticamente. Depósitos continuam na camada e no filtro existentes. Sem migration nem cadastro automático em produção.
 - **Validação:** testes de nível vetorial, estoque mínimo, isolamento de produtos em litros, renderização do mapa, compilação, integridade de imports e catraca de tipos.
 
-<!-- Próxima decisão: D-PROD-177 -->
+## D-PROD-178 — Mapa: nível do cocho pelo saldo estimado do ciclo, depósito pelo limite operacional, numa fonte única de cálculo
+
+**Data:** 2026-11-12.
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-177`, mas a PR #248 (governança do Estoque P1, em rascunho) já reserva a D-PROD-177. Para não duplicar, esta decisão é a **D-PROD-178**. A D-PROD-154 continua reservada pela PR #229.
+
+**Missão:** MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01, pedida pelo proprietário e auditada pelo arquiteto.
+
+**Substitui em parte a D-PROD-176.** Saem três regras:
+- "o detalhe usa saldo / capacidade";
+- "o marcador mantém o indicador existente";
+- "depósito = saldo / estoque mínimo".
+
+O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
+
+**Decisões**
+1. **Fonte única.** Uma função pura (`src/domain/suplementacao/nivelSuplementacao.js`) calcula o estado do cocho e do depósito. Mapa, detalhes, tooltip e alertas de cocho e depósito leem esse resultado; nenhum deles recalcula por conta própria.
+2. **Cocho, ciclo.** O nível do marcador é a fração RESTANTE estimada do ciclo:
+   - base = fornecido + sobra anterior legítima;
+   - saldo estimado = máx(0, base − taxa × dias civis);
+   - a taxa é SOMENTE o `consumo_esperado_pv_kg` gravado no lançamento (%PV do produto × peso × cabeças, já existente e imutável);
+   - os dias são contados na data civil do fuso da fazenda (`Empresa.fuso_horario`; sem fuso, o relógio do navegador).
+
+   O marcador muda na virada do dia sem recarregar. Não há fallback por lotes atuais, nome do produto, regra sugerida ou consumo ideal.
+3. **Estados neutros.** Nesses casos o cocho fica neutro, com orientação no texto, e não mostra 0% nem 100% por engano:
+   - sem taxa: "Estimativa de consumo indisponível"; a quantidade colocada não é chamada de saldo;
+   - estimativa compartilhada (seção 4);
+   - sem lançamento;
+   - data futura;
+   - data inválida;
+   - período fechado (saldo = sobra informada no fechamento, sem recalcular).
+4. **Cochos compartilhados.** Se outro cocho ativo nas mesmas áreas está com ciclo aberto do MESMO produto, a estimativa é marcada como não confiável, porque o consumo gravado conta o rebanho inteiro em cada cocho. Não há rateio inventado (50/50).
+5. **Limite operacional.** `capacidade_cocho_kg` passa a ser lido e rotulado como o máximo recomendado pelo proprietário, que pode ser menor que a capacidade física. A capacidade física não é armazenada.
+   - **Cocho:** o detalhe mostra dois medidores:
+     - restante do ciclo;
+     - uso do limite, com o percentual bruto SEM clamp no texto, o excesso atual em kg e a linha "no lançamento" (base ÷ limite), que continua visível depois do consumo.
+   - **Depósito:** o marcador e o detalhe mostram o saldo real em kg ÷ limite, com percentual bruto (ex.: 200%, 300 kg acima). O preenchimento gráfico é limitado a 100% e nada é truncado.
+   - **Estoque mínimo:** é só limiar inferior de reposição: nunca divisor nem teto.
+6. **Limite sem histórico.** O excesso é medido contra o limite configurado HOJE. O campo é mutável e não tem histórico, então mudar o limite não refaz o excesso de lançamentos antigos.
+7. **Depósito sem consumo no tempo.** O depósito só muda por transações de estoque. O consumo do cocho é estimativa e nunca baixa o depósito de novo.
+   - Produtos em litros continuam fora do saldo em kg (D-PROD-162 P-11), inclusive nos alertas.
+   - Unidade não confirmada é avisada.
+8. **Alertas por ponto.** Os alertas de cocho e depósito passam a usar a fonte única, mantendo tipos e textos existentes, mais `cocho_acima_limite` e `deposito_acima_limite`. Sem estimativa não há "cocho sem produto". Os alertas por lote (`suplementacao_pendente`) não mudam neste slice.
+
+**Fora do escopo:** backend, migration, Prisma, saldos, FIFO, lançamento, fechamento, permissões, rateio entre cochos e histórico do limite.
+
+**Relatório:** [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-179 -->

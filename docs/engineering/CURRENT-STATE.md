@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
+## Missão ativa (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-178** (a D-PROD-177 está reservada pela PR #248). Substitui em parte a D-PROD-176 |
+| Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `fecbc18c` (merge da PR #249). PR **draft**, exclusiva deste slice |
+| Escopo | Fonte única (`src/domain/suplementacao/nivelSuplementacao.js`) usada pelo mapa, pelos detalhes, pelo tooltip e pelos alertas de cocho e depósito. Cocho = restante estimado do ciclo, pela taxa %PV gravada no lançamento e pelo dia civil no fuso da fazenda. Depósito = saldo real ÷ limite operacional, com percentual bruto e excesso; o mínimo é só limiar. Estados neutros quando não há estimativa |
+| Migration | Nenhuma (só frontend e testes) |
+| Relatório | [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
 
 | Campo | Valor |
 |---|---|
