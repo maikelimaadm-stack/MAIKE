@@ -462,10 +462,11 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     expect(a.rotuloCurto).toBe('Sem estimativa');
     expect(a.alertas).toEqual([]);
     expect(a.compartilhadoCom).toEqual(['c2']);
-    // Limite superior: depois de 06/11 o rebanho só come de c1 → 06/11 + 200 ÷ 50 = 10/11.
-    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-10');
-    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-09' }).alertas).toEqual([]);
-    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-10' }).alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
+    // Limite superior: a partir do fechamento (06/11) o rebanho tem a base de c1 (200)
+    // e a sobra que ficou em c2 (50) → 06/11 + 250 ÷ 50 = 11/11.
+    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-11');
+    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-10' }).alertas).toEqual([]);
+    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-11' }).alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
   });
 
   it('vizinho que TROCOU de produto depois de dividir o rebanho: este cocho fica sem estimativa', () => {
@@ -492,9 +493,10 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     const a = nivel({ eventos, pontos, hoje: '2026-11-10' });
     const b = nivel({ ponto: OUTRO, eventos, pontos, hoje: '2026-11-10' });
     expect(a.confiabilidade).toBe('compartilhada');
-    // Início = máx(02/11, fim do ciclo de c3 em 06/11); 400 kg ÷ 50 = 8 dias → 14/11, igual para os dois.
-    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-14');
-    expect(b.dataEsgotamentoConjuntoEstimada).toBe('2026-11-14');
+    // Início = máx(02/11, fim do ciclo de c3 em 06/11); 400 kg + a sobra de 200 kg que ficou
+    // em c3 = 600 ÷ 50 = 12 dias → 18/11, igual para os dois.
+    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-18');
+    expect(b.dataEsgotamentoConjuntoEstimada).toBe('2026-11-18');
     expect(a.alertas).toEqual([]);
   });
 
@@ -602,6 +604,34 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     expect(a.rotuloCurto).toBe('25%');
     const b = nivel({ ponto: OUTRO, eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-04' });
     expect(b.rotuloCurto).toBe('Sem quantidade');
+  });
+
+  it('cocho sem %PV abandonado só usa a taxa de quem divide área com ele (nunca a de outro pasto)', () => {
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B' };
+    const Z = { ...COCHO, id: 'Z', area_vinculada_ids: ['a9'] };
+    const eventos = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-09-01', quantidade_total_kg: 500, consumo_esperado_pv_kg: null }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-11-10' }),
+      evento({ id: 'eZ', ponto_suplementacao_id: 'Z', data_lancamento: '2026-11-05', quantidade_total_kg: 60, consumo_esperado_pv_kg: 5 }),
+    ];
+    const nb = nivel({ ponto: B, eventos, pontos: [A, B, Z], hoje: '2026-11-12' });
+    expect(nb.confiabilidade).toBe('estimada');
+    expect(nb.rotuloCurto).toBe('50%');
+  });
+
+  it('lançamento com data inválida criado DEPOIS do último válido deixa o cocho neutro (não estima pelo ciclo antigo)', () => {
+    const eventos = [
+      evento({ id: 'v', data_lancamento: '2026-10-01', created_date: '2026-10-01T10:00:00Z' }),
+      evento({ id: 'x', data_lancamento: '', created_date: '2026-11-10T10:00:00Z' }),
+    ];
+    const n = nivel({ eventos, hoje: '2026-11-12' });
+    expect(n.estado).toBe('data_invalida');
+    expect(n.neutro).toBe(true);
+    expect(n.alertas.map((alerta) => alerta.tipo)).not.toContain('cocho_sem_produto');
+    // Criado ANTES do válido: vale o válido.
+    const antes = [evento({ id: 'x', data_lancamento: '', created_date: '2026-09-01T10:00:00Z' }), evento({ id: 'v', data_lancamento: '2026-11-10', created_date: '2026-11-10T10:00:00Z' })];
+    expect(nivel({ eventos: antes, hoje: '2026-11-12' }).rotuloCurto).toBe('50%');
   });
 
   it('desempenho: 150 cochos × 6.000 lançamentos — o índice da fazenda é montado uma vez', () => {

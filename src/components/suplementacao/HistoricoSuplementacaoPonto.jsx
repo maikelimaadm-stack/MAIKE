@@ -120,7 +120,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto,
       ]);
 
       queryClient.setQueryData(["suplementacao-ponto", pontoId], (current = []) => current.filter((item) => item.id !== evento.id));
-      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) });
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (["suplementacao-ponto", "eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "lotes-nota-suplementacao", "movimentacoes", "produtos", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) || (query.queryKey[0] === "mapa-cache" && query.queryKey[1] === "eventosSuplementacao")) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Lançamento excluído.");
     } catch (error) {

@@ -253,6 +253,20 @@ describe('alertas do depósito pelo SSOT', () => {
     expect(tipos(r2, 'd1')).toEqual(['deposito_cobertura_baixa']);
   });
 
+  it('lançamento futuro de OUTRO produto não apaga o consumo vigente nem o de outro rebanho', () => {
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B' };
+    const eventosSupl = [
+      evento({ id: 'eA1', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-10' }),
+      evento({ id: 'eA2', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-20', produto: 'PROTEINADO', produto_id: 'p-prot', consumo_esperado_pv_kg: 30 }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-11-11', produto: 'PROTEINADO', produto_id: 'p-prot', consumo_esperado_pv_kg: 30 }),
+    ];
+    const r = montar({ estoqueLotes: [loteEstoque(150)], pontosSuplementacao: [A, B, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
+    // Hoje: SAL 50 (vigente de A) + PROTEINADO 30 (B; o futuro de A é o mesmo rebanho e produto) = 80.
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(80);
+    expect(tipos(r, 'd1')).toEqual(['deposito_cobertura_baixa']);
+  });
+
   it('lançamento futuro no cocho: o rebanho continua puxando do depósito', () => {
     const eventosSupl = [evento({ data_lancamento: '2026-11-10' }), evento({ id: 'e9', data_lancamento: '2026-11-14' })];
     const r = montar({ estoqueLotes: [loteEstoque(80)], pontosSuplementacao: [COCHO, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });

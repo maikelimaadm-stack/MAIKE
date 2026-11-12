@@ -104,6 +104,11 @@ Título do marcador no dia 11/11: "Restante estimado: 150 kg de 200 kg (75%). Us
 | vizinho que trocou de produto depois das janelas mínimas (SAL de 12/11 a 22/11) | conjunto = máx(04/11, 22/11) + 800 ÷ 50 = 08/12, sem alerta antes |
 | lançamento duplicado no mesmo dia num cocho abandonado | o vizinho ativo segue estimado (50%) |
 | vizinho com lançamento de base 0 | este cocho estimado (25%); o vizinho "Sem quantidade" |
+| vizinho fechou (gado saiu) com sobra de 200 kg; este com 200 kg a 50 kg/dia | conjunto = fechamento + (200 + 200) ÷ 50 (a sobra entra no limite) |
+| cocho sem %PV abandonado + ativo, e outro pasto com taxa pequena | o ativo segue estimado (50%); a taxa de outro pasto não conta |
+| lançamento com data vazia criado depois do último válido | "Data inválida" (neutro), nunca 0% pelo ciclo antigo |
+| depósito: SAL vigente (50) + PROTEINADO futuro em A, e PROTEINADO ativo (30) em B | consumo 80 (SAL 50 + PROTEINADO 30) |
+| detalhe aberto depois de cadastrar um segundo cocho no pasto | mesmo estado do marcador (mesma consulta do mapa) |
 | cocho abandonado (01/08, esgotado sozinho) + ativo (10/11) | ativo estimado em 50%; abandonado em 0% com `cocho_sem_produto` |
 | 3 cochos encadeados por áreas (A–B em a1, B–C em a2) | grupo único, mesmo conjunto (18/11) para os três |
 | vizinho cujo ÚNICO lançamento é futuro | não conta até o dia do lançamento |
@@ -183,7 +188,8 @@ Capturas e dados ficam em [`evidencias/mapa-niveis-ux01/`](./evidencias/mapa-niv
 - `mapaGeralRender.js`.
 - `MapaGeral.jsx`: fuso e `hoje`.
 - `CochoNivel.jsx`, `DepositoNivel.jsx`.
-- `DetalhesPontoSuplementacao.jsx`, `DetalhesDepositoSuplementacao.jsx`.
+- `DetalhesPontoSuplementacao.jsx`: lê eventos e pontos da mesma consulta do mapa.
+- `DetalhesDepositoSuplementacao.jsx`.
 - `FormularioPonto.jsx`: rótulos de limite operacional e o aviso, que não bloqueia.
 - `cadastro/colunasCadastroMapa.js`: rótulo da coluna.
 - `services/mapaCacheService.js`: produtos com inativos.
@@ -191,7 +197,8 @@ Capturas e dados ficam em [`evidencias/mapa-niveis-ux01/`](./evidencias/mapa-niv
 
 **Suplementação**
 - `CardMetricaEvento.jsx`, `HistoricoSuplementacaoPonto.jsx`: projeção igual à do detalhe.
-- `FormularioLancamentoSuplementacao.jsx`: data padrão no dia da fazenda.
+- `FormularioLancamentoSuplementacao.jsx`: data padrão no dia da fazenda; o lançamento invalida também a consulta de eventos do mapa (a mesma do detalhe).
+- `HistoricoSuplementacaoPonto.jsx`: a exclusão invalida a mesma consulta.
 
 **Biblioteca, scripts e gate**
 - `src/lib/diaCivil.js`: `somarDias` não lança exceção.
@@ -227,7 +234,13 @@ Todos estão registrados na D-PROD-178, itens 4 e 8 a 11.
 ## 8. Riscos
 
 1. **Neutro prolongado.** Um cocho que dividiu o rebanho com outro do mesmo produto, nas mesmas áreas, fica sem estimativa até um lançamento novo nele ou até o outro ser desativado. Isso inclui o vizinho reabastecido, o vizinho que fechou o ciclo e o que trocou de produto. É conservador: nunca mostra número falso. O texto do detalhe orienta.
-1a. **Sobra de período fechado antes do lançamento.** Num vizinho sem lançamento depois do fechamento (gado saiu e voltou), essa sobra não entra na estimativa deste cocho. O vizinho mostra a sobra como "Período fechado".
+1a. **Limites documentados (D-PROD-178 §4).** Ficam de fora do cálculo:
+    - a sobra de um período fechado ANTES do lançamento, num vizinho sem lançamento depois;
+    - o lançamento de vizinho com data inválida;
+    - o lançamento sem produto.
+
+    Além disso, um membro sem %PV, ou com lançamento futuro, mostra o próprio estado neutro, e não o aviso do conjunto.
+1c. **Alertas por lote.** São fora do slice e não mudaram. Num pasto com muitas áreas por cocho, eles levam cerca de 400 ms. É dívida registrada.
 1b. **Cobertura do depósito é aproximada.** Ela pode contar a mais em três casos: sobreposição parcial de áreas, rebanho atendido por dois depósitos e rebanho que mudou de área sem fechar o consumo. Contar a mais deixa a cobertura menor que a real: o alerta de reposição vem cedo, nunca tarde.
 2. **Limite sem histórico.** Mudar `capacidade_cocho_kg` muda o percentual de lançamentos antigos. Está documentado e aparece no detalhe.
 3. **Taxa gravada.** A estimativa depende do `consumo_esperado_pv_kg` gravado no lançamento. Lançamentos sem %PV ficam neutros, e isso pode aparecer em fazendas que não cadastraram %PV.

@@ -20,7 +20,11 @@
  *        confiável, sem saldo;
  *  DC-5. período fechado: sobra INFORMADA, sem estimativa de ciclo;
  *  DC-6. sem lançamento: mensagem neutra no lugar do nível;
- *  DC-7. lançamento com data futura: mensagem neutra com a data.
+ *  DC-7. lançamento com data futura: mensagem neutra com a data;
+ *  DC-8. o detalhe lê eventos e pontos da MESMA consulta do Mapa Geral
+ *        (`['mapa-cache', chave, empresa, 'default']`): com o mapa já tendo a
+ *        lista nova (outro cocho no mesmo pasto), o detalhe mostra o mesmo
+ *        estado do marcador, mesmo que o cache local esteja velho.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -295,5 +299,31 @@ describe('CochoNivel neutro', () => {
     // Mesmo desenho do corpo e dos pés (só o preenchimento muda).
     rerender(<CochoNivel percent={0} label="Restante do ciclo (estimado)" />);
     expect(container.querySelector('svg').innerHTML.replace(/cocho-[^")]+/g, '')).toBe(formaNeutra.replace(/cocho-[^")]+/g, ''));
+  });
+});
+
+describe('DC-8 — mesma fonte de dados do mapa', () => {
+  it('com a lista do mapa já atualizada (dois cochos no pasto), o detalhe mostra o mesmo estado do marcador', async () => {
+    const a = cocho('c1');
+    const b = cocho('c2');
+    const eventos = [evento('e1', 'c1'), evento('e2', 'c2')];
+    // Cache local velho: só o c1, sem o lançamento do c2.
+    dados.cache.pontosSuplementacao = [a];
+    dados.cache.eventosSuplementacao = [evento('e1', 'c1')];
+    const { default: DetalhesPontoSuplementacao } = await import('@/components/mapa/DetalhesPontoSuplementacao');
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } });
+    // O Mapa Geral já tem a lista nova nas chaves dele.
+    qc.setQueryData(['mapa-cache', 'pontosSuplementacao', EMP, 'default'], [a, b]);
+    qc.setQueryData(['mapa-cache', 'eventosSuplementacao', EMP, 'default'], eventos);
+    render(
+      <QueryClientProvider client={qc}>
+        <DetalhesPontoSuplementacao ponto={a} permissions={{}} onClose={() => {}} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Informações do Cocho');
+    await act(async () => {});
+    const marcador = getCochoIndicator(a, eventos, { hoje: '2026-11-11', pontos: [a, b] });
+    expect(marcador.nivel.confiabilidade).toBe('compartilhada');
+    await waitFor(() => expect(within(secaoCocho()).getAllByText(/Estimativa não confiável: 2 cochos/).length).toBeGreaterThan(0));
   });
 });

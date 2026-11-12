@@ -39,13 +39,17 @@ const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDig
 
 /**
  * Leitura do cache local do mapa (rápida), com atualização em segundo plano.
+ * Usa a MESMA chave do React Query do Mapa Geral (`['mapa-cache', chave,
+ * empresa, 'default']`, ver `createMapaQuery`): o detalhe calcula o nível com
+ * os mesmos arrays de eventos e pontos do marcador (D-PROD-178 §1) e recebe as
+ * mesmas invalidações — uma chave própria ficava velha depois de um cadastro.
  * @param {string} chave capacidade do `mapaCacheService`
  * @param {string|null} empresaId
  * @param {number} staleTime
  */
 function useCacheDoMapa(chave, empresaId, staleTime) {
   const queryClient = useQueryClient();
-  const queryKey = [`mapa-${chave}`, empresaId];
+  const queryKey = ['mapa-cache', chave, empresaId, 'default'];
   return useQuery({
     queryKey,
     queryFn: async () => {

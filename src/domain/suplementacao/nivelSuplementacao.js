@@ -93,6 +93,7 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @property {number|null} baseCicloKg            fornecido + sobra anterior (null se fechado)
  * @property {number|null} taxaConsumoKgDia       `consumo_esperado_pv_kg` (> 0) ou null
  * @property {number|null} taxaRegistradaKgDia    taxa do rebanho gravada no lançamento do ciclo aberto (qualquer confiabilidade); para a cobertura do depósito, NUNCA para estimar o saldo do cocho
+ * @property {{ evento: any, taxaKgDia: number, dia: string }[]} consumosParaDeposito ciclos que puxam do depósito (o vigente e, se houver, o futuro), cada um com o próprio produto
  * @property {'pv_no_lancamento'|null} fonteConsumo
  * @property {number|null} diasDecorridos         dias civis desde o lançamento
  * @property {number|null} consumoEstimadoKg      min(base, taxa × dias)
@@ -535,8 +536,6 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     && !empresasDiferentes(pontoRef, cocho.atual)
   ));
   const porId = new Map(membros.map((membro) => [membro.id, membro]));
-  const taxasConhecidas = membros.map((membro) => positivoOuNulo(membro.atual.consumo_esperado_pv_kg)).filter((taxa) => taxa != null);
-  const taxaReferencia = taxasConhecidas.length ? Math.min(.../** @type {number[]} */ (taxasConhecidas)) : null;
 
   /** Vizinhos (mesma fazenda, área em comum). @param {CochoDoContexto} cocho @returns {CochoDoContexto[]} */
   const vizinhos = (cocho) => {
@@ -578,15 +577,24 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     return registro;
   };
 
-  /** @type {Map<string, { ini: string, fimMinimo: string|null, aberta: boolean, base: number, taxa: number|null, vizinhos: CochoDoContexto[], externosMinimos: { id: string, fim: string|null }[], externosAbertos: { id: string, fim: string|null }[] }>} */
+  /** @typedef {{ id: string, fim: string|null, sobraDisponivel: number }} CicloExterno */
+  /** @type {Map<string, { ini: string, fimMinimo: string|null, aberta: boolean, base: number, taxa: number|null, vizinhos: CochoDoContexto[], externosMinimos: CicloExterno[], externosAbertos: CicloExterno[] }>} */
   const dados = new Map();
   for (const membro of membros) {
     const base = kgOuZero(membro.atual.quantidade_total_kg) + kgOuZero(membro.atual.sobra_kg);
-    const taxa = positivoOuNulo(membro.atual.consumo_esperado_pv_kg);
     const ini = /** @type {string} */ (membro.diaAtual);
-    const fimMinimo = fimMinimoDoCiclo(ini, base, taxa ?? taxaReferencia);
-    const minima = { ini, fim: fimMinimo };
     const doMembro = vizinhos(membro);
+    // Sem taxa gravada: a menor taxa dos membros que dividem área com ele (o
+    // mesmo rebanho), nunca a de outro pasto; sem nenhuma, a janela fica aberta.
+    let taxa = positivoOuNulo(membro.atual.consumo_esperado_pv_kg);
+    if (taxa == null) {
+      for (const outro of doMembro) {
+        const taxaOutro = porId.has(outro.id) ? positivoOuNulo(outro.atual.consumo_esperado_pv_kg) : null;
+        if (taxaOutro != null && (taxa == null || taxaOutro < taxa)) taxa = taxaOutro;
+      }
+    }
+    const fimMinimo = fimMinimoDoCiclo(ini, base, taxa);
+    const minima = { ini, fim: fimMinimo };
     const externosMinimos = [];
     const externosAbertos = [];
     const aPartirDoLancamento = { ini, fim: null };
@@ -598,8 +606,11 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
         if (maiorFim != null && maiorFim <= ini) break;
         const ciclo = lista[k];
         if (!intervalosSeCruzam(ciclo, aPartirDoLancamento)) continue;
-        externosAbertos.push({ id: outro.id, fim: ciclo.fim });
-        if (intervalosSeCruzam(ciclo, minima)) externosMinimos.push({ id: outro.id, fim: ciclo.fim });
+        // Fechado e último lançamento do cocho: a sobra informada continua lá, ao alcance do rebanho.
+        const sobraDisponivel = ciclo.evento.dias_periodo != null && ciclo.evento === outro.atual ? kgOuZero(ciclo.evento.sobra_kg) : 0;
+        const externo = { id: outro.id, fim: ciclo.fim, sobraDisponivel };
+        externosAbertos.push(externo);
+        if (intervalosSeCruzam(ciclo, minima)) externosMinimos.push(externo);
       }
     }
     // Janela vazia (base 0) não divide nada; sem fim (taxa absurda) já começa aberta.
@@ -644,19 +655,22 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     /** @type {number|null} */
     let menorTaxa = null;
     let semFimExterno = false;
+    /** @type {Map<string, number>} sobra que ficou em cochos fechados, uma vez por cocho */
+    const sobras = new Map();
     for (const membro of componente) {
       const d = /** @type {any} */ (dados.get(membro.id));
       if (d.ini > inicioConjunto) inicioConjunto = d.ini;
       totalBase += d.base;
-      const taxa = d.taxa ?? taxaReferencia;
-      if (taxa != null && (menorTaxa == null || taxa < menorTaxa)) menorTaxa = taxa;
+      if (d.taxa != null && (menorTaxa == null || d.taxa < menorTaxa)) menorTaxa = d.taxa;
       for (const externo of d.externosMinimos) donosExternos.add(externo.id);
       // O conjunto só sai depois de todo ciclo externo que cruzou a janela efetiva.
       for (const externo of d.aberta ? d.externosAbertos : d.externosMinimos) {
         if (externo.fim == null) semFimExterno = true;
         else if (externo.fim > inicioConjunto) inicioConjunto = externo.fim;
+        if (externo.sobraDisponivel > 0) sobras.set(externo.id, Math.max(sobras.get(externo.id) ?? 0, externo.sobraDisponivel));
       }
     }
+    for (const sobra of sobras.values()) totalBase += sobra;
     const conjunto = semFimExterno ? null : fimMinimoDoCiclo(inicioConjunto, totalBase, menorTaxa);
     for (const membro of componente) {
       const outros = new Set([...componente.map((c) => c.id), ...donosExternos]);
@@ -705,7 +719,18 @@ const compartilhamentoDoCocho = (ponto, ultimo, eventos, pontos, hoje) => {
  * @returns {NivelCocho}
  */
 export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
-  const ultimo = selecionarUltimoEventoDoPonto(ponto, eventosDoPonto(ponto, eventos));
+  const doPonto = eventosDoPonto(ponto, eventos);
+  let ultimo = selecionarUltimoEventoDoPonto(ponto, doPonto);
+  // Um lançamento com data inválida criado DEPOIS do último válido: o ciclo
+  // antigo não vale mais e a data do novo é desconhecida → estado neutro.
+  const criadoUltimo = instanteCriacao(ultimo);
+  if (ultimo && criadoUltimo != null && diaDoLancamento(ultimo.data_lancamento) != null) {
+    for (const evento of doPonto) {
+      if (empresasDiferentes(ponto, evento) || diaDoLancamento(evento.data_lancamento) != null) continue;
+      const criado = instanteCriacao(evento);
+      if (criado != null && criado > criadoUltimo && (instanteCriacao(ultimo) ?? -Infinity) < criado) ultimo = evento;
+    }
+  }
   const limite = positivoOuNulo(ponto?.capacidade_cocho_kg);
   const hojeValido = ehDiaValido(hoje);
 
@@ -726,6 +751,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     baseCicloKg: null,
     taxaConsumoKgDia: null,
     taxaRegistradaKgDia: null,
+    consumosParaDeposito: [],
     fonteConsumo: null,
     diasDecorridos: null,
     consumoEstimadoKg: null,
@@ -774,10 +800,17 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     // Cobertura do depósito: o rebanho continua comendo do ciclo que vale hoje;
     // vale a MAIOR entre a taxa do último lançamento não futuro e a do futuro.
     {
-      const naoFuturos = hojeValido ? eventosDoPonto(ponto, eventos).filter((evento) => { const d = diaDoLancamento(evento.data_lancamento); return d != null && d <= hoje; }) : [];
+      const naoFuturos = hojeValido ? doPonto.filter((evento) => { const d = diaDoLancamento(evento.data_lancamento); return d != null && d <= hoje; }) : [];
       const vigente = selecionarUltimoEventoDoPonto(ponto, naoFuturos);
-      const taxas = [positivoOuNulo(ultimo.consumo_esperado_pv_kg), positivoOuNulo(vigente?.consumo_esperado_pv_kg)].filter((taxa) => taxa != null);
+      const taxaFutura = positivoOuNulo(ultimo.consumo_esperado_pv_kg);
+      const taxaVigente = positivoOuNulo(vigente?.consumo_esperado_pv_kg);
+      const taxas = [taxaFutura, taxaVigente].filter((taxa) => taxa != null);
       n.taxaRegistradaKgDia = taxas.length ? Math.max(.../** @type {number[]} */ (taxas)) : null;
+      // Cada ciclo com o próprio produto (o futuro pode ser de outro produto).
+      n.consumosParaDeposito = [
+        ...(vigente && taxaVigente != null ? [{ evento: vigente, taxaKgDia: taxaVigente, dia: /** @type {string} */ (diaDoLancamento(vigente.data_lancamento)) }] : []),
+        ...(taxaFutura != null ? [{ evento: ultimo, taxaKgDia: taxaFutura, dia: /** @type {string} */ (hoje) }] : []),
+      ];
     }
     n.rotuloCurto = 'Lançamento futuro';
     n.mensagem = `Lançamento com data futura (${formatarDia(dia)}); a estimativa começa nessa data.`;
@@ -805,6 +838,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
   n.baseCicloKg = base;
   const taxa = positivoOuNulo(ultimo.consumo_esperado_pv_kg);
   n.taxaRegistradaKgDia = taxa;
+  n.consumosParaDeposito = taxa != null ? [{ evento: ultimo, taxaKgDia: taxa, dia }] : [];
   const ciclo = taxa != null ? { dia, base, taxa } : null;
   const compartilhamento = ciclo ? compartilhamentoDoCocho(ponto, ultimo, eventos, pontos, hojeValido ? hoje : null) : { compartilhadoCom: [], conjunto: null };
   const dias = hojeValido ? diasEntre(dia, hoje) : null;
@@ -934,11 +968,10 @@ export function projecaoDoCartaoDoNivel(nivel) {
  */
 export function consumoDiarioDosRebanhos(itens) {
   const candidatos = (Array.isArray(itens) ? itens : [])
-    .filter(({ nivel }) => (nivel?.estado === 'ciclo_aberto' || nivel?.estado === 'lancamento_futuro') && nivel.taxaRegistradaKgDia != null && nivel.taxaRegistradaKgDia > 0)
-    .map(({ ponto, nivel }) => {
-      const dia = nivel.dataLancamento ?? '';
-      return { areas: new Set(areasDoPonto(ponto)), nivel, dia: nivel.hoje && dia > nivel.hoje ? nivel.hoje : dia, taxa: /** @type {number} */ (nivel.taxaRegistradaKgDia) };
-    });
+    .filter(({ nivel }) => nivel?.estado === 'ciclo_aberto' || nivel?.estado === 'lancamento_futuro')
+    .flatMap(({ ponto, nivel }) => (nivel.consumosParaDeposito || [])
+      .filter((consumo) => consumo.taxaKgDia > 0)
+      .map((consumo) => ({ areas: new Set(areasDoPonto(ponto)), evento: consumo.evento, dia: nivel.hoje && consumo.dia > nivel.hoje ? nivel.hoje : consumo.dia, taxa: consumo.taxaKgDia })));
   candidatos.sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || (b.areas.size - a.areas.size) || (b.taxa - a.taxa));
   /** @type {{ areas: Set<string>, evento: any, contribuicao: number }[]} */
   const contados = [];
@@ -949,7 +982,7 @@ export function consumoDiarioDosRebanhos(itens) {
       const cobertas = new Set();
       let somaQueCobre = 0;
       for (const contado of contados) {
-        if (!mesmoProduto(contado.evento, candidato.nivel.evento)) continue;
+        if (!mesmoProduto(contado.evento, candidato.evento)) continue;
         if (![...contado.areas].some((area) => candidato.areas.has(area))) continue;
         for (const area of contado.areas) cobertas.add(area);
         somaQueCobre += contado.contribuicao;
@@ -957,7 +990,7 @@ export function consumoDiarioDosRebanhos(itens) {
       if ([...candidato.areas].every((area) => cobertas.has(area))) contribuicao = Math.max(0, candidato.taxa - somaQueCobre);
     }
     total += contribuicao;
-    contados.push({ areas: candidato.areas, evento: candidato.nivel.evento, contribuicao });
+    contados.push({ areas: candidato.areas, evento: candidato.evento, contribuicao });
   }
   return total;
 }
