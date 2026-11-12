@@ -1,3 +1,14 @@
+/**
+ * GUIA DO DEPÓSITO
+ * CORPO: caminho SVG que recorta o preenchimento.
+ * MODELO: desenho estático; mantenha CORPO e o path id="corpo" iguais ao trocar o SVG.
+ * criarSvgDeposito: escolhe as cores, a espessura e a posição do nível.
+ * O mapa usa COCHO_APARENCIA.marcador; o subícone usa a paleta subicone,
+ * com contorno próprio em #a6afb6 (campo cor na variável estilo).
+ * O preenchimento usa estilo.sal. A proporção mais larga fica em desenhoAjustado.
+ * A bolinha vem de envolverMarcadorSvg, compartilhada com o cocho.
+ * Instruções de edição e publicação: README.md nesta pasta.
+ */
 import { COCHO_APARENCIA, envolverMarcadorSvg } from "./cocho-descoberto";
 
 const CORPO = "M19 39C19 27 40 20 69 20S119 28 119 39V147C119 162 99 171 69 171S19 162 19 147Z";
