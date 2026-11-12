@@ -6291,6 +6291,8 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
    - data inválida;
    - período fechado (saldo = sobra informada no fechamento, sem recalcular).
 4. **Cochos compartilhados.** Se outro cocho ativo nas mesmas áreas está com ciclo aberto do MESMO produto, a estimativa é marcada como não confiável, porque o consumo gravado conta o rebanho inteiro em cada cocho. Não há rateio inventado (50/50).
+   - **Critério de tempo.** Um ciclo só fecha quando chega um lançamento novo, então um cocho que parou de ser abastecido ficaria "aberto" para sempre. Por isso dois ciclos abertos só contam como compartilhados quando as janelas estimadas se cruzam: [lançamento, esgotamento pela taxa gravada) de cada um. Se o outro cocho não tem taxa, a janela dele usa a taxa deste (os dois contam o mesmo rebanho). Outro cocho sem data válida não conta. Como a taxa gravada é a do rebanho inteiro, essa janela é a duração MÍNIMA do ciclo.
+   - **Aviso do conjunto.** Num cocho compartilhado, o ícone fica neutro. Mas, quando nem a soma das bases do grupo, consumida pela menor taxa do grupo a partir do último lançamento, ainda teria produto, o alerta crítico `cocho_sem_produto` volta: "A cobertura estimada dos N cochos que atendem estes animais foi esgotada."
 5. **Limite operacional.** `capacidade_cocho_kg` passa a ser lido e rotulado como o máximo recomendado pelo proprietário, que pode ser menor que a capacidade física. A capacidade física não é armazenada.
    - **Cocho:** o detalhe mostra dois medidores:
      - restante do ciclo;
@@ -6301,9 +6303,27 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 7. **Depósito sem consumo no tempo.** O depósito só muda por transações de estoque. O consumo do cocho é estimativa e nunca baixa o depósito de novo.
    - Produtos em litros continuam fora do saldo em kg (D-PROD-162 P-11), inclusive nos alertas.
    - Unidade não confirmada é avisada.
-8. **Alertas por ponto.** Os alertas de cocho e depósito passam a usar a fonte única, mantendo tipos e textos existentes, mais `cocho_acima_limite` e `deposito_acima_limite`. Sem estimativa não há "cocho sem produto". Os alertas por lote (`suplementacao_pendente`) não mudam neste slice.
+8. **Alertas por ponto.** Os alertas de cocho e depósito passam a usar a fonte única, mais `cocho_acima_limite` e `deposito_acima_limite`.
+   - Tipos, títulos e severidades existentes são mantidos. Nas descrições, só o formato numérico passou a pt-BR ("1.0" → "1", "0.5" → "0,5", "1234 kg" → "1.234 kg").
+   - Os textos de excesso trazem o saldo e o excesso: "Saldo de 600 kg, 300 kg acima do limite operacional (200%)." e "Sobra informada de 30 kg, 10 kg acima do limite operacional (150%).".
+   - Sem estimativa não há "cocho sem produto", exceto o aviso do conjunto do item 4.
+   - Os alertas por lote (`suplementacao_pendente`) não mudam neste slice.
+9. **Cartão do lançamento (detalhe e Histórico).** O cartão de métricas do ÚLTIMO lançamento recebe a projeção do nível (`projecaoDoCartaoDoNivel`), igual no detalhe e no Histórico. Assim os dois mostram a mesma duração e a mesma próxima reposição, e nenhum refaz a conta.
+   - **Ciclo aberto sem estimativa confiável** (sem %PV ou compartilhado): duração e reposição ficam "-".
+   - **Período fechado:** o cartão mostra o que ficou gravado (esperado × real). A base do período é reconstituída pela fórmula do próprio fechamento: consumo real/dia × dias + sobra final, porque consumo = fornecido + sobra inicial − sobra final. Antes ela era fornecido + sobra FINAL, que estava errado. Sem consumo real gravado, a base é desconhecida ("-"). Isso só muda o que aparece no cartão: nada é gravado e a regra de consumo real não muda.
+   - **Lançamentos sem projeção do nível** (os anteriores ao último) usam a mesma regra do SSOT: duração = base ÷ taxa sem arredondar e reposição = lançamento + ⌈base ÷ taxa⌉.
+10. **Textos e formulários.**
+    - **Linha do ciclo:** "150 kg de 200 kg". O percentual aparece uma vez só, sob o ícone.
+    - **Medidor de limite:** "<saldo> de <limite> · <excesso> acima do limite", e para o leitor de tela "X% do limite operacional: …".
+    - **Estados neutros:** dizem o próximo passo ("Configure o limite operacional no cadastro do ponto.", "Cadastre o %PV do produto; a estimativa volta no próximo lançamento.").
+    - **Detalhe do cocho:** os rótulos de consumo por cabeça passam a ser "Consumo mín./cab/dia" e "Consumo máx./cab/dia".
+    - **Coluna do Cadastro do Mapa:** "Limite op. (kg) / Capac. (L)". O id da coluna e os dados não mudam.
+    - **Formulário do ponto:** quando o estoque mínimo é igual ou maior que o limite operacional, mostra um AVISO junto ao campo. O aviso não bloqueia o salvar: a regra de cadastro não muda.
+    - **Formulário de lançamento:** a data padrão segue o dia civil da fazenda (mesmo fuso do nível). Uma data escolhida pela pessoa não é trocada, e o payload não muda.
 
 **Fora do escopo:** backend, migration, Prisma, saldos, FIFO, lançamento, fechamento, permissões, rateio entre cochos e histórico do limite.
+
+**Estado:** implementada na PR #250 (rascunho), na branch `claude/new-session-abgn5w`. Não tem migration nem mudança no backend. A release é merge e deploy do front, depois da auditoria do arquiteto.
 
 **Relatório:** [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md).
 
