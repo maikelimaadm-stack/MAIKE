@@ -104,7 +104,7 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
   const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
   const capacidadeDeposito = Number(deposito.capacidade_cocho_kg || 0);
   const necessidadeReposicao = capacidadeDeposito > 0 ? Math.max(capacidadeDeposito - saldoAtual, 0) : 0;
-  const percent = capacidadeDeposito > 0 ? clamp(saldoAtual / capacidadeDeposito) : clamp(saldoAtual > 0 ? 1 : 0);
+  const percent = estoqueMinimo > 0 ? clamp(saldoAtual / estoqueMinimo) : 0;
   const isCritical = estoqueMinimo > 0 && saldoAtual <= estoqueMinimo;
 
   return {
@@ -116,9 +116,9 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     necessidadeReposicao,
     isCritical,
     badgeLabel: `${Math.round(percent * 100)}%`,
-    helperLabel: capacidadeDeposito > 0
-      ? `${formatKg(saldoAtual)} de ${formatKg(capacidadeDeposito)} de capacidade`
-      : `${formatKg(saldoAtual)} disponíveis`,
+    helperLabel: estoqueMinimo > 0
+      ? `${formatKg(saldoAtual)} disponíveis; mínimo de ${formatKg(estoqueMinimo)}`
+      : `${formatKg(saldoAtual)} disponíveis; estoque mínimo não configurado`,
     latestRecord: ultimoRegistro,
   };
 }

@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { COCHO_DESCOBERTO_SVG } from "@/assets/icones/cocho-descoberto";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 const TIPOS_ENTIDADE = [
@@ -129,6 +130,20 @@ export default function GerenciadorIcones() {
       toast.success('✅ Imagem carregada!');
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Não foi possível carregar a imagem.'));
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const usarCochoModelo = async () => {
+    setUploadingFile(true);
+    try {
+      const arquivo = new File([COCHO_DESCOBERTO_SVG], "cocho-descoberto.svg", { type: "image/svg+xml" });
+      const url = await enviarArquivo(arquivo);
+      setFormData((anterior) => ({ ...anterior, icone_url: url }));
+      toast.success("Modelo carregado. Salve o cadastro para aplicar.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar o modelo de cocho."));
     } finally {
       setUploadingFile(false);
     }
@@ -328,6 +343,11 @@ export default function GerenciadorIcones() {
               <div className="space-y-1">
                 <Label className="text-xs">Ícone Principal (Mapa)</Label>
                 <p className="text-xs text-slate-500">Imagens ou SVG vetorial estático (SVG até 512 KB).</p>
+                {formData.tipo_entidade === "Ponto" && formData.categoria.trim().toUpperCase() === "COCHO" && (
+                  <Button type="button" variant="outline" size="sm" disabled={uploadingFile} onClick={usarCochoModelo}>
+                    Usar modelo de cocho SVG
+                  </Button>
+                )}
                 <div className="flex gap-2">
                   <Input
                     type="file"
@@ -362,6 +382,11 @@ export default function GerenciadorIcones() {
               <div className="space-y-1">
                 <Label className="text-xs">Sub Ícone (Informações/Detalhes)</Label>
                 <p className="text-xs text-slate-500">Imagens ou SVG vetorial estático (SVG até 512 KB).</p>
+                {formData.tipo_entidade === "Ponto" && formData.categoria.trim().toUpperCase() === "COCHO" && (
+                  <Button type="button" variant="outline" size="sm" disabled={uploadingFile} onClick={usarCochoModelo}>
+                    Usar modelo de cocho SVG
+                  </Button>
+                )}
                 <div className="flex gap-2">
                   <Input
                     type="file"

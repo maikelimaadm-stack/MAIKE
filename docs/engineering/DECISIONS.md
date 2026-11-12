@@ -6248,4 +6248,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - o instantâneo do seletor da Gestão (`seletorPaginadoCriarNovo`) só troca a classe do campo.
 - **Evidência:** relatório [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md); imagens em `docs/engineering/evidencias/fontes-d175/`.
 
-<!-- Próxima decisão: D-PROD-176 -->
+## D-PROD-176 — Ícones vetoriais com nível para cochos e depósitos
+
+**Data:** 2026-11-11.
+
+**Decisão:** os marcadores de cochos e depósitos usam a mesma bolinha branca, borda cinza suave e ponteira arredondada, menores que os marcadores de lotes. O preenchimento cinza ondulado indica o nível; os subícones têm cores mais claras. Depósito usa o SVG cilíndrico fornecido pelo proprietário, mais largo e baixo, sem linhas internas nem sacos.
+
+- **Cocho:** o detalhe usa saldo estimado / capacidade física quando cadastrada; sem capacidade, saldo / disponível inicial do ciclo, com a referência informada. O marcador mantém o indicador de consumo existente. Não altera o cálculo diário de consumo nem lançamentos; o detalhe reavalia a passagem do dia enquanto aberto.
+- **Depósito:** o nível usa saldo em kg / estoque mínimo cadastrado, limitado visualmente a 100%; o detalhe informa o percentual real sobre o mínimo, inclusive acima de 100%. Sem mínimo, informa a falta da configuração. Produtos em litros permanecem fora do indicador em kg; a capacidade continua sendo usada para calcular a necessidade de reposição.
+- **Cadastro e filtro:** o gerenciador oferece o SVG estático de cocho pelo upload existente, sem salvar automaticamente. Depósitos continuam na camada e no filtro existentes. Sem migration nem cadastro automático em produção.
+- **Validação:** testes de nível vetorial, estoque mínimo, isolamento de produtos em litros, renderização do mapa, compilação, integridade de imports e catraca de tipos.
+
+<!-- Próxima decisão: D-PROD-177 -->

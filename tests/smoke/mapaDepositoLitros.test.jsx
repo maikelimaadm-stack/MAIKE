@@ -54,13 +54,27 @@ describe('DEP-1/DEP-2 — indicador do depósito', () => {
   it('ração KG + diesel L no mesmo local: saldo, %, alerta e último registro só do KG', () => {
     const ind = getDepositoIndicator(DEPOSITO, [], [], LOTES, MOVS, [RACAO, DIESEL]);
     expect(ind.saldoAtual).toBe(250);
-    expect(ind.percent).toBe(0.25);
-    expect(ind.badgeLabel).toBe('25%');
+    expect(ind.percent).toBeCloseTo(250 / 300);
+    expect(ind.badgeLabel).toBe('83%');
     expect(ind.isCritical).toBe(true);
     expect(ind.necessidadeReposicao).toBe(750);
     expect(ind.latestRecord?.id).toBe('m1');
     // Sem saber dos produtos (chamada antiga), o diesel entraria no saldo: é por isso que o Mapa passa `produtos`.
     expect(getDepositoIndicator(DEPOSITO, [], [], LOTES, MOVS).saldoAtual).toBe(5250);
+  });
+
+  it('usa o mínimo, ignora a capacidade no nível e trata vazio, acima do mínimo e sem configuração', () => {
+    const base = { ...DEPOSITO, estoque_minimo_kg: 1000, capacidade_cocho_kg: 9000 };
+    const ind = (qtd, deposito = base) => getDepositoIndicator(deposito, [], [], [lote('l1', RACAO, qtd)], [], [RACAO]);
+    expect(ind(500).percent).toBe(.5);
+    expect(ind(500, { ...base, capacidade_cocho_kg: 20000 }).percent).toBe(.5);
+    expect(ind(0).percent).toBe(0);
+    expect(ind(1000).percent).toBe(1);
+    expect(ind(2000).percent).toBe(1);
+    expect(ind(1000).isCritical).toBe(true);
+    expect(ind(1001).isCritical).toBe(false);
+    expect(ind(500, { ...base, estoque_minimo_kg: 0 }).percent).toBe(0);
+    expect(ind(500).helperLabel).toContain('mínimo');
   });
 
   it('sem Produto em L: resultado idêntico ao da chamada antiga (sem `produtos`)', () => {

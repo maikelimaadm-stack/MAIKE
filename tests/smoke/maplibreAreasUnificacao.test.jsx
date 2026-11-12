@@ -156,7 +156,7 @@ describe("V — visualização das áreas cadastradas", () => {
     ];
     expect(resolverIconeLote([{ categoria: "boi" }], icones).iconUrl).toBe("u://boi");
     expect(resolverIconeLote([{ categoria: "boi" }, { categoria: "VACA" }], icones).iconUrl).toBe("u://misto");
-    expect(resolverIconeSuplementacao({ categoria_ponto: "DEPOSITO" }, [{ tipo_entidade: "Ponto", categoria: "cocho", icone_url: "u://c" }]).iconUrl).toBe("u://c");
+    expect(resolverIconeSuplementacao({ categoria_ponto: "DEPOSITO" }, [{ tipo_entidade: "Ponto", categoria: "cocho", icone_url: "u://c" }]).iconUrl).toMatch(/^data:image\/svg\+xml/);
   });
 
   it("ícone sem achatar; bounds e visão salva zero-safe", () => {
