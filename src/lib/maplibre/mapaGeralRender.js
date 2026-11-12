@@ -1,3 +1,4 @@
+import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 /**
  * Mapa Geral sobre MapLibre — helpers puros (D-PROD-65).
  *
@@ -356,10 +357,10 @@ export function resolverIconePonto(ponto, iconesConfig = []) {
 }
 
 export function resolverIconeSuplementacao(ponto, iconesConfig = []) {
-  const categoria = norm(ponto.categoria_ponto || ponto.tipo || "COCHO");
+  const categoria = normAcento(ponto.categoria_ponto || ponto.tipo || "COCHO");
   const doTipo = (cat) => iconesConfig.find((ic) => ic.tipo_entidade === "Ponto" && norm(ic.categoria) === cat);
   const cfg = doTipo(categoria) || doTipo(norm(ponto.tipo)) || doTipo("COCHO");
-  return { iconUrl: categoria.includes("COCHO") ? urlIconeCocho(ponto.indicador_percentual, true) : cfg?.icone_url || null, cor: cfg?.cor_padrao || "#10b981", categoria };
+  return { iconUrl: categoria.includes("COCHO") ? urlIconeCocho(ponto.indicador_percentual, true) : categoria.includes("DEPOSITO") ? urlIconeDeposito(ponto.indicador_percentual, true) : cfg?.icone_url || null, cor: cfg?.cor_padrao || "#10b981", categoria };
 }
 
 export function resolverIconeLote(lotesNaArea, iconesConfig = []) {

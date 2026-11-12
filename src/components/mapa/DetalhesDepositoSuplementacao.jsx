@@ -1,7 +1,7 @@
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import React, { useMemo, useState } from "react";
 import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
-import { listarPontosSuplementacaoAtivos, listarAreasAtivas, listarIconesPorTipoEntidade } from "@/services/mapaService";
+import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/mapaService";
 import { listarTodosLotes } from "@/services/loteManejoService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
 import HistoricoDepositoSuplementacao from "../suplementacao/HistoricoDepositoSuplementacao";
-import PontoPercentIcon from "./PontoPercentIcon";
+import DepositoNivel from "./DepositoNivel";
 import { formatDecimal, formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
@@ -45,15 +45,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 5 * 60 * 1000
-  });
-
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ["configuracao-icones-deposito-detalhe", empresaSelecionadaId],
-    queryFn: async () => {
-      return listarIconesPorTipoEntidade("Ponto");
-    },
-    enabled: !!empresaSelecionadaId,
-    staleTime: 10 * 60 * 1000
   });
 
   const { data: pontosSuplementacao = [], isLoading: loadingCochos } = useQuery({
@@ -117,22 +108,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos);
   }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos]);
 
-  const iconePonto = useMemo(() => {
-    const categoriaPonto = normalizeText(deposito?.categoria_ponto || "");
-    const nomePonto = normalizeText(deposito?.nome_ponto || "");
-
-    return iconesConfig.find((item) => {
-      const categoriaIcone = normalizeText(item.categoria || "");
-      if (categoriaIcone === categoriaPonto) return true;
-      if (categoriaPonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
-      if (categoriaPonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
-      if (nomePonto.includes("DEPOSITO") && categoriaIcone === "DEPOSITO") return true;
-      if (nomePonto.includes("COCHO") && categoriaIcone === "COCHO") return true;
-      return false;
-    });
-  }, [iconesConfig, deposito?.categoria_ponto, deposito?.nome_ponto]);
-  const subIconePonto = iconePonto?.sub_icone_url || iconePonto?.icone_url || "";
-
   const ultimoRegistro = indicador.latestRecord;
   const totalSaldoSacos = useMemo(() => saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
   const ultimoProduto = useMemo(() => {
@@ -181,11 +156,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
           <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
             <div className="flex items-center gap-3">
-              <PontoPercentIcon
-                  imageUrl={subIconePonto}
-                  label={deposito.categoria_ponto || "Depósito"}
-                  percent={indicador?.percent || 0}
-                  fillClassName={indicador?.isCritical ? "bg-red-500" : "bg-lime-400"} />
+              <DepositoNivel percent={indicador.percent} estoqueMinimo={indicador.estoqueMinimo} saldoAtual={indicador.saldoAtual} />
 
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">

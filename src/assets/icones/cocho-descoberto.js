@@ -62,9 +62,14 @@ export function criarSvgCocho(percent = 0, marcador = false) {
   const pes = forma.pes.map(pe => `<path d="${pe.d}" transform="${pe.transform}" fill="${aparencia.cor}"/>`).join("");
   const desenho = `<defs><clipPath id="interior"><path d="${forma.corpo}"/></clipPath></defs>${pes}${fracao > 0 ? `<path d="${preenchimento}" fill="${aparencia.sal}" clip-path="url(#interior)"/>` : ""}<path d="${forma.corpo}" fill="none" stroke="${aparencia.cor}" stroke-width="${aparencia.espessura}" stroke-linecap="round" stroke-linejoin="round"/>`;
   if (!marcador) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${forma.viewBox}" width="${forma.width}" height="${forma.height}">${desenho}</svg>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72" width="64" height="72"><path fill="#fff" stroke="#bbb7b7" stroke-width="1" stroke-linejoin="round" d="M32 2 A29 29 0 0 1 41.6747 58 C 39.4043 58 39.4043 58 38.4187 58.8272 L 38.2427 59.056 C 38.2075 59.1088 38.2075 59.1088 38.0139 59.32 L 37.7851 59.6016 L 37.5387 59.9008 C 36.7819 60.816 36.0779 61.7664 35.4091 62.7344 C 34.7227 63.6496 33.9835 64.5648 32.8747 64.9344 C 32.4875 64.9872 32.4875 64.9872 32.0475 65.0048 C 31.9067 65.0048 31.7659 65.0048 31.6251 65.0224 C 30.2347 64.8112 29.4251 64.0368 28.5979 62.9456 C 28.5099 62.8224 28.4043 62.6992 28.2987 62.576 A 53.152 53.152 0 0 1 26.8907 60.6752 C 26.8203 60.552 26.7323 60.4288 26.6443 60.3232 C 26.4859 60.0944 26.3275 59.8656 26.1867 59.6368 C 25.6235 58.8272 25.0251 58.3872 24.0747 58.0704 C 23.3179 57.9824 22.5787 57.9824 21.8043 57.9824 A29 29 0 0 1 32 2 Z"/><svg x="10" y="15" width="44" height="33" viewBox="${forma.viewBox}">${desenho}</svg></svg>`;
+  return envolverMarcadorSvg(desenho, forma.viewBox);
 }
 
 export function urlIconeCocho(percent = 0, marcador = false) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(criarSvgCocho(percent, marcador))}`;
+}
+
+/** Moldura comum: mesma ponteira, tamanho e borda em todos os pontos. */
+export function envolverMarcadorSvg(desenho, viewBox, x = 10, y = 15, width = 44, height = 33) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72" width="64" height="72"><path fill="#fff" stroke="#bbb7b7" stroke-width="1" stroke-linejoin="round" d="M32 2 A29 29 0 0 1 41.6747 58 C 39.4043 58 39.4043 58 38.4187 58.8272 L 38.2427 59.056 C 38.2075 59.1088 38.2075 59.1088 38.0139 59.32 L 37.7851 59.6016 L 37.5387 59.9008 C 36.7819 60.816 36.0779 61.7664 35.4091 62.7344 C 34.7227 63.6496 33.9835 64.5648 32.8747 64.9344 C 32.4875 64.9872 32.4875 64.9872 32.0475 65.0048 C 31.9067 65.0048 31.7659 65.0048 31.6251 65.0224 C 30.2347 64.8112 29.4251 64.0368 28.5979 62.9456 C 28.5099 62.8224 28.4043 62.6992 28.2987 62.576 A 53.152 53.152 0 0 1 26.8907 60.6752 C 26.8203 60.552 26.7323 60.4288 26.6443 60.3232 C 26.4859 60.0944 26.3275 59.8656 26.1867 59.6368 C 25.6235 58.8272 25.0251 58.3872 24.0747 58.0704 C 23.3179 57.9824 22.5787 57.9824 21.8043 57.9824 A29 29 0 0 1 32 2 Z"/><svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${viewBox}">${desenho}</svg></svg>`;
 }
