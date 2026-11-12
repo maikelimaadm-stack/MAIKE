@@ -144,6 +144,7 @@ describe('calcularNivelCocho — ciclo aberto estimado', () => {
     expect(n.fracaoLimiteSvg).toBe(0.5);
     expect(n.fracaoParaSvg).toBe(0.67);
     expect(n.rotuloCurto).toBe('67%');
+    expect(n.descricao).toContain('60 kg de 90 kg (67%)');
     expect(n.ocupacaoNoLancamentoPercentual).toBe(75);
     expect(n.excessoNoLancamentoKg).toBe(0);
     expect(n.alertas).toEqual([]);
@@ -522,7 +523,7 @@ describe('calcularNivelDeposito', () => {
     const n = calcularNivelDeposito({ deposito: { ...DEP, capacidade_cocho_kg: 3 }, estoqueLotes: [lote(1)], produtos: [RACAO] });
     expect(n.ocupacaoPercentual).toBeCloseTo(33.333333, 5);
     expect(n.fracaoParaSvg).toBe(0.33);
-    expect(n.rotuloCurto).toBe('33%');
+    expect(n.rotuloCurto).toBe('33,33%');
   });
 
   it('depósito sem local de estoque não soma lote nenhum', () => {

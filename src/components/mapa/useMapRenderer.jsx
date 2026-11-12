@@ -8,6 +8,7 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
+  descreverMarcadorSuplementacao,
   escalaRotulo,
   escolherModoRotulos,
   pontoEFolga,
@@ -129,6 +130,48 @@ function aplicarCorpo(el, { iconUrl, baseSize, cor, raio = 20, forma = "circulo"
   };
   img.src = iconUrl;
   corpo.appendChild(img);
+}
+
+/**
+ * Cores do selo do cocho/depósito (D-PROD-178): "?" cinza (nível neutro) e
+ * "!" âmbar (depósito acima do limite). Contraste do texto ≥ 4,5:1.
+ */
+const CORES_SELO_SUPLEMENTACAO = Object.freeze({
+  neutro: { fundo: "#6b7280", texto: "#ffffff" },
+  excesso: { fundo: "#f59e0b", texto: "#1f2937" },
+});
+
+/**
+ * Título, `aria-label` e selo do marcador de cocho/depósito. O `aria-label`
+ * precisa existir antes do `addTo` (sem ele o MapLibre põe "Map marker"). O
+ * selo é decorativo (`aria-hidden`): o que ele diz já está no `aria-label`.
+ * Só recria o selo quando o tipo muda.
+ * @param {any} entry
+ * @param {string} titulo
+ * @param {null | { tipo: "neutro" | "excesso", texto: string }} selo
+ */
+function aplicarTextoESeloSuplementacao(entry, titulo, selo) {
+  const el = entry.el;
+  el.title = titulo;
+  if (titulo) el.setAttribute("aria-label", titulo);
+  else el.removeAttribute("aria-label");
+
+  const tipo = selo?.tipo ?? null;
+  if ((entry.selo?.dataset?.selo ?? null) === tipo) return;
+  entry.selo?.remove();
+  entry.selo = null;
+  if (!selo) return;
+  const cores = CORES_SELO_SUPLEMENTACAO[selo.tipo];
+  const s = document.createElement("span");
+  s.className = "mg-supl-selo";
+  s.dataset.selo = selo.tipo;
+  s.setAttribute("aria-hidden", "true");
+  s.textContent = selo.texto;
+  // Canto de cima à direita do ícone de 36 px, fora do fluxo: não mexe na âncora.
+  s.style.cssText =
+    `position:absolute;left:calc(50% + 13px);top:calc(50% - 14px);transform:translate(-50%,-50%);width:16px;height:16px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${cores.fundo};color:${cores.texto};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
+  el.appendChild(s);
+  entry.selo = s;
 }
 
 function removerMarcador(entry) {
@@ -636,24 +679,35 @@ export default function useMapRenderer(mapInstanceRef) {
         const c = parseVertex(ponto.coordenadas);
         if (!c) continue;
         const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
+        // Nível no marcador (D-PROD-178): texto do SSOT no title/aria-label e selo.
+        const { titulo, selo } = descreverMarcadorSuplementacao(ponto);
         const baseSize = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? 36 : 40;
+        const corpoChave = JSON.stringify([iconUrl, baseSize, cor]);
         const key = prefix + ponto.id;
         const ref = { ponto };
         itens.push({
           key,
           lngLat: [c.lng, c.lat],
-          estado: JSON.stringify([c.lat, c.lng, ponto.nome_ponto, iconUrl, categoria]),
+          // Título e selo entram no diff: quando o nível muda (virada do dia,
+          // lançamento, estoque) o MESMO marcador acompanha.
+          estado: JSON.stringify([c.lat, c.lng, iconUrl, categoria, titulo, selo?.tipo ?? null]),
           criar: () => {
-            const entry = criarMarcadorClicavel({ iconUrl, baseSize, cor, titulo: ponto.nome_ponto }, () => {
+            const entry = criarMarcadorClicavel({ iconUrl, baseSize, cor, titulo }, () => {
               const p = markersRef.current.get(key)?.ultimo?.ref?.ponto || ponto;
               onClick?.(p);
             });
             entry.marker.getElement().style.zIndex = "500";
+            entry.corpoChave = corpoChave;
+            aplicarTextoESeloSuplementacao(entry, titulo, selo);
             return entry;
           },
           atualizar: (entry) => {
-            entry.el.title = String(ponto.nome_ponto || "");
-            aplicarCorpo(entry.el, { iconUrl, baseSize, cor });
+            // Só o que mudou: trocar o <img> sem necessidade faz o ícone piscar.
+            if (entry.corpoChave !== corpoChave) {
+              aplicarCorpo(entry.el, { iconUrl, baseSize, cor });
+              entry.corpoChave = corpoChave;
+            }
+            aplicarTextoESeloSuplementacao(entry, titulo, selo);
           },
           ref,
         });

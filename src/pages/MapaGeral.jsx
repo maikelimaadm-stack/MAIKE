@@ -39,6 +39,8 @@ import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
 import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { listEmpresas } from "@/services/empresaService";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis, preferenciaAplicada } from "@/lib/mapaGeralFiltrosStorage";
 import { useAuth } from "@/lib/AuthContext";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
@@ -102,7 +104,24 @@ export default function MapaGeral() {
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
 
-
+  // ─── Dia civil da FAZENDA (D-PROD-178) ───
+  // O nível do cocho conta dias civis no fuso da fazenda (`Empresa.fuso_horario`)
+  // e vira sozinho à meia-noite NAQUELE fuso (um timer de módulo, sem refetch).
+  // Mesmo resumo de empresas do Layout (cache compartilhado). Empresa sem fuso
+  // configurado: relógio do navegador (`hojeNoFuso(null)`).
+  const empresasQuery = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => listEmpresas(),
+    enabled: Boolean(empresaSelecionadaId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
+  const fusoFazenda = useMemo(() => {
+    const lista = Array.isArray(empresasQuery.data) ? empresasQuery.data : [];
+    const empresa = lista.find((e) => String(e?.id) === String(empresaSelecionadaId));
+    return typeof empresa?.fuso_horario === 'string' && empresa.fuso_horario ? empresa.fuso_horario : null;
+  }, [empresasQuery.data, empresaSelecionadaId]);
+  const hoje = useDiaCivil(fusoFazenda);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -402,8 +421,9 @@ export default function MapaGeral() {
     pontosSuplementacao,
     eventosSupl,
     estoqueLotes,
-    produtos
-  }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos]);
+    produtos,
+    hoje
+  }), [lotes, pontosSuplementacao, eventosSupl, estoqueLotes, produtos, hoje]);
 
   const lotesComAlerta = useMemo(() => lotes.map((lote) => {
     const alertas = [...(alertasMapa.alertasLote.get(lote.id) || [])];
@@ -417,23 +437,33 @@ export default function MapaGeral() {
   const tiposPastagem = useMemo(() => [...new Set(areas.map((a) => a.tipo_pastagem).filter(Boolean))].sort(), [areas]);
   const sistemasProdutivos = useMemo(() => [...new Set(lotes.map((l) => l.sistema_produtivo).filter(Boolean))].sort(), [lotes]);
 
+  // Nível de cocho/depósito: SÓ o SSOT (D-PROD-178), no mesmo `hoje` dos
+  // alertas. `pontosSuplementacao` já são os ativos (detecção de cochos que
+  // atendem os mesmos animais). O marcador lê `indicador_*`; o SVG recebe a
+  // fração já quantizada em 1% (sem troca de ícone por variação de float).
   const pontosSuplementacaoDecorados = useMemo(() => {
     return pontosSuplementacao.map((ponto) => {
-      const indicadorBase = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
+      const indicadorDeposito = normalizeText(ponto.categoria_ponto || 'COCHO') === 'DEPOSITO' ?
       getDepositoIndicator(ponto, pontosSuplementacao, lotes, estoqueLotes, [], produtos) :
-      getCochoIndicator(ponto, eventosSupl);
+      null;
+      const indicadorBase = indicadorDeposito || getCochoIndicator(ponto, eventosSupl, { hoje, pontos: pontosSuplementacao });
+      const nivel = indicadorBase.nivel;
       const alertaInfo = alertasMapa.alertasPonto.get(ponto.id);
       const alertaPrincipal = alertaInfo?.alertas?.[0] || null;
 
       return {
         ...ponto,
-        indicador_percentual: indicadorBase.percent,
+        indicador_percentual: nivel.fracaoParaSvg,
+        indicador_neutro: nivel.neutro === true,
+        indicador_titulo: nivel.descricao,
+        indicador_alerta_excesso: Number(indicadorDeposito?.nivel.excessoKg) > 0,
+        nivel_suplementacao: nivel,
         indicador_helper: showAlertas ? alertaPrincipal?.descricao || indicadorBase.helperLabel : indicadorBase.helperLabel,
         ultimo_registro: indicadorBase.latestRecord,
         alertas_inteligentes: showAlertas ? alertaInfo?.alertas || [] : []
       };
     });
-  }, [pontosSuplementacao, lotes, estoqueLotes, produtos, eventosSupl, alertasMapa, showAlertas]);
+  }, [pontosSuplementacao, lotes, estoqueLotes, produtos, eventosSupl, alertasMapa, showAlertas, hoje]);
 
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {

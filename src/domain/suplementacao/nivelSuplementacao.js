@@ -430,7 +430,8 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
       n.neutro = false;
       n.fracaoParaSvg = quantizar(n.fracaoCiclo);
       n.rotuloCurto = `${Math.round(n.fracaoParaSvg * 100)}%`;
-      n.mensagem = `Restante estimado: ${formatarKgNivel(n.saldoKg)} de ${formatarKgNivel(base)} (${formatarPercentualNivel(n.fracaoCiclo * 100)}).`;
+      // Mesmo percentual do ícone e do rótulo (quantizado em 1%).
+      n.mensagem = `Restante estimado: ${formatarKgNivel(n.saldoKg)} de ${formatarKgNivel(base)} (${n.rotuloCurto}).`;
     } else {
       n.rotuloCurto = 'Sem quantidade';
       n.mensagem = MENSAGENS_NIVEL.cicloSemQuantidade;
@@ -595,7 +596,8 @@ export function calcularNivelDeposito({ deposito, estoqueLotes = [], produtos = 
     margemMinimoKg,
     mensagemMinimo,
     necessidadeReposicaoKg: limite != null ? Math.max(limite - saldoKg, 0) : 0,
-    rotuloCurto: ocupacaoPercentual != null ? `${Math.round(ocupacaoPercentual)}%` : 'Sem limite',
+    // Percentual BRUTO (pode passar de 100%), o mesmo número da descrição.
+    rotuloCurto: ocupacaoPercentual != null ? formatarPercentualNivel(ocupacaoPercentual) : 'Sem limite',
     descricao: juntarFrases(principal, abaixoMinimo ? mensagemMinimo : null),
     alertas,
   };
