@@ -1,4 +1,8 @@
 /*
+ * GUIA DE EDIÇÃO — POSIÇÃO DO MAPA: .mk-mapa-topo, .mk-mapa-dir, .mk-mapa-resumo, --mk-mapa-gap e --mk-mapa-alto. Confira também os overrides em mk-mapa-superficie.css.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
+/*
  * Mapa Geral v2 (D-PROD-132) — o mapa é a tela de entrada: sem cabeçalho do
  * sistema por cima, controles flutuantes em cartões brancos, ☰ abre o menu
  * lateral. Mesmo desenho no celular, tablet e computador.

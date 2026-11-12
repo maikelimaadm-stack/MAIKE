@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — CADASTRO DE ÍCONES: uploads e URLs salvos, por tipo/categoria. Não é a geometria dinâmica do cocho/depósito.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import React, { useState } from "react";
 import {
   ICONES_QUERY_KEY,

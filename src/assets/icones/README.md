@@ -68,3 +68,7 @@ npm run build
 ```
 
 Para uma alteração apenas de cor, mantenha as coordenadas e o cálculo do nível. Para trocar o formato, confira também os níveis cheio, intermediário e vazio, nos dois tamanhos.
+
+## Guia geral do mapa
+
+Para bois, letras, cores, posições de botões, filtros, catálogo oficial e ícones pré-definidos, consulte [Guia do mapa e dos ícones](../../../docs/design/GUIA-MAPA-E-ICONES.md).

@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — CORES DAS ÁREAS E DESENHO: paleta, divisas, opacidades e tamanhos dos pontos de edição.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 /**
  * Visual de polígonos/áreas no editor MapLibre (referência CONTROLE-DE-ESTOQUE).
  * Prefere preservar mudanças visuais paralelas futuras — estes são defaults M1.

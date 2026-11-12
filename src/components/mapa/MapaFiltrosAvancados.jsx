@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — OPÇÕES DO MAPA: filtros e camadasDoMapa. Preferências salvas ficam em mapaGeralFiltrosStorage.js.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
