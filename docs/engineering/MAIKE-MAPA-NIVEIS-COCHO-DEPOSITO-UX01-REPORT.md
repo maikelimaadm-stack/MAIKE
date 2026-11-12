@@ -25,9 +25,11 @@ Uma fonte única de cálculo, `src/domain/suplementacao/nivelSuplementacao.js`, 
   - O estoque mínimo é só o limiar inferior, com uma margem própria.
   - Os saldos reais aparecem por produto; produtos em L ficam fora do kg (P-11).
 - **Estados neutros**, com o próximo passo no texto, em vez de 0% ou 100% falsos: sem %PV, compartilhado, sem lançamento, data futura, data inválida, período fechado, sem limite.
-- **Cochos que dividem o rebanho.** Mesmo produto, mesmas áreas, ciclos que se sobrepõem no tempo, inclusive ciclos FECHADOS: ficam neutros, sem rateio 50/50 e sem dupla contagem.
+- **Cochos que dividem o rebanho.** Mesmo produto, mesmas áreas, ciclos que se sobrepõem no tempo: ficam neutros, sem rateio 50/50 e sem dupla contagem.
+  - Isso vale também quando o vizinho fechou o ciclo (gado saiu), trocou de produto ou tem um lançamento futuro.
   - Um cocho abandonado que se esgotou sozinho não contamina o vizinho.
-  - O aviso crítico do conjunto volta quando nem a soma do grupo teria produto.
+  - O aviso crítico do conjunto volta no limite superior do esgotamento.
+  - O índice da fazenda é montado uma vez e reaproveitado por todos os cochos: 150 cochos com 6.000 lançamentos levam cerca de 75 ms.
 - **Cobertura do depósito.** Uma taxa por rebanho.
 - **Alertas por ponto.** Vêm da mesma fonte, com tipos, títulos e severidades preservados, mais `cocho_acima_limite` e `deposito_acima_limite`. `alertasLote` não mudou.
 
@@ -94,13 +96,19 @@ Título do marcador no dia 11/11: "Restante estimado: 150 kg de 200 kg (75%). Us
 | sem lançamento | neutro, "Sem lançamento"; `cocho_sem_lancamento` (crítico) |
 | 2 cochos, mesma área e produto, mesmo dia | os dois neutros, "Estimativa não confiável: 2 cochos…"; o conjunto esgota em lançamento + Σ bases ÷ menor taxa, com crítico nesse dia |
 | reabastecimento escalonado (c1 e c2 em 01/11; c1 fechado e reaberto em 06/11) | os dois neutros, sem 0% falso; conjunto em 16/11 para os dois |
+| vizinho fechou o ciclo em 06/11 (gado saiu) depois de dividir o rebanho | neutro, sem alerta; conjunto = 06/11 + 200 ÷ 50 = 10/11 (crítico só a partir daí) |
+| vizinho trocou de produto em 05/11 | este cocho neutro; o vizinho estimado no produto novo |
+| vizinho com lançamento futuro (14/11) que encerra o ciclo de 08/11 | este cocho neutro em 12/11 (o ciclo atual do vizinho conta) |
+| produto por id e por nome (legado) misturados em 3 cochos | os três neutros, mesma data de conjunto, sem alerta |
 | cocho abandonado (01/08, esgotado sozinho) + ativo (10/11) | ativo estimado em 50%; abandonado em 0% com `cocho_sem_produto` |
 | 3 cochos encadeados por áreas (A–B em a1, B–C em a2) | grupo único, mesmo conjunto (18/11) para os três |
-| vizinho com lançamento futuro | não conta até o dia do lançamento |
+| vizinho cujo ÚNICO lançamento é futuro | não conta até o dia do lançamento |
 | outra fazenda | ignorada |
 | troca de produto no vizinho | não compartilha |
 | taxa absurda (0,000001 kg/dia) | não quebra; estimada sem data de esgotamento |
 | depósito com cocho abandonado + ativo, 150 kg | consumo 50 kg/dia (um rebanho), 3 dias, sem alerta |
+| depósito com c1[a1,a2] a 100 kg/dia + c2[a1] a 50, 150 kg | consumo 100 kg/dia (o subconjunto não reduz), 1,5 dia, `deposito_cobertura_baixa` |
+| depósito com cocho de lançamento futuro, 80 kg | consumo 50 kg/dia, 1,6 dia, alerta (o rebanho continua comendo) |
 
 ## 4. Ícones SVG
 
@@ -196,8 +204,8 @@ Capturas e dados ficam em [`evidencias/mapa-niveis-ux01/`](./evidencias/mapa-niv
 
 Todos estão registrados na D-PROD-178, itens 4 e 8 a 11.
 
-- **Critério de tempo do compartilhamento.** Janela mínima só quando o cocho esteve sozinho com o rebanho, ciclos fechados incluídos, e grupo transitivo. A primeira versão olhava só o último evento do vizinho e dava 0% falso com reabastecimento escalonado; foi corrigida.
-- **Cobertura do depósito por rebanho.** Inclui os compartilhados. O contrato dizia "Σ taxas estimadas".
+- **Critério de tempo do compartilhamento.** Janela mínima só quando o cocho esteve sozinho com o rebanho, ciclos fechados incluídos, e grupo transitivo. Ciclos externos (vizinho fechado, outro produto, lançamento futuro) também tiram a estimativa. As versões anteriores davam 0% falso com reabastecimento escalonado e com vizinho fechado ou que trocou de produto; foram corrigidas com teste RED → GREEN.
+- **Cobertura do depósito por rebanho.** Mais áreas primeiro; um subconjunto já coberto fica fora; sobreposição parcial entra. Inclui os compartilhados e os lançamentos futuros. O contrato dizia "Σ taxas estimadas".
 - **Cartão do período fechado.** Base reconstituída pelo fechamento, em vez de fornecido + sobra final, que estava errado. A "Duração estimada" de eventos fechados com sobra no Histórico muda (ex.: 5 → 4 dias).
 - **Textos.**
   - A linha do ciclo é "150 kg de 200 kg" (sem repetir o percentual).
@@ -211,7 +219,8 @@ Todos estão registrados na D-PROD-178, itens 4 e 8 a 11.
 
 ## 8. Riscos
 
-1. **Neutro prolongado.** Um cocho parado enquanto o vizinho do mesmo produto, nas mesmas áreas, continuava sendo reabastecido deixa os dois sem estimativa até um lançamento novo nele ou até ser desativado. É conservador: nunca mostra número falso. O texto do detalhe orienta.
+1. **Neutro prolongado.** Um cocho que dividiu o rebanho com outro do mesmo produto, nas mesmas áreas, fica sem estimativa até um lançamento novo nele ou até o outro ser desativado. Isso inclui o vizinho reabastecido, o vizinho que fechou o ciclo e o que trocou de produto. É conservador: nunca mostra número falso. O texto do detalhe orienta.
+1b. **Cobertura do depósito é aproximada.** Ela pode contar a mais em três casos: sobreposição parcial de áreas, rebanho atendido por dois depósitos e rebanho que mudou de área sem fechar o consumo. Contar a mais deixa a cobertura menor que a real: o alerta de reposição vem cedo, nunca tarde.
 2. **Limite sem histórico.** Mudar `capacidade_cocho_kg` muda o percentual de lançamentos antigos. Está documentado e aparece no detalhe.
 3. **Taxa gravada.** A estimativa depende do `consumo_esperado_pv_kg` gravado no lançamento. Lançamentos sem %PV ficam neutros, e isso pode aparecer em fazendas que não cadastraram %PV.
 4. **Histórico de eventos fechados.** A "Duração estimada" e a "Diferença" mudam, porque a base deixou de ser fornecido + sobra final.
