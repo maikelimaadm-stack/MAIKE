@@ -225,15 +225,15 @@
   "respostas_api_roteiro": [
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwd0tohm00077dqf9xhmpviy/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd2zai500077d0dse8ce5p3/confirmar → 200",
     "POST /suplementacao-eventos → 201",
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwd0u3v5000w7dqffx2kbsg5/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd2zqg6000w7d0dp5zfaet8/confirmar → 200",
     "POST /suplementacao-eventos → 201",
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwd0uc4r001l7dqfi6auzqcg/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd2zyvu001l7d0d9bozkgoe/confirmar → 200",
     "POST /suplementacao-eventos → 201"
   ],
   "falhas": []
