@@ -6,10 +6,13 @@ const MODELO = "<g id=\"pes\" fill=\"#555754\"><path d=\"M23 153H36V172L23 176ZM
 /** Usa o SVG fornecido, com preenchimento interno proporcional ao estoque mínimo. */
 export function criarSvgDeposito(percent = 0, marcador = false) {
   const fracao = Number.isFinite(percent) ? Math.max(0, Math.min(1, percent)) : 0;
-  const estilo = marcador ? COCHO_APARENCIA.marcador : { ...COCHO_APARENCIA.subicone, cor: "#a6afb6" };
+  const estilo = { ...COCHO_APARENCIA.subicone, cor: "#a6afb6" };
   const y = 167 - 112 * fracao;
   const onda = Math.min(3, fracao * 10);
-  const produto = fracao > 0 ? `<defs><clipPath id="interior-deposito"><path d="${CORPO}"/></clipPath></defs><path data-deposito-nivel="${Math.round(fracao * 100)}" d="M19 ${y} Q31 ${y - onda} 44 ${y} T69 ${y} T94 ${y} T119 ${y} V173 H19Z" fill="${estilo.sal}" clip-path="url(#interior-deposito)"/>` : "";
+  const escalaSacos = Math.min(1, Math.max(0, (167 - y - 3) / 46));
+  const saco = '<path d="M3 7Q5 1 12 1H26Q33 1 35 7L38 16Q38 21 32 22H6Q0 21 0 16Z"/><path d="M4 17Q19 14 34 17" fill="none"/>';
+  const sacos = fracao > 0 ? `<g data-deposito-sacos="" clip-path="url(#interior-deposito)"><g transform="translate(${69 - 40 * escalaSacos} ${164 - 46 * escalaSacos}) scale(${escalaSacos})" fill="#fafbfc" stroke="${estilo.cor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(0 24)">${saco}</g><g transform="translate(42 24)">${saco}</g><g transform="translate(21 0)">${saco}</g></g></g>` : "";
+  const produto = fracao > 0 ? `<defs><clipPath id="interior-deposito"><path d="${CORPO}"/></clipPath></defs><path data-deposito-nivel="${Math.round(fracao * 100)}" d="M19 ${y} Q31 ${y - onda} 44 ${y} T69 ${y} T94 ${y} T119 ${y} V173 H19Z" fill="${estilo.sal}" clip-path="url(#interior-deposito)"/>${sacos}` : "";
   const desenho = MODELO
     .replaceAll("#555754", estilo.cor).replaceAll("#737570", estilo.cor).replaceAll("#777975", estilo.cor)
     .replace('stroke-width="4"', `stroke-width="${marcador ? 5.5 : 4}"`)

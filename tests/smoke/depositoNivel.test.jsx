@@ -27,8 +27,11 @@ describe('Depósito com nível pelo mínimo', () => {
   it('o vazio não contém produto e os SVGs são independentes, sem pontos nem recursos externos', () => {
     const vazio = xml(criarSvgDeposito(0));
     expect(vazio.querySelector('[data-deposito-nivel]')).toBeNull();
+    expect(vazio.querySelector('[data-deposito-sacos]')).toBeNull();
     const cheio = xml(criarSvgDeposito(1, true));
     expect(cheio.querySelector('parsererror')).toBeNull();
+    expect(cheio.querySelector('[data-deposito-sacos]')).not.toBeNull();
+    expect(cheio.getElementById('corpo').getAttribute('stroke')).toBe(xml(criarSvgDeposito(1)).getElementById('corpo').getAttribute('stroke'));
     expect(cheio.getElementById('cintas')).toBeNull();
     expect(vazio.getElementById('cintas')).toBeNull();
     expect(cheio.querySelectorAll('circle, image, script')).toHaveLength(0);
