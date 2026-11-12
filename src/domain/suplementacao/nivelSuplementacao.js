@@ -84,6 +84,7 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @property {'estimado'|'informado'|null} saldoTipo
  * @property {number|null} fracaoCiclo           saldo ÷ base, 0..1
  * @property {number|null} diasRestantesEstimados sem arredondar (arredondar só na UI)
+ * @property {number|null} duracaoCicloEstimadaDias base ÷ taxa, sem arredondar (só estimada e base > 0)
  * @property {string|null} dataEsgotamentoEstimada AAAA-MM-DD
  * @property {string[]} compartilhadoCom          ids dos outros cochos com o mesmo produto e animais
  * @property {number|null} limiteOperacionalKg    `capacidade_cocho_kg` > 0, ou null
@@ -338,6 +339,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     saldoTipo: null,
     fracaoCiclo: null,
     diasRestantesEstimados: null,
+    duracaoCicloEstimadaDias: null,
     dataEsgotamentoEstimada: null,
     compartilhadoCom: [],
     limiteOperacionalKg: limite,
@@ -426,6 +428,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     // Tolerância de ponto flutuante: 200/50 não pode virar 5 dias.
     n.dataEsgotamentoEstimada = somarDias(dia, Math.max(0, Math.ceil(base / taxa - 1e-9))) || null;
     if (base > 0) {
+      n.duracaoCicloEstimadaDias = base / taxa;
       n.fracaoCiclo = clamp01(n.saldoKg / base);
       n.neutro = false;
       n.fracaoParaSvg = quantizar(n.fracaoCiclo);

@@ -165,7 +165,7 @@ function DetalhesCocho({ ponto, permissions }) {
 
   // "Último registro": taxa e projeção do SSOT (null = sem estimativa confiável).
   const estimado = nivel.confiabilidade === "estimada" && nivel.taxaConsumoKgDia != null;
-  const duracaoCicloDias = estimado && nivel.baseCicloKg != null && nivel.baseCicloKg > 0 ? nivel.baseCicloKg / nivel.taxaConsumoKgDia : null;
+  const duracaoCicloDias = estimado ? nivel.duracaoCicloEstimadaDias : null;
   const proximaReposicao = estimado && nivel.dataEsgotamentoEstimada ? formatarDia(nivel.dataEsgotamentoEstimada) : null;
 
   const handleSaved = () => {
@@ -324,6 +324,7 @@ function PainelRestanteCiclo({ nivel }) {
  */
 function PainelUsoLimite({ nivel }) {
   const limite = nivel.limiteOperacionalKg;
+  /** @type {string} */
   let descricao = MENSAGENS_NIVEL.limiteNaoConfigurado;
   if (limite != null) {
     descricao = nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null ?
@@ -341,7 +342,7 @@ function PainelUsoLimite({ nivel }) {
         rotulo={ROTULO_USO_LIMITE}
         descricao={descricao} />
       {linhaLancamento && <div className={`text-[11px] ${nivel.excessoNoLancamentoKg ? "font-medium text-amber-800" : "text-slate-700"}`}>{linhaLancamento}</div>}
-      {limite != null && <p className="text-[10px] leading-snug text-slate-500">{NOTA_LIMITE_ATUAL}</p>}
+      {limite != null && nivel.evento && <p className="text-[10px] leading-snug text-slate-500">{NOTA_LIMITE_ATUAL}</p>}
     </div>);
 
 }

@@ -585,12 +585,12 @@ const executarLargura = async (browser, largura) => {
   const abrirMapa = async () => {
     await page.goto(`${WEB}/MapaGeral`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.maplibregl-canvas', { timeout: 45000 });
-    await page.locator(`.mg-marker[title="${s.cocho.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
-    await page.locator(`.mg-marker[title="${s.deposito.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
+    await page.locator(`.mg-marker[title^="${s.cocho.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
+    await page.locator(`.mg-marker[title^="${s.deposito.nome}"]`).waitFor({ state: 'visible', timeout: 45000 });
     await page.waitForTimeout(1500);
   };
   const abrirPonto = async (nome, tituloDialogo) => {
-    await toque(page.locator(`.mg-marker[title="${nome}"]`).first(), `marcador ${nome}`);
+    await toque(page.locator(`.mg-marker[title^="${nome}"]`).first(), `marcador ${nome}`);
     await page.getByText(tituloDialogo, { exact: true }).first().waitFor({ state: 'visible' });
     await page.getByText(nome).filter({ visible: true }).first().waitFor();
     await page.waitForTimeout(800);

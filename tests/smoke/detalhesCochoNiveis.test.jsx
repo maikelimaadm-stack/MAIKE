@@ -252,3 +252,25 @@ describe('DC-7 — lançamento com data futura', () => {
     expect(screen.getByText(/^Data:/).textContent).toBe('Data: 12/11/2026');
   });
 });
+
+describe('CochoNivel neutro', () => {
+  it('sem estimativa: mesmo SVG sem preenchimento e o rótulo do estado no lugar de "0%"', async () => {
+    const { default: CochoNivel } = await import('@/components/mapa/CochoNivel');
+    const { container, rerender } = render(<CochoNivel percent={0.8} neutro rotuloNeutro="Período fechado" label="Restante do ciclo (estimado)" />);
+    const img = screen.getByRole('img');
+    expect(img.getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Período fechado');
+    expect(img.hasAttribute('data-cocho-neutro')).toBe(true);
+    expect(container.querySelector('[data-cocho-nivel]')).toBeNull();
+    expect(screen.getByText('Período fechado')).toBeTruthy();
+    expect(screen.queryByText('0%')).toBeNull();
+    const formaNeutra = container.querySelector('svg').innerHTML;
+    // Fora do neutro, o mesmo componente desenha o nível como antes.
+    rerender(<CochoNivel percent={0.8} label="Restante do ciclo (estimado)" />);
+    expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 80%');
+    expect(container.querySelector('[data-cocho-nivel]')?.getAttribute('data-cocho-nivel')).toBe('80');
+    expect(screen.getByRole('img').hasAttribute('data-cocho-neutro')).toBe(false);
+    // Mesmo desenho do corpo e dos pés (só o preenchimento muda).
+    rerender(<CochoNivel percent={0} label="Restante do ciclo (estimado)" />);
+    expect(container.querySelector('svg').innerHTML.replace(/cocho-[^")]+/g, '')).toBe(formaNeutra.replace(/cocho-[^")]+/g, ''));
+  });
+});

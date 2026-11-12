@@ -7,7 +7,6 @@
  * traduzem o nível para o formato antigo (`percent`, `badgeLabel`,
  * `helperLabel`, `latestRecord`, …) e devolvem o nível completo em `nivel`.
  */
-import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { calcularNivelCocho, calcularNivelDeposito } from "@/domain/suplementacao/nivelSuplementacao";
 import { ehDiaValido, hojeNoFuso } from "@/lib/diaCivil";
 
@@ -48,14 +47,22 @@ export function getCochoIndicator(ponto, eventos = [], opcoes = {}) {
  * rotulado `L` fica fora do "último registro". Sem `produtos` o saldo é o de
  * antes, mas a unidade dos lotes fica "não confirmada" (`nivel.unidadesConfirmadas`).
  *
+ * Todo número devolvido sai do nível do SSOT (D-PROD-178): `estoqueMinimo` e
+ * `capacidadeDeposito` são `nivel.estoqueMinimoKg`/`nivel.limiteOperacionalKg`
+ * (0 quando não configurados), nunca o campo cru do cadastro. A antiga
+ * `necessidadeEstimada` (`consumo_ideal_por_cabeca_kg × cabeças` por cocho
+ * ligado, sem consumidor) saiu: contava em dobro o rebanho de cochos que
+ * atendem os mesmos animais. `cochos` e `lotes` ficam na assinatura só por
+ * compatibilidade e não entram em nenhuma conta.
+ *
  * @param {any} deposito
- * @param {any[]} [cochos]
- * @param {any[]} [lotes]
+ * @param {any[]} [_cochos]  ignorado (compatibilidade)
+ * @param {any[]} [_lotes]   ignorado (compatibilidade)
  * @param {any[]} [estoqueLotes]
  * @param {any[]} [movimentacoes]
  * @param {any[]} [produtos]
  */
-export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueLotes = [], movimentacoes = [], produtos = []) {
+export function getDepositoIndicator(deposito, _cochos = [], _lotes = [], estoqueLotes = [], movimentacoes = [], produtos = []) {
   const nivel = calcularNivelDeposito({ deposito, estoqueLotes, produtos });
 
   const ultimoRegistro = movimentacoes
@@ -65,9 +72,8 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
   return {
     percent: nivel.fracaoParaSvg,
     saldoAtual: nivel.saldoKg,
-    estoqueMinimo: Number(deposito.estoque_minimo_kg || 0),
-    capacidadeDeposito: Number(deposito.capacidade_cocho_kg || 0),
-    necessidadeEstimada: necessidadeEstimadaLegada(deposito, cochos, lotes),
+    estoqueMinimo: nivel.estoqueMinimoKg ?? 0,
+    capacidadeDeposito: nivel.limiteOperacionalKg ?? 0,
     necessidadeReposicao: nivel.necessidadeReposicaoKg,
     isCritical: nivel.abaixoMinimo,
     badgeLabel: nivel.rotuloCurto,
@@ -75,25 +81,4 @@ export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueL
     latestRecord: ultimoRegistro,
     nivel,
   };
-}
-
-/**
- * @deprecated Sem consumidor na interface; mantido só por compatibilidade do
- * formato antigo. Soma `consumo_ideal_por_cabeca_kg × cabeças` por cocho
- * ligado — conta em dobro o rebanho de cochos que atendem os mesmos animais.
- * Não é nível nem alerta: a cobertura do depósito vem do SSOT.
- * @param {any} deposito @param {any[]} cochos @param {any[]} lotes
- */
-function necessidadeEstimadaLegada(deposito, cochos, lotes) {
-  return cochos
-    .filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id)
-    .reduce((total, cocho) => {
-      const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0
-        ? cocho.area_vinculada_ids
-        : (cocho.area_vinculada_id ? [cocho.area_vinculada_id] : []);
-      const cabecas = lotes
-        .filter((lote) => areaIds.includes(lote.area_atual_id) && lote.status === "Ativo")
-        .reduce((soma, lote) => soma + (lote.quantidade_cabecas || 0), 0);
-      return total + (cocho.consumo_ideal_por_cabeca_kg || 0) * cabecas;
-    }, 0);
 }

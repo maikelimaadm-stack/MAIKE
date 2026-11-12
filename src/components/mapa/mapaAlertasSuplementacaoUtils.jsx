@@ -13,6 +13,10 @@
  *    todos os produtos da empresa aplicado às cabeças da área;
  *  - contam dias em blocos de 24 h a partir da meia-noite UTC da data, e não
  *    em dias civis no fuso da fazenda.
+ * O fallback do "maior %PV" só considera produtos ATIVOS: o mapa passa o
+ * cadastro inteiro (inativos inclusive), porque a unidade de um lote de
+ * estoque não depende de o produto estar ativo (P-11), e os alertas de lote
+ * continuam como eram.
  */
 import { consumoEsperadoGrupoDia } from "../suplementacao/consumoPVUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
@@ -41,7 +45,7 @@ const getAreaIdsFromPonto = (ponto) => {
 };
 
 const buildAreaConsumoMap = (lotes = [], produtos = []) => {
-  const produtosMap = new Map(produtos.map((produto) => [produto.id, produto]));
+  const produtosMap = new Map(produtos.filter((produto) => produto?.ativo !== false).map((produto) => [produto.id, produto]));
   const areaMap = new Map();
 
   lotes.forEach((lote) => {
@@ -184,7 +188,7 @@ export function buildMapaAlertasSuplementacao({
     // compartilhando os mesmos animais, a taxa não é confiável e fica fora).
     const cochosDoDeposito = cochos.filter((cocho) => cocho.deposito_origem_id === deposito.id);
     const consumoDiario = cochosDoDeposito.reduce((total, cocho) => total + Number(alertasPonto.get(cocho.id)?.consumoDiario || 0), 0);
-    const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
+    const estoqueMinimo = nivel.estoqueMinimoKg ?? 0;
     const diasCobertura = consumoDiario > 0 ? saldoAtual / consumoDiario : null;
     const alertasNivel = nivel.alertas.filter((alerta) => alerta.tipo !== "deposito_acima_limite");
     const alertasExcesso = nivel.alertas.filter((alerta) => alerta.tipo === "deposito_acima_limite");
