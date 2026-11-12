@@ -30,8 +30,9 @@ describe('Depósito com nível pelo mínimo', () => {
     expect(vazio.querySelector('[data-deposito-sacos]')).toBeNull();
     const cheio = xml(criarSvgDeposito(1, true));
     expect(cheio.querySelector('parsererror')).toBeNull();
-    expect(cheio.querySelector('[data-deposito-sacos]')).not.toBeNull();
-    expect(cheio.getElementById('corpo').getAttribute('stroke')).toBe(xml(criarSvgDeposito(1)).getElementById('corpo').getAttribute('stroke'));
+    expect(cheio.querySelector('[data-deposito-sacos]')).toBeNull();
+    expect(cheio.querySelector('svg svg').getAttribute('width')).toBe('44');
+    expect(cheio.querySelector('svg svg').getAttribute('height')).toBe('33');
     expect(cheio.getElementById('cintas')).toBeNull();
     expect(vazio.getElementById('cintas')).toBeNull();
     expect(cheio.querySelectorAll('circle, image, script')).toHaveLength(0);
