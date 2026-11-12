@@ -56,7 +56,7 @@ Hoje esses casos empurram o usuário a duas saídas ruins:
 **Feedback do proprietário (R2).** A entrada deve ter **Editar** e **Excluir**, e o usuário não quer depender de "Cancelar" para corrigir. A proposta atende a isso sem abrir mão da imutabilidade dos fatos:
 - a edição confirmada é uma **revisão** que estorna pelo motor e aplica de novo;
 - a exclusão é **lógica**, com estorno integral;
-- ambas só valem quando nenhuma camada da entrada foi usada e o FIFO de baixas passadas não muda;
+- ambas só valem quando nenhuma camada de nenhum item da entrada foi usada. Além disso, nenhuma camada nova pode passar à frente, na fila FIFO, de camada que alguma baixa já tocou;
 - com dependência, só se editam observação e justificativa, e a tela explica o motivo e o próximo passo.
 
 ## 3. Texto exato proposto — `docs/constitution/00-CONSTITUICAO.md`
@@ -70,37 +70,45 @@ Hoje esses casos empurram o usuário a duas saídas ruins:
 documentada** (missão MAIKE-ESTOQUE-P1). Além da compra confirmada da Central Única de
 Lançamentos, a quantidade de estoque também pode nascer de um **documento de Entrada de
 Estoque** confirmado, só pelo motor de estoque único e só por um destes motivos fechados:
-saldo de implantação, doação e outra causa com justificativa e permissão própria. O saldo
-de implantação vale uma única vez por produto e empresa e só se o produto não tiver
-nenhum histórico físico em nenhum local; os fatos de uma implantação excluída, que por
-regra nunca teve consumo, não contam como histórico. Doação e outra causa não servem para
-registrar saldo antigo. A entrada manual não é compra, não cria título, conta a pagar nem
-receita, e não pode duplicar um lançamento da Central nem outra entrada: com o mesmo
-parceiro e documento, um bloqueia o outro. O usuário pode **editar** e **excluir** a
-entrada. O rascunho não mexe no estoque. Na entrada confirmada, editar quantidade, custo,
-unidade, produto, local, data, motivo, parceiro ou documento, ou excluí-la, só é aceito
-quando nenhuma camada dela foi consumida, transferida ou citada por outro fato, mesmo que
-depois estornado, e quando a mudança não altera o FIFO de baixas já feitas; com
-dependência, só se editam observação e justificativa. A edição vira uma nova revisão do
-mesmo documento, que estorna pelo motor o que muda e aplica a versão nova numa só
-transação; a exclusão estorna tudo e deixa o documento EXCLUÍDO, fora da lista ativa mas
-consultável. Nenhum movimento ou camada de estoque é reescrito ou apagado, e cada revisão
-e cada exclusão ficam registradas com autor, data, motivo e valores antes e depois. Não
-há exclusão nem estorno parcial. O Cadastro de Produtos continua sem lançar estoque.
-Continua **fora**: entrada por compra fora da Central, ajuste ou inventário, devolução,
-transferência entre empresas, entrada por nota fiscal, edição de saldo e qualquer escritor
-genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta parte, esta expansão supera
-apenas o trecho "não há tela avulsa de entrada" da expansão D-PROD-155; o resto da
-D-PROD-155 continua valendo. Texto proposto pelo agente; vale só com a aprovação
-explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
+saldo de implantação, doação e outra causa com justificativa e permissão própria. Há no
+máximo uma implantação ativa por produto e empresa, e ela só é aceita se o produto não
+tiver nenhum histórico físico em nenhum local; os fatos de itens de entrada manual já
+estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como
+histórico. Doação e outra causa não servem para registrar saldo antigo. A entrada manual
+não é compra, não cria título, conta a pagar nem receita, e não pode duplicar um
+lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o
+outro, nos dois sentidos. O usuário pode **editar** e **excluir** a entrada; o motivo
+dela nunca muda. O rascunho não mexe no estoque. Na entrada confirmada, editar
+quantidade, custo, unidade, fator, produto, local, data, parceiro ou documento, incluir
+ou retirar item, ou excluí-la, só é aceito quando nenhuma camada de nenhum item dela foi
+consumida, transferida ou citada por outro fato, mesmo que depois estornado; com essa
+dependência, só se editam observação e justificativa. Ao confirmar ou editar, nenhuma
+camada nova pode ficar, na fila FIFO do produto no local, à frente de camada que alguma
+baixa já tocou: o motor não refaz nem recalcula baixas, e a mudança que faria isso é
+recusada. A edição vira uma nova revisão do mesmo documento, que estorna pelo motor o que
+muda e aplica a versão nova numa só transação; a exclusão estorna tudo e deixa o
+documento EXCLUÍDO, fora da lista ativa mas consultável. Nenhum movimento ou camada de
+estoque é reescrito ou apagado; cada revisão e cada exclusão da entrada confirmada ficam
+registradas com autor, data, motivo e valores antes e depois. Não há estorno parcial de
+camada nem exclusão parcial do documento. O Cadastro de Produtos continua sem lançar
+estoque. Continua **fora**: entrada por compra fora da Central, ajuste ou inventário,
+devolução, transferência entre empresas, entrada por nota fiscal, edição de saldo e
+qualquer escritor genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta parte,
+esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expansão
+D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
+com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
 ```
 
-**Variante estrita (se a R-IMPL for recusada; ver contrato §3, A3, item 8).** Apagar a oração `; os fatos de uma implantação excluída, que por regra nunca teve consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`.
+**Frases que mudam se a ratificação escolher outra opção** (contrato §8):
+- **R-IMPL estrita:** apagar `; os fatos de itens de entrada manual já estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`.
+- **(b) recusada** (aceitar baixa estornada): apagar `, mesmo que depois estornado`.
+- **(k) por item:** trocar `quando nenhuma camada de nenhum item dela foi consumida` por `quando nenhuma camada do item afetado foi consumida (data, parceiro e documento afetam todos os itens, e excluir exige isso de todos)`. Trocar também `com essa dependência, só se editam observação e justificativa` por `os itens com essa dependência só têm observação e justificativa editáveis`.
 
 **Diferença em relação à R1:**
 - sai "o cancelamento só estorna se nada tiver sido consumido ou transferido";
-- entram editar e excluir, a revisão versionada, a janela FIFO, a regra de dependência (inclusive baixa estornada), o estado excluído consultável, a proibição de reescrever ou apagar fatos e a trilha auditável;
-- a variante "aberta" da R1 ("implantações canceladas sem consumo") vira a variante **proposta**, agora com implantação **excluída**.
+- entram editar e excluir, a revisão versionada, a janela FIFO por posição na fila, a regra de dependência por documento (inclusive baixa estornada), o motivo imutável, o estado excluído consultável, a proibição de reescrever ou apagar fatos e a trilha auditável;
+- "uma única vez" vira "no máximo uma implantação ativa", e a dedupe passa a valer nos dois sentidos;
+- a variante "aberta" da R1 vira a variante **proposta**, agora com itens **já estornados** de entrada manual.
 
 ## 4. Texto exato proposto — `docs/constitution/07-DO-NOT-DO.md`
 
@@ -120,33 +128,43 @@ explícita do proprietário (§4), registrada como ratificação na D-PROD-176.
 > - usar a entrada manual como compra, inventário/ajuste, devolução, transferência entre
 >   empresas ou entrada por nota fiscal, ou criar, alterar ou cancelar título, conta a
 >   pagar ou receita a partir dela, inclusive ao editá-la ou excluí-la;
-> - usar doação ou outra causa para registrar saldo antigo (pré-existente);
+> - usar doação ou outra causa para registrar saldo antigo (pré-existente); mudar o
+>   motivo de uma entrada;
 > - confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um
 >   lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada
->   confirmada;
-> - implantar saldo de um produto que já tenha histórico físico em qualquer local, salvo
->   os fatos de implantações excluídas;
-> - editar quantidade, custo, unidade, produto, local, data, motivo, parceiro ou documento
->   de uma entrada confirmada, ou excluí-la, quando alguma camada dela foi consumida,
->   transferida ou citada por outro fato (mesmo que depois estornado), ou quando a mudança
->   alteraria o FIFO de baixas já feitas;
+>   confirmada, e confirmar na Central um lançamento com o mesmo parceiro e documento de
+>   uma entrada confirmada;
+> - ter mais de uma implantação ativa por produto e empresa, ou implantar saldo de um
+>   produto que já tenha histórico físico em qualquer local, salvo os fatos de itens de
+>   entrada manual já estornados por edição ou exclusão;
+> - editar quantidade, custo, unidade, fator, produto, local, data, parceiro ou documento,
+>   incluir ou retirar item, ou excluir uma entrada confirmada quando alguma camada de
+>   algum item dela foi consumida, transferida ou citada por outro fato, mesmo que depois
+>   estornado;
+> - confirmar ou editar uma entrada manual de modo que uma camada nova fique, na fila FIFO
+>   do produto no local, à frente de camada que alguma baixa já tocou, ou com saída sem
+>   rastro nesse produto e local;
 > - corrigir uma entrada confirmada reescrevendo ou apagando movimento ou camada de estoque
 >   (`UPDATE` de quantidade, custo, data, local, produto ou procedência, ou `DELETE`), em
 >   vez de uma nova revisão pelo motor; recalcular o custo de baixas passadas;
-> - editar ou excluir a entrada sem motivo, sem autor, sem versão ou sem registrar os
->   valores antes e depois; excluir ou estornar em parte; restaurar entrada excluída;
+> - editar ou excluir a entrada confirmada sem motivo, sem autor, sem versão ou sem
+>   registrar os valores antes e depois; estornar camada em parte, excluir o documento em
+>   parte ou restaurar entrada excluída;
 > - conceder a tela ou as ações da entrada a perfis existentes por padrão;
 > - reabrir qualquer nome de `forbiddenDomains` (`config/mapa-manejo-scope.json`), em
 >   especial `MovimentacoesEstoque`, `LancamentoProdutosEstoque`, `RelatoriosEstoque`,
 >   `Relatorios`, `Dashboard` e `Home`.
 ```
 
-**Variante estrita da R-IMPL:** o item "implantar saldo…" termina em "em qualquer local", sem a ressalva das implantações excluídas.
+**Frases que mudam com outra opção:**
+- **R-IMPL estrita:** o item "ter mais de uma implantação…" termina em "em qualquer local", sem a ressalva.
+- **(b) recusada:** apagar ", mesmo que depois estornado".
+- **(k) por item:** trocar "quando alguma camada de algum item dela" por "quando alguma camada do item afetado (ou de qualquer item, para data, parceiro, documento e exclusão)".
 
 **Diferença em relação à R1:**
 - sai "cancelar uma entrada cujas camadas já foram consumidas ou transferidas, ou estorná-la em parte";
-- entram as proibições de editar ou excluir com dependência ou impacto FIFO, de reescrever ou apagar fatos, de recalcular custo, de editar sem trilha, de exclusão parcial e de restauração;
-- a dedupe passa a valer também na edição.
+- entram as proibições de editar ou excluir com dependência, de passar à frente na fila FIFO, de mudar o motivo, de reescrever ou apagar fatos, de recalcular custo, de editar a confirmada sem trilha, de estorno ou exclusão parcial e de restauração;
+- a dedupe passa a valer também na edição e no sentido Central → entrada.
 
 ### 4.2 Esclarecimento sobre SACO no abastecimento
 

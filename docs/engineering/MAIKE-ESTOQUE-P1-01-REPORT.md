@@ -131,3 +131,125 @@ Não há código, schema, migration, escopo, teste nem workflow no diff.
 - `DB_WRITES=0` · `MIGRATIONS_APPLIED=0` · `PROD_DEPLOY=0`.
 - `CONSTITUTION_RATIFIED=NAO` · `IMPLEMENTACAO_AUTORIZADA=NAO`.
 - **O proprietário deverá aprovar expressamente o texto proposto e ratificá-lo pelo fluxo constitucional antes da P1-02** (na parte que cria a origem de entrada manual), **da P1-05 e da P1-06.**
+
+---
+
+## 9. Adendo R2 — Editar e Excluir (MAIKE-ESTOQUE-P1-01-GOVERNANCA-R2, 2026-11-11/12)
+
+> **Ainda PROPOSTA.** As seções 1 a 8 acima ficam como **histórico da R1** e não foram reescritas. Onde divergirem deste adendo, vale o adendo. Exemplos: a §5 cita `CANCELAMENTO_BLOQUEADO`, e a §8 cita a ratificação "antes da P1-05". Nada foi implementado, ratificado ou autorizado. A constituição (00), o 07 e o 08 continuam intocados (A10).
+
+### 9.1 Feedback do proprietário
+A Entrada de Estoque deve ter as ações **Editar** e **Excluir**. O proprietário não quer clicar em "Cancelar" como única alternativa para corrigir uma entrada. O pedido **não** autoriza apagar movimentos físicos imutáveis nem desligar a auditoria.
+
+### 9.2 Antes (R1) → depois (R2), no contrato
+
+| Tema | R1 | R2 |
+|---|---|---|
+| Estados | `RASCUNHO` → `CONFIRMADA` → `CANCELADA` | `RASCUNHO`, `CONFIRMADA` e `EXCLUIDA` (final, consultável), com revisões imutáveis no evento (A6) |
+| Ação do usuário na confirmada | Cancelar | **Editar** e **Excluir**. Não há botão Cancelar. O estorno do motor continua interno (A6, A8.7) |
+| Correção de quantidade, custo, local, produto, data, parceiro ou documento | Cancelar e relançar | **Revisão versionada atômica** do mesmo documento: estorno pelo motor do que muda e aplicação nova, numa transação (A8.2) |
+| Prova de "sem dependência" | "Camadas intocadas" pelo critério do motor | Prova "**camada nunca referenciada**" P1–P10 (A8.3), no molde de `provaDaCompra`. Inclui a tabela de abastecimento, que a P3 não consulta, e baixa **depois estornada** (bloqueia) |
+| Alcance da dependência | — | **Por documento**: uma camada referenciada trava a classe F inteira. A alternativa por item fica para ratificação (k) |
+| Impacto FIFO | Só a R-DATA (pendente) | **Janela FIFO** pela posição na fila `(chave, id)`: nenhuma camada nova à frente de camada já tocada por baixa. Vale na confirmação e na revisão (A8.4) |
+| Motivo da entrada | Mutável só no rascunho | **Imutável** (classe I): errou o motivo, exclui e relança |
+| Implantação | Uma vez; reimplantar só na variante "aberta" | No máximo **uma ativa**, corrigida por edição. Nova implantação só depois de `EXCLUIDA`, desconsiderando por FK os itens já estornados de entrada manual. Variante estrita como alternativa (A3) |
+| Dedupe | Recíproca só com PAGAR | Recíproca **PAGAR e RECEBER**. Revisão de parceiro ou documento roda a dedupe de novo, com advisories em ordem crescente. Aviso de documento liberado por revisão e por exclusão (A5) |
+| Procedência | — | **Nunca** `atualizarProcedencia` na entrada. Diverge da D-PROD-158 de propósito (A5) |
+| Recibos depois da exclusão | — | `criar`, `confirmar` e `editar` passam a `STATUS_EXCLUIDO` (A8.6) |
+| Códigos | `CANCELAMENTO_BLOQUEADO`, `DOCUMENTO_DE_*`, `DOCUMENTO_DUPLICADO` | `DEPENDENCIAS_FISICAS`, `IMPACTO_FIFO`, `DOCUMENTO_CONFLITANTE`, `VERSAO_CONFLITO`, `STATUS_INVALIDO` (+ os da R1), com `details.motivos[]`. Nenhuma colisão em `errorCodes.js` (C4) |
+| Permissões | `cancelar` na lista extra | `editar`/`excluir` (já existem em `ACOES`) **+ `confirmar`** para a confirmada. Nenhuma concessão por padrão (C4) |
+| Slices | P1-05 → P1-06 | **P1-05a** (documento, confirmar, excluir; todo o DDL) → **P1-05b** (editar confirmada) → **P1-06** (tela só depois das duas) (§7) |
+| Pontos a ratificar | R-EMENDA, R-MOTIVOS, R-IMPL, R-DATA, R-DEDUPE, R-LOTE, R-ORDEM, R-SPLIT | Os mesmos, com **R-IMPL refeita**, mais **R-EDICAO-EXCLUSAO** (a)–(l) e **R-CONVERSAO** (§8) |
+
+**Textos propostos para 00 e 07** (proposta de emenda §3 e §4.1), sem editar as normas:
+- autorizam editar e excluir com controles, versão e trilha;
+- proíbem expressamente reescrever ou apagar movimento e camada;
+- trazem a frase literal que muda em cada alternativa (R-IMPL estrita, (b), (k)).
+
+### 9.3 Consequências para motor, DDL e slices
+- **Motor (P1-02):** além do que a R1 previa:
+  - `estornarEmLote` parametrizada (ou primitiva irmã) com `tipo_detalhado` `estorno_entrada_revisao`/`estorno_entrada_exclusao`;
+  - conferência de produto, local e empresa da camada contra a linha. Hoje nenhuma das duas primitivas faz isso: `estoqueFisicoMotor.js:870-873`, `:918-919`, `:924-930` e `:700-704`;
+  - CAS `Ativa` + filho nulo ao marcar o original. Hoje a marcação é só por id: `:683-687`, `:1004-1007`;
+  - camadas `FOR UPDATE` em toda reversão (§6.2, item 8).
+- **Reconciliação (P1-05a):** a origem `entrada_estoque` entra em `ORIGENS_PROTOCOLO`. Um CTE novo explica as camadas `Estornado` pela FK do estorno da linha. O AuditLog só usa a entidade `EntradaEstoque` (§6.2, itens 9 e 10).
+- **DDL (P1-05a, com runbook e GO antes do merge; nenhuma migration agora):**
+  - `EntradaEstoque`;
+  - `EntradaEstoqueItem`, versionada por `revisao_inicio`/`revisao_fim`, com FKs compostas Restrict e uniques por camada, movimento e estorno;
+  - `EntradaEstoqueEvento`, com tipo, modo, motivo, autor, antes e depois (§7, modelo de dados).
+- **Não se promete:**
+  - edição física ou exclusão com dependência;
+  - recálculo de custo de baixa passada;
+  - conversão de entrada em compra antes da R-CONVERSAO.
+
+### 9.4 Cenários adversariais (item E da missão) e resultado contratado
+
+| Cenário | Resultado contratado | Seção |
+|---|---|---|
+| Duas edições concorrentes da mesma confirmada | A segunda espera o `FOR UPDATE` do cabeçalho e recebe `VERSAO_CONFLITO`; nada é gravado | A8.5 |
+| Replay idêntico | Devolve o corpo gravado daquela revisão (`revisao`, `versao`). Depois da exclusão → `IDEMPOTENCY_EFEITO_EXCLUIDO` | A8.6, C4 |
+| `operation_id` reutilizado com outro payload (outra versão ou motivo) | `IDEMPOTENCY_CONFLICT` antes de qualquer efeito | C4 |
+| Camada consumida (venda, abastecimento, suplementação) | `DEPENDENCIAS_FISICAS` `lote_consumido`; só a classe M fica editável | A8.3 |
+| Camada transferida | `DEPENDENCIAS_FISICAS` `lote_transferido` (JSON da Saída `transferencia_enviada`) | A8.3 |
+| Venda ou abastecimento consumiu e foi cancelado (saldo voltou) | Continua bloqueado (`consumo_estornado`), porque a fatia e o JSON persistem. A alternativa é a ratificação (b) | A8.3 |
+| Correção retroativa que passaria à frente de camada já consumida | `IMPACTO_FIFO` `camada_posterior_consumida` (ordem `(chave, id)`); nunca recálculo | A8.4 |
+| Saída legada sem rastro no par | `IMPACTO_FIFO` `baixa_legada_sem_rastro` e `consumo_legado_sem_rastro` (fail-closed). Estornos do próprio motor **não** contam como sem rastro | A8.3, A8.4 |
+| Exclusão depois de compra com a mesma NF | A compra não confirma enquanto a entrada estiver ativa (recíproca). Depois da exclusão, a compra passa, com aviso | A5 |
+| Revisão troca o documento para escapar | A dedupe roda de novo na chave nova. A chave antiga liberada gera aviso com ciência na P3. Fica como limite declarado | A5 |
+| Entrada que era compra e já foi consumida | Sem caminho no 1º slice; nunca orientar a lançar sem nota (R-CONVERSAO) | A5, A8.7 |
+| Reimplantação depois da exclusão, multi-local, com movimentos estornados | Aceita só se, desconsiderando por FK os itens já estornados de entrada manual, não sobrar fato de `P`. Baixa estornada sobre a implantação impede a exclusão | A3 |
+| Revisão da implantação com outros fatos do produto (compras) | Quantidade, custo, unidade, fator, parceiro e documento no mesmo par e data: aceita, com prova e janela. Produto, local e data: só com as condições 1–5 e as exceções (i)/(ii). Condição 3 exata sobre as camadas do próprio documento | A3 |
+| Produto de outra empresa ou tenant | Mesmo corpo de "inexistente"; `cliente_id` só do `auth_context` | C3 |
+| Produto apagado | Produto citado por linha de entrada (qualquer status) não é excluído (409 `PRODUTO_DELETE_BLOCKED`) | C3 |
+| Troca de unidade ou do peso do SACO | Estorno pelo kg gravado na linha. A linha nova recaptura o fator; divergência com a prévia → `FATOR_DIVERGENTE` | A6, C2 |
+| Documento presente sem parceiro | Recusado (parceiro obrigatório) | A5 |
+| Autor, motivo, antes e depois | Evento `EDICAO`/`EXCLUSAO` com snapshots e autor do `auth_context`. AuditLog `EntradaEstoque` com allowlist | A8.2, A8.6 |
+| Exclusão da última camada | Estorno integral; cache decrementado pelo motor; `estoque_atual` < kg → `estoque_atual_insuficiente` (caso de reconciliação) | A8.3 (P9) |
+| Estorno parcial | Não existe. Retirar item é revisão, que estorna a camada inteira | A6, A8.6 |
+| Falha no meio da transação | Rollback total, inclusive do recibo, da numeração e do AuditLog; nenhuma janela de estoque incorreto | A8.2 |
+
+### 9.5 Revisão adversarial da R2
+- **Como foi feita:** um workflow com 7 lentes independentes (concorrência e idempotência; dependências; FIFO; dedupe; implantação; integridade e tenancy; governança e coerência), cada uma lendo o código da `main` só para leitura. Depois, **um verificador cético por achado**, encarregado de refutar.
+- **Resultado:** 54 achados, 51 confirmados (11 ALTO, 22 MÉDIO, 18 BAIXO) e 3 refutados. Os confirmados se repetiam entre lentes e se agrupam nos temas abaixo. **Todos foram corrigidos nos documentos** desta PR, sem código.
+
+| Tema (achados) | Sev. | Correção |
+|---|---|---|
+| Alcance da dependência diferente entre contrato (por item) e emenda, D-PROD-176 e UX (por documento) (C1, C20, C28, C36, C45) | ALTO | Alcance **por documento** em todos os textos; por item vira a alternativa (k). Listas de 00 e 07 completadas (fator, custo zero, incluir ou retirar item) |
+| Implantação: "exceção única" × edição; "uma única vez" × reimplantação; troca de produto ou motivo deixava `P` sem caminho; condição 3 impossível na edição (C2, C6, C23, C29, C30, C31, C38, C43) | ALTO | Exceções (i) e (ii) por FK; condição 3 exata; "no máximo uma ativa"; motivo imutável (classe I); variante estrita avisa antes da exclusão |
+| P8 e janela tratavam os estornos do próprio motor como "saída sem rastro" (C3, C11, C33) | ALTO | P8 exclui estorno de entrada (`movimento_pai_id` + `tipo_detalhado`) |
+| Janela contava camada `Estornado` como tocada; isenção e empate mal provados; conjunto do próprio documento (C5, C12, C14, C15, C16) | ALTO | "Tocada" redefinida; regra exata pela ordem `(chave, id)`, conferida depois de criar a camada; isenção removida (a correção normal passa pela própria regra) |
+| Relatório sem a §9 citada (C44) | ALTO | Este adendo |
+| Dedupe com RECEBER só num sentido (C21, C37, C49) | MÉDIO | Recíproca nas duas direções e nos três caminhos; revisão sem troca de identidade não roda a dedupe de novo |
+| Revisão que troca o documento libera a chave sem aviso; limites desatualizados (C22) | MÉDIO | Aviso com ciência na P3 e na revisão; limite declarado novo |
+| Entrada que era compra e já tem dependência (C25) | MÉDIO | R-CONVERSAO; UX nunca sugere lançar sem nota |
+| Rascunho sem motivo × 00/07 (C24, C35, C47) | MÉDIO | Exigências de motivo e trilha restritas à **confirmada**; rascunho com AuditLog |
+| Recibo de `criar` não marcado na exclusão (C8, C41, C48) | MÉDIO | Marcado `STATUS_EXCLUIDO` |
+| Ensaio do motor em SAVEPOINT na elegibilidade "sem trava" (C4) | MÉDIO | Removido. Elegibilidade só consulta |
+| (b) e (c) fechados no texto da emenda e abertos no contrato (C34, C46) | MÉDIO | Texto incorpora a proposta, e a emenda dá a frase literal da alternativa |
+| "Data da revisão" ambígua (C9, C17, C26, C32, C39, C51) | BAIXO | Definida: data da entrada informada no documento; estornos com data de hoje sem efeito FIFO |
+| Ordem de travas incompatível; "igual ao financeiro" falso (C7, C27) | BAIXO | Advisories antes de camadas e movimentos; "compatível" com o financeiro; regra única para várias chaves |
+| Condição FIFO literal "alterar o FIFO de baixas" (C19) | BAIXO | Reescrita como regra de posição na fila, em 00, 07 e D-PROD-176 |
+| Citações de código e permissões (C10, C13, C40, C50) | BAIXO | `operacaoFinanceiraService.js:384-401`; `tipo_detalhado` `VarChar(128)`; endurecimento mira `estornarEmLote`; excluir = análogo, não igual, à D-PROD-158; nomes da lista |
+| Modelo: par único só entre vigentes; exclusão do Produto pela FK (C42) | BAIXO | Par único entre vigentes; 409 `PRODUTO_DELETE_BLOCKED` contando as linhas |
+| Saída legada filtrada por data, embora o FIFO não olhe data (C18) | BAIXO | Qualquer saída sem rastro no par recusa |
+
+**Refutados (3)**, pelo verificador:
+- "is_admin recebe tudo" já estava declarado na C4;
+- a troca KG↔SACO depois de editar não leva a 500, porque a A6 trata o estorno pelo kg gravado e o fator divergente tem código;
+- "UPDATE de quantidade" no 07 está qualificado por "em vez de uma nova revisão pelo motor".
+
+### 9.6 O que continua dependendo de aprovação humana
+1. **R-IMPL** (proposta ou estrita), **antes** da R-EMENDA.
+2. **R-EDICAO-EXCLUSAO** (a)–(l), em especial:
+   - (b): baixa estornada bloqueia;
+   - (c): janela FIFO na entrada e, um dia, na P3;
+   - (k): alcance por documento × por item;
+   - (l): motivo imutável.
+3. **R-EMENDA:** texto de 00 e 07, incorporado pelo rito da §4 da constituição (caminho (a) ou (b) da proposta de emenda, §5).
+4. **R-MOTIVOS**, **R-DATA**, **R-DEDUPE** (inclui RECEBER e os avisos), **R-CONVERSAO**, **R-LOTE**, **R-ORDEM** e **R-SPLIT**.
+5. Nota de ratificação, ou de recusa, na D-PROD-176.
+
+Nem esta PR nem o merge dela ratificam a proposta. A P1-02, a P1-05a, a P1-05b e a P1-06 só começam depois da ratificação, cada uma com missão própria. DDL só com runbook e GO.
+
+### 9.7 Gates e CI da R2
+_(preenchido no commit final com saídas e exit codes reais)_
