@@ -25,12 +25,13 @@
  *    como não confiável — nada de inventar 50/50.
  *  - Critério de TEMPO do compartilhamento: um ciclo aberto só fecha quando
  *    chega um lançamento novo, então um cocho que parou de ser abastecido
- *    ficaria "aberto" para sempre. Dois ciclos só contam como compartilhados
- *    quando as janelas estimadas se cruzam: [lançamento, esgotamento pela taxa
- *    gravada) de cada um (outro cocho sem taxa usa a taxa deste, que conta o
- *    mesmo rebanho; sem data válida não há como situar o ciclo e ele não conta).
- *    Como a taxa gravada é a do rebanho inteiro, essa janela é a duração
- *    MÍNIMA do ciclo.
+ *    ficaria "aberto" para sempre. A janela de cada ciclo aberto é
+ *    [lançamento, lançamento + ⌈base ÷ taxa⌉) — a duração MÍNIMA — mas só
+ *    quando o cocho esteve SOZINHO com o rebanho nesse intervalo; se outro
+ *    cocho das mesmas áreas teve ciclo do mesmo produto (aberto ou fechado)
+ *    nesse intervalo, o fim é desconhecido e a janela fica aberta. Cochos com
+ *    janelas que se cruzam formam um grupo (fecho transitivo, igual para todos
+ *    os membros). Ver `grupoDeCochosCompartilhando`.
  *  - Compartilhados e sem lançamento novo: quando nem a soma das bases do
  *    grupo, consumida pela menor taxa do grupo a partir do último lançamento,
  *    ainda teria produto, o aviso crítico `cocho_sem_produto` continua (o
@@ -89,6 +90,7 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @property {number|null} sobraAnteriorKg        `sobra_kg` do evento aberto
  * @property {number|null} baseCicloKg            fornecido + sobra anterior (null se fechado)
  * @property {number|null} taxaConsumoKgDia       `consumo_esperado_pv_kg` (> 0) ou null
+ * @property {number|null} taxaRegistradaKgDia    taxa do rebanho gravada no lançamento do ciclo aberto (qualquer confiabilidade); para a cobertura do depósito, NUNCA para estimar o saldo do cocho
  * @property {'pv_no_lancamento'|null} fonteConsumo
  * @property {number|null} diasDecorridos         dias civis desde o lançamento
  * @property {number|null} consumoEstimadoKg      min(base, taxa × dias)
@@ -308,53 +310,173 @@ export function selecionarUltimoEventoDoPonto(ponto, eventos) {
 
 // ── Cocho ──────────────────────────────────────────────────────────────────
 
-/** Dia (AAAA-MM-DD) em que o ciclo se esgota pela taxa (base ÷ taxa, para cima). @param {string} dia @param {number} base @param {number} taxa */
-const diaEsgotamento = (dia, base, taxa) => somarDias(dia, Math.max(0, Math.ceil(base / taxa - 1e-9))) || dia;
+/**
+ * Ciclos longos demais (taxa absurda, dado corrompido) não ganham data: a
+ * conta de datas não é feita e a janela fica sem fim conhecido.
+ */
+const LIMITE_DIAS_CICLO = 36500;
 
 /**
- * @typedef {{ id: string, dia: string, base: number, taxa: number|null }} CicloCompartilhado
+ * Fim (exclusivo) da janela MÍNIMA de um ciclo: lançamento + ⌈base ÷ taxa⌉.
+ * `null` = sem fim conhecido (sem taxa ou ciclo longo demais).
+ * @param {string} dia @param {number} base @param {number|null} taxa
+ * @returns {string|null}
+ */
+const fimMinimoDoCiclo = (dia, base, taxa) => {
+  if (taxa == null || !(taxa > 0)) return null;
+  const dias = Math.max(0, Math.ceil(base / taxa - 1e-9));
+  if (!Number.isFinite(dias) || dias > LIMITE_DIAS_CICLO) return null;
+  return somarDias(dia, dias) || null;
+};
+
+/** Intervalos [ini, fim) de dias; `fim` null = sem fim. @param {{ini: string, fim: string|null}} a @param {{ini: string, fim: string|null}} b */
+const intervalosSeCruzam = (a, b) => (b.fim == null || a.ini < b.fim) && (a.fim == null || b.ini < a.fim);
+
+/**
+ * @typedef {{ id: string, ponto: any, areas: Set<string>, ultimo: any, dia: string, base: number, taxa: number|null }} CicloAbertoDoGrupo
  */
 
 /**
- * Outros cochos ativos que atendem as mesmas áreas com o mesmo produto em
- * ciclo aberto (a taxa gravada em cada um conta o rebanho inteiro) e cuja
- * janela estimada cruza a deste ciclo: um começou antes de o outro se esgotar.
- * Ciclo aberto antigo, que já teria acabado antes deste lançamento (ou que
- * começou depois do esgotamento deste), não conta.
- * @param {any} ponto @param {any} ultimo @param {any[]} eventos @param {any[]} pontos
- * @param {{ dia: string, base: number, taxa: number }} ciclo  este ciclo aberto
- * @returns {CicloCompartilhado[]}
+ * Cochos que dividem os mesmos animais com o MESMO produto (D-PROD-178 §4).
+ *
+ * A taxa gravada em cada lançamento é a do rebanho inteiro e não há rateio,
+ * então dois ciclos abertos que se sobrepõem no tempo, nas mesmas áreas, não
+ * têm estimativa por cocho. Regra (simétrica — o mesmo grupo vale para todos
+ * os seus cochos):
+ *  - membros: cochos ativos da mesma fazenda cujo último lançamento é um ciclo
+ *    ABERTO do mesmo produto, com data válida e não futura;
+ *  - janela de um membro Z: [lançamento, lançamento + ⌈base ÷ taxa⌉) — a
+ *    duração MÍNIMA, porque a taxa é a do rebanho inteiro (sem taxa, a menor
+ *    taxa dos membros). Ela só vale se, nesse intervalo, nenhum OUTRO cocho
+ *    ativo das mesmas áreas teve ciclo do mesmo produto (aberto ou fechado):
+ *    nesse caso Z esteve sozinho com o rebanho e de fato se esgotou no fim da
+ *    janela. Se outro cocho dividiu o rebanho com Z, o fim de Z é desconhecido
+ *    e a janela fica aberta;
+ *  - dois membros com áreas em comum e janelas que se cruzam dividem os
+ *    animais; o grupo é o fecho transitivo disso.
+ * Assim um cocho abandonado que se esgotou SOZINHO não deixa o vizinho sem
+ * estimativa, e cochos reabastecidos em dias diferentes continuam sem
+ * estimativa (nada de dupla contagem nem 0% falso).
+ *
+ * @param {any} ponto @param {any} ultimo @param {any[]} eventos @param {any[]} pontos @param {string|null} hoje
+ * @returns {CicloAbertoDoGrupo[]} os OUTROS cochos do grupo (vazio = sozinho)
  */
-const cochosCompartilhando = (ponto, ultimo, eventos, pontos, ciclo) => {
-  const areas = new Set(areasDoPonto(ponto));
-  if (!areas.size || !Array.isArray(pontos)) return [];
-  const fimEste = diaEsgotamento(ciclo.dia, ciclo.base, ciclo.taxa);
-  /** @type {CicloCompartilhado[]} */
-  const ciclos = [];
-  for (const outro of pontos) {
-    if (!outro?.id || String(outro.id) === String(ponto.id)) continue;
-    if (!ehCocho(outro) || !ehAtivo(outro) || empresasDiferentes(ponto, outro)) continue;
-    if (!areasDoPonto(outro).some((area) => areas.has(area))) continue;
-    const eventoOutro = selecionarUltimoEventoDoPonto(outro, eventos);
-    if (!eventoOutro || eventoOutro.dias_periodo != null) continue;
-    if (empresasDiferentes(ultimo, eventoOutro)) continue;
-    if (!mesmoProduto(ultimo, eventoOutro)) continue;
-    const diaOutro = diaDoLancamento(eventoOutro.data_lancamento);
-    if (diaOutro == null) continue;
-    const baseOutro = kgOuZero(eventoOutro.quantidade_total_kg) + kgOuZero(eventoOutro.sobra_kg);
-    const taxaOutro = positivoOuNulo(eventoOutro.consumo_esperado_pv_kg);
-    const fimOutro = diaEsgotamento(diaOutro, baseOutro, taxaOutro ?? ciclo.taxa);
-    if (!(diaOutro < fimEste && ciclo.dia < fimOutro)) continue;
-    ciclos.push({ id: String(outro.id), dia: diaOutro, base: baseOutro, taxa: taxaOutro });
+const grupoDeCochosCompartilhando = (ponto, ultimo, eventos, pontos, hoje) => {
+  if (!areasDoPonto(ponto).length || !Array.isArray(pontos) || !Array.isArray(eventos)) return [];
+
+  /** @type {Map<string, any[]>} */
+  const eventosPorPonto = new Map();
+  for (const evento of eventos) {
+    if (!evento?.ponto_suplementacao_id) continue;
+    const chave = String(evento.ponto_suplementacao_id);
+    const lista = eventosPorPonto.get(chave);
+    if (lista) lista.push(evento); else eventosPorPonto.set(chave, [evento]);
   }
-  return ciclos;
+
+  // Cochos ativos da mesma fazenda (o próprio ponto sempre entra).
+  /** @type {Map<string, any>} */
+  const cochos = new Map([[String(ponto.id), ponto]]);
+  for (const outro of pontos) {
+    if (!outro?.id || cochos.has(String(outro.id))) continue;
+    if (!ehCocho(outro) || !ehAtivo(outro) || empresasDiferentes(ponto, outro)) continue;
+    cochos.set(String(outro.id), outro);
+  }
+
+  const naoFuturo = (/** @type {string} */ dia) => hoje == null || dia <= hoje;
+
+  // Ciclos (do mesmo produto, não futuros) de cada cocho, para conferir quem
+  // dividiu o rebanho: fechado → [lançamento, lançamento + dias do período);
+  // aberto → até o lançamento seguinte do mesmo cocho, ou sem fim se for o último.
+  /** @type {Map<string, {ini: string, fim: string|null}[]>} */
+  const ciclosPorCocho = new Map();
+  for (const [id, cocho] of cochos) {
+    const doCocho = (eventosPorPonto.get(id) || [])
+      .filter((evento) => !empresasDiferentes(cocho, evento))
+      .map((evento) => ({ evento, dia: diaDoLancamento(evento.data_lancamento) }))
+      .filter((item) => item.dia != null && naoFuturo(/** @type {string} */ (item.dia)))
+      .sort((a, b) => (/** @type {string} */ (a.dia) < /** @type {string} */ (b.dia) ? -1 : a.dia === b.dia ? 0 : 1));
+    /** @type {{ini: string, fim: string|null}[]} */
+    const ciclos = [];
+    doCocho.forEach((item, indice) => {
+      if (!mesmoProduto(ultimo, item.evento)) return;
+      const ini = /** @type {string} */ (item.dia);
+      const diasPeriodo = numeroOuNulo(item.evento.dias_periodo);
+      if (item.evento.dias_periodo != null) {
+        const fim = diasPeriodo != null && diasPeriodo >= 0 && diasPeriodo <= LIMITE_DIAS_CICLO ? somarDias(ini, Math.ceil(diasPeriodo)) || null : null;
+        ciclos.push({ ini, fim });
+      } else {
+        const seguinte = doCocho.slice(indice + 1).find((outro) => /** @type {string} */ (outro.dia) > ini);
+        ciclos.push({ ini, fim: seguinte ? /** @type {string} */ (seguinte.dia) : null });
+      }
+    });
+    ciclosPorCocho.set(id, ciclos);
+  }
+
+  // Membros: último lançamento = ciclo aberto do mesmo produto, data válida e não futura.
+  /** @type {CicloAbertoDoGrupo[]} */
+  const membros = [];
+  for (const [id, cocho] of cochos) {
+    const ultimoDoCocho = id === String(ponto.id) ? ultimo : selecionarUltimoEventoDoPonto(cocho, eventosPorPonto.get(id) || []);
+    if (!ultimoDoCocho || ultimoDoCocho.dias_periodo != null) continue;
+    if (empresasDiferentes(ultimo, ultimoDoCocho) || !mesmoProduto(ultimo, ultimoDoCocho)) continue;
+    const dia = diaDoLancamento(ultimoDoCocho.data_lancamento);
+    if (dia == null || !naoFuturo(dia)) continue;
+    membros.push({
+      id,
+      ponto: cocho,
+      areas: new Set(areasDoPonto(cocho)),
+      ultimo: ultimoDoCocho,
+      dia,
+      base: kgOuZero(ultimoDoCocho.quantidade_total_kg) + kgOuZero(ultimoDoCocho.sobra_kg),
+      taxa: positivoOuNulo(ultimoDoCocho.consumo_esperado_pv_kg),
+    });
+  }
+  const taxasConhecidas = membros.map((membro) => membro.taxa).filter((taxa) => taxa != null);
+  const taxaReferencia = taxasConhecidas.length ? Math.min(.../** @type {number[]} */ (taxasConhecidas)) : null;
+
+  const cruzamAreas = (/** @type {Set<string>} */ a, /** @type {Set<string>} */ b) => [...a].some((area) => b.has(area));
+
+  /** @type {Map<string, {ini: string, fim: string|null}>} */
+  const janelas = new Map();
+  for (const membro of membros) {
+    const fimMinimo = fimMinimoDoCiclo(membro.dia, membro.base, membro.taxa ?? taxaReferencia);
+    let fim = fimMinimo;
+    if (fimMinimo != null) {
+      const minima = { ini: membro.dia, fim: fimMinimo };
+      for (const [id, cocho] of cochos) {
+        if (id === membro.id || !cruzamAreas(membro.areas, new Set(areasDoPonto(cocho)))) continue;
+        if ((ciclosPorCocho.get(id) || []).some((ciclo) => intervalosSeCruzam(ciclo, minima))) { fim = null; break; }
+      }
+    }
+    janelas.set(membro.id, { ini: membro.dia, fim });
+  }
+
+  // Fecho transitivo a partir deste cocho.
+  const proprioId = String(ponto.id);
+  if (!janelas.has(proprioId)) return [];
+  const noGrupo = new Set([proprioId]);
+  const fila = [proprioId];
+  while (fila.length) {
+    const idAtual = fila.shift();
+    const atual = /** @type {CicloAbertoDoGrupo} */ (membros.find((membro) => membro.id === idAtual));
+    const janelaAtual = /** @type {{ini: string, fim: string|null}} */ (janelas.get(atual.id));
+    for (const membro of membros) {
+      if (noGrupo.has(membro.id) || !cruzamAreas(atual.areas, membro.areas)) continue;
+      if (!intervalosSeCruzam(janelaAtual, /** @type {{ini: string, fim: string|null}} */ (janelas.get(membro.id)))) continue;
+      noGrupo.add(membro.id);
+      fila.push(membro.id);
+    }
+  }
+  return membros.filter((membro) => membro.id !== proprioId && noGrupo.has(membro.id));
 };
 
 /**
  * Dia em que o GRUPO de cochos compartilhados já teria esgotado: depois do
  * último lançamento do grupo, a soma das bases consumida pela menor taxa.
  * Limite superior (sem rateio): o rebanho consome a taxa de onde houver produto.
- * @param {{ dia: string, base: number, taxa: number }} ciclo @param {CicloCompartilhado[]} outros
+ * O mesmo para todos os cochos do grupo. `null` = longo demais para datar.
+ * @param {{ dia: string, base: number, taxa: number }} ciclo @param {CicloAbertoDoGrupo[]} outros
+ * @returns {string|null}
  */
 const esgotamentoDoConjunto = (ciclo, outros) => {
   let ultimoDia = ciclo.dia;
@@ -365,7 +487,7 @@ const esgotamentoDoConjunto = (ciclo, outros) => {
     totalBase += outro.base;
     if (outro.taxa != null && outro.taxa < menorTaxa) menorTaxa = outro.taxa;
   }
-  return diaEsgotamento(ultimoDia, totalBase, menorTaxa);
+  return fimMinimoDoCiclo(ultimoDia, totalBase, menorTaxa);
 };
 
 /**
@@ -401,6 +523,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     sobraAnteriorKg: null,
     baseCicloKg: null,
     taxaConsumoKgDia: null,
+    taxaRegistradaKgDia: null,
     fonteConsumo: null,
     diasDecorridos: null,
     consumoEstimadoKg: null,
@@ -471,8 +594,9 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
   const base = n.fornecidoKg + n.sobraAnteriorKg;
   n.baseCicloKg = base;
   const taxa = positivoOuNulo(ultimo.consumo_esperado_pv_kg);
+  n.taxaRegistradaKgDia = taxa;
   const ciclo = taxa != null ? { dia, base, taxa } : null;
-  const compartilhados = ciclo ? cochosCompartilhando(ponto, ultimo, eventos, pontos, ciclo) : [];
+  const compartilhados = ciclo ? grupoDeCochosCompartilhando(ponto, ultimo, eventos, pontos, hojeValido ? hoje : null) : [];
   const dias = hojeValido ? diasEntre(dia, hoje) : null;
 
   if (taxa == null || dias == null) {
@@ -497,8 +621,9 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     n.saldoKg = Math.max(0, base - taxa * decorridos);
     n.saldoTipo = 'estimado';
     n.diasRestantesEstimados = Math.max(0, base / taxa - decorridos);
-    // Tolerância de ponto flutuante: 200/50 não pode virar 5 dias.
-    n.dataEsgotamentoEstimada = somarDias(dia, Math.max(0, Math.ceil(base / taxa - 1e-9))) || null;
+    // Tolerância de ponto flutuante: 200/50 não pode virar 5 dias. Ciclo longo
+    // demais (taxa absurda) fica sem data.
+    n.dataEsgotamentoEstimada = fimMinimoDoCiclo(dia, base, taxa);
     if (base > 0) {
       n.duracaoCicloEstimadaDias = base / taxa;
       n.fracaoCiclo = clamp01(n.saldoKg / base);
@@ -575,6 +700,47 @@ export function projecaoDoCartaoDoNivel(nivel) {
     duracaoEstimada: estimado ? nivel.duracaoCicloEstimadaDias : null,
     proximaReposicao: estimado && nivel.dataEsgotamentoEstimada ? formatarDia(nivel.dataEsgotamentoEstimada) : null,
   };
+}
+
+/**
+ * Consumo diário (kg/dia) que os cochos ligados a um depósito puxam dele,
+ * contando cada REBANHO uma vez: cochos com ciclo aberto do mesmo produto e
+ * áreas em comum (fecho transitivo) são o mesmo rebanho, e a taxa gravada em
+ * cada um já é a do rebanho inteiro — somar as duas seria dupla contagem. Por
+ * grupo vale a taxa do lançamento mais recente (empate: a maior). Entram os
+ * ciclos abertos com taxa gravada, estimados ou compartilhados (para o
+ * depósito importa o total do rebanho, não o rateio entre cochos); sem taxa,
+ * o cocho fica fora.
+ * @param {{ ponto: any, nivel: NivelCocho }[]} itens
+ * @returns {number}
+ */
+export function consumoDiarioDosRebanhos(itens) {
+  const comTaxa = (Array.isArray(itens) ? itens : []).filter(({ nivel }) => nivel?.estado === 'ciclo_aberto' && nivel.taxaRegistradaKgDia != null && nivel.taxaRegistradaKgDia > 0);
+  const areas = comTaxa.map(({ ponto }) => new Set(areasDoPonto(ponto)));
+  const visitado = new Array(comTaxa.length).fill(false);
+  let total = 0;
+  for (let i = 0; i < comTaxa.length; i += 1) {
+    if (visitado[i]) continue;
+    visitado[i] = true;
+    const fila = [i];
+    let melhor = comTaxa[i].nivel;
+    while (fila.length) {
+      const atual = /** @type {number} */ (fila.shift());
+      for (let j = 0; j < comTaxa.length; j += 1) {
+        if (visitado[j]) continue;
+        const mesmasAreas = [...areas[atual]].some((area) => areas[j].has(area));
+        if (!mesmasAreas || !mesmoProduto(comTaxa[atual].nivel.evento, comTaxa[j].nivel.evento)) continue;
+        visitado[j] = true;
+        fila.push(j);
+        const candidato = comTaxa[j].nivel;
+        const diaC = candidato.dataLancamento ?? '';
+        const diaM = melhor.dataLancamento ?? '';
+        if (diaC > diaM || (diaC === diaM && /** @type {number} */ (candidato.taxaRegistradaKgDia) > /** @type {number} */ (melhor.taxaRegistradaKgDia))) melhor = candidato;
+      }
+    }
+    total += /** @type {number} */ (melhor.taxaRegistradaKgDia);
+  }
+  return total;
 }
 
 /** Preenche ocupação/excesso contra o limite operacional atual. @param {NivelCocho} n */

@@ -38,7 +38,6 @@ import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoP
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
-import { useDiaCivil } from "@/hooks/useDiaCivil";
 import { hojeNoFuso } from "@/lib/diaCivil";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
@@ -77,9 +76,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     const empresa = (Array.isArray(empresas) ? empresas : []).find((e) => String(e?.id) === String(empresaSelecionadaId));
     return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
   }, [empresas, empresaSelecionadaId]);
-  const hojeFazenda = useDiaCivil(fusoFazenda);
   // A data que a pessoa escolheu não é trocada quando o fuso chega.
   const dataLancamentoEditada = useRef(false);
+  // O padrão da fazenda é aplicado UMA vez, quando o fuso chega: com o
+  // formulário aberto na virada do dia, a data que a pessoa já viu não muda
+  // sozinha (nem o `dias_periodo` do ciclo anterior).
+  const padraoDoFusoAplicado = useRef(false);
   const [formData, setFormData] = useState({
     data_lancamento: hojeNoFuso(null),
     data_fim_consumo_anterior: "",
@@ -92,9 +94,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   useEffect(() => {
+    if (!fusoFazenda || padraoDoFusoAplicado.current) return;
+    padraoDoFusoAplicado.current = true;
     if (dataLancamentoEditada.current) return;
+    const hojeFazenda = hojeNoFuso(fusoFazenda);
     setFormData((prev) => (prev.data_lancamento === hojeFazenda ? prev : { ...prev, data_lancamento: hojeFazenda }));
-  }, [hojeFazenda]);
+  }, [fusoFazenda]);
 
   const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => getCurrentUser() });
 

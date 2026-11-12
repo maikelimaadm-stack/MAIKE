@@ -9,7 +9,9 @@
  *        data sugerida é 12/11 — e o SSOT, com o mesmo dia, não vê lançamento
  *        futuro;
  *  LD-2. empresa sem fuso: relógio do navegador (comportamento anterior);
- *  LD-3. a data que a pessoa já escolheu não é trocada quando o fuso chega.
+ *  LD-3. a data que a pessoa já escolheu não é trocada quando o fuso chega;
+ *  LD-4. com o formulário aberto na virada do dia, a data que a pessoa já viu
+ *        não muda sozinha (o padrão da fazenda é aplicado uma vez).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -98,5 +100,15 @@ describe('data padrão do lançamento no fuso da fazenda', () => {
     await act(async () => { liberar([{ id: 'emp-1', nome: 'FAZENDA', fuso_horario: 'America/Cuiaba' }]); });
     await assentar();
     expect(campoData().value).toBe('2026-11-10');
+  });
+  it('LD-4 — virada do dia com o formulário aberto: a data mostrada não muda sozinha', async () => {
+    empresas.resposta = async () => [{ id: 'emp-1', nome: 'FAZENDA', fuso_horario: 'America/Cuiaba' }];
+    await montar();
+    expect(campoData().value).toBe('2026-11-12');
+    // 04:05 UTC de 13/11 = 00:05 de 13/11 em Cuiabá; foco na janela relê o dia.
+    vi.setSystemTime(new Date('2026-11-13T04:05:00.000Z'));
+    await act(async () => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
+    await assentar();
+    expect(campoData().value).toBe('2026-11-12');
   });
 });

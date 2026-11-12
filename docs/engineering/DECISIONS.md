@@ -6291,8 +6291,14 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
    - data inválida;
    - período fechado (saldo = sobra informada no fechamento, sem recalcular).
 4. **Cochos compartilhados.** Se outro cocho ativo nas mesmas áreas está com ciclo aberto do MESMO produto, a estimativa é marcada como não confiável, porque o consumo gravado conta o rebanho inteiro em cada cocho. Não há rateio inventado (50/50).
-   - **Critério de tempo.** Um ciclo só fecha quando chega um lançamento novo, então um cocho que parou de ser abastecido ficaria "aberto" para sempre. Por isso dois ciclos abertos só contam como compartilhados quando as janelas estimadas se cruzam: [lançamento, esgotamento pela taxa gravada) de cada um. Se o outro cocho não tem taxa, a janela dele usa a taxa deste (os dois contam o mesmo rebanho). Outro cocho sem data válida não conta. Como a taxa gravada é a do rebanho inteiro, essa janela é a duração MÍNIMA do ciclo.
-   - **Aviso do conjunto.** Num cocho compartilhado, o ícone fica neutro. Mas, quando nem a soma das bases do grupo, consumida pela menor taxa do grupo a partir do último lançamento, ainda teria produto, o alerta crítico `cocho_sem_produto` volta: "A cobertura estimada dos N cochos que atendem estes animais foi esgotada."
+   - **Critério de tempo.** Um ciclo só fecha quando chega um lançamento novo, então um cocho que parou de ser abastecido ficaria "aberto" para sempre.
+     - **Membros do grupo:** os cochos ativos da mesma fazenda cujo último lançamento é um ciclo ABERTO do mesmo produto, com data válida e não futura. Um lançamento com data futura no vizinho ainda não conta.
+     - **Janela de cada membro:** [lançamento, lançamento + ⌈base ÷ taxa⌉), que é a duração MÍNIMA (sem taxa, vale a menor taxa do grupo). Ela só vale se o cocho esteve SOZINHO com o rebanho nesse intervalo, isto é, se nenhum outro cocho ativo das mesmas áreas teve ciclo do mesmo produto ali, aberto ou FECHADO. Se outro cocho dividiu o rebanho, o fim é desconhecido e a janela fica aberta.
+     - **Grupo:** dois membros com áreas em comum e janelas que se cruzam dividem os animais. O grupo é o fecho transitivo disso, e é o mesmo para todos os seus cochos.
+     - **Por quê:** um cocho abandonado que se esgotou sozinho não tira a estimativa do vizinho. Já cochos reabastecidos em dias diferentes continuam sem estimativa, sem 0% falso nem dupla contagem.
+     - **Custo conhecido (conservador):** um cocho parado enquanto o vizinho continuava sendo reabastecido dividiu o rebanho com ele. Os dois ficam sem estimativa até um lançamento novo nesse cocho, ou até ele ser desativado. O texto do detalhe diz isso.
+   - **Aviso do conjunto.** Num cocho compartilhado, o ícone fica neutro. Mas, quando nem a soma das bases do grupo, consumida pela menor taxa do grupo a partir do último lançamento, ainda teria produto, o alerta crítico `cocho_sem_produto` volta: "A cobertura estimada dos N cochos que atendem estes animais foi esgotada." A data é a mesma para todo o grupo.
+   - **Taxa absurda.** Um ciclo com mais de 36.500 dias pela taxa (dado corrompido) fica sem data de esgotamento, e a conta de datas não pode lançar exceção. Antes, uma taxa de 0,000001 kg/dia derrubava o mapa.
 5. **Limite operacional.** `capacidade_cocho_kg` passa a ser lido e rotulado como o máximo recomendado pelo proprietário, que pode ser menor que a capacidade física. A capacidade física não é armazenada.
    - **Cocho:** o detalhe mostra dois medidores:
      - restante do ciclo;
@@ -6307,6 +6313,7 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
    - Tipos, títulos e severidades existentes são mantidos. Nas descrições, só o formato numérico passou a pt-BR ("1.0" → "1", "0.5" → "0,5", "1234 kg" → "1.234 kg").
    - Os textos de excesso trazem o saldo e o excesso: "Saldo de 600 kg, 300 kg acima do limite operacional (200%)." e "Sobra informada de 30 kg, 10 kg acima do limite operacional (150%).".
    - Sem estimativa não há "cocho sem produto", exceto o aviso do conjunto do item 4.
+   - **Cobertura do depósito:** conta cada REBANHO uma vez. Cochos ligados com ciclo aberto do mesmo produto e áreas em comum (fecho transitivo) são o mesmo rebanho, e vale a taxa do lançamento mais recente do grupo. Entram os estimados e os compartilhados: para o depósito importa o total do rebanho, não o rateio entre cochos. Antes, a soma por cocho contava o mesmo rebanho duas vezes (por exemplo, um cocho abandonado ao lado de um ativo) e dava baixa cobertura falsa.
    - Os alertas por lote (`suplementacao_pendente`) não mudam neste slice.
 9. **Cartão do lançamento (detalhe e Histórico).** O cartão de métricas do ÚLTIMO lançamento recebe a projeção do nível (`projecaoDoCartaoDoNivel`), igual no detalhe e no Histórico. Assim os dois mostram a mesma duração e a mesma próxima reposição, e nenhum refaz a conta.
    - **Ciclo aberto sem estimativa confiável** (sem %PV ou compartilhado): duração e reposição ficam "-".
@@ -6319,9 +6326,22 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
     - **Detalhe do cocho:** os rótulos de consumo por cabeça passam a ser "Consumo mín./cab/dia" e "Consumo máx./cab/dia".
     - **Coluna do Cadastro do Mapa:** "Limite op. (kg) / Capac. (L)". O id da coluna e os dados não mudam.
     - **Formulário do ponto:** quando o estoque mínimo é igual ou maior que o limite operacional, mostra um AVISO junto ao campo. O aviso não bloqueia o salvar: a regra de cadastro não muda.
-    - **Formulário de lançamento:** a data padrão segue o dia civil da fazenda (mesmo fuso do nível). Uma data escolhida pela pessoa não é trocada, e o payload não muda.
+    - **Formulário de lançamento:** a data padrão é o dia civil da fazenda (mesmo fuso do nível), aplicada uma vez quando o fuso chega. A data que a pessoa escolheu, ou já viu na tela, não muda sozinha, nem na virada do dia com o formulário aberto. O payload não muda.
+11. **Detalhes de implementação registrados.**
+    - O cache `produtos` do mapa passa a incluir os inativos, porque a unidade de um lote de estoque não depende de o produto estar ativo (P-11). Quem precisa só dos ativos filtra na hora de usar.
+    - `getDepositoIndicator` perde o número `necessidadeEstimada`, que não tinha consumidor e era uma conta paralela (`consumo_ideal × cabeças`).
+    - O nível ganha `duracaoCicloEstimadaDias` e `taxaRegistradaKgDia`. Este último serve só para a cobertura do depósito e nunca para estimar saldo de cocho.
+    - O teto do `gate:types` foi recertificado de 1746 para 625. 649 era o real da `main`; o resto da queda vem deste slice, e nenhum arquivo subiu.
+    - `scripts/dev/e2e-mapa-niveis.mjs` é o roteiro E2E, só para banco local. A trava `exigirBancoLocal` (compartilhada pelos roteiros) também recusa `?host=` remoto e esvazia `POSTGRES_PRISMA_URL`/`POSTGRES_URL`, para que um `.env` não aponte o ensaio para outro banco. O roteiro ainda confere a URL que o backend resolveu.
+    - `scripts/dev/e2e-estoque-p0.mjs` passa a achar os marcadores por `title^=`, porque o título agora é "nome — nível".
 
-**Fora do escopo:** backend, migration, Prisma, saldos, FIFO, lançamento, fechamento, permissões, rateio entre cochos e histórico do limite.
+**Fora do escopo:**
+- backend, migration e Prisma;
+- saldos e FIFO;
+- lógica e API de lançamento e de fechamento (a data padrão do formulário, item 10, é só valor inicial de UI);
+- permissões;
+- rateio entre cochos;
+- histórico do limite.
 
 **Estado:** implementada na PR #250 (rascunho), na branch `claude/new-session-abgn5w`. Não tem migration nem mudança no backend. A release é merge e deploy do front, depois da auditoria do arquiteto.
 

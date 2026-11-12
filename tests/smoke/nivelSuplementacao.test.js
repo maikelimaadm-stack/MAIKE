@@ -394,8 +394,9 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
   });
 
   // Critério de tempo: um ciclo aberto que nunca recebeu outro lançamento não
-  // fecha sozinho. Só conta como compartilhado quando as janelas estimadas dos
-  // dois ciclos (lançamento → esgotamento pela taxa gravada) se cruzam.
+  // fecha sozinho. A janela de um ciclo (lançamento → esgotamento pela taxa
+  // gravada) só vale se o cocho esteve SOZINHO com o rebanho nesse intervalo;
+  // se outro cocho teve ciclo do mesmo produto ali, o fim é desconhecido.
   it('cocho abandonado ao lado de um ativo: cada um tem a própria estimativa (o vazio mantém "sem produto")', () => {
     const abandonado = eventoOutro({ data_lancamento: '2026-08-01', quantidade_total_kg: 100 }); // esgota em 03/08
     const ativo = evento({ data_lancamento: '2026-11-10' });
@@ -412,6 +413,84 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     expect(b.compartilhadoCom).toEqual([]);
     expect(b.saldoKg).toBe(0);
     expect(b.alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
+  });
+
+  it('reabastecimento em dias diferentes: o ciclo fechado que dividiu o rebanho mantém os dois sem estimativa (nada de 0% falso nem dupla contagem)', () => {
+    // c1 e c2 em 01/11, 200 kg cada, 50 kg/dia o rebanho. Em 06/11 só c1 é
+    // reabastecido: o ciclo de 01/11 fecha com 5 dias e sobra 100 (o rebanho
+    // comeu só 20 kg/dia de c1 — o resto saiu de c2).
+    const c1Fechado = evento({ id: 'e1a', data_lancamento: '2026-11-01', dias_periodo: 5, sobra_kg: 100, consumo_diario_grupo_kg: 20 });
+    const c1Novo = evento({ id: 'e1b', data_lancamento: '2026-11-06', quantidade_total_kg: 200, sobra_kg: 100 });
+    const c2 = eventoOutro({ data_lancamento: '2026-11-01' });
+    const eventos = [c1Fechado, c1Novo, c2];
+    for (const hoje of ['2026-11-06', '2026-11-08']) {
+      const a = nivel({ eventos, pontos: [COCHO, OUTRO], hoje });
+      const b = nivel({ ponto: OUTRO, eventos, pontos: [COCHO, OUTRO], hoje });
+      expect(a.confiabilidade).toBe('compartilhada');
+      expect(b.confiabilidade).toBe('compartilhada');
+      expect(a.saldoKg).toBeNull();
+      expect(b.saldoKg).toBeNull();
+      expect(b.rotuloCurto).toBe('Sem estimativa');
+      expect(b.alertas).toEqual([]);
+      // Mesmo conjunto para os dois: 06/11 + (300 + 200) ÷ 50 = 16/11.
+      expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-16');
+      expect(b.dataEsgotamentoConjuntoEstimada).toBe('2026-11-16');
+    }
+    const emDezesseis = nivel({ ponto: OUTRO, eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-16' });
+    expect(emDezesseis.alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
+  });
+
+  it('cocho parado enquanto o vizinho seguia sendo reabastecido: dividiu o rebanho, então fica sem estimativa (conservador)', () => {
+    // c2 recebeu 200 kg em 01/10 e nunca mais; c1 foi reabastecido a cada 4 dias.
+    const c1 = [
+      evento({ id: 'f1', data_lancamento: '2026-10-01', dias_periodo: 4, sobra_kg: 0, consumo_diario_grupo_kg: 50 }),
+      evento({ id: 'f2', data_lancamento: '2026-10-05', dias_periodo: 4, sobra_kg: 0, consumo_diario_grupo_kg: 50 }),
+      evento({ id: 'f3', data_lancamento: '2026-11-10' }),
+    ];
+    const c2 = eventoOutro({ data_lancamento: '2026-10-01' });
+    const a = nivel({ eventos: [...c1, c2], pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(a.confiabilidade).toBe('compartilhada');
+    expect(a.compartilhadoCom).toEqual(['c2']);
+  });
+
+  it('lançamento FUTURO no vizinho não deixa este cocho sem estimativa hoje', () => {
+    const eventos = [evento({ data_lancamento: '2026-11-10' }), eventoOutro({ data_lancamento: '2026-11-13' })];
+    const a = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(a.confiabilidade).toBe('estimada');
+    expect(a.rotuloCurto).toBe('50%');
+    // No dia do lançamento do vizinho, os dois passam a dividir o rebanho.
+    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-13' }).confiabilidade).toBe('compartilhada');
+  });
+
+  it('grupo transitivo: A–B nas áreas a1 e B–C na a2 formam um grupo só, com o mesmo conjunto para os três', () => {
+    const A = { ...COCHO, id: 'A', area_vinculada_ids: ['a1'] };
+    const B = { ...COCHO, id: 'B', area_vinculada_ids: ['a1', 'a2'] };
+    const C = { ...COCHO, id: 'C', area_vinculada_ids: ['a2'] };
+    const eventos = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-01' }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-11-03' }),
+      evento({ id: 'eC', ponto_suplementacao_id: 'C', data_lancamento: '2026-11-06' }),
+    ];
+    const pontos = [A, B, C];
+    const niveis = [A, B, C].map((ponto) => nivel({ ponto, eventos, pontos, hoje: '2026-11-07' }));
+    expect(niveis.map((n) => n.confiabilidade)).toEqual(['compartilhada', 'compartilhada', 'compartilhada']);
+    expect([...niveis[0].compartilhadoCom].sort()).toEqual(['B', 'C']);
+    // 06/11 + 600 ÷ 50 = 18/11 para todos.
+    expect(niveis.map((n) => n.dataEsgotamentoConjuntoEstimada)).toEqual(['2026-11-18', '2026-11-18', '2026-11-18']);
+  });
+
+  it('taxa absurda (dado corrompido) não derruba o cálculo: sem data de esgotamento, sem exceção', () => {
+    const minuscula = evento({ consumo_esperado_pv_kg: 0.000001 });
+    expect(() => nivel({ eventos: [minuscula], hoje: '2026-11-12' })).not.toThrow();
+    const n = nivel({ eventos: [minuscula], hoje: '2026-11-12' });
+    expect(n.confiabilidade).toBe('estimada');
+    expect(n.dataEsgotamentoEstimada).toBeNull();
+    expect(n.rotuloCurto).toBe('100%');
+    const comVizinho = [minuscula, eventoOutro({ consumo_esperado_pv_kg: 0.000001 })];
+    expect(() => nivel({ eventos: comVizinho, pontos: [COCHO, OUTRO], hoje: '2026-11-12' })).not.toThrow();
+    const n2 = nivel({ eventos: comVizinho, pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(n2.confiabilidade).toBe('compartilhada');
+    expect(n2.dataEsgotamentoConjuntoEstimada).toBeNull();
   });
 
   it('janelas: lançado no dia do esgotamento do outro não conta; um dia antes conta (nos dois sentidos)', () => {

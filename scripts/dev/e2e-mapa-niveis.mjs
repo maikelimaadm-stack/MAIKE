@@ -105,7 +105,9 @@ if (!chromium) {
 const processos = [];
 const envLimpo = () => {
   const e = { ...process.env };
-  for (const k of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'VERCEL', 'VERCEL_ENV']) delete e[k];
+  // Vazias, não apagadas: o dotenv do backend só preenche chaves ausentes.
+  for (const k of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) e[k] = '';
+  for (const k of ['VERCEL', 'VERCEL_ENV']) delete e[k];
   return e;
 };
 const subir = (nome, comando, args, env) => {
@@ -194,6 +196,14 @@ const instanteSP = (dia, hora) => new Date(`${dia}T${hora}-03:00`);
 
 // ─── Banco ──────────────────────────────────────────────────────────────────
 process.env.DATABASE_URL = DATABASE_URL;
+{
+  // Confere a URL que o backend resolveu de fato (depois do dotenv).
+  const { env: envBackend } = await import('../../backend/src/config/env.js');
+  if (envBackend.databaseUrl !== DATABASE_URL) {
+    console.error('O backend resolveu outro banco que não a DATABASE_URL local conferida; o ensaio não roda.');
+    process.exit(2);
+  }
+}
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
 const prisma = getPrismaClient();
 const { gerarSenhaHash } = await import('../../backend/src/modules/auth/authService.js');

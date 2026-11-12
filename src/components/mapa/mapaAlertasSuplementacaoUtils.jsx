@@ -20,7 +20,7 @@
  */
 import { consumoEsperadoGrupoDia } from "../suplementacao/consumoPVUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
-import { calcularNivelCocho, calcularNivelDeposito } from "@/domain/suplementacao/nivelSuplementacao";
+import { calcularNivelCocho, calcularNivelDeposito, consumoDiarioDosRebanhos } from "@/domain/suplementacao/nivelSuplementacao";
 import { hojeNoFuso } from "@/lib/diaCivil";
 
 const DIA_MS = 86400000;
@@ -184,10 +184,11 @@ export function buildMapaAlertasSuplementacao({
     const nivel = calcularNivelDeposito({ deposito, estoqueLotes, produtos });
     const saldoAtual = nivel.saldoKg;
 
-    // Cobertura: só cochos ligados com taxa ESTIMADA (sem %PV ou com cochos
-    // compartilhando os mesmos animais, a taxa não é confiável e fica fora).
+    // Cobertura: o consumo do rebanho puxado pelos cochos ligados, uma taxa
+    // por rebanho (cochos do mesmo produto nas mesmas áreas são o mesmo
+    // rebanho — somar seria dupla contagem). Ver `consumoDiarioDosRebanhos`.
     const cochosDoDeposito = cochos.filter((cocho) => cocho.deposito_origem_id === deposito.id);
-    const consumoDiario = cochosDoDeposito.reduce((total, cocho) => total + Number(alertasPonto.get(cocho.id)?.consumoDiario || 0), 0);
+    const consumoDiario = consumoDiarioDosRebanhos(cochosDoDeposito.map((cocho) => ({ ponto: cocho, nivel: alertasPonto.get(cocho.id)?.nivel })).filter((item) => item.nivel));
     const estoqueMinimo = nivel.estoqueMinimoKg ?? 0;
     const diasCobertura = consumoDiario > 0 ? saldoAtual / consumoDiario : null;
     const alertasNivel = nivel.alertas.filter((alerta) => alerta.tipo !== "deposito_acima_limite");

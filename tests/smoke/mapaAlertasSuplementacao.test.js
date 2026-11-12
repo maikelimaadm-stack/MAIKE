@@ -13,7 +13,8 @@
  *  - sem taxa no lançamento (sem %PV) não há falso "Cocho sem produto" — nem no
  *    dia do lançamento, nem com o fallback antigo do "maior %PV" da área;
  *  - saldo do depósito sem Produto em L (P-11), como o marcador;
- *  - cobertura do depósito só soma taxas ESTIMADAS dos cochos ligados;
+ *  - cobertura do depósito conta cada REBANHO uma vez (cochos do mesmo produto
+ *    nas mesmas áreas são o mesmo rebanho), estimados ou compartilhados;
  *  - `hoje` por parâmetro (padrão: `hojeNoFuso(null)`);
  *  - `alertasLote` e o formato `{ alertasLote, alertasPonto }` inalterados.
  */
@@ -146,7 +147,7 @@ describe('alertas do depósito pelo SSOT', () => {
     expect(tipos(semTaxa, 'd1')).toEqual([]);
   });
 
-  it('cochos compartilhando os mesmos animais (estimativa não confiável) não entram na cobertura', () => {
+  it('cochos compartilhando os mesmos animais: a cobertura conta o rebanho UMA vez (a taxa de cada cocho já é a do rebanho inteiro)', () => {
     const OUTRO = { ...COCHO, id: 'c2' };
     const r = montar({
       estoqueLotes: [loteEstoque(40)],
@@ -154,7 +155,33 @@ describe('alertas do depósito pelo SSOT', () => {
       eventosSupl: [evento(), evento({ id: 'e2', ponto_suplementacao_id: 'c2' })],
     });
     expect(r.alertasPonto.get('c1').nivel.confiabilidade).toBe('compartilhada');
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(50);
+    expect(r.alertasPonto.get('d1').diasCobertura).toBeCloseTo(0.8, 10);
+    expect(tipos(r, 'd1')).toEqual(['deposito_cobertura_baixa']);
+  });
+
+  it('cocho abandonado e cocho ativo no mesmo depósito e na mesma área: um rebanho, uma taxa (sem dupla contagem)', () => {
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B' };
+    const evA = evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-10' });
+    const evB = evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-08-01' });
+    const r = montar({ estoqueLotes: [loteEstoque(150)], pontosSuplementacao: [A, B, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl: [evA, evB], hoje: '2026-11-12' });
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(50);
+    expect(r.alertasPonto.get('d1').diasCobertura).toBe(3);
     expect(tipos(r, 'd1')).toEqual([]);
+  });
+
+  it('rebanhos diferentes (outra área ou outro produto) somam na cobertura', () => {
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B', area_vinculada_ids: ['a9'] };
+    const C = { ...COCHO, id: 'C' };
+    const eventosSupl = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A' }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', consumo_esperado_pv_kg: 30 }),
+      evento({ id: 'eC', ponto_suplementacao_id: 'C', produto: 'PROTEINADO', produto_id: 'p-prot', consumo_esperado_pv_kg: 20 }),
+    ];
+    const r = montar({ estoqueLotes: [loteEstoque(1000)], pontosSuplementacao: [A, B, C, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl });
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(100);
   });
 
   it('acima do limite operacional: deposito_acima_limite', () => {
