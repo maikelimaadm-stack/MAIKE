@@ -35,7 +35,8 @@ export const somarDias = (dia, n) => {
   if (!p || !Number.isInteger(n)) return '';
   const t = Date.UTC(p[0], p[1] - 1, p[2]) + n * MS_DIA;
   const r = new Date(t);
-  if (r.getUTCFullYear() > 9999 || r.getUTCFullYear() < 1) return '';
+  // Fora do intervalo do Date (n enorme) o ano vira NaN e `toISOString` lançaria.
+  if (Number.isNaN(r.getTime()) || r.getUTCFullYear() > 9999 || r.getUTCFullYear() < 1) return '';
   return r.toISOString().slice(0, 10);
 };
 

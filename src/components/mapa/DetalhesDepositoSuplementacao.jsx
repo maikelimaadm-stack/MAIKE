@@ -1,8 +1,7 @@
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
 import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/mapaService";
-import { listarTodosLotes } from "@/services/loteManejoService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const [transferDirection, setTransferDirection] = useState("entrada");
   // Alvo das folhas do celular DENTRO do diálogo da transferência (D-PROD-161).
   const [alvoFolhaTransferencia, setAlvoFolhaTransferencia] = useState(/** @type {HTMLElement | null} */ (null));
+  const idTituloNivel = useId();
+  const idGrupoLitros = useId();
 
   const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
@@ -37,7 +38,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     staleTime: 60 * 1000
   });
 
-  const { data: produtos = [] } = useQuery({
+  const { data: produtos = [], isLoading: loadingProdutos } = useQuery({
     queryKey: ["produtos-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
       const all = await listarTodosProdutos();
@@ -51,16 +52,6 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     queryKey: ["cochos-vinculados-deposito", deposito.id],
     queryFn: async () => {
       return listarPontosSuplementacaoAtivos(empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId,
-    staleTime: 60 * 1000
-  });
-
-  const { data: lotes = [], isLoading: loadingLotes } = useQuery({
-    queryKey: ["lotes-deposito-detalhe", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await listarTodosLotes();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 60 * 1000
@@ -89,27 +80,42 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   }, [pontosSuplementacao, deposito.id]);
 
   // D-PROD-162 (P-11): Produto com estoque em LITROS aparece no saldo por produto com "L", sem sacos,
-  // e fica fora dos indicadores em kg (saldo, necessidade, % e último registro). Sem Produto em L, nada muda.
+  // numa lista à parte, e fica fora dos indicadores em kg (saldo, necessidade, % e último registro).
+  // Mesmos lotes do nível (D-PROD-178): só quantidade disponível > 0; a soma das linhas em kg é o
+  // "Saldo atual kg". Lote de produto fora do cadastro continua em kg, marcado "unidade não confirmada".
   const saldosAgrupados = useMemo(() => {
     const mapa = new Map();
     lotesNota.forEach((lote) => {
+      const quantidade = Number(lote.quantidade_disponivel) || 0;
+      if (quantidade <= 0) return;
       const produto = produtos.find((item) => item.id === lote.produto_id);
       const emLitros = produto?.unidade_principal_estoque === "L";
       const pesoPorSaco = emLitros ? 0 : Number(produto?.peso_por_saco_kg || 0);
-      const current = mapa.get(lote.produto_id) || { produto_id: lote.produto_id, produto_nome: lote.produto_nome, saldo: 0, saldoSacos: 0, ...(emLitros ? { emLitros: true } : {}) };
-      current.saldo += lote.quantidade_disponivel || 0;
-      current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(lote.quantidade_disponivel || 0, pesoPorSaco) : 0;
+      const current = mapa.get(lote.produto_id) || {
+        produto_id: lote.produto_id,
+        produto_nome: produto?.nome_produto || lote.produto_nome || "Produto sem nome",
+        saldo: 0,
+        saldoSacos: 0,
+        unidadeConfirmada: Boolean(produto),
+        ...(emLitros ? { emLitros: true } : {})
+      };
+      current.saldo += quantidade;
+      current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(quantidade, pesoPorSaco) : 0;
       mapa.set(lote.produto_id, current);
     });
-    return Array.from(mapa.values()).sort((a, b) => a.produto_nome.localeCompare(b.produto_nome));
+    const ordenados = Array.from(mapa.values()).sort((a, b) => a.produto_nome.localeCompare(b.produto_nome, "pt-BR"));
+    return { emKg: ordenados.filter((item) => !item.emLitros), emLitros: ordenados.filter((item) => item.emLitros) };
   }, [lotesNota, produtos]);
 
+  // Só o SSOT (D-PROD-178): o nível não depende de cochos nem de lotes de gado.
   const indicador = useMemo(() => {
-    return getDepositoIndicator(deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos);
-  }, [deposito, pontosSuplementacao, lotes, lotesNota, movimentacoes, produtos]);
+    return getDepositoIndicator(deposito, [], [], lotesNota, movimentacoes, produtos);
+  }, [deposito, lotesNota, movimentacoes, produtos]);
 
+  // Nível do SSOT (D-PROD-178): o mesmo número do marcador do mapa.
+  const nivel = indicador.nivel;
   const ultimoRegistro = indicador.latestRecord;
-  const totalSaldoSacos = useMemo(() => saldosAgrupados.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
+  const totalSaldoSacos = useMemo(() => saldosAgrupados.emKg.reduce((total, item) => total + (item.saldoSacos || 0), 0), [saldosAgrupados]);
   const ultimoProduto = useMemo(() => {
     if (!ultimoRegistro?.produto_id) return null;
     return produtos.find((produto) => produto.id === ultimoRegistro.produto_id) || null;
@@ -125,7 +131,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
   };
 
-  const loadingInicial = loadingSaldo || loadingCochos || loadingLotes || loadingAreas;
+  // Os produtos entram: sem eles a unidade dos lotes não é conhecida e o litro cairia no kg no primeiro quadro.
+  const loadingInicial = loadingSaldo || loadingProdutos || loadingCochos || loadingAreas;
 
   if (loadingInicial) {
     return (
@@ -152,47 +159,42 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
-      <div className="space-y-1 text-[10px]">
-        <Card className="border-slate-200 shadow-sm"><CardContent className="p-1">
-          <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">
-            <div className="flex items-center gap-3">
-              <DepositoNivel percent={indicador.percent} estoqueMinimo={indicador.estoqueMinimo} saldoAtual={indicador.saldoAtual} />
-
+      {/* Mesmo visual dos cartões (Card + CardContent), como região nomeada para o leitor de tela. */}
+      <section aria-labelledby={idTituloNivel} className="rounded-xl border bg-card text-card-foreground border-slate-200 shadow-sm">
+        <div className="p-1 space-y-1">
+          <div id={idTituloNivel} className="text-[11px] font-bold text-slate-900">Nível do depósito</div>
+          <DepositoNivel nivel={nivel} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
+              <div className="text-slate-500">Saldo atual kg</div>
+              <div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
-                <div className="text-slate-500">Saldo atual kg</div>
-                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.saldoAtual)}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
-                <div className="text-slate-500">Saldo em sacos</div>
-                <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
-                <div className="text-slate-500">Necessidade reposição kg</div>
-                <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeReposicao || 0)}</div>
-              </div>
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
+              <div className="text-slate-500">Saldo em sacos</div>
+              <div className="text-sm font-bold text-slate-900">{totalSaldoSacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
+              <div className="text-slate-500">Necessidade reposição kg</div>
+              <div className="text-sm font-bold text-slate-900">{formatKg(indicador.necessidadeReposicao || 0)}</div>
             </div>
           </div>
-        </CardContent></Card>
-      </div>
+        </div>
+      </section>
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-1 space-y-1">
           <div className="text-[11px] font-bold text-slate-900">Saldo por Produto</div>
-          {saldosAgrupados.length === 0 ?
+          {saldosAgrupados.emKg.length === 0 && saldosAgrupados.emLitros.length === 0 ?
           <div className="text-xs text-slate-500">Sem saldo disponível neste depósito.</div> :
 
           <div className="space-y-1">
-              {saldosAgrupados.map((item) =>
-            <div key={item.produto_id} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
-                    <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900">{item.emLitros ? "—" : <>{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</>}</div>
-                    <div className="whitespace-nowrap font-semibold text-slate-900" data-testid={item.emLitros ? `saldo-litros-${item.produto_id}` : undefined}>{item.emLitros ? `${formatDecimal(item.saldo)} L` : formatKg(item.saldo)}</div>
-                  </div>
+              {saldosAgrupados.emKg.map((item) => <LinhaSaldoProduto key={item.produto_id} item={item} />)}
+              {saldosAgrupados.emLitros.length > 0 &&
+            <div role="group" aria-labelledby={idGrupoLitros} className="space-y-1">
+                  <div id={idGrupoLitros} className="px-1 pt-0.5 text-[10px] font-semibold text-slate-600">Em litros (fora do saldo em kg)</div>
+                  {saldosAgrupados.emLitros.map((item) => <LinhaSaldoProduto key={item.produto_id} item={item} />)}
                 </div>
-            )}
+            }
             </div>
           }
         </CardContent>
@@ -279,8 +281,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo:</span><span className="font-semibold text-slate-900">{deposito.tipo || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Local de estoque:</span><span className="font-semibold text-slate-900">{deposito.local_estoque_nome || '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Produto padrão:</span><span className="font-semibold text-slate-900">{deposito.produto_padrao || '-'}</span></div>
-            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Capacidade:</span><span className="font-semibold text-slate-900">{deposito.capacidade_cocho_kg ? formatKg(deposito.capacidade_cocho_kg) : '-'}</span></div>
-            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Estoque mínimo:</span><span className="font-semibold text-slate-900">{deposito.estoque_minimo_kg ? formatKg(deposito.estoque_minimo_kg) : '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite operacional:</span><span className="font-semibold text-slate-900">{nivel.limiteOperacionalKg != null ? formatKg(nivel.limiteOperacionalKg) : '-'}</span></div>
+            <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Estoque mínimo:</span><span className="font-semibold text-slate-900">{nivel.estoqueMinimoKg != null ? formatKg(nivel.estoqueMinimoKg) : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Frequência padrão:</span><span className="font-semibold text-slate-900">{deposito.frequencia_esperada_dias ? `${deposito.frequencia_esperada_dias} dia(s)` : '-'}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cochos vinculados:</span><span className="font-semibold text-slate-900">{cochosVinculados.length}</span></div>
             <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{deposito.observacoes || '-'}</span></div>
@@ -317,6 +319,27 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" largo somenteLeitura>
           <HistoricoDepositoSuplementacao deposito={deposito} />
         </LancLoteDialogo>
+    </div>);
+
+}
+
+/**
+ * Linha do "Saldo por Produto": sacos e kg; em LITROS, "—" nos sacos e o
+ * volume em L (D-PROD-162, P-11). Produto fora do cadastro: unidade não
+ * confirmada (o saldo continua em kg, como no nível).
+ * @param {{ item: { produto_id: string, produto_nome: string, saldo: number, saldoSacos: number, unidadeConfirmada: boolean, emLitros?: boolean } }} props
+ */
+function LinhaSaldoProduto({ item }) {
+  return (
+    <div data-unidade-confirmada={String(item.unidadeConfirmada)} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
+        <div className="min-w-0">
+          <div className="truncate font-medium text-slate-900">{item.produto_nome}</div>
+          {!item.unidadeConfirmada && <div className="text-[10px] font-medium text-amber-800">unidade não confirmada</div>}
+        </div>
+        <div className="whitespace-nowrap font-semibold text-slate-900">{item.emLitros ? "—" : <>{(item.saldoSacos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</>}</div>
+        <div className="whitespace-nowrap font-semibold text-slate-900" data-testid={item.emLitros ? `saldo-litros-${item.produto_id}` : undefined}>{item.emLitros ? `${formatDecimal(item.saldo)} L` : formatKg(item.saldo)}</div>
+      </div>
     </div>);
 
 }
