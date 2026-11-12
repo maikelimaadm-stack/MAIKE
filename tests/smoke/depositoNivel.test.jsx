@@ -18,7 +18,7 @@ describe('Depósito com nível pelo mínimo', () => {
     expect(screen.getByRole('img').alt).toContain('50% do estoque mínimo');
     const sub = xml(decodeURIComponent(screen.getByRole('img').src.split(',')[1]));
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#e2e6e9');
+    expect(sub.getElementById('corpo').getAttribute('stroke')).toBe('#a6afb6');
     rerender(<DepositoNivel percent={1} estoqueMinimo={1000} saldoAtual={2000} />);
     expect(screen.getByText("200% do mínimo")).toBeTruthy();
     rerender(<DepositoNivel percent={0} estoqueMinimo={0} />);
@@ -29,6 +29,8 @@ describe('Depósito com nível pelo mínimo', () => {
     expect(vazio.querySelector('[data-deposito-nivel]')).toBeNull();
     const cheio = xml(criarSvgDeposito(1, true));
     expect(cheio.querySelector('parsererror')).toBeNull();
+    expect(cheio.getElementById('cintas')).toBeNull();
+    expect(vazio.getElementById('cintas')).toBeNull();
     expect(cheio.querySelectorAll('circle, image, script')).toHaveLength(0);
     expect(cheio.getElementById('corpo').getAttribute('stroke-width')).toBe('5.5');
   });
