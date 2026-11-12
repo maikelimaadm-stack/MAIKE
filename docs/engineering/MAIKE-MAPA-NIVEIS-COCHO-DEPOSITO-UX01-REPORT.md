@@ -220,4 +220,25 @@ Todos estão registrados na D-PROD-178, itens 4 e 8 a 11.
 
 ## 9. Verificação final
 
-Preenchida na seção seguinte com a saída real do HEAD final.
+**`npm run verify:all`:** EXIT 0, 39 de 39 etapas, 1349,5 s. Rodou com a árvore de código do commit `44ae6190` (o último commit de código), contra PostgreSQL local descartável (`maike_mapa_verify`), com `AUTH_SECRET` e `FRONTEND_ORIGINS` descartáveis iguais aos da CI.
+
+| etapa | resultado |
+|---|---|
+| test:gates | 739/739 (91 suítes) |
+| test:backend | 1630 testes: 1625 passaram, 0 falharam, 5 *todo* (1029,5 s) |
+| test:smoke | 214 arquivos, 2593/2593 |
+| gate:types | PASSOU: 625 diagnósticos, teto certificado 625 |
+| typecheck:backend, lint, build, build:admin | PASSOU (lint: 0 erros; os 2 avisos já existiam antes desta missão) |
+| governance-paths, package-sync, product-scope, api-boundary, native-api, source-closure, import-integrity, admin-isolation, no-secrets, base44, tenancy, rebanho-ssot, indices, deploy-migrations, supabase-public-grants e os gates nativos | todos PASSARAM |
+
+**Verificação adversarial independente.** Rodaram três lentes (cálculo, UI/regressão e escopo), com um cético por achado.
+
+- **Achados reproduzidos e corrigidos:**
+  - a regra de compartilhamento dava 0% falso com reabastecimento escalonado;
+  - a cobertura do depósito contava o mesmo rebanho duas vezes;
+  - uma taxa absurda derrubava o mapa;
+  - a trava de banco local do roteiro E2E podia ser contornada pelo `.env`.
+
+  Cada um ganhou teste RED → GREEN.
+- **Achado em que o cético deu razão ao código:** a data padrão mudava na virada do dia. Mesmo assim, foi endurecida para ser aplicada uma vez (LD-4).
+- **Lente de escopo:** zero arquivos em backend, Prisma, migrations, `config/`, permissões, rotas ou menu. Nenhuma chamada nova de escrita no front. Nenhuma outra PR aberta usa a D-PROD-178 ou a 179.
