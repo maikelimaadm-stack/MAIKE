@@ -252,4 +252,32 @@ A Entrada de Estoque deve ter as ações **Editar** e **Excluir**. O proprietár
 Nem esta PR nem o merge dela ratificam a proposta. A P1-02, a P1-05a, a P1-05b e a P1-06 só começam depois da ratificação, cada uma com missão própria. DDL só com runbook e GO.
 
 ### 9.7 Gates e CI da R2
-_(preenchido no commit final com saídas e exit codes reais)_
+
+Os comandos abaixo rodaram no HEAD `44ba3c18`, o commit que traz todo o conteúdo da R2, com a árvore limpa. O commit seguinte só preenche esta seção. O CI do SHA final fica registrado na própria PR.
+
+| Comando | Exit | Saída (última linha) |
+|---|---|---|
+| `npm run gate:governance-paths` | 0 | `gate:governance-paths — PASSOU (documentos, links e gates coerentes)` |
+| `npm run gate:product-scope` | 0 | `gate:product-scope — PASSOU (24 páginas, 35 entidades, 0 function(s))` |
+| `npm run gate:no-secrets` | 0 | `gate:no-secrets — PASSOU (2619 arquivos verificados, 0 segredos)` |
+| `npm run test:gates` | 0 | `# tests 739 # pass 739 # fail 0` |
+| `npm run verify:all` (integral) | 0 | `TODAS AS ETAPAS PASSARAM` (40 etapas, 1459,5 s) |
+
+**`verify:all`:**
+- rodou em PostgreSQL 17.11 local e descartável, num banco novo e vazio, com `NODE_ENV` vazio;
+- `test:backend`: 1630 testes; 1625 passaram, 0 falharam e 5 estão marcados `todo`;
+- vitest: 200 arquivos e 2447 testes, todos passaram;
+- `lint`, `gate:types`, `typecheck:backend`, `build`, `build:admin`, `gate:tenancy`, `gate:indices` e `gate:deploy-migrations` passaram;
+- nenhum banco remoto foi tocado.
+
+**CI `quality`:** passou nos commits intermediários da R2:
+- `e4550ca6`: run 43120049817, success;
+- `44ba3c18`: run 43127053238, success.
+
+**Escopo do diff:** `git diff --name-status origin/main` lista só os seis documentos da allowlist:
+- M: `CURRENT-STATE.md`, `DECISIONS.md` e `ROADMAP.md`;
+- A: `MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`, `MAIKE-ESTOQUE-P1-01-REPORT.md` e `MAIKE-ESTOQUE-P1-CONTRATO.md`.
+
+O diff contra `docs/constitution`, `README_AI.md`, `AGENTS.md`, `CLAUDE.md`, `config`, `src`, `backend`, `apps`, `base44`, `scripts`, `package.json`, `vercel.json` e `.github` está **vazio**.
+
+No `DECISIONS.md`, só mudou a entrada D-PROD-176, a última do arquivo. O marcador continua em D-PROD-177.
