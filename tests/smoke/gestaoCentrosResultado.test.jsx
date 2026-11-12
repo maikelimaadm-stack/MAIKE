@@ -107,7 +107,11 @@ describe('Centros de Resultado', () => {
     const select = within(screen.getByTestId('b1-form')).getByLabelText(/Centro pai/);
     await waitFor(() => expect(backend.chamadas.some((c) => c.path === '/centros-resultado-opcoes/pais')).toBe(true));
     await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-    expect(await rotulosDasOpcoes(select)).toEqual(['— Nenhum (raiz) —']);
+    // D-PROD-172: sem a opção vazia, a lista fica sem opções (o nó e os descendentes não entram).
+    fireEvent.click(select);
+    expect(await screen.findByText('Nenhuma opção')).toBeTruthy();
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    fireEvent.click(select);
   });
 
   it('CENTRO_RESULTADO_NOT_FOUND ao salvar: mensagem e lista relida', async () => {

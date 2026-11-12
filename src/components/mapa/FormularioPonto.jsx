@@ -25,9 +25,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/cadastro/base1/SelectDoMotor";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Check, X } from "lucide-react";
 import CapturaGPSPonto from "./CapturaGPSPonto";
 import SelecaoAreasMapa from "./SelecaoAreasMapa";
 import SelecaoDepositoMapa from "./SelecaoDepositoMapa";
@@ -39,6 +40,7 @@ import { atualizarBebedouro, criarBebedouro } from "@/services/bebedouroDataServ
 import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import LancField from "@/components/cadastro/base1/LancField";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -99,9 +101,28 @@ const createEmptyForm = () => ({
   dias_inspecao_personalizado: "7"
 });
 
-export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null, suggestedDepositoId = null }) {
+export const FORMULARIO_PONTO_ID = "formulario-ponto-b1";
+
+/**
+ * Detalhes do ponto. `layout="registro"` (D-PROD-174): o registro do Cadastro de Pontos — sem cabeçalho e
+ * sem botões próprios (quem salva é a barra do motor, pelo form `formId`), campos travados em `readOnly`.
+ */
+export default function FormularioPonto({
+  coordenadas,
+  onSave = (gravada) => void gravada,
+  onCancel = () => {},
+  usarGPS = false,
+  item = null,
+  onBatchUpdate = null,
+  suggestedDepositoId = null,
+  layout = "painel",
+  formId = FORMULARIO_PONTO_ID,
+  readOnly = false,
+  onSalvandoChange = null,
+}) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
+  const registro = layout === "registro";
   const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [mostrarSelecaoAreasMapa, setMostrarSelecaoAreasMapa] = useState(false);
@@ -144,7 +165,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const pontoSuplementacaoExistente = useMemo(() => {
     if (!item) return null;
-    // Prioridade 1: detalhe já enriquecido pela TabelaPontosGeo
+    // Prioridade 1: detalhe já enriquecido pela lista do Cadastro de Pontos (pontosComDetalhes, D-PROD-174)
     if (item.detalhe_suplementacao?.id) return item.detalhe_suplementacao;
     // Prioridade 2: por ID explícito
     if (item.ponto_suplementacao_id) {
@@ -501,8 +522,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
     }
   });
 
+  // A barra do motor (registro) mostra "Salvando…" enquanto o ponto grava (D-PROD-174).
+  useEffect(() => {
+    onSalvandoChange?.(progresso.show || createPontoMutation.isPending);
+  }, [progresso.show, createPontoMutation.isPending, onSalvandoChange]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (readOnly) return;
 
     if (!formData.nome || !formData.tipo) {
       toast.error("Preencha o nome e o tipo do ponto.");
@@ -648,12 +675,15 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   return (
     <>
-      <div className="bg-card text-card-foreground rounded-xl border shadow-sm border-slate-300">
+      <div className={registro ? "w-full" : "bg-card text-card-foreground rounded-xl border shadow-sm border-slate-300"}>
+        {registro ? null : (
         <div className="flex flex-col space-y-1.5 p-6 bg-[#FAFCFE] border-b py-1 px-1">
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
         </div>
-        <div className="p-1">
-          <form onSubmit={handleSubmit} className="space-y-0.5">
+        )}
+        <div className={registro ? "" : "p-1"}>
+          <form id={formId} onSubmit={handleSubmit} className="space-y-0.5" data-testid="b1-form-ponto" data-densidade={registro ? DENSIDADE_BASE1 : undefined}>
+          <fieldset disabled={readOnly} className="contents">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
           <FL label="Nome do ponto" required><Input value={formData.nome} onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" required /></FL>
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
@@ -851,10 +881,19 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           </div>
             }
 
-        <div className="flex justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={progresso.show}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={progresso.show}>{progresso.show ? "Salvando..." : onBatchUpdate ? "Confirmar ponto no lote" : item ? "Salvar alterações" : "Salvar ponto"}</Button>
+          </fieldset>
+        {registro ? null : (
+        <div className="cadastro-b1 flex justify-end gap-1 pt-1 border-t">
+          <button type="button" className="tb-btn tb-btn-gray" onClick={onCancel} disabled={progresso.show}>
+            <X className="h-4 w-4" aria-hidden />
+            Cancelar
+          </button>
+          <button type="submit" className="tb-btn tb-btn-green" disabled={progresso.show}>
+            <Check className="h-4 w-4" aria-hidden />
+            {progresso.show ? "Salvando..." : onBatchUpdate ? "Confirmar ponto no lote" : item ? "Salvar alterações" : "Salvar ponto"}
+          </button>
         </div>
+        )}
           </form>
         </div>
       </div>

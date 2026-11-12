@@ -9,9 +9,9 @@
  *  - inativar = ação extra `inativar` (inativar E reativar; sem atalho por
  *               editar/salvar — guarda `edicaoPatrimonio` do servidor).
  *
- * D-PROD-162: só DUAS telas (Bens Patrimoniais e Abastecimentos). Famílias e
- * tipos vivem dentro do cadastro de Bens e seguem as ações da tela de Bens
- * (`acoesDeCatalogoNoBem`). As linhas antigas gravadas em `permissoes_telas`
+ * D-PROD-162: só DUAS telas (Bens Patrimoniais e Abastecimentos). Os tipos
+ * vivem dentro do cadastro de Bens e seguem as ações da tela de Bens
+ * (`acoesDeCatalogoNoBem`; D-PROD-169: a família saiu da tela). As linhas antigas gravadas em `permissoes_telas`
  * (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`,
  * `pat-combustiveis` e a ação `configurar_conversao` de Abastecimentos) ficam
  * INERTES: nada aqui as lê.
@@ -51,24 +51,30 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
 };
 
 /**
- * D-PROD-162 — famílias, tipos e os "Produtos aceitos" do tanque DENTRO do
- * cadastro de Bens. Espelho de `GUARDAS.patrimonioFamilias`/`patrimonioTipos`
- * e de `GUARDAS.patrimonioBens.opcoesProdutos`, todos sobre a tela de Bens:
- *  - criarCatalogo    = "+ Nova família"/"+ Novo tipo": Bens novo|salvar|editar
+ * D-PROD-162 / D-PROD-169 — os tipos e os "Produtos aceitos" do tanque DENTRO
+ * do cadastro de Bens (a família saiu da tela na D-PROD-169). Espelho de
+ * `GUARDAS.patrimonioTipos` e de `GUARDAS.patrimonioBens.opcoesProdutos`,
+ * todos sobre a tela de Bens:
+ *  - criarCatalogo    = "+ Novo tipo": Bens novo|salvar|editar
  *                       (`BENS_CRIAR_OU_EDITAR`: quem cadastra OU edita bem);
- *  - editarCatalogo   = renomear/descrever: Bens editar|salvar (`edicaoPatrimonio`);
- *  - inativarCatalogo = inativar/reativar família ou tipo: Bens `inativar`;
+ *  - editarCatalogo   = renomear: Bens editar|salvar (`edicaoPatrimonio`);
+ *  - excluirCatalogo  = excluir tipo sem bem (D-PROD-169, "Gerenciar tipos"):
+ *                       a mesma de renomear — Bens editar|salvar
+ *                       (`GUARDAS.patrimonioTipos.excluir`);
+ *  - inativarCatalogo = reativar (ou inativar) tipo antigo: Bens `inativar`;
  *  - produtosDoTanque = listar os Produtos que um tanque pode aceitar: Bens novo|salvar|editar.
- * Ver famílias e tipos = ver Bens (`acoesDaTelaPatrimonio(…, BENS).ver`).
+ * Ver os tipos = ver Bens (`acoesDaTelaPatrimonio(…, BENS).ver`).
  * @param {unknown} permissao
- * @returns {{ criarCatalogo: boolean, editarCatalogo: boolean, inativarCatalogo: boolean, produtosDoTanque: boolean }}
+ * @returns {{ criarCatalogo: boolean, editarCatalogo: boolean, excluirCatalogo: boolean, inativarCatalogo: boolean, produtosDoTanque: boolean }}
  */
 export const acoesDeCatalogoNoBem = (permissao) => {
   const pode = (/** @type {string} */ acao) => canPerformAction(permissao, TELAS_PATRIMONIO.BENS, MODULO_PATRIMONIO, acao);
   const criaOuEdita = pode('novo') || pode('salvar') || pode('editar');
+  const edita = pode('editar') || pode('salvar');
   return {
     criarCatalogo: criaOuEdita,
-    editarCatalogo: pode('editar') || pode('salvar'),
+    editarCatalogo: edita,
+    excluirCatalogo: edita,
     inativarCatalogo: pode(ACAO_INATIVAR),
     produtosDoTanque: criaOuEdita,
   };

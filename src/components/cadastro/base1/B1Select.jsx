@@ -34,11 +34,17 @@ function opcoesDe(children) {
  * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-106).
  * Mesma API do `<select>`: `value`, `onChange(e)`.
  *
- * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
+ * Como o campo de escolha do motor (`AutocompleteGenerico`, D-PROD-172), quando pedido:
+ * `pesquisa="sempre"` põe "Pesquisar…" em qualquer lista; `semOpcaoVazia` tira da lista a opção de valor vazio
+ * ("— Escolha —", "— Nenhum —") e, se ela existia, põe o ✕ "Limpar" no campo; `maiusculas` mostra as opções em
+ * MAIÚSCULAS, como o valor no campo.
+ *
+ * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode, pesquisa?: 'sempre',
+ *   semOpcaoVazia?: boolean, maiusculas?: boolean }} props
  */
 export default function B1Select(props) {
   const celular = useCelular();
-  const { value, onChange, children, className, disabled, id } = props;
+  const { value, onChange, children, className, disabled, id, pesquisa = undefined, semOpcaoVazia = false, maiusculas = false } = props;
   // Atributos data-* (ex.: data-status) seguem para o botão, como iam para o <select>.
   const dataAttrs = Object.fromEntries(Object.entries(props).filter(([k]) => k.startsWith("data-")));
   const [aberto, setAberto] = React.useState(false);
@@ -48,11 +54,15 @@ export default function B1Select(props) {
 
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
-  const vazio = !atual || atual.value === "";
+  // "SELECIONE" com valor-sentinela (ex.: `__VAZIO__`) também é vazio para o campo: o rótulo faz o papel de
+  // marcador e o texto não fica por cima dele (D-PROD-165). Na lista ele continua, para poder limpar.
+  const vazio = !atual || atual.value === "" || /^selecione/i.test(atual.label.trim());
   // Fora da lista só o "Selecione…" (ou opção vazia sem rótulo). Uma opção vazia
   // com nome — ex.: "SEM VÍNCULO" — é uma escolha válida.
-  const reais = opcoes.filter((o) => o.value !== "" || (o.label.trim() !== "" && !/^selecione/i.test(o.label.trim())));
-  const pesquisavel = reais.length > 8;
+  const reais = opcoes.filter((o) => o.value !== "" || (!semOpcaoVazia && o.label.trim() !== "" && !/^selecione/i.test(o.label.trim())));
+  const pesquisavel = pesquisa === "sempre" || reais.length > 8;
+  // Sem a opção vazia na lista, quem limpa é o ✕ do campo (como no campo de escolha do motor).
+  const aceitaVazio = semOpcaoVazia && opcoes.some((o) => o.value === "");
   const termo = busca.trim().toLowerCase();
   const vistas = termo ? reais.filter((o) => o.label.toLowerCase().includes(termo)) : reais;
   const rotulo =
@@ -63,6 +73,31 @@ export default function B1Select(props) {
     setAberto(false);
     onChange?.(/** @type {any} */ ({ target: { value: v }, currentTarget: { value: v } }));
   };
+  const limpar =
+    aceitaVazio && !vazio && !disabled ? (
+      <button
+        type="button"
+        aria-label="Limpar"
+        title="Limpar"
+        onClick={(e) => {
+          e.stopPropagation();
+          escolher("");
+        }}
+        className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+      >
+        <X className="w-3.5 h-3.5" aria-hidden />
+      </button>
+    ) : null;
+  /** @param {React.ReactElement} botaoDoCampo */
+  const comLimpar = (botaoDoCampo) =>
+    semOpcaoVazia ? (
+      <div className="relative mk-sel-campo w-full">
+        {botaoDoCampo}
+        {limpar}
+      </div>
+    ) : (
+      botaoDoCampo
+    );
 
   // Desktop/tablet (D-PROD-106): o mesmo painel das outras listas, logo abaixo do campo.
   if (!celular) {
@@ -76,7 +111,9 @@ export default function B1Select(props) {
         onEscolher={escolher}
         pesquisavel={pesquisavel}
         rotulo={props["aria-label"] || "opções"}
+        className={maiusculas ? "b1-maiusculas" : undefined}
       >
+        {comLimpar(
         <button
           ref={botao}
           id={id}
@@ -100,13 +137,15 @@ export default function B1Select(props) {
         >
           <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
           <ChevronDown aria-hidden className="b1-select-btn__c" />
-        </button>
+        </button>,
+        )}
       </PainelSelecao>
     );
   }
 
   return (
     <>
+      {comLimpar(
       <button
         ref={botao}
         id={id}
@@ -125,9 +164,10 @@ export default function B1Select(props) {
       >
         <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
         <ChevronDown aria-hidden className="b1-select-btn__c" />
-      </button>
+      </button>,
+      )}
       {aberto ? (
-        <MobileSheet open onClose={() => setAberto(false)} label={rotulo} title={rotulo}>
+        <MobileSheet open onClose={() => setAberto(false)} label={rotulo} title={rotulo} className={maiusculas ? "b1-maiusculas" : undefined}>
           {pesquisavel ? (
             <div className="mk-pill mgs__busca">
               {busca ? (

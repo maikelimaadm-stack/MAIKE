@@ -1,5 +1,7 @@
 import React from "react";
+import { CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import B1Switch from "./B1Switch";
 
 const SPAN = {
   1: "md:col-span-1",
@@ -16,14 +18,31 @@ const SPAN = {
   12: "md:col-span-12",
 };
 
+/** Largura própria do desktop (≥ 1024px), quando difere da do tablet. */
+const SPAN_LG = {
+  1: "lg:col-span-1",
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
+  7: "lg:col-span-7",
+  8: "lg:col-span-8",
+  9: "lg:col-span-9",
+  10: "lg:col-span-10",
+  11: "lg:col-span-11",
+  12: "lg:col-span-12",
+};
+
 /**
  * Campo flutuante Modelo Base1 (paridade CONTROLE-DE-ESTOQUE / B1Field).
  *
  * @param {object} props
  * @param {string} props.label
  * @param {boolean} [props.required]
- * @param {string} [props.error]
+ * @param {string | boolean} [props.error] texto do erro; `true` mostra "Campo obrigatório"
  * @param {number} [props.span]
+ * @param {number} [props.spanLg] largura no desktop (≥ 1024px); sem ela vale `span`
  * @param {boolean} [props.hasValue]
  * @param {boolean} [props.multiline]
  * @param {boolean} [props.disabled]
@@ -31,7 +50,9 @@ const SPAN = {
  * @param {boolean} [props.open] seletor aberto (`is-open`)
  * @param {'default'|'switch'} [props.variant] `switch` para Sim/Não (B1Switch)
  * @param {import('react').ReactNode} props.children
- * @param {string} [props.className]
+ * @param {string} [props.className] classe da coluna (div externa)
+ * @param {string} [props.fieldClassName] classe extra do `.mg-field` (ex.: `b1-campo--num`)
+ * @param {import('react').ReactNode} [props.dica] linha de apoio sob o campo (some quando há erro)
  * @param {string} [props.controlId]
  */
 export default function B1Field({
@@ -39,6 +60,7 @@ export default function B1Field({
   required = false,
   error,
   span = 6,
+  spanLg = undefined,
   hasValue = true,
   multiline = false,
   disabled = false,
@@ -47,6 +69,8 @@ export default function B1Field({
   variant = "default",
   children,
   className,
+  fieldClassName = undefined,
+  dica = undefined,
   controlId,
 }) {
   const generated = React.useId();
@@ -67,7 +91,7 @@ export default function B1Field({
     : children;
 
   return (
-    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", className)}>
+    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", spanLg ? SPAN_LG[spanLg] : null, className)}>
       <div
         className={cn(
           "mg-field",
@@ -78,6 +102,7 @@ export default function B1Field({
           multiline && "mg-field--multiline",
           open && "is-open",
           error && "is-invalid",
+          fieldClassName,
         )}
       >
         <label htmlFor={id} className="mg-field__label">
@@ -88,12 +113,80 @@ export default function B1Field({
       </div>
       {error ? (
         <p id={errId} className="mg-b1-field-msg" role="alert">
-          {error}
+          <CircleAlert className="b1-msg-ic" size={12} aria-hidden />
+          {error === true || error === "true" ? "Campo obrigatório" : String(error)}
         </p>
       ) : null}
+      {!error && dica ? dica : null}
     </div>
   );
 }
+
+/**
+ * Chave Sim/Não em caixa, na mesma linha de base dos campos (D-PROD-164: "chave (Ativo) em caixa").
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {number} [props.span]
+ * @param {number} [props.spanLg]
+ * @param {boolean} props.checked
+ * @param {(v: boolean) => void} [props.onChange]
+ * @param {boolean} [props.disabled]
+ * @param {string} [props.dataField]
+ * @param {string} [props.controlId]
+ */
+export function B1CampoChave({ label, span = 6, spanLg = undefined, checked, onChange, disabled = false, dataField, controlId }) {
+  const generated = React.useId();
+  const id = controlId ?? generated;
+  return (
+    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", spanLg ? SPAN_LG[spanLg] : null)} data-field={dataField}>
+      <div className={cn("mg-field mg-field--switch mg-has-value", disabled && "mg-field--disabled")} data-chave-row="">
+        <span className="mg-field__label" id={`${id}-label`}>
+          {label}
+        </span>
+        <div className="mg-field__control">
+          <B1Switch id={id} checked={checked} onChange={onChange} disabled={disabled} ariaLabel={label} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Título de grupo dentro do formulário Base1 (linha inteira): o do design "Cadastro de Lote" (D-PROD-165) —
+ * nome do grupo e uma linha fina até o fim. `secao`: título de seção dos formulários de gestão (`SecaoForm`), que no
+ * sistema tem letra menor (11px) que o título de grupo (D-PROD-166: o tamanho de fonte é o do sistema).
+ * @param {{ titulo: import("react").ReactNode, children?: import("react").ReactNode, secao?: boolean }} props
+ */
+export function B1TituloGrupo({ titulo, children = null, secao = false }) {
+  return (
+    <div className="col-span-12 b1-grupo__cab b1-secao-form">
+      <h3 className={cn("b1-grupo__titulo", secao && "b1-grupo__titulo--secao")}>{titulo}</h3>
+      <span className="b1-grupo__linha" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Cartão de campos do formulário Base1 (linha inteira): no design todo campo fica dentro de um cartão branco
+ * (o cartão da aba). Para campos que ficam fora das abas — ex.: a identificação da empresa acima delas (D-PROD-165).
+ * @param {{ children: import("react").ReactNode, className?: string }} props
+ */
+export function B1CartaoCampos({ children, className = undefined }) {
+  return (
+    <div className={cn("col-span-12 b1-aba-cartao b1-cartao-campos", className)}>
+      <div className="b1 mg-b1-form-grid">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Densidade do formulário Base1 (D-PROD-165): a do design "Cadastro de Lote" é `compacto` — campo em caixa
+ * branca com o rótulo no topo, por dentro. O CSS do design só vale para `<form data-densidade>`; todo
+ * formulário do motor leva `data-densidade={DENSIDADE_BASE1}` (sem ela o campo fica no desenho antigo).
+ */
+export const DENSIDADE_BASE1 = "compacto";
 
 /**
  * Controle dentro de `.mg-field` — paridade `ctl` do ResourceForm (CONTROLE-DE-ESTOQUE).

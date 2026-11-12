@@ -14,9 +14,12 @@ import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
+import { trocaJanela } from "./janelaUnica";
 import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
-import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
+
+/** Caixa de marcar da grade: 18px, como no design (D-PROD-164). */
+const CAIXA_DA_GRADE = Object.freeze({ width: 18, height: 18 });
 
 const ROW_ESTIMATE_PX = 32;
 /** Abaixo disso o custo do virtualizer não compensa. */
@@ -28,7 +31,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * Grade Modelo Base1 (referência CONTROLE-DE-ESTOQUE / frota equipamentos).
  *
  * @param {object} props
- * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; pinned?: 'left'; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
+ * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; pinned?: 'left'; papel?: 'titulo' | 'codigo'; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
  * @param {object[]} props.rows
  * @param {boolean} [props.loading]
  * @param {{ key: string; dir: 'asc'|'desc' }} [props.sort]
@@ -86,7 +89,6 @@ export default function Base1Grid({
   colunaSelecao = true,
 }) {
   const portalSkin = usePortalComprasSkin();
-  const celular = useCelular();
   const key = rowKey ?? ((r) => String(r.id));
   const allOn = rows.length > 0 && rows.every((r) => selected.has(key(r)));
   const someOn = !allOn && rows.some((r) => selected.has(key(r)));
@@ -292,7 +294,7 @@ export default function Base1Grid({
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
           >
-            <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
+            <MgCheck aria-label="Selecionar linha" boxStyle={CAIXA_DA_GRADE} checked={on} onChange={() => onToggle(id)} />
           </td>
         ) : null}
         {columns.map((c, i) => {
@@ -314,6 +316,9 @@ export default function Base1Grid({
                 i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
                 c.align === "right" && "!text-right tabular-nums",
                 c.align === "center" && "text-center",
+                c.papel === "titulo" && "b1-td--nome",
+                c.papel === "codigo" && "b1-td--cod",
+                (t == null || String(t).trim() === "" || t === "-" || t === "–") && "b1-td--vazio",
               )}
             >
               {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
@@ -333,6 +338,7 @@ export default function Base1Grid({
               <th className={cn("th-select", selectCongelado && "sticky left-0 z-[4]")}>
                 <MgCheck
                   aria-label="Selecionar todos"
+                  boxStyle={CAIXA_DA_GRADE}
                   checked={allOn}
                   indeterminate={someOn}
                   onChange={(on) => onToggleAll(on)}
@@ -469,34 +475,12 @@ export default function Base1Grid({
                       >
                         <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
                       </button>
-                    ) : itens.length && celular ? (
-                      <>
-                        <button
-                          type="button"
-                          data-b1-col-menu={c.key}
-                          aria-label={`Abrir menu da coluna ${c.label}`}
-                          className="th-menu"
-                          onClick={() => setMenuFor(c.key)}
-                        >
-                          <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
-                        </button>
-                        <MobileSheet
-                          open={menuFor === c.key}
-                          onClose={() => setMenuFor(null)}
-                          label={`Menu da coluna ${c.label}`}
-                          title={c.label}
-                          role="menu"
-                          className="mg-col-menu-sheet"
-                        >
-                          <MenuList onPick={(k) => escolherNoMenu(k, c, i, fitOn, isAnchor)} items={itens} />
-                        </MobileSheet>
-                      </>
                     ) : itens.length ? (
                       <B1Popover
                         className={cn("w-52 p-1", portalSkin && "b1-portal-compras")}
                         align="start"
                         open={menuFor === c.key}
-                        onOpenChange={(o) => setMenuFor(o ? c.key : null)}
+                        onOpenChange={(o) => setMenuFor((m) => trocaJanela(m, c.key, o))}
                         trigger={
                           <button
                             type="button"

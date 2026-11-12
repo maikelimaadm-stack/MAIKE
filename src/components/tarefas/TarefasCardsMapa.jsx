@@ -6,6 +6,8 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+import { useMovimentoBase1 } from "@/components/cadastro/base1/movimentoBase1";
+import { useCascoBase1 } from "@/components/cadastro/base1/telaBase1";
 
 /**
  * Campos da tarefa, na ordem dos cards e do "Filtrar por campo".
@@ -57,6 +59,9 @@ const dataBR = (v) => {
  * }} props
  */
 export default function TarefasCardsMapa({ tarefas, onAdd, onEdit, onDelete, normalizeTaskPriority = (p) => p }) {
+  // Os cards usam o casco Base1 (`cadastro-b1--full-page`): vale o movimento do design (D-PROD-165).
+  useMovimentoBase1();
+  const casco = useCascoBase1();
   const cardsPrefs = useCadastroCardsPrefs(STORAGE_KEY, CAMPOS_PADRAO);
   const [busca, setBusca] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
@@ -118,7 +123,7 @@ export default function TarefasCardsMapa({ tarefas, onAdd, onEdit, onDelete, nor
   };
 
   return (
-    <div className="cadastro-b1 cadastro-b1--full-page mk-tar-cards flex min-h-0 min-w-0 flex-col gap-1.5">
+    <div ref={casco} className="cadastro-b1 cadastro-b1--full-page mk-tar-cards flex min-h-0 min-w-0 flex-col gap-1.5">
       <CadastroListaChrome
         {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
         fieldFilterAvailable

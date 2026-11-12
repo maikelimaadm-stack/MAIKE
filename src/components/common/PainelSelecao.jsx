@@ -1,7 +1,8 @@
 import React from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { focoFicaOndeEsta } from "@/components/cadastro/base1/janelaUnica";
 
 /** Teto de opções desenhadas — listas de cadastro podem ter milhares. */
 const LIMITE = 200;
@@ -62,9 +63,12 @@ export default function PainelSelecao({
   const [busca, setBusca] = React.useState(buscaInicial);
   const [hi, setHi] = React.useState(0);
   const listaRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+  // Fechou porque o usuário foi para outro lugar (clique ou foco fora): o foco fica onde ele foi.
+  const saiuParaFora = React.useRef(false);
 
   React.useEffect(() => {
     if (!open) return;
+    saiuParaFora.current = false;
     setBusca(buscaInicial);
   }, [open, buscaInicial]);
 
@@ -123,7 +127,7 @@ export default function PainelSelecao({
           sideOffset={4}
           avoidCollisions
           collisionPadding={8}
-          className={cn("mk-sel-pop", className)}
+          className={cn("mk-sel-pop b1-lista-pop", className)}
           onKeyDown={onKeyDown}
           onOpenAutoFocus={(e) => {
             if (!pesquisavel) e.preventDefault();
@@ -133,8 +137,16 @@ export default function PainelSelecao({
             // — senão fechava no pointerdown e reabria no click.
             const campo = ancora?.();
             if (campo && e.target instanceof Node && campo.contains(e.target)) e.preventDefault();
+            else saiuParaFora.current = true;
           }}
           onCloseAutoFocus={(e) => {
+            // Fechou por clique/foco em outro lugar (ex.: o usuário abriu OUTRA lista): o foco fica lá.
+            // Antes ele voltava para este campo e, com isso, a lista recém-aberta fechava sozinha.
+            if (saiuParaFora.current || focoFicaOndeEsta(e)) {
+              saiuParaFora.current = false;
+              e.preventDefault();
+              return;
+            }
             // Foco volta para o campo (Tab/Enter seguem dali).
             const campo = ancora?.();
             const alvo = campo?.querySelector("input, button, [tabindex]");
@@ -145,25 +157,38 @@ export default function PainelSelecao({
           }}
         >
           {pesquisavel ? (
-            <div className="mk-sel-busca">
-              {busca ? (
-                <button type="button" className="mk-sel-busca__limpar" aria-label="Limpar pesquisa" onClick={() => setBusca("")}>
-                  <X size={14} aria-hidden />
-                </button>
-              ) : (
-                <Search size={14} aria-hidden className="mk-sel-busca__ic" />
-              )}
+            <div className="b1-pq">
               <input
                 autoFocus
+                className="b1-pq__in"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Pesquisar…"
                 aria-label={`Pesquisar ${rotulo}`}
                 data-enter-livre
               />
+              {busca ? (
+                <button type="button" className="mk-sel-busca__limpar b1-pq__btn" aria-label="Limpar pesquisa" title="Limpar pesquisa" onClick={() => setBusca("")}>
+                  <X size={14} aria-hidden />
+                </button>
+              ) : null}
+              {onCriarNovo ? (
+                <button
+                  type="button"
+                  className="b1-pq__btn b1-pq__novo"
+                  aria-label={rotuloNovo}
+                  title={rotuloNovo}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onCriarNovo(busca.trim());
+                  }}
+                >
+                  <Plus size={17} aria-hidden />
+                </button>
+              ) : null}
             </div>
           ) : null}
-          <div className="mk-sel-lista" role="listbox" aria-label={rotulo} ref={listaRef}>
+          <div className="mk-sel-lista b1-lista" role="listbox" aria-label={rotulo} ref={listaRef}>
             {!vistos.length ? <div className="mk-sel-vazio">{termo ? "Nenhum item encontrado" : vazio}</div> : null}
             {vistos.map((o, i) => {
               const on = o.value === valor;
@@ -193,7 +218,7 @@ export default function PainelSelecao({
               Mostrando {LIMITE} de {filtrados.length.toLocaleString("pt-BR")} · refine a pesquisa
             </div>
           ) : null}
-          {onCriarNovo ? (
+          {onCriarNovo && !pesquisavel ? (
             <button
               type="button"
               className="mk-sel-novo"

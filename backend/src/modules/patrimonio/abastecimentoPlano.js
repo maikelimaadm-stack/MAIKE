@@ -10,6 +10,11 @@
  * o número digitado é o número que o motor de estoque recebe. A capacidade do
  * tanque (em litros) só é conferida para Produto em `L`. Decimais em `Dec`
  * (decimalFinanceiro), nunca Number.
+ *
+ * D-PROD-169: Produto em QUALQUER unidade do cadastro (L, KG ou SACO). A
+ * unidade do abastecimento é a unidade EFETIVA do estoque: `L` para L e `KG`
+ * para KG e SACO (SACO guarda estoque em kg); a quantidade digitada é em kg
+ * para SACO, sem conversão por peso do saco.
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
@@ -18,7 +23,7 @@ import { consumirFifo } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { MEDIDORES_CONTADOR, ehContador } from './abastecimentoMedidor.js';
 import { diaDe, diaDoCorpo } from './patrimonioComum.js';
-import { CAPACIDADES_POR_NATUREZA, UNIDADES_ABASTECIMENTO, UNIDADE_DO_MEDIDOR } from './patrimonioDominio.js';
+import { CAPACIDADES_POR_NATUREZA, UNIDADE_DO_MEDIDOR, unidadeEfetivaDoEstoque } from './patrimonioDominio.js';
 
 export const ENTIDADE = 'AbastecimentoBem';
 /**
@@ -38,8 +43,12 @@ export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
 export const STATUS_CONFIRMADO = 'CONFIRMADO';
 export const STATUS_CANCELADO = 'CANCELADO';
 
-/** A unidade de estoque é uma das que o abastecimento aceita (`L`, `KG`; D-PROD-162)? @param {unknown} u */
-export const unidadeDoAbastecimento = (u) => typeof u === 'string' && UNIDADES_ABASTECIMENTO.includes(u);
+/**
+ * A unidade de estoque do Produto é uma das que o tanque aceita (L, KG ou SACO;
+ * D-PROD-169)? A unidade do abastecimento é a EFETIVA (`unidadeEfetivaDoEstoque`).
+ * @param {unknown} u
+ */
+export const unidadeDoAbastecimento = (u) => unidadeEfetivaDoEstoque(u) !== null;
 /** Rótulo curto da unidade nas mensagens (`L` / `kg`). @param {string|null|undefined} u */
 export const rotuloDaUnidade = (u) => (u === 'L' ? 'L' : u === 'KG' ? 'kg' : (u ?? '—'));
 
@@ -180,7 +189,7 @@ const MENSAGENS = Object.freeze({
     inativo: () => 'o produto está inativo; nada foi gravado',
   },
   ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: {
-    _: (b) => `o estoque do produto está em ${b.details.unidade ?? '—'}, não em L nem em KG: o abastecimento não é possível; nada foi gravado`,
+    _: (b) => `o estoque do produto está em ${b.details.unidade ?? '—'}, não em L, KG nem SACO: o abastecimento não é possível; nada foi gravado`,
   },
   ABASTECIMENTO_PRODUTO_NAO_ACEITO: {
     _: () => 'o tanque escolhido não aceita este produto: marque-o nos Produtos aceitos do tanque em Bens Patrimoniais; nada foi gravado',
@@ -309,8 +318,8 @@ export const planejarAbastecimento = (entrada, estado) => {
   if (produto && !unidadeAceita) {
     bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL', 'produto_id', 'unidade_nao_aceita', { unidade: produto.unidade_principal_estoque }));
   }
-  /** @type {'L'|'KG'|null} */
-  const unidade = unidadeAceita ? produto.unidade_principal_estoque : null;
+  /** Unidade EFETIVA do estoque (D-PROD-169: SACO → KG). @type {'L'|'KG'|null} */
+  const unidade = unidadeAceita ? unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) : null;
   // B6 (só com tanque e produto: sem eles o par não existe)
   if (tanque && produto && !(tanque.produtos ?? []).some((a) => a.produto_id === produto.id && a.ativo)) {
     bloqueios.push(bloqueio('ABASTECIMENTO_PRODUTO_NAO_ACEITO', 'produto_id', 'nao_aceito_pelo_tanque'));
@@ -373,7 +382,13 @@ export const planejarAbastecimento = (entrada, estado) => {
     bem: { id: bem.id, numero: bem.numero, codigo_frota: bem.codigo_frota ?? null, nome: bem.nome, natureza: bem.natureza, ativo: bem.ativo },
     tanque: tanque ? { id: tanque.id, identificador: tanque.identificador, capacidade_litros: q4(tanque.capacidade_litros), ativo: tanque.ativo } : null,
     produto: produto
-      ? { id: produto.id, nome: produto.nome_produto, codigo_interno: produto.codigo_interno ?? null, unidade_principal_estoque: produto.unidade_principal_estoque }
+      ? {
+          id: produto.id,
+          nome: produto.nome_produto,
+          codigo_interno: produto.codigo_interno ?? null,
+          unidade_principal_estoque: produto.unidade_principal_estoque,
+          unidade_abastecimento: unidadeEfetivaDoEstoque(produto.unidade_principal_estoque),
+        }
       : null,
     local_estoque: local ? { id: local.id, nome: local.nome } : null,
     quantidade: q4(quantidade),

@@ -1,4 +1,5 @@
 /* Motor Base1: escala do CONTROLE-DE-ESTOQUE, preservando as superfícies.
+ * Só TAMANHO (e peso) de fonte: as cores de texto seguem o design (D-PROD-164) e vêm de base1-design.css.
  * Portais .b1ref recebem os mesmos tokens que a página de origem.
  * Inputs mobile conservam os 16px de mk-unificado.css para evitar zoom no iOS.
  */
@@ -11,15 +12,8 @@
   --mk-font-float-rest: 12px;
   --mk-font-float-up: 9px;
   --mk-action-font: 12px;
-  --mk-text: #111827;
-  --mk-text-strong: #111827;
-  --mk-text-muted: #6b7280;
-  --mg-text-1: #111827;
-  --mg-text-2: #6b7280;
-  --mg-text-3: #9ca3af;
   font-size: var(--mk-font-list);
   font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  color: var(--mk-text);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -28,34 +22,30 @@
 .cadastro-b1 :is(h1, .mg-card-title, .mg-b1-record-heading):not(#mk-padrao) {
   font-size: var(--mk-font-title) !important;
   font-weight: 600;
-  color: var(--mk-text-strong);
 }
 .cadastro-b1 :is(.mg-b1-form-header__subtitle, .mg-b1-record-count, .mg-b1-card__sub):not(#mk-padrao) {
   font-size: 11px;
-  color: var(--mg-text-3);
+}
+/* Título de seção dos formulários de gestão (Parceiros, Centros, Naturezas…): 11px, o tamanho que o sistema já usava
+   (o título de grupo do design trocou o desenho, não o tamanho — D-PROD-166). */
+.cadastro-b1 .b1-grupo__titulo--secao:not(#mk-padrao) {
+  font-size: 11px;
 }
 
 /* Cabeçalho ligeiramente mais suave que os valores, como na grade de referência. */
 .cadastro-b1 .mg-grid thead th:not(#mk-padrao) {
-  color: #334155;
   font-weight: 600;
 }
 .cadastro-b1 .mg-grid :is(tfoot th, tfoot td):not(#mk-padrao) {
   font-size: var(--mk-font-list) !important;
 }
-.cadastro-b1 .mg-field__label:not(#mk-padrao) {
-  color: var(--mg-text-3);
-}
 .cadastro-b1 .mg-b1-card__title:not(#mk-padrao) {
   font-size: 12.5px !important;
   font-weight: 600;
-  color: var(--mk-text-strong);
 }
 .cadastro-b1 :is(.mg-b1-card__fields, .mg-b1-card__label, .mg-b1-card__value):not(#mk-padrao) {
   font-size: var(--mk-font-list) !important;
 }
-.cadastro-b1 .mg-b1-card__label:not(#mk-padrao) { color: var(--mg-text-2); }
-.cadastro-b1 .mg-b1-card__value:not(#mk-padrao) { color: var(--mg-text-1); }
 
 /* Não tocar em .req, erros, badges, estados ou cores dos ícones. */
 
@@ -65,11 +55,6 @@
 }
 .mk-base1-sheet :is(.mgs__code, .mgs__count, .mgs__mais, .fpc__resumo):not(#mk-padrao) {
   font-size: 11px !important;
-}
-.mk-base1-sheet :is(.mgs__label, .fpc__nome):not(#mk-padrao),
-:is(.cadastro-b1, .b1ref, .mk-config-sheet)
-  :is(.dlin-l, .mk-colcfg__nome):not(.is-off):not(#mk-padrao) {
-  color: var(--mk-text);
 }
 
 /* Portais de configuração não herdam a página: cada peça usa a mesma régua. */
@@ -81,7 +66,6 @@
 :is(.cadastro-b1, .b1ref, .mk-config-sheet, .mk-column-filter-sheet)
   :is(.mg-b1-row__hint, .cmd-option__code):not(#mk-padrao) {
   font-size: 11px !important;
-  color: var(--mg-text-3);
 }
 :is(.mk-config-sheet, .mk-column-filter-sheet) .mk-sheet__aside:not(#mk-padrao) {
   font-size: 11px;

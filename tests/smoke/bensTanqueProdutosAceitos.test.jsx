@@ -1,16 +1,20 @@
 /**
- * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) — "Produtos aceitos" de
- * cada tanque do bem, com a tela real (página, motor Base1, formulário,
- * services, API, porta e nativeHttpClient). Mocks só da borda: `fetch`
- * (backend falso) e a sessão.
+ * D-PROD-162 (MAIKE-PATRIMONIO-SIMPLIFICA-01, §5.2) e D-PROD-169
+ * (SIMPLIFICA-02) — "Produtos aceitos" de cada tanque do bem, com a tela real
+ * (página, motor Base1, formulário, services, API, porta e nativeHttpClient).
+ * Mocks só da borda: `fetch` (backend falso) e a sessão.
  *
  *  - seletor paginado sobre `GET /bens-patrimoniais-opcoes/produtos` (empresa
- *    na query), com o selo da unidade (`L`/`kg`) em cada opção e o filtro
- *    opcional Litros | Quilos | Todos (query `unidade`, achado D8);
+ *    na query), com o selo da unidade de estoque em cada opção (`L`, `kg` e,
+ *    D-PROD-169, o Produto em SACO como `kg · saco`) e o filtro opcional
+ *    Litros | Quilos | Sacos | Todos (query `unidade`, achado D8);
+ *  - D-PROD-169: Produto em QUALQUER unidade (L, KG ou SACO) é aceito, e a
+ *    nota dos tanques traz a regra nova (baixa na unidade de estoque: litros
+ *    para L; quilos para KG e SACO; capacidade só para L);
  *  - chips removíveis; tanque sem Produto mostra o aviso P-01; Produto em KG
- *    aceito mostra o aviso de que no abastecimento se digita kg (D8);
+ *    ou SACO aceito mostra o aviso de que no abastecimento se digita kg (D8);
  *  - até 20 por tanque (P-02): cheio, o seletor sai e a tela explica;
- *  - Produto aceito inativo ou fora de L/KG aparece riscado com o motivo e
+ *  - Produto aceito inativo ou fora de L/KG/SACO aparece riscado com o motivo e
  *    pode ser retirado; o 422 `TANQUE_PRODUTO_INVALIDO` (ex.: `outra_empresa`
  *    ao reativar o tanque, achado D1) marca o Produto apontado, e retirá-lo
  *    no mesmo envio resolve;
@@ -40,17 +44,20 @@ const permissaoCom = (acoes) => ({
 
 const opcoes = (itens) => ({ status: 200, body: { itens, has_more: false, next_cursor: null } });
 
-const FAMILIAS = [{ id: 'f2', codigo: 'MAQUINAS', nome: 'Máquinas', natureza: 'MAQUINA' }];
-const TIPOS = [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', familia_id: 'f2' }];
+const TIPOS = [{ id: 't2', codigo: 'TRATOR_PNEUS', nome: 'Trator de pneus', natureza: 'MAQUINA' }];
+/** D-PROD-169: Produtos ativos da fazenda em QUALQUER unidade (os 2 Produtos de produção estão em SACO). */
 const PRODUTOS = [
   { id: 'pd1', nome: 'Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L' },
   { id: 'pd4', nome: 'Arla 32', codigo_interno: 'ARLA', unidade_principal_estoque: 'KG' },
+  { id: 'pd6', nome: 'Sal mineral', codigo_interno: 'SAL', unidade_principal_estoque: 'SACO' },
 ];
+const NOTA_NOVA =
+  'Os Produtos aceitos vêm do estoque desta fazenda, em qualquer unidade (litros, quilos ou sacos). O abastecimento baixa do estoque exatamente a quantidade digitada, na unidade de estoque do Produto (litros para L; quilos para KG e SACO); a capacidade do tanque só é conferida para Produto em litros.';
 /** @param {string} id @param {string} nome @param {string} unidade @param {boolean} [ativo] */
 const aceito = (id, nome, unidade, ativo = true) => ({ produto_id: id, nome, codigo_interno: null, unidade_principal_estoque: unidade, produto_ativo: ativo });
 
 const RESUMO_TRATOR = {
-  id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA', familia: { id: 'f2', nome: 'Máquinas' },
+  id: 'b1', numero: '7', codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA',
   tipo: { id: 't2', nome: 'Trator de pneus' }, propriedade: 'PROPRIO', medidor_tipo: 'HORIMETRO', ativo: true, versao: 4,
 };
 const detalheTrator = (tanques) => ({
@@ -94,8 +101,7 @@ beforeEach(async () => {
     if (method === 'GET' && path === '/bens-patrimoniais') return { status: 200, body: envelope([RESUMO_TRATOR]) };
     if (method === 'GET' && path === '/empresas') return { status: 200, body: [{ id: 'emp-1', numero_empresa: 1, nome: 'Fazenda Boa Vista', fuso_horario: 'America/Sao_Paulo' }] };
     if (method === 'GET' && path === '/bens-patrimoniais/b1') return { status: 200, body: detalheTrator(tanquesDoTrator) };
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/familias') return opcoes(FAMILIAS);
-    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS);
+    if (method === 'GET' && path === '/bens-patrimoniais-opcoes/tipos') return opcoes(TIPOS.filter((t) => t.natureza === query.get('natureza')));
     if (method === 'GET' && path === '/bens-patrimoniais-opcoes/produtos') {
       return opcoes(PRODUTOS.filter((p) => !query.get('unidade') || p.unidade_principal_estoque === query.get('unidade')));
     }
@@ -129,15 +135,16 @@ const salvar = () => fireEvent.click(screen.getByRole('button', { name: 'Salvar'
 const aba = (nome) => fireEvent.click(screen.getByRole('tab', { name: nome }));
 const escolherNoSeletor = async (form, testId, nome) => {
   fireEvent.click(within(form).getByTestId(testId));
-  fireEvent.click(await within(form).findByRole('option', { name: nome }));
-  await waitFor(() => expect(within(form).queryByTestId(`${testId}-painel`)).toBeNull());
+  fireEvent.click(await screen.findByRole('option', { name: nome }));
+  await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
 };
 const tratorNovoComTanque = async () => {
   await screen.findByTestId('bem-nome-b1');
   fireEvent.click(screen.getByRole('button', { name: 'Novo' }));
   const form = await screen.findByTestId('b1-form');
   fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Trator novo' } });
-  await escolherNoSeletor(form, 'bem-seletor-familia', /^Máquinas/);
+  await escolherOpcao(within(form).getByRole('combobox', { name: 'Tipo de bem' }), 'Máquina');
+  await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
   await escolherNoSeletor(form, 'bem-seletor-tipo', /Trator de pneus/);
   aba('Operação');
   await escolherOpcao(within(form).getByRole('combobox', { name: 'Medidor' }), 'Sem medidor');
@@ -161,7 +168,7 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     const { form, tanque } = await tratorNovoComTanque();
     expect(within(tanque).getByTestId('bem-tanque-sem-produto-0')).toHaveTextContent('Este tanque não pode ser abastecido até ter um Produto aceito.');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    const painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    const painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     expect(await within(painel).findByRole('option', { name: /Diesel S10.*DS10 · L/ })).toBeTruthy();
     fireEvent.click(within(painel).getByRole('option', { name: /Arla 32.*ARLA · kg/ }));
     await escolherNoSeletor(form, 'bem-tanque-seletor-produto-0', /Diesel S10/);
@@ -169,7 +176,7 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     expect(within(tanque).getByTestId('bem-tanque-0-produto-pd1')).toHaveTextContent(/Diesel S10.*L/);
     expect(within(tanque).queryByTestId('bem-tanque-sem-produto-0')).toBeNull();
     expect(within(tanque).getByTestId('bem-tanque-aviso-kg-0')).toHaveTextContent(
-      'Este Produto é controlado em quilos: no abastecimento digita-se kg, não os litros da bomba.',
+      'Produto em quilos ou em sacos tem estoque em quilos: no abastecimento digita-se kg, não sacos nem os litros da bomba.',
     );
     expect(within(tanque).getByText(/\(2 de 20\)/)).toBeTruthy();
     // O mesmo Produto não entra duas vezes.
@@ -181,30 +188,60 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
     expect(pedidosDeProdutos().every((c) => c.query.empresa_id === 'emp-1')).toBe(true);
   });
 
-  it('filtro Litros | Quilos | Todos vai na query `unidade` e muda as opções', async () => {
+  it('D-PROD-169: Produto em SACO aparece e é aceito (selo "kg · saco"); a nota traz a regra nova; aviso de kg; POST com produto_ids', async () => {
+    await montar();
+    const { form, tanque } = await tratorNovoComTanque();
+    expect(within(form).getByTestId('bem-tanques-nota')).toHaveTextContent(NOTA_NOVA);
+    expect(within(form).getByTestId('bem-tanques-nota').textContent).not.toMatch(/em litros \(L\) ou quilos \(kg\)/);
+    fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
+    const painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
+    expect(await within(painel).findByRole('option', { name: /Diesel S10.*DS10 · L/ })).toBeTruthy();
+    expect(within(painel).getByRole('option', { name: /Arla 32.*ARLA · kg/ })).toBeTruthy();
+    fireEvent.click(within(painel).getByRole('option', { name: /Sal mineral.*SAL · kg · saco/ }));
+    await waitFor(() => expect(screen.queryByTestId('bem-tanque-seletor-produto-0-painel')).toBeNull());
+    const chip = within(tanque).getByTestId('bem-tanque-0-produto-pd6');
+    expect(chip).toHaveTextContent(/Sal mineral.*kg · saco/);
+    expect(chip).not.toHaveAttribute('data-motivo');
+    expect(within(tanque).getByTestId('bem-tanque-aviso-kg-0')).toBeTruthy();
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()[0].body.tanques).toEqual([{ identificador: 'Principal', capacidade_litros: '300', produto_ids: ['pd6'] }]);
+    expect(pedidosDeProdutos().every((c) => c.query.empresa_id === 'emp-1' && c.query.unidade === undefined)).toBe(true);
+  });
+
+  it('filtro Litros | Quilos | Sacos | Todos vai na query `unidade` e muda as opções', async () => {
     await montar();
     const { form, tanque } = await tratorNovoComTanque();
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Litros (L)');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    let painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    let painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Diesel S10/ });
     expect(within(painel).queryByRole('option', { name: /Arla 32/ })).toBeNull();
     expect(pedidosDeProdutos().at(-1).query).toMatchObject({ empresa_id: 'emp-1', unidade: 'L' });
-    fireEvent.click(within(painel).getByRole('button', { name: /Fechar seleção/ }));
+    fireEvent.keyDown(painel, { key: 'Escape' });
     // jsdom: o popover do próximo B1Select só abre depois que as opções anteriores sumirem.
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Quilos (kg)');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Arla 32/ });
     expect(within(painel).queryByRole('option', { name: /Diesel S10/ })).toBeNull();
+    expect(within(painel).queryByRole('option', { name: /Sal mineral/ })).toBeNull();
     expect(pedidosDeProdutos().at(-1).query).toMatchObject({ unidade: 'KG' });
-    fireEvent.click(within(painel).getByRole('button', { name: /Fechar seleção/ }));
+    fireEvent.keyDown(painel, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
+    await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Sacos (estoque em kg)');
+    fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
+    await within(painel).findByRole('option', { name: /Sal mineral/ });
+    expect(within(painel).queryByRole('option', { name: /Arla 32/ })).toBeNull();
+    expect(pedidosDeProdutos().at(-1).query).toMatchObject({ unidade: 'SACO' });
+    fireEvent.keyDown(painel, { key: 'Escape' });
     await waitFor(() => expect(screen.queryAllByRole('option')).toHaveLength(0));
     await escolherOpcao(within(tanque).getByRole('combobox', { name: 'Unidade' }), 'Todos');
     fireEvent.click(within(form).getByTestId('bem-tanque-seletor-produto-0'));
-    painel = await within(form).findByTestId('bem-tanque-seletor-produto-0-painel');
+    painel = await screen.findByTestId('bem-tanque-seletor-produto-0-painel');
     await within(painel).findByRole('option', { name: /Arla 32/ });
     expect(pedidosDeProdutos().at(-1).query.unidade).toBeUndefined();
   });
@@ -238,10 +275,15 @@ describe('Tanque × Produtos aceitos — seletor, unidade e avisos', () => {
 });
 
 describe('Tanque × Produtos aceitos — Produto que já não serve', () => {
-  it('inativo e fora de L/KG aparecem riscados com o motivo; tirar um manda o conjunto novo; manter não muda o PATCH', async () => {
+  it('inativo e fora de L/KG/SACO aparecem riscados com o motivo (SACO serve); tirar um manda o conjunto novo; manter não muda o PATCH', async () => {
     tanquesDoTrator = [{
       id: 'tq1', identificador: 'Principal', capacidade_litros: '180.0000', observacao: null, ativo: true,
-      produtos: [aceito('pd1', 'Diesel S10', 'L'), aceito('pd9', 'Diesel S500', 'L', false), aceito('pd8', 'Ração ensacada', 'SACO')],
+      produtos: [
+        aceito('pd1', 'Diesel S10', 'L'),
+        aceito('pd9', 'Diesel S500', 'L', false),
+        aceito('pd8', 'Graxa avulsa', 'UN'),
+        aceito('pd6', 'Sal mineral', 'SACO'),
+      ],
     }];
     await montar();
     const form = await editarTrator();
@@ -252,12 +294,13 @@ describe('Tanque × Produtos aceitos — Produto que já não serve', () => {
     expect(within(inativo).getByText('Diesel S500')).toHaveClass('line-through');
     expect(within(tanque).getByTestId('bem-tanque-0-produto-pd8')).toHaveTextContent('(unidade não aceita)');
     expect(within(tanque).getByTestId('bem-tanque-0-produto-pd1')).not.toHaveAttribute('data-motivo');
-    fireEvent.click(within(tanque).getByRole('button', { name: 'Tirar Ração ensacada dos Produtos aceitos do tanque Principal' }));
+    expect(within(tanque).getByTestId('bem-tanque-0-produto-pd6')).not.toHaveAttribute('data-motivo');
+    fireEvent.click(within(tanque).getByRole('button', { name: 'Tirar Graxa avulsa dos Produtos aceitos do tanque Principal' }));
     salvar();
     await screen.findByText('Bem patrimonial atualizado');
     expect(mutacoes()[0].body).toEqual({
       empresa_id: 'emp-1', versao: 4,
-      tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1', 'pd9'], ativo: true }],
+      tanques: [{ id: 'tq1', identificador: 'Principal', capacidade_litros: '180', produto_ids: ['pd1', 'pd6', 'pd9'], ativo: true }],
     });
   });
 

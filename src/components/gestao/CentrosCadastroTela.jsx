@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   alterarSituacaoCentro,
@@ -15,7 +16,7 @@ import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen
 import TabelaCentros, { CENTROS_CAMPOS_CARD, CENTROS_COLUNAS, getCentroFieldValue } from "@/components/gestao/TabelaCentros";
 import FormularioCentro from "@/components/gestao/FormularioCentro";
 import { VinculosCentroCusto, VinculosCentroResultado } from "@/components/gestao/VinculosCentros";
-import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, ativoDoFiltro, filtroSituacaoDaTela } from "@/components/gestao/GestaoFormParts";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaGestao, useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 import { TELAS_GESTAO } from "@/lib/gestaoPermissions";
@@ -266,8 +267,11 @@ export default function CentrosCadastroTela({ tipo }) {
       )
     ) : null;
 
+  const filtrosDaTela = [filtroSituacaoDaTela(situacao, setSituacao)];
+
   return (
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle={cfg.titulo}
@@ -282,7 +286,6 @@ export default function CentrosCadastroTela({ tipo }) {
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
         showDelete={podeGravar && acoes.editar}
-        extraToolbar={<FiltroSituacao value={situacao} onChange={setSituacao} />}
         additionalMoreActions={
           podeReativar ? [{ key: "reativar", label: `Reativar ${cfg.rotulo}`, onSelect: () => reativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: String(registroAtual.id) }) }] : null
         }
@@ -328,6 +331,7 @@ export default function CentrosCadastroTela({ tipo }) {
           />
         }
       />
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }

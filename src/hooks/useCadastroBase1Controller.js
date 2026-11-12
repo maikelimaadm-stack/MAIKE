@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { naOrdemDaLista } from "@/components/cadastro/base1/ordemDaListaBase1";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroListaPagination } from "@/hooks/useCadastroListaPagination";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
@@ -50,6 +51,7 @@ import { notifyWarning } from "@/lib/maikeNotify";
  * @property {number} recordIndex
  * @property {object[]} recordNavRows
  * @property {(index: number) => void} goRecord
+ * @property {(linhas: object[]) => void} [definirOrdemDaLista] a grade informa a ordem em que mostra as linhas
  * @property {(item: object) => boolean} matchesSearch
  * @property {Array<{ id: string, label: string, secondary?: string }>} searchSuggestions
  * @property {(item: object|null) => void} [setEditingItem]
@@ -186,7 +188,18 @@ export function useCadastroBase1Controller(config) {
     [config, editingItem],
   );
 
-  const recordNavRows = useMemo(() => visibleRows, [visibleRows]);
+  // Ordem da grade (ordenação e filtros da tela), publicada por OrdemDaListaContext — D-PROD-164.
+  // Sem ela (tela sem grade Base1), vale a ordem dos dados.
+  const [ordemDaLista, setOrdemDaLista] = useState(/** @type {object[] | null} */ (null));
+  const definirOrdemDaLista = useCallback((/** @type {object[]} */ linhas) => {
+    setOrdemDaLista((atual) =>
+      atual && atual.length === linhas.length && atual.every((l, i) => l === linhas[i]) ? atual : linhas,
+    );
+  }, []);
+  const recordNavRows = useMemo(
+    () => naOrdemDaLista(ordemDaLista, visibleRows, config.getRowId),
+    [ordemDaLista, visibleRows, config],
+  );
 
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
@@ -457,6 +470,7 @@ export function useCadastroBase1Controller(config) {
     recordIndex,
     recordNavRows,
     goRecord,
+    definirOrdemDaLista,
     matchesSearch,
     searchSuggestions,
     saving: Boolean(config.saving),

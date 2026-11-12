@@ -122,7 +122,7 @@ describe('INERTE-1 — regras de ação ignoram as linhas antigas', () => {
   it('só as quatro telas antigas (tudo ligado) → nada em Bens, nada no catálogo dentro de Bens, nada em Abastecimentos', () => {
     const perm = registro([MODULO_PATRIMONIO], LINHAS_ANTIGAS);
     expect(acoesDaTelaPatrimonio(perm, TELAS_PATRIMONIO.BENS)).toEqual({ ver: false, criar: false, editar: false, inativar: false });
-    expect(acoesDeCatalogoNoBem(perm)).toEqual({ criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
+    expect(acoesDeCatalogoNoBem(perm)).toEqual({ criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
     expect(acoesDaTelaAbastecimento(perm)).toEqual({ ver: false, criar: false, cancelar: false });
     // Os dados continuam lá (nada é apagado nem migrado): só não valem para nada.
     for (const [id] of ANTIGAS) {
@@ -141,7 +141,7 @@ describe('INERTE-1 — regras de ação ignoram as linhas antigas', () => {
   it('linhas antigas ao lado de Bens: valem só as ações da linha de Bens', () => {
     const perm = registro([MODULO_PATRIMONIO], [...LINHAS_ANTIGAS, tela(MODULO_PATRIMONIO, TELAS_PATRIMONIO.BENS, { visualizar: true, novo: true })]);
     expect(acoesDaTelaPatrimonio(perm, TELAS_PATRIMONIO.BENS)).toEqual({ ver: true, criar: true, editar: false, inativar: false });
-    expect(acoesDeCatalogoNoBem(perm)).toEqual({ criarCatalogo: true, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: true });
+    expect(acoesDeCatalogoNoBem(perm)).toEqual({ criarCatalogo: true, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: true });
   });
 
   it('nenhum id antigo está no menu: canAccessPage do menu nunca os consulta', () => {
@@ -208,7 +208,7 @@ describe('INERTE-3 — sessão: hooks do Patrimônio com linhas antigas', () => 
     const abastecimento = JSON.parse(screen.getByTestId('abastecimento').textContent);
     expect(bens).toEqual({
       ver: false, criar: false, editar: false, inativar: false,
-      criarCatalogo: false, editarCatalogo: false, inativarCatalogo: false, produtosDoTanque: false,
+      criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false,
       carregando: false, administrador: false, login: 'vaqueiro',
     });
     expect(abastecimento).toEqual({ ver: true, criar: false, cancelar: false, carregando: false, administrador: false, login: 'vaqueiro' });

@@ -114,7 +114,7 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         ['POST', '/bens-patrimoniais', corpoTrator(b, { empresa_id: empresa })],
         ['PATCH', `/bens-patrimoniais/${alvo.id}`, { empresa_id: empresa, versao: 1, nome: 'Invasão' }],
         ['POST', '/bens-patrimoniais-previa-depreciacao', { empresa_id: empresa, valor_aquisicao: '100.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 12, data_inicio_depreciacao: '2026-01-01' }],
-        ...['responsaveis', 'parceiros', 'centros-custo', 'areas', 'produtos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
+        ...['responsaveis', 'parceiros', 'centros-custo', 'produtos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${empresa}`]),
       ];
       const referencia = corpoErro(await req('GET', `/bens-patrimoniais?empresa_id=${INEXISTENTE}`, b.token));
       for (const [metodo, url, corpo] of rotas) {
@@ -123,10 +123,8 @@ describe('S1 — isolamento entre tenants e entre fazendas (404 uniforme, sem ef
         assert.deepEqual(corpoErro(r), referencia, `${metodo} ${url}: sem oráculo`);
       }
     }
-    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência.
-    for (const [base, id, codigo] of [
-      ['/patrimonio-familias', a.fam.MAQUINAS, 'FAMILIA_PATRIMONIAL_NAO_ENCONTRADA'], ['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO'],
-    ]) {
+    // Catálogo de outro tenant: 404 no detalhe/PATCH e 422 "inexistente" como referência (D-PROD-169: família não tem rota).
+    for (const [base, id, codigo] of [['/patrimonio-tipos', a.tip.TRATOR_PNEUS, 'TIPO_PATRIMONIAL_NAO_ENCONTRADO']]) {
       assert.deepEqual(erro(await req('GET', `${base}/${id}`, b.token)).slice(0, 2), [404, codigo], base);
       assert.deepEqual(corpoErro(await req('GET', `${base}/${id}`, b.token)), corpoErro(await req('GET', `${base}/${INEXISTENTE}`, b.token)), `${base}: sem oráculo`);
       assert.equal((await req('PATCH', `${base}/${id}`, b.token, { versao: 1, nome: 'Invasão' })).statusCode, 404, base);
@@ -174,17 +172,19 @@ describe('S2 — corpo e query fechados; anti-coerção dos decimais (A1)', () =
       ['POST cliente_id no medidor', post(corpoTrator(s, { codigo_frota: null, medidor: { tipo: 'SEM_MEDIDOR', cliente_id: s.c } }))],
       ['POST campo extra', post(corpoTrator(s, { codigo_frota: null, desconhecido: 1 }))],
       ['POST numero', post(corpoTrator(s, { codigo_frota: null, numero: '99' }))],
-      ['POST natureza', post(corpoTrator(s, { codigo_frota: null, natureza: 'VEICULO' }))],
+      // D-PROD-169: `natureza` ("Tipo de bem") entrou no corpo; fora da lista FIXA → 400.
+      ['POST natureza fora da lista', post(corpoTrator(s, { codigo_frota: null, natureza: 'FROTA' }))],
       ['POST id', post(corpoTrator(s, { codigo_frota: null, id: INEXISTENTE }))],
       ['POST versao', post(corpoTrator(s, { codigo_frota: null, versao: 1 }))],
       ['POST ativo', post(corpoTrator(s, { codigo_frota: null, ativo: false }))],
       ['POST consumo', post(corpoTrator(s, { codigo_frota: null, consumo: null }))],
       ['POST sem empresa', post(sem(corpoTrator(s, { codigo_frota: null }), 'empresa_id'))],
-      ['POST sem família', post(sem(corpoTrator(s, { codigo_frota: null }), 'familia_id'))],
+      // D-PROD-169: sem `familia_id` é o contrato novo (a família vem do tipo); sem TIPO → 400.
+      ['POST sem tipo', post(sem(corpoTrator(s, { codigo_frota: null }), 'tipo_id'))],
       ['POST id malformado', post(corpoTrator(s, { codigo_frota: null, familia_id: 'x;drop' }))],
       ['PATCH cliente_id', patch(t.id, { cliente_id: s.c })],
       ['PATCH numero', patch(t.id, { numero: '99' })],
-      ['PATCH natureza', patch(t.id, { natureza: 'VEICULO' })],
+      ['PATCH natureza fora da lista', patch(t.id, { natureza: 'FROTA' })],
       ['PATCH id', patch(t.id, { id: INEXISTENTE })],
       ['PATCH só escopo', patch(t.id, {})],
       ['PATCH sem versão', req('PATCH', `/bens-patrimoniais/${t.id}`, s.token, { empresa_id: s.e1.id, nome: 'X' })],
@@ -257,8 +257,8 @@ describe('S3 — permissões por ação nos bens (A4)', () => {
     const previaCorpo = { empresa_id: e, valor_aquisicao: '100.00', residual_modo: 'VALOR', valor_residual: '0', vida_util_meses: 12, data_inicio_depreciacao: '2026-01-01' };
     const leituras = [
       ['GET', `/bens-patrimoniais?empresa_id=${e}`], ['GET', `/bens-patrimoniais/${b.id}?empresa_id=${e}`], ['POST', '/bens-patrimoniais-previa-depreciacao', previaCorpo],
-      ...['responsaveis', 'parceiros', 'centros-custo', 'areas'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${e}`]),
-      ...['familias', 'tipos'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}`]),
+      ...['responsaveis', 'parceiros', 'centros-custo'].map((r) => ['GET', `/bens-patrimoniais-opcoes/${r}?empresa_id=${e}`]),
+      ['GET', '/bens-patrimoniais-opcoes/tipos'],
     ];
     const escritas = [['POST', '/bens-patrimoniais', corpoImplemento(s)], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, nome: 'X' }], ['PATCH', `/bens-patrimoniais/${b.id}`, { empresa_id: e, versao: 1, ativo: false }]];
     const antes = await fotoPatrimonio(s.c);
@@ -367,8 +367,9 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
           empresa_id: s.e1.id, versao: 1, tanques: [{ id: trator.tanques[0].id, identificador: 'Tanque principal', capacidade_litros: '180', produto_ids: [arla.id] }],
         })],
         ['PATCH com correção do medidor (2 eventos)', req('PATCH', `/bens-patrimoniais/${trator.id}`, s.token, { empresa_id: s.e1.id, versao: 1, medidor: { tipo: 'CICLOS', leitura_inicial: '1', data_leitura: '2027-06-01' } })],
-        ['POST família (código gerado)', req('POST', '/patrimonio-familias', s.token, { nome: 'Não grava', natureza: 'OUTRO' })],
+        ['POST tipo por natureza (código gerado)', req('POST', '/patrimonio-tipos', s.token, { natureza: 'OUTRO', nome: 'Não grava' })],
         ['POST tipo', req('POST', '/patrimonio-tipos', s.token, { familia_id: s.fam.MAQUINAS, nome: 'Não grava' })],
+        ['DELETE tipo (D-PROD-169)', req('DELETE', `/patrimonio-tipos/${s.tip.GALPAO}?versao=1`, s.token)],
         ['PATCH tipo', req('PATCH', `/patrimonio-tipos/${s.tip.CURRAL}`, s.token, { versao: 1, nome: 'Não grava' })],
       ];
       for (const [rotulo, pedido] of pedidos) {
@@ -376,10 +377,13 @@ describe('S4 — auditoria por allowlist na mesma transação', () => {
         assert.ok(r.statusCode >= 500, `${rotulo}: ${r.statusCode} ${r.body}`);
         assert.equal(r.json().message, 'erro interno', `${rotulo}: sem detalhe`);
       }
-      // Instalar o padrão num tenant vazio também desfaz tudo (nenhuma das 18 linhas fica).
+      // Instalar o padrão num tenant vazio também desfaz tudo (nenhuma das 19 linhas fica); idem a garantia
+      // automática da D-PROD-169 (primeira leitura de tipos).
       const vazio = await montarPatrimonio(app, { catalogo: false });
       const vazioAntes = await contagens(vazio.c);
       assert.ok((await req('POST', '/patrimonio-catalogo-padrao', vazio.token, {})).statusCode >= 500);
+      assert.equal(await contagens(vazio.c), vazioAntes);
+      assert.ok((await req('GET', '/patrimonio-tipos', vazio.token)).statusCode >= 500, 'garantia sem auditoria não grava');
       assert.equal(await contagens(vazio.c), vazioAntes);
     } finally {
       await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS patrimonio_p1_falha_audit ON "AuditLog"');

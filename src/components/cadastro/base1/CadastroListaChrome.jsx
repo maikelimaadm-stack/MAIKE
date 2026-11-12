@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -37,6 +37,10 @@ import {
 } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
+import { nomesDaContagem, textoDaSelecao, textoDoTotal } from "@/components/cadastro/base1/contagemBase1";
+import { ContagemNomesContext, FiltrosRapidosSlotContext } from "./FiltrosRapidos";
+import { NavegacaoDoRegistro, RegistroNavContext, temNavegacao } from "./registroNavBase1";
+import { trocaJanela } from "./janelaUnica";
 import { cn } from "@/lib/utils";
 
 /**
@@ -98,6 +102,7 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.recordSaving]
  * @param {boolean} [props.recordPermissaoExplicita] o ✓ do cabeçalho do celular já segue a regra do servidor (`data-permissao-explicita`)
  * @param {() => void} [props.onRecordBack] voltar do registro para a lista (botão voltar do celular)
+ * @param {{ um: string, varios: string }} [props.contagemNomes] nome do registro no rodapé ("lote"/"lotes"); sem ele, sai da pesquisa da barra
  * @param {boolean} [props.fieldFilterAvailable] botão Filtros → "Filtrar por campo" (grade Base1 com cabeçalhos de referência)
  */
 export default function CadastroListaChrome({
@@ -117,6 +122,7 @@ export default function CadastroListaChrome({
   searchCommittedValue = "",
   searchActive = false,
   searchPlaceholder,
+  contagemNomes = undefined,
   searchSuggestions = [],
   onSearchSuggestionPick,
   onConfigureColumns,
@@ -172,6 +178,18 @@ export default function CadastroListaChrome({
     return Boolean(searchValue);
   });
   const stripRef = useRef(null);
+  // Lugar da faixa de filtros rápidos (a grade desenha nela por portal — D-PROD-164).
+  const [filtrosRapidosSlot, setFiltrosRapidosSlot] = useState(/** @type {HTMLElement | null} */ (null));
+  const [navNoFormulario, setNavNoFormulario] = useState(0);
+  const registrarNavNoFormulario = useCallback(() => {
+    setNavNoFormulario((n) => n + 1);
+    return () => setNavNoFormulario((n) => n - 1);
+  }, []);
+  // ‹ › entram deslizando só quando o registro abre; ir de um registro a outro não repete (D-PROD-165).
+  const navJaEntrou = useRef(false);
+  useEffect(() => {
+    if (!recordMode) navJaEntrou.current = false;
+  }, [recordMode]);
   const searchRowRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   // Celular: sem "Carregar mais" — carrega 200 por vez ao chegar perto do fim.
@@ -321,9 +339,9 @@ export default function CadastroListaChrome({
     cardsToolbar && viewMode === "cards" && React.isValidElement(cardsToolbar)
       ? React.cloneElement(cardsToolbar, {
           layoutOpen: cardsPanel === "layout",
-          onLayoutOpenChange: (o) => setCardsPanel(o ? "layout" : null),
+          onLayoutOpenChange: (o) => setCardsPanel((p) => trocaJanela(p, "layout", o)),
           fieldsOpen: cardsPanel === "fields",
-          onFieldsOpenChange: (o) => setCardsPanel(o ? "fields" : null),
+          onFieldsOpenChange: (o) => setCardsPanel((p) => trocaJanela(p, "fields", o)),
         })
       : null;
 
@@ -334,6 +352,16 @@ export default function CadastroListaChrome({
 
   /** Props do `CadastroRecordHeader` — o celular usa título e navegação fora do cabeçalho. */
   const recordInfo = recordMode && React.isValidElement(recordHeader) ? /** @type {any} */ (recordHeader.props) : null;
+  const contextoNav = useMemo(
+    () => ({
+      info: recordInfo
+        ? { index: recordInfo.index ?? 0, total: recordInfo.total ?? 0, onGo: recordInfo.onGo, navDisabled: recordInfo.navDisabled }
+        : null,
+      registrar: registrarNavNoFormulario,
+      navJaEntrou,
+    }),
+    [recordInfo?.index, recordInfo?.total, recordInfo?.onGo, recordInfo?.navDisabled, Boolean(recordInfo), registrarNavNoFormulario],
+  );
   usePublishMobileShell(
     recordMode
       ? {
@@ -394,15 +422,31 @@ export default function CadastroListaChrome({
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
+  // Registro sem abas (D-PROD-165), no tablet e no desktop: o mesmo desenho do registro com abas do design —
+  // sem a faixa de cabeçalho, ‹ › numa linha acima e o formulário num cartão do tamanho do conteúdo
+  // (`data-b1-painel`). No celular fica como estava (título e ‹ › na casca). É atributo, não classe: as abas
+  // põem `b1-form--abas-fora` na mesma caixa direto no DOM, e trocar o `className` apagaria essa classe.
+  const painelUnico = recordMode && navNoFormulario === 0 && !celular;
+
+  // Formulário que mostra ‹ › na linha das abas (D-PROD-164) dispensa a faixa de cabeçalho do registro.
   const recordHeaderNode =
-    recordMode && recordHeader && React.isValidElement(recordHeader)
-      ? React.cloneElement(recordHeader, { joinShell: joinedShell })
-      : recordHeader;
+    navNoFormulario > 0 || painelUnico
+      ? null
+      : recordMode && recordHeader && React.isValidElement(recordHeader)
+        ? React.cloneElement(recordHeader, { joinShell: joinedShell })
+        : recordHeader;
 
   const shellBody = recordMode ? (
     <>
       {recordHeaderNode}
-      <div className={listBodyClass}>{recordBody}</div>
+      <div className={listBodyClass} data-b1-painel={painelUnico ? "" : undefined}>
+        {painelUnico && temNavegacao(contextoNav.info) ? (
+          <div className="b1-reg-navlinha">
+            <NavegacaoDoRegistro info={contextoNav.info} />
+          </div>
+        ) : null}
+        {recordBody}
+      </div>
     </>
   ) : (
     <div className={listBodyClass}>{children}</div>
@@ -609,7 +653,9 @@ export default function CadastroListaChrome({
           ) : null}
           {!celular ? maisOpcoesPopover : null}
         </div>
-      ) : (
+      ) : secondaryToolsLocked && !(showAttachControl && !(recordMode && recordEditing)) ? null : (
+        // Na edição este grupo ficaria vazio; vazio, o "ml-auto" dele dividiria o espaço com Anexos/Salvar
+        // e os puxaria para o meio da barra (no design o grupo não existe na edição — D-PROD-164).
         <div className="mg-toolbar__btns ml-auto flex items-center flex-wrap">
           {!secondaryToolsLocked && onClearFilters ? (
             <FluidSlot open={filtersActive}>
@@ -737,13 +783,23 @@ export default function CadastroListaChrome({
     </nav>
   ) : null;
 
-  const listSummary = recordMode && recordEditing ? null : (
-    <div className="mg-summary no-print">
+  // Rodapé em palavras (D-PROD-164): "12 lotes" / "5 de 12 lotes" · "1 selecionado".
+  // Some na edição, no celular e no registro fora do desktop. Os números ficam em data-* (testes e leitores).
+  const nomesContagem = nomesDaContagem(searchPlaceholder, contagemNomes);
+  const mostrados = filtrados ?? listados ?? 0;
+  const textoTotal = textoDoTotal({ mostrados, totais: totais ?? mostrados, nomes: nomesContagem });
+  const textoSelecao = textoDaSelecao(selectedCount ?? 0);
+  const listSummary = (recordMode && recordEditing) || celular || (recordMode && !desktop) ? null : (
+    <div
+      className="mg-summary no-print"
+      data-listados={listados}
+      data-filtrados={filtrados}
+      data-totais={totais}
+      data-selecionados={selectedCount}
+    >
       <div className="mg-summary__counts">
-        <span className="mg-summary__item">Listados: {listados}</span>
-        <span className="mg-summary__item">Filtrados: {filtrados}</span>
-        <span className="mg-summary__item">Totais: {totais}</span>
-        <span className="mg-summary__item">Selecionados: {selectedCount}</span>
+        <span className="mg-summary__item b1-sum__total">{textoTotal}</span>
+        {textoSelecao ? <span className="mg-summary__item b1-sum__sel">{textoSelecao}</span> : null}
       </div>
       {loadingMore && celular ? <span className="mg-summary__loading">Carregando…</span> : null}
       {!celular && (onPageSizeChange || onLoadMore) ? (
@@ -777,6 +833,9 @@ export default function CadastroListaChrome({
 
   return (
     <PortalComprasSkinProvider active={skinAtivo}>
+    <FiltrosRapidosSlotContext.Provider value={filtrosRapidosSlot}>
+    <ContagemNomesContext.Provider value={nomesContagem}>
+    <RegistroNavContext.Provider value={contextoNav}>
     <div
       className={cn(
         "flex min-h-0 min-w-0 flex-1 flex-col gap-2",
@@ -798,6 +857,9 @@ export default function CadastroListaChrome({
         >
           {joinedShell && !barraNoCabecalho ? toolbarRow : null}
           {joinedShell ? pillsRail : null}
+          {joinedShell && !recordMode ? (
+            <div ref={setFiltrosRapidosSlot} className="b1-fr-slot" data-b1-fr-slot="" />
+          ) : null}
           {shellBody}
           {listSummary}
         </div>
@@ -808,6 +870,9 @@ export default function CadastroListaChrome({
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
+    </RegistroNavContext.Provider>
+    </ContagemNomesContext.Provider>
+    </FiltrosRapidosSlotContext.Provider>
     </PortalComprasSkinProvider>
   );
 }

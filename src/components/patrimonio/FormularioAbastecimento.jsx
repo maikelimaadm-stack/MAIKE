@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -12,11 +13,11 @@ import { listarOpcoesAbastecimento, listarProdutosDoBem } from "@/services/abast
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import { createPageUrl } from "@/utils";
 import {
-  DICA_PRODUTO_EM_KG,
   LIMITES_ABASTECIMENTO,
   LOCALE_ABASTECIMENTO,
   ROTULO_LEITURA,
   UNIDADE_MEDIDOR,
+  dicaDaUnidadeDoProduto,
   formatarDiaAbastecimento,
   formatarLeitura,
   formatarLitrosCurto,
@@ -52,7 +53,7 @@ export const TEXTO_SEM_PRODUTO = Object.freeze(
     sem_tanque_ativo: "Este bem não tem tanque ativo. Cadastre ou reative um tanque no cadastro do bem.",
     tanque_sem_produto: "Os tanques deste bem não têm Produto aceito. Marque os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.",
     produto_unidade_incompativel:
-      "O Produto aceito não está em litros (L) nem em quilos (KG): o abastecimento não é possível. Aceite no tanque um Produto em L ou em KG em Bens Patrimoniais › Operação › Tanques.",
+      "O Produto aceito não tem estoque em litros (L), quilos (KG) nem sacos (SACO): o abastecimento não é possível. Aceite no tanque outro Produto em Bens Patrimoniais › Operação › Tanques.",
     produto_inativo_ou_outra_fazenda:
       "Os Produtos aceitos pelos tanques deste bem estão inativos ou são de outra fazenda. Ajuste os Produtos aceitos em Bens Patrimoniais › Operação › Tanques.",
   }),
@@ -84,7 +85,8 @@ function ErroDoCampo({ texto }) {
  * Máquina/Veículo → PRODUTO (o nome real do estoque, dos "Produtos aceitos"
  * dos tanques do bem, opção do SERVIDOR) → tanque (só se o Produto é aceito em
  * mais de um) → local (automático com um só) → data → "Quantidade abastecida"
- * na unidade do Produto (L ou kg; Produto em KG com a dica fixa) → medidor →
+ * na unidade de estoque do Produto (L; kg para KG e para SACO — D-PROD-169 —,
+ * com a dica fixa) → medidor →
  * "Completou o tanque?" → Mais detalhes → Revisar. Sem tipo de combustível e
  * sem fator kg/L. Trocar um campo limpa os que dependem dele. Nada é gravado
  * aqui: "Revisar abastecimento" pede a prévia ao servidor.
@@ -187,7 +189,9 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
   const unidade = UNIDADE_MEDIDOR[tipoMedidor] ?? "";
   const leituraVigente = respostaDoBem?.bem?.leitura_vigente ?? null;
   const produto = form.produto ?? null;
+  // Unidade EFETIVA do estoque (SACO guarda em kg) e a dica da unidade do Produto (KG ou SACO).
   const unidadeProduto = unidadeDoFormulario(form);
+  const dicaDaUnidade = dicaDaUnidadeDoProduto(produto?.unidade_principal_estoque);
   const tanquesDoProduto = /** @type {any[]} */ (Array.isArray(produto?.tanques) ? produto.tanques : []);
   const localEscolhido = locais.find((l) => String(l.local_estoque_id) === String(form.local_estoque_id)) ?? null;
   const detalhesComErro = Boolean(erros.observacao || erros.referencia_externa);
@@ -277,7 +281,7 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
   return (
     <CadastroFormShell embedded title="Novo abastecimento">
       <div className="mg-b1-record-form">
-        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form">
+        <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form" data-densidade={DENSIDADE_BASE1}>
           <SecaoForm titulo="Máquina e Produto" />
           <SeletorPaginadoGestao
             rotulo="Máquina/Veículo"
@@ -379,9 +383,9 @@ export default function FormularioAbastecimento({ empresaId, form, setForm, hoje
             error={erros.quantidade}
             testId="abastecimento-quantidade"
           />
-          {unidadeProduto === "KG" ? (
+          {dicaDaUnidade ? (
             <p role="note" className="col-span-12 -mt-1 min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-2 text-[12px] text-amber-900" data-testid="abastecimento-dica-kg">
-              {DICA_PRODUTO_EM_KG}
+              {dicaDaUnidade}
             </p>
           ) : null}
           {contador ? (

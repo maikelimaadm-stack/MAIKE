@@ -9,11 +9,16 @@
  *    inexistente → o mesmo 404 `BEM_PATRIMONIAL_NAO_ENCONTRADO`;
  *  - `numero` pela sequência do tenant (`reservarNumero`, ESCOPO_TENANT) e
  *    `natureza` copiada da família: ambos IMUTÁVEIS;
+ *  - D-PROD-169: o corpo traz "Tipo de bem" (`natureza`) + "Tipo" (`tipo_id`)
+ *    SEM `familia_id`: a família é a do TIPO e a natureza do tipo tem de ser a
+ *    do bem (senão 422 `BEM_TIPO_NATUREZA_INCOMPATIVEL`). `familia_id`
+ *    continua aceito por compatibilidade e tem de bater com o tipo. O catálogo
+ *    padrão é garantido antes de criar/editar (`garantirCatalogoPadrao`);
  *  - `codigo_frota` (opcional) único por empresa: pré-checagem sob
  *    `travarEscopo('patrimonio:frota:<cli>:<emp>:<codigo>')` e o unique do
  *    banco como última barreira → 409 `BEM_CODIGO_FROTA_DUPLICADO`;
  *  - escrita numa transação, na ordem do A5: trava a linha do bem (PATCH) e
- *    confere a `versao` → lê família/tipo com FOR SHARE → mescla banco +
+ *    confere a `versao` → lê tipo/família com FOR SHARE → mescla banco +
  *    corpo e valida TUDO sobre o estado final → tanques e Produtos aceitos
  *    (acrescentados lidos FOR KEY SHARE) → UPDATE com CAS da versão (uma vez
  *    por PATCH efetivo) → auditoria (allowlist, sem texto livre) na mesma
@@ -41,8 +46,9 @@ import {
 import { ehContador, pisoOperacional } from './abastecimentoMedidor.js';
 import { revalidarAceitesDoBem, sincronizarTanques, validarTanques } from './bemPatrimonialFilhos.js';
 import { simularDepreciacaoLinear } from './depreciacaoLinear.js';
+import { garantirCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
 import { atualizarComVersao, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset, termoDeBusca } from './patrimonioComum.js';
-import { CAPACIDADES_POR_NATUREZA } from './patrimonioDominio.js';
+import { CAPACIDADES_POR_NATUREZA, ROTULO_NATUREZA } from './patrimonioDominio.js';
 
 export const ENTIDADE = 'BemPatrimonial';
 /** Ação de auditoria da correção do cadastro do medidor (A2). */
@@ -276,40 +282,75 @@ const hojeDe = (tx, clienteId, empresaId) => {
 // ─── referências ────────────────────────────────────────────────────────────
 
 /**
- * Família e tipo lidos com FOR SHARE: a inativação concorrente espera esta
- * escrita (e esta escrita vê a inativação já confirmada).
- * @param {any} tx @param {string} clienteId @param {string} familiaId @param {string} tipoId
+ * Tipo (e a família INFORMADA, se veio — compatibilidade) lidos com FOR SHARE:
+ * a exclusão/inativação concorrente do tipo espera esta escrita (e esta escrita
+ * vê a exclusão já confirmada). Sem `familia_id`, a família é a do tipo (lida
+ * com FOR SHARE depois do tipo).
+ * @param {any} tx @param {string} clienteId @param {{ familiaId: string|null, tipoId: string }} ids
  */
-const carregarClassificacao = async (tx, clienteId, familiaId, tipoId) => {
-  await tx.$queryRaw`SELECT id FROM "FamiliaPatrimonial" WHERE cliente_id = ${clienteId} AND id = ${familiaId} FOR SHARE`;
+const carregarClassificacao = async (tx, clienteId, { familiaId, tipoId }) => {
+  if (familiaId) await tx.$queryRaw`SELECT id FROM "FamiliaPatrimonial" WHERE cliente_id = ${clienteId} AND id = ${familiaId} FOR SHARE`;
   await tx.$queryRaw`SELECT id FROM "TipoPatrimonial" WHERE cliente_id = ${clienteId} AND id = ${tipoId} FOR SHARE`;
-  const familia = await tx.familiaPatrimonial.findFirst({ where: { cliente_id: clienteId, id: familiaId }, select: { id: true, natureza: true, ativo: true } });
   const tipo = await tx.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, id: tipoId }, select: { id: true, familia_id: true, ativo: true } });
-  return { familia, tipo };
+  const idDaFamilia = familiaId ?? tipo?.familia_id ?? null;
+  if (!familiaId && idDaFamilia) await tx.$queryRaw`SELECT id FROM "FamiliaPatrimonial" WHERE cliente_id = ${clienteId} AND id = ${idDaFamilia} FOR SHARE`;
+  const familia = idDaFamilia
+    ? await tx.familiaPatrimonial.findFirst({ where: { cliente_id: clienteId, id: idDaFamilia }, select: { id: true, natureza: true, ativo: true } })
+    : null;
+  return { familia, tipo, familiaInformada: Boolean(familiaId) };
 };
 
+/** @param {string} n */
+const rotulo = (n) => ROTULO_NATUREZA[/** @type {keyof typeof ROTULO_NATUREZA} */ (n)] ?? n;
+
 /**
- * Classificação escolhida (criação) ou alterada (PATCH): família e tipo
- * existentes no tenant e ATIVOS quando novos, tipo da família; no PATCH a
- * natureza do bem nunca muda (família de outra natureza → 409, nada apagado).
- * @param {{ familia: any, tipo: any }} c
- * @param {{ naturezaDoBem?: string|null, familiaNova?: boolean, tipoNovo?: boolean }} [opcoes]
+ * 422 D-PROD-169: o tipo (ou a família informada) é de outro "Tipo de bem".
+ * @param {string} field @param {string} natureza  a do bem/pedida @param {string} naturezaTipo
  */
-const exigirClassificacao = ({ familia, tipo }, { naturezaDoBem = null, familiaNova = true, tipoNovo = true } = {}) => {
-  if (!familia) throw referenciaInvalida('familia_id', 'inexistente', 'família patrimonial não encontrada');
-  if (naturezaDoBem && familia.natureza !== naturezaDoBem) {
-    throw new AppError('BEM_NATUREZA_IMUTAVEL', 'a natureza do bem não muda: escolha uma família da mesma natureza; nada foi gravado', {
-      details: { field: 'familia_id', reason: 'natureza_diferente', natureza: naturezaDoBem, natureza_familia: familia.natureza },
-    });
+const naturezaIncompativel = (field, natureza, naturezaTipo) =>
+  new AppError(
+    'BEM_TIPO_NATUREZA_INCOMPATIVEL',
+    `o tipo escolhido é do tipo de bem "${rotulo(naturezaTipo)}", não "${rotulo(natureza)}": escolha um tipo de "${rotulo(natureza)}"; nada foi gravado`,
+    { details: { field, reason: 'natureza_diferente', natureza, natureza_tipo: naturezaTipo } }
+  );
+
+/**
+ * Classificação escolhida (criação) ou alterada (PATCH): tipo existente no
+ * tenant e ATIVO quando novo; família = a informada (compatibilidade: do
+ * tenant, da natureza, ATIVA quando nova, e o tipo tem de ser dela) ou a do
+ * tipo (ATIVA quando nova); a natureza do tipo tem de ser a do bem (PATCH) ou
+ * a pedida (POST). No PATCH a natureza do bem nunca muda (família informada de
+ * outra natureza → 409, nada apagado).
+ * @param {{ familia: any, tipo: any, familiaInformada: boolean }} c
+ * @param {{ naturezaDoBem?: string|null, naturezaPedida?: string|null, familiaAtualId?: string|null, tipoNovo?: boolean }} [opcoes]
+ * @returns {{ familia: { id: string, natureza: string, ativo: boolean }, tipo: { id: string, familia_id: string, ativo: boolean } }}
+ */
+const exigirClassificacao = ({ familia, tipo, familiaInformada }, { naturezaDoBem = null, naturezaPedida = null, familiaAtualId = null, tipoNovo = true } = {}) => {
+  const familiaNova = Boolean(familia) && familia.id !== familiaAtualId;
+  if (familiaInformada) {
+    if (!familia) throw referenciaInvalida('familia_id', 'inexistente', 'família patrimonial não encontrada');
+    if (naturezaDoBem && familia.natureza !== naturezaDoBem) {
+      throw new AppError('BEM_NATUREZA_IMUTAVEL', 'a natureza do bem não muda: escolha uma família da mesma natureza; nada foi gravado', {
+        details: { field: 'familia_id', reason: 'natureza_diferente', natureza: naturezaDoBem, natureza_familia: familia.natureza },
+      });
+    }
+    if (naturezaPedida && familia.natureza !== naturezaPedida) throw naturezaIncompativel('familia_id', naturezaPedida, familia.natureza);
+    if (familiaNova && !familia.ativo) throw referenciaInvalida('familia_id', 'inativo', 'a família escolhida está inativa');
   }
-  if (familiaNova && !familia.ativo) throw referenciaInvalida('familia_id', 'inativo', 'a família escolhida está inativa');
   if (!tipo) throw referenciaInvalida('tipo_id', 'inexistente', 'tipo patrimonial não encontrado');
   if (tipoNovo && !tipo.ativo) throw referenciaInvalida('tipo_id', 'inativo', 'o tipo escolhido está inativo');
-  if (tipo.familia_id !== familia.id) {
+  if (familiaInformada && tipo.familia_id !== familia.id) {
     throw new AppError('BEM_TIPO_FAMILIA_INCOMPATIVEL', 'o tipo escolhido não pertence a esta família; nada foi gravado', {
       details: { field: 'tipo_id', reason: 'tipo_de_outra_familia' },
     });
   }
+  if (!familia) throw referenciaInvalida('tipo_id', 'inexistente', 'tipo patrimonial não encontrado');
+  const esperada = naturezaDoBem ?? naturezaPedida;
+  if (esperada && familia.natureza !== esperada) throw naturezaIncompativel('tipo_id', esperada, familia.natureza);
+  if (!familiaInformada && familiaNova && !familia.ativo) {
+    throw referenciaInvalida('tipo_id', 'familia_inativa', 'o tipo escolhido pertence a uma classificação inativa');
+  }
+  return { familia, tipo };
 };
 
 /** Mensagens das referências escalares (inexistente/inativo). */
@@ -421,6 +462,7 @@ export const criar = async (contexto, entrada) => {
   const corpo = escalaresDoCorpo(entrada);
   const aquisicao = aquisicaoDoCorpo(entrada.aquisicao);
   const depreciacao = depreciacaoDoCorpo(entrada.depreciacao);
+  await garantirCatalogoPadrao(contexto);
   return transacao(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
     // FOR KEY SHARE da fazenda (a trava que a FK do INSERT pegaria, só que
@@ -430,8 +472,9 @@ export const criar = async (contexto, entrada) => {
       await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${cli} AND id = ${empresaId} FOR KEY SHARE`
     );
     if (!empresaTravada) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada neste tenant', { details: { field: 'empresa_id' } });
-    const classificacao = await carregarClassificacao(tx, cli, entrada.familia_id, entrada.tipo_id);
-    exigirClassificacao(classificacao);
+    const classificacao = exigirClassificacao(await carregarClassificacao(tx, cli, { familiaId: entrada.familia_id ?? null, tipoId: entrada.tipo_id }), {
+      naturezaPedida: entrada.natureza ?? null,
+    });
     const natureza = classificacao.familia.natureza;
     exigirCamposAplicaveis(natureza, entrada);
     /** @type {Record<string, any>} */
@@ -462,6 +505,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const corpo = escalaresDoCorpo(entrada);
   const aquisicao = aquisicaoDoCorpo(entrada.aquisicao);
   const depreciacao = depreciacaoDoCorpo(entrada.depreciacao);
+  await garantirCatalogoPadrao(contexto);
   return transacao(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
     const travado = /** @type {Array<{ id: string }>} */ (
@@ -475,12 +519,24 @@ export const atualizar = async (contexto, id, entrada) => {
     const natureza = atual.natureza;
     const antes = estadoDoRegistro(atual);
 
-    const familiaId = entrada.familia_id ?? atual.familia_id;
+    // D-PROD-169: `natureza` no corpo só confere (imutável).
+    if (entrada.natureza !== undefined && entrada.natureza !== natureza) {
+      throw new AppError('BEM_NATUREZA_IMUTAVEL', `o tipo de bem não muda depois do cadastro (este bem é "${rotulo(natureza)}"); nada foi gravado`, {
+        details: { field: 'natureza', reason: 'natureza_diferente', natureza, natureza_pedida: entrada.natureza },
+      });
+    }
     const tipoId = entrada.tipo_id ?? atual.tipo_id;
-    const familiaNova = familiaId !== atual.familia_id;
     const tipoNovo = tipoId !== atual.tipo_id;
-    const classificacao = familiaNova || tipoNovo ? await carregarClassificacao(tx, cli, familiaId, tipoId) : { familia: atual.familia, tipo: atual.tipo };
-    if (familiaNova || tipoNovo) exigirClassificacao(classificacao, { naturezaDoBem: natureza, familiaNova, tipoNovo });
+    const familiaInformadaNova = entrada.familia_id !== undefined && entrada.familia_id !== atual.familia_id;
+    const classificacao =
+      tipoNovo || familiaInformadaNova
+        ? exigirClassificacao(await carregarClassificacao(tx, cli, { familiaId: entrada.familia_id ?? null, tipoId }), {
+            naturezaDoBem: natureza,
+            familiaAtualId: atual.familia_id,
+            tipoNovo,
+          })
+        : { familia: atual.familia, tipo: atual.tipo };
+    const familiaId = classificacao.familia.id;
     exigirCamposAplicaveis(natureza, entrada);
 
     /** @type {Record<string, any>} */

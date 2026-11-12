@@ -96,8 +96,17 @@ const montar = async (inicial = { empresaId: 'emp-1', centroCustoId: 'c1' }) => 
 
 const secao = () => screen.getByTestId('vinculos-centro-custo');
 const botao = (nome) => within(secao()).getByRole('button', { name: nome });
-const marcados = () => within(secao()).queryAllByRole('checkbox').filter((c) => c.getAttribute('aria-checked') === 'true').map((c) => c.textContent);
-const esperarOpcoes = () => waitFor(() => expect(within(secao()).queryAllByRole('checkbox').length).toBe(3));
+// D-PROD-168: os centros são marcados na lista do campo (janela própria, fora da seção), com a caixa à direita.
+const LISTA = 'Centros de resultado';
+const abrirLista = () => {
+  const campo = within(secao()).getByRole('combobox', { name: LISTA });
+  if (campo.getAttribute('aria-expanded') !== 'true') fireEvent.click(campo);
+  return screen.getByRole('dialog', { name: LISTA });
+};
+const caixas = () => within(abrirLista()).queryAllByRole('checkbox');
+const marcados = () => caixas().filter((c) => /** @type {HTMLInputElement} */ (c).checked).map((c) => c.closest('label')?.textContent);
+const esperarOpcoes = () => waitFor(() => expect(caixas().length).toBe(3));
+const marcar = (nome) => fireEvent.click(within(abrirLista()).getByRole('checkbox', { name: nome }));
 /** Salvar só habilita com o conjunto real e as opções lidas (nada sendo relido). */
 const clicarSalvarQuandoPronto = async (nome = 'Salvar vínculos') => {
   await waitFor(() => expect(botao(nome).disabled).toBe(false));
@@ -151,7 +160,7 @@ describe('B3 — vínculo N:N: nenhum PUT indevido', () => {
     await waitFor(() => expect(botao('Alterar vínculos').disabled).toBe(false));
     fireEvent.click(botao('Alterar vínculos'));
     await esperarOpcoes();
-    fireEvent.click(within(secao()).getByRole('checkbox', { name: /BEZERROS/ }));
+    marcar(/BEZERROS/);
     await clicarSalvarQuandoPronto();
     expect(await screen.findByTestId('vinculos-confirmar-vazio')).toBeTruthy();
     expect(puts()).toHaveLength(0);
@@ -165,7 +174,7 @@ describe('B3 — vínculo N:N: nenhum PUT indevido', () => {
     await waitFor(() => expect(botao('Alterar vínculos').disabled).toBe(false));
     fireEvent.click(botao('Alterar vínculos'));
     await esperarOpcoes();
-    fireEvent.click(within(secao()).getByRole('checkbox', { name: /NOVILHAS/ }));
+    marcar(/NOVILHAS/);
     fireEvent.click(botao('Cancelar'));
     fireEvent.click(botao('Alterar vínculos'));
     await esperarOpcoes();
@@ -178,7 +187,7 @@ describe('B3 — vínculo N:N: nenhum PUT indevido', () => {
     await waitFor(() => expect(botao('Alterar vínculos').disabled).toBe(false));
     fireEvent.click(botao('Alterar vínculos'));
     await esperarOpcoes();
-    fireEvent.click(within(secao()).getByRole('checkbox', { name: /NOVILHAS/ }));
+    marcar(/NOVILHAS/);
     await trocar({ empresaId: 'emp-1', centroCustoId: 'c2' });
     expect(within(secao()).queryByRole('button', { name: 'Salvar vínculos' })).toBeNull();
     await waitFor(() => expect(botao('Alterar vínculos').disabled).toBe(false));
@@ -208,7 +217,7 @@ describe('B3 — vínculo N:N: nenhum PUT indevido', () => {
     await waitFor(() => expect(botao('Alterar vínculos').disabled).toBe(false));
     fireEvent.click(botao('Alterar vínculos'));
     await esperarOpcoes();
-    fireEvent.click(within(secao()).getByRole('checkbox', { name: /NOVILHAS/ }));
+    marcar(/NOVILHAS/);
     segurar.put = adiada();
     await waitFor(() => expect(botao('Salvar vínculos').disabled).toBe(false));
     const salvarBtn = botao('Salvar vínculos');

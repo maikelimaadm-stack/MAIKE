@@ -1,0 +1,173 @@
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+
+/**
+ * Uma aba do Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174): barra, faixa de filtros,
+ * grade/cards e registro do motor. A geometria nasce e muda no mapa (o "+ Novo" abre o desenho); o registro
+ * mostra os detalhes, travados até o "Editar", e quem salva é a barra do motor (o formulário grava sozinho,
+ * como no painel do desenho, e avisa quando termina).
+ *
+ * @param {{
+ *   titulo: string,
+ *   abas: React.ReactNode,
+ *   queryKey: unknown[],
+ *   carregar: () => Promise<any[]>,
+ *   habilitado: boolean,
+ *   colunas: Array<{ id: string, label: string }>,
+ *   valor: (item: any, coluna: string) => string,
+ *   celula: (item: any, coluna: string) => React.ReactNode,
+ *   comparar?: (a: any, b: any, coluna: string) => number | undefined,
+ *   chaveColunas: string,
+ *   buscaPlaceholder: string,
+ *   vazio: string,
+ *   arquivoCsv: string,
+ *   rotuloDoItem: (item: any) => string,
+ *   codigoDoItem?: (item: any) => string | undefined,
+ *   textoDeBusca: (item: any) => string,
+ *   formId: string,
+ *   formulario: (p: { item: any, readOnly: boolean, onSalvo: () => void, onSalvandoChange: (v: boolean) => void, chave: string }) => React.ReactNode,
+ *   onNovo: () => void,
+ *   rotuloNovo?: string,
+ *   acoes: (p: { selecionados: any[], registro: any | null }) => Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, onSelect: () => void }>,
+ *   excluir: (ids: string[], itens: any[]) => Promise<void>,
+ *   dialogoExcluir: { title: string, descriptionOne: string, descriptionMany: (n: number) => string },
+ * }} props
+ */
+export default function TelaCadastroMapa({
+  titulo,
+  abas,
+  queryKey,
+  carregar,
+  habilitado,
+  colunas,
+  valor,
+  celula,
+  comparar,
+  chaveColunas,
+  buscaPlaceholder,
+  vazio,
+  arquivoCsv,
+  rotuloDoItem,
+  codigoDoItem,
+  textoDeBusca,
+  formId,
+  formulario,
+  onNovo,
+  rotuloNovo = "Novo",
+  acoes,
+  excluir,
+  dialogoExcluir,
+}) {
+  const queryClient = useQueryClient();
+  const [salvando, setSalvando] = useState(false);
+  const excluirRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+
+  const controller = useCadastroBase1FullListController({
+    storageKey: chaveColunas,
+    columnIds: colunas.map((c) => c.id),
+    listEnabled: habilitado,
+    queryKey,
+    fetchAll: carregar,
+    duplicateLabelField: "nome",
+    exportFileName: arquivoCsv,
+    exportColumns: colunas,
+    getExportFieldValue: valor,
+    getRecordTitle: (item) => (item ? rotuloDoItem(item) : titulo),
+    getRecordCode: (item) => (item && codigoDoItem ? codigoDoItem(item) : undefined),
+    getSearchHaystack: textoDeBusca,
+    mapSearchSuggestion: (item) => ({ id: String(item.id), label: rotuloDoItem(item), secondary: codigoDoItem?.(item) || undefined }),
+    matchRowId: (item, id) => String(item.id) === String(id),
+    getRowId: (item) => String(item.id),
+    findRowById: (rows, id) => rows.find((r) => String(r.id) === String(id)),
+    // O formulário do registro grava sozinho (mesma regra do painel do desenho); a barra só dispara o submit.
+    onSubmitRecord: () => {},
+    onRequestDeleteMutation: (ids) => excluirRef.current(ids),
+  });
+
+  const recarregar = useCallback(() => {
+    queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === queryKey[0] });
+  }, [queryClient, queryKey]);
+
+  excluirRef.current = (ids) => {
+    const itens = controller.allItems.filter((item) => ids.includes(String(item.id)));
+    void excluir(ids, itens).then(() => {
+      controller.chrome.setSelectedIds([]);
+      if (controller.showForm && controller.editingItem?.id && ids.includes(String(controller.editingItem.id))) {
+        controller.recordHelpers.closeForm();
+      }
+    });
+  };
+
+  const selecionados = useMemo(
+    () => controller.allItems.filter((item) => controller.chrome.selectedIds.includes(String(item.id))),
+    [controller.allItems, controller.chrome.selectedIds],
+  );
+  const registro = controller.showForm ? controller.editingItem : null;
+
+  const aoSalvar = useCallback(() => {
+    recarregar();
+    controller.setIsEditing(false);
+  }, [recarregar, controller]);
+
+  const screenController = { ...controller, saving: salvando, openNew: onNovo };
+
+  return (
+    <CadastroBase1Screen
+      workspaceTitle={titulo}
+      searchPlaceholder={buscaPlaceholder}
+      createLabel={rotuloNovo}
+      formId={formId}
+      columnsForCardsToolbar={colunas}
+      controller={screenController}
+      listErrorMessage="Não foi possível carregar a lista. Verifique sua conexão e tente novamente."
+      recordCode={registro && codigoDoItem ? codigoDoItem(registro) : undefined}
+      listBanner={controller.showForm ? null : abas}
+      showDuplicate={false}
+      additionalMoreActions={acoes({ selecionados, registro })}
+      deleteDialog={dialogoExcluir}
+      recordForm={
+        registro
+          ? formulario({
+              item: registro,
+              readOnly: !controller.isEditing,
+              onSalvo: aoSalvar,
+              onSalvandoChange: setSalvando,
+              // Cancelar a edição remonta o formulário com os dados gravados (formEpoch do motor).
+              chave: `${registro.id}-${controller.formEpoch}`,
+            })
+          : null
+      }
+      listSlot={
+        <CadastroBase1Grade
+          rows={controller.visibleRows}
+          columns={colunas}
+          storageKey={chaveColunas}
+          droppableId={`colunas-${chaveColunas}`}
+          getFieldValue={valor}
+          renderCell={celula}
+          compararParaOrdenar={comparar}
+          defaultSortKey="nome"
+          emptyText={vazio}
+          onOpen={controller.handleEdit}
+          showConfigColunas={controller.showConfigColunas}
+          setShowConfigColunas={controller.setShowConfigColunas}
+          searchQuery=""
+          matchesSearch={controller.matchesSearch}
+          resetFiltersKey={controller.chrome.resetFiltersKey}
+          configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+          isLoading={controller.isLoading}
+          onSelectionChange={controller.chrome.onSelectionChange}
+          onFiltersActiveChange={controller.chrome.setFiltersActive}
+          viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+          cardFields={controller.cardsPrefs.cardFields}
+          cardsPerRow={controller.cardsPrefs.cardsPerRow}
+          cardsTitleColId="nome"
+          cardsCodeColId="codigo"
+        />
+      }
+    />
+  );
+}

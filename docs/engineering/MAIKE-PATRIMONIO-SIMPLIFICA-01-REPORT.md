@@ -2,8 +2,8 @@
 
 Decisão: **D-PROD-162** ([`DECISIONS.md`](./DECISIONS.md)). A branch nasceu sobre `origin/main`
 `e39d318b` (merge da PR #237, Patrimônio UX-02).
-Branch: `claude/new-session-abgn5w` · PR `<número>` (**DRAFT**) · código verificado: `<HEAD>`.
-Runbook de release (não executado):
+Branch: `claude/new-session-abgn5w` · PR #239 (mergeada em `87e8a5ca`) · código verificado: `fa880a38`.
+Runbook de release (executado em 2026-11-11, registro no §11 dele):
 [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
 
 > **Esqueleto (frente F0).** As seções 1–4 e 12 trazem o que já está decidido. As seções
@@ -11,10 +11,11 @@ Runbook de release (não executado):
 > contagens de teste, saída do `verify:all`, CI e desvios. Nenhum PASS é afirmado aqui sem a
 > saída do comando (constituição P7).
 >
-> **Migration CONTRACT, não aplicada.** `20261110300000_patrimonio_simplifica` apaga as 13
-> tabelas do Patrimônio, com os dados de todos os clientes, alarga 2 CHECKs de
-> `OperacaoFinanceiraItem` e cria 7 tabelas no formato novo. Os testes rodam em PostgreSQL
-> **local e descartável**. Nada foi executado em Supabase, Vercel ou outro ambiente remoto.
+> **Migration CONTRACT, aplicada em produção em 2026-11-11 (caminho B, GO do proprietário).**
+> `20261110300000_patrimonio_simplifica` apaga as 13 tabelas do Patrimônio, com os dados de
+> todos os clientes, alarga 2 CHECKs de `OperacaoFinanceiraItem` e cria 7 tabelas no formato
+> novo. Os testes rodaram em PostgreSQL **local e descartável**. A aplicação, o postcheck e o
+> deploy estão no §15 e no §11 do runbook.
 
 ## 1. O que muda e o que fica igual
 
@@ -193,8 +194,17 @@ Ver `git diff --stat origin/main...HEAD` na PR [#239](https://github.com/maikeli
 
 ## 15. Situação
 
-`SCHEMA_APPLIED_PRODUCTION = NÃO` · `MERGE_READY = NÃO` · `OPERATIONAL_RELEASE_READY = NÃO`.
-O preflight de produção de 2026-11-11 (só leitura) encontrou 13 linhas, num só dos 2 clientes, 0 CONFIRMADO e a impressão `a35b7cbb0569`. A aplicação segue o runbook, e o resultado fica registrado no §11 dele.
+`SCHEMA_APPLIED_PRODUCTION = SIM` · `MERGED = SIM` (`87e8a5ca`) · `DEPLOY_PRODUCTION = READY`.
+
+- **Aplicação:** caminho B em 2026-11-11, com a impressão aprovada `a35b7cbb0569` (13 linhas, 1 de 2 clientes, 0 CONFIRMADO).
+- **Postcheck R1–R9:** igual ao esperado.
+- **C1–C4:**
+  - health 200 com `banco: up` e o release do merge;
+  - advisor de segurança sem alertas;
+  - logs sem erro novo.
+- **Detalhes:** no §11 do runbook.
+- **Desvio:** a prova de backup do §4.7 não foi obtida pelo agente. Vale a escolha (b) do proprietário, que mandou apagar o que houvesse e recomeçar do zero.
+- **Pendente:** o proprietário abrir as telas logado, fazer a primeira escrita e encerrar a janela P-12.
 
 ## 16. Integração com a `main` `e8472481` (PR #238, Estoque P0-01, D-PROD-161)
 
@@ -204,7 +214,7 @@ item "Integração com a D-PROD-161").
 
 **Numeração:** a `main` já usava a D-PROD-161. Tudo o que é desta missão passou a
 **D-PROD-162** (código, testes, migration, runbook, gate CONTRACT, docs); o marcador foi para
-D-PROD-163. Hashes novos da migration no §4.
+D-PROD-169. Hashes novos da migration no §4.
 
 **Conflitos e como foram resolvidos:**
 

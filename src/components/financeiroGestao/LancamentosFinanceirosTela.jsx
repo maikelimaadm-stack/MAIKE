@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
-import B1Select from "@/components/cadastro/base1/B1Select";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
 import TabelaLancamentos, {
   LANCAMENTOS_CAMPOS_CARD,
@@ -76,21 +76,6 @@ const temMercadoria = (registro) => Array.isArray(registro?.itens) && registro.i
 const numeroDe = (registro) => (registro?.numero != null && String(registro.numero) ? `nº ${String(registro.numero)}` : "");
 
 const PERFIL_SEM_CONFIGURACAO = Object.freeze({ locale: "pt-BR", moeda: "BRL", moeda_casas: 2, metodos_permitidos: /** @type {string[]} */ ([]) });
-
-/** @param {{ rotulo: string, value: string, onChange: (v: string) => void, opcoes: Array<[string, string]> }} props */
-function FiltroLista({ rotulo, value, onChange, opcoes }) {
-  return (
-    <div className="inline-flex h-8 min-w-[104px] items-center rounded-full border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-xs font-medium">
-      <B1Select aria-label={rotulo} value={value} onChange={(e) => onChange(e.target.value)} className="flex w-full items-center justify-between gap-1.5 whitespace-nowrap bg-transparent text-xs">
-        {opcoes.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </B1Select>
-    </div>
-  );
-}
 
 /**
  * Central Única de Lançamentos (D-PROD-155) — documento gerencial único para
@@ -872,10 +857,53 @@ export default function LancamentosFinanceirosTela() {
   const emp = /** @type {string} */ (empresaId);
   const pagar = dialogo?.registro?.direcao === "PAGAR";
 
+  // Filtros da consulta como pílulas na faixa do motor, não na barra (D-PROD-172).
+  const filtrosDaTela = [
+    {
+      id: "direcao",
+      rotulo: "Direção",
+      nome: "Filtrar por direção",
+      opcoes: [
+        { value: "TODAS", label: "Pagar e receber" },
+        { value: "PAGAR", label: "A pagar" },
+        { value: "RECEBER", label: "A receber" },
+      ],
+      valor: direcaoFiltro,
+      padrao: "TODAS",
+      onChange: setDirecaoFiltro,
+      coluna: "direcao",
+    },
+    {
+      id: "status",
+      rotulo: "Situação",
+      nome: "Filtrar por situação",
+      opcoes: [
+        { value: "TODOS", label: "Todas" },
+        { value: "RASCUNHO", label: "Rascunhos" },
+        { value: "CONFIRMADO", label: "Confirmados" },
+        { value: "CANCELADO", label: "Cancelados" },
+      ],
+      valor: statusFiltro,
+      padrao: "TODOS",
+      onChange: setStatusFiltro,
+      coluna: "status",
+    },
+    {
+      id: "registro",
+      rotulo: "Registro",
+      nome: "Filtrar por situação do registro",
+      opcoes: SITUACOES_LISTA.map((s) => ({ value: s, label: ROTULO_SITUACAO[/** @type {keyof typeof ROTULO_SITUACAO} */ (s)] })),
+      valor: situacaoFiltro,
+      padrao: "OPERACIONAIS",
+      onChange: setSituacaoFiltro,
+    },
+  ];
+
   return (
     // Botões e diálogos seguem a regra EXATA do servidor (ações extras da tela);
     // a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
       <CadastroBase1Screen
         permissaoExplicita
         workspaceTitle="Lançamentos Financeiros"
@@ -897,37 +925,6 @@ export default function LancamentosFinanceirosTela() {
         showDuplicate={podeDuplicar}
         showEdit={podeGravar && acoes.editar && Boolean(perfil) && Boolean(editavel)}
         showDelete={podeExcluirConfirmado}
-        extraToolbar={
-          <>
-            <FiltroLista
-              rotulo="Filtrar por direção"
-              value={direcaoFiltro}
-              onChange={setDirecaoFiltro}
-              opcoes={[
-                ["TODAS", "Pagar e receber"],
-                ["PAGAR", "A pagar"],
-                ["RECEBER", "A receber"],
-              ]}
-            />
-            <FiltroLista
-              rotulo="Filtrar por situação"
-              value={statusFiltro}
-              onChange={setStatusFiltro}
-              opcoes={[
-                ["TODOS", "Todas"],
-                ["RASCUNHO", "Rascunhos"],
-                ["CONFIRMADO", "Confirmados"],
-                ["CANCELADO", "Cancelados"],
-              ]}
-            />
-            <FiltroLista
-              rotulo="Filtrar por situação do registro"
-              value={situacaoFiltro}
-              onChange={setSituacaoFiltro}
-              opcoes={/** @type {Array<[string, string]>} */ (SITUACOES_LISTA.map((s) => [s, ROTULO_SITUACAO[/** @type {keyof typeof ROTULO_SITUACAO} */ (s)]]))}
-            />
-          </>
-        }
         additionalMoreActions={
           perfil && acoes.administrador && podeGravar
             ? [{ key: "perfil-financeiro", label: "Perfil financeiro da empresa", icon: <Settings2 className="h-4 w-4" aria-hidden />, onSelect: () => setDialogo({ tipo: "perfil" }) }]
@@ -1185,6 +1182,7 @@ export default function LancamentosFinanceirosTela() {
           }}
         />
       ) : null}
+      </FiltrosDaTelaContext.Provider>
     </div>
   );
 }

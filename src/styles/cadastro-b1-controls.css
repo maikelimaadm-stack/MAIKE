@@ -16,8 +16,8 @@
   backdrop-filter: blur(22px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow:
-    0 18px 40px rgba(15, 23, 42, 0.18),
-    0 2px 8px rgba(15, 23, 42, 0.08),
+    0 18px 40px rgba(20, 20, 19, 0.18),
+    0 2px 8px rgba(20, 20, 19, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
   animation: b1-glass-rise 230ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
@@ -54,8 +54,8 @@
 .b1ref .fpop.pop {
   border-radius: 12px;
   background: #fff;
-  border: 1px solid #e7eaee;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  border: 1px solid #ecebe6;
+  box-shadow: 0 8px 24px rgba(20, 20, 19, 0.12);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   animation: none;
@@ -73,15 +73,15 @@
   border-radius: 999px;
   border: 1px solid transparent;
   background: var(--mk-btn-bg, #ffffff);
-  color: #475569;
+  color: #52514e;
   cursor: pointer;
-  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1));
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1));
 }
 
 .b1ref .fpop-f .tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #FAFCFE);
-  color: #0f172a;
+  background: var(--mk-btn-hover, #F9F9F7);
+  color: #141413;
 }
 
 .b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon,
@@ -161,19 +161,19 @@
   margin-top: -7px;
   width: 14px;
   height: 14px;
-  color: var(--mk-icon-close, #64748b);
+  color: var(--mk-icon-close, #73726c);
   cursor: pointer;
   z-index: 2;
 }
 
 .cadastro-b1 .cmd-clear:hover {
-  color: var(--mk-action-fg, #334155);
+  color: var(--mk-action-fg, #373733);
 }
 
 .cadastro-b1 .cmd-panel__search {
   width: 100%;
   border: 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  border-bottom: 1px solid rgba(20, 20, 19, 0.07);
   padding: 8px 10px;
   font-size: 12px;
   outline: none;
@@ -238,7 +238,7 @@
 }
 
 .cadastro-b1 .cmd-panel__footer {
-  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  border-top: 1px solid rgba(20, 20, 19, 0.07);
   background: transparent;
 }
 
@@ -247,13 +247,13 @@
   box-sizing: border-box;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #dfe2e7;
-  border-left: 1px solid #dfe2e7;
-  border-right: 1px solid #dfe2e7;
+  border: 1px solid #deddd8;
+  border-left: 1px solid #deddd8;
+  border-right: 1px solid #deddd8;
   border-radius: 8px;
   box-shadow:
-    0 4px 12px rgba(15, 23, 42, 0.08),
-    0 1px 3px rgba(15, 23, 42, 0.05);
+    0 4px 12px rgba(20, 20, 19, 0.08),
+    0 1px 3px rgba(20, 20, 19, 0.05);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   animation: b1-glass-rise 230ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
@@ -534,7 +534,7 @@
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
-  color: #1e293b;
+  color: #262624;
   cursor: pointer;
   text-align: left;
   font-variant-numeric: tabular-nums;
@@ -545,7 +545,7 @@
 }
 
 .cadastro-b1 .b1-cal-titulo:hover:not(:disabled) {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(20, 20, 19, 0.06);
 }
 
 .cadastro-b1 .b1-cal-setas {
@@ -560,7 +560,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #475569;
+  color: #52514e;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -590,7 +590,7 @@
   border-radius: 999px;
   background: transparent;
   font-size: 12px;
-  color: #1e293b;
+  color: #262624;
   cursor: pointer;
   padding: 0;
   font-variant-numeric: tabular-nums;
@@ -647,7 +647,7 @@
   justify-content: space-between;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  border-top: 1px solid rgba(20, 20, 19, 0.07);
 }
 
 .cadastro-b1 .b1-cal-link {
@@ -724,7 +724,7 @@
 
 .cadastro-b1 .mg-field--switch.mg-has-value {
   background: #fff;
-  border-color: #e7eaee;
+  border-color: #ecebe6;
 }
 
 .cadastro-b1 .mg-field--switch .mg-field__label {
@@ -812,7 +812,7 @@
   border: 0;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2), 0 1px 2px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 2px 5px rgba(20, 20, 19, 0.2), 0 1px 2px rgba(20, 20, 19, 0.14);
   transform-origin: left center;
   transition: transform 0.26s cubic-bezier(0.32, 1.4, 0.5, 1);
 }
@@ -858,7 +858,7 @@
   height: 28px !important;
   padding: 0 12px !important;
   border-radius: 999px;
-  border: 1px solid #dfe2e7 !important;
+  border: 1px solid #deddd8 !important;
   background: #fff !important;
   font-size: 12px !important;
 }

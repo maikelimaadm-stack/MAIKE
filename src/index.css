@@ -14,6 +14,10 @@
 @import "./styles/mk-cartoes.css";
 @import "./styles/mk-unificado.css";
 @import "./styles/mk-topnav.css";
+@import "./styles/base1-design-tokens.css";
+@import "./styles/base1-design.css";
+@import "./styles/base1-paleta-tailwind.css";
+@import "./styles/base1-design-ajustes.css";
 @import "./styles/base1-tipografia.css";
 
 @tailwind base;

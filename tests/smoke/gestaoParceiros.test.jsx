@@ -107,6 +107,14 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+
+/** D-PROD-168: os papéis são marcados na lista do campo "Papéis do parceiro" (a caixa de marcar fica à direita). */
+async function marcarPapel(form, nome) {
+  const campo = within(form).getByRole('combobox', { name: /Papéis do parceiro/ });
+  if (campo.getAttribute('aria-expanded') !== 'true') fireEvent.click(campo);
+  fireEvent.click(await screen.findByRole('checkbox', { name: nome }));
+}
+
 describe('Parceiros — empresa', () => {
   it('sem empresa real (fallback = clienteId) avisa, não lista e não oferece gravação', async () => {
     empresaSelecionada('cli-1');
@@ -204,8 +212,8 @@ describe('Parceiros — formulário', () => {
     fireEvent.change(within(form).getByLabelText(/^CPF/), { target: { value: '529.982.247-25' } });
     fireEvent.change(within(form).getByLabelText(/^RG/), { target: { value: '1234' } });
     fireEvent.change(within(form).getByLabelText(/Data de nascimento/), { target: { value: '1980-05-02' } });
-    fireEvent.click(within(form).getByRole('checkbox', { name: 'Cliente' }));
-    fireEvent.click(within(form).getByRole('checkbox', { name: 'Transportador' }));
+    await marcarPapel(form, 'Cliente');
+    await marcarPapel(form, 'Transportador');
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro criado');
     const post = backend.chamadas.find((c) => c.method === 'POST');
@@ -229,7 +237,7 @@ describe('Parceiros — formulário', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     expect(await within(form).findByTestId('parceiro-papeis-obrigatorio')).toBeTruthy();
     expect(backend.chamadas.some((c) => c.method === 'POST')).toBe(false);
-    fireEvent.click(within(form).getByRole('checkbox', { name: 'Transportador' }));
+    await marcarPapel(form, 'Transportador');
     expect(within(form).queryByTestId('parceiro-papeis-obrigatorio')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro criado');
@@ -245,7 +253,7 @@ describe('Parceiros — formulário', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     const form = screen.getByTestId('b1-form');
     fireEvent.change(within(form).getByLabelText(/^Telefone/), { target: { value: '65999990000' } });
-    fireEvent.click(within(form).getByRole('checkbox', { name: 'Prestador de serviço' }));
+    await marcarPapel(form, 'Prestador de serviço');
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro atualizado');
     const patch = backend.chamadas.find((c) => c.method === 'PATCH');
@@ -258,9 +266,8 @@ describe('Parceiros — formulário', () => {
     await montar();
     await abrirRegistro('FAZENDA VELHA');
     expect(screen.getByTestId('parceiro-papeis-legados')).toHaveTextContent('Papéis antigos preservados: Vendedor de gado');
-    for (const nome of ['Fornecedor', 'Cliente', 'Prestador de serviço', 'Transportador', 'Outros']) {
-      expect(screen.getByRole('checkbox', { name: nome }).getAttribute('aria-checked')).toBe('false');
-    }
+    // Nenhum papel marcado: o campo de lista "Papéis do parceiro" fica vazio (D-PROD-168).
+    expect(screen.getByRole('combobox', { name: /Papéis do parceiro/ })).toHaveValue('');
   });
 
   it('R2/B4: legado sem papel continua editável sem forçar papel (PATCH não envia papeis)', async () => {

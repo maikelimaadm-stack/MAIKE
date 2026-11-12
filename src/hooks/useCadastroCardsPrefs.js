@@ -6,13 +6,13 @@ import { useCallback, useMemo, useState } from "react";
  * @param {string} storageKey prefixo localStorage da grade
  * @param {string[]} defaultFieldKeys colunas padrão nos cards
  */
-/** Celular mostra 3 campos por card por padrão (protótipo v2, D-PROD-88); escolha salva vale sempre. */
+/** Celular mostra até 8 campos por card por padrão — "o essencial" do design (D-PROD-164, antes 3 pela D-PROD-88); escolha salva vale sempre. */
 const camposPadrao = (keys) => {
   const celular = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 639px)").matches;
   if (!celular) return keys;
-  // Nome e código já aparecem no topo do card (Base1Cards): contam 3 campos além deles.
+  // Nome e código já aparecem no topo do card (Base1Cards): contam 8 campos além deles.
   const noTopo = new Set(["numero", "nome", "name", "code"]);
-  return [...keys.filter((k) => noTopo.has(k)), ...keys.filter((k) => !noTopo.has(k)).slice(0, 3)];
+  return [...keys.filter((k) => noTopo.has(k)), ...keys.filter((k) => !noTopo.has(k)).slice(0, 8)];
 };
 
 export function useCadastroCardsPrefs(storageKey, defaultFieldKeys) {

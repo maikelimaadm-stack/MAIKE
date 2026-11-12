@@ -5,7 +5,7 @@
  *
  *  T1. Aceita Produto em L e em KG (tanque novo e tanque existente); forma
  *      pública e auditoria com `produto_ids`; tanque sem Produto (P-01).
- *  T2. Recusas 422 `TANQUE_PRODUTO_INVALIDO` (SACO → unidade_incompativel,
+ *  T2. Recusas 422 `TANQUE_PRODUTO_INVALIDO` (unidade fora de L/KG/SACO → unidade_incompativel,
  *      outra fazenda → outra_empresa, outro tenant → inexistente sem oráculo,
  *      inativo ao acrescentar, repetido, mais de 20 → limite), nada gravado;
  *      `medicoes`/`combustivel_ids`/sem `produto_ids` → 400.
@@ -17,7 +17,7 @@
  *      (ou o bem) com o Produto já em outra fazenda/unidade → 422; retirando-o
  *      no mesmo PATCH → 200.
  *  T6. Achado D12: `GET /bens-patrimoniais-opcoes/produtos` — só ativos, da
- *      fazenda, L ou KG (nunca SACO nem outro tenant); `unidade` filtra;
+ *      fazenda, L, KG ou SACO (D-PROD-169; nunca outra unidade nem outro tenant); `unidade` filtra;
  *      busca; paginação estável.
  *  T7. Integração com o Produto (F4): a troca de fazenda/unidade do Produto não
  *      é travada por aceite que não vale; retirado sem histórico, o Produto
@@ -134,10 +134,11 @@ describe('T1 — aceitar Produtos em L e em KG', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('T2 — recusas do Produto aceito', () => {
-  test('SACO, outra fazenda, outro tenant (sem oráculo), inativo, repetido e mais de 20 → 422 TANQUE_PRODUTO_INVALIDO com field/reason; 400 para medicoes/combustivel_ids/sem produto_ids; nada gravado', async () => {
+  test('unidade fora de L/KG/SACO, outra fazenda, outro tenant (sem oráculo), inativo, repetido e mais de 20 → 422 TANQUE_PRODUTO_INVALIDO com field/reason; 400 para medicoes/combustivel_ids/sem produto_ids; nada gravado', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
-    const saco = await produto(s, 'SACO', { nome: 'Ração ensacada' });
+    // D-PROD-169: SACO passou a ser aceito; a recusa por unidade fica para unidade legada fora de L/KG/SACO.
+    const saco = await produto(s, 'UN', { nome: 'Peça avulsa' });
     const daE2 = await produtoL(s, { empresa: s.e2, nome: 'Diesel da fazenda 2' });
     const alheio = await produtoL(outro, { nome: 'Diesel alheio' });
     const inativo = await produtoL(s, { nome: 'Diesel inativo', ativo: false });
@@ -148,12 +149,12 @@ describe('T2 — recusas do Produto aceito', () => {
     const patch = (ids) => patchBem(s, trator, { tanques: tanquesDe(trator, { 0: ids }) });
 
     for (const [rotulo, pedido, reason, extra] of [
-      ['SACO', post([saco.id]), 'unidade_incompativel', { produto_id: saco.id, unidade: 'SACO' }],
+      ['UN', post([saco.id]), 'unidade_incompativel', { produto_id: saco.id, unidade: 'UN' }],
       ['outra fazenda', post([daE2.id]), 'outra_empresa', { produto_id: daE2.id }],
       ['outro tenant', post([alheio.id]), 'inexistente', { produto_id: alheio.id }],
       ['inativo ao acrescentar', post([inativo.id]), 'inativo', { produto_id: inativo.id }],
       ['repetido', post([diesel.id, diesel.id]), 'repetido', {}],
-      ['PATCH SACO', patch([diesel.id, saco.id]), 'unidade_incompativel', { produto_id: saco.id, unidade: 'SACO' }],
+      ['PATCH UN', patch([diesel.id, saco.id]), 'unidade_incompativel', { produto_id: saco.id, unidade: 'UN' }],
       ['PATCH inativo', patch([diesel.id, inativo.id]), 'inativo', { produto_id: inativo.id }],
     ]) {
       const r = await pedido;
@@ -273,8 +274,8 @@ describe('T5 — reativação revalida os aceites (achado D1)', () => {
     const reativa = await patchBem(s, inat, { tanques: tanquesDe(inat).map((t) => ({ ...t, ativo: true })) });
     assert.deepEqual(erro(reativa), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'outra_empresa'], reativa.body);
     assert.equal(reativa.json().details.produto_id, diesel.id);
-    // Unidade que deixou de ser L/KG também é pega.
-    await prisma().produto.update({ where: { id: diesel.id }, data: { empresa_id: s.e1.id, unidade_principal_estoque: 'SACO' } });
+    // Unidade que deixou de ser L/KG/SACO (dado legado) também é pega (D-PROD-169: SACO passou a ser aceito).
+    await prisma().produto.update({ where: { id: diesel.id }, data: { empresa_id: s.e1.id, unidade_principal_estoque: 'UN' } });
     assert.deepEqual(erro(await patchBem(s, inat, { tanques: tanquesDe(inat).map((t) => ({ ...t, ativo: true })) })).slice(0, 4), [422, 'TANQUE_PRODUTO_INVALIDO', 'tanques[0].produto_ids', 'unidade_incompativel']);
     assert.equal(await fotoPatrimonio(s.c), antes, 'as recusas não gravaram nada');
     // Mantido num tanque que SEGUE inativo: não é revalidado (editar o tanque inativo ou outra coisa passa).
@@ -300,7 +301,7 @@ describe('T5 — reativação revalida os aceites (achado D1)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('T6 — opções de Produtos para o tanque (achado D12)', () => {
-  test('só ativos, da fazenda, L ou KG; `unidade` filtra; busca por nome ou código; keyset estável; empresa obrigatória; outro tenant nunca aparece', async () => {
+  test('só ativos, da fazenda, L, KG ou SACO (D-PROD-169); `unidade` filtra; busca por nome ou código; keyset estável; empresa obrigatória; outro tenant nunca aparece', async () => {
     const s = await montarPatrimonio(app);
     const outro = await montarPatrimonio(app);
     const criados = {
@@ -309,18 +310,19 @@ describe('T6 — opções de Produtos para o tanque (achado D12)', () => {
       c: await produtoL(s, { nome: 'C Gasolina' }),
       d: await produtoKG(s, { nome: 'D Sal mineral' }),
     };
-    await produto(s, 'SACO', { nome: 'E Ração ensacada' });
+    const racao = await produto(s, 'SACO', { nome: 'E Ração ensacada' });
     await produtoL(s, { nome: 'F Inativo', ativo: false });
     await produtoL(s, { empresa: s.e2, nome: 'G Fazenda 2' });
     await produto(s, 'UN', { nome: 'H Unidade' });
     await produtoL(outro, { nome: 'B Diesel alheio' });
     const url = (q = '') => `/bens-patrimoniais-opcoes/produtos?empresa_id=${s.e1.id}${q}`;
     const tudo = await ok(req('GET', url(), s.token));
-    assert.deepEqual(tudo.itens.map((i) => i.nome), ['A Graxa', 'B Diesel S10', 'C Gasolina', 'D Sal mineral']);
+    assert.deepEqual(tudo.itens.map((i) => i.nome), ['A Graxa', 'B Diesel S10', 'C Gasolina', 'D Sal mineral', 'E Ração ensacada'], 'SACO entra; UN, inativo, outra fazenda e outro tenant não');
     assert.deepEqual(tudo.itens[1], { id: criados.b.id, nome: 'B Diesel S10', codigo_interno: 'DS10', unidade_principal_estoque: 'L' });
     assert.deepEqual([tudo.has_more, tudo.next_cursor], [false, null]);
     assert.deepEqual((await ok(req('GET', url('&unidade=L'), s.token))).itens.map((i) => i.nome), ['B Diesel S10', 'C Gasolina']);
     assert.deepEqual((await ok(req('GET', url('&unidade=KG'), s.token))).itens.map((i) => i.nome), ['A Graxa', 'D Sal mineral']);
+    assert.deepEqual((await ok(req('GET', url('&unidade=SACO'), s.token))).itens.map((i) => [i.id, i.unidade_principal_estoque]), [[racao.id, 'SACO']]);
     assert.deepEqual((await ok(req('GET', url('&q=ds10'), s.token))).itens.map((i) => i.id), [criados.b.id], 'busca pelo código interno');
     assert.deepEqual((await ok(req('GET', url('&q=gaso'), s.token))).itens.map((i) => i.id), [criados.c.id]);
     assert.equal((await ok(req('GET', url('&q=%25'), s.token))).itens.length, 0, 'busca literal');
@@ -333,9 +335,9 @@ describe('T6 — opções de Produtos para o tanque (achado D12)', () => {
       cursor = r.next_cursor;
       assert.equal(r.has_more, cursor !== null);
     } while (cursor);
-    assert.deepEqual(nomes, ['A Graxa', 'B Diesel S10', 'C Gasolina', 'D Sal mineral']);
+    assert.deepEqual(nomes, ['A Graxa', 'B Diesel S10', 'C Gasolina', 'D Sal mineral', 'E Ração ensacada']);
     for (const [rotulo, u] of [
-      ['sem empresa', '/bens-patrimoniais-opcoes/produtos'], ['unidade SACO', url('&unidade=SACO')], ['campo extra', url('&tipo=1')], ['cursor adulterado', url('&cursor=bGl4bw')],
+      ['sem empresa', '/bens-patrimoniais-opcoes/produtos'], ['unidade UN', url('&unidade=UN')], ['campo extra', url('&tipo=1')], ['cursor adulterado', url('&cursor=bGl4bw')],
       ['limit 101', url('&limit=101')],
     ]) {
       assert.equal((await req('GET', u, s.token)).statusCode, 400, rotulo);
@@ -417,7 +419,7 @@ describe('T8 — corridas com o Produto (trava FOR KEY SHARE do acréscimo)', ()
           await tx.$queryRaw`SELECT id FROM "Produto" WHERE id = ${alvo.id} FOR UPDATE`;
           if (caso === 'exclusao') await tx.$executeRaw`DELETE FROM "Produto" WHERE id = ${alvo.id}`;
           if (caso === 'fazenda') await tx.$executeRaw`UPDATE "Produto" SET empresa_id = ${s.e2.id} WHERE id = ${alvo.id}`;
-          if (caso === 'unidade') await tx.$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'SACO' WHERE id = ${alvo.id}`;
+          if (caso === 'unidade') await tx.$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'UN' WHERE id = ${alvo.id}`;
           const [{ pid }] = /** @type {Array<{ pid: number }>} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
           pedido = viaPatch
             ? patchBem(s, base, { tanques: tanquesDe(base, { 0: [alvo.id] }) })

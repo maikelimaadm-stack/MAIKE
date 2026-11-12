@@ -65,6 +65,17 @@ const montar = async () => {
   return queryClient;
 };
 
+/**
+ * A lista pedida chega DEPOIS do pedido (o backend falso registra a chamada e responde em seguida; o
+ * react-query entrega na tela num setTimeout 0): espera a resposta e a atualização da tela dentro do act,
+ * senão ela cai depois do teste e o React acusa "not wrapped in act" (visto na CI carregada).
+ */
+const listaAplicada = async (queryClient) => {
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+};
 const chamadas = (method, re) => backend.chamadas.filter((c) => c.method === method && (typeof re === 'string' ? c.path === re : re.test(c.path)));
 const clicar = async (el) => {
   await act(async () => {
@@ -126,7 +137,7 @@ afterEach(() => {
 describe('LANC-1 — lista, filtros, perfil e fuso', () => {
   it('lista mostra nº, situação, parceiro e total formatado no locale do perfil; filtros vão ao servidor', async () => {
     const doc = semearDocumento(estado, corpoBase(), { confirmar: true });
-    await montar();
+    const queryClient = await montar();
     const celula = await screen.findByTestId(`lancamento-numero-${doc.id}`);
     const linha = within(celula.closest('tr'));
     expect(linha.getByText('AGROPECUÁRIA BOA VISTA')).toBeTruthy();
@@ -138,6 +149,7 @@ describe('LANC-1 — lista, filtros, perfil e fuso', () => {
     await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por situação' }), 'Rascunhos');
     await waitFor(() => expect(chamadas('GET', '/operacoes-financeiras').some((c) => c.query.status === 'RASCUNHO' && c.query.direcao === 'RECEBER')).toBe(true));
     expect(chamadas('GET', '/operacoes-financeiras').every((c) => c.query.empresa_id === 'emp-1' && Number(c.query.limit) <= 100)).toBe(true);
+    await listaAplicada(queryClient);
   });
 
   it('onboarding: sem perfil, o administrador vê os padrões EXPLICADOS e "Confirmar perfil" grava BR/BRL/pt-BR', async () => {

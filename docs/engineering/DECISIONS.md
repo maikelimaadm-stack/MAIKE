@@ -6000,8 +6000,8 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Permissões antigas gravadas em `Permissao.permissoes_telas` (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`, `pat-perfis-medicao`, `pat-combustiveis` e `configurar_conversao`) ficam inertes; nada é concedido automaticamente. Quem só tinha as telas antigas perde a criação de família e tipo, que agora é de Bens.
 - **Fora** (cada item só com decisão própria): manutenção, ordens de serviço, peças, compras do Patrimônio, custo/hora, apuração de depreciação, transferência entre fazendas, saldo de tanque, abastecimento em unidade que não seja `L` nem `KG` (ex.: GNV em m³), conversão entre unidades por fator ou densidade, suplementação com Produto em L (continua como hoje; os produtos dela são de Nutrição Animal), mapas novos e dashboards.
 - **Integração com a D-PROD-161 (merge da `main` `e8472481`, PR #238, Estoque P0-01):** valem as duas. Do lado da D-PROD-161: motor físico único (suplementação e transferência pelo motor), Produto é cadastro, `estoque_atual` cache derivado e somente leitura, escritas genéricas fechadas, reconciliação somente leitura. Do lado desta: o rótulo `'L'` do movimento vem do Produto em `camposComuns` (vale para compra, venda, abastecimento, suplementação e transferência), e KG e SACO saem `'KG'` em todos (a transferência deixou de copiar `produto.unidade_medida`, mudança declarada da D-PROD-161; o teste P7 de `produtoUnidadeLitros` passou a esperar `'KG'`); a troca de unidade envolvendo L segue o P-10 e roda depois da trava `FOR NO KEY UPDATE` que a D-PROD-161 pôs em todo PATCH de Produto; a troca de fazenda confere primeiro o aceite em tanque (`PRODUTO_EM_TANQUE_PATRIMONIO`) e depois o estoque (`PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA`); a exclusão conta movimentos, lotes, itens de lançamento e aceites em tanque. Os testes da D-PROD-161 que montavam o abastecimento antigo (kg com fator) passaram ao abastecimento em L (AB-X, K1, R1b, C10b, AB11 c).
-- **Estado:** em implementação na branch `claude/new-session-abgn5w` (base `e39d318b`, com a `main` `e8472481` integrada por merge; schema e migration no commit `8442e9f5`); PR draft. `SCHEMA_APPLIED_PRODUCTION = NÃO`, `MERGE_READY = NÃO`, `OPERATIONAL_RELEASE_READY = NÃO`. Pendem do proprietário: a revisão da PR, a aprovação das emendas do `00` e do `07`, a escolha do backup se alguma das 13 tiver linhas (dump `--data-only` feito por ele ou "não há volta parcial; aceito") e a resposta ao P-10.
-- Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md). Runbook de release (não executado): [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
+- **Estado:** em produção desde 2026-11-11. A migration foi aplicada pelo caminho B, com a impressão aprovada `a35b7cbb0569`; a PR #239 foi mergeada em `87e8a5ca` e o deploy está READY; o postcheck R1–R9 e o C1–C4 deram ok (registro no §11 do runbook). Parte do que foi decidido aqui é revista pela D-PROD-169: Família, Área, Localização e unidades dos Produtos aceitos.
+- Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md). Runbook de release (executado em 2026-11-11): [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md).
 
 ---
 
@@ -6013,11 +6013,250 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Storage:** extensão `.svg` e `Content-Type: image/svg+xml`, sem transformar os caminhos em pixels. Nenhuma alteração de bucket, política ou credencial remota nesta entrega.
 - **Validação:** `backend/tests/svgEstatico.test.mjs` cobre arquivo de 1000 px, MIME, gradientes/referências internas, conteúdo ativo, peso máximo, upload comum e cabeçalho do Storage. O SVG enviado pelo proprietário foi aceito pelo validador local com 30.036 bytes, sem alteração de hash.
 
-## D-PROD-164 — Nível estimado dentro do SVG de cocho
+## D-PROD-164 — Motor Base1: acabamento do design "Cadastro de Lote" (paleta quente, campo com estados, abas em pílula, seções empilhadas)
+
+> **Numeração:** estas decisões da branch `claude/design-implementation-optimize-7wr2qh` (PR #240) foram renumeradas duas vezes para não duplicar identificadores já mergeados na `main`. Nasceram como D-PROD-161 e D-PROD-162; a PR #238 (Estoque P0-01) e a PR #239 (Patrimônio SIMPLIFICA-01) levaram esses números e elas passaram a D-PROD-163 e D-PROD-164. Depois a PR #242 (SVG estático nos ícones) levou a D-PROD-163; agora o design "Cadastro de Lote" no motor Base1 é a **D-PROD-164**, a paridade medida é a **D-PROD-165** e as correções da revisão do proprietário são a **D-PROD-166** (código, testes, relatório e evidências renumerados no merge da `main`). A D-PROD-161, a D-PROD-162 e a D-PROD-163 continuam sendo as das PRs #238, #239 e #242.
+
+- **Contexto:** o proprietário desenhou a tela Cadastro de Lotes no Claude Design e pediu que a configuração fosse repassada ao motor Base1 e a todas as telas que o consomem, mantendo o tamanho de fonte real do sistema. Fonte: `docs/design/cadastro-de-lote/cadastro-de-lote.dc.html`.
+- **Decisão (o que entrou):**
+  - **Paleta:** os cinzas azulados do motor viram neutros quentes (`#FAFCFE`→`#F9F9F7`, `#334155`→`#373733`, `#111827`→`#141413`, `#6b7280`/`#64748b`→`#73726C`, `#9ca3af`→`#A3A29C`, `#e7eaee`→`#ECEBE6`, sombras `15,23,42`→`20,20,19`), trocados no lugar só nas regras do escopo do motor. O verde não muda.
+  - **Camada nova** `src/styles/base1-design.css`, carregada antes de `base1-tipografia.css` e sem nenhum `font-size`: botões neutros grafite com sombra macia, ícones com traço 1,75 (16/20/22 px por largura), tabela só com linhas horizontais e cabeçalho branco, rodapé em tira fina, campo de registro em caixa branca com borda e estados (passar o mouse, foco verde com anel, erro vermelho, travado cinza, leitura só com a linha de baixo).
+  - **Abas (`Base1PanelTabs`):** no desktop, pílulas num grupo branco e painel em cartão com o nome da aba; abaixo de 1024 px não há abas — cada painel vira uma seção empilhada. A aba com campo inválido ganha um ponto vermelho.
+  - **Erro de campo (`B1Field`):** ícone + texto; erro booleano mostra "Campo obrigatório" (antes aparecia "true").
+- **Lista:** a coluna de título fica em destaque, o código discreto e o vazio apagado (`b1-td--nome/--cod/--vazio`, mesma regra de título/código dos cards); tipo de célula `cor` (amostra + nome). Cards com seleção à direita, "rótulo do código + valor" e tag "Inativo" no subtítulo, campos em duas colunas com o rótulo em cima; no celular o padrão sobe de 3 para até 8 campos (**revoga o item dos 3 campos da D-PROD-88**). Lotes passa a ter campos padrão curados.
+  - **Filtros rápidos (`FiltrosRapidos`):** faixa de pílulas acima da lista no desktop e no tablet — Ordenar em palavras simples, uma pílula por campo com lista de marcar e contagem, "+ Filtro" para escolher as pílulas (guardado por tela em `localStorage`) e "Limpar filtros". Quem desenha é a grade, dona de `headerFilters` e da ordenação, num lugar oferecido pelo chrome: não há segundo estado de filtro. A tela pode informar as pílulas iniciais (`quickFilterIds`); sem isso o motor deriva (situação + colunas com 2 a 12 valores).
+  - **Menus e listas:** Mais opções, menu da coluna, Filtrar por campo, sugestões da pesquisa e seletor de quantidade na mesma janela branca, sem riscos entre linhas.
+  - **Listas de seleção e pesquisa:** a janela de seleção dos campos (`PainelSelecao`, usada por `AutocompleteGenerico`, `MgSelect` e `B1Select`) fica branca, com a pesquisa lisa (linha embaixo), o "+" de cadastrar dentro da pesquisa, linhas sem risco e o escolhido com o visto verde — vale onde esses seletores aparecem, inclusive nos filtros do mapa. A pesquisa da barra de cima e as listas de "Configurar colunas"/"Campos dos cards" seguem o mesmo modelo. No celular, as folhas de lista do motor (`mk-base1-sheet`) também.
+  - **Cabeçalho do celular nas telas Base1:** botões redondos brancos de 44 px, título centralizado e avatar redondo, só quando uma tela do motor está na frente (`body:has(.cadastro-b1--full-page)`); no Mapa Geral o cabeçalho não muda.
+  - **Formulário de Lotes:** Descrição, Ativo, Código e o aviso do ícone oficial passam para dentro do cartão da primeira aba (as abas ficam no topo do registro); o layout salvo pelo usuário não muda.
+- **Fora desta fatia (existe no design, não foi portado):** condição/operadores dentro do filtro rápido (continuam no filtro avançado da coluna) e a lista "Filtros" do celular; seleção múltipla em janela (Sistema Produtivo continua em pílulas); movimento de abrir/fechar; grade de 12 colunas do Lote como no design (Descrição 5 · Código 2 · Data 3 · Ativo 2); rodapé em palavras ("12 lotes · 1 selecionado") — este último contraria o teste PAR6 (`mobileParidadeV2`) e pede decisão própria.
+- **Não muda:** telas e painéis próprios do Mapa Geral, lançamentos do mapa (`.mk-lanc`), casca do aplicativo fora das telas Base1, tamanhos de fonte, dados, rotas e escopo.
+- **Revoga em parte:** D-PROD-149 (fundo `#FAFCFE`) e as cores de texto da D-PROD-150, só dentro do motor Base1.
+- **Evidência:** `docs/engineering/evidencias/base1-design-d164/`; teste `tests/smoke/base1DesignD164.test.jsx`; relatório `docs/engineering/UI-BASE1-DESIGN-D164-REPORT.md`.
+
+## D-PROD-165 — Motor Base1: paridade medida com o design "Cadastro de Lote"
+
+- **Contexto:** o proprietário reavaliou a D-PROD-164 e pediu a tela "100% igual" ao design, conferida no sistema real (não em capturas), mantendo o tamanho de fonte do sistema.
+- **Decisão (método):** a igualdade passa a ser **medida**: o design e o sistema rodam lado a lado no navegador, cada elemento é casado e comparado (posição, tamanho, estilo calculado) nos três tamanhos; toda diferença é corrigida na regra que vence ou explicada. Resultado e método no relatório `docs/engineering/UI-BASE1-DESIGN-D164-REPORT.md`.
+- **Decisão (CSS):**
+  - o CSS de propostas do design é portado **inteiro e mecanicamente** em `src/styles/base1-design.css` (`@container` → `@media`; peças compartilhadas sob `body:has(.cadastro-b1--full-page)`; nenhum `font-size`); os acertos do app ficam à parte, comentados, em `base1-design-ajustes.css`;
+  - a paleta quente das peças compartilhadas e do Tailwind chega por **variáveis com a cor original de reserva** (`var(--mkq-<hex>, <hex>)`, `--mkq-tw-slate-*`/`--mkq-tw-gray-*` em `tailwind.config.js`), definidas só com tela Base1 aberta — cascata e especificidade não mudam e o Mapa Geral fica como está;
+  - `base1-tipografia.css` fica só com tamanhos e pesos (as cores de texto seguem o design).
+- **Decisão (comportamento):** rodapé da lista em palavras ("12 lotes", "5 de 12 lotes · 1 selecionado"), escondido no celular e no registro fora do desktop; ‹ › do registro na linha das abas (desktop) ou acima das seções (tablet), na ordem que a lista mostra, sem a faixa de cabeçalho do registro; abas sem lista lateral; "Ativo" como chave em caixa; situação na grade com ponto colorido (sai o selo `CadastroAtivoBadge`); campo numérico vazio ao salvar avisa "Campos obrigatórios"; no celular o funil abre a lista "Filtros" da faixa; condição do filtro dentro da janela da pílula; listas de seleção na largura do campo, com o "+" dentro da pesquisa (também na folha do celular).
+- **Decisão (movimento, proposta 6.32):** a parte do movimento que no design é feita por script vira o módulo `src/components/cadastro/base1/movimentoBase1.js` (`useMovimentoBase1`), ligado só enquanto há tela Base1 aberta — a mesma condição do CSS; o Mapa Geral (inclusive o mapa) não muda. Com "reduzir movimento" do sistema nada anima.
+  - **Toque:** botões, opções e pílulas cedem e voltam com mola (mesmas medidas, curvas e tempos do design); se o React troca o botão no meio (o formulário remonta ao ir para o próximo registro), a mola continua no botão novo, do mesmo ponto da curva.
+  - **Janelas nascem do botão** (listas, menus, Ordenar, filtros, "+ Filtro", Filtrar por campo, Sistema Produtivo, por página, condição, sugestões): o contorno do botão cresce até a janela, com desfoque, passa um pouco e assenta; ao fechar, uma cópia inerte volta para o botão. A pílula nova da faixa aparece crescendo.
+  - **Folha do celular:** com tela Base1 aberta, o ✕ e o toque fora fecham na hora e a cópia faz a descida do design (`mk-folha-sai`); arrastar para fechar continua como era (o design não tem arraste).
+  - **Detalhes medidos no design:** o painel da aba só esmaece ao trocar de aba no mesmo registro (nunca ao abrir, criar ou trocar de registro); ‹ › entram deslizando só quando o registro abre (ir de um registro a outro não repete); o diálogo "Confirmar exclusão" aparece e some sem esmaecer.
+  - **Medição:** 250 animações do design gravadas em 63 combinações de ação × tamanho; 227 idênticas no sistema, 16 diferentes só em px (recorte de partida medido com a fonte do sistema), 7 explicadas (mesma folha com uma classe a mais; mola de volta do "Cancelar" num botão que no design já sumiu). Arquivo do design: no tablet a área de rolagem cobre ‹ › (não dá para clicar); no sistema funcionam.
+- **Decisão (todas as telas do motor, não só Lotes):** o CSS do design só desenha o campo num `<form data-densidade>`, e até aqui só o formulário de Lotes tinha a marca — os outros 18 formulários do motor (Setores, Categorias de manejo, Parceiros, Produtos, Marcas, Unidades, Locais de estoque, Categorias, Grupos, Tipos de tarefa, Usuários, Centros, Naturezas, Lançamentos, Empresa, Bens, Famílias, Tipos e Abastecimento) seguiam no desenho antigo. Agora:
+  - todo formulário do motor leva `data-densidade={DENSIDADE_BASE1}` (`compacto`, a densidade do design; `B1Field.jsx`);
+  - **registro sem abas** (tablet e desktop): sem a faixa de cabeçalho antiga, ‹ › numa linha acima e o formulário no cartão branco do tamanho do conteúdo (`data-b1-painel` na rolagem, `CadastroListaChrome`); com abas segue o desenho do Lotes; no celular nada muda;
+  - **chave Sim/Não** (`B1ChaveRow`) é a chave em caixa do "Ativo" do Lote; **título de seção** (`SecaoForm` e os títulos próprios de Produtos e Categorias de manejo) é o título de grupo do design (`B1TituloGrupo`, nome + linha, sem caixa alta); **campos fora das abas** (identificação da Empresa e do Bem) ficam num cartão (`B1CartaoCampos`);
+  - seletor vazio com opção "SELECIONE" de valor-sentinela não escreve por cima do rótulo; "Natureza pai" bloqueado até escolher o tipo aparece travado (caixa cinza), não no modo leitura; Usuários na grade de 12 colunas; Estado de Parceiros com 2 colunas.
+- **Fica diferente de propósito:** tamanhos de fonte (do sistema); painel de correção da entrada (R1); "Carregar mais" apagado quando não há mais registros; foco do teclado na lista aberta; dica "Novo setor"; ícones de cadeado/calendário (no arquivo do design estão quebrados por `sc-camel-view-box`).
+- **Revoga:** a ordem "Listados, Filtrados, Totais, Selecionados" do rodapé (PAR6) e o botão de lista lateral das abas; complementa a D-PROD-164.
+- **Evidência:** `docs/engineering/evidencias/base1-design-d164/` (`paridade-*.png` = design | sistema | diferenças; `paridade-RESUMO.txt`; movimento: `movimento-RESUMO.txt`, `movimento-ordem.png` e `movimento-mais-opcoes.png` com quadros congelados aos 60, 150 e 300 ms; outras telas: `telas-*-antes-depois.png` e `telas-celular-*.png`); testes `tests/smoke/base1TelasDesign.test.jsx`, `base1Movimento.test.jsx`, `base1FiltrosRapidos.test.jsx`, `base1DesignD164.test.jsx`, `cadastroAtivoBadge.test.jsx`, `mobileParidadeV2.test.jsx`, `mobileShellV2.test.jsx`, `mobileV4Ios.test.jsx`, `formularioLoteBase1Tabs.test.jsx`, `base1PanelTabs.test.jsx`, `catalogoGlobalLote.test.jsx`.
+
+## D-PROD-166 — Motor Base1: correções da revisão do proprietário (trocar de lista, lentidão, filtro do cabeçalho, fontes)
+
+- **Contexto:** revendo a D-PROD-165 no sistema, o proprietário relatou que, com uma lista aberta, clicar em outra "dava bug: em vez de abrir, fecha", e "muita lentidão".
+- **Decisão (trocar de lista):** reproduzido no navegador — também na `main` (8/8 trocas entre campos do formulário de Lotes falhavam; pílulas da faixa e menus de coluna idem). Duas causas, as duas corrigidas em `src/components/cadastro/base1/janelaUnica.js`:
+  - a janela que fechava devolvia o foco ao próprio campo/botão mesmo quando o usuário tinha clicado em outro lugar — o foco saía da janela recém-aberta e ela fechava. Agora o foco só volta ao botão quando se perdeu (Esc, escolher um item); se já está noutro botão ou janela, fica lá (`focoFicaOndeEsta`: `PainelSelecao`, `B1MultiSelecao`, `B1Popover`, janelas da faixa e filtro da grade);
+  - nos grupos com uma janela aberta por vez (pílulas da faixa, menus de coluna, painéis dos cards) o "clique fora" que o Radix confirma depois do clique zerava o estado do grupo e apagava a janela nova: fechar só vale para a janela que está aberta (`trocaJanela`).
+  - Medido: 12/12 trocas no formulário de Lotes, 16/16 nas pílulas, 10/10 nos menus de coluna e 132 trocas entre grupos diferentes (Lotes, Parceiros, Produtos); Esc e Enter continuam devolvendo o foco ao botão/campo.
+- **Decisão (lentidão):** medido com 3.000 lotes (rolar a lista, abrir/fechar janela, abrir registro, digitar), `main` × branch: o custo estava no estilo — regras `:has()` faziam o Chrome recalcular o estilo da página inteira (~4.300 elementos) a cada mudança no DOM. Cada uma virou uma marca posta pelo componente, com o mesmo alcance e o mesmo desenho (44 estados de tela comparados pixel a pixel antes × depois: iguais):
+  - `body:has(.cadastro-b1--full-page)` (CSS do design, D-PROD-165) → `body.b1-tela`, ligada pelo casco Base1 (`useCascoBase1`, `telaBase1.js`) em `CadastroWorkspace`, `CadastroRapidoSheet` e `TarefasCardsMapa`;
+  - `form:has(.mk-lanc)` (já na `main`, D-PROD-147) → `form[data-mk-lanc]`, posto pelo `LancField`;
+  - `div:has(+ [role="dialog"] > .mg-confirm-dialog)` → classes `mg-confirm-dialog__fundo` e `__camada` no `ConfirmDialog`;
+  - `.mg-shell:has(.b1-fr)` → `.mg-shell[data-b1-faixa]`, posto pela faixa de filtros.
+  - Resultado (estilo recalculado): rolar a lista 40 passos 1.812 ms na `main` → 340 ms, quadros travados 72 → 13; abrir e fechar o menu de coluna 3× 293 ms → 119 ms, sem nenhum recálculo da página inteira.
+- **Decisão (filtro do cabeçalho):** o proprietário pediu os filtros dos cabeçalhos "no mesmo estilo de filtragem" das janelas da faixa. O filtro aberto pelo menu da coluna ("Abrir filtro avançado") e pelo "Filtrar por campo" passa a ser a **mesma janela** das pílulas (`JanelaDoFiltro`): pesquisa com "Condição ⌄", "Todos" e os valores com ✓ e a contagem, rodapé ✕ · "6 de 12 lotes" · ✓, tudo rascunho até o ✓, opções e contagem considerando a busca e os outros filtros (como na pílula); abre logo abaixo do cabeçalho e nasce do botão com o movimento do design; no celular, folha de baixo com ✓ no topo. Saem o "Limpar filtro de …" (vale "Todos" + ✓ ou o ✕ da pílula), o "(Selecionar Tudo)" e o seletor de condição separado (`SeletorDeOperador`, órfão, removido).
+- **Decisão (fontes):** o proprietário viu fontes maiores em alguns lugares. Comparado texto a texto, `main` × branch, o tamanho calculado de cada texto visível em 18 telas do motor no desktop (lista, novo, registro, pílula, menu de coluna, Mais opções) e em 6 delas também no tablet e no celular: o único aumento real era o **título de seção dos formulários de gestão** (`SecaoForm`: Parceiros, Centros, Naturezas, Lançamentos…), que passou de 11px para 12px ao virar o título de grupo do design. Volta a 11px (`b1-grupo__titulo--secao` em `base1-tipografia.css`); o título de grupo de Produtos e Categorias de manejo já era 12px e fica. As outras diferenças apontadas eram de estado, não de regra (ex.: "Sistema Produtivo" vazio agora fica como os outros campos vazios — 12px de rótulo em repouso —, onde a `main` o marcava como preenchido). Peso: o rótulo do campo preenchido (500 → 600) e a coluna de nome da grade (400 → 600) seguem o design; o peso final vem com o padrão de tipografia da D-PROD-167.
+- **Regra (CSS):** nada de `:has()` com descendente ancorado em `<body>`, `<html>` ou `<form>`, nem `:has()` de irmão num `div` qualquer — o teste `tests/smoke/base1Desempenho.test.jsx` barra esses padrões em `src/styles`.
+- **Ajusta:** a D-PROD-165 — as peças compartilhadas do design ficam sob `body.b1-tela` (não mais `body:has(...)`).
+- **Evidência:** `tests/smoke/base1TrocaDeJanela.test.jsx` (falha sem a correção), `base1Desempenho.test.jsx` e `base1FiltroCabecalho.test.jsx`; `filtro-cabecalho-antes-depois.png` em `docs/engineering/evidencias/base1-design-d164/`; números e método no relatório `UI-BASE1-DESIGN-D164-REPORT.md` (seção "Revisão do proprietário: trocar de lista e lentidão").
+
+## D-PROD-167 — Padrão de tipografia do sistema (Open Sans e Lato, escala 13–46)
+
+- **Contexto:** o proprietário pediu, por escrito, um padrão de fontes e tamanhos para o sistema, tirado de uma referência que ele colou: Open Sans no texto, Lato em títulos e números; tamanhos por elemento; escala 13 · 14 · 16 · 18 · 20 · 24 · 30 · 34 · 46 px; linha 1.5 no texto e 1.25 em títulos; espaçamento 0.3px. Substitui, para a tipografia, o "manter o tamanho de fonte do sistema" das D-PROD-164/165/166.
+- **Decisão (fontes):** Open Sans (300–700) e Lato (400 e 700) pelo Google Fonts, como a DM Sans era carregada (sem dependência nova); `--mk-fonte-texto` e `--mk-fonte-titulo` em `mk-unificado.css`. A fonte de ícones da referência (própria de outra empresa) **não** entra — os ícones do sistema continuam os mesmos.
+- **Decisão (tamanhos):**
+  - texto (body), listas, campos e botões 14px; rótulo do campo 14px / 300 (o rótulo flutuante sobe a 12px para caber na caixa); valor do campo 14px / 400; select 14px / 600; no toque, campo 16px com caixa de ~48px;
+  - título de item da lista 14px / 600, subtítulo 13px / 400; cabeçalho de tabela 14px / 600; abas do topo 14px / 600; itens do submenu 14px / 400;
+  - título de janela (diálogo, folha, confirmação, aviso) 20px / 600; toast 16px (título) e 14px (detalhe) / 500; dica (tooltip) 14px / 400;
+  - cabeçalho de grupo nas listas e menus: Lato 13px, maiúsculas, 600; título de grupo e de seção dos formulários Base1: Lato 13px / 600; título da tela Base1: Lato 18px / 600;
+  - mapa: nome do pasto 12px / 400, branco com sombra, e área 10px no zoom de perto (afastando, os dois continuam diminuindo como na D-PROD-129); número de cabeças no marcador 13px / 500; tags (identificadores) no marcador 10px / 500, com o ponto em 18px para caber a sigla; card de medição (Animais · Peso méd. · Áreas): valor Lato 30px / 400, unidade 13px;
+  - Tailwind: `text-xs` passa a 13px, `4xl` 34px e `5xl` 46px (o resto da escala já coincidia).
+- **Consequência:** a largura padrão das colunas das grades cresce na mesma proporção do texto da lista (12 → 14px, `larguraPadraoDaColuna`), senão os nomes longos cortavam; larguras que o usuário arrastou ficam como estão.
+- **Fica como está (fora da tabela pedida):** legendas sob os ícones do trilho do tablet e da barra do celular; painéis densos com tamanho próprio já aprovados (Detalhes do Lote, legenda e insights do mapa). Aplicar a escala também neles é um pedido à parte.
+- **Evidência:** `tests/smoke/tipografiaSistema.test.js`; testes atualizados (`mapaRotulosSemBagunca`, `contagemLote`, `detalhesLoteVisualGesto`); capturas antes × depois no relatório `UI-BASE1-DESIGN-D164-REPORT.md` (seção "Padrão de tipografia").
+
+## D-PROD-168 — Filtros no celular iguais ao tablet; marcar vários em lista com a caixa à direita
+
+- **Contexto:** pedidos do proprietário: "a abertura de seleção de filtros de cabeçalhos no mobile tem que ser igual em tablet"; "nas listagens dos filtros, em vez de apenas o visto, coloque também a caixa de marcar — do lado direito, não do esquerdo — e também nas listagens dos cadastros"; "seleções que podem ser mais de uma (ex.: sistema produtivo, tipo de fornecedor) em forma de listagem como a do sistema produtivo, com caixa de marcar".
+- **Decisão (celular = tablet):** no celular a lista Base1 tem a mesma faixa de filtros do tablet (Ordenar, pílulas, "+ Filtro"); o funil abre "Filtrar por campo" (todos os campos) na mesma janela do tablet; o filtro de cada campo, o menu da coluna (na visão de tabela) e as pílulas abrem nas mesmas janelas — não mais nas folhas de baixo. **Revoga** a faixa escondida no celular (D-PROD-164) e o funil do celular abrindo a lista "Filtros" (D-PROD-165, 6.10).
+- **Decisão (caixa à direita):** nas listas de escolha múltipla a caixa de marcar aparece, à direita, com o ✓ dentro quando marcada: valores do filtro, "Todos" e "+ Filtro" nas janelas da faixa e do cabeçalho; campos de marcar vários (`B1MultiSelecao`); listas dos filtros do mapa (`MapaFiltroSelecao`). Escolha única (Ordenar, seletores de um valor) continua só com o ✓. A seleção de linhas da grade continua à esquerda.
+- **Decisão (marcar vários em lista):** os grupos de botões de marcar vários viram o campo de lista do Sistema Produtivo (`B1MultiSelecao`, que passa a aceitar `{ value, label }`; o título da lista é o rótulo do campo): Papéis do Parceiro (fornecedor, cliente, prestador de serviço, transportador, outros) e Centros de resultado vinculados ao centro de custo. Os vínculos ficam fora do formulário do registro, então o campo vai numa grade com a densidade do motor sem o segundo cartão (`b1-form-embutido`).
+- **Limpeza:** sai o CSS das folhas de baixo que deixaram de existir (`.fpc--sheet`, `.b1-fr-sheet`, `.mg-col-menu-sheet`).
+- **Evidência:** `tests/smoke/base1FiltrosCelularCaixas.test.jsx`; testes de Parceiros, Centros de Custo e vínculos N:N passam a marcar pela lista (as regras de gravação dos testes não mudaram); imagens no relatório `UI-BASE1-DESIGN-D164-REPORT.md` (seção "Filtros no celular e caixa de marcar à direita").
+
+## D-PROD-169 — Patrimônio SIMPLIFICA-02: Produtos aceitos em qualquer unidade, sem Área e Localização no Bem, Família fora da tela ("Tipo de bem" + "Tipo" editável)
+
+> **Numeração:** esta decisão nasceu como D-PROD-163 na branch `claude/new-session-abgn5w` (PR #241). A PR #242 (SVG nos ícones) levou a D-PROD-163 e a PR #240 (motor Base1) as D-PROD-164 a D-PROD-168; ela passa a D-PROD-169 no código, nos testes e nos documentos.
+
+> **Autorização explícita do proprietário:** pedido de 2026-11-11, feito depois de testar em produção o Patrimônio da D-PROD-162. Ele respondeu às perguntas da missão **MAIKE-PATRIMONIO-SIMPLIFICA-02** com as opções "Família some", "Tipo de bem + Tipo" e "Junta tudo numa PR só" (a PR #241, que já registrava a release da D-PROD-162).
+
+- **Contexto:** em produção os 2 Produtos do cliente estão em SACO, e o tanque só aceitava Produto em L ou KG. As 5 famílias padrão repetem a natureza do bem: Benfeitorias, Máquinas, Veículos, Implementos e Equipamentos.
+- **Decisões:**
+  1. **Produtos aceitos em qualquer unidade.** Valem Produtos em L, KG e SACO. O abastecimento baixa exatamente a quantidade digitada, na unidade de estoque do Produto: litros para L; quilos para KG e para SACO, porque o SACO guarda o estoque em kg. `AbastecimentoBem.unidade` continua `L`/`KG` (SACO grava `KG`). A capacidade do tanque só é conferida para Produto em litros.
+  2. **Área e Localização saem do cadastro do Bem**, por enquanto. Saem de todas as telas de Bens. As colunas `area_id` e `localizacao_descricao` ficam no banco, e o que já estiver gravado nelas não é apagado.
+  3. **Família sai da tela e deixa de ser cadastrável.** O Bem passa a ter duas escolhas:
+     - **"Tipo de bem"**: a lista fixa de natureza (Benfeitoria, Máquina, Veículo, Implemento, Equipamento, Outro). O rótulo "Natureza" muda em toda a área de Bens.
+     - **"Tipo"**: cadastro do usuário, filtrado pelo Tipo de bem, com "+ Novo tipo" e "Gerenciar tipos" (listar, renomear e excluir).
+  4. **Por trás, uma família pré-cadastrada por natureza.** A família `OUTROS` (natureza `OUTRO`) entra no catálogo padrão. O sistema garante o catálogo sozinho e de forma idempotente: deixa de existir o botão "Instalar catálogo padrão". Os tipos padrão de uma família só são criados quando a própria família é criada, para que um tipo padrão excluído não volte.
+     - Tipos novos vão para a família padrão da natureza.
+     - Tipos de famílias antigas criadas à mão continuam valendo, sob a natureza delas.
+     - O Bem deixa de enviar `familia_id`: o backend deriva a família do tipo e exige a mesma natureza.
+     - As rotas de criar e editar família saem. Como nenhuma tela lê família, a leitura (`GET /patrimonio-familias` e `/:id`) e as opções de famílias também saem; com a Área fora do Bem, as opções de áreas (`/bens-patrimoniais-opcoes/areas`) saem junto. Essas rotas respondem 404, e a família aparece só dentro do tipo.
+     - O instalador `POST /patrimonio-catalogo-padrao`, que continua para o administrador, segue as mesmas regras da garantia: o tipo padrão que falta só é criado na família padrão criada naquela chamada, e o nome do tipo é único dentro do Tipo de bem.
+  5. **Excluir tipo.** Um tipo sem nenhum bem é excluído de verdade, com auditoria. Um tipo em uso recebe 409 `PATRIMONIO_TIPO_EM_USO` com a contagem de bens.
+- **Sem migration:** nada muda no schema. A release é o merge seguido do deploy.
+- **Supera em parte a D-PROD-162** em quatro pontos:
+  - "Família e Tipo escolhidos e criados no formulário";
+  - "+ Nova família";
+  - "Instalar catálogo padrão";
+  - "Produtos aceitos em L ou KG".
+  O resto da D-PROD-162 continua valendo.
+- **Estado:** implementada e verificada na branch `claude/new-session-abgn5w`, junto da PR #241; a release é merge e deploy, sem migration. Relatório: [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md).
+
+## D-PROD-170 — Patrimônio no modelo do motor Base1: janelas do motor (`B1Janela`) e botões do motor
+
+- **Contexto:** o proprietário pediu que a PR #241 (SIMPLIFICA-02) entrasse no modelo Base1 antes do merge. Ela nasceu sobre a `main` de antes da PR #240 (design "Cadastro de Lote" no motor, D-PROD-164 a D-PROD-168). Com o merge da #240, lista, faixa de filtros, registro e formulários de Bens e de Abastecimentos já ganham o desenho do motor. As janelas de Patrimônio, porém, usavam o diálogo genérico: fundo preto, botão verde-escuro, pesquisa quadrada, textos de 11 a 13 px. No "+ Novo tipo", os campos perdiam o desenho, porque o portal fica fora da tela e sem o escopo `cadastro-b1`.
+- **Decisão:**
+  - **`B1Janela`** (`src/components/cadastro/base1/B1Janela.jsx`) é a janela do motor sobre o Radix Dialog, com o desenho de "Configurar colunas" (`b1ref .mdlc`):
+    - fundo quente; cartão branco de 16 px; título 20/600 e ✕ (Fechar) no cabeçalho; corpo que rola; rodapé opcional com os botões do motor;
+    - leva `cadastro-b1`, então os campos e botões dentro dela têm o desenho do motor;
+    - centraliza sem `transform`, então a folha do celular aberta dentro dela ocupa a tela;
+    - `podeFechar` trava o ✕ e o Escape (enviando); `aoPedirFechar` deixa a folha do celular fechar primeiro.
+  - **Usam a `B1Janela`:** "⋯ › Gerenciar tipos" de Bens, que também ganha pesquisa em pílula, "+ Novo tipo" verde como o "+ Novo", linhas com o nome em 14/600 e os dados em 13 px, e Renomear/Reativar/Excluir nos botões da barra; a prévia e o cancelamento do abastecimento; o consumo do bem.
+  - **Botões de Patrimônio** (`BOTAO_*` de `DialogosAbastecimento`) passam às classes do motor: verde para confirmar, vermelho para a ação destrutiva (igual a "Excluir" da barra) e neutro.
+- **Não muda:** regras, textos, envios, permissões, ids de teste e nomes acessíveis. Os Produtos aceitos do tanque continuam com pílulas e o seletor com busca no servidor: a lista de Produtos da fazenda pode ser grande e é paginada.
+- **Evidência:** `tests/smoke/b1Janela.test.jsx`; caso novo em `tests/smoke/bensGerenciarTipos.test.jsx`; imagens em `docs/engineering/evidencias/patrimonio-simplifica-02/`; seção 7 do relatório `MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`.
+
+## D-PROD-171 — Celular: só o menu da coluna abre como "Mais opções"; os filtros voltam às folhas de baixo
+
+- **Contexto:** a D-PROD-168 entendeu o pedido "a abertura de seleção de filtros de cabeçalhos no mobile tem que ser igual em tablet" como "todos os filtros do celular iguais aos do tablet". No celular, a faixa de pílulas passou a aparecer e o funil, o "Filtrar por campo" e o filtro do cabeçalho passaram a abrir nas janelas do tablet. O proprietário esclareceu que o pedido era só o menu "⋮" da coluna da tabela (abrir filtro avançado, autoajustar, congelar, ocultar), que no celular deve abrir como o botão "Mais opções". Filtros e listas deviam ficar como estavam.
+- **Decisão:**
+  - **Volta como era antes da D-PROD-168:**
+    - a faixa sem pílulas no celular, só com o resumo;
+    - o funil abre a folha "Filtros", e dela se vai a Ordenar, a cada filtro e ao "+";
+    - o "Filtrar por campo" e o filtro do cabeçalho abrem na folha de baixo, com o CSS das folhas (`.fpc--sheet`, `.b1-fr-sheet`).
+  - **Fica da D-PROD-168:**
+    - o menu "⋮" da coluna abre no celular como o "Mais opções", na mesma janela flutuante e na mesma largura (226 px). A folha dele, e o CSS dela, não voltam;
+    - as caixas de marcar à direita, inclusive no "Todos";
+    - os campos de marcar vários em lista.
+- **Revoga em parte:** a D-PROD-168, na parte "celular = tablet" dos filtros.
+- **Evidência:** `tests/smoke/base1FiltrosCelularCaixas.test.jsx`; imagem `docs/engineering/evidencias/base1-design-d164/celular-menu-coluna-como-mais-opcoes.png` (menu "⋮" da coluna, "Mais opções" e a folha "Filtros", em 390 px).
+
+## D-PROD-172 — Gestão, Patrimônio e Financeiro no padrão do motor Base1: filtros na faixa, campos e listas de escolha do motor
+
+- **Pedido do proprietário (2026-11-11):** Bens e Patrimônio "parece que está até certo, porém há vários campos, modelos de listagem, está diferente"; "tem uns filtros lá em cima, do lado do botão de mais […] não pode ter, tem que ser igual o motor base 1 […] Parte de filtros, essas coisas, a listagem, escolha"; no financeiro, "Campos, etc. Algumas coisas, formatação, botão até tá, mas é o restante não tá".
+- **Decisão:**
+  - **Filtros da tela na faixa do motor, não na barra.** Os filtros que cada tela tinha ao lado do "+ Novo" viram pílulas da faixa de filtros do motor, logo depois de Ordenar (`FiltrosDaTelaContext` em `FiltrosRapidos`):
+    - Centros de custo e de resultado, Parceiros: Situação;
+    - Naturezas financeiras: Tipo (padrão Despesa) e Situação;
+    - Bens patrimoniais: Tipo de bem e Situação; Abastecimentos: Situação;
+    - Lançamentos financeiros: Direção, Situação e Registro (padrão Operacionais).
+  - **Como a pílula funciona:** mostra o rótulo e o valor (o valor padrão sem destaque); escolher usa a janela do motor com ✓; o ✕ da pílula e o "Limpar filtros" voltam ao padrão; a pílula automática da mesma coluna some, para não haver dois filtros iguais; no celular, cada filtro vira uma linha da folha "Filtros" (D-PROD-171). O filtro continua indo ao servidor como antes.
+  - **Campo de escolha do motor nos formulários de Gestão** (`CampoSelect`, com as props novas `pesquisa="sempre"`, `semOpcaoVazia` e `maiusculas` do `B1Select`): sempre com "Pesquisar…", opções em MAIÚSCULAS, sem a opção vazia ("— Escolha —", "— Nenhum —", "— Nenhum (raiz) —"); campo vazio fica vazio, e o ✕ no campo limpa o que não é obrigatório.
+  - **Seletor de servidor no desenho do motor** (`SeletorPaginadoGestao`: produto, parceiro, natureza, centro, bem, responsável…): abre a janela das listas do motor presa ao campo (no celular, a folha de baixo), com a pesquisa do motor, código, nome e detalhe em cada linha, ✓ no escolhido, "+ Novo …" ao lado da pesquisa e "Carregar mais" no fim. Saem a lista dentro do formulário, a opção "— Nenhum —" (o ✕ do campo limpa) e o botão "Fechar seleção" (Esc ou clique fora). A busca, a paginação e o que é gravado não mudam.
+  - **Perfil financeiro da empresa** (Lançamentos, antes do primeiro lançamento e em "Perfil financeiro"): cartão de campos do motor, nota azul, os três campos de escolha do motor e os botões verde e cinza do rodapé dos formulários.
+- **Não muda:** regras, permissões, envios ao servidor, textos de aviso e os botões de escolha segmentada (A pagar/A receber, Sim/Não…), que o proprietário disse estarem certos.
+- **Testes:** as consultas às opções vão ao portal (`screen`); campo vazio é conferido por `data-placeholder`; Esc no lugar de "Fechar seleção"; "Limpar" no lugar de "— Nenhum —". Os snapshots em linha de `seletorPaginadoCriarNovo.test.jsx` (guarda de não regressão da D-PROD-162) são regravados uma vez, de propósito, e passam a cobrir também a janela aberta.
+- **Fora desta decisão:** o Cadastro de Áreas, Pontos e Linhas e as fontes do Mapa Geral (próxima missão).
+- **Evidência:** relatório [`UI-GESTAO-MOTOR-D172-REPORT.md`](./UI-GESTAO-MOTOR-D172-REPORT.md); imagens em `docs/engineering/evidencias/gestao-motor-d172/`.
+
+## D-PROD-173 — Mapa com a tipografia do motor Base1: Detalhes do Lote, painéis, manejos e janelas do mapa
+
+- **Pedido do proprietário (2026-11-11):** "ajuste todas as fontes do meu mapa para igual a fonte do motor base 1, fazendo favor, tá? Detalhes de lote, etc".
+- **Contexto:** a D-PROD-167 levou a escala de tipografia ao sistema, mas deixou de fora "painéis densos com tamanho próprio já aprovados (Detalhes do Lote, legenda e insights do mapa)". O mapa ficou com textos de 9 a 12,5 px ao lado das telas do motor em 13 a 14 px.
+- **Decisão:** tudo o que o Mapa Geral mostra fora do desenho do mapa segue a escala do motor (D-PROD-167), sem nada abaixo de 13 px além das peças do próprio motor (rótulo do campo quando sobe, 12 px):
+  - texto, valores, linhas de lista e botões: 14 px; rótulos e texto de apoio: 13 px;
+  - título de cartão e de seção: Lato 13 px / 600; grupo: Lato 13 px / 600 em MAIÚSCULAS;
+  - abas: 14 px / 600; título de janela: 20 px / 600; subtítulo da janela: 13 px.
+- **Onde:**
+  - **Detalhes do Lote:** tabela de papéis `TIPO` em `detalhes-lote/pecas.jsx`, usada por todas as peças (cartões, grades de campos, números, pílulas, títulos de seção, vistas Resumo, Lote e Lista, filtros e menus). As colunas da vista Lista crescem na proporção do texto (14 / 10,5). O cartão de lote da aba Tudo passa a 3 colunas no desktop e no tablet, para os rótulos caberem inteiros. Abas, subtítulo e quadros de manejo vão para 14 px.
+  - **Filtros e Visualização do mapa:** linhas de 14 px; títulos de seção em Lato 13 px / 600; rótulos dos campos de filtro em 13 px, com a coluna do rótulo maior.
+  - **Janelas abertas pelo mapa:** manejos (Pesagem, Movimentação, Morte, Nascimento…), Ações do lote, Históricos, Tarefas, depósito e cocho de suplementação, filtros avançados, legenda, insights, aviso do satélite e os botões do mapa.
+- **Fica como está:**
+  - os rótulos desenhados sobre o mapa (nome do pasto, hectares, cabeças, siglas), que seguem o zoom (D-PROD-129 e D-PROD-167), e as medidas do desenho;
+  - a atribuição do mapa base;
+  - o rodapé das listas do motor ("0 tarefas"), que já é o do motor.
+  - Cores, espaçamentos e regras não mudam.
+- **Testes:** `detalhesLoteVisualGesto.test.jsx` acompanha a mudança. Ele confere que a pílula usa o título do motor, que `.mk-dl__linha` herda o tamanho de quem a usa e que `.mk-dl__chip` tem 13 px.
+- **Evidência:** relatório [`UI-MAPA-TIPOGRAFIA-D173-REPORT.md`](./UI-MAPA-TIPOGRAFIA-D173-REPORT.md); imagens de antes e depois em `docs/engineering/evidencias/mapa-tipografia-d173/`.
+
+## D-PROD-174 — Cadastro de Áreas, Pontos e Linhas no motor Base1
+
+- **Pedido do proprietário (2026-11-11):** "Já aproveite e já ajuste também para cadastro de áreas, etc", no mesmo pedido de deixar campos, listagem, escolha e formatação iguais ao motor Base1.
+- **Contexto:** o Cadastro de Áreas, Pontos e Linhas (`MapaCadastro`) era uma tela própria:
+  - barra com quatro botões de ação, abas largas e três grades antigas (com funil em cada coluna e menu "⋮" em cada linha);
+  - edição dos detalhes num painel lateral, com campos e listas do shadcn.
+- **Decisão:** cada aba (Áreas, Pontos, Linhas) vira uma tela do motor, com o motor de lista completa (`useCadastroBase1FullListController` + `CadastroBase1Screen`):
+  - barra do motor, faixa de filtros, grade e cards, configuração de colunas, exportação, seleção, Excluir e registro com navegação ‹ ›;
+  - as abas ficam no desenho das abas do motor, acima da lista.
+- **Onde ficam as ações:**
+  - **"+ Novo"** desenha a área ou a linha no mapa, ou marca o ponto, como fazia "Desenhar no Mapa" / "Marcar no Mapa".
+  - **"Mais opções"**, no mesmo lugar das ações próprias de outras telas do motor (como "Gerenciar tipos" de Bens):
+    - Áreas: nova por GPS, selecionar no mapa, importar áreas e as ações em lote (definir setor, definir cor, reatribuir códigos). As ações em lote só ficam ativas com área selecionada e abrem a janela do motor (`B1Janela`);
+    - Pontos: novo por GPS e cadastrar em lote;
+    - Linhas: nova por GPS.
+  - **No registro:** abrir uma linha mostra os detalhes travados; "Editar" libera, e Salvar/Cancelar ficam na barra. "Editar no mapa" ("posição" ou "traçado", conforme a aba) fica em "Mais opções".
+  - **Excluir:** vale para a seleção da lista e para o registro, com as mesmas regras, mensagens e invalidações de antes. O evento `atualizar-mapa` continua.
+- **Formulários:**
+  - **Área:** passa aos campos e às listas do motor (`B1Field`, `B1Select`), na mesma ordem e com a mesma validação e gravação. No painel do desenho fica em uma coluna, com Cancelar/Salvar; no registro, usa a grade do motor.
+  - **Ponto e Linha:** já usavam o campo do motor (`LancField`). As listas passam à do motor pelo `SelectDoMotor`, um adaptador com a interface do Select antigo, em que "Selecione…" vira o campo vazio. No registro, os campos ficam no cartão do motor e travados até o "Editar" (um `fieldset` desabilitado; o `LancField` mostra o cadeado).
+  - Nos três, quem salva no registro é a barra do motor, pelo `id` do formulário. A gravação continua dentro de cada formulário, igual à do painel do desenho.
+- **Sai:** `TabelaAreasGeo`, `TabelaPontosGeo`, `TabelaLinhasGeo` e `ConfiguracaoColunasMapaDialog`, sem uso. As colunas e as regras de leitura de cada aba, inclusive a junção do ponto com a suplementação e o bebedouro, foram para `src/components/mapa/cadastro/colunasCadastroMapa.js`, sem mudança.
+- **Não muda:** o desenho no mapa, a captura por GPS, a seleção no mapa, a importação, o cadastro de pontos em lote, as regras, as validações e as chamadas ao servidor. Sem migration.
+- **Testes:** `tests/smoke/cadastroMapaMotor.test.jsx` (novo) cobre a tela, o adaptador de lista e a junção dos pontos. O caso de `importarAreasDialog.test.jsx` sobre a barra das áreas passa a abrir "Importar áreas" em "Mais opções".
+- **Evidência:** relatório [`UI-CADASTRO-MAPA-D174-REPORT.md`](./UI-CADASTRO-MAPA-D174-REPORT.md); imagens em `docs/engineering/evidencias/cadastro-mapa-d174/`.
+
+## D-PROD-175 — Fontes voltam ao estilo e ao tamanho da prévia escolhida pelo proprietário (DM Sans, como antes da D-PROD-167)
+
+- **Pedido do proprietário (2026-11-11):**
+  - "ta tudo errado as fontes estão enormes, faça o seguinte deixe as fontes do tamanho que estava no anterior deixe do mesmo tamanho que está no mobile";
+  - "o estilo e tamanho das fontes eu quero deixe igual está aqui nessa visualização do vercel (prévia `maike-funzkhxes`, tela `/produtos`) […] nesse que tava nas tabelas etc".
+- **Referência:** a prévia `maike-funzkhxes` é o commit `836344f` (D-PROD-165). Ela é anterior ao padrão de tipografia (D-PROD-167) e ao mapa com a tipografia do motor (D-PROD-173).
+- **Decisão:** o sistema volta à fonte e aos tamanhos dessa prévia:
+  - texto em DM Sans (saem a Open Sans e a Lato), escala padrão do Tailwind (`text-xs` em 12 px);
+  - campos, listas, cabeçalhos de tabela, janelas, menus, dicas e avisos nos tamanhos de antes da D-PROD-167;
+  - mapa: Detalhes do Lote, painéis, manejos e janelas nos tamanhos de antes da D-PROD-173 (texto de 10,5 px); rótulos sobre o mapa (nome do pasto, cabeças, siglas) e card de medição como na prévia;
+  - colunas das listas na largura que cada tela define (sai o aumento de 14/12 da D-PROD-167).
+- **Como:** o código da D-PROD-173 e o da D-PROD-167 foram desfeitos por reversão. Cada arquivo volta ao que era antes delas.
+- **Fica:**
+  - os documentos das duas decisões, como histórico;
+  - o que veio depois e não é fonte: Gestão, Patrimônio e Cadastro de Áreas no motor (D-PROD-169 a D-PROD-174) e filtros do celular (D-PROD-171). Essas telas usam a tipografia do motor e seguem a volta sozinhas;
+  - o título de seção dos formulários de gestão em 11 px (D-PROD-165), pedido do proprietário depois da prévia.
+- **Medição:** mesmas telas e mesmo backend falso, na prévia e na versão nova, em 1366 e 390 px. Produtos, Lotes (lista e registro), o Mapa Geral e o Detalhes do Lote ficam iguais à prévia em família, tamanho e peso de cada texto. As únicas diferenças são telas refeitas no motor depois da prévia, que agora seguem o motor: o painel do perfil financeiro e as pílulas de filtro de Bens e Lançamentos.
+- **Revoga:** a D-PROD-167 (padrão de tipografia Open Sans e Lato, escala 13–46) e a D-PROD-173 (mapa com a tipografia do motor).
+- **Testes:**
+  - `tests/smoke/tipografiaPreviaD175.test.js` (novo) segura a volta: DM Sans no `index.html`, no corpo e no motor; nenhuma tela pede Open Sans ou Lato; escala padrão do Tailwind; largura das colunas; número de cabeças em 9,5 px;
+  - sai `tipografiaSistema.test.js`, que testava o padrão revogado;
+  - `contagemLote`, `mapaRotulosSemBagunca` e `detalhesLoteVisualGesto` voltam aos valores de antes;
+  - o instantâneo do seletor da Gestão (`seletorPaginadoCriarNovo`) só troca a classe do campo.
+- **Evidência:** relatório [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md); imagens em `docs/engineering/evidencias/fontes-d175/`.
+
+## D-PROD-176 — Ícones vetoriais com nível para cochos e depósitos
 
 **Data:** 2026-11-11.
 
-**Decisão:** nos detalhes de pontos da categoria Cocho, substituir as barras por um cocho vetorial cujo alimento é recortado na área interna. O nível usa saldo estimado / capacidade física quando cadastrada; sem capacidade usa saldo / disponível inicial do ciclo e informa essa referência. Não altera o cálculo diário de consumo, estoque ou lançamentos. A tela reavalia a passagem do dia enquanto aberta. O gerenciador oferece o mesmo SVG estático para upload pelo fluxo existente; escolher o modelo não salva o cadastro automaticamente. Não há migration nem cadastro automático em produção.
+**Decisão:** os marcadores de cochos e depósitos usam a mesma bolinha branca, borda cinza suave e ponteira arredondada, menores que os marcadores de lotes. O preenchimento cinza ondulado indica o nível; os subícones têm cores mais claras. Depósito usa o SVG cilíndrico fornecido pelo proprietário, mais largo e baixo, sem linhas internas nem sacos.
 
-<!-- Próxima decisão: D-PROD-165 -->
+- **Cocho:** o detalhe usa saldo estimado / capacidade física quando cadastrada; sem capacidade, saldo / disponível inicial do ciclo, com a referência informada. O marcador mantém o indicador de consumo existente. Não altera o cálculo diário de consumo nem lançamentos; o detalhe reavalia a passagem do dia enquanto aberto.
+- **Depósito:** o nível usa saldo em kg / estoque mínimo cadastrado, limitado visualmente a 100%; o detalhe informa o percentual real sobre o mínimo, inclusive acima de 100%. Sem mínimo, informa a falta da configuração. Produtos em litros permanecem fora do indicador em kg; a capacidade continua sendo usada para calcular a necessidade de reposição.
+- **Cadastro e filtro:** o gerenciador oferece o SVG estático de cocho pelo upload existente, sem salvar automaticamente. Depósitos continuam na camada e no filtro existentes. Sem migration nem cadastro automático em produção.
+- **Validação:** testes de nível vetorial, estoque mínimo, isolamento de produtos em litros, renderização do mapa, compilação, integridade de imports e catraca de tipos.
 
+<!-- Próxima decisão: D-PROD-177 -->

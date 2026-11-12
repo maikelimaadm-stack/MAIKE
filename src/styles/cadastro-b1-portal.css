@@ -6,11 +6,11 @@
 
 .cadastro-b1--portal-compras {
   --portal-espaco: 8px; /* espaçamento padrão entre botões */
-  --mg-table-line: #dfe2e7;
+  --mg-table-line: #deddd8;
   --portal-acao-bg: var(--mk-btn-bg, #ffffff);
-  --portal-acao-fg: #475569;
-  --portal-acao-hover: #e8ecef;
-  --portal-acao-fg-hover: #0f172a;
+  --portal-acao-fg: #52514e;
+  --portal-acao-hover: #ecebe6;
+  --portal-acao-fg-hover: #141413;
   --portal-sombra: 0 2px 6px rgba(34, 197, 94, 0.3);
   --portal-sombra-hover: 0 3px 9px rgba(34, 197, 94, 0.36);
 }
@@ -83,17 +83,17 @@
   border-color: transparent !important;
   box-shadow: none !important;
   background: transparent !important;
-  color: #475569 !important;
+  color: var(--mkq-475569, #475569) !important;
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu:hover {
-  background: var(--mg-gray-fill, #FAFCFE) !important;
-  color: #0f172a !important;
+  background: var(--mg-gray-fill, #F9F9F7) !important;
+  color: #141413 !important;
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu.is-on {
   background: transparent !important;
-  color: #475569 !important;
+  color: #52514e !important;
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu svg {
@@ -108,7 +108,7 @@
   align-items: center;
   gap: 3px;
   margin-left: 2px;
-  color: #94a3b8 !important;
+  color: #a3a29c !important;
 }
 
 .cadastro-b1--portal-compras .view-seg {
@@ -118,7 +118,7 @@
   gap: 5px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, #F9F9F7);
   box-shadow: var(--portal-sombra);
   display: flex;
   align-items: center;
@@ -134,14 +134,14 @@
   border-radius: 999px;
   border: none !important;
   background: transparent !important;
-  color: #475569 !important;
+  color: #52514e !important;
   box-shadow: none !important;
 }
 
 .cadastro-b1--portal-compras .view-seg button[aria-pressed="true"] {
   background: #fff !important;
   color: var(--mg-accent) !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.08) !important;
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon.tb-btn-sm,
@@ -169,13 +169,13 @@
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon) {
   background: var(--mk-action-positive-bg, var(--mg-accent, #40de63)) !important;
   color: #fff !important;
-  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
   background: var(--mk-action-positive-hover, var(--mg-accent-hover, #36c956)) !important;
   color: #fff !important;
-  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-pill-select,
@@ -183,7 +183,7 @@
   height: 25px !important;
   min-height: 25px !important;
   min-width: 4.5rem;
-  border: 1px solid #dfe2e7 !important;
+  border: 1px solid #deddd8 !important;
   background: #fff !important;
   color: var(--portal-acao-fg) !important;
   box-shadow: var(--mg-field-edge-shadow) !important;
@@ -272,9 +272,9 @@
 }
 
 .b1-portal-compras.mg-pill-select-panel.cmd-panel {
-  border: 1px solid #dfe2e7 !important;
-  border-left: 1px solid #dfe2e7 !important;
-  border-right: 1px solid #dfe2e7 !important;
+  border: 1px solid #deddd8 !important;
+  border-left: 1px solid #deddd8 !important;
+  border-right: 1px solid #deddd8 !important;
 }
 
 .b1-portal-compras .tb-btn,
@@ -285,8 +285,8 @@
   border-radius: 999px !important;
   border: 1px solid transparent !important;
   background: var(--mk-btn-bg, #ffffff) !important;
-  color: #475569 !important;
-  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+  color: #52514e !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
   font-size: 12px !important;
   font-weight: 600 !important;
 }
@@ -294,8 +294,8 @@
 .b1-portal-compras .tb-btn:not(.tb-btn-green):hover:not(:disabled),
 .b1-portal-compras.fpop .tb-btn:not(.tb-btn-green):hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn:not(.tb-btn-green):hover:not(:disabled) {
-  background: #e8ecef !important;
-  color: #0f172a !important;
+  background: #ecebe6 !important;
+  color: #141413 !important;
   box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
 }
 
@@ -332,8 +332,8 @@
 .b1ref.b1-portal-compras .rm {
   background: var(--mk-btn-bg, #ffffff) !important;
   border-color: transparent !important;
-  color: #475569 !important;
-  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+  color: #52514e !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
 }
 
 .b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
@@ -343,8 +343,8 @@
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref.b1-portal-compras .rm:hover {
-  background: #e8ecef !important;
-  color: #0f172a !important;
+  background: #ecebe6 !important;
+  color: #141413 !important;
   box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
 }
 
@@ -366,12 +366,12 @@
 
 .b1-portal-compras [role="menuitem"],
 .b1-portal-compras .mg-b1-menuitem {
-  color: #475569;
+  color: #52514e;
 }
 
 .b1-portal-compras [role="menuitem"]:hover:not(:disabled),
 .b1-portal-compras .mg-b1-menuitem:hover:not(:disabled) {
-  background: var(--mg-bg-page, #FAFCFE) !important;
+  background: var(--mg-bg-page, #F9F9F7) !important;
 }
 
 .b1-portal-compras [role="menuitem"].is-danger,
@@ -382,7 +382,7 @@
 }
 
 .b1-portal-compras [role="menuitem"] svg {
-  color: #475569 !important;
+  color: #52514e !important;
 }
 
 .b1-portal-compras.fpop {
@@ -409,7 +409,7 @@
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     font-size: var(--mk-action-font, 12px) !important;
-    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green {
@@ -428,7 +428,7 @@
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
-    background: var(--mk-btn-hover, #FAFCFE) !important;
+    background: var(--mk-btn-hover, #F9F9F7) !important;
     color: var(--mg-text-1) !important;
   }
 
@@ -454,14 +454,14 @@
     min-width: var(--mk-action-height-touch, 40px) !important;
     height: var(--mk-action-height-touch, 40px) !important;
     min-height: var(--mk-action-height-touch, 40px) !important;
-    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
     height: auto !important;
     min-height: var(--mk-action-height-touch, 40px) !important;
     padding: 3px !important;
-    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(20, 20, 19, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {

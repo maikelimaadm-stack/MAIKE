@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listarSetoresAtivos, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import {
   areaHectares,
   toPersistedCoords,
@@ -10,21 +9,10 @@ import {
   validatePolygonForSave,
 } from "@/lib/geografia";
 
-const FloatingField = ({ label, required, error, children }) => (
-  <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
-      {children}
-    </div>
-  </div>
-);
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import B1Select from "@/components/cadastro/base1/B1Select";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
 import {
   APROVEITAMENTO,
@@ -40,7 +28,26 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 // Listas e regras compartilhadas com a importação por arquivo (D-PROD-90).
 const CORES_DISPONIVEIS = CORES_CADASTRO;
 
-export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item, onCorChange = null }) {
+export const FORMULARIO_AREA_ID = "formulario-area-b1";
+
+/**
+ * Detalhes da área (D-PROD-174: campos e listas do motor Base1).
+ * `layout="painel"` (padrão): o painel do desenho no mapa, uma coluna, com Cancelar/Salvar.
+ * `layout="registro"`: o registro do Cadastro de Áreas; quem salva é a barra do motor (form `formId`),
+ * e `readOnly` mostra os campos travados até o "Editar".
+ */
+export default function FormularioArea({
+  coordenadas,
+  onSave = (gravada) => void gravada,
+  onCancel = () => {},
+  usarGPS = false,
+  item,
+  onCorChange = null,
+  layout = "painel",
+  formId = FORMULARIO_AREA_ID,
+  readOnly = false,
+  onSalvandoChange = null,
+}) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
@@ -76,7 +83,6 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     initialData: [],
   });
 
-  const getFieldClassName = (field, baseClass = "") => `${baseClass} ${invalidFields.includes(field) ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
   const handleChange = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); setInvalidFields((prev) => prev.filter((item) => item !== field)); };
 
   const createAreaMutation = useMutation({
@@ -102,9 +108,13 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         coordenadas: { coords: toPersistedCoords(coordenadasGPS || coordenadas), cor: data.cor },
       });
     },
-    onSuccess: () => { toast.success(item ? "Área atualizada!" : "Área cadastrada!"); onSave(); },
+    onSuccess: (gravada) => { toast.success(item ? "Área atualizada!" : "Área cadastrada!"); onSave(gravada); },
     onError: () => { toast.error(item ? "Erro ao atualizar área" : "Erro ao cadastrar área"); },
   });
+
+  useEffect(() => {
+    onSalvandoChange?.(createAreaMutation.isPending);
+  }, [createAreaMutation.isPending, onSalvandoChange]);
 
   const handleCapturaGPS = (pontos) => { setCoordenadasGPS(pontos); setMostrarCapturaGPS(false); toast.success(`${pontos.length} pontos capturados via GPS!`); };
 
@@ -130,6 +140,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (readOnly) return;
     const infraestrutura = formData.tipo_cultura === 'Infraestrutura';
     const haDigitado = (valor) => {
       const texto = String(valor ?? '').trim();
@@ -192,153 +203,256 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     return <CapturaGPSPoligono tipo="area" onSalvar={handleCapturaGPS} onCancelar={() => { setMostrarCapturaGPS(false); if (usarGPS) onCancel(); }} />;
   }
 
+  const registro = layout === "registro";
+  /** Largura do campo: no registro, a grade do motor; no painel do desenho, uma coluna. */
+  const larg = (n) => (registro ? n : 12);
+  const infraestrutura = formData.tipo_cultura === "Infraestrutura";
+  const bloqueado = readOnly || createAreaMutation.isPending;
+  const erro = (campo) => (invalidFields.includes(campo) ? "Obrigatório" : undefined);
+  const nomeDoSetor = setores.find((s) => s.id === formData.setor_id)?.nome || formData.setor_nome || "";
+
   return (
-    <div className="mt-1">
-      <form onSubmit={handleSubmit} className="space-y-0.5">
-        {formData.tipo_cultura !== 'Infraestrutura' && (
-          <>
-            <FloatingField label="Área total (ha)" required error={invalidFields.includes('area_total')}>
-              <Input
-                value={formData.area_total}
-                onChange={(e) => handleChange('area_total', e.target.value)}
-                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                readOnly
-              />
-            </FloatingField>
+    <form
+      id={formId}
+      onSubmit={handleSubmit}
+      className={`b1 mg-b1-form-grid w-full min-h-0 ${registro ? "" : "mt-1"}`}
+      noValidate
+      data-testid="b1-form-area"
+      data-densidade={DENSIDADE_BASE1}
+    >
+      {!infraestrutura && (
+        <>
+          <B1Field label="Área total (ha)" required span={larg(3)} hasValue={Boolean(formData.area_total)} locked error={erro("area_total")}>
+            <input type="text" value={formData.area_total} readOnly className={B1_FIELD_CTL_CLS} />
+          </B1Field>
+          <B1Field
+            label="Área pastejada ou arável (ha)"
+            required
+            span={larg(3)}
+            hasValue={Boolean(formData.area_pastejada)}
+            locked={readOnly}
+            disabled={bloqueado && !readOnly}
+            error={erro("area_pastejada")}
+          >
+            <input
+              type="text"
+              inputMode="decimal"
+              value={formData.area_pastejada}
+              onChange={(e) => handleChange("area_pastejada", e.target.value)}
+              className={B1_FIELD_CTL_CLS}
+              readOnly={readOnly}
+            />
+          </B1Field>
+        </>
+      )}
 
-            <FloatingField label="Área pastejada ou arável (ha)" required error={invalidFields.includes('area_pastejada')}>
-              <Input
-                value={formData.area_pastejada}
-                onChange={(e) => handleChange('area_pastejada', e.target.value)}
-                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
-              />
-            </FloatingField>
-          </>
-        )}
+      <B1Field label="Nome" required span={larg(infraestrutura ? 8 : 4)} hasValue={Boolean(formData.nome)} locked={readOnly} error={erro("nome")}>
+        <input
+          type="text"
+          value={formData.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
 
-        <FloatingField label="Nome" required error={invalidFields.includes('nome')}>
-          <Input
-            value={formData.nome}
-            onChange={(e) => handleChange('nome', e.target.value)}
-            className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-            style={{ textTransform: 'uppercase' }}
-          />
-        </FloatingField>
+      <B1Field label="Sigla" span={larg(infraestrutura ? 4 : 2)} hasValue={Boolean(formData.sigla)} locked={readOnly}>
+        <input
+          type="text"
+          value={formData.sigla}
+          onChange={(e) => handleChange("sigla", e.target.value.toUpperCase())}
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          maxLength={10}
+          readOnly={readOnly}
+        />
+      </B1Field>
 
-        <FloatingField label="Sigla">
-          <Input
-            value={formData.sigla}
-            onChange={(e) => handleChange('sigla', e.target.value.toUpperCase())}
-            className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-            style={{ textTransform: 'uppercase' }}
-            maxLength={10}
-          />
-        </FloatingField>
-
-        <FloatingField label="Setor" required error={invalidFields.includes('setor_id')}>
-          <Select value={formData.setor_id || '__none__'} onValueChange={(value) => { const setor = setores.find((s) => s.id === value); handleChange('setor_id', value === '__none__' ? '' : value); handleChange('setor_nome', setor?.nome || ''); }}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FloatingField>
-
-        <FloatingField label="Tipo de uso" required>
-          <Select value={formData.tipo_cultura} onValueChange={(v) => setFormData((prev) => ({ ...prev, tipo_cultura: v, tipo_pastagem: v === 'Infraestrutura' ? 'Infraestrutura' : prev.tipo_pastagem, tipo_infraestrutura: v === 'Infraestrutura' ? prev.tipo_infraestrutura : '' }))}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPOS_USO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FloatingField>
-
-        {formData.tipo_cultura === 'Infraestrutura' ? (
-          <FloatingField label="Tipo de infraestrutura" required error={invalidFields.includes('tipo_infraestrutura')}>
-            <Select value={formData.tipo_infraestrutura || '__none__'} onValueChange={(v) => handleChange('tipo_infraestrutura', v === '__none__' ? '' : v)}>
-              <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-                {TIPOS_INFRAESTRUTURA.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </FloatingField>
+      <B1Field label="Setor" required span={larg(4)} hasValue={Boolean(formData.setor_id)} locked={readOnly} error={erro("setor_id")}>
+        {readOnly ? (
+          <input type="text" readOnly value={nomeDoSetor.toUpperCase()} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <>
-            <FloatingField label="Tipo de cultura" required={usoExploraArea(formData.tipo_cultura)} error={invalidFields.includes('tipo_pastagem')}>
-              <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
-                  {TIPOS_CULTURAS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FloatingField>
-
-            <FloatingField label="Aproveitamento">
-              <Select value={formData.aproveitamento} onValueChange={(v) => handleChange('aproveitamento', v)}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {APROVEITAMENTO.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FloatingField>
-          </>
+          <B1Select
+            aria-label="Setor"
+            value={formData.setor_id || ""}
+            onChange={(e) => {
+              const setor = setores.find((s) => s.id === e.target.value);
+              handleChange("setor_id", e.target.value);
+              handleChange("setor_nome", setor?.nome || "");
+            }}
+            className={B1_FIELD_CTL_CLS}
+            pesquisa="sempre"
+            semOpcaoVazia
+            maiusculas
+          >
+            {setores.map((setor) => (
+              <option key={setor.id} value={setor.id}>
+                {setor.nome}
+              </option>
+            ))}
+          </B1Select>
         )}
+      </B1Field>
 
-        <FloatingField label="Cor no mapa">
-          <Select value={formData.cor} onValueChange={(v) => handleChange('cor', v)}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
-              <SelectValue>
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: formData.cor }} />
-                  {CORES_DISPONIVEIS.find((c) => c.cor === formData.cor)?.nome || 'Selecione'}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {CORES_DISPONIVEIS.map((c) => (
-                <SelectItem key={c.cor} value={c.cor} className="text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: c.cor }} />
-                    {c.nome}
-                  </span>
-                </SelectItem>
+      <B1Field label="Tipo de uso" required span={larg(4)} hasValue={Boolean(formData.tipo_cultura)} locked={readOnly}>
+        {readOnly ? (
+          <input type="text" readOnly value={String(formData.tipo_cultura || "").toUpperCase()} className={B1_FIELD_CTL_CLS} />
+        ) : (
+          <B1Select
+            aria-label="Tipo de uso"
+            value={formData.tipo_cultura}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFormData((prev) => ({
+                ...prev,
+                tipo_cultura: v,
+                tipo_pastagem: v === "Infraestrutura" ? "Infraestrutura" : prev.tipo_pastagem === "Infraestrutura" ? "" : prev.tipo_pastagem,
+                tipo_infraestrutura: v === "Infraestrutura" ? prev.tipo_infraestrutura : "",
+              }));
+            }}
+            className={B1_FIELD_CTL_CLS}
+            pesquisa="sempre"
+            semOpcaoVazia
+            maiusculas
+          >
+            {TIPOS_USO.map((tipo) => (
+              <option key={tipo} value={tipo}>
+                {tipo}
+              </option>
+            ))}
+          </B1Select>
+        )}
+      </B1Field>
+
+      {infraestrutura ? (
+        <B1Field
+          label="Tipo de infraestrutura"
+          required
+          span={larg(4)}
+          hasValue={Boolean(formData.tipo_infraestrutura)}
+          locked={readOnly}
+          error={erro("tipo_infraestrutura")}
+        >
+          {readOnly ? (
+            <input type="text" readOnly value={String(formData.tipo_infraestrutura || "").toUpperCase()} className={B1_FIELD_CTL_CLS} />
+          ) : (
+            <B1Select
+              aria-label="Tipo de infraestrutura"
+              value={formData.tipo_infraestrutura || ""}
+              onChange={(e) => handleChange("tipo_infraestrutura", e.target.value)}
+              className={B1_FIELD_CTL_CLS}
+              pesquisa="sempre"
+              semOpcaoVazia
+              maiusculas
+            >
+              {TIPOS_INFRAESTRUTURA.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
               ))}
-            </SelectContent>
-          </Select>
-        </FloatingField>
+            </B1Select>
+          )}
+        </B1Field>
+      ) : (
+        <>
+          <B1Field
+            label="Tipo de cultura"
+            required={usoExploraArea(formData.tipo_cultura)}
+            span={larg(4)}
+            hasValue={Boolean(formData.tipo_pastagem)}
+            locked={readOnly}
+            error={erro("tipo_pastagem")}
+          >
+            {readOnly ? (
+              <input type="text" readOnly value={String(formData.tipo_pastagem || "").toUpperCase()} className={B1_FIELD_CTL_CLS} />
+            ) : (
+              <B1Select
+                aria-label="Tipo de cultura"
+                value={formData.tipo_pastagem || ""}
+                onChange={(e) => handleChange("tipo_pastagem", e.target.value)}
+                className={B1_FIELD_CTL_CLS}
+                pesquisa="sempre"
+                semOpcaoVazia
+                maiusculas
+              >
+                {usoExploraArea(formData.tipo_cultura) ? null : <option value="" />}
+                {TIPOS_CULTURAS.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </B1Select>
+            )}
+          </B1Field>
 
-        <FloatingField label="Observação">
-          <Textarea
-            value={formData.observacoes}
-            onChange={(e) => handleChange('observacoes', e.target.value)}
-            className="text-xs uppercase min-h-[50px] border-0 shadow-none focus-visible:ring-0 bg-transparent"
-            style={{ textTransform: 'uppercase' }}
-            rows={2}
-          />
-        </FloatingField>
+          <B1Field label="Aproveitamento" span={larg(4)} hasValue={Boolean(formData.aproveitamento)} locked={readOnly}>
+            {readOnly ? (
+              <input type="text" readOnly value={String(formData.aproveitamento || "").toUpperCase()} className={B1_FIELD_CTL_CLS} />
+            ) : (
+              <B1Select
+                aria-label="Aproveitamento"
+                value={formData.aproveitamento}
+                onChange={(e) => handleChange("aproveitamento", e.target.value)}
+                className={B1_FIELD_CTL_CLS}
+                pesquisa="sempre"
+                semOpcaoVazia
+                maiusculas
+              >
+                {APROVEITAMENTO.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </B1Select>
+            )}
+          </B1Field>
+        </>
+      )}
 
-        <div className="flex justify-end gap-1 pt-1 border-t border-slate-200">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">
-            Cancelar
-          </Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-            Salvar
-          </Button>
+      <B1Field label="Cor no mapa" span={larg(4)} hasValue={Boolean(formData.cor)} locked={readOnly}>
+        <div className="flex w-full min-w-0 items-center gap-2">
+          <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: formData.cor }} />
+          {readOnly ? (
+            <input
+              type="text"
+              readOnly
+              value={String(CORES_DISPONIVEIS.find((c) => c.cor === formData.cor)?.nome || "").toUpperCase()}
+              className={B1_FIELD_CTL_CLS}
+            />
+          ) : (
+            <B1Select
+              aria-label="Cor no mapa"
+              value={formData.cor}
+              onChange={(e) => handleChange("cor", e.target.value)}
+              className={B1_FIELD_CTL_CLS}
+              pesquisa="sempre"
+              semOpcaoVazia
+              maiusculas
+            >
+              {CORES_DISPONIVEIS.map((c) => (
+                <option key={c.cor} value={c.cor}>
+                  {c.nome}
+                </option>
+              ))}
+            </B1Select>
+          )}
         </div>
-      </form>
-    </div>
+      </B1Field>
+
+      <B1Field label="Observação" span={12} hasValue={Boolean(formData.observacoes)} locked={readOnly}>
+        <textarea
+          value={formData.observacoes}
+          onChange={(e) => handleChange("observacoes", e.target.value)}
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      {registro ? null : (
+        <div className="col-span-12">
+          <CadastroFormActions onCancel={onCancel} submitLabel="Salvar" isSubmitting={createAreaMutation.isPending} />
+        </div>
+      )}
+    </form>
   );
 }

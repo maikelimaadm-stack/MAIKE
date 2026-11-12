@@ -1,0 +1,91 @@
+MOVIMENTO (proposta 6.32) — design × sistema real, medido no navegador (D-PROD-165)
+
+Método: cada ação é feita no protótipo do design e no app real; todo Element.animate() (script) e todo
+animationstart (CSS) é gravado com alvo, quadros-chave, duração, curva e preenchimento, e comparado entrada a entrada.
+Ferramenta: movimento.cjs + mov-diff.cjs (fora do repositório, no ambiente de medição).
+
+Ações: abrir/fechar Ordenar, Situação, + Filtro, Mais opções, funil (Filtrar por campo / folha Filtros), menu da
+coluna, por página, excluir, lista do Setor, Sistema Produtivo, marcar opção, cards, escolher ordem, filtro novo
+(pílula cresce), sugestões da pesquisa, condição do filtro, Configurar colunas, aba editando × leitura, próximo
+registro, editar, cancelar, voltar à lista, aperto do Novo, folha do celular (✕, Esc, escolher opção), abrir card.
+
+Contagem de animações por ação (design | app):
+celular-e-mais-opcoes              design   4  app   4
+celular-f-aperto-novo              design   3  app   3
+celular-h-busca                    design   1  app   1
+celular-i-funil                    design   5  app   5
+celular-m-ac-setor                 design   4  app   4
+celular-n-multi-sistema            design   2  app   2
+celular-q-folha-filtros-fecha      design   3  app   3
+celular-r-folha-setor-escolhe      design   3  app   3
+celular-s-folha-esc                design   2  app   2
+celular-v-busca-sugestao           design   2  app   2
+celular-ze-celular-abre            design   2  app   2
+desktop-a-abre-ordem               design  14  app  14
+desktop-b-fecha-ordem              design   2  app   2
+desktop-c-abre-situacao            design   7  app   7
+desktop-d-mais-filtro              design  31  app  31
+desktop-e-mais-opcoes              design   4  app   4
+desktop-f-aperto-novo              design   3  app   3
+desktop-g-abre-registro            design   2  app   2
+desktop-h-busca                    design   1  app   1
+desktop-i-funil                    design   3  app   3
+desktop-j-menu-coluna              design   4  app   4
+desktop-k-por-pagina               design   4  app   4
+desktop-l-excluir                  design   2  app   2
+desktop-m-ac-setor                 design   2  app   2
+desktop-n-multi-sistema            design   2  app   2
+desktop-o-marca-situacao           design   2  app   2
+desktop-p-cards                    design   3  app   3
+desktop-t-ordem-escolhe            design   3  app   3
+desktop-u-novo-filtro              design   3  app   3
+desktop-v-busca-sugestao           design   2  app   2
+desktop-w-condicao                 design   4  app   4
+desktop-x-config-colunas           design   3  app   3
+desktop-y-aba-editando             design   3  app   3
+desktop-z-aba-leitura              design   2  app   2
+desktop-za-proximo                 design   2  app   3
+desktop-zb-editar                  design   2  app   2
+desktop-zc-cancelar                design   3  app   2
+desktop-zd-voltar-lista            design   0  app   0
+tablet-a-abre-ordem                design  14  app  14
+tablet-b-fecha-ordem               design   2  app   2
+tablet-c-abre-situacao             design   7  app   7
+tablet-d-mais-filtro               design  31  app  31
+tablet-e-mais-opcoes               design   4  app   4
+tablet-f-aperto-novo               design   3  app   3
+tablet-g-abre-registro             design   2  app   2
+tablet-h-busca                     design   1  app   1
+tablet-i-funil                     design   3  app   3
+tablet-j-menu-coluna               design   4  app   4
+tablet-k-por-pagina                design   4  app   4
+tablet-l-excluir                   design   2  app   2
+tablet-m-ac-setor                  design   2  app   2
+tablet-n-multi-sistema             design   2  app   2
+tablet-o-marca-situacao            design   2  app   2
+tablet-p-cards                     design   3  app   3
+tablet-t-ordem-escolhe             design   3  app   3
+tablet-u-novo-filtro               design   3  app   3
+tablet-v-busca-sugestao            design   2  app   2
+tablet-w-condicao                  design   4  app   4
+tablet-x-config-colunas            design   3  app   3
+tablet-za-proximo                  design   0  app   3
+tablet-zb-editar                   design   2  app   2
+tablet-zc-cancelar                 design   3  app   2
+tablet-zd-voltar-lista             design   0  app   0
+(tablet-za-proximo: o design não deixa clicar — ver abaixo)
+
+Comparação entrada a entrada:
+TOTAL design 250: idênticas 227 · só px diferente 16 · resto 7
+
+O que não é idêntico, e por quê:
+- 16 só em px: o recorte de partida (o botão) mede alguns px diferente porque a fonte é a do sistema.
+- 5 'folha': mesma animação na mesma folha; no app ela tem uma classe a mais (mk-base1-sheet).
+- 2 'Cancelar': no design a mola de volta roda num botão que já sumiu da tela (sem efeito visível); no app o botão sai.
+- 'Próximo registro' no app: o formulário remonta ao trocar de registro, então a mola continua no botão novo (mesmo
+  lugar, mesmo nome, mesmo ponto da curva) — na tela, igual ao design, que não remonta.
+- tablet 'Próximo registro': no arquivo do design a área de rolagem cobre os botões ‹ › no tablet (não dá para clicar);
+  no sistema eles funcionam.
+
+Quadros congelados no mesmo instante (60, 150 e 300 ms): movimento-ordem.png e movimento-mais-opcoes.png
+(esquerda = design, direita = sistema real).

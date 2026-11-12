@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
@@ -59,6 +59,7 @@ export default function FormularioGrupoAtividade({
       className="b1 mg-b1-form-grid w-full min-h-0"
       noValidate
       data-testid="b1-form-grupo-atividade"
+      data-densidade={DENSIDADE_BASE1}
     >
       <B1Field
         label="Nome do Grupo"

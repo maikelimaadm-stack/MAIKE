@@ -149,7 +149,8 @@ describe('Centros de Custo — formulário e hierarquia', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     const select = within(screen.getByTestId('b1-form')).getByLabelText(/Centro pai/);
     await esperarPais();
-    expect(await rotulosDasOpcoes(select)).toEqual(['— Nenhum (raiz) —', 'AGRICULTURA', 'PECUÁRIA']);
+    // D-PROD-172: sem a opção vazia na lista; "raiz" é o ✕ (Limpar) do campo.
+    expect(await rotulosDasOpcoes(select)).toEqual(['AGRICULTURA', 'PECUÁRIA']);
   });
 
   it('mudar o pai envia só pai_id; virar raiz envia pai_id=null', async () => {
@@ -159,7 +160,8 @@ describe('Centros de Custo — formulário e hierarquia', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     const select = within(screen.getByTestId('b1-form')).getByLabelText(/Centro pai/);
     await esperarPais();
-    await escolherOpcao(select, '— Nenhum (raiz) —');
+    // D-PROD-172: virar raiz = o ✕ (Limpar) do campo "Centro pai".
+    fireEvent.click(within(select.closest('.mg-field')).getByRole('button', { name: 'Limpar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Centro de custo atualizado');
     expect(backend.chamadas.find((c) => c.method === 'PATCH').body).toEqual({ empresa_id: 'emp-1', pai_id: null });
@@ -234,10 +236,11 @@ describe('Centros de Custo — vínculo N:N com Centros de Resultado', () => {
     const secao = await screen.findByTestId('vinculos-centro-custo');
     expect(await within(secao).findByText('1 · BEZERROS')).toBeTruthy();
     fireEvent.click(within(secao).getByRole('button', { name: 'Alterar vínculos' }));
-    await within(secao).findByRole('checkbox', { name: '2 · BOI GORDO' });
-    fireEvent.click(within(secao).getByRole('checkbox', { name: '2 · BOI GORDO' }));
-    fireEvent.click(within(secao).getByRole('checkbox', { name: '3 · GRÃOS' }));
-    fireEvent.click(within(secao).getByRole('checkbox', { name: '1 · BEZERROS' }));
+    // D-PROD-168: os centros são marcados na lista do campo (a caixa de marcar fica à direita).
+    fireEvent.click(within(secao).getByRole('combobox', { name: 'Centros de resultado' }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: '2 · BOI GORDO' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '3 · GRÃOS' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '1 · BEZERROS' }));
     const leiturasAntes = backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/centros-custo/c1/centros-resultado').length;
     fireEvent.click(within(secao).getByRole('button', { name: 'Salvar vínculos' }));
     await screen.findByText('Vínculos atualizados');
@@ -256,7 +259,8 @@ describe('Centros de Custo — vínculo N:N com Centros de Resultado', () => {
     await abrirRegistro('PECUÁRIA');
     const secao = await screen.findByTestId('vinculos-centro-custo');
     fireEvent.click(await within(secao).findByRole('button', { name: 'Alterar vínculos' }));
-    fireEvent.click(await within(secao).findByRole('checkbox', { name: '2 · BOI GORDO' }));
+    fireEvent.click(await within(secao).findByRole('combobox', { name: 'Centros de resultado' }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: '2 · BOI GORDO' }));
     proximaResposta = erroServidor(409, 'CENTRO_INATIVO', { details: { field: 'centro_resultado_ids' } });
     fireEvent.click(within(secao).getByRole('button', { name: 'Salvar vínculos' }));
     expect(await screen.findByText(/não recebe vínculo novo/)).toBeTruthy();

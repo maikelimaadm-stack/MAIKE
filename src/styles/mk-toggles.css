@@ -68,7 +68,7 @@
 }
 :is(.b1-switch, .mk-ios-switch):active:not(:disabled):not([aria-readonly="true"]) > :is(.b1-switch__thumb, .mk-ios-switch__thumb)::after,
 .mk-vis__linha:active .mk-ios-switch__thumb::after { opacity: 1; transform: scale(1); }
-:is(.b1-switch, .mk-ios-switch):focus-visible:not(#mk-padrao) { outline: 2px solid #64748b; outline-offset: 3px; }
+:is(.b1-switch, .mk-ios-switch):focus-visible:not(#mk-padrao) { outline: 2px solid var(--mkq-64748b, #64748b); outline-offset: 3px; }
 :is(.b1-switch, .mk-ios-switch):disabled:not(#mk-padrao) { opacity: .45; cursor: not-allowed; }
 :is(.b1-switch, .mk-ios-switch)[aria-readonly="true"]:not(#mk-padrao) { cursor: default; }
 @media (prefers-reduced-motion: reduce) {

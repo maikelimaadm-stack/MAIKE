@@ -6,7 +6,7 @@ import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { formatarMoedaInput, parseMoedaInput } from "@/components/financeiro/moedaUtils";
 import { parseDecimalPtBR } from "@/domain/numeroPtBR";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
@@ -242,6 +242,7 @@ export default function FormularioProduto({
       className="b1 mg-b1-form-grid w-full min-h-0"
       noValidate
       data-testid="b1-form-produto"
+      data-densidade={DENSIDADE_BASE1}
     >
       <B1Field
         label="Nome do Produto"
@@ -546,7 +547,7 @@ export default function FormularioProduto({
         </>
       ) : null}
 
-      <div className="col-span-12 font-semibold text-xs text-slate-700 pt-1">Unidade de Estoque</div>
+      <B1TituloGrupo titulo="Unidade de Estoque" />
 
       <B1Field
         label="Unidade principal de estoque"

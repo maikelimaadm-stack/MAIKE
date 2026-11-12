@@ -8,6 +8,8 @@ import {
 } from "@/services/centroService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { mensagemErroGestao } from "@/lib/gestaoErros";
+import B1Field, { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao";
 
 const rotuloCentro = (c) => `${c.numero != null ? `${c.numero} · ` : ""}${c.nome}`;
 
@@ -89,9 +91,10 @@ export function VinculosCentroCusto({ empresaId, centroCustoId, podeEditar }) {
     setEditando(false);
     setConfirmarVazio(false);
   };
-  const alternar = (id) => {
+  /** @param {string[]} proximos */
+  const definirSelecionados = (proximos) => {
     setConfirmarVazio(false);
-    setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelecionados(proximos);
   };
 
   const podeSalvar = Boolean(empresaId && centroCustoId) && conjuntoReal && opcoes.isSuccess && !opcoes.isFetching && !salvar.isPending;
@@ -151,18 +154,20 @@ export function VinculosCentroCusto({ empresaId, centroCustoId, podeEditar }) {
               </button>
             </div>
           ) : null}
-          <div className="b1-multi" role="group" aria-label="Escolher centros de resultado">
-            {lista.map((c) => {
-              const on = selecionados.includes(c.id);
-              return (
-                <button key={c.id} type="button" role="checkbox" aria-checked={on} disabled={salvar.isPending} onClick={() => alternar(c.id)} className={`b1-multi__op${on ? " is-on" : ""}`}>
-                  {rotuloCentro(c)}
-                  {c.ativo === false ? " (inativo)" : ""}
-                </button>
-              );
-            })}
-            {opcoes.isSuccess && !lista.length ? <span className="text-xs">Nenhum centro de resultado ativo.</span> : null}
-          </div>
+          {/* Marcar vários (D-PROD-168): a mesma lista do Sistema Produtivo, com a caixa de marcar à direita.
+              Fica fora do formulário do registro: a grade com a densidade do motor dá ao campo o mesmo desenho dos outros. */}
+          <form data-densidade={DENSIDADE_BASE1} className="b1 mg-b1-form-grid b1-form-embutido" onSubmit={(e) => e.preventDefault()}>
+            <B1Field label="Centros de resultado" span={12} hasValue={selecionados.length > 0} disabled={salvar.isPending}>
+              <B1MultiSelecao
+                rotulo="Centros de resultado"
+                opcoes={lista.map((c) => ({ value: c.id, label: `${rotuloCentro(c)}${c.ativo === false ? " (inativo)" : ""}` }))}
+                valor={selecionados}
+                onChange={definirSelecionados}
+                disabled={salvar.isPending}
+              />
+            </B1Field>
+          </form>
+          {opcoes.isSuccess && !lista.length ? <span className="text-xs">Nenhum centro de resultado ativo.</span> : null}
           {confirmarVazio ? (
             <p className="mt-2 text-xs text-amber-800" role="alert" data-testid="vinculos-confirmar-vazio">
               Nenhum centro selecionado: salvar vai REMOVER todos os vínculos deste centro de custo. Clique em “Confirmar remoção” para seguir.

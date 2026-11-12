@@ -72,9 +72,9 @@ describe('PAR — seletores', () => {
 });
 
 describe('PAR — lista', () => {
-  it('PAR6 — resumo na ordem Listados, Filtrados, Totais, Selecionados', () => {
+  it('PAR6 — resumo em palavras: total da lista e, quando houver, a seleção (D-PROD-164)', () => {
     const fonte = readFileSync('src/components/cadastro/base1/CadastroListaChrome.jsx', 'utf8');
-    const ordem = ['Listados:', 'Filtrados:', 'Totais:', 'Selecionados:'].map((t) => fonte.indexOf(`>${t} {`));
-    expect(ordem.every((i, k) => i > 0 && (k === 0 || i > ordem[k - 1]))).toBe(true);
+    expect(fonte.indexOf('b1-sum__total')).toBeGreaterThan(0);
+    expect(fonte.indexOf('b1-sum__sel')).toBeGreaterThan(fonte.indexOf('b1-sum__total'));
   });
 });

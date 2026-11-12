@@ -9,7 +9,62 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-10) — MAIKE-PATRIMONIO-SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
+## Missão ativa (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-175**, pedida pelo proprietário em 2026-11-11: "as fontes estão enormes […] deixe as fontes do tamanho que estava no anterior" e "o estilo e tamanho das fontes eu quero deixe igual está aqui nessa visualização do vercel" (prévia `maike-funzkhxes`, commit `836344f`) |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-174 |
+| Escopo | Reversão do código da D-PROD-173 e da D-PROD-167: DM Sans e os tamanhos de antes em todo o sistema e no mapa. Medido igual à prévia em Produtos, Lotes, Mapa Geral e Detalhes do Lote (1366 e 390 px). Ficam as telas no motor da D-PROD-169 a D-PROD-174 |
+| Migration | Nenhuma |
+| Release | Merge e deploy, depois do OK do proprietário nas imagens |
+| Relatório | [`UI-FONTES-PREVIA-D175-REPORT.md`](./UI-FONTES-PREVIA-D175-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-CADASTRO-MAPA: Cadastro de Áreas, Pontos e Linhas no motor Base1 (D-PROD-174)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-174**, pedida pelo proprietário em 2026-11-11: "Já aproveite e já ajuste também para cadastro de áreas, etc" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-173 |
+| Escopo | Cada aba (Áreas, Pontos, Linhas) vira uma tela do motor: barra, faixa, grade e cards, registro. "+ Novo" desenha no mapa; GPS, seleção no mapa, importação, pontos em lote e ações em lote das áreas em "Mais opções"; "Editar no mapa" no registro. Formulário da Área com campos e listas do motor; Ponto e Linha com a lista do motor (`SelectDoMotor`) e travados em leitura. Saem as tabelas antigas |
+| Migration | Nenhuma |
+| Release | Merge e deploy |
+| Relatório | [`UI-CADASTRO-MAPA-D174-REPORT.md`](./UI-CADASTRO-MAPA-D174-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-MAPA-TIPOGRAFIA: o Mapa Geral com a tipografia do motor Base1 (D-PROD-173)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-173**, pedida pelo proprietário em 2026-11-11: "ajuste todas as fontes do meu mapa para igual a fonte do motor base 1 […] Detalhes de lote, etc" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` com a D-PROD-172 |
+| Escopo | Detalhes do Lote (tabela de papéis `TIPO`), Filtros e Visualização, manejos e janelas abertos pelo mapa: texto 14 px, apoio 13 px, títulos em Lato 13 px / 600, nada abaixo de 13 px fora as peças do próprio motor. Ficam os rótulos desenhados sobre o mapa e a atribuição. Fora: Cadastro de Áreas, Pontos e Linhas no motor (D-PROD-174) |
+| Migration | Nenhuma |
+| Release | Merge e deploy |
+| Relatório | [`UI-MAPA-TIPOGRAFIA-D173-REPORT.md`](./UI-MAPA-TIPOGRAFIA-D173-REPORT.md) |
+
+## Missão anterior (2026-11-11) — UI-GESTAO-MOTOR: Gestão, Patrimônio e Financeiro no padrão do motor Base1 (D-PROD-172)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-172**, pedida pelo proprietário em 2026-11-11: filtros fora da barra (na faixa do motor), campos, listagem e escolha iguais ao motor em Bens, Abastecimentos e no financeiro. Antes dela, na mesma branch: **D-PROD-171** (PR #243, mergeada em `899df140`), que devolveu os filtros do celular às folhas e deixou só o menu "⋮" da coluna como "Mais opções" |
+| Branch / PR | `claude/design-implementation-optimize-7wr2qh`, sobre a `main` `899df140` |
+| Escopo | Filtros da tela como pílulas da faixa (Centros, Parceiros, Naturezas, Bens, Abastecimentos, Lançamentos); `CampoSelect` com pesquisa, MAIÚSCULAS e ✕ (sem opção vazia); `SeletorPaginadoGestao` na janela das listas do motor; painel de perfil financeiro no cartão do motor. Fora: Cadastro de Áreas, Pontos e Linhas e fontes do Mapa Geral (próxima missão) |
+| Migration | Nenhuma |
+| Release | Merge e deploy; nada é gravado de outro jeito |
+| Relatório | [`UI-GESTAO-MOTOR-D172-REPORT.md`](./UI-GESTAO-MOTOR-D172-REPORT.md) |
+
+## Missão anterior (2026-11-11) — MAIKE-PATRIMONIO-SIMPLIFICA-02: Produtos aceitos em qualquer unidade, sem Área/Localização, Família fora da tela (D-PROD-169)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-169**, pedida pelo proprietário em 2026-11-11 depois de testar a SIMPLIFICA-01 em produção. Respostas: "Família some", "Tipo de bem + Tipo", "Junta tudo numa PR só". **D-PROD-170**: Patrimônio no modelo do motor Base1 (janelas `B1Janela` e botões do motor), pedido do proprietário antes do merge |
+| Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `87e8a5ca` (merge da PR #239), com a `main` da PR #242 (SVG, D-PROD-163) e da PR #240 (motor Base1, D-PROD-164 a D-PROD-168) integrada por merge. Vai junto da PR [#241](https://github.com/maikelimaadm-stack/MAIKE/pull/241), que registra a release da D-PROD-162 |
+| Escopo | **Tanque e abastecimento:** Produtos aceitos em L, KG ou SACO; SACO abastece em kg, a unidade de estoque. **Bem:** saem Área e Localização; sai a Família; a lista fixa "Tipo de bem" (natureza) vem com o "Tipo" do usuário, com "+ Novo tipo" e "Gerenciar tipos" (listar, renomear, excluir; tipo em uso → 409 `PATRIMONIO_TIPO_EM_USO`). **Catálogo:** garantido automaticamente, com a família padrão `OUTROS` |
+| Migration | Nenhuma |
+| Release | Merge e deploy; não há escrita no banco |
+| Relatório | [`MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-02-REPORT.md) |
+
+## Missão anterior (2026-11-10) — MAIKE-PATRIMONIO-SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
 
 | Campo | Valor |
 |---|---|
@@ -18,7 +73,7 @@ rollout pausado **D-PROD-41**)
 | Escopo | **Bens:** Família e Tipo escolhidos e criados no próprio formulário ("+ Nova família", "+ Novo tipo"), "⋯ › Gerenciar famílias e tipos" e "Instalar catálogo padrão" (só administrador); cada tanque com "Produtos aceitos" do estoque (L ou KG, até 20). **Abastecimentos:** Máquina/Veículo → Produto → Tanque (só com mais de um) → Local → quantidade na unidade do Produto → medidor → "Completou o tanque?" → revisar → confirmar; o estoque baixa **exatamente** a quantidade digitada, sem conversão; capacidade conferida só para Produto em L; consumo km/L, L/h, km/kg ou kg/h. **Produto e Gestão P3:** unidade "LITROS (L)"; KG e SACO byte a byte como antes. **Mapa Geral:** depósito soma só Produtos em kg (P-11). **Saem:** as páginas `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e `Combustiveis`, perfis de medição, medições de benfeitoria, tipos de combustível, vínculo combustível × produto, fator kg/L e a ação `configurar_conversao`. **Fora:** manutenção, OS, custo/hora, saldo de tanque, unidade que não seja L nem KG |
 | Backend | Rotas removidas respondem 404; Abastecimentos 16 → **11** rotas; nova `GET /bens-patrimoniais-opcoes/produtos`; famílias e tipos guardados pela tela de Bens ([cobertura](./MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md)). Idempotência v2 do abastecimento (recibo v1 nunca reaproveitado) |
 | Migration | `20261110300000_patrimonio_simplifica`, **CONTRACT** (exceção única): guarda fail-closed (0 abastecimento CONFIRMADO, impressão das contagens aprovada, papel dono das 13, nada criado fora das migrations), **apaga as 13 tabelas do Patrimônio** com os dados de todos os clientes, alarga 2 CHECKs de `OperacaoFinanceiraItem` para aceitar `'L'` e cria 7 tabelas no formato novo (inclusive `TanqueBemProduto`). SHA-256 `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222`. Repositório: 39 → **40** migrations, 85 → **79** tabelas. `deploy:migrate` remoto só aplica com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162`, que só o `premerge-migrate --aplicar --contract D-PROD-162` define. **Não aplicada em nenhum ambiente remoto** |
-| Release | Migration **antes** do merge, pelo runbook [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md) (não executado). Entre o `COMMIT` e o deploy READY o runtime antigo responde 500 no Patrimônio e em 3 rotas de produto/empresa: merge imediato, `main` congelada, horário de pouco uso. Dado apagado só volta pelo backup do banco inteiro; reversão de schema só até a primeira escrita (P-12) |
+| Release | Migration **antes** do merge, pelo runbook [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md), **executado em 2026-11-11** (caminho B; PR #239 mergeada em `87e8a5ca`; deploy READY; postcheck R1–R9 e C1–C4 ok; registro no §11 do runbook). Entre o `COMMIT` e o deploy READY o runtime antigo responde 500 no Patrimônio e em 3 rotas de produto/empresa: merge imediato, `main` congelada, horário de pouco uso. Dado apagado só volta pelo backup do banco inteiro; reversão de schema só até a primeira escrita (P-12) |
 | GO do proprietário | Escrito em 2026-11-10 para a limpeza em produção: "pode apaguar oque tiver lançado dessas tabelas", "olha pode fazer não precisa pedir confirmação ok, pode fazer", "ok apague oque tiver faça oque tem que fazer". Alcance e limites na D-PROD-162: as barreiras técnicas fail-closed continuam valendo |
 | Relatório | [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md) |
 | Antes dela | Estoque P0-01 (D-PROD-161): PR #238 mergeada na `main` (`e8472481`, 2026-11-11 00:27:25 UTC), sem migration. Antes, UX-02 (D-PROD-160): PR #237 mergeada (`e39d318b`, 2026-11-10 19:51:48 UTC), sem migration. Produção: 39 migrations, 85 tabelas |

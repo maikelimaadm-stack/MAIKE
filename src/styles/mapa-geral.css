@@ -16,15 +16,15 @@
   --mk-mapa-gap: 10px;
   --mk-mapa-alto: 40px;
   --mk-mapa-verde: #15803d;
-  --mk-mapa-texto: #0f172a;
-  --mk-mapa-suave: #64748b;
+  --mk-mapa-texto: var(--mkq-0f172a, #0f172a);
+  --mk-mapa-suave: var(--mkq-64748b, #64748b);
 }
 
 .mk-mapa-card {
   background: rgba(255, 255, 255, 0.97);
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.07);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.08), 0 6px 18px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
   color: var(--mk-mapa-texto);
 }
 
@@ -43,12 +43,12 @@
   width: var(--mk-mapa-alto);
   height: var(--mk-mapa-alto);
   border-radius: 12px;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
   transition: background-color 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.mk-mapa-btn:hover { background: rgba(15, 23, 42, 0.05); }
-.mk-mapa-btn:active { background: rgba(15, 23, 42, 0.09); }
+.mk-mapa-btn:hover { background: rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.05); }
+.mk-mapa-btn:active { background: rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.09); }
 .mk-mapa-btn.is-on,
 .mk-mapa-btn[aria-pressed="true"] {
   background: var(--mk-mapa-verde);
@@ -88,7 +88,7 @@
   padding: 0 14px;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
   -webkit-tap-highlight-color: transparent;
 }
 .mk-mapa-chip:hover { background: #fff; color: var(--mk-mapa-texto); }
@@ -146,8 +146,8 @@
   width: 30px;
   height: 30px;
   border-radius: 9999px;
-  background: var(--mk-sup-fundo, #FAFCFE);
-  color: #475569;
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
+  color: var(--mkq-475569, #475569);
 }
 .mk-mapa-camadas__corpo { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px 12px; }
 .mk-mapa-camadas__titulo {
@@ -169,14 +169,14 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
 .mk-mapa-camada__mini {
   width: 100%;
   height: 54px;
   border-radius: 10px;
   border: 2px solid transparent;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
 }
 .mk-mapa-camada.is-on { color: var(--mk-mapa-verde); }
 .mk-mapa-camada.is-on .mk-mapa-camada__mini { border-color: var(--mk-mapa-verde); box-shadow: none; }
@@ -217,7 +217,7 @@
   padding: 0 12px;
   line-height: 1.1;
 }
-.mk-mapa-resumo__item + .mk-mapa-resumo__item { border-left: 1px solid rgba(15, 23, 42, 0.09); }
+.mk-mapa-resumo__item + .mk-mapa-resumo__item { border-left: 1px solid rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.09); }
 .mk-mapa-resumo__num {
   font-size: 16px;
   font-weight: 700;
@@ -233,18 +233,18 @@
 .mk-mapa .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin: 0 var(--mk-mapa-gap) var(--mk-mapa-gap) 0; }
 .mk-mapa .maplibregl-ctrl-group {
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.07);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.08), 0 6px 18px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.1);
 }
 .mk-mapa .maplibregl-ctrl-group button { width: 40px; height: 38px; }
-.mk-mapa .maplibregl-ctrl-group button + button { border-top-color: rgba(15, 23, 42, 0.08); }
+.mk-mapa .maplibregl-ctrl-group button + button { border-top-color: rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.08); }
 /* Atribuição nativa ("Google Maps" / OpenFreeMap): letra pequena, discreta */
 .mk-mapa .maplibregl-ctrl-attrib.maplibregl-compact {
   margin: 0 var(--mk-mapa-gap) var(--mk-mapa-gap) 0;
   background: rgba(255, 255, 255, 0.78);
   font-size: 10px;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
 .mk-mapa .maplibregl-ctrl-attrib-inner a { color: inherit; }
 
@@ -271,7 +271,7 @@
   background: rgba(255, 255, 255, 0.72);
   font-size: 9.5px;
   line-height: 15px;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
 .mk-atrib__info {
   display: inline-flex;
@@ -281,17 +281,17 @@
   padding-right: 2px;
   border-radius: 5px;
   font: inherit;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
-.mk-atrib__info[aria-expanded="true"] { background: rgba(15, 23, 42, 0.08); }
+.mk-atrib__info[aria-expanded="true"] { background: rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.08); }
 .mk-atrib__fontes {
   padding: 6px 8px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 6px 18px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.14);
   font-size: 11px;
   line-height: 1.4;
-  color: #1e293b;
+  color: var(--mkq-1e293b, #1e293b);
   overflow-wrap: anywhere;
 }
 
@@ -310,9 +310,9 @@
   padding: 6px 6px 6px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 6px 18px rgba(var(--mkq-rgb-15-23-42, 15, 23, 42), 0.14);
   font-size: 12px;
-  color: #1e293b;
+  color: var(--mkq-1e293b, #1e293b);
   animation: mk-mapa-pop 0.16s ease-out;
 }
 .mk-mapa-aviso--info { padding: 6px 12px; border-radius: 9999px; }
@@ -324,19 +324,19 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 11px;
-  color: var(--mk-mapa-suave, #64748b);
+  color: var(--mk-mapa-suave, var(--mkq-64748b, #64748b));
 }
 .mk-mapa-aviso__btn {
   flex: none;
   height: 30px;
   padding: 0 10px;
   border-radius: 9px;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
   font-size: 12px;
   font-weight: 600;
   color: var(--mk-mapa-verde, #15803d);
 }
-.mk-mapa-aviso__btn:hover { background: #e2e8f0; }
+.mk-mapa-aviso__btn:hover { background: var(--mkq-e2e8f0, #e2e8f0); }
 .mk-mapa-aviso__x {
   display: inline-flex;
   flex: none;
@@ -345,14 +345,14 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: #64748b;
+  color: var(--mkq-64748b, #64748b);
 }
-.mk-mapa-aviso__x:hover { background: var(--mk-sup-fundo, #FAFCFE); }
+.mk-mapa-aviso__x:hover { background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE)); }
 .mk-mapa-aviso__spin {
   width: 12px;
   height: 12px;
   border-radius: 9999px;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--mkq-cbd5e1, #cbd5e1);
   border-top-color: var(--mk-mapa-verde, #15803d);
   animation: mk-mapa-gira 0.8s linear infinite;
 }
@@ -382,7 +382,7 @@
 }
 
 /* ── Painel Visualização (D-PROD-132: discreto, neutro) ──────────────────── */
-.mk-mapa-btn--solo.is-on { background: var(--mk-sup-fundo, #FAFCFE); color: var(--mk-mapa-texto); }
+.mk-mapa-btn--solo.is-on { background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE)); color: var(--mk-mapa-texto); }
 .mk-vis__secao + .mk-vis__secao { margin-top: 12px; }
 .mk-vis__titulo {
   margin: 0 0 6px 2px;
@@ -399,7 +399,7 @@
   gap: 4px;
   padding: 3px;
   border-radius: 10px;
-  background: var(--mk-sup-fundo, #FAFCFE);
+  background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE));
 }
 .mk-vis__seg-op {
   display: inline-flex;
@@ -412,7 +412,7 @@
   border-radius: 8px;
   font-size: 12.5px;
   font-weight: 500;
-  color: #475569;
+  color: var(--mkq-475569, #475569);
 }
 .mk-vis__seg-op:hover { color: var(--mk-mapa-texto); }
 /* Escolhida: checkbox + fundo verde-claro (D-PROD-151) — ver mk-unificado.css */
@@ -428,13 +428,13 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 9999px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--mkq-e2e8f0, #e2e8f0);
   background: #fff;
   font-size: 12px;
   font-weight: 500;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
-.mk-vis__chip:hover { background: var(--mk-sup-fundo, #FAFCFE); }
+.mk-vis__chip:hover { background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE)); }
 /* Seleção ativa: checkbox + fundo verde-claro (D-PROD-151); sem pill cheia. */
 
 /* Mostrar no mapa: linhas com checkbox (D-PROD-151) */
@@ -449,10 +449,10 @@
   padding: 0 10px;
   text-align: left;
   font-size: 11px;
-  color: #334155;
+  color: var(--mkq-334155, #334155);
 }
-.mk-vis__linha:hover { background: var(--mk-sup-fundo, #FAFCFE); }
-.mk-vis__linha-ic { flex: none; color: #64748b; }
+.mk-vis__linha:hover { background: var(--mk-sup-fundo, var(--mkq-fafcfe, #FAFCFE)); }
+.mk-vis__linha-ic { flex: none; color: var(--mkq-64748b, #64748b); }
 .mk-vis__linha-txt { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .mk-vis__seg-op:focus-visible,
 .mk-vis__chip:focus-visible,

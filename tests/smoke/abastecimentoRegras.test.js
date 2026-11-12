@@ -33,10 +33,16 @@ import {
   opcaoNoFormulario,
   produtoAutomatico,
   quantidadeDaBaixaNaPrevia,
+  DICA_PRODUTO_EM_KG,
+  DICA_PRODUTO_EM_SACO,
+  UNIDADES_ABASTECIMENTO,
+  UNIDADES_PRODUTO_ABASTECIMENTO,
+  dicaDaUnidadeDoProduto,
   rotuloDaUnidade,
   situacaoDaEscolha,
   tanqueDoFormulario,
   totaisConfirmados,
+  unidadeDoAbastecimentoDoProduto,
   unidadeDoFormulario,
   validarFormulario,
 } from '@/lib/abastecimentoRegras';
@@ -178,8 +184,11 @@ describe('validação local', () => {
     expect(validarFormulario(formTrator({ quantidade: '180' }), ctx).erros.quantidade).toBeUndefined();
     // Produto em KG: o número da capacidade (litros) NÃO limita os quilos.
     expect(validarFormulario(formTrator({ produto: PRODUTO_KG, quantidade: '500' }), ctx).erros.quantidade).toBeUndefined();
-    // Unidade desconhecida (Produto fora de L/KG): a tela não promete capacidade; o servidor bloqueia o Produto.
+    // D-PROD-169: Produto em SACO baixa em kg — a capacidade (litros) também não limita.
     expect(validarFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' }, quantidade: '500' }), ctx).erros.quantidade).toBeUndefined();
+    expect(validarFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' }, quantidade: '500' }), { ...ctx, unidade: 'SACO' }).erros.quantidade).toBeUndefined();
+    // Unidade desconhecida (Produto fora de L/KG/SACO): a tela não promete capacidade; o servidor bloqueia o Produto.
+    expect(validarFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'UN' }, quantidade: '500' }), ctx).erros.quantidade).toBeUndefined();
     expect(validarFormulario(formTrator({ quantidade: '80', data_operacional: '2026-06-16' }), ctx).erros.data_operacional).toBe('A data não pode ser posterior a hoje na fazenda.');
     expect(validarFormulario(formTrator({ quantidade: '80', observacao: 'x'.repeat(501), referencia_externa: 'r'.repeat(65) }), ctx).erros).toEqual({
       observacao: 'No máximo 500 caracteres.',
@@ -187,11 +196,26 @@ describe('validação local', () => {
     });
   });
 
-  it('unidade do formulário: L/KG do Produto escolhido, senão null', () => {
+  it('unidade do formulário: a unidade EFETIVA do estoque do Produto (L; KG e SACO → KG, D-PROD-169), senão null', () => {
     expect(unidadeDoFormulario(formTrator())).toBe('L');
     expect(unidadeDoFormulario(formTrator({ produto: PRODUTO_KG }))).toBe('KG');
-    expect(unidadeDoFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' } }))).toBeNull();
+    expect(unidadeDoFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'SACO' } }))).toBe('KG');
+    expect(unidadeDoFormulario(formTrator({ produto: { ...PRODUTO_L, unidade_principal_estoque: 'UN' } }))).toBeNull();
     expect(unidadeDoFormulario(formularioVazio('2026-06-15'))).toBeNull();
+  });
+
+  it('D-PROD-169: unidades do Produto (L, KG, SACO) × unidade gravada (L, KG); dica por unidade do Produto', () => {
+    expect([...UNIDADES_PRODUTO_ABASTECIMENTO]).toEqual(['L', 'KG', 'SACO']);
+    expect([...UNIDADES_ABASTECIMENTO]).toEqual(['L', 'KG']);
+    expect(['L', 'KG', 'SACO', 'UN', null].map(unidadeDoAbastecimentoDoProduto)).toEqual(['L', 'KG', 'KG', null, null]);
+    expect(dicaDaUnidadeDoProduto('L')).toBeNull();
+    expect(dicaDaUnidadeDoProduto('KG')).toBe(DICA_PRODUTO_EM_KG);
+    expect(dicaDaUnidadeDoProduto('SACO')).toBe(DICA_PRODUTO_EM_SACO);
+    expect(DICA_PRODUTO_EM_SACO).toBe('Este Produto é em sacos, com estoque em quilos: digite kg (não sacos nem os litros da bomba).');
+    expect(dicaDaUnidadeDoProduto('UN')).toBeNull();
+    // A baixa da prévia de um Produto em SACO vem em KG (unidade efetiva) e aparece como baixa.
+    expect(quantidadeDaBaixaNaPrevia({ plano: { quantidade: '25.0000', unidade: 'KG' }, bloqueios: [] })).toBe('25.0000');
+    expect(quantidadeDaBaixaNaPrevia({ plano: { quantidade: '25.0000', unidade: null }, bloqueios: [] })).toBeNull();
   });
 });
 
@@ -354,9 +378,10 @@ describe('formatação (sem float)', () => {
     expect(formatarLitrosCurto('1234.5678')).toBe('1.234,5678');
     expect(formatarQuantidade('120.0000', 'L')).toBe('120,0000 L');
     expect(formatarQuantidade('80.0000', 'KG')).toBe('80,0000 kg');
-    expect(formatarQuantidade('80.0000', 'SACO')).toBe('80,0000');
+    expect(formatarQuantidade('80.0000', 'SACO')).toBe('80,0000 kg');
+    expect(formatarQuantidade('80.0000', 'UN')).toBe('80,0000');
     expect(formatarQuantidadeCurta('80.0000', 'L')).toBe('80 L');
     expect(formatarQuantidadeCurta('1200.5000', 'KG')).toBe('1.200,5 kg');
-    expect([rotuloDaUnidade('L'), rotuloDaUnidade('KG'), rotuloDaUnidade('SACO'), rotuloDaUnidade(null)]).toEqual(['L', 'kg', '', '']);
+    expect([rotuloDaUnidade('L'), rotuloDaUnidade('KG'), rotuloDaUnidade('SACO'), rotuloDaUnidade('UN'), rotuloDaUnidade(null)]).toEqual(['L', 'kg', 'kg', '', '']);
   });
 });

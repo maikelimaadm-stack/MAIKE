@@ -95,7 +95,18 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
     );
   }
 
-  const left = Math.max(8, Math.min(ancora?.left ?? 12, window.innerWidth - 268));
+  // Como no design (D-PROD-164): alinhado à esquerda do botão quando cabe; senão, à direita dele; senão, centrado.
+  const largura = 260;
+  const margem = 8;
+  const teto = window.innerWidth - largura - margem;
+  const r = ancora;
+  const left = !r
+    ? 12
+    : r.left >= 0 && r.left <= teto + 0.5
+      ? r.left
+      : r.right <= window.innerWidth + 0.5 && r.right - largura >= margem - 0.5
+        ? r.right - largura
+        : Math.max(margem, Math.min((r.left + r.right) / 2 - largura / 2, teto));
   const top = (ancora?.bottom ?? 120) + 6;
   return createPortal(
     <div
@@ -105,7 +116,7 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
       aria-label="Filtrar por campo"
       style={{ left, top, maxHeight: Math.max(200, window.innerHeight - top - 12) }}
     >
-      <div className="fpc__titulo">Filtrar por campo</div>
+      {/* Sem título: a pesquisa encosta no topo, igual às outras janelas (D-PROD-164). */}
       {conteudo}
     </div>,
     document.body,

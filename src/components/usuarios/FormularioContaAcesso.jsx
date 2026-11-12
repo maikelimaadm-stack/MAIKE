@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
@@ -105,7 +105,7 @@ export default function FormularioContaAcesso({
       title={isEditing ? "Editar conta" : "Nova conta"}
       subtitle="Login e senha da entrada do MAK Gestão. Permissões de menu ficam em Administração › Permissões."
     >
-      <form id={FORMULARIO_CONTA_ACESSO_ID} onSubmit={handleSubmit} className="space-y-2 max-w-xl">
+      <form id={FORMULARIO_CONTA_ACESSO_ID} onSubmit={handleSubmit} className="b1 mg-b1-form-grid w-full min-h-0" data-densidade={DENSIDADE_BASE1}>
         <B1Field label="Nome" required error={fieldError("nome")} disabled={readOnly}>
           <input
             type="text"
@@ -162,17 +162,20 @@ export default function FormularioContaAcesso({
         {isEditing ? (
           <B1ChaveRow
             label="Conta ativa"
+            span={6}
             checked={form.ativo}
             onChange={(checked) => handleChange("ativo", checked)}
             disabled={readOnly}
           />
         ) : null}
         {!toolbarActions ? (
-          <CadastroFormActions
-            onCancel={onCancel}
-            submitLabel={isEditing ? "Salvar conta" : "Criar conta"}
-            isSubmitting={isSubmitting}
-          />
+          <div className="col-span-12">
+            <CadastroFormActions
+              onCancel={onCancel}
+              submitLabel={isEditing ? "Salvar conta" : "Criar conta"}
+              isSubmitting={isSubmitting}
+            />
+          </div>
         ) : null}
       </form>
     </CadastroFormShell>

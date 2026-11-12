@@ -7,6 +7,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { Check, X } from "lucide-react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { OrdemDaListaContext } from "@/components/cadastro/base1/ordemDaListaBase1";
 
 /**
  * Composição compartilhada Motor Base1 — workspace + chrome + registro.
@@ -161,7 +162,7 @@ export default function CadastroBase1Screen({
           viewMode={c.showForm ? "record" : c.chrome.viewMode}
           onViewModeChange={c.onViewModeChange}
         >
-          {!c.showForm ? listSlot : null}
+          {!c.showForm ? <OrdemDaListaContext.Provider value={c.definirOrdemDaLista ?? null}>{listSlot}</OrdemDaListaContext.Provider> : null}
         </CadastroListaChrome>
       </CadastroWorkspace>
 
