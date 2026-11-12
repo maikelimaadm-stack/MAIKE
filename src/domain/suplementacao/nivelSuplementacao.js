@@ -332,7 +332,11 @@ const fimMinimoDoCiclo = (dia, base, taxa) => {
 };
 
 /** Intervalos [ini, fim) de dias; `fim` null = sem fim. @param {{ini: string, fim: string|null}} a @param {{ini: string, fim: string|null}} b */
-const intervalosSeCruzam = (a, b) => (b.fim == null || a.ini < b.fim) && (a.fim == null || b.ini < a.fim);
+const intervalosSeCruzam = (a, b) => {
+  // Intervalo vazio (ciclo de base 0, período de 0 dia) não divide nada.
+  if ((a.fim != null && a.fim <= a.ini) || (b.fim != null && b.fim <= b.ini)) return false;
+  return (b.fim == null || a.ini < b.fim) && (a.fim == null || b.ini < a.fim);
+};
 
 /**
  * Classes de produto: fecho transitivo de "mesmo produto" sobre todos os
@@ -389,6 +393,26 @@ function montarClassesDeProduto(eventos) {
  * }} ContextoDosCochos
  */
 
+/** Eventos agrupados por ponto, em cache pela identidade do array (o mapa calcula todos os cochos com o mesmo). */
+const EVENTOS_POR_PONTO = new WeakMap();
+
+/** Eventos do ponto, sem varrer o array inteiro a cada cocho. @param {any} ponto @param {any[]} eventos @returns {any[]} */
+function eventosDoPonto(ponto, eventos) {
+  if (!ponto?.id || !Array.isArray(eventos)) return [];
+  let indice = EVENTOS_POR_PONTO.get(eventos);
+  if (!indice) {
+    indice = new Map();
+    for (const evento of eventos) {
+      if (!evento?.ponto_suplementacao_id) continue;
+      const chave = String(evento.ponto_suplementacao_id);
+      const lista = indice.get(chave);
+      if (lista) lista.push(evento); else indice.set(chave, [evento]);
+    }
+    EVENTOS_POR_PONTO.set(eventos, indice);
+  }
+  return indice.get(String(ponto.id)) || [];
+}
+
 /** Contextos por (eventos, pontos, hoje): o mapa calcula todos os cochos com os MESMOS arrays. */
 const CONTEXTOS = new WeakMap();
 
@@ -431,6 +455,8 @@ function montarContextoDosCochos(eventos, pontos, hoje) {
       .map((evento) => ({ evento, dia: diaDoLancamento(evento.data_lancamento) }))
       .filter((item) => item.dia != null)
       .sort((a, b) => (/** @type {string} */ (a.dia) < /** @type {string} */ (b.dia) ? -1 : a.dia === b.dia ? 0 : 1));
+    // Ciclo atual: o último lançamento NÃO futuro (mesma escolha de `selecionarUltimoEventoDoPonto`).
+    const atual = selecionarUltimoEventoDoPonto(ponto, validos.filter((item) => naoFuturo(/** @type {string} */ (item.dia))).map((item) => item.evento));
     /** @type {CicloRegistrado[]} */
     const ciclos = [];
     for (let indice = 0; indice < validos.length; indice += 1) {
@@ -443,15 +469,18 @@ function montarContextoDosCochos(eventos, pontos, hoje) {
         // Fechado: o período registrado.
         const diasPeriodo = numeroOuNulo(evento.dias_periodo);
         fim = diasPeriodo != null && diasPeriodo >= 0 && diasPeriodo <= LIMITE_DIAS_CICLO ? somarDias(ini, Math.ceil(diasPeriodo)) || null : null;
-      } else {
-        // Aberto: até o lançamento seguinte do mesmo cocho (mesmo futuro); o último fica sem fim.
+      } else if (evento !== atual) {
+        // Aberto e substituído: até o lançamento seguinte do mesmo cocho (mesmo
+        // futuro). Irmão do MESMO dia do ciclo atual (lançamento duplicado que
+        // ficou aberto) faz parte dele: intervalo vazio, nunca ciclo sem fim.
+        fim = ini;
         for (let seguinte = indice + 1; seguinte < validos.length; seguinte += 1) {
           if (/** @type {string} */ (validos[seguinte].dia) > ini) { fim = /** @type {string} */ (validos[seguinte].dia); break; }
         }
+        if (atual && diaDoLancamento(atual.data_lancamento) === ini) fim = ini;
       }
       ciclos.push({ ini, fim, classe: classe(evento), evento });
     }
-    const atual = selecionarUltimoEventoDoPonto(ponto, validos.filter((item) => naoFuturo(/** @type {string} */ (item.dia))).map((item) => item.evento));
     return { id, ponto, areas: new Set(areasDoPonto(ponto)), ciclos, atual, diaAtual: atual ? diaDoLancamento(atual.data_lancamento) : null };
   };
 
@@ -478,19 +507,20 @@ function montarContextoDosCochos(eventos, pontos, hoje) {
  *  - membros: cochos cujo último lançamento NÃO FUTURO é um ciclo ABERTO desta
  *    classe;
  *  - janela de um membro: [lançamento, lançamento + ⌈base ÷ taxa⌉) — a duração
- *    MÍNIMA (sem taxa, a menor taxa dos membros) — e só quando ele esteve
- *    SOZINHO com o rebanho nesse intervalo: nenhum outro cocho das mesmas
- *    áreas teve ciclo desta classe ali (aberto, fechado ou substituído). Se
- *    teve, o fim é desconhecido e a janela fica aberta;
+ *    MÍNIMA (sem taxa, a menor taxa dos membros) — enquanto ele esteve SOZINHO
+ *    com o rebanho nesse intervalo. Ela ABRE (fim desconhecido) se cruzar um
+ *    ciclo desta classe de outro cocho das mesmas áreas que não seja o ciclo
+ *    atual de um membro (fechado porque o gado saiu, substituído, de outro
+ *    produto depois, encerrado por lançamento futuro) ou a JANELA de outro
+ *    membro. Ponto fixo: começa com todas fechadas e só abre; um membro que se
+ *    esgotou sozinho mantém a janela fechada e não contamina ninguém;
  *  - dois membros com áreas em comum e janelas que se cruzam dividem os
- *    animais (grupo = fecho transitivo, igual para todos);
- *  - um membro cuja janela mínima cruza um ciclo desta classe que NÃO é o
- *    ciclo atual de um membro (ciclo fechado porque o gado saiu, ciclo
- *    substituído por outro produto, ciclo encerrado por lançamento futuro)
- *    também dividiu o rebanho;
- *  - conjunto: depois do último lançamento do grupo e do fim desses ciclos
- *    externos, a soma das bases pela menor taxa — limite superior do
- *    esgotamento (antes disso o produto só diminui).
+ *    animais (grupo = fecho transitivo, igual para todos); um membro cuja
+ *    janela mínima cruza um ciclo externo também dividiu o rebanho;
+ *  - conjunto: a partir do mais tarde entre o último lançamento do grupo e o
+ *    fim dos ciclos externos que cruzam as janelas efetivas do grupo, a soma
+ *    das bases pela menor taxa — limite superior do esgotamento (antes disso o
+ *    produto só diminui). Ciclo externo sem fim → sem data.
  * @param {ContextoDosCochos} contexto @param {Map<string, CochoDoContexto>} cochos
  * @param {string} classeAlvo @param {any} pontoRef
  * @returns {Map<string, CompartilhamentoDoCocho>}
@@ -504,21 +534,51 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     && !empresasDiferentes(pontoRef, cocho.ponto)
     && !empresasDiferentes(pontoRef, cocho.atual)
   ));
-  const idsMembros = new Set(membros.map((membro) => membro.id));
+  const porId = new Map(membros.map((membro) => [membro.id, membro]));
   const taxasConhecidas = membros.map((membro) => positivoOuNulo(membro.atual.consumo_esperado_pv_kg)).filter((taxa) => taxa != null);
   const taxaReferencia = taxasConhecidas.length ? Math.min(.../** @type {number[]} */ (taxasConhecidas)) : null;
 
-  /** @param {CochoDoContexto} cocho */
+  /** Vizinhos (mesma fazenda, área em comum). @param {CochoDoContexto} cocho @returns {CochoDoContexto[]} */
   const vizinhos = (cocho) => {
     const ids = new Set();
     for (const area of cocho.areas) for (const id of contexto.porArea.get(area) || []) if (id !== cocho.id) ids.add(id);
     // Cocho fora do índice (registrado à parte) também enxerga quem tem área em comum.
     for (const outro of cochos.values()) if (outro.id !== cocho.id && !ids.has(outro.id) && [...outro.areas].some((area) => cocho.areas.has(area))) ids.add(outro.id);
-    // Outra fazenda não divide o rebanho.
-    return [...ids].map((id) => cochos.get(id)).filter((outro) => outro && !empresasDiferentes(pontoRef, outro.ponto));
+    /** @type {CochoDoContexto[]} */
+    const lista = [];
+    for (const id of ids) {
+      const outro = cochos.get(id);
+      if (outro && !empresasDiferentes(pontoRef, outro.ponto)) lista.push(outro);
+    }
+    return lista;
+  };
+  /** @type {Map<string, { lista: CicloRegistrado[], maiorFimAte: (string|null)[] }>} */
+  const externosPorCocho = new Map();
+  /**
+   * Ciclos desta classe que NÃO são o ciclo atual de um membro, em ordem de
+   * início, com o maior fim até cada posição (null = sem fim) — calculados uma
+   * vez por cocho, para parar de voltar no histórico assim que nada mais cruza.
+   * @param {CochoDoContexto} cocho
+   */
+  const ciclosExternos = (cocho) => {
+    let registro = externosPorCocho.get(cocho.id);
+    if (!registro) {
+      const lista = cocho.ciclos.filter((ciclo) => ciclo.classe === classeAlvo && !(porId.has(cocho.id) && ciclo.evento === cocho.atual));
+      /** @type {(string|null)[]} */
+      const maiorFimAte = [];
+      /** @type {string|null|undefined} */
+      let maior;
+      for (const ciclo of lista) {
+        maior = maior === null || ciclo.fim == null ? null : (maior === undefined || ciclo.fim > maior ? ciclo.fim : maior);
+        maiorFimAte.push(maior);
+      }
+      registro = { lista, maiorFimAte };
+      externosPorCocho.set(cocho.id, registro);
+    }
+    return registro;
   };
 
-  /** @type {Map<string, { janela: {ini: string, fim: string|null}, base: number, taxa: number|null, externos: { id: string, fim: string|null }[] }>} */
+  /** @type {Map<string, { ini: string, fimMinimo: string|null, aberta: boolean, base: number, taxa: number|null, vizinhos: CochoDoContexto[], externosMinimos: { id: string, fim: string|null }[], externosAbertos: { id: string, fim: string|null }[] }>} */
   const dados = new Map();
   for (const membro of membros) {
     const base = kgOuZero(membro.atual.quantidade_total_kg) + kgOuZero(membro.atual.sobra_kg);
@@ -526,18 +586,40 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     const ini = /** @type {string} */ (membro.diaAtual);
     const fimMinimo = fimMinimoDoCiclo(ini, base, taxa ?? taxaReferencia);
     const minima = { ini, fim: fimMinimo };
-    let sozinho = fimMinimo != null;
-    /** @type {{ id: string, fim: string|null }[]} */
-    const externos = [];
-    for (const outro of /** @type {CochoDoContexto[]} */ (vizinhos(membro))) {
-      for (const ciclo of outro.ciclos) {
-        if (ciclo.classe !== classeAlvo || !intervalosSeCruzam(ciclo, minima)) continue;
-        sozinho = false;
-        const cicloAtualDeMembro = idsMembros.has(outro.id) && ciclo.evento === outro.atual;
-        if (!cicloAtualDeMembro) externos.push({ id: outro.id, fim: ciclo.fim });
+    const doMembro = vizinhos(membro);
+    const externosMinimos = [];
+    const externosAbertos = [];
+    const aPartirDoLancamento = { ini, fim: null };
+    for (const outro of doMembro) {
+      const { lista, maiorFimAte } = ciclosExternos(outro);
+      // Do mais novo para trás; para quando nenhum ciclo anterior termina depois deste lançamento.
+      for (let k = lista.length - 1; k >= 0; k -= 1) {
+        const maiorFim = maiorFimAte[k];
+        if (maiorFim != null && maiorFim <= ini) break;
+        const ciclo = lista[k];
+        if (!intervalosSeCruzam(ciclo, aPartirDoLancamento)) continue;
+        externosAbertos.push({ id: outro.id, fim: ciclo.fim });
+        if (intervalosSeCruzam(ciclo, minima)) externosMinimos.push({ id: outro.id, fim: ciclo.fim });
       }
     }
-    dados.set(membro.id, { janela: { ini, fim: sozinho ? fimMinimo : null }, base, taxa, externos });
+    // Janela vazia (base 0) não divide nada; sem fim (taxa absurda) já começa aberta.
+    dados.set(membro.id, { ini, fimMinimo, aberta: fimMinimo == null || externosMinimos.length > 0, base, taxa, vizinhos: doMembro, externosMinimos, externosAbertos });
+  }
+  const efetiva = (/** @type {string} */ id) => { const d = /** @type {any} */ (dados.get(id)); return { ini: d.ini, fim: d.aberta ? null : d.fimMinimo }; };
+  const minimaDe = (/** @type {string} */ id) => { const d = /** @type {any} */ (dados.get(id)); return { ini: d.ini, fim: d.fimMinimo }; };
+
+  // Ponto fixo: abre a janela de quem cruza a janela efetiva de outro membro.
+  const fila = [...membros.map((membro) => membro.id)];
+  while (fila.length) {
+    const id = /** @type {string} */ (fila.shift());
+    const d = /** @type {any} */ (dados.get(id));
+    for (const outro of d.vizinhos) {
+      if (!porId.has(outro.id)) continue;
+      const o = /** @type {any} */ (dados.get(outro.id));
+      // id → outro: a janela efetiva de `id` abre a de `outro`, e vice-versa.
+      if (!o.aberta && intervalosSeCruzam(efetiva(id), minimaDe(outro.id))) { o.aberta = true; fila.push(outro.id); }
+      if (!d.aberta && intervalosSeCruzam(efetiva(outro.id), minimaDe(id))) { d.aberta = true; fila.push(id); }
+    }
   }
 
   /** @type {Map<string, CompartilhamentoDoCocho>} */
@@ -549,12 +631,11 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     visitados.add(inicio.id);
     for (let k = 0; k < componente.length; k += 1) {
       const atual = componente[k];
-      const janelaAtual = /** @type {any} */ (dados.get(atual.id)).janela;
-      for (const outro of membros) {
-        if (visitados.has(outro.id) || ![...atual.areas].some((area) => outro.areas.has(area))) continue;
-        if (!intervalosSeCruzam(janelaAtual, /** @type {any} */ (dados.get(outro.id)).janela)) continue;
+      for (const outro of /** @type {any} */ (dados.get(atual.id)).vizinhos) {
+        if (!porId.has(outro.id) || visitados.has(outro.id)) continue;
+        if (!intervalosSeCruzam(efetiva(atual.id), efetiva(outro.id))) continue;
         visitados.add(outro.id);
-        componente.push(outro);
+        componente.push(/** @type {CochoDoContexto} */ (porId.get(outro.id)));
       }
     }
     const donosExternos = new Set();
@@ -565,12 +646,13 @@ function calcularCompartilhamentoDaClasse(contexto, cochos, classeAlvo, pontoRef
     let semFimExterno = false;
     for (const membro of componente) {
       const d = /** @type {any} */ (dados.get(membro.id));
-      if (d.janela.ini > inicioConjunto) inicioConjunto = d.janela.ini;
+      if (d.ini > inicioConjunto) inicioConjunto = d.ini;
       totalBase += d.base;
       const taxa = d.taxa ?? taxaReferencia;
       if (taxa != null && (menorTaxa == null || taxa < menorTaxa)) menorTaxa = taxa;
-      for (const externo of d.externos) {
-        donosExternos.add(externo.id);
+      for (const externo of d.externosMinimos) donosExternos.add(externo.id);
+      // O conjunto só sai depois de todo ciclo externo que cruzou a janela efetiva.
+      for (const externo of d.aberta ? d.externosAbertos : d.externosMinimos) {
         if (externo.fim == null) semFimExterno = true;
         else if (externo.fim > inicioConjunto) inicioConjunto = externo.fim;
       }
@@ -623,7 +705,7 @@ const compartilhamentoDoCocho = (ponto, ultimo, eventos, pontos, hoje) => {
  * @returns {NivelCocho}
  */
 export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
-  const ultimo = selecionarUltimoEventoDoPonto(ponto, eventos);
+  const ultimo = selecionarUltimoEventoDoPonto(ponto, eventosDoPonto(ponto, eventos));
   const limite = positivoOuNulo(ponto?.capacidade_cocho_kg);
   const hojeValido = ehDiaValido(hoje);
 
@@ -689,7 +771,14 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
 
   if (hojeValido && dia > hoje) {
     n.estado = 'lancamento_futuro';
-    n.taxaRegistradaKgDia = positivoOuNulo(ultimo.consumo_esperado_pv_kg);
+    // Cobertura do depósito: o rebanho continua comendo do ciclo que vale hoje;
+    // vale a MAIOR entre a taxa do último lançamento não futuro e a do futuro.
+    {
+      const naoFuturos = hojeValido ? eventosDoPonto(ponto, eventos).filter((evento) => { const d = diaDoLancamento(evento.data_lancamento); return d != null && d <= hoje; }) : [];
+      const vigente = selecionarUltimoEventoDoPonto(ponto, naoFuturos);
+      const taxas = [positivoOuNulo(ultimo.consumo_esperado_pv_kg), positivoOuNulo(vigente?.consumo_esperado_pv_kg)].filter((taxa) => taxa != null);
+      n.taxaRegistradaKgDia = taxas.length ? Math.max(.../** @type {number[]} */ (taxas)) : null;
+    }
     n.rotuloCurto = 'Lançamento futuro';
     n.mensagem = `Lançamento com data futura (${formatarDia(dia)}); a estimativa começa nessa data.`;
     n.descricao = n.mensagem;
@@ -827,38 +916,48 @@ export function projecaoDoCartaoDoNivel(nivel) {
  * Consumo diário (kg/dia) que os cochos ligados a um depósito puxam dele,
  * contando cada REBANHO uma vez. A taxa gravada num lançamento é a do rebanho
  * de TODAS as áreas do cocho, então:
- *  - cochos do mesmo produto cujas áreas já estão todas cobertas por um cocho
- *    contado (mesmas áreas ou subconjunto) são o mesmo rebanho e ficam fora —
- *    somar seria dupla contagem;
- *  - a ordem é: mais áreas primeiro (cobre mais animais), depois o lançamento
- *    mais recente, depois a maior taxa;
+ *  - a ordem é: lançamento mais recente primeiro (data futura conta como hoje),
+ *    depois mais áreas, depois a maior taxa;
+ *  - um cocho do mesmo produto cujas áreas já estão todas cobertas pelos já
+ *    contados é o mesmo rebanho: só entra a diferença, se a taxa dele passar a
+ *    soma dos contados que cobrem essas áreas (nunca menos que um lançamento
+ *    registrado);
  *  - um cocho com ALGUMA área ainda não coberta entra inteiro (sobreposição
  *    parcial: pode contar a mais, nunca a menos — para o depósito, avisar
  *    reposição cedo é o lado seguro);
  *  - entram ciclos abertos (estimados ou compartilhados — para o depósito
  *    importa o total do rebanho, não o rateio entre cochos) e lançamentos
- *    futuros (o rebanho continua comendo); sem taxa gravada, o cocho fica fora.
+ *    futuros (com a maior entre a taxa futura e a do ciclo que vale hoje);
+ *    sem taxa gravada, o cocho fica fora.
  * @param {{ ponto: any, nivel: NivelCocho }[]} itens
  * @returns {number}
  */
 export function consumoDiarioDosRebanhos(itens) {
   const candidatos = (Array.isArray(itens) ? itens : [])
     .filter(({ nivel }) => (nivel?.estado === 'ciclo_aberto' || nivel?.estado === 'lancamento_futuro') && nivel.taxaRegistradaKgDia != null && nivel.taxaRegistradaKgDia > 0)
-    .map(({ ponto, nivel }) => ({ areas: new Set(areasDoPonto(ponto)), nivel, dia: nivel.dataLancamento ?? '', taxa: /** @type {number} */ (nivel.taxaRegistradaKgDia) }));
-  candidatos.sort((a, b) => (b.areas.size - a.areas.size) || (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || (b.taxa - a.taxa));
-  /** @type {{ areas: Set<string>, evento: any }[]} */
+    .map(({ ponto, nivel }) => {
+      const dia = nivel.dataLancamento ?? '';
+      return { areas: new Set(areasDoPonto(ponto)), nivel, dia: nivel.hoje && dia > nivel.hoje ? nivel.hoje : dia, taxa: /** @type {number} */ (nivel.taxaRegistradaKgDia) };
+    });
+  candidatos.sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : 0) || (b.areas.size - a.areas.size) || (b.taxa - a.taxa));
+  /** @type {{ areas: Set<string>, evento: any, contribuicao: number }[]} */
   const contados = [];
   let total = 0;
   for (const candidato of candidatos) {
+    let contribuicao = candidato.taxa;
     if (candidato.areas.size) {
       const cobertas = new Set();
+      let somaQueCobre = 0;
       for (const contado of contados) {
-        if (mesmoProduto(contado.evento, candidato.nivel.evento)) for (const area of contado.areas) cobertas.add(area);
+        if (!mesmoProduto(contado.evento, candidato.nivel.evento)) continue;
+        if (![...contado.areas].some((area) => candidato.areas.has(area))) continue;
+        for (const area of contado.areas) cobertas.add(area);
+        somaQueCobre += contado.contribuicao;
       }
-      if ([...candidato.areas].every((area) => cobertas.has(area))) continue;
+      if ([...candidato.areas].every((area) => cobertas.has(area))) contribuicao = Math.max(0, candidato.taxa - somaQueCobre);
     }
-    total += candidato.taxa;
-    contados.push({ areas: candidato.areas, evento: candidato.nivel.evento });
+    total += contribuicao;
+    contados.push({ areas: candidato.areas, evento: candidato.nivel.evento, contribuicao });
   }
   return total;
 }

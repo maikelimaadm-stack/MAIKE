@@ -29,7 +29,7 @@ Uma fonte única de cálculo, `src/domain/suplementacao/nivelSuplementacao.js`, 
   - Isso vale também quando o vizinho fechou o ciclo (gado saiu), trocou de produto ou tem um lançamento futuro.
   - Um cocho abandonado que se esgotou sozinho não contamina o vizinho.
   - O aviso crítico do conjunto volta no limite superior do esgotamento.
-  - O índice da fazenda é montado uma vez e reaproveitado por todos os cochos: 150 cochos com 6.000 lançamentos levam cerca de 75 ms.
+  - O índice da fazenda é montado uma vez e reaproveitado por todos os cochos. 150 cochos com 6.000 lançamentos levam cerca de 30 a 60 ms. No pior caso medido, 200 cochos no mesmo pasto com 30.000 lançamentos, levam cerca de 130 ms.
 - **Cobertura do depósito.** Uma taxa por rebanho.
 - **Alertas por ponto.** Vêm da mesma fonte, com tipos, títulos e severidades preservados, mais `cocho_acima_limite` e `deposito_acima_limite`. `alertasLote` não mudou.
 
@@ -100,6 +100,10 @@ Título do marcador no dia 11/11: "Restante estimado: 150 kg de 200 kg (75%). Us
 | vizinho trocou de produto em 05/11 | este cocho neutro; o vizinho estimado no produto novo |
 | vizinho com lançamento futuro (14/11) que encerra o ciclo de 08/11 | este cocho neutro em 12/11 (o ciclo atual do vizinho conta) |
 | produto por id e por nome (legado) misturados em 3 cochos | os três neutros, mesma data de conjunto, sem alerta |
+| A esgotado sozinho (01/08), B parado (01/11), C ativo (10/11), mesma área | B 0% com `cocho_sem_produto`; C 50% (sem contaminação em cadeia) |
+| vizinho que trocou de produto depois das janelas mínimas (SAL de 12/11 a 22/11) | conjunto = máx(04/11, 22/11) + 800 ÷ 50 = 08/12, sem alerta antes |
+| lançamento duplicado no mesmo dia num cocho abandonado | o vizinho ativo segue estimado (50%) |
+| vizinho com lançamento de base 0 | este cocho estimado (25%); o vizinho "Sem quantidade" |
 | cocho abandonado (01/08, esgotado sozinho) + ativo (10/11) | ativo estimado em 50%; abandonado em 0% com `cocho_sem_produto` |
 | 3 cochos encadeados por áreas (A–B em a1, B–C em a2) | grupo único, mesmo conjunto (18/11) para os três |
 | vizinho cujo ÚNICO lançamento é futuro | não conta até o dia do lançamento |
@@ -107,8 +111,11 @@ Título do marcador no dia 11/11: "Restante estimado: 150 kg de 200 kg (75%). Us
 | troca de produto no vizinho | não compartilha |
 | taxa absurda (0,000001 kg/dia) | não quebra; estimada sem data de esgotamento |
 | depósito com cocho abandonado + ativo, 150 kg | consumo 50 kg/dia (um rebanho), 3 dias, sem alerta |
-| depósito com c1[a1,a2] a 100 kg/dia + c2[a1] a 50, 150 kg | consumo 100 kg/dia (o subconjunto não reduz), 1,5 dia, `deposito_cobertura_baixa` |
+| depósito com c1[a1,a2] a 100 kg/dia (08/11) + c2[a1] a 50 (10/11), 150 kg | consumo 150 kg/dia (sobreposição parcial conta a mais, nunca a menos), 1 dia, `deposito_cobertura_baixa` |
 | depósito com cocho de lançamento futuro, 80 kg | consumo 50 kg/dia, 1,6 dia, alerta (o rebanho continua comendo) |
+| c1[a1,a2] antigo a 10 kg/dia + c2[a1] recente a 50, 40 kg | consumo ≥ 50 (nunca menos que um lançamento), crítico |
+| A[a1,a2] abandonado a 40 + B[a1] e C[a2] ativos a 100 cada, 75 kg | consumo 200, crítico |
+| lançamento futuro com taxa menor (10) sobre ciclo vigente a 50 | consumo 50 |
 
 ## 4. Ícones SVG
 
@@ -220,6 +227,7 @@ Todos estão registrados na D-PROD-178, itens 4 e 8 a 11.
 ## 8. Riscos
 
 1. **Neutro prolongado.** Um cocho que dividiu o rebanho com outro do mesmo produto, nas mesmas áreas, fica sem estimativa até um lançamento novo nele ou até o outro ser desativado. Isso inclui o vizinho reabastecido, o vizinho que fechou o ciclo e o que trocou de produto. É conservador: nunca mostra número falso. O texto do detalhe orienta.
+1a. **Sobra de período fechado antes do lançamento.** Num vizinho sem lançamento depois do fechamento (gado saiu e voltou), essa sobra não entra na estimativa deste cocho. O vizinho mostra a sobra como "Período fechado".
 1b. **Cobertura do depósito é aproximada.** Ela pode contar a mais em três casos: sobreposição parcial de áreas, rebanho atendido por dois depósitos e rebanho que mudou de área sem fechar o consumo. Contar a mais deixa a cobertura menor que a real: o alerta de reposição vem cedo, nunca tarde.
 2. **Limite sem histórico.** Mudar `capacidade_cocho_kg` muda o percentual de lançamentos antigos. Está documentado e aparece no detalhe.
 3. **Taxa gravada.** A estimativa depende do `consumo_esperado_pv_kg` gravado no lançamento. Lançamentos sem %PV ficam neutros, e isso pode aparecer em fazendas que não cadastraram %PV.

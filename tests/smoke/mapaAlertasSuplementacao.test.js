@@ -184,7 +184,7 @@ describe('alertas do depósito pelo SSOT', () => {
     expect(r.alertasPonto.get('d1').consumoDiario).toBe(100);
   });
 
-  it('cocho que atende várias áreas conta o rebanho todo: subconjunto não reduz a cobertura', () => {
+  it('cocho que atende várias áreas conta o rebanho todo: subconjunto mais recente não reduz a cobertura (sobreposição parcial conta a mais, nunca a menos)', () => {
     const C1 = { ...COCHO, id: 'c1', area_vinculada_ids: ['a1', 'a2'] };
     const C2 = { ...COCHO, id: 'c2', area_vinculada_ids: ['a1'] };
     const eventosSupl = [
@@ -192,20 +192,65 @@ describe('alertas do depósito pelo SSOT', () => {
       evento({ id: 'e2', ponto_suplementacao_id: 'c2', data_lancamento: '2026-11-10', consumo_esperado_pv_kg: 50 }),
     ];
     const r = montar({ estoqueLotes: [loteEstoque(150)], pontosSuplementacao: [C1, C2, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
-    expect(r.alertasPonto.get('d1').consumoDiario).toBe(100);
-    expect(r.alertasPonto.get('d1').diasCobertura).toBe(1.5);
+    // Mais recente primeiro: c2[a1] = 50; c1[a1,a2] tem a2 nova → entra inteiro (+100) = 150 ≥ 100 real.
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(150);
+    expect(r.alertasPonto.get('d1').diasCobertura).toBe(1);
     expect(tipos(r, 'd1')).toEqual(['deposito_cobertura_baixa']);
   });
 
-  it('áreas encadeadas: A[a1], B[a1,a2], C[a2], D[a2,a3], F[a3] contam a1+a2 (B) e a3 (F) — nenhuma área fica de fora', () => {
+  it('áreas encadeadas: A[a1], B[a1,a2], C[a2], D[a2,a3], F[a3] — cada área contada uma vez, nenhuma de fora', () => {
     const mk = (id, areas) => ({ ...COCHO, id, area_vinculada_ids: areas });
     const pontos = [mk('A', ['a1']), mk('B', ['a1', 'a2']), mk('C', ['a2']), mk('D', ['a2', 'a3']), mk('F', ['a3'])];
     const taxas = { A: 50, B: 100, C: 50, D: 80, F: 30 };
     const dias = { A: '2026-11-10', B: '2026-11-08', C: '2026-11-09', D: '2026-11-07', F: '2026-11-11' };
     const eventosSupl = pontos.map((p) => evento({ id: `e${p.id}`, ponto_suplementacao_id: p.id, data_lancamento: dias[p.id], quantidade_total_kg: 1000, consumo_esperado_pv_kg: taxas[p.id] }));
     const r = montar({ estoqueLotes: [loteEstoque(1000)], pontosSuplementacao: [...pontos, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
-    // Mais áreas primeiro: B (a1,a2) = 100; D (a2,a3) tem a3 nova → +80; A, C e F já cobertos.
-    expect(r.alertasPonto.get('d1').consumoDiario).toBe(180);
+    // Mais recente primeiro: F[a3]=30, A[a1]=50, C[a2]=50; B[a1,a2]=100 coberto por A+C (100) → +0;
+    // D[a2,a3]=80 coberto por C+F (80) → +0. Total 130 = 50 + 50 + 30.
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(130);
+  });
+
+  it('lançamento antigo de taxa menor num cocho de várias áreas não esconde o lançamento recente (nunca menos que um lançamento)', () => {
+    const C1 = { ...COCHO, id: 'c1', area_vinculada_ids: ['a1', 'a2'] };
+    const C2 = { ...COCHO, id: 'c2', area_vinculada_ids: ['a1'] };
+    for (const diaC1 of ['2026-10-20', '2026-11-10']) {
+      const eventosSupl = [
+        evento({ id: 'e1', ponto_suplementacao_id: 'c1', data_lancamento: diaC1, quantidade_total_kg: 10000, consumo_esperado_pv_kg: 10 }),
+        evento({ id: 'e2', ponto_suplementacao_id: 'c2', data_lancamento: '2026-11-10', quantidade_total_kg: 500, consumo_esperado_pv_kg: 50 }),
+      ];
+      const r = montar({ estoqueLotes: [loteEstoque(40)], pontosSuplementacao: [C1, C2, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
+      expect(r.alertasPonto.get('d1').consumoDiario).toBeGreaterThanOrEqual(50);
+      expect(r.alertasPonto.get('d1').alertas.find((a) => a.tipo === 'deposito_cobertura_baixa')?.severidade).toBe('critico');
+    }
+  });
+
+  it('cocho abandonado de várias áreas com taxa velha não esconde os ativos de áreas menores', () => {
+    const A = { ...COCHO, id: 'A', area_vinculada_ids: ['a1', 'a2'] };
+    const B = { ...COCHO, id: 'B', area_vinculada_ids: ['a1'] };
+    const C = { ...COCHO, id: 'C', area_vinculada_ids: ['a2'] };
+    const eventosSupl = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-08-01', quantidade_total_kg: 100, consumo_esperado_pv_kg: 40 }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-11-11', quantidade_total_kg: 300, consumo_esperado_pv_kg: 100 }),
+      evento({ id: 'eC', ponto_suplementacao_id: 'C', data_lancamento: '2026-11-11', quantidade_total_kg: 300, consumo_esperado_pv_kg: 100 }),
+    ];
+    const r = montar({ estoqueLotes: [loteEstoque(75)], pontosSuplementacao: [A, B, C, { ...DEPOSITO, estoque_minimo_kg: 10 }], eventosSupl, hoje: '2026-11-12' });
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(200);
+    expect(r.alertasPonto.get('d1').alertas.find((a) => a.tipo === 'deposito_cobertura_baixa')?.severidade).toBe('critico');
+  });
+
+  it('lançamento futuro com taxa menor não troca a taxa do ciclo que vale hoje (no mesmo cocho e no vizinho)', () => {
+    const noMesmo = [evento({ data_lancamento: '2026-11-11' }), evento({ id: 'e9', data_lancamento: '2026-11-20', quantidade_total_kg: 100, consumo_esperado_pv_kg: 10 })];
+    const r1 = montar({ estoqueLotes: [loteEstoque(40)], pontosSuplementacao: [COCHO, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl: noMesmo, hoje: '2026-11-12' });
+    expect(r1.alertasPonto.get('d1').consumoDiario).toBe(50);
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B' };
+    const noVizinho = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-25', consumo_esperado_pv_kg: 10 }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-11-10' }),
+    ];
+    const r2 = montar({ estoqueLotes: [loteEstoque(40)], pontosSuplementacao: [A, B, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl: noVizinho, hoje: '2026-11-12' });
+    expect(r2.alertasPonto.get('d1').consumoDiario).toBe(50);
+    expect(tipos(r2, 'd1')).toEqual(['deposito_cobertura_baixa']);
   });
 
   it('lançamento futuro no cocho: o rebanho continua puxando do depósito', () => {
