@@ -184,6 +184,38 @@ describe('alertas do depósito pelo SSOT', () => {
     expect(r.alertasPonto.get('d1').consumoDiario).toBe(100);
   });
 
+  it('cocho que atende várias áreas conta o rebanho todo: subconjunto não reduz a cobertura', () => {
+    const C1 = { ...COCHO, id: 'c1', area_vinculada_ids: ['a1', 'a2'] };
+    const C2 = { ...COCHO, id: 'c2', area_vinculada_ids: ['a1'] };
+    const eventosSupl = [
+      evento({ id: 'e1', ponto_suplementacao_id: 'c1', data_lancamento: '2026-11-08', quantidade_total_kg: 400, consumo_esperado_pv_kg: 100 }),
+      evento({ id: 'e2', ponto_suplementacao_id: 'c2', data_lancamento: '2026-11-10', consumo_esperado_pv_kg: 50 }),
+    ];
+    const r = montar({ estoqueLotes: [loteEstoque(150)], pontosSuplementacao: [C1, C2, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(100);
+    expect(r.alertasPonto.get('d1').diasCobertura).toBe(1.5);
+    expect(tipos(r, 'd1')).toEqual(['deposito_cobertura_baixa']);
+  });
+
+  it('áreas encadeadas: A[a1], B[a1,a2], C[a2], D[a2,a3], F[a3] contam a1+a2 (B) e a3 (F) — nenhuma área fica de fora', () => {
+    const mk = (id, areas) => ({ ...COCHO, id, area_vinculada_ids: areas });
+    const pontos = [mk('A', ['a1']), mk('B', ['a1', 'a2']), mk('C', ['a2']), mk('D', ['a2', 'a3']), mk('F', ['a3'])];
+    const taxas = { A: 50, B: 100, C: 50, D: 80, F: 30 };
+    const dias = { A: '2026-11-10', B: '2026-11-08', C: '2026-11-09', D: '2026-11-07', F: '2026-11-11' };
+    const eventosSupl = pontos.map((p) => evento({ id: `e${p.id}`, ponto_suplementacao_id: p.id, data_lancamento: dias[p.id], quantidade_total_kg: 1000, consumo_esperado_pv_kg: taxas[p.id] }));
+    const r = montar({ estoqueLotes: [loteEstoque(1000)], pontosSuplementacao: [...pontos, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
+    // Mais áreas primeiro: B (a1,a2) = 100; D (a2,a3) tem a3 nova → +80; A, C e F já cobertos.
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(180);
+  });
+
+  it('lançamento futuro no cocho: o rebanho continua puxando do depósito', () => {
+    const eventosSupl = [evento({ data_lancamento: '2026-11-10' }), evento({ id: 'e9', data_lancamento: '2026-11-14' })];
+    const r = montar({ estoqueLotes: [loteEstoque(80)], pontosSuplementacao: [COCHO, { ...DEPOSITO, estoque_minimo_kg: null }], eventosSupl, hoje: '2026-11-12' });
+    expect(r.alertasPonto.get('c1').nivel.estado).toBe('lancamento_futuro');
+    expect(r.alertasPonto.get('d1').consumoDiario).toBe(50);
+    expect(tipos(r, 'd1')).toEqual(['deposito_cobertura_baixa']);
+  });
+
   it('acima do limite operacional: deposito_acima_limite', () => {
     const r = montar({ estoqueLotes: [loteEstoque(600)], eventosSupl: [], pontosSuplementacao: [COCHO, { ...DEPOSITO, capacidade_cocho_kg: 300 }] });
     expect(r.alertasPonto.get('d1').alertas).toEqual([

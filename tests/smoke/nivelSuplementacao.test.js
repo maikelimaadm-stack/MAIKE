@@ -360,10 +360,10 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     expect(n.confiabilidade).toBe('compartilhada');
   });
 
-  it('produtos diferentes, outro cocho fechado, outra área, depósito, inativo ou outra fazenda ⇒ estimativa normal', () => {
+  it('produtos diferentes, outro cocho fechado ANTES deste lançamento, outra área, depósito, inativo ou outra fazenda ⇒ estimativa normal', () => {
     const casos = [
       { eventos: [evento(), eventoOutro({ produto_id: 'p-prot', produto: 'PROTEINADO' })], pontos: [COCHO, OUTRO] },
-      { eventos: [evento(), eventoOutro({ dias_periodo: 3, sobra_kg: 10 })], pontos: [COCHO, OUTRO] },
+      { eventos: [evento(), eventoOutro({ data_lancamento: '2026-10-25', dias_periodo: 3, sobra_kg: 10 })], pontos: [COCHO, OUTRO] },
       { eventos: [evento(), eventoOutro()], pontos: [COCHO, { ...OUTRO, area_vinculada_id: 'a9' }] },
       { eventos: [evento(), eventoOutro()], pontos: [COCHO, { ...OUTRO, categoria_ponto: 'DEPOSITO' }] },
       { eventos: [evento(), eventoOutro()], pontos: [COCHO, { ...OUTRO, status: 'Inativo' }] },
@@ -451,6 +451,105 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     const a = nivel({ eventos: [...c1, c2], pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
     expect(a.confiabilidade).toBe('compartilhada');
     expect(a.compartilhadoCom).toEqual(['c2']);
+  });
+
+  it('vizinho cujo ciclo FECHOU (gado saiu) depois de dividir o rebanho: sem estimativa, sem 0% falso; conjunto conta a partir do fechamento', () => {
+    // c2 [a1] recebeu SAL em 01/11 e fechou com 5 dias (gado saiu): dividiu o rebanho com c1 até 06/11.
+    const eventos = [evento(), eventoOutro({ dias_periodo: 5, sobra_kg: 50, consumo_diario_grupo_kg: 30 })];
+    const a = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-06' });
+    expect(a.confiabilidade).toBe('compartilhada');
+    expect(a.saldoKg).toBeNull();
+    expect(a.rotuloCurto).toBe('Sem estimativa');
+    expect(a.alertas).toEqual([]);
+    expect(a.compartilhadoCom).toEqual(['c2']);
+    // Limite superior: depois de 06/11 o rebanho só come de c1 → 06/11 + 200 ÷ 50 = 10/11.
+    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-10');
+    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-09' }).alertas).toEqual([]);
+    expect(nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-10' }).alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
+  });
+
+  it('vizinho que TROCOU de produto depois de dividir o rebanho: este cocho fica sem estimativa', () => {
+    const eventos = [
+      evento(),
+      eventoOutro({ id: 'e2a', dias_periodo: 4, sobra_kg: 120, consumo_diario_grupo_kg: 20 }),
+      eventoOutro({ id: 'e2b', data_lancamento: '2026-11-05', produto_id: 'p-prot', produto: 'PROTEINADO' }),
+    ];
+    const a = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-05' });
+    expect(a.confiabilidade).toBe('compartilhada');
+    expect(a.alertas).toEqual([]);
+    // O próprio vizinho segue estimado no produto novo.
+    expect(nivel({ ponto: OUTRO, eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-05' }).confiabilidade).toBe('estimada');
+  });
+
+  it('conjunto com um ciclo externo fechado: não acusa "sem produto" antes do limite superior', () => {
+    const C3 = { ...COCHO, id: 'c3', area_vinculada_ids: ['a1', 'a2'] };
+    const eventos = [
+      evento(),
+      eventoOutro({ data_lancamento: '2026-11-02' }),
+      evento({ id: 'e3', ponto_suplementacao_id: 'c3', quantidade_total_kg: 300, dias_periodo: 5, sobra_kg: 200, consumo_diario_grupo_kg: 20 }),
+    ];
+    const pontos = [COCHO, OUTRO, C3];
+    const a = nivel({ eventos, pontos, hoje: '2026-11-10' });
+    const b = nivel({ ponto: OUTRO, eventos, pontos, hoje: '2026-11-10' });
+    expect(a.confiabilidade).toBe('compartilhada');
+    // Início = máx(02/11, fim do ciclo de c3 em 06/11); 400 kg ÷ 50 = 8 dias → 14/11, igual para os dois.
+    expect(a.dataEsgotamentoConjuntoEstimada).toBe('2026-11-14');
+    expect(b.dataEsgotamentoConjuntoEstimada).toBe('2026-11-14');
+    expect(a.alertas).toEqual([]);
+  });
+
+  it('vizinho com lançamento FUTURO que encerra um ciclo que dividiu o rebanho: o ciclo atual dele conta', () => {
+    // c1 e c2 em 08/11; c2 tem lançamento em 14/11 (futuro em 12/11) que fecha o de 08/11 com 6 dias.
+    const fechadoPeloFuturo = [
+      evento({ data_lancamento: '2026-11-08' }),
+      eventoOutro({ id: 'e2a', data_lancamento: '2026-11-08', dias_periodo: 6, sobra_kg: 0, consumo_diario_grupo_kg: 33 }),
+      eventoOutro({ id: 'e2b', data_lancamento: '2026-11-14' }),
+    ];
+    const a = nivel({ eventos: fechadoPeloFuturo, pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(a.confiabilidade).toBe('compartilhada');
+    expect(a.alertas).toEqual([]);
+    // Variante: o de 08/11 ainda aberto (o futuro não fechou): mesmo resultado.
+    const abertoComFuturo = [
+      evento({ data_lancamento: '2026-11-08' }),
+      eventoOutro({ id: 'e2a', data_lancamento: '2026-11-08' }),
+      eventoOutro({ id: 'e2b', data_lancamento: '2026-11-14' }),
+    ];
+    expect(nivel({ eventos: abertoComFuturo, pontos: [COCHO, OUTRO], hoje: '2026-11-12' }).confiabilidade).toBe('compartilhada');
+  });
+
+  it('produto por id e por nome misturados (legado sem id): o grupo e o conjunto são os mesmos vistos de qualquer cocho', () => {
+    const A = { ...COCHO, id: 'A' };
+    const B = { ...COCHO, id: 'B' };
+    const C = { ...COCHO, id: 'C' };
+    const eventos = [
+      evento({ id: 'eA', ponto_suplementacao_id: 'A', produto_id: 'p-1', produto: 'SAL', data_lancamento: '2026-11-01' }),
+      evento({ id: 'eB', ponto_suplementacao_id: 'B', produto_id: null, produto: 'SAL', data_lancamento: '2026-11-02' }),
+      evento({ id: 'eC', ponto_suplementacao_id: 'C', produto_id: 'p-2', produto: 'SAL', quantidade_total_kg: 1000, data_lancamento: '2026-11-03' }),
+    ];
+    const pontos = [A, B, C];
+    const niveis = [A, B, C].map((ponto) => nivel({ ponto, eventos, pontos, hoje: '2026-11-10' }));
+    expect(niveis.map((n) => n.confiabilidade)).toEqual(['compartilhada', 'compartilhada', 'compartilhada']);
+    expect(new Set(niveis.map((n) => n.dataEsgotamentoConjuntoEstimada)).size).toBe(1);
+    expect(niveis.map((n) => n.alertas.length)).toEqual([0, 0, 0]);
+  });
+
+  it('desempenho: 150 cochos × 6.000 lançamentos — o índice da fazenda é montado uma vez', () => {
+    const pontos = Array.from({ length: 150 }, (_, i) => ({ ...COCHO, id: `k${i}`, area_vinculada_ids: [`a${i % 50}`] }));
+    const eventos = [];
+    for (let i = 0; i < 150; i += 1) {
+      for (let k = 0; k < 40; k += 1) {
+        const dia = new Date(Date.UTC(2026, 0, 1) + k * 6 * 86400000).toISOString().slice(0, 10);
+        eventos.push(evento({ id: `x${i}-${k}`, ponto_suplementacao_id: `k${i}`, data_lancamento: dia, dias_periodo: k < 39 ? 6 : null, sobra_kg: 0, consumo_diario_grupo_kg: k < 39 ? 30 : null }));
+      }
+    }
+    const inicio = performance.now();
+    for (let rodada = 0; rodada < 2; rodada += 1) {
+      for (const ponto of pontos) {
+        const n = nivel({ ponto, eventos, pontos, hoje: '2026-09-01' });
+        expect(n.estado).toBe('ciclo_aberto');
+      }
+    }
+    expect(performance.now() - inicio).toBeLessThan(1500);
   });
 
   it('lançamento FUTURO no vizinho não deixa este cocho sem estimativa hoje', () => {

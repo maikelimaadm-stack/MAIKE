@@ -46,7 +46,9 @@ export const exigirBancoLocal = () => {
   for (const proibida of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
     if (process.env[proibida]) throw new Error(`${proibida} definida: o ensaio só roda contra PostgreSQL local.`);
   }
-  const bruta = process.env.DATABASE_URL || '';
+  // Aparada como o backend faz (`texto()`), para a URL conferida ser a mesma que ele usa.
+  const bruta = (process.env.DATABASE_URL || '').trim();
+  process.env.DATABASE_URL = bruta;
   let url;
   try {
     url = new URL(bruta);
