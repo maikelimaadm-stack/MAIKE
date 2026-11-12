@@ -23,7 +23,9 @@ import { formatarDia } from "@/lib/diaCivil";
 import {
   MENSAGENS_NIVEL,
   calcularNivelCocho,
+  descreverUsoDoLimite,
   formatarKgNivel,
+  projecaoDoCartaoDoNivel,
   formatarPercentualNivel,
   formatarTaxaNivel,
 } from "@/domain/suplementacao/nivelSuplementacao";
@@ -163,10 +165,13 @@ function DetalhesCocho({ ponto, permissions }) {
     return Array.from(mapa.values()).sort((a, b) => (a.produto || "").localeCompare(b.produto || ""));
   }, [eventosDoPonto, produtos]);
 
-  // "Último registro": taxa e projeção do SSOT (null = sem estimativa confiável).
-  const estimado = nivel.confiabilidade === "estimada" && nivel.taxaConsumoKgDia != null;
-  const duracaoCicloDias = estimado ? nivel.duracaoCicloEstimadaDias : null;
-  const proximaReposicao = estimado && nivel.dataEsgotamentoEstimada ? formatarDia(nivel.dataEsgotamentoEstimada) : null;
+  // "Último registro" e Histórico: a MESMA projeção do SSOT. No ciclo aberto,
+  // taxa/duração/reposição do nível (null = sem estimativa confiável); fora
+  // dele (período fechado, futuro, data inválida) o cartão usa o gravado no
+  // evento — a comparação real × esperado do fechamento não é projeção.
+  const projecaoCartao = projecaoDoCartaoDoNivel(nivel);
+  const duracaoCicloDias = projecaoCartao.duracaoEstimada ?? null;
+  const proximaReposicao = projecaoCartao.proximaReposicao ?? null;
 
   const handleSaved = () => {
     queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && ["eventos-ponto", "mapa-eventos-supl", "mapa-pontos-supl", "pontos", "pontos-suplementacao"].includes(query.queryKey[0]) });
@@ -237,11 +242,9 @@ function DetalhesCocho({ ponto, permissions }) {
             </div>
             <CardMetricaEvento
             evento={ultimoEvento}
-            consumoEsperadoDiaKg={estimado ? nivel.taxaConsumoKgDia : null}
             sacos={ultimoEventoSacos}
             showProjecao={true}
-            duracaoEstimada={duracaoCicloDias}
-            proximaReposicao={proximaReposicao} />
+            {...projecaoCartao} />
             {ultimoEvento.observacoes && <div className="break-words text-[10px] italic text-slate-500">{ultimoEvento.observacoes}</div>}
           </div> :
         <div className="text-xs text-slate-500">Nenhum lançamento ainda.</div>
@@ -260,8 +263,8 @@ function DetalhesCocho({ ponto, permissions }) {
           {ponto.metragem_cocho_m && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Metragem:</span><span className="font-semibold text-slate-900">{formatDecimal(ponto.metragem_cocho_m)} m</span></div>}
           {ponto.cobertura_cocho && <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Cobertura:</span><span className="font-semibold text-slate-900">{ponto.cobertura_cocho}</span></div>}
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo ideal/cab:</span><span className="font-semibold text-slate-900">{ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite mínimo:</span><span className="font-semibold text-slate-900">{ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : '-'}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Limite máximo:</span><span className="font-semibold text-slate-900">{ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : '-'}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo mín./cab/dia:</span><span className="font-semibold text-slate-900">{ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : '-'}</span></div>
+          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Consumo máx./cab/dia:</span><span className="font-semibold text-slate-900">{ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Dias alerta reposição:</span><span className="font-semibold text-slate-900">{ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Alerta sem lançamento:</span><span className="font-semibold text-slate-900">{ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : '-'}</span></div>
           <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{ponto.observacoes || '-'}</span></div>
@@ -273,21 +276,26 @@ function DetalhesCocho({ ponto, permissions }) {
       </Dialog>
 
       <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico de Suplementação" largo somenteLeitura>
-          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
+          <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} nivel={nivel} />
         </LancLoteDialogo>
     </div>);
 
 }
 
 /**
- * Medidor 1 — quanto resta do ciclo aberto (fração do SSOT). Neutro (sem
- * estimativa, período fechado, sem lançamento…) mostra a mensagem do estado.
+ * Medidor 1 — quanto resta do ciclo aberto (fração do SSOT). O percentual
+ * aparece uma vez, sob o ícone (`CochoNivel`); a linha de baixo traz os kg.
+ * Neutro (sem estimativa, período fechado, sem lançamento…) mostra a mensagem
+ * do estado e, quando há, o que fazer para a estimativa voltar.
  * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho }} props
  */
 function PainelRestanteCiclo({ nivel }) {
   const estimado = nivel.confiabilidade === "estimada" && !nivel.neutro && nivel.saldoKg != null && nivel.baseCicloKg != null;
   const mensagem = nivel.confiabilidade === "indisponivel" && nivel.motivo ? `${nivel.mensagem}: ${nivel.motivo}.` : nivel.mensagem;
   const baseSemEstimativa = !estimado && nivel.estado === "ciclo_aberto" && nivel.baseCicloKg != null && nivel.baseCicloKg > 0;
+  const orientacao = nivel.confiabilidade === "compartilhada" ?
+  MENSAGENS_NIVEL.orientacaoCompartilhada :
+  nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPv ? MENSAGENS_NIVEL.orientacaoSemPv : null;
 
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">
@@ -295,7 +303,7 @@ function PainelRestanteCiclo({ nivel }) {
       <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
       {estimado ?
       <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-700">
-          <div className="font-semibold text-slate-900">{`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(nivel.baseCicloKg)} · ${nivel.rotuloCurto}`}</div>
+          <div className="font-semibold text-slate-900">{`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(nivel.baseCicloKg)}`}</div>
           <div>{`Consumo estimado: ${formatarTaxaNivel(nivel.taxaConsumoKgDia)} (%PV no lançamento)`}</div>
           {nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null &&
         <div>{`Dias desde o lançamento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)`}</div>
@@ -303,6 +311,7 @@ function PainelRestanteCiclo({ nivel }) {
         </div> :
       <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-600">
           <p className="max-w-[320px] break-words">{mensagem}</p>
+          {orientacao && <p className="max-w-[320px] break-words text-[10px] text-slate-500">{orientacao}</p>}
           {baseSemEstimativa &&
         <p className="text-[10px] text-slate-500">
               {nivel.sobraAnteriorKg ?
@@ -324,13 +333,13 @@ function PainelRestanteCiclo({ nivel }) {
  */
 function PainelUsoLimite({ nivel }) {
   const limite = nivel.limiteOperacionalKg;
-  /** @type {string} */
-  let descricao = MENSAGENS_NIVEL.limiteNaoConfigurado;
-  if (limite != null) {
-    descricao = nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null ?
-    `${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(limite)} · ${nivel.excessoAtualKg ? `${formatarKgNivel(nivel.excessoAtualKg)} acima do limite` : "dentro do limite"}` :
-    `Sem estimativa do que há no cocho agora (limite de ${formatarKgNivel(limite)}).`;
-  }
+  // Mesmo padrão de texto do depósito (`descreverUsoDoLimite`).
+  const uso = limite != null && nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null ?
+  descreverUsoDoLimite({ percentual: nivel.ocupacaoAtualPercentual, saldoKg: nivel.saldoKg, limiteKg: limite, excessoKg: nivel.excessoAtualKg }) :
+  null;
+  const descricao = uso ? uso.descricao : limite != null ?
+  `Sem estimativa do que há no cocho agora (limite de ${formatarKgNivel(limite)}).` :
+  MENSAGENS_NIVEL.limiteNaoConfigurado;
   const linhaLancamento = nivel.ocupacaoNoLancamentoPercentual != null ?
   `No lançamento: ${formatarPercentualNivel(nivel.ocupacaoNoLancamentoPercentual)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}` :
   null;
@@ -338,9 +347,11 @@ function PainelUsoLimite({ nivel }) {
   return (
     <div className="flex min-w-0 flex-col justify-center gap-1.5 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">
       <MedidorLimiteOperacional
-        percentualBruto={limite != null ? nivel.ocupacaoAtualPercentual : null}
+        percentualBruto={uso ? nivel.ocupacaoAtualPercentual : null}
         rotulo={ROTULO_USO_LIMITE}
-        descricao={descricao} />
+        descricao={descricao}
+        textoAcessivel={uso?.textoAcessivel}
+        orientacao={limite == null ? MENSAGENS_NIVEL.orientacaoLimite : null} />
       {linhaLancamento && <div className={`text-[11px] ${nivel.excessoNoLancamentoKg ? "font-medium text-amber-800" : "text-slate-700"}`}>{linhaLancamento}</div>}
       {limite != null && nivel.evento && <p className="text-[10px] leading-snug text-slate-500">{NOTA_LIMITE_ATUAL}</p>}
     </div>);

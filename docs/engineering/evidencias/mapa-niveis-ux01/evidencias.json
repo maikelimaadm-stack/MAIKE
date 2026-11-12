@@ -7,7 +7,7 @@
     },
     {
       "largura": "w1280",
-      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "nome": "2 Detalhe do cocho: 75% e 150 kg de 200 kg, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
       "ok": true
     },
     {
@@ -27,7 +27,7 @@
     },
     {
       "largura": "w390",
-      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "nome": "2 Detalhe do cocho: 75% e 150 kg de 200 kg, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
       "ok": true
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "largura": "w412",
-      "nome": "2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
+      "nome": "2 Detalhe do cocho: 75% e 150 kg de 200 kg, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)",
       "ok": true
     },
     {
@@ -64,8 +64,8 @@
   "evidencias": {
     "w1280": {
       "dias": {
-        "hoje": "2026-11-11",
-        "ontem": "2026-11-10"
+        "hoje": "2026-11-12",
+        "ontem": "2026-11-11"
       },
       "marcador_cocho": {
         "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
@@ -80,8 +80,8 @@
         "seloAriaHidden": "true"
       },
       "detalhe_cocho": {
-        "ontem": "2026-11-10",
-        "proxima": "14/11/2026"
+        "ontem": "2026-11-11",
+        "proxima": "15/11/2026"
       },
       "02-detalhe-cocho_regiao": {
         "l": 227,
@@ -100,8 +100,8 @@
         "estouro": 0
       },
       "virada": {
-        "de": "2026-11-11",
-        "para": "2026-11-12",
+        "de": "2026-11-12",
+        "para": "2026-11-13",
         "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
         "leituras_eventos": 0
       },
@@ -117,8 +117,8 @@
     },
     "w390": {
       "dias": {
-        "hoje": "2026-11-11",
-        "ontem": "2026-11-10"
+        "hoje": "2026-11-12",
+        "ontem": "2026-11-11"
       },
       "marcador_cocho": {
         "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
@@ -133,8 +133,8 @@
         "seloAriaHidden": "true"
       },
       "detalhe_cocho": {
-        "ontem": "2026-11-10",
-        "proxima": "14/11/2026"
+        "ontem": "2026-11-11",
+        "proxima": "15/11/2026"
       },
       "02-detalhe-cocho_regiao": {
         "l": 25,
@@ -153,8 +153,8 @@
         "estouro": 0
       },
       "virada": {
-        "de": "2026-11-11",
-        "para": "2026-11-12",
+        "de": "2026-11-12",
+        "para": "2026-11-13",
         "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
         "leituras_eventos": 0
       },
@@ -170,8 +170,8 @@
     },
     "w412": {
       "dias": {
-        "hoje": "2026-11-11",
-        "ontem": "2026-11-10"
+        "hoje": "2026-11-12",
+        "ontem": "2026-11-11"
       },
       "marcador_cocho": {
         "title": "COCHO DO PASTO NÍVEIS — Restante estimado: 150 kg de 200 kg (75%). Uso do limite operacional: 125% de 120 kg (30 kg acima).",
@@ -186,8 +186,8 @@
         "seloAriaHidden": "true"
       },
       "detalhe_cocho": {
-        "ontem": "2026-11-10",
-        "proxima": "14/11/2026"
+        "ontem": "2026-11-11",
+        "proxima": "15/11/2026"
       },
       "02-detalhe-cocho_regiao": {
         "l": 25,
@@ -206,8 +206,8 @@
         "estouro": 0
       },
       "virada": {
-        "de": "2026-11-11",
-        "para": "2026-11-12",
+        "de": "2026-11-12",
+        "para": "2026-11-13",
         "titulo": "COCHO DO PASTO NÍVEIS — Restante estimado: 100 kg de 200 kg (50%). Uso do limite operacional: 83,33% de 120 kg.",
         "leituras_eventos": 0
       },
@@ -225,15 +225,15 @@
   "respostas_api_roteiro": [
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwcyimav00077dgjls2untia/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd0tohm00077dqf9xhmpviy/confirmar → 200",
     "POST /suplementacao-eventos → 201",
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwcyj109000w7dgj2k3w1u23/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd0u3v5000w7dqffx2kbsg5/confirmar → 200",
     "POST /suplementacao-eventos → 201",
     "PUT /perfis-financeiros-empresa → 200",
     "POST /operacoes-financeiras → 201",
-    "POST /operacoes-financeiras/cmwcyj938001l7dgjxrlh3jz6/confirmar → 200",
+    "POST /operacoes-financeiras/cmwd0uc4r001l7dqfi6auzqcg/confirmar → 200",
     "POST /suplementacao-eventos → 201"
   ],
   "falhas": []

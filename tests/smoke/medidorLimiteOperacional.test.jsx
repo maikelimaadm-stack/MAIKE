@@ -7,8 +7,13 @@
  *  - preenchimento VISUAL nunca passa de 100% (nem fica negativo);
  *  - o valor bruto aparece como TEXTO visível ("166,67%"), fora da barra;
  *  - variante explícita ou derivada do valor: normal (≤ 100), excesso (> 100),
- *    neutro (sem valor) — o neutro não finge medir nada (sem role meter);
- *  - rótulo e descrição ligados por `aria-labelledby`/`aria-describedby`.
+ *    neutro (sem valor) — o neutro não finge medir nada (sem role meter) e não
+ *    desenha a trilha cheia de um "0%": a trilha é tracejada, sem preenchimento,
+ *    com a orientação do que fazer;
+ *  - o leitor de tela ouve o número e a frase UMA vez: `aria-valuetext` traz a
+ *    frase completa ("125% do limite operacional: 150 kg de 120 kg, 30 kg
+ *    acima"); sem `aria-describedby` repetindo a descrição, e o número e a
+ *    descrição visíveis ficam fora da árvore acessível (já estão no valuetext).
  */
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -22,19 +27,30 @@ const preenchimento = (container) => container.querySelector('[data-medidor-pree
 describe('MedidorLimiteOperacional', () => {
   it('acima do limite: valor bruto no texto e no aria-valuenow, barra cheia em 100%', () => {
     const { container } = render(
-      <MedidorLimiteOperacional percentualBruto={500 / 3} rotulo="Uso do limite operacional" descricao="de 120 kg · 80 kg acima do limite" />,
+      <MedidorLimiteOperacional
+        percentualBruto={500 / 3}
+        rotulo="Uso do limite operacional"
+        descricao="200 kg de 120 kg · 80 kg acima do limite"
+        textoAcessivel="166,67% do limite operacional: 200 kg de 120 kg, 80 kg acima" />,
     );
     const medidor = screen.getByRole('meter', { name: 'Uso do limite operacional' });
     expect(medidor.getAttribute('aria-valuenow')).toBe('166.67');
     expect(medidor.getAttribute('aria-valuemin')).toBe('0');
     expect(Number(medidor.getAttribute('aria-valuemax'))).toBeGreaterThanOrEqual(166.67);
-    expect(medidor.getAttribute('aria-valuetext')).toBe('166,67% de 120 kg · 80 kg acima do limite');
+    expect(medidor.getAttribute('aria-valuetext')).toBe('166,67% do limite operacional: 200 kg de 120 kg, 80 kg acima');
     expect(screen.getByText('166,67%')).toBeTruthy();
-    expect(screen.getByText('de 120 kg · 80 kg acima do limite')).toBeTruthy();
+    expect(screen.getByText('200 kg de 120 kg · 80 kg acima do limite')).toBeTruthy();
     expect(preenchimento(container).style.width).toBe('100%');
     expect(medidor.getAttribute('data-variante')).toBe('excesso');
-    expect(medidor.getAttribute('aria-describedby')).toBeTruthy();
-    expect(document.getElementById(medidor.getAttribute('aria-describedby')).textContent).toBe('de 120 kg · 80 kg acima do limite');
+    // A frase já está no valuetext: nada de lê-la de novo.
+    expect(medidor.hasAttribute('aria-describedby')).toBe(false);
+    expect(screen.getByText('166,67%').closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.getByText('200 kg de 120 kg · 80 kg acima do limite').closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('sem textoAcessivel, o valuetext junta número e descrição com ":" (sem números colados)', () => {
+    render(<MedidorLimiteOperacional percentualBruto={75} rotulo="Uso" descricao="90 kg de 120 kg · dentro do limite" />);
+    expect(screen.getByRole('meter').getAttribute('aria-valuetext')).toBe('75%: 90 kg de 120 kg · dentro do limite');
   });
 
   it('dentro do limite: preenchimento proporcional e variante normal', () => {
@@ -63,13 +79,20 @@ describe('MedidorLimiteOperacional', () => {
 
   it('sem valor (limite não configurado): neutro, sem role meter, mensagem visível', () => {
     const { container } = render(
-      <MedidorLimiteOperacional percentualBruto={null} rotulo="Uso do limite operacional" descricao="Limite operacional não configurado." />,
+      <MedidorLimiteOperacional
+        percentualBruto={null}
+        rotulo="Uso do limite operacional"
+        descricao="Limite operacional não configurado."
+        orientacao="Configure o limite operacional no cadastro do ponto." />,
     );
     expect(screen.queryByRole('meter')).toBeNull();
     expect(screen.getByText('Uso do limite operacional')).toBeTruthy();
     expect(screen.getByText('Limite operacional não configurado.')).toBeTruthy();
+    expect(screen.getByText('Configure o limite operacional no cadastro do ponto.')).toBeTruthy();
     expect(container.querySelector('[data-variante="neutro"]')).not.toBeNull();
-    expect(preenchimento(container).style.width).toBe('0%');
+    // Neutro não parece "0%": trilha tracejada, sem preenchimento.
+    expect(preenchimento(container)).toBeNull();
+    expect(container.querySelector('[data-medidor-trilha="neutra"]')?.className).toMatch(/border-dashed/);
     expect(container.textContent).not.toMatch(/\d%/);
   });
 

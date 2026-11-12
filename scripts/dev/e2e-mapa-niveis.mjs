@@ -24,12 +24,16 @@
  *  - COCHO: ícone do marcador em 75% (= `urlIconeCocho(0.75, true)`), título
  *    "… — Restante estimado: 150 kg de 200 kg (75%). Uso do limite
  *    operacional: 125% de 120 kg (30 kg acima).", sem selo; no detalhe
- *    "150 kg de 200 kg · 75%", medidor do limite com 125% e "30 kg acima do
- *    limite", "No lançamento: 166,67% (80 kg acima)", cartões 150 kg /
- *    4 dia(s) / próxima reposição = ontem + 4;
+ *    "75%" uma vez (sob o ícone) e "150 kg de 200 kg", medidor do limite com
+ *    125% e "150 kg de 120 kg · 30 kg acima do limite" (aria-valuetext "125%
+ *    do limite operacional: 150 kg de 120 kg, 30 kg acima"), "No lançamento:
+ *    166,67% (80 kg acima)", cartões 150 kg / 4 dia(s) / próxima reposição =
+ *    ontem + 4;
  *  - DEPÓSITO: ícone cheio (`data-deposito-nivel="100"`), selo "!", título
  *    "… — Saldo de 600 kg: 200% do limite operacional de 300 kg (300 kg
- *    acima).", no detalhe medidor com 200% e "300 kg acima do limite",
+ *    acima).", no detalhe medidor com 200% e "600 kg de 300 kg · 300 kg acima
+ *    do limite" (aria-valuetext "200% do limite operacional: 600 kg de 300
+ *    kg, 300 kg acima"),
  *    "Mínimo 100 kg · 500 kg acima do mínimo", saldo 600,00 kg.
  *  - VIRADA DO DIA (relógio do navegador controlado pelo Playwright, fuso da
  *    fazenda): às 23:59:30 de São Paulo o cocho mostra 75%; à meia-noite o
@@ -568,7 +572,7 @@ const executarLargura = async (browser, largura) => {
     });
 
     // ── 2. Detalhe do cocho ─────────────────────────────────────────────────
-    await passo('2 Detalhe do cocho: 150 kg de 200 kg · 75%, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)', async () => {
+    await passo('2 Detalhe do cocho: 75% e 150 kg de 200 kg, limite 125% (30 kg acima), no lançamento 166,67% (80 kg acima)', async () => {
       await toque(marcador(s.cocho.nome), `marcador ${s.cocho.nome}`);
       await page.getByText('Ponto de Suplementação', { exact: true }).first().waitFor({ state: 'visible' });
       const regiao = page.getByRole('region', { name: 'Nível do cocho' }).filter({ visible: true }).first();
@@ -576,12 +580,14 @@ const executarLargura = async (browser, largura) => {
       await regiao.scrollIntoViewIfNeeded();
       const restante = regiao.getByRole('img', { name: /^Restante do ciclo \(estimado\):/ });
       igual(await restante.getAttribute('aria-label'), 'Restante do ciclo (estimado): 75%', `[${rotulo}] medidor do ciclo (aria-label)`);
-      igual(await regiao.getByText('150 kg de 200 kg · 75%', { exact: true }).count(), 1, `[${rotulo}] texto "150 kg de 200 kg · 75%"`);
+      igual(await regiao.getByText('150 kg de 200 kg', { exact: true }).count(), 1, `[${rotulo}] texto "150 kg de 200 kg"`);
+      igual(await regiao.getByText(/75%/).count(), 1, `[${rotulo}] o percentual do ciclo aparece uma vez`);
       igual(await regiao.getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)', { exact: true }).count(), 1, `[${rotulo}] taxa do %PV no lançamento`);
       igual(await regiao.getByText('Dias desde o lançamento: 1 · Restam 3 dia(s)', { exact: true }).count(), 1, `[${rotulo}] dias decorridos e restantes`);
       const medidor = regiao.getByRole('meter', { name: 'Uso do limite operacional' });
       igual(await medidor.getAttribute('aria-valuenow'), '125', `[${rotulo}] medidor do limite (aria-valuenow bruto)`);
-      igual(await medidor.getAttribute('aria-valuetext'), '125% 150 kg de 120 kg · 30 kg acima do limite', `[${rotulo}] medidor do limite (aria-valuetext)`);
+      igual(await medidor.getAttribute('aria-valuetext'), '125% do limite operacional: 150 kg de 120 kg, 30 kg acima', `[${rotulo}] medidor do limite (aria-valuetext)`);
+      igual(await medidor.getAttribute('aria-describedby'), null, `[${rotulo}] medidor do limite sem aria-describedby repetido`);
       igual(await medidor.getAttribute('data-variante'), 'excesso', `[${rotulo}] medidor do limite em excesso`);
       igual(await regiao.getByText('125%', { exact: true }).count(), 1, `[${rotulo}] 125% visível fora da barra`);
       igual(await regiao.getByText('150 kg de 120 kg · 30 kg acima do limite', { exact: true }).count(), 1, `[${rotulo}] 30 kg acima do limite`);
@@ -607,9 +613,10 @@ const executarLargura = async (browser, largura) => {
       await regiao.scrollIntoViewIfNeeded();
       const medidor = regiao.getByRole('meter', { name: 'Ocupação do limite operacional' });
       igual(await medidor.getAttribute('aria-valuenow'), '200', `[${rotulo}] medidor do depósito (aria-valuenow bruto)`);
-      igual(await medidor.getAttribute('aria-valuetext'), '200% de 300 kg · 300 kg acima do limite', `[${rotulo}] medidor do depósito (aria-valuetext)`);
+      igual(await medidor.getAttribute('aria-valuetext'), '200% do limite operacional: 600 kg de 300 kg, 300 kg acima', `[${rotulo}] medidor do depósito (aria-valuetext)`);
+      igual(await medidor.getAttribute('aria-describedby'), null, `[${rotulo}] medidor do depósito sem aria-describedby repetido`);
       igual(await regiao.getByText('200%', { exact: true }).count(), 1, `[${rotulo}] 200% visível fora do ícone`);
-      igual(await regiao.getByText('de 300 kg · 300 kg acima do limite', { exact: true }).count(), 1, `[${rotulo}] 300 kg acima do limite`);
+      igual(await regiao.getByText('600 kg de 300 kg · 300 kg acima do limite', { exact: true }).count(), 1, `[${rotulo}] 600 kg de 300 kg · 300 kg acima do limite`);
       const nivelIcone = await regiao.locator('img[data-deposito-icone]').evaluate((img) => {
         const svg = decodeURIComponent(img.getAttribute('src').split(',')[1] || '');
         return svg.match(/data-deposito-nivel="(\d+)"/)?.[1] ?? null;
@@ -656,7 +663,8 @@ const executarLargura = async (browser, largura) => {
       await regiao.waitFor({ state: 'visible', timeout: 30000 });
       await regiao.scrollIntoViewIfNeeded();
       igual(await regiao.getByRole('img', { name: /^Restante do ciclo \(estimado\):/ }).getAttribute('aria-label'), 'Restante do ciclo (estimado): 50%', `[${rotulo}] detalhe depois da virada: ciclo 50%`);
-      igual(await regiao.getByText('100 kg de 200 kg · 50%', { exact: true }).count(), 1, `[${rotulo}] detalhe: "100 kg de 200 kg · 50%"`);
+      igual(await regiao.getByText('100 kg de 200 kg', { exact: true }).count(), 1, `[${rotulo}] detalhe: "100 kg de 200 kg"`);
+      igual(await regiao.getByText(/50%/).count(), 1, `[${rotulo}] detalhe: o percentual do ciclo aparece uma vez`);
       igual(await regiao.getByText('Dias desde o lançamento: 2 · Restam 2 dia(s)', { exact: true }).count(), 1, `[${rotulo}] detalhe: 2 dias decorridos, restam 2`);
       const medidor = regiao.getByRole('meter', { name: 'Uso do limite operacional' });
       igual(await medidor.getAttribute('aria-valuenow'), '83.33', `[${rotulo}] detalhe: limite 83,33% (aria-valuenow)`);

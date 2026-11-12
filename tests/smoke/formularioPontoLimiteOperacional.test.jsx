@@ -8,7 +8,11 @@
  *        `aria-describedby`; validação "Informe o limite operacional do cocho em kg.";
  *  FP-2. depósito: "Limite operacional do depósito (kg)" e "Estoque mínimo (kg)"
  *        com ajudas; validações com os nomes novos; o payload grava os MESMOS
- *        campos (`capacidade_cocho_kg`, `estoque_minimo_kg`).
+ *        campos (`capacidade_cocho_kg`, `estoque_minimo_kg`);
+ *  FP-3. depósito: estoque mínimo maior ou igual ao limite operacional mostra
+ *        um AVISO junto ao campo, ligado por `aria-describedby`, mas NÃO
+ *        bloqueia o salvar (a regra de cadastro não muda); o payload não muda;
+ *  FP-4. a tabela do Cadastro do Mapa chama o mesmo campo pelo nome novo.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
@@ -140,5 +144,52 @@ describe('FormularioPonto — limite operacional (D-PROD-178)', () => {
       estoque_minimo_kg: 100,
     }));
     expect(Object.keys(svc.criarPontoSuplementacao.mock.calls[0][0]).some((chave) => /limite_operacional/.test(chave))).toBe(false);
+  });
+
+  it('FP-3 — depósito: estoque mínimo ≥ limite operacional mostra aviso junto ao campo e não bloqueia o salvar', async () => {
+    await montar({ id: 'p3', nome: 'DEPÓSITO 2', tipo: 'DEPÓSITO', setor_id: 's1' });
+    await waitFor(() => expect(screen.getByText('Depósito de Suplementação')).toBeTruthy());
+    const limite = campo('Limite operacional do depósito (kg)');
+    const minimo = campo('Estoque mínimo (kg)');
+    const AVISO = 'Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.';
+    await act(async () => {
+      fireEvent.change(limite, { target: { value: '80' } });
+      fireEvent.change(minimo, { target: { value: '100' } });
+    });
+    // Aviso visível e lido junto do campo (além da ajuda); o campo não fica inválido.
+    expect(screen.getByText(AVISO)).toBeTruthy();
+    const descritos = (minimo.getAttribute('aria-describedby') || '').split(' ').map((id) => document.getElementById(id)?.textContent);
+    expect(descritos).toEqual([AJUDA_MINIMO, AVISO]);
+    expect(minimo.getAttribute('aria-invalid')).toBeNull();
+
+    // Igual ao limite também avisa.
+    await act(async () => { fireEvent.change(minimo, { target: { value: '80' } }); });
+    expect(screen.getByText(AVISO)).toBeTruthy();
+
+    // O aviso não bloqueia: salva com o MESMO payload (sem campo novo).
+    await enviar();
+    await waitFor(() => expect(svc.criarPontoSuplementacao).toHaveBeenCalledTimes(1));
+    expect(svc.criarPontoSuplementacao).toHaveBeenCalledWith(expect.objectContaining({ capacidade_cocho_kg: 80, estoque_minimo_kg: 80 }));
+    expect(svc.toastError).not.toHaveBeenCalledWith(AVISO);
+  });
+
+  it('FP-3b — depósito: mínimo menor que o limite não mostra o aviso', async () => {
+    await montar({ id: 'p3', nome: 'DEPÓSITO 2', tipo: 'DEPÓSITO', setor_id: 's1' });
+    await waitFor(() => expect(screen.getByText('Depósito de Suplementação')).toBeTruthy());
+    const limite = campo('Limite operacional do depósito (kg)');
+    const minimo = campo('Estoque mínimo (kg)');
+    await act(async () => {
+      fireEvent.change(limite, { target: { value: '80' } });
+      fireEvent.change(minimo, { target: { value: '30' } });
+    });
+    expect(screen.queryByText(/estoque mínimo está igual ou acima do limite/)).toBeNull();
+    expect(minimo.getAttribute('aria-describedby')?.split(' ')).toHaveLength(1);
+  });
+
+  it('FP-4 — Cadastro do Mapa: a coluna do campo diz limite operacional (kg) e capacidade (L) dos bebedouros', async () => {
+    const { COLUNAS_PONTOS } = await import('@/components/mapa/cadastro/colunasCadastroMapa');
+    const coluna = COLUNAS_PONTOS.find((item) => item.id === 'capacidade');
+    expect(coluna?.label).toBe('Limite op. (kg) / Capac. (L)');
+    expect(COLUNAS_PONTOS.some((item) => item.label === 'Capacidade (kg)')).toBe(false);
   });
 });

@@ -2,9 +2,14 @@
  * D-PROD-178 — alertas de cocho e depósito do Mapa Geral vêm do SSOT
  * (`nivelSuplementacao`), com o MESMO dia civil e a MESMA taxa do marcador.
  *
- *  - tipos e textos preservados: cocho_sem_lancamento, cocho_sem_produto,
- *    cocho_baixo, deposito_sem_estoque, deposito_estoque_minimo,
- *    deposito_cobertura_baixa; novos cocho_acima_limite e deposito_acima_limite;
+ *  - tipos, títulos e severidades preservados: cocho_sem_lancamento,
+ *    cocho_sem_produto, cocho_baixo, deposito_sem_estoque,
+ *    deposito_estoque_minimo, deposito_cobertura_baixa; novos
+ *    cocho_acima_limite e deposito_acima_limite. Nas descrições, só o formato
+ *    dos números mudou para pt-BR ("1.0" → "1", "0.5" → "0,5", "1234" →
+ *    "1.234,4"); o excesso diz o saldo e quanto passa do limite;
+ *  - cocho com ciclo aberto antigo (sem lançamento novo) não contamina o
+ *    vizinho ativo, e o próprio cocho vazio mantém "Cocho sem produto";
  *  - sem taxa no lançamento (sem %PV) não há falso "Cocho sem produto" — nem no
  *    dia do lançamento, nem com o fallback antigo do "maior %PV" da área;
  *  - saldo do depósito sem Produto em L (P-11), como o marcador;
@@ -45,7 +50,12 @@ describe('alertas do cocho pelo SSOT', () => {
       { tipo: 'cocho_sem_lancamento', severidade: 'critico', titulo: 'Cocho sem lançamento', descricao: 'Não há lançamento de suplementação para este cocho.' },
     ]);
     expect(tipos(montar({ hoje: '2026-11-03' }), 'c1')).toEqual([]);
-    expect(tipos(montar({ hoje: '2026-11-04' }), 'c1')).toEqual(['cocho_baixo']);
+    expect(montar({ hoje: '2026-11-04' }).alertasPonto.get('c1').alertas).toEqual([
+      { tipo: 'cocho_baixo', severidade: 'alerta', titulo: 'Reposição próxima', descricao: 'Cobertura estimada restante: 1 dia(s).' },
+    ]);
+    // Fração de dia em pt-BR: 175 kg a 50 kg/dia no dia 3 → 0,5 dia.
+    expect(montar({ hoje: '2026-11-04', eventosSupl: [evento({ quantidade_total_kg: 175 })] }).alertasPonto.get('c1').alertas[0].descricao)
+      .toBe('Cobertura estimada restante: 0,5 dia(s).');
     expect(montar({ hoje: '2026-11-05' }).alertasPonto.get('c1').alertas).toEqual([
       { tipo: 'cocho_sem_produto', severidade: 'critico', titulo: 'Cocho sem produto', descricao: 'A cobertura estimada do cocho foi esgotada.' },
     ]);
@@ -58,6 +68,20 @@ describe('alertas do cocho pelo SSOT', () => {
       expect(tipos(r, 'c1')).toEqual([]);
       expect(r.alertasPonto.get('c1').nivel.confiabilidade).toBe('indisponivel');
     }
+  });
+
+  it('cocho abandonado (ciclo aberto antigo) ao lado de um ativo: os dois seguem estimados e o vazio mantém o crítico', () => {
+    const A = { ...COCHO, id: 'A', deposito_origem_id: null };
+    const B = { ...COCHO, id: 'B', deposito_origem_id: null };
+    const evB = evento({ id: 'eB', ponto_suplementacao_id: 'B', data_lancamento: '2026-08-01', quantidade_total_kg: 100 });
+    const evA = evento({ id: 'eA', ponto_suplementacao_id: 'A', data_lancamento: '2026-11-10' });
+    const soB = montar({ pontosSuplementacao: [B], eventosSupl: [evB], hoje: '2026-11-12' });
+    expect(tipos(soB, 'B')).toEqual(['cocho_sem_produto']);
+    const ambos = montar({ pontosSuplementacao: [A, B], eventosSupl: [evA, evB], hoje: '2026-11-12' });
+    expect(tipos(ambos, 'B')).toEqual(['cocho_sem_produto']);
+    expect(ambos.alertasPonto.get('B').nivel.confiabilidade).toBe('estimada');
+    expect(ambos.alertasPonto.get('A').nivel.confiabilidade).toBe('estimada');
+    expect(ambos.alertasPonto.get('A').nivel.rotuloCurto).toBe('50%');
   });
 
   it('período fechado não recalcula cobertura a partir da data do lançamento', () => {
@@ -136,7 +160,7 @@ describe('alertas do depósito pelo SSOT', () => {
   it('acima do limite operacional: deposito_acima_limite', () => {
     const r = montar({ estoqueLotes: [loteEstoque(600)], eventosSupl: [], pontosSuplementacao: [COCHO, { ...DEPOSITO, capacidade_cocho_kg: 300 }] });
     expect(r.alertasPonto.get('d1').alertas).toEqual([
-      { tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: 'Saldo 300 kg acima do limite operacional (200%).' },
+      { tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: 'Saldo de 600 kg, 300 kg acima do limite operacional (200%).' },
     ]);
     expect(r.alertasPonto.get('d1').isDeposito).toBe(true);
   });

@@ -253,6 +253,11 @@ describe('calcularNivelCocho — estados neutros', () => {
     expect(n.ocupacaoNoLancamentoPercentual).toBeNull();
     expect(n.ocupacaoAtualPercentual).toBe(25);
     expect(n.alertas).toEqual([]);
+    // Sobra informada acima do limite: o alerta diz a sobra e o excesso (sem ambiguidade).
+    const acima = nivel({ ponto: { ...COCHO, capacidade_cocho_kg: 20 }, eventos: [fechado], hoje: '2026-11-20' });
+    expect(acima.alertas).toEqual([
+      { tipo: 'cocho_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: 'Sobra informada de 30 kg, 10 kg acima do limite operacional (150%).' },
+    ]);
     // dias_periodo 0 também é fechado (o critério é `!= null`).
     expect(nivel({ eventos: [evento({ dias_periodo: 0, sobra_kg: 10 })] }).estado).toBe('ciclo_fechado');
   });
@@ -387,6 +392,65 @@ describe('calcularNivelCocho — cochos compartilhando os mesmos animais', () =>
     expect(n.compartilhadoCom).toEqual(['c2', 'c3']);
     expect(n.mensagem).toContain('3 cochos com o mesmo produto');
   });
+
+  // Critério de tempo: um ciclo aberto que nunca recebeu outro lançamento não
+  // fecha sozinho. Só conta como compartilhado quando as janelas estimadas dos
+  // dois ciclos (lançamento → esgotamento pela taxa gravada) se cruzam.
+  it('cocho abandonado ao lado de um ativo: cada um tem a própria estimativa (o vazio mantém "sem produto")', () => {
+    const abandonado = eventoOutro({ data_lancamento: '2026-08-01', quantidade_total_kg: 100 }); // esgota em 03/08
+    const ativo = evento({ data_lancamento: '2026-11-10' });
+    const eventos = [ativo, abandonado];
+
+    const a = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(a.confiabilidade).toBe('estimada');
+    expect(a.compartilhadoCom).toEqual([]);
+    expect(a.saldoKg).toBe(100);
+    expect(a.rotuloCurto).toBe('50%');
+
+    const b = nivel({ ponto: OUTRO, eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-12' });
+    expect(b.confiabilidade).toBe('estimada');
+    expect(b.compartilhadoCom).toEqual([]);
+    expect(b.saldoKg).toBe(0);
+    expect(b.alertas.map((alerta) => alerta.tipo)).toEqual(['cocho_sem_produto']);
+  });
+
+  it('janelas: lançado no dia do esgotamento do outro não conta; um dia antes conta (nos dois sentidos)', () => {
+    // c1: 01/11, 200 kg a 50 kg/dia → esgota em 05/11.
+    const noEsgotamento = [evento(), eventoOutro({ data_lancamento: '2026-11-05' })];
+    expect(nivel({ eventos: noEsgotamento, pontos: [COCHO, OUTRO], hoje: '2026-11-06' }).confiabilidade).toBe('estimada');
+    expect(nivel({ ponto: OUTRO, eventos: noEsgotamento, pontos: [COCHO, OUTRO], hoje: '2026-11-06' }).confiabilidade).toBe('estimada');
+    const antes = [evento(), eventoOutro({ data_lancamento: '2026-11-04' })];
+    expect(nivel({ eventos: antes, pontos: [COCHO, OUTRO], hoje: '2026-11-06' }).confiabilidade).toBe('compartilhada');
+    expect(nivel({ ponto: OUTRO, eventos: antes, pontos: [COCHO, OUTRO], hoje: '2026-11-06' }).confiabilidade).toBe('compartilhada');
+  });
+
+  it('outro cocho sem taxa: a janela dele usa a taxa deste (os dois contam o mesmo rebanho); sem data válida não conta', () => {
+    // c2 sem %PV, 400 kg em 25/10: pela taxa de c1 (50 kg/dia) esgota em 02/11 > 01/11.
+    const semTaxa = eventoOutro({ data_lancamento: '2026-10-25', quantidade_total_kg: 400, consumo_esperado_pv_kg: null });
+    expect(nivel({ eventos: [evento(), semTaxa], pontos: [COCHO, OUTRO], hoje: '2026-11-02' }).confiabilidade).toBe('compartilhada');
+    // 300 kg em 25/10 esgota em 31/10, antes do lançamento de c1.
+    const curto = eventoOutro({ data_lancamento: '2026-10-25', quantidade_total_kg: 300, consumo_esperado_pv_kg: null });
+    expect(nivel({ eventos: [evento(), curto], pontos: [COCHO, OUTRO], hoje: '2026-11-02' }).confiabilidade).toBe('estimada');
+    const semData = eventoOutro({ data_lancamento: 'xx' });
+    expect(nivel({ eventos: [evento(), semData], pontos: [COCHO, OUTRO], hoje: '2026-11-02' }).confiabilidade).toBe('estimada');
+  });
+
+  it('compartilhados e depois sem lançamento: mantém o aviso crítico quando nem somando os cochos ainda haveria produto', () => {
+    // 01/11 e 02/11, 200 kg cada, 50 kg/dia o rebanho: 400 kg somados acabam
+    // no máximo 8 dias depois do último lançamento (10/11).
+    const eventos = [evento(), eventoOutro({ data_lancamento: '2026-11-02' })];
+    const antes = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-09' });
+    expect(antes.confiabilidade).toBe('compartilhada');
+    expect(antes.dataEsgotamentoConjuntoEstimada).toBe('2026-11-10');
+    expect(antes.alertas).toEqual([]);
+    const depois = nivel({ eventos, pontos: [COCHO, OUTRO], hoje: '2026-11-10' });
+    expect(depois.confiabilidade).toBe('compartilhada');
+    expect(depois.saldoKg).toBeNull();
+    expect(depois.neutro).toBe(true);
+    expect(depois.alertas).toEqual([
+      { tipo: 'cocho_sem_produto', severidade: 'critico', titulo: 'Cocho sem produto', descricao: 'A cobertura estimada dos 2 cochos que atendem estes animais foi esgotada.' },
+    ]);
+  });
 });
 
 describe('calcularNivelCocho — quantização do ícone', () => {
@@ -425,7 +489,7 @@ describe('calcularNivelDeposito', () => {
     expect(n.necessidadeReposicaoKg).toBe(0);
     expect(n.rotuloCurto).toBe('200%');
     expect(n.alertas).toEqual([
-      { tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: 'Saldo 300 kg acima do limite operacional (200%).' },
+      { tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: 'Saldo de 600 kg, 300 kg acima do limite operacional (200%).' },
     ]);
     expect(n.descricao).toContain('200% do limite operacional de 300 kg (300 kg acima)');
   });

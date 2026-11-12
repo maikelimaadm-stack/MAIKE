@@ -84,8 +84,8 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await renderizar(deposito());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('200'));
     expect(within(secao()).getByText('200%')).toBeTruthy();
-    expect(within(secao()).getByText('de 300 kg · 300 kg acima do limite')).toBeTruthy();
-    expect(medidor().getAttribute('aria-valuetext')).toBe('200% de 300 kg · 300 kg acima do limite');
+    expect(within(secao()).getByText('600 kg de 300 kg · 300 kg acima do limite')).toBeTruthy();
+    expect(medidor().getAttribute('aria-valuetext')).toBe('200% do limite operacional: 600 kg de 300 kg, 300 kg acima');
     expect(medidor().getAttribute('data-variante')).toBe('excesso');
     expect(nivelIcone()).toBe('100');
     expect(secao().querySelector('[data-medidor-preenchimento]').style.width).toBe('100%');
@@ -102,7 +102,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await renderizar(deposito({ estoque_minimo_kg: 100 }));
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
     expect(within(secao()).getByText('50%')).toBeTruthy();
-    expect(within(secao()).getByText('de 300 kg · dentro do limite')).toBeTruthy();
+    expect(within(secao()).getByText('150 kg de 300 kg · dentro do limite')).toBeTruthy();
     expect(nivelIcone()).toBe('50');
     expect(within(painelMinimo()).getByText('Mínimo 100 kg · 50 kg acima do mínimo')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('acima');

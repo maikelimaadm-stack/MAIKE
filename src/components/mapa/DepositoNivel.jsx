@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 import MedidorLimiteOperacional from "./MedidorLimiteOperacional";
-import { MENSAGENS_NIVEL, formatarKgNivel } from "@/domain/suplementacao/nivelSuplementacao";
+import { MENSAGENS_NIVEL, descreverUsoDoLimite, formatarKgNivel } from "@/domain/suplementacao/nivelSuplementacao";
 
 const ROTULO_OCUPACAO_LIMITE = "Ocupação do limite operacional";
 const ROTULO_ESTOQUE_MINIMO = "Estoque mínimo";
@@ -15,8 +15,10 @@ const AVISO_PRODUTOS_EM_LITROS = "Produtos em litros ficam fora do saldo em kg e
  *  1. Ocupação do LIMITE OPERACIONAL (`capacidade_cocho_kg`): o ícone preenche
  *     com `fracaoParaSvg` (≤ 100%, o mesmo desenho do marcador do mapa) e o
  *     percentual BRUTO (pode passar de 100%) aparece como número fora do ícone,
- *     no medidor acessível (`role="meter"`), com o excesso em kg. Sem limite,
- *     não há percentual: o medidor fica neutro com a mensagem.
+ *     no medidor acessível (`role="meter"`), com o saldo, o limite e o excesso
+ *     em kg — o mesmo padrão do cocho ("600 kg de 300 kg · 300 kg acima do
+ *     limite"). Sem limite, não há percentual: o ícone vazio leva o rótulo
+ *     neutro "Sem limite" (como o cocho) e o medidor neutro diz o que fazer.
  *  2. Estoque mínimo: LIMIAR independente (acima, no mínimo ou abaixo, com a
  *     margem em kg). Nunca é divisor nem teto do percentual.
  *
@@ -27,10 +29,9 @@ const AVISO_PRODUTOS_EM_LITROS = "Produtos em litros ficam fora do saldo em kg e
  */
 export default function DepositoNivel({ nivel }) {
   const limite = nivel.limiteOperacionalKg;
-  const excesso = nivel.excessoKg ?? 0;
-  const descricaoLimite = limite != null ?
-  `de ${formatarKgNivel(limite)} · ${excesso > 0 ? `${formatarKgNivel(excesso)} acima do limite` : "dentro do limite"}` :
-  nivel.mensagemLimite || MENSAGENS_NIVEL.limiteNaoConfiguradoDeposito;
+  const uso = limite != null && nivel.ocupacaoPercentual != null ?
+  descreverUsoDoLimite({ percentual: nivel.ocupacaoPercentual, saldoKg: nivel.saldoKg, limiteKg: limite, excessoKg: nivel.excessoKg }) :
+  null;
 
   return (
     <div className="space-y-1">
@@ -44,11 +45,14 @@ export default function DepositoNivel({ nivel }) {
             alt=""
             aria-hidden="true"
             className="h-auto w-[132px] max-w-full" />
+          {nivel.neutro && <span data-deposito-rotulo-neutro="" aria-hidden="true" className="text-xs font-medium text-slate-500">{nivel.rotuloCurto}</span>}
           <MedidorLimiteOperacional
             className="self-stretch"
-            percentualBruto={limite != null ? nivel.ocupacaoPercentual : null}
+            percentualBruto={uso ? nivel.ocupacaoPercentual : null}
             rotulo={ROTULO_OCUPACAO_LIMITE}
-            descricao={descricaoLimite} />
+            descricao={uso ? uso.descricao : nivel.mensagemLimite || MENSAGENS_NIVEL.limiteNaoConfiguradoDeposito}
+            textoAcessivel={uso?.textoAcessivel}
+            orientacao={uso ? null : MENSAGENS_NIVEL.orientacaoLimite} />
         </div>
         <PainelEstoqueMinimo nivel={nivel} />
       </div>

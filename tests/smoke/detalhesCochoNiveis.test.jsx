@@ -6,8 +6,9 @@
  * fazenda (`useDiaCivil(Empresa.fuso_horario)`), os MESMOS eventos da fazenda e
  * a lista de pontos ativos do cache do mapa — o mesmo número do marcador.
  *
- *  DC-1. dia 1 de um ciclo de 200 kg a 50 kg/dia: 75% no medidor do ciclo,
- *        "150 kg de 200 kg · 75%", taxa do %PV no lançamento, cartões do SSOT,
+ *  DC-1. dia 1 de um ciclo de 200 kg a 50 kg/dia: 75% no medidor do ciclo (o
+ *        número aparece UMA vez), "150 kg de 200 kg", taxa do %PV no
+ *        lançamento, cartões do SSOT,
  *        o mesmo rótulo do `getCochoIndicator` do mapa; o dia é o da FAZENDA
  *        (São Paulo), não o do navegador (UTC); sem `setInterval` de 60 s;
  *  DC-2. limite operacional de 120 kg: medidor "125%" / 30 kg acima e a linha
@@ -104,14 +105,17 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     await waitFor(() => expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): 75%'));
     const secao = secaoCocho();
-    expect(within(secao).getByText('150 kg de 200 kg · 75%')).toBeTruthy();
+    expect(within(secao).getByText('150 kg de 200 kg')).toBeTruthy();
+    // O percentual do ciclo aparece uma vez só (sob o ícone).
+    expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
     expect(within(secao).getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)')).toBeTruthy();
     expect(within(secao).getByText('Dias desde o lançamento: 1 · Restam 3 dia(s)')).toBeTruthy();
     expect(valorDe(secao, 'Saldo estimado')).toBe('150 kg');
     expect(valorDe(secao, 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secao, 'Próxima reposição')).toBe('14/11/2026');
-    // Sem limite configurado: medidor neutro com a mensagem.
+    // Sem limite configurado: medidor neutro com a mensagem e o que fazer.
     expect(within(secao).getByText('Limite operacional não configurado.')).toBeTruthy();
+    expect(within(secao).getByText('Configure o limite operacional no cadastro do ponto.')).toBeTruthy();
     expect(within(secao).queryByRole('meter')).toBeNull();
 
     // O MESMO número do marcador do mapa (mesmo SSOT, mesmo dia, mesmos eventos e pontos).
@@ -121,9 +125,13 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
 
     // "Último registro" usa a taxa do SSOT.
     expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('50,00 kg');
-    // Cadastro: o campo é o limite operacional.
+    // Cadastro: o campo é o limite operacional; os limites de consumo dizem que são por cabeça/dia.
     expect(screen.getByText('Limite operacional:')).toBeTruthy();
     expect(screen.queryByText('Capacidade:')).toBeNull();
+    expect(screen.getByText('Consumo mín./cab/dia:')).toBeTruthy();
+    expect(screen.getByText('Consumo máx./cab/dia:')).toBeTruthy();
+    expect(screen.queryByText('Limite mínimo:')).toBeNull();
+    expect(screen.queryByText('Limite máximo:')).toBeNull();
     // Nada de polling de 60 s: a virada do dia vem de useDiaCivil.
     expect(setIntervalSpy.mock.calls.some(([, ms]) => ms === 60_000)).toBe(false);
   });
@@ -140,7 +148,8 @@ describe('DC-2 — limite operacional', () => {
     const secao = secaoCocho();
     const medidor = within(secao).getByRole('meter', { name: 'Uso do limite operacional' });
     expect(medidor.getAttribute('aria-valuenow')).toBe('125');
-    expect(medidor.getAttribute('aria-valuetext')).toContain('30 kg acima do limite');
+    expect(medidor.getAttribute('aria-valuetext')).toBe('125% do limite operacional: 150 kg de 120 kg, 30 kg acima');
+    expect(medidor.hasAttribute('aria-describedby')).toBe(false);
     expect(within(secao).getByText('125%')).toBeTruthy();
     expect(within(secao).getByText('150 kg de 120 kg · 30 kg acima do limite')).toBeTruthy();
     expect(within(secao).getByText('No lançamento: 166,67% (80 kg acima)')).toBeTruthy();
@@ -167,6 +176,7 @@ describe('DC-3 — sem taxa no lançamento', () => {
 
     const secao = secaoCocho();
     await waitFor(() => expect(within(secao).getByText('Estimativa de consumo indisponível: o produto não tinha %PV no lançamento.')).toBeTruthy());
+    expect(within(secao).getByText('Cadastre o %PV do produto; a estimativa volta no próximo lançamento.')).toBeTruthy();
     expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Sem estimativa');
     expect(secao.querySelector('[data-cocho-nivel]')).toBeNull();
     expect(container.textContent).not.toMatch(/saldo/i);
@@ -194,6 +204,7 @@ describe('DC-4 — cochos compartilhando os mesmos animais', () => {
 
     const secao = secaoCocho();
     await waitFor(() => expect(within(secao).getByText('Estimativa não confiável: 2 cochos com o mesmo produto atendem os mesmos animais e o consumo não é rateado entre eles.')).toBeTruthy());
+    expect(within(secao).getByText('A estimativa volta quando só um cocho com este produto atender estes animais.')).toBeTruthy();
     expect(medidorCiclo().getAttribute('aria-label')).toBe('Restante do ciclo (estimado): Sem estimativa');
     expect(container.textContent).not.toMatch(/saldo/i);
     expect(screen.getByText('Consumo Lote PV/dia').nextElementSibling?.textContent).toBe('-');
@@ -206,7 +217,7 @@ describe('DC-5 — período fechado', () => {
   it('mostra a sobra INFORMADA no fechamento, sem estimativa de ciclo', async () => {
     const ponto = cocho('c1', { capacidade_cocho_kg: 120 });
     dados.cache.pontosSuplementacao = [ponto];
-    dados.cache.eventosSuplementacao = [evento('e1', 'c1', { data_lancamento: '2026-11-03', dias_periodo: 5, sobra_kg: 30 })];
+    dados.cache.eventosSuplementacao = [evento('e1', 'c1', { data_lancamento: '2026-11-03', dias_periodo: 5, sobra_kg: 30, consumo_diario_grupo_kg: 34 })];
     await renderizar(ponto);
 
     const secao = secaoCocho();
@@ -218,6 +229,18 @@ describe('DC-5 — período fechado', () => {
     const medidor = within(secao).getByRole('meter', { name: 'Uso do limite operacional' });
     expect(medidor.getAttribute('aria-valuenow')).toBe('25');
     expect(within(secao).queryByText(/^No lançamento:/)).toBeNull();
+
+    // "Último Registro": o fechamento compara real × esperado com a taxa GRAVADA
+    // no evento — os mesmos números do Histórico (CardMetricaEvento sem as props).
+    const { default: CardMetricaEvento } = await import('@/components/suplementacao/CardMetricaEvento');
+    const historico = render(<CardMetricaEvento evento={dados.cache.eventosSuplementacao[0]} showProjecao />);
+    const rotulos = ['Consumo Lote PV/dia', 'Esperado/cab/dia', 'Realizado cab/dia', 'Desvio', 'Duração estimada', 'Diferença dia(s)'];
+    const doDetalhe = rotulos.map((rotulo) => screen.getAllByText(rotulo)[0].nextElementSibling?.textContent);
+    const doHistorico = rotulos.map((rotulo) => valorDe(historico.container, rotulo));
+    expect(doDetalhe).toEqual(doHistorico);
+    expect(doDetalhe.slice(0, 2)).toEqual(['50,00 kg', '0,500 kg']);
+    expect(doDetalhe[3]).toContain('-0,160 kg');
+    expect(doDetalhe.slice(4)).toEqual(['4 dia(s)', '-1 dia(s)']);
   });
 });
 

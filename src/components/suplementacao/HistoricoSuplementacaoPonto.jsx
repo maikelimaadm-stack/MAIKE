@@ -13,6 +13,7 @@ import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
 import { CANCELAMENTO_COCHO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { projecaoDoCartaoDoNivel } from "@/domain/suplementacao/nivelSuplementacao";
 
 // `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Card = CardUi;
@@ -20,7 +21,17 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 /** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
 /** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
 
-export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
+/**
+ * Histórico de lançamentos do cocho.
+ *
+ * `nivel` (D-PROD-178): o nível do SSOT que o detalhe do cocho já calculou. O
+ * último lançamento sai com a MESMA projeção do detalhe
+ * (`projecaoDoCartaoDoNivel`) — inclusive "sem estimativa" quando os cochos
+ * dividem os mesmos animais; os outros mostram o que ficou gravado no evento.
+ *
+ * @param {{ pontoId: any, pontoNome?: string, ponto?: any, nivel?: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho|null }} props
+ */
+export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto, nivel = null }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
@@ -177,7 +188,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   </div>
 
                   {/* Métricas organizadas por seção */}
-                  <CardMetricaEvento evento={evento} showProjecao={true} />
+                  <CardMetricaEvento evento={evento} showProjecao={true} {...(nivel?.evento?.id != null && evento.id === nivel.evento.id ? projecaoDoCartaoDoNivel(nivel) : {})} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
                   {CANCELAMENTO_COCHO_HABILITADO && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}

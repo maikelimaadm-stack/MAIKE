@@ -40,7 +40,8 @@ describe('Depósito com nível pelo limite operacional', () => {
     // 500 kg de um limite de 1000 kg: 50% no medidor e no subícone.
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 1000, minimo: 1000 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
-    expect(medidorLimite().getAttribute('aria-valuetext')).toBe('50% de 1.000 kg · dentro do limite');
+    expect(medidorLimite().getAttribute('aria-valuetext')).toBe('50% do limite operacional: 500 kg de 1.000 kg, dentro do limite');
+    expect(screen.getByText('500 kg de 1.000 kg · dentro do limite')).toBeTruthy();
     expect(screen.getByText('50%')).toBeTruthy();
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
@@ -52,7 +53,8 @@ describe('Depósito com nível pelo limite operacional', () => {
   it('acima do limite: percentual bruto fora do ícone, ícone cheio e excesso em kg', () => {
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 2000, limite: 1000 })} />);
     expect(screen.getByText('200%')).toBeTruthy();
-    expect(screen.getByText('de 1.000 kg · 1.000 kg acima do limite')).toBeTruthy();
+    expect(screen.getByText('2.000 kg de 1.000 kg · 1.000 kg acima do limite')).toBeTruthy();
+    expect(medidorLimite().getAttribute('aria-valuetext')).toBe('200% do limite operacional: 2.000 kg de 1.000 kg, 1.000 kg acima');
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('200');
     expect(medidorLimite().getAttribute('data-variante')).toBe('excesso');
     // Preenchimento gráfico ≤ 100%: barra e ícone cheios, número bruto no texto.
@@ -60,10 +62,13 @@ describe('Depósito com nível pelo limite operacional', () => {
     expect(iconeDe(container).querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('100');
   });
 
-  it('sem limite operacional: sem percentual, ícone vazio e mensagem', () => {
+  it('sem limite operacional: sem percentual, ícone vazio com rótulo neutro, mensagem e o que fazer', () => {
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 0, minimo: null })} />);
     expect(screen.queryByRole('meter')).toBeNull();
     expect(screen.getByText('Limite operacional não configurado; não há percentual.')).toBeTruthy();
+    expect(screen.getByText('Configure o limite operacional no cadastro do ponto.')).toBeTruthy();
+    // Sob o ícone, um rótulo neutro (como o cocho): o ícone vazio não é "depósito vazio".
+    expect(container.querySelector('[data-deposito-rotulo-neutro]')?.textContent).toBe('Sem limite');
     expect(iconeDe(container).querySelector('[data-deposito-nivel]')).toBeNull();
     expect(container.textContent).not.toMatch(/\d%/);
     expect(within(painelMinimo()).getByText('Estoque mínimo não configurado.')).toBeTruthy();

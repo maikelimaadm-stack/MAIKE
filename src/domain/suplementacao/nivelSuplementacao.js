@@ -23,6 +23,18 @@
  *  - Cochos que atendem os mesmos animais com o mesmo produto gravam, cada um,
  *    o consumo do rebanho inteiro (não há rateio). A estimativa fica marcada
  *    como não confiável — nada de inventar 50/50.
+ *  - Critério de TEMPO do compartilhamento: um ciclo aberto só fecha quando
+ *    chega um lançamento novo, então um cocho que parou de ser abastecido
+ *    ficaria "aberto" para sempre. Dois ciclos só contam como compartilhados
+ *    quando as janelas estimadas se cruzam: [lançamento, esgotamento pela taxa
+ *    gravada) de cada um (outro cocho sem taxa usa a taxa deste, que conta o
+ *    mesmo rebanho; sem data válida não há como situar o ciclo e ele não conta).
+ *    Como a taxa gravada é a do rebanho inteiro, essa janela é a duração
+ *    MÍNIMA do ciclo.
+ *  - Compartilhados e sem lançamento novo: quando nem a soma das bases do
+ *    grupo, consumida pela menor taxa do grupo a partir do último lançamento,
+ *    ainda teria produto, o aviso crítico `cocho_sem_produto` continua (o
+ *    ícone segue neutro: não há saldo de cada cocho).
  *
  * ── Limite operacional ──────────────────────────────────────────────────
  * `capacidade_cocho_kg` (cocho e depósito) é o LIMITE OPERACIONAL configurado
@@ -86,7 +98,8 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @property {number|null} diasRestantesEstimados sem arredondar (arredondar só na UI)
  * @property {number|null} duracaoCicloEstimadaDias base ÷ taxa, sem arredondar (só estimada e base > 0)
  * @property {string|null} dataEsgotamentoEstimada AAAA-MM-DD
- * @property {string[]} compartilhadoCom          ids dos outros cochos com o mesmo produto e animais
+ * @property {string[]} compartilhadoCom          ids dos outros cochos com o mesmo produto e animais (janelas que se cruzam)
+ * @property {string|null} dataEsgotamentoConjuntoEstimada AAAA-MM-DD; só compartilhada: último lançamento do grupo + Σ bases ÷ menor taxa
  * @property {number|null} limiteOperacionalKg    `capacidade_cocho_kg` > 0, ou null
  * @property {number|null} ocupacaoNoLancamentoPercentual base ÷ limite × 100, bruto
  * @property {number|null} excessoNoLancamentoKg   max(0, base − limite)
@@ -143,7 +156,27 @@ export const MENSAGENS_NIVEL = Object.freeze({
   limiteNaoConfiguradoDeposito: 'Limite operacional não configurado; não há percentual.',
   minimoNaoConfigurado: 'Estoque mínimo não configurado.',
   unidadeNaoConfirmada: 'Unidade de alguns produtos não confirmada; o saldo em kg pode incluir itens de outra unidade.',
+  // Próximo passo nos estados neutros (detalhes do cocho e do depósito).
+  orientacaoLimite: 'Configure o limite operacional no cadastro do ponto.',
+  orientacaoSemPv: 'Cadastre o %PV do produto; a estimativa volta no próximo lançamento.',
+  orientacaoCompartilhada: 'A estimativa volta quando só um cocho com este produto atender estes animais.',
 });
+
+/**
+ * Textos do medidor de uso do limite operacional (cocho e depósito), no mesmo
+ * padrão: linha visível "600 kg de 300 kg · 300 kg acima do limite" e o texto
+ * acessível "200% do limite operacional: 600 kg de 300 kg, 300 kg acima".
+ * @param {{ percentual: number, saldoKg: number, limiteKg: number, excessoKg?: number|null }} uso
+ * @returns {{ descricao: string, textoAcessivel: string }}
+ */
+export function descreverUsoDoLimite({ percentual, saldoKg, limiteKg, excessoKg }) {
+  const kg = `${formatarKgNivel(saldoKg)} de ${formatarKgNivel(limiteKg)}`;
+  const acima = excessoKg != null && excessoKg > 0 ? formatarKgNivel(excessoKg) : null;
+  return {
+    descricao: `${kg} · ${acima ? `${acima} acima do limite` : 'dentro do limite'}`,
+    textoAcessivel: `${formatarPercentualNivel(percentual)} do limite operacional: ${kg}, ${acima ? `${acima} acima` : 'dentro do limite'}`,
+  };
+}
 
 // ── Formatação (pt-BR) ─────────────────────────────────────────────────────
 
@@ -275,17 +308,29 @@ export function selecionarUltimoEventoDoPonto(ponto, eventos) {
 
 // ── Cocho ──────────────────────────────────────────────────────────────────
 
+/** Dia (AAAA-MM-DD) em que o ciclo se esgota pela taxa (base ÷ taxa, para cima). @param {string} dia @param {number} base @param {number} taxa */
+const diaEsgotamento = (dia, base, taxa) => somarDias(dia, Math.max(0, Math.ceil(base / taxa - 1e-9))) || dia;
+
+/**
+ * @typedef {{ id: string, dia: string, base: number, taxa: number|null }} CicloCompartilhado
+ */
+
 /**
  * Outros cochos ativos que atendem as mesmas áreas com o mesmo produto em
- * ciclo aberto (a taxa gravada em cada um conta o rebanho inteiro).
+ * ciclo aberto (a taxa gravada em cada um conta o rebanho inteiro) e cuja
+ * janela estimada cruza a deste ciclo: um começou antes de o outro se esgotar.
+ * Ciclo aberto antigo, que já teria acabado antes deste lançamento (ou que
+ * começou depois do esgotamento deste), não conta.
  * @param {any} ponto @param {any} ultimo @param {any[]} eventos @param {any[]} pontos
- * @returns {string[]}
+ * @param {{ dia: string, base: number, taxa: number }} ciclo  este ciclo aberto
+ * @returns {CicloCompartilhado[]}
  */
-const cochosCompartilhando = (ponto, ultimo, eventos, pontos) => {
+const cochosCompartilhando = (ponto, ultimo, eventos, pontos, ciclo) => {
   const areas = new Set(areasDoPonto(ponto));
   if (!areas.size || !Array.isArray(pontos)) return [];
-  /** @type {string[]} */
-  const ids = [];
+  const fimEste = diaEsgotamento(ciclo.dia, ciclo.base, ciclo.taxa);
+  /** @type {CicloCompartilhado[]} */
+  const ciclos = [];
   for (const outro of pontos) {
     if (!outro?.id || String(outro.id) === String(ponto.id)) continue;
     if (!ehCocho(outro) || !ehAtivo(outro) || empresasDiferentes(ponto, outro)) continue;
@@ -294,9 +339,33 @@ const cochosCompartilhando = (ponto, ultimo, eventos, pontos) => {
     if (!eventoOutro || eventoOutro.dias_periodo != null) continue;
     if (empresasDiferentes(ultimo, eventoOutro)) continue;
     if (!mesmoProduto(ultimo, eventoOutro)) continue;
-    ids.push(String(outro.id));
+    const diaOutro = diaDoLancamento(eventoOutro.data_lancamento);
+    if (diaOutro == null) continue;
+    const baseOutro = kgOuZero(eventoOutro.quantidade_total_kg) + kgOuZero(eventoOutro.sobra_kg);
+    const taxaOutro = positivoOuNulo(eventoOutro.consumo_esperado_pv_kg);
+    const fimOutro = diaEsgotamento(diaOutro, baseOutro, taxaOutro ?? ciclo.taxa);
+    if (!(diaOutro < fimEste && ciclo.dia < fimOutro)) continue;
+    ciclos.push({ id: String(outro.id), dia: diaOutro, base: baseOutro, taxa: taxaOutro });
   }
-  return ids;
+  return ciclos;
+};
+
+/**
+ * Dia em que o GRUPO de cochos compartilhados já teria esgotado: depois do
+ * último lançamento do grupo, a soma das bases consumida pela menor taxa.
+ * Limite superior (sem rateio): o rebanho consome a taxa de onde houver produto.
+ * @param {{ dia: string, base: number, taxa: number }} ciclo @param {CicloCompartilhado[]} outros
+ */
+const esgotamentoDoConjunto = (ciclo, outros) => {
+  let ultimoDia = ciclo.dia;
+  let totalBase = ciclo.base;
+  let menorTaxa = ciclo.taxa;
+  for (const outro of outros) {
+    if (outro.dia > ultimoDia) ultimoDia = outro.dia;
+    totalBase += outro.base;
+    if (outro.taxa != null && outro.taxa < menorTaxa) menorTaxa = outro.taxa;
+  }
+  return diaEsgotamento(ultimoDia, totalBase, menorTaxa);
 };
 
 /**
@@ -342,6 +411,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     duracaoCicloEstimadaDias: null,
     dataEsgotamentoEstimada: null,
     compartilhadoCom: [],
+    dataEsgotamentoConjuntoEstimada: null,
     limiteOperacionalKg: limite,
     ocupacaoNoLancamentoPercentual: null,
     excessoNoLancamentoKg: null,
@@ -401,7 +471,8 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
   const base = n.fornecidoKg + n.sobraAnteriorKg;
   n.baseCicloKg = base;
   const taxa = positivoOuNulo(ultimo.consumo_esperado_pv_kg);
-  const compartilhados = taxa != null ? cochosCompartilhando(ponto, ultimo, eventos, pontos) : [];
+  const ciclo = taxa != null ? { dia, base, taxa } : null;
+  const compartilhados = ciclo ? cochosCompartilhando(ponto, ultimo, eventos, pontos, ciclo) : [];
   const dias = hojeValido ? diasEntre(dia, hoje) : null;
 
   if (taxa == null || dias == null) {
@@ -409,9 +480,10 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     n.rotuloCurto = 'Sem estimativa';
     n.mensagem = MENSAGENS_NIVEL.estimativaIndisponivel;
     n.motivo = taxa == null ? MENSAGENS_NIVEL.motivoSemPv : MENSAGENS_NIVEL.motivoSemHoje;
-  } else if (compartilhados.length) {
+  } else if (compartilhados.length && ciclo) {
     n.confiabilidade = 'compartilhada';
-    n.compartilhadoCom = compartilhados;
+    n.compartilhadoCom = compartilhados.map((outro) => outro.id);
+    n.dataEsgotamentoConjuntoEstimada = esgotamentoDoConjunto(ciclo, compartilhados);
     n.rotuloCurto = 'Sem estimativa';
     n.mensagem = `Estimativa não confiável: ${compartilhados.length + 1} cochos com o mesmo produto atendem os mesmos animais e o consumo não é rateado entre eles.`;
     n.motivo = MENSAGENS_NIVEL.motivoCompartilhada;
@@ -454,8 +526,55 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
       alertas.push({ tipo: 'cocho_baixo', severidade: 'alerta', titulo: 'Reposição próxima', descricao: `Cobertura estimada restante: ${numeroPtBR(n.diasRestantesEstimados, 1)} dia(s).` });
     }
   }
+  // Compartilhado sem lançamento novo: nem a soma do grupo teria produto.
+  if (n.confiabilidade === 'compartilhada' && hojeValido && n.dataEsgotamentoConjuntoEstimada && hoje >= n.dataEsgotamentoConjuntoEstimada) {
+    alertas.push({ tipo: 'cocho_sem_produto', severidade: 'critico', titulo: 'Cocho sem produto', descricao: `A cobertura estimada dos ${n.compartilhadoCom.length + 1} cochos que atendem estes animais foi esgotada.` });
+  }
   n.alertas = [...alertas, ...alertaExcessoCocho(n)];
   return n;
+}
+
+// ── Cartão do lançamento (detalhe e Histórico) ─────────────────────────────
+
+/**
+ * Base do ciclo de um lançamento, para o cartão de métricas:
+ *  - aberto: fornecido + sobra anterior (a mesma base do nível);
+ *  - fechado: o fechamento sobrescreve `sobra_kg` com a sobra FINAL, mas o
+ *    consumo real gravado vem de consumo = fornecido + sobra inicial − sobra
+ *    final; logo base = consumo real/dia × dias + sobra final. Sem consumo real
+ *    gravado, a base não é conhecida (null) — nunca fornecido + sobra final.
+ * O nível do cocho NÃO usa isto (período fechado não tem ciclo aberto).
+ * @param {any} evento
+ * @returns {number|null}
+ */
+export function baseDoCicloDoEvento(evento) {
+  if (!evento) return null;
+  if (evento.dias_periodo == null) return kgOuZero(evento.quantidade_total_kg) + kgOuZero(evento.sobra_kg);
+  const consumoReal = numeroOuNulo(evento.consumo_diario_grupo_kg);
+  const dias = numeroOuNulo(evento.dias_periodo);
+  if (consumoReal == null || consumoReal < 0 || dias == null || dias <= 0) return null;
+  return consumoReal * dias + kgOuZero(evento.sobra_kg);
+}
+
+/**
+ * Projeção do cartão de métricas para o ÚLTIMO lançamento do cocho, pelo nível
+ * — o detalhe e o Histórico passam o mesmo objeto, e nenhum dos dois refaz a
+ * conta:
+ *  - ciclo aberto: taxa, duração e próxima reposição do SSOT; sem estimativa
+ *    confiável (sem %PV ou cochos compartilhados) tudo `null` (não projeta);
+ *  - outros estados (fechado, futuro, data inválida, sem lançamento): `{}` — o
+ *    cartão mostra o que ficou gravado no evento (comparação real × esperado).
+ * @param {NivelCocho|null|undefined} nivel
+ * @returns {{ consumoEsperadoDiaKg?: number|null, duracaoEstimada?: number|null, proximaReposicao?: string|null }}
+ */
+export function projecaoDoCartaoDoNivel(nivel) {
+  if (nivel?.estado !== 'ciclo_aberto') return {};
+  const estimado = nivel.confiabilidade === 'estimada' && nivel.taxaConsumoKgDia != null;
+  return {
+    consumoEsperadoDiaKg: estimado ? nivel.taxaConsumoKgDia : null,
+    duracaoEstimada: estimado ? nivel.duracaoCicloEstimadaDias : null,
+    proximaReposicao: estimado && nivel.dataEsgotamentoEstimada ? formatarDia(nivel.dataEsgotamentoEstimada) : null,
+  };
 }
 
 /** Preenche ocupação/excesso contra o limite operacional atual. @param {NivelCocho} n */
@@ -505,7 +624,7 @@ function alertaExcessoCocho(n) {
       tipo: 'cocho_acima_limite',
       severidade: 'alerta',
       titulo,
-      descricao: `Sobra informada ${formatarKgNivel(n.excessoAtualKg)} acima do limite operacional (${formatarPercentualNivel(n.ocupacaoAtualPercentual)}).`,
+      descricao: `Sobra informada de ${formatarKgNivel(/** @type {number} */ (n.saldoKg))}, ${formatarKgNivel(n.excessoAtualKg)} acima do limite operacional (${formatarPercentualNivel(n.ocupacaoAtualPercentual)}).`,
     }];
   }
   return [];
@@ -577,7 +696,7 @@ export function calcularNivelDeposito({ deposito, estoqueLotes = [], produtos = 
     alertas.push({ tipo: 'deposito_estoque_minimo', severidade: 'alerta', titulo: 'Estoque mínimo atingido', descricao: `Saldo ${formatarKgNivel(saldoKg)} abaixo do mínimo configurado.` });
   }
   if (excessoKg != null && excessoKg > 0 && ocupacaoPercentual != null) {
-    alertas.push({ tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: `Saldo ${formatarKgNivel(excessoKg)} acima do limite operacional (${formatarPercentualNivel(ocupacaoPercentual)}).` });
+    alertas.push({ tipo: 'deposito_acima_limite', severidade: 'alerta', titulo: 'Acima do limite operacional', descricao: `Saldo de ${formatarKgNivel(saldoKg)}, ${formatarKgNivel(excessoKg)} acima do limite operacional (${formatarPercentualNivel(ocupacaoPercentual)}).` });
   }
 
   return {

@@ -68,7 +68,9 @@ export const COLUNAS_PONTOS = [
   { id: "areas", label: "Áreas vinculadas", default: true, sortable: true, width: 230 },
   { id: "deposito", label: "Depósito vinculado", default: true, sortable: true, width: 190 },
   { id: "produto_padrao", label: "Produto padrão", default: true, sortable: true, width: 180 },
-  { id: "capacidade", label: "Capacidade (kg)", default: true, sortable: true, align: "right", width: 140 },
+  // `capacidade_cocho_kg` é o LIMITE OPERACIONAL do cocho/depósito (D-PROD-178);
+  // nos bebedouros a coluna mostra a capacidade em litros.
+  { id: "capacidade", label: "Limite op. (kg) / Capac. (L)", default: true, sortable: true, align: "right", width: 190 },
   { id: "metragem", label: "Metragem (m)", default: false, sortable: true, align: "right", width: 130 },
   { id: "cobertura", label: "Cobertura", default: false, sortable: true, width: 130 },
   { id: "estoque_minimo", label: "Estoque mín. (kg)", default: false, sortable: true, align: "right", width: 150 },

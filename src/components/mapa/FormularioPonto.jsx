@@ -53,6 +53,11 @@ const FL = LancField;
  */
 const AJUDA_LIMITE_OPERACIONAL = "Máximo recomendado que você define (pode ser menor que a capacidade física, por exemplo no período chuvoso). Usado para mostrar a ocupação e o excesso.";
 const AJUDA_ESTOQUE_MINIMO = "Abaixo deste saldo o mapa avisa para repor.";
+// O mínimo é o gatilho de reposição e o limite é o máximo recomendado: um
+// mínimo maior ou igual ao limite faz o depósito pedir reposição e acusar
+// excesso ao mesmo tempo. É só um AVISO (não bloqueia o salvar): a regra de
+// cadastro não muda nesta missão e pontos antigos continuam editáveis.
+const AVISO_MINIMO_ACIMA_DO_LIMITE = "Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.";
 /**
  * O `Input` do shadcn é um forwardRef em JS, sem tipos de props: aqui ele é
  * tipado com os atributos do `<input>` (é o que ele repassa) para os campos com
@@ -151,6 +156,7 @@ export default function FormularioPonto({
   const idAjudaLimiteCocho = useId();
   const idAjudaLimiteDeposito = useId();
   const idAjudaEstoqueMinimo = useId();
+  const idAvisoEstoqueMinimo = useId();
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
@@ -343,6 +349,9 @@ export default function FormularioPonto({
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
+  const limiteDepositoKg = parseFloat(formData.capacidade_cocho_kg);
+  const minimoDepositoKg = parseFloat(formData.estoque_minimo_kg);
+  const minimoAcimaDoLimite = ehDeposito && Number.isFinite(limiteDepositoKg) && Number.isFinite(minimoDepositoKg) && limiteDepositoKg > 0 && minimoDepositoKg >= limiteDepositoKg;
   const ehBebedouro = normalizeText(formData.tipo).includes("BEBEDOURO");
   const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
@@ -899,9 +908,10 @@ export default function FormularioPonto({
               </div>
               <div className="space-y-0.5">
                 <FL label="Estoque mínimo (kg)" required>
-                  <InputComAjuda type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} aria-describedby={idAjudaEstoqueMinimo} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                  <InputComAjuda type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} aria-describedby={minimoAcimaDoLimite ? `${idAjudaEstoqueMinimo} ${idAvisoEstoqueMinimo}` : idAjudaEstoqueMinimo} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
                 </FL>
                 <p id={idAjudaEstoqueMinimo} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_ESTOQUE_MINIMO}</p>
+                {minimoAcimaDoLimite && <p id={idAvisoEstoqueMinimo} className="px-1 text-[11px] font-medium leading-snug text-amber-800">{AVISO_MINIMO_ACIMA_DO_LIMITE}</p>}
               </div>
             </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}

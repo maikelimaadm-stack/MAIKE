@@ -4,6 +4,7 @@ import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { kgParaSacos } from "./unidadeConversaoUtils";
 import { formatarDia, somarDias } from "@/lib/diaCivil";
+import { baseDoCicloDoEvento } from "@/domain/suplementacao/nivelSuplementacao";
 
 /** Dias com até 1 casa ("4", "6,7"). @param {number} dias */
 const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -13,9 +14,16 @@ const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDig
  *
  * Taxa (D-PROD-178): `consumoEsperadoDiaKg` passado (inclusive `null`) é a taxa
  * do SSOT do nível (`nivelSuplementacao.taxaConsumoKgDia`) e vale como está —
- * `null` significa "sem estimativa confiável" e não projeta nada. Sem a prop
- * (o histórico), vale a taxa gravada no evento (`consumo_esperado_pv_kg`).
- * O detalhe do cocho também passa `duracaoEstimada`/`proximaReposicao` do SSOT.
+ * `null` significa "sem estimativa confiável" e não projeta nada. Sem a prop,
+ * vale a taxa gravada no evento (`consumo_esperado_pv_kg`). Para o ÚLTIMO
+ * lançamento do cocho, o detalhe e o Histórico passam o mesmo
+ * `projecaoDoCartaoDoNivel(nivel)`: no ciclo aberto, taxa, duração e próxima
+ * reposição do SSOT; fora dele, nada (vale o gravado).
+ *
+ * Sem as props, a projeção segue a MESMA regra do SSOT: base do ciclo
+ * (`baseDoCicloDoEvento`: aberto = fornecido + sobra anterior; fechado = consumo
+ * real × dias + sobra final) ÷ taxa, sem arredondar; próxima reposição =
+ * lançamento + ⌈base ÷ taxa⌉ dia(s).
  *
  * @param {{
  *   evento: any,
@@ -52,7 +60,8 @@ export default function CardMetricaEvento({
 
   const fornecido = Number(evento.quantidade_total_kg || 0);
   const sobra = Number(evento.sobra_kg || 0);
-  const totalDisp = fornecido + sobra;
+  // No período fechado `sobra_kg` é a sobra FINAL: a base vem do fechamento.
+  const baseCiclo = baseDoCicloDoEvento(evento);
 
   // Sacos: 1) prop, 2) evento.quantidade_sacos, 3) calcular via produto ou evento.peso_por_saco_kg
   const pesoPorSaco = Number(produto?.peso_por_saco_kg || evento.peso_por_saco_kg || 0);
@@ -64,11 +73,11 @@ export default function CardMetricaEvento({
   kgParaSacos(fornecido, pesoPorSaco) :
   null;
 
-  // Duração estimada
+  // Duração estimada (dias, sem arredondar; a tela mostra 1 casa)
   const duracaoCalc = duracaoEstimada != null ?
   duracaoEstimada :
-  consumoEsperadoPV > 0 ?
-  Math.round(totalDisp / consumoEsperadoPV) :
+  consumoEsperadoPV > 0 && baseCiclo != null ?
+  baseCiclo / consumoEsperadoPV :
   0;
 
   // Diferença dias (fechado): estimado - realizado

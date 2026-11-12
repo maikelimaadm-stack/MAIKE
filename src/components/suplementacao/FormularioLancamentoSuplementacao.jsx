@@ -1,5 +1,5 @@
 import { X, Check, Loader2 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,16 +37,12 @@ import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeCon
 import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
+import { listEmpresas } from "@/services/empresaService";
+import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { hojeNoFuso } from "@/lib/diaCivil";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
-  const getTodayLocalYMD = () => {
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-    const dia = String(hoje.getDate()).padStart(2, "0");
-    return `${ano}-${mes}-${dia}`;
-  };
   const parseDateLocal = (value) => {
     if (!value) return null;
     if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -65,8 +61,27 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
   const [sobraHerdadaDecidida, setSobraHerdadaDecidida] = useState(false);
   const [sobraHerdadaKg, setSobraHerdadaKg] = useState(0);
+  // D-PROD-178: a data PADRÃO é o dia civil da FAZENDA (`Empresa.fuso_horario`),
+  // o mesmo que o nível do cocho usa — com o navegador em outro fuso, perto da
+  // meia-noite, o lançamento recém-feito não vira "data futura" nem nasce com um
+  // dia consumido. Mesmo resumo de empresas do Layout (`['empresas']`). Sem fuso
+  // (ou enquanto ele não chega), o relógio do navegador.
+  const { data: empresas = [] } = useQuery({
+    queryKey: ["empresas"],
+    queryFn: () => listEmpresas(),
+    enabled: !!empresaSelecionadaId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const fusoFazenda = useMemo(() => {
+    const empresa = (Array.isArray(empresas) ? empresas : []).find((e) => String(e?.id) === String(empresaSelecionadaId));
+    return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
+  }, [empresas, empresaSelecionadaId]);
+  const hojeFazenda = useDiaCivil(fusoFazenda);
+  // A data que a pessoa escolheu não é trocada quando o fuso chega.
+  const dataLancamentoEditada = useRef(false);
   const [formData, setFormData] = useState({
-    data_lancamento: getTodayLocalYMD(),
+    data_lancamento: hojeNoFuso(null),
     data_fim_consumo_anterior: "",
     produto: ponto?.produto_padrao || "",
     quantidade_total_kg: "",
@@ -75,6 +90,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     quantidade_sacos: "",
     observacoes: "",
   });
+
+  useEffect(() => {
+    if (dataLancamentoEditada.current) return;
+    setFormData((prev) => (prev.data_lancamento === hojeFazenda ? prev : { ...prev, data_lancamento: hojeFazenda }));
+  }, [hojeFazenda]);
 
   const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => getCurrentUser() });
 
@@ -585,7 +605,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div>
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do lançamento <span className="text-red-500">*</span></label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_lancamento} onChange={(e) => setFormData((prev) => ({ ...prev, data_lancamento: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_lancamento} onChange={(e) => { dataLancamentoEditada.current = true; setFormData((prev) => ({ ...prev, data_lancamento: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
               </div>
               <div>
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Data fim consumo anterior</label>
