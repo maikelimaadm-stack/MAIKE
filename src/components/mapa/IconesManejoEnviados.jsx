@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — ÍCONES PRÉ-DEFINIDOS DE MANEJO: altere os SVGs abaixo. path d = desenho; strokeWidth = grossura; color/currentColor = cor.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import React from "react";
 
 /** @param {{ className?: string }} props */

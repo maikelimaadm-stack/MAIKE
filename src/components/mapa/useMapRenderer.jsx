@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize), posição (OFFSET_LOTE_PX), contagem e avisos em syncLotes; rótulos em syncLabels.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import { useRef, useCallback } from "react";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
 import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";

@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — REGRAS VISUAIS DO MAPA: resolução dos ícones, fontesRotuloPorZoom, cores de fallback e pintura de camadas.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 /**
  * Mapa Geral sobre MapLibre — helpers puros (D-PROD-65).

@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações. Posição e espaçamento ficam em mapa-geral.css e mk-mapa-superficie.css.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import React from "react";
 import MapaFiltrosPainel from "./MapaFiltrosPainel";
 import { ClipboardList, Layers, Move, RefreshCw, SlidersHorizontal, Target } from "lucide-react";
