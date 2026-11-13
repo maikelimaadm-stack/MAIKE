@@ -4,7 +4,9 @@
  * vínculo com o ícone do catálogo global. `raca`, `categoria_oficial`,
  * `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro` saem da API: cliente
  * antigo que ainda as envia é aceito e as chaves são IGNORADAS (padrão da
- * D-PROD-181). As colunas seguem no banco até a Fatia D.
+ * D-PROD-181). As colunas estão `@ignore` no schema (fora do Prisma Client) e
+ * seguem no banco até o DROP da Fatia D — por isso este teste as lê e as
+ * semeia por SQL cru.
  *
  * PostgreSQL real.
  */
@@ -14,6 +16,7 @@ import assert from 'node:assert/strict';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { CHAVES_LEGADAS_IGNORADAS } from '../src/modules/categoriasManejo/categoriaManejoService.js';
+import { colunasGravaveis } from '../src/shared/prisma/colunasGravaveis.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -78,15 +81,30 @@ const atualizar = (token, id, payload) =>
   app.inject({ method: 'PATCH', url: `/categorias-manejo/${id}`, headers: auth(token), payload });
 const listar = (token) => app.inject({ method: 'GET', url: '/categorias-manejo', headers: auth(token) });
 
-/** Linha crua, com as colunas dormentes. */
+/** Linha pelo Prisma Client (sem as colunas `@ignore`). */
 const linha = (id) => prisma().categoriaManejo.findUnique({ where: { id } });
+
+/** As 15 colunas dormentes, lidas por SQL cru (o Client não as enxerga). */
+const colunasDormentes = async (id) => {
+  const lista = CHAVES_LEGADAS_IGNORADAS.map((c) => `"${c}"`).join(', ');
+  const [linhaCrua] = await prisma().$queryRawUnsafe(`SELECT ${lista} FROM "CategoriaManejo" WHERE id = $1`, id);
+  return linhaCrua;
+};
+
+/** Linha "antiga": criada pelo Client e com colunas dormentes preenchidas por SQL. */
+const criarLinhaAntiga = async (clienteId, nome) => {
+  const criada = await prisma().categoriaManejo.create({ data: { cliente_id: clienteId, empresa_id: 'emp-1', nome } });
+  await prisma().$executeRaw`UPDATE "CategoriaManejo" SET raca = 'NELORE', categoria_oficial = ${nome}, gmd_janeiro = 0.5 WHERE id = ${criada.id}`;
+  return criada;
+};
 
 const assertSemLegado = (objeto, rotulo) => {
   for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(chave in objeto, false, `${rotulo}: ${chave}`);
 };
 
-const assertColunasDormentesVazias = (gravada) => {
-  for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(gravada[chave], null, `coluna dormente ${chave} gravada`);
+const assertColunasDormentesVazias = async (id) => {
+  const crua = await colunasDormentes(id);
+  for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(crua[chave], null, `coluna dormente ${chave} gravada`);
 };
 
 const esperar400 = (r, reason) => {
@@ -102,6 +120,13 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
       ['categoria_oficial', 'ganho_peso_anual_kg', 'raca', ...MESES.map((m) => `gmd_${m}`)].sort()
     );
     assert.equal(Object.isFrozen(CHAVES_LEGADAS_IGNORADAS), true);
+    // `@ignore`: fora do Prisma Client — o allowlist do corpo não as conhece.
+    const gravaveis = colunasGravaveis('CategoriaManejo');
+    for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(gravaveis.has(chave), false, chave);
+    assert.deepEqual(
+      [...gravaveis].sort(),
+      ['ativo', 'catalogo_categoria_visual_id', 'empresa_id', 'especie', 'idade_maxima_meses', 'idade_minima_meses', 'nome', 'sexo', 'sigla']
+    );
   });
 
   test('E-01 POST com chaves legadas → 201; nada delas é gravado, devolvido ou auditado', async () => {
@@ -116,7 +141,7 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
     assert.equal(corpo.idade_minima_meses, 8);
     assert.equal(corpo.idade_maxima_meses, 12);
 
-    assertColunasDormentesVazias(await linha(corpo.id));
+    await assertColunasDormentesVazias(corpo.id);
 
     const [evento] = await prisma().auditLog.findMany({ where: { entidade: 'CategoriaManejo', entidade_id: corpo.id } });
     assert.ok(evento, 'create auditado');
@@ -155,17 +180,14 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
     assert.equal(r.json().nome, 'GARROTE');
     assertSemLegado(r.json(), 'resposta');
 
-    const gravada = await linha(id);
-    assert.equal(gravada.nome, 'GARROTE');
-    assertColunasDormentesVazias(gravada);
+    assert.equal((await linha(id)).nome, 'GARROTE');
+    await assertColunasDormentesVazias(id);
   });
 
   test('E-04 lista expõe exatamente os campos públicos, mesmo com colunas dormentes preenchidas no banco', async () => {
     const { cliente, token } = await tenantComToken();
     // Linha antiga: colunas dormentes preenchidas direto no banco.
-    await prisma().categoriaManejo.create({
-      data: { cliente_id: cliente.id, empresa_id: 'emp-1', nome: 'VACA', raca: 'NELORE', categoria_oficial: 'Vaca', gmd_janeiro: '0.5' },
-    });
+    await criarLinhaAntiga(cliente.id, 'VACA');
     await criar(token, BASE);
 
     const r = await listar(token);
@@ -179,17 +201,16 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
 
   test('E-05 PATCH sobre linha antiga com colunas dormentes: não as devolve nem as audita, e não as apaga', async () => {
     const { cliente, token } = await tenantComToken();
-    const antiga = await prisma().categoriaManejo.create({
-      data: { cliente_id: cliente.id, empresa_id: 'emp-1', nome: 'VACA', raca: 'NELORE', categoria_oficial: 'Vaca' },
-    });
+    const antiga = await criarLinhaAntiga(cliente.id, 'VACA');
     const r = await atualizar(token, antiga.id, { sigla: 'VC' });
     assert.equal(r.statusCode, 200, r.body);
     assertSemLegado(r.json(), 'resposta');
     const [evento] = await prisma().auditLog.findMany({ where: { entidade_id: antiga.id, acao: 'update' } });
     assertSemLegado(evento.dados_anteriores, 'auditoria antes');
     assertSemLegado(evento.dados_novos, 'auditoria depois');
-    const gravada = await linha(antiga.id);
-    assert.equal(gravada.raca, 'NELORE', 'dado dormente fica no banco até a Fatia D');
+    const crua = await colunasDormentes(antiga.id);
+    assert.equal(crua.raca, 'NELORE', 'dado dormente fica no banco até a Fatia D');
+    assert.equal(crua.categoria_oficial, 'VACA');
   });
 
   test('E-06 chave desconhecida que não está na lista legada continua 400', async () => {

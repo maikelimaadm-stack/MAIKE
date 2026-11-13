@@ -4,10 +4,11 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 
 /**
- * D-PROD-185 — colunas que o código LÊ de CategoriaManejo. `raca`,
- * `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro`
- * saíram do contrato (Fatia C) e ficam dormentes no banco até o DROP da
- * Fatia D: nenhuma leitura, escrita, resposta ou auditoria as carrega.
+ * D-PROD-185 — colunas que o código LÊ de CategoriaManejo (o contrato público
+ * mais o tenant). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e
+ * `gmd_janeiro`…`gmd_dezembro` saíram do contrato (Fatia C): estão `@ignore`
+ * no schema e ficam dormentes no banco até o DROP da Fatia D. A seleção
+ * explícita garante que coluna nova não vaze para a API sem decisão.
  */
 const SELECAO = Object.freeze({
   id: true,

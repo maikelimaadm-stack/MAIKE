@@ -23,13 +23,13 @@ const ENTIDADE = 'CategoriaManejo';
 
 /**
  * D-PROD-185 (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) — chaves que SAÍRAM do
- * contrato de CategoriaManejo. As colunas ainda existem no banco (o DROP é a
- * Fatia D, migration CONTRACT isolada), então o allowlist de
- * `exigirSomenteColunasGravaveis` ainda as aceitaria: por isso são retiradas
- * do corpo AQUI, antes dele. Mesmo padrão da D-PROD-181: cliente antigo (aba
- * aberta, fila offline) que ainda as envia recebe 201/200, e nada delas é
- * gravado nem devolvido. Lista fechada; qualquer outra chave desconhecida
- * continua 400.
+ * contrato de CategoriaManejo. As colunas estão `@ignore` no schema (fora do
+ * Prisma Client; DROP na Fatia D, migration CONTRACT isolada), então o
+ * allowlist de `exigirSomenteColunasGravaveis` as recusaria com 400. Mesmo
+ * padrão da D-PROD-181: para não quebrar cliente antigo (aba aberta, fila
+ * offline), elas são retiradas do corpo AQUI, antes do allowlist — 201/200, e
+ * nada delas é gravado nem devolvido. Lista fechada; qualquer outra chave
+ * desconhecida continua 400.
  */
 export const CHAVES_LEGADAS_IGNORADAS = Object.freeze([
   'raca',
