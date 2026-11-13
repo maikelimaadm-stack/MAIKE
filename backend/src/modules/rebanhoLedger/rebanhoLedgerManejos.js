@@ -240,7 +240,8 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
         throw recusa('MANEJO_CATEGORIA_MAE_INVALIDA', 'não há posição ativa de FÊMEAS de categoria de matriz desta categoria na área', { categoria_mae: linha.categoria_mae });
       }
       const categoria = deps.categoriaDoFilhote(linha.sexo);
-      const cm = await deps.resolverCategoriaManejo(tx, auth.clienteId, e.empresaId, categoria, null);
+      // Recém-nascido: idade 0 desempata categorias de manejo da mesma oficial (0–8 antes de 9–12).
+      const cm = await deps.resolverCategoriaManejo(tx, auth.clienteId, e.empresaId, categoria, null, 0);
       // Cabeças NOVAS: origem 'nascimento' (não é compra, não tem cadastro de entrada).
       const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, e.empresaId, area.id, {
         origem: 'nascimento', lote_entrada_id: null, nome: `NASCIDOS ${categoria}`.toUpperCase(), categoria, sexo: linha.sexo,

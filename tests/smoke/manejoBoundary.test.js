@@ -186,10 +186,20 @@ describe('CM1/CM2 — a página de categorias de manejo não monta payload', () 
     expect(fonte).not.toMatch(/\.toUpperCase\(\)\s*,/);
   });
 
-  it('CM2 — a página não escreve os doze GMDs num payload', () => {
-    const fonte = codigoDe(PAGINA);
-    const atribuicoesGmd = [...fonte.matchAll(/gmd_\w+:\s*formData\./g)];
-    expect(atribuicoesGmd).toEqual([]);
+  it('CM2 — campos removidos do cadastro (D-PROD-186) não voltam à página, ao service, ao form nem à porta', () => {
+    // Raça, categoria oficial (texto), ganho anual e os doze GMDs saíram do
+    // contrato. Comentários são ignorados por `codigoDe`; a porta nativa só
+    // filtra por lista positiva (`CAMPOS_GRAVAVEIS`), sem nomear os legados.
+    const REMOVIDOS = /\braca\b|categoria_oficial|ganho_peso_anual_kg|gmd_(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)/;
+    for (const arquivo of [
+      PAGINA,
+      'src/services/categoriaManejoService.js',
+      'src/components/categorias-manejo/FormularioCategoriaManejo.jsx',
+      'src/components/categorias-manejo/TabelaCategoriasManejo.jsx',
+      'src/apis/categorias-manejo/categoriaManejoNativePort.js',
+    ]) {
+      expect(codigoDe(arquivo), arquivo).not.toMatch(REMOVIDOS);
+    }
   });
 
   it('CM2b — o normalizador vive no service', () => {

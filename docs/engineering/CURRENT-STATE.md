@@ -29,12 +29,24 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-188** (D-PROD-185 a 187 estão nas PRs abertas #263 e #264) |
+| Decisão | **D-PROD-188** (D-PROD-185 com a PR #263; D-PROD-186 é a Fatia C; D-PROD-187 reservada à Fatia D) |
 | Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR #265 em rascunho, exclusiva desta missão |
 | Escopo | Model `CadEstacao` → tabela física `"CADESTACOES"` (`@@map`), por fazenda; API `/estacoes`; tela `Estacoes` (menu Manejo, tela `pec-estacoes`); estações ativas da mesma fazenda sem sobreposição. **Sem vínculo** com lote, categoria, curva ou outro cadastro |
 | Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Aplicada em produção em 2026-11-13 19:48:14 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 43/0, 81 tabelas, RLS, advisors sem alerta |
 | Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) §7). Falta: merge da PR #265, deploy e smoke (proprietário) |
 | Relatório | [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): Categoria de Manejo enxuta (D-PROD-186)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-186** |
+| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR **#264** em rascunho, exclusiva desta fatia |
+| Escopo | Cadastro com Nome, Sigla, Espécie, Sexo e Faixa de idade (+ Ícone oficial). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e os 12 `gmd_*` saem do formulário, da grade, do CSV, da porta, do service e da API (aceitos e ignorados no corpo). Categoria oficial do rebanho derivada de sexo + faixa de idade |
+| Banco | **Sem migration.** As 15 colunas ficam dormentes (`@ignore`); `migrate diff` vazio |
+| Próxima fatia | **Fatia D** (D-PROD-187): migration CONTRACT isolada com o DROP das 15 colunas e o nome físico `CADCATEGORIA`, depois desta fatia no ar (a migration da D-PROD-183 já está aplicada), com o acesso bloqueado pelo proprietário |
+| Documentos | [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md) |
+
 
 ## Missão concluída (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
 
@@ -46,6 +58,7 @@ rollout pausado **D-PROD-41**)
 | Migration | `20261113200000_tipo_tarefa_drop_colunas`, **CONTRACT**. SHA-256 `47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17`; guarda `35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878`. Repositório: 41 → **42** migrations; tabelas iguais; `TipoTarefa` 13 → **9** colunas. **Aplicada em produção em 2026-11-13 às 17:45:35 UTC** pelo caminho B (conector), com GO do proprietário: 42/0, `TipoTarefa` com 9 colunas, 0 alertas de segurança. Perdeu-se 1 tipo de tarefa com as 4 flags `true` (1 cliente) |
 | Release | Feita. O merge (17:18 UTC) veio antes da aplicação, o que fechou o caminho A; a aplicação foi pelo caminho B, com o registro no runbook §11. Proibido voltar a produção para deploy anterior ao merge `6b85696` (PR #254) |
 | Próxima fatia | Fatia C (`ApontamentoAtividade`), só depois desta aplicada e liberada pelo proprietário |
+| Situação (2026-11-13) | PR #261 **mergeada** (`73aca4f`). Migration `20261113200000_tipo_tarefa_drop_colunas` **aplicada em produção** em 2026-11-13 17:45:35 UTC pelo caminho B do runbook (conector Supabase, uma transação), com GO do proprietário: impressão `5194f45d42b0` (1 tipo de tarefa com flags, "ARRUMAR CERCA"), backup físico de 2026-11-13 05:51 UTC `COMPLETED`. Postcheck: 42 concluídas / 0 em aberto, checksum `47409bb1…`, `TipoTarefa` com as 9 colunas, RLS ligada, política `maike_backend_all`, sem grant para `anon`/`authenticated` |
 | Documentos | [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md) · [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)

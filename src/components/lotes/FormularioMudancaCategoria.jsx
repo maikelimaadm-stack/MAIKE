@@ -8,20 +8,13 @@ import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteR
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { notifyWarning } from "@/lib/maikeNotify";
+import { CATEGORIAS_OFICIAIS, categoriaManejoParaMudanca } from "@/domain/lotes/categoriaOficialDerivada";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-const CATEGORIAS = [
-  "Bezerro 0 a 12 meses",
-  "Bezerra 0 a 12 meses",
-  "Garrote 13 a 24 meses",
-  "Novilha 13 a 24 meses",
-  "Boi 25 a 36 meses",
-  "Vaca 25 a 36 meses",
-  "Touro + 36 meses",
-  "Vaca + 36 meses"
-];
+/** As 8 categorias oficiais (mesma ordem do servidor) — fonte única em `categoriaOficialDerivada`. */
+const CATEGORIAS = CATEGORIAS_OFICIAIS;
 
 export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
@@ -124,8 +117,10 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     };
     // Se mudou a nova categoria, buscar o sexo da categoria de manejo correspondente
     if (field === 'categoria_nova') {
-      // R2B-P1: a categoria de manejo acompanha a oficial escolhida (sem herdar a da categoria antiga).
-      const catManejo = categoriasManejo.find(c => c.categoria_oficial === value);
+      // R2B-P1: a categoria de manejo acompanha a escolhida (sem herdar a da categoria antiga).
+      // MAIKE-CATEGORIA-MANEJO-ENXUGAR: casa pela oficial DERIVADA de sexo + faixa de idade (mesma regra do
+      // servidor); o nome é livre e não é a chave. Escolha determinística (ver categoriaManejoParaMudanca).
+      const catManejo = categoriaManejoParaMudanca(categoriasManejo, value);
       novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
       novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
       novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;

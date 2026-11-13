@@ -6690,9 +6690,39 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
+## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a PR #263 (Estoque P1-03, em rascunho) já usa a D-PROD-185. Para não duplicar, esta decisão é a **D-PROD-186**, e a **D-PROD-187** fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) · **Branch:** `feat/categoria-manejo-enxugar`
+
+**Decisão.**
+1. **Cadastro.** O cadastro de Categoria de Manejo passa a ter exatamente estes campos de dado: **Nome** (`nome`), **Sigla** (`sigla`), **Espécie** (`especie`, lista com "Bovinos"), **Sexo** (`sexo`, Macho/Fêmea) e **Faixa de idade**. O **Ícone oficial** (`catalogo_categoria_visual_id`) continua: é o desenho no mapa, não campo de dado.
+   - **Faixa de idade em lista fixa** (decisão do proprietário): `0 a 8 meses` (0, 8) · `9 a 12 meses` (9, 12) · `13 a 24 meses` (13, 24) · `25 a 36 meses` (25, 36) · `Maior que 36 meses` (37, sem máximo). Gravada nas colunas que já existem (`idade_minima_meses`, `idade_maxima_meses`); a lista vive em `FAIXAS_IDADE_CATEGORIA_MANEJO`, uma vez em cada lado, com teste de paridade.
+   - **Obrigatórios:** Nome, Sexo e Faixa de idade. A categoria é definida por **Sexo + Faixa**; o nome é livre e nunca é chave.
+   - Saem do formulário, da grade, do CSV, da porta nativa, do service e da API: `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro` … `gmd_dezembro` (15 campos).
+   - Servidor (`REQUEST_VALIDATION_FAILED`, 400): no `POST`, sexo Macho/Fêmea (`sexo_obrigatorio`/`sexo_invalido`) e o par exatamente uma das 5 faixas (`faixa_obrigatoria`/`faixa_fora_da_lista`; lixo → `inteiro_nao_negativo`). No `PATCH`, só o que o corpo traz: idade presente → o par efetivo (lado enviado + lado gravado) tem de ser da lista; sexo presente → Macho/Fêmea. Um `PATCH` sem idade nem sexo nunca é recusado por valor antigo gravado.
+   - Registro antigo com par fora da lista aparece no select como opção desabilitada "(fora da lista)"; salvar sem mexer no select não reenvia as idades. Um `PATCH` da fila offline da versão anterior com par fora da lista perde só as duas idades na porta (`corpoDeEdicao`), para não travar a sincronização.
+2. **Prisma e banco (expand, sem migration).** Os 15 campos viram `@ignore` em `model CategoriaManejo`, no molde da D-PROD-181: saem do Prisma Client e ficam no schema, que segue igual ao banco migrado (`prisma migrate diff` vazio). O repository passa a selecionar só as colunas que ficam. Assim o código desta fatia em produção nunca lê nem grava as colunas, e o DROP da Fatia D não quebra o runtime por elas.
+3. **Cliente antigo não quebra.** As 15 chaves são **aceitas e ignoradas** no corpo de `POST` e `PATCH /categorias-manejo` (`CHAVES_LEGADAS_IGNORADAS` no service): `POST` dá 201, `PATCH` só com chaves legadas dá 200 sem efeito (auditoria com antes = depois), a resposta não as devolve; qualquer outra chave desconhecida continua 400. A porta nativa do front filtra o corpo pelos campos graváveis, inclusive na fila offline.
+4. **Categoria oficial do rebanho (decisão do proprietário).** Sem `categoria_oficial`, a ligação entre a Categoria de Manejo e a lista fixa `CATEGORIAS_OFICIAIS` (Nascimento, política materna, Mudança de Categoria, conferência de sexo na baixa) passa a ser **derivada do Sexo + Faixa de idade**, pelas faixas 0–12, 13–24, 25–36 e 37+ (`categoriaOficialDaCategoriaManejo`, em `backend/src/modules/movimentacoesMapa/categoriaOficialDerivada.js`, com espelho em `src/domain/lotes/categoriaOficialDerivada.js` e teste de paridade).
+   - A faixa precisa caber inteira numa faixa oficial; sem máximo, só vale a partir de 37 meses. Faixa que cruza duas faixas, sem idade ou sem sexo → sem categoria oficial.
+   - `resolverCategoriaManejo`: com id, a categoria tem de existir, estar ativa e derivar a oficial pedida (senão 409 `MANEJO_CATEGORIA_INVALIDA`); sem id, candidatas = ativas com a mesma derivação; se houver mais de uma e uma idade de referência, ficam só as cuja faixa contém essa idade; então nenhuma → sem categoria de manejo, uma → ela, mais de uma → 409 `MANEJO_CATEGORIA_AMBIGUA`. O **Nascimento** passa idade 0: com 0–8 e 9–12 ativas, o bezerro vai para a 0–8.
+   - Mudança de Categoria (tela): entre ativas que derivam a oficial escolhida, a de faixa mais avançada (determinística, nunca pela ordem da lista). A escolha explícita vem com a "Categoria de evolução" (Fatia E).
+   - Formulário de Lote: `Lote.categoria` recebe a oficial derivada e, sem derivação, o `nome`. A busca da categoria no lote é por nome, sigla, sexo e espécie.
+   - Regras de exclusão: o bloqueio por id em `Lote` continua primeiro; depois, uma regra por entidade casando o `nome` **e** a oficial derivada (`categoria_oficial_derivada`, recalculada na hora) com os mesmos campos que a regra antiga de `categoria_oficial` cobria. Duas categorias da mesma faixa oficial se bloqueiam mutuamente (lado seguro); derivação nula nunca casa.
+5. **Dados históricos.** `Lote.categoria`, `Lote.categoria_entrada` e os textos já gravados em movimentações e manejos **não são reescritos**.
+6. **Remoção física.** O `DROP COLUMN` das 15 colunas e a troca do nome físico da tabela para `CADCATEGORIA` (model segue `CategoriaManejo`, com `@@map`) ficam para a **Fatia D**, migration CONTRACT própria e isolada (D-PROD-187), com GO do proprietário dado em 2026-11-13.
+7. **Dados de produção.** As 4 categorias atuais estão sem faixa de idade; sem faixa, não derivam categoria oficial. A faixa delas é preenchida como dado, com a lista do proprietário, junto com a entrada desta fatia no ar. Não há fallback no código.
+8. **Fora do escopo:** trabalho visual (só a remoção dos campos e a faixa num select de componente existente), "Categoria de evolução" (Fatia E, precisa de migration), Cadastro de Lotes, Estoque, Tipo de Atividade e qualquer migration.
+
+**Testes.** `backend/tests/categoriaManejoEnxuto.test.mjs` (Postgres real: chaves legadas aceitas e ignoradas, saída com os 12 campos públicos, faixa de idade), `backend/tests/categoriaOficialDerivada.test.mjs` (faixas), `backend/tests/r2eR5ComandosLedgerConvertidos.test.mjs` R4 (resolução por sexo + faixa, com contraprova), `tests/smoke/categoriaOficialDerivada.test.js` (paridade front/back) e smokes do cadastro.
+
+**Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
+
 ## D-PROD-188 — Cadastro de Estações da fazenda, tabela física `CADESTACOES` (primeira fatia, sem vínculos)
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a D-PROD-185 está na PR #263 (Estoque P1-03), a D-PROD-186 na PR #264 (Categoria de Manejo, Fatia C) e a D-PROD-187 reservada pela PR #264 para a Fatia D. Para não duplicar, esta decisão é a **D-PROD-188**. Quem mergear depois renumera.
+> **Numeração:** a D-PROD-185 está na PR #263 (Estoque P1-03), a D-PROD-186 é a Fatia C da Categoria de Manejo (PR #264, mergeada) e a D-PROD-187 está reservada para a Fatia D. A `main` indica `Próxima decisão: D-PROD-188`, que é esta.
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário: "vamos começar com o registro de estações […] primeiro não vamos interligar com nada ainda, o nome da tabela para o banco do supabase eu quero CADESTACOES" · **Branch:** `claude/kind-knuth-tztu1v`
 
@@ -6734,4 +6764,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-189 (D-PROD-185 a 187 estão em PRs abertas: #263 e #264) -->
+<!-- Próxima decisão: D-PROD-189 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D) -->

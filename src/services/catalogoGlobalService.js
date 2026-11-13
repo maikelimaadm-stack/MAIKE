@@ -57,7 +57,8 @@ export const carregarIconesOficiaisLote = async () => {
 /**
  * Ícone oficial do lote — só por vínculo EXPLÍCITO e estável.
  *
- * Nunca casa por nome, sexo, raça, idade ou texto de `categoria_oficial`.
+ * Nunca casa por nome, sexo, raça ou idade, nem pelo antigo texto
+ * `categoria_oficial` (campo que saiu do cadastro de Categoria de Manejo).
  * Candidatos: ícones publicados (o backend já filtra `publicado` + ativo) do
  * tipo `lote` com `categoria_id === categoriaVisualId`.
  *
