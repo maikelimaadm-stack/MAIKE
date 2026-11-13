@@ -130,8 +130,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={{ nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho", raca: "NELORE", categoria_oficial: "Bezerro" }}
-        categoriasOficiaisDisponiveis={["Bezerro"]}
+        initialData={{ nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho" }}
         onSubmit={onSubmit}
         onCancel={() => {}}
       />,
@@ -154,7 +153,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const dados = onSubmit.mock.calls[0][0];
     expect(dados.catalogo_categoria_visual_id).toBe("cv-gar");
-    expect(normalizarCategoriaManejo({ ...dados, ganho_peso_anual_kg: "" }, { empresaId: "emp-1" }).catalogo_categoria_visual_id).toBe("cv-gar");
+    expect(normalizarCategoriaManejo(dados, { empresaId: "emp-1" }).catalogo_categoria_visual_id).toBe("cv-gar");
     expect(normalizarCategoriaManejo({ ...dados, catalogo_categoria_visual_id: "" }).catalogo_categoria_visual_id).toBeNull();
   });
 
@@ -165,11 +164,10 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     wrap(
       <Form
         initialData={buildFormInitialFromRecord({
-          id: "cm-bez", nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho", raca: "NELORE",
-          categoria_oficial: "Bezerro", catalogo_categoria_visual_id: "cv-bez",
+          id: "cm-bez", nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho",
+          catalogo_categoria_visual_id: "cv-bez",
         })}
         isEditing
-        categoriasOficiaisDisponiveis={["Bezerro"]}
         onSubmit={onSubmit}
         onCancel={() => {}}
       />,
