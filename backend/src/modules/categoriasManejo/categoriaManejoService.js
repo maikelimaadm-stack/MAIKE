@@ -3,10 +3,9 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { AppError, catalogoGlobalInvalid } from '../../shared/errors/AppError.js';
+import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
-import { exigirCategoriaVisualLoteVinculavel } from '../catalogoGlobal/catalogoValidacao.js';
 import {
   FAIXAS_IDADE_CATEGORIA_MANEJO,
   faixaIdadeDaLista,
@@ -27,14 +26,16 @@ const erroNaoEncontrado = () => new AppError('CATEGORIA_MANEJO_NOT_FOUND', 'Cate
 const ENTIDADE = 'CategoriaManejo';
 
 /**
- * D-PROD-186 (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) — chaves que SAÍRAM do
- * contrato de CategoriaManejo. As colunas estão `@ignore` no schema (fora do
- * Prisma Client; DROP na Fatia D, migration CONTRACT isolada), então o
- * allowlist de `exigirSomenteColunasGravaveis` as recusaria com 400. Mesmo
- * padrão da D-PROD-181: para não quebrar cliente antigo (aba aberta, fila
- * offline), elas são retiradas do corpo AQUI, antes do allowlist — 201/200, e
- * nada delas é gravado nem devolvido. Lista fechada; qualquer outra chave
- * desconhecida continua 400.
+ * D-PROD-186 (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) e D-PROD-187
+ * (MAIKE-CATEGORIA-MANEJO-CADCATEGORIA, Fatia D) — chaves que SAÍRAM do
+ * contrato de CategoriaManejo. As 15 da Fatia C e, na Fatia D, o vínculo com o
+ * ícone oficial (`catalogo_categoria_visual_id`, emenda do proprietário) já não
+ * existem no banco (migration CONTRACT `20261113400000_categoria_manejo_cadcategoria`)
+ * nem no Prisma Client, então o allowlist de `exigirSomenteColunasGravaveis` as
+ * recusaria com 400. Mesmo padrão da D-PROD-181: para não quebrar cliente
+ * antigo (aba aberta, fila offline), elas são retiradas do corpo AQUI, antes do
+ * allowlist — 201/200, e nada delas é gravado nem devolvido. Lista fechada;
+ * qualquer outra chave desconhecida continua 400.
  */
 export const CHAVES_LEGADAS_IGNORADAS = Object.freeze([
   'raca',
@@ -52,6 +53,7 @@ export const CHAVES_LEGADAS_IGNORADAS = Object.freeze([
   'gmd_outubro',
   'gmd_novembro',
   'gmd_dezembro',
+  'catalogo_categoria_visual_id',
 ]);
 
 const LEGADAS = new Set(CHAVES_LEGADAS_IGNORADAS);
@@ -166,37 +168,10 @@ const validarSexo = (dados, criando) => {
   return { ...dados, sexo: SEXO_GRAVADO[sexo] };
 };
 
-const CAMPO_VINCULO = 'catalogo_categoria_visual_id';
-
-/**
- * Normaliza e valida o vínculo opcional com a categoria visual global
- * (D-PROD-69). Ausente no corpo → não mexe; `null`/'' → remove o vínculo;
- * id → só categoria ativa do tipo oficial `lote`. O tenant escolhe a
- * categoria; o ícone continua sendo do catálogo global.
- *
- * Na edição, reenviar o MESMO vínculo já gravado não revalida: se a categoria
- * oficial foi desativada depois, o cadastro antigo continua editável.
- *
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- * @param {Record<string, unknown>} dados
- * @param {Record<string, unknown> | null} [existente]
- */
-const validarVinculoCatalogo = async (tx, dados, existente = null) => {
-  if (!Object.prototype.hasOwnProperty.call(dados, CAMPO_VINCULO)) return dados;
-  const valor = dados[CAMPO_VINCULO];
-  if (valor === null || valor === '') return { ...dados, [CAMPO_VINCULO]: null };
-  if (typeof valor !== 'string' || valor.length > 64) {
-    throw catalogoGlobalInvalid('identificador de categoria oficial inválido', { campo: CAMPO_VINCULO });
-  }
-  if (existente && existente[CAMPO_VINCULO] === valor) return dados;
-  await exigirCategoriaVisualLoteVinculavel(tx, valor);
-  return dados;
-};
-
 /**
  * Saída pública (resposta e auditoria) com lista EXPLÍCITA de campos
- * (D-PROD-186): o tenant não sai, e as colunas dormentes também não, mesmo
- * que alguém passe aqui uma linha lida sem a seleção do repositório.
+ * (D-PROD-186/D-PROD-187): o tenant não sai, e nenhum campo fora do contrato
+ * sai, mesmo que alguém passe aqui uma linha lida sem a seleção do repositório.
  * @param {Record<string, unknown>} registro
  */
 export const comoPublico = (registro) => ({
@@ -208,7 +183,6 @@ export const comoPublico = (registro) => ({
   sexo: registro.sexo ?? null,
   idade_minima_meses: registro.idade_minima_meses ?? null,
   idade_maxima_meses: registro.idade_maxima_meses ?? null,
-  catalogo_categoria_visual_id: registro.catalogo_categoria_visual_id ?? null,
   ativo: registro.ativo,
   created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
   updated_date: registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
@@ -227,10 +201,10 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = await validarVinculoCatalogo(tx, {
+    const dados = {
       ...validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null),
       cliente_id: auth.clienteId,
-    });
+    };
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -249,11 +223,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const dados = await validarVinculoCatalogo(
-      tx,
-      validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente),
-      existente
-    );
+    const dados = validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente);
     // Corpo só com chaves legadas (ou só ecos do servidor): nada a gravar.
     // Mesmo desenho da D-PROD-181 — não toca a linha (nem `updatedAt`) e a
     // auditoria registra a edição com antes = depois.

@@ -16,9 +16,10 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 /**
  * Campos que o cadastro grava. Raça, categoria oficial (texto), ganho de peso
- * anual e os doze GMDs mensais saíram do cadastro: mesmo que um corpo antigo
- * (fila offline gravada antes desta versão) ainda os traga, eles não são
- * enviados.
+ * anual, os doze GMDs mensais e o vínculo com o ícone oficial
+ * (`catalogo_categoria_visual_id`, D-PROD-187) saíram do cadastro: mesmo que
+ * um corpo antigo (fila offline gravada antes desta versão) ainda os traga,
+ * eles não são enviados.
  */
 export const CAMPOS_GRAVAVEIS = Object.freeze([
   'empresa_id',
@@ -28,7 +29,6 @@ export const CAMPOS_GRAVAVEIS = Object.freeze([
   'sexo',
   'idade_minima_meses',
   'idade_maxima_meses',
-  'catalogo_categoria_visual_id',
   'ativo',
 ]);
 

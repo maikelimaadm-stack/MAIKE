@@ -98,12 +98,6 @@ export const limparBanco = async () => {
     });
     if (removidas.count === 0) break;
   }
-  // CategoriaManejo (tenant) referencia CatalogoCategoriaVisual (global), que é
-  // limpo antes dela na ordem abaixo: solta o vínculo opcional primeiro.
-  await prisma.categoriaManejo.updateMany({
-    where: { catalogo_categoria_visual_id: { not: null } },
-    data: { catalogo_categoria_visual_id: null },
-  });
   // D-PROD-155: lançamentos financeiros (filhas antes das mães; sem
   // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
   // naturezas e centros, e antes do laço porque referenciam Fornecedor,

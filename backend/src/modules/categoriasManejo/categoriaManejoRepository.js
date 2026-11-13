@@ -4,11 +4,12 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 
 /**
- * D-PROD-186 — colunas que o código LÊ de CategoriaManejo (o contrato público
- * mais o tenant). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e
- * `gmd_janeiro`…`gmd_dezembro` saíram do contrato (Fatia C): estão `@ignore`
- * no schema e ficam dormentes no banco até o DROP da Fatia D. A seleção
- * explícita garante que coluna nova não vaze para a API sem decisão.
+ * D-PROD-186/D-PROD-187 — colunas que o código LÊ de CategoriaManejo (o
+ * contrato público mais o tenant). A tabela física é `CADCATEGORIA` desde a
+ * D-PROD-187 (`@@map` no schema); `raca`, `categoria_oficial`,
+ * `ganho_peso_anual_kg`, `gmd_janeiro`…`gmd_dezembro` e o vínculo com o ícone
+ * oficial (`catalogo_categoria_visual_id`) saíram do contrato e do banco. A
+ * seleção explícita garante que coluna nova não vaze para a API sem decisão.
  */
 const SELECAO = Object.freeze({
   id: true,
@@ -20,7 +21,6 @@ const SELECAO = Object.freeze({
   sexo: true,
   idade_minima_meses: true,
   idade_maxima_meses: true,
-  catalogo_categoria_visual_id: true,
   ativo: true,
   createdAt: true,
   updatedAt: true,

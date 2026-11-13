@@ -1100,12 +1100,15 @@ model Fornecedor {
 
 // D-PROD-186 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): `raca`,
 // `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro`
-// SAÍRAM do contrato (API, services, auditoria, UI). Mesmo desenho da
-// D-PROD-181: as 15 colunas ficam DORMENTES com `@ignore` — fora do Prisma
-// Client (nenhum código as lê nem as grava), mas ainda no schema para ele
-// seguir igual ao banco migrado (SM-03: `prisma migrate diff --exit-code`).
-// Serão DROPADAS na Fatia D, migration CONTRACT isolada (GO do proprietário
-// dado em 2026-11-13); as linhas `@ignore` saem daqui junto com ela.
+// SAÍRAM do contrato (API, services, auditoria, UI).
+// D-PROD-187 — MAIKE-CATEGORIA-MANEJO-CADCATEGORIA (Fatia D): essas 15 colunas
+// e o vínculo com o ícone oficial (`catalogo_categoria_visual_id`, com a FK e o
+// índice; emenda do proprietário) foram APAGADOS do banco, e a tabela física
+// passou a se chamar `CADCATEGORIA` (migration CONTRACT
+// `20261113400000_categoria_manejo_cadcategoria`). O model continua
+// `CategoriaManejo` (delegate `prisma.categoriaManejo`, rotas, permissões e
+// AuditLog `entidade: 'CategoriaManejo'` não mudam); SQL bruto usa
+// "CADCATEGORIA", com aspas.
 model CategoriaManejo {
   id                    String   @id @default(cuid())
   cliente_id            String   @db.VarChar(64)
@@ -1114,36 +1117,17 @@ model CategoriaManejo {
   sigla                 String?  @db.VarChar(32)
   especie               String?  @db.VarChar(128)
   sexo                  String?  @db.VarChar(32)
-  raca                  String?  @db.VarChar(128) @ignore
   idade_minima_meses    Int?
   idade_maxima_meses    Int?
-  categoria_oficial     String?  @db.VarChar(128) @ignore
-  /// Vínculo explícito com a categoria visual GLOBAL do tipo `lote` (D-PROD-69).
-  /// Opcional: categorias antigas continuam válidas sem vínculo.
-  catalogo_categoria_visual_id String? @db.VarChar(64)
-  ganho_peso_anual_kg   Decimal? @db.Decimal(14, 4) @ignore
-  gmd_janeiro           Decimal? @db.Decimal(14, 4) @ignore
-  gmd_fevereiro         Decimal? @db.Decimal(14, 4) @ignore
-  gmd_marco             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_abril             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_maio              Decimal? @db.Decimal(14, 4) @ignore
-  gmd_junho             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_julho             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_agosto            Decimal? @db.Decimal(14, 4) @ignore
-  gmd_setembro          Decimal? @db.Decimal(14, 4) @ignore
-  gmd_outubro           Decimal? @db.Decimal(14, 4) @ignore
-  gmd_novembro          Decimal? @db.Decimal(14, 4) @ignore
-  gmd_dezembro          Decimal? @db.Decimal(14, 4) @ignore
   ativo                 Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  catalogoCategoriaVisual CatalogoCategoriaVisual? @relation(fields: [catalogo_categoria_visual_id], references: [id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
-  @@index([cliente_id, catalogo_categoria_visual_id])
+  @@map("CADCATEGORIA")
 }
 
 model Bebedouro {
@@ -1522,7 +1506,6 @@ model CatalogoCategoriaVisual {
   tipo              CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
   icones            CatalogoIcone[]
   regrasMistoCategorias CatalogoRegraMistoCategoria[]
-  categoriasManejo  CategoriaManejo[]
 
   @@unique([tipo_id, codigo])
   @@index([tipo_id, ativo, ordem])
