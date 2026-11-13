@@ -34,6 +34,7 @@ vi.mock('@/apis/lotes', () => ({
   listMovimentacoes: (...a) => listMovimentacoesLote(...a),
   listSuplementacaoEventos: async () => [],
   listSuplementacaoLotes: async () => [],
+  listCategoriasManejo: async () => [],
 }));
 vi.mock('@/apis/estoque', () => ({
   listLotesNota: async () => [],

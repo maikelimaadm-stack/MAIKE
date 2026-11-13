@@ -41,6 +41,7 @@ import {
   listMovimentacoes,
   listSuplementacaoEventos,
   listSuplementacaoLotes,
+  listCategoriasManejo,
 } from '@/apis/lotes';
 import { listLotesNota, listMovimentacoes as listMovimentacoesEstoque, listProdutos } from '@/apis/estoque';
 import { listLancamentos, listHistorico } from '@/apis/tarefas';
@@ -86,6 +87,10 @@ const CAPACIDADES = {
     return daEmpresa(await listLotes(), empresaId).filter((l) => l.status === 'Ativo');
   },
   icones: async () => (await listIcones()).filter((i) => i.ativo !== false),
+  // D-PROD-191: o ícone do lote vem do código pela faixa de idade da Categoria de
+  // Manejo; ela fica no cache para o ícone sair certo também sem rede. Inclui as
+  // inativas: uma posição antiga pode apontar para uma delas.
+  categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
   eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
   estoqueLotes: async (empresaId) =>
     daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
