@@ -263,6 +263,15 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
+  // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
+  CURVA_GANHO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica curva de ganho desta fazenda neste tenant',
+  },
+  CURVA_GANHO_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe curva de ganho com este nome nesta fazenda',
+  },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {

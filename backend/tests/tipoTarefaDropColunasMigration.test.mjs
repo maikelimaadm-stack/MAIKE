@@ -6,7 +6,7 @@
  * tocado).
  *
  * Partida: todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA; inclui a CADESTACOES,
- * D-PROD-188, e a P1-03, D-PROD-185) e, para 2
+ * D-PROD-188, a CADCURVAGANHO, D-PROD-189, e a P1-03, D-PROD-185) e, para 2
  * clientes, um GrupoAtividade, 5 tipos de tarefa com combinações das 4 flags
  * (um todo false, um inativo) e um LancamentoTarefa.
  *

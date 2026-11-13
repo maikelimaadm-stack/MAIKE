@@ -36,7 +36,18 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)
+## Missão ativa (2026-11-13) — MAIKE-CADCURVAGANHO-CADASTRO: Curvas de Ganho de Peso por estação, tabela `CADCURVAGANHO` (D-PROD-189)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-189** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `776befe9` (merge da PR #265). PR nova, exclusiva desta missão |
+| Escopo | Model `CadCurvaGanho` → tabela física `"CADCURVAGANHO"` (`@@map`), por fazenda; GMD (kg/dia) nas Águas, na Transição e na Seca, de -2 a 3; API `/curvas-ganho`; tela `CurvasGanho` (menu Manejo, tela `pec-curvas-ganho`). **Sem vínculo** com categoria, lote ou estação |
+| Migration | `20261113600000_cadcurvaganho_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Repositório: 43 → **44** migrations, 81 → **82** tabelas. **Aplicada em produção em 2026-11-13 23:18:10 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 44/0, 82 tabelas, RLS, advisors sem alerta |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 em rascunho: o merge depende da autorização do proprietário; depois, conferir `/health` e `/api/native/curvas-ganho` → 401 |
+| Relatório | [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)
 
 | Campo | Valor |
 |---|---|
@@ -44,7 +55,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR #265 em rascunho, exclusiva desta missão |
 | Escopo | Model `CadEstacao` → tabela física `"CADESTACOES"` (`@@map`), por fazenda; API `/estacoes`; tela `Estacoes` (menu Manejo, tela `pec-estacoes`); estações ativas da mesma fazenda sem sobreposição. **Sem vínculo** com lote, categoria, curva ou outro cadastro |
 | Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Aplicada em produção em 2026-11-13 19:48:14 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 43/0, 81 tabelas, RLS, advisors sem alerta |
-| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) §7). Falta: merge da PR #265, deploy e smoke (proprietário) |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) §7). PR #265 mergeada em `776befe9` (2026-11-13, merge autorizado pelo proprietário); produção conferida: `/health` com `release` = `776befe9`, `/api/native/estacoes` → 401 |
 | Relatório | [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): Categoria de Manejo enxuta (D-PROD-186)
