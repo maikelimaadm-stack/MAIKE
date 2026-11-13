@@ -100,8 +100,8 @@ O `verify:all` também roda no CI da PR.
 
 ## 5. Release
 
-1. A migration é **EXPAND** (só cria a tabela nova) e **não foi aplicada** em nenhum banco remoto. Aplicar exige GO expresso do proprietário.
-2. **Aplicar antes do merge** (lição da Fatia LIMPEZA): com a PR pronta e o GO, `node scripts/deploy/premerge-migrate.mjs --sha <SHA da PR> --verificar-alvo` e depois `--aplicar` pelo caminho oficial. Depois do merge, o premerge não vê mais a migration como nova.
+1. A migration é **EXPAND** (só cria a tabela nova). **Aplicada em produção em 2026-11-13 às 23:23:18 UTC, antes do merge**, com GO do proprietário (registro na seção 7).
+2. Aplicada antes do merge (lição da Fatia LIMPEZA). Falta: merge da PR #269, deploy (Vercel) e o smoke da seção 7.
 3. A ordem inversa também é segura para o código antigo: nenhum módulo antigo consulta a tabela nova, e a exclusão de empresa só conta dependentes em tabelas que existem. Mas a tela nova dá erro até a migration subir, então a ordem recomendada continua sendo migration → merge → deploy.
 4. Até a tela `op-apontamentos-atividade` ser liberada num perfil, só o administrador a vê.
 5. **Atenção à fila:** a migration desta fatia tem data (`20261113700000`) depois da `20261113400000_cadestacoes_cadastro` (Estações, já aplicada em produção) e das migrations das PRs abertas #268 (D-PROD-187, `20261113500000`) e #270 (D-PROD-189, `20261113600000`). Quem entrar depois atualiza as contagens fixas (44 migrations, 82 tabelas, 67 de tenant) dos testes das migrations CONTRACT, dos ensaios e do SQL editor, se mudarem.
@@ -114,3 +114,40 @@ O `verify:all` também roda no CI da PR.
 - flags de exigência (`exige_area`, `pode_ter_*`): não voltaram em lugar nenhum;
 - trabalho visual: nenhum componente, CSS ou layout novo;
 - horas trabalhadas, safra e tarefa de origem no formulário (a API e a porta já aceitam; o formulário segue a lista de 8 campos pedida).
+
+## 7. Registro da aplicação em produção
+
+**2026-11-13, caminho B (conector Supabase, uma `execute_sql`, uma transação).**
+
+- **GO:** o proprietário respondeu "go liberado". Perguntei a que isso se aplicava, e ele escolheu "As duas, nessa ordem": primeiro aplicar esta migration, depois começar a Fatia D. Esta sessão não tem a URL direta do banco que o caminho A (`premerge-migrate --aplicar`) exige. Por isso o GO vale como autorização específica para o caminho B, **registrado como desvio da D-PROD-74**, como nas Estações (runbook `MAIKE-CADESTACOES-RUNBOOK-RELEASE.md` §1).
+- **Preflight, só leitura, projeto `uuemcasqcdjucflulkne`:**
+  - `system_identifier` 7692130048193495360, banco `postgres`;
+  - `_prisma_migrations` com **44** concluídas e 0 com falha. A última é `20261113600000_cadcurvaganho_cadastro`, a migration da PR #270, **já aplicada em produção** embora a PR siga aberta;
+  - `to_regclass('public."ApontamentoAtividade"')` nulo e 82 tabelas em `public`;
+  - as 10 tabelas referenciadas existem;
+  - nenhuma sessão ativa e nenhuma trava forte nelas.
+  - Repeti o preflight logo antes de aplicar, depois de um reinício da sessão. Resultado idêntico, sem a migration registrada.
+- **Ensaio local** do mesmo envelope num banco novo com as 43 migrations da `main`, trocando só o `system_identifier` e o total esperado:
+  - a 1ª execução aplicou: 44 no histórico, RLS ligado sem FORCE, 82 tabelas;
+  - a 2ª execução parou na guarda (`RELEASE_BLOCKED: migration já registrada`);
+  - `prisma migrate status` deu "Database schema is up to date!" e o `migrate diff` contra o `schema.prisma` ficou vazio.
+- **Envelope aplicado** (o mesmo das Estações):
+  1. `BEGIN`; `SET LOCAL lock_timeout = '5s'`; `pg_advisory_xact_lock(72707369)`;
+  2. guarda `DO`: alvo 7692130048193495360, migration ainda não registrada, 44 concluídas e 0 com falha, tabela inexistente;
+  3. o `migration.sql` íntegro (sha256 `a9735833…5e`);
+  4. `INSERT` em `_prisma_migrations` com esse checksum e `applied_steps_count` 1;
+  5. `COMMIT`.
+- **Conferência, só leitura:**
+  - linha `20261113700000_apontamento_atividade` com o checksum pinado, 1 passo, `finished_at` 2026-11-13 23:23:18 UTC;
+  - **45** concluídas e 0 com falha;
+  - RLS ligado, sem FORCE; política `maike_backend_all` só para `maike_vercel`; `anon` e `authenticated` sem SELECT;
+  - 13 FKs, todas `RESTRICT`; 9 índices (8 + pkey);
+  - 0 linhas; **83** tabelas em `public`;
+  - `get_advisors` (segurança): nenhum alerta.
+- **Fila em produção:** a migration da PR #268 (`20261113500000_categoria_manejo_cadcategoria`, CONTRACT) ainda não foi aplicada, e agora tem data **anterior** a duas já aplicadas (`…600000` e `…700000`). Quem cuidar da #268 deve decidir se renomeia para depois de `20261113700000`, como esta fatia fez.
+- **Smoke depois do merge e do deploy (proprietário):**
+  - abrir Atividades → Apontamentos de Atividade numa fazenda com fuso configurado;
+  - criar um apontamento de teste com máquina e conferir o centro de custo vindo do bem;
+  - editar e cancelar com motivo;
+  - conferir que excluir o tipo de atividade usado dá a mensagem de bloqueio, e não um erro 500.
+- **Rollback:** a tabela é nova e nada a referencia. Antes de qualquer escrita real, reverter é `DROP TABLE "ApontamentoAtividade";` mais a remoção da linha em `_prisma_migrations`, **só com GO próprio**, porque é CONTRACT. Se o código já estiver no ar, reverter o código primeiro.
