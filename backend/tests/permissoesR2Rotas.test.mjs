@@ -114,8 +114,12 @@ const ESCRITAS = (c) => {
     ['tipo de atividade (POST)', 'POST', '/tipos-atividade', { nome_tipo: 'HACK', grupo_atividade_id: 'ga-1' }],
     ['tipo de atividade (PATCH)', 'PATCH', `/tipos-atividade/${ID}`, { nome_tipo: 'HACK' }],
     ['tipo de atividade (DELETE)', 'DELETE', `/tipos-atividade/${ID}`],
+    // D-PROD-188 — Estações da fazenda: escrita guardada pela tela pec-estacoes.
+    ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
+    ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['estação (DELETE)', 'DELETE', `/estacoes/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
-    // D-PROD-188 — Apontamento de Atividade: escrita guardada pela tela
+    // D-PROD-190 — Apontamento de Atividade: escrita guardada pela tela
     // op-apontamentos-atividade (cancelar = ação "excluir"; não há DELETE físico).
     ['apontamento de atividade (POST)', 'POST', '/apontamentos-atividade', { empresa_id: E, tipo_atividade_id: 'ta-1', data_operacional: '2026-10-27' }],
     ['apontamento de atividade (PATCH)', 'PATCH', `/apontamentos-atividade/${ID}`, { empresa_id: E, versao: 1, observacao: 'HACK' }],
@@ -193,7 +197,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.notEqual((await req('POST', '/lancamentos-tarefa', c.tokOp, tarefa)).statusCode, 403);
   });
 
-  test('D-PROD-188 — apontamento de atividade: só a tela op-apontamentos-atividade libera, ação por ação; a leitura também exige a tela', async () => {
+  test('D-PROD-190 — apontamento de atividade: só a tela op-apontamentos-atividade libera, ação por ação; a leitura também exige a tela', async () => {
     const c = await cenario();
     const E = c.empresa.id;
     const [, , urlC, corpoC] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (POST)');

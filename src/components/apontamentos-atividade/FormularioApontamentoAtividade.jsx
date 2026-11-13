@@ -57,7 +57,7 @@ const detalheDoCentro = (o) => (o?.numero != null ? `nº ${o.numero}` : null);
  */
 
 /**
- * Formulário do apontamento de atividade (D-PROD-188) — a EXECUÇÃO de um tipo.
+ * Formulário do apontamento de atividade (D-PROD-190) — a EXECUÇÃO de um tipo.
  *
  * Campos, nesta ordem EXATA: 1) Tipo de atividade (só ativos; ao editar, o
  * tipo atual inativo aparece marcado "(INATIVO)"; o grupo vem junto, só

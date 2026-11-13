@@ -1,5 +1,5 @@
 /**
- * Rotas de ApontamentoAtividade (D-PROD-188, Fatia C) — tela `op-apontamentos-atividade`:
+ * Rotas de ApontamentoAtividade (D-PROD-190, Fatia C) — tela `op-apontamentos-atividade`:
  *
  *  - `GET   /apontamentos-atividade` (ver) — lista keyset com filtros
  *  - `GET   /apontamentos-atividade/:id` (ver) — detalhe

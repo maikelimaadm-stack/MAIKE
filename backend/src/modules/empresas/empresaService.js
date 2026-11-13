@@ -296,7 +296,7 @@ const TABELA_DO_MODELO = Object.freeze(
 );
 
 /**
- * D-PROD-188 (lição do hotfix #259) — o código pode subir antes da migration de
+ * D-PROD-190 (lição do hotfix #259) — o código pode subir antes da migration de
  * um model novo (ex.: `ApontamentoAtividade`), e a lista acima o inclui sozinha:
  * contar numa tabela que ainda não existe daria 500 (e, dentro da transação,
  * 25P02 no resto). A consulta ao catálogo (`to_regclass`) NUNCA falha; tabela

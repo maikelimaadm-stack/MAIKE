@@ -54,7 +54,7 @@ const OPCOES_SITUACAO = [
 const CONTEXTO_MENSAGENS = Object.freeze({ locale: "pt-BR", moeda: "BRL", casas: 2 });
 
 /**
- * Apontamentos de Atividade (D-PROD-188, Fatia C) — a EXECUÇÃO de um Tipo de
+ * Apontamentos de Atividade (D-PROD-190, Fatia C) — a EXECUÇÃO de um Tipo de
  * Atividade na EMPRESA selecionada. A TAREFA é a demanda; a ATIVIDADE é a
  * operação feita (máquina, implemento, operador, área, horário e produção).
  * Base enxuta, sem itens de custo.

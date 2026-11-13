@@ -1,5 +1,5 @@
 /**
- * Porta nativa de ApontamentoAtividade (D-PROD-188, Fatia C).
+ * Porta nativa de ApontamentoAtividade (D-PROD-190, Fatia C).
  *
  * O apontamento é a EXECUÇÃO de um Tipo de Atividade (D-PROD-182): a TAREFA é a
  * demanda; a ATIVIDADE é a operação feita. Só online (lista keyset da EMPRESA,

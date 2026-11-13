@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronRight,
   ClipboardCheck,
+  CloudSun,
   Coins,
   Droplet,
   Droplets,
@@ -42,6 +43,7 @@ export const ICONE_TELA = {
   CadastroLotes: LayoutGrid,
   CadastroSetores: Layers,
   CategoriasManejo: Tag,
+  Estacoes: CloudSun, // D-PROD-188
   Bebedouros: Droplet,
   Produtos: Package,
   Categorias: Tag,
@@ -50,7 +52,7 @@ export const ICONE_TELA = {
   LocaisEstoque: Warehouse,
   TiposTarefa: ListChecks,
   TiposAtividade: ListChecks,
-  // D-PROD-188 — Apontamentos de Atividade (a execução; ClipboardCheck ≠ ListChecks dos tipos).
+  // D-PROD-190 — Apontamentos de Atividade (a execução; ClipboardCheck ≠ ListChecks dos tipos).
   ApontamentosAtividade: ClipboardCheck,
   GruposAtividades: Folder,
   Empresa: Building2,

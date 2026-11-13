@@ -284,7 +284,9 @@ export const GUARDAS = Object.freeze({
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
-  // D-PROD-188 — Apontamento de Atividade: o esquema do cadastro (criar =
+  // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
+  estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
+  // D-PROD-190 — Apontamento de Atividade: o esquema do cadastro (criar =
   // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
   // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
   // operacional da fazenda; não dependem das telas de bens nem de centros).

@@ -1,5 +1,5 @@
 /**
- * Repositório de ApontamentoAtividade (D-PROD-188, Fatia C).
+ * Repositório de ApontamentoAtividade (D-PROD-190, Fatia C).
  *
  * Adaptador de dados, sem regra: leitura pela empresa do tenant (`cliente_id`
  * vem SEMPRE do auth_context), listagem keyset, gravação na transação de quem

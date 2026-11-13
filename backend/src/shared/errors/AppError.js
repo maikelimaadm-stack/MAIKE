@@ -158,7 +158,7 @@ export const tipoAtividadeNomeConflito = (message, options) =>
     options
   );
 
-// D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+// D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
 export const tipoAtividadeDeleteBlocked = (message, options) =>
   new AppError(
     'TIPO_ATIVIDADE_DELETE_BLOCKED',
@@ -166,7 +166,7 @@ export const tipoAtividadeDeleteBlocked = (message, options) =>
     options
   );
 
-// D-PROD-188 — Apontamento de Atividade.
+// D-PROD-190 — Apontamento de Atividade.
 export const apontamentoAtividadeNotFound = (message, options) =>
   new AppError('APONTAMENTO_ATIVIDADE_NOT_FOUND', message || 'apontamento de atividade não encontrado nesta fazenda', options);
 
@@ -247,6 +247,20 @@ export const apontamentoAtividadeVinculado = (vinculo, options) =>
     'APONTAMENTO_ATIVIDADE_VINCULADO',
     'não é possível excluir: há apontamentos de atividade vinculados a este cadastro; nada foi apagado',
     { ...options, details: { ...(options?.details ?? {}), vinculo } }
+  );
+
+// D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+export const estacaoNotFound = (message, options) =>
+  new AppError('ESTACAO_NOT_FOUND', message || 'estação não encontrada', options);
+
+export const estacaoNomeConflito = (message, options) =>
+  new AppError('ESTACAO_NAME_CONFLICT', message || 'já existe estação com este nome nesta fazenda', options);
+
+export const estacaoPeriodoSobreposto = (message, options) =>
+  new AppError(
+    'ESTACAO_PERIODO_SOBREPOSTO',
+    message || 'o período se sobrepõe a outra estação ativa desta fazenda',
+    options
   );
 
 export const loteNotFound = (message, options) =>

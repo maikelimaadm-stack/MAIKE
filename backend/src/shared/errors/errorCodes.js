@@ -250,12 +250,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
-  // D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
   },
-  // D-PROD-188 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
+  // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
   APONTAMENTO_ATIVIDADE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica apontamento de atividade desta empresa neste tenant',
@@ -291,6 +291,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   APONTAMENTO_ATIVIDADE_VINCULADO: {
     http: 409,
     meaning: 'exclusão barrada pela FK RESTRICT de um apontamento de atividade (details.vinculo); inative o cadastro; nada foi apagado',
+  },
+  // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+  ESTACAO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica estação desta fazenda neste tenant',
+  },
+  ESTACAO_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe estação com este nome nesta fazenda',
+  },
+  ESTACAO_PERIODO_SOBREPOSTO: {
+    http: 409,
+    meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },

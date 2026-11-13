@@ -120,10 +120,10 @@ export const API_ERROR_CODES = Object.freeze({
   // Cadastro de TipoAtividade (D-PROD-182).
   TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
-  // D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
 
-  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-188). A tela age
+  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-190). A tela age
   // sobre cada um: relê a lista (não encontrado, cancelado, versão velha) ou
   // destaca o campo recusado (referência, horário, data, implemento, produção).
   APONTAMENTO_ATIVIDADE_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_NOT_FOUND',
@@ -136,6 +136,10 @@ export const API_ERROR_CODES = Object.freeze({
   APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: 'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
   // Exclusão de cadastro (área, centro, tarefa…) barrada por um apontamento.
   APONTAMENTO_ATIVIDADE_VINCULADO: 'APONTAMENTO_ATIVIDADE_VINCULADO',
+  // D-PROD-188 — Estações da fazenda.
+  ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
+  ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
+  ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -249,6 +253,10 @@ const MENSAGENS = Object.freeze({
     'Este apontamento foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VINCULADO]:
     'Não é possível excluir: há apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
+  [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
+  [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:
+    'O período se sobrepõe a outra estação ativa desta fazenda. Ajuste as datas ou inative a outra estação.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

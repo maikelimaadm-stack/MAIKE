@@ -39,6 +39,9 @@ export const TELAS = Object.freeze({
   SETORES: Object.freeze({ modulo: 'manejo', tela: 'pec-setores' }),
   CATEGORIAS_MANEJO: Object.freeze({ modulo: 'manejo', tela: 'pec-categorias-manejo' }),
   BEBEDOUROS: Object.freeze({ modulo: 'manejo', tela: 'pec-bebedouros' }),
+  // D-PROD-188 — mesmo id do item de menu `pec-estacoes`. Sem concessão
+  // automática: tela nova não herda permissão de outra.
+  ESTACOES: Object.freeze({ modulo: 'manejo', tela: 'pec-estacoes' }),
   PRODUTOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-produtos' }),
   CATEGORIAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-categorias' }),
   MARCAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-marcas' }),
@@ -67,7 +70,7 @@ export const TELAS = Object.freeze({
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
   PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
-  // D-PROD-188 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
+  // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
   // Mesmo id do item de menu `op-apontamentos-atividade`; o módulo é o id do grupo
   // de menu que o contém (`suporte-mapa`, logo abaixo de Tipos de Atividade, no
   // mesmo esquema de `sup-tipos-atividade`). Sem concessão automática a perfis antigos.

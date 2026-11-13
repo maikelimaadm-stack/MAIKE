@@ -1,5 +1,5 @@
 /**
- * Sessão da tela Apontamentos de Atividade (D-PROD-188): empresa REAL
+ * Sessão da tela Apontamentos de Atividade (D-PROD-190): empresa REAL
  * selecionada e as ações que a permissão efetiva libera na tela.
  *
  * Mesmas consultas (e chaves) de `useAcoesTelaGestao`: a tela Permissões

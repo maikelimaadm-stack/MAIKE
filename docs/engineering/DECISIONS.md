@@ -6722,11 +6722,55 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
 
-## D-PROD-188 — Apontamento de Atividade: a execução da atividade (Fatia C do apontamento)
+## D-PROD-188 — Cadastro de Estações da fazenda, tabela física `CADESTACOES` (primeira fatia, sem vínculos)
+
+> **Numeração:** a D-PROD-185 está na PR #263 (Estoque P1-03), a D-PROD-186 é a Fatia C da Categoria de Manejo (PR #264, mergeada) e a D-PROD-187 está reservada para a Fatia D. A `main` indica `Próxima decisão: D-PROD-188`, que é esta.
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário: "vamos começar com o registro de estações […] primeiro não vamos interligar com nada ainda, o nome da tabela para o banco do supabase eu quero CADESTACOES" · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** O proprietário quer, no futuro, a curva de ganho de peso por estação (águas, transição, seca) e o peso projetado do lote a partir da última pesagem. O primeiro passo é só **registrar os períodos** de cada fazenda, para que o histórico de quando cada seca e cada estação das águas começou e terminou fique guardado desde já.
+
+**Decisão.**
+1. **Model `CadEstacao`, tabela física `"CADESTACOES"`** (`@@map`, o primeiro do schema; mesmo padrão `CAD…` que a D-PROD-187 prevê para `CADCATEGORIA`).
+   - Campos: `id, cliente_id, empresa_id, nome, tipo, data_inicio, data_fim, observacoes, ativo, createdAt, updatedAt`.
+   - `tipo` ∈ `AGUAS | TRANSICAO | SECA`, guardado em `VARCHAR(16)` com CHECK `CADESTACOES_tipo_check` (o schema não usa enum Prisma).
+   - `data_inicio` e `data_fim` são `DATE` (dia civil, sem hora); CHECK `CADESTACOES_periodo_check`: `data_fim >= data_inicio`.
+   - Por **fazenda** (`empresa_id`): as estações dependem do lugar. FK composta `(cliente_id, empresa_id) → Empresa(cliente_id, id)` e FK para `Cliente`, as duas `ON DELETE RESTRICT`.
+   - Únicos `[cliente_id, id]` e `[cliente_id, empresa_id, nome]`; índices `[cliente_id, empresa_id, ativo]` e `[cliente_id, empresa_id, data_inicio]`.
+   - **Sem nenhum vínculo de negócio:** nada referencia `CADESTACOES` e ela não referencia lote, categoria, curva nem área. As FKs de Cliente e Empresa são o escopo obrigatório (R9), não vínculo.
+   - Não reconcilia com `AreaPastagem.periodo_estacao` ('Seco', 'Intermediário', 'Chuvoso'), que é outro vocabulário e outro uso; fica para a missão que ligar as duas coisas.
+2. **Migration EXPAND `20261113400000_cadestacoes_cadastro`.** Cria só a tabela nova, índices, FKs, os 2 CHECKs e o bloco RLS/REVOKE copiado da D-PROD-182 com `ARRAY['CADESTACOES']`. O número da decisão fica fora do `migration.sql` (D-PROD-183 item 9), para a renumeração não mudar o checksum.
+   - SHA-256 do arquivo: `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Hash do corpo do DO: `10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f`. Os dois pinados em `premergeMigrateLib.mjs`; o classificador dá `EXPAND`, `tabelas_novas = ["CADESTACOES"]`, sem violação.
+   - Repositório: 42 → **43** migrations e 80 → **81** tabelas (66 de tenant). Scripts do SQL editor (01–04), testes de contagem e ensaios atualizados.
+   - **Aplicação em produção antes do merge** (D-PROD-72 item 1), pelo runbook [`MAIKE-CADESTACOES-RUNBOOK-RELEASE.md`](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md). Motivo extra: a exclusão de Empresa conta todos os models com `cliente_id` e `empresa_id` (DMMF), então o runtime novo sem a tabela daria 500 em `DELETE /empresas/:id` (mesma classe do hotfix `0bd52a3`). Pelo conector Supabase só com GO escrito e específico desta migration (desvio da D-PROD-74); `apply_migration` nunca.
+3. **API `/estacoes`** (lista completa por fazenda, sem paginação):
+   - `GET /estacoes?empresa_id=`, `GET /estacoes/:id?empresa_id=`, `POST /estacoes`, `PATCH /estacoes/:id` (com `empresa_id` no corpo) e `DELETE /estacoes/:id?empresa_id=`;
+   - tenant só do `auth_context` (R11); a fazenda precisa ser do tenant (`EMPRESA_NOT_FOUND` 404); estação de outra fazenda ou de outro tenant → 404 `ESTACAO_NOT_FOUND`; a estação nunca troca de fazenda;
+   - nome e observações em MAIÚSCULAS; nome único por fazenda → 409 `ESTACAO_NAME_CONFLICT` (corrida perdida no unique também vira 409);
+   - datas `AAAA-MM-DD` de dia real, anos de 1900 a 2100; fim antes do início → 400;
+   - **duas estações ATIVAS da mesma fazenda não se sobrepõem, nem num único dia** → 409 `ESTACAO_PERIODO_SOBREPOSTO`, com a estação em conflito no `details`. Checagem sob trava do escopo (tenant + fazenda) até o fim da transação. Estação inativa não entra na regra (permite guardar um período "previsto" ao lado do "real");
+   - corpo e query com `additionalProperties: false`; exclusão física com auditoria (`CadEstacao`) na mesma transação.
+4. **Permissões.** Tela `pec-estacoes`, módulo `manejo`. Escrita pela guarda `cadastro()`; **leitura também pela tela** (`visualizar`), como nos cadastros por fazenda da Gestão. Sem concessão automática: o administrador libera a tela no perfil.
+5. **Tela `Estacoes`** (motor Base1), item "Estações" no menu Manejo, logo depois de "Categorias de Manejo"; ícone `CloudSun` no celular.
+   - Formulário: Nome, Tipo (ÁGUAS / TRANSIÇÃO / SECA), Data de início, Data de fim, Ativo e Observações. Datas como texto do dia (`CampoDia`), sem `Date` local.
+   - Lista: Nome, Tipo, Início, Fim, **Dias** (duração contando os dois extremos), Ativo; datas e duração ordenam pelo valor canônico.
+   - A fazenda é a selecionada no topo; sem fazenda, aviso e nenhum botão de gravação. Trocar de fazenda fecha o registro aberto.
+6. **Fora do escopo:** curva de ganho de peso, projeção de peso, objetivos por categoria, produção (@), suplementação, calendário mês a mês e qualquer leitura das estações por outro módulo.
+
+**Testes.**
+- `backend/tests/estacaoNativo.test.mjs` (Postgres real, 22 casos): criar e ler; formato público; ordem da lista; nome duplicado; chaves fora do schema; obrigatórios; tipo; datas; HTML/controle; sobreposição (4 formas, inclusive o dia de encosto), inativa fora da regra, reativação bloqueada, edição de si mesma; duas corridas (sobreposição e nome) com exatamente um vencedor e nenhum 500; PATCH e DELETE pela fazenda errada; isolamento entre tenants; empresa com estação → 409 `EMPRESA_COM_VINCULOS` + FK Restrict; 403 sem a tela, `visualizar` só lê, `novo` cria, `excluir` exclui; tabela física `"CADESTACOES"` com RLS e os 2 CHECKs no banco.
+- `permissoesR2Rotas` ganha POST/PATCH/DELETE de `/estacoes`; `premerge-migrate` (B1), `sqlEditorBootstrap`, `patrimonioSimplificaMigration` e `tipoTarefaDropColunasMigration` com as contagens novas.
+- Smoke `tests/smoke/estacoes.test.jsx`: ordem dos 6 campos, opções do tipo, obrigatórios, payload, fim antes do início, leitura, valores e ordenação da grade, tela com e sem fazenda; `scope` e `vercelSpaRoutes` com 26 páginas.
+
+**Nota de aplicação (2026-11-13).** A migration `20261113400000_cadestacoes_cadastro` foi aplicada em produção às 19:48:14 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `f51e104e` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "autorizo a migração pelo conector do supabase" / "ok mas está autorizado ok" — desvio da D-PROD-74 para esta migration, não precedente. Conferência: 43/0 migrations, 81 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
+
+**Relatório:** [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md).
+
+## D-PROD-190 — Apontamento de Atividade: a execução da atividade (Fatia C do apontamento)
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário (Fatia C, "ApontamentoAtividade"), depois da Fatia LIMPEZA aplicada (D-PROD-183) · **Branch:** `feat/apontamento-atividade`
 
-> **Numeração:** a especificação e os primeiros commits da branch usavam a D-PROD-184, que a `main` já deu ao Estoque P1-02; a D-PROD-185 é da PR #263, a D-PROD-186 da Categoria de Manejo enxuta e a D-PROD-187 está reservada à Fatia D da Categoria de Manejo (DROP). Esta decisão é a **D-PROD-188**. O `migration.sql` não cita número de decisão, para que renumerar nunca mude o checksum aplicado. A "Fatia D" do apontamento (itens) é outra coisa e terá número próprio.
+> **Numeração:** a especificação e os primeiros commits da branch usavam a D-PROD-184, que a `main` já deu ao Estoque P1-02; depois a branch usou a D-PROD-188, que a `main` deu às Estações (PR #265, mergeada durante esta fatia, com a migration já aplicada em produção). O caminho foi 184 → 188 → 190: D-PROD-184 é o Estoque P1-02, D-PROD-185 a PR #263, D-PROD-186 a Categoria de Manejo enxuta, D-PROD-187 a Fatia D da Categoria de Manejo (PR #268), D-PROD-188 as Estações (PR #265, mergeada) e D-PROD-189 as curvas de ganho (PR #270). Esta decisão é a **D-PROD-190**. O `migration.sql` não cita número de decisão, para que renumerar nunca mude o checksum aplicado. A "Fatia D" do apontamento (itens) é outra coisa e terá número próprio.
 
 **Contexto.**
 - **TAREFA** (`LancamentoTarefa`) é a demanda; **ATIVIDADE** é a operação executada, que consome máquina, combustível e insumo (D-PROD-182).
@@ -6737,9 +6781,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - FKs compostas e tenant-aware, todas `ON DELETE RESTRICT`: bem, implemento, centro de custo e centro de resultado por `(cliente_id, empresa_id, id)`; empresa, tipo, grupo, área, tarefa e os três usuários por `(cliente_id, …)`.
    - Únicos `(cliente_id, id)`, `(cliente_id, empresa_id, id)` e `(cliente_id, numero)`. Índices `(cliente_id, empresa_id, createdAt, id)`, `(cliente_id, empresa_id, bem_id, data_operacional)`, `(cliente_id, empresa_id, tipo_atividade_id, data_operacional)`, `(cliente_id, area_id)` e `(cliente_id, lancamento_tarefa_id)`.
    - Relações inversas só no Prisma (Cliente, Empresa, TipoAtividade, GrupoAtividade, BemPatrimonial ×2, AreaPastagem, CentroCusto, CentroResultado, LancamentoTarefa, Usuario ×3). `LancamentoTarefa` e `AbastecimentoBem` não mudam além disso.
-2. **Migration EXPAND `20261113300000_apontamento_atividade`.** Só a tabela nova, com índices, FKs e o bloco RLS/REVOKE da D-PROD-182 (lista `['ApontamentoAtividade']`). Nenhuma tabela antiga muda.
+2. **Migration EXPAND `20261113700000_apontamento_atividade`.** Só a tabela nova, com índices, FKs e o bloco RLS/REVOKE da D-PROD-182 (lista `['ApontamentoAtividade']`). Nenhuma tabela antiga muda.
+   - Nome com data **depois** de toda migration já aplicada em produção (a `20261113400000_cadestacoes_cadastro`, D-PROD-188) e das PRs abertas #268 (`20261113500000`) e #270 (`20261113600000`): a pasta foi renomeada no merge da `main` (PR #265), sem mudar uma linha do `migration.sql` (mesmo SHA-256 e mesmo DO).
    - Hashes pinados em `premergeMigrateLib.mjs`: arquivo `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; corpo do DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`.
-   - Repositório: 42 → **43** migrations; tabelas 80 → **81** (66 de tenant). SQL editor 01–04 e testes de contagem atualizados.
+   - Repositório (depois do merge da `main` com as Estações): 43 → **44** migrations; tabelas 81 → **82** (67 de tenant). SQL editor 01–04, testes de contagem e ensaios atualizados.
    - **Não aplicada.** Aplicar exige GO expresso do proprietário.
 3. **API** (tenant só do `auth_context`; empresa no corpo/query, conferida no tenant; corpos com `additionalProperties: false`):
    - `GET /apontamentos-atividade` (keyset por `createdAt, id`, filtros de período, bem, implemento, tipo, área, tarefa, status e número), `GET /:id`, `POST`, `PATCH /:id` (CAS por `versao`) e `POST /:id/cancelar` (motivo). **Sem DELETE.**
@@ -6769,4 +6814,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-189 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D da Categoria de Manejo) -->
+<!-- Próxima decisão: D-PROD-191 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-189 com a PR #270) -->

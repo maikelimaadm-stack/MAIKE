@@ -9,7 +9,7 @@
  * e com qual código), como em `tarefaCadastroService`. Não há guarda de
  * vínculo antes do `DELETE`: o tipo usado num apontamento de atividade é
  * barrado no SERVIDOR pela FK RESTRICT (409 `TIPO_ATIVIDADE_DELETE_BLOCKED`,
- * D-PROD-188) e volta aqui em `bloqueados`, com o código.
+ * D-PROD-190) e volta aqui em `bloqueados`, com o código.
  */
 
 import {

@@ -8,7 +8,7 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 41 migrations da main (todas menos esta CONTRACT e as que
+ *  1. aplica as 42 migrations da main (todas menos esta CONTRACT e as que
  *     DEPENDEM dela, `MIGRATIONS_DEPOIS_DO_CONTRACT`), pelo Prisma, a partir de
  *     uma cópia temporária das pastas; entre elas está a CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
@@ -16,7 +16,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
  *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
  *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam.
- *     A `20261113300000_apontamento_atividade` (D-PROD-188) fica de fora da
+ *     A `20261113700000_apontamento_atividade` (D-PROD-190) fica de fora da
  *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
  *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
  *     runner, no passo 4 (em produção a D-PROD-162 já está concluída);
@@ -31,9 +31,9 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 43 concluídas (esta CONTRACT e a D-PROD-188), 81
- *     tabelas (as 80 de antes + ApontamentoAtividade), as 7 vazias, dono e ACL,
- *     RLS, contagens de constraints, impressão digital das 73 que ficam,
+ *     na URL) e confere: 44 concluídas (esta CONTRACT e a D-PROD-190), 82
+ *     tabelas (as 81 de antes + ApontamentoAtividade), as 7 vazias, dono e ACL,
+ *     RLS, contagens de constraints, impressão digital das 74 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
  * As funções são exportadas e reaproveitadas por
@@ -67,12 +67,12 @@ export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'A
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
 export const TABELAS_NOVAS = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial']);
 /**
- * D-PROD-188 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
+ * D-PROD-190 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
  * para BemPatrimonial(cliente_id, empresa_id, id), unique que só a CONTRACT cria). Não existiam antes dela em
  * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
  * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
  */
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113300000_apontamento_atividade']);
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade']);
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade']);
 /** Tabelas antigas cujas LINHAS a migration não pode mudar. */
 export const TABELAS_ESTOQUE = Object.freeze(['MovimentacaoEstoque', 'EstoqueLoteNota', 'Produto', 'OperacaoFinanceira', 'OperacaoFinanceiraItem']);
@@ -167,7 +167,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 41 migrations da main (todas as pastas menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT`), aplicadas pelo
+ * As 42 migrations da main (todas as pastas menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT`), aplicadas pelo
  * Prisma a partir de uma cópia temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o
  * TipoTarefa vazio.
  */
@@ -284,7 +284,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (41 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (42 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.
@@ -501,8 +501,8 @@ if (ehEntradaDireta()) {
             continue;
           }
           const r = await rodarCenarioRed(c, { db, url });
-          // Nada mudou: as mesmas tabelas (86, ou 87 com a "Intruso" do cenário da FK) e as mesmas linhas.
-          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 86 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
+          // Nada mudou: as mesmas tabelas (87, ou 88 com a "Intruso" do cenário da FK) e as mesmas linhas.
+          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 87 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
           relatorio.red.push({ id: c.id, ok, status: r.status, ms: r.ms });
           if (!ok) relatorio.ok = false;
         }
@@ -531,8 +531,8 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      // D-PROD-188: 81 = as 80 de antes + ApontamentoAtividade, que sobe junto pelo runner, depois desta CONTRACT.
-      if (g.status !== 0 || g.tabelas !== 81 || g.historico.concluidas !== 43 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      // D-PROD-190: 82 = as 81 de antes + ApontamentoAtividade, que sobe junto pelo runner, depois desta CONTRACT.
+      if (g.status !== 0 || g.tabelas !== 82 || g.historico.concluidas !== 44 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

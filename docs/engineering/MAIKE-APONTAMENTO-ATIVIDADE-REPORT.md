@@ -1,6 +1,6 @@
 # MAIKE-APONTAMENTO-ATIVIDADE — Relatório (Fatia C do apontamento)
 
-**fatia C · `feat/apontamento-atividade` · PR #269 (rascunho)** · Decisão: [D-PROD-188](./DECISIONS.md)
+**fatia C · `feat/apontamento-atividade` · PR #269 (rascunho)** · Decisão: [D-PROD-190](./DECISIONS.md)
 
 ## 1. Entrega
 
@@ -8,8 +8,8 @@ O apontamento de atividade é a **execução** de um Tipo de Atividade: a tarefa
 
 | Camada | O que entrou |
 |---|---|
-| Banco | model `ApontamentoAtividade` com os campos da especificação, FKs compostas tenant-aware `Restrict`, 3 únicos e 5 índices; relações inversas só no Prisma; migration EXPAND `20261113300000_apontamento_atividade` com RLS/REVOKE. **Não aplicada** |
-| Release | manifesto (sha256 `a9735833…5e`) e hash do DO (`5da2c547…67`) pinados no `premergeMigrateLib.mjs`; SQL editor 01–04 (66 tabelas de tenant, 81 no total); contagens das duas migrations CONTRACT (42 → 43) |
+| Banco | model `ApontamentoAtividade` com os campos da especificação, FKs compostas tenant-aware `Restrict`, 3 únicos e 5 índices; relações inversas só no Prisma; migration EXPAND `20261113700000_apontamento_atividade` com RLS/REVOKE. **Não aplicada** |
+| Release | manifesto (sha256 `a9735833…5e`) e hash do DO (`5da2c547…67`) pinados no `premergeMigrateLib.mjs`; SQL editor 01–04 (67 tabelas de tenant, 82 no total, depois do merge da `main` com as Estações); contagens das duas migrations CONTRACT e dos ensaios (GREEN com 44 concluídas e 82 tabelas) |
 | Backend | módulo `apontamentosAtividade` (lista keyset com filtros, detalhe, criar, editar com CAS por `versao`, cancelar com motivo; **sem DELETE**), opções do formulário (bens, operadores, centros de custo e de resultado), tela `op-apontamentos-atividade`, 9 erros `APONTAMENTO_ATIVIDADE_*` e `TIPO_ATIVIDADE_DELETE_BLOCKED`; exclusões de cadastros com apontamento viram 409 |
 | Frontend | porta com allowlist, serviço, regras puras, página `ApontamentosAtividade`, formulário na ordem pedida, tabela, rota, menu abaixo de "Tipos de Atividade", ícone mobile, `vercel.json` regenerado. Só componentes existentes |
 | Testes | `apontamentoAtividadeNativo.test.mjs` (Postgres real), `permissoesR2Rotas`, `premerge-migrate` B14a/B14b, `sqlEditorBootstrap`, contagens; smoke `apontamentosAtividade.test.jsx` |
@@ -47,8 +47,9 @@ O apontamento de atividade é a **execução** de um Tipo de Atividade: a tarefa
 | O teste do snapshot do centro passava mesmo com o serviço relendo o centro do bem na edição | Testes refeitos para editar com o bem **com** centro; provados contra mutação |
 | A proteção por `versao`/status contra corrida (editar × cancelar) só era exercida por um teste não determinístico | Teste direto da atualização com versão: versão velha e status CANCELADO não gravam nada |
 | Horas no futuro ou fora do dia operacional passavam pela API | R-c ampliada (tabela acima) |
-| O número da decisão (D-PROD-184) já era do Estoque P1-02 na `main` | Renumerada para **D-PROD-188** em todo o diff; o `migration.sql` deixou de citar número de decisão e o sha256 foi re-pinado |
+| O número da decisão (D-PROD-184) já era do Estoque P1-02 na `main` | Renumerada para **D-PROD-190** em todo o diff; o `migration.sql` deixou de citar número de decisão e o sha256 foi re-pinado |
 | Faltavam a decisão, este relatório e o `CURRENT-STATE` (R8) | Escritos nesta PR |
+| a main recebeu a PR #265 (Estações, D-PROD-188, migration já aplicada em produção) durante a fatia | merge da main, migration renomeada para 20261113700000 e decisão renumerada para D-PROD-190 |
 
 Achados da revisão da rodada de correção e o que foi feito:
 
@@ -74,16 +75,20 @@ A especificação diz "hora_fim < hora_inicio → recusa", e a tela recebe HH:MM
 
 ## 4. Validação local (PostgreSQL 16 descartável)
 
-Rodada final do `verify:all` completo, sobre o commit `a39ec01`, num banco recém-criado (`maike_final`): **TODAS AS ETAPAS PASSARAM, 39 de 39**, em 1504,6 s.
+Rodada final do `verify:all` completo, sobre a árvore do merge com a `main` `776befe` (PR #265, Estações), já com a migration renomeada para `20261113700000_apontamento_atividade` e a decisão renumerada para D-PROD-190, num banco recém-criado (`maike_merge`, apagado no fim): **TODAS AS ETAPAS PASSARAM, 39 de 39**, em 1487,0 s.
 
 | Etapa | Resultado |
 |---|---|
 | `test:gates` | 810/810 |
 | 29 gates (governance-paths, product-scope, native-api, tenancy, indices, deploy-migrations, supabase-public-grants e os demais) | todos passaram |
 | `prisma:generate`, `types` (dívida 625 = teto), `typecheck:backend`, `lint` (0 erros) | passaram |
-| `test:backend` | 1767 testes: 1762 passaram, 0 falhas; os outros 5 são `todo` antigos do ledger |
-| `test:smoke` | 218 arquivos, 2673 testes, 0 falhas |
+| `test:backend` | 1790 testes: 1785 passaram, 0 falhas; os outros 5 são `todo` antigos do ledger |
+| `test:smoke` | 219 arquivos, 2685 testes, 0 falhas |
 | `build`, `build:admin`, `admin-isolation:bundles` | passaram |
+
+Também depois do merge: `node --test scripts/tests/deploy/*.test.mjs` 98/98; a release com **só** a migration nova sobre a `main` (43 migrations na `main`, 44 no merge) classificada por `classificarMigrations`: `ok`, `EXPAND`, `tabelas_novas = ["ApontamentoAtividade"]`, nenhuma coluna em tabela antiga, nenhuma violação, sem `--contract`; num banco limpo, as 44 migrations dão 82 tabelas em `public` e `cliente_id` em 68 (as 67 de tenant + `OperadorProdutoMaike`).
+
+Rodada anterior (antes do merge da `main`), sobre o commit `a39ec01`: 39 de 39, `test:backend` 1767 testes (1762 passaram, 5 `todo`), `test:smoke` 218 arquivos e 2673 testes.
 
 Provas por mutação, cada uma aplicada e desfeita, derrubando ao menos um teste:
 - **cópia do centro:** feita na edição, ao trocar o bem e em toda edição; sem checar ativo; desligada; com o informado perdendo para o do bem; com o implemento como fonte;
@@ -99,7 +104,7 @@ O `verify:all` também roda no CI da PR.
 2. **Aplicar antes do merge** (lição da Fatia LIMPEZA): com a PR pronta e o GO, `node scripts/deploy/premerge-migrate.mjs --sha <SHA da PR> --verificar-alvo` e depois `--aplicar` pelo caminho oficial. Depois do merge, o premerge não vê mais a migration como nova.
 3. A ordem inversa também é segura para o código antigo: nenhum módulo antigo consulta a tabela nova, e a exclusão de empresa só conta dependentes em tabelas que existem. Mas a tela nova dá erro até a migration subir, então a ordem recomendada continua sendo migration → merge → deploy.
 4. Até a tela `op-apontamentos-atividade` ser liberada num perfil, só o administrador a vê.
-5. **Atenção à fila:** a Fatia D da Categoria de Manejo (D-PROD-187) também vai trazer migration (CONTRACT). Quem entrar depois atualiza as contagens fixas (43) dos testes das migrations CONTRACT e do SQL editor, se mudarem.
+5. **Atenção à fila:** a migration desta fatia tem data (`20261113700000`) depois da `20261113400000_cadestacoes_cadastro` (Estações, já aplicada em produção) e das migrations das PRs abertas #268 (D-PROD-187, `20261113500000`) e #270 (D-PROD-189, `20261113600000`). Quem entrar depois atualiza as contagens fixas (44 migrations, 82 tabelas, 67 de tenant) dos testes das migrations CONTRACT, dos ensaios e do SQL editor, se mudarem.
 
 ## 6. Fora do escopo
 

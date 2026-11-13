@@ -1,5 +1,5 @@
 /**
- * Apontamentos de Atividade (D-PROD-188, Fatia C) — a EXECUÇÃO de um Tipo de
+ * Apontamentos de Atividade (D-PROD-190, Fatia C) — a EXECUÇÃO de um Tipo de
  * Atividade. A TAREFA é a demanda; a ATIVIDADE é a operação feita.
  *
  * Cobre:
