@@ -210,7 +210,10 @@ describe('X5 — preflight do release (somente leitura)', () => {
     assert.equal(v['indice.novos_ja_existem'], '2', 'no banco de teste a migration já foi aplicada');
     assert.equal(v['migration.p1_03_registrada'], '1');
     assert.equal(v['migration.falhadas_pendentes'], '0');
-    assert.equal(v['veredito.estado'], 'JA_APLICADA', 'banco migrado: os 2 índices e a migration concluída');
+    assert.equal(v['indice.definicoes_exatas_validas'], '2');
+    // O banco da suíte recebe TODAS as migrations da pasta. Enquanto ela for a base da release + a P1-03, o veredito é
+    // JA_APLICADA; uma migration que entre na main depois desta PR é "desconhecida" para o preflight congelado e dá PARAR.
+    assert.equal(v['veredito.estado'], v['migration.desconhecidas'] === '0' ? 'JA_APLICADA' : 'PARAR', 'banco migrado: os 2 índices e a migration concluída');
     assert.equal(v['indice.invalidos_nas_2_tabelas'], '0');
     for (const chave of ['tabela.MovimentacaoEstoque.linhas_estimadas', 'tabela.OperacaoIdempotente.tamanho_heap', 'atividade.transacao_aberta_mais_antiga_s', 'config.lock_timeout']) {
       assert.ok(chave in v, `preflight traz ${chave}`);

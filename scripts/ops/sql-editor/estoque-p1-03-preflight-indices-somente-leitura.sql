@@ -93,16 +93,18 @@ estado AS (
   SELECT
     (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'
        AND c.relname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx')) AS ocupados,
-    -- Índice com o nome, na tabela certa, com a definição EXATA da migration, válido e pronto.
-    (SELECT count(*) FROM pg_indexes i JOIN pg_class c ON c.relname = i.indexname JOIN pg_index x ON x.indexrelid = c.oid
+    -- Índice com o nome, na tabela certa, com a definição EXATA da migration, válido e pronto. O pg_class é ligado pelo
+    -- schema também: um homônimo em outro schema não conta (nem completa a contagem, nem a estoura).
+    (SELECT count(*) FROM pg_indexes i JOIN pg_namespace ni ON ni.nspname = i.schemaname
+       JOIN pg_class c ON c.relname = i.indexname AND c.relnamespace = ni.oid JOIN pg_index x ON x.indexrelid = c.oid
        WHERE i.schemaname = 'public' AND x.indisvalid AND x.indisready
          AND (i.indexname, i.tablename, i.indexdef) IN (
            ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'OperacaoIdempotente',
             'CREATE INDEX "OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx" ON public."OperacaoIdempotente" USING btree (cliente_id, tipo_operacao, "createdAt")'),
            ('MovimentacaoEstoque_keyset_empresa_idx', 'MovimentacaoEstoque',
             'CREATE INDEX "MovimentacaoEstoque_keyset_empresa_idx" ON public."MovimentacaoEstoque" USING btree (cliente_id, empresa_id, data_movimentacao DESC, id DESC)'))) AS exatos,
-    (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
-       WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid) AS invalidos,
+    (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid JOIN pg_namespace nt ON nt.oid = t.relnamespace
+       WHERE nt.nspname = 'public' AND t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid) AS invalidos,
     (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS falhadas,
     (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas'
        AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS contract_ok,
@@ -161,8 +163,8 @@ indices AS (
   SELECT 'indice', 'definicoes_exatas_validas', (SELECT exatos FROM estado)::text, '0 antes do GO-2; 2 no postcheck'
   UNION ALL
   SELECT 'indice', 'invalidos_nas_2_tabelas',
-         (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
-            WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid)::text,
+         (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid JOIN pg_namespace nt ON nt.oid = t.relnamespace
+            WHERE nt.nspname = 'public' AND t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid)::text,
          '0'
 ),
 migracoes AS (

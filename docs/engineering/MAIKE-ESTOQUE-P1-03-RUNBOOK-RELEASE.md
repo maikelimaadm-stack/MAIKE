@@ -93,6 +93,8 @@ Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura
     - todas as migrations mais antigas que a P1-03;
     - a D-PROD-183, a CADESTACOES e a CADCURVAGANHO;
     - 44 no total.
+  - Teste PS: objeto homônimo fora do schema `public` não conta. Uma cópia do índice em outro schema não derruba nem completa o `JA_APLICADA`; um índice inválido numa tabela homônima de outro schema não derruba o `SEGUIR`.
+  - Os estados "antes" e "depois" dos testes saem da própria `base_release`, não da pasta: uma migration que entre na main depois do merge não quebra a CI.
   - **Defeito corrigido:** no GO-1 de 2026-11-13, o preflight antigo deu `SEGUIR` com 43 concluídas e uma migration fora do repositório. Reproduzido localmente: com a CADESTACOES ausente, com uma desconhecida a mais e com a CADESTACOES trocada por uma desconhecida, o SQL antigo dava `SEGUIR` nos três casos.
   - **Checksum não é conferido aqui.** Essa conferência é do `premerge-migrate --verificar-alvo`. O preflight não é um segundo sistema de migrations.
 - **A linha que decide é `veredito.estado`.** `JA_APLICADA` exige as 2 definições **exatas**, válidas e na tabela certa, com a migration concluída. As demais explicam o porquê.

@@ -26,6 +26,9 @@
  *  PB   (R2) a lista `base_release` do preflight: nomes reais, sem a P1-03, com as mais antigas e as aplicadas antes dela.
  *  PH   (R2) histórico contra a base: a base → SEGUIR; CADESTACOES ausente, migration desconhecida (antes e
  *       depois), nome duplicado, falhada → PARAR; base + P1-03 por último → JA_APLICADA.
+ *  PS   (R2) homônimo fora de public não conta: cópia do índice em outro schema não derruba nem completa
+ *       o JA_APLICADA; índice inválido em tabela homônima de outro schema não derruba o SEGUIR.
+ *  Os estados "antes/depois" de PF/PH/PS saem da BASE (soCom), não da pasta: migration futura da main não os muda.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -50,6 +53,12 @@ const BASE_RELEASE = (() => {
   const bloco = PREFLIGHT.match(/base_release\(nome\) AS \(\s*VALUES([\s\S]*?)\n\),/);
   return bloco ? [...bloco[1].matchAll(/'(\d{14}_[a-z0-9_]+)'/g)].map((m) => m[1]) : [];
 })();
+/**
+ * Pasta temporária só com as migrations nomeadas. Os estados "antes" e "depois" do GO-2 saem da BASE da
+ * release (e não da pasta inteira): uma migration que entre na main depois desta PR não muda o cenário.
+ */
+const soCom = (nomes) => pastaReal(readdirSync(join(RAIZ, 'backend', 'prisma', 'migrations'), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && !nomes.includes(d.name)).map((d) => d.name));
 let base;
 /** @type {PrismaClient} */
 let admin;
@@ -123,8 +132,8 @@ describe('Preflight fail-closed com as migrations reais', () => {
   test('PF antes → SEGUIR; parcial à mão → PARAR; migration real falhada → PARAR; revertida e corrigida → SEGUIR; aplicada → JA_APLICADA', async () => {
     const nome = 'maike_p103_preflight';
     const url = await bancoNovo(admin, base, nome);
-    const semP103 = pastaReal([NOME_P103]);
-    const todas = pastaReal([]);
+    const semP103 = soCom(BASE_RELEASE);
+    const todas = soCom([...BASE_RELEASE, NOME_P103]);
     const db = new PrismaClient({ datasourceUrl: url, log: [] });
     try {
       assert.equal((await deploy(semP103, url)).status, 0, 'a main antes da P1-03 sobe');
@@ -268,15 +277,15 @@ describe('Ordem das migrations: banco novo (P1-03 antes da CADESTACOES) e produ�
 });
 
 describe('Preflight: histórico conferido contra a base da release (R2)', () => {
-  test('PB a lista base_release do preflight é a base desta release: nomes reais da pasta, sem a P1-03, com tudo o que é mais antigo que ela e com as aplicadas antes dela', () => {
+  test('PB a lista base_release do preflight é a base desta release: nomes reais da pasta, sem repetição, sem a P1-03, com as aplicadas antes dela', () => {
     assert.ok(BASE_RELEASE.length > 0, 'o preflight declara a CTE base_release(nome)');
     const pasta = new Set(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name));
     for (const n of BASE_RELEASE) assert.ok(pasta.has(n), `nome da lista sem pasta: ${n}`);
     assert.equal(new Set(BASE_RELEASE).size, BASE_RELEASE.length, 'sem nome repetido');
     assert.ok(!BASE_RELEASE.includes(NOME_P103), 'a P1-03 não é base');
-    for (const n of pasta) if (n < NOME_P103) assert.ok(BASE_RELEASE.includes(n), `migration anterior à P1-03 fora da base: ${n}`);
     for (const n of ['20261113200000_tipo_tarefa_drop_colunas', NOME_CAD, NOME_CURVA]) assert.ok(BASE_RELEASE.includes(n), n);
-    // Base da main cf07309c: 44. Migration mais nova (de outra release) não entra; em produção, ela dá PARAR (PH).
+    // Base congelada da main cf07309c: 44. Migration de outra release não entra; em produção, ela dá PARAR (PH).
+    // A lista não é comparada com a pasta inteira de propósito: a main vai ganhar migrations depois desta PR.
     assert.equal(BASE_RELEASE.length, 44);
   });
 
@@ -287,9 +296,9 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
     const nomeSemCad = 'maike_p103_preflight_semcad';
     const url = await bancoNovo(admin, base, nome);
     const urlSemCad = await bancoNovo(admin, base, nomeSemCad);
-    const semP103 = pastaReal([NOME_P103]);
-    const semP103SemCad = pastaReal([NOME_P103, NOME_CAD]);
-    const todas = pastaReal([]);
+    const semP103 = soCom(BASE_RELEASE);
+    const semP103SemCad = soCom(BASE_RELEASE.filter((n) => n !== NOME_CAD));
+    const todas = soCom([...BASE_RELEASE, NOME_P103]);
     const db = new PrismaClient({ datasourceUrl: url, log: [] });
     const dbSemCad = new PrismaClient({ datasourceUrl: urlSemCad, log: [] });
     const extra = (db) => db.$executeRawUnsafe(
@@ -345,6 +354,49 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
       for (const d of [semP103, semP103SemCad, todas]) rmSync(d, { recursive: true, force: true });
       await apagarBanco(admin, nome);
       await apagarBanco(admin, nomeSemCad);
+    }
+  });
+  test('PS objeto homônimo fora do schema public não conta: índice copiado em outro schema não derruba nem falsifica JA_APLICADA; índice inválido em tabela homônima de outro schema não derruba SEGUIR', async () => {
+    const [nomeDepois, nomeAntes] = ['maike_p103_preflight_schema_d', 'maike_p103_preflight_schema_a'];
+    const urlDepois = await bancoNovo(admin, base, nomeDepois);
+    const urlAntes = await bancoNovo(admin, base, nomeAntes);
+    const baseEP103 = soCom([...BASE_RELEASE, NOME_P103]);
+    const soBase = soCom(BASE_RELEASE);
+    const dbD = new PrismaClient({ datasourceUrl: urlDepois, log: [] });
+    const dbA = new PrismaClient({ datasourceUrl: urlAntes, log: [] });
+    const N1 = 'OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx';
+    const N2 = 'MovimentacaoEstoque_keyset_empresa_idx';
+    try {
+      assert.equal((await deploy(baseEP103, urlDepois)).status, 0);
+      assert.equal((await preflight(dbD))['veredito.estado'], 'JA_APLICADA');
+      // cópia homônima do LC-2 em outro schema (sobra de restore): o estado legítimo continua JA_APLICADA
+      await dbD.$executeRawUnsafe('CREATE SCHEMA bkp');
+      await dbD.$executeRawUnsafe('CREATE TABLE bkp."OperacaoIdempotente" (cliente_id text, tipo_operacao text, "createdAt" timestamp)');
+      await dbD.$executeRawUnsafe(`CREATE INDEX "${N1}" ON bkp."OperacaoIdempotente" (cliente_id, tipo_operacao, "createdAt")`);
+      let v = await preflight(dbD);
+      assert.deepEqual([v['indice.definicoes_exatas_validas'], v['veredito.estado']], ['2', 'JA_APLICADA'], 'cópia em outro schema não conta');
+      // keyset trocado por uma TABELA de mesmo nome em public: a cópia de fora não pode completar a contagem → PARAR
+      await dbD.$executeRawUnsafe(`DROP INDEX public."${N2}"`);
+      await dbD.$executeRawUnsafe(`CREATE TABLE public."${N2}" (x int)`);
+      v = await preflight(dbD);
+      assert.deepEqual([v['indice.nomes_ocupados_qualquer_tipo'], v['indice.definicoes_exatas_validas'], v['veredito.estado']], ['2', '1', 'PARAR'], 'sem falso JA_APLICADA');
+
+      // antes do GO-2: índice INVÁLIDO numa tabela homônima de outro schema não é das 2 tabelas → SEGUIR
+      assert.equal((await deploy(soBase, urlAntes)).status, 0);
+      await dbA.$executeRawUnsafe('CREATE SCHEMA bkp');
+      await dbA.$executeRawUnsafe('CREATE TABLE bkp."MovimentacaoEstoque" (a int)');
+      await dbA.$executeRawUnsafe('INSERT INTO bkp."MovimentacaoEstoque" VALUES (1), (1)');
+      await dbA.$executeRawUnsafe('CREATE UNIQUE INDEX CONCURRENTLY bkp_mov_dup ON bkp."MovimentacaoEstoque" (a)').catch(() => {});
+      const [{ invalidos }] = await dbA.$queryRawUnsafe(`SELECT count(*)::int AS invalidos FROM pg_index x JOIN pg_class c ON c.oid = x.indexrelid WHERE c.relname = 'bkp_mov_dup' AND NOT x.indisvalid`);
+      assert.equal(invalidos, 1, 'o CONCURRENTLY falho deixou um índice inválido em bkp');
+      v = await preflight(dbA);
+      assert.deepEqual([v['indice.invalidos_nas_2_tabelas'], v['veredito.estado']], ['0', 'SEGUIR'], 'inválido fora de public não é das 2 tabelas');
+    } finally {
+      await dbD.$disconnect();
+      await dbA.$disconnect();
+      for (const d of [baseEP103, soBase]) rmSync(d, { recursive: true, force: true });
+      await apagarBanco(admin, nomeDepois);
+      await apagarBanco(admin, nomeAntes);
     }
   });
 });

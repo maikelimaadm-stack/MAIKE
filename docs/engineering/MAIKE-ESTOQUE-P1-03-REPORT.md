@@ -233,6 +233,20 @@ O revisor também confirmou localmente que a recuperação do §6 vale no Prisma
   - `pendentes = [20261113300000_estoque_p1_03_indices]`, `falhas = []`, exit 0.
 - **Decisão:** nome, SQL e SHA-256 da P1-03 ficam. As migrations são independentes: as duas criam tabelas novas, e a P1-03 cria índices em duas tabelas antigas que elas não tocam. Não há regra de ordem no runner nem no Prisma que impeça.
 
+**Auditoria adversarial da R2** (2 céticos, somente leitura, com execução em banco local descartável). 2 achados procedentes, os dois corrigidos com RED→GREEN:
+1. **Baixa — SQL.**
+   - `exatos` e `invalidos` não filtravam o schema.
+   - Um índice homônimo em outro schema completava a contagem (falso `JA_APLICADA`) ou a estourava (`PARAR` indevido). Um índice inválido numa tabela homônima fora de `public` derrubava o `SEGUIR`.
+   - Correção: ligação pelo namespace e `public` exigido. Teste PS: RED com o SQL anterior, GREEN depois.
+2. **Média — testes.**
+   - PF, PH e o X5 montavam o estado a partir da pasta inteira, e o PB exigia na lista toda migration mais antiga que a P1-03.
+   - Resultado: a primeira migration que entrasse na main depois do merge quebraria a CI. A branch `feat/apontamento-atividade`, com o mesmo carimbo `20261113300000`, quebraria também o PB.
+   - Correção:
+     - os estados saem da `base_release` (`soCom`);
+     - o PB confere só invariantes da lista;
+     - o X5 espera `PARAR` se houver migration desconhecida.
+   - Prova: uma migration fictícia `20261120100000_outra_release` (sem efeito no schema), posta só temporariamente na pasta, fazia falhar PF, PH e X5 dos testes antigos; com os novos, todos passam.
+
 **CI da main** (somente leitura).
 - **Fatos:**
   - run `43514550660` (`776befe9`), tentativas 1 e 2: o job `classify` termina em `failure` em cerca de 2 s, sem runner atribuído (`runner_id` 0, sem nome), sem nenhuma etapa registrada e sem log (HTTP 404);
