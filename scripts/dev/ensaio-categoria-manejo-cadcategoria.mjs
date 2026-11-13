@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * D-PROD-187 — ensaio LOCAL automatizado da migration CONTRACT
- * `20261113400000_categoria_manejo_cadcategoria`: remoção física das 15
+ * `20261113500000_categoria_manejo_cadcategoria`: remoção física das 15
  * colunas dormentes de CategoriaManejo (raca, categoria_oficial,
  * ganho_peso_anual_kg e gmd_janeiro…gmd_dezembro) e do vínculo com o ícone
  * oficial (catalogo_categoria_visual_id, com a FK e o índice), e troca do nome
@@ -57,7 +57,7 @@ const PRISMA_CLI = join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js');
 const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
-export const NOME_CONTRACT = '20261113400000_categoria_manejo_cadcategoria';
+export const NOME_CONTRACT = '20261113500000_categoria_manejo_cadcategoria';
 export const DECISAO = 'D-PROD-187';
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');

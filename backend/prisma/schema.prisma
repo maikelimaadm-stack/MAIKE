@@ -1105,7 +1105,7 @@ model Fornecedor {
 // e o vínculo com o ícone oficial (`catalogo_categoria_visual_id`, com a FK e o
 // índice; emenda do proprietário) foram APAGADOS do banco, e a tabela física
 // passou a se chamar `CADCATEGORIA` (migration CONTRACT
-// `20261113400000_categoria_manejo_cadcategoria`). O model continua
+// `20261113500000_categoria_manejo_cadcategoria`). O model continua
 // `CategoriaManejo` (delegate `prisma.categoriaManejo`, rotas, permissões e
 // AuditLog `entidade: 'CategoriaManejo'` não mudam); SQL bruto usa
 // "CADCATEGORIA", com aspas.

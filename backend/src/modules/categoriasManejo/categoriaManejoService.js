@@ -30,7 +30,7 @@ const ENTIDADE = 'CategoriaManejo';
  * (MAIKE-CATEGORIA-MANEJO-CADCATEGORIA, Fatia D) — chaves que SAÍRAM do
  * contrato de CategoriaManejo. As 15 da Fatia C e, na Fatia D, o vínculo com o
  * ícone oficial (`catalogo_categoria_visual_id`, emenda do proprietário) já não
- * existem no banco (migration CONTRACT `20261113400000_categoria_manejo_cadcategoria`)
+ * existem no banco (migration CONTRACT `20261113500000_categoria_manejo_cadcategoria`)
  * nem no Prisma Client, então o allowlist de `exigirSomenteColunasGravaveis` as
  * recusaria com 400. Mesmo padrão da D-PROD-181: para não quebrar cliente
  * antigo (aba aberta, fila offline), elas são retiradas do corpo AQUI, antes do

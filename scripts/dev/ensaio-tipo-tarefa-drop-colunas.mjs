@@ -12,7 +12,7 @@
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
  *  1. aplica as 42 migrations da main (todas menos esta CONTRACT), pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
- *     da D-PROD-187 (`20261113400000_categoria_manejo_cadcategoria`), posterior
+ *     da D-PROD-187 (`20261113500000_categoria_manejo_cadcategoria`), posterior
  *     a esta e aplicada aqui fora de ordem, pelo Prisma direto (sem a barreira
  *     do runner); a guarda dela passa porque CategoriaManejo está vazia;
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das

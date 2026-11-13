@@ -226,7 +226,7 @@ function readFonte() {
  */
 const CONTRACT_162 = '20261110300000_patrimonio_simplifica';
 const CONTRACT_183 = '20261113200000_tipo_tarefa_drop_colunas';
-const CONTRACT_187 = '20261113400000_categoria_manejo_cadcategoria';
+const CONTRACT_187 = '20261113500000_categoria_manejo_cadcategoria';
 const ALVO_REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
 const ALVO_LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
 const concluida = (n, extra = {}) => ({ migration_name: n, checksum: 'x', finished_at: new Date(), rolled_back_at: null, ...extra });

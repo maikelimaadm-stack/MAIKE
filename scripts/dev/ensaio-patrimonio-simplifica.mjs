@@ -11,7 +11,7 @@
  *  1. aplica as 42 migrations da main (todas menos esta CONTRACT), pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas estão as CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183) e
- *     `20261113400000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
+ *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
  *     aqui pelo Prisma direto, sem o runner e portanto sem a barreira de
  *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa
  *     e CategoriaManejo estão vazias nessa hora (as sementes vêm depois e não

@@ -92,7 +92,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     lerHistorico: async () => [
       { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261113200000_tipo_tarefa_drop_colunas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
-      { migration_name: '20261113400000_categoria_manejo_cadcategoria', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261113500000_categoria_manejo_cadcategoria', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

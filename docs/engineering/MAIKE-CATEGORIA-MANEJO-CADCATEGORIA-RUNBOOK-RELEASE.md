@@ -13,21 +13,21 @@ compatível** (§0).
 
 | Item | Valor |
 |---|---|
-| Migration | `20261113400000_categoria_manejo_cadcategoria` (o `20261113300000` fica livre para a PR #263) |
+| Migration | `20261113500000_categoria_manejo_cadcategoria` (o `20261113300000` fica livre para a PR #263) |
 | Natureza | **CONTRACT**, a terceira exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, registrada na D-PROD-187. Roda numa transação: (1) guarda DO; (2) `DROP CONSTRAINT` da FK do ícone e `DROP INDEX` do índice do ícone; (3) `DROP COLUMN` das 16 colunas, nesta ordem: `raca`, `categoria_oficial`, `ganho_peso_anual_kg`, `gmd_janeiro` … `gmd_dezembro`, `catalogo_categoria_visual_id`; (4) `RENAME TO "CADCATEGORIA"` e os 4 renames de pkey, unique, índice e FK |
 | O que se perde | os valores das 16 colunas, em **todos** os clientes. Desde a D-PROD-186 ninguém lê nem escreve nas 15 primeiras; o vínculo do ícone está vazio em produção (fato do plano, a reconferir no bloco B) |
 | O que não muda | nenhuma tabela é criada nem apagada; o OID, as 12 colunas que ficam, as linhas, a RLS, as políticas e os grants da tabela ficam iguais; `CatalogoCategoriaVisual` só perde a FK que apontava para ela; nenhuma outra tabela é tocada |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c` |
 | Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `0efa2ef32dd4faf3d2419896521a6a62552f89c1af8d151b6cf1eb2495c3e384` |
 | Classificador | `modo: CONTRACT`; 16 colunas removidas; 1 constraint e 1 índice removidos; tabela renomeada `CategoriaManejo→CADCATEGORIA`; 4 nomes renomeados; `tabelas_novas: []`; `colunas_novas_em_tabelas_antigas: []`; 0 violações |
-| `_prisma_migrations` | antes **42** concluídas / 0 em aberto (última `20261113200000_tipo_tarefa_drop_colunas`); depois **43** |
+| `_prisma_migrations` | antes **43** concluídas / 0 em aberto (última `20261113400000_cadestacoes_cadastro`, da PR #265); depois **44** |
 | Tabela | antes `CategoriaManejo` com **28** colunas, 4 índices e 3 constraints; depois `CADCATEGORIA` com **12** colunas (`id`, `cliente_id`, `empresa_id`, `nome`, `sigla`, `especie`, `sexo`, `idade_minima_meses`, `idade_maxima_meses`, `ativo`, `createdAt`, `updatedAt`), 3 índices (`CADCATEGORIA_pkey`, `CADCATEGORIA_cliente_id_id_key`, `CADCATEGORIA_cliente_id_empresa_id_idx`) e 2 constraints (`CADCATEGORIA_pkey`, `CADCATEGORIA_cliente_id_fkey`) |
-| Tabelas em `public` | **iguais** antes e depois (80) |
+| Tabelas em `public` | **iguais** antes e depois (81, com `CADESTACOES` da PR #265) |
 
 **Fatos de produção conhecidos (do plano da fatia, NÃO lidos nesta sessão; reconferir no §4):**
 - projeto Supabase MAIKE, `system_identifier` `7692130048193495360`, PG 17 (`server_version_num`
   170011 no registro da D-PROD-183);
-- 42 migrations concluídas, 0 em aberto, última `20261113200000_tipo_tarefa_drop_colunas`;
+- preflight de 2026-11-13 (19:5x UTC, só leitura): **43** migrations concluídas, 0 em aberto, última `20261113400000_cadestacoes_cadastro` (aplicada às 19:48 UTC pela sessão da PR #265 antes do merge dela); 81 tabelas; `CategoriaManejo` com OID 18403, 28 colunas, 4 índices e 3 constraints esperados; RLS ligada, política `maike_backend_all`; 6 categorias, 4 com legado (impressão `6190d16c0042`); nenhuma dependência, rotina ou nome novo ocupado; sem pg_cron;
 - as categorias de manejo têm o legado no formato da Fatia C: `raca` `'COMPOSTO'`,
   `categoria_oficial` preenchida, os 12 GMDs `0.0000` e ganho nulo. O plano registrou **4**
   linhas com legado; a emenda do proprietário fala em **5** categorias, nenhuma com vínculo de
@@ -65,8 +65,11 @@ merge vier antes (foi o que aconteceu na D-PROD-183), sobra só o caminho B.
   (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver pendente no alvo.
 - **Isolamento:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). A PR
   #263 (`20261113300000_estoque_p1_03_indices`) entra antes ou depois, nunca junto.
-- **Contagens fixas:** os números 42 (antes) e 43 (depois) deste runbook — §0, bloco A, o
-  `n_ok <> 42` do envelope do caminho B, R1 e §10 — supõem a migration da PR #263 **não**
+- **Dependência da PR #265:** a migration `20261113400000_cadestacoes_cadastro` já está em produção
+  e ainda não está na `main`. Esta release só roda **depois do merge da #265** e da branch
+  atualizada com ela (o premerge recusa migration no banco sem arquivo na release).
+- **Contagens fixas:** os números 43 (antes) e 44 (depois) deste runbook — §0, bloco A, o
+  `n_ok <> 43` do envelope do caminho B, R1 e §10 — supõem a migration da PR #263 **não**
   aplicada em produção. Se o bloco A mostrar outro total, é `RELEASE_BLOCKED`: atualizar a branch,
   corrigir estes números no runbook (o `migration.sql` não muda), novo SHA e novo GO. Nunca editar
   o envelope na hora.
@@ -122,9 +125,9 @@ SELECT system_identifier FROM pg_control_system();            -- 769213004819349
 SHOW server_version_num;                                      -- 17xxxx (a guarda foi ensaiada em PG 16 e ignora os NOT NULL do 18)
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
        count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)     AS falha_aberta
-  FROM _prisma_migrations;                                    -- 42 | 0
+  FROM _prisma_migrations;                                    -- 43 | 0
 SELECT migration_name, finished_at IS NOT NULL AS concluida, checksum FROM _prisma_migrations
- WHERE migration_name IN ('20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113400000_categoria_manejo_cadcategoria')
+ WHERE migration_name IN ('20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113500000_categoria_manejo_cadcategoria')
  ORDER BY 1;                                                  -- as 2 primeiras concluídas (a D-PROD-183 com 47409bb1…); a D-PROD-187 AUSENTE
 SELECT to_regclass('public."CategoriaManejo"') IS NOT NULL AS antiga, to_regclass('public."CADCATEGORIA"') IS NULL AS nova_livre;   -- true | true
 SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS tipo, a.attnotnull, a.atthasdef
@@ -144,7 +147,7 @@ SELECT count(*) AS linhas,
   FROM public."CategoriaManejo";                              -- anotar (R5): as 12 colunas que ficam, linha a linha
 SELECT polname, polcmd FROM pg_policy WHERE polrelid = 'public."CategoriaManejo"'::regclass;   -- anotar (esperado: maike_backend_all, ALL)
 SELECT count(*) FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
- WHERE ns.nspname = 'public' AND c.relkind IN ('r', 'p');      -- 80
+ WHERE ns.nspname = 'public' AND c.relkind IN ('r', 'p');      -- 81
 ```
 
 ### 4.2 Bloco B — o que se perde, por cliente, e a impressão
@@ -323,13 +326,13 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261113400000_categoria_manejo_cadcategoria' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261113500000_categoria_manejo_cadcategoria' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 42 OR n_ruim <> 0 THEN
+  IF n_ok <> 43 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_ruim;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
@@ -345,7 +348,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c', now(),
-        '20261113400000_categoria_manejo_cadcategoria', NULL, NULL, now(), 1);
+        '20261113500000_categoria_manejo_cadcategoria', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -363,7 +366,7 @@ COMMIT;
 2. Conferir pelo bloco A que `CategoriaManejo` continua com 28 colunas e que `CADCATEGORIA` não
    existe.
 3. Resolver com a conexão de **produção** explícita:
-   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261113400000_categoria_manejo_cadcategoria --schema backend/prisma/schema.prisma`.
+   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261113500000_categoria_manejo_cadcategoria --schema backend/prisma/schema.prisma`.
 4. Eliminar a causa. A mensagem da guarda (`categoria_manejo_cadcategoria: …`) diz qual: impressão,
    dependente, rotina, colunas, índices, constraints ou nome ocupado.
 5. Refazer o bloco B. Se a impressão mudou, parar e levar o fato ao proprietário.
@@ -377,12 +380,12 @@ Qualquer divergência: **não mergear**, manter o acesso bloqueado e chamar o pr
 
 | # | Conferência | Esperado |
 |---|---|---|
-| R1 | `_prisma_migrations` | 43 concluídas, 0 em aberto (mais as revertidas do §5.1, se houve); a nova com checksum `83ca58a0…7e1c` e `applied_steps_count = 1` |
+| R1 | `_prisma_migrations` | 44 concluídas, 0 em aberto (mais as revertidas do §5.1, se houve); a nova com checksum `83ca58a0…7e1c` e `applied_steps_count = 1` |
 | R2 | `to_regclass('public."CategoriaManejo"')` / `to_regclass('public."CADCATEGORIA"')` | NULL / não NULL, com o **mesmo OID** anotado no bloco A |
 | R3 | colunas de `CADCATEGORIA` | as 12, nesta ordem: `id`, `cliente_id`, `empresa_id`, `nome`, `sigla`, `especie`, `sexo`, `idade_minima_meses`, `idade_maxima_meses`, `ativo`, `createdAt`, `updatedAt` |
 | R4 | índices e constraints | `CADCATEGORIA_cliente_id_empresa_id_idx`, `CADCATEGORIA_cliente_id_id_key`, `CADCATEGORIA_pkey`; `CADCATEGORIA_cliente_id_fkey` (validada) e `CADCATEGORIA_pkey`; nenhuma FK para `CatalogoCategoriaVisual` |
 | R5 | linhas | a mesma consulta `md5_12_colunas` do bloco A, agora em `public."CADCATEGORIA"`: `linhas` e `md5_12_colunas` **iguais** aos anotados (as 12 colunas que ficam, linha a linha) |
-| R6 | tabelas em `public` | 80, as mesmas de antes |
+| R6 | tabelas em `public` | 81, as mesmas de antes |
 | R7 | RLS e grants | `relrowsecurity` true, sem FORCE, as mesmas políticas e o mesmo `relacl` do bloco A |
 | R8 | `node scripts/deploy/preflight-schema.mjs`, com a conexão de produção do §5 | exit 0: nenhuma migration pendente e `CADCATEGORIA.idade_minima_meses` presente |
 
@@ -419,7 +422,7 @@ Rollback de código, **não**: nenhum deploy anterior ao merge desta PR funciona
 - conexão do runtime ausente ou apontando para outro banco no caminho A;
 - job do pg_cron que cite a tabela ou as colunas;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 42/0 antes, D-PROD-183 ausente, ou a D-PROD-187 já registrada;
+- histórico diferente de 43/0 antes, D-PROD-183 ausente, ou a D-PROD-187 já registrada;
 - `CategoriaManejo` ausente; `CADCATEGORIA` ou um nome novo ocupado; alguma das 16 colunas
   ausente ou com tipo, nulidade ou default diferente; índices ou constraints diferentes do §0; linha
   no bloco C;

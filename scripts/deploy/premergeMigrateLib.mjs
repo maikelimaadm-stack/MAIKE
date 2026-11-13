@@ -77,7 +77,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
   // D-PROD-187: CONTRACT aprovado pelo proprietário — DROP COLUMN das 15 colunas dormentes de CategoriaManejo (D-PROD-186)
   // e do vínculo com o ícone oficial (FK e índice), e tabela física renomeada para CADCATEGORIA.
-  '20261113400000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
+  '20261113500000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -144,7 +144,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // continua CategoriaManejo, com @@map). Sem DROP TABLE e sem tabela nova: depois da guarda, EXATAMENTE as 23
   // instruções abaixo, nesta ordem (texto pinado; CASCADE, IF EXISTS, RENAME para outro nome, RENAME COLUMN, outra
   // coluna ou outra tabela → CONTRACT_ALTER_FORA_DO_CONTRATO). A guarda só cita CategoriaManejo e CADCATEGORIA.
-  '20261113400000_categoria_manejo_cadcategoria': Object.freeze({
+  '20261113500000_categoria_manejo_cadcategoria': Object.freeze({
     decisao: 'D-PROD-187',
     guarda_sha256: '0efa2ef32dd4faf3d2419896521a6a62552f89c1af8d151b6cf1eb2495c3e384',
     drop: Object.freeze([]),

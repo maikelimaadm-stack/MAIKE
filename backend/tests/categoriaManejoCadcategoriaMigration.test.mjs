@@ -1,5 +1,5 @@
 /**
- * D-PROD-187 — a migration CONTRACT `20261113400000_categoria_manejo_cadcategoria`
+ * D-PROD-187 — a migration CONTRACT `20261113500000_categoria_manejo_cadcategoria`
  * (remoção física das 15 colunas dormentes de CategoriaManejo e do vínculo com
  * o ícone oficial, com a FK e o índice, e o nome físico novo da tabela,
  * CADCATEGORIA) de ponta a ponta, contra PostgreSQL real, em bancos PRÓPRIOS

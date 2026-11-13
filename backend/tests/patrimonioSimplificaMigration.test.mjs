@@ -5,7 +5,7 @@
  * é tocado).
  *
  * Partida: as 42 migrations da main (todas menos esta CONTRACT; inclui a TipoAtividade, D-PROD-182, e as CONTRACT
- * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, e `20261113400000_categoria_manejo_cadcategoria`,
+ * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, e `20261113500000_categoria_manejo_cadcategoria`,
  * D-PROD-187, aplicadas pelo Prisma direto, sem o runner e portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO;
  * as guardas delas passam porque TipoTarefa e CategoriaManejo estão vazias nessa hora e `semear` não cria nenhuma
  * das duas) e sementes nas 13 tabelas do Patrimônio antigo para 2 clientes, com um

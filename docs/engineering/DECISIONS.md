@@ -6729,7 +6729,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Contexto.** A D-PROD-186 (Fatia C, PR #264, merge `dba4a8c`) tirou `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro` … `gmd_dezembro` do contrato de Categoria de Manejo e deixou as 15 colunas dormentes no banco, com `@ignore`, à espera desta fatia (item 6). O proprietário deu GO para apagá-las e para o nome físico `CADCATEGORIA`. Na emenda, decidiu que o campo **"Ícone oficial (catálogo MAK Gestão)"** (`catalogo_categoria_visual_id`, vínculo da D-PROD-69) também sai do cadastro, e a coluna é apagada nesta mesma migration. Em produção nenhuma categoria tem esse vínculo, e o catálogo global não tem categoria visual do tipo `lote`.
 
 **Decisão.**
-1. **Migration nova e datada:** `20261113400000_categoria_manejo_cadcategoria`. O timestamp `20261113300000` fica livre de propósito: a PR #263 (aberta) usa `20261113300000_estoque_p1_03_indices`. Nenhuma migration existente foi editada.
+1. **Migration nova e datada:** `20261113500000_categoria_manejo_cadcategoria`. O timestamp `20261113300000` fica livre de propósito: a PR #263 (aberta) usa `20261113300000_estoque_p1_03_indices`. Nenhuma migration existente foi editada.
 2. **O que ela faz,** numa transação:
    - remove a FK `CategoriaManejo_catalogo_categoria_visual_id_fkey` e o índice `CategoriaManejo_cliente_id_catalogo_categoria_visual_id_idx`, explicitamente;
    - apaga as **16** colunas: as 15 dormentes e `catalogo_categoria_visual_id`;
@@ -6778,4 +6778,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-188 (a D-PROD-185 é da PR #263) -->
+<!-- Próxima decisão: D-PROD-189 (a D-PROD-185 é da PR #263; a D-PROD-188 é da PR #265) -->

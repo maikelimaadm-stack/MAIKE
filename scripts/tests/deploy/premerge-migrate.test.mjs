@@ -44,7 +44,7 @@ const CONTRACT_T = { migration: NOME_T, decisao: 'D-PROD-183', tabelas_removidas
  * vínculo com o ícone oficial (com a FK e o índice), e o nome físico novo da tabela, CADCATEGORIA (sem DROP TABLE,
  * sem tabela nova). As 23 instruções pinadas, na ordem.
  */
-const NOME_K = '20261113400000_categoria_manejo_cadcategoria';
+const NOME_K = '20261113500000_categoria_manejo_cadcategoria';
 const SQL_K = readFileSync(`backend/prisma/migrations/${NOME_K}/migration.sql`, 'utf8');
 const MESES_K = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const COLUNAS_K = ['raca', 'categoria_oficial', 'ganho_peso_anual_kg', ...MESES_K.map((m) => `gmd_${m}`), 'catalogo_categoria_visual_id'];
