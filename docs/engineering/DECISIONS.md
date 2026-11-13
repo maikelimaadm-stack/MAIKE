@@ -6610,4 +6610,24 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-183 -->
+## D-PROD-183 — Estoque P1-02: endurecimento do motor único (M2–M6), sem schema
+
+**Contexto.** Esta decisão executa o contrato do Estoque P1 (§2 M2–M6, §6.2), ratificado pela D-PROD-177. Não há DDL, migration nem frontend.
+
+**Decisões.**
+1. **M2.** O motor ganha parâmetros opcionais: a origem `entrada_estoque`, `motivo`, `tipoDetalhado` `entrada_*`, `procedencia` em allowlist e o estorno com `efeito: 'ENTRADA'`.
+   - Sem os parâmetros novos, o resultado é idêntico ao da P3.
+   - A origem nova **não tem escritor nem reconciliação** até a P1-05a. Por isso fica fora de `ORIGENS_PROTOCOLO`, e um teste garante que nenhum arquivo de `backend/src` a cita fora do motor.
+2. **M3.** O domínio das unidades é {KG, SACO, L}.
+   - No cadastro de Produto, o erro é 400 `REQUEST_VALIDATION_FAILED` (`unidade_invalida`), tratado como erro de entrada.
+   - Na Central, o erro é 422 `OPERACAO_VALORES_INVALIDOS`: `unidade_produto_invalida` quando o Produto é legado, `unidade_incompativel` quando o item não combina com o Produto.
+   - Produto legado continua editável sem trocar a unidade.
+3. **M4.** Custo ou valor negativo é recusado pelo nome (`custo_negativo` / `valor_negativo`), antes de qualquer leitura. Zero é aceito.
+4. **M5.** O estorno exige o original `Ativa`, sem filho e com a mesma empresa e produto. Exige também a camada com a mesma empresa, produto e local, lida `FOR UPDATE`. A marcação do original é CAS com contagem conferida (409 `CONCURRENCY_CONFLICT` `original_alterado`).
+   - **Pendente do proprietário (I2):** o bloqueio de Produto legado também vale em criar ou substituir rascunho, e a troca UN→KG com histórico continua permitida. Ambos ficam como estão até decisão própria.
+5. **M6 / B-03.** O recibo idempotente guarda JSON puro, e o 201 devolve esse mesmo objeto. O replay fica `deepEqual` ao primeiro envio. O fingerprint e os recibos antigos não mudam.
+6. **Release.** Dois SELECTs de pré-checagem, somente leitura, em `scripts/ops/sql-editor/estoque-p1-02-precheck-*.sql`. Rodam em produção só com GO explícito. `RELEASE_READY=NÃO` até lá.
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-184 -->

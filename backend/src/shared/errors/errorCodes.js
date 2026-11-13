@@ -130,7 +130,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   OPERACAO_RATEIO_INVALIDO: { http: 422, meaning: 'rateio inválido (soma, linha duplicada ou linha com valor zero; details.reason); nada foi gravado' },
   OPERACAO_PARCELAS_INVALIDAS: { http: 422, meaning: 'parcelas inválidas (soma, quantidade, vencimento ou valor; details.reason); nada foi gravado' },
   OPERACAO_REFERENCIA_INVALIDA: { http: 422, meaning: 'parceiro, natureza, centro, produto, local ou método recusado (details.field/reason); nada foi gravado' },
-  OPERACAO_VALORES_INVALIDOS: { http: 422, meaning: 'valor zero, total não positivo ou acima do limite das colunas (details.reason); nada foi gravado' },
+  OPERACAO_VALORES_INVALIDOS: { http: 422, meaning: 'valor zero ou negativo, total não positivo, acima do limite das colunas ou unidade do produto fora de KG/SACO/L (details.reason); nada foi gravado' },
   OPERACAO_COM_LIQUIDACOES: { http: 409, meaning: 'lançamento com liquidação ativa não é cancelado; estorne as baixas antes; nada foi alterado' },
   ESTOQUE_JA_CONSUMIDO: { http: 409, meaning: 'o estoque movimentado pelo lançamento já foi consumido ou alterado; cancelamento recusado; nada foi alterado' },
   TITULO_NAO_LIQUIDAVEL: { http: 409, meaning: 'só título ABERTO ou PARCIAL de lançamento confirmado recebe liquidação (details.status); nada foi gravado' },

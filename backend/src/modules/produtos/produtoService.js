@@ -158,6 +158,27 @@ const camposDe = (entrada) => {
 const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
 
 /**
+ * D-PROD-177 (Estoque P1-02, contrato §5 C1): domínio FECHADO da unidade de
+ * estoque do Produto. Unidade física-base: kg para KG e SACO (o SACO vira kg
+ * pelo `peso_por_saco_kg`), L para L. Nada de conversão L ↔ KG. `UN` e
+ * qualquer outro texto não geram movimento físico.
+ *  - criação: ausente → 'KG' (como antes); fora do domínio → 400;
+ *  - edição: só a unidade NOVA (diferente da gravada) é conferida. O produto
+ *    legado com unidade fora do domínio continua editável nos outros campos
+ *    reenviando a MESMA unidade; a migração desses dados depende de GO.
+ * Comparação exata, depois de aparar espaços (`camposDe`): 'kg' não é 'KG'.
+ */
+export const UNIDADES_ESTOQUE = Object.freeze(['KG', 'SACO', 'L']);
+
+/** Recusa a unidade fora do domínio ANTES de qualquer escrita (nada foi gravado). @param {unknown} unidade */
+const exigirUnidadeDoDominio = (unidade) => {
+  if (UNIDADES_ESTOQUE.includes(/** @type {string} */ (unidade))) return;
+  throw new AppError('REQUEST_VALIDATION_FAILED', 'unidade de estoque inválida: use KG, SACO ou L; nada foi gravado', {
+    details: { field: 'unidade_principal_estoque', reason: 'unidade_invalida', informado: unidade, permitidos: [...UNIDADES_ESTOQUE] },
+  });
+};
+
+/**
  * D-PROD-162 (achado D1): o aceite que VALE — ativo, num tanque ativo de um bem
  * ativo. Aceite em tanque inativo (ou de bem inativo) não trava o Produto: o
  * abastecimento relê o Produto e o recusa, e reativar o tanque/bem revalida.
@@ -191,7 +212,9 @@ const unidadeEmUso = (id, de, para, reason, extra = {}) =>
  *    Gestão P3, rascunho inclusive), nessa ordem;
  *  - unidade nova fora de {L, KG, SACO} com aceite que vale → `aceito_em_tanque`
  *    (D-PROD-169: SACO entrou; KG ↔ SACO de Produto aceito em tanque passa —
- *    a unidade EFETIVA do estoque continua kg);
+ *    a unidade EFETIVA do estoque continua kg). D-PROD-177 (P1-02): `atualizar`
+ *    já recusa a unidade nova fora de {KG, SACO, L} (400 `unidade_invalida`)
+ *    antes de travar; este ramo fica como defesa, para quem chamar sem ela;
  *  - KG ↔ SACO: como antes (P-08), com ou sem tanque.
  * Corre com a linha do Produto já travada (advisory de estoque + FOR UPDATE).
  */
@@ -338,6 +361,8 @@ export const criar = async (contexto, entrada) => {
   exigirEstoqueZeroNaCriacao(entrada);
   const prisma = getPrismaClient();
   const campos = camposDe(entrada);
+  // D-PROD-177 (P1-02): ausente → 'KG' (abaixo, como antes); informada, só KG, SACO ou L.
+  if (campos.unidade_principal_estoque !== undefined) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
 
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = String(campos.empresa_id);
@@ -392,6 +417,11 @@ export const atualizar = async (contexto, id, entrada) => {
     const lida = campos.unidade_principal_estoque !== undefined ? await buscarProduto(auth.clienteId, id, tx) : null;
     if (campos.unidade_principal_estoque !== undefined && !lida) throw produtoNotFound();
     const trocaUnidade = Boolean(lida) && campos.unidade_principal_estoque !== (lida.unidade_principal_estoque ?? 'KG');
+    // D-PROD-177 (P1-02): a unidade NOVA tem de ser KG, SACO ou L — antes de
+    // travar e de qualquer escrita. Reenviar a MESMA unidade legada (fora do
+    // domínio) não é troca e passa: o produto legado segue editável nos outros
+    // campos. Se a unidade mudou entre esta leitura e a trava, o 409 abaixo sai.
+    if (trocaUnidade) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
     if (trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
     // D-PROD-157 (R2) / D-PROD-162: o aceite ATIVO do Produto num tanque do
     // Patrimônio exige que ele continue na MESMA empresa (invariante do serviço:
