@@ -2,6 +2,18 @@ name: quality
 
 # O workflow apenas chama os scripts oficiais do repositório.
 # Nenhuma lógica de gate é duplicada aqui.
+#
+# Dois perfis, um único check obrigatório (MAIKE-CI-INTELIGENTE-PR01):
+#
+#   classify  ──┬── verify:docs-fast  (só quando a PR muda apenas Markdown de documentação)
+#               └── verify:full       (todo o resto, e SEMPRE em push na main)
+#                         │
+#                    verify:all       (sempre roda; é o check exigido; só passa se o
+#                                      perfil escolhido rodou e passou, e o outro foi pulado)
+#
+# Não há `paths`/`paths-ignore` no gatilho de propósito: um workflow pulado por
+# caminho deixaria o check obrigatório pendente para sempre. A classificação é
+# fail-closed — qualquer dúvida vira `full`. Ver scripts/ci/quality-profile.mjs.
 
 on:
   pull_request:
@@ -16,8 +28,99 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: verify:all
+  classify:
+    name: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mode: ${{ steps.perfil.outputs.mode }}
+      reason: ${{ steps.perfil.outputs.reason }}
+      files_count: ${{ steps.perfil.outputs.files_count }}
+    steps:
+      # O classificador vem do commit BASE da PR, não da própria PR: quem muda o
+      # classificador é julgado pelo classificador já aprovado. Em push, o
+      # próprio commit (push é sempre `full`).
+      - name: Checkout do classificador (base)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Classificar arquivos alterados
+        id: perfil
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f scripts/ci/quality-profile.mjs ]; then
+            node scripts/ci/quality-profile.mjs
+          else
+            # A base ainda não tem classificador (a PR que o introduz): full.
+            {
+              echo "mode=full"
+              echo "reason=classificador_ausente_na_base"
+              echo "files_count=0"
+            } >> "$GITHUB_OUTPUT"
+            echo "quality-profile: classificador ausente na base; mode=full"
+          fi
+
+  docs-fast:
+    name: verify:docs-fast
+    needs: classify
+    if: ${{ needs.classify.outputs.mode == 'docs_fast' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Sem PostgreSQL, sem migrations, sem backend, sem Vitest e sem build. Só os
+    # gates estáticos que leem documentação. `npm ci` é necessário: o
+    # gate:product-scope importa `typescript`.
+    #
+    # NÃO defina NODE_ENV aqui (ver o comentário no job verify:full).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: gate:governance-paths
+        run: npm run gate:governance-paths
+
+      - name: gate:package-sync
+        run: npm run gate:package-sync
+
+      - name: gate:product-scope
+        run: npm run gate:product-scope
+
+      - name: gate:no-secrets
+        run: npm run gate:no-secrets
+
+      # Lê docs/engineering/DEPLOY-MIGRATION-01-PRODUCTION-MIGRATION-BARRIER-REPORT.md.
+      - name: gate:deploy-migrations
+        run: npm run gate:deploy-migrations
+
+      - name: test:gates
+        run: npm run test:gates
+
+  full:
+    name: verify:full
+    needs: classify
+    if: ${{ needs.classify.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
     # A suíte completa (gates + PostgreSQL real + smokes + builds) já leva
     # 16,5–18 min na `main` (nov/2026); com novos domínios passa de 20 e o job
@@ -107,3 +210,51 @@ jobs:
 
       - name: Verificação completa
         run: npm run verify:all
+
+  # O ÚNICO job com o nome `verify:all`: é o check que as regras da branch exigem.
+  # Roda sempre (inclusive se algo falhou ou foi cancelado) e só passa nas duas
+  # combinações válidas. Job pulado nunca conta como sucesso por si só.
+  required:
+    name: verify:all
+    needs: [classify, docs-fast, full]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Conferir o perfil executado
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          QUALITY_MODE: ${{ needs.classify.outputs.mode }}
+          QUALITY_REASON: ${{ needs.classify.outputs.reason }}
+          QUALITY_FILES: ${{ needs.classify.outputs.files_count }}
+          DOCS_FAST_RESULT: ${{ needs.docs-fast.result }}
+          FULL_RESULT: ${{ needs.full.result }}
+        run: |
+          # >>> quality-required-gate
+          set -eu
+          veredito=FAIL
+          if [ "${CLASSIFY_RESULT:-}" = success ] && [ "${QUALITY_MODE:-}" = docs_fast ] \
+            && [ "${DOCS_FAST_RESULT:-}" = success ] && [ "${FULL_RESULT:-}" = skipped ]; then
+            veredito=DOCS_FAST_PASS
+          elif [ "${CLASSIFY_RESULT:-}" = success ] && [ "${QUALITY_MODE:-}" = full ] \
+            && [ "${FULL_RESULT:-}" = success ] && [ "${DOCS_FAST_RESULT:-}" = skipped ]; then
+            veredito=FULL_PASS
+          fi
+          {
+            echo "### verify:all — ${veredito}"
+            echo
+            echo "| classify | mode | reason | files_count | verify:docs-fast | verify:full |"
+            echo "|---|---|---|---|---|---|"
+            echo "| ${CLASSIFY_RESULT:-?} | ${QUALITY_MODE:-?} | ${QUALITY_REASON:-?} | ${QUALITY_FILES:-?} | ${DOCS_FAST_RESULT:-?} | ${FULL_RESULT:-?} |"
+            echo
+            if [ "$veredito" = DOCS_FAST_PASS ]; then
+              echo "Perfil docs_fast: só gates estáticos de documentação. A suíte completa NÃO rodou nesta PR; ela roda no push da main."
+            elif [ "$veredito" = FULL_PASS ]; then
+              echo "Perfil full: npm run verify:all integral, com PostgreSQL efêmero."
+            else
+              echo "Combinação inválida ou falha: o check obrigatório reprova."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          echo "verify:all — ${veredito} (classify=${CLASSIFY_RESULT:-?} mode=${QUALITY_MODE:-?} docs-fast=${DOCS_FAST_RESULT:-?} full=${FULL_RESULT:-?})"
+          test "$veredito" != FAIL
+          # <<< quality-required-gate
