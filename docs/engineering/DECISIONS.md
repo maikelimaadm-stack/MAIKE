@@ -6450,12 +6450,13 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Decisão.**
 1. **Cadastro.** O cadastro de Tipo de Tarefa perde `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento`. As 4 saem de:
-   - model Prisma, seleção do repository e saída pública do service;
+   - Prisma Client: as 4 viram `@ignore` no model (saem do client, ficam no schema para ele seguir igual ao banco migrado; o teste SM-03 roda `prisma migrate diff --exit-code` e exige diferença zero);
+   - seleção do repository e saída pública do service;
    - campos editáveis;
    - porta nativa do front e formulário;
    - contrato legado `base44/entities/TipoTarefa.jsonc`.
 
-   O model fica com `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome, ativo, descricao, createdAt, updatedAt`. Unicidade, FK composta, índices e o cache do nome do grupo não mudam.
+   O que o código enxerga (Prisma Client, API, UI) fica com `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome, ativo, descricao, createdAt, updatedAt`. As 4 linhas `@ignore` só saem do `schema.prisma` junto com a migration CONTRACT do item 4. Unicidade, FK composta, índices e o cache do nome do grupo não mudam.
 2. **Cliente antigo não quebra.** O app usa `removeAdditional: false`, então chave fora do schema vira 400. Por isso as 4 chaves continuam **aceitas e ignoradas** no corpo de `POST` e `PATCH /tipos-tarefa` (`CHAVES_LEGADAS_IGNORADAS` nas rotas):
    - o service não as lê;
    - nada é gravado;
@@ -6469,7 +6470,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - a única exceção é a lista fechada `MIGRATIONS_CONTRACT_APROVADAS`, e cada entrada nova exige decisão própria do proprietário e release isolada (D-PROD-162).
 
    As colunas são `BOOLEAN NOT NULL DEFAULT false`. O Prisma não as lê nem as escreve, e o `INSERT` usa o default. Nada quebra com o banco atual nem com o código anterior durante o deploy.
-4. **Remoção física.** O `DROP COLUMN` das 4 colunas fica para uma migration CONTRACT própria e isolada, com GO do proprietário. Até lá, quem gerar migration pelo Prisma tem de cuidar disso: o `migrate dev`/`migrate diff` vai propor esses 4 `DROP COLUMN`, e eles **não** podem entrar de carona em outra migration.
+4. **Remoção física.** O `DROP COLUMN` das 4 colunas fica para uma migration CONTRACT própria e isolada, com GO do proprietário. Como as colunas seguem no schema com `@ignore`, o `migrate diff` continua vazio e nenhuma migration gerada vai propor o DROP por engano.
 5. **Fora do escopo:**
    - `LancamentoTarefa` não muda;
    - nada de `TipoAtividade` (Fatia B);

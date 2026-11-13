@@ -8,7 +8,7 @@ As 4 flags de exigência saíram do cadastro de Tipo de Tarefa: `exige_area`, `p
 
 | Camada | Arquivo | Mudança |
 |---|---|---|
-| Prisma | `backend/prisma/schema.prisma` | model `TipoTarefa` sem os 4 campos. Unicidade, FK composta, índices e relações iguais |
+| Prisma | `backend/prisma/schema.prisma` | os 4 campos viram `@ignore`: saem do Prisma Client e ficam no schema, que segue igual ao banco migrado (o SM-03 exige `migrate diff` vazio). Unicidade, FK composta, índices e relações iguais |
 | Repository | `backend/src/modules/tiposTarefa/tipoTarefaRepository.js` | seleção sem os 4 campos |
 | Service | `backend/src/modules/tiposTarefa/tipoTarefaService.js` | saída pública e campos editáveis sem os 4 |
 | Rotas | `backend/src/modules/tiposTarefa/tipoTarefaRoutes.js` | as 4 chaves passam a `CHAVES_LEGADAS_IGNORADAS`: aceitas no corpo e sem efeito |
@@ -27,7 +27,7 @@ A `TabelaTiposTarefa.jsx` não exibia nenhuma flag e não mudou. A varredura glo
 - release isolada com guarda (como na D-PROD-162).
 
 Esta fatia, então, faz só o lado seguro:
-- o código deixa de ler e de escrever as 4 colunas;
+- o código deixa de ler e de escrever as 4 colunas (`@ignore` no Prisma);
 - elas ficam **dormentes** no banco, como `BOOLEAN NOT NULL DEFAULT false`;
 - o `INSERT` usa o default;
 - o deploy funciona com o banco atual, sem passo de banco.
