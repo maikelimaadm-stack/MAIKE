@@ -65,7 +65,7 @@ export function getEstacaoFieldValue(item, colunaId) {
 }
 
 /**
- * Datas e duração ordenam pelo valor canônico (AAAA-MM-DD e número), nunca
+ * Datas, instantes e duração ordenam pelo valor canônico (AAAA-MM-DD, ISO e número), nunca
  * pelo texto formatado ("dd/mm/aaaa" ordenaria errado). Vazio por último.
  * Demais colunas: regra da grade.
  * @param {any} a @param {any} b @param {string} colId
@@ -75,6 +75,13 @@ export const compararEstacoesParaOrdenar = (a, b, colId) => {
   if (colId === "data_inicio" || colId === "data_fim") {
     const va = ehDiaValido(a?.[colId]) ? a[colId] : null;
     const vb = ehDiaValido(b?.[colId]) ? b[colId] : null;
+    if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+    return va < vb ? -1 : va > vb ? 1 : 0;
+  }
+  if (colId === "created_date" || colId === "updated_date") {
+    // ISO 8601 do servidor: a ordem do texto é a ordem do tempo.
+    const va = typeof a?.[colId] === "string" && a[colId] ? a[colId] : null;
+    const vb = typeof b?.[colId] === "string" && b[colId] ? b[colId] : null;
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
     return va < vb ? -1 : va > vb ? 1 : 0;
   }

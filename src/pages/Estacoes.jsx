@@ -70,17 +70,20 @@ export default function Estacoes() {
     onRequestDeleteMutation: (/** @type {string[]} */ ids) => deleteRef.current(ids),
   });
 
-  // Trocar de fazenda fecha o registro aberto e limpa a seleção: a estação
-  // aberta é da fazenda anterior.
+  // Trocar de fazenda: a estação aberta, a seleção e a busca (inclusive a
+  // sugestão escolhida, que filtra por id) são da fazenda anterior. Fecha o
+  // registro só se havia um aberto, para não tirar a lista do modo cartões.
   const empresaAnterior = useRef(empresaId);
-  const { closeForm } = controller.recordHelpers;
-  const { setSelectedIds } = controller.chrome;
+  const controllerAtual = useRef(controller);
+  controllerAtual.current = controller;
   useEffect(() => {
     if (empresaAnterior.current === empresaId) return;
     empresaAnterior.current = empresaId;
-    closeForm();
-    setSelectedIds([]);
-  }, [empresaId, closeForm, setSelectedIds]);
+    const c = controllerAtual.current;
+    if (c.showForm) c.recordHelpers.closeForm();
+    c.chrome.setSelectedIds([]);
+    c.handleClearFilters();
+  }, [empresaId]);
 
   // Resposta de gravação que chega depois de trocar a fazenda não mexe no
   // registro aberto da fazenda nova: só relê as listas.

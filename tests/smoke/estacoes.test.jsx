@@ -132,6 +132,15 @@ describe("EST-FORM — formulário de estação", () => {
     expect(form).toBeTruthy();
   });
 
+  it("EST-FORM-5b — ano fora de 1900–2100 não envia e avisa a faixa (o servidor recusaria)", () => {
+    const { onSubmit } = montar({
+      initialData: { nome: "X", tipo: "SECA", data_inicio: "1899-12-31", data_fim: "2026-01-31" },
+    });
+    enviar();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(notify.notifyWarning).toHaveBeenCalledWith("Atenção", "As datas precisam estar entre os anos 1900 e 2100.");
+  });
+
   it("EST-FORM-6 — em leitura, o tipo aparece pelo rótulo", () => {
     const { form } = montar({
       readOnly: true,
@@ -160,6 +169,11 @@ describe("EST-GRADE — valores e ordenação da lista", () => {
     expect(compararEstacoesParaOrdenar(a, b, "data_inicio")).toBeLessThan(0);
     expect(compararEstacoesParaOrdenar(a, {}, "data_inicio")).toBe(-1);
     expect(compararEstacoesParaOrdenar(a, b, "nome")).toBeNull();
+    // "Criado em" pelo instante ISO, não pelo texto "dd/mm/aaaa hh:mm".
+    const velho = { created_date: "2026-12-01T10:00:00.000Z" };
+    const novo = { created_date: "2027-01-15T09:00:00.000Z" };
+    expect(compararEstacoesParaOrdenar(velho, novo, "created_date")).toBeLessThan(0);
+    expect(compararEstacoesParaOrdenar(novo, velho, "updated_date")).toBe(0);
   });
 });
 
@@ -187,6 +201,31 @@ describe("EST-PAGE — tela de estações", () => {
     fireEvent.submit(document.getElementById(FORMULARIO_ESTACAO_ID));
     await waitFor(() => expect(within(form).getAllByText("Obrigatório")).toHaveLength(4));
     expect(servico.criarEstacao).not.toHaveBeenCalled();
+  });
+
+  it("EST-PAGE-1b — trocar de fazenda relê a lista da fazenda nova e fecha o registro aberto", async () => {
+    servico.listarEstacoes.mockImplementation(async (empresa) =>
+      empresa === "emp-1"
+        ? [{ id: "e1", nome: "ÁGUAS FAZENDA 1", tipo: "AGUAS", data_inicio: "2026-11-01", data_fim: "2027-04-30", ativo: true }]
+        : [{ id: "e2", nome: "SECA FAZENDA 2", tipo: "SECA", data_inicio: "2026-05-01", data_fim: "2026-09-30", ativo: true }],
+    );
+    const { default: Estacoes } = await import("@/pages/Estacoes");
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const arvore = () => (
+      <QueryClientProvider client={queryClient}>
+        <Estacoes />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(arvore());
+    await waitFor(() => expect(screen.getByText("ÁGUAS FAZENDA 1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Novo" }));
+    await screen.findByTestId("b1-form-estacao");
+    sessao.empresaId = "emp-2";
+    rerender(arvore());
+    await waitFor(() => expect(screen.getByText("SECA FAZENDA 2")).toBeTruthy());
+    expect(servico.listarEstacoes).toHaveBeenCalledWith("emp-2");
+    expect(screen.queryByText("ÁGUAS FAZENDA 1")).toBeNull();
+    expect(screen.queryByTestId("b1-form-estacao")).toBeNull();
   });
 
   it("EST-PAGE-2 — sem fazenda selecionada: aviso, nenhuma consulta e sem botão Novo", async () => {

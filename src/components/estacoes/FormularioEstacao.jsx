@@ -12,6 +12,14 @@ import { TIPOS_ESTACAO, rotuloTipoEstacao } from "@/services/estacaoCadastroServ
 export const FORMULARIO_ESTACAO_ID = "formulario-estacao-base1";
 
 const SELECT_EMPTY = "__VAZIO__";
+/** Mesma faixa de anos aceita pelo servidor (D-PROD-188). */
+const ANO_MINIMO = 1900;
+const ANO_MAXIMO = 2100;
+/** @param {string} dia */
+const anoForaDaFaixa = (dia) => {
+  const ano = Number(String(dia).slice(0, 4));
+  return ano < ANO_MINIMO || ano > ANO_MAXIMO;
+};
 const UPPERCASE_FIELDS = ["nome", "observacoes"];
 
 /**
@@ -98,6 +106,12 @@ export default function FormularioEstacao({
     if (missing.length) {
       setInvalidFields(missing);
       notifyWarning("Atenção", "Preencha os campos obrigatórios: Nome, Tipo, Data de início e Data de fim.");
+      return;
+    }
+    const anosForaDaFaixa = ["data_inicio", "data_fim"].filter((campo) => anoForaDaFaixa(formData[campo]));
+    if (anosForaDaFaixa.length) {
+      setInvalidFields(anosForaDaFaixa);
+      notifyWarning("Atenção", `As datas precisam estar entre os anos ${ANO_MINIMO} e ${ANO_MAXIMO}.`);
       return;
     }
     // Texto AAAA-MM-DD compara na ordem do calendário.
