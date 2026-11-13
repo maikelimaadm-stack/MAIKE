@@ -19,7 +19,8 @@ const PASTAS = ['20261028240000_p8', '20261029300000_admin', '20261029400000_pap
 const aplicadas = (nomes) => nomes.map((migration_name) => ({ migration_name, concluida: true, revertida: false }));
 const COLUNAS_OK = [
   { table_name: 'Usuario', column_name: 'papel_tenant' },
-  { table_name: 'CategoriaManejo', column_name: 'catalogo_categoria_visual_id' },
+  // D-PROD-187: o nome físico novo da Categoria de Manejo.
+  { table_name: 'CADCATEGORIA', column_name: 'idade_minima_meses' },
   { table_name: 'Lote', column_name: 'excluido_em' },
   { table_name: 'Lote', column_name: 'excluido_por_usuario_id' },
   { table_name: 'Cliente', column_name: 'sessao_epoca' },
@@ -54,7 +55,7 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.equal(r.ok, false);
   assert.match(r.falhas.join('\n'), /migrations pendentes \(2\): 20261029300000_admin, 20261029400000_papel/);
   assert.match(r.falhas.join('\n'), /Usuario\.papel_tenant/);
-  assert.match(r.falhas.join('\n'), /CategoriaManejo\.catalogo_categoria_visual_id/);
+  assert.match(r.falhas.join('\n'), /CADCATEGORIA\.idade_minima_meses/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 
