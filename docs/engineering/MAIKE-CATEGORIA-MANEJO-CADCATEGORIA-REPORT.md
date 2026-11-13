@@ -157,6 +157,18 @@ TABLE`, `CADCATEGORIA` existente, nome novo ocupado, trava concorrente). O runne
 recusa antes de DDL. GREEN: mesmo OID, as 12 colunas, 3 índices e 2 constraints novos, FKs
 válidas, `migrate diff` 0, Prisma Client lendo a tabela, 2ª execução sem pendências.
 
+### 6.3 Ensaio do envelope do caminho B (43 → 44)
+
+O envelope do §5 do runbook, com o conteúdo integral do `migration.sql` (`83ca58a0…7e1c`), rodou com
+`psql` contra um PG 16 local no estado de produção: as 43 migrations da `main` (D-PROD-183 e
+CADESTACOES incluídas) e categorias com legado semeado.
+
+| Cenário | Resultado |
+|---|---|
+| Sem `maike.categoria_manejo_legado_impressao` | recusado pela guarda ("ausente"); 43/0, `CategoriaManejo` intacta |
+| Sem `maike.categoria_manejo_ensaio_alvo` (system_identifier local) | `RELEASE_BLOCKED: alvo divergente` |
+| Com a impressão do preflight local | aplicado: 44/0, `CategoriaManejo` ausente, `CADCATEGORIA` com 12 colunas e as linhas preservadas; `prisma migrate diff --exit-code` vazio contra o schema da branch |
+
 ## 7. Testes alterados ou apagados
 
 - **Apagado:** `backend/tests/categoriaManejoVinculoCatalogo.test.mjs`. Ele só testava o vínculo

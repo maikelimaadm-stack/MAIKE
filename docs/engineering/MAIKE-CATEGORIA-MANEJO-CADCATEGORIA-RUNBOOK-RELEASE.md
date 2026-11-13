@@ -446,7 +446,7 @@ Rollback de código, **não**: nenhum deploy anterior ao merge desta PR funciona
 | Bloco B | — |
 | Bloco C | — |
 | Bloco D e backup | — |
-| Ensaio local (§4.5) | Feito na fatia, contra PG 16 local: ensaio automatizado **OK** (14 RED recusados sem mudar nada, runner sem autorização recusado, GREEN 43/0, 12 colunas, mesmo OID, `migrate diff` 0, Prisma Client lendo, 2ª execução sem pendência); teste da migration 20/20. Envelope do caminho B: ver o relatório. **Repetir com o arquivo do `<SHA_APROVADO>`** |
+| Ensaio local (§4.5) | Depois do merge da PR #265: ensaio automatizado **OK** (14 RED recusados sem mudar nada, runner sem autorização recusado, GREEN 44/0, 12 colunas, mesmo OID, `migrate diff` 0, 2ª execução sem pendência). **Envelope do caminho B ensaiado** em 2026-11-13 com o arquivo `83ca58a0…7e1c` contra PG 16 local no estado de produção (43 migrations da `main`, CADESTACOES incluída, legado semeado): sem impressão → recusa da guarda, nada mudou (43/0); sem `maike.categoria_manejo_ensaio_alvo` → `RELEASE_BLOCKED: alvo divergente`; com a impressão → aplicado, 44/0, `CADCATEGORIA` com 12 colunas e as linhas preservadas, `prisma migrate diff` vazio |
 | Caminho | — |
 | Aplicação | — |
 | Postcheck R1–R8 | — |
