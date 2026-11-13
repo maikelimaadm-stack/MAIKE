@@ -6438,4 +6438,51 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Relatório:** [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-179 -->
+## D-PROD-179 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
+
+**Contexto de produto.** Vamos separar dois conceitos:
+- **TAREFA** é a demanda: status, prioridade, prazo.
+- **ATIVIDADE** é a operação executada: consome máquina, combustível, insumo.
+
+Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CADASTRO. Depois elas voltam como opções do lançamento/apontamento.
+
+**Decisão.**
+1. **Cadastro.** O cadastro de Tipo de Tarefa perde `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento`. As 4 saem de:
+   - model Prisma, seleção do repository e saída pública do service;
+   - campos editáveis;
+   - porta nativa do front e formulário;
+   - contrato legado `base44/entities/TipoTarefa.jsonc`.
+
+   O model fica com `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome, ativo, descricao, createdAt, updatedAt`. Unicidade, FK composta, índices e o cache do nome do grupo não mudam.
+2. **Cliente antigo não quebra.** O app usa `removeAdditional: false`, então chave fora do schema vira 400. Por isso as 4 chaves continuam **aceitas e ignoradas** no corpo de `POST` e `PATCH /tipos-tarefa` (`CHAVES_LEGADAS_IGNORADAS` nas rotas):
+   - o service não as lê;
+   - nada é gravado;
+   - a resposta não as devolve;
+   - qualquer outra chave desconhecida continua 400.
+
+   No front, a fila offline já filtra o corpo pela lista de campos permitidos.
+3. **Banco.** As 4 colunas físicas ficam **dormentes**. Esta fatia **não** tem migration:
+   - `DROP COLUMN` em tabela existente é CONTRACT;
+   - o portão de migrations (`premergeMigrateLib.mjs`, D-PROD-72 item 3 e D-PROD-107 R7) recusa CONTRACT por padrão;
+   - a única exceção é a lista fechada `MIGRATIONS_CONTRACT_APROVADAS`, e cada entrada nova exige decisão própria do proprietário e release isolada (D-PROD-162).
+
+   As colunas são `BOOLEAN NOT NULL DEFAULT false`. O Prisma não as lê nem as escreve, e o `INSERT` usa o default. Nada quebra com o banco atual nem com o código anterior durante o deploy.
+4. **Remoção física.** O `DROP COLUMN` das 4 colunas fica para uma migration CONTRACT própria e isolada, com GO do proprietário. Até lá, quem gerar migration pelo Prisma tem de cuidar disso: o `migrate dev`/`migrate diff` vai propor esses 4 `DROP COLUMN`, e eles **não** podem entrar de carona em outra migration.
+5. **Fora do escopo:**
+   - `LancamentoTarefa` não muda;
+   - nada de `TipoAtividade` (Fatia B);
+   - nada de `ApontamentoAtividade` nem de `AbastecimentoBem`;
+   - nenhum trabalho visual além de tirar as 4 chaves do formulário.
+
+**Testes.** `backend/tests/tarefaCadastroNativo.test.mjs` (Postgres real) cobre:
+- `POST` com as 4 chaves dá 201;
+- `PATCH` só com chaves legadas dá 200, sem efeito;
+- `PATCH` misto aplica só o campo real;
+- a resposta e a lista expõem exatamente os 8 campos públicos;
+- chave desconhecida diferente continua 400.
+
+**Relatório:** [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-180 -->

@@ -45,10 +45,6 @@ export const comoTipoPublico = (registro) => ({
   grupo_atividade_nome: registro.grupo_atividade_nome,
   ativo: registro.ativo,
   descricao: registro.descricao ?? null,
-  exige_area: registro.exige_area,
-  pode_ter_produto: registro.pode_ter_produto,
-  pode_ter_maquina: registro.pode_ter_maquina,
-  pode_ter_implemento: registro.pode_ter_implemento,
   created_date:
     registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
   updated_date:
@@ -60,10 +56,6 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   grupo_atividade_id: (v) => textoOuNulo(v),
   ativo: (v) => (v === undefined ? undefined : Boolean(v)),
   descricao: (v) => textoOuNulo(v),
-  exige_area: (v) => (v === undefined ? undefined : Boolean(v)),
-  pode_ter_produto: (v) => (v === undefined ? undefined : Boolean(v)),
-  pode_ter_maquina: (v) => (v === undefined ? undefined : Boolean(v)),
-  pode_ter_implemento: (v) => (v === undefined ? undefined : Boolean(v)),
 });
 
 /** @param {Record<string, unknown>} entrada */

@@ -114,4 +114,69 @@ describe('P5.0 — TipoTarefa', () => {
     });
     assert.equal(tipos.json()[0].grupo_atividade_nome, 'B');
   });
+
+  test('D-PROD-179: flags de exigência saíram do cadastro; cliente antigo é aceito e as chaves são ignoradas', async () => {
+    const { token } = await tenantAutenticado();
+    const FLAGS = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento'];
+    const CAMPOS_PUBLICOS = [
+      'ativo', 'created_date', 'descricao', 'grupo_atividade_id', 'grupo_atividade_nome',
+      'id', 'nome_tipo', 'updated_date',
+    ];
+
+    const grupo = await app.inject({
+      method: 'POST',
+      url: '/grupos-atividade',
+      headers: auth(token),
+      payload: { nome_grupo: 'LEGADO' },
+    });
+    const grupoId = grupo.json().id;
+
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/tipos-tarefa',
+      headers: auth(token),
+      payload: {
+        nome_tipo: 'roçada',
+        grupo_atividade_id: grupoId,
+        exige_area: true,
+        pode_ter_produto: true,
+        pode_ter_maquina: true,
+        pode_ter_implemento: true,
+      },
+    });
+    assert.equal(criado.statusCode, 201, criado.body);
+    assert.deepEqual(Object.keys(criado.json()).sort(), CAMPOS_PUBLICOS);
+    const id = criado.json().id;
+
+    const soLegado = await app.inject({
+      method: 'PATCH',
+      url: `/tipos-tarefa/${id}`,
+      headers: auth(token),
+      payload: { exige_area: false, pode_ter_maquina: null },
+    });
+    assert.equal(soLegado.statusCode, 200, soLegado.body);
+    assert.equal(soLegado.json().nome_tipo, 'ROÇADA');
+
+    const misto = await app.inject({
+      method: 'PATCH',
+      url: `/tipos-tarefa/${id}`,
+      headers: auth(token),
+      payload: { descricao: 'com trator', pode_ter_implemento: true },
+    });
+    assert.equal(misto.statusCode, 200, misto.body);
+    assert.equal(misto.json().descricao, 'com trator');
+
+    const lista = await app.inject({ method: 'GET', url: '/tipos-tarefa', headers: auth(token) });
+    const doTipo = lista.json().find((t) => t.id === id);
+    assert.deepEqual(Object.keys(doTipo).sort(), CAMPOS_PUBLICOS);
+    for (const f of FLAGS) assert.equal(f in doTipo, false, f);
+
+    const outroCampo = await app.inject({
+      method: 'PATCH',
+      url: `/tipos-tarefa/${id}`,
+      headers: auth(token),
+      payload: { exige_produto: true },
+    });
+    assert.equal(outroCampo.statusCode, 400, 'só as 4 chaves legadas são toleradas');
+  });
 });

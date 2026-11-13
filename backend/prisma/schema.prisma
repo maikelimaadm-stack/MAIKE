@@ -491,10 +491,6 @@ model TipoTarefa {
   grupo_atividade_nome String   @db.VarChar(255)
   ativo                Boolean  @default(true)
   descricao            String?  @db.VarChar(2000)
-  exige_area           Boolean  @default(false)
-  pode_ter_produto     Boolean  @default(false)
-  pode_ter_maquina     Boolean  @default(false)
-  pode_ter_implemento  Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

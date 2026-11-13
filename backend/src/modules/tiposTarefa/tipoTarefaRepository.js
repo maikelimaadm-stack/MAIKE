@@ -12,10 +12,6 @@ const SELECAO = Object.freeze({
   grupo_atividade_nome: true,
   ativo: true,
   descricao: true,
-  exige_area: true,
-  pode_ter_produto: true,
-  pode_ter_maquina: true,
-  pode_ter_implemento: true,
   createdAt: true,
   updatedAt: true,
 });

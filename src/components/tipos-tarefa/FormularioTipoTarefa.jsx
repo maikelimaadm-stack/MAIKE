@@ -31,10 +31,6 @@ export default function FormularioTipoTarefa({
     grupo_atividade_nome: initialData?.grupo_atividade_nome || "",
     ativo: initialData?.ativo ?? true,
     descricao: initialData?.descricao || "",
-    exige_area: initialData?.exige_area ?? false,
-    pode_ter_produto: initialData?.pode_ter_produto ?? false,
-    pode_ter_maquina: initialData?.pode_ter_maquina ?? false,
-    pode_ter_implemento: initialData?.pode_ter_implemento ?? false,
   }));
 
   const handleChange = (field, value) => {
@@ -152,39 +148,6 @@ export default function FormularioTipoTarefa({
           readOnly={readOnly}
         />
       </B1Field>
-
-      <B1ChaveRow
-        label="Exige área"
-        span={3}
-        checked={formData.exige_area}
-        onChange={readOnly ? undefined : (v) => handleChange("exige_area", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Exige área"
-      />
-      <B1ChaveRow
-        label="Pode ter produto"
-        span={3}
-        checked={formData.pode_ter_produto}
-        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_produto", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Pode ter produto"
-      />
-      <B1ChaveRow
-        label="Pode ter máquina"
-        span={3}
-        checked={formData.pode_ter_maquina}
-        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_maquina", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Pode ter máquina"
-      />
-      <B1ChaveRow
-        label="Pode ter implemento"
-        span={3}
-        checked={formData.pode_ter_implemento}
-        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_implemento", v)}
-        disabled={readOnly || isSubmitting}
-        ariaLabel="Pode ter implemento"
-      />
 
       {!toolbarActions ? (
         <div className="col-span-12">

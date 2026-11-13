@@ -11,10 +11,20 @@ const CAMPOS = Object.freeze({
   grupo_atividade_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
   ativo: { type: 'boolean' },
   descricao: { type: ['string', 'null'], maxLength: 2000 },
-  exige_area: { type: 'boolean' },
-  pode_ter_produto: { type: 'boolean' },
-  pode_ter_maquina: { type: 'boolean' },
-  pode_ter_implemento: { type: 'boolean' },
+});
+
+/**
+ * D-PROD-179 — chaves que SAÍRAM do cadastro de Tipo de Tarefa. O app usa
+ * `removeAdditional: false` (ver `app.js`), então campo fora do schema vira 400.
+ * Para não quebrar cliente antigo (aba aberta, fila offline), estas chaves são
+ * ACEITAS no corpo e IGNORADAS: o service não as lê e nada é gravado. Aceitar
+ * qualquer valor (inclusive null) é deliberado: a chave não tem mais efeito.
+ */
+const CHAVES_LEGADAS_IGNORADAS = Object.freeze({
+  exige_area: {},
+  pode_ter_produto: {},
+  pode_ter_maquina: {},
+  pode_ter_implemento: {},
 });
 
 const CRIAR_SCHEMA = {
@@ -22,7 +32,7 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['nome_tipo', 'grupo_atividade_id'],
     additionalProperties: false,
-    properties: { ...CAMPOS },
+    properties: { ...CAMPOS, ...CHAVES_LEGADAS_IGNORADAS },
   },
 };
 
@@ -39,7 +49,7 @@ const ATUALIZAR_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_EDITAVEIS },
+    properties: { ...CAMPOS_EDITAVEIS, ...CHAVES_LEGADAS_IGNORADAS },
   },
 };
 

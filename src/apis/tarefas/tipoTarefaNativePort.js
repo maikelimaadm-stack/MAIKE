@@ -20,10 +20,6 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'grupo_atividade_id',
   'ativo',
   'descricao',
-  'exige_area',
-  'pode_ter_produto',
-  'pode_ter_maquina',
-  'pode_ter_implemento',
 ]);
 
 const CAMPOS_DE_ATUALIZACAO = Object.freeze([...CAMPOS_DE_CRIACAO]);

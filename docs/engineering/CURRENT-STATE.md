@@ -25,7 +25,18 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
+## Missão ativa (2026-11-13) — MAIKE-TIPO-TAREFA-SEM-FLAGS (Fatia A): Tipo de Tarefa sem flags de exigência (D-PROD-179)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-179** |
+| Branch / PR | `feat/tipo-tarefa-sem-flags`, base `origin/main` `b7e5ab11`. PR em rascunho, exclusiva desta fatia |
+| Escopo | Remove `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` do cadastro de Tipo de Tarefa: Prisma, backend, porta, formulário e contrato. A API aceita e ignora essas chaves vindas de cliente antigo |
+| Migration | **Nenhuma.** As 4 colunas ficam dormentes no banco (`DEFAULT false`). O `DROP COLUMN` é CONTRACT e depende de GO próprio (D-PROD-179 item 4) |
+| Próxima fatia | Fatia B (TipoAtividade). Só começa depois da resposta do proprietário |
+| Relatório | [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md) |
+
+## Missão anterior (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
 
 | Campo | Valor |
 |---|---|
@@ -33,7 +44,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `fecbc18c` (merge da PR #249). PR **#250** em rascunho, exclusiva deste slice |
 | Escopo | Fonte única (`src/domain/suplementacao/nivelSuplementacao.js`) usada pelo mapa, pelos detalhes, pelo tooltip e pelos alertas de cocho e depósito. Cocho = restante estimado do ciclo, pela taxa %PV gravada no lançamento e pelo dia civil no fuso da fazenda. Depósito = saldo real ÷ limite operacional, com percentual bruto e excesso; o mínimo é só limiar. Estados neutros quando não há estimativa |
 | Migration | Nenhuma (só frontend e testes) |
-| Release | Merge e deploy do front, depois da auditoria do arquiteto. O proprietário faz o merge |
+| Release | PR #250 mergeada pelo proprietário em 2026-11-12 |
 | Relatório | [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md) |
 
 ## Missão anterior (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
