@@ -93,6 +93,17 @@ const exigirTexto = (valores) => {
 };
 
 /**
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} tabela
+ */
+const tabelaExiste = async (tx, tabela) => {
+  const [linha] = /** @type {Array<{existe: boolean}>} */ (
+    await tx.$queryRaw`SELECT to_regclass(${'public."' + tabela + '"'}) IS NOT NULL AS existe`
+  );
+  return Boolean(linha?.existe);
+};
+
+/**
  * Um dependente, um `UPDATE … RETURNING id`. A condição de divergência trata
  * vazio e nulo como iguais: a baixa grava `''` onde o POST genérico grava nulo,
  * e normalizar um no outro só tocaria linhas sem mudar nada visível.
@@ -199,6 +210,12 @@ export const sincronizarReferencias = async (contexto, payload) => {
     /** @type {Record<string, string | null>} */
     const valores = {};
     for (const dep of definicao.dependentes) {
+      // HOTFIX (D-PROD-182): dependente `opcional` cuja tabela ainda não existe é
+      // pulado. `to_regclass` nunca falha, então a transação segue íntegra.
+      if (dep.opcional && !(await tabelaExiste(tx, dep.tabela))) {
+        console.warn(`[hotfix D-PROD-182] tabela ${dep.tabela} ausente: dependente opcional pulado.`);
+        continue;
+      }
       const novos = exigirTexto(dep.valores(origem));
       const ids = await atualizarDependente(tx, escopo, dep, novos);
       if (!ids.length) continue;
