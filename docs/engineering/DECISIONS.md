@@ -6623,8 +6623,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - `lock_timeout` 5 s, `statement_timeout` 120 s e `pg_advisory_xact_lock(72707369)`;
    - `TipoTarefa` existe e é travada em `ACCESS EXCLUSIVE`;
    - as 4 colunas existem, cada uma `BOOLEAN NOT NULL DEFAULT false`;
-   - nenhum objeto depende delas além do próprio `DEFAULT` (índice, constraint, visão/regra, política, gatilho, estatística, publicação com lista de colunas, coluna gerada);
-   - nenhuma função ou procedure fora dos schemas do sistema cita as colunas no corpo;
+   - nenhum objeto depende delas além do próprio `DEFAULT` e, no PG 18, do próprio `NOT NULL` (índice, constraint, visão/regra, política, gatilho, estatística, publicação com lista de colunas, coluna gerada, função `BEGIN ATOMIC`);
+   - nenhuma função ou procedure fora dos schemas do sistema cita as colunas no corpo ou nos parâmetros de saída, sem distinguir maiúsculas (`NEW.Exige_Area` sem aspas é a mesma coluna);
    - com algum `true` nas colunas (ou com o parâmetro informado), exige `maike.tipo_tarefa_flags_impressao` igual à impressão aprovada no GO: `left(md5(…), 12)` das linhas `cliente_id|id|4 flags` com algum `true`, na ordem `cliente_id, id` (`COLLATE "C"`). Sem nenhum `true` não há o que perder e o parâmetro é dispensado.
 4. **Aplicação isolada:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). O `premerge-migrate` exige `--contract D-PROD-183` para `--verificar-alvo`/`--aplicar`. O `deploy:migrate` contra alvo remoto recusa com `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183`, e o `release-migrate.yml` não define a variável. Como a variável tem um só valor, o runner nunca aplica duas CONTRACT pendentes de uma vez. Em produção a D-PROD-162 já está concluída, e só esta fica pendente.
 5. **Autorização:** a migration **não foi aplicada** em nenhum ambiente remoto, e produção não foi lida. Preflight (só leitura) e aplicação dependem de GO explícito do proprietário, um para cada, pelo runbook [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md). O merge sozinho não aplica nada.
@@ -6643,7 +6643,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Testes.**
 - `backend/tests/tipoTarefaDropColunasMigration.test.mjs` (PostgreSQL real, banco próprio), com as funções de `scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`:
-  - RED: sem impressão, impressão errada, índice, visão, política e função citando a coluna, e trava concorrente — tudo recusado e nada muda;
+  - RED: sem impressão, impressão errada, índice, visão, política, função citando a coluna, gatilho em caixa mista, função com a coluna só no `RETURNS TABLE` e trava concorrente (pelo `lock_timeout` da própria guarda) — tudo recusado e nada muda;
   - o runner com a conferência de alvo sem a decisão recusa antes de qualquer DDL;
   - GREEN pelo runner oficial: 42/0, 9 colunas, linhas idênticas e `migrate diff` vazio;
   - 2ª execução sem pendências;

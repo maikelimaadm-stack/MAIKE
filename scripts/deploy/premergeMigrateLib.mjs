@@ -70,7 +70,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-182: TipoAtividade (cadastro de tipos de atividade) — só tabela nova.
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
-  '20261113200000_tipo_tarefa_drop_colunas': '14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf',
+  '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -119,7 +119,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // (texto pinado; CASCADE, IF EXISTS, outra coluna ou outra tabela → CONTRACT_ALTER_FORA_DO_CONTRATO).
   '20261113200000_tipo_tarefa_drop_colunas': Object.freeze({
     decisao: 'D-PROD-183',
-    guarda_sha256: '01392d8f36bdee7d161a258877ff20cb843011698a50cb08a30c37c485d6d91b',
+    guarda_sha256: '35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['TipoTarefa']),
     alter_antigas: Object.freeze([

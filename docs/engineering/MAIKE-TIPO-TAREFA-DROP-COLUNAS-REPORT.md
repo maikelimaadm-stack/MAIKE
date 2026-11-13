@@ -60,8 +60,8 @@ Primeira instrução da migration, com hash pinado. Falha fechada; qualquer recu
 1. `lock_timeout` 5 s, `statement_timeout` 120 s, `pg_advisory_xact_lock(72707369)`.
 2. `TipoTarefa` existe e fica em `ACCESS EXCLUSIVE`.
 3. As 4 colunas existem, cada uma `BOOLEAN NOT NULL DEFAULT false`. Se faltar alguma, a migration já rodou ou o schema está fora do esperado.
-4. Nenhum objeto depende delas (`pg_depend`) além do próprio `DEFAULT`.
-5. Nenhuma função ou procedure fora dos schemas do sistema cita as colunas no corpo.
+4. Nenhum objeto depende delas (`pg_depend`) além do próprio `DEFAULT` e, no PG 18, do próprio `NOT NULL`.
+5. Nenhuma função ou procedure fora dos schemas do sistema cita as colunas no corpo ou nos parâmetros de saída, sem distinguir maiúsculas (`NEW.Exige_Area` sem aspas é a coluna `exige_area`).
 6. Com algum `true` (ou com o parâmetro informado): `maike.tipo_tarefa_flags_impressao` = `left(md5(…), 12)` das linhas `cliente_id|id|4 flags` com algum `true`. Sem nenhum `true`, o parâmetro é dispensado.
 
 Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
@@ -70,11 +70,13 @@ Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
 |---|---|
 | sem impressão / impressão errada | recusa: `tipo_tarefa_drop_colunas: os valores true … não são os aprovados no GO` |
 | índice, visão, CHECK, política, coluna gerada, estatística, publicação com lista de colunas | recusa: "objeto depende das colunas apagadas (…)" |
-| função plpgsql citando a coluna | recusa: "função ou procedure cita as colunas apagadas" |
+| função plpgsql citando a coluna; gatilho com `NEW.Exige_Area`; função com a coluna só no `RETURNS TABLE` | recusa: "função ou procedure cita as colunas apagadas" |
+| função SQL `BEGIN ATOMIC` citando a coluna | recusa: "objeto depende das colunas apagadas (function …)" |
 | coluna sem `DEFAULT` / tabela ausente | recusa: "tem 3 das 4 colunas" / "não existe" |
 | publicação sem lista de colunas; índice em outra coluna | passa |
 | impressão certa | aplica: 9 colunas, linhas intactas, `migrate diff` "No difference detected" |
 | caminho B (envelope do runbook) | alvo de produção no texto → `alvo divergente`; impressão errada → recusa sem mudança; certa → aplica e registra o checksum; repetir → `migration já registrada`; `migrate status` em dia |
+| caminho B depois de um A que falhou e foi revertido (`migrate resolve --rolled-back`) | aplica; a linha revertida fica, a nova tem o checksum do manifesto; `migrate status` em dia |
 
 ## 4. Sem janela de 500, mas sem rollback para antes da D-PROD-181
 
@@ -96,6 +98,23 @@ Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
    - migration de ponta a ponta com o ensaio;
    - ajuste do teste da D-PROD-162.
 4. **Documentos.** Decisão, runbook, relatório e estado.
+5. **Revisão adversarial final**, com três lentes independentes sobre o diff inteiro:
+   - guarda em produção;
+   - portão e testes;
+   - documentos e operação.
+
+O que mudou por causa das revisões:
+
+| Achado | Correção |
+|---|---|
+| `alvo-banco.test.mjs` (AB-05) passou a falhar: com a pasta nova, a D-PROD-183 pendente recusava por conta própria | o histórico simulado tem as duas CONTRACT concluídas |
+| a busca de rotinas da guarda não via `NEW.Exige_Area` (caixa mista) nem coluna só no `RETURNS TABLE` | `~*` sobre `prosrc` + `proargnames`; 2 cenários RED novos |
+| no PG 18 o `NOT NULL` da coluna faria a guarda recusar sem motivo | o filtro ignora o `NOT NULL` da própria coluna (`contype = 'n'`); a versão do servidor entra no bloco A |
+| job do pg_cron citando as colunas quebraria em silêncio | consulta no bloco C do preflight |
+| a trava concorrente era provada pelo `lock_timeout` da URL, não pelo da guarda | o cenário roda sem `lock_timeout` na URL |
+| faltava o caminho do runbook com a impressão do vazio informada | TD-06 |
+| runbook: caminho A sem a conexão do runtime; envelope B bloqueado depois de um A revertido; §8 escrevia em produção sem GO; SQL de backup incompleto; `migrate resolve` sem conexão explícita | corrigidos; o envelope B depois de A revertido foi ensaiado |
+| a PR #260 também usa D-PROD-183 | o número da decisão saiu do `migration.sql` (§7) |
 
 ## 6. Validação local (PostgreSQL 16 descartável)
 
@@ -115,12 +134,16 @@ Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
 - **Duas CONTRACT pendentes.** Num alvo remoto **novo**, com as duas pendentes, o runner recusa
   sempre, porque `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor. Em produção não acontece: a
   D-PROD-162 está concluída. Um ambiente remoto novo teria de aplicar uma delas pelo caminho B.
-- **PostgreSQL 18.** No PG 18 o `NOT NULL` vira constraint dependente da coluna, e a guarda
-  recusaria (falha fechada, nada aplicado). Produção está no 17 e a CI no 16. Se o banco subir
-  para 18 antes da aplicação, a guarda precisa ser revista antes do merge.
+- **PostgreSQL 18.** No PG 18 o `NOT NULL` vira constraint dependente da coluna. A guarda
+  ignora o da própria coluna, mas isso foi escrito pela documentação do 18 e **não foi ensaiado**
+  num PG 18 (só há 16 aqui; produção está no 17). Se o banco subir para 18 antes da aplicação, o
+  pior caso é a guarda recusar (falha fechada). O bloco A anota a versão.
 - **Banco local com sobras.** Um banco de desenvolvimento com Tipo de Tarefa antigo com flag
-  `true` faz o `deploy:migrate` local recusar sem a impressão. A dica do `test:backend` cita a
-  D-PROD-183; recriar o banco local resolve.
+  `true` faz o `deploy:migrate` local recusar sem a impressão. A dica do `test:backend` cita
+  `tipo_tarefa_drop_colunas`; recriar o banco local resolve.
+- **Contagens fixas nos testes.** Os testes das duas CONTRACT fixam 41/42 migrations concluídas.
+  Qualquer migration nova vai exigir atualizar esses números (o mesmo desenho que já existia no
+  teste da D-PROD-162).
 
 ## 8. Próximo passo
 

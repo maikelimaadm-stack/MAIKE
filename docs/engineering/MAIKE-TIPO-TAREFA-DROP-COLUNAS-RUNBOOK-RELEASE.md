@@ -20,8 +20,8 @@ CONTRACT anterior, reduzido ao que um `DROP COLUMN` numa tabela só precisa.
 | Natureza | **CONTRACT** (segunda exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, registrada na D-PROD-183), numa transação: (1) guarda DO; (2) `ALTER TABLE "TipoTarefa" DROP COLUMN` das 4 colunas, nesta ordem: `exige_area`, `pode_ter_produto`, `pode_ter_maquina`, `pode_ter_implemento` |
 | O que se perde | os valores gravados nas 4 colunas, em **todos** os clientes. Desde a D-PROD-181 ninguém lê nem escreve nelas; os `true` que existirem são do cadastro antigo |
 | O que não muda | nenhuma tabela é criada nem apagada; nenhuma outra tabela é tocada; as 9 colunas que ficam, as linhas, os índices, as FKs (inclusive `LancamentoTarefa → TipoTarefa`), a RLS e as políticas de `TipoTarefa` ficam iguais |
-| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf` |
-| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `01392d8f36bdee7d161a258877ff20cb843011698a50cb08a30c37c485d6d91b` |
+| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17` |
+| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878` |
 | Classificador | `modo: CONTRACT`; 0 tabelas removidas; 0 CHECKs alargados; 4 colunas removidas; `tabelas_novas: []`; `colunas_novas_em_tabelas_antigas: []`; 0 violações |
 | `_prisma_migrations` | antes **41** concluídas / 0 em aberto; depois **42** |
 | Colunas de `TipoTarefa` | antes **13**; depois **9** (`id`, `cliente_id`, `nome_tipo`, `grupo_atividade_id`, `grupo_atividade_nome`, `ativo`, `descricao`, `createdAt`, `updatedAt`) |
@@ -148,7 +148,10 @@ SELECT pg_describe_object(dp.classid, dp.objid, dp.objsubid) AS dependente
  WHERE dp.refclassid = 'pg_class'::regclass AND dp.refobjid = 'public."TipoTarefa"'::regclass
    AND a.attname IN ('exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento')
    AND NOT (dp.classid = 'pg_attrdef'::regclass
-            AND dp.objid IN (SELECT d.oid FROM pg_attrdef d WHERE d.adrelid = dp.refobjid AND d.adnum = dp.refobjsubid));
+            AND dp.objid IN (SELECT d.oid FROM pg_attrdef d WHERE d.adrelid = dp.refobjid AND d.adnum = dp.refobjsubid))
+   AND NOT (dp.classid = 'pg_constraint'::regclass
+            AND dp.objid IN (SELECT k.oid FROM pg_constraint k
+                              WHERE k.conrelid = dp.refobjid AND k.contype = 'n' AND k.conkey = ARRAY[dp.refobjsubid]::smallint[]));
 SELECT p.oid::regprocedure AS rotina
   FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
  WHERE ns.nspname NOT IN ('pg_catalog', 'information_schema') AND ns.nspname NOT LIKE 'pg\_%'
@@ -204,7 +207,8 @@ node scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs --url postgresql://<usuario
 ```
 
 **RED (todos recusam e nada muda):** sem impressão; impressão errada; índice, visão, política
-ou função citando uma coluna; trava concorrente (`55P03` em ~5 s); `deploy:migrate` com a
+ou função citando uma coluna; gatilho com `NEW.Exige_Area` (caixa mista); função com a coluna só
+no `RETURNS TABLE`; trava concorrente (`55P03` em ~5 s, pelo `lock_timeout` da própria guarda); `deploy:migrate` com a
 conferência de alvo exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183` →
 `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL.
 
@@ -274,7 +278,7 @@ END $alvo$;
 
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-VALUES (gen_random_uuid()::text, '14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf', now(),
+VALUES (gen_random_uuid()::text, '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17', now(),
         '20261113200000_tipo_tarefa_drop_colunas', NULL, NULL, now(), 1);
 COMMIT;
 ```
@@ -304,7 +308,7 @@ Qualquer divergência: **não mergear** e chamar o proprietário.
 
 | # | Conferência | Esperado |
 |---|---|---|
-| R1 | `_prisma_migrations` | 42 concluídas, 0 em aberto (+ as revertidas do §5.1, se houve); a nova com o checksum `14dcd7ed…c9bf` e `applied_steps_count = 1` |
+| R1 | `_prisma_migrations` | 42 concluídas, 0 em aberto (+ as revertidas do §5.1, se houve); a nova com o checksum `47409bb1…6c17` e `applied_steps_count = 1` |
 | R2 | colunas de `TipoTarefa` (bloco A) | as 9, nesta ordem: `id`, `cliente_id`, `nome_tipo`, `grupo_atividade_id`, `grupo_atividade_nome`, `ativo`, `descricao`, `createdAt`, `updatedAt` |
 | R3 | linhas de `TipoTarefa` | `count(*)` por cliente igual ao de antes |
 | R4 | tabelas em `public` | o mesmo número de antes |

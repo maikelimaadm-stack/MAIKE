@@ -256,7 +256,7 @@ test('B12a (D-PROD-183): a migration CONTRACT classificada SOZINHA, como na rele
   assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
   assert.deepEqual(c.contract, [CONTRACT_T]);
   // O arquivo é o ensaiado (validado à mão no PG 16), byte a byte.
-  assert.equal(sha256(SQL_T), '14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf');
+  assert.equal(sha256(SQL_T), '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17');
   assert.equal(MIGRATIONS_APROVADAS[NOME_T], sha256(SQL_T));
 });
 
@@ -265,7 +265,7 @@ test('B12b (D-PROD-183): a entrada de MIGRATIONS_CONTRACT_APROVADAS é congelada
   assert.ok(NOME_T in MIGRATIONS_APROVADAS, 'quem é CONTRACT também está no manifesto (checksum pinado)');
   for (const o of [k, k.drop, k.literais_guarda, k.alter_antigas]) assert.equal(Object.isFrozen(o), true);
   assert.equal(k.decisao, 'D-PROD-183');
-  assert.equal(k.guarda_sha256, '01392d8f36bdee7d161a258877ff20cb843011698a50cb08a30c37c485d6d91b');
+  assert.equal(k.guarda_sha256, '35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878');
   assert.deepEqual(k.drop, []);
   assert.deepEqual(k.literais_guarda, ['TipoTarefa']);
   assert.deepEqual(k.alter_antigas, [

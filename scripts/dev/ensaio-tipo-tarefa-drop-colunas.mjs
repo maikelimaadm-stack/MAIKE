@@ -294,6 +294,22 @@ export const CENARIOS_RED = Object.freeze([
     preparar: (db) => db.$executeRawUnsafe(`CREATE FUNCTION f_intrusa() RETURNS boolean LANGUAGE plpgsql STABLE AS $f$ BEGIN RETURN EXISTS (SELECT 1 FROM public."TipoTarefa" t WHERE t.pode_ter_implemento); END $f$`),
     desfazer: (db) => db.$executeRawUnsafe(`DROP FUNCTION f_intrusa()`),
   },
+  // Gatilho em caixa mista: sem aspas, NEW.Exige_Area É a coluna exige_area; a busca ignora maiúsculas.
+  {
+    id: 'funcao_caixa_mista',
+    esperado: /tipo_tarefa_drop_colunas: função ou procedure cita as colunas apagadas \(f_caixa_mista\(\)\)/,
+    impressao: 'certa',
+    preparar: (db) => db.$executeRawUnsafe(`CREATE FUNCTION f_caixa_mista() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN IF NEW.Exige_Area THEN NEW.descricao := 'x'; END IF; RETURN NEW; END $f$`),
+    desfazer: (db) => db.$executeRawUnsafe(`DROP FUNCTION f_caixa_mista()`),
+  },
+  // O nome só nos parâmetros de saída (RETURNS TABLE): o corpo não cita a coluna, proargnames cita.
+  {
+    id: 'funcao_retorno',
+    esperado: /tipo_tarefa_drop_colunas: função ou procedure cita as colunas apagadas \(f_retorno\(\)\)/,
+    impressao: 'certa',
+    preparar: (db) => db.$executeRawUnsafe(`CREATE FUNCTION f_retorno() RETURNS TABLE(id text, pode_ter_maquina boolean) LANGUAGE sql STABLE AS 'SELECT id, true FROM public."TipoTarefa"'`),
+    desfazer: (db) => db.$executeRawUnsafe(`DROP FUNCTION f_retorno()`),
+  },
   // 55P03 no LOCK da própria guarda (não em outro ponto): a sessão concorrente segura a tabela e o runner desiste em 5 s.
   {
     id: 'trava_concorrente',

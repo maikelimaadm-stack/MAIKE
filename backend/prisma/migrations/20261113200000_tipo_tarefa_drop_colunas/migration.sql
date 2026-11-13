@@ -23,11 +23,13 @@
 --  - TipoTarefa existe e está travada em ACCESS EXCLUSIVE antes de contar;
 --  - as 4 colunas existem, cada uma BOOLEAN NOT NULL DEFAULT false (se faltar
 --    alguma, a migration já rodou ou o schema está fora do esperado);
---  - nenhum objeto depende das 4 colunas além do próprio DEFAULT: índice,
---    constraint, visão/regra, política, gatilho, estatística ou publicação
---    seriam apagados em silêncio ou fariam o DROP falhar;
+--  - nenhum objeto depende das 4 colunas além do próprio DEFAULT (e, no PG 18,
+--    do próprio NOT NULL): índice, constraint, visão/regra, política, gatilho,
+--    estatística, publicação ou coluna gerada seriam apagados em silêncio ou
+--    fariam o DROP falhar;
 --  - nenhuma função ou procedure de schema não-sistema cita as colunas no corpo
---    (gatilho ou rotina criada fora das migrations quebraria depois do DROP);
+--    ou nos parâmetros de saída, sem distinguir maiúsculas (gatilho ou rotina
+--    criada fora das migrations quebraria depois do DROP);
 --  - com algum valor true nas 4 colunas (ou com o parâmetro informado): exige
 --    maike.tipo_tarefa_flags_impressao igual à impressão aprovada no GO
 --    (preflight do runbook: id e as 4 flags das linhas com algum true, por
@@ -72,14 +74,17 @@ BEGIN
     FROM pg_depend dp
    WHERE dp.refclassid = 'pg_class'::regclass AND dp.refobjid = tabela AND dp.refobjsubid = ANY (numeros)
      AND NOT (dp.classid = 'pg_attrdef'::regclass
-              AND dp.objid IN (SELECT d.oid FROM pg_attrdef d WHERE d.adrelid = tabela AND d.adnum = dp.refobjsubid));
+              AND dp.objid IN (SELECT d.oid FROM pg_attrdef d WHERE d.adrelid = tabela AND d.adnum = dp.refobjsubid))
+     AND NOT (dp.classid = 'pg_constraint'::regclass
+              AND dp.objid IN (SELECT k.oid FROM pg_constraint k
+                                WHERE k.conrelid = tabela AND k.contype = 'n' AND k.conkey = ARRAY[dp.refobjsubid]::smallint[]));
   IF dependentes IS NOT NULL THEN
     RAISE EXCEPTION 'tipo_tarefa_drop_colunas: objeto depende das colunas apagadas (%): o DROP o apagaria em silêncio ou falharia; nada foi alterado', dependentes;
   END IF;
   SELECT string_agg(p.oid::regprocedure::text, ', ' ORDER BY p.oid::regprocedure::text) INTO rotinas
     FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
    WHERE ns.nspname NOT IN ('pg_catalog', 'information_schema') AND ns.nspname NOT LIKE 'pg\_%'
-     AND p.prosrc ~ '(exige_area|pode_ter_produto|pode_ter_maquina|pode_ter_implemento)';
+     AND (p.prosrc || ' ' || coalesce(array_to_string(p.proargnames, ' '), '')) ~* '(exige_area|pode_ter_produto|pode_ter_maquina|pode_ter_implemento)';
   IF rotinas IS NOT NULL THEN
     RAISE EXCEPTION 'tipo_tarefa_drop_colunas: função ou procedure cita as colunas apagadas (%): quebraria depois do DROP; nada foi alterado', rotinas;
   END IF;
