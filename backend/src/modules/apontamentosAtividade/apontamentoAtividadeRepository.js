@@ -80,6 +80,22 @@ export const lerTipoAtividade = (tx, clienteId, id) =>
 export const lerBem = (tx, clienteId, id) =>
   tx.bemPatrimonial.findFirst({ where: { cliente_id: clienteId, id }, select: { empresa_id: true, ativo: true } });
 
+/**
+ * Centro de custo do cadastro do bem (fonte da cópia na CRIAÇÃO, R-e), lido
+ * pela chave da empresa do tenant: id e situação do centro, ou `null` se o bem
+ * não tem centro (ou não é desta empresa). A FK composta do bem garante que o
+ * centro é da mesma empresa.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} bemId
+ * @returns {Promise<{ id: string, ativo: boolean } | null>}
+ */
+export const lerCentroCustoDoBem = async (tx, clienteId, empresaId, bemId) => {
+  const bem = await tx.bemPatrimonial.findUnique({
+    where: { cliente_id_empresa_id_id: { cliente_id: clienteId, empresa_id: empresaId, id: bemId } },
+    select: { centroCusto: { select: { id: true, ativo: true } } },
+  });
+  return bem?.centroCusto ?? null;
+};
+
 /** Usuário do tenant (operador): situação. */
 export const lerUsuario = (tx, clienteId, id) =>
   tx.usuario.findFirst({ where: { cliente_id: clienteId, id }, select: { ativo: true } });

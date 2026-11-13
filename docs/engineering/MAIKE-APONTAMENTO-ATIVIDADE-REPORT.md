@@ -20,7 +20,7 @@ O apontamento de atividade é a **execução** de um Tipo de Atividade: a tarefa
 |---|---|
 | R-a tipo inativo | recusa criar; editar mantendo o tipo pode; trocar para outro inativo, não. Vínculo novo com bem, implemento, operador, área ou centro inativo também é recusado |
 | R-b horas | `hora_fim` antes de `hora_inicio` é recusada (iguais pode) |
-| R-c data futura | data operacional depois de "hoje" no fuso da fazenda é recusada; sem fuso, falha fechada. **Ampliada:** nenhuma hora no futuro; `hora_inicio` no dia operacional (fuso da fazenda); `hora_fim` no dia operacional ou no seguinte |
+| R-c data futura | data operacional depois de "hoje" no fuso da fazenda é recusada; sem fuso, falha fechada. **Ampliada:** nenhuma hora no futuro; `hora_inicio` e `hora_fim` no dia operacional (fuso da fazenda). Sem turno que vira o dia (ver seção 3) |
 | R-d implemento | exige bem e não pode ser o próprio bem |
 | R-e centros | ver a seção 3 (decisão do proprietário) |
 | R-f produção | quantidade e unidade juntas; quantidade e horas > 0; unidade HA, CAB, TON ou KM |
@@ -50,7 +50,13 @@ O apontamento de atividade é a **execução** de um Tipo de Atividade: a tarefa
 | O número da decisão (D-PROD-184) já era do Estoque P1-02 na `main` | Renumerada para **D-PROD-188** em todo o diff; o `migration.sql` deixou de citar número de decisão e o sha256 foi re-pinado |
 | Faltavam a decisão, este relatório e o `CURRENT-STATE` (R8) | Escritos nesta PR |
 
-__ACHADOS_RODADA2__
+Achados da revisão da rodada de correção e o que foi feito:
+
+| Achado | O que foi feito |
+|---|---|
+| Num apontamento novo, limpar o centro de custo que veio do bem deixava o campo vazio na tela, mas o servidor gravava o centro do bem | Limpar o campo num apontamento novo com máquina de centro ativo traz de volta o centro do bem; sem máquina, limpa; na edição, limpa de verdade. Teste AP-FORM-15, provado por mutação |
+| A API aceitava `hora_fim` no dia seguinte (turno noturno), mas o formulário não conseguia enviar isso. Ao editar um registro assim, a hora de fim recuava 24 h sem aviso | A API passou a exigir também o fim no dia da atividade. Assim, API e tela têm a mesma regra, e o caso que recuava a hora deixa de existir. Testes de meia-noite e do dia seguinte, provados por mutação |
+| A tela mostrava "fim antes do início" para qualquer horário recusado | Frase por `reason` (hora futura, fora do dia, fim antes do início), com o campo certo destacado (AP-REGRAS-3, AP-PAGE-6) |
 
 ## 3. Centros de custo e de resultado (decisão do proprietário)
 
@@ -59,8 +65,12 @@ __ACHADOS_RODADA2__
 - **Como ficou:**
   - **Centro de resultado:** o usuário escolhe numa lista normal dos centros de resultado ativos da fazenda. Nunca vem do bem (o cadastro do bem nem tem esse campo).
   - **Centro de custo:** ao escolher a máquina num apontamento novo, o formulário preenche o centro de custo do bem, e o usuário pode trocar antes de salvar. Se ele escolheu à mão, trocar a máquina não sobrescreve. No servidor, apontamento novo sem centro de custo e com bem copia o centro do bem (só se estiver ativo). Depois de gravado é snapshot: nunca é relido do bem.
-  - Consequência: num apontamento novo com máquina que tem centro de custo, limpar o campo e salvar faz o servidor gravar o centro do bem (é a regra "nulo na criação = do bem").
+  - Na tela, isso aparece assim: num apontamento novo com máquina de centro ativo, limpar o campo traz de volta o centro do bem, porque a tela não pode mostrar vazio o que o servidor vai gravar. Na edição, limpar limpa.
 - **Se o proprietário quis dizer que o centro de custo do bem também não entra no apontamento**, a mudança é pequena e localizada: tirar a cópia em `criar()` (`apontamentoAtividadeService.js`) e o preenchimento no formulário.
+
+### Horas: sem turno que vira o dia
+
+A especificação diz "hora_fim < hora_inicio → recusa", e a tela recebe HH:MM no dia da atividade. Por isso, um trabalho das 22:00 às 05:30 não cabe num apontamento só: vira dois (22:00–23:59 no primeiro dia e 00:00–05:30 no seguinte). A API segue a mesma regra. Se o proprietário quiser turno noturno num apontamento só, isso pede uma decisão: a tela teria de entender "fim menor que início" como dia seguinte.
 
 ## 4. Validação local (PostgreSQL 16 descartável)
 

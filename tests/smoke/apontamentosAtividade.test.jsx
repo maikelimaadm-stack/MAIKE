@@ -10,9 +10,11 @@
  *    só leitura, vindo do tipo;
  *  - implemento só com máquina, nunca igual a ela; trocar a máquina o limpa;
  *  - quantidade e unidade da produção andam juntas;
- *  - centros de custo e de resultado: campos de escolha NORMAIS, escolhidos
- *    pelo usuário, nunca preenchidos a partir do bem (decisão do proprietário:
- *    "o do bem é apenas para cadastro");
+ *  - centros (regra acordada com o proprietário): no apontamento NOVO o
+ *    centro de custo vem preenchido com o centro (ativo) do bem escolhido, o
+ *    usuário troca antes de salvar e a escolha manual dele não é sobrescrita
+ *    por troca de máquina; na EDIÇÃO ele é snapshot e nunca é relido do bem; o
+ *    centro de resultado é sempre escolha do usuário, nunca vem do bem;
  *  - apontamento CANCELADO abre só leitura (nem editar nem cancelar de novo);
  *  - o corpo enviado sai pela allowlist (porta nativa) e a hora vai com o fuso
  *    da fazenda;
@@ -78,7 +80,13 @@ const AREAS = [
   { id: "a2", nome: "Piquete 2", numero_area: "02", empresa_id: "emp-1", ativo: true },
 ];
 
-/** Opções dos seletores próprios da tela (o bem NÃO traz centro: ele é só do cadastro do bem). */
+/**
+ * Opções dos seletores próprios da tela. A opção de bem traz `centro_custo`
+ * ({ id, numero, nome }) só quando o bem tem centro de custo ATIVO; senão null
+ * (a Moto). Nenhum bem traz centro de resultado.
+ */
+const CC_TRATOR = { id: "cc1", numero: "1", nome: "Pecuária de corte" };
+const CC_CAMINHONETE = { id: "cc2", numero: "2", nome: "Frota leve" };
 const opcoesFalsas = async (recurso, _empresaId, opts = {}) => {
   const pagina = (itens) => ({ itens, has_more: false, next_cursor: null });
   if (recurso === "bens" && (opts.natureza ?? []).includes("IMPLEMENTO")) {
@@ -90,12 +98,13 @@ const opcoesFalsas = async (recurso, _empresaId, opts = {}) => {
   }
   if (recurso === "bens") {
     return pagina([
-      { id: "b1", numero: "1", codigo_frota: "TP-01", nome: "Trator", natureza: "MAQUINA" },
-      { id: "b2", numero: "2", codigo_frota: "CM-02", nome: "Caminhonete", natureza: "VEICULO" },
+      { id: "b1", numero: "1", codigo_frota: "TP-01", nome: "Trator", natureza: "MAQUINA", centro_custo: CC_TRATOR },
+      { id: "b2", numero: "2", codigo_frota: "CM-02", nome: "Caminhonete", natureza: "VEICULO", centro_custo: CC_CAMINHONETE },
+      { id: "b4", numero: "4", codigo_frota: "MT-04", nome: "Moto", natureza: "VEICULO", centro_custo: null },
     ]);
   }
   if (recurso === "operadores") return pagina([{ id: "u1", nome: "João Vaqueiro" }]);
-  if (recurso === "centros-custo") return pagina([{ id: "cc1", numero: "1", nome: "Pecuária de corte" }]);
+  if (recurso === "centros-custo") return pagina([CC_TRATOR, CC_CAMINHONETE, { id: "cc3", numero: "3", nome: "Administração" }]);
   if (recurso === "centros-resultado") return pagina([{ id: "cr1", numero: "7", nome: "Recria 2026" }]);
   return pagina([]);
 };
@@ -188,6 +197,14 @@ const escolherNoSeletor = async (form, testId, nome) => {
 
 const valorDoSeletor = (form, testId) => within(form).getByTestId(testId).getAttribute("aria-label");
 
+const limparSeletor = async (form, testId) => {
+  fireEvent.click(within(within(form).getByTestId(testId).closest(".mg-field")).getByRole("button", { name: "Limpar" }));
+  await waitFor(() => expect(within(form).getByTestId(testId).hasAttribute("data-placeholder")).toBe(true));
+};
+
+const CENTRO_CUSTO_VAZIO = "Centro de custo";
+const CENTRO_RESULTADO_VAZIO = "Centro de resultado";
+
 beforeEach(() => {
   servico.listarOpcoesApontamento.mockImplementation(opcoesFalsas);
 });
@@ -273,24 +290,149 @@ describe("AP-FORM — formulário do apontamento de atividade", () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ quantidade_produzida: "12.5", unidade_producao: "HA" });
   });
 
-  it("AP-FORM-6 — centros de custo e de resultado são escolha do usuário: campos normais, nunca preenchidos a partir do bem", async () => {
+  it("AP-FORM-6 — novo: o centro de custo vem preenchido do bem (rótulo dos centros), o usuário troca antes de salvar e o corpo leva o escolhido; o de resultado nunca vem do bem", async () => {
     const { form, onSubmit } = montar();
     for (const testId of ["apontamento-centro-custo", "apontamento-centro-resultado"]) {
       expect(within(form).getByTestId(testId)).not.toBeDisabled();
     }
     await escolherTipo(form, "ROÇADA");
     await escolherNoSeletor(form, "apontamento-bem", /Trator/);
-    // Escolher a máquina não mexe em nenhum centro.
-    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo");
-    expect(valorDoSeletor(form, "apontamento-centro-resultado")).toBe("Centro de resultado");
+    // O centro de custo do bem preenche o campo, com o mesmo rótulo do seletor de centros.
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    // O centro de resultado continua vazio: nunca vem do bem.
+    expect(valorDoSeletor(form, "apontamento-centro-resultado")).toBe(CENTRO_RESULTADO_VAZIO);
+    expect(servico.listarOpcoesApontamento).not.toHaveBeenCalledWith("centros-resultado", expect.anything(), expect.anything());
+    enviar();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b1", centro_custo_id: "cc1", centro_resultado_id: null });
+    // A origem do centro é só estado da tela: não vai no corpo.
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("centro_custo_origem");
+    // Continua um seletor normal: o usuário troca o centro de custo e escolhe o de resultado antes de salvar.
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Administração/);
     await escolherNoSeletor(form, "apontamento-centro-resultado", /Recria 2026/);
     expect(servico.listarOpcoesApontamento).toHaveBeenCalledWith("centros-resultado", "emp-1", expect.anything());
     enviar();
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b1", centro_custo_id: null, centro_resultado_id: "cr1" });
-    await escolherNoSeletor(form, "apontamento-centro-custo", /Pecuária de corte/);
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ bem_id: "b1", centro_custo_id: "cc3", centro_resultado_id: "cr1" });
+  });
+
+  it("AP-FORM-12 — novo: a escolha manual do centro de custo não é sobrescrita ao trocar nem ao limpar a máquina", async () => {
+    let { form, onSubmit } = montar();
+    await escolherTipo(form, "ROÇADA");
+    // Escolhido à mão DEPOIS do centro vindo do bem: trocar e limpar a máquina não o mexem.
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Administração/);
+    await escolherNoSeletor(form, "apontamento-bem", /Caminhonete/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 3 — Administração");
+    await escolherNoSeletor(form, "apontamento-bem", /Moto/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 3 — Administração");
+    await limparSeletor(form, "apontamento-bem");
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 3 — Administração");
+    expect(valorDoSeletor(form, "apontamento-centro-resultado")).toBe(CENTRO_RESULTADO_VAZIO);
     enviar();
-    expect(onSubmit.mock.calls[1][0]).toMatchObject({ centro_custo_id: "cc1", centro_resultado_id: "cr1" });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: null, centro_custo_id: "cc3", centro_resultado_id: null });
+    cleanup();
+
+    // Escolhido à mão ANTES da máquina: escolher a máquina não o troca.
+    ({ form, onSubmit } = montar());
+    await escolherTipo(form, "ROÇADA");
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Frota leve/);
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 2 — Frota leve");
+    enviar();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b1", centro_custo_id: "cc2", centro_resultado_id: null });
+  });
+
+  it("AP-FORM-13 — novo: o centro vindo do bem acompanha a troca e a limpeza da máquina; bem sem centro (null) deixa vazio", async () => {
+    const { form, onSubmit } = montar();
+    await escolherTipo(form, "ROÇADA");
+    // Bem sem centro de custo (ou com centro inativo: o servidor manda null) deixa o campo vazio.
+    await escolherNoSeletor(form, "apontamento-bem", /Moto/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    enviar();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b4", centro_custo_id: null, centro_resultado_id: null });
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    await escolherNoSeletor(form, "apontamento-bem", /Caminhonete/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 2 — Frota leve"));
+    enviar();
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ bem_id: "b2", centro_custo_id: "cc2", centro_resultado_id: null });
+    // Troca para um bem sem centro: o centro que veio do bem sai junto.
+    await escolherNoSeletor(form, "apontamento-bem", /Moto/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO));
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    // Limpar a máquina limpa o centro que veio dela.
+    await limparSeletor(form, "apontamento-bem");
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    expect(valorDoSeletor(form, "apontamento-centro-resultado")).toBe(CENTRO_RESULTADO_VAZIO);
+    enviar();
+    expect(onSubmit.mock.calls[2][0]).toMatchObject({ bem_id: null, centro_custo_id: null, centro_resultado_id: null });
+  });
+
+  it("AP-FORM-15 — novo: limpar o centro de custo com máquina de centro ativo traz de volta o do bem (a tela nunca mostra vazio o que o servidor grava); sem máquina, limpa; na edição, limpa", async () => {
+    const clicarLimpar = (form, testId) =>
+      fireEvent.click(within(within(form).getByTestId(testId).closest(".mg-field")).getByRole("button", { name: "Limpar" }));
+    let { form, onSubmit } = montar();
+    await escolherTipo(form, "ROÇADA");
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    clicarLimpar(form, "apontamento-centro-custo");
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    enviar();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b1", centro_custo_id: "cc1" });
+    // Escolha manual e depois limpar: volta ao do bem escolhido.
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Administração/);
+    clicarLimpar(form, "apontamento-centro-custo");
+    await waitFor(() => expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte"));
+    // Sem máquina (ou máquina sem centro), limpar deixa vazio.
+    await limparSeletor(form, "apontamento-bem");
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Frota leve/);
+    await limparSeletor(form, "apontamento-centro-custo");
+    enviar();
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ bem_id: null, centro_custo_id: null });
+    cleanup();
+
+    // Edição: limpar o centro limpa de verdade (o servidor nunca relê o bem).
+    ({ form, onSubmit } = montar({ initialData: REGISTRO }));
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte");
+    await limparSeletor(form, "apontamento-centro-custo");
+    enviar();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ centro_custo_id: null });
+  });
+
+  it("AP-FORM-14 — edição: o centro de custo é snapshot; trocar ou limpar a máquina nunca o preenche nem o troca", async () => {
+    // Registro COM centro gravado: a troca de máquina não relê o centro do novo bem.
+    let { form, onSubmit } = montar({ initialData: REGISTRO });
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte");
+    await escolherNoSeletor(form, "apontamento-bem", /Caminhonete/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte");
+    await escolherNoSeletor(form, "apontamento-bem", /Moto/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte");
+    await limparSeletor(form, "apontamento-bem");
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe("Centro de custo: 1 — Pecuária de corte");
+    expect(valorDoSeletor(form, "apontamento-centro-resultado")).toBe(CENTRO_RESULTADO_VAZIO);
+    enviar();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: null, centro_custo_id: "cc1", centro_resultado_id: null });
+    cleanup();
+
+    // Registro SEM centro gravado: escolher um bem com centro não o preenche.
+    ({ form, onSubmit } = montar({ initialData: { ...REGISTRO, centro_custo_id: null, centro_custo: null } }));
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    await escolherNoSeletor(form, "apontamento-bem", /Caminhonete/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    await escolherNoSeletor(form, "apontamento-bem", /Trator/);
+    expect(valorDoSeletor(form, "apontamento-centro-custo")).toBe(CENTRO_CUSTO_VAZIO);
+    enviar();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ bem_id: "b1", centro_custo_id: null, centro_resultado_id: null });
+    // Na edição o centro só muda se o usuário escolher.
+    await escolherNoSeletor(form, "apontamento-centro-custo", /Administração/);
+    enviar();
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ bem_id: "b1", centro_custo_id: "cc3" });
   });
 
   it("AP-FORM-7 — o envio leva só as colunas do formulário (allowlist), com a hora no fuso da fazenda", async () => {
@@ -395,6 +537,75 @@ describe("AP-REGRAS — regras puras", () => {
     const erros = validarFormulario(form, { hoje: HOJE, fuso: null });
     expect(erros.hora_inicio).toMatch(/fuso/);
     expect(erros.implemento).toMatch(/não pode ser a própria máquina/);
+  });
+
+  it("AP-REGRAS-2 — centro de custo do bem: só no novo, sem sobrescrever a escolha manual; nunca na edição; resultado nunca", async () => {
+    const { mudancaAoEscolherBem, mudancaAoEscolherCentroCusto, centroCustoDoBem, formularioVazio, formularioDoRegistro, corpoDoFormulario } =
+      await import("@/lib/apontamentoAtividadeRegras");
+    const trator = { id: "b1", numero: "1", codigo_frota: "TP-01", nome: "Trator", natureza: "MAQUINA", centro_custo: CC_TRATOR };
+    const moto = { id: "b4", numero: "4", nome: "Moto", natureza: "VEICULO", centro_custo: null };
+    const doTrator = { id: "cc1", rotulo: "1 — Pecuária de corte" };
+    expect(centroCustoDoBem(trator)).toEqual(doTrator);
+    expect(centroCustoDoBem(moto)).toBeNull();
+    expect(centroCustoDoBem({ id: "b9" })).toBeNull();
+    expect(centroCustoDoBem(null)).toBeNull();
+
+    const vazio = formularioVazio(HOJE);
+    expect(vazio.centro_custo_origem).toBeNull();
+    // Novo, sem escolha manual: o centro acompanha o bem (ou some com ele).
+    const comTrator = { ...vazio, ...mudancaAoEscolherBem(vazio, trator, { novo: true }) };
+    expect(comTrator).toMatchObject({ bem: { id: "b1" }, implemento: null, centro_custo: doTrator, centro_custo_origem: "bem", centro_resultado: null });
+    expect(mudancaAoEscolherBem(comTrator, moto, { novo: true })).toMatchObject({ centro_custo: null, centro_custo_origem: null });
+    expect(mudancaAoEscolherBem(comTrator, null, { novo: true })).toEqual({ bem: null, implemento: null, centro_custo: null, centro_custo_origem: null, centro_custo_do_bem: null });
+    // Novo com máquina de centro ativo: limpar o centro traz de volta o do bem (o servidor o copiaria).
+    expect(mudancaAoEscolherCentroCusto(null, comTrator, { novo: true })).toEqual({ centro_custo: doTrator, centro_custo_origem: "bem" });
+    // Escolha manual: a máquina nunca a sobrescreve.
+    const manual = { ...comTrator, ...mudancaAoEscolherCentroCusto({ id: "cc3", numero: "3", nome: "Administração" }) };
+    expect(manual).toMatchObject({ centro_custo: { id: "cc3", rotulo: "3 — Administração" }, centro_custo_origem: "usuario" });
+    expect(mudancaAoEscolherBem(manual, moto, { novo: true })).not.toHaveProperty("centro_custo");
+    expect(mudancaAoEscolherBem(manual, null, { novo: true })).not.toHaveProperty("centro_custo");
+    expect(mudancaAoEscolherCentroCusto(null)).toEqual({ centro_custo: null, centro_custo_origem: null });
+    // A escolha manual guarda o centro do bem novo: limpar volta a ele, não ao do bem anterior.
+    const manualMoto = { ...manual, ...mudancaAoEscolherBem(manual, moto, { novo: true }) };
+    expect(manualMoto).toMatchObject({ centro_custo: { id: "cc3" }, centro_custo_origem: "usuario", centro_custo_do_bem: null });
+    expect(mudancaAoEscolherCentroCusto(null, manualMoto, { novo: true })).toEqual({ centro_custo: null, centro_custo_origem: null });
+    expect(mudancaAoEscolherCentroCusto(null, manual, { novo: true })).toEqual({ centro_custo: doTrator, centro_custo_origem: "bem" });
+    // Edição: snapshot, nunca relido do bem (com ou sem centro gravado).
+    const gravado = formularioDoRegistro(REGISTRO, FUSO);
+    expect(mudancaAoEscolherBem(gravado, moto, { novo: false })).toEqual({ bem: { id: "b4", rotulo: expect.any(String) }, implemento: null });
+    const semCentro = formularioDoRegistro({ ...REGISTRO, centro_custo_id: null, centro_custo: null }, FUSO);
+    expect(mudancaAoEscolherBem(semCentro, trator, { novo: false })).not.toHaveProperty("centro_custo");
+    // Edição: limpar o centro limpa (o servidor nunca relê o bem).
+    expect(mudancaAoEscolherCentroCusto(null, { ...gravado, centro_custo_do_bem: doTrator }, { novo: false })).toEqual({ centro_custo: null, centro_custo_origem: null });
+    // A origem não vai no corpo.
+    expect(corpoDoFormulario({ ...comTrator, tipo_atividade_id: "t1" }, FUSO)).toMatchObject({ bem_id: "b1", centro_custo_id: "cc1", centro_resultado_id: null });
+    expect(corpoDoFormulario({ ...comTrator, tipo_atividade_id: "t1" }, FUSO)).not.toHaveProperty("centro_custo_origem");
+    expect(corpoDoFormulario({ ...comTrator, tipo_atividade_id: "t1" }, FUSO)).not.toHaveProperty("centro_custo_do_bem");
+  });
+
+  it("AP-REGRAS-3 — horário recusado pelo servidor: a frase segue o reason (fim antes do início, hora futura, fora do dia) e destaca a hora certa", async () => {
+    const { mensagemErroApontamento, campoDoErroApontamento } = await import("@/lib/apontamentoAtividadeRegras");
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const CODE = "APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO";
+    // Como o cliente nativo entrega: o corpo do servidor (field/reason no topo e em details) em `cause`.
+    const recusa = (field, reason, extra = {}) =>
+      new ApiError(API_ERROR_CODES[CODE], { cause: { code: CODE, field, reason, details: { ...extra, field, reason } } });
+    const casos = [
+      ["hora_fim", "fim_antes_do_inicio", {}, "A hora de fim é anterior à hora de início. Nada foi gravado."],
+      ["hora_inicio", "hora_futura", { agora: "2026-11-13T18:00:00.000Z" }, "A hora de início é posterior a agora na fazenda: só se aponta atividade já executada. Nada foi gravado."],
+      ["hora_fim", "hora_futura", { agora: "2026-11-13T18:00:00.000Z" }, "A hora de fim é posterior a agora na fazenda: só se aponta atividade já executada. Nada foi gravado."],
+      ["hora_inicio", "hora_fora_do_dia", { data: "2026-11-10", dia: "2026-11-09", fuso: FUSO }, "A hora de início tem de cair na data da atividade (no fuso da fazenda). Nada foi gravado."],
+      ["hora_fim", "hora_fora_do_dia", { data: "2026-11-10", dia: "2026-11-12", fuso: FUSO }, "A hora de fim tem de cair na data da atividade (no fuso da fazenda). Nada foi gravado."],
+    ];
+    for (const [field, reason, extra, frase] of casos) {
+      const erro = recusa(field, reason, extra);
+      expect(mensagemErroApontamento(erro, "fallback")).toBe(frase);
+      expect(campoDoErroApontamento(erro)).toBe(field);
+    }
+    // Reason desconhecido: a frase genérica do catálogo, que não afirma "fim antes do início".
+    const generica = mensagemErroApontamento(recusa("hora_fim", "outro"), "fallback");
+    expect(generica).toMatch(/horário foi recusado/);
+    expect(generica).not.toMatch(/anterior à hora de início/);
   });
 });
 
@@ -514,6 +725,29 @@ describe("AP-PAGE — tela de apontamentos de atividade", () => {
     expect(emp).toBe("emp-1");
     expect(original).toMatchObject({ id: "ap1", versao: 2 });
     expect(corpo).toMatchObject({ tipo_atividade_id: "t3", centro_resultado_id: "cr1", centro_custo_id: "cc1", hora_inicio: "2026-11-10T07:30:00-04:00" });
+  });
+
+  it("AP-PAGE-6 — hora recusada pelo servidor (hora futura): o aviso diz qual hora e por quê, não \"fim antes do início\"", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const CODE = "APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO";
+    const detalhes = { field: "hora_fim", reason: "hora_futura", agora: "2026-11-13T18:00:00.000Z" };
+    servico.atualizarApontamento.mockRejectedValueOnce(
+      new ApiError(API_ERROR_CODES[CODE], { cause: { code: CODE, field: "hora_fim", reason: "hora_futura", details: detalhes } }),
+    );
+    notify.notifyWarning.mockClear();
+    await montarTela();
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    await screen.findByTestId("b1-form-apontamento-atividade");
+    fireEvent.click(await screen.findByRole("button", { name: /^Editar$/ }));
+    const form = await screen.findByTestId("b1-form-apontamento-atividade");
+    await waitFor(() => expect(form.hasAttribute("data-somente-leitura")).toBe(false));
+    await escolherNoSeletor(form, "apontamento-centro-resultado", /Recria 2026/);
+    fireEvent.submit(document.getElementById(FORMULARIO_APONTAMENTO_ATIVIDADE_ID));
+    await waitFor(() => expect(servico.atualizarApontamento).toHaveBeenCalledTimes(1));
+    const frase = "A hora de fim é posterior a agora na fazenda: só se aponta atividade já executada. Nada foi gravado.";
+    await waitFor(() => expect(notify.notifyWarning).toHaveBeenCalledWith("Atenção", frase));
+    expect(notify.notifyWarning).not.toHaveBeenCalledWith("Atenção", expect.stringMatching(/anterior à hora de início/));
+    expect(await within(form).findByText(frase)).toBeTruthy();
   });
 
   it("AP-PAGE-4 — sem a ação de cancelar (excluir da tela), o botão não aparece", async () => {

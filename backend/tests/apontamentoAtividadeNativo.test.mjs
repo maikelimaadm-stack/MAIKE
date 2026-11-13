@@ -10,19 +10,24 @@
  *  - R-h snapshots do tipo (nome do tipo, id e nome do grupo) gravados na
  *    criação e na TROCA do tipo; renomear tipo/grupo, mover o tipo de grupo e
  *    sincronizar referências depois não mudam o apontamento;
- *  - R-e centros de custo e de resultado: são os ESCOLHIDOS no apontamento.
- *    Pedido do proprietário ("o do bem é apenas para cadastro"): nada é copiado
- *    do bem, nem na criação; trocar o centro do bem depois não muda nada; na
- *    edição só muda o que vier explícito;
+ *  - R-e centro de CUSTO (regra acordada com o proprietário): na criação,
+ *    nulo ou ausente com bem → copia o centro ATIVO do cadastro do bem
+ *    (inativo fica nulo; o informado vence); depois é snapshot: trocar o
+ *    centro do bem, editar outro campo ou trocar o bem nunca relê; na edição
+ *    só muda o explícito. Centro de RESULTADO: só o escolhido, nunca do bem.
+ *    As opções de bens trazem o centro de custo só quando ativo;
  *  - R-a tipo inativo não entra em apontamento novo; editar mantendo o tipo
  *    inativo pode; trocar para outro tipo inativo, não;
  *  - R-b hora_fim < hora_inicio recusada (instantes, não texto; iguais pode);
  *  - R-c data futura recusada pelo "hoje" no fuso da FAZENDA; sem fuso, 409;
+ *    horas: nenhuma depois de "agora"; início e fim no dia local da data
+ *    operacional (sem turno que vira o dia); na edição, sobre o estado final;
  *  - R-d implemento exige bem e não pode ser o próprio bem;
  *  - R-f produção: quantidade e unidade juntas, > 0, unidade ∈ {HA, CAB, TON, KM};
  *  - R-i bem, implemento, área, tarefa e centros da MESMA fazenda;
  *  - R-j/R-g cancelar (sem DELETE físico) grava quem, quando e motivo e
- *    incrementa a versão; cancelado não edita nem cancela de novo;
+ *    incrementa a versão; cancelado não edita nem cancela de novo; o CAS do
+ *    repositório (versão + status no WHERE) provado sem corrida;
  *  - R-l exclusão de tipo, grupo, tarefa, empresa, área, bem e centros com
  *    apontamento barrada pela FK RESTRICT (409 próprio pela API, P2003 no
  *    banco); sem a tabela nova (código antes da migration) os módulos antigos
@@ -46,6 +51,7 @@ import {
   HOJE, corpoGerador, corpoImplemento, corpoTrator, erro, http, montarPatrimonio, prisma,
 } from './patrimonioP1Cenario.mjs';
 import { comRelogioDeTeste } from '../src/modules/rebanhoLedger/rebanhoLedgerTempo.js';
+import { atualizarComVersao } from '../src/modules/apontamentosAtividade/apontamentoAtividadeRepository.js';
 import { normalizarErro } from '../src/shared/errors/errorHandler.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -125,6 +131,14 @@ const editarOk = async (tok, id, corpo) => {
   const r = await A.editar(tok, id, corpo);
   assert.equal(r.statusCode, 200, r.body);
   return r.json();
+};
+
+/** Troca o centro de custo NO CADASTRO do bem, pela API de Bens (null tira). */
+const trocarCentroDoBem = async (s, bemId, centroId, empresaId = s.e1.id) => {
+  const bem = await A.ok(A.req('GET', `/bens-patrimoniais/${bemId}?empresa_id=${empresaId}`, s.token));
+  const depois = await A.ok(A.req('PATCH', `/bens-patrimoniais/${bemId}`, s.token, { empresa_id: empresaId, versao: bem.versao, centro_custo_id: centroId }));
+  assert.equal(depois.centro_custo?.id ?? null, centroId, 'o cadastro do bem trocou de centro');
+  return depois;
 };
 
 /**
@@ -234,7 +248,7 @@ describe('D-PROD-188 — criação e número (R-k)', () => {
     const a2 = await criarOk(s.token, corpo(s));
     const a3 = await criarOk(s.token, corpo(s, { tipo_atividade_id: s.tipo2.id }));
     assert.deepEqual([a2.numero, a3.numero], ['2', '3']);
-    // Mínimo: tudo o que é opcional sai null (nada é derivado de cadastro, R-e).
+    // Mínimo (sem bem): tudo o que é opcional sai null (R-e só copia o centro de custo do BEM).
     for (const c of ['hora_inicio', 'hora_fim', 'bem_id', 'implemento_bem_id', 'operador_usuario_id', 'area_id', 'centro_custo_id', 'centro_resultado_id',
       'safra_ciclo', 'quantidade_produzida', 'unidade_producao', 'horas_trabalhadas', 'lancamento_tarefa_id', 'observacao']) {
       assert.equal(a2[c], null, c);
@@ -295,7 +309,7 @@ describe('D-PROD-188 — criação e número (R-k)', () => {
 
 // ═══ Snapshots do tipo (R-h) e centros escolhidos (R-e) ═══════════════════
 
-describe('D-PROD-188 — snapshots (R-h) e centros escolhidos no apontamento (R-e)', () => {
+describe('D-PROD-188 — snapshots (R-h) e centros do apontamento (R-e)', () => {
   test('AH1: renomear tipo e grupo, mover o tipo de grupo e sincronizar referências NÃO mudam o apontamento; só a TROCA do tipo regrava', async () => {
     const s = await montar(app);
     const { req, ok } = A;
@@ -326,39 +340,86 @@ describe('D-PROD-188 — snapshots (R-h) e centros escolhidos no apontamento (R-
     assert.deepEqual([linha.tipo_atividade_nome, linha.grupo_atividade_id, linha.grupo_atividade_nome], ['ROÇADA COSTAL', s.grupo2.id, 'CERCAS']);
   });
 
-  test('AE1: o centro do bem é só do cadastro — nada é copiado na criação; o informado vale; trocar o centro do bem depois não muda o apontamento', async () => {
+  test('AE1: CRIAÇÃO — centro de custo nulo ou ausente + bem com centro ATIVO → copia o do bem; o informado vence; centro do bem INATIVO → nulo; sem bem (ou bem sem centro) → nulo; o implemento não conta', async () => {
     const s = await montar(app);
-    const { req, ok } = A;
-    assert.equal((await prisma().bemPatrimonial.findUnique({ where: { id: s.trator.id } })).centro_custo_id, s.centro1.id, 'o trator tem centro no cadastro');
+    const p = prisma();
+    assert.equal((await p.bemPatrimonial.findUnique({ where: { id: s.trator.id } })).centro_custo_id, s.centro1.id, 'o trator tem centro ATIVO no cadastro');
+    const centro1 = { id: s.centro1.id, numero: s.centro1.numero, nome: s.centro1.nome };
 
-    const semCentro = await criarOk(s.token, corpo(s, { bem_id: s.trator.id }));
-    assert.deepEqual([semCentro.centro_custo_id, semCentro.centro_custo, semCentro.centro_resultado_id], [null, null, null], 'nada copiado do bem');
-    const escolhidos = await criarOk(s.token, corpo(s, { bem_id: s.trator.id, centro_custo_id: s.centroB.id, centro_resultado_id: s.cr1.id }));
-    assert.deepEqual([escolhidos.centro_custo_id, escolhidos.centro_resultado_id], [s.centroB.id, s.cr1.id], 'o escolhido vence o do bem');
+    const ausente = await criarOk(s.token, corpo(s, { bem_id: s.trator.id }));
+    assert.deepEqual([ausente.centro_custo_id, ausente.centro_custo, ausente.centro_resultado_id, ausente.centro_resultado], [s.centro1.id, centro1, null, null], 'ausente: copiado do bem');
+    assert.equal((await linhaDe(ausente.id)).centro_custo_id, s.centro1.id, 'gravado na linha, não só na resposta');
+    const nulo = await criarOk(s.token, corpo(s, { bem_id: s.trator.id, centro_custo_id: null }));
+    assert.deepEqual([nulo.centro_custo_id, nulo.centro_resultado_id], [s.centro1.id, null], 'null na criação também copia');
+    const escolhido = await criarOk(s.token, corpo(s, { bem_id: s.trator.id, centro_custo_id: s.centroB.id }));
+    assert.deepEqual([escolhido.centro_custo_id, escolhido.centro_resultado_id], [s.centroB.id, null], 'o informado vence o do bem');
     const soResultado = await criarOk(s.token, corpo(s, { bem_id: s.trator.id, centro_resultado_id: s.cr1.id }));
-    assert.deepEqual([soResultado.centro_custo_id, soResultado.centro_resultado_id], [null, s.cr1.id]);
+    assert.deepEqual([soResultado.centro_custo_id, soResultado.centro_resultado_id], [s.centro1.id, s.cr1.id], 'o resultado é só o escolhido');
+    const semBem = await criarOk(s.token, corpo(s));
+    assert.deepEqual([semBem.centro_custo_id, semBem.centro_resultado_id], [null, null], 'sem bem: nulo');
+    // A fonte é só o bem (máquina/veículo): o centro do implemento não conta.
+    await trocarCentroDoBem(s, s.rocadeira.id, s.centroB.id);
+    const bemSemCentro = await criarOk(s.token, corpo(s, { bem_id: s.gerador.id, implemento_bem_id: s.rocadeira.id }));
+    assert.deepEqual([bemSemCentro.centro_custo_id, bemSemCentro.centro_resultado_id], [null, null], 'bem sem centro: nulo');
 
-    const linhasAntes = JSON.stringify(await prisma().apontamentoAtividade.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), replacer);
-    // O cadastro do bem troca de centro (e depois perde o centro): o histórico não muda.
-    let bem = await ok(req('GET', `/bens-patrimoniais/${s.trator.id}?empresa_id=${s.e1.id}`, s.token));
-    bem = await ok(req('PATCH', `/bens-patrimoniais/${s.trator.id}`, s.token, { empresa_id: s.e1.id, versao: bem.versao, centro_custo_id: s.centroB.id }));
-    await ok(req('PATCH', `/bens-patrimoniais/${s.trator.id}`, s.token, { empresa_id: s.e1.id, versao: bem.versao, centro_custo_id: null }));
-    assert.equal(JSON.stringify(await prisma().apontamentoAtividade.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), replacer), linhasAntes);
+    // Centro do bem INATIVO não é copiado; reativado, volta a ser (controle).
+    const antigo = await p.centroCusto.create({ data: { cliente_id: s.c, empresa_id: s.e1.id, numero: `CCA-${randomUUID().slice(0, 6)}`, nome: 'Centro desativado' } });
+    await trocarCentroDoBem(s, s.gerador.id, antigo.id);
+    await p.centroCusto.update({ where: { id: antigo.id }, data: { ativo: false } });
+    const inativo = await criarOk(s.token, corpo(s, { bem_id: s.gerador.id }));
+    assert.deepEqual([inativo.centro_custo_id, inativo.centro_resultado_id], [null, null], 'centro do bem inativo: fica nulo');
+    assert.equal((await linhaDe(inativo.id)).centro_custo_id, null);
+    await p.centroCusto.update({ where: { id: antigo.id }, data: { ativo: true } });
+    assert.equal((await criarOk(s.token, corpo(s, { bem_id: s.gerador.id }))).centro_custo_id, antigo.id, 'reativado, copia');
 
-    // Na edição só muda o que vier explícito; trocar o bem não relê centro nenhum.
-    const x1 = await editarOk(s.token, semCentro.id, { empresa_id: s.e1.id, versao: 1, observacao: 'sem centro' });
-    assert.equal(x1.centro_custo_id, null);
-    const x2 = await editarOk(s.token, semCentro.id, { empresa_id: s.e1.id, versao: 2, bem_id: s.gerador.id });
-    assert.deepEqual([x2.bem_id, x2.centro_custo_id, x2.centro_resultado_id], [s.gerador.id, null, null]);
-    const y1 = await editarOk(s.token, escolhidos.id, { empresa_id: s.e1.id, versao: 1, observacao: 'mantém' });
-    assert.deepEqual([y1.centro_custo_id, y1.centro_resultado_id], [s.centroB.id, s.cr1.id]);
-    const y2 = await editarOk(s.token, escolhidos.id, { empresa_id: s.e1.id, versao: 2, centro_custo_id: s.centro1.id });
-    assert.deepEqual([y2.centro_custo_id, y2.centro_resultado_id], [s.centro1.id, s.cr1.id]);
-    const y3 = await editarOk(s.token, escolhidos.id, { empresa_id: s.e1.id, versao: 3, centro_resultado_id: null });
-    assert.deepEqual([y3.centro_custo_id, y3.centro_resultado_id, y3.centro_resultado], [s.centro1.id, null, null]);
+    // A auditoria da criação registra se o centro veio do bem.
+    const audit = await p.auditLog.findMany({ where: { cliente_id: s.c, entidade: 'ApontamentoAtividade', acao: 'apontamento_atividade.criar' } });
+    const doBem = Object.fromEntries(audit.map((x) => [x.entidade_id, /** @type {any} */ (x.dados_novos).centro_custo_copiado_do_bem]));
+    assert.deepEqual([ausente, nulo, escolhido, soResultado, semBem, bemSemCentro, inativo].map((x) => doBem[x.id]), [true, true, false, true, false, false, false]);
   });
 
-  test('AE2: centro de outra fazenda, inexistente ou inativo → 422 da coluna, nada gravado (na criação e na edição)', async () => {
+  test('AE2: depois da criação o centro de custo é SNAPSHOT — o bem trocar de centro (ou perdê-lo) não muda o apontamento; editar outro campo ou reenviar o bem não relê', async () => {
+    const s = await montar(app);
+    const a = await criarOk(s.token, corpo(s, { bem_id: s.trator.id }));
+    assert.equal(a.centro_custo_id, s.centro1.id, 'copiado na criação');
+    const linhas = async () => JSON.stringify(await prisma().apontamentoAtividade.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' } }), replacer);
+    const antes = await linhas();
+    await trocarCentroDoBem(s, s.trator.id, s.centroB.id);
+    assert.equal(await linhas(), antes, 'o cadastro do bem trocou de centro: a linha do apontamento não foi tocada');
+
+    const e1 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 1, observacao: 'o bem trocou de centro' });
+    assert.deepEqual([e1.centro_custo_id, e1.centro_resultado_id], [s.centro1.id, null], 'editar outro campo não relê o centro novo do bem');
+    const e2 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 2, bem_id: s.trator.id });
+    assert.equal(e2.centro_custo_id, s.centro1.id, 'reenviar o mesmo bem não relê');
+    await trocarCentroDoBem(s, s.trator.id, null);
+    const e3 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 3, data_operacional: '2027-06-11' });
+    assert.equal(e3.centro_custo_id, s.centro1.id, 'o bem sem centro não apaga o snapshot');
+    assert.equal((await linhaDe(a.id)).centro_custo_id, s.centro1.id);
+  });
+
+  test('AE3: EDIÇÃO — centro nulo continua nulo ao editar outro campo e ao TROCAR o bem por um com centro; só o centro explícito no PATCH muda; o de resultado nunca se preenche sozinho', async () => {
+    const s = await montar(app);
+    const a = await criarOk(s.token, corpo(s, { bem_id: s.gerador.id }));
+    assert.deepEqual([a.centro_custo_id, a.centro_resultado_id], [null, null], 'gerador sem centro: nulo');
+    await trocarCentroDoBem(s, s.gerador.id, s.centroB.id);
+
+    const x1 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 1, observacao: 'o gerador ganhou centro' });
+    assert.deepEqual([x1.centro_custo_id, x1.centro_resultado_id], [null, null], 'editar outro campo não copia do bem');
+    const x2 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 2, bem_id: s.trator.id });
+    assert.deepEqual([x2.bem_id, x2.centro_custo_id, x2.centro_resultado_id], [s.trator.id, null, null], 'trocar para um bem COM centro não copia');
+    const x3 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 3, centro_custo_id: s.centroB.id });
+    assert.deepEqual([x3.centro_custo_id, x3.centro_resultado_id], [s.centroB.id, null], 'o explícito no PATCH muda');
+    const x4 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 4, centro_custo_id: null });
+    assert.deepEqual([x4.bem_id, x4.centro_custo_id], [s.trator.id, null], 'null explícito na edição limpa: não volta ao do bem');
+    const x5 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 5, centro_custo_id: s.centro1.id, centro_resultado_id: s.cr1.id });
+    assert.deepEqual([x5.centro_custo_id, x5.centro_resultado_id], [s.centro1.id, s.cr1.id]);
+    const x6 = await editarOk(s.token, a.id, { empresa_id: s.e1.id, versao: 6, centro_resultado_id: null });
+    assert.deepEqual([x6.centro_custo_id, x6.centro_resultado_id, x6.centro_resultado], [s.centro1.id, null, null]);
+    const linha = await linhaDe(a.id);
+    assert.deepEqual([linha.bem_id, linha.centro_custo_id, linha.centro_resultado_id, linha.versao], [s.trator.id, s.centro1.id, null, 7]);
+  });
+
+  test('AE4: centro de outra fazenda, inexistente ou inativo → 422 da coluna, nada gravado (na criação e na edição)', async () => {
     const s = await montar(app);
     const inativo = await prisma().centroCusto.create({ data: { cliente_id: s.c, empresa_id: s.e1.id, numero: `CCI-${randomUUID().slice(0, 6)}`, nome: 'Centro antigo', ativo: false } });
     const R = 'APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA';
@@ -445,6 +506,58 @@ describe('D-PROD-188 — regras de negócio do apontamento', () => {
       await recusa(s, () => A.criar(s.token, corpo(s, { empresa_id: semFuso.id, data_operacional: '2026-11-01' })), [409, 'EMPRESA_FUSO_NAO_CONFIGURADO', null, null]);
     });
   });
+
+  test('AR-c (horas): nenhuma hora depois de "agora"; início e fim no dia LOCAL da data operacional (sem virar o dia); na edição, sobre o estado final; sem horas segue aceito', () =>
+    comRelogioDeTeste('2027-06-15T15:00:00Z', async () => {
+      // Agora = 12:00 de 15/06 em São Paulo (fuso das fazendas do cenário).
+      const s = await montar(app);
+      const H = 'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO';
+      const e1 = s.e1.id;
+
+      // Hora futura, mesmo dentro do dia de hoje (criação).
+      await recusa(s, () => A.criar(s.token, corpo(s, { data_operacional: HOJE, hora_inicio: `${HOJE}T12:30:00-03:00` })), [422, H, 'hora_inicio', 'hora_futura']);
+      const fut = await recusa(s, () => A.criar(s.token, corpo(s, { data_operacional: HOJE, hora_inicio: `${HOJE}T08:00:00-03:00`, hora_fim: `${HOJE}T12:00:01-03:00` })),
+        [422, H, 'hora_fim', 'hora_futura']);
+      assert.equal(fut.json().details.agora, '2027-06-15T15:00:00.000Z', 'o "agora" é o mesmo relógio do "hoje"');
+      // Limite: exatamente agora pode.
+      const hoje = await criarOk(s.token, corpo(s, { data_operacional: HOJE, hora_inicio: `${HOJE}T08:00:00-03:00`, hora_fim: '2027-06-15T15:00:00Z' }));
+      assert.equal(hoje.hora_fim, '2027-06-15T15:00:00.000Z');
+      // Hora futura (edição).
+      await recusa(s, () => A.editar(s.token, hoje.id, { empresa_id: e1, versao: 1, hora_fim: `${HOJE}T12:30:00-03:00` }), [422, H, 'hora_fim', 'hora_futura']);
+      await recusa(s, () => A.editar(s.token, hoje.id, { empresa_id: e1, versao: 1, hora_inicio: `${HOJE}T12:00:30-03:00`, hora_fim: null }), [422, H, 'hora_inicio', 'hora_futura']);
+
+      // Início fora do dia: vale o dia LOCAL da fazenda, não o texto nem o UTC.
+      await recusa(s, () => A.criar(s.token, corpo(s, { hora_inicio: '2027-06-09T23:30:00-03:00' })), [422, H, 'hora_inicio', 'hora_fora_do_dia']);
+      const fora = await recusa(s, () => A.criar(s.token, corpo(s, { hora_inicio: '2027-06-10T01:00:00Z' })), [422, H, 'hora_inicio', 'hora_fora_do_dia']);
+      const d = fora.json().details;
+      assert.deepEqual([d.data, d.dia, d.fuso], [DIA, '2027-06-09', 'America/Sao_Paulo'], '01:00Z de 10/06 é 22:00 de 09/06 na fazenda');
+      const virada = await criarOk(s.token, corpo(s, { hora_inicio: '2027-06-11T02:00:00Z' }));
+      assert.equal(virada.hora_inicio, '2027-06-11T02:00:00.000Z', '02:00Z de 11/06 é 23:00 de 10/06 na fazenda');
+
+      // Fim: também no dia LOCAL da data (sem turno que vira o dia; um turno noturno vira dois apontamentos).
+      const ateMeiaNoite = await criarOk(s.token, corpo(s, { hora_inicio: '2027-06-10T22:00:00-03:00', hora_fim: '2027-06-10T23:59:00-03:00' }));
+      assert.equal(ateMeiaNoite.hora_fim, '2027-06-11T02:59:00.000Z', '23:59 de 10/06 na fazenda ainda é o dia da data (02:59Z de 11/06)');
+      const meiaNoite = await recusa(s, () => A.criar(s.token, corpo(s, { hora_inicio: '2027-06-10T22:00:00-03:00', hora_fim: '2027-06-11T00:00:00-03:00' })),
+        [422, H, 'hora_fim', 'hora_fora_do_dia']);
+      assert.equal(meiaNoite.json().details.dia, '2027-06-11', 'meia-noite já é o dia seguinte');
+      await recusa(s, () => A.criar(s.token, corpo(s, { hora_inicio: '2027-06-10T22:00:00-03:00', hora_fim: '2027-06-11T05:30:00-03:00' })), [422, H, 'hora_fim', 'hora_fora_do_dia']);
+      await recusa(s, () => A.criar(s.token, corpo(s, { hora_fim: '2027-06-09T18:00:00-03:00' })), [422, H, 'hora_fim', 'hora_fora_do_dia']);
+      await recusa(s, () => A.criar(s.token, corpo(s, { hora_fim: '2027-06-11T06:00:00-03:00' })), [422, H, 'hora_fim', 'hora_fora_do_dia']);
+      assert.equal((await criarOk(s.token, corpo(s, { hora_fim: '2027-06-10T18:00:00-03:00' }))).hora_inicio, null, 'só o fim, no dia da data, pode');
+
+      // Edição: mudar a data deixando as horas no dia antigo → recusado (estado final).
+      const a = await criarOk(s.token, corpo(s, { hora_inicio: '2027-06-10T08:00:00-03:00', hora_fim: '2027-06-10T10:00:00-03:00' }));
+      await recusa(s, () => A.editar(s.token, a.id, { empresa_id: e1, versao: 1, data_operacional: '2027-06-11' }), [422, H, 'hora_inicio', 'hora_fora_do_dia']);
+      await recusa(s, () => A.editar(s.token, a.id, { empresa_id: e1, versao: 1, data_operacional: '2027-06-09' }), [422, H, 'hora_inicio', 'hora_fora_do_dia']);
+      await recusa(s, () => A.editar(s.token, a.id, { empresa_id: e1, versao: 1, hora_fim: '2027-06-12T01:00:00-03:00' }), [422, H, 'hora_fim', 'hora_fora_do_dia']);
+      const movido = await editarOk(s.token, a.id, { empresa_id: e1, versao: 1, data_operacional: '2027-06-11', hora_inicio: '2027-06-11T08:00:00-03:00', hora_fim: '2027-06-11T09:00:00-03:00' });
+      assert.deepEqual([movido.data_operacional, movido.hora_inicio, movido.versao], ['2027-06-11', '2027-06-11T11:00:00.000Z', 2], 'data e horas juntas, coerentes');
+      const semHoras = await editarOk(s.token, a.id, { empresa_id: e1, versao: 2, hora_inicio: null, hora_fim: null, data_operacional: '2027-06-01' });
+      assert.deepEqual([semHoras.hora_inicio, semHoras.hora_fim, semHoras.data_operacional], [null, null, '2027-06-01'], 'sem horas, nada a conferir');
+      // Apontamento sem horas: criar e mudar a data continuam aceitos.
+      const b = await criarOk(s.token, corpo(s));
+      assert.equal((await editarOk(s.token, b.id, { empresa_id: e1, versao: 1, data_operacional: '2027-06-02' })).data_operacional, '2027-06-02');
+    }));
 
   test('AR-d: implemento igual ao bem e implemento sem bem → 422 (criação e edição sobre o estado final)', async () => {
     const s = await montar(app);
@@ -592,6 +705,38 @@ describe('D-PROD-188 — cancelamento sem DELETE físico (R-j) e cancelado imut�
     const linha = await linhaDe(a.id);
     assert.deepEqual([linha.status, linha.versao], ['CANCELADO', 2]);
     assert.equal((await prisma().auditLog.count({ where: { cliente_id: s.c, acao: 'apontamento_atividade.cancelar' } })), 1);
+  });
+
+  test('AJ3: CAS do repositório, sem corrida — versão velha → 0 linhas; CANCELADO com a versão CERTA → 0; outra fazenda ou tenant → 0; o caminho feliz → 1 (versão +1)', async () => {
+    const s = await montar(app);
+    const p = prisma();
+    const a = await criarOk(s.token, corpo(s));
+    /** UPDATE com versão direto no repositório (o mesmo do serviço), sobre o apontamento `a`. */
+    const cas = (extra = {}) =>
+      atualizarComVersao(p, { clienteId: s.c, empresaId: s.e1.id, id: a.id, versao: 1, statusEsperado: 'CONFIRMADO', dados: { observacao: 'cas' }, ...extra });
+    const linha = async () => JSON.stringify(await linhaDe(a.id), replacer);
+
+    const antes = await linha();
+    assert.equal(await cas({ versao: 2 }), 0, 'versão diferente da gravada');
+    assert.equal(await cas({ empresaId: s.e2.id }), 0, 'outra fazenda');
+    assert.equal(await cas({ clienteId: `outro-${randomUUID().slice(0, 6)}` }), 0, 'outro tenant');
+    assert.equal(await linha(), antes, 'nada mudou');
+
+    assert.equal(await cas(), 1, 'versão e status certos: 1 linha');
+    let l = await linhaDe(a.id);
+    assert.deepEqual([l.versao, l.status, l.observacao], [2, 'CONFIRMADO', 'cas'], 'versão incrementada uma vez');
+    const v2 = await linha();
+    assert.equal(await cas({ dados: { observacao: 'velha' } }), 0, 'a versão 1 ficou velha');
+    assert.equal(await linha(), v2);
+
+    // Cancelado (como o serviço cancela) e, depois, a versão CERTA não passa pelo status.
+    assert.equal(await cas({ versao: 2, dados: { status: 'CANCELADO', cancelado_em: new Date(), motivo_cancelamento: 'cas' } }), 1);
+    const cancelado = await linha();
+    assert.equal(await cas({ versao: 3, dados: { observacao: 'depois de cancelado' } }), 0, 'CANCELADO com a versão certa: 0 linhas');
+    assert.equal(await cas({ versao: 3, dados: { status: 'CONFIRMADO' } }), 0, 'nem para "descancelar"');
+    assert.equal(await linha(), cancelado);
+    l = await linhaDe(a.id);
+    assert.deepEqual([l.versao, l.status, l.observacao], [3, 'CANCELADO', 'cas']);
   });
 });
 
@@ -908,14 +1053,28 @@ describe('D-PROD-188 — lista keyset com filtros e opções da tela', () => {
     assert.deepEqual([semEmpresa.statusCode, semEmpresa.json().code], [400, 'REQUEST_VALIDATION_FAILED']);
   });
 
-  test('AO1: opções da tela — bens ATIVOS da fazenda sem o centro do cadastro; operadores só {id, nome}; centros ATIVOS da fazenda', async () => {
+  test('AO1: opções da tela — bens ATIVOS da fazenda com o centro de custo do cadastro só quando ATIVO; operadores só {id, nome}; centros ATIVOS da fazenda', async () => {
     const s = await montar(app);
     const { req, ok } = A;
     const g = await ok(req('GET', `/bens-patrimoniais/${s.gerador.id}?empresa_id=${s.e1.id}`, s.token));
     await ok(req('PATCH', `/bens-patrimoniais/${s.gerador.id}`, s.token, { empresa_id: s.e1.id, versao: g.versao, ativo: false }));
     const bens = await ok(A.opcoes(s.token, 'bens', `empresa_id=${s.e1.id}`));
     assert.deepEqual(bens.itens.map((b) => b.id).sort(), [s.trator.id, s.rocadeira.id].sort(), 'só ativos da fazenda 1');
-    for (const b of bens.itens) assert.deepEqual(Object.keys(b).sort(), ['codigo_frota', 'id', 'natureza', 'nome', 'numero'], 'o centro do bem não vai para o apontamento');
+    for (const b of bens.itens) assert.deepEqual(Object.keys(b).sort(), ['centro_custo', 'codigo_frota', 'id', 'natureza', 'nome', 'numero']);
+    const opcao = (lista, id) => lista.itens.find((b) => b.id === id);
+    assert.deepEqual(opcao(bens, s.trator.id), {
+      id: s.trator.id, numero: s.trator.numero, codigo_frota: 'TP-02', nome: 'Trator TP-02', natureza: 'MAQUINA',
+      centro_custo: { id: s.centro1.id, numero: s.centro1.numero, nome: s.centro1.nome },
+    }, 'bem com centro ATIVO: {id, numero, nome} do centro');
+    assert.equal(opcao(bens, s.rocadeira.id).centro_custo, null, 'bem sem centro: null');
+    const bens2 = await ok(A.opcoes(s.token, 'bens', `empresa_id=${s.e2.id}`));
+    assert.deepEqual(bens2.itens.map((b) => [b.id, b.centro_custo?.id ?? null]), [[s.trator2.id, s.centro2.id]], 'fazenda 2: o centro da fazenda 2');
+    // Centro do bem inativado: a opção sai sem centro (e a criação não o copia); reativado, volta.
+    await prisma().centroCusto.update({ where: { id: s.centro1.id }, data: { ativo: false } });
+    assert.equal(opcao(await ok(A.opcoes(s.token, 'bens', `empresa_id=${s.e1.id}`)), s.trator.id).centro_custo, null, 'centro inativo: null');
+    assert.equal((await criarOk(s.token, corpo(s, { bem_id: s.trator.id }))).centro_custo_id, null, 'a criação segue a mesma regra');
+    await prisma().centroCusto.update({ where: { id: s.centro1.id }, data: { ativo: true } });
+    assert.equal(opcao(await ok(A.opcoes(s.token, 'bens', `empresa_id=${s.e1.id}`)), s.trator.id).centro_custo?.id, s.centro1.id, 'reativado: volta');
     const implementos = await ok(A.opcoes(s.token, 'bens', `empresa_id=${s.e1.id}&natureza=${encodeURIComponent(bens.itens.find((b) => b.id === s.rocadeira.id).natureza)}`));
     assert.deepEqual(implementos.itens.map((b) => b.id), [s.rocadeira.id]);
 

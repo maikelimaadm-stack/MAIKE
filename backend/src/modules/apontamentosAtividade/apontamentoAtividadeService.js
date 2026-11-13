@@ -18,12 +18,25 @@
  *    cadastro do bem;
  *  - R-b hora_fim anterior a hora_inicio é recusada (iguais pode);
  *  - R-c data operacional posterior a "hoje" no fuso da fazenda é recusada;
- *    sem fuso configurado, falha fechado (EMPRESA_FUSO_NAO_CONFIGURADO);
+ *    sem fuso configurado, falha fechado (EMPRESA_FUSO_NAO_CONFIGURADO). As
+ *    horas também ficam dentro do executado: nenhuma depois de "agora" (o
+ *    MESMO relógio do "hoje", `agoraDoServidor`); `hora_inicio` e `hora_fim`
+ *    caem na data operacional (dia local no fuso da fazenda). Sem turno que
+ *    vira o dia: com a R-b, é o que a tela permite (HH:MM no mesmo dia, fim
+ *    não antes do início); um turno noturno vira dois apontamentos. Mesmo
+ *    código da R-b, com `reason` `hora_futura`
+ *    ou `hora_fora_do_dia`; na edição, reaplicada sobre o estado final quando
+ *    a data ou uma das horas vem no PATCH; sem horas, nada a conferir;
  *  - R-d implemento exige bem e não pode ser o próprio bem;
- *  - R-e centros de custo e de resultado são os ESCOLHIDOS pelo usuário no
- *    apontamento (pedido do proprietário: "o do bem é apenas para cadastro").
- *    Nada é copiado do bem, nem na criação; na edição, só muda o que vier
- *    explícito. Ficam congelados no apontamento (snapshot);
+ *  - R-e CENTRO DE CUSTO (regra acordada com o proprietário): na CRIAÇÃO, se
+ *    ele vier nulo ou ausente e houver bem, o servidor COPIA o centro de custo
+ *    do cadastro do bem, na mesma transação, SÓ se esse centro estiver ativo
+ *    (inativo não é copiado: fica nulo); o informado explicitamente vence.
+ *    Depois da criação é SNAPSHOT: nunca é relido do bem (nem ao editar outro
+ *    campo, nem ao trocar o bem, nem quando o bem muda de centro); na edição só
+ *    muda se vier explícito no PATCH. CENTRO DE RESULTADO: o escolhido pelo
+ *    usuário na lista de centros de resultado ativos da empresa; NUNCA vem do
+ *    bem (o bem nem tem esse campo), nunca é copiado nem preenchido sozinho;
  *  - R-f quantidade produzida e unidade andam juntas; quantidade > 0; horas > 0;
  *    unidade ∈ {HA, CAB, TON, KM};
  *  - R-g apontamento CANCELADO não aceita edição nem novo cancelamento;
@@ -61,7 +74,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { comoData, diaDe, ehDiaValido, paginacaoOpcoes, paginarPorNome, termoDeBusca } from '../patrimonio/patrimonioComum.js';
-import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
+import { agoraDoServidor, diaNoFuso, fusoDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import {
   atualizarComVersao,
@@ -70,6 +83,7 @@ import {
   lerArea,
   lerBem,
   lerCentro,
+  lerCentroCustoDoBem,
   lerLancamentoTarefa,
   lerTipoAtividade,
   lerUsuario,
@@ -218,7 +232,7 @@ const exigirRegrasPuras = (e) => {
   if (!e.tipo_atividade_id) throw invalido('tipo_atividade_id é obrigatório', { field: 'tipo_atividade_id', reason: 'obrigatorio' });
   if (!e.data_operacional) throw invalido('data_operacional é obrigatória', { field: 'data_operacional', reason: 'obrigatorio' });
   // R-b
-  if (e.hora_inicio && e.hora_fim && e.hora_fim.getTime() < e.hora_inicio.getTime()) throw apontamentoAtividadeHorarioInvalido();
+  if (e.hora_inicio && e.hora_fim && e.hora_fim.getTime() < e.hora_inicio.getTime()) throw apontamentoAtividadeHorarioInvalido('fim_antes_do_inicio', 'hora_fim');
   // R-d
   if (e.implemento_bem_id && !e.bem_id) throw apontamentoAtividadeImplementoInvalido('implemento_sem_bem');
   if (e.implemento_bem_id && e.implemento_bem_id === e.bem_id) throw apontamentoAtividadeImplementoInvalido('implemento_igual_ao_bem');
@@ -237,9 +251,43 @@ const exigirRegrasPuras = (e) => {
   }
 };
 
+/**
+ * Relógio da fazenda num instante só (R-c): o "agora" das horas e o "hoje" da
+ * data saem do MESMO `agoraDoServidor()` (fixável só em NODE_ENV=test). Lê o
+ * fuso com a Empresa FOR SHARE; sem fuso, falha fechado.
+ * @param {any} tx @param {string} cli @param {string} empresaId
+ * @returns {Promise<{ agora: Date, hoje: string, fuso: string }>}
+ */
+const tempoDaFazenda = async (tx, cli, empresaId) => {
+  const fuso = await fusoDaEmpresa(tx, cli, empresaId);
+  const agora = agoraDoServidor();
+  return { agora, hoje: diaNoFuso(agora, fuso), fuso };
+};
+
 /** R-c — @param {{ hoje: string, fuso: string }} tempo @param {string} dia */
 const exigirDiaNaoFuturo = ({ hoje, fuso }, dia) => {
   if (dia > hoje) throw apontamentoAtividadeDataFutura({ data: dia, hoje, fuso });
+};
+
+/**
+ * R-c (horas) sobre o estado FINAL: nenhuma hora depois de agora; o dia local
+ * (fuso da fazenda) de `hora_inicio` e o de `hora_fim` são a data operacional.
+ * A R-b já valeu antes.
+ * @param {{ agora: Date, fuso: string }} tempo @param {Record<string, any>} e
+ */
+const exigirHorasNoDia = ({ agora, fuso }, e) => {
+  /** @type {Array<'hora_inicio'|'hora_fim'>} */
+  const campos = ['hora_inicio', 'hora_fim'];
+  for (const campo of campos) {
+    const h = /** @type {Date|null} */ (e[campo]);
+    if (h && h.getTime() > agora.getTime()) throw apontamentoAtividadeHorarioInvalido('hora_futura', campo, { agora: agora.toISOString() });
+  }
+  for (const campo of campos) {
+    const h = /** @type {Date|null} */ (e[campo]);
+    if (!h) continue;
+    const dia = diaNoFuso(h, fuso);
+    if (dia !== e.data_operacional) throw apontamentoAtividadeHorarioInvalido('hora_fora_do_dia', campo, { data: e.data_operacional, dia, fuso });
+  }
 };
 
 // ─── referências (R-a, R-i) ─────────────────────────────────────────────────
@@ -295,6 +343,22 @@ const exigirReferencias = async (tx, cli, empresaId, estado, anterior) => {
     if (r.ativo === false) throw referenciaRecusada(chave, 'inativo');
   }
   return { tipo };
+};
+
+/**
+ * R-e, SÓ na CRIAÇÃO e depois de `exigirReferencias` (o bem já foi conferido:
+ * do tenant, da empresa, ativo): sem centro de custo informado e com bem, o
+ * centro de custo a gravar é o do cadastro do bem, lido pela chave
+ * (cliente_id, empresa_id, id), se ATIVO; inativo não é copiado (fica nulo).
+ * O informado vence. A edição nunca chama isto (snapshot). O centro de
+ * resultado nunca passa por aqui.
+ * @param {any} tx @param {string} cli @param {string} empresaId @param {Record<string, any>} estado
+ * @returns {Promise<{ centro_custo_id: string|null, copiado_do_bem: boolean }>}
+ */
+const centroCustoNaCriacao = async (tx, cli, empresaId, estado) => {
+  if (estado.centro_custo_id || !estado.bem_id) return { centro_custo_id: estado.centro_custo_id ?? null, copiado_do_bem: false };
+  const centro = await lerCentroCustoDoBem(tx, cli, empresaId, estado.bem_id);
+  return centro?.ativo ? { centro_custo_id: centro.id, copiado_do_bem: true } : { centro_custo_id: null, copiado_do_bem: false };
 };
 
 /** Snapshots do tipo (R-h). @param {{ nome_tipo: string, grupo_atividade_id: string, grupo_atividade_nome: string }} tipo */
@@ -488,13 +552,16 @@ export const criar = async (contexto, corpo) => {
     TRANSACAO_CURTA,
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-      exigirDiaNaoFuturo(await hojeDaEmpresa(tx, cli, empresaId), estado.data_operacional); // R-c (Empresa FOR SHARE)
+      const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
+      exigirDiaNaoFuturo(tempo, estado.data_operacional); // R-c
+      exigirHorasNoDia(tempo, estado); // R-c (horas)
       const { tipo } = await exigirReferencias(tx, cli, empresaId, estado, null);
-      // R-e: os centros são os escolhidos no apontamento; nada vem do bem.
+      // R-e: centro de custo nulo/ausente + bem → o do cadastro do bem, se ativo (só aqui, na criação).
+      const { centro_custo_id, copiado_do_bem } = await centroCustoNaCriacao(tx, cli, empresaId, estado);
       const numero = String(await reservarNumero(tx, { clienteId: cli, entidade: ENTIDADE, escopoTipo: ESCOPO_TENANT })); // R-k
       const { id } = await comFkTraduzida(() =>
         inserirApontamento(tx, {
-          ...paraGravacao(estado),
+          ...paraGravacao({ ...estado, centro_custo_id }),
           ...snapshotsDoTipo(/** @type {any} */ (tipo)), // R-h
           cliente_id: cli,
           empresa_id: empresaId,
@@ -505,7 +572,11 @@ export const criar = async (contexto, corpo) => {
         })
       );
       const registro = await detalheNa(tx, cli, empresaId, id);
-      await registrarEvento(contexto, { acao: 'apontamento_atividade.criar', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(registro) }, tx);
+      await registrarEvento(
+        contexto,
+        { acao: 'apontamento_atividade.criar', entidade: ENTIDADE, entidadeId: id, dadosNovos: { ...paraAuditoria(registro), centro_custo_copiado_do_bem: copiado_do_bem } },
+        tx
+      );
       return comoApontamentoPublico(registro);
     },
     {},
@@ -532,16 +603,19 @@ export const atualizar = async (contexto, id, corpo) => {
     TRANSACAO_CURTA,
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-      // R-c só quando a data vem no corpo (Empresa FOR SHARE, como na criação).
-      const tempo = tem(campos, 'data_operacional') ? await hojeDaEmpresa(tx, cli, empresaId) : null;
+      // R-c só quando a data ou uma das horas vem no corpo (Empresa FOR SHARE, como na criação).
+      const mexeNoTempo = ['data_operacional', 'hora_inicio', 'hora_fim'].some((c) => tem(campos, c));
+      const tempo = mexeNoTempo ? await tempoDaFazenda(tx, cli, empresaId) : null;
       const anterior = await detalheNa(tx, cli, empresaId, id);
       if (anterior.status !== STATUS_CONFIRMADO) throw apontamentoAtividadeStatusInvalido(anterior.status); // R-g
       if (anterior.versao !== versao) throw apontamentoAtividadeVersaoConflito(anterior.versao, versao);
       const gravado = estadoGravado(anterior);
       const estado = { ...gravado, ...campos };
       exigirRegrasPuras(estado);
-      if (tempo) exigirDiaNaoFuturo(tempo, estado.data_operacional);
+      if (tempo && tem(campos, 'data_operacional')) exigirDiaNaoFuturo(tempo, estado.data_operacional);
+      if (tempo) exigirHorasNoDia(tempo, estado); // sobre o estado mesclado
       const { tipo } = await exigirReferencias(tx, cli, empresaId, estado, gravado);
+      // R-e: o centro de custo é snapshot; nada é relido do bem (nem trocando o bem): só o explícito no PATCH muda.
       const dados = { ...paraGravacao(campos), ...(tipo ? snapshotsDoTipo(tipo) : {}) }; // R-h: só quando o tipo é TROCADO
       const alterados = await comFkTraduzida(() =>
         atualizarComVersao(tx, { clienteId: cli, empresaId, id, versao, statusEsperado: STATUS_CONFIRMADO, dados })
@@ -621,10 +695,19 @@ export const cancelar = async (contexto, id, corpo) => {
 // ─── opções do formulário (seletores próprios da tela) ──────────────────────
 
 /**
+ * Opção do seletor de bens: o resumo do bem e `centro_custo` `{ id, numero,
+ * nome }` do cadastro dele SÓ quando o bem tem centro e o centro está ATIVO
+ * (senão `null`) — o formulário pré-preenche o centro de custo com ele e o
+ * usuário pode trocar; o servidor copia o mesmo na criação (R-e). O bem não tem
+ * centro de resultado.
+ * @param {any} b linha com `centroCusto` `{ id, numero, nome, ativo } | null`
+ */
+const opcaoDeBem = (b) => ({ ...bemPublico(b), centro_custo: b.centroCusto?.ativo ? centroPublico(b.centroCusto) : null });
+
+/**
  * Bens ATIVOS da empresa para o seletor de máquina/veículo e de implemento,
  * keyset (nome, id); `natureza` filtra (uma ou várias); `q` em nome, número ou
- * código de frota. Sem o centro de custo do bem: ele é só do cadastro do bem
- * (R-e), o apontamento escolhe os próprios centros.
+ * código de frota. Cada opção traz o centro de custo ATIVO do bem (`opcaoDeBem`).
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, any>} [query]
  */
 export const opcoesBens = async (contexto, query = {}) => {
@@ -641,9 +724,9 @@ export const opcoesBens = async (contexto, query = {}) => {
   }
   return paginarPorNome(prisma.bemPatrimonial, {
     where: { AND: filtros },
-    select: { id: true, numero: true, codigo_frota: true, nome: true, natureza: true },
+    select: { id: true, numero: true, codigo_frota: true, nome: true, natureza: true, centroCusto: { select: { id: true, numero: true, nome: true, ativo: true } } },
     limit,
     cursor,
-    mapear: (linhas) => linhas.map(bemPublico),
+    mapear: (linhas) => linhas.map(opcaoDeBem),
   });
 };

@@ -177,11 +177,27 @@ export const apontamentoAtividadeReferenciaInvalida = (field, reason, message, o
     details: { ...(options?.details ?? {}), field, reason },
   });
 
-export const apontamentoAtividadeHorarioInvalido = (message, options) =>
+/** Frase de cada horário recusado do apontamento, por `reason` e coluna. */
+const MENSAGENS_HORARIO_APONTAMENTO = Object.freeze({
+  fim_antes_do_inicio: () => 'a hora de fim é anterior à hora de início; nada foi gravado',
+  hora_futura: (field) =>
+    `a hora de ${field === 'hora_inicio' ? 'início' : 'fim'} é posterior a agora; só atividade já executada é apontada; nada foi gravado`,
+  hora_fora_do_dia: (field) =>
+    `a hora de ${field === 'hora_inicio' ? 'início' : 'fim'} tem de cair na data da atividade (no fuso da fazenda); nada foi gravado`,
+});
+
+/**
+ * Horário recusado (um só código, `details.field`/`details.reason` dizem qual):
+ * fim antes do início, hora depois de agora ou fora do dia da atividade.
+ * @param {'fim_antes_do_inicio'|'hora_futura'|'hora_fora_do_dia'} [reason]
+ * @param {'hora_inicio'|'hora_fim'} [field]
+ * @param {Record<string, unknown>} [extra] detalhes do caso (ex.: dia local e fuso)
+ */
+export const apontamentoAtividadeHorarioInvalido = (reason = 'fim_antes_do_inicio', field = 'hora_fim', extra = {}, options = undefined) =>
   new AppError(
     'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO',
-    message || 'a hora de fim é anterior à hora de início; nada foi gravado',
-    { ...options, details: { ...(options?.details ?? {}), field: 'hora_fim', reason: 'fim_antes_do_inicio' } }
+    MENSAGENS_HORARIO_APONTAMENTO[reason](field),
+    { ...options, details: { ...(options?.details ?? {}), ...extra, field, reason } }
   );
 
 /** @param {{ data: string, hoje: string, fuso: string }} referencia */

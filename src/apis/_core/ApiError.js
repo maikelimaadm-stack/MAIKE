@@ -235,7 +235,8 @@ const MENSAGENS = Object.freeze({
     'Este apontamento de atividade não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA]:
     'Um dos cadastros escolhidos (tipo, máquina, implemento, operador, área ou centro) não pode ser usado: não existe, é de outra fazenda ou está inativo. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO]: 'A hora de fim é anterior à hora de início. Nada foi gravado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO]:
+    'O horário foi recusado: fim antes do início, hora depois de agora ou fora da data da atividade. Nada foi gravado.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_FUTURA]:
     'A data da atividade é posterior a hoje na fazenda: só se aponta atividade já executada. Nada foi gravado.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO]:

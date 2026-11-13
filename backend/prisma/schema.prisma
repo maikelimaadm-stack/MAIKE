@@ -2744,11 +2744,14 @@ model AbastecimentoBemConsumoLote {
 //
 // Snapshots gravados na criação (e na troca do tipo): `tipo_atividade_nome`,
 // `grupo_atividade_id` e `grupo_atividade_nome`; renomear o tipo ou o grupo
-// depois NÃO propaga. `centro_custo_id` e `centro_resultado_id` são os
-// ESCOLHIDOS no apontamento: nada é copiado do bem (o centro do bem é só do
-// cadastro dele) e nunca relido dele. Sem DELETE físico: cancelar muda `status`
-// para CANCELADO e incrementa `versao`. As flags de exigência do antigo Tipo de
-// Tarefa (D-PROD-181) não voltam aqui.
+// depois NÃO propaga. `centro_custo_id`: na CRIAÇÃO, se vier nulo ou ausente e
+// houver bem, o serviço copia o centro de custo do cadastro do bem, só se esse
+// centro estiver ativo (o informado vence); depois é SNAPSHOT, nunca relido do
+// bem (na edição só muda se vier explícito). `centro_resultado_id`: o escolhido
+// pelo usuário entre os centros de resultado ativos da empresa; nunca vem do
+// bem. Sem DELETE físico: cancelar muda `status` para CANCELADO e incrementa
+// `versao`. As flags de exigência do antigo Tipo de Tarefa (D-PROD-181) não
+// voltam aqui.
 // ---------------------------------------------------------------------------
 model ApontamentoAtividade {
   id                       String    @id @default(cuid())
@@ -2767,9 +2770,9 @@ model ApontamentoAtividade {
   implemento_bem_id        String?   @db.VarChar(64)
   operador_usuario_id      String?   @db.VarChar(64)
   area_id                  String?   @db.VarChar(64)
-  /// SNAPSHOT: o escolhido no apontamento; nada é copiado do bem nem relido dele.
+  /// SNAPSHOT: na criação, sem centro informado e com bem, cópia do centro ATIVO do bem; depois nunca relido do bem.
   centro_custo_id          String?   @db.VarChar(64)
-  /// SNAPSHOT: o escolhido no apontamento (a lista de centros de resultado da empresa).
+  /// O escolhido no apontamento (lista de centros de resultado ativos da empresa); nunca vem do bem.
   centro_resultado_id      String?   @db.VarChar(64)
   safra_ciclo              String?   @db.VarChar(32)
   quantidade_produzida     Decimal?  @db.Decimal(14, 4)

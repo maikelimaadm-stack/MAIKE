@@ -266,7 +266,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: {
     http: 422,
-    meaning: 'hora_fim anterior a hora_inicio; nada foi gravado',
+    meaning: 'horário recusado (details.field: hora_inicio | hora_fim; details.reason: fim_antes_do_inicio | hora_futura | hora_fora_do_dia); nada foi gravado',
   },
   APONTAMENTO_ATIVIDADE_DATA_FUTURA: {
     http: 422,

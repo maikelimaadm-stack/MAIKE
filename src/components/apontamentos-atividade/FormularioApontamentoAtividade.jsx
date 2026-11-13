@@ -23,6 +23,8 @@ import {
   corpoDoFormulario,
   formularioDoRegistro,
   formularioVazio,
+  mudancaAoEscolherBem,
+  mudancaAoEscolherCentroCusto,
   rotuloDaArea,
   rotuloDoBem,
   rotuloDoCentro,
@@ -63,8 +65,11 @@ const detalheDoCentro = (o) => (o?.numero != null ? `nº ${o.numero}` : null);
  * a máquina limpa o implemento; implemento ≠ máquina); 4) Operador; 5) Área;
  * 6) Hora início / Hora fim; 7) Produção: quantidade + unidade (juntas);
  * 8) Observação. Depois, os centros de custo e de resultado: campos de escolha
- * NORMAIS, opcionais, ESCOLHIDOS pelo usuário — nunca preenchidos a partir do
- * bem (o centro do bem é só do cadastro do bem). Apontamento CANCELADO abre só
+ * NORMAIS e opcionais. No apontamento NOVO o centro de custo vem preenchido com
+ * o centro (ativo) do bem escolhido e o usuário pode trocar antes de salvar; a
+ * escolha manual dele não é sobrescrita por uma troca de máquina. Na edição o
+ * centro de custo é snapshot: nunca é relido do bem. O centro de resultado é
+ * sempre escolha do usuário, nunca vem do bem. Apontamento CANCELADO abre só
  * leitura, com o motivo; o confirmado oferece "Cancelar apontamento".
  *
  * @param {{
@@ -241,9 +246,11 @@ export default function FormularioApontamentoAtividade({
         buscar={({ q, cursor, limit }) => listarOpcoesApontamento("bens", empresaId, { q, cursor, limit, natureza: NATUREZAS_MAQUINA })}
         value={form.bem}
         onChange={(opcao) => {
-          // A MESMA máquina de novo não muda nada; trocar ou limpar a máquina limpa o implemento.
+          // A MESMA máquina de novo não muda nada; trocar ou limpar a máquina limpa o implemento e,
+          // só no apontamento NOVO e sem escolha manual do usuário, leva junto o centro de custo do bem.
           if (opcao?.id != null && bemId && String(opcao.id) === bemId) return;
-          mudar({ bem: opcao ? { id: String(opcao.id), rotulo: rotuloDoBem(opcao) } : null, implemento: null }, ["bem", "implemento"]);
+          const mudanca = mudancaAoEscolherBem(form, opcao, { novo: !existente });
+          mudar(mudanca, "centro_custo" in mudanca ? ["bem", "implemento", "centro_custo"] : ["bem", "implemento"]);
         }}
         rotuloDaOpcao={rotuloDoBem}
         detalheDaOpcao={detalheDoBem}
@@ -359,7 +366,7 @@ export default function FormularioApontamentoAtividade({
         chave={["apontamentos-atividade", "centros-custo", empresaId]}
         buscar={({ q, cursor, limit }) => listarOpcoesApontamento("centros-custo", empresaId, { q, cursor, limit })}
         value={form.centro_custo}
-        onChange={(opcao) => mudar({ centro_custo: opcao ? { id: String(opcao.id), rotulo: rotuloDoCentro(opcao) } : null }, ["centro_custo"])}
+        onChange={(opcao) => mudar(mudancaAoEscolherCentroCusto(opcao, form, { novo: !existente }), ["centro_custo"])}
         rotuloDaOpcao={rotuloDoCentro}
         detalheDaOpcao={detalheDoCentro}
         readOnly={bloqueado}

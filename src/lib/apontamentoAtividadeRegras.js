@@ -14,9 +14,15 @@
  *    recusaria a hora ambígua).
  *  - Quantidade produzida é TEXTO canônico ("12.5"), nunca Number; anda junto
  *    com a unidade (HA, CAB, TON, KM).
- *  - Centros de custo e de resultado são ESCOLHIDOS pelo usuário no
- *    apontamento (decisão do proprietário: "o do bem é apenas para cadastro"):
- *    nada vem do bem.
+ *  - Centro de CUSTO (regra acordada com o proprietário): no apontamento NOVO
+ *    ele vem preenchido com o centro de custo do bem escolhido (a opção do bem
+ *    já traz `centro_custo` só quando o centro está ATIVO) e o usuário pode
+ *    trocar antes de salvar; a escolha manual dele nunca é sobrescrita por uma
+ *    troca de máquina. Na criação o servidor também copia o centro ativo do bem
+ *    quando o corpo o deixa vazio. Depois de gravado é SNAPSHOT: na edição nada
+ *    vem do bem, ele só muda se o usuário escolher outro.
+ *  - Centro de RESULTADO: sempre escolhido pelo usuário numa lista normal de
+ *    centros ativos; nunca vem do bem.
  */
 
 import { comparar, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, paraTextoDeEdicao } from './dinheiroDecimal.js';
@@ -166,8 +172,13 @@ export const formatarHorario = (r, fuso) => {
 
 // ─── Estado do formulário ────────────────────────────────────────────────
 
+/** Origem do centro de custo no formulário NOVO: veio do bem escolhido ou o usuário escolheu à mão. */
+export const ORIGEM_CENTRO_BEM = 'bem';
+export const ORIGEM_CENTRO_USUARIO = 'usuario';
+
 /**
  * @typedef {{ id: string, rotulo: string } | null} OpcaoEscolhida
+ * @typedef {'bem' | 'usuario' | null} OrigemCentroCusto
  * @typedef {{
  *   tipo_atividade_id: string,
  *   data_operacional: string,
@@ -181,6 +192,8 @@ export const formatarHorario = (r, fuso) => {
  *   unidade_producao: string,
  *   observacao: string,
  *   centro_custo: OpcaoEscolhida,
+ *   centro_custo_origem: OrigemCentroCusto,
+ *   centro_custo_do_bem: OpcaoEscolhida,
  *   centro_resultado: OpcaoEscolhida,
  * }} FormularioApontamento
  */
@@ -199,6 +212,8 @@ export const formularioVazio = (hoje) => ({
   unidade_producao: '',
   observacao: '',
   centro_custo: null,
+  centro_custo_origem: null,
+  centro_custo_do_bem: null,
   centro_resultado: null,
 });
 
@@ -206,8 +221,57 @@ export const formularioVazio = (hoje) => ({
 const opcao = (id, rotulo) => (typeof id === 'string' && id ? { id, rotulo: rotulo || id } : null);
 
 /**
+ * Centro de custo que a opção de bem traz (`centro_custo`, preenchido pelo
+ * servidor só quando o centro do bem está ATIVO), com o rótulo dos outros
+ * centros; sem centro → null.
+ * @param {any} opcaoDoBem @returns {OpcaoEscolhida}
+ */
+export const centroCustoDoBem = (opcaoDoBem) => {
+  const c = opcaoDoBem?.centro_custo;
+  if (!c || typeof c !== 'object' || c.id == null) return null;
+  return opcao(String(c.id), rotuloDoCentro(c));
+};
+
+/**
+ * Mudança do formulário ao escolher (ou limpar) a máquina/veículo. Trocar ou
+ * limpar a máquina limpa o implemento. No apontamento NOVO o centro de custo
+ * acompanha o bem (o do novo bem, ou vazio) enquanto não for escolha manual do
+ * usuário; a escolha manual nunca é sobrescrita. O centro que o bem traz fica
+ * guardado em `centro_custo_do_bem` (é o que o servidor copiaria se o campo
+ * fosse enviado vazio). Na EDIÇÃO o centro é snapshot: nunca é relido do bem.
+ * O centro de resultado nunca vem do bem.
+ * @param {FormularioApontamento} form @param {any} opcaoDoBem @param {{ novo: boolean }} ctx
+ * @returns {Partial<FormularioApontamento>}
+ */
+export const mudancaAoEscolherBem = (form, opcaoDoBem, { novo }) => {
+  /** @type {Partial<FormularioApontamento>} */
+  const mudanca = { bem: opcaoDoBem ? opcao(String(opcaoDoBem.id ?? ''), rotuloDoBem(opcaoDoBem)) : null, implemento: null };
+  if (!novo) return mudanca;
+  const centro = centroCustoDoBem(opcaoDoBem);
+  if (form?.centro_custo_origem === ORIGEM_CENTRO_USUARIO) return { ...mudanca, centro_custo_do_bem: centro };
+  return { ...mudanca, centro_custo: centro, centro_custo_origem: centro ? ORIGEM_CENTRO_BEM : null, centro_custo_do_bem: centro };
+};
+
+/**
+ * Mudança do formulário ao escolher (ou limpar) o centro de custo à mão. No
+ * apontamento NOVO com máquina cujo centro está ativo, limpar o campo traz de
+ * volta o centro do bem: na criação, o servidor copia o centro do bem quando o
+ * centro vem vazio (R-e), e a tela não pode mostrar vazio o que será gravado.
+ * Na edição, limpar limpa (o servidor nunca relê o bem).
+ * @param {any} opcaoDoCentro @param {FormularioApontamento|null} [form] @param {{ novo?: boolean }} [ctx]
+ * @returns {Partial<FormularioApontamento>}
+ */
+export const mudancaAoEscolherCentroCusto = (opcaoDoCentro, form = null, { novo = false } = {}) => {
+  const centro = opcaoDoCentro ? opcao(String(opcaoDoCentro.id ?? ''), rotuloDoCentro(opcaoDoCentro)) : null;
+  if (centro) return { centro_custo: centro, centro_custo_origem: ORIGEM_CENTRO_USUARIO };
+  const doBem = novo && form?.bem ? form.centro_custo_do_bem ?? null : null;
+  return doBem ? { centro_custo: doBem, centro_custo_origem: ORIGEM_CENTRO_BEM } : { centro_custo: null, centro_custo_origem: null };
+};
+
+/**
  * Formulário a partir do registro gravado (detalhe/lista do servidor). Os
- * centros são os GRAVADOS no apontamento (nunca relidos do bem).
+ * centros são os GRAVADOS no apontamento (snapshot; nunca relidos do bem, nem
+ * ao trocar a máquina na edição).
  * @param {any} r @param {string|null|undefined} fuso @returns {FormularioApontamento}
  */
 export const formularioDoRegistro = (r, fuso) => ({
@@ -223,6 +287,8 @@ export const formularioDoRegistro = (r, fuso) => ({
   unidade_producao: texto(r?.unidade_producao),
   observacao: typeof r?.observacao === 'string' ? r.observacao : '',
   centro_custo: opcao(r?.centro_custo_id, rotuloDoCentro(r?.centro_custo)),
+  centro_custo_origem: null,
+  centro_custo_do_bem: null,
   centro_resultado: opcao(r?.centro_resultado_id, rotuloDoCentro(r?.centro_resultado)),
 });
 
@@ -282,6 +348,8 @@ export const validarFormulario = (form, { hoje, fuso = null }) => {
  * Corpo do envio a partir do formulário JÁ VALIDADO: exatamente as colunas que
  * o formulário edita (o resto do contrato não é tocado). Opcional vazio vai
  * `null`. O implemento sem máquina não vai (a máquina libera o implemento).
+ * A origem do centro de custo (`centro_custo_origem`) é só estado da tela: não
+ * vai no corpo; vai o centro escolhido, venha ele do bem ou do usuário.
  * @param {FormularioApontamento} form @param {string|null|undefined} fuso
  */
 export const corpoDoFormulario = (form, fuso) => {
@@ -365,6 +433,24 @@ const PRODUCAO = Object.freeze(
   }),
 );
 
+/**
+ * Horário recusado pelo servidor (um só código): `reason` diz qual regra e
+ * `field` qual hora. `fim_antes_do_inicio` (R-b); `hora_futura` e
+ * `hora_fora_do_dia` (R-c das horas, no fuso da fazenda).
+ * @param {string|null} reason @param {string|null} field @returns {string|null}
+ */
+const fraseDoHorario = (reason, field) => {
+  const qual = field === 'hora_inicio' ? 'início' : 'fim';
+  if (reason === 'fim_antes_do_inicio') return 'A hora de fim é anterior à hora de início.';
+  if (reason === 'hora_futura') return `A hora de ${qual} é posterior a agora na fazenda: só se aponta atividade já executada.`;
+  if (reason === 'hora_fora_do_dia') {
+    return field === 'hora_inicio'
+      ? 'A hora de início tem de cair na data da atividade (no fuso da fazenda).'
+      : 'A hora de fim tem de cair na data da atividade (no fuso da fazenda).';
+  }
+  return null;
+};
+
 /** Campo do formulário que cada coluna recusada destaca. */
 export const CAMPO_DO_FORMULARIO = Object.freeze(
   /** @type {Record<string, string>} */ ({
@@ -413,6 +499,10 @@ export const mensagemErroApontamento = (erro, fallback) => {
     return reason === 'implemento_sem_bem'
       ? 'Escolha a máquina ou o veículo antes do implemento. Nada foi gravado.'
       : 'O implemento não pode ser a própria máquina ou veículo. Nada foi gravado.';
+  }
+  if (code === 'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO') {
+    const frase = fraseDoHorario(reason, field);
+    if (frase) return `${frase} Nada foi gravado.`;
   }
   if (code === 'APONTAMENTO_ATIVIDADE_DATA_FUTURA') {
     const hoje = typeof details.hoje === 'string' ? ` (hoje na fazenda: ${formatarDia(details.hoje)})` : '';
