@@ -22,6 +22,7 @@ import {
   deleteTipo,
   sincronizarReferenciasTarefa,
 } from '@/apis/tarefas';
+import { listTiposAtividade } from '@/apis/atividades';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
 
@@ -46,9 +47,10 @@ export const atualizarTipo = async ({ id, dados, oldData }) => {
   return atualizado;
 };
 
-/** `GrupoAtividade` depende de `TipoTarefa` e `LancamentoTarefa`. */
+/** `GrupoAtividade` depende de `TipoTarefa`, `TipoAtividade` e `LancamentoTarefa`. */
 const carregadoresDeGrupo = {
   TipoTarefa: () => listTipos(),
+  TipoAtividade: () => listTiposAtividade(),
   LancamentoTarefa: () => listLancamentos(),
 };
 

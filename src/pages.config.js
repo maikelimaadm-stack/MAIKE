@@ -17,6 +17,7 @@ import Marcas from './pages/Marcas';
 import UnidadesMedida from './pages/UnidadesMedida';
 import LocaisEstoque from './pages/LocaisEstoque';
 import TiposTarefa from './pages/TiposTarefa';
+import TiposAtividade from './pages/TiposAtividade';
 import GruposAtividades from './pages/GruposAtividades';
 import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
@@ -44,6 +45,7 @@ export const PAGES = {
     "UnidadesMedida": UnidadesMedida,
     "LocaisEstoque": LocaisEstoque,
     "TiposTarefa": TiposTarefa,
+    "TiposAtividade": TiposAtividade,
     "GruposAtividades": GruposAtividades,
     "Empresa": Empresa,
     "Usuarios": Usuarios,

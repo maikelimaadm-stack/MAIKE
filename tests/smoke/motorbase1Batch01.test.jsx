@@ -223,7 +223,7 @@ describe("MOTORBASE1-BATCH-01", () => {
     expect(screen.getByRole("button", { name: "Novo" })).toBeTruthy();
   });
 
-  it("TiposTarefa — formulário exige grupo e preserva flags", async () => {
+  it("TiposTarefa — formulário exige grupo e não tem flags de exigência (D-PROD-181)", async () => {
     serviceMock.listarGruposSimples.mockResolvedValue([
       { id: "g1", nome_grupo: "GERAL", ativo: true },
     ]);
@@ -237,7 +237,9 @@ describe("MOTORBASE1-BATCH-01", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "Novo" }));
     expect(screen.getByTestId("b1-form-tipo-tarefa")).toBeTruthy();
-    expect(screen.getByLabelText(/Exige área/i)).toBeTruthy();
+    for (const rotulo of [/Exige área/i, /Pode ter produto/i, /Pode ter máquina/i, /Pode ter implemento/i]) {
+      expect(screen.queryByLabelText(rotulo)).toBeNull();
+    }
     fireEvent.submit(document.getElementById("formulario-tipo-tarefa-base1"));
     await waitFor(() => expect(screen.getAllByText("Obrigatório").length).toBeGreaterThan(0));
   });

@@ -26,7 +26,7 @@ tenant(nome) AS (
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'
+    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'
   ]::text[])
 ),
 contagem AS (

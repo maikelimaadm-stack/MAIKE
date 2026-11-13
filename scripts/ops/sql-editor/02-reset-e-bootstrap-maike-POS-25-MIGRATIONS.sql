@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 79 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 80 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 64 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 65 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -70,7 +70,7 @@ DECLARE
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'];
+    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'];
   c_preservadas constant text[] := ARRAY[
     'AdminPrincipalMaike','AuditoriaCatalogoGlobal','CatalogoAsset','CatalogoCategoriaVisual','CatalogoIcone',
     'CatalogoMeta','CatalogoRegraMisto','CatalogoRegraMistoCategoria','CatalogoTipoEntidade',
@@ -137,7 +137,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: falta tabela esperada em public. Nada foi alterado.';
   END IF;
 
-  -- 4. cliente_id exatamente nas 43 de tenant (+ OperadorProdutoMaike, preservada).
+  -- 4. cliente_id exatamente nas 65 de tenant (+ OperadorProdutoMaike, preservada).
   IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
        WHERE table_schema = 'public' AND column_name = 'cliente_id')
      IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN
@@ -200,7 +200,7 @@ BEGIN
     "ManejoTecnicoRebanho","Marca","MovimentacaoEstoque","MovimentacaoMapa","MovimentacaoPecuaria",
     "OperacaoIdempotente","Permissao","PontoReferencia","PontoSuplementacao","Produto","RegistroAnexo",
     "SuplementacaoEvento","SuplementacaoLote","UnidadeMedida","Usuario","Lote",
-    "TipoTarefa","AreaPastagem","GrupoAtividade","Setor","Cliente" IN EXCLUSIVE MODE;
+    "TipoTarefa","TipoAtividade","AreaPastagem","GrupoAtividade","Setor","Cliente" IN EXCLUSIVE MODE;
   SELECT left(md5('v1|'
            || (SELECT string_agg(c.relname, ',' ORDER BY c.relname) FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
                 WHERE ns.nspname = 'public' AND c.relkind IN ('r','p','v','m','f')) || '|'

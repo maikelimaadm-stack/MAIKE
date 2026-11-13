@@ -137,7 +137,7 @@ export const grupoAtividadeNomeConflito = (message, options) =>
 export const grupoAtividadeDeleteBlocked = (message, options) =>
   new AppError(
     'GRUPO_ATIVIDADE_DELETE_BLOCKED',
-    message || 'não é possível excluir grupo com tipos vinculados',
+    message || 'não é possível excluir grupo com tipos de tarefa ou de atividade vinculados',
     options
   );
 
@@ -146,6 +146,17 @@ export const tipoTarefaNotFound = (message, options) =>
 
 export const tipoTarefaNomeConflito = (message, options) =>
   new AppError('TIPO_TAREFA_NAME_CONFLICT', message || 'já existe tipo com este nome no grupo', options);
+
+// D-PROD-182 — Tipo de Atividade (cadastro nativo, irmão do Tipo de Tarefa).
+export const tipoAtividadeNotFound = (message, options) =>
+  new AppError('TIPO_ATIVIDADE_NOT_FOUND', message || 'tipo de atividade não encontrado', options);
+
+export const tipoAtividadeNomeConflito = (message, options) =>
+  new AppError(
+    'TIPO_ATIVIDADE_NAME_CONFLICT',
+    message || 'já existe tipo de atividade com este nome no grupo',
+    options
+  );
 
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);

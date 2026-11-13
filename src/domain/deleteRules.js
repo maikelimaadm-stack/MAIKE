@@ -23,6 +23,7 @@ export const ENTITY_LABELS = {
   PontoSuplementacao: "ponto de suplementação",
   GrupoAtividade: "grupo de atividades",
   TipoTarefa: "tipo de tarefa",
+  TipoAtividade: "tipo de atividade",
 };
 
 const EMPRESA_DEPENDENCIES = [
@@ -98,6 +99,7 @@ export const DELETE_RULES = {
   ],
   GrupoAtividade: [
     { entity: "TipoTarefa", fields: ["grupo_atividade_id"], label: "tipos de tarefa" },
+    { entity: "TipoAtividade", fields: ["grupo_atividade_id"], label: "tipos de atividade" },
     { entity: "LancamentoTarefa", fields: ["grupo_atividade_id"], label: "lançamentos de tarefas" },
   ],
   TipoTarefa: [

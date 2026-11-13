@@ -20,22 +20,6 @@
     },
     "descricao": {
       "type": "string"
-    },
-    "exige_area": {
-      "type": "boolean",
-      "default": false
-    },
-    "pode_ter_produto": {
-      "type": "boolean",
-      "default": false
-    },
-    "pode_ter_maquina": {
-      "type": "boolean",
-      "default": false
-    },
-    "pode_ter_implemento": {
-      "type": "boolean",
-      "default": false
     }
   },
   "required": [

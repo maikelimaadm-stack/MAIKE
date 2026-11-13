@@ -25,7 +25,29 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
+## Missão ativa (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-182** |
+| Branch / PR | `feat/tipo-atividade-cadastro`, empilhada sobre `feat/tipo-tarefa-sem-flags` (Fatia A, PR #254). PR em rascunho com base na Fatia A |
+| Escopo | Model, migration, API `/tipos-atividade`, tela `TiposAtividade` (4 campos), menu e permissão `sup-tipos-atividade`, bloqueio da exclusão do grupo e propagação do nome |
+| Migration | `20261113100000_tipo_atividade_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Repositório: 40 → **41** migrations, 79 → **80** tabelas. **Não aplicada em nenhum ambiente remoto** |
+| Release | Merge da Fatia A, depois desta; em seguida `deploy:migrate` pelo caminho oficial e deploy |
+| Relatório | [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-TIPO-TAREFA-SEM-FLAGS (Fatia A): Tipo de Tarefa sem flags de exigência (D-PROD-181)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-181** |
+| Branch / PR | `feat/tipo-tarefa-sem-flags`, base `origin/main` `b7e5ab11`. PR em rascunho, exclusiva desta fatia |
+| Escopo | Remove `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` do cadastro de Tipo de Tarefa: Prisma, backend, porta, formulário e contrato. A API aceita e ignora essas chaves vindas de cliente antigo |
+| Migration | **Nenhuma.** As 4 colunas ficam dormentes no banco (`DEFAULT false`). O `DROP COLUMN` é CONTRACT e depende de GO próprio (D-PROD-181 item 4) |
+| Próxima fatia | Fatia B (TipoAtividade). Só começa depois da resposta do proprietário |
+| Relatório | [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md) |
+
+## Missão anterior (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
 
 | Campo | Valor |
 |---|---|
@@ -33,7 +55,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `fecbc18c` (merge da PR #249). PR **#250** em rascunho, exclusiva deste slice |
 | Escopo | Fonte única (`src/domain/suplementacao/nivelSuplementacao.js`) usada pelo mapa, pelos detalhes, pelo tooltip e pelos alertas de cocho e depósito. Cocho = restante estimado do ciclo, pela taxa %PV gravada no lançamento e pelo dia civil no fuso da fazenda. Depósito = saldo real ÷ limite operacional, com percentual bruto e excesso; o mínimo é só limiar. Estados neutros quando não há estimativa |
 | Migration | Nenhuma (só frontend e testes) |
-| Release | Merge e deploy do front, depois da auditoria do arquiteto. O proprietário faz o merge |
+| Release | PR #250 mergeada pelo proprietário em 2026-11-12 |
 | Relatório | [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md) |
 
 ## Missão anterior (2026-11-11) — UI-FONTES-PREVIA: fontes voltam ao estilo e ao tamanho da prévia escolhida (D-PROD-175)
@@ -99,7 +121,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/new-session-abgn5w`, base `origin/main` `e39d318b` (merge da PR #237, UX-02), com a `main` `e8472481` (PR #238, Estoque P0-01, D-PROD-161) integrada por merge · schema e migration no commit `8442e9f5` · PR **draft**; número, HEAD final e CI registrados no relatório |
 | Escopo | **Bens:** Família e Tipo escolhidos e criados no próprio formulário ("+ Nova família", "+ Novo tipo"), "⋯ › Gerenciar famílias e tipos" e "Instalar catálogo padrão" (só administrador); cada tanque com "Produtos aceitos" do estoque (L ou KG, até 20). **Abastecimentos:** Máquina/Veículo → Produto → Tanque (só com mais de um) → Local → quantidade na unidade do Produto → medidor → "Completou o tanque?" → revisar → confirmar; o estoque baixa **exatamente** a quantidade digitada, sem conversão; capacidade conferida só para Produto em L; consumo km/L, L/h, km/kg ou kg/h. **Produto e Gestão P3:** unidade "LITROS (L)"; KG e SACO byte a byte como antes. **Mapa Geral:** depósito soma só Produtos em kg (P-11). **Saem:** as páginas `FamiliasPatrimoniais`, `TiposPatrimoniais`, `PerfisMedicao` e `Combustiveis`, perfis de medição, medições de benfeitoria, tipos de combustível, vínculo combustível × produto, fator kg/L e a ação `configurar_conversao`. **Fora:** manutenção, OS, custo/hora, saldo de tanque, unidade que não seja L nem KG |
 | Backend | Rotas removidas respondem 404; Abastecimentos 16 → **11** rotas; nova `GET /bens-patrimoniais-opcoes/produtos`; famílias e tipos guardados pela tela de Bens ([cobertura](./MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md)). Idempotência v2 do abastecimento (recibo v1 nunca reaproveitado) |
-| Migration | `20261110300000_patrimonio_simplifica`, **CONTRACT** (exceção única): guarda fail-closed (0 abastecimento CONFIRMADO, impressão das contagens aprovada, papel dono das 13, nada criado fora das migrations), **apaga as 13 tabelas do Patrimônio** com os dados de todos os clientes, alarga 2 CHECKs de `OperacaoFinanceiraItem` para aceitar `'L'` e cria 7 tabelas no formato novo (inclusive `TanqueBemProduto`). SHA-256 `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222`. Repositório: 39 → **40** migrations, 85 → **79** tabelas. `deploy:migrate` remoto só aplica com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162`, que só o `premerge-migrate --aplicar --contract D-PROD-162` define. **Não aplicada em nenhum ambiente remoto** |
+| Migration | `20261110300000_patrimonio_simplifica`, **CONTRACT** (exceção única): guarda fail-closed (0 abastecimento CONFIRMADO, impressão das contagens aprovada, papel dono das 13, nada criado fora das migrations), **apaga as 13 tabelas do Patrimônio** com os dados de todos os clientes, alarga 2 CHECKs de `OperacaoFinanceiraItem` para aceitar `'L'` e cria 7 tabelas no formato novo (inclusive `TanqueBemProduto`). SHA-256 `787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222`. Repositório: 39 → **40** migrations, 85 → **79** tabelas. `deploy:migrate` remoto só aplica com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162`, que só o `premerge-migrate --aplicar --contract D-PROD-162` define. **Aplicada em produção em 2026-11-11** (ver `MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`) |
 | Release | Migration **antes** do merge, pelo runbook [`MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-RUNBOOK-RELEASE.md), **executado em 2026-11-11** (caminho B; PR #239 mergeada em `87e8a5ca`; deploy READY; postcheck R1–R9 e C1–C4 ok; registro no §11 do runbook). Entre o `COMMIT` e o deploy READY o runtime antigo responde 500 no Patrimônio e em 3 rotas de produto/empresa: merge imediato, `main` congelada, horário de pouco uso. Dado apagado só volta pelo backup do banco inteiro; reversão de schema só até a primeira escrita (P-12) |
 | GO do proprietário | Escrito em 2026-11-10 para a limpeza em produção: "pode apaguar oque tiver lançado dessas tabelas", "olha pode fazer não precisa pedir confirmação ok, pode fazer", "ok apague oque tiver faça oque tem que fazer". Alcance e limites na D-PROD-162: as barreiras técnicas fail-closed continuam valendo |
 | Relatório | [`MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md`](./MAIKE-PATRIMONIO-SIMPLIFICA-01-REPORT.md) |

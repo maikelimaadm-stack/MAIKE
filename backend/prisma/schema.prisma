@@ -65,6 +65,7 @@ model Cliente {
   unidadesMedida     UnidadeMedida[]
   gruposAtividade    GrupoAtividade[]
   tiposTarefa        TipoTarefa[]
+  tiposAtividade     TipoAtividade[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -469,8 +470,9 @@ model GrupoAtividade {
   updatedAt   DateTime @updatedAt
 
   cliente     Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tipos       TipoTarefa[]
-  lancamentos LancamentoTarefa[]
+  tipos          TipoTarefa[]
+  tiposAtividade TipoAtividade[]
+  lancamentos    LancamentoTarefa[]
 
   @@unique([cliente_id, nome_grupo])
   @@unique([cliente_id, id])
@@ -491,16 +493,46 @@ model TipoTarefa {
   grupo_atividade_nome String   @db.VarChar(255)
   ativo                Boolean  @default(true)
   descricao            String?  @db.VarChar(2000)
-  exige_area           Boolean  @default(false)
-  pode_ter_produto     Boolean  @default(false)
-  pode_ter_maquina     Boolean  @default(false)
-  pode_ter_implemento  Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  // D-PROD-181: colunas DORMENTES. Saíram do cadastro; `@ignore` as tira do
+  // Prisma Client (o código não lê nem escreve) e mantém o schema igual ao
+  // banco migrado. O DROP COLUMN é CONTRACT e só com GO próprio do proprietário.
+  exige_area           Boolean  @default(false) @ignore
+  pode_ter_produto     Boolean  @default(false) @ignore
+  pode_ter_maquina     Boolean  @default(false) @ignore
+  pode_ter_implemento  Boolean  @default(false) @ignore
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   grupo        GrupoAtividade   @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
   lancamentos  LancamentoTarefa[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, grupo_atividade_id, nome_tipo])
+  @@index([cliente_id, grupo_atividade_id])
+  @@index([cliente_id, ativo])
+}
+
+// ---------------------------------------------------------------------------
+// TipoAtividade — cadastro de tipos de atividade (D-PROD-182).
+//
+// Mesmo molde do TipoTarefa (FK composta para GrupoAtividade, cache
+// `grupo_atividade_nome` derivado do grupo na escrita), SEM flags
+// exige_area/pode_ter_* e sem dependentes.
+// ---------------------------------------------------------------------------
+model TipoAtividade {
+  id                   String   @id @default(cuid())
+  cliente_id           String   @db.VarChar(64)
+  nome_tipo            String   @db.VarChar(255)
+  grupo_atividade_id   String   @db.VarChar(64)
+  grupo_atividade_nome String   @db.VarChar(255)
+  ativo                Boolean  @default(true)
+  descricao            String?  @db.VarChar(2000)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  grupo   GrupoAtividade @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])

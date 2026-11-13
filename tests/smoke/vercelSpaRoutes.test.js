@@ -25,10 +25,10 @@ const PAGINAS_COLISAO_HISTORICA = [
 ];
 
 /**
- * Todas as páginas permitidas (24: +3 de Gestão Rural, D-PROD-146; +1 Naturezas
+ * Todas as páginas permitidas (25: +3 de Gestão Rural, D-PROD-146; +1 Naturezas
  * Financeiras, D-PROD-153; +1 Lançamentos Financeiros, D-PROD-155; +5 Patrimônio
  * e Frota, D-PROD-157; +1 Abastecimentos, D-PROD-159; −4 Famílias, Tipos, Perfis
- * de Medição e Combustíveis, D-PROD-162).
+ * de Medição e Combustíveis, D-PROD-162; +1 Tipos de Atividade, D-PROD-182).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
@@ -45,6 +45,7 @@ const TODAS_PAGINAS_SPA = [
   'Marcas',
   'Produtos',
   'TiposTarefa',
+  'TiposAtividade',
   'UnidadesMedida',
   'Usuarios',
   'Permissoes',
@@ -135,12 +136,12 @@ describe('VERCEL-SPA — documento vs JSON', () => {
 });
 
 describe('VERCEL-SPA — matriz das páginas', () => {
-  it('a matriz tem as 24 páginas do manifesto, nem mais nem menos', () => {
+  it('a matriz tem as 25 páginas do manifesto, nem mais nem menos', () => {
     const scope = JSON.parse(readFileSync('config/mapa-manejo-scope.json', 'utf8'));
-    expect(TODAS_PAGINAS_SPA).toHaveLength(24);
+    expect(TODAS_PAGINAS_SPA).toHaveLength(25);
     expect([...TODAS_PAGINAS_SPA].sort()).toEqual([...scope.allowedPages].sort());
     // 2 rewrites da API nativa + 4 por página (minúsculas e PascalCase, com e sem barra final).
-    expect(rewrites).toHaveLength(2 + 4 * 24);
+    expect(rewrites).toHaveLength(2 + 4 * 25);
   });
 
   it('as quatro páginas removidas pela D-PROD-162 não têm rewrite (nem no vercel.json)', () => {

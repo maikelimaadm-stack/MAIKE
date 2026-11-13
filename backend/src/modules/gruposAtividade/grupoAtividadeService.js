@@ -15,10 +15,12 @@ import {
   buscarGrupo,
   existeGrupoComNome,
   contarTiposDoGrupo,
+  contarTiposAtividadeDoGrupo,
   inserirGrupo,
   atualizarGrupoPorId,
   excluirGrupoPorId,
   propagarNomeGrupoNosTipos,
+  propagarNomeGrupoNosTiposAtividade,
 } from './grupoAtividadeRepository.js';
 import {
   contarPorGrupoAtividade,
@@ -138,6 +140,7 @@ export const atualizar = async (contexto, id, entrada) => {
     if (campos.nome_grupo && campos.nome_grupo !== anterior.nome_grupo) {
       const nomeGrupo = String(registro.nome_grupo);
       await propagarNomeGrupoNosTipos(tx, auth.clienteId, id, nomeGrupo);
+      await propagarNomeGrupoNosTiposAtividade(tx, auth.clienteId, id, nomeGrupo);
       await propagarNomeGrupoAtividade(tx, auth.clienteId, id, nomeGrupo);
     }
 
@@ -176,6 +179,12 @@ export const excluir = async (contexto, id) => {
     const lancamentos = await contarPorGrupoAtividade(tx, auth.clienteId, id);
     if (lancamentos > 0) {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com lançamentos de tarefa vinculados');
+    }
+
+    // D-PROD-182 — sem este bloqueio a FK Restrict viraria um P2003 cru.
+    const tiposAtividade = await contarTiposAtividadeDoGrupo(tx, auth.clienteId, id);
+    if (tiposAtividade > 0) {
+      throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com tipos de atividade vinculados');
     }
 
     await excluirGrupoPorId(tx, auth.clienteId, id);

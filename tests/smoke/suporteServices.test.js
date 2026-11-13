@@ -44,6 +44,11 @@ const tarefas = {
   createTipo: vi.fn(), updateTipo: vi.fn(), deleteTipo: vi.fn(),
   sincronizarReferenciasTarefa: vi.fn(),
 };
+// D-PROD-182: TipoAtividade também depende de GrupoAtividade.
+const atividades = {
+  listTiposAtividade: vi.fn(), getTipoAtividade: vi.fn(),
+  createTipoAtividade: vi.fn(), updateTipoAtividade: vi.fn(), deleteTipoAtividade: vi.fn(),
+};
 const session = {
   getCurrentUser: vi.fn(), listUsuarios: vi.fn(), listPermissoes: vi.fn(),
   updateUsuario: vi.fn(), createPermissao: vi.fn(), updatePermissao: vi.fn(), deletePermissao: vi.fn(),
@@ -70,6 +75,7 @@ vi.mock('@/apis/unidades-medida', () => unidades);
 vi.mock('@/apis/estoque', () => estoque);
 vi.mock('@/apis/mapa', () => mapa);
 vi.mock('@/apis/tarefas', () => tarefas);
+vi.mock('@/apis/atividades', () => atividades);
 vi.mock('@/apis/session', () => session);
 vi.mock('@/apis/categorias', () => categorias);
 vi.mock('@/apis/arquivos', () => arquivos);
@@ -89,7 +95,7 @@ const EMPRESA = 'emp-1';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const grupo of [produtos, marcas, unidades, estoque, mapa, tarefas, session, categorias, rebanho]) {
+  for (const grupo of [produtos, marcas, unidades, estoque, mapa, tarefas, atividades, session, categorias, rebanho]) {
     for (const fn of Object.values(grupo)) {
       if (typeof fn?.mockResolvedValue === 'function') fn.mockResolvedValue([]);
     }
@@ -583,6 +589,15 @@ describe('TA — grupos e tipos de tarefa', () => {
     const r = await tarefaSvc.excluirTipos(['t1'], { tipos: [{ id: 't1' }] });
     expect(r.excluidos).toEqual([]);
     expect(r.bloqueados[0].code).toBe(API_ERROR_CODES.TIPO_TAREFA_DELETE_BLOCKED);
+  });
+
+  it('TA4 — grupo com tipo de atividade vinculado é bloqueado (D-PROD-182)', async () => {
+    atividades.listTiposAtividade.mockResolvedValue([{ id: 'ta1', grupo_atividade_id: 'g1' }]);
+    const r = await tarefaSvc.excluirGrupos(['g1', 'g2'], { grupos: [{ id: 'g1' }, { id: 'g2' }] });
+    expect(r.excluidos).toEqual(['g2']);
+    expect(r.bloqueados).toEqual([{ id: 'g1', code: API_ERROR_CODES.GRUPO_ATIVIDADE_DELETE_BLOCKED }]);
+    expect(tarefas.deleteGrupo).toHaveBeenCalledTimes(1);
+    expect(tarefas.deleteGrupo).toHaveBeenCalledWith('g2');
   });
 });
 

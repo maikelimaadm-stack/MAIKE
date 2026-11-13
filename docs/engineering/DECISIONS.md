@@ -6494,4 +6494,120 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Relatório:** [`MAIKE-CI-PARALELO-PR02-REPORT.md`](./MAIKE-CI-PARALELO-PR02-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-181 -->
+## D-PROD-181 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+
+> **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas as PRs #255 e #258 (CI) entraram antes na `main` com a D-PROD-179 e a D-PROD-180. Para não duplicar, a Fatia A virou **D-PROD-181** e a Fatia B, **D-PROD-182**; a D-PROD-180 ficou com a PR #258 (CI paralela), que também entrou antes.
+
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
+
+**Contexto de produto.** Vamos separar dois conceitos:
+- **TAREFA** é a demanda: status, prioridade, prazo.
+- **ATIVIDADE** é a operação executada: consome máquina, combustível, insumo.
+
+Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CADASTRO. Depois elas voltam como opções do lançamento/apontamento.
+
+**Decisão.**
+1. **Cadastro.** O cadastro de Tipo de Tarefa perde `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento`. As 4 saem de:
+   - Prisma Client: as 4 viram `@ignore` no model (saem do client, ficam no schema para ele seguir igual ao banco migrado; o teste SM-03 roda `prisma migrate diff --exit-code` e exige diferença zero);
+   - seleção do repository e saída pública do service;
+   - campos editáveis;
+   - porta nativa do front e formulário;
+   - contrato legado `base44/entities/TipoTarefa.jsonc`.
+
+   O que o código enxerga (Prisma Client, API, UI) fica com `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome, ativo, descricao, createdAt, updatedAt`. As 4 linhas `@ignore` só saem do `schema.prisma` junto com a migration CONTRACT do item 4. Unicidade, FK composta, índices e o cache do nome do grupo não mudam.
+2. **Cliente antigo não quebra.** O app usa `removeAdditional: false`, então chave fora do schema vira 400. Por isso as 4 chaves continuam **aceitas e ignoradas** no corpo de `POST` e `PATCH /tipos-tarefa` (`CHAVES_LEGADAS_IGNORADAS` nas rotas):
+   - o service não as lê;
+   - nada é gravado;
+   - a resposta não as devolve;
+   - qualquer outra chave desconhecida continua 400.
+
+   No front, a fila offline já filtra o corpo pela lista de campos permitidos.
+3. **Banco.** As 4 colunas físicas ficam **dormentes**. Esta fatia **não** tem migration:
+   - `DROP COLUMN` em tabela existente é CONTRACT;
+   - o portão de migrations (`premergeMigrateLib.mjs`, D-PROD-72 item 3 e D-PROD-107 R7) recusa CONTRACT por padrão;
+   - a única exceção é a lista fechada `MIGRATIONS_CONTRACT_APROVADAS`, e cada entrada nova exige decisão própria do proprietário e release isolada (D-PROD-162).
+
+   As colunas são `BOOLEAN NOT NULL DEFAULT false`. O Prisma não as lê nem as escreve, e o `INSERT` usa o default. Nada quebra com o banco atual nem com o código anterior durante o deploy.
+4. **Remoção física.** O `DROP COLUMN` das 4 colunas fica para uma migration CONTRACT própria e isolada, com GO do proprietário. Como as colunas seguem no schema com `@ignore`, o `migrate diff` continua vazio e nenhuma migration gerada vai propor o DROP por engano.
+5. **Fora do escopo:**
+   - `LancamentoTarefa` não muda;
+   - nada de `TipoAtividade` (Fatia B);
+   - nada de `ApontamentoAtividade` nem de `AbastecimentoBem`;
+   - nenhum trabalho visual além de tirar as 4 chaves do formulário.
+
+**Testes.** `backend/tests/tarefaCadastroNativo.test.mjs` (Postgres real) cobre:
+- `POST` com as 4 chaves dá 201;
+- `PATCH` só com chaves legadas dá 200, sem efeito;
+- `PATCH` misto aplica só o campo real;
+- a resposta e a lista expõem exatamente os 8 campos públicos;
+- chave desconhecida diferente continua 400.
+
+**Relatório:** [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md).
+
+## D-PROD-182 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-181)
+
+**Contexto.**
+- **TAREFA** é a demanda: status, prioridade, prazo.
+- **ATIVIDADE** é a operação executada: consome máquina, combustível, insumo.
+- As duas penduram no mesmo `GrupoAtividade`.
+- O cadastro não tem flags de exigência. Elas voltam depois como opções do apontamento, nunca do cadastro.
+
+**Decisão.**
+1. **Model `TipoAtividade`.** Campos: `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome` (cache gravado na escrita), `ativo, descricao, createdAt, updatedAt`.
+   - FK composta `(cliente_id, grupo_atividade_id) → GrupoAtividade(cliente_id, id)` e FK para `Cliente`, as duas `ON DELETE RESTRICT`.
+   - Únicos `[cliente_id, id]` e `[cliente_id, grupo_atividade_id, nome_tipo]`.
+   - Índices `[cliente_id, grupo_atividade_id]` e `[cliente_id, ativo]`.
+   - Relações inversas `Cliente.tiposAtividade` e `GrupoAtividade.tiposAtividade`.
+2. **Migration EXPAND `20261113100000_tipo_atividade_cadastro`.** Cria só a tabela nova, com índices, FKs e o bloco RLS/REVOKE copiado literalmente da D-PROD-153 (com `ARRAY['TipoAtividade']`).
+   - SHA-256 do arquivo: `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
+   - Repositório: 40 → **41** migrations e 79 → **80** tabelas. Os scripts do SQL editor (01–04) e os testes de contagem foram atualizados.
+3. **API `/tipos-atividade`.** Espelha `/tipos-tarefa`:
+   - lista completa do tenant, na mesma ordem e sem paginação, igual à de tarefa;
+   - `POST`, `PATCH /:id` (que também liga e desliga `ativo`) e `DELETE /:id`;
+   - exclusão física, a mesma política do Tipo de Tarefa, sem dependentes por ora;
+   - nome em maiúsculas, único por cliente e grupo;
+   - tenant sempre do `auth_context`;
+   - auditoria na mesma transação;
+   - corpo com `additionalProperties: false`: as chaves legadas `exige_area`/`pode_ter_*` dão 400.
+
+   **Acréscimo pedido pelo proprietário:** `GET /tipos-atividade/:id`. Exige só autenticação, igual à lista, e devolve 404 `TIPO_ATIVIDADE_NOT_FOUND` para id desconhecido ou de outro cliente.
+   Erros novos: `TIPO_ATIVIDADE_NOT_FOUND` (404) e `TIPO_ATIVIDADE_NAME_CONFLICT` (409).
+4. **Permissões.** A tela é `sup-tipos-atividade`, no módulo `suporte-mapa`. A guarda é `cadastro()`, igual à de Tipos de Tarefa.
+   - Item de menu logo depois de "Tipos de Tarefa".
+   - Nenhum perfil recebe acesso automático: o administrador libera a tela no perfil, como em qualquer tela nova.
+5. **Grupo de atividade.**
+   - Excluir um grupo com tipo de atividade vinculado devolve 409 `GRUPO_ATIVIDADE_DELETE_BLOCKED`, em vez do erro cru de FK.
+   - Renomear o grupo propaga o novo nome para o cache `TipoAtividade.grupo_atividade_nome`, tanto no `PATCH` do grupo quanto em `/referencias/sincronizar`.
+6. **Tela.**
+   - Página `TiposAtividade` e porta `src/apis/atividades/tipoAtividadePort.js`, com fila offline e tenant.
+   - Formulário com 4 campos, nesta ordem: Grupo de atividade (só grupos ATIVOS), Nome, Descrição (opcional) e Ativo.
+   - Exceção: ao editar um tipo cujo grupo foi inativado depois, esse grupo continua na lista, marcado "(INATIVO)". Sem isso, o campo mostraria "SELECIONE" com o registro ainda gravado nele.
+   - Só componentes que já existiam; nenhum componente visual novo.
+7. **Fora do escopo:**
+   - `ApontamentoAtividade`;
+   - `AbastecimentoBem` e `LancamentoTarefa`;
+   - flags de exigência;
+   - trabalho visual.
+
+**Testes.**
+- `backend/tests/tipoAtividadeNativo.test.mjs`, em Postgres real, cobre:
+  - criar;
+  - nome duplicado no mesmo grupo é recusado, inclusive com maiúsculas e minúsculas diferentes;
+  - o mesmo nome em outro grupo é aceito;
+  - cache do nome do grupo, ao renomear e ao mover;
+  - isolamento por `cliente_id`;
+  - inativar e reativar;
+  - `GET /:id`;
+  - apagar;
+  - grupo com tipo vinculado: a API devolve 409 e a FK Restrict bloqueia direto no banco;
+  - 403 sem a tela.
+- `permissoesR2Rotas` e `referenciasSincronizarIntegrada` ganham os casos novos.
+- Smoke `tests/smoke/tiposAtividade.test.jsx` cobre a ordem dos 4 campos, os grupos ativos, o grupo atual inativo, os obrigatórios e o payload.
+- O gate `gate-tarefa-cadastro-native` passa a conferir também o TipoAtividade sem flags.
+
+**Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-183 -->

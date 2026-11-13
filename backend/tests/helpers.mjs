@@ -79,6 +79,8 @@ const ORDEM_DE_LIMPEZA = [
   'unidadeMedida',
   // P5.0 — TipoTarefa referencia GrupoAtividade (FK composta, Restrict).
   'tipoTarefa',
+  // D-PROD-182 — TipoAtividade também referencia GrupoAtividade (FK composta, Restrict).
+  'tipoAtividade',
   'grupoAtividade',
   'setor',
   'operacaoIdempotente',
