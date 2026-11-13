@@ -13,9 +13,10 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_cadcategoria):
- *  1. aplica as 43 migrations da main (todas menos esta CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas estão a EXPAND
- *     da CADESTACOES (D-PROD-188, `20261113400000_cadestacoes_cadastro`) e as CONTRACT
+ *  1. aplica as 44 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     da CADESTACOES (D-PROD-188, `20261113400000_cadestacoes_cadastro`) e da
+ *     CADCURVAGANHO (D-PROD-189, `20261113600000_cadcurvaganho_cadastro`) e as CONTRACT
  *     da D-PROD-162 e da D-PROD-183, que sobem aqui pelo Prisma direto, sem o
  *     runner e portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO (as
  *     guardas delas passam porque o banco está vazio nessa hora);
@@ -34,7 +35,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 e a impressão na URL) e confere:
- *     44 concluídas, CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
+ *     45 concluídas, CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam, linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
  *     PrismaClient lendo `categoriaManejo.findMany()` e 2ª execução sem pendência.
@@ -196,7 +197,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 43 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
+ * As 44 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui as CONTRACT da D-PROD-162 e da D-PROD-183, sem o runner: as guardas delas passam com o banco vazio.
  */
 export const aplicarMigrationsDaMain = async (url) => {
@@ -293,7 +294,7 @@ export const CATEGORIAS_SEMENTE = Object.freeze([
 ]);
 
 /**
- * Sementes no schema ANTIGO (43 migrations): o tipo `lote` e uma categoria visual GLOBAL e, por cliente, o Cliente e
+ * Sementes no schema ANTIGO (44 migrations): o tipo `lote` e uma categoria visual GLOBAL e, por cliente, o Cliente e
  * as CATEGORIAS_SEMENTE (com as 16 colunas gravadas). `apenasVazias` semeia só as categorias sem nenhum valor nelas
  * (o banco "sem nada a perder").
  * @param {import('@prisma/client').PrismaClient} db
@@ -556,7 +557,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 44 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
+      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 45 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
         || g.divergencias.length || g.migrate_diff !== 0 || g.prisma_client !== partida.linhas.n || !g.segunda
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
     } finally {

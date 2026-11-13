@@ -8,9 +8,10 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 43 migrations da main (todas menos esta CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas estão a EXPAND
- *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e as CONTRACT
+ *  1. aplica as 44 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e
+ *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183) e
  *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
  *     aqui pelo Prisma direto, sem o runner e portanto sem a barreira de
@@ -29,8 +30,8 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 44 concluídas, 81 tabelas, as 7 vazias, dono e ACL,
- *     RLS, contagens de constraints, impressão digital das 74 que ficam,
+ *     na URL) e confere: 45 concluídas, 82 tabelas, as 7 vazias, dono e ACL,
+ *     RLS, contagens de constraints, impressão digital das 75 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
  * As funções são exportadas e reaproveitadas por
@@ -156,7 +157,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 43 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
+ * As 44 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui as CONTRACT da D-PROD-183 e da D-PROD-187, sem o runner: as guardas delas passam com
  * TipoTarefa e CategoriaManejo vazias.
  */
@@ -271,7 +272,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (43 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (44 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.
@@ -488,8 +489,8 @@ if (ehEntradaDireta()) {
             continue;
           }
           const r = await rodarCenarioRed(c, { db, url });
-          // Nada mudou: as mesmas tabelas (87, ou 88 com a "Intruso" do cenário da FK) e as mesmas linhas.
-          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 87 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
+          // Nada mudou: as mesmas tabelas (88, ou 89 com a "Intruso" do cenário da FK) e as mesmas linhas.
+          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 88 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
           relatorio.red.push({ id: c.id, ok, status: r.status, ms: r.ms });
           if (!ok) relatorio.ok = false;
         }
@@ -518,7 +519,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || g.tabelas !== 81 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      if (g.status !== 0 || g.tabelas !== 82 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

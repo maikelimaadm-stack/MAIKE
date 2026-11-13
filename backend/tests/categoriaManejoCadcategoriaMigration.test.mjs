@@ -5,7 +5,8 @@
  * CADCATEGORIA) de ponta a ponta, contra PostgreSQL real, em bancos PRÓPRIOS
  * criados e apagados por este teste (o banco da suíte não é tocado).
  *
- * Partida: as 43 migrations da main (todas menos esta CONTRACT; inclui a EXPAND da CADESTACOES, D-PROD-188) e, para 2
+ * Partida: as 44 migrations da main (todas menos esta CONTRACT; inclui as EXPAND da CADESTACOES, D-PROD-188, e da
+ * CADCURVAGANHO, D-PROD-189) e, para 2
  * clientes, 4 categorias de manejo: uma no formato das 4 de produção (raça,
  * categoria oficial, 12 GMDs 0.0000), uma com ganho e GMDs variados (e um
  * apóstrofo na raça), uma só com o vínculo do ícone e uma sem nada nas 16
@@ -20,7 +21,7 @@
  * MIGRATION_CONTRACT_AUTORIZADO = D-PROD-187 (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 44 concluídas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
+ * 45 concluídas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
  * políticas, as 12 colunas que ficam, linhas idênticas nelas, os 4 nomes novos,
  * FK válida, demais tabelas iguais, `migrate diff` vazio, o Prisma Client lê
  * `categoriaManejo.findMany()` e 2ª execução sem pendências. Num banco sem
@@ -93,9 +94,9 @@ after(async () => {
 });
 
 describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem as 16 colunas (PostgreSQL real)', () => {
-  test('CD-01 partida: 43 migrations da main, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
+  test('CD-01 partida: 44 migrations da main, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 43);
+    assert.equal(h.concluidas, 44);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabela, TABELA_ANTIGA);
@@ -181,7 +182,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('CD-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 + impressão na URL): 44/0, CADCATEGORIA com o mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, migrate diff vazio e o Prisma Client lê', async () => {
+  test('CD-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 + impressão na URL): 45/0, CADCATEGORIA com o mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, migrate diff vazio e o Prisma Client lê', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -190,7 +191,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 44);
+    assert.equal(h.concluidas, 45);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
 
@@ -229,7 +230,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 44);
+    assert.equal((await historico(db)).concluidas, 45);
   });
 
   test('CD-05 banco sem legado: impressão INFORMADA errada recusa mesmo assim; sem impressão, o prisma migrate deploy aplica', async () => {
@@ -257,7 +258,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     const r = await migrateDeploy(URL_V);
     assert.equal(r.status, 0, r.saida);
     const h = await historico(dbVazio);
-    assert.equal(h.concluidas, 44);
+    assert.equal(h.concluidas, 45);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.deepEqual(await colunasDaTabela(dbVazio), [...COLUNAS_QUE_FICAM]);
@@ -279,7 +280,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
       assert.equal(r.status, 0, r.saida);
       assert.ok(!vazou(r.saida, URL_VI));
       const h = await historico(dbVI);
-      assert.equal(h.concluidas, 44);
+      assert.equal(h.concluidas, 45);
       assert.equal(h.contract_concluida, 1);
       assert.deepEqual(await colunasDaTabela(dbVI), [...COLUNAS_QUE_FICAM]);
       assert.deepEqual(divergenciasGreen(partidaVI, await retrato(dbVI)), []);

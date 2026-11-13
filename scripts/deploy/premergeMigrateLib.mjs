@@ -80,6 +80,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-187: CONTRACT aprovado pelo proprietário — DROP COLUMN das 15 colunas dormentes de CategoriaManejo (D-PROD-186)
   // e do vínculo com o ícone oficial (FK e índice), e tabela física renomeada para CADCATEGORIA.
   '20261113500000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
+  // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
+  '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -105,6 +107,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
   // D-PROD-188: RLS/REVOKE de CADESTACOES (mesmo corpo, lista nova).
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
+  // D-PROD-189: RLS/REVOKE de CADCURVAGANHO (mesmo corpo, lista nova).
+  'eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7',
 ]);
 
 /**
