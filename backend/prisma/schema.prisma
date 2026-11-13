@@ -495,7 +495,7 @@ model TipoTarefa {
   descricao            String?  @db.VarChar(2000)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  // D-PROD-179: colunas DORMENTES. Saíram do cadastro; `@ignore` as tira do
+  // D-PROD-180: colunas DORMENTES. Saíram do cadastro; `@ignore` as tira do
   // Prisma Client (o código não lê nem escreve) e mantém o schema igual ao
   // banco migrado. O DROP COLUMN é CONTRACT e só com GO próprio do proprietário.
   exige_area           Boolean  @default(false) @ignore
@@ -514,7 +514,7 @@ model TipoTarefa {
 }
 
 // ---------------------------------------------------------------------------
-// TipoAtividade — cadastro de tipos de atividade (D-PROD-180).
+// TipoAtividade — cadastro de tipos de atividade (D-PROD-181).
 //
 // Mesmo molde do TipoTarefa (FK composta para GrupoAtividade, cache
 // `grupo_atividade_nome` derivado do grupo na escrita), SEM flags

@@ -1,5 +1,5 @@
 /**
- * TipoAtividade nativo (D-PROD-180) — PostgreSQL real.
+ * TipoAtividade nativo (D-PROD-181) — PostgreSQL real.
  *
  * Cadastro novo, irmão do Tipo de Tarefa: nome em MAIÚSCULAS e único por
  * (cliente, grupo), cache do nome do grupo, isolamento por tenant, exclusão
@@ -54,7 +54,7 @@ const criarGrupo = async (token, nome) => {
 
 const criarTipo = (token, payload) => req('POST', '/tipos-atividade', token, payload);
 
-describe('D-PROD-180 — TipoAtividade: criação e conflitos', () => {
+describe('D-PROD-181 — TipoAtividade: criação e conflitos', () => {
   test('GET /tipos-atividade sem token → 401', async () => {
     const r = await req('GET', '/tipos-atividade');
     assert.equal(r.statusCode, 401);
@@ -138,7 +138,7 @@ describe('D-PROD-180 — TipoAtividade: criação e conflitos', () => {
   });
 });
 
-describe('D-PROD-180 — TipoAtividade: leitura, edição e exclusão', () => {
+describe('D-PROD-181 — TipoAtividade: leitura, edição e exclusão', () => {
   test('GET /tipos-atividade/:id devolve o tipo; id desconhecido → 404 TIPO_ATIVIDADE_NOT_FOUND', async () => {
     const { token } = await tenantAutenticado();
     const g = await criarGrupo(token, 'G');
@@ -228,7 +228,7 @@ describe('D-PROD-180 — TipoAtividade: leitura, edição e exclusão', () => {
   });
 });
 
-describe('D-PROD-180 — TipoAtividade: isolamento por tenant', () => {
+describe('D-PROD-181 — TipoAtividade: isolamento por tenant', () => {
   test('tenant B não lista, não lê, não edita, não apaga o tipo de A (404) e não cria no grupo de A', async () => {
     const A = await tenantAutenticado();
     const B = await tenantAutenticado();
@@ -266,7 +266,7 @@ describe('D-PROD-180 — TipoAtividade: isolamento por tenant', () => {
   });
 });
 
-describe('D-PROD-180 — TipoAtividade: permissão de tela', () => {
+describe('D-PROD-181 — TipoAtividade: permissão de tela', () => {
   const acoes = (v) => ({ visualizar: v, novo: v, salvar: v, editar: v, excluir: v, importar: v, exportar: v });
   const linha = (tela, a) => ({ modulo_id: 'suporte-mapa', tela_id: tela, ...acoes(false), visualizar: true, ...a });
 

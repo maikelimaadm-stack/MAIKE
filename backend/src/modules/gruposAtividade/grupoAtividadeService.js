@@ -181,7 +181,7 @@ export const excluir = async (contexto, id) => {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com lançamentos de tarefa vinculados');
     }
 
-    // D-PROD-180 — sem este bloqueio a FK Restrict viraria um P2003 cru.
+    // D-PROD-181 — sem este bloqueio a FK Restrict viraria um P2003 cru.
     const tiposAtividade = await contarTiposAtividadeDoGrupo(tx, auth.clienteId, id);
     if (tiposAtividade > 0) {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com tipos de atividade vinculados');

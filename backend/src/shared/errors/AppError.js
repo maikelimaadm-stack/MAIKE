@@ -147,7 +147,7 @@ export const tipoTarefaNotFound = (message, options) =>
 export const tipoTarefaNomeConflito = (message, options) =>
   new AppError('TIPO_TAREFA_NAME_CONFLICT', message || 'já existe tipo com este nome no grupo', options);
 
-// D-PROD-180 — Tipo de Atividade (cadastro nativo, irmão do Tipo de Tarefa).
+// D-PROD-181 — Tipo de Atividade (cadastro nativo, irmão do Tipo de Tarefa).
 export const tipoAtividadeNotFound = (message, options) =>
   new AppError('TIPO_ATIVIDADE_NOT_FOUND', message || 'tipo de atividade não encontrado', options);
 

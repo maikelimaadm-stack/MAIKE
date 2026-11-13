@@ -115,7 +115,7 @@ describe('P5.0 — TipoTarefa', () => {
     assert.equal(tipos.json()[0].grupo_atividade_nome, 'B');
   });
 
-  test('D-PROD-179: flags de exigência saíram do cadastro; cliente antigo é aceito e as chaves são ignoradas', async () => {
+  test('D-PROD-180: flags de exigência saíram do cadastro; cliente antigo é aceito e as chaves são ignoradas', async () => {
     const { token } = await tenantAutenticado();
     const FLAGS = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento'];
     const CAMPOS_PUBLICOS = [

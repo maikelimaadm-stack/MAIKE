@@ -6326,6 +6326,14 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md);
   - relatório: [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md).
 
+> **Ratificação posterior — 2026-11-13 (D-PROD-177, vigente após merge manual desta nota).**
+>
+> - **Decisão do responsável:** ratificada em 2026-11-13 por **proprietário/responsável pelo projeto MAIKE**, após aprovação expressa das regras de entrada manual documentada, **Editar** e **Excluir**, e da reimplantação somente após exclusão segura. Texto constitucional incorporado em `b7e5ab11fbac27c16b943242301300314432f5f7` (merge manual da PR #252), nos arquivos `docs/constitution/00-CONSTITUICAO.md` e `docs/constitution/07-DO-NOT-DO.md`.
+> - **Escolhas ratificadas pelo texto incorporado (R-EMENDA / R-IMPL / R-MOTIVOS / R-EDICAO-EXCLUSAO no alcance normativo do texto):** três motivos fechados (`SALDO_IMPLANTACAO`, `DOACAO`, `OUTRA_COM_JUSTIFICATIVA`); proibição de usar doação/OUTRA como saldo antigo e de duplicar compra; implantação ativa única por produto/empresa, com reimplantação apenas depois de exclusão segura, desconsiderando somente fatos próprios estornados e não consumidos; motivo imutável; bloqueio de alterações físicas por dependência de qualquer item, incluindo consumo posteriormente estornado; com dependência, só observação e justificativa editáveis; edição versionada por estorno/novo efeito atômico; exclusão lógica `EXCLUIDA` com estorno integral; prova de dependência fail-closed, cache exato e proteção FIFO; histórico e auditoria. A compra da P3 e as demais origens mantêm seus contratos.
+> - **Limites desta ratificação:** não autoriza ajustes de inventário, conversão de entradas que eram compra, mudança de writers históricos, FEFO, saneamento de dados legados, exceção ao fail-closed, abertura de novas páginas fora dos slices nem alterações de produção. A implementação P1-02 depende desta nota na `main` e de seus próprios gates/CI; não decorre da PR #248 isoladamente.
+> - **Pendências para decisão nos slices correspondentes:** `R-CONVERSAO`, `R-LEGADO`, `R-LOTE`, `R-DATA`, parâmetros quantitativos e operacionais de `R-DEDUPE`, `R-ORDEM`, `R-SPLIT`, detalhes de `R-EDICAO-EXCLUSAO` não cobertos pelo texto constitucional, validação dos tetos e qualquer GO/runbook por migration. Nenhuma pendência significa autorização tácita; decidir na fase aplicável, sem ampliar o P1-02.
+> - **Evidência/efeito:** aprovação do proprietário + PR #252 mergeada com texto constitucional; esta nota registra a ratificação somente após o merge manual desta PR de registro, sem alterar fatos físicos ou executar migrations.
+
 ## D-PROD-178 — Mapa: nível do cocho pelo saldo estimado do ciclo, depósito pelo limite operacional, numa fonte única de cálculo
 
 **Data:** 2026-11-12.
@@ -6438,7 +6446,35 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Relatório:** [`MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md`](./MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01-REPORT.md).
 
-## D-PROD-179 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+## D-PROD-179 — CI `quality` em dois perfis (docs_fast e full) com um único check obrigatório `verify:all`
+
+**Data:** 2026-11-13. **Missão:** MAIKE-CI-INTELIGENTE-PR01. **Natureza:** infraestrutura de CI; não muda regra de negócio, escopo, constituição, código de produto, banco nem permissões.
+
+**Problema:** toda PR rodava o `verify:all` integral (PostgreSQL 16 efêmero, backend, Vitest, builds; mais de 20 min), inclusive a PR #253, que só acrescentava 8 linhas a este arquivo.
+
+**Decisão:**
+1. O workflow `quality` ganha um job `classify` que escolhe o perfil, um job por perfil (`verify:docs-fast` e `verify:full`) e um agregador. O agregador é o **único** job com o nome `verify:all`, o check que as regras da branch já podem exigir. Roda sempre (`if: always()`) e só passa em duas combinações:
+   - `classify` com sucesso, modo `docs_fast`, `docs-fast` com sucesso e `full` pulado, num `pull_request` cuja base é a branch padrão;
+   - `classify` com sucesso, modo `full`, `full` com sucesso e `docs-fast` pulado.
+
+   Qualquer outro resultado reprova: falha, cancelamento, modo desconhecido ou os dois perfis pulados. Um job pulado nunca conta como sucesso.
+2. `docs_fast` só vale para PR **contra a branch padrão** (`main`) cujos arquivos são **todos** `docs/**/*.md`, ou `README.md`, `README_AI.md`, `CLAUDE.md` e `AGENTS.md` na raiz, com estado `added` ou `modified`. A lista precisa vir completa e paginada pela API, com o HEAD conferido antes e depois e a contagem igual a `changed_files`.
+   - Ficam fora os documentos lidos por etapas que só rodam no full (`DOCS_ACOPLADOS`). Um teste-guarda do `test:gates` mantém essa lista.
+   - Push na `main`, PR contra outra branch, evento desconhecido, falha de API e qualquer dúvida resultam em `full`. Trocar a base de uma PR não dispara o workflow de novo; por isso uma PR contra outra branch precisa ter rodado o `full` antes de poder ser redirecionada para a `main`.
+   - Rótulo, título, descrição e autor nunca contam.
+3. `verify:docs-fast` roda sem PostgreSQL: `npm ci`, `gate:governance-paths`, `gate:package-sync`, `gate:product-scope`, `gate:no-secrets`, `gate:deploy-migrations` (lê um relatório em `docs/`) e `test:gates`.
+4. `verify:full` é o job anterior sem mudança de comportamento.
+5. O classificador roda a versão do commit **base** da PR. Quem altera o classificador é julgado pelo classificador já aprovado.
+6. Sem `paths`/`paths-ignore`, sem `pull_request_target` e sem permissão de escrita. O `classify` só tem `contents: read` e `pull-requests: read`.
+
+**Consequência:** uma PR só de documentação deixa de rodar a suíte completa na própria PR. A suíte completa continua rodando no push da `main`, depois do merge.
+
+**Relatório:** [`MAIKE-CI-INTELIGENTE-PR01-REPORT.md`](./MAIKE-CI-INTELIGENTE-PR01-REPORT.md). **Registro:** [`GATE-REGISTRY.md`](./GATE-REGISTRY.md), seção "Integração contínua".
+
+## D-PROD-180 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+
+> **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas a PR #255 (CI em dois perfis) entrou antes na `main` com a D-PROD-179. Para não duplicar, a Fatia A virou **D-PROD-180** e a Fatia B, **D-PROD-181**.
+
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
 
@@ -6486,9 +6522,9 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md).
 
-## D-PROD-180 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
+## D-PROD-181 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
 
-**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-179)
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-180)
 
 **Contexto.**
 - **TAREFA** é a demanda: status, prioridade, prazo.
@@ -6503,7 +6539,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - Índices `[cliente_id, grupo_atividade_id]` e `[cliente_id, ativo]`.
    - Relações inversas `Cliente.tiposAtividade` e `GrupoAtividade.tiposAtividade`.
 2. **Migration EXPAND `20261113100000_tipo_atividade_cadastro`.** Cria só a tabela nova, com índices, FKs e o bloco RLS/REVOKE copiado literalmente da D-PROD-153 (com `ARRAY['TipoAtividade']`).
-   - SHA-256 do arquivo: `def905e77dc7fdbf72bbf693cde3d088065147b524f6317f5c2f39f34cdd4b7c`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
+   - SHA-256 do arquivo: `0fdbf9114822f5c33d97f7bf03800bee6bd4986e2d715c05bea62149aee5f01f`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
    - Repositório: 40 → **41** migrations e 79 → **80** tabelas. Os scripts do SQL editor (01–04) e os testes de contagem foram atualizados.
 3. **API `/tipos-atividade`.** Espelha `/tipos-tarefa`:
    - lista completa do tenant, na mesma ordem e sem paginação, igual à de tarefa;
@@ -6551,4 +6587,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-181 -->
+<!-- Próxima decisão: D-PROD-182 -->

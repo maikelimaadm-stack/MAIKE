@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Gate: GrupoAtividade + TipoTarefa nativos (P5.0, D-PROD-45) e TipoAtividade
- * nativo (D-PROD-180: model, migration, porta e rotas; SEM flags exige_area/pode_ter_*).
+ * nativo (D-PROD-181: model, migration, porta e rotas; SEM flags exige_area/pode_ter_*).
  */
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -18,7 +18,7 @@ const PORTA_GRUPO = 'src/apis/tarefas/grupoAtividadeNativePort.js';
 const PORTA_TIPO = 'src/apis/tarefas/tipoTarefaNativePort.js';
 const PORTA_TIPO_ATIVIDADE = 'src/apis/atividades/tipoAtividadePort.js';
 const ROTAS_TIPO_ATIVIDADE = 'backend/src/modules/tiposAtividade/tipoAtividadeRoutes.js';
-/** D-PROD-180: TipoAtividade nasce sem as flags que o TipoTarefa aposentou (D-PROD-179). */
+/** D-PROD-181: TipoAtividade nasce sem as flags que o TipoTarefa aposentou (D-PROD-180). */
 const FLAGS_PROIBIDAS = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento'];
 const MIGRATIONS = 'backend/prisma/migrations';
 
@@ -69,7 +69,7 @@ const verificarMigration = () => {
   }
 };
 
-/** D-PROD-180: TipoAtividade — CREATE TABLE versionado, FK composta para GrupoAtividade e nenhuma flag. */
+/** D-PROD-181: TipoAtividade — CREATE TABLE versionado, FK composta para GrupoAtividade e nenhuma flag. */
 const verificarMigrationTipoAtividade = () => {
   const dir = caminho(MIGRATIONS);
   const sqls = existsSync(dir)
@@ -89,7 +89,7 @@ const verificarMigrationTipoAtividade = () => {
   }
   for (const flag of FLAGS_PROIBIDAS) {
     if (sql.includes(`"${flag}"`)) {
-      registrar('P50-TAREFA-CADASTRO-MODEL', `migration de TipoAtividade cria a flag proibida ${flag} (D-PROD-180)`);
+      registrar('P50-TAREFA-CADASTRO-MODEL', `migration de TipoAtividade cria a flag proibida ${flag} (D-PROD-181)`);
     }
   }
 };
@@ -99,7 +99,7 @@ const verificarModelTipoAtividadeSemFlags = () => {
   if (!model) return; // verificarModel já registrou a ausência
   for (const flag of FLAGS_PROIBIDAS) {
     if (campo(model, flag)) {
-      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade não pode ter a flag ${flag} (D-PROD-180)`);
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade não pode ter a flag ${flag} (D-PROD-181)`);
     }
   }
 };

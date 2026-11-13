@@ -54,7 +54,7 @@ export const ORIGENS = Object.freeze({
     porEmpresa: false,
     dependentes: [
       { tabela: 'TipoTarefa', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
-      // D-PROD-180 — Tipo de Atividade guarda o nome do grupo em cache.
+      // D-PROD-181 — Tipo de Atividade guarda o nome do grupo em cache.
       { tabela: 'TipoAtividade', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
       { tabela: 'LancamentoTarefa', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
     ],

@@ -1,5 +1,5 @@
 /**
- * Repositório de TipoAtividade (D-PROD-180).
+ * Repositório de TipoAtividade (D-PROD-181).
  *
  * Espelho do repositório de TipoTarefa (D-PROD-45): lista completa do tenant,
  * leitura pela chave composta (cliente_id, id) e escrita sempre em transação.

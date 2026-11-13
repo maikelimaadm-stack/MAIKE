@@ -1,4 +1,4 @@
-/** API do módulo Atividades — cadastro de tipos de atividade (D-PROD-180). */
+/** API do módulo Atividades — cadastro de tipos de atividade (D-PROD-181). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { tipoAtividadePort } from './tipoAtividadePort.js';

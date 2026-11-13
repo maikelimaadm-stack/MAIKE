@@ -1,5 +1,5 @@
 /**
- * Serviço de TipoAtividade (D-PROD-180).
+ * Serviço de TipoAtividade (D-PROD-181).
  *
  * Espelho do serviço de TipoTarefa (D-PROD-45), sem o que é específico de
  * LancamentoTarefa: Tipo de Atividade não tem dependentes, então não há
@@ -193,7 +193,7 @@ export const atualizar = async (contexto, id, entrada) => {
 
 /**
  * Exclusão física, mesma política do Tipo de Tarefa. Tipo de Atividade não tem
- * dependentes (D-PROD-180), então não há bloqueio além do 404.
+ * dependentes (D-PROD-181), então não há bloqueio além do 404.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
  */
 export const excluir = async (contexto, id) => {

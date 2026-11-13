@@ -1,6 +1,6 @@
--- D-PROD-180 — Cadastro de Tipos de Atividade: catálogo por tenant, filho de
+-- D-PROD-181 — Cadastro de Tipos de Atividade: catálogo por tenant, filho de
 -- GrupoAtividade, no mesmo molde do TipoTarefa e SEM as flags
--- exige_area/pode_ter_* (D-PROD-179). Nada referencia TipoAtividade ainda.
+-- exige_area/pode_ter_* (D-PROD-180). Nada referencia TipoAtividade ainda.
 --
 -- EXPAND-ONLY: só CREATE TABLE / INDEX / FK na tabela NOVA. Nenhuma tabela
 -- existente é alterada e nenhum dado é migrado.

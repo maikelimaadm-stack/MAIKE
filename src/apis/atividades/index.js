@@ -1,4 +1,4 @@
-/** Superfície pública do módulo Atividades (D-PROD-180). */
+/** Superfície pública do módulo Atividades (D-PROD-181). */
 
 export {
   listTiposAtividade,
