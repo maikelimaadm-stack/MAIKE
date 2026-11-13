@@ -26,8 +26,8 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: todas concluídas, 80 tabelas, as 7 vazias, dono e ACL,
- *     RLS, contagens de constraints, impressão digital das 73 que ficam,
+ *     na URL) e confere: todas concluídas, 81 tabelas, as 7 vazias, dono e ACL,
+ *     RLS, contagens de constraints, impressão digital das 74 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
  * As funções são exportadas e reaproveitadas por
@@ -491,8 +491,8 @@ if (ehEntradaDireta()) {
             continue;
           }
           const r = await rodarCenarioRed(c, { db, url });
-          // Nada mudou: as mesmas tabelas (86, ou 87 com a "Intruso" do cenário da FK) e as mesmas linhas.
-          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 86 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
+          // Nada mudou: as mesmas tabelas (87, ou 88 com a "Intruso" do cenário da FK) e as mesmas linhas.
+          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 87 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
           relatorio.red.push({ id: c.id, ok, status: r.status, ms: r.ms });
           if (!ok) relatorio.ok = false;
         }
@@ -521,7 +521,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || g.tabelas !== 80 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      if (g.status !== 0 || g.tabelas !== 81 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

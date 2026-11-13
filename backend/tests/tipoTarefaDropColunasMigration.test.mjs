@@ -5,7 +5,8 @@
  * em bancos PRÓPRIOS criados e apagados por este teste (o banco da suíte não é
  * tocado).
  *
- * Partida: as 41 migrations da main (todas menos a CONTRACT) e, para 2
+ * Partida: todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA; inclui a CADESTACOES,
+ * D-PROD-188, e a P1-03, D-PROD-185) e, para 2
  * clientes, um GrupoAtividade, 5 tipos de tarefa com combinações das 4 flags
  * (um todo false, um inativo) e um LancamentoTarefa.
  *
@@ -16,7 +17,7 @@
  * (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 42 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas nessas
+ * todas concluídas (TOTAL_MIGRATIONS), TipoTarefa com as 9 colunas que ficam, linhas idênticas nessas
  * 9, mesmas tabelas, `migrate diff` vazio e 2ª execução sem pendências. Num
  * banco sem nenhum true, a migration aplica sem impressão; mas uma impressão
  * INFORMADA errada recusa mesmo assim, e a impressão do vazio informada aplica

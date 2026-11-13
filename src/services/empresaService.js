@@ -65,6 +65,8 @@ const ROTULO_VINCULO = Object.freeze({
   CategoriaManejo: 'categorias de manejo',
   Fornecedor: 'fornecedores',
   Marca: 'marcas',
+  // D-PROD-188 — model CadEstacao (tabela CADESTACOES).
+  CadEstacao: 'estações',
 });
 
 /**

@@ -114,6 +114,10 @@ const ESCRITAS = (c) => {
     ['tipo de atividade (POST)', 'POST', '/tipos-atividade', { nome_tipo: 'HACK', grupo_atividade_id: 'ga-1' }],
     ['tipo de atividade (PATCH)', 'PATCH', `/tipos-atividade/${ID}`, { nome_tipo: 'HACK' }],
     ['tipo de atividade (DELETE)', 'DELETE', `/tipos-atividade/${ID}`],
+    // D-PROD-188 — Estações da fazenda: escrita guardada pela tela pec-estacoes.
+    ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
+    ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['estação (DELETE)', 'DELETE', `/estacoes/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
     ['fornecedor (DELETE)', 'DELETE', `/fornecedores/${ID}`],
     ['medicamento (POST)', 'POST', '/aplicacoes-medicamento', { empresa_id: E, observacoes: 'x' }],
