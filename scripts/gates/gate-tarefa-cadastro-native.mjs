@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Gate: GrupoAtividade + TipoTarefa nativos (P5.0, D-PROD-45).
+ * Gate: GrupoAtividade + TipoTarefa nativos (P5.0, D-PROD-45) e TipoAtividade
+ * nativo (D-PROD-180: model, migration, porta e rotas; SEM flags exige_area/pode_ter_*).
  */
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -15,6 +16,10 @@ const PROVIDER = 'src/apis/_providers/base44Provider.js';
 const API_TAREFAS = 'src/apis/tarefas/tarefasApi.js';
 const PORTA_GRUPO = 'src/apis/tarefas/grupoAtividadeNativePort.js';
 const PORTA_TIPO = 'src/apis/tarefas/tipoTarefaNativePort.js';
+const PORTA_TIPO_ATIVIDADE = 'src/apis/atividades/tipoAtividadePort.js';
+const ROTAS_TIPO_ATIVIDADE = 'backend/src/modules/tiposAtividade/tipoAtividadeRoutes.js';
+/** D-PROD-180: TipoAtividade nasce sem as flags que o TipoTarefa aposentou (D-PROD-179). */
+const FLAGS_PROIBIDAS = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento'];
 const MIGRATIONS = 'backend/prisma/migrations';
 
 const falhas = [];
@@ -64,6 +69,41 @@ const verificarMigration = () => {
   }
 };
 
+/** D-PROD-180: TipoAtividade — CREATE TABLE versionado, FK composta para GrupoAtividade e nenhuma flag. */
+const verificarMigrationTipoAtividade = () => {
+  const dir = caminho(MIGRATIONS);
+  const sqls = existsSync(dir)
+    ? readdirSync(dir)
+        .map((nome) => join(dir, nome, 'migration.sql'))
+        .filter((sql) => existsSync(sql))
+        .map((sql) => readFileSync(sql, 'utf8'))
+        .filter((sql) => /CREATE TABLE "TipoAtividade"/.test(sql))
+    : [];
+  if (sqls.length !== 1) {
+    registrar('P50-TAREFA-CADASTRO-MODEL', `esperada exatamente 1 migration versionada com CREATE TABLE "TipoAtividade" (achadas ${sqls.length})`);
+    return;
+  }
+  const sql = sqls[0];
+  if (!/FOREIGN KEY \("cliente_id", "grupo_atividade_id"\) REFERENCES "GrupoAtividade"\("cliente_id", "id"\)/.test(sql)) {
+    registrar('P50-TAREFA-CADASTRO-MODEL', 'migration de TipoAtividade sem FK composta (cliente_id, grupo_atividade_id) → GrupoAtividade');
+  }
+  for (const flag of FLAGS_PROIBIDAS) {
+    if (sql.includes(`"${flag}"`)) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `migration de TipoAtividade cria a flag proibida ${flag} (D-PROD-180)`);
+    }
+  }
+};
+
+const verificarModelTipoAtividadeSemFlags = () => {
+  const model = lerModels(ler(SCHEMA)).find((m) => m.nome === 'TipoAtividade');
+  if (!model) return; // verificarModel já registrou a ausência
+  for (const flag of FLAGS_PROIBIDAS) {
+    if (campo(model, flag)) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade não pode ter a flag ${flag} (D-PROD-180)`);
+    }
+  }
+};
+
 const verificarSemBase44 = () => {
   const provider = semComentarios(ler(PROVIDER));
   for (const ent of ['GrupoAtividade', 'TipoTarefa']) {
@@ -80,6 +120,7 @@ const verificarPortas = () => {
   for (const [rel, http] of [
     [PORTA_GRUPO, '/grupos-atividade'],
     [PORTA_TIPO, '/tipos-tarefa'],
+    [PORTA_TIPO_ATIVIDADE, '/tipos-atividade'],
   ]) {
     if (!existe(rel)) {
       registrar('P50-TAREFA-CADASTRO-PORT', `${rel} ausente`);
@@ -107,6 +148,7 @@ const verificarRotas = () => {
   for (const [rel, pathPrefix] of [
     ['backend/src/modules/gruposAtividade/grupoAtividadeRoutes.js', '/grupos-atividade'],
     ['backend/src/modules/tiposTarefa/tipoTarefaRoutes.js', '/tipos-tarefa'],
+    [ROTAS_TIPO_ATIVIDADE, '/tipos-atividade'],
   ]) {
     if (!existe(rel)) {
       registrar('P50-TAREFA-CADASTRO-ROUTE', `${rel} ausente`);
@@ -128,6 +170,9 @@ if (!existe(SCHEMA)) {
   verificarModel('GrupoAtividade', ['cliente_id', 'nome_grupo']);
   verificarModel('TipoTarefa', ['cliente_id', 'grupo_atividade_id', 'nome_tipo']);
   verificarMigration();
+  verificarModel('TipoAtividade', ['cliente_id', 'grupo_atividade_id', 'nome_tipo']);
+  verificarModelTipoAtividadeSemFlags();
+  verificarMigrationTipoAtividade();
 }
 verificarSemBase44();
 verificarPortas();

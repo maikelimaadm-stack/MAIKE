@@ -48,6 +48,7 @@ export const ICONE_TELA = {
   UnidadesMedida: Ruler,
   LocaisEstoque: Warehouse,
   TiposTarefa: ListChecks,
+  TiposAtividade: ListChecks,
   GruposAtividades: Folder,
   Empresa: Building2,
   Usuarios: Users,

@@ -36,6 +36,7 @@ export const DEFAULT_MENU = [
       { id: "sup-unidades", title: "Unidades de Medida", url: "UnidadesMedida" },
       { id: "sup-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
       { id: "sup-tipos-tarefa", title: "Tipos de Tarefa", url: "TiposTarefa" },
+      { id: "sup-tipos-atividade", title: "Tipos de Atividade", url: "TiposAtividade" },
       { id: "sup-grupos-atividades", title: "Grupos de Atividades", url: "GruposAtividades" },
     ],
   },

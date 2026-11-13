@@ -64,6 +64,15 @@ export const contarTiposDoGrupo = async (tx, clienteId, grupoId) =>
     where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
   });
 
+/**
+ * D-PROD-180 — tipos de atividade vinculados ao grupo (FK Restrict).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const contarTiposAtividadeDoGrupo = async (tx, clienteId, grupoId) =>
+  tx.tipoAtividade.count({
+    where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
+  });
+
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */
 export const inserirGrupo = async (tx, dados) =>
   tx.grupoAtividade.create({ data: dados, select: SELECAO });
@@ -86,6 +95,16 @@ export const excluirGrupoPorId = async (tx, clienteId, id) =>
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx */
 export const propagarNomeGrupoNosTipos = async (tx, clienteId, grupoId, nomeGrupo) =>
   tx.tipoTarefa.updateMany({
+    where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
+    data: { grupo_atividade_nome: nomeGrupo },
+  });
+
+/**
+ * D-PROD-180 — o nome do grupo fica em cache no Tipo de Atividade.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const propagarNomeGrupoNosTiposAtividade = async (tx, clienteId, grupoId, nomeGrupo) =>
+  tx.tipoAtividade.updateMany({
     where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
     data: { grupo_atividade_nome: nomeGrupo },
   });

@@ -166,6 +166,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/tiposatividade/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposAtividade/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/unidadesmedida/",
       "destination": "/index.html"
     },
@@ -195,6 +203,14 @@
     },
     {
       "source": "/LocaisEstoque/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tiposatividade",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/TiposAtividade",
       "destination": "/index.html"
     },
     {

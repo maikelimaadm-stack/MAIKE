@@ -117,6 +117,10 @@ export const API_ERROR_CODES = Object.freeze({
   TIPO_TAREFA_NOT_FOUND: 'TIPO_TAREFA_NOT_FOUND',
   TIPO_TAREFA_NAME_CONFLICT: 'TIPO_TAREFA_NAME_CONFLICT',
 
+  // Cadastro de TipoAtividade (D-PROD-180).
+  TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
+  TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
+
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
   USUARIO_LOGIN_DUPLICADO: 'USUARIO_LOGIN_DUPLICADO',
@@ -205,6 +209,10 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.TIPO_TAREFA_NOT_FOUND]:
     'Este tipo de tarefa não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.TIPO_TAREFA_NAME_CONFLICT]: 'Já existe um tipo cadastrado com este nome neste grupo.',
+  [API_ERROR_CODES.TIPO_ATIVIDADE_NOT_FOUND]:
+    'Este tipo de atividade não foi encontrado. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT]:
+    'Já existe um tipo de atividade cadastrado com este nome neste grupo.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

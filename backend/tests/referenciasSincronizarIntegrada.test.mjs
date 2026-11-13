@@ -416,6 +416,36 @@ describe('Controle positivo, idempotência e auditoria', () => {
     assert.equal(r2.json().total_updated, 0, 'idempotente');
   });
 
+  test('D-PROD-180 — GrupoAtividade: nome defasado no TipoAtividade é corrigido por id; outro grupo intacto; 2ª chamada não muda nada', async () => {
+    const A = await soGrupos();
+    const c = A.clienteId;
+    const g = await grupo(c, 'ROÇADAS');
+    const outro = await grupo(c, 'OUTRO');
+    const ta = await prisma().tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'ROÇADA MANUAL', grupo_atividade_id: g.id, grupo_atividade_nome: 'NOME VELHO' } });
+    const taOutro = await prisma().tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'X', grupo_atividade_id: outro.id, grupo_atividade_nome: 'NOME VELHO' } });
+    const r = await sincronizar(A.token, 'GrupoAtividade', { id: g.id, nome_grupo: 'IGNORADO' }, { old_data: { nome_grupo: 'NOME VELHO' } });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual(r.json().por_tabela, { TipoAtividade: 1 });
+    assert.equal((await prisma().tipoAtividade.findUnique({ where: { id: ta.id } })).grupo_atividade_nome, 'ROÇADAS');
+    assert.equal((await prisma().tipoAtividade.findUnique({ where: { id: taOutro.id } })).grupo_atividade_nome, 'NOME VELHO', 'tipo de atividade de outro grupo intacto');
+    const r2 = await sincronizar(A.token, 'GrupoAtividade', { id: g.id });
+    assert.equal(r2.json().total_updated, 0, 'idempotente');
+  });
+
+  test('D-PROD-180 — GrupoAtividade (UI: PATCH renomeia + sincronizar): TipoAtividade acompanha junto com TipoTarefa', async () => {
+    const A = await acessoTotal();
+    const c = A.clienteId;
+    const g = await grupo(c, 'VELHO');
+    const tt = await tipo(c, g, 'VACINA');
+    const ta = await prisma().tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'ROÇADA', grupo_atividade_id: g.id, grupo_atividade_nome: 'VELHO' } });
+    const patch = await req('PATCH', `/grupos-atividade/${g.id}`, A.token, { nome_grupo: 'novo' });
+    assert.equal(patch.statusCode, 200, patch.body);
+    const r = await sincronizar(A.token, 'GrupoAtividade', patch.json(), { old_data: { id: g.id, nome_grupo: 'VELHO' } });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal((await prisma().tipoAtividade.findUnique({ where: { id: ta.id } })).grupo_atividade_nome, 'NOVO');
+    assert.equal((await ler.tipo(tt.id)).grupo_atividade_nome, 'NOVO');
+  });
+
   test('Produto (UI: PATCH renomeia + sincronizar): estoque, eventos, cocho e manejo da MESMA empresa acompanham; código derivado preservado', async () => {
     const A = await soProdutos();
     const c = A.clienteId;

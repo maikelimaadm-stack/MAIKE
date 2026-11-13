@@ -231,7 +231,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   GRUPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'grupo possui tipos de tarefa vinculados',
+    meaning: 'grupo possui tipos de tarefa ou de atividade vinculados',
   },
   TIPO_TAREFA_NOT_FOUND: {
     http: 404,
@@ -240,6 +240,15 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   TIPO_TAREFA_NAME_CONFLICT: {
     http: 409,
     meaning: 'já existe tipo de tarefa com este nome no grupo',
+  },
+  // D-PROD-180 — Tipo de Atividade.
+  TIPO_ATIVIDADE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica tipo de atividade deste tenant',
+  },
+  TIPO_ATIVIDADE_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe tipo de atividade com este nome no grupo',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },

@@ -66,6 +66,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261110200000_patrimonio_p1_02_abastecimentos': '20f8f9609a8e09f123dac0ed7ba87747069b26ad07411e843481ffec59b15fba',
   // D-PROD-162 (Patrimônio SIMPLIFICA-01): CONTRACT aprovado pelo proprietário — apaga as 13 tabelas do Patrimônio, alarga 2 CHECKs de OperacaoFinanceiraItem (L) e cria as 7 novas.
   '20261110300000_patrimonio_simplifica': '787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222',
+  // D-PROD-180: TipoAtividade (cadastro de tipos de atividade) — só tabela nova.
+  '20261113100000_tipo_atividade_cadastro': 'def905e77dc7fdbf72bbf693cde3d088065147b524f6317f5c2f39f34cdd4b7c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -87,6 +89,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'ac1d201b0ef75b629d018b8c3c98354eb9453d752ab5e62ee4c3edb23c14bddd',
   // D-PROD-162: RLS/REVOKE das 7 tabelas do Patrimônio simplificado (mesmo corpo, lista nova).
   '6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e',
+  // D-PROD-180: RLS/REVOKE de TipoAtividade (mesmo corpo, lista nova).
+  '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
 ]);
 
 /** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
