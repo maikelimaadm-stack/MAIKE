@@ -478,6 +478,13 @@ reconciliação, registrados na D-PROD-161:
 > - As duas só valem sem dependência física e sem impacto no FIFO.
 > - Nenhum fato é reescrito ou apagado.
 >
+> **Revisão R3 (2026-11-13, ainda não ratificada):**
+> - sequência transacional única, com checagem FIFO definitiva pelos ids reais;
+> - prova de dependência fail-closed ("prova indeterminada" recusa);
+> - saldo do produto exato contra as camadas;
+> - índice único parcial nas linhas vigentes.
+> Nada disso está entregue.
+>
 > Sequência proposta, uma PR por slice:
 > 1. ratificação humana da emenda (procedimento da §4 da constituição);
 > 2. P1-02: endurecimento do motor;

@@ -6295,6 +6295,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - confirmar ou editar nunca põe camada nova à frente, na fila FIFO, de camada que alguma baixa já tocou (o motor não refaz baixas);
     - o motivo da entrada nunca muda;
     - nunca se reescreve nem se apaga movimento ou camada; não há estorno parcial de camada, exclusão parcial nem restauração.
+  - **Revisão R3 (2026-11-13, ainda proposta):**
+    - uma única sequência transacional: travas → validações sob trava → efeitos provisórios → checagem FIFO definitiva com os ids reais → numeração, evento, auditoria e recibo. Qualquer recusa desfaz tudo;
+    - a ausência de dependência precisa ser **comprovada**: rastro ilegível, origem legada ou volume acima do teto dão "prova indeterminada", e a mudança é recusada;
+    - o saldo do produto precisa bater exatamente com as camadas;
+    - unicidade das linhas vigentes por índice único parcial na tabela nova, com teste próprio.
   - **O que a entrada manual não é:** compra, título, conta a pagar, receita, inventário ou ajuste, devolução, transferência entre empresas ou entrada por nota fiscal.
   - **Deduplicação documental** quando houver parceiro e documento: entrada × compra, entrada × venda e entrada × entrada, e, no sentido inverso, em todos os caminhos da P3 que gravam o documento (confirmar, retificar, prévia), nas direções PAGAR e RECEBER (R2). A liberação da operação fica bloqueada enquanto o caminho recíproco não existir.
   - **Lote do fabricante** (model candidato `ProdutoLoteFabricante`): identidade comercial (fabricante, número, fabricação, validade), N camadas → 1 lote, **sem saldo e sem custo**. A camada física (`EstoqueLoteNota`) continua sendo a única fonte de saldo. FIFO não muda; validade só gera aviso.
@@ -6305,6 +6310,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - R-IMPL (refeita na R2: correção por edição, reimplantação só após exclusão ou nunca; decidir antes da R-EMENDA);
   - R-EDICAO-EXCLUSAO (nova na R2: `EXCLUIDA` × `CANCELADO` + `excluido_em`; baixa estornada continua bloqueando; janela FIFO; recibos excluídos; permissões compostas; sem restaurar; divisão P1-05a/05b; alcance da dependência por documento ou por item; motivo imutável);
   - R-CONVERSAO (nova na R2: entrada que era compra e já tem dependência; sem caminho no 1º slice);
+  - R3 (2026-11-13), também pendente:
+    - prova de dependência fail-closed (`PROVA_INDETERMINADA` nunca libera);
+    - cache exato por produto como pré-condição;
+    - tetos de leitura;
+    - privacidade mais estrita que a P3.
   - R-DATA (data retroativa);
   - R-DEDUPE (muda a confirmação da P3);
   - R-LOTE (identidade com discriminador e nome do model);

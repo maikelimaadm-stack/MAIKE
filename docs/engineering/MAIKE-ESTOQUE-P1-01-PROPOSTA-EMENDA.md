@@ -85,7 +85,8 @@ consumida, transferida ou citada por outro fato, mesmo que depois estornado; com
 dependência, só se editam observação e justificativa. Ao confirmar ou editar, nenhuma
 camada nova pode ficar, na fila FIFO do produto no local, à frente de camada que alguma
 baixa já tocou: o motor não refaz nem recalcula baixas, e a mudança que faria isso é
-recusada. A edição vira uma nova revisão do mesmo documento, que estorna pelo motor o que
+recusada. Quando não for possível comprovar que nenhuma camada foi usada, ou quando o
+saldo do produto divergir das camadas, a mudança também é recusada. A edição vira uma nova revisão do mesmo documento, que estorna pelo motor o que
 muda e aplica a versão nova numa só transação; a exclusão estorna tudo e deixa o
 documento EXCLUÍDO, fora da lista ativa mas consultável. Nenhum movimento ou camada de
 estoque é reescrito ou apagado; cada revisão e cada exclusão da entrada confirmada ficam
@@ -103,6 +104,8 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 - **R-IMPL estrita:** apagar `; os fatos de itens de entrada manual já estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`.
 - **(b) recusada** (aceitar baixa estornada): apagar `, mesmo que depois estornado`.
 - **(k) por item:** trocar `quando nenhuma camada de nenhum item dela foi consumida` por `quando nenhuma camada do item afetado foi consumida (data, parceiro e documento afetam todos os itens, e excluir exige isso de todos)`. Trocar também `com essa dependência, só se editam observação e justificativa` por `os itens com essa dependência só têm observação e justificativa editáveis`.
+
+**Revisão R3 do texto (2026-11-13):** acrescenta uma frase para dizer que a falta de prova e a divergência entre o saldo e as camadas também recusam a mudança. É o comportamento fail-closed do contrato (A8.3, CA). O resto do texto não mudou.
 
 **Diferença em relação à R1:**
 - sai "o cancelamento só estorna se nada tiver sido consumido ou transferido";
@@ -144,6 +147,9 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 > - confirmar ou editar uma entrada manual de modo que uma camada nova fique, na fila FIFO
 >   do produto no local, à frente de camada que alguma baixa já tocou, ou com saída sem
 >   rastro nesse produto e local;
+> - liberar a edição ou a exclusão de uma entrada confirmada sem prova de que nenhuma
+>   camada dela foi usada (rastro ilegível, origem legada ou volume acima do limite contam
+>   como falta de prova), ou com o saldo do produto divergente das camadas;
 > - corrigir uma entrada confirmada reescrevendo ou apagando movimento ou camada de estoque
 >   (`UPDATE` de quantidade, custo, data, local, produto ou procedência, ou `DELETE`), em
 >   vez de uma nova revisão pelo motor; recalcular o custo de baixas passadas;
@@ -160,6 +166,8 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 - **R-IMPL estrita:** o item "ter mais de uma implantação…" termina em "em qualquer local", sem a ressalva.
 - **(b) recusada:** apagar ", mesmo que depois estornado".
 - **(k) por item:** trocar "quando alguma camada de algum item dela" por "quando alguma camada do item afetado (ou de qualquer item, para data, parceiro, documento e exclusão)".
+
+**Revisão R3 do texto:** foi acrescentado o item "liberar a edição ou a exclusão … sem prova …". Os demais itens não mudaram.
 
 **Diferença em relação à R1:**
 - sai "cancelar uma entrada cujas camadas já foram consumidas ou transferidas, ou estorná-la em parte";

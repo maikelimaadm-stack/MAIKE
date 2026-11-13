@@ -9,6 +9,14 @@
 > - Base auditada: `origin/main` `74ad3b868ff947f0153c969c51852748690f78a2`.
 > - Todas as referências `arquivo:linha` abaixo são desse SHA.
 > - **Revisão R2 (2026-11-11, MAIKE-ESTOQUE-P1-01-GOVERNANCA-R2), ainda PROPOSTA.** O proprietário pediu que a Entrada de Estoque tenha as ações **Editar** e **Excluir** e que "Cancelar" deixe de ser o único jeito de corrigir uma entrada. A R2 troca o estado `CANCELADA` por `EXCLUIDA` (exclusão lógica e auditada), cria a **edição de entrada confirmada por revisão versionada** (A8) e refaz a R-IMPL. O que mudou em relação à R1 está no relatório, §9.
+> - **Revisão R3 (2026-11-13, MAIKE-ESTOQUE-P1-01-GOVERNANCA-R3), ainda PROPOSTA.** Corrige a auditoria do arquiteto:
+>   - sequência transacional única com checagem FIFO definitiva pelos ids reais (A8.4, A8.5);
+>   - prova de dependência fail-closed, com `PROVA_INDETERMINADA` (A8.3);
+>   - cache exato por produto (CA);
+>   - índice único parcial e invariantes de vínculo (§7);
+>   - privacidade e replay (A8.6, A8.7);
+>   - testes futuros (A8.8).
+>   Referências `arquivo:linha` novas são da `main` `0ed6ae9c`, nas mesmas linhas do motor e do financeiro citadas antes. Relatório, §10.
 
 ## 0. Leitura rápida
 
@@ -305,7 +313,7 @@ A entrada é **mais estrita** que a P3 em dois pontos: nunca reescreve procedên
 - grava um evento `EDICAO` com modo `METADADOS`;
 - não toca motor, camada, movimento nem cache.
 
-**Edição com classe F:** é **uma transação atômica** de substituição versionada.
+**Edição com classe F:** é **uma transação atômica** de substituição versionada. A lista abaixo descreve o **resultado**. A **ordem** de execução é a da A8.5 (travas → validações → efeitos provisórios → decisão definitiva com ids reais → numeração, evento, auditoria e recibo).
 1. As linhas de item que mudam (e só elas) têm a camada estornada pelo motor. A camada vira `Estornado`, com disponível 0 e CAS. Nasce um movimento compensatório com `movimento_pai_id` apontando para a entrada original, e a original fica `Estornada` com `movimento_filho_id`. A linha recebe `movimentacao_estorno_id` e `revisao_fim = N`.
 2. As linhas novas nascem com `revisao_inicio = N + 1`. O motor cria **camada e movimento novos**, com ids novos, origem `entrada_estoque`, custo e procedência da revisão. A data FIFO da camada nova (`data_documento`) é a **data da entrada informada no documento** na revisão, nunca o dia em que se edita. Se a data não mudou, a camada nova tem a mesma data da antiga.
 3. Antes de qualquer edição de classe F, a prova de A8.3 é exigida de **todas** as linhas vigentes (alcance por documento, A8.1). As linhas que **não mudam** continuam as mesmas, com a mesma camada e o mesmo movimento.
@@ -334,73 +342,166 @@ As únicas escritas em linhas existentes são as transições de protocolo do pr
 
 **Edição de rascunho:** `PUT` com CAS de versão. Não há motor nem revisão. Fica registrada no AuditLog `EntradaEstoque` (antes e depois do cabeçalho e das linhas). O motivo é opcional no rascunho: as exigências de motivo, evento e revisão valem para a entrada **confirmada**.
 
-#### A8.3 Prova "camada nunca referenciada" (dependência física)
+#### A8.3 Prova "camada nunca referenciada" (dependência física) — fail-closed (R3)
 
-**Por que o saldo não basta:** o critério do motor ("Disponivel e disponível = entrada", `estoqueFisicoMotor.js:709`, `:926-930`) **não basta**. Uma venda ou um abastecimento cancelado devolve a fatia à **mesma** camada (`:779-799`), e a camada volta a parecer intocada. As fatias e os JSONs continuam no banco.
+**Por que o saldo não basta.** O critério do motor ("Disponivel e disponível = entrada", `estoqueFisicoMotor.js:709`, `:926-930`) **não basta**. Uma venda ou um abastecimento cancelado devolve a fatia à **mesma** camada (`:779-799`), e a camada volta a parecer intocada. As fatias e os JSONs continuam no banco.
 
-**A prova.** Para **cada** camada `L` das linhas que serão estornadas valem as condições abaixo. Para habilitar qualquer edição de classe F, elas valem também para todas as linhas **vigentes** do documento (alcance por documento, A8.1). A conferência é feita sob as travas de A8.5, sempre por **consulta** e sem filtro de status do consumidor:
+**Três respostas possíveis (R3).** A prova distingue "não encontrei referência" de "está comprovado que nunca houve referência":
+- **COMPROVADA:** todas as condições abaixo valem, e todo registro que poderia citar `L` foi lido e entendido;
+- **REFERENCIADA:** alguma condição mostra uso de `L` → `ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS`;
+- **INDETERMINADA:** algum registro que poderia ter consumido `L` não tem rastro legível, ou a leitura passou do teto → `ENTRADA_ESTOQUE_PROVA_INDETERMINADA`. **Nunca** é tratada como "sem dependência".
+
+**Alcance.** A prova vale para cada camada `L` das linhas que serão estornadas e, para habilitar qualquer edição de classe F, para todas as linhas **vigentes** do documento (alcance por documento, A8.1). Roda sob as travas de A8.5. Todas as consultas usam `cliente_id` do `auth_context`, nunca do corpo (R11).
+
+**Condições por FK e por estado** (independem de JSON):
 
 | # | Condição | Motivo de recusa (`details.motivos[].codigo`) |
 |---|---|---|
 | P1 | `L` existe; `cliente_id`, `empresa_id`, `produto_id` e `local_estoque_id` de `L` = os da linha; status `Disponivel`; disponível = entrada = `quantidade_estoque` da linha | `lote_alterado` |
-| P2 | Movimento de entrada da linha `Ativa`, com `movimento_filho_id` nulo, e `L.movimentacao_entrada_id` = esse movimento | `lote_alterado` |
-| P3 | Nenhuma `OperacaoFinanceiraConsumoLote` com `L`, em qualquer situação do documento (`schema.prisma:2146-2165`) | `lote_consumido`, ou `consumo_estornado` se todas as fatias forem de documentos cancelados |
-| P4 | Nenhuma `AbastecimentoBemConsumoLote` com `L`, inclusive CANCELADO (`schema.prisma:2649-2670`). **Explícito**: a `provaDaCompra` não consulta esta tabela | `lote_consumido` / `consumo_estornado` |
-| P5 | Nenhum `MovimentacaoEstoque`, de qualquer origem e status, com `lotes_consumidos` citando `L` (chaves `lote_id`, `estoque_lote_nota_id`, `lote_nota_id` ou texto puro, como `operacaoFinanceiraService.js:1857`). Cobre venda, abastecimento, suplementação e transferência | `lote_consumido` / `consumo_estornado`; `lote_transferido` se a citação for de Saída `transferencia_enviada` |
-| P6 | Nenhum recibo `saida_suplementacao`/`transferencia_locais` com `rateio[].lote_id = L` desde `createdAt(L)` − 1 h (`operacaoFinanceiraService.js:1756-1758`, `:1861-1870`) | `lote_consumido` |
-| P7 | `updatedAt(L) = createdAt(L)`, salvo AuditLog só de escritor benigno (renomeação de `local_estoque_nome`) | `lote_alterado` |
-| P8 | Nenhuma **Saída sem rastro** no mesmo empresa + produto + local depois de `createdAt(L)`. É Saída sem rastro a que tem origem legada (`manual` ou `reversao`), ou a que tem `lotes_consumidos` nulo **e não é estorno de entrada**. O estorno de entrada tem `movimento_pai_id` preenchido e `tipo_detalhado` `estorno_compra` ou `estorno_entrada_*`: ele zera a própria camada e não consome outra. É fail-closed, porque o rastro não existe | `consumo_legado_sem_rastro` |
-| P9 | `Produto.estoque_atual` ≥ Σ kg a estornar daquele produto | `estoque_atual_insuficiente` (é caso de reconciliação, nunca ajuste silencioso) |
-| P10 | Nenhuma linha de `OperacaoFinanceiraItem.estoque_lote_nota_id` aponta para `L` (integridade: camada de entrada manual não é de compra) | `lote_alterado` |
+| P2 | O movimento de entrada da linha está `Ativa`, com `movimento_filho_id` nulo; `L.movimentacao_entrada_id` = esse movimento; o movimento tem número definitivo numérico (I5) | `lote_alterado` |
+| P3 | Nenhuma `OperacaoFinanceiraConsumoLote` com `L`, em qualquer situação do documento (`schema.prisma:2146-2165`; índice `(cliente_id, estoque_lote_nota_id)`) | `lote_consumido`, ou `consumo_estornado` se todas as fatias forem de documentos cancelados |
+| P4 | Nenhuma `AbastecimentoBemConsumoLote` com `L`, inclusive CANCELADO (`schema.prisma:2649-2670`). **Explícito**: a `provaDaCompra` não consulta esta tabela (`operacaoFinanceiraService.js:1846-1852`) | `lote_consumido` / `consumo_estornado` |
+| P7 | `updatedAt(L) = createdAt(L)`, salvo AuditLog só de escritor benigno: a renomeação de `local_estoque_nome` (`estoqueLoteNotaService.js:180-209`). Camada de entrada manual nunca é raiz de `atualizarProcedencia` (`estoqueFisicoMotor.js:1111-1113`). É contrarrede: depende de o Prisma 6.19.3 atualizar `@updatedAt` em `updateMany`, o que exige **teste PG** antes de contar com ela | `lote_alterado` |
+| P10 | Nenhuma `OperacaoFinanceiraItem.estoque_lote_nota_id` aponta para `L` (camada de entrada manual não é de compra) | `lote_alterado` |
 
-- Qualquer motivo → **409 `ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS`**, com `reason` = o primeiro motivo, `field` = `itens`, índice da linha e a lista completa em `details.motivos` (padrão `bloqueado`, `operacaoFinanceiraService.js:1761-1778`).
-- **`consumo_estornado` bloqueia**, como o movimento cancelado bloqueia a correção do Lote (`loteCorrecaoEntradaService.js:15-17`, `:120-124`). Aceitá-lo exigiria provar que o estorno foi total **e** que nenhuma camada ficou explicada por ele. Fica em aberto: R-EDICAO-EXCLUSAO (b).
-- **Para camadas da entrada manual criadas pelo motor, a prova é completa por consulta.** Os escritores sem rastro (POST e DELETE genéricos, saída legada) estão fechados (`movimentacaoEstoqueService.js:52-60`, `:122-127`; `estoqueLoteNotaService.js:69-76`, `:223-236`). O P8 cobre o legado.
-- **Testes obrigatórios no P1-05a:** um cenário PG por linha da tabela, inclusive "consumida por abastecimento e depois cancelada", que hoje não tem teste na P3 (`gestaoP3EditarExcluir.test.mjs` não cobre abastecimento).
+**Condição por varredura de movimentos (P5, substitui P5, P6 e P8 da R2).**
+
+*Conjunto lido (S).* Todo `MovimentacaoEstoque` com `tipo_movimentacao = 'Saída'` do mesmo `cliente_id` e `produto_id` de `L`, **em qualquer empresa, local, origem e status**, que satisfaça **pelo menos uma** destas condições:
+- (a) número numérico **maior** que o número do movimento de entrada de `L`;
+- (b) número **não numérico** (por exemplo, `p-…` commitado, I5);
+- (c) `createdAt ≥ createdAt(L) − 1 h`.
+
+O índice usado é `(cliente_id, produto_id)` (`schema.prisma:1295-1299`). Os movimentos do **próprio** documento, identificados pelas FKs das linhas, ficam fora do conjunto.
+
+*Por que (a) prova a ordem.* Todo writer ativo que consome camada toma `travarProdutosEstoque` antes de ler lotes (`operacaoFinanceiraService.js:1422`, `:1566`, `:2328`, `:2463`; `abastecimentoService.js:357`, `:491`; `movimentacaoEstoqueComandoService.js:213`, `:324`) e numera no **fim** da transação (`numerarMovimentos`, `estoqueFisicoMotor.js:1029-1036`; reserva transacional em `entidadeCodigoRepository.js:58-97`).
+- A entrada manual também cria `L` sob a mesma trava e numera no fim.
+- Logo, uma Saída numerada **antes** do movimento de entrada de `L` foi commitada antes de `L` existir e não pode citar o id de `L`, que só nasce no `create` (`estoqueFisicoMotor.js:225-242`).
+- (c) não é prova. É margem extra, como a folga de 1 h da P3 (`operacaoFinanceiraService.js:1757-1758`), que só **aumenta** o conjunto lido e nunca o reduz.
+- (b) cobre número fora do protocolo.
+- Precedente da união de relógios: `provaDaVenda` (`operacaoFinanceiraService.js:2012-2015`).
+
+*Classificação de cada Saída de S:*
+
+| Forma do registro | Resultado |
+|---|---|
+| `lotes_consumidos` é array **não vazio** de objetos, todos com `lote_id` string não vazia, e nenhum `lote_id = L` | entendido, não cita `L` |
+| o mesmo, com algum `lote_id = L` | `lote_consumido` ou `consumo_estornado` (pelo status do movimento); `lote_transferido` se `tipo_detalhado = 'transferencia_enviada'` |
+| `lotes_consumidos` SQL `NULL` **e** `tipo_detalhado` ∈ {`estorno_compra`, `estorno_entrada_revisao`, `estorno_entrada_exclusao`} **e** `movimento_pai_id` preenchido | entendido: estorno de entrada, zera a própria camada (`estoqueFisicoMotor.js:722-747`, `:970-998`). Lista **fechada**, sem curinga |
+| `lotes_consumidos` SQL `NULL` fora da exceção acima; `jsonb null`; objeto; escalar; array vazio; elemento não-objeto ou sem `lote_id` string | `PROVA_INDETERMINADA`, reason `rastro_ilegivel` |
+| origem `manual` ou `reversao` (legado Base44, `reconciliacaoEstoque.js:141`) | `PROVA_INDETERMINADA`, reason `origem_legada` |
+| número não numérico | `PROVA_INDETERMINADA`, reason `numero_provisorio` |
+| \|S\| acima do teto (proposta: 5.000 Saídas; valor medido com `EXPLAIN ANALYZE` na P1-05a) | `PROVA_INDETERMINADA`, reason `volume_excedido` (nunca varredura ilimitada) |
+
+**O que mudou em relação à R2:**
+- a R2 copiava o parser da `provaDaCompra`, que transforma JSON não-array em `[]` e ignora elemento sem chave conhecida (`operacaoFinanceiraService.js:1856-1858`). Isso **falha aberta**. A R3 exige a forma e recusa o resto;
+- só a chave `lote_id` é aceita. É a única que o motor grava (`fatiaGravada`, `estoqueFisicoMotor.js:266`) e a única que a reconciliação lê (`reconciliacaoEstoque.js:476`). As chaves `estoque_lote_nota_id`, `lote_nota_id` e o texto puro não são gravadas por nenhum writer. Um registro com elas fica sem `lote_id` e vira `rastro_ilegivel` (fail-closed);
+- o P6 (recibos) deixa de ser condição. Todo comando pós-P0 grava `lotes_consumidos` na **mesma** transação do recibo (`movimentacaoEstoqueComandoService.js:198-262`), então o recibo é redundante. A Saída pré-P0 sem JSON, que só tem recibo, cai em `rastro_ilegivel` se estiver em S;
+- o P8 virou a coluna "indeterminada" da varredura, e a exceção de estorno passou a ser uma lista fechada.
+
+**Mapa de writers** (main `0ed6ae9c`; ver relatório §10.4):
+
+| Writer | Trava produto | Rastro por camada | Classe |
+|---|---|---|---|
+| Venda P3 (confirmar/retificar) | sim | FK `OperacaoFinanceiraConsumoLote` + JSON | FK |
+| Estorno P3 em lote (venda/compra) | sim | FK + JSON do original; compra: estado + FK do item | FK / estado |
+| Abastecimento e cancelamento | sim | FK `AbastecimentoBemConsumoLote` + JSON | FK |
+| Suplementação (comando pós-P0) | sim | JSON `lote_id` (+ recibo redundante) | JSON |
+| Transferência (comando pós-P0) | sim | JSON `lote_id` + `lote_destino_id` | JSON |
+| Suplementação/transferência pré-P0 | não (até `c2cec1d3`) | só recibo | **indeterminada** se em S |
+| POST/DELETE genéricos, reversão pelo navegador, PATCH/DELETE administrativo de lote da P5.4 | não | nenhum | fechados hoje (409); legado → indeterminada se em S |
+| PATCH de `local_estoque_nome` | não (só a linha) | AuditLog `update` | benigno (P7) |
+| `atualizarProcedencia`, sincronização de nomes, `numerarMovimentos` | — | metadado | não consome |
+
+- **Qualquer** `DEPENDENCIAS_FISICAS` ou `PROVA_INDETERMINADA` → 409, com `reason` = o primeiro motivo e a lista completa em `details.motivos` (padrão `bloqueado`, `operacaoFinanceiraService.js:1761-1778`).
+- **`consumo_estornado` bloqueia**, como o movimento cancelado bloqueia a correção do Lote (`loteCorrecaoEntradaService.js:15-17`, `:120-124`). Aceitá-lo fica em aberto em R-EDICAO-EXCLUSAO (b).
+- **Limite declarado:**
+  - a prova é completa **só** para camadas criadas pelo motor sob a trava e numeradas no fim (as camadas da entrada manual);
+  - o conteúdo legado de produção (linhas `manual`/`reversao`, JSON Base44, Saídas pré-P0) **não foi verificado** (não houve consulta ao banco nesta missão). Se existir em S, o resultado é `PROVA_INDETERMINADA`, nunca liberação.
+
+**Cache do produto (CA, R3).**
+- **Condição:** sob a trava do produto e antes de qualquer efeito, `Produto.estoque_atual` = Σ `quantidade_disponivel` das camadas `Disponivel` com `empresa_id` = a do Produto, em **todos** os locais, com 4 casas e **sem tolerância**.
+- **Quando é conferida:** em cada produto antigo e novo da confirmação, da revisão com classe F e da exclusão de confirmada. A edição só de classe M não confere.
+- **Fonte da fórmula:** é o invariante I1 da reconciliação (`reconciliacaoEstoque.js:8-10`, `:324-331`). A soma usa o mesmo padrão de `saldoNoLocal` (`estoqueFisicoMotor.js:268-275`), sem filtro de local.
+- **Divergência:** 409 `ENTRADA_ESTOQUE_CACHE_DIVERGENTE`, com reason `cache_diverge` ou `cache_negativo`, e orientação: "rode a reconciliação; o saneamento do cache é tratado à parte (D-PROD-161, P1)". Nunca há ajuste silencioso nem efeito físico.
+- **Depois dos efeitos:** a mesma igualdade é conferida de novo, ainda na transação. Se falhar, é violação de invariante: desfaz tudo (500, sem efeito persistido).
+- **Custo:** O(camadas do produto), pelo índice `(cliente_id, produto_id)`. Acima do teto (proposta: 50.000 camadas, medido na P1-05a), a resposta é `PROVA_INDETERMINADA` com `volume_excedido`. O risco R2-1 continua registrado.
+- **Por que o P9 da R2 sai:** "`estoque_atual` ≥ kg" só prova suficiência, não que o cache corresponde às camadas. Produtos com resíduo legado (`reconciliacaoEstoque.js:152`, `:785`) ficam bloqueados até o saneamento. Isso é fail-closed e declarado.
 
 #### A8.4 Janela FIFO (impacto em baixas já feitas)
 
 **Problema.** Uma camada nova, ou uma camada mudada de produto, local ou data, poderia ficar à frente, no FIFO, de outra camada que **alguma baixa já consumiu**. Se a camada certa existisse desde o início, aquela baixa teria consumido a camada nova, com outro custo. O motor não refaz baixas (A7). Por isso a regra é **bloquear**, nunca recalcular.
 
-**"Tocada por baixa".** Uma camada foi tocada por baixa quando é citada por P3–P6, em qualquer status do consumidor, **ou** quando está `Esgotado`, **ou** quando está `Disponivel` com disponível < entrada.
-- Camada `Estornado` **não citada** por P3–P6 **não** conta. Ela foi zerada por estorno de entrada, e esse estorno só ocorre com a camada intocada. Isso vale para a compra cancelada e para a linha estornada de entrada manual.
-- Assim, revisões e exclusões anteriores não bloqueiam as seguintes, nem a reimplantação.
+**"Tocada por baixa".** Uma camada `C` do par foi tocada por baixa quando atende a pelo menos uma destas condições:
+- é citada por P3, P4 ou pela varredura P5 (em qualquer status do consumidor);
+- está `Esgotado`;
+- está `Disponivel` com disponível < entrada.
 
-**Regra `ENTRADA_ESTOQUE_IMPACTO_FIFO`.** Para cada **camada nova** `N` criada por confirmação ou revisão, no par `(empresa, produto, local)`:
-- recusa se existir, nesse par, camada `C` tocada por baixa que venha **depois** de `N` na ordem FIFO, isto é, na ordem `(COALESCE(data_documento, createdAt), id)` de `ordenarFifo` (`estoqueFisicoMotor.js:100-106`). Se a camada nova existisse antes, aquela baixa teria consumido `N` antes de `C`. `reason` `camada_posterior_consumida`, com o número da baixa se o usuário puder vê-la;
-- recusa se houver, no par, **qualquer** Saída sem rastro (P8), em qualquer data, porque não se sabe que camada ela consumiu. `reason` `baixa_legada_sem_rastro`;
-- a conferência roda **depois** de criar `N`, na mesma transação, porque o id é gerado na criação. A recusa desfaz tudo.
+Camada `Estornado` não citada não conta: ela foi zerada por estorno de entrada, que exige camada intocada.
 
-**Por que a correção normal passa** (sem exceção escrita na regra): as camadas da revisão anterior nunca foram referenciadas (A8.3). Logo, nenhuma baixa feita enquanto elas existiam alcançou uma posição depois delas na fila. A confirmação original também passou por esta janela. Uma camada nova no mesmo par e com data igual ou posterior só falha num caso: quando uma camada tocada do **mesmo dia** fica depois dela no desempate por id. Nesse caso a recusa é correta, porque a fila de fato mudaria.
+**Regra.** Para cada camada **nova** `N` (confirmação ou revisão), no par `(empresa, produto, local)` e com data FIFO `D` = a data da entrada informada no documento:
+- **J1 (antes dos efeitos, independe de id):** recusa se existir no par camada tocada com chave `COALESCE(data_documento, createdAt)` **estritamente maior** que `D`. Reason: `camada_posterior_consumida`;
+- **J2 (antes dos efeitos):** recusa se a varredura P5 do par der `PROVA_INDETERMINADA`, porque não se sabe que camada a Saída ilegível consumiu. Isso vale para a camada nova mesmo quando nenhuma camada é estornada;
+- **J3 (depois de criar `N`, com o id real):** recusa se existir no par camada tocada com chave **igual** a `D` e id que, na ordem do motor (`ordenarFifo`, `estoqueFisicoMotor.js:100-106`), venha **depois** do id de `N`. Reason: `empate_mesmo_dia`. A ordem é calculada com a mesma função do motor, em JS, ou em SQL com `COLLATE "C"`. A ordem do motor usa `localeCompare` e não deve divergir da collation do banco.
+- **Várias camadas novas no mesmo documento:** cada uma é conferida isoladamente contra as camadas tocadas. Camadas novas nunca são "tocadas", então não se bloqueiam entre si. No mesmo par há no máximo uma linha vigente (A3, §7). Não se presume que a ordem por id acompanha a ordem dos itens.
 
-**Remover uma camada nunca referenciada** (exclusão, ou a parte "estorno" da revisão) **não muda nenhuma baixa passada**. Toda baixa feita enquanto ela existia se satisfez com camadas que vinham antes dela, e o motor não refaz baixas (A7). "Saldo suficiente" sozinho **não** é prova: a prova é A8.3 junto com esta janela.
+**Por que a correção normal passa:** as camadas da revisão anterior nunca foram referenciadas (A8.3). Logo, nenhuma baixa feita enquanto elas existiam alcançou uma posição depois delas, e a confirmação original passou por esta mesma janela. Uma camada nova no mesmo par com data igual ou posterior só falha no empate J3, quando a fila de fato mudaria.
 
-**Efeito daqui para a frente:** uma camada com data retroativa entra na frente da fila para as **próximas** baixas. Isso é declarado ao usuário na prévia ("as próximas saídas deste produto neste local usarão esta camada antes de …").
+**Remover uma camada nunca referenciada** (exclusão, ou a parte "estorno" da revisão) **não muda nenhuma baixa passada.** "Saldo suficiente" sozinho **não** é prova: a prova é A8.3 junto com esta janela e o cache (CA).
+
+**Efeito daqui para a frente:** uma camada com data retroativa entra na frente da fila para as **próximas** baixas. A prévia avisa isso.
 
 **Limite declarado:** a confirmação de **compra** da P3 não tem esta janela hoje. A proposta não muda a P3. Estender a regra a ela é ponto de R-EDICAO-EXCLUSAO (c).
 
-#### A8.5 Travas, CAS e concorrência (editar e excluir confirmada)
+#### A8.5 Sequência transacional canônica (confirmar, editar e excluir confirmada) (R3)
 
+Este é o **único** algoritmo; a C4, a A8.7 e os slices remetem a ele. Tudo roda numa transação `TX_EFEITO` em READ COMMITTED (`operacaoFinanceiraService.js:83`; `transacaoConcorrente.js:92-101`).
+
+**Fase 0, fora do comando:** a prévia e a elegibilidade são **somente leitura**, sem trava (A8.7). Nada do que elas dizem autoriza o comando.
+
+**Fase 1, travas** (na ordem; a P3 é o precedente da posição das advisories, `operacaoFinanceiraService.js:1422` → `:1448` e `:2328` → `:2337`):
 1. Recibo (`executarComIdempotencia`), na mesma transação.
 2. Cabeçalho `FOR UPDATE`.
-3. Situação: `EXCLUIDA` → `ENTRADA_ESTOQUE_STATUS_INVALIDO` com `documento_excluido`, **antes** do teste de versão, como em `exigirVigente`.
-4. CAS da versão: versão diferente → `ENTRADA_ESTOQUE_VERSAO_CONFLITO` (`versao_atual`, `versao_informada`).
-5. Locais antigos ∪ novos `FOR KEY SHARE` numa única chamada (`exigirLocaisEstoque`).
-6. `travarProdutosEstoque` com produtos antigos ∪ novos, que ordena (`estoqueFisicoMotor.js:78-85`).
+3. Situação: `EXCLUIDA` → `ENTRADA_ESTOQUE_STATUS_INVALIDO` (`documento_excluido`), **antes** do teste de versão.
+4. CAS da versão → `ENTRADA_ESTOQUE_VERSAO_CONFLITO` (`versao_atual`, `versao_informada`).
+5. Locais antigos ∪ novos `FOR KEY SHARE`, numa só chamada (`exigirLocaisEstoque`).
+6. `travarProdutosEstoque` (antigos ∪ novos, ordenados; `estoqueFisicoMotor.js:78-85`). Daqui até o commit, **nenhuma baixa** desses produtos avança: todo writer ativo toma a mesma trava (A8.3, mapa de writers).
 7. Releitura do Produto (empresa, unidade, peso).
-8. Advisories de documento (A5): o conjunto de chaves antiga e nova × PAGAR e RECEBER, em ordem crescente. Ficam na mesma posição relativa da retificação da P3 (`exigirDocumentoUnico`, `operacaoFinanceiraService.js:2337`), antes dos `FOR UPDATE` de lotes e movimentos (`estoqueFisicoMotor.js:871`, `:880`).
-9. Camadas a estornar e camadas vigentes `FOR UPDATE ORDER BY id`. Isso serializa com o PATCH de `local_estoque_nome`, que só toma `FOR NO KEY UPDATE` do lote e não trava o produto (`estoqueLoteNotaService.js:180`).
+8. Advisories de documento (A5): {chave antiga, chave nova} × {PAGAR, RECEBER}, em ordem crescente da string da chave.
+9. Camadas a estornar e camadas vigentes `FOR UPDATE ORDER BY id`. Isso serializa com o PATCH de `local_estoque_nome` (`estoqueLoteNotaService.js:180`).
 10. Movimentos originais `FOR UPDATE`, lendo `status` e `movimento_filho_id`.
-11. Prova A8.3, janela A8.4 e regras de confirmação, **reavaliadas sob trava** (fonte única, como `avaliarElegibilidade`, `operacaoFinanceiraService.js:2059-2117`).
-12. Efeitos.
-13. Numeração.
-14. Evento e AuditLog.
-15. Recibo.
+
+**Fase 2, validações sob trava, antes de qualquer efeito** (fonte única, como `avaliarElegibilidade`, `operacaoFinanceiraService.js:2059-2117`):
+11. Regras de confirmação: A2–A5, A7 e C1–C3.
+12. Cache CA.
+13. Prova A8.3, que precisa dar COMPROVADA.
+14. Janela J1 e J2.
+
+Qualquer falha → 409 e rollback; nada foi escrito.
+
+**Fase 3, efeitos provisórios** (invisíveis a outras transações até o commit; em READ COMMITTED nenhum leitor vê linha não commitada, e nenhuma baixa dos produtos passa da trava do passo 6):
+15. Estornos pelo motor das linhas que mudam, ou de todas na exclusão, com números provisórios `p-…`.
+16. Camadas e movimentos novos (confirmação ou revisão), com números provisórios.
+
+**Fase 4, decisão definitiva com os ids reais:**
+17. Janela J3, para **cada** camada nova, em cada par.
+18. Cache CA de novo, como invariante.
+
+Qualquer violação → exceção e **rollback total**: estornos, camadas, movimentos, cache, linhas, cabeçalho e reserva do recibo. Nada fica gravado: nem saldo, nem auditoria, nem número, nem recibo (`operacaoIdempotenteService.js:87-98`, `:119`; a reserva de número é transacional, `entidadeCodigoRepository.js:58-97`).
+
+**Fase 5, só depois da decisão:**
+19. `numerarMovimentos` (estornos e novos, uma vez).
+20. Linhas, cabeçalho (`versao`, `revisao`, `documento_chave_ativa`) e evento.
+21. AuditLog `EntradaEstoque`.
+22. Recibo `committed`.
+23. Resposta 200/201.
 
 **Concorrência:**
-- **Duas edições concorrentes com a mesma versão:** a segunda espera a trava do cabeçalho, vê a versão nova e recebe `ENTRADA_ESTOQUE_VERSAO_CONFLITO`. Nada é gravado.
-- **Baixa concorrente** (venda, abastecimento, suplementação, transferência) do mesmo produto: serializa pela trava do produto. Se a baixa vence, a prova vê a fatia e recusa. Se a edição vence, a baixa vê a camada nova.
-- **Deadlock ou serialização** → `CONCURRENCY_CONFLICT` (`transacaoConcorrente.js:73-78`, `:92-109`).
+- **Duas edições com a mesma versão:** a segunda espera o cabeçalho e recebe `VERSAO_CONFLITO`.
+- **Baixa concorrente do mesmo produto:** serializa pela trava do passo 6.
+  - Se a baixa commitou antes, a Fase 2 a vê, porque em READ COMMITTED cada consulta enxerga o que foi commitado antes dela, e recusa se ela citar a camada ou a tornar "tocada".
+  - Se a edição commita antes, a baixa vê as camadas novas e consome pelo FIFO normal.
+- **Deadlock ou serialização** → `CONCURRENCY_CONFLICT` (`transacaoConcorrente.js:73-78`).
+- **`TX_EFEITO` não tem `lock_timeout`** (só a `TRANSACAO_CURTA` tem, `transacaoConcorrente.js:56`, `:94-96`). A espera pela trava vai até o timeout de 30 s. A P1-05a mede e decide.
 
 #### A8.6 Exclusão
 
@@ -412,8 +513,8 @@ As únicas escritas em linhas existentes são as transições de protocolo do pr
 - o número continua reservado (rastreabilidade mínima).
 
 **Confirmada** (só sem dependência física):
-- prova A8.3 em **todas** as linhas vigentes;
-- estorno integral pelo motor (sem janela FIFO, A8.4);
+- sequência A8.5, com prova A8.3 COMPROVADA em **todas** as linhas vigentes e cache CA (sem janela FIFO, A8.4, porque não cria camada);
+- estorno integral pelo motor;
 - `EXCLUIDA` com `excluida_de = CONFIRMADA`;
 - `documento_chave_ativa` nula;
 - motivo **obrigatório**;
@@ -430,17 +531,40 @@ As únicas escritas em linhas existentes são as transições de protocolo do pr
 - ao excluir, os recibos de `criar_entrada_estoque`, `confirmar_entrada_estoque` e `editar_entrada_estoque` do documento passam a `STATUS_EXCLUIDO`, inclusive na exclusão de rascunho, como no descarte de rascunho da P3. Um replay recebe 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`, e não um corpo que sugira entrada ativa (precedente: `operacaoIdempotenteService.js:22-34`; descarte de rascunho, `operacaoFinanceiraService.js:1123-1130`; rebanho, `rebanhoLedgerExclusao.js:136-142`). **Diverge** do `excluirConfirmado` da P3, que não marca os recibos;
 - depois de uma **edição**, o replay de um recibo anterior devolve o corpo gravado daquela revisão, que traz `revisao` e `versao`. O cliente recarrega.
 
+**Replay determinístico (R3):**
+
+| Situação | Resposta |
+|---|---|
+| Mesmo `operation_id` e mesmo corpo de um comando já concluído (inclusive o próprio **Excluir**) | O corpo gravado, com `replay: true`. O recibo do comando de exclusão **nunca** é marcado como excluído, e o corpo dele mostra `status: EXCLUIDA` (precedente: `excluirConfirmado` da P3, `operacaoFinanceiraService.js:2445-2496`) |
+| Replay de `criar`, `confirmar` ou `editar` de documento já excluído | 409 `IDEMPOTENCY_EFEITO_EXCLUIDO` (`operacaoIdempotenteService.js:22-34`). Não há corpo, então o cliente não pode concluir que o saldo continua ativo. A tela traduz: "este lançamento foi excluído e o estoque dele já foi retirado; recarregue" |
+| Replay de um `editar` antigo depois de outra edição | O corpo daquela revisão (`revisao`, `versao` antigas). O cliente compara a versão e recarrega |
+| Mesmo `operation_id` com corpo diferente (outra versão, outro motivo) | 409 `IDEMPOTENCY_CONFLICT`, antes de qualquer efeito |
+| Mesmo `operation_id` ainda em execução | 409 `IDEMPOTENCY_IN_PROGRESS` |
+| Recusa de negócio (409 de prova, cache, FIFO, versão ou dedupe) | **Sem recibo**: a reserva é desfeita junto (`operacaoIdempotenteService.js:87-98`, `:119`). O cliente pode reenviar com a mesma chave depois de resolver a causa. Se outro usuário mudou o documento nesse meio-tempo, recebe `VERSAO_CONFLITO` |
+
+- A marcação `STATUS_EXCLUIDO` dos recibos antigos acontece na mesma transação da exclusão. Não se exige contagem fixa (um documento pode ter várias edições).
+- Nenhum comando direto de `MovimentacaoEstoque` ou `EstoqueLoteNota` é exposto. As rotas genéricas continuam 409 (`movimentacaoEstoqueService.js:52-60`, `:122-127`; `estoqueLoteNotaService.js:69-76`, `:223-236`).
+
 #### A8.7 Elegibilidade e interface
 
 **Elegibilidade:**
 - `GET /entradas-estoque/:id/elegibilidade` (nome candidato) devolve `editar` = `{ permitido, campos_m: true, campos_f_permitidos, motivos[] }` e `excluir` = `{ permitido, motivos[] }`. Roda sem trava e é só informativo;
 - os comandos reavaliam sob trava, com a mesma função. Se a elegibilidade mudou, a resposta é 409 com o motivo (D-PROD-112: confirmar exige elegibilidade fresca);
 - a elegibilidade é **só consulta**:
-  - chama a mesma função de prova (A8.3) e de janela FIFO (A8.4) que os comandos;
+  - chama as mesmas funções de prova (A8.3), cache (CA) e janela (J1, J2) que os comandos;
   - não chama primitivas do motor e não toma travas de escrita;
   - **não há ensaio do motor em SAVEPOINT** nesta fase. O ensaio tomaria travas de linha fora da ordem canônica e poderia derrubar uma baixa real por deadlock. O precedente do rebanho (`movimentacaoMapaExclusaoService.js:96-123`) ensaia outro ledger;
   - um ensaio futuro exige decisão própria e a ordem completa de A8.5;
-  - a janela FIFO da camada nova, que depende do id, é avaliada na elegibilidade com a data informada e confirmada só no comando.
+- **a janela FIFO na prévia é estimativa** (R3). O id da camada nova só existe no comando (`estoqueFisicoMotor.js:225-242`). Por isso a prévia devolve `janela_fifo` com um destes valores:
+  - `livre`: nenhuma camada tocada com chave ≥ `D`;
+  - `bloqueada`: J1 ou J2 recusam, e o resultado é certo;
+  - `condicional`: só há camadas tocadas do **mesmo dia**, e o resultado depende do id gerado no comando (J3).
+  A tela nunca mostra `condicional` como garantia: "pode ser recusada na confirmação por empate de data com saída já feita";
+- **permissões e privacidade:**
+  - a rota de elegibilidade exige `visualizar` na tela de entradas, e quem não tem recebe 403 antes do serviço;
+  - documento de outro tenant ou de outra empresa → 404 `ENTRADA_ESTOQUE_NOT_FOUND`, **sem details**. Precedente: `OPERACAO_FINANCEIRA_NOT_FOUND` (`operacaoFinanceiraService.js:90`, `:2120-2128`). Assim, um documento inacessível nunca revela motivo físico;
+  - a falta de `editar`, `excluir`, `confirmar` ou `confirmar_outra` aparece como motivo `sem_permissao`, com `exige[]` (precedente `operacaoFinanceiraService.js:1793-1794`, `:2080-2084`);
+  - **número e id do documento ou movimento consumidor** só aparecem se o usuário tiver `visualizar` na tela daquele consumidor (lançamentos, abastecimentos, mapa). Sem isso, o motivo diz só o tipo, por exemplo "uma venda". A proposta é **mais estrita** que a P3, que mostra número e id a quem só tem `visualizar` (`operacaoFinanceiraService.js:1911-1925`). Isso vale também para os 409 de dedupe (A5).
 
 **Na tela (P1-06):**
 - os botões **Editar** e **Excluir** aparecem para quem tem a permissão;
@@ -448,12 +572,47 @@ As únicas escritas em linhas existentes são as transições de protocolo do pr
 - o próximo passo é mostrado com honestidade. Pela proposta (b), uma baixa depois cancelada **continua** bloqueando, porque o rastro dela fica. Então cancelar a venda ou o abastecimento **não** libera a edição física. O texto é: "a quantidade, o custo, o local, o produto e a data desta entrada não podem mais ser mudados, porque o estoque dela já foi usado (venda nº 123). Você ainda pode editar a observação. Para corrigir o saldo, use o ajuste de inventário quando ele existir (fora desta fase)". Se a ratificação aceitar `consumo_estornado` (b), o texto passa a orientar a desfazer antes as operações dependentes, da mais recente para a mais antiga;
 - **entrada `DOACAO` ou `OUTRA` que era compra e já tem dependência:** o texto diz que a compra com esse documento fica bloqueada até existir a conversão (R-CONVERSAO) e que o ajuste de inventário não resolve o financeiro. **Nunca** sugere lançar a compra sem documento, com outra grafia ou com outro parceiro;
 - Excluir fica desabilitado com a mesma razão;
+- `PROVA_INDETERMINADA` e `CACHE_DIVERGENTE` aparecem como "não foi possível confirmar que o estoque desta entrada nunca foi usado" e "o saldo deste produto precisa de conferência antes", com a orientação de reconciliação. **Nenhum** botão simula uma correção que o sistema não consegue provar;
 - **não há botão "Cancelar"** para a entrada;
 - o documento editado mostra "Editado (revisão N)" e o histórico de revisões (autor, data, motivo, antes e depois);
 - a confirmação de Excluir diz o efeito: "serão retirados X kg de P do local L";
 - o servidor é a única autoridade, e a tela só traduz `motivos[].codigo` em texto.
 
 **Nenhum reajuste silencioso, nenhum reprocessamento automático de fatos históricos.**
+
+#### A8.8 Testes PG obrigatórios dos slices futuros (R3; nenhum é implementado nesta PR)
+
+Cada teste nasce RED na P1-05a ou na P1-05b, antes do código, e roda em PG real (CI PG16 e local PG17).
+
+| # | Cenário | Esperado |
+|---|---|---|
+| T1 | Confirmação retroativa (data `D`) num par com camada de chave > `D` já consumida | 409 `IMPACTO_FIFO` `camada_posterior_consumida` (J1); nada gravado |
+| T2 | Revisão no mesmo dia, com camada do mesmo dia já consumida e id ordenado depois do novo | 409 `IMPACTO_FIFO` `empate_mesmo_dia` (J3), **depois** de criar a camada; rollback total |
+| T3 | Revisão com duas camadas novas (pares diferentes), uma passando e outra falhando em J3 | 409; nenhuma das duas fica |
+| T4 | Baixa concorrente × edição (as duas ordens de chegada) | a primeira vence; a segunda vê o efeito (prova recusa, ou baixa consome a camada nova); sem deadlock silencioso |
+| T5 | Falha injetada entre a criação da camada e a Fase 4 | nenhuma camada, movimento, cache, número, evento, AuditLog ou recibo persiste |
+| T6 | Após qualquer 409 | `count` de recibos da chave = 0; sequência de números inalterada; cache igual |
+| F1 | Saída com `lotes_consumidos` array válido citando `L` | `DEPENDENCIAS_FISICAS` `lote_consumido` |
+| F2 | Saída em S com JSON não-array (objeto, escalar, `jsonb null`) | `PROVA_INDETERMINADA` `rastro_ilegivel` |
+| F3 | Saída em S com array contendo objeto sem `lote_id` | `PROVA_INDETERMINADA` `rastro_ilegivel` |
+| F4 | Saída em S com `lotes_consumidos` SQL `NULL` que não é estorno da lista | `PROVA_INDETERMINADA` `rastro_ilegivel` |
+| F5 | `estorno_compra` com `movimento_pai_id` e JSON `NULL` | aceito (não é consumo) |
+| F6 | Saída numerada antes da entrada de `L`, mas com `createdAt` dentro da folga e JSON ilegível | `PROVA_INDETERMINADA` (a folga só amplia o conjunto) |
+| F7 | Venda consumiu `L` e foi cancelada (saldo voltou) | `DEPENDENCIAS_FISICAS` `consumo_estornado` |
+| F8 | Abastecimento consumiu `L` e foi cancelado | `DEPENDENCIAS_FISICAS` `consumo_estornado` (via P4, mesmo sem consultar JSON) |
+| F9 | Transferência de `L` (parcial) | `DEPENDENCIAS_FISICAS` `lote_transferido` |
+| F10 | Suplementação consumiu `L` | `DEPENDENCIAS_FISICAS` `lote_consumido` |
+| F11 | Origem `manual`/`reversao` em S | `PROVA_INDETERMINADA` `origem_legada` |
+| F12 | S acima do teto | `PROVA_INDETERMINADA` `volume_excedido` |
+| F13 | Corrida: baixa commitada logo antes da edição tomar a trava | a Fase 2 vê a baixa e recusa |
+| F14 | Prisma 6.19.3 atualiza `@updatedAt` em `updateMany` (base do P7) | confirmado ou P7 tratado como ausente |
+| C1 | Cache ≠ Σ camadas `Disponivel` (resíduo legado simulado) | 409 `CACHE_DIVERGENTE`, sem efeito |
+| U1 | Duas linhas vigentes no mesmo par | recusa no serviço e, como backstop, `P2002` no índice único parcial |
+| U2 | Linha fechada + linha vigente no mesmo par | aceito |
+| U3 | Duas edições concorrentes do mesmo documento | a segunda: `VERSAO_CONFLITO` |
+| U4 | Índice parcial começa por `cliente_id` | teste em `pg_index` / `pg_get_indexdef` (nenhum gate o vê) |
+| R1 | Replays e recibos da tabela da A8.6 | exatamente como descrito |
+| A1 | Usuário só com `visualizar`; documento de outra empresa | `sem_permissao` com `exige[]`; 404 sem details |
 
 ## 4. B — Lote do fabricante × camada física
 
@@ -558,22 +717,25 @@ O critério de recusa e identificação definitivo é decidido na P1-07, com tes
 | Criar rascunho | `criar_entrada_estoque` | corpo canônico sem `operation_id` | Produto `FOR KEY SHARE` em ordem crescente de id (como `travarProdutosDoRascunho` da P3, `operacaoFinanceiraService.js:384-401`) → número reservado | `novo` / `salvar` | `MOTIVO_INVALIDO`, `UNIDADE_INCOMPATIVEL`, `CUSTO_INVALIDO`, `DATA_FUTURA`, `REFERENCIA_INVALIDA` |
 | Editar rascunho (`PUT`) | — | — | cabeçalho com CAS de versão | `editar` | `VERSAO_CONFLITO`, `STATUS_INVALIDO` |
 | Prévia | — | — | só leitura | `visualizar` | — |
-| Confirmar | `confirmar_entrada_estoque` | `{id, empresa_id, versao}` | cabeçalho `FOR UPDATE` → locais `FOR KEY SHARE` → `travarProdutosEstoque` → **releitura** do Produto (empresa, unidade, peso; `exigirProdutoDaEmpresa` depende dela, `estoqueFisicoMotor.js:126-130`) → advisories PAGAR → RECEBER → consultas recíprocas → janela FIFO (A8.4) → motor → `numerarMovimentos` no fim → AuditLog → recibo | `confirmar` (+ `confirmar_outra`) | `IMPLANTACAO_COM_HISTORICO`, `DOCUMENTO_CONFLITANTE`, `IMPACTO_FIFO`, `FATOR_DIVERGENTE`, `VERSAO_CONFLITO` |
-| Elegibilidade | — | — | só leitura (sem trava) | `visualizar` | — |
-| Editar confirmada (R2) | `editar_entrada_estoque` | canônico de `{id, empresa_id, versao, motivo_edicao, corpo completo da revisão}` | A8.5 | `editar` **e** `confirmar` (+ `confirmar_outra` se o motivo antigo ou o novo for `OUTRA`) | `DEPENDENCIAS_FISICAS`, `IMPACTO_FIFO`, `DOCUMENTO_CONFLITANTE`, `VERSAO_CONFLITO`, `STATUS_INVALIDO`, `IMPLANTACAO_COM_HISTORICO`, `FATOR_DIVERGENTE` |
-| Excluir rascunho ou confirmada (R2) | `excluir_entrada_estoque` | canônico de `{id, empresa_id, versao, motivo}` | rascunho: cabeçalho com CAS; confirmada: A8.5 | rascunho: `excluir`; confirmada: `excluir` **e** `confirmar` | `DEPENDENCIAS_FISICAS`, `VERSAO_CONFLITO`, `STATUS_INVALIDO` |
+| Confirmar | `confirmar_entrada_estoque` | `{id, empresa_id, versao}` | **A8.5** (fases 1–5; a releitura do Produto é o passo 7, porque `exigirProdutoDaEmpresa` depende dela, `estoqueFisicoMotor.js:126-130`) | `confirmar` (+ `confirmar_outra`) | `IMPLANTACAO_COM_HISTORICO`, `DOCUMENTO_CONFLITANTE`, `IMPACTO_FIFO`, `PROVA_INDETERMINADA`, `CACHE_DIVERGENTE`, `FATOR_DIVERGENTE`, `VERSAO_CONFLITO` |
+| Elegibilidade e prévia | — | — | só leitura, sem trava e sem motor (A8.7) | `visualizar` | `NOT_FOUND` (404) |
+| Editar confirmada (R2) | `editar_entrada_estoque` | canônico de `{id, empresa_id, versao, motivo_edicao, corpo completo da revisão}` | A8.5 | `editar` **e** `confirmar` (+ `confirmar_outra` se o motivo antigo ou o novo for `OUTRA`) | `DEPENDENCIAS_FISICAS`, `PROVA_INDETERMINADA`, `CACHE_DIVERGENTE`, `IMPACTO_FIFO`, `DOCUMENTO_CONFLITANTE`, `VERSAO_CONFLITO`, `STATUS_INVALIDO`, `IMPLANTACAO_COM_HISTORICO`, `FATOR_DIVERGENTE` |
+| Excluir rascunho ou confirmada (R2) | `excluir_entrada_estoque` | canônico de `{id, empresa_id, versao, motivo}` | rascunho: cabeçalho com CAS; confirmada: A8.5 | rascunho: `excluir`; confirmada: `excluir` **e** `confirmar` | `DEPENDENCIAS_FISICAS`, `PROVA_INDETERMINADA`, `CACHE_DIVERGENTE`, `VERSAO_CONFLITO`, `STATUS_INVALIDO` |
 
 - **R1 → R2:**
   - o comando `cancelar` e o código `CANCELAMENTO_BLOQUEADO` saem;
   - `DOCUMENTO_DE_COMPRA`, `DOCUMENTO_DE_VENDA` e `DOCUMENTO_DUPLICADO` viram um código só, `DOCUMENTO_CONFLITANTE`, com esses três `reason`.
 - **Códigos (todos 409, prefixo `ENTRADA_ESTOQUE_`, nenhum existe hoje, sem colisão em `errorCodes.js`):**
-  - `DEPENDENCIAS_FISICAS`, com os reasons de A8.3;
-  - `IMPACTO_FIFO`, com os reasons de A8.4;
+  - `DEPENDENCIAS_FISICAS`, com os reasons de A8.3 (`lote_alterado`, `lote_consumido`, `consumo_estornado`, `lote_transferido`);
+  - `PROVA_INDETERMINADA` (R3): `rastro_ilegivel`, `origem_legada`, `numero_provisorio`, `volume_excedido`. Significa "não foi possível provar"; nunca libera;
+  - `CACHE_DIVERGENTE` (R3): `cache_diverge`, `cache_negativo`. Mesmo vocabulário da reconciliação (`reconciliacaoEstoque.js:799-815`), que hoje não tem código HTTP;
+  - `IMPACTO_FIFO`, com os reasons de A8.4 (`camada_posterior_consumida`, `empate_mesmo_dia`; J2 usa `PROVA_INDETERMINADA`);
   - `DOCUMENTO_CONFLITANTE`, com os reasons de A5;
   - `VERSAO_CONFLITO`, com `versao_atual` e `versao_informada`. Não se reaproveita `OPERACAO_VERSAO_CONFLITO`, cujo texto fala de rascunho do financeiro;
   - `STATUS_INVALIDO`: `documento_excluido` ou `nao_confirmada`;
   - `IMPLANTACAO_COM_HISTORICO`;
-  - `FATOR_DIVERGENTE`.
+  - `FATOR_DIVERGENTE`;
+  - `ENTRADA_ESTOQUE_NOT_FOUND` (404, sem details), para documento de outro tenant ou de outra empresa, como `OPERACAO_FINANCEIRA_NOT_FOUND`.
 - Cada código entra em `BACKEND_ONLY_CODES`, com http e significado terminando em "nada foi alterado". Sem isso, o `AppError` vira 500 (`errorCodes.js:549-558`).
 - O corpo de erro segue o padrão `field`/`reason` + `details.motivos[]` (`operacaoFinanceiraService.js:1761-1778`).
 - Os validadores do rascunho (`MOTIVO_INVALIDO`, `UNIDADE_INCOMPATIVEL`, `CUSTO_INVALIDO`, `DATA_FUTURA`, `REFERENCIA_INVALIDA`) seguem como na R1.
@@ -587,7 +749,7 @@ O critério de recusa e identificação definitivo é decidido na P1-07, com tes
 - **Permissões:**
   - o vocabulário é o de `ACOES` (`backend/src/shared/auth/autorizacaoTela.js:70`). `editar` e `excluir` **já existem**;
   - ações extras em lista própria, candidata `ACOES_ENTRADA_ESTOQUE = ['confirmar', 'confirmar_outra']`, com teste de paridade entre front e back (precedente: `ACOES_LANCAMENTOS_FINANCEIROS`, `:77`). `cancelar` sai da lista na R2;
-  - editar ou excluir **confirmada** exige também `confirmar`, porque desfaz e refaz efeito confirmado. Para editar, é igual à D-PROD-158 (retificar = `editar` + `confirmar`; `guardasRotas.js:240-250`). Para excluir, é **análogo, mas não igual**: a P3 exige `cancelar` + `excluir`. Como a entrada não tem a ação `cancelar`, a proposta é `excluir` + `confirmar` (R-EDICAO-EXCLUSAO (f)). A guarda de rota e a elegibilidade usam a **mesma** fórmula (`porTodas`);
+  - editar ou excluir **confirmada** exige também `confirmar`, porque desfaz e refaz efeito confirmado. Para editar, é análogo à D-PROD-158, em que retificar = (`editar` **ou** `salvar`) + `confirmar` (`guardasRotas.js:246-249`). A proposta exige `editar` + `confirmar`, sem a alternativa `salvar`, porque `salvar` é a ação do rascunho. Para excluir, é **análogo, mas não igual**: a P3 exige `cancelar` + `excluir` (`guardasRotas.js:250`), e o descarte de rascunho da P3 usa a guarda `editar` (`operacaoFinanceiraRoutes.js:344`). Como a entrada não tem a ação `cancelar`, a proposta é `excluir` + `confirmar` (R-EDICAO-EXCLUSAO (f)). A guarda de rota e a elegibilidade usam a **mesma** fórmula (`porTodas`);
   - **sem concessão automática a perfis não administradores**. O administrador real e `is_admin` têm todas as ações por desenho (`telaPermite`, `autorizacaoTela.js:167-178`). Só a elegibilidade de negócio (A8.3, A8.4) os barra. Exigir para `OUTRA` ou `SALDO_IMPLANTACAO` algo acima do administrador (dupla aprovação) depende de decisão própria;
   - nenhuma permissão nova é concedida por esta proposta.
 
@@ -624,7 +786,7 @@ O critério de recusa e identificação definitivo é decidido na P1-07, com tes
 5. Recusa de custo e valor < 0.
 6. **Estorno:** `efeito: 'ENTRADA'` em vez de `direcao === 'PAGAR'` (`:858`), mais `tipoDetalhadoEstorno`/`motivoEstorno` opcionais, como `estornarSaida` já faz (`:806`, `:814`).
    - **Primitiva de produção:** a reversão de entrada usada em produção é `estornarEmLote` (`operacaoFinanceiraService.js:1528`). `estornarEntrada` só é chamada por teste (`backend/tests/gestaoP3Rodada2.test.mjs:24`, `:283`). A entrada manual usa `estornarEmLote` parametrizada, ou uma primitiva irmã com a mesma guarda, aceitando um item no formato da linha da entrada.
-   - `tipo_detalhado` dos estornos (candidatos; a coluna é `VarChar(128)`, `schema.prisma:1228`): `estorno_entrada_revisao` e `estorno_entrada_exclusao`.
+   - `tipo_detalhado` dos estornos (candidatos; a coluna é `VarChar(128)`, `schema.prisma:1228`): `estorno_entrada_revisao` e `estorno_entrada_exclusao`. Eles entram, junto com `estorno_compra`, na **lista fechada** de exceções da varredura P5 (A8.3). Nenhum outro tipo é aceito com `lotes_consumidos` nulo.
    - A origem nova `entrada_estoque` cabe em `origem_sistema VarChar(32)` (`schema.prisma:1271`).
    - Os rótulos atuais de compra (`:974`, `:982`) não mudam.
 7. **Proteção:**
@@ -730,6 +892,34 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
 - O cabeçalho do documento é mutável por CAS (versão, revisão, chave ativa, status), como o cabeçalho da P3.
 - O histórico do documento vive nos eventos e nas linhas fechadas (`revisao_fim`).
 
+**Integridade das linhas (R3).** Uma `@@unique` comum com `revisao_fim` nula **não** garante unicidade no PostgreSQL, porque NULL ≠ NULL. A proposta tem três camadas:
+
+1. **Serialização no serviço (regra primária).** Toda mudança de linhas de um documento acontece sob o `FOR UPDATE` do cabeçalho e com CAS de versão (A8.5, passos 2–4). Antes dos efeitos, o serviço confere que o par `(produto, local)` é único entre as linhas **vigentes**.
+2. **Backstop no banco:** um índice único **parcial** na tabela nova:
+   ```sql
+   CREATE UNIQUE INDEX "EntradaEstoqueItem_par_vigente_key"
+     ON "EntradaEstoqueItem"("cliente_id","entrada_id","produto_id","local_estoque_id")
+     WHERE "revisao_fim" IS NULL;
+   ```
+   - **Fato:** o classificador expand-only aceita esse formato em tabela **nova** (`scripts/deploy/premergeMigrateLib.mjs:153-155`; a execução local de leitura do classificador deu `ok`). Ele recusa a variante com `IF NOT EXISTS` ou `USING`.
+   - O Prisma 6.19.3 não modela índice parcial nem o mostra como drift. O índice vive só na migration, com comentário no model (precedente: `Usuario_login_ativo_global_key`, `schema.prisma:195-197`; D-PROD-35).
+   - **Nenhum gate** confere que um índice só em SQL começa por `cliente_id` (`gate:indices` lê só o schema, `scripts/gates/gate-indices.mjs:22-26`). Por isso o prefixo R10 é exigido por **teste PG próprio** (A8.8, U4).
+   - O teste de drift SM-03 (`backend/tests/patrimonioSimplificaMigration.test.mjs:127-175`) fixa contagens de migrations e tabelas e precisará ser atualizado na P1-05a.
+3. **CHECKs na tabela nova** (permitidos em tabela nova):
+   - `revisao_inicio ≥ 1` (linha de rascunho sem camada usa `revisao_inicio = 0`);
+   - `revisao_fim IS NULL OR revisao_fim ≥ revisao_inicio`;
+   - `(estoque_lote_nota_id IS NULL) = (movimentacao_estoque_id IS NULL)`;
+   - `movimentacao_estorno_id IS NOT NULL ⇒ revisao_fim IS NOT NULL AND estoque_lote_nota_id IS NOT NULL`.
+
+**Invariantes de vínculo (R3), conferidos pela reconciliação nova** (§6.2, item 9):
+- cada linha com camada tem **uma** camada, **um** movimento de entrada e no máximo **um** estorno, cada um único por `cliente_id`;
+- `camada.movimentacao_entrada_id` = movimento de entrada da linha;
+- `estorno.movimento_pai_id` = movimento de entrada da linha, e o estorno tem `tipo_detalhado` `estorno_entrada_revisao` ou `estorno_entrada_exclusao`;
+- a camada de linha fechada está `Estornado`, com disponível 0. A da linha vigente está `Disponivel`, ou consumida de forma rastreável;
+- revisão só de metadados (classe M) **não** cria, fecha nem altera linha;
+- numa revisão parcial, só as linhas fechadas ganham estorno. Uma camada `Estornado` sem linha fechada que a explique é `DIVERGENCIA_REAL`, nunca atribuída a outra linha;
+- estorno de protocolo (Saída com `movimento_pai_id`) **não** é entrada nova, e entrada nova nunca usa `movimento_pai_id` (§6.2, item 9).
+
 ## 8. Pontos que dependem de ratificação humana
 
 > **O merge desta PR não aprova nem ratifica nada.** Isso difere do padrão em que o merge manual do proprietário materializa a aprovação (D-PROD-22/155/157/159/162). Aqui a ratificação exige o texto incorporado em `00` e `07` pelo fluxo da proposta de emenda (§5) e uma nota posterior datada na D-PROD-177.
@@ -774,7 +964,15 @@ A lição está no incidente da P1-01 do Patrimônio (CURRENT-STATE). Sem backfi
     - proposta, **por documento**: uma camada referenciada trava a classe F de todos os itens;
     - alternativa, **por item**: só os itens com camada referenciada ficam travados. Data, parceiro e documento travam se qualquer item tiver dependência, e incluir item continua sujeito à janela FIFO.
     - Se a alternativa for escolhida, a A8.1, a A8.2, a A8.3, a A8.7, a A3 e o texto proposto para 00 e 07 mudam juntos;
-  - (l) motivo da entrada imutável (classe I).
+  - (l) motivo da entrada imutável (classe I). **Trade-off para avaliação humana:**
+    - a favor: fecha a passagem `DOACAO` → `SALDO_IMPLANTACAO` e simplifica permissões e reconciliação;
+    - contra: corrigir o motivo exige excluir e lançar de novo, e isso só é possível sem dependência física.
+    - O pedido de "Editar/Excluir" do proprietário **não** foi lido como aprovação deste ponto;
+  - (m) **R3:**
+    - tetos fail-closed da prova (5.000 Saídas por produto) e do cache (50.000 camadas), a medir na P1-05a;
+    - legado sem rastro de produção **bloqueia** a edição física do produto até saneamento;
+  - (n) **R3:** privacidade mais estrita que a P3. Número e id de documento consumidor só aparecem para quem pode visualizá-lo;
+  - (o) **R3:** cache exato (sem tolerância) como pré-condição. Produto com resíduo legado fica sem edição física até o saneamento (D-PROD-161, P1).
 - **Textos da emenda e pontos abertos:** o texto proposto para 00 e 07 já incorpora as propostas (b) (baixa estornada bloqueia), (c) (janela FIFO só na entrada) e (k) (alcance por documento). Se a ratificação escolher outra opção, a proposta de emenda (§5) indica a frase literal que muda.
 - **D-PROD-177:** número e texto da decisão.
 
