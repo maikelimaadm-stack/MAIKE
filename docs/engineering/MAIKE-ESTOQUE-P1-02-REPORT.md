@@ -196,7 +196,7 @@ Não houve mudança de controle de versão nem de checagem da unidade efetiva.
 | `estoqueP1M5EstornoInvariantes` I7: vínculo do original (produto/empresa), camada da 2ª fatia (empresa/produto/local), lote inexistente, duas fatias devolvidas cada uma ao seu lote, outro tenant sem oráculo | falha: "a chamada deveria ter sido recusada" | 8/8 |
 | `estoqueP1M5Concorrencia` K6: espera real no `FOR UPDATE` da camada e no do original, conferida em `pg_stat_activity`; recusa com o estado novo antes de escrever; dois estornos do mesmo original fora do protocolo → um só | 2 falhas | 7/7, K5 sem deadlock |
 | `patrimonioP1Abastecimentos` AB11: HTTP, original de outro produto/empresa → `vinculo_divergente`; lote de outro produto/empresa/local → `camada_divergente`; nada alterado | **200** (cancelou) onde devia dar 409 | 15/15 |
-| `estoqueP1PrecheckEstornosSql` (novo): o `.sql` real, numa transação READ ONLY | — | 1/1 |
+| `estoqueP1PrecheckEstornosSql` (novo): o `.sql` real, numa transação READ ONLY; S5 com venda de 2 itens no mesmo lote | S5 falha com o SQL da 1ª versão da R1 | 2/2 |
 
 Regressão verde: `patrimonioP1AbastecimentosConcorrencia` (11), `…Seguranca` (8), `…ContratoTela` (3), `patrimonioSimplificaAbastecimentos` (10), `gestaoP3Rodada2` (13), mais as demais suítes da P3, M2–M6 e do Patrimônio na CI `full`.
 
@@ -221,6 +221,13 @@ Validação:
 - camadas adulteradas aparecem nas duas origens;
 - o estado do banco fica idêntico antes e depois;
 - no `psql`, `BEGIN READ ONLY; \i …; ROLLBACK` deu exit 0 nos dois arquivos.
+
+Revisão adversarial da R1 (3 lentes; 2 céticos por achado), com um achado confirmado e corrigido:
+- **Achado:** no ramo `devolucao_excede_entrada`, o SQL somava as fatias por item. O estorno em lote acumula a devolução no mesmo lote entre os itens da venda. Isso gerava falso negativo, de efeito `JA_RECUSAVA`, em venda com dois itens no mesmo lote.
+- **Correção:** agora a soma é por documento no lote.
+- **Prova:** teste S5, RED com o SQL anterior e GREEN com o atual. O cancelamento real recusa no 2º item, com `disponivel` 90 = 30 + 60.
+
+Também ficou explícito no cabeçalho que `efeito` é do **motivo**: um documento em `NOVA_RECUSA` pode já ser recusado por outro motivo anterior.
 
 **Produção não foi consultada; o GO continua pendente.**
 

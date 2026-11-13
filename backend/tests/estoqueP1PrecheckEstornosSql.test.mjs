@@ -11,6 +11,10 @@
  *  S3. fatia de abastecimento em lote de outro local e lote da compra de outro
  *      produto → camada_divergente nas DUAS origens; fatias que não fecham →
  *      JA_RECUSAVA / fatias_inconsistentes;
+ *  S5. venda com DOIS itens do mesmo produto/local no MESMO lote: a devolução é
+ *      somada por documento no lote (como o estorno em lote do motor), não por
+ *      item — achado da revisão adversarial da R1; o cancelamento real recusa
+ *      com o mesmo motivo;
  *  S4. a transação é READ ONLY (`transaction_read_only = on`, nunca commita) e
  *      o estado do banco é idêntico antes e depois; o precheck de unidades roda
  *      no mesmo regime.
@@ -23,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { acoesAbastecimento, corpoAbastecimento, erro, montarAbastecimento, prisma } from './patrimonioP1AbastecimentoCenario.mjs';
 import { estadoFisico } from './estoqueP1MCenario.mjs';
+import { acoes, docCom, loteLegado, montarTenant } from './gestaoP3Cenario.mjs';
 
 const sqlDe = (nome) => readFileSync(new URL(`../../scripts/ops/sql-editor/${nome}`, import.meta.url), 'utf8');
 const ESTORNOS = sqlDe('estoque-p1-02-precheck-estornos-somente-leitura.sql');
@@ -77,7 +82,7 @@ describe('Precheck dos estornos (FINANCEIRO + ABASTECIMENTO), somente leitura', 
 
     // S1 — limpo
     const foto0 = await estadoFisico(prisma(), s.c);
-    assert.deepEqual(resumo(await rodarSomenteLeitura(ESTORNOS)), [['NENHUM', '-', 'nenhum documento confirmado (financeiro ou abastecimento) seria recusado pelos estornos', 0]]);
+    assert.deepEqual(resumo(await rodarSomenteLeitura(ESTORNOS)), [['NENHUM', '-', 'nenhum documento confirmado (financeiro ou abastecimento) com os motivos verificados', 0]]);
     assert.equal(await estadoFisico(prisma(), s.c), foto0, 'S1: nada escrito');
 
     // S2 — original do abastecimento a2 de outro produto
@@ -111,5 +116,30 @@ describe('Precheck dos estornos (FINANCEIRO + ABASTECIMENTO), somente leitura', 
     const u = await rodarSomenteLeitura(UNIDADES);
     assert.ok(Array.isArray(u) && u.length >= 1, 'o precheck de unidades devolve ao menos uma linha (NENHUM ou contagens)');
     assert.equal(await estadoFisico(prisma(), s.c), foto3, 'S4: nada escrito');
+  });
+
+  test('S5: venda de dois itens no mesmo lote — devolucao_excede_entrada é por documento no lote (como o motor)', async () => {
+    const t = await montarTenant(app);
+    const e = t.e1;
+    const P = acoes(app);
+    const lote = await loteLegado(t, e, e.sal, t.local, { kg: '100' });
+    await prisma().produto.update({ where: { id: e.sal.id }, data: { estoque_atual: '100' } });
+    const venda = await P.criarConfirmar(t.token, docCom(e, t.local, [
+      { produto: e.sal, quantidade: '60', valor_unitario: '3' },
+      { produto: e.sal, quantidade: '40', valor_unitario: '3' },
+    ], { direcao: 'RECEBER' }));
+    const doTenant = async () => (await rodarSomenteLeitura(ESTORNOS)).filter((l) => l.cliente_id === t.c);
+    assert.deepEqual(resumo(await doTenant()), [], 'venda coerente: nada para este tenant');
+    // dado divergente: o lote "ganha" 30 kg por fora; 30+60 e 30+40 cabem na entrada, 30+60+40 não
+    await prisma().estoqueLoteNota.update({ where: { id: lote.id }, data: { quantidade_disponivel: '30.0000', status: 'Disponivel' } });
+    const linhas = await doTenant();
+    assert.deepEqual(resumo(linhas), [['FINANCEIRO', 'JA_RECUSAVA', 'devolucao_excede_entrada', 1]]);
+    assert.deepEqual(linhas[0].exemplos, [venda.id]);
+    const cancel = await P.cancelarReq(t.token, venda.id, e.id);
+    assert.equal(cancel.statusCode, 409, cancel.body);
+    const corpo = cancel.json();
+    assert.deepEqual([corpo.code, corpo.reason], ['ESTOQUE_JA_CONSUMIDO', 'devolucao_excede_entrada'], 'o motor concorda com o SQL');
+    // a recusa vem no 2º item, com o lote já acrescido do 1º (30 + 60 = 90): soma por documento
+    assert.deepEqual([corpo.details.item_ordem, corpo.details.disponivel], [2, '90.0000']);
   });
 });

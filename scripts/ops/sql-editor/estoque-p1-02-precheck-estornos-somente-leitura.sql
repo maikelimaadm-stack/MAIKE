@@ -22,6 +22,9 @@
 --   NOVA_RECUSA  passa a ser recusado com a P1-02 (antes era aceito): é o
 --                impacto do release;
 --   JA_RECUSAVA  já era recusado antes (só aparece para o quadro ficar completo).
+--   O efeito é do MOTIVO: um documento listado em NOVA_RECUSA pode já ser
+--   recusado por outro motivo anterior (ex.: lote da compra consumido); cruze
+--   os ids de exemplo entre as linhas antes de concluir o impacto.
 -- Fora do relatório, de propósito: compra cujo lote já foi consumido
 -- (lote_consumido). É a recusa NORMAL de quem já usou o estoque, não um dado
 -- incoerente, e não mudou na P1-02.
@@ -138,10 +141,11 @@ problemas AS (
     ON l.cliente_id = x.cliente_id AND l.id = x.estoque_lote_nota_id
   WHERE l.id IS NULL OR l.status NOT IN ('Disponivel', 'Esgotado')
   UNION ALL
-  -- 4c. Devolução (soma das fatias da linha no lote) passaria da entrada do lote.
+  -- 4c. Devolução (soma das fatias do DOCUMENTO no lote: o estorno em lote acumula
+  --     entre os itens da mesma venda) passaria da entrada do lote.
   SELECT x.origem, x.cliente_id, x.doc_id, 'devolucao_excede_entrada', 'JA_RECUSAVA'
-  FROM (SELECT origem, cliente_id, doc_id, linha_id, estoque_lote_nota_id, sum(qtd_fatia) AS devolver
-        FROM fatias GROUP BY origem, cliente_id, doc_id, linha_id, estoque_lote_nota_id) x
+  FROM (SELECT origem, cliente_id, doc_id, estoque_lote_nota_id, sum(qtd_fatia) AS devolver
+        FROM fatias GROUP BY origem, cliente_id, doc_id, estoque_lote_nota_id) x
   JOIN public."EstoqueLoteNota" l
     ON l.cliente_id = x.cliente_id AND l.id = x.estoque_lote_nota_id
   WHERE l.quantidade_disponivel + x.devolver > l.quantidade_entrada
@@ -156,6 +160,6 @@ resumo AS (
 SELECT origem, efeito, cliente_id, motivo, documentos, exemplos
 FROM resumo
 UNION ALL
-SELECT 'NENHUM', '-', '-', 'nenhum documento confirmado (financeiro ou abastecimento) seria recusado pelos estornos', 0, ARRAY[]::text[]
+SELECT 'NENHUM', '-', '-', 'nenhum documento confirmado (financeiro ou abastecimento) com os motivos verificados', 0, ARRAY[]::text[]
 WHERE NOT EXISTS (SELECT 1 FROM resumo)
 ORDER BY 1, 2, 3, 4;
