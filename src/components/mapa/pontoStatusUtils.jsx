@@ -1,124 +1,84 @@
-import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
-import { formatKg } from "../suplementacao/formatters";
-
-const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value || 0));
-const parseDateLocal = (value) => {
-  if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [ano, mes, dia] = value.split("-").map(Number);
-    return new Date(ano, mes - 1, dia);
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-const startOfLocalDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-const diffLocalDays = (start, end = new Date()) => {
-  const inicio = parseDateLocal(start);
-  if (!inicio) return 0;
-  const inicioDia = startOfLocalDay(inicio);
-  const fimDia = startOfLocalDay(end);
-  return Math.max(0, Math.floor((fimDia - inicioDia) / 86400000));
-};
+/**
+ * Adaptadores de compatibilidade do indicador de cocho/depósito do Mapa Geral.
+ *
+ * D-PROD-178: TODA a matemática (último evento, dias civis, taxa, saldo,
+ * percentuais, limite operacional, mínimo) vive no SSOT
+ * `src/domain/suplementacao/nivelSuplementacao.js`. Estes adaptadores só
+ * traduzem o nível para o formato antigo (`percent`, `badgeLabel`,
+ * `helperLabel`, `latestRecord`, …) e devolvem o nível completo em `nivel`.
+ */
+import { calcularNivelCocho, calcularNivelDeposito } from "@/domain/suplementacao/nivelSuplementacao";
+import { ehDiaValido, hojeNoFuso } from "@/lib/diaCivil";
 
 export function buildProgressIconUrl(baseIconUrl) {
   return baseIconUrl;
 }
 
-export function getCochoIndicator(ponto, eventos = []) {
-  let ultimoEvento = null;
-  for (const evento of eventos) {
-    if (evento.ponto_suplementacao_id !== ponto.id) continue;
-    if (!ultimoEvento || new Date(evento.data_lancamento) > new Date(ultimoEvento.data_lancamento)) {
-      ultimoEvento = evento;
-    }
-  }
-
-  if (!ultimoEvento) {
-    return {
-      percent: 0,
-      badgeLabel: "Sem lançamento",
-      helperLabel: "Nenhum lançamento registrado",
-      latestRecord: null,
-    };
-  }
-
-  const diasDesdeUltimo = diffLocalDays(ultimoEvento.data_lancamento);
-  const sobra = Number(ultimoEvento.sobra_kg || 0);
-  const fornecido = Number(ultimoEvento.quantidade_total_kg || 0);
-  const totalDisponivel = fornecido + sobra;
-  // Fonte de consumo diário: consumo_esperado_pv_kg (calculado por %PV no momento do lançamento)
-  // NUNCA usar consumo_diario_grupo_kg pois é consumo do período fechado, não diário
-  const consumoBase = Number(ultimoEvento.consumo_esperado_pv_kg || 0);
-
-  let saldoEstimado;
-  if (ultimoEvento.dias_periodo != null) {
-    saldoEstimado = sobra;
-  } else if (consumoBase > 0) {
-    saldoEstimado = Math.max(0, totalDisponivel - consumoBase * diasDesdeUltimo);
-  } else {
-    // Sem %PV configurado: não desconta, mostra total fornecido
-    saldoEstimado = totalDisponivel;
-  }
-
-  const percent = totalDisponivel > 0 ? clamp(saldoEstimado / totalDisponivel) : 0;
-
+/**
+ * Indicador do cocho.
+ *
+ * @param {any} ponto
+ * @param {any[]} [eventos]  eventos de suplementação da fazenda (todos os pontos)
+ * @param {{ hoje?: string, pontos?: any[] }} [opcoes]
+ *   `hoje`: dia civil AAAA-MM-DD no fuso da fazenda (padrão/ inválido:
+ *   `hojeNoFuso(null)`, o relógio do navegador). `pontos`: pontos de
+ *   suplementação ativos, para detectar cochos compartilhando os mesmos animais.
+ * @returns {{ percent: number, badgeLabel: string, helperLabel: string, latestRecord: any, saldoAtual: number|null, nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho }}
+ */
+export function getCochoIndicator(ponto, eventos = [], opcoes = {}) {
+  const hoje = ehDiaValido(opcoes?.hoje) ? /** @type {string} */ (opcoes.hoje) : hojeNoFuso(null);
+  const nivel = calcularNivelCocho({ ponto, eventos, hoje, pontos: Array.isArray(opcoes?.pontos) ? opcoes.pontos : [] });
   return {
-    percent,
-    badgeLabel: `${Math.round(percent * 100)}%`,
-    helperLabel: `${diasDesdeUltimo} dia(s) desde o último lançamento`,
-    latestRecord: ultimoEvento,
+    percent: nivel.fracaoParaSvg,
+    badgeLabel: nivel.rotuloCurto,
+    helperLabel: nivel.descricao,
+    latestRecord: nivel.evento,
+    saldoAtual: nivel.saldoKg,
+    nivel,
   };
 }
 
 /**
- * Indicador do depósito (saldo, % da capacidade, alerta de estoque mínimo e
- * último registro), tudo em kg.
+ * Indicador do depósito: saldo em kg sobre o LIMITE OPERACIONAL
+ * (`capacidade_cocho_kg`); o estoque mínimo só dispara a reposição.
  *
  * D-PROD-162 (padrão P-11): `produtos` (opcional) diz quais Produtos têm
  * estoque em LITROS; os lotes deles ficam fora do saldo em kg e o movimento
- * rotulado `L` fica fora do "último registro". Sem `produtos`, ou sem Produto
- * em L, o resultado é idêntico ao de antes.
+ * rotulado `L` fica fora do "último registro". Sem `produtos` o saldo é o de
+ * antes, mas a unidade dos lotes fica "não confirmada" (`nivel.unidadesConfirmadas`).
+ *
+ * Todo número devolvido sai do nível do SSOT (D-PROD-178): `estoqueMinimo` e
+ * `capacidadeDeposito` são `nivel.estoqueMinimoKg`/`nivel.limiteOperacionalKg`
+ * (0 quando não configurados), nunca o campo cru do cadastro. A antiga
+ * `necessidadeEstimada` (`consumo_ideal_por_cabeca_kg × cabeças` por cocho
+ * ligado, sem consumidor) saiu: contava em dobro o rebanho de cochos que
+ * atendem os mesmos animais. `cochos` e `lotes` ficam na assinatura só por
+ * compatibilidade e não entram em nenhuma conta.
+ *
+ * @param {any} deposito
+ * @param {any[]} [_cochos]  ignorado (compatibilidade)
+ * @param {any[]} [_lotes]   ignorado (compatibilidade)
+ * @param {any[]} [estoqueLotes]
+ * @param {any[]} [movimentacoes]
+ * @param {any[]} [produtos]
  */
-export function getDepositoIndicator(deposito, cochos = [], lotes = [], estoqueLotes = [], movimentacoes = [], produtos = []) {
-  const cochosRelacionados = cochos.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") === "COCHO" && ponto.deposito_origem_id === deposito.id);
-  const produtosEmLitros = new Set((Array.isArray(produtos) ? produtos : []).filter((p) => p?.unidade_principal_estoque === "L").map((p) => p.id));
-  const saldoAtual = estoqueLotes
-    .filter((lote) => lote.local_estoque_id === deposito.local_estoque_id && (lote.quantidade_disponivel || 0) > 0 && !produtosEmLitros.has(lote.produto_id))
-    .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
-
-  const necessidadeEstimada = cochosRelacionados.reduce((total, cocho) => {
-    const areaIds = Array.isArray(cocho.area_vinculada_ids) && cocho.area_vinculada_ids.length > 0
-      ? cocho.area_vinculada_ids
-      : (cocho.area_vinculada_id ? [cocho.area_vinculada_id] : []);
-    const cabecas = lotes
-      .filter((lote) => areaIds.includes(lote.area_atual_id) && lote.status === "Ativo")
-      .reduce((soma, lote) => soma + (lote.quantidade_cabecas || 0), 0);
-    const consumo = (cocho.consumo_ideal_por_cabeca_kg || 0) * cabecas;
-    return total + consumo;
-  }, 0);
+export function getDepositoIndicator(deposito, _cochos = [], _lotes = [], estoqueLotes = [], movimentacoes = [], produtos = []) {
+  const nivel = calcularNivelDeposito({ deposito, estoqueLotes, produtos });
 
   const ultimoRegistro = movimentacoes
     .filter((item) => (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id) && item.unidade_medida !== "L")
-    .sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao))[0] || null;
-
-  const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
-  const capacidadeDeposito = Number(deposito.capacidade_cocho_kg || 0);
-  const necessidadeReposicao = capacidadeDeposito > 0 ? Math.max(capacidadeDeposito - saldoAtual, 0) : 0;
-  const percent = estoqueMinimo > 0 ? clamp(saldoAtual / estoqueMinimo) : 0;
-  const isCritical = estoqueMinimo > 0 && saldoAtual <= estoqueMinimo;
+    .sort((a, b) => new Date(b.data_movimentacao).getTime() - new Date(a.data_movimentacao).getTime())[0] || null;
 
   return {
-    percent,
-    saldoAtual,
-    estoqueMinimo,
-    capacidadeDeposito,
-    necessidadeEstimada,
-    necessidadeReposicao,
-    isCritical,
-    badgeLabel: `${Math.round(percent * 100)}%`,
-    helperLabel: estoqueMinimo > 0
-      ? `${formatKg(saldoAtual)} disponíveis; mínimo de ${formatKg(estoqueMinimo)}`
-      : `${formatKg(saldoAtual)} disponíveis; estoque mínimo não configurado`,
+    percent: nivel.fracaoParaSvg,
+    saldoAtual: nivel.saldoKg,
+    estoqueMinimo: nivel.estoqueMinimoKg ?? 0,
+    capacidadeDeposito: nivel.limiteOperacionalKg ?? 0,
+    necessidadeReposicao: nivel.necessidadeReposicaoKg,
+    isCritical: nivel.abaixoMinimo,
+    badgeLabel: nivel.rotuloCurto,
+    helperLabel: nivel.descricao,
     latestRecord: ultimoRegistro,
+    nivel,
   };
 }

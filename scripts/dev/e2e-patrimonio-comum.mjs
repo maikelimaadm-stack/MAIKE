@@ -73,7 +73,9 @@ export const criarEnsaio = (cfg) => {
   const processos = [];
   const envLimpo = () => {
     const e = { ...process.env };
-    for (const k of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'VERCEL', 'VERCEL_ENV', 'MAIKE_TESTE_AGORA']) delete e[k];
+    // Vazias, não apagadas: o dotenv do backend filho só preenche chaves ausentes.
+    for (const k of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) e[k] = '';
+    for (const k of ['VERCEL', 'VERCEL_ENV', 'MAIKE_TESTE_AGORA']) delete e[k];
     return e;
   };
   const subir = (nome, comando, args, env) => {

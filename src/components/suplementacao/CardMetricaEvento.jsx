@@ -3,17 +3,38 @@ import DesvioConsumoTag from "./DesvioConsumoTag";
 import { formatDecimal, formatKg } from "./formatters";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { kgParaSacos } from "./unidadeConversaoUtils";
+import { formatarDia, somarDias } from "@/lib/diaCivil";
+import { baseDoCicloDoEvento } from "@/domain/suplementacao/nivelSuplementacao";
 
-const parseDateLocal = (value) => {
-  if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [ano, mes, dia] = value.split("-").map(Number);
-    return new Date(ano, mes - 1, dia);
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
+/** Dias com até 1 casa ("4", "6,7"). @param {number} dias */
+const formatarDias = (dias) => dias.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
+/**
+ * Métricas de um lançamento de suplementação.
+ *
+ * Taxa (D-PROD-178): `consumoEsperadoDiaKg` passado (inclusive `null`) é a taxa
+ * do SSOT do nível (`nivelSuplementacao.taxaConsumoKgDia`) e vale como está —
+ * `null` significa "sem estimativa confiável" e não projeta nada. Sem a prop,
+ * vale a taxa gravada no evento (`consumo_esperado_pv_kg`). Para o ÚLTIMO
+ * lançamento do cocho, o detalhe e o Histórico passam o mesmo
+ * `projecaoDoCartaoDoNivel(nivel)`: no ciclo aberto, taxa, duração e próxima
+ * reposição do SSOT; fora dele, nada (vale o gravado).
+ *
+ * Sem as props, a projeção segue a MESMA regra do SSOT: base do ciclo
+ * (`baseDoCicloDoEvento`: aberto = fornecido + sobra anterior; fechado = consumo
+ * real × dias + sobra final) ÷ taxa, sem arredondar; próxima reposição =
+ * lançamento + ⌈base ÷ taxa⌉ dia(s).
+ *
+ * @param {{
+ *   evento: any,
+ *   consumoEsperadoDiaKg?: number|null,
+ *   sacos?: number|null,
+ *   produto?: any,
+ *   showProjecao?: boolean,
+ *   duracaoEstimada?: number|null,
+ *   proximaReposicao?: string|null,
+ * }} props
+ */
 export default function CardMetricaEvento({
   evento,
   consumoEsperadoDiaKg,
@@ -28,7 +49,9 @@ export default function CardMetricaEvento({
   const periodoFechado = (evento.dias_periodo || 0) > 0;
   const cabecas = evento.total_cabecas_afetadas || 0;
   const pesoMedio = evento.peso_medio_lotes_kg || 0;
-  const consumoEsperadoPV = consumoEsperadoDiaKg || evento.consumo_esperado_pv_kg || 0;
+  const consumoEsperadoPV = consumoEsperadoDiaKg !== undefined
+    ? Math.max(0, Number(consumoEsperadoDiaKg) || 0)
+    : Math.max(0, Number(evento.consumo_esperado_pv_kg) || 0);
   const consumoEsperadoCabDia = consumoEsperadoPV > 0 && cabecas > 0 ? consumoEsperadoPV / cabecas : 0;
 
   // Consumo real (só quando período fechado)
@@ -37,7 +60,8 @@ export default function CardMetricaEvento({
 
   const fornecido = Number(evento.quantidade_total_kg || 0);
   const sobra = Number(evento.sobra_kg || 0);
-  const totalDisp = fornecido + sobra;
+  // No período fechado `sobra_kg` é a sobra FINAL: a base vem do fechamento.
+  const baseCiclo = baseDoCicloDoEvento(evento);
 
   // Sacos: 1) prop, 2) evento.quantidade_sacos, 3) calcular via produto ou evento.peso_por_saco_kg
   const pesoPorSaco = Number(produto?.peso_por_saco_kg || evento.peso_por_saco_kg || 0);
@@ -49,11 +73,11 @@ export default function CardMetricaEvento({
   kgParaSacos(fornecido, pesoPorSaco) :
   null;
 
-  // Duração estimada
+  // Duração estimada (dias, sem arredondar; a tela mostra 1 casa)
   const duracaoCalc = duracaoEstimada != null ?
   duracaoEstimada :
-  consumoEsperadoPV > 0 ?
-  Math.round(totalDisp / consumoEsperadoPV) :
+  consumoEsperadoPV > 0 && baseCiclo != null ?
+  baseCiclo / consumoEsperadoPV :
   0;
 
   // Diferença dias (fechado): estimado - realizado
@@ -71,9 +95,10 @@ export default function CardMetricaEvento({
     if (proximaReposicao) return proximaReposicao;
     if (periodoFechado) return null;
     if (duracaoCalc <= 0) return null;
-    const dataBase = parseDateLocal(evento.data_lancamento);
-    if (!dataBase) return null;
-    return new Date(dataBase.getTime() + duracaoCalc * 86400000).toLocaleDateString("pt-BR");
+    // Aritmética de dia civil sobre o texto AAAA-MM-DD (sem `Date` local).
+    const dia = typeof evento.data_lancamento === "string" ? evento.data_lancamento.split("T")[0] : "";
+    const fim = somarDias(dia, Math.ceil(duracaoCalc - 1e-9));
+    return fim ? formatarDia(fim) : null;
   })();
 
   const fmtNum3 = (v) =>
@@ -143,11 +168,11 @@ export default function CardMetricaEvento({
           <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Projeção</div>
           <div className="grid grid-cols-3 gap-1 text-[10px]">
             <MetricCell label="Fechamento" value={periodoFechado ? `${evento.dias_periodo} dia(s)` : "Em aberto"} />
-            <MetricCell label="Duração estimada" value={duracaoCalc > 0 ? `${duracaoCalc} dia(s)` : "-"} />
+            <MetricCell label="Duração estimada" value={duracaoCalc > 0 ? `${formatarDias(duracaoCalc)} dia(s)` : "-"} />
             {periodoFechado ?
           <MetricCell
             label="Diferença dia(s)"
-            value={diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${diferencaDias} dia(s)` : "-"} /> :
+            value={diferencaDias != null ? `${diferencaDias > 0 ? "+" : ""}${formatarDias(diferencaDias)} dia(s)` : "-"} /> :
 
 
           <MetricCell label="Próx. reposição" value={proxReposicaoCalc || "-"} />

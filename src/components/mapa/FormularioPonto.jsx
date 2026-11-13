@@ -1,5 +1,5 @@
 /* global google */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
   listarTodosPontos,
@@ -44,6 +44,26 @@ import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
+
+/**
+ * D-PROD-178: `capacidade_cocho_kg` (cocho e depósito) é o LIMITE OPERACIONAL —
+ * o máximo recomendado pelo proprietário, que pode ser menor que a capacidade
+ * física (esta não é armazenada). Mesmo campo e mesmo payload; mudam só os
+ * nomes na tela. `estoque_minimo_kg` (depósito) é o gatilho de reposição.
+ */
+const AJUDA_LIMITE_OPERACIONAL = "Máximo recomendado que você define (pode ser menor que a capacidade física, por exemplo no período chuvoso). Usado para mostrar a ocupação e o excesso.";
+const AJUDA_ESTOQUE_MINIMO = "Abaixo deste saldo o mapa avisa para repor.";
+// O mínimo é o gatilho de reposição e o limite é o máximo recomendado: um
+// mínimo maior ou igual ao limite faz o depósito pedir reposição e acusar
+// excesso ao mesmo tempo. É só um AVISO (não bloqueia o salvar): a regra de
+// cadastro não muda nesta missão e pontos antigos continuam editáveis.
+const AVISO_MINIMO_ACIMA_DO_LIMITE = "Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.";
+/**
+ * O `Input` do shadcn é um forwardRef em JS, sem tipos de props: aqui ele é
+ * tipado com os atributos do `<input>` (é o que ele repassa) para os campos com
+ * texto de ajuda ligado por `aria-describedby`.
+ */
+const InputComAjuda = /** @type {React.ComponentType<React.InputHTMLAttributes<HTMLInputElement>>} */ (/** @type {unknown} */ (Input));
 
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
@@ -133,6 +153,10 @@ export default function FormularioPonto({
   const [formData, setFormData] = useState(createEmptyForm());
   const [selecionouSetorManualmente, setSelecionouSetorManualmente] = useState(false);
   const [selecionouAreasManualmente, setSelecionouAreasManualmente] = useState(false);
+  const idAjudaLimiteCocho = useId();
+  const idAjudaLimiteDeposito = useId();
+  const idAjudaEstoqueMinimo = useId();
+  const idAvisoEstoqueMinimo = useId();
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
@@ -325,6 +349,9 @@ export default function FormularioPonto({
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
+  const limiteDepositoKg = parseFloat(formData.capacidade_cocho_kg);
+  const minimoDepositoKg = parseFloat(formData.estoque_minimo_kg);
+  const minimoAcimaDoLimite = ehDeposito && Number.isFinite(limiteDepositoKg) && Number.isFinite(minimoDepositoKg) && limiteDepositoKg > 0 && minimoDepositoKg >= limiteDepositoKg;
   const ehBebedouro = normalizeText(formData.tipo).includes("BEBEDOURO");
   const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
@@ -567,7 +594,7 @@ export default function FormularioPonto({
     }
 
     if (ehCocho && !formData.capacidade_cocho_kg) {
-      toast.error("Informe a capacidade do cocho em kg.");
+      toast.error("Informe o limite operacional do cocho em kg.");
       return;
     }
 
@@ -584,7 +611,7 @@ export default function FormularioPonto({
     }
 
     if (ehDeposito && !formData.capacidade_cocho_kg) {
-      toast.error("Informe a capacidade do depósito em kg.");
+      toast.error("Informe o limite operacional do depósito em kg.");
       return;
     }
 
@@ -760,9 +787,12 @@ export default function FormularioPonto({
               <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
               </FL>
-              <FL label="Capacidade do cocho (kg)" required>
-                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
+              <div className="space-y-0.5">
+                <FL label="Limite operacional do cocho (kg)" required>
+                  <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteCocho} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                </FL>
+                <p id={idAjudaLimiteCocho} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_LIMITE_OPERACIONAL}</p>
+              </div>
               <FL label="Metragem do cocho (m)" required>
                 <Input type="number" step="0.01" value={formData.metragem_cocho_m} onChange={(e) => setFormData((prev) => ({ ...prev, metragem_cocho_m: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
@@ -870,12 +900,19 @@ export default function FormularioPonto({
                   </SelectContent>
                 </Select>
               </FL>
-              <FL label="Capacidade do depósito (kg)" required>
-                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
-              <FL label="Estoque mínimo (kg)" required>
-                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
+              <div className="space-y-0.5">
+                <FL label="Limite operacional do depósito (kg)" required>
+                  <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteDeposito} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                </FL>
+                <p id={idAjudaLimiteDeposito} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_LIMITE_OPERACIONAL}</p>
+              </div>
+              <div className="space-y-0.5">
+                <FL label="Estoque mínimo (kg)" required>
+                  <InputComAjuda type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} aria-describedby={minimoAcimaDoLimite ? `${idAjudaEstoqueMinimo} ${idAvisoEstoqueMinimo}` : idAjudaEstoqueMinimo} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+                </FL>
+                <p id={idAjudaEstoqueMinimo} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_ESTOQUE_MINIMO}</p>
+                {minimoAcimaDoLimite && <p id={idAvisoEstoqueMinimo} className="px-1 text-[11px] font-medium leading-snug text-amber-800">{AVISO_MINIMO_ACIMA_DO_LIMITE}</p>}
+              </div>
             </div>
             {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
           </div>

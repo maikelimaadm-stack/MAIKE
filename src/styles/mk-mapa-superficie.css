@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — ESTILO FINAL DO MAPA: cores, fontes e dimensões de botões/painéis/detalhes; pode sobrescrever mapa-geral.css.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 /* Mapa Geral e seus painéis usam os mesmos tokens dos cadastros. */
 .mk-mapa {
   --mk-mapa-alto: var(--mk-action-height);

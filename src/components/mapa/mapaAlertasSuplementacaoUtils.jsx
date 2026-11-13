@@ -1,5 +1,27 @@
+/**
+ * Alertas de suplementação do Mapa Geral.
+ *
+ * D-PROD-178: os alertas de PONTO (cocho e depósito) vêm do SSOT
+ * `src/domain/suplementacao/nivelSuplementacao.js` — o mesmo dia civil
+ * (`hoje`), a mesma taxa (`consumo_esperado_pv_kg` do lançamento) e o mesmo
+ * saldo (depósito sem Produto em L, P-11) do marcador e dos detalhes. Sem
+ * estimativa não há "Cocho sem produto".
+ *
+ * Os alertas de LOTE (`suplementacao_pendente`) ficam como estavam — fora do
+ * escopo da D-PROD-178 — e DIVERGEM conscientemente do SSOT em dois pontos:
+ *  - sem `consumo_esperado_pv_kg` no evento, usam como taxa o MAIOR %PV entre
+ *    todos os produtos da empresa aplicado às cabeças da área;
+ *  - contam dias em blocos de 24 h a partir da meia-noite UTC da data, e não
+ *    em dias civis no fuso da fazenda.
+ * O fallback do "maior %PV" só considera produtos ATIVOS: o mapa passa o
+ * cadastro inteiro (inativos inclusive), porque a unidade de um lote de
+ * estoque não depende de o produto estar ativo (P-11), e os alertas de lote
+ * continuam como eram.
+ */
 import { consumoEsperadoGrupoDia } from "../suplementacao/consumoPVUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import { calcularNivelCocho, calcularNivelDeposito, consumoDiarioDosRebanhos } from "@/domain/suplementacao/nivelSuplementacao";
+import { hojeNoFuso } from "@/lib/diaCivil";
 
 const DIA_MS = 86400000;
 
@@ -12,7 +34,7 @@ const parseDate = (value) => {
 const diffDays = (from, to = new Date()) => {
   const start = parseDate(from);
   if (!start) return Infinity;
-  return Math.max(0, Math.floor((to - start) / DIA_MS));
+  return Math.max(0, Math.floor((to.getTime() - start.getTime()) / DIA_MS));
 };
 
 const getAreaIdsFromPonto = (ponto) => {
@@ -23,7 +45,7 @@ const getAreaIdsFromPonto = (ponto) => {
 };
 
 const buildAreaConsumoMap = (lotes = [], produtos = []) => {
-  const produtosMap = new Map(produtos.map((produto) => [produto.id, produto]));
+  const produtosMap = new Map(produtos.filter((produto) => produto?.ativo !== false).map((produto) => [produto.id, produto]));
   const areaMap = new Map();
 
   lotes.forEach((lote) => {
@@ -82,12 +104,22 @@ const buildEventoCobertura = (evento, fallbackConsumoDiario) => {
   };
 };
 
+/** Dias com até 1 casa, em pt-BR ("2", "0,8"). @param {number} dias */
+const formatarDias = (dias) => dias.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+
+/**
+ * @param {{ lotes?: any[], pontosSuplementacao?: any[], eventosSupl?: any[], estoqueLotes?: any[], produtos?: any[], hoje?: string }} entrada
+ *   `hoje`: dia civil AAAA-MM-DD no fuso da fazenda (padrão: `hojeNoFuso(null)`,
+ *   o relógio do navegador). Os alertas de ponto usam este dia.
+ * @returns {{ alertasLote: Map<any, any[]>, alertasPonto: Map<any, any> }}
+ */
 export function buildMapaAlertasSuplementacao({
   lotes = [],
   pontosSuplementacao = [],
   eventosSupl = [],
   estoqueLotes = [],
   produtos = [],
+  hoje = hojeNoFuso(null),
 }) {
   const areaConsumoMap = buildAreaConsumoMap(lotes, produtos);
   const cochos = pontosSuplementacao.filter((ponto) => normalizeText(ponto.categoria_ponto || "COCHO") !== "DEPOSITO");
@@ -100,7 +132,7 @@ export function buildMapaAlertasSuplementacao({
     const cochosDaArea = cochos.filter((ponto) => getAreaIdsFromPonto(ponto).includes(areaId));
     const eventosDaArea = eventosSupl
       .filter((evento) => cochosDaArea.some((ponto) => ponto.id === evento.ponto_suplementacao_id))
-      .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento));
+      .sort((a, b) => new Date(b.data_lancamento).getTime() - new Date(a.data_lancamento).getTime());
 
     const ultimoEvento = eventosDaArea[0] || null;
     const cobertura = ultimoEvento ? buildEventoCobertura(ultimoEvento, areaInfo.consumoDiarioEstimadoKg) : null;
@@ -131,49 +163,45 @@ export function buildMapaAlertasSuplementacao({
   });
 
   cochos.forEach((cocho) => {
-    const areaIds = getAreaIdsFromPonto(cocho);
-    const consumoDiario = areaIds.reduce((total, areaId) => total + Number(areaConsumoMap.get(areaId)?.consumoDiarioEstimadoKg || 0), 0);
-    const ultimoEvento = eventosSupl
-      .filter((evento) => evento.ponto_suplementacao_id === cocho.id)
-      .sort((a, b) => new Date(b.data_lancamento) - new Date(a.data_lancamento))[0] || null;
+    const nivel = calcularNivelCocho({ ponto: cocho, eventos: eventosSupl, hoje, pontos: pontosSuplementacao });
+    const estimada = nivel.confiabilidade === "estimada" && nivel.taxaConsumoKgDia != null;
+    const consumoDiario = estimada ? nivel.taxaConsumoKgDia : 0;
+    const base = nivel.baseCicloKg ?? 0;
+    const cobertura = nivel.evento ? {
+      quantidade: nivel.fornecidoKg ?? 0,
+      sobra: nivel.sobraAnteriorKg ?? 0,
+      consumo: consumoDiario,
+      total: base,
+      diasCobertura: estimada && consumoDiario > 0 ? base / consumoDiario : null,
+      diasPassados: nivel.diasDecorridos,
+      diasRestantes: nivel.diasRestantesEstimados,
+    } : null;
 
-    const cobertura = ultimoEvento ? buildEventoCobertura(ultimoEvento, consumoDiario) : null;
-    const alertas = [];
-
-    if (!ultimoEvento) {
-      alertas.push({ tipo: "cocho_sem_lancamento", severidade: "critico", titulo: "Cocho sem lançamento", descricao: "Não há lançamento de suplementação para este cocho." });
-    } else if (cobertura.diasRestantes <= 0) {
-      alertas.push({ tipo: "cocho_sem_produto", severidade: "critico", titulo: "Cocho sem produto", descricao: "A cobertura estimada do cocho foi esgotada." });
-    } else if (cobertura.diasRestantes <= 1) {
-      alertas.push({ tipo: "cocho_baixo", severidade: "alerta", titulo: "Reposição próxima", descricao: `Cobertura estimada restante: ${cobertura.diasRestantes.toFixed(1)} dia(s).` });
-    }
-
-    alertasPonto.set(cocho.id, { consumoDiario, cobertura, alertas });
+    alertasPonto.set(cocho.id, { consumoDiario, cobertura, alertas: nivel.alertas, nivel });
   });
 
   depositos.forEach((deposito) => {
-    const saldoAtual = estoqueLotes
-      .filter((item) => item.local_estoque_id === deposito.local_estoque_id && Number(item.quantidade_disponivel || 0) > 0)
-      .reduce((total, item) => total + Number(item.quantidade_disponivel || 0), 0);
+    const nivel = calcularNivelDeposito({ deposito, estoqueLotes, produtos });
+    const saldoAtual = nivel.saldoKg;
 
+    // Cobertura: o consumo do rebanho puxado pelos cochos ligados, uma taxa
+    // por rebanho (cochos do mesmo produto nas mesmas áreas são o mesmo
+    // rebanho — somar seria dupla contagem). Ver `consumoDiarioDosRebanhos`.
     const cochosDoDeposito = cochos.filter((cocho) => cocho.deposito_origem_id === deposito.id);
-    const consumoDiario = cochosDoDeposito.reduce((total, cocho) => total + Number(alertasPonto.get(cocho.id)?.consumoDiario || 0), 0);
-    const estoqueMinimo = Number(deposito.estoque_minimo_kg || 0);
-    const diasCobertura = consumoDiario > 0 ? saldoAtual / consumoDiario : 0;
-    const alertas = [];
+    const consumoDiario = consumoDiarioDosRebanhos(cochosDoDeposito.map((cocho) => ({ ponto: cocho, nivel: alertasPonto.get(cocho.id)?.nivel })).filter((item) => item.nivel));
+    const estoqueMinimo = nivel.estoqueMinimoKg ?? 0;
+    const diasCobertura = consumoDiario > 0 ? saldoAtual / consumoDiario : null;
+    const alertasNivel = nivel.alertas.filter((alerta) => alerta.tipo !== "deposito_acima_limite");
+    const alertasExcesso = nivel.alertas.filter((alerta) => alerta.tipo === "deposito_acima_limite");
+    const alertas = [...alertasNivel];
 
-    if (saldoAtual <= 0) {
-      alertas.push({ tipo: "deposito_sem_estoque", severidade: "critico", titulo: "Depósito sem produto", descricao: "Não há saldo disponível no depósito." });
-    } else if (estoqueMinimo > 0 && saldoAtual <= estoqueMinimo) {
-      alertas.push({ tipo: "deposito_estoque_minimo", severidade: "alerta", titulo: "Estoque mínimo atingido", descricao: `Saldo ${saldoAtual.toFixed(0)} kg abaixo do mínimo configurado.` });
+    if (diasCobertura != null && diasCobertura <= 2) {
+      alertas.push({ tipo: "deposito_cobertura_baixa", severidade: diasCobertura <= 1 ? "critico" : "alerta", titulo: "Baixa cobertura do depósito", descricao: `Saldo cobre cerca de ${formatarDias(diasCobertura)} dia(s).` });
     }
 
-    if (consumoDiario > 0 && diasCobertura <= 2) {
-      alertas.push({ tipo: "deposito_cobertura_baixa", severidade: diasCobertura <= 1 ? "critico" : "alerta", titulo: "Baixa cobertura do depósito", descricao: `Saldo cobre cerca de ${diasCobertura.toFixed(1)} dia(s).` });
-    }
-
-    alertasPonto.set(deposito.id, { saldoAtual, estoqueMinimo, consumoDiario, diasCobertura, alertas, isDeposito: true });
+    alertasPonto.set(deposito.id, { saldoAtual, estoqueMinimo, consumoDiario, diasCobertura, alertas: [...alertas, ...alertasExcesso], isDeposito: true, nivel });
   });
 
   return { alertasLote, alertasPonto };
 }
+

@@ -46,7 +46,9 @@ export const exigirBancoLocal = () => {
   for (const proibida of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
     if (process.env[proibida]) throw new Error(`${proibida} definida: o ensaio só roda contra PostgreSQL local.`);
   }
-  const bruta = process.env.DATABASE_URL || '';
+  // Aparada como o backend faz (`texto()`), para a URL conferida ser a mesma que ele usa.
+  const bruta = (process.env.DATABASE_URL || '').trim();
+  process.env.DATABASE_URL = bruta;
   let url;
   try {
     url = new URL(bruta);
@@ -56,6 +58,20 @@ export const exigirBancoLocal = () => {
   if (!/^postgres(ql)?:$/.test(url.protocol) || !['localhost', '127.0.0.1'].includes(url.hostname)) {
     throw new Error(`DATABASE_URL precisa ser PostgreSQL local (recebido host "${url.hostname}").`);
   }
+  // `?host=`/`?hostaddr=` trocam o servidor de verdade: só socket local (caminho
+  // absoluto) ou localhost.
+  for (const chave of ['host', 'hostaddr']) {
+    for (const valor of url.searchParams.getAll(chave)) {
+      if (!(valor.startsWith('/') || ['localhost', '127.0.0.1'].includes(valor))) {
+        throw new Error(`DATABASE_URL precisa ser PostgreSQL local (recebido ${chave}="${valor}").`);
+      }
+    }
+  }
+  // O backend carrega o `.env` (dotenv), que só preenche chaves AUSENTES, e
+  // `POSTGRES_PRISMA_URL` tem prioridade sobre `DATABASE_URL`. Chaves vazias
+  // (tratadas como ausentes pelo backend) impedem que um `.env` aponte o ensaio
+  // para outro banco — aqui e nos processos filhos que herdam este ambiente.
+  for (const chave of ['POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) process.env[chave] = '';
   return bruta;
 };
 

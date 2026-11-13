@@ -108,8 +108,14 @@ const CAPACIDADES = {
   /**
    * `produtos` faltava no registro anterior enquanto `MapaGeral` pedia a query.
    * O resultado era uma lista sempre vazia, em silêncio (seção 11.4).
+   *
+   * Inclui os INATIVOS (D-PROD-178): o mapa usa o cadastro para saber a
+   * unidade dos lotes de estoque do depósito, e um lote em litros continua em
+   * litros quando o produto é desativado (P-11). Só com os ativos, o marcador
+   * somava esse litro no kg enquanto o detalhe do depósito (cadastro inteiro)
+   * não somava. Quem precisa só dos ativos filtra na hora de usar.
    */
-  produtos: async (empresaId) => daEmpresa(await listProdutos(), empresaId).filter((p) => p.ativo !== false),
+  produtos: async (empresaId) => daEmpresa(await listProdutos(), empresaId),
 };
 
 export const CACHE_KEYS = Object.keys(CAPACIDADES);

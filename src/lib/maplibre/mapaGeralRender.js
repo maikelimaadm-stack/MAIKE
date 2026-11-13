@@ -1,3 +1,7 @@
+/*
+ * GUIA DE EDIÇÃO — REGRAS VISUAIS DO MAPA: resolução dos ícones, fontesRotuloPorZoom, cores de fallback e pintura de camadas.
+ * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
+ */
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 /**
  * Mapa Geral sobre MapLibre — helpers puros (D-PROD-65).
@@ -356,11 +360,40 @@ export function resolverIconePonto(ponto, iconesConfig = []) {
   return { iconUrl: cfg?.icone_url || null, cor: cfg?.cor_padrao || ponto.cor || "#0066ff" };
 }
 
+/**
+ * Ícone do cocho/depósito. `indicador_percentual` é a fração 0..1 do nível
+ * já quantizada em 1% pelo SSOT (D-PROD-178): o SVG só a desenha (com o clamp
+ * 0..1 de sempre) — valores acima de 100% aparecem no texto, nunca no ícone.
+ */
 export function resolverIconeSuplementacao(ponto, iconesConfig = []) {
   const categoria = normAcento(ponto.categoria_ponto || ponto.tipo || "COCHO");
   const doTipo = (cat) => iconesConfig.find((ic) => ic.tipo_entidade === "Ponto" && norm(ic.categoria) === cat);
   const cfg = doTipo(categoria) || doTipo(norm(ponto.tipo)) || doTipo("COCHO");
   return { iconUrl: categoria.includes("COCHO") ? urlIconeCocho(ponto.indicador_percentual, true) : categoria.includes("DEPOSITO") ? urlIconeDeposito(ponto.indicador_percentual, true) : cfg?.icone_url || null, cor: cfg?.cor_padrao || "#10b981", categoria };
+}
+
+/**
+ * Texto e selo do marcador de cocho/depósito (D-PROD-178).
+ *
+ *  - `titulo` (vai em `title` e `aria-label`): nome do ponto + " — " + o texto
+ *    do nível (`indicador_titulo`, a `descricao` do SSOT, com kg e %);
+ *  - `selo`: "?" quando o nível é neutro (sem estimativa, período fechado,
+ *    sem limite…), "!" quando o depósito está acima do limite operacional;
+ *    senão null. O selo é só visual: o significado já está no `titulo`.
+ *
+ * @param {any} ponto  ponto decorado pelo Mapa Geral
+ * @returns {{ titulo: string, selo: null | { tipo: "neutro" | "excesso", texto: string } }}
+ */
+export function descreverMarcadorSuplementacao(ponto) {
+  const nome = String(ponto?.nome_ponto ?? "").trim();
+  const nivel = typeof ponto?.indicador_titulo === "string" ? ponto.indicador_titulo.trim() : "";
+  const titulo = nome && nivel ? `${nome} — ${nivel}` : nome || nivel;
+  const selo = ponto?.indicador_alerta_excesso === true
+    ? { tipo: /** @type {const} */ ("excesso"), texto: "!" }
+    : ponto?.indicador_neutro === true
+      ? { tipo: /** @type {const} */ ("neutro"), texto: "?" }
+      : null;
+  return { titulo, selo };
 }
 
 export function resolverIconeLote(lotesNaArea, iconesConfig = []) {

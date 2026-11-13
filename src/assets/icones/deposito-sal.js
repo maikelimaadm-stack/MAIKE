@@ -1,9 +1,26 @@
+/**
+ * GUIA DO DEPÓSITO
+ * CORPO: caminho SVG que recorta o preenchimento.
+ * MODELO: desenho estático; mantenha CORPO e o path id="corpo" iguais ao trocar o SVG.
+ * criarSvgDeposito: escolhe as cores, a espessura e a posição do nível.
+ * O mapa usa COCHO_APARENCIA.marcador; o subícone usa a paleta subicone,
+ * com contorno próprio em #a6afb6 (campo cor na variável estilo).
+ * O preenchimento usa estilo.sal. A proporção mais larga fica em desenhoAjustado.
+ * A bolinha vem de envolverMarcadorSvg, compartilhada com o cocho.
+ * Instruções de edição e publicação: README.md nesta pasta.
+ */
 import { COCHO_APARENCIA, envolverMarcadorSvg } from "./cocho-descoberto";
 
 const CORPO = "M19 39C19 27 40 20 69 20S119 28 119 39V147C119 162 99 171 69 171S19 162 19 147Z";
 const MODELO = "<g id=\"pes\" fill=\"#555754\"><path d=\"M23 153H36V172L23 176ZM58 158H71V178H58ZM95 155H108V173L95 177Z\"/></g>\n<path id=\"corpo\" d=\"M19 39C19 27 40 20 69 20S119 28 119 39V147C119 162 99 171 69 171S19 162 19 147Z\" fill=\"#fff\" stroke=\"#555754\" stroke-width=\"4\"/>\n<ellipse id=\"tampa\" cx=\"69\" cy=\"38\" rx=\"49\" ry=\"17\" fill=\"#555754\"/>\n<g id=\"bocais\" fill=\"#fff\" stroke=\"#737570\" stroke-width=\"1.5\" stroke-linejoin=\"round\"><path d=\"M42 17 57 23V35L43 40 30 34V23Z\"/><path d=\"M30 23 43 29 57 23M43 29V40\"/><path d=\"M80 20 94 16 105 23V35L92 41 80 34Z\"/><path d=\"M80 20 92 27 105 23M92 27V41\"/><path d=\"M39 17 48 14 55 18V23L47 26 39 22Z\"/><path d=\"M88 13 98 16V23L90 26 83 22V17Z\"/></g>\n<ellipse id=\"tampa-central\" cx=\"69\" cy=\"17\" rx=\"27\" ry=\"10\" fill=\"#555754\" stroke=\"#777975\" stroke-width=\"1\"/>";
 
-/** Usa o SVG fornecido, com preenchimento interno proporcional ao estoque mínimo. */
+/**
+ * Usa o SVG fornecido, com preenchimento interno proporcional à fração do
+ * LIMITE OPERACIONAL do depósito (`nivel.fracaoParaSvg` do SSOT
+ * `src/domain/suplementacao/nivelSuplementacao.js`, D-PROD-178), limitada a
+ * 0..1. Acima de 100% o ícone fica cheio e o percentual bruto aparece como
+ * texto fora do ícone; o estoque mínimo não entra no preenchimento.
+ */
 export function criarSvgDeposito(percent = 0, marcador = false) {
   const fracao = Number.isFinite(percent) ? Math.max(0, Math.min(1, percent)) : 0;
   const estilo = marcador ? COCHO_APARENCIA.marcador : { ...COCHO_APARENCIA.subicone, cor: "#a6afb6" };
