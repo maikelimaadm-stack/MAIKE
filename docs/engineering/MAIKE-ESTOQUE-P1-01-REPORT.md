@@ -422,4 +422,23 @@ Nem esta PR nem o merge dela ratificam nada. A P1-02, a P1-05a, a P1-05b e a P1-
 Os testes estão na matriz da A8.8 do contrato: T1–T6, F1–F14, C1, U1–U4, R1, A1. Nenhum é implementado nesta PR, que é só de documentação.
 
 ### 10.8 Gates e CI da R3
-_(preenchido no commit final com saídas e exit codes reais)_
+Esta seção registra as evidências do HEAD da R3, `2ab02b9f3c656c5b4733968e269469a211f10896`, sobre a `main` `0ed6ae9c542de27baa6ce430043d8431cca4fb5a`. O registro foi feito no commit de fecho, que só altera esta seção.
+
+| Comando | Resultado | Tipo de evidência | SHA |
+|---|---|---|---|
+| `npm run verify:all` | exit 0, "TODAS AS ETAPAS PASSARAM", 39 etapas, 1471,8 s | log local carimbado: HEAD, árvore com 0 mudanças, PG 17.11 local descartável (porta 5433), banco novo e vazio, sem `NODE_ENV`; início 02:32:30Z, fim 02:57:02Z | `2ab02b9f` |
+| `npm run test:gates` (etapa do verify:all) | exit 0; 739 testes, 739 pass, 0 fail | resumo do mesmo log | `2ab02b9f` |
+| `npm run test:backend` (etapa do verify:all) | exit 0; 1630 testes, 1625 pass, 0 fail, 5 todo | resumo do mesmo log | `2ab02b9f` |
+| Vitest (etapa `test:smoke` do verify:all) | 214 arquivos e 2613 testes, todos pass | resumo do mesmo log | `2ab02b9f` |
+| `npm run gate:governance-paths` | exit 0, "PASSOU (documentos, links e gates coerentes)" | etapa do verify:all, mais saída avulsa local (02:30:56Z, sem carimbo de SHA) | `2ab02b9f` |
+| `npm run gate:product-scope` | exit 0, "PASSOU (24 páginas, 35 entidades, 0 function(s))" | idem | `2ab02b9f` |
+| `npm run gate:no-secrets` | exit 0, "PASSOU (2659 arquivos verificados, 0 segredos)" | idem | `2ab02b9f` |
+| `git diff --check` | limpo | relatado na R3, sem log salvo. Não é recuperável; foi refeito no commit de fecho | `2ab02b9f` |
+| CI `quality`, run [43352894740](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/43352894740) | completed / success | metadados da CI | `2ab02b9f` |
+
+**Fronteiras:**
+- Os testes acima cobrem a base de código existente e os gates de documentação. Eles **não** provam a futura edição ou exclusão de entrada, que ainda não existe.
+- Os testes T1–T6, F1–F14, C1, U1–U4, R1 e A1 (A8.8 do contrato) continuam só especificados.
+- O banco de produção não foi acessado na R3: nenhuma chamada a Supabase nem a Vercel.
+- DB_WRITES=0, MIGRATIONS_APPLIED=0, CONSTITUTION_RATIFIED=NAO, IMPLEMENTACAO_AUTORIZADA=NAO.
+- O commit de fecho gera um SHA novo. O verde do run acima vale para `2ab02b9f`, não para ele; a CI do SHA novo é informada à parte, no relatório da missão de fecho.
