@@ -30,7 +30,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-183** |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv` (o pedido nomeou `feat/tipo-tarefa-drop-colunas`), base `origin/main` `65ad9d7`. PR em rascunho, exclusiva desta fatia |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv` (o pedido nomeou `feat/tipo-tarefa-drop-colunas`), base `origin/main` `65ad9d7`. PR **#261** em rascunho, exclusiva desta fatia |
 | Escopo | Migration CONTRACT que apaga `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` de `TipoTarefa`; as 4 linhas `@ignore` saem do `schema.prisma`; entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`; testes, ensaio local e runbook |
 | Migration | `20261113200000_tipo_tarefa_drop_colunas`, **CONTRACT**. SHA-256 `47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17`; guarda `35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878`. Repositório: 41 → **42** migrations; tabelas iguais; `TipoTarefa` 13 → **9** colunas. **Não aplicada em nenhum ambiente remoto; produção não foi lida** |
 | Release | GO-1 (preflight só leitura) → GO-2 (aplicar pelo `premerge-migrate --aplicar --contract D-PROD-183` ou caminho B) → postcheck → merge. Sem janela de 500. Depois de aplicada, proibido voltar a produção para deploy anterior ao merge `6b85696` (PR #254) |

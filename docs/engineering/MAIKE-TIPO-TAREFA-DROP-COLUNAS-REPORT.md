@@ -1,6 +1,6 @@
 # MAIKE-TIPO-TAREFA-DROP-COLUNAS — Relatório (Fatia LIMPEZA)
 
-**fatia LIMPEZA · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR em rascunho** · Decisão: [D-PROD-183](./DECISIONS.md) · Runbook: [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md)
+**fatia LIMPEZA · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #261 (rascunho)** · Decisão: [D-PROD-183](./DECISIONS.md) · Runbook: [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md)
 
 > **A migration NÃO foi aplicada** em nenhum ambiente remoto, e produção não foi lida nem
 > escrita. Ela fica pronta na PR. Preflight (só leitura) e aplicação dependem de GO explícito
