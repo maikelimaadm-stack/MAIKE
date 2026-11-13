@@ -78,6 +78,42 @@ e "convertendo os litros por um fator kg/L". O resto deles continua valendo, inc
 listas "fora". Texto redigido pelo agente; vale com a aprovação explícita do proprietário
 no merge manual (§4).
 
+**Expansão autorizada pelo proprietário (D-PROD-177):** **Estoque — entrada manual
+documentada** (missão MAIKE-ESTOQUE-P1). Além da compra confirmada da Central Única de
+Lançamentos, a quantidade de estoque também pode nascer de um **documento de Entrada de
+Estoque** confirmado, só pelo motor de estoque único e só por um destes motivos fechados:
+saldo de implantação, doação e outra causa com justificativa e permissão própria. Há no
+máximo uma implantação ativa por produto e empresa, e ela só é aceita se o produto não
+tiver nenhum histórico físico em nenhum local; os fatos de itens de entrada manual já
+estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como
+histórico. Corrigir quantidade, custo, unidade, fator, parceiro ou documento da própria
+implantação, no mesmo produto, local e data, não é implantar de novo, mesmo que o produto
+tenha fatos posteriores; trocar produto, local ou data dela exige que não haja outro
+histórico além dos fatos dela mesma. Doação e outra causa não servem para registrar saldo antigo. A entrada manual
+não é compra, não cria título, conta a pagar nem receita, e não pode duplicar um
+lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o
+outro, nos dois sentidos. O usuário pode **editar** e **excluir** a entrada; o motivo
+dela nunca muda. O rascunho não mexe no estoque. Na entrada confirmada, editar
+quantidade, custo, unidade, fator, produto, local, data, parceiro ou documento, incluir
+ou retirar item, ou excluí-la, só é aceito quando nenhuma camada de nenhum item dela foi
+consumida, transferida ou citada por outro fato, mesmo que depois estornado; com essa
+dependência, só se editam observação e justificativa. Ao confirmar ou editar, nenhuma
+camada nova pode ficar, na fila FIFO do produto no local, à frente de camada que alguma
+baixa já tocou: o motor não refaz nem recalcula baixas, e a mudança que faria isso é
+recusada. Quando não for possível comprovar que nenhuma camada foi usada, ou quando o
+saldo do produto divergir das camadas, a mudança também é recusada. A edição vira uma nova revisão do mesmo documento, que estorna pelo motor o que
+muda e aplica a versão nova numa só transação; a exclusão estorna tudo e deixa o
+documento EXCLUÍDO, fora da lista ativa mas consultável. Nenhum movimento ou camada de
+estoque é reescrito ou apagado; cada revisão e cada exclusão da entrada confirmada ficam
+registradas com autor, data, motivo e valores antes e depois. Não há estorno parcial de
+camada nem exclusão parcial do documento. O Cadastro de Produtos continua sem lançar
+estoque. Continua **fora**: entrada por compra fora da Central, ajuste ou inventário,
+devolução, transferência entre empresas, entrada por nota fiscal, edição de saldo e
+qualquer escritor genérico de estoque. O MAIKE não volta a ser ERP amplo. Nesta parte,
+esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expansão
+D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
+com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-177.
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório
