@@ -127,7 +127,30 @@ Rodada final em 2026-11-13, com a `main` do hotfix #266 incorporada.
 | `types` | 625 / teto 625, sem regressão |
 | `typecheck:backend`, `lint`, `build`, `build:admin`, `admin-isolation:bundles` | passam |
 
-**Ensaio local** (`scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs`): `ok: true`. Os 14
+### 6.2 Depois do merge da `main` com a PR #265 (CADESTACOES, `776befe`)
+
+A `main` trouxe a EXPAND `20261113400000_cadestacoes_cadastro` (D-PROD-188), já aplicada em
+produção. O repositório passa a ter **44** migrations: esta CONTRACT parte de **43** concluídas e
+termina com **44**; 81 tabelas antes e depois. Conflitos resolvidos mantendo os dois lados:
+`MIGRATIONS_APROVADAS` com a CADESTACOES antes desta (ordem dos timestamps; `MIGRATIONS_CONTRACT_APROVADAS`
+igual), contagens de `patrimonioSimplificaMigration` (43 → 44 migrations; 87/88/81 tabelas),
+`tipoTarefaDropColunasMigration` (43 → 44), os ensaios correspondentes, B1 do `premerge-migrate`,
+D-PROD-187/D-PROD-188 em `DECISIONS.md` e os dois blocos de missão em `CURRENT-STATE.md`. Este teste
+e o ensaio desta fatia passam a esperar 43 → 44.
+
+Rodada em 2026-11-13, banco PostgreSQL 16 local recém-criado:
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` | 824/824 |
+| `test:backend` (140 arquivos) | 1.765 testes: 1.760 passam, 0 falham, 5 todo |
+| `test:smoke` | 218 arquivos, 2.652/2.652 |
+| `source-closure` | 591/591 alcançáveis |
+| `types` | 625 / teto 625 |
+| Demais gates, `prisma:generate`, `typecheck:backend`, `lint`, `build`, `build:admin`, `admin-isolation:bundles` | passam — **TODAS AS ETAPAS PASSARAM** (1.633 s) |
+| Ensaio local | `ok: true`; 14/14 RED recusados; runner sem autorização recusou; GREEN 44/0, 12 colunas, `migrate diff` 0, 2ª execução sem pendência |
+
+**Ensaio local** (`scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs`, rodada anterior ao merge): `ok: true`. Os 14
 cenários RED recusam sem mudar nada (sem impressão, impressão errada, índice, índice extra, visão,
 visão do ícone, política, função, função com o nome físico, função em caixa mista, `RETURNS
 TABLE`, `CADCATEGORIA` existente, nome novo ocupado, trava concorrente). O runner sem autorização
