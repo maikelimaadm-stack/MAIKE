@@ -71,8 +71,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
-  // D-PROD-184 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
-  '20261113300000_apontamento_atividade': '787f931d13ab7d92d082d85ac884fc45ee81e76566345834133e1bb1f12aed05',
+  // D-PROD-188 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
+  '20261113300000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -96,7 +96,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e',
   // D-PROD-182: RLS/REVOKE de TipoAtividade (mesmo corpo, lista nova).
   '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
-  // D-PROD-184 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
+  // D-PROD-188 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
 ]);
 

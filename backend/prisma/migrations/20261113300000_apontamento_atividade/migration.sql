@@ -1,5 +1,8 @@
--- D-PROD-184 — Apontamento de Atividade (Fatia C): a EXECUÇÃO de uma atividade
--- (TipoAtividade, D-PROD-182). A tarefa (LancamentoTarefa) é a demanda; o
+-- MAIKE-APONTAMENTO-ATIVIDADE (Fatia C) — Apontamento de Atividade: a EXECUÇÃO
+-- de uma atividade (Tipo de Atividade). Decisão, runbook e relatório em
+-- docs/engineering/ (MAIKE-APONTAMENTO-ATIVIDADE-*.md). O número da decisão
+-- fica FORA deste arquivo de propósito: renumerar a decisão nunca muda o
+-- checksum aplicado. A tarefa (LancamentoTarefa) é a demanda; o
 -- apontamento é a operação executada (máquina, implemento, operador, área,
 -- produção e horas). Base enxuta, SEM itens de custo; o abastecimento se
 -- pendura aqui nas fatias seguintes.

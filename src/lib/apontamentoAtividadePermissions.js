@@ -1,5 +1,5 @@
 /**
- * Apontamento de Atividade (D-PROD-184) — espelho EXATO dos guardas do
+ * Apontamento de Atividade (D-PROD-188) — espelho EXATO dos guardas do
  * servidor (`GUARDAS.apontamentoAtividade` em
  * backend/src/shared/auth/guardasRotas.js), no esquema do cadastro de Tipo de
  * Atividade (`sup-tipos-atividade`):

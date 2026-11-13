@@ -16,7 +16,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
  *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
  *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam.
- *     A `20261113300000_apontamento_atividade` (D-PROD-184) fica de fora da
+ *     A `20261113300000_apontamento_atividade` (D-PROD-188) fica de fora da
  *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
  *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
  *     runner, no passo 4 (em produção a D-PROD-162 já está concluída);
@@ -31,7 +31,7 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 43 concluídas (esta CONTRACT e a D-PROD-184), 81
+ *     na URL) e confere: 43 concluídas (esta CONTRACT e a D-PROD-188), 81
  *     tabelas (as 80 de antes + ApontamentoAtividade), as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 73 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
@@ -67,7 +67,7 @@ export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'A
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
 export const TABELAS_NOVAS = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial']);
 /**
- * D-PROD-184 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
+ * D-PROD-188 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
  * para BemPatrimonial(cliente_id, empresa_id, id), unique que só a CONTRACT cria). Não existiam antes dela em
  * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
  * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
@@ -531,7 +531,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      // D-PROD-184: 81 = as 80 de antes + ApontamentoAtividade, que sobe junto pelo runner, depois desta CONTRACT.
+      // D-PROD-188: 81 = as 80 de antes + ApontamentoAtividade, que sobe junto pelo runner, depois desta CONTRACT.
       if (g.status !== 0 || g.tabelas !== 81 || g.historico.concluidas !== 43 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();

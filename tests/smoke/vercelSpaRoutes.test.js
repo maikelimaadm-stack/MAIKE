@@ -29,7 +29,7 @@ const PAGINAS_COLISAO_HISTORICA = [
  * Financeiras, D-PROD-153; +1 Lançamentos Financeiros, D-PROD-155; +5 Patrimônio
  * e Frota, D-PROD-157; +1 Abastecimentos, D-PROD-159; −4 Famílias, Tipos, Perfis
  * de Medição e Combustíveis, D-PROD-162; +1 Tipos de Atividade, D-PROD-182;
- * +1 Apontamentos de Atividade, D-PROD-184).
+ * +1 Apontamentos de Atividade, D-PROD-188).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',

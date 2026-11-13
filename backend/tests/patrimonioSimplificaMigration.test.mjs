@@ -5,12 +5,12 @@
  * é tocado).
  *
  * Partida: as 41 migrations da main (todas menos esta CONTRACT e a `20261113300000_apontamento_atividade`,
- * D-PROD-184, que depende dela; inclui a TipoAtividade, D-PROD-182, e a CONTRACT
+ * D-PROD-188, que depende dela; inclui a TipoAtividade, D-PROD-182, e a CONTRACT
  * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, aplicada pelo Prisma direto, sem o runner e portanto sem
  * a barreira de MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa está vazio nessa hora e
  * `semear` não cria TipoTarefa) e sementes nas 13 tabelas do Patrimônio antigo para 2 clientes, com um
  * abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 não cria nem
- * apaga tabela: as contagens de tabelas (86/87) da partida não mudam com ela. A D-PROD-184 referencia
+ * apaga tabela: as contagens de tabelas (86/87) da partida não mudam com ela. A D-PROD-188 referencia
  * BemPatrimonial(cliente_id, empresa_id, id), que só existe no formato novo: fica fora da partida e sobe pelo
  * runner no GREEN, depois desta CONTRACT (em produção a D-PROD-162 já está concluída).
  *
@@ -21,7 +21,7 @@
  * MIGRATION_CONTRACT_AUTORIZADO (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 43 concluídas (esta CONTRACT e a D-PROD-184), 81 tabelas (+ ApontamentoAtividade vazia, com RLS), as 7 novas
+ * 43 concluídas (esta CONTRACT e a D-PROD-188), 81 tabelas (+ ApontamentoAtividade vazia, com RLS), as 7 novas
  * vazias com o mesmo dono/ACL das antigas,
  * RLS e políticas no padrão, 7/31/32/55 constraints e índices, impressão digital
  * das 73 que ficam idêntica, os 2 CHECKs de OperacaoFinanceiraItem com 'L',
@@ -84,7 +84,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, 41);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 86);
-    // D-PROD-184: a migration que depende do formato novo não está na partida (nem a tabela dela).
+    // D-PROD-188: a migration que depende do formato novo não está na partida (nem a tabela dela).
     assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113300000_apontamento_atividade']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
@@ -137,7 +137,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 43/0 (com a D-PROD-184 depois da CONTRACT), 81 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
+  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 43/0 (com a D-PROD-188 depois da CONTRACT), 81 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -148,8 +148,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, 43);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 81, 'as 80 do formato novo + ApontamentoAtividade (D-PROD-184)');
-    // D-PROD-184: subiu DEPOIS da CONTRACT (o runner aplica em ordem de nome), vazia, com RLS e sem FORCE.
+    assert.equal(await contarTabelas(db), 81, 'as 80 do formato novo + ApontamentoAtividade (D-PROD-188)');
+    // D-PROD-188: subiu DEPOIS da CONTRACT (o runner aplica em ordem de nome), vazia, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
       [NOME_CONTRACT, ...MIGRATIONS_DEPOIS_DO_CONTRACT]

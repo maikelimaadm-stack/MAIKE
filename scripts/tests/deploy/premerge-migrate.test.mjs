@@ -48,7 +48,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-184) só com tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-188) só com tabela nova', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -683,10 +683,10 @@ test('B13 (D-PROD-183): runner real sobre a release do DROP COLUMN de TipoTarefa
   }
 });
 
-/** D-PROD-184 (Fatia C) — ApontamentoAtividade: EXPAND puro, só a tabela nova (nenhuma tabela antiga alterada). */
+/** D-PROD-188 (Fatia C) — ApontamentoAtividade: EXPAND puro, só a tabela nova (nenhuma tabela antiga alterada). */
 const NOME_A = '20261113300000_apontamento_atividade';
 
-test('B14a (D-PROD-184): ApontamentoAtividade classificado SOZINHO, como na release (a D-PROD-183 já está na main): EXPAND puro, só a tabela nova, nenhuma coluna nem constraint em tabela antiga, DO de RLS pinado citando só a tabela nova; --contract é inesperado', () => {
+test('B14a (D-PROD-188): ApontamentoAtividade classificado SOZINHO, como na release (a D-PROD-183 já está na main): EXPAND puro, só a tabela nova, nenhuma coluna nem constraint em tabela antiga, DO de RLS pinado citando só a tabela nova; --contract é inesperado', () => {
   const m = ler(NOME_A);
   const c = classificarMigrations([m]);
   assert.deepEqual(c.violacoes, []);
@@ -698,10 +698,10 @@ test('B14a (D-PROD-184): ApontamentoAtividade classificado SOZINHO, como na rele
   assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
   // Release EXPAND: sem --contract passa; qualquer --contract (inclusive o número desta decisão) é inesperado.
   assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_A], classificacao: c, autorizacao: undefined }), { ok: true, codigo: null });
-  for (const autorizacao of ['D-PROD-184', 'D-PROD-183', '']) {
+  for (const autorizacao of ['D-PROD-188', 'D-PROD-183', '']) {
     assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_A], classificacao: c, autorizacao }), { ok: false, codigo: 'CONTRACT_INESPERADO' }, autorizacao);
   }
-  assert.equal(envDoDeployMigrate({ env: { PATH: '/bin' }, classificacao: c, autorizacao: 'D-PROD-184' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
+  assert.equal(envDoDeployMigrate({ env: { PATH: '/bin' }, classificacao: c, autorizacao: 'D-PROD-188' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
   // Área e lançamento de tarefa só têm unique (cliente_id, id): a empresa deles é conferida no SERVIÇO, porque um
   // unique por empresa nas tabelas antigas seria DDL fora do EXPAND (recusado); idem CHECK/coluna NOT NULL em tabela antiga.
   const casos = {
@@ -731,7 +731,7 @@ test('B14a (D-PROD-184): ApontamentoAtividade classificado SOZINHO, como na rele
   assert.deepEqual(codigos(classificarMigrations([m], { doAprovados: semDo })), ['DO_NAO_RECONHECIDO']);
 });
 
-test('B14b (D-PROD-184): runner real sobre a release do ApontamentoAtividade — análise local EXPAND sem rótulo CONTRACT; --contract é CONTRACT_INESPERADO; verificar o alvo não pede --contract e segue para a conexão; nunca imprime URL', () => {
+test('B14b (D-PROD-188): runner real sobre a release do ApontamentoAtividade — análise local EXPAND sem rótulo CONTRACT; --contract é CONTRACT_INESPERADO; verificar o alvo não pede --contract e segue para a conexão; nunca imprime URL', () => {
   // O mesmo repositório descartável dos CONTRACT serve para uma release EXPAND: main = pasta sem NOME_A, HEAD = main + NOME_A.
   const repo = repoDaReleaseContract(NOME_A);
   const run = runnerDaRelease(repo);
@@ -748,7 +748,7 @@ test('B14b (D-PROD-184): runner real sobre a release do ApontamentoAtividade —
     assert.deepEqual(json.tabelas_novas, ['ApontamentoAtividade']);
     assert.deepEqual(json.colunas_novas_em_tabelas_antigas, []);
     assert.deepEqual(json.violacoes, []);
-    for (const r of [run(SEM_ALVO, '--contract', 'D-PROD-184'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183')]) {
+    for (const r of [run(SEM_ALVO, '--contract', 'D-PROD-188'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-183')]) {
       assert.equal(r.status, 3, r.stderr);
       assert.match(r.stderr, /RECUSADO CONTRACT_INESPERADO/);
       semSegredo(r);

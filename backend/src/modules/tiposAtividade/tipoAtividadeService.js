@@ -3,10 +3,10 @@
  *
  * Espelho do serviço de TipoTarefa (D-PROD-45), sem o que é específico de
  * LancamentoTarefa: não há propagação de nome (o apontamento guarda o nome do
- * tipo como snapshot, D-PROD-184). O nome do grupo fica em cache em
+ * tipo como snapshot, D-PROD-188). O nome do grupo fica em cache em
  * `grupo_atividade_nome` e é renovado quando o grupo do tipo muda.
  *
- * D-PROD-184 — o tipo usado num apontamento de atividade não é excluído: quem
+ * D-PROD-188 — o tipo usado num apontamento de atividade não é excluído: quem
  * barra é a FK RESTRICT da tabela nova (este módulo NUNCA consulta
  * `ApontamentoAtividade`, lição do hotfix #259), traduzida aqui em 409
  * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
@@ -199,7 +199,7 @@ export const atualizar = async (contexto, id, entrada) => {
 };
 
 /**
- * Exclusão física, mesma política do Tipo de Tarefa. D-PROD-184: o tipo com
+ * Exclusão física, mesma política do Tipo de Tarefa. D-PROD-188: o tipo com
  * apontamento de atividade é barrado pela FK RESTRICT (409, inative-o).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
  */

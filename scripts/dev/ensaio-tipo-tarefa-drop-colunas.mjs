@@ -11,7 +11,7 @@
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
  *  1. aplica as 42 migrations da main (todas menos a CONTRACT; inclui a
- *     `20261113300000_apontamento_atividade`, D-PROD-184, posterior a ela, que
+ *     `20261113300000_apontamento_atividade`, D-PROD-188, posterior a ela, que
  *     sobe aqui antes da CONTRACT: só cria a tabela nova ApontamentoAtividade e
  *     não toca TipoTarefa), pelo Prisma, a partir de uma cópia temporária das pastas;
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das

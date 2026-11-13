@@ -1,5 +1,5 @@
 /**
- * D-PROD-184 (R-l) — exclusão de cadastro barrada por um apontamento de atividade.
+ * D-PROD-188 (R-l) — exclusão de cadastro barrada por um apontamento de atividade.
  *
  * Lição do hotfix #259: o código pode subir antes da migration da tabela nova.
  * Por isso os módulos ANTIGOS (exclusão de Tipo/Grupo de Atividade, de

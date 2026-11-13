@@ -6,7 +6,7 @@
  * tocado).
  *
  * Partida: as 42 migrations da main (todas menos a CONTRACT; inclui a
- * `20261113300000_apontamento_atividade`, D-PROD-184, que só cria a tabela nova
+ * `20261113300000_apontamento_atividade`, D-PROD-188, que só cria a tabela nova
  * ApontamentoAtividade e não toca TipoTarefa) e, para 2
  * clientes, um GrupoAtividade, 5 tipos de tarefa com combinações das 4 flags
  * (um todo false, um inativo) e um LancamentoTarefa.

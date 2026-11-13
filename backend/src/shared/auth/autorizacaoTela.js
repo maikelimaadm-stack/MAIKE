@@ -67,7 +67,7 @@ export const TELAS = Object.freeze({
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
   PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
-  // D-PROD-184 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
+  // D-PROD-188 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
   // Mesmo id do item de menu `op-apontamentos-atividade`; o módulo é o id do grupo
   // de menu que o contém (`suporte-mapa`, logo abaixo de Tipos de Atividade, no
   // mesmo esquema de `sup-tipos-atividade`). Sem concessão automática a perfis antigos.

@@ -250,12 +250,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
-  // D-PROD-184 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
   },
-  // D-PROD-184 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
+  // D-PROD-188 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
   APONTAMENTO_ATIVIDADE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica apontamento de atividade desta empresa neste tenant',

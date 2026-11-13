@@ -125,7 +125,7 @@ export default function TiposAtividade() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Tipo de atividade excluído" });
       }
       if (bloqueados.length) {
-        // D-PROD-184: tipo com apontamento de atividade não sai (FK RESTRICT); a saída é inativá-lo.
+        // D-PROD-188: tipo com apontamento de atividade não sai (FK RESTRICT); a saída é inativá-lo.
         const porApontamento = bloqueados.some((b) => b.code === API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED)
           ? " Há apontamentos de atividade vinculados: inative o tipo em vez de excluir."
           : "";

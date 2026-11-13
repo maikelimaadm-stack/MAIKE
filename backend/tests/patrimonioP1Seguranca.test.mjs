@@ -677,7 +677,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     const delegados = ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'bemPatrimonial', 'familiaPatrimonial', 'tanqueBem', 'tanqueBemProduto', 'tipoPatrimonial'];
     assert.deepEqual(delegados.map((d) => d[0].toUpperCase() + d.slice(1)), [...TABELAS_PATRIMONIO], 'um delegado por tabela');
     const r = await emTransacaoDesfeita(async (tx) => {
-      // D-PROD-184: o ApontamentoAtividade (migration POSTERIOR) referencia o bem
+      // D-PROD-188: o ApontamentoAtividade (migration POSTERIOR) referencia o bem
       // e o implemento; no "schema antigo" ele também não existe. É a ÚNICA
       // tabela de fora que referencia as 7: confere-se pelo catálogo antes de
       // tirá-la, para nada sumir escondido.

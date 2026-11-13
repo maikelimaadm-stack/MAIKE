@@ -1,5 +1,5 @@
 /**
- * ApontamentoAtividade nativo (D-PROD-184, Fatia C) — PostgreSQL real + HTTP
+ * ApontamentoAtividade nativo (D-PROD-188, Fatia C) — PostgreSQL real + HTTP
  * autenticado (`app.inject`).
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
@@ -181,7 +181,7 @@ const corpo = (s, extra = {}) => ({ empresa_id: s.e1.id, tipo_atividade_id: s.ti
 
 // ═══ Criação e número (R-k) ═════════════════════════════════════════════════
 
-describe('D-PROD-184 — criação e número (R-k)', () => {
+describe('D-PROD-188 — criação e número (R-k)', () => {
   test('AA1: POST completo (201) — número 1, 2, 3 da sequência do tenant; snapshots do tipo; CONFIRMADO v1; tenant e autor da sessão; auditado', async () => {
     const s = await montar(app);
     const a1 = await criarOk(s.token, corpo(s, {
@@ -295,7 +295,7 @@ describe('D-PROD-184 — criação e número (R-k)', () => {
 
 // ═══ Snapshots do tipo (R-h) e centros escolhidos (R-e) ═══════════════════
 
-describe('D-PROD-184 — snapshots (R-h) e centros escolhidos no apontamento (R-e)', () => {
+describe('D-PROD-188 — snapshots (R-h) e centros escolhidos no apontamento (R-e)', () => {
   test('AH1: renomear tipo e grupo, mover o tipo de grupo e sincronizar referências NÃO mudam o apontamento; só a TROCA do tipo regrava', async () => {
     const s = await montar(app);
     const { req, ok } = A;
@@ -373,7 +373,7 @@ describe('D-PROD-184 — snapshots (R-h) e centros escolhidos no apontamento (R-
 
 // ═══ Regras de negócio (R-a, R-b, R-c, R-d, R-f, R-i) ═══════════════════════
 
-describe('D-PROD-184 — regras de negócio do apontamento', () => {
+describe('D-PROD-188 — regras de negócio do apontamento', () => {
   test('AR-a: tipo inativo não entra em apontamento NOVO; editar mantendo o tipo (inativo agora) pode; trocar para outro tipo inativo, não', async () => {
     const s = await montar(app);
     const { req, ok } = A;
@@ -525,7 +525,7 @@ describe('D-PROD-184 — regras de negócio do apontamento', () => {
 
 // ═══ Cancelamento (R-j) e cancelado imutável (R-g) ═══════════════════════════
 
-describe('D-PROD-184 — cancelamento sem DELETE físico (R-j) e cancelado imutável (R-g)', () => {
+describe('D-PROD-188 — cancelamento sem DELETE físico (R-j) e cancelado imutável (R-g)', () => {
   test('AJ1: cancelar grava CANCELADO, quem, quando e motivo e incrementa a versão; a linha continua; depois nada edita nem cancela de novo', async () => {
     const s = await montar(app);
     const quem = await s.contaApontamento({ excluir: true });
@@ -597,7 +597,7 @@ describe('D-PROD-184 — cancelamento sem DELETE físico (R-j) e cancelado imut�
 
 // ═══ Isolamento ═════════════════════════════════════════════════════════════
 
-describe('D-PROD-184 — isolamento por tenant e por fazenda', () => {
+describe('D-PROD-188 — isolamento por tenant e por fazenda', () => {
   test('AI1: outro tenant não lista, não lê, não edita e não cancela (404 sem oráculo) e não aponta cadastros alheios', async () => {
     const A1 = await montar(app);
     const B = await montar(app);
@@ -672,7 +672,7 @@ const semTabelaApontamento = async (fn) => {
   }
 };
 
-describe('D-PROD-184 — exclusão de cadastro com apontamento: FK RESTRICT (R-l)', () => {
+describe('D-PROD-188 — exclusão de cadastro com apontamento: FK RESTRICT (R-l)', () => {
   test('AL1: tipo usado → DELETE 409 TIPO_ATIVIDADE_DELETE_BLOCKED (mesmo com o apontamento cancelado); direto no banco, FK RESTRICT', async () => {
     const s = await montar(app);
     const { req } = A;
@@ -769,7 +769,7 @@ describe('D-PROD-184 — exclusão de cadastro com apontamento: FK RESTRICT (R-l
 
 // ═══ Permissão da tela ══════════════════════════════════════════════════════
 
-describe('D-PROD-184 — permissão da tela op-apontamentos-atividade', () => {
+describe('D-PROD-188 — permissão da tela op-apontamentos-atividade', () => {
   /** Todas as rotas da tela, com corpos VÁLIDOS (o schema roda antes da guarda: 403 = só a autorização barrou). */
   const rotas = (s, id) => [
     ['lista', () => A.lista(s.__tok, s.e1.id)],
@@ -842,7 +842,7 @@ describe('D-PROD-184 — permissão da tela op-apontamentos-atividade', () => {
 
 // ═══ Lista keyset, filtros e opções ═════════════════════════════════════════
 
-describe('D-PROD-184 — lista keyset com filtros e opções da tela', () => {
+describe('D-PROD-188 — lista keyset com filtros e opções da tela', () => {
   test('AK1: keyset (createdAt desc, id desc) com limit e cursor; total; filtros por período, bem, implemento, tipo, área, tarefa, status e número', async () => {
     const s = await montar(app);
     const a1 = await criarOk(s.token, corpo(s, { data_operacional: '2027-06-01', bem_id: s.trator.id, area_id: s.area1.id }));
@@ -934,7 +934,7 @@ describe('D-PROD-184 — lista keyset com filtros e opções da tela', () => {
 
 // ═══ O banco é a última rede ════════════════════════════════════════════════
 
-describe('D-PROD-184 — o banco é a última rede', () => {
+describe('D-PROD-188 — o banco é a última rede', () => {
   test('AS1: escrita DIRETA com bem, implemento ou centros de outra fazenda, ou tipo de outro tenant, é recusada pelas FKs compostas', async () => {
     const s = await montar(app);
     const p = prisma();

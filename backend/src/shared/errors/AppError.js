@@ -158,7 +158,7 @@ export const tipoAtividadeNomeConflito = (message, options) =>
     options
   );
 
-// D-PROD-184 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+// D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
 export const tipoAtividadeDeleteBlocked = (message, options) =>
   new AppError(
     'TIPO_ATIVIDADE_DELETE_BLOCKED',
@@ -166,7 +166,7 @@ export const tipoAtividadeDeleteBlocked = (message, options) =>
     options
   );
 
-// D-PROD-184 — Apontamento de Atividade.
+// D-PROD-188 — Apontamento de Atividade.
 export const apontamentoAtividadeNotFound = (message, options) =>
   new AppError('APONTAMENTO_ATIVIDADE_NOT_FOUND', message || 'apontamento de atividade não encontrado nesta fazenda', options);
 

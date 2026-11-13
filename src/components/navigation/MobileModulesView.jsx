@@ -50,7 +50,7 @@ export const ICONE_TELA = {
   LocaisEstoque: Warehouse,
   TiposTarefa: ListChecks,
   TiposAtividade: ListChecks,
-  // D-PROD-184 — Apontamentos de Atividade (a execução; ClipboardCheck ≠ ListChecks dos tipos).
+  // D-PROD-188 — Apontamentos de Atividade (a execução; ClipboardCheck ≠ ListChecks dos tipos).
   ApontamentosAtividade: ClipboardCheck,
   GruposAtividades: Folder,
   Empresa: Building2,

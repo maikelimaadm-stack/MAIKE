@@ -204,7 +204,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
   await app.register(registrarTipoAtividadeRoutes);
-  // D-PROD-184 — Apontamento de Atividade: a EXECUÇÃO de um Tipo de Atividade
+  // D-PROD-188 — Apontamento de Atividade: a EXECUÇÃO de um Tipo de Atividade
   // (sem itens de custo; sem DELETE físico, só cancelamento).
   await app.register(registrarApontamentoAtividadeRoutes);
   await app.register(registrarLoteRoutes);

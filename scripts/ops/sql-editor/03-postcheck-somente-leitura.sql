@@ -10,7 +10,7 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-184 (Fatia C): o apontamento de atividade sai PRIMEIRO — referencia a tarefa, o tipo e o grupo de atividade,
+    -- D-PROD-188 (Fatia C): o apontamento de atividade sai PRIMEIRO — referencia a tarefa, o tipo e o grupo de atividade,
     -- o bem e o implemento, a área, os centros, os usuários e a empresa; nenhuma tabela o referencia.
     'ApontamentoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',

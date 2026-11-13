@@ -125,7 +125,7 @@ model Cliente {
   // D-PROD-159/161 — Patrimônio: abastecimentos e fatias FIFO.
   abastecimentosBem            AbastecimentoBem[]
   abastecimentosBemConsumos    AbastecimentoBemConsumoLote[]
-  // D-PROD-184 — apontamentos de atividade (execução).
+  // D-PROD-188 — apontamentos de atividade (execução).
   apontamentosAtividade        ApontamentoAtividade[]
 
   @@index([nome])
@@ -186,7 +186,7 @@ model Usuario {
   // D-PROD-159/161 — autores do abastecimento (FK composta por tenant).
   abastecimentosCriados           AbastecimentoBem[]            @relation("AbastecimentoBemCriadoPor")
   abastecimentosCancelados        AbastecimentoBem[]            @relation("AbastecimentoBemCanceladoPor")
-  // D-PROD-184 — operador e autores do apontamento de atividade (FK composta por tenant).
+  // D-PROD-188 — operador e autores do apontamento de atividade (FK composta por tenant).
   apontamentosAtividadeOperados   ApontamentoAtividade[]        @relation("ApontamentoAtividadeOperador")
   apontamentosAtividadeCriados    ApontamentoAtividade[]        @relation("ApontamentoAtividadeCriadoPor")
   apontamentosAtividadeCancelados ApontamentoAtividade[]        @relation("ApontamentoAtividadeCanceladoPor")
@@ -479,7 +479,7 @@ model GrupoAtividade {
   tipos                 TipoTarefa[]
   tiposAtividade        TipoAtividade[]
   lancamentos           LancamentoTarefa[]
-  // D-PROD-184 — snapshot do grupo no apontamento de atividade.
+  // D-PROD-188 — snapshot do grupo no apontamento de atividade.
   apontamentosAtividade ApontamentoAtividade[]
 
   @@unique([cliente_id, nome_grupo])
@@ -537,7 +537,7 @@ model TipoAtividade {
 
   cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   grupo        GrupoAtividade         @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
-  // D-PROD-184 — execuções deste tipo (a FK RESTRICT barra a exclusão do tipo usado).
+  // D-PROD-188 — execuções deste tipo (a FK RESTRICT barra a exclusão do tipo usado).
   apontamentos ApontamentoAtividade[]
 
   @@unique([cliente_id, id])
@@ -628,7 +628,7 @@ model AreaPastagem {
   posicoesRebanho PosicaoRebanho[]
   // D-PROD-157 — localização opcional do bem patrimonial.
   bensPatrimoniais BemPatrimonial[]
-  // D-PROD-184 — área onde a atividade foi executada.
+  // D-PROD-188 — área onde a atividade foi executada.
   apontamentosAtividade ApontamentoAtividade[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
@@ -961,7 +961,7 @@ model LancamentoTarefa {
   posicao  PosicaoRebanho? @relation(fields: [cliente_id, posicao_id], references: [cliente_id, id], onDelete: Restrict)
   area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   historicos HistoricoLancamentoTarefa[]
-  // D-PROD-184 — atividades executadas a partir desta demanda.
+  // D-PROD-188 — atividades executadas a partir desta demanda.
   apontamentosAtividade ApontamentoAtividade[]
 
   @@unique([cliente_id, id])
@@ -1047,7 +1047,7 @@ model Empresa {
   // D-PROD-157 (R2) — produtos da fazenda vinculados a tipos de combustível.
   // D-PROD-159 — abastecimentos dos bens da fazenda.
   abastecimentosBem      AbastecimentoBem[]
-  // D-PROD-184 — apontamentos de atividade da fazenda.
+  // D-PROD-188 — apontamentos de atividade da fazenda.
   apontamentosAtividade  ApontamentoAtividade[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
@@ -1924,7 +1924,7 @@ model CentroCusto {
   rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
   // D-PROD-157 — centro de custo do bem (mesma empresa pela FK composta).
   bensPatrimoniais BemPatrimonial[]
-  // D-PROD-184 — snapshot do centro de custo no apontamento de atividade.
+  // D-PROD-188 — snapshot do centro de custo no apontamento de atividade.
   apontamentosAtividade ApontamentoAtividade[]
 
   @@unique([cliente_id, id])
@@ -1958,7 +1958,7 @@ model CentroResultado {
   vinculos CentroCustoResultado[]
   rateiosFinanceiros OperacaoFinanceiraRateio[]
   rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
-  // D-PROD-184 — centro de resultado informado no apontamento de atividade.
+  // D-PROD-188 — centro de resultado informado no apontamento de atividade.
   apontamentosAtividade ApontamentoAtividade[]
 
   @@unique([cliente_id, id])
@@ -2563,7 +2563,7 @@ model BemPatrimonial {
   tanques      TanqueBem[]
   // D-PROD-159 — abastecimentos do bem (a leitura do medidor do abastecimento vive lá).
   abastecimentos AbastecimentoBem[]
-  // D-PROD-184 — atividades executadas com o bem (máquina/veículo) e como implemento.
+  // D-PROD-188 — atividades executadas com o bem (máquina/veículo) e como implemento.
   apontamentosAtividade      ApontamentoAtividade[] @relation("ApontamentoAtividadeBem")
   apontamentosComoImplemento ApontamentoAtividade[] @relation("ApontamentoAtividadeImplemento")
 
@@ -2729,7 +2729,7 @@ model AbastecimentoBemConsumoLote {
 }
 
 // ---------------------------------------------------------------------------
-// ApontamentoAtividade — EXECUÇÃO de uma atividade (D-PROD-184, Fatia C).
+// ApontamentoAtividade — EXECUÇÃO de uma atividade (D-PROD-188, Fatia C).
 //
 // A TAREFA (`LancamentoTarefa`) é a demanda; a ATIVIDADE é a operação
 // executada, que consome máquina, combustível e insumo. Base enxuta, SEM itens

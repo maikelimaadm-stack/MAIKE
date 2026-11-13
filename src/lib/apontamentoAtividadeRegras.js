@@ -1,5 +1,5 @@
 /**
- * Regras do Apontamento de Atividade no navegador (D-PROD-184, Fatia C).
+ * Regras do Apontamento de Atividade no navegador (D-PROD-188, Fatia C).
  *
  * O apontamento é a EXECUÇÃO de um Tipo de Atividade: a TAREFA é a demanda; a
  * ATIVIDADE é a operação feita, que consome máquina, combustível e insumo.

@@ -120,10 +120,10 @@ export const API_ERROR_CODES = Object.freeze({
   // Cadastro de TipoAtividade (D-PROD-182).
   TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
-  // D-PROD-184 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-188 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
 
-  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-184). A tela age
+  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-188). A tela age
   // sobre cada um: relê a lista (não encontrado, cancelado, versão velha) ou
   // destaca o campo recusado (referência, horário, data, implemento, produção).
   APONTAMENTO_ATIVIDADE_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_NOT_FOUND',

@@ -1,5 +1,5 @@
 /**
- * Service de Apontamentos de Atividade (D-PROD-184, Fatia C).
+ * Service de Apontamentos de Atividade (D-PROD-188, Fatia C).
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
  * Tipo de Atividade (D-PROD-182): a operação feita, com máquina, implemento,

@@ -1,6 +1,6 @@
 /**
  * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182) e
- * apontamentos de atividade, a EXECUÇÃO de um tipo (D-PROD-184).
+ * apontamentos de atividade, a EXECUÇÃO de um tipo (D-PROD-188).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
@@ -50,7 +50,7 @@ export const deleteTipoAtividade = async (id) => {
   return runProviderCall(() => tipoAtividadePort.delete(id), { ...contexto, details: { id } });
 };
 
-// ─── Apontamentos de atividade (D-PROD-184) ──────────────────────────────
+// ─── Apontamentos de atividade (D-PROD-188) ──────────────────────────────
 
 const RESOURCE_APONTAMENTO = 'ApontamentoAtividade';
 /** @param {string} operation */
