@@ -69,6 +69,8 @@ const ORDEM_DE_LIMPEZA = [
   'fornecedor',
   'categoriaManejo',
   'permissao',
+  // D-PROD-188 — CADESTACOES referencia Empresa (FK composta, Restrict).
+  'cadEstacao',
   'empresa',
   'produto',
   'localEstoque',

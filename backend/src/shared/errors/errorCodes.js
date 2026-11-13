@@ -250,6 +250,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
+  // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+  ESTACAO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica estação desta fazenda neste tenant',
+  },
+  ESTACAO_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe estação com este nome nesta fazenda',
+  },
+  ESTACAO_PERIODO_SOBREPOSTO: {
+    http: 409,
+    meaning: 'o período se sobrepõe a outra estação ativa desta fazenda',
+  },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {

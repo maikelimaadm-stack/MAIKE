@@ -4,6 +4,7 @@ import {
   Briefcase,
   Building2,
   ChevronRight,
+  CloudSun,
   Coins,
   Droplet,
   Droplets,
@@ -41,6 +42,7 @@ export const ICONE_TELA = {
   CadastroLotes: LayoutGrid,
   CadastroSetores: Layers,
   CategoriasManejo: Tag,
+  Estacoes: CloudSun, // D-PROD-188
   Bebedouros: Droplet,
   Produtos: Package,
   Categorias: Tag,

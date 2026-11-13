@@ -284,6 +284,8 @@ export const GUARDAS = Object.freeze({
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
+  // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
+  estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },

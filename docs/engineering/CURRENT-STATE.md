@@ -25,6 +25,17 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
+## Missão ativa (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-188** (D-PROD-185 a 187 estão nas PRs abertas #263 e #264) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR em rascunho, exclusiva desta missão |
+| Escopo | Model `CadEstacao` → tabela física `"CADESTACOES"` (`@@map`), por fazenda; API `/estacoes`; tela `Estacoes` (menu Manejo, tela `pec-estacoes`); estações ativas da mesma fazenda sem sobreposição. **Sem vínculo** com lote, categoria, curva ou outro cadastro |
+| Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Não aplicada em nenhum ambiente remoto** |
+| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) (caminho A; caminho B só com GO escrito e específico desta migration), depois merge e deploy |
+| Relatório | [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md) |
+
 ## Missão concluída (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
 
 | Campo | Valor |

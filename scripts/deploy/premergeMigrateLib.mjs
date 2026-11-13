@@ -71,6 +71,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
+  // D-PROD-188: CADESTACOES (cadastro de Estações da fazenda) — só tabela nova.
+  '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -94,6 +96,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '6fc88d930cdbc5038bb4d604abefb9e04d993e6e776bb851369b697a8f966a7e',
   // D-PROD-182: RLS/REVOKE de TipoAtividade (mesmo corpo, lista nova).
   '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
+  // D-PROD-188: RLS/REVOKE de CADESTACOES (mesmo corpo, lista nova).
+  '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
 ]);
 
 /** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
