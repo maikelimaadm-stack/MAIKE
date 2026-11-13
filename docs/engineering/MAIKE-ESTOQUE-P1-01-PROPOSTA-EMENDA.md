@@ -74,7 +74,10 @@ saldo de implantação, doação e outra causa com justificativa e permissão pr
 máximo uma implantação ativa por produto e empresa, e ela só é aceita se o produto não
 tiver nenhum histórico físico em nenhum local; os fatos de itens de entrada manual já
 estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como
-histórico. Doação e outra causa não servem para registrar saldo antigo. A entrada manual
+histórico. Corrigir quantidade, custo, unidade, fator, parceiro ou documento da própria
+implantação, no mesmo produto, local e data, não é implantar de novo, mesmo que o produto
+tenha fatos posteriores; trocar produto, local ou data dela exige que não haja outro
+histórico além dos fatos dela mesma. Doação e outra causa não servem para registrar saldo antigo. A entrada manual
 não é compra, não cria título, conta a pagar nem receita, e não pode duplicar um
 lançamento da Central nem outra entrada: com o mesmo parceiro e documento, um bloqueia o
 outro, nos dois sentidos. O usuário pode **editar** e **excluir** a entrada; o motivo
@@ -101,7 +104,8 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 ```
 
 **Frases que mudam se a ratificação escolher outra opção** (contrato §8):
-- **R-IMPL estrita:** apagar `; os fatos de itens de entrada manual já estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`.
+- **R-IMPL estrita:** apagar só `; os fatos de itens de entrada manual já estornados por edição ou exclusão, que por regra nunca tiveram consumo, não contam como histórico`. O ponto final fica depois de `em nenhum local`. A frase seguinte, sobre corrigir a própria implantação, continua.
+- **(l) recusada** (motivo editável): apagar `; o motivo dela nunca muda`.
 - **(b) recusada** (aceitar baixa estornada): apagar `, mesmo que depois estornado`.
 - **(k) por item:** trocar `quando nenhuma camada de nenhum item dela foi consumida` por `quando nenhuma camada do item afetado foi consumida (data, parceiro e documento afetam todos os itens, e excluir exige isso de todos)`. Trocar também `com essa dependência, só se editam observação e justificativa` por `os itens com essa dependência só têm observação e justificativa editáveis`.
 
@@ -117,7 +121,7 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 
 ### 4.1 Nota nova
 
-**Onde:** inserir **ao final do arquivo**, depois da nota "Nota (D-PROD-159, revista pela D-PROD-162)". A posição mantém a ordem cronológica das notas (155, 157, 159, 176). O bloco vai precedido de uma linha em branco, para não se fundir com o blockquote anterior.
+**Onde:** inserir **ao final do arquivo**, depois da nota "Nota (D-PROD-159, revista pela D-PROD-162)". A posição mantém a ordem cronológica das notas (155, 157, 159, 177; a proposta nasceu como 176 e foi renumerada, ver o relatório, §9.8). O bloco vai precedido de uma linha em branco, para não se fundir com o blockquote anterior.
 
 **Texto a vigorar SOMENTE após a ratificação (literal; variante proposta da R-IMPL):**
 
@@ -135,18 +139,22 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 >   motivo de uma entrada;
 > - confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um
 >   lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada
->   confirmada, e confirmar na Central um lançamento com o mesmo parceiro e documento de
->   uma entrada confirmada;
+>   confirmada, e confirmar ou retificar (no lugar ou por substituição) na Central um
+>   lançamento, a pagar ou a receber, com o mesmo parceiro e documento de uma entrada
+>   confirmada;
 > - ter mais de uma implantação ativa por produto e empresa, ou implantar saldo de um
 >   produto que já tenha histórico físico em qualquer local, salvo os fatos de itens de
->   entrada manual já estornados por edição ou exclusão;
+>   entrada manual já estornados por edição ou exclusão e, na revisão da própria
+>   implantação, os fatos das linhas vigentes do mesmo documento (corrigir quantidade,
+>   custo, unidade, fator, parceiro ou documento da implantação, no mesmo produto, local e
+>   data, não é implantar de novo);
 > - editar quantidade, custo, unidade, fator, produto, local, data, parceiro ou documento,
 >   incluir ou retirar item, ou excluir uma entrada confirmada quando alguma camada de
 >   algum item dela foi consumida, transferida ou citada por outro fato, mesmo que depois
 >   estornado;
 > - confirmar ou editar uma entrada manual de modo que uma camada nova fique, na fila FIFO
->   do produto no local, à frente de camada que alguma baixa já tocou, ou com saída sem
->   rastro nesse produto e local;
+>   do produto no local, à frente de camada que alguma baixa já tocou, ou sem prova da
+>   posição dela na fila (saída sem rastro que possa ter tocado as camadas posteriores);
 > - liberar a edição ou a exclusão de uma entrada confirmada sem prova de que nenhuma
 >   camada dela foi usada (rastro ilegível, origem legada ou volume acima do limite contam
 >   como falta de prova), ou com o saldo do produto divergente das camadas;
@@ -163,7 +171,8 @@ com a aprovação explícita do proprietário (§4), registrada como ratificaç�
 ```
 
 **Frases que mudam com outra opção:**
-- **R-IMPL estrita:** o item "ter mais de uma implantação…" termina em "em qualquer local", sem a ressalva.
+- **R-IMPL estrita:** no item "ter mais de uma implantação…", sai só a ressalva dos itens já estornados; a ressalva da revisão da própria implantação continua.
+- **(l) recusada:** apagar "; mudar o motivo de uma entrada".
 - **(b) recusada:** apagar ", mesmo que depois estornado".
 - **(k) por item:** trocar "quando alguma camada de algum item dela" por "quando alguma camada do item afetado (ou de qualquer item, para data, parceiro, documento e exclusão)".
 

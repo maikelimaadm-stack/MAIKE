@@ -11,6 +11,7 @@
 - **Numeração:** a `main` dizia `Próxima decisão: D-PROD-176`. Nenhuma PR aberta anuncia a 176.
   - A 176 foi **reservada como proposta** e o marcador avançou para D-PROD-177, no mesmo padrão de reserva da D-PROD-154 pela #229.
   - **Superado em 2026-11-12:** a PR #249 entrou na `main` com outra D-PROD-176. A proposta passou a ser a **D-PROD-177**, com o marcador em D-PROD-178 (§9.8).
+  - **Superado de novo em 2026-11-13:** a PR #250 entrou na `main` com a D-PROD-178 (Mapa). A proposta continua D-PROD-177, entre a 176 e a 178, e o marcador é o da `main`, D-PROD-179. Esta PR não o altera (§10.1).
 
 ## 2. Documentos produzidos ou alterados (allowlist da missão)
 
@@ -19,7 +20,7 @@
 | [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) | **Novo.** Texto exato proposto para `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`, justificativa, conflitos de hierarquia e caminho de ratificação. As normas **não** foram editadas |
 | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) | **Novo.** Contrato de projeto (A–E), matriz Antes → Proposta → Pré-requisito → Slice, pontos a ratificar |
 | `MAIKE-ESTOQUE-P1-01-REPORT.md` | **Novo.** Este relatório |
-| `DECISIONS.md` | Entrada **D-PROD-177 — PROPOSTA PENDENTE DE APROVAÇÃO** (nascida como 176; ver §9.8) e marcador 178. Nenhuma decisão antiga foi alterada |
+| `DECISIONS.md` | Entrada **D-PROD-177 — PROPOSTA PENDENTE DE APROVAÇÃO** (nascida como 176; ver §9.8), inserida entre a D-PROD-176 e a D-PROD-178 da `main`. O marcador não é alterado por esta PR e segue o da `main`, D-PROD-179 (§10.1). Nenhuma decisão antiga foi alterada |
 | `ROADMAP.md` | Nota prospectiva no track do Estoque P0-01, sem reescrever o histórico |
 | `CURRENT-STATE.md` | Seção "Proposta em revisão" no topo, com status PROPOSTA |
 
@@ -281,7 +282,7 @@ Os comandos abaixo rodaram no HEAD `44ba3c18`, o commit que traz todo o conteúd
 
 O diff contra `docs/constitution`, `README_AI.md`, `AGENTS.md`, `CLAUDE.md`, `config`, `src`, `backend`, `apps`, `base44`, `scripts`, `package.json`, `vercel.json` e `.github` está **vazio**.
 
-No `DECISIONS.md` do commit `44ba3c18`, só mudou a entrada da proposta, a última do arquivo. A renumeração está na §9.8.
+No `DECISIONS.md` do commit `44ba3c18`, só mudou a entrada da proposta, então a última do arquivo (situação daquele commit). A renumeração está na §9.8.
 
 ### 9.8 Integração da `main` e renumeração (2026-11-12)
 - **O que aconteceu:**
@@ -290,7 +291,135 @@ No `DECISIONS.md` do commit `44ba3c18`, só mudou a entrada da proposta, a últi
 - **Como foi integrada:**
   - a `main` entrou por **merge** (sem rebase e sem force-push);
   - a D-PROD-176 da `main` ficou **intacta**;
-  - a proposta desta PR passou a ser a **D-PROD-177**, com uma nota de renumeração na própria entrada, e o marcador foi para **D-PROD-178**;
+  - a proposta desta PR passou a ser a **D-PROD-177**, com uma nota de renumeração na própria entrada, e o marcador foi para **D-PROD-178** (situação de 2026-11-12, superada; ver §10.1);
   - as referências à proposta foram trocadas para D-PROD-177 no contrato, na proposta de emenda (inclusive no texto literal proposto para 00 e 07), neste relatório, no ROADMAP e no CURRENT-STATE;
   - as frases históricas da R1 sobre a numeração (§1) foram mantidas, com a observação "superado".
 - **O que não mudou:** nenhuma regra mudou com a renumeração.
+
+---
+
+## 10. Adendo R3 — correção da auditoria do arquiteto (MAIKE-ESTOQUE-P1-01-GOVERNANCA-R3, 2026-11-13)
+
+> **Ainda PROPOSTA.** As §§1–9 ficam como histórico. As frases superadas foram anotadas no lugar (§1, §2, §9.7, §9.8), sem reescrita silenciosa. Nada foi implementado, ratificado ou autorizado. 00, 07 e 08 continuam intocados (A10).
+
+### 10.1 Baseline e integração da `main`
+
+**Antes da integração:**
+- HEAD da R2: `ab494767`;
+- `main` em `0ed6ae9c`, 21 commits à frente;
+- a `main` já tinha a D-PROD-178 (Mapa: nível do cocho e do depósito, PR #250) e o marcador `<!-- Próxima decisão: D-PROD-179 -->`.
+
+**Integração:**
+- `0ed6ae9c` entrou por **merge**, no commit `4b47a468`, sem rebase e sem force-push;
+- houve conflito só em `DECISIONS.md` e `CURRENT-STATE.md`.
+
+**Resolução:**
+- **DECISIONS:**
+  - a D-PROD-176 (ícones) e a D-PROD-178 (Mapa) ficaram **iguais byte a byte** às da `main`;
+  - a D-PROD-177 (esta proposta) aparece **uma vez**, entre as duas. A D-PROD-178 já a citava como reservada;
+  - o marcador é **único** e vale D-PROD-179, o mesmo da `main`;
+  - `git diff origin/main -- DECISIONS.md` não remove nenhuma linha.
+- **CURRENT-STATE:** a seção da proposta fica antes da "Missão ativa" da D-PROD-178, que ficou intacta. Nenhuma linha da `main` foi removida.
+- **ROADMAP:** fez merge automático, e as notas do Estoque foram acrescentadas sem remover linhas.
+- **Herança da `main`:** as duplicatas `## D-PROD-94` e `## D-PROD-99` já existiam na `main`. Esta PR não as cria e não as corrige (fora da allowlist).
+
+### 10.2 O que a R3 corrigiu, por bloqueio da auditoria
+
+| Bloqueio | Antes (R2) | Depois (R3) | Onde |
+|---|---|---|---|
+| FIFO: ordem contraditória | A A8.4 checava depois de criar a camada; a C4 checava antes do motor; a A8.7 dizia "só previsão" | **Um único algoritmo:** Fase 0 (prévia, só leitura) → Fase 1 (travas) → Fase 2 (validações J1/J2, prova, cache) → Fase 3 (efeitos provisórios, invisíveis até o commit) → Fase 4 (J3 com os ids reais e cache como invariante) → Fase 5 (numeração, evento, auditoria, recibo). Qualquer recusa desfaz tudo. A C4 e os slices remetem à A8.5. A prévia devolve `livre`, `condicional` ou `bloqueada`, nunca uma certeza que dependa de id | contrato A8.4, A8.5, A8.7, C4, §7 |
+| Prova de dependência com falso negativo | Copiava o parser da `provaDaCompra`, que transforma JSON não-array em `[]`; usava recibos com folga de 1 h como prova; o P8 olhava só "nulo" | **Fail-closed** com três respostas (COMPROVADA, REFERENCIADA, INDETERMINADA). A varredura das Saídas do produto é ordenada pelo **número** do movimento, numerado no fim sob a trava. A forma do JSON é exigida (só `lote_id`). A exceção de estorno é uma lista fechada. A origem legada e o número provisório dão INDETERMINADA. Há teto (`volume_excedido`). O recibo deixa de ser prova | contrato A8.3, tabela de writers |
+| Cache ≠ camadas | P9: `estoque_atual` ≥ kg | **CA:** igualdade exata com Σ das camadas `Disponivel` da empresa, mais `estoque_atual` ≥ 0, sob a trava e de novo depois dos efeitos. Sem tolerância | contrato A8.3 (CA) |
+| Par único com NULL | `@@unique` com `revisao_fim` nula | Serialização pelo cabeçalho, mais um **índice único parcial** na tabela nova (aceito pelo classificador; prefixo `cliente_id` exigido por teste próprio, porque nenhum gate o vê), mais CHECKs coerentes com o rascunho (`revisao_inicio = 0`) | contrato §7 |
+| Vínculos e estornos | Sem invariantes escritos | Vínculo 1:1 de camada, movimento e estorno; a exclusão de confirmada fecha as linhas; a revisão só de metadados não toca linha; uma camada `Estornado` sem linha fechada é divergência real | contrato §7, A8.6 |
+| Autorização e privacidade | Fórmula única dizia o mesmo para rascunho e confirmada; sem regra de privacidade | Rotas separadas para excluir rascunho e confirmada, com o serviço reconferindo o estado; `confirmar_outra` para documento `OUTRA`; 404 sem details entre tenants; número e id de consumidor só para quem pode vê-lo | contrato A8.7, C4 |
+| Erros e replay | Tabela imprecisa | Códigos novos `PROVA_INDETERMINADA` e `CACHE_DIVERGENTE`; replay determinístico conferido contra `operacaoIdempotenteService.js` (espera na reserva, `EFEITO_EXCLUIDO` antes do `CONFLICT`, recusa sem recibo) | contrato A8.6, C4 |
+| UX fiel | Prometia "desfazer dependentes" e "saneamento" | Editar e Excluir sem botão "Cancelar"; desfazer dependentes só para venda e abastecimento (se (b) for aceito); **sem promessa de saneamento** do legado (R-LEGADO) | contrato A8.7, §8 |
+
+**Emenda proposta.** O texto mudou o mínimo:
+- uma frase em 00 e um item em 07 (falta de prova e cache divergente recusam);
+- a exceção (ii) da implantação em 00 e 07;
+- a retificação da Central no item de dedupe do 07;
+- a frase alternativa para (l);
+- a numeração 177.
+
+### 10.3 O que é prova e o que é heurística
+
+| Premissa | Natureza | Limite declarado |
+|---|---|---|
+| Saída numerada **antes** do movimento de entrada de `L` não cita `L` | **Prova por protocolo.** Todo writer ativo trava o produto e numera no fim (§10.4); o id de `L` nasce no `create` | Vale só para camadas criadas pelo motor sob a trava e numeradas no fim. Writers pré-P0 sem trava existiram, mas foram desativados antes. Linhas deles dentro de S dão INDETERMINADA |
+| Folga de 1 h no `createdAt` | **Heurística** (relógio da aplicação, várias instâncias) | Só **amplia** o conjunto lido; nunca libera |
+| Forma do JSON (`lote_id` string em array de objetos) | **Prova** para os writers atuais (`fatiaGravada`, `estoqueFisicoMotor.js:266`) | Formato fora disso → INDETERMINADA |
+| Recibo `rateio[].lote_id` | Redundante pós-P0 | Não é usado como prova |
+| `updatedAt = createdAt` (P7) | Contrarrede | Depende de teste PG do Prisma 6.19.3 (F14) |
+| Cache exato | **Prova** sob a trava (todo writer de cache trava o produto) | O(camadas do produto), com teto |
+| Ordem FIFO por id no empate | **Fato do motor** (`ordenarFifo`, `localeCompare`) | O id só existe depois do `create`, por isso a J3 roda na Fase 4. A prévia é estimativa |
+| Invisibilidade dos efeitos provisórios | **Prova** (READ COMMITTED; `TX_EFEITO` sem nível explícito, `operacaoFinanceiraService.js:83`) | Depende do nível padrão do servidor PG, que não é fixado no código |
+| Ausência de legado sem rastro em produção | **Não verificada** | Nenhuma consulta ao banco nesta missão (R-LEGADO) |
+
+### 10.4 Mapa de writers e provas (main `0ed6ae9c`)
+
+| Writer | Trava do produto | Rastro por camada | Evidência |
+|---|---|---|---|
+| Venda P3 (confirmar/retificar) | `operacaoFinanceiraService.js:1422`, `:2328` | FK `OperacaoFinanceiraConsumoLote` (`:1385-1391`; `schema.prisma:2146-2165`) + JSON (`estoqueFisicoMotor.js:522`) | FK |
+| Compra P3 (entrada) | `:1422`, `:2328` | FK do item (`schema.prisma:2128`); camada → movimento sem FK (`:1205`) | FK / protocolo |
+| Estorno P3 em lote | `:1566`, `:2463`, `:2328` | Venda: fatias FK permanecem. Compra: estado `Estornado` + `OperacaoFinanceiraItem.movimentacao_estorno_id` (`:1534-1538`) | FK / estado |
+| Abastecimento e cancelamento | `abastecimentoService.js:357`, `:491` | FK `AbastecimentoBemConsumoLote` (`:405-414`) + JSON | FK |
+| Suplementação (comando) | `movimentacaoEstoqueComandoService.js:213` | JSON `lote_id` + recibo `rateio` (`:257`, `:149-161`) | JSON |
+| Transferência (comando) | `:324` | JSON `lote_id` + `lote_destino_id` (`estoqueFisicoMotor.js:605-661`) | JSON |
+| Suplementação/transferência pré-P0 | Não (a trava entrou em `c2cec1d3`) | Só recibo | Indeterminada se em S |
+| POST/DELETE genéricos, reversão pelo navegador, PATCH/DELETE administrativo de lote P5.4 | Não | Nenhum ou AuditLog | Fechados hoje (`movimentacaoEstoqueService.js:52-60`, `:122-127`; `estoqueLoteNotaService.js:69-76`, `:223-236`; `suplementacaoHistoricoService.js:37`) |
+| PATCH de `local_estoque_nome` | Não (só a linha, `estoqueLoteNotaService.js:180`) | AuditLog `update` | Benigno (P7) |
+| `atualizarProcedencia`, sincronização de nomes, `numerarMovimentos` | — | Metadado | Não consome |
+| Numeração | Linha `EntidadeCodigoSequencia` com `UPDATE … RETURNING` na transação (`entidadeCodigoRepository.js:58-97`) | — | Transacional; rollback não deixa buraco |
+
+### 10.5 Revisão cética da R3
+
+**Como foi feita:** 5 lentes (integração e numeração; FIFO; prova; cache, unique e autorização; governança), com um verificador cético por achado.
+
+**Resultado:** 34 achados, 25 confirmados, 9 refutados. **Os 25 foram corrigidos nos documentos.** Nenhum ficou BLOQUEADO.
+
+| Tema | Status |
+|---|---|
+| Relatório desatualizado (marcador 178, §10 inexistente, base das referências) | CORRIGIDO: §1, §2, §9.7, §9.8 anotados; esta §10; cabeçalho do contrato |
+| J2 sem conjunto definido fora da prova de `L` (confirmação) | CORRIGIDO: conjunto `K` (camadas do local com chave ≥ `D`), S ancorado no menor número de `K`, legado → INDETERMINADA |
+| Estado `condicional` × camada legada com data nula | CORRIGIDO: estados definidos pela chave, com precedência |
+| CHECK `revisao_inicio ≥ 1` × rascunho `= 0` | CORRIGIDO: `≥ 0` com a equivalência ao "sem camada" |
+| Exclusão sem fechar linhas | CORRIGIDO: a A8.6 e o passo 20 fecham as linhas com o estorno |
+| Rota única de exclusão com permissão por estado | CORRIGIDO: rotas separadas e reconferência do estado sob trava |
+| Replay `IN_PROGRESS` e precedência de `EFEITO_EXCLUIDO` | CORRIGIDO conforme o serviço |
+| CA aceitava cache negativo igual à soma | CORRIGIDO: `estoque_atual` ≥ 0 e reason `cache_negativo` |
+| `confirmar_outra` × motivo imutável | CORRIGIDO: exigido para documento `OUTRA` (editar e excluir) |
+| 404 "outra empresa" apresentado como privacidade | CORRIGIDO: privacidade só entre tenants; empresa é coerência de parâmetro |
+| Matriz de erros e linha de prévia duplicada | CORRIGIDO |
+| Emenda: pontos incorporados além de (b)/(c)/(k); exceção (ii) ausente; J2 no 07; retificação ausente no 07; resíduo "176" | CORRIGIDO: lista completa, (ii), redação da J2, retificação, numeração |
+| Saneamento prometido inexistente | CORRIGIDO: R-LEGADO; a tela não promete |
+| "Desfazer dependentes" com transferência e suplementação | CORRIGIDO: só venda e abastecimento |
+| Condição 5 da A3 × produto trocado | CORRIGIDO: só linhas vigentes |
+
+**Refutados (9), com o motivo do verificador:**
+- a J3 e os estornos provisórios: a J3 só usa o predicado "tocada" e nunca devolve INDETERMINADA;
+- `COLLATE "C"` × `localeCompare`: só divergem para ids com maiúscula ou `_`, e todos os ids são cuid do Prisma;
+- "mesma posição da fila": o contraexemplo não se forma, porque a confirmação anterior já passou pela J3;
+- sobreposição na tabela de classificação: a COMPROVADA exige que tudo seja entendido;
+- FKs gravadas depois da J3: a J3 não consome o resultado da P5, e os ids vêm das primitivas;
+- cópia local de `numerarMovimentos` (`operacaoFinanceiraService.js:178-185`): faz o mesmo que a do motor, sobre a mesma sequência por tenant;
+- "Estornado só por estorno de entrada": a frase fala só de camada **não citada**;
+- manifesto SHA-256 do classificador: o §7 trata só do **formato** aceito. A pinagem é parte do runbook de DDL;
+- linha do `TX_EFEITO`: `:83` está correta.
+
+### 10.6 Decisões humanas ainda pendentes
+1. R-IMPL, antes da R-EMENDA.
+2. R-EDICAO-EXCLUSAO (a)–(o). O texto da emenda já incorpora (a), (b), (c), (g), (h), (k), (l), (m) e (o).
+3. R-EMENDA.
+4. R-LEGADO, que é nova.
+5. R-CONVERSAO, R-DEDUPE, R-MOTIVOS, R-DATA, R-LOTE, R-ORDEM e R-SPLIT.
+6. Nota de ratificação, ou de recusa, na D-PROD-177.
+
+Nem esta PR nem o merge dela ratificam nada. A P1-02, a P1-05a, a P1-05b e a P1-06 só começam depois da ratificação. DDL só com runbook, GO, ensaio, postcheck e merge manual.
+
+### 10.7 Testes futuros
+Os testes estão na matriz da A8.8 do contrato: T1–T6, F1–F14, C1, U1–U4, R1, A1. Nenhum é implementado nesta PR, que é só de documentação.
+
+### 10.8 Gates e CI da R3
+_(preenchido no commit final com saídas e exit codes reais)_
