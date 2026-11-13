@@ -158,6 +158,81 @@ export const tipoAtividadeNomeConflito = (message, options) =>
     options
   );
 
+// D-PROD-184 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+export const tipoAtividadeDeleteBlocked = (message, options) =>
+  new AppError(
+    'TIPO_ATIVIDADE_DELETE_BLOCKED',
+    message || 'não é possível excluir tipo de atividade com apontamentos vinculados; inative-o',
+    options
+  );
+
+// D-PROD-184 — Apontamento de Atividade.
+export const apontamentoAtividadeNotFound = (message, options) =>
+  new AppError('APONTAMENTO_ATIVIDADE_NOT_FOUND', message || 'apontamento de atividade não encontrado nesta fazenda', options);
+
+/** @param {string} field @param {'inexistente'|'outra_empresa'|'inativo'} reason @param {string} message */
+export const apontamentoAtividadeReferenciaInvalida = (field, reason, message, options) =>
+  new AppError('APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA', message, {
+    ...options,
+    details: { ...(options?.details ?? {}), field, reason },
+  });
+
+export const apontamentoAtividadeHorarioInvalido = (message, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO',
+    message || 'a hora de fim é anterior à hora de início; nada foi gravado',
+    { ...options, details: { ...(options?.details ?? {}), field: 'hora_fim', reason: 'fim_antes_do_inicio' } }
+  );
+
+/** @param {{ data: string, hoje: string, fuso: string }} referencia */
+export const apontamentoAtividadeDataFutura = ({ data, hoje, fuso }, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_DATA_FUTURA',
+    `a data da atividade (${data}) é posterior a hoje na fazenda (${hoje}); só atividade já executada é apontada; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field: 'data_operacional', reason: 'data_futura', data, hoje, fuso } }
+  );
+
+/** @param {'implemento_sem_bem'|'implemento_igual_ao_bem'} reason */
+export const apontamentoAtividadeImplementoInvalido = (reason, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO',
+    reason === 'implemento_sem_bem'
+      ? 'escolha a máquina ou o veículo antes do implemento; nada foi gravado'
+      : 'o implemento não pode ser o mesmo bem da máquina ou do veículo; nada foi gravado',
+    { ...options, details: { ...(options?.details ?? {}), field: 'implemento_bem_id', reason } }
+  );
+
+/** @param {string} field @param {'quantidade_sem_unidade'|'unidade_sem_quantidade'|'quantidade_nao_positiva'|'horas_nao_positivas'} reason @param {string} message */
+export const apontamentoAtividadeProducaoInvalida = (field, reason, message, options) =>
+  new AppError('APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA', message, {
+    ...options,
+    details: { ...(options?.details ?? {}), field, reason },
+  });
+
+/** @param {string} status */
+export const apontamentoAtividadeStatusInvalido = (status, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_STATUS_INVALIDO',
+    'o apontamento está cancelado e não aceita edição nem novo cancelamento; nada foi alterado',
+    { ...options, details: { ...(options?.details ?? {}), field: 'status', reason: 'status_invalido', status, esperado: 'CONFIRMADO' } }
+  );
+
+/** @param {number|null} versaoAtual @param {unknown} versaoInformada */
+export const apontamentoAtividadeVersaoConflito = (versaoAtual, versaoInformada, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
+    'o apontamento foi alterado por outra pessoa desde que você o abriu; recarregue e tente de novo; nada foi gravado',
+    { ...options, details: { ...(options?.details ?? {}), versao_atual: versaoAtual, versao_informada: versaoInformada } }
+  );
+
+/** @param {string} vinculo coluna do apontamento que segura o cadastro (ex.: `lancamento_tarefa_id`) */
+export const apontamentoAtividadeVinculado = (vinculo, options) =>
+  new AppError(
+    'APONTAMENTO_ATIVIDADE_VINCULADO',
+    'não é possível excluir: há apontamentos de atividade vinculados a este cadastro; nada foi apagado',
+    { ...options, details: { ...(options?.details ?? {}), vinculo } }
+  );
+
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 

@@ -35,6 +35,7 @@ import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMe
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 import { registrarTipoAtividadeRoutes } from './modules/tiposAtividade/tipoAtividadeRoutes.js';
+import { registrarApontamentoAtividadeRoutes } from './modules/apontamentosAtividade/apontamentoAtividadeRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -203,6 +204,9 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
   await app.register(registrarTipoAtividadeRoutes);
+  // D-PROD-184 — Apontamento de Atividade: a EXECUÇÃO de um Tipo de Atividade
+  // (sem itens de custo; sem DELETE físico, só cancelamento).
+  await app.register(registrarApontamentoAtividadeRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

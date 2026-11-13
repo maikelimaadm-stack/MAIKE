@@ -284,6 +284,16 @@ export const GUARDAS = Object.freeze({
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
+  // D-PROD-184 — Apontamento de Atividade: o esquema do cadastro (criar =
+  // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
+  // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
+  // operacional da fazenda; não dependem das telas de bens nem de centros).
+  apontamentoAtividade: {
+    ver: porTela(T.APONTAMENTOS_ATIVIDADE, 'visualizar'),
+    criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
+    editar: cadastro(T.APONTAMENTOS_ATIVIDADE).editar,
+    cancelar: cadastro(T.APONTAMENTOS_ATIVIDADE).excluir,
+  },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },

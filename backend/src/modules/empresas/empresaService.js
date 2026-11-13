@@ -290,6 +290,29 @@ const MODELOS_DA_EMPRESA = Object.freeze(
 /** @param {string} modelo */
 const delegadoDe = (modelo) => modelo.charAt(0).toLowerCase() + modelo.slice(1);
 
+/** Tabela de cada model (o `@@map`, quando houver). */
+const TABELA_DO_MODELO = Object.freeze(
+  Object.fromEntries(Prisma.dmmf.datamodel.models.map((m) => [m.name, m.dbName ?? m.name]))
+);
+
+/**
+ * D-PROD-184 (lição do hotfix #259) — o código pode subir antes da migration de
+ * um model novo (ex.: `ApontamentoAtividade`), e a lista acima o inclui sozinha:
+ * contar numa tabela que ainda não existe daria 500 (e, dentro da transação,
+ * 25P02 no resto). A consulta ao catálogo (`to_regclass`) NUNCA falha; tabela
+ * ausente = nenhum dependente nela (e nenhuma FK para barrar a exclusão).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @returns {Promise<string[]>}
+ */
+const modelosDaEmpresaComTabela = async (tx) => {
+  const tabelas = MODELOS_DA_EMPRESA.map((m) => TABELA_DO_MODELO[m]);
+  const linhas = /** @type {Array<{nome: string}>} */ (
+    await tx.$queryRaw`SELECT t.nome FROM unnest(${tabelas}::text[]) AS t(nome) WHERE to_regclass(format('public.%I', t.nome)) IS NOT NULL`
+  );
+  const existentes = new Set(linhas.map((l) => l.nome));
+  return MODELOS_DA_EMPRESA.filter((m) => existentes.has(TABELA_DO_MODELO[m]));
+};
+
 /**
  * Contagem dos dependentes da empresa, por model (só os que têm registro).
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
@@ -297,7 +320,7 @@ const delegadoDe = (modelo) => modelo.charAt(0).toLowerCase() + modelo.slice(1);
  */
 const vinculosDaEmpresa = async (tx, clienteId, empresaId) => {
   const vinculos = [];
-  for (const entidade of MODELOS_DA_EMPRESA) {
+  for (const entidade of await modelosDaEmpresaComTabela(tx)) {
     const total = await /** @type {any} */ (tx)[delegadoDe(entidade)].count({ where: { cliente_id: clienteId, empresa_id: empresaId } });
     if (total > 0) vinculos.push({ entidade, total });
   }
