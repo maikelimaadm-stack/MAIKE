@@ -6652,6 +6652,14 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - `scripts/tests/deploy/migrations.test.mjs`: a barreira do runner com as duas CONTRACT.
 - `backend/tests/patrimonioSimplificaMigration.test.mjs` passa a partir de 41 migrations (a da D-PROD-183 entra no "todas menos a CONTRACT dele").
 
+**Nota de aplicação (2026-11-13).**
+- **Ordem real:** a PR #261 foi mergeada pelo proprietário às 17:18 UTC, antes da aplicação. Isso fechou o caminho A, que agora recusa com `CONTRACT_INESPERADO` (conferido).
+- **GO:** o proprietário autorizou com as palavras "go go gog gogogogog" e, depois que a 1ª tentativa expirou na confirmação do conector, "pronto".
+- **Aplicação:** pelo caminho B, uma transação, às 17:45:35 UTC.
+- **Preflight:** 1 tipo de tarefa no banco inteiro (1 cliente) tinha as 4 flags `true`, e foi isso que se perdeu (escolha (b) do runbook). Impressão `5194f45d42b0`.
+- **Postcheck:** 42/0 e 9 colunas. Segurança: 0 alertas.
+- **Registro completo:** runbook §11.
+
 **Relatório:** [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md).
 
 ## D-PROD-184 — Estoque P1-02: endurecimento do motor único (M2–M6), sem schema
