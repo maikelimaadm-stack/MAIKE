@@ -6654,4 +6654,30 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-184 -->
+## D-PROD-185 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
+
+> **Numeração:** a D-PROD-184 fica reservada para a PR #260 (Estoque P1-02, rascunho), que registrou uma D-PROD-183 e, pela convenção, renumera ao entrar depois da PR #261. A D-PROD-186 fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) · **Branch:** `feat/categoria-manejo-enxugar`
+
+**Decisão.**
+1. **Cadastro.** O cadastro de Categoria de Manejo passa a ter exatamente estes campos de dado: **Nome** (`nome`, obrigatório), **Sigla** (`sigla`), **Espécie** (`especie`), **Sexo** (`sexo`) e **Faixa de idade (meses)** (`idade_minima_meses` + `idade_maxima_meses`, "De ___ a ___", ambos opcionais, inteiros ≥ 0, mínimo ≤ máximo). O **Ícone oficial** (`catalogo_categoria_visual_id`) continua: é o desenho no mapa, não campo de dado.
+   - Saem do formulário, da grade, do CSV, da porta nativa, do service e da API: `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro` … `gmd_dezembro` (15 campos).
+   - Sigla, Espécie e Sexo deixam de ser obrigatórios na tela (o pedido marcou só o Nome). As colunas já eram anuláveis.
+   - Erro de faixa: `REQUEST_VALIDATION_FAILED` (400) com `reason` `idade_minima_maior_que_maxima` ou `inteiro_nao_negativo`. No `PATCH` com um lado só, compara com o valor gravado.
+2. **Prisma e banco (expand, sem migration).** Os 15 campos viram `@ignore` em `model CategoriaManejo`, no molde da D-PROD-181: saem do Prisma Client e ficam no schema, que segue igual ao banco migrado (`prisma migrate diff` vazio). O repository passa a selecionar só as colunas que ficam. Assim o código desta fatia em produção nunca lê nem grava as colunas, e o DROP da Fatia D não quebra o runtime por elas.
+3. **Cliente antigo não quebra.** As 15 chaves são **aceitas e ignoradas** no corpo de `POST` e `PATCH /categorias-manejo` (`CHAVES_LEGADAS_IGNORADAS` no service): `POST` dá 201, `PATCH` só com chaves legadas dá 200 sem efeito (auditoria com antes = depois), a resposta não as devolve; qualquer outra chave desconhecida continua 400. A porta nativa do front filtra o corpo pelos campos graváveis, inclusive na fila offline.
+4. **Categoria oficial do rebanho (decisão do proprietário).** Sem `categoria_oficial`, a ligação entre a Categoria de Manejo e a lista fixa `CATEGORIAS_OFICIAIS` (Nascimento, política materna, Mudança de Categoria, conferência de sexo na baixa) passa a ser **derivada do Sexo + Faixa de idade**, pelas faixas 0–12, 13–24, 25–36 e 37+ (`categoriaOficialDaCategoriaManejo`, em `backend/src/modules/movimentacoesMapa/categoriaOficialDerivada.js`, com espelho em `src/domain/lotes/categoriaOficialDerivada.js` e teste de paridade).
+   - A faixa precisa caber inteira numa faixa oficial; sem máximo, só vale a partir de 37 meses. Faixa que cruza duas faixas, sem idade ou sem sexo → sem categoria oficial.
+   - `resolverCategoriaManejo`: com id, a categoria tem de existir, estar ativa e derivar a oficial pedida (senão 409 `MANEJO_CATEGORIA_INVALIDA`); sem id, mais de uma ativa com a mesma derivação → 409 `MANEJO_CATEGORIA_AMBIGUA`; nenhuma → sem categoria de manejo.
+   - Formulário de Lote: `Lote.categoria` recebe a oficial derivada e, sem derivação, o `nome`. A busca da categoria no lote é por nome, sigla, sexo e espécie.
+   - Regras de exclusão: uma regra por entidade, casando pelo `nome`; o bloqueio por id em `Lote` continua primeiro.
+5. **Dados históricos.** `Lote.categoria`, `Lote.categoria_entrada` e os textos já gravados em movimentações e manejos **não são reescritos**.
+6. **Remoção física.** O `DROP COLUMN` das 15 colunas e a troca do nome físico da tabela para `CADCATEGORIA` (model segue `CategoriaManejo`, com `@@map`) ficam para a **Fatia D**, migration CONTRACT própria e isolada (D-PROD-186), com GO do proprietário dado em 2026-11-13.
+7. **Fora do escopo:** trabalho visual (só a remoção dos campos e o par "De/a" com componentes existentes), Cadastro de Lotes, Estoque, Tipo de Atividade e qualquer migration.
+
+**Testes.** `backend/tests/categoriaManejoEnxuto.test.mjs` (Postgres real: chaves legadas aceitas e ignoradas, saída com os 12 campos públicos, faixa de idade), `backend/tests/categoriaOficialDerivada.test.mjs` (faixas), `backend/tests/r2eR5ComandosLedgerConvertidos.test.mjs` R4 (resolução por sexo + faixa, com contraprova), `tests/smoke/categoriaOficialDerivada.test.js` (paridade front/back) e smokes do cadastro.
+
+**Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-186 (reservada à Fatia D); D-PROD-184 reservada à PR #260 -->

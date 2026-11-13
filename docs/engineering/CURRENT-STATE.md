@@ -25,7 +25,18 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
+## Missão ativa (2026-11-13) — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): Categoria de Manejo enxuta (D-PROD-185)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-185** |
+| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR em rascunho, exclusiva desta fatia |
+| Escopo | Cadastro com Nome, Sigla, Espécie, Sexo e Faixa de idade (+ Ícone oficial). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e os 12 `gmd_*` saem do formulário, da grade, do CSV, da porta, do service e da API (aceitos e ignorados no corpo). Categoria oficial do rebanho derivada de sexo + faixa de idade |
+| Banco | **Sem migration.** As 15 colunas ficam dormentes (`@ignore`); `migrate diff` vazio |
+| Próxima fatia | **Fatia D** (D-PROD-186): migration CONTRACT isolada com o DROP das 15 colunas e o nome físico `CADCATEGORIA`, depois da migration da D-PROD-183 aplicada em produção e desta fatia no ar, com o acesso bloqueado pelo proprietário |
+| Documentos | [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
 
 | Campo | Valor |
 |---|---|
@@ -35,6 +46,7 @@ rollout pausado **D-PROD-41**)
 | Migration | `20261113200000_tipo_tarefa_drop_colunas`, **CONTRACT**. SHA-256 `47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17`; guarda `35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878`. Repositório: 41 → **42** migrations; tabelas iguais; `TipoTarefa` 13 → **9** colunas. **Não aplicada em nenhum ambiente remoto; produção não foi lida** |
 | Release | GO-1 (preflight só leitura) → GO-2 (aplicar pelo `premerge-migrate --aplicar --contract D-PROD-183` ou caminho B) → postcheck → merge. Sem janela de 500. Depois de aplicada, proibido voltar a produção para deploy anterior ao merge `6b85696` (PR #254) |
 | Próxima fatia | Fatia C (`ApontamentoAtividade`), só depois desta aplicada e liberada pelo proprietário |
+| Situação (2026-11-13) | PR #261 **mergeada** (`73aca4f`); a migration `20261113200000_tipo_tarefa_drop_colunas` ainda **não** está aplicada em produção (41 concluídas, preflight só leitura limpo) |
 | Documentos | [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md) · [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)
