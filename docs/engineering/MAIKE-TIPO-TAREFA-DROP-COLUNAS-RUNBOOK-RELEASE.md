@@ -99,6 +99,7 @@ bloco D; se a impressão mudou, parar e levar o fato ao proprietário → migrat
 
 ```sql
 SELECT system_identifier FROM pg_control_system();            -- 7692130048193495360 (o da D-PROD-162)
+SHOW server_version_num;                                      -- 17xxxx (PG 17; a guarda foi ensaiada em 16 e cobre o NOT NULL do 18)
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
        count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)     AS falha_aberta
   FROM _prisma_migrations;                                    -- 41 | 0
@@ -151,13 +152,24 @@ SELECT pg_describe_object(dp.classid, dp.objid, dp.objsubid) AS dependente
 SELECT p.oid::regprocedure AS rotina
   FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
  WHERE ns.nspname NOT IN ('pg_catalog', 'information_schema') AND ns.nspname NOT LIKE 'pg\_%'
-   AND p.prosrc ~ '(exige_area|pode_ter_produto|pode_ter_maquina|pode_ter_implemento)';
+   AND (p.prosrc || ' ' || coalesce(array_to_string(p.proargnames, ' '), '')) ~* '(exige_area|pode_ter_produto|pode_ter_maquina|pode_ter_implemento)';
+SELECT to_regclass('cron.job') IS NOT NULL AS tem_pg_cron;
+-- só se tem_pg_cron = true (a guarda não lê cron.job; esta conferência é do operador):
+SELECT jobid, jobname FROM cron.job
+ WHERE command ~* '(exige_area|pode_ter_produto|pode_ter_maquina|pode_ter_implemento)';
 ```
 
-A 1ª lista índice, constraint, visão/regra, política, gatilho com `UPDATE OF`, estatística ou
-publicação com lista de colunas que dependa das 4 colunas (o próprio `DEFAULT` fica de fora). A 2ª
-lista função ou procedure fora dos schemas do sistema cujo corpo cite uma delas. Qualquer linha:
-`RELEASE_BLOCKED` até o proprietário decidir. O repositório não cria nenhum desses objetos.
+- A 1ª lista o que depende das 4 colunas (o próprio `DEFAULT` e, no PG 18, o próprio `NOT NULL`
+  ficam de fora): índice, constraint, visão/regra, política, gatilho com `UPDATE OF`, estatística,
+  publicação com lista de colunas, coluna gerada ou função SQL com corpo `BEGIN ATOMIC`.
+- A 2ª lista função ou procedure fora dos schemas do sistema que cite uma delas no corpo ou nos
+  parâmetros de saída (`RETURNS TABLE`/`OUT`). A busca ignora maiúsculas, porque `NEW.Exige_Area`
+  sem aspas é a mesma coluna.
+- A última lista job do pg_cron cujo comando cite uma delas; ele quebraria em silêncio depois do
+  DROP.
+
+Qualquer linha: `RELEASE_BLOCKED` até o proprietário decidir. O repositório não cria nenhum
+desses objetos.
 
 ### 4.4 Bloco D — transações longas, e backup
 
@@ -169,10 +181,18 @@ SELECT pid, state, now() - xact_start AS idade, left(query, 80) AS consulta FROM
 - Último backup físico `COMPLETED` anterior à janela (painel do Supabase ou API de gestão com o
   token do proprietário). Sem prova de backup → `RELEASE_BLOCKED`. Ele restaura o banco
   **inteiro**.
-- Se o bloco B tiver linhas, o proprietário escolhe e anota no §11: (a) guardar ele mesmo, na
-  máquina dele, a saída do bloco B com `id` e as 4 flags (`SELECT id, cliente_id, nome_tipo,
-  exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento FROM "TipoTarefa" WHERE …`);
-  ou (b) "não há volta parcial; aceito". O agente não recebe o arquivo.
+- Se o bloco B tiver linhas, o proprietário escolhe e anota no §11:
+  - (a) guardar ele mesmo, na máquina dele, a lista com `id` e as 4 flags, pela consulta abaixo;
+  - (b) "não há volta parcial; aceito".
+
+  O agente não recebe o arquivo.
+
+```sql
+SELECT id, cliente_id, nome_tipo, exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento
+  FROM public."TipoTarefa"
+ WHERE exige_area OR pode_ter_produto OR pode_ter_maquina OR pode_ter_implemento
+ ORDER BY cliente_id, id;
+```
 
 ### 4.5 Ensaio local (com o arquivo exato do `<SHA_APROVADO>`)
 
@@ -203,6 +223,10 @@ Registrar o resultado no §11.
   `&options=-c%20lock_timeout%3D5s%20-c%20maike.tipo_tarefa_flags_impressao%3D<IMPRESSAO_DO_PREFLIGHT>`
   (sem `true` no bloco B, o parâmetro pode ficar de fora).
 - `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360`.
+- A conexão do **runtime** também, apontando para o **mesmo** banco de produção:
+  `DATABASE_URL` (ou `POSTGRES_PRISMA_URL`, que tem prioridade). O `deploy:migrate` confere que
+  migration e runtime são o mesmo banco lógico, e sem ela recusa com `runtime: conexão ausente`.
+  Nenhum `.env` na raiz da checkout pode apontar para outro banco (o backend o lê com `dotenv`).
 
 ```bash
 node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-183: 4 colunas removidas (…))
@@ -228,7 +252,8 @@ BEGIN
   IF sid <> '7692130048193495360' AND (ensaio IS NULL OR ensaio <> sid) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations
+              WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -258,12 +283,17 @@ COMMIT;
   nunca editando o texto. Em produção o parâmetro não existe.
 - Qualquer falha desfaz tudo, inclusive o `INSERT` em `_prisma_migrations`. Conferir com o
   bloco A que as 13 colunas continuam e pedir novo GO.
+- Uma tentativa anterior do caminho A que falhou e foi resolvida (§5.1, `rolled_back_at`
+  preenchido) não bloqueia o B. Uma linha ainda aberta (`finished_at` e `rolled_back_at` NULL)
+  bloqueia: resolver primeiro.
 
 ### 5.1 Falha no caminho A (guarda, `55P03` ou *deadlock*)
 
 1. Nada do DDL fica; a linha fica com `finished_at` NULL.
 2. Conferir pelo bloco A que `TipoTarefa` continua com 13 colunas.
-3. `npx prisma migrate resolve --rolled-back 20261113200000_tipo_tarefa_drop_colunas --schema backend/prisma/schema.prisma`.
+3. Com a conexão de **produção** explícita (o schema lê `DATABASE_URL`; sem isto o resolve
+   cai num `.env` local e a linha de produção continua aberta):
+   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261113200000_tipo_tarefa_drop_colunas --schema backend/prisma/schema.prisma`.
 4. Eliminar a causa (a mensagem da guarda diz qual: impressão, dependente, rotina, colunas).
 5. Refazer o bloco B. Se a impressão mudou, parar e levar o fato ao proprietário.
 6. Repetir pelo A ou pelo B. No postcheck, aceitar exatamente essas linhas revertidas.
@@ -279,19 +309,20 @@ Qualquer divergência: **não mergear** e chamar o proprietário.
 | R3 | linhas de `TipoTarefa` | `count(*)` por cliente igual ao de antes |
 | R4 | tabelas em `public` | o mesmo número de antes |
 | R5 | RLS de `TipoTarefa` | `relrowsecurity` true, sem FORCE, as mesmas políticas de antes |
-| R6 | `node scripts/deploy/preflight-schema.mjs` | exit 0 (nenhuma migration pendente) |
+| R6 | `node scripts/deploy/preflight-schema.mjs`, com `DATABASE_URL` (ou `POSTGRES_PRISMA_URL`) de produção, a mesma do §5 | exit 0 (nenhuma migration pendente) |
 
 ## 7. Merge
 
 Com o §6 todo verde: atualizar a branch se a `main` andou (sem migration nova) e mergear. A
 Vercel publica a `main`; o build não roda migration.
 
-## 8. Depois do deploy
+## 8. Depois do deploy (só leitura, nenhuma escrita)
 
-- Abrir **Tipos de Tarefa** e **Tipos de Atividade**: listar, criar, editar e excluir um tipo de
-  teste em cada (e apagar o de teste).
-- Abrir **Lançamentos de Tarefa** e um lançamento existente.
+- Abrir **Tipos de Tarefa** e **Tipos de Atividade**: a lista carrega e um registro abre no
+  formulário, **sem salvar nada**.
+- Abrir **Lançamentos de Tarefa** e um lançamento existente, sem salvar.
 - Nenhum erro novo em runtime da Vercel no intervalo.
+- A primeira escrita em produção depois da release é do proprietário, como na D-PROD-162.
 
 ## 9. Reversão
 
@@ -307,6 +338,9 @@ com ou sem as colunas. Para antes dele, não (§0).
 
 - sem GO-1 ou GO-2;
 - deploy de produção anterior ao merge `6b85696` (PR #254);
+- `server_version_num` fora de 17xxxx sem nova revisão da guarda;
+- conexão do runtime ausente ou apontando para outro banco no caminho A;
+- job do pg_cron que cite as colunas;
 - alvo com `system_identifier` diferente;
 - histórico diferente de 41/0 antes, ou a D-PROD-183 já registrada;
 - `TipoTarefa` sem alguma das 4 colunas, com tipo/nulidade/default diferente, ou com linha no bloco C;
