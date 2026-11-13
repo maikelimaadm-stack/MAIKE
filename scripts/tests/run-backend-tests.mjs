@@ -38,6 +38,8 @@ import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { selecionarShard } from '../ci/backend-shards.mjs';
+
 const DIR = 'backend/tests';
 const SCHEMA = 'backend/prisma/schema.prisma';
 
@@ -91,6 +93,33 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'recrie-o (docker compose down -v && npm run db:up, que apaga o volume LOCAL do docker-compose; ' +
   'ou dropdb/createdb do banco de teste) e rode de novo.';
 
+const todos = readdirSync(DIR)
+  .filter((nome) => nome.endsWith('.test.mjs'))
+  .sort();
+
+if (todos.length === 0) falhar(`nenhum teste encontrado em ${DIR}`);
+
+/**
+ * Seleção ANTES de tocar no banco: shard inválido falha na hora.
+ *
+ * MAIKE-CI-PARALELO-PR02: `TEST_BACKEND_SHARD=i/n` roda só o i-ésimo de n
+ * grupos (scripts/ci/backend-shards.mjs). A CI usa um job por grupo, cada um
+ * com PostgreSQL próprio; juntos cobrem todos os arquivos exatamente uma vez.
+ * Sem a variável, roda tudo (o uso local e o `verify:all` não mudam).
+ */
+let selecionados = todos;
+if (process.env.TEST_BACKEND_SHARD) {
+  try {
+    selecionados = selecionarShard(todos, process.env.TEST_BACKEND_SHARD);
+  } catch (erro) {
+    falhar(erro.message);
+  }
+  if (selecionados.length === 0) falhar(`shard ${process.env.TEST_BACKEND_SHARD} ficou vazio`);
+  console.log(`test:backend — shard ${process.env.TEST_BACKEND_SHARD}: ${selecionados.length} de ${todos.length} arquivo(s)`);
+}
+
+const arquivos = selecionados.map((nome) => join(DIR, nome));
+
 console.log('test:backend — validando schema Prisma');
 executar('prisma validate', 'npx', ['prisma', 'validate', '--schema', SCHEMA]);
 
@@ -106,12 +135,6 @@ executarComAmbiente(
   DICA_BANCO_LOCAL_COM_SOBRAS
 );
 
-const arquivos = readdirSync(DIR)
-  .filter((nome) => nome.endsWith('.test.mjs'))
-  .sort()
-  .map((nome) => join(DIR, nome));
-
-if (arquivos.length === 0) falhar(`nenhum teste encontrado em ${DIR}`);
 
 console.log(
   `test:backend — ${arquivos.length} arquivo(s): ${arquivos.map((f) => f.split('/').pop()).join(', ')}`

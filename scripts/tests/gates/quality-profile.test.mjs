@@ -527,8 +527,8 @@ const comandosNpm = (bloco) => [...bloco.matchAll(/^\s*run:\s*npm run ([\w:-]+)\
 
 describe('estrutura do workflow quality', () => {
   test('QP-W1 há exatamente um job com o nome verify:all, e ele é o agregador', () => {
-    const nomes = [...semComentarios(WORKFLOW).matchAll(/^ {4}name:\s*(\S+)\s*$/gm)].map((m) => m[1]);
-    assert.deepEqual(nomes.sort(), ['classify', 'verify:all', 'verify:docs-fast', 'verify:full'].sort());
+    const nomes = [...semComentarios(WORKFLOW).matchAll(/^ {4}name:\s*(.+?)\s*$/gm)].map((m) => m[1]);
+    assert.deepEqual(nomes.sort(), ['classify', 'verify:all', 'verify:docs-fast', 'verify:full (${{ matrix.parte }})'].sort());
     const required = blocoDoJob('required');
     assert.match(required, /^ {4}name: verify:all$/m);
     assert.match(required, /^ {4}needs: \[classify, docs-fast, full\]$/m);
@@ -567,9 +567,9 @@ describe('estrutura do workflow quality', () => {
     ]);
   });
 
-  test('QP-W5 full preserva o job anterior: PostgreSQL 16.13, env, alias, npm ci e verify:all', () => {
+  test('QP-W5 full preserva o ambiente do job anterior: PostgreSQL 16.13, env, alias, npm ci', () => {
     const full = blocoDoJob('full');
-    assert.match(full, /^ {4}name: verify:full$/m);
+    assert.match(full, /^ {4}name: verify:full \(\$\{\{ matrix\.parte \}\}\)$/m);
     assert.match(full, /^ {4}if: \$\{\{ needs\.classify\.outputs\.mode == 'full' \}\}$/m);
     assert.match(full, /^ {4}timeout-minutes: 30$/m);
     assert.match(full, /services:\n {6}postgres:\n {8}image: postgres:16\.13-alpine/);
@@ -579,8 +579,39 @@ describe('estrutura do workflow quality', () => {
     assert.match(full, /pg_isready -h localhost -p 5432 -U maike_ci -d maike_ci/);
     assert.match(full, /127\.0\.0\.1 maike-alvo-teste/);
     assert.match(full, /run: npm ci$/m);
-    assert.deepEqual(comandosNpm(full), ['verify:all']);
+    assert.match(full, /^ {8}run: \$\{\{ matrix\.comando \}\}$/m);
     assert.doesNotMatch(full, /continue-on-error/);
+  });
+
+  test('QP-W7 a matriz do full cobre o verify:all inteiro, sem sobra nem falta', () => {
+    const full = blocoDoJob('full');
+    assert.match(full, /^ {6}fail-fast: false$/m);
+    const partes = [...full.matchAll(/- parte: (.+)\n\s+comando: (.+)/g)].map((m) => ({ parte: m[1].trim(), comando: m[2].trim() }));
+    const comandos = partes.map((p) => p.comando);
+
+    // 1. Exatamente um job estático, que pula só o que os shards cobrem.
+    const estaticos = comandos.filter((c) => c.startsWith('node scripts/gates/verify-all.mjs'));
+    assert.deepEqual(estaticos, ['node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke']);
+
+    // 2. As etapas puladas existem no verify:all (senão o próprio script recusa).
+    const verifyAll = readFileSync(join(REPO_ROOT, 'scripts/gates/verify-all.mjs'), 'utf8');
+    for (const etapa of ['test:backend', 'test:smoke']) assert.match(verifyAll, new RegExp(`\\['${etapa}', npm\\('${etapa}'\\)\\]`));
+
+    // 3. Shards de backend: 1/n..n/n, todos presentes, sem repetição.
+    const backend = comandos.map((c) => /^TEST_BACKEND_SHARD=(\d+)\/(\d+) npm run test:backend$/.exec(c)).filter(Boolean);
+    const nB = Number(backend[0][2]);
+    assert.ok(backend.every((m) => Number(m[2]) === nB));
+    assert.deepEqual(backend.map((m) => Number(m[1])).sort((a, b) => a - b), Array.from({ length: nB }, (_, i) => i + 1));
+
+    // 4. Shards do Vitest: 1/m..m/m.
+    const smoke = comandos.map((c) => /^npm run test:smoke -- --shard=(\d+)\/(\d+)$/.exec(c)).filter(Boolean);
+    const nS = Number(smoke[0][2]);
+    assert.ok(smoke.every((m) => Number(m[2]) === nS));
+    assert.deepEqual(smoke.map((m) => Number(m[1])).sort((a, b) => a - b), Array.from({ length: nS }, (_, i) => i + 1));
+
+    // 5. Nada além disso na matriz.
+    assert.equal(comandos.length, 1 + nB + nS, `comando inesperado na matriz: ${comandos.join(' | ')}`);
+    assert.equal(new Set(partes.map((p) => p.parte)).size, partes.length, 'nomes de parte repetidos');
   });
 
   test('QP-W6 classify usa o classificador do commit base, sem credencial persistida, e cai para full sem ele', () => {

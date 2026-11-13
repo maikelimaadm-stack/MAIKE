@@ -6471,4 +6471,27 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Relatório:** [`MAIKE-CI-INTELIGENTE-PR01-REPORT.md`](./MAIKE-CI-INTELIGENTE-PR01-REPORT.md). **Registro:** [`GATE-REGISTRY.md`](./GATE-REGISTRY.md), seção "Integração contínua".
 
-<!-- Próxima decisão: D-PROD-180 -->
+## D-PROD-180 — Perfil `full` da CI em jobs paralelos, com a mesma cobertura do `verify:all`
+
+**Data:** 2026-11-13. **Missão:** MAIKE-CI-PARALELO-PR02, pedida pelo proprietário ("as verificações estão demorando muito"). **Natureza:** infraestrutura de CI; regra de negócio, código de produto, banco e permissões ficam como estão.
+
+**Problema:** mesmo depois da D-PROD-179, toda PR de código e todo push na `main` rodavam o `verify:all` em série num único job, com 22 a 29 min na CI. Só o `test:backend` levava de 13 a 17 min, porque roda arquivo a arquivo (`--test-concurrency=1`) contra um único PostgreSQL.
+
+**Decisão:**
+1. O job `verify:full` vira uma matriz paralela, sem `fail-fast`, com estas partes:
+   - `estatico`: `node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke`, ou seja, todas as outras etapas do `verify:all`;
+   - `backend i/4`: `TEST_BACKEND_SHARD=i/4 npm run test:backend`. Cada parte tem o **próprio** PostgreSQL 16.13 efêmero, aplica todas as migrations no banco vazio e roda seu grupo em série;
+   - `smoke i/2`: `npm run test:smoke -- --shard=i/2` (Vitest).
+2. **Cobertura igual à do `verify:all`:**
+   - o `--pular` só aceita nomes de etapas que existem;
+   - a divisão do backend (`scripts/ci/backend-shards.mjs`) põe cada arquivo em exatamente um grupo. Arquivo novo sem peso medido entra com o peso mediano;
+   - os testes `BS-*` e `QP-W7` reprovam se sobrar ou faltar etapa ou arquivo.
+3. Os pesos (`scripts/ci/backend-test-pesos.json`) são os milissegundos de cada arquivo medido sozinho num PostgreSQL local. Servem só para equilibrar os grupos.
+4. O check obrigatório continua sendo o único `verify:all` (D-PROD-179). `needs.full.result` da matriz só é `success` se todas as partes passarem.
+5. `npm run verify:all` local continua igual: sem argumentos, roda a cadeia inteira em série.
+
+**Consequência:** o tempo do perfil `full` passa a ser o da parte mais lenta, não a soma das partes. Os números medidos estão no relatório. Cada parte faz o próprio `npm ci`, e cada parte de backend roda também as migrations.
+
+**Relatório:** [`MAIKE-CI-PARALELO-PR02-REPORT.md`](./MAIKE-CI-PARALELO-PR02-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-181 -->

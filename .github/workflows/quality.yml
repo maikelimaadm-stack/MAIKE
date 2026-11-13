@@ -6,7 +6,8 @@ name: quality
 # Dois perfis, um único check obrigatório (MAIKE-CI-INTELIGENTE-PR01):
 #
 #   classify  ──┬── verify:docs-fast  (só quando a PR muda apenas Markdown de documentação)
-#               └── verify:full       (todo o resto, e SEMPRE em push na main)
+#               └── verify:full (…)   (todo o resto, e SEMPRE em push na main;
+#                                      matriz paralela que cobre o verify:all inteiro)
 #                         │
 #                    verify:all       (sempre roda; é o check exigido; só passa se o
 #                                      perfil escolhido rodou e passou, e o outro foi pulado)
@@ -117,15 +118,41 @@ jobs:
       - name: test:gates
         run: npm run test:gates
 
+  # O verify:all inteiro, dividido em jobs PARALELOS (MAIKE-CI-PARALELO-PR02):
+  #   - estatico: `verify-all.mjs --pular=test:backend,test:smoke`, isto é, todos
+  #     os gates, prisma:generate, types, typecheck, lint, builds e bundles;
+  #   - backend i/4: `test:backend` só com o i-ésimo grupo de arquivos
+  #     (scripts/ci/backend-shards.mjs), cada um com o PRÓPRIO PostgreSQL;
+  #   - smoke i/2: `test:smoke -- --shard=i/2` (Vitest).
+  # A união é exatamente o verify:all (provado em backend-shards.test.mjs e
+  # quality-profile.test.mjs). Em série a suíte passava de 22 min na CI.
+  # `needs.full.result` da matriz só é `success` se TODAS as partes passarem.
   full:
-    name: verify:full
+    name: verify:full (${{ matrix.parte }})
     needs: classify
     if: ${{ needs.classify.outputs.mode == 'full' }}
     runs-on: ubuntu-latest
-    # A suíte completa (gates + PostgreSQL real + smokes + builds) já leva
-    # 16,5–18 min na `main` (nov/2026); com novos domínios passa de 20 e o job
-    # era CANCELADO por tempo, sem falha de teste. 30 min dá folga sem
-    # esconder travamento (um teste preso ainda estoura o limite).
+    strategy:
+      # Sem fail-fast: uma parte vermelha não cancela as outras, e todas as
+      # falhas aparecem na mesma rodada.
+      fail-fast: false
+      matrix:
+        include:
+          - parte: estatico
+            comando: node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke
+          - parte: backend 1/4
+            comando: TEST_BACKEND_SHARD=1/4 npm run test:backend
+          - parte: backend 2/4
+            comando: TEST_BACKEND_SHARD=2/4 npm run test:backend
+          - parte: backend 3/4
+            comando: TEST_BACKEND_SHARD=3/4 npm run test:backend
+          - parte: backend 4/4
+            comando: TEST_BACKEND_SHARD=4/4 npm run test:backend
+          - parte: smoke 1/2
+            comando: npm run test:smoke -- --shard=1/2
+          - parte: smoke 2/2
+            comando: npm run test:smoke -- --shard=2/2
+    # Cada parte cabe com folga; 30 min ainda pega um teste preso.
     timeout-minutes: 30
 
     # PostgreSQL EFÊMERO, criado e destruído com o job.
@@ -208,8 +235,8 @@ jobs:
       - name: Alias local para o ramo remoto dos testes de release
         run: echo "127.0.0.1 maike-alvo-teste" | sudo tee -a /etc/hosts
 
-      - name: Verificação completa
-        run: npm run verify:all
+      - name: Verificação (parte do verify:all)
+        run: ${{ matrix.comando }}
 
   # O ÚNICO job com o nome `verify:all`: é o check que as regras da branch exigem.
   # Roda sempre (inclusive se algo falhou ou foi cancelado) e só passa nas duas
