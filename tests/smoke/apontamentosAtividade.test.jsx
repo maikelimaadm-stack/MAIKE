@@ -497,6 +497,25 @@ describe("AP-PAGE — tela de apontamentos de atividade", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/nº 15/));
   });
 
+  it("AP-PAGE-5 — confirmado: Editar abre os campos e salvar manda o formulário com o registro lido (PATCH mínimo no service)", async () => {
+    servico.atualizarApontamento.mockResolvedValue({ alterado: true, registro: { ...REGISTRO, versao: 3, centro_resultado_id: "cr1" } });
+    await montarTela();
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    await screen.findByTestId("b1-form-apontamento-atividade");
+    fireEvent.click(await screen.findByRole("button", { name: /^Editar$/ }));
+    const form = await screen.findByTestId("b1-form-apontamento-atividade");
+    await waitFor(() => expect(form.hasAttribute("data-somente-leitura")).toBe(false));
+    // A hora gravada (UTC) aparece no relógio da fazenda.
+    expect(within(form).getByLabelText("Hora início").value).toBe("07:30");
+    await escolherNoSeletor(form, "apontamento-centro-resultado", /Recria 2026/);
+    fireEvent.submit(document.getElementById(FORMULARIO_APONTAMENTO_ATIVIDADE_ID));
+    await waitFor(() => expect(servico.atualizarApontamento).toHaveBeenCalledTimes(1));
+    const [emp, original, corpo] = servico.atualizarApontamento.mock.calls[0];
+    expect(emp).toBe("emp-1");
+    expect(original).toMatchObject({ id: "ap1", versao: 2 });
+    expect(corpo).toMatchObject({ tipo_atividade_id: "t3", centro_resultado_id: "cr1", centro_custo_id: "cc1", hora_inicio: "2026-11-10T07:30:00-04:00" });
+  });
+
   it("AP-PAGE-4 — sem a ação de cancelar (excluir da tela), o botão não aparece", async () => {
     sessao.acoes = { ...sessao.acoes, cancelar: false };
     try {

@@ -143,7 +143,9 @@ export default function FormularioApontamentoAtividade({
   const opcoesArea = useMemo(() => {
     const lista = areas.filter((a) => a.ativo !== false).map((a) => ({ value: String(a.id), label: rotuloDaArea(a) || String(a.id) }));
     if (areaGravadaId && !lista.some((a) => a.value === areaGravadaId)) {
-      lista.unshift({ value: areaGravadaId, label: `${rotuloDaArea(initialData?.area) || "Área"} (INATIVA)` });
+      // Fora da lista JÁ carregada = inativa; antes de a lista chegar, só o resumo gravado.
+      const rotulo = rotuloDaArea(initialData?.area) || "Área";
+      lista.unshift({ value: areaGravadaId, label: areas.length ? `${rotulo} (INATIVA)` : rotulo });
     }
     return lista;
   }, [areas, areaGravadaId, initialData]);

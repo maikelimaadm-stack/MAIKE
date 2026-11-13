@@ -82,7 +82,8 @@ export default function ApontamentosAtividade() {
   const [dataAte, setDataAte] = useState("");
   const periodoInvertido = Boolean(dataDe && dataAte && dataDe > dataAte);
   const [cancelando, setCancelando] = useState(/** @type {any} */ (null));
-  const [erroDoServidor, setErroDoServidor] = useState(/** @type {{ campo: string, mensagem: string } | null} */ (null));
+  // Recusa do servidor que aponta um campo, presa ao registro em que aconteceu ('novo' ou o id).
+  const [erroDoServidor, setErroDoServidor] = useState(/** @type {{ campo: string, mensagem: string, alvo: string } | null} */ (null));
 
   // Fuso da FAZENDA (o "hoje" e a hora do apontamento): o mesmo resumo de empresas do Layout.
   const empresasQuery = useQuery({
@@ -194,8 +195,11 @@ export default function ApontamentosAtividade() {
     controller.recordHelpers.chrome.onSelectionChange([String(registro.id)]);
   };
 
-  /** Recusa do servidor: relê o que mudou e destaca o campo apontado. @param {unknown} erro @param {string} fallback @param {string} emp */
-  const reagirAoErro = (erro, fallback, emp) => {
+  /**
+   * Recusa do servidor: relê o que mudou e destaca o campo apontado.
+   * @param {unknown} erro @param {string} fallback @param {string} emp @param {string} alvo 'novo' ou o id do apontamento
+   */
+  const reagirAoErro = (erro, fallback, emp, alvo) => {
     const code = codigoDoErroApontamento(erro);
     if (code && CODIGOS_RELER_APONTAMENTO.includes(code)) {
       invalidar();
@@ -206,7 +210,7 @@ export default function ApontamentosAtividade() {
     }
     const mensagem = mensagemErroApontamento(erro, fallback);
     const campo = campoDoErroApontamento(erro);
-    if (campo && daEmpresaAtual(emp)) setErroDoServidor({ campo, mensagem });
+    if (campo && daEmpresaAtual(emp)) setErroDoServidor({ campo, mensagem, alvo });
     return mensagem;
   };
 
@@ -219,7 +223,7 @@ export default function ApontamentosAtividade() {
       mostrarRegistro(criado);
       notifySuccess("Sucesso", `Apontamento nº ${criado?.numero ?? ""} registrado`);
     },
-    onError: (err, v) => notifyWarning("Atenção", reagirAoErro(err, "Não foi possível salvar o apontamento.", v.empresaId)),
+    onError: (err, v) => notifyWarning("Atenção", reagirAoErro(err, "Não foi possível salvar o apontamento.", v.empresaId, "novo")),
   });
 
   const updateMutation = useMutation({
@@ -239,7 +243,8 @@ export default function ApontamentosAtividade() {
       mostrarRegistro(registro);
       notifySuccess("Sucesso", "Apontamento atualizado");
     },
-    onError: (err, v) => notifyWarning("Atenção", reagirAoErro(err, "Não foi possível salvar o apontamento.", v.empresaId)),
+    onError: (err, v) =>
+      notifyWarning("Atenção", reagirAoErro(err, "Não foi possível salvar o apontamento.", v.empresaId, String(v.original?.id ?? "novo"))),
   });
 
   submitRef.current = (/** @type {Record<string, any>} */ data) => {
@@ -277,7 +282,7 @@ export default function ApontamentosAtividade() {
       const r = await cancelarApontamento(emp, registro, motivo);
       if (daEmpresaAtual(emp)) concluirCancelamento(r);
     } catch (erro) {
-      reagirAoErro(erro, "Não foi possível cancelar o apontamento. Nada foi alterado.", emp);
+      reagirAoErro(erro, "Não foi possível cancelar o apontamento. Nada foi alterado.", emp, String(registro.id));
       throw erro;
     }
   };
@@ -383,9 +388,11 @@ export default function ApontamentosAtividade() {
       ? [{ id: "status", rotulo: "Situação", nome: "Filtrar por situação", opcoes: OPCOES_SITUACAO, valor: statusFiltro, padrao: "TODOS", onChange: setStatusFiltro, coluna: "status" }]
       : [];
 
+  const alvoAberto = registroAberto ? String(registroAberto.id) : "novo";
   const recordForm = controller.showForm ? (
     <FormularioApontamentoAtividade
-      key={`${registroAberto?.id ?? "apontamento-novo"}-${registroAberto?.versao ?? 0}-${controller.formEpoch}`}
+      // Entrar ou sair da edição (✕) e a chegada do fuso remontam o formulário a partir do GRAVADO.
+      key={`${registroAberto?.id ?? "apontamento-novo"}-${registroAberto?.versao ?? 0}-${controller.formEpoch}-${controller.isEditing ? "e" : "l"}-${fuso ?? "sem-fuso"}`}
       initialData={registroAberto}
       empresaId={empresaId}
       tipos={/** @type {any[]} */ (tipos)}
@@ -397,7 +404,7 @@ export default function ApontamentosAtividade() {
       onSubmit={controller.handleSubmit}
       podeCancelar={acoes.cancelar && Boolean(empresaId)}
       onCancelar={() => setCancelando(registroAberto)}
-      erroDoServidor={erroDoServidor}
+      erroDoServidor={erroDoServidor?.alvo === alvoAberto ? erroDoServidor : null}
     />
   ) : null;
 
