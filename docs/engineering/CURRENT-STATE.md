@@ -30,7 +30,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-185** |
-| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR em rascunho, exclusiva desta fatia |
+| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR **#264** em rascunho, exclusiva desta fatia |
 | Escopo | Cadastro com Nome, Sigla, Espécie, Sexo e Faixa de idade (+ Ícone oficial). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e os 12 `gmd_*` saem do formulário, da grade, do CSV, da porta, do service e da API (aceitos e ignorados no corpo). Categoria oficial do rebanho derivada de sexo + faixa de idade |
 | Banco | **Sem migration.** As 15 colunas ficam dormentes (`@ignore`); `migrate diff` vazio |
 | Próxima fatia | **Fatia D** (D-PROD-186): migration CONTRACT isolada com o DROP das 15 colunas e o nome físico `CADCATEGORIA`, depois desta fatia no ar (a migration da D-PROD-183 já está aplicada), com o acesso bloqueado pelo proprietário |
