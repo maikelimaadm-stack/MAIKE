@@ -32,6 +32,7 @@
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --verificar-alvo   (+ alvo, só leitura)
  *   node scripts/deploy/premerge-migrate.mjs --sha <40hex> --aplicar          (+ alvo, aplica)
  *   … --verificar-alvo --contract D-PROD-162 / … --aplicar --contract D-PROD-162   (release CONTRACT)
+ *   … --verificar-alvo --contract D-PROD-183 / … --aplicar --contract D-PROD-183   (DROP COLUMN de TipoTarefa)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -88,7 +89,13 @@ if (rc.codigo === 'CONTRACT_NAO_ISOLADO') recusar(rc.codigo, 'a migration CONTRA
 if (rc.codigo === 'CONTRACT_INESPERADO') recusar(rc.codigo, '--contract informado, mas a release não tem migration CONTRACT');
 if (faltamNoDiff.length) recusar('MANIFESTO_INCOMPLETO', `manifesto cita migration ausente da release: ${faltamNoDiff.join(', ')}`);
 const [k] = c.contract;
-const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${k.tabelas_removidas.length} tabelas removidas, ${k.constraints_alargadas.length} CHECKs alargados)` : '';
+// D-PROD-183: o rótulo cita só o que a migration CONTRACT faz (a D-PROD-162 segue "13 tabelas removidas, 2 CHECKs alargados").
+const partesContract = k ? [
+  k.tabelas_removidas.length && `${k.tabelas_removidas.length} tabelas removidas`,
+  k.constraints_alargadas.length && `${k.constraints_alargadas.length} CHECKs alargados`,
+  k.colunas_removidas.length && `${k.colunas_removidas.length} colunas removidas (${k.colunas_removidas.join(', ')})`,
+].filter(Boolean) : [];
+const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${partesContract.join(', ')})` : '';
 if (!verificarAlvo) {
   console.log(`premerge-migrate: ANÁLISE LOCAL OK${rotuloContract} — alvo remoto NÃO verificado (isto não autoriza aplicar; use --verificar-alvo)`);
   process.exit(0);
