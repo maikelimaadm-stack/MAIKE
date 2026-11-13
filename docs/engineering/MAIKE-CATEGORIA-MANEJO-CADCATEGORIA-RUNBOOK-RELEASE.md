@@ -65,6 +65,11 @@ merge vier antes (foi o que aconteceu na D-PROD-183), sobra só o caminho B.
   (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver pendente no alvo.
 - **Isolamento:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). A PR
   #263 (`20261113300000_estoque_p1_03_indices`) entra antes ou depois, nunca junto.
+- **Contagens fixas:** os números 42 (antes) e 43 (depois) deste runbook — §0, bloco A, o
+  `n_ok <> 42` do envelope do caminho B, R1 e §10 — supõem a migration da PR #263 **não**
+  aplicada em produção. Se o bloco A mostrar outro total, é `RELEASE_BLOCKED`: atualizar a branch,
+  corrigir estes números no runbook (o `migration.sql` não muda), novo SHA e novo GO. Nunca editar
+  o envelope na hora.
 
 ## 2. Pré-requisitos e GOs
 
@@ -131,7 +136,12 @@ SELECT c.relname FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
 SELECT conname, contype FROM pg_constraint
  WHERE conrelid = 'public."CategoriaManejo"'::regclass AND contype <> 'n' ORDER BY 1;   -- pkey, cliente_id_fkey, catalogo_categoria_visual_id_fkey
 SELECT count(*) FROM pg_constraint WHERE confrelid = 'public."CategoriaManejo"'::regclass;   -- 0 (ninguém aponta para ela)
-SELECT relrowsecurity, relforcerowsecurity, relacl FROM pg_class WHERE oid = 'public."CategoriaManejo"'::regclass;
+SELECT oid, relrowsecurity, relforcerowsecurity, relacl FROM pg_class WHERE oid = 'public."CategoriaManejo"'::regclass;   -- anotar o OID (R2)
+SELECT count(*) AS linhas,
+       md5(coalesce(string_agg(concat_ws('|', id, cliente_id, empresa_id, quote_nullable(nome), quote_nullable(sigla), quote_nullable(especie), quote_nullable(sexo),
+                                         quote_nullable(idade_minima_meses), quote_nullable(idade_maxima_meses), ativo, "createdAt", "updatedAt"),
+                               E'\n' ORDER BY cliente_id COLLATE "C", id COLLATE "C"), '')) AS md5_12_colunas
+  FROM public."CategoriaManejo";                              -- anotar (R5): as 12 colunas que ficam, linha a linha
 SELECT polname, polcmd FROM pg_policy WHERE polrelid = 'public."CategoriaManejo"'::regclass;   -- anotar (esperado: maike_backend_all, ALL)
 SELECT count(*) FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
  WHERE ns.nspname = 'public' AND c.relkind IN ('r', 'p');      -- 80
@@ -371,7 +381,7 @@ Qualquer divergência: **não mergear**, manter o acesso bloqueado e chamar o pr
 | R2 | `to_regclass('public."CategoriaManejo"')` / `to_regclass('public."CADCATEGORIA"')` | NULL / não NULL, com o **mesmo OID** anotado no bloco A |
 | R3 | colunas de `CADCATEGORIA` | as 12, nesta ordem: `id`, `cliente_id`, `empresa_id`, `nome`, `sigla`, `especie`, `sexo`, `idade_minima_meses`, `idade_maxima_meses`, `ativo`, `createdAt`, `updatedAt` |
 | R4 | índices e constraints | `CADCATEGORIA_cliente_id_empresa_id_idx`, `CADCATEGORIA_cliente_id_id_key`, `CADCATEGORIA_pkey`; `CADCATEGORIA_cliente_id_fkey` (validada) e `CADCATEGORIA_pkey`; nenhuma FK para `CatalogoCategoriaVisual` |
-| R5 | linhas | `count(*)` por cliente igual ao de antes; nome, sexo e faixa de idade iguais |
+| R5 | linhas | a mesma consulta `md5_12_colunas` do bloco A, agora em `public."CADCATEGORIA"`: `linhas` e `md5_12_colunas` **iguais** aos anotados (as 12 colunas que ficam, linha a linha) |
 | R6 | tabelas em `public` | 80, as mesmas de antes |
 | R7 | RLS e grants | `relrowsecurity` true, sem FORCE, as mesmas políticas e o mesmo `relacl` do bloco A |
 | R8 | `node scripts/deploy/preflight-schema.mjs`, com a conexão de produção do §5 | exit 0: nenhuma migration pendente e `CADCATEGORIA.idade_minima_meses` presente |
