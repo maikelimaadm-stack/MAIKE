@@ -66,6 +66,8 @@ model Cliente {
   gruposAtividade    GrupoAtividade[]
   tiposTarefa        TipoTarefa[]
   tiposAtividade     TipoAtividade[]
+  // D-PROD-188 — estações (águas/transição/seca) por fazenda; tabela CADESTACOES.
+  estacoes           CadEstacao[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -534,6 +536,39 @@ model TipoAtividade {
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])
   @@index([cliente_id, grupo_atividade_id])
   @@index([cliente_id, ativo])
+}
+
+// ---------------------------------------------------------------------------
+// CadEstacao — cadastro de Estações da fazenda (D-PROD-188).
+// Períodos de ÁGUAS, TRANSIÇÃO ou SECA, com data de início e de fim, por
+// fazenda (empresa). Nome físico da tabela fixado pelo proprietário:
+// "CADESTACOES" (primeiro @@map do schema). Primeira fatia SEM vínculo com
+// lotes, categorias, curva ou qualquer outro cadastro: as únicas FKs são o
+// escopo obrigatório (Cliente e Empresa). Valores de `tipo` e
+// `data_fim >= data_inicio` garantidos por CHECK na migration; períodos ATIVOS
+// da mesma fazenda não se sobrepõem (regra do serviço, sob trava de escopo).
+// ---------------------------------------------------------------------------
+model CadEstacao {
+  id          String   @id @default(cuid())
+  cliente_id  String   @db.VarChar(64)
+  empresa_id  String   @db.VarChar(64)
+  nome        String   @db.VarChar(120)
+  tipo        String   @db.VarChar(16)
+  data_inicio DateTime @db.Date
+  data_fim    DateTime @db.Date
+  observacoes String?  @db.VarChar(2000)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@index([cliente_id, empresa_id, data_inicio])
+  @@map("CADESTACOES")
 }
 
 // ---------------------------------------------------------------------------
@@ -1033,6 +1068,8 @@ model Empresa {
   // D-PROD-157 (R2) — produtos da fazenda vinculados a tipos de combustível.
   // D-PROD-159 — abastecimentos dos bens da fazenda.
   abastecimentosBem      AbastecimentoBem[]
+  // D-PROD-188 — estações (águas/transição/seca) da fazenda.
+  estacoes               CadEstacao[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])

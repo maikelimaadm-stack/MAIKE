@@ -20,6 +20,8 @@ tenant(nome) AS (
     -- (fatias FIFO → abastecimento → Produto aceito pelo tanque → tanque → bem → tipo → família).
     'AbastecimentoBemConsumoLote','AbastecimentoBem','TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
+    -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
+    'CADESTACOES',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     'Categoria','CADCATEGORIA','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',

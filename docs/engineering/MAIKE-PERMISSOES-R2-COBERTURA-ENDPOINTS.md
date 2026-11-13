@@ -218,6 +218,8 @@ D-PROD-161: +1 rota, classe (c): `GET /estoque-fisico/reconciliacao` (somente le
 
 D-PROD-162: −20 rotas e +1, classe (a). A tabela passa de 299 para 280 linhas de rota.
 
+D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
+
 | Método | Rota | Arquivo:linha | Classe — guarda |
 |---|---|---|---|
 | GET | `/admin-maike/primeiro-acesso` | `backend/src/modules/adminMaike/adminRoutes.js:75` | c — sessão MAIKE Admin |
@@ -293,6 +295,11 @@ D-PROD-162: −20 rotas e +1, classe (a). A tabela passa de 299 para 280 linhas 
 | PATCH | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:99` | a — porTela(TELAS.EMPRESA, 'editar') |
 | PUT | `/empresas/:id/fuso-horario` | `backend/src/modules/empresas/empresaRoutes.js:105` | c — empresaService.configurarFusoHorario: exigirAdminTenant na transação |
 | DELETE | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:111` | a — porTela(TELAS.EMPRESA, 'excluir'). (D-PROD-137) Com dependentes → 409 `EMPRESA_COM_VINCULOS`, nada apagado |
+| GET | `/estacoes` | `backend/src/modules/estacoes/estacaoRoutes.js:61` | a — GUARDAS.estacao.ver (D-PROD-188) |
+| GET | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:66` | a — GUARDAS.estacao.ver (D-PROD-188) |
+| POST | `/estacoes` | `backend/src/modules/estacoes/estacaoRoutes.js:72` | a — GUARDAS.estacao.criar (D-PROD-188) |
+| PATCH | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:78` | a — GUARDAS.estacao.editar (D-PROD-188) |
+| DELETE | `/estacoes/:id` | `backend/src/modules/estacoes/estacaoRoutes.js:84` | a — GUARDAS.estacao.excluir (D-PROD-188) |
 | GET | `/estoque-fisico/reconciliacao` | `backend/src/modules/estoqueFisico/estoqueFisicoRoutes.js:39` | c — GUARDAS.estoqueFisico.reconciliar (só administrador real; somente leitura, `RepeatableRead` + `READ ONLY`, sem tela; querystring fechada; `cursor` assinado por HMAC e amarrado ao tenant e ao escopo, qualquer desvio → 400 `cursor_invalido` antes do banco; D-PROD-161) |
 | GET | `/estoque-lotes-nota` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:40` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
 | GET | `/estoque-lotes-nota/:id` | `backend/src/modules/estoqueLotesNota/estoqueLoteNotaRoutes.js:46` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |

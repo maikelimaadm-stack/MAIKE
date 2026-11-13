@@ -6761,21 +6761,67 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - **SQL Editor:** os scripts 01–04 trocam o nome físico na lista de tabelas de tenant.
    - **Base44:** `base44/entities/CategoriaManejo.jsonc` já não tinha o campo.
 9. **Número da decisão fora do `migration.sql`** (como na D-PROD-183). As mensagens da guarda começam com `categoria_manejo_cadcategoria:`.
-10. **Autorização:** a migration **não foi aplicada** em nenhum ambiente remoto, e nada foi lido de produção nesta fatia. Os fatos de produção do runbook vêm do plano: 42 migrations concluídas, 0 em aberto; categorias com o legado; nenhuma com vínculo; nenhuma categoria visual `lote` no catálogo. Eles têm de ser reconferidos no preflight (GO-1). Preflight e aplicação dependem de GO explícito, um para cada: [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md).
+10. **Autorização:** a migration **não foi aplicada** em nenhum ambiente remoto, e nada foi lido de produção nesta fatia. Os fatos de produção do runbook vêm do plano: 43 migrations concluídas (as 42 do plano mais a `20261113400000_cadestacoes_cadastro`, D-PROD-188, aplicada em 2026-11-13), 0 em aberto; categorias com o legado; nenhuma com vínculo; nenhuma categoria visual `lote` no catálogo. Eles têm de ser reconferidos no preflight (GO-1). Preflight e aplicação dependem de GO explícito, um para cada: [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md).
 11. **Fora do escopo:** "Categoria de evolução" (Fatia E), Cadastro de Lotes, Estoque, `ConfiguracaoIcone` (ícones do mapa por tenant, que continuam), remover a tolerância HTTP às chaves legadas (contrato HTTP, decisão própria) e trabalho visual.
 
 **Testes.**
 - `backend/tests/categoriaManejoCadcategoriaMigration.test.mjs` (PostgreSQL real, bancos próprios), com as funções de `scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs`:
   - RED, 14 cenários, tudo recusado e nada muda: sem impressão; impressão errada; índice numa coluna apagada; índice a mais; visão numa coluna apagada e na do ícone; política; função citando coluna; função com o nome físico; gatilho em caixa mista; `RETURNS TABLE`; `CADCATEGORIA` já existente; nome novo de índice ocupado; trava concorrente (`55P03` em ~5 s);
   - runner com a conferência de alvo e sem a decisão: recusa antes de qualquer DDL;
-  - GREEN pelo runner oficial: 43/0, mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, FK válida, `migrate diff` vazio e o Prisma Client lendo;
+  - GREEN pelo runner oficial: 44/0, mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, FK válida, `migrate diff` vazio e o Prisma Client lendo;
   - 2ª execução sem pendências;
   - banco sem legado: aplica sem impressão e com a do vazio; uma impressão errada informada é recusada.
 - `scripts/tests/deploy/premerge-migrate.test.mjs` B15a–B15j, `scripts/tests/deploy/migrations.test.mjs` B16 (e B11/B14 com a terceira CONTRACT concluída), `alvo-banco.test.mjs` AB-05, `preflight-schema.test.mjs`.
 - `backend/tests/categoriaManejoEnxuto.test.mjs`: estrutura de `CADCATEGORIA`; a chave do ícone aceita e ignorada. `backend/tests/categoriaManejoVinculoCatalogo.test.mjs` foi **apagado**: só testava o vínculo que deixou de existir.
 - Smokes: `catalogoGlobalLote`, `categoriaManejoEnxuto`, `manejoServices` e `motorbase1Batch01`.
-- `tipoTarefaDropColunasMigration` e `patrimonioSimplificaMigration` partem de 42 migrations. A D-PROD-187 entra no "todas menos a CONTRACT dele", com `CategoriaManejo` vazia.
+- `tipoTarefaDropColunasMigration` e `patrimonioSimplificaMigration` partem de 43 migrations (com a CADESTACOES da D-PROD-188). A D-PROD-187 entra no "todas menos a CONTRACT dele", com `CategoriaManejo` vazia.
+
+**Nota (merge da `main` com a PR #265, `776befe`).** A D-PROD-188 (CADESTACOES, EXPAND `20261113400000_cadestacoes_cadastro`, já aplicada em produção) entrou na `main` antes desta fatia. Com ela, o repositório tem **44** migrations: produção fica com 43 concluídas antes desta release e 44 depois; 81 tabelas antes e depois (esta só renomeia). A entrada da CADESTACOES em `MIGRATIONS_APROVADAS` vem antes da desta fatia, na ordem dos timestamps; `MIGRATIONS_CONTRACT_APROVADAS` não muda.
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-189 (a D-PROD-185 é da PR #263; a D-PROD-188 é da PR #265) -->
+## D-PROD-188 — Cadastro de Estações da fazenda, tabela física `CADESTACOES` (primeira fatia, sem vínculos)
+
+> **Numeração:** a D-PROD-185 está na PR #263 (Estoque P1-03), a D-PROD-186 é a Fatia C da Categoria de Manejo (PR #264, mergeada) e a D-PROD-187 está reservada para a Fatia D. A `main` indica `Próxima decisão: D-PROD-188`, que é esta.
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário: "vamos começar com o registro de estações […] primeiro não vamos interligar com nada ainda, o nome da tabela para o banco do supabase eu quero CADESTACOES" · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** O proprietário quer, no futuro, a curva de ganho de peso por estação (águas, transição, seca) e o peso projetado do lote a partir da última pesagem. O primeiro passo é só **registrar os períodos** de cada fazenda, para que o histórico de quando cada seca e cada estação das águas começou e terminou fique guardado desde já.
+
+**Decisão.**
+1. **Model `CadEstacao`, tabela física `"CADESTACOES"`** (`@@map`, o primeiro do schema; mesmo padrão `CAD…` que a D-PROD-187 prevê para `CADCATEGORIA`).
+   - Campos: `id, cliente_id, empresa_id, nome, tipo, data_inicio, data_fim, observacoes, ativo, createdAt, updatedAt`.
+   - `tipo` ∈ `AGUAS | TRANSICAO | SECA`, guardado em `VARCHAR(16)` com CHECK `CADESTACOES_tipo_check` (o schema não usa enum Prisma).
+   - `data_inicio` e `data_fim` são `DATE` (dia civil, sem hora); CHECK `CADESTACOES_periodo_check`: `data_fim >= data_inicio`.
+   - Por **fazenda** (`empresa_id`): as estações dependem do lugar. FK composta `(cliente_id, empresa_id) → Empresa(cliente_id, id)` e FK para `Cliente`, as duas `ON DELETE RESTRICT`.
+   - Únicos `[cliente_id, id]` e `[cliente_id, empresa_id, nome]`; índices `[cliente_id, empresa_id, ativo]` e `[cliente_id, empresa_id, data_inicio]`.
+   - **Sem nenhum vínculo de negócio:** nada referencia `CADESTACOES` e ela não referencia lote, categoria, curva nem área. As FKs de Cliente e Empresa são o escopo obrigatório (R9), não vínculo.
+   - Não reconcilia com `AreaPastagem.periodo_estacao` ('Seco', 'Intermediário', 'Chuvoso'), que é outro vocabulário e outro uso; fica para a missão que ligar as duas coisas.
+2. **Migration EXPAND `20261113400000_cadestacoes_cadastro`.** Cria só a tabela nova, índices, FKs, os 2 CHECKs e o bloco RLS/REVOKE copiado da D-PROD-182 com `ARRAY['CADESTACOES']`. O número da decisão fica fora do `migration.sql` (D-PROD-183 item 9), para a renumeração não mudar o checksum.
+   - SHA-256 do arquivo: `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Hash do corpo do DO: `10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f`. Os dois pinados em `premergeMigrateLib.mjs`; o classificador dá `EXPAND`, `tabelas_novas = ["CADESTACOES"]`, sem violação.
+   - Repositório: 42 → **43** migrations e 80 → **81** tabelas (66 de tenant). Scripts do SQL editor (01–04), testes de contagem e ensaios atualizados.
+   - **Aplicação em produção antes do merge** (D-PROD-72 item 1), pelo runbook [`MAIKE-CADESTACOES-RUNBOOK-RELEASE.md`](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md). Motivo extra: a exclusão de Empresa conta todos os models com `cliente_id` e `empresa_id` (DMMF), então o runtime novo sem a tabela daria 500 em `DELETE /empresas/:id` (mesma classe do hotfix `0bd52a3`). Pelo conector Supabase só com GO escrito e específico desta migration (desvio da D-PROD-74); `apply_migration` nunca.
+3. **API `/estacoes`** (lista completa por fazenda, sem paginação):
+   - `GET /estacoes?empresa_id=`, `GET /estacoes/:id?empresa_id=`, `POST /estacoes`, `PATCH /estacoes/:id` (com `empresa_id` no corpo) e `DELETE /estacoes/:id?empresa_id=`;
+   - tenant só do `auth_context` (R11); a fazenda precisa ser do tenant (`EMPRESA_NOT_FOUND` 404); estação de outra fazenda ou de outro tenant → 404 `ESTACAO_NOT_FOUND`; a estação nunca troca de fazenda;
+   - nome e observações em MAIÚSCULAS; nome único por fazenda → 409 `ESTACAO_NAME_CONFLICT` (corrida perdida no unique também vira 409);
+   - datas `AAAA-MM-DD` de dia real, anos de 1900 a 2100; fim antes do início → 400;
+   - **duas estações ATIVAS da mesma fazenda não se sobrepõem, nem num único dia** → 409 `ESTACAO_PERIODO_SOBREPOSTO`, com a estação em conflito no `details`. Checagem sob trava do escopo (tenant + fazenda) até o fim da transação. Estação inativa não entra na regra (permite guardar um período "previsto" ao lado do "real");
+   - corpo e query com `additionalProperties: false`; exclusão física com auditoria (`CadEstacao`) na mesma transação.
+4. **Permissões.** Tela `pec-estacoes`, módulo `manejo`. Escrita pela guarda `cadastro()`; **leitura também pela tela** (`visualizar`), como nos cadastros por fazenda da Gestão. Sem concessão automática: o administrador libera a tela no perfil.
+5. **Tela `Estacoes`** (motor Base1), item "Estações" no menu Manejo, logo depois de "Categorias de Manejo"; ícone `CloudSun` no celular.
+   - Formulário: Nome, Tipo (ÁGUAS / TRANSIÇÃO / SECA), Data de início, Data de fim, Ativo e Observações. Datas como texto do dia (`CampoDia`), sem `Date` local.
+   - Lista: Nome, Tipo, Início, Fim, **Dias** (duração contando os dois extremos), Ativo; datas e duração ordenam pelo valor canônico.
+   - A fazenda é a selecionada no topo; sem fazenda, aviso e nenhum botão de gravação. Trocar de fazenda fecha o registro aberto.
+6. **Fora do escopo:** curva de ganho de peso, projeção de peso, objetivos por categoria, produção (@), suplementação, calendário mês a mês e qualquer leitura das estações por outro módulo.
+
+**Testes.**
+- `backend/tests/estacaoNativo.test.mjs` (Postgres real, 22 casos): criar e ler; formato público; ordem da lista; nome duplicado; chaves fora do schema; obrigatórios; tipo; datas; HTML/controle; sobreposição (4 formas, inclusive o dia de encosto), inativa fora da regra, reativação bloqueada, edição de si mesma; duas corridas (sobreposição e nome) com exatamente um vencedor e nenhum 500; PATCH e DELETE pela fazenda errada; isolamento entre tenants; empresa com estação → 409 `EMPRESA_COM_VINCULOS` + FK Restrict; 403 sem a tela, `visualizar` só lê, `novo` cria, `excluir` exclui; tabela física `"CADESTACOES"` com RLS e os 2 CHECKs no banco.
+- `permissoesR2Rotas` ganha POST/PATCH/DELETE de `/estacoes`; `premerge-migrate` (B1), `sqlEditorBootstrap`, `patrimonioSimplificaMigration` e `tipoTarefaDropColunasMigration` com as contagens novas.
+- Smoke `tests/smoke/estacoes.test.jsx`: ordem dos 6 campos, opções do tipo, obrigatórios, payload, fim antes do início, leitura, valores e ordenação da grade, tela com e sem fazenda; `scope` e `vercelSpaRoutes` com 26 páginas.
+
+**Nota de aplicação (2026-11-13).** A migration `20261113400000_cadestacoes_cadastro` foi aplicada em produção às 19:48:14 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `f51e104e` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "autorizo a migração pelo conector do supabase" / "ok mas está autorizado ok" — desvio da D-PROD-74 para esta migration, não precedente. Conferência: 43/0 migrations, 81 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
+
+**Relatório:** [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-189 (a D-PROD-185 é da PR #263) -->

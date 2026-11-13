@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 80 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 81 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 65 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 66 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -64,6 +64,8 @@ DECLARE
     -- (fatias FIFO → abastecimento → Produto aceito pelo tanque → tanque → bem → tipo → família).
     'AbastecimentoBemConsumoLote','AbastecimentoBem','TanqueBemProduto','TanqueBem','BemPatrimonial','TipoPatrimonial','FamiliaPatrimonial',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
+    -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
+    'CADESTACOES',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
     'Categoria','CADCATEGORIA','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
@@ -138,7 +140,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: falta tabela esperada em public. Nada foi alterado.';
   END IF;
 
-  -- 4. cliente_id exatamente nas 65 de tenant (+ OperadorProdutoMaike, preservada).
+  -- 4. cliente_id exatamente nas 66 de tenant (+ OperadorProdutoMaike, preservada).
   IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
        WHERE table_schema = 'public' AND column_name = 'cliente_id')
      IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN
@@ -194,7 +196,7 @@ BEGIN
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
   LOCK TABLE "HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
-    "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira",
+    "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CADCATEGORIA","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
     "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",

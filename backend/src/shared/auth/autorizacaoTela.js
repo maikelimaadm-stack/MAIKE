@@ -39,6 +39,9 @@ export const TELAS = Object.freeze({
   SETORES: Object.freeze({ modulo: 'manejo', tela: 'pec-setores' }),
   CATEGORIAS_MANEJO: Object.freeze({ modulo: 'manejo', tela: 'pec-categorias-manejo' }),
   BEBEDOUROS: Object.freeze({ modulo: 'manejo', tela: 'pec-bebedouros' }),
+  // D-PROD-188 — mesmo id do item de menu `pec-estacoes`. Sem concessão
+  // automática: tela nova não herda permissão de outra.
+  ESTACOES: Object.freeze({ modulo: 'manejo', tela: 'pec-estacoes' }),
   PRODUTOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-produtos' }),
   CATEGORIAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-categorias' }),
   MARCAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-marcas' }),

@@ -358,6 +358,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/estacoes/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estacoes/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -387,6 +395,14 @@
     },
     {
       "source": "/Parceiros",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/estacoes",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Estacoes",
       "destination": "/index.html"
     },
     {

@@ -65,9 +65,9 @@ merge vier antes (foi o que aconteceu na D-PROD-183), sobra só o caminho B.
   (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver pendente no alvo.
 - **Isolamento:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). A PR
   #263 (`20261113300000_estoque_p1_03_indices`) entra antes ou depois, nunca junto.
-- **Dependência da PR #265:** a migration `20261113400000_cadestacoes_cadastro` já está em produção
-  e ainda não está na `main`. Esta release só roda **depois do merge da #265** e da branch
-  atualizada com ela (o premerge recusa migration no banco sem arquivo na release).
+- **Dependência da PR #265:** **mergeada (`776befe`)**. A migration `20261113400000_cadestacoes_cadastro`
+  já está em produção e na `main`, e esta branch foi atualizada com ela por merge (o premerge
+  recusa migration no banco sem arquivo na release).
 - **Contagens fixas:** os números 43 (antes) e 44 (depois) deste runbook — §0, bloco A, o
   `n_ok <> 43` do envelope do caminho B, R1 e §10 — supõem a migration da PR #263 **não**
   aplicada em produção. Se o bloco A mostrar outro total, é `RELEASE_BLOCKED`: atualizar a branch,
@@ -274,7 +274,7 @@ node scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs --url postgresql://<us
 
 **GREEN:** runner oficial com a conferência exigida, `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187` e
 a impressão na URL. Resultado esperado:
-- 43/0;
+- 44/0;
 - `CADCATEGORIA` com o mesmo OID, ACL, RLS e políticas, as 12 colunas, linhas idênticas nelas, os 3
   índices e as 2 constraints novos, FK validada;
 - mesmas tabelas; `migrate diff --exit-code` 0;
