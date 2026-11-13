@@ -21,10 +21,15 @@
  *       ledger falhado → PARAR; depois de `migrate resolve --rolled-back` (só no
  *       sandbox) e a causa removida → SEGUIR; aplicada → JA_APLICADA; nome ocupado
  *       por outra relação → PARAR; índice de mesmo nome com definição diferente → PARAR.
+ *  OR   (R2) as duas ordens: banco novo (P1-03 antes da CADESTACOES, pelo nome) e produção (CADESTACOES
+ *       antes, P1-03 por último): 44/0, mesmo schema e sem drift, e o runner aceita a P1-03 pendente.
+ *  PB   (R2) a lista `base_release` do preflight é exatamente a pasta até a CADESTACOES, menos a P1-03.
+ *  PH   (R2) histórico contra a base: 43 → SEGUIR; CADESTACOES ausente, migration desconhecida (antes e
+ *       depois), nome duplicado, falhada → PARAR; 44 com a P1-03 por último → JA_APLICADA.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
@@ -32,6 +37,11 @@ import { PrismaClient } from '@prisma/client';
 import {
   NOME_P103, RAIZ, apagarBanco, bancoNovo, cenarioEspera, cenarioFalhaNoSegundo, deploy, exigirUrlLocal, ledger, pastaReal,
 } from '../../scripts/dev/ensaio-p1-03-transacao-migration.mjs';
+import { conferirHistoricoRemoto, sha256 } from '../../scripts/deploy/premergeMigrateLib.mjs';
+
+/** A migration da D-PROD-188, aplicada em produção ANTES da P1-03 apesar do carimbo posterior. */
+const NOME_CAD = '20261113400000_cadestacoes_cadastro';
+const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const PREFLIGHT = readFileSync(join(RAIZ, 'scripts', 'ops', 'sql-editor', 'estoque-p1-03-preflight-indices-somente-leitura.sql'), 'utf8');
 let base;
@@ -160,6 +170,171 @@ describe('Preflight fail-closed com as migrations reais', () => {
       rmSync(semP103, { recursive: true, force: true });
       rmSync(todas, { recursive: true, force: true });
       await apagarBanco(admin, nome);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------------------------------------
+ * R2 — base da release e ordem das migrations.
+ * A produção aplicou a CADESTACOES (20261113400000) antes da P1-03 (20261113300000): o carimbo da
+ * P1-03 é anterior, mas a ordem real de aplicação é a inversa. O preflight passa a conferir o
+ * histórico (nomes, não checksums: isso é do `premerge-migrate --verificar-alvo`) contra a lista
+ * fixa da base da release, e os dois caminhos de aplicação têm de chegar ao mesmo schema.
+ * ---------------------------------------------------------------------------------------------- */
+const prismaCli = (args, url) =>
+  new Promise((resolve) => {
+    const f = spawn(process.execPath, [join(RAIZ, 'node_modules', 'prisma', 'build', 'index.js'), ...args], { cwd: RAIZ, env: { ...process.env, DATABASE_URL: url } });
+    let saida = '';
+    f.stdout.on('data', (d) => { saida += d; });
+    f.stderr.on('data', (d) => { saida += d; });
+    f.on('close', (s) => resolve({ status: s ?? 1, saida }));
+  });
+/** `migrate diff --exit-code`: 0 = sem diferença, 2 = há diferença. */
+const semDiferenca = async (de, para) => (await prismaCli(['migrate', 'diff', ...de, ...para, '--exit-code'], de[1])).status;
+const SCHEMA = join(RAIZ, 'backend', 'prisma', 'schema.prisma');
+const concluidasPorOrdem = async (db) => (/** @type {any[]} */ (await db.$queryRawUnsafe(
+  `SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
+))).map((r) => r.migration_name);
+const locaisDaPasta = () => readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory())
+  .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(join(MIGRATIONS, d.name, 'migration.sql'), 'utf8')) }));
+const linhasDoHistorico = (db) => db.$queryRawUnsafe('SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations');
+const indicesNovos = async (db) => (/** @type {any[]} */ (await db.$queryRawUnsafe(
+  `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx') ORDER BY 1`,
+)));
+
+describe('Ordem das migrations: banco novo (P1-03 antes da CADESTACOES) e produção (CADESTACOES antes da P1-03)', () => {
+  test('OR as duas ordens: 44/0, mesmo schema entre si e igual ao schema.prisma, índices e CADESTACOES iguais; o runner aceita a P1-03 pendente depois da CADESTACOES', async () => {
+    const [nomeNovo, nomeProd] = ['maike_p103_ordem_novo', 'maike_p103_ordem_prod'];
+    const urlNovo = await bancoNovo(admin, base, nomeNovo);
+    const urlProd = await bancoNovo(admin, base, nomeProd);
+    const semP103 = pastaReal([NOME_P103]);
+    const todas = pastaReal([]);
+    const dbNovo = new PrismaClient({ datasourceUrl: urlNovo, log: [] });
+    const dbProd = new PrismaClient({ datasourceUrl: urlProd, log: [] });
+    try {
+      // 1. banco novo: o Prisma aplica pela ordem do nome → … → P1-03 → CADESTACOES
+      assert.equal((await deploy(todas, urlNovo)).status, 0);
+      const ordemNovo = await concluidasPorOrdem(dbNovo);
+      assert.equal(ordemNovo.length, 44);
+      assert.ok(ordemNovo.indexOf(NOME_P103) < ordemNovo.indexOf(NOME_CAD), 'banco novo: P1-03 antes da CADESTACOES');
+
+      // 2. produção: as 43 da base (com a CADESTACOES) e só depois a P1-03, pelo mesmo `migrate deploy`
+      assert.equal((await deploy(semP103, urlProd)).status, 0);
+      const antes = conferirHistoricoRemoto({ locais: locaisDaPasta(), linhas: await linhasDoHistorico(dbProd) });
+      assert.deepEqual([antes.ok, antes.pendentes, antes.falhas], [true, [NOME_P103], []], 'o runner reconhece o histórico de produção e só a P1-03 pendente');
+      const r = await deploy(todas, urlProd);
+      assert.equal(r.status, 0, r.saida);
+      const ordemProd = await concluidasPorOrdem(dbProd);
+      assert.equal(ordemProd.length, 44);
+      assert.equal(ordemProd.at(-1), NOME_P103, 'produção: a P1-03 é a última por finished_at, apesar do carimbo anterior');
+      const depois = conferirHistoricoRemoto({ locais: locaisDaPasta(), linhas: await linhasDoHistorico(dbProd) });
+      assert.deepEqual([depois.ok, depois.pendentes, depois.falhas], [true, [], []]);
+
+      // 3. nas duas: nenhuma falhada, mesmo schema (entre si e com o schema.prisma), mesmos índices
+      for (const db of [dbNovo, dbProd]) {
+        const l = await ledger(db);
+        assert.equal(l.filter((x) => !x.terminou || x.revertida).length, 0, 'nenhuma migration falhada ou revertida');
+      }
+      assert.equal(await semDiferenca(['--from-url', urlNovo], ['--to-url', urlProd]), 0, 'banco novo e produção: mesmo schema');
+      for (const url of [urlNovo, urlProd]) assert.equal(await semDiferenca(['--from-url', url], ['--to-schema-datamodel', SCHEMA]), 0, 'sem drift contra o schema.prisma');
+      assert.deepEqual(await indicesNovos(dbNovo), await indicesNovos(dbProd));
+      assert.equal((await indicesNovos(dbProd)).length, 2);
+      // CADESTACOES intacta: mesmas colunas e constraints nas duas ordens
+      const cad = (db) => db.$queryRawUnsafe(
+        `SELECT (SELECT string_agg(column_name || ':' || data_type, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'CADESTACOES') AS colunas,
+                (SELECT string_agg(conname || ':' || pg_get_constraintdef(oid), ',' ORDER BY conname) FROM pg_constraint WHERE conrelid = '"CADESTACOES"'::regclass) AS constraints,
+                (SELECT relrowsecurity FROM pg_class WHERE oid = '"CADESTACOES"'::regclass) AS rls`);
+      const [cNovo] = await cad(dbNovo);
+      const [cProd] = await cad(dbProd);
+      assert.ok(cNovo.colunas && cNovo.constraints);
+      assert.deepEqual(cProd, cNovo);
+    } finally {
+      await dbNovo.$disconnect();
+      await dbProd.$disconnect();
+      rmSync(semP103, { recursive: true, force: true });
+      rmSync(todas, { recursive: true, force: true });
+      await apagarBanco(admin, nomeNovo);
+      await apagarBanco(admin, nomeProd);
+    }
+  });
+});
+
+describe('Preflight: histórico conferido contra a base da release (R2)', () => {
+  test('PB a lista fixa do preflight é exatamente a base da release: as migrations da pasta até a CADESTACOES, menos a P1-03', () => {
+    const bloco = PREFLIGHT.match(/base_release\(nome\) AS \(\s*VALUES([\s\S]*?)\n\),/);
+    assert.ok(bloco, 'o preflight declara a CTE base_release(nome)');
+    const lista = [...bloco[1].matchAll(/'(\d{14}_[a-z0-9_]+)'/g)].map((m) => m[1]);
+    const pasta = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+    // Migrations mais novas que a base (de outras releases) não entram: a lista é a base desta release.
+    const esperada = pasta.filter((n) => n !== NOME_P103 && n <= NOME_CAD);
+    assert.deepEqual([...lista].sort(), esperada);
+    assert.equal(lista.length, 43);
+    assert.equal(new Set(lista).size, lista.length, 'sem nome repetido');
+  });
+
+  test('PH antes → SEGUIR (43); CADESTACOES ausente, migration extra, nome duplicado, falhada → PARAR; depois → JA_APLICADA (44, P1-03 última); extra depois → PARAR', async () => {
+    const nome = 'maike_p103_preflight_hist';
+    const nomeSemCad = 'maike_p103_preflight_semcad';
+    const url = await bancoNovo(admin, base, nome);
+    const urlSemCad = await bancoNovo(admin, base, nomeSemCad);
+    const semP103 = pastaReal([NOME_P103]);
+    const semP103SemCad = pastaReal([NOME_P103, NOME_CAD]);
+    const todas = pastaReal([]);
+    const db = new PrismaClient({ datasourceUrl: url, log: [] });
+    const dbSemCad = new PrismaClient({ datasourceUrl: urlSemCad, log: [] });
+    const extra = (db) => db.$executeRawUnsafe(
+      `INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, started_at, applied_steps_count) VALUES ('teste-extra', 'x', now(), '20261113450000_desconhecida', now(), 1)`);
+    try {
+      // estado real da produção antes do GO-2: 43 concluídas, a CADESTACOES por último
+      assert.equal((await deploy(semP103, url)).status, 0);
+      let v = await preflight(db);
+      assert.deepEqual(
+        [v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['migration.desconhecidas'], v['migration.ultima'], v['veredito.estado']],
+        ['43', 'SIM', '0', '0', NOME_CAD, 'SEGUIR'], JSON.stringify(v));
+
+      // a main sem a #265 (o que o GO-1 encontrou do lado do repositório): 42, sem CADESTACOES → PARAR
+      assert.equal((await deploy(semP103SemCad, urlSemCad)).status, 0);
+      v = await preflight(dbSemCad);
+      assert.deepEqual([v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['veredito.estado']], ['42', 'NAO', '1', 'PARAR'], 'CADESTACOES ausente');
+
+      // migration concluída que não é da base nem a P1-03 → PARAR (o defeito do GO-1: 43 com uma desconhecida dava SEGUIR)
+      await extra(db);
+      v = await preflight(db);
+      assert.deepEqual([v['migration.desconhecidas'], v['veredito.estado']], ['1', 'PARAR'], 'migration extra');
+      await db.$executeRawUnsafe(`DELETE FROM _prisma_migrations WHERE id = 'teste-extra'`);
+
+      // a mesma migration da base registrada duas vezes como concluída → PARAR
+      await db.$executeRawUnsafe(
+        `INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, started_at, applied_steps_count) SELECT 'teste-dup', checksum, now(), migration_name, now(), 1 FROM _prisma_migrations WHERE migration_name = '${NOME_CAD}'`);
+      v = await preflight(db);
+      assert.deepEqual([v['migration.duplicadas'], v['veredito.estado']], ['1', 'PARAR'], 'nome duplicado');
+      await db.$executeRawUnsafe(`DELETE FROM _prisma_migrations WHERE id = 'teste-dup'`);
+
+      // migration falhada pendente (sem finished_at, sem rolled_back_at) → PARAR
+      await db.$executeRawUnsafe(
+        `INSERT INTO _prisma_migrations (id, checksum, migration_name, started_at, applied_steps_count) VALUES ('teste-falha', 'x', '20261113460000_falhou', now(), 0)`);
+      v = await preflight(db);
+      assert.deepEqual([v['migration.falhadas_pendentes'], v['veredito.estado']], ['1', 'PARAR'], 'falhada');
+      await db.$executeRawUnsafe(`DELETE FROM _prisma_migrations WHERE id = 'teste-falha'`);
+      assert.equal((await preflight(db))['veredito.estado'], 'SEGUIR', 'limpo de novo');
+
+      // GO-2 simulado: a P1-03 entra por último (ordem da produção) → JA_APLICADA com 44
+      assert.equal((await deploy(todas, url)).status, 0);
+      v = await preflight(db);
+      assert.deepEqual(
+        [v['migration.concluidas'], v['migration.p1_03_registrada'], v['indice.definicoes_exatas_validas'], v['migration.ultima'], v['veredito.estado']],
+        ['44', '1', '2', NOME_P103, 'JA_APLICADA'], JSON.stringify(v));
+
+      // depois da aplicação, uma migration desconhecida também derruba o JA_APLICADA
+      await extra(db);
+      v = await preflight(db);
+      assert.deepEqual([v['migration.desconhecidas'], v['veredito.estado']], ['1', 'PARAR'], 'extra depois da aplicação');
+    } finally {
+      await db.$disconnect();
+      await dbSemCad.$disconnect();
+      for (const d of [semP103, semP103SemCad, todas]) rmSync(d, { recursive: true, force: true });
+      await apagarBanco(admin, nome);
+      await apagarBanco(admin, nomeSemCad);
     }
   });
 });
