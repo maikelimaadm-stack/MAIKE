@@ -459,15 +459,14 @@ describe('C6 — Produtos aceitos em qualquer unidade (SACO abastece em kg)', ()
     const opcoes = await ok(req('GET', `/bens-patrimoniais-opcoes/produtos?empresa_id=${s.e1.id}`, s.token));
     assert.ok(!opcoes.itens.some((i) => i.id === un.id));
 
-    const trator = await ok(criarBem(s, corpoTrator(s, { tanques: [tanqueCom([graxa.id, diesel.id])] })), 201);
+    await ok(criarBem(s, corpoTrator(s, { tanques: [tanqueCom([graxa.id, diesel.id])] })), 201);
     // KG → SACO com aceite que vale: mesma unidade efetiva (kg) → 200; e de volta.
     const paraSaco = await req('PATCH', `/produtos/${graxa.id}`, s.token, { unidade_principal_estoque: 'SACO', peso_por_saco_kg: 20 });
     assert.equal(paraSaco.statusCode, 200, paraSaco.body);
     assert.equal((await req('PATCH', `/produtos/${graxa.id}`, s.token, { unidade_principal_estoque: 'KG' })).statusCode, 200);
-    // Para uma unidade fora de L/KG/SACO, com aceite que vale → 409 aceito_em_tanque.
+    // MAIKE-ESTOQUE-P1-02 (M3): unidade nova fora de KG/SACO/L é recusada antes da regra do tanque (antes: 409 aceito_em_tanque).
     const paraUn = await req('PATCH', `/produtos/${graxa.id}`, s.token, { unidade_principal_estoque: 'UN' });
-    assert.deepEqual(erro(paraUn), [409, 'PRODUTO_UNIDADE_EM_USO', 'unidade_principal_estoque', 'aceito_em_tanque']);
-    assert.deepEqual(paraUn.json().details.tanques.map((x) => x.tanque_id), [trator.tanques[0].id]);
+    assert.deepEqual(erro(paraUn), [400, 'REQUEST_VALIDATION_FAILED', 'unidade_principal_estoque', 'unidade_invalida']);
     // L → SACO sem histórico: a regra de L (só sem histórico) continua; o aceite não trava.
     assert.equal((await req('PATCH', `/produtos/${diesel.id}`, s.token, { unidade_principal_estoque: 'SACO', peso_por_saco_kg: 25 })).statusCode, 200);
     const cam = await ok(criarBem(s, corpoCaminhonete(s, { tanques: [tanqueCom([diesel.id], { identificador: 'Tanque', capacidade_litros: '80' })] })), 201);

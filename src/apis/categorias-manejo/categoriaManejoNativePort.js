@@ -45,7 +45,7 @@ const CHAVES_IDADE = Object.freeze(['idade_minima_meses', 'idade_maxima_meses'])
 /**
  * Corpo do PATCH. Uma edição gravada na fila offline pela versão anterior
  * sempre trazia o par de idades (inclusive nulo/nulo ou par livre, como 0/12),
- * que o servidor agora recusa (faixa fora da lista fixa, D-PROD-185) — e um
+ * que o servidor agora recusa (faixa fora da lista fixa, D-PROD-186) — e um
  * item recusado trava a fila inteira. Se o par enviado não é uma faixa da
  * lista, as duas idades saem do corpo: o resto da edição é aplicado e a faixa
  * gravada fica como está. O formulário atual só manda idade quando a faixa

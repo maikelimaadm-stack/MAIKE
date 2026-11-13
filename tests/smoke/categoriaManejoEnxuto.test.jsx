@@ -1,5 +1,5 @@
 /**
- * MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C, D-PROD-185) — cadastro enxuto.
+ * MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C, D-PROD-186) — cadastro enxuto.
  *
  * CategoriaManejo ficou só com nome, sigla, espécie, sexo, faixa de idade e o
  * vínculo com o ícone oficial. Nome, Sexo e Faixa de idade são obrigatórios; a

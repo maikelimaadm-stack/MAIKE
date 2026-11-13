@@ -1,11 +1,11 @@
 # MAIKE — Tipo de Tarefa sem colunas: runbook de release CONTRACT (D-PROD-183)
 
-> **Estado: NÃO EXECUTADO.** Nada foi lido nem escrito em produção. A migration está pronta na
-> PR e **não foi aplicada em nenhum ambiente remoto**. Este runbook só roda com o **GO explícito
-> do proprietário** (§2): o pedido da Fatia LIMPEZA diz "NÃO aplique a migration. Só deixe
-> pronta na PR" e "autorização explícita minha antes de rodar".
+> **Estado: EXECUTADO.** Aplicada em produção em **2026-11-13 às 17:45:35 UTC**, pelo
+> **caminho B** (conector Supabase, uma transação), com GO do proprietário. A PR #261 foi
+> mergeada **antes** da aplicação (17:18 UTC), o que fechou o caminho A (§0). Registro no §11.
 >
-> Valores entre `<…>` são preenchidos na hora da execução, sempre a partir de leituras reais.
+> Texto original do estado, antes da execução: "NÃO EXECUTADO … só roda com o GO explícito do
+> proprietário (§2)".
 
 Decisão: [D-PROD-183](./DECISIONS.md). Relatório:
 [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md).
@@ -357,16 +357,25 @@ com ou sem as colunas. Para antes dele, não (§0).
 
 | Campo | Valor |
 |---|---|
-| GO-1 (preflight) | `<data, palavras do proprietário>` |
-| GO-2 (aplicação) | `<data, palavras do proprietário>` |
-| `<SHA_APROVADO>`, CI | `<sha>`, `<link>` |
-| Alvo | `<system_identifier>` |
-| Bloco A | `<41/0; colunas>` |
-| Bloco B (por cliente) e impressão | `<tabela>`; `<linhas>` · `<hex12>` |
-| Bloco C | `<0 linhas / 0 linhas>` |
-| Bloco D e backup | `<transações longas>`; `<backup>`; escolha (a)/(b) |
-| Ensaio local (§4.5) | `<resultado>` |
-| Caminho | `<A/B>` |
-| Aplicação | `<hora, saída>` |
-| Postcheck R1–R6 | `<resultado>` |
-| Merge e deploy | `<merge>`, `<deploy READY>` |
+| Merge | PR #261 mergeada pelo proprietário em 2026-11-13 às 17:18:21 UTC (`73aca4f`), **antes** da aplicação. Com isso o caminho A deixou de valer: `premerge-migrate --sha 73aca4f… --contract D-PROD-183` → `RECUSADO CONTRACT_INESPERADO`, conferido. Sobrou o caminho B. CI da PR verde no head `b95f74e` (run 1058) |
+| GO-1 e GO-2 | Palavras literais do proprietário, depois do pedido de GO-1 (preflight) e GO-2 (caminho B, com desvio da D-PROD-74): **"go go gog gogogogog"**. Depois da 1ª tentativa expirar: **"pronto"** |
+| Escolha do §4.4 | (b) "não há volta parcial; aceito". O pedido da Fatia LIMPEZA já mandava apagar as colunas e os valores |
+| Alvo | projeto Supabase MAIKE, `system_identifier` `7692130048193495360`, `server_version_num` 170011, papel `postgres` (dono de `TipoTarefa`) |
+| Bloco A | 41 concluídas / 0 em aberto / 0 revertidas; D-PROD-162 (`787d6d11`) e TipoAtividade (`5a0ded9c`) concluídas; D-PROD-183 ausente; `TipoTarefa` com 13 colunas, as 4 `boolean NOT NULL DEFAULT false`; 80 tabelas em `public` |
+| Bloco B | **1** tipo de tarefa no banco inteiro, de **1** cliente, com as 4 flags `true` (1·1·1·1). Impressão **`5194f45d42b0`** (1 linha) |
+| Bloco C | 0 dependentes; 0 rotinas; pg_cron ausente; RLS `true`, sem FORCE; política `maike_backend_all` (ALL) |
+| Bloco D e backup | 0 transações longas. Backup físico `COMPLETED` em 2026-11-13 às 05:51:17 UTC (PITR desligado) |
+| Ensaio local (§4.5) | PG 16: o envelope exato de produção recusou alvo divergente; com a impressão de produção num banco local recusou sem mudar nada (13 colunas); com a impressão local aplicou (9 colunas, 42 migrations, linha preservada). Ensaio automatizado OK; teste da migration 15/15 |
+| 1ª tentativa | ~17:2x UTC: o conector pediu confirmação e a pergunta expirou em 60 s sem resposta. Nada executado: conferido depois, 13 colunas, 41/0, nenhuma linha da migration, impressão igual |
+| Caminho | **B**, uma `execute_sql` com o envelope do §5 (DO `$alvo$` + `SET LOCAL maike.tipo_tarefa_flags_impressao` + `migration.sql` integral de `73aca4f` + `INSERT` em `_prisma_migrations`) |
+| Aplicação | **2026-11-13 às 17:45:35 UTC**, sem erro |
+| Postcheck R1 | 42 concluídas, 0 em aberto; a nova com o checksum `47409bb1…6c17` e `applied_steps_count = 1` |
+| Postcheck R2 | `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome, ativo, descricao, createdAt, updatedAt` |
+| Postcheck R3 | 1 linha em `TipoTarefa`, a mesma de antes |
+| Postcheck R4 | 80 tabelas em `public`, iguais |
+| Postcheck R5 | RLS `true`, sem FORCE; `maike_backend_all` (ALL); índices e constraints de `TipoTarefa` iguais aos de antes (pkey, 2 índices, 2 uniques, 2 FKs de saída e a FK de `LancamentoTarefa`) |
+| Postcheck R6 (equivalente) | os nomes das 42 concluídas em produção = as 42 pastas da `main` (md5 `ac801df94e318004d83c25f5e048e947` dos dois lados); nenhuma pendente |
+| Alertas do Supabase | segurança: **0**. Performance: só INFO anteriores (FKs sem índice, índices sem uso), nenhum ligado a esta mudança |
+| Erros depois da aplicação | logs do Postgres desde 17:40 UTC: nenhum `column … does not exist`, nenhuma citação às colunas além da própria migration. Os erros de runtime da Vercel não puderam ser lidos (o conector da Vercel deu 403 para este time) |
+| Deploy | a `main` (`73aca4f`) não cita as colunas e roda com ou sem elas. Daqui em diante, **proibido** o *Instant Rollback* para antes de `6b85696` (§0) |
+| §8 (telas, só leitura) | fica com o proprietário: abrir Tipos de Tarefa, Tipos de Atividade e Lançamentos de Tarefa, sem salvar |

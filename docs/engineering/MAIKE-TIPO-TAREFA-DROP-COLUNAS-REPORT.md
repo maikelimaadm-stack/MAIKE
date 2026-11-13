@@ -1,10 +1,10 @@
 # MAIKE-TIPO-TAREFA-DROP-COLUNAS — Relatório (Fatia LIMPEZA)
 
-**fatia LIMPEZA · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #261 (rascunho)** · Decisão: [D-PROD-183](./DECISIONS.md) · Runbook: [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md)
+**fatia LIMPEZA · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #261 (mergeada) + registro da aplicação** · Decisão: [D-PROD-183](./DECISIONS.md) · Runbook: [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md)
 
-> **A migration NÃO foi aplicada** em nenhum ambiente remoto, e produção não foi lida nem
-> escrita. Ela fica pronta na PR. Preflight (só leitura) e aplicação dependem de GO explícito
-> do proprietário, um para cada (runbook §2).
+> **Aplicada em produção em 2026-11-13 às 17:45:35 UTC**, pelo caminho B (conector Supabase),
+> com GO do proprietário. A PR #261 foi mergeada antes da aplicação. Postcheck verde: 42/0,
+> `TipoTarefa` com 9 colunas, 0 alertas de segurança (§9 e runbook §11).
 >
 > A branch pedida foi `feat/tipo-tarefa-drop-colunas`. Esta sessão só publica em branch
 > `claude/…`, por isso a branch é `claude/tipo-tarefa-drop-colunas-1aznvv`.
@@ -161,6 +161,19 @@ PostgreSQL 16.15 local, banco recriado do zero antes de cada rodada, com as vari
 
 ## 8. Próximo passo
 
-Parar aqui. Com o GO-1 do proprietário, o preflight só leitura dá as contagens por cliente e a
-impressão. Com o GO-2, a aplicação segue o runbook e só depois vem o merge. A Fatia C
-(`ApontamentoAtividade`) só começa depois disso, quando o proprietário liberar.
+A Fatia LIMPEZA está encerrada. A Fatia C (`ApontamentoAtividade`) só começa quando o
+proprietário liberar. Como a D-PROD-183 já está concluída em produção, o `deploy:migrate`
+remoto volta a aceitar as próximas migrations EXPAND sem autorização CONTRACT.
+
+## 9. Aplicação em produção (2026-11-13)
+
+| Etapa | Resultado |
+|---|---|
+| Ordem real | merge da PR #261 às 17:18 UTC, **antes** da aplicação. Com isso o caminho A deixou de valer (`CONTRACT_INESPERADO`, conferido) e a aplicação foi pelo caminho B |
+| GO | do proprietário, "go go gog gogogogog" e, depois da 1ª tentativa expirar sem resposta na confirmação do conector, "pronto" |
+| Preflight (só leitura) | alvo `7692130048193495360` em PG 17; 41/0; 13 colunas. **1** tipo de tarefa no banco inteiro, de 1 cliente, com as 4 flags `true`: é o que se perdeu (escolha (b)). Impressão `5194f45d42b0`. 0 dependentes, 0 rotinas, sem pg_cron, sem transação longa. Backup físico de 05:51 UTC |
+| Ensaio do envelope exato | PG 16 local: recusa alvo divergente; recusa impressão que não bate sem mudar nada; aplica com a impressão certa |
+| Aplicação | 17:45:35 UTC, uma transação, sem erro |
+| Postcheck | 42/0; checksum `47409bb1…6c17`, `applied_steps_count` 1; 9 colunas; linha preservada; 80 tabelas; RLS, política, índices e FKs iguais; nomes das 42 = pastas da `main` |
+| Depois | 0 alertas de segurança; nenhum erro de coluna inexistente nos logs do Postgres. Runtime da Vercel não lido (403 no conector) |
+| Pendente com o proprietário | abrir as telas de Tipos de Tarefa, Tipos de Atividade e Lançamentos de Tarefa, só leitura (runbook §8); não fazer *Instant Rollback* para antes de `6b85696` |

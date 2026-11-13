@@ -4,7 +4,7 @@ PR: #264
 
 # MAIKE-CATEGORIA-MANEJO-ENXUGAR — Relatório (Fatia C)
 
-**Decisão:** [D-PROD-185](./DECISIONS.md) · **Base:** `origin/main` `73aca4f` (merge da PR #261) · **Migration:** nenhuma
+**Decisão:** [D-PROD-186](./DECISIONS.md) · **Base:** `origin/main` `73aca4f` (merge da PR #261) · **Migration:** nenhuma
 
 ## 1. O que mudou
 
@@ -38,7 +38,7 @@ Saíram do formulário, da grade, do CSV, da porta nativa, do service e da API: 
 
 ## 2. Por que não há migration
 
-`DROP COLUMN` é migration CONTRACT e precisa ser a única migration nova da release (`CONTRACT_NAO_ISOLADO`). Esta fatia faz só o lado seguro: o código deixa de ler e de escrever as 15 colunas (`@ignore` + seleção explícita), e elas ficam dormentes no banco. O DROP e o nome físico `CADCATEGORIA` são a **Fatia D** (D-PROD-186).
+`DROP COLUMN` é migration CONTRACT e precisa ser a única migration nova da release (`CONTRACT_NAO_ISOLADO`). Esta fatia faz só o lado seguro: o código deixa de ler e de escrever as 15 colunas (`@ignore` + seleção explícita), e elas ficam dormentes no banco. O DROP e o nome físico `CADCATEGORIA` são a **Fatia D** (D-PROD-187).
 
 ## 3. Cliente antigo e fila offline
 
@@ -84,7 +84,7 @@ Testes novos: `backend/tests/categoriaManejoEnxuto.test.mjs` (E-00…E-15), `bac
 
 ## 7. Próximas fatias
 
-- **Fatia D (D-PROD-186):** migration CONTRACT isolada — DROP das 15 colunas + nome físico `CADCATEGORIA` (`@@map`, model segue `CategoriaManejo`), com trava fail-closed e impressão dos valores apagados. Exige acesso bloqueado pelo proprietário (o rename não tem janela compatível) e proíbe rollback da Vercel para antes da D.
+- **Fatia D (D-PROD-187):** migration CONTRACT isolada — DROP das 15 colunas + nome físico `CADCATEGORIA` (`@@map`, model segue `CategoriaManejo`), com trava fail-closed e impressão dos valores apagados. Exige acesso bloqueado pelo proprietário (o rename não tem janela compatível) e proíbe rollback da Vercel para antes da D.
 - **Fatia E:** "Categoria de evolução" opcional no cadastro (mesmo sexo, faixa maior), pré-preenchendo a Mudança de Categoria. Migration EXPAND própria, depois da D.
 
 ## 8. Fora do escopo

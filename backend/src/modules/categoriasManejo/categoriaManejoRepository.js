@@ -4,7 +4,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 
 /**
- * D-PROD-185 — colunas que o código LÊ de CategoriaManejo (o contrato público
+ * D-PROD-186 — colunas que o código LÊ de CategoriaManejo (o contrato público
  * mais o tenant). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e
  * `gmd_janeiro`…`gmd_dezembro` saíram do contrato (Fatia C): estão `@ignore`
  * no schema e ficam dormentes no banco até o DROP da Fatia D. A seleção

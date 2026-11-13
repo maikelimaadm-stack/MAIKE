@@ -363,7 +363,7 @@ describe('CM — categorias de manejo', () => {
   /**
    * CM3 — a normalização saiu da página para o service na P1.3-R1.
    *
-   * D-PROD-185 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo,
+   * D-PROD-186 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo,
    * faixa de idade e o vínculo com o ícone oficial. O FORM abaixo é o que o
    * formulário enxuto envia hoje.
    */
@@ -373,7 +373,7 @@ describe('CM — categorias de manejo', () => {
     catalogo_categoria_visual_id: '',
   });
 
-  /** As 15 chaves que saíram do contrato (D-PROD-185). */
+  /** As 15 chaves que saíram do contrato (D-PROD-186). */
   const CHAVES_REMOVIDAS = Object.freeze([
     'raca', 'categoria_oficial', 'ganho_peso_anual_kg',
     'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',

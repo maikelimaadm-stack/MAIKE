@@ -244,7 +244,7 @@ describe("MOTORBASE1-BATCH-01", () => {
     await waitFor(() => expect(screen.getAllByText("Obrigatório").length).toBeGreaterThan(0));
   });
 
-  it("CategoriasManejo — queryKey inclui empresa e a faixa de idade é um select fixo, sem número livre (D-PROD-185)", async () => {
+  it("CategoriasManejo — queryKey inclui empresa e a faixa de idade é um select fixo, sem número livre (D-PROD-186)", async () => {
     serviceMock.listarCategoriasManejoDaEmpresa.mockResolvedValue([]);
     const { default: CategoriasManejo } = await import("@/pages/CategoriasManejo");
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -6652,11 +6652,47 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - `scripts/tests/deploy/migrations.test.mjs`: a barreira do runner com as duas CONTRACT.
 - `backend/tests/patrimonioSimplificaMigration.test.mjs` passa a partir de 41 migrations (a da D-PROD-183 entra no "todas menos a CONTRACT dele").
 
+**Nota de aplicação (2026-11-13).**
+- **Ordem real:** a PR #261 foi mergeada pelo proprietário às 17:18 UTC, antes da aplicação. Isso fechou o caminho A, que agora recusa com `CONTRACT_INESPERADO` (conferido).
+- **GO:** o proprietário autorizou com as palavras "go go gog gogogogog" e, depois que a 1ª tentativa expirou na confirmação do conector, "pronto".
+- **Aplicação:** pelo caminho B, uma transação, às 17:45:35 UTC.
+- **Preflight:** 1 tipo de tarefa no banco inteiro (1 cliente) tinha as 4 flags `true`, e foi isso que se perdeu (escolha (b) do runbook). Impressão `5194f45d42b0`.
+- **Postcheck:** 42/0 e 9 colunas. Segurança: 0 alertas.
+- **Registro completo:** runbook §11.
+
 **Relatório:** [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md).
 
-## D-PROD-185 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
+## D-PROD-184 — Estoque P1-02: endurecimento do motor único (M2–M6), sem schema
 
-> **Numeração:** a D-PROD-184 fica reservada para a PR #260 (Estoque P1-02, rascunho), que registrou uma D-PROD-183 e, pela convenção, renumera ao entrar depois da PR #261. A D-PROD-186 fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
+> **Numeração:** a PR #260 registrou esta decisão como D-PROD-183, mas a PR #261 (Tipo de Tarefa, Fatia LIMPEZA) entrou antes na `main` com a D-PROD-183. Pela convenção, quem entra depois renumera: esta decisão é a **D-PROD-184**. A D-PROD-183 continua sendo da PR #261.
+
+**Contexto.** Esta decisão executa o contrato do Estoque P1 (§2 M2–M6, §6.2), ratificado pela D-PROD-177. Não há DDL, migration nem frontend.
+
+**Decisões.**
+1. **M2.** O motor ganha parâmetros opcionais: a origem `entrada_estoque`, `motivo`, `tipoDetalhado` `entrada_*`, `procedencia` em allowlist e o estorno com `efeito: 'ENTRADA'`.
+   - Sem os parâmetros novos, o resultado é idêntico ao da P3.
+   - A origem nova **não tem escritor nem reconciliação** até a P1-05a. Por isso fica fora de `ORIGENS_PROTOCOLO`, e um teste garante que nenhum arquivo de `backend/src` a cita fora do motor.
+2. **M3.** O domínio das unidades é {KG, SACO, L}.
+   - No cadastro de Produto, o erro é 400 `REQUEST_VALIDATION_FAILED` (`unidade_invalida`), tratado como erro de entrada.
+   - Na Central, o erro é 422 `OPERACAO_VALORES_INVALIDOS`: `unidade_produto_invalida` quando o Produto é legado, `unidade_incompativel` quando o item não combina com o Produto.
+   - Produto legado continua editável sem trocar a unidade.
+3. **M4.** Custo ou valor negativo é recusado pelo nome (`custo_negativo` / `valor_negativo`), antes de qualquer leitura. Zero é aceito.
+4. **M5.** O estorno exige o original `Ativa`, sem filho e com a mesma empresa e produto. Exige também a camada com a mesma empresa, produto e local, lida `FOR UPDATE`. A marcação do original é CAS com contagem conferida (409 `CONCURRENCY_CONFLICT` `original_alterado`).
+   - **Pendente do proprietário (I2):** o bloqueio de Produto legado também vale em criar ou substituir rascunho, e a troca UN→KG com histórico continua permitida. Ambos ficam como estão até decisão própria.
+5. **M6 / B-03.** O recibo idempotente guarda JSON puro, e o 201 devolve esse mesmo objeto. O replay fica `deepEqual` ao primeiro envio. O fingerprint e os recibos antigos não mudam.
+6. **Release.** Dois SELECTs de pré-checagem, somente leitura, em `scripts/ops/sql-editor/estoque-p1-02-precheck-*.sql`. Rodam em produção só com GO explícito. `RELEASE_READY=NÃO` até lá.
+
+**Nota posterior (R1 corretiva da PR #260).**
+- O item 4 vale também para `estornarSaida`, o cancelamento de abastecimento. A ordem de trava é produtos → camadas `FOR UPDATE` (ordem de id) → original `FOR UPDATE`, igual à do estorno em lote, e tudo é validado antes da primeira escrita.
+- A pré-leitura do Patrimônio deixou de travar o original.
+- `vinculo_divergente` e `camada_divergente` entraram como motivos de `ABASTECIMENTO_CANCELAMENTO_BLOQUEADO`.
+- O SELECT de estornos cobre FINANCEIRO e ABASTECIMENTO.
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
+
+## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a PR #263 (Estoque P1-03, em rascunho) já usa a D-PROD-185. Para não duplicar, esta decisão é a **D-PROD-186**, e a **D-PROD-187** fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) · **Branch:** `feat/categoria-manejo-enxugar`
 
@@ -6676,7 +6712,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - Formulário de Lote: `Lote.categoria` recebe a oficial derivada e, sem derivação, o `nome`. A busca da categoria no lote é por nome, sigla, sexo e espécie.
    - Regras de exclusão: o bloqueio por id em `Lote` continua primeiro; depois, uma regra por entidade casando o `nome` **e** a oficial derivada (`categoria_oficial_derivada`, recalculada na hora) com os mesmos campos que a regra antiga de `categoria_oficial` cobria. Duas categorias da mesma faixa oficial se bloqueiam mutuamente (lado seguro); derivação nula nunca casa.
 5. **Dados históricos.** `Lote.categoria`, `Lote.categoria_entrada` e os textos já gravados em movimentações e manejos **não são reescritos**.
-6. **Remoção física.** O `DROP COLUMN` das 15 colunas e a troca do nome físico da tabela para `CADCATEGORIA` (model segue `CategoriaManejo`, com `@@map`) ficam para a **Fatia D**, migration CONTRACT própria e isolada (D-PROD-186), com GO do proprietário dado em 2026-11-13.
+6. **Remoção física.** O `DROP COLUMN` das 15 colunas e a troca do nome físico da tabela para `CADCATEGORIA` (model segue `CategoriaManejo`, com `@@map`) ficam para a **Fatia D**, migration CONTRACT própria e isolada (D-PROD-187), com GO do proprietário dado em 2026-11-13.
 7. **Dados de produção.** As 4 categorias atuais estão sem faixa de idade; sem faixa, não derivam categoria oficial. A faixa delas é preenchida como dado, com a lista do proprietário, junto com a entrada desta fatia no ar. Não há fallback no código.
 8. **Fora do escopo:** trabalho visual (só a remoção dos campos e a faixa num select de componente existente), "Categoria de evolução" (Fatia E, precisa de migration), Cadastro de Lotes, Estoque, Tipo de Atividade e qualquer migration.
 
@@ -6684,4 +6720,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-186 (reservada à Fatia D); D-PROD-184 reservada à PR #260 -->
+<!-- Próxima decisão: D-PROD-188 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D) -->

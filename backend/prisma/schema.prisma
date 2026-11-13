@@ -1098,7 +1098,7 @@ model Fornecedor {
   @@index([cliente_id, empresa_id])
 }
 
-// D-PROD-185 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): `raca`,
+// D-PROD-186 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): `raca`,
 // `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro`
 // SAÍRAM do contrato (API, services, auditoria, UI). Mesmo desenho da
 // D-PROD-181: as 15 colunas ficam DORMENTES com `@ignore` — fora do Prisma

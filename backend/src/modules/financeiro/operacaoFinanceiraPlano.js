@@ -66,6 +66,14 @@ export const TIPOS_ITEM = Object.freeze(['MERCADORIA', 'SERVICO']);
 export const UNIDADES = Object.freeze(['KG', 'SACO', 'UN', 'L']);
 /** Unidade de estoque do item (nas mensagens): `L` para item em litros; kg para KG e SACO. */
 const unidadeDeEstoqueDoItem = (it) => (it?.unidade === 'L' ? 'L' : 'kg');
+/**
+ * D-PROD-177 (Estoque P1-02, contrato §5 C1): unidades de estoque do PRODUTO
+ * que geram movimento físico. `UN` (só de serviço) e qualquer outro texto do
+ * cadastro legado, não. Espelho de `UNIDADES_ESTOQUE` (produtos/produtoService.js).
+ */
+const UNIDADES_ESTOQUE_PRODUTO = Object.freeze(['KG', 'SACO', 'L']);
+/** Unidades do PRODUTO compatíveis com cada unidade do item de mercadoria (sem conversão L ↔ KG). */
+const PRODUTO_ACEITA_ITEM = Object.freeze({ KG: ['KG', 'SACO'], SACO: ['SACO'], L: ['L'] });
 export const MAX_ITENS = 200;
 export const MAX_RATEIOS = 50;
 /** D-PROD-156: linhas do rateio por item (por item e no documento inteiro). */
@@ -298,6 +306,12 @@ export const planejarOperacao = (doc, referencias) => {
   const casas = referencias.casas;
   const brutos = doc.itens.map((it, indice) => planejarItem(it, indice, referencias, casas));
   const valorBruto = doc.conteudo === 'COM_PRODUTOS' ? somar(brutos.map((i) => i.valor_total)) : dec(doc.valor_bruto);
+  // D-PROD-177 (P1-02, M4): desconto e acréscimo negativos nunca entram no rateio
+  // nem no custo (o schema da rota já os recusa; o documento lido do banco, não).
+  // Zero continua permitido.
+  for (const [campo, v] of [['valor_desconto', doc.valor_desconto], ['valor_acrescimo', doc.valor_acrescimo]]) {
+    if (dec(v).lt(0)) throw valoresInvalidos(`${campo} não pode ser negativo; nada foi gravado`, { field: campo, reason: 'valor_negativo' });
+  }
   for (const [campo, v] of [['valor_bruto', valorBruto], ['valor_desconto', doc.valor_desconto], ['valor_acrescimo', doc.valor_acrescimo]]) {
     if (dec(v).gt(LIMITE_DINHEIRO)) throw valoresInvalidos(`${campo} acima do limite (99.999.999.999.999,9999)`, { field: campo, reason: 'valor_excede_limite' });
   }
@@ -375,11 +389,15 @@ export const planejarOperacao = (doc, referencias) => {
 const planejarItem = (it, indice, referencias, casas) => {
   const extra = { colecao: 'itens', indice };
   if (!it.quantidade.gt(0)) throw valoresInvalidos('a quantidade deve ser maior que zero', { field: 'quantidade', reason: 'quantidade_nao_positiva', ...extra });
+  // D-PROD-177 (P1-02, M4): valor unitário negativo é recusado pelo nome (antes
+  // caía em `item_valor_zero`, com texto de "zero"). Zero segue em `item_valor_zero`.
+  if (dec(it.valor_unitario).lt(0)) throw valoresInvalidos('o valor unitário não pode ser negativo; nada foi gravado', { field: 'valor_unitario', reason: 'valor_negativo', ...extra });
   const valorTotal = arredondar(it.quantidade.times(it.valor_unitario), casas);
   if (valorTotal.gt(LIMITE_DINHEIRO)) throw valoresInvalidos('o subtotal do item está acima do limite', { field: 'valor_total', reason: 'valor_excede_limite', ...extra });
   if (!valorTotal.gt(0)) throw valoresInvalidos('o subtotal do item (quantidade × valor unitário) arredondado na moeda é zero', { field: 'valor_unitario', reason: 'item_valor_zero', ...extra });
   if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
+  if (produto) exigirUnidadeCompativel(it, produto, extra);
   // D-PROD-162: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
   const fator = it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
@@ -388,6 +406,36 @@ const planejarItem = (it, indice, referencias, casas) => {
   const acima = [['valor_total', valorTotal], ['quantidade', kg]].find(([, v]) => dec(v).gt(LIMITE_ESTOQUE));
   if (acima) throw excedeLimiteEstoque(acima[0], extra, it);
   return { ...it, valor_total: valorTotal, fator_kg: fator, quantidade_estoque: kg };
+};
+
+/**
+ * D-PROD-177 (P1-02, contrato §5 C1), no planejamento — onde o Produto é
+ * conhecido —, ANTES do fator e de qualquer escrita:
+ *  - o Produto tem `unidade_principal_estoque` ∈ {KG, SACO, L}; o legado (UN,
+ *    minúsculas, outro texto) não gera movimento físico → `unidade_produto_invalida`;
+ *  - item KG → Produto KG ou SACO; item SACO → Produto SACO; item L ⇔ Produto L
+ *    → senão `unidade_incompativel`. Nada de conversão L ↔ KG.
+ * O peso do SACO (> 0) continua conferido como antes: sem peso o fator é 0 e a
+ * quantidade em kg zera (`quantidade_estoque_zero`; o plano KG/SACO fica byte a
+ * byte o de antes). O serviço já recusa antes, nas referências, o SACO sem
+ * Produto SACO com peso e o L × não-L (`OPERACAO_REFERENCIA_INVALIDA`/
+ * `unidade_invalida`); aqui é a garantia do próprio plano. Produto ausente do
+ * mapa é recusa de referência do serviço, não daqui.
+ * @param {any} it @param {any} produto @param {Record<string, unknown>} extra
+ */
+const exigirUnidadeCompativel = (it, produto, extra) => {
+  const unidadeProduto = produto.unidade_principal_estoque ?? null;
+  if (!UNIDADES_ESTOQUE_PRODUTO.includes(unidadeProduto)) {
+    throw valoresInvalidos('o produto tem unidade de estoque fora de KG, SACO ou L (cadastro legado) e não movimenta estoque; procure o administrador antes de lançar este produto; nada foi gravado', {
+      field: 'unidade', reason: 'unidade_produto_invalida', ...extra, unidade_produto: unidadeProduto, permitidos: [...UNIDADES_ESTOQUE_PRODUTO],
+    });
+  }
+  const aceitas = PRODUTO_ACEITA_ITEM[/** @type {'KG'|'SACO'|'L'} */ (it.unidade)] ?? [];
+  if (!aceitas.includes(unidadeProduto)) {
+    throw valoresInvalidos('unidade do item incompatível com a do produto (KG: produto em KG ou SACO; SACO: produto em SACO; L: só produto em L); nada foi gravado', {
+      field: 'unidade', reason: 'unidade_incompativel', ...extra, unidade: it.unidade, unidade_produto: unidadeProduto,
+    });
+  }
 };
 
 const excedeLimiteEstoque = (field, extra, it) => {
@@ -479,6 +527,14 @@ const planejarCustoLiquido = (doc, itens, casas) => {
     if (doc.direcao !== 'PAGAR' || it.tipo_item !== 'MERCADORIA') return linha;
     const kg = it.quantidade_estoque;
     const custoKg = arredondar(liquido.dividedBy(kg), CASAS_CUSTO);
+    // D-PROD-177 (P1-02, M4): o custo por unidade do lote nunca é negativo (as
+    // tabelas de consumo têm CHECK custo_unitario >= 0 e o banco não confere a
+    // camada). Líquido > 0 e kg > 0 já o garantem; a recusa é explícita.
+    if (custoKg.lt(0)) {
+      throw valoresInvalidos(`o custo por ${unidadeDeEstoqueDoItem(it)} desta linha, depois do rateio do desconto e do acréscimo, é negativo; nada foi gravado`, {
+        field: 'valor_unitario', reason: 'custo_negativo', ...extra, valor_liquido: texto(liquido, casas), quantidade_estoque: texto(kg, CASAS_QUANTIDADE), custo_kg: texto(custoKg, CASAS_CUSTO),
+      });
+    }
     const acima = [['valor_total', liquido], ['valor_unitario', custoKg]].find(([, v]) => v.gt(LIMITE_ESTOQUE));
     if (acima) throw excedeLimiteEstoque(acima[0], { colecao: 'itens', indice }, it);
     const bruto = liquido.minus(kg.times(custoKg));

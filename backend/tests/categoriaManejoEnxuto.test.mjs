@@ -1,5 +1,5 @@
 /**
- * D-PROD-185 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): o contrato de
+ * D-PROD-186 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): o contrato de
  * CategoriaManejo fica com nome, sigla, espécie, sexo, faixa de idade e o
  * vínculo com o ícone do catálogo global. `raca`, `categoria_oficial`,
  * `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro` saem da API: cliente
@@ -132,7 +132,7 @@ const esperar400 = (r, reason) => {
   if (reason) assert.equal(r.json().reason, reason, r.body);
 };
 
-describe('CategoriaManejo enxuta (D-PROD-185)', () => {
+describe('CategoriaManejo enxuta (D-PROD-186)', () => {
   test('E-00 a lista legada é fechada: raca, categoria_oficial, ganho_peso_anual_kg e os 12 gmd_*', () => {
     assert.deepEqual(
       [...CHAVES_LEGADAS_IGNORADAS].sort(),

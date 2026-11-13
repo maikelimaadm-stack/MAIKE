@@ -27,7 +27,7 @@ const erroNaoEncontrado = () => new AppError('CATEGORIA_MANEJO_NOT_FOUND', 'Cate
 const ENTIDADE = 'CategoriaManejo';
 
 /**
- * D-PROD-185 (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) — chaves que SAÍRAM do
+ * D-PROD-186 (MAIKE-CATEGORIA-MANEJO-ENXUGAR, Fatia C) — chaves que SAÍRAM do
  * contrato de CategoriaManejo. As colunas estão `@ignore` no schema (fora do
  * Prisma Client; DROP na Fatia D, migration CONTRACT isolada), então o
  * allowlist de `exigirSomenteColunasGravaveis` as recusaria com 400. Mesmo
@@ -195,7 +195,7 @@ const validarVinculoCatalogo = async (tx, dados, existente = null) => {
 
 /**
  * Saída pública (resposta e auditoria) com lista EXPLÍCITA de campos
- * (D-PROD-185): o tenant não sai, e as colunas dormentes também não, mesmo
+ * (D-PROD-186): o tenant não sai, e as colunas dormentes também não, mesmo
  * que alguém passe aqui uma linha lida sem a seleção do repositório.
  * @param {Record<string, unknown>} registro
  */

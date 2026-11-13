@@ -186,7 +186,7 @@ describe('CM1/CM2 — a página de categorias de manejo não monta payload', () 
     expect(fonte).not.toMatch(/\.toUpperCase\(\)\s*,/);
   });
 
-  it('CM2 — campos removidos do cadastro (D-PROD-185) não voltam à página, ao service, ao form nem à porta', () => {
+  it('CM2 — campos removidos do cadastro (D-PROD-186) não voltam à página, ao service, ao form nem à porta', () => {
     // Raça, categoria oficial (texto), ganho anual e os doze GMDs saíram do
     // contrato. Comentários são ignorados por `codigoDe`; a porta nativa só
     // filtra por lista positiva (`CAMPOS_GRAVAVEIS`), sem nomear os legados.
