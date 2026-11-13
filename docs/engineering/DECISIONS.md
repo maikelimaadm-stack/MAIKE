@@ -6628,6 +6628,12 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 5. **M6 / B-03.** O recibo idempotente guarda JSON puro, e o 201 devolve esse mesmo objeto. O replay fica `deepEqual` ao primeiro envio. O fingerprint e os recibos antigos não mudam.
 6. **Release.** Dois SELECTs de pré-checagem, somente leitura, em `scripts/ops/sql-editor/estoque-p1-02-precheck-*.sql`. Rodam em produção só com GO explícito. `RELEASE_READY=NÃO` até lá.
 
+**Nota posterior (R1 corretiva da PR #260).**
+- O item 4 vale também para `estornarSaida`, o cancelamento de abastecimento. A ordem de trava é produtos → camadas `FOR UPDATE` (ordem de id) → original `FOR UPDATE`, igual à do estorno em lote, e tudo é validado antes da primeira escrita.
+- A pré-leitura do Patrimônio deixou de travar o original.
+- `vinculo_divergente` e `camada_divergente` entraram como motivos de `ABASTECIMENTO_CANCELAMENTO_BLOQUEADO`.
+- O SELECT de estornos cobre FINANCEIRO e ABASTECIMENTO.
+
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
 <!-- Próxima decisão: D-PROD-184 -->

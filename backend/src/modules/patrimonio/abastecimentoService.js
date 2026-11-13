@@ -72,6 +72,9 @@ const MENSAGENS_BLOQUEIO_CANCELAMENTO = Object.freeze({
   devolucao_excede_entrada: 'a devolução ultrapassaria a entrada de um lote consumido; nada foi alterado',
   estoque_excede_limite: 'a devolução passaria do limite das colunas de estoque; nada foi alterado',
   unidade_mudou: 'a unidade de estoque do Produto mudou desde o abastecimento: o estorno exato não é seguro; nada foi alterado',
+  // P1-02 R1 (M5): dado incoerente no banco; nunca é corrigido nem ignorado pelo cancelamento.
+  vinculo_divergente: 'o movimento de saída deste abastecimento é de outro produto ou outra fazenda: o estorno exato não é seguro; nada foi alterado',
+  camada_divergente: 'um lote consumido por este abastecimento é de outro produto, outra fazenda ou outro local: o estorno exato não é seguro; nada foi alterado',
 });
 /** @param {keyof typeof MENSAGENS_BLOQUEIO_CANCELAMENTO} reason @param {Record<string, unknown>} [extra] */
 const cancelamentoBloqueado = (reason, extra = {}) =>
@@ -437,8 +440,10 @@ const traduzirErroDoEstorno = (erro) => {
   const e = /** @type {any} */ (erro);
   if (!(e instanceof AppError)) return erro;
   if (e.code === 'ESTOQUE_JA_CONSUMIDO') {
-    /** @type {Array<'lote_indisponivel_para_devolucao'|'devolucao_excede_entrada'|'fatias_inconsistentes'>} */
-    const conhecidos = ['lote_indisponivel_para_devolucao', 'devolucao_excede_entrada', 'fatias_inconsistentes'];
+    // P1-02 R1 (M5): o original revalidado sob a trava do motor.
+    if (e.details?.reason === 'original_ja_estornado' || e.details?.reason === 'original_nao_ativo') return cancelamentoBloqueado('movimento_estornado');
+    /** @type {Array<'lote_indisponivel_para_devolucao'|'devolucao_excede_entrada'|'fatias_inconsistentes'|'vinculo_divergente'|'camada_divergente'>} */
+    const conhecidos = ['lote_indisponivel_para_devolucao', 'devolucao_excede_entrada', 'fatias_inconsistentes', 'vinculo_divergente', 'camada_divergente'];
     const reason = conhecidos.find((r) => r === e.details?.reason) ?? 'fatias_inconsistentes';
     return cancelamentoBloqueado(reason, e.details?.lote_id ? { lote_id: e.details.lote_id } : {});
   }
@@ -497,9 +502,13 @@ export const cancelar = async (contexto, id, corpo) => {
             if (unidadeEfetivaDoEstoque(produto.unidade_principal_estoque) !== unidadeEfetivaDoEstoque(antes.unidade)) {
               throw cancelamentoBloqueado('unidade_mudou', { unidade_abastecimento: antes.unidade, unidade_produto: produto.unidade_principal_estoque });
             }
-            const [orig] = /** @type {any[]} */ (
-              await tx.$queryRaw`SELECT id, status, movimento_filho_id FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${antes.movimentacao_estoque_id} FOR UPDATE`
-            ); // R10
+            // Pré-leitura SEM trava, só para responder os motivos que a tela já conhece. A trava do
+            // original (R10) é do motor: `estornarSaida` trava as camadas (R9) e DEPOIS o original,
+            // a mesma ordem do estorno em lote da Central (P1-02 R1), e revalida tudo sob a trava.
+            const orig = await tx.movimentacaoEstoque.findUnique({
+              where: { cliente_id_id: { cliente_id: cli, id: antes.movimentacao_estoque_id } },
+              select: { id: true, status: true, movimento_filho_id: true },
+            });
             if (!orig) throw cancelamentoBloqueado('movimento_inexistente');
             if (orig.status !== 'Ativa' || orig.movimento_filho_id) throw cancelamentoBloqueado('movimento_estornado');
             const fatias = await tx.abastecimentoBemConsumoLote.findMany({ where: { cliente_id: cli, abastecimento_id: id }, orderBy: { ordem: 'asc' } });

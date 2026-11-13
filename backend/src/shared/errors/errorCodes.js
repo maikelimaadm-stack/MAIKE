@@ -195,7 +195,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ABASTECIMENTO_PRODUTO_UNIDADE_INCOMPATIVEL: { http: 422, meaning: 'o estoque do Produto não está em L, KG nem SACO (details.unidade); nada foi gravado' },
   ABASTECIMENTO_EXCEDE_CAPACIDADE: { http: 422, meaning: 'a quantidade em litros passa da capacidade nominal do tanque (details.capacidade_litros); só conferida para Produto em L; nada foi gravado' },
   ABASTECIMENTO_DATA_FUTURA: { http: 422, meaning: 'data do abastecimento posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado' },
-  ABASTECIMENTO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o estorno exato não é seguro agora (details.reason: produto_mudou_de_fazenda | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | unidade_mudou); nada foi alterado' },
+  ABASTECIMENTO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o estorno exato não é seguro agora (details.reason: produto_mudou_de_fazenda | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | unidade_mudou | vinculo_divergente | camada_divergente); nada foi alterado' },
   MEDIDOR_LEITURA_ACIMA_POSTERIOR: { http: 422, meaning: 'a leitura informada é maior que uma leitura de data posterior do mesmo medidor (details.leitura_posterior/data_posterior/origem_posterior); nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
     http: 409,

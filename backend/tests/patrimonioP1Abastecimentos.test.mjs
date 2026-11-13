@@ -457,7 +457,7 @@ describe('P1-02 — estoque, capacidade e idempotência', () => {
 });
 
 describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
-  test('AB11: cancelamento bloqueado — devolução acima da entrada, lote Estornado (compra P3 cancelada após reposição), produto movido de fazenda; nada alterado', async () => {
+  test('AB11: cancelamento bloqueado — original/camada divergentes (P1-02 R1), devolução acima da entrada, lote Estornado (compra P3 cancelada após reposição), produto movido de fazenda; nada alterado', async () => {
     const s = await montarAbastecimento(app);
     const compra = await s.compraP3(s.e1, s.diesel, s.local2, { quantidade: '100.0000', preco: '5.00' });
     const L = compra.lote_id;
@@ -477,6 +477,14 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
       () => prisma().$executeRaw`UPDATE "Produto" SET estoque_atual = ${estoqueAtualOriginal}::numeric WHERE id = ${s.diesel.id}`);
     await bloqueadoPor(() => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET status = 'Estornada' WHERE id = ${d.movimentacao.id}`, 'movimento_estornado',
       () => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET status = 'Ativa' WHERE id = ${d.movimentacao.id}`);
+    // MAIKE-ESTOQUE-P1-02 R1 (M5): o motor revalida o original e as camadas SOB TRAVA, antes de escrever.
+    const restaurarMov = () => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET produto_id = ${s.diesel.id}, empresa_id = ${s.e1.id} WHERE id = ${d.movimentacao.id}`;
+    const restaurarLote = () => prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET produto_id = ${s.diesel.id}, empresa_id = ${s.e1.id}, local_estoque_id = ${s.local2.id} WHERE id = ${L}`;
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET produto_id = ${s.gasolina.id} WHERE id = ${d.movimentacao.id}`, 'vinculo_divergente', restaurarMov);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "MovimentacaoEstoque" SET empresa_id = ${s.e2.id} WHERE id = ${d.movimentacao.id}`, 'vinculo_divergente', restaurarMov);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET produto_id = ${s.gasolina.id} WHERE id = ${L}`, 'camada_divergente', restaurarLote);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET empresa_id = ${s.e2.id} WHERE id = ${L}`, 'camada_divergente', restaurarLote);
+    await bloqueadoPor(() => prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET local_estoque_id = ${s.local.id} WHERE id = ${L}`, 'camada_divergente', restaurarLote);
 
     // (a) reposição por fora: o lote volta a 100 L → devolver 80 passaria a entrada
     await prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET quantidade_disponivel = quantidade_entrada WHERE id = ${L}`;

@@ -19,7 +19,11 @@
  *      de escrever); e o CAS do original (alterado entre a leitura e a
  *      marcação, por gatilho na própria transação) → 409 CONCURRENCY_CONFLICT
  *      `original_alterado` DEPOIS das escritas, tudo desfeito;
- *  I6. `estornarEntrada` e `estornarSaida`: as mesmas guardas e o mesmo CAS.
+ *  I6. `estornarEntrada` e `estornarSaida`: as mesmas guardas e o mesmo CAS;
+ *  I7. R1 corretiva: `estornarSaida` (caminho do cancelamento de abastecimento)
+ *      confere o vínculo do original (empresa/produto) e cada camada das fatias
+ *      (empresa/produto/local, lida FOR UPDATE) ANTES de escrever; várias
+ *      fatias voltam cada uma ao seu lote.
  */
 
 import { test, describe, before, after } from 'node:test';
@@ -28,7 +32,7 @@ import assert from 'node:assert/strict';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { montarTenant, prisma } from './gestaoP3Cenario.mjs';
 import {
-  OPCOES_TX, argsEstornoEmLote, argsEstornoEntrada, conferirInvariantes, ctxDe, entrar, estadoFisico, estornarLote, estornarUmaEntrada, itemDaEntrada,
+  D, OPCOES_TX, argsEstornoEmLote, argsEstornoEntrada, conferirInvariantes, ctxDe, entrar, estadoFisico, estornarLote, estornarUmaEntrada, itemDaEntrada,
   itemDaSaida, localDe, q4, recusaAntesDeEscrever, resumoErro, sairFifo,
 } from './estoqueP1MCenario.mjs';
 import * as motor from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
@@ -166,7 +170,7 @@ describe('I2 — o original tem de estar Ativa, sem filho e ser do produto e da 
     assert.deepEqual(semOriginal.r, [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', null, null]);
     const semOriginal2 = await recusaEntrada(s, e, { ...c, movimento: { ...c.movimento, id: 'nao-existe-p102' } });
     assert.deepEqual(semOriginal2.r, [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', null, null]);
-    // venda: original Cancelada → original_nao_ativo (estornarSaida não confere vínculo; ver relatório)
+    // venda: original Cancelada → original_nao_ativo (o vínculo de estornarSaida é provado no I7)
     const v = await sairFifo(s, e, e.sal, '1.0000');
     await alterarMovimento(v.movimento.id, { status: 'Cancelada' });
     assert.deepEqual((await recusaEmLote(s, e, [itemDaSaida(v, e.sal, s.local)], { direcao: 'RECEBER' })).r, [409, JA, 'itens', 'original_nao_ativo']);
@@ -328,3 +332,83 @@ describe('I6 — estornarEntrada e estornarSaida: guardas e CAS', () => {
     await conferirInvariantes(s, 'I6');
   });
 });
+
+describe('I7 — estornarSaida: vínculo do original e camada de cada fatia (R1 corretiva)', () => {
+  test('original de outro produto/empresa → vinculo_divergente; fatia em lote de outra empresa/produto/local → camada_divergente; lote inexistente; nada muda; corrigido, devolve cada fatia ao seu lote', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    // Cada rodada acrescenta duas camadas de 10 kg; a saída FIFO de 14 kg consome a 1ª camada
+    // ainda cheia (10) e 4 da seguinte. `a`/`b` são os lotes REAIS das fatias, não os recém-criados.
+    const comLotes = async () => {
+      await entrar(s, e, e.sal);
+      await entrar(s, e, e.sal);
+      const v = await sairFifo(s, e, e.sal, '14.0000');
+      assert.equal(v.fatias.length, 2, 'a saída consome duas camadas');
+      return { a: { lote: { id: v.fatias[0].lote_id } }, b: { lote: { id: v.fatias[1].lote_id } }, v };
+    };
+    // original adulterado (vínculo)
+    for (const [rotulo, data] of [['outro produto', { produto_id: e.milho.id }], ['outra empresa', { empresa_id: s.e2.id }]]) {
+      const { a, b, v } = await comLotes();
+      await alterarMovimento(v.movimento.id, data);
+      const r = await recusaSaida(s, e, v, e.sal.id);
+      assert.deepEqual(r.r, [409, JA, 'itens', 'vinculo_divergente'], `original ${rotulo}`);
+      assert.deepEqual([q4((await lote(a.lote.id)).quantidade_disponivel), q4((await lote(b.lote.id)).quantidade_disponivel)], ['0.0000', '6.0000'], `${rotulo}: lotes intocados`);
+      assert.equal((await movimento(v.movimento.id)).status, 'Ativa', `${rotulo}: original intocado`);
+      await alterarMovimento(v.movimento.id, { produto_id: e.sal.id, empresa_id: e.id });
+      await estornarSaidaOk(s, e, v);
+    }
+    // camada adulterada (a SEGUNDA fatia: prova que a validação de todas vem antes da 1ª escrita)
+    for (const [rotulo, data] of [['outra empresa', { empresa_id: s.e2.id }], ['outro produto', { produto_id: e.milho.id }], ['outro local', { local_estoque_id: s.local2.id }]]) {
+      const { a, b, v } = await comLotes();
+      await alterarLote(b.lote.id, data);
+      const r = await recusaSaida(s, e, v, e.sal.id);
+      assert.deepEqual(r.r, [409, JA, 'itens', 'camada_divergente'], `camada ${rotulo}`);
+      assert.deepEqual(Object.keys(r.details).sort(), ['colecao', 'field', 'indice', 'item_ordem', 'lote_id', 'reason'], `${rotulo}: details só com ids da linha`);
+      assert.equal(r.details.lote_id, b.lote.id);
+      assert.equal(q4((await lote(a.lote.id)).quantidade_disponivel), '0.0000', `${rotulo}: a 1ª fatia NÃO foi devolvida`);
+      await alterarLote(b.lote.id, { empresa_id: e.id, produto_id: e.sal.id, local_estoque_id: s.local.id });
+      await estornarSaidaOk(s, e, v);
+    }
+    // fatia apontando para lote inexistente
+    const { v } = await comLotes();
+    const sumida = { ...v, fatias: [v.fatias[0], { ...v.fatias[1], lote_id: 'lote-que-nao-existe-p102' }] };
+    assert.deepEqual((await recusaSaida(s, e, sumida, e.sal.id)).r, [409, JA, 'itens', 'lote_indisponivel_para_devolucao']);
+    // estorno válido de duas fatias: cada uma volta ao SEU lote, original Estornada com filho, cache volta
+    const antes = q4((await prisma().produto.findUnique({ where: { id: e.sal.id } })).estoque_atual);
+    const res = await estornarSaidaOk(s, e, v);
+    const lotes = await Promise.all(v.fatias.map((f) => lote(f.lote_id)));
+    assert.deepEqual(lotes.map((l) => [q4(l.quantidade_disponivel), l.status]), [['10.0000', 'Disponivel'], ['10.0000', 'Disponivel']]);
+    const orig = await movimento(v.movimento.id);
+    assert.deepEqual([orig.status, orig.movimento_filho_id], ['Estornada', res.movimento.id]);
+    assert.equal(q4((await prisma().produto.findUnique({ where: { id: e.sal.id } })).estoque_atual), D4(antes, '14'));
+    await conferirInvariantes(s, 'I7');
+  });
+
+  test('outro tenant: a mesma chamada com ids alheios não lê nem escreve o tenant dono', async () => {
+    const s = await montarTenant(app);
+    const t = await montarTenant(app);
+    const e = s.e1;
+    await entrar(s, e, e.sal);
+    const v = await sairFifo(s, e, e.sal, '3.0000');
+    const fotoDono = await estadoFisico(prisma(), s.c);
+    // o tenant `t` tenta estornar a saída do tenant `s` (ids de s, contexto de t)
+    const r = await recusaAntesDeEscrever(t, t.e1.id, [t.e1.sal.id], async (tx) => {
+      const produto = await tx.produto.findUnique({ where: { id: t.e1.sal.id } });
+      await motor.estornarSaida(tx, ctxDe(t), { ...argsEstornoSaida(t, t.e1, v, produto), local: localDe(t.local) });
+    });
+    // fail-closed sem oráculo: para `t`, o original de `s` simplesmente não existe (o mesmo 404 de id inventado)
+    assert.deepEqual(resumoErro(r), [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', null, null]);
+    assert.equal(r.details ?? null, null, 'nada do tenant dono nos details');
+    assert.equal(await estadoFisico(prisma(), s.c), fotoDono, 'tenant dono intocado');
+  });
+});
+
+/** `estornarSaida` numa transação própria com a trava canônica. */
+const estornarSaidaOk = (s, e, v) => prisma().$transaction(async (tx) => {
+  await motor.travarProdutosEstoque(tx, s.c, e.id, [e.sal.id]);
+  const produto = await tx.produto.findUnique({ where: { id: e.sal.id } });
+  const res = await motor.estornarSaida(tx, ctxDe(s), argsEstornoSaida(s, e, v, produto));
+  await motor.numerarMovimentos(tx, s.c, [res.movimento.id]);
+  return res;
+}, OPCOES_TX);
+const D4 = (a, b) => D(a).plus(D(b)).toFixed(4);

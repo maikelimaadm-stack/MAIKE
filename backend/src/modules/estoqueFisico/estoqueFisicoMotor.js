@@ -904,10 +904,20 @@ export const estornarEntrada = async (tx, ctx, a) => {
 };
 
 /**
- * Estorno de SAÍDA (cancelamento de venda): devolve cada fatia ao SEU lote
- * (recusa lote que não esteja 'Disponivel'/'Esgotado' — ex.: 'Estornado' — e
- * devolução acima da entrada), cria 'Entrada' `estorno_venda` ligada ao
- * original e `estoque_atual += kg`.
+ * Estorno de SAÍDA (cancelamento de abastecimento; venda nos testes): devolve
+ * cada fatia ao SEU lote (recusa lote que não esteja 'Disponivel'/'Esgotado' —
+ * ex.: 'Estornado' — e devolução acima da entrada), cria 'Entrada'
+ * `estorno_venda` (ou o tipo da origem) ligada ao original e
+ * `estoque_atual += kg`.
+ * D-PROD-177 (M5, §6.2 item 8; R1 corretiva da P1-02): com os produtos já
+ * travados por quem chama, trava as camadas das fatias (`FOR UPDATE`, em ordem
+ * de id) e DEPOIS o original (`FOR UPDATE`) — a mesma ordem de
+ * `estornarEmLote` —, e valida TUDO antes da primeira escrita: o original
+ * 'Ativa', sem filho, da empresa e do produto do estorno
+ * (`original_*`/`vinculo_divergente`); cada camada existente, da empresa, do
+ * produto e do local do estorno (`camada_divergente`), em situação que
+ * aceita devolução e sem passar da entrada (somando as fatias do mesmo lote).
+ * As escritas seguem com CAS (lote e original).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, item: any, consumos: Array<{estoque_lote_nota_id: string, quantidade: any}>, produto: any,
@@ -923,32 +933,58 @@ export const estornarSaida = async (tx, ctx, a) => {
   if (!devolvido.eq(kg)) {
     throw jaConsumido('as fatias FIFO gravadas não somam a quantidade do item; cancelamento recusado', { item_ordem: a.item.ordem, reason: 'fatias_inconsistentes' });
   }
-  const original = await movimentoOriginal(tx, cli, a.item.movimentacao_estoque_id, { item_ordem: a.item.ordem });
+  // Travas: camadas (em ordem de id) → original. Uma leitura para todas as camadas.
+  const loteIds = unicosDe(a.consumos.map((c) => c.estoque_lote_nota_id)).sort();
+  const lotes = new Map(/** @type {any[]} */ (loteIds.length
+    ? await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel
+        FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`
+    : []).map((l) => [l.id, l]));
+  const [original] = /** @type {any[]} */ (a.item.movimentacao_estoque_id
+    ? await tx.$queryRaw`SELECT id, status, movimento_filho_id, empresa_id, produto_id, valor_unitario, valor_total
+        FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${a.item.movimentacao_estoque_id} FOR UPDATE`
+    : []);
+  if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
+  exigirOriginalEstornavel(original, { item_ordem: a.item.ordem }, { empresaId: a.empresaId, produtoId: a.produto.id });
+  // Validação de TODAS as fatias antes da primeira escrita (soma por lote).
+  const linha = { empresaId: a.empresaId, produtoId: a.produto.id, localId: a.local.id };
+  /** @type {Map<string, any>} */
+  const devolverPorLote = new Map();
+  for (const c of a.consumos) {
+    const lote = lotes.get(c.estoque_lote_nota_id);
+    const base = { item_ordem: a.item.ordem, lote_id: c.estoque_lote_nota_id };
+    if (!lote) {
+      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+        ...base, reason: 'lote_indisponivel_para_devolucao', status: null,
+      });
+    }
+    exigirCamadaDaLinha(lote, linha, base);
+    if (!['Disponivel', 'Esgotado'].includes(lote.status)) {
+      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+        ...base, reason: 'lote_indisponivel_para_devolucao', status: lote.status,
+      });
+    }
+    const disp = dec(lote.quantidade_disponivel);
+    const total = (devolverPorLote.get(lote.id) ?? ZERO).plus(dec(c.quantidade));
+    if (disp.plus(total).gt(dec(lote.quantidade_entrada))) {
+      throw jaConsumido('a devolução ultrapassaria a entrada do lote; cancelamento recusado', {
+        ...base, reason: 'devolucao_excede_entrada', entrada: dec(lote.quantidade_entrada).toFixed(CASAS_QUANTIDADE), disponivel: disp.toFixed(CASAS_QUANTIDADE),
+      });
+    }
+    devolverPorLote.set(lote.id, total);
+  }
   const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   if (estoqueAtual.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ colecao: 'itens', indice: a.item.ordem - 1, item_ordem: a.item.ordem, produto_id: a.produto.id });
   }
   const saldoAntes = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.local.id);
-  for (const c of a.consumos) {
-    const lote = await tx.estoqueLoteNota.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: c.estoque_lote_nota_id } } });
-    const base = { item_ordem: a.item.ordem, lote_id: c.estoque_lote_nota_id };
-    if (!lote || !['Disponivel', 'Esgotado'].includes(lote.status)) {
-      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
-        ...base, reason: 'lote_indisponivel_para_devolucao', status: lote?.status ?? null,
-      });
-    }
+  for (const id of [...devolverPorLote.keys()].sort()) {
+    const lote = lotes.get(id);
     const disp = dec(lote.quantidade_disponivel);
-    const novo = disp.plus(dec(c.quantidade));
-    if (novo.gt(dec(lote.quantidade_entrada))) {
-      throw jaConsumido('a devolução ultrapassaria a entrada do lote; cancelamento recusado', {
-        ...base, reason: 'devolucao_excede_entrada', entrada: dec(lote.quantidade_entrada).toFixed(CASAS_QUANTIDADE), disponivel: disp.toFixed(CASAS_QUANTIDADE),
-      });
-    }
     const r = await tx.estoqueLoteNota.updateMany({
-      where: { cliente_id: cli, id: lote.id, status: lote.status, quantidade_disponivel: paraBanco(disp, CASAS_QUANTIDADE) },
-      data: { quantidade_disponivel: paraBanco(novo, CASAS_QUANTIDADE), status: 'Disponivel' },
+      where: { cliente_id: cli, id, status: lote.status, quantidade_disponivel: paraBanco(disp, CASAS_QUANTIDADE) },
+      data: { quantidade_disponivel: paraBanco(disp.plus(devolverPorLote.get(id)), CASAS_QUANTIDADE), status: 'Disponivel' },
     });
-    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: lote.id });
+    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const estorno = await tx.movimentacaoEstoque.create({

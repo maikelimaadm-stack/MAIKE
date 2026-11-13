@@ -61,7 +61,8 @@ Violações de contrato de programação (origem desconhecida, chave fora da all
 | Original da mesma empresa e produto (`vinculo_divergente`) | `:797` |
 | Camada lida `FOR UPDATE`, da mesma empresa, produto e local (`camada_divergente`) | `exigirCamadaDaLinha` em `:807`; `estornarEntrada` em `:856`; `estornarEmLote` em `:1087` (lotes) e `:1096` (originais), em ordem de id |
 | CAS do original com contagem conferida → 409 `CONCURRENCY_CONFLICT` (`original_alterado`) | `marcarOriginalEstornado` em `:827`; UPDATE em lote com `status='Ativa' AND movimento_filho_id IS NULL` em `:1242` |
-| SELECT de pré-checagem dos estornos, somente leitura | `scripts/ops/sql-editor/estoque-p1-02-precheck-estornos-somente-leitura.sql` |
+| `estornarSaida` (cancelamento de abastecimento) com as mesmas guardas: camadas `FOR UPDATE` em ordem de id e depois o original `FOR UPDATE`, vínculo empresa/produto, camada empresa/produto/local, tudo validado antes da 1ª escrita (**R1 corretiva**, §9) | `estoqueFisicoMotor.js:928`, `:937`, `:944`, `:947`, `:960`, `:980`; `abastecimentoService.js:444`, `:505` |
+| SELECT de pré-checagem dos estornos (FINANCEIRO + ABASTECIMENTO), somente leitura | `scripts/ops/sql-editor/estoque-p1-02-precheck-estornos-somente-leitura.sql` |
 
 ### M6 / B-03 — replay determinístico
 
@@ -134,7 +135,7 @@ O helper compartilhado é `estoqueP1MCenario.mjs`.
 Os dois SELECTs são **somente leitura**: um único SELECT cada, sem DDL, sem DML e sem PII. Eles **não foram executados em produção**. Rodar só com GO explícito do proprietário, antes do deploy:
 
 1. `scripts/ops/sql-editor/estoque-p1-02-precheck-unidades-somente-leitura.sql`. Lista, por cliente, os Produtos com unidade fora de {KG, SACO, L}. Esses produtos deixam de entrar como MERCADORIA.
-2. `scripts/ops/sql-editor/estoque-p1-02-precheck-estornos-somente-leitura.sql`. Lista os lançamentos CONFIRMADOS cujo estorno seria recusado.
+2. `scripts/ops/sql-editor/estoque-p1-02-precheck-estornos-somente-leitura.sql`. Lista os documentos CONFIRMADOS cujo estorno seria recusado, separados por origem: lançamentos financeiros e abastecimentos (R1, §9.4). A coluna `efeito` separa o que a P1-02 passa a recusar do que já era recusado.
 
 Resultado `NENHUM` nos dois significa que o deploy não muda nada para os dados atuais. Qualquer outra linha vai para o proprietário. Não corrigir por SQL.
 
@@ -147,11 +148,114 @@ Resultado `NENHUM` nos dois significa que o deploy não muda nada para os dados 
 
 **Desempenho:** a M2 e a M4 só validam em memória. A M5 acrescenta colunas aos SELECTs `FOR UPDATE` que já existiam e um predicado ao UPDATE que já existia. Não há leitura nova por item.
 
-## 9. Bandeiras
+## 9. R1 corretiva (auditoria do arquiteto sobre o HEAD `0f6acc30`)
+
+### 9.1 Causa raiz
+
+A M5 cobria o estorno em lote da Central e `estornarEntrada`, mas não o caminho ativo do cancelamento de abastecimento:
+
+- `abastecimentoService.cancelar` chama `estornarSaida`;
+- `estornarSaida` lia o original sem `{empresaId, produtoId}`, ou seja, sem `vinculo_divergente`;
+- as fatias eram lidas com `findUnique`, sem `FOR UPDATE` e sem `exigirCamadaDaLinha`.
+
+Consequência provada em PostgreSQL real no HEAD antigo:
+- o cancelamento HTTP de um abastecimento cujo movimento original foi adulterado para outro produto respondia **200** e devolvia o estoque;
+- uma fatia em lote de outra empresa, produto ou local era devolvida mesmo assim.
+
+### 9.2 Correção
+
+**`estornarSaida`** (`estoqueFisicoMotor.js:928`). Com os produtos já travados por quem chama, a ordem passa a ser:
+1. trava as camadas das fatias numa única leitura `FOR UPDATE ORDER BY id`;
+2. trava o original `FOR UPDATE`. É a mesma ordem do `estornarEmLote`, então não há inversão entre venda, cancelamento de venda e abastecimento.
+
+Antes da primeira escrita, valida:
+- **original**: `Ativa`, sem filho, da empresa e do produto do estorno (`exigirOriginalEstornavel` com vínculo);
+- **cada fatia**:
+  - lote existente;
+  - empresa, produto e local iguais aos da linha (`exigirCamadaDaLinha`);
+  - situação `Disponivel` ou `Esgotado`;
+  - devolução somada por lote menor ou igual à entrada.
+
+As escritas continuam com CAS no lote e no original. Numeração, AuditLog e cache seguem na mesma transação. Não houve transação nova.
+
+**Abastecimento** (`abastecimentoService.js`):
+- a pré-leitura do original deixou de usar `FOR UPDATE`, porque a trava passou ao motor na ordem canônica;
+- a pré-leitura continua respondendo os motivos que a tela já conhece (`movimento_inexistente` / `movimento_estornado`);
+- tradução dos novos erros do motor:
+  - `original_ja_estornado` / `original_nao_ativo` → `movimento_estornado`, motivo já conhecido;
+  - `vinculo_divergente` e `camada_divergente` → motivos novos de `ABASTECIMENTO_CANCELAMENTO_BLOQUEADO` (409), com mensagem do servidor.
+
+  A tela atual mostra o texto genérico "o estoque de origem mudou" para esses dois. Isso é honesto (recusa, nada alterado), e não houve mudança de frontend.
+
+Não houve mudança de controle de versão nem de checagem da unidade efetiva.
+
+### 9.3 Provas (PostgreSQL 17 real, `connection_limit=3`)
+
+| Teste | RED no HEAD `0f6acc30` | GREEN |
+|---|---|---|
+| `estoqueP1M5EstornoInvariantes` I7: vínculo do original (produto/empresa), camada da 2ª fatia (empresa/produto/local), lote inexistente, duas fatias devolvidas cada uma ao seu lote, outro tenant sem oráculo | falha: "a chamada deveria ter sido recusada" | 8/8 |
+| `estoqueP1M5Concorrencia` K6: espera real no `FOR UPDATE` da camada e no do original, conferida em `pg_stat_activity`; recusa com o estado novo antes de escrever; dois estornos do mesmo original fora do protocolo → um só | 2 falhas | 7/7, K5 sem deadlock |
+| `patrimonioP1Abastecimentos` AB11: HTTP, original de outro produto/empresa → `vinculo_divergente`; lote de outro produto/empresa/local → `camada_divergente`; nada alterado | **200** (cancelou) onde devia dar 409 | 15/15 |
+| `estoqueP1PrecheckEstornosSql` (novo): o `.sql` real, numa transação READ ONLY | — | 1/1 |
+
+Regressão verde: `patrimonioP1AbastecimentosConcorrencia` (11), `…Seguranca` (8), `…ContratoTela` (3), `patrimonioSimplificaAbastecimentos` (10), `gestaoP3Rodada2` (13), mais as demais suítes da P3, M2–M6 e do Patrimônio na CI `full`.
+
+### 9.4 Pré-checagem dos estornos ampliada
+
+`estoque-p1-02-precheck-estornos-somente-leitura.sql` continua sendo um único SELECT, agora sobre:
+- **FINANCEIRO**: `OperacaoFinanceira` CONFIRMADO, item MERCADORIA, lote da compra e `OperacaoFinanceiraConsumoLote`;
+- **ABASTECIMENTO**: `AbastecimentoBem` CONFIRMADO, `movimentacao_estoque_id` e `AbastecimentoBemConsumoLote` → `EstoqueLoteNota`.
+
+Motivos detectados:
+- original inexistente, não ativo ou já estornado;
+- `vinculo_divergente`;
+- `camada_divergente`;
+- fatias que não fecham, lote sem devolução possível e devolução acima da entrada.
+
+A coluna `efeito` separa `NOVA_RECUSA`, o impacto real do release, de `JA_RECUSAVA`. A compra com lote já consumido fica fora: é recusa normal, não dado incoerente. A saída tem só ids técnicos e contagens.
+
+Validação:
+- o teste automatizado roda o arquivo numa transação READ ONLY (`transaction_read_only=on`, nunca commita);
+- dados limpos (2 abastecimentos, um com 2 fatias, e 1 compra) dão só `NENHUM`;
+- abastecimento adulterado dá `ABASTECIMENTO/NOVA_RECUSA/vinculo_divergente`, e o cancelamento real recusa com o mesmo motivo;
+- camadas adulteradas aparecem nas duas origens;
+- o estado do banco fica idêntico antes e depois;
+- no `psql`, `BEGIN READ ONLY; \i …; ROLLBACK` deu exit 0 nos dois arquivos.
+
+**Produção não foi consultada; o GO continua pendente.**
+
+### 9.5 I2: decisão do proprietário, não implementada
+
+Fatos verificados:
+- `conferirTrocaDeUnidade` bloqueia só trocas que envolvem L e unidade não aceita por tanque. **UN→KG com histórico físico passa.**
+- Rascunho de MERCADORIA com Produto legado é recusado (422 `unidade_produto_invalida`), porque o plano é o mesmo da confirmação.
+- Retificação de lançamento CONFIRMADO que mantém a linha de Produto legado é recusada com 422 e a mensagem "procure o administrador". Porém, a elegibilidade (`avaliarElegibilidade`) continua respondendo `editar.permitido=true`.
+  - Não alterei isso: bloquear a edição inteira impediria a saída legítima, que é substituir a linha.
+  - Uma correção fina da elegibilidade é escolha de política, ligada ao I2.
+- Cancelar e excluir não passam pelo plano e continuam funcionando.
+
+Recomendação arquitetural, como **proposta** e não implementada:
+1. manter o rascunho com Produto legado fail-closed até a unidade ser regularizada;
+2. recusar UN→KG (e qualquer troca a partir de unidade fora do domínio) quando o Produto tiver saldo, camada, movimento ou item de lançamento;
+3. preservar KG↔SACO e as regras de L da D-PROD-162;
+4. nunca converter estoque ou valor por inferência.
+
+Critério operacional de release:
+- o SELECT de unidades mostra por cliente, em `itens_por_status`, quantos itens CONFIRMADOS ficariam presos;
+- com `NENHUM`, nenhuma tela mente;
+- com linhas, o deploy espera a decisão I2.
+
+### 9.6 Bandeiras desta rodada
+
+- `CODE_READY` só vale com a CI `full` verde no novo HEAD (run e SHA no corpo da PR e na resposta final).
+- `MERGE_READY` é decisão do proprietário após a auditoria.
+- `RELEASE_READY=NÃO`: GO dos dois SELECTs e decisão I2 pendentes.
+
+## 10. Bandeiras
 
 ```
 CODE_READY=SIM
-RELEASE_READY=NÃO        (M3 depende do GO para o SELECT de unidades; I2 aguarda o proprietário)
+RELEASE_READY=NÃO        (GO dos 2 SELECTs — unidades e estornos FINANCEIRO+ABASTECIMENTO — e decisão I2 pendentes)
 SCHEMA_APPLIED=N/A       (sem migration)
 DB_WRITES_PRODUCAO=0
 CONSTITUTION_RATIFIED=SIM (D-PROD-177 na main, merge b7e5ab11)

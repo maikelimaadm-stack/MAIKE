@@ -24,7 +24,11 @@
  *      e a altera; `estornarEntrada` e `estornarEmLote` esperam NA LEITURA
  *      `FOR UPDATE` da camada (prova da trava nova em `estornarEntrada`) e,
  *      liberadas, recusam com o estado novo, sem gravar nada;
- *  K5. nenhum deadlock no banco durante o arquivo.
+ *  K5. nenhum deadlock no banco durante o arquivo;
+ *  K6. R1 corretiva — `estornarSaida` (cancelamento de abastecimento): espera
+ *      NA leitura `FOR UPDATE` da camada e NA do original (nesta ordem, a do
+ *      estorno em lote) e, liberada, recusa com o estado novo ANTES de
+ *      escrever; dois estornos do mesmo original fora do protocolo → um só.
  */
 
 import { test, describe, before, after } from 'node:test';
@@ -238,6 +242,73 @@ describe('K4 — reversão que aguarda o lock da camada', () => {
       await prisma().estoqueLoteNota.update({ where: { id: c.lote.id }, data: { quantidade_disponivel: '10.0000' } });
     }
     await conferirInvariantes(s, 'K4');
+  });
+});
+
+// ─── K6: estornarSaida (R1 corretiva) ───────────────────────────────────────
+const argsSaida = (s, e, v, produto) => ({
+  empresaId: e.id,
+  item: { ordem: 1, quantidade_estoque: v.movimento.quantidade, movimentacao_estoque_id: v.movimento.id },
+  consumos: v.fatias.map((f) => ({ estoque_lote_nota_id: f.lote_id, quantidade: f.quantidade })),
+  produto, local: localDe(s.local), dia: '2027-06-12', origem: { operacaoId: 'op-saida-k6' }, numeroMovimento: motor.numeroMovimentoProvisorio(),
+});
+const estornoDeSaida = (s, e, v, { comTrava = true } = {}) => () =>
+  prisma().$transaction(async (tx) => {
+    if (comTrava) await motor.travarProdutosEstoque(tx, s.c, e.id, [e.sal.id]);
+    const produto = await tx.produto.findUnique({ where: { id: e.sal.id } });
+    const res = await motor.estornarSaida(tx, ctxDe(s), argsSaida(s, e, v, produto));
+    await motor.numerarMovimentos(tx, s.c, [res.movimento.id]);
+    return res;
+  }, OPCOES_TX);
+const prenderMovimento = (s, id) => (tx) => tx.$queryRaw`SELECT id FROM "MovimentacaoEstoque" WHERE cliente_id = ${s.c} AND id = ${id} FOR UPDATE`;
+
+describe('K6 — estornarSaida espera as travas da camada e do original', () => {
+  test('camada presa e reposta por fora → espera no FOR UPDATE da camada e recusa devolucao_excede_entrada com o estado novo; original preso e estornado por fora → espera no FOR UPDATE do original e recusa original_ja_estornado; nada gravado', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    await entrar(s, e, e.sal);
+    // (a) camada
+    const v = await sairFifo(s, e, e.sal, '4.0000');
+    const loteId = v.fatias[0].lote_id;
+    const antesA = await estadoFisico(prisma(), s.c);
+    const [ra] = await comDetentora(prenderLote(s, loteId), [estornoDeSaida(s, e, v, { comTrava: false })], {
+      consulta: '%EstoqueLoteNota%FOR UPDATE%',
+      antesDeSoltar: (tx) => tx.estoqueLoteNota.update({ where: { id: loteId }, data: { quantidade_disponivel: '10.0000' } }),
+    });
+    assert.deepEqual(resumoErro(ra.x), [409, 'ESTOQUE_JA_CONSUMIDO', 'itens', 'devolucao_excede_entrada'], ra.x?.message);
+    assert.equal(ra.x.details.disponivel, '10.0000', 'leu a camada DEPOIS do commit do escritor');
+    const depoisA = JSON.parse(await estadoFisico(prisma(), s.c));
+    assert.equal(depoisA.movimentos.length, JSON.parse(antesA).movimentos.length, 'nenhum movimento de estorno');
+    assert.equal(await estornosDe(s, v.movimento.id), 0);
+    await prisma().estoqueLoteNota.update({ where: { id: loteId }, data: { quantidade_disponivel: '6.0000' } });
+
+    // (b) original — o escritor fora do protocolo o marca 'Estornada' enquanto o estorno espera
+    const antesB = await estadoFisico(prisma(), s.c);
+    const [rb] = await comDetentora(prenderMovimento(s, v.movimento.id), [estornoDeSaida(s, e, v)], {
+      consulta: '%MovimentacaoEstoque%FOR UPDATE%',
+      antesDeSoltar: (tx) => tx.movimentacaoEstoque.update({ where: { id: v.movimento.id }, data: { status: 'Estornada' } }),
+    });
+    assert.deepEqual(resumoErro(rb.x), [409, 'ESTOQUE_JA_CONSUMIDO', 'itens', 'original_ja_estornado'], rb.x?.message);
+    const depoisB = JSON.parse(await estadoFisico(prisma(), s.c));
+    const loteB = depoisB.lotes.find((l) => l.id === loteId);
+    assert.equal(q4(loteB.quantidade_disponivel), '6.0000', 'a camada NÃO recebeu devolução (recusa antes de escrever)');
+    assert.equal(depoisB.movimentos.length, JSON.parse(antesB).movimentos.length);
+    await prisma().movimentacaoEstoque.update({ where: { id: v.movimento.id }, data: { status: 'Ativa' } });
+    await conferirInvariantes(s, 'K6a/b');
+  });
+
+  test('dois estornos do MESMO original fora do protocolo (sem a trava do produto): um vence, o outro 409 original_ja_estornado; uma devolução só', async () => {
+    const s = await montarTenant(app);
+    const e = s.e1;
+    await entrar(s, e, e.sal);
+    const v = await sairFifo(s, e, e.sal, '3.0000');
+    const rs = await Promise.all([resultado(estornoDeSaida(s, e, v, { comTrava: false })()), resultado(estornoDeSaida(s, e, v, { comTrava: false })())]);
+    const [, perdedor] = umVence(rs);
+    assert.deepEqual(resumoErro(perdedor.x), [409, 'ESTOQUE_JA_CONSUMIDO', 'itens', 'original_ja_estornado'], perdedor.x?.message);
+    assert.equal(await estornosDe(s, v.movimento.id), 1);
+    assert.equal(q4((await prisma().estoqueLoteNota.findUnique({ where: { id: v.fatias[0].lote_id } })).quantidade_disponivel), '10.0000');
+    assert.equal(await estoqueAtual(e.sal), '10.0000');
+    await conferirInvariantes(s, 'K6c');
   });
 });
 
