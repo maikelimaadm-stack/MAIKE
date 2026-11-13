@@ -19,6 +19,7 @@ import LocaisEstoque from './pages/LocaisEstoque';
 import TiposTarefa from './pages/TiposTarefa';
 import TiposAtividade from './pages/TiposAtividade';
 import Estacoes from './pages/Estacoes';
+import CurvasGanho from './pages/CurvasGanho';
 import GruposAtividades from './pages/GruposAtividades';
 import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
@@ -48,6 +49,7 @@ export const PAGES = {
     "TiposTarefa": TiposTarefa,
     "TiposAtividade": TiposAtividade,
     "Estacoes": Estacoes,
+    "CurvasGanho": CurvasGanho,
     "GruposAtividades": GruposAtividades,
     "Empresa": Empresa,
     "Usuarios": Usuarios,

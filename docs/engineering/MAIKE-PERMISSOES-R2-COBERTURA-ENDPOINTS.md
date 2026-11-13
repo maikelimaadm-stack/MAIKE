@@ -218,6 +218,8 @@ D-PROD-161: +1 rota, classe (c): `GET /estoque-fisico/reconciliacao` (somente le
 
 D-PROD-162: −20 rotas e +1, classe (a). A tabela passa de 299 para 280 linhas de rota.
 
+D-PROD-189: +5 rotas, todas classe (a): `/curvas-ganho` (Curvas de Ganho de Peso, tabela CADCURVAGANHO). Leitura também pela tela `pec-curvas-ganho` (`visualizar`).
+
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
 | Método | Rota | Arquivo:linha | Classe — guarda |
@@ -290,6 +292,11 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:46` | a — GUARDAS.categoriaManejo.criar |
 | PATCH | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:52` | a — GUARDAS.categoriaManejo.editar |
 | DELETE | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:58` | a — GUARDAS.categoriaManejo.excluir |
+| GET | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:79` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| GET | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:84` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| POST | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:90` | a — GUARDAS.curvaGanho.criar (D-PROD-189) |
+| PATCH | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:96` | a — GUARDAS.curvaGanho.editar (D-PROD-189) |
+| DELETE | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:102` | a — GUARDAS.curvaGanho.excluir (D-PROD-189) |
 | GET | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:85` | d — leitura autenticada, isolada por tenant. (D-PROD-137) Projeção: sem a tela Empresa, resumo sem dados pessoais |
 | POST | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:93` | a — porTela(TELAS.EMPRESA, 'novo') |
 | PATCH | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:99` | a — porTela(TELAS.EMPRESA, 'editar') |
