@@ -6787,7 +6787,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - `GET /curvas-ganho?empresa_id=`, `GET /curvas-ganho/:id?empresa_id=`, `POST`, `PATCH /:id` (com `empresa_id` no corpo) e `DELETE /:id?empresa_id=`;
    - tenant só do `auth_context`; fazenda do tenant (`EMPRESA_NOT_FOUND`); curva de outra fazenda ou tenant → 404 `CURVA_GANHO_NOT_FOUND`; a curva nunca troca de fazenda;
    - nome e observações em MAIÚSCULAS, tamanho conferido depois das maiúsculas; nome único por fazenda → 409 `CURVA_GANHO_NAME_CONFLICT` (corrida perdida também vira 409);
-   - GMD: número finito, faixa -2..3, no máximo 3 casas → senão 400 (`gmd_invalido`, `gmd_fora_da_faixa`, `gmd_casas_decimais`); gravado como decimal exato (`"0.650"`), devolvido como número;
+   - GMD: número finito, faixa -2..3, no máximo 3 casas → senão 400 `REQUEST_VALIDATION_FAILED`. Fora da faixa é recusado pelo schema da rota (`reason: 'range'`); mais de 3 casas → `gmd_casas_decimais`; não número → `gmd_invalido`. A checagem de faixa no serviço (`gmd_fora_da_faixa`) fica como barreira de defesa, inalcançável pela rota. Gravado como decimal exato (`"0.650"`), devolvido como número;
    - **o corpo bruto precisa trazer número de verdade** (gancho `preValidation`): a coerção padrão do AJV do app transformaria `null` em 0 e `true` em 1, gravando um GMD que ninguém digitou;
    - exclusão física com auditoria (`CadCurvaGanho`).
 4. **Permissões.** Tela `pec-curvas-ganho`, módulo `manejo`, leitura e escrita pela própria tela. Sem concessão automática.

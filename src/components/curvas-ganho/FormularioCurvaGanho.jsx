@@ -159,7 +159,7 @@ export default function FormularioCurvaGanho({
           locked={readOnly}
           disabled={readOnly || isSubmitting}
           error={invalidFields.includes(campo) ? "GMD inválido" : undefined}
-          dica={readOnly ? undefined : ajudaPorMes(formData[campo])}
+          dica={readOnly ? undefined : <p className="b1-campo-dica">{ajudaPorMes(formData[campo])}</p>}
         >
           <input
             type="text"

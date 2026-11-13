@@ -142,8 +142,9 @@ describe('D-PROD-189 — Curvas de Ganho: validação do corpo', () => {
   test('GMD: fora de -2..3, mais de 3 casas ou não número → 400 com o motivo; extremos e 3 casas aceitos', async () => {
     const { token, e1 } = await cenario();
     const ruins = [
-      [{ gmd_aguas: 3.001 }, null],
-      [{ gmd_seca: -2.5 }, null],
+      // Faixa: recusada pelo schema da rota (AJV), antes do serviço.
+      [{ gmd_aguas: 3.001 }, 'range'],
+      [{ gmd_seca: -2.5 }, 'range'],
       [{ gmd_transicao: 0.4567 }, 'gmd_casas_decimais'],
       [{ gmd_aguas: 'muito' }, 'gmd_invalido'],
       [{ gmd_aguas: null }, 'gmd_invalido'],

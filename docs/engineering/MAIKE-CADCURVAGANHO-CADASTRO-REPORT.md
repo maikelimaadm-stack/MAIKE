@@ -56,4 +56,20 @@ física **`"CADCURVAGANHO"`**, nome escolhido pelo proprietário. Primeira fatia
 
 ## 5. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+**`npm run verify:all` local** sobre o commit `5ebf64a8`, num PostgreSQL 16 novo e exclusivo, sem nenhum arquivo alterado durante a rodada: **38 de 39 etapas passaram**, inclusive gates, tipos, lint, build e `test:smoke` (219 arquivos, 2.666 testes). Em `test:backend`, 137 dos 141 arquivos passaram. Os 4 restantes falharam só por diferença de ambiente em relação à CI:
+
+- `dProd122ReleaseFusoR4`, `patrimonioP1AbastecimentosSeguranca` (S6–S8) e `supabasePublicGrantsNativo` criam papéis no banco (`permission denied to create role`); o usuário local não tinha `CREATEROLE`, o da CI (`POSTGRES_USER` da imagem) é superusuário;
+- `usuariosBenchEscopo` (SCALE-01 R3) confere que a senha do banco não aparece no log; a senha local era `maike`, contida no nome do banco temporário `maike_perf_lock_…` (falso positivo).
+
+Com o papel local alinhado à CI (superusuário, senha distinta), os 4 arquivos passaram: 25/25. A CI do GitHub não rodou nesta PR: o Actions não chega a iniciar o job `classify` (sem runner e sem log) desde o merge da #265, também na `main`. Isso está registrado na PR.
+
+**Revisão adversarial** (4 lentes independentes, 2 céticos por achado, 10 agentes):
+
+| Lente | Resultado |
+|---|---|
+| Segurança e tenancy | nenhum achado |
+| Correção do backend (inclui migration, hashes e Decimal) | nenhum achado |
+| Frontend | 1 achado baixo, confirmado: a dica "≈ kg/mês" era texto solto, sem o estilo `b1-campo-dica` do motor. Corrigido |
+| Testes e docs | 1 achado baixo, confirmado: GMD fora da faixa é recusado pelo schema da rota com `reason: 'range'`, não `gmd_fora_da_faixa` como dizia a D-PROD-189, e o teste não conferia o motivo. D-PROD-189 corrigida e teste passa a exigir `range` |
+
+**Coerção do AJV:** encontrada durante a escrita dos testes (antes da revisão). `null` virava 0 e `true` virava 1 no GMD; a rota passa a recusar com `gmd_invalido`.
