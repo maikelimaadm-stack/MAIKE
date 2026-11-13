@@ -22,6 +22,8 @@ export const DEFAULT_MENU = [
       { id: "pec-lotes", title: "Lotes", url: "CadastroLotes" },
       { id: "pec-setores", title: "Setores", url: "CadastroSetores" },
       { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
+      // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+      { id: "pec-estacoes", title: "Estações", url: "Estacoes" },
       { id: "pec-bebedouros", title: "Bebedouros", url: "Bebedouros" },
     ],
   },

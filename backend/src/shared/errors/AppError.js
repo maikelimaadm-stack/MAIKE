@@ -158,6 +158,20 @@ export const tipoAtividadeNomeConflito = (message, options) =>
     options
   );
 
+// D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+export const estacaoNotFound = (message, options) =>
+  new AppError('ESTACAO_NOT_FOUND', message || 'estação não encontrada', options);
+
+export const estacaoNomeConflito = (message, options) =>
+  new AppError('ESTACAO_NAME_CONFLICT', message || 'já existe estação com este nome nesta fazenda', options);
+
+export const estacaoPeriodoSobreposto = (message, options) =>
+  new AppError(
+    'ESTACAO_PERIODO_SOBREPOSTO',
+    message || 'o período se sobrepõe a outra estação ativa desta fazenda',
+    options
+  );
+
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 

@@ -35,6 +35,7 @@ import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMe
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 import { registrarTipoAtividadeRoutes } from './modules/tiposAtividade/tipoAtividadeRoutes.js';
+import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -203,6 +204,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
   await app.register(registrarTipoAtividadeRoutes);
+  // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
+  await app.register(registrarEstacaoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

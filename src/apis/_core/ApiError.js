@@ -120,6 +120,10 @@ export const API_ERROR_CODES = Object.freeze({
   // Cadastro de TipoAtividade (D-PROD-182).
   TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
+  // D-PROD-188 — Estações da fazenda.
+  ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
+  ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
+  ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -213,6 +217,10 @@ const MENSAGENS = Object.freeze({
     'Este tipo de atividade não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT]:
     'Já existe um tipo de atividade cadastrado com este nome neste grupo.',
+  [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
+  [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:
+    'O período se sobrepõe a outra estação ativa desta fazenda. Ajuste as datas ou inative a outra estação.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',
