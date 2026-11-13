@@ -1,6 +1,9 @@
 # MAIKE — Curvas de Ganho de Peso: runbook de release expand-only (D-PROD-189)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: §2 a §4 EXECUTADOS em 2026-11-13. `SCHEMA_APPLIED_PROD: SIM`.**
+> Aplicada às 23:18:10 UTC pelo caminho B (conector), com GO escrito do
+> proprietário e desvio da D-PROD-74 autorizado. A conferência do §4 passou.
+> Merge, deploy e smoke (§5) dependem da autorização do proprietário. Evidências no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -138,4 +141,12 @@ reverter o código primeiro.
 
 ## 7. Registro de execução
 
-_(vazio — preencher com data/hora UTC, caminho usado, GO citado, resultado do §4.)_
+**2026-11-13, caminho B (conector Supabase, uma `execute_sql`).**
+
+- **GO do proprietário, escrito no chat da sessão:** "Autorizo" (resposta ao pedido de autorização desta migration pelo conector) e, depois, "Pode aplicar" / "mande de novo". Registrado como o **desvio da D-PROD-74** para ESTA migration, não como precedente.
+- **Tentativas sem efeito:** três chamadas anteriores ficaram esperando a confirmação do conector, que não aparece no app do celular, e expiraram sem executar. Antes de cada nova tentativa o preflight foi repetido e mostrou o banco intacto (43/0, tabela ausente).
+- **Preflight (§2), somente leitura, logo antes da aplicação:** `system_identifier` 7692130048193495360; `_prisma_migrations` 43 concluídas e 0 com falha (última `20261113400000_cadestacoes_cadastro`); `to_regclass('public."CADCURVAGANHO"')` nulo; 81 tabelas em `public`. A Fatia D (PR #268) segue sem aplicar (`CADCATEGORIA` ausente), então `<N_OK>` = 43.
+- **Ensaio local** do mesmo script num banco novo com as 43 migrations (só o `system_identifier` trocado pelo do banco local): aplicou, 44 no histórico, RLS ligado; a 2ª execução parou na guarda (`RELEASE_BLOCKED: migration já registrada`); `prisma migrate status`: "Database schema is up to date".
+- **Aplicação:** o §3 com `<N_OK>` = 43 e o `migration.sql` integral do commit `5ebf64a8` (SHA-256 `137f93f2…6ac6`, conferido, e o arquivo está contido byte a byte no script). `finished_at` = **2026-11-13 23:18:10 UTC**. Nenhum erro.
+- **Conferência (§4):** linha em `_prisma_migrations` com o checksum pinado, `rolled_back_at` nulo e `applied_steps_count = 1`; 44 concluídas e 0 com falha; RLS ligado, sem FORCE; constraints `CADCURVAGANHO_cliente_id_empresa_id_fkey`, `CADCURVAGANHO_cliente_id_fkey`, `CADCURVAGANHO_gmd_check`, `CADCURVAGANHO_pkey`; índices `…_cliente_id_empresa_id_ativo_idx`, `…_cliente_id_empresa_id_nome_key`, `…_cliente_id_id_key` + pkey; política `maike_backend_all` só para `maike_vercel` (com SELECT/INSERT/UPDATE/DELETE); `anon` e `authenticated` sem SELECT; 0 linhas; **82** tabelas em `public`; `get_advisors` (segurança) sem nenhum alerta.
+- **Pendente (proprietário):** autorizar o merge da PR #270; depois, deploy e smoke do §5.

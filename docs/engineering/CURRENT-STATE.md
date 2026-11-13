@@ -32,8 +32,8 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-189** |
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `776befe9` (merge da PR #265). PR nova, exclusiva desta missão |
 | Escopo | Model `CadCurvaGanho` → tabela física `"CADCURVAGANHO"` (`@@map`), por fazenda; GMD (kg/dia) nas Águas, na Transição e na Seca, de -2 a 3; API `/curvas-ganho`; tela `CurvasGanho` (menu Manejo, tela `pec-curvas-ganho`). **Sem vínculo** com categoria, lote ou estação |
-| Migration | `20261113600000_cadcurvaganho_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Repositório: 43 → **44** migrations, 81 → **82** tabelas. **Não aplicada em nenhum ambiente remoto** |
-| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) (caminho A; caminho B só com GO escrito e específico desta migration) |
+| Migration | `20261113600000_cadcurvaganho_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Repositório: 43 → **44** migrations, 81 → **82** tabelas. **Aplicada em produção em 2026-11-13 23:18:10 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 44/0, 82 tabelas, RLS, advisors sem alerta |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 em rascunho: o merge depende da autorização do proprietário; depois, conferir `/health` e `/api/native/curvas-ganho` → 401 |
 | Relatório | [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)

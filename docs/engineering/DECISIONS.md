@@ -6804,4 +6804,6 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md).
 
+**Nota de aplicação (2026-11-13).** A migration `20261113600000_cadcurvaganho_cadastro` foi aplicada em produção às 23:18:10 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `5ebf64a8` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "Autorizo" / "Pode aplicar" / "mande de novo". É um desvio da D-PROD-74 só para esta migration, não precedente. Conferência: 44/0 migrations, 82 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. A Fatia D (PR #268) continua pendente; a guarda dela passa a contar 44. Registro no §7 do runbook.
+
 <!-- Próxima decisão: D-PROD-190 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268) -->

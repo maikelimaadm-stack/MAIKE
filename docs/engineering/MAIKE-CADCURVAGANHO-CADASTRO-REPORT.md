@@ -45,7 +45,7 @@ física **`"CADCURVAGANHO"`**, nome escolhido pelo proprietário. Primeira fatia
 
 ## 4. Release
 
-1. A migration é EXPAND e **não foi aplicada em nenhum banco remoto**.
+1. A migration é EXPAND e foi **aplicada em produção em 2026-11-13 às 23:18:10 UTC** pelo caminho B (conector), com GO escrito do proprietário. Conferida: 44/0 migrations, 82 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
 2. Ordem obrigatória: CI verde → GO do proprietário → preflight → aplicação
    (caminho A, ou B só com GO escrito e específico desta migration) →
    conferência → **merge** → deploy → smoke. Ver o runbook.
