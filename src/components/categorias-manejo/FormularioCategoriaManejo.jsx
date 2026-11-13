@@ -1,77 +1,78 @@
 import React, { useState } from "react";
-import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
 import CategoriaOficialCatalogoSelect from "@/components/catalogoGlobal/CategoriaOficialCatalogoSelect";
 import B1Select from "@/components/cadastro/base1/B1Select";
+import {
+  FAIXAS_IDADE_CATEGORIA_MANEJO,
+  faixaIdadeDaLista,
+  rotuloFaixaIdade,
+  sexoOficial,
+} from "@/domain/lotes/categoriaOficialDerivada";
 
 export const FORMULARIO_CATEGORIA_MANEJO_ID = "formulario-categoria-manejo-base1";
 
-const MESES = [
-  { label: "Jan", field: "gmd_janeiro" },
-  { label: "Fev", field: "gmd_fevereiro" },
-  { label: "Mar", field: "gmd_marco" },
-  { label: "Abr", field: "gmd_abril" },
-  { label: "Mai", field: "gmd_maio" },
-  { label: "Jun", field: "gmd_junho" },
-  { label: "Jul", field: "gmd_julho" },
-  { label: "Ago", field: "gmd_agosto" },
-  { label: "Set", field: "gmd_setembro" },
-  { label: "Out", field: "gmd_outubro" },
-  { label: "Nov", field: "gmd_novembro" },
-  { label: "Dez", field: "gmd_dezembro" },
-];
-
-const REQUIRED_FIELDS = ["nome", "sigla", "especie", "sexo", "raca", "categoria_oficial"];
-const UPPERCASE_FIELDS = ["nome", "sigla", "raca"];
+/** Nome, Sexo e Faixa de idade são obrigatórios (decisão do proprietário, 2026-11-13). */
+const REQUIRED_FIELDS = ["nome", "sexo", "faixa_idade"];
+const UPPERCASE_FIELDS = ["nome", "sigla"];
 const SELECT_EMPTY = "__VAZIO__";
+const SEXOS = ["Macho", "Fêmea"];
+
+/** Valor do select para o par gravado fora das cinco faixas (registro legado). */
+export const FAIXA_FORA_DA_LISTA = "__FORA_DA_LISTA__";
+
+/** Valor do select de uma faixa da lista: "mínima-máxima" ("37-" sem máxima). */
+const valorDaFaixa = (faixa) => `${faixa.idade_minima_meses}-${faixa.idade_maxima_meses ?? ""}`;
+
+/**
+ * Valor do select "Faixa de idade" para o par do formulário: a faixa da lista;
+ * par legado fora da lista → `FAIXA_FORA_DA_LISTA`; sem idade → "".
+ */
+export const valorFaixaIdade = (formData) => {
+  const faixa = faixaIdadeDaLista(formData?.idade_minima_meses, formData?.idade_maxima_meses);
+  if (faixa) return valorDaFaixa(faixa);
+  return rotuloFaixaIdade(formData) ? FAIXA_FORA_DA_LISTA : "";
+};
+
+/** Rótulo da opção extra (desabilitada) que mostra o par legado: "De X a Y meses (fora da lista)". */
+export const rotuloFaixaForaDaLista = (formData) => {
+  const rotulo = rotuloFaixaIdade(formData);
+  return `${/^\d/.test(rotulo) ? `De ${rotulo}` : rotulo} (fora da lista)`;
+};
+
+/** 'MACHO'/'femea' gravados → 'Macho'/'Fêmea' (a grafia das opções); outro valor fica como está. */
+const sexoDoRegistro = (sexo) => {
+  const oficial = sexoOficial(sexo);
+  if (oficial === "MACHO") return "Macho";
+  if (oficial === "FEMEA") return "Fêmea";
+  return sexo ?? "";
+};
 
 export const getInitialFormData = () => ({
   nome: "",
   sigla: "",
   especie: "Bovinos",
   sexo: "",
-  raca: "",
   idade_minima_meses: "",
   idade_maxima_meses: "",
-  categoria_oficial: "",
   catalogo_categoria_visual_id: "",
-  ganho_peso_anual_kg: "",
-  gmd_janeiro: "",
-  gmd_fevereiro: "",
-  gmd_marco: "",
-  gmd_abril: "",
-  gmd_maio: "",
-  gmd_junho: "",
-  gmd_julho: "",
-  gmd_agosto: "",
-  gmd_setembro: "",
-  gmd_outubro: "",
-  gmd_novembro: "",
-  gmd_dezembro: "",
 });
 
+/**
+ * Registro → formulário. `faixa_idade_alterada` começa falso: salvar sem mexer
+ * no select NÃO reenvia as idades (o par gravado, mesmo legado, fica intocado).
+ */
 export function buildFormInitialFromRecord(editando) {
   return {
     ...getInitialFormData(),
     ...editando,
+    sexo: sexoDoRegistro(editando.sexo),
     catalogo_categoria_visual_id: editando.catalogo_categoria_visual_id ?? "",
     idade_minima_meses: editando.idade_minima_meses ?? "",
     idade_maxima_meses: editando.idade_maxima_meses ?? "",
-    ganho_peso_anual_kg: editando.ganho_peso_anual_kg ?? "",
-    gmd_janeiro: editando.gmd_janeiro ?? "",
-    gmd_fevereiro: editando.gmd_fevereiro ?? "",
-    gmd_marco: editando.gmd_marco ?? "",
-    gmd_abril: editando.gmd_abril ?? "",
-    gmd_maio: editando.gmd_maio ?? "",
-    gmd_junho: editando.gmd_junho ?? "",
-    gmd_julho: editando.gmd_julho ?? "",
-    gmd_agosto: editando.gmd_agosto ?? "",
-    gmd_setembro: editando.gmd_setembro ?? "",
-    gmd_outubro: editando.gmd_outubro ?? "",
-    gmd_novembro: editando.gmd_novembro ?? "",
-    gmd_dezembro: editando.gmd_dezembro ?? "",
+    faixa_idade_alterada: false,
   };
 }
 
@@ -80,7 +81,6 @@ export default function FormularioCategoriaManejo({
   isEditing,
   onSubmit,
   onCancel,
-  categoriasOficiaisDisponiveis = [],
   variant = "card",
   toolbarActions = false,
   isSubmitting = false,
@@ -98,6 +98,19 @@ export default function FormularioCategoriaManejo({
     setInvalidFields((prev) => prev.filter((item) => item !== field));
   };
 
+  /** Escolher no select grava o par da faixa e marca a faixa como alterada (só então as idades são enviadas). */
+  const handleFaixaChange = (valor) => {
+    const faixa = FAIXAS_IDADE_CATEGORIA_MANEJO.find((f) => valorDaFaixa(f) === valor);
+    if (!faixa) return;
+    setFormData((prev) => ({
+      ...prev,
+      idade_minima_meses: faixa.idade_minima_meses,
+      idade_maxima_meses: faixa.idade_maxima_meses,
+      faixa_idade_alterada: true,
+    }));
+    setInvalidFields((prev) => prev.filter((item) => item !== "faixa_idade"));
+  };
+
   const isEmptyValue = (value) => {
     if (typeof value === "string") return value.trim() === "";
     return value === undefined || value === null || value === "";
@@ -106,7 +119,12 @@ export default function FormularioCategoriaManejo({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (readOnly) return;
-    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(formData?.[field]));
+    const faltando = {
+      nome: isEmptyValue(formData?.nome),
+      sexo: !SEXOS.includes(formData?.sexo),
+      faixa_idade: valorFaixaIdade(formData) === "",
+    };
+    const missingFields = REQUIRED_FIELDS.filter((field) => faltando[field]);
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
       notifyWarning("Atenção", "Preencha os campos obrigatórios.");
@@ -116,6 +134,7 @@ export default function FormularioCategoriaManejo({
   };
 
   const locked = readOnly || isSubmitting;
+  const faixaValor = valorFaixaIdade(formData);
 
   const formBody = (
     <form
@@ -147,12 +166,10 @@ export default function FormularioCategoriaManejo({
 
       <B1Field
         label="Sigla"
-        required
         span={4}
         hasValue={Boolean(formData.sigla?.trim())}
         locked={readOnly}
         disabled={locked}
-        error={invalidFields.includes("sigla") ? "Obrigatório" : undefined}
       >
         <input
           type="text"
@@ -167,12 +184,10 @@ export default function FormularioCategoriaManejo({
 
       <B1Field
         label="Espécie"
-        required
         span={4}
         hasValue={Boolean(formData.especie)}
         locked={readOnly}
         disabled={locked}
-        error={invalidFields.includes("especie") ? "Obrigatório" : undefined}
       >
         {readOnly ? (
           <input type="text" readOnly value={formData.especie || ""} className={B1_FIELD_CTL_CLS} />
@@ -214,54 +229,6 @@ export default function FormularioCategoriaManejo({
       </B1Field>
 
       <B1Field
-        label="Raça"
-        required
-        span={4}
-        hasValue={Boolean(formData.raca?.trim())}
-        locked={readOnly}
-        disabled={locked}
-        error={invalidFields.includes("raca") ? "Obrigatório" : undefined}
-      >
-        <input
-          type="text"
-          value={formData.raca || ""}
-          onChange={(e) => handleChange("raca", e.target.value)}
-          placeholder="RAÇA"
-          className={`${B1_FIELD_CTL_CLS} uppercase`}
-          readOnly={readOnly}
-        />
-      </B1Field>
-
-      <B1Field
-        label="Categoria Oficial"
-        required
-        span={4}
-        hasValue={Boolean(formData.categoria_oficial)}
-        locked={readOnly}
-        disabled={locked}
-        error={invalidFields.includes("categoria_oficial") ? "Obrigatório" : undefined}
-      >
-        {readOnly ? (
-          <input type="text" readOnly value={formData.categoria_oficial || ""} className={B1_FIELD_CTL_CLS} />
-        ) : (
-          <B1Select
-            value={formData.categoria_oficial || SELECT_EMPTY}
-            onChange={(e) =>
-              handleChange("categoria_oficial", e.target.value === SELECT_EMPTY ? "" : e.target.value)
-            }
-            className={B1_FIELD_CTL_CLS}
-          >
-            <option value={SELECT_EMPTY}>SELECIONE</option>
-            {categoriasOficiaisDisponiveis.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </B1Select>
-        )}
-      </B1Field>
-
-      <B1Field
         label="Ícone oficial (catálogo MAK Gestão)"
         span={4}
         // Sempre mostra um texto ("SEM VÍNCULO" ou o nome): o rótulo fica no alto.
@@ -277,71 +244,38 @@ export default function FormularioCategoriaManejo({
         />
       </B1Field>
 
-      <B1Field label="Idade Mínima (meses)" span={4} hasValue={formData.idade_minima_meses !== ""} locked={readOnly} disabled={locked}>
-        <input
-          type="number"
-          value={formData.idade_minima_meses}
-          onChange={(e) => handleChange("idade_minima_meses", e.target.value)}
-          placeholder="0"
-          className={B1_FIELD_CTL_CLS}
-          readOnly={readOnly}
-        />
-      </B1Field>
-
-      <B1Field label="Idade Máxima (meses)" span={4} hasValue={formData.idade_maxima_meses !== ""} locked={readOnly} disabled={locked}>
-        <input
-          type="number"
-          value={formData.idade_maxima_meses}
-          onChange={(e) => handleChange("idade_maxima_meses", e.target.value)}
-          placeholder="0"
-          className={B1_FIELD_CTL_CLS}
-          readOnly={readOnly}
-        />
-      </B1Field>
-
       <B1Field
-        label="Ganho de Peso Anual (kg)"
+        label="Faixa de idade"
+        required
         span={4}
-        hasValue={formData.ganho_peso_anual_kg !== ""}
+        hasValue={faixaValor !== ""}
         locked={readOnly}
         disabled={locked}
-        error={invalidFields.includes("ganho_peso_anual_kg") ? "Obrigatório" : undefined}
+        error={invalidFields.includes("faixa_idade") ? "Obrigatório" : undefined}
       >
-        <input
-          type="number"
-          step="0.01"
-          value={formData.ganho_peso_anual_kg}
-          onChange={(e) => handleChange("ganho_peso_anual_kg", e.target.value)}
-          placeholder="0,00"
-          className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-          readOnly={readOnly}
-        />
+        {readOnly ? (
+          <input type="text" readOnly value={rotuloFaixaIdade(formData)} className={B1_FIELD_CTL_CLS} />
+        ) : (
+          <B1Select
+            value={faixaValor}
+            onChange={(e) => handleFaixaChange(e.target.value)}
+            className={B1_FIELD_CTL_CLS}
+          >
+            {/* Obrigatório: o "SELECIONE" (valor vazio) é só o marcador, fora da lista. */}
+            <option value="">SELECIONE</option>
+            {FAIXAS_IDADE_CATEGORIA_MANEJO.map((faixa) => (
+              <option key={valorDaFaixa(faixa)} value={valorDaFaixa(faixa)}>
+                {faixa.rotulo}
+              </option>
+            ))}
+            {faixaValor === FAIXA_FORA_DA_LISTA ? (
+              <option value={FAIXA_FORA_DA_LISTA} disabled>
+                {rotuloFaixaForaDaLista(formData)}
+              </option>
+            ) : null}
+          </B1Select>
+        )}
       </B1Field>
-
-      <B1TituloGrupo titulo="Previsão de GMD Mensal" />
-
-      {MESES.map((mes) => (
-        <B1Field
-          key={mes.field}
-          label={mes.label}
-          required
-          span={2}
-          hasValue={formData[mes.field] !== ""}
-          locked={readOnly}
-          disabled={locked}
-          error={invalidFields.includes(mes.field) ? "Obrigatório" : undefined}
-        >
-          <input
-            type="number"
-            step="0.01"
-            value={formData[mes.field]}
-            onChange={(e) => handleChange(mes.field, e.target.value)}
-            placeholder="0,00"
-            className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-            readOnly={readOnly}
-          />
-        </B1Field>
-      ))}
 
       {!toolbarActions ? (
         <div className="col-span-12">

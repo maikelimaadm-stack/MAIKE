@@ -10,6 +10,7 @@
  * Recebe registros já carregados e responde quem bloqueia.
  */
 
+
 export const ENTITY_LABELS = {
   Empresa: "empresa",
   Setor: "setor",
@@ -59,12 +60,17 @@ export const DELETE_RULES = {
     { entity: "LancamentoTarefa", fields: ["area_id"], label: "lançamentos de tarefas" },
     { entity: "ManejoTecnicoRebanho", fields: ["area_id"], label: "manejos técnicos" },
   ],
+  // Categoria de manejo: o vínculo real é o id (`Lote.categoria_manejo_id` /
+  // `categoria_manejo_entrada_id`); o nome cobre os registros que só guardaram o
+  // texto. A categoria oficial DERIVADA (sexo + faixa) NÃO bloqueia: ela é
+  // compartilhada por toda categoria da mesma faixa oficial e por lotes de
+  // outras categorias, e travava qualquer exclusão (hotfix D-PROD-186).
   CategoriaManejo: [
     { entity: "Lote", fields: ["categoria_manejo_id", "categoria_manejo_entrada_id"], label: "lotes" },
-    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome"] }, { sourceField: "categoria_oficial", targetFields: ["categoria", "categoria_entrada"] }], label: "lotes" },
-    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }, { sourceField: "categoria_oficial", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "manejos técnicos" },
-    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "lotes de suplementação" },
+    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome", "categoria", "categoria_entrada"] }], label: "lotes" },
+    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "manejos técnicos" },
+    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "lotes de suplementação" },
   ],
   Produto: [
     { entity: "MovimentacaoEstoque", fields: ["produto_id"], label: "movimentações de estoque" },

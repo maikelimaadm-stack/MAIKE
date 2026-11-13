@@ -57,7 +57,8 @@ const semearCatalogo = async () => {
   return { lote, area, bezerro, garrote, inativa, pasto };
 };
 
-const BASE = { empresa_id: 'emp-1', nome: 'BEZERRO DESMAMA', sigla: 'BD', especie: 'Bovinos', ativo: true };
+// Sexo e faixa de idade são obrigatórios no POST (decisão do proprietário, 2026-11-13).
+const BASE = { empresa_id: 'emp-1', nome: 'BEZERRO DESMAMA', sigla: 'BD', especie: 'Bovinos', sexo: 'Macho', idade_minima_meses: 0, idade_maxima_meses: 8, ativo: true };
 
 const criar = (token, extra = {}) =>
   app.inject({ method: 'POST', url: '/categorias-manejo', headers: auth(token), payload: { ...BASE, ...extra } });

@@ -361,67 +361,91 @@ describe('CM — categorias de manejo', () => {
   });
 
   /**
-   * CM3 — a normalização saiu da página para o service na P1.3-R1, **idêntica**.
-   * O caso abaixo é o payload completo que `handleSubmit` montava.
+   * CM3 — a normalização saiu da página para o service na P1.3-R1.
+   *
+   * D-PROD-186 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo,
+   * faixa de idade e o vínculo com o ícone oficial. O FORM abaixo é o que o
+   * formulário enxuto envia hoje.
    */
   const FORM = Object.freeze({
-    nome: 'boi gordo', sigla: 'bg', especie: 'Bovino', sexo: '', raca: 'nelore',
-    idade_minima_meses: '12', idade_maxima_meses: '', categoria_oficial: '',
-    ganho_peso_anual_kg: '180.5',
-    gmd_janeiro: '0.8', gmd_fevereiro: '', gmd_marco: '0.9', gmd_abril: '',
+    nome: 'boi gordo', sigla: 'bg', especie: 'Bovino', sexo: '',
+    idade_minima_meses: 13, idade_maxima_meses: 24,
+    catalogo_categoria_visual_id: '',
+  });
+
+  /** As 15 chaves que saíram do contrato (D-PROD-186). */
+  const CHAVES_REMOVIDAS = Object.freeze([
+    'raca', 'categoria_oficial', 'ganho_peso_anual_kg',
+    'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
+    'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
+  ]);
+
+  /** Registro antigo aberto para edição: ainda traz os campos legados. */
+  const FORM_LEGADO = Object.freeze({
+    ...FORM,
+    raca: 'nelore', categoria_oficial: 'Boi', ganho_peso_anual_kg: '180,5',
+    gmd_janeiro: '0.8', gmd_fevereiro: '', gmd_marco: '0,9', gmd_abril: '',
     gmd_maio: '', gmd_junho: '', gmd_julho: '', gmd_agosto: '',
     gmd_setembro: '', gmd_outubro: '', gmd_novembro: '', gmd_dezembro: '1.1',
   });
 
-  it('CM3 — uppercase, inteiros, decimais, nulls, empresa e ativo', () => {
+  it('CM3 — uppercase, inteiros, nulls, empresa e ativo; só o contrato enxuto', () => {
     const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
-    expect(p).toMatchObject({
+    expect(p).toEqual({
       empresa_id: EMPRESA,
       nome: 'BOI GORDO',
       sigla: 'BG',
       especie: 'Bovino',
       sexo: null,
-      raca: 'NELORE',
-      idade_minima_meses: 12,
-      idade_maxima_meses: null,
-      categoria_oficial: null,
-      ganho_peso_anual_kg: 180.5,
+      idade_minima_meses: 13,
+      idade_maxima_meses: 24,
+      catalogo_categoria_visual_id: null,
       ativo: true,
     });
+    for (const chave of CHAVES_REMOVIDAS) expect(p).not.toHaveProperty(chave);
   });
 
-  it('CM3b — os doze GMDs são normalizados, vazios viram null', () => {
-    const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
-    const meses = [
-      'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
-      'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
-    ];
-    for (const mes of meses) expect(p).toHaveProperty(mes);
-    expect(p.gmd_janeiro).toBe(0.8);
-    expect(p.gmd_marco).toBe(0.9);
-    expect(p.gmd_dezembro).toBe(1.1);
-    expect(p.gmd_fevereiro).toBeNull();
-    expect(meses.filter((m) => p[m] === null)).toHaveLength(9);
+  it('CM3b — registro legado com raça, categoria oficial, ganho e 12 GMDs: nenhuma das 15 chaves sai no payload', () => {
+    expect(CHAVES_REMOVIDAS).toHaveLength(15);
+    const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM_LEGADO, { empresaId: EMPRESA });
+    for (const chave of CHAVES_REMOVIDAS) expect(p).not.toHaveProperty(chave);
+    expect(p).toEqual(categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA }));
   });
 
-  it('CM4 — create e update usam o mesmo normalizador', async () => {
+  it('CM4 — create e update usam o mesmo normalizador (update em modo edição)', async () => {
     await categoriaManejoSvc.criarCategoriaManejo(FORM, { empresaId: EMPRESA });
     await categoriaManejoSvc.atualizarCategoriaManejo('c1', FORM, { empresaId: EMPRESA });
 
-    const esperado = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
-    expect(categoriasManejo.createCategoriaManejo).toHaveBeenCalledWith(esperado);
-    expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith('c1', esperado);
+    expect(categoriasManejo.createCategoriaManejo).toHaveBeenCalledWith(
+      categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA })
+    );
+    expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith(
+      'c1', categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA, edicao: true })
+    );
   });
 
-  it('CM3c — vírgula decimal pt-BR vira ponto (180,5 → 180.5; 0,0 → 0)', () => {
-    const p = categoriaManejoSvc.normalizarCategoriaManejo(
-      { ...FORM, ganho_peso_anual_kg: '180,5' }, { empresaId: EMPRESA }
-    );
-    expect(p.ganho_peso_anual_kg).toBe(180.5);
-    const zero = categoriaManejoSvc.normalizarCategoriaManejo(
-      { ...FORM, gmd_janeiro: '0,0' }, { empresaId: EMPRESA }
-    );
-    expect(zero.gmd_janeiro).toBe(0);
+  it('CM3c — faixa de idade: na criação o par vai sempre; na edição só quando o select foi alterado', () => {
+    const p = (min, max, opcoes = {}, extra = {}) =>
+      categoriaManejoSvc.normalizarCategoriaManejo(
+        { ...FORM, idade_minima_meses: min, idade_maxima_meses: max, ...extra }, { empresaId: EMPRESA, ...opcoes }
+      );
+    // Criação: o par escolhido (uma das cinco faixas) vai no corpo, texto vira inteiro.
+    expect(p(' 13 ', '24')).toMatchObject({ idade_minima_meses: 13, idade_maxima_meses: 24 });
+    expect(p('0', '8')).toMatchObject({ idade_minima_meses: 0, idade_maxima_meses: 8 });
+    expect(p(37, null)).toMatchObject({ idade_minima_meses: 37, idade_maxima_meses: null });
+    expect(p('  ', undefined)).toMatchObject({ idade_minima_meses: null, idade_maxima_meses: null });
+    // Edição sem mexer no select: as idades NÃO vão (o par gravado, mesmo legado, fica intocado).
+    for (const extra of [{}, { faixa_idade_alterada: false }]) {
+      const semIdade = p(10, 20, { edicao: true }, extra);
+      expect(semIdade).not.toHaveProperty('idade_minima_meses');
+      expect(semIdade).not.toHaveProperty('idade_maxima_meses');
+      expect(semIdade).toMatchObject({ nome: 'BOI GORDO', ativo: true });
+    }
+    // Edição com o select alterado: vai o par da faixa nova.
+    expect(p(25, 36, { edicao: true }, { faixa_idade_alterada: true })).toMatchObject({ idade_minima_meses: 25, idade_maxima_meses: 36 });
+    expect(p(37, '', { edicao: true }, { faixa_idade_alterada: true })).toMatchObject({ idade_minima_meses: 37, idade_maxima_meses: null });
+    // A marca do formulário nunca vai no corpo.
+    expect(p(25, 36, { edicao: true }, { faixa_idade_alterada: true })).not.toHaveProperty('faixa_idade_alterada');
   });
 
   it('CM6/CM7 — exclui sem vínculo; bloqueia por código com lote vinculado', async () => {
@@ -438,6 +462,81 @@ describe('CM — categorias de manejo', () => {
     const erro = await categoriaManejoSvc.excluirCategoriaManejo('cm1').catch((e) => e);
     expect(hasApiErrorCode(erro, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED)).toBe(true);
     expect(categoriasManejo.deleteCategoriaManejo).not.toHaveBeenCalled();
+  });
+});
+
+describe('CM-D5 — exclusão: id e nome bloqueiam; a categoria oficial DERIVADA não (hotfix)', () => {
+  /** Carrega os quatro dependentes. */
+  const dependentes = ({ lotesDeps = [], movs = [], manejos = [], suplementos = [] } = {}) => {
+    lotes.listLotes.mockResolvedValue(lotesDeps);
+    lotes.listMovimentacoesPecuarias.mockResolvedValue(movs);
+    lotes.listSuplementacaoLotes.mockResolvedValue(suplementos);
+    rebanho.listManejosTecnicos.mockResolvedValue(manejos);
+  };
+  const BEZERRO = { id: 'cm1', empresa_id: EMPRESA, nome: 'TESTE', sexo: 'Macho', idade_minima_meses: 0, idade_maxima_meses: 8 };
+  const OFICIAL = 'Bezerro 0 a 12 meses';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    categoriasManejo.listCategoriasManejo.mockResolvedValue([BEZERRO]);
+  });
+
+  const bloqueia = async () => {
+    const erro = await categoriaManejoSvc.excluirCategoriaManejo('cm1').catch((e) => e);
+    return hasApiErrorCode(erro, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED);
+  };
+
+  it('caso de produção: 22 lotes de OUTRA categoria com o texto oficial "Bezerro 0 a 12 meses" não impedem excluir a categoria Macho 0–8', async () => {
+    dependentes({
+      lotesDeps: Array.from({ length: 22 }, (_, i) => ({ id: `l${i}`, empresa_id: EMPRESA, categoria_manejo_id: 'outra', categoria: OFICIAL, categoria_entrada: OFICIAL })),
+      movs: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'].map((campo, i) => ({ id: `m${i}`, empresa_id: EMPRESA, [campo]: OFICIAL })),
+      manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: OFICIAL }],
+      suplementos: [{ id: 's1', empresa_id: EMPRESA, categoria: OFICIAL }],
+    });
+    expect(await bloqueia()).toBe(false);
+    expect(categoriasManejo.deleteCategoriaManejo).toHaveBeenCalledWith('cm1');
+  });
+
+  it('lote ligado pelo id (categoria_manejo_id ou de entrada) bloqueia', async () => {
+    for (const lote of [
+      { id: 'l1', empresa_id: EMPRESA, categoria_manejo_id: 'cm1' },
+      { id: 'l1', empresa_id: EMPRESA, categoria_manejo_entrada_id: 'cm1' },
+    ]) {
+      vi.clearAllMocks();
+      categoriasManejo.listCategoriasManejo.mockResolvedValue([BEZERRO]);
+      dependentes({ lotesDeps: [lote] });
+      expect(await bloqueia(), JSON.stringify(lote)).toBe(true);
+      expect(categoriasManejo.deleteCategoriaManejo).not.toHaveBeenCalled();
+    }
+  });
+
+  it('o NOME da categoria em cada campo-alvo continua bloqueando', async () => {
+    const casos = [
+      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria_manejo_nome: 'teste' }] },
+      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria: 'TESTE ' }] },
+      ...['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'].map((campo) => ({
+        movs: [{ id: 'm1', empresa_id: EMPRESA, [campo]: 'TESTE' }],
+      })),
+      { manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: 'TESTE' }] },
+      { suplementos: [{ id: 's1', empresa_id: EMPRESA, categoria: 'TESTE' }] },
+    ];
+    for (const caso of casos) {
+      vi.clearAllMocks();
+      categoriasManejo.listCategoriasManejo.mockResolvedValue([BEZERRO]);
+      dependentes(caso);
+      expect(await bloqueia(), JSON.stringify(caso)).toBe(true);
+    }
+  });
+
+  it('domínio puro: as regras de CategoriaManejo não têm fonte calculada nem categoria oficial', async () => {
+    const { evaluateDeleteBlock, DELETE_RULES } = await import('@/domain/deleteRules');
+    const fontes = DELETE_RULES.CategoriaManejo.flatMap((r) => (r.valueMatches || []).map((v) => v.sourceField));
+    expect(new Set(fontes)).toEqual(new Set(['nome']));
+    const v = evaluateDeleteBlock({
+      entityName: 'CategoriaManejo', id: 'cm1', currentRecord: BEZERRO,
+      recordsByEntity: { Lote: [{ id: 'l1', empresa_id: EMPRESA, categoria: OFICIAL }] },
+    });
+    expect(v.blocked).toBe(false);
   });
 });
 
