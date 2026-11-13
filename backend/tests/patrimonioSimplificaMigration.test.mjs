@@ -4,9 +4,12 @@
  * real, num banco PRÓPRIO criado e apagado por este teste (o banco da suíte não
  * é tocado).
  *
- * Partida: as 40 migrations da main (todas menos a CONTRACT; inclui a TipoAtividade, D-PROD-182) e sementes nas 13
- * tabelas do Patrimônio antigo para 2 clientes, com um abastecimento CANCELADO
- * (saída + estorno + fatia) e uma compra P3 em KG com lote.
+ * Partida: as 41 migrations da main (todas menos esta CONTRACT; inclui a TipoAtividade, D-PROD-182, e a CONTRACT
+ * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, aplicada pelo Prisma direto, sem o runner e portanto sem
+ * a barreira de MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa está vazio nessa hora e
+ * `semear` não cria TipoTarefa) e sementes nas 13 tabelas do Patrimônio antigo para 2 clientes, com um
+ * abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 não cria nem
+ * apaga tabela: as contagens de tabelas (86/87/80) não mudam com ela.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
  * CONFIRMADO, FK e visão de fora, trava concorrente em Produto, sem impressão,
@@ -15,7 +18,7 @@
  * MIGRATION_CONTRACT_AUTORIZADO (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 41 concluídas, 80 tabelas, as 7 novas vazias com o mesmo dono/ACL das antigas,
+ * 42 concluídas, 80 tabelas, as 7 novas vazias com o mesmo dono/ACL das antigas,
  * RLS e políticas no padrão, 7/31/32/55 constraints e índices, impressão digital
  * das 73 que ficam idêntica, os 2 CHECKs de OperacaoFinanceiraItem com 'L',
  * estoque intacto, `migrate diff` vazio e 2ª execução sem pendências.
@@ -71,9 +74,9 @@ after(async () => {
 });
 
 describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
-  test('SM-01 partida: 40 migrations da main, 86 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
+  test('SM-01 partida: 41 migrations da main, 86 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 40);
+    assert.equal(h.concluidas, 41);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 86);
     for (const t of TABELAS_APAGADAS) assert.ok(partida[t].n > 0, `${t} sem linhas`);
@@ -124,7 +127,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 41/0, 80 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
+  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 42/0, 80 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -132,7 +135,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.match(r.saida, new RegExp(`CONTRACT autorizado: ${NOME_CONTRACT} \\(${DECISAO}\\)`));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 41);
+    assert.equal(h.concluidas, 42);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.equal(await contarTabelas(db), 80);
@@ -181,6 +184,6 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 41);
+    assert.equal((await historico(db)).concluidas, 42);
   });
 });

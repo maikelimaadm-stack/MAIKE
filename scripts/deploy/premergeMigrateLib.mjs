@@ -27,7 +27,8 @@
  *     prévio, com conteúdo pinado: a PRIMEIRA instrução é a guarda `DO $$ … $$`
  *     com hash pinado (e só cita as tabelas removidas, as criadas no resto e os
  *     literais listados); depois EXATAMENTE os DROP TABLE da lista, na ordem;
- *     depois EXATAMENTE as instruções `alter_antigas` (texto pinado), na ordem.
+ *     depois EXATAMENTE as instruções `alter_antigas` (texto pinado), na ordem
+ *     (alargamento de CHECK na D-PROD-162; DROP COLUMN na D-PROD-183, sem DROP TABLE).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -68,6 +69,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': '787d6d118939c6eca4e3c3f45bf94a4f94d1f1625cbfb2ea2102b190ad944222',
   // D-PROD-182: TipoAtividade (cadastro de tipos de atividade) — só tabela nova.
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
+  // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
+  '20261113200000_tipo_tarefa_drop_colunas': '9a4eb34a1ec7665b9cb49e8870876dfb3e33eb794d86ce1e21c97214e79fb89b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -109,6 +112,21 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_unidade_check" CHECK ("unidade" IN (\'KG\', \'SACO\', \'UN\', \'L\'))',
       'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_forma_check"',
       'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = \'MERCADORIA\' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "unidade" IN (\'KG\', \'SACO\', \'L\') AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = \'SERVICO\' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = \'UN\' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+    ]),
+  }),
+  // D-PROD-183: remoção física das 4 colunas dormentes de TipoTarefa (saíram do cadastro na D-PROD-181).
+  // Sem DROP TABLE e sem tabela nova: depois da guarda, EXATAMENTE os 4 DROP COLUMN, nesta ordem
+  // (texto pinado; CASCADE, IF EXISTS, outra coluna ou outra tabela → CONTRACT_ALTER_FORA_DO_CONTRATO).
+  '20261113200000_tipo_tarefa_drop_colunas': Object.freeze({
+    decisao: 'D-PROD-183',
+    guarda_sha256: '0bf8e022725cf95f04001854f7d00cc8200b8e9165e62fe1845fad9917f11e20',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['TipoTarefa']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "TipoTarefa" DROP COLUMN "exige_area"',
+      'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_produto"',
+      'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_maquina"',
+      'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_implemento"',
     ]),
   }),
 });
@@ -184,6 +202,10 @@ const classificarExpand = (nome, sqlBruto, { novas, colunasNovasEmAntigas, doApr
 const constraintsAlargadas = (alterAntigas) =>
   alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 
+/** D-PROD-183 — colunas removidas, a partir do texto pinado (`ALTER TABLE "T" DROP COLUMN "c"`). */
+const colunasRemovidas = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) DROP COLUMN (${ID})$`))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
+
 /**
  * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
@@ -244,7 +266,10 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
       classificarExpand(m.nome, m.sql, { novas, colunasNovasEmAntigas, doAprovados, v });
       continue;
     }
-    contract.push({ migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop], constraints_alargadas: constraintsAlargadas(k.alter_antigas) });
+    contract.push({
+      migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop],
+      constraints_alargadas: constraintsAlargadas(k.alter_antigas), colunas_removidas: colunasRemovidas(k.alter_antigas),
+    });
     const resto = recortarContract(m, k, v);
     if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });
   }

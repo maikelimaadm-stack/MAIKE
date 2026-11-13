@@ -87,11 +87,21 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * com sobras de rodadas antigas (CONFIRMADO, sementes E2E) é. A dica só orienta
  * a recriar o banco local — não muda o código de saída. (`npm run db:down`
  * sozinho NÃO recria: o volume `maike_pgdata` continua; é preciso o `-v`.)
+ *
+ * D-PROD-183: a migration CONTRACT do Tipo de Tarefa apaga as 4 colunas
+ * dormentes (exige_area, pode_ter_produto, pode_ter_maquina e
+ * pode_ter_implemento) e, com algum valor true nelas, exige a impressão
+ * aprovada no GO (maike.tipo_tarefa_flags_impressao). A CI nasce vazia e não é
+ * afetada; um banco LOCAL com TipoTarefa de rodadas antigas com flags true é.
+ * O remédio é o mesmo: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
   'recrie-o (docker compose down -v && npm run db:up, que apaga o volume LOCAL do docker-compose; ' +
-  'ou dropdb/createdb do banco de teste) e rode de novo.';
+  'ou dropdb/createdb do banco de teste) e rode de novo. ' +
+  'Se cita D-PROD-183, o banco local tem TipoTarefa de rodadas antigas com alguma das 4 flags ' +
+  '(exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento) em true e a guarda exige a ' +
+  'impressão aprovada no GO: recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

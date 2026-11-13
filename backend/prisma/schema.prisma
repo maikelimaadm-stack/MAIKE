@@ -495,13 +495,9 @@ model TipoTarefa {
   descricao            String?  @db.VarChar(2000)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  // D-PROD-181: colunas DORMENTES. Saíram do cadastro; `@ignore` as tira do
-  // Prisma Client (o código não lê nem escreve) e mantém o schema igual ao
-  // banco migrado. O DROP COLUMN é CONTRACT e só com GO próprio do proprietário.
-  exige_area           Boolean  @default(false) @ignore
-  pode_ter_produto     Boolean  @default(false) @ignore
-  pode_ter_maquina     Boolean  @default(false) @ignore
-  pode_ter_implemento  Boolean  @default(false) @ignore
+  // D-PROD-181/D-PROD-183: as 4 flags de exigência saíram do cadastro e do
+  // banco (migration CONTRACT `20261113200000_tipo_tarefa_drop_colunas`).
+  // Elas não voltam aqui: as opções equivalentes nascem no apontamento.
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   grupo        GrupoAtividade   @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
