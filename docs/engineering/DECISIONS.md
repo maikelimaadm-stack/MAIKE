@@ -6718,6 +6718,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Testes.** `backend/tests/categoriaManejoEnxuto.test.mjs` (Postgres real: chaves legadas aceitas e ignoradas, saída com os 12 campos públicos, faixa de idade), `backend/tests/categoriaOficialDerivada.test.mjs` (faixas), `backend/tests/r2eR5ComandosLedgerConvertidos.test.mjs` R4 (resolução por sexo + faixa, com contraprova), `tests/smoke/categoriaOficialDerivada.test.js` (paridade front/back) e smokes do cadastro.
 
+**Nota posterior (hotfix, 2026-11-13 — PR própria).** O item das regras de exclusão foi revisto: a categoria oficial **derivada** deixou de bloquear a exclusão. Em produção, a categoria "TESTE" (Macho, 0 a 8 meses) não pôde ser excluída porque 22 lotes de **outras** categorias têm "Bezerro 0 a 12 meses" gravado em `Lote.categoria`: a oficial derivada é compartilhada por toda categoria da mesma faixa oficial e por lotes antigos, e travava qualquer exclusão nessa faixa. As regras de `CategoriaManejo` ficam: o id em `Lote` (`categoria_manejo_id`, `categoria_manejo_entrada_id`) e o `nome` nos campos de texto. O campo calculado `categoria_oficial_derivada` e `COMPUTED_SOURCE_FIELDS` saíram de `src/domain/deleteRules.js`. Teste de regressão com o caso de produção em `tests/smoke/manejoServices.test.js` (CM-D5).
+
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
 
 <!-- Próxima decisão: D-PROD-188 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D) -->

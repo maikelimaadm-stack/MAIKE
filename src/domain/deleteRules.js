@@ -10,7 +10,6 @@
  * Recebe registros já carregados e responde quem bloqueia.
  */
 
-import { categoriaOficialDaCategoriaManejo } from "@/domain/lotes/categoriaOficialDerivada";
 
 export const ENTITY_LABELS = {
   Empresa: "empresa",
@@ -61,17 +60,17 @@ export const DELETE_RULES = {
     { entity: "LancamentoTarefa", fields: ["area_id"], label: "lançamentos de tarefas" },
     { entity: "ManejoTecnicoRebanho", fields: ["area_id"], label: "manejos técnicos" },
   ],
-  // `categoria_oficial_derivada` é campo CALCULADO (COMPUTED_SOURCE_FIELDS): a
-  // categoria oficial que a categoria de manejo deriva de sexo + faixa de idade.
-  // Cobre os mesmos campos que a antiga `categoria_oficial` cobria. Duas
-  // categorias na mesma faixa oficial bloqueiam uma à outra — bloquear a
-  // exclusão é o lado seguro.
+  // Categoria de manejo: o vínculo real é o id (`Lote.categoria_manejo_id` /
+  // `categoria_manejo_entrada_id`); o nome cobre os registros que só guardaram o
+  // texto. A categoria oficial DERIVADA (sexo + faixa) NÃO bloqueia: ela é
+  // compartilhada por toda categoria da mesma faixa oficial e por lotes de
+  // outras categorias, e travava qualquer exclusão (hotfix D-PROD-186).
   CategoriaManejo: [
     { entity: "Lote", fields: ["categoria_manejo_id", "categoria_manejo_entrada_id"], label: "lotes" },
-    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome", "categoria", "categoria_entrada"] }, { sourceField: "categoria_oficial_derivada", targetFields: ["categoria", "categoria_entrada"] }], label: "lotes" },
-    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }, { sourceField: "categoria_oficial_derivada", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial_derivada", targetFields: ["categoria"] }], label: "manejos técnicos" },
-    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial_derivada", targetFields: ["categoria"] }], label: "lotes de suplementação" },
+    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome", "categoria", "categoria_entrada"] }], label: "lotes" },
+    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "manejos técnicos" },
+    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "lotes de suplementação" },
   ],
   Produto: [
     { entity: "MovimentacaoEstoque", fields: ["produto_id"], label: "movimentações de estoque" },
@@ -112,27 +111,6 @@ export const DELETE_RULES = {
   TipoTarefa: [
     { entity: "LancamentoTarefa", fields: ["tipo_tarefa_id"], label: "lançamentos de tarefas" },
   ],
-};
-
-/**
- * Campos de origem CALCULADOS por entidade: não estão gravados no registro que
- * se quer excluir e são derivados dele antes da avaliação. Sempre recalculados
- * (um valor vindo no registro nunca vale); `null` vira '' e nunca casa.
- */
-export const COMPUTED_SOURCE_FIELDS = Object.freeze({
-  CategoriaManejo: Object.freeze({
-    categoria_oficial_derivada: (registro) => categoriaOficialDaCategoriaManejo(registro),
-  }),
-});
-
-/** O registro alvo com os campos calculados da entidade (os demais intocados). */
-export const withComputedSourceFields = (entityName, record) => {
-  const calculados = COMPUTED_SOURCE_FIELDS[entityName];
-  if (!calculados || !record) return record;
-  return {
-    ...record,
-    ...Object.fromEntries(Object.entries(calculados).map(([campo, calcular]) => [campo, calcular(record)])),
-  };
 };
 
 const normalizeValue = (value) => (value === null || value === undefined ? '' : String(value).trim().toLowerCase());
@@ -176,13 +154,12 @@ export const evaluateDeleteBlock = ({ entityName, id, currentRecord, recordsByEn
   if (!rules.length) return { blocked: false };
 
   const empresaId = currentRecord?.empresa_id;
-  const alvo = withComputedSourceFields(entityName, currentRecord);
 
   for (const rule of rules) {
     const registros = recordsByEntity?.[rule.entity] || [];
     const linkedCount = registros.filter((record) => {
       if (entityName !== 'Empresa' && empresaId && record?.empresa_id && record.empresa_id !== empresaId) return false;
-      return hasMatchingReference(record, id, rule, alvo);
+      return hasMatchingReference(record, id, rule, currentRecord);
     }).length;
 
     if (linkedCount > 0) {
