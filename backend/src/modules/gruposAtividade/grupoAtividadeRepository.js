@@ -65,7 +65,7 @@ export const contarTiposDoGrupo = async (tx, clienteId, grupoId) =>
   });
 
 /**
- * D-PROD-181 — tipos de atividade vinculados ao grupo (FK Restrict).
+ * D-PROD-182 — tipos de atividade vinculados ao grupo (FK Restrict).
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  */
 export const contarTiposAtividadeDoGrupo = async (tx, clienteId, grupoId) =>
@@ -100,7 +100,7 @@ export const propagarNomeGrupoNosTipos = async (tx, clienteId, grupoId, nomeGrup
   });
 
 /**
- * D-PROD-181 — o nome do grupo fica em cache no Tipo de Atividade.
+ * D-PROD-182 — o nome do grupo fica em cache no Tipo de Atividade.
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  */
 export const propagarNomeGrupoNosTiposAtividade = async (tx, clienteId, grupoId, nomeGrupo) =>

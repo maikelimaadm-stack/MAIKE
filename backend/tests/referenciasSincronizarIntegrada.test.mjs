@@ -416,7 +416,7 @@ describe('Controle positivo, idempotência e auditoria', () => {
     assert.equal(r2.json().total_updated, 0, 'idempotente');
   });
 
-  test('D-PROD-181 — GrupoAtividade: nome defasado no TipoAtividade é corrigido por id; outro grupo intacto; 2ª chamada não muda nada', async () => {
+  test('D-PROD-182 — GrupoAtividade: nome defasado no TipoAtividade é corrigido por id; outro grupo intacto; 2ª chamada não muda nada', async () => {
     const A = await soGrupos();
     const c = A.clienteId;
     const g = await grupo(c, 'ROÇADAS');
@@ -432,7 +432,7 @@ describe('Controle positivo, idempotência e auditoria', () => {
     assert.equal(r2.json().total_updated, 0, 'idempotente');
   });
 
-  test('D-PROD-181 — GrupoAtividade (UI: PATCH renomeia + sincronizar): TipoAtividade acompanha junto com TipoTarefa', async () => {
+  test('D-PROD-182 — GrupoAtividade (UI: PATCH renomeia + sincronizar): TipoAtividade acompanha junto com TipoTarefa', async () => {
     const A = await acessoTotal();
     const c = A.clienteId;
     const g = await grupo(c, 'VELHO');

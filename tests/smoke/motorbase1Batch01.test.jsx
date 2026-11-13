@@ -223,7 +223,7 @@ describe("MOTORBASE1-BATCH-01", () => {
     expect(screen.getByRole("button", { name: "Novo" })).toBeTruthy();
   });
 
-  it("TiposTarefa — formulário exige grupo e não tem flags de exigência (D-PROD-180)", async () => {
+  it("TiposTarefa — formulário exige grupo e não tem flags de exigência (D-PROD-181)", async () => {
     serviceMock.listarGruposSimples.mockResolvedValue([
       { id: "g1", nome_grupo: "GERAL", ativo: true },
     ]);

@@ -4,7 +4,7 @@
  * real, num banco PRÓPRIO criado e apagado por este teste (o banco da suíte não
  * é tocado).
  *
- * Partida: as 40 migrations da main (todas menos a CONTRACT; inclui a TipoAtividade, D-PROD-181) e sementes nas 13
+ * Partida: as 40 migrations da main (todas menos a CONTRACT; inclui a TipoAtividade, D-PROD-182) e sementes nas 13
  * tabelas do Patrimônio antigo para 2 clientes, com um abastecimento CANCELADO
  * (saída + estorno + fatia) e uma compra P3 em KG com lote.
  *

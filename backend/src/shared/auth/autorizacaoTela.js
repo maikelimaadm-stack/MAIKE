@@ -45,7 +45,7 @@ export const TELAS = Object.freeze({
   UNIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-unidades' }),
   LOCAIS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-locais' }),
   TIPOS_TAREFA: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-tarefa' }),
-  // D-PROD-181 — mesmo id do item de menu `sup-tipos-atividade`.
+  // D-PROD-182 — mesmo id do item de menu `sup-tipos-atividade`.
   TIPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-atividade' }),
   GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
   EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),

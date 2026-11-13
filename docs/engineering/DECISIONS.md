@@ -6471,9 +6471,32 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Relatório:** [`MAIKE-CI-INTELIGENTE-PR01-REPORT.md`](./MAIKE-CI-INTELIGENTE-PR01-REPORT.md). **Registro:** [`GATE-REGISTRY.md`](./GATE-REGISTRY.md), seção "Integração contínua".
 
-## D-PROD-180 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+## D-PROD-180 — Perfil `full` da CI em jobs paralelos, com a mesma cobertura do `verify:all`
 
-> **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas a PR #255 (CI em dois perfis) entrou antes na `main` com a D-PROD-179. Para não duplicar, a Fatia A virou **D-PROD-180** e a Fatia B, **D-PROD-181**.
+**Data:** 2026-11-13. **Missão:** MAIKE-CI-PARALELO-PR02, pedida pelo proprietário ("as verificações estão demorando muito"). **Natureza:** infraestrutura de CI; regra de negócio, código de produto, banco e permissões ficam como estão.
+
+**Problema:** mesmo depois da D-PROD-179, toda PR de código e todo push na `main` rodavam o `verify:all` em série num único job, com 22 a 29 min na CI. Só o `test:backend` levava de 13 a 17 min, porque roda arquivo a arquivo (`--test-concurrency=1`) contra um único PostgreSQL.
+
+**Decisão:**
+1. O job `verify:full` vira uma matriz paralela, sem `fail-fast`, com estas partes:
+   - `estatico`: `node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke`, ou seja, todas as outras etapas do `verify:all`;
+   - `backend i/4`: `TEST_BACKEND_SHARD=i/4 npm run test:backend`. Cada parte tem o **próprio** PostgreSQL 16.13 efêmero, aplica todas as migrations no banco vazio e roda seu grupo em série;
+   - `smoke i/2`: `npm run test:smoke -- --shard=i/2` (Vitest).
+2. **Cobertura igual à do `verify:all`:**
+   - o `--pular` só aceita nomes de etapas que existem;
+   - a divisão do backend (`scripts/ci/backend-shards.mjs`) põe cada arquivo em exatamente um grupo. Arquivo novo sem peso medido entra com o peso mediano;
+   - os testes `BS-*` e `QP-W7` reprovam se sobrar ou faltar etapa ou arquivo.
+3. Os pesos (`scripts/ci/backend-test-pesos.json`) são os milissegundos de cada arquivo medido sozinho num PostgreSQL local. Servem só para equilibrar os grupos.
+4. O check obrigatório continua sendo o único `verify:all` (D-PROD-179). `needs.full.result` da matriz só é `success` se todas as partes passarem.
+5. `npm run verify:all` local continua igual: sem argumentos, roda a cadeia inteira em série.
+
+**Consequência:** o tempo do perfil `full` passa a ser o da parte mais lenta, não a soma das partes. Os números medidos estão no relatório. Cada parte faz o próprio `npm ci`, e cada parte de backend roda também as migrations.
+
+**Relatório:** [`MAIKE-CI-PARALELO-PR02-REPORT.md`](./MAIKE-CI-PARALELO-PR02-REPORT.md).
+
+## D-PROD-181 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
+
+> **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas as PRs #255 e #258 (CI) entraram antes na `main` com a D-PROD-179 e a D-PROD-180. Para não duplicar, a Fatia A virou **D-PROD-181** e a Fatia B, **D-PROD-182**; a D-PROD-180 ficou com a PR #258 (CI paralela), que também entrou antes.
 
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
@@ -6522,9 +6545,9 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md).
 
-## D-PROD-181 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
+## D-PROD-182 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
 
-**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-180)
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-181)
 
 **Contexto.**
 - **TAREFA** é a demanda: status, prioridade, prazo.
@@ -6539,7 +6562,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - Índices `[cliente_id, grupo_atividade_id]` e `[cliente_id, ativo]`.
    - Relações inversas `Cliente.tiposAtividade` e `GrupoAtividade.tiposAtividade`.
 2. **Migration EXPAND `20261113100000_tipo_atividade_cadastro`.** Cria só a tabela nova, com índices, FKs e o bloco RLS/REVOKE copiado literalmente da D-PROD-153 (com `ARRAY['TipoAtividade']`).
-   - SHA-256 do arquivo: `0fdbf9114822f5c33d97f7bf03800bee6bd4986e2d715c05bea62149aee5f01f`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
+   - SHA-256 do arquivo: `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
    - Repositório: 40 → **41** migrations e 79 → **80** tabelas. Os scripts do SQL editor (01–04) e os testes de contagem foram atualizados.
 3. **API `/tipos-atividade`.** Espelha `/tipos-tarefa`:
    - lista completa do tenant, na mesma ordem e sem paginação, igual à de tarefa;
@@ -6587,4 +6610,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-182 -->
+<!-- Próxima decisão: D-PROD-183 -->

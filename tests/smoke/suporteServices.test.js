@@ -44,7 +44,7 @@ const tarefas = {
   createTipo: vi.fn(), updateTipo: vi.fn(), deleteTipo: vi.fn(),
   sincronizarReferenciasTarefa: vi.fn(),
 };
-// D-PROD-181: TipoAtividade também depende de GrupoAtividade.
+// D-PROD-182: TipoAtividade também depende de GrupoAtividade.
 const atividades = {
   listTiposAtividade: vi.fn(), getTipoAtividade: vi.fn(),
   createTipoAtividade: vi.fn(), updateTipoAtividade: vi.fn(), deleteTipoAtividade: vi.fn(),
@@ -591,7 +591,7 @@ describe('TA — grupos e tipos de tarefa', () => {
     expect(r.bloqueados[0].code).toBe(API_ERROR_CODES.TIPO_TAREFA_DELETE_BLOCKED);
   });
 
-  it('TA4 — grupo com tipo de atividade vinculado é bloqueado (D-PROD-181)', async () => {
+  it('TA4 — grupo com tipo de atividade vinculado é bloqueado (D-PROD-182)', async () => {
     atividades.listTiposAtividade.mockResolvedValue([{ id: 'ta1', grupo_atividade_id: 'g1' }]);
     const r = await tarefaSvc.excluirGrupos(['g1', 'g2'], { grupos: [{ id: 'g1' }, { id: 'g2' }] });
     expect(r.excluidos).toEqual(['g2']);

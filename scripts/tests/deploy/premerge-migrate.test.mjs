@@ -37,7 +37,7 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-181) só com tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);

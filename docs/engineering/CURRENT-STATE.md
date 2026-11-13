@@ -25,25 +25,25 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-181)
+## Missão ativa (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-182** |
+| Branch / PR | `feat/tipo-atividade-cadastro`, empilhada sobre `feat/tipo-tarefa-sem-flags` (Fatia A, PR #254). PR em rascunho com base na Fatia A |
+| Escopo | Model, migration, API `/tipos-atividade`, tela `TiposAtividade` (4 campos), menu e permissão `sup-tipos-atividade`, bloqueio da exclusão do grupo e propagação do nome |
+| Migration | `20261113100000_tipo_atividade_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Repositório: 40 → **41** migrations, 79 → **80** tabelas. **Não aplicada em nenhum ambiente remoto** |
+| Release | Merge da Fatia A, depois desta; em seguida `deploy:migrate` pelo caminho oficial e deploy |
+| Relatório | [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-TIPO-TAREFA-SEM-FLAGS (Fatia A): Tipo de Tarefa sem flags de exigência (D-PROD-181)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-181** |
-| Branch / PR | `feat/tipo-atividade-cadastro`, empilhada sobre `feat/tipo-tarefa-sem-flags` (Fatia A, PR #254). PR em rascunho com base na Fatia A |
-| Escopo | Model, migration, API `/tipos-atividade`, tela `TiposAtividade` (4 campos), menu e permissão `sup-tipos-atividade`, bloqueio da exclusão do grupo e propagação do nome |
-| Migration | `20261113100000_tipo_atividade_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `0fdbf9114822f5c33d97f7bf03800bee6bd4986e2d715c05bea62149aee5f01f`. Repositório: 40 → **41** migrations, 79 → **80** tabelas. **Não aplicada em nenhum ambiente remoto** |
-| Release | Merge da Fatia A, depois desta; em seguida `deploy:migrate` pelo caminho oficial e deploy |
-| Relatório | [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md) |
-
-## Missão anterior (2026-11-13) — MAIKE-TIPO-TAREFA-SEM-FLAGS (Fatia A): Tipo de Tarefa sem flags de exigência (D-PROD-180)
-
-| Campo | Valor |
-|---|---|
-| Decisão | **D-PROD-180** |
 | Branch / PR | `feat/tipo-tarefa-sem-flags`, base `origin/main` `b7e5ab11`. PR em rascunho, exclusiva desta fatia |
 | Escopo | Remove `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` do cadastro de Tipo de Tarefa: Prisma, backend, porta, formulário e contrato. A API aceita e ignora essas chaves vindas de cliente antigo |
-| Migration | **Nenhuma.** As 4 colunas ficam dormentes no banco (`DEFAULT false`). O `DROP COLUMN` é CONTRACT e depende de GO próprio (D-PROD-180 item 4) |
+| Migration | **Nenhuma.** As 4 colunas ficam dormentes no banco (`DEFAULT false`). O `DROP COLUMN` é CONTRACT e depende de GO próprio (D-PROD-181 item 4) |
 | Próxima fatia | Fatia B (TipoAtividade). Só começa depois da resposta do proprietário |
 | Relatório | [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md) |
 

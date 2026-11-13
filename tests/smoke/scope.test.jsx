@@ -71,7 +71,7 @@ describe('escopo do produto', () => {
     }
     // Patrimônio e Frota fica com as duas páginas.
     expect(scope.allowedPages.filter((p) => ['BensPatrimoniais', 'Abastecimentos'].includes(p))).toEqual(['BensPatrimoniais', 'Abastecimentos']);
-    // +1 Tipos de Atividade (D-PROD-181).
+    // +1 Tipos de Atividade (D-PROD-182).
     expect(scope.allowedPages).toHaveLength(25);
   });
 

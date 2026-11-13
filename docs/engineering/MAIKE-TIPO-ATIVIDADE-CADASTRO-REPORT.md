@@ -1,6 +1,6 @@
 # MAIKE-TIPO-ATIVIDADE-CADASTRO — Relatório (Fatia B)
 
-**fatia B · `feat/tipo-atividade-cadastro` · PR em rascunho (base `feat/tipo-tarefa-sem-flags`)** · Decisão: [D-PROD-181](./DECISIONS.md)
+**fatia B · `feat/tipo-atividade-cadastro` · PR em rascunho (base `feat/tipo-tarefa-sem-flags`)** · Decisão: [D-PROD-182](./DECISIONS.md)
 
 ## 1. Entrega
 
@@ -29,7 +29,7 @@ O cadastro de Tipo de Atividade espelha o Tipo de Tarefa: mesmo grupo, mesma FK 
 Achados da revisão e o que foi feito:
 - **O formulário escondia o grupo atual quando ele estava inativo.** O campo aparecia como "SELECIONE", embora o registro continuasse gravado naquele grupo. Corrigido: o grupo atual continua na lista, marcado "(INATIVO)". Teste TA-FORM-2b: falha antes da correção e passa depois.
 - **Faltava um teste de tela corrigido na Fatia A.** A Fatia B não tinha o commit `77d5fc9b` da Fatia A. Feito o merge da Fatia A.
-- **`GET /:id` não existe no Tipo de Tarefa.** Fica, porque foi pedido pelo proprietário. Exige só autenticação, igual à lista, e é isolado por cliente. Registrado na D-PROD-181, item 3.
+- **`GET /:id` não existe no Tipo de Tarefa.** Fica, porque foi pedido pelo proprietário. Exige só autenticação, igual à lista, e é isolado por cliente. Registrado na D-PROD-182, item 3.
 
 ## 3. Validação local (PostgreSQL 16 descartável)
 

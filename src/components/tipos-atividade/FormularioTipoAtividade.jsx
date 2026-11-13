@@ -30,7 +30,7 @@ const UPPERCASE_FIELDS = ["nome_tipo", "descricao"];
  */
 
 /**
- * Formulário do cadastro de tipos de atividade (D-PROD-181).
+ * Formulário do cadastro de tipos de atividade (D-PROD-182).
  *
  * Exatamente quatro campos, nesta ordem: Grupo de atividade, Nome do tipo de
  * atividade, Descrição e Ativo. O seletor oferece só grupos ativos; no modo

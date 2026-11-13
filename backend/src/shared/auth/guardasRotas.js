@@ -283,7 +283,7 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-181
+  tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },

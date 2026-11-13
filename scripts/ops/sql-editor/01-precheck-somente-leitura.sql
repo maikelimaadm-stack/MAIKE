@@ -13,7 +13,7 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 65 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-181) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 65 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (
@@ -130,7 +130,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 80 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-181)',
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 80 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182)',
          CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 80 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',

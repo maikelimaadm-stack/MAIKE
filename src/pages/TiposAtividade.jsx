@@ -26,7 +26,7 @@ import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1Full
 
 const QUERY_KEY = ["tipos-atividade"];
 
-/** Cadastro de tipos de atividade (D-PROD-181). */
+/** Cadastro de tipos de atividade (D-PROD-182). */
 export default function TiposAtividade() {
   const queryClient = useQueryClient();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));

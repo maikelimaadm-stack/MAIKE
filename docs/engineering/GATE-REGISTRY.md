@@ -1178,7 +1178,7 @@ tem dois perfis e um único check obrigatório.
 |---|---|---|
 | `classify` | sempre | `scripts/ci/quality-profile.mjs`, lido do commit **base** da PR, decide `docs_fast` ou `full` de forma fail-closed |
 | `verify:docs-fast` | só em `docs_fast` | sem PostgreSQL: `npm ci`, `gate:governance-paths`, `gate:package-sync`, `gate:product-scope`, `gate:no-secrets`, `gate:deploy-migrations`, `test:gates` |
-| `verify:full` | só em `full` | o job anterior inalterado: PostgreSQL 16.13 efêmero, `npm ci`, `npm run verify:all` |
+| `verify:full (…)` | só em `full` | matriz **paralela** que cobre o `verify:all` inteiro (D-PROD-180): `estatico` (`verify-all.mjs --pular=test:backend,test:smoke`), `backend 1/4..4/4` (`TEST_BACKEND_SHARD=i/4 npm run test:backend`, cada um com PostgreSQL 16.13 efêmero próprio) e `smoke 1/2..2/2` (`test:smoke -- --shard=i/2`) |
 | `verify:all` | sempre (`if: always()`) | único check exigido; só passa em (`docs_fast`, docs-fast ok, full pulado, em `pull_request` contra a branch padrão) ou (`full`, full ok, docs-fast pulado) |
 
 `docs_fast` exige que a base da PR seja a branch padrão e que **todos** os arquivos da PR sejam `docs/**/*.md` ou
@@ -1232,8 +1232,8 @@ do binário. Preferir API disponível na versão fixada resolve na origem:
 `readdirSync(dir, { recursive: true })` cobre Node 18.17+, `globSync` não.
 
 **Nenhum script versionado do repositório faz isso hoje**: `verify:all` é um
-script Node que propaga o exit code, e `quality.yml` chama `npm run verify:all`
-direto, sem pipe. Por isso a proteção vive aqui e no relatório da P1.2-R1, e não
+script Node que propaga o exit code, e `quality.yml` chama `verify-all.mjs`, o
+`test:backend` e o `test:smoke` direto, sem pipe (D-PROD-180). Por isso a proteção vive aqui e no relatório da P1.2-R1, e não
 como gate — não existe script responsável para um gate vigiar, e analisar shell
 arbitrário não é objetivo deste registro.
 
