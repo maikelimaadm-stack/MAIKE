@@ -69,7 +69,13 @@ export default function FormularioTipoAtividade({
     ativo: initialData?.ativo ?? true,
   }));
 
-  const gruposAtivos = grupos.filter((grupo) => grupo.ativo !== false);
+  // Só grupos ATIVOS são oferecidos. Exceção: o grupo atual de um tipo já
+  // existente continua na lista (marcado INATIVO), senão o select mostraria
+  // "SELECIONE" enquanto o registro segue gravado nele.
+  const grupoAtualId = initialData?.grupo_atividade_id || "";
+  const gruposAtivos = grupos.filter(
+    (grupo) => grupo.ativo !== false || (grupoAtualId && grupo.id === grupoAtualId),
+  );
 
   /** @param {keyof typeof formData} field @param {string | boolean} value */
   const handleChange = (field, value) => {
@@ -136,6 +142,7 @@ export default function FormularioTipoAtividade({
             {gruposAtivos.map((grupo) => (
               <option key={grupo.id} value={grupo.id}>
                 {String(grupo.nome_grupo || "").toUpperCase()}
+                {grupo.ativo === false ? " (INATIVO)" : ""}
               </option>
             ))}
           </B1Select>

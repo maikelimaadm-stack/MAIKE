@@ -6486,4 +6486,69 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md`](./MAIKE-TIPO-TAREFA-SEM-FLAGS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-180 -->
+## D-PROD-180 — Cadastro de Tipo de Atividade, espelho do Tipo de Tarefa (Fatia B)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia B) · **Branch:** `feat/tipo-atividade-cadastro`, empilhada sobre a Fatia A (`feat/tipo-tarefa-sem-flags`, D-PROD-179)
+
+**Contexto.**
+- **TAREFA** é a demanda: status, prioridade, prazo.
+- **ATIVIDADE** é a operação executada: consome máquina, combustível, insumo.
+- As duas penduram no mesmo `GrupoAtividade`.
+- O cadastro não tem flags de exigência. Elas voltam depois como opções do apontamento, nunca do cadastro.
+
+**Decisão.**
+1. **Model `TipoAtividade`.** Campos: `id, cliente_id, nome_tipo, grupo_atividade_id, grupo_atividade_nome` (cache gravado na escrita), `ativo, descricao, createdAt, updatedAt`.
+   - FK composta `(cliente_id, grupo_atividade_id) → GrupoAtividade(cliente_id, id)` e FK para `Cliente`, as duas `ON DELETE RESTRICT`.
+   - Únicos `[cliente_id, id]` e `[cliente_id, grupo_atividade_id, nome_tipo]`.
+   - Índices `[cliente_id, grupo_atividade_id]` e `[cliente_id, ativo]`.
+   - Relações inversas `Cliente.tiposAtividade` e `GrupoAtividade.tiposAtividade`.
+2. **Migration EXPAND `20261113100000_tipo_atividade_cadastro`.** Cria só a tabela nova, com índices, FKs e o bloco RLS/REVOKE copiado literalmente da D-PROD-153 (com `ARRAY['TipoAtividade']`).
+   - SHA-256 do arquivo: `def905e77dc7fdbf72bbf693cde3d088065147b524f6317f5c2f39f34cdd4b7c`. Hash do corpo do DO: `4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5`. Os dois estão pinados em `premergeMigrateLib.mjs`.
+   - Repositório: 40 → **41** migrations e 79 → **80** tabelas. Os scripts do SQL editor (01–04) e os testes de contagem foram atualizados.
+3. **API `/tipos-atividade`.** Espelha `/tipos-tarefa`:
+   - lista completa do tenant, na mesma ordem e sem paginação, igual à de tarefa;
+   - `POST`, `PATCH /:id` (que também liga e desliga `ativo`) e `DELETE /:id`;
+   - exclusão física, a mesma política do Tipo de Tarefa, sem dependentes por ora;
+   - nome em maiúsculas, único por cliente e grupo;
+   - tenant sempre do `auth_context`;
+   - auditoria na mesma transação;
+   - corpo com `additionalProperties: false`: as chaves legadas `exige_area`/`pode_ter_*` dão 400.
+
+   **Acréscimo pedido pelo proprietário:** `GET /tipos-atividade/:id`. Exige só autenticação, igual à lista, e devolve 404 `TIPO_ATIVIDADE_NOT_FOUND` para id desconhecido ou de outro cliente.
+   Erros novos: `TIPO_ATIVIDADE_NOT_FOUND` (404) e `TIPO_ATIVIDADE_NAME_CONFLICT` (409).
+4. **Permissões.** A tela é `sup-tipos-atividade`, no módulo `suporte-mapa`. A guarda é `cadastro()`, igual à de Tipos de Tarefa.
+   - Item de menu logo depois de "Tipos de Tarefa".
+   - Nenhum perfil recebe acesso automático: o administrador libera a tela no perfil, como em qualquer tela nova.
+5. **Grupo de atividade.**
+   - Excluir um grupo com tipo de atividade vinculado devolve 409 `GRUPO_ATIVIDADE_DELETE_BLOCKED`, em vez do erro cru de FK.
+   - Renomear o grupo propaga o novo nome para o cache `TipoAtividade.grupo_atividade_nome`, tanto no `PATCH` do grupo quanto em `/referencias/sincronizar`.
+6. **Tela.**
+   - Página `TiposAtividade` e porta `src/apis/atividades/tipoAtividadePort.js`, com fila offline e tenant.
+   - Formulário com 4 campos, nesta ordem: Grupo de atividade (só grupos ATIVOS), Nome, Descrição (opcional) e Ativo.
+   - Exceção: ao editar um tipo cujo grupo foi inativado depois, esse grupo continua na lista, marcado "(INATIVO)". Sem isso, o campo mostraria "SELECIONE" com o registro ainda gravado nele.
+   - Só componentes que já existiam; nenhum componente visual novo.
+7. **Fora do escopo:**
+   - `ApontamentoAtividade`;
+   - `AbastecimentoBem` e `LancamentoTarefa`;
+   - flags de exigência;
+   - trabalho visual.
+
+**Testes.**
+- `backend/tests/tipoAtividadeNativo.test.mjs`, em Postgres real, cobre:
+  - criar;
+  - nome duplicado no mesmo grupo é recusado, inclusive com maiúsculas e minúsculas diferentes;
+  - o mesmo nome em outro grupo é aceito;
+  - cache do nome do grupo, ao renomear e ao mover;
+  - isolamento por `cliente_id`;
+  - inativar e reativar;
+  - `GET /:id`;
+  - apagar;
+  - grupo com tipo vinculado: a API devolve 409 e a FK Restrict bloqueia direto no banco;
+  - 403 sem a tela.
+- `permissoesR2Rotas` e `referenciasSincronizarIntegrada` ganham os casos novos.
+- Smoke `tests/smoke/tiposAtividade.test.jsx` cobre a ordem dos 4 campos, os grupos ativos, o grupo atual inativo, os obrigatórios e o payload.
+- O gate `gate-tarefa-cadastro-native` passa a conferir também o TipoAtividade sem flags.
+
+**Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-181 -->

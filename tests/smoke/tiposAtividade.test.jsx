@@ -75,6 +75,17 @@ describe("TA-FORM — formulário de tipo de atividade", () => {
     expect(screen.queryByRole("option", { name: /CERCAS/ })).toBeNull();
   });
 
+  it("TA-FORM-2b — editar tipo de grupo já inativado mantém esse grupo selecionável (INATIVO), sem oferecer outros inativos", async () => {
+    const grupos = [...GRUPOS, { id: "g4", nome_grupo: "Antigo", ativo: false }];
+    const { form } = montar({
+      grupos,
+      isEditing: true,
+      initialData: { id: "t1", grupo_atividade_id: "g2", grupo_atividade_nome: "CERCAS", nome_tipo: "REPARO", ativo: true },
+    });
+    const opcoes = (await abrirGrupo(form)).map((o) => o.textContent.trim());
+    expect(opcoes).toEqual(["SELECIONE", "PASTAGEM", "CERCAS (INATIVO)", "AGUADAS"]);
+  });
+
   it("TA-FORM-3 — grupo e nome são obrigatórios", async () => {
     const { form, onSubmit } = montar();
     enviar();
