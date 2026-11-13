@@ -96,7 +96,7 @@ simultâneas presas a 2 CPUs (`taskset -c 0,1`): **24/24 verdes, 45/45 em cada u
 
 ### Gates
 
-`npm run verify:all` verde. Ver o resultado na PR.
+`npm run verify:all` local verde: **TODAS AS ETAPAS PASSARAM**, incluindo `test:backend` contra PostgreSQL 16 efêmero, `test:smoke`, `build` e `build:admin`.
 
 ## Fora do escopo
 
