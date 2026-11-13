@@ -160,21 +160,22 @@ export const lerEntradaRebanho = (entrada) => {
 };
 
 /**
- * Categoria de manejo da empresa para uma categoria oficial. Com id: precisa
- * existir, estar ativa e ser DESSA categoria oficial. Sem id: a única ativa
- * dessa categoria; nenhuma → sem categoria de manejo; mais de uma → ambíguo,
- * o formulário precisa escolher (não se adivinha).
+ * Categoria de manejo da empresa para uma categoria oficial, casada pelo
+ * `nome` (rótulo canônico — MAIKE-CATEGORIA-MANEJO-ENXUGAR). Com id: precisa
+ * existir, estar ativa e ter ESSE nome. Sem id: a única ativa com esse nome;
+ * nenhuma → sem categoria de manejo; mais de uma → ambíguo, o formulário
+ * precisa escolher (não se adivinha).
  */
 const resolverCategoriaManejo = async (tx, clienteId, empresaId, oficial, idPedido) => {
   if (idPedido) {
     const c = await tx.categoriaManejo.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id: idPedido, ativo: true } });
-    if (!c || normal(c.categoria_oficial) !== normal(oficial)) {
-      throw recusa('MANEJO_CATEGORIA_INVALIDA', 'categoria de manejo inexistente, inativa ou de outra categoria oficial', { categoria_manejo_id: idPedido });
+    if (!c || normal(c.nome) !== normal(oficial)) {
+      throw recusa('MANEJO_CATEGORIA_INVALIDA', 'categoria de manejo inexistente, inativa ou de outra categoria', { categoria_manejo_id: idPedido });
     }
     return c;
   }
   const candidatas = (await tx.categoriaManejo.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true } })).filter(
-    (c) => normal(c.categoria_oficial) === normal(oficial)
+    (c) => normal(c.nome) === normal(oficial)
   );
   if (candidatas.length > 1) {
     throw recusa('MANEJO_CATEGORIA_AMBIGUA', 'há mais de uma categoria de manejo ativa para esta categoria; escolha uma', { categoria: oficial });

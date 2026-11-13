@@ -61,10 +61,10 @@ export const DELETE_RULES = {
   ],
   CategoriaManejo: [
     { entity: "Lote", fields: ["categoria_manejo_id", "categoria_manejo_entrada_id"], label: "lotes" },
-    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome"] }, { sourceField: "categoria_oficial", targetFields: ["categoria", "categoria_entrada"] }], label: "lotes" },
-    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }, { sourceField: "categoria_oficial", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "manejos técnicos" },
-    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "lotes de suplementação" },
+    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome", "categoria", "categoria_entrada"] }], label: "lotes" },
+    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
+    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "manejos técnicos" },
+    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "lotes de suplementação" },
   ],
   Produto: [
     { entity: "MovimentacaoEstoque", fields: ["produto_id"], label: "movimentações de estoque" },

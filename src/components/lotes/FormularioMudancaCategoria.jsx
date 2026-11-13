@@ -12,6 +12,14 @@ import { notifyWarning } from "@/lib/maikeNotify";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
+/** Mesma normalização do `normal()` de `manejoRebanhoComandoService` (sem acento, sem caixa). */
+const normalizarRotulo = (v) =>
+  String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
 const CATEGORIAS = [
   "Bezerro 0 a 12 meses",
   "Bezerra 0 a 12 meses",
@@ -124,8 +132,9 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     };
     // Se mudou a nova categoria, buscar o sexo da categoria de manejo correspondente
     if (field === 'categoria_nova') {
-      // R2B-P1: a categoria de manejo acompanha a oficial escolhida (sem herdar a da categoria antiga).
-      const catManejo = categoriasManejo.find(c => c.categoria_oficial === value);
+      // R2B-P1: a categoria de manejo acompanha a escolhida (sem herdar a da categoria antiga).
+      // MAIKE-CATEGORIA-MANEJO-ENXUGAR: casa pelo `nome` (rótulo canônico), mesma normalização do servidor.
+      const catManejo = categoriasManejo.find(c => normalizarRotulo(c.nome) === normalizarRotulo(value));
       novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
       novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
       novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;
