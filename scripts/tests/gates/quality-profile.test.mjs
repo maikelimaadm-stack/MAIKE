@@ -38,6 +38,8 @@ const OUTRO_SHA = 'b'.repeat(40);
 const TOKEN_FALSO = ['token', 'de', 'teste', 'nao', 'secreto'].join('-');
 
 const arq = (filename, status = 'modified') => ({ filename, status });
+/** PR contra a branch padrão (o único caso em que docs_fast é possível). */
+const BASE_PADRAO = { baseRef: 'main', defaultBranch: 'main' };
 const classificar = (files) => classifyChangedFiles(files, { expectedCount: files.length });
 
 /* ------------------------------------------------------------------------ */
@@ -146,7 +148,7 @@ describe('classificador — evento e consistência da listagem', () => {
   });
 
   test('QP-D3 PR consistente só com docs → docs_fast', () => {
-    const r = decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem: listagemOk([arq('docs/a.md')]) });
+    const r = decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem: listagemOk([arq('docs/a.md')]) });
     assert.equal(r.mode, 'docs_fast');
   });
 
@@ -156,12 +158,25 @@ describe('classificador — evento e consistência da listagem', () => {
       { ...listagemOk(files), headAntes: OUTRO_SHA },
       { ...listagemOk(files), headDepois: OUTRO_SHA },
     ]) {
-      assert.equal(decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem }).reason, 'head_divergente');
+      assert.equal(decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem }).reason, 'head_divergente');
     }
     assert.equal(
-      decideQualityProfile({ eventName: 'pull_request', eventHeadSha: 'curto', listagem: listagemOk(files) }).reason,
+      decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: 'curto', listagem: listagemOk(files) }).reason,
       'head_do_evento_invalido'
     );
+  });
+
+  test('QP-D6 PR contra branch que não é a padrão → full, mesmo só com docs (troca de base não reroda a CI)', () => {
+    const listagem = listagemOk([arq('docs/a.md')]);
+    for (const base of [
+      { baseRef: 'release', defaultBranch: 'main' },
+      { baseRef: 'main', defaultBranch: undefined },
+      { baseRef: undefined, defaultBranch: 'main' },
+      { baseRef: 'Main', defaultBranch: 'main' },
+    ]) {
+      const r = decideQualityProfile({ eventName: 'pull_request', ...base, eventHeadSha: SHA, listagem });
+      assert.deepEqual(r, { mode: 'full', reason: 'base_nao_padrao', files_count: 0 }, JSON.stringify(base));
+    }
   });
 
   test('QP-D5 falha de API, paginação incompleta, contagem inválida ou acima do limite → full', () => {
@@ -176,7 +191,7 @@ describe('classificador — evento e consistência da listagem', () => {
       [undefined, 'sem_listagem'],
     ];
     for (const [listagem, motivo] of casos) {
-      const r = decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem });
+      const r = decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem });
       assert.equal(r.mode, 'full', motivo);
       assert.equal(r.reason, motivo);
     }
@@ -219,7 +234,7 @@ describe('consulta paginada ao GitHub', () => {
     assert.equal(listagem.completa, true);
     assert.equal(listagem.files.length, 250);
     assert.equal(urls.filter((u) => u.includes('/files')).length, 3);
-    assert.equal(decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem }).mode, 'docs_fast');
+    assert.equal(decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem }).mode, 'docs_fast');
   });
 
   test('QP-P2 exatamente 200 arquivos: a página vazia seguinte confirma o fim', async () => {
@@ -234,13 +249,13 @@ describe('consulta paginada ao GitHub', () => {
     const arquivos = Array.from({ length: 150 }, (_, i) => arq(`docs/r${i}.md`));
     const { fetchImpl } = apiFalsa({ arquivos, paginasCurtas: true });
     const listagem = await listar(fetchImpl);
-    assert.equal(decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem }).reason, 'contagem_divergente');
+    assert.equal(decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem }).reason, 'contagem_divergente');
   });
 
   test('QP-P4 push no meio da consulta (HEAD muda) → full', async () => {
     const { fetchImpl } = apiFalsa({ arquivos: [arq('docs/a.md')], headDepois: OUTRO_SHA });
     const listagem = await listar(fetchImpl);
-    assert.equal(decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem }).reason, 'head_divergente');
+    assert.equal(decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem }).reason, 'head_divergente');
   });
 
   test('QP-P5 falha HTTP na lista de arquivos → full, sem lançar', async () => {
@@ -263,15 +278,17 @@ describe('consulta paginada ao GitHub', () => {
     const { fetchImpl, urls } = apiFalsa({ arquivos: [], changedFiles: MAX_ARQUIVOS_LISTAVEIS + 1 });
     const listagem = await listar(fetchImpl);
     assert.equal(urls.filter((u) => u.includes('/files')).length, 0);
-    assert.equal(decideQualityProfile({ eventName: 'pull_request', eventHeadSha: SHA, listagem }).reason, 'acima_do_limite_listavel');
+    assert.equal(decideQualityProfile({ eventName: 'pull_request', ...BASE_PADRAO, eventHeadSha: SHA, listagem }).reason, 'acima_do_limite_listavel');
   });
 });
 
 /* ------------------------------------------------------------------------ */
 /** Sobe uma API HTTP local de verdade e roda o CLI como processo separado. */
-async function rodarCliComApiLocal({ arquivos, eventName = 'pull_request', semToken = false }) {
+async function rodarCliComApiLocal({ arquivos, eventName = 'pull_request', semToken = false, baseRef = 'main' }) {
   const dir = makeTempDir('maike-qp-');
+  let pedidos = 0;
   const servidor = createServer((req, res) => {
+    pedidos += 1;
     const u = new URL(req.url, 'http://local');
     res.setHeader('content-type', 'application/json');
     if (req.headers.authorization !== `Bearer ${TOKEN_FALSO}`) {
@@ -290,7 +307,13 @@ async function rodarCliComApiLocal({ arquivos, eventName = 'pull_request', semTo
   const porta = servidor.address().port;
   try {
     const evento = join(dir, 'evento.json');
-    writeFileSync(evento, JSON.stringify({ pull_request: { number: 7, head: { sha: SHA }, title: 'docs_fast por favor', labels: [{ name: 'docs_fast' }] } }));
+    writeFileSync(
+      evento,
+      JSON.stringify({
+        repository: { default_branch: 'main' },
+        pull_request: { number: 7, head: { sha: SHA }, base: { ref: baseRef }, title: 'docs_fast por favor', labels: [{ name: 'docs_fast' }] },
+      })
+    );
     const saida = join(dir, 'output.txt');
     const resumo = join(dir, 'summary.md');
     writeFileSync(saida, '');
@@ -317,7 +340,7 @@ async function rodarCliComApiLocal({ arquivos, eventName = 'pull_request', semTo
         .filter(Boolean)
         .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])
     );
-    return { output, stdout, stderr, code, resumo: readFileSync(resumo, 'utf8') };
+    return { output, stdout, stderr, code, pedidos, resumo: readFileSync(resumo, 'utf8') };
   } finally {
     servidor.close();
     cleanup(dir);
@@ -350,6 +373,19 @@ describe('CLI ponta a ponta (API HTTP local, sem push)', () => {
     assert.deepEqual(r.output, { mode: 'full', reason: 'push_sempre_full', files_count: '0' });
   });
 
+  test('QP-E6 PR contra outra branch → full sem consultar a API', async () => {
+    const r = await rodarCliComApiLocal({ arquivos: [arq('docs/a.md')], baseRef: 'release' });
+    assert.deepEqual(r.output, { mode: 'full', reason: 'base_nao_padrao', files_count: '0' });
+    assert.equal(r.pedidos, 0);
+  });
+
+  test('QP-E7 nome de arquivo com caracteres de Markdown/quebra não chega cru ao GITHUB_OUTPUT nem ao resumo', async () => {
+    const r = await rodarCliComApiLocal({ arquivos: [arq('docs/a.md'), arq('src/a|b`c\nmode=docs_fast.js')] });
+    assert.equal(r.output.mode, 'full');
+    assert.doesNotMatch(r.output.reason, /[|`\n]/);
+    assert.equal(Object.keys(r.output).length, 3);
+  });
+
   test('QP-E5 evento ilegível → full', async () => {
     const r = await executarCli({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: '/caminho/que/nao/existe.json' }, { log: () => {} });
     assert.equal(r.mode, 'full');
@@ -371,7 +407,7 @@ const SCRIPT_REQUIRED = (() => {
     .join('\n');
 })();
 
-function rodarRequired({ classify, mode, docs, full }) {
+function rodarRequired({ classify, mode, docs, full, evento = 'pull_request', baseRef = 'main', padrao = 'main' }) {
   const dir = makeTempDir('maike-qp-req-');
   try {
     const resumo = join(dir, 'summary.md');
@@ -381,6 +417,9 @@ function rodarRequired({ classify, mode, docs, full }) {
     if (mode !== undefined) env.QUALITY_MODE = mode;
     if (docs !== undefined) env.DOCS_FAST_RESULT = docs;
     if (full !== undefined) env.FULL_RESULT = full;
+    if (evento !== undefined) env.GITHUB_EVENT_NAME = evento;
+    if (baseRef !== undefined) env.GITHUB_BASE_REF = baseRef;
+    if (padrao !== undefined) env.QUALITY_DEFAULT_BRANCH = padrao;
     const r = spawnSync('bash', ['-c', SCRIPT_REQUIRED], { env, encoding: 'utf8' });
     return { status: r.status, saida: r.stdout + r.stderr, resumo: readFileSync(resumo, 'utf8') };
   } finally {
@@ -396,10 +435,28 @@ describe('check obrigatório verify:all (script real do workflow)', () => {
     assert.match(r.resumo, /A suíte completa NÃO rodou/);
   });
 
-  test('QP-R2 full + full success + docs-fast skipped → FULL_PASS', () => {
-    const r = rodarRequired({ classify: 'success', mode: 'full', docs: 'skipped', full: 'success' });
-    assert.equal(r.status, 0, r.saida);
-    assert.match(r.saida, /FULL_PASS/);
+  test('QP-R2 full + full success + docs-fast skipped → FULL_PASS (PR ou push)', () => {
+    for (const extra of [{}, { evento: 'push', baseRef: '' }]) {
+      const r = rodarRequired({ classify: 'success', mode: 'full', docs: 'skipped', full: 'success', ...extra });
+      assert.equal(r.status, 0, r.saida);
+      assert.match(r.saida, /FULL_PASS/);
+    }
+  });
+
+  test('QP-R5 docs_fast fora de pull_request contra a branch padrão reprova (defesa em profundidade)', () => {
+    const ok = { classify: 'success', mode: 'docs_fast', docs: 'success', full: 'skipped' };
+    for (const extra of [
+      { evento: 'push' },
+      { evento: 'merge_group' },
+      { evento: '' },
+      { baseRef: 'release' },
+      { baseRef: '' },
+      { padrao: '' },
+    ]) {
+      const r = rodarRequired({ ...ok, ...extra });
+      assert.notEqual(r.status, 0, JSON.stringify(extra));
+      assert.match(r.saida, /verify:all — FAIL/);
+    }
   });
 
   test('QP-R3 toda outra combinação reprova', () => {
@@ -538,8 +595,9 @@ describe('estrutura do workflow quality', () => {
 
 /* ------------------------------------------------------------------------ */
 /**
- * Arquivos executados pelo docs-fast: o que eles leem já é exercitado lá.
- * Todo o resto do código só roda no full.
+ * Fora da varredura: arquivos que o docs-fast executa (o que eles leem já é
+ * exercitado lá) e roteiros que nenhuma etapa executa. Todo o resto do código
+ * só roda no full.
  */
 const EXECUTADOS_NO_DOCS_FAST = [
   'scripts/gates/gate-governance-paths.mjs',
@@ -547,10 +605,13 @@ const EXECUTADOS_NO_DOCS_FAST = [
   'scripts/gates/gate-product-scope.mjs',
   'scripts/gates/gate-no-hardcoded-secrets.mjs',
   'scripts/gates/gate-deploy-migrations.mjs',
-  'scripts/gates/lib/',
   'scripts/tests/gates/',
   'scripts/tests/deploy/',
   'scripts/ci/',
+  // Roteiros manuais do Playwright: nenhum script do package.json, do
+  // verify:all ou do Vitest (include: tests/smoke) os executa. Só GRAVAM
+  // evidências em docs/engineering/evidencias/.
+  'tests/e2e/',
 ];
 
 const DIRETORIOS_DE_CODIGO = ['src', 'apps', 'backend', 'tests', 'scripts', 'api'];
@@ -569,6 +630,26 @@ function arquivosDeCodigo(dir, acc = []) {
 
 const elegivelAoDocsFast = (caminho) => DOCS_RAIZ.includes(caminho) || /^docs\/(?:[^/]+\/)*[^/]+\.md$/.test(caminho);
 
+/**
+ * Normaliza um trecho de caminho achado no código: tira `${…}/`, `./` e `../`
+ * do começo, e corta tudo antes de um `docs/` interno. Assim
+ * `${ROOT}/docs/x.md`, `../../docs/x.md` e `../../CLAUDE.md` viram o caminho do repositório.
+ */
+function normalizarCaminho(bruto) {
+  let c = bruto.replace(/^(?:\$\{[^}]*\}\/|\.\.?\/)+/, '');
+  const i = c.search(/(?:^|\/)docs\//);
+  if (i > 0) c = c.slice(i + 1);
+  return c;
+}
+
+/**
+ * Literais de string da linha (aspas simples, duplas ou crase) que podem ser um
+ * caminho: sem espaço. Prosa de mensagem ("Ver docs/…/GATE-REGISTRY.md.") cita
+ * um documento, não o lê.
+ */
+const literais = (linha) =>
+  [...linha.matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*)\1/g)].map((m) => m[2]).filter((l) => /^\S+$/.test(l));
+
 describe('documentos lidos por etapas que só rodam no full', () => {
   test('QP-G1 todo Markdown de documentação citado como literal fora do docs-fast está em DOCS_ACOPLADOS', () => {
     const achados = new Map();
@@ -582,16 +663,42 @@ describe('documentos lidos por etapas que só rodam no full', () => {
           .forEach((linha, i) => {
             const t = linha.trimStart();
             if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) return;
-            for (const m of linha.matchAll(/['"`]([^'"`\s]+\.md)['"`]/g)) {
-              if (elegivelAoDocsFast(m[1])) achados.set(m[1], `${rel}:${i + 1}`);
+            for (const literal of literais(linha)) {
+              for (const m of literal.matchAll(/[^\s'"`,()]+\.md\b/g)) {
+                const caminho = normalizarCaminho(m[0]);
+                if (elegivelAoDocsFast(caminho)) achados.set(caminho, `${rel}:${i + 1}`);
+              }
+              // Diretório de docs (montagem dinâmica: join(ROOT, 'docs', …), readdirSync('docs/x')).
+              const sem = normalizarCaminho(literal.trim());
+              if (/^docs(?:\/[^\s.]*)?\/?$/.test(sem)) diretoriosDocs.push(`${rel}:${i + 1}`);
             }
-            if (/['"`]docs['"`]/.test(linha)) diretoriosDocs.push(`${rel}:${i + 1}`);
           });
       }
     }
     const fora = [...achados].filter(([doc]) => !DOCS_ACOPLADOS.includes(doc));
     assert.deepEqual(fora, [], 'documento lido por etapa do full precisa entrar em DOCS_ACOPLADOS (scripts/ci/quality-profile.mjs)');
     assert.deepEqual(diretoriosDocs, [], 'leitura dinâmica de docs/ fora do docs-fast: o docs_fast não a exercitaria');
+  });
+
+  test('QP-G3 o detector reconhece as formas comuns de caminho (sem falso negativo conhecido)', () => {
+    const casos = [
+      ['new URL("../../docs/engineering/X.md", import.meta.url)', 'docs/engineering/X.md'],
+      ['`${ROOT}/docs/engineering/X.md`', 'docs/engineering/X.md'],
+      ['"./README.md"', 'README.md'],
+      ['path.resolve(__dirname, "../../CLAUDE.md")', 'CLAUDE.md'],
+      ["readFileSync('docs/a/b.md', 'utf8')", 'docs/a/b.md'],
+    ];
+    for (const [linha, esperado] of casos) {
+      const achados = literais(linha).flatMap((l) => [...l.matchAll(/[^\s'"`,()]+\.md\b/g)].map((m) => normalizarCaminho(m[0])));
+      assert.ok(achados.includes(esperado) && elegivelAoDocsFast(esperado), `${linha} → ${achados}`);
+    }
+    for (const linha of ['join(ROOT, "docs/engineering", "X.md")', "readdirSync('docs/engineering')", "join(ROOT, 'docs')"]) {
+      assert.ok(
+        literais(linha).some((l) => /^docs(?:\/[^\s.]*)?\/?$/.test(normalizarCaminho(l.trim()))),
+        `diretório de docs não detectado: ${linha}`
+      );
+    }
+    assert.ok(!elegivelAoDocsFast(normalizarCaminho('src/assets/icones/README.md')));
   });
 
   test('QP-G2 DOCS_ACOPLADOS não guarda documento que não existe mais', () => {

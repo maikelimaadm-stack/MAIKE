@@ -6454,13 +6454,13 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 
 **Decisão:**
 1. O workflow `quality` ganha um job `classify` que escolhe o perfil, um job por perfil (`verify:docs-fast` e `verify:full`) e um agregador. O agregador é o **único** job com o nome `verify:all`, o check que as regras da branch já podem exigir. Roda sempre (`if: always()`) e só passa em duas combinações:
-   - `classify` com sucesso, modo `docs_fast`, `docs-fast` com sucesso e `full` pulado;
+   - `classify` com sucesso, modo `docs_fast`, `docs-fast` com sucesso e `full` pulado, num `pull_request` cuja base é a branch padrão;
    - `classify` com sucesso, modo `full`, `full` com sucesso e `docs-fast` pulado.
 
    Qualquer outro resultado reprova: falha, cancelamento, modo desconhecido ou os dois perfis pulados. Um job pulado nunca conta como sucesso.
-2. `docs_fast` só vale para PR cujos arquivos são **todos** `docs/**/*.md`, ou `README.md`, `README_AI.md`, `CLAUDE.md` e `AGENTS.md` na raiz, com estado `added` ou `modified`. A lista precisa vir completa e paginada pela API, com o HEAD conferido antes e depois e a contagem igual a `changed_files`.
+2. `docs_fast` só vale para PR **contra a branch padrão** (`main`) cujos arquivos são **todos** `docs/**/*.md`, ou `README.md`, `README_AI.md`, `CLAUDE.md` e `AGENTS.md` na raiz, com estado `added` ou `modified`. A lista precisa vir completa e paginada pela API, com o HEAD conferido antes e depois e a contagem igual a `changed_files`.
    - Ficam fora os documentos lidos por etapas que só rodam no full (`DOCS_ACOPLADOS`). Um teste-guarda do `test:gates` mantém essa lista.
-   - Push na `main`, evento desconhecido, falha de API e qualquer dúvida resultam em `full`.
+   - Push na `main`, PR contra outra branch, evento desconhecido, falha de API e qualquer dúvida resultam em `full`. Trocar a base de uma PR não dispara o workflow de novo; por isso uma PR contra outra branch precisa ter rodado o `full` antes de poder ser redirecionada para a `main`.
    - Rótulo, título, descrição e autor nunca contam.
 3. `verify:docs-fast` roda sem PostgreSQL: `npm ci`, `gate:governance-paths`, `gate:package-sync`, `gate:product-scope`, `gate:no-secrets`, `gate:deploy-migrations` (lê um relatório em `docs/`) e `test:gates`.
 4. `verify:full` é o job anterior sem mudança de comportamento.

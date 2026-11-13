@@ -229,12 +229,17 @@ jobs:
           QUALITY_FILES: ${{ needs.classify.outputs.files_count }}
           DOCS_FAST_RESULT: ${{ needs.docs-fast.result }}
           FULL_RESULT: ${{ needs.full.result }}
+          # Defesa em profundidade: DOCS_FAST_PASS só em pull_request contra a
+          # branch padrão (GITHUB_EVENT_NAME e GITHUB_BASE_REF vêm do runner).
+          QUALITY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # >>> quality-required-gate
           set -eu
           veredito=FAIL
           if [ "${CLASSIFY_RESULT:-}" = success ] && [ "${QUALITY_MODE:-}" = docs_fast ] \
-            && [ "${DOCS_FAST_RESULT:-}" = success ] && [ "${FULL_RESULT:-}" = skipped ]; then
+            && [ "${DOCS_FAST_RESULT:-}" = success ] && [ "${FULL_RESULT:-}" = skipped ] \
+            && [ "${GITHUB_EVENT_NAME:-}" = pull_request ] && [ -n "${QUALITY_DEFAULT_BRANCH:-}" ] \
+            && [ "${GITHUB_BASE_REF:-}" = "${QUALITY_DEFAULT_BRANCH:-}" ]; then
             veredito=DOCS_FAST_PASS
           elif [ "${CLASSIFY_RESULT:-}" = success ] && [ "${QUALITY_MODE:-}" = full ] \
             && [ "${FULL_RESULT:-}" = success ] && [ "${DOCS_FAST_RESULT:-}" = skipped ]; then

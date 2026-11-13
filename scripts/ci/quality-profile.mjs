@@ -13,6 +13,11 @@
  * meio da consulta, contagem divergente, arquivo removido ou renomeado, caminho
  * desconhecido — resulta em `full`, com o motivo registrado.
  *
+ * `docs_fast` também exige que a base da PR seja a branch padrão do repositório
+ * (`main`). Uma PR contra outra branch roda o `full`: se a base for trocada
+ * depois para a `main` (o que não dispara o workflow de novo), o check verde no
+ * SHA de head continua valendo, e ele precisa ter sido o da suíte completa.
+ *
  * Rótulos, título, descrição e autor da PR nunca entram na decisão.
  *
  * Uso na CI: `node scripts/ci/quality-profile.mjs`. Lê `GITHUB_EVENT_NAME`,
@@ -57,6 +62,11 @@ export const DOCS_ACOPLADOS = Object.freeze([
 const ESTADOS_DOCS = new Set(['added', 'modified']);
 
 const DOC_EM_DOCS = /^docs\/(?:[^/]+\/)*[^/]+\.md$/;
+
+/** Motivo seguro para `GITHUB_OUTPUT` e para a tabela do resumo (nome de arquivo vem da PR). */
+export function motivoSeguro(motivo) {
+  return String(motivo).replace(/[^\w./:@+-]/g, '_').slice(0, 300);
+}
 
 /** Caminho relativo, sem `..`, sem barra inicial, sem `\`, sem NUL e sem segmento vazio. */
 function caminhoSeguro(caminho) {
@@ -108,14 +118,19 @@ export function classifyChangedFiles(files, { expectedCount } = {}) {
  * @param {{
  *   eventName: string,
  *   eventHeadSha?: string,
+ *   baseRef?: string,          // pull_request.base.ref
+ *   defaultBranch?: string,    // repository.default_branch
  *   listagem?: { erro?: string, headAntes?: string, headDepois?: string,
  *                changedFiles?: number, files?: Array<object>, completa?: boolean }
  * }} entrada
  */
-export function decideQualityProfile({ eventName, eventHeadSha, listagem } = {}) {
+export function decideQualityProfile({ eventName, eventHeadSha, baseRef, defaultBranch, listagem } = {}) {
   if (eventName !== 'pull_request') {
     const motivo = eventName === 'push' ? 'push_sempre_full' : `evento_${eventName || 'desconhecido'}`;
     return { mode: MODE_FULL, reason: motivo, files_count: 0 };
+  }
+  if (!baseRef || !defaultBranch || baseRef !== defaultBranch) {
+    return { mode: MODE_FULL, reason: 'base_nao_padrao', files_count: 0 };
   }
   if (!listagem) return { mode: MODE_FULL, reason: 'sem_listagem', files_count: 0 };
   if (listagem.erro) return { mode: MODE_FULL, reason: `falha_${listagem.erro}`, files_count: 0 };
@@ -229,18 +244,24 @@ export async function executarCli(env = process.env, { fetchImpl = fetch, log = 
     if (!pr) {
       decisao = { mode: MODE_FULL, reason: 'evento_ilegivel', files_count: 0 };
     } else {
-      const listagem = await listarArquivosDaPr({
-        apiUrl: env.GITHUB_API_URL,
-        repositorio: env.GITHUB_REPOSITORY,
-        numero: pr.number,
-        token: env.GITHUB_TOKEN,
-        fetchImpl,
-      });
-      decisao = decideQualityProfile({ eventName, eventHeadSha: pr.head?.sha, listagem });
+      const baseRef = pr.base?.ref;
+      const defaultBranch = evento?.repository?.default_branch;
+      // Base fora da branch padrão já decide `full`: nem consulta a API.
+      const listagem =
+        baseRef && defaultBranch && baseRef === defaultBranch
+          ? await listarArquivosDaPr({
+              apiUrl: env.GITHUB_API_URL,
+              repositorio: env.GITHUB_REPOSITORY,
+              numero: pr.number,
+              token: env.GITHUB_TOKEN,
+              fetchImpl,
+            })
+          : undefined;
+      decisao = decideQualityProfile({ eventName, eventHeadSha: pr.head?.sha, baseRef, defaultBranch, listagem });
     }
   }
 
-  const reason = String(decisao.reason).replace(/[\r\n]/g, ' ');
+  const reason = motivoSeguro(decisao.reason);
   const linhas = [`mode=${decisao.mode}`, `reason=${reason}`, `files_count=${decisao.files_count}`];
   if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `${linhas.join('\n')}\n`);
   if (env.GITHUB_STEP_SUMMARY) {

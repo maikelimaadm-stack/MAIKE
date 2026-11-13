@@ -35,7 +35,7 @@ classify ──┬── verify:docs-fast   (só quando a PR muda apenas Markdow
 - **`verify:all`** (agregador)
   - `needs: [classify, docs-fast, full]`, `if: always()`.
   - Só passa em duas combinações:
-    - `DOCS_FAST_PASS`: classify success, mode `docs_fast`, docs-fast success, full skipped;
+    - `DOCS_FAST_PASS`: classify success, mode `docs_fast`, docs-fast success, full skipped, **e** evento `pull_request` com `GITHUB_BASE_REF` igual à branch padrão (defesa em profundidade);
     - `FULL_PASS`: classify success, mode `full`, full success, docs-fast skipped.
   - Qualquer outra combinação reprova.
   - Lê só variáveis de ambiente, sem interpolar `${{ }}` no script.
@@ -48,6 +48,7 @@ classify ──┬── verify:docs-fast   (só quando a PR muda apenas Markdow
 |---|---|---|
 | `push` (inclusive merge só de docs) | full | `push_sempre_full` |
 | Outro evento (`merge_group`, `workflow_dispatch`, …) | full | `evento_<nome>` |
+| PR contra branch que não é a padrão (ou base/padrão ausente) | full, sem consultar a API | `base_nao_padrao` |
 | Todos os arquivos `docs/**/*.md` ou `README.md`/`README_AI.md`/`CLAUDE.md`/`AGENTS.md` na raiz, `added`/`modified` | docs_fast | `somente_documentacao` |
 | Algum arquivo de código, config, script, `.github`, lockfile, SQL/Prisma, JSON/YAML ou Markdown fora de `docs/` | full | `arquivo_nao_documental:<arquivo>` |
 | Documento lido por etapa que só roda no full (`DOCS_ACOPLADOS`) | full | `documento_acoplado_a_teste` |
@@ -60,13 +61,24 @@ classify ──┬── verify:docs-fast   (só quando a PR muda apenas Markdow
 
 Rótulo, título, descrição e autor da PR não entram na decisão. O teste QP-E2 manda título e rótulo "docs_fast" junto com código, e o resultado é `full`.
 
+O motivo que vai para o `GITHUB_OUTPUT` e para o resumo passa por `motivoSeguro`, que troca por `_` qualquer caractere fora de `[A-Za-z0-9_./:@+-]`. Como o nome do arquivo vem da PR, isso impede quebra de linha, `|` e crase.
+
 ### 2.2 Documentos acoplados a etapas do full
 
 Primeiro foi preciso saber quem lê Markdown.
 - **Trace dinâmico.** Um hook de `fs`, só local, rodou nos 30 gates estáticos do `verify:all`. Três leem `.md` de `docs/` ou da raiz: `governance-paths`, `no-secrets` e `deploy-migrations`, que lê `docs/engineering/DEPLOY-MIGRATION-01-PRODUCTION-MIGRATION-BARRIER-REPORT.md`. Os três estão no docs-fast.
 - **Busca estática nas etapas pesadas.** Em `test:backend`, `test:smoke`, lint e build, um teste do Vitest lê um documento: `tests/smoke/maplibreR6StyleRetry.test.js:27` lê `docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md`. Esse documento entrou em `DOCS_ACOPLADOS` e vai sempre para `full`.
-- **Teste-guarda QP-G1, no `test:gates`.** Varre `src`, `apps`, `backend`, `tests`, `scripts` e `api`, menos os arquivos que o docs-fast executa, procurando literais de caminho Markdown de documentação e leituras dinâmicas de `'docs'`. Reprova se algum ficar fora de `DOCS_ACOPLADOS`.
-  - Prova RED: troquei temporariamente o caminho do teste do MapLibre por `docs/engineering/DECISIONS.md` e o QP-G1 reprovou. O arquivo foi restaurado.
+- **Teste-guarda QP-G1, no `test:gates`.** Varre `src`, `apps`, `backend`, `tests`, `scripts` e `api`, menos os arquivos que o docs-fast executa e os roteiros manuais `tests/e2e/` (nenhuma etapa os executa; eles só gravam evidências em `docs/`).
+  - **O que procura**, em literais de string sem espaço:
+    - caminhos Markdown de documentação, depois de normalizados: tira `${…}/`, `./` e `../` e corta antes de um `docs/` interno. Isso cobre `new URL('../../docs/…md')`, `` `${ROOT}/docs/…md` ``, `'../../CLAUDE.md'` e `'./README.md'`;
+    - diretórios de `docs/` (`join(ROOT, 'docs', …)`, `readdirSync('docs/x')`).
+  - Reprova se algum caminho ficar fora de `DOCS_ACOPLADOS`. Prosa com espaço ("Ver docs/…") cita um documento, não o lê, e por isso fica de fora. O QP-G3 fixa as formas detectadas.
+  - **Provas RED, com os arquivos de sonda removidos depois:**
+    - o caminho do teste do MapLibre trocado por `docs/engineering/DECISIONS.md`;
+    - um teste de backend com `new URL("../../docs/engineering/DECISIONS.md", import.meta.url)`;
+    - um teste de backend com `join(process.cwd(), "docs", "x")`.
+
+    Nos três casos o QP-G1 reprovou.
 
 ## 3. Arquivos
 
@@ -74,7 +86,7 @@ Primeiro foi preciso saber quem lê Markdown.
 |---|---|
 | `.github/workflows/quality.yml` | 4 jobs: `classify`, `verify:docs-fast`, `verify:full` (o antigo) e `verify:all` (agregador) |
 | `scripts/ci/quality-profile.mjs` | novo. Funções puras (`classifyChangedFiles`, `decideQualityProfile`), consulta paginada somente leitura e CLI |
-| `scripts/tests/gates/quality-profile.test.mjs` | novo. 39 testes, rodam no `test:gates` |
+| `scripts/tests/gates/quality-profile.test.mjs` | novo. 44 testes, rodam no `test:gates` |
 | `docs/engineering/DECISIONS.md` | D-PROD-179; marcador para D-PROD-180 |
 | `docs/engineering/GATE-REGISTRY.md` | seção "Integração contínua" atualizada |
 | `docs/engineering/MAIKE-CI-INTELIGENTE-PR01-REPORT.md` | este relatório |
@@ -86,12 +98,12 @@ Primeiro foi preciso saber quem lê Markdown.
 | Grupo | Casos | O que prova |
 |---|---|---|
 | QP-C1..C10 | conjunto de arquivos | só DECISIONS, 00/07 e raiz → fast. docs + backend, `.github/workflows`, `scripts/ci`, `package.json`, lockfile, Prisma, migration, `src`, `config`, `.nvmrc`, `.txt`/`.json`/`.yml` em docs, `README.md` de `src`/`apps`, `.MD` → full. Removido, renomeado, caminho suspeito, vazio, repetido, contagem divergente, mais de 3.000 e documento acoplado → full |
-| QP-D1..D5 | evento e consistência | push → full mesmo só com docs; evento desconhecido → full; HEAD divergente, falha de API, paginação incompleta e `changed_files` inválido → full |
+| QP-D1..D6 | evento, base e consistência | push → full mesmo só com docs; evento desconhecido → full; PR contra outra branch (ou base/padrão ausente, ou caixa diferente) → full; HEAD divergente, falha de API, paginação incompleta e `changed_files` inválido → full |
 | QP-P1..P7 | paginação | 250 arquivos em 3 páginas; exatamente 200 (a página vazia confirma o fim); páginas curtas; push no meio; HTTP 502; fetch que lança; mais de 3.000 sem listar |
-| QP-E1..E5 | CLI de ponta a ponta | processo separado contra API HTTP local: `GITHUB_OUTPUT` correto, token nunca impresso, rótulo "docs_fast" ignorado, sem token → full, push → full sem consulta, evento ilegível → full |
-| QP-R1..R4 | agregador `verify:all` | o script **extraído do próprio workflow** roda no bash: as 2 combinações válidas passam; 18 inválidas reprovam (falha, cancelado, ambos pulados, ambos rodados, classify falho, modo inválido ou vazio, variáveis ausentes); sem `${{ }}` no script |
+| QP-E1..E7 | CLI de ponta a ponta | processo separado contra API HTTP local: `GITHUB_OUTPUT` correto, token nunca impresso, rótulo "docs_fast" ignorado, sem token → full, push → full sem consulta, PR contra outra branch → full com 0 pedidos à API, nome de arquivo com `\|`, crase e quebra de linha não injeta saída, evento ilegível → full |
+| QP-R1..R5 | agregador `verify:all` | o script **extraído do próprio workflow** roda no bash: as 2 combinações válidas passam (full também em push); 18 inválidas reprovam (falha, cancelado, ambos pulados, ambos rodados, classify falho, modo inválido ou vazio, variáveis ausentes); `docs_fast` em push, `merge_group`, evento vazio, base diferente ou vazia e branch padrão vazia reprova; sem `${{ }}` no script |
 | QP-W1..W6 | estrutura do workflow | um único `verify:all`; sem `paths`/`pull_request_target`/`write`; concorrência mantida; docs-fast sem `services`/postgres/`DATABASE_URL` e com a lista exata de comandos; full com PG 16.13, env, alias, `npm ci`, `verify:all` e 30 min; classify lê o classificador da base |
-| QP-G1..G2 | guarda | documentos acoplados (ver §2.2); a lista não guarda arquivo inexistente |
+| QP-G1..G3 | guarda | documentos acoplados (ver §2.2); formas de caminho detectadas; a lista não guarda arquivo inexistente |
 
 O teste já existente `build-environment.test.mjs` (ENV-B1/B2, NODE_ENV fora do workflow e o comentário explicativo) continua passando sem alteração.
 
@@ -101,7 +113,8 @@ Ambiente: Node 22.22.0 local; a CI usa o `.nvmrc`, 20.19.0. O código novo usa s
 
 | Comando | Resultado |
 |---|---|
-| `node --test scripts/tests/gates/quality-profile.test.mjs` | 39/39 pass |
+| `node --test scripts/tests/gates/quality-profile.test.mjs` | 44/44 pass (o revisor também rodou a versão anterior, 39/39, no Node 20.20) |
+| Mutação: checagem de base desligada | QP-D6 e QP-E6 reprovam (0/2); restaurada, 44/44 |
 | `npx eslint scripts/ci/quality-profile.mjs scripts/tests/gates/quality-profile.test.mjs` | exit 0 |
 | Simulação do docs-fast (6 comandos, sem `DATABASE_URL`, sem PostgreSQL) | 6/6 exit 0 em 74,5 s locais. `test:gates`: 778/778 (739 anteriores + 39 novos) |
 | `npm run verify:all` integral (PostgreSQL 17 local descartável, banco novo) | ver §5.1 |
@@ -130,3 +143,28 @@ A evidência oficial é a da CI: o job `verify:full` desta PR roda o mesmo `npm 
 | Branch protection exigir outro nome de check | o nome `verify:all` foi mantido no agregador. Não consultei nem alterei as regras da branch |
 | `always()` em run cancelada pela concorrência | o agregador vê `cancelled` e reprova num SHA já superado; o SHA novo tem a própria run |
 | Node 20 da CI × Node 22 local | só APIs do Node 20; a CI (full) confirma no `.nvmrc` |
+| PR de docs aprovada com base antiga, enquanto a `main` ganha um documento acoplado novo | o push da `main` roda o full e pega depois do merge. Recomendação, não aplicada (exige o proprietário): exigir "branch atualizada" na proteção da `main` |
+| PR que altera `quality.yml` | recomendação, não aplicada: CODEOWNERS em `.github/` e `scripts/ci/` |
+| Link simbólico chamado `*.md` | a API não informa o modo do arquivo; o revisor não achou efeito prático (o ESLint não segue o link). Hipótese registrada |
+| QP-W5 confere trechos, não o job inteiro | o revisor fez o diff manual do job antigo contra o `verify:full`: idêntico, a menos de `name`, `needs`, `if` e uma linha em branco |
+
+## 8. Revisão cética independente
+
+Um agente só de leitura, sem acesso ao meu raciocínio, revisou o commit `26fcc415`. Resultado:
+
+| Achado | Severidade | Destino |
+|---|---|---|
+| B1: `docs_fast` decidido contra uma base que não é a `main` continua verde depois que a PR é redirecionada para a `main` (trocar a base não dispara o workflow) | bloqueante | **corrigido**: `base_nao_padrao` no classificador e checagem de evento e base no agregador; QP-D6, QP-E6 e QP-R5 com prova por mutação |
+| I1: o guarda não via `new URL('../../docs/…')`, `${ROOT}/docs/…`, `join(ROOT,'docs/x','X.md')`, `../../CLAUDE.md` | importante | **corrigido**: normalização e diretórios de docs; QP-G3 e duas provas RED |
+| I2: `scripts/gates/lib/` excluído do guarda, mas também serve gates só do full | importante | **corrigido**: saiu da exclusão |
+| M1: "push → full" dependia só do classificador | menor | **corrigido** junto com o B1 (agregador exige `pull_request`) |
+| M3: nome de arquivo entrava cru no resumo | menor | **corrigido**: `motivoSeguro`; QP-E7 |
+| M2, M4, M5, M7 | menor | registrados na §7 |
+| M6: documentos fora do commit de código | menor | já resolvido no commit `4023edf6` |
+
+O que o revisor confirmou sem achado:
+- o agregador fecha em falha, inclusive com cancelamento, job pulado e modo vazio; o bash compara exato, mesmo com o `==` do Actions não diferenciando maiúsculas;
+- o checkout esparso inclui `.nvmrc`;
+- não há injeção no `GITHUB_OUTPUT`;
+- o `verify:full` é idêntico ao job antigo;
+- **invariante 4, por trace de leituras de arquivo**: nos 29 gates estáticos, só `governance-paths`, `no-secrets` e `deploy-migrations` leem documentação, e os três estão no docs-fast. No `test:smoke` (214 arquivos), só o relatório do MapLibre, que está em `DOCS_ACOPLADOS`. `lint`, `typecheck:backend` e `gate:types` não leem nenhum `.md`.
