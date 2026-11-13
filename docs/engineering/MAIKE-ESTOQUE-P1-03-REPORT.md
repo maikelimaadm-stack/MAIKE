@@ -181,16 +181,82 @@ O revisor também confirmou localmente que a recuperação do §6 vale no Prisma
 - **R2-2** continua pendente, e o M7 segue **parcial**. A ausência não afeta o LC-2, o keyset nem o contrato da P1-04. Adiar a obrigação do contrato (§6.5, "R2-2 → P1-03") é decisão do proprietário: fica sinalizado, não presumido.
 - **I2** continua pendente.
 
+## 10. R2 — integração da main e preflight contra a base da release
+
+**Por quê.**
+- No GO-1 #1 (2026-11-13), o preflight em produção deu `SEGUIR` com 43 concluídas. A mais recente era a `20261113400000_cadestacoes_cadastro`, da PR #265, que ainda não estava no repositório.
+- A parada foi manual, pela leitura das outras linhas, e não pelo veredito. O `--verificar-alvo` não rodou. Esse GO-1 está encerrado (runbook §7).
+
+**Integração da main** (merge commit, sem rebase):
+- `776befe9` (PRs #265 CADESTACOES e #266 hotfix) e depois `cf07309c` (PR #270 CADCURVAGANHO, D-PROD-189, também aplicada em produção antes do merge).
+- Conflitos só nas contagens dos ensaios e testes das CONTRACT D-PROD-162/183:
+  - fica a contagem pela pasta (`TOTAL_MIGRATIONS` / `MIGRATIONS_PARTIDA`, agora 45);
+  - as contagens de tabelas vêm da main (82/75/88).
+- Manifesto com as entradas da P1-03, CADESTACOES e CADCURVAGANHO, hashes inalterados.
+- `DECISIONS.md` sem conflito: D-PROD-185 única, 186/188/189 da main, marcador D-PROD-190. A PR #268 (D-PROD-187) não entrou.
+
+**Preflight.**
+- A CTE `base_release` lista os **nomes** das 44 migrations da main `cf07309c`.
+- `SEGUIR` exige exatamente essas 44 e a P1-03 ausente; `JA_APLICADA` exige 45, com os 2 índices exatos.
+- Base incompleta, migration desconhecida (antes ou depois), nome duplicado ou falhada → `PARAR`.
+- Linhas novas: `base_ausentes`, `desconhecidas` e `desconhecidas_nomes`, `duplicadas`, `cadestacoes_aplicada`.
+- Checksum continua com o `premerge-migrate --verificar-alvo`.
+- Continua um único SELECT de catálogo, somente leitura.
+
+**RED → GREEN.**
+
+| Estado | SQL antigo (`d98d7967`) | SQL da R2 |
+|---|---|---|
+| CADESTACOES ausente | `SEGUIR` | `PARAR` (`base_ausentes = 1`) |
+| Migration desconhecida a mais | `SEGUIR` | `PARAR` (`desconhecidas = 1`) |
+| CADESTACOES trocada por uma desconhecida, mesma contagem | `SEGUIR` | `PARAR` |
+| Nome concluído duas vezes | — | `PARAR` |
+| Falhada pendente | `PARAR` | `PARAR` |
+| Base exata (produção antes do GO-2) | `SEGUIR` | `SEGUIR` |
+| Base + P1-03 por último | `JA_APLICADA` | `JA_APLICADA` |
+| Base + P1-03 + desconhecida | `JA_APLICADA` | `PARAR` |
+
+- Os três primeiros vereditos do SQL antigo foram medidos localmente na base `776befe9`.
+- Os testes PB e PH falham com o SQL antigo e passam com o novo, na árvore de 45 migrations.
+
+**Ordem das migrations (teste OR, PostgreSQL 17 descartável, `prisma migrate deploy` 6.19.3 real).**
+- **Banco novo:** pela ordem do nome, P1-03 → CADESTACOES → CADCURVAGANHO.
+- **Produção:** as 44 da base e depois a P1-03, que fica por último por `finished_at`.
+- **Nas duas:**
+  - 45/0;
+  - `migrate diff` entre os dois bancos vazio, e contra o `schema.prisma` também;
+  - mesmos índices;
+  - a CADESTACOES com as mesmas colunas, constraints e RLS.
+- `conferirHistoricoRemoto`: `ok`, com `pendentes = [P1-03]` antes e `[]` depois.
+- **Runner real**, `premerge-migrate --sha <HEAD> --verificar-alvo` contra um banco local no estado de produção (44, sem a P1-03):
+  - `ALVO VERIFICADO — 1 pendente(s) do manifesto; nada aplicado`;
+  - `pendentes = [20261113300000_estoque_p1_03_indices]`, `falhas = []`, exit 0.
+- **Decisão:** nome, SQL e SHA-256 da P1-03 ficam. As migrations são independentes: as duas criam tabelas novas, e a P1-03 cria índices em duas tabelas antigas que elas não tocam. Não há regra de ordem no runner nem no Prisma que impeça.
+
+**CI da main** (somente leitura).
+- **Fatos:**
+  - run `43514550660` (`776befe9`), tentativas 1 e 2: o job `classify` termina em `failure` em cerca de 2 s, sem runner atribuído (`runner_id` 0, sem nome), sem nenhuma etapa registrada e sem log (HTTP 404);
+  - por isso `verify:full` é `skipped` e `verify:all` é `failure`;
+  - a run seguinte da main, `43527145353` (`cf07309c`), teve runner atribuído, `classify` com as 4 etapas em `success` e os jobs de verificação em execução normal.
+- **Hipótese não comprovada:** falha de inicialização ou infraestrutura do Actions naquele momento. Nenhum workflow, configuração ou permissão foi tocado.
+
+**R2-2:** o proprietário aprovou o adiamento até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** existe; o M7 segue parcial, com LC-2 e keyset prontos.
+
+**I2:** pendente, fora desta PR.
+
 ## 8. Bandeiras
 
 ```
 CODE_READY=depende da CI full verde no HEAD final (ver PR e resposta final)
 TRANSACAO_PROVADA=SIM (ensaio + teste TX-F/T/L e PF; §9)
+PREFLIGHT_BASE_RELEASE=SIM (44 da main cf07309c; RED→GREEN PB/PH; §10)
+ORDEM_MIGRATIONS_PROVADA=SIM (OR + runner real local; P1-03 preservada; §10)
 MERGE_READY=NÃO   (a ordem com DDL é GO-1 → GO-2 → aplicação → postcheck → merge)
-RELEASE_READY=NÃO (GO-1 e GO-2 não concedidos)
-SCHEMA_APPLIED_LOCAL=SIM (PG17 local: migrate deploy + diff sem drift)
+RELEASE_READY=NÃO (novo GO-1 e GO-2 não concedidos; GO-1 #1 encerrado)
+SCHEMA_APPLIED_LOCAL=SIM (PG17 local: migrate deploy + diff sem drift, nas duas ordens)
 SCHEMA_APPLIED_PRODUCAO=NÃO
+DB_READS_PRODUCAO_R2=0
 DB_WRITES_PRODUCAO=0
-GO_PENDENTE=GO-1 (preflight só leitura + --verificar-alvo) e GO-2 (--aplicar + merge)
-M7=INCOMPLETO (R2-2 bloqueado por falta de consumidor; §2.1)
+GO_PENDENTE=novo GO-1 (preflight da R2 + --verificar-alvo) e GO-2 (--aplicar + merge)
+M7=PARCIAL (LC-2 e keyset prontos; R2-2 adiado com aprovação do proprietário; §10)
 ```

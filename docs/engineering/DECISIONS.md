@@ -6723,6 +6723,19 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
 - **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
 
+**Nota posterior (R2 da PR #263, 2026-11-13).**
+- **GO-1 #1 encerrado sem passar.** O preflight em produção deu `SEGUIR`, mas havia 43 concluídas com a `20261113400000_cadestacoes_cadastro` fora do repositório; a parada foi manual. Defeito reproduzido localmente: o veredito antigo dava `SEGUIR` com a base incompleta ou com migration desconhecida.
+- **Preflight:** confere o histórico, por nome, contra a lista fixa `base_release` (44 migrations da main `cf07309c`, com a CADESTACOES e a CADCURVAGANHO).
+  - `SEGUIR` exige exatamente a base; `JA_APLICADA`, a base + a P1-03.
+  - Base incompleta, migration desconhecida, nome duplicado ou falhada → `PARAR`.
+  - Checksum continua com o `premerge-migrate --verificar-alvo`.
+- **Ordem:** a P1-03 tem carimbo anterior às duas, mas entra por último em produção. As duas ordens foram provadas equivalentes em PostgreSQL real:
+  - mesmo schema e sem drift;
+  - o runner aceita a P1-03 pendente depois delas;
+  - o nome e o SHA-256 da P1-03 ficam.
+- **R2-2:** o proprietário **aprovou o adiamento** até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** foi criado; o M7 segue parcial, com LC-2 e keyset prontos.
+- **I2** da P1-02 segue pendente, fora daqui.
+
 **Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
 
 ## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
