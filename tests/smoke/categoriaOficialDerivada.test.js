@@ -10,6 +10,9 @@ import {
   CATEGORIAS_OFICIAIS,
   categoriaOficialDaCategoriaManejo as derivar,
   derivaCategoriaOficial,
+  FAIXAS_IDADE_CATEGORIA_MANEJO,
+  faixaIdadeDaLista,
+  rotuloFaixaIdade,
 } from '@/domain/lotes/categoriaOficialDerivada';
 import { CATEGORIAS_MATERNAS } from '@/domain/lotes/manejoRebanho';
 
@@ -65,8 +68,39 @@ describe('categoria oficial derivada (frontend)', () => {
     for (const materna of CATEGORIAS_MATERNAS) expect(femeas).toContain(materna);
   });
 
+  it('as cinco faixas fixas do cadastro: rótulos, pares e a oficial de cada uma (0–8 e 9–12 → 0–12)', () => {
+    expect(FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => [f.rotulo, f.idade_minima_meses, f.idade_maxima_meses])).toEqual([
+      ['0 a 8 meses', 0, 8],
+      ['9 a 12 meses', 9, 12],
+      ['13 a 24 meses', 13, 24],
+      ['25 a 36 meses', 25, 36],
+      ['Maior que 36 meses', 37, null],
+    ]);
+    expect(Object.isFrozen(FAIXAS_IDADE_CATEGORIA_MANEJO)).toBe(true);
+    expect(FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => derivar({ sexo: 'Macho', ...f }))).toEqual([
+      'Bezerro 0 a 12 meses', 'Bezerro 0 a 12 meses', 'Garrote 13 a 24 meses', 'Boi 25 a 36 meses', 'Touro + 36 meses',
+    ]);
+    expect(FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => derivar({ sexo: 'Fêmea', ...f }))).toEqual([
+      'Bezerra 0 a 12 meses', 'Bezerra 0 a 12 meses', 'Novilha 13 a 24 meses', 'Vaca 25 a 36 meses', 'Vaca + 36 meses',
+    ]);
+    expect(faixaIdadeDaLista(9, 12)?.rotulo).toBe('9 a 12 meses');
+    expect(faixaIdadeDaLista('37', '')?.rotulo).toBe('Maior que 36 meses');
+    for (const [min, max] of [[0, 12], [10, 20], [24, 12], [null, null], [37, 120], [-1, 8], ['abc', 8]]) {
+      expect(faixaIdadeDaLista(min, max), JSON.stringify([min, max])).toBeNull();
+    }
+    expect(rotuloFaixaIdade({ idade_minima_meses: 25, idade_maxima_meses: 36 })).toBe('25 a 36 meses');
+    expect(rotuloFaixaIdade({ idade_minima_meses: 10, idade_maxima_meses: 20 })).toBe('10 a 20 meses');
+    expect(rotuloFaixaIdade({})).toBe('');
+  });
+
   it('frontend e backend concordam: mesma tabela de faixas, mesma lista oficial e mesmo resultado em todos os casos', async () => {
     const back = await import('../../backend/src/modules/movimentacoesMapa/categoriaOficialDerivada.js');
+    // A lista FIXA de faixas do cadastro é idêntica nos dois lados (rótulo e par).
+    expect(JSON.parse(JSON.stringify(back.FAIXAS_IDADE_CATEGORIA_MANEJO))).toEqual(JSON.parse(JSON.stringify(FAIXAS_IDADE_CATEGORIA_MANEJO)));
+    expect(back.FAIXAS_IDADE_CATEGORIA_MANEJO).toHaveLength(5);
+    for (const [min, max] of [[0, 8], [9, 12], [13, 24], [25, 36], [37, null], [0, 12], [10, 20], [24, 12], [null, null], ['37', '']]) {
+      expect(back.faixaIdadeDaLista(min, max)?.rotulo ?? null).toBe(faixaIdadeDaLista(min, max)?.rotulo ?? null);
+    }
     expect(JSON.parse(JSON.stringify(back.FAIXAS_CATEGORIA_OFICIAL))).toEqual(JSON.parse(JSON.stringify(FAIXAS_CATEGORIA_OFICIAL)));
     expect(back.FAIXAS_CATEGORIA_OFICIAL.flatMap((f) => [f.MACHO, f.FEMEA])).toEqual([...CATEGORIAS_OFICIAIS]);
     for (const [sexo, idade_minima_meses, idade_maxima_meses] of CASOS) {

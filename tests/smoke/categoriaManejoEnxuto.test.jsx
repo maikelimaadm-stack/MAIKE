@@ -1,18 +1,21 @@
 /**
  * MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C, D-PROD-185) — cadastro enxuto.
  *
- * CategoriaManejo ficou só com nome (obrigatório), sigla, espécie, sexo,
- * faixa de idade (De ≤ a, ambas opcionais) e o vínculo com o ícone oficial.
+ * CategoriaManejo ficou só com nome, sigla, espécie, sexo, faixa de idade e o
+ * vínculo com o ícone oficial. Nome, Sexo e Faixa de idade são obrigatórios; a
+ * faixa é UM select com as cinco faixas fixas (decisão do proprietário,
+ * 2026-11-13) — sem campos livres "De"/"a".
  * Raça, categoria oficial (texto), ganho de peso anual e os doze GMDs saíram
  * do contrato. Este arquivo prova, no front:
- *  (a) o formulário mostra só esses campos e bloqueia faixa invertida;
+ *  (a) o formulário mostra só esses campos; o select de faixa tem as cinco
+ *      opções, é obrigatório e preserva o par legado quando não é tocado;
  *  (b) a porta nativa não envia chaves legadas no POST/PATCH;
  *  (c) preferências de coluna salvas com ids removidos não quebram a grade;
  *  (d) as colunas exportáveis (CSV) não trazem nenhum campo removido.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const notifyWarning = vi.fn();
@@ -73,8 +76,42 @@ afterEach(() => {
   localStorage.clear();
 });
 
+const FAIXAS_ROTULOS = ["0 a 8 meses", "9 a 12 meses", "13 a 24 meses", "25 a 36 meses", "Maior que 36 meses"];
+
+/** Abre o select (painel de desktop) e devolve os rótulos das opções listadas. */
+const abrirSelect = async (rotulo) => {
+  const campo = screen.getByLabelText(rotulo);
+  await act(async () => {
+    fireEvent.click(campo);
+  });
+  return campo;
+};
+/** O campo está marcado como inválido (borda + mensagem "Obrigatório")? */
+const invalido = (rotulo) => screen.getByLabelText(rotulo).closest(".mg-field").classList.contains("is-invalid");
+/**
+ * Escolhe `nome` no select `rotulo`. O painel (Popover) do select anterior pode
+ * ainda estar fechando sob carga: se a opção não aparecer, clica no campo de novo.
+ */
+const escolher = async (rotulo, nome) => {
+  for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+    if (!screen.queryByRole("option", { name: nome })) {
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(rotulo));
+      });
+    }
+    const opcao = await screen.findByRole("option", { name: nome }, { timeout: 400 }).catch(() => null);
+    if (opcao) {
+      await act(async () => {
+        fireEvent.click(opcao);
+      });
+      return;
+    }
+  }
+  throw new Error(`opção ${nome} não apareceu em ${rotulo}`);
+};
+
 describe("(a) formulário enxuto de Categoria de Manejo", () => {
-  it("mostra só Nome, Sigla, Espécie, Sexo, Ícone oficial e a faixa De/a", async () => {
+  it("mostra só Nome, Sigla, Espécie, Sexo, Ícone oficial e UM select de faixa de idade (sem número livre)", async () => {
     const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
     wrap(<Form onSubmit={vi.fn()} onCancel={() => {}} />);
     const form = screen.getByTestId("b1-form-categoria-manejo");
@@ -88,51 +125,144 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
       "Espécie",
       "Sexo",
       "Ícone oficial (catálogo MAK Gestão)",
-      "De",
-      "a",
+      "Faixa de idade",
     ]);
-    expect(screen.getByText("Faixa de idade (meses)")).toBeTruthy();
+    // Obrigatórios marcados: Nome, Sexo e Faixa de idade.
+    const obrigatorios = [...form.querySelectorAll("label.mg-field__label")]
+      .filter((l) => l.querySelector(".req"))
+      .map((l) => l.textContent.replace(/\s*\*\s*$/, "").trim());
+    expect(obrigatorios).toEqual(["Nome da Categoria", "Sexo", "Faixa de idade"]);
     expect(await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeTruthy();
 
-    expect(form.querySelectorAll('input[type="number"]')).toHaveLength(2);
+    expect(form.querySelectorAll('input[type="number"]')).toHaveLength(0);
+    expect(screen.queryByLabelText("De")).toBeNull();
+    expect(screen.queryByLabelText("a")).toBeNull();
     expect(form.textContent).not.toMatch(/Raça|Categoria oficial|Ganho|GMD|Janeiro|Dezembro/i);
     for (const el of form.querySelectorAll("[name]")) {
       expect(el.getAttribute("name")).not.toMatch(REMOVIDO_RE);
     }
   });
 
-  it("De > a bloqueia o envio com MENSAGEM_FAIXA_IDADE_INVALIDA; corrigir libera", async () => {
-    const mod = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
-    const { default: Form, MENSAGEM_FAIXA_IDADE_INVALIDA, faixaIdadeValida } = mod;
-    expect(MENSAGEM_FAIXA_IDADE_INVALIDA).toBe("A idade inicial não pode ser maior que a final.");
+  it("o select de faixa tem exatamente as cinco faixas fixas (a lista do domínio)", async () => {
+    const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
+    const { FAIXAS_IDADE_CATEGORIA_MANEJO } = await import("@/domain/lotes/categoriaOficialDerivada");
+    expect(FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => f.rotulo)).toEqual(FAIXAS_ROTULOS);
+    wrap(<Form onSubmit={vi.fn()} onCancel={() => {}} />);
+    await abrirSelect(/^Faixa de idade/);
+    const opcoes = await screen.findAllByRole("option");
+    expect(opcoes.map((o) => o.textContent.trim())).toEqual(FAIXAS_ROTULOS);
+    expect(opcoes.every((o) => !o.disabled)).toBe(true);
+  });
 
+  it("Nome, Sexo e Faixa de idade obrigatórios: sem eles não envia; escolhendo, envia o par da faixa", async () => {
+    const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
     const onSubmit = vi.fn();
     wrap(<Form onSubmit={onSubmit} onCancel={() => {}} />);
-    fireEvent.change(screen.getByLabelText(/Nome da Categoria/), { target: { value: "garrote" } });
-    fireEvent.change(screen.getByLabelText("De"), { target: { value: "25" } });
-    fireEvent.change(screen.getByLabelText("a"), { target: { value: "13" } });
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
-
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(notifyWarning).toHaveBeenCalledWith("Atenção", MENSAGEM_FAIXA_IDADE_INVALIDA);
-    expect(screen.getByRole("alert").textContent).toContain(MENSAGEM_FAIXA_IDADE_INVALIDA);
-    expect(screen.getByLabelText("a").getAttribute("aria-invalid")).toBe("true");
+    expect(notifyWarning).toHaveBeenCalledWith("Atenção", "Preencha os campos obrigatórios.");
+    expect(screen.getAllByRole("alert")).toHaveLength(3);
+    expect(invalido(/^Faixa de idade/)).toBe(true);
+    expect(invalido(/^Sexo/)).toBe(true);
+    expect(invalido(/Nome da Categoria/)).toBe(true);
 
-    fireEvent.change(screen.getByLabelText("a"), { target: { value: "36" } });
-    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Nome da Categoria/), { target: { value: "boi" } });
+    await escolher(/^Sexo/, "Macho");
+    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(invalido(/^Faixa de idade/)).toBe(true);
+    expect(invalido(/^Sexo/)).toBe(false);
+
+    await escolher(/^Faixa de idade/, "25 a 36 meses");
+    expect(invalido(/^Faixa de idade/)).toBe(false);
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
-      nome: "GARROTE",
-      idade_minima_meses: "25",
-      idade_maxima_meses: "36",
+      nome: "BOI",
+      sexo: "Macho",
+      idade_minima_meses: 25,
+      idade_maxima_meses: 36,
+      faixa_idade_alterada: true,
     });
 
-    // Pontas opcionais: só uma preenchida, ou iguais, é válido.
-    expect(faixaIdadeValida({ idade_minima_meses: "12", idade_maxima_meses: "" })).toBe(true);
-    expect(faixaIdadeValida({ idade_minima_meses: "", idade_maxima_meses: "12" })).toBe(true);
-    expect(faixaIdadeValida({ idade_minima_meses: "12", idade_maxima_meses: "12" })).toBe(true);
-    expect(faixaIdadeValida({ idade_minima_meses: "13", idade_maxima_meses: "12" })).toBe(false);
+    // "Maior que 36 meses" grava (37, null).
+    await escolher(/^Faixa de idade/, "Maior que 36 meses");
+    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ idade_minima_meses: 37, idade_maxima_meses: null });
+  });
+
+  it("registro com faixa da lista: o select mostra a faixa; salvar sem mexer NÃO reenvia as idades", async () => {
+    const { default: Form, buildFormInitialFromRecord } = await import(
+      "@/components/categorias-manejo/FormularioCategoriaManejo"
+    );
+    const { normalizarCategoriaManejo } = await import("@/services/categoriaManejoService");
+    const onSubmit = vi.fn();
+    wrap(
+      <Form
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BEZERRO", sexo: "MACHO", idade_minima_meses: 9, idade_maxima_meses: 12 })}
+        isEditing
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText(/^Faixa de idade/).textContent).toBe("9 a 12 meses");
+    // 'MACHO' gravado aparece como a opção "Macho".
+    expect(screen.getByLabelText(/^Sexo/).textContent).toBe("Macho");
+    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const payload = normalizarCategoriaManejo(onSubmit.mock.calls[0][0], { empresaId: "emp-1", edicao: true });
+    expect(payload).not.toHaveProperty("idade_minima_meses");
+    expect(payload).not.toHaveProperty("idade_maxima_meses");
+    expect(payload.sexo).toBe("Macho");
+  });
+
+  it("par legado fora da lista vira opção extra DESABILITADA; sem mexer, o par fica intocado; trocar envia a faixa nova", async () => {
+    const { default: Form, buildFormInitialFromRecord } = await import(
+      "@/components/categorias-manejo/FormularioCategoriaManejo"
+    );
+    const { normalizarCategoriaManejo } = await import("@/services/categoriaManejoService");
+    const onSubmit = vi.fn();
+    wrap(
+      <Form
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 10, idade_maxima_meses: 20 })}
+        isEditing
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    );
+    const campo = screen.getByLabelText(/^Faixa de idade/);
+    expect(campo.textContent).toBe("De 10 a 20 meses (fora da lista)");
+    await abrirSelect(/^Faixa de idade/);
+    const opcoes = await screen.findAllByRole("option");
+    expect(opcoes.map((o) => o.textContent.trim())).toEqual([...FAIXAS_ROTULOS, "De 10 a 20 meses (fora da lista)"]);
+    expect(opcoes.at(-1).disabled).toBe(true);
+    expect(opcoes.slice(0, 5).every((o) => !o.disabled)).toBe(true);
+    // Fechar sem escolher (novo clique no campo) e salvar: o par legado não vai no corpo.
+    await act(async () => {
+      fireEvent.click(campo);
+    });
+    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const intocado = normalizarCategoriaManejo(onSubmit.mock.calls[0][0], { empresaId: "emp-1", edicao: true });
+    expect(intocado).not.toHaveProperty("idade_minima_meses");
+    expect(intocado).not.toHaveProperty("idade_maxima_meses");
+
+    await escolher(/^Faixa de idade/, "13 a 24 meses");
+    expect(screen.getByLabelText(/^Faixa de idade/).textContent).toBe("13 a 24 meses");
+    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
+    const trocado = normalizarCategoriaManejo(onSubmit.mock.calls[1][0], { empresaId: "emp-1", edicao: true });
+    expect(trocado).toMatchObject({ idade_minima_meses: 13, idade_maxima_meses: 24 });
+  });
+
+  it("par legado com um lado só também é preservado e rotulado", async () => {
+    const { valorFaixaIdade, rotuloFaixaForaDaLista, FAIXA_FORA_DA_LISTA } = await import(
+      "@/components/categorias-manejo/FormularioCategoriaManejo"
+    );
+    expect(valorFaixaIdade({ idade_minima_meses: 12, idade_maxima_meses: "" })).toBe(FAIXA_FORA_DA_LISTA);
+    expect(rotuloFaixaForaDaLista({ idade_minima_meses: 12, idade_maxima_meses: "" })).toBe("A partir de 12 meses (fora da lista)");
+    expect(rotuloFaixaForaDaLista({ idade_minima_meses: "", idade_maxima_meses: 12 })).toBe("Até 12 meses (fora da lista)");
+    expect(valorFaixaIdade({ idade_minima_meses: 37, idade_maxima_meses: "" })).toBe("37-");
+    expect(valorFaixaIdade({ idade_minima_meses: "", idade_maxima_meses: "" })).toBe("");
   });
 
   it("registro legado aberto para edição não exibe nem cria campo para as chaves removidas", async () => {
@@ -142,14 +272,14 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", idade_minima_meses: 37, ...legado() })}
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 37, ...legado() })}
         isEditing
         onSubmit={onSubmit}
         onCancel={() => {}}
       />,
     );
     const form = screen.getByTestId("b1-form-categoria-manejo");
-    expect(form.querySelectorAll('input[type="number"]')).toHaveLength(2);
+    expect(form.querySelectorAll('input[type="number"]')).toHaveLength(0);
     expect(form.textContent).not.toMatch(/NELORE|Raça|GMD/i);
     fireEvent.submit(form);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -300,7 +430,25 @@ describe("(d) colunas exportáveis (CSV) de Categorias de Manejo", () => {
     });
     const [cabecalho, linha] = texto.replace(/^﻿/, "").split("\n");
     expect(cabecalho).toBe('"Nome";"Sigla";"Sexo";"Faixa Idade";"Espécie"');
-    expect(linha).toBe('"BOI";"B";"Macho";"37 - ∞ meses";"Bovinos"');
+    expect(linha).toBe('"BOI";"B";"Macho";"Maior que 36 meses";"Bovinos"');
     expect(texto).not.toMatch(/NELORE|Raça|GMD|ganho/i);
+  });
+
+  it("coluna Faixa Idade (grade e CSV): rótulo da faixa; par fora da lista → \"X a Y meses\"; sem idade → vazio", async () => {
+    const { getCategoriaManejoFieldValue } = await import("@/components/categorias-manejo/TabelaCategoriasManejo");
+    const v = (idade_minima_meses, idade_maxima_meses) =>
+      getCategoriaManejoFieldValue({ idade_minima_meses, idade_maxima_meses }, "idade");
+    expect(v(0, 8)).toBe("0 a 8 meses");
+    expect(v(9, 12)).toBe("9 a 12 meses");
+    expect(v(13, 24)).toBe("13 a 24 meses");
+    expect(v(25, 36)).toBe("25 a 36 meses");
+    expect(v(37, null)).toBe("Maior que 36 meses");
+    expect(v(10, 20)).toBe("10 a 20 meses");
+    expect(v(24, 12)).toBe("24 a 12 meses");
+    expect(v(0, 12)).toBe("0 a 12 meses");
+    expect(v(12, null)).toBe("A partir de 12 meses");
+    expect(v(null, 12)).toBe("Até 12 meses");
+    expect(v(null, null)).toBe("");
+    expect(v(undefined, undefined)).toBe("");
   });
 });

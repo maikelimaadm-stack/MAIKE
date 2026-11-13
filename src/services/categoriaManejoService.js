@@ -56,22 +56,34 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
  * os doze GMDs mensais saíram do cadastro e **não** são enviados, mesmo que o
  * `formData` ainda os traga (registro antigo aberto para edição).
  *
+ * Faixa de idade (decisão do proprietário, 2026-11-13): o formulário só
+ * oferece as cinco faixas fixas. Na **edição**, as idades só vão no corpo
+ * quando o usuário mexeu no select (`faixa_idade_alterada`): salvar sem
+ * mexer deixa o par gravado intocado no servidor, mesmo um par legado fora
+ * da lista. Na criação vão sempre (o servidor exige uma das cinco).
+ *
  * @param {object} formData
- * @param {{empresaId?: string}} [opcoes]
+ * @param {{empresaId?: string, edicao?: boolean}} [opcoes]
  * @returns {object}
  */
-export const normalizarCategoriaManejo = (formData, { empresaId } = {}) => ({
-  empresa_id: empresaId ?? formData.empresa_id,
-  nome: formData.nome.toUpperCase(),
-  sigla: maiusculoOuNulo(formData.sigla),
-  especie: formData.especie || null,
-  sexo: formData.sexo || null,
-  idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
-  idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
-  // Vínculo com a categoria visual global do tipo `lote` (D-PROD-69).
-  catalogo_categoria_visual_id: formData.catalogo_categoria_visual_id || null,
-  ativo: true,
-});
+export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false } = {}) => {
+  const payload = {
+    empresa_id: empresaId ?? formData.empresa_id,
+    nome: formData.nome.toUpperCase(),
+    sigla: maiusculoOuNulo(formData.sigla),
+    especie: formData.especie || null,
+    sexo: formData.sexo || null,
+    // Vínculo com a categoria visual global do tipo `lote` (D-PROD-69).
+    catalogo_categoria_visual_id: formData.catalogo_categoria_visual_id || null,
+    ativo: true,
+  };
+  if (edicao && formData.faixa_idade_alterada !== true) return payload;
+  return {
+    ...payload,
+    idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
+    idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
+  };
+};
 
 /**
  * @param {object} formData
@@ -86,7 +98,7 @@ export const criarCategoriaManejo = async (formData, { empresaId } = {}) =>
  * @param {{empresaId?: string}} [opcoes]
  */
 export const atualizarCategoriaManejo = async (id, formData, { empresaId } = {}) =>
-  updateCategoriaManejo(id, normalizarCategoriaManejo(formData, { empresaId }));
+  updateCategoriaManejo(id, normalizarCategoriaManejo(formData, { empresaId, edicao: true }));
 
 /** Um carregador por entidade dependente declarada em `deleteRules`. */
 const CARREGADORES = Object.freeze({

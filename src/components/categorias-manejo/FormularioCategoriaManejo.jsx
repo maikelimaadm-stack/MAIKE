@@ -1,32 +1,53 @@
 import React, { useState } from "react";
-import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1, B1TituloGrupo } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
 import CategoriaOficialCatalogoSelect from "@/components/catalogoGlobal/CategoriaOficialCatalogoSelect";
 import B1Select from "@/components/cadastro/base1/B1Select";
+import {
+  FAIXAS_IDADE_CATEGORIA_MANEJO,
+  faixaIdadeDaLista,
+  rotuloFaixaIdade,
+  sexoOficial,
+} from "@/domain/lotes/categoriaOficialDerivada";
 
 export const FORMULARIO_CATEGORIA_MANEJO_ID = "formulario-categoria-manejo-base1";
 
-const REQUIRED_FIELDS = ["nome"];
+/** Nome, Sexo e Faixa de idade são obrigatórios (decisão do proprietário, 2026-11-13). */
+const REQUIRED_FIELDS = ["nome", "sexo", "faixa_idade"];
 const UPPERCASE_FIELDS = ["nome", "sigla"];
-const FAIXA_IDADE_FIELDS = ["idade_minima_meses", "idade_maxima_meses"];
 const SELECT_EMPTY = "__VAZIO__";
+const SEXOS = ["Macho", "Fêmea"];
 
-export const MENSAGEM_FAIXA_IDADE_INVALIDA = "A idade inicial não pode ser maior que a final.";
+/** Valor do select para o par gravado fora das cinco faixas (registro legado). */
+export const FAIXA_FORA_DA_LISTA = "__FORA_DA_LISTA__";
 
-/** Vazio → null; senão inteiro (o service grava com `parseInt`). */
-const idadeOuNula = (valor) => {
-  if (valor === undefined || valor === null || String(valor).trim() === "") return null;
-  const n = parseInt(String(valor).trim(), 10);
-  return Number.isFinite(n) ? n : null;
+/** Valor do select de uma faixa da lista: "mínima-máxima" ("37-" sem máxima). */
+const valorDaFaixa = (faixa) => `${faixa.idade_minima_meses}-${faixa.idade_maxima_meses ?? ""}`;
+
+/**
+ * Valor do select "Faixa de idade" para o par do formulário: a faixa da lista;
+ * par legado fora da lista → `FAIXA_FORA_DA_LISTA`; sem idade → "".
+ */
+export const valorFaixaIdade = (formData) => {
+  const faixa = faixaIdadeDaLista(formData?.idade_minima_meses, formData?.idade_maxima_meses);
+  if (faixa) return valorDaFaixa(faixa);
+  return rotuloFaixaIdade(formData) ? FAIXA_FORA_DA_LISTA : "";
 };
 
-/** Faixa de idade: as duas pontas são opcionais; com as duas preenchidas, De ≤ a. */
-export const faixaIdadeValida = (formData) => {
-  const minima = idadeOuNula(formData?.idade_minima_meses);
-  const maxima = idadeOuNula(formData?.idade_maxima_meses);
-  return minima === null || maxima === null || minima <= maxima;
+/** Rótulo da opção extra (desabilitada) que mostra o par legado: "De X a Y meses (fora da lista)". */
+export const rotuloFaixaForaDaLista = (formData) => {
+  const rotulo = rotuloFaixaIdade(formData);
+  return `${/^\d/.test(rotulo) ? `De ${rotulo}` : rotulo} (fora da lista)`;
+};
+
+/** 'MACHO'/'femea' gravados → 'Macho'/'Fêmea' (a grafia das opções); outro valor fica como está. */
+const sexoDoRegistro = (sexo) => {
+  const oficial = sexoOficial(sexo);
+  if (oficial === "MACHO") return "Macho";
+  if (oficial === "FEMEA") return "Fêmea";
+  return sexo ?? "";
 };
 
 export const getInitialFormData = () => ({
@@ -39,13 +60,19 @@ export const getInitialFormData = () => ({
   catalogo_categoria_visual_id: "",
 });
 
+/**
+ * Registro → formulário. `faixa_idade_alterada` começa falso: salvar sem mexer
+ * no select NÃO reenvia as idades (o par gravado, mesmo legado, fica intocado).
+ */
 export function buildFormInitialFromRecord(editando) {
   return {
     ...getInitialFormData(),
     ...editando,
+    sexo: sexoDoRegistro(editando.sexo),
     catalogo_categoria_visual_id: editando.catalogo_categoria_visual_id ?? "",
     idade_minima_meses: editando.idade_minima_meses ?? "",
     idade_maxima_meses: editando.idade_maxima_meses ?? "",
+    faixa_idade_alterada: false,
   };
 }
 
@@ -68,9 +95,20 @@ export default function FormularioCategoriaManejo({
     const nextValue =
       UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     setFormData((prev) => ({ ...prev, [field]: nextValue }));
-    // Mexer numa ponta da faixa de idade limpa o erro das duas.
-    const limpar = FAIXA_IDADE_FIELDS.includes(field) ? FAIXA_IDADE_FIELDS : [field];
-    setInvalidFields((prev) => prev.filter((item) => !limpar.includes(item)));
+    setInvalidFields((prev) => prev.filter((item) => item !== field));
+  };
+
+  /** Escolher no select grava o par da faixa e marca a faixa como alterada (só então as idades são enviadas). */
+  const handleFaixaChange = (valor) => {
+    const faixa = FAIXAS_IDADE_CATEGORIA_MANEJO.find((f) => valorDaFaixa(f) === valor);
+    if (!faixa) return;
+    setFormData((prev) => ({
+      ...prev,
+      idade_minima_meses: faixa.idade_minima_meses,
+      idade_maxima_meses: faixa.idade_maxima_meses,
+      faixa_idade_alterada: true,
+    }));
+    setInvalidFields((prev) => prev.filter((item) => item !== "faixa_idade"));
   };
 
   const isEmptyValue = (value) => {
@@ -81,22 +119,22 @@ export default function FormularioCategoriaManejo({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (readOnly) return;
-    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(formData?.[field]));
+    const faltando = {
+      nome: isEmptyValue(formData?.nome),
+      sexo: !SEXOS.includes(formData?.sexo),
+      faixa_idade: valorFaixaIdade(formData) === "",
+    };
+    const missingFields = REQUIRED_FIELDS.filter((field) => faltando[field]);
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
       notifyWarning("Atenção", "Preencha os campos obrigatórios.");
-      return;
-    }
-    if (!faixaIdadeValida(formData)) {
-      // A mensagem aparece uma vez, sob o "a" (fim da faixa).
-      setInvalidFields(["idade_maxima_meses"]);
-      notifyWarning("Atenção", MENSAGEM_FAIXA_IDADE_INVALIDA);
       return;
     }
     onSubmit(formData);
   };
 
   const locked = readOnly || isSubmitting;
+  const faixaValor = valorFaixaIdade(formData);
 
   const formBody = (
     <form
@@ -168,10 +206,12 @@ export default function FormularioCategoriaManejo({
 
       <B1Field
         label="Sexo"
+        required
         span={4}
         hasValue={Boolean(formData.sexo)}
         locked={readOnly}
         disabled={locked}
+        error={invalidFields.includes("sexo") ? "Obrigatório" : undefined}
       >
         {readOnly ? (
           <input type="text" readOnly value={formData.sexo || ""} className={B1_FIELD_CTL_CLS} />
@@ -204,41 +244,37 @@ export default function FormularioCategoriaManejo({
         />
       </B1Field>
 
-      <B1TituloGrupo titulo="Faixa de idade (meses)" />
-
       <B1Field
-        label="De"
+        label="Faixa de idade"
+        required
         span={4}
-        hasValue={formData.idade_minima_meses !== ""}
+        hasValue={faixaValor !== ""}
         locked={readOnly}
         disabled={locked}
+        error={invalidFields.includes("faixa_idade") ? "Obrigatório" : undefined}
       >
-        <input
-          type="number"
-          value={formData.idade_minima_meses}
-          onChange={(e) => handleChange("idade_minima_meses", e.target.value)}
-          placeholder="0"
-          className={B1_FIELD_CTL_CLS}
-          readOnly={readOnly}
-        />
-      </B1Field>
-
-      <B1Field
-        label="a"
-        span={4}
-        hasValue={formData.idade_maxima_meses !== ""}
-        locked={readOnly}
-        disabled={locked}
-        error={invalidFields.includes("idade_maxima_meses") ? MENSAGEM_FAIXA_IDADE_INVALIDA : undefined}
-      >
-        <input
-          type="number"
-          value={formData.idade_maxima_meses}
-          onChange={(e) => handleChange("idade_maxima_meses", e.target.value)}
-          placeholder="0"
-          className={B1_FIELD_CTL_CLS}
-          readOnly={readOnly}
-        />
+        {readOnly ? (
+          <input type="text" readOnly value={rotuloFaixaIdade(formData)} className={B1_FIELD_CTL_CLS} />
+        ) : (
+          <B1Select
+            value={faixaValor}
+            onChange={(e) => handleFaixaChange(e.target.value)}
+            className={B1_FIELD_CTL_CLS}
+          >
+            {/* Obrigatório: o "SELECIONE" (valor vazio) é só o marcador, fora da lista. */}
+            <option value="">SELECIONE</option>
+            {FAIXAS_IDADE_CATEGORIA_MANEJO.map((faixa) => (
+              <option key={valorDaFaixa(faixa)} value={valorDaFaixa(faixa)}>
+                {faixa.rotulo}
+              </option>
+            ))}
+            {faixaValor === FAIXA_FORA_DA_LISTA ? (
+              <option value={FAIXA_FORA_DA_LISTA} disabled>
+                {rotuloFaixaForaDaLista(formData)}
+              </option>
+            ) : null}
+          </B1Select>
+        )}
       </B1Field>
 
       {!toolbarActions ? (

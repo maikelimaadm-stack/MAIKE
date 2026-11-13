@@ -11,6 +11,9 @@ import {
   categoriaOficialDaCategoriaManejo as derivar,
   derivaCategoriaOficial,
   sexoOficial,
+  FAIXAS_IDADE_CATEGORIA_MANEJO,
+  faixaIdadeDaLista,
+  faixaContemIdade,
 } from '../src/modules/movimentacoesMapa/categoriaOficialDerivada.js';
 
 /** [sexo, idade_minima_meses, idade_maxima_meses, oficial esperada] — a mesma tabela do smoke do frontend. */
@@ -80,5 +83,27 @@ describe('categoria oficial derivada de sexo + faixa de idade', () => {
       assert.equal(f.ate === null, i === FAIXAS_CATEGORIA_OFICIAL.length - 1);
     });
     assert.equal(new Set(FAIXAS_CATEGORIA_OFICIAL.flatMap((f) => [f.MACHO, f.FEMEA])).size, 8);
+  });
+
+  test('as cinco faixas fixas do cadastro cabem cada uma numa faixa oficial; faixaIdadeDaLista casa só o par exato', () => {
+    assert.deepEqual(
+      FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => derivar({ sexo: 'Macho', ...f })),
+      ['Bezerro 0 a 12 meses', 'Bezerro 0 a 12 meses', 'Garrote 13 a 24 meses', 'Boi 25 a 36 meses', 'Touro + 36 meses']
+    );
+    for (const f of FAIXAS_IDADE_CATEGORIA_MANEJO) assert.equal(faixaIdadeDaLista(f.idade_minima_meses, f.idade_maxima_meses), f);
+    assert.equal(faixaIdadeDaLista('37', undefined)?.rotulo, 'Maior que 36 meses');
+    for (const [min, max] of [[0, 12], [10, 20], [24, 12], [null, null], [37, 120], [8, 0], [1.5, 8]]) {
+      assert.equal(faixaIdadeDaLista(min, max), null, JSON.stringify([min, max]));
+    }
+  });
+
+  test('faixaContemIdade: limites inclusivos, mínima ausente = 0, máxima ausente = sem teto, sem idade nunca contém', () => {
+    assert.equal(faixaContemIdade({ idade_minima_meses: 0, idade_maxima_meses: 8 }, 0), true);
+    assert.equal(faixaContemIdade({ idade_minima_meses: 0, idade_maxima_meses: 8 }, 8), true);
+    assert.equal(faixaContemIdade({ idade_minima_meses: 9, idade_maxima_meses: 12 }, 0), false);
+    assert.equal(faixaContemIdade({ idade_minima_meses: null, idade_maxima_meses: 12 }, 0), true);
+    assert.equal(faixaContemIdade({ idade_minima_meses: 37, idade_maxima_meses: null }, 400), true);
+    assert.equal(faixaContemIdade({ idade_minima_meses: null, idade_maxima_meses: null }, 0), false);
+    assert.equal(faixaContemIdade(null, 0), false);
   });
 });

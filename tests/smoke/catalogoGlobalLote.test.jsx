@@ -130,7 +130,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={{ nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho" }}
+        initialData={{ nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho", idade_minima_meses: 0, idade_maxima_meses: 8 }}
         onSubmit={onSubmit}
         onCancel={() => {}}
       />,
@@ -165,6 +165,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
       <Form
         initialData={buildFormInitialFromRecord({
           id: "cm-bez", nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho",
+          idade_minima_meses: 0, idade_maxima_meses: 8,
           catalogo_categoria_visual_id: "cv-bez",
         })}
         isEditing
