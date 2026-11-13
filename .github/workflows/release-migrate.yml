@@ -76,5 +76,9 @@ jobs:
         env:
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
           MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: ${{ secrets.MIGRATION_EXPECTED_SYSTEM_IDENTIFIER }}
+          # A barreira de alvo (exigirAlvoConferido) confere que a conexão de
+          # migration e a do RUNTIME são o mesmo banco lógico. Sem a do runtime
+          # ela falha com "runtime: conexão ausente" e nada é aplicado.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           MIGRATION_EXIGIR_CONFERENCIA: sim
         run: npm run deploy:migrate

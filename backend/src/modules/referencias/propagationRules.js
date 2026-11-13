@@ -25,7 +25,7 @@
  * formato no fim do arquivo.
  */
 
-/** @typedef {{tabela: string, chave: string, documento?: boolean, valores: (origem: any) => Record<string, string | null>}} Dependente */
+/** @typedef {{tabela: string, chave: string, documento?: boolean, opcional?: boolean, valores: (origem: any) => Record<string, string | null>}} Dependente */
 /** @typedef {{tabela: string, delegate: string, porEmpresa: boolean, dependentes: Dependente[]}} Origem */
 
 const nomeDoSetor = (campo) => (o) => ({ [campo]: o.nome });
@@ -55,7 +55,8 @@ export const ORIGENS = Object.freeze({
     dependentes: [
       { tabela: 'TipoTarefa', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
       // D-PROD-182 — Tipo de Atividade guarda o nome do grupo em cache.
-      { tabela: 'TipoAtividade', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
+      // HOTFIX: `opcional` — pulado enquanto a tabela não existir (migration ainda não aplicada).
+      { tabela: 'TipoAtividade', chave: 'grupo_atividade_id', opcional: true, valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
       { tabela: 'LancamentoTarefa', chave: 'grupo_atividade_id', valores: (o) => ({ grupo_atividade_nome: o.nome_grupo }) },
     ],
   },
