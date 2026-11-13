@@ -21,11 +21,11 @@
  *       ledger falhado → PARAR; depois de `migrate resolve --rolled-back` (só no
  *       sandbox) e a causa removida → SEGUIR; aplicada → JA_APLICADA; nome ocupado
  *       por outra relação → PARAR; índice de mesmo nome com definição diferente → PARAR.
- *  OR   (R2) as duas ordens: banco novo (P1-03 antes da CADESTACOES, pelo nome) e produção (CADESTACOES
- *       antes, P1-03 por último): 44/0, mesmo schema e sem drift, e o runner aceita a P1-03 pendente.
- *  PB   (R2) a lista `base_release` do preflight é exatamente a pasta até a CADESTACOES, menos a P1-03.
- *  PH   (R2) histórico contra a base: 43 → SEGUIR; CADESTACOES ausente, migration desconhecida (antes e
- *       depois), nome duplicado, falhada → PARAR; 44 com a P1-03 por último → JA_APLICADA.
+ *  OR   (R2) as duas ordens: banco novo (P1-03 antes da CADESTACOES, pelo nome) e produção (CADESTACOES e CADCURVAGANHO
+ *       antes, P1-03 por último): todas/0, mesmo schema e sem drift, e o runner aceita a P1-03 pendente.
+ *  PB   (R2) a lista `base_release` do preflight: nomes reais, sem a P1-03, com as mais antigas e as aplicadas antes dela.
+ *  PH   (R2) histórico contra a base: a base → SEGUIR; CADESTACOES ausente, migration desconhecida (antes e
+ *       depois), nome duplicado, falhada → PARAR; base + P1-03 por último → JA_APLICADA.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,11 +39,17 @@ import {
 } from '../../scripts/dev/ensaio-p1-03-transacao-migration.mjs';
 import { conferirHistoricoRemoto, sha256 } from '../../scripts/deploy/premergeMigrateLib.mjs';
 
-/** A migration da D-PROD-188, aplicada em produção ANTES da P1-03 apesar do carimbo posterior. */
+/** Migrations com carimbo posterior ao da P1-03, aplicadas em produção ANTES dela (D-PROD-188 e D-PROD-189). */
 const NOME_CAD = '20261113400000_cadestacoes_cadastro';
+const NOME_CURVA = '20261113600000_cadcurvaganho_cadastro';
 const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 const PREFLIGHT = readFileSync(join(RAIZ, 'scripts', 'ops', 'sql-editor', 'estoque-p1-03-preflight-indices-somente-leitura.sql'), 'utf8');
+/** A base da release como o preflight a declara (CTE base_release); vazia se ausente. */
+const BASE_RELEASE = (() => {
+  const bloco = PREFLIGHT.match(/base_release\(nome\) AS \(\s*VALUES([\s\S]*?)\n\),/);
+  return bloco ? [...bloco[1].matchAll(/'(\d{14}_[a-z0-9_]+)'/g)].map((m) => m[1]) : [];
+})();
 let base;
 /** @type {PrismaClient} */
 let admin;
@@ -203,7 +209,7 @@ const indicesNovos = async (db) => (/** @type {any[]} */ (await db.$queryRawUnsa
 )));
 
 describe('Ordem das migrations: banco novo (P1-03 antes da CADESTACOES) e produção (CADESTACOES antes da P1-03)', () => {
-  test('OR as duas ordens: 44/0, mesmo schema entre si e igual ao schema.prisma, índices e CADESTACOES iguais; o runner aceita a P1-03 pendente depois da CADESTACOES', async () => {
+  test('OR as duas ordens: todas/0, mesmo schema entre si e igual ao schema.prisma, índices e CADESTACOES iguais; o runner aceita a P1-03 pendente depois da CADESTACOES', async () => {
     const [nomeNovo, nomeProd] = ['maike_p103_ordem_novo', 'maike_p103_ordem_prod'];
     const urlNovo = await bancoNovo(admin, base, nomeNovo);
     const urlProd = await bancoNovo(admin, base, nomeProd);
@@ -215,17 +221,19 @@ describe('Ordem das migrations: banco novo (P1-03 antes da CADESTACOES) e produ�
       // 1. banco novo: o Prisma aplica pela ordem do nome → … → P1-03 → CADESTACOES
       assert.equal((await deploy(todas, urlNovo)).status, 0);
       const ordemNovo = await concluidasPorOrdem(dbNovo);
-      assert.equal(ordemNovo.length, 44);
+      const total = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+      assert.equal(ordemNovo.length, total);
       assert.ok(ordemNovo.indexOf(NOME_P103) < ordemNovo.indexOf(NOME_CAD), 'banco novo: P1-03 antes da CADESTACOES');
 
-      // 2. produção: as 43 da base (com a CADESTACOES) e só depois a P1-03, pelo mesmo `migrate deploy`
+      // 2. produção: a base inteira (com a CADESTACOES e a CADCURVAGANHO) e só depois a P1-03, pelo mesmo `migrate deploy`
       assert.equal((await deploy(semP103, urlProd)).status, 0);
       const antes = conferirHistoricoRemoto({ locais: locaisDaPasta(), linhas: await linhasDoHistorico(dbProd) });
       assert.deepEqual([antes.ok, antes.pendentes, antes.falhas], [true, [NOME_P103], []], 'o runner reconhece o histórico de produção e só a P1-03 pendente');
       const r = await deploy(todas, urlProd);
       assert.equal(r.status, 0, r.saida);
       const ordemProd = await concluidasPorOrdem(dbProd);
-      assert.equal(ordemProd.length, 44);
+      assert.equal(ordemProd.length, total);
+      assert.ok(ordemProd.indexOf(NOME_CURVA) < ordemProd.indexOf(NOME_P103) && ordemProd.indexOf(NOME_CAD) < ordemProd.indexOf(NOME_P103));
       assert.equal(ordemProd.at(-1), NOME_P103, 'produção: a P1-03 é a última por finished_at, apesar do carimbo anterior');
       const depois = conferirHistoricoRemoto({ locais: locaisDaPasta(), linhas: await linhasDoHistorico(dbProd) });
       assert.deepEqual([depois.ok, depois.pendentes, depois.falhas], [true, [], []]);
@@ -260,19 +268,21 @@ describe('Ordem das migrations: banco novo (P1-03 antes da CADESTACOES) e produ�
 });
 
 describe('Preflight: histórico conferido contra a base da release (R2)', () => {
-  test('PB a lista fixa do preflight é exatamente a base da release: as migrations da pasta até a CADESTACOES, menos a P1-03', () => {
-    const bloco = PREFLIGHT.match(/base_release\(nome\) AS \(\s*VALUES([\s\S]*?)\n\),/);
-    assert.ok(bloco, 'o preflight declara a CTE base_release(nome)');
-    const lista = [...bloco[1].matchAll(/'(\d{14}_[a-z0-9_]+)'/g)].map((m) => m[1]);
-    const pasta = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
-    // Migrations mais novas que a base (de outras releases) não entram: a lista é a base desta release.
-    const esperada = pasta.filter((n) => n !== NOME_P103 && n <= NOME_CAD);
-    assert.deepEqual([...lista].sort(), esperada);
-    assert.equal(lista.length, 43);
-    assert.equal(new Set(lista).size, lista.length, 'sem nome repetido');
+  test('PB a lista base_release do preflight é a base desta release: nomes reais da pasta, sem a P1-03, com tudo o que é mais antigo que ela e com as aplicadas antes dela', () => {
+    assert.ok(BASE_RELEASE.length > 0, 'o preflight declara a CTE base_release(nome)');
+    const pasta = new Set(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name));
+    for (const n of BASE_RELEASE) assert.ok(pasta.has(n), `nome da lista sem pasta: ${n}`);
+    assert.equal(new Set(BASE_RELEASE).size, BASE_RELEASE.length, 'sem nome repetido');
+    assert.ok(!BASE_RELEASE.includes(NOME_P103), 'a P1-03 não é base');
+    for (const n of pasta) if (n < NOME_P103) assert.ok(BASE_RELEASE.includes(n), `migration anterior à P1-03 fora da base: ${n}`);
+    for (const n of ['20261113200000_tipo_tarefa_drop_colunas', NOME_CAD, NOME_CURVA]) assert.ok(BASE_RELEASE.includes(n), n);
+    // Base da main cf07309c: 44. Migration mais nova (de outra release) não entra; em produção, ela dá PARAR (PH).
+    assert.equal(BASE_RELEASE.length, 44);
   });
 
-  test('PH antes → SEGUIR (43); CADESTACOES ausente, migration extra, nome duplicado, falhada → PARAR; depois → JA_APLICADA (44, P1-03 última); extra depois → PARAR', async () => {
+  test('PH antes → SEGUIR (a base); CADESTACOES ausente, migration extra, nome duplicado, falhada → PARAR; depois → JA_APLICADA (base + 1, P1-03 última); extra depois → PARAR', async () => {
+    const N = BASE_RELEASE.length;
+    const ultimaDaBase = [...BASE_RELEASE].sort().at(-1);
     const nome = 'maike_p103_preflight_hist';
     const nomeSemCad = 'maike_p103_preflight_semcad';
     const url = await bancoNovo(admin, base, nome);
@@ -285,17 +295,17 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
     const extra = (db) => db.$executeRawUnsafe(
       `INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, started_at, applied_steps_count) VALUES ('teste-extra', 'x', now(), '20261113450000_desconhecida', now(), 1)`);
     try {
-      // estado real da produção antes do GO-2: 43 concluídas, a CADESTACOES por último
+      // estado de produção antes do GO-2: a base inteira concluída (a CADCURVAGANHO por último)
       assert.equal((await deploy(semP103, url)).status, 0);
       let v = await preflight(db);
       assert.deepEqual(
         [v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['migration.desconhecidas'], v['migration.ultima'], v['veredito.estado']],
-        ['43', 'SIM', '0', '0', NOME_CAD, 'SEGUIR'], JSON.stringify(v));
+        [`${N}`, 'SIM', '0', '0', ultimaDaBase, 'SEGUIR'], JSON.stringify(v));
 
-      // a main sem a #265 (o que o GO-1 encontrou do lado do repositório): 42, sem CADESTACOES → PARAR
+      // base sem a CADESTACOES: N-1 concluídas → PARAR (contagem sozinha não basta: falta um nome da base)
       assert.equal((await deploy(semP103SemCad, urlSemCad)).status, 0);
       v = await preflight(dbSemCad);
-      assert.deepEqual([v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['veredito.estado']], ['42', 'NAO', '1', 'PARAR'], 'CADESTACOES ausente');
+      assert.deepEqual([v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['veredito.estado']], [`${N - 1}`, 'NAO', '1', 'PARAR'], 'CADESTACOES ausente');
 
       // migration concluída que não é da base nem a P1-03 → PARAR (o defeito do GO-1: 43 com uma desconhecida dava SEGUIR)
       await extra(db);
@@ -318,12 +328,12 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
       await db.$executeRawUnsafe(`DELETE FROM _prisma_migrations WHERE id = 'teste-falha'`);
       assert.equal((await preflight(db))['veredito.estado'], 'SEGUIR', 'limpo de novo');
 
-      // GO-2 simulado: a P1-03 entra por último (ordem da produção) → JA_APLICADA com 44
+      // GO-2 simulado: a P1-03 entra por último (ordem da produção) → JA_APLICADA com N + 1
       assert.equal((await deploy(todas, url)).status, 0);
       v = await preflight(db);
       assert.deepEqual(
         [v['migration.concluidas'], v['migration.p1_03_registrada'], v['indice.definicoes_exatas_validas'], v['migration.ultima'], v['veredito.estado']],
-        ['44', '1', '2', NOME_P103, 'JA_APLICADA'], JSON.stringify(v));
+        [`${N + 1}`, '1', '2', NOME_P103, 'JA_APLICADA'], JSON.stringify(v));
 
       // depois da aplicação, uma migration desconhecida também derruba o JA_APLICADA
       await extra(db);

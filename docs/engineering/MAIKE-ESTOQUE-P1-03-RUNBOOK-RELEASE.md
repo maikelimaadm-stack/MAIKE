@@ -81,14 +81,18 @@ Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura
   - aplicada → `JA_APLICADA`;
   - nome ocupado por outra relação → `PARAR`;
   - índice de mesmo nome com definição diferente → `PARAR`.
-- **R2 — histórico contra a base da release.** O preflight carrega a lista fixa `base_release` com os **nomes** das 43 migrations da main `776befe9` (inclui a CADESTACOES, D-PROD-188). Teste PH de `estoqueP1M7TransacaoMigration.test.mjs`:
-  - estado de produção antes do GO-2 (43, a CADESTACOES por último) → `SEGUIR`;
-  - CADESTACOES ausente (42) → `PARAR`;
+- **R2 — histórico contra a base da release.** O preflight carrega a lista fixa `base_release` com os **nomes** das 44 migrations da main `cf07309c`. Elas incluem a CADESTACOES (D-PROD-188) e a CADCURVAGANHO (D-PROD-189), as duas aplicadas em produção antes do próprio merge. Teste PH de `estoqueP1M7TransacaoMigration.test.mjs`:
+  - estado de produção antes do GO-2 (44, a CADCURVAGANHO por último) → `SEGUIR`;
+  - CADESTACOES ausente (43, a mesma contagem de antes) → `PARAR`;
   - migration concluída fora da base → `PARAR`, também depois da aplicação;
   - mesmo nome concluído duas vezes → `PARAR`;
   - migration falhada → `PARAR`;
-  - depois do GO-2 (44, a P1-03 por último) → `JA_APLICADA`.
-  - O teste PB garante que a lista é exatamente a pasta até a CADESTACOES, menos a P1-03.
+  - depois do GO-2 (45, a P1-03 por último) → `JA_APLICADA`.
+  - O teste PB confere a lista:
+    - só nomes reais da pasta, sem repetição e sem a P1-03;
+    - todas as migrations mais antigas que a P1-03;
+    - a D-PROD-183, a CADESTACOES e a CADCURVAGANHO;
+    - 44 no total.
   - **Defeito corrigido:** no GO-1 de 2026-11-13, o preflight antigo deu `SEGUIR` com 43 concluídas e uma migration fora do repositório. Reproduzido localmente: com a CADESTACOES ausente, com uma desconhecida a mais e com a CADESTACOES trocada por uma desconhecida, o SQL antigo dava `SEGUIR` nos três casos.
   - **Checksum não é conferido aqui.** Essa conferência é do `premerge-migrate --verificar-alvo`. O preflight não é um segundo sistema de migrations.
 - **A linha que decide é `veredito.estado`.** `JA_APLICADA` exige as 2 definições **exatas**, válidas e na tabela certa, com a migration concluída. As demais explicam o porquê.
@@ -99,12 +103,12 @@ Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura
 | `indice.nomes_ocupados_qualquer_tipo` | `0` | PARAR: outra relação (tabela, view, sequência…) com um dos 2 nomes faria o `CREATE INDEX` falhar (42P07) |
 | `indice.definicoes_exatas_validas` | `0` (postcheck: `2`) | No postcheck, qualquer valor ≠ 2 é PARAR |
 | `indice.invalidos_nas_2_tabelas` | `0` | PARAR |
-| `migration.concluidas` | `43` (postcheck: `44`) | PARAR e conferir com `--verificar-alvo` |
+| `migration.concluidas` | `44` (postcheck: `45`) | PARAR e conferir com `--verificar-alvo` |
 | `migration.base_ausentes` | `0` | PARAR: falta migration da base da release em produção |
 | `migration.desconhecidas` / `desconhecidas_nomes` | `0` / `-` | PARAR: migration fora da base desta release (outra release aplicada antes). A PR precisa integrar a main e refazer a lista |
 | `migration.duplicadas` | `0` | PARAR: mesmo nome concluído mais de uma vez |
 | `migration.cadestacoes_aplicada` | `SIM` | PARAR |
-| `migration.ultima` | — | Informativo: `20261113400000_cadestacoes_cadastro` antes; `20261113300000_estoque_p1_03_indices` no postcheck (ordem de aplicação, não de nome; §3.2) |
+| `migration.ultima` | — | Informativo: `20261113600000_cadcurvaganho_cadastro` antes; `20261113300000_estoque_p1_03_indices` no postcheck (ordem de aplicação, não de nome; §3.2) |
 | `migration.falhadas_pendentes` | `0` | PARAR (migration falhada trava o deploy; §6) |
 | `migration.revertidas_historico` | — | Informativo: reversões antigas já resolvidas não bloqueiam |
 | `migration.contract_d_prod_183_aplicada` | `SIM` | PARAR (isolamento, §1) |
@@ -136,18 +140,18 @@ Com `lock_timeout` efetivo de 5 s, cada espera fica limitada a cerca de 5 s (§0
 
 ### 3.2 Ordem das migrations (R2)
 
-A P1-03 (`20261113300000`) tem carimbo **anterior** ao da CADESTACOES (`20261113400000`), que já está aplicada em produção. Teste OR, em PostgreSQL 17 descartável, com o `prisma migrate deploy` real:
-- **Banco novo:** o Prisma aplica pela ordem do nome, `…` → P1-03 → CADESTACOES.
-- **Produção:** as 43 da base e, num segundo `migrate deploy`, a P1-03, que vira a última por `finished_at`.
+A P1-03 (`20261113300000`) tem carimbo **anterior** ao da CADESTACOES (`20261113400000`) e ao da CADCURVAGANHO (`20261113600000`), que já estão aplicadas em produção. Teste OR, em PostgreSQL 17 descartável, com o `prisma migrate deploy` real:
+- **Banco novo:** o Prisma aplica pela ordem do nome, `…` → P1-03 → CADESTACOES → CADCURVAGANHO.
+- **Produção:** as 44 da base e, num segundo `migrate deploy`, a P1-03, que vira a última por `finished_at`.
 - **Nas duas:**
-  - 44 concluídas e 0 falhadas;
+  - 45 concluídas e 0 falhadas;
   - `prisma migrate diff` entre os dois bancos vazio, e de cada um contra o `schema.prisma` também;
   - os 2 índices com a mesma definição;
   - a CADESTACOES com as mesmas colunas, constraints e RLS.
 - **O runner aceita esse histórico.**
   - `conferirHistoricoRemoto` dá `ok` com `pendentes = [P1-03]` antes e `[]` depois; o runner não exige ordem.
   - O `premerge-migrate --verificar-alvo` real, contra um banco local com o estado de produção, confirma isso (relatório §10).
-- **Decisão: o nome e o SHA-256 da P1-03 ficam como estão.** As duas migrations são independentes: a CADESTACOES cria uma tabela nova; a P1-03 cria índices em duas tabelas antigas.
+- **Decisão: o nome e o SHA-256 da P1-03 ficam como estão.** As migrations são independentes: a CADESTACOES e a CADCURVAGANHO criam tabelas novas; a P1-03 cria índices em duas tabelas antigas que nenhuma delas toca.
 
 ## 4. Aplicação (GO-2)
 
@@ -191,7 +195,7 @@ Depois disso, o proprietário faz o merge manual.
 |---|---|---|
 | `falhadas_pendentes = 1`, nenhum índice novo | Qualquer erro no script: 55P03 do `lock_timeout`, nome ocupado, falta de espaço, sessão cancelada. **Provado: nada fica pela metade.** O deploy que falha sai com P3018; os seguintes saem com P3009 | **PARAR.** Corrigir a causa só com GO e plano próprios. Depois, `prisma migrate resolve --rolled-back 20261113300000_estoque_p1_03_indices` (GO próprio) e nova aplicação (novo GO-2). No sandbox, isso volta a `SEGUIR` e depois `JA_APLICADA` (PF) |
 | Os 2 índices existem e a migration está sem `finished_at` | O processo morre **depois** do COMMIT do script e **antes** do `UPDATE finished_at`. O log mostra que são instruções separadas; o caso **não foi provocado** em teste | **PARAR.** Conferir as definições com o §5. Se exatas, `migrate resolve --applied` com GO próprio. Nunca `DROP` + reaplicar sem decisão |
-| `base_ausentes > 0`, `desconhecidas > 0` ou `duplicadas > 0` | O histórico de produção não é a base desta release, como no GO-1 de 2026-11-13: uma migration de outra PR aplicada antes do merge | **PARAR.** Não aplicar. A PR integra a main que tem essa migration, refaz a lista `base_release` com teste e pede **novo GO-1** |
+| `base_ausentes > 0`, `desconhecidas > 0` ou `duplicadas > 0` | O histórico de produção não é a base desta release. Foi o que o GO-1 de 2026-11-13 achou, e repete-se sempre que outra PR aplica a migration dela antes do merge (CADESTACOES, depois CADCURVAGANHO) | **PARAR.** Não aplicar. A PR integra a main que tem essa migration, refaz a lista `base_release` com teste e pede **novo GO-1** |
 | 1 índice novo, ou nome ocupado por outra relação, sem a migration registrada | Criação à mão, fora do runner | **PARAR.** Investigar quem criou. Remoção só por decisão CONTRACT |
 | `contract_d_prod_183_aplicada = NAO` | A CONTRACT D-PROD-183 está pendente | **PARAR** (isolamento, §1) |
 

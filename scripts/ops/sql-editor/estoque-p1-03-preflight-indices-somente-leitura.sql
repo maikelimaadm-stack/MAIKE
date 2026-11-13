@@ -25,18 +25,19 @@
 -- runbook MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md §3.
 --
 -- Base da release (R2): o histórico de produção é conferido, por NOME, contra a
--- lista fixa `base_release` = as 43 migrations da main 776befe9 (inclui a
--- CADESTACOES, D-PROD-188, aplicada antes do merge). SEGUIR exige exatamente
--- essas 43 concluídas e a P1-03 ausente; JA_APLICADA exige as 43 + a P1-03 (44).
+-- lista fixa `base_release` = as 44 migrations da main cf07309c (inclui a
+-- CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189, aplicadas em produção
+-- antes do merge de cada uma). SEGUIR exige exatamente essas 44 concluídas e a
+-- P1-03 ausente; JA_APLICADA exige as 44 + a P1-03 (45).
 -- Migration da base ausente, migration concluída fora da base (que não seja a
 -- P1-03), nome concluído em duplicidade ou falhada pendente → PARAR. A P1-03 tem
--- carimbo anterior ao da CADESTACOES, mas em produção entra por último: a ordem
+-- carimbo anterior ao da CADESTACOES e da CADCURVAGANHO, mas em produção entra por último: a ordem
 -- não é critério. Checksum NÃO é conferido aqui: isso é do
 -- `premerge-migrate --verificar-alvo`. Se a main ganhar outra migration antes do
 -- GO-2, este preflight dá PARAR até a PR integrar a main e a lista ser refeita.
 -- =============================================================================
 WITH
--- As 43 migrations da base da release (main 776befe9), sem a P1-03. Um teste confere a lista contra a pasta.
+-- As 44 migrations da base da release (main cf07309c), sem a P1-03. Um teste confere a lista contra a pasta.
 base_release(nome) AS (
   VALUES
     ('20260908174141_p3_foundation'),
@@ -81,10 +82,11 @@ base_release(nome) AS (
     ('20261110300000_patrimonio_simplifica'),
     ('20261113100000_tipo_atividade_cadastro'),
     ('20261113200000_tipo_tarefa_drop_colunas'),
-    ('20261113400000_cadestacoes_cadastro')
+    ('20261113400000_cadestacoes_cadastro'),
+    ('20261113600000_cadcurvaganho_cadastro')
 ),
--- Veredito único (fail-closed): SEGUIR só no estado "antes" limpo (as 43 da base, nada mais); JA_APLICADA só
--- com os 2 índices exatos e a migration concluída (44); qualquer outra combinação (índice parcial ou à mão,
+-- Veredito único (fail-closed): SEGUIR só no estado "antes" limpo (as 44 da base, nada mais); JA_APLICADA só
+-- com os 2 índices exatos e a migration concluída (45); qualquer outra combinação (índice parcial ou à mão,
 -- migration falhada, base incompleta, migration desconhecida ou duplicada, índice inválido, CONTRACT
 -- pendente) → PARAR e investigar, sem `migrate resolve`, DROP ou retry sem GO.
 estado AS (
@@ -165,10 +167,10 @@ indices AS (
 ),
 migracoes AS (
   SELECT 'migration', 'concluidas', count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)::text,
-         '43 antes do GO-2 (a base da release); 44 no postcheck (com a P1-03)'
+         '44 antes do GO-2 (a base da release); 45 no postcheck (com a P1-03)'
   FROM public._prisma_migrations
   UNION ALL
-  SELECT 'migration', 'base_ausentes', (SELECT base_ausentes FROM estado)::text, '0 (das 43 da base, quantas não estão concluídas; com >0: PARAR)'
+  SELECT 'migration', 'base_ausentes', (SELECT base_ausentes FROM estado)::text, '0 (das 44 da base, quantas não estão concluídas; com >0: PARAR)'
   UNION ALL
   SELECT 'migration', 'desconhecidas', (SELECT desconhecidas FROM estado)::text, '0 (migration fora da base e que não é a P1-03; com >0: PARAR)'
   UNION ALL
@@ -188,7 +190,7 @@ migracoes AS (
   FROM public._prisma_migrations
   UNION ALL
   SELECT 'migration', 'ultima', (SELECT migration_name FROM public._prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1),
-         'informativo: 20261113400000_cadestacoes_cadastro antes do GO-2; 20261113300000_estoque_p1_03_indices no postcheck (ordem de aplicação, não de nome)'
+         'informativo: 20261113600000_cadcurvaganho_cadastro antes do GO-2; 20261113300000_estoque_p1_03_indices no postcheck (ordem de aplicação, não de nome)'
   UNION ALL
   SELECT 'migration', 'cadestacoes_aplicada',
          (SELECT CASE WHEN count(*) = 1 THEN 'SIM' ELSE 'NAO' END FROM public._prisma_migrations
