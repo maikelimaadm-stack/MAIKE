@@ -90,3 +90,12 @@ Testes novos: `backend/tests/categoriaManejoEnxuto.test.mjs` (E-00…E-15), `bac
 ## 8. Fora do escopo
 
 Trabalho visual, Cadastro de Lotes, Estoque (#260), Tipo de Atividade, Categoria de evolução e qualquer migration.
+
+## 9. Hotfix pós-merge (2026-11-13) — exclusão de categoria travada
+
+- **Sintoma (proprietário):** cadastrar funcionava, excluir não.
+- **Causa:** a regra de exclusão pela categoria oficial **derivada** (item 3 da seção 4). A categoria "TESTE" (Macho, 0 a 8 meses) deriva "Bezerro 0 a 12 meses", e 22 lotes de outras categorias têm esse texto em `Lote.categoria`/`categoria_entrada`. O bloqueio "do lado seguro" travava toda categoria da faixa.
+- **Correção:** `src/domain/deleteRules.js` volta a bloquear `CategoriaManejo` só pelo id (`Lote.categoria_manejo_id`/`categoria_manejo_entrada_id`) e pelo `nome`; sem campo calculado.
+- **Testes:** CM-D5 reescrito — caso de produção (22 lotes de outra categoria não bloqueiam), id e nome continuam bloqueando, domínio puro sem fonte calculada. `manejoServices`, `suporteBoundary` e `mapaService`: 113/113.
+- **Sem migration, sem dado alterado.**
+
