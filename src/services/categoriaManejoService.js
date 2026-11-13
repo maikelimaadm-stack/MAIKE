@@ -34,25 +34,10 @@ export const listarIconesDeLoteDaEmpresa = async (empresaId) => {
   return icones.filter((icone) => icone.empresa_id === empresaId && icone.ativo !== false);
 };
 
-const MESES_GMD = Object.freeze([
-  'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
-  'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
-]);
-
 /** Vazio vira `null`; caso contrário converte. Preservado da página. */
 const inteiroOuNulo = (valor) => {
   if (valor === undefined || valor === null || valor === '') return null;
   const parsed = parseInt(String(valor).trim(), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const decimalOuNulo = (valor) => {
-  if (valor === undefined || valor === null || valor === '') return null;
-  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
-  const bruto = String(valor).trim();
-  if (!bruto) return null;
-  const normalizado =
-    bruto.includes(',') && !bruto.includes('.') ? bruto.replace(',', '.') : bruto;
-  const parsed = parseFloat(normalizado);
   return Number.isFinite(parsed) ? parsed : null;
 };
 const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
@@ -61,13 +46,15 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
  * Payload normalizado da categoria de manejo (P1.3-R1).
  *
  * Esta transformação **estava na página**, dentro de `handleSubmit`: uppercase,
- * `parseInt`, `parseFloat`, vazio→null, `empresa_id` e `ativo`, mais os doze
- * GMDs escritos campo a campo. A P1.3 migrou a fronteira de dados mas deixou a
- * regra de payload no componente — e o relatório daquela slice afirmou, por
- * engano, que a tela não normalizava. Ela normalizava; a leitura parou no
- * `mutationFn`, que só repassava o objeto já pronto.
+ * `parseInt`, vazio→null, `empresa_id` e `ativo`. A P1.3 migrou a fronteira de
+ * dados mas deixou a regra de payload no componente — e o relatório daquela
+ * slice afirmou, por engano, que a tela não normalizava. Ela normalizava; a
+ * leitura parou no `mutationFn`, que só repassava o objeto já pronto.
  *
- * Decimais aceitam ponto ou vírgula pt-BR (`1,25`, `0,0`); zero numérico não vira null.
+ * O cadastro tem só nome, sigla, espécie, sexo, faixa de idade e o vínculo
+ * com o ícone oficial. Raça, categoria oficial (texto), ganho de peso anual e
+ * os doze GMDs mensais saíram do cadastro e **não** são enviados, mesmo que o
+ * `formData` ainda os traga (registro antigo aberto para edição).
  *
  * @param {object} formData
  * @param {{empresaId?: string}} [opcoes]
@@ -76,17 +63,13 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
 export const normalizarCategoriaManejo = (formData, { empresaId } = {}) => ({
   empresa_id: empresaId ?? formData.empresa_id,
   nome: formData.nome.toUpperCase(),
-  sigla: formData.sigla.toUpperCase(),
-  especie: formData.especie,
+  sigla: maiusculoOuNulo(formData.sigla),
+  especie: formData.especie || null,
   sexo: formData.sexo || null,
-  raca: maiusculoOuNulo(formData.raca),
   idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
   idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
-  categoria_oficial: formData.categoria_oficial || null,
   // Vínculo com a categoria visual global do tipo `lote` (D-PROD-69).
   catalogo_categoria_visual_id: formData.catalogo_categoria_visual_id || null,
-  ganho_peso_anual_kg: decimalOuNulo(formData.ganho_peso_anual_kg),
-  ...Object.fromEntries(MESES_GMD.map((mes) => [mes, decimalOuNulo(formData[mes])])),
   ativo: true,
 });
 

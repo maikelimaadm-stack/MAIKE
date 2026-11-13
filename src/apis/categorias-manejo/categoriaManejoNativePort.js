@@ -13,6 +13,32 @@ export const ENTIDADE_OFFLINE = 'CategoriaManejo';
 
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
+/**
+ * Campos que o cadastro grava. Raça, categoria oficial (texto), ganho de peso
+ * anual e os doze GMDs mensais saíram do cadastro: mesmo que um corpo antigo
+ * (fila offline gravada antes desta versão) ainda os traga, eles não são
+ * enviados.
+ */
+export const CAMPOS_GRAVAVEIS = Object.freeze([
+  'empresa_id',
+  'nome',
+  'sigla',
+  'especie',
+  'sexo',
+  'idade_minima_meses',
+  'idade_maxima_meses',
+  'catalogo_categoria_visual_id',
+  'ativo',
+]);
+
+/** @param {Record<string, unknown>} dados */
+export const corpoDeEnvio = (dados) =>
+  Object.fromEntries(
+    CAMPOS_GRAVAVEIS.filter((campo) => Object.prototype.hasOwnProperty.call(dados ?? {}, campo)).map(
+      (campo) => [campo, /** @type {Record<string, unknown>} */ (dados)[campo]]
+    )
+  );
+
 const queryDeFiltro = (criterio) => {
   if (!criterio || typeof criterio !== 'object') return '';
   const params = new URLSearchParams();
@@ -31,11 +57,11 @@ const operacoesNativas = Object.freeze({
   },
 
   create: (dados) =>
-    nativeRequest(CAMINHO, { method: 'POST', body: dados, autenticado: true }, ctx('createCategoriaManejo')),
+    nativeRequest(CAMINHO, { method: 'POST', body: corpoDeEnvio(dados), autenticado: true }, ctx('createCategoriaManejo')),
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: dados, autenticado: true },
+      { method: 'PATCH', body: corpoDeEnvio(dados), autenticado: true },
       ctx('updateCategoriaManejo')
     ),
   delete: (id) =>
