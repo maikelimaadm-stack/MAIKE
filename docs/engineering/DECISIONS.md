@@ -6730,6 +6730,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - `permissoesR2Rotas` ganha POST/PATCH/DELETE de `/estacoes`; `premerge-migrate` (B1), `sqlEditorBootstrap`, `patrimonioSimplificaMigration` e `tipoTarefaDropColunasMigration` com as contagens novas.
 - Smoke `tests/smoke/estacoes.test.jsx`: ordem dos 6 campos, opções do tipo, obrigatórios, payload, fim antes do início, leitura, valores e ordenação da grade, tela com e sem fazenda; `scope` e `vercelSpaRoutes` com 26 páginas.
 
+**Nota de aplicação (2026-11-13).** A migration `20261113400000_cadestacoes_cadastro` foi aplicada em produção às 19:48:14 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral do commit `f51e104e` e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**. GO escrito do proprietário: "autorizo a migração pelo conector do supabase" / "ok mas está autorizado ok" — desvio da D-PROD-74 para esta migration, não precedente. Conferência: 43/0 migrations, 81 tabelas, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
+
 **Relatório:** [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md).
 
 <!-- Próxima decisão: D-PROD-189 (D-PROD-185 a 187 estão em PRs abertas: #263 e #264) -->

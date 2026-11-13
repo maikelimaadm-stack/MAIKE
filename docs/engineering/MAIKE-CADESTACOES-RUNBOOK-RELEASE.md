@@ -1,6 +1,9 @@
 # MAIKE — Estações da fazenda: runbook de release expand-only (D-PROD-188)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: §2 a §4 EXECUTADOS em 2026-11-13. `SCHEMA_APPLIED_PROD: SIM`.**
+> Aplicada às 19:48:14 UTC pelo caminho B (conector), com GO escrito do
+> proprietário e desvio da D-PROD-74 autorizado. A conferência do §4 passou.
+> Merge, deploy e smoke (§5) ficam com o proprietário. Evidências no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -137,4 +140,11 @@ reverter o código primeiro.
 
 ## 7. Registro de execução
 
-_(vazio — preencher com data/hora UTC, caminho usado, GO citado, resultado do §4.)_
+**2026-11-13, caminho B (conector Supabase, uma `execute_sql`).**
+
+- **GO do proprietário, escrito no chat da sessão:** "autorizo a migração pelo conector do supabase" e, em seguida, "ok mas está autorizado ok". Era a única migration pendente e o pedido nomeava o conector: registrado como o **desvio da D-PROD-74** para ESTA migration, não como precedente.
+- **Preflight (§2), somente leitura, antes da aplicação:** `system_identifier` 7692130048193495360; `_prisma_migrations` 42 concluídas e 0 com falha (última `20261113200000_tipo_tarefa_drop_colunas`); `to_regclass('public."CADESTACOES"')` nulo; 80 tabelas em `public`; nenhuma sessão ativa e nenhuma trava forte em `Cliente`/`Empresa`.
+- **Ensaio local** do mesmo script num banco novo com as 42 migrations da `main` (só o `system_identifier` trocado pelo do banco local): aplicou, 43 no histórico, RLS ligado; a 2ª execução parou na guarda (`RELEASE_BLOCKED: migration já registrada`); `prisma migrate status`: "Database schema is up to date".
+- **Aplicação:** o §3 com `<N_OK>` = 42 e o `migration.sql` integral do commit `f51e104e` (SHA-256 `5d295863…dc90f7`, conferido). `finished_at` = **2026-11-13 19:48:14 UTC**. Nenhum erro.
+- **Conferência (§4):** linha em `_prisma_migrations` com o checksum pinado e `applied_steps_count = 1`; 43 concluídas e 0 com falha; RLS ligado, sem FORCE; constraints `CADESTACOES_cliente_id_empresa_id_fkey`, `CADESTACOES_cliente_id_fkey`, `CADESTACOES_periodo_check`, `CADESTACOES_pkey`, `CADESTACOES_tipo_check`; 4 índices + pkey; política `maike_backend_all` só para `maike_vercel`; `anon` e `authenticated` sem SELECT; 0 linhas; **81** tabelas em `public`; `get_advisors` (segurança) sem nenhum alerta.
+- **Pendente (proprietário):** merge da PR #265, deploy e smoke do §5.

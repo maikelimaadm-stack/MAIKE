@@ -30,10 +30,10 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-188** (D-PROD-185 a 187 estão nas PRs abertas #263 e #264) |
-| Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR em rascunho, exclusiva desta missão |
+| Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR #265 em rascunho, exclusiva desta missão |
 | Escopo | Model `CadEstacao` → tabela física `"CADESTACOES"` (`@@map`), por fazenda; API `/estacoes`; tela `Estacoes` (menu Manejo, tela `pec-estacoes`); estações ativas da mesma fazenda sem sobreposição. **Sem vínculo** com lote, categoria, curva ou outro cadastro |
-| Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Não aplicada em nenhum ambiente remoto** |
-| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) (caminho A; caminho B só com GO escrito e específico desta migration), depois merge e deploy |
+| Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Aplicada em produção em 2026-11-13 19:48:14 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 43/0, 81 tabelas, RLS, advisors sem alerta |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) §7). Falta: merge da PR #265, deploy e smoke (proprietário) |
 | Relatório | [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md) |
 
 ## Missão concluída (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)

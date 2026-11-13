@@ -50,7 +50,7 @@ períodos de cada fazenda.
 
 ## 4. Release
 
-1. A migration é EXPAND e **não foi aplicada em nenhum banco remoto**.
+1. A migration é EXPAND e foi **aplicada em produção em 2026-11-13 às 19:48:14 UTC**, antes do merge, pelo caminho B (conector Supabase, uma transação com guardas), com GO escrito do proprietário e desvio da D-PROD-74 registrado. Conferência do §4 do runbook ok (43 migrations, 81 tabelas, RLS, constraints, advisors sem alerta). Registro no §7 do runbook.
 2. Ordem obrigatória: CI verde → GO do proprietário → preflight → aplicação
    (caminho A, ou B só com GO escrito e específico desta migration) →
    conferência → **merge** → deploy → smoke. Ver o runbook.
