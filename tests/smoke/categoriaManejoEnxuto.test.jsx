@@ -26,15 +26,6 @@ vi.mock("@/lib/maikeNotify", () => ({
   notifySuccess: vi.fn(),
 }));
 
-// D-PROD-187: o formulário não consulta mais o catálogo global (o seletor do ícone saiu); se consultasse, este
-// mock faria o teste (a) falhar.
-const catalogo = vi.fn(async () => []);
-vi.mock("@/apis/catalogoGlobal", () => ({
-  listTiposCatalogoPublicados: (...a) => catalogo(...a),
-  listCategoriasCatalogoPublicadas: (...a) => catalogo(...a),
-  listIconesCatalogoPublicados: (...a) => catalogo(...a),
-}));
-
 const nativeRequest = vi.fn(async () => ({ id: "cm1" }));
 vi.mock("@/apis/_core/nativeHttpClient.js", () => ({ nativeRequest: (...a) => nativeRequest(...a) }));
 
@@ -138,7 +129,6 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     expect(screen.queryByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeNull();
     expect(screen.queryByTestId("categoria-oficial-catalogo")).toBeNull();
     expect(form.textContent).not.toMatch(/ícone oficial|SEM VÍNCULO/i);
-    expect(catalogo).not.toHaveBeenCalled();
 
     expect(form.querySelectorAll('input[type="number"]')).toHaveLength(0);
     expect(screen.queryByLabelText("De")).toBeNull();

@@ -105,7 +105,7 @@ todas no runbook:
 | `premerge-migrate.test.mjs` | 51/51 (novos B15a–B15j) |
 | `migrations.test.mjs`, `alvo-banco.test.mjs`, `preflight-schema.test.mjs` | verdes (novo B16) |
 | Smokes afetados (`catalogoGlobalLote`, `categoriaManejoEnxuto`, `manejoServices`, `motorbase1Batch01`, `manejoBoundary`) | 104/104 |
-| `npm run verify:all` (banco novo) | ver §6 |
+| `npm run verify:all` (banco novo) | verde (§6.1) |
 
 ## 6. `npm run verify:all`
 
@@ -115,7 +115,24 @@ seção 6.1 depois da execução.
 
 ### 6.1 Resultado
 
-(preenchido abaixo)
+Rodada final em 2026-11-13, com a `main` do hotfix #266 incorporada.
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` | 824/824 |
+| `test:backend` | 1.742 testes: 1.737 passam, 0 falham, 5 todo |
+| `test:smoke` | 217 arquivos, 2.640/2.640 |
+| Gates (`tenancy`, `indices`, `deploy-migrations`, `supabase-public-grants`, `import-integrity`, `product-scope`, `base44`, `modelobase1-pecuario`, …) | passam |
+| `source-closure` | falhou na primeira rodada: `src/apis/catalogoGlobal/*` ficou sem consumidor depois que o ícone saiu. Os 3 arquivos foram apagados (o painel admin tem cliente próprio) e o gate passou (584/584 alcançáveis); smokes de novo 2.640/2.640 e `test:gates` 824/824 |
+| `types` | 625 / teto 625, sem regressão |
+| `typecheck:backend`, `lint`, `build`, `build:admin`, `admin-isolation:bundles` | passam |
+
+**Ensaio local** (`scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs`): `ok: true`. Os 14
+cenários RED recusam sem mudar nada (sem impressão, impressão errada, índice, índice extra, visão,
+visão do ícone, política, função, função com o nome físico, função em caixa mista, `RETURNS
+TABLE`, `CADCATEGORIA` existente, nome novo ocupado, trava concorrente). O runner sem autorização
+recusa antes de DDL. GREEN: mesmo OID, as 12 colunas, 3 índices e 2 constraints novos, FKs
+válidas, `migrate diff` 0, Prisma Client lendo a tabela, 2ª execução sem pendências.
 
 ## 7. Testes alterados ou apagados
 

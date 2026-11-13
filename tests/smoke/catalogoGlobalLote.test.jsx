@@ -16,17 +16,8 @@ import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const api = {
-  tipos: vi.fn(),
-  categorias: vi.fn(),
-  icones: vi.fn(),
   categoriasManejo: vi.fn(),
 };
-
-vi.mock("@/apis/catalogoGlobal", () => ({
-  listTiposCatalogoPublicados: (...a) => api.tipos(...a),
-  listCategoriasCatalogoPublicadas: (...a) => api.categorias(...a),
-  listIconesCatalogoPublicados: (...a) => api.icones(...a),
-}));
 
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("@/hooks/useSetorAreas", () => ({
@@ -42,11 +33,6 @@ vi.mock("@/services/loteCadastroService", async (importOriginal) => ({
   listarFornecedores: vi.fn(async () => []),
 }));
 
-const TIPOS = [{ id: "t-lote", codigo: "lote", nome: "Lote" }];
-const CATEGORIAS = [{ id: "cv-bez", tipo_id: "t-lote", codigo: "bezerro", nome: "Bezerro" }];
-const ICONES = [
-  { id: "i-bez", tipo_id: "t-lote", categoria_id: "cv-bez", revisao: 2, asset_principal_url: "https://cdn.exemplo/v2/bez.png" },
-];
 /** Uma categoria ainda traz o vínculo antigo (cache de antes da D-PROD-187): nada pode usá-lo. */
 const CATEGORIAS_MANEJO = [
   { id: "cm-bez", empresa_id: "emp-1", nome: "BEZERRO DESMAMA", catalogo_categoria_visual_id: "cv-bez" },
@@ -62,9 +48,6 @@ const wrap = (ui) => {
 beforeEach(() => {
   cleanup();
   Object.values(api).forEach((f) => f.mockReset());
-  api.tipos.mockResolvedValue(TIPOS);
-  api.categorias.mockResolvedValue(CATEGORIAS);
-  api.icones.mockResolvedValue(ICONES);
   api.categoriasManejo.mockResolvedValue(CATEGORIAS_MANEJO);
   localStorage.removeItem("cadastro_lotes_form_layout_config");
 });
@@ -79,15 +62,9 @@ describe("Sem painel de gerenciamento do catálogo no MAIKE", () => {
     expect(readFileSync("vercel.json", "utf8")).not.toMatch(/catalogoglobalmaike/i);
   });
 
-  it("a API do catálogo no frontend é só leitura (sem upload/publicar/desativar)", async () => {
-    const mod = await vi.importActual("@/apis/catalogoGlobal");
-    expect(Object.keys(mod).sort()).toEqual([
-      "listCategoriasCatalogoPublicadas",
-      "listIconesCatalogoPublicados",
-      "listTiposCatalogoPublicados",
-    ]);
-    const porta = readFileSync("src/apis/catalogoGlobal/catalogoGlobalNativePort.js", "utf8");
-    expect(porta).not.toMatch(/\/admin\/|method:\s*'(POST|PATCH|PUT|DELETE)'/);
+  it("o frontend não tem mais cliente do catálogo global (D-PROD-187: o único consumidor era o vínculo do ícone)", () => {
+    expect(existsSync("src/apis/catalogoGlobal")).toBe(false);
+    expect(existsSync("src/services/catalogoGlobalService.js")).toBe(false);
   });
 });
 
@@ -149,9 +126,6 @@ describe("FormularioLote sem prévia do ícone oficial (D-PROD-187)", () => {
   const semCatalogo = () => {
     expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
     expect(screen.queryByAltText("Ícone oficial do lote")).toBeNull();
-    expect(api.tipos).not.toHaveBeenCalled();
-    expect(api.categorias).not.toHaveBeenCalled();
-    expect(api.icones).not.toHaveBeenCalled();
   };
 
   it("novo lote: sem dica de ícone sob a Categoria de Manejo e sem consulta ao catálogo", async () => {
