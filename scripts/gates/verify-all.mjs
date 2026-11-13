@@ -85,10 +85,33 @@ const ETAPAS = [
   ['admin-isolation:bundles', npm('gate:admin-isolation')],
 ];
 
+/**
+ * MAIKE-CI-PARALELO-PR02: `--pular=a,b` deixa de fora etapas que a CI roda em
+ * jobs paralelos próprios (test:backend e test:smoke, em shards). Só aceita
+ * nomes que existem; sem o argumento, roda a cadeia inteira, como sempre.
+ */
+const argPular = process.argv.slice(2).find((a) => a.startsWith('--pular='));
+const extras = process.argv.slice(2).filter((a) => !a.startsWith('--pular='));
+if (extras.length > 0) {
+  console.error(`verify:all — argumento desconhecido: ${extras.join(' ')}`);
+  process.exit(1);
+}
+const PULAR = new Set(argPular ? argPular.slice('--pular='.length).split(',').filter(Boolean) : []);
+const NOMES = new Set(ETAPAS.map(([nome]) => nome));
+const desconhecidas = [...PULAR].filter((nome) => !NOMES.has(nome));
+if (desconhecidas.length > 0) {
+  console.error(`verify:all — etapa inexistente em --pular: ${desconhecidas.join(', ')}`);
+  process.exit(1);
+}
+
 const resultado = [];
 let falhou = 0;
 
 for (const [nome, { cmd, args, label, env }] of ETAPAS) {
+  if (PULAR.has(nome)) {
+    console.log(`\n${'='.repeat(70)}\nETAPA: ${nome} — PULADA (roda em job próprio da CI)\n${'='.repeat(70)}`);
+    continue;
+  }
   console.log(`\n${'='.repeat(70)}\nETAPA: ${nome}\n  $ ${label}\n${'='.repeat(70)}`);
   const inicio = process.hrtime.bigint();
   const r = spawnSync(cmd, args, {
@@ -118,6 +141,7 @@ for (const r of resultado) {
 
 const total = resultado.reduce((soma, r) => soma + r.duracaoMs, 0);
 console.log(`\n  Total: ${(total / 1000).toFixed(1)}s`);
+if (PULAR.size > 0) console.log(`  Puladas (rodam em outro job): ${[...PULAR].join(', ')}`);
 console.log(`\n${falhou === 0 ? 'TODAS AS ETAPAS PASSARAM' : `${falhou} ETAPA(S) FALHARAM`}\n`);
 
 process.exit(falhou === 0 ? 0 : 1);

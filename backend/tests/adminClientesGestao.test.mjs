@@ -322,9 +322,18 @@ describe('edição e situação', () => {
  * DUAS esperando lock. Assim ambas leram o mesmo estado antes de qualquer
  * escrita — exatamente a janela em que o `antes` da auditoria podia mentir.
  */
-const esperarBloqueadas = async (n) => {
+//
+// A espera consulta o `pg_stat_activity` pela PRÓPRIA transação que segura a
+// linha, e não por uma conexão nova do pool. Trava (1) + duas edições
+// bloqueadas (2) já ocupam 3 conexões; uma 4ª para observar esgotava o pool
+// padrão do Prisma (núcleos físicos × 2 + 1 = 3 num runner de 1 núcleo) e o
+// teste morria em "Timed out fetching a new connection". Dentro de uma
+// transação o PostgreSQL congela a visão do `pg_stat_activity` na primeira
+// leitura; `pg_stat_clear_snapshot()` a renova a cada volta.
+const esperarBloqueadas = async (n, tx) => {
   for (let i = 0; i < 400; i += 1) {
-    const [{ qtd }] = await prisma().$queryRaw`SELECT count(*)::int AS qtd FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+    await tx.$executeRaw`SELECT pg_stat_clear_snapshot()`;
+    const [{ qtd }] = await tx.$queryRaw`SELECT count(*)::int AS qtd FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`;
     if (qtd >= n) return;
     await new Promise((r) => setTimeout(r, 10));
   }
@@ -338,7 +347,7 @@ const comLinhaPresa = async (id, n, disparar, alterar) => {
     async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Cliente" WHERE id = ${id} FOR UPDATE`;
       pedidos = disparar();
-      await esperarBloqueadas(n);
+      await esperarBloqueadas(n, tx);
       if (alterar) await alterar(tx);
     },
     { timeout: 15000 }
