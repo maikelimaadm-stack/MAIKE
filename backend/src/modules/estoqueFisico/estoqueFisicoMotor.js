@@ -53,14 +53,35 @@ export const ORIGEM_ABASTECIMENTO = 'abastecimento_patrimonio';
 export const ORIGEM_SUPLEMENTACAO = 'suplementacao';
 /** D-PROD-161: origem da transferência entre locais (depósito). Mesmo valor gravado antes da P0. */
 export const ORIGEM_DEPOSITO = 'deposito';
-const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
-/** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 novas mantêm os valores gravados antes da P0. */
+/**
+ * D-PROD-177 (Estoque P1-02, contrato §6.2 item 1) — origem da ENTRADA DE
+ * ESTOQUE documentada (entrada manual legitimada). 15 chars (VarChar(32)).
+ * SEM ESCRITOR EXPOSTO até a P1-05a: nenhum chamador de produção usa esta
+ * origem nesta PR; a reconciliação (`ORIGENS_PROTOCOLO`, CTE do estorno) entra
+ * junto com as tabelas `EntradaEstoque*`, no mesmo slice da P1-05a.
+ */
+export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE]);
+/** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_SISTEMA]: ORIGEM_SISTEMA,
   [ORIGEM_ABASTECIMENTO]: ORIGEM_ABASTECIMENTO,
   [ORIGEM_SUPLEMENTACAO]: 'cocho',
   [ORIGEM_DEPOSITO]: 'deposito',
+  [ORIGEM_ENTRADA_ESTOQUE]: ORIGEM_ENTRADA_ESTOQUE,
 });
+/** D-PROD-177 (§6.2 item 3): `tipo_detalhado` da entrada documentada = `entrada_<motivo>`; nunca `compra_financeiro`. */
+const TIPO_ENTRADA_ESTOQUE = /^entrada_[a-z0-9_]{1,40}$/;
+/** Rótulos padrão da compra P3 (inalterados). */
+const TIPO_COMPRA_FINANCEIRO = 'compra_financeiro';
+const MOTIVO_ENTRADA_FINANCEIRO = 'Entrada por lançamento financeiro confirmado';
+/** D-PROD-177 (§6.2 item 6): `tipo_detalhado` dos estornos da entrada documentada (lista fechada). */
+export const ESTORNO_ENTRADA_REVISAO = 'estorno_entrada_revisao';
+export const ESTORNO_ENTRADA_EXCLUSAO = 'estorno_entrada_exclusao';
+const ESTORNOS_ENTRADA_ESTOQUE = Object.freeze([ESTORNO_ENTRADA_REVISAO, ESTORNO_ENTRADA_EXCLUSAO]);
+/** D-PROD-177 (§6.2 item 6): efeito físico a desfazer no estorno em lote. */
+export const EFEITO_ENTRADA = 'ENTRADA';
+export const EFEITO_SAIDA = 'SAIDA';
 
 /** Chave da trava por produto (a mesma em TODOS os escritores de estoque). */
 export const chaveTravaProduto = (clienteId, empresaId, produtoId) => `estoque:produto:${clienteId}:${empresaId}:${produtoId}`;
@@ -342,6 +363,61 @@ const incrementarEstoqueAtual = async (tx, clienteId, produtoId, kg) => {
   return dec(depois.estoque_atual);
 };
 
+/** Texto obrigatório de rótulo (fail-closed): string não vazia. */
+const textoInformado = (v) => typeof v === 'string' && v.trim() !== '';
+
+/**
+ * D-PROD-177 (§6.2 itens 1–3) — `tipo_detalhado` e motivo da entrada. Sem
+ * `sistema`/`tipoDetalhado`/`motivo`, devolve os rótulos de antes
+ * (`compra_financeiro`, 'Entrada por lançamento financeiro confirmado').
+ * Combinação proibida → erro de programação (500), antes de qualquer leitura.
+ * @param {{ origem?: { sistema?: string, tipoDetalhado?: string, motivo?: string } }} a
+ * @returns {{ tipoDetalhado: string, motivo: string }}
+ */
+const rotulosDaEntrada = (a) => {
+  const sistema = origemSistemaDe(a);
+  const informado = a.origem?.tipoDetalhado;
+  const motivo = a.origem?.motivo;
+  if (motivo !== undefined && !textoInformado(motivo)) throw new Error('aplicarEntradaEstoque: origem.motivo, quando informado, é texto não vazio');
+  if (sistema === ORIGEM_ENTRADA_ESTOQUE) {
+    if (typeof informado !== 'string' || !TIPO_ENTRADA_ESTOQUE.test(informado)) {
+      throw new Error(`aplicarEntradaEstoque: a origem ${ORIGEM_ENTRADA_ESTOQUE} exige tipoDetalhado entrada_<motivo>`);
+    }
+    if (!textoInformado(motivo)) throw new Error(`aplicarEntradaEstoque: a origem ${ORIGEM_ENTRADA_ESTOQUE} exige origem.motivo`);
+    return { tipoDetalhado: informado, motivo: /** @type {string} */ (motivo) };
+  }
+  const tipoDetalhado = informado ?? TIPO_COMPRA_FINANCEIRO;
+  if (tipoDetalhado === TIPO_COMPRA_FINANCEIRO && sistema !== ORIGEM_SISTEMA) {
+    throw new Error(`aplicarEntradaEstoque: tipoDetalhado ${TIPO_COMPRA_FINANCEIRO} só com a origem ${ORIGEM_SISTEMA}`);
+  }
+  if (typeof tipoDetalhado === 'string' && TIPO_ENTRADA_ESTOQUE.test(tipoDetalhado)) {
+    throw new Error(`aplicarEntradaEstoque: tipoDetalhado entrada_<motivo> só com a origem ${ORIGEM_ENTRADA_ESTOQUE}`);
+  }
+  return { tipoDetalhado, motivo: motivo ?? MOTIVO_ENTRADA_FINANCEIRO };
+};
+
+/**
+ * D-PROD-177 (§6.2 item 4) — procedência do LOTE informada por quem chama:
+ * só as chaves de `CAMPOS_PROCEDENCIA_LOTE`, valores string|null. Ausente
+ * (`undefined`/`null`) → `{}` (nada muda). Fora disso → erro de programação (500).
+ * @param {unknown} procedencia
+ * @returns {Record<string, string|null>}
+ */
+const procedenciaDaEntrada = (procedencia) => {
+  if (procedencia === undefined || procedencia === null) return {};
+  if (typeof procedencia !== 'object' || Array.isArray(procedencia) || Object.getPrototypeOf(procedencia) !== Object.prototype) {
+    throw new Error('aplicarEntradaEstoque: procedencia deve ser um objeto simples');
+  }
+  /** @type {Record<string, string|null>} */
+  const saida = {};
+  for (const [chave, valor] of Object.entries(procedencia)) {
+    if (!CAMPOS_PROCEDENCIA_LOTE.includes(chave)) throw new Error(`aplicarEntradaEstoque: campo de procedência não permitido: ${chave}`);
+    if (valor !== null && typeof valor !== 'string') throw new Error(`aplicarEntradaEstoque: procedência ${chave} deve ser texto ou nulo`);
+    saida[chave] = valor;
+  }
+  return saida;
+};
+
 /**
  * ENTRADA (compra confirmada): lote novo + movimento 'Entrada' ligado ao lote +
  * `estoque_atual += kg`. Custo de aquisição LÍQUIDO (D-PROD-155, rodada 4):
@@ -350,21 +426,47 @@ const incrementarEstoqueAtual = async (tx, clienteId, produtoId, kg) => {
  * o resíduo de arredondamento é decidido/mostrado pelo planejador.
  * `quantidadeKg`/`custoUnitarioKg`: na unidade de estoque do Produto (kg, ou L
  * para Produto em L — D-PROD-162).
+ * D-PROD-177 (Estoque P1-02, §6.2 itens 1–5) — parâmetros ADITIVOS, com os
+ * padrões de antes (a compra P3 não muda byte a byte sem eles):
+ *  - `origem.sistema` (padrão `ORIGEM_SISTEMA`); com `ORIGEM_ENTRADA_ESTOQUE`,
+ *    `origem.tipoDetalhado` é obrigatório e casa `entrada_<motivo>` (nunca
+ *    `compra_financeiro`) e `origem.motivo` é obrigatório; `compra_financeiro`
+ *    só com a origem do financeiro (fail-closed: erro de programação → 500);
+ *  - `origem.motivo` (padrão: 'Entrada por lançamento financeiro confirmado');
+ *  - `procedencia`: chaves SÓ de `CAMPOS_PROCEDENCIA_LOTE`, valores string|null;
+ *    cada chave passada sobrepõe a procedência do LOTE derivada de
+ *    documento/parceiro (o movimento continua com o parceiro);
+ *  - custo ou valor < 0 → 422 `OPERACAO_VALORES_INVALIDOS` (`custo_negativo` /
+ *    `valor_negativo`) ANTES de qualquer leitura; zero é permitido.
  * @param {any} tx
  * @param {{auth: any, requestId?: string}} ctx
  * @param {{ empresaId: string, produto: any, local: {id: string, nome: string}, quantidadeKg: any, custoUnitarioKg: any,
  *   valorTotal: any, dia: string, documento?: {numero?: string|null, data?: string|null}, parceiro?: {id?: string|null, nome?: string|null},
- *   origem: {operacaoId: string, tipoDetalhado?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown> }} a
+ *   origem: {operacaoId: string, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
+ *   procedencia?: Partial<Record<'fornecedor_id'|'fornecedor_nome'|'numero_documento', string|null>> }} a
  */
 export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
   exigirProdutoDaEmpresa(a);
+  const rotulos = rotulosDaEntrada(a);
+  const procedenciaInformada = procedenciaDaEntrada(a.procedencia);
   const kg = dec(a.quantidadeKg);
   const custoKg = dec(a.custoUnitarioKg);
   const valorTotal = dec(a.valorTotal);
-  const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   const extra = { produto_id: a.produto.id, ...(a.contextoErro ?? {}) };
+  // D-PROD-177 (M4): custo negativo quebraria as baixas futuras (CHECK custo_unitario >= 0 nas tabelas de consumo).
+  if (custoKg.lt(0)) {
+    throw new AppError('OPERACAO_VALORES_INVALIDOS', 'custo unitário não pode ser negativo; nada foi gravado', {
+      details: comCampo({ ...extra, reason: 'custo_negativo', field: 'custo_unitario', custo_unitario: custoKg.toFixed(CASAS_CUSTO) }),
+    });
+  }
+  if (valorTotal.lt(0)) {
+    throw new AppError('OPERACAO_VALORES_INVALIDOS', 'valor total não pode ser negativo; nada foi gravado', {
+      details: comCampo({ ...extra, reason: 'valor_negativo', field: 'valor_total', valor_total: valorTotal.toFixed(CASAS_CUSTO) }),
+    });
+  }
+  const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   if (!kg.gt(0)) {
     throw new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...extra }) });
   }
@@ -378,7 +480,7 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
       ...camposComuns(auth, a),
       numero_movimentacao: numero,
       tipo_movimentacao: 'Entrada',
-      tipo_detalhado: a.origem.tipoDetalhado ?? 'compra_financeiro',
+      tipo_detalhado: rotulos.tipoDetalhado,
       data_movimentacao: instanteDoDia(a.dia),
       quantidade: paraBanco(kg, CASAS_QUANTIDADE),
       valor_unitario: paraBanco(custoKg, CASAS_CUSTO),
@@ -387,7 +489,7 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
       local_destino: a.local.nome ?? null,
       fornecedor_id: a.parceiro?.id ?? null,
       fornecedor_nome: a.parceiro?.nome ?? null,
-      motivo_movimentacao: 'Entrada por lançamento financeiro confirmado',
+      motivo_movimentacao: rotulos.motivo,
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(saldoAntes.plus(kg), CASAS_QUANTIDADE),
     },
@@ -399,7 +501,7 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
     kg,
     custoKg,
     dataDocumento: comoDia(a.dia),
-    procedencia: { numero_documento: a.documento?.numero ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null },
+    procedencia: { numero_documento: a.documento?.numero ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null, ...procedenciaInformada },
     movimentoEntradaId: movimento.id,
   });
   const estoqueDepois = await incrementarEstoqueAtual(tx, cli, a.produto.id, kg);
@@ -674,22 +776,71 @@ const jaConsumido = (mensagem, details) =>
     details: { field: 'itens', colecao: 'itens', ...(Number.isInteger(details?.item_ordem) ? { indice: details.item_ordem - 1 } : {}), ...details },
   });
 
-const movimentoOriginal = async (tx, clienteId, id) => {
+/**
+ * D-PROD-177 (M5) — o movimento original só pode ser estornado se está
+ * 'Ativa' e sem filho (`movimento_filho_id` nulo: só há UMA coluna de filho).
+ * Com `vinculo`, também confere empresa e produto do original contra os do
+ * estorno. Recusa antes de qualquer escrita, sem dados de outro tenant.
+ * @param {{ status: string, movimento_filho_id: string|null, empresa_id?: string|null, produto_id?: string|null }} m
+ * @param {{ item_ordem?: number }} base
+ * @param {{ empresaId: string, produtoId: string }} [vinculo]
+ * @throws 409 ESTOQUE_JA_CONSUMIDO { reason: 'original_ja_estornado'|'original_nao_ativo'|'vinculo_divergente' }
+ */
+const exigirOriginalEstornavel = (m, base, vinculo) => {
+  if (m.movimento_filho_id || m.status === 'Estornada') {
+    throw jaConsumido('o movimento de estoque deste item já foi estornado; estorno recusado (nada foi alterado)', { ...base, reason: 'original_ja_estornado' });
+  }
+  if (m.status !== 'Ativa') {
+    throw jaConsumido('o movimento de estoque deste item não está ativo; estorno recusado (nada foi alterado)', { ...base, reason: 'original_nao_ativo' });
+  }
+  if (vinculo && (m.empresa_id !== vinculo.empresaId || m.produto_id !== vinculo.produtoId)) {
+    throw jaConsumido('o movimento de estoque deste item não pertence a este produto e empresa; estorno recusado (nada foi alterado)', { ...base, reason: 'vinculo_divergente' });
+  }
+};
+
+/**
+ * D-PROD-177 (§6.2 item 8) — a camada a estornar (lida sob `FOR UPDATE`) tem
+ * de ser da empresa, do produto e do local da linha. Os details só levam o
+ * id do lote e a ordem do item (nada da camada divergente).
+ * @throws 409 ESTOQUE_JA_CONSUMIDO { reason: 'camada_divergente', lote_id, item_ordem }
+ */
+const exigirCamadaDaLinha = (lote, linha, base) => {
+  if (lote.empresa_id !== linha.empresaId || lote.produto_id !== linha.produtoId || lote.local_estoque_id !== linha.localId) {
+    throw jaConsumido('o lote deste item não pertence ao produto, à empresa ou ao local da linha; estorno recusado (nada foi alterado)', { ...base, reason: 'camada_divergente' });
+  }
+};
+
+/** D-PROD-177 (M5): o original mudou entre a leitura e a marcação (escritor fora do protocolo) → 409, tudo desfeito. */
+const conflitoDoOriginal = (details) =>
+  new AppError('CONCURRENCY_CONFLICT', 'o movimento original mudou durante o estorno; nada foi alterado, tente de novo com a mesma operation_id', {
+    details: { field: 'itens', reason: 'original_alterado', ...details },
+  });
+
+const movimentoOriginal = async (tx, clienteId, id, base = {}, vinculo = undefined) => {
   const m = id ? await tx.movimentacaoEstoque.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id } } }) : null;
   if (!m) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
+  exigirOriginalEstornavel(m, base, vinculo);
   return m;
 };
 
-const marcarOriginalEstornado = (tx, clienteId, original, estorno) =>
-  tx.movimentacaoEstoque.update({
-    where: { cliente_id_id: { cliente_id: clienteId, id: original.id } },
+/** D-PROD-177 (M5): CAS — só marca o original que continua 'Ativa' e sem filho; contagem ≠ 1 → 409. */
+const marcarOriginalEstornado = async (tx, clienteId, original, estorno) => {
+  const r = await tx.movimentacaoEstoque.updateMany({
+    where: { cliente_id: clienteId, id: original.id, status: 'Ativa', movimento_filho_id: null },
     data: { status: 'Estornada', movimento_filho_id: estorno.id },
   });
+  if (r.count !== 1) throw conflitoDoOriginal({ movimento_id: original.id });
+};
 
 /**
  * Estorno de ENTRADA (cancelamento de compra): exige o lote INTOCADO; zera o
  * lote (status 'Estornado'), cria 'Saída' `estorno_compra` ligada ao original
  * (pai/filho; original 'Estornada') e `estoque_atual -= kg`.
+ * D-PROD-177 (M5, §6.2 item 8): o lote é lido `FOR UPDATE` (depois dos
+ * produtos, que quem chama já travou; antes do original) e tem de ser da
+ * empresa, do produto e do local do estorno (`camada_divergente`); o original
+ * tem de estar 'Ativa', sem filho e ser da mesma empresa e produto; a marcação
+ * dele é CAS (`status = 'Ativa' AND movimento_filho_id IS NULL`, contagem 1).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, item: any, produto: any, local: {id: string, nome: string}, dia: string,
@@ -700,10 +851,12 @@ export const estornarEntrada = async (tx, ctx, a) => {
   const cli = auth.clienteId;
   const kg = dec(a.item.quantidade_estoque);
   const base = { item_ordem: a.item.ordem, lote_id: a.item.estoque_lote_nota_id };
-  const lote = a.item.estoque_lote_nota_id
-    ? await tx.estoqueLoteNota.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: a.item.estoque_lote_nota_id } } })
-    : null;
+  const [lote] = /** @type {any[]} */ (a.item.estoque_lote_nota_id
+    ? await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel
+        FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ${a.item.estoque_lote_nota_id} FOR UPDATE`
+    : []);
   if (!lote) throw jaConsumido('o lote de entrada deste item não existe mais; cancelamento recusado (nada foi alterado)', { ...base, reason: 'lote_inexistente' });
+  exigirCamadaDaLinha(lote, { empresaId: a.empresaId, produtoId: a.produto?.id, localId: a.local?.id }, base);
   const entrada = dec(lote.quantidade_entrada);
   const disponivel = dec(lote.quantidade_disponivel);
   if (lote.status !== 'Disponivel' || !disponivel.eq(entrada) || !entrada.eq(kg)) {
@@ -711,7 +864,7 @@ export const estornarEntrada = async (tx, ctx, a) => {
       ...base, reason: 'lote_consumido', entrada: entrada.toFixed(CASAS_QUANTIDADE), disponivel: disponivel.toFixed(CASAS_QUANTIDADE), status: lote.status,
     });
   }
-  const original = await movimentoOriginal(tx, cli, a.item.movimentacao_estoque_id);
+  const original = await movimentoOriginal(tx, cli, a.item.movimentacao_estoque_id, { item_ordem: a.item.ordem }, { empresaId: a.empresaId, produtoId: a.produto.id });
   const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   const semEstoque = (valor) =>
     jaConsumido('o estoque atual do produto é menor que a compra a estornar; cancelamento recusado (nada foi alterado)', {
@@ -751,10 +904,20 @@ export const estornarEntrada = async (tx, ctx, a) => {
 };
 
 /**
- * Estorno de SAÍDA (cancelamento de venda): devolve cada fatia ao SEU lote
- * (recusa lote que não esteja 'Disponivel'/'Esgotado' — ex.: 'Estornado' — e
- * devolução acima da entrada), cria 'Entrada' `estorno_venda` ligada ao
- * original e `estoque_atual += kg`.
+ * Estorno de SAÍDA (cancelamento de abastecimento; venda nos testes): devolve
+ * cada fatia ao SEU lote (recusa lote que não esteja 'Disponivel'/'Esgotado' —
+ * ex.: 'Estornado' — e devolução acima da entrada), cria 'Entrada'
+ * `estorno_venda` (ou o tipo da origem) ligada ao original e
+ * `estoque_atual += kg`.
+ * D-PROD-177 (M5, §6.2 item 8; R1 corretiva da P1-02): com os produtos já
+ * travados por quem chama, trava as camadas das fatias (`FOR UPDATE`, em ordem
+ * de id) e DEPOIS o original (`FOR UPDATE`) — a mesma ordem de
+ * `estornarEmLote` —, e valida TUDO antes da primeira escrita: o original
+ * 'Ativa', sem filho, da empresa e do produto do estorno
+ * (`original_*`/`vinculo_divergente`); cada camada existente, da empresa, do
+ * produto e do local do estorno (`camada_divergente`), em situação que
+ * aceita devolução e sem passar da entrada (somando as fatias do mesmo lote).
+ * As escritas seguem com CAS (lote e original).
  * @param {any} tx
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, item: any, consumos: Array<{estoque_lote_nota_id: string, quantidade: any}>, produto: any,
@@ -770,32 +933,58 @@ export const estornarSaida = async (tx, ctx, a) => {
   if (!devolvido.eq(kg)) {
     throw jaConsumido('as fatias FIFO gravadas não somam a quantidade do item; cancelamento recusado', { item_ordem: a.item.ordem, reason: 'fatias_inconsistentes' });
   }
-  const original = await movimentoOriginal(tx, cli, a.item.movimentacao_estoque_id);
+  // Travas: camadas (em ordem de id) → original. Uma leitura para todas as camadas.
+  const loteIds = unicosDe(a.consumos.map((c) => c.estoque_lote_nota_id)).sort();
+  const lotes = new Map(/** @type {any[]} */ (loteIds.length
+    ? await tx.$queryRaw`SELECT id, empresa_id, produto_id, local_estoque_id, status, quantidade_entrada, quantidade_disponivel
+        FROM "EstoqueLoteNota" WHERE cliente_id = ${cli} AND id = ANY(${loteIds}::text[]) ORDER BY id FOR UPDATE`
+    : []).map((l) => [l.id, l]));
+  const [original] = /** @type {any[]} */ (a.item.movimentacao_estoque_id
+    ? await tx.$queryRaw`SELECT id, status, movimento_filho_id, empresa_id, produto_id, valor_unitario, valor_total
+        FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${a.item.movimentacao_estoque_id} FOR UPDATE`
+    : []);
+  if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
+  exigirOriginalEstornavel(original, { item_ordem: a.item.ordem }, { empresaId: a.empresaId, produtoId: a.produto.id });
+  // Validação de TODAS as fatias antes da primeira escrita (soma por lote).
+  const linha = { empresaId: a.empresaId, produtoId: a.produto.id, localId: a.local.id };
+  /** @type {Map<string, any>} */
+  const devolverPorLote = new Map();
+  for (const c of a.consumos) {
+    const lote = lotes.get(c.estoque_lote_nota_id);
+    const base = { item_ordem: a.item.ordem, lote_id: c.estoque_lote_nota_id };
+    if (!lote) {
+      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+        ...base, reason: 'lote_indisponivel_para_devolucao', status: null,
+      });
+    }
+    exigirCamadaDaLinha(lote, linha, base);
+    if (!['Disponivel', 'Esgotado'].includes(lote.status)) {
+      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+        ...base, reason: 'lote_indisponivel_para_devolucao', status: lote.status,
+      });
+    }
+    const disp = dec(lote.quantidade_disponivel);
+    const total = (devolverPorLote.get(lote.id) ?? ZERO).plus(dec(c.quantidade));
+    if (disp.plus(total).gt(dec(lote.quantidade_entrada))) {
+      throw jaConsumido('a devolução ultrapassaria a entrada do lote; cancelamento recusado', {
+        ...base, reason: 'devolucao_excede_entrada', entrada: dec(lote.quantidade_entrada).toFixed(CASAS_QUANTIDADE), disponivel: disp.toFixed(CASAS_QUANTIDADE),
+      });
+    }
+    devolverPorLote.set(lote.id, total);
+  }
   const estoqueAtual = await estoqueAtualDe(tx, cli, a.produto.id);
   if (estoqueAtual.plus(kg).gt(LIMITE_ESTOQUE)) {
     throw excedeLimiteEstoque({ colecao: 'itens', indice: a.item.ordem - 1, item_ordem: a.item.ordem, produto_id: a.produto.id });
   }
   const saldoAntes = await saldoNoLocal(tx, cli, a.empresaId, a.produto.id, a.local.id);
-  for (const c of a.consumos) {
-    const lote = await tx.estoqueLoteNota.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: c.estoque_lote_nota_id } } });
-    const base = { item_ordem: a.item.ordem, lote_id: c.estoque_lote_nota_id };
-    if (!lote || !['Disponivel', 'Esgotado'].includes(lote.status)) {
-      throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
-        ...base, reason: 'lote_indisponivel_para_devolucao', status: lote?.status ?? null,
-      });
-    }
+  for (const id of [...devolverPorLote.keys()].sort()) {
+    const lote = lotes.get(id);
     const disp = dec(lote.quantidade_disponivel);
-    const novo = disp.plus(dec(c.quantidade));
-    if (novo.gt(dec(lote.quantidade_entrada))) {
-      throw jaConsumido('a devolução ultrapassaria a entrada do lote; cancelamento recusado', {
-        ...base, reason: 'devolucao_excede_entrada', entrada: dec(lote.quantidade_entrada).toFixed(CASAS_QUANTIDADE), disponivel: disp.toFixed(CASAS_QUANTIDADE),
-      });
-    }
     const r = await tx.estoqueLoteNota.updateMany({
-      where: { cliente_id: cli, id: lote.id, status: lote.status, quantidade_disponivel: paraBanco(disp, CASAS_QUANTIDADE) },
-      data: { quantidade_disponivel: paraBanco(novo, CASAS_QUANTIDADE), status: 'Disponivel' },
+      where: { cliente_id: cli, id, status: lote.status, quantidade_disponivel: paraBanco(disp, CASAS_QUANTIDADE) },
+      data: { quantidade_disponivel: paraBanco(disp.plus(devolverPorLote.get(id)), CASAS_QUANTIDADE), status: 'Disponivel' },
     });
-    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: lote.id });
+    if (r.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
   const numero = await numeroDoMovimento(tx, cli, a.numeroMovimento);
   const estorno = await tx.movimentacaoEstoque.create({
@@ -827,6 +1016,42 @@ const chaveSaldo = (produtoId, localId) => `${produtoId}\u0000${localId}`;
 const unicosDe = (lista) => [...new Set(lista.filter((v) => typeof v === 'string' && v))];
 
 /**
+ * D-PROD-177 (§6.2 item 6) — efeito e rótulos do estorno em lote. Sem
+ * `efeito`/`sistema`/`tipoDetalhadoEstorno`/`motivoEstorno`, devolve o de
+ * antes (`direcao === 'PAGAR'` → compra). Combinação proibida → 500.
+ * @param {{ direcao?: string, efeito?: string, origem?: { sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string } }} a
+ * @returns {{ compra: boolean, tipoDetalhado: string, motivo: string }}
+ */
+const rotulosDoEstornoEmLote = (a) => {
+  if (a.efeito !== undefined && a.efeito !== EFEITO_ENTRADA && a.efeito !== EFEITO_SAIDA) {
+    throw new Error(`estornarEmLote: efeito inválido: ${String(a.efeito)}`);
+  }
+  const daDirecao = a.direcao === 'PAGAR' ? EFEITO_ENTRADA : EFEITO_SAIDA;
+  if (a.efeito !== undefined && a.direcao !== undefined && a.efeito !== daDirecao) {
+    throw new Error(`estornarEmLote: efeito ${a.efeito} diverge da direção ${String(a.direcao)}`);
+  }
+  const compra = (a.efeito ?? daDirecao) === EFEITO_ENTRADA;
+  const sistema = origemSistemaDe(a);
+  const informado = a.origem?.tipoDetalhadoEstorno;
+  const motivo = a.origem?.motivoEstorno;
+  if (informado !== undefined && !textoInformado(informado)) throw new Error('estornarEmLote: tipoDetalhadoEstorno, quando informado, é texto não vazio');
+  if (motivo !== undefined && !textoInformado(motivo)) throw new Error('estornarEmLote: motivoEstorno, quando informado, é texto não vazio');
+  const deEntradaEstoque = typeof informado === 'string' && ESTORNOS_ENTRADA_ESTOQUE.includes(informado);
+  if (sistema === ORIGEM_ENTRADA_ESTOQUE) {
+    if (!compra) throw new Error(`estornarEmLote: a origem ${ORIGEM_ENTRADA_ESTOQUE} só estorna efeito ${EFEITO_ENTRADA}`);
+    if (!deEntradaEstoque) throw new Error(`estornarEmLote: a origem ${ORIGEM_ENTRADA_ESTOQUE} exige tipoDetalhadoEstorno ${ESTORNOS_ENTRADA_ESTOQUE.join(' ou ')}`);
+    if (motivo === undefined) throw new Error(`estornarEmLote: a origem ${ORIGEM_ENTRADA_ESTOQUE} exige motivoEstorno`);
+  } else if (deEntradaEstoque) {
+    throw new Error(`estornarEmLote: tipoDetalhadoEstorno ${String(informado)} só com a origem ${ORIGEM_ENTRADA_ESTOQUE}`);
+  }
+  return {
+    compra,
+    tipoDetalhado: informado ?? (compra ? 'estorno_compra' : 'estorno_venda'),
+    motivo: motivo ?? (compra ? 'Estorno de compra por cancelamento do lançamento financeiro' : 'Estorno de venda por cancelamento do lançamento financeiro'),
+  };
+};
+
+/**
  * Estornos do CANCELAMENTO em lote (rodada 2, CRITICO-2). Mesmo resultado e
  * mesmas recusas, na mesma ordem dos itens, de `estornarEntrada` (compra) e
  * `estornarSaida` (venda) item a item — lotes, movimentos (campos, saldo
@@ -845,17 +1070,44 @@ const unicosDe = (lista) => [...new Set(lista.filter((v) => typeof v === 'string
  *     lido sob trava), movimentos (createManyAndReturn), originais
  *     'Estornada' e `estoque_atual` (UPDATE … FROM unnest, conferido).
  * A sequência de movimentos continua com quem chama (`numerarMovimentos`, no fim).
+ *
+ * D-PROD-177 (Estoque P1-02, §6.2 itens 6 e 8; M5) — parâmetros ADITIVOS:
+ *  - `efeito`: `'ENTRADA'` (desfaz entrada: lote 'Estornado', 'Saída') ou
+ *    `'SAIDA'` (devolve as fatias, 'Entrada'). Ausente → derivado de `direcao`
+ *    (`PAGAR` → ENTRADA, senão SAIDA), como antes. Os dois informados e
+ *    divergentes, ou efeito fora do domínio → erro de programação (500);
+ *  - `origem.sistema` (padrão `ORIGEM_SISTEMA`), `origem.tipoDetalhadoEstorno`
+ *    e `origem.motivoEstorno` (padrões: `estorno_compra`/`estorno_venda` e os
+ *    textos de antes). Com `ORIGEM_ENTRADA_ESTOQUE`: efeito ENTRADA,
+ *    `tipoDetalhadoEstorno` ∈ {`ESTORNO_ENTRADA_REVISAO`,
+ *    `ESTORNO_ENTRADA_EXCLUSAO`} e `motivoEstorno` obrigatórios; esses dois
+ *    tipos só com essa origem (senão 500);
+ *  - formato do item aceito (o da linha do `OperacaoFinanceiraItem` e o da
+ *    linha da entrada documentada futura): `{ produto_id, local_estoque_id,
+ *    local_estoque_nome?, movimentacao_estoque_id, estoque_lote_nota_id
+ *    (efeito ENTRADA), quantidade_estoque, ordem (1-based), consumos:
+ *    Array<{ estoque_lote_nota_id, quantidade }> (efeito SAIDA) }`;
+ *  - por item, ANTES de qualquer escrita: original 'Ativa' e sem filho
+ *    (`original_ja_estornado`/`original_nao_ativo`), da empresa e do produto
+ *    do item (`vinculo_divergente`); cada camada usada (o lote do item na
+ *    ENTRADA, cada lote dos consumos na SAIDA), lida `FOR UPDATE`, da empresa,
+ *    do produto e do local do item (`camada_divergente`) — todos 409
+ *    `ESTOQUE_JA_CONSUMIDO`; o mesmo original em dois itens = `original_ja_estornado`
+ *    no segundo (como o laço item a item);
+ *  - a marcação dos originais é CAS (`status = 'Ativa' AND movimento_filho_id
+ *    IS NULL`); contagem ≠ itens → 409 `CONCURRENCY_CONFLICT`, tudo desfeito.
  * @param {any} tx
  * @param {{auth: any}} ctx
- * @param {{ empresaId: string, direcao: string, itens: any[], dia: string, documento?: {numero?: string|null, data?: string|null},
- *   parceiro?: {id?: string|null, nome?: string|null}, origem: {operacaoId: string}, numeroMovimento: () => string|number }} a
+ * @param {{ empresaId: string, direcao?: string, efeito?: 'ENTRADA'|'SAIDA', itens: any[], dia: string, documento?: {numero?: string|null, data?: string|null},
+ *   parceiro?: {id?: string|null, nome?: string|null}, origem: {operacaoId: string, sistema?: string, tipoDetalhadoEstorno?: string, motivoEstorno?: string},
+ *   numeroMovimento: () => string|number }} a
  * @returns {Promise<string[]>} ids dos movimentos de estorno, na ordem de `a.itens`
  */
 export const estornarEmLote = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
+  const { compra, tipoDetalhado, motivo } = rotulosDoEstornoEmLote(a);
   if (!a.itens.length) return [];
-  const compra = a.direcao === 'PAGAR';
   const produtoIds = unicosDe(a.itens.map((i) => i.produto_id));
   const localIds = unicosDe(a.itens.map((i) => i.local_estoque_id));
   const originalIds = unicosDe(a.itens.map((i) => i.movimentacao_estoque_id));
@@ -876,7 +1128,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
   const inicial = new Map([...lotes.values()].map((l) => [l.id, { status: l.status, disp: l.disp }]));
   const originais = new Map(
     originalIds.length
-      ? (/** @type {any[]} */ (await tx.$queryRaw`SELECT id, valor_unitario, valor_total FROM "MovimentacaoEstoque"
+      ? (/** @type {any[]} */ (await tx.$queryRaw`SELECT id, valor_unitario, valor_total, status, movimento_filho_id, empresa_id, produto_id FROM "MovimentacaoEstoque"
           WHERE cliente_id = ${cli} AND id = ANY(${originalIds}::text[]) ORDER BY id FOR UPDATE`)).map((m) => [m.id, m])
       : [],
   );
@@ -902,11 +1154,23 @@ export const estornarEmLote = async (tx, ctx, a) => {
     }
     Object.assign(l, { status, disp, mudou: true });
   };
-  const exigirOriginal = (id) => {
+  /** Originais já usados por um item anterior (o laço item a item veria o original 'Estornada'). */
+  const estornados = new Set();
+  const exigirOriginal = (item) => {
+    const id = item.movimentacao_estoque_id;
     const m = id ? originais.get(id) : null;
     if (!m) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
+    const base = { item_ordem: item.ordem };
+    if (estornados.has(m.id)) {
+      throw jaConsumido('o movimento de estoque deste item já foi estornado; estorno recusado (nada foi alterado)', { ...base, reason: 'original_ja_estornado' });
+    }
+    // D-PROD-177 (M5): 'Ativa', sem filho, da empresa do estorno e do produto do item — antes de qualquer escrita.
+    exigirOriginalEstornavel(m, base, { empresaId: a.empresaId, produtoId: item.produto_id });
+    estornados.add(m.id);
     return m;
   };
+  /** D-PROD-177 (§6.2 item 8): a camada lida sob FOR UPDATE é da empresa, do produto e do local do item. */
+  const linhaDe = (item) => ({ empresaId: a.empresaId, produtoId: item.produto_id, localId: item.local_estoque_id });
   const exigirEstoque = (produto) => {
     if (!produto) throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado neste tenant');
     return /** @type {any} */ (estoque.get(produto.id));
@@ -923,12 +1187,13 @@ export const estornarEmLote = async (tx, ctx, a) => {
       const base = { item_ordem: item.ordem, lote_id: item.estoque_lote_nota_id };
       const l = item.estoque_lote_nota_id ? lotes.get(item.estoque_lote_nota_id) : null;
       if (!l) throw jaConsumido('o lote de entrada deste item não existe mais; cancelamento recusado (nada foi alterado)', { ...base, reason: 'lote_inexistente' });
+      exigirCamadaDaLinha(l, linhaDe(item), base);
       if (l.status !== 'Disponivel' || !l.disp.eq(l.entrada) || !l.entrada.eq(kg)) {
         throw jaConsumido('o estoque desta compra já foi consumido ou alterado; cancelamento recusado (nada foi alterado)', {
           ...base, reason: 'lote_consumido', entrada: l.entrada.toFixed(CASAS_QUANTIDADE), disponivel: l.disp.toFixed(CASAS_QUANTIDADE), status: l.status,
         });
       }
-      original = exigirOriginal(item.movimentacao_estoque_id);
+      original = exigirOriginal(item);
       const atual = exigirEstoque(produto);
       if (atual.lt(kg)) {
         throw jaConsumido('o estoque atual do produto é menor que a compra a estornar; cancelamento recusado (nada foi alterado)', {
@@ -943,7 +1208,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
       if (!devolvido.eq(kg)) {
         throw jaConsumido('as fatias FIFO gravadas não somam a quantidade do item; cancelamento recusado', { item_ordem: item.ordem, reason: 'fatias_inconsistentes' });
       }
-      original = exigirOriginal(item.movimentacao_estoque_id);
+      original = exigirOriginal(item);
       const atual = exigirEstoque(produto);
       if (atual.plus(kg).gt(LIMITE_ESTOQUE)) {
         throw excedeLimiteEstoque({ colecao: 'itens', indice: item.ordem - 1, item_ordem: item.ordem, produto_id: produto.id });
@@ -952,9 +1217,15 @@ export const estornarEmLote = async (tx, ctx, a) => {
       for (const c of item.consumos) {
         const l = lotes.get(c.estoque_lote_nota_id);
         const base = { item_ordem: item.ordem, lote_id: c.estoque_lote_nota_id };
-        if (!l || !['Disponivel', 'Esgotado'].includes(l.status)) {
+        if (!l) {
           throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
-            ...base, reason: 'lote_indisponivel_para_devolucao', status: l?.status ?? null,
+            ...base, reason: 'lote_indisponivel_para_devolucao', status: null,
+          });
+        }
+        exigirCamadaDaLinha(l, linhaDe(item), base);
+        if (!['Disponivel', 'Esgotado'].includes(l.status)) {
+          throw jaConsumido('um lote desta venda não pode receber a devolução (lote estornado ou removido); cancelamento recusado', {
+            ...base, reason: 'lote_indisponivel_para_devolucao', status: l.status,
           });
         }
         const novo = l.disp.plus(dec(c.quantidade));
@@ -971,7 +1242,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
       ...camposComuns(auth, { empresaId: a.empresaId, produto, documento: a.documento, origem: a.origem }),
       numero_movimentacao: String(a.numeroMovimento()),
       tipo_movimentacao: compra ? 'Saída' : 'Entrada',
-      tipo_detalhado: compra ? 'estorno_compra' : 'estorno_venda',
+      tipo_detalhado: tipoDetalhado,
       data_movimentacao: instanteDoDia(a.dia),
       quantidade: paraBanco(kg, CASAS_QUANTIDADE),
       valor_unitario: original.valor_unitario,
@@ -979,7 +1250,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
       ...(compra
         ? { local_estoque_origem: local.id, local_origem: local.nome ?? null, fornecedor_id: a.parceiro?.id ?? null, fornecedor_nome: a.parceiro?.nome ?? null }
         : { local_estoque_destino: local.id, local_destino: local.nome ?? null, cliente_nome: a.parceiro?.nome ?? null }),
-      motivo_movimentacao: compra ? 'Estorno de compra por cancelamento do lançamento financeiro' : 'Estorno de venda por cancelamento do lançamento financeiro',
+      motivo_movimentacao: motivo,
       movimento_pai_id: original.id,
       saldo_antes: paraBanco(saldoAntes, CASAS_QUANTIDADE),
       saldo_depois: paraBanco(compra ? saldoAntes.minus(kg) : saldoAntes.plus(kg), CASAS_QUANTIDADE),
@@ -1004,8 +1275,9 @@ export const estornarEmLote = async (tx, ctx, a) => {
   const marcados = await tx.$executeRaw`UPDATE "MovimentacaoEstoque" AS m
     SET status = 'Estornada', movimento_filho_id = v.filho, "updatedAt" = (now() AT TIME ZONE 'UTC')
     FROM unnest(${a.itens.map((item) => item.movimentacao_estoque_id)}::text[], ${ids}::text[]) AS v(id, filho)
-    WHERE m.cliente_id = ${cli} AND m.id = v.id`;
-  if (marcados !== a.itens.length) throw new Error(`originais marcados: ${marcados} de ${a.itens.length}`);
+    WHERE m.cliente_id = ${cli} AND m.id = v.id AND m.status = 'Ativa' AND m.movimento_filho_id IS NULL`;
+  // D-PROD-177 (M5): CAS — um original que deixou de estar 'Ativa'/sem filho desfaz tudo (409).
+  if (marcados !== a.itens.length) throw conflitoDoOriginal({ originais: a.itens.length, marcados });
   const finais = /** @type {any[]} */ (await tx.$queryRaw`UPDATE "Produto" AS p
     SET estoque_atual = v.valor::numeric, "updatedAt" = (now() AT TIME ZONE 'UTC')
     FROM unnest(${produtoIds}::text[], ${produtoIds.map((id) => paraBanco(estoque.get(id), CASAS_QUANTIDADE))}::text[], ${produtoIds.map((id) => paraBanco(dec(produtos.get(id).estoque_atual), CASAS_QUANTIDADE))}::text[]) AS v(id, valor, antes)
