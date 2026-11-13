@@ -16,7 +16,9 @@
  *  1. aplica as 44 migrations da main (todas menos esta CONTRACT), pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
  *     da CADESTACOES (D-PROD-188, `20261113400000_cadestacoes_cadastro`) e da
- *     CADCURVAGANHO (D-PROD-189, `20261113600000_cadcurvaganho_cadastro`) e as CONTRACT
+ *     CADCURVAGANHO (D-PROD-189, `20261113600000_cadcurvaganho_cadastro`), esta
+ *     com nome POSTERIOR ao desta CONTRACT e já aplicada antes dela, como em
+ *     produção (a CONTRACT sobe depois, fora da ordem dos nomes), e as CONTRACT
  *     da D-PROD-162 e da D-PROD-183, que sobem aqui pelo Prisma direto, sem o
  *     runner e portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO (as
  *     guardas delas passam porque o banco está vazio nessa hora);
@@ -35,7 +37,8 @@
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 e a impressão na URL) e confere:
- *     45 concluídas, CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
+ *     45 concluídas (esta por último, depois da CADCURVAGANHO), 82 tabelas,
+ *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam, linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
  *     PrismaClient lendo `categoriaManejo.findMany()` e 2ª execução sem pendência.
@@ -61,6 +64,15 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261113500000_categoria_manejo_cadcategoria';
 export const DECISAO = 'D-PROD-187';
+/**
+ * D-PROD-189: a EXPAND de nome POSTERIOR a esta CONTRACT que produção já tem concluída (aplicada às 23:18 UTC de
+ * 2026-11-13). Em produção esta CONTRACT entra DEPOIS dela, fora da ordem dos nomes; o ensaio reproduz isso.
+ */
+export const NOME_POSTERIOR_JA_APLICADA = '20261113600000_cadcurvaganho_cadastro';
+/** Concluídas antes (as 44 da main) e depois (45), e tabelas em public (82, iguais antes e depois: só rename). */
+export const CONCLUIDAS_ANTES = 44;
+export const CONCLUIDAS_DEPOIS = 45;
+export const TABELAS_PUBLIC = 82;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 /** Parâmetro de sessão que leva a impressão aprovada no GO até a guarda. */
@@ -199,6 +211,8 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 /**
  * As 44 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui as CONTRACT da D-PROD-162 e da D-PROD-183, sem o runner: as guardas delas passam com o banco vazio.
+ * Inclui também a EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189), de nome posterior a esta CONTRACT:
+ * depois daqui o banco fica como produção, com uma migration de nome posterior já concluída e esta pendente.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-cadcategoria-main-'));
@@ -238,6 +252,11 @@ export const estrutura = async (db) => {
 };
 export const intrusos = async (db) => (await db.$queryRawUnsafe(SQL_INTRUSOS)).map((x) => x.n);
 export const sistema = async (db) => (await um(db, 'SELECT system_identifier::text AS sid FROM pg_control_system()')).sid;
+/** Migrations concluídas na ordem REAL de aplicação (finished_at), não na ordem dos nomes. */
+export const ordemDeAplicacao = async (db) =>
+  (await db.$queryRawUnsafe(`SELECT migration_name AS n FROM "_prisma_migrations"
+                              WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+                              ORDER BY finished_at, started_at, migration_name`)).map((x) => x.n);
 export const historico = async (db) =>
   um(db, `SELECT count(*)::int AS total,
                  count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS concluidas,
@@ -523,7 +542,11 @@ if (ehEntradaDireta()) {
       await semear(db, { clientes: Number(valor('--clientes', 2)) });
       const partida = await retrato(db);
       const imp = await impressao(db);
-      relatorio.preflight = { impressao: imp, contagens: await contagens(db), colunas: partida.colunas, historico: await historico(db) };
+      relatorio.preflight = { impressao: imp, contagens: await contagens(db), colunas: partida.colunas, tabelas: partida.tabelas, historico: await historico(db) };
+      // Estado de produção: as 44 concluídas, a CADCURVAGANHO (nome posterior) entre elas, esta CONTRACT ausente.
+      const ordemAntes = await ordemDeAplicacao(db);
+      if (relatorio.preflight.historico.concluidas !== CONCLUIDAS_ANTES || partida.tabelas !== TABELAS_PUBLIC
+        || !ordemAntes.includes(NOME_POSTERIOR_JA_APLICADA) || ordemAntes.includes(NOME_CONTRACT)) relatorio.ok = false;
       if (!args.includes('--sem-red')) {
         for (const c of CENARIOS_RED) {
           const r = await rodarCenarioRed(c, { db, url });
@@ -549,6 +572,9 @@ if (ehEntradaDireta()) {
         status: green.status,
         autorizado: green.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`),
         historico: await historico(db),
+        // A CONTRACT foi a última aplicada, DEPOIS da CADCURVAGANHO de nome posterior (a ordem de produção).
+        ultimas_aplicadas: (await ordemDeAplicacao(db)).slice(-2),
+        tabelas: depois.tabelas,
         colunas: await colunasDaTabela(db),
         estrutura: depois.estrutura,
         divergencias: divergenciasGreen(partida, depois),
@@ -557,7 +583,8 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 45 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
+      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== CONCLUIDAS_DEPOIS || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
+        || JSON.stringify(g.ultimas_aplicadas) !== JSON.stringify([NOME_POSTERIOR_JA_APLICADA, NOME_CONTRACT]) || g.tabelas !== TABELAS_PUBLIC
         || g.divergencias.length || g.migrate_diff !== 0 || g.prisma_client !== partida.linhas.n || !g.segunda
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
     } finally {

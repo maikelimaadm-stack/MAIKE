@@ -74,6 +74,15 @@ merge vier antes (foi o que aconteceu na D-PROD-183), sobra só o caminho B.
   recusa migration no banco sem arquivo na release).
 - **Dependência da PR #270:** **mergeada (`cf07309`)**. A migration `20261113600000_cadcurvaganho_cadastro`
   já está em produção (23:18 UTC) e na `main`, e esta branch foi atualizada com ela por merge.
+- **Ordem fora dos nomes:** em produção esta CONTRACT (`…500000`) entra **depois** da
+  `…600000_cadcurvaganho_cadastro`, que tem nome posterior. Isso é aceito por tudo que decide a
+  release: o `premerge-migrate` só olha as migrations novas contra a `main` (`origin/main...HEAD`), e
+  `conferirHistoricoRemoto`, `contractsPendentes`, o `preflight-schema` e o `prisma migrate deploy`
+  conferem por **conjunto** (aplicada ou pendente), nunca pela ordem dos nomes. O envelope do caminho B
+  também só conta as concluídas. Provado em `premerge-migrate.test.mjs` (B15j, B15k), no teste
+  `categoriaManejoCadcategoriaMigration.test.mjs` (CD-01, CD-03, CD-05, CD-06) e no ensaio do §4.5, que
+  aplicam a CADCURVAGANHO antes e esta CONTRACT por último. Num banco novo (dev, CI), o Prisma aplica as
+  45 na ordem dos nomes; o resultado é o mesmo schema (as duas migrations não se tocam).
 - **Contagens fixas:** os números 44 (antes) e 45 (depois) deste runbook — §0, bloco A, o
   `n_ok <> 44` do envelope do caminho B, R1 e §10 — supõem a migration da PR #263 **não**
   aplicada em produção. Se o bloco A mostrar outro total, é `RELEASE_BLOCKED`: atualizar a branch,

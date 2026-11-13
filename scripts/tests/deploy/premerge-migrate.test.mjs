@@ -903,7 +903,10 @@ test('B15j (D-PROD-187): runner real sobre a release de CategoriaManejo → CADC
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
-    // Isolada: a D-PROD-162 e a D-PROD-183 estão na main desta release sintética (em produção já concluídas).
+    // Isolada: a D-PROD-162 e a D-PROD-183 estão na main desta release sintética (em produção já concluídas), e
+    // também a CADCURVAGANHO (D-PROD-189), de nome POSTERIOR a esta: a release adiciona uma migration que ordena
+    // antes da última da main, e isso não é migration da main alterada nem migration nova a mais.
+    assert.ok(readdirSync(join(repo.trabalho, 'backend/prisma/migrations')).some((d) => d > NOME_K), 'a main da release tem migration de nome posterior');
     assert.deepEqual(json.migrations_novas, [NOME_K]);
     assert.deepEqual(json.contract, [CONTRACT_K]);
     assert.deepEqual(json.tabelas_novas, []);
@@ -926,6 +929,30 @@ test('B15j (D-PROD-187): runner real sobre a release de CategoriaManejo → CADC
   } finally {
     rmSync(repo.dir, { recursive: true, force: true });
   }
+});
+
+test('B15k (D-PROD-187/D-PROD-189): ordem de produção — alvo com as 44 da main concluídas, inclusive a CADCURVAGANHO de nome POSTERIOR a esta CONTRACT: o histórico confere, a única pendente é a D-PROD-187 e a barreira do CONTRACT a exige; nenhuma conferência depende da ordem dos nomes', () => {
+  const POSTERIOR = '20261113600000_cadcurvaganho_cadastro';
+  const raiz = 'backend/prisma/migrations';
+  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+    .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
+  assert.equal(locais.length, 45);
+  assert.ok(POSTERIOR > NOME_K && locais.some((l) => l.nome === POSTERIOR));
+  const t0 = Date.parse('2026-01-01T00:00:00Z');
+  // Produção: as 44 sem a D-PROD-187, a CADCURVAGANHO por último (23:18 UTC de 2026-11-13).
+  const linhas = locais.filter((l) => l.nome !== NOME_K)
+    .map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
+  assert.equal(linhas.length, 44);
+  assert.equal(linhas.at(-1).migration_name, POSTERIOR);
+  const h = conferirHistoricoRemoto({ locais, linhas });
+  assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_K], falhas: [] });
+  // A ordem das linhas (ou das pastas) não muda nada: conferência por conjunto.
+  assert.deepEqual(conferirHistoricoRemoto({ locais: [...locais].reverse(), linhas: [...linhas].reverse() }), h);
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_K, decisao: 'D-PROD-187' }]);
+  // Depois da aplicação (a D-PROD-187 concluída DEPOIS da CADCURVAGANHO): 45, nada pendente, nada a autorizar.
+  const depois = [...linhas, { migration_name: NOME_K, checksum: MIGRATIONS_APROVADAS[NOME_K], finished_at: new Date(t0 + 99_000), rolled_back_at: null }];
+  assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
 const SHA = 'a'.repeat(40);
