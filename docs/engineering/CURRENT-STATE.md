@@ -25,14 +25,26 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)
+## Missão ativa (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-183** |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv` (o pedido nomeou `feat/tipo-tarefa-drop-colunas`), base `origin/main` `65ad9d7`. PR **#261** em rascunho, exclusiva desta fatia |
+| Escopo | Migration CONTRACT que apaga `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` de `TipoTarefa`; as 4 linhas `@ignore` saem do `schema.prisma`; entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`; testes, ensaio local e runbook |
+| Migration | `20261113200000_tipo_tarefa_drop_colunas`, **CONTRACT**. SHA-256 `47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17`; guarda `35e1a698b0567bf07f9e99943f7181a3a6ee8b1e03ea2ff423a939e755984878`. Repositório: 41 → **42** migrations; tabelas iguais; `TipoTarefa` 13 → **9** colunas. **Não aplicada em nenhum ambiente remoto; produção não foi lida** |
+| Release | GO-1 (preflight só leitura) → GO-2 (aplicar pelo `premerge-migrate --aplicar --contract D-PROD-183` ou caminho B) → postcheck → merge. Sem janela de 500. Depois de aplicada, proibido voltar a produção para deploy anterior ao merge `6b85696` (PR #254) |
+| Próxima fatia | Fatia C (`ApontamentoAtividade`), só depois desta aplicada e liberada pelo proprietário |
+| Documentos | [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md) · [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-TIPO-ATIVIDADE-CADASTRO (Fatia B): cadastro de Tipo de Atividade (D-PROD-182)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-182** |
 | Branch / PR | `feat/tipo-atividade-cadastro`, empilhada sobre `feat/tipo-tarefa-sem-flags` (Fatia A, PR #254). PR em rascunho com base na Fatia A |
 | Escopo | Model, migration, API `/tipos-atividade`, tela `TiposAtividade` (4 campos), menu e permissão `sup-tipos-atividade`, bloqueio da exclusão do grupo e propagação do nome |
-| Migration | `20261113100000_tipo_atividade_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Repositório: 40 → **41** migrations, 79 → **80** tabelas. **Não aplicada em nenhum ambiente remoto** |
+| Migration | `20261113100000_tipo_atividade_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e`. Repositório: 40 → **41** migrations, 79 → **80** tabelas. **Aplicada em produção** e conferida pelo proprietário (informado na abertura da Fatia LIMPEZA, 2026-11-13): 41 migrations, 0 pendentes, RLS e índices iguais aos do `TipoTarefa`, nenhum alerta de segurança |
 | Release | Merge da Fatia A, depois desta; em seguida `deploy:migrate` pelo caminho oficial e deploy |
 | Relatório | [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md) |
 

@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-P1-02 — Endurecimento do motor único de estoque — Relatório
 
-> Decisão: [D-PROD-183](./DECISIONS.md). Contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) §2 (M2–M6) e §6.2, ratificado pela D-PROD-177.
+> Decisão: [D-PROD-184](./DECISIONS.md). Contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) §2 (M2–M6) e §6.2, ratificado pela D-PROD-177.
 
 ## 1. Identidade
 
@@ -123,7 +123,7 @@ O helper compartilhado é `estoqueP1MCenario.mjs`.
 | ID | Achado | Destino |
 |---|---|---|
 | I1 | `ORIGENS_PROTOCOLO` sem `entrada_estoque` | Adiado para a P1-05a, que traz o escritor e a reconciliação. O teste P7 garante que hoje não há escritor |
-| I2 | O bloqueio da unidade legada vale também em criar e substituir rascunho. `conferirTrocaDeUnidade` permite UN→KG mesmo com histórico | Mensagem neutra ("procure o administrador"). **A decisão é do proprietário** (D-PROD-183 item 4) |
+| I2 | O bloqueio da unidade legada vale também em criar e substituir rascunho. `conferirTrocaDeUnidade` permite UN→KG mesmo com histórico | Mensagem neutra ("procure o administrador"). **A decisão é do proprietário** (D-PROD-184 item 4) |
 | I3 | Dados antigos incoerentes travariam estornos | SELECT de pré-checagem dos estornos |
 | I4 | O front (`src/lib/gestaoErros.js`) mostra texto genérico para os reasons novos | Fora do escopo, porque a missão não inclui frontend. Fica pendente para uma PR de front |
 | M1/M2 | `movimentoOriginal` e `estornarSaida` usam CAS, não `FOR UPDATE` | Correto por desenho: o CAS com contagem 1 recusa a corrida com 409 e desfaz tudo (testes I5 e I6) |

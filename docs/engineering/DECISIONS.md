@@ -6610,7 +6610,53 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-CADASTRO-REPORT.md).
 
-## D-PROD-183 — Estoque P1-02: endurecimento do motor único (M2–M6), sem schema
+## D-PROD-183 — Tipo de Tarefa: DROP COLUMN das 4 colunas dormentes (Fatia LIMPEZA, migration CONTRACT)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("Fatia LIMPEZA", depois das Fatias A e B no ar) · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` (o pedido nomeou `feat/tipo-tarefa-drop-colunas`; esta sessão só publica em branch `claude/…`)
+
+**Contexto.** A D-PROD-181 tirou `exige_area`, `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` do cadastro de Tipo de Tarefa e deixou as colunas dormentes no banco, com `@ignore` no `schema.prisma`, à espera de uma migration CONTRACT própria (item 4). As opções equivalentes voltam depois no APONTAMENTO, nunca no cadastro.
+
+**Decisão.**
+1. **Migration nova e datada:** `20261113200000_tipo_tarefa_drop_colunas`. Nenhuma migration existente foi editada. As 4 linhas `@ignore` saem do `schema.prisma` na mesma PR, como a D-PROD-181 item 4 previa (com elas, o `migrate diff` contaria as colunas como existentes).
+2. **CONTRACT, segunda exceção fechada** à D-PROD-72 item 3 e à D-PROD-107 R7, no molde da D-PROD-162: entrada própria em `MIGRATIONS_CONTRACT_APROVADAS` (`premergeMigrateLib.mjs`) com a guarda pinada por hash, `drop: []`, `literais_guarda: ['TipoTarefa']` e os 4 `ALTER TABLE "TipoTarefa" DROP COLUMN "<coluna>"` pinados em `alter_antigas`, nesta ordem. `CASCADE`, `IF EXISTS`, outra coluna, outra tabela ou outra ordem → `CONTRACT_ALTER_FORA_DO_CONTRATO`; instrução a mais depois do recorte cai no EXPAND e é recusada. O classificador passa a informar `colunas_removidas`, e o rótulo do premerge cita só o que a migration faz ("4 colunas removidas (…)"; a D-PROD-162 continua "13 tabelas removidas, 2 CHECKs alargados").
+3. **Trava própria (guarda, 1ª instrução, falha fechada):**
+   - `lock_timeout` 5 s, `statement_timeout` 120 s e `pg_advisory_xact_lock(72707369)`;
+   - `TipoTarefa` existe e é travada em `ACCESS EXCLUSIVE`;
+   - as 4 colunas existem, cada uma `BOOLEAN NOT NULL DEFAULT false`;
+   - nenhum objeto depende delas além do próprio `DEFAULT` e, no PG 18, do próprio `NOT NULL` (índice, constraint, visão/regra, política, gatilho, estatística, publicação com lista de colunas, coluna gerada, função `BEGIN ATOMIC`);
+   - nenhuma função ou procedure fora dos schemas do sistema cita as colunas no corpo ou nos parâmetros de saída, sem distinguir maiúsculas (`NEW.Exige_Area` sem aspas é a mesma coluna);
+   - com algum `true` nas colunas (ou com o parâmetro informado), exige `maike.tipo_tarefa_flags_impressao` igual à impressão aprovada no GO: `left(md5(…), 12)` das linhas `cliente_id|id|4 flags` com algum `true`, na ordem `cliente_id, id` (`COLLATE "C"`). Sem nenhum `true` não há o que perder e o parâmetro é dispensado.
+4. **Aplicação isolada:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). O `premerge-migrate` exige `--contract D-PROD-183` para `--verificar-alvo`/`--aplicar`. O `deploy:migrate` contra alvo remoto recusa com `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183`, e o `release-migrate.yml` não define a variável. Como a variável tem um só valor, o runner nunca aplica duas CONTRACT pendentes de uma vez. Em produção a D-PROD-162 já está concluída, e só esta fica pendente.
+5. **Autorização:** a migration **não foi aplicada** em nenhum ambiente remoto, e produção não foi lida. Preflight (só leitura) e aplicação dependem de GO explícito do proprietário, um para cada, pelo runbook [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-RUNBOOK-RELEASE.md). O merge sozinho não aplica nada.
+6. **Ordem:** aplicar antes do merge (o premerge só vê a migration como nova enquanto ela não está na `main`). Não há janela de 500: o Prisma Client hoje em produção (com `@ignore`) foi rodado contra um banco sem as colunas e fez `create`, `findMany`, `update`, `include` e `delete` de `TipoTarefa` sem erro.
+7. **Rollback de código:** depois da aplicação, fica proibido voltar a produção para deploy anterior ao merge `6b85696` (PR #254, D-PROD-181). O client daquele schema lista as colunas no `SELECT` e falha com `P2022 TipoTarefa.exige_area`. Isso foi provado localmente.
+8. **Varredura global antes do DROP** (5 frentes em paralelo — backend, frontend, scripts/CI/SQL, objetos de banco e convenção — mais um crítico de completude): nenhuma referência viva lê ou grava as colunas. O que cita os nomes:
+   - as 4 linhas `@ignore` (saem nesta PR);
+   - a migration que criou a tabela (histórico imutável);
+   - comentários;
+   - testes e gate que provam a ausência;
+   - a lista `CHAVES_LEGADAS_IGNORADAS` de `tipoTarefaRoutes.js`, que aceita e ignora as 4 chaves no corpo HTTP sem tocar o banco (D-PROD-181 item 2).
+
+   A lista **fica**: remover a tolerância a cliente antigo é outra decisão, de contrato HTTP.
+9. **Número da decisão fora do `migration.sql`.** As mensagens da guarda começam com `tipo_tarefa_drop_colunas:`, e o cabeçalho do arquivo não cita o número desta decisão. Motivo: a PR #260 (rascunho, Estoque P1-02, sem migration) também registrou uma D-PROD-183, e pela convenção quem entra depois renumera. Com o número fora do arquivo, renumerar esta decisão muda só `decisao`/`--contract` na lib, testes e documentos — nunca o checksum que vai para `_prisma_migrations`. Isso vale inclusive depois de aplicada.
+10. **Fora do escopo:** `ApontamentoAtividade` (Fatia C), `AbastecimentoBem`, `LancamentoTarefa`, reintroduzir as flags em qualquer lugar e trabalho visual.
+
+**Testes.**
+- `backend/tests/tipoTarefaDropColunasMigration.test.mjs` (PostgreSQL real, banco próprio), com as funções de `scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`:
+  - RED: sem impressão, impressão errada, índice, visão, política, função citando a coluna, gatilho em caixa mista, função com a coluna só no `RETURNS TABLE` e trava concorrente (pelo `lock_timeout` da própria guarda) — tudo recusado e nada muda;
+  - o runner com a conferência de alvo sem a decisão recusa antes de qualquer DDL;
+  - GREEN pelo runner oficial: 42/0, 9 colunas, linhas idênticas e `migrate diff` vazio;
+  - 2ª execução sem pendências;
+  - banco sem nenhum `true` aplica sem impressão e com a impressão do vazio informada; informada errada, recusa.
+- `scripts/tests/deploy/premerge-migrate.test.mjs`: classificador, conteúdo pinado, variações recusadas, isolamento, `contractsPendentes`, `envDoDeployMigrate` e o runner real sobre a release isolada.
+- `scripts/tests/deploy/migrations.test.mjs`: a barreira do runner com as duas CONTRACT.
+- `backend/tests/patrimonioSimplificaMigration.test.mjs` passa a partir de 41 migrations (a da D-PROD-183 entra no "todas menos a CONTRACT dele").
+
+**Relatório:** [`MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md`](./MAIKE-TIPO-TAREFA-DROP-COLUNAS-REPORT.md).
+
+## D-PROD-184 — Estoque P1-02: endurecimento do motor único (M2–M6), sem schema
+
+> **Numeração:** a PR #260 registrou esta decisão como D-PROD-183, mas a PR #261 (Tipo de Tarefa, Fatia LIMPEZA) entrou antes na `main` com a D-PROD-183. Pela convenção, quem entra depois renumera: esta decisão é a **D-PROD-184**. A D-PROD-183 continua sendo da PR #261.
 
 **Contexto.** Esta decisão executa o contrato do Estoque P1 (§2 M2–M6, §6.2), ratificado pela D-PROD-177. Não há DDL, migration nem frontend.
 
@@ -6636,4 +6682,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-184 -->
+<!-- Próxima decisão: D-PROD-185 -->

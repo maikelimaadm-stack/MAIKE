@@ -86,8 +86,12 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162: alvo já com o CONTRACT concluído (a barreira dele tem prova própria em migrations.test.mjs, B11).
-    lerHistorico: async () => [{ migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null }],
+    // D-PROD-162 e D-PROD-183: alvo já com as duas CONTRACT concluídas (a barreira delas tem prova própria em
+    // migrations.test.mjs, B11 e B14). Sem a 2ª linha, a D-PROD-183 pendente recusaria por conta própria.
+    lerHistorico: async () => [
+      { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261113200000_tipo_tarefa_drop_colunas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+    ],
     log: () => {},
     erro: () => {},
   });
