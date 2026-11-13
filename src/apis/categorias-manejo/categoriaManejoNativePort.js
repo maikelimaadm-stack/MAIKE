@@ -2,6 +2,7 @@
  * Porta nativa de CategoriaManejo (P5.4).
  */
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { faixaIdadeDaLista } from '@/domain/lotes/categoriaOficialDerivada';
 import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
@@ -39,6 +40,27 @@ export const corpoDeEnvio = (dados) =>
     )
   );
 
+const CHAVES_IDADE = Object.freeze(['idade_minima_meses', 'idade_maxima_meses']);
+
+/**
+ * Corpo do PATCH. Uma edição gravada na fila offline pela versão anterior
+ * sempre trazia o par de idades (inclusive nulo/nulo ou par livre, como 0/12),
+ * que o servidor agora recusa (faixa fora da lista fixa, D-PROD-185) — e um
+ * item recusado trava a fila inteira. Se o par enviado não é uma faixa da
+ * lista, as duas idades saem do corpo: o resto da edição é aplicado e a faixa
+ * gravada fica como está. O formulário atual só manda idade quando a faixa
+ * escolhida mudou, e sempre uma faixa da lista.
+ * @param {Record<string, unknown>} dados
+ */
+export const corpoDeEdicao = (dados) => {
+  const corpo = corpoDeEnvio(dados);
+  const temIdade = CHAVES_IDADE.some((c) => Object.prototype.hasOwnProperty.call(corpo, c));
+  if (temIdade && !faixaIdadeDaLista(corpo.idade_minima_meses, corpo.idade_maxima_meses)) {
+    for (const c of CHAVES_IDADE) delete corpo[c];
+  }
+  return corpo;
+};
+
 const queryDeFiltro = (criterio) => {
   if (!criterio || typeof criterio !== 'object') return '';
   const params = new URLSearchParams();
@@ -61,7 +83,7 @@ const operacoesNativas = Object.freeze({
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: corpoDeEnvio(dados), autenticado: true },
+      { method: 'PATCH', body: corpoDeEdicao(dados), autenticado: true },
       ctx('updateCategoriaManejo')
     ),
   delete: (id) =>

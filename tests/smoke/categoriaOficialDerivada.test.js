@@ -109,3 +109,20 @@ describe('categoria oficial derivada (frontend)', () => {
     }
   });
 });
+
+describe("categoriaManejoParaMudanca — escolha determinística na Mudança de Categoria", () => {
+  it("entre 0–8 e 9–12 (mesma oficial) escolhe a faixa mais avançada, em qualquer ordem da lista; ignora inativa", async () => {
+    const { categoriaManejoParaMudanca } = await import("@/domain/lotes/categoriaOficialDerivada");
+    const a = { id: "a", nome: "BEZ 0-8", sexo: "Macho", idade_minima_meses: 0, idade_maxima_meses: 8, ativo: true };
+    const b = { id: "b", nome: "BEZ 9-12", sexo: "Macho", idade_minima_meses: 9, idade_maxima_meses: 12, ativo: true };
+    const inativa = { id: "c", nome: "BEZ 9-12 VELHA", sexo: "Macho", idade_minima_meses: 9, idade_maxima_meses: 12, ativo: false };
+    const femea = { id: "d", nome: "BEZERRA", sexo: "Fêmea", idade_minima_meses: 9, idade_maxima_meses: 12, ativo: true };
+    for (const lista of [[a, b, inativa, femea], [femea, inativa, b, a], [b, a]]) {
+      expect(categoriaManejoParaMudanca(lista, "Bezerro 0 a 12 meses")?.id).toBe("b");
+    }
+    expect(categoriaManejoParaMudanca([inativa], "Bezerro 0 a 12 meses")).toBeUndefined();
+    expect(categoriaManejoParaMudanca([a, b], "Garrote 13 a 24 meses")).toBeUndefined();
+    expect(categoriaManejoParaMudanca(null, "Bezerro 0 a 12 meses")).toBeUndefined();
+    expect(categoriaManejoParaMudanca([femea, a], "Bezerra 0 a 12 meses")?.id).toBe("d");
+  });
+});

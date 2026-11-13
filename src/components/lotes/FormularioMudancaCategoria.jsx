@@ -8,7 +8,7 @@ import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteR
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { CATEGORIAS_OFICIAIS, derivaCategoriaOficial } from "@/domain/lotes/categoriaOficialDerivada";
+import { CATEGORIAS_OFICIAIS, categoriaManejoParaMudanca } from "@/domain/lotes/categoriaOficialDerivada";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -119,8 +119,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     if (field === 'categoria_nova') {
       // R2B-P1: a categoria de manejo acompanha a escolhida (sem herdar a da categoria antiga).
       // MAIKE-CATEGORIA-MANEJO-ENXUGAR: casa pela oficial DERIVADA de sexo + faixa de idade (mesma regra do
-      // servidor); o nome é livre e não é a chave. Mais de uma: fica a primeira (o servidor confere o id).
-      const catManejo = categoriasManejo.find(c => derivaCategoriaOficial(c, value));
+      // servidor); o nome é livre e não é a chave. Escolha determinística (ver categoriaManejoParaMudanca).
+      const catManejo = categoriaManejoParaMudanca(categoriasManejo, value);
       novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
       novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
       novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;

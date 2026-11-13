@@ -126,3 +126,25 @@ export const rotuloFaixaIdade = (categoria) => {
   if (vazio(minima)) return `Até ${String(maxima).trim()} meses`;
   return `${String(minima).trim()} a ${String(maxima).trim()} meses`;
 };
+
+/**
+ * Categoria de manejo que a Mudança de Categoria liga à categoria oficial
+ * nova. Só ativas que derivam essa oficial (o servidor recusa inativa ou de
+ * outra oficial). Mais de uma — 0–8 e 9–12 derivam a mesma "Bezerro/Bezerra
+ * 0 a 12 meses" —: escolha determinística pela faixa mais avançada (a mudança
+ * leva o animal adiante) e, empatando, pelo id; nunca pela ordem da lista. A
+ * "Categoria de evolução" (Fatia E) vai tornar a escolha explícita.
+ * @template {{ id?: unknown, ativo?: unknown, idade_minima_meses?: unknown }} T
+ * @param {readonly T[] | null | undefined} categorias
+ * @param {unknown} oficial
+ * @returns {T | undefined}
+ */
+export const categoriaManejoParaMudanca = (categorias, oficial) =>
+  (categorias ?? [])
+    .filter((c) => c && c.ativo !== false && derivaCategoriaOficial(c, oficial))
+    .slice()
+    .sort(
+      (a, b) =>
+        (Number(b.idade_minima_meses) || 0) - (Number(a.idade_minima_meses) || 0) ||
+        String(a.id).localeCompare(String(b.id))
+    )[0];

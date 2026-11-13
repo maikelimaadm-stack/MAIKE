@@ -340,6 +340,22 @@ describe("(b) porta nativa descarta chaves legadas do corpo", () => {
   });
 });
 
+describe("(b2) PATCH vindo da fila offline da versão anterior não trava a sincronização", () => {
+  it("par de idades fora da lista sai do corpo; faixa da lista e o resto da edição seguem", async () => {
+    const { categoriaManejoPort, corpoDeEdicao } = await import("@/apis/categorias-manejo/categoriaManejoNativePort.js");
+    expect(corpoDeEdicao({ nome: "X", idade_minima_meses: null, idade_maxima_meses: null })).toEqual({ nome: "X" });
+    expect(corpoDeEdicao({ nome: "X", idade_minima_meses: 0, idade_maxima_meses: 12, raca: "NELORE" })).toEqual({ nome: "X" });
+    expect(corpoDeEdicao({ idade_minima_meses: 24, idade_maxima_meses: 12 })).toEqual({});
+    expect(corpoDeEdicao({ nome: "X", idade_minima_meses: 25, idade_maxima_meses: 36 })).toEqual({ nome: "X", idade_minima_meses: 25, idade_maxima_meses: 36 });
+    expect(corpoDeEdicao({ idade_minima_meses: 37, idade_maxima_meses: null })).toEqual({ idade_minima_meses: 37, idade_maxima_meses: null });
+    expect(corpoDeEdicao({ ativo: false })).toEqual({ ativo: false });
+
+    nativeRequest.mockClear();
+    await categoriaManejoPort.update("cm1", { nome: "Y", idade_minima_meses: 0, idade_maxima_meses: 12 });
+    expect(nativeRequest.mock.calls[0][1]).toMatchObject({ method: "PATCH", body: { nome: "Y" } });
+  });
+});
+
 describe("(c) preferências de coluna salvas com ids removidos", () => {
   const STORAGE_KEY = "colunas_largura_categorias_manejo";
 
