@@ -68,7 +68,7 @@ Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
 
 | Cenário | Resultado |
 |---|---|
-| sem impressão / impressão errada | recusa: "não são os aprovados no GO" |
+| sem impressão / impressão errada | recusa: `tipo_tarefa_drop_colunas: os valores true … não são os aprovados no GO` |
 | índice, visão, CHECK, política, coluna gerada, estatística, publicação com lista de colunas | recusa: "objeto depende das colunas apagadas (…)" |
 | função plpgsql citando a coluna | recusa: "função ou procedure cita as colunas apagadas" |
 | coluna sem `DEFAULT` / tabela ausente | recusa: "tem 3 das 4 colunas" / "não existe" |
@@ -102,6 +102,12 @@ Ensaiada à mão num PG 16 local, contra 2 clientes com flags `true`:
 <!-- preenchido no fim da fatia -->
 
 ## 7. Riscos e limites conhecidos
+
+- **Número de decisão em disputa.** A PR #260 (rascunho, Estoque P1-02, sem migration) também
+  registrou uma D-PROD-183. Pela convenção, quem mergear depois renumera. Para isso nunca tocar
+  o arquivo aplicado, o `migration.sql` não cita o número: as mensagens da guarda começam com
+  `tipo_tarefa_drop_colunas:`. Se esta fatia tiver de virar D-PROD-184, mudam só `decisao` e
+  `--contract` em `premergeMigrateLib.mjs`, os testes, o ensaio e os documentos.
 
 - **Dados perdidos.** Os valores `true` das 4 colunas somem em todos os clientes. O runbook
   pede o preflight por cliente e a impressão aprovada no GO, mais a escolha do proprietário

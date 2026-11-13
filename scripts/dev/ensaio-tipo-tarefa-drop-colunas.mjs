@@ -255,8 +255,8 @@ export const semear = async (db, { clientes = 2, apenasFalse = false } = {}) => 
 };
 
 const recusaImpressao = (valor) =>
-  new RegExp(`D-PROD-183: os valores true das colunas apagadas \\(\\d+ tipos de tarefa\\) não são os aprovados no GO \\(maike\\.tipo_tarefa_flags_impressao = ${valor}\\)`);
-const recusaDependente = (nome) => new RegExp(`D-PROD-183: objeto depende das colunas apagadas \\([^)]*${nome}`);
+  new RegExp(`tipo_tarefa_drop_colunas: os valores true das colunas apagadas \\(\\d+ tipos de tarefa\\) não são os aprovados no GO \\(maike\\.tipo_tarefa_flags_impressao = ${valor}\\)`);
+const recusaDependente = (nome) => new RegExp(`tipo_tarefa_drop_colunas: objeto depende das colunas apagadas \\([^)]*${nome}`);
 
 /**
  * Cenários RED: cada um prepara um estado, tem de ser RECUSADO com a mensagem própria e não pode mudar nada.
@@ -289,12 +289,18 @@ export const CENARIOS_RED = Object.freeze([
   },
   {
     id: 'funcao',
-    esperado: /D-PROD-183: função ou procedure cita as colunas apagadas \(f_intrusa\(\)\)/,
+    esperado: /tipo_tarefa_drop_colunas: função ou procedure cita as colunas apagadas \(f_intrusa\(\)\)/,
     impressao: 'certa',
     preparar: (db) => db.$executeRawUnsafe(`CREATE FUNCTION f_intrusa() RETURNS boolean LANGUAGE plpgsql STABLE AS $f$ BEGIN RETURN EXISTS (SELECT 1 FROM public."TipoTarefa" t WHERE t.pode_ter_implemento); END $f$`),
     desfazer: (db) => db.$executeRawUnsafe(`DROP FUNCTION f_intrusa()`),
   },
-  { id: 'trava_concorrente', esperado: /55P03|lock timeout|canceling statement due to lock timeout/i, impressao: 'certa', trava: true },
+  // 55P03 no LOCK da própria guarda (não em outro ponto): a sessão concorrente segura a tabela e o runner desiste em 5 s.
+  {
+    id: 'trava_concorrente',
+    esperado: /55P03[\s\S]*canceling statement due to lock timeout[\s\S]*LOCK TABLE public\.\\?"TipoTarefa\\?" IN ACCESS EXCLUSIVE MODE/,
+    impressao: 'certa',
+    trava: true,
+  },
 ]);
 
 /** A sessão concorrente do cenário da trava: ROW EXCLUSIVE em TipoTarefa até `soltar()`. */
@@ -326,7 +332,9 @@ export const rodarCenarioRed = async (cenario, { db, url }) => {
   try {
     const antes = await retrato(db);
     const imp = (await impressao(db)).impressao;
-    const urlRunner = cenario.impressao === 'ausente' ? url : comImpressao(url, cenario.impressao === 'errada' ? IMPRESSAO_ERRADA : imp);
+    // Na trava, a URL NÃO leva lock_timeout: quem tem de desistir em 5 s é o set_config da própria guarda.
+    const opcoesUrl = cenario.trava ? { lockTimeout: null } : {};
+    const urlRunner = cenario.impressao === 'ausente' ? url : comImpressao(url, cenario.impressao === 'errada' ? IMPRESSAO_ERRADA : imp, opcoesUrl);
     // A sessão concorrente segura a trava durante TODA a execução do runner: só é solta depois que ele sai.
     if (cenario.trava) soltar = await segurarTrava(db);
     const r = await aplicarPeloRunner(urlRunner);
@@ -358,7 +366,7 @@ if (ehEntradaDireta()) {
   const { PrismaClient } = await import('@prisma/client');
   const admin = new PrismaClient({ datasourceUrl: base });
   const url = comBanco(base, banco);
-  const relatorio = { banco, preflight: null, red: [], green: null, ok: true };
+  const relatorio = { banco, preflight: null, red: [], runner_sem_autorizacao: null, green: null, ok: true };
   try {
     await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${banco} WITH (FORCE)`);
     await admin.$executeRawUnsafe(`CREATE DATABASE ${banco}`);

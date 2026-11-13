@@ -20,8 +20,8 @@ CONTRACT anterior, reduzido ao que um `DROP COLUMN` numa tabela só precisa.
 | Natureza | **CONTRACT** (segunda exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, registrada na D-PROD-183), numa transação: (1) guarda DO; (2) `ALTER TABLE "TipoTarefa" DROP COLUMN` das 4 colunas, nesta ordem: `exige_area`, `pode_ter_produto`, `pode_ter_maquina`, `pode_ter_implemento` |
 | O que se perde | os valores gravados nas 4 colunas, em **todos** os clientes. Desde a D-PROD-181 ninguém lê nem escreve nelas; os `true` que existirem são do cadastro antigo |
 | O que não muda | nenhuma tabela é criada nem apagada; nenhuma outra tabela é tocada; as 9 colunas que ficam, as linhas, os índices, as FKs (inclusive `LancamentoTarefa → TipoTarefa`), a RLS e as políticas de `TipoTarefa` ficam iguais |
-| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `9a4eb34a1ec7665b9cb49e8870876dfb3e33eb794d86ce1e21c97214e79fb89b` |
-| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `0bf8e022725cf95f04001854f7d00cc8200b8e9165e62fe1845fad9917f11e20` |
+| SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf` |
+| Hash da guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `01392d8f36bdee7d161a258877ff20cb843011698a50cb08a30c37c485d6d91b` |
 | Classificador | `modo: CONTRACT`; 0 tabelas removidas; 0 CHECKs alargados; 4 colunas removidas; `tabelas_novas: []`; `colunas_novas_em_tabelas_antigas: []`; 0 violações |
 | `_prisma_migrations` | antes **41** concluídas / 0 em aberto; depois **42** |
 | Colunas de `TipoTarefa` | antes **13**; depois **9** (`id`, `cliente_id`, `nome_tipo`, `grupo_atividade_id`, `grupo_atividade_nome`, `ativo`, `descricao`, `createdAt`, `updatedAt`) |
@@ -249,7 +249,7 @@ END $alvo$;
 
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-VALUES (gen_random_uuid()::text, '9a4eb34a1ec7665b9cb49e8870876dfb3e33eb794d86ce1e21c97214e79fb89b', now(),
+VALUES (gen_random_uuid()::text, '14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf', now(),
         '20261113200000_tipo_tarefa_drop_colunas', NULL, NULL, now(), 1);
 COMMIT;
 ```
@@ -274,7 +274,7 @@ Qualquer divergência: **não mergear** e chamar o proprietário.
 
 | # | Conferência | Esperado |
 |---|---|---|
-| R1 | `_prisma_migrations` | 42 concluídas, 0 em aberto (+ as revertidas do §5.1, se houve); a nova com o checksum `9a4eb34a…b89b` e `applied_steps_count = 1` |
+| R1 | `_prisma_migrations` | 42 concluídas, 0 em aberto (+ as revertidas do §5.1, se houve); a nova com o checksum `14dcd7ed…c9bf` e `applied_steps_count = 1` |
 | R2 | colunas de `TipoTarefa` (bloco A) | as 9, nesta ordem: `id`, `cliente_id`, `nome_tipo`, `grupo_atividade_id`, `grupo_atividade_nome`, `ativo`, `descricao`, `createdAt`, `updatedAt` |
 | R3 | linhas de `TipoTarefa` | `count(*)` por cliente igual ao de antes |
 | R4 | tabelas em `public` | o mesmo número de antes |

@@ -121,6 +121,7 @@
     "supabasePublicGrantsNativo.test.mjs": 1317,
     "svgEstatico.test.mjs": 176,
     "tarefaCadastroNativo.test.mjs": 1697,
+    "tipoTarefaDropColunasMigration.test.mjs": 35944,
     "transporteNativo.test.mjs": 2518,
     "trocaSenhaInicialS04P2.test.mjs": 8750,
     "unidadeMedidaNativo.test.mjs": 2482,

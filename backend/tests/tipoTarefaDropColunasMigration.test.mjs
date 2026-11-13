@@ -19,7 +19,8 @@
  * 42 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas nessas
  * 9, mesmas tabelas, `migrate diff` vazio e 2ª execução sem pendências. Num
  * banco sem nenhum true, a migration aplica sem impressão; mas uma impressão
- * INFORMADA errada recusa mesmo assim.
+ * INFORMADA errada recusa mesmo assim, e a impressão do vazio informada aplica
+ * (TD-06, o caminho do runbook).
  *
  * As funções são as do ensaio local (`scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`).
  */
@@ -40,6 +41,8 @@ import {
 
 const BANCO = 'maike_tt_drop_teste';
 const BANCO_VAZIO = 'maike_tt_drop_teste_vazio';
+/** Banco sem nenhum true em que o operador informa a impressão do vazio, como manda o runbook (§4.2). */
+const BANCO_VAZIO_INFORMADO = 'maike_tt_drop_teste_vazio_inf';
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
 const TETO_TRAVA_MS = 20_000;
 const ESPACOS = /\s+/g;
@@ -49,6 +52,12 @@ const compararC = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 let URL_T;
 let URL_V;
+let URL_VI;
+/** Nem a URL inteira nem o par usuário:senha podem aparecer na saída. */
+const vazou = (saida, url) => {
+  const u = new URL(url);
+  return saida.includes(url) || (u.password !== '' && saida.includes(`${u.username}:${u.password}@`));
+};
 let db;
 let dbVazio;
 let partida;
@@ -58,8 +67,10 @@ before(async () => {
   const base = exigirUrlLocal(process.env.DATABASE_URL);
   URL_T = comBanco(base, BANCO);
   URL_V = comBanco(base, BANCO_VAZIO);
+  URL_VI = comBanco(base, BANCO_VAZIO_INFORMADO);
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO} WITH (FORCE)`);
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO_VAZIO} WITH (FORCE)`);
+  await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO_VAZIO_INFORMADO} WITH (FORCE)`);
   await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO}`);
   await aplicarMigrationsDaMain(URL_T);
   db = new PrismaClient({ datasourceUrl: URL_T });
@@ -73,6 +84,7 @@ after(async () => {
   const p = getPrismaClient();
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO} WITH (FORCE)`);
   await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO_VAZIO} WITH (FORCE)`);
+  await p.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${BANCO_VAZIO_INFORMADO} WITH (FORCE)`);
   await encerrar();
 });
 
@@ -135,7 +147,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
       assert.equal((await historico(db)).contract_aberta, 0);
       assert.deepEqual(await intrusos(db), [], 'o objeto do cenário foi removido');
       assert.deepEqual(await retrato(db), partida, 'o cenário foi desfeito por inteiro');
-      assert.ok(!r.saida.includes(URL_T), 'a URL nunca aparece na saída');
+      assert.ok(!vazou(r.saida, URL_T), 'a URL nunca aparece na saída');
     });
   }
 
@@ -151,7 +163,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
       assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
       assert.ok(!r.saida.includes('20261110300000_patrimonio_simplifica'), 'a D-PROD-162 já está concluída: só a D-PROD-183 pende');
       assert.match(r.saida, /Nenhuma migration foi executada/);
-      assert.ok(!r.saida.includes(URL_T));
+      assert.ok(!vazou(r.saida, URL_T));
     }
     assert.equal((await historico(db)).total, linhasAntes, 'nenhuma linha nova no histórico');
     assert.deepEqual(await retrato(db), partida);
@@ -163,7 +175,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
     assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`), r.saida);
-    assert.ok(!r.saida.includes(URL_T));
+    assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
     assert.equal(h.concluidas, 42);
@@ -207,8 +219,8 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     // Com o parâmetro informado, ele tem de bater (aqui, com o md5 de vazio): o errado recusa e nada muda.
     const errada = await migrateDeploy(comImpressao(URL_V, IMPRESSAO_ERRADA));
     assert.notEqual(errada.status, 0, errada.saida);
-    assert.match(errada.saida, new RegExp(`D-PROD-183: os valores true das colunas apagadas \\(0 tipos de tarefa\\) não são os aprovados no GO \\(maike\\.tipo_tarefa_flags_impressao = ${IMPRESSAO_ERRADA}\\)`));
-    assert.ok(!errada.saida.includes(URL_V));
+    assert.match(errada.saida, new RegExp(`tipo_tarefa_drop_colunas: os valores true das colunas apagadas \\(0 tipos de tarefa\\) não são os aprovados no GO \\(maike\\.tipo_tarefa_flags_impressao = ${IMPRESSAO_ERRADA}\\)`));
+    assert.ok(!vazou(errada.saida, URL_V));
     assert.deepEqual(await retrato(dbVazio), partidaV);
     assert.equal((await historico(dbVazio)).contract_aberta, 1);
     const resolvida = await resolverRevertida(URL_V);
@@ -227,5 +239,27 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     assert.equal(depois.tabelas, partidaV.tabelas);
     const diff = await migrateDiff(URL_V);
     assert.equal(diff.status, 0, diff.saida);
+  });
+
+  test('TD-06 banco sem nenhum true com a impressão do vazio INFORMADA (o caminho do runbook §4.2): aplica', async () => {
+    const p = getPrismaClient();
+    await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO_VAZIO_INFORMADO}`);
+    await aplicarMigrationsDaMain(URL_VI);
+    const dbVI = new PrismaClient({ datasourceUrl: URL_VI });
+    try {
+      await semear(dbVI, { clientes: 1, apenasFalse: true });
+      const partidaVI = await retrato(dbVI);
+      assert.deepEqual(await impressao(dbVI), { linhas: 0, impressao: IMPRESSAO_VAZIA });
+      const r = await migrateDeploy(comImpressao(URL_VI, IMPRESSAO_VAZIA));
+      assert.equal(r.status, 0, r.saida);
+      assert.ok(!vazou(r.saida, URL_VI));
+      const h = await historico(dbVI);
+      assert.equal(h.concluidas, 42);
+      assert.equal(h.contract_concluida, 1);
+      assert.deepEqual(await colunasTipoTarefa(dbVI), [...COLUNAS_QUE_FICAM]);
+      assert.deepEqual((await retrato(dbVI)).TipoTarefa, partidaVI.TipoTarefa);
+    } finally {
+      await dbVI.$disconnect();
+    }
   });
 });

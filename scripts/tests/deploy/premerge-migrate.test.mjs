@@ -256,7 +256,7 @@ test('B12a (D-PROD-183): a migration CONTRACT classificada SOZINHA, como na rele
   assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
   assert.deepEqual(c.contract, [CONTRACT_T]);
   // O arquivo é o ensaiado (validado à mão no PG 16), byte a byte.
-  assert.equal(sha256(SQL_T), '9a4eb34a1ec7665b9cb49e8870876dfb3e33eb794d86ce1e21c97214e79fb89b');
+  assert.equal(sha256(SQL_T), '14dcd7ed0289a571cc567ca44d54e5a50d26aacad593cc89d7dd2f6249eec9bf');
   assert.equal(MIGRATIONS_APROVADAS[NOME_T], sha256(SQL_T));
 });
 
@@ -265,7 +265,7 @@ test('B12b (D-PROD-183): a entrada de MIGRATIONS_CONTRACT_APROVADAS é congelada
   assert.ok(NOME_T in MIGRATIONS_APROVADAS, 'quem é CONTRACT também está no manifesto (checksum pinado)');
   for (const o of [k, k.drop, k.literais_guarda, k.alter_antigas]) assert.equal(Object.isFrozen(o), true);
   assert.equal(k.decisao, 'D-PROD-183');
-  assert.equal(k.guarda_sha256, '0bf8e022725cf95f04001854f7d00cc8200b8e9165e62fe1845fad9917f11e20');
+  assert.equal(k.guarda_sha256, '01392d8f36bdee7d161a258877ff20cb843011698a50cb08a30c37c485d6d91b');
   assert.deepEqual(k.drop, []);
   assert.deepEqual(k.literais_guarda, ['TipoTarefa']);
   assert.deepEqual(k.alter_antigas, [
@@ -391,9 +391,13 @@ test('B12h (D-PROD-183): contractsPendentes com as duas CONTRACT locais — a D-
 test('B12i (D-PROD-183): envDoDeployMigrate — MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183 só com a D-PROD-183 sozinha e --contract D-PROD-183; a decisão da D-PROD-162 ou as duas CONTRACT juntas não autorizam', () => {
   const comT = classificarMigrations([ler(NOME_T)]);
   const duas = classificarMigrations([ler(NOME_C), ler(NOME_T)]);
-  const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' };
-  const a = envDoDeployMigrate({ env: base, classificacao: comT, autorizacao: 'D-PROD-183' });
+  // Positivo com base 'herdado': prova que a função GRAVA a decisão (não só deixa passar o valor herdado).
+  const herdado = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'herdado' };
+  const a = envDoDeployMigrate({ env: herdado, classificacao: comT, autorizacao: 'D-PROD-183' });
   assert.equal(a.MIGRATION_CONTRACT_AUTORIZADO, 'D-PROD-183');
+  assert.equal(herdado.MIGRATION_CONTRACT_AUTORIZADO, 'herdado', 'o ambiente do runner não é mutado');
+  // Negativos com base JÁ igual à decisão: prova que ela nunca é herdada.
+  const base = { PATH: '/bin', MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-183' };
   assert.equal(a.MIGRATION_EXIGIR_CONFERENCIA, 'sim');
   for (const [classificacao, autorizacao] of [[comT, 'D-PROD-162'], [comT, undefined], [comT, 'd-prod-183'], [duas, 'D-PROD-162'], [duas, 'D-PROD-183']]) {
     const e = envDoDeployMigrate({ env: base, classificacao, autorizacao });

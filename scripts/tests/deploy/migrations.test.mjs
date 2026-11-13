@@ -375,6 +375,12 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
     const sem = await rodarBarreiraContract(remoto(undefined), nenhumaContractConcluida);
     assertRecusa(sem, D162, 'sem variável');
     assert.ok(sem.texto.includes(D183), sem.texto);
+    // Valor composto (a tentativa mais provável de autorizar as duas de uma vez) não autoriza nenhuma.
+    for (const composto of ['D-PROD-162,D-PROD-183', 'D-PROD-162 D-PROD-183', ' D-PROD-183 ']) {
+      const r = await rodarBarreiraContract(remoto(composto), nenhumaContractConcluida);
+      assertRecusa(r, D162, composto);
+      assert.ok(r.texto.includes(D183), `${composto}: a D-PROD-183 também fica sem autorização\n${r.texto}`);
+    }
   });
 
   test('B14-4 D-PROD-183 com linha aberta (finished_at null) ou revertida continua pendente', async () => {

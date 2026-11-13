@@ -6638,7 +6638,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - a lista `CHAVES_LEGADAS_IGNORADAS` de `tipoTarefaRoutes.js`, que aceita e ignora as 4 chaves no corpo HTTP sem tocar o banco (D-PROD-181 item 2).
 
    A lista **fica**: remover a tolerância a cliente antigo é outra decisão, de contrato HTTP.
-9. **Fora do escopo:** `ApontamentoAtividade` (Fatia C), `AbastecimentoBem`, `LancamentoTarefa`, reintroduzir as flags em qualquer lugar e trabalho visual.
+9. **Número da decisão fora do `migration.sql`.** As mensagens da guarda começam com `tipo_tarefa_drop_colunas:`, e o cabeçalho do arquivo não cita o número desta decisão. Motivo: a PR #260 (rascunho, Estoque P1-02, sem migration) também registrou uma D-PROD-183, e pela convenção quem entra depois renumera. Com o número fora do arquivo, renumerar esta decisão muda só `decisao`/`--contract` na lib, testes e documentos — nunca o checksum que vai para `_prisma_migrations`. Isso vale inclusive depois de aplicada.
+10. **Fora do escopo:** `ApontamentoAtividade` (Fatia C), `AbastecimentoBem`, `LancamentoTarefa`, reintroduzir as flags em qualquer lugar e trabalho visual.
 
 **Testes.**
 - `backend/tests/tipoTarefaDropColunasMigration.test.mjs` (PostgreSQL real, banco próprio), com as funções de `scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`:
@@ -6646,7 +6647,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
   - o runner com a conferência de alvo sem a decisão recusa antes de qualquer DDL;
   - GREEN pelo runner oficial: 42/0, 9 colunas, linhas idênticas e `migrate diff` vazio;
   - 2ª execução sem pendências;
-  - banco sem nenhum `true` aplica sem impressão.
+  - banco sem nenhum `true` aplica sem impressão e com a impressão do vazio informada; informada errada, recusa.
 - `scripts/tests/deploy/premerge-migrate.test.mjs`: classificador, conteúdo pinado, variações recusadas, isolamento, `contractsPendentes`, `envDoDeployMigrate` e o runner real sobre a release isolada.
 - `scripts/tests/deploy/migrations.test.mjs`: a barreira do runner com as duas CONTRACT.
 - `backend/tests/patrimonioSimplificaMigration.test.mjs` passa a partir de 41 migrations (a da D-PROD-183 entra no "todas menos a CONTRACT dele").

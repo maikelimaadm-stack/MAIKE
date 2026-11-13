@@ -93,15 +93,17 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * pode_ter_implemento) e, com algum valor true nelas, exige a impressão
  * aprovada no GO (maike.tipo_tarefa_flags_impressao). A CI nasce vazia e não é
  * afetada; um banco LOCAL com TipoTarefa de rodadas antigas com flags true é.
- * O remédio é o mesmo: recriar o banco local.
+ * As mensagens dessa guarda começam com `tipo_tarefa_drop_colunas:` (o número
+ * da decisão fica fora do migration.sql). O remédio é o mesmo: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
   'recrie-o (docker compose down -v && npm run db:up, que apaga o volume LOCAL do docker-compose; ' +
   'ou dropdb/createdb do banco de teste) e rode de novo. ' +
-  'Se cita D-PROD-183, o banco local tem TipoTarefa de rodadas antigas com alguma das 4 flags ' +
-  '(exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento) em true e a guarda exige a ' +
-  'impressão aprovada no GO: recriar o banco local, do mesmo jeito, resolve.';
+  'Se cita tipo_tarefa_drop_colunas (a CONTRACT da D-PROD-183), o mais provável é o banco local ter TipoTarefa ' +
+  'de rodadas antigas com alguma das 4 flags (exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento) ' +
+  'em true, e a guarda exigir a impressão aprovada no GO; a mensagem da guarda diz o motivo exato. ' +
+  'Recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))
