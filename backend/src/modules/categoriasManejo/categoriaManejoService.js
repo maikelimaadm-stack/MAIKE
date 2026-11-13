@@ -8,6 +8,11 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirCategoriaVisualLoteVinculavel } from '../catalogoGlobal/catalogoValidacao.js';
 import {
+  FAIXAS_IDADE_CATEGORIA_MANEJO,
+  faixaIdadeDaLista,
+  sexoOficial,
+} from '../movimentacoesMapa/categoriaOficialDerivada.js';
+import {
   listarRegistros,
   buscarRegistro,
   inserirRegistro,
@@ -68,12 +73,15 @@ const CAMPOS_IDADE = /** @type {const} */ (['idade_minima_meses', 'idade_maxima_
 /** Teto do INT4 do Postgres: acima disso o Prisma estouraria (500). */
 const IDADE_MAXIMA_ACEITA = 2_147_483_647;
 
+/** Rótulos das cinco faixas aceitas, para a mensagem de erro. */
+const FAIXAS_ACEITAS = FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => f.rotulo).join(', ');
+
 /**
  * @param {string} campo
  * @param {string} reason
  * @param {string} mensagem
  */
-const idadeInvalida = (campo, reason, mensagem) =>
+const campoInvalido = (campo, reason, mensagem) =>
   new AppError('REQUEST_VALIDATION_FAILED', mensagem, { details: { entidade: ENTIDADE, field: campo, reason } });
 
 /**
@@ -89,41 +97,73 @@ const normalizarIdade = (campo, valor) => {
     const limpo = valor.trim();
     if (limpo === '') return null;
     if (!/^\d+$/.test(limpo)) {
-      throw idadeInvalida(campo, 'inteiro_nao_negativo', `${campo} deve ser um número inteiro de meses, maior ou igual a zero`);
+      throw campoInvalido(campo, 'inteiro_nao_negativo', `${campo} deve ser um número inteiro de meses, maior ou igual a zero`);
     }
     valor = Number(limpo);
   }
   if (typeof valor !== 'number' || !Number.isInteger(valor) || valor < 0 || valor > IDADE_MAXIMA_ACEITA) {
-    throw idadeInvalida(campo, 'inteiro_nao_negativo', `${campo} deve ser um número inteiro de meses, maior ou igual a zero`);
+    throw campoInvalido(campo, 'inteiro_nao_negativo', `${campo} deve ser um número inteiro de meses, maior ou igual a zero`);
   }
   return valor;
 };
 
+/** @param {Record<string, unknown>} obj @param {string} campo */
+const tem = (obj, campo) => Object.prototype.hasOwnProperty.call(obj, campo);
+
 /**
- * Idades opcionais; com as duas presentes, mínima ≤ máxima. Na edição, o lado
- * não enviado é o valor já gravado.
+ * Faixa de idade (decisão do proprietário, 2026-11-13): o par
+ * (`idade_minima_meses`, `idade_maxima_meses`) é EXATAMENTE uma das cinco
+ * faixas fixas de `FAIXAS_IDADE_CATEGORIA_MANEJO`.
+ *  - POST: obrigatória (`faixa_obrigatoria` sem nenhuma das duas; senão
+ *    `faixa_fora_da_lista`).
+ *  - PATCH: só quando o corpo traz alguma das duas chaves; o lado não enviado
+ *    é o valor já gravado. Corpo sem chave de idade NUNCA é recusado por causa
+ *    do par legado gravado (mesmo invertido ou fora da lista).
  * @param {Record<string, unknown>} dados
- * @param {Record<string, unknown> | null} [existente]
+ * @param {Record<string, unknown> | null} existente `null` no POST
  * @returns {Record<string, unknown>}
  */
-const validarIdades = (dados, existente = null) => {
+const validarFaixaIdade = (dados, existente) => {
+  const enviou = CAMPOS_IDADE.some((campo) => tem(dados, campo));
+  if (existente && !enviou) return dados;
   const saida = { ...dados };
   for (const campo of CAMPOS_IDADE) {
-    if (Object.prototype.hasOwnProperty.call(saida, campo)) saida[campo] = normalizarIdade(campo, saida[campo]);
+    if (tem(saida, campo)) saida[campo] = normalizarIdade(campo, saida[campo]);
   }
   /** @param {string} campo */
-  const efetivo = (campo) =>
-    Object.prototype.hasOwnProperty.call(saida, campo) ? saida[campo] : (existente?.[campo] ?? null);
+  const efetivo = (campo) => (tem(saida, campo) ? saida[campo] : (existente?.[campo] ?? null));
   const minima = efetivo('idade_minima_meses');
   const maxima = efetivo('idade_maxima_meses');
-  if (typeof minima === 'number' && typeof maxima === 'number' && minima > maxima) {
-    throw idadeInvalida(
-      'idade_minima_meses',
-      'idade_minima_maior_que_maxima',
-      'a idade mínima não pode ser maior que a idade máxima'
-    );
+  if (!existente && minima === null && maxima === null) {
+    throw campoInvalido('idade_minima_meses', 'faixa_obrigatoria', `a faixa de idade é obrigatória: ${FAIXAS_ACEITAS}`);
+  }
+  if (!faixaIdadeDaLista(minima, maxima)) {
+    throw campoInvalido('idade_minima_meses', 'faixa_fora_da_lista', `a faixa de idade deve ser uma destas: ${FAIXAS_ACEITAS}`);
   }
   return saida;
+};
+
+/** Grafia gravada de cada sexo aceito. */
+const SEXO_GRAVADO = Object.freeze({ MACHO: 'Macho', FEMEA: 'Fêmea' });
+
+/**
+ * Sexo (decisão do proprietário, 2026-11-13): Macho ou Fêmea, gravado nessa
+ * grafia ('MACHO', 'femea' etc. são aceitos e normalizados).
+ *  - POST: obrigatório.
+ *  - PATCH: só quando o corpo traz `sexo`; aí não pode ser vazio nem outro valor.
+ * @param {Record<string, unknown>} dados
+ * @param {boolean} criando
+ * @returns {Record<string, unknown>}
+ */
+const validarSexo = (dados, criando) => {
+  if (!criando && !tem(dados, 'sexo')) return dados;
+  const valor = dados.sexo;
+  if (valor === undefined || valor === null || (typeof valor === 'string' && valor.trim() === '')) {
+    throw campoInvalido('sexo', 'sexo_obrigatorio', 'o sexo é obrigatório: Macho ou Fêmea');
+  }
+  const sexo = typeof valor === 'string' ? sexoOficial(valor) : null;
+  if (!sexo) throw campoInvalido('sexo', 'sexo_invalido', 'o sexo deve ser Macho ou Fêmea');
+  return { ...dados, sexo: SEXO_GRAVADO[sexo] };
 };
 
 const CAMPO_VINCULO = 'catalogo_categoria_visual_id';
@@ -187,7 +227,10 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = await validarVinculoCatalogo(tx, { ...validarIdades(colunasDoCorpo(entrada)), cliente_id: auth.clienteId });
+    const dados = await validarVinculoCatalogo(tx, {
+      ...validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null),
+      cliente_id: auth.clienteId,
+    });
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -206,7 +249,11 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const dados = await validarVinculoCatalogo(tx, validarIdades(colunasDoCorpo(entrada), existente), existente);
+    const dados = await validarVinculoCatalogo(
+      tx,
+      validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente),
+      existente
+    );
     // Corpo só com chaves legadas (ou só ecos do servidor): nada a gravar.
     // Mesmo desenho da D-PROD-181 — não toca a linha (nem `updatedAt`) e a
     // auditoria registra a edição com antes = depois.

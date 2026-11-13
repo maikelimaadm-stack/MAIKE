@@ -1,5 +1,6 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { rotuloFaixaIdade } from "@/domain/lotes/categoriaOficialDerivada";
 
 export const CATEGORIAS_MANEJO_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
@@ -13,10 +14,8 @@ export function getCategoriaManejoFieldValue(item, colunaId) {
   if (colunaId === "nome") return item.nome || "";
   if (colunaId === "sigla") return item.sigla || "";
   if (colunaId === "sexo") return item.sexo || "";
-  if (colunaId === "idade") {
-    if (!item.idade_minima_meses && !item.idade_maxima_meses) return "";
-    return `${item.idade_minima_meses || 0} - ${item.idade_maxima_meses || "∞"} meses`;
-  }
+  // Rótulo da faixa fixa ("25 a 36 meses"); par legado fora da lista → "X a Y meses". Grade e CSV.
+  if (colunaId === "idade") return rotuloFaixaIdade(item);
   if (colunaId === "especie") return item.especie || "";
   return "";
 }

@@ -78,3 +78,51 @@ export const derivaCategoriaOficial = (categoria, oficial) => {
   const derivada = categoriaOficialDaCategoriaManejo(categoria);
   return derivada !== null && semAcento(derivada) === semAcento(oficial);
 };
+
+/**
+ * Faixas de idade FIXAS do cadastro de Categoria de Manejo (decisão do
+ * proprietário, 2026-11-13). O formulário oferece só estas cinco; o par
+ * (`idade_minima_meses`, `idade_maxima_meses`) gravado é exatamente o de uma
+ * delas (sem migration: as colunas são as mesmas). Toda faixa cabe inteira
+ * numa faixa oficial (0–8 e 9–12 → 0–12). Espelhada no frontend em
+ * `src/domain/lotes/categoriaOficialDerivada.js` (smoke de paridade).
+ */
+export const FAIXAS_IDADE_CATEGORIA_MANEJO = Object.freeze([
+  Object.freeze({ rotulo: '0 a 8 meses', idade_minima_meses: 0, idade_maxima_meses: 8 }),
+  Object.freeze({ rotulo: '9 a 12 meses', idade_minima_meses: 9, idade_maxima_meses: 12 }),
+  Object.freeze({ rotulo: '13 a 24 meses', idade_minima_meses: 13, idade_maxima_meses: 24 }),
+  Object.freeze({ rotulo: '25 a 36 meses', idade_minima_meses: 25, idade_maxima_meses: 36 }),
+  Object.freeze({ rotulo: 'Maior que 36 meses', idade_minima_meses: 37, idade_maxima_meses: null }),
+]);
+
+/**
+ * A faixa da lista fixa com EXATAMENTE este par (mínima, máxima), ou `null`.
+ * Ausente (null/undefined/'') conta como `null`; valor inválido nunca casa.
+ * @param {unknown} minima
+ * @param {unknown} maxima
+ */
+export const faixaIdadeDaLista = (minima, maxima) => {
+  const min = mesesDe(minima);
+  const max = mesesDe(maxima);
+  if (Number.isNaN(min) || Number.isNaN(max)) return null;
+  return (
+    FAIXAS_IDADE_CATEGORIA_MANEJO.find(
+      (f) => f.idade_minima_meses === (min ?? null) && f.idade_maxima_meses === (max ?? null)
+    ) ?? null
+  );
+};
+
+/**
+ * A faixa GRAVADA na categoria contém esta idade (meses)? Mínima ausente vale
+ * 0; máxima ausente = sem teto; sem nenhuma das duas, ou com valor inválido,
+ * nunca contém.
+ * @param {{ idade_minima_meses?: unknown, idade_maxima_meses?: unknown } | null | undefined} categoria
+ * @param {number} idadeMeses
+ */
+export const faixaContemIdade = (categoria, idadeMeses) => {
+  const min = mesesDe(categoria?.idade_minima_meses);
+  const max = mesesDe(categoria?.idade_maxima_meses);
+  if (Number.isNaN(min) || Number.isNaN(max)) return false;
+  if (min === undefined && max === undefined) return false;
+  return idadeMeses >= (min ?? 0) && (max === undefined || idadeMeses <= max);
+};

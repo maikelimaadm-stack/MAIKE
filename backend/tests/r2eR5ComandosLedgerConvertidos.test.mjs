@@ -294,6 +294,31 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     assert.ok(ps[0].peso_medio_kg === null || Number(ps[0].peso_medio_kg) === 80, `peso desconhecido nunca vira zero na média: ${ps[0].peso_medio_kg}`);
   });
 
+  test('R2b: nascimento com "Macho 0 a 8" e "Macho 9 a 12" ativas (as duas derivam Bezerro 0 a 12) → o bezerro vai para 0 a 8 pela idade 0; sem a 0 a 8, cai na única que sobra', async () => {
+    const c = await cenario();
+    const BEZERRO = 'Bezerro 0 a 12 meses';
+    const cm = (nome, idade_minima_meses, idade_maxima_meses) =>
+      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, sexo: 'Macho', idade_minima_meses, idade_maxima_meses, ativo: true } });
+    const de0a8 = await cm('BEZERRO 0 A 8 MESES', 0, 8);
+    await cm('BEZERRO 9 A 12 MESES', 9, 12);
+    const n = await rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 3 }]);
+    assert.equal(n.statusCode, 201, n.body);
+    const nascidos = await prisma().posicaoRebanho.findMany({ where: { cliente_id: c.cliente.id, categoria: BEZERRO } });
+    assert.equal(nascidos.length, 1);
+    assert.deepEqual([nascidos[0].categoria_manejo_id, nascidos[0].categoria_manejo_nome], [de0a8.id, 'BEZERRO 0 A 8 MESES']);
+    // Duas ativas que CONTÊM a idade 0 e derivam a mesma oficial → continua ambíguo (o formulário escolhe).
+    const outra = await cm('BEZERRO DESMAMA', 0, 12);
+    await exigirNadaGravado(c, () => rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 1 }], { data_movimentacao: '2026-11-03' }), 409, 'MANEJO_CATEGORIA_AMBIGUA');
+    await prisma().categoriaManejo.update({ where: { id: outra.id }, data: { ativo: false } });
+    // Nenhuma ativa contém a idade 0 (só a 9 a 12 sobra): sem categoria de manejo, sem erro.
+    await prisma().categoriaManejo.update({ where: { id: de0a8.id }, data: { ativo: false } });
+    await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome: 'BEZERRO 6 A 12', sexo: 'Macho', idade_minima_meses: 6, idade_maxima_meses: 12, ativo: true } });
+    const m = await rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 2 }], { data_movimentacao: '2026-11-04' });
+    assert.equal(m.statusCode, 201, m.body);
+    const semManejo = await prisma().posicaoRebanho.findMany({ where: { cliente_id: c.cliente.id, categoria: BEZERRO, categoria_manejo_id: null } });
+    assert.equal(semManejo.length, 1, 'duas candidatas, nenhuma contém a idade 0 → sem categoria de manejo');
+  });
+
   test('R3: pesagem muda peso e nunca cabeças; categoria informada divergente da posição → 409; posição de outra área → 404; nada gravado', async () => {
     const c = await cenario();
     const b1 = await pos(c, c.bois1);

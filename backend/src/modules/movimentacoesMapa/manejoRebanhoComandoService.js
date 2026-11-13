@@ -19,7 +19,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { exigirEmpresaNoLedger, rebanhoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
-import { FAIXAS_CATEGORIA_OFICIAL, derivaCategoriaOficial } from './categoriaOficialDerivada.js';
+import { FAIXAS_CATEGORIA_OFICIAL, derivaCategoriaOficial, faixaContemIdade } from './categoriaOficialDerivada.js';
 
 export const COMANDO_REBANHO = 'manejo_mapa_rebanho';
 export const TIPO_OPERACAO_REBANHO = 'manejo_mapa_rebanho';
@@ -167,12 +167,16 @@ export const lerEntradaRebanho = (entrada) => {
  * dentro de uma única faixa oficial não deriva nada e nunca casa.
  *
  * Com id: precisa existir, estar ativa e derivar ESSA oficial, senão 409
- * `MANEJO_CATEGORIA_INVALIDA`. Sem id: as ativas da empresa que derivam essa
- * oficial; nenhuma → sem categoria de manejo (null); mais de uma → 409
- * `MANEJO_CATEGORIA_AMBIGUA` — o formulário precisa escolher (não se adivinha).
+ * `MANEJO_CATEGORIA_INVALIDA` (a dica de idade não é usada). Sem id: as ativas
+ * da empresa que derivam essa oficial; com mais de uma e uma dica de idade
+ * (`idadeMeses`, ex.: 0 no Nascimento), ficam só as cuja faixa GRAVADA contém
+ * essa idade ("Macho 0 a 8" e "Macho 9 a 12" derivam Bezerro 0 a 12; o
+ * bezerro recém-nascido vai para 0 a 8). Então: nenhuma → sem categoria de
+ * manejo (null); uma → ela; mais de uma → 409 `MANEJO_CATEGORIA_AMBIGUA` — o
+ * formulário precisa escolher (não se adivinha).
  */
 const COLUNAS_DERIVACAO = Object.freeze({ id: true, nome: true, sexo: true, idade_minima_meses: true, idade_maxima_meses: true });
-const resolverCategoriaManejo = async (tx, clienteId, empresaId, oficial, idPedido) => {
+const resolverCategoriaManejo = async (tx, clienteId, empresaId, oficial, idPedido, idadeMeses = null) => {
   if (idPedido) {
     const c = await tx.categoriaManejo.findFirst({
       where: { cliente_id: clienteId, empresa_id: empresaId, id: idPedido, ativo: true },
@@ -184,7 +188,10 @@ const resolverCategoriaManejo = async (tx, clienteId, empresaId, oficial, idPedi
     return c;
   }
   const ativas = await tx.categoriaManejo.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true }, select: COLUNAS_DERIVACAO });
-  const candidatas = ativas.filter((c) => derivaCategoriaOficial(c, oficial));
+  let candidatas = ativas.filter((c) => derivaCategoriaOficial(c, oficial));
+  if (candidatas.length > 1 && Number.isInteger(idadeMeses)) {
+    candidatas = candidatas.filter((c) => faixaContemIdade(c, /** @type {number} */ (idadeMeses)));
+  }
   if (candidatas.length > 1) {
     throw recusa('MANEJO_CATEGORIA_AMBIGUA', 'há mais de uma categoria de manejo ativa para esta categoria; escolha uma', { categoria: oficial });
   }

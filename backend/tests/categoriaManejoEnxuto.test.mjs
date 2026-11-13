@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { CHAVES_LEGADAS_IGNORADAS } from '../src/modules/categoriasManejo/categoriaManejoService.js';
+import { FAIXAS_IDADE_CATEGORIA_MANEJO } from '../src/modules/movimentacoesMapa/categoriaOficialDerivada.js';
 import { colunasGravaveis } from '../src/shared/prisma/colunasGravaveis.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
@@ -73,7 +74,25 @@ const LEGADO = Object.freeze({
   ...Object.fromEntries(MESES.map((m, i) => [`gmd_${m}`, String(0.4 + i / 100)])),
 });
 
-const BASE = Object.freeze({ empresa_id: 'emp-1', nome: 'BEZERRO DESMAMA', sigla: 'BD', especie: 'Bovinos', sexo: 'Macho' });
+/** POST válido: sexo e faixa de idade (uma das cinco fixas) são obrigatórios. */
+const BASE = Object.freeze({
+  empresa_id: 'emp-1',
+  nome: 'BEZERRO DESMAMA',
+  sigla: 'BD',
+  especie: 'Bovinos',
+  sexo: 'Macho',
+  idade_minima_meses: 0,
+  idade_maxima_meses: 8,
+});
+
+/** As cinco faixas fixas (decisão do proprietário, 2026-11-13). */
+const FAIXAS = [
+  [0, 8],
+  [9, 12],
+  [13, 24],
+  [25, 36],
+  [37, null],
+];
 
 const criar = (token, payload) =>
   app.inject({ method: 'POST', url: '/categorias-manejo', headers: auth(token), payload });
@@ -131,14 +150,14 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
 
   test('E-01 POST com chaves legadas → 201; nada delas é gravado, devolvido ou auditado', async () => {
     const { token } = await tenantComToken();
-    const r = await criar(token, { ...BASE, ...LEGADO, idade_minima_meses: 8, idade_maxima_meses: 12 });
+    const r = await criar(token, { ...BASE, ...LEGADO, idade_minima_meses: 9, idade_maxima_meses: 12 });
     assert.equal(r.statusCode, 201, r.body);
     const corpo = r.json();
     assert.deepEqual(Object.keys(corpo).sort(), CAMPOS_PUBLICOS);
     assertSemLegado(corpo, 'resposta');
     assert.equal(corpo.nome, 'BEZERRO DESMAMA');
     assert.equal(corpo.sexo, 'Macho');
-    assert.equal(corpo.idade_minima_meses, 8);
+    assert.equal(corpo.idade_minima_meses, 9);
     assert.equal(corpo.idade_maxima_meses, 12);
 
     await assertColunasDormentesVazias(corpo.id);
@@ -220,58 +239,154 @@ describe('CategoriaManejo enxuta (D-PROD-185)', () => {
     esperar400(await atualizar(token, id, { raca_padrao: 'X' }));
   });
 
-  test('E-07 idade mínima > máxima → 400 (POST e PATCH), nada gravado', async () => {
-    const { token } = await tenantComToken();
-    const antes = await prisma().categoriaManejo.count();
-    esperar400(await criar(token, { ...BASE, idade_minima_meses: 13, idade_maxima_meses: 12 }), 'idade_minima_maior_que_maxima');
-    assert.equal(await prisma().categoriaManejo.count(), antes);
+  /**
+   * Linha "legada" com faixa INVERTIDA (e sexo fora da lista) gravada direto no
+   * banco: o cadastro novo nunca a criaria, mas produção pode tê-la.
+   */
+  const criarLinhaInvertida = async (clienteId) => {
+    const criada = await prisma().categoriaManejo.create({ data: { cliente_id: clienteId, empresa_id: 'emp-1', nome: 'INVERTIDA' } });
+    await prisma().$executeRaw`UPDATE "CategoriaManejo" SET idade_minima_meses = 24, idade_maxima_meses = 12, sexo = 'Misto' WHERE id = ${criada.id}`;
+    return criada;
+  };
 
-    const id = (await criar(token, { ...BASE, idade_minima_meses: 6, idade_maxima_meses: 12 })).json().id;
-    // Só um lado enviado: compara com o valor já gravado.
-    esperar400(await atualizar(token, id, { idade_minima_meses: 13 }), 'idade_minima_maior_que_maxima');
-    esperar400(await atualizar(token, id, { idade_maxima_meses: 5 }), 'idade_minima_maior_que_maxima');
-    const gravada = await linha(id);
-    assert.equal(gravada.idade_minima_meses, 6);
-    assert.equal(gravada.idade_maxima_meses, 12);
+  test('E-07 a lista fixa tem exatamente as cinco faixas, cada uma dentro de uma faixa oficial', () => {
+    assert.deepEqual(
+      FAIXAS_IDADE_CATEGORIA_MANEJO.map((f) => [f.rotulo, f.idade_minima_meses, f.idade_maxima_meses]),
+      [
+        ['0 a 8 meses', 0, 8],
+        ['9 a 12 meses', 9, 12],
+        ['13 a 24 meses', 13, 24],
+        ['25 a 36 meses', 25, 36],
+        ['Maior que 36 meses', 37, null],
+      ]
+    );
+    assert.equal(Object.isFrozen(FAIXAS_IDADE_CATEGORIA_MANEJO), true);
   });
 
-  test('E-08 idade mínima ≤ máxima é aceita; texto só com dígitos vira inteiro', async () => {
+  test('E-08 POST: cada uma das cinco faixas → 201 com o par gravado; texto só com dígitos vira inteiro', async () => {
     const { token } = await tenantComToken();
-    let r = await criar(token, { ...BASE, idade_minima_meses: 12, idade_maxima_meses: 12 });
-    assert.equal(r.statusCode, 201, r.body);
-    r = await criar(token, { ...BASE, idade_minima_meses: '0', idade_maxima_meses: ' 24 ' });
-    assert.equal(r.statusCode, 201, r.body);
-    assert.equal(r.json().idade_minima_meses, 0);
-    assert.equal(r.json().idade_maxima_meses, 24);
-
-    const id = r.json().id;
-    r = await atualizar(token, id, { idade_minima_meses: 24 });
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().idade_minima_meses, 24);
-  });
-
-  test('E-09 idades nulas, vazias ou ausentes são aceitas; limpar um lado libera o outro', async () => {
-    const { token } = await tenantComToken();
-    for (const extra of [{}, { idade_minima_meses: null, idade_maxima_meses: null }, { idade_minima_meses: '', idade_maxima_meses: '' }]) {
-      const r = await criar(token, { ...BASE, ...extra });
+    for (const [minima, maxima] of FAIXAS) {
+      const r = await criar(token, { ...BASE, idade_minima_meses: minima, idade_maxima_meses: maxima });
       assert.equal(r.statusCode, 201, r.body);
-      assert.equal(r.json().idade_minima_meses, null);
-      assert.equal(r.json().idade_maxima_meses, null);
+      assert.deepEqual([r.json().idade_minima_meses, r.json().idade_maxima_meses], [minima, maxima]);
+      assert.deepEqual([(await linha(r.json().id)).idade_minima_meses, (await linha(r.json().id)).idade_maxima_meses], [minima, maxima]);
     }
-    const id = (await criar(token, { ...BASE, idade_minima_meses: 6, idade_maxima_meses: 12 })).json().id;
-    let r = await atualizar(token, id, { idade_maxima_meses: null });
-    assert.equal(r.statusCode, 200, r.body);
-    assert.equal(r.json().idade_maxima_meses, null);
-    r = await atualizar(token, id, { idade_minima_meses: 40 });
-    assert.equal(r.statusCode, 200, r.body, 'sem máxima, qualquer mínima vale');
+    const r = await criar(token, { ...BASE, idade_minima_meses: ' 13 ', idade_maxima_meses: '24' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().idade_minima_meses, r.json().idade_maxima_meses], [13, 24]);
+    // 37 sem máxima: a máxima ausente conta como null.
+    const semMaxima = await criar(token, { ...BASE, idade_minima_meses: 37, idade_maxima_meses: undefined });
+    assert.equal(semMaxima.statusCode, 201, semMaxima.body);
+    assert.equal(semMaxima.json().idade_maxima_meses, null);
   });
 
-  test('E-10 idade negativa, fracionária ou não numérica → 400', async () => {
+  test('E-09 POST: par fora da lista (10–20, 24–12, 0–12, 37–120, 13–null) ou sem faixa → 400; nada gravado', async () => {
+    const { token } = await tenantComToken();
+    for (const [minima, maxima] of [[10, 20], [24, 12], [0, 12], [37, 120], [13, null], [null, 8], [0, 9]]) {
+      const r = await criar(token, { ...BASE, idade_minima_meses: minima, idade_maxima_meses: maxima });
+      esperar400(r, 'faixa_fora_da_lista');
+      assert.equal(r.json().field, 'idade_minima_meses');
+    }
+    for (const extra of [
+      { idade_minima_meses: undefined, idade_maxima_meses: undefined },
+      { idade_minima_meses: null, idade_maxima_meses: null },
+      { idade_minima_meses: '', idade_maxima_meses: '' },
+    ]) {
+      esperar400(await criar(token, { ...BASE, ...extra }), 'faixa_obrigatoria');
+    }
+    assert.equal(await prisma().categoriaManejo.count(), 0);
+  });
+
+  test('E-10 POST: sem sexo (ausente, null, vazio) → 400 sexo_obrigatorio; outro valor → 400 sexo_invalido; grafia normalizada', async () => {
+    const { token } = await tenantComToken();
+    const { sexo: _sexo, ...semSexo } = BASE;
+    void _sexo;
+    for (const corpo of [semSexo, { ...BASE, sexo: null }, { ...BASE, sexo: '  ' }]) {
+      const r = await criar(token, corpo);
+      esperar400(r, 'sexo_obrigatorio');
+      assert.equal(r.json().field, 'sexo');
+    }
+    for (const sexo of ['Misto', 'M', 1]) esperar400(await criar(token, { ...BASE, sexo }), 'sexo_invalido');
+    assert.equal(await prisma().categoriaManejo.count(), 0);
+    let r = await criar(token, { ...BASE, sexo: 'MACHO' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().sexo, 'Macho');
+    r = await criar(token, { ...BASE, sexo: 'femea' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().sexo, 'Fêmea');
+  });
+
+  test('E-11 idade negativa, fracionária ou não numérica → 400 inteiro_nao_negativo', async () => {
     const { token } = await tenantComToken();
     for (const valor of [-1, 1.5, 'abc', '-3', '1.5', true, {}]) {
       esperar400(await criar(token, { ...BASE, idade_minima_meses: valor }), 'inteiro_nao_negativo');
     }
     esperar400(await criar(token, { ...BASE, idade_maxima_meses: 2 ** 31 }), 'inteiro_nao_negativo');
     assert.equal(await prisma().categoriaManejo.count(), 0);
+  });
+
+  test('E-12 PATCH com um lado só compara com o lado GRAVADO; par efetivo fora da lista → 400 e nada muda', async () => {
+    const { token } = await tenantComToken();
+    const id = (await criar(token, { ...BASE, idade_minima_meses: 13, idade_maxima_meses: 24 })).json().id;
+    // Só a máxima: (13 gravado, 36) não é faixa da lista.
+    esperar400(await atualizar(token, id, { idade_maxima_meses: 36 }), 'faixa_fora_da_lista');
+    esperar400(await atualizar(token, id, { idade_minima_meses: 25 }), 'faixa_fora_da_lista');
+    esperar400(await atualizar(token, id, { idade_maxima_meses: null }), 'faixa_fora_da_lista');
+    let gravada = await linha(id);
+    assert.deepEqual([gravada.idade_minima_meses, gravada.idade_maxima_meses], [13, 24]);
+    // Os dois lados juntos para outra faixa da lista → 200.
+    let r = await atualizar(token, id, { idade_minima_meses: 25, idade_maxima_meses: 36 });
+    assert.equal(r.statusCode, 200, r.body);
+    // Só a máxima, e o par efetivo (25 gravado, 36) é da lista → 200.
+    r = await atualizar(token, id, { idade_maxima_meses: 36 });
+    assert.equal(r.statusCode, 200, r.body);
+    // "Maior que 36": mínima 37 e máxima null.
+    r = await atualizar(token, id, { idade_minima_meses: 37, idade_maxima_meses: null });
+    assert.equal(r.statusCode, 200, r.body);
+    gravada = await linha(id);
+    assert.deepEqual([gravada.idade_minima_meses, gravada.idade_maxima_meses], [37, null]);
+  });
+
+  test('E-13 PATCH com sexo: só Macho/Fêmea; null ou vazio → 400 sexo_obrigatorio', async () => {
+    const { token } = await tenantComToken();
+    const id = (await criar(token, BASE)).json().id;
+    esperar400(await atualizar(token, id, { sexo: null }), 'sexo_obrigatorio');
+    esperar400(await atualizar(token, id, { sexo: '' }), 'sexo_obrigatorio');
+    esperar400(await atualizar(token, id, { sexo: 'Misto' }), 'sexo_invalido');
+    assert.equal((await linha(id)).sexo, 'Macho');
+    const r = await atualizar(token, id, { sexo: 'FÊMEA' });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().sexo, 'Fêmea');
+  });
+
+  test('E-14 linha legada com idades INVERTIDAS e sexo fora da lista: PATCH sem idade nem sexo NUNCA é recusado', async () => {
+    const { cliente, token } = await tenantComToken();
+    const invertida = await criarLinhaInvertida(cliente.id);
+
+    let r = await atualizar(token, invertida.id, { ativo: false });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().ativo, false);
+    r = await atualizar(token, invertida.id, { nome: 'INVERTIDA 2', sigla: 'IV' });
+    assert.equal(r.statusCode, 200, r.body);
+
+    const gravada = await linha(invertida.id);
+    assert.deepEqual(
+      [gravada.ativo, gravada.nome, gravada.idade_minima_meses, gravada.idade_maxima_meses, gravada.sexo],
+      [false, 'INVERTIDA 2', 24, 12, 'Misto'],
+      'par e sexo legados ficam como estavam'
+    );
+  });
+
+  test('E-15 linha legada com idades invertidas: PATCH só com chaves legadas → 200 sem efeito (no-op)', async () => {
+    const { cliente, token } = await tenantComToken();
+    const invertida = await criarLinhaInvertida(cliente.id);
+    const antes = await linha(invertida.id);
+    const r = await atualizar(token, invertida.id, { raca: 'ANGUS', categoria_oficial: 'Garrote', gmd_maio: '0.9' });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual(await linha(invertida.id), antes, 'linha intocada (inclusive updatedAt)');
+    // Mexer na idade de uma linha invertida exige uma faixa da lista: um lado só não basta.
+    esperar400(await atualizar(token, invertida.id, { idade_maxima_meses: 36 }), 'faixa_fora_da_lista');
+    const corrigida = await atualizar(token, invertida.id, { idade_minima_meses: 13, idade_maxima_meses: 24 });
+    assert.equal(corrigida.statusCode, 200, corrigida.body);
   });
 });
