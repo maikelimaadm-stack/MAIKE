@@ -79,7 +79,8 @@ O contrato prevê um índice parcial de expressão por produto no `AuditLog` de 
 | X2 | Keyset: 12 movimentos em 3 instantes (empates), 2 empresas e 2 tenants. Páginas de 1, 3, 5, 12 e 50 encadeadas pelo cursor exclusivo = a lista ordenada inteira, sem repetida nem perdida. Nada de outra empresa ou tenant | passa (a semântica independe do índice) | passa |
 | X3 | Com sort, seqscan e bitmap desligados, o plano é `Index Scan` **Forward** no índice keyset, com `ROW(data_movimentacao, id) <` no `Index Cond` e **sem nó de Sort** | falha | passa |
 | X4 | LC-2 com 3.000 recibos de outros tipos e 20 dos tipos lidos, **sem forçar o plano**: o planejador escolhe o índice novo, com o tipo e o intervalo no `Index Cond` e **0** linhas descartadas. Sem ele (`DROP INDEX` em transação desfeita): o mesmo resultado, 3.000 descartadas, Seq Scan e 129 contra 5 buffers | falha | passa |
-| X5 | O preflight roda numa transação READ ONLY, vê os 2 índices e a migration registrada, 0 inacabadas e 0 inválidos | falha | passa |
+| X5 | O preflight roda numa transação READ ONLY, vê os 2 índices e a migration registrada, 0 falhadas e 0 inválidos, `veredito.estado = JA_APLICADA` | falha | passa |
+| TX-F/T/L e PF (`estoqueP1M7TransacaoMigration`) | Escopo transacional real do `prisma migrate deploy` e preflight em 5 estados (§9) | PF falha com o SQL anterior; TX caracterizam o Prisma | passa |
 
 Regressão local, 129/129 no banco migrado:
 - `estoqueP0*`;
@@ -133,10 +134,44 @@ Não é extrapolação para produção.
 4. **Keyset sem consumidor até a P1-04.** O contrato manda o índice antes da central, e o teste X2/X3 fixa a semântica que a P1-04 tem de usar.
 5. **I2 (P1-02) continua pendente** de decisão do proprietário. Não foi misturado nesta PR.
 
+## 9. R1 corretiva — prova do escopo transacional e preflight fail-closed
+
+**Auditoria:** a afirmação "uma transação só, travas até o COMMIT, falha no 2º índice sem efeito" não podia valer sem prova. A versão anterior deste relatório e do runbook a tratava como fato.
+
+**Ensaio real:**
+- `scripts/dev/ensaio-p1-03-transacao-migration.mjs`, com o teste `backend/tests/estoqueP1M7TransacaoMigration.test.mjs`.
+- `prisma migrate deploy` 6.19.3 (package-lock) em PostgreSQL 17 local e no PG16 da CI.
+- Bancos descartáveis; a URL passa por `motivoAlvoProtegido`, que recusa alvo remoto.
+
+| Prova | Resultado |
+|---|---|
+| Log do servidor (`log_statement = all`) | O `migration.sql` inteiro vai numa **única** mensagem Query, que o PostgreSQL executa como uma transação implícita. `applied_steps_count` e `finished_at` são gravados **depois**, em instruções separadas |
+| TX-F: falha no 2º `CREATE INDEX` | O 1º índice **não** persiste; ledger `failed` (sem `finished_at`, sem `rolled_back_at`, 0 passos); P3018 no deploy seguinte |
+| TX-T: 2º índice esperando trava | O backend do deploy **segura** `ShareLock` na 1ª tabela (concedido), **espera** `ShareLock` na 2ª, com `xact_start = query_start`. O 1º índice fica invisível; INSERT na 1ª tabela bloqueado (55P03 com timeout curto do observador); SELECT livre. Liberada a trava: os 2 índices e o ledger concluído |
+| TX-L: `lock_timeout` nas `options` da URL | O deploy desiste com 55P03, **sem índice**, ledger `failed`. O runner repassa a URL intacta (`run-migrations.mjs:188`) |
+| PF: preflight com as migrations **reais** | Antes → `SEGUIR`; índice criado à mão → `PARAR`; a migration real falhando no 2º índice → nenhum índice, `PARAR`; `resolve --rolled-back` (sandbox) com a causa removida → `SEGUIR`; aplicada → `JA_APLICADA` |
+
+**Conclusão:** o texto anterior estava certo no mérito e agora está provado. Ficam registrados:
+- **o caso não provado:** o processo morrer entre o COMMIT do script e o `UPDATE finished_at`;
+- **o `lock_timeout` pela URL:** recomendado no GO-2, porque sem ele a espera é ilimitada segurando os recibos;
+- **a recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio (runbook §6).
+
+**Preflight corrigido (RED→GREEN):**
+- Ganhou a linha `veredito.estado` (`SEGUIR` / `JA_APLICADA` / `PARAR`).
+- Passou a distinguir `falhadas_pendentes`, que bloqueiam, de `revertidas_historico`, que são informativas. Antes, uma reversão antiga já resolvida teria dado PARAR para sempre.
+- Com o SQL anterior, o teste PF falha (sem veredito).
+
+**Migration:** sem mudança. O comentário já descrevia o comportamento provado, e o SHA continua `5d91e751…28565`.
+
+**Pendências mantidas:**
+- **R2-2** continua pendente, e o M7 segue **parcial**. A ausência não afeta o LC-2, o keyset nem o contrato da P1-04. Adiar a obrigação do contrato (§6.5, "R2-2 → P1-03") é decisão do proprietário: fica sinalizado, não presumido.
+- **I2** continua pendente.
+
 ## 8. Bandeiras
 
 ```
 CODE_READY=depende da CI full verde no HEAD final (ver PR e resposta final)
+TRANSACAO_PROVADA=SIM (ensaio + teste TX-F/T/L e PF; §9)
 MERGE_READY=NÃO   (a ordem com DDL é GO-1 → GO-2 → aplicação → postcheck → merge)
 RELEASE_READY=NÃO (GO-1 e GO-2 não concedidos)
 SCHEMA_APPLIED_LOCAL=SIM (PG17 local: migrate deploy + diff sem drift)

@@ -6710,6 +6710,16 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - Nenhum GO foi concedido.
    - A D-PROD-183 já está aplicada. Se o preflight disser o contrário, PARAR.
 
+**Nota posterior (R1 da PR #263).**
+- **Provado com `prisma migrate deploy` 6.19.3 real** (ensaio `scripts/dev/ensaio-p1-03-transacao-migration.mjs` e teste `estoqueP1M7TransacaoMigration`):
+  - o `migration.sql` vai numa só mensagem e roda como uma transação implícita;
+  - falha no 2º índice não deixa o 1º;
+  - as duas travas `SHARE` ficam até o COMMIT;
+  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito.
+- **Preflight:** ganha `veredito.estado` (fail-closed) e separa falhadas pendentes de revertidas no histórico.
+- **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
+- **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
+
 **Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
 
 <!-- Próxima decisão: D-PROD-186 -->

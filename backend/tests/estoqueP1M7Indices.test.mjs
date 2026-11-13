@@ -208,8 +208,9 @@ describe('X5 — preflight do release (somente leitura)', () => {
     assert.equal(modo, 'on');
     const v = Object.fromEntries(linhas.map((l) => [`${l.secao}.${l.item}`, l.valor]));
     assert.equal(v['indice.novos_ja_existem'], '2', 'no banco de teste a migration já foi aplicada');
-    assert.equal(v['migration.p1_03_ja_registrada'], '1');
-    assert.equal(v['migration.inacabadas_ou_revertidas'], '0');
+    assert.equal(v['migration.p1_03_registrada'], '1');
+    assert.equal(v['migration.falhadas_pendentes'], '0');
+    assert.equal(v['veredito.estado'], 'JA_APLICADA', 'banco migrado: os 2 índices e a migration concluída');
     assert.equal(v['indice.invalidos_nas_2_tabelas'], '0');
     for (const chave of ['tabela.MovimentacaoEstoque.linhas_estimadas', 'tabela.OperacaoIdempotente.tamanho_heap', 'atividade.transacao_aberta_mais_antiga_s', 'config.lock_timeout']) {
       assert.ok(chave in v, `preflight traz ${chave}`);

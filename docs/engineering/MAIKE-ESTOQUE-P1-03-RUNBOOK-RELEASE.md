@@ -15,16 +15,25 @@ Migration `20261113300000_estoque_p1_03_indices`, modo **EXPAND**, SHA-256 `5d91
 | `MovimentacaoEstoque_keyset_empresa_idx` | `MovimentacaoEstoque` | `cliente_id, empresa_id, data_movimentacao DESC, id DESC` | keyset da futura central de movimentos (P1-04) |
 
 - **Sem** tabela, coluna, constraint, dado, função, gatilho, RLS, GRANT ou DROP.
-- **Sem `CONCURRENTLY`.** O classificador não aceita, e o Prisma aplica a migration dentro de transação.
-- **Trava:** o Prisma aplica o arquivo numa **transação só**.
-  - O 1º `CREATE INDEX` toma `SHARE LOCK` em `OperacaoIdempotente`. O 2º toma `SHARE LOCK` em `MovimentacaoEstoque`.
-  - **Os dois só são liberados no COMMIT.** Leituras seguem normalmente. **Escritas nas duas tabelas** esperam até o fim da migration inteira: os **dois builds somados**, mais qualquer espera pela trava da 2ª tabela.
-  - Em `OperacaoIdempotente` isso é **todo** comando idempotente do sistema, de qualquer módulo, porque cada um grava o recibo.
-  - Em `MovimentacaoEstoque` são os lançamentos com estoque, abastecimentos, transferências, suplementação e saída do depósito.
+- **Sem `CONCURRENTLY`.** O classificador não aceita.
+- **Escopo transacional — PROVADO (R1).** O ensaio real é `scripts/dev/ensaio-p1-03-transacao-migration.mjs`, com o teste `backend/tests/estoqueP1M7TransacaoMigration.test.mjs`. Usou `prisma migrate deploy` 6.19.3 (a versão do package-lock), PostgreSQL 17 local e o PG16 da CI.
+  - **Mecanismo:** o log do servidor (`log_statement = all`) mostra o `migration.sql` **inteiro** numa **única** mensagem Query do protocolo simples. O PostgreSQL executa essa mensagem como **uma transação implícita**. O arquivo não tem `BEGIN`/`COMMIT`, nem precisa.
+  - O registro em `_prisma_migrations` (`applied_steps_count`, `finished_at`) vem **depois**, em instruções separadas.
+  - **Falha no 2º `CREATE INDEX` (TX-F):** o 1º índice **não** persiste. A migration fica `failed` em `_prisma_migrations` (sem `finished_at`, sem `rolled_back_at`, 0 passos), e o `migrate deploy` seguinte recusa com P3018.
+  - **Prova com a migration real** (PF): o 2º nome foi ocupado à força num sandbox. O deploy falhou, nenhum dos dois índices ficou, e o ledger ficou `failed`.
+- **Trava — PROVADA (TX-T).** Enquanto o 2º `CREATE INDEX` espera a trava de `MovimentacaoEstoque`, o backend do deploy **segura** `ShareLock` em `OperacaoIdempotente` (concedido) e **espera** `ShareLock` em `MovimentacaoEstoque`. `xact_start = query_start`, ou seja, uma transação desde o início do script.
+  - O 1º índice só fica visível no COMMIT.
+  - Um INSERT em `OperacaoIdempotente` de outra sessão é **bloqueado**. SELECT segue.
+  - Consequência: **escritas nas duas tabelas** esperam até o COMMIT da migration inteira, isto é, os **dois builds somados** mais qualquer espera pela trava da 2ª tabela.
+    - Em `OperacaoIdempotente`, isso é **todo** comando idempotente do sistema, de qualquer módulo, porque cada um grava o recibo.
+    - Em `MovimentacaoEstoque`, são os lançamentos com estoque, abastecimentos, transferências, suplementação e saída do depósito.
 - **Ordem dos dois índices: recibos → movimentos, de propósito.** É a mesma ordem dos comandos, que gravam o recibo (1ª escrita) antes dos movimentos.
   - Na ordem inversa, um comando que já gravou o recibo e espera `MovimentacaoEstoque` fecharia um ciclo com a migration (deadlock).
-  - Nesta ordem, um comando em curso só faz a migration esperar. Ela segue quando o comando termina.
-- **Não há `lock_timeout` dentro da migration**: o classificador não aceita `SET`. Uma transação longa que escreva em `MovimentacaoEstoque` faz a migration esperar segurando `OperacaoIdempotente`. Por isso o preflight mede transações abertas, e a janela precisa ter pouca escrita (§4).
+  - Nesta ordem, um comando em curso só faz a migration esperar.
+- **`lock_timeout` — PROVADO (TX-L).** Não cabe dentro da migration, porque o classificador não aceita `SET`. Funciona nas `options` da URL de conexão da migration, que o runner repassa sem alteração ao `prisma migrate deploy` (`run-migrations.mjs:188`; mesmo recurso do runbook da D-PROD-183).
+  - Com `-c lock_timeout=…`, uma transação longa faz o deploy **desistir** com 55P03.
+  - Desistindo, **nenhum** índice fica e o ledger fica `failed`.
+  - Sem esse `lock_timeout`, o deploy espera **sem limite** segurando os recibos.
 
 ## 1. Caminho
 
@@ -58,15 +67,24 @@ node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar         
 Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura.sql`.
 - É um único SELECT sobre catálogos, sem dado de negócio nem pessoal.
 - Foi validado localmente numa transação READ ONLY pelo teste X5 de `backend/tests/estoqueP1M7Indices.test.mjs`.
+- Também foi testado com as migrations **reais** em cada estado (teste PF de `estoqueP1M7TransacaoMigration.test.mjs`):
+  - antes → `SEGUIR`;
+  - índice parcial criado à mão → `PARAR`;
+  - migration falhada → `PARAR`;
+  - revertida (`resolve --rolled-back`) com a causa removida → `SEGUIR`;
+  - aplicada → `JA_APLICADA`.
+- **A linha que decide é `veredito.estado`.** As demais explicam o porquê.
 
 | Linha | Esperado | Se não for |
 |---|---|---|
 | `indice.novos_ja_existem` | `0` | PARAR: alguém criou à mão; investigar antes de qualquer GO-2 |
 | `indice.invalidos_nas_2_tabelas` | `0` | PARAR |
 | `migration.concluidas` | `42` | PARAR e conferir com `--verificar-alvo` |
-| `migration.inacabadas_ou_revertidas` | `0` | PARAR |
+| `migration.falhadas_pendentes` | `0` | PARAR (migration falhada trava o deploy; §6) |
+| `migration.revertidas_historico` | — | Informativo: reversões antigas já resolvidas não bloqueiam |
 | `migration.contract_d_prod_183_aplicada` | `SIM` | PARAR (isolamento, §1) |
-| `migration.p1_03_ja_registrada` | `0` | PARAR |
+| `migration.p1_03_registrada` | `0` | PARAR (ou `JA_APLICADA` no postcheck) |
+| **`veredito.estado`** | **`SEGUIR`** | **Qualquer outro valor: PARAR** e investigar (§6). `JA_APLICADA` só é esperado no postcheck |
 | `tabela.*.linhas_estimadas`, `tamanho_*` | — | Dimensiona o build (§3.1) |
 | `atividade.*` | baixo / `0` | Escolher outra janela |
 
@@ -85,10 +103,17 @@ A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com de
 
 ## 4. Aplicação (GO-2)
 
-1. A janela deve ter pouca escrita. Repetir as linhas `atividade.*` do preflight imediatamente antes: `transacao_aberta_mais_antiga_s` alta ou `idle_in_transaction` > 0 significam que a migration vai esperar segurando os recibos.
-   - Se a aplicação ficar esperando, cancelar a sessão da migration **ou** a transação que a prende é ação de escrita e exige GO próprio.
-2. `--verificar-alvo` e, sem pendência inesperada, `--aplicar` (§1).
-3. Se o runner falhar: a migration roda em **uma** transação do Prisma, então nada fica pela metade. Ela fica `failed` em `_prisma_migrations`, e o caminho é o da D-PROD-74 (`migrate resolve --rolled-back` só com GO próprio).
+1. **Janela:** pouca escrita. Repetir o preflight imediatamente antes. Só seguir com `veredito.estado = SEGUIR`.
+   - `transacao_aberta_mais_antiga_s` alta ou `idle_in_transaction` > 0 significam que a migration vai esperar segurando os recibos.
+2. **`lock_timeout` na URL da migration** (recomendado; precisa constar do GO-2):
+   - acrescentar `options=-c lock_timeout=5s` (codificado: `options=-c%20lock_timeout%3D5s`) à conexão de migration;
+   - efeito provado no TX-L: com trava presa, o deploy desiste em ~5 s sem deixar índice;
+   - o custo é ficar com a migration `failed`, que exige o §6.
+3. `--verificar-alvo` e, sem pendência inesperada, `--aplicar` (§1).
+4. **Se o runner falhar: PARAR.**
+   - Não repetir `--aplicar`: o deploy recusa com P3018 enquanto houver migration `failed`.
+   - Não rodar `migrate resolve`, `DROP INDEX` nem SQL de correção.
+   - Rodar o preflight (só leitura) e levar a saída ao proprietário (§6).
 
 ## 5. Postcheck (só leitura, antes do merge)
 
@@ -101,16 +126,25 @@ SELECT migration_name, finished_at FROM public._prisma_migrations WHERE migratio
 ```
 
 Esperado:
+- o preflight inteiro com `veredito.estado = JA_APLICADA`;
 - as duas definições iguais às do teste X1;
 - `indisvalid` e `indisready` verdadeiros;
 - a migration com `finished_at`.
 
 Depois disso, o proprietário faz o merge manual.
 
-## 6. Reversão
+## 6. Falha, estado parcial e recuperação (sempre com GO próprio)
 
-- **Índice não muda dado.** Se causar problema (por exemplo, custo de escrita inesperado), a reversão é `DROP INDEX` dos dois. Isso é DDL **destrutivo**, CONTRACT, fora do classificador EXPAND, e exige decisão e GO próprios.
-- **Rollback de código:** este PR só acrescenta índices. O código anterior funciona com eles e sem eles, então não há janela de incompatibilidade.
+| Estado no preflight | Como acontece | O que fazer |
+|---|---|---|
+| `falhadas_pendentes = 1`, nenhum índice novo | Qualquer erro no script: 55P03 do `lock_timeout`, nome ocupado, falta de espaço, sessão cancelada. **Provado: nada fica pela metade** | **PARAR.** Corrigir a causa só com GO e plano próprios. Depois, `prisma migrate resolve --rolled-back 20261113300000_estoque_p1_03_indices` (GO próprio) e nova aplicação (novo GO-2). No sandbox, isso volta a `SEGUIR` e depois `JA_APLICADA` (PF) |
+| Os 2 índices existem e a migration está sem `finished_at` | O processo morre **depois** do COMMIT do script e **antes** do `UPDATE finished_at`. O log mostra que são instruções separadas; o caso **não foi provocado** em teste | **PARAR.** Conferir as definições com o §5. Se exatas, `migrate resolve --applied` com GO próprio. Nunca `DROP` + reaplicar sem decisão |
+| 1 índice novo sem a migration registrada | Criação à mão, fora do runner | **PARAR.** Investigar quem criou. Remoção só por decisão CONTRACT |
+| `contract_d_prod_183_aplicada = NAO` | A CONTRACT D-PROD-183 está pendente | **PARAR** (isolamento, §1) |
+
+- **Nada é automático.** O runner não tenta de novo nem resolve sozinho. Quem executa `migrate resolve` ou qualquer correção é o operador, com GO escrito do proprietário para aquele passo.
+- **Reversão dos índices já aplicados:** `DROP INDEX` dos dois. É DDL **destrutivo** (CONTRACT, fora do EXPAND) e exige decisão e GO próprios. Índice não muda dado.
+- **Rollback de código:** este PR só acrescenta índices. O código anterior funciona com eles e sem eles.
 
 ## 7. Registro da execução
 

@@ -19,8 +19,9 @@
 -- nenhum DML, nenhuma trava de escrita. Não lê linha de negócio nem dado
 -- pessoal: só nomes de objeto, contagens, tamanhos e idades.
 --
--- Resultado: linhas (secao, item, valor, esperado). Leitura no runbook
--- MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md §3.
+-- Resultado: linhas (secao, item, valor, esperado) e a linha final
+-- veredito.estado = SEGUIR | JA_APLICADA | PARAR (fail-closed). Leitura no
+-- runbook MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md §3.
 -- =============================================================================
 WITH
 alvo AS (
@@ -63,7 +64,12 @@ migracoes AS (
   SELECT 'migration', 'concluidas', count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)::text, '42 (a main antes desta PR)'
   FROM public._prisma_migrations
   UNION ALL
-  SELECT 'migration', 'inacabadas_ou_revertidas', count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)::text, '0 (qualquer outro: PARAR)'
+  -- Falhada PENDENTE (o que trava o `migrate deploy`, P3018): sem finished_at e sem rolled_back_at.
+  SELECT 'migration', 'falhadas_pendentes', count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)::text, '0 (qualquer outro: PARAR)'
+  FROM public._prisma_migrations
+  UNION ALL
+  -- Revertidas por `migrate resolve --rolled-back` no passado: histórico, não bloqueiam.
+  SELECT 'migration', 'revertidas_historico', count(*) FILTER (WHERE rolled_back_at IS NOT NULL)::text, 'informativo'
   FROM public._prisma_migrations
   UNION ALL
   SELECT 'migration', 'ultima', (SELECT migration_name FROM public._prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1),
@@ -74,9 +80,37 @@ migracoes AS (
             WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas' AND finished_at IS NOT NULL AND rolled_back_at IS NULL),
          'SIM (com NAO: PARAR — a release desta PR não pode levar a CONTRACT junto)'
   UNION ALL
-  SELECT 'migration', 'p1_03_ja_registrada',
+  SELECT 'migration', 'p1_03_registrada',
          (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices')::text,
          '0'
+),
+-- Veredito único (fail-closed): SEGUIR só no estado "antes" limpo; JA_APLICADA só com os 2 índices e a
+-- migration concluída; qualquer outra combinação (índice parcial ou à mão, migration falhada/revertida,
+-- índice inválido, CONTRACT pendente) → PARAR e investigar, sem `migrate resolve`, DROP ou retry sem GO.
+estado AS (
+  SELECT
+    (SELECT count(*) FROM pg_indexes i WHERE i.schemaname = 'public'
+       AND i.indexname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx')) AS novos,
+    (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
+       WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid) AS invalidos,
+    (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS falhadas,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas'
+       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS contract_ok,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
+       AND rolled_back_at IS NULL) AS p103_vivas,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
+       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS p103_ok
+),
+veredito AS (
+  SELECT 'veredito', 'estado',
+         CASE
+           WHEN e.invalidos > 0 OR e.falhadas > 0 OR e.contract_ok <> 1 THEN 'PARAR'
+           WHEN e.novos = 0 AND e.p103_vivas = 0 THEN 'SEGUIR'
+           WHEN e.novos = 2 AND e.p103_vivas = 1 AND e.p103_ok = 1 THEN 'JA_APLICADA'
+           ELSE 'PARAR'
+         END,
+         'SEGUIR antes do GO-2; JA_APLICADA no postcheck; PARAR: investigar (runbook §6), nada destrutivo sem GO'
+  FROM estado e
 ),
 atividade AS (
   SELECT 'atividade', 'sessoes_com_trava_nas_2_tabelas',
@@ -104,4 +138,5 @@ UNION ALL SELECT * FROM tabelas
 UNION ALL SELECT * FROM indices
 UNION ALL SELECT * FROM migracoes
 UNION ALL SELECT * FROM atividade
-UNION ALL SELECT * FROM config;
+UNION ALL SELECT * FROM config
+UNION ALL SELECT * FROM veredito;
