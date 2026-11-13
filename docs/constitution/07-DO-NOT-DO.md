@@ -99,3 +99,46 @@ Violação exige **rollback**, não flexibilização da regra.
 >   D-PROD-162;
 > - sem decisão própria: manutenção, custo/hora, saldo de tanque e abastecimento em
 >   unidade que não seja `L` nem `KG` (ex.: GNV em m³).
+
+> **Nota (D-PROD-177):** o documento de Entrada de Estoque, nos limites da decisão e da
+> expansão constitucional, é a única exceção à proibição de "criar entrada de estoque
+> avulsa" da nota D-PROD-155. O usuário edita e exclui a entrada; não existe "cancelar"
+> como ação dela. Continua proibido:
+> - lançar estoque pelo Cadastro de Produtos, por CSV, por rota genérica de movimento ou de
+>   lote, ou por qualquer caminho fora do motor de estoque (`estoqueFisicoMotor.js`);
+> - usar a entrada manual como compra, inventário/ajuste, devolução, transferência entre
+>   empresas ou entrada por nota fiscal, ou criar, alterar ou cancelar título, conta a
+>   pagar ou receita a partir dela, inclusive ao editá-la ou excluí-la;
+> - usar doação ou outra causa para registrar saldo antigo (pré-existente); mudar o
+>   motivo de uma entrada;
+> - confirmar ou editar uma entrada manual com o mesmo parceiro e documento de um
+>   lançamento confirmado da Central (a pagar ou a receber) ou de outra entrada
+>   confirmada, e confirmar ou retificar (no lugar ou por substituição) na Central um
+>   lançamento, a pagar ou a receber, com o mesmo parceiro e documento de uma entrada
+>   confirmada;
+> - ter mais de uma implantação ativa por produto e empresa, ou implantar saldo de um
+>   produto que já tenha histórico físico em qualquer local, salvo os fatos de itens de
+>   entrada manual já estornados por edição ou exclusão e, na revisão da própria
+>   implantação, os fatos das linhas vigentes do mesmo documento (corrigir quantidade,
+>   custo, unidade, fator, parceiro ou documento da implantação, no mesmo produto, local e
+>   data, não é implantar de novo);
+> - editar quantidade, custo, unidade, fator, produto, local, data, parceiro ou documento,
+>   incluir ou retirar item, ou excluir uma entrada confirmada quando alguma camada de
+>   algum item dela foi consumida, transferida ou citada por outro fato, mesmo que depois
+>   estornado;
+> - confirmar ou editar uma entrada manual de modo que uma camada nova fique, na fila FIFO
+>   do produto no local, à frente de camada que alguma baixa já tocou, ou sem prova da
+>   posição dela na fila (saída sem rastro que possa ter tocado as camadas posteriores);
+> - liberar a edição ou a exclusão de uma entrada confirmada sem prova de que nenhuma
+>   camada dela foi usada (rastro ilegível, origem legada ou volume acima do limite contam
+>   como falta de prova), ou com o saldo do produto divergente das camadas;
+> - corrigir uma entrada confirmada reescrevendo ou apagando movimento ou camada de estoque
+>   (`UPDATE` de quantidade, custo, data, local, produto ou procedência, ou `DELETE`), em
+>   vez de uma nova revisão pelo motor; recalcular o custo de baixas passadas;
+> - editar ou excluir a entrada confirmada sem motivo, sem autor, sem versão ou sem
+>   registrar os valores antes e depois; estornar camada em parte, excluir o documento em
+>   parte ou restaurar entrada excluída;
+> - conceder a tela ou as ações da entrada a perfis existentes por padrão;
+> - reabrir qualquer nome de `forbiddenDomains` (`config/mapa-manejo-scope.json`), em
+>   especial `MovimentacoesEstoque`, `LancamentoProdutosEstoque`, `RelatoriosEstoque`,
+>   `Relatorios`, `Dashboard` e `Home`.
