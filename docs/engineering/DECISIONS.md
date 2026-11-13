@@ -6259,6 +6259,73 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Cadastro e filtro:** o gerenciador oferece o SVG estático de cocho pelo upload existente, sem salvar automaticamente. Depósitos continuam na camada e no filtro existentes. Sem migration nem cadastro automático em produção.
 - **Validação:** testes de nível vetorial, estoque mínimo, isolamento de produtos em litros, renderização do mapa, compilação, integridade de imports e catraca de tipos.
 
+## D-PROD-177 — PROPOSTA PENDENTE DE APROVAÇÃO: Estoque P1, entrada manual documentada, lote do fabricante e sequência de slices
+
+> **Renumeração (2026-11-12):** esta proposta nasceu como D-PROD-176 na PR #248. Antes dela, a PR #249 foi mergeada na `main` (`fecbc18c`) com outra D-PROD-176 (ícones de cochos e depósitos), que permanece intacta acima. Ao integrar a `main`, a proposta passou a ser a **D-PROD-177**. Nada mais mudou com a renumeração.
+>
+> **STATUS: PROPOSTA, AGUARDANDO APROVAÇÃO EXPRESSA DO PROPRIETÁRIO.**
+>
+> Esta entrada **não é decisão vigente** e **não autoriza** código, migration, tela, rota nem permissão. O número fica **reservado** para a proposta, para evitar colisão com outras PRs.
+>
+> - **Precedente parcial:** a D-PROD-154 é só anunciada pela PR #229, aberta e não mergeada. Diferente dela, esta reserva fica gravada na `main` se esta PR for mergeada.
+> - **O merge desta PR não aprova nem ratifica a D-PROD-177.** Isso difere do padrão D-PROD-22/155/157/159/162, em que o merge manual materializava a aprovação.
+> - **Ratificação:** exige o texto incorporado em `00` e `07` e uma nota posterior datada nesta entrada ("ratificada em <data> por <responsável>, texto em <SHA>").
+> - **Recusa:** se recusada, recebe a nota "recusada em <data>". O número não é reaproveitado (append-only), o título não muda e vale a última nota.
+>
+> Enquanto não houver nota posterior "ratificada em <data>", continuam valendo, sem mudança:
+> - a expansão D-PROD-155 na constituição e a nota D-PROD-155 no `07-DO-NOT-DO.md` ("não há tela avulsa de entrada");
+> - a D-PROD-08 e as notas dela;
+> - a D-PROD-161.
+>
+> Agente de IA não emenda a constituição (`08-REGRAS-DE-IA.md` A10; `00-CONSTITUICAO.md` §4). Por isso o texto da emenda está só proposto, em documento à parte.
+
+- **Data:** 2026-11-11.
+- **Missão:** MAIKE-ESTOQUE-P1-01-GOVERNANCA-R1, derivada da análise somente leitura MAIKE-ESTOQUE-P1-00. Revista na **R2** (MAIKE-ESTOQUE-P1-01-GOVERNANCA-R2, mesma data e mesma PR), **ainda como proposta**.
+- **Base:** `origin/main` `74ad3b86`.
+- **Proposta:**
+  - **Entrada manual documentada.** Um documento de Entrada de Estoque, confirmado só pelo motor único, com 3 motivos fechados:
+    - saldo de implantação: uma única vez por produto e empresa (R1), e só sem nenhum histórico físico em nenhum local. Na R2, passa a ser **no máximo uma implantação ativa** por produto e empresa, corrigida por edição. Uma nova implantação só é aceita depois de a anterior estar `EXCLUIDA`, desconsiderando os fatos de itens de entrada manual já estornados (variante proposta da R-IMPL; a alternativa é nunca reimplantar);
+    - doação;
+    - outra causa, com justificativa e permissão própria.
+  - Doação e outra causa **não** servem para registrar saldo antigo.
+  - **Editar e Excluir (R2, a pedido do proprietário).** O usuário edita e exclui a entrada; "Cancelar" deixa de ser a ação do documento. O estado `CANCELADA` sai e entra `EXCLUIDA`. As regras:
+    - rascunho: edição e exclusão livres, com versão;
+    - confirmada sem dependência física: a edição é uma **revisão versionada** do mesmo documento, que estorna pelo motor só o que muda e aplica o novo numa única transação; a exclusão é **lógica**, com estorno integral, motivo, autor e histórico consultável;
+    - confirmada com dependência em qualquer item (camada consumida, transferida ou citada por outro fato, mesmo que depois estornado): só observação e justificativa são editáveis; a tela explica o motivo e o próximo passo. O alcance por item fica como alternativa para ratificação;
+    - confirmar ou editar nunca põe camada nova à frente, na fila FIFO, de camada que alguma baixa já tocou (o motor não refaz baixas);
+    - o motivo da entrada nunca muda;
+    - nunca se reescreve nem se apaga movimento ou camada; não há estorno parcial de camada, exclusão parcial nem restauração.
+  - **Revisão R3 (2026-11-13, ainda proposta):**
+    - uma única sequência transacional: travas → validações sob trava → efeitos provisórios → checagem FIFO definitiva com os ids reais → numeração, evento, auditoria e recibo. Qualquer recusa desfaz tudo;
+    - a ausência de dependência precisa ser **comprovada**: rastro ilegível, origem legada ou volume acima do teto dão "prova indeterminada", e a mudança é recusada;
+    - o saldo do produto precisa bater exatamente com as camadas;
+    - unicidade das linhas vigentes por índice único parcial na tabela nova, com teste próprio.
+  - **O que a entrada manual não é:** compra, título, conta a pagar, receita, inventário ou ajuste, devolução, transferência entre empresas ou entrada por nota fiscal.
+  - **Deduplicação documental** quando houver parceiro e documento: entrada × compra, entrada × venda e entrada × entrada, e, no sentido inverso, em todos os caminhos da P3 que gravam o documento (confirmar, retificar, prévia), nas direções PAGAR e RECEBER (R2). A liberação da operação fica bloqueada enquanto o caminho recíproco não existir.
+  - **Lote do fabricante** (model candidato `ProdutoLoteFabricante`): identidade comercial (fabricante, número, fabricação, validade), N camadas → 1 lote, **sem saldo e sem custo**. A camada física (`EstoqueLoteNota`) continua sendo a única fonte de saldo. FIFO não muda; validade só gera aviso.
+  - **Sequência de slices** P1-02..P1-13, com ratificação humana **antes da P1-02, da P1-05a, da P1-05b e da P1-06**. Na R2, a P1-05 virou P1-05a (documento, confirmar, excluir, com todo o DDL) e P1-05b (editar confirmada), e a tela P1-06 só depois das duas. Dividir a P1-02 (R-SPLIT) só com autorização expressa.
+- **Pendente de ratificação:**
+  - R-EMENDA (texto para 00 e 07);
+  - R-MOTIVOS;
+  - R-IMPL (refeita na R2: correção por edição, reimplantação só após exclusão ou nunca; decidir antes da R-EMENDA);
+  - R-EDICAO-EXCLUSAO (nova na R2: `EXCLUIDA` × `CANCELADO` + `excluido_em`; baixa estornada continua bloqueando; janela FIFO; recibos excluídos; permissões compostas; sem restaurar; divisão P1-05a/05b; alcance da dependência por documento ou por item; motivo imutável);
+  - R-CONVERSAO (nova na R2: entrada que era compra e já tem dependência; sem caminho no 1º slice);
+  - R3 (2026-11-13), também pendente:
+    - prova de dependência fail-closed (`PROVA_INDETERMINADA` nunca libera);
+    - cache exato por produto como pré-condição;
+    - tetos de leitura;
+    - privacidade mais estrita que a P3.
+  - R-DATA (data retroativa);
+  - R-DEDUPE (muda a confirmação da P3);
+  - R-LOTE (identidade com discriminador e nome do model);
+  - R-ORDEM (P1-07 antes ou depois da tela);
+  - R-SPLIT (dividir a P1-02).
+- **Fora:** qualquer código, schema, migration, página, rota, permissão ou mudança no escopo.
+- **Documentos:**
+  - proposta de emenda: [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md);
+  - contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md);
+  - relatório: [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md).
+
 ## D-PROD-178 — Mapa: nível do cocho pelo saldo estimado do ciclo, depósito pelo limite operacional, numa fonte única de cálculo
 
 **Data:** 2026-11-12.

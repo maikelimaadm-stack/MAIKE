@@ -9,6 +9,22 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Proposta em revisão (2026-11-11) — MAIKE-ESTOQUE-P1-01-GOVERNANCA: contrato do Estoque P1 e emenda proposta (D-PROD-177, PROPOSTA)
+
+| Campo | Valor |
+|---|---|
+| Status | **PROPOSTA, aguardando aprovação expressa do proprietário.** Não é missão de implementação e não muda comportamento |
+| Decisão | D-PROD-177 registrada como **proposta pendente** (não vigente) |
+| Branch / PR | `claude/maike-estoque-p1-01-governanca-proposta`, PR #248 DRAFT só de documentação; criada sobre `74ad3b86` e integrada por merge com a `main` `0ed6ae9c` em 2026-11-13 |
+| Escopo | Proposta de emenda (texto para 00 e 07, **sem editá-los**, A10); contrato do Estoque P1 (entrada manual com 3 motivos, deduplicação nos dois sentidos com a Central, implantação só sem histórico, lote do fabricante sem saldo e sem custo, unidades KG/SACO/L sem conversão, sequência de slices) |
+| Revisão R2 (2026-11-11) | A pedido do proprietário, a proposta passa a prever **Editar** e **Excluir** a entrada (sem "Cancelar" como ação do usuário). A edição confirmada é uma revisão versionada pelo motor, e a exclusão é lógica, com estorno integral. As duas só valem sem dependência física e sem impacto FIFO. Proposta nova: R-EDICAO-EXCLUSAO; R-IMPL refeita. **Nada disso está implementado** |
+| Revisão R3 (2026-11-13) | Correção da auditoria do arquiteto: sequência transacional única com checagem FIFO pelos ids reais; prova de dependência fail-closed; saldo exato do produto; índice único parcial nas linhas vigentes. Continua **proposta**, sem código |
+| Código / schema / migration | **Nenhum** |
+| Produção | Intocada. Só SELECT de leitura na análise P1-00 |
+| Ainda vale | A proibição de entrada avulsa (expansão D-PROD-155 na constituição e nota D-PROD-155 no 07) até a ratificação |
+| Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
+| Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
+
 ## Missão ativa (2026-11-12) — MAIKE-MAPA-NIVEIS-COCHO-DEPOSITO-UX01: níveis de cocho e depósito no Mapa Geral (D-PROD-178)
 
 | Campo | Valor |

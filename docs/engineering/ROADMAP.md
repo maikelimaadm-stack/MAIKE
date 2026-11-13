@@ -465,6 +465,39 @@ reconciliação, registrados na D-PROD-161:
 - **R2-2:** índice de expressão no AuditLog de lote excluído (DDL);
 - **R2-3:** varredura global assíncrona com snapshot exportado, fora do HTTP.
 
+> **Nota prospectiva (2026-11-11, PROPOSTA D-PROD-177, não ratificada; não integra o track autorizado acima):** a proposta de contrato do Estoque P1 **tira "ajuste" e "devolução"** da futura entrada manual. Ela fica com 3 motivos:
+> - saldo de implantação;
+> - doação;
+> - outra causa com justificativa.
+>
+> Inventário/ajuste e devolução passam a exigir comandos e decisões próprios.
+>
+> **Revisão R2 da proposta (2026-11-11, ainda não ratificada):** o documento de entrada terá **Editar** e **Excluir**, sem "Cancelar" como ação do usuário.
+> - Edição confirmada = revisão versionada pelo motor.
+> - Exclusão = lógica, com estorno integral.
+> - As duas só valem sem dependência física e sem impacto no FIFO.
+> - Nenhum fato é reescrito ou apagado.
+>
+> **Revisão R3 (2026-11-13, ainda não ratificada):**
+> - sequência transacional única, com checagem FIFO definitiva pelos ids reais;
+> - prova de dependência fail-closed ("prova indeterminada" recusa);
+> - saldo do produto exato contra as camadas;
+> - índice único parcial nas linhas vigentes.
+> Nada disso está entregue.
+>
+> Sequência proposta, uma PR por slice:
+> 1. ratificação humana da emenda (procedimento da §4 da constituição);
+> 2. P1-02: endurecimento do motor;
+> 3. P1-03: índices;
+> 4. P1-04: consultas paginadas;
+> 5. P1-05a: backend da entrada (documento, confirmar, excluir; todo o DDL);
+> 6. P1-05b: edição de entrada confirmada (revisão versionada);
+> 7. P1-06: tela, só depois da P1-05a e da P1-05b;
+> 8. P1-07/08: lote do fabricante;
+> 9. P1-09+: linhagem, estornos, reconciliação v3, inventário/ajuste e offline.
+>
+> Nada disso está autorizado nem entregue. A ratificação deve preceder a P1-02, a P1-05a, a P1-05b e a P1-06. DDL só com runbook e GO antes do merge. Ver [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) e [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md).
+
 ## Track autorizado — Patrimônio SIMPLIFICA-01: o Patrimônio recomeça do zero, simplificado (D-PROD-162)
 
 Decisão do proprietário de 2026-11-10. O grupo **Patrimônio e Frota** fica com duas
