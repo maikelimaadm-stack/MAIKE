@@ -8,7 +8,7 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 41 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *  1. aplica todas as migrations do repositório menos esta CONTRACT, pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
  *     pelo Prisma direto, sem o runner e portanto sem a barreira de
@@ -26,7 +26,7 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 42 concluídas, 80 tabelas, as 7 vazias, dono e ACL,
+ *     na URL) e confere: todas concluídas, 80 tabelas, as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 73 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
@@ -160,7 +160,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 41 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
+ * Todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o TipoTarefa vazio.
  */
 export const aplicarMigrationsDaMain = async (url) => {
@@ -274,7 +274,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (41 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (todas as migrations menos esta CONTRACT): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.

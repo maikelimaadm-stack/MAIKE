@@ -7,7 +7,7 @@
 
 ## 0. O que muda no banco
 
-Migration `20261113300000_estoque_p1_03_indices`, modo **EXPAND**, SHA-256 `13a60881dbcccfbbba31db57b8757b5828b9b8fd95baaf4268e6be078bf1336b`, pinada em `MIGRATIONS_APROVADAS`. São duas instruções, ambas `CREATE INDEX` comum, não-único, sem predicado:
+Migration `20261113300000_estoque_p1_03_indices`, modo **EXPAND**, SHA-256 `5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565`, pinada em `MIGRATIONS_APROVADAS`. São duas instruções, ambas `CREATE INDEX` comum, não-único, sem predicado:
 
 | Índice | Tabela | Colunas | Para quê |
 |---|---|---|---|
@@ -16,9 +16,15 @@ Migration `20261113300000_estoque_p1_03_indices`, modo **EXPAND**, SHA-256 `13a6
 
 - **Sem** tabela, coluna, constraint, dado, função, gatilho, RLS, GRANT ou DROP.
 - **Sem `CONCURRENTLY`.** O classificador não aceita, e o Prisma aplica a migration dentro de transação.
-- **Trava:** cada `CREATE INDEX` toma `SHARE LOCK` na tabela durante o build. Leituras seguem normalmente. **Escritas** naquela tabela esperam o fim do build:
-  - em `MovimentacaoEstoque`: lançamentos com estoque, abastecimentos, transferências, suplementação e saída do depósito;
-  - em `OperacaoIdempotente`: **todo** comando idempotente, porque cada um grava o recibo.
+- **Trava:** o Prisma aplica o arquivo numa **transação só**.
+  - O 1º `CREATE INDEX` toma `SHARE LOCK` em `OperacaoIdempotente`. O 2º toma `SHARE LOCK` em `MovimentacaoEstoque`.
+  - **Os dois só são liberados no COMMIT.** Leituras seguem normalmente. **Escritas nas duas tabelas** esperam até o fim da migration inteira: os **dois builds somados**, mais qualquer espera pela trava da 2ª tabela.
+  - Em `OperacaoIdempotente` isso é **todo** comando idempotente do sistema, de qualquer módulo, porque cada um grava o recibo.
+  - Em `MovimentacaoEstoque` são os lançamentos com estoque, abastecimentos, transferências, suplementação e saída do depósito.
+- **Ordem dos dois índices: recibos → movimentos, de propósito.** É a mesma ordem dos comandos, que gravam o recibo (1ª escrita) antes dos movimentos.
+  - Na ordem inversa, um comando que já gravou o recibo e espera `MovimentacaoEstoque` fecharia um ciclo com a migration (deadlock).
+  - Nesta ordem, um comando em curso só faz a migration esperar. Ela segue quando o comando termina.
+- **Não há `lock_timeout` dentro da migration**: o classificador não aceita `SET`. Uma transação longa que escreva em `MovimentacaoEstoque` faz a migration esperar segurando `OperacaoIdempotente`. Por isso o preflight mede transações abertas, e a janela precisa ter pouca escrita (§4).
 
 ## 1. Caminho
 
@@ -73,13 +79,14 @@ A medida é **local** e não é estimativa de produção: PostgreSQL 17, 1 worke
 | keyset | 3,6 s |
 | LC-2 | 1,7 s |
 
-A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com dezenas de milhares de linhas, o build é de frações de segundo. Durante o build, as escritas da tabela esperam (§0).
+A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com dezenas de milhares de linhas, o build é de frações de segundo. A janela em que as escritas esperam é a **soma** dos dois builds, mais a espera pela trava de `MovimentacaoEstoque` (§0).
 
 **Não se inventa cardinalidade de produção.** O número vem do preflight.
 
 ## 4. Aplicação (GO-2)
 
-1. A janela deve ter pouca escrita. Repetir as linhas `atividade.*` do preflight imediatamente antes.
+1. A janela deve ter pouca escrita. Repetir as linhas `atividade.*` do preflight imediatamente antes: `transacao_aberta_mais_antiga_s` alta ou `idle_in_transaction` > 0 significam que a migration vai esperar segurando os recibos.
+   - Se a aplicação ficar esperando, cancelar a sessão da migration **ou** a transação que a prende é ação de escrita e exige GO próprio.
 2. `--verificar-alvo` e, sem pendência inesperada, `--aplicar` (§1).
 3. Se o runner falhar: a migration roda em **uma** transação do Prisma, então nada fica pela metade. Ela fica `failed` em `_prisma_migrations`, e o caminho é o da D-PROD-74 (`migrate resolve --rolled-back` só com GO próprio).
 

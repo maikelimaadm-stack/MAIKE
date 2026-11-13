@@ -5,8 +5,9 @@
 -- comuns (sem CONCURRENTLY) em tabelas existentes:
 --   "OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx" (LC-2)
 --   "MovimentacaoEstoque_keyset_empresa_idx"                      (keyset)
--- Cada CREATE INDEX toma SHARE LOCK na tabela durante o build: leituras seguem,
--- ESCRITAS na tabela esperam até o fim. Este SELECT mede o alvo ANTES do GO de
+-- A migration roda numa transação só: SHARE LOCK em OperacaoIdempotente e depois
+-- em MovimentacaoEstoque, os dois até o COMMIT. Leituras seguem; ESCRITAS nas
+-- duas tabelas esperam os dois builds somados. Este SELECT mede o alvo ANTES do GO de
 -- aplicação: tamanho das tabelas, índices atuais, histórico de migrations,
 -- sessões que travariam ou seriam travadas, e parâmetros de tempo.
 --

@@ -58,7 +58,7 @@ O contrato prevê um índice parcial de expressão por produto no `AuditLog` de 
 ## 3. Migration e manifesto
 
 - `backend/prisma/migrations/20261113300000_estoque_p1_03_indices/migration.sql`:
-  - SHA-256 `13a60881dbcccfbbba31db57b8757b5828b9b8fd95baaf4268e6be078bf1336b`;
+  - SHA-256 `5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565`;
   - gerado por `prisma migrate diff` (schema antes → depois), com cabeçalho de comentário.
 - **Sem número de decisão dentro do `.sql`** (lição da D-PROD-183): renumerar a decisão nunca muda o checksum.
 - **Classificador** (`classificarMigrations`): `ok`, modo `EXPAND`, sem tabela nova, sem violação.
@@ -119,9 +119,11 @@ Não é extrapolação para produção.
 
 ## 7. Riscos
 
-1. **Trava do build:** `SHARE LOCK` sem `CONCURRENTLY`.
-   - Escritas em `MovimentacaoEstoque` (movimentos) e em `OperacaoIdempotente` (todos os recibos) esperam o build.
-   - Mitigação: janela de pouca escrita e duração dimensionada pelo preflight (runbook §3.1).
+1. **Trava do build:** `SHARE LOCK` sem `CONCURRENTLY`, numa transação só.
+   - Escritas em `OperacaoIdempotente` (todos os recibos, de qualquer módulo) e em `MovimentacaoEstoque` esperam até o **COMMIT da migration**: os dois builds somados, mais a espera pela trava da 2ª tabela.
+   - A ordem recibos → movimentos é a mesma dos comandos, então não há ciclo de espera (runbook §0).
+   - Mitigação: janela de pouca escrita e transações abertas medidas no preflight (runbook §3.1 e §4).
+   - Achado da revisão crítica, corrigido no texto da migration, do runbook e do preflight. A troca de ordem sugerida pelo revisor foi recusada, porque criaria risco de deadlock.
 2. **Custo de escrita:**
    - cada movimento passa a atualizar mais um índice de 4 colunas;
    - cada recibo, mais um de 3 colunas.

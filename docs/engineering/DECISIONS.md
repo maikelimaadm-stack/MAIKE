@@ -6696,6 +6696,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Decisões.**
 1. **Migration nova** `20261113300000_estoque_p1_03_indices`, EXPAND, só `CREATE INDEX` comum, não-único, em tabelas existentes, sem `CONCURRENTLY`. Fica pinada em `MIGRATIONS_APROVADAS`. O número desta decisão fica **fora** do `.sql`.
+   - Numa transação só, as escritas nas duas tabelas esperam até o COMMIT.
+   - A ordem recibos → movimentos é a dos comandos, sem ciclo de espera (runbook §0).
    - `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`: LC-2. O consumidor é `recibosNosIntervalos`, com `tipo_operacao = ANY(...)` e intervalo de `createdAt`.
    - `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`, com nome `MovimentacaoEstoque_keyset_empresa_idx`: keyset da central de movimentos da P1-04 (§6.3).
 2. **R2-2 não é criado.**
