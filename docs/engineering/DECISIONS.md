@@ -6722,4 +6722,51 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-188 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D) -->
+## D-PROD-188 — Apontamento de Atividade: a execução da atividade (Fatia C do apontamento)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário (Fatia C, "ApontamentoAtividade"), depois da Fatia LIMPEZA aplicada (D-PROD-183) · **Branch:** `feat/apontamento-atividade`
+
+> **Numeração:** a especificação e os primeiros commits da branch usavam a D-PROD-184, que a `main` já deu ao Estoque P1-02; a D-PROD-185 é da PR #263, a D-PROD-186 da Categoria de Manejo enxuta e a D-PROD-187 está reservada à Fatia D da Categoria de Manejo (DROP). Esta decisão é a **D-PROD-188**. O `migration.sql` não cita número de decisão, para que renumerar nunca mude o checksum aplicado. A "Fatia D" do apontamento (itens) é outra coisa e terá número próprio.
+
+**Contexto.**
+- **TAREFA** (`LancamentoTarefa`) é a demanda; **ATIVIDADE** é a operação executada, que consome máquina, combustível e insumo (D-PROD-182).
+- O apontamento é a base onde o abastecimento vai se pendurar (Fatia E). Esta fatia é enxuta: **sem itens de custo**.
+
+**Decisão.**
+1. **Model `ApontamentoAtividade`**, com os campos exatos da especificação (número, tipo e grupo com snapshot de nome, data operacional, horas, bem, implemento, operador, área, centros, safra, produção e unidade, horas trabalhadas, tarefa de origem, observação, status, cancelamento, criador, `versao`).
+   - FKs compostas e tenant-aware, todas `ON DELETE RESTRICT`: bem, implemento, centro de custo e centro de resultado por `(cliente_id, empresa_id, id)`; empresa, tipo, grupo, área, tarefa e os três usuários por `(cliente_id, …)`.
+   - Únicos `(cliente_id, id)`, `(cliente_id, empresa_id, id)` e `(cliente_id, numero)`. Índices `(cliente_id, empresa_id, createdAt, id)`, `(cliente_id, empresa_id, bem_id, data_operacional)`, `(cliente_id, empresa_id, tipo_atividade_id, data_operacional)`, `(cliente_id, area_id)` e `(cliente_id, lancamento_tarefa_id)`.
+   - Relações inversas só no Prisma (Cliente, Empresa, TipoAtividade, GrupoAtividade, BemPatrimonial ×2, AreaPastagem, CentroCusto, CentroResultado, LancamentoTarefa, Usuario ×3). `LancamentoTarefa` e `AbastecimentoBem` não mudam além disso.
+2. **Migration EXPAND `20261113300000_apontamento_atividade`.** Só a tabela nova, com índices, FKs e o bloco RLS/REVOKE da D-PROD-182 (lista `['ApontamentoAtividade']`). Nenhuma tabela antiga muda.
+   - Hashes pinados em `premergeMigrateLib.mjs`: arquivo `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; corpo do DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`.
+   - Repositório: 42 → **43** migrations; tabelas 80 → **81** (66 de tenant). SQL editor 01–04 e testes de contagem atualizados.
+   - **Não aplicada.** Aplicar exige GO expresso do proprietário.
+3. **API** (tenant só do `auth_context`; empresa no corpo/query, conferida no tenant; corpos com `additionalProperties: false`):
+   - `GET /apontamentos-atividade` (keyset por `createdAt, id`, filtros de período, bem, implemento, tipo, área, tarefa, status e número), `GET /:id`, `POST`, `PATCH /:id` (CAS por `versao`) e `POST /:id/cancelar` (motivo). **Sem DELETE.**
+   - Opções do formulário: `GET /apontamentos-atividade-opcoes/{bens,operadores,centros-custo,centros-resultado}`, só cadastros ativos da empresa. A opção de bem traz `centro_custo` (só quando o centro do bem está ativo).
+   - Erros novos: `APONTAMENTO_ATIVIDADE_NOT_FOUND`, `_REFERENCIA_INVALIDA`, `_HORARIO_INVALIDO`, `_DATA_FUTURA`, `_IMPLEMENTO_INVALIDO`, `_PRODUCAO_INVALIDA`, `_STATUS_INVALIDO`, `_VERSAO_CONFLITO`, `_VINCULADO` e `TIPO_ATIVIDADE_DELETE_BLOCKED`.
+4. **Regras de negócio.**
+   - **R-a** tipo inativo: recusa criar; editar mantendo o tipo (mesmo inativo) pode; trocar para outro tipo inativo, não. Vale também para bem, implemento, operador, área e centros: vínculo novo exige cadastro ativo.
+   - **R-b** `hora_fim` anterior a `hora_inicio` é recusada (iguais pode).
+   - **R-c** data operacional depois de "hoje" no fuso da fazenda é recusada; sem fuso, falha fechada. **Ampliação desta fatia** (achado da revisão): nenhuma hora pode estar no futuro; o dia local de `hora_inicio` (fuso da fazenda) é a data operacional; `hora_fim` cai na data operacional ou no dia seguinte (turno noturno). Na edição, a regra vale sobre o estado final quando data ou hora mudam.
+   - **R-d** implemento exige bem e não pode ser o próprio bem.
+   - **R-e centros — decisão do proprietário.** Pedido original: "se vierem nulos, copiar do bem na criação; depois nunca reler do bem". Esclarecimento do proprietário durante a fatia: "centro de resultado eu que devo escolher do centro de resultado entendeu, o do bem é apenas para cadastro". Fica:
+     - **centro de resultado:** escolhido pelo usuário numa lista normal dos centros de resultado ativos da empresa; **nunca** vem do bem (o bem nem tem esse campo);
+     - **centro de custo:** na criação, se vier nulo e houver bem, o servidor copia o centro de custo do bem, só se ele estiver ativo; o informado vence. No formulário, vem preenchido a partir do bem escolhido e pode ser trocado antes de salvar. Depois é snapshot: **nunca** é relido do bem (nem na edição, nem na troca do bem, nem quando o bem muda de centro).
+     - Se o proprietário quiser que o centro de custo também não venha do bem, a mudança é a cópia em `criar()` e o preenchimento no formulário.
+   - **R-f** quantidade e unidade andam juntas; quantidade > 0; horas trabalhadas > 0; unidade ∈ {HA, CAB, TON, KM}.
+   - **R-g** apontamento CANCELADO não aceita edição nem novo cancelamento.
+   - **R-h** nomes do tipo e do grupo são snapshot, gravados na criação e na troca do tipo; renomear depois **não** propaga.
+   - **R-i** bem, implemento, área, tarefa e centros são da mesma empresa do apontamento (centros e bens pela FK composta; área e tarefa conferidas no serviço).
+   - **R-j** sem DELETE físico: cancelar grava status, quem, quando e motivo e incrementa `versao` (CAS, como o abastecimento).
+   - **R-k** `numero` pela sequência do tenant (`EntidadeCodigoSequencia`).
+   - **R-l** excluir tipo, grupo, bem, área, centro, tarefa, usuário ou empresa com apontamento devolve 409 (FK `Restrict` traduzida), sem que os módulos antigos consultem a tabela nova. A exclusão de empresa só conta dependentes em tabelas que existem (lição do hotfix #259: o código pode subir antes da migration).
+5. **Permissão.** Tela `op-apontamentos-atividade`, módulo `suporte-mapa`, menu logo abaixo de "Tipos de Atividade". Ações: visualizar (lista, detalhe, opções), novo (criar), editar (editar), excluir (cancelar). Nenhum perfil recebe acesso automático.
+6. **Tela.** Página `ApontamentosAtividade`, porta `src/apis/atividades/apontamentoAtividadePort.js` com allowlist. Formulário nesta ordem: 1) tipo de atividade (só ativos; o gravado e inativo aparece "(INATIVO)"; grupo ao lado, só leitura); 2) data; 3) máquina/veículo (libera o implemento, que não pode ser a própria máquina); 4) operador; 5) área; 6) hora início/fim; 7) produção (quantidade + unidade); 8) observação; depois os centros. Cancelado abre só leitura. Horas trabalhadas, safra e tarefa de origem ficam fora do formulário (a API e a porta aceitam). Só componentes que já existiam; nenhum componente ou CSS novo.
+7. **Fora do escopo:** itens do apontamento (Fatia D do apontamento), abastecimento ligado à atividade (Fatia E), qualquer mudança em `AbastecimentoBem` e `LancamentoTarefa`, flags de exigência (não voltam em lugar nenhum) e trabalho visual.
+
+**Testes.** `backend/tests/apontamentoAtividadeNativo.test.mjs` (Postgres real: todas as regras acima, isolamento entre clientes, concorrência de número e de cancelamento, exclusões barradas, snapshot do centro provado contra mutação), `permissoesR2Rotas` (tela e ações), `premerge-migrate` (B14a/B14b), `sqlEditorBootstrap` e os testes de contagem das duas migrations CONTRACT; smoke `tests/smoke/apontamentosAtividade.test.jsx`.
+
+**Relatório:** [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-189 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D da Categoria de Manejo) -->
