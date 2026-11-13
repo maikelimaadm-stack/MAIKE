@@ -1098,6 +1098,14 @@ model Fornecedor {
   @@index([cliente_id, empresa_id])
 }
 
+// D-PROD-185 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): `raca`,
+// `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro`
+// SAÍRAM do contrato (API, services, auditoria, UI). As colunas seguem aqui,
+// sem `@ignore`, só para o schema continuar igual ao banco migrado (SM-03:
+// `prisma migrate diff --exit-code`); o código não as lê nem as grava
+// (seleção do repositório + CHAVES_LEGADAS_IGNORADAS no service). Serão
+// DROPADAS na Fatia D, migration CONTRACT isolada (GO do proprietário dado em
+// 2026-11-13). Não reintroduzir uso destas colunas.
 model CategoriaManejo {
   id                    String   @id @default(cuid())
   cliente_id            String   @db.VarChar(64)
