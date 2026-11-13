@@ -304,21 +304,27 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     assert.deepEqual([depois.quantidade_cabecas, Number(depois.peso_medio_kg)], [40, 412]);
   });
 
-  test('R4: mudança de categoria — uma linha de 70 sobre duas posições (40 + 30) conserva 70; categoria de manejo casa pelo NOME (nunca pela coluna legada categoria_oficial): nome de outra categoria → 409 MANEJO_CATEGORIA_INVALIDA; duas ativas com o mesmo nome sem escolha → 409 MANEJO_CATEGORIA_AMBIGUA', async () => {
+  test('R4: mudança de categoria — uma linha de 70 sobre duas posições (40 + 30) conserva 70; categoria de manejo casa pela oficial DERIVADA de sexo + faixa de idade (nunca pelo nome): "BOI + 36 MESES" Macho 37+ resolve Touro + 36 meses; nome igual ao texto oficial sem faixa não casa; id de categoria de outra faixa → 409 MANEJO_CATEGORIA_INVALIDA; duas ativas derivando a mesma oficial sem escolha → 409 MANEJO_CATEGORIA_AMBIGUA', async () => {
     const c = await cenario();
     const TOURO = 'Touro + 36 meses';
-    const cm = (nome) => prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, ativo: true } });
-    // MAIKE-CATEGORIA-MANEJO-ENXUGAR: a coluna legada continua no banco (dormente). Gravada aqui por SQL
-    // CONTRADIZENDO o nome, para provar que o comando nunca a consulta.
-    const legado = (id, oficial) => prisma().$executeRaw`UPDATE "CategoriaManejo" SET categoria_oficial = ${oficial} WHERE id = ${id}`;
-    const deGarrote = await cm(GARROTE);
-    await legado(deGarrote.id, TOURO);
-    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: TOURO, quantidade: 5, categoria_manejo_id_novo: deGarrote.id }]), 409, 'MANEJO_CATEGORIA_INVALIDA');
-    const touro = await cm(TOURO);
-    const duplicada = await cm('TOURO + 36 MESES'); // mesmo nome após normalização (caixa)
-    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: TOURO, quantidade: 5 }]), 409, 'MANEJO_CATEGORIA_AMBIGUA');
+    const cm = (nome, sexo, idade_minima_meses, idade_maxima_meses) =>
+      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, sexo, idade_minima_meses, idade_maxima_meses, ativo: true } });
+    const mudar = (extra = {}) => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: TOURO, quantidade: 5, ...extra }]);
+    // MAIKE-CATEGORIA-MANEJO-ENXUGAR: nome IGUAL ao texto oficial, sem faixa de idade → não deriva nada.
+    const soNome = await cm(TOURO, 'Macho', null, null);
+    await exigirNadaGravado(c, () => mudar({ categoria_manejo_id_novo: soNome.id }), 409, 'MANEJO_CATEGORIA_INVALIDA');
+    // Faixa de outra oficial (13–24 = Garrote) escolhida explicitamente → inválida.
+    const deGarrote = await cm('GARROTE 13 A 24 MESES', 'MACHO', 13, 24);
+    await exigirNadaGravado(c, () => mudar({ categoria_manejo_id_novo: deGarrote.id }), 409, 'MANEJO_CATEGORIA_INVALIDA');
+    // Mesma faixa, sexo oposto (Fêmea 37+ = Vaca + 36 meses) → inválida e nunca candidata.
+    const vaca36 = await cm('VACA + 36 MESES', 'Fêmea', 37, null);
+    await exigirNadaGravado(c, () => mudar({ categoria_manejo_id_novo: vaca36.id }), 409, 'MANEJO_CATEGORIA_INVALIDA');
+    // Duas ativas derivando Touro + 36 meses, com nomes diferentes do texto oficial → ambíguo sem escolha.
+    const touro = await cm('BOI + 36 MESES', 'Macho', 37, null);
+    const duplicada = await cm('TOURO REPRODUTOR', 'MACHO', 40, 120);
+    await exigirNadaGravado(c, () => mudar(), 409, 'MANEJO_CATEGORIA_AMBIGUA');
     await prisma().categoriaManejo.update({ where: { id: duplicada.id }, data: { ativo: false } });
-    // Sem escolha: a única ativa com esse nome é `touro` — `deGarrote` (legado = Touro) continua ativa e não é candidata.
+    // Sem escolha: a única ativa que deriva Touro + 36 meses é `touro` ("BOI + 36 MESES"); `soNome` (nome = texto oficial) continua ativa e não é candidata.
     const m = await ok(rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: TOURO, quantidade: 70 }]));
     assert.equal(m.movimentacao.linhas[0].partes.reduce((t, p) => t + p.quantidade, 0), 70);
     assert.equal(new Set(m.movimentacao.linhas[0].partes.map((p) => p.de_posicao_id)).size, 2);
@@ -327,7 +333,7 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     assert.equal(ps.filter((p) => p.categoria === TOURO).reduce((t, p) => t + p.quantidade_cabecas, 0), 70);
     const destinos = await prisma().posicaoRebanho.findMany({ where: { cliente_id: c.cliente.id, categoria: TOURO } });
     assert.ok(destinos.length > 0);
-    for (const d of destinos) assert.deepEqual([d.categoria_manejo_id, d.categoria_manejo_nome], [touro.id, TOURO]);
+    for (const d of destinos) assert.deepEqual([d.categoria_manejo_id, d.categoria_manejo_nome], [touro.id, 'BOI + 36 MESES']);
     assert.equal(await total(c), 140);
   });
 

@@ -19,6 +19,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { exigirEmpresaNoLedger, rebanhoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
+import { FAIXAS_CATEGORIA_OFICIAL, derivaCategoriaOficial } from './categoriaOficialDerivada.js';
 
 export const COMANDO_REBANHO = 'manejo_mapa_rebanho';
 export const TIPO_OPERACAO_REBANHO = 'manejo_mapa_rebanho';
@@ -34,17 +35,16 @@ export const PESO_MAXIMO_KG = 3000;
 /**
  * Categorias oficiais (mesma lista do `FormularioMudancaCategoria`) e o sexo
  * que cada uma implica. Categoria fora desta lista não é aceita.
+ *
+ * Fonte única: a tabela de faixas de `categoriaOficialDerivada.js` (faixa a
+ * faixa, macho e fêmea) — a mesma que deduz a oficial de uma categoria de
+ * manejo. Resultado: Bezerro/Bezerra 0 a 12, Garrote/Novilha 13 a 24,
+ * Boi/Vaca 25 a 36, Touro/Vaca + 36 meses.
+ * @type {Readonly<Record<string, string>>}
  */
-export const CATEGORIAS_OFICIAIS = Object.freeze({
-  'Bezerro 0 a 12 meses': 'Macho',
-  'Bezerra 0 a 12 meses': 'Fêmea',
-  'Garrote 13 a 24 meses': 'Macho',
-  'Novilha 13 a 24 meses': 'Fêmea',
-  'Boi 25 a 36 meses': 'Macho',
-  'Vaca 25 a 36 meses': 'Fêmea',
-  'Touro + 36 meses': 'Macho',
-  'Vaca + 36 meses': 'Fêmea',
-});
+export const CATEGORIAS_OFICIAIS = Object.freeze(
+  Object.fromEntries(FAIXAS_CATEGORIA_OFICIAL.flatMap((f) => [[f.MACHO, 'Macho'], [f.FEMEA, 'Fêmea']]))
+);
 export const SEXOS = Object.freeze(['Macho', 'Fêmea']);
 
 /**
@@ -160,23 +160,31 @@ export const lerEntradaRebanho = (entrada) => {
 };
 
 /**
- * Categoria de manejo da empresa para uma categoria oficial, casada pelo
- * `nome` (rótulo canônico — MAIKE-CATEGORIA-MANEJO-ENXUGAR). Com id: precisa
- * existir, estar ativa e ter ESSE nome. Sem id: a única ativa com esse nome;
- * nenhuma → sem categoria de manejo; mais de uma → ambíguo, o formulário
- * precisa escolher (não se adivinha).
+ * Categoria de manejo da empresa para uma categoria oficial, casada pela
+ * oficial DERIVADA de sexo + faixa de idade (`categoriaOficialDaCategoriaManejo`,
+ * MAIKE-CATEGORIA-MANEJO-ENXUGAR). O nome é livre ("BOI + 36 MESES" → Touro
+ * + 36 meses) e nunca é a chave; categoria sem sexo ou sem faixa de idade
+ * dentro de uma única faixa oficial não deriva nada e nunca casa.
+ *
+ * Com id: precisa existir, estar ativa e derivar ESSA oficial, senão 409
+ * `MANEJO_CATEGORIA_INVALIDA`. Sem id: as ativas da empresa que derivam essa
+ * oficial; nenhuma → sem categoria de manejo (null); mais de uma → 409
+ * `MANEJO_CATEGORIA_AMBIGUA` — o formulário precisa escolher (não se adivinha).
  */
+const COLUNAS_DERIVACAO = Object.freeze({ id: true, nome: true, sexo: true, idade_minima_meses: true, idade_maxima_meses: true });
 const resolverCategoriaManejo = async (tx, clienteId, empresaId, oficial, idPedido) => {
   if (idPedido) {
-    const c = await tx.categoriaManejo.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id: idPedido, ativo: true } });
-    if (!c || normal(c.nome) !== normal(oficial)) {
+    const c = await tx.categoriaManejo.findFirst({
+      where: { cliente_id: clienteId, empresa_id: empresaId, id: idPedido, ativo: true },
+      select: COLUNAS_DERIVACAO,
+    });
+    if (!c || !derivaCategoriaOficial(c, oficial)) {
       throw recusa('MANEJO_CATEGORIA_INVALIDA', 'categoria de manejo inexistente, inativa ou de outra categoria', { categoria_manejo_id: idPedido });
     }
     return c;
   }
-  const candidatas = (await tx.categoriaManejo.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true } })).filter(
-    (c) => normal(c.nome) === normal(oficial)
-  );
+  const ativas = await tx.categoriaManejo.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true }, select: COLUNAS_DERIVACAO });
+  const candidatas = ativas.filter((c) => derivaCategoriaOficial(c, oficial));
   if (candidatas.length > 1) {
     throw recusa('MANEJO_CATEGORIA_AMBIGUA', 'há mais de uma categoria de manejo ativa para esta categoria; escolha uma', { categoria: oficial });
   }

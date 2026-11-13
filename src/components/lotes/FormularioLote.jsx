@@ -24,6 +24,7 @@ import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import { fornecedoresSelecionaveis } from "@/domain/lotes/fornecedoresDoLote";
+import { categoriaOficialDaCategoriaManejo } from "@/domain/lotes/categoriaOficialDerivada";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada, camposAdministrativosAlterados, errosNumericosDaEntrada, inteiroPositivoDigitado, pesoDigitado } from "@/domain/lotes/correcaoEntrada";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
@@ -313,7 +314,9 @@ export default function FormularioLote({
     if (field === "categoria_manejo_id") {
       const categoria = categoriasManejo.find((item) => item.id === value);
       if (categoria) {
-        newData.categoria = categoria.nome || "";
+        // MAIKE-CATEGORIA-MANEJO-ENXUGAR: oficial DERIVADA de sexo + faixa de idade (política materna e
+        // conferência de sexo do ledger usam o texto oficial); sem faixa derivável, o nome.
+        newData.categoria = categoriaOficialDaCategoriaManejo(categoria) || categoria.nome || "";
         if (categoria.sexo) newData.sexo = categoria.sexo;
       }
     }
