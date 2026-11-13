@@ -677,7 +677,20 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     const delegados = ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'bemPatrimonial', 'familiaPatrimonial', 'tanqueBem', 'tanqueBemProduto', 'tipoPatrimonial'];
     assert.deepEqual(delegados.map((d) => d[0].toUpperCase() + d.slice(1)), [...TABELAS_PATRIMONIO], 'um delegado por tabela');
     const r = await emTransacaoDesfeita(async (tx) => {
-      // As 7 saem juntas, sem CASCADE (nada de fora as referencia; nada some escondido).
+      // D-PROD-184: o ApontamentoAtividade (migration POSTERIOR) referencia o bem
+      // e o implemento; no "schema antigo" ele também não existe. É a ÚNICA
+      // tabela de fora que referencia as 7: confere-se pelo catálogo antes de
+      // tirá-la, para nada sumir escondido.
+      const deFora = /** @type {any[]} */ (
+        await tx.$queryRaw`SELECT DISTINCT o.relname FROM pg_constraint k
+          JOIN pg_class o ON o.oid = k.conrelid JOIN pg_class d ON d.oid = k.confrelid
+          WHERE k.contype = 'f' AND d.relname = ANY(${[...TABELAS_PATRIMONIO]}::text[])
+            AND NOT (o.relname = ANY(${[...TABELAS_PATRIMONIO]}::text[]))
+          ORDER BY o.relname`
+      ).map((x) => x.relname);
+      assert.deepEqual(deFora, ['ApontamentoAtividade'], 'só o apontamento (posterior) referencia as 7 tabelas');
+      await tx.$executeRawUnsafe('DROP TABLE "ApontamentoAtividade"');
+      // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).
       await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */
       const codigos = {};

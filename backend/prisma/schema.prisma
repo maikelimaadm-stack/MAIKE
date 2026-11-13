@@ -2736,9 +2736,10 @@ model AbastecimentoBemConsumoLote {
 //
 // Snapshots gravados na criação (e na troca do tipo): `tipo_atividade_nome`,
 // `grupo_atividade_id` e `grupo_atividade_nome`; renomear o tipo ou o grupo
-// depois NÃO propaga. `centro_custo_id` copiado do bem na criação quando vier
-// nulo e nunca relido do bem. Sem DELETE físico: cancelar muda `status` para
-// CANCELADO e incrementa `versao`. As flags de exigência do antigo Tipo de
+// depois NÃO propaga. `centro_custo_id` e `centro_resultado_id` são os
+// ESCOLHIDOS no apontamento: nada é copiado do bem (o centro do bem é só do
+// cadastro dele) e nunca relido dele. Sem DELETE físico: cancelar muda `status`
+// para CANCELADO e incrementa `versao`. As flags de exigência do antigo Tipo de
 // Tarefa (D-PROD-181) não voltam aqui.
 // ---------------------------------------------------------------------------
 model ApontamentoAtividade {
@@ -2758,9 +2759,9 @@ model ApontamentoAtividade {
   implemento_bem_id        String?   @db.VarChar(64)
   operador_usuario_id      String?   @db.VarChar(64)
   area_id                  String?   @db.VarChar(64)
-  /// SNAPSHOT: copiado do bem na criação quando vier nulo; nunca relido do bem.
+  /// SNAPSHOT: o escolhido no apontamento; nada é copiado do bem nem relido dele.
   centro_custo_id          String?   @db.VarChar(64)
-  /// SNAPSHOT: fica como informado (o bem não tem centro de resultado).
+  /// SNAPSHOT: o escolhido no apontamento (a lista de centros de resultado da empresa).
   centro_resultado_id      String?   @db.VarChar(64)
   safra_ciclo              String?   @db.VarChar(32)
   quantidade_produzida     Decimal?  @db.Decimal(14, 4)

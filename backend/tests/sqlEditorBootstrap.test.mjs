@@ -89,7 +89,7 @@ const semear = async ({ clientes = 1 } = {}) => {
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });
     const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
     const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
-    await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
+    const area = await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
     const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
     const pai = await p.categoria.create({ data: { cliente_id: c, numero_categoria: '1', nome: 'PAI' } });
     await p.categoria.create({ data: { cliente_id: c, numero_categoria: '2', nome: 'FILHA', categoria_pai_id: pai.id } });
@@ -97,6 +97,14 @@ const semear = async ({ clientes = 1 } = {}) => {
     const tt = await p.tipoTarefa.create({ data: { cliente_id: c, nome_tipo: 'T', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
     const tarefa = await p.lancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, titulo: 'X', tipo: 'Tarefa', tipo_tarefa_id: tt.id, tipo_tarefa_nome: 'T', lote_id: lote.id } });
     await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
+    // D-PROD-184: um apontamento de atividade (FK RESTRICT para tarefa, tipo, grupo, área, usuário, empresa e cliente):
+    // o 02 só o apaga se ele vier ANTES de todas as mães na ordem de exclusão.
+    const ta = await p.tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
+    await p.apontamentoAtividade.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero: '1', tipo_atividade_id: ta.id, tipo_atividade_nome: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
+      data_operacional: new Date('2026-11-01T00:00:00Z'), area_id: area.id, lancamento_tarefa_id: tarefa.id,
+      operador_usuario_id: t.usuario.id, criado_por_usuario_id: t.usuario.id,
+    } });
     for (let k = 0; k < 3; k += 1) await p.movimentacaoMapa.create({ data: { cliente_id: c, empresa_id: emp.id } });
     for (let k = 0; k < 5; k += 1) await p.auditLog.create({ data: { cliente_id: c, usuario_id: t.usuario.id, acao: 'criar', entidade: 'Lote', entidade_id: lote.id, request_id: 'req-teste' } });
     criados.push(t);
@@ -134,7 +142,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '80', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182)');
+    assert.equal(l['tabelas em public'].valor, '81', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 ApontamentoAtividade (D-PROD-184)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();

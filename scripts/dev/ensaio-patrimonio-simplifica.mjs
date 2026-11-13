@@ -8,13 +8,18 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 41 migrations da main (todas menos esta CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
+ *  1. aplica as 41 migrations da main (todas menos esta CONTRACT e as que
+ *     DEPENDEM dela, `MIGRATIONS_DEPOIS_DO_CONTRACT`), pelo Prisma, a partir de
+ *     uma cópia temporária das pastas; entre elas está a CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
  *     pelo Prisma direto, sem o runner e portanto sem a barreira de
  *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
  *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
- *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam;
+ *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam.
+ *     A `20261113300000_apontamento_atividade` (D-PROD-184) fica de fora da
+ *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
+ *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
+ *     runner, no passo 4 (em produção a D-PROD-162 já está concluída);
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -26,7 +31,8 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 42 concluídas, 80 tabelas, as 7 vazias, dono e ACL,
+ *     na URL) e confere: 43 concluídas (esta CONTRACT e a D-PROD-184), 81
+ *     tabelas (as 80 de antes + ApontamentoAtividade), as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 73 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
@@ -60,6 +66,14 @@ export const DECISAO = 'D-PROD-162';
 export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
 export const TABELAS_NOVAS = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial']);
+/**
+ * D-PROD-184 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
+ * para BemPatrimonial(cliente_id, empresa_id, id), unique que só a CONTRACT cria). Não existiam antes dela em
+ * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
+ * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
+ */
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113300000_apontamento_atividade']);
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade']);
 /** Tabelas antigas cujas LINHAS a migration não pode mudar. */
 export const TABELAS_ESTOQUE = Object.freeze(['MovimentacaoEstoque', 'EstoqueLoteNota', 'Produto', 'OperacaoFinanceira', 'OperacaoFinanceiraItem']);
 
@@ -72,7 +86,7 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
   FROM c`;
 
 /** Impressão digital das tabelas que FICAM, sem os 2 CHECKs alargados de OperacaoFinanceiraItem (rascunho ensaio/fingerprint_v2.sql). */
-export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto'].map((t) => `('${t}')`).join(',')}),
+export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
   SELECT c.oid, c.relname::text AS t, c.relrowsecurity AS rls, c.relforcerowsecurity AS force, coalesce(c.relacl::text, '') AS acl
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -153,14 +167,17 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 41 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
- * temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o TipoTarefa vazio.
+ * As 41 migrations da main (todas as pastas menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT`), aplicadas pelo
+ * Prisma a partir de uma cópia temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o
+ * TipoTarefa vazio.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
   try {
     mkdirSync(join(dir, 'migrations'));
-    for (const d of readdirSync(MIGRATIONS)) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    for (const d of readdirSync(MIGRATIONS)) {
+      if (d !== NOME_CONTRACT && !MIGRATIONS_DEPOIS_DO_CONTRACT.includes(d)) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    }
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
     if (r.status !== 0) throw new Error(`ensaio D-PROD-162: as migrations da main não subiram (exit ${r.status})`);
@@ -514,7 +531,8 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || g.tabelas !== 80 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      // D-PROD-184: 81 = as 80 de antes + ApontamentoAtividade, que sobe junto pelo runner, depois desta CONTRACT.
+      if (g.status !== 0 || g.tabelas !== 81 || g.historico.concluidas !== 43 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }
