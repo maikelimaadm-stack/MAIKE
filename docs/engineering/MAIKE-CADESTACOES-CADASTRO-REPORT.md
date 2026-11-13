@@ -69,4 +69,16 @@ períodos de cada fazenda.
 
 ## 6. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+**Revisão adversarial** (5 lentes independentes: segurança/tenancy, correção do backend, migration/release, frontend, testes/docs; cada achado contestado por 2 céticos que tentaram refutá-lo, lendo o código e reproduzindo no banco local). 19 agentes no total.
+
+| Lente | Resultado |
+|---|---|
+| Segurança e tenancy | nenhum achado |
+| Correção do backend | nenhum achado |
+| Migration e release | 1 achado (baixo), **nenhum na migration**: texto que cresce ao virar maiúsculo (`'ß'` → `'SS'`) passava do limite da rota e estourava a coluna → 500. Corrigido: o serviço confere o tamanho depois das maiúsculas e responde 400 `tamanho_excedido`. Teste novo, RED antes (500) e GREEN depois |
+| Frontend | 4 achados (baixos); 1 confirmado pelos dois céticos (sugestão de busca da fazenda anterior filtrava a lista da nova), 1 contestado e 2 refutados. Os quatro entraram como correção, por serem inofensivos: limpar busca e filtros ao trocar de fazenda, fechar o registro só se aberto, ordenar "Criado/Atualizado em" pelo instante ISO, anos 1900–2100 também no formulário |
+| Testes e docs | texto da numeração desatualizado depois do merge da PR #264 (corrigido no merge da `main`) e aviso de processo: os revisores rodaram testes no mesmo banco local do `verify:all` |
+
+**`verify:all` local:** a primeira rodada teve falhas em suítes de administração e Gestão (`Foreign key constraint violated`, `No record was found`) porque os revisores executavam testes no mesmo banco ao mesmo tempo (`limparBanco` de um apagava as linhas do outro); nenhuma falha em Estações. A rodada foi descartada; a verificação que vale é a da CI da PR, com banco próprio por job.
+
+**Merge da `main`:** a PR #264 (D-PROD-186) entrou na `main` durante a missão. Conflito só em `DECISIONS.md` e `CURRENT-STATE.md`, resolvido mantendo as duas decisões. A D-PROD-186 desligou os `gmd_*` da Categoria de Manejo, o que confirma que a futura curva de ganho por estação é um cadastro próprio.

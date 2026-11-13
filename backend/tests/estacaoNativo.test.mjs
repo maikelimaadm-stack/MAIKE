@@ -189,6 +189,21 @@ describe('D-PROD-188 — Estações: validação do corpo', () => {
     assert.equal(umDia.json().data_fim, '2026-11-01', 'o dia não desloca com o fuso');
   });
 
+  test('texto que cresce ao virar maiúsculo (ß → SS) e passa da coluna → 400 tamanho_excedido, nunca 500; no limite exato é aceito', async () => {
+    const { token, e1 } = await cenario();
+    const nome = await criar(token, base(e1.id, { nome: 'ß'.repeat(61) }));
+    assert.equal(nome.statusCode, 400, nome.body);
+    assert.equal(nome.json().reason, 'tamanho_excedido');
+    const obs = await criar(token, base(e1.id, { observacoes: 'ß'.repeat(1001) }));
+    assert.equal(obs.statusCode, 400, obs.body);
+    assert.equal(obs.json().field, 'observacoes');
+    assert.equal(await prisma().cadEstacao.count(), 0);
+    const a = (await criar(token, base(e1.id, { nome: 'ß'.repeat(60) }))).json();
+    assert.equal(a.nome, 'SS'.repeat(60), '120 caracteres cabem');
+    const patch = await req('PATCH', `/estacoes/${a.id}`, token, { empresa_id: e1.id, nome: 'ß'.repeat(61) });
+    assert.equal(patch.statusCode, 400, patch.body);
+  });
+
   test('observações com marcação HTML ou caractere de controle → 400', async () => {
     const { token, e1 } = await cenario();
     assert.equal((await criar(token, base(e1.id, { observacoes: '<b>x</b>' }))).statusCode, 400);

@@ -43,6 +43,8 @@ import {
 export const TIPOS_ESTACAO = Object.freeze(['AGUAS', 'TRANSICAO', 'SECA']);
 
 const ENTIDADE = 'CadEstacao';
+/** Largura das colunas VARCHAR (em caracteres, como o PostgreSQL conta). */
+const LARGURA = Object.freeze({ nome: 120, observacoes: 2000 });
 const ANO_MINIMO = 1900;
 const ANO_MAXIMO = 2100;
 
@@ -97,6 +99,23 @@ const tipoDoCorpo = (valor) => {
 };
 
 /**
+ * O schema da rota limita o texto ANTES das maiúsculas; algumas letras crescem
+ * ao subir ('ß' → 'SS'), e o banco recusaria com P2000 (que viraria 500). Confere
+ * de novo depois de normalizar, contando caracteres como o PostgreSQL.
+ * @param {string|null|undefined} valor
+ * @param {'nome'|'observacoes'} campo
+ */
+const caberNaColuna = (valor, campo) => {
+  if (typeof valor === 'string' && [...valor].length > LARGURA[campo]) {
+    throw invalido(`${campo} passa de ${LARGURA[campo]} caracteres depois de convertido para maiúsculas`, {
+      field: campo,
+      reason: 'tamanho_excedido',
+    });
+  }
+  return valor;
+};
+
+/**
  * Campos editáveis do corpo, já normalizados. `empresa_id` NÃO está aqui: é o
  * escopo, conferido à parte e nunca alterado por PATCH.
  * @param {Record<string, unknown>} entrada
@@ -104,7 +123,7 @@ const tipoDoCorpo = (valor) => {
 const camposDe = (entrada) => {
   /** @type {Record<string, unknown>} */
   const campos = {};
-  const nome = textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true, maiusculas: true });
+  const nome = caberNaColuna(textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true, maiusculas: true }), 'nome');
   if (nome !== undefined) campos.nome = nome;
   const tipo = tipoDoCorpo(entrada.tipo);
   if (tipo !== undefined) campos.tipo = tipo;
@@ -112,7 +131,7 @@ const camposDe = (entrada) => {
   if (inicio !== undefined) campos.data_inicio = inicio;
   const fim = diaDoCorpo(entrada.data_fim, 'data_fim');
   if (fim !== undefined) campos.data_fim = fim;
-  const observacoes = textoDoCorpo(entrada.observacoes, 'observacoes', { maiusculas: true });
+  const observacoes = caberNaColuna(textoDoCorpo(entrada.observacoes, 'observacoes', { maiusculas: true }), 'observacoes');
   if (observacoes !== undefined) campos.observacoes = observacoes;
   if (entrada.ativo !== undefined) campos.ativo = Boolean(entrada.ativo);
   return campos;
