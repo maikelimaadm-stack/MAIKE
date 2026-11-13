@@ -1,6 +1,6 @@
 # MAIKE-APONTAMENTO-ATIVIDADE — Relatório (Fatia C do apontamento)
 
-**fatia C · `feat/apontamento-atividade` · PR #__PR__ (rascunho)** · Decisão: [D-PROD-188](./DECISIONS.md)
+**fatia C · `feat/apontamento-atividade` · PR #269 (rascunho)** · Decisão: [D-PROD-188](./DECISIONS.md)
 
 ## 1. Entrega
 
@@ -74,7 +74,22 @@ A especificação diz "hora_fim < hora_inicio → recusa", e a tela recebe HH:MM
 
 ## 4. Validação local (PostgreSQL 16 descartável)
 
-__VALIDACAO__
+Rodada final do `verify:all` completo, sobre o commit `a39ec01`, num banco recém-criado (`maike_final`): **TODAS AS ETAPAS PASSARAM, 39 de 39**, em 1504,6 s.
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` | 810/810 |
+| 29 gates (governance-paths, product-scope, native-api, tenancy, indices, deploy-migrations, supabase-public-grants e os demais) | todos passaram |
+| `prisma:generate`, `types` (dívida 625 = teto), `typecheck:backend`, `lint` (0 erros) | passaram |
+| `test:backend` | 1767 testes: 1762 passaram, 0 falhas; os outros 5 são `todo` antigos do ledger |
+| `test:smoke` | 218 arquivos, 2673 testes, 0 falhas |
+| `build`, `build:admin`, `admin-isolation:bundles` | passaram |
+
+Provas por mutação, cada uma aplicada e desfeita, derrubando ao menos um teste:
+- **cópia do centro:** feita na edição, ao trocar o bem e em toda edição; sem checar ativo; desligada; com o informado perdendo para o do bem; com o implemento como fonte;
+- **atualização com versão:** sem `versao` e sem `status` no `WHERE`;
+- **horas:** sem a regra de hora futura; com o dia em UTC; sem reaplicar na edição; com o fim no dia seguinte;
+- **formulário:** sobrescrevendo a escolha manual; preenchendo na edição; nunca preenchendo; sem restaurar o centro do bem ao limpar.
 
 O `verify:all` também roda no CI da PR.
 

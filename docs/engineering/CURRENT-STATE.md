@@ -30,7 +30,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-188** (a especificação dizia D-PROD-184, que a `main` já deu ao Estoque P1-02) |
-| Branch / PR | `feat/apontamento-atividade`, atualizada com a `main` `1dd62f0`. PR **#__PR__** em rascunho, exclusiva desta fatia |
+| Branch / PR | `feat/apontamento-atividade`, atualizada com a `main` `1dd62f0`. PR **#269** em rascunho, exclusiva desta fatia |
 | Escopo | Model `ApontamentoAtividade`, API `/apontamentos-atividade` (lista, detalhe, criar, editar com `versao`, cancelar; sem DELETE), opções do formulário, tela `op-apontamentos-atividade` abaixo de "Tipos de Atividade", regras R-a…R-l. Centro de resultado escolhido pelo usuário; centro de custo copiado do bem na criação e trocável (snapshot) |
 | Migration | `20261113300000_apontamento_atividade`, **EXPAND** (só a tabela nova). SHA-256 `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Não aplicada**: depende de GO do proprietário |
 | Release | Aplicar antes do merge pelo `premerge-migrate` (`--verificar-alvo`, depois `--aplicar`), com GO; depois merge e deploy |
