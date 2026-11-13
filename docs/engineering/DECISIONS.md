@@ -6326,6 +6326,14 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - contrato: [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md);
   - relatório: [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md).
 
+> **Ratificação posterior — 2026-11-13 (D-PROD-177, vigente após merge manual desta nota).**
+>
+> - **Decisão do responsável:** ratificada em 2026-11-13 por **proprietário/responsável pelo projeto MAIKE**, após aprovação expressa das regras de entrada manual documentada, **Editar** e **Excluir**, e da reimplantação somente após exclusão segura. Texto constitucional incorporado em `b7e5ab11fbac27c16b943242301300314432f5f7` (merge manual da PR #252), nos arquivos `docs/constitution/00-CONSTITUICAO.md` e `docs/constitution/07-DO-NOT-DO.md`.
+> - **Escolhas ratificadas pelo texto incorporado (R-EMENDA / R-IMPL / R-MOTIVOS / R-EDICAO-EXCLUSAO no alcance normativo do texto):** três motivos fechados (`SALDO_IMPLANTACAO`, `DOACAO`, `OUTRA` justificada); proibição de usar doação/OUTRA como saldo antigo e de duplicar compra; implantação ativa única por produto/empresa, com reimplantação apenas depois de exclusão segura, desconsiderando somente fatos próprios estornados e não consumidos; motivo imutável; bloqueio de alterações físicas por dependência de qualquer item, incluindo consumo posteriormente estornado; com dependência, só observação e justificativa editáveis; edição versionada por estorno/novo efeito atômico; exclusão lógica `EXCLUIDA` com estorno integral; prova de dependência fail-closed, cache exato e proteção FIFO; histórico e auditoria. A compra da P3 e as demais origens mantêm seus contratos.
+> - **Limites desta ratificação:** não autoriza ajustes de inventário, conversão de entradas que eram compra, mudança de writers históricos, FEFO, saneamento de dados legados, exceção ao fail-closed, abertura de novas páginas fora dos slices nem alterações de produção. A implementação P1-02 depende desta nota na `main` e de seus próprios gates/CI; não decorre da PR #248 isoladamente.
+> - **Pendências para decisão nos slices correspondentes:** `R-CONVERSAO`, `R-LEGADO`, `R-LOTE`, `R-DATA`, parâmetros quantitativos e operacionais de `R-DEDUPE`, `R-ORDEM`, `R-SPLIT`, detalhes de `R-EDICAO-EXCLUSAO` não cobertos pelo texto constitucional, validação dos tetos e qualquer GO/runbook por migration. Nenhuma pendência significa autorização tácita; decidir na fase aplicável, sem ampliar o P1-02.
+> - **Evidência/efeito:** aprovação do proprietário + PR #252 mergeada com texto constitucional; esta nota registra a ratificação somente após o merge manual desta PR de registro, sem alterar fatos físicos ou executar migrations.
+
 ## D-PROD-178 — Mapa: nível do cocho pelo saldo estimado do ciclo, depósito pelo limite operacional, numa fonte única de cálculo
 
 **Data:** 2026-11-12.
