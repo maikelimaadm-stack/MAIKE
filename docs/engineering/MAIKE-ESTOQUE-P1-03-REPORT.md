@@ -128,7 +128,7 @@ Não é extrapolação para produção.
 2. **Custo de escrita:**
    - cada movimento passa a atualizar mais um índice de 4 colunas;
    - cada recibo, mais um de 3 colunas.
-   
+
    Aceitável para o ganho medido. O `AuditLog` não ganhou índice, de propósito (§2.1).
 3. **Índice redundante:** `(cliente_id, empresa_id)` em `MovimentacaoEstoque`. Remoção só com decisão CONTRACT própria.
 4. **Keyset sem consumidor até a P1-04.** O contrato manda o índice antes da central, e o teste X2/X3 fixa a semântica que a P1-04 tem de usar.
