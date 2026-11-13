@@ -118,7 +118,21 @@ O que mudou por causa das revisões:
 
 ## 6. Validação local (PostgreSQL 16 descartável)
 
-<!-- preenchido no fim da fatia -->
+PostgreSQL 16.15 local, banco recriado do zero antes de cada rodada, com as variáveis da CI (`AUTH_SECRET` e `FRONTEND_ORIGINS` descartáveis). Produção não foi tocada.
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify:all` (conteúdo do commit `4934870`) | **exit 0, todas as etapas** em 1515 s |
+| ↳ `test:gates` | 808/808 |
+| ↳ `test:backend` (todas as migrations aplicadas do zero pelo `deploy:migrate`, inclusive esta) | 1659 aprovados, 0 falhas, 5 `todo` (de 1664) |
+| ↳ `test:smoke` | 2622/2622 (215 arquivos) |
+| ↳ lint, `gate:types` (625, sem regressão), `typecheck:backend` (0), `gate:governance-paths`, `gate:tenancy`, `gate:indices`, `gate:deploy-migrations`, `gate:supabase-public-grants`, `gate:tarefa-cadastro-native`, build e build:admin | todos PASS |
+| `node --test scripts/tests/deploy/{premerge-migrate,migrations,alvo-banco,preflight-schema}.test.mjs` | 83/83 |
+| `backend/tests/tipoTarefaDropColunasMigration.test.mjs` | 15/15. Cobre: TD-01; 9 RED, cada um recusado com a mensagem própria e sem mudar nada; TD-02 (runner sem a decisão → `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`); TD-03 GREEN pelo runner, 42/0, 9 colunas, linhas idênticas e `migrate diff` 0; TD-04 (2ª execução "No pending"); TD-05; TD-06 |
+| `backend/tests/patrimonioSimplificaMigration.test.mjs` | 14/14, com a partida em 41 |
+| `node scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs` | `ensaio D-PROD-183: OK` |
+| Prisma Client da `main` atual contra banco sem as colunas | CRUD de `TipoTarefa` sem erro |
+| Prisma Client de `6b85696^1` contra banco sem as colunas | `P2022 TipoTarefa.exige_area` (por isso a proibição de rollback) |
 
 ## 7. Riscos e limites conhecidos
 
