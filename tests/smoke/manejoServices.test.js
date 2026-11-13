@@ -465,15 +465,16 @@ describe('CM — categorias de manejo', () => {
   });
 });
 
-describe('CM-D5 — exclusão também bloqueia pela categoria oficial DERIVADA (sexo + faixa de idade)', () => {
-  /** Carrega os quatro dependentes; só a entidade indicada traz o registro. */
+describe('CM-D5 — exclusão: id e nome bloqueiam; a categoria oficial DERIVADA não (hotfix)', () => {
+  /** Carrega os quatro dependentes. */
   const dependentes = ({ lotesDeps = [], movs = [], manejos = [], suplementos = [] } = {}) => {
     lotes.listLotes.mockResolvedValue(lotesDeps);
     lotes.listMovimentacoesPecuarias.mockResolvedValue(movs);
     lotes.listSuplementacaoLotes.mockResolvedValue(suplementos);
     rebanho.listManejosTecnicos.mockResolvedValue(manejos);
   };
-  const BEZERRO = { id: 'cm1', empresa_id: EMPRESA, nome: 'BEZERRO 0 A 8', sexo: 'Macho', idade_minima_meses: 0, idade_maxima_meses: 8 };
+  const BEZERRO = { id: 'cm1', empresa_id: EMPRESA, nome: 'TESTE', sexo: 'Macho', idade_minima_meses: 0, idade_maxima_meses: 8 };
+  const OFICIAL = 'Bezerro 0 a 12 meses';
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -485,72 +486,57 @@ describe('CM-D5 — exclusão também bloqueia pela categoria oficial DERIVADA (
     return hasApiErrorCode(erro, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED);
   };
 
-  it('texto oficial derivado (Bezerro 0 a 12 meses) em cada campo-alvo bloqueia; o delete não é chamado', async () => {
-    const OFICIAL = 'Bezerro 0 a 12 meses';
-    const casos = [
-      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria: OFICIAL }] },
-      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria_entrada: 'bezerro 0 a 12 meses ' }] },
-      ...['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'].map((campo) => ({
-        movs: [{ id: 'm1', empresa_id: EMPRESA, [campo]: OFICIAL }],
-      })),
-      { manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: OFICIAL }] },
-      { suplementos: [{ id: 's1', empresa_id: EMPRESA, categoria: OFICIAL }] },
-    ];
-    for (const caso of casos) {
-      dependentes(caso);
-      expect(await bloqueia(), JSON.stringify(caso)).toBe(true);
-    }
-    expect(categoriasManejo.deleteCategoriaManejo).not.toHaveBeenCalled();
-  });
-
-  it('outra oficial, outra empresa ou campo fora da regra (Lote.categoria_manejo_nome) não bloqueiam pela derivada', async () => {
+  it('caso de produção: 22 lotes de OUTRA categoria com o texto oficial "Bezerro 0 a 12 meses" não impedem excluir a categoria Macho 0–8', async () => {
     dependentes({
-      lotesDeps: [
-        { id: 'l1', empresa_id: EMPRESA, categoria: 'Garrote 13 a 24 meses', categoria_manejo_nome: 'Bezerro 0 a 12 meses' },
-        { id: 'l2', empresa_id: 'outra', categoria: 'Bezerro 0 a 12 meses' },
-      ],
-      movs: [{ id: 'm1', empresa_id: EMPRESA, categoria_animal: 'Bezerra 0 a 12 meses' }],
+      lotesDeps: Array.from({ length: 22 }, (_, i) => ({ id: `l${i}`, empresa_id: EMPRESA, categoria_manejo_id: 'outra', categoria: OFICIAL, categoria_entrada: OFICIAL })),
+      movs: ['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'].map((campo, i) => ({ id: `m${i}`, empresa_id: EMPRESA, [campo]: OFICIAL })),
+      manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: OFICIAL }],
+      suplementos: [{ id: 's1', empresa_id: EMPRESA, categoria: OFICIAL }],
     });
     expect(await bloqueia()).toBe(false);
     expect(categoriasManejo.deleteCategoriaManejo).toHaveBeenCalledWith('cm1');
   });
 
-  it('derivada nula (sem sexo, sem faixa ou faixa que atravessa duas oficiais) nunca casa — nem com campo vazio', async () => {
-    for (const categoria of [
-      { ...BEZERRO, sexo: null },
-      { ...BEZERRO, idade_minima_meses: null, idade_maxima_meses: null },
-      { ...BEZERRO, idade_minima_meses: 10, idade_maxima_meses: 20 },
-      // Um valor "derivado" vindo pronto no registro nunca vale: é sempre recalculado.
-      { ...BEZERRO, sexo: 'Misto', categoria_oficial_derivada: 'Bezerro 0 a 12 meses' },
+  it('lote ligado pelo id (categoria_manejo_id ou de entrada) bloqueia', async () => {
+    for (const lote of [
+      { id: 'l1', empresa_id: EMPRESA, categoria_manejo_id: 'cm1' },
+      { id: 'l1', empresa_id: EMPRESA, categoria_manejo_entrada_id: 'cm1' },
     ]) {
       vi.clearAllMocks();
-      categoriasManejo.listCategoriasManejo.mockResolvedValue([categoria]);
-      dependentes({
-        lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria: 'Bezerro 0 a 12 meses', categoria_entrada: '' }],
-        movs: [{ id: 'm1', empresa_id: EMPRESA, categoria_animal: null, categoria_nova: '' }],
-        manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: '' }],
-        suplementos: [{ id: 's1', empresa_id: EMPRESA }],
-      });
-      expect(await bloqueia(), JSON.stringify(categoria)).toBe(false);
-      expect(categoriasManejo.deleteCategoriaManejo).toHaveBeenCalledWith('cm1');
+      categoriasManejo.listCategoriasManejo.mockResolvedValue([BEZERRO]);
+      dependentes({ lotesDeps: [lote] });
+      expect(await bloqueia(), JSON.stringify(lote)).toBe(true);
+      expect(categoriasManejo.deleteCategoriaManejo).not.toHaveBeenCalled();
     }
   });
 
-  it('domínio puro: evaluateDeleteBlock calcula categoria_oficial_derivada; duas categorias na mesma faixa oficial bloqueiam uma à outra (lado seguro)', async () => {
-    const { evaluateDeleteBlock, withComputedSourceFields, DELETE_RULES } = await import('@/domain/deleteRules');
-    const fontes = DELETE_RULES.CategoriaManejo.flatMap((r) => (r.valueMatches || []).map((v) => v.sourceField));
-    expect(fontes).toContain('categoria_oficial_derivada');
-    expect(fontes).not.toContain('categoria_oficial');
-    expect(withComputedSourceFields('CategoriaManejo', BEZERRO).categoria_oficial_derivada).toBe('Bezerro 0 a 12 meses');
-    expect(withComputedSourceFields('CategoriaManejo', { ...BEZERRO, sexo: '' }).categoria_oficial_derivada).toBeNull();
-    expect(withComputedSourceFields('Setor', { nome: 'S' })).toEqual({ nome: 'S' });
-    const de9a12 = { id: 'cm2', empresa_id: EMPRESA, nome: 'BEZERRO 9 A 12', sexo: 'Macho', idade_minima_meses: 9, idade_maxima_meses: 12 };
-    // Lote gravado com a oficial de um bezerro: as duas categorias (0–8 e 9–12) ficam bloqueadas.
-    const recordsByEntity = { Lote: [{ id: 'l1', empresa_id: EMPRESA, categoria: 'Bezerro 0 a 12 meses' }] };
-    for (const alvo of [BEZERRO, de9a12]) {
-      const v = evaluateDeleteBlock({ entityName: 'CategoriaManejo', id: alvo.id, currentRecord: alvo, recordsByEntity });
-      expect(v).toMatchObject({ blocked: true, label: 'lotes', linkedCount: 1 });
+  it('o NOME da categoria em cada campo-alvo continua bloqueando', async () => {
+    const casos = [
+      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria_manejo_nome: 'teste' }] },
+      { lotesDeps: [{ id: 'l1', empresa_id: EMPRESA, categoria: 'TESTE ' }] },
+      ...['categoria_animal', 'categoria_nova', 'transferencia_origem', 'transferencia_destino'].map((campo) => ({
+        movs: [{ id: 'm1', empresa_id: EMPRESA, [campo]: 'TESTE' }],
+      })),
+      { manejos: [{ id: 'mt1', empresa_id: EMPRESA, categoria: 'TESTE' }] },
+      { suplementos: [{ id: 's1', empresa_id: EMPRESA, categoria: 'TESTE' }] },
+    ];
+    for (const caso of casos) {
+      vi.clearAllMocks();
+      categoriasManejo.listCategoriasManejo.mockResolvedValue([BEZERRO]);
+      dependentes(caso);
+      expect(await bloqueia(), JSON.stringify(caso)).toBe(true);
     }
+  });
+
+  it('domínio puro: as regras de CategoriaManejo não têm fonte calculada nem categoria oficial', async () => {
+    const { evaluateDeleteBlock, DELETE_RULES } = await import('@/domain/deleteRules');
+    const fontes = DELETE_RULES.CategoriaManejo.flatMap((r) => (r.valueMatches || []).map((v) => v.sourceField));
+    expect(new Set(fontes)).toEqual(new Set(['nome']));
+    const v = evaluateDeleteBlock({
+      entityName: 'CategoriaManejo', id: 'cm1', currentRecord: BEZERRO,
+      recordsByEntity: { Lote: [{ id: 'l1', empresa_id: EMPRESA, categoria: OFICIAL }] },
+    });
+    expect(v.blocked).toBe(false);
   });
 });
 
