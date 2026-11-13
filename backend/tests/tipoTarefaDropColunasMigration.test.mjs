@@ -34,7 +34,7 @@ import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
   ARQUIVO_CONTRACT, CENARIOS_RED, COLUNAS, COLUNAS_ANTES, COLUNAS_QUE_FICAM, DECISAO, IMPRESSAO_ERRADA, IMPRESSAO_VAZIA,
-  NOME_CONTRACT, SQL_IMPRESSAO, TRECHOS_DA_GUARDA,
+  MIGRATIONS_PARTIDA, NOME_CONTRACT, SQL_IMPRESSAO, TOTAL_MIGRATIONS, TRECHOS_DA_GUARDA,
   aplicarMigrationsDaMain, aplicarPeloRunner, colunasTipoTarefa, comBanco, comImpressao, contagens, exigirUrlLocal,
   historico, impressao, intrusos, migrateDeploy, migrateDiff, resolverRevertida, retrato, rodarCenarioRed, semear, sistema,
 } from '../../scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs';
@@ -89,9 +89,9 @@ after(async () => {
 });
 
 describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de TipoTarefa (PostgreSQL real)', () => {
-  test('TD-01 partida: 41 migrations da main, TipoTarefa com 13 colunas, 2 clientes com true; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
+  test('TD-01 partida: todas as migrations menos a CONTRACT, TipoTarefa com 13 colunas, 2 clientes com true; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 41);
+    assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.colunas, 13);
@@ -169,7 +169,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('TD-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183 + impressão na URL): 42/0, as 9 colunas que ficam, linhas idênticas nelas, mesmas tabelas e migrate diff vazio', async () => {
+  test('TD-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183 + impressão na URL): todas/0, as 9 colunas que ficam, linhas idênticas nelas, mesmas tabelas e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -178,7 +178,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 42);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
 
@@ -201,7 +201,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 42);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
   });
 
   test('TD-05 banco sem nenhum true: impressão INFORMADA errada recusa mesmo assim; sem impressão, o prisma migrate deploy aplica', async () => {
@@ -230,7 +230,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
     const r = await migrateDeploy(URL_V);
     assert.equal(r.status, 0, r.saida);
     const h = await historico(dbVazio);
-    assert.equal(h.concluidas, 42);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.deepEqual(await colunasTipoTarefa(dbVazio), [...COLUNAS_QUE_FICAM]);
@@ -254,7 +254,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
       assert.equal(r.status, 0, r.saida);
       assert.ok(!vazou(r.saida, URL_VI));
       const h = await historico(dbVI);
-      assert.equal(h.concluidas, 42);
+      assert.equal(h.concluidas, TOTAL_MIGRATIONS);
       assert.equal(h.contract_concluida, 1);
       assert.deepEqual(await colunasTipoTarefa(dbVI), [...COLUNAS_QUE_FICAM]);
       assert.deepEqual((await retrato(dbVI)).TipoTarefa, partidaVI.TipoTarefa);

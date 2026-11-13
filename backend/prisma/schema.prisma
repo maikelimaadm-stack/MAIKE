@@ -301,6 +301,9 @@ model OperacaoIdempotente {
 
   @@unique([cliente_id, operation_key, tipo_operacao])
   @@index([cliente_id, createdAt])
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7, LC-2): recibos de comando de estoque por tipo dentro de
+  // intervalos de `createdAt` (reconciliação, `recibosNosIntervalos`: tipo_operacao = ANY(...)).
+  @@index([cliente_id, tipo_operacao, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -1325,6 +1328,10 @@ model MovimentacaoEstoque {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, data_movimentacao])
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): keyset da futura central de movimentos
+  // (P1-04, contrato §6.3): `WHERE cliente_id AND empresa_id AND (data_movimentacao, id) < cursor
+  // ORDER BY data_movimentacao DESC, id DESC`. Tenant primeiro (R10), empresa obrigatória.
+  @@index([cliente_id, empresa_id, data_movimentacao(sort: Desc), id(sort: Desc)], map: "MovimentacaoEstoque_keyset_empresa_idx")
 }
 
 // ---------------------------------------------------------------------------

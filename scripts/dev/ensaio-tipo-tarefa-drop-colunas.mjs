@@ -47,6 +47,13 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261113200000_tipo_tarefa_drop_colunas';
 export const DECISAO = 'D-PROD-183';
+/**
+ * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e o
+ * GREEN é TODAS: as contagens saem da pasta, não de número fixo — uma migration posterior
+ * (ex.: a EXPAND de índices da P1-03, D-PROD-185) não muda o que este ensaio prova.
+ */
+export const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+export const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 /** Parâmetro de sessão que leva a impressão aprovada no GO até a guarda. */

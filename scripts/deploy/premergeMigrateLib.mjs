@@ -71,6 +71,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): EXPAND só de índices não-únicos em tabelas antigas (LC-2 e keyset de movimentos).
+  '20261113300000_estoque_p1_03_indices': '13a60881dbcccfbbba31db57b8757b5828b9b8fd95baaf4268e6be078bf1336b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

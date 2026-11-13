@@ -6690,4 +6690,24 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-185 -->
+## D-PROD-185 — Estoque P1-03: índices M7 EXPAND-ONLY (LC-2 e keyset); R2-2 adiado por falta de consumidor
+
+**Contexto.** O contrato do Estoque P1 (§2 M7, §6.5, §7) põe na P1-03 os índices LC-2 (recibos), R2-2 (AuditLog por produto) e o keyset de movimentos, só com DDL EXPAND e com runbook e GO antes do merge.
+
+**Decisões.**
+1. **Migration nova** `20261113300000_estoque_p1_03_indices`, EXPAND, só `CREATE INDEX` comum, não-único, em tabelas existentes, sem `CONCURRENTLY`. Fica pinada em `MIGRATIONS_APROVADAS`. O número desta decisão fica **fora** do `.sql`.
+   - `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`: LC-2. O consumidor é `recibosNosIntervalos`, com `tipo_operacao = ANY(...)` e intervalo de `createdAt`.
+   - `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`, com nome `MovimentacaoEstoque_keyset_empresa_idx`: keyset da central de movimentos da P1-04 (§6.3).
+2. **R2-2 não é criado.**
+   - A busca de evidência de exclusão filtra o produto depois do `LIMIT`, sobre colunas derivadas por `objeto()`. Nenhum índice de expressão sobre `dados_anteriores`/`dados_novos` casa com ela.
+   - Medido: o candidato não é usado.
+   - O índice fecha **junto** com a reescrita dessa busca, que é mudança de consulta, em slice próprio. Até lá, o M7 está incompleto nesse item.
+3. **`(cliente_id, empresa_id)` de `MovimentacaoEstoque` fica**, embora seja prefixo do keyset. Remoção é CONTRACT e pede decisão própria.
+4. **Ensaios das CONTRACT D-PROD-162/183** contam as migrations pela pasta (`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), em vez de números fixos.
+5. **Release:** GO-1 (preflight só leitura, `estoque-p1-03-preflight-indices-somente-leitura.sql`, mais `--verificar-alvo`) → GO-2 (`premerge-migrate --aplicar`, sem `--contract`) → postcheck → merge manual.
+   - Nenhum GO foi concedido.
+   - A D-PROD-183 já está aplicada. Se o preflight disser o contrário, PARAR.
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
+
+<!-- Próxima decisão: D-PROD-186 -->

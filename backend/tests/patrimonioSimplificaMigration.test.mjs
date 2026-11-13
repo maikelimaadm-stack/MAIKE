@@ -32,7 +32,7 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, NOME_CONTRACT, PAPEL_OUTRO, TABELAS_APAGADAS, TABELAS_ESTOQUE, TABELAS_NOVAS,
+  CENARIOS_RED, DECISAO, MIGRATIONS_PARTIDA, NOME_CONTRACT, PAPEL_OUTRO, TOTAL_MIGRATIONS, TABELAS_APAGADAS, TABELAS_ESTOQUE, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
   retrato, rodarCenarioRed, segurancaDe, semear, sistema,
@@ -74,9 +74,9 @@ after(async () => {
 });
 
 describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
-  test('SM-01 partida: 41 migrations da main, 86 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
+  test('SM-01 partida: todas as migrations menos a CONTRACT, 86 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 41);
+    assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 86);
     for (const t of TABELAS_APAGADAS) assert.ok(partida[t].n > 0, `${t} sem linhas`);
@@ -127,7 +127,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 42/0, 80 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
+  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): todas/0, 80 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 73 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -135,7 +135,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.match(r.saida, new RegExp(`CONTRACT autorizado: ${NOME_CONTRACT} \\(${DECISAO}\\)`));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 42);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.equal(await contarTabelas(db), 80);
@@ -184,6 +184,6 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 42);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
   });
 });

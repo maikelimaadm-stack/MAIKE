@@ -56,6 +56,13 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261110300000_patrimonio_simplifica';
 export const DECISAO = 'D-PROD-162';
+/**
+ * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e o
+ * GREEN é TODAS: as contagens saem da pasta, não de número fixo — uma migration posterior
+ * (ex.: a EXPAND de índices da P1-03, D-PROD-185) não muda o que este ensaio prova.
+ */
+export const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+export const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1;
 /** As 13 tabelas apagadas, na ordem da guarda e dos DROP. */
 export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
