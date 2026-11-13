@@ -117,13 +117,28 @@ export const executarComIdempotencia = async (tx, opcoes) => {
   }
 
   const { httpStatus, body } = await executar();
+  const puro = corpoJsonPuro(body);
   await tx.operacaoIdempotente.update({
     where: chave,
     data: {
       status: 'committed',
       http_status: httpStatus,
-      response_json: /** @type {import('@prisma/client').Prisma.InputJsonValue} */ (body),
+      response_json: /** @type {import('@prisma/client').Prisma.InputJsonValue} */ (puro),
     },
   });
-  return { replay: false, httpStatus, body };
+  return { replay: false, httpStatus, body: puro };
 };
+
+/**
+ * B-03 (MAIKE-ESTOQUE-P1-02, M6): o corpo vira JSON PURO antes de virar recibo,
+ * e o 201 devolve ESSE MESMO objeto. Antes, o 201 levava `Decimal` (que o
+ * Fastify serializa como string) e o recibo guardava o objeto cru, que o Prisma
+ * gravava como NÚMERO: o replay da mesma `operation_id` devolvia `"12.5"` no
+ * primeiro envio e `12.5` no segundo. Agora os dois são idênticos
+ * (`deepEqual`), com a mesma serialização que o HTTP já fazia (`toJSON`):
+ * Decimal → string, Date → ISO, `undefined` some. O fingerprint não muda, e
+ * os recibos ANTIGOS continuam respondendo exatamente o que guardaram.
+ * @param {unknown} body
+ * @returns {Record<string, unknown>}
+ */
+export const corpoJsonPuro = (body) => JSON.parse(JSON.stringify(body ?? {}));
