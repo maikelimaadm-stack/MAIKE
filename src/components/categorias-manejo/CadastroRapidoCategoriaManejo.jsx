@@ -6,7 +6,6 @@ import FormularioCategoriaManejo, {
   getInitialFormData,
 } from "@/components/categorias-manejo/FormularioCategoriaManejo";
 import { criarCategoriaManejo } from "@/services/categoriaManejoService";
-import { useCategoriasOficiaisDisponiveis } from "@/hooks/useCategoriasOficiaisDisponiveis";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 
@@ -17,7 +16,6 @@ import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
  */
 export default function CadastroRapidoCategoriaManejo({ open, onClose, empresaId, nomeInicial = "", onCreated }) {
   const queryClient = useQueryClient();
-  const categoriasOficiais = useCategoriasOficiaisDisponiveis(open ? empresaId : null);
   const [salvando, setSalvando] = React.useState(false);
 
   const salvar = async (dados) => {
@@ -49,7 +47,6 @@ export default function CadastroRapidoCategoriaManejo({ open, onClose, empresaId
           toolbarActions
           isEditing
           initialData={{ ...getInitialFormData(), nome: nomeInicial.toUpperCase() }}
-          categoriasOficiaisDisponiveis={categoriasOficiais}
           isSubmitting={salvando}
           onSubmit={salvar}
           onCancel={onClose}

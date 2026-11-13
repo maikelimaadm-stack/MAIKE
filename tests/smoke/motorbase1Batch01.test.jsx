@@ -244,7 +244,7 @@ describe("MOTORBASE1-BATCH-01", () => {
     await waitFor(() => expect(screen.getAllByText("Obrigatório").length).toBeGreaterThan(0));
   });
 
-  it("CategoriasManejo — queryKey inclui empresa e form 12 GMDs", async () => {
+  it("CategoriasManejo — queryKey inclui empresa e a faixa de idade é um select fixo, sem número livre (D-PROD-186)", async () => {
     serviceMock.listarCategoriasManejoDaEmpresa.mockResolvedValue([]);
     const { default: CategoriasManejo } = await import("@/pages/CategoriasManejo");
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -258,6 +258,9 @@ describe("MOTORBASE1-BATCH-01", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Novo" }));
     const form = screen.getByTestId("b1-form-categoria-manejo");
-    expect(form.querySelectorAll('input[type="number"]').length).toBeGreaterThanOrEqual(15);
+    // Faixa de idade é UM select (cinco faixas fixas); ganho anual e os 12 GMDs saíram.
+    expect(form.querySelectorAll('input[type="number"]').length).toBe(0);
+    const faixa = screen.getByLabelText(/^Faixa de idade/);
+    expect(faixa.getAttribute("role")).toBe("combobox");
   });
 });

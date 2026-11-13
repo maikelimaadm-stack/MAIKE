@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { useCategoriasOficiaisDisponiveis } from "@/hooks/useCategoriasOficiaisDisponiveis";
 import {
   listarCategoriasManejoDaEmpresa,
   criarCategoriaManejo,
@@ -53,7 +52,7 @@ export default function CategoriasManejo() {
       item?.id ? item.nome || "Categoria" : "Nova categoria de manejo",
     getRecordCode: (/** @type {any} */ item) => (item?.sigla ? String(item.sigla) : undefined),
     getSearchHaystack: (/** @type {any} */ c) =>
-      [c.nome, c.sigla, c.raca, c.categoria_oficial, c.especie, c.sexo].filter(Boolean).join(" "),
+      [c.nome, c.sigla, c.especie, c.sexo].filter(Boolean).join(" "),
     mapSearchSuggestion: (/** @type {any} */ c) => ({
       id: String(c.id),
       label: c.nome || "Categoria",
@@ -74,8 +73,6 @@ export default function CategoriasManejo() {
     controller.handleClearFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- troca de empresa
   }, [empresaSelecionadaId]);
-
-  const categoriasOficiaisDisponiveis = useCategoriasOficiaisDisponiveis(empresaSelecionadaId);
 
   const createMutation = useMutation({
     /** @param {object} formData */
@@ -214,7 +211,6 @@ export default function CategoriasManejo() {
           isEditing={!!controller.editingItem?.id}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
-          categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
         />
       }
       listSlot={
