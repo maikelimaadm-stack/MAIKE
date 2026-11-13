@@ -7,7 +7,7 @@
  *
  *  TX-F falha determinística no 2º CREATE INDEX (mesmo formato da migration da
  *       P1-03): o 1º índice NÃO persiste; ledger `failed` (sem finished_at, sem
- *       rolled_back_at, 0 passos); P3018.
+ *       rolled_back_at, 0 passos); P3018 no deploy que falha, P3009 no seguinte.
  *  TX-T o 2º CREATE INDEX espera a trava da 2ª tabela: o backend do deploy SEGURA
  *       ShareLock na 1ª (concedido) e espera ShareLock na 2ª, numa transação só
  *       desde o início do script; o 1º índice não é visível; INSERT na 1ª tabela
@@ -19,7 +19,8 @@
  *       migrations REAIS: antes → SEGUIR; índice criado à mão (parcial) → PARAR;
  *       a migration REAL falhando no 2º índice (nome já ocupado) → nenhum índice,
  *       ledger falhado → PARAR; depois de `migrate resolve --rolled-back` (só no
- *       sandbox) e a causa removida → SEGUIR; aplicada → JA_APLICADA.
+ *       sandbox) e a causa removida → SEGUIR; aplicada → JA_APLICADA; nome ocupado
+ *       por outra relação → PARAR; índice de mesmo nome com definição diferente → PARAR.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,6 +53,8 @@ describe('Escopo transacional do prisma migrate deploy (PG real)', () => {
     assert.equal(r.erro_42703, true, 'a causa é o 2º índice');
     assert.deepEqual(r.indices, [], 'o 1º CREATE INDEX foi desfeito junto: uma transação só');
     assert.deepEqual(r.ledger.find((l) => l.migration_name === '0002_dois_indices'), { migration_name: '0002_dois_indices', terminou: false, revertida: false, passos: 0 });
+    assert.notEqual(r.retry_status, 0, 'o deploy seguinte recusa');
+    assert.equal(r.retry_p3009, true, 'retry com migration falhada pendente: P3009 (não P3018)');
   });
 
   test('TX-T espera da 2ª trava: ShareLock da 1ª tabela retido, 1º índice invisível, escrita na 1ª bloqueada, leitura livre', async () => {
@@ -113,6 +116,12 @@ describe('Preflight fail-closed com as migrations reais', () => {
       assert.equal(v['veredito.estado'], 'SEGUIR', JSON.stringify(v));
       assert.deepEqual([v['indice.novos_ja_existem'], v['migration.falhadas_pendentes'], v['migration.contract_d_prod_183_aplicada']], ['0', '0', 'SIM']);
 
+      // nome de um dos índices ocupado por OUTRA relação (tabela): o CREATE INDEX falharia → PARAR antes do GO-2
+      await db.$executeRawUnsafe('CREATE TABLE "MovimentacaoEstoque_keyset_empresa_idx" (x int)');
+      v = await preflight(db);
+      assert.deepEqual([v['indice.nomes_ocupados_qualquer_tipo'], v['veredito.estado']], ['1', 'PARAR'], 'nome ocupado por tabela');
+      await db.$executeRawUnsafe('DROP TABLE "MovimentacaoEstoque_keyset_empresa_idx"');
+
       // parcial à mão: só o 1º índice existe, sem a migration
       await db.$executeRawUnsafe('CREATE INDEX "OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx" ON "OperacaoIdempotente"("cliente_id", "tipo_operacao", "createdAt")');
       v = await preflight(db);
@@ -139,7 +148,13 @@ describe('Preflight fail-closed com as migrations reais', () => {
 
       assert.equal((await deploy(todas, url)).status, 0, 'reaplicada pelo deploy real');
       v = await preflight(db);
-      assert.deepEqual([v['indice.novos_ja_existem'], v['veredito.estado']], ['2', 'JA_APLICADA']);
+      assert.deepEqual([v['indice.novos_ja_existem'], v['indice.definicoes_exatas_validas'], v['veredito.estado']], ['2', '2', 'JA_APLICADA']);
+
+      // migration registrada, mas um índice com o MESMO nome e definição diferente (em outra tabela) → PARAR
+      await db.$executeRawUnsafe('DROP INDEX "MovimentacaoEstoque_keyset_empresa_idx"');
+      await db.$executeRawUnsafe('CREATE INDEX "MovimentacaoEstoque_keyset_empresa_idx" ON "OperacaoIdempotente"("cliente_id")');
+      v = await preflight(db);
+      assert.deepEqual([v['indice.novos_ja_existem'], v['indice.definicoes_exatas_validas'], v['veredito.estado']], ['2', '1', 'PARAR'], 'nome certo, definição errada');
     } finally {
       await db.$disconnect();
       rmSync(semP103, { recursive: true, force: true });

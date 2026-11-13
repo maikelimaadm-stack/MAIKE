@@ -19,21 +19,27 @@ Migration `20261113300000_estoque_p1_03_indices`, modo **EXPAND**, SHA-256 `5d91
 - **Escopo transacional — PROVADO (R1).** O ensaio real é `scripts/dev/ensaio-p1-03-transacao-migration.mjs`, com o teste `backend/tests/estoqueP1M7TransacaoMigration.test.mjs`. Usou `prisma migrate deploy` 6.19.3 (a versão do package-lock), PostgreSQL 17 local e o PG16 da CI.
   - **Mecanismo:** o log do servidor (`log_statement = all`) mostra o `migration.sql` **inteiro** numa **única** mensagem Query do protocolo simples. O PostgreSQL executa essa mensagem como **uma transação implícita**. O arquivo não tem `BEGIN`/`COMMIT`, nem precisa.
   - O registro em `_prisma_migrations` (`applied_steps_count`, `finished_at`) vem **depois**, em instruções separadas.
-  - **Falha no 2º `CREATE INDEX` (TX-F):** o 1º índice **não** persiste. A migration fica `failed` em `_prisma_migrations` (sem `finished_at`, sem `rolled_back_at`, 0 passos), e o `migrate deploy` seguinte recusa com P3018.
+  - **Falha no 2º `CREATE INDEX` (TX-F):** o 1º índice **não** persiste. A migration fica `failed` em `_prisma_migrations` (sem `finished_at`, sem `rolled_back_at`, 0 passos).
+  - O deploy que falha sai com **P3018**. **Qualquer deploy seguinte recusa com P3009** (há migration falhada) até um `migrate resolve` com GO próprio.
   - **Prova com a migration real** (PF): o 2º nome foi ocupado à força num sandbox. O deploy falhou, nenhum dos dois índices ficou, e o ledger ficou `failed`.
 - **Trava — PROVADA (TX-T).** Enquanto o 2º `CREATE INDEX` espera a trava de `MovimentacaoEstoque`, o backend do deploy **segura** `ShareLock` em `OperacaoIdempotente` (concedido) e **espera** `ShareLock` em `MovimentacaoEstoque`. `xact_start = query_start`, ou seja, uma transação desde o início do script.
   - O 1º índice só fica visível no COMMIT.
   - Um INSERT em `OperacaoIdempotente` de outra sessão é **bloqueado**. SELECT segue.
-  - Consequência: **escritas nas duas tabelas** esperam até o COMMIT da migration inteira, isto é, os **dois builds somados** mais qualquer espera pela trava da 2ª tabela.
+  - Consequência: **escritas nas duas tabelas** esperam até o COMMIT da migration inteira.
+  - A pior janela para os recibos é a soma de quatro trechos:
+    1. a **espera pela trava de `OperacaoIdempotente`**, já que um pedido de `ShareLock` ainda não concedido entra na fila e novas escritas nessa tabela ficam atrás dele;
+    2. o build 1;
+    3. a espera pela trava de `MovimentacaoEstoque`;
+    4. o build 2.
     - Em `OperacaoIdempotente`, isso é **todo** comando idempotente do sistema, de qualquer módulo, porque cada um grava o recibo.
     - Em `MovimentacaoEstoque`, são os lançamentos com estoque, abastecimentos, transferências, suplementação e saída do depósito.
 - **Ordem dos dois índices: recibos → movimentos, de propósito.** É a mesma ordem dos comandos, que gravam o recibo (1ª escrita) antes dos movimentos.
   - Na ordem inversa, um comando que já gravou o recibo e espera `MovimentacaoEstoque` fecharia um ciclo com a migration (deadlock).
   - Nesta ordem, um comando em curso só faz a migration esperar.
-- **`lock_timeout` — PROVADO (TX-L).** Não cabe dentro da migration, porque o classificador não aceita `SET`. Funciona nas `options` da URL de conexão da migration, que o runner repassa sem alteração ao `prisma migrate deploy` (`run-migrations.mjs:188`; mesmo recurso do runbook da D-PROD-183).
-  - Com `-c lock_timeout=…`, uma transação longa faz o deploy **desistir** com 55P03.
-  - Desistindo, **nenhum** índice fica e o ledger fica `failed`.
-  - Sem esse `lock_timeout`, o deploy espera **sem limite** segurando os recibos.
+- **`lock_timeout`: PROVADO em conexão DIRETA (TX-L); NÃO provado via pooler.** Não cabe dentro da migration, porque o classificador não aceita `SET`.
+  - **O que foi provado.** Nas `options` da URL de conexão da migration, que o runner repassa sem alteração ao `prisma migrate deploy` (`run-migrations.mjs:188`), `-c lock_timeout=…` faz o deploy **desistir** com 55P03 sem deixar índice, e o ledger fica `failed`. A prova foi feita com **conexão direta** ao PostgreSQL.
+  - **O que não foi provado.** Em produção, a conexão de migration é o **session pooler** do Supabase, Supavisor na porta 5432 (`DEPLOY-MIGRATION-01B-BARRIER-ACTIVATION-REPORT.md`). Não está provado que ele repassa `options`. O runbook da D-PROD-183 já registrava essa dúvida, e o caminho A dele nunca rodou em produção.
+  - **Sem `lock_timeout` efetivo, o deploy espera sem limite segurando os recibos.** Por isso o GO-2 exige uma das duas condições do §4.2.
 
 ## 1. Caminho
 
@@ -72,12 +78,16 @@ Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura
   - índice parcial criado à mão → `PARAR`;
   - migration falhada → `PARAR`;
   - revertida (`resolve --rolled-back`) com a causa removida → `SEGUIR`;
-  - aplicada → `JA_APLICADA`.
-- **A linha que decide é `veredito.estado`.** As demais explicam o porquê.
+  - aplicada → `JA_APLICADA`;
+  - nome ocupado por outra relação → `PARAR`;
+  - índice de mesmo nome com definição diferente → `PARAR`.
+- **A linha que decide é `veredito.estado`.** `JA_APLICADA` exige as 2 definições **exatas**, válidas e na tabela certa, com a migration concluída. As demais explicam o porquê.
 
 | Linha | Esperado | Se não for |
 |---|---|---|
 | `indice.novos_ja_existem` | `0` | PARAR: alguém criou à mão; investigar antes de qualquer GO-2 |
+| `indice.nomes_ocupados_qualquer_tipo` | `0` | PARAR: outra relação (tabela, view, sequência…) com um dos 2 nomes faria o `CREATE INDEX` falhar (42P07) |
+| `indice.definicoes_exatas_validas` | `0` (postcheck: `2`) | No postcheck, qualquer valor ≠ 2 é PARAR |
 | `indice.invalidos_nas_2_tabelas` | `0` | PARAR |
 | `migration.concluidas` | `42` | PARAR e conferir com `--verificar-alvo` |
 | `migration.falhadas_pendentes` | `0` | PARAR (migration falhada trava o deploy; §6) |
@@ -97,7 +107,15 @@ A medida é **local** e não é estimativa de produção: PostgreSQL 17, 1 worke
 | keyset | 3,6 s |
 | LC-2 | 1,7 s |
 
-A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com dezenas de milhares de linhas, o build é de frações de segundo. A janela em que as escritas esperam é a **soma** dos dois builds, mais a espera pela trava de `MovimentacaoEstoque` (§0).
+A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com dezenas de milhares de linhas, o build é de frações de segundo.
+
+A janela em que as escritas esperam vai além dos builds. É a soma de:
+- espera pela trava de `OperacaoIdempotente`;
+- build 1;
+- espera pela trava de `MovimentacaoEstoque`;
+- build 2.
+
+Com `lock_timeout` efetivo de 5 s, cada espera fica limitada a cerca de 5 s (§0).
 
 **Não se inventa cardinalidade de produção.** O número vem do preflight.
 
@@ -105,13 +123,17 @@ A conta do operador fica proporcional ao `linhas_estimadas` do preflight. Com de
 
 1. **Janela:** pouca escrita. Repetir o preflight imediatamente antes. Só seguir com `veredito.estado = SEGUIR`.
    - `transacao_aberta_mais_antiga_s` alta ou `idle_in_transaction` > 0 significam que a migration vai esperar segurando os recibos.
-2. **`lock_timeout` na URL da migration** (recomendado; precisa constar do GO-2):
-   - acrescentar `options=-c lock_timeout=5s` (codificado: `options=-c%20lock_timeout%3D5s`) à conexão de migration;
-   - efeito provado no TX-L: com trava presa, o deploy desiste em ~5 s sem deixar índice;
-   - o custo é ficar com a migration `failed`, que exige o §6.
+2. **`lock_timeout` efetivo**, obrigatório no GO-2. Valem uma das duas formas abaixo; sem nenhuma delas, **não aplicar**:
+   - **(a) Conexão DIRETA** (`db.<ref>.supabase.co:5432`, não o pooler) com `options=-c lock_timeout=5s` (codificado: `options=-c%20lock_timeout%3D5s`). É o caminho provado no TX-L.
+   - **(b) Prova somente leitura de que o parâmetro chega pela MESMA URL** que o runner vai usar. Rodar imediatamente antes do `--aplicar`; o comando não altera nada e não imprime a URL:
+     ```bash
+     node -e "const {PrismaClient}=require('@prisma/client');const p=new PrismaClient({datasourceUrl:process.env.MIGRATION_DATABASE_URL});p.\$queryRawUnsafe('SHOW lock_timeout').then(r=>console.log('lock_timeout =',r[0].lock_timeout)).finally(()=>p.\$disconnect())"
+     ```
+     O esperado é `lock_timeout = 5s`. Com `0` ou outro valor, o pooler descartou o parâmetro: PARAR e usar (a).
+   - **Custo:** com trava presa, o deploy desiste em cerca de 5 s sem índice, mas a migration fica `failed` e exige o §6.
 3. `--verificar-alvo` e, sem pendência inesperada, `--aplicar` (§1).
 4. **Se o runner falhar: PARAR.**
-   - Não repetir `--aplicar`: o deploy recusa com P3018 enquanto houver migration `failed`.
+   - Não repetir `--aplicar`: com migration `failed` pendente, todo deploy seguinte recusa com **P3009**. O deploy que falhou terá saído com P3018.
    - Não rodar `migrate resolve`, `DROP INDEX` nem SQL de correção.
    - Rodar o preflight (só leitura) e levar a saída ao proprietário (§6).
 
@@ -137,9 +159,9 @@ Depois disso, o proprietário faz o merge manual.
 
 | Estado no preflight | Como acontece | O que fazer |
 |---|---|---|
-| `falhadas_pendentes = 1`, nenhum índice novo | Qualquer erro no script: 55P03 do `lock_timeout`, nome ocupado, falta de espaço, sessão cancelada. **Provado: nada fica pela metade** | **PARAR.** Corrigir a causa só com GO e plano próprios. Depois, `prisma migrate resolve --rolled-back 20261113300000_estoque_p1_03_indices` (GO próprio) e nova aplicação (novo GO-2). No sandbox, isso volta a `SEGUIR` e depois `JA_APLICADA` (PF) |
+| `falhadas_pendentes = 1`, nenhum índice novo | Qualquer erro no script: 55P03 do `lock_timeout`, nome ocupado, falta de espaço, sessão cancelada. **Provado: nada fica pela metade.** O deploy que falha sai com P3018; os seguintes saem com P3009 | **PARAR.** Corrigir a causa só com GO e plano próprios. Depois, `prisma migrate resolve --rolled-back 20261113300000_estoque_p1_03_indices` (GO próprio) e nova aplicação (novo GO-2). No sandbox, isso volta a `SEGUIR` e depois `JA_APLICADA` (PF) |
 | Os 2 índices existem e a migration está sem `finished_at` | O processo morre **depois** do COMMIT do script e **antes** do `UPDATE finished_at`. O log mostra que são instruções separadas; o caso **não foi provocado** em teste | **PARAR.** Conferir as definições com o §5. Se exatas, `migrate resolve --applied` com GO próprio. Nunca `DROP` + reaplicar sem decisão |
-| 1 índice novo sem a migration registrada | Criação à mão, fora do runner | **PARAR.** Investigar quem criou. Remoção só por decisão CONTRACT |
+| 1 índice novo, ou nome ocupado por outra relação, sem a migration registrada | Criação à mão, fora do runner | **PARAR.** Investigar quem criou. Remoção só por decisão CONTRACT |
 | `contract_d_prod_183_aplicada = NAO` | A CONTRACT D-PROD-183 está pendente | **PARAR** (isolamento, §1) |
 
 - **Nada é automático.** O runner não tenta de novo nem resolve sozinho. Quem executa `migrate resolve` ou qualquer correção é o operador, com GO escrito do proprietário para aquele passo.

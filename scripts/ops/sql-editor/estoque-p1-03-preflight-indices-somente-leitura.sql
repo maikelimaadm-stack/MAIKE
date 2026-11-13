@@ -20,10 +20,36 @@
 -- pessoal: só nomes de objeto, contagens, tamanhos e idades.
 --
 -- Resultado: linhas (secao, item, valor, esperado) e a linha final
--- veredito.estado = SEGUIR | JA_APLICADA | PARAR (fail-closed). Leitura no
+-- veredito.estado = SEGUIR | JA_APLICADA | PARAR (fail-closed; JA_APLICADA só
+-- com as 2 definições EXATAS, válidas, na tabela certa). Leitura no
 -- runbook MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md §3.
 -- =============================================================================
 WITH
+-- Veredito único (fail-closed): SEGUIR só no estado "antes" limpo; JA_APLICADA só com os 2 índices e a
+-- migration concluída; qualquer outra combinação (índice parcial ou à mão, migration falhada/revertida,
+-- índice inválido, CONTRACT pendente) → PARAR e investigar, sem `migrate resolve`, DROP ou retry sem GO.
+estado AS (
+  SELECT
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'
+       AND c.relname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx')) AS ocupados,
+    -- Índice com o nome, na tabela certa, com a definição EXATA da migration, válido e pronto.
+    (SELECT count(*) FROM pg_indexes i JOIN pg_class c ON c.relname = i.indexname JOIN pg_index x ON x.indexrelid = c.oid
+       WHERE i.schemaname = 'public' AND x.indisvalid AND x.indisready
+         AND (i.indexname, i.tablename, i.indexdef) IN (
+           ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'OperacaoIdempotente',
+            'CREATE INDEX "OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx" ON public."OperacaoIdempotente" USING btree (cliente_id, tipo_operacao, "createdAt")'),
+           ('MovimentacaoEstoque_keyset_empresa_idx', 'MovimentacaoEstoque',
+            'CREATE INDEX "MovimentacaoEstoque_keyset_empresa_idx" ON public."MovimentacaoEstoque" USING btree (cliente_id, empresa_id, data_movimentacao DESC, id DESC)'))) AS exatos,
+    (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
+       WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid) AS invalidos,
+    (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS falhadas,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas'
+       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS contract_ok,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
+       AND rolled_back_at IS NULL) AS p103_vivas,
+    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
+       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS p103_ok
+),
 alvo AS (
   SELECT 'alvo'::text AS secao, 'banco'::text AS item, current_database()::text AS valor, 'o banco de produção do MAIKE'::text AS esperado
   UNION ALL SELECT 'alvo', 'postgres', current_setting('server_version'), '17.x (o runner já confere o alvo)'
@@ -55,6 +81,14 @@ indices AS (
             AND i.indexname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx'))::text,
          '0 (com 1 ou 2: PARAR, alguém criou à mão)'
   UNION ALL
+  -- Qualquer relação (tabela, view, sequência, índice…) com um dos 2 nomes: o CREATE INDEX falharia (42P07).
+  SELECT 'indice', 'nomes_ocupados_qualquer_tipo',
+         (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'
+            AND c.relname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx'))::text,
+         '0 antes do GO-2; 2 no postcheck'
+  UNION ALL
+  SELECT 'indice', 'definicoes_exatas_validas', (SELECT exatos FROM estado)::text, '0 antes do GO-2; 2 no postcheck'
+  UNION ALL
   SELECT 'indice', 'invalidos_nas_2_tabelas',
          (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
             WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid)::text,
@@ -84,29 +118,12 @@ migracoes AS (
          (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices')::text,
          '0'
 ),
--- Veredito único (fail-closed): SEGUIR só no estado "antes" limpo; JA_APLICADA só com os 2 índices e a
--- migration concluída; qualquer outra combinação (índice parcial ou à mão, migration falhada/revertida,
--- índice inválido, CONTRACT pendente) → PARAR e investigar, sem `migrate resolve`, DROP ou retry sem GO.
-estado AS (
-  SELECT
-    (SELECT count(*) FROM pg_indexes i WHERE i.schemaname = 'public'
-       AND i.indexname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx')) AS novos,
-    (SELECT count(*) FROM pg_index x JOIN pg_class t ON t.oid = x.indrelid
-       WHERE t.relname IN ('MovimentacaoEstoque', 'OperacaoIdempotente') AND NOT x.indisvalid) AS invalidos,
-    (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS falhadas,
-    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113200000_tipo_tarefa_drop_colunas'
-       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS contract_ok,
-    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
-       AND rolled_back_at IS NULL) AS p103_vivas,
-    (SELECT count(*) FROM public._prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices'
-       AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS p103_ok
-),
 veredito AS (
   SELECT 'veredito', 'estado',
          CASE
            WHEN e.invalidos > 0 OR e.falhadas > 0 OR e.contract_ok <> 1 THEN 'PARAR'
-           WHEN e.novos = 0 AND e.p103_vivas = 0 THEN 'SEGUIR'
-           WHEN e.novos = 2 AND e.p103_vivas = 1 AND e.p103_ok = 1 THEN 'JA_APLICADA'
+           WHEN e.ocupados = 0 AND e.p103_vivas = 0 THEN 'SEGUIR'
+           WHEN e.ocupados = 2 AND e.exatos = 2 AND e.p103_vivas = 1 AND e.p103_ok = 1 THEN 'JA_APLICADA'
            ELSE 'PARAR'
          END,
          'SEGUIR antes do GO-2; JA_APLICADA no postcheck; PARAR: investigar (runbook §6), nada destrutivo sem GO'

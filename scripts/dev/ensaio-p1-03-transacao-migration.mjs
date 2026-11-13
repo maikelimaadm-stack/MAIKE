@@ -16,6 +16,7 @@
  * da P1-03 — dois CREATE INDEX comuns, sem BEGIN/COMMIT):
  *  F. falha determinística no 2º CREATE INDEX → o 1º NÃO fica; a migration
  *     fica `failed` no ledger (finished_at nulo, rolled_back_at nulo, 0 passos);
+ *     o deploy que falha sai com P3018 e qualquer deploy seguinte recusa com P3009;
  *  T. o 2º CREATE INDEX espera a trava de "T2" (uma transação aberta escreveu
  *     nela) → durante a espera, o backend do deploy SEGURA ShareLock em "T1"
  *     (concedido) e espera ShareLock em "T2"; o 1º índice não é visível;
@@ -23,6 +24,8 @@
  *     liberada a transação, o deploy termina e os dois índices existem;
  *  L. a mesma espera com `lock_timeout` pelas `options` da URL do deploy →
  *     o deploy FALHA (55P03) sem índice nenhum e com o ledger `failed`.
+ *     Provado em conexão DIRETA ao PostgreSQL; através de pooler (ex.: Supavisor)
+ *     não está provado — o runbook exige `SHOW lock_timeout` pela mesma URL.
  *
  * Uso: node scripts/dev/ensaio-p1-03-transacao-migration.mjs --url <postgresql://… LOCAL com CREATEDB>
  */
@@ -108,7 +111,12 @@ export const cenarioFalhaNoSegundo = async (admin, base) => {
   const db = cliente(url);
   try {
     const r = await deploy(dir, url);
-    return { status: r.status, p3018: /P3018/.test(r.saida), erro_42703: /42703/.test(r.saida), indices: await indicesDe(db), ledger: await ledger(db) };
+    // o deploy SEGUINTE (retry) com a migration falhada pendente
+    const r2 = await deploy(dir, url);
+    return {
+      status: r.status, p3018: /P3018/.test(r.saida), erro_42703: /42703/.test(r.saida), indices: await indicesDe(db), ledger: await ledger(db),
+      retry_status: r2.status, retry_p3009: /P3009/.test(r2.saida),
+    };
   } finally {
     await db.$disconnect();
     rmSync(dir, { recursive: true, force: true });

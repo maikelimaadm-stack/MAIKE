@@ -6715,8 +6715,11 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
   - o `migration.sql` vai numa só mensagem e roda como uma transação implícita;
   - falha no 2º índice não deixa o 1º;
   - as duas travas `SHARE` ficam até o COMMIT;
-  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito.
+  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito. Isso foi provado em conexão **direta**; via pooler não está provado, e o GO-2 exige conexão direta ou `SHOW lock_timeout` pela mesma URL;
+  - o retry com migration falhada pendente recusa com P3009.
 - **Preflight:** ganha `veredito.estado` (fail-closed) e separa falhadas pendentes de revertidas no histórico.
+  - Nome ocupado por qualquer relação → `PARAR`.
+  - `JA_APLICADA` só com as definições exatas, válidas e na tabela certa.
 - **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
 - **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
 

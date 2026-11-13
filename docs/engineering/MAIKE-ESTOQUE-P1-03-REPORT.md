@@ -146,20 +146,34 @@ Não é extrapolação para produção.
 | Prova | Resultado |
 |---|---|
 | Log do servidor (`log_statement = all`) | O `migration.sql` inteiro vai numa **única** mensagem Query, que o PostgreSQL executa como uma transação implícita. `applied_steps_count` e `finished_at` são gravados **depois**, em instruções separadas |
-| TX-F: falha no 2º `CREATE INDEX` | O 1º índice **não** persiste; ledger `failed` (sem `finished_at`, sem `rolled_back_at`, 0 passos); P3018 no deploy seguinte |
+| TX-F: falha no 2º `CREATE INDEX` | O 1º índice **não** persiste; ledger `failed` (sem `finished_at`, sem `rolled_back_at`, 0 passos); o deploy que falha sai com P3018 e **o seguinte recusa com P3009** |
 | TX-T: 2º índice esperando trava | O backend do deploy **segura** `ShareLock` na 1ª tabela (concedido), **espera** `ShareLock` na 2ª, com `xact_start = query_start`. O 1º índice fica invisível; INSERT na 1ª tabela bloqueado (55P03 com timeout curto do observador); SELECT livre. Liberada a trava: os 2 índices e o ledger concluído |
-| TX-L: `lock_timeout` nas `options` da URL | O deploy desiste com 55P03, **sem índice**, ledger `failed`. O runner repassa a URL intacta (`run-migrations.mjs:188`) |
-| PF: preflight com as migrations **reais** | Antes → `SEGUIR`; índice criado à mão → `PARAR`; a migration real falhando no 2º índice → nenhum índice, `PARAR`; `resolve --rolled-back` (sandbox) com a causa removida → `SEGUIR`; aplicada → `JA_APLICADA` |
+| TX-L: `lock_timeout` nas `options` da URL | Em **conexão direta**: o deploy desiste com 55P03, **sem índice**, ledger `failed`. O runner repassa a URL intacta (`run-migrations.mjs:188`). **Via pooler (Supavisor) não está provado**: o GO-2 exige conexão direta ou `SHOW lock_timeout` pela mesma URL (runbook §4.2) |
+| PF: preflight com as migrations **reais** | Antes → `SEGUIR`; **nome ocupado por tabela → `PARAR`**; índice criado à mão → `PARAR`; a migration real falhando no 2º índice → nenhum índice, `PARAR`; `resolve --rolled-back` (sandbox) com a causa removida → `SEGUIR`; aplicada → `JA_APLICADA`; **mesmo nome com definição diferente → `PARAR`** |
 
 **Conclusão:** o texto anterior estava certo no mérito e agora está provado. Ficam registrados:
 - **o caso não provado:** o processo morrer entre o COMMIT do script e o `UPDATE finished_at`;
 - **o `lock_timeout` pela URL:** recomendado no GO-2, porque sem ele a espera é ilimitada segurando os recibos;
 - **a recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio (runbook §6).
 
-**Preflight corrigido (RED→GREEN):**
+**Preflight corrigido (RED→GREEN).**
 - Ganhou a linha `veredito.estado` (`SEGUIR` / `JA_APLICADA` / `PARAR`).
-- Passou a distinguir `falhadas_pendentes`, que bloqueiam, de `revertidas_historico`, que são informativas. Antes, uma reversão antiga já resolvida teria dado PARAR para sempre.
-- Com o SQL anterior, o teste PF falha (sem veredito).
+- Separa `falhadas_pendentes`, que bloqueiam, de `revertidas_historico`, que são informativas.
+- **Depois da auditoria:**
+  - nomes ocupados por **qualquer** relação, não só índice, dão `PARAR` antes do GO-2 (antes, o preflight dava `SEGUIR` e o deploy falharia com 42P07);
+  - `JA_APLICADA` exige as 2 definições **exatas**, válidas, prontas e na tabela certa.
+- Com o SQL anterior, o teste PF falha. RED provado nas duas rodadas.
+
+**Auditoria adversarial da R1:** 2 revisores céticos, somente leitura. 5 achados, todos procedentes e corrigidos:
+1. `lock_timeout` via pooler não provado. Afirmação rebaixada; GO-2 exige conexão direta ou `SHOW lock_timeout`.
+2. O retry recusa com P3009, não P3018. Corrigido e provado no TX-F.
+3. A janela de escrita omitia a espera pela 1ª trava. Corrigido.
+4. Nome ocupado por outra relação dava `SEGUIR`. Corrigido, com RED.
+5. `JA_APLICADA` não conferia a definição. Corrigido, com teste.
+
+O revisor também confirmou localmente que a recuperação do §6 vale no Prisma 6:
+- `resolve --applied` sobre migration `failed` funciona;
+- `resolve --rolled-back` sobre migration aplicada é recusado com P3012.
 
 **Migration:** sem mudança. O comentário já descrevia o comportamento provado, e o SHA continua `5d91e751…28565`.
 
