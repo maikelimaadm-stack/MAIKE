@@ -168,3 +168,13 @@ O que o revisor confirmou sem achado:
 - não há injeção no `GITHUB_OUTPUT`;
 - o `verify:full` é idêntico ao job antigo;
 - **invariante 4, por trace de leituras de arquivo**: nos 29 gates estáticos, só `governance-paths`, `no-secrets` e `deploy-migrations` leem documentação, e os três estão no docs-fast. No `test:smoke` (214 arquivos), só o relatório do MapLibre, que está em `DOCS_ACOPLADOS`. `lint`, `typecheck:backend` e `gate:types` não leem nenhum `.md`.
+
+## 9. Pós-merge: falha pré-existente do S03-R1 no `test:backend`
+
+A PR #255 foi mergeada pelo proprietário com o `verify:full` vermelho em `d85cb3b8` (run 43426229416). A falha **não veio da PR**: o push de `da9fb314` (#253, só documentação) já tinha falhado igual na `main` (run 43422451165).
+
+- **Sintoma:** em `backend/tests/adminClientesGestao.test.mjs`, os testes S03-R1 GES-11 e GES-14 falham com `Timed out fetching a new connection from the connection pool (connection limit: 3)`.
+- **Causa raiz:** o teste segura a linha numa transação (1 conexão) e dispara duas edições que ficam bloqueadas (2 conexões). Para observar o bloqueio, consultava o `pg_stat_activity` por `prisma()`, ou seja, uma 4ª conexão. O pool padrão do Prisma é núcleos físicos × 2 + 1, que dá 3 no runner atual. A consulta esperava conexão até o timeout. Localmente o pool é maior, por isso passava.
+- **Reprodução local** (PG 17, `connection_limit=3`): GES-11 e GES-14 falham com a mesma mensagem; com `connection_limit=9` passam.
+- **Correção** (só no teste): a espera consulta o `pg_stat_activity` pela própria transação que segura a linha, com `pg_stat_clear_snapshot()` a cada volta, porque dentro de uma transação o PostgreSQL congela essa visão. O teste passa a precisar de 3 conexões. Código de produção e pool da CI não mudaram.
+- **Prova:** arquivo inteiro com `connection_limit=3`: 17/17; com o pool padrão: 17/17. Com `connection_limit=1` três testes falham, o que é esperado, porque o teste exige por desenho a trava e duas requisições simultâneas.
