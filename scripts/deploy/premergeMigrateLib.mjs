@@ -73,6 +73,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
   // D-PROD-188: CADESTACOES (cadastro de Estações da fazenda) — só tabela nova.
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
+  // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
+  '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -98,6 +100,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
   // D-PROD-188: RLS/REVOKE de CADESTACOES (mesmo corpo, lista nova).
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
+  // D-PROD-189: RLS/REVOKE de CADCURVAGANHO (mesmo corpo, lista nova).
+  'eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7',
 ]);
 
 /** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */

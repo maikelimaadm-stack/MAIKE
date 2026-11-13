@@ -6766,4 +6766,42 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-189 (D-PROD-185 com a PR #263; D-PROD-187 reservada à Fatia D) -->
+## D-PROD-189 — Cadastro de Curvas de Ganho de Peso por estação, tabela física `CADCURVAGANHO` (primeira fatia, sem vínculos)
+
+**Data:** 2026-11-13 · **Origem:** pedido do proprietário ("vamos fazer agora o próximo"), com as escolhas dele: tabela `CADCURVAGANHO`, GMD **por estação** (não por mês) e **só o cadastro** nesta fatia · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** Segundo passo para o peso projetado do lote: depois das Estações (D-PROD-188), a curva diz quanto o animal ganha por dia em cada tipo de estação. Na fatia que ligar a curva ao lote, o GMD de cada dia virá da estação cadastrada para aquela data em `CADESTACOES`; se a seca de um ano começar mais cedo, a projeção acompanha sem editar a curva. A D-PROD-186 já tirou os 12 `gmd_*` mensais da Categoria de Manejo, então a curva é um cadastro próprio.
+
+**Decisão.**
+1. **Model `CadCurvaGanho`, tabela física `"CADCURVAGANHO"`** (`@@map`, mesmo padrão `CAD…` da D-PROD-187 e da D-PROD-188).
+   - Campos: `id, cliente_id, empresa_id, nome, gmd_aguas, gmd_transicao, gmd_seca, observacoes, ativo, createdAt, updatedAt`.
+   - Os três GMD são `DECIMAL(6,3)` em kg/dia, obrigatórios, de **-2 a 3** (negativo = perda de peso, típica da seca), com CHECK `CADCURVAGANHO_gmd_check`.
+   - Por **fazenda** (`empresa_id`), com FK composta para `Empresa` e FK para `Cliente`, as duas `ON DELETE RESTRICT`. Únicos `[cliente_id, id]` e `[cliente_id, empresa_id, nome]`; índice `[cliente_id, empresa_id, ativo]`.
+   - **Sem nenhum vínculo de negócio:** nada referencia `CADCURVAGANHO` e ela não referencia categoria, lote nem estação.
+2. **Migration EXPAND `20261113600000_cadcurvaganho_cadastro`** (depois da `…500000` da Fatia D, PR #268). Só a tabela nova, índices, FKs, o CHECK e o bloco RLS/REVOKE da D-PROD-188 com `ARRAY['CADCURVAGANHO']`. Número da decisão fora do `migration.sql`.
+   - SHA-256 do arquivo: `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Hash do corpo do DO: `eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7`. Os dois pinados em `premergeMigrateLib.mjs`; o classificador dá `EXPAND`, `tabelas_novas = ["CADCURVAGANHO"]`.
+   - Repositório: 43 → **44** migrations e 81 → **82** tabelas (67 de tenant). SQL editor (01–04), testes de contagem e ensaios atualizados.
+   - **Ordem com a Fatia D (PR #268):** as duas migrations são independentes, mas cada guarda de release conta as concluídas. A que for aplicada depois recalcula o `<N_OK>` no preflight.
+   - Aplicação em produção **antes do merge**, pelo runbook [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md). Pelo conector só com GO escrito e específico desta migration (desvio da D-PROD-74).
+3. **API `/curvas-ganho`** (lista completa por fazenda, em ordem de nome), no molde de `/estacoes`:
+   - `GET /curvas-ganho?empresa_id=`, `GET /curvas-ganho/:id?empresa_id=`, `POST`, `PATCH /:id` (com `empresa_id` no corpo) e `DELETE /:id?empresa_id=`;
+   - tenant só do `auth_context`; fazenda do tenant (`EMPRESA_NOT_FOUND`); curva de outra fazenda ou tenant → 404 `CURVA_GANHO_NOT_FOUND`; a curva nunca troca de fazenda;
+   - nome e observações em MAIÚSCULAS, tamanho conferido depois das maiúsculas; nome único por fazenda → 409 `CURVA_GANHO_NAME_CONFLICT` (corrida perdida também vira 409);
+   - GMD: número finito, faixa -2..3, no máximo 3 casas → senão 400 (`gmd_invalido`, `gmd_fora_da_faixa`, `gmd_casas_decimais`); gravado como decimal exato (`"0.650"`), devolvido como número;
+   - **o corpo bruto precisa trazer número de verdade** (gancho `preValidation`): a coerção padrão do AJV do app transformaria `null` em 0 e `true` em 1, gravando um GMD que ninguém digitou;
+   - exclusão física com auditoria (`CadCurvaGanho`).
+4. **Permissões.** Tela `pec-curvas-ganho`, módulo `manejo`, leitura e escrita pela própria tela. Sem concessão automática.
+5. **Tela `CurvasGanho`** (motor Base1), item "Curvas de Ganho" no menu Manejo, depois de "Estações"; ícone `TrendingUp` no celular.
+   - Formulário: Nome, GMD nas Águas, GMD na Transição, GMD na Seca, Ativo e Observações. O GMD aceita vírgula ou ponto, sinal de menos e até 3 casas; a dica embaixo mostra o equivalente por mês (×30 dias), só como referência.
+   - Lista: Nome, os três GMD (kg/dia) e Ativo; GMD ordena pelo número.
+   - Fazenda selecionada no topo, como nas Estações.
+6. **Fora do escopo:** ligar a curva à Categoria de Manejo ou ao lote, peso projetado, uso das estações no cálculo, objetivos e produção.
+
+**Testes.**
+- `backend/tests/curvaGanhoNativo.test.mjs` (Postgres real): criar e ler, decimal exato no banco, ordem, nome duplicado, obrigatórios, chaves fora do schema, faixa e casas do GMD, `null`/texto/booleano recusados antes da coerção, texto que cresce em maiúsculas, corrida de nome, PATCH parcial, fazenda errada, isolamento, empresa com curva → 409, permissões por ação, tabela física com RLS e CHECK.
+- `permissoesR2Rotas` com POST/PATCH/DELETE de `/curvas-ganho`; contagens em `premerge-migrate`, `sqlEditorBootstrap`, `patrimonioSimplificaMigration` e `tipoTarefaDropColunasMigration`.
+- Smoke `tests/smoke/curvasGanho.test.jsx`: leitura e formato do GMD, ordem dos campos, obrigatórios, payload numérico com negativo, dica por mês, grade e tela; `scope` e `vercelSpaRoutes` com 27 páginas.
+
+**Relatório:** [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-190 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268) -->

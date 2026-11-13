@@ -67,6 +67,8 @@ const ROTULO_VINCULO = Object.freeze({
   Marca: 'marcas',
   // D-PROD-188 — model CadEstacao (tabela CADESTACOES).
   CadEstacao: 'estações',
+  // D-PROD-189 — model CadCurvaGanho (tabela CADCURVAGANHO).
+  CadCurvaGanho: 'curvas de ganho',
 });
 
 /**
