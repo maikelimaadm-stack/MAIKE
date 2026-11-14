@@ -30,7 +30,7 @@ const PAGINAS_COLISAO_HISTORICA = [
  * e Frota, D-PROD-157; +1 Abastecimentos, D-PROD-159; −4 Famílias, Tipos, Perfis
  * de Medição e Combustíveis, D-PROD-162; +1 Tipos de Atividade, D-PROD-182;
  * +1 Estações, D-PROD-188; +1 Curvas de Ganho, D-PROD-189; +1 Apontamentos de
- * Atividade, D-PROD-190).
+ * Atividade, D-PROD-190; trocado por Lançamento de Atividades, D-PROD-200).
  */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
@@ -50,7 +50,7 @@ const TODAS_PAGINAS_SPA = [
   'Produtos',
   'TiposTarefa',
   'TiposAtividade',
-  'ApontamentosAtividade',
+  'LancamentoAtividades',
   'UnidadesMedida',
   'Usuarios',
   'Permissoes',
@@ -63,8 +63,11 @@ const TODAS_PAGINAS_SPA = [
   'Abastecimentos',
 ];
 
-/** D-PROD-162: páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app). */
-const PAGINAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis'];
+/**
+ * Páginas removidas — sem rewrite SPA (o deep link cai no 404 da Vercel, não no app): D-PROD-162 e o
+ * antigo Apontamentos de Atividade (D-PROD-200).
+ */
+const PAGINAS_REMOVIDAS = ['FamiliasPatrimoniais', 'TiposPatrimoniais', 'PerfisMedicao', 'Combustiveis', 'ApontamentosAtividade'];
 
 describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {
   it('counterexample /api/native/{rota}?__native_route= não vaza metadado', () => {
@@ -149,7 +152,8 @@ describe('VERCEL-SPA — matriz das páginas', () => {
     expect(rewrites).toHaveLength(2 + 4 * 28);
   });
 
-  it('as quatro páginas removidas pela D-PROD-162 não têm rewrite (nem no vercel.json)', () => {
+  it('as páginas removidas (as quatro da D-PROD-162 e o Apontamentos de Atividade, D-PROD-200) não têm rewrite (nem no vercel.json)', () => {
+    expect(PAGINAS_REMOVIDAS).toHaveLength(5);
     for (const nome of PAGINAS_REMOVIDAS) {
       for (const source of [`/${nome.toLowerCase()}`, `/${nome.toLowerCase()}/`, `/${nome}`, `/${nome}/`]) {
         expect(rewrites.find((r) => r.source === source), source).toBeUndefined();

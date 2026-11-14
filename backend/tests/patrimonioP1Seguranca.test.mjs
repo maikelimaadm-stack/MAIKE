@@ -677,10 +677,10 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     const delegados = ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'bemPatrimonial', 'familiaPatrimonial', 'tanqueBem', 'tanqueBemProduto', 'tipoPatrimonial'];
     assert.deepEqual(delegados.map((d) => d[0].toUpperCase() + d.slice(1)), [...TABELAS_PATRIMONIO], 'um delegado por tabela');
     const r = await emTransacaoDesfeita(async (tx) => {
-      // D-PROD-190: o ApontamentoAtividade (migration POSTERIOR) referencia o bem
-      // e o implemento; no "schema antigo" ele também não existe. É a ÚNICA
-      // tabela de fora que referencia as 7: confere-se pelo catálogo antes de
-      // tirá-la, para nada sumir escondido.
+      // D-PROD-200: a Atividade (migration POSTERIOR) referencia o bem (a
+      // máquina da atividade); no "schema antigo" ela também não existe. É a
+      // ÚNICA tabela de fora que referencia as 7: confere-se pelo catálogo antes
+      // de tirá-la, para nada sumir escondido.
       const deFora = /** @type {any[]} */ (
         await tx.$queryRaw`SELECT DISTINCT o.relname FROM pg_constraint k
           JOIN pg_class o ON o.oid = k.conrelid JOIN pg_class d ON d.oid = k.confrelid
@@ -688,11 +688,11 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
             AND NOT (o.relname = ANY(${[...TABELAS_PATRIMONIO]}::text[]))
           ORDER BY o.relname`
       ).map((x) => x.relname);
-      assert.deepEqual(deFora, ['ApontamentoAtividade'], 'só o apontamento (posterior) referencia as 7 tabelas');
-      // D-PROD-193: os itens do apontamento (migration ainda POSTERIOR) referenciam o apontamento por FK RESTRICT
-      // e não referenciam as 7; também não existem no "schema antigo". Saem antes dele (a fatia antes do item).
-      await tx.$executeRawUnsafe('DROP TABLE "ApontamentoAtividadeItemConsumoLote", "ApontamentoAtividadeItem"');
-      await tx.$executeRawUnsafe('DROP TABLE "ApontamentoAtividade"');
+      assert.deepEqual(deFora, ['Atividade'], 'só a atividade (posterior) referencia as 7 tabelas');
+      // D-PROD-200: o apontamento da atividade (mesma migration POSTERIOR) referencia a atividade por FK RESTRICT
+      // e não referencia as 7; também não existe no "schema antigo". Sai antes dela.
+      await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');
+      await tx.$executeRawUnsafe('DROP TABLE "Atividade"');
       // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).
       await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */

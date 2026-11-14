@@ -35,9 +35,10 @@ import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMe
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 import { registrarTipoAtividadeRoutes } from './modules/tiposAtividade/tipoAtividadeRoutes.js';
+import { registrarAtividadeRoutes } from './modules/atividades/atividadeRoutes.js';
+import { registrarAtividadeApontamentoRoutes } from './modules/atividades/atividadeApontamentoRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
-import { registrarApontamentoAtividadeRoutes } from './modules/apontamentosAtividade/apontamentoAtividadeRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -210,9 +211,11 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstacaoRoutes);
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
   await app.register(registrarCurvaGanhoRoutes);
-  // D-PROD-190 — Apontamento de Atividade: a EXECUÇÃO de um Tipo de Atividade
-  // (sem itens de custo; sem DELETE físico, só cancelamento).
-  await app.register(registrarApontamentoAtividadeRoutes);
+  // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
+  // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do
+  // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).
+  await app.register(registrarAtividadeRoutes);
+  await app.register(registrarAtividadeApontamentoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

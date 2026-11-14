@@ -9,7 +9,7 @@ import { AvisoGestao, CampoSelect, SecaoForm } from "@/components/gestao/GestaoF
 import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { LIMITES, ehPositivo, lerNumeroLocal, paraTextoDeEdicao } from "@/lib/dinheiroDecimal";
-import { rotuloDoCentro } from "@/lib/apontamentoAtividadeRegras";
+import { rotuloDoCentro } from "@/lib/lancamentoAtividadesRegras";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { listarCentrosDaFazenda, listarUnidadesDeMedida } from "@/services/tipoAtividadeCadastroService";
 
@@ -18,7 +18,7 @@ export const FORMULARIO_TIPO_ATIVIDADE_ID = "formulario-tipo-atividade-base1";
 const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = ["nome_tipo", "descricao"];
 
-/** Formato local do coeficiente digitado na tela (o das quantidades do apontamento). */
+/** Formato local do coeficiente digitado na tela (o das quantidades da atividade). */
 const LOCALE_COEFICIENTE = "pt-BR";
 /** O `PADRAO_DECIMAL` da API: até 10 inteiros e 4 casas. */
 const LIMITES_COEFICIENTE = LIMITES.QUANTIDADE;

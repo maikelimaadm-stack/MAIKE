@@ -32,7 +32,7 @@ const QUERY_KEY = ["tipos-atividade"];
  * Cadastro de tipos de atividade (D-PROD-182; padrões e flags, D-PROD-197).
  *
  * O tipo é do cliente; os centros padrão são da fazenda: o formulário oferece
- * os da fazenda SELECIONADA (a mesma empresa real do Apontamento de Atividade).
+ * os da fazenda SELECIONADA (a mesma empresa real do Lançamento de Atividades).
  */
 export default function TiposAtividade() {
   const queryClient = useQueryClient();
@@ -133,15 +133,17 @@ export default function TiposAtividade() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Tipo de atividade excluído" });
       }
       if (bloqueados.length) {
-        // D-PROD-190: tipo com apontamento de atividade não sai (FK RESTRICT); a saída é inativá-lo.
-        const porApontamento = bloqueados.some((b) => b.code === API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED)
-          ? " Há apontamentos de atividade vinculados: inative o tipo em vez de excluir."
+        // D-PROD-190/198: tipo usado por atividade não sai (FK RESTRICT); a saída é inativá-lo.
+        const porAtividade = bloqueados.some(
+          (b) => b.code === API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED || b.code === API_ERROR_CODES.ATIVIDADE_VINCULADA,
+        )
+          ? " Há atividades vinculadas: inative o tipo em vez de excluir."
           : "";
         notifyError(
           "Atenção",
           (bloqueados.length === 1
             ? "1 tipo de atividade não pôde ser excluído."
-            : `${bloqueados.length} tipos de atividade não puderam ser excluídos.`) + porApontamento,
+            : `${bloqueados.length} tipos de atividade não puderam ser excluídos.`) + porAtividade,
         );
       }
     },

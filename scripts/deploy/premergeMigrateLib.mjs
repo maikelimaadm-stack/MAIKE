@@ -39,6 +39,22 @@
  *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
  *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs).
+ *     Formato CONVERSÃO (D-PROD-200; a entrada tem `conversao` não vazia): os dados
+ *     das tabelas que saem vão para as que entram ANTES do DROP. A ordem passa a ser
+ *     guarda → `alter_antigas` (na D-PROD-200, nenhuma) → RESTO pela allowlist EXPAND
+ *     (as tabelas novas, criadas no próprio resto) → EXATAMENTE as instruções
+ *     `conversao` pinadas, na ordem (na D-PROD-200, o INSERT … SELECT de
+ *     ApontamentoAtividade para Atividade, o de ApontamentoAtividade para
+ *     AtividadeApontamento e o UPDATE que passa o contador de EntidadeCodigoSequencia
+ *     para a entidade Atividade) → EXATAMENTE os DROP TABLE de `drop`, na ordem
+ *     (filhas primeiro), como as ÚLTIMAS instruções do arquivo. A cauda (conversão +
+ *     DROP) é casada de trás para frente sobre as últimas peças não vazias, porque o
+ *     resto tem blocos DO com ';'. DML ou DROP no resto, conversão faltando, trocada
+ *     de ordem ou alterada, DROP antes da conversão ou qualquer instrução depois dos
+ *     DROP → recusa (SQL_NAO_RECONHECIDO no resto; CONTRACT_CONVERSAO_FORA_DO_CONTRATO
+ *     ou CONTRACT_DROP_FORA_DO_CONTRATO na cauda). DML continua PROIBIDO no caminho
+ *     EXPAND: só existe como texto pinado da cauda de uma entrada. As entradas sem
+ *     `conversao` (as seis anteriores) seguem o formato de sempre, igual.
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -103,6 +119,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
   // D-PROD-198: EXPAND — peso objetivo (kg) opcional na Categoria de Manejo (uma coluna anulável em CADCATEGORIA).
   '20261114400000_cadcategoria_peso_objetivo': 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9',
+  // D-PROD-200: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
+  // novas, cada ApontamentoAtividade convertido nas duas (conversão pinada) e as 3 tabelas antigas apagadas no fim.
+  '20261114500000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -134,11 +153,14 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
   // D-PROD-193: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
+  // D-PROD-200: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
+  '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
 ]);
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São seis, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-197.
+ * exige decisão. São sete, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e
+ * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre).
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -274,6 +296,52 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_coeficiente_padrao_check" CHECK ("coeficiente_padrao" > 0)',
     ]),
   }),
+  // D-PROD-200: a atividade vira CABEÇALHO e o apontamento de hoje vira FILHO dela. Formato CONVERSÃO: a guarda (hash
+  // pinado) confere as 3 tabelas antigas e as trava em ACCESS EXCLUSIVE antes de conferir os itens de custo e as fatias
+  // FIFO vazios, os campos sem lugar no modelo novo vazios, os status e o contador; nenhuma instrução em tabela antiga
+  // logo depois dela; no resto, Atividade e AtividadeApontamento pela allowlist EXPAND (CREATE TABLE, índices, CHECKs,
+  // FKs e o RLS de corpo novo); depois EXATAMENTE as 3 instruções `conversao` (texto pinado: cada linha antiga vira
+  // uma Atividade, com id 'atv_' || id antigo e o mesmo número, e um AtividadeApontamento filho com o mesmo id; o
+  // contador passa para a entidade Atividade) e, por ÚLTIMO, EXATAMENTE os 3 DROP TABLE, filhas primeiro. A guarda só
+  // cita as 3 removidas, as 2 criadas no resto e os literais abaixo. As 3 instruções aparecem em `contract[].conversoes`.
+  '20261114500000_atividade_cabecalho': Object.freeze({
+    decisao: 'D-PROD-200',
+    guarda_sha256: '6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64',
+    drop: Object.freeze(['ApontamentoAtividadeItemConsumoLote', 'ApontamentoAtividadeItem', 'ApontamentoAtividade']),
+    literais_guarda: Object.freeze(['CONFIRMADO', 'CANCELADO', 'EntidadeCodigoSequencia']),
+    alter_antigas: Object.freeze([]),
+    conversao: Object.freeze([
+      [
+        'INSERT INTO "Atividade" ("id", "cliente_id", "empresa_id", "numero", "nome", "tipo_atividade_id", "tipo_atividade_nome",',
+        '"grupo_atividade_id", "grupo_atividade_nome", "area_id", "setor_id", "setor_nome", "bem_id", "safra_ciclo",',
+        '"centro_custo_id", "centro_resultado_id", "unidade_producao_id", "unidade_producao_sigla", "data_inicio",',
+        '"area_executada", "quantidade_produzida", "lancamento_tarefa_id", "status", "cancelada_em",',
+        '"cancelado_por_usuario_id", "motivo_cancelamento", "criado_por_usuario_id", "versao", "createdAt", "updatedAt")',
+        'SELECT \'atv_\' || a."id", a."cliente_id", a."empresa_id", a."numero",',
+        'left(a."tipo_atividade_nome" || \' (apontamento nº \' || a."numero" || \')\', 120), a."tipo_atividade_id",',
+        'a."tipo_atividade_nome", a."grupo_atividade_id", a."grupo_atividade_nome", a."area_id", ar."setor_id",',
+        'ar."setor_nome", a."bem_id", a."safra_ciclo", a."centro_custo_id", a."centro_resultado_id", NULL,',
+        'a."unidade_producao", a."data_operacional", NULL,',
+        'CASE WHEN a."status" = \'CONFIRMADO\' THEN a."quantidade_produzida" END, a."lancamento_tarefa_id",',
+        'CASE WHEN a."status" = \'CANCELADO\' THEN \'CANCELADA\' ELSE \'ABERTA\' END, a."cancelado_em",',
+        'a."cancelado_por_usuario_id", a."motivo_cancelamento", a."criado_por_usuario_id", 1, a."createdAt", a."updatedAt"',
+        'FROM "ApontamentoAtividade" AS a',
+        'LEFT JOIN "AreaPastagem" AS ar ON ar."cliente_id" = a."cliente_id" AND ar."id" = a."area_id"',
+      ].join(' '),
+      [
+        'INSERT INTO "AtividadeApontamento" ("id", "cliente_id", "empresa_id", "atividade_id", "data_operacional", "turno",',
+        '"sequencia", "operador_usuario_id", "area_executada_dia", "quantidade_produzida_dia", "observacao", "origem",',
+        '"status", "cancelado_em", "cancelado_por_usuario_id", "motivo_cancelamento", "criado_por_usuario_id", "versao",',
+        '"createdAt", "updatedAt")',
+        'SELECT a."id", a."cliente_id", a."empresa_id", \'atv_\' || a."id", a."data_operacional", NULL, 1,',
+        'a."operador_usuario_id", NULL, a."quantidade_produzida", a."observacao", \'WEB\', a."status", a."cancelado_em",',
+        'a."cancelado_por_usuario_id", a."motivo_cancelamento", a."criado_por_usuario_id", a."versao", a."createdAt",',
+        'a."updatedAt"',
+        'FROM "ApontamentoAtividade" AS a',
+      ].join(' '),
+      'UPDATE "EntidadeCodigoSequencia" SET "entidade" = \'Atividade\', "updatedAt" = CURRENT_TIMESTAMP WHERE "entidade" = \'ApontamentoAtividade\'',
+    ]),
+  }),
 });
 
 /**
@@ -404,9 +472,46 @@ const nomesRenomeados = (alterAntigas) =>
     .filter(Boolean).map((x) => `${q(x[1])}→${q(x[2])}`);
 
 /**
+ * D-PROD-200 — o que cada instrução pinada da conversão escreve, a partir do texto pinado (`INSERT INTO "T" …` →
+ * "INSERT INTO T", `UPDATE "T" …` → "UPDATE T"). Instrução de outra forma sai com o começo do próprio texto.
+ */
+const conversoesDe = (conversao) =>
+  conversao.map((c) => {
+    const x = c.match(new RegExp(`^(INSERT INTO|UPDATE|DELETE FROM) (${ID})`));
+    return x ? `${x[1]} ${q(x[2])}` : c.slice(0, 40);
+  });
+
+/**
+ * D-PROD-200 — formato CONVERSÃO: casa a CAUDA do arquivo, de trás para frente, sobre as peças não vazias de
+ * `instrucoes` a partir de `inicio`: por último EXATAMENTE os `DROP TABLE` de `drop`, na ordem, e logo antes deles
+ * EXATAMENTE as instruções `conversao`, na ordem. De trás para frente porque o resto (antes da cauda) tem blocos DO,
+ * que contêm ';'; a cauda não tem DO. Devolve o índice da primeira peça da cauda (o resto acaba nele), ou `null` se a
+ * cauda não casou (a violação já foi registrada).
+ */
+const casarCaudaConversao = (instrucoes, inicio, k, nome, v) => {
+  const drops = k.drop.map((t) => `DROP TABLE "${t}"`);
+  const esperadas = [...k.conversao, ...drops];
+  let i = instrucoes.length;
+  for (let n = esperadas.length - 1; n >= 0; n--) {
+    do i--; while (i >= inicio && !norm(instrucoes[i]));
+    const achado = i >= inicio ? norm(instrucoes[i]) : '';
+    if (achado === esperadas[n]) continue;
+    if (n >= k.conversao.length) {
+      v(nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${n - k.conversao.length}: esperado ${esperadas[n]} encontrado ${achado}`);
+    } else {
+      v(nome, 'CONTRACT_CONVERSAO_FORA_DO_CONTRATO', `posição ${n}: esperado ${esperadas[n].slice(0, 30)}… encontrado ${achado}`);
+    }
+    return null;
+  }
+  return i;
+};
+
+/**
  * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
  * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
+ * D-PROD-200: com `conversao` não vazia, os DROP saem do início e vão para o FIM, depois da conversão pinada
+ * (`casarCaudaConversao`); o resto fica entre os `alter_antigas` e a cauda.
  */
 const recortarContract = (m, k, v) => {
   const limpo = semComentarios(m.sql).trim();
@@ -418,8 +523,10 @@ const recortarContract = (m, k, v) => {
   const corpo = norm(guarda[1]);
   if (sha256(corpo) !== k.guarda_sha256) v(m.nome, 'CONTRACT_GUARDA_NAO_RECONHECIDA', corpo);
   const instrucoes = limpo.slice(guarda[0].length).split(';');
-  for (let i = 0; i < k.drop.length; i++) {
-    const esperado = `DROP TABLE "${k.drop[i]}"`;
+  const conversao = k.conversao?.length > 0;
+  const dropsNoInicio = conversao ? [] : k.drop;
+  for (let i = 0; i < dropsNoInicio.length; i++) {
+    const esperado = `DROP TABLE "${dropsNoInicio[i]}"`;
     const achado = norm(instrucoes[i] ?? '');
     if (achado !== esperado) {
       v(m.nome, 'CONTRACT_DROP_FORA_DO_CONTRATO', `posição ${i}: esperado ${esperado} encontrado ${achado}`);
@@ -427,13 +534,16 @@ const recortarContract = (m, k, v) => {
     }
   }
   for (let j = 0; j < k.alter_antigas.length; j++) {
-    const achado = norm(instrucoes[k.drop.length + j] ?? '');
+    const achado = norm(instrucoes[dropsNoInicio.length + j] ?? '');
     if (achado !== k.alter_antigas[j]) {
       v(m.nome, 'CONTRACT_ALTER_FORA_DO_CONTRATO', `posição ${j}: esperado ${k.alter_antigas[j].slice(0, 30)}… encontrado ${achado}`);
       return null;
     }
   }
-  const resto = instrucoes.slice(k.drop.length + k.alter_antigas.length).join(';');
+  const inicioDoResto = dropsNoInicio.length + k.alter_antigas.length;
+  const fimDoResto = conversao ? casarCaudaConversao(instrucoes, inicioDoResto, k, m.nome, v) : instrucoes.length;
+  if (fimDoResto === null) return null;
+  const resto = instrucoes.slice(inicioDoResto, fimDoResto).join(';');
   const permitidas = new Set([...k.drop, ...tabelasCriadas(resto), ...k.literais_guarda]);
   for (const x of corpo.matchAll(CITACAO_DO)) {
     const t = x[1] ?? x[2];
@@ -470,6 +580,7 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
       constraints_removidas: constraintsRemovidas(k.alter_antigas), indices_removidos: indicesRemovidos(k.alter_antigas),
       tabelas_renomeadas: tabelasRenomeadas(k.alter_antigas), nomes_renomeados: nomesRenomeados(k.alter_antigas),
       colunas_adicionadas: colunasAdicionadas(k.alter_antigas), constraints_adicionadas: constraints.adicionadas,
+      conversoes: conversoesDe(k.conversao ?? []),
     });
     const resto = recortarContract(m, k, v);
     if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });

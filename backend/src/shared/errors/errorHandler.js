@@ -6,18 +6,19 @@
  *  1. `AppError` vira `{ code, message }` com o status do contrato;
  *  2. erro de unique do PostgreSQL (Prisma `P2002`) vira
  *     `CONCURRENCY_CONFLICT` — a última barreira de concorrência produz código
- *     estável em vez de 500 opaco, como o contrato exige. A FK RESTRICT de um
- *     apontamento de atividade barrando a exclusão do cadastro apontado vira
- *     409 `APONTAMENTO_ATIVIDADE_VINCULADO` (D-PROD-190).
+ *     estável em vez de 500 opaco, como o contrato exige. A FK RESTRICT de uma
+ *     atividade ou de um apontamento de atividade barrando a exclusão do
+ *     cadastro apontado vira 409 `ATIVIDADE_VINCULADA` (D-PROD-200; antes,
+ *     `APONTAMENTO_ATIVIDADE_VINCULADO`, da D-PROD-190).
  *
  * Qualquer outra coisa é erro não previsto: 500 com corpo genérico. O erro
  * original vai para o log, nunca para o cliente — mensagem de erro é uma via de
  * vazamento de esquema e de dado.
  */
 
-import { AppError, apontamentoAtividadeVinculado, ehAppError } from './AppError.js';
+import { AppError, atividadeVinculada, ehAppError } from './AppError.js';
 import { extrairDiagnosticoValidacao } from './validationDiagnostic.js';
-import { vinculoComApontamentoAtividade } from './vinculoApontamentoAtividade.js';
+import { vinculoComAtividade } from './vinculoAtividade.js';
 
 /** Prisma sinaliza violação de unique com `P2002`. */
 const ehViolacaoDeUnique = (erro) => erro?.code === 'P2002';
@@ -53,12 +54,14 @@ export const normalizarErro = (erro) => {
     return new AppError('CONCURRENCY_CONFLICT', 'registro já existe', { cause: erro });
   }
 
-  // D-PROD-190 (R-l): exclusão de cadastro barrada pela FK RESTRICT de um
-  // apontamento de atividade → 409 próprio, não o 403 genérico abaixo. Vem
-  // antes dele porque o 23503 do SQL bruto (P2010) também é reconhecido.
-  const vinculoApontamento = vinculoComApontamentoAtividade(erro);
-  if (vinculoApontamento) {
-    return apontamentoAtividadeVinculado(vinculoApontamento.campo, { cause: erro });
+  // D-PROD-200: exclusão de cadastro barrada pela FK RESTRICT de uma atividade
+  // ou de um apontamento de atividade (reconhecida pelo nome EXATO da FK) →
+  // 409 próprio, não o 403 genérico abaixo. Vem antes dele porque o 23503 do
+  // SQL bruto (P2010) também é reconhecido. A escrita na própria tabela não
+  // casa aqui: o serviço da atividade a traduz em 422 do campo.
+  const vinculo = vinculoComAtividade(erro);
+  if (vinculo) {
+    return atividadeVinculada(vinculo.campo, vinculo.tabela === 'AtividadeApontamento' ? 'apontamento' : 'atividade', { cause: erro });
   }
 
   if (ehViolacaoDeVinculo(erro)) {
