@@ -99,7 +99,15 @@ const semear = async ({ clientes = 1 } = {}) => {
     await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
     // D-PROD-190: um apontamento de atividade (FK RESTRICT para tarefa, tipo, grupo, área, usuário, empresa e cliente):
     // o 02 só o apaga se ele vier ANTES de todas as mães na ordem de exclusão.
-    const ta = await p.tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
+    // D-PROD-195: o tipo de atividade aponta para um centro de custo, um centro de resultado e uma unidade como padrões
+    // (FKs RESTRICT): o 02 só o apaga se ele vier DEPOIS do apontamento e ANTES dessas três mães.
+    const centroCusto = await p.centroCusto.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'CUSTEIO' } });
+    const centroResultado = await p.centroResultado.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'PECUÁRIA' } });
+    const unidade = await p.unidadeMedida.create({ data: { cliente_id: c, numero_unidade: '1', sigla: 'HA', descricao: 'Hectare' } });
+    const ta = await p.tipoAtividade.create({ data: {
+      cliente_id: c, nome_tipo: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
+      centro_custo_padrao_id: centroCusto.id, centro_resultado_padrao_id: centroResultado.id, unidade_producao_id: unidade.id, exige_area: true,
+    } });
     const apontamento = await p.apontamentoAtividade.create({ data: {
       cliente_id: c, empresa_id: emp.id, numero: '1', tipo_atividade_id: ta.id, tipo_atividade_nome: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
       data_operacional: new Date('2026-11-01T00:00:00Z'), area_id: area.id, lancamento_tarefa_id: tarefa.id,
@@ -277,6 +285,25 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.deepEqual(await contar(), antes);
   });
 
+  test('SE-07b (D-PROD-195) na ordem antiga (TipoAtividade junto de TipoTarefa, depois dos centros e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+    await semear();
+    const antes = await contar();
+    const blocoNovo = "    -- D-PROD-195: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros\n"
+      + "    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).\n"
+      + "    'TipoAtividade',\n";
+    assert.equal(RESET.split(blocoNovo).length, 2, 'o 02 tem a posição nova do TipoAtividade');
+    assert.equal(RESET.split("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'").length, 2);
+    // A conferência da ordem (passo 5) vem antes da impressão (passo 7): a recusa é pela árvore de FKs.
+    const ordemAntiga = reset({ impressao: impressaoAtual() })
+      .replace(blocoNovo, '')
+      .replace("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'", "'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'");
+    const r = psql(ordemAntiga);
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /ordem de FK inválida \(TipoAtividade → (CentroCusto|CentroResultado|UnidadeMedida)\)/);
+    assert.match(r.stderr, /Nada foi alterado/);
+    assert.deepEqual(await contar(), antes);
+  });
+
   test('SE-08 login "maike" já existe (fora do escopo) ou conta maike com papel errado: ANOMALIA, nada apagado', async () => {
     const [t] = await semear();
     const p = prisma();
@@ -318,6 +345,11 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.deepEqual(
       [await p.apontamentoAtividadeItemConsumoLote.count(), await p.apontamentoAtividadeItem.count(), await p.apontamentoAtividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
       [0, 0, 0, 0, 0, 0, 0]
+    );
+    // D-PROD-195: o tipo com os 3 padrões saiu antes do centro de custo, do centro de resultado e da unidade (FKs RESTRICT).
+    assert.deepEqual(
+      [await p.tipoAtividade.count(), await p.centroCusto.count(), await p.centroResultado.count(), await p.unidadeMedida.count()],
+      [0, 0, 0, 0]
     );
     const auditoria = await p.auditLog.findMany({ orderBy: { acao: 'asc' } });
     assert.deepEqual(auditoria.map((a) => a.acao), ['ops_inicializacao', 'papel_tenant']);

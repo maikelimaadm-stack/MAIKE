@@ -128,6 +128,14 @@ export const unidadeMedidaNotFound = (message, options) =>
 export const unidadeMedidaSiglaConflito = (message, options) =>
   new AppError('UNIDADE_MEDIDA_SIGLA_CONFLICT', message || 'já existe unidade com esta sigla', options);
 
+// D-PROD-195 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada como padrão.
+export const unidadeMedidaDeleteBlocked = (message, options) =>
+  new AppError(
+    'UNIDADE_MEDIDA_DELETE_BLOCKED',
+    message || 'não é possível excluir: a unidade de medida é a unidade de produção padrão de um tipo de atividade; inative-a; nada foi apagado',
+    { ...options, details: { ...(options?.details ?? {}), vinculo: 'tipo_atividade' } }
+  );
+
 export const grupoAtividadeNotFound = (message, options) =>
   new AppError('GRUPO_ATIVIDADE_NOT_FOUND', message || 'grupo de atividade não encontrado', options);
 
@@ -164,6 +172,44 @@ export const tipoAtividadeDeleteBlocked = (message, options) =>
     'TIPO_ATIVIDADE_DELETE_BLOCKED',
     message || 'não é possível excluir tipo de atividade com apontamentos vinculados; inative-o',
     options
+  );
+
+/**
+ * D-PROD-195 — frase de cada padrão recusado do Tipo de Atividade, por coluna e `reason`.
+ * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
+ */
+const MENSAGENS_PADRAO_TIPO_ATIVIDADE = Object.freeze({
+  centro_custo_padrao_id: Object.freeze({
+    nao_encontrado: 'o centro de custo padrão não foi encontrado',
+    inativo: 'o centro de custo padrão está inativo: escolha um centro ativo',
+  }),
+  centro_resultado_padrao_id: Object.freeze({
+    nao_encontrado: 'o centro de resultado padrão não foi encontrado',
+    inativo: 'o centro de resultado padrão está inativo: escolha um centro ativo',
+    empresas_diferentes: 'o centro de resultado padrão é de outra fazenda que o centro de custo padrão: os dois têm de ser da mesma fazenda',
+  }),
+  unidade_producao_id: Object.freeze({
+    nao_encontrado: 'a unidade de produção não foi encontrada',
+    inativo: 'a unidade de produção está inativa: escolha uma unidade ativa',
+  }),
+  coeficiente_padrao: Object.freeze({
+    nao_positivo: 'o coeficiente padrão deve ser maior que zero',
+  }),
+});
+
+/**
+ * D-PROD-195 — padrão do Tipo de Atividade recusado (um só código;
+ * `details.field`/`details.reason` dizem qual). Id de outro tenant é
+ * `nao_encontrado`, como o inexistente (sem oráculo).
+ * @param {'centro_custo_padrao_id'|'centro_resultado_padrao_id'|'unidade_producao_id'|'coeficiente_padrao'} field
+ * @param {'nao_encontrado'|'inativo'|'empresas_diferentes'|'nao_positivo'} reason
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const tipoAtividadePadraoInvalido = (field, reason, options) =>
+  new AppError(
+    'TIPO_ATIVIDADE_PADRAO_INVALIDO',
+    `${MENSAGENS_PADRAO_TIPO_ATIVIDADE[field]?.[reason] ?? 'padrão do tipo de atividade recusado'}; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field, reason } }
   );
 
 // D-PROD-190 — Apontamento de Atividade.

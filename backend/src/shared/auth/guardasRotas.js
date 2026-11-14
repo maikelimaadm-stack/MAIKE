@@ -63,6 +63,13 @@ const patrimonio = (alvo) => ({
  */
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
 
+/**
+ * D-PROD-195 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
+ * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
+ * não depende das telas de centros, como as opções do apontamento.
+ */
+const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -283,7 +290,8 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
+  // D-PROD-182. D-PROD-195: opções de centro padrão do formulário = criar OU editar tipo.
+  tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).

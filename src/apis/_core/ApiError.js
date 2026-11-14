@@ -122,6 +122,9 @@ export const API_ERROR_CODES = Object.freeze({
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
   // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
+  // D-PROD-195 — padrão recusado (centro, unidade de produção ou coeficiente):
+  // `details.field` diz qual e `details.reason`, por quê (texto por motivo).
+  TIPO_ATIVIDADE_PADRAO_INVALIDO: 'TIPO_ATIVIDADE_PADRAO_INVALIDO',
 
   // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-190). A tela age
   // sobre cada um: relê a lista (não encontrado, cancelado, versão velha) ou
@@ -247,6 +250,8 @@ const MENSAGENS = Object.freeze({
     'Já existe um tipo de atividade cadastrado com este nome neste grupo.',
   [API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED]:
     'Não é possível excluir o tipo de atividade: há apontamentos de atividade vinculados. Inative o tipo em vez de excluir.',
+  [API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO]:
+    'Um dos padrões do tipo de atividade (centro de custo, centro de resultado, unidade de produção ou coeficiente) não pode ser usado. Nada foi gravado.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_NOT_FOUND]:
     'Este apontamento de atividade não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA]:
@@ -300,6 +305,65 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.EMPRESA_COM_VINCULOS]:
     'Não é possível excluir a empresa: existem registros vinculados a ela (setores, áreas, lotes, produtos, tarefas…). Nada foi apagado.',
 });
+
+/**
+ * D-PROD-195 — texto de `TIPO_ATIVIDADE_PADRAO_INVALIDO` por campo (`details.field`)
+ * e motivo (`details.reason`). Vocabulário fechado: nada do servidor é ecoado.
+ * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
+ */
+const MENSAGENS_PADRAO_TIPO_ATIVIDADE = Object.freeze({
+  centro_custo_padrao_id: Object.freeze({
+    nao_encontrado: 'O centro de custo padrão não foi encontrado. Atualize a lista e escolha outro. Nada foi gravado.',
+    inativo: 'O centro de custo padrão está inativo. Escolha um centro ativo ou deixe o campo vazio. Nada foi gravado.',
+  }),
+  centro_resultado_padrao_id: Object.freeze({
+    nao_encontrado: 'O centro de resultado padrão não foi encontrado. Atualize a lista e escolha outro. Nada foi gravado.',
+    inativo: 'O centro de resultado padrão está inativo. Escolha um centro ativo ou deixe o campo vazio. Nada foi gravado.',
+  }),
+  unidade_producao_id: Object.freeze({
+    nao_encontrado: 'A unidade de produção não foi encontrada. Atualize a lista e escolha outra. Nada foi gravado.',
+    inativo: 'A unidade de produção está inativa. Escolha uma unidade ativa ou deixe o campo vazio. Nada foi gravado.',
+  }),
+});
+
+/**
+ * Por motivo, quando o campo não tem frase própria (e para os motivos de um campo só).
+ * @type {Readonly<Record<string, string>>}
+ */
+const MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO = Object.freeze({
+  nao_encontrado: 'Um dos padrões escolhidos não foi encontrado. Atualize a lista e escolha de novo. Nada foi gravado.',
+  inativo: 'Um dos padrões escolhidos está inativo. Escolha um ativo ou deixe o campo vazio. Nada foi gravado.',
+  empresas_diferentes:
+    'O centro de custo padrão e o centro de resultado padrão são de fazendas diferentes: escolha os dois da mesma fazenda. Nada foi gravado.',
+  nao_positivo: 'O coeficiente padrão precisa ser maior que zero. Nada foi gravado.',
+});
+
+/**
+ * Texto da recusa de padrão do tipo de atividade, ou `null` se o erro não é ela.
+ *
+ * O código chega preservado ou, enquanto o transporte não o catalogar, só no
+ * corpo do servidor guardado em `cause` — de lá só o `code` é comparado. Campo e
+ * motivo vêm de `details` (o transporte já os separa) e escolhem a frase do
+ * catálogo acima.
+ * @param {ApiError} erro
+ * @returns {string|null}
+ */
+const mensagemDoPadraoTipoAtividade = (erro) => {
+  const codigo = API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO;
+  const causa = /** @type {{ code?: unknown } | null} */ (erro.cause && typeof erro.cause === 'object' ? erro.cause : null);
+  if (erro.code !== codigo && causa?.code !== codigo) return null;
+  const detalhes = /** @type {{ field?: unknown, reason?: unknown }} */ (erro.details ?? {});
+  const field = typeof detalhes.field === 'string' ? detalhes.field : '';
+  const reason = typeof detalhes.reason === 'string' ? detalhes.reason : '';
+  const doCampo = Object.prototype.hasOwnProperty.call(MENSAGENS_PADRAO_TIPO_ATIVIDADE, field)
+    ? MENSAGENS_PADRAO_TIPO_ATIVIDADE[field]
+    : null;
+  if (doCampo && Object.prototype.hasOwnProperty.call(doCampo, reason)) return doCampo[reason];
+  if (Object.prototype.hasOwnProperty.call(MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO, reason)) {
+    return MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO[reason];
+  }
+  return MENSAGENS[codigo];
+};
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */
 const RETRYABLE = Object.freeze({
@@ -378,6 +442,8 @@ export const getApiErrorMessage = (erro, fallback = MENSAGEM_PADRAO) => {
       const especifica = mensagemValidacaoSegura(erro.details);
       if (especifica) return especifica;
     }
+    const padraoDoTipo = mensagemDoPadraoTipoAtividade(erro);
+    if (padraoDoTipo) return padraoDoTipo;
     if (typeof erro.message === 'string' && erro.message.trim()) {
       return erro.message;
     }

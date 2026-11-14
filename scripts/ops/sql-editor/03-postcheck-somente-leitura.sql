@@ -16,6 +16,9 @@ tenant(nome) AS (
     -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
     -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
     'ApontamentoAtividade',
+    -- D-PROD-195: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
+    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
+    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -37,7 +40,7 @@ tenant(nome) AS (
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'
+    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'
   ]::text[])
 ),
 contagem AS (
