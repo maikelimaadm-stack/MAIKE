@@ -8,7 +8,7 @@ Runbook: [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNB
 | Camada | O que entrou |
 |---|---|
 | Banco | `CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)` opcional; migration **EXPAND** `20261114400000_cadcategoria_peso_objetivo` |
-| Release | manifesto pinado; preflight exige a coluna; runbook com caminhos A e B; testes do ferramental (B19a/b/k) |
+| Release | manifesto pinado; preflight exige a coluna; runbook com caminhos A e B; testes do ferramental (B20a/b/k) |
 | Backend | peso objetivo validado (> 0 e ≤ 3.000 kg, vírgula, 2 casas; 400 `peso_objetivo_invalido`); motor do peso projetado (`pesoProjetado.js`); `GET /rebanho/posicoes` com `projecao_peso` |
 | Frontend | campo e coluna "Peso objetivo (kg)" (chave `_v3`); nos Detalhes do Lote (seção Pesagem): peso projetado, @, GMD do mês, base, objetivo, quando atinge, pesado × previsto, próximos fins de mês; card com o peso projetado |
 | Docs | D-PROD-198, este relatório, runbook, `CURRENT-STATE` |
@@ -29,7 +29,7 @@ Runbook: [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNB
 | `node --test backend/tests/pesoProjetado.test.mjs` (motor puro: meses, bissexto, objetivo, pasto → confinamento, pesado × previsto, sem curva, origem desconhecida) | 6/6 |
 | `node --test backend/tests/pesoProjetadoApi.test.mjs` (API da categoria e lista de posições com o relógio de teste) | 2/2 |
 | `npx vitest run tests/smoke/pesoProjetadoMapa.test.js` (catálogo do mapa) | 3/3 |
-| ferramental de migration (`scripts/tests/deploy`) | 154/154 |
+| ferramental de migration (`scripts/tests/deploy`), depois do merge da `main` `1dd44f0c` (PR #276) | 171/171 |
 | `verify:all` e revisão | ver §4 |
 
 ## 4. Verificação completa e revisão

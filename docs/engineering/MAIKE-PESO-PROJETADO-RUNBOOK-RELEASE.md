@@ -19,7 +19,7 @@ Precedente executado: [`MAIKE-CADESTACOES-RUNBOOK-RELEASE.md`](./MAIKE-CADESTACO
 | Migration | `20261114400000_cadcategoria_peso_objetivo` |
 | Natureza | **expand-only**: uma coluna anulável, sem DEFAULT, numa tabela antiga — `ALTER TABLE "CADCATEGORIA" ADD COLUMN "peso_objetivo_kg" DECIMAL(10,2)`. Nenhuma tabela nova, nenhum dado migrado, nenhum `UPDATE` |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9` |
-| `_prisma_migrations` | em 2026-11-14: **50** concluídas, 0 abertas (a última `20261114200000_cadcategoria_curva_ganho`); depois **51**. Recontar no §2 |
+| `_prisma_migrations` | em 2026-11-14 (leitura das 17:2x UTC): **51** concluídas, 0 abertas (a última `20261114300000_tipo_atividade_defaults`, D-PROD-197); depois **52**. Recontar no §2 |
 | Tabelas em `public` | **85** antes e depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha.
