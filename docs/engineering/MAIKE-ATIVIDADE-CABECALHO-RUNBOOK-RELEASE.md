@@ -1,6 +1,6 @@
 # MAIKE — Atividade cabeçalho (Fatia 2): runbook de release CONTRACT (D-PROD-200)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: EXECUTADO em 2026-11-14 às 20:25:14 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.**
 >
 > Este documento é o plano. Cada passo para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de
@@ -618,14 +618,14 @@ Não há reversão automática: as 3 tabelas antigas deixam de existir no `COMMI
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | GO de 2026-11-14 ("autorizo pode enviar", contrato §9); conferir as condições na hora |
-| Caminho | `<A ou B>` (B = desvio da D-PROD-74 para esta migration) |
-| `<SHA_APROVADO>` | `<40 hex>` |
-| Verificação do SHA | `<verify:all, test:backend, test:smoke, portão e runner>` |
-| Ensaio local (§4.2) | `<atividadeCabecalhoMigration.test.mjs n/n>` |
-| Preflight (§4) | `<horário UTC>`; `<52 / 0>`; `<CONFIRMADO / CANCELADO>`; `<contador>`; travas `<n>`; transações longas `<n>`; `<veredito>` |
-| Backup / PITR anterior | `<horário>` |
-| Aplicação | `<finished_at>`; checksum `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`; `applied_steps_count` 1 |
-| Postcheck (§6) | `<veredito>`; `<53 / 0>`; `<Atividade / AtividadeApontamento>`; `<contador>`; 84 tabelas |
+| GO-1 e GO-2 | "autorizo pode enviar" e, na hora, "pode aplicar" (proprietário, 2026-11-14) |
+| Caminho | B (conector, uma `execute_sql`) |
+| `<SHA_APROVADO>` | `0625bf371a44c85df021d5ed91b7d9754715dd7c` |
+| Verificação do SHA | GitHub Actions da PR #285 verde em `0625bf37` (backend 4/4, smoke 2/2, estático); local: test:backend 1978 (0 falhas, antes do último merge), test:gates 915/915, smoke 2845/2845 |
+| Ensaio local (§4.2) | atividadeCabecalhoMigration.test.mjs 28/28 |
+| Preflight (§4) | ~20:24 UTC; 52 / 0; 2 / 0; tenant / 3; travas 0; transações longas 0; `PRONTO PARA APLICAR` |
+| Backup / PITR anterior | PITR do Supabase (não houve backup manual) |
+| Aplicação | 2026-11-14 20:25:14 UTC; checksum `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`; `applied_steps_count` 1 |
+| Postcheck (§6) | conferência direta: 53 / 0; Atividade 2 / AtividadeApontamento 2; Atividade / tenant / 3; 84 tabelas; RLS e política certos; 0 grants públicos |
 | Alertas do Supabase | `<segurança / performance>` |
-| Merge e deploy | `<PR, commit do merge, deploy READY e duração da janela>` |
+| Merge e deploy | PR #285, logo depois da aplicação |

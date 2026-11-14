@@ -7312,4 +7312,6 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Contrato:** [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md).
 
+**Aplicação em produção.** **Aplicada em produção em 2026-11-14 às 20:25:14 UTC** (`finished_at`), pelo caminho B do runbook, com o GO escrito do proprietário ("autorizo pode enviar"; depois "pode aplicar"). Preflight `PRONTO PARA APLICAR` (52 / 0, 85 tabelas, 2 apontamentos confirmados, 0 itens, 0 fatias, contador tenant / 3, 0 travas). Conferência depois: 53 / 0; checksum `c288cf47…`; 84 tabelas; as 3 antigas saíram; 2 atividades (nº 1 e 2, ABERTA, com máquina, centros, setor do nº 1, unidade KM/HA e produção 1/150) e 2 apontamentos (sequência 1, sem turno, CONFIRMADO); contador `Atividade` / tenant / 3; RLS ligado sem FORCE e política `maike_backend_all` nas 2 novas; nenhum privilégio para `anon`/`authenticated`; unique `NULLS NOT DISTINCT` presente.
+
 <!-- Próxima decisão: D-PROD-201 -->
