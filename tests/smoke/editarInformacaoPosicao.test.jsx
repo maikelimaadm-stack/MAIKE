@@ -65,7 +65,7 @@ const { default: DetalhesLote } = await import("@/components/mapa/DetalhesLote")
 const posicao = (id, extra = {}) => ({
   id, posicao_id: id, __posicao: true, nome: `GRUPO ${id}`, numero_lote: "7", categoria: "BOI", sexo: "Macho", categoria_manejo_nome: "Recria",
   quantidade_cabecas: 12, peso_medio_kg: 410, area_atual_id: "a1", area_atual_nome: "PASTO A", status: "Ativo", lote_entrada_id: `entrada-${id}`,
-  identificador_nome: "Brinco", identificador_sigla: "BR", identificador_cor: "#2c303e", raca_predominante: "Nelore", sistema_produtivo: "Pasto", data_entrada: "2026-10-25",
+  identificador_nome: "Brinco", identificador_sigla: "BR", identificador_cor: "#2c303e", sistema_produtivo: "Pasto", data_entrada: "2026-10-25",
   ...extra,
 });
 const erroServidor = (code) => Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code } });
@@ -134,7 +134,9 @@ describe("Editar Informação da posição (controle por posições)", () => {
     expect(screen.getByTestId("info-posicao-alvo").textContent).toContain("PASTO A");
     expect(screen.getByRole("group", { name: "Informações do grupo (editáveis)" })).toBeTruthy();
     const leitura = screen.getByTestId("info-posicao-somente-leitura");
-    for (const t of ["Nelore", "Pasto", "25/10/2026", "Recria", "410"]) expect(leitura.textContent).toContain(t);
+    for (const t of ["Pasto", "25/10/2026", "Recria", "410"]) expect(leitura.textContent).toContain(t);
+    // D-PROD-196: raça predominante saiu do cadastro do lote.
+    expect(leitura.textContent).not.toMatch(/Raça/i);
     expect(within(leitura).queryByRole("textbox")).toBeNull();
 
     await digitar("Nome do grupo", "  GRUPO NOVO ");
