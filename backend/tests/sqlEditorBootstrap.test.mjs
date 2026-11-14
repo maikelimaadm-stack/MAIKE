@@ -97,10 +97,11 @@ const semear = async ({ clientes = 1 } = {}) => {
     const tt = await p.tipoTarefa.create({ data: { cliente_id: c, nome_tipo: 'T', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
     const tarefa = await p.lancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, titulo: 'X', tipo: 'Tarefa', tipo_tarefa_id: tt.id, tipo_tarefa_nome: 'T', lote_id: lote.id } });
     await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
-    // D-PROD-190: um apontamento de atividade (FK RESTRICT para tarefa, tipo, grupo, área, usuário, empresa e cliente):
-    // o 02 só o apaga se ele vier ANTES de todas as mães na ordem de exclusão.
+    // D-PROD-198: uma atividade (cabeçalho) com um apontamento do dia (FKs RESTRICT do apontamento para a atividade, o
+    // usuário e a empresa; da atividade para tarefa, tipo, grupo, área, setor, centros, unidade, usuário, empresa e
+    // cliente): o 02 só os apaga se o apontamento vier antes da atividade e a atividade ANTES de todas as mães.
     // D-PROD-197: o tipo de atividade aponta para um centro de custo, um centro de resultado e uma unidade como padrões
-    // (FKs RESTRICT): o 02 só o apaga se ele vier DEPOIS do apontamento e ANTES dessas três mães.
+    // (FKs RESTRICT): o 02 só o apaga se ele vier DEPOIS da atividade e ANTES dessas três mães.
     const centroCusto = await p.centroCusto.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'CUSTEIO' } });
     const centroResultado = await p.centroResultado.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'PECUÁRIA' } });
     const unidade = await p.unidadeMedida.create({ data: { cliente_id: c, numero_unidade: '1', sigla: 'HA', descricao: 'Hectare' } });
@@ -108,35 +109,26 @@ const semear = async ({ clientes = 1 } = {}) => {
       cliente_id: c, nome_tipo: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
       centro_custo_padrao_id: centroCusto.id, centro_resultado_padrao_id: centroResultado.id, unidade_producao_id: unidade.id, exige_area: true,
     } });
-    const apontamento = await p.apontamentoAtividade.create({ data: {
-      cliente_id: c, empresa_id: emp.id, numero: '1', tipo_atividade_id: ta.id, tipo_atividade_nome: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
-      data_operacional: new Date('2026-11-01T00:00:00Z'), area_id: area.id, lancamento_tarefa_id: tarefa.id,
+    const atividade = await p.atividade.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'CIGARRINHA PASTO 01', tipo_atividade_id: ta.id, tipo_atividade_nome: 'TA',
+      grupo_atividade_id: g.id, grupo_atividade_nome: 'G', area_id: area.id, setor_id: setor.id, setor_nome: 'S',
+      centro_custo_id: centroCusto.id, centro_resultado_id: centroResultado.id, unidade_producao_id: unidade.id, unidade_producao_sigla: 'HA',
+      data_inicio: new Date('2026-11-01T00:00:00Z'), lancamento_tarefa_id: tarefa.id, criado_por_usuario_id: t.usuario.id,
+    } });
+    await p.atividadeApontamento.create({ data: {
+      cliente_id: c, empresa_id: emp.id, atividade_id: atividade.id, data_operacional: new Date('2026-11-01T00:00:00Z'), sequencia: 1,
       operador_usuario_id: t.usuario.id, criado_por_usuario_id: t.usuario.id,
     } });
-    // D-PROD-193: um item SERVICO e um item PRODUTO com a sua fatia FIFO (FK RESTRICT do item para o apontamento, o
-    // produto, o local, o movimento e o usuário; da fatia para o item e o lote). Lote e movimento entram direto aqui,
-    // só como semente: o 02 só apaga tudo se a fatia e o item vierem ANTES de todas essas mães na ordem de exclusão.
+    // Estoque (produto, local, lote e uma saída) entra direto aqui, só como semente: o 02 só apaga tudo se o lote e o
+    // movimento vierem antes do produto e do local na ordem de exclusão.
     const produto = await p.produto.create({ data: { cliente_id: c, empresa_id: emp.id, numero_produto: '1', nome_produto: 'HERBICIDA', unidade_principal_estoque: 'L', estoque_atual: '8' } });
     const local = await p.localEstoque.create({ data: { cliente_id: c, numero_local: '1', nome: 'GALPÃO' } });
-    const loteEstoque = await p.estoqueLoteNota.create({ data: {
+    await p.estoqueLoteNota.create({ data: {
       cliente_id: c, empresa_id: emp.id, produto_id: produto.id, local_estoque_id: local.id, custo_unitario: '5', quantidade_entrada: '10', quantidade_disponivel: '8',
     } });
-    const saida = await p.movimentacaoEstoque.create({ data: {
+    await p.movimentacaoEstoque.create({ data: {
       cliente_id: c, empresa_id: emp.id, numero_movimentacao: '1', tipo_movimentacao: 'Saída', data_movimentacao: new Date('2026-11-01T12:00:00Z'),
       produto_id: produto.id, quantidade: '2', unidade_medida: 'L', valor_unitario: '5', valor_total: '10',
-      origem_sistema: 'apontamento_atividade', exclusao_somente_em: 'apontamento_atividade', lancamento_origem_id: apontamento.id,
-    } });
-    await p.apontamentoAtividadeItem.create({ data: {
-      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 1, tipo: 'SERVICO', status: 'CONFIRMADO', descricao: 'MÃO DE OBRA',
-      quantidade: '1', valor_unitario: '100', valor_total: '100', operation_id: `sqled-servico-${i}`, criado_por_usuario_id: t.usuario.id,
-    } });
-    const itemProduto = await p.apontamentoAtividadeItem.create({ data: {
-      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 2, tipo: 'PRODUTO', status: 'CONFIRMADO', produto_id: produto.id,
-      local_estoque_id: local.id, quantidade: '2', unidade: 'L', valor_unitario: '5', valor_total: '10', operation_id: `sqled-produto-${i}`,
-      movimentacao_estoque_id: saida.id, criado_por_usuario_id: t.usuario.id,
-    } });
-    await p.apontamentoAtividadeItemConsumoLote.create({ data: {
-      cliente_id: c, empresa_id: emp.id, item_id: itemProduto.id, estoque_lote_nota_id: loteEstoque.id, ordem: 1, quantidade: '2', custo_unitario: '5',
     } });
     for (let k = 0; k < 3; k += 1) await p.movimentacaoMapa.create({ data: { cliente_id: c, empresa_id: emp.id } });
     for (let k = 0; k < 5; k += 1) await p.auditLog.create({ data: { cliente_id: c, usuario_id: t.usuario.id, acao: 'criar', entidade: 'Lote', entidade_id: lote.id, request_id: 'req-teste' } });
@@ -175,7 +167,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '85', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193)');
+    assert.equal(l['tabelas em public'].valor, '84', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193) − 3 do apontamento antigo + 2 da atividade em dois níveis (D-PROD-198)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -288,8 +280,8 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
   test('SE-07b (D-PROD-197) na ordem antiga (TipoAtividade junto de TipoTarefa, depois dos centros e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
     await semear();
     const antes = await contar();
-    const blocoNovo = "    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros\n"
-      + "    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).\n"
+    const blocoNovo = "    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-198) e ANTES dos\n"
+      + "    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).\n"
       + "    'TipoAtividade',\n";
     assert.equal(RESET.split(blocoNovo).length, 2, 'o 02 tem a posição nova do TipoAtividade');
     assert.equal(RESET.split("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'").length, 2);
@@ -301,6 +293,27 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /ordem de FK inválida \(TipoAtividade → (CentroCusto|CentroResultado|UnidadeMedida)\)/);
     assert.match(r.stderr, /Nada foi alterado/);
+    assert.deepEqual(await contar(), antes);
+  });
+
+  test('SE-07c (D-PROD-198) com a atividade antes do apontamento do dia (ou depois do tipo de atividade) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+    await semear();
+    const antes = await contar();
+    const LINHA_FILHO = "    'AtividadeApontamento',\n";
+    const LINHA_PAI = "    'Atividade',\n";
+    assert.equal(RESET.split(LINHA_FILHO).length, 2, 'o 02 tem o apontamento do dia');
+    assert.equal(RESET.split(LINHA_PAI).length, 2, 'o 02 tem a atividade');
+    assert.ok(RESET.indexOf(LINHA_FILHO) < RESET.indexOf(LINHA_PAI) && RESET.indexOf(LINHA_PAI) < RESET.indexOf("    'TipoAtividade',\n"), 'apontamento → atividade → tipo');
+    // A conferência da ordem (passo 5) vem antes da impressão (passo 7): a recusa é pela árvore de FKs.
+    for (const [ordemErrada, re] of [
+      [reset({ impressao: impressaoAtual() }).replace(LINHA_FILHO, '').replace(LINHA_PAI, `${LINHA_PAI}${LINHA_FILHO}`), /ordem de FK inválida \(AtividadeApontamento → Atividade\)/],
+      [reset({ impressao: impressaoAtual() }).replace(LINHA_PAI, '').replace("'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'", "'TipoTarefa','Atividade','AreaPastagem','GrupoAtividade','Setor'"), /ordem de FK inválida \(Atividade → [A-Za-z]+\)/],
+    ]) {
+      const r = psql(ordemErrada);
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, re);
+      assert.match(r.stderr, /Nada foi alterado/);
+    }
     assert.deepEqual(await contar(), antes);
   });
 
@@ -341,10 +354,11 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(await bcrypt.compare(res.senha, conta.senha_hash), true, 'hash do pgcrypto compatível com bcryptjs');
     const depois = await contar();
     assert.deepEqual(depois, { c: 1, u: 1, l: 0, a: 2, cat: 0, mm: 0, glob: antes.glob, mig: antes.mig });
-    // D-PROD-193: a semente tinha 2 itens e 1 fatia; o 02 apagou na ordem certa (fatia → item → apontamento → lote/movimento/produto/local).
+    // D-PROD-198: a semente tinha 1 atividade com 1 apontamento do dia; o 02 apagou na ordem certa (apontamento → atividade →
+    // tipo, tarefa, área, setor, centros e unidade), e o estoque (lote e movimento → produto e local).
     assert.deepEqual(
-      [await p.apontamentoAtividadeItemConsumoLote.count(), await p.apontamentoAtividadeItem.count(), await p.apontamentoAtividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
-      [0, 0, 0, 0, 0, 0, 0]
+      [await p.atividadeApontamento.count(), await p.atividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
+      [0, 0, 0, 0, 0, 0]
     );
     // D-PROD-197: o tipo com os 3 padrões saiu antes do centro de custo, do centro de resultado e da unidade (FKs RESTRICT).
     assert.deepEqual(

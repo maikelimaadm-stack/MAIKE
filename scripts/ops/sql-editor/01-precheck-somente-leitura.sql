@@ -13,21 +13,21 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 70 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 69 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193; − essas 3 e + Atividade e AtividadeApontamento, D-PROD-198) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- D-PROD-197: TipoAtividade passou a referenciar CentroCusto, CentroResultado e UnidadeMedida (padrões, FKs RESTRICT) e
--- sai logo depois do apontamento, antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
+-- sai logo depois da atividade (D-PROD-198), antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (
   SELECT * FROM unnest(ARRAY[
-    -- D-PROD-193 (Fatia D): os itens do apontamento saem PRIMEIRO — a fatia FIFO referencia o item e o lote; o item
-    -- referencia o apontamento, o movimento, o produto, o local e os usuários; nenhuma outra tabela referencia os dois.
-    'ApontamentoAtividadeItemConsumoLote','ApontamentoAtividadeItem',
-    -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
-    -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
-    'ApontamentoAtividade',
-    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
-    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
+    -- D-PROD-198: o apontamento do dia (AtividadeApontamento) sai PRIMEIRO — referencia a atividade, os usuários e a
+    -- empresa; nenhuma tabela o referencia. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    'AtividadeApontamento',
+    -- D-PROD-198: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
+    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.
+    'Atividade',
+    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-198) e ANTES dos
+    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
     'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
@@ -145,8 +145,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 85 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193)',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 85 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 84 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-198)',
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 84 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -204,7 +204,7 @@ base(ordem, item, valor, esperado, status) AS (
 ),
 contrato AS (
   SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
-         AND (SELECT count(*) FROM tabelas) = 85
+         AND (SELECT count(*) FROM tabelas) = 84
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
          AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0

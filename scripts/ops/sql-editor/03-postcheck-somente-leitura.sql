@@ -10,14 +10,14 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-193 (Fatia D): os itens do apontamento saem PRIMEIRO — a fatia FIFO referencia o item e o lote; o item
-    -- referencia o apontamento, o movimento, o produto, o local e os usuários; nenhuma outra tabela referencia os dois.
-    'ApontamentoAtividadeItemConsumoLote','ApontamentoAtividadeItem',
-    -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
-    -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
-    'ApontamentoAtividade',
-    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
-    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
+    -- D-PROD-198: o apontamento do dia (AtividadeApontamento) sai PRIMEIRO — referencia a atividade, os usuários e a
+    -- empresa; nenhuma tabela o referencia. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    'AtividadeApontamento',
+    -- D-PROD-198: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
+    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.
+    'Atividade',
+    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-198) e ANTES dos
+    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
     'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
