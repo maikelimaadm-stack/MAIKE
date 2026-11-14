@@ -1,6 +1,8 @@
 # MAIKE — Curva de Ganho mensal: runbook de release CONTRACT (D-PROD-194)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: §2 a §4 EXECUTADOS em 2026-11-14. `SCHEMA_APPLIED_PROD: SIM`.**
+> Aplicada às 13:29:18 UTC pelo caminho B (conector), com GO escrito do
+> proprietário e desvio da D-PROD-74 autorizado. A conferência do §4 passou. Evidências no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -170,4 +172,12 @@ aplicado.
 
 ## 7. Registro de execução
 
-_(vazio — preencher com data/hora UTC, caminho usado, GO citado, resultado do §4.)_
+**2026-11-14, caminho B (conector Supabase, uma `execute_sql`).**
+
+- **GO do proprietário, escrito no chat da sessão:** "faça a migração para fazer o merge", "me manda a solicitação pode fazer a migração" e "só sobrou sua PR, faça as migrações e as análises; meu GitHub Actions está pausado, você vai ter que analisar você mesmo". Registrado como o **desvio da D-PROD-74** para ESTA migration, não como precedente.
+- **CI:** o GitHub Actions do proprietário estava pausado (os jobs falham em segundos, sem runner, também na `main`). A análise foi local, no commit `66d4b79c`: ferramental de migration 111/111; migrations em PostgreSQL real 10/20/15/14; os ensaios das três CONTRACT anteriores; backend da curva 45/45; smoke da curva 52/52; gates estáticos e de tipos; e o `verify:all` completo rodando em banco exclusivo.
+- **Duas paradas antes da aplicação:** o preflight de 00:45 UTC achou 46 migrations (a Fatia D e o Apontamento tinham sido aplicados); o de 13:02 UTC achou 48 (Estoque P1-03 e itens do apontamento). Nas duas vezes nada foi aplicado; a branch foi mesclada com a `main` nova e a guarda recontada.
+- **Preflight (§2), somente leitura, às 13:28:14 UTC:** `system_identifier` 7692130048193495360; 48 concluídas e 0 com falha (última `20261113800000_apontamento_atividade_item`); `CADCURVAGANHO` vazia, com `gmd_aguas`, `gmd_seca`, `gmd_transicao`; 85 tabelas; nenhuma sessão ativa e nenhuma trava em `Cliente`, `Empresa` ou `CADCURVAGANHO`.
+- **Ensaio local** do mesmo script num banco novo com as 47 migrations da `main` anterior: 47 → 48, a 2ª execução parou na guarda (`RELEASE_BLOCKED: migration já registrada`) e o `migrate diff` contra o schema veio vazio.
+- **Aplicação:** o §3 com `<N_OK>` = 48 e o `migration.sql` integral (SHA-256 `a18b2845…953c`, conferido byte a byte no script). `finished_at` = **2026-11-14 13:29:18 UTC**. Nenhum erro.
+- **Conferência (§4):** linha em `_prisma_migrations` com o checksum pinado, `rolled_back_at` nulo e `applied_steps_count = 1`; 49 concluídas e 0 com falha; as 12 colunas `gmd_jan` … `gmd_dez` na ordem, sem as por estação; RLS ligado, sem FORCE; constraints `CADCURVAGANHO_cliente_id_empresa_id_fkey`, `CADCURVAGANHO_cliente_id_fkey`, `CADCURVAGANHO_gmd_check`, `CADCURVAGANHO_pkey`; 3 índices + pkey; política `maike_backend_all` só para `maike_vercel` (com CRUD); `anon` e `authenticated` sem SELECT; 0 linhas; 85 tabelas; `get_advisors` (segurança) sem nenhum alerta.

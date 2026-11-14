@@ -51,7 +51,7 @@ cadastro próprio. Mesma tabela física, `"CADCURVAGANHO"`, vazia em produção.
 
 ## 4. Release
 
-1. A migration é **CONTRACT** e **não foi aplicada em nenhum banco remoto**.
+1. A migration é **CONTRACT** e foi **aplicada em produção em 2026-11-14 às 13:29:18 UTC** pelo caminho B, com GO escrito do proprietário; conferida (49/0, 12 colunas mensais, RLS sem FORCE, sem acesso público, advisors limpos). Registro no §7 do runbook.
 2. Ordem obrigatória: CI verde → GO do proprietário → preflight (tabela vazia,
    48/0 em 2026-11-14 13:02 UTC) → aplicação (caminho A com `--contract D-PROD-194`, ou B só com GO
    escrito e específico desta migration) → conferência → **merge imediato** →

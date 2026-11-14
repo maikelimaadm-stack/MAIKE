@@ -7137,4 +7137,6 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md).
 
+**Nota de aplicação (2026-11-14).** A migration `20261114100000_cadcurvaganho_mensal` foi aplicada em produção às 13:29:18 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**, com GO escrito do proprietário (desvio da D-PROD-74 só para esta migration). Com o GitHub Actions pausado pelo proprietário, a análise foi local (ver o relatório). Conferência: 49/0 migrations, 12 colunas mensais, RLS sem FORCE, `anon`/`authenticated` sem acesso, `get_advisors` sem alerta. Registro no §7 do runbook.
+
 <!-- Próxima decisão: D-PROD-195 -->
