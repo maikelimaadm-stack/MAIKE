@@ -64,7 +64,7 @@ Com o GitHub Actions do proprietário pausado, a análise foi local.
 |---|---|
 | Revisão independente do commit `a2de2c56` (2 lentes, um cético por achado) | 3 achados confirmados, todos corrigidos em `3295a12b`: (1) POST de categoria gravado na fila offline pela versão anterior travaria a fila inteira → criar categoria passa a ser só online e o item antigo fica retido; (2) criar categoria offline já não era possível sem as opções de curva → registrado como decisão; (3) a janela entre a migration e o deploy também afeta excluir curva em uso (403 do runtime antigo) → docs corrigidas |
 | smoke da correção (`categoriaManejoCriacaoOnline`, `categoriaManejoEnxuto`, `categoriaManejoCurvaGanho`, `offlineRuntime`) | 56/56 |
-| `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | em andamento no momento do merge (etapas até `lint` passaram; `test:backend` sem nenhuma falha até então); o merge não esperou o fim porque, com a migration aplicada, criar categoria em produção fica quebrado até o deploy. O resultado final é registrado no fechamento |
+| `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | **TODAS AS ETAPAS PASSARAM** (exit 0), terminado depois do merge: backend 1.900 testes (1.895 passaram, 0 falhas, os demais pulados), smoke 229 arquivos e 2.827 testes. O merge não esperou o fim porque, com a migration aplicada, criar categoria ficava quebrado até o deploy. As etapas finais (smoke em diante) já leram a árvore com a primeira versão da emenda R2, que só muda o frontend |
 | aplicação em produção e conferência | ver runbook §7 |
 
 ## 6. Emenda R2 — fila offline (depois do merge)
