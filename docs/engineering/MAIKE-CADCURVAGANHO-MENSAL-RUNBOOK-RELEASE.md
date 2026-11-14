@@ -38,9 +38,19 @@ depois** da conferência do §4.
 daria 500 nas mesmas rotas, pelo motivo inverso (colunas `gmd_jan` … ausentes).
 Os dois lados da janela afetam só esta tela; a ordem do runbook é a de sempre.
 
-**Efeito durante a transação:** `ACCESS EXCLUSIVE` em `"CADCURVAGANHO"` e, pelas
-FKs recriadas, `SHARE ROW EXCLUSIVE` em `Cliente` e `Empresa` até o `COMMIT`. Com
-`lock_timeout` de 5 s, uma transação longa nelas aborta tudo sem aplicar nada.
+**Efeito durante a transação (travas):** `ACCESS EXCLUSIVE` em `"CADCURVAGANHO"`
+**e também em `Cliente` e `Empresa`** até o `COMMIT`. O `DROP TABLE` apaga as FKs
+da tabela antiga e, com elas, os gatilhos de integridade que ficam em `Cliente` e
+`Empresa`; isso exige `ACCESS EXCLUSIVE` nas duas, que **bloqueia até leitura**
+(conferido no PostgreSQL 16 local: `pg_locks` mostra `AccessExclusiveLock` em
+`Cliente` e `Empresa` logo depois do `DROP`). Como praticamente toda rota
+autenticada lê `Cliente` ou `Empresa`, o sistema inteiro pode esperar até o
+`COMMIT` (a transação toda leva menos de 1 s) ou até o `lock_timeout` de 5 s.
+Por isso: **aplicar fora de pico**, como no runbook do Patrimônio P1-02. Se uma
+transação longa estiver segurando `Cliente` ou `Empresa`, o `lock_timeout`
+estoura, ou o PostgreSQL acusa *deadlock* (a guarda já travou `"CADCURVAGANHO"`
+antes de pedir as outras duas); nos dois casos a transação aborta **sem aplicar
+nada**: confira pelo §4, espere e peça novo GO.
 
 ## 1. Caminhos
 

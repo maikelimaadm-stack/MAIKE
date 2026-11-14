@@ -39,7 +39,9 @@ vi.mock("@/hooks/useGestaoSessao", async (importOriginal) => ({
 }));
 
 const { default: FormularioCurvaGanho, FORMULARIO_CURVA_GANHO_ID } = await import("@/components/curvas-ganho/FormularioCurvaGanho");
-const { getCurvaGanhoFieldValue, compararCurvasParaOrdenar } = await import("@/components/curvas-ganho/TabelaCurvasGanho");
+const { getCurvaGanhoFieldValue, compararCurvasParaOrdenar, CURVAS_GANHO_COLUNAS, CURVAS_GANHO_STORAGE_KEY } = await import(
+  "@/components/curvas-ganho/TabelaCurvasGanho"
+);
 const { lerGmd, formatarGmd, formatarKg, ganhoNoMes, resumoDaCurva, MESES, CAMPOS_GMD } = await import(
   "@/services/curvaGanhoCadastroService"
 );
@@ -96,6 +98,10 @@ describe("CG-GMD — leitura e formato do GMD", () => {
     expect(formatarKg(21.7)).toBe("21,7");
     expect(formatarKg(-1.55)).toMatch(/^-1,[56]$/);
     expect(formatarKg(null)).toBe("");
+    // -0 (arredondamento de um ganho negativo minúsculo) nunca aparece como "-0".
+    expect(ganhoNoMes(-0.001, 31)).toBe(-0);
+    expect(formatarKg(ganhoNoMes(-0.001, 31))).toBe("0,0");
+    expect(formatarGmd(-0, { casasMin: 3 })).toBe("0,000");
   });
 
   it("CG-GMD-3 — os 12 meses na ordem do calendário, com os dias reais (fevereiro 28); campos gmd_jan … gmd_dez", () => {
@@ -214,6 +220,44 @@ describe("CG-GRADE — valores e ordenação da lista", () => {
     expect(compararCurvasParaOrdenar(mesesDe(Array(12).fill(0.2)), mesesDe(Array(12).fill(1)), "ganho_ano")).toBeLessThan(0);
     expect(compararCurvasParaOrdenar(mesesDe(Array(12).fill(1)), mesesDe(Array(12).fill(-0.5)), "media_dia")).toBeGreaterThan(0);
     expect(compararCurvasParaOrdenar({ nome: "A" }, { nome: "B" }, "nome")).toBeNull();
+  });
+});
+
+describe("CG-GRADE-PREFS — preferências de colunas da versão por estação", () => {
+  it("CG-GRADE-2 — a chave mudou (_v2) e as colunas visíveis por padrão são Nome, Média, Ganho no ano e Ativo", () => {
+    expect(CURVAS_GANHO_STORAGE_KEY).toBe("colunas_largura_curvas_ganho_v2");
+    expect(CURVAS_GANHO_COLUNAS.filter((c) => c.default).map((c) => c.id)).toEqual(["nome", "media_dia", "ganho_ano", "ativo"]);
+  });
+
+  it("CG-GRADE-3 — preferência salva na D-PROD-189 (chave antiga, só Nome, 3 GMD e Ativo) não esconde Média e Ganho no ano", async () => {
+    window.localStorage.setItem(
+      "colunas_largura_curvas_ganho_prefs",
+      // Formato real gravado pela grade (persistCadastroBase1ColumnPrefs) na tela da D-PROD-189.
+      JSON.stringify({
+        version: 1,
+        columns: {
+          widths: { nome: 240, gmd_aguas: 150, gmd_transicao: 170, gmd_seca: 150, ativo: 100 },
+          order: ["nome", "gmd_aguas", "gmd_transicao", "gmd_seca", "observacoes", "ativo", "created_date", "updated_date"],
+          visible: ["nome", "gmd_aguas", "gmd_transicao", "gmd_seca", "ativo"],
+          frozen: 0,
+          autoFit: [],
+        },
+      }),
+    );
+    try {
+      servico.listarCurvasGanho.mockResolvedValue([{ id: "c1", nome: "RECRIA PASTO", ...mesesDe(CURVA), ativo: true }]);
+      const { default: CurvasGanho } = await import("@/pages/CurvasGanho");
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <CurvasGanho />
+        </QueryClientProvider>,
+      );
+      await waitFor(() => expect(screen.getByText("RECRIA PASTO")).toBeTruthy());
+      expect(screen.getByText(formatarKg(GANHO_ANO))).toBeTruthy();
+    } finally {
+      window.localStorage.removeItem("colunas_largura_curvas_ganho_prefs");
+    }
   });
 });
 

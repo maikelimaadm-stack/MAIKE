@@ -4,7 +4,13 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { MESES, formatarGmd, formatarKg, gmdsDaCurva, resumoDaCurva } from "@/services/curvaGanhoCadastroService";
 
-export const CURVAS_GANHO_STORAGE_KEY = "colunas_largura_curvas_ganho";
+/**
+ * Chave das preferências de colunas. `_v2` desde a D-PROD-190: as colunas por
+ * estação saíram e entraram Média, Ganho no ano e os 12 meses. Com a chave
+ * antiga, a preferência salva na D-PROD-189 (Nome, 3 GMD, Ativo) esconderia as
+ * colunas novas, porque a grade descarta os ids desconhecidos e mantém o resto.
+ */
+export const CURVAS_GANHO_STORAGE_KEY = "colunas_largura_curvas_ganho_v2";
 
 export const CURVAS_GANHO_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 240 },

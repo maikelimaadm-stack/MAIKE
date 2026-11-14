@@ -80,7 +80,7 @@ export const gmdsDaCurva = (curva) => CAMPOS_GMD.map((c) => /** @type {number|un
  */
 export const formatarKg = (valor) => {
   if (typeof valor !== 'number' || !Number.isFinite(valor)) return '';
-  return valor.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
 
 /**
@@ -104,7 +104,8 @@ export const lerGmd = (texto) => {
  */
 export const formatarGmd = (valor, opcoes = {}) => {
   if (typeof valor !== 'number' || !Number.isFinite(valor)) return '';
-  return valor.toLocaleString('pt-BR', { minimumFractionDigits: opcoes.casasMin ?? 0, maximumFractionDigits: 3 });
+  // `|| 0` troca o -0 (de um arredondamento negativo até zero) por 0: nunca "-0".
+  return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: opcoes.casasMin ?? 0, maximumFractionDigits: 3 });
 };
 
 /** @param {string} empresaId */

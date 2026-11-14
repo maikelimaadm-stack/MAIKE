@@ -58,6 +58,8 @@ cadastro próprio. Mesma tabela física, `"CADCURVAGANHO"`, vazia em produção.
    deploy → smoke. Ver o runbook.
 3. Entre o `COMMIT` e o deploy, só as rotas `/curvas-ganho` respondem 500 (o
    runtime antigo lê as colunas por estação). A tela é nova e está sem uso.
+   Durante a própria transação (menos de 1 s), o `DROP TABLE` trava `Cliente` e
+   `Empresa` em `ACCESS EXCLUSIVE`, que bloqueia leitura: aplicar **fora de pico**.
 4. A Fatia D (PR #268) também é CONTRACT: nunca na mesma release; a que for
    aplicada depois recalcula a contagem da guarda.
 

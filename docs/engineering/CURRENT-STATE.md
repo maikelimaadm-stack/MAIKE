@@ -33,7 +33,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270). PR nova, exclusiva desta missão |
 | Escopo | `"CADCURVAGANHO"` passa de 3 GMD por estação para 12 GMD mensais (`gmd_jan` … `gmd_dez`, kg/dia, -2 a 3). API `/curvas-ganho` com os 12 campos. Tela: 12 meses com o ganho do mês pelos dias reais, atalho "repetir →", ganho no ano, média por dia e gráfico. Estações seguem como cadastro próprio, fora da curva. **Sem vínculo** com categoria ou lote |
 | Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório: 44 → **45** migrations; **82** tabelas. **Não aplicada em nenhum ambiente remoto** |
-| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-190`; caminho B só com GO escrito e específico desta migration). Merge logo depois da conferência: na janela, só `/curvas-ganho` dá 500 |
+| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-190`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
 | Relatório | [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-CADCURVAGANHO-CADASTRO: Curvas de Ganho de Peso por estação, tabela `CADCURVAGANHO` (D-PROD-189)
