@@ -351,42 +351,38 @@ describe('CM — categorias de manejo', () => {
     expect((await categoriaManejoSvc.listarCategoriasManejoDaEmpresa(EMPRESA)).map((c) => c.id)).toEqual(['a']);
   });
 
-  it('CM2 — ícones de Lote ativos da empresa, via capacidade do mapa', async () => {
-    mapa.listIcones.mockResolvedValue([
-      { id: 'i1', tipo_entidade: 'Lote', empresa_id: EMPRESA, ativo: true },
-      { id: 'i2', tipo_entidade: 'Lote', empresa_id: EMPRESA, ativo: false },
-      { id: 'i3', tipo_entidade: 'Ponto', empresa_id: EMPRESA, ativo: true },
-    ]);
-    expect((await categoriaManejoSvc.listarIconesDeLoteDaEmpresa(EMPRESA)).map((i) => i.id)).toEqual(['i1']);
+  it('CM2 — D-PROD-187: o service de Categoria de Manejo não expõe nada de ícone (o vínculo com o ícone oficial saiu)', () => {
+    expect(Object.keys(categoriaManejoSvc).filter((k) => /icone/i.test(k))).toEqual([]);
   });
 
   /**
    * CM3 — a normalização saiu da página para o service na P1.3-R1.
    *
-   * D-PROD-186 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo,
-   * faixa de idade e o vínculo com o ícone oficial. O FORM abaixo é o que o
-   * formulário enxuto envia hoje.
+   * D-PROD-186 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo e
+   * faixa de idade; o vínculo com o ícone oficial saiu na Fatia D (D-PROD-187).
+   * O FORM abaixo é o que o formulário enxuto envia hoje.
    */
   const FORM = Object.freeze({
     nome: 'boi gordo', sigla: 'bg', especie: 'Bovino', sexo: '',
     idade_minima_meses: 13, idade_maxima_meses: 24,
-    catalogo_categoria_visual_id: '',
   });
 
-  /** As 15 chaves que saíram do contrato (D-PROD-186). */
+  /** As 16 chaves que saíram do contrato (15 na D-PROD-186 + o vínculo do ícone na D-PROD-187). */
   const CHAVES_REMOVIDAS = Object.freeze([
     'raca', 'categoria_oficial', 'ganho_peso_anual_kg',
     'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
     'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
+    'catalogo_categoria_visual_id',
   ]);
 
-  /** Registro antigo aberto para edição: ainda traz os campos legados. */
+  /** Registro antigo aberto para edição (ou em cache): ainda traz os campos legados, inclusive o vínculo do ícone. */
   const FORM_LEGADO = Object.freeze({
     ...FORM,
     raca: 'nelore', categoria_oficial: 'Boi', ganho_peso_anual_kg: '180,5',
     gmd_janeiro: '0.8', gmd_fevereiro: '', gmd_marco: '0,9', gmd_abril: '',
     gmd_maio: '', gmd_junho: '', gmd_julho: '', gmd_agosto: '',
     gmd_setembro: '', gmd_outubro: '', gmd_novembro: '', gmd_dezembro: '1.1',
+    catalogo_categoria_visual_id: 'cv-bez',
   });
 
   it('CM3 — uppercase, inteiros, nulls, empresa e ativo; só o contrato enxuto', () => {
@@ -399,14 +395,13 @@ describe('CM — categorias de manejo', () => {
       sexo: null,
       idade_minima_meses: 13,
       idade_maxima_meses: 24,
-      catalogo_categoria_visual_id: null,
       ativo: true,
     });
     for (const chave of CHAVES_REMOVIDAS) expect(p).not.toHaveProperty(chave);
   });
 
-  it('CM3b — registro legado com raça, categoria oficial, ganho e 12 GMDs: nenhuma das 15 chaves sai no payload', () => {
-    expect(CHAVES_REMOVIDAS).toHaveLength(15);
+  it('CM3b — registro legado com raça, categoria oficial, ganho, 12 GMDs e vínculo do ícone: nenhuma das 16 chaves sai no payload', () => {
+    expect(CHAVES_REMOVIDAS).toHaveLength(16);
     const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM_LEGADO, { empresaId: EMPRESA });
     for (const chave of CHAVES_REMOVIDAS) expect(p).not.toHaveProperty(chave);
     expect(p).toEqual(categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA }));

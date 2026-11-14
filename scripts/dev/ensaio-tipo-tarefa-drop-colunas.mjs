@@ -11,7 +11,12 @@
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
  *  1. aplica todas as migrations do repositório menos a CONTRACT, pelo Prisma,
- *     a partir de uma cópia temporária das pastas;
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     da D-PROD-188 (`20261113400000_cadestacoes_cadastro`) e da D-PROD-189
+ *     (`20261113600000_cadcurvaganho_cadastro`) e a CONTRACT da D-PROD-187
+ *     (`20261113500000_categoria_manejo_cadcategoria`), posterior a esta e
+ *     aplicada aqui fora de ordem, pelo Prisma direto (sem a barreira do
+ *     runner); a guarda dela passa porque CategoriaManejo está vazia;
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das
  *     4 flags (inclusive um todo false e um inativo) e um LancamentoTarefa;
  *  3. tira o preflight do runbook (SQL_IMPRESSAO e SQL_CONTAGENS);

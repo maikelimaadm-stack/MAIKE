@@ -218,14 +218,15 @@ function readFonte() {
 
 /*
  * Barreira do CONTRACT contra a pasta REAL `backend/prisma/migrations`, que tem
- * DUAS migrations CONTRACT: a D-PROD-162 e a D-PROD-183. Como
+ * TRÊS migrations CONTRACT: a D-PROD-162, a D-PROD-183 e a D-PROD-187. Como
  * `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor, cada caso simula no histórico
- * a OUTRA CONTRACT já concluída quando quer provar o comportamento de uma só —
- * senão a outra, pendente, recusaria por conta própria e o caso passaria (ou
+ * as OUTRAS CONTRACT já concluídas quando quer provar o comportamento de uma só
+ * — senão uma outra, pendente, recusaria por conta própria e o caso passaria (ou
  * quebraria) pelo motivo errado.
  */
 const CONTRACT_162 = '20261110300000_patrimonio_simplifica';
 const CONTRACT_183 = '20261113200000_tipo_tarefa_drop_colunas';
+const CONTRACT_187 = '20261113500000_categoria_manejo_cadcategoria';
 const ALVO_REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
 const ALVO_LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
 const concluida = (n, extra = {}) => ({ migration_name: n, checksum: 'x', finished_at: new Date(), rolled_back_at: null, ...extra });
@@ -251,19 +252,19 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
   const REMOTO = ALVO_REMOTO;
   const LOCAL = ALVO_LOCAL;
   const rodar = rodarBarreiraContract;
-  // A D-PROD-183 concluída isola a D-PROD-162 como a única CONTRACT pendente.
-  const D183_CONCLUIDA = () => concluida(CONTRACT_183);
+  // A D-PROD-183 e a D-PROD-187 concluídas isolam a D-PROD-162 como a única CONTRACT pendente.
+  const OUTRAS_CONCLUIDAS = () => [concluida(CONTRACT_183), concluida(CONTRACT_187)];
 
   test('B11-1 alvo remoto com o CONTRACT pendente e SEM a variável → recusa com código estável, sem URL', async () => {
     for (const autorizado of [undefined, '', 'D-PROD-999', 'd-prod-162']) {
       const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }) };
-      const r = await rodar(env, () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos'), D183_CONCLUIDA()]);
+      const r = await rodar(env, () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos'), ...OUTRAS_CONCLUIDAS()]);
       assert.equal(r.pode, false, String(autorizado));
       assert.equal(r.leu, 1);
       assert.match(r.texto, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.match(r.texto, new RegExp(NOME_C));
       assert.match(r.texto, /Nenhuma migration foi executada/);
-      assert.ok(!r.texto.includes(CONTRACT_183), `a recusa é pela D-PROD-162, não pela D-PROD-183:\n${r.texto}`);
+      assert.ok(!r.texto.includes(CONTRACT_183) && !r.texto.includes(CONTRACT_187), `a recusa é pela D-PROD-162, não pelas outras:\n${r.texto}`);
       assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), r.texto);
     }
     assert.equal(CODIGOS_DEPLOY_MIGRATION.CONTRACT_NAO_AUTORIZADO, 'DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED');
@@ -271,10 +272,10 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
 
   test('B11-2 falha aberta ou revertida no histórico continua pendente; histórico ilegível → falha fechada', async () => {
     const env = { [VARIAVEL_DE_MIGRATION]: REMOTO };
-    const aberta = await rodar(env, () => [concluida(NOME_C, { finished_at: null }), D183_CONCLUIDA()]);
+    const aberta = await rodar(env, () => [concluida(NOME_C, { finished_at: null }), ...OUTRAS_CONCLUIDAS()]);
     assert.equal(aberta.pode, false);
     assert.match(aberta.texto, new RegExp(`${NOME_C} \\(D-PROD-162\\)`));
-    const revertida = await rodar(env, () => [concluida(NOME_C, { rolled_back_at: new Date() }), D183_CONCLUIDA()]);
+    const revertida = await rodar(env, () => [concluida(NOME_C, { rolled_back_at: new Date() }), ...OUTRAS_CONCLUIDAS()]);
     assert.equal(revertida.pode, false);
     assert.match(revertida.texto, new RegExp(`${NOME_C} \\(D-PROD-162\\)`));
     const ilegivel = await rodar(env, () => {
@@ -287,14 +288,14 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
   });
 
   test('B11-3 com MIGRATION_CONTRACT_AUTORIZADO = decisão exata → segue', async () => {
-    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-162' }, () => [D183_CONCLUIDA()]);
+    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_CONTRACT_AUTORIZADO: 'D-PROD-162' }, () => [...OUTRAS_CONCLUIDAS()]);
     assert.equal(r.pode, true);
     assert.equal(r.leu, 1);
     assert.match(r.texto, new RegExp(`CONTRACT autorizado: ${NOME_C} \\(D-PROD-162\\)`));
   });
 
   test('B11-4 CONTRACT já concluído no alvo → segue sem a variável (as releases seguintes não mudam)', async () => {
-    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO }, () => [concluida(NOME_C, { rolled_back_at: new Date() }), concluida(NOME_C), D183_CONCLUIDA()]);
+    const r = await rodar({ [VARIAVEL_DE_MIGRATION]: REMOTO }, () => [concluida(NOME_C, { rolled_back_at: new Date() }), concluida(NOME_C), ...OUTRAS_CONCLUIDAS()]);
     assert.equal(r.pode, true);
   });
 
@@ -302,7 +303,7 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
     const livre = await rodar({ [VARIAVEL_DE_MIGRATION]: LOCAL }, () => []);
     assert.equal(livre.pode, true);
     assert.equal(livre.leu, 0);
-    const exigida = await rodar({ [VARIAVEL_DE_MIGRATION]: LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, () => [D183_CONCLUIDA()]);
+    const exigida = await rodar({ [VARIAVEL_DE_MIGRATION]: LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, () => [...OUTRAS_CONCLUIDAS()]);
     assert.equal(exigida.pode, false);
     assert.equal(exigida.leu, 1);
     assert.match(exigida.texto, new RegExp(`${NOME_C} \\(D-PROD-162\\)`));
@@ -312,7 +313,7 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
     const SID = '7692130048193495360';
     const env = { [VARIAVEL_DE_MIGRATION]: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID };
     let leu = 0;
-    const lerHistorico = async () => (leu++, [D183_CONCLUIDA()]);
+    const lerHistorico = async () => (leu++, [...OUTRAS_CONCLUIDAS()]);
     const silencio = { log: () => {}, erro: () => {}, resolverRuntime: async () => REMOTO, lerHistorico };
     assert.equal(await exigirAlvoConferido({ env, conferir: async () => ({ ok: false, falhas: ['x'], resumo: '' }), ...silencio }), false);
     assert.equal(leu, 0);
@@ -330,7 +331,9 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
 describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner com a própria decisão, e nunca junto da D-PROD-162', () => {
   const D183 = `${CONTRACT_183} (D-PROD-183)`;
   const D162 = `${CONTRACT_162} (D-PROD-162)`;
-  // Produção: a D-PROD-162 já está concluída; a D-PROD-183 é a única CONTRACT pendente.
+  // A D-PROD-187 (posterior) concluída nos históricos simulados: aqui só a 162 e a 183 estão em jogo.
+  const D187_CONCLUIDA = () => concluida(CONTRACT_187);
+  // Como em produção antes da D-PROD-183: a D-PROD-162 já está concluída; a D-PROD-183 é a única CONTRACT pendente.
   const D162_CONCLUIDA = () => concluida(CONTRACT_162);
   const remoto = (autorizado) => ({
     [VARIAVEL_DE_MIGRATION]: ALVO_REMOTO,
@@ -348,14 +351,14 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
 
   test('B14-1 D-PROD-162 concluída e D-PROD-183 pendente no alvo remoto, sem a decisão exata → recusa citando a D-PROD-183', async () => {
     for (const autorizado of [undefined, '', 'D-PROD-162', 'd-prod-183']) {
-      const r = await rodarBarreiraContract(remoto(autorizado), () => [D162_CONCLUIDA()]);
+      const r = await rodarBarreiraContract(remoto(autorizado), () => [D162_CONCLUIDA(), D187_CONCLUIDA()]);
       assertRecusa(r, D183, String(autorizado));
       assert.ok(!r.texto.includes(CONTRACT_162), `a D-PROD-162 já concluída não pode ser citada:\n${r.texto}`);
     }
   });
 
   test('B14-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-183 → segue e registra a autorização', async () => {
-    const r = await rodarBarreiraContract(remoto('D-PROD-183'), () => [D162_CONCLUIDA()]);
+    const r = await rodarBarreiraContract(remoto('D-PROD-183'), () => [D162_CONCLUIDA(), D187_CONCLUIDA()]);
     assert.equal(r.pode, true);
     assert.equal(r.leu, 1);
     assert.ok(r.texto.includes(`CONTRACT autorizado: ${D183}`), r.texto);
@@ -364,7 +367,7 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
   });
 
   test('B14-3 as DUAS CONTRACT pendentes → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
-    const nenhumaContractConcluida = () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')];
+    const nenhumaContractConcluida = () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos'), D187_CONCLUIDA()];
     const com162 = await rodarBarreiraContract(remoto('D-PROD-162'), nenhumaContractConcluida);
     assertRecusa(com162, D183, 'D-PROD-162');
     assert.ok(!com162.texto.includes(D162), `a D-PROD-162 autorizada não é a que falta:\n${com162.texto}`);
@@ -388,7 +391,7 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
       ['aberta', concluida(CONTRACT_183, { finished_at: null })],
       ['revertida', concluida(CONTRACT_183, { rolled_back_at: new Date() })],
     ]) {
-      const historico = () => [D162_CONCLUIDA(), linha];
+      const historico = () => [D162_CONCLUIDA(), D187_CONCLUIDA(), linha];
       assertRecusa(await rodarBarreiraContract(remoto(undefined), historico), D183, rotulo);
       // Pendente, e não concluída: com a decisão exata, a barreira anuncia a autorização.
       const autorizada = await rodarBarreiraContract(remoto('D-PROD-183'), historico);
@@ -399,8 +402,8 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
 
   test('B14-5 as duas CONTRACT concluídas no alvo → segue sem a variável e sem anunciar autorização', async () => {
     for (const historico of [
-      () => [D162_CONCLUIDA(), concluida(CONTRACT_183)],
-      () => [D162_CONCLUIDA(), concluida(CONTRACT_183, { rolled_back_at: new Date() }), concluida(CONTRACT_183)],
+      () => [D162_CONCLUIDA(), concluida(CONTRACT_183), D187_CONCLUIDA()],
+      () => [D162_CONCLUIDA(), concluida(CONTRACT_183, { rolled_back_at: new Date() }), concluida(CONTRACT_183), D187_CONCLUIDA()],
     ]) {
       const r = await rodarBarreiraContract(remoto(undefined), historico);
       assert.equal(r.pode, true);
@@ -418,8 +421,88 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
     }
     const exigida = await rodarBarreiraContract(
       { [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' },
-      () => [D162_CONCLUIDA()]
+      () => [D162_CONCLUIDA(), D187_CONCLUIDA()]
     );
     assertRecusa(exigida, D183, 'conferência exigida');
+  });
+});
+
+describe('B16 (D-PROD-187) — CategoriaManejo → CADCATEGORIA só passa pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
+  const D187 = `${CONTRACT_187} (D-PROD-187)`;
+  const D183 = `${CONTRACT_183} (D-PROD-183)`;
+  // Produção hoje: a D-PROD-162 e a D-PROD-183 já estão concluídas; a D-PROD-187 é a única CONTRACT pendente.
+  const PRODUCAO = () => [concluida(CONTRACT_162), concluida(CONTRACT_183)];
+  const remoto = (autorizado) => ({
+    [VARIAVEL_DE_MIGRATION]: ALVO_REMOTO,
+    ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }),
+  });
+  const assertRecusa = (r, citada, rotulo) => {
+    assert.equal(r.pode, false, rotulo);
+    assert.equal(r.leu, 1, rotulo);
+    assert.match(r.texto, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/, rotulo);
+    assert.ok(r.texto.includes(citada), `${rotulo}: deveria citar ${citada}:\n${r.texto}`);
+    assert.match(r.texto, /Nenhuma migration foi executada/, rotulo);
+    assert.ok(!r.texto.includes('CONTRACT autorizado'), `${rotulo}: recusa não pode anunciar autorização:\n${r.texto}`);
+    assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), `${rotulo}: a saída expôs a URL:\n${r.texto}`);
+  };
+
+  test('B16-1 D-PROD-162 e D-PROD-183 concluídas e D-PROD-187 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-187', async () => {
+    for (const autorizado of [undefined, '', 'D-PROD-183', 'D-PROD-162', 'd-prod-187', ' D-PROD-187 ']) {
+      const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO);
+      assertRecusa(r, D187, String(autorizado));
+      assert.ok(!r.texto.includes(CONTRACT_162) && !r.texto.includes(CONTRACT_183), `as concluídas não podem ser citadas:\n${r.texto}`);
+    }
+  });
+
+  test('B16-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-187 → segue e registra a autorização', async () => {
+    const r = await rodarBarreiraContract(remoto('D-PROD-187'), PRODUCAO);
+    assert.equal(r.pode, true);
+    assert.equal(r.leu, 1);
+    assert.ok(r.texto.includes(`CONTRACT autorizado: ${D187}`), r.texto);
+    assert.ok(!r.texto.includes('FALHOU'), r.texto);
+    assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), r.texto);
+  });
+
+  test('B16-3 D-PROD-183 e D-PROD-187 pendentes → recusa com qualquer decisão (nunca duas CONTRACT de uma vez)', async () => {
+    const so162 = () => [concluida(CONTRACT_162)];
+    const com183 = await rodarBarreiraContract(remoto('D-PROD-183'), so162);
+    assertRecusa(com183, D187, 'D-PROD-183');
+    assert.ok(!com183.texto.includes(D183), `a D-PROD-183 autorizada não é a que falta:\n${com183.texto}`);
+    const com187 = await rodarBarreiraContract(remoto('D-PROD-187'), so162);
+    assertRecusa(com187, D183, 'D-PROD-187');
+    assert.ok(!com187.texto.includes(D187), `a D-PROD-187 autorizada não é a que falta:\n${com187.texto}`);
+    for (const composto of ['D-PROD-183,D-PROD-187', 'D-PROD-183 D-PROD-187']) {
+      const r = await rodarBarreiraContract(remoto(composto), so162);
+      assertRecusa(r, D183, composto);
+      assert.ok(r.texto.includes(D187), `${composto}: a D-PROD-187 também fica sem autorização\n${r.texto}`);
+    }
+  });
+
+  test('B16-4 D-PROD-187 com linha aberta (finished_at null) ou revertida continua pendente', async () => {
+    for (const [rotulo, linha] of [
+      ['aberta', concluida(CONTRACT_187, { finished_at: null })],
+      ['revertida', concluida(CONTRACT_187, { rolled_back_at: new Date() })],
+    ]) {
+      const historico = () => [...PRODUCAO(), linha];
+      assertRecusa(await rodarBarreiraContract(remoto(undefined), historico), D187, rotulo);
+      const autorizada = await rodarBarreiraContract(remoto('D-PROD-187'), historico);
+      assert.equal(autorizada.pode, true, rotulo);
+      assert.ok(autorizada.texto.includes(`CONTRACT autorizado: ${D187}`), `${rotulo}:\n${autorizada.texto}`);
+    }
+  });
+
+  test('B16-5 as três CONTRACT concluídas no alvo → segue sem a variável e sem anunciar autorização', async () => {
+    const r = await rodarBarreiraContract(remoto(undefined), () => [...PRODUCAO(), concluida(CONTRACT_187)]);
+    assert.equal(r.pode, true);
+    assert.equal(r.leu, 1);
+    assert.equal(r.texto, '', `nada a autorizar, nada a dizer:\n${r.texto}`);
+  });
+
+  test('B16-6 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico; com a conferência exigida → recusa a D-PROD-187 pendente', async () => {
+    const livre = await rodarBarreiraContract({ [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL }, () => []);
+    assert.equal(livre.pode, true);
+    assert.equal(livre.leu, 0);
+    const exigida = await rodarBarreiraContract({ [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, MIGRATION_EXIGIR_CONFERENCIA: 'sim' }, PRODUCAO);
+    assertRecusa(exigida, D187, 'conferência exigida');
   });
 });

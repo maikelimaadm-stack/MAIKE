@@ -4,12 +4,14 @@
  * real, num banco PRÓPRIO criado e apagado por este teste (o banco da suíte não
  * é tocado).
  *
- * Partida: todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA; inclui a TipoAtividade, D-PROD-182, e a CONTRACT
- * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, aplicada pelo Prisma direto, sem o runner e portanto sem
- * a barreira de MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa está vazio nessa hora e
- * `semear` não cria TipoTarefa) e sementes nas 13 tabelas do Patrimônio antigo para 2 clientes, com um
- * abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 não cria nem
- * apaga tabela: as contagens de tabelas (88/89/82) não mudam com ela.
+ * Partida: todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA; inclui a TipoAtividade, D-PROD-182, a CADESTACOES,
+ * D-PROD-188, a CADCURVAGANHO, D-PROD-189, e as CONTRACT `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, e
+ * `20261113500000_categoria_manejo_cadcategoria`, D-PROD-187, aplicadas pelo Prisma direto, sem o runner e portanto
+ * sem a barreira de MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa e CategoriaManejo estão
+ * vazias nessa hora e `semear` não cria nenhuma das duas) e sementes nas 13 tabelas do Patrimônio antigo para 2
+ * clientes, com um abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 e a
+ * D-PROD-187 não criam nem apagam tabela (a D-PROD-187 só renomeia CategoriaManejo para CADCATEGORIA): as contagens de
+ * tabelas (88/89/82) não mudam com elas.
  * A D-PROD-188 (CADESTACOES) e a D-PROD-189 (CADCURVAGANHO) criam 1 tabela nova cada e somam +1 migration e +1 tabela, cada uma, em todas as contagens.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
@@ -169,7 +171,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31, check: 32, indices: 55 });
     assert.deepEqual(e.colunas, { AbastecimentoBem: 31, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 54, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 11 });
 
-    assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 73 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
+    assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);
     assert.match(k.OperacaoFinanceiraItem_unidade_check, /'KG'.*'SACO'.*'UN'.*'L'/);
     assert.match(k.OperacaoFinanceiraItem_forma_check, /'MERCADORIA'.*'KG'.*'SACO'.*'L'.*'SERVICO'.*'UN'/);

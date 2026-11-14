@@ -9,12 +9,16 @@
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
  *  1. aplica todas as migrations do repositório menos esta CONTRACT, pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
- *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
- *     pelo Prisma direto, sem o runner e portanto sem a barreira de
- *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
- *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
- *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam;
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e
+ *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
+ *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183) e
+ *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
+ *     aqui pelo Prisma direto, sem o runner e portanto sem a barreira de
+ *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa
+ *     e CategoriaManejo estão vazias nessa hora (as sementes vêm depois e não
+ *     criam nenhuma das duas). As CONTRACT não criam nem apagam tabela (a
+ *     D-PROD-187 só renomeia): as contagens de tabelas não mudam com elas;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -161,7 +165,8 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 
 /**
  * Todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia
- * temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o TipoTarefa vazio.
+ * temporária. Inclui as CONTRACT da D-PROD-183 e da D-PROD-187, sem o runner: as guardas delas passam com
+ * TipoTarefa e CategoriaManejo vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
