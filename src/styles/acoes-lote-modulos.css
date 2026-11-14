@@ -162,3 +162,49 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Desktop preserva o desenho original enviado pelo proprietário.
+   A grade com ícone acima do nome fica apenas na abertura móvel/tablet. */
+@media (min-width: 1024px) {
+  .mk-dl8 .mk-al-dock:not(#mk-padrao), .mk-al-dock:not(#mk-padrao) {
+    max-height: 190px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos:not(#mk-padrao) {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo:not(#mk-padrao) {
+    width: 100%;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo + .mk-al__grupo:not(#mk-padrao) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao) {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    gap: 10px;
+    border: 0;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgb(15 23 42 / .07), 0 2px 8px rgb(15 23 42 / .025);
+    text-align: left;
+  }
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: left;
+  }
+}
