@@ -7238,22 +7238,22 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Decisão.**
 1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 51 → **52** migrations (depois da `20261114300000_tipo_atividade_defaults`); tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna.
 2. **API da categoria:** `peso_objetivo_kg` no formato público.
-   - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e grava com 2 casas.
+   - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e milhar pt-BR ("1.200" é 1.200 kg, não 1,2) e grava com 2 casas.
    - **Erro:** fora disso, 400 `REQUEST_VALIDATION_FAILED` com reason `peso_objetivo_invalido`.
-   - **Tela:** campo "Peso objetivo (kg)" no formulário e coluna na lista. A chave de preferências passa a `_v3` para a coluna nova aparecer.
+   - **Tela:** campo "Peso objetivo (kg)" no formulário e coluna na lista, ordenada pelo número. A chave de preferências passa a `_v3` para a coluna nova aparecer.
 3. **Motor do peso projetado** (`backend/src/modules/rebanhoLedger/pesoProjetado.js`, só leitura, nada gravado):
    - **Cálculo:** projetado = valor da base + Σ GMD(dia) para cada dia depois da base, com o GMD do mês de cada dia na curva da categoria da posição.
    - **Base:** o último `PesoRebanho` ativo da posição.
-   - **Base derivada:** transferência, mudança de categoria e junção gravam no destino a média do peso registrado das origens. Por isso a base derivada é recalculada com o peso **projetado** de cada origem (e do saldo que já estava no destino) no instante do evento, pelo descritor `dados.pesos_derivados` do evento. Assim o ganho do pasto não se perde quando o lote muda de categoria. Recursão com memória e limite de profundidade; peso desconhecido cai para o valor gravado (nunca inventa).
+   - **Base derivada:** transferência, mudança de categoria e junção gravam no destino a média do peso registrado das origens. Por isso a base derivada é recalculada com o peso **projetado** de cada origem (e do saldo que já estava no destino) no instante do evento, pelo descritor `dados.pesos_derivados` do evento. Assim o ganho do pasto não se perde quando o lote muda de categoria. O cálculo percorre os pesos da empresa **uma vez, em ordem cronológica** (data operacional, registro, criação, id), sem recursão nem limite de profundidade; um nascimento ou entrada medida no mesmo destino também soma o saldo projetado que já estava lá. Peso desconhecido cai para o valor gravado (nunca inventa).
    - **Saídas por posição:**
      - peso e @ de hoje;
      - GMD do mês;
      - base (tipo do fato, data, peso gravado e peso usado);
      - objetivo, quanto falta e data prevista para atingir (busca até 1.095 dias);
-     - **pesado × previsto** da última pesagem, comparada com o projetado logo antes dela;
+     - **pesado × previsto** da última pesagem, comparada com o projetado logo antes dela ("97,7% do previsto"). Só olha pesagens da **própria posição**: logo depois de uma transferência ou mudança de categoria, a base é derivada e o campo fica vazio até a próxima pesagem;
      - projeção no último dia dos próximos 12 meses.
 4. **Onde aparece:**
-   - **API:** `GET /rebanho/posicoes` devolve `projecao_peso` em cada item. A projeção carrega posições, categorias, pesos, partidas e eventos da empresa, com uma consulta por tabela.
+   - **API:** `GET /rebanho/posicoes` devolve `projecao_peso` em cada item. A projeção carrega posições, categorias, pesos, partidas e eventos da empresa, com uma consulta por tabela filtrada por `cliente_id` e `empresa_id` (sem lista de ids, sem limite de parâmetros); dos eventos lê só `dados -> 'pesos_derivados'`. "Hoje" é o dia no fuso da fazenda, lido **sem trava**; empresa sem fuso responde 200 com `motivo: 'sem_fuso'` (a lista não quebra). **Escala:** o custo cresce com o histórico de pesos da fazenda; se ficar pesado, a próxima fatia guarda um instantâneo projetado por posição.
    - **Mapa:** nos Detalhes do Lote, na seção **Pesagem**, que já é visível, entram as colunas peso projetado, @ projetadas, GMD do mês, base da projeção, peso objetivo, quando atinge, pesado × previsto e os próximos fins de mês. O card mostra "Peso projetado (kg)".
 5. **Limite registrado (próxima fatia):** hoje o manejo **Mudança de Categoria** escolhe as fontes pela categoria **oficial** e recusa "categoria nova igual à atual". Por isso ainda não dá para trocar BOI PASTO por BOI CONFINAMENTO quando as duas são "Boi 25 a 36 meses" Macho. Liberar a troca entre Categorias de Manejo com a mesma oficial fica para a próxima missão. O motor já trata a base derivada dessa troca.
 

@@ -60,13 +60,20 @@ describe('D-PROD-198 — peso objetivo na Categoria de Manejo', () => {
     const limpo = await req('PATCH', `/categorias-manejo/${com.json().id}`, c.tok, { peso_objetivo_kg: '' });
     assert.equal(limpo.json().peso_objetivo_kg, null);
 
-    for (const ruim of [0, -5, 3000.5, 'abc', true]) {
+    // milhar pt-BR: "1.200" é 1200 (não 1,2); "1.250,5" é 1250,5
+    for (const [texto, esperado] of [['1.200', 1200], ['1.250,5', 1250.5], ['450.5', 450.5]]) {
+      const r = await req('PATCH', `/categorias-manejo/${com.json().id}`, c.tok, { peso_objetivo_kg: texto });
+      assert.equal(r.statusCode, 200, `${texto} → ${r.body}`);
+      assert.equal(r.json().peso_objetivo_kg, esperado, texto);
+    }
+
+    for (const ruim of [0, -5, 3000.5, 'abc', true, '1,200.5', '12a']) {
       const r = await req('PATCH', `/categorias-manejo/${com.json().id}`, c.tok, { peso_objetivo_kg: ruim });
       assert.equal(r.statusCode, 400, `${JSON.stringify(ruim)} → ${r.body}`);
       assert.equal(r.json().reason, 'peso_objetivo_invalido', r.body);
     }
     const lido = (await req('GET', `/categorias-manejo`, c.tok)).json().find((x) => x.id === com.json().id);
-    assert.equal(lido.peso_objetivo_kg, null);
+    assert.equal(lido.peso_objetivo_kg, 450.5);
   });
 });
 
@@ -103,4 +110,23 @@ describe('D-PROD-198 — peso projetado na lista de posições', () => {
     assert.equal(pr.projecao_mensal[0].peso_kg, 414.5);
     assert.equal(pr.ultima_pesagem, null);
   });
+
+  test('revisão: empresa SEM fuso no ledger → a lista responde 200 (sem projeção, motivo sem_fuso), nunca 409', async () => {
+    const c = await cenario();
+    const cat = (await novaCategoria(c)).json();
+    const r = await req('POST', '/lotes', c.tok, {
+      empresa_id: c.empresa.id, nome: 'LOTE 2', quantidade_cabecas: 5, categoria: BOI, sexo: 'Macho', categoria_manejo_id: cat.id,
+      setor_id: c.setor.id, area_entrada_id: c.A.id, area_atual_id: c.A.id, data_entrada: '2027-06-01', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: 400,
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    const at = await req('POST', '/rebanho/ativacao', c.tok, { operation_id: `op-${randomUUID()}`, empresa_id: c.empresa.id, modo: 'entradas' });
+    assert.equal(at.statusCode, 201, at.body);
+    await prisma().empresa.update({ where: { cliente_id_id: { cliente_id: c.cliente.id, id: c.empresa.id } }, data: { fuso_horario: null } });
+    const lista = await req('GET', `/rebanho/posicoes?empresa_id=${c.empresa.id}`, c.tok);
+    assert.equal(lista.statusCode, 200, lista.body);
+    const pos = lista.json().itens.find((p) => p.categoria_manejo_id === cat.id);
+    assert.equal(pos.projecao_peso.disponivel, false);
+    assert.equal(pos.projecao_peso.motivo, 'sem_fuso');
+  });
 });
+

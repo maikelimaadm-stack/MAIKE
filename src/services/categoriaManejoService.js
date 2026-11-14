@@ -79,15 +79,27 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
 };
 
 /**
+ * D-PROD-198: número digitado em pt-BR. "1.200" e "1.200,5" são milhar (1200 e
+ * 1200,5), não 1,2; "450,5" e "450.5" são decimais. NaN quando não é número.
+ * @param {string} t texto já sem espaços nas pontas
+ */
+export const numeroPtBr = (t) => {
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) return Number(t.replace(/\./g, '').replace(',', '.'));
+  if (!/^\d+([.,]\d+)?$/.test(t)) return NaN;
+  return Number(t.replace(',', '.'));
+};
+
+/**
  * D-PROD-198: peso objetivo (kg/cabeça), opcional. Vazio → null (limpa); aceita
- * vírgula. Texto que não é número vai como está, e o servidor recusa com 400.
+ * vírgula e milhar. Texto que não é número vai como está, e o servidor recusa com 400.
  * @param {unknown} v
  */
 export const pesoObjetivoOuNulo = (v) => {
   if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return v;
   const t = String(v).trim();
   if (!t) return null;
-  const n = Number(t.replace(',', '.'));
+  const n = numeroPtBr(t);
   return Number.isFinite(n) ? n : t;
 };
 

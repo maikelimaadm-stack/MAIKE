@@ -3,6 +3,7 @@ import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastr
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
+import { numeroPtBr } from "@/services/categoriaManejoService";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import {
   FAIXAS_IDADE_CATEGORIA_MANEJO,
@@ -27,7 +28,7 @@ const REQUIRED_FIELDS = ["nome", "sexo", "faixa_idade", "curva_ganho_id"];
 export const pesoObjetivoValido = (v) => {
   const t = String(v ?? "").trim();
   if (!t) return true;
-  const n = Number(t.replace(",", "."));
+  const n = numeroPtBr(t);
   return Number.isFinite(n) && n > 0 && n <= 3000;
 };
 const UPPERCASE_FIELDS = ["nome", "sigla"];

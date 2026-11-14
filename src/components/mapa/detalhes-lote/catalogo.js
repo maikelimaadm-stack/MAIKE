@@ -426,15 +426,17 @@ export const CAMPOS_LOTE = [
   campo('atinge', 'Pesagem', 'Atinge o objetivo', 'data em que o peso projetado chega ao objetivo da categoria', (l) => {
     const p = l.projecao;
     if (!p || p.peso_objetivo_kg == null) return cel(VAZIO, '');
-    if (p.atingiu_objetivo) return cel('ATINGIDO', '0');
-    if (!p.data_prevista_objetivo) return cel('SEM PREVISÃO', '9', { cor: COR_ATENCAO });
+    // Chaves numéricas, como as datas: ATINGIDO antes de qualquer data, SEM PREVISÃO depois.
+    if (p.atingiu_objetivo) return cel('ATINGIDO', -1);
+    if (!p.data_prevista_objetivo) return cel('SEM PREVISÃO', Number.MAX_SAFE_INTEGER, { cor: COR_ATENCAO });
     return cel(`${fmtData(p.data_prevista_objetivo)} (${fmtInt(p.dias_para_objetivo)} d)`, ordemData(p.data_prevista_objetivo));
   }),
   campo('pesPrev', 'Pesagem', 'Pesado × previsto', 'última pesagem ÷ peso que a curva previa para aquele dia', (l) => {
     const u = l.projecao?.ultima_pesagem;
     if (!u || u.percentual_do_previsto == null) return cel(VAZIO, '');
     const pct = u.percentual_do_previsto;
-    return cel(`${fmtNum(pct, 1)}% ${pct >= 100 ? 'acima' : 'abaixo'}`, ordemNum(pct), { cor: pct < 100 ? COR_ATENCAO : COR_TEXTO });
+    // "97,7% do previsto": o percentual é do peso previsto, não a diferença.
+    return cel(`${fmtNum(pct, 1)}% do previsto`, ordemNum(pct), { cor: pct < 100 ? COR_ATENCAO : COR_TEXTO });
   }),
   campo('projMeses', 'Pesagem', 'Projeção (fim do mês)', 'peso projetado no último dia dos próximos meses', (l) => {
     const meses = l.projecao?.projecao_mensal ?? [];

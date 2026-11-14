@@ -42,7 +42,7 @@ describe("D-PROD-198 — peso projetado nos Detalhes do Lote", () => {
     expect(valor(l, "baseProj")).toBe("ENTRADA 01/06");
     expect(valor(l, "objetivo")).toBe("420");
     expect(valor(l, "atinge")).toBe("11/07/2027 (26 d)");
-    expect(valor(l, "pesPrev")).toBe("97,7% abaixo");
+    expect(valor(l, "pesPrev")).toBe("97,7% do previsto");
     expect(valor(l, "projMeses")).toBe("30/06: 415 · 31/07: 430 · 31/08: 446");
     expect(camposCartaoTudo(l).find((c) => c.rotulo === "Peso projetado (kg)")?.texto).toBe("407,0");
     // os campos novos ficam na seção Pesagem (visível por padrão)
@@ -61,6 +61,12 @@ describe("D-PROD-198 — peso projetado nos Detalhes do Lote", () => {
     expect(valor(b, "pesPrev")).toBe("—");
     expect(valor(c, "objetivo")).toBe("—");
     expect(valor(c, "atinge")).toBe("—");
+    // ordenação numérica: ATINGIDO antes de qualquer data, SEM PREVISÃO depois
+    const [d] = modelo([lote({ id: "d", posicao_id: "d", projecao_peso: projecao() })]).lotes;
+    const ordens = [a, b, d].map((l) => l.valores.atinge.ordem);
+    for (const o of ordens) expect(typeof o).toBe("number");
+    expect(ordens[0]).toBeLessThan(ordens[2]);
+    expect(ordens[2]).toBeLessThan(ordens[1]);
   });
 
   it("sem projeção (lote fora do ledger ou indisponível) → células vazias, sem quebrar", () => {

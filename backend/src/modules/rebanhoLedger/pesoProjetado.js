@@ -16,8 +16,9 @@
  * última pesagem delas — o boi que passou 30 dias no pasto e foi para o
  * confinamento "voltaria" ao peso de 30 dias atrás. Por isso a base derivada é
  * recalculada com o peso PROJETADO de cada origem (e do saldo que já estava no
- * destino) no instante do evento. Recursão com memória e limite de profundidade;
- * qualquer peso desconhecido cai para o valor gravado (nunca inventa).
+ * destino) no instante do evento;
+ * qualquer peso desconhecido cai para o valor gravado (nunca inventa). A conta é uma
+ * programação dinâmica na ordem dos fatos (sem recursão nem limite de profundidade).
  *
  * Arroba de peso vivo = kg ÷ 30 (decisão do proprietário).
  */
@@ -26,7 +27,6 @@ export const MESES_CURVA = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'ju
 export const KG_POR_ARROBA = 30;
 /** Horizonte máximo da busca da data em que o lote atinge o peso objetivo. */
 export const HORIZONTE_OBJETIVO_DIAS = 1095;
-const PROFUNDIDADE_MAXIMA = 60;
 
 const DIA_MS = 86_400_000;
 const msDoDia = (dia) => Date.UTC(Number(dia.slice(0, 4)), Number(dia.slice(5, 7)) - 1, Number(dia.slice(8, 10)));
@@ -73,7 +73,8 @@ export const diaQueAtinge = (curva, de, peso, objetivo, horizonte = HORIZONTE_OB
   for (let i = 0; i < horizonte; i += 1) {
     dia = somarDias(dia, 1);
     acumulado += gmdDoDia(curva, dia);
-    if (acumulado >= objetivo) return dia;
+    // Tolerância: somar 0,7 várias vezes não dá exatamente o objetivo (ponto flutuante).
+    if (acumulado >= objetivo - 1e-9) return dia;
   }
   return null;
 };
@@ -95,26 +96,40 @@ const ordemDoEvento = (ev) => `${ev.dia}|${ev.registrado_em}|${ev.id}`;
 
 /**
  * Projetor sobre os dados já carregados (puro: testável sem banco).
+ *
+ * Programação dinâmica na ordem dos fatos: cada peso gravado recebe, uma vez, o
+ * VALOR da base (o gravado, ou o derivado recalculado pelo projetado das origens
+ * e do saldo que já estava no destino). Como um derivado só depende de pesos de
+ * fatos ESTRITAMENTE anteriores, percorrer os pesos em ordem resolve tudo sem
+ * recursão nem limite de profundidade (rodízio longo de pastos não trunca).
  * @param {{
  *   posicoes: Map<string, {categoria_manejo_id: string|null}>,
  *   categorias: Map<string, {curva: Record<string, unknown>|null, peso_objetivo_kg: number|null}>,
  *   eventos: Map<string, {id: string, tipo: string, dia: string, registrado_em: string, dados: any}>,
- *   pesos: Array<{posicao_id: string, evento_id: string, dia: string, peso: number|null, medido: boolean}>,
+ *   pesos: Array<{posicao_id: string, evento_id: string, dia: string, peso: number|null, medido: boolean, criado_em?: string, id?: string}>,
  *   partidas: Array<{posicao_id: string, evento_id: string, dia: string, delta: number}>,
  * }} dados
  */
 export const criarProjetor = ({ posicoes, categorias, eventos, pesos, partidas }) => {
+  // Ordem total: a do fato (dia, registrado_em, id) e, dentro do mesmo fato, a
+  // do núcleo (`createdAt`, `id` da observação) — a última gravada vale.
+  const chaveDoPeso = (w) => `${w.ordem}|${w.criado_em ?? ''}|${w.id ?? ''}`;
+  const todos = [];
   /** @type {Map<string, Array<any>>} */
   const pesosPorPosicao = new Map();
   for (const w of pesos) {
     const ev = eventos.get(w.evento_id);
     if (!ev) continue;
-    const item = { ...w, ordem: ordemDoEvento(ev), ev };
+    const item = { ...w, ordem: ordemDoEvento(ev), ev, valor: undefined };
+    item.chave = chaveDoPeso(item);
+    todos.push(item);
     const lista = pesosPorPosicao.get(w.posicao_id) ?? [];
     lista.push(item);
     pesosPorPosicao.set(w.posicao_id, lista);
   }
-  for (const lista of pesosPorPosicao.values()) lista.sort((a, b) => (a.ordem < b.ordem ? -1 : a.ordem > b.ordem ? 1 : 0));
+  const porChave = (a, b) => (a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0);
+  todos.sort(porChave);
+  for (const lista of pesosPorPosicao.values()) lista.sort(porChave);
   /** @type {Map<string, Array<any>>} */
   const partidasPorPosicao = new Map();
   for (const x of partidas) {
@@ -141,45 +156,45 @@ export const criarProjetor = ({ posicoes, categorias, eventos, pesos, partidas }
     return null;
   };
 
-  const saldoAntes = (posicaoId, ev) => (partidasPorPosicao.get(posicaoId) ?? [])
-    .filter((x) => x.evento_id !== ev.id && x.ordem < ordemDoEvento(ev))
-    .reduce((t, x) => t + x.delta, 0);
-
-  const memo = new Map();
-
-  /** Valor da base: o gravado, ou o derivado recalculado com o projetado das origens. */
-  const valorDaBase = (posicaoId, w, profundidade) => {
-    const gravado = w.peso === null || w.peso === undefined ? null : Number(w.peso);
-    const desc = w.medido ? null : (Array.isArray(w.ev?.dados?.pesos_derivados) ? w.ev.dados.pesos_derivados : []).find((d) => d?.destino_posicao_id === posicaoId);
-    if (!desc || profundidade >= PROFUNDIDADE_MAXIMA) return gravado;
-    const antes = { antesDe: w.ordem, eventoId: w.ev.id, dia: w.dia };
-    const pares = [];
-    const s = saldoAntes(posicaoId, w.ev);
-    if (s > 0) pares.push([s, projetarNoMomento(posicaoId, antes, profundidade + 1)?.peso ?? null]);
-    for (const e of Array.isArray(desc.entradas) ? desc.entradas : []) {
-      const q = Number(e?.q) || 0;
-      const peso = e?.posicao_id ? projetarNoMomento(e.posicao_id, antes, profundidade + 1)?.peso ?? null : e?.peso_informado ?? null;
-      pares.push([q, peso === null ? null : Number(peso)]);
-    }
-    const v = combinar(pares);
-    return v === null ? gravado : v;
+  const saldoAntes = (posicaoId, ev) => {
+    const ordem = ordemDoEvento(ev);
+    let s = 0;
+    for (const x of partidasPorPosicao.get(posicaoId) ?? []) if (x.evento_id !== ev.id && x.ordem < ordem) s += x.delta;
+    return s;
   };
+
+  const gravadoDe = (w) => (w.peso === null || w.peso === undefined ? null : Number(w.peso));
 
   /**
    * Peso projetado da posição no fim do dia `momento.dia` (ou imediatamente antes de um evento).
+   * Usa o VALOR já resolvido da base (a DP abaixo resolve todos antes de qualquer consulta).
    * @returns {{peso: number|null, base: any}|null}
    */
-  function projetarNoMomento(posicaoId, momento, profundidade = 0) {
-    const chave = `${posicaoId}@${momento.antesDe ?? momento.dia}`;
-    if (memo.has(chave)) return memo.get(chave);
+  const projetarNoMomento = (posicaoId, momento) => {
     const w = ultimoPeso(posicaoId, momento);
-    let r = null;
-    if (w) {
-      const base = valorDaBase(posicaoId, w, profundidade);
-      r = { peso: base === null ? null : base + ganhoNoPeriodo(curvaDe(posicaoId), w.dia, momento.dia), base: { ...w, valor: base } };
+    if (!w) return null;
+    const base = w.valor === undefined ? gravadoDe(w) : w.valor;
+    return { peso: base === null ? null : base + ganhoNoPeriodo(curvaDe(posicaoId), w.dia, momento.dia), base: { ...w, valor: base } };
+  };
+
+  // DP: o valor de cada base, na ordem dos fatos. Há descritor para o destino →
+  // recalcula SEMPRE (inclusive com `medido`: o núcleo marca medido olhando só as
+  // entradas, mas o gravado mistura o saldo anterior com o peso REGISTRADO dele).
+  for (const w of todos) {
+    const gravado = gravadoDe(w);
+    const desc = (Array.isArray(w.ev?.dados?.pesos_derivados) ? w.ev.dados.pesos_derivados : []).find((d) => d?.destino_posicao_id === w.posicao_id);
+    if (!desc) { w.valor = gravado; continue; }
+    const antes = { antesDe: w.ordem, eventoId: w.ev.id, dia: w.dia };
+    const pares = [];
+    const s = saldoAntes(w.posicao_id, w.ev);
+    if (s > 0) pares.push([s, projetarNoMomento(w.posicao_id, antes)?.peso ?? null]);
+    for (const e of Array.isArray(desc.entradas) ? desc.entradas : []) {
+      const q = Number(e?.q) || 0;
+      const peso = e?.posicao_id ? projetarNoMomento(e.posicao_id, antes)?.peso ?? null : e?.peso_informado ?? null;
+      pares.push([q, peso === null ? null : Number(peso)]);
     }
-    memo.set(chave, r);
-    return r;
+    const v = combinar(pares);
+    w.valor = v === null ? gravado : v;
   }
 
   /**
@@ -189,6 +204,8 @@ export const criarProjetor = ({ posicoes, categorias, eventos, pesos, partidas }
    */
   const resumo = (posicaoId, hoje) => {
     const categoria = categoriaDe(posicaoId);
+    // Sem fuso configurado não há "hoje" da fazenda: a lista segue, sem projeção (D-PROD-122: leitura não exige fuso).
+    if (!hoje) return { disponivel: false, motivo: 'sem_fuso', sem_curva: !categoria?.curva, peso_objetivo_kg: categoria?.peso_objetivo_kg ?? null };
     const curva = categoria?.curva ?? null;
     const objetivo = categoria?.peso_objetivo_kg ?? null;
     const p = projetarNoMomento(posicaoId, { dia: hoje });
@@ -252,14 +269,18 @@ export const criarProjetor = ({ posicoes, categorias, eventos, pesos, partidas }
 const diaIso = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
 
 /**
- * Carrega o que a projeção da empresa precisa (uma consulta por tabela) e
- * devolve o projetor. Inclui posições vazias: são origens de pesos derivados.
+ * Carrega o que a projeção da empresa precisa e devolve o projetor. Inclui
+ * posições vazias: são origens de pesos derivados.
+ *
+ * Os eventos vêm por FILTRO da empresa (nunca uma lista `IN` de ids, que estoura
+ * o limite de parâmetros do Postgres com dezenas de milhares de fatos), e do JSON
+ * `dados` só o descritor `pesos_derivados` (o resto do documento não interessa).
  * @param {any} db cliente Prisma (ou transação)
  * @param {string} clienteId
  * @param {string} empresaId
  */
 export const carregarProjetorDaEmpresa = async (db, clienteId, empresaId) => {
-  const [ps, cats, ws, xs] = await Promise.all([
+  const [ps, cats, ws, xs, evs] = await Promise.all([
     db.posicaoRebanho.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId }, select: { id: true, categoria_manejo_id: true } }),
     db.categoriaManejo.findMany({
       where: { cliente_id: clienteId, empresa_id: empresaId },
@@ -267,20 +288,17 @@ export const carregarProjetorDaEmpresa = async (db, clienteId, empresaId) => {
     }),
     db.pesoRebanho.findMany({
       where: { cliente_id: clienteId, empresa_id: empresaId, ativa: true },
-      select: { posicao_id: true, evento_id: true, data_operacional: true, peso_medio_kg: true, medido: true },
+      select: { id: true, posicao_id: true, evento_id: true, data_operacional: true, peso_medio_kg: true, medido: true, createdAt: true },
     }),
     db.partidaRebanho.findMany({
       where: { cliente_id: clienteId, empresa_id: empresaId, ativa: true },
       select: { posicao_id: true, evento_id: true, data_operacional: true, delta: true },
     }),
+    /** @type {Promise<Array<{id: string, tipo: string, data_operacional: Date, registrado_em: Date, pesos_derivados: unknown}>>} */ (db.$queryRaw`
+      SELECT e.id, e.tipo, e.data_operacional, e.registrado_em, e.dados -> 'pesos_derivados' AS pesos_derivados
+        FROM "EventoRebanho" e
+       WHERE e.cliente_id = ${clienteId} AND e.empresa_id = ${empresaId}`),
   ]);
-  const idsEventos = [...new Set([...ws.map((w) => w.evento_id), ...xs.map((x) => x.evento_id)])];
-  const evs = idsEventos.length
-    ? await db.eventoRebanho.findMany({
-        where: { cliente_id: clienteId, id: { in: idsEventos } },
-        select: { id: true, tipo: true, data_operacional: true, registrado_em: true, dados: true },
-      })
-    : [];
   return criarProjetor({
     posicoes: new Map(ps.map((p) => [p.id, { categoria_manejo_id: p.categoria_manejo_id ?? null }])),
     categorias: new Map(cats.map((c) => [c.id, {
@@ -289,9 +307,13 @@ export const carregarProjetorDaEmpresa = async (db, clienteId, empresaId) => {
     }])),
     eventos: new Map(evs.map((e) => [e.id, {
       id: e.id, tipo: e.tipo, dia: diaIso(e.data_operacional),
-      registrado_em: e.registrado_em instanceof Date ? e.registrado_em.toISOString() : String(e.registrado_em), dados: e.dados,
+      registrado_em: e.registrado_em instanceof Date ? e.registrado_em.toISOString() : String(e.registrado_em),
+      dados: { pesos_derivados: Array.isArray(e.pesos_derivados) ? e.pesos_derivados : [] },
     }])),
-    pesos: ws.map((w) => ({ posicao_id: w.posicao_id, evento_id: w.evento_id, dia: diaIso(w.data_operacional), peso: w.peso_medio_kg === null ? null : Number(w.peso_medio_kg), medido: Boolean(w.medido) })),
+    pesos: ws.map((w) => ({
+      posicao_id: w.posicao_id, evento_id: w.evento_id, dia: diaIso(w.data_operacional), peso: w.peso_medio_kg === null ? null : Number(w.peso_medio_kg), medido: Boolean(w.medido),
+      criado_em: w.createdAt instanceof Date ? w.createdAt.toISOString() : String(w.createdAt ?? ''), id: w.id,
+    })),
     partidas: xs.map((x) => ({ posicao_id: x.posicao_id, evento_id: x.evento_id, dia: diaIso(x.data_operacional), delta: x.delta })),
   });
 };

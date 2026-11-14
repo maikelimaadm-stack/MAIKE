@@ -33,6 +33,20 @@ export function getCategoriaManejoFieldValue(item, colunaId) {
   return "";
 }
 
+/**
+ * D-PROD-198: "Peso objetivo (kg)" ordena pelo número, não pelo texto
+ * formatado ("1.200" depois de "980"); sem objetivo vai para o fim.
+ */
+export function compararCategoriasManejo(a, b, colunaId) {
+  if (colunaId !== "peso_objetivo") return undefined;
+  const va = a.peso_objetivo_kg === null || a.peso_objetivo_kg === undefined ? null : Number(a.peso_objetivo_kg);
+  const vb = b.peso_objetivo_kg === null || b.peso_objetivo_kg === undefined ? null : Number(b.peso_objetivo_kg);
+  if (va === null && vb === null) return 0;
+  if (va === null) return 1;
+  if (vb === null) return -1;
+  return va - vb;
+}
+
 export default function TabelaCategoriasManejo(props) {
   return (
     <CadastroBase1Grade
@@ -43,6 +57,7 @@ export default function TabelaCategoriasManejo(props) {
       getFieldValue={getCategoriaManejoFieldValue}
       renderCell={(item, colId) => getCategoriaManejoFieldValue(item, colId) || "–"}
       defaultSortKey="nome"
+      compararParaOrdenar={compararCategoriasManejo}
       emptyText="Nenhuma categoria encontrada"
       onOpen={props.onEdit}
       showConfigColunas={props.showConfigColunas}

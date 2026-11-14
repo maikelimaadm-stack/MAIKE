@@ -30,7 +30,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { agoraDoServidor, exigirDiaNaoFuturo, hojeDaEmpresa } from './rebanhoLedgerTempo.js';
+import { agoraDoServidor, diaNoFuso, exigirDiaNaoFuturo, hojeDaEmpresa, normalizarFusoIana } from './rebanhoLedgerTempo.js';
 import { carregarProjetorDaEmpresa } from './pesoProjetado.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
@@ -695,10 +695,13 @@ export const listarPosicoes = async (contexto, { empresa_id: empresaId, incluir_
     orderBy: [{ area_id: 'asc' }, { numero_lote: 'asc' }, { id: 'asc' }],
   });
   // D-PROD-198: peso projetado de cada posição (leitura pura, a partir da série de pesos e da curva da categoria).
-  const [{ hoje }, projetor] = await Promise.all([
-    hojeDaEmpresa(prisma, auth.clienteId, empresaId),
+  // "Hoje" da fazenda SEM trava e sem falhar: leitura não depende de fuso (D-PROD-122); sem fuso → sem projeção.
+  const [empresa, projetor] = await Promise.all([
+    prisma.empresa.findFirst({ where: { cliente_id: auth.clienteId, id: empresaId }, select: { fuso_horario: true } }),
     carregarProjetorDaEmpresa(prisma, auth.clienteId, empresaId),
   ]);
+  const fuso = normalizarFusoIana(empresa?.fuso_horario);
+  const hoje = fuso ? diaNoFuso(agoraDoServidor(), fuso) : null;
   return {
     ativo: true, modo: ativacao.modo, data_corte: diaDoBanco(ativacao.data_corte),
     itens: ps.map((p) => ({ ...comoPosicaoPublica(p), projecao_peso: projetor.resumo(p.id, hoje) })),

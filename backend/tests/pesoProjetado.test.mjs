@@ -122,4 +122,74 @@ describe('projetor', () => {
     assert.equal(r.base.derivado, false);
     assert.equal(r.peso_kg, 351);
   });
+
+  test('revisão: nascimento com peso informado num destino que já tinha bezerros — recalcula com o projetado dos que já estavam (medido não impede)', () => {
+    const BEZ = curva(0.8);
+    const projetor = criarProjetor({
+      posicoes: new Map([['N', { categoria_manejo_id: 'b' }]]),
+      categorias: new Map([['b', { curva: BEZ, peso_objetivo_kg: null }]]),
+      eventos: new Map([
+        ev('n1', 'NASCIMENTO', '2027-01-01', 0, { pesos_derivados: [{ destino_posicao_id: 'N', entradas: [{ q: 10, posicao_id: null, peso_informado: 35 }] }] }),
+        ev('n2', 'NASCIMENTO', '2027-03-02', 1, { pesos_derivados: [{ destino_posicao_id: 'N', entradas: [{ q: 10, posicao_id: null, peso_informado: 35 }] }] }),
+      ]),
+      pesos: [
+        { posicao_id: 'N', evento_id: 'n1', dia: '2027-01-01', peso: 35, medido: true },
+        { posicao_id: 'N', evento_id: 'n2', dia: '2027-03-02', peso: 35, medido: true },
+      ],
+      partidas: [
+        { posicao_id: 'N', evento_id: 'n1', dia: '2027-01-01', delta: 10 },
+        { posicao_id: 'N', evento_id: 'n2', dia: '2027-03-02', delta: 10 },
+      ],
+    });
+    // os 10 primeiros: 35 + 60 dias × 0,8 = 83; com os 10 novos de 35 → (830 + 350) ÷ 20 = 59
+    assert.equal(projetor.resumo('N', '2027-03-02').peso_kg, 59);
+  });
+
+  test('revisão: rodízio longo (120 transferências desde a pesagem) não trunca — sem limite de profundidade', () => {
+    const n = 120;
+    const posicoes = new Map();
+    const eventos = new Map([ev('p0', 'PESAGEM', '2027-01-01', 0)]);
+    const pesos = [{ posicao_id: 'P0', evento_id: 'p0', dia: '2027-01-01', peso: 300, medido: true }];
+    const partidas = [{ posicao_id: 'P0', evento_id: 'p0', dia: '2027-01-01', delta: 5 }];
+    posicoes.set('P0', { categoria_manejo_id: 'g' });
+    for (let i = 1; i <= n; i += 1) {
+      const dia = somarDias('2027-01-01', i);
+      const id = `t${i}`;
+      eventos.set(id, { id, tipo: 'TRANSFERENCIA', dia, registrado_em: `2027-01-01T00:00:00.${String(i).padStart(3, '0')}Z`, dados: { pesos_derivados: [{ destino_posicao_id: `P${i}`, entradas: [{ q: 5, posicao_id: `P${i - 1}`, peso_informado: null }] }] } });
+      posicoes.set(`P${i}`, { categoria_manejo_id: 'g' });
+      pesos.push({ posicao_id: `P${i}`, evento_id: id, dia, peso: 300, medido: false });
+      partidas.push({ posicao_id: `P${i - 1}`, evento_id: id, dia, delta: -5 }, { posicao_id: `P${i}`, evento_id: id, dia, delta: 5 });
+    }
+    const projetor = criarProjetor({ posicoes, categorias: new Map([['g', { curva: PASTO, peso_objetivo_kg: null }]]), eventos, pesos, partidas });
+    // 300 + 120 dias × 0,5 = 360, mesmo com 120 transferências encadeadas
+    assert.equal(projetor.resumo(`P${n}`, somarDias('2027-01-01', n)).peso_kg, 360);
+  });
+
+  test('revisão: duas observações no MESMO fato — vale a última gravada (createdAt, id), como no núcleo, em qualquer ordem de leitura', () => {
+    const base = {
+      posicoes: new Map([['A', { categoria_manejo_id: 'g' }]]),
+      categorias: new Map([['g', { curva: curva(0), peso_objetivo_kg: null }]]),
+      eventos: new Map([ev('ab', 'SALDO_ABERTURA', '2027-01-01', 0)]),
+      partidas: [],
+    };
+    const parcial = { posicao_id: 'A', evento_id: 'ab', dia: '2027-01-01', peso: 300, medido: false, criado_em: '2027-01-01T00:00:00.001Z', id: 'w1' };
+    const ponderada = { posicao_id: 'A', evento_id: 'ab', dia: '2027-01-01', peso: 320, medido: false, criado_em: '2027-01-01T00:00:00.002Z', id: 'w2' };
+    for (const pesos of [[parcial, ponderada], [ponderada, parcial]]) {
+      assert.equal(criarProjetor({ ...base, pesos }).resumo('A', '2027-01-05').peso_kg, 320);
+    }
+  });
+
+  test('revisão: data prevista sem atraso de ponto flutuante — coincide com o ganho do período', () => {
+    const c = curva(0.7);
+    const dia = diaQueAtinge(c, '2027-08-01', 400, 470); // 70 ÷ 0,7 = 100 dias
+    assert.equal(dia, somarDias('2027-08-01', 100));
+    assert.ok(400 + ganhoNoPeriodo(c, '2027-08-01', dia) >= 470 - 1e-9);
+    assert.equal(diaQueAtinge(curva(0.2), '2027-07-01', 440, 450), somarDias('2027-07-01', 50));
+  });
+
+  test('revisão: sem "hoje" (fazenda sem fuso) → indisponível com motivo sem_fuso, sem falhar', () => {
+    const projetor = criarProjetor({ posicoes: new Map([['A', { categoria_manejo_id: null }]]), categorias: new Map(), eventos: new Map(), pesos: [], partidas: [] });
+    assert.deepEqual(projetor.resumo('A', null), { disponivel: false, motivo: 'sem_fuso', sem_curva: true, peso_objetivo_kg: null });
+  });
 });
+
