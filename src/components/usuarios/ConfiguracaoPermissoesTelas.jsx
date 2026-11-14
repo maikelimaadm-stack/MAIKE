@@ -19,13 +19,17 @@ const ACTION_LABELS = {
 /** Checkbox das ações extras (o componente de `ui/checkbox` não tem tipos). */
 const CheckboxAcaoExtra = /** @type {any} */ (Checkbox);
 
-/** Ações extras (D-PROD-155; D-PROD-157 `inativar`) — só aparecem na tela que as declara. */
+/** Ações extras (D-PROD-155; D-PROD-157 `inativar`; D-PROD-198 atividades) — só aparecem na tela que as declara. */
 const EXTRA_ACTION_LABELS = {
   confirmar: "CONFIRMAR LANÇAMENTO",
   liquidar: "REGISTRAR PAGAMENTO/RECEBIMENTO",
   estornar_liquidacao: "ESTORNAR BAIXA",
   cancelar: "CANCELAR LANÇAMENTO",
   inativar: "INATIVAR/REATIVAR",
+  reabrir: "REABRIR ATIVIDADE",
+  lancar_apontamento: "LANÇAR APONTAMENTO",
+  editar_apontamento: "EDITAR APONTAMENTO",
+  cancelar_apontamento: "CANCELAR APONTAMENTO",
 };
 
 /**
@@ -45,10 +49,15 @@ const rotuloDaAcaoExtra = (pageId, action) => EXTRA_ACTION_LABELS_POR_TELA[pageI
 
 /**
  * Título do bloco de ações extras: a Central de Lançamentos age sobre o
- * lançamento; Abastecimentos sobre o abastecimento; Bens Patrimoniais sobre o cadastro.
+ * lançamento; Abastecimentos sobre o abastecimento; o Lançamento de Atividades
+ * sobre a atividade e os apontamentos dela; Bens Patrimoniais sobre o cadastro.
  */
-const tituloDasAcoesExtras = (pageId) =>
-  pageId === "ges-lancamentos-financeiros" ? "Ações do lançamento" : pageId === "pat-abastecimentos" ? "Ações do abastecimento" : "Ações do cadastro";
+const TITULO_DAS_ACOES_EXTRAS = {
+  "ges-lancamentos-financeiros": "Ações do lançamento",
+  "pat-abastecimentos": "Ações do abastecimento",
+  "op-atividades": "Ações da atividade e dos apontamentos",
+};
+const tituloDasAcoesExtras = (pageId) => TITULO_DAS_ACOES_EXTRAS[pageId] ?? "Ações do cadastro";
 
 export default function ConfiguracaoPermissoesTelas({ formData, onChange, modules }) {
   const modulosPermitidos = formData.modulos_permitidos || [];

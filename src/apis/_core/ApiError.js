@@ -120,34 +120,26 @@ export const API_ERROR_CODES = Object.freeze({
   // Cadastro de TipoAtividade (D-PROD-182).
   TIPO_ATIVIDADE_NOT_FOUND: 'TIPO_ATIVIDADE_NOT_FOUND',
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
-  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190/198 — a FK RESTRICT da atividade barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
   // D-PROD-197 — padrão recusado (centro, unidade de produção ou coeficiente):
   // `details.field` diz qual e `details.reason`, por quê (texto por motivo).
   TIPO_ATIVIDADE_PADRAO_INVALIDO: 'TIPO_ATIVIDADE_PADRAO_INVALIDO',
 
-  // Apontamento de Atividade, a EXECUÇÃO de um tipo (D-PROD-190). A tela age
-  // sobre cada um: relê a lista (não encontrado, cancelado, versão velha) ou
-  // destaca o campo recusado (referência, horário, data, implemento, produção).
-  APONTAMENTO_ATIVIDADE_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_NOT_FOUND',
-  APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA: 'APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA',
-  APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: 'APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO',
-  APONTAMENTO_ATIVIDADE_DATA_FUTURA: 'APONTAMENTO_ATIVIDADE_DATA_FUTURA',
-  APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO: 'APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO',
-  APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA: 'APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA',
-  APONTAMENTO_ATIVIDADE_STATUS_INVALIDO: 'APONTAMENTO_ATIVIDADE_STATUS_INVALIDO',
-  APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: 'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
-  // Exclusão de cadastro (área, centro, tarefa…) barrada por um apontamento.
-  APONTAMENTO_ATIVIDADE_VINCULADO: 'APONTAMENTO_ATIVIDADE_VINCULADO',
-  // D-PROD-193 — itens do apontamento (produto, serviço, outro custo). A tela
-  // relê o detalhe (item sumiu, já cancelado, limite, data com item) ou diz no
-  // card do item o que foi recusado (produto, local, quantidade, valor, estorno).
-  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND',
-  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_INVALIDO',
-  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO',
-  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS',
-  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: 'APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO',
-  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: 'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
+  // Lançamento de Atividades (D-PROD-198): a ATIVIDADE (cabeçalho aberto) e o
+  // APONTAMENTO do dia/turno. A tela age sobre cada um: relê (não encontrado,
+  // status, versão velha) ou diz o campo recusado (referência, exigência do
+  // tipo, data, motivo). `details.field`/`details.reason` dizem qual e por quê.
+  ATIVIDADE_NOT_FOUND: 'ATIVIDADE_NOT_FOUND',
+  ATIVIDADE_APONTAMENTO_NOT_FOUND: 'ATIVIDADE_APONTAMENTO_NOT_FOUND',
+  ATIVIDADE_REFERENCIA_INVALIDA: 'ATIVIDADE_REFERENCIA_INVALIDA',
+  ATIVIDADE_EXIGIDA_PELO_TIPO: 'ATIVIDADE_EXIGIDA_PELO_TIPO',
+  ATIVIDADE_DATA_INVALIDA: 'ATIVIDADE_DATA_INVALIDA',
+  ATIVIDADE_STATUS_INVALIDO: 'ATIVIDADE_STATUS_INVALIDO',
+  ATIVIDADE_VERSAO_CONFLITO: 'ATIVIDADE_VERSAO_CONFLITO',
+  ATIVIDADE_MOTIVO_INVALIDO: 'ATIVIDADE_MOTIVO_INVALIDO',
+  // Exclusão de cadastro (tipo, grupo, área, setor, unidade, tarefa, bem, centro…) barrada por uma atividade.
+  ATIVIDADE_VINCULADA: 'ATIVIDADE_VINCULADA',
   // D-PROD-188 — Estações da fazenda.
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
@@ -251,38 +243,27 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT]:
     'Já existe um tipo de atividade cadastrado com este nome neste grupo.',
   [API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED]:
-    'Não é possível excluir o tipo de atividade: há apontamentos de atividade vinculados. Inative o tipo em vez de excluir.',
+    'Não é possível excluir o tipo de atividade: há atividades vinculadas. Inative o tipo em vez de excluir.',
   [API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO]:
     'Um dos padrões do tipo de atividade (centro de custo, centro de resultado, unidade de produção ou coeficiente) não pode ser usado. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_NOT_FOUND]:
-    'Este apontamento de atividade não foi encontrado nesta fazenda. Atualize a lista e tente novamente.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA]:
-    'Um dos cadastros escolhidos (tipo, máquina, implemento, operador, área ou centro) não pode ser usado: não existe, é de outra fazenda ou está inativo. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO]:
-    'O horário foi recusado: fim antes do início, hora depois de agora ou fora da data da atividade. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_FUTURA]:
-    'A data da atividade é posterior a hoje na fazenda: só se aponta atividade já executada. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO]:
-    'O implemento exige uma máquina ou veículo e não pode ser o próprio bem. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA]:
-    'Produção inválida: informe quantidade e unidade juntas, com quantidade maior que zero. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_STATUS_INVALIDO]:
-    'Este apontamento está cancelado e não aceita edição nem novo cancelamento. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO]:
-    'Este apontamento foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VINCULADO]:
-    'Não é possível excluir: há apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND]:
-    'Este item não foi encontrado neste apontamento. O apontamento será relido. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_INVALIDO]:
-    'O item foi recusado: Produto, local, quantidade ou valor não pode ser usado. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO]: 'Este item já foi cancelado. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS]:
-    'Este apontamento já tem o número máximo de itens. Nada foi gravado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO]:
-    'O estorno exato do estoque não é seguro agora: o estoque de origem mudou. Nada foi alterado.',
-  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_COM_ITENS]:
-    'A data não pode mudar: o apontamento tem item de Produto lançado, com a saída do estoque nesta data. Cancele os itens de Produto antes de mudar a data. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_NOT_FOUND]:
+    'Esta atividade não foi encontrada nesta fazenda. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.ATIVIDADE_APONTAMENTO_NOT_FOUND]:
+    'Este apontamento não foi encontrado nesta atividade. Atualize os apontamentos e tente novamente.',
+  [API_ERROR_CODES.ATIVIDADE_REFERENCIA_INVALIDA]:
+    'Um dos cadastros escolhidos (tipo, área, máquina, tarefa ou operador) não pode ser usado: não existe, está inativo, é de outra fazenda ou o grupo do tipo está inativo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_EXIGIDA_PELO_TIPO]:
+    'O tipo de atividade exige um dado que não foi informado (área, safra, máquina ou, para concluir, produção nos apontamentos). Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_DATA_INVALIDA]:
+    'A data foi recusada: ela não pode ser futura, anterior ao início da atividade nem inexistente, e o fim previsto não pode ser antes do início. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_STATUS_INVALIDO]:
+    'Esta ação não é permitida no status atual: só a atividade aberta aceita edição, conclusão, cancelamento e apontamentos, e só a concluída é reaberta. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_VERSAO_CONFLITO]:
+    'Este registro foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO]:
+    'Informe o motivo com pelo menos 3 e no máximo 500 caracteres. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_VINCULADA]:
+    'Não é possível excluir: há atividades ou apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:

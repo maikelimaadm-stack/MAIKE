@@ -41,8 +41,8 @@ export const DEFAULT_MENU = [
       { id: "sup-locais", title: "Locais de Estoque", url: "LocaisEstoque" },
       { id: "sup-tipos-tarefa", title: "Tipos de Tarefa", url: "TiposTarefa" },
       { id: "sup-tipos-atividade", title: "Tipos de Atividade", url: "TiposAtividade" },
-      // D-PROD-190 — a EXECUÇÃO de um Tipo de Atividade, logo abaixo do cadastro dos tipos.
-      { id: "op-apontamentos-atividade", title: "Apontamentos de Atividade", url: "ApontamentosAtividade" },
+      // D-PROD-198 — a EXECUÇÃO de um Tipo de Atividade (atividade aberta + apontamentos por dia), logo abaixo do cadastro dos tipos.
+      { id: "op-atividades", title: "Lançamento de Atividades", url: "LancamentoAtividades" },
       { id: "sup-grupos-atividades", title: "Grupos de Atividades", url: "GruposAtividades" },
     ],
   },

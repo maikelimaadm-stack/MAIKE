@@ -1,0 +1,837 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
+import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoDia, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
+import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
+import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
+import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
+import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
+import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
+import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
+import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
+import { ehDiaValido, formatarInstante } from "@/lib/diaCivil";
+import { confirmar } from "@/lib/maikeConfirmar";
+import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
+import {
+  CHAVE_DO_SELO_ATIVIDADE,
+  CODIGOS_RELER_ATIVIDADE,
+  LOCALE_ATIVIDADE,
+  MAX_OBSERVACAO_ATIVIDADE,
+  ROTULO_STATUS_ATIVIDADE,
+  STATUS_ABERTA,
+  STATUS_CANCELADA,
+  STATUS_CONCLUIDA,
+  STATUS_ATIVIDADE,
+  acoesDaAtividade,
+  codigoDoErroAtividade,
+  erroDaDataDeConclusao,
+  formatarAreaExecutadaPlanejada,
+  formatarDiaAtividade,
+  formatarProducaoDaAtividade,
+  mensagemDeErroAtividade,
+  rotuloDaArea,
+  rotuloDaTarefa,
+  rotuloDaUnidadeDeProducao,
+  rotuloDoBem,
+  rotuloDoCentro,
+  rotuloDoSetor,
+  rotuloDoStatusAtividade,
+  rotuloDoUsuario,
+} from "@/lib/lancamentoAtividadesRegras";
+import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import {
+  cancelarAtividade,
+  concluirAtividade,
+  definirFazendaDaTela,
+  duplicarAtividade,
+  listarAreasDaFazenda,
+  listarAtividades,
+  listarTiposAtividade,
+  obterAtividade,
+  reabrirAtividade,
+} from "@/services/lancamentoAtividadesService";
+
+const QUERY_RAIZ = "lancamento-atividades";
+
+/** Formatação das mensagens do diálogo de ação (não há dinheiro nesta tela). */
+const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL", casas: 2 });
+
+const STATUS_TODOS = "TODOS";
+const OPCOES_STATUS = [
+  { value: STATUS_TODOS, label: "Todos os status" },
+  ...STATUS_ATIVIDADE.map((s) => ({ value: s, label: ROTULO_STATUS_ATIVIDADE[s] ?? s })),
+];
+
+// ─── Lista (colunas da grade Base1) ─────────────────────────────────────
+
+export const ATIVIDADES_STORAGE_KEY = "colunas_lancamento_atividades_v1";
+
+/**
+ * Padrão: Nº | Nome | Tipo | Área | Status | Área executada / planejada | Início.
+ * Os demais dados do cabeçalho ficam como colunas opcionais (desligadas). Tipo,
+ * grupo, setor, centros e unidade mostram o que ficou GRAVADO na atividade
+ * (snapshot): renomear o cadastro depois não reescreve o histórico.
+ */
+export const ATIVIDADES_COLUNAS = [
+  { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
+  { id: "nome", label: "Nome", default: true, sortable: true, width: 200 },
+  { id: "tipo", label: "Tipo de atividade", default: true, sortable: true, width: 170 },
+  { id: "area", label: "Área", default: true, sortable: true, width: 140 },
+  { id: "status", label: "Status", default: true, sortable: true, width: 110 },
+  { id: "area_execucao", label: "Área executada / planejada", default: true, sortable: true, align: "right", width: 160 },
+  { id: "data_inicio", label: "Início", default: true, sortable: true, width: 101 },
+  { id: "grupo", label: "Grupo", default: false, sortable: true, width: 150 },
+  { id: "setor", label: "Setor", default: false, sortable: true, width: 140 },
+  { id: "bem", label: "Máquina", default: false, sortable: true, width: 160 },
+  { id: "safra", label: "Safra", default: false, sortable: true, width: 100 },
+  { id: "producao", label: "Produção", default: false, sortable: true, align: "right", width: 110 },
+  { id: "data_prevista_fim", label: "Fim previsto", default: false, sortable: true, width: 101 },
+  { id: "data_conclusao", label: "Conclusão", default: false, sortable: true, width: 101 },
+  { id: "centro_custo", label: "Centro de custo", default: false, sortable: true, width: 160 },
+  { id: "centro_resultado", label: "Centro de resultado", default: false, sortable: true, width: 160 },
+];
+
+/** Cards (celular): o nome é o título e o status vai no subtítulo. */
+export const ATIVIDADES_CAMPOS_CARD = ["numero", "tipo", "area", "data_inicio"];
+
+/** @param {any} item @param {string} id */
+export const valorDoCampoAtividade = (item, id) => {
+  if (id === "numero") return item?.numero != null ? String(item.numero) : "";
+  if (id === "nome") return String(item?.nome ?? "");
+  if (id === "tipo") return String(item?.tipo_atividade_nome ?? "");
+  if (id === "grupo") return String(item?.grupo_atividade_nome ?? "");
+  if (id === "area") return rotuloDaArea(item?.area);
+  if (id === "setor") return rotuloDoSetor(item);
+  if (id === "bem") return rotuloDoBem(item?.bem);
+  if (id === "safra") return String(item?.safra_ciclo ?? "");
+  if (id === "status") return rotuloDoStatusAtividade(item?.status);
+  if (id === "area_execucao") return formatarAreaExecutadaPlanejada(item);
+  if (id === "producao") return formatarProducaoDaAtividade(item);
+  if (id === "data_inicio" || id === "data_prevista_fim" || id === "data_conclusao") return formatarDiaAtividade(item?.[id]);
+  if (id === "centro_custo") return rotuloDoCentro(item?.centro_custo);
+  if (id === "centro_resultado") return rotuloDoCentro(item?.centro_resultado);
+  return "";
+};
+
+/** Colunas ordenadas pelo valor CANÔNICO do servidor (nunca pelo texto formatado). */
+const CANONICO_DA_COLUNA = Object.freeze(
+  /** @type {Record<string, string>} */ ({ numero: "numero", area_execucao: "area_executada", producao: "quantidade_produzida" }),
+);
+const COLUNAS_DE_DIA = Object.freeze(["data_inicio", "data_prevista_fim", "data_conclusao"]);
+
+/**
+ * Número, área, produção e dias pelo valor do servidor; vazio por último.
+ * @param {any} a @param {any} b @param {string} colId
+ * @returns {number|null}
+ */
+export const compararAtividadesParaOrdenar = (a, b, colId) => {
+  if (COLUNAS_DE_DIA.includes(colId)) {
+    const va = ehDiaValido(a?.[colId]) ? String(a[colId]) : null;
+    const vb = ehDiaValido(b?.[colId]) ? String(b[colId]) : null;
+    if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+    return va === vb ? 0 : va < vb ? -1 : 1;
+  }
+  const campo = CANONICO_DA_COLUNA[colId];
+  if (!campo) return null;
+  const va = ehCanonico(a?.[campo]) ? String(a[campo]) : null;
+  const vb = ehCanonico(b?.[campo]) ? String(b[campo]) : null;
+  if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+  return comparar(va, vb);
+};
+
+/** @param {any} atividade */
+const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${atividade.numero}` : "");
+
+/**
+ * Lançamento de Atividades (D-PROD-198, Fatia 2) — a EXECUÇÃO de um Tipo de
+ * Atividade na fazenda selecionada, em dois níveis: a ATIVIDADE (o cabeçalho
+ * aberto, "Cigarrinha Pasto 01") e os APONTAMENTOS dela, por dia e turno.
+ *
+ * Lista keyset das atividades (filtros de status, tipo, área e período sobre o
+ * início) com Nº, nome, tipo, área, status, área executada / planejada e
+ * início. "Abrir atividade" cria (FormularioAtividade). Na linha selecionada
+ * (ou na atividade aberta), o menu Mais opções traz o que a permissão e o
+ * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
+ * duplicar.
+ *
+ * Atividade aberta: o cabeçalho no topo, SÓ LEITURA, com os campos herdados
+ * (setor da área; centros e unidade do tipo — nunca digitados) e, logo abaixo,
+ * os apontamentos (ListaApontamentos). "Editar" abre o FormularioAtividade só
+ * enquanto a atividade está ABERTA; concluída ou cancelada fica toda só
+ * leitura (o servidor também recusa).
+ *
+ * Salvaguardas: sem fazenda real nada é lido; trocar de fazenda fecha a
+ * atividade e os diálogos; sem o fuso da fazenda não há "hoje", então abrir,
+ * editar, concluir, reabrir, cancelar, duplicar e lançar ficam fechados (o
+ * servidor recusaria). Toda ação leva a `versao` lida (CAS no servidor).
+ */
+export default function LancamentoAtividades() {
+  const queryClient = useQueryClient();
+  const empresaId = useEmpresaRealSelecionadaId();
+  // A fazenda que o service injeta nas leituras e gravações (inclusive as dos componentes filhos).
+  definirFazendaDaTela(empresaId);
+  const acoes = useAcoesTelaAtividades();
+  const { fuso, fusoOk, semFuso, hoje } = useFusoDaFazenda(empresaId);
+
+  const [statusFiltro, setStatusFiltro] = useState(STATUS_TODOS);
+  const [tipoFiltro, setTipoFiltro] = useState("");
+  const [areaFiltro, setAreaFiltro] = useState("");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const periodoInvertido = Boolean(dataDe && dataAte && dataDe > dataAte);
+
+  /** Diálogo aberto: concluir (com a data), reabrir ou cancelar (com motivo), sobre a atividade lida no clique. */
+  const [dialogo, setDialogo] = useState(/** @type {{ tipo: 'concluir'|'reabrir'|'cancelar', atividade: any } | null} */ (null));
+  const [dataConclusao, setDataConclusao] = useState("");
+  const [erroDataConclusao, setErroDataConclusao] = useState(/** @type {string|null} */ (null));
+  const [duplicando, setDuplicando] = useState(false);
+
+  const { data: tipos = [] } = useQuery({
+    queryKey: [QUERY_RAIZ, "tipos"],
+    queryFn: () => listarTiposAtividade(),
+    enabled: acoes.ver,
+    staleTime: 30 * 1000,
+  });
+  const { data: areas = [] } = useQuery({
+    queryKey: [QUERY_RAIZ, "areas", empresaId],
+    queryFn: () => listarAreasDaFazenda(),
+    enabled: Boolean(empresaId) && acoes.ver,
+    staleTime: 30 * 1000,
+  });
+
+  const listEnabled = Boolean(empresaId) && acoes.ver && !periodoInvertido;
+
+  const fetchPage = useCallback(
+    (/** @type {{ limit: number, cursor: string|null }} */ { limit, cursor }) =>
+      listarAtividades({
+        limit,
+        cursor,
+        status: statusFiltro !== STATUS_TODOS ? statusFiltro : null,
+        tipo_atividade_id: tipoFiltro || null,
+        area_id: areaFiltro || null,
+        data_de: dataDe || null,
+        data_ate: dataAte || null,
+      }),
+    // A fazenda vem do service (`definirFazendaDaTela`) e está na chave da lista: trocar de fazenda relê a página.
+    [statusFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+  );
+
+  const controller = useCadastroBase1Controller({
+    storageKey: ATIVIDADES_STORAGE_KEY,
+    columnIds: ATIVIDADES_CAMPOS_CARD,
+    listEnabled,
+    queryKey: [QUERY_RAIZ, "page", empresaId, statusFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+    fetchPage,
+    duplicateLabelField: "nome",
+    searchPlaceholder: "Buscar nº, nome, tipo ou área…",
+    exportFileName: "lancamento-atividades.csv",
+    exportColumns: ATIVIDADES_COLUNAS,
+    getExportFieldValue: valorDoCampoAtividade,
+    getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Abrir atividade"),
+    getRecordCode: (/** @type {any} */ item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
+    getSearchHaystack: (/** @type {any} */ a) =>
+      [a.numero, a.nome, a.tipo_atividade_nome, rotuloDaArea(a.area)].filter((v) => v != null && v !== "").join(" "),
+    mapSearchSuggestion: (/** @type {any} */ a) => ({
+      id: String(a.id),
+      label: `Nº ${a.numero ?? ""} — ${a.nome ?? ""}`,
+      secondary: a.tipo_atividade_nome || undefined,
+    }),
+    matchRowId: (/** @type {any} */ a, /** @type {string} */ id) => String(a.id) === String(id),
+    getRowId: (/** @type {any} */ a) => String(a.id),
+    findRowById: (/** @type {any[]} */ rows, /** @type {string} */ id) => rows.find((a) => String(a.id) === String(id)),
+    // O FormularioAtividade grava sozinho (service) e devolve a atividade em `onSalvo`.
+    onSubmitRecord: () => {},
+    // Atividade não se apaga: cancela com motivo (menu Mais opções).
+    onRequestDeleteMutation: () => {},
+  });
+
+  // ─── Troca de fazenda: nada da fazenda anterior continua na tela ──────
+  const empresaAnterior = useRef(empresaId);
+  const trocandoEmpresa = empresaAnterior.current !== empresaId;
+  const { closeForm } = controller;
+  useEffect(() => {
+    if (empresaAnterior.current === empresaId) return;
+    empresaAnterior.current = empresaId;
+    closeForm();
+    setDialogo(null);
+    setAreaFiltro("");
+  }, [empresaId, closeForm]);
+  // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
+  const empresaAtual = useRef(empresaId);
+  empresaAtual.current = empresaId;
+  /** @param {string|null|undefined} emp */
+  const daEmpresaAtual = (emp) => Boolean(emp) && emp === empresaAtual.current;
+
+  const invalidarLista = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
+  /** @param {string|null|undefined} emp @param {string} id */
+  const chaveDetalhe = (emp, id) => [QUERY_RAIZ, "detalhe", emp ?? null, id];
+
+  // ─── Atividade aberta: o DETALHE (com objetos e totais) ───────────────
+  const registroLista = /** @type {any} */ (controller.editingItem);
+  const idAberto = controller.showForm && registroLista?.id ? String(registroLista.id) : null;
+  const detalheQuery = useQuery({
+    queryKey: chaveDetalhe(empresaId, idAberto ?? ""),
+    queryFn: () => obterAtividade(/** @type {string} */ (idAberto)),
+    enabled: Boolean(empresaId && idAberto && acoes.ver && !trocandoEmpresa),
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const detalheBruto = /** @type {any} */ (detalheQuery.data ?? null);
+  const detalhe = detalheBruto && idAberto && String(detalheBruto.id) === idAberto ? detalheBruto : null;
+  // O detalhe vale quando é da mesma versão (ou mais nova) que a linha aberta; senão, a linha até ele ser relido.
+  const registroAberto = /** @type {any} */ (
+    idAberto ? (detalhe && Number(detalhe.versao ?? 0) >= Number(registroLista?.versao ?? 0) ? detalhe : registroLista) : null
+  );
+  useEffect(() => {
+    if (!detalheQuery.error) return;
+    if (codigoDoErroAtividade(detalheQuery.error) === "ATIVIDADE_NOT_FOUND") {
+      invalidarLista();
+      closeForm();
+    }
+    notifyWarning("Atenção", mensagemDeErroAtividade(detalheQuery.error, "Não foi possível ler a atividade."));
+  }, [detalheQuery.error]);
+
+  /**
+   * Mostra a atividade devolvida pelo servidor (só leitura) e guarda o detalhe
+   * no cache. A resposta de toda escrita da atividade é o detalhe (§10).
+   * @param {any} atividade @param {string|null} [emp]
+   */
+  const mostrarAtividade = (atividade, emp = empresaId) => {
+    if (!atividade || typeof atividade !== "object" || !atividade.id) {
+      controller.recordHelpers.closeForm();
+      return;
+    }
+    queryClient.setQueryData(chaveDetalhe(emp, String(atividade.id)), atividade);
+    controller.recordHelpers.recordBeforeNewRef.current = null;
+    controller.setEditingItem(atividade);
+    controller.setIsEditing(false);
+    controller.recordHelpers.setShowForm(true);
+    controller.recordHelpers.bumpFormEpoch();
+    controller.recordHelpers.chrome.setViewMode("record");
+    controller.recordHelpers.chrome.onSelectionChange([String(atividade.id)]);
+  };
+
+  /**
+   * Escrita concluída (abrir, editar, concluir, reabrir, cancelar, duplicar):
+   * a lista é relida (a `versao` mudou) e, na fazenda atual, a atividade
+   * devolvida aparece. Os apontamentos se releem sozinhos quando a versão ou o
+   * status do cabeçalho muda (ListaApontamentos).
+   * @param {any} atividade @param {string|null} emp
+   */
+  const aplicarAtividade = (atividade, emp) => {
+    invalidarLista();
+    if (!daEmpresaAtual(emp)) {
+      if (atividade?.id) queryClient.setQueryData(chaveDetalhe(emp, String(atividade.id)), atividade);
+      return;
+    }
+    mostrarAtividade(atividade, emp);
+  };
+
+  /**
+   * Recusa do servidor: relê o que mudou (atividade sumiu, status ou versão
+   * velha) e devolve a mensagem.
+   * @param {unknown} erro @param {string} fallback @param {string|null} emp
+   */
+  const reagirAoErro = (erro, fallback, emp) => {
+    const code = codigoDoErroAtividade(erro);
+    if (code && CODIGOS_RELER_ATIVIDADE.includes(code)) {
+      invalidarLista();
+      queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "detalhe"] });
+      if (code === "ATIVIDADE_NOT_FOUND" && daEmpresaAtual(emp)) {
+        setDialogo(null);
+        closeForm();
+      }
+    }
+    return mensagemDeErroAtividade(erro, fallback);
+  };
+
+  // ─── Formulário (abrir e editar o cabeçalho) ──────────────────────────
+  /** O formulário gravou (e já avisou o sucesso): a atividade gravada aparece só leitura. @param {any} atividade o detalhe */
+  const aoSalvarAtividade = (atividade) => aplicarAtividade(atividade, empresaId);
+
+  /** Totais recalculados depois de lançar, editar ou cancelar um apontamento. @param {any} atividade */
+  const aoAtualizarAtividade = (atividade) => {
+    if (!atividade?.id) return;
+    invalidarLista();
+    queryClient.setQueryData(chaveDetalhe(empresaId, String(atividade.id)), atividade);
+  };
+
+  // ─── Ações da atividade (concluir, reabrir, cancelar, duplicar) ───────
+  const podeGravar = Boolean(empresaId) && fusoOk;
+
+  // Alvo das ações: a atividade aberta (fora da edição; o detalhe, que tem a versão mais nova) ou a única linha selecionada.
+  const alvo = useMemo(() => {
+    if (controller.showForm) return idAberto && !controller.isEditing ? registroAberto : null;
+    const ids = controller.chrome.selectedIds;
+    if (ids.length !== 1) return null;
+    return /** @type {any[]} */ (controller.visibleRows).find((a) => String(a.id) === String(ids[0])) ?? null;
+  }, [controller.showForm, controller.isEditing, idAberto, registroAberto, controller.chrome.selectedIds, controller.visibleRows]);
+  const acoesDoAlvo = acoesDaAtividade(alvo, acoes);
+  const versaoValida = Number.isInteger(alvo?.versao);
+
+  /** @param {'concluir'|'reabrir'|'cancelar'} tipo @param {any} atividade */
+  const abrirDialogo = (tipo, atividade) => {
+    setErroDataConclusao(null);
+    setDataConclusao(tipo === "concluir" ? hoje : "");
+    setDialogo({ tipo, atividade });
+  };
+
+  /**
+   * Ação gravada: fecha o diálogo e mostra a atividade devolvida (na fazenda em
+   * que a ação foi enviada; se a tela já trocou de fazenda, só avisa).
+   * @param {any} atividade @param {string} mensagem @param {string} emp
+   */
+  const concluirAcao = (atividade, mensagem, emp) => {
+    const mesmaFazenda = daEmpresaAtual(emp);
+    if (mesmaFazenda) setDialogo(null);
+    aplicarAtividade(atividade, emp);
+    if (mesmaFazenda) notifySuccess("Sucesso", `${mensagem}.`);
+    else notifyInfo("Gravação concluída", `${mensagem}, na fazenda anterior.`);
+  };
+
+  /**
+   * Envio do diálogo. Concluir confere a data ANTES da rede (o erro fica no
+   * campo e nada é enviado); reabrir e cancelar levam o motivo do diálogo.
+   * A recusa volta ao diálogo (ele mostra a mensagem).
+   * @param {string} motivo
+   */
+  const enviarDialogo = async (motivo) => {
+    const atual = dialogo;
+    const emp = empresaId;
+    if (!atual || !emp) return;
+    const { tipo, atividade } = atual;
+    const id = String(atividade.id);
+    try {
+      if (tipo === "concluir") {
+        const erroDaData = erroDaDataDeConclusao(dataConclusao, { hoje, dataInicio: atividade.data_inicio ?? null });
+        setErroDataConclusao(erroDaData);
+        if (erroDaData) return;
+        const r = await concluirAtividade(id, { versao: atividade.versao, data_conclusao: dataConclusao });
+        concluirAcao(r, `Atividade ${textoDoNumero(r)} concluída`, emp);
+      } else if (tipo === "reabrir") {
+        const r = await reabrirAtividade(id, { versao: atividade.versao, motivo });
+        concluirAcao(r, `Atividade ${textoDoNumero(r)} reaberta`, emp);
+      } else {
+        const r = await cancelarAtividade(id, { versao: atividade.versao, motivo });
+        concluirAcao(r, `Atividade ${textoDoNumero(r)} cancelada, com os apontamentos confirmados dela (nada foi apagado)`, emp);
+      }
+    } catch (erro) {
+      reagirAoErro(erro, "Não foi possível concluir a ação. Nada foi alterado.", emp);
+      throw erro;
+    }
+  };
+
+  /** Status que cada ação deixa gravado: "Consultar" depois de um envio sem resposta. */
+  const STATUS_DEPOIS = /** @type {Record<string, string>} */ ({ concluir: STATUS_CONCLUIDA, reabrir: STATUS_ABERTA, cancelar: STATUS_CANCELADA });
+
+  /** "Consultar" depois de um envio sem resposta: relê a atividade. */
+  const consultarDialogo = async () => {
+    const atual = dialogo;
+    const emp = empresaId;
+    if (!atual || !emp) return;
+    try {
+      const lida = /** @type {any} */ (await obterAtividade(String(atual.atividade.id)));
+      const gravou = lida?.status === STATUS_DEPOIS[atual.tipo] && Number(lida?.versao ?? 0) > Number(atual.atividade.versao ?? 0);
+      if (gravou) {
+        const nomes = /** @type {Record<string, string>} */ ({ concluir: "concluída", reabrir: "reaberta", cancelar: "cancelada" });
+        concluirAcao(lida, `Atividade ${textoDoNumero(lida)} ${nomes[atual.tipo]}`, emp);
+      } else {
+        notifyInfo("Ainda não gravado", "A ação não aparece gravada na atividade. Repita o envio: a atividade só muda uma vez.");
+      }
+    } catch (erro) {
+      notifyWarning("Atenção", mensagemDeErroAtividade(erro, "Não foi possível consultar agora. Tente de novo."));
+    }
+  };
+
+  /**
+   * Duplicar: abertura NOVA a partir da atividade (os padrões do tipo são
+   * relidos; os apontamentos não vêm). Sem chave de idempotência: sem resposta
+   * do servidor, a tela manda conferir a lista antes de repetir.
+   * @param {any} atividade
+   */
+  const duplicar = async (atividade) => {
+    const emp = empresaId;
+    if (!emp || !atividade?.id || duplicando) return;
+    const ok = await confirmar({
+      titulo: `Duplicar a atividade ${textoDoNumero(atividade)}`.trim(),
+      descricao:
+        "Uma atividade NOVA é aberta com o mesmo nome, tipo, área, máquina, safra, área planejada, tarefa e observação, com início hoje. " +
+        "Os apontamentos não são copiados; o setor vem da área e os centros e a unidade vêm do tipo atual. Depois de aberta, ela pode ser editada.",
+      textoConfirmar: "Duplicar",
+      textoCancelar: "Voltar",
+    });
+    if (!ok) return;
+    setDuplicando(true);
+    try {
+      const nova = await duplicarAtividade(String(atividade.id));
+      aplicarAtividade(nova, emp);
+      if (daEmpresaAtual(emp)) notifySuccess("Sucesso", `Atividade ${textoDoNumero(nova)} aberta (cópia da ${textoDoNumero(atividade)}).`);
+      else notifyInfo("Gravação concluída", `A cópia da atividade ${textoDoNumero(atividade)} foi aberta na fazenda anterior.`);
+    } catch (erro) {
+      if (ehResultadoIncerto(erro)) {
+        invalidarLista();
+        notifyWarning("Resultado incerto", "Não recebemos a resposta do servidor: a cópia PODE ter sido aberta. Confira a lista antes de duplicar de novo.");
+      } else {
+        notifyWarning("Atenção", reagirAoErro(erro, "Não foi possível duplicar a atividade. Nada foi gravado.", emp));
+      }
+    } finally {
+      setDuplicando(false);
+    }
+  };
+
+  /** @type {Array<{ key: string, label: string, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} */
+  const acoesDoMenu = [];
+  if (alvo && podeGravar && versaoValida) {
+    acoesDoMenu.push(
+      { key: "concluir", label: "Concluir atividade", hidden: !acoesDoAlvo.concluir, onSelect: () => abrirDialogo("concluir", alvo) },
+      { key: "reabrir", label: "Reabrir atividade", hidden: !acoesDoAlvo.reabrir, onSelect: () => abrirDialogo("reabrir", alvo) },
+      { key: "cancelar", label: "Cancelar atividade", hidden: !acoesDoAlvo.cancelar, onSelect: () => abrirDialogo("cancelar", alvo) },
+      { key: "duplicar", label: "Duplicar atividade", hidden: !acoesDoAlvo.duplicar, disabled: duplicando, onSelect: () => void duplicar(alvo) },
+    );
+  }
+  const acoesVisiveisDoMenu = acoesDoMenu.filter((a) => !a.hidden);
+
+  // ─── Avisos e filtros ─────────────────────────────────────────────────
+  const listErrorMessage = useMemo(
+    () => mensagemDeErroAtividade(controller.listaQueryError, "Não foi possível carregar as atividades. Verifique sua conexão e tente novamente."),
+    [controller.listaQueryError],
+  );
+
+  let aviso = null;
+  if (!empresaId) {
+    aviso = <AvisoGestao testId="atividades-sem-empresa">Selecione uma fazenda para ver e lançar atividades.</AvisoGestao>;
+  } else if (acoes.carregando) {
+    aviso = (
+      <AvisoGestao tone="blue" testId="atividades-carregando">
+        Carregando permissões…
+      </AvisoGestao>
+    );
+  } else if (!acoes.ver) {
+    aviso = <AvisoGestao testId="atividades-sem-permissao">Você não tem permissão para ver as atividades desta fazenda.</AvisoGestao>;
+  }
+
+  const opcoesTipoFiltro = useMemo(
+    () =>
+      /** @type {any[]} */ (tipos).map((t) => ({
+        value: String(t.id),
+        label: `${String(t.nome_tipo ?? "")}${t.ativo === false ? " (INATIVO)" : ""}`,
+      })),
+    [tipos],
+  );
+  const opcoesAreaFiltro = useMemo(
+    () => /** @type {any[]} */ (areas).map((a) => ({ value: String(a.id), label: rotuloDaArea(a) || String(a.id) })),
+    [areas],
+  );
+
+  const filtros =
+    empresaId && acoes.ver && !controller.showForm ? (
+      <div className="cadastro-b1 mg-card mb-2 p-2" data-testid="atividades-filtros">
+        <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
+          <CampoSelect label="Tipo de atividade" value={tipoFiltro} onChange={setTipoFiltro} options={opcoesTipoFiltro} placeholder="Todos os tipos" span={4} />
+          <CampoSelect label="Área" value={areaFiltro} onChange={setAreaFiltro} options={opcoesAreaFiltro} placeholder="Todas as áreas" span={4} />
+          <CampoDia label="Início de" value={dataDe} onChange={setDataDe} span={2} testId="atividades-filtro-de" />
+          <CampoDia label="Início até" value={dataAte} onChange={setDataAte} span={2} testId="atividades-filtro-ate" />
+        </div>
+        {periodoInvertido ? (
+          <p role="alert" className="mt-1 text-[12px] text-red-700" data-testid="atividades-periodo-invertido">
+            A data final do período é anterior à inicial.
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
+  const listaVazia = listEnabled && !controller.showForm && !controller.isLoading && !controller.listaErro && controller.visibleRows.length === 0;
+
+  const banner = (
+    <>
+      {aviso}
+      {semFuso && acoes.ver ? (
+        <AvisoGestao testId="atividades-sem-fuso">
+          Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de abrir, editar, concluir, reabrir, cancelar ou duplicar atividades e de lançar
+          apontamentos: o servidor recusa sem ele.
+        </AvisoGestao>
+      ) : null}
+      {filtros}
+      {listaVazia ? <AvisoGestao testId="atividades-lista-vazia">Nenhuma atividade encontrada com estes filtros.</AvisoGestao> : null}
+    </>
+  );
+
+  const filtrosDaTela =
+    empresaId && acoes.ver
+      ? [{ id: "status", rotulo: "Status", nome: "Filtrar por status", opcoes: OPCOES_STATUS, valor: statusFiltro, padrao: STATUS_TODOS, onChange: setStatusFiltro, coluna: "status" }]
+      : [];
+
+  // ─── Atividade aberta ─────────────────────────────────────────────────
+  const acoesDoAberto = acoesDaAtividade(registroAberto, acoes);
+  // Apontamentos: só na atividade ABERTA e com o fuso da fazenda (o "hoje" do lançamento); concluída ou cancelada = só leitura.
+  const acoesDosApontamentos = {
+    ...acoes,
+    lancarApontamento: acoesDoAberto.lancarApontamento && podeGravar,
+    editarApontamento: acoesDoAberto.editarApontamento && podeGravar,
+    cancelarApontamento: acoesDoAberto.cancelarApontamento && podeGravar,
+  };
+
+  /** Cabeçalho da atividade, SÓ LEITURA: os campos herdados ficam travados (ninguém digita setor, centros ou unidade). @param {any} a */
+  const cabecalhoDaAtividade = (a) => {
+    const semEdicao = () => {};
+    return (
+      <form
+        className="b1 mg-b1-form-grid w-full min-h-0"
+        noValidate
+        onSubmit={(e) => e.preventDefault()}
+        data-testid="atividade-cabecalho"
+        data-densidade={DENSIDADE_BASE1}
+        data-somente-leitura=""
+        data-status={String(a?.status ?? "")}
+      >
+        {a?.status === STATUS_CANCELADA ? (
+          <div className="col-span-12">
+            <AvisoGestao testId="atividade-cancelada">
+              Atividade cancelada
+              {a.cancelada_em ? ` em ${formatarInstante(a.cancelada_em, LOCALE_ATIVIDADE, fuso)}` : ""}
+              {rotuloDoUsuario(a.cancelado_por) ? ` por ${rotuloDoUsuario(a.cancelado_por)}` : ""}.
+              {a.motivo_cancelamento ? ` Motivo: ${a.motivo_cancelamento}` : ""} Ela continua no histórico; nada é apagado e nada pode ser alterado.
+            </AvisoGestao>
+          </div>
+        ) : null}
+        {a?.status === STATUS_CONCLUIDA ? (
+          <div className="col-span-12">
+            <AvisoGestao tone="blue" testId="atividade-concluida">
+              Atividade concluída
+              {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
+              {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
+            </AvisoGestao>
+          </div>
+        ) : null}
+        {a?.status === STATUS_ABERTA && a?.reaberta_em ? (
+          <div className="col-span-12">
+            <AvisoGestao tone="blue" testId="atividade-reaberta">
+              Reaberta em {formatarInstante(a.reaberta_em, LOCALE_ATIVIDADE, fuso)}
+              {rotuloDoUsuario(a.reaberta_por) ? ` por ${rotuloDoUsuario(a.reaberta_por)}` : ""}.
+              {a.motivo_reabertura ? ` Motivo: ${a.motivo_reabertura}` : ""}
+            </AvisoGestao>
+          </div>
+        ) : null}
+
+        <SecaoForm titulo="Atividade" />
+        <CampoTexto label="Nome" value={String(a?.nome ?? "")} onChange={semEdicao} readOnly span={6} />
+        <ValorCalculado label="Status" valor={rotuloDoStatusAtividade(a?.status) || "—"} span={3} testId="atividade-status" />
+        <ValorCalculado label="Nº" valor={a?.numero != null ? String(a.numero) : "—"} span={3} testId="atividade-numero" />
+        <CampoTexto label="Tipo de atividade" value={String(a?.tipo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
+        <CampoTexto label="Grupo de atividade" value={String(a?.grupo_atividade_nome ?? "")} onChange={semEdicao} readOnly span={6} />
+
+        <SecaoForm titulo="Onde e com o quê" />
+        <CampoTexto label="Área" value={rotuloDaArea(a?.area)} onChange={semEdicao} readOnly span={6} />
+        <CampoTexto label="Setor (da área)" value={rotuloDoSetor(a)} onChange={semEdicao} readOnly span={6} />
+        <CampoTexto label="Máquina" value={rotuloDoBem(a?.bem)} onChange={semEdicao} readOnly span={6} />
+        <CampoTexto label="Safra" value={String(a?.safra_ciclo ?? "")} onChange={semEdicao} readOnly span={6} />
+
+        <SecaoForm titulo="Apropriação (do tipo)" />
+        <CampoTexto label="Centro de custo" value={rotuloDoCentro(a?.centro_custo)} onChange={semEdicao} readOnly span={4} />
+        <CampoTexto label="Centro de resultado" value={rotuloDoCentro(a?.centro_resultado)} onChange={semEdicao} readOnly span={4} />
+        <CampoTexto label="Unidade de produção" value={rotuloDaUnidadeDeProducao(a)} onChange={semEdicao} readOnly span={4} />
+
+        <SecaoForm titulo="Período e execução" />
+        <CampoDia label="Data de início" value={String(a?.data_inicio ?? "")} onChange={semEdicao} readOnly span={4} testId="atividade-data-inicio" />
+        <CampoDia label="Data prevista de fim" value={String(a?.data_prevista_fim ?? "")} onChange={semEdicao} readOnly span={4} testId="atividade-data-prevista-fim" />
+        <CampoDia label="Data de conclusão" value={String(a?.data_conclusao ?? "")} onChange={semEdicao} readOnly span={4} testId="atividade-data-conclusao" />
+        <ValorCalculado label="Área executada / planejada" valor={formatarAreaExecutadaPlanejada(a) || "—"} span={6} testId="atividade-area-executada-planejada" />
+        <ValorCalculado label="Produção" valor={formatarProducaoDaAtividade(a) || "—"} span={6} testId="atividade-producao" />
+        {a?.lancamento_tarefa_id ? (
+          <CampoTexto label="Tarefa de origem" value={rotuloDaTarefa(a?.lancamento_tarefa)} onChange={semEdicao} readOnly span={12} />
+        ) : null}
+        {a?.observacao ? (
+          <CampoTextoLongo label="Observação" value={String(a.observacao)} onChange={semEdicao} readOnly maxLength={MAX_OBSERVACAO_ATIVIDADE} />
+        ) : null}
+      </form>
+    );
+  };
+
+  let conteudoRegistro = null;
+  if (controller.showForm) {
+    if (controller.isEditing) {
+      if (idAberto && !detalhe) {
+        conteudoRegistro = (
+          <p role="status" className="p-3 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="atividade-carregando">
+            {detalheQuery.isError ? "Não foi possível abrir a atividade." : "Carregando a atividade…"}
+          </p>
+        );
+      } else {
+        conteudoRegistro = (
+          <FormularioAtividade
+            // Entrar na edição, salvar (a versão muda) ou trocar de registro remonta o formulário a partir do GRAVADO.
+            key={`${idAberto ?? "atividade-nova"}-${registroAberto?.versao ?? 0}-${controller.formEpoch}`}
+            atividade={idAberto ? registroAberto : null}
+            onSalvo={aoSalvarAtividade}
+            onCancelar={controller.cancelForm}
+            // O registro da tela já tem o título e o cartão.
+            variant="embedded"
+          />
+        );
+      }
+    } else if (registroAberto) {
+      conteudoRegistro = (
+        <CadastroFormShell embedded>
+          {cabecalhoDaAtividade(registroAberto)}
+          <ListaApontamentos
+            key={String(registroAberto.id)}
+            atividade={registroAberto}
+            acoes={acoesDosApontamentos}
+            onAtividadeAtualizada={aoAtualizarAtividade}
+          />
+        </CadastroFormShell>
+      );
+    }
+  }
+
+  /** @type {any} */
+  const Grade = CadastroBase1Grade;
+  const renderCell = useCallback((/** @type {any} */ item, /** @type {string} */ colId) => {
+    if (colId === "numero") return <span className="font-mono" data-testid={`atividade-numero-${item.id}`}>{item.numero ?? "–"}</span>;
+    if (colId === "status") {
+      return (
+        <Selo status={CHAVE_DO_SELO_ATIVIDADE[String(item.status ?? "")] ?? String(item.status ?? "")} rotulo={rotuloDoStatusAtividade(item.status)} testId={`atividade-status-${item.id}`} />
+      );
+    }
+    return valorDoCampoAtividade(item, colId) || "–";
+  }, []);
+
+  const dialogoAtividade = dialogo?.atividade ?? null;
+
+  return (
+    // Os botões seguem a regra EXATA do servidor (permissão e status da
+    // atividade): a heurística de texto do Layout não se aplica.
+    <div data-permissao-explicita="" className="contents">
+      <FiltrosDaTelaContext.Provider value={filtrosDaTela}>
+        <CadastroBase1Screen
+          permissaoExplicita
+          workspaceTitle="Lançamento de Atividades"
+          searchPlaceholder="Buscar nº, nome, tipo ou área…"
+          createLabel="Abrir atividade"
+          columnsForCardsToolbar={ATIVIDADES_COLUNAS}
+          controller={controller}
+          listErrorMessage={listErrorMessage}
+          recordCode={registroAberto?.numero != null ? String(registroAberto.numero) : undefined}
+          listBanner={banner}
+          showCreate={podeGravar && acoes.criar}
+          showEdit={podeGravar && Boolean(alvo) && acoesDoAlvo.editar && versaoValida}
+          showDuplicate={false}
+          showDelete={false}
+          additionalMoreActions={acoesVisiveisDoMenu.length ? acoesVisiveisDoMenu : null}
+          deleteDialog={{
+            title: "Cancelar atividade",
+            confirmText: "Cancelar",
+            descriptionOne: "Atividade não se exclui: use Cancelar atividade.",
+            descriptionMany: () => "Atividade não se exclui: use Cancelar atividade.",
+          }}
+          recordForm={conteudoRegistro}
+          listSlot={
+            <Grade
+              rows={controller.visibleRows}
+              columns={ATIVIDADES_COLUNAS}
+              storageKey={ATIVIDADES_STORAGE_KEY}
+              droppableId="colunas-lancamento-atividades"
+              getFieldValue={valorDoCampoAtividade}
+              compararParaOrdenar={compararAtividadesParaOrdenar}
+              renderCell={renderCell}
+              defaultSortKey="numero"
+              defaultSortDir="desc"
+              emptyText={empresaId ? "Nenhuma atividade encontrada com estes filtros." : "Selecione uma fazenda"}
+              isLoading={controller.isLoading}
+              onOpen={controller.handleEdit}
+              showConfigColunas={controller.showConfigColunas}
+              setShowConfigColunas={controller.setShowConfigColunas}
+              // A busca procura nas linhas JÁ carregadas (a rota da lista não tem busca por texto); a sugestão escolhida filtra pelo id.
+              searchQuery={controller.searchPickId ? "" : controller.chrome.appliedSearch}
+              resetFiltersKey={controller.chrome.resetFiltersKey}
+              onSelectionChange={controller.chrome.onSelectionChange}
+              onFiltersActiveChange={controller.chrome.setFiltersActive}
+              viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+              cardFields={controller.cardsPrefs.cardFields}
+              cardsPerRow={controller.cardsPrefs.cardsPerRow}
+              cardsTitleColId="nome"
+              cardsCodeColId="status"
+              {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
+              configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+            />
+          }
+        />
+
+        {dialogo?.tipo === "concluir" && dialogoAtividade ? (
+          <DialogoAcao
+            key={`concluir-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
+            aberto
+            titulo={`Concluir a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
+            descricao="Concluída, a atividade não aceita edição do cabeçalho nem apontamentos novos, editados ou cancelados (só reabrindo, com permissão própria). Se o tipo exige produção, a soma dos apontamentos confirmados tem de ser maior que zero."
+            rotuloBotao="Concluir atividade"
+            testId="dialogo-concluir-atividade"
+            comMotivo={false}
+            perigo={false}
+            contexto={CONTEXTO_MENSAGENS}
+            conteudo={
+              <div className="cadastro-b1">
+                <div className="mg-b1-form-grid grid grid-cols-12 gap-x-3 gap-y-2">
+                  <CampoDia
+                    label="Data de conclusão"
+                    value={dataConclusao}
+                    onChange={(v) => {
+                      setDataConclusao(v);
+                      setErroDataConclusao(null);
+                    }}
+                    min={ehDiaValido(dialogoAtividade.data_inicio) ? String(dialogoAtividade.data_inicio) : undefined}
+                    max={hoje || undefined}
+                    required
+                    span={12}
+                    error={erroDataConclusao}
+                    testId="dialogo-concluir-atividade-data"
+                  />
+                </div>
+              </div>
+            }
+            onFechar={() => setDialogo(null)}
+            onEnviar={enviarDialogo}
+            onConsultar={consultarDialogo}
+          />
+        ) : null}
+
+        {dialogo?.tipo === "reabrir" && dialogoAtividade ? (
+          <DialogoAcao
+            key={`reabrir-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
+            aberto
+            titulo={`Reabrir a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
+            descricao="A atividade volta a ficar aberta: aceita edição do cabeçalho e apontamentos de novo, e a conclusão é desfeita. A reabertura fica registrada com o motivo. Informe o motivo (pelo menos 3 caracteres)."
+            rotuloBotao="Reabrir atividade"
+            testId="dialogo-reabrir-atividade"
+            perigo={false}
+            contexto={CONTEXTO_MENSAGENS}
+            onFechar={() => setDialogo(null)}
+            onEnviar={enviarDialogo}
+            onConsultar={consultarDialogo}
+          />
+        ) : null}
+
+        {dialogo?.tipo === "cancelar" && dialogoAtividade ? (
+          <DialogoAcao
+            key={`cancelar-${dialogoAtividade.id}-${dialogoAtividade.versao}`}
+            aberto
+            titulo={`Cancelar a atividade ${textoDoNumero(dialogoAtividade)}`.trim()}
+            descricao="A atividade e os apontamentos confirmados dela são cancelados juntos, com o mesmo motivo. Tudo continua no histórico como cancelado; nada é apagado e nada mais pode ser alterado. Informe o motivo (pelo menos 3 caracteres)."
+            rotuloBotao="Cancelar atividade"
+            testId="dialogo-cancelar-atividade"
+            contexto={CONTEXTO_MENSAGENS}
+            onFechar={() => setDialogo(null)}
+            onEnviar={enviarDialogo}
+            onConsultar={consultarDialogo}
+          />
+        ) : null}
+      </FiltrosDaTelaContext.Provider>
+    </div>
+  );
+}
