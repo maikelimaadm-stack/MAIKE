@@ -1,5 +1,6 @@
 /**
- * Rotas de Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela física
+ * Rotas de Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD mensais
+ * desde a D-PROD-194), tabela física
  * "CADCURVAGANHO".
  *
  * Corpo e query fechados (`additionalProperties: false`, e o app usa
@@ -19,9 +20,7 @@ const GMD = { type: 'number', minimum: GMD_MINIMO, maximum: GMD_MAXIMO };
 
 const CAMPOS = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
-  gmd_aguas: GMD,
-  gmd_transicao: GMD,
-  gmd_seca: GMD,
+  ...Object.fromEntries(CAMPOS_GMD.map((campo) => [campo, GMD])),
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
 });
@@ -36,7 +35,7 @@ const EXCLUIR_SCHEMA = { params: PARAMS_ID, querystring: QUERY_EMPRESA };
 const CRIAR_SCHEMA = {
   body: {
     type: 'object',
-    required: ['empresa_id', 'nome', 'gmd_aguas', 'gmd_transicao', 'gmd_seca'],
+    required: ['empresa_id', 'nome', ...CAMPOS_GMD],
     additionalProperties: false,
     properties: { empresa_id: ID, ...CAMPOS },
   },

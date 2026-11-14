@@ -2,15 +2,22 @@ import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
-import { formatarGmd } from "@/services/curvaGanhoCadastroService";
+import { MESES, formatarGmd, formatarKg, gmdsDaCurva, resumoDaCurva } from "@/services/curvaGanhoCadastroService";
 
-export const CURVAS_GANHO_STORAGE_KEY = "colunas_largura_curvas_ganho";
+/**
+ * Chave das preferências de colunas. `_v2` desde a D-PROD-194: as colunas por
+ * estação saíram e entraram Média, Ganho no ano e os 12 meses. Com a chave
+ * antiga, a preferência salva na D-PROD-189 (Nome, 3 GMD, Ativo) esconderia as
+ * colunas novas, porque a grade descarta os ids desconhecidos e mantém o resto.
+ */
+export const CURVAS_GANHO_STORAGE_KEY = "colunas_largura_curvas_ganho_v2";
 
 export const CURVAS_GANHO_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 240 },
-  { id: "gmd_aguas", label: "GMD Águas (kg/dia)", default: true, sortable: true, width: 150, align: "right" },
-  { id: "gmd_transicao", label: "GMD Transição (kg/dia)", default: true, sortable: true, width: 170, align: "right" },
-  { id: "gmd_seca", label: "GMD Seca (kg/dia)", default: true, sortable: true, width: 150, align: "right" },
+  { id: "media_dia", label: "Média (kg/dia)", default: true, sortable: true, width: 140, align: "right" },
+  { id: "ganho_ano", label: "Ganho no ano (kg)", default: true, sortable: true, width: 160, align: "right" },
+  // Os 12 meses (D-PROD-194): ocultos por padrão, ligados pela configuração de colunas.
+  ...MESES.map((m) => ({ id: m.campo, label: `${m.curto} (kg/dia)`, default: false, sortable: true, width: 110, align: "right" })),
   { id: "observacoes", label: "Observações", default: false, sortable: true, width: 260 },
   {
     id: "ativo",
@@ -25,7 +32,21 @@ export const CURVAS_GANHO_COLUNAS = [
   { id: "updated_date", label: "Atualizado em", default: false, sortable: true, width: 170 },
 ];
 
-const COLUNAS_GMD = new Set(["gmd_aguas", "gmd_transicao", "gmd_seca"]);
+const COLUNAS_GMD = new Set(MESES.map((m) => m.campo));
+const COLUNAS_RESUMO = new Set(["media_dia", "ganho_ano"]);
+
+/**
+ * Valor numérico de uma coluna para ordenar: o GMD do mês, ou o resumo da
+ * curva (média por dia e ganho no ano, D-PROD-194). `null` sem valor.
+ * @param {any} item @param {string} colId
+ * @returns {number|null}
+ */
+const numeroDaColuna = (item, colId) => {
+  if (COLUNAS_GMD.has(colId)) return typeof item?.[colId] === "number" ? item[colId] : null;
+  const resumo = resumoDaCurva(gmdsDaCurva(item));
+  if (!resumo) return null;
+  return colId === "media_dia" ? resumo.mediaDia : resumo.ganhoAno;
+};
 
 /** @param {string | null | undefined} data */
 const formatarDataHora = (data) => {
@@ -41,6 +62,8 @@ const formatarDataHora = (data) => {
 export function getCurvaGanhoFieldValue(item, colunaId) {
   if (colunaId === "nome") return item.nome || "";
   if (COLUNAS_GMD.has(colunaId)) return formatarGmd(item[colunaId], { casasMin: 2 });
+  if (colunaId === "media_dia") return formatarGmd(numeroDaColuna(item, colunaId), { casasMin: 3 });
+  if (colunaId === "ganho_ano") return formatarKg(numeroDaColuna(item, colunaId));
   if (colunaId === "observacoes") return item.observacoes || "";
   if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   if (colunaId === "created_date") return formatarDataHora(item.created_date);
@@ -49,15 +72,16 @@ export function getCurvaGanhoFieldValue(item, colunaId) {
 }
 
 /**
- * GMD ordena pelo número (o texto "-0,15" e "0,65" ordenaria errado) e os
- * instantes pelo ISO do servidor. Vazio por último. Demais colunas: regra da grade.
+ * GMD, média e ganho no ano ordenam pelo número (o texto "-0,15" e "0,65"
+ * ordenaria errado) e os instantes pelo ISO do servidor. Vazio por último.
+ * Demais colunas: regra da grade.
  * @param {any} a @param {any} b @param {string} colId
  * @returns {number|null}
  */
 export const compararCurvasParaOrdenar = (a, b, colId) => {
-  if (COLUNAS_GMD.has(colId)) {
-    const va = typeof a?.[colId] === "number" ? a[colId] : null;
-    const vb = typeof b?.[colId] === "number" ? b[colId] : null;
+  if (COLUNAS_GMD.has(colId) || COLUNAS_RESUMO.has(colId)) {
+    const va = numeroDaColuna(a, colId);
+    const vb = numeroDaColuna(b, colId);
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
     return va - vb;
   }

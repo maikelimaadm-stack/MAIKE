@@ -24,9 +24,14 @@
  *     apontamento (D-PROD-193, `20261113800000_apontamento_atividade_item`), de
  *     nome posterior, que em produção entra DEPOIS desta CONTRACT e aqui sobe
  *     antes dela, pela ordem dos nomes (`NOMES_POSTERIORES_NA_PARTIDA`), e as CONTRACT
- *     da D-PROD-162 e da D-PROD-183, que sobem aqui pelo Prisma direto, sem o
- *     runner e portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO (as
- *     guardas delas passam porque o banco está vazio nessa hora);
+ *     da D-PROD-162, da D-PROD-183 e da D-PROD-194
+ *     (`20261114100000_cadcurvaganho_mensal`, também de nome posterior e também em
+ *     `NOMES_POSTERIORES_NA_PARTIDA`; troca a estrutura de CADCURVAGANHO: +1
+ *     migration, 0 tabela), que sobem aqui pelo Prisma direto, sem o runner e
+ *     portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO (as guardas delas
+ *     passam porque o banco está vazio nessa hora). Em produção a D-PROD-194
+ *     entra depois desta; aqui ela sobe antes, na partida, e não muda o que esta
+ *     CONTRACT toca;
  *  2. semeia, por cliente, 4 categorias de manejo: uma com o legado de
  *     produção (raca, categoria_oficial e os 12 GMDs 0.0000, ganho nulo), uma
  *     com ganho e GMDs variados, uma só com o vínculo do ícone e uma sem nada
@@ -43,7 +48,7 @@
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 e a impressão na URL) e confere:
  *     todas concluídas (CONCLUIDAS_DEPOIS; esta por último, depois da CADCURVAGANHO, do
- *     ApontamentoAtividade e dos itens do apontamento), 85 tabelas,
+ *     ApontamentoAtividade, dos itens do apontamento e da CONTRACT da D-PROD-194), 85 tabelas,
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam, linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
@@ -79,7 +84,8 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
 /**
  * D-PROD-193 — todas as pastas de nome POSTERIOR a esta CONTRACT, em ordem de nome, contadas pela pasta. A partida
  * sobe pelo Prisma direto, que aplica pela ordem dos nomes: as duas acima vêm primeiro e as que vieram DEPOIS delas
- * (os itens do apontamento, `20261113800000_apontamento_atividade_item`) também ficam concluídas antes desta CONTRACT.
+ * (os itens do apontamento, `20261113800000_apontamento_atividade_item`, e a CONTRACT da D-PROD-194,
+ * `20261114100000_cadcurvaganho_mensal`) também ficam concluídas antes desta CONTRACT.
  * Em produção essas entram depois desta CONTRACT (já aplicada); não dependem do formato desta tabela e ela não as
  * toca, então a ordem entre elas não muda o que o ensaio prova (como a P1-03, D-PROD-185, que produção aplicou depois
  * desta e aqui sobe antes).
@@ -88,10 +94,18 @@ export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort()
 );
 /**
+ * D-PROD-194: a CONTRACT da Curva de Ganho mensal, também de nome POSTERIOR a esta e ainda PENDENTE em produção (lá
+ * esta CONTRACT já está concluída e a D-PROD-194 entra depois). Aqui sobe na partida pelo Prisma direto (a guarda dela
+ * passa com CADCURVAGANHO vazia), dentro de NOMES_POSTERIORES_NA_PARTIDA, pela ordem dos nomes; não cria nem apaga
+ * tabela e não toca CategoriaManejo.
+ */
+export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
+/**
  * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT), contadas pela pasta para
- * não quebrar quando outra release EXPAND entra na main (D-PROD-185 entrou depois desta: 45 → 46 pastas; D-PROD-190,
- * 46 → 47; D-PROD-193, 47 → 48); e tabelas em public (85: 83 com a do ApontamentoAtividade, D-PROD-190, + as 2 dos
- * itens do apontamento, D-PROD-193; iguais antes e depois: só rename).
+ * não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46 pastas; D-PROD-190,
+ * 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49); e tabelas em public (85: 83 com a do
+ * ApontamentoAtividade, D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193; a D-PROD-194 não cria nem apaga
+ * tabela; iguais antes e depois: só rename).
  */
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1;
@@ -233,10 +247,12 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 
 /**
  * Todas as migrations do repositório menos esta CONTRACT (CONCLUIDAS_ANTES), aplicadas pelo Prisma a partir de uma cópia
- * temporária. Inclui as CONTRACT da D-PROD-162 e da D-PROD-183, sem o runner: as guardas delas passam com o banco vazio.
- * Inclui também as EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e `20261113700000_apontamento_atividade`
- * (D-PROD-190), de nome posterior a esta CONTRACT:
- * depois daqui o banco fica como produção, com uma migration de nome posterior já concluída e esta pendente.
+ * temporária. Inclui as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-194, sem o runner: as guardas delas passam
+ * com o banco vazio. Inclui também as EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e
+ * `20261113700000_apontamento_atividade` (D-PROD-190), de nome posterior a esta CONTRACT:
+ * depois daqui o banco fica como produção, com uma migration de nome posterior já concluída e esta pendente (as outras
+ * de NOMES_POSTERIORES_NA_PARTIDA, os itens do apontamento, D-PROD-193, e a CONTRACT da D-PROD-194, sobem logo depois
+ * delas, pela ordem dos nomes).
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-cadcategoria-main-'));
@@ -567,12 +583,14 @@ if (ehEntradaDireta()) {
       const partida = await retrato(db);
       const imp = await impressao(db);
       relatorio.preflight = { impressao: imp, contagens: await contagens(db), colunas: partida.colunas, tabelas: partida.tabelas, historico: await historico(db) };
-      // Estado de produção: todas menos esta concluídas, a CADCURVAGANHO e o ApontamentoAtividade (nomes posteriores) por
-      // último, nesta ordem, e esta CONTRACT ausente (D-PROD-193: as de nome posterior que vieram depois delas, como os
-      // itens do apontamento, também sobem antes dela aqui, pela ordem dos nomes — NOMES_POSTERIORES_NA_PARTIDA).
+      // Estado de produção: todas menos esta concluídas, a CADCURVAGANHO e o ApontamentoAtividade (nomes posteriores)
+      // nesta ordem, e esta CONTRACT ausente (D-PROD-193: as de nome posterior que vieram depois delas, como os itens do
+      // apontamento e a CONTRACT da D-PROD-194, também sobem antes dela aqui, pela ordem dos nomes —
+      // NOMES_POSTERIORES_NA_PARTIDA).
       const ordemAntes = await ordemDeAplicacao(db);
       if (relatorio.preflight.historico.concluidas !== CONCLUIDAS_ANTES || partida.tabelas !== TABELAS_PUBLIC
         || JSON.stringify(NOMES_POSTERIORES_NA_PARTIDA.slice(0, NOMES_POSTERIORES_JA_APLICADAS.length)) !== JSON.stringify(NOMES_POSTERIORES_JA_APLICADAS)
+        || !NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_CURVA_MENSAL)
         || JSON.stringify(ordemAntes.slice(-NOMES_POSTERIORES_NA_PARTIDA.length)) !== JSON.stringify(NOMES_POSTERIORES_NA_PARTIDA)
         || ordemAntes.includes(NOME_CONTRACT)) relatorio.ok = false;
       if (!args.includes('--sem-red')) {
@@ -591,7 +609,8 @@ if (ehEntradaDireta()) {
       const semAutorizacao = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: conferido });
       relatorio.runner_sem_autorizacao = {
         status: semAutorizacao.status,
-        recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(semAutorizacao.saida) && semAutorizacao.saida.includes(`${NOME_CONTRACT} (${DECISAO})`),
+        recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(semAutorizacao.saida) && semAutorizacao.saida.includes(`${NOME_CONTRACT} (${DECISAO})`)
+          && !semAutorizacao.saida.includes(NOME_CURVA_MENSAL),
         nada_mudou: JSON.stringify(await retrato(db)) === JSON.stringify(partida),
       };
       const green = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { ...conferido, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -601,7 +620,7 @@ if (ehEntradaDireta()) {
         autorizado: green.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`),
         historico: await historico(db),
         // A CONTRACT foi a última aplicada, DEPOIS da CADCURVAGANHO e do ApontamentoAtividade, de nome posterior (a ordem de
-        // produção), e dos itens do apontamento (D-PROD-193), que aqui sobem antes dela.
+        // produção), e dos itens do apontamento (D-PROD-193) e da CONTRACT da D-PROD-194, que aqui sobem antes dela.
         ultimas_aplicadas: (await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1)),
         tabelas: depois.tabelas,
         colunas: await colunasDaTabela(db),
