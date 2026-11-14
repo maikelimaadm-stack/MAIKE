@@ -2,13 +2,14 @@
  * Serviço de TipoAtividade (D-PROD-182).
  *
  * Espelho do serviço de TipoTarefa (D-PROD-45), sem o que é específico de
- * LancamentoTarefa: não há propagação de nome (o apontamento guarda o nome do
- * tipo como snapshot, D-PROD-190). O nome do grupo fica em cache em
+ * LancamentoTarefa: não há propagação de nome (a atividade guarda o nome do
+ * tipo como snapshot, D-PROD-190/198). O nome do grupo fica em cache em
  * `grupo_atividade_nome` e é renovado quando o grupo do tipo muda.
  *
- * D-PROD-190 — o tipo usado num apontamento de atividade não é excluído: quem
- * barra é a FK RESTRICT da tabela nova (este módulo NUNCA consulta
- * `ApontamentoAtividade`, lição do hotfix #259), traduzida aqui em 409
+ * D-PROD-190 / D-PROD-198 — o tipo usado numa atividade não é excluído: quem
+ * barra é a FK RESTRICT da tabela `Atividade` (este módulo NUNCA consulta
+ * `Atividade`, lição do hotfix #259), reconhecida pelo nome da FK
+ * (`shared/errors/vinculoAtividade.js`) e traduzida aqui em 409
  * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
  *
  * D-PROD-197 — PADRÕES e FLAGS do tipo (contrato
@@ -47,7 +48,7 @@ import {
   tipoAtividadePadraoInvalido,
   grupoAtividadeNotFound,
 } from '../../shared/errors/AppError.js';
-import { vinculoComApontamentoAtividade } from '../../shared/errors/vinculoApontamentoAtividade.js';
+import { vinculoComAtividade } from '../../shared/errors/vinculoAtividade.js';
 import { fkDoPadraoNaEscrita } from '../../shared/errors/vinculoTipoAtividadePadrao.js';
 import {
   listarTipos,
@@ -400,8 +401,8 @@ export const atualizar = async (contexto, id, entrada) => {
 };
 
 /**
- * Exclusão física, mesma política do Tipo de Tarefa. D-PROD-190: o tipo com
- * apontamento de atividade é barrado pela FK RESTRICT (409, inative-o).
+ * Exclusão física, mesma política do Tipo de Tarefa. D-PROD-190/198: o tipo
+ * usado numa atividade é barrado pela FK RESTRICT (409, inative-o).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
  */
 export const excluir = async (contexto, id) => {
@@ -415,7 +416,7 @@ export const excluir = async (contexto, id) => {
     try {
       await excluirTipoPorId(tx, auth.clienteId, id);
     } catch (erro) {
-      if (vinculoComApontamentoAtividade(erro)) throw tipoAtividadeDeleteBlocked(undefined, { cause: erro });
+      if (vinculoComAtividade(erro)) throw tipoAtividadeDeleteBlocked(undefined, { cause: erro });
       throw erro;
     }
 

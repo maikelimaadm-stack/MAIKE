@@ -224,9 +224,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada
   // como unidade de produção padrão (reconhecida pela FK; o módulo da unidade
   // nunca consulta TipoAtividade). O front já conhece o código (P1.4).
+  // D-PROD-198 — também a FK da Atividade (unidade de produção herdada do tipo).
   UNIDADE_MEDIDA_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade (details.vinculo); inative em vez de excluir; nada foi apagado',
+    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade ou como unidade de produção de uma atividade (details.vinculo: tipo_atividade | atividade); inative em vez de excluir; nada foi apagado',
   },
   GRUPO_ATIVIDADE_NOT_FOUND: {
     http: 404,
@@ -238,7 +239,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   GRUPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'grupo possui tipos de tarefa ou de atividade vinculados',
+    meaning: 'grupo possui tipos de tarefa ou de atividade, lançamentos de tarefa ou atividades (D-PROD-198) vinculados',
   },
   TIPO_TAREFA_NOT_FOUND: {
     http: 404,
@@ -257,10 +258,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
-  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190 — a FK RESTRICT do apontamento barrava a exclusão do tipo usado.
+  // D-PROD-198 — agora é a FK da atividade (o apontamento é filho dela).
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
+    meaning: 'tipo de atividade usado por atividade; inative em vez de excluir',
   },
   // D-PROD-197 — padrões do Tipo de Atividade, conferidos só quando o padrão muda.
   TIPO_ATIVIDADE_PADRAO_INVALIDO: {
@@ -328,6 +330,44 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: {
     http: 409,
     meaning: 'a data operacional não muda com item PRODUTO confirmado (a saída de estoque está na data atual); cancele os itens antes; nada foi gravado',
+  },
+  // D-PROD-198 — Lançamento de Atividades (Fatia 2): o CABEÇALHO (Atividade) e o
+  // APONTAMENTO do dia/turno (AtividadeApontamento), contrato §10.
+  ATIVIDADE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica atividade desta empresa neste tenant',
+  },
+  ATIVIDADE_APONTAMENTO_NOT_FOUND: {
+    http: 404,
+    meaning: 'apontamentoId não identifica apontamento desta atividade, desta empresa e deste tenant',
+  },
+  ATIVIDADE_REFERENCIA_INVALIDA: {
+    http: 422,
+    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo); nada foi gravado',
+  },
+  ATIVIDADE_EXIGIDA_PELO_TIPO: {
+    http: 422,
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao); nada foi gravado',
+  },
+  ATIVIDADE_DATA_INVALIDA: {
+    http: 422,
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | periodo_invertido | data_inexistente); nada foi gravado',
+  },
+  ATIVIDADE_STATUS_INVALIDO: {
+    http: 409,
+    meaning: 'a ação não é permitida no status atual da atividade ou do apontamento (details.status, details.acao, details.entidade: atividade | apontamento); nada foi alterado',
+  },
+  ATIVIDADE_VERSAO_CONFLITO: {
+    http: 409,
+    meaning: 'a atividade ou o apontamento mudou desde a leitura (details.versao_atual/versao_informada/entidade); recarregue; nada foi gravado',
+  },
+  ATIVIDADE_MOTIVO_INVALIDO: {
+    http: 422,
+    meaning: 'motivo ausente, curto ou longo, em caracteres úteis (details.reason: obrigatorio | curto | longo; details.minimo/maximo); nada foi gravado',
+  },
+  ATIVIDADE_VINCULADA: {
+    http: 409,
+    meaning: 'exclusão barrada pela FK RESTRICT de uma atividade ou de um apontamento de atividade, reconhecida pelo nome da FK (details.vinculo = coluna; details.entidade: atividade | apontamento); inative o cadastro; nada foi apagado',
   },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {

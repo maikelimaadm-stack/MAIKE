@@ -77,6 +77,12 @@ export const TELAS = Object.freeze({
   // de menu que o contém (`suporte-mapa`, logo abaixo de Tipos de Atividade, no
   // mesmo esquema de `sup-tipos-atividade`). Sem concessão automática a perfis antigos.
   APONTAMENTOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-apontamentos-atividade' }),
+  // D-PROD-198 — Lançamento de Atividades (cabeçalho + apontamentos do dia/turno).
+  // Mesmo id do item de menu `op-atividades`, no grupo `suporte-mapa`, logo abaixo
+  // de Tipos de Atividade. As permissões do apontamento e a de reabrir são AÇÕES
+  // EXTRAS desta mesma linha (`ACOES_ATIVIDADES_EXTRAS`): a tela Permissões só
+  // desenha páginas do menu. Sem concessão automática a perfis antigos.
+  ATIVIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-atividades' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
@@ -105,6 +111,16 @@ export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
  * lista no navegador (teste de paridade).
  */
 export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar']);
+
+/**
+ * D-PROD-198 — ações EXTRAS da tela `op-atividades` (Lançamento de Atividades),
+ * gravadas na própria linha da tela em `permissoes_telas` (padrão de
+ * ACOES_LANCAMENTOS_FINANCEIROS, D-PROD-155): reabrir a atividade concluída e
+ * lançar (criar e repetir), editar e cancelar apontamento. Nascem desligadas:
+ * ausente/não booleano = negado; administrador real e `is_admin` têm tudo.
+ * Mesma lista no navegador (teste de paridade front↔back).
+ */
+export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontamento', 'editar_apontamento', 'cancelar_apontamento']);
 
 /**
  * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo

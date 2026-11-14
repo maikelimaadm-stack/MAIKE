@@ -128,13 +128,22 @@ export const unidadeMedidaNotFound = (message, options) =>
 export const unidadeMedidaSiglaConflito = (message, options) =>
   new AppError('UNIDADE_MEDIDA_SIGLA_CONFLICT', message || 'já existe unidade com esta sigla', options);
 
+/** Frase de cada vínculo que barra a exclusão da unidade de medida (`details.vinculo`). */
+const MENSAGENS_UNIDADE_MEDIDA_EM_USO = Object.freeze({
+  tipo_atividade: 'não é possível excluir: a unidade de medida é a unidade de produção padrão de um tipo de atividade; inative-a; nada foi apagado',
+  atividade: 'não é possível excluir: a unidade de medida é a unidade de produção de uma atividade; inative-a; nada foi apagado',
+});
+
 // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada como padrão.
-export const unidadeMedidaDeleteBlocked = (message, options) =>
-  new AppError(
-    'UNIDADE_MEDIDA_DELETE_BLOCKED',
-    message || 'não é possível excluir: a unidade de medida é a unidade de produção padrão de um tipo de atividade; inative-a; nada foi apagado',
-    { ...options, details: { ...(options?.details ?? {}), vinculo: 'tipo_atividade' } }
-  );
+// D-PROD-198 — e a da Atividade, que guarda a unidade de produção herdada do tipo:
+// quem chama passa `details.vinculo = 'atividade'`; sem ele, o vínculo é `tipo_atividade`.
+export const unidadeMedidaDeleteBlocked = (message, options) => {
+  const vinculo = options?.details?.vinculo === 'atividade' ? 'atividade' : 'tipo_atividade';
+  return new AppError('UNIDADE_MEDIDA_DELETE_BLOCKED', message || MENSAGENS_UNIDADE_MEDIDA_EM_USO[vinculo], {
+    ...options,
+    details: { ...(options?.details ?? {}), vinculo },
+  });
+};
 
 export const grupoAtividadeNotFound = (message, options) =>
   new AppError('GRUPO_ATIVIDADE_NOT_FOUND', message || 'grupo de atividade não encontrado', options);
@@ -166,11 +175,12 @@ export const tipoAtividadeNomeConflito = (message, options) =>
     options
   );
 
-// D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+// D-PROD-190 — a FK RESTRICT do apontamento barrava a exclusão do tipo usado.
+// D-PROD-198 — agora é a FK da atividade (o cabeçalho; o apontamento é filho dela).
 export const tipoAtividadeDeleteBlocked = (message, options) =>
   new AppError(
     'TIPO_ATIVIDADE_DELETE_BLOCKED',
-    message || 'não é possível excluir tipo de atividade com apontamentos vinculados; inative-o',
+    message || 'não é possível excluir tipo de atividade usado em atividades; inative-o',
     options
   );
 
@@ -358,6 +368,220 @@ export const apontamentoAtividadeDataComItens = (itens, options) =>
     'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
     'a data da atividade não pode mudar: há item de produto confirmado, com a saída do estoque nesta data; cancele os itens de produto antes; nada foi gravado',
     { ...options, details: { ...(options?.details ?? {}), field: 'data_operacional', reason: 'data_com_itens', itens_produto: itens } }
+  );
+
+// D-PROD-198 — Lançamento de Atividades (Fatia 2): o CABEÇALHO (`Atividade`) e
+// o APONTAMENTO do dia/turno (`AtividadeApontamento`). Um código por situação;
+// `details.field`/`details.reason` dizem qual campo e por quê (contrato
+// `docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md` §10).
+
+/** Atividade de outra empresa ou de outro tenant = inexistente (o mesmo corpo: sem oráculo). */
+export const atividadeNotFound = (message, options) =>
+  new AppError('ATIVIDADE_NOT_FOUND', message || 'atividade não encontrada nesta fazenda', options);
+
+/** Apontamento de outra atividade, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
+export const atividadeApontamentoNotFound = (message, options) =>
+  new AppError('ATIVIDADE_APONTAMENTO_NOT_FOUND', message || 'apontamento não encontrado nesta atividade', options);
+
+/**
+ * D-PROD-198 — frase de cada referência recusada, por coluna e `reason`.
+ * Centros, unidade, grupo e setor não vêm do corpo (são herdados do tipo e da
+ * área): só aparecem como `inexistente`, quando o cadastro some entre a
+ * leitura e a escrita (a FK composta é a rede).
+ * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
+ */
+const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
+  tipo_atividade_id: Object.freeze({
+    inexistente: 'o tipo de atividade não foi encontrado',
+    inativo: 'o tipo de atividade está inativo: escolha um tipo ativo',
+    grupo_inativo: 'o grupo do tipo de atividade está inativo: reative o grupo ou escolha outro tipo',
+  }),
+  grupo_atividade_id: Object.freeze({ inexistente: 'o grupo do tipo de atividade não foi encontrado' }),
+  area_id: Object.freeze({
+    inexistente: 'a área não foi encontrada',
+    outra_empresa: 'a área é de outra fazenda',
+    inativo: 'a área está inativa',
+  }),
+  setor_id: Object.freeze({ inexistente: 'o setor da área não foi encontrado' }),
+  bem_id: Object.freeze({
+    inexistente: 'a máquina não foi encontrada',
+    outra_empresa: 'a máquina é de outra fazenda',
+    inativo: 'a máquina está inativa',
+  }),
+  centro_custo_id: Object.freeze({ inexistente: 'o centro de custo padrão do tipo não foi encontrado' }),
+  centro_resultado_id: Object.freeze({ inexistente: 'o centro de resultado padrão do tipo não foi encontrado' }),
+  unidade_producao_id: Object.freeze({ inexistente: 'a unidade de produção do tipo não foi encontrada' }),
+  lancamento_tarefa_id: Object.freeze({
+    inexistente: 'a tarefa não foi encontrada',
+    outra_empresa: 'a tarefa é de outra fazenda',
+  }),
+  operador_usuario_id: Object.freeze({
+    inexistente: 'o operador não foi encontrado',
+    inativo: 'o operador está inativo',
+  }),
+});
+
+/**
+ * D-PROD-198 — referência recusada na atividade ou no apontamento (um só
+ * código; `details.field`/`details.reason` dizem qual). Id de outro tenant é
+ * `inexistente`, como o que não existe (sem oráculo).
+ * @param {'tipo_atividade_id'|'grupo_atividade_id'|'area_id'|'setor_id'|'bem_id'|'centro_custo_id'|'centro_resultado_id'|'unidade_producao_id'|'lancamento_tarefa_id'|'operador_usuario_id'} field
+ * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'} reason
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeReferenciaInvalida = (field, reason, options) =>
+  new AppError(
+    'ATIVIDADE_REFERENCIA_INVALIDA',
+    `${MENSAGENS_REFERENCIA_ATIVIDADE[field]?.[reason] ?? 'referência da atividade recusada'}; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field, reason } }
+  );
+
+/**
+ * D-PROD-198 — campo que a flag do tipo exige → frase e `reason` (a própria flag).
+ * @type {Readonly<Record<string, Readonly<{ flag: string, mensagem: string }>>>}
+ */
+const EXIGENCIAS_DO_TIPO_ATIVIDADE = Object.freeze({
+  area_id: Object.freeze({ flag: 'exige_area', mensagem: 'o tipo de atividade exige a área: escolha a área da atividade' }),
+  safra_ciclo: Object.freeze({ flag: 'exige_safra', mensagem: 'o tipo de atividade exige a safra: informe a safra ou o ciclo' }),
+  bem_id: Object.freeze({ flag: 'exige_maquina', mensagem: 'o tipo de atividade exige a máquina: escolha a máquina da atividade' }),
+  quantidade_produzida: Object.freeze({
+    flag: 'exige_producao',
+    mensagem: 'o tipo de atividade exige produção: a soma da produção dos apontamentos confirmados tem de ser maior que zero para concluir',
+  }),
+});
+
+/**
+ * D-PROD-198 — campo exigido por uma flag do tipo de atividade:
+ * `details.field` = o campo; `details.reason` = a flag (`exige_area`,
+ * `exige_safra`, `exige_maquina`, `exige_producao`).
+ * @param {'area_id'|'safra_ciclo'|'bem_id'|'quantidade_produzida'} field
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeExigidaPeloTipo = (field, options) => {
+  const exigencia = EXIGENCIAS_DO_TIPO_ATIVIDADE[field];
+  return new AppError(
+    'ATIVIDADE_EXIGIDA_PELO_TIPO',
+    `${exigencia?.mensagem ?? 'o tipo de atividade exige este campo'}; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field, reason: exigencia?.flag ?? 'exigido_pelo_tipo' } }
+  );
+};
+
+/** D-PROD-198 — como cada data da atividade e do apontamento aparece nas frases. */
+const ROTULO_DA_DATA_ATIVIDADE = Object.freeze({
+  data_inicio: 'a data de início',
+  data_prevista_fim: 'a data prevista de fim',
+  data_conclusao: 'a data de conclusão',
+  data_operacional: 'a data do lançamento',
+});
+
+/**
+ * D-PROD-198 — frase de cada data recusada, por `reason`.
+ * @type {Readonly<Record<string, (rotulo: string, extra: Record<string, unknown>) => string>>}
+ */
+const MENSAGENS_DATA_ATIVIDADE = Object.freeze({
+  futura: (rotulo, extra) =>
+    `${rotulo}${extra.data ? ` (${extra.data})` : ''} é posterior a hoje na fazenda${extra.hoje ? ` (${extra.hoje})` : ''}`,
+  antes_do_inicio: (rotulo) => `${rotulo} é anterior à data de início da atividade`,
+  periodo_invertido: (rotulo) => `${rotulo} é anterior à data de início: o período está invertido`,
+  data_inexistente: (rotulo) => `${rotulo} não existe no calendário; use AAAA-MM-DD`,
+});
+
+/**
+ * D-PROD-198 — data recusada (um só código; `details.field`/`details.reason`).
+ * `futura` leva `data`, `hoje` e `fuso` em `extra` (o "hoje" é o da fazenda).
+ * @param {string} field  ex.: `data_inicio`, `data_conclusao`, `data_operacional`
+ * @param {'futura'|'antes_do_inicio'|'periodo_invertido'|'data_inexistente'} reason
+ * @param {Record<string, unknown>} [extra]
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeDataInvalida = (field, reason, extra = {}, options = undefined) => {
+  const rotulo = ROTULO_DA_DATA_ATIVIDADE[field] ?? `a data (${field})`;
+  const frase = MENSAGENS_DATA_ATIVIDADE[reason]?.(rotulo, extra) ?? `${rotulo} foi recusada`;
+  return new AppError('ATIVIDADE_DATA_INVALIDA', `${frase}; nada foi gravado`, {
+    ...options,
+    details: { ...(options?.details ?? {}), ...extra, field, reason },
+  });
+};
+
+/** D-PROD-198 — status da atividade e do apontamento, como aparecem nas frases. */
+const ROTULO_DO_STATUS_ATIVIDADE = Object.freeze({
+  ABERTA: 'aberta',
+  CONCLUIDA: 'concluída',
+  CANCELADA: 'cancelada',
+  CONFIRMADO: 'confirmado',
+  CANCELADO: 'cancelado',
+});
+
+/** D-PROD-198 — a regra de status de cada ação (§3 do contrato), como aparece nas frases. */
+const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
+  editar: 'só atividade aberta é editada',
+  concluir: 'só atividade aberta é concluída',
+  reabrir: 'só atividade concluída é reaberta',
+  cancelar: 'só atividade aberta é cancelada (a concluída precisa ser reaberta antes)',
+  lancar_apontamento: 'só atividade aberta recebe lançamento',
+  editar_apontamento: 'só apontamento confirmado de atividade aberta é editado',
+  cancelar_apontamento: 'só apontamento confirmado de atividade aberta é cancelado',
+});
+
+/**
+ * D-PROD-198 — a ação não é permitida no status atual da atividade (ou do
+ * apontamento): `details.status`, `details.acao` e `details.entidade`.
+ * @param {{ status: string, acao: string, entidade?: 'atividade'|'apontamento' }} situacao
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeStatusInvalido = ({ status, acao, entidade = 'atividade' }, options = undefined) =>
+  new AppError(
+    'ATIVIDADE_STATUS_INVALIDO',
+    `${entidade === 'apontamento' ? 'o apontamento' : 'a atividade'} está ${ROTULO_DO_STATUS_ATIVIDADE[status] ?? String(status).toLowerCase()}: ${REGRA_DE_STATUS_DA_ACAO[acao] ?? 'a ação não é permitida neste status'}; nada foi alterado`,
+    { ...options, details: { ...(options?.details ?? {}), status, acao, entidade } }
+  );
+
+/**
+ * D-PROD-198 — conflito de versão (CAS por `versao`) da atividade ou do apontamento.
+ * @param {number|null} versaoAtual
+ * @param {unknown} versaoInformada
+ * @param {{ entidade?: 'atividade'|'apontamento' }} [alvo]
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeVersaoConflito = (versaoAtual, versaoInformada, { entidade = 'atividade' } = {}, options = undefined) =>
+  new AppError(
+    'ATIVIDADE_VERSAO_CONFLITO',
+    entidade === 'apontamento'
+      ? 'o apontamento foi alterado por outra pessoa desde que você o abriu; recarregue e tente de novo; nada foi gravado'
+      : 'a atividade foi alterada por outra pessoa desde que você a abriu; recarregue e tente de novo; nada foi gravado',
+    { ...options, details: { ...(options?.details ?? {}), versao_atual: versaoAtual, versao_informada: versaoInformada, entidade } }
+  );
+
+/**
+ * D-PROD-198 — motivo (cancelar, reabrir) ausente, curto ou longo, contado em
+ * caracteres úteis (aparado). Os limites vêm de quem chama
+ * (`modules/atividades/atividadeComum.js`).
+ * @param {'obrigatorio'|'curto'|'longo'} reason
+ * @param {{ minimo: number, maximo: number }} limites
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeMotivoInvalido = (reason, { minimo, maximo }, options = undefined) =>
+  new AppError(
+    'ATIVIDADE_MOTIVO_INVALIDO',
+    `${reason === 'curto' ? `o motivo deve ter ao menos ${minimo} caracteres` : reason === 'longo' ? `o motivo deve ter no máximo ${maximo} caracteres` : 'informe o motivo'}; nada foi gravado`,
+    { ...options, details: { ...(options?.details ?? {}), field: 'motivo', reason, minimo, maximo } }
+  );
+
+/**
+ * D-PROD-198 — a FK RESTRICT de uma atividade (ou de um apontamento dela)
+ * barrou a exclusão do cadastro apontado (reconhecida pelo nome da FK em
+ * `vinculoAtividade.js`; nenhum módulo consulta as tabelas da atividade).
+ * @param {string} vinculo  coluna que segura o cadastro (ex.: `lancamento_tarefa_id`)
+ * @param {'atividade'|'apontamento'} [entidade]  a tabela da FK
+ * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
+ */
+export const atividadeVinculada = (vinculo, entidade = 'atividade', options = undefined) =>
+  new AppError(
+    'ATIVIDADE_VINCULADA',
+    entidade === 'apontamento'
+      ? 'não é possível excluir: o cadastro é usado por um apontamento de atividade; inative-o; nada foi apagado'
+      : 'não é possível excluir: o cadastro é usado por uma atividade; inative-o; nada foi apagado',
+    { ...options, details: { ...(options?.details ?? {}), vinculo, entidade } }
   );
 
 // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).

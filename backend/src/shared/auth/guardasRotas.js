@@ -70,6 +70,9 @@ const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, '
  */
 const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
 
+/** D-PROD-198 — o cabeçalho da atividade segue o esquema do cadastro na tela `op-atividades`. */
+const CADASTRO_ATIVIDADES = cadastro(T.ATIVIDADES);
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -315,6 +318,28 @@ export const GUARDAS = Object.freeze({
     criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
     editar: cadastro(T.APONTAMENTOS_ATIVIDADE).editar,
     cancelar: cadastro(T.APONTAMENTOS_ATIVIDADE).excluir,
+  },
+  // D-PROD-198 — Lançamento de Atividades, tela `op-atividades` (contrato §5).
+  // Cabeçalho pelas ações PADRÃO da tela, no esquema do cadastro: ver =
+  // visualizar (lista, detalhe, apontamentos e os seletores próprios); criar ou
+  // duplicar = novo|salvar; editar ou concluir = editar|salvar; cancelar =
+  // excluir (sem DELETE físico). Reabrir é a ação EXTRA `reabrir`, separada.
+  atividades: {
+    ver: porTela(T.ATIVIDADES, 'visualizar'),
+    criar: CADASTRO_ATIVIDADES.criar,
+    editar: CADASTRO_ATIVIDADES.editar,
+    cancelar: CADASTRO_ATIVIDADES.excluir,
+    reabrir: porTela(T.ATIVIDADES, 'reabrir'),
+  },
+  // Apontamentos da atividade: ver = visualizar da tela; lançar (criar e repetir
+  // o último), editar e cancelar são AÇÕES EXTRAS da mesma linha
+  // (`ACOES_ATIVIDADES_EXTRAS`), que nascem desligadas. Nenhuma concessão
+  // automática: só o administrador real e `is_admin` passam sem a caixa marcada.
+  atividadeApontamentos: {
+    ver: porTela(T.ATIVIDADES, 'visualizar'),
+    criar: porTela(T.ATIVIDADES, 'lancar_apontamento'),
+    editar: porTela(T.ATIVIDADES, 'editar_apontamento'),
+    cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
   },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
