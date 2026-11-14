@@ -4,4 +4,5 @@ export {
   createCategoriaManejo,
   updateCategoriaManejo,
   deleteCategoriaManejo,
+  listOpcoesCurvasGanhoCategoriaManejo,
 } from './categoriasManejoApi.js';

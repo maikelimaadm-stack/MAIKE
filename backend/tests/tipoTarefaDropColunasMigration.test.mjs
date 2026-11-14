@@ -31,7 +31,10 @@
  * pelo Prisma direto e fora de ordem, sem o runner, como a da D-PROD-187: a
  * guarda dela passa porque CADCURVAGANHO está vazia. Soma +1 migration e 0
  * tabela; como já está concluída na partida, não pende no runner e a comparação
- * de tabelas antes×depois não muda.
+ * de tabelas antes×depois não muda. O mesmo vale para a D-PROD-195 (CONTRACT
+ * `20261114200000_cadcategoria_curva_ganho`, curva obrigatória em CADCATEGORIA):
+ * a guarda dela só exige a CURVA PADRÃO nas fazendas COM categoria, e não há
+ * nenhuma na partida.
  *
  * As funções são as do ensaio local (`scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`).
  */

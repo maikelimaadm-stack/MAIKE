@@ -11,6 +11,11 @@
  * `CADCATEGORIA` (o model continua `CategoriaManejo`, com `@@map`). A chave do
  * ícone entrou na lista das ignoradas. SQL cru usa "CADCATEGORIA".
  *
+ * D-PROD-195 — a categoria passa a ter a Curva de Ganho OBRIGATÓRIA e da
+ * MESMA fazenda (`curva_ganho_id`, FK composta para CADCURVAGANHO); a resposta
+ * traz `curva_ganho_id` e `curva_ganho_nome`. Os testes antigos criam a curva
+ * da fazenda (`criarCurvaGanhoDeTeste`) e o `criar` daqui a envia por padrão.
+ *
  * PostgreSQL real.
  */
 
@@ -21,7 +26,9 @@ import { getPrismaClient } from '../src/database/prismaClient.js';
 import { CHAVES_LEGADAS_IGNORADAS } from '../src/modules/categoriasManejo/categoriaManejoService.js';
 import { FAIXAS_IDADE_CATEGORIA_MANEJO } from '../src/modules/movimentacoesMapa/categoriaOficialDerivada.js';
 import { colunasGravaveis } from '../src/shared/prisma/colunasGravaveis.js';
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { randomUUID } from 'node:crypto';
+
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarCurvaGanhoDeTeste } from './helpers.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -43,15 +50,22 @@ beforeEach(async () => {
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 const prisma = () => getPrismaClient();
 
+/** D-PROD-195: curva da fazenda 'emp-1' do tenant do teste; `criar` a envia por padrão. */
+let curvaPadrao = '';
+
 const tenantComToken = async () => {
   const { cliente, credenciais } = await criarTenant();
   const { corpo } = await autenticarNoApp(app, credenciais);
-  return { cliente, token: corpo.token };
+  const curva = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'CURVA PADRÃO' });
+  curvaPadrao = curva.id;
+  return { cliente, token: corpo.token, curva };
 };
 
 const CAMPOS_PUBLICOS = [
   'ativo',
   'created_date',
+  'curva_ganho_id',
+  'curva_ganho_nome',
   'empresa_id',
   'especie',
   'id',
@@ -97,8 +111,10 @@ const FAIXAS = [
   [37, null],
 ];
 
-const criar = (token, payload) =>
+/** POST com a curva da fazenda por padrão (D-PROD-195); `criarCru` manda o corpo como está. */
+const criarCru = (token, payload) =>
   app.inject({ method: 'POST', url: '/categorias-manejo', headers: auth(token), payload });
+const criar = (token, payload) => criarCru(token, { curva_ganho_id: curvaPadrao, ...payload });
 const atualizar = (token, id, payload) =>
   app.inject({ method: 'PATCH', url: `/categorias-manejo/${id}`, headers: auth(token), payload });
 const listar = (token) => app.inject({ method: 'GET', url: '/categorias-manejo', headers: auth(token) });
@@ -106,9 +122,10 @@ const listar = (token) => app.inject({ method: 'GET', url: '/categorias-manejo',
 /** Linha pelo Prisma Client. */
 const linha = (id) => prisma().categoriaManejo.findUnique({ where: { id } });
 
-/** As 12 colunas físicas de CADCATEGORIA, na ordem (D-PROD-187). */
+/** As 13 colunas físicas de CADCATEGORIA, na ordem (D-PROD-187; `curva_ganho_id` no fim desde a D-PROD-195). */
 const COLUNAS_FISICAS = [
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'idade_minima_meses', 'idade_maxima_meses', 'ativo', 'createdAt', 'updatedAt',
+  'curva_ganho_id',
 ];
 
 /** Colunas físicas da tabela, lidas do catálogo do banco (não do Prisma Client). */
@@ -140,11 +157,11 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
     for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(gravaveis.has(chave), false, chave);
     assert.deepEqual(
       [...gravaveis].sort(),
-      ['ativo', 'empresa_id', 'especie', 'idade_maxima_meses', 'idade_minima_meses', 'nome', 'sexo', 'sigla']
+      ['ativo', 'curva_ganho_id', 'empresa_id', 'especie', 'idade_maxima_meses', 'idade_minima_meses', 'nome', 'sexo', 'sigla']
     );
   });
 
-  test('E-00b estrutura (D-PROD-187): a tabela física é CADCATEGORIA com as 12 colunas; CategoriaManejo não existe mais; nenhuma das 16 colunas sobrou', async () => {
+  test('E-00b estrutura (D-PROD-187/D-PROD-195): a tabela física é CADCATEGORIA com as 13 colunas; CategoriaManejo não existe mais; nenhuma das 16 colunas sobrou', async () => {
     assert.deepEqual(await colunasFisicas('CADCATEGORIA'), COLUNAS_FISICAS);
     assert.deepEqual(await colunasFisicas('CategoriaManejo'), []);
     const [{ antiga, nova }] = await prisma().$queryRawUnsafe(
@@ -170,7 +187,7 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
     assert.equal(corpo.sexo, 'Macho');
     assert.equal(corpo.idade_minima_meses, 9);
     assert.equal(corpo.idade_maxima_meses, 12);
-    assert.deepEqual(Object.keys(await linha(corpo.id)).sort(), [...COLUNAS_FISICAS].sort(), 'a linha só tem as 12 colunas');
+    assert.deepEqual(Object.keys(await linha(corpo.id)).sort(), [...COLUNAS_FISICAS].sort(), 'a linha só tem as 13 colunas');
 
     const [evento] = await prisma().auditLog.findMany({ where: { entidade: 'CategoriaManejo', entidade_id: corpo.id } });
     assert.ok(evento, 'create auditado');
@@ -214,7 +231,7 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
 
   test('E-04 lista expõe exatamente os campos públicos, inclusive de linha gravada direto no banco', async () => {
     const { cliente, token } = await tenantComToken();
-    await prisma().$executeRaw`INSERT INTO "CADCATEGORIA" (id, cliente_id, empresa_id, nome, "updatedAt") VALUES ('cm-sql', ${cliente.id}, 'emp-1', 'VACA', now())`;
+    await prisma().$executeRaw`INSERT INTO "CADCATEGORIA" (id, cliente_id, empresa_id, nome, curva_ganho_id, "updatedAt") VALUES ('cm-sql', ${cliente.id}, 'emp-1', 'VACA', ${curvaPadrao}, now())`;
     await criar(token, BASE);
 
     const r = await listar(token);
@@ -257,7 +274,7 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
    * banco: o cadastro novo nunca a criaria, mas produção pode tê-la.
    */
   const criarLinhaInvertida = async (clienteId) => {
-    const criada = await prisma().categoriaManejo.create({ data: { cliente_id: clienteId, empresa_id: 'emp-1', nome: 'INVERTIDA' } });
+    const criada = await prisma().categoriaManejo.create({ data: { cliente_id: clienteId, empresa_id: 'emp-1', nome: 'INVERTIDA', curva_ganho_id: curvaPadrao } });
     await prisma().$executeRaw`UPDATE "CADCATEGORIA" SET idade_minima_meses = 24, idade_maxima_meses = 12, sexo = 'Misto' WHERE id = ${criada.id}`;
     return criada;
   };
@@ -401,5 +418,180 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
     esperar400(await atualizar(token, invertida.id, { idade_maxima_meses: 36 }), 'faixa_fora_da_lista');
     const corrigida = await atualizar(token, invertida.id, { idade_minima_meses: 13, idade_maxima_meses: 24 });
     assert.equal(corrigida.statusCode, 200, corrigida.body);
+  });
+});
+
+describe('D-PROD-195 — Categoria de Manejo com Curva de Ganho obrigatória e da mesma fazenda', () => {
+  /** Segunda fazenda do tenant ('emp-2'), com uma curva própria. */
+  const segundaFazenda = async (clienteId, nome = 'CURVA DA EMP 2') =>
+    criarCurvaGanhoDeTeste(prisma(), { clienteId, empresaId: 'emp-2', nome });
+
+  const esperarCurva400 = (r, reason) => {
+    esperar400(r, reason);
+    assert.equal(r.json().field, 'curva_ganho_id', r.body);
+    assert.equal(r.json().details?.entidade, 'CategoriaManejo', r.body);
+  };
+
+  test('C-01 POST sem curva (ausente, null, vazio, só espaços) → 400 curva_obrigatoria; nada gravado', async () => {
+    const { token } = await tenantComToken();
+    esperarCurva400(await criarCru(token, BASE), 'curva_obrigatoria');
+    for (const curva_ganho_id of [null, '', '   ']) esperarCurva400(await criar(token, { ...BASE, curva_ganho_id }), 'curva_obrigatoria');
+    assert.equal(await prisma().categoriaManejo.count(), 0);
+  });
+
+  test('C-02 curva de outra fazenda do mesmo tenant, de outro tenant, inexistente ou não texto → 400 curva_inexistente (sem oráculo); nada gravado', async () => {
+    const { cliente, token } = await tenantComToken();
+    const daEmp2 = await segundaFazenda(cliente.id);
+    const outro = await criarTenant();
+    const deOutroTenant = await criarCurvaGanhoDeTeste(prisma(), { clienteId: outro.cliente.id, empresaId: `emp-${randomUUID().slice(0, 8)}`, nome: 'CURVA PADRÃO' });
+    for (const curva_ganho_id of [daEmp2.id, deOutroTenant.id, 'nao-existe', 123, { id: curvaPadrao }]) {
+      esperarCurva400(await criar(token, { ...BASE, curva_ganho_id }), 'curva_inexistente');
+    }
+    // A mesma curva da emp-2 serve para uma categoria da emp-2.
+    const r = await criar(token, { ...BASE, empresa_id: 'emp-2', curva_ganho_id: daEmp2.id });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(await prisma().categoriaManejo.count(), 1);
+  });
+
+  test('C-03 curva inativa: categoria nova recusa (curva_inativa); a gravada que foi inativada depois é mantida em qualquer PATCH; trocar para outra inativa recusa', async () => {
+    const { cliente, token, curva } = await tenantComToken();
+    const inativa = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'INATIVA', ativo: false });
+    esperarCurva400(await criar(token, { ...BASE, curva_ganho_id: inativa.id }), 'curva_inativa');
+    assert.equal(await prisma().categoriaManejo.count(), 0);
+
+    const id = (await criar(token, BASE)).json().id;
+    await prisma().cadCurvaGanho.update({ where: { id: curva.id }, data: { ativo: false } });
+    let r = await atualizar(token, id, { nome: 'BEZERRO 2' });
+    assert.equal(r.statusCode, 200, r.body);
+    r = await atualizar(token, id, { curva_ganho_id: curva.id, sigla: 'B2' });
+    assert.equal(r.statusCode, 200, `reenviar a curva gravada (formulário) é manter: ${r.body}`);
+    assert.equal(r.json().curva_ganho_id, curva.id);
+    esperarCurva400(await atualizar(token, id, { curva_ganho_id: inativa.id }), 'curva_inativa');
+    const ativa = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'ATIVA' });
+    r = await atualizar(token, id, { curva_ganho_id: ativa.id });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual([r.json().curva_ganho_id, r.json().curva_ganho_nome], [ativa.id, 'ATIVA']);
+    // Voltar para a curva gravada antes, hoje inativa, é TROCAR: recusa.
+    esperarCurva400(await atualizar(token, id, { curva_ganho_id: curva.id }), 'curva_inativa');
+    assert.equal((await linha(id)).curva_ganho_id, ativa.id);
+  });
+
+  test('C-04 PATCH: curva null/vazia → curva_obrigatoria; de outra fazenda → curva_inexistente; nada muda', async () => {
+    const { cliente, token } = await tenantComToken();
+    const daEmp2 = await segundaFazenda(cliente.id);
+    const id = (await criar(token, BASE)).json().id;
+    const antes = await linha(id);
+    for (const curva_ganho_id of [null, '']) esperarCurva400(await atualizar(token, id, { curva_ganho_id }), 'curva_obrigatoria');
+    esperarCurva400(await atualizar(token, id, { curva_ganho_id: daEmp2.id, nome: 'OUTRA' }), 'curva_inexistente');
+    assert.deepEqual(await linha(id), antes);
+  });
+
+  test('C-05 troca de fazenda: sem curva da fazenda nova → curva_inexistente; com a curva da fazenda nova → 200', async () => {
+    const { cliente, token } = await tenantComToken();
+    const daEmp2 = await segundaFazenda(cliente.id);
+    const id = (await criar(token, BASE)).json().id;
+    const antes = await linha(id);
+    esperarCurva400(await atualizar(token, id, { empresa_id: 'emp-2' }), 'curva_inexistente');
+    esperarCurva400(await atualizar(token, id, { empresa_id: 'emp-2', curva_ganho_id: curvaPadrao }), 'curva_inexistente');
+    assert.deepEqual(await linha(id), antes, 'nada muda');
+    const r = await atualizar(token, id, { empresa_id: 'emp-2', curva_ganho_id: daEmp2.id });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual([r.json().empresa_id, r.json().curva_ganho_id, r.json().curva_ganho_nome], ['emp-2', daEmp2.id, 'CURVA DA EMP 2']);
+    // Fazenda nova com curva inativa: é troca, recusa.
+    const inativa = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'INATIVA', ativo: false });
+    esperarCurva400(await atualizar(token, id, { empresa_id: 'emp-1', curva_ganho_id: inativa.id }), 'curva_inativa');
+  });
+
+  test('C-06 formato público: POST, PATCH, lista e auditoria trazem curva_ganho_id e curva_ganho_nome; o eco de curva_ganho_nome no corpo é ignorado', async () => {
+    const { cliente, token, curva } = await tenantComToken();
+    const r = await criar(token, { ...BASE, curva_ganho_nome: 'NOME FORJADO' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().curva_ganho_id, r.json().curva_ganho_nome], [curva.id, 'CURVA PADRÃO']);
+    const outra = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'RECRIA' });
+    const p = await atualizar(token, r.json().id, { ...r.json(), curva_ganho_id: outra.id, curva_ganho_nome: 'NOME FORJADO' });
+    assert.equal(p.statusCode, 200, p.body);
+    assert.deepEqual([p.json().curva_ganho_id, p.json().curva_ganho_nome], [outra.id, 'RECRIA']);
+    const [item] = (await listar(token)).json();
+    assert.deepEqual(Object.keys(item).sort(), CAMPOS_PUBLICOS);
+    assert.deepEqual([item.curva_ganho_id, item.curva_ganho_nome], [outra.id, 'RECRIA']);
+    const eventos = await prisma().auditLog.findMany({ where: { entidade: 'CategoriaManejo', entidade_id: r.json().id }, orderBy: { createdAt: 'asc' } });
+    assert.equal(eventos[0].dados_novos.curva_ganho_nome, 'CURVA PADRÃO');
+    assert.deepEqual([eventos[1].dados_anteriores.curva_ganho_id, eventos[1].dados_novos.curva_ganho_id], [curva.id, outra.id]);
+  });
+
+  test('C-07 banco: curva_ganho_id NOT NULL, FK composta (cliente, fazenda, curva) Restrict e índice; escrita direta com curva de outra fazenda é recusada', async () => {
+    const { cliente } = await tenantComToken();
+    const daEmp2 = await segundaFazenda(cliente.id);
+    const [col] = await prisma().$queryRawUnsafe(
+      `SELECT is_nullable::text AS nulo FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'CADCATEGORIA' AND column_name = 'curva_ganho_id'`
+    );
+    assert.equal(col.nulo, 'NO');
+    const [fk] = await prisma().$queryRawUnsafe(
+      `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey'`
+    );
+    assert.match(fk.def, /FOREIGN KEY \(cliente_id, empresa_id, curva_ganho_id\) REFERENCES "CADCURVAGANHO"\(cliente_id, empresa_id, id\) ON UPDATE CASCADE ON DELETE RESTRICT/);
+    const [{ n }] = await prisma().$queryRawUnsafe(`SELECT count(*)::int AS n FROM pg_indexes WHERE indexname = 'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_idx'`);
+    assert.equal(n, 1);
+    await assert.rejects(
+      prisma().$executeRaw`INSERT INTO "CADCATEGORIA" (id, cliente_id, empresa_id, nome, curva_ganho_id, "updatedAt") VALUES ('cm-x', ${cliente.id}, 'emp-1', 'X', ${daEmp2.id}, now())`,
+      /CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey|23503/
+    );
+  });
+
+  test('C-08 opções de curva: só a fazenda pedida, em ordem de nome, só {id, nome, ativo} (inativa marcada); outra fazenda/tenant → 404; sem empresa_id → 400; sem token → 401', async () => {
+    const { cliente, token, curva } = await tenantComToken();
+    const inativa = await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'ABC INATIVA', ativo: false });
+    await segundaFazenda(cliente.id);
+    const url = (e) => `/categorias-manejo-opcoes/curvas-ganho?empresa_id=${encodeURIComponent(e)}`;
+    const r = await app.inject({ method: 'GET', url: url('emp-1'), headers: auth(token) });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.deepEqual(r.json(), [
+      { id: inativa.id, nome: 'ABC INATIVA', ativo: false },
+      { id: curva.id, nome: 'CURVA PADRÃO', ativo: true },
+    ]);
+    const outro = await criarTenant();
+    const empOutro = `emp-${randomUUID().slice(0, 8)}`;
+    await criarCurvaGanhoDeTeste(prisma(), { clienteId: outro.cliente.id, empresaId: empOutro });
+    for (const e of [empOutro, 'nao-existe']) {
+      const x = await app.inject({ method: 'GET', url: url(e), headers: auth(token) });
+      assert.equal(x.statusCode, 404, x.body);
+      assert.equal(x.json().code, 'EMPRESA_NOT_FOUND');
+    }
+    assert.equal((await app.inject({ method: 'GET', url: '/categorias-manejo-opcoes/curvas-ganho', headers: auth(token) })).statusCode, 400);
+    assert.equal((await app.inject({ method: 'GET', url: `${url('emp-1')}&cliente_id=${cliente.id}`, headers: auth(token) })).statusCode, 400);
+    assert.equal((await app.inject({ method: 'GET', url: url('emp-1') })).statusCode, 401);
+  });
+
+  test('C-09 opções de curva: permissão de quem cria OU edita categoria (inclui o cadastro rápido do Cadastro de Lotes); só ver a categoria ou só a tela de curvas → 403', async () => {
+    const { cliente, credenciais } = await criarTenant({ papelTenant: 'administrador', semPermissao: true });
+    await criarCurvaGanhoDeTeste(prisma(), { clienteId: cliente.id, empresaId: 'emp-1', nome: 'CURVA PADRÃO' });
+    const hash = (await prisma().usuario.findFirst({ where: { cliente_id: cliente.id } })).senha_hash;
+    const login = `op-${randomUUID().slice(0, 8)}`;
+    await prisma().usuario.create({ data: { cliente_id: cliente.id, nome: 'Op', login, senha_hash: hash, papel_tenant: 'usuario' } });
+    const tokOp = (await autenticarNoApp(app, { login, senha: credenciais.senha })).corpo.token;
+    const acoes = (a) => ({ visualizar: false, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...a });
+    const permitir = (tela, a) =>
+      prisma().permissao.upsert({
+        where: { cliente_id_user_email: { cliente_id: cliente.id, user_email: login } },
+        create: { cliente_id: cliente.id, user_email: login, user_nome: 'Op', modulos_permitidos: ['manejo'], permissoes_telas: [{ modulo_id: 'manejo', tela_id: tela, ...acoes(a) }] },
+        update: { modulos_permitidos: ['manejo'], permissoes_telas: [{ modulo_id: 'manejo', tela_id: tela, ...acoes(a) }] },
+      });
+    const status = async () => (await app.inject({ method: 'GET', url: '/categorias-manejo-opcoes/curvas-ganho?empresa_id=emp-1', headers: auth(tokOp) })).statusCode;
+    assert.equal(await status(), 403, 'sem linha');
+    const casos = [
+      ['pec-categorias-manejo', { visualizar: true }, 403],
+      ['pec-categorias-manejo', { visualizar: true, excluir: true }, 403],
+      ['pec-curvas-ganho', { visualizar: true, novo: true, salvar: true, editar: true, excluir: true }, 403],
+      ['pec-categorias-manejo', { visualizar: true, novo: true }, 200],
+      ['pec-categorias-manejo', { visualizar: true, salvar: true }, 200],
+      ['pec-categorias-manejo', { visualizar: true, editar: true }, 200],
+      ['pec-lotes', { visualizar: true, novo: true }, 200],
+      ['pec-lotes', { visualizar: true, editar: true }, 200],
+      ['pec-lotes', { visualizar: true }, 403],
+    ];
+    for (const [tela, a, esperado] of casos) {
+      await permitir(tela, a);
+      assert.equal(await status(), esperado, `${tela} ${JSON.stringify(a)}`);
+    }
   });
 });

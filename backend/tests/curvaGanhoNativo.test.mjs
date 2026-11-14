@@ -2,7 +2,9 @@
  * Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD mensais desde a
  * D-PROD-194), tabela física "CADCURVAGANHO" — PostgreSQL real.
  *
- * Cadastro sem vínculo com nenhum outro (nem com as Estações): nome em
+ * Cadastro sem vínculo com as Estações. D-PROD-195: a Categoria de Manejo
+ * aponta para a curva (obrigatória, mesma fazenda); a curva em uso não é
+ * excluída (409 `CURVA_GANHO_EM_USO`). Nome em
  * MAIÚSCULAS e único por fazenda (tamanho conferido depois das maiúsculas), os
  * 12 GMD mensais (gmd_jan … gmd_dez) obrigatórios de -2 a 3 kg/dia com no
  * máximo 3 casas, gravados como decimal exato, isolamento
@@ -286,5 +288,88 @@ describe('D-PROD-194 — CADCURVAGANHO no banco: nome físico, colunas mensais, 
       await assert.rejects(prisma().cadCurvaGanho.create({ data: { ...dados, [mes]: '-2.001' } }), /CADCURVAGANHO_gmd_check|check constraint/i, mes);
     }
     assert.equal(await prisma().cadCurvaGanho.count(), 0);
+  });
+});
+
+describe('D-PROD-195 — Curva de Ganho ligada à Categoria de Manejo: exclusão bloqueada e corrida', () => {
+  const categoria = (empresaId, curvaId, extra = {}) => ({
+    empresa_id: empresaId, nome: 'BEZERRO', sexo: 'Macho', idade_minima_meses: 0, idade_maxima_meses: 8, curva_ganho_id: curvaId, ...extra,
+  });
+  const criarCategoria = (token, corpo) => req('POST', '/categorias-manejo', token, corpo);
+
+  test('curva usada por categoria (ativa ou inativa) → 409 CURVA_GANHO_EM_USO com a contagem e a mensagem; nada apagado; sem uso → 204', async () => {
+    const { token, clienteId, e1 } = await cenario();
+    const c = (await criar(token, base(e1.id))).json();
+    const outra = (await criar(token, base(e1.id, { nome: 'outra' }))).json();
+    const a = await criarCategoria(token, categoria(e1.id, c.id));
+    assert.equal(a.statusCode, 201, a.body);
+    const b = await criarCategoria(token, categoria(e1.id, c.id, { nome: 'GARROTE', idade_minima_meses: 13, idade_maxima_meses: 24 }));
+    assert.equal(b.statusCode, 201, b.body);
+    assert.equal((await req('PATCH', `/categorias-manejo/${b.json().id}`, token, { ativo: false })).statusCode, 200);
+
+    const r = await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token);
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'CURVA_GANHO_EM_USO');
+    assert.deepEqual(r.json().details, { categorias: 2 });
+    assert.equal(r.json().message, 'Esta curva está ligada a 2 categoria(s) de manejo e não pode ser excluída.');
+    assert.ok(await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } }), 'a curva fica');
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: clienteId, entidade: 'CadCurvaGanho', acao: 'delete' } }), 0);
+    // A FK Restrict segura também a escrita direta.
+    await assert.rejects(prisma().cadCurvaGanho.delete({ where: { id: c.id } }));
+
+    // Uma categoria muda de curva: ainda 1 em uso.
+    assert.equal((await req('PATCH', `/categorias-manejo/${a.json().id}`, token, { curva_ganho_id: outra.id })).statusCode, 200);
+    const r1 = await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token);
+    assert.equal(r1.statusCode, 409, r1.body);
+    assert.equal(r1.json().message, 'Esta curva está ligada a 1 categoria(s) de manejo e não pode ser excluída.');
+    // A outra também muda (a inativa é editável): agora sem uso → 204.
+    assert.equal((await req('PATCH', `/categorias-manejo/${b.json().id}`, token, { curva_ganho_id: outra.id })).statusCode, 200);
+    const ok = await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token);
+    assert.equal(ok.statusCode, 204, ok.body);
+    assert.equal(await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } }), null);
+  });
+
+  test('inativar a curva em uso é permitido (a categoria mantém a curva gravada); a exclusão continua bloqueada', async () => {
+    const { token, e1 } = await cenario();
+    const c = (await criar(token, base(e1.id))).json();
+    assert.equal((await criarCategoria(token, categoria(e1.id, c.id))).statusCode, 201);
+    const p = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, ativo: false });
+    assert.equal(p.statusCode, 200, p.body);
+    assert.equal((await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token)).statusCode, 409);
+  });
+
+  test('corrida: excluir a curva × criar categoria com ela → (201 e 409) ou (400 curva_inexistente e 204), nunca 500 nem categoria órfã', async () => {
+    const { token, clienteId, e1 } = await cenario();
+    const vistos = new Set();
+    for (let i = 0; i < 12; i += 1) {
+      const c = (await criar(token, base(e1.id, { nome: `corrida ${i}` }))).json();
+      const corpo = categoria(e1.id, c.id, { nome: `CAT ${i}` });
+      const [cat, del] = i % 2
+        ? await Promise.all([criarCategoria(token, corpo), req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token)])
+        : (await Promise.all([req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token), criarCategoria(token, corpo)])).reverse();
+      const par = `${cat.statusCode}/${del.statusCode}`;
+      vistos.add(par);
+      assert.ok(['201/409', '400/204'].includes(par), `${par}: ${cat.body} | ${del.body}`);
+      if (par === '201/409') assert.equal(del.json().code, 'CURVA_GANHO_EM_USO');
+      else assert.equal(cat.json().reason, 'curva_inexistente');
+      const curvaExiste = Boolean(await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } }));
+      const categorias = await prisma().categoriaManejo.count({ where: { cliente_id: clienteId, curva_ganho_id: c.id } });
+      assert.equal(curvaExiste, par === '201/409');
+      assert.equal(categorias, par === '201/409' ? 1 : 0);
+    }
+    assert.ok(vistos.size >= 1);
+  });
+
+  test('corrida: inativar a curva × criar categoria com ela → 201 (inativada depois) ou 400 curva_inativa, nunca 500', async () => {
+    const { token, e1 } = await cenario();
+    for (let i = 0; i < 8; i += 1) {
+      const c = (await criar(token, base(e1.id, { nome: `inativa ${i}` }))).json();
+      const [cat, pat] = await Promise.all([
+        criarCategoria(token, categoria(e1.id, c.id, { nome: `CAT ${i}` })),
+        req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, ativo: false }),
+      ]);
+      assert.equal(pat.statusCode, 200, pat.body);
+      assert.ok(cat.statusCode === 201 || (cat.statusCode === 400 && cat.json().reason === 'curva_inativa'), cat.body);
+    }
   });
 });

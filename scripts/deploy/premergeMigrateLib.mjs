@@ -33,7 +33,9 @@
  *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
  *     índices/constraints — todos pinados letra por letra: RENAME continua
  *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada;
- *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria).
+ *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria; na D-PROD-195,
+ *     coluna nova NOT NULL com a ligação dos registros existentes, UNIQUE em tabela
+ *     antiga e FK composta entre duas tabelas antigas, todos pinados letra por letra).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -91,6 +93,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
   // D-PROD-194: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
+  // D-PROD-195: CONTRACT aprovado pelo proprietário — curva de ganho obrigatória na Categoria de Manejo, da mesma fazenda.
+  '20261114200000_cadcategoria_curva_ganho': 'b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -206,6 +210,23 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
     drop: Object.freeze(['CADCURVAGANHO']),
     literais_guarda: Object.freeze([]),
     alter_antigas: Object.freeze([]),
+  }),
+  // D-PROD-195: a Categoria de Manejo ganha a curva de ganho OBRIGATÓRIA, da mesma fazenda. A guarda exige
+  // exatamente uma 'CURVA PADRÃO' em cada fazenda com categoria; depois dela, EXATAMENTE as 5 instruções abaixo
+  // (texto pinado: a coluna, a ligação das categorias existentes à CURVA PADRÃO da fazenda, o NOT NULL, o UNIQUE
+  // (cliente_id, empresa_id, id) que a FK composta exige em CADCURVAGANHO e a FK). No resto, só o índice não-único.
+  '20261114200000_cadcategoria_curva_ganho': Object.freeze({
+    decisao: 'D-PROD-195',
+    guarda_sha256: '292d2446635c3178f10af0d24c33df0d92513f3725efb1ed2059ccc713cb63a8',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADCATEGORIA', 'CADCURVAGANHO']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADCATEGORIA" ADD COLUMN "curva_ganho_id" VARCHAR(64)',
+      'UPDATE "CADCATEGORIA" AS c SET "curva_ganho_id" = k."id" FROM "CADCURVAGANHO" AS k WHERE k."cliente_id" = c."cliente_id" AND k."empresa_id" = c."empresa_id" AND k."nome" = \'CURVA PADRÃO\'',
+      'ALTER TABLE "CADCATEGORIA" ALTER COLUMN "curva_ganho_id" SET NOT NULL',
+      'CREATE UNIQUE INDEX "CADCURVAGANHO_cliente_id_empresa_id_id_key" ON "CADCURVAGANHO"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "CADCATEGORIA" ADD CONSTRAINT "CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "curva_ganho_id") REFERENCES "CADCURVAGANHO"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
   }),
 });
 

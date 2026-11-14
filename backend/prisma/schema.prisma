@@ -625,7 +625,11 @@ model CadCurvaGanho {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
 
+  // D-PROD-195: categorias de manejo que usam esta curva (excluir a curva em uso é barrado).
+  categorias CategoriaManejo[]
+
   @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, empresa_id, nome])
   @@index([cliente_id, empresa_id, ativo])
   @@map("CADCURVAGANHO")
@@ -1228,14 +1232,18 @@ model CategoriaManejo {
   sexo                  String?  @db.VarChar(32)
   idade_minima_meses    Int?
   idade_maxima_meses    Int?
+  // D-PROD-195: curva de ganho da categoria, obrigatória e da MESMA fazenda (FK composta).
+  curva_ganho_id        String   @db.VarChar(64)
   ativo                 Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  cliente    Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  curvaGanho CadCurvaGanho @relation(fields: [cliente_id, empresa_id, curva_ganho_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+  @@index([cliente_id, empresa_id, curva_ganho_id])
   @@map("CADCATEGORIA")
 }
 

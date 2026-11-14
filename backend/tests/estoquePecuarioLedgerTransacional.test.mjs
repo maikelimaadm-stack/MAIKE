@@ -21,7 +21,7 @@ import { criarLedgerPecuario, TIPO_OPERACAO_IDEMPOTENTE } from '../src/modules/e
 import { ddlLedgerPecuario, ddlRemoverLedgerPecuario, gerarEsquemaDescartavel } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioDdl.js';
 import { CODIGOS_LEDGER_PECUARIO as C, ehErroLedger } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioErros.js';
 import { CATEGORIA_SEM } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioContrato.js';
-import { criarTenant, encerrar, limparBanco } from './helpers.mjs';
+import { criarTenant, encerrar, limparBanco, criarCurvaGanhoDeTeste } from './helpers.mjs';
 
 const ESQUEMA = gerarEsquemaDescartavel();
 const DATA = '2026-10-29';
@@ -52,8 +52,10 @@ const criarCenario = async (opcoes = {}) => {
       })
     );
   }
-  const boi = await prisma.categoriaManejo.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, nome: 'BOI' } });
-  const vaca = await prisma.categoriaManejo.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, nome: 'VACA' } });
+  // D-PROD-195: a categoria exige a curva de ganho da mesma fazenda.
+  const curva = await criarCurvaGanhoDeTeste(prisma, { clienteId: cliente.id, empresaId: empresa.id });
+  const boi = await prisma.categoriaManejo.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, nome: 'BOI', curva_ganho_id: curva.id } });
+  const vaca = await prisma.categoriaManejo.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, nome: 'VACA', curva_ganho_id: curva.id } });
   return { cliente, usuario, ctx, empresa, setor, areas, boi, vaca };
 };
 
@@ -325,7 +327,8 @@ describe('ledger pecuário L1 — invariantes e recusas sem gravação parcial',
     await entrar(cen, A, 7, null);
     assert.deepEqual(await saldosPorArea(cen, CATEGORIA_SEM), { [A]: 7 });
     const outra = await prisma.empresa.create({ data: { cliente_id: cen.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
-    const catOutra = await prisma.categoriaManejo.create({ data: { cliente_id: cen.cliente.id, empresa_id: outra.id, nome: 'BOI' } });
+    const curvaOutra = await criarCurvaGanhoDeTeste(prisma, { clienteId: cen.cliente.id, empresaId: outra.id });
+    const catOutra = await prisma.categoriaManejo.create({ data: { cliente_id: cen.cliente.id, empresa_id: outra.id, nome: 'BOI', curva_ganho_id: curvaOutra.id } });
     await rejeitaCom(transferir(cen, A, B, 1, catOutra.id), C.CATEGORIA_INVALIDA);
   });
 

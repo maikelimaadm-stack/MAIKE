@@ -82,6 +82,54 @@ export const atualizarCurvaPorId = async (tx, clienteId, id, dados) =>
     select: SELECAO,
   });
 
+/**
+ * D-PROD-195 — opções do seletor da Categoria de Manejo: só `{id, nome, ativo}`
+ * das curvas da fazenda, em ordem de nome (as inativas vêm marcadas; quem
+ * decide se aceita é o serviço da categoria).
+ * @param {string} clienteId
+ * @param {string} empresaId
+ */
+export const listarOpcoesCurvas = async (clienteId, empresaId) =>
+  getPrismaClient().cadCurvaGanho.findMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId },
+    orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+    select: { id: true, nome: true, ativo: true },
+  });
+
+/**
+ * D-PROD-195 — lê a curva pela chave do tenant E da fazenda travando a linha
+ * `FOR SHARE` até o fim da transação: a categoria que vai usá-la serializa com a
+ * exclusão (que trava `FOR UPDATE`) e com a inativação (UPDATE) da curva.
+ * Outra fazenda ou outro tenant → null, igual ao inexistente.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} empresaId
+ * @param {string} id
+ * @returns {Promise<{ id: string, nome: string, ativo: boolean } | null>}
+ */
+export const lerCurvaParaUso = async (tx, clienteId, empresaId, id) => {
+  const linhas = /** @type {Array<{ id: string, nome: string, ativo: boolean }>} */ (
+    await tx.$queryRaw`SELECT id, nome, ativo FROM "CADCURVAGANHO" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ${id} FOR SHARE`
+  );
+  return linhas[0] ?? null;
+};
+
+/**
+ * D-PROD-195 — trava a curva `FOR UPDATE` antes de contar quem a usa: espera a
+ * categoria em voo (que leu a curva `FOR SHARE`) e barra a próxima.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const travarCurvaParaExclusao = async (tx, clienteId, empresaId, id) => {
+  await tx.$queryRaw`SELECT id FROM "CADCURVAGANHO" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`;
+};
+
+/**
+ * D-PROD-195 — quantas categorias de manejo (ativas ou inativas) usam a curva.
+ * @param {import('@prisma/client').Prisma.TransactionClient | import('@prisma/client').PrismaClient} cliente
+ */
+export const contarCategoriasDaCurva = async (cliente, clienteId, empresaId, id) =>
+  cliente.categoriaManejo.count({ where: { cliente_id: clienteId, empresa_id: empresaId, curva_ganho_id: id } });
+
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx */
 export const excluirCurvaPorId = async (tx, clienteId, id) =>
   tx.cadCurvaGanho.delete({
