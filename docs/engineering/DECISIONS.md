@@ -7314,6 +7314,53 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Aplicação em produção.** **Aplicada em produção em 2026-11-14 às 20:25:14 UTC** (`finished_at`), pelo caminho B do runbook, com o GO escrito do proprietário ("autorizo pode enviar"; depois "pode aplicar"). Preflight `PRONTO PARA APLICAR` (52 / 0, 85 tabelas, 2 apontamentos confirmados, 0 itens, 0 fatias, contador tenant / 3, 0 travas). Conferência depois: 53 / 0; checksum `c288cf47…`; 84 tabelas; as 3 antigas saíram; 2 atividades (nº 1 e 2, ABERTA, com máquina, centros, setor do nº 1, unidade KM/HA e produção 1/150) e 2 apontamentos (sequência 1, sem turno, CONFIRMADO); contador `Atividade` / tenant / 3; RLS ligado sem FORCE e política `maike_backend_all` nas 2 novas; nenhum privilégio para `anon`/`authenticated`; unique `NULLS NOT DISTINCT` presente.
 
+## D-PROD-201 — Suplementação de cocho, etapa 1: rebanho e peso certos no lançamento, salvar de novo sem baixar duas vezes, datas em ordem
+
+**Data:** 2026-11-14 · **Origem:** análise da suplementação de cocho pedida pelo proprietário ("você vai analisar toda a parte de suplementação de cocho… cálculos etc resultados"). Ele aprovou a ordem proposta ("vamos começar") e definiu a regra do peso: "a gente tem que fazer com o peso projetado, se não tiver peso projetado vai com base da pesagem atual" · **Branch:** `claude/kind-knuth-tztu1v`
+
+> **Numeração:** a `main` deu a D-PROD-200 ao Lançamento de Atividades (PR #285); esta é a **D-PROD-201**.
+
+**Contexto.** A análise encontrou cinco problemas no lançamento de suplementação (`FormularioLancamentoSuplementacao.jsx`):
+1. **Rebanho errado.** O formulário lia o **cadastro de Lote**, mas numa empresa no ledger o rebanho atual são as **posições** (D-PROD-107).
+   - Em produção os Lotes ativos somavam 5.358 cabeças e as posições, 4.425.
+   - O consumo esperado, a duração e a reposição saíam errados.
+2. **Lote sem peso.** O lote sem peso entrava na média como **0 kg**. Por exemplo, 30 cabeças com 400 kg e 20 sem peso davam média de 240 kg, o que subestimava o consumo e atrasava a reposição.
+3. **Baixa dupla.** Cada clique gerava um `operation_id` novo. Se o evento falhasse depois da baixa de estoque, salvar de novo **baixava outra vez**, e não existe estorno de suplementação.
+4. **Erro falso.** `toast.warn` não existe no sonner. Quando o fechamento do período anterior falhava, o `TypeError` virava "Não foi possível registrar", com o lançamento e a baixa já gravados, o que empurrava para a baixa dupla.
+5. **Data fora de ordem.** O lançamento com data anterior ao último fechava o **período mais novo** com 1 dia, porque `calcularDiasPeriodo` devolve no mínimo 1.
+
+**Decisão** (só tela; sem migration e sem mudança no servidor):
+1. **Rebanho do mapa.** O formulário usa `listarRebanhoParaSuplementacao`, a mesma fonte do mapa:
+   - **empresa no ledger:** as posições ativas da área, com `projecao_peso`;
+   - **legado:** os Lotes ativos.
+   - Um erro na consulta propaga; o sistema nunca cai para o Lote como saldo.
+   - As linhas por lote levam o id da **posição**. O servidor já resolve posição → lote de entrada (`exigirLotesDosDocumentos`).
+2. **Peso do consumo por %PV** (`pesoDeConsumoDoLote`):
+   - o **peso projetado de hoje** (D-PROD-198; sem curva, ele já é o último peso);
+   - senão, o último peso gravado.
+   - Sem peso nenhum, o lote **fica fora da média** (`resumoPesoDosLotes`). A média dos lotes com peso vale para todas as cabeças, e a tela avisa "N cabeça(s) sem peso (LOTE…)".
+   - Se nenhum lote tem peso, não há taxa, e o mapa explica "os lotes do pasto não tinham peso no lançamento", com a orientação de registrar uma pesagem, em vez de "Cadastre o %PV".
+   - O evento grava `cabecas_sem_peso`.
+   - **Limite:** o peso projetado é o de **hoje**, também num lançamento retroativo.
+3. **Uma operação por lançamento.** O `operation_id` nasce no primeiro clique e vale até o sucesso.
+   - Depois de uma falha, salvar de novo **reaproveita a baixa já feita**: não chama a saída de estoque outra vez, e o evento vai com o mesmo `operation_id`, que é idempotente no servidor.
+   - A mensagem de erro diz que a baixa foi registrada e que basta salvar de novo.
+   - Se a quantidade, o produto, a data ou o local mudaram depois da baixa (`chaveDaSaida`), o sistema recusa e pede para voltar aos valores da baixa.
+   - A checagem "saldo insuficiente" é pulada quando a baixa da operação já existe.
+4. **Avisos.** `toast.warning` no lugar de `toast.warn`. A falha ao fechar o período anterior é só um aviso: o lançamento conta como salvo.
+5. **Datas** (`erroDeDataDoLancamento`):
+   - o abastecimento **não pode ser anterior** ao último deste cocho (o mesmo dia é aceito);
+   - o "fim do consumo anterior", quando informado, fica entre o último abastecimento e o novo;
+   - enquanto o último lançamento carrega, não salva.
+
+**Fica para as próximas etapas** (análise de 2026-11-14):
+- **Atomicidade.** A baixa e o evento continuam em duas transações; a defesa desta etapa é a idempotência.
+- **Validação no servidor.** O servidor ainda não confere ponto, produto, kg nem a ligação baixa ↔ evento.
+- **Contas iguais.** A duração e a reposição do formulário (arredondamento e fallback por consumo ideal) ainda diferem das do mapa.
+- **Formulação** (pronto × batelada, %PV por categoria), **leitura de cocho** (escore, acesso, estrutura) com o farol, e **fechamento de consumo** em %PV com faixa configurável.
+
+**Relatório:** [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md).
+
 ## D-PROD-202 — Linhas de produto e de máquina no apontamento do Lançamento de Atividades (Fatia 3)
 
 > **Numeração:** nasceu como D-PROD-201; a `main` deu a D-PROD-201 à suplementação de cocho, etapa 1 (PR #288, sem migration), antes do merge desta. Esta é a **D-PROD-202**. O número não está no `migration.sql`.

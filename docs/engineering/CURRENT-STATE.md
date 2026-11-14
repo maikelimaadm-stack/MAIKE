@@ -21,6 +21,17 @@ rollout pausado **D-PROD-41**)
 | Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente; **vale só com a aprovação explícita do proprietário no merge** |
 | Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
 
+## Missão ativa (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-201** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `74bd3ee1` (merge da PR #285) |
+| Escopo | Etapa 1 de 4 da suplementação: o lançamento usa o rebanho do mapa (posições) e o peso projetado (ou o último peso); lote sem peso não entra como zero; um `operation_id` por lançamento (salvar de novo não baixa duas vezes); `toast.warning`; recusa de data anterior ao último abastecimento; motivo "sem peso" no mapa |
+| Migration | Nenhuma; servidor inalterado |
+| Próximas etapas | 2 Formulação (pronto × batelada, %PV padrão e por categoria, produção com custo do estoque) · 3 Leitura de cocho (escore, acesso, estrutura) e farol de cocho · 4 Fechamento de consumo em %PV com faixa configurável e custo/cab/dia |
+| Relatório | [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md) |
+
 ## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-CABECALHO (Fatia 2 do Lançamento de Atividades): Atividade como cabeçalho e o apontamento do dia como filho (D-PROD-200)
 
 | Campo | Valor |
