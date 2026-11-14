@@ -151,7 +151,7 @@ Tenant sempre do `auth_context`; `empresa_id` validado contra o acesso do usuár
 | `POST /atividades/:id/apontamentos` · `POST …/:apontamentoId/duplicar` | apontamentos: criar |
 | `PATCH /atividades/:id/apontamentos/:apontamentoId` | apontamentos: editar |
 | `POST …/:apontamentoId/cancelar` | apontamentos: cancelar |
-| `GET /atividades-opcoes/{tipos,areas,bens,operadores,tarefas}?empresa_id=` | atividades: ver |
+| `GET /atividades-opcoes/{bens,operadores}?empresa_id=` | atividades: ver |
 
 Corpos com `additionalProperties: false`; decimais como string (sem coerção do AJV); datas `YYYY-MM-DD`. Erros
 novos em `errorCodes.js` com prefixo `ATIVIDADE_`; o servidor não lê tabela de outro módulo para explicar FK:
@@ -159,13 +159,24 @@ reconhece P2003 pelo nome da constraint (lição da #259).
 
 ## 5. Permissões e menu
 
-- Menu: o item `op-apontamentos-atividade` ("Apontamentos de Atividade") sai.
-- Entra `op-atividades` ("Lançamento de Atividades", página `LancamentoAtividades`), no mesmo grupo de menu.
-- Permissões, sem concessão automática (administrador da fazenda e `is_admin` têm tudo):
-  - `op-atividades`: ver, criar, editar, cancelar;
-  - `op-atividade-apontamentos`: ver, criar, editar, cancelar;
-  - `op-atividade-reabrir`: só reabrir.
-- O mecanismo segue o da tela Permissões existente. Ver §5.1 depois do mapa do B0.
+- **Menu:** o item `op-apontamentos-atividade` ("Apontamentos de Atividade") sai. Entra `op-atividades` ("Lançamento de
+  Atividades", página `LancamentoAtividades`), no mesmo grupo `suporte-mapa`, logo abaixo de Tipos de Atividade.
+- **Onde as permissões ficam:** a tela Permissões só desenha páginas do menu e as **ações extras** da linha da página
+  (padrão `ACOES_LANCAMENTOS_FINANCEIROS`, D-PROD-155). Por isso as três permissões do pedido moram na linha da tela
+  `op-atividades`.
+- **Permissões da atividade** (`op-atividades`, ações padrão):
+  - ver (`visualizar`): lista, detalhe e apontamentos;
+  - criar ou duplicar (`novo` | `salvar`);
+  - editar ou concluir (`editar` | `salvar`);
+  - cancelar (`excluir`).
+- **Permissões do apontamento** (`op-atividade-apontamentos`, ações extras):
+  - `lancar_apontamento`: criar e repetir;
+  - `editar_apontamento`;
+  - `cancelar_apontamento`.
+- **Reabrir** (`op-atividade-reabrir`): ação extra `reabrir`.
+- **Sem concessão automática.** Administrador da fazenda e `is_admin` têm tudo; as extras nascem desligadas.
+- **Concessões antigas:** as linhas `op-apontamentos-atividade` ficam inertes no JSON (precedente D-PROD-162). Os
+  usuários comuns precisam de nova concessão.
 
 ## 6. Tela "Lançamento de Atividades" (só componentes que já existem)
 
@@ -274,7 +285,7 @@ Toda escrita devolve a atividade no formato do detalhe.
   criado_por {…usuarioPublico} | null, createdAt, updatedAt }
 ```
 
-- **Lista:** `GET /atividades/:id/apontamentos` devolve `{ itens: [...] }` (sem paginação; ordem
+- **Lista:** `GET /atividades/:id/apontamentos` devolve `{ items: [...] }` (sem paginação; ordem
   `data_operacional desc, turno, sequencia`).
 - **Escritas:** criar, editar, cancelar e duplicar devolvem `{ apontamento, atividade, alertas }`.
   - `atividade` é o cabeçalho com os totais recalculados.
@@ -285,12 +296,11 @@ Toda escrita devolve a atividade no formato do detalhe.
 - **Corpo de cancelar:** `{ empresa_id, versao, motivo }`.
 - **Corpo de duplicar:** `{ empresa_id, data_operacional? }`.
 
-**Opções** (`GET /atividades-opcoes/<x>?empresa_id=&q=&cursor=&limit=`, no formato de opções do módulo antigo):
-- `tipos`: tipos ativos com as flags e os padrões, para a tela avisar o que é exigido;
-- `areas`: ativas da fazenda, com o setor;
-- `bens`: ativos da fazenda;
-- `operadores`: usuários ativos do cliente;
-- `tarefas`: lançamentos de tarefa da fazenda.
+**Opções:**
+- `GET /atividades-opcoes/bens` e `GET /atividades-opcoes/operadores` (`?empresa_id=&q=&cursor=&limit=`), no formato
+  de opções do módulo antigo (`opcoesBens`, `opcoesResponsaveis`), com a guarda "ver";
+- tipos, áreas e tarefas reusam as rotas que já existem e só pedem login (`/tipos-atividade`, que já traz as flags e
+  os padrões; `/areas-pastagem`; `/lancamentos-tarefa`), como a tela antiga.
 
 **Erros novos** (`errorCodes.js`, prefixo `ATIVIDADE_`):
 
@@ -304,4 +314,15 @@ Toda escrita devolve a atividade no formato do detalhe.
 | `ATIVIDADE_STATUS_INVALIDO` | 409 | ação não permitida no status atual; `details.status`, `details.acao` |
 | `ATIVIDADE_VERSAO_CONFLITO` | 409 | conflito de versão |
 | `ATIVIDADE_MOTIVO_INVALIDO` | 422 | motivo ausente, curto ou longo |
-| `ATIVIDADE_VINCULADA` | 409 | P2003 ao excluir cadastro usado por atividade, se algum DELETE de cadastro precisar traduzir |
+| `ATIVIDADE_VINCULADA` | 409 | excluir cadastro usado por atividade ou apontamento (P2003 reconhecido pelo nome da FK) |
+
+**Exclusão de cadastro usado por atividade.** Um tradutor novo, `shared/errors/vinculoAtividade.js`, substitui
+`vinculoApontamentoAtividade.js`. Ele reconhece as FKs `Atividade_*` e `AtividadeApontamento_*` com regex **ancorada**
+(`Atividade_…_fkey` é substring de `TipoAtividade_…_fkey`). Entra no `errorHandler` (P2003 e P2010/23503 → 409
+`ATIVIDADE_VINCULADA`) e nas exclusões de Tipo de Atividade, Grupo de Atividade e Unidade de Medida, que hoje usam o
+tradutor antigo. Assim, excluir tipo, grupo, área, setor, unidade, tarefa, bem ou centro usado por atividade devolve
+409, nunca o 403 genérico (lição da #259).
+
+**Lote de estoque.** O ramo de `estoqueLoteNotaService.js` que conta `apontamentoAtividadeItemConsumoLote` sai, porque
+o delegate do Prisma deixa de existir. O motor FIFO e a reconciliação não mudam nesta fatia: as referências à origem
+do apontamento são protegidas por `to_regclass` e viram código morto inofensivo até a Fatia 3.
