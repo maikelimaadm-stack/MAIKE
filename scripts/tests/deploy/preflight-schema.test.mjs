@@ -32,6 +32,9 @@ const COLUNAS_OK = [
   { table_name: 'AbastecimentoBem', column_name: 'quantidade' },
   { table_name: 'AbastecimentoBem', column_name: 'unidade' },
   { table_name: 'TanqueBemProduto', column_name: 'produto_id' },
+  // D-PROD-198: a atividade (cabeçalho) e o apontamento do dia.
+  { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
+  { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -59,6 +62,8 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /Usuario\.papel_tenant/);
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.idade_minima_meses/);
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.curva_ganho_id/);
+  assert.match(r.falhas.join('\n'), /Atividade\.unidade_producao_sigla/);
+  assert.match(r.falhas.join('\n'), /AtividadeApontamento\.sequencia/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 
