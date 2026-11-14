@@ -65,6 +65,9 @@ DEFAULT`, FK para tabela antiga nem CHECK. Mesmo caminho da D-PROD-162/183: guar
 | `coeficiente_padrao` | string `^\d{1,10}(\.\d{1,4})?$` ou `null` (o `PADRAO_DECIMAL` do apontamento) | `0`/`0.0000` → 422 (ver 3.3); número JSON → 400 |
 | as 8 flags | `boolean` | **sem coerção**: valor não booleano no corpo BRUTO (`null`, `"true"`, `1`) → 400, como o `preValidation` da curva de ganho faz com número |
 
+Recusas do corpo bruto (400 `REQUEST_VALIDATION_FAILED`): flag não booleana → `reason: 'valor_deve_ser_booleano'`;
+coeficiente que não é texto nem `null` → `reason: 'valor_deve_ser_texto'`. O `preValidation` roda antes da guarda da
+tela (400 antes de 403), como na curva de ganho.
 `pode_ter_produto`, `pode_ter_maquina`, `pode_ter_implemento` e qualquer outra chave fora do schema → 400
 (`additionalProperties: false`, como hoje). `exige_area` passa a ser campo válido (era chave legada recusada).
 No POST, flag ausente = `false`; padrão ausente = `null`.
@@ -85,7 +88,7 @@ No POST, flag ausente = `false`; padrão ausente = `null`.
 Sem padrão: `*_id: null` e o objeto `null`. `coeficiente_padrao` sai com 4 casas (`toFixed(4)`, como o apontamento).
 Os objetos vêm do `include` do repository (lista e detalhe), sem N+1. Auditoria (`registrarEvento`) grava a forma pública.
 
-### 3.3 Regras do serviço (422 `TIPO_ATIVIDADE_PADRAO_INVALIDO`, `details: { field, reason }`)
+### 3.3 Regras do serviço (422 `TIPO_ATIVIDADE_PADRAO_INVALIDO`, `field` e `reason` no corpo, como o `errorHandler` faz com todo código)
 
 Conferidas **só quando o campo muda** (valor diferente do gravado; no POST, quando vem não nulo), dentro da transação:
 - centro de custo / de resultado: tem de existir **no cliente** (`reason: 'nao_encontrado'` — id de outro cliente é
@@ -100,7 +103,9 @@ Corrida com exclusão do cadastro: P2003 da FK nova na escrita do tipo → mesmo
 ### 3.4 Opções para o formulário (rota nova, escrita do tipo)
 
 `GET /tipos-atividade/opcoes/centros-custo?empresa_id=…` e `GET /tipos-atividade/opcoes/centros-resultado?empresa_id=…`
-→ `{ "itens": [{ "id", "numero", "nome" }] }`: só os **ativos** da empresa, ordenados por `numero`, no máximo 1000
+→ `{ "itens": [{ "id", "numero", "nome" }] }`: só os **ativos** da empresa, ordenados pelo **valor numérico** de `numero`
+(o número da sequência guardado como texto; números que não são só dígitos vêm por último, por texto), no máximo 1000
+— o corte de 1000 é feito na mesma ordem, no SQL
 (o teto de ativos por empresa da gestão). Guarda: quem pode **criar ou editar** tipo de atividade (não depende das
 telas de centros, como as opções do apontamento). `empresa_id` validado contra o cliente do `auth_context` (outra
 empresa / outro cliente → 404 da empresa, como no resto do repo). Rota nova entra em `config/mapa-manejo-scope.json`
@@ -113,13 +118,13 @@ Módulo puro `backend/src/modules/tiposAtividade/tipoAtividadePadroes.js` (sem P
 - `padroesParaAtividade(tipo, { empresaId })` → `{ centro_custo_id, centro_resultado_id, unidade_producao_id, coeficiente }`:
   o centro só vale se existir, estiver **ativo** e for da **mesma empresa** da atividade; a unidade só vale se ativa;
   senão `null`. Recebe o tipo como o repository devolve (com os 3 objetos incluídos);
-- `regrasDoTipo(tipo)` → objeto só com as 8 flags (booleanos).
+- `regrasDoTipo(tipo)` → objeto só com as 8 flags (booleanos; flag ausente sai `false`).
 A Fatia 2 usa esses dois no "Abrir atividade". Nenhum fluxo de produção chama isto nesta fatia.
 
 ## 4. Exclusões e relações inversas
 
 - `UnidadeMedida` tem exclusão física: com a FK nova, apagar a unidade usada como padrão gera P2003 →
-  traduzir em **409 `UNIDADE_MEDIDA_DELETE_BLOCKED`** (código que o front já conhece) reconhecendo a constraint
+  traduzir em **409 `UNIDADE_MEDIDA_DELETE_BLOCKED`** (código que o front já conhece; `details: { vinculo: 'tipo_atividade' }`) reconhecendo a constraint
   `TipoAtividade_cliente_id_unidade_producao_id_fkey` no erro (lição do hotfix #259: o módulo de unidade NUNCA consulta
   `TipoAtividade`). Hoje esse P2003 viraria o 403 enganoso do `errorHandler`.
 - `CentroCusto`/`CentroResultado` não têm exclusão física (só inativação): nada a traduzir; inativar um centro usado
