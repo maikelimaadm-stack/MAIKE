@@ -10,11 +10,15 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
- *  1. aplica as 44 migrations da main (todas menos a CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
- *     `20261114100000_cadcurvaganho_mensal` (D-PROD-190), que sobe aqui pelo
- *     Prisma direto, sem o runner: a guarda dela passa porque CADCURVAGANHO
- *     está vazia. Troca a estrutura de CADCURVAGANHO e não cria nem apaga
+ *  1. aplica as 45 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     da D-PROD-188 (`20261113400000_cadestacoes_cadastro`) e da D-PROD-189
+ *     (`20261113600000_cadcurvaganho_cadastro`) e as CONTRACT da D-PROD-187
+ *     (`20261113500000_categoria_manejo_cadcategoria`) e da D-PROD-191
+ *     (`20261114100000_cadcurvaganho_mensal`), posteriores a esta e aplicadas
+ *     aqui fora de ordem, pelo Prisma direto (sem a barreira do runner); as
+ *     guardas delas passam porque CategoriaManejo e CADCURVAGANHO estão vazias.
+ *     A D-PROD-191 troca a estrutura de CADCURVAGANHO e não cria nem apaga
  *     tabela (+1 migration, 0 tabela);
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das
  *     4 flags (inclusive um todo false e um inativo) e um LancamentoTarefa;
@@ -27,7 +31,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183 e a impressão na URL) e confere:
- *     45 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas
+ *     46 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas
  *     nessas 9, mesmas tabelas, `migrate diff` vazio e 2ª execução sem pendência.
  *
  * As funções são exportadas e reaproveitadas por
@@ -149,8 +153,9 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 44 migrations da main (todas as pastas menos a CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária.
- * Inclui a CONTRACT da D-PROD-190, sem o runner: a guarda dela passa com CADCURVAGANHO vazia.
+ * As 45 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária.
+ * Inclui as CONTRACT da D-PROD-187 e da D-PROD-191, sem o runner: as guardas delas passam com CategoriaManejo e
+ * CADCURVAGANHO vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-tt-drop-main-'));
@@ -231,7 +236,7 @@ export const TIPOS_SEMENTE = Object.freeze([
 ]);
 
 /**
- * Sementes no schema ANTIGO (44 migrations): por cliente, o Cliente, um GrupoAtividade, os TIPOS_SEMENTE (com as 4
+ * Sementes no schema ANTIGO (45 migrations): por cliente, o Cliente, um GrupoAtividade, os TIPOS_SEMENTE (com as 4
  * flags gravadas) e um LancamentoTarefa apontando para o tipo com as 4 flags true. `apenasFalse` semeia só os tipos
  * sem nenhum true (o banco "sem nada a perder").
  * @param {import('@prisma/client').PrismaClient} db
@@ -432,7 +437,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 45 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
+      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 46 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
         || !g.linhas_que_ficam_identicas || !g.demais_identicas || g.migrate_diff !== 0 || !g.segunda
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
     } finally {

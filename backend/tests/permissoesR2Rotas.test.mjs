@@ -118,7 +118,7 @@ const ESCRITAS = (c) => {
     ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
     ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['estação (DELETE)', 'DELETE', `/estacoes/${ID}?empresa_id=${E}`],
-    // D-PROD-189 — Curvas de Ganho de Peso: escrita guardada pela tela pec-curvas-ganho (12 GMD mensais, D-PROD-190).
+    // D-PROD-189 — Curvas de Ganho de Peso: escrita guardada pela tela pec-curvas-ganho (12 GMD mensais, D-PROD-191).
     ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', ...Object.fromEntries(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map((m) => [`gmd_${m}`, 0.5])) }],
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],

@@ -1,6 +1,6 @@
 /**
  * Rotas de Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD mensais
- * desde a D-PROD-190), tabela física
+ * desde a D-PROD-191), tabela física
  * "CADCURVAGANHO".
  *
  * Corpo e query fechados (`additionalProperties: false`, e o app usa

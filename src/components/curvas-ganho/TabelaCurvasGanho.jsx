@@ -5,7 +5,7 @@ import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { MESES, formatarGmd, formatarKg, gmdsDaCurva, resumoDaCurva } from "@/services/curvaGanhoCadastroService";
 
 /**
- * Chave das preferências de colunas. `_v2` desde a D-PROD-190: as colunas por
+ * Chave das preferências de colunas. `_v2` desde a D-PROD-191: as colunas por
  * estação saíram e entraram Média, Ganho no ano e os 12 meses. Com a chave
  * antiga, a preferência salva na D-PROD-189 (Nome, 3 GMD, Ativo) esconderia as
  * colunas novas, porque a grade descarta os ids desconhecidos e mantém o resto.
@@ -16,7 +16,7 @@ export const CURVAS_GANHO_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 240 },
   { id: "media_dia", label: "Média (kg/dia)", default: true, sortable: true, width: 140, align: "right" },
   { id: "ganho_ano", label: "Ganho no ano (kg)", default: true, sortable: true, width: 160, align: "right" },
-  // Os 12 meses (D-PROD-190): ocultos por padrão, ligados pela configuração de colunas.
+  // Os 12 meses (D-PROD-191): ocultos por padrão, ligados pela configuração de colunas.
   ...MESES.map((m) => ({ id: m.campo, label: `${m.curto} (kg/dia)`, default: false, sortable: true, width: 110, align: "right" })),
   { id: "observacoes", label: "Observações", default: false, sortable: true, width: 260 },
   {
@@ -37,7 +37,7 @@ const COLUNAS_RESUMO = new Set(["media_dia", "ganho_ano"]);
 
 /**
  * Valor numérico de uma coluna para ordenar: o GMD do mês, ou o resumo da
- * curva (média por dia e ganho no ano, D-PROD-190). `null` sem valor.
+ * curva (média por dia e ganho no ano, D-PROD-191). `null` sem valor.
  * @param {any} item @param {string} colId
  * @returns {number|null}
  */

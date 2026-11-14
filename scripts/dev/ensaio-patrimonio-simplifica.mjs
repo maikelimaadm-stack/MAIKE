@@ -8,17 +8,20 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 44 migrations da main (todas menos esta CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
- *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
- *     pelo Prisma direto, sem o runner e portanto sem a barreira de
- *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
- *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
- *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam. O
- *     mesmo vale para a CONTRACT `20261114100000_cadcurvaganho_mensal`
- *     (D-PROD-190), que troca a estrutura de CADCURVAGANHO: sobe aqui pelo
- *     Prisma direto e a guarda dela passa porque CADCURVAGANHO está vazia
- *     (+1 migration, 0 tabela);
+ *  1. aplica as 45 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e
+ *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
+ *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183),
+ *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187) e
+ *     `20261114100000_cadcurvaganho_mensal` (D-PROD-191), que sobem aqui pelo
+ *     Prisma direto, sem o runner e portanto sem a barreira de
+ *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa,
+ *     CategoriaManejo e CADCURVAGANHO estão vazias nessa hora (as sementes vêm
+ *     depois e não criam nenhuma das três). As CONTRACT não criam nem apagam
+ *     tabela (a D-PROD-187 só renomeia; a D-PROD-191 troca a estrutura de
+ *     CADCURVAGANHO: +1 migration, 0 tabela): as contagens de tabelas não mudam
+ *     com elas;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -30,7 +33,7 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 45 concluídas, 82 tabelas, as 7 vazias, dono e ACL,
+ *     na URL) e confere: 46 concluídas, 82 tabelas, as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 75 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
@@ -157,9 +160,9 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 44 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
- * temporária. Inclui as CONTRACT da D-PROD-183 e da D-PROD-190, sem o runner: as guardas delas passam com o
- * TipoTarefa e a CADCURVAGANHO vazios.
+ * As 45 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
+ * temporária. Inclui as CONTRACT da D-PROD-183, da D-PROD-187 e da D-PROD-191, sem o runner: as guardas delas
+ * passam com TipoTarefa, CategoriaManejo e CADCURVAGANHO vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
@@ -272,7 +275,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (44 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (45 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.

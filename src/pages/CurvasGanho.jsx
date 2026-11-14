@@ -29,7 +29,7 @@ const QUERY_RAIZ = "curvas-ganho";
 
 /**
  * Cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189; mensal desde a
- * D-PROD-190), tabela CADCURVAGANHO.
+ * D-PROD-191), tabela CADCURVAGANHO.
  *
  * GMD (kg/dia) de cada mês, de janeiro a dezembro, da fazenda selecionada no
  * topo. A curva não depende das Estações, e nada mais lê as curvas ainda: é só

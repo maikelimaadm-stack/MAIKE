@@ -4,7 +4,7 @@
  * Uma estação é um período de ÁGUAS, TRANSIÇÃO ou SECA, com data de início e
  * de fim, numa fazenda (empresa). Primeira fatia, SEM vínculo com nenhum outro
  * cadastro: nada lê as estações ainda. A curva de ganho NÃO usa as estações
- * (é mensal, D-PROD-190); relatórios e planejamento ficam para missões próprias.
+ * (é mensal, D-PROD-191); relatórios e planejamento ficam para missões próprias.
  *
  * Regras:
  *  - tenant só de `auth_context` (R11); a fazenda vem do corpo/query e precisa

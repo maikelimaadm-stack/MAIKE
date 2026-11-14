@@ -1,6 +1,6 @@
 /**
  * Repositório de Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD
- * mensais desde a D-PROD-190), tabela física
+ * mensais desde a D-PROD-191), tabela física
  * "CADCURVAGANHO" (model Prisma `CadCurvaGanho`, delegate `cadCurvaGanho`).
  *
  * Toda leitura é pela chave do tenant E da fazenda: uma curva de outra fazenda
