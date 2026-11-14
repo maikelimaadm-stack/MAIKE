@@ -596,14 +596,15 @@ describe('D-PROD-195 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.deepEqual(flagsDe(await linhaDoTipo(t.id)), esperado);
   });
 
-  test('flag com valor não booleano no corpo BRUTO (null, "true", "false", 1, 0) → 400 no POST e no PATCH, sem coerção; nada gravado', async () => {
+  test('flag com valor não booleano no corpo BRUTO (null, "true", "false", 1, 0) → 400 valor_deve_ser_booleano no POST e no PATCH, sem coerção; nada gravado', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Base', { exige_area: true }));
     for (const f of FLAGS) {
+      const esperado = [400, 'REQUEST_VALIDATION_FAILED', f, 'valor_deve_ser_booleano'];
       for (const v of [null, 'true', 'false', 1, 0]) {
         const rotulo = `${f}=${JSON.stringify(v)}`;
-        await recusaValidacao(s.clienteId, () => criarTipo(s.token, base(s, `Novo ${f}`, { [f]: v })), `POST ${rotulo}`);
-        await recusaValidacao(s.clienteId, () => patchTipo(s.token, t.id, { [f]: v }), `PATCH ${rotulo}`);
+        await recusa(s.clienteId, () => criarTipo(s.token, base(s, `Novo ${f}`, { [f]: v })), esperado, `POST ${rotulo}`);
+        await recusa(s.clienteId, () => patchTipo(s.token, t.id, { [f]: v }), esperado, `PATCH ${rotulo}`);
       }
     }
     assert.deepEqual(flagsDe(await linhaDoTipo(t.id)), { ...flagsDe(SEM_PADROES), exige_area: true }, 'flags intactas');
@@ -661,15 +662,19 @@ describe('D-PROD-195 — TipoAtividade: defaults, flags e forma pública', () =>
     assert.equal((await linhaDoTipo(t.id)).coeficiente_padrao.toFixed(4), '2.5000', 'coeficiente intacto');
   });
 
-  test('coeficiente_padrao fora do formato (negativo, vírgula, 11 dígitos, 5 casas, espaço, vazio, expoente) ou número JSON → 400 no POST e no PATCH; nada gravado', async () => {
+  test('coeficiente_padrao fora do formato (negativo, vírgula, 11 dígitos, 5 casas, espaço, vazio, expoente) → 400; número JSON ou booleano → 400 valor_deve_ser_texto (POST e PATCH); nada gravado', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Base', { coeficiente_padrao: '2.5' }));
-    const invalidos = ['-1', '1,5', '12345678901', '1.23456', ' 1.5', '1.5 ', '', '1.', '.5', 'abc', '1e3', '+1', '-0'];
-    const numerosJson = [1.5, 0, 2, -1];
-    for (const v of [...invalidos, ...numerosJson]) {
+    for (const v of ['-1', '1,5', '12345678901', '1.23456', ' 1.5', '1.5 ', '', '1.', '.5', 'abc', '1e3', '+1', '-0']) {
       const rotulo = `coeficiente_padrao=${JSON.stringify(v)}`;
       await recusaValidacao(s.clienteId, () => criarTipo(s.token, base(s, 'Novo', { coeficiente_padrao: v })), `POST ${rotulo}`);
       await recusaValidacao(s.clienteId, () => patchTipo(s.token, t.id, { coeficiente_padrao: v }), `PATCH ${rotulo}`);
+    }
+    const naoTexto = [400, 'REQUEST_VALIDATION_FAILED', 'coeficiente_padrao', 'valor_deve_ser_texto'];
+    for (const v of [1.5, 0, 2, -1, true]) {
+      const rotulo = `coeficiente_padrao=${JSON.stringify(v)} (sem coerção para texto)`;
+      await recusa(s.clienteId, () => criarTipo(s.token, base(s, 'Novo', { coeficiente_padrao: v })), naoTexto, `POST ${rotulo}`);
+      await recusa(s.clienteId, () => patchTipo(s.token, t.id, { coeficiente_padrao: v }), naoTexto, `PATCH ${rotulo}`);
     }
     assert.equal((await linhaDoTipo(t.id)).coeficiente_padrao.toFixed(4), '2.5000', 'coeficiente intacto');
   });
@@ -971,6 +976,9 @@ describe('D-PROD-195 — TipoAtividade: opções de centros do formulário (GET 
     for (const n of ['30', '4', '300']) await s.cr(e3, n, `RESULTADO ${n}`);
     assert.deepEqual((await opcoesOk(s.token, 'centros-custo', e3.id)).map((c) => c.numero), ['1', '2', '10', '100']);
     assert.deepEqual((await opcoesOk(s.token, 'centros-resultado', e3.id)).map((c) => c.numero), ['4', '30', '300']);
+    // Número que não é só dígitos (cadastro antigo ou importado) vai para o fim, em ordem de texto.
+    for (const n of ['B7', '5', 'A9']) await s.cc(e3, n, `MISTO ${n}`);
+    assert.deepEqual((await opcoesOk(s.token, 'centros-custo', e3.id)).map((c) => c.numero), ['1', '2', '5', '10', '100', 'A9', 'B7']);
 
     // O teto corta na MESMA ordem: com 1001 ativos numerados 1..1001 (sem zeros à esquerda), saem 1..1000
     // — em ordem de texto o corte deixaria '999' de fora e manteria '1001'.

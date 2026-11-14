@@ -226,6 +226,7 @@ describe('D-PROD-195 — exclusão de unidade usada como unidade de produção d
 
     const r = await req('DELETE', `/unidades-medida/${ha.id}`, token);
     assert.deepEqual([r.statusCode, r.json().code], [409, 'UNIDADE_MEDIDA_DELETE_BLOCKED'], r.body);
+    assert.deepEqual(r.json().details, { vinculo: 'tipo_atividade' }, 'o vínculo que barrou');
     assert.equal(await prisma().unidadeMedida.count({ where: { id: ha.id } }), 1, 'a unidade continua');
     assert.deepEqual(await auditoriaDaUnidade(clienteId, ha.id), auditAntes, 'nenhuma auditoria de exclusão');
     assert.deepEqual(await prisma().tipoAtividade.findMany({ where: { cliente_id: clienteId }, orderBy: { id: 'asc' } }), tiposAntes, 'tipos intactos (linhas completas)');
