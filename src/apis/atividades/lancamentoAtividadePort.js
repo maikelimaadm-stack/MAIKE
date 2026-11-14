@@ -153,7 +153,17 @@ const comFiltros = (caminho, permitidas, filtros) => {
 export const montarCaminhoListagem = (filtros = {}) => comFiltros(CAMINHO, FILTROS_LISTA, filtros);
 
 /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
-export const montarCaminhoOpcoes = (recurso, filtros = {}) => comFiltros(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_OPCOES, filtros);
+export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
+  const caminho = comFiltros(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_OPCOES, filtros);
+  if (recurso !== 'bens') return caminho;
+  // Máquina da atividade: só MAQUINA, VEICULO e EQUIPAMENTO (como a tela antiga); nunca benfeitoria ou implemento.
+  const params = new URLSearchParams();
+  for (const natureza of NATUREZAS_MAQUINA_ATIVIDADE) params.append('natureza', natureza);
+  return `${caminho}${caminho.includes('?') ? '&' : '?'}${params.toString()}`;
+};
+
+/** Naturezas de bem aceitas como máquina da atividade. */
+export const NATUREZAS_MAQUINA_ATIVIDADE = Object.freeze(['MAQUINA', 'VEICULO', 'EQUIPAMENTO']);
 
 /** @param {string} id */
 const daAtividade = (id) => `${CAMINHO}/${encodeURIComponent(id)}`;
