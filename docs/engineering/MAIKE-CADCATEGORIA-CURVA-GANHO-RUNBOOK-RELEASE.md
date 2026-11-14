@@ -1,6 +1,6 @@
 # MAIKE — Categoria de Manejo com Curva de Ganho: runbook de release CONTRACT (D-PROD-195)
 
-> **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
+> **Estado: EXECUTADO em 2026-11-14 14:51:56 UTC (caminho B). `SCHEMA_APPLIED_PROD: SIM`.** Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
@@ -162,4 +162,19 @@ transação tinha guarda: exatamente uma fazenda com categorias e nenhuma CURVA
 PADRÃO nela. Escrita direta, sem auditoria da aplicação. A ligação das categorias
 fica com a migration (passos acima).
 
-_(aplicação da migration: vazio — preencher com data/hora UTC, caminho usado, GO citado, resultado do §4.)_
+**Aplicação da migration (2026-11-14 14:51:56 UTC, caminho B).** GO do proprietário:
+"sim quanto você quiser enviar alguma coisa para autorizar a migração me envie" e
+"Tá já vai me enviar a autorização ?", com a aprovação da própria chamada no conector
+Supabase (desvio da D-PROD-74 só para esta migration). Preflight (§2) às 14:46 UTC:
+`system_identifier` 7692130048193495360, 49 concluídas e 0 com falha, coluna ausente,
+85 tabelas, 1 fazenda com 10 categorias e exatamente 1 CURVA PADRÃO. Uma
+`execute_sql` com o §3 (guarda `n_ok = 49`, `migration.sql` integral do commit
+`3295a12b`, SHA-256 `b509ee75…68fb`, `INSERT` com o checksum pinado).
+
+Conferência (§4): a linha da migration com o checksum pinado, `rolled_back_at` nulo e
+1 passo; **50** concluídas e 0 com falha; `curva_ganho_id` `NOT NULL`; as **10**
+categorias ligadas à CURVA PADRÃO da fazenda; FK
+`CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey` e os índices
+`CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_idx` e
+`CADCURVAGANHO_cliente_id_empresa_id_id_key` presentes; 85 tabelas; RLS de
+`CADCATEGORIA` ligado sem FORCE; `get_advisors` (segurança) sem alerta.

@@ -7162,4 +7162,6 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md).
 
+**Nota de aplicação (2026-11-14).** A migration `20261114200000_cadcategoria_curva_ganho` foi aplicada em produção às 14:51:56 UTC pelo **caminho B** (conector Supabase, uma `execute_sql` com guardas, `migration.sql` integral e `INSERT` em `_prisma_migrations` com o checksum pinado), **antes do merge**, com GO escrito do proprietário (desvio da D-PROD-74 só para esta migration). Conferência: 50/0 migrations, coluna `NOT NULL`, as 10 categorias ligadas à CURVA PADRÃO, FK e índices presentes, 85 tabelas, `get_advisors` sem alerta. Registro no §7 do runbook.
+
 <!-- Próxima decisão: D-PROD-196 -->

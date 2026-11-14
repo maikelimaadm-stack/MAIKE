@@ -44,7 +44,7 @@ curva usar, e várias categorias podem usar a mesma.
 
 ## 4. Release
 
-1. A migration é **CONTRACT** e **não foi aplicada em nenhum banco remoto**.
+1. A migration é **CONTRACT** e foi **aplicada em produção em 2026-11-14 14:51:56 UTC** (caminho B, GO escrito do proprietário; conferência no §7 do runbook).
 2. Ordem: análise local (o GitHub Actions do proprietário está pausado) → GO do
    proprietário → preflight → aplicação (caminho A com `--contract D-PROD-195`, ou
    B só com GO escrito e específico) → conferência → **merge imediato** → deploy →
@@ -58,4 +58,11 @@ curva usar, e várias categorias podem usar a mesma.
 
 ## 5. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+Com o GitHub Actions do proprietário pausado, a análise foi local.
+
+| Verificação | Resultado |
+|---|---|
+| Revisão independente do commit `a2de2c56` (2 lentes, um cético por achado) | 3 achados confirmados, todos corrigidos em `3295a12b`: (1) POST de categoria gravado na fila offline pela versão anterior travaria a fila inteira → criar categoria passa a ser só online e o item antigo fica retido; (2) criar categoria offline já não era possível sem as opções de curva → registrado como decisão; (3) a janela entre a migration e o deploy também afeta excluir curva em uso (403 do runtime antigo) → docs corrigidas |
+| smoke da correção (`categoriaManejoCriacaoOnline`, `categoriaManejoEnxuto`, `categoriaManejoCurvaGanho`, `offlineRuntime`) | 56/56 |
+| `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | em andamento no momento do merge (etapas até `lint` passaram; `test:backend` sem nenhuma falha até então); o merge não esperou o fim porque, com a migration aplicada, criar categoria em produção fica quebrado até o deploy. O resultado final é registrado no fechamento |
+| aplicação em produção e conferência | ver runbook §7 |
