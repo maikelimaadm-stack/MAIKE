@@ -181,36 +181,9 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
   });
 });
 
-describe("Prévia do ícone oficial", () => {
-  it("troca de categoria troca a imagem; sem vínculo não consulta o catálogo; imagem quebrada usa fallback", async () => {
-    const { default: Previa } = await import("@/components/catalogoGlobal/IconeOficialLotePreview");
-    const { rerender } = wrap(<Previa categoriaVisualId="cv-bez" categoriaManejoSelecionada />);
-    expect((await screen.findByAltText("Ícone oficial do lote")).getAttribute("src")).toBe("https://cdn.exemplo/v2/bez.png");
-
-    rerender(<Previa categoriaVisualId="cv-gar" categoriaManejoSelecionada />);
-    await waitFor(() =>
-      expect(screen.getByAltText("Ícone oficial do lote").getAttribute("src")).toBe("https://cdn.exemplo/v1/gar.png"),
-    );
-
-    rerender(<Previa categoriaVisualId={null} categoriaManejoSelecionada />);
-    expect(screen.queryByAltText("Ícone oficial do lote")).toBeNull();
-    expect(screen.getByTestId("icone-oficial-lote").getAttribute("data-status")).toBe("mapeamento_pendente");
-
-    rerender(<Previa categoriaVisualId="cv-bez" categoriaManejoSelecionada />);
-    fireEvent.error(await screen.findByAltText("Ícone oficial do lote"));
-    expect(screen.queryByAltText("Ícone oficial do lote")).toBeNull();
-    expect(screen.getByTestId("icone-oficial-lote").getAttribute("data-status")).toBe("ok");
-  });
-
-  it("sem vínculo não chama a API", async () => {
-    const { default: Previa } = await import("@/components/catalogoGlobal/IconeOficialLotePreview");
-    wrap(<Previa categoriaVisualId={null} />);
-    expect(screen.getByTestId("icone-oficial-lote").getAttribute("data-status")).toBe("sem_categoria");
-    expect(api.icones).not.toHaveBeenCalled();
-  });
-});
-
-describe("FormularioLote mostra o ícone da categoria de manejo escolhida", () => {
+// D-PROD-191: a prévia do ícone oficial saiu do Formulário de Lote; o ícone do lote vem do
+// código (tests/smoke/iconeLoteFormulario.test.jsx prova a prévia nova, offline).
+describe("FormularioLote sem prévia do ícone oficial (D-PROD-191)", () => {
   const LOTE = {
     id: "lote-1", nome: "LOTE 1", quantidade_cabecas: 10, area_entrada_id: "a1", setor_id: "s1",
     motivo_entrada: "COMPRA", categoria_manejo_id: "cm-bez", data_entrada: "2026-10-01",
@@ -224,40 +197,38 @@ describe("FormularioLote mostra o ícone da categoria de manejo escolhida", () =
     );
     return { onSubmit };
   };
-  const status = () => screen.getByTestId("icone-oficial-lote").getAttribute("data-status");
+  const semCatalogo = () => {
+    expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
+    expect(screen.queryByAltText("Ícone oficial do lote")).toBeNull();
+  };
 
   it("novo lote sem categoria: sem dica sob o campo (D-PROD-164)", async () => {
     await renderLote({ initialData: null, isEditing: false });
     expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
   });
 
-  it("editar lote: prévia real da categoria vinculada", async () => {
+  it("editar lote cuja categoria ainda está vinculada ao catálogo: nada da prévia oficial, nem consulta ao catálogo", async () => {
     await renderLote({ initialData: LOTE, isEditing: true });
-    expect((await screen.findByAltText("Ícone oficial do lote")).getAttribute("src")).toBe("https://cdn.exemplo/v2/bez.png");
-    expect(screen.getByTestId("icone-oficial-lote").getAttribute("data-icone-id")).toBe("i-bez");
-  });
-
-  it("duplicar lote: prévia real da categoria do registro duplicado", async () => {
-    await renderLote({ initialData: { ...LOTE, id: undefined, categoria_manejo_id: "cm-gar", _isDuplicate: true }, isEditing: true });
-    expect((await screen.findByAltText("Ícone oficial do lote")).getAttribute("src")).toBe("https://cdn.exemplo/v1/gar.png");
-  });
-
-  it("categoria de manejo sem vínculo: pendente, sem consultar ícones", async () => {
-    await renderLote({ initialData: { ...LOTE, categoria_manejo_id: "cm-sem" }, isEditing: true });
     await waitFor(() => expect(api.categoriasManejo).toHaveBeenCalled());
-    await waitFor(() => expect(status()).toBe("mapeamento_pendente"));
-    expect(api.icones).not.toHaveBeenCalled();
+    semCatalogo();
+    for (const f of [api.tipos, api.categorias, api.icones]) expect(f).not.toHaveBeenCalled();
   });
 
-  it("catálogo fora do ar: aviso e o lote salva com payload sem campo de ícone", async () => {
-    api.icones.mockRejectedValue(new Error("rede"));
+  it("duplicar lote: idem", async () => {
+    await renderLote({ initialData: { ...LOTE, id: undefined, categoria_manejo_id: "cm-gar", _isDuplicate: true }, isEditing: true });
+    await waitFor(() => expect(api.categoriasManejo).toHaveBeenCalled());
+    semCatalogo();
+  });
+
+  it("o lote salva com payload sem campo de ícone", async () => {
     const { onSubmit } = await renderLote({ initialData: LOTE, isEditing: true });
-    await waitFor(() => expect(status()).toBe("erro"));
+    await waitFor(() => expect(api.categoriasManejo).toHaveBeenCalled());
     fireEvent.submit(document.getElementById("formulario-lote-base1"));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0];
     // Edição de lote já lançado não reenvia a categoria (é a da entrada, D-PROD-85).
     expect(payload).not.toHaveProperty("categoria_manejo_id");
     expect(Object.keys(payload).filter((k) => /icone|catalogo/i.test(k))).toEqual([]);
+    semCatalogo();
   });
 });

@@ -49,7 +49,7 @@ Existem imagens em `public/icons/`. Antes de substituir uma delas, procure quem 
 
 Tela: `src/pages/ConfiguracoesGerais.jsx`; componente: `src/components/configuracoes/GerenciadorIcones.jsx`.
 
-Campos principais: `tipo_entidade`, `categoria`, `icone_url`, `sub_icone_url`, `cor_padrao` e `categorias_misto`. A imagem é enviada e a URL fica no cadastro; não é necessariamente um SVG dentro do repositório.
+Campos principais: `tipo_entidade`, `categoria`, `icone_url`, `sub_icone_url` e `cor_padrao`. A imagem é enviada e a URL fica no cadastro; não é necessariamente um SVG dentro do repositório. O campo `categorias_misto` só servia ao Lote e saiu da tela.
 
 **Lote não é mais cadastrado aqui (D-PROD-191).** O gerenciador oferece Ponto, Área, Linha, Prioridade de Tarefa e Ícone do Menu Mobile. As linhas antigas de `tipo_entidade = 'Lote'` continuam no banco, órfãs e sem uso; a limpeza é outra fatia.
 
