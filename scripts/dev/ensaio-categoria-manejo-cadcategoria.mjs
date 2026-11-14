@@ -34,7 +34,10 @@
  *     CONTRACT toca. A CONTRACT da D-PROD-195 (`20261114200000_cadcategoria_curva_ganho`,
  *     curva de ganho obrigatória em CADCATEGORIA) fica FORA da partida
  *     (`NOMES_DEPOIS_DO_CONTRACT`): ela exige a tabela já renomeada e sobe pelo runner
- *     no GREEN, logo depois desta;
+ *     no GREEN, logo depois desta; e a EXPAND da D-PROD-198
+ *     (`20261114400000_cadcategoria_peso_objetivo`, CADCATEGORIA.peso_objetivo_kg), que
+ *     no dia desta CONTRACT ainda não existia e também exige o nome novo, fica fora da
+ *     partida do mesmo jeito e sobe no GREEN por último (EXPAND: sem autorização);
  *  2. semeia, por cliente, 4 categorias de manejo: uma com o legado de
  *     produção (raca, categoria_oficial e os 12 GMDs 0.0000, ganho nulo), uma
  *     com ganho e GMDs variados, uma só com o vínculo do ícone e uma sem nada
@@ -52,12 +55,14 @@
  *  6. o runner oficial com a conferência exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187
  *     também recusa: a D-PROD-195 pende junto (nunca duas CONTRACT de uma vez);
  *  7. aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a impressão na
- *     URL), esta e depois a D-PROD-195, e confere: todas concluídas (CONCLUIDAS_DEPOIS; esta
- *     depois da CADCURVAGANHO, do ApontamentoAtividade, dos itens do apontamento e da
- *     CONTRACT da D-PROD-194, e a D-PROD-195 por último), 84 tabelas,
+ *     URL), esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198, e confere: todas
+ *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
+ *     dos itens do apontamento e das CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-199,
+ *     e a D-PROD-195 e a D-PROD-198 por último), 84 tabelas,
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
- *     categoria na CURVA PADRÃO da fazenda), linhas idênticas nessas 12, os 4
+ *     categoria na CURVA PADRÃO da fazenda) e a peso_objetivo_kg da D-PROD-198 (vazia),
+ *     linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
  *     PrismaClient lendo `categoriaManejo.findMany()` e 2ª execução sem pendência.
  *
@@ -92,7 +97,9 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
  * D-PROD-193 — todas as pastas de nome POSTERIOR a esta CONTRACT, em ordem de nome, contadas pela pasta. A partida
  * sobe pelo Prisma direto, que aplica pela ordem dos nomes: as duas acima vêm primeiro e as que vieram DEPOIS delas
  * (os itens do apontamento, `20261113800000_apontamento_atividade_item`, e a CONTRACT da D-PROD-194,
- * `20261114100000_cadcurvaganho_mensal`) também ficam concluídas antes desta CONTRACT.
+ * `20261114100000_cadcurvaganho_mensal`, a da D-PROD-197, `20261114300000_tipo_atividade_defaults`, que só toca
+ * TipoAtividade, e a da D-PROD-199, `20261114500000_atividade_cabecalho`, que só toca as 3 tabelas do apontamento
+ * antigo) também ficam concluídas antes desta CONTRACT, menos as NOMES_DEPOIS_DO_CONTRACT.
  * Em produção essas entram depois desta CONTRACT (já aplicada); não dependem do formato desta tabela e ela não as
  * toca, então a ordem entre elas não muda o que o ensaio prova (como a P1-03, D-PROD-185, que produção aplicou depois
  * desta e aqui sobe antes).
@@ -103,7 +110,13 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
  * desta (em produção esta já está concluída e ela entra depois da D-PROD-194).
  */
 export const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA]);
+/**
+ * D-PROD-198: a EXPAND do peso objetivo (`ALTER TABLE "CADCATEGORIA" ADD COLUMN "peso_objetivo_kg"`), de nome
+ * posterior, também exige o nome NOVO e no dia desta CONTRACT ainda não existia. Fica fora da partida, como a
+ * D-PROD-195, e sobe no GREEN depois dela, pela ordem dos nomes (EXPAND: o runner não pede autorização para ela).
+ */
+export const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
@@ -119,11 +132,12 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT e as NOMES_DEPOIS_DO_CONTRACT),
  * contadas pela pasta para não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46
  * pastas; D-PROD-190, 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49; a curva na categoria,
- * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, e a Atividade cabeçalho,
- * D-PROD-199, 51 → 52, as duas na partida); e tabelas em public (84: 83 com a do ApontamentoAtividade, D-PROD-190, + as
- * 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-199, que sobe na partida pela ordem dos
- * nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca CategoriaManejo; a
- * D-PROD-194, a D-PROD-195 e a D-PROD-197 não criam nem apagam tabela; iguais antes e depois: só rename).
+ * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, na partida; o peso
+ * objetivo, D-PROD-198, 51 → 52, fora da partida; e a Atividade cabeçalho, D-PROD-199, 52 → 53, na partida); e tabelas
+ * em public (84: 83 com a do ApontamentoAtividade, D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193, − essas 3
+ * + as 2 da atividade, D-PROD-199, que sobe na partida pela ordem dos nomes: a guarda dela só olha as 3 tabelas do
+ * apontamento antigo, vazias aqui, e ela não toca CategoriaManejo; a D-PROD-194, a D-PROD-195, a D-PROD-197 e a
+ * D-PROD-198 não criam nem apagam tabela; iguais antes e depois: só rename).
  */
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
@@ -146,8 +160,8 @@ export const COLUNAS = Object.freeze([
 export const COLUNAS_QUE_FICAM = Object.freeze([
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'idade_minima_meses', 'idade_maxima_meses', 'ativo', 'createdAt', 'updatedAt',
 ]);
-/** Depois de TODAS as migrations: as 12 e, no fim (attnum), a curva_ganho_id da D-PROD-195. */
-export const COLUNAS_DEPOIS = Object.freeze([...COLUNAS_QUE_FICAM, 'curva_ganho_id']);
+/** Depois de TODAS as migrations: as 12 e, no fim (attnum), a curva_ganho_id da D-PROD-195 e a peso_objetivo_kg da D-PROD-198. */
+export const COLUNAS_DEPOIS = Object.freeze([...COLUNAS_QUE_FICAM, 'curva_ganho_id', 'peso_objetivo_kg']);
 /** As 28 colunas de CategoriaManejo antes da CONTRACT, na ordem física (o vínculo do ícone veio depois, em 20261029200000). */
 export const COLUNAS_ANTES = Object.freeze([
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'raca', 'idade_minima_meses', 'idade_maxima_meses',
@@ -658,7 +672,7 @@ if (ehEntradaDireta()) {
         recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(comAs2.saida) && comAs2.saida.includes(`${NOME_CURVA_NA_CATEGORIA} (D-PROD-195)`),
         nada_mudou: JSON.stringify(await retrato(db)) === JSON.stringify(partida),
       };
-      // GREEN no alvo local (sem a conferência), com a impressão na URL: esta e depois a D-PROD-195.
+      // GREEN no alvo local (sem a conferência), com a impressão na URL: esta, depois a D-PROD-195 e a D-PROD-198 (EXPAND).
       const green = await aplicarPeloRunner(comImpressao(url, imp.impressao));
       const depois = await retrato(db);
       const curvas = await db.$queryRawUnsafe(`SELECT c.cliente_id::text AS cliente, c.curva_ganho_id AS curva FROM public."${TABELA_NOVA}" c ORDER BY c.id COLLATE "C"`);
@@ -666,8 +680,8 @@ if (ehEntradaDireta()) {
         status: green.status,
         historico: await historico(db),
         // A CONTRACT foi aplicada DEPOIS da CADCURVAGANHO e do ApontamentoAtividade, de nome posterior (a ordem de
-        // produção), e dos itens do apontamento (D-PROD-193) e da CONTRACT da D-PROD-194, que aqui sobem antes dela; a
-        // D-PROD-195 por último.
+        // produção), e dos itens do apontamento (D-PROD-193) e das CONTRACT da D-PROD-194 e da D-PROD-197, que aqui sobem
+        // antes dela; a D-PROD-195 e a D-PROD-198 por último.
         ultimas_aplicadas: (await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1 + NOMES_DEPOIS_DO_CONTRACT.length)),
         tabelas: depois.tabelas,
         colunas: await colunasDaTabela(db),

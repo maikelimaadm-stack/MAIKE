@@ -181,6 +181,34 @@ const validarSexo = (dados, criando) => {
   return { ...dados, sexo: SEXO_GRAVADO[sexo] };
 };
 
+/**
+ * D-PROD-198: peso objetivo (kg por cabeça), opcional. Vazio/null limpa; número
+ * finito > 0 e até 3.000 kg (o mesmo teto por cabeça do manejo), 2 casas.
+ */
+const PESO_OBJETIVO_MAXIMO_KG = 3000;
+/**
+ * Número digitado em pt-BR: "1.200" e "1.200,5" são milhar (não 1,2);
+ * "450,5" e "450.5" são decimais. NaN quando não é número.
+ * @param {string} texto
+ */
+const numeroPtBr = (texto) => {
+  const t = texto.trim();
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) return Number(t.replace(/\./g, '').replace(',', '.'));
+  if (!/^\d+([.,]\d+)?$/.test(t)) return NaN;
+  return Number(t.replace(',', '.'));
+};
+
+const validarPesoObjetivo = (dados) => {
+  if (!tem(dados, 'peso_objetivo_kg')) return dados;
+  const bruto = dados.peso_objetivo_kg;
+  if (bruto === null || bruto === undefined || (typeof bruto === 'string' && bruto.trim() === '')) return { ...dados, peso_objetivo_kg: null };
+  const n = typeof bruto === 'number' ? bruto : typeof bruto === 'string' ? numeroPtBr(bruto) : NaN;
+  if (!Number.isFinite(n) || n <= 0 || n > PESO_OBJETIVO_MAXIMO_KG) {
+    throw campoInvalido('peso_objetivo_kg', 'peso_objetivo_invalido', `o peso objetivo deve ser maior que 0 e até ${PESO_OBJETIVO_MAXIMO_KG} kg`);
+  }
+  return { ...dados, peso_objetivo_kg: Math.round(n * 100) / 100 };
+};
+
 const CAMPO_CURVA = 'curva_ganho_id';
 /** D-PROD-195 — FK composta da categoria para a curva (mesma fazenda). */
 const FK_DA_CURVA = 'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey';
@@ -276,6 +304,8 @@ export const comoPublico = (registro) => ({
   // D-PROD-195: a curva de ganho e o nome dela (da relação; null se a linha veio sem ela).
   curva_ganho_id: registro.curva_ganho_id ?? null,
   curva_ganho_nome: /** @type {{ nome?: string } | null | undefined} */ (registro.curvaGanho)?.nome ?? null,
+  // D-PROD-198: peso objetivo (kg/cabeça), opcional.
+  peso_objetivo_kg: registro.peso_objetivo_kg === null || registro.peso_objetivo_kg === undefined ? null : Number(registro.peso_objetivo_kg),
   ativo: registro.ativo,
   created_date: registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
   updated_date: registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
@@ -295,7 +325,7 @@ export const criar = async (contexto, entrada) => {
   const criado = await comFkDaCurvaEstavel(() => prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = {
-      ...(await validarCurva(tx, auth.clienteId, validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null), null)),
+      ...(await validarCurva(tx, auth.clienteId, validarPesoObjetivo(validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), true), null)), null)),
       cliente_id: auth.clienteId,
     };
 
@@ -316,7 +346,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await comFkDaCurvaEstavel(() => prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const dados = await validarCurva(tx, auth.clienteId, validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente), existente);
+    const dados = await validarCurva(tx, auth.clienteId, validarPesoObjetivo(validarFaixaIdade(validarSexo(colunasDoCorpo(entrada), false), existente)), existente);
     // Corpo só com chaves legadas (ou só ecos do servidor): nada a gravar.
     // Mesmo desenho da D-PROD-181 — não toca a linha (nem `updatedAt`) e a
     // auditoria registra a edição com antes = depois.

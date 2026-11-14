@@ -23,6 +23,8 @@ const COLUNAS_OK = [
   { table_name: 'CADCATEGORIA', column_name: 'idade_minima_meses' },
   // D-PROD-195: a curva de ganho obrigatória da categoria.
   { table_name: 'CADCATEGORIA', column_name: 'curva_ganho_id' },
+  // D-PROD-198: peso objetivo da categoria.
+  { table_name: 'CADCATEGORIA', column_name: 'peso_objetivo_kg' },
   { table_name: 'Lote', column_name: 'excluido_em' },
   { table_name: 'Lote', column_name: 'excluido_por_usuario_id' },
   { table_name: 'Cliente', column_name: 'sessao_epoca' },
@@ -62,6 +64,7 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /Usuario\.papel_tenant/);
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.idade_minima_meses/);
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.curva_ganho_id/);
+  assert.match(r.falhas.join('\n'), /CADCATEGORIA\.peso_objetivo_kg/);
   assert.match(r.falhas.join('\n'), /Atividade\.unidade_producao_sigla/);
   assert.match(r.falhas.join('\n'), /AtividadeApontamento\.sequencia/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
