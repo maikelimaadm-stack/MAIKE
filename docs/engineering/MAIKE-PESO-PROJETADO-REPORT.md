@@ -34,4 +34,25 @@ Runbook: [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNB
 
 ## 4. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+**`npm run verify:all`** (local, Postgres 16, `maike_verify`; GitHub Actions pausadas): 40 etapas, 38 PASS na primeira rodada.
+- `test:backend` passou: 899 + 1.978 testes, 0 falhas.
+- Duas etapas falharam e foram corrigidas:
+  - `typecheck:backend`: TS2339, porque o item do projetor ganhava `chave` depois de criado. Agora `chave` nasce no literal.
+  - `test:smoke`: o CM3 de `manejoServices` não esperava `peso_objetivo_kg: null` no corpo enxuto.
+- Depois da correção, as duas etapas rodaram de novo e passaram, junto com `gate:types` e o lint dos arquivos tocados. `test:smoke` fechou com 232 arquivos e 2.860 testes.
+
+**Revisão independente:** nove achados, todos corrigidos e cobertos por teste.
+1. Empresa sem fuso não quebra mais a lista de posições (antes, 409). O fuso é lido sem trava e a resposta traz `motivo: 'sem_fuso'`.
+2. Um nascimento ou entrada medida soma o saldo projetado que já estava no destino.
+3. Os eventos são lidos pelo filtro `cliente_id`/`empresa_id`, sem lista de ids, e só `pesos_derivados` do JSON.
+4. Rodízio longo não trunca mais: o cálculo virou programação dinâmica em ordem cronológica e saiu o limite de profundidade 60.
+5. "Atinge" tem tolerância de ponto flutuante.
+6. O desempate dentro do mesmo fato é por `createdAt` e `id`.
+7. "Atinge" ordena por chave numérica.
+8. O texto ficou "X% do previsto".
+9. "1.200" é lido como milhar no servidor e na tela, e a coluna ordena pelo número.
+
+**Limites registrados na D-PROD-198:**
+- "pesado × previsto" só olha pesagens da própria posição;
+- o custo cresce com o histórico de pesos da fazenda;
+- a troca BOI PASTO → BOI CONFINAMENTO fica para a próxima missão.

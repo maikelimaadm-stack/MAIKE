@@ -120,8 +120,8 @@ export const criarProjetor = ({ posicoes, categorias, eventos, pesos, partidas }
   for (const w of pesos) {
     const ev = eventos.get(w.evento_id);
     if (!ev) continue;
-    const item = { ...w, ordem: ordemDoEvento(ev), ev, valor: undefined };
-    item.chave = chaveDoPeso(item);
+    const ordem = ordemDoEvento(ev);
+    const item = { ...w, ordem, ev, valor: undefined, chave: chaveDoPeso({ ...w, ordem }) };
     todos.push(item);
     const lista = pesosPorPosicao.get(w.posicao_id) ?? [];
     lista.push(item);
