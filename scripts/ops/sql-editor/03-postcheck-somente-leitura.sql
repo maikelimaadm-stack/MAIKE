@@ -31,11 +31,10 @@ tenant(nome) AS (
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
-    -- D-PROD-189: CADCURVAGANHO (curvas de ganho) antes de Empresa, que ela referencia.
-    'CADCURVAGANHO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
-    'Categoria','CADCATEGORIA','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
+    -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
+    'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',

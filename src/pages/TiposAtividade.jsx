@@ -191,7 +191,9 @@ export default function TiposAtividade() {
       }}
       recordForm={
         <FormularioTipoAtividade
-          key={`${controller.editingItem?.id ?? "tipo-atividade-novo"}-${controller.formEpoch}`}
+          // Entrar ou sair da edição (✕ ou depois de salvar) remonta o formulário a partir do GRAVADO, como no
+          // Apontamento: cancelar descarta o rascunho (revisão F1-1) e o salvo vira a base da leitura (revisão F2-1).
+          key={`${controller.editingItem?.id ?? "tipo-atividade-novo"}-${controller.formEpoch}-${controller.isEditing ? "e" : "l"}`}
           variant="embedded"
           toolbarActions
           readOnly={!controller.isEditing}

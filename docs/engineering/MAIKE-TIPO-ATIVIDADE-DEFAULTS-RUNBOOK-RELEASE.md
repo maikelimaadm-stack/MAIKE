@@ -20,7 +20,7 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIK
 | Item | Valor |
 |---|---|
 | Migration | `20261114300000_tipo_atividade_defaults` |
-| Natureza | **CONTRACT** (quinta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, da D-PROD-183, da D-PROD-187 e da D-PROD-194), numa transação, e **aditiva**: em `"TipoAtividade"`, 5 colunas anuláveis (`categoria` `VARCHAR(24)`, `centro_custo_padrao_id`, `centro_resultado_padrao_id`, `unidade_producao_id` `VARCHAR(64)` e `coeficiente_padrao` `DECIMAL(14,4)`), 8 flags `BOOLEAN NOT NULL DEFAULT false` (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`, `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`), 3 FKs compostas pelo tenant `ON DELETE RESTRICT ON UPDATE CASCADE` (→ `CentroCusto`, `CentroResultado`, `UnidadeMedida` em (`cliente_id`, `id`)), 2 CHECKs (categoria na lista fechada de 9; coeficiente > 0) e 3 índices não-únicos começando por `cliente_id` |
+| Natureza | **CONTRACT** (sexta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, da D-PROD-183, da D-PROD-187, da D-PROD-194 e da D-PROD-195), numa transação, e **aditiva**: em `"TipoAtividade"`, 5 colunas anuláveis (`categoria` `VARCHAR(24)`, `centro_custo_padrao_id`, `centro_resultado_padrao_id`, `unidade_producao_id` `VARCHAR(64)` e `coeficiente_padrao` `DECIMAL(14,4)`), 8 flags `BOOLEAN NOT NULL DEFAULT false` (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`, `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`), 3 FKs compostas pelo tenant `ON DELETE RESTRICT ON UPDATE CASCADE` (→ `CentroCusto`, `CentroResultado`, `UnidadeMedida` em (`cliente_id`, `id`)), 2 CHECKs (categoria na lista fechada de 9; coeficiente > 0) e 3 índices não-únicos começando por `cliente_id` |
 | Por que CONTRACT, sendo aditiva | a allowlist EXPAND recusa, em tabela antiga, coluna `NOT NULL DEFAULT`, FK para tabela antiga e CHECK. O caminho é o dos alargamentos de CHECK da D-PROD-162: guarda pinada como 1ª instrução, depois exatamente as 18 instruções pinadas (13 `ADD COLUMN`, 3 FKs, 2 CHECKs, nesta ordem) e, no resto, os 3 `CREATE INDEX` pela allowlist EXPAND |
 | O que se perde | **nada**: nenhum `DROP`, `DELETE`, `UPDATE` ou `TRUNCATE`. As linhas que existem leem `false` nas flags e `NULL` nos padrões (DEFAULT constante: o PostgreSQL 11+ não reescreve a tabela) |
 | O que não muda | nenhuma tabela é criada nem apagada; nenhuma coluna existente é tocada; as linhas, a RLS, as políticas e os grants de `TipoAtividade` ficam iguais; `CentroCusto`, `CentroResultado` e `UnidadeMedida` só ganham a FK que entra (nenhuma coluna, linha ou índice deles muda) |
@@ -28,7 +28,7 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIK
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf` |
 | Guarda pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`; `drop: []`; `literais_guarda`: `TipoAtividade`, `CentroCusto`, `CentroResultado`, `UnidadeMedida`; 18 `alter_antigas` |
 | Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: []` (as 13 colunas ficam no descritor da CONTRACT); `contract[0]`: `decisao: "D-PROD-196"`, `colunas_adicionadas` (13), `constraints_adicionadas` (5), `constraints_alargadas: []`, `tabelas_removidas: []`, `colunas_removidas: []` |
-| `_prisma_migrations` | antes **49** concluídas, 0 em aberto (a última, a curva mensal da D-PROD-194, concluída em 2026-11-14 às 13:29:18 UTC); depois **50**. Recontar no §4 se algo mais for aplicado antes |
+| `_prisma_migrations` | antes **50** concluídas, 0 em aberto (a última, a curva obrigatória na Categoria de Manejo da D-PROD-195, `20261114200000_cadcategoria_curva_ganho`, concluída em 2026-11-14 às 14:51:56 UTC); depois **51**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes e depois |
 
 **Sem janela de erro para o código de hoje.** A produção roda o código anterior à
@@ -185,8 +185,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '49 / 0',
-         CASE WHEN (SELECT concluidas = 49 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '50 / 0',
+         CASE WHEN (SELECT concluidas = 50 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, '20261114300000_tipo_atividade_defaults já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
@@ -237,7 +237,7 @@ SELECT item, valor, esperado, status FROM (
 | Linha | Esperado hoje |
 |---|---|
 | alvo | `7692130048193495360` |
-| migrations | `49 / 0` |
+| migrations | `50 / 0` |
 | esta migration registrada | `0` |
 | D-PROD-182 e D-PROD-194 com o checksum do repositório | `1 / 1` |
 | colunas, constraints e índices novos já presentes | `-` nas três |
@@ -261,7 +261,7 @@ PostgreSQL local, em bancos próprios criados e apagados pelo teste. Ele roda
 deste arquivo, entre os marcadores `sql:…`), trocando só o `system_identifier` de
 produção pelo local:
 
-- partida: as 49 migrations de nome anterior a esta, pelo Prisma; 2 clientes com
+- partida: as 50 migrations de nome anterior a esta, pelo Prisma; 2 clientes com
   grupos, tipos de atividade (um inativo), centros e unidades; preflight `PRONTO`;
 - RED (todos recusam e nada muda): `TipoAtividade` ausente, coluna, constraint ou
   índice novo já existente, alvo ausente, alvo sem índice único em
@@ -270,7 +270,7 @@ produção pelo local:
   exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-196` →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
-  envelope do caminho B: 50/0, as 13 colunas, as 5 constraints, os 3 índices,
+  envelope do caminho B: 51/0, as 13 colunas, as 5 constraints, os 3 índices,
   linhas antigas intactas (`false`/`NULL`), FKs (mesmo cliente aceita, outro
   cliente recusa, unidade usada não sai), CHECKs, unicidade mantida,
   `migrate diff` vazio, postcheck `APLICADA`; reaplicar o `migration.sql` e
@@ -305,7 +305,7 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_aberta FROM _prisma_migrations;
-  IF n_ok <> 49 OR n_aberta <> 0 THEN
+  IF n_ok <> 50 OR n_aberta <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_aberta;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
@@ -463,8 +463,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, '20261114300000_tipo_atividade_defaults concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '50 / 0',
-         CASE WHEN (SELECT concluidas = 50 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '51 / 0',
+         CASE WHEN (SELECT concluidas = 51 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'as 13 colunas com tipo, nulidade e DEFAULT exatos', coalesce((SELECT 'erradas: ' || string_agg(nome, ', ' ORDER BY nome) FROM colunas_erradas), '13'), '13',
          CASE WHEN NOT EXISTS (SELECT 1 FROM colunas_erradas) THEN 'OK' ELSE 'PARAR' END
@@ -500,13 +500,16 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:postcheck -->
 
-Esperado: `1`; `50 / 0`; `13`; `5`; `4`; `85`; RLS/FORCE/políticas e linhas
+Esperado: `1`; `51 / 0`; `13`; `5`; `4`; `85`; RLS/FORCE/políticas e linhas
 **iguais às do preflight**; `0` grants; `0` linhas preenchidas; VEREDITO
 `APLICADA E CONFERIDA`. Mais:
 
-- `get_advisors` (segurança e performance): nenhum alerta novo para
-  `TipoAtividade`, `CentroCusto`, `CentroResultado` ou `UnidadeMedida` (as 3 FKs
-  novas têm índice próprio, então não entram em "FK sem índice");
+- `get_advisors` (segurança e performance): nenhum alerta novo de segurança e
+  nenhum "FK sem índice" para `TipoAtividade`, `CentroCusto`, `CentroResultado` ou
+  `UnidadeMedida` (as 3 FKs novas têm índice próprio). **Esperado** e não é motivo
+  para parar: os 3 índices novos (`TipoAtividade_cliente_id_*_idx`) aparecem como
+  INFO "unused_index" até a primeira consulta que os use — índice recém-criado não
+  tem uso registrado (revisão M1-04);
 - opcional, no caminho A: `node scripts/deploy/preflight-schema.mjs` com a conexão
   de produção → exit 0 (nenhuma migration pendente).
 
@@ -539,7 +542,7 @@ padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
 
 - sem GO-1 ou GO-2 (no caminho B, sem o desvio da D-PROD-74 escrito para esta migration);
 - alvo com `system_identifier` diferente;
-- histórico diferente de 49/0 antes, ou a D-PROD-196 já registrada (linha não revertida);
+- histórico diferente de 50/0 antes, ou a D-PROD-196 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;
@@ -555,8 +558,8 @@ padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
 | `<SHA_APROVADO>` | `<40 hex>` |
 | Verificação do SHA | `<CI ou análise local: comandos e contagens>` |
 | Ensaio local (§4.2) | `<n/n>` |
-| Preflight (§4) | `<hora UTC>`; `<49 / 0>`; linhas de `TipoAtividade` `<N_TIPOS>`; RLS/políticas `<…>`; travas `<0>`; transações longas `<0>` |
+| Preflight (§4) | `<hora UTC>`; `<50 / 0>`; linhas de `TipoAtividade` `<N_TIPOS>`; RLS/políticas `<…>`; travas `<0>`; transações longas `<0>` |
 | Aplicação | `<hora UTC do finished_at>` |
-| Postcheck (§6) | `<VEREDITO>`; `<50 / 0>`; linhas `<N_TIPOS>` |
+| Postcheck (§6) | `<VEREDITO>`; `<51 / 0>`; linhas `<N_TIPOS>` |
 | Alertas do Supabase | `<segurança / performance>` |
 | Merge e deploy | `<PR, commit, hora>` |

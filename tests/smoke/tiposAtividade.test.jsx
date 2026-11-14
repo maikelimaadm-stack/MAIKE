@@ -633,6 +633,43 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
       ),
     );
   });
+
+  it("TA-PAGE-4 — cancelar a edição descarta o rascunho: a leitura volta ao gravado e o próximo Salvar não leva o que foi desfeito (revisão F1-1)", async () => {
+    servico.listarGruposSimples.mockResolvedValue(GRUPOS);
+    servico.listarTiposAtividade.mockResolvedValue([{ ...SALVO }]);
+    servico.atualizarTipoAtividade.mockImplementation(async ({ id, dados }) => ({ ...SALVO, ...dados, id }));
+    await montarTela();
+    await waitFor(() => expect(screen.getByText("APLICAÇÃO DE HERBICIDA")).toBeTruthy());
+    fireEvent.doubleClick(screen.getByText("APLICAÇÃO DE HERBICIDA").closest('[data-testid="b1-row"]'));
+    await screen.findByTestId("b1-form-tipo-atividade");
+    await assentar();
+    expect(flag("exige_maquina").checked).toBe(true);
+
+    // Edita (limpa o centro de custo padrão e desmarca "Exige máquina") e CANCELA.
+    fireEvent.click(await screen.findByRole("button", { name: /^Editar$/ }));
+    await assentar();
+    const campoCentro = () => within(screen.getByTestId("b1-form-tipo-atividade")).getByRole("combobox", { name: "Centro de custo padrão" });
+    fireEvent.click(within(campoCentro().closest(".mg-field")).getByRole("button", { name: "Limpar" }));
+    await waitFor(() => expect(campoCentro().hasAttribute("data-placeholder")).toBe(true));
+    fireEvent.click(flag("exige_maquina"));
+    expect(flag("exige_maquina").checked).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await assentar();
+
+    // A leitura volta ao gravado.
+    expect(campoCentro().hasAttribute("data-placeholder")).toBe(false);
+    expect(flag("exige_maquina").checked).toBe(true);
+
+    // Editar de novo e mudar só a descrição: o PATCH leva o gravado, não o rascunho descartado.
+    fireEvent.click(screen.getByRole("button", { name: /^Editar$/ }));
+    await assentar();
+    fireEvent.change(within(screen.getByTestId("b1-form-tipo-atividade")).getByLabelText(/Descrição/), { target: { value: "só a descrição" } });
+    fireEvent.submit(document.getElementById(FORMULARIO_TIPO_ATIVIDADE_ID));
+    await waitFor(() => expect(servico.atualizarTipoAtividade).toHaveBeenCalledTimes(1));
+    const { dados } = servico.atualizarTipoAtividade.mock.calls[0][0];
+    expect(dados.centro_custo_padrao_id).toBe("cc1");
+    expect(dados.exige_maquina).toBe(true);
+  });
 });
 
 describe("TA-PORTA — porta, API e service do tipo (D-PROD-196)", () => {

@@ -220,7 +220,14 @@ export const GUARDAS = Object.freeze({
   tarefa: porAcessoTotal(),
   // ── Cadastros do menu (tela + cadastro rápido) ──
   setor: cadastro(T.SETORES, { criar: LOTES_GRAVAR }),
-  categoriaManejo: cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+  categoriaManejo: {
+    ...cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+    // D-PROD-195 — seletor de curva de ganho: quem cria OU edita categoria (o
+    // cadastro rápido do lote incluído) lê as curvas da fazenda, sem a tela de curvas.
+    opcoesCurvas: porQualquer(
+      [T.CATEGORIAS_MANEJO, 'novo'], [T.CATEGORIAS_MANEJO, 'salvar'], [T.CATEGORIAS_MANEJO, 'editar'], ...LOTES_GRAVAR,
+    ),
+  },
   // F6 (D-PROD-137): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
   // o local de um depósito; desativar/capacidade/excluir só na tela Locais.
   localEstoque: { ...cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR }), editar: localEstoqueEditar },

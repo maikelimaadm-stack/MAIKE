@@ -7,7 +7,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarCurvaGanhoDeTeste } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 
@@ -52,8 +52,11 @@ const cenario = async ({ ativacao = { modo: 'saldo_abertura', data_corte: '2026-
   const setorX = await p.setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: outraEmpresa.id, numero_setor: '9', nome: 'Setor X' } });
   const area = (n, nome, emp = empresa, st = setor) =>
     p.areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: emp.id, setor_id: st.id, setor_nome: st.nome, numero_area: String(n), nome, tamanho_hectares: 10 } });
-  const cm = await p.categoriaManejo.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, nome: 'ENGORDA' } });
-  const c = { cliente: adm.cliente, tok, empresa, outraEmpresa, setor, setorB, cm, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B'), S2: await area(3, 'PASTO S2', empresa, setorB), X: await area(9, 'PASTO X', outraEmpresa, setorX) };
+  // D-PROD-195: a categoria exige a curva de ganho da mesma fazenda.
+  const curva = await criarCurvaGanhoDeTeste(p, { clienteId: adm.cliente.id, empresaId: empresa.id });
+  const curvaOutra = await criarCurvaGanhoDeTeste(p, { clienteId: adm.cliente.id, empresaId: outraEmpresa.id });
+  const cm = await p.categoriaManejo.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, nome: 'ENGORDA', curva_ganho_id: curva.id } });
+  const c = { cliente: adm.cliente, tok, empresa, outraEmpresa, setor, setorB, cm, curva, curvaOutra, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B'), S2: await area(3, 'PASTO S2', empresa, setorB), X: await area(9, 'PASTO X', outraEmpresa, setorX) };
   c.ativar = async (corpo = ativacao) => {
     const r = await req('POST', '/rebanho/ativacao', tok, { operation_id: opId(), empresa_id: empresa.id, ...corpo });
     assert.equal(r.statusCode, 201, r.body);
@@ -219,7 +222,7 @@ describe('R1 — correção elegível: o MESMO fato em todas as superfícies', (
     assert.equal(d.posicoes[0].quantidade_cabecas, 100);
     assert.equal(Number(d.posicoes[0].peso_medio_kg), 300);
     // Categoria de manejo de outra empresa → recusa
-    const cmX = await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.outraEmpresa.id, nome: 'OUTRA' } });
+    const cmX = await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.outraEmpresa.id, nome: 'OUTRA', curva_ganho_id: c.curvaOutra.id } });
     await nadaGravado(c, () => corrigir(c, lote, { categoria_manejo_id: cmX.id }), 400);
   });
 

@@ -17,7 +17,7 @@ unidade de produção de `UnidadeMedida` e coeficiente) e as **8 flags** de como
 | Camada | Entrega |
 |---|---|
 | Banco | 13 colunas novas em `"TipoAtividade"` (5 padrões anuláveis; 8 flags `BOOLEAN NOT NULL DEFAULT false`), 3 FKs compostas pelo tenant `RESTRICT` (centro de custo, centro de resultado, unidade), 2 CHECKs (categoria em lista fechada; coeficiente > 0), 3 índices começando por `cliente_id`. Linhas existentes leem `false`/`null`. Tabelas não mudam (85) |
-| Migration | `20261114300000_tipo_atividade_defaults`, **CONTRACT** aditiva (quinta entrada fechada, depois das D-PROD-162, 183, 187 e 194): a allowlist EXPAND não aceita, em tabela antiga, flag `NOT NULL DEFAULT`, FK para tabela antiga nem CHECK. Guarda pinada `e1578019…b3b0`; arquivo `b65d4f08…5dbf`; 18 instruções pinadas + 3 `CREATE INDEX`. Repositório 49 → 50 |
+| Migration | `20261114300000_tipo_atividade_defaults`, **CONTRACT** aditiva (sexta entrada fechada, depois das D-PROD-162, 183, 187, 194 e 195): a allowlist EXPAND não aceita, em tabela antiga, flag `NOT NULL DEFAULT`, FK para tabela antiga nem CHECK. Guarda pinada `e1578019…b3b0`; arquivo `b65d4f08…5dbf`; 18 instruções pinadas + 3 `CREATE INDEX`. Repositório 50 → 51 |
 | Portão | Entrada `D-PROD-196` em `MIGRATIONS_CONTRACT_APROVADAS`; descritor com `colunas_adicionadas`/`constraints_adicionadas` (o rótulo não fala mais em "CHECKs alargados" para constraint nova); `premerge-migrate` passa a citar as 13 colunas e as 5 constraints |
 | Gate | `gate:tarefa-cadastro-native`: TipoAtividade exige as 8 flags e proíbe só `pode_ter_*`; TipoTarefa proíbe as 4 antigas e as 8 novas (nenhuma flag volta ao TipoTarefa) |
 | API | `/tipos-atividade` com os 13 campos (flags e coeficiente sem coerção do AJV), resposta com os objetos do centro de custo, do centro de resultado e da unidade, 422 `TIPO_ATIVIDADE_PADRAO_INVALIDO` (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`); rotas novas `GET /tipos-atividade/opcoes/centros-custo` e `/centros-resultado` (`?empresa_id=`, só ativos, ordem numérica, para quem cria ou edita tipo); apagar unidade usada como padrão → 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` |
@@ -65,7 +65,7 @@ unidade de produção de `UnidadeMedida` e coeficiente) e as **8 flags** de como
 **A migration NÃO foi aplicada em nenhum banco remoto.** Ela precisa de autorização explícita do proprietário e entra
 **antes do merge** (o código novo lê as colunas; o código antigo convive com elas), fora de pico (trava a tabela de
 tipos por menos de 1 s), pelo runbook: caminho A com `--contract D-PROD-196`, ou caminho B (conector) com GO escrito e
-específico desta migration. Produção hoje: 49 migrations concluídas, 85 tabelas.
+específico desta migration. Produção hoje: 50 migrations concluídas (a última é a `20261114200000_cadcategoria_curva_ganho`, D-PROD-195, aplicada às 14:51:56 UTC), 85 tabelas; depois desta, 51.
 
 ## 8. Fora do escopo
 

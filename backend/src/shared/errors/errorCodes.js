@@ -351,6 +351,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe curva de ganho com este nome nesta fazenda',
   },
+  // D-PROD-195 — a curva ligada a categoria de manejo (FK Restrict) não é excluída.
+  CURVA_GANHO_EM_USO: {
+    http: 409,
+    meaning: 'a curva de ganho está ligada a categoria(s) de manejo (details.categorias): troque a curva dessas categorias antes de excluir; nada foi apagado',
+  },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {

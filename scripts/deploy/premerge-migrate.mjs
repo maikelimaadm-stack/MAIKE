@@ -103,8 +103,8 @@ const partesContract = k ? [
   k.tabelas_renomeadas.length && `tabela renomeada (${k.tabelas_renomeadas.join(', ')})`,
   k.nomes_renomeados.length && `${k.nomes_renomeados.length} nomes renomeados (${k.nomes_renomeados.join(', ')})`,
   // D-PROD-196: CONTRACT aditiva — colunas e constraints NOVAS em tabela antiga (nada removido nem alargado).
-  k.colunas_adicionadas?.length && `${k.colunas_adicionadas.length} colunas adicionadas (${k.colunas_adicionadas.join(', ')})`,
-  k.constraints_adicionadas?.length && `${k.constraints_adicionadas.length} constraints adicionadas (${k.constraints_adicionadas.join(', ')})`,
+  k.colunas_adicionadas?.length && `${k.colunas_adicionadas.length} ${k.colunas_adicionadas.length === 1 ? 'coluna adicionada' : 'colunas adicionadas'} (${k.colunas_adicionadas.join(', ')})`,
+  k.constraints_adicionadas?.length && `${k.constraints_adicionadas.length} ${k.constraints_adicionadas.length === 1 ? 'constraint adicionada' : 'constraints adicionadas'} (${k.constraints_adicionadas.join(', ')})`,
 ].filter(Boolean) : [];
 const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${partesContract.join(', ')})` : '';
 if (!verificarAlvo) {

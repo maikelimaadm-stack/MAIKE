@@ -19,6 +19,9 @@
  * lugar dos 3 por estação) e sobe na partida pelo Prisma direto, como a D-PROD-183 e a D-PROD-187: a guarda dela passa
  * porque CADCURVAGANHO está vazia (`semear` não cria curva). Soma +1 migration e 0 tabela: as contagens de tabelas não
  * mudam, e a impressão digital antes×depois compara a mesma estrutura (as duas pontas já têm a D-PROD-194).
+ * A D-PROD-195 (CONTRACT `20261114200000_cadcategoria_curva_ganho`, curva obrigatória em CADCATEGORIA) também sobe na
+ * partida pelo Prisma direto: a guarda dela só exige a CURVA PADRÃO nas fazendas COM categoria, e `semear` não cria
+ * categoria. +1 migration e 0 tabela, como a D-PROD-194.
  * A D-PROD-190 referencia BemPatrimonial(cliente_id, empresa_id, id), que só existe no formato novo: fica fora da
  * partida (MIGRATIONS_DEPOIS_DO_CONTRACT) e sobe pelo runner no GREEN, depois desta CONTRACT (em produção a
  * D-PROD-162 já está concluída). A D-PROD-193 (itens do apontamento) referencia o ApontamentoAtividade e sobe logo

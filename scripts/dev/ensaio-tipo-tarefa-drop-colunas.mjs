@@ -22,7 +22,11 @@
  *     aqui fora de ordem, pelo Prisma direto (sem a barreira do runner); as
  *     guardas delas passam porque CategoriaManejo e CADCURVAGANHO estão vazias.
  *     A D-PROD-194 troca a estrutura de CADCURVAGANHO e não cria nem apaga
- *     tabela (+1 migration, 0 tabela);
+ *     tabela (+1 migration, 0 tabela); a CONTRACT da D-PROD-195
+ *     (`20261114200000_cadcategoria_curva_ganho`, curva obrigatória em
+ *     CADCATEGORIA) também sobe aqui pelo Prisma direto: a guarda dela só exige
+ *     a CURVA PADRÃO nas fazendas COM categoria, e não há nenhuma (+1
+ *     migration, 0 tabela);
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das
  *     4 flags (inclusive um todo false e um inativo) e um LancamentoTarefa;
  *  3. tira o preflight do runbook (SQL_IMPRESSAO e SQL_CONTAGENS);
@@ -164,8 +168,8 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 
 /**
  * Todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia temporária.
- * Inclui as CONTRACT da D-PROD-187 e da D-PROD-194, sem o runner: as guardas delas passam com CategoriaManejo e
- * CADCURVAGANHO vazias.
+ * Inclui as CONTRACT da D-PROD-187, da D-PROD-194 e da D-PROD-195, sem o runner: as guardas delas passam com
+ * CategoriaManejo/CADCATEGORIA e CADCURVAGANHO vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-tt-drop-main-'));

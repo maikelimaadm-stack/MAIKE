@@ -381,6 +381,17 @@ export const curvaGanhoNotFound = (message, options) =>
 export const curvaGanhoNomeConflito = (message, options) =>
   new AppError('CURVA_GANHO_NAME_CONFLICT', message || 'já existe curva de ganho com este nome nesta fazenda', options);
 
+/**
+ * D-PROD-195 — excluir curva ligada a categoria de manejo: 409 com a contagem.
+ * @param {number} categorias
+ */
+export const curvaGanhoEmUso = (categorias, options) =>
+  new AppError(
+    'CURVA_GANHO_EM_USO',
+    `Esta curva está ligada a ${categorias} categoria(s) de manejo e não pode ser excluída.`,
+    { ...options, details: { ...(options?.details ?? {}), categorias } }
+  );
+
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 

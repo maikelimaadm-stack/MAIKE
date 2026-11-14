@@ -292,11 +292,12 @@ export default function FormularioTipoAtividade({
     () => opcoesDoCentro(listaDe(centrosResultadoQuery), centroResultadoGravadoId, centroResultadoGravado, empresaId),
     [centrosResultadoQuery.data, centroResultadoGravadoId, centroResultadoGravado, empresaId],
   );
-  // Só unidades ATIVAS; a gravada que ficou inativa continua na lista (marcada).
+  // Só unidades ATIVAS e já gravadas no servidor; a gravada que ficou inativa continua na lista (marcada).
+  // Unidade criada sem rede e ainda na fila (id `offline_…`) não entra: o servidor não a conhece (revisão F2-3).
   const opcoesUnidade = useMemo(() => {
     const unidades = listaDe(unidadesQuery);
     const opcoes = unidades
-      .filter((u) => u && u.id != null && u.ativo !== false)
+      .filter((u) => u && u.id != null && u.ativo !== false && u._isOffline !== true && !String(u.id).startsWith("offline_"))
       .map((u) => ({ value: String(u.id), label: rotuloDaUnidadeMedida(u) || String(u.id) }));
     if (unidadeGravadaId && !opcoes.some((o) => o.value === unidadeGravadaId)) {
       const gravada = unidadeGravada ?? unidades.find((u) => String(u?.id) === unidadeGravadaId) ?? null;

@@ -10,11 +10,14 @@
  * concluídas, nesta ordem, como em produção; e as que vieram depois delas, também de nome posterior, que em produção
  * entram depois desta CONTRACT e aqui sobem antes dela, pela ordem dos nomes: a dos itens do apontamento, D-PROD-193, e a
  * CONTRACT `20261114100000_cadcurvaganho_mensal`, D-PROD-194, aplicada pelo Prisma direto, sem o runner: a guarda dela
- * passa porque CADCURVAGANHO está vazia; +1 migration, 0 tabela; em produção ela ainda pende e entra depois desta) e, para 2
+ * passa porque CADCURVAGANHO está vazia; +1 migration, 0 tabela; em produção ela entrou depois desta). Fica FORA da
+ * partida a CONTRACT da D-PROD-195 (`20261114200000_cadcategoria_curva_ganho`, NOMES_DEPOIS_DO_CONTRACT): ela exige o
+ * nome novo, CADCATEGORIA, e sobe pelo runner no GREEN, logo depois desta. Para 2
  * clientes, 4 categorias de manejo: uma no formato das 4 de produção (raça,
  * categoria oficial, 12 GMDs 0.0000), uma com ganho e GMDs variados (e um
  * apóstrofo na raça), uma só com o vínculo do ícone e uma sem nada nas 16
- * colunas; e uma categoria visual GLOBAL do tipo `lote`.
+ * colunas; uma categoria visual GLOBAL do tipo `lote`; e, para a D-PROD-195, a Empresa de cada cliente com a
+ * 'CURVA PADRÃO' (a que a guarda dela exige) e uma outra curva.
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
  * sem impressão, impressão errada, índice numa coluna apagada, índice a mais,
@@ -24,11 +27,14 @@
  * (lock_timeout 5 s); e o runner com a conferência de alvo exigida sem
  * MIGRATION_CONTRACT_AUTORIZADO = D-PROD-187 (recusa antes de qualquer DDL).
  *
- * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada por último, depois da CADCURVAGANHO e do ApontamentoAtividade,
+ * GREEN pelo runner oficial (`npm run deploy:migrate`): com a conferência de alvo exigida e
+ * MIGRATION_CONTRACT_AUTORIZADO = D-PROD-187 ele RECUSA, porque a D-PROD-195 pende junto (nunca duas CONTRACT; nada
+ * muda); no alvo local, com a impressão na URL, aplica esta e depois a D-PROD-195:
+ * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada depois da CADCURVAGANHO e do ApontamentoAtividade,
  * fora da ordem dos nomes, como aconteceu em produção, e dos itens do apontamento e da CONTRACT da D-PROD-194, que
- * subiram na partida), 85 tabelas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
- * políticas, as 12 colunas que ficam, linhas idênticas nelas, os 4 nomes novos,
+ * subiram na partida; a D-PROD-195 por último), 85 tabelas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
+ * políticas, as 12 colunas que ficam (mais a curva_ganho_id da D-PROD-195, cada categoria na CURVA PADRÃO da
+ * fazenda), linhas idênticas nelas, os 4 nomes novos,
  * FK válida, demais tabelas iguais, `migrate diff` vazio, o Prisma Client lê
  * `categoriaManejo.findMany()` e 2ª execução sem pendências. Num banco sem
  * legado, a migration aplica sem impressão; uma impressão INFORMADA errada
@@ -46,9 +52,10 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  ARQUIVO_CONTRACT, CENARIOS_RED, COLUNAS, COLUNAS_ANTES, COLUNAS_QUE_FICAM, CONSTRAINTS_ANTES, CONSTRAINTS_DEPOIS, DECISAO,
+  ARQUIVO_CONTRACT, CENARIOS_RED, COLUNAS, COLUNAS_ANTES, COLUNAS_DEPOIS, CONSTRAINTS_ANTES, CONSTRAINTS_DEPOIS, DECISAO,
   IMPRESSAO_ERRADA, IMPRESSAO_VAZIA, INDICES_ANTES, INDICES_DEPOIS, NOME_CONTRACT, REGEX_ROTINAS, SQL_IMPRESSAO, TABELA_ANTIGA,
   TABELA_NOVA, TRECHOS_DA_GUARDA, NOMES_POSTERIORES_JA_APLICADAS, NOMES_POSTERIORES_NA_PARTIDA, NOME_CURVA_MENSAL, CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS, TABELAS_PUBLIC,
+  NOME_CURVA_NA_CATEGORIA, NOMES_DEPOIS_DO_CONTRACT, curvaPadraoDe,
   aplicarMigrationsDaMain, aplicarPeloRunner, colunasDaTabela, comBanco, comImpressao, contagens, divergenciasGreen, exigirUrlLocal,
   historico, impressao, intrusos, migrateDeploy, migrateDiff, ordemDeAplicacao, resolverRevertida, retrato, rodarCenarioRed, semear, sistema, tabelaAtual,
 } from '../../scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs';
@@ -103,7 +110,8 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
   test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, o ApontamentoAtividade e os itens do apontamento, de nome posterior, já concluídos, e a CONTRACT da D-PROD-194, também de nome posterior), 85 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_ANTES);
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 1, 'todas as pastas menos esta CONTRACT');
+    assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA]);
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 2, 'todas as pastas menos esta CONTRACT e a D-PROD-195');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 85, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193); a curva mensal (D-PROD-194) não muda a contagem');
     // O estado de produção: duas migrations de nome POSTERIOR a esta CONTRACT já concluídas, por último e nesta ordem, e esta pendente.
@@ -115,11 +123,13 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261113800000_apontamento_atividade_item'));
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_CURVA_MENSAL), 'a CONTRACT da D-PROD-194 sobe na partida');
     for (const n of NOMES_POSTERIORES_NA_PARTIDA) assert.ok(n > NOME_CONTRACT, `${n} tem nome posterior`);
+    assert.ok(!NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_CURVA_NA_CATEGORIA), 'a D-PROD-195 (exige CADCATEGORIA) fica fora da partida');
     assert.ok(NOME_CURVA_MENSAL > NOME_CONTRACT, 'a CONTRACT da D-PROD-194 tem nome posterior');
     const ordem = await ordemDeAplicacao(db);
     // Pelo Prisma direto, em ordem de nome: as duas EXPAND de nome posterior e, depois, as demais (a CONTRACT da D-PROD-194 entre elas).
     assert.deepEqual(ordem.slice(-NOMES_POSTERIORES_NA_PARTIDA.length), [...NOMES_POSTERIORES_NA_PARTIDA]);
     assert.ok(!ordem.includes(NOME_CONTRACT));
+    assert.ok(!ordem.includes(NOME_CURVA_NA_CATEGORIA));
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabela, TABELA_ANTIGA);
@@ -196,7 +206,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
       for (const outra of ['20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261114100000_cadcurvaganho_mensal']) {
-        assert.ok(!r.saida.includes(outra), `${outra} já está concluída: só a D-PROD-187 pende`);
+        assert.ok(!r.saida.includes(outra), `${outra} já está concluída: só a D-PROD-187 e a D-PROD-195 pendem`);
       }
       assert.match(r.saida, /Nenhuma migration foi executada/);
       assert.ok(!vazou(r.saida, URL_T));
@@ -205,12 +215,21 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('CD-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 + impressão na URL), depois da CADCURVAGANHO, do ApontamentoAtividade e dos itens do apontamento, de nome posterior, e da CONTRACT da D-PROD-194: todas/0, CADCATEGORIA com o mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, migrate diff vazio e o Prisma Client lê', async () => {
+  test('CD-03 GREEN pelo runner oficial: com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 recusa (a D-PROD-195 pende junto; nada muda); no alvo local, com a impressão na URL, aplica esta, depois da CADCURVAGANHO, do ApontamentoAtividade e dos itens do apontamento, de nome posterior, e da CONTRACT da D-PROD-194, e a D-PROD-195 por último: todas/0, CADCATEGORIA com o mesmo OID/ACL/RLS/políticas, 12 colunas + a curva, cada categoria na CURVA PADRÃO da fazenda, linhas idênticas, nomes novos, migrate diff vazio e o Prisma Client lê', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
-    const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+    // Nunca duas CONTRACT de uma vez: a decisão desta não basta com a D-PROD-195 também pendente.
+    const recusada = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+    assert.equal(recusada.status, 1, recusada.saida);
+    assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
+    assert.ok(recusada.saida.includes(`${NOME_CURVA_NA_CATEGORIA} (D-PROD-195)`), recusada.saida);
+    assert.match(recusada.saida, /Nenhuma migration foi executada/);
+    assert.ok(!vazou(recusada.saida, URL_T));
+    assert.deepEqual(await retrato(db), partida, 'nada mudou');
+
+    // Alvo local (sem a conferência): o runner aplica as duas pendentes, esta e depois a D-PROD-195.
+    const r = await aplicarPeloRunner(comImpressao(URL_T, imp));
     assert.equal(r.status, 0, r.saida);
-    assert.ok(r.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`), r.saida);
     assert.ok(!vazou(r.saida, URL_T));
 
     const h = await historico(db);
@@ -218,14 +237,21 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.equal(CONCLUIDAS_DEPOIS, readdirSync(new URL('../prisma/migrations/', import.meta.url), { withFileTypes: true }).filter((d) => d.isDirectory()).length, 'todas as pastas');
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    // Ordem real de aplicação: a CONTRACT por último, DEPOIS das de nome posterior (as EXPAND e a CONTRACT da D-PROD-194;
-    // o runner e o `prisma migrate deploy` aplicam a pendente sem exigir a ordem dos nomes).
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1)), [...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT]);
+    // Ordem real de aplicação: a CONTRACT DEPOIS das de nome posterior (as EXPAND e a CONTRACT da D-PROD-194; o runner e
+    // o `prisma migrate deploy` aplicam a pendente sem exigir a ordem dos nomes) e, por último, a D-PROD-195.
+    assert.deepEqual(
+      (await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1 + NOMES_DEPOIS_DO_CONTRACT.length)),
+      [...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT, ...NOMES_DEPOIS_DO_CONTRACT]
+    );
 
     assert.equal(await tabelaAtual(db), TABELA_NOVA);
     const [{ antiga }] = await db.$queryRawUnsafe(`SELECT to_regclass('public."${TABELA_ANTIGA}"') IS NULL AS antiga`);
     assert.equal(antiga, true, 'o nome antigo sumiu');
-    assert.deepEqual(await colunasDaTabela(db), [...COLUNAS_QUE_FICAM]);
+    assert.deepEqual(await colunasDaTabela(db), [...COLUNAS_DEPOIS]);
+    // D-PROD-195: cada categoria ficou na CURVA PADRÃO da própria fazenda (nunca na outra curva da fazenda).
+    const curvas = await db.$queryRawUnsafe(`SELECT cliente_id::text AS cliente, id, curva_ganho_id AS curva FROM public."${TABELA_NOVA}" ORDER BY id COLLATE "C"`);
+    assert.equal(curvas.length, partida.linhas.n);
+    for (const x of curvas) assert.equal(x.curva, curvaPadraoDe(x.cliente), x.id);
     const depois = await retrato(db);
     assert.deepEqual(divergenciasGreen(partida, depois), []);
     assert.equal(depois.estrutura.oid, partida.estrutura.oid, 'a mesma tabela (RENAME, não cópia)');
@@ -235,7 +261,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(depois.linhas, partida.linhas, 'as linhas nas 12 colunas que ficam não mudaram');
     assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela criada nem apagada');
     assert.deepEqual(depois.CatalogoCategoriaVisual, partida.CatalogoCategoriaVisual, 'o catálogo global só perdeu a FK que apontava para ele');
-    // Nenhuma FK de outra tabela aponta para CADCATEGORIA nem sobrou FK para o catálogo.
+    // Nenhuma FK de outra tabela aponta para CADCATEGORIA nem sobrou FK para o catálogo (a da D-PROD-195 sai de CADCATEGORIA).
     const [{ fks_entrando, fks_catalogo }] = await db.$queryRawUnsafe(`SELECT
         (SELECT count(*)::int FROM pg_constraint WHERE confrelid = 'public."${TABELA_NOVA}"'::regclass) AS fks_entrando,
         (SELECT count(*)::int FROM pg_constraint WHERE conrelid = 'public."${TABELA_NOVA}"'::regclass AND confrelid = 'public."CatalogoCategoriaVisual"'::regclass) AS fks_catalogo`);
@@ -244,10 +270,10 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     const diff = await migrateDiff(URL_T);
     assert.equal(diff.status, 0, diff.saida);
 
-    // O delegate continua `categoriaManejo` (o @@map só muda o nome físico) e devolve exatamente as 12 colunas.
+    // O delegate continua `categoriaManejo` (o @@map só muda o nome físico) e devolve exatamente as 12 colunas e a curva.
     const lidas = await db.categoriaManejo.findMany({ orderBy: { id: 'asc' } });
     assert.equal(lidas.length, partida.linhas.n);
-    assert.deepEqual(Object.keys(lidas[0]).sort(), [...COLUNAS_QUE_FICAM].sort());
+    assert.deepEqual(Object.keys(lidas[0]).sort(), [...COLUNAS_DEPOIS].sort());
     assert.equal(lidas.find((x) => x.id === 'cad-c1-cat-A').nome, 'BEZERRO MACHO');
   });
 
@@ -260,7 +286,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.equal((await historico(db)).concluidas, CONCLUIDAS_DEPOIS);
   });
 
-  test('CD-05 banco sem legado: impressão INFORMADA errada recusa mesmo assim; sem impressão, o prisma migrate deploy aplica', async () => {
+  test('CD-05 banco sem legado: impressão INFORMADA errada recusa mesmo assim; sem impressão, o prisma migrate deploy aplica (e a D-PROD-195 depois, com a CURVA PADRÃO semeada)', async () => {
     const p = getPrismaClient();
     await p.$executeRawUnsafe(`CREATE DATABASE ${BANCO_VAZIO}`);
     await aplicarMigrationsDaMain(URL_V);
@@ -288,7 +314,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.equal(h.concluidas, CONCLUIDAS_DEPOIS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.deepEqual(await colunasDaTabela(dbVazio), [...COLUNAS_QUE_FICAM]);
+    assert.deepEqual(await colunasDaTabela(dbVazio), [...COLUNAS_DEPOIS]);
     assert.deepEqual(divergenciasGreen(partidaV, await retrato(dbVazio)), []);
     const diff = await migrateDiff(URL_V);
     assert.equal(diff.status, 0, diff.saida);
@@ -309,7 +335,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
       const h = await historico(dbVI);
       assert.equal(h.concluidas, CONCLUIDAS_DEPOIS);
       assert.equal(h.contract_concluida, 1);
-      assert.deepEqual(await colunasDaTabela(dbVI), [...COLUNAS_QUE_FICAM]);
+      assert.deepEqual(await colunasDaTabela(dbVI), [...COLUNAS_DEPOIS]);
       assert.deepEqual(divergenciasGreen(partidaVI, await retrato(dbVI)), []);
     } finally {
       await dbVI.$disconnect();

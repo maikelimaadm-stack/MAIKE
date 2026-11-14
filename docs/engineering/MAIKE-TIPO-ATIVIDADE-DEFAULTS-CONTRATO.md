@@ -2,7 +2,7 @@
 
 > **fatia 1 · `feat/tipo-atividade-defaults` · PR (a abrir)**
 >
-> Decisão: **D-PROD-196** (a `main` indica `Próxima decisão: D-PROD-196`). O número não entra no `migration.sql`.
+> Decisão: **D-PROD-196** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva na Categoria de Manejo, PR #278). O número não entra no `migration.sql`.
 > Este contrato é a fonte única dos agentes A1–A6. Divergência de código em relação a ele é defeito.
 
 ## 1. O que é
@@ -28,7 +28,7 @@ fazem sentido: é o tipo de atividade que sabe se gradeação exige máquina e s
 `backend/prisma/schema.prisma` (model `TipoAtividade` + relações inversas em `CentroCusto.tiposAtividadePadrao`,
 `CentroResultado.tiposAtividadePadrao`, `UnidadeMedida.tiposAtividadeProducao`) e a migration
 `backend/prisma/migrations/20261114300000_tipo_atividade_defaults/migration.sql` já estão escritos e aplicam num banco
-vazio (50 migrations); `prisma migrate diff` banco × schema = vazio.
+vazio (51 migrations, com a D-PROD-195 da `main`); `prisma migrate diff` banco × schema = vazio.
 
 | Coluna | Tipo | Regra |
 |---|---|---|
@@ -186,7 +186,7 @@ proposta de emenda da nota D-PROD-193 de `docs/constitution/07-DO-NOT-DO.md` (a 
 D-PROD-196) — texto do agente, vale só com a aprovação do proprietário no merge (`00-CONSTITUICAO.md` §4);
 `GATE-REGISTRY.md`; `CURRENT-STATE.md`; relatório `MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`; runbook
 `MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md` (release CONTRACT isolada, `--contract D-PROD-196`, guarda do
-caminho B contando 49 aplicadas antes e 50 depois, aplicar antes do merge).
+caminho B contando 50 aplicadas antes e 51 depois, aplicar antes do merge).
 
 ## 9. Pontos para o proprietário (relatar, não decidir sozinho)
 

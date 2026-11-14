@@ -15,10 +15,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 
-const notify = vi.hoisted(() => ({ notifyWarning: vi.fn() }));
+const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
   ...(await importOriginal()),
   notifyWarning: notify.notifyWarning,
+  notifyError: notify.notifyError,
 }));
 
 const servico = vi.hoisted(() => ({
@@ -293,5 +294,24 @@ describe("CG-PAGE — tela de curvas de ganho", () => {
     expect(await screen.findByTestId("curvas-ganho-sem-fazenda")).toBeTruthy();
     expect(servico.listarCurvasGanho).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Novo" })).toBeNull();
+  });
+
+  it("CG-PAGE-3 — D-PROD-195: excluir curva ligada a categoria de manejo avisa quantas categorias a usam", async () => {
+    servico.listarCurvasGanho.mockResolvedValue([{ id: "c1", nome: "RECRIA PASTO", ...mesesDe(CURVA), ativo: true }]);
+    servico.excluirCurvasGanho.mockResolvedValue({ excluidos: [], bloqueados: [{ id: "c1", code: "CURVA_GANHO_EM_USO", categorias: 3 }] });
+    await renderizar();
+    await waitFor(() => expect(screen.getByText("RECRIA PASTO")).toBeTruthy());
+    fireEvent.doubleClick(screen.getByText("RECRIA PASTO"));
+    await screen.findByTestId("b1-form-curva-ganho");
+    fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
+    const dialogo = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Excluir" }));
+    await waitFor(() =>
+      expect(notify.notifyError).toHaveBeenCalledWith(
+        "Atenção",
+        "Esta curva está ligada a 3 categoria(s) de manejo e não pode ser excluída.",
+      ),
+    );
+    expect(servico.excluirCurvasGanho).toHaveBeenCalledWith(["c1"], { empresaId: "emp-1" });
   });
 });

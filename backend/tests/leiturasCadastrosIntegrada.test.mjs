@@ -26,7 +26,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarCurvaGanhoDeTeste } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 import { ACOES_GRAVADORAS_MAPA } from '../src/shared/auth/autorizacaoTela.js';
@@ -486,7 +486,9 @@ describe('CONTROLE — operador real só do mapa (gravadoras false): o Mapa Gera
     await prisma().areaPastagem.create({ data: { cliente_id: f.clienteId, empresa_id: E, setor_id: s.id, setor_nome: s.nome, numero_area: '1', nome: 'PASTO 1', tamanho_hectares: 10 } });
     const loc = await prisma().localEstoque.create({ data: { cliente_id: f.clienteId, numero_local: '1', nome: 'DEP' } });
     await prisma().pontoSuplementacao.create({ data: { cliente_id: f.clienteId, empresa_id: E, numero_ponto: 'DEP-1', nome_ponto: 'DEP', categoria_ponto: 'DEPOSITO', local_estoque_id: loc.id } });
-    await prisma().categoriaManejo.create({ data: { cliente_id: f.clienteId, empresa_id: E, nome: 'BEZERRO' } });
+    // D-PROD-195: a categoria exige a curva de ganho da mesma fazenda.
+    const curva = await criarCurvaGanhoDeTeste(prisma(), { clienteId: f.clienteId, empresaId: E });
+    await prisma().categoriaManejo.create({ data: { cliente_id: f.clienteId, empresa_id: E, nome: 'BEZERRO', curva_ganho_id: curva.id } });
     await prisma().produto.create({ data: { cliente_id: f.clienteId, empresa_id: E, numero_produto: '1', nome_produto: 'SAL' } });
     await prisma().bebedouro.create({ data: { cliente_id: f.clienteId, empresa_id: E, nome: 'BEB 1', tipo: 'Bebedouro australiano' } });
     const op = await f.conta(PERM_SO_MAPA);

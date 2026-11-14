@@ -2,11 +2,20 @@ import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { rotuloFaixaIdade } from "@/domain/lotes/categoriaOficialDerivada";
 
+/**
+ * Chave das preferências de colunas. Mudou para `_v2` na D-PROD-195: uma
+ * preferência salva antes trazia a lista de colunas visíveis sem "Curva de
+ * ganho", e a grade esconderia a coluna nova.
+ */
+export const CATEGORIAS_MANEJO_STORAGE_KEY = "colunas_largura_categorias_manejo_v2";
+
 export const CATEGORIAS_MANEJO_COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
   { id: "sigla", label: "Sigla", default: true, sortable: true, width: 100 },
   { id: "sexo", label: "Sexo", default: true, sortable: true, width: 100 },
   { id: "idade", label: "Faixa Idade", default: true, sortable: true, width: 140 },
+  // D-PROD-195: nome da curva de ganho da fazenda ligada à categoria (grade e CSV).
+  { id: "curva_ganho", label: "Curva de ganho", default: true, sortable: true, width: 180 },
   { id: "especie", label: "Espécie", default: false, sortable: true, width: 120 },
 ];
 
@@ -16,6 +25,7 @@ export function getCategoriaManejoFieldValue(item, colunaId) {
   if (colunaId === "sexo") return item.sexo || "";
   // Rótulo da faixa fixa ("25 a 36 meses"); par legado fora da lista → "X a Y meses". Grade e CSV.
   if (colunaId === "idade") return rotuloFaixaIdade(item);
+  if (colunaId === "curva_ganho") return item.curva_ganho_nome || "";
   if (colunaId === "especie") return item.especie || "";
   return "";
 }
@@ -25,7 +35,7 @@ export default function TabelaCategoriasManejo(props) {
     <CadastroBase1Grade
       rows={props.categorias}
       columns={CATEGORIAS_MANEJO_COLUNAS}
-      storageKey="colunas_largura_categorias_manejo"
+      storageKey={CATEGORIAS_MANEJO_STORAGE_KEY}
       droppableId="colunas-categorias-manejo"
       getFieldValue={getCategoriaManejoFieldValue}
       renderCell={(item, colId) => getCategoriaManejoFieldValue(item, colId) || "–"}
@@ -48,7 +58,7 @@ export default function TabelaCategoriasManejo(props) {
       matchesSearch={
         props.matchesSearch ??
         ((item, q) => {
-          const hay = [item.nome, item.sigla]
+          const hay = [item.nome, item.sigla, item.curva_ganho_nome]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
