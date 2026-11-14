@@ -29,7 +29,7 @@ GO do proprietário). Precedentes executados: [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RU
 | Entrada pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | guarda `6d192b5423d728d425d20d4a98d28335b7617a6261ae96999162a71578856f64`; `drop`: as 3 antigas, filhas primeiro; `literais_guarda`: `CONFIRMADO`, `CANCELADO`, `EntidadeCodigoSequencia`; `alter_antigas: []`; `conversao`: as 3 instruções |
 | RLS das novas (`DO_RLS_APROVADOS`) | `8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c` |
 | Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: ["Atividade", "AtividadeApontamento"]`, `colunas_novas_em_tabelas_antigas: []`; `contract[0]`: `decisao: "D-PROD-199"`, `conversoes` (`INSERT INTO Atividade`, `INSERT INTO AtividadeApontamento`, `UPDATE EntidadeCodigoSequencia`), `tabelas_removidas` (as 3) |
-| `_prisma_migrations` | antes **51** concluídas, 0 em aberto (a última, os padrões do Tipo de Atividade da D-PROD-197, `20261114300000_tipo_atividade_defaults`, concluída em 2026-11-14 às 17:05:05 UTC); depois **52**. Recontar no §4 se algo mais for aplicado antes |
+| `_prisma_migrations` | antes **52** concluídas, 0 em aberto (a CONTRACT anterior, os padrões do Tipo de Atividade da D-PROD-197, `20261114300000_tipo_atividade_defaults`, concluída em 2026-11-14 às 17:05:05 UTC; a última, a EXPAND do peso objetivo da D-PROD-198, `20261114400000_cadcategoria_peso_objetivo`, concluída em 2026-11-14 às 19:00:00 UTC); depois **53**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes, **84** depois (− 3 + 2) |
 | Linhas (produção hoje) | `ApontamentoAtividade` 2 (`CONFIRMADO`), itens 0, fatias 0; contador `ApontamentoAtividade` / `tenant` / próximo 3 → depois `Atividade` 2 e `AtividadeApontamento` 2 (`ABERTA` e `CONFIRMADO`, números 1 e 2), contador `Atividade` / `tenant` / próximo 3 |
 
@@ -150,7 +150,10 @@ mig AS (
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS itens,
          count(*) FILTER (WHERE migration_name = '20261114300000_tipo_atividade_defaults'
                             AND checksum = 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf'
-                            AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior
+                            AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior,
+         count(*) FILTER (WHERE migration_name = '20261114400000_cadcategoria_peso_objetivo'
+                            AND checksum = 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9'
+                            AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS peso
     FROM public._prisma_migrations
 ),
 tabelas_alvo AS (
@@ -203,15 +206,15 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '51 / 0',
-         CASE WHEN (SELECT concluidas = 51 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '52 / 0',
+         CASE WHEN (SELECT concluidas = 52 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, '20261114500000_atividade_cabecalho já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 4, 'apontamento (D-PROD-190), itens (D-PROD-193) e a CONTRACT anterior (D-PROD-197) com o checksum do repositório',
-         (SELECT apontamento || ' / ' || itens || ' / ' || anterior FROM mig), '1 / 1 / 1',
-         CASE WHEN (SELECT apontamento = 1 AND itens = 1 AND anterior = 1 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 4, 'apontamento (D-PROD-190), itens (D-PROD-193), a CONTRACT anterior (D-PROD-197) e o peso objetivo (D-PROD-198) com o checksum do repositório',
+         (SELECT apontamento || ' / ' || itens || ' / ' || anterior || ' / ' || peso FROM mig), '1 / 1 / 1 / 1',
+         CASE WHEN (SELECT apontamento = 1 AND itens = 1 AND anterior = 1 AND peso = 1 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 5, 'tabelas antigas presentes / novas já presentes',
          (SELECT count(*) FILTER (WHERE antiga AND oid IS NOT NULL) || ' / ' || count(*) FILTER (WHERE NOT antiga AND oid IS NOT NULL) FROM tabelas_alvo), '3 / 0',
@@ -262,9 +265,9 @@ SELECT item, valor, esperado, status FROM (
 | Linha | Esperado hoje |
 |---|---|
 | alvo | `7692130048193495360` |
-| migrations | `51 / 0` |
+| migrations | `52 / 0` |
 | esta migration registrada | `0` |
-| D-PROD-190, D-PROD-193 e D-PROD-197 com o checksum do repositório | `1 / 1 / 1` |
+| D-PROD-190, D-PROD-193, D-PROD-197 e D-PROD-198 com o checksum do repositório | `1 / 1 / 1 / 1` |
 | tabelas antigas / novas | `3 / 0` |
 | itens / fatias | `0 / 0` |
 | sem lugar no modelo novo; status fora | `0`; `0` |
@@ -288,7 +291,7 @@ PostgreSQL local, em bancos próprios criados e apagados pelo teste. Ele roda
 deste arquivo, entre os marcadores `sql:…`), trocando só o `system_identifier` de
 produção pelo local:
 
-- partida: as 51 migrations de nome anterior a esta, pelo Prisma, e **os 2
+- partida: as 52 migrations de nome anterior a esta, pelo Prisma, e **os 2
   apontamentos com a forma exata dos de produção** (o nº 1, tipo `TESTE`, com área
   e setor, máquina com horímetro, operador, centros, produção 1 `KM`; o nº 2, tipo
   `TES`, sem área e sem operador, com máquina, centros, produção 150 `HA`), o
@@ -303,7 +306,7 @@ produção pelo local:
   sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-199` exato →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
-  envelope do caminho B: 52/0, 84 tabelas, as 2 atividades e os 2 apontamentos
+  envelope do caminho B: 53/0, 84 tabelas, as 2 atividades e os 2 apontamentos
   campo a campo, o contador `Atividade` / próximo 3, as 3 antigas fora, RLS nas
   2 novas, `migrate diff` vazio, o unique `NULLS NOT DISTINCT`, CHECKs e FKs,
   postcheck `APLICADA`; reaplicar o `migration.sql` e repetir o envelope são
@@ -339,15 +342,16 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
     INTO n_ok, n_aberta FROM _prisma_migrations;
-  IF n_ok <> 51 OR n_aberta <> 0 THEN
+  IF n_ok <> 52 OR n_aberta <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % em aberto', n_ok, n_aberta;
   END IF;
   IF (SELECT count(*) FROM _prisma_migrations
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
          AND ((migration_name = '20261113700000_apontamento_atividade' AND checksum = 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e')
            OR (migration_name = '20261113800000_apontamento_atividade_item' AND checksum = '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c')
-           OR (migration_name = '20261114300000_tipo_atividade_defaults' AND checksum = 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf'))) <> 3 THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: apontamento (D-PROD-190), itens (D-PROD-193) ou a CONTRACT anterior (D-PROD-197) ausentes ou com checksum divergente';
+           OR (migration_name = '20261114300000_tipo_atividade_defaults' AND checksum = 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf')
+           OR (migration_name = '20261114400000_cadcategoria_peso_objetivo' AND checksum = 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9'))) <> 4 THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: apontamento (D-PROD-190), itens (D-PROD-193), a CONTRACT anterior (D-PROD-197) ou o peso objetivo (D-PROD-198) ausentes ou com checksum divergente';
   END IF;
 END $alvo$;
 
@@ -486,8 +490,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, '20261114500000_atividade_cabecalho concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '52 / 0',
-         CASE WHEN (SELECT concluidas = 52 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '53 / 0',
+         CASE WHEN (SELECT concluidas = 53 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'tabelas antigas que restam / novas presentes',
          (SELECT count(*) FILTER (WHERE antiga AND oid IS NOT NULL) || ' / ' || count(*) FILTER (WHERE NOT antiga AND oid IS NOT NULL) FROM tabelas_alvo), '0 / 2',
@@ -544,7 +548,7 @@ SELECT item, valor, esperado, status FROM (
 ```
 <!-- /sql:postcheck -->
 
-Esperado: `1`; `52 / 0`; `0 / 2`; `84`; `2 / 0` e `2 / 0` (**iguais ao preflight**);
+Esperado: `1`; `53 / 0`; `0 / 2`; `84`; `2 / 0` e `2 / 0` (**iguais ao preflight**);
 `0` convertidas incoerentes; `0 / 0` no contador; contador `Atividade` `tenant / 3`
 (**igual ao do preflight**); `1`; `14`; `21 / 21`; `15 / 15 / 6`; RLS `true / false /
 maike_backend_all` nas duas; `0` grants; VEREDITO `APLICADA E CONFERIDA`. Mais:
@@ -601,7 +605,7 @@ Não há reversão automática: as 3 tabelas antigas deixam de existir no `COMMI
 - sem o GO-2 (no caminho B, sem o desvio da D-PROD-74 registrado para esta migration);
 - validação local da PR não verde;
 - alvo com `system_identifier` diferente;
-- histórico diferente de 51/0 antes, ou a D-PROD-199 já registrada (linha não revertida);
+- histórico diferente de 52/0 antes, ou a D-PROD-199 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;
@@ -619,9 +623,9 @@ Não há reversão automática: as 3 tabelas antigas deixam de existir no `COMMI
 | `<SHA_APROVADO>` | `<40 hex>` |
 | Verificação do SHA | `<verify:all, test:backend, test:smoke, portão e runner>` |
 | Ensaio local (§4.2) | `<atividadeCabecalhoMigration.test.mjs n/n>` |
-| Preflight (§4) | `<horário UTC>`; `<51 / 0>`; `<CONFIRMADO / CANCELADO>`; `<contador>`; travas `<n>`; transações longas `<n>`; `<veredito>` |
+| Preflight (§4) | `<horário UTC>`; `<52 / 0>`; `<CONFIRMADO / CANCELADO>`; `<contador>`; travas `<n>`; transações longas `<n>`; `<veredito>` |
 | Backup / PITR anterior | `<horário>` |
 | Aplicação | `<finished_at>`; checksum `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`; `applied_steps_count` 1 |
-| Postcheck (§6) | `<veredito>`; `<52 / 0>`; `<Atividade / AtividadeApontamento>`; `<contador>`; 84 tabelas |
+| Postcheck (§6) | `<veredito>`; `<53 / 0>`; `<Atividade / AtividadeApontamento>`; `<contador>`; 84 tabelas |
 | Alertas do Supabase | `<segurança / performance>` |
 | Merge e deploy | `<PR, commit do merge, deploy READY e duração da janela>` |

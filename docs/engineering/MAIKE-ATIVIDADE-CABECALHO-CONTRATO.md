@@ -49,7 +49,7 @@ Ordem dentro do arquivo:
    Os itens e as fatias estão vazios pela guarda: nada com custo é apagado.
 
 O portão ganha o formato **conversão**: guarda → `alter_antigas` → resto EXPAND → `conversao` pinada → DROP pinados no
-fim. O formato antigo (DROP logo depois da guarda) continua igual para as 6 entradas existentes. Produção: 52
+fim. O formato antigo (DROP logo depois da guarda) continua igual para as 6 entradas existentes. Produção: 53
 migrations e 84 tabelas depois desta (85 − 3 + 2).
 
 ## 3. Regras

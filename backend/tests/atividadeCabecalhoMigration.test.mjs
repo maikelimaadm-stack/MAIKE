@@ -4,8 +4,8 @@
  * PostgreSQL real, em bancos PRÓPRIOS criados e apagados por este teste (o banco da suíte não é tocado; os nomes
  * começam pelo nome do banco da suíte).
  *
- * Partida (banco MODELO): as migrations de nome ANTERIOR a esta (51: produção depois dos padrões do Tipo de
- * Atividade, D-PROD-197), pelo Prisma a partir de uma cópia temporária, e os 2 apontamentos com a forma EXATA dos de
+ * Partida (banco MODELO): as migrations de nome ANTERIOR a esta (52: produção depois dos padrões do Tipo de
+ * Atividade, D-PROD-197, e do peso objetivo na Categoria de Manejo, a EXPAND da D-PROD-198), pelo Prisma a partir de uma cópia temporária, e os 2 apontamentos com a forma EXATA dos de
  * produção: o nº 1, CONFIRMADO, de 2026-11-14, tipo 'TESTE', com área (que tem setor), máquina (horímetro), operador,
  * centro de custo, centro de resultado, produção 1 'KM' e criado_por, sem implemento, horas, hora, safra, tarefa ou
  * observação; o nº 2, CONFIRMADO, mesma data, tipo 'TES', sem área e sem operador, com máquina, centros e produção 150
@@ -65,6 +65,8 @@ const CONTRACTS_ANTERIORES = Object.freeze([
 /** Pastas do repositório: a partida é o que vem ANTES desta (produção hoje); o GREEN, todas. */
 const PASTAS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME_CONTRACT));
+/** D-PROD-198: a EXPAND do peso objetivo, a última que produção concluiu antes desta (o preflight e o envelope a conferem). */
+const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const TOTAL_MIGRATIONS = PASTAS.length;
 
 /** O runbook desta release: os blocos SQL rodam como estão, com o system_identifier local no lugar do de produção. */
@@ -455,10 +457,10 @@ after(async () => {
 });
 
 describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com conversão (PostgreSQL real)', () => {
-  test('AC-01 partida: as 51 migrations de nome anterior a esta (as 6 CONTRACT anteriores concluídas), 85 tabelas, as 3 antigas com 2 apontamentos e nenhum item ou fatia, as 2 novas ausentes, o contador ApontamentoAtividade/tenant/3; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
+  test('AC-01 partida: as 52 migrations de nome anterior a esta (as 6 CONTRACT anteriores concluídas), 85 tabelas, as 3 antigas com 2 apontamentos e nenhum item ou fatia, as 2 novas ausentes, o contador ApontamentoAtividade/tenant/3; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     const h = await historico(db);
-    assert.equal(ANTERIORES.length, 51, 'produção hoje: 51 migrations, a última os padrões do Tipo de Atividade (D-PROD-197)');
-    assert.equal(ANTERIORES.at(-1), '20261114300000_tipo_atividade_defaults');
+    assert.equal(ANTERIORES.length, 52, 'produção hoje: 52 migrations, a CONTRACT anterior os padrões do Tipo de Atividade (D-PROD-197) e a última o peso objetivo (D-PROD-198)');
+    assert.deepEqual(ANTERIORES.slice(-2), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO]);
     assert.equal(PASTAS.at(-1), NOME_CONTRACT, 'esta CONTRACT é a migration de nome mais recente');
     assert.equal(h.concluidas, ANTERIORES.length);
     assert.equal(h.abertas, 0);
@@ -475,7 +477,7 @@ describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com convers
     const r = await consulta(URL_T, comSidLocal(blocoDoRunbook('preflight'), SID));
     assert.equal(r.status, 0, r.stderr);
     const q = quadro(r);
-    assert.equal(q['migrations concluídas / em aberto'].valor, '51 / 0');
+    assert.equal(q['migrations concluídas / em aberto'].valor, '52 / 0');
     assert.equal(q['tabelas antigas presentes / novas já presentes'].valor, '3 / 0');
     assert.equal(q['ApontamentoAtividade: CONFIRMADO / CANCELADO (anote; o postcheck repete)'].valor, '2 / 0');
     assert.equal(q['contador ApontamentoAtividade: escopo / próximo (anote; o postcheck repete na entidade Atividade)'].valor, 'tenant / 3');
@@ -577,7 +579,7 @@ describe('D-PROD-199 — migration CONTRACT da Atividade cabeçalho, com convers
 
     const h = await historico(db);
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
-    assert.equal(TOTAL_MIGRATIONS, 52);
+    assert.equal(TOTAL_MIGRATIONS, 53);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     const linha = await um(db, `SELECT checksum, applied_steps_count::int AS passos FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}' AND rolled_back_at IS NULL`);
@@ -772,28 +774,30 @@ describe('D-PROD-199 — caminho B do runbook (uma transação pelo conector), n
     assert.deepEqual(await retrato(dbB), partidaB);
   });
 
-  test('TB-02 histórico fora de 51/0 (uma migration revertida) ou a CONTRACT anterior com checksum divergente recusa antes do DDL; restaurado, nada mudou', async () => {
+  test('TB-02 histórico fora de 52/0 (uma migration revertida) ou a CONTRACT anterior (D-PROD-197) ou o peso objetivo (D-PROD-198) com checksum divergente recusa antes do DDL; restaurado, nada mudou', async () => {
     await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET rolled_back_at = now() WHERE migration_name = '20261113300000_estoque_p1_03_indices'`);
     try {
       const r = await consulta(URL_B, comSidLocal(envelope(), SID));
       assert.notEqual(r.status, 0);
-      assert.match(r.stderr, /RELEASE_BLOCKED: histórico com 50 concluídas e 0 em aberto/);
+      assert.match(r.stderr, /RELEASE_BLOCKED: histórico com 51 concluídas e 0 em aberto/);
     } finally {
       await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET rolled_back_at = NULL WHERE migration_name = '20261113300000_estoque_p1_03_indices'`);
     }
-    const { checksum } = await um(dbB, `SELECT checksum FROM _prisma_migrations WHERE migration_name = '20261114300000_tipo_atividade_defaults'`);
-    await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET checksum = 'manual' WHERE migration_name = '20261114300000_tipo_atividade_defaults'`);
-    try {
-      const r = await consulta(URL_B, comSidLocal(envelope(), SID));
-      assert.notEqual(r.status, 0);
-      assert.match(r.stderr, /RELEASE_BLOCKED: apontamento \(D-PROD-190\), itens \(D-PROD-193\) ou a CONTRACT anterior \(D-PROD-197\) ausentes ou com checksum divergente/);
-    } finally {
-      await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET checksum = '${checksum}' WHERE migration_name = '20261114300000_tipo_atividade_defaults'`);
+    for (const nome of ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO]) {
+      const { checksum } = await um(dbB, `SELECT checksum FROM _prisma_migrations WHERE migration_name = '${nome}'`);
+      await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET checksum = 'manual' WHERE migration_name = '${nome}'`);
+      try {
+        const r = await consulta(URL_B, comSidLocal(envelope(), SID));
+        assert.notEqual(r.status, 0);
+        assert.match(r.stderr, /RELEASE_BLOCKED: apontamento \(D-PROD-190\), itens \(D-PROD-193\), a CONTRACT anterior \(D-PROD-197\) ou o peso objetivo \(D-PROD-198\) ausentes ou com checksum divergente/, nome);
+      } finally {
+        await dbB.$executeRawUnsafe(`UPDATE _prisma_migrations SET checksum = '${checksum}' WHERE migration_name = '${nome}'`);
+      }
     }
     assert.deepEqual(await retrato(dbB), partidaB);
   });
 
-  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (51 → 52, checksum = SHA-256 do arquivo, applied_steps_count 1); mesmo schema e mesmos dados que o runner; postcheck APLICADA com os números do preflight; o Prisma não vê pendência; migrate diff vazio', async () => {
+  test('TB-03 GREEN: preflight PRONTO; o envelope aplica numa transação (52 → 53, checksum = SHA-256 do arquivo, applied_steps_count 1); mesmo schema e mesmos dados que o runner; postcheck APLICADA com os números do preflight; o Prisma não vê pendência; migrate diff vazio', async () => {
     const pre = quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('preflight'), SID)));
     assert.match(pre.VEREDITO.valor, /^PRONTO PARA APLICAR/);
     assert.match(quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('postcheck'), SID))).VEREDITO.valor, /^PARAR/, 'antes de aplicar, o postcheck manda parar');
