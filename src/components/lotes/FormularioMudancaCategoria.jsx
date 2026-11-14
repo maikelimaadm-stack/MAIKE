@@ -8,7 +8,7 @@ import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteR
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { notifyWarning } from "@/lib/maikeNotify";
-import { CATEGORIAS_OFICIAIS, categoriaManejoParaMudanca } from "@/domain/lotes/categoriaOficialDerivada";
+import { CATEGORIAS_OFICIAIS, categoriasManejoParaMudanca } from "@/domain/lotes/categoriaOficialDerivada";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -18,6 +18,19 @@ const CATEGORIAS = CATEGORIAS_OFICIAIS;
 
 /** Largura do ícone no cabeçalho do item (`.mk-ll__item-ic`): o subícone é montado nela. */
 const SUBICONE_PX = 22;
+
+/**
+ * D-PROD-199 — a categoria de manejo que a linha vai receber: a escolhida (se
+ * ainda é candidata), senão a única candidata; com mais de uma e nenhuma
+ * escolhida, `null` (a tela pede a escolha e não envia).
+ * @param {{ categoria_manejo_id_novo?: string }} mudanca
+ * @param {Array<{ id: unknown }>} candidatas
+ */
+export const categoriaManejoDaLinha = (mudanca, candidatas) => {
+  const escolhida = candidatas.find((c) => String(c.id) === String(mudanca?.categoria_manejo_id_novo ?? ""));
+  if (escolhida) return escolhida;
+  return candidatas.length === 1 ? candidatas[0] : null;
+};
 
 /**
  * `categoriasManejo` (cache do mapa, ativas e inativas): o subícone de cada linha vem do
@@ -72,16 +85,31 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel, c
       notifyWarning("Atenção", "Preencha pelo menos uma mudança com quantidade e categoria nova");
       return;
     }
+    // D-PROD-199: com mais de uma categoria de manejo possível, a escolha é obrigatória (não se adivinha).
+    const semEscolha = mudancasValidas.find(
+      (m) => categoriasManejoParaMudanca(categoriasManejoAtivas, m.categoria_nova).length > 1 &&
+        !categoriaManejoDaLinha(m, categoriasManejoParaMudanca(categoriasManejoAtivas, m.categoria_nova)),
+    );
+    if (semEscolha) {
+      notifyWarning("Atenção", `Escolha a categoria de manejo para ${semEscolha.categoria_nova}: há mais de uma cadastrada.`);
+      return;
+    }
 
     setSaving(true);
     try {
       await onSubmit({
         ...formData,
-        mudancas: mudancasValidas.map(m => ({
-          ...m,
-          quantidade: parseInt(m.quantidade),
-          peso_medio: m.peso_medio ? parseFloat(m.peso_medio) : null
-        }))
+        mudancas: mudancasValidas.map(m => {
+          const cm = categoriaManejoDaLinha(m, categoriasManejoParaMudanca(categoriasManejoAtivas, m.categoria_nova));
+          return {
+            ...m,
+            sexo_novo: cm?.sexo || undefined,
+            categoria_manejo_id_novo: cm?.id || undefined,
+            categoria_manejo_nome_novo: cm?.nome || undefined,
+            quantidade: parseInt(m.quantidade),
+            peso_medio: m.peso_medio ? parseFloat(m.peso_medio) : null
+          };
+        })
       });
     } finally {
       setSaving(false);
@@ -114,16 +142,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel, c
       ...novasMudancas[index],
       [field]: value
     };
-    // Se mudou a nova categoria, buscar o sexo da categoria de manejo correspondente
-    if (field === 'categoria_nova') {
-      // R2B-P1: a categoria de manejo acompanha a escolhida (sem herdar a da categoria antiga).
-      // MAIKE-CATEGORIA-MANEJO-ENXUGAR: casa pela oficial DERIVADA de sexo + faixa de idade (mesma regra do
-      // servidor); o nome é livre e não é a chave. Escolha determinística (ver categoriaManejoParaMudanca).
-      const catManejo = categoriaManejoParaMudanca(categoriasManejoAtivas, value);
-      novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
-      novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
-      novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;
-    }
+    // R2B-P1: a categoria de manejo acompanha a nova (sem herdar a da categoria antiga).
+    // D-PROD-199: trocar a nova limpa a escolha; com uma candidata ela vale sozinha, com mais
+    // de uma o usuário escolhe (ver categoriaManejoDaLinha). Casa pela oficial DERIVADA de
+    // sexo + faixa de idade (mesma regra do servidor); o nome é livre e não é a chave.
+    if (field === 'categoria_nova') novasMudancas[index].categoria_manejo_id_novo = undefined;
     setFormData({ ...formData, mudancas: novasMudancas });
   };
 
@@ -178,11 +201,13 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel, c
                       </B1Select>
                     </FL>
 
-                    {mudanca.sexo_novo && (
-                      <div className="text-xs text-slate-500">
-                        Sexo da nova categoria: <span className="font-semibold text-slate-700">{mudanca.sexo_novo}</span>
-                      </div>
-                    )}
+                    {mudanca.categoria_nova ? (
+                      <CategoriaManejoDestino
+                        mudanca={mudanca}
+                        candidatas={categoriasManejoParaMudanca(categoriasManejoAtivas, mudanca.categoria_nova)}
+                        onEscolher={(id) => handleMudancaChange(index, 'categoria_manejo_id_novo', id || undefined)}
+                      />
+                    ) : null}
 
                     <FL label="Peso Médio (kg)">
                       <Input
@@ -204,5 +229,45 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel, c
 
           <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={saving} textoAcao="Confirmar Mudanças" textoEnviando="Salvando..." enviando={saving} />
         </LancLoteForm>
+  );
+}
+/**
+ * D-PROD-199 — a categoria de manejo que o lote vai receber. Uma candidata: mostra
+ * qual é (e o sexo). Mais de uma: select obrigatório, sem pré-escolha. Nenhuma:
+ * avisa que o lote fica sem categoria de manejo (sem curva de ganho nem objetivo).
+ * @param {{ mudanca: any, candidatas: any[], onEscolher: (id: string) => void }} props
+ */
+function CategoriaManejoDestino({ mudanca, candidatas, onEscolher }) {
+  if (candidatas.length === 0) {
+    return (
+      <div className="text-xs text-amber-700" data-testid="mudanca-manejo-nenhuma">
+        Nenhuma categoria de manejo ativa para {mudanca.categoria_nova}: o lote fica sem curva de ganho e sem peso objetivo.
+      </div>
+    );
+  }
+  if (candidatas.length === 1) {
+    const c = candidatas[0];
+    return (
+      <div className="text-xs text-slate-500" data-testid="mudanca-manejo-unica">
+        Categoria de manejo: <span className="font-semibold text-slate-700">{c.nome}</span>
+        {c.sexo ? <> · Sexo: <span className="font-semibold text-slate-700">{c.sexo}</span></> : null}
+      </div>
+    );
+  }
+  const escolhida = categoriaManejoDaLinha(mudanca, candidatas);
+  return (
+    <FL label="Categoria de Manejo" required>
+      <B1Select
+        value={escolhida ? String(escolhida.id) : ""}
+        onChange={(e) => onEscolher(e.target.value)}
+        className={LL_CTL}
+        data-testid="mudanca-manejo-escolha"
+      >
+        <option value="">ESCOLHA ({candidatas.length} cadastradas)</option>
+        {candidatas.map((c) => (
+          <option key={String(c.id)} value={String(c.id)}>{c.nome}</option>
+        ))}
+      </B1Select>
+    </FL>
   );
 }

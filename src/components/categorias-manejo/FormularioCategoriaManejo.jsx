@@ -7,6 +7,7 @@ import { numeroPtBr } from "@/services/categoriaManejoService";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import {
   FAIXAS_IDADE_CATEGORIA_MANEJO,
+  categoriasManejoDuplicadas,
   faixaIdadeDaLista,
   rotuloFaixaIdade,
   sexoOficial,
@@ -144,6 +145,7 @@ export default function FormularioCategoriaManejo({
   carregandoCurvas = false,
   erroCurvas = false,
   semFazenda = false,
+  categoriasDaFazenda = [],
 }) {
   const embedded = variant === "embedded";
   const isExistingRecord = Boolean(initialData?.id);
@@ -200,6 +202,12 @@ export default function FormularioCategoriaManejo({
 
   const locked = readOnly || isSubmitting;
   const faixaValor = valorFaixaIdade(formData);
+  // D-PROD-199: aviso (não bloqueia) de outra categoria ativa com o mesmo sexo e a mesma faixa.
+  const duplicadas = readOnly ? [] : categoriasManejoDuplicadas(categoriasDaFazenda, { ...formData, id: initialData?.id });
+  const avisoDuplicada =
+    duplicadas.length > 0
+      ? `Já existe ${duplicadas.map((c) => c.nome).join(", ")} com o mesmo sexo e faixa. Na mudança de categoria e no nascimento vai ser preciso escolher entre elas; se for repetida, inative uma.`
+      : undefined;
   const curvaValor = formData.curva_ganho_id ? String(formData.curva_ganho_id) : "";
   const opcoesCurva = opcoesCurvaGanho(curvasGanho, curvaGravada);
   // Nome exibido: o da lista (atual) ou o que veio no registro (`curva_ganho_nome`).
@@ -317,6 +325,7 @@ export default function FormularioCategoriaManejo({
         locked={readOnly}
         disabled={locked}
         error={invalidFields.includes("faixa_idade") ? "Obrigatório" : undefined}
+        dica={avisoDuplicada}
       >
         {readOnly ? (
           <input type="text" readOnly value={rotuloFaixaIdade(formData)} className={B1_FIELD_CTL_CLS} />

@@ -134,6 +134,8 @@ export const rotuloFaixaIdade = (categoria) => {
  * 0 a 12 meses" —: escolha determinística pela faixa mais avançada (a mudança
  * leva o animal adiante) e, empatando, pelo id; nunca pela ordem da lista. A
  * "Categoria de evolução" (Fatia E) vai tornar a escolha explícita.
+ * D-PROD-199: a tela da Mudança de Categoria NÃO usa mais esta escolha
+ * automática — mostra a candidata ou pede a escolha (`categoriasManejoParaMudanca`).
  * @template {{ id?: unknown, ativo?: unknown, idade_minima_meses?: unknown }} T
  * @param {readonly T[] | null | undefined} categorias
  * @param {unknown} oficial
@@ -148,3 +150,47 @@ export const categoriaManejoParaMudanca = (categorias, oficial) =>
         (Number(b.idade_minima_meses) || 0) - (Number(a.idade_minima_meses) || 0) ||
         String(a.id).localeCompare(String(b.id))
     )[0];
+
+/**
+ * D-PROD-199 — TODAS as categorias de manejo ativas que a Mudança de Categoria
+ * pode ligar à categoria oficial nova, em ordem de nome. Com uma só, a tela
+ * mostra qual é; com mais de uma, a tela pede para escolher (não adivinha).
+ * @template {{ id?: unknown, nome?: unknown, ativo?: unknown }} T
+ * @param {readonly T[] | null | undefined} categorias
+ * @param {unknown} oficial
+ * @returns {T[]}
+ */
+export const categoriasManejoParaMudanca = (categorias, oficial) =>
+  (categorias ?? [])
+    .filter((c) => c && c.ativo !== false && derivaCategoriaOficial(c, oficial))
+    .slice()
+    .sort((a, b) => String(a.nome ?? '').localeCompare(String(b.nome ?? ''), 'pt-BR') || String(a.id).localeCompare(String(b.id)));
+
+/**
+ * D-PROD-199 — outras categorias de manejo ATIVAS com o MESMO sexo e a MESMA
+ * faixa de idade de `categoria` (ex.: "TESTE" e "BEZERRO MAMANDO", ambas Macho
+ * 0 a 8). Duplicadas assim deixam a Mudança de Categoria e o Nascimento sem
+ * como escolher sozinhos; o cadastro avisa (não bloqueia). Faixas diferentes da
+ * mesma oficial (0 a 8 e 9 a 12) NÃO contam: são etapas, não duplicatas.
+ * Categoria sem sexo ou sem faixa não tem "iguais".
+ * @template {{ id?: unknown, ativo?: unknown, sexo?: unknown, idade_minima_meses?: unknown, idade_maxima_meses?: unknown }} T
+ * @param {readonly T[] | null | undefined} categorias
+ * @param {{ id?: unknown, sexo?: unknown, idade_minima_meses?: unknown, idade_maxima_meses?: unknown } | null | undefined} categoria
+ * @returns {T[]}
+ */
+export const categoriasManejoDuplicadas = (categorias, categoria) => {
+  const sexo = sexoOficial(categoria?.sexo);
+  const minima = mesesDe(categoria?.idade_minima_meses);
+  const maxima = mesesDe(categoria?.idade_maxima_meses);
+  if (!sexo || Number.isNaN(minima) || Number.isNaN(maxima) || (minima === undefined && maxima === undefined)) return [];
+  const proprioId = categoria?.id === undefined || categoria?.id === null || categoria?.id === '' ? null : String(categoria.id);
+  return (categorias ?? []).filter(
+    (c) =>
+      c &&
+      c.ativo !== false &&
+      (proprioId === null || String(c.id) !== proprioId) &&
+      sexoOficial(c.sexo) === sexo &&
+      mesesDe(c.idade_minima_meses) === minima &&
+      mesesDe(c.idade_maxima_meses) === maxima,
+  );
+};
