@@ -6841,4 +6841,25 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-192 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-190 com a PR #269) -->
+## D-PROD-192 — Cadastro de ícone: a categoria digitada não é apagada pelo Select (MAIKE-ICONES-CATEGORIA-DIGITADA)
+
+> **Numeração:** a branch da PR #271 (D-PROD-191) indica `Próxima decisão: D-PROD-192`, que é esta. O contrato da branch `feat/apontamento-itens` (ainda sem PR) previa a D-PROD-191, que a PR #271 já usa; a Fatia D do apontamento vai precisar de número próprio (D-PROD-193 ou seguinte).
+
+**Data:** 2026-11-14 · **Origem:** defeito anterior, achado durante a fatia MAIKE-ICONES-LOTE-CODIGO (D-PROD-191) e deixado fora dela; pedido do proprietário · **Branch:** `claude/fervent-knuth-txff6q`, empilhada sobre `feat/icones-lote-codigo` (PR #271, que também altera `GerenciadorIcones.jsx`)
+
+**Contexto.** No diálogo "Cadastrar Novo Ícone" (`src/components/configuracoes/GerenciadorIcones.jsx`), a categoria tem um Select (Radix, `@/components/ui/select`) com as sugestões do tipo e, logo abaixo, o campo "OU DIGITE UMA NOVA CATEGORIA", os dois ligados a `formData.categoria`. Texto que não era exatamente uma das opções ("MEU PONTO", ou "COCHO" no lugar de "Cocho") era apagado já na primeira tecla, ao cadastrar e ao editar. Na prática só dava para salvar uma categoria sugerida, escolhida no Select.
+
+**Causa (confirmada).** O `Select` do `@radix-ui/react-select` 2.3.7 (versão do lockfile) desenha um `<select>` nativo oculto (`SelectBubbleInput`, `aria-hidden`), com uma `<option>` por item. Quando o valor controlado muda, um efeito grava esse valor no `<select>` pelo setter nativo e dispara `change`, e o `onChange` dele chama `onValueChange(event.target.value)`. Valor sem `<option>` igual deixa o `<select>` sem seleção, e `event.target.value` chega `""`. Como o Select é controlado e `""` difere do valor recebido, o Radix chama o `onValueChange` da tela, que gravava `categoria: ""`. Prova, num teste descartável (saída no relatório): sem interferência, a tecla "M" faz o `<select>` oculto da categoria (11 opções, as sugestões de Ponto) disparar `change` com `""`, e o campo zera; bloqueando só esse `change`, o "M" fica.
+
+**Decisão.**
+1. **O Select de categoria só recebe valor que é uma das opções dele.** `sugestaoDaCategoria(tipo, categoria)` devolve a sugestão do tipo igual ao texto sem diferença de maiúsculas (a categoria é salva em maiúsculas, então "COCHO" corresponde a "Cocho"), ou `""` quando o texto é novo. Assim o `<select>` oculto sempre tem a opção do valor, ou fica vazio junto com ele, e o `change` dele nunca traz valor diferente do recebido: o `onValueChange` só dispara quando o usuário escolhe uma sugestão.
+2. **O campo de texto não muda.** Continua ligado a `formData.categoria`, com o texto como foi digitado, e o salvamento segue em maiúsculas (`toUpperCase()`, sem `trim`, como antes). Escolher uma sugestão no Select continua trocando o texto pela sugestão.
+3. **O que o Select mostra.** Com texto novo, o texto de sempre do Select, "Selecione a categoria" (antes ficava em branco nas vezes em que o valor não sumia). Com texto igual a uma sugestão em outra grafia, a sugestão: ao editar um ícone salvo como "COCHO", aparece "Cocho".
+4. **Fica igual:** os 5 tipos oferecidos (sem Lote, D-PROD-191), as listas de sugestões, os dois uploads (`enviarArquivo(await redimensionarParaIcone(file))` duas vezes, prova ICO-04), o botão "Usar modelo de cocho SVG" (aparece com a categoria "COCHO" em qualquer grafia), cor, descrição e a lista de ícones. O `onValueChange` do Select ficou como estava: ignorar `""` nele seria redundante com o item 1.
+5. **Fora do escopo:** backend, banco, `ConfiguracaoIcone`, o baseline de tipos e o componente compartilhado `src/components/ui/select.jsx`. A busca por "OU DIGITE" em `src/` só acha esta tela; outros Selects controlados com valor fora das opções não foram auditados nesta fatia.
+
+**Testes.** `tests/smoke/gerenciadorIconesCategoriaDigitada.test.jsx` (5 casos, digitação tecla a tecla, conferindo o campo a cada tecla): CAT-01 "MEU PONTO" fica e é salvo "MEU PONTO", com o Select em "Selecione a categoria"; CAT-02 "meu ponto" fica como foi digitado e é salvo "MEU PONTO"; CAT-03 "COCHO" fica, o Select mostra "Cocho", o botão do modelo de cocho aparece nos dois uploads e salva "COCHO"; CAT-04 escolher "Bebedouro" no Select por cima do texto e voltar a digitar (salva "BEBEDOURO NOVO"); CAT-05 editar um ícone de categoria própria e salvar o texto alterado (`atualizarIcone`). Os 5 falharam antes da correção (o campo zerava na primeira tecla) e passam depois.
+
+**Relatório:** [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-193 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-190 com a PR #269; D-PROD-191 com a PR #271) -->
