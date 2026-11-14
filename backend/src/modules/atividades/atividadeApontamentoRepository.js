@@ -13,13 +13,20 @@
  * atividade ficam em `atividadeComum.js`, compartilhados com o cabeçalho.
  */
 
-import { STATUS_APONTAMENTO, USUARIO_RESUMO, comoData } from './atividadeComum.js';
+import { INCLUIR_LINHA_PRODUTO, STATUS_APONTAMENTO, USUARIO_RESUMO, comoData } from './atividadeComum.js';
+import { INCLUIR_LINHA_MAQUINA } from './atividadeApontamentoMaquinaRepository.js';
 
-/** `include` do apontamento: o resumo ao lado de cada id de usuário da forma pública. */
+/**
+ * `include` do apontamento: o resumo ao lado de cada id de usuário da forma
+ * pública e, D-PROD-202 (Fatia 3), as linhas de PRODUTO e de MÁQUINA
+ * (inclusive as canceladas), em ordem de lançamento.
+ */
 export const INCLUIR_APONTAMENTO = Object.freeze({
   operador: USUARIO_RESUMO,
   criadoPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
+  produtos: { include: INCLUIR_LINHA_PRODUTO, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
+  maquinas: { include: INCLUIR_LINHA_MAQUINA, orderBy: [{ ordem: /** @type {const} */ ('asc') }] },
 });
 
 /**
@@ -28,12 +35,14 @@ export const INCLUIR_APONTAMENTO = Object.freeze({
  * nas escritas. Outra empresa e outro tenant = `null`.
  * @param {any} db  cliente Prisma ou transação
  * @param {string} clienteId @param {string} empresaId @param {string} id
- * @returns {Promise<{ id: string, status: string, data_inicio: Date|null, data_prevista_fim: Date|null } | null>}
+ * @returns {Promise<{ id: string, empresa_id: string, numero: string, status: string, tipo_atividade_id: string, bem_id: string|null,
+ *   data_inicio: Date|null, data_prevista_fim: Date|null } | null>}
  */
 export const lerAtividadeBase = (db, clienteId, empresaId, id) =>
   db.atividade.findFirst({
     where: { cliente_id: clienteId, empresa_id: empresaId, id },
-    select: { id: true, status: true, data_inicio: true, data_prevista_fim: true },
+    // D-PROD-202: número (documento do movimento de estoque), tipo (as flags das linhas), máquina e fazenda.
+    select: { id: true, empresa_id: true, numero: true, status: true, tipo_atividade_id: true, bem_id: true, data_inicio: true, data_prevista_fim: true },
   });
 
 /**
@@ -120,3 +129,16 @@ export const cancelarConfirmadosDaAtividade = async (tx, { clienteId, empresaId,
   });
   return r.count;
 };
+
+/**
+ * D-PROD-202: ids dos apontamentos CONFIRMADO da atividade (os que o
+ * cancelamento da atividade vai cancelar: as linhas deles são estornadas antes).
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} atividadeId
+ * @returns {Promise<string[]>}
+ */
+export const idsConfirmadosDaAtividade = async (tx, clienteId, empresaId, atividadeId) =>
+  (await tx.atividadeApontamento.findMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, status: STATUS_APONTAMENTO.CONFIRMADO },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  })).map((/** @type {{ id: string }} */ r) => r.id);

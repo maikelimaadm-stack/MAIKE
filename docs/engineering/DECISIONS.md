@@ -7361,4 +7361,20 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-202 -->
+## D-PROD-202 — Linhas de produto e de máquina no apontamento do Lançamento de Atividades (Fatia 3)
+
+> **Numeração:** nasceu como D-PROD-201; a `main` deu a D-PROD-201 à suplementação de cocho, etapa 1 (PR #288, sem migration), antes do merge desta. Esta é a **D-PROD-202**. O número não está no `migration.sql`.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina. É o coração."), liberada com "pode começar" · **Branch:** `feat/atividade-itens-produto-maquina`
+
+**Decisão.**
+1. **Linha de produto:** baixa no estoque pelo motor único (FIFO, custo FIFO, estorno exato), com origem `apontamento_atividade`. Editar é estorno exato + nova saída. Cancelar o apontamento ou a atividade estorna tudo. Idempotência por `operation_id`. A conciliação do estoque lê as tabelas novas.
+2. **Linha de máquina:** o medidor vem do bem; a leitura fica na linha, como no abastecimento, e a leitura vigente do bem passa a considerar as linhas (nada é gravado em `BemPatrimonial.medidor_*`). Final obrigatória, nunca para trás; salto acima do teto do tipo do bem pede justificativa; "sem medidor" aceita horas ou km direto. O custo de uso é snapshot de `BemPatrimonial.custo_uso_unitario` (coluna nova).
+3. **Migration EXPAND `20261114600000_atividade_linhas_produto_maquina`:** 3 tabelas novas e 2 colunas anuláveis (`BemPatrimonial.custo_uso_unitario`, `TipoPatrimonial.salto_maximo_medidor`). Produção: 53 → 54 migrations, 84 → 87 tabelas.
+4. **Constituição:** nota nova re-ancorando a exceção de estoque da D-PROD-193 na linha de produto, com edição por estorno exato e custo de uso como snapshot, sem financeiro. **Aprovada pelo proprietário** em 2026-11-14.
+
+**Autorização e release.** O proprietário respondeu "autorizo vocÇe" ao pedido "aplica e aprova" (aplicar a migration antes do merge e aprovar a nota da Constituição) e, depois de o primeiro envio expirar sem resposta à confirmação do Supabase, "mande de novo a autorização". Aplicada em produção em 2026-11-14 pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md): preflight PRONTO (53 / 0, 84 tabelas, sem travas); postcheck APLICADA E CONFERIDA (54 / 0, 87 tabelas, 3 / 0, 9 CHECKs, 17 / 17 FKs, 20 / 20 / 13 índices, RLS sem FORCE com `maike_backend_all`, 0 grants). Merge da PR #289 em seguida.
+
+**Contrato:** [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md).
+
+<!-- Próxima decisão: D-PROD-203 -->

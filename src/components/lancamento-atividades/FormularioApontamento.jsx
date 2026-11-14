@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
@@ -8,6 +8,7 @@ import { CampoDia, CampoNumero } from "@/components/financeiroGestao/CamposLanca
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
+import LinhasDoLancamento from "@/components/lancamento-atividades/LinhasDoLancamento";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { notifyInfo, notifyWarning } from "@/lib/maikeNotify";
 import {
@@ -40,8 +41,22 @@ import {
   textoDoPeriodo,
   validarFormularioApontamento,
 } from "@/lib/atividadeApontamentoRegras";
+import {
+  corpoDaLinhaMaquina,
+  corpoDaLinhaProduto,
+  linhaEmbutidaRecusada,
+  linhasParaRepetir,
+  campoDaLinhaRecusada,
+  ehSaltoDoMedidor,
+  mensagemDeErroLinha,
+  passaDoTeto,
+  temLinhaConfirmada,
+  usoDaLinha,
+  validarLinhaMaquina,
+  validarLinhaProduto,
+} from "@/lib/atividadeLinhasRegras";
 import { criarApontamento, duplicarApontamento, editarApontamento, listarOpcoesOperadores } from "@/services/lancamentoAtividadesService";
-import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
+import { CODIGO_ENVIO_PENDENTE, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
 
@@ -62,7 +77,12 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *    produção e observação da base e a data de hoje, para o operador só
  *    ajustar. Nada é gravado antes de salvar: sem ajuste (só a data, ou nem
  *    ela), vai o DUPLICAR do servidor (a cópia fiel da base, sequência nova);
- *    com ajuste, vai um lançamento novo com os dados ajustados.
+ *    com ajuste, vai um lançamento novo com os dados ajustados. Fatia 3
+ *    (D-PROD-202): a base com linhas de produto e de máquina CONFIRMADAS traz
+ *    as linhas preenchidas (as leituras sugeridas de novo) e vai UM lançamento
+ *    novo com `produtos[]` e `maquinas[]` — tudo numa transação, com o
+ *    `operation_id` persistente (sem resposta, "Repetir o mesmo envio" não
+ *    duplica).
  *
  * Decimais vão em texto canônico. Fora do período da atividade o lançamento é
  * aceito com aviso (o alerta da resposta, que a lista mostra). A recusa do
@@ -78,9 +98,22 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *   onSalvo: (resultado: { apontamento: any, atividade: any, alertas: any[] }) => void,
  *   onCancelar: () => void,
  *   onMudou?: (() => void) | null,
+ *   permiteProduto?: boolean,
+ *   permiteImplemento?: boolean,
+ *   escopo?: string,
  * }} props `onMudou`: a atividade ou o lançamento mudou no servidor (versão, status, sumiu) ou o envio ficou sem resposta — quem abriu relê.
  */
-export default function FormularioApontamento({ atividade, apontamento = null, base = null, onSalvo, onCancelar, onMudou = null }) {
+export default function FormularioApontamento({
+  atividade,
+  apontamento = null,
+  base = null,
+  onSalvo,
+  onCancelar,
+  onMudou = null,
+  permiteProduto = false,
+  permiteImplemento = false,
+  escopo = "",
+}) {
   const empresaId = useEmpresaRealSelecionadaId();
   const { hoje, fuso, semFuso } = useFusoDaFazenda(empresaId);
   const existente = Boolean(apontamento?.id);
@@ -106,6 +139,50 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
   // Folhas do celular (Turno, Operador) nascem dentro da janela: fora dela o diálogo bloqueia o toque.
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
 
+  // ─── Linhas do "Repetir" (Fatia 3) ─────────────────────────────────
+  const linhasDaBase = useMemo(() => (repetindo ? linhasParaRepetir(base) : { produtos: [], maquinas: [] }), []);
+  const [rascProdutos, setRascProdutos] = useState(() => linhasDaBase.produtos);
+  const [rascMaquinas, setRascMaquinas] = useState(() => linhasDaBase.maquinas);
+  const [errosLinhas, setErrosLinhas] = useState(/** @type {Record<string, Record<string, string>>} */ ({}));
+  const [saltos, setSaltos] = useState(/** @type {Record<string, boolean>} */ ({}));
+  /** Saldo e medidor que cada linha leu (para validar e montar o corpo). @type {React.MutableRefObject<Record<string, any>>} */
+  const contextoLinhas = useRef({});
+  // Sem `permite_produto` no tipo, os produtos da base não vão (o servidor recusaria).
+  const produtosDoEnvio = permiteProduto ? rascProdutos : [];
+  // A base tinha linhas: o envio é sempre o lançamento novo (o duplicar copia só os dados do dia).
+  const baseTinhaLinhas = linhasDaBase.produtos.length > 0 || linhasDaBase.maquinas.length > 0;
+  const comLinhas = produtosDoEnvio.length > 0 || rascMaquinas.length > 0;
+  // Envio com linhas sem resposta: o próximo clique repete EXATAMENTE aquele corpo (mesma chave, sem duplicar).
+  const repetirEnvio = useRef(false);
+  const ultimoCorpo = useRef(/** @type {Record<string, any> | null} */ (null));
+  const [incerto, setIncerto] = useState(false);
+  const esquecerEnvio = () => {
+    ultimoCorpo.current = null;
+  };
+  /** @param {string} chave @param {string[]} [campos] */
+  const limparErrosDaLinha = (chave, campos = []) =>
+    setErrosLinhas((e) => {
+      if (!e[chave]) return e;
+      const resto = campos.length ? Object.fromEntries(Object.entries(e[chave]).filter(([k]) => !campos.includes(k))) : {};
+      return { ...e, [chave]: resto };
+    });
+  /** @param {string} chave @param {(f: any) => any} f */
+  const atualizarProduto = (chave, f) => {
+    setRascProdutos((l) => l.map((r) => (r.chave === chave ? { ...r, form: f(r.form) } : r)));
+    limparErrosDaLinha(chave);
+    esquecerEnvio();
+  };
+  /** @param {string} chave @param {(f: any) => any} f */
+  const atualizarMaquina = (chave, f) => {
+    setRascMaquinas((l) => l.map((r) => (r.chave === chave ? { ...r, form: f(r.form) } : r)));
+    limparErrosDaLinha(chave);
+    esquecerEnvio();
+  };
+  /** @param {string} chave @param {Record<string, any>} c */
+  const aoContexto = (chave, c) => {
+    contextoLinhas.current = { ...contextoLinhas.current, [chave]: { ...(contextoLinhas.current[chave] ?? {}), ...c } };
+  };
+
   useEffect(() => {
     if (dataEditada.current || !hoje) return;
     setForm((f) => (f.data_operacional === hoje ? f : { ...f, data_operacional: hoje }));
@@ -115,23 +192,58 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
 
   /** @param {Partial<import("@/lib/atividadeApontamentoRegras").FormularioApontamento>} mudanca @param {string[]} campos */
   const mudar = (mudanca, campos) => {
+    esquecerEnvio();
     setForm((f) => ({ ...f, ...mudanca }));
     setErros((e) => (campos.some((c) => e[c]) ? Object.fromEntries(Object.entries(e).filter(([k]) => !campos.includes(k))) : e));
     setErroGeral(null);
   };
 
-  /** @param {unknown} erro */
-  const tratarErro = (erro) => {
+  /** @param {unknown} erro @param {boolean} [enviouLinhas] */
+  const tratarErro = (erro, enviouLinhas = false) => {
+    const manteve = /** @type {any} */ (erro)?.code === CODIGO_ENVIO_PENDENTE;
+    if (enviouLinhas) {
+      // Com linhas o envio leva `operation_id`: sem resposta definitiva, o próximo clique repete o mesmo envio.
+      repetirEnvio.current = manteve || !ehRecusaDefinitiva(erro);
+      if (!repetirEnvio.current) ultimoCorpo.current = null;
+      setIncerto(repetirEnvio.current);
+    }
+    if (manteve) {
+      setErroGeral("Há um envio anterior deste lançamento sem resposta do servidor. Nada foi enviado agora: repita aquele envio para concluí-lo sem duplicar.");
+      return;
+    }
     if (ehResultadoIncerto(erro)) {
       const texto = existente
         ? "Não recebemos a resposta do servidor: a alteração PODE ter sido gravada. Feche e confira o lançamento antes de salvar de novo."
-        : "Não recebemos a resposta do servidor: o lançamento PODE ter sido gravado. Feche e confira a lista antes de lançar de novo: se ele já estiver lá, lançar outra vez grava mais uma passada.";
+        : enviouLinhas
+          ? "Não recebemos a resposta do servidor: o lançamento com os produtos e as máquinas PODE ter sido gravado. Confira a lista; se ele não estiver lá, use \"Repetir o mesmo envio\": com a mesma chave, nada é lançado nem baixado duas vezes."
+          : "Não recebemos a resposta do servidor: o lançamento PODE ter sido gravado. Feche e confira a lista antes de lançar de novo: se ele já estiver lá, lançar outra vez grava mais uma passada.";
       setErroGeral(texto);
       notifyWarning("Resultado incerto", texto);
       onMudou?.();
       return;
     }
-    const mensagem = mensagemDeErroAtividade(erro, "Não foi possível gravar o lançamento. Nada foi gravado.");
+    if (enviouLinhas) {
+      // A recusa que aponta uma linha embutida (índice) vai para ela: o salto pede a justificativa, o saldo, a quantidade.
+      const alvo = linhaEmbutidaRecusada(erro);
+      const lista = alvo?.colecao === "produtos" ? produtosDoEnvio : alvo?.colecao === "maquinas" ? rascMaquinas : null;
+      let chave = lista && alvo ? lista[alvo.indice]?.chave ?? null : null;
+      if (!chave && ehSaltoDoMedidor(erro) && rascMaquinas.length === 1) chave = rascMaquinas[0].chave;
+      const mensagemLinha = mensagemDeErroLinha(erro, "Não foi possível gravar o lançamento. Nada foi gravado.");
+      if (chave) {
+        const campo = campoDaLinhaRecusada(erro);
+        if (campo) setErrosLinhas((e) => ({ ...e, [/** @type {string} */ (chave)]: { ...(e[/** @type {string} */ (chave)] ?? {}), [campo]: mensagemLinha } }));
+        if (ehSaltoDoMedidor(erro)) setSaltos((s) => ({ ...s, [/** @type {string} */ (chave)]: true }));
+      }
+      if (chave || campoDaLinhaRecusada(erro)) {
+        setErroGeral(mensagemLinha);
+        notifyWarning("Atenção", mensagemLinha);
+        if (pedeReleitura(erro)) onMudou?.();
+        return;
+      }
+    }
+    const mensagem = enviouLinhas
+      ? mensagemDeErroLinha(erro, "Não foi possível gravar o lançamento. Nada foi gravado.")
+      : mensagemDeErroAtividade(erro, "Não foi possível gravar o lançamento. Nada foi gravado.");
     const campo = campoDoFormulario(erro, CAMPO_DO_FORMULARIO_APONTAMENTO);
     if (campo) setErros((e) => ({ ...e, [campo]: mensagem }));
     setErroGeral(mensagem);
@@ -148,12 +260,55 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
       return;
     }
     const corpo = corpoDoApontamento(form);
+    // Linhas do "Repetir": cada uma validada com o saldo e o medidor que ela leu.
+    /** @type {Record<string, Record<string, string>>} */
+    const errosDasLinhas = {};
+    /** @type {Record<string, any>[]} */
+    const produtos = [];
+    /** @type {Record<string, any>[]} */
+    const maquinas = [];
+    let esperandoMedidor = false;
+    for (const r of produtosDoEnvio) {
+      const ctx = contextoLinhas.current[r.chave] ?? {};
+      const { erros: e } = validarLinhaProduto(r.form, { disponivel: ctx.disponivel ?? null });
+      if (Object.keys(e).length) errosDasLinhas[r.chave] = e;
+      else produtos.push(corpoDaLinhaProduto(r.form));
+    }
+    for (const r of rascMaquinas) {
+      const medidor = contextoLinhas.current[r.chave]?.medidor ?? null;
+      if (!medidor) {
+        esperandoMedidor = true;
+        continue;
+      }
+      const pede = saltos[r.chave] === true || passaDoTeto(usoDaLinha(r.form, medidor), medidor.teto);
+      const e = validarLinhaMaquina(r.form, { medidor, permiteImplemento, pedeJustificativa: pede });
+      if (Object.keys(e).length) errosDasLinhas[r.chave] = e;
+      else maquinas.push(corpoDaLinhaMaquina(r.form, medidor, { comJustificativa: pede }));
+    }
+    setErrosLinhas(errosDasLinhas);
+    if (Object.keys(errosDasLinhas).length) {
+      notifyWarning("Atenção", "Revise os campos destacados nas linhas de produto e de máquina.");
+      return;
+    }
+    if (esperandoMedidor) {
+      notifyInfo("Aguarde", "Lendo o medidor das máquinas: envie de novo em instantes.");
+      return;
+    }
     emCurso.current = true;
     setEnviando(true);
     setErroGeral(null);
+    const enviouLinhas = !existente && comLinhas;
     try {
       let resposta;
-      if (existente) {
+      if (enviouLinhas) {
+        // Retentativa: o MESMO corpo daquele envio sem resposta (a pendência casa a chave e o servidor devolve o gravado).
+        const corpoComLinhas = repetirEnvio.current && ultimoCorpo.current ? ultimoCorpo.current : { ...corpo, produtos, maquinas };
+        ultimoCorpo.current = corpoComLinhas;
+        resposta = await criarApontamento(atividadeId, corpoComLinhas, { escopo, retentativa: repetirEnvio.current });
+        repetirEnvio.current = false;
+        ultimoCorpo.current = null;
+        setIncerto(false);
+      } else if (existente) {
         const mudancas = camposAlteradosDoApontamento(apontamento, corpo);
         if (!Object.keys(mudancas).length) {
           notifyInfo("Sem alterações", "Nada foi alterado.");
@@ -161,7 +316,7 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
           return;
         }
         resposta = await editarApontamento(atividadeId, String(apontamento.id), { ...mudancas, versao: apontamento.versao });
-      } else if (repetindo && mesmoConteudoDaBase(form, base)) {
+      } else if (repetindo && !baseTinhaLinhas && mesmoConteudoDaBase(form, base)) {
         resposta = await duplicarApontamento(atividadeId, String(base.id), { data_operacional: corpo.data_operacional });
       } else {
         // A porta tira as chaves vazias da criação: o opcional não informado não vai.
@@ -169,7 +324,7 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
       }
       onSalvo(normalizarRespostaDeEscrita(resposta));
     } catch (erro) {
-      tratarErro(erro);
+      tratarErro(erro, enviouLinhas);
     } finally {
       emCurso.current = false;
       setEnviando(false);
@@ -198,7 +353,9 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
   else if (!editavel) aviso = "Este lançamento está cancelado: ele continua no histórico e não aceita edição.";
   else if (semFuso) aviso = "Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de lançar: o servidor recusa sem ele.";
 
-  const rotuloDoEnvio = existente ? "Salvar alterações" : repetindo ? "Repetir lançamento" : "Lançar";
+  const rotuloDoEnvio = incerto ? "Repetir o mesmo envio" : existente ? "Salvar alterações" : repetindo ? "Repetir lançamento" : "Lançar";
+  // A data do lançamento com linha confirmada não muda (o servidor recusa: ATIVIDADE_DATA_COM_LINHAS).
+  const dataTravada = existente && temLinhaConfirmada(apontamento);
 
   return (
     <B1Janela
@@ -257,7 +414,7 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
               mudar({ data_operacional: v }, ["data_operacional"]);
             }}
             max={hoje || undefined}
-            readOnly={bloqueado}
+            readOnly={bloqueado || dataTravada}
             required
             span={6}
             error={erros.data_operacional}
@@ -323,6 +480,36 @@ export default function FormularioApontamento({ atividade, apontamento = null, b
             readOnly={bloqueado}
             maxLength={MAX_OBSERVACAO_ATIVIDADE}
           />
+          {dataTravada ? (
+            <p className="col-span-12 min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="apontamento-data-travada">
+              A data não muda enquanto houver produto ou máquina confirmados neste lançamento: para mudar o dia, cancele o lançamento e lance de novo.
+            </p>
+          ) : null}
+          {repetindo ? (
+            <LinhasDoLancamento
+              produtos={produtosDoEnvio}
+              maquinas={rascMaquinas}
+              produtosForaDoTipo={permiteProduto ? 0 : rascProdutos.length}
+              atualizarProduto={atualizarProduto}
+              atualizarMaquina={atualizarMaquina}
+              retirarProduto={(chave) => {
+                esquecerEnvio();
+                setRascProdutos((l) => l.filter((r) => r.chave !== chave));
+              }}
+              retirarMaquina={(chave) => {
+                esquecerEnvio();
+                setRascMaquinas((l) => l.filter((r) => r.chave !== chave));
+              }}
+              onContexto={aoContexto}
+              erros={errosLinhas}
+              saltos={saltos}
+              atividadeId={atividadeId}
+              areaDoDia={corpoDoApontamento(form).area_executada_dia}
+              dia={form.data_operacional || null}
+              permiteImplemento={permiteImplemento}
+              bloqueado={bloqueado}
+            />
+          ) : null}
           {erroGeral ? (
             <div className="col-span-12">
               <AvisoGestao testId="apontamento-erro">{erroGeral}</AvisoGestao>

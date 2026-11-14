@@ -224,6 +224,7 @@ export const erroDaDataDeConclusao = (dia, { hoje, dataInicio = null }) => {
 export const CODIGOS_RELER_ATIVIDADE = Object.freeze([
   'ATIVIDADE_NOT_FOUND',
   'ATIVIDADE_APONTAMENTO_NOT_FOUND',
+  'ATIVIDADE_LINHA_NOT_FOUND',
   'ATIVIDADE_STATUS_INVALIDO',
   'ATIVIDADE_VERSAO_CONFLITO',
 ]);
@@ -340,6 +341,8 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
       return `${frase ?? 'Um dos cadastros escolhidos não pode ser usado (não existe, está inativo ou é de outra fazenda)'}. Nada foi gravado.`;
     }
     case 'ATIVIDADE_EXIGIDA_PELO_TIPO':
+      if (reason === 'permite_produto') return 'O tipo desta atividade não permite produto. Nada foi gravado.';
+      if (reason === 'permite_implemento') return 'O tipo desta atividade não permite implemento. Nada foi gravado.';
       return `${EXIGIDOS[field ?? ''] ?? 'O tipo de atividade exige um dado que não foi informado.'} Nada foi gravado.`;
     case 'ATIVIDADE_DATA_INVALIDA': {
       const frase = fraseDaData(field, reason, details);
@@ -360,6 +363,17 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
         : `Informe o motivo com pelo menos ${MOTIVO_MINIMO} caracteres. Nada foi alterado.`;
     case 'ATIVIDADE_VINCULADA':
       return 'Não é possível excluir: há atividades ou apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.';
+    // D-PROD-202 (Fatia 3) — linhas de produto e de máquina (a janela da linha detalha em `mensagemDeErroLinha`).
+    case 'ATIVIDADE_LINHA_NOT_FOUND':
+      return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
+    case 'ATIVIDADE_LINHA_INVALIDA':
+      return 'Uma linha de produto ou de máquina foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras. Nada foi gravado.';
+    case 'ATIVIDADE_SALTO_MEDIDOR':
+      return 'O uso da máquina passa do teto de salto do medidor: informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.';
+    case 'ATIVIDADE_ESTORNO_BLOQUEADO':
+      return 'O estorno exato de um produto não é seguro agora: o lote de onde ele saiu já foi consumido, transferido ou mudou. Nada foi alterado.';
+    case 'ATIVIDADE_DATA_COM_LINHAS':
+      return 'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
     default:
       return mensagemErroGestao(erro, fallback);
   }

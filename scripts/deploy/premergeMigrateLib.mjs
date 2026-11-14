@@ -122,6 +122,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-200: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
   // novas, cada ApontamentoAtividade convertido nas duas (conversão pinada) e as 3 tabelas antigas apagadas no fim.
   '20261114500000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
+  // D-PROD-202 (Fatia 3): EXPAND — linhas de produto e de máquina do apontamento: AtividadeApontamentoProduto,
+  // AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina novas, e duas colunas anuláveis sem DEFAULT
+  // (BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor). Nenhum dado migrado.
+  '20261114600000_atividade_linhas_produto_maquina': 'e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -155,6 +159,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
   // D-PROD-200: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
   '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
+  // D-PROD-202 (Fatia 3): RLS/REVOKE das 3 tabelas das linhas de produto e de máquina (mesmo corpo, lista nova).
+  '3991bb1cbddf3772bf580b1bf35de71580b77725d20e77c0d6df7d8a1f2e95d8',
 ]);
 
 /**

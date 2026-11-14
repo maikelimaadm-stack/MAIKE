@@ -127,6 +127,21 @@ mudança no abastecimento. Nesta parte, esta expansão supera apenas o "única" 
 exceção…" da D-PROD-159; o resto dela continua valendo. Texto redigido pelo agente; vale só com a aprovação
 explícita do proprietário no merge manual (§4).
 
+**Expansão autorizada pelo proprietário (D-PROD-202):** **Lançamento de Atividades — linhas de produto e de máquina**
+(página `LancamentoAtividades`, Fatia 3). Substitui a expansão D-PROD-193 acima, cuja página e itens saíram na
+D-PROD-200. A **linha de produto** do apontamento baixa do estoque **exatamente** a quantidade digitada, na unidade de
+estoque do Produto, pelo motor de estoque existente (FIFO por lote, custo FIFO, origem `apontamento_atividade`). Ela
+tem estorno exato ao cancelar a linha, o apontamento ou a atividade. **Editar a linha** é estorno exato mais uma nova
+saída na mesma transação; nunca uma reescrita do movimento. A **linha de máquina** guarda a leitura do medidor na
+própria linha, como o abastecimento; nada é gravado no cadastro do bem. O **custo de uso por hora ou km** é um campo
+do cadastro do bem, copiado na linha como snapshot para o custo da atividade, sem lançamento financeiro. Continua
+**fora**: lançamento financeiro, título ou conta a pagar a partir da linha, rateio, fornecedor na linha, devolução de
+sobra ao estoque, manutenção, peças, relatórios de custo além do totalizador da atividade, e qualquer mudança no
+abastecimento além de respeitar as leituras das linhas. Nesta parte, esta expansão supera a D-PROD-193 e o trecho
+"custo/hora" da lista "fora" da D-PROD-157, só para o custo de uso como snapshot na linha de máquina. Texto redigido
+pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a "aplica e aprova"), no merge
+da PR #289 (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

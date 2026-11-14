@@ -6,7 +6,9 @@ import { DialogoAcao } from "@/components/financeiroGestao/DialogosLancamento";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
 import { BOTAO_PERIGO, BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import FormularioApontamento from "@/components/lancamento-atividades/FormularioApontamento";
+import LinhasDoApontamento from "@/components/lancamento-atividades/LinhasDoApontamento";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAuth } from "@/lib/AuthContext";
 import { formatarInstante } from "@/lib/diaCivil";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import {
@@ -31,10 +33,12 @@ import {
   maisRecenteConfirmado,
   normalizarRespostaDeEscrita,
   pedeReleitura,
+  RAIZ_CONSULTAS_ATIVIDADES,
   rotuloDaPassada,
   siglaDaProducao,
 } from "@/lib/atividadeApontamentoRegras";
-import { cancelarApontamento, listarApontamentos, obterAtividade } from "@/services/lancamentoAtividadesService";
+import { chaveTotais, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { cancelarApontamento, listarApontamentos, listarTiposAtividade, obterAtividade } from "@/services/lancamentoAtividadesService";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
 /** Formatação das mensagens do diálogo de ação (não há dinheiro neste diálogo). */
@@ -48,7 +52,7 @@ const LINHA_CANCELADA = `${LINHA} border-slate-200 bg-slate-50 text-slate-500`;
 const TITULO_DIA = "mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--mg-text-2,#475569)]";
 
 /**
- * @typedef {{ ver?: boolean, lancarApontamento?: boolean, editarApontamento?: boolean, cancelarApontamento?: boolean }} AcoesDosLancamentos
+ * @typedef {{ ver?: boolean, lancarApontamento?: boolean, editarApontamento?: boolean, cancelarApontamento?: boolean, login?: string|null }} AcoesDosLancamentos
  * @typedef {{ modo: 'novo'|'editar'|'repetir', apontamento: any, chave: number }} JanelaAberta
  */
 
@@ -77,6 +81,11 @@ const textoDoCancelamento = (ap, fuso) => {
  *  - "Editar" com `editarApontamento` e "Cancelar" (motivo obrigatório, no
  *    `DialogoAcao`) com `cancelarApontamento`, só no lançamento CONFIRMADO.
  *
+ * Fatia 3 (D-PROD-202): dentro de cada lançamento, os blocos "Produtos" e
+ * "Máquinas" (`LinhasDoApontamento`), com as linhas e as janelas de adicionar,
+ * editar e cancelar; o bloco Produtos só aparece com `permite_produto` no tipo.
+ * "Repetir último lançamento" traz também as linhas do lançamento base.
+ *
  * Depois de cada escrita a lista é relida, `onAtividadeAtualizada` recebe o
  * cabeçalho com os totais recalculados (área executada e produção) e os
  * alertas da resposta (FORA_DO_INTERVALO) ficam num aviso: alerta não bloqueia,
@@ -104,6 +113,17 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
     enabled: Boolean(empresaId && atividadeId && podeVer),
     staleTime: 15 * 1000,
   });
+  // O que o tipo permite nas linhas (produto, implemento): a mesma leitura de tipos da página (mesma chave).
+  const { data: tipos = [] } = useQuery({
+    queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "tipos"],
+    queryFn: () => listarTiposAtividade(),
+    enabled: podeVer,
+    staleTime: 30 * 1000,
+  });
+  const { permiteProduto, permiteImplemento } = flagsDoTipoDaAtividade(atividade, /** @type {any[]} */ (tipos));
+  // Escopo da pendência de `operation_id` (cliente e login): o mesmo par do abastecimento.
+  const { clienteId } = useAuth();
+  const escopo = `${clienteId || "sem-tenant"}:${acoes?.login || "sem-login"}`;
   const itens = useMemo(() => itensDaLista(consulta.data), [consulta.data]);
   const dias = useMemo(() => apontamentosPorDia(itens), [itens]);
   const ultimo = useMemo(() => maisRecenteConfirmado(itens), [itens]);
@@ -150,6 +170,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
   /** Relê a lista e o cabeçalho (algo mudou no servidor ou o envio ficou sem resposta). */
   const relerTudo = () => {
     queryClient.invalidateQueries({ queryKey: chave });
+    queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
     const id = atividadeId;
     if (!id) return;
     obterAtividade(id)
@@ -180,6 +201,8 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
   const aplicarEscrita = (r, texto) => {
     mesclarNaLista(r.apontamento);
     queryClient.invalidateQueries({ queryKey: chave });
+    // O totalizador (produtos, máquinas, custo) se relê depois de TODA escrita.
+    queryClient.invalidateQueries({ queryKey: chaveTotais(empresaId, atividadeId) });
     if (r.atividade && String(r.atividade.id) === atividadeAtual.current) onAtividadeAtualizada(r.atividade);
     const dia = formatarDiaAtividade(r.apontamento?.data_operacional);
     const textos = r.alertas.map((a) => `${dia ? `${dia}: ` : ""}${mensagemDoAlertaAtividade(a)}`);
@@ -312,6 +335,19 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
             ) : null}
           </span>
         ) : null}
+        <LinhasDoApontamento
+          atividade={atividade}
+          apontamento={ap}
+          permiteProduto={permiteProduto}
+          permiteImplemento={permiteImplemento}
+          podeLancar={podeLancar}
+          podeEditar={podeEditar}
+          podeCancelar={podeCancelar}
+          escopo={escopo}
+          fuso={fuso}
+          onEscrita={aplicarEscrita}
+          onMudou={relerTudo}
+        />
       </li>
     );
   };
@@ -336,7 +372,7 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
             </button>
             {ultimo ? (
               <button type="button" className={BOTAO_SECUNDARIO} onClick={() => abrir("repetir", ultimo)} data-testid="apontamento-repetir-ultimo">
-                <Repeat className="h-4 w-4" aria-hidden /> Repetir último
+                <Repeat className="h-4 w-4" aria-hidden /> Repetir último lançamento
               </button>
             ) : null}
           </div>
@@ -392,6 +428,9 @@ export default function ListaApontamentos({ atividade, acoes, onAtividadeAtualiz
           atividade={atividade}
           apontamento={janela.modo === "editar" ? janela.apontamento : null}
           base={janela.modo === "repetir" ? janela.apontamento : null}
+          permiteProduto={permiteProduto}
+          permiteImplemento={permiteImplemento}
+          escopo={escopo}
           onSalvo={(r) => {
             const modo = janela.modo;
             setJanela(null);
