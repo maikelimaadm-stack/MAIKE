@@ -122,6 +122,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-200: CONTRACT aprovado pelo proprietário — a atividade vira cabeçalho: Atividade e AtividadeApontamento
   // novas, cada ApontamentoAtividade convertido nas duas (conversão pinada) e as 3 tabelas antigas apagadas no fim.
   '20261114500000_atividade_cabecalho': 'c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb',
+  // D-PROD-202: EXPAND — Formulações de suplemento (CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA), só tabelas novas.
+  '20261114600000_cadformulacao': '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -155,6 +157,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
   // D-PROD-200: RLS/REVOKE de Atividade e AtividadeApontamento (mesmo corpo, lista nova).
   '8f0b1b5ccc478778e1f9aeb94945e9bfde631f4accb12a55abb09e944cc5b98c',
+  // D-PROD-202: RLS/REVOKE das 3 tabelas de Formulações (mesmo corpo, lista nova).
+  'b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6',
 ]);
 
 /**

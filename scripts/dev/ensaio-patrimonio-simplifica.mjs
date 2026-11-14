@@ -91,10 +91,16 @@ export const DECISAO = 'D-PROD-162';
  * CONTRACT, com ela pendente o runner com a conferência exigida recusa a decisão desta (nunca duas de uma vez).
  */
 export const NOME_ATIVIDADE_CABECALHO = '20261114500000_atividade_cabecalho';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO]);
+/**
+ * D-PROD-202 — a EXPAND das Formulações (3 tabelas novas) é de uma release muito posterior a esta CONTRACT: no dia
+ * dela não existia. Fica fora da partida e sobe por último no GREEN, pela ordem dos nomes; as 3 tabelas ficam fora
+ * da impressão digital das que FICAM, como as da D-PROD-200.
+ */
+export const NOME_FORMULACOES = '20261114600000_cadformulacao';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_FORMULACOES]);
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
-export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento']);
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento']);
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -569,7 +575,7 @@ if (ehEntradaDireta()) {
       const g = relatorio.green;
       // D-PROD-190/191/198: 84 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento
       // (D-PROD-200); ApontamentoAtividade e os 2 de itens do apontamento sobem depois desta CONTRACT e saem com a D-PROD-200.
-      if (g.status !== 0 || g.tabelas !== 84 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
+      if (g.status !== 0 || g.tabelas !== 87 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_autorizado_com_outra_pendente.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

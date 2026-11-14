@@ -68,6 +68,15 @@ const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME_CONTRACT));
 /** D-PROD-198: a EXPAND do peso objetivo, a última que produção concluiu antes desta (o preflight e o envelope a conferem). */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const TOTAL_MIGRATIONS = PASTAS.length;
+/**
+ * D-PROD-202: a EXPAND das Formulações (3 tabelas novas, nada em tabela antiga), da release SEGUINTE, é a única de nome
+ * posterior a esta. Não existia no dia desta CONTRACT: fica fora da partida e sobe pelo runner logo depois desta
+ * (pela ordem dos nomes; EXPAND, sem autorização). O postcheck do runbook foi escrito para o dia desta (53 / 0 e 84
+ * tabelas): no banco do runner essas duas contagens mudam; o postcheck inteiro, APLICADA, é provado nos bancos do
+ * caminho B (TB-03 e AC-09), que ficam nesse estado antes do runner.
+ */
+const NOME_FORMULACOES = '20261114600000_cadformulacao';
+const TABELAS_FORMULACOES = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
 
 /** O runbook desta release: os blocos SQL rodam como estão, com o system_identifier local no lugar do de produção. */
 const RUNBOOK = readFileSync(join(RAIZ, 'docs/engineering/MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md'), 'utf8');
@@ -461,7 +470,7 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     const h = await historico(db);
     assert.equal(ANTERIORES.length, 52, 'produção hoje: 52 migrations, a CONTRACT anterior os padrões do Tipo de Atividade (D-PROD-197) e a última o peso objetivo (D-PROD-198)');
     assert.deepEqual(ANTERIORES.slice(-2), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO]);
-    assert.equal(PASTAS.at(-1), NOME_CONTRACT, 'esta CONTRACT é a migration de nome mais recente');
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_FORMULACOES], 'só a EXPAND das Formulações (D-PROD-202, release seguinte) tem nome posterior a esta');
     assert.equal(h.concluidas, ANTERIORES.length);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
@@ -579,7 +588,8 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
 
     const h = await historico(db);
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
-    assert.equal(TOTAL_MIGRATIONS, 53);
+    assert.equal(TOTAL_MIGRATIONS, 54, 'esta e, depois dela, a EXPAND das Formulações (D-PROD-202)');
+    assert.deepEqual((await um(db, `SELECT array_agg(migration_name ORDER BY finished_at, migration_name) FILTER (WHERE migration_name IN ('${NOME_CONTRACT}', '${NOME_FORMULACOES}')) AS ordem FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`)).ordem, [NOME_CONTRACT, NOME_FORMULACOES]);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     const linha = await um(db, `SELECT checksum, applied_steps_count::int AS passos FROM _prisma_migrations WHERE migration_name = '${NOME_CONTRACT}' AND rolled_back_at IS NULL`);
@@ -596,10 +606,12 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.notDeepEqual(apont.updatedAt, SEQ_ALTERADA_EM, 'o UPDATE do contador marca updatedAt');
     assert.deepEqual(lote, { id: `${C1}-seq-lote`, cliente_id: C1, entidade: 'Lote', escopo_tipo: 'tenant', escopo_id: C1, proximo_valor: 7, createdAt: new Date('2026-11-01T10:00:00.000Z'), updatedAt: new Date('2026-11-01T10:00:00.000Z') });
 
-    // As 3 antigas saíram e as 2 novas entraram: 85 − 3 + 2 = 84; nenhuma outra tabela mudou.
+    // As 3 antigas saíram e as 2 novas entraram: 85 − 3 + 2 = 84; nenhuma outra tabela mudou, fora as 3 das
+    // Formulações (D-PROD-202), que o runner aplica logo depois desta: 87.
     const tabelas = await tabelasDe(db);
-    assert.equal(tabelas.length, 84);
-    assert.deepEqual(tabelas, [...partida.tabelas.split(',').filter((t) => !ANTIGAS.includes(t)), ...NOVAS].sort());
+    assert.equal(tabelas.length, 87);
+    assert.deepEqual(tabelas.filter((t) => !TABELAS_FORMULACOES.includes(t)), [...partida.tabelas.split(',').filter((t) => !ANTIGAS.includes(t)), ...NOVAS].sort());
+    for (const t of TABELAS_FORMULACOES) assert.ok(tabelas.includes(t), t);
     for (const t of ANTIGAS) assert.equal((await um(db, `SELECT to_regclass('public."${t}"')::text AS r`)).r, null, t);
     // RLS ligado, sem FORCE, nas 2 novas (a política só existe com o papel maike_vercel, que o banco local não tem).
     const rls = await db.$queryRawUnsafe(`SELECT relname::text AS t, relrowsecurity AS rls, relforcerowsecurity AS forcar FROM pg_class
@@ -616,12 +628,16 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
     assert.equal(diff.status, 0, diff.saida);
   });
 
-  test('AC-05 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA, os números iguais aos do preflight e VEREDITO APLICADA; o preflight agora manda parar', async () => {
+  test('AC-05 postcheck do runbook no banco aplicado pelo runner: tudo OK/CONFIRA menos as duas contagens que a D-PROD-202, posterior, muda (54 / 0 e 87 tabelas), os números iguais aos do preflight; o preflight agora manda parar', async () => {
     const pos = quadro(await consulta(URL_T, comSidLocal(blocoDoRunbook('postcheck'), SID)));
-    for (const [item, v] of Object.entries(pos)) if (item !== 'VEREDITO') assert.ok(['OK', 'CONFIRA'].includes(v.status), `${item}: ${v.status} (${v.valor})`);
-    assert.match(pos.VEREDITO.valor, /^APLICADA E CONFERIDA/);
-    assert.equal(pos['migrations concluídas / em aberto'].valor, `${TOTAL_MIGRATIONS} / 0`);
-    assert.equal(pos['tabelas em public'].valor, '84');
+    // O postcheck foi escrito para o dia desta (53 / 0, 84 tabelas); aqui a EXPAND da D-PROD-202 também está aplicada.
+    const CONTAGENS = { 'migrations concluídas / em aberto': `${TOTAL_MIGRATIONS} / 0`, 'tabelas em public': '87' };
+    for (const [item, v] of Object.entries(pos)) {
+      if (item === 'VEREDITO') continue;
+      if (item in CONTAGENS) assert.deepEqual([v.valor, v.status], [CONTAGENS[item], 'PARAR'], item);
+      else assert.ok(['OK', 'CONFIRA'].includes(v.status), `${item}: ${v.status} (${v.valor})`);
+    }
+    assert.match(pos.VEREDITO.valor, /^PARAR/);
     assert.equal(pos['Atividade ABERTA / CANCELADA (igual ao CONFIRMADO / CANCELADO do preflight)'].valor, '2 / 0');
     assert.equal(pos['AtividadeApontamento CONFIRMADO / CANCELADO (igual ao preflight)'].valor, '2 / 0');
     assert.equal(pos['contador Atividade: escopo / próximo (igual ao do ApontamentoAtividade no preflight)'].valor, 'tenant / 3');
@@ -750,6 +766,10 @@ describe('D-PROD-200 — migration CONTRACT da Atividade cabeçalho, com convers
       const errado = quadro(await consulta(url, comSidLocal(blocoDoRunbook('postcheck'), SID)));
       assert.equal(errado['convertidas sem o filho coerente (id, sequência 1, sem turno, data, status, produção, nome)'].status, 'PARAR');
       assert.match(errado.VEREDITO.valor, /^PARAR/);
+      // D-PROD-202: a EXPAND das Formulações (release seguinte) sobe pelo runner; depois o schema bate com o schema.prisma.
+      const runner = await aplicarPeloRunner(url);
+      assert.equal(runner.status, 0, runner.saida);
+      assert.ok(runner.saida.includes(`Applying migration \`${NOME_FORMULACOES}\``), runner.saida);
       const diff = await migrateDiff(url);
       assert.equal(diff.status, 0, diff.saida);
     });
@@ -815,7 +835,9 @@ describe('D-PROD-200 — caminho B do runbook (uma transação pelo conector), n
     const b = await retrato(dbB);
     const t = await retrato(db);
     const dasNovas = (texto) => texto.split('\n').filter((l) => /^Atividade/.test(l));
-    assert.deepEqual([b.tabelas, dasNovas(b.constraints), dasNovas(b.indices), b.politicas], [t.tabelas, dasNovas(t.constraints), dasNovas(t.indices), t.politicas]);
+    // O banco do runner também tem as 3 das Formulações (D-PROD-202, aplicada depois desta): fora da comparação.
+    const semFormulacoes = (lista) => lista.split(',').filter((x) => !TABELAS_FORMULACOES.includes(x)).join(',');
+    assert.deepEqual([b.tabelas, dasNovas(b.constraints), dasNovas(b.indices), b.politicas], [semFormulacoes(t.tabelas), dasNovas(t.constraints), dasNovas(t.indices), t.politicas]);
 
     const pos = quadro(await consulta(URL_B, comSidLocal(blocoDoRunbook('postcheck'), SID)));
     for (const [item, v] of Object.entries(pos)) if (item !== 'VEREDITO') assert.ok(['OK', 'CONFIRA'].includes(v.status), `${item}: ${v.status} (${v.valor})`);
@@ -824,10 +846,15 @@ describe('D-PROD-200 — caminho B do runbook (uma transação pelo conector), n
     assert.equal(pos['AtividadeApontamento CONFIRMADO / CANCELADO (igual ao preflight)'].valor, pre['ApontamentoAtividade: CONFIRMADO / CANCELADO (anote; o postcheck repete)'].valor);
     assert.equal(pos['contador Atividade: escopo / próximo (igual ao do ApontamentoAtividade no preflight)'].valor, pre['contador ApontamentoAtividade: escopo / próximo (anote; o postcheck repete na entidade Atividade)'].valor);
 
-    // O registro manual vale para o Prisma: o runner não vê pendência e o schema bate com o schema.prisma.
+    // O registro manual vale para o Prisma: o runner não reaplica esta; só aplica a EXPAND das Formulações (D-PROD-202,
+    // release seguinte), o schema bate com o schema.prisma e a 2ª execução já não vê pendência.
     const runner = await aplicarPeloRunner(URL_B);
     assert.equal(runner.status, 0, runner.saida);
-    assert.match(runner.saida, /No pending migrations to apply/);
+    assert.ok(runner.saida.includes(`Applying migration \`${NOME_FORMULACOES}\``), runner.saida);
+    assert.ok(!runner.saida.includes(`Applying migration \`${NOME_CONTRACT}\``), runner.saida);
+    const segunda = await aplicarPeloRunner(URL_B);
+    assert.equal(segunda.status, 0, segunda.saida);
+    assert.match(segunda.saida, /No pending migrations to apply/);
     const diff = await migrateDiff(URL_B);
     assert.equal(diff.status, 0, diff.saida);
   });

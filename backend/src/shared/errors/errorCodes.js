@@ -334,6 +334,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a curva de ganho está ligada a categoria(s) de manejo (details.categorias): troque a curva dessas categorias antes de excluir; nada foi apagado',
   },
+  // D-PROD-202 — Formulações de suplemento da fazenda (tabela CADFORMULACAO).
+  FORMULACAO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica formulação desta fazenda neste tenant',
+  },
+  FORMULACAO_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe formulação com este nome nesta fazenda',
+  },
+  FORMULACAO_EM_USO: {
+    http: 409,
+    meaning: 'a formulação já foi usada em lançamento(s) de suplementação (details.lancamentos): inative-a em vez de excluir; nada foi apagado',
+  },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {

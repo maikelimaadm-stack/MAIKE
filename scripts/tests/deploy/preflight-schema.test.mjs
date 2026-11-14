@@ -37,6 +37,10 @@ const COLUNAS_OK = [
   // D-PROD-200: a atividade (cabeçalho) e o apontamento do dia.
   { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
   { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
+  // D-PROD-202: as 3 tabelas das Formulações.
+  { table_name: 'CADFORMULACAO', column_name: 'percentual_pv_padrao' },
+  { table_name: 'CADFORMULACAOINGREDIENTE', column_name: 'quantidade_kg' },
+  { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -67,6 +71,9 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.peso_objetivo_kg/);
   assert.match(r.falhas.join('\n'), /Atividade\.unidade_producao_sigla/);
   assert.match(r.falhas.join('\n'), /AtividadeApontamento\.sequencia/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAO\.percentual_pv_padrao/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOINGREDIENTE\.quantidade_kg/);
+  assert.match(r.falhas.join('\n'), /CADFORMULACAOREGRA\.consome/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 
