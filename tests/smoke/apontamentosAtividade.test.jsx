@@ -25,9 +25,16 @@
  *    editar/cancelar; corpo do item só com as chaves da allowlist do TIPO; o
  *    mesmo `operation_id` na retentativa (e no cancelamento do apontamento,
  *    D-2); regras puras (`validarItem`, `corpoDoItem`, `totalDoItem` com
- *    '1' × '1.00005' = '1.0001'); mensagens dos códigos novos (saldo em L e em
- *    kg); detalhe relido e cache atualizado depois de lançar e cancelar; local
- *    único escolhido sozinho; data travada com item de Produto (D-1).
+ *    '1' × '1.00005' = '1.0001' e '1' × '2.00025' = '2.0003', sem float);
+ *    mensagens dos códigos novos (saldo em L e em kg); detalhe gravado no cache
+ *    sem nova leitura depois de lançar e cancelar, e relido no REPLAY e depois
+ *    de recusa; local único escolhido sozinho; data travada com item de
+ *    Produto e enquanto os itens não chegam (D-1), editável sem Produto
+ *    confirmado; D-3 na tela (editar × cancelar); mesmo `operation_id` na
+ *    retentativa com o service REAL (só o HTTP falso); "Cancelar apontamento"
+ *    só com os itens conhecidos e a devolução ao estoque decidida pela
+ *    resposta; sem fuso, nada de cancelar; card sem texto cortado; aviso
+ *    "incerto" sem estoque no Serviço e no Outro custo.
  */
 import React from "react";
 import { readFileSync } from "node:fs";
@@ -63,17 +70,23 @@ const servico = vi.hoisted(() => ({
 }));
 vi.mock("@/services/apontamentoAtividadeService", () => servico);
 vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: "cli-1", user: { id: "u1" } }) }));
-vi.mock("@/services/mapaCacheService", () => ({ refreshMapaCacheEntry: vi.fn(async () => []) }));
+// O refresh FORÇADO do cache do Mapa (estoque) é conferido depois da devolução ao estoque.
+const mapa = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn(async () => []) }));
+vi.mock("@/services/mapaCacheService", () => mapa);
 
 const sessao = vi.hoisted(() => ({
   acoes: { ver: true, criar: true, editar: true, cancelar: true, carregando: false, login: "gerente" },
+  // Empresa selecionada (um teste troca de empresa com um envio em curso).
+  empresaId: "emp-1",
 }));
 vi.mock("@/hooks/useApontamentoAtividadeSessao", () => ({
-  useEmpresaRealSelecionadaId: () => "emp-1",
+  useEmpresaRealSelecionadaId: () => sessao.empresaId,
   useAcoesTelaApontamento: () => sessao.acoes,
 }));
+// Fuso da fazenda (o "hoje" e o estorno): um teste o tira para provar os botões fechados sem ele.
+const empresas = vi.hoisted(() => ({ fuso: /** @type {string|null} */ ("America/Cuiaba") }));
 vi.mock("@/services/empresaService", () => ({
-  listEmpresas: vi.fn(async () => [{ id: "emp-1", nome: "FAZENDA", fuso_horario: "America/Cuiaba" }]),
+  listEmpresas: vi.fn(async () => [{ id: "emp-1", nome: "FAZENDA", fuso_horario: empresas.fuso }]),
 }));
 
 const http = vi.hoisted(() => ({ nativeRequest: vi.fn(async () => ({})) }));
@@ -221,6 +234,11 @@ const CANCELADO_COM_ITENS = {
   itens: [{ ...ITEM_PRODUTO_GRAVADO, id: "it9", status: "CANCELADO", movimento_estorno: { id: "m9", numero: "109" }, cancelamento: { ...ITEM_SERVICO_CANCELADO.cancelamento, origem: "APONTAMENTO" } }],
   custo_itens: { total: "0.0000", produto: "0.0000", servico: "0.0000", outro: "0.0000", itens_confirmados: 0 },
 };
+const CUSTO_ZERO = { total: "0.0000", produto: "0.0000", servico: "0.0000", outro: "0.0000", itens_confirmados: 0 };
+/** O ap1 como o servidor devolve depois de cancelado: o item de Produto foi cancelado JUNTO (origem APONTAMENTO) e voltou ao estoque. */
+const AP1_CANCELADO = { ...CANCELADO_COM_ITENS, id: "ap1", numero: "15", versao: 3 };
+/** O ap1 lido com itens conhecidos e nenhum item lançado. */
+const AP1_SEM_ITENS = { ...REGISTRO, itens: [], custo_itens: CUSTO_ZERO };
 /** Locais com saldo (A7): o Herbicida (L) em dois locais; o Adubo (SACO, estoque em kg) em um só. */
 const locaisFalsos = async (_empresaId, produtoId) =>
   produtoId === "p1"
@@ -294,6 +312,14 @@ const CENTRO_RESULTADO_VAZIO = "Centro de resultado";
 beforeEach(() => {
   servico.listarOpcoesApontamento.mockImplementation(opcoesFalsas);
   servico.listarLocaisDoProduto.mockImplementation(locaisFalsos);
+  empresas.fuso = FUSO;
+  sessao.empresaId = "emp-1";
+  // A pendência de `operation_id` do service REAL mora no storage do navegador: nenhum teste herda a de outro.
+  try {
+    window.localStorage.clear();
+  } catch {
+    /* sem storage: nada guardado */
+  }
 });
 
 afterEach(() => {
@@ -1008,7 +1034,8 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
     await act(async () => fireEvent.click(await screen.findByRole("option", { name: /GALPÃO 2/i })));
     fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "6" } });
     fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
-    expect(await within(card).findByTestId("resultado-incerto")).toBeTruthy();
+    // Produto mexe no estoque: o aviso diz que repetir não baixa o estoque duas vezes.
+    expect((await within(card).findByTestId("resultado-incerto")).textContent).toMatch(/o estoque não é\s+baixado duas vezes/);
     expect(within(card).getByTestId("apontamento-item-lancar").textContent).toBe("Repetir o mesmo envio");
     fireEvent.click(within(card).getByTestId("botao-consultar-resultado"));
     expect(await within(card).findByTestId("consulta-resultado")).toBeTruthy();
@@ -1024,9 +1051,13 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
   });
 
   it("AP-ITENS-7 — regras puras: validarItem, corpoDoItem, totalDoItem e custoDosItens (só confirmados), sem float", async () => {
-    const { validarItem, corpoDoItem, totalDoItem, custoDosItens, itemVazio, MAX_ITENS_APONTAMENTO } = await import("@/lib/apontamentoAtividadeRegras");
+    const { validarItem, corpoDoItem, totalDoItem, custoDosItens, itemVazio, cancelamentoDevolveuProduto, MAX_ITENS_APONTAMENTO } = await import(
+      "@/lib/apontamentoAtividadeRegras"
+    );
     expect(MAX_ITENS_APONTAMENTO).toBe(200);
     expect(totalDoItem("1", "1.00005")).toBe("1.0001");
+    // Sem float: 2.00025 em binário é 2.000249999…, e a conta em Number arredondaria para 2.0002.
+    expect(totalDoItem("1", "2.00025")).toBe("2.0003");
     expect(totalDoItem("0.1", "3")).toBe("0.3000");
     expect(totalDoItem("3", "0.1")).toBe("0.3000");
     expect(totalDoItem("x", "1")).toBeNull();
@@ -1056,6 +1087,13 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
     // Custo: só CONFIRMADO, 4 casas.
     expect(custoDosItens(REGISTRO_COM_ITENS.itens)).toEqual({ total: "66.4063", produto: "66.4063", servico: "0.0000", outro: "0.0000", itens_confirmados: 1 });
     expect(custoDosItens([])).toMatchObject({ total: "0.0000", itens_confirmados: 0 });
+    // Devolução ao estoque no cancelamento do apontamento: só item de PRODUTO cancelado JUNTO (origem APONTAMENTO).
+    expect(cancelamentoDevolveuProduto(AP1_CANCELADO)).toBe(true);
+    expect(cancelamentoDevolveuProduto({ itens: [{ ...ITEM_PRODUTO_GRAVADO, status: "CANCELADO", cancelamento: { origem: "ITEM" } }] })).toBe(false);
+    expect(cancelamentoDevolveuProduto({ itens: [{ ...ITEM_SERVICO_CANCELADO, cancelamento: { origem: "APONTAMENTO" } }] })).toBe(false);
+    expect(cancelamentoDevolveuProduto(REGISTRO_COM_ITENS)).toBe(false);
+    expect(cancelamentoDevolveuProduto(REGISTRO)).toBe(false);
+    expect(cancelamentoDevolveuProduto(null)).toBe(false);
   });
 
   it("AP-ITENS-8 — mensagens dos códigos novos (saldo em L e em kg, estorno bloqueado com o item, combustível) e o espelho do servidor", async () => {
@@ -1102,6 +1140,20 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
         "fallback",
       ),
     ).toBe("O estorno exato do estoque não é seguro agora no item 2: um lote de origem foi estornado ou removido. Nada foi alterado.");
+    // Vínculo e camada (do motor): a frase diz O QUE diverge.
+    const estorno = (reason) =>
+      mensagemErroApontamento(recusa("APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO", { field: "item_id", reason, details: { item_id: "it1", item_ordem: 1 } }), "fallback");
+    expect(estorno("vinculo_divergente")).toBe(
+      "O estorno exato do estoque não é seguro agora no item 1: o movimento de saída do item é de outro Produto ou de outra fazenda. Nada foi alterado.",
+    );
+    expect(estorno("camada_divergente")).toBe(
+      "O estorno exato do estoque não é seguro agora no item 1: um lote de origem é de outro Produto, fazenda ou local. Nada foi alterado.",
+    );
+    // O motor manda `quantidade_estoque_zero` (não `quantidade_nao_positiva`) ou `valor_excede_limite_estoque`.
+    const motor = (reason) =>
+      mensagemErroApontamento(recusa("OPERACAO_VALORES_INVALIDOS", { field: "quantidade", reason, details: { field: "quantidade", reason } }), "fallback", { unidade: "L" });
+    expect(motor("quantidade_estoque_zero")).toBe("Informe uma quantidade maior que zero. Nada foi gravado.");
+    expect(motor("valor_excede_limite_estoque")).toBe("Quantidade ou custo acima do limite do estoque. Nada foi gravado.");
     expect(mensagemErroApontamento(recusa("APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO", { details: { status: "CANCELADO" } }), "fallback")).toBe(
       "Este item já foi cancelado. Nada foi alterado.",
     );
@@ -1239,6 +1291,8 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
     expect(screen.getByTestId("apontamento-itens-custo").textContent).toMatch(/266,4063/);
     await waitFor(() => expect(servico.listarApontamentosPagina.mock.calls.length).toBeGreaterThan(pedidosDaLista));
     expect(notify.notifySuccess).toHaveBeenCalledWith("Item lançado", expect.stringMatching(/item 3.*nº 15/));
+    // Sem nova leitura: a resposta (não replay) foi gravada no cache do detalhe; o detalhe foi lido só ao abrir.
+    expect(servico.detalharApontamento).toHaveBeenCalledTimes(1);
   });
 
   it("AP-ITENS-12 — tela: cancelar item pede motivo, envia com a versão lida e mostra o item cancelado; cancelar o apontamento avisa que os itens voltam", async () => {
@@ -1314,19 +1368,456 @@ describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
     expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/nº 15.*voltaram aos lotes de origem/));
   });
 
-  /** Tela com o detalhe (itens) do ap1. */
+  it("AP-ITENS-14 — Serviço e Outro custo sem resposta: o aviso de resultado incerto não fala em estoque; consultar e repetir continuam", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const onAdicionarItem = vi.fn().mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {}));
+    const onConsultarItem = vi.fn(async () => "O item ainda não aparece gravado. Repita o mesmo envio: ele não duplica.");
+    const { form } = montar({ initialData: REGISTRO_COM_ITENS, readOnly: true, podeLancarItens: true, onAdicionarItem, onConsultarItem });
+    for (const [botao, tipo] of [
+      ["apontamento-item-novo-servico", "SERVICO"],
+      ["apontamento-item-novo-outro", "OUTRO"],
+    ]) {
+      fireEvent.click(within(form).getByTestId(botao));
+      const card = rascunho();
+      expect(card.getAttribute("data-tipo")).toBe(tipo);
+      fireEvent.change(within(card).getByLabelText(/Descrição/), { target: { value: "Frete" } });
+      fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "1" } });
+      fireEvent.change(within(card).getByTestId("apontamento-item-valor-unitario"), { target: { value: "150" } });
+      const chamadas = onAdicionarItem.mock.calls.length;
+      fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
+      const aviso = await within(card).findByTestId("resultado-incerto");
+      expect(aviso.textContent).toMatch(/o item PODE ter sido gravado/);
+      expect(aviso.textContent).toMatch(/o item não é\s+lançado duas vezes/);
+      expect(aviso.textContent).not.toMatch(/estoque/i);
+      // O bloco repetido tem o "Consultar" e o "Repetir o mesmo envio" (a retentativa reaproveita a chave).
+      fireEvent.click(within(aviso).getByTestId("botao-consultar-resultado"));
+      expect((await within(card).findByTestId("consulta-resultado")).textContent).toMatch(/ainda não aparece gravado/);
+      expect(onConsultarItem).toHaveBeenLastCalledWith(2);
+      fireEvent.click(within(card).getByTestId("botao-repetir-envio"));
+      await waitFor(() => expect(onAdicionarItem).toHaveBeenCalledTimes(chamadas + 2));
+      expect(onAdicionarItem.mock.calls[chamadas][1]).toEqual({ retentativa: false });
+      expect(onAdicionarItem.mock.calls[chamadas + 1][1]).toEqual({ retentativa: true });
+      expect(onAdicionarItem.mock.calls[chamadas + 1][0]).toEqual(onAdicionarItem.mock.calls[chamadas][0]);
+      await within(card).findByTestId("resultado-incerto");
+      await waitFor(() => expect(within(card).getByTestId("apontamento-item-descartar")).not.toBeDisabled());
+      fireEvent.click(within(card).getByTestId("apontamento-item-descartar"));
+      await waitFor(() => expect(screen.queryByTestId("apontamento-item-rascunho")).toBeNull());
+    }
+  });
+
+  it("AP-ITENS-15 — card do item gravado: descrição, Produto e local aparecem inteiros, quebrando linha (nada cortado)", () => {
+    const produtoLongo = "Herbicida seletivo pós-emergente para pastagens de braquiária e capim-mombaça, galão de vinte litros";
+    const localLongo = "Depósito central de defensivos agrícolas da sede, prateleira três, ao lado do galpão de máquinas";
+    const descricaoLonga = `Mão de obra terceirizada da roçada ${"no talhão norte e no talhão sul ".repeat(5)}com o trator da fazenda vizinha`;
+    expect(descricaoLonga.length).toBeLessThanOrEqual(255);
+    const registro = {
+      ...REGISTRO_COM_ITENS,
+      itens: [
+        { ...ITEM_PRODUTO_GRAVADO, produto: { ...ITEM_PRODUTO_GRAVADO.produto, nome: produtoLongo }, local_estoque: { id: "l1", nome: localLongo } },
+        { ...ITEM_SERVICO_CANCELADO, descricao: descricaoLonga },
+      ],
+    };
+    const { form } = montar({ initialData: registro, readOnly: true });
+    for (const texto of [produtoLongo, localLongo, descricaoLonga]) {
+      const el = within(form).getByText(texto);
+      // O texto inteiro, num bloco que quebra linha; nenhum ancestral com truncate (o do ValorCalculado).
+      expect(el.textContent).toBe(texto);
+      expect(el.closest(".truncate")).toBeNull();
+      expect(el.closest(".break-words")).not.toBeNull();
+    }
+    expect(within(form).getByTestId("apontamento-item-produto-1").textContent).toBe(`Produto: ${produtoLongo}`);
+    expect(within(form).getByTestId("apontamento-item-local-1").textContent).toBe(`Local do estoque: ${localLongo}`);
+    expect(within(form).getByTestId("apontamento-item-descricao-2").textContent).toBe(`Descrição: ${descricaoLonga}`);
+  });
+
+  it("AP-ITENS-16 — D-1, caso negativo: em edição só com Serviço, ou com o item de Produto já cancelado, a data fica editável e vai no corpo", () => {
+    const servicoConfirmado = { ...ITEM_SERVICO_CANCELADO, status: "CONFIRMADO", cancelamento: null };
+    const produtoCancelado = {
+      ...ITEM_PRODUTO_GRAVADO,
+      status: "CANCELADO",
+      movimento_estorno: { id: "m2", numero: "102" },
+      cancelamento: { cancelado_em: "2026-11-12T13:00:00.000Z", cancelado_por: { id: "u1", nome: "Gerente" }, motivo: "Produto errado", origem: "ITEM" },
+    };
+    for (const itens of [[servicoConfirmado], [produtoCancelado], [produtoCancelado, servicoConfirmado]]) {
+      const { form, onSubmit } = montar({ initialData: { ...REGISTRO, itens, custo_itens: CUSTO_ZERO }, readOnly: false });
+      const data = within(form).getByTestId("apontamento-data");
+      expect(data.readOnly).toBe(false);
+      expect(within(form).queryByTestId("apontamento-data-travada")).toBeNull();
+      fireEvent.change(data, { target: { value: "2026-11-09" } });
+      expect(within(form).getByTestId("apontamento-data").value).toBe("2026-11-09");
+      enviar();
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({ data_operacional: "2026-11-09" });
+      cleanup();
+    }
+  });
+
+  it("AP-ITENS-17 — D-3 na tela: sem editar e com cancelar, só cancela (item e apontamento); com editar e sem cancelar, só lança", async () => {
+    const original = sessao.acoes;
+    try {
+      sessao.acoes = { ...original, editar: false, cancelar: true };
+      await montarTelaItens();
+      let form = await abrirAp1();
+      // Cancelar item e Cancelar apontamento aparecem (o fuso e os itens já chegaram); nada de lançar nem de Editar.
+      expect(await within(form).findByTestId("apontamento-item-cancelar-1")).toBeTruthy();
+      expect(within(form).getByTestId("apontamento-cancelar")).toBeTruthy();
+      expect(within(form).queryByTestId("apontamento-itens-acoes")).toBeNull();
+      expect(within(form).queryByTestId("apontamento-item-novo-produto")).toBeNull();
+      expect(within(form).queryByTestId("apontamento-item-novo-servico")).toBeNull();
+      expect(within(form).queryByTestId("apontamento-item-novo-outro")).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Editar$/ })).toBeNull();
+      cleanup();
+
+      sessao.acoes = { ...original, editar: true, cancelar: false };
+      await montarTelaItens();
+      form = await abrirAp1();
+      // Editar aparece (o fuso chegou): a falta dos botões de cancelar é só da ação.
+      expect(await screen.findByRole("button", { name: /^Editar$/ })).toBeTruthy();
+      expect(within(form).getByTestId("apontamento-itens-acoes")).toBeTruthy();
+      expect(within(form).getByTestId("apontamento-item-novo-produto")).toBeTruthy();
+      expect(within(form).getByTestId("apontamento-item-novo-servico")).toBeTruthy();
+      expect(within(form).getByTestId("apontamento-item-novo-outro")).toBeTruthy();
+      expect(within(form).queryByTestId("apontamento-item-cancelar-1")).toBeNull();
+      expect(within(form).queryByTestId("apontamento-cancelar")).toBeNull();
+    } finally {
+      sessao.acoes = original;
+    }
+  });
+
+  it("AP-ITENS-18 — tela + service REAL (só o HTTP falso): item sem resposta → 'Repetir o mesmo envio' manda o MESMO operation_id, sem perguntar nada", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const real = await vi.importActual("@/services/apontamentoAtividadeService");
+    servico.adicionarItemApontamento.mockImplementation(real.adicionarItemApontamento);
+    // Sem o host de avisos, `confirmar` cai no window.confirm: qualquer pergunta ("Enviar como novo"?) apareceria aqui.
+    const pergunta = vi.spyOn(window, "confirm").mockImplementation(() => true);
+    const item3 = { ...ITEM_SERVICO_CANCELADO, id: "it3", ordem: 3, status: "CONFIRMADO", descricao: "Frete", cancelamento: null };
+    const v3 = { ...REGISTRO_COM_ITENS, versao: 3, itens: [...REGISTRO_COM_ITENS.itens, item3], custo_itens: { ...CUSTO_ITENS, total: "216.4063", servico: "150.0000", itens_confirmados: 2 } };
+    http.nativeRequest.mockReset();
+    http.nativeRequest.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {})).mockResolvedValueOnce({ ...v3, item_id: "it3", replay: true });
+    await montarTelaItens();
+    const form = await abrirAp1();
+    servico.detalharApontamento.mockResolvedValue(v3);
+    fireEvent.click(await within(form).findByTestId("apontamento-item-novo-servico"));
+    const card = rascunho();
+    fireEvent.change(within(card).getByLabelText(/Descrição/), { target: { value: "Frete" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "1" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-valor-unitario"), { target: { value: "150" } });
+    fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
+    await within(card).findByTestId("resultado-incerto");
+    fireEvent.click(within(card).getByTestId("botao-repetir-envio"));
+    await waitFor(() => expect(http.nativeRequest).toHaveBeenCalledTimes(2));
+    const [primeiro, segundo] = http.nativeRequest.mock.calls;
+    expect(primeiro[0]).toBe("/apontamentos-atividade/ap1/itens");
+    expect(primeiro[1]).toMatchObject({ method: "POST" });
+    expect(primeiro[1].body).toEqual({
+      tipo: "SERVICO",
+      descricao: "Frete",
+      quantidade: "1",
+      valor_unitario: "150",
+      empresa_id: "emp-1",
+      versao: 2,
+      operation_id: expect.stringMatching(/^[A-Za-z0-9_.:-]{8,128}$/),
+    });
+    expect(segundo[0]).toBe(primeiro[0]);
+    expect(segundo[1].body).toEqual(primeiro[1].body);
+    expect(pergunta).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("apontamento-item-3")).toBeTruthy();
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Item lançado", expect.stringMatching(/envio repetido: nada foi duplicado/));
+  });
+
+  it("AP-ITENS-19 — tela + service REAL: cancelar o apontamento sem resposta → repetir manda o MESMO operation_id (D-2)", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const real = await vi.importActual("@/services/apontamentoAtividadeService");
+    servico.cancelarApontamento.mockImplementation(real.cancelarApontamento);
+    const pergunta = vi.spyOn(window, "confirm").mockImplementation(() => true);
+    http.nativeRequest.mockReset();
+    http.nativeRequest.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {})).mockResolvedValueOnce({ ...AP1_CANCELADO, replay: true });
+    await montarTelaItens();
+    await abrirAp1();
+    servico.detalharApontamento.mockResolvedValue(AP1_CANCELADO);
+    fireEvent.click(await screen.findByTestId("apontamento-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-apontamento");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "Lançado em duplicidade" } });
+    await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")));
+    await within(dialogo).findByTestId("resultado-incerto");
+    expect(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar").textContent).toMatch(/Repetir o mesmo envio/);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")));
+    await waitFor(() => expect(http.nativeRequest).toHaveBeenCalledTimes(2));
+    const [primeiro, segundo] = http.nativeRequest.mock.calls;
+    expect(primeiro[0]).toBe("/apontamentos-atividade/ap1/cancelar");
+    expect(primeiro[1].body).toEqual({ empresa_id: "emp-1", versao: 2, motivo: "Lançado em duplicidade", operation_id: expect.stringMatching(/^[A-Za-z0-9_.:-]{8,128}$/) });
+    expect(segundo[1].body).toEqual(primeiro[1].body);
+    expect(pergunta).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-apontamento")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/voltaram aos lotes de origem.*envio repetido: nada foi duplicado/));
+  });
+
+  it("AP-ITENS-20 — recusa ITEM_STATUS_INVALIDO (cancelar item) e VERSAO_CONFLITO (lançar item): a tela relê o detalhe", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const recusa = (code, extra = {}) => new ApiError(API_ERROR_CODES[code] ?? API_ERROR_CODES.OPERATION_FAILED, { cause: { code, ...extra } });
+    servico.cancelarItemApontamento.mockRejectedValueOnce(recusa("APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO", { details: { status: "CANCELADO" } }));
+    servico.adicionarItemApontamento.mockRejectedValueOnce(recusa("APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO", { details: { versao_atual: 3, versao_enviada: 2 } }));
+    await montarTelaItens();
+    const form = await abrirAp1();
+    expect(servico.detalharApontamento).toHaveBeenCalledTimes(1);
+
+    // O item já foi cancelado por outra pessoa: recusa definitiva, e o detalhe é relido.
+    fireEvent.click(await within(form).findByTestId("apontamento-item-cancelar-1"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-item");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-item-motivo"), { target: { value: "Produto errado" } });
+    await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-item-enviar")));
+    await waitFor(() => expect(servico.detalharApontamento).toHaveBeenCalledTimes(2));
+    expect(servico.detalharApontamento).toHaveBeenLastCalledWith("emp-1", "ap1");
+    expect((await within(dialogo).findByTestId("erro-envio")).textContent).toMatch(/Este item já foi cancelado/);
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-item")).toBeNull());
+
+    // Lançar com a versão velha: o servidor recusa o CAS e o detalhe é relido de novo.
+    fireEvent.click(await screen.findByTestId("apontamento-item-novo-servico"));
+    const card = rascunho();
+    fireEvent.change(within(card).getByLabelText(/Descrição/), { target: { value: "Frete" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "1" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-valor-unitario"), { target: { value: "150" } });
+    fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
+    await waitFor(() => expect(servico.detalharApontamento).toHaveBeenCalledTimes(3));
+    expect(servico.adicionarItemApontamento).toHaveBeenCalledTimes(1);
+  });
+
+  it("AP-ITENS-21 — replay: a resposta é o recibo gravado (pode ser mais velho que o servidor); a tela relê o detalhe em vez de gravar o recibo no cache", async () => {
+    await montarTelaItens();
+    const form = await abrirAp1();
+    expect(servico.detalharApontamento).toHaveBeenCalledTimes(1);
+    // O recibo (v3) traz o item 3; depois dele outra pessoa cancelou o item 1 (v4, o que o servidor tem agora).
+    const item3 = { ...ITEM_SERVICO_CANCELADO, id: "it3", ordem: 3, status: "CONFIRMADO", descricao: "Diária do tratorista", valor_unitario: "200.000000", valor_total: "200.0000", cancelamento: null };
+    const recibo = {
+      ...REGISTRO_COM_ITENS,
+      versao: 3,
+      itens: [...REGISTRO_COM_ITENS.itens, item3],
+      custo_itens: { ...CUSTO_ITENS, total: "266.4063", servico: "200.0000", itens_confirmados: 2 },
+      item_id: "it3",
+      replay: true,
+    };
+    const v4 = {
+      ...REGISTRO_COM_ITENS,
+      versao: 4,
+      itens: [
+        { ...ITEM_PRODUTO_GRAVADO, status: "CANCELADO", movimento_estorno: { id: "m2", numero: "102" }, cancelamento: { ...ITEM_SERVICO_CANCELADO.cancelamento, motivo: "Produto errado" } },
+        ITEM_SERVICO_CANCELADO,
+        item3,
+      ],
+      custo_itens: { total: "200.0000", produto: "0.0000", servico: "200.0000", outro: "0.0000", itens_confirmados: 1 },
+    };
+    servico.detalharApontamento.mockResolvedValue(v4);
+    servico.adicionarItemApontamento.mockResolvedValue(recibo);
+    fireEvent.click(await within(form).findByTestId("apontamento-item-novo-servico"));
+    const card = rascunho();
+    fireEvent.change(within(card).getByLabelText(/Descrição/), { target: { value: "Diária do tratorista" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "1" } });
+    fireEvent.change(within(card).getByTestId("apontamento-item-valor-unitario"), { target: { value: "200" } });
+    fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
+    await waitFor(() => expect(servico.adicionarItemApontamento).toHaveBeenCalledTimes(1));
+    // O detalhe É relido, e a tela mostra o que o servidor tem agora (item 1 cancelado), não o recibo.
+    await waitFor(() => expect(servico.detalharApontamento).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("apontamento-item-1").getAttribute("data-status")).toBe("CANCELADO"));
+    expect(screen.getByTestId("apontamento-item-3")).toBeTruthy();
+    expect(screen.getByTestId("apontamento-itens-custo").textContent).toMatch(/R\$\s*200,00/);
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Item lançado", expect.stringMatching(/item 3.*envio repetido: nada foi duplicado/));
+  });
+
+  it("AP-ITENS-22 — detalhe ainda não chegou: sem 'Cancelar apontamento'; quando chega, o botão aparece, o diálogo avisa dos itens e a devolução relê estoque e Mapa", async () => {
+    await montarTelaItens();
+    let entregar = () => {};
+    servico.detalharApontamento.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          entregar = () => resolve(REGISTRO_COM_ITENS);
+        }),
+    );
+    servico.cancelarApontamento.mockResolvedValue({ ...AP1_CANCELADO, replay: false });
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    const form = await screen.findByTestId("b1-form-apontamento-atividade");
+    await within(form).findByTestId("apontamento-itens-carregando");
+    // O fuso chegou (Editar aparece): a falta do botão é só dos itens desconhecidos.
+    expect(await screen.findByRole("button", { name: /^Editar$/ })).toBeTruthy();
+    expect(screen.queryByTestId("apontamento-cancelar")).toBeNull();
+    await act(async () => entregar());
+    fireEvent.click(await screen.findByTestId("apontamento-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-apontamento");
+    expect(dialogo.textContent).toMatch(/Os itens são cancelados junto: os itens de produto voltam ao estoque/);
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "Lançado em duplicidade" } });
+    await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")));
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-apontamento")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/voltaram aos lotes de origem/));
+    expect(mapa.refreshMapaCacheEntry).toHaveBeenCalledWith("estoqueLotes", "emp-1", { force: true });
+    expect(mapa.refreshMapaCacheEntry).toHaveBeenCalledWith("movimentacaoEstoque", "emp-1", { force: true });
+  });
+
+  it("AP-ITENS-23 — detalhe com erro: sem 'Cancelar apontamento'; 'Tentar novamente' lê o detalhe e o botão volta", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    await montarTelaItens();
+    servico.detalharApontamento.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {}));
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    const form = await screen.findByTestId("b1-form-apontamento-atividade");
+    const erro = await within(form).findByTestId("apontamento-itens-erro");
+    expect(await screen.findByRole("button", { name: /^Editar$/ })).toBeTruthy();
+    expect(screen.queryByTestId("apontamento-cancelar")).toBeNull();
+    fireEvent.click(within(erro).getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByTestId("apontamento-cancelar")).toBeTruthy();
+    expect(screen.getByTestId("apontamento-item-1")).toBeTruthy();
+    expect(servico.detalharApontamento).toHaveBeenCalledTimes(2);
+  });
+
+  it("AP-ITENS-24 — a devolução ao estoque é decidida pela RESPOSTA do cancelamento e, no 'Consultar', pelo detalhe relido", async () => {
+    const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
+    const cancelarAp1 = async () => {
+      fireEvent.click(await screen.findByTestId("apontamento-cancelar"));
+      const dialogo = await screen.findByTestId("dialogo-cancelar-apontamento");
+      // Itens conhecidos e nenhum confirmado: o diálogo não promete devolução.
+      expect(dialogo.textContent).not.toMatch(/voltam ao estoque/);
+      fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "Lançado em duplicidade" } });
+      await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")));
+      return dialogo;
+    };
+
+    // Envio respondido: o registro aberto não tinha Produto, mas a resposta tem Produto devolvido (origem APONTAMENTO).
+    await montarTelaItens();
+    servico.detalharApontamento.mockResolvedValue(AP1_SEM_ITENS);
+    servico.cancelarApontamento.mockResolvedValueOnce({ ...AP1_CANCELADO, replay: false });
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    await screen.findByTestId("apontamento-itens-vazio");
+    await cancelarAp1();
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-apontamento")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/voltaram aos lotes de origem/));
+    expect(mapa.refreshMapaCacheEntry).toHaveBeenCalledWith("estoqueLotes", "emp-1", { force: true });
+    cleanup();
+    notify.notifySuccess.mockClear();
+    mapa.refreshMapaCacheEntry.mockClear();
+
+    // Envio sem resposta + "Consultar": o detalhe relido (CANCELADO, com o Produto devolvido) decide.
+    await montarTelaItens();
+    servico.detalharApontamento.mockResolvedValue(AP1_SEM_ITENS);
+    servico.cancelarApontamento.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {}));
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    await screen.findByTestId("apontamento-itens-vazio");
+    const dialogo = await cancelarAp1();
+    await within(dialogo).findByTestId("resultado-incerto");
+    expect(mapa.refreshMapaCacheEntry).not.toHaveBeenCalled();
+    servico.detalharApontamento.mockResolvedValue(AP1_CANCELADO);
+    await act(async () => fireEvent.click(within(dialogo).getByTestId("botao-consultar-resultado")));
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-apontamento")).toBeNull());
+    expect(servico.limparPendenciaDoApontamento).toHaveBeenCalledWith("cli-1:gerente", "cancelar", "emp-1", "ap1");
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Apontamento cancelado", expect.stringMatching(/voltaram aos lotes de origem/));
+    expect(mapa.refreshMapaCacheEntry).toHaveBeenCalledWith("estoqueLotes", "emp-1", { force: true });
+  });
+
+  it("AP-ITENS-25 — D-1 antes de o detalhe chegar: a edição abre com a data travada na gravada (nenhuma mudança entra); com o detalhe, segue travada e o PATCH leva a data gravada", async () => {
+    await montarTelaItens();
+    let entregar = () => {};
+    servico.detalharApontamento.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          entregar = () => resolve(REGISTRO_COM_ITENS);
+        }),
+    );
+    servico.atualizarApontamento.mockResolvedValue({ alterado: true, registro: { ...REGISTRO, versao: 3 } });
+    fireEvent.doubleClick(screen.getByTestId("apontamento-numero-ap1"));
+    await screen.findByTestId("b1-form-apontamento-atividade");
+    fireEvent.click(await screen.findByRole("button", { name: /^Editar$/ }));
+    let form = await screen.findByTestId("b1-form-apontamento-atividade");
+    await waitFor(() => expect(form.hasAttribute("data-somente-leitura")).toBe(false));
+    expect(within(form).getByTestId("apontamento-itens-carregando")).toBeTruthy();
+    const data = within(form).getByTestId("apontamento-data");
+    expect(data.readOnly).toBe(true);
+    expect(within(form).getByTestId("apontamento-data-travada").textContent).toMatch(/até os itens do apontamento serem lidos/);
+    // Mesmo um evento de mudança que chegue ao campo não muda a data.
+    fireEvent.change(data, { target: { value: "2026-11-09" } });
+    expect(within(form).getByTestId("apontamento-data").value).toBe("2026-11-10");
+    await act(async () => entregar());
+    form = screen.getByTestId("b1-form-apontamento-atividade");
+    await waitFor(() => expect(within(form).getByTestId("apontamento-data-travada").textContent).toMatch(/item de Produto lançado/));
+    expect(within(form).getByTestId("apontamento-data").readOnly).toBe(true);
+    expect(within(form).getByTestId("apontamento-data").value).toBe("2026-11-10");
+    fireEvent.submit(document.getElementById(FORMULARIO_APONTAMENTO_ATIVIDADE_ID));
+    await waitFor(() => expect(servico.atualizarApontamento).toHaveBeenCalledTimes(1));
+    expect(servico.atualizarApontamento.mock.calls[0][2]).toMatchObject({ data_operacional: "2026-11-10" });
+  });
+
+  it("AP-ITENS-26 — sem fuso da fazenda: nem Editar, nem Cancelar apontamento, nem Cancelar item (o servidor exige o fuso para estornar); o aviso cita o cancelamento", async () => {
+    empresas.fuso = null;
+    await montarTelaItens();
+    expect((await screen.findByTestId("apontamento-sem-fuso")).textContent).toMatch(/lançar, editar ou cancelar apontamentos e de cancelar itens/);
+    const form = await abrirAp1();
+    // Lançar item não usa o "hoje" da fazenda (o servidor não exige o fuso): continua.
+    expect(within(form).getByTestId("apontamento-itens-acoes")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Editar$/ })).toBeNull();
+    expect(within(form).queryByTestId("apontamento-cancelar")).toBeNull();
+    expect(within(form).queryByTestId("apontamento-item-cancelar-1")).toBeNull();
+  });
+
+  it("AP-ITENS-27 — resposta que chega depois de trocar de empresa: vai para o cache do detalhe da empresa anterior; no replay, o detalhe só é invalidado (o recibo não o sobrescreve)", async () => {
+    const chave = ["apontamentos-atividade", "detalhe", "emp-1", "ap1"];
+    const item3 = { ...ITEM_SERVICO_CANCELADO, id: "it3", ordem: 3, status: "CONFIRMADO", descricao: "Frete", cancelamento: null };
+    const v3 = { ...REGISTRO_COM_ITENS, versao: 3, itens: [...REGISTRO_COM_ITENS.itens, item3], item_id: "it3" };
+    try {
+      for (const replay of [false, true]) {
+        servico.adicionarItemApontamento.mockClear();
+        notify.notifySuccess.mockClear();
+        sessao.empresaId = "emp-1";
+        let responder = () => {};
+        servico.adicionarItemApontamento.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              responder = () => resolve({ ...v3, replay });
+            }),
+        );
+        const { cliente, redesenhar } = await montarTelaItens();
+        const form = await abrirAp1();
+        fireEvent.click(await within(form).findByTestId("apontamento-item-novo-servico"));
+        const card = rascunho();
+        fireEvent.change(within(card).getByLabelText(/Descrição/), { target: { value: "Frete" } });
+        fireEvent.change(within(card).getByTestId("apontamento-item-quantidade"), { target: { value: "1" } });
+        fireEvent.change(within(card).getByTestId("apontamento-item-valor-unitario"), { target: { value: "150" } });
+        fireEvent.click(within(card).getByTestId("apontamento-item-lancar"));
+        await waitFor(() => expect(servico.adicionarItemApontamento).toHaveBeenCalledTimes(1));
+        // Troca de empresa com o envio em curso: o registro da empresa anterior fecha.
+        sessao.empresaId = "emp-2";
+        redesenhar();
+        await waitFor(() => expect(screen.queryByTestId("b1-form-apontamento-atividade")).toBeNull());
+        await act(async () => responder());
+        await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Item lançado", expect.stringMatching(/nº 15/)));
+        if (replay) {
+          // O recibo (gravado no servidor) pode ser mais velho: o cache da empresa anterior fica como estava, marcado para reler.
+          expect(cliente.getQueryData(chave)).toEqual(REGISTRO_COM_ITENS);
+          expect(cliente.getQueryState(chave)?.isInvalidated).toBe(true);
+        } else {
+          expect(cliente.getQueryData(chave)).toEqual({ ...v3, replay: false });
+          expect(cliente.getQueryState(chave)?.isInvalidated).toBe(false);
+        }
+        // Nada da empresa anterior aparece na empresa nova.
+        expect(screen.queryByTestId("apontamento-item-3")).toBeNull();
+        cleanup();
+      }
+    } finally {
+      sessao.empresaId = "emp-1";
+    }
+  });
+
+  /** Tela com o detalhe (itens) do ap1. Devolve o QueryClient (para ler o cache) e o `rerender`. */
   async function montarTelaItens() {
     servico.listarTiposAtividade.mockResolvedValue(TIPOS);
     servico.listarAreasDoApontamento.mockResolvedValue(AREAS);
     servico.listarApontamentosPagina.mockResolvedValue({ items: [REGISTRO, CANCELADO], next_cursor: null, has_more: false, total: 2, limit: 100 });
     servico.detalharApontamento.mockImplementation(async (_emp, id) => (id === "ap1" ? REGISTRO_COM_ITENS : CANCELADO_COM_ITENS));
     const { default: ApontamentosAtividade } = await import("@/pages/ApontamentosAtividade");
-    render(
-      <QueryClientProvider client={novoCliente()}>
+    const cliente = novoCliente();
+    const arvore = () => (
+      <QueryClientProvider client={cliente}>
         <ApontamentosAtividade />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const { rerender } = render(arvore());
     await screen.findByTestId("apontamento-numero-ap1");
+    return { cliente, redesenhar: () => rerender(arvore()) };
   }
 
   /** Abre o ap1 e espera os itens do DETALHE. */

@@ -28,6 +28,7 @@ import {
   STATUS_CANCELADO,
   STATUS_CONFIRMADO,
   campoDoErroApontamento,
+  cancelamentoDevolveuProduto,
   codigoDoErroApontamento,
   formatarQuantidadeItem,
   formatarValorItem,
@@ -99,10 +100,15 @@ const CONTEXTO_MENSAGENS = Object.freeze({ locale: "pt-BR", moeda: "BRL", casas:
  * cancelar o apontamento levam `operation_id` persistente (sem resposta =
  * resultado incerto, nunca sucesso; repetir não duplica) e a resposta, que é o
  * detalhe, vai para o cache do detalhe; a lista é relida (a `versao` mudou).
+ * No REPLAY a resposta é o corpo gravado no recibo, que pode ser mais velho que
+ * o cache: o detalhe é relido em vez de sobrescrito. "Cancelar apontamento" só
+ * aparece com os itens conhecidos (o detalhe chegou), e a devolução ao estoque
+ * é decidida pela resposta do servidor.
  *
  * Salvaguardas de Gestão: sem empresa real nada é lido; trocar de empresa
  * fecha o registro e os diálogos; sem fuso da fazenda não há "hoje" nem hora,
- * então novo e editar ficam fechados (o servidor recusaria).
+ * então novo, editar, cancelar o apontamento e cancelar item ficam fechados (o
+ * servidor recusaria: o estorno usa o "hoje" da fazenda).
  */
 export default function ApontamentosAtividade() {
   const queryClient = useQueryClient();
@@ -252,9 +258,24 @@ export default function ApontamentosAtividade() {
   }, [detalheQuery.error]);
 
   /**
-   * Mostra o registro devolvido pelo servidor (somente leitura). Com `itens`
-   * (detalhe) ele vai para o cache do detalhe; sem eles (resposta de criar ou
-   * editar o cabeçalho), o detalhe é relido.
+   * Resposta do servidor no cache do detalhe. Com `itens` (o detalhe), ela vai
+   * para o cache sem nova leitura. No REPLAY (`replay: true`) o corpo é o
+   * gravado no recibo, que pode ser mais velho que o cache: o detalhe é
+   * invalidado e relido, nunca sobrescrito. Sem `itens` (resposta de criar ou
+   * editar o cabeçalho), o detalhe também é relido.
+   * @param {any} registro @param {string|null} emp
+   */
+  const guardarDetalhe = (registro, emp) => {
+    const chave = chaveDetalhe(emp, String(registro.id));
+    if (Array.isArray(registro.itens) && registro.replay !== true) queryClient.setQueryData(chave, registro);
+    else queryClient.invalidateQueries({ queryKey: chave });
+  };
+
+  /**
+   * Mostra o registro devolvido pelo servidor (somente leitura); o cache do
+   * detalhe segue `guardarDetalhe`. O registro aberto é o mais novo entre o
+   * detalhe e esta resposta (pela `versao`), então o replay mais velho que o
+   * cache não volta a tela para trás.
    * @param {any} registro @param {string|null} [emp]
    */
   const mostrarRegistro = (registro, emp = empresaId) => {
@@ -262,8 +283,7 @@ export default function ApontamentosAtividade() {
       controller.recordHelpers.closeForm();
       return;
     }
-    if (Array.isArray(registro.itens)) queryClient.setQueryData(chaveDetalhe(emp, String(registro.id)), registro);
-    else queryClient.invalidateQueries({ queryKey: chaveDetalhe(emp, String(registro.id)) });
+    guardarDetalhe(registro, emp);
     controller.recordHelpers.recordBeforeNewRef.current = null;
     controller.setEditingItem(registro);
     controller.setIsEditing(false);
@@ -362,30 +382,37 @@ export default function ApontamentosAtividade() {
   const textoDoReplay = (r) => (r?.replay === true ? " (envio repetido: nada foi duplicado)" : "");
 
   /**
-   * Resposta de um comando de item (o DETALHE): vai para o cache, a lista é
-   * relida (a `versao` mudou) e o registro aberto passa a ser ela.
+   * Resposta de um comando de item (o DETALHE): vai para o cache (no replay, o
+   * detalhe é relido: `guardarDetalhe`), a lista é relida (a `versao` mudou) e
+   * o registro aberto passa a ser ela.
    * @param {any} registro @param {string} emp @param {boolean} mexeuNoEstoque
    */
   const aplicarDetalhe = (registro, emp, mexeuNoEstoque) => {
     invalidar();
     if (mexeuNoEstoque) avisarEstoqueAlterado(emp);
     if (!daEmpresaAtual(emp)) {
-      if (registro?.id) queryClient.setQueryData(chaveDetalhe(emp, String(registro.id)), registro);
+      if (registro && typeof registro === "object" && registro.id) guardarDetalhe(registro, emp);
       return;
     }
     mostrarRegistro(registro, emp);
   };
 
   // ─── Cancelamento ───────────────────────────────────────────────────
-  /** @param {any} registro @param {string} emp @param {boolean} tinhaProduto */
-  const concluirCancelamento = (registro, emp, tinhaProduto) => {
+  /**
+   * Cancelamento concluído. Se os itens de Produto voltaram ao estoque decide a
+   * RESPOSTA (ou o detalhe relido), não o registro aberto: com devolução, as
+   * consultas de estoque e o cache do Mapa são relidos.
+   * @param {any} registro a resposta do servidor (o detalhe cancelado) @param {string} emp
+   */
+  const concluirCancelamento = (registro, emp) => {
     setCancelando(null);
-    const devolveu = tinhaProduto ? " Os itens de Produto voltaram aos lotes de origem." : "";
+    const voltouAoEstoque = cancelamentoDevolveuProduto(registro);
+    const devolveu = voltouAoEstoque ? " Os itens de Produto voltaram aos lotes de origem." : "";
     notifySuccess(
       "Apontamento cancelado",
       `Apontamento nº ${registro?.numero ?? ""} cancelado. Ele continua no histórico; nada foi apagado.${devolveu}${textoDoReplay(registro)}`,
     );
-    aplicarDetalhe(registro, emp, tinhaProduto);
+    aplicarDetalhe(registro, emp, voltouAoEstoque);
   };
 
   /** Recusa de comando que estorna: o motivo exato do bloqueio vai num aviso (o diálogo mostra o resumo). @param {unknown} erro */
@@ -400,10 +427,9 @@ export default function ApontamentosAtividade() {
     const registro = cancelando;
     const emp = empresaId;
     if (!registro || !emp) return;
-    const tinhaProduto = itensDoRegistro(registro).some((i) => i?.tipo === ITEM_PRODUTO && i?.status === STATUS_CONFIRMADO);
     try {
       const r = await cancelarApontamento(emp, registro, motivo, { escopo, retentativa: opcoes.retentativa });
-      concluirCancelamento(r, emp, tinhaProduto);
+      concluirCancelamento(r, emp);
     } catch (erro) {
       reagirAoErro(erro, "Não foi possível cancelar o apontamento. Nada foi alterado.", emp, String(registro.id));
       avisarBloqueioDoEstorno(erro);
@@ -420,8 +446,9 @@ export default function ApontamentosAtividade() {
       const atual = /** @type {any} */ (await detalharApontamento(emp, String(registro.id)));
       if (atual?.status === STATUS_CANCELADO) {
         // O efeito do envio pendente está no apontamento: a pendência sai (o próximo envio é NOVO).
+        // A devolução ao estoque é decidida pelo detalhe relido (`atual`), não pelo registro do diálogo.
         limparPendenciaDoApontamento(escopo, ACAO_CANCELAR, emp, String(registro.id));
-        concluirCancelamento(atual, emp, itensDoRegistro(registro).some((i) => i?.tipo === ITEM_PRODUTO && i?.status === STATUS_CONFIRMADO));
+        concluirCancelamento(atual, emp);
       } else notifyInfo("Ainda confirmado", "O cancelamento não aparece gravado. Repita o mesmo envio: ele não duplica.");
     } catch (erro) {
       notifyWarning("Atenção", mensagemErroApontamento(erro, "Não foi possível consultar agora. Tente de novo."));
@@ -600,7 +627,8 @@ export default function ApontamentosAtividade() {
       {aviso}
       {semFuso && acoes.ver ? (
         <AvisoGestao testId="apontamento-sem-fuso">
-          Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de lançar ou editar apontamentos.
+          Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de lançar, editar ou cancelar apontamentos e de cancelar itens: o
+          servidor recusa sem ele.
         </AvisoGestao>
       ) : null}
       {filtros}
@@ -615,6 +643,9 @@ export default function ApontamentosAtividade() {
       : [];
 
   const alvoAberto = registroAberto ? String(registroAberto.id) : "novo";
+  // Cancelar o apontamento e cancelar item estornam no "hoje" da fazenda: sem fuso, o servidor recusa (podeGravar).
+  // "Cancelar apontamento" espera os itens (o DETALHE): sem eles o diálogo não saberia avisar da devolução ao estoque.
+  const itensConhecidos = Array.isArray(registroAberto?.itens);
   const recordForm = controller.showForm ? (
     <FormularioApontamentoAtividade
       // Entrar ou sair da edição (✕) e a chegada do fuso remontam o formulário a partir do GRAVADO.
@@ -628,11 +659,11 @@ export default function ApontamentosAtividade() {
       readOnly={!controller.isEditing}
       isSubmitting={saving}
       onSubmit={controller.handleSubmit}
-      podeCancelar={acoes.cancelar && Boolean(empresaId)}
+      podeCancelar={acoes.cancelar && podeGravar && itensConhecidos}
       onCancelar={() => setCancelando(registroAberto)}
       erroDoServidor={erroDoServidor?.alvo === alvoAberto ? erroDoServidor : null}
       podeLancarItens={acoes.editar && Boolean(empresaId)}
-      podeCancelarItens={acoes.cancelar && Boolean(empresaId)}
+      podeCancelarItens={acoes.cancelar && podeGravar}
       itensCarregando={detalheQuery.isFetching}
       erroDosItens={detalheQuery.isError ? mensagemErroApontamento(detalheQuery.error, "Não foi possível ler os itens do apontamento.") : null}
       onRecarregarItens={() => detalheQuery.refetch()}
@@ -695,9 +726,12 @@ export default function ApontamentosAtividade() {
             aberto
             titulo={`Cancelar apontamento ${cancelando.numero ? `nº ${cancelando.numero}` : ""}`.trim()}
             descricao={`O apontamento continua no histórico como cancelado; nada é apagado e ele não aceita mais edição.${
-              itensDoRegistro(cancelando).some((/** @type {any} */ i) => i?.status === STATUS_CONFIRMADO)
-                ? " Os itens são cancelados junto: os itens de produto voltam ao estoque, exatamente aos lotes de origem."
-                : ""
+              !Array.isArray(cancelando.itens)
+                ? // Itens ainda não lidos (o botão espera por eles; isto é só a salvaguarda): o texto não afirma nem nega.
+                  " Se houver itens, eles são cancelados junto: os itens de produto voltam ao estoque, exatamente aos lotes de origem."
+                : itensDoRegistro(cancelando).some((/** @type {any} */ i) => i?.status === STATUS_CONFIRMADO)
+                  ? " Os itens são cancelados junto: os itens de produto voltam ao estoque, exatamente aos lotes de origem."
+                  : ""
             } Informe o motivo (pelo menos 3 caracteres).`}
             rotuloBotao="Cancelar apontamento"
             testId="dialogo-cancelar-apontamento"

@@ -624,6 +624,16 @@ export const temItemDeProdutoConfirmado = (registro) =>
   itensDoRegistro(registro).some((i) => i?.tipo === ITEM_PRODUTO && i?.status === STATUS_CONFIRMADO);
 
 /**
+ * O cancelamento do apontamento devolveu item de Produto ao estoque: a RESPOSTA
+ * (ou o detalhe relido) tem item de Produto cancelado junto com o apontamento
+ * (`cancelamento.origem === 'APONTAMENTO'`). Decide pelo que o servidor
+ * devolveu, nunca pelo registro aberto (que pode não trazer os itens).
+ * @param {any} registro
+ */
+export const cancelamentoDevolveuProduto = (registro) =>
+  itensDoRegistro(registro).some((i) => i?.tipo === ITEM_PRODUTO && i?.cancelamento?.origem === 'APONTAMENTO');
+
+/**
  * Custo dos itens CONFIRMADOS (os cancelados ficam no histórico e não contam),
  * somado em 4 casas sem float. A tela prefere o `custo_itens` do servidor.
  * @param {any[]} itens
@@ -758,8 +768,8 @@ const MOTIVO_ESTORNO_BLOQUEADO = Object.freeze(
     lote_indisponivel_para_devolucao: 'um lote de origem foi estornado ou removido',
     devolucao_excede_entrada: 'a devolução passaria da entrada do lote de origem',
     estoque_excede_limite: 'o estoque do Produto passaria do limite',
-    vinculo_divergente: 'o vínculo do lote com o movimento não confere',
-    camada_divergente: 'a camada do lote não confere com o movimento',
+    vinculo_divergente: 'o movimento de saída do item é de outro Produto ou de outra fazenda',
+    camada_divergente: 'um lote de origem é de outro Produto, fazenda ou local',
   }),
 );
 
@@ -808,9 +818,10 @@ export const mensagemErroApontamento = (erro, fallback, contexto = {}) => {
     }
     return `Saldo insuficiente deste Produto neste local: disponível ${numeroBr(details.disponivel)}${em}, pedido ${numeroBr(details.solicitado)}${em}. Nada foi gravado.`;
   }
-  // Só o item de Produto chega ao motor nesta tela: quantidade ou custo FIFO acima do teto das colunas de estoque.
+  // Só o item de Produto chega ao motor nesta tela; o motor manda `quantidade_estoque_zero` (quantidade
+  // que zera em 4 casas) ou `valor_excede_limite_estoque` (quantidade ou custo FIFO acima do teto das colunas de estoque).
   if (code === 'OPERACAO_VALORES_INVALIDOS') {
-    if (reason === 'quantidade_nao_positiva') return 'Informe uma quantidade maior que zero. Nada foi gravado.';
+    if (reason === 'quantidade_estoque_zero') return 'Informe uma quantidade maior que zero. Nada foi gravado.';
     return 'Quantidade ou custo acima do limite do estoque. Nada foi gravado.';
   }
   if (code === 'PRODUTO_NOT_FOUND') return 'O Produto não foi encontrado nesta fazenda. Escolha outro.';
