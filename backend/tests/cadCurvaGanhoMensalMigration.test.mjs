@@ -21,6 +21,9 @@
  * D-PROD-197 (`20261114300000_tipo_atividade_defaults`: padrões e flags do
  * TipoAtividade, aditiva, não toca CADCURVAGANHO), de nome posterior às duas.
  * Em produção esta e a D-PROD-195 já estão concluídas e a D-PROD-197 entra depois.
+ * Também fica fora a EXPAND da D-PROD-198 (`20261114400000_cadcategoria_peso_objetivo`:
+ * CADCATEGORIA.peso_objetivo_kg), a de nome mais recente, que no dia desta CONTRACT
+ * ainda não existia.
  *
  * RED pelo runner (alvo local; nada muda e a falha aberta é resolvida com
  * `migrate resolve --rolled-back`): 1 curva cadastrada, FK de outra tabela,
@@ -33,7 +36,8 @@
  * D-PROD-195 e a D-PROD-197 também pendem (nunca duas CONTRACT de uma vez; nada
  * muda); no alvo local, sem a conferência, aplica esta, depois a D-PROD-195 (a
  * guarda dela passa: nenhuma categoria) e por fim a D-PROD-197 (a guarda dela só
- * exige TipoAtividade e os alvos das FKs): 51/0, as 12 colunas mensais na ordem,
+ * exige TipoAtividade e os alvos das FKs) e a EXPAND da D-PROD-198 (sem
+ * autorização: não é CONTRACT): 52/0, as 12 colunas mensais na ordem,
  * sem as antigas, RLS sem FORCE, maike_backend_all, CHECK de -2 a 3, os mesmos
  * índices mais o UNIQUE (cliente_id, empresa_id, id) da D-PROD-195, mesmas 85
  * tabelas e `migrate diff` vazio. Sem a decisão exata, num banco à parte, o
@@ -67,6 +71,8 @@ const DECISAO = 'D-PROD-194';
 const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho';
 /** D-PROD-197: a CONTRACT aditiva do TipoAtividade, de nome posterior às duas; fora da partida, aplicada pelo runner no GREEN por último. */
 const NOME_TIPO_ATIVIDADE_DEFAULTS = '20261114300000_tipo_atividade_defaults';
+/** D-PROD-198: a EXPAND do peso objetivo em CADCATEGORIA, a de nome mais recente; fora da partida, aplicada pelo runner no GREEN por último (EXPAND: o runner não a cita como CONTRACT). */
+const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const POSTERIORES = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort());
 /** As CONTRACT pendentes depois da partida (nome e decisão), na ordem do manifesto, que é a ordem em que o runner as cita. */
 const CONTRACTS_PENDENTES = Object.freeze([[NOME_CONTRACT, DECISAO], [NOME_CURVA_NA_CATEGORIA, 'D-PROD-195'], [NOME_TIPO_ATIVIDADE_DEFAULTS, 'D-PROD-197']]);
@@ -315,10 +321,11 @@ after(async () => {
 });
 
 describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
-  test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas; a D-PROD-195 e a D-PROD-197, posteriores, ainda não), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
-    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS], 'só as CONTRACT da D-PROD-195 e da D-PROD-197 têm nome posterior a esta');
+  test('CM-01 partida: 48 migrations (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas; a D-PROD-195, a D-PROD-197 e a EXPAND da D-PROD-198, posteriores, ainda não), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
+    assert.deepEqual(POSTERIORES, [NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO], 'só as CONTRACT da D-PROD-195 e da D-PROD-197 e a EXPAND da D-PROD-198 têm nome posterior a esta');
     assert.equal(MIGRATIONS_PARTIDA, 48);
-    assert.equal(TOTAL_MIGRATIONS, 51);
+    // D-PROD-198: 51 → 52 pastas (a EXPAND do peso objetivo, fora da partida; a partida continua 48).
+    assert.equal(TOTAL_MIGRATIONS, 52);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.posteriores_concluidas, 0);
@@ -371,10 +378,10 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     });
   }
 
-  test('CM-03 GREEN pelo runner oficial: com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194 recusa (a D-PROD-195 e a D-PROD-197 também pendem; nada muda); no alvo local aplica esta, a D-PROD-195 e a D-PROD-197: 51/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
+  test('CM-03 GREEN pelo runner oficial: com o alvo conferido e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-194 recusa (a D-PROD-195 e a D-PROD-197 também pendem; nada muda); no alvo local aplica esta, a D-PROD-195, a D-PROD-197 e a EXPAND da D-PROD-198: 52/0, as 12 colunas mensais na ordem, sem as antigas, RLS sem FORCE, maike_backend_all, CHECK, índices e migrate diff vazio', async () => {
     const sid = await sistema(db);
     // Nunca duas CONTRACT de uma vez: com esta, a D-PROD-195 e a D-PROD-197 pendentes, a decisão desta não basta (e a de
-    // nenhuma das outras duas também não); a recusa cita as outras duas.
+    // nenhuma das outras duas também não); a recusa cita as outras duas (a EXPAND da D-PROD-198 não entra na lista).
     for (const [, autorizada] of CONTRACTS_PENDENTES) {
       const recusada = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: autorizada } });
       assert.equal(recusada.status, 1, recusada.saida);
@@ -387,7 +394,8 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
       assert.deepEqual(await retrato(db), partida, 'nada mudou');
     }
 
-    // Alvo local (sem a conferência exigida): o runner aplica as pendentes pela ordem dos nomes, esta, a D-PROD-195 e a D-PROD-197.
+    // Alvo local (sem a conferência exigida): o runner aplica as pendentes pela ordem dos nomes, esta, a D-PROD-195, a
+    // D-PROD-197 e a EXPAND da D-PROD-198.
     const r = await aplicarPeloRunner(URL_T);
     assert.equal(r.status, 0, r.saida);
     assert.ok(!vazou(r.saida, URL_T));
@@ -397,13 +405,13 @@ describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD 
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     assert.equal(h.posteriores_concluidas, POSTERIORES.length);
-    assert.deepEqual((await ordemDeAplicacao(db)).slice(-3), [NOME_CONTRACT, NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS]);
+    assert.deepEqual((await ordemDeAplicacao(db)).slice(-4), [NOME_CONTRACT, NOME_CURVA_NA_CATEGORIA, NOME_TIPO_ATIVIDADE_DEFAULTS, NOME_PESO_OBJETIVO]);
 
     const depois = await retrato(db);
     assert.deepEqual(depois.colunas, [...COLUNAS_DEPOIS]);
     for (const c of COLUNAS_ESTACAO) assert.ok(!depois.colunas.includes(c), `${c} saiu`);
     assert.equal(depois.curvas, 0, 'a tabela volta vazia');
-    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (85; a D-PROD-195 e a D-PROD-197 também não criam tabela)');
+    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (85; a D-PROD-195, a D-PROD-197 e a D-PROD-198 também não criam tabela)');
     assert.notEqual(depois.seguranca.oid, partida.seguranca.oid, 'a tabela foi recriada');
     assert.equal(depois.seguranca.rls, true, 'RLS ligado');
     assert.equal(depois.seguranca.force, false, 'sem FORCE');
