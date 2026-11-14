@@ -9,7 +9,20 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
+## Missão ativa (2026-11-14) — MAIKE-TIPO-ATIVIDADE-DEFAULTS (Fatia 1 do Lançamento de Atividades): padrões e flags do Tipo de Atividade (D-PROD-195)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-195** (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"), com o pedido do proprietário literal ("TipoAtividade ganha os defaults e as flags. É a base de tudo."; "estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa") |
+| Branch / PR | `feat/tipo-atividade-defaults`, a partir da `main` `a65ea468` (PR #273 mergeada). PR **#276** em rascunho, exclusiva desta fatia |
+| Escopo | `TipoAtividade` ganha categoria, centro de custo padrão, centro de resultado padrão, unidade de produção (`UnidadeMedida`), coeficiente padrão e 8 flags; API `/tipos-atividade` com os campos, regras 422 e opções de centros da fazenda; tela em 3 seções; helper puro para a Fatia 2. Apontamento de Atividade de hoje inalterado |
+| Migration | `20261114200000_tipo_atividade_defaults`, **CONTRACT** aditiva (quinta entrada fechada). SHA-256 `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; guarda `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`. Repositório 49 → **50**; tabelas não mudam |
+| Release | **Não aplicada.** Aplicar **antes do merge**, fora de pico, só com autorização explícita do proprietário, pelo [runbook](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md) |
+| Constituição | Nota D-PROD-195 no `07`, redigida pelo agente; **vale só com a aprovação explícita do proprietário no merge manual** |
+| Próxima fatia | Fatia 2 (`feat/atividade-cabecalho`: Atividade + apontamento como filho), só quando o proprietário liberar |
+| Documentos | [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |
 |---|---|
