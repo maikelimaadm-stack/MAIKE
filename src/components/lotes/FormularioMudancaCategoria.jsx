@@ -24,7 +24,7 @@ const SUBICONE_PX = 22;
  * ainda é candidata), senão a única candidata; com mais de uma e nenhuma
  * escolhida, `null` (a tela pede a escolha e não envia).
  * @param {{ categoria_manejo_id_novo?: string }} mudanca
- * @param {Array<{ id: unknown }>} candidatas
+ * @param {Array<{ id: unknown, nome?: string, sexo?: string }>} candidatas
  */
 export const categoriaManejoDaLinha = (mudanca, candidatas) => {
   const escolhida = candidatas.find((c) => String(c.id) === String(mudanca?.categoria_manejo_id_novo ?? ""));
