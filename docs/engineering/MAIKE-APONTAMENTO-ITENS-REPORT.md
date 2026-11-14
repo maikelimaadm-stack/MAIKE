@@ -80,10 +80,29 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 
 ## 5. Validação
 
-> **A preencher pelo orquestrador.** A verificação de registro desta fatia é o **CI da PR #274** (`verify:all` completo nos jobs da PR), no commit final, depois de juntar as correções das frentes de backend e de frontend. O que roda localmente é só apoio.
+A verificação de registro desta fatia é o **CI da PR #274**: o `verify:all` completo, dividido em 7 partes (estático, backend 1/4 a 4/4, smoke 1/2 e 2/2).
 
-- **CI da PR #274 (verificação de registro):** _a preencher_ — commit, execução e resultado.
-- **Checagens locais de apoio:** _a preencher_.
+- **CI da PR #274 (verificação de registro):** commit `ce651a68`, execução `quality` nº 1111 (43547787274). **Todas as partes verdes**, e o job `verify:all` com `success`.
+- **Checagens locais de apoio**, no mesmo estado:
+  - os gates passaram: governance-paths, product-scope (28 páginas), tenancy (84 models, 70 de tenant), indices, native-api, deploy-migrations, import-integrity, no-secrets, base44 e api-boundary;
+  - `typecheck:backend` ok; `lint` com 0 erros;
+  - `node --test scripts/tests/deploy/*.test.mjs` 117/117; `test:gates` 829/829;
+  - smoke `apontamentosAtividade` + `scope` + `vercelSpaRoutes` 79/79; o `test:smoke` inteiro passou na frente de tela (2712 testes);
+  - banco limpo migrado: 48 migrations e 85 tabelas, `migrate diff` vazio;
+  - backend da Fatia D (itens nativo, itens concorrência, `apontamentoAtividadeNativo`, `permissoesR2Rotas`) 81/81.
+- **Revisão:** 12 revisores independentes, um por lente: FIFO e custo, estorno, cancelamento, concorrência e travas, idempotência, reconciliação, tenancy, regras, migration e portão, tela, documentação e força dos testes.
+  - Nenhum defeito grave em estoque, dinheiro, concorrência ou segurança.
+  - 13 corridas e deadlocks forçados em Postgres; cancelar 200 itens levou cerca de 0,2 s.
+  - Os achados (baixos ou médios: tela, texto e testes que passavam sem provar) foram corrigidos.
+- **Mutações das correções:** 27 no backend e 28 no frontend, **todas pegas**. Entre elas:
+  - ordem de travas (C6a/C6b);
+  - cada item com o seu estorno (IT9/R5);
+  - arredondamento único (IT3);
+  - estorno no dia da fazenda (IT6b);
+  - fingerprints campo a campo (IT7b);
+  - D-8 com tanque e bem ativos (IT4e);
+  - pré-conferência do `operation_id`, inclusive sob papel não dono com RLS (IT4f/IT4g);
+  - na tela: cancelamento antes do detalhe, data travada, botões sem fuso e releitura no replay.
 
 ### Provas por mutação (D4, todas pegas)
 
@@ -160,6 +179,15 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
 | R8 | A `versao` do apontamento muda com itens: quem edita o cabeçalho enquanto outro lança item leva 409 | Comportamento esperado do CAS; a tela relê o detalhe |
 
 ## 9. Fora do escopo
+
+**Achado fora do escopo, para outra missão:** em produção o runtime não é dono das tabelas e há RLS. Nesse cenário o P2002 de unique chega com `meta.target` nulo. Esta fatia se protege com a pré-conferência do `operation_id` (IT4g prova). Os módulos antigos que traduzem P2002 pelo `meta.target` passam a responder `CONCURRENCY_CONFLICT` em vez do código certo:
+- `backend/src/shared/prisma/transacaoConcorrente.js:105-108` (os mapas `unicos`);
+- `backend/src/modules/patrimonio/abastecimentoService.js:427` (`operation_id` do abastecimento);
+- `patrimonio/patrimonioComum.js:68`;
+- `empresas/empresaUniqueViolation.js:17`;
+- `adminMaike/adminClientesGestaoService.js:108`.
+
+A correção pede decisão e PR próprias.
 
 - abastecimento ligado ao apontamento (Fatia E): `AbastecimentoBem*` não foi tocado;
 - flags `exige_area`/`pode_ter_*`: não voltaram em lugar nenhum;
