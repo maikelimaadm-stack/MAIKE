@@ -56,7 +56,7 @@ export const DOCS_RAIZ = Object.freeze(['README.md', 'README_AI.md', 'CLAUDE.md'
 export const DOCS_ACOPLADOS = Object.freeze([
   // tests/smoke/maplibreR6StyleRetry.test.js (Vitest, etapa test:smoke)
   'docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md',
-  // backend/tests/tipoAtividadeDefaultsMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-196)
+  // backend/tests/tipoAtividadeDefaultsMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-197)
   'docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md',
 ]);
 

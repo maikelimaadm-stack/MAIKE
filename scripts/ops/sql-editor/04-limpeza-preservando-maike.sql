@@ -48,7 +48,7 @@ DECLARE
     -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
     -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
     'ApontamentoAtividade',
-    -- D-PROD-196: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
+    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
     -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
     'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',

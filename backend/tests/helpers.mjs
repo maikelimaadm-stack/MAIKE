@@ -144,7 +144,7 @@ export const limparBanco = async () => {
   await prisma.bemPatrimonial.deleteMany({});
   await prisma.tipoPatrimonial.deleteMany({});
   await prisma.familiaPatrimonial.deleteMany({});
-  // D-PROD-196: os padrões do Tipo de Atividade apontam para centros e unidade
+  // D-PROD-197: os padrões do Tipo de Atividade apontam para centros e unidade
   // (RESTRICT), que saem antes do tipo; soltá-los primeiro deixa a limpeza na ordem de sempre.
   await prisma.tipoAtividade.updateMany({
     where: { OR: [{ centro_custo_padrao_id: { not: null } }, { centro_resultado_padrao_id: { not: null } }, { unidade_producao_id: { not: null } }] },

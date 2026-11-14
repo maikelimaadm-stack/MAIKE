@@ -36,7 +36,7 @@
  *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria; na D-PROD-195,
  *     coluna nova NOT NULL com a ligação dos registros existentes, UNIQUE em tabela
  *     antiga e FK composta entre duas tabelas antigas, todos pinados letra por letra; na
- *     D-PROD-196, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
+ *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
  *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
  *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
@@ -98,7 +98,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
   // D-PROD-195: CONTRACT aprovado pelo proprietário — curva de ganho obrigatória na Categoria de Manejo, da mesma fazenda.
   '20261114200000_cadcategoria_curva_ganho': 'b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb',
-  // D-PROD-196: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
+  // D-PROD-197: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
   // DEFAULT false, 3 FKs (centros e unidade) e 2 CHECKs; mudança aditiva, sem DROP.
   '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
 });
@@ -136,7 +136,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São seis, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-196.
+ * exige decisão. São seis, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-197.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -234,7 +234,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "CADCATEGORIA" ADD CONSTRAINT "CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "curva_ganho_id") REFERENCES "CADCURVAGANHO"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ]),
   }),
-  // D-PROD-196: o Tipo de Atividade ganha os padrões e as flags. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // D-PROD-197: o Tipo de Atividade ganha os padrões e as flags. A mudança é ADITIVA: nenhuma linha muda de valor,
   // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
   // EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT (as 8 flags), FK para tabela ANTIGA (CentroCusto,
   // CentroResultado e UnidadeMedida) e CHECK — o mesmo caminho dos alargamentos de CHECK da D-PROD-162. Depois da
@@ -247,7 +247,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // `constraints_adicionadas` (não em `colunas_novas_em_tabelas_antigas`, que é do caminho EXPAND e libera FK para
   // tabela nova, nem em `constraints_alargadas`: nada aqui alarga constraint existente).
   '20261114300000_tipo_atividade_defaults': Object.freeze({
-    decisao: 'D-PROD-196',
+    decisao: 'D-PROD-197',
     guarda_sha256: 'e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['TipoAtividade', 'CentroCusto', 'CentroResultado', 'UnidadeMedida']),
@@ -344,7 +344,7 @@ const classificarExpand = (nome, sqlBruto, { novas, colunasNovasEmAntigas, doApr
 /**
  * `ADD CONSTRAINT` do texto pinado, separados pelo que fazem (`ALTER TABLE "T" ADD CONSTRAINT "C" …` → "T.C"):
  * ALARGADA é a recriada — o `DROP CONSTRAINT` do mesmo nome, na mesma tabela, vem ANTES dela (D-PROD-162: apaga o CHECK
- * e o cria mais largo); ADICIONADA é a que não existia (D-PROD-196: FKs e CHECKs novos). Até a D-PROD-194 todo `ADD
+ * e o cria mais largo); ADICIONADA é a que não existia (D-PROD-197: FKs e CHECKs novos). Até a D-PROD-194 todo `ADD
  * CONSTRAINT` pinado era alargamento; o `premerge-migrate` rotula `constraints_alargadas` como "CHECKs alargados".
  */
 const constraintsPorEfeito = (alterAntigas) => {
@@ -366,7 +366,7 @@ const constraintsPorEfeito = (alterAntigas) => {
   return { alargadas, adicionadas };
 };
 
-/** D-PROD-196 — colunas acrescentadas a tabela antiga, a partir do texto pinado (`ALTER TABLE "T" ADD COLUMN "c" …`). */
+/** D-PROD-197 — colunas acrescentadas a tabela antiga, a partir do texto pinado (`ALTER TABLE "T" ADD COLUMN "c" …`). */
 const colunasAdicionadas = (alterAntigas) =>
   alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD COLUMN (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 

@@ -6,7 +6,7 @@
  * (`removeAdditional: false`, ver `app.js`). Leitura só exige autenticação,
  * como em `/tipos-tarefa`; escrita passa pela tela `sup-tipos-atividade`.
  *
- * D-PROD-196 (contrato `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`):
+ * D-PROD-197 (contrato `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`):
  *  - corpo (POST e PATCH) com os padrões e as 8 flags, todos opcionais;
  *    `exige_area` passa a ser campo válido; `pode_ter_produto`,
  *    `pode_ter_maquina` e `pode_ter_implemento` (e qualquer chave fora do
@@ -33,7 +33,7 @@ const CAMPOS = Object.freeze({
   grupo_atividade_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
   ativo: { type: 'boolean' },
   descricao: { type: ['string', 'null'], maxLength: 2000 },
-  // D-PROD-196 — padrões (null = sem padrão) e flags.
+  // D-PROD-197 — padrões (null = sem padrão) e flags.
   categoria: { type: ['string', 'null'], enum: [...CATEGORIAS_TIPO_ATIVIDADE, null] },
   centro_custo_padrao_id: ID_NULO,
   centro_resultado_padrao_id: ID_NULO,
@@ -72,13 +72,13 @@ const ATUALIZAR_SCHEMA = {
 
 const EXCLUIR_SCHEMA = { params: PARAMS_ID };
 
-/** D-PROD-196 — opções de centro padrão: só a fazenda (o tenant vem da sessão). */
+/** D-PROD-197 — opções de centro padrão: só a fazenda (o tenant vem da sessão). */
 const OPCOES_SCHEMA = {
   querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
 };
 
 /**
- * D-PROD-196 — o AJV do app usa a coerção padrão do Fastify (`coerceTypes`):
+ * D-PROD-197 — o AJV do app usa a coerção padrão do Fastify (`coerceTypes`):
  * num campo `boolean`, `"true"` e `1` viram `true` e `null` vira `false`; num
  * campo string, o número vira texto (já arredondado pelo float). Para as flags
  * isso gravaria uma regra que ninguém marcou; para o coeficiente, um decimal
@@ -142,7 +142,7 @@ export const registrarTipoAtividadeRoutes = async (app) => {
     return reply.status(204).send();
   });
 
-  // D-PROD-196 — opções do formulário (Apropriação): quem cria OU edita tipo.
+  // D-PROD-197 — opções do formulário (Apropriação): quem cria OU edita tipo.
   app.get('/tipos-atividade/opcoes/centros-custo', { onRequest: [app.autenticar], preHandler: [GUARDAS.tipoAtividade.opcoes], schema: OPCOES_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return opcoesCentrosPadrao('custo')(request.contexto, corpoValidado(request.query));

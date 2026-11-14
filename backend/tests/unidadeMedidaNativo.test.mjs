@@ -1,7 +1,7 @@
 /**
  * UnidadeMedida nativa — PostgreSQL real (P4.5, D-PROD-44).
  *
- * D-PROD-196 (§4 do contrato `MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`): a
+ * D-PROD-197 (§4 do contrato `MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`): a
  * unidade usada como unidade de produção de um Tipo de Atividade não sai — a FK
  * RESTRICT nova barra a exclusão física e o P2003 vira 409
  * `UNIDADE_MEDIDA_DELETE_BLOCKED` (não o 403 genérico do errorHandler); o módulo
@@ -183,7 +183,7 @@ describe('P4.5-UnidadeMedida — conflitos', () => {
   });
 });
 
-describe('D-PROD-196 — exclusão de unidade usada como unidade de produção do Tipo de Atividade', () => {
+describe('D-PROD-197 — exclusão de unidade usada como unidade de produção do Tipo de Atividade', () => {
   const req = (metodo, url, token, payload) =>
     app.inject({ method: metodo, url, headers: auth(token), ...(payload !== undefined ? { payload } : {}) });
   const criarUnidade = async (token, sigla, descricao) => {

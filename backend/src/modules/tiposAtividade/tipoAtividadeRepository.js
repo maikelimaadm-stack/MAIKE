@@ -4,7 +4,7 @@
  * Espelho do repositório de TipoTarefa (D-PROD-45): lista completa do tenant,
  * leitura pela chave composta (cliente_id, id) e escrita sempre em transação.
  *
- * D-PROD-196 — padrões e flags: toda leitura e toda escrita devolvem, ao lado
+ * D-PROD-197 — padrões e flags: toda leitura e toda escrita devolvem, ao lado
  * dos ids, o resumo dos 3 cadastros apontados (centro de custo, centro de
  * resultado e unidade de produção) pelo `select` aninhado do Prisma: a lista
  * carrega cada relação numa consulta só para todas as linhas (sem N+1). E as
@@ -29,7 +29,7 @@ const SELECAO = Object.freeze({
   grupo_atividade_nome: true,
   ativo: true,
   descricao: true,
-  // D-PROD-196 — padrões (com o resumo de cada cadastro) e flags.
+  // D-PROD-197 — padrões (com o resumo de cada cadastro) e flags.
   categoria: true,
   centro_custo_padrao_id: true,
   centro_resultado_padrao_id: true,
@@ -116,7 +116,7 @@ export const excluirTipoPorId = async (tx, clienteId, id) =>
     select: { id: true },
   });
 
-// ─── D-PROD-196: cadastros apontados pelos padrões (leituras curtas, no tenant da sessão) ───
+// ─── D-PROD-197: cadastros apontados pelos padrões (leituras curtas, no tenant da sessão) ───
 
 /**
  * Centro padrão (custo ou resultado) pela chave do TENANT: empresa e situação.

@@ -59,7 +59,7 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   EMPRESA_NAME_CONFLICT: API_ERROR_CODES.EMPRESA_NAME_CONFLICT,
   UNIDADE_MEDIDA_NOT_FOUND: API_ERROR_CODES.UNIDADE_MEDIDA_NOT_FOUND,
   UNIDADE_MEDIDA_SIGLA_CONFLICT: API_ERROR_CODES.UNIDADE_MEDIDA_SIGLA_CONFLICT,
-  // D-PROD-196: a unidade usada como unidade de produção padrão de um Tipo de
+  // D-PROD-197: a unidade usada como unidade de produção padrão de um Tipo de
   // Atividade não sai (FK RESTRICT → 409, `details.vinculo`); a tela diz por quê.
   UNIDADE_MEDIDA_DELETE_BLOCKED: API_ERROR_CODES.UNIDADE_MEDIDA_DELETE_BLOCKED,
   GRUPO_ATIVIDADE_NOT_FOUND: API_ERROR_CODES.GRUPO_ATIVIDADE_NOT_FOUND,
@@ -69,7 +69,7 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   TIPO_TAREFA_NAME_CONFLICT: API_ERROR_CODES.TIPO_TAREFA_NAME_CONFLICT,
   TIPO_ATIVIDADE_NOT_FOUND: API_ERROR_CODES.TIPO_ATIVIDADE_NOT_FOUND,
   TIPO_ATIVIDADE_NAME_CONFLICT: API_ERROR_CODES.TIPO_ATIVIDADE_NAME_CONFLICT,
-  // D-PROD-196 — padrão do Tipo de Atividade recusado: `field`/`reason` (em
+  // D-PROD-197 — padrão do Tipo de Atividade recusado: `field`/`reason` (em
   // `details`) escolhem o texto do motivo no catálogo.
   TIPO_ATIVIDADE_PADRAO_INVALIDO: API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO,
   // D-PROD-190 — Apontamento de Atividade e os bloqueios de exclusão que ele causa.

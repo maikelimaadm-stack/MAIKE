@@ -2,7 +2,7 @@
 
 > **fatia 1 · `feat/tipo-atividade-defaults` · PR (a abrir)**
 >
-> Decisão: **D-PROD-196** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva na Categoria de Manejo, PR #278). O número não entra no `migration.sql`.
+> Decisão: **D-PROD-197** (nasceu D-PROD-195; a `main` deu a D-PROD-195 à curva na Categoria de Manejo, PR #278). O número não entra no `migration.sql`.
 > Este contrato é a fonte única dos agentes A1–A6. Divergência de código em relação a ele é defeito.
 
 ## 1. O que é
@@ -43,7 +43,7 @@ vazio (51 migrations, com a D-PROD-195 da `main`); `prisma migrate diff` banco �
 `TipoAtividade_cliente_id_centro_resultado_padrao_id_idx`, `TipoAtividade_cliente_id_unidade_producao_id_idx`.
 O unique `(cliente_id, grupo_atividade_id, nome_tipo)` é mantido.
 
-**Modo CONTRACT (entrada fechada D-PROD-196).** A allowlist EXPAND não aceita, em tabela antiga, flag `NOT NULL
+**Modo CONTRACT (entrada fechada D-PROD-197).** A allowlist EXPAND não aceita, em tabela antiga, flag `NOT NULL
 DEFAULT`, FK para tabela antiga nem CHECK. Mesmo caminho da D-PROD-162/183: guarda DO pinada como 1ª instrução,
 `drop: []`, exatamente 18 `alter_antigas` (13 ADD COLUMN, 3 FK, 2 CHECK, nesta ordem), resto = 3 `CREATE INDEX`.
 - `sha256` do arquivo: `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`
@@ -180,12 +180,12 @@ da porta, tabela com Categoria. Schema × banco.
 
 ## 8. Governança
 
-D-PROD-196 em `DECISIONS.md` (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"; cita o pedido literal);
+D-PROD-197 em `DECISIONS.md` (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"; cita o pedido literal);
 proposta de emenda da nota D-PROD-193 de `docs/constitution/07-DO-NOT-DO.md` (a proibição de
 `exige_area`/`pode_ter_*` passa a valer para TipoTarefa e para o item do apontamento; o TipoAtividade tem as 8 flags da
-D-PROD-196) — texto do agente, vale só com a aprovação do proprietário no merge (`00-CONSTITUICAO.md` §4);
+D-PROD-197) — texto do agente, vale só com a aprovação do proprietário no merge (`00-CONSTITUICAO.md` §4);
 `GATE-REGISTRY.md`; `CURRENT-STATE.md`; relatório `MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`; runbook
-`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md` (release CONTRACT isolada, `--contract D-PROD-196`, guarda do
+`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md` (release CONTRACT isolada, `--contract D-PROD-197`, guarda do
 caminho B contando 50 aplicadas antes e 51 depois, aplicar antes do merge).
 
 ## 9. Pontos para o proprietário (relatar, não decidir sozinho)

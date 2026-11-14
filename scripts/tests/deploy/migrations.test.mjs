@@ -219,7 +219,7 @@ function readFonte() {
 /*
  * Barreira do CONTRACT contra a pasta REAL `backend/prisma/migrations`, que tem
  * SEIS migrations CONTRACT: a D-PROD-162, a D-PROD-183, a D-PROD-187, a
- * D-PROD-194, a D-PROD-195 e a D-PROD-196. Como `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor, cada caso
+ * D-PROD-194, a D-PROD-195 e a D-PROD-197. Como `MIGRATION_CONTRACT_AUTORIZADO` tem um só valor, cada caso
  * simula no histórico as OUTRAS CONTRACT já concluídas quando quer provar o
  * comportamento de uma só — senão uma outra, pendente, recusaria por conta
  * própria e o caso passaria (ou quebraria) pelo motivo errado.
@@ -255,7 +255,7 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
   const REMOTO = ALVO_REMOTO;
   const LOCAL = ALVO_LOCAL;
   const rodar = rodarBarreiraContract;
-  // A D-PROD-183, a D-PROD-187, a D-PROD-194, a D-PROD-195 e a D-PROD-196 concluídas isolam a D-PROD-162 como a única CONTRACT pendente.
+  // A D-PROD-183, a D-PROD-187, a D-PROD-194, a D-PROD-195 e a D-PROD-197 concluídas isolam a D-PROD-162 como a única CONTRACT pendente.
   const OUTRAS_CONCLUIDAS = () => [concluida(CONTRACT_183), concluida(CONTRACT_187), concluida(CONTRACT_194), concluida(CONTRACT_195), concluida(CONTRACT_196)];
 
   test('B11-1 alvo remoto com o CONTRACT pendente e SEM a variável → recusa com código estável, sem URL', async () => {
@@ -336,7 +336,7 @@ describe('B11 (D-PROD-162) — o runner oficial não aplica um CONTRACT pendente
 describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner com a própria decisão, e nunca junto da D-PROD-162', () => {
   const D183 = `${CONTRACT_183} (D-PROD-183)`;
   const D162 = `${CONTRACT_162} (D-PROD-162)`;
-  // A D-PROD-187, a D-PROD-194, a D-PROD-195 e a D-PROD-196 (posteriores) concluídas nos históricos simulados: aqui só a 162 e a 183 estão em jogo.
+  // A D-PROD-187, a D-PROD-194, a D-PROD-195 e a D-PROD-197 (posteriores) concluídas nos históricos simulados: aqui só a 162 e a 183 estão em jogo.
   const POSTERIORES_CONCLUIDAS = () => [concluida(CONTRACT_187), concluida(CONTRACT_194), concluida(CONTRACT_195), concluida(CONTRACT_196)];
   const POSTERIORES = [CONTRACT_187, CONTRACT_194, CONTRACT_195, CONTRACT_196];
   // Como em produção antes da D-PROD-183: a D-PROD-162 já está concluída; a D-PROD-183 é a única CONTRACT pendente.
@@ -375,7 +375,7 @@ describe('B14 (D-PROD-183) — o DROP COLUMN de TipoTarefa só passa pelo runner
   });
 
   test('B14-3 as DUAS CONTRACT pendentes → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
-    // Só as posteriores (D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-196) concluídas: a D-PROD-162 e a D-PROD-183 ficam pendentes juntas.
+    // Só as posteriores (D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-197) concluídas: a D-PROD-162 e a D-PROD-183 ficam pendentes juntas.
     const nenhumaContractConcluida = () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos'), ...POSTERIORES_CONCLUIDAS()];
     const com162 = await rodarBarreiraContract(remoto('D-PROD-162'), nenhumaContractConcluida);
     assertRecusa(com162, D183, 'D-PROD-162');
@@ -440,7 +440,7 @@ describe('B16 (D-PROD-187) — CategoriaManejo → CADCATEGORIA só passa pelo r
   const D187 = `${CONTRACT_187} (D-PROD-187)`;
   const D183 = `${CONTRACT_183} (D-PROD-183)`;
   // Como em produção antes da D-PROD-187: a D-PROD-162 e a D-PROD-183 já estão concluídas; a D-PROD-194, a D-PROD-195 e a
-  // D-PROD-196 (posteriores) concluídas nos históricos simulados isolam a D-PROD-187 como a única CONTRACT pendente.
+  // D-PROD-197 (posteriores) concluídas nos históricos simulados isolam a D-PROD-187 como a única CONTRACT pendente.
   const PRODUCAO = () => [concluida(CONTRACT_162), concluida(CONTRACT_183), concluida(CONTRACT_194), concluida(CONTRACT_195), concluida(CONTRACT_196)];
   const remoto = (autorizado) => ({
     [VARIAVEL_DE_MIGRATION]: ALVO_REMOTO,
@@ -457,7 +457,7 @@ describe('B16 (D-PROD-187) — CategoriaManejo → CADCATEGORIA só passa pelo r
   };
 
   test('B16-1 D-PROD-162 e D-PROD-183 concluídas e D-PROD-187 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-187', async () => {
-    for (const autorizado of [undefined, '', 'D-PROD-183', 'D-PROD-162', 'D-PROD-194', 'D-PROD-195', 'D-PROD-196', 'd-prod-187', ' D-PROD-187 ']) {
+    for (const autorizado of [undefined, '', 'D-PROD-183', 'D-PROD-162', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'd-prod-187', ' D-PROD-187 ']) {
       const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO);
       assertRecusa(r, D187, String(autorizado));
       assert.ok(
@@ -477,7 +477,7 @@ describe('B16 (D-PROD-187) — CategoriaManejo → CADCATEGORIA só passa pelo r
   });
 
   test('B16-3 D-PROD-183 e D-PROD-187 pendentes → recusa com qualquer decisão (nunca duas CONTRACT de uma vez)', async () => {
-    // A D-PROD-194, a D-PROD-195 e a D-PROD-196 (posteriores) concluídas: só a 183 e a 187 ficam pendentes juntas.
+    // A D-PROD-194, a D-PROD-195 e a D-PROD-197 (posteriores) concluídas: só a 183 e a 187 ficam pendentes juntas.
     const so162 = () => [concluida(CONTRACT_162), concluida(CONTRACT_194), concluida(CONTRACT_195), concluida(CONTRACT_196)];
     const com183 = await rodarBarreiraContract(remoto('D-PROD-183'), so162);
     assertRecusa(com183, D187, 'D-PROD-183');
@@ -527,7 +527,7 @@ describe('B15 (D-PROD-194) — o DROP TABLE da CADCURVAGANHO por estação só p
   const D183 = `${CONTRACT_183} (D-PROD-183)`;
   const D162 = `${CONTRACT_162} (D-PROD-162)`;
   // Como em produção antes da D-PROD-194: a D-PROD-162, a D-PROD-183 e a D-PROD-187 já estão concluídas; a D-PROD-195 e a
-  // D-PROD-196 (posteriores) concluídas nos históricos simulados isolam a D-PROD-194 como a única CONTRACT pendente.
+  // D-PROD-197 (posteriores) concluídas nos históricos simulados isolam a D-PROD-194 como a única CONTRACT pendente.
   const POSTERIORES_CONCLUIDAS = () => [concluida(CONTRACT_195), concluida(CONTRACT_196)];
   const ANTIGAS_CONCLUIDAS = () => [concluida(CONTRACT_162), concluida(CONTRACT_183), concluida(CONTRACT_187), ...POSTERIORES_CONCLUIDAS()];
   const remoto = (autorizado) => ({
@@ -571,7 +571,7 @@ describe('B15 (D-PROD-194) — o DROP TABLE da CADCURVAGANHO por estação só p
 
   test('B15-3 D-PROD-194 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
     const cenarios = [
-      // [rótulo, histórico, a outra pendente] — a D-PROD-195 e a D-PROD-196 (posteriores) concluídas, salvo em "as seis pendentes".
+      // [rótulo, histórico, a outra pendente] — a D-PROD-195 e a D-PROD-197 (posteriores) concluídas, salvo em "as seis pendentes".
       ['D-PROD-187 também pendente', () => [concluida(CONTRACT_162), concluida(CONTRACT_183), ...POSTERIORES_CONCLUIDAS()], D187],
       ['D-PROD-183 também pendente', () => [concluida(CONTRACT_162), concluida(CONTRACT_187), ...POSTERIORES_CONCLUIDAS()], D183],
       ['D-PROD-162 também pendente', () => [concluida(CONTRACT_183), concluida(CONTRACT_187), ...POSTERIORES_CONCLUIDAS()], D162],
@@ -650,9 +650,9 @@ describe('B17 (D-PROD-195) — a curva de ganho obrigatória na Categoria de Man
   const D194 = `${CONTRACT_194} (D-PROD-194)`;
   const D187 = `${CONTRACT_187} (D-PROD-187)`;
   const D162 = `${CONTRACT_162} (D-PROD-162)`;
-  const D196 = `${CONTRACT_196} (D-PROD-196)`;
+  const D196 = `${CONTRACT_196} (D-PROD-197)`;
   // Como em produção antes da D-PROD-195: as quatro CONTRACT anteriores (D-PROD-162, D-PROD-183, D-PROD-187 e D-PROD-194)
-  // já estão concluídas; a D-PROD-196 (posterior) concluída nos históricos simulados isola a D-PROD-195 como a única
+  // já estão concluídas; a D-PROD-197 (posterior) concluída nos históricos simulados isola a D-PROD-195 como a única
   // CONTRACT pendente.
   const ANTERIORES = [CONTRACT_162, CONTRACT_183, CONTRACT_187, CONTRACT_194];
   const CONCLUIDAS = [...ANTERIORES, CONTRACT_196];
@@ -672,7 +672,7 @@ describe('B17 (D-PROD-195) — a curva de ganho obrigatória na Categoria de Man
   };
 
   test('B17-1 as quatro anteriores concluídas e D-PROD-195 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-195', async () => {
-    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-196', 'd-prod-195', ' D-PROD-195 ', 'D-PROD-19', 'D-PROD-1950']) {
+    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-197', 'd-prod-195', ' D-PROD-195 ', 'D-PROD-19', 'D-PROD-1950']) {
       const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO);
       assertRecusa(r, D195, String(autorizado));
       assert.ok(CONCLUIDAS.every((n) => !r.texto.includes(n)), `as CONTRACT já concluídas não podem ser citadas:\n${r.texto}`);
@@ -690,9 +690,9 @@ describe('B17 (D-PROD-195) — a curva de ganho obrigatória na Categoria de Man
 
   test('B17-3 D-PROD-195 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
     const cenarios = [
-      // [rótulo, histórico, a outra pendente] — a D-PROD-196 (posterior) concluída, salvo quando é ela a outra pendente e
+      // [rótulo, histórico, a outra pendente] — a D-PROD-197 (posterior) concluída, salvo quando é ela a outra pendente e
       // em "as seis pendentes".
-      ['D-PROD-196 também pendente', () => ANTERIORES.map((n) => concluida(n)), D196],
+      ['D-PROD-197 também pendente', () => ANTERIORES.map((n) => concluida(n)), D196],
       ['D-PROD-194 também pendente', () => [concluida(CONTRACT_162), concluida(CONTRACT_183), concluida(CONTRACT_187), concluida(CONTRACT_196)], D194],
       ['D-PROD-187 também pendente', () => [concluida(CONTRACT_162), concluida(CONTRACT_183), concluida(CONTRACT_194), concluida(CONTRACT_196)], D187],
       ['as seis pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D162],
@@ -701,14 +701,14 @@ describe('B17 (D-PROD-195) — a curva de ganho obrigatória na Categoria de Man
       const com195 = await rodarBarreiraContract(remoto('D-PROD-195'), historico);
       assertRecusa(com195, outra, `${rotulo} / D-PROD-195`);
       assert.ok(!com195.texto.includes(D195), `${rotulo}: a D-PROD-195 autorizada não é a que falta:\n${com195.texto}`);
-      for (const decisao of ['D-PROD-162', 'D-PROD-187', 'D-PROD-194', 'D-PROD-196']) {
+      for (const decisao of ['D-PROD-162', 'D-PROD-187', 'D-PROD-194', 'D-PROD-197']) {
         assertRecusa(await rodarBarreiraContract(remoto(decisao), historico), D195, `${rotulo} / ${decisao}`);
       }
       const sem = await rodarBarreiraContract(remoto(undefined), historico);
       assertRecusa(sem, D195, `${rotulo} / sem variável`);
       assert.ok(sem.texto.includes(outra), `${rotulo}: ${sem.texto}`);
       // Valor composto não autoriza nenhuma.
-      for (const composto of ['D-PROD-194,D-PROD-195', 'D-PROD-187 D-PROD-195', 'D-PROD-195,D-PROD-196', 'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195', 'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195,D-PROD-196']) {
+      for (const composto of ['D-PROD-194,D-PROD-195', 'D-PROD-187 D-PROD-195', 'D-PROD-195,D-PROD-197', 'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195', 'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195,D-PROD-197']) {
         const r = await rodarBarreiraContract(remoto(composto), historico);
         assertRecusa(r, D195, `${rotulo} / ${composto}`);
         assert.ok(r.texto.includes(outra), `${rotulo} / ${composto}: a outra também fica sem autorização\n${r.texto}`);
@@ -753,13 +753,13 @@ describe('B17 (D-PROD-195) — a curva de ganho obrigatória na Categoria de Man
   });
 });
 
-describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passam pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
-  const D196 = `${CONTRACT_196} (D-PROD-196)`;
+describe('B18 (D-PROD-197) — os padrões e as flags do TipoAtividade só passam pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
+  const D196 = `${CONTRACT_196} (D-PROD-197)`;
   const D195 = `${CONTRACT_195} (D-PROD-195)`;
   const D194 = `${CONTRACT_194} (D-PROD-194)`;
   const D187 = `${CONTRACT_187} (D-PROD-187)`;
   // Produção hoje: as cinco CONTRACT anteriores já estão concluídas (a D-PROD-195 por último, às 14:51:56 UTC de
-  // 2026-11-14); a D-PROD-196 é a única CONTRACT pendente.
+  // 2026-11-14); a D-PROD-197 é a única CONTRACT pendente.
   const ANTERIORES = [CONTRACT_162, CONTRACT_183, CONTRACT_187, CONTRACT_194, CONTRACT_195];
   const PRODUCAO = () => ANTERIORES.map((n) => concluida(n));
   const remoto = (autorizado) => ({
@@ -776,17 +776,17 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
     assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), `${rotulo}: a saída expôs a URL:\n${r.texto}`);
   };
 
-  test('B18-1 as cinco CONTRACT anteriores concluídas e a D-PROD-196 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-196', async () => {
+  test('B18-1 as cinco CONTRACT anteriores concluídas e a D-PROD-197 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-197', async () => {
     // 'D-PROD-182' é a decisão que criou a tabela e 'D-PROD-195' a CONTRACT anterior: nenhuma autoriza os padrões e as flags.
-    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-182', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'd-prod-195', 'd-prod-196', ' D-PROD-196 ', 'D-PROD-19', 'D-PROD-1960']) {
+    for (const autorizado of [undefined, '', 'D-PROD-162', 'D-PROD-182', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'd-prod-195', 'd-prod-197', 'D-PROD-196', ' D-PROD-197 ', 'D-PROD-19', 'D-PROD-1970']) {
       const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO);
       assertRecusa(r, D196, String(autorizado));
       for (const anterior of ANTERIORES) assert.ok(!r.texto.includes(anterior), `${anterior} já está concluída e não pode ser citada:\n${r.texto}`);
     }
   });
 
-  test('B18-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-196 → segue e registra a autorização', async () => {
-    const r = await rodarBarreiraContract(remoto('D-PROD-196'), PRODUCAO);
+  test('B18-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-197 → segue e registra a autorização', async () => {
+    const r = await rodarBarreiraContract(remoto('D-PROD-197'), PRODUCAO);
     assert.equal(r.pode, true);
     assert.equal(r.leu, 1);
     assert.ok(r.texto.includes(`CONTRACT autorizado: ${D196}`), r.texto);
@@ -795,7 +795,7 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
     assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), r.texto);
   });
 
-  test('B18-3 D-PROD-196 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
+  test('B18-3 D-PROD-197 pendente junto de outra CONTRACT → recusa com qualquer decisão (o runner nunca aplica duas CONTRACT de uma vez)', async () => {
     const cenarios = [
       // [rótulo, histórico, a outra pendente]
       ['D-PROD-195 também pendente', () => [concluida(CONTRACT_162), concluida(CONTRACT_183), concluida(CONTRACT_187), concluida(CONTRACT_194)], D195],
@@ -804,23 +804,23 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
       ['as seis pendentes', () => [concluida('20261110200000_patrimonio_p1_02_abastecimentos')], D194],
     ];
     for (const [rotulo, historico, outra] of cenarios) {
-      const com196 = await rodarBarreiraContract(remoto('D-PROD-196'), historico);
-      assertRecusa(com196, outra, `${rotulo} / D-PROD-196`);
-      assert.ok(!com196.texto.includes(D196), `${rotulo}: a D-PROD-196 autorizada não é a que falta:\n${com196.texto}`);
+      const com196 = await rodarBarreiraContract(remoto('D-PROD-197'), historico);
+      assertRecusa(com196, outra, `${rotulo} / D-PROD-197`);
+      assert.ok(!com196.texto.includes(D196), `${rotulo}: a D-PROD-197 autorizada não é a que falta:\n${com196.texto}`);
       for (const decisao of ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195']) {
         assertRecusa(await rodarBarreiraContract(remoto(decisao), historico), D196, `${rotulo} / ${decisao}`);
       }
-      // Sem a variável, a D-PROD-196 e a outra aparecem.
+      // Sem a variável, a D-PROD-197 e a outra aparecem.
       const sem = await rodarBarreiraContract(remoto(undefined), historico);
       assertRecusa(sem, D196, `${rotulo} / sem variável`);
       assert.ok(sem.texto.includes(outra), `${rotulo}: ${sem.texto}`);
       // Valor composto não autoriza nenhuma.
       for (const composto of [
-        'D-PROD-194,D-PROD-196',
-        'D-PROD-187 D-PROD-196',
-        'D-PROD-195,D-PROD-196',
-        'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-196',
-        'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195,D-PROD-196',
+        'D-PROD-194,D-PROD-197',
+        'D-PROD-187 D-PROD-197',
+        'D-PROD-195,D-PROD-197',
+        'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-197',
+        'D-PROD-162,D-PROD-183,D-PROD-187,D-PROD-194,D-PROD-195,D-PROD-197',
       ]) {
         const r = await rodarBarreiraContract(remoto(composto), historico);
         assertRecusa(r, D196, `${rotulo} / ${composto}`);
@@ -829,7 +829,7 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
     }
   });
 
-  test('B18-4 D-PROD-196 com linha aberta (finished_at null) ou revertida continua pendente', async () => {
+  test('B18-4 D-PROD-197 com linha aberta (finished_at null) ou revertida continua pendente', async () => {
     for (const [rotulo, linha] of [
       ['aberta', concluida(CONTRACT_196, { finished_at: null })],
       ['revertida', concluida(CONTRACT_196, { rolled_back_at: new Date() })],
@@ -837,7 +837,7 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
       const historico = () => [...PRODUCAO(), linha];
       assertRecusa(await rodarBarreiraContract(remoto(undefined), historico), D196, rotulo);
       // Pendente, e não concluída: com a decisão exata, a barreira anuncia a autorização.
-      const autorizada = await rodarBarreiraContract(remoto('D-PROD-196'), historico);
+      const autorizada = await rodarBarreiraContract(remoto('D-PROD-197'), historico);
       assert.equal(autorizada.pode, true, rotulo);
       assert.ok(autorizada.texto.includes(`CONTRACT autorizado: ${D196}`), `${rotulo}:\n${autorizada.texto}`);
     }
@@ -855,7 +855,7 @@ describe('B18 (D-PROD-196) — os padrões e as flags do TipoAtividade só passa
     }
   });
 
-  test('B18-6 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico; com a conferência exigida → recusa a D-PROD-196 pendente', async () => {
+  test('B18-6 URL local sem MIGRATION_EXIGIR_CONFERENCIA → segue sem ler o histórico; com a conferência exigida → recusa a D-PROD-197 pendente', async () => {
     for (const autorizado of [undefined, 'D-PROD-194', 'D-PROD-195']) {
       const env = { [VARIAVEL_DE_MIGRATION]: ALVO_LOCAL, ...(autorizado === undefined ? {} : { MIGRATION_CONTRACT_AUTORIZADO: autorizado }) };
       const livre = await rodarBarreiraContract(env, () => []);

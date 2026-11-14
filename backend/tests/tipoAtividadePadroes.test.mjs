@@ -1,5 +1,5 @@
 /**
- * D-PROD-196 (Fatia 1, §3.5 do contrato `MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`)
+ * D-PROD-197 (Fatia 1, §3.5 do contrato `MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`)
  * — "preparar o terreno": o módulo PURO `tipoAtividadePadroes.js` (sem Prisma,
  * sem I/O) que a Fatia 2 usa no "Abrir atividade".
  *
@@ -77,7 +77,7 @@ const tipoDoRepositorio = ({ custo = null, resultado = null, un = null, coeficie
 /** O coeficiente devolvido, comparado pelo VALOR (Decimal, string ou número). */
 const valorDe = (v) => (v === null || v === undefined ? v : new Prisma.Decimal(String(v)).toFixed(4));
 
-describe('D-PROD-196 — tipoAtividadePadroes: constantes', () => {
+describe('D-PROD-197 — tipoAtividadePadroes: constantes', () => {
   test('CATEGORIAS_TIPO_ATIVIDADE: exatamente as 9 do CHECK, congeladas', () => {
     assert.ok(Array.isArray(CATEGORIAS_TIPO_ATIVIDADE));
     assert.deepEqual([...CATEGORIAS_TIPO_ATIVIDADE].sort(), [...CATEGORIAS].sort());
@@ -91,7 +91,7 @@ describe('D-PROD-196 — tipoAtividadePadroes: constantes', () => {
   });
 });
 
-describe('D-PROD-196 — padroesParaAtividade(tipo, { empresaId })', () => {
+describe('D-PROD-197 — padroesParaAtividade(tipo, { empresaId })', () => {
   test('centros ATIVOS da MESMA empresa e unidade ATIVA são herdados; o coeficiente vem junto', () => {
     const tipo = tipoDoRepositorio({ custo: centro('cc-1'), resultado: centro('cr-1'), un: unidade('un-1'), coeficiente: '1.5' });
     const p = padroesParaAtividade(tipo, { empresaId: EMPRESA });
@@ -150,7 +150,7 @@ describe('D-PROD-196 — padroesParaAtividade(tipo, { empresaId })', () => {
   });
 });
 
-describe('D-PROD-196 — regrasDoTipo(tipo)', () => {
+describe('D-PROD-197 — regrasDoTipo(tipo)', () => {
   test('exatamente as 8 flags, booleanas, com o valor do tipo (sem os demais campos)', () => {
     const ligadas = { exige_maquina: true, permite_implemento: true, permite_mao_obra: true };
     const tipo = tipoDoRepositorio({ custo: centro('cc-1'), un: unidade('un-1'), coeficiente: '1', flags: ligadas });
@@ -175,7 +175,7 @@ describe('D-PROD-196 — regrasDoTipo(tipo)', () => {
   });
 });
 
-describe('D-PROD-196 — tipoAtividadePadroes é puro', () => {
+describe('D-PROD-197 — tipoAtividadePadroes é puro', () => {
   test('sem Prisma e sem I/O: nenhum import de banco, @prisma/client, fs, rede ou processo', () => {
     const fonte = readFileSync(new URL('../src/modules/tiposAtividade/tipoAtividadePadroes.js', import.meta.url), 'utf8');
     const imports = [...fonte.matchAll(/(?:^|\n)\s*import\s[^;]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)|require\(\s*['"]([^'"]+)['"]\s*\)/g)]
@@ -186,7 +186,7 @@ describe('D-PROD-196 — tipoAtividadePadroes é puro', () => {
   });
 });
 
-describe('D-PROD-196 — padroesParaAtividade com o tipo lido pelo repository (PostgreSQL)', () => {
+describe('D-PROD-197 — padroesParaAtividade com o tipo lido pelo repository (PostgreSQL)', () => {
   const p = () => getPrismaClient();
 
   before(async () => {

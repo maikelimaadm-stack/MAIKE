@@ -1,11 +1,11 @@
 /**
- * TipoAtividade nativo (D-PROD-182, D-PROD-196) — PostgreSQL real.
+ * TipoAtividade nativo (D-PROD-182, D-PROD-197) — PostgreSQL real.
  *
  * D-PROD-182: cadastro irmão do Tipo de Tarefa: nome em MAIÚSCULAS e único por
  * (cliente, grupo), cache do nome do grupo, isolamento por tenant, exclusão
  * física, grupo com tipo vinculado não sai (409 + FK Restrict).
  *
- * D-PROD-196 (Fatia 1 — contrato `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`):
+ * D-PROD-197 (Fatia 1 — contrato `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`):
  * o tipo guarda os PADRÕES que a atividade herda (categoria, centros de custo e
  * de resultado, unidade de produção, coeficiente) e as 8 FLAGS de como ela
  * funciona. Prova, regra a regra (§3 e §7 do contrato):
@@ -54,7 +54,7 @@ beforeEach(async () => {
   await limparBanco();
 });
 
-/** As 8 flags da D-PROD-196, na ordem do contrato (§2). */
+/** As 8 flags da D-PROD-197, na ordem do contrato (§2). */
 const FLAGS = Object.freeze([
   'exige_area', 'exige_safra', 'exige_maquina', 'permite_implemento', 'permite_produto', 'permite_servico', 'permite_mao_obra', 'exige_producao',
 ]);
@@ -86,7 +86,7 @@ const SEM_PADROES = Object.freeze({
 });
 const PADRAO_INVALIDO = 'TIPO_ATIVIDADE_PADRAO_INVALIDO';
 
-/** Só os campos da D-PROD-196 (ausente vira `undefined`, e a comparação acusa). */
+/** Só os campos da D-PROD-197 (ausente vira `undefined`, e a comparação acusa). */
 const camposD195 = (t) => Object.fromEntries(CAMPOS_D195.map((k) => [k, t[k]]));
 const flagsDe = (t) => Object.fromEntries(FLAGS.map((f) => [f, t[f]]));
 /** Forma do centro dentro do tipo (§3.2). */
@@ -181,7 +181,7 @@ const criarCentro = (modelo, clienteId, empresaId, { numero, nome, ativo = true 
   prisma()[modelo].create({ data: { cliente_id: clienteId, empresa_id: empresaId, numero, nome, ativo } });
 
 /**
- * Cenário D-PROD-196: tenant (concessão `is_admin`) com duas fazendas, um
+ * Cenário D-PROD-197: tenant (concessão `is_admin`) com duas fazendas, um
  * grupo, um centro de custo e um de resultado ATIVOS por fazenda e a unidade HA
  * (pela API de Unidades). `cc`/`cr` criam mais centros (numero, nome, ativo).
  */
@@ -293,7 +293,7 @@ describe('D-PROD-182 — TipoAtividade: criação e conflitos', () => {
     assert.equal(await prisma().tipoAtividade.count(), 0);
   });
 
-  test('D-PROD-196: nomes aposentados pode_ter_produto/pode_ter_maquina/pode_ter_implemento → 400 no POST e no PATCH; exige_area passa a ser campo válido', async () => {
+  test('D-PROD-197: nomes aposentados pode_ter_produto/pode_ter_maquina/pode_ter_implemento → 400 no POST e no PATCH; exige_area passa a ser campo válido', async () => {
     const { token, clienteId } = await tenantAutenticado();
     const g = await criarGrupo(token, 'G');
     for (const chave of CHAVES_APOSENTADAS) {
@@ -485,9 +485,9 @@ describe('D-PROD-182 — TipoAtividade: permissão de tela', () => {
   });
 });
 
-// ═══ D-PROD-196 — padrões e flags ════════════════════════════════════════════
+// ═══ D-PROD-197 — padrões e flags ════════════════════════════════════════════
 
-describe('D-PROD-196 — TipoAtividade: defaults, flags e forma pública', () => {
+describe('D-PROD-197 — TipoAtividade: defaults, flags e forma pública', () => {
   test('POST sem os campos novos: flags false, categoria/padrões/coeficiente null — na resposta, no detalhe, na lista, na linha e na auditoria', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Gradagem'));
@@ -726,7 +726,7 @@ describe('D-PROD-196 — TipoAtividade: defaults, flags e forma pública', () =>
   });
 });
 
-describe('D-PROD-196 — TipoAtividade: regras dos padrões (422 TIPO_ATIVIDADE_PADRAO_INVALIDO)', () => {
+describe('D-PROD-197 — TipoAtividade: regras dos padrões (422 TIPO_ATIVIDADE_PADRAO_INVALIDO)', () => {
   const CAMPOS_ID = Object.freeze(['centro_custo_padrao_id', 'centro_resultado_padrao_id', 'unidade_producao_id']);
   /** O cadastro do cenário que cada campo aponta. */
   const alvo = (s, campo) => ({ centro_custo_padrao_id: s.cc1, centro_resultado_padrao_id: s.cr1, unidade_producao_id: s.ha })[campo];
@@ -898,7 +898,7 @@ describe('D-PROD-196 — TipoAtividade: regras dos padrões (422 TIPO_ATIVIDADE_
   });
 });
 
-describe('D-PROD-196 — TipoAtividade: unicidade e isolamento por tenant', () => {
+describe('D-PROD-197 — TipoAtividade: unicidade e isolamento por tenant', () => {
   test('unicidade (cliente, grupo, nome) mantida com os campos novos: POST e PATCH → 409 TIPO_ATIVIDADE_NAME_CONFLICT; nada gravado', async () => {
     const s = await montar();
     const completo = {
@@ -945,7 +945,7 @@ describe('D-PROD-196 — TipoAtividade: unicidade e isolamento por tenant', () =
   });
 });
 
-describe('D-PROD-196 — TipoAtividade: opções de centros do formulário (GET /tipos-atividade/opcoes/...)', () => {
+describe('D-PROD-197 — TipoAtividade: opções de centros do formulário (GET /tipos-atividade/opcoes/...)', () => {
   const LADOS = Object.freeze(['centros-custo', 'centros-resultado']);
   const opcoes = (token, lado, query) => req('GET', `/tipos-atividade/opcoes/${lado}${query === undefined ? '' : `?${query}`}`, token);
   const opcoesOk = async (token, lado, empresaId) => {

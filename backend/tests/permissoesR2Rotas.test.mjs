@@ -284,7 +284,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     for (const metodo of ['PATCH', 'DELETE']) assert.equal((await req(metodo, `/apontamentos-atividade/${ID}/itens/${ID}`, c.tokAdm)).statusCode, 404, metodo);
   });
 
-  test('D-PROD-196 — opções de centro padrão do Tipo de Atividade: criar OU editar (novo|salvar|editar) de sup-tipos-atividade; visualizar, excluir e as telas de centros não', async () => {
+  test('D-PROD-197 — opções de centro padrão do Tipo de Atividade: criar OU editar (novo|salvar|editar) de sup-tipos-atividade; visualizar, excluir e as telas de centros não', async () => {
     const c = await cenario();
     const urls = ['centros-custo', 'centros-resultado'].map((lado) => `/tipos-atividade/opcoes/${lado}?empresa_id=${c.empresa.id}`);
     /** `[centros de custo, centros de resultado]`: true = passou da guarda. */

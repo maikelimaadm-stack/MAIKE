@@ -1,6 +1,6 @@
 /**
  * Superfície pública do módulo Atividades (D-PROD-182; padrões e flags do tipo,
- * D-PROD-196; apontamentos, D-PROD-190; itens do apontamento, D-PROD-193).
+ * D-PROD-197; apontamentos, D-PROD-190; itens do apontamento, D-PROD-193).
  */
 
 export {

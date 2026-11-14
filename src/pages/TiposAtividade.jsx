@@ -29,7 +29,7 @@ import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 const QUERY_KEY = ["tipos-atividade"];
 
 /**
- * Cadastro de tipos de atividade (D-PROD-182; padrões e flags, D-PROD-196).
+ * Cadastro de tipos de atividade (D-PROD-182; padrões e flags, D-PROD-197).
  *
  * O tipo é do cliente; os centros padrão são da fazenda: o formulário oferece
  * os da fazenda SELECIONADA (a mesma empresa real do Apontamento de Atividade).

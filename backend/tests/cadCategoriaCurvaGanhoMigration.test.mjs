@@ -8,11 +8,11 @@
  * Partida: todas as pastas MENOS esta CONTRACT, pelo Prisma a partir de uma
  * cópia temporária: as 49 de nome anterior (inclui as CONTRACT da D-PROD-162, da
  * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e a
- * CONTRACT da D-PROD-196 (`20261114300000_tipo_atividade_defaults`, padrões e
+ * CONTRACT da D-PROD-197 (`20261114300000_tipo_atividade_defaults`, padrões e
  * flags do TipoAtividade), de nome POSTERIOR, que sobe fora de ordem: a guarda
  * dela só olha TipoAtividade e os alvos das FKs, não toca CADCATEGORIA nem
  * CADCURVAGANHO, e assim só a D-PROD-195 pende no runner (em produção a ordem é a
- * inversa: esta já está aplicada e a D-PROD-196 entra depois); 85 tabelas; e, para 2 clientes, 4 fazendas: três com
+ * inversa: esta já está aplicada e a D-PROD-197 entra depois); 85 tabelas; e, para 2 clientes, 4 fazendas: três com
  * categorias e com a 'CURVA PADRÃO' (uma delas inativa: a ligação não olha o
  * ativo), uma delas também com outra curva (que a ligação não pode usar), e uma
  * fazenda SEM categoria e SEM a CURVA PADRÃO (permitido: a guarda só olha as
@@ -65,7 +65,7 @@ const BANCO = 'maike_ccc_curva_teste';
 /** Pastas do repositório: a partida são as de nome anterior ao desta CONTRACT; o total, depois do GREEN. */
 const PASTAS = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const TOTAL_MIGRATIONS = PASTAS.length;
-/** D-PROD-196: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
+/** D-PROD-197: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
@@ -160,7 +160,7 @@ const ambienteBase = () => {
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** Todas as pastas menos esta CONTRACT (as 49 anteriores e a D-PROD-196, posterior), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** Todas as pastas menos esta CONTRACT (as 49 anteriores e a D-PROD-197, posterior), aplicadas pelo Prisma a partir de uma cópia temporária. */
 const aplicarMigrationsAnteriores = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-ccc-curva-main-'));
   try {
@@ -322,8 +322,8 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-196, posterior), 85 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults'], 'só a CONTRACT da D-PROD-196 tem nome posterior a esta');
+  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197, posterior), 85 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults'], 'só a CONTRACT da D-PROD-197 tem nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
     assert.equal(MIGRATIONS_PARTIDA, 50);
     assert.equal(TOTAL_MIGRATIONS, 51);

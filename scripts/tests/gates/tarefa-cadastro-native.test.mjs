@@ -17,7 +17,7 @@ test('gate:tarefa-cadastro-native passa no repositório', () => {
 });
 
 /**
- * D-PROD-196 — o gate roda sobre uma cópia dos arquivos que ele lê (TAREFA_CADASTRO_NATIVE_ROOT), com UMA mudança por
+ * D-PROD-197 — o gate roda sobre uma cópia dos arquivos que ele lê (TAREFA_CADASTRO_NATIVE_ROOT), com UMA mudança por
  * caso: o TipoAtividade tem as 8 flags `Boolean @default(false)` e nenhum nome aposentado (`pode_ter_*`) no model, nas
  * migrations, na porta e nas rotas; o TipoTarefa não tem flag nenhuma (nem as 4 antigas nem as 8 novas).
  */
@@ -58,7 +58,7 @@ const projeto = (mudar = () => {}) => {
 const rodar = (dir) => runGate('gate-tarefa-cadastro-native.mjs', { env: { TAREFA_CADASTRO_NATIVE_ROOT: dir } });
 const reescrever = (dir, rel, fn) => writeFile(dir, rel, fn(readFileSync(join(dir, rel), 'utf8')));
 
-test('D-PROD-196 controle: a cópia sem mudança passa (comentário citando pode_ter_* na porta e nas rotas não conta)', () => {
+test('D-PROD-197 controle: a cópia sem mudança passa (comentário citando pode_ter_* na porta e nas rotas não conta)', () => {
   const dir = projeto((d) => {
     reescrever(d, PORTA, (s) => `${s}\n// legado recusado: pode_ter_produto, pode_ter_maquina, pode_ter_implemento\n`);
     reescrever(d, ROTAS, (s) => `${s}\n/* pode_ter_implemento continua fora do schema (400) */\n`);
@@ -105,7 +105,7 @@ const CASOS = Object.freeze([
 ]);
 
 for (const [rotulo, mudar, esperado] of CASOS) {
-  test(`D-PROD-196 reprova: ${rotulo}`, () => {
+  test(`D-PROD-197 reprova: ${rotulo}`, () => {
     const dir = projeto(mudar);
     try {
       const r = rodar(dir);

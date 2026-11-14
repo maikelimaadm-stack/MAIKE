@@ -1,4 +1,4 @@
-# MAIKE — Tipo de Atividade com padrões e flags: runbook de release CONTRACT (D-PROD-196)
+# MAIKE — Tipo de Atividade com padrões e flags: runbook de release CONTRACT (D-PROD-197)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
 > na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-196](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-197](./DECISIONS.md) · Contrato:
 [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · Relatório:
 [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
 Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md)
@@ -27,12 +27,12 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIK
 | Guarda da própria migration | recusa (e desfaz tudo) se `TipoAtividade` não existir; se qualquer das 13 colunas, das 5 constraints ou dos 3 índices novos já existir; ou se `CentroCusto`, `CentroResultado` ou `UnidadeMedida` não existir ou não tiver índice único exatamente em (`cliente_id`, `id`). Toda mensagem começa com `tipo_atividade_defaults:` |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf` |
 | Guarda pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`; `drop: []`; `literais_guarda`: `TipoAtividade`, `CentroCusto`, `CentroResultado`, `UnidadeMedida`; 18 `alter_antigas` |
-| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: []` (as 13 colunas ficam no descritor da CONTRACT); `contract[0]`: `decisao: "D-PROD-196"`, `colunas_adicionadas` (13), `constraints_adicionadas` (5), `constraints_alargadas: []`, `tabelas_removidas: []`, `colunas_removidas: []` |
+| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: []` (as 13 colunas ficam no descritor da CONTRACT); `contract[0]`: `decisao: "D-PROD-197"`, `colunas_adicionadas` (13), `constraints_adicionadas` (5), `constraints_alargadas: []`, `tabelas_removidas: []`, `colunas_removidas: []` |
 | `_prisma_migrations` | antes **50** concluídas, 0 em aberto (a última, a curva obrigatória na Categoria de Manejo da D-PROD-195, `20261114200000_cadcategoria_curva_ganho`, concluída em 2026-11-14 às 14:51:56 UTC); depois **51**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes e depois |
 
 **Sem janela de erro para o código de hoje.** A produção roda o código anterior à
-D-PROD-196. O Prisma Client dele lista só as 9 colunas antigas de `TipoAtividade`:
+D-PROD-197. O Prisma Client dele lista só as 9 colunas antigas de `TipoAtividade`:
 coluna a mais, anulável ou com DEFAULT, não quebra `SELECT`, `INSERT` nem
 `UPDATE`. Conferido localmente: o Prisma Client gerado do schema da `main`
 (`a65ea468`) rodou `create`, `findMany` com `include`, `findUnique`, `update` e
@@ -46,7 +46,7 @@ aplicação.
 500 (`P2022`, coluna inexistente) em tudo o que lê `TipoAtividade`: a tela Tipos
 de Atividade, `/tipos-atividade` e os fluxos do Apontamento de Atividade que leem
 o tipo. E o `premerge-migrate` só enxerga a migration como "nova" enquanto ela
-não está na `main`: depois do merge o `--contract D-PROD-196` vira
+não está na `main`: depois do merge o `--contract D-PROD-197` vira
 `CONTRACT_INESPERADO` e o caminho A fecha (aconteceu na D-PROD-183). A ordem é:
 aplicar (§5) → postcheck (§6) → merge (§7).
 
@@ -73,9 +73,9 @@ conferir no preflight as travas e as transações longas.
   **isolada** (esta é a única migration nova; senão `CONTRACT_NAO_ISOLADO`) e exige
   a decisão exata:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-196: …)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-196
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-196   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-196
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-197: …)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-197
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-197   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-197
   ```
   A guarda põe o próprio `lock_timeout` (5 s); não é preciso parâmetro na URL.
 - **B — conector Supabase, uma única `execute_sql` (§5):** só com autorização
@@ -84,7 +84,7 @@ conferir no preflight as travas e as transações longas.
   D-PROD-194) nem de autorização genérica.
 - O `npm run deploy:migrate` à mão e o `release-migrate.yml` **recusam** esta
   migration (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver
-  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-196`
+  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-197`
   passa `MIGRATION_CONTRACT_AUTORIZADO`. A mensagem do runner diz "ela apaga
   dados" para toda CONTRACT; esta não apaga, mas a barreira vale igual.
 
@@ -121,7 +121,7 @@ Cole TUDO e rode. Só `SELECT`. Qualquer `PARAR` → `RELEASE_BLOCKED`.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-196 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-197 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -250,7 +250,7 @@ SELECT item, valor, esperado, status FROM (
 E, localmente, no `<SHA_APROVADO>`:
 `sha256sum backend/prisma/migrations/20261114300000_tipo_atividade_defaults/migration.sql`
 igual ao pinado, e a análise local do `premerge-migrate` (§1) com `modo: CONTRACT`,
-`contract[0].decisao = "D-PROD-196"`, `colunas_adicionadas` com as 13 colunas,
+`contract[0].decisao = "D-PROD-197"`, `colunas_adicionadas` com as 13 colunas,
 `constraints_adicionadas` com as 5 constraints e `violacoes: []`.
 
 ### 4.2 Ensaio local (com o arquivo exato do `<SHA_APROVADO>`)
@@ -267,7 +267,7 @@ produção pelo local:
   índice novo já existente, alvo ausente, alvo sem índice único em
   (`cliente_id`, `id`) (sem índice, invertido, parcial, não-único), trava
   concorrente (`55P03` em ~5 s); e o `deploy:migrate` com a conferência de alvo
-  exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-196` →
+  exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-197` →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
   envelope do caminho B: 51/0, as 13 colunas, as 5 constraints, os 3 índices,
@@ -355,7 +355,7 @@ Qualquer `PARAR`: **não mergear** e chamar o proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-196 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
+-- MAIKE · D-PROD-197 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
@@ -536,13 +536,13 @@ código novo gravar nos padrões e nas flags só existem nessas colunas.
 Rollback de código, sim: o código anterior convive com as colunas (§0). Com
 padrões gravados, a FK `RESTRICT` continua barrando apagar a unidade usada como
 padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
-`UNIDADE_MEDIDA_DELETE_BLOCKED` vem com a D-PROD-196).
+`UNIDADE_MEDIDA_DELETE_BLOCKED` vem com a D-PROD-197).
 
 ## 10. `RELEASE_BLOCKED`
 
 - sem GO-1 ou GO-2 (no caminho B, sem o desvio da D-PROD-74 escrito para esta migration);
 - alvo com `system_identifier` diferente;
-- histórico diferente de 50/0 antes, ou a D-PROD-196 já registrada (linha não revertida);
+- histórico diferente de 50/0 antes, ou a D-PROD-197 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;
@@ -553,7 +553,7 @@ padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | "Sim: aplique e faça o merge (Recomendado)" (pergunta que citava `20261114300000_tipo_atividade_defaults`, D-PROD-196, e o merge da PR #276) |
+| GO-1 e GO-2 | "Sim: aplique e faça o merge (Recomendado)" (pergunta que citava `20261114300000_tipo_atividade_defaults` com o número D-PROD-196, hoje D-PROD-197, e o merge da PR #276) |
 | Caminho | B (conector, uma `execute_sql`) |
 | `<SHA_APROVADO>` | `e3dc5af1` (HEAD da `feat/tipo-atividade-defaults` na aplicação) |
 | Verificação do SHA | análise local (o GitHub Actions da conta não roda): `verify-all` sem `test:backend` todo PASS (smoke 2848/2848); backend focado 22 arquivos; portão e runner 168/168; 51 migrations em banco vazio e `migrate diff` vazio |

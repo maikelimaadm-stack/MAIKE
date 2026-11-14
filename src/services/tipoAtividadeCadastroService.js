@@ -1,12 +1,12 @@
 /**
  * Service do cadastro de tipos de atividade (D-PROD-182; padrões e flags,
- * D-PROD-196).
+ * D-PROD-197).
  *
  * Espelha o cadastro de tipos de tarefa, sem as flags legadas e sem
  * sincronização de referências: nenhum outro registro guarda cópia do nome de
  * um TipoAtividade. Os grupos vêm do mesmo cadastro de GrupoAtividade.
  *
- * D-PROD-196: o tipo guarda os padrões que a atividade herda e as 8 flags de
+ * D-PROD-197: o tipo guarda os padrões que a atividade herda e as 8 flags de
  * como ela funciona. Os centros padrão são escolhidos entre os ATIVOS da
  * fazenda selecionada, pela rota própria do tipo (quem cria ou edita tipo não
  * depende das telas de centros); a unidade de produção vem do cadastro de

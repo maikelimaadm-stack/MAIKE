@@ -99,7 +99,7 @@ const semear = async ({ clientes = 1 } = {}) => {
     await p.historicoLancamentoTarefa.create({ data: { cliente_id: c, empresa_id: emp.id, tarefa_id: tarefa.id, evento: 'criada', data_evento: new Date() } });
     // D-PROD-190: um apontamento de atividade (FK RESTRICT para tarefa, tipo, grupo, área, usuário, empresa e cliente):
     // o 02 só o apaga se ele vier ANTES de todas as mães na ordem de exclusão.
-    // D-PROD-196: o tipo de atividade aponta para um centro de custo, um centro de resultado e uma unidade como padrões
+    // D-PROD-197: o tipo de atividade aponta para um centro de custo, um centro de resultado e uma unidade como padrões
     // (FKs RESTRICT): o 02 só o apaga se ele vier DEPOIS do apontamento e ANTES dessas três mães.
     const centroCusto = await p.centroCusto.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'CUSTEIO' } });
     const centroResultado = await p.centroResultado.create({ data: { cliente_id: c, empresa_id: emp.id, numero: '1', nome: 'PECUÁRIA' } });
@@ -285,10 +285,10 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     assert.deepEqual(await contar(), antes);
   });
 
-  test('SE-07b (D-PROD-196) na ordem antiga (TipoAtividade junto de TipoTarefa, depois dos centros e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
+  test('SE-07b (D-PROD-197) na ordem antiga (TipoAtividade junto de TipoTarefa, depois dos centros e da UnidadeMedida) a conferência da árvore real de FKs recusa antes de apagar', async () => {
     await semear();
     const antes = await contar();
-    const blocoNovo = "    -- D-PROD-196: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros\n"
+    const blocoNovo = "    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros\n"
       + "    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).\n"
       + "    'TipoAtividade',\n";
     assert.equal(RESET.split(blocoNovo).length, 2, 'o 02 tem a posição nova do TipoAtividade');
@@ -346,7 +346,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
       [await p.apontamentoAtividadeItemConsumoLote.count(), await p.apontamentoAtividadeItem.count(), await p.apontamentoAtividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
       [0, 0, 0, 0, 0, 0, 0]
     );
-    // D-PROD-196: o tipo com os 3 padrões saiu antes do centro de custo, do centro de resultado e da unidade (FKs RESTRICT).
+    // D-PROD-197: o tipo com os 3 padrões saiu antes do centro de custo, do centro de resultado e da unidade (FKs RESTRICT).
     assert.deepEqual(
       [await p.tipoAtividade.count(), await p.centroCusto.count(), await p.centroResultado.count(), await p.unidadeMedida.count()],
       [0, 0, 0, 0]

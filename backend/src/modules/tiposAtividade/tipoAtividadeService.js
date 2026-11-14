@@ -11,7 +11,7 @@
  * `ApontamentoAtividade`, lição do hotfix #259), traduzida aqui em 409
  * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
  *
- * D-PROD-196 — PADRÕES e FLAGS do tipo (contrato
+ * D-PROD-197 — PADRÕES e FLAGS do tipo (contrato
  * `docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md` §3):
  *  - categoria (lista fechada), centro de custo e centro de resultado padrão,
  *    unidade de produção (`UnidadeMedida`) e coeficiente padrão (Decimal(14,4):
@@ -82,7 +82,7 @@ const normalizarNomeTipo = (valor) => {
   return limpo.toUpperCase();
 };
 
-// ─── D-PROD-196: normalização dos padrões e das flags ───────────────────────
+// ─── D-PROD-197: normalização dos padrões e das flags ───────────────────────
 
 /** Categoria da lista fechada ou null (o schema da rota já recusou o resto). @param {unknown} v */
 const categoriaDoCorpo = (v) => {
@@ -133,7 +133,7 @@ const centroPadraoPublico = (c) =>
 const unidadeProducaoPublica = (u) => (u ? { id: u.id, sigla: u.sigla, descricao: u.descricao, ativo: u.ativo } : null);
 
 /**
- * Forma pública (lista, detalhe, escrita e auditoria). D-PROD-196: ao lado de
+ * Forma pública (lista, detalhe, escrita e auditoria). D-PROD-197: ao lado de
  * cada id de padrão, o resumo do cadastro (do `select` do repository; `null`
  * sem padrão); coeficiente com 4 casas; as 8 flags booleanas.
  * @param {Record<string, any>} registro
@@ -166,7 +166,7 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   grupo_atividade_id: (v) => textoOuNulo(v),
   ativo: (v) => (v === undefined ? undefined : Boolean(v)),
   descricao: (v) => textoOuNulo(v),
-  // D-PROD-196 — padrões e flags.
+  // D-PROD-197 — padrões e flags.
   categoria: (v) => categoriaDoCorpo(v),
   centro_custo_padrao_id: (v) => idDoPadrao(v, 'centro_custo_padrao_id'),
   centro_resultado_padrao_id: (v) => idDoPadrao(v, 'centro_resultado_padrao_id'),
@@ -198,7 +198,7 @@ const resolverGrupo = async (tx, clienteId, grupoId) => {
   return grupo;
 };
 
-// ─── D-PROD-196: regras dos padrões (§3.3) ──────────────────────────────────
+// ─── D-PROD-197: regras dos padrões (§3.3) ──────────────────────────────────
 
 /** Os dois centros padrão: coluna do tipo, lado do cadastro e relação incluída pelo repository. */
 const CENTROS_PADRAO = Object.freeze([
@@ -345,7 +345,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
-    // D-PROD-196 (revisão A5-1/A6-1): trava a linha ANTES de ler `anterior`. Sem a trava, dois PATCH
+    // D-PROD-197 (revisão A5-1/A6-1): trava a linha ANTES de ler `anterior`. Sem a trava, dois PATCH
     // concorrentes que mudam um centro cada leem o par antigo e burlam a regra "mesma empresa" (§3.3);
     // com ela, o segundo espera, relê o par já gravado (READ COMMITTED) e recebe 422 `empresas_diferentes`.
     // Tipo inexistente (ou de outro cliente) não trava nada e segue para o 404 de sempre.
@@ -432,7 +432,7 @@ export const excluir = async (contexto, id) => {
   });
 };
 
-// ─── D-PROD-196: opções de centro padrão para o formulário (§3.4) ──────────
+// ─── D-PROD-197: opções de centro padrão para o formulário (§3.4) ──────────
 
 /**
  * Centros ATIVOS da fazenda informada, `{ itens: [{ id, numero, nome }] }`,

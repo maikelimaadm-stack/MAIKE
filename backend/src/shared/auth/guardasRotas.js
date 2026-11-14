@@ -64,7 +64,7 @@ const patrimonio = (alvo) => ({
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
 
 /**
- * D-PROD-196 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
+ * D-PROD-197 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
  * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
  * não depende das telas de centros, como as opções do apontamento.
  */
@@ -297,7 +297,7 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  // D-PROD-182. D-PROD-196: opções de centro padrão do formulário = criar OU editar tipo.
+  // D-PROD-182. D-PROD-197: opções de centro padrão do formulário = criar OU editar tipo.
   tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },

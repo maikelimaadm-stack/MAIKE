@@ -1,5 +1,5 @@
 /**
- * Cadastro de Tipos de Atividade (D-PROD-182; padrões e flags, D-PROD-196).
+ * Cadastro de Tipos de Atividade (D-PROD-182; padrões e flags, D-PROD-197).
  *
  * O formulário tem três seções, nesta ordem: Identificação (Grupo de atividade,
  * Nome do tipo de atividade, Categoria, Descrição, Ativo), Apropriação (Centro
@@ -26,7 +26,7 @@ const servico = vi.hoisted(() => ({
   criarTipoAtividade: vi.fn(),
   atualizarTipoAtividade: vi.fn(),
   excluirTiposAtividade: vi.fn(),
-  // D-PROD-196: opções do formulário (consulta nunca devolve `undefined`).
+  // D-PROD-197: opções do formulário (consulta nunca devolve `undefined`).
   listarCentrosDaFazenda: vi.fn(async () => []),
   listarUnidadesDeMedida: vi.fn(async () => []),
 }));
@@ -672,7 +672,7 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
   });
 });
 
-describe("TA-PORTA — porta, API e service do tipo (D-PROD-196)", () => {
+describe("TA-PORTA — porta, API e service do tipo (D-PROD-197)", () => {
   it("TA-PORTA-1 — o corpo leva só as chaves do contrato: flags só booleanas, coeficiente só texto (vazio = null)", async () => {
     const { operacoesNativas, CAMPOS_DE_CRIACAO, FLAGS_TIPO_ATIVIDADE } = await import("@/apis/atividades/tipoAtividadePort.js");
     const { FLAGS_DO_FORMULARIO } = await import("@/components/tipos-atividade/FormularioTipoAtividade");

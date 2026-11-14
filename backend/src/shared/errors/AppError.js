@@ -128,7 +128,7 @@ export const unidadeMedidaNotFound = (message, options) =>
 export const unidadeMedidaSiglaConflito = (message, options) =>
   new AppError('UNIDADE_MEDIDA_SIGLA_CONFLICT', message || 'já existe unidade com esta sigla', options);
 
-// D-PROD-196 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada como padrão.
+// D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada como padrão.
 export const unidadeMedidaDeleteBlocked = (message, options) =>
   new AppError(
     'UNIDADE_MEDIDA_DELETE_BLOCKED',
@@ -175,7 +175,7 @@ export const tipoAtividadeDeleteBlocked = (message, options) =>
   );
 
 /**
- * D-PROD-196 — frase de cada padrão recusado do Tipo de Atividade, por coluna e `reason`.
+ * D-PROD-197 — frase de cada padrão recusado do Tipo de Atividade, por coluna e `reason`.
  * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
  */
 const MENSAGENS_PADRAO_TIPO_ATIVIDADE = Object.freeze({
@@ -198,7 +198,7 @@ const MENSAGENS_PADRAO_TIPO_ATIVIDADE = Object.freeze({
 });
 
 /**
- * D-PROD-196 — padrão do Tipo de Atividade recusado (um só código;
+ * D-PROD-197 — padrão do Tipo de Atividade recusado (um só código;
  * `details.field`/`details.reason` dizem qual). Id de outro tenant é
  * `nao_encontrado`, como o inexistente (sem oráculo).
  * @param {'centro_custo_padrao_id'|'centro_resultado_padrao_id'|'unidade_producao_id'|'coeficiente_padrao'} field
