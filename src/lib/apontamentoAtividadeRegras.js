@@ -23,11 +23,29 @@
  *    vem do bem, ele só muda se o usuário escolher outro.
  *  - Centro de RESULTADO: sempre escolhido pelo usuário numa lista normal de
  *    centros ativos; nunca vem do bem.
+ *  - ITENS (D-PROD-191, Fatia D): só no apontamento CONFIRMADO e já gravado.
+ *    PRODUTO baixa do estoque EXATAMENTE a quantidade digitada, na unidade
+ *    EFETIVA do estoque do Produto (L; kg para KG e SACO), sem conversão; o
+ *    custo é o FIFO dos lotes, que só o servidor conhece (sem prévia, D-5).
+ *    SERVIÇO e OUTRO têm descrição livre, quantidade e valor unitário; o total
+ *    que a tela mostra é só exibição (`totalDoItem`, 4 casas HALF_UP, sem
+ *    float): o servidor refaz a conta e manda. Decimais vão em TEXTO.
  */
 
-import { comparar, ehCanonico, ehPositivo, formatarNumero, lerNumeroLocal, paraTextoDeEdicao } from './dinheiroDecimal.js';
+import {
+  LIMITES,
+  comparar,
+  ehCanonico,
+  ehPositivo,
+  formatarMoeda,
+  formatarNumero,
+  lerNumeroLocal,
+  multiplicarArredondar,
+  paraTextoDeEdicao,
+  somar,
+} from './dinheiroDecimal.js';
 import { ehDiaValido, formatarDia } from './diaCivil.js';
-import { rotuloDoBem } from './abastecimentoRegras.js';
+import { rotuloDaUnidade, rotuloDoBem, unidadeDoAbastecimentoDoProduto } from './abastecimentoRegras.js';
 import { lerErroGestao, mensagemErroGestao } from './gestaoErros.js';
 
 export { rotuloDoBem };
@@ -404,6 +422,215 @@ export const camposAlteradosDoApontamento = (original, corpo) => {
   return saida;
 };
 
+// ─── Itens do apontamento (D-PROD-191) ───────────────────────────────────
+
+export const ITEM_PRODUTO = 'PRODUTO';
+export const ITEM_SERVICO = 'SERVICO';
+export const ITEM_OUTRO = 'OUTRO';
+/** Tipos fechados do item (o mesmo domínio do servidor). SERVIÇO e OUTRO só diferem no rótulo (D-6). */
+export const TIPOS_ITEM = Object.freeze([ITEM_PRODUTO, ITEM_SERVICO, ITEM_OUTRO]);
+export const ROTULO_TIPO_ITEM = Object.freeze(/** @type {Record<string, string>} */ ({ PRODUTO: 'Produto', SERVICO: 'Serviço', OUTRO: 'Outro custo' }));
+/** Até 200 itens por apontamento, contando os cancelados (D-9). */
+export const MAX_ITENS_APONTAMENTO = 200;
+export const MAX_DESCRICAO_ITEM = 255;
+/** Quantidade: Decimal(14, 4) do servidor. */
+export const LIMITES_QUANTIDADE_ITEM = LIMITES.QUANTIDADE;
+/** Valor unitário de SERVIÇO/OUTRO: até 12 inteiros e 6 casas (o padrão do servidor). */
+export const LIMITES_VALOR_UNITARIO_ITEM = LIMITES.PRECO;
+/** Total do item com 4 casas, HALF_UP (D-7). */
+export const CASAS_TOTAL_ITEM = 4;
+/** Teto do total (Decimal(18, 4), o LIMITE_DINHEIRO do servidor). */
+export const LIMITE_TOTAL_ITEM = '99999999999999.9999';
+
+/** Caractere de controle ou marcação HTML (o servidor recusa com `caractere_invalido`). */
+const RE_TEXTO_INVALIDO = /[\u0000-\u001F\u007F<>]/;
+
+/**
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null }} ProdutoDoItem
+ * @typedef {{
+ *   tipo: string,
+ *   produto: ProdutoDoItem|null,
+ *   local_estoque_id: string|null,
+ *   quantidade: string,
+ *   descricao: string,
+ *   valor_unitario: string,
+ * }} RascunhoItem
+ */
+
+/** Rascunho em branco do item (um card por vez). @param {string} tipo @returns {RascunhoItem} */
+export const itemVazio = (tipo) => ({
+  tipo: TIPOS_ITEM.includes(tipo) ? tipo : ITEM_SERVICO,
+  produto: null,
+  local_estoque_id: null,
+  quantidade: '',
+  descricao: '',
+  valor_unitario: '',
+});
+
+/**
+ * Opção de Produto (rota de opções da tela) no rascunho: id, nome e a unidade
+ * de estoque dele (L, KG, SACO…).
+ * @param {any} o @returns {ProdutoDoItem|null}
+ */
+export const produtoDoItem = (o) =>
+  o && typeof o === 'object' && o.id != null
+    ? { id: String(o.id), rotulo: texto(o.nome) || String(o.id), unidade_principal_estoque: typeof o.unidade_principal_estoque === 'string' ? o.unidade_principal_estoque : null }
+    : null;
+
+/**
+ * Unidade EFETIVA em que a quantidade do item de Produto é digitada e baixada:
+ * `L` → `L`; `KG` e `SACO` → `KG` (SACO guarda kg); outra → null (o Produto não
+ * pode ser item). Nunca converte.
+ * @param {unknown} unidadePrincipal
+ */
+export const unidadeDoItem = (unidadePrincipal) => unidadeDoAbastecimentoDoProduto(unidadePrincipal);
+
+/** Dica fixa sob a quantidade quando o Produto não é contado em litros. @param {unknown} u @returns {string|null} */
+export const dicaDaUnidadeDoItem = (u) =>
+  u === 'KG'
+    ? 'Este Produto é controlado em quilos: digite a quantidade em kg.'
+    : u === 'SACO'
+      ? 'Este Produto é em sacos, com estoque em quilos: digite kg, não sacos.'
+      : null;
+
+/** "12,5 kg" / "80 L" (sem unidade conhecida, só o número). @param {unknown} v @param {unknown} unidade */
+export const formatarQuantidadeItem = (v, unidade) => {
+  if (!ehCanonico(v)) return '—';
+  const numero = formatarNumero(/** @type {string} */ (v), { locale: LOCALE_APONTAMENTO, casasMin: 0, casasMax: LIMITES_QUANTIDADE_ITEM.casas });
+  const rotulo = rotuloDaUnidade(unidade);
+  return rotulo ? `${numero} ${rotulo}` : numero;
+};
+
+/** Valor em reais com até `casasMax` casas ("66.4063" → "R$ 66,4063"; "10.0000" → "R$ 10,00"). @param {unknown} v @param {number} [casasMax] */
+export const formatarValorItem = (v, casasMax = CASAS_TOTAL_ITEM) => formatarMoeda(v, { locale: LOCALE_APONTAMENTO, moeda: 'BRL', casas: 2, casasMax });
+
+/** @param {string} motivo @param {string} oque */
+const mensagemDoDecimal = (motivo, oque) =>
+  motivo === 'vazio'
+    ? `Informe ${oque}.`
+    : motivo === 'casas'
+      ? `Use no máximo ${oque === 'o valor unitário' ? LIMITES_VALOR_UNITARIO_ITEM.casas : LIMITES_QUANTIDADE_ITEM.casas} casas decimais.`
+      : motivo === 'limite'
+        ? `${oque === 'o valor unitário' ? 'Valor unitário' : 'Quantidade'} acima do limite permitido.`
+        : `${oque === 'o valor unitário' ? 'Valor unitário' : 'Quantidade'} inválido(a): use o formato 1.234,5.`;
+
+/**
+ * Total do item de SERVIÇO/OUTRO = quantidade × valor unitário, arredondado
+ * HALF_UP em 4 casas, em BigInt (sem float). Só EXIBIÇÃO: o servidor refaz a
+ * conta e manda o total gravado. Entrada canônica inválida → null.
+ * @param {unknown} quantidade @param {unknown} valorUnitario @returns {string|null}
+ */
+export const totalDoItem = (quantidade, valorUnitario) =>
+  ehCanonico(quantidade) && ehCanonico(valorUnitario)
+    ? multiplicarArredondar(/** @type {string} */ (quantidade), /** @type {string} */ (valorUnitario), CASAS_TOTAL_ITEM)
+    : null;
+
+/**
+ * Lê os decimais DIGITADOS do rascunho (pt-BR) como texto canônico; o que não
+ * se lê fica null.
+ * @param {RascunhoItem} item
+ * @returns {{ quantidade: string|null, valor_unitario: string|null }}
+ */
+export const decimaisDoItem = (item) => {
+  const q = lerNumeroLocal(texto(item?.quantidade), LOCALE_APONTAMENTO, LIMITES_QUANTIDADE_ITEM);
+  const vu = lerNumeroLocal(texto(item?.valor_unitario), LOCALE_APONTAMENTO, LIMITES_VALOR_UNITARIO_ITEM);
+  return { quantidade: q.ok ? /** @type {string} */ (q.valor) : null, valor_unitario: vu.ok ? /** @type {string} */ (vu.valor) : null };
+};
+
+/**
+ * Validação local do rascunho (o servidor confere tudo de novo, sob trava).
+ * `unidade`: a unidade de estoque do Produto escolhido (PRODUTO); `disponivel`:
+ * o saldo do local escolhido (texto canônico). Passar do saldo é AVISO, não
+ * bloqueio: o saldo pode mudar até o envio e quem decide é o servidor.
+ * @param {RascunhoItem} item
+ * @param {{ unidade?: string|null, disponivel?: string|null }} [ctx]
+ * @returns {{ erros: Record<string, string>, aviso: string|null }}
+ */
+export const validarItem = (item, { unidade = null, disponivel = null } = {}) => {
+  /** @type {Record<string, string>} */
+  const erros = {};
+  let aviso = null;
+  const tipo = item?.tipo;
+  if (!TIPOS_ITEM.includes(String(tipo))) {
+    erros.tipo = 'Escolha o tipo do item.';
+    return { erros, aviso };
+  }
+  const q = lerNumeroLocal(texto(item.quantidade), LOCALE_APONTAMENTO, LIMITES_QUANTIDADE_ITEM);
+  if (!q.ok) erros.quantidade = mensagemDoDecimal(String(q.motivo), 'a quantidade');
+  else if (!ehPositivo(/** @type {string} */ (q.valor))) erros.quantidade = 'Informe uma quantidade maior que zero.';
+  if (tipo === ITEM_PRODUTO) {
+    const efetiva = unidadeDoItem(unidade ?? item.produto?.unidade_principal_estoque ?? null);
+    if (!item.produto?.id) erros.produto = 'Escolha o Produto.';
+    else if (!efetiva) erros.produto = 'O estoque deste Produto não está em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser lançado como item.';
+    if (item.produto?.id && !item.local_estoque_id) erros.local_estoque_id = 'Escolha o local do estoque de onde o Produto sai.';
+    if (!erros.quantidade && q.ok && efetiva && ehCanonico(disponivel) && comparar(/** @type {string} */ (q.valor), /** @type {string} */ (disponivel)) > 0) {
+      aviso = `A quantidade passa do saldo deste local (disponível ${formatarQuantidadeItem(disponivel, efetiva)}). Se faltar saldo, o servidor recusa e nada é gravado.`;
+    }
+    return { erros, aviso };
+  }
+  const descricao = texto(item.descricao);
+  if (!descricao) erros.descricao = 'Descreva o item.';
+  else if ([...descricao].length > MAX_DESCRICAO_ITEM) erros.descricao = `No máximo ${MAX_DESCRICAO_ITEM} caracteres.`;
+  else if (RE_TEXTO_INVALIDO.test(String(item.descricao))) erros.descricao = 'A descrição não aceita os caracteres < e > nem quebra de linha.';
+  const vu = lerNumeroLocal(texto(item.valor_unitario), LOCALE_APONTAMENTO, LIMITES_VALOR_UNITARIO_ITEM);
+  if (!vu.ok) erros.valor_unitario = mensagemDoDecimal(String(vu.motivo), 'o valor unitário');
+  if (!erros.quantidade && !erros.valor_unitario && q.ok && vu.ok) {
+    const total = totalDoItem(q.valor, vu.valor);
+    if (!total || !ehPositivo(total)) erros.valor_unitario = 'O total do item (quantidade × valor unitário) deu zero: informe um valor maior.';
+    else if (comparar(total, LIMITE_TOTAL_ITEM) > 0) erros.valor_unitario = 'O total do item passa do limite permitido.';
+  }
+  return { erros, aviso };
+};
+
+/**
+ * Corpo do item a partir do rascunho JÁ VALIDADO: só as chaves do TIPO (as do
+ * outro tipo o servidor recusaria), decimais em texto canônico, nunca `null`.
+ * Empresa, `versao` e `operation_id` entram no service.
+ * @param {RascunhoItem} item
+ * @returns {Record<string, string>}
+ */
+export const corpoDoItem = (item) => {
+  const { quantidade, valor_unitario: valorUnitario } = decimaisDoItem(item);
+  /** @type {Record<string, string>} */
+  const corpo = { tipo: String(item.tipo) };
+  if (item.tipo === ITEM_PRODUTO) {
+    if (item.produto?.id) corpo.produto_id = String(item.produto.id);
+    if (item.local_estoque_id) corpo.local_estoque_id = String(item.local_estoque_id);
+    if (quantidade) corpo.quantidade = quantidade;
+    return corpo;
+  }
+  const descricao = texto(item.descricao);
+  if (descricao) corpo.descricao = descricao;
+  if (quantidade) corpo.quantidade = quantidade;
+  if (valorUnitario) corpo.valor_unitario = valorUnitario;
+  return corpo;
+};
+
+/** Itens do detalhe (lista vazia quando o registro não os traz). @param {any} registro @returns {any[]} */
+export const itensDoRegistro = (registro) => (Array.isArray(registro?.itens) ? registro.itens : []);
+
+/** O apontamento tem item de Produto CONFIRMADO (a saída do estoque está na data dele: D-1). @param {any} registro */
+export const temItemDeProdutoConfirmado = (registro) =>
+  itensDoRegistro(registro).some((i) => i?.tipo === ITEM_PRODUTO && i?.status === STATUS_CONFIRMADO);
+
+/**
+ * Custo dos itens CONFIRMADOS (os cancelados ficam no histórico e não contam),
+ * somado em 4 casas sem float. A tela prefere o `custo_itens` do servidor.
+ * @param {any[]} itens
+ * @returns {{ total: string, produto: string, servico: string, outro: string, itens_confirmados: number }}
+ */
+export const custoDosItens = (itens) => {
+  const confirmados = (Array.isArray(itens) ? itens : []).filter((i) => i?.status === STATUS_CONFIRMADO && ehCanonico(i?.valor_total));
+  const doTipo = (/** @type {string} */ tipo) => somar(confirmados.filter((i) => i.tipo === tipo).map((i) => i.valor_total), CASAS_TOTAL_ITEM);
+  return {
+    total: somar(confirmados.map((i) => i.valor_total), CASAS_TOTAL_ITEM),
+    produto: doTipo(ITEM_PRODUTO),
+    servico: doTipo(ITEM_SERVICO),
+    outro: doTipo(ITEM_OUTRO),
+    itens_confirmados: confirmados.length,
+  };
+};
+
 // ─── Mensagens de erro do servidor ───────────────────────────────────────
 
 /** Frase de cada referência recusada (`details.field` × `details.reason`). */
@@ -470,24 +697,119 @@ export const CAMPO_DO_FORMULARIO = Object.freeze(
   }),
 );
 
-/** Códigos que significam "o apontamento não existe mais / mudou": a tela relê a lista. */
+/**
+ * Códigos que significam "o apontamento (ou um item dele) não existe mais /
+ * mudou": a tela relê a lista e o DETALHE (D-PROD-191: os itens vêm do detalhe).
+ */
 export const CODIGOS_RELER_APONTAMENTO = Object.freeze([
   'APONTAMENTO_ATIVIDADE_NOT_FOUND',
   'APONTAMENTO_ATIVIDADE_STATUS_INVALIDO',
   'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
+  'APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND',
+  'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO',
+  'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS',
+  'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
 ]);
 
 /** @param {unknown} erro */
 export const codigoDoErroApontamento = (erro) => lerErroGestao(erro).code;
 
+/** Frase de cada recusa do item (`details.field` × `details.reason`), D-PROD-191. */
+const ITEM_RECUSADO = Object.freeze(
+  /** @type {Record<string, Record<string, string>>} */ ({
+    produto_id: {
+      inexistente: 'O Produto não foi encontrado nesta fazenda',
+      outra_empresa: 'O Produto é de outra fazenda',
+      inativo: 'O Produto está inativo',
+      unidade_nao_aceita: 'O estoque deste Produto não está em litros (L), quilos (KG) nem sacos (SACO): ele não pode ser lançado como item',
+      // D-8: Produto aceito por algum tanque é combustível — evita a dupla contagem com o abastecimento.
+      combustivel_no_abastecimento: 'Este Produto é combustível (aceito por um tanque): combustível se lança no Abastecimento, não como item do apontamento',
+    },
+    local_estoque_id: { inexistente: 'O local de estoque não foi encontrado', inativo: 'O local de estoque está inativo' },
+    quantidade: { quantidade_nao_positiva: 'A quantidade do item deve ser maior que zero' },
+    valor_unitario: {
+      total_zero: 'O total do item (quantidade × valor unitário) deu zero: informe um valor maior',
+      valor_excede_limite: 'O total do item passa do limite permitido',
+    },
+  }),
+);
+
+/**
+ * Por que o estorno exato não é seguro (`APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO`):
+ * os motivos do abastecimento e os de vínculo/camada do motor.
+ */
+const MOTIVO_ESTORNO_BLOQUEADO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    produto_mudou_de_fazenda: 'o Produto mudou de fazenda',
+    unidade_mudou: 'a unidade de estoque do Produto mudou desde o lançamento',
+    movimento_inexistente: 'o movimento de estoque do item não existe mais',
+    movimento_estornado: 'o movimento de estoque já foi estornado',
+    fatias_inconsistentes: 'os lotes consumidos não conferem com a quantidade baixada',
+    lote_indisponivel_para_devolucao: 'um lote de origem foi estornado ou removido',
+    devolucao_excede_entrada: 'a devolução passaria da entrada do lote de origem',
+    estoque_excede_limite: 'o estoque do Produto passaria do limite',
+    vinculo_divergente: 'o vínculo do lote com o movimento não confere',
+    camada_divergente: 'a camada do lote não confere com o movimento',
+  }),
+);
+
+/** Número canônico do servidor no formato do Brasil, sem float. @param {unknown} v */
+const numeroBr = (v) => (ehCanonico(v) ? formatarNumero(/** @type {string} */ (v), { locale: LOCALE_APONTAMENTO, casasMin: 0, casasMax: 4 }) : '?');
+
+/**
+ * Contexto das mensagens: `unidade` = unidade do item de Produto (o saldo sai em
+ * L ou kg, nunca "kg" fixo); `comandoIdempotente` = o envio leva `operation_id`
+ * (item, cancelamentos), então repetir não duplica.
+ * @typedef {{ unidade?: string|null, comandoIdempotente?: boolean }} ContextoMensagemApontamento
+ */
+
 /**
  * Mensagem clara da recusa do servidor (nunca vazia; a `message` do servidor
- * não é exibida). Referência e produção dizem QUAL campo; o resto cai no
+ * não é exibida). Referência, produção e item dizem QUAL campo; o resto cai no
  * catálogo de Gestão/`ApiError`.
- * @param {unknown} erro @param {string} fallback
+ * @param {unknown} erro @param {string} fallback @param {ContextoMensagemApontamento} [contexto]
  */
-export const mensagemErroApontamento = (erro, fallback) => {
+export const mensagemErroApontamento = (erro, fallback, contexto = {}) => {
   const { code, field, reason, details } = lerErroGestao(erro);
+  if (code === 'APONTAMENTO_ATIVIDADE_ITEM_INVALIDO') {
+    const frase = ITEM_RECUSADO[field ?? '']?.[reason ?? ''];
+    return `${frase ?? 'O item foi recusado: Produto, local, quantidade ou valor não pode ser usado'}. Nada foi gravado.`;
+  }
+  if (code === 'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO') return 'Este item já foi cancelado. Nada foi alterado.';
+  if (code === 'APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND') return 'Este item não foi encontrado neste apontamento. O apontamento será relido. Nada foi alterado.';
+  if (code === 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS') {
+    const limite = Number.isInteger(details.limite) ? details.limite : MAX_ITENS_APONTAMENTO;
+    return `Este apontamento já tem ${limite} itens, o máximo (contando os cancelados). Nada foi gravado.`;
+  }
+  if (code === 'APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO') {
+    const motivo = MOTIVO_ESTORNO_BLOQUEADO[reason ?? ''] ?? 'o estoque de origem mudou';
+    const doItem = Number.isInteger(details.item_ordem) ? ` no item ${details.item_ordem}` : '';
+    return `O estorno exato do estoque não é seguro agora${doItem}: ${motivo}. Nada foi alterado.`;
+  }
+  if (code === 'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS') {
+    return 'A data não pode mudar: o apontamento tem item de Produto lançado, com a saída do estoque nesta data. Cancele os itens de Produto antes de mudar a data. Nada foi gravado.';
+  }
+  if (code === 'ESTOQUE_SALDO_INSUFICIENTE') {
+    // A unidade é a do ITEM (L ou kg); sem ela, só o número.
+    const rotulo = rotuloDaUnidade(contexto.unidade ?? null);
+    const em = rotulo ? ` ${rotulo}` : '';
+    if (reason === 'estoque_atual_insuficiente') {
+      return `O estoque atual do Produto é menor que o pedido: atual ${numeroBr(details.estoque_atual)}${em}, pedido ${numeroBr(details.solicitado)}${em}. Nada foi gravado.`;
+    }
+    return `Saldo insuficiente deste Produto neste local: disponível ${numeroBr(details.disponivel)}${em}, pedido ${numeroBr(details.solicitado)}${em}. Nada foi gravado.`;
+  }
+  // Só o item de Produto chega ao motor nesta tela: quantidade ou custo FIFO acima do teto das colunas de estoque.
+  if (code === 'OPERACAO_VALORES_INVALIDOS') {
+    if (reason === 'quantidade_nao_positiva') return 'Informe uma quantidade maior que zero. Nada foi gravado.';
+    return 'Quantidade ou custo acima do limite do estoque. Nada foi gravado.';
+  }
+  if (code === 'PRODUTO_NOT_FOUND') return 'O Produto não foi encontrado nesta fazenda. Escolha outro.';
+  if (code === 'CONCURRENCY_CONFLICT' && contexto.comandoIdempotente) {
+    return 'Outra operação mexeu nos mesmos dados ao mesmo tempo. Nada foi gravado. Repita o mesmo envio: não duplica.';
+  }
+  if (code === 'REQUEST_VALIDATION_FAILED' && field === 'motivo') {
+    return reason === 'motivo_curto' ? 'Informe um motivo com pelo menos 3 caracteres. Nada foi alterado.' : 'Informe o motivo do cancelamento. Nada foi alterado.';
+  }
   if (code === 'APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA') {
     const frase = REFERENCIAS[field ?? '']?.[reason ?? ''];
     return `${frase ?? 'Um dos cadastros escolhidos não pode ser usado (não existe, é de outra fazenda ou está inativo)'}. Nada foi gravado.`;

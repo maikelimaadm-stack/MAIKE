@@ -292,6 +292,31 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'exclusão barrada pela FK RESTRICT de um apontamento de atividade (details.vinculo); inative o cadastro; nada foi apagado',
   },
+  // D-PROD-191 — itens do apontamento (PRODUTO baixa estoque pelo motor; SERVICO/OUTRO só custo).
+  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: {
+    http: 404,
+    meaning: 'itemId não identifica item deste apontamento, desta empresa e deste tenant',
+  },
+  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: {
+    http: 422,
+    meaning: 'item recusado (details.field/reason: produto_id — inexistente, também de outro tenant, sem oráculo | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento; local_estoque_id — inexistente | inativo; quantidade — quantidade_nao_positiva; valor_unitario — total_zero | valor_excede_limite); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: {
+    http: 409,
+    meaning: 'o item não está CONFIRMADO (details.status): já foi cancelado; nada foi alterado',
+  },
+  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: {
+    http: 422,
+    meaning: 'o apontamento já tem o máximo de itens, confirmados e cancelados (details.limite); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: {
+    http: 409,
+    meaning: 'o estorno exato de um item PRODUTO não é seguro agora (details.reason: produto_mudou_de_fazenda | unidade_mudou | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | vinculo_divergente | camada_divergente; details.item_id/item_ordem/lote_id); nada foi alterado',
+  },
+  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: {
+    http: 409,
+    meaning: 'a data operacional não muda com item PRODUTO confirmado (a saída de estoque está na data atual); cancele os itens antes; nada foi gravado',
+  },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {
     http: 404,

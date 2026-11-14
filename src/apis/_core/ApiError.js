@@ -136,6 +136,15 @@ export const API_ERROR_CODES = Object.freeze({
   APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: 'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO',
   // Exclusão de cadastro (área, centro, tarefa…) barrada por um apontamento.
   APONTAMENTO_ATIVIDADE_VINCULADO: 'APONTAMENTO_ATIVIDADE_VINCULADO',
+  // D-PROD-191 — itens do apontamento (produto, serviço, outro custo). A tela
+  // relê o detalhe (item sumiu, já cancelado, limite, data com item) ou diz no
+  // card do item o que foi recusado (produto, local, quantidade, valor, estorno).
+  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: 'APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND',
+  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_INVALIDO',
+  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: 'APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO',
+  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS',
+  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: 'APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO',
+  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: 'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
   // D-PROD-188 — Estações da fazenda.
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
@@ -253,6 +262,17 @@ const MENSAGENS = Object.freeze({
     'Este apontamento foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
   [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_VINCULADO]:
     'Não é possível excluir: há apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND]:
+    'Este item não foi encontrado neste apontamento. O apontamento será relido. Nada foi alterado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_INVALIDO]:
+    'O item foi recusado: Produto, local, quantidade ou valor não pode ser usado. Nada foi gravado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO]: 'Este item já foi cancelado. Nada foi alterado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS]:
+    'Este apontamento já tem o número máximo de itens. Nada foi gravado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO]:
+    'O estorno exato do estoque não é seguro agora: o estoque de origem mudou. Nada foi alterado.',
+  [API_ERROR_CODES.APONTAMENTO_ATIVIDADE_DATA_COM_ITENS]:
+    'A data não pode mudar: o apontamento tem item de Produto lançado, com a saída do estoque nesta data. Cancele os itens de Produto antes de mudar a data. Nada foi gravado.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:

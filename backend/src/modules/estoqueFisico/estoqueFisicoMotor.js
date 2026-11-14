@@ -61,7 +61,13 @@ export const ORIGEM_DEPOSITO = 'deposito';
  * junto com as tabelas `EntradaEstoque*`, no mesmo slice da P1-05a.
  */
 export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
-const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE]);
+/**
+ * D-PROD-191 (Fatia D do apontamento) — origem da SAÍDA por item PRODUTO de
+ * apontamento de atividade (e do estorno dela). 21 chars (VarChar(32)). Nunca a
+ * do abastecimento nem a do financeiro (proveniência falsa).
+ */
+export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO]);
 /** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_SISTEMA]: ORIGEM_SISTEMA,
@@ -69,6 +75,7 @@ const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_SUPLEMENTACAO]: 'cocho',
   [ORIGEM_DEPOSITO]: 'deposito',
   [ORIGEM_ENTRADA_ESTOQUE]: ORIGEM_ENTRADA_ESTOQUE,
+  [ORIGEM_APONTAMENTO]: ORIGEM_APONTAMENTO,
 });
 /** D-PROD-177 (§6.2 item 3): `tipo_detalhado` da entrada documentada = `entrada_<motivo>`; nunca `compra_financeiro`. */
 const TIPO_ENTRADA_ESTOQUE = /^entrada_[a-z0-9_]{1,40}$/;
@@ -565,7 +572,8 @@ export const estoqueAtualInsuficiente = (details) =>
  * SAÍDA FIFO (venda confirmada): baixa os lotes Disponivel do produto + local +
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
  * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
- * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`).
+ * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`;
+ * D-PROD-191, `ApontamentoAtividadeItemConsumoLote` com `origem.sistema = ORIGEM_APONTAMENTO`).
  * `quantidadeKg`: na unidade de estoque do Produto (kg, ou L para Produto em L — D-PROD-162).
  * D-PROD-161: também é a baixa da suplementação (`origem.sistema = ORIGEM_SUPLEMENTACAO`),
  * com os opcionais aditivos `instante` (data_movimentacao; padrão meio-dia UTC
