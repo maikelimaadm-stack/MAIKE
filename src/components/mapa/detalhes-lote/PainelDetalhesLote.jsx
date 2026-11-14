@@ -193,8 +193,8 @@ function Painel({ modelo, suplementacao, acoes, escopoPreferencias }) {
             {conteudo}
           </div>
         </div>
-        {acoes}
       </div>
+      {acoes}
     </div>
   );
 }

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-119 — Detalhes do Lote: um botão só ("Manejos e históricos") abre os
- * quadros (ícone + nome) em grupos separados; sem os menus "Eventos"/"Históricos".
+ * Detalhes do Lote: ações diretas em faixa própria, com quadros
+ * (ícone + nome) em grupos separados, sem lista intermediária.
  * O resto do Detalhes do Lote fica como era.
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { Scale } from "lucide-react";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
 import { readFileSync } from "node:fs";
@@ -70,15 +70,16 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     expect(pesar).toHaveBeenCalledTimes(1);
   });
 
-  it("celular: um botão só abre a folha; escolher fecha a folha e chama a ação", async () => {
+  it("celular: ações diretamente na faixa, sem lista intermediária", () => {
     comoCelular(true);
     const historico = vi.fn();
     render(<AcoesDoLote grupos={grupos(vi.fn(), historico)} />);
-    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" })); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Histórico de Movimentação" })); });
+    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    const faixa = screen.getByRole("navigation", { name: "Ações do lote" });
+    const botao = screen.getByRole("button", { name: "Histórico de Movimentação" });
+    expect(faixa.contains(botao)).toBe(true);
+    fireEvent.click(botao);
     expect(historico).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     comoCelular(false);
-  });
-});
+  });});

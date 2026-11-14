@@ -90,8 +90,8 @@ describe("Ajustes D-PROD-125", () => {
   });
 });
 
-describe("Celular: botão de manejos no alto, à direita do título (D-PROD-120)", () => {
-  it("fica no cabeçalho do diálogo (espelho do ✕) e abre a folha", () => {
+describe("Celular: ações diretas fora do cabeçalho", () => {
+  it("abre a ação em um clique sem botão de listagem", () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
     const pesar = vi.fn();
     render(
@@ -99,11 +99,11 @@ describe("Celular: botão de manejos no alto, à direita do título (D-PROD-120)
         <AcoesDoLote grupos={[{ titulo: "Manejos", itens: [{ nome: "Pesar", Icone: Scale, onClick: pesar }] }]} />
       </LancLoteDialogo>,
     );
-    const botao = screen.getByRole("button", { name: "Manejos e históricos" });
-    expect(botao.closest(".mk-ll-dlg__head")).not.toBeNull();
-    expect(botao.parentElement?.className).toBe("mk-ll-dlg__slot");
+    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    const botao = screen.getByRole("button", { name: "Pesar" });
+    expect(botao.closest(".mk-ll-dlg__head")).toBeNull();
+    expect(botao.closest(".mk-al-dock")).not.toBeNull();
     fireEvent.click(botao);
-    fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
     expect(pesar).toHaveBeenCalledTimes(1);
   });
 });
