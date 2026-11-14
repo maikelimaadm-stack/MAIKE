@@ -18,7 +18,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarCurvaGanhoDeTeste } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { relacoesDoModelo } from '../src/shared/prisma/colunasGravaveis.js';
 
@@ -94,7 +94,9 @@ describe('F2 — catálogo global não é gravável por tenant', () => {
     const tipo = await prisma().catalogoTipoEntidade.create({ data: { codigo: `lote-${randomUUID().slice(0, 4)}`, nome: 'Lote' } });
     const cat = await prisma().catalogoCategoriaVisual.create({ data: { tipo_id: tipo.id, codigo: 'BOI', nome: 'Boi' } });
     const B = await contaCom({ modulos_permitidos: ['manejo'], permissoes_telas: [linha('manejo', 'pec-categorias-manejo', { editar: true })] });
-    const cm = await prisma().categoriaManejo.create({ data: { cliente_id: B.cliente.id, empresa_id: 'e1', nome: 'Garrote' } });
+    // D-PROD-195: a categoria exige a curva de ganho da fazenda (e a fazenda real).
+    const curva = await criarCurvaGanhoDeTeste(prisma(), { clienteId: B.cliente.id, empresaId: 'e1' });
+    const cm = await prisma().categoriaManejo.create({ data: { cliente_id: B.cliente.id, empresa_id: 'e1', nome: 'Garrote', curva_ganho_id: curva.id } });
     const r = await req('PATCH', `/categorias-manejo/${cm.id}`, B.token, {
       catalogoCategoriaVisual: { connect: { id: cat.id }, update: { nome: 'ALTERADO POR TENANT', ativo: false } },
     });
@@ -228,7 +230,11 @@ describe('Matriz — relação de model nunca é gravável pelo corpo (derivada 
   const ALVOS = [
     { modelo: 'PontoSuplementacao', url: '/pontos-suplementacao', criar: (c) => prisma().pontoSuplementacao.create({ data: { cliente_id: c, empresa_id: 'e1', numero_ponto: '1', nome_ponto: 'P' } }) },
     { modelo: 'Bebedouro', url: '/bebedouros', criar: (c) => prisma().bebedouro.create({ data: { cliente_id: c, empresa_id: 'e1', nome: 'B', tipo: 'Cocho' } }) },
-    { modelo: 'CategoriaManejo', url: '/categorias-manejo', criar: (c) => prisma().categoriaManejo.create({ data: { cliente_id: c, empresa_id: 'e1', nome: 'C' } }) },
+    // D-PROD-195: a categoria exige a curva de ganho da fazenda (e a fazenda real).
+    { modelo: 'CategoriaManejo', url: '/categorias-manejo', criar: async (c) => {
+      const curva = await criarCurvaGanhoDeTeste(prisma(), { clienteId: c, empresaId: 'e1' });
+      return prisma().categoriaManejo.create({ data: { cliente_id: c, empresa_id: 'e1', nome: 'C', curva_ganho_id: curva.id } });
+    } },
     { modelo: 'EstoqueLoteNota', url: '/estoque-lotes-nota', criar: (c) => prisma().estoqueLoteNota.create({ data: { cliente_id: c, empresa_id: 'e1', produto_id: 'p', local_estoque_id: 'l', custo_unitario: 1, quantidade_entrada: 1, quantidade_disponivel: 1 } }) },
     { modelo: 'Fornecedor', url: '/fornecedores', criar: (c) => prisma().fornecedor.create({ data: { cliente_id: c, empresa_id: 'e1', numero_cadastro: '1', tipo_pessoa: 'Física', nome: 'F' } }) },
     { modelo: 'Permissao', url: '/permissoes', criar: (c) => prisma().permissao.create({ data: { cliente_id: c, user_email: `x-${randomUUID().slice(0, 6)}`, user_nome: 'X' } }) },

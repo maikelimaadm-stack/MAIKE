@@ -63,7 +63,19 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)
+## Missão ativa (2026-11-14) — MAIKE-CADCATEGORIA-CURVA-GANHO: Categoria de Manejo com Curva de Ganho obrigatória (D-PROD-195)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-195** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `a65ea468` (merge da PR #273). PR nova, exclusiva desta missão |
+| Escopo | `CADCATEGORIA.curva_ganho_id` obrigatório, da mesma fazenda (FK composta, `RESTRICT`); API e tela da categoria com o campo "Curva de ganho"; opções `GET /categorias-manejo-opcoes/curvas-ganho`; excluir curva em uso → 409 `CURVA_GANHO_EM_USO` |
+| Dado prévio | `'CURVA PADRÃO'` (0,100 kg/dia nos 12 meses) cadastrada pelo banco em 2026-11-14 13:40:36 UTC na única fazenda com categorias, a pedido do proprietário ([runbook](./MAIKE-CADCATEGORIA-CURVA-GANHO-RUNBOOK-RELEASE.md) §7) |
+| Migration | `20261114200000_cadcategoria_curva_ganho`, **CONTRACT** (liga as 10 categorias à CURVA PADRÃO da fazenda e torna o campo obrigatório). SHA-256 `b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb`; guarda `292d2446…63a8`. Repositório e produção: 49 → **50** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 14:51:56 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 50/0, coluna `NOT NULL`, 10 categorias na CURVA PADRÃO, FK e índices, advisors sem alerta |
+| Release | Aplicação **antes do merge** pelo runbook; merge logo depois da conferência (na janela, criar categoria falha e excluir curva em uso dá 403 em vez de 409; nada se perde) |
+| Relatório | [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)
 
 | Campo | Valor |
 |---|---|
@@ -71,7 +83,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270) e integrada por merge com a `main` `810a312a` (PR #268, Fatia D) `565e4a95` (PRs #269, #271 e #263) e `cfa3e7e9` (PR #274). PR #273, exclusiva desta missão |
 | Escopo | `"CADCURVAGANHO"` passa de 3 GMD por estação para 12 GMD mensais (`gmd_jan` … `gmd_dez`, kg/dia, -2 a 3). API `/curvas-ganho` com os 12 campos. Tela: 12 meses com o ganho do mês pelos dias reais, atalho "repetir →", ganho no ano, média por dia e gráfico. Estações seguem como cadastro próprio, fora da curva. **Sem vínculo** com categoria ou lote |
 | Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório e produção: 48 → **49** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 13:29:18 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 49/0, 12 colunas mensais, RLS, advisors sem alerta |
-| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) §7). PR #273 mergeada em `a65ea468` (2026-11-14 13:30 UTC, merge autorizado pelo proprietário); produção conferida: `/health` com `release` = `a65ea468`, `/api/native/curvas-ganho` → 401; `verify:all` local verde (Actions pausado). Planejado: (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
 | Relatório | [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md) |
 
 ## Missão ativa (2026-11-14) — MAIKE-ICONES-CATEGORIA-DIGITADA: a categoria digitada no cadastro de ícone não é mais apagada (D-PROD-192)

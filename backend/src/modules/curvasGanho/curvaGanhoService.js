@@ -4,8 +4,9 @@
  *
  * Uma curva guarda o ganho médio diário (GMD, kg/dia) previsto em cada mês do
  * calendário, de janeiro (`gmd_jan`) a dezembro (`gmd_dez`). A curva NÃO depende
- * das Estações (CADESTACOES): o mês já diz o GMD. Nesta fatia, SEM vínculo:
- * nada lê as curvas (a ligação com a Categoria de Manejo vem depois).
+ * das Estações (CADESTACOES): o mês já diz o GMD. Desde a D-PROD-195 toda
+ * Categoria de Manejo (CADCATEGORIA) tem uma curva OBRIGATÓRIA da mesma fazenda
+ * (FK composta, Restrict).
  *
  * Regras:
  *  - tenant só de `auth_context` (R11); a fazenda vem do corpo/query e precisa
@@ -15,13 +16,14 @@
  *  - os 12 GMD são obrigatórios na criação: número finito de -2 a 3 kg/dia
  *    (negativo = perda de peso), com no máximo 3 casas decimais. Gravado como
  *    decimal exato; o banco tem CHECK da faixa;
- *  - exclusão física com auditoria (não há dependentes nesta fatia).
+ *  - exclusão física com auditoria; curva ligada a categoria de manejo → 409
+ *    `CURVA_GANHO_EM_USO` `{ categorias }` (D-PROD-195).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { curvaGanhoNotFound, curvaGanhoNomeConflito } from '../../shared/errors/AppError.js';
+import { curvaGanhoEmUso, curvaGanhoNotFound, curvaGanhoNomeConflito } from '../../shared/errors/AppError.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo, travarEscopo, ehViolacaoDeUnique } from '../gestao/gestaoComum.js';
 import {
   listarCurvas,
@@ -30,6 +32,8 @@ import {
   inserirCurva,
   atualizarCurvaPorId,
   excluirCurvaPorId,
+  travarCurvaParaExclusao,
+  contarCategoriasDaCurva,
 } from './curvaGanhoRepository.js';
 import { GMD_MINIMO, GMD_MAXIMO, MESES, CAMPOS_GMD } from './curvaGanhoCampos.js';
 
@@ -219,8 +223,22 @@ export const atualizar = async (contexto, id, entrada) => {
   );
 };
 
+/** D-PROD-195 — a FK da categoria (Restrict) barrou o DELETE da curva. */
+const FK_DA_CATEGORIA = 'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey';
+/** @param {unknown} erro */
+const ehCurvaEmUsoNoBanco = (erro) => {
+  const e = /** @type {any} */ (erro);
+  if (e?.code !== 'P2003') return false;
+  return `${String(e?.meta?.constraint ?? '')} ${String(e?.meta?.field_name ?? '')} ${String(e?.message ?? '')}`.includes(FK_DA_CATEGORIA);
+};
+
 /**
- * Exclusão física: nesta fatia nada referencia CADCURVAGANHO (D-PROD-189).
+ * Exclusão física. D-PROD-195: curva ligada a categoria de manejo (ativa ou
+ * inativa) → 409 `CURVA_GANHO_EM_USO` `{ categorias }`. A curva é travada
+ * `FOR UPDATE` ANTES de contar: a categoria em voo (que leu a curva `FOR SHARE`)
+ * termina primeiro e entra na contagem. A FK Restrict é a rede de segurança: se
+ * ainda assim o banco recusar (P2003), também vira 409, recontado fora da
+ * transação abortada.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} id
  * @param {{ empresa_id?: unknown }} consulta
@@ -233,8 +251,12 @@ export const excluir = async (contexto, id, consulta) => {
     const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, consulta?.empresa_id);
     await travarFazenda(tx, auth.clienteId, empresaId);
 
+    await travarCurvaParaExclusao(tx, auth.clienteId, empresaId, id);
     const anterior = await buscarCurva(auth.clienteId, empresaId, id, tx);
     if (!anterior) throw curvaGanhoNotFound();
+
+    const categorias = await contarCategoriasDaCurva(tx, auth.clienteId, empresaId, id);
+    if (categorias > 0) throw curvaGanhoEmUso(categorias);
 
     await excluirCurvaPorId(tx, auth.clienteId, id);
     await registrarEvento(
@@ -242,5 +264,10 @@ export const excluir = async (contexto, id, consulta) => {
       { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: comoCurvaPublica(anterior) },
       tx
     );
+  }).catch(async (erro) => {
+    if (!ehCurvaEmUsoNoBanco(erro)) throw erro;
+    const empresaId = String(consulta?.empresa_id);
+    const categorias = await contarCategoriasDaCurva(prisma, auth.clienteId, empresaId, id);
+    throw curvaGanhoEmUso(Math.max(categorias, 1), { cause: erro });
   });
 };

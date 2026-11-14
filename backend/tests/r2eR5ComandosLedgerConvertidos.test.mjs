@@ -15,7 +15,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarCurvaGanhoDeTeste } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { distribuirBaixa, ordemDeAlocacao } from '../src/modules/movimentacoesMapa/manejoBaixaComandoService.js';
@@ -65,7 +65,9 @@ const cenario = async () => {
   const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' } });
   const setor = await p.setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
   const area = (n, nome) => p.areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: setor.nome, numero_area: String(n), nome, tamanho_hectares: 10 } });
-  const c = { cliente: adm.cliente, tok, tokComum, empresa, setor, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B') };
+  // D-PROD-195: toda categoria de manejo exige a curva de ganho da mesma fazenda.
+  const curva = await criarCurvaGanhoDeTeste(p, { clienteId: adm.cliente.id, empresaId: empresa.id });
+  const c = { cliente: adm.cliente, tok, tokComum, empresa, setor, curva, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B') };
   c.bois1 = await entrada(c, { nome: 'BOIS 1', qtd: 40, peso: 400 });
   c.bois2 = await entrada(c, { nome: 'BOIS 2', qtd: 30, peso: 420 });
   c.vacas = await entrada(c, { nome: 'VACAS', qtd: 20, categoria: VACA, sexo: 'Fêmea', peso: 450 });
@@ -298,7 +300,7 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     const c = await cenario();
     const BEZERRO = 'Bezerro 0 a 12 meses';
     const cm = (nome, idade_minima_meses, idade_maxima_meses) =>
-      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, sexo: 'Macho', idade_minima_meses, idade_maxima_meses, ativo: true } });
+      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, curva_ganho_id: c.curva.id, nome, sexo: 'Macho', idade_minima_meses, idade_maxima_meses, ativo: true } });
     const de0a8 = await cm('BEZERRO 0 A 8 MESES', 0, 8);
     await cm('BEZERRO 9 A 12 MESES', 9, 12);
     const n = await rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 3 }]);
@@ -312,7 +314,7 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     await prisma().categoriaManejo.update({ where: { id: outra.id }, data: { ativo: false } });
     // Nenhuma ativa contém a idade 0 (só a 9 a 12 sobra): sem categoria de manejo, sem erro.
     await prisma().categoriaManejo.update({ where: { id: de0a8.id }, data: { ativo: false } });
-    await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome: 'BEZERRO 6 A 12', sexo: 'Macho', idade_minima_meses: 6, idade_maxima_meses: 12, ativo: true } });
+    await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, curva_ganho_id: c.curva.id, nome: 'BEZERRO 6 A 12', sexo: 'Macho', idade_minima_meses: 6, idade_maxima_meses: 12, ativo: true } });
     const m = await rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 2 }], { data_movimentacao: '2026-11-04' });
     assert.equal(m.statusCode, 201, m.body);
     const semManejo = await prisma().posicaoRebanho.findMany({ where: { cliente_id: c.cliente.id, categoria: BEZERRO, categoria_manejo_id: null } });
@@ -333,7 +335,7 @@ describe('R5 conv. — regras de cada comando sobre posições', () => {
     const c = await cenario();
     const TOURO = 'Touro + 36 meses';
     const cm = (nome, sexo, idade_minima_meses, idade_maxima_meses) =>
-      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, sexo, idade_minima_meses, idade_maxima_meses, ativo: true } });
+      prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, curva_ganho_id: c.curva.id, nome, sexo, idade_minima_meses, idade_maxima_meses, ativo: true } });
     const mudar = (extra = {}) => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: TOURO, quantidade: 5, ...extra }]);
     // MAIKE-CATEGORIA-MANEJO-ENXUGAR: nome IGUAL ao texto oficial, sem faixa de idade → não deriva nada.
     const soNome = await cm(TOURO, 'Macho', null, null);

@@ -190,7 +190,7 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 | Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído. **Não exclui local de estoque** (D-PROD-137) | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` **iguais a null**, e só num cocho que **está** vinculado (relido no banco). `DELETE /locais-estoque` → 403; a cascata do mapa conta a recusa como "local ignorado", como já fazia com o 409 |
 | Locais `editar`/`salvar` | cadastro de locais (qualquer campo) + renomear o depósito ligado | `nome_ponto`/`local_estoque_nome` só num **DEPÓSITO ligado a um local**; `deposito_origem_nome` só num cocho **vinculado**. O registro é relido no banco (R3 deixava renomear qualquer ponto) |
 | Locais `excluir` | excluir local de estoque (D-PROD-137: única via, além do acesso total) | ação da tela. O service continua recusando local com vínculo (depósito do mapa, produtos, movimentações): 409 `LOCAL_ESTOQUE_DELETE_BLOCKED` |
-| Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**); upload. Anexos **só em `Lote`** (D-PROD-137) | ação da tela. Anexo (D-PROD-137): sem acesso total, `entidade` precisa ser `Lote` (senão 403); o Lote precisa existir no tenant (404 `ATTACHMENT_OWNER_INVALID`) e não estar excluído (409 `LOTE_EXCLUIDO`). Remover exige `excluir`, e só anexo de Lote |
+| Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**), com as opções de curva de ganho da categoria (D-PROD-195); upload. Anexos **só em `Lote`** (D-PROD-137) | ação da tela. Anexo (D-PROD-137): sem acesso total, `entidade` precisa ser `Lote` (senão 403); o Lote precisa existir no tenant (404 `ATTACHMENT_OWNER_INVALID`) e não estar excluído (409 `LOTE_EXCLUIDO`). Remover exige `excluir`, e só anexo de Lote |
 | Cadastro de Lotes `visualizar` | `GET /fornecedores`, só com a projeção do seletor (D-PROD-137) | `porQualquer([TELAS.LOTES, 'visualizar'])`; CPF mascarado |
 | tela X `editar`/`salvar` (Lote, Produto, Setor, Grupo, Tipo de tarefa) | `/referencias/sincronizar` **da própria entidade X**: recopia nos dependentes, por id, os valores **atuais** de X lidos no banco (D-PROD-137) | `entity_name` do corpo precisa ser a entidade da tela concedida. `data.id` precisa existir no tenant (senão 404). `data.*`, `old_data` e `changed_fields` não são lidos. Tudo numa transação, com um evento `propagar_referencias` no `AuditLog` |
 | Bebedouros `novo`/`salvar`, ou Mapa Geral `salvar` | lançar no histórico de bebedouro (D-PROD-137: o botão "Lançar" do mapa e da tela Bebedouros só aparece com uma destas) | ação da tela. `bebedouro_id` obrigatório (400) e de um Bebedouro do tenant e da mesma empresa (404 `BEBEDOURO_NOT_FOUND`); o nome gravado é o do cadastro (D-PROD-137) |
@@ -219,6 +219,8 @@ D-PROD-161: +1 rota, classe (c): `GET /estoque-fisico/reconciliacao` (somente le
 D-PROD-162: −20 rotas e +1, classe (a). A tabela passa de 299 para 280 linhas de rota.
 
 D-PROD-189: +5 rotas, todas classe (a): `/curvas-ganho` (Curvas de Ganho de Peso, tabela CADCURVAGANHO). Leitura também pela tela `pec-curvas-ganho` (`visualizar`).
+
+D-PROD-195: +1 rota, classe (a): `GET /categorias-manejo-opcoes/curvas-ganho` (seletor obrigatório de curva da Categoria de Manejo; só `{id, nome, ativo}` da fazenda, `exigirEmpresaDoTenant`). Guarda: quem cria OU edita categoria — `pec-categorias-manejo` `novo`/`salvar`/`editar` ou `pec-lotes` `novo`/`editar`/`salvar` (cadastro rápido); a tela `pec-curvas-ganho` sozinha não lê. `DELETE /curvas-ganho/:id` mantém guarda e classe e ganha a recusa 409 `CURVA_GANHO_EM_USO` `{ categorias }`.
 
 D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabela CADESTACOES). Leitura também pela tela `pec-estacoes` (`visualizar`), não só autenticada.
 
@@ -288,15 +290,16 @@ D-PROD-188: +5 rotas, todas classe (a): `/estacoes` (Estações da fazenda, tabe
 | POST | `/categorias` | `backend/src/modules/categorias/categoriaRoutes.js:60` | a — GUARDAS.categoria.criar |
 | PATCH | `/categorias/:id` | `backend/src/modules/categorias/categoriaRoutes.js:66` | a — GUARDAS.categoria.editar |
 | DELETE | `/categorias/:id` | `backend/src/modules/categorias/categoriaRoutes.js:72` | a — GUARDAS.categoria.excluir |
-| GET | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:38` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
-| POST | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:46` | a — GUARDAS.categoriaManejo.criar |
-| PATCH | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:52` | a — GUARDAS.categoriaManejo.editar |
-| DELETE | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:58` | a — GUARDAS.categoriaManejo.excluir |
-| GET | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:79` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
-| GET | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:84` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
-| POST | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:90` | a — GUARDAS.curvaGanho.criar (D-PROD-189) |
-| PATCH | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:96` | a — GUARDAS.curvaGanho.editar (D-PROD-189) |
-| DELETE | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:102` | a — GUARDAS.curvaGanho.excluir (D-PROD-189) |
+| GET | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:52` | d — leitura autenticada, isolada por tenant (sem checagem de tela) |
+| POST | `/categorias-manejo` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:60` | a — GUARDAS.categoriaManejo.criar |
+| PATCH | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:66` | a — GUARDAS.categoriaManejo.editar |
+| DELETE | `/categorias-manejo/:id` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:72` | a — GUARDAS.categoriaManejo.excluir |
+| GET | `/categorias-manejo-opcoes/curvas-ganho` | `backend/src/modules/categoriasManejo/categoriaManejoRoutes.js:79` | a — GUARDAS.categoriaManejo.opcoesCurvas (D-PROD-195: criar OU editar categoria, inclui `pec-lotes` novo/editar/salvar) |
+| GET | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:78` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| GET | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:83` | a — GUARDAS.curvaGanho.ver (D-PROD-189) |
+| POST | `/curvas-ganho` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:89` | a — GUARDAS.curvaGanho.criar (D-PROD-189) |
+| PATCH | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:95` | a — GUARDAS.curvaGanho.editar (D-PROD-189) |
+| DELETE | `/curvas-ganho/:id` | `backend/src/modules/curvasGanho/curvaGanhoRoutes.js:101` | a — GUARDAS.curvaGanho.excluir (D-PROD-189); D-PROD-195: curva ligada a categoria → 409 `CURVA_GANHO_EM_USO` `{ categorias }` |
 | GET | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:85` | d — leitura autenticada, isolada por tenant. (D-PROD-137) Projeção: sem a tela Empresa, resumo sem dados pessoais |
 | POST | `/empresas` | `backend/src/modules/empresas/empresaRoutes.js:93` | a — porTela(TELAS.EMPRESA, 'novo') |
 | PATCH | `/empresas/:id` | `backend/src/modules/empresas/empresaRoutes.js:99` | a — porTela(TELAS.EMPRESA, 'editar') |

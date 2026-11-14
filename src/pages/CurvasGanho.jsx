@@ -21,9 +21,11 @@ import {
   criarCurvaGanho,
   atualizarCurvaGanho,
   excluirCurvasGanho,
+  mensagemExclusaoBloqueada,
 } from "@/services/curvaGanhoCadastroService";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
+import { QUERY_OPCOES_CURVAS_GANHO_CATEGORIA } from "@/hooks/useOpcoesCurvaGanhoCategoria";
 
 const QUERY_RAIZ = "curvas-ganho";
 
@@ -32,8 +34,9 @@ const QUERY_RAIZ = "curvas-ganho";
  * D-PROD-194), tabela CADCURVAGANHO.
  *
  * GMD (kg/dia) de cada mês, de janeiro a dezembro, da fazenda selecionada no
- * topo. A curva não depende das Estações, e nada mais lê as curvas ainda: é só
- * o cadastro.
+ * topo. A curva não depende das Estações. Desde a D-PROD-195 toda Categoria de
+ * Manejo aponta para uma curva da mesma fazenda: excluir curva em uso é recusado
+ * (409 `CURVA_GANHO_EM_USO`) e o aviso diz quantas categorias a usam.
  */
 export default function CurvasGanho() {
   const queryClient = useQueryClient();
@@ -94,7 +97,11 @@ export default function CurvasGanho() {
   const daEmpresaAtual = (id) => Boolean(id) && id === empresaAtual.current;
   const avisarEmpresaAnterior = () =>
     notifyInfo("Gravação concluída", "A gravação feita na fazenda anterior foi concluída.");
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+  const invalidar = () => {
+    queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+    // D-PROD-195: o seletor de curva da Categoria de Manejo tem chave própria.
+    queryClient.invalidateQueries({ queryKey: [QUERY_OPCOES_CURVAS_GANHO_CATEGORIA] });
+  };
 
   const createMutation = useMutation({
     /** @param {{ data: Record<string, unknown>, empresaId: string }} vars */
@@ -161,12 +168,8 @@ export default function CurvasGanho() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Curva de ganho excluída" });
       }
       if (bloqueados.length) {
-        notifyError(
-          "Atenção",
-          bloqueados.length === 1
-            ? "1 curva de ganho não pôde ser excluída."
-            : `${bloqueados.length} curvas de ganho não puderam ser excluídas.`,
-        );
+        // D-PROD-195: curva ligada a categoria de manejo diz quantas a usam.
+        notifyError("Atenção", mensagemExclusaoBloqueada(bloqueados));
       }
     },
     onError: (err) => notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir.")),

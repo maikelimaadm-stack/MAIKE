@@ -15,14 +15,16 @@
  *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
  *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183),
  *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187) e
- *     `20261114100000_cadcurvaganho_mensal` (D-PROD-194), que sobem aqui pelo
+ *     `20261114100000_cadcurvaganho_mensal` (D-PROD-194) e
+ *     `20261114200000_cadcategoria_curva_ganho` (D-PROD-195), que sobem aqui pelo
  *     Prisma direto, sem o runner e portanto sem a barreira de
  *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa,
- *     CategoriaManejo e CADCURVAGANHO estão vazias nessa hora (as sementes vêm
- *     depois e não criam nenhuma das três). As CONTRACT não criam nem apagam
+ *     CategoriaManejo/CADCATEGORIA e CADCURVAGANHO estão vazias nessa hora (as
+ *     sementes vêm depois e não criam nenhuma das três; a D-PROD-195 só exige a
+ *     CURVA PADRÃO nas fazendas COM categoria). As CONTRACT não criam nem apagam
  *     tabela (a D-PROD-187 só renomeia; a D-PROD-194 troca a estrutura de
- *     CADCURVAGANHO: +1 migration, 0 tabela): as contagens de tabelas não mudam
- *     com elas.
+ *     CADCURVAGANHO; a D-PROD-195 põe a curva em CADCATEGORIA: +1 migration,
+ *     0 tabela cada): as contagens de tabelas não mudam com elas.
  *     A `20261113700000_apontamento_atividade` (D-PROD-190) fica de fora da
  *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
  *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
@@ -187,8 +189,9 @@ const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { e
 
 /**
  * Todas as migrations do repositório menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT` (MIGRATIONS_PARTIDA),
- * aplicadas pelo Prisma a partir de uma cópia temporária. Inclui as CONTRACT da D-PROD-183, da D-PROD-187 e da
- * D-PROD-194, sem o runner: as guardas delas passam com TipoTarefa, CategoriaManejo e CADCURVAGANHO vazias.
+ * aplicadas pelo Prisma a partir de uma cópia temporária. Inclui as CONTRACT da D-PROD-183, da D-PROD-187, da
+ * D-PROD-194 e da D-PROD-195, sem o runner: as guardas delas passam com TipoTarefa, CategoriaManejo/CADCATEGORIA e
+ * CADCURVAGANHO vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
