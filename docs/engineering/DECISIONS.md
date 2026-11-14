@@ -7223,4 +7223,18 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-198 -->
+## D-PROD-198 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 2: "O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" · **Branch:** `feat/atividade-cabecalho`
+
+**Contexto.** O Apontamento de Atividade de hoje (D-PROD-190, com os itens da D-PROD-193) é uma linha só: não há onde pendurar 15 dias de lançamentos sob a mesma operação, nem duas passadas no mesmo dia. A Fatia 1 (D-PROD-197) deu ao Tipo de Atividade os padrões e as flags que a abertura da atividade herda.
+
+**Decisão.**
+1. **Dois models novos:** `Atividade` (cabeçalho aberto: nome, tipo e grupo com snapshot, área com o setor herdado, máquina, safra, snapshots do tipo — centro de custo, centro de resultado e unidade de produção —, datas, área planejada e executada, produção, tarefa de origem, status `ABERTA | CONCLUIDA | CANCELADA` com conclusão, cancelamento e reabertura) e `AtividadeApontamento` (dia, turno `MANHA | TARDE | NOITE | nulo`, sequência das passadas, operador, área e produção do dia, observação, origem `WEB | APP`, status `CONFIRMADO | CANCELADO`). Campos fora da lista do pedido: `Atividade.bem_id` (a flag `exige_maquina` é conferida na abertura e é onde fica a máquina dos registros convertidos) e `Atividade.unidade_producao_sigla` (snapshot da sigla; guarda a unidade de texto `KM`/`HA` dos convertidos, que não existe no cadastro do cliente). O unique do apontamento por (atividade, dia, turno, sequência) é `NULLS NOT DISTINCT` no banco.
+2. **Migration CONTRACT `20261114400000_atividade_cabecalho`** (sétima entrada fechada), num formato novo do portão, **conversão**: guarda → tabelas novas pela allowlist EXPAND → conversão pinada → DROP pinados no fim. Os 2 apontamentos de teste viram 2 atividades (mesmo número, id `atv_<id antigo>`) com um apontamento filho cada (mesmo id antigo); nada é descartado (a guarda recusa se houver dado sem lugar no modelo novo, item de custo ou fatia FIFO). As 3 tabelas antigas saem. Produção: 51 → 52 migrations, 85 → 84 tabelas.
+3. **Regras:** tipo inativo recusa; herança do tipo e da área (snapshot, nunca relida); flags `exige_area`, `exige_safra` e `exige_maquina` na abertura e `exige_producao` na conclusão; apontamento no futuro recusa, fora do intervalo da atividade só alerta; concluída não aceita apontamento nem edição; reabrir com permissão própria, motivo e auditoria; cancelar a atividade cancela os apontamentos na mesma transação (o estorno de estoque entra na Fatia 3, quando houver linha de produto); área executada e produção do cabeçalho = soma dos apontamentos confirmados.
+4. **O apontamento antigo sai inteiro** (módulo, tela, itens da D-PROD-193, testes); produto e máquina voltam na Fatia 3 como linhas do apontamento.
+
+**Contrato:** [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md).
+
+<!-- Próxima decisão: D-PROD-199 -->
