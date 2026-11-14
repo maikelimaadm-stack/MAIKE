@@ -1,0 +1,59 @@
+# MAIKE-OFFLINE-MAPA-IDS — relatório (D-PROD-198)
+
+**Data:** 2026-11-14 · **Decisão:** [D-PROD-198](./DECISIONS.md) · **Branch:** `claude/relaxed-bardeen-jlgbp7`, empilhada sobre `claude/kind-knuth-tztu1v` (PR #279, emenda R2 da D-PROD-195)
+
+## 1. Problema
+
+`syncOfflineEntityQueue` (`src/lib/offline/offlineEntityRuntime.js`) monta o mapa
+`mapaDeIds` (`offline_… → id do servidor`) a cada passada do replay, e o laço para
+no primeiro erro. Uma passada podia criar a área A, que saía da fila, e parar
+antes de enviar o lote B que cita A. A parada vinha de uma falha transitória (503,
+timeout) em B ou em qualquer item entre os dois. Na passada seguinte o mapa estava
+vazio e B ia ao servidor com o id `offline_…` de A:
+
+- **com FK**, o servidor recusava, e a fila travava nesse item para sempre;
+- **sem FK** (`Lote.area_atual_id`, `Lote.categoria_manejo_id`), a referência era gravada solta;
+- a **edição** ou a **exclusão** do próprio A deixada para a passada seguinte tinha
+  `record_id = offline_…`. O replay não a enviava, porque o alvo ainda era id
+  offline, e a tirava da fila: a edição se perdia, e a exclusão não chegava ao servidor.
+
+O defeito é anterior à D-PROD-195. Estava registrado como pendência na emenda R2.
+
+## 2. Correção
+
+| Ponto | O que mudou |
+|---|---|
+| `gravarIdDoServidorNaFila` (novo) | Depois do `create` confirmado e **antes** de `removerDaFila`, relê a fila e, com `atualizarNaFila`, troca o id offline pelo do servidor no `record_id` e em `data` de todo outro item que o cita. Inclui itens retidos, em quarentena, de outro dono e os que chegaram durante a passada |
+| Ordem | criar no servidor → reescrever dependentes → cache → tirar da fila. Falha na reescrita propaga e o `create` fica na fila |
+| `substituirIdsMapeados` | Troca só id `offline_…`, por chave própria (`Object.create(null)`). Troca também dentro de listas e não casa mais com o protótipo (`"constructor"`) |
+| Retenção | Nenhuma nova. Só `criacoesRetidas` (R2) segura item, e esses ids nunca são criados nem reescritos |
+
+Alternativa descartada: persistir o mapa à parte. Exigiria store e versão nova no
+IndexedDB, e o mapa teria de ser aplicado em todo leitor da fila (listas,
+pendências do registro, liberação da quarentena). Com a reescrita, a fila fica
+sempre coerente sozinha.
+
+**Resíduos aceitos.**
+1. Sem idempotência no `create`, uma falha entre a criação no servidor e a saída
+   da fila faz a passada seguinte criar de novo (duplicata). O risco é anterior a
+   esta decisão. Os dependentes já reescritos apontam para o primeiro registro,
+   que existe.
+2. O cache de outra entidade com a cópia offline do dependente não é reescrito.
+   A lista usa a criação pendente da fila, que já tem o id do servidor, e a cópia
+   é trocada quando o dependente sincroniza.
+
+## 3. Provas
+
+Novo `tests/smoke/offlineMapaDeIdsEntrePassadas.test.js`, no molde de
+`categoriaManejoCriacaoOnline` (porta em memória), com 6 testes, de (a) a (f), descritos na
+D-PROD-198. Com o runtime anterior (`git stash` só do runtime), **os 6
+reprovam**; com a correção, os 6 passam.
+
+| Verificação | Resultado |
+|---|---|
+| `offlineMapaDeIdsEntrePassadas` + `offlineRuntime` + `estoqueP0FilaOfflineLegada` + `loteDeleteOfflineBloqueado` + `loteExclusaoCacheOffline` + `categoriaManejoCriacaoOnline` | 69/69 |
+| `npm run verify:all` | ver §4 |
+
+## 4. `verify:all`
+
+Resultado registrado no commit de fechamento desta missão.

@@ -197,19 +197,68 @@ const aplicarPendentes = (items, operacoes) => {
   return proximo;
 };
 
+/**
+ * Troca, em qualquer profundidade, cada id offline mapeado pelo id do servidor.
+ *
+ * D-PROD-198: só id offline (`offline_…`) é trocado, e só por chave própria do
+ * mapa — antes, um texto como "constructor" casava com o protótipo do objeto e
+ * o campo virava função. Id offline dentro de lista (ex.: `["offline_…"]`)
+ * também é trocado; antes ficava com o id offline.
+ */
 const substituirIdsMapeados = (valor, mapaDeIds) => {
+  if (typeof valor === "string") {
+    return isOfflineId(valor) && Object.prototype.hasOwnProperty.call(mapaDeIds, valor) ? mapaDeIds[valor] : valor;
+  }
   if (Array.isArray(valor)) return valor.map((item) => substituirIdsMapeados(item, mapaDeIds));
 
   if (valor && typeof valor === "object") {
     return Object.fromEntries(
-      Object.entries(valor).map(([chave, entrada]) => {
-        if (typeof entrada === "string" && mapaDeIds[entrada]) return [chave, mapaDeIds[entrada]];
-        return [chave, substituirIdsMapeados(entrada, mapaDeIds)];
-      })
+      Object.entries(valor).map(([chave, entrada]) => [chave, substituirIdsMapeados(entrada, mapaDeIds)])
     );
   }
 
   return valor;
+};
+
+/**
+ * D-PROD-198 — grava na FILA o id que o servidor deu a uma criação offline.
+ *
+ * O mapa `offline_… → id do servidor` do replay vive só durante uma passada.
+ * Se a passada criava A (o item saía da fila) e parava antes de enviar B, que
+ * cita A (falha transitória em B ou em qualquer item entre os dois), a passada
+ * seguinte começava com o mapa vazio e B ia ao servidor com o id offline de A:
+ * com FK a fila travava; sem FK a referência ficava solta.
+ *
+ * Agora, logo depois do `create` confirmado e ANTES de tirá-lo da fila, todo
+ * outro item da fila que cita o id offline é reescrito: `record_id` (edição ou
+ * exclusão do próprio registro) e qualquer valor em `data`. A fila é relida do
+ * armazenamento (pega também o que entrou durante a passada e os itens retidos
+ * ou de outro dono, que esta passada não envia). Uma falha aqui propaga: o
+ * `create` fica na fila, como em qualquer erro do replay — nunca sai da fila
+ * deixando dependente com id offline sem mapeamento.
+ *
+ * @param {OfflineEntityStorage} storage
+ * @param {object} itemCriado entrada `create` que acabou de ser confirmada
+ * @param {string} idServidor
+ */
+const gravarIdDoServidorNaFila = async (storage, itemCriado, idServidor) => {
+  const idOffline = itemCriado.record_id;
+  if (!isOfflineId(idOffline) || !idServidor || idServidor === idOffline) return;
+  const mapa = { [idOffline]: idServidor };
+  const fila = await storage.listarFila();
+  let mudou = false;
+  for (const outro of fila) {
+    if (outro.id === itemCriado.id) continue;
+    const campos = {};
+    if (outro.record_id === idOffline) campos.record_id = idServidor;
+    if (outro.data !== undefined && idsOfflineNoCorpo(outro.data).has(idOffline)) {
+      campos.data = substituirIdsMapeados(outro.data, mapa);
+    }
+    if (Object.keys(campos).length === 0) continue;
+    await storage.atualizarNaFila(outro.id, campos);
+    mudou = true;
+  }
+  if (mudou) emitirMudancaDeFila();
 };
 
 const armazenamentoDe = (entityName) => {
@@ -802,7 +851,8 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   const qualquerPorta = [...CATALOGO.values()][0].storage;
   const fila = await qualquerPorta.listarFila();
   const emOrdem = [...fila].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const mapaDeIds = {};
+  /** Ids desta passada; o que sobrevive entre passadas vai para a fila (D-PROD-198). */
+  const mapaDeIds = Object.create(null);
   const tenantAtual = getOfflineTenant();
   let pulados = 0;
   let descartados = 0;
@@ -941,6 +991,8 @@ export const syncOfflineEntityQueue = async (onProgress) => {
         const { id: _idOffline, _isOffline, ...bruto } = item.data || {};
         const criado = await operations.create(substituirIdsMapeados(bruto, mapaDeIds));
         mapaDeIds[item.record_id] = criado.id;
+        // D-PROD-198: antes de sair da fila, quem cita o id offline passa a citar o do servidor.
+        await gravarIdDoServidorNaFila(storage, item, criado.id);
         await atualizarCache(
           storage,
           item.entity_name,

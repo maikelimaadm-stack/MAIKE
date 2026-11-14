@@ -9,6 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-198)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-198** (a D-PROD-196 e a D-PROD-197 ficam livres para as PRs #275 e #276, que usam a D-PROD-195 e vão renumerar) |
+| Branch / PR | `claude/relaxed-bardeen-jlgbp7`, empilhada sobre `claude/kind-knuth-tztu1v` (PR #279, emenda R2 da D-PROD-195). PR própria, em rascunho, exclusiva desta missão |
+| Escopo | `syncOfflineEntityQueue`: depois de um `create` confirmado e antes de tirá-lo da fila, todo item da fila que cita o id offline passa a citar o do servidor (`record_id` e `data`). `substituirIdsMapeados` troca só id `offline_…`, por chave própria do mapa, inclusive dentro de listas. Sem retenção nova. Só frontend, sem migration |
+| Provas | `offlineMapaDeIdsEntrePassadas` (6, todos reprovam com o runtime anterior) + `offlineRuntime`, `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado`, `loteExclusaoCacheOffline`, `categoriaManejoCriacaoOnline` |
+| Relatório | [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md) |
+
 ## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |
