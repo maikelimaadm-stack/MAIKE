@@ -245,3 +245,34 @@
     flex-basis: 48px;
   }
 }
+
+/* Texto branco e azul estável: as regras globais de hover não podem clarear
+   estes botões, pois apagariam os ícones brancos. */
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao),
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):is(:hover, :active, :focus-visible) {
+  background: #65d1ec !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+  color: #fff !important;
+}
+/* A abertura herda a superfície da janela, sem retângulo cinza interno. */
+.mk-al-dock.mk-al-menu:not(#mk-padrao) {
+  background: transparent !important;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+  width: 60px;
+  height: 40px;
+  flex-basis: 40px;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone .mk-al__img--mover:not(#mk-padrao) {
+  height: 40px;
+  filter: none;
+}
+@media (min-width: 1024px) {
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+    flex-basis: 60px;
+  }
+}
