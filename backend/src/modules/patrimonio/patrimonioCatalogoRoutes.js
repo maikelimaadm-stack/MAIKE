@@ -29,8 +29,10 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
+import { AppError } from '../../shared/errors/AppError.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import * as tipos from './tipoPatrimonialService.js';
+import { PADRAO_MEDIDA } from './bemPatrimonialRegras.js';
 import { instalarCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
 import { NATUREZAS } from './patrimonioDominio.js';
 
@@ -42,6 +44,8 @@ const INTEIRO_NULO = (minimo, maximo) => ({ type: ['integer', 'null'], minimum: 
 const ENUM = (lista) => ({ type: 'string', enum: [...lista] });
 const VERSAO = { type: 'integer', minimum: 1 };
 const VIDA_UTIL = INTEIRO_NULO(1, 1200);
+/** D-PROD-201: teto do salto do medidor, texto decimal ≥ 0 (até 10 dígitos e 4 casas), ou null. */
+const SALTO_MAXIMO = { type: ['string', 'null'], pattern: PADRAO_MEDIDA.source };
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 
 const listar = (filtros = {}) => ({
@@ -66,7 +70,9 @@ const TIPO_CRIAR = {
     type: 'object',
     required: ['nome'],
     additionalProperties: false,
-    properties: { natureza: ENUM(NATUREZAS), familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL },
+    properties: {
+      natureza: ENUM(NATUREZAS), familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO,
+    },
   },
 };
 const TIPO_ATUALIZAR = {
@@ -76,7 +82,9 @@ const TIPO_ATUALIZAR = {
     required: ['versao'],
     minProperties: 2,
     additionalProperties: false,
-    properties: { versao: VERSAO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, ativo: { type: 'boolean' } },
+    properties: {
+      versao: VERSAO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO, ativo: { type: 'boolean' },
+    },
   },
 };
 /** DELETE: a versão lida vai na query (CAS), como o descarte de rascunho da Gestão P3. */
@@ -98,6 +106,17 @@ const consulta = (request) => /** @type {any} */ (request.query);
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
+  // D-PROD-201: o teto do salto é decimal em TEXTO; número → 400 antes da coerção do AJV (o float corromperia o valor).
+  app.addHook('preValidation', async (request) => {
+    const c = /** @type {any} */ (request.body);
+    if (!c || typeof c !== 'object' || Array.isArray(c) || !Object.prototype.hasOwnProperty.call(c, 'salto_maximo_medidor')) return;
+    const v = c.salto_maximo_medidor;
+    if (v !== null && v !== undefined && typeof v !== 'string') {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'salto_maximo_medidor deve ser texto decimal (ex.: "24"), nunca número', {
+        details: { field: 'salto_maximo_medidor', reason: 'valor_deve_ser_texto', campo: 'salto_maximo_medidor' },
+      });
+    }
+  });
 
   // Famílias: sem rota (D-PROD-169). A família só aparece dentro do tipo.
 

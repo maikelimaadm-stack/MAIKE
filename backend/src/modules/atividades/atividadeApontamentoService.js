@@ -47,6 +47,21 @@
  * Para o serviço do cabeçalho, este módulo exporta `recalcularTotaisDaAtividade`
  * e `cancelarApontamentosDaAtividade` (cancelar a atividade propaga).
  *
+ * D-PROD-201 (Fatia 3, contrato `MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`):
+ *  - o apontamento (lista, detalhe e escritas) traz `produtos[]` e `maquinas[]`,
+ *    inclusive as linhas canceladas;
+ *  - lançar e repetir aceitam `produtos[]` e `maquinas[]`, tudo numa transação
+ *    e com UM `operation_id` (obrigatório quando há linha; recibo
+ *    `executarComIdempotencia`: reenvio igual → 200 com `replay: true`, corpo
+ *    diferente → 409). As de máquina são gravadas antes das de produto (trava
+ *    bem → produto, a ordem do abastecimento);
+ *  - a data do apontamento não muda com linha de produto ou de máquina
+ *    CONFIRMADA (409 `ATIVIDADE_DATA_COM_LINHAS`): cancelar e lançar de novo;
+ *  - trocar a área do dia refaz a `dose_ha` das linhas de produto confirmadas;
+ *  - cancelar o apontamento (ou a atividade) cancela as linhas de máquina e
+ *    estorna as de produto, na mesma transação, antes do UPDATE (origem
+ *    `APONTAMENTO` | `ATIVIDADE`).
+ *
  * Tenant SÓ do auth_context (R11); a empresa vem do corpo (escrita) ou da
  * query (leitura) e é conferida no tenant (`exigirEmpresaDoTenant`). O
  * apontamento sempre pertence à atividade da URL e a essa empresa: de outra
@@ -54,20 +69,32 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { atividadeApontamentoNotFound, atividadeNotFound, atividadeReferenciaInvalida, concurrencyConflict } from '../../shared/errors/AppError.js';
+import {
+  AppError,
+  atividadeApontamentoNotFound,
+  atividadeDataComLinhas,
+  atividadeNotFound,
+  atividadeReferenciaInvalida,
+  concurrencyConflict,
+} from '../../shared/errors/AppError.js';
+import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
   ENTIDADE_APONTAMENTO,
+  OPERATION_ID_DO_LANCAMENTO_MAXIMO,
+  ORIGEM_CANCELAMENTO_LINHA,
   ORIGENS,
   ORIGEM_PADRAO,
   STATUS_APONTAMENTO,
   TRANSACAO_LEITURA,
   TURNOS,
   atualizarComVersao,
+  auditarReenvioConflitante,
   carregarAtividadeDetalhe,
   comFkTraduzida,
+  comoLinhaProdutoPublica,
   comoData,
   decimalDoCorpo,
   diaDe,
@@ -80,6 +107,7 @@ import {
   idOuNulo,
   iso,
   motivoDoCorpo,
+  operationIdDoCorpo,
   recalcularTotaisDaAtividade as recalcularTotaisNoCabecalho,
   t4,
   temCampo,
@@ -90,6 +118,7 @@ import {
 import {
   buscarApontamento,
   cancelarConfirmadosDaAtividade,
+  idsConfirmadosDaAtividade,
   inserirApontamento,
   lerAtividadeBase,
   lerEmpresaDaAtividade,
@@ -97,6 +126,20 @@ import {
   listarApontamentosDaAtividade,
   proximaSequencia,
 } from './atividadeApontamentoRepository.js';
+import {
+  cancelarLinhasMaquinaDoApontamento,
+  comoLinhaMaquinaPublica,
+  contarLinhasMaquinaConfirmadas,
+  criarLinhasMaquina,
+} from './atividadeApontamentoMaquinaService.js';
+import {
+  cancelarLinhasProdutoDosApontamentos,
+  contarLinhasProdutoConfirmadas,
+  criarLinhasProduto,
+  normalizarDadosDaLinha,
+  recalcularDosesDoApontamento,
+} from './atividadeApontamentoProdutoService.js';
+import { existeLinhaComPrefixo } from './atividadeApontamentoProdutoRepository.js';
 
 /** Código do alerta de data fora do período da atividade (não bloqueia). */
 export const ALERTA_FORA_DO_INTERVALO = 'FORA_DO_INTERVALO';
@@ -107,6 +150,12 @@ export const ACOES_AUDITORIA_APONTAMENTO = Object.freeze({
   editar: 'atividade_apontamento.editar',
   cancelar: 'atividade_apontamento.cancelar',
   duplicar: 'atividade_apontamento.duplicar',
+});
+
+/** D-PROD-201 — recibos de idempotência do lançamento e da repetição COM chave (≤ 64). */
+export const TIPOS_OPERACAO_APONTAMENTO = Object.freeze({
+  lancar: 'atividade_apontamento_lancar_v1',
+  duplicar: 'atividade_apontamento_duplicar_v1',
 });
 
 /**
@@ -275,7 +324,8 @@ const carregarApontamento = async (db, clienteId, empresaId, atividadeId, id) =>
 
 /**
  * Forma pública do APONTAMENTO (§10 do contrato, nesta ordem): as colunas e,
- * ao lado de cada id de usuário, o resumo `{ id, nome }`.
+ * ao lado de cada id de usuário, o resumo `{ id, nome }`; D-PROD-201: no fim,
+ * `produtos[]` e `maquinas[]` (inclusive as canceladas).
  * @param {any} r  registro lido com `INCLUIR_APONTAMENTO`
  */
 export const comoApontamentoPublico = (r) => ({
@@ -299,7 +349,15 @@ export const comoApontamentoPublico = (r) => ({
   criado_por: usuarioPublico(r.criadoPor),
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
+  // D-PROD-201: as linhas que geram custo, inclusive as canceladas, em ordem de lançamento.
+  produtos: [...(r.produtos ?? [])].sort(porOrdem).map(comoLinhaProdutoPublica),
+  maquinas: [...(r.maquinas ?? [])].sort(porOrdem).map(comoLinhaMaquinaPublica),
 });
+
+/** Linhas na ordem em que foram lançadas (a `ordem` nunca é reaproveitada). @param {any} a @param {any} b */
+function porOrdem(a, b) {
+  return a.ordem - b.ordem;
+}
 
 /** Auditoria: as colunas, sem texto livre (só se há observação ou motivo). @param {any} r */
 const paraAuditoria = (r) => ({
@@ -391,27 +449,54 @@ export const recalcularTotaisDaAtividade = (tx, { clienteId, empresaId, atividad
  *
  * Quem chama (o serviço do cabeçalho), na MESMA transação: já travou a
  * atividade (`travarAtividade`), conferiu que ela está ABERTA, normalizou o
- * motivo (`motivoDoCorpo`) e tirou `agora` de `tempoDaFazenda` e `usuarioId`
- * do auth_context.
+ * motivo (`motivoDoCorpo`) e tirou `agora` (e `hoje`) de `tempoDaFazenda` e
+ * `usuarioId` do auth_context.
  *
- * Fatia 3: é AQUI, na mesma transação e antes do UPDATE, que entra o estorno
- * do estoque das linhas de PRODUTO dos apontamentos cancelados — o mesmo
- * caminho do cancelamento de um apontamento só (`cancelarApontamento`).
- * Nesta fatia ainda não há linha de produto: nada a estornar.
+ * D-PROD-201 (Fatia 3): ANTES do UPDATE, na mesma transação, as linhas dos
+ * apontamentos cancelados também caem, com o mesmo motivo e a origem
+ * `ATIVIDADE` — as de máquina (as leituras saem da série do medidor) e as de
+ * produto, estornadas num `estornarEmLote` só (o estoque volta exato, no dia
+ * `hoje` da fazenda). O estorno precisa do `contexto` da requisição (o motor
+ * confere o auth_context); sem `hoje`, ele é lido do fuso da fazenda.
  * @param {any} tx
- * @param {{ clienteId: string, empresaId: string, atividadeId: string, usuarioId: string|null, motivo: string, agora: Date }} pedido
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, usuarioId: string|null, motivo: string, agora: Date,
+ *   hoje?: string, contexto?: { requestId?: string, auth: import('../../shared/auth/authContext.js').AuthContext } }} pedido
  * @returns {Promise<number>}
  */
-export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId, atividadeId, usuarioId, motivo, agora }) => {
+export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId, atividadeId, usuarioId, motivo, agora, hoje, contexto }) => {
   if (!(agora instanceof Date) || Number.isNaN(agora.getTime())) {
     throw new Error('cancelarApontamentosDaAtividade: `agora` tem de ser um Date válido (de tempoDaFazenda)');
   }
   if (typeof motivo !== 'string' || !motivo.trim()) {
     throw new Error('cancelarApontamentosDaAtividade: `motivo` tem de vir normalizado (motivoDoCorpo)');
   }
+  const apontamentoIds = await idsConfirmadosDaAtividade(tx, clienteId, empresaId, atividadeId);
+  await cancelarLinhasDosApontamentos(tx, {
+    clienteId, empresaId, atividadeId, apontamentoIds, usuarioId: usuarioId ?? null, motivo, agora, hoje, contexto, origem: ORIGEM_CANCELAMENTO_LINHA.ATIVIDADE,
+  });
   const cancelados = await cancelarConfirmadosDaAtividade(tx, { clienteId, empresaId, atividadeId, usuarioId: usuarioId ?? null, motivo, agora });
   if (cancelados > 0) await recalcularTotaisDaAtividade(tx, { clienteId, empresaId, atividadeId });
   return cancelados;
+};
+
+/**
+ * D-PROD-201 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
+ * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
+ * depois o estorno exato das de produto. Devolve as contagens.
+ * @param {any} tx
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, apontamentoIds: string[], usuarioId: string|null,
+ *   motivo: string, agora: Date, hoje?: string, contexto?: any, origem: 'APONTAMENTO'|'ATIVIDADE' }} pedido
+ */
+const cancelarLinhasDosApontamentos = async (tx, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, contexto, origem }) => {
+  if (!apontamentoIds.length) return { maquinas: 0, produtos: 0 };
+  const maquinas = await cancelarLinhasMaquinaDoApontamento(tx, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, agora, origem });
+  const temProduto = (await tx.atividadeApontamentoProduto.count({
+    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: 'CONFIRMADO' },
+  })) > 0;
+  if (!temProduto) return { maquinas, produtos: 0 };
+  if (!contexto?.auth) throw new Error('cancelamento em cascata: o estorno das linhas de produto precisa do contexto da requisição');
+  const produtos = await cancelarLinhasProdutoDosApontamentos(tx, contexto, { clienteId, empresaId, atividadeId, apontamentoIds, usuarioId, motivo, agora, hoje, origem });
+  return { maquinas, produtos };
 };
 
 // ─── leitura ────────────────────────────────────────────────────────────────
@@ -454,16 +539,85 @@ export const obterApontamento = async (contexto, atividadeId, apontamentoId, que
 // ─── lançamento e repetição ─────────────────────────────────────────────────
 
 /**
+ * @typedef {{ operationId: string|null, produtos: Array<ReturnType<typeof normalizarDadosDaLinha>>, maquinas: unknown[] }} LinhasDoLancamento
+ */
+
+/** JSON com as chaves em ordem (o fingerprint não depende da ordem das chaves do cliente). @param {unknown} v @returns {unknown} */
+const canonico = (v) => {
+  if (Array.isArray(v)) return v.map(canonico);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico(/** @type {any} */ (v)[k])]));
+  return v;
+};
+
+/**
+ * D-PROD-201 — as linhas do corpo do lançamento/repetição: `produtos[]`
+ * normalizados (400/422 antes da transação), `maquinas[]` como vieram (o
+ * serviço da máquina normaliza) e a chave. Com linha, `operation_id` é
+ * obrigatório (até 120: cada linha grava `<operation_id>:p<n>`).
+ * @param {Record<string, any>} corpo
+ * @returns {LinhasDoLancamento}
+ */
+const linhasDoCorpo = (corpo) => {
+  const produtosBrutos = Array.isArray(corpo.produtos) ? corpo.produtos : [];
+  const maquinas = Array.isArray(corpo.maquinas) ? corpo.maquinas : [];
+  const produtos = produtosBrutos.map((/** @type {any} */ l, /** @type {number} */ i) => normalizarDadosDaLinha(l ?? {}, `produtos[${i}].`));
+  const temChave = corpo.operation_id !== undefined && corpo.operation_id !== null;
+  if (!temChave && (produtos.length || maquinas.length)) {
+    throw invalido('operation_id é obrigatório no lançamento com linhas de produto ou de máquina', { field: 'operation_id', reason: 'obrigatorio' });
+  }
+  return { operationId: temChave ? operationIdDoCorpo(corpo.operation_id, OPERATION_ID_DO_LANCAMENTO_MAXIMO) : null, produtos, maquinas };
+};
+
+/**
+ * Roda a escrita do lançamento: sem chave, como na Fatia 2 (só a transação);
+ * com chave, sob o recibo de idempotência (reenvio igual devolve o corpo
+ * gravado com `replay: true`; corpo diferente → 409, auditado à parte). A
+ * chave de uma linha de produto JÁ gravada (`<operation_id>:p…`) é conflito
+ * mesmo sem o recibo.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{ operationId: string|null, tipoOperacao: string, fingerprint: () => string, executar: (tx: any) => Promise<Record<string, unknown>> }} a
+ * @returns {Promise<Record<string, unknown>>}
+ */
+const comReciboOpcional = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  if (!operationId) return emTransacao(TRANSACAO_CURTA, executar, UNICOS, MENSAGEM_CONFLITO_SEM_CHAVE);
+  const chave = operationId;
+  const conflito = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: chave } });
+  try {
+    const r = await emTransacao(
+      TRANSACAO_CURTA,
+      (tx) =>
+        executarComIdempotencia(tx, {
+          clienteId: cli,
+          operationKey: chave,
+          tipoOperacao,
+          fingerprint: fingerprint(),
+          executar: async () => {
+            if (await existeLinhaComPrefixo(tx, cli, `${chave}:p`)) throw conflito();
+            return { httpStatus: 201, body: await executar(tx) };
+          },
+        }),
+      { ...UNICOS, operation_id: conflito }
+    );
+    return { ...r.body, replay: r.replay };
+  } catch (e) {
+    if (/** @type {any} */ (e)?.code === 'IDEMPOTENCY_CONFLICT') await auditarReenvioConflitante(contexto, ENTIDADE_APONTAMENTO, chave, tipoOperacao);
+    throw e;
+  }
+};
+
+/**
  * INSERT do apontamento (lançar e repetir), já com as regras conferidas e SOB
- * a trava da atividade: sequência nova, totais recalculados, auditoria e a
- * resposta da escrita.
+ * a trava da atividade: sequência nova, as linhas (máquina, depois produto),
+ * totais recalculados, auditoria e a resposta da escrita.
  * @param {any} tx
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
- * @param {{ clienteId: string, empresaId: string, atividadeId: string, estado: EstadoDoDia, origem: string,
- *   acao: string, extras?: Record<string, unknown> }} novo
+ * @param {{ clienteId: string, empresaId: string, atividade: any, estado: EstadoDoDia, origem: string,
+ *   acao: string, linhas: LinhasDoLancamento, extras?: Record<string, unknown> }} novo
  */
-const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividadeId, estado, origem, acao, extras = {} }) => {
+const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estado, origem, acao, linhas, extras = {} }) => {
   const auth = exigirAuthContext(contexto?.auth);
+  const atividadeId = atividade.id;
   const sequencia = await proximaSequencia(tx, {
     clienteId,
     empresaId,
@@ -484,18 +638,43 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividadeId, est
       versao: 1,
     })
   );
+  if (linhas.maquinas.length || linhas.produtos.length) {
+    const apontamento = await tx.atividadeApontamento.findFirst({
+      where: { cliente_id: clienteId, empresa_id: empresaId, id },
+      select: { id: true, empresa_id: true, atividade_id: true, data_operacional: true, status: true, versao: true, area_executada_dia: true },
+    });
+    // Máquina antes de produto: a trava do bem vem antes da do produto, como no abastecimento.
+    if (linhas.maquinas.length) await criarLinhasMaquina(tx, contexto, { apontamento, atividade, linhas: linhas.maquinas });
+    if (linhas.produtos.length) {
+      await criarLinhasProduto(tx, contexto, { apontamento, atividade, linhas: linhas.produtos, operationId: /** @type {string} */ (linhas.operationId) });
+    }
+  }
   const totais = await recalcularTotaisDaAtividade(tx, { clienteId, empresaId, atividadeId });
   const registro = await carregarApontamento(tx, clienteId, empresaId, atividadeId, id);
   await registrarEvento(
     contexto,
-    { acao, entidade: ENTIDADE_APONTAMENTO, entidadeId: id, dadosNovos: { ...paraAuditoria(registro), ...extras, totais_da_atividade: totais } },
+    {
+      acao,
+      entidade: ENTIDADE_APONTAMENTO,
+      entidadeId: id,
+      dadosNovos: {
+        ...paraAuditoria(registro),
+        ...extras,
+        linhas_produto: (registro.produtos ?? []).map((/** @type {any} */ l) => l.id),
+        linhas_maquina: (registro.maquinas ?? []).map((/** @type {any} */ l) => l.id),
+        ...(linhas.operationId ? { operation_id: linhas.operationId } : {}),
+        totais_da_atividade: totais,
+      },
+    },
     tx
   );
   return respostaDaEscrita(tx, clienteId, empresaId, atividadeId, registro);
 };
 
 /**
- * `POST /atividades/:id/apontamentos`: lança o apontamento do dia (201).
+ * `POST /atividades/:id/apontamentos`: lança o apontamento do dia (201), com
+ * `produtos[]` e `maquinas[]` opcionais (D-PROD-201: tudo numa transação, com
+ * `operation_id`; reenvio igual → 200 com `replay: true`).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {Record<string, any>} corpo
  */
@@ -505,21 +684,22 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
   const estado = { ...VAZIO, ...camposDoCorpo(corpo) };
   exigirData(estado);
   const origem = origemDoCorpo(corpo.origem);
+  const linhas = linhasDoCorpo(corpo);
 
-  return emTransacao(
-    TRANSACAO_CURTA,
-    async (tx) => {
+  return comReciboOpcional(contexto, {
+    operationId: linhas.operationId,
+    tipoOperacao: TIPOS_OPERACAO_APONTAMENTO.lancar,
+    fingerprint: () => fingerprintDePayload({ v: 1, atividade_id: atividadeId, empresa_id: corpo.empresa_id, estado, origem, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas) }),
+    executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       const atividade = await travarELerAtividade(tx, cli, empresaId, atividadeId); // Atividade FOR UPDATE
       exigirStatusDaAtividade(atividade, 'lancar_apontamento');
       exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
       await exigirOperador(tx, cli, estado.operador_usuario_id);
-      return gravarNovo(tx, contexto, { clienteId: cli, empresaId, atividadeId, estado, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar });
+      return gravarNovo(tx, contexto, { clienteId: cli, empresaId, atividade, estado, origem, acao: ACOES_AUDITORIA_APONTAMENTO.lancar, linhas });
     },
-    UNICOS,
-    MENSAGEM_CONFLITO_SEM_CHAVE
-  );
+  });
 };
 
 /**
@@ -527,16 +707,22 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
  * lançamento NOVO com turno, operador, área do dia, produção e observação da
  * base, no dia do corpo (padrão hoje na fazenda), com sequência nova e as
  * mesmas validações do lançamento. A origem é a padrão (o corpo não a traz).
+ * D-PROD-201: as linhas vêm no corpo (`produtos[]`, `maquinas[]`, a tela as
+ * traz preenchidas da base para o operador ajustar), com `operation_id`.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
  */
 export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, corpo) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const diaInformado = diaDoCorpo(corpo.data_operacional, 'data_operacional');
+  const linhas = linhasDoCorpo(corpo);
 
-  return emTransacao(
-    TRANSACAO_CURTA,
-    async (tx) => {
+  return comReciboOpcional(contexto, {
+    operationId: linhas.operationId,
+    tipoOperacao: TIPOS_OPERACAO_APONTAMENTO.duplicar,
+    fingerprint: () =>
+      fingerprintDePayload({ v: 1, atividade_id: atividadeId, base_id: apontamentoId, empresa_id: corpo.empresa_id, data_operacional: diaInformado ?? null, produtos: linhas.produtos, maquinas: canonico(linhas.maquinas) }),
+    executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
       const tempo = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       const atividade = await travarELerAtividade(tx, cli, empresaId, atividadeId); // Atividade FOR UPDATE
@@ -549,16 +735,15 @@ export const duplicarApontamento = async (contexto, atividadeId, apontamentoId, 
       return gravarNovo(tx, contexto, {
         clienteId: cli,
         empresaId,
-        atividadeId,
+        atividade,
         estado,
         origem: ORIGEM_PADRAO,
         acao: ACOES_AUDITORIA_APONTAMENTO.duplicar,
+        linhas,
         extras: { duplicado_de: base.id },
       });
     },
-    UNICOS,
-    MENSAGEM_CONFLITO_SEM_CHAVE
-  );
+  });
 };
 
 // ─── edição ─────────────────────────────────────────────────────────────────
@@ -582,6 +767,9 @@ const empresaDaEdicao = async (tx, clienteId, empresaDoCorpo, atividadeId) => {
  * ABERTA. Trocar a data ou o turno refaz a sequência (máx + 1 no grupo novo);
  * a data nova também não pode ser futura; operador trocado tem de estar ativo.
  * `empresa_id` no corpo é opcional (ausente, vale a fazenda da atividade).
+ * D-PROD-201: a data não muda com linha de produto ou de máquina CONFIRMADA
+ * (409 `ATIVIDADE_DATA_COM_LINHAS`); trocar a área do dia refaz a `dose_ha`
+ * das linhas de produto confirmadas.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
  */
@@ -606,6 +794,12 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
       const estado = { ...gravado, ...campos };
       exigirData(estado);
       if (temCampo(campos, 'data_operacional')) exigirDiaNaoFuturo(tempo, /** @type {string} */ (estado.data_operacional), 'data_operacional');
+      if (estado.data_operacional !== gravado.data_operacional) {
+        // A saída de estoque e a leitura do medidor das linhas estão nesta data: cancelar e lançar de novo.
+        const produtos = await contarLinhasProdutoConfirmadas(tx, cli, empresaId, apontamentoId);
+        const maquinas = await contarLinhasMaquinaConfirmadas(tx, { clienteId: cli, empresaId, apontamentoId });
+        if (produtos + maquinas > 0) throw atividadeDataComLinhas({ produtos, maquinas });
+      }
       await exigirOperador(tx, cli, estado.operador_usuario_id, gravado.operador_usuario_id);
       const dados = paraGravacao(campos);
       if (estado.data_operacional !== gravado.data_operacional || estado.turno !== gravado.turno) {
@@ -620,6 +814,9 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
       const alvo = { clienteId: cli, empresaId, id: apontamentoId, versao, statusEsperado: STATUS_APONTAMENTO.CONFIRMADO, onde: { atividade_id: atividadeId } };
       const alterados = await comFkTraduzida(() => atualizarComVersao(tx.atividadeApontamento, { ...alvo, dados }));
       if (alterados !== 1) throw await erroDoCasPerdido(tx.atividadeApontamento, { ...alvo, acao: 'editar_apontamento', entidade: 'apontamento' });
+      if (estado.area_executada_dia !== gravado.area_executada_dia) {
+        await recalcularDosesDoApontamento(tx, { clienteId: cli, empresaId, apontamentoId, area: estado.area_executada_dia });
+      }
       const totais = await recalcularTotaisDaAtividade(tx, { clienteId: cli, empresaId, atividadeId });
       const registro = await carregarApontamento(tx, cli, empresaId, atividadeId, apontamentoId);
       await registrarEvento(
@@ -647,6 +844,9 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
  * com quem, quando (o "agora" do relógio da fazenda) e motivo; CAS pela
  * `versao`. Só apontamento CONFIRMADO de atividade ABERTA. Os totais do
  * cabeçalho são recalculados (o cancelado sai da soma). `alertas` é sempre `[]`.
+ * D-PROD-201: antes do UPDATE, na mesma transação, as linhas confirmadas caem
+ * com o mesmo motivo (origem `APONTAMENTO`): as de máquina e as de produto,
+ * estornadas exatamente num `estornarEmLote` (o estoque volta, no dia de hoje).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
  */
@@ -660,14 +860,16 @@ export const cancelarApontamento = async (contexto, atividadeId, apontamentoId, 
     TRANSACAO_CURTA,
     async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
-      const { agora } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
+      const { agora, hoje } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
       const atividade = await travarELerAtividade(tx, cli, empresaId, atividadeId); // Atividade FOR UPDATE
       const antes = await carregarApontamento(tx, cli, empresaId, atividadeId, apontamentoId);
       exigirStatusDaAtividade(atividade, 'cancelar_apontamento');
       exigirApontamentoConfirmado(antes, 'cancelar_apontamento');
       exigirVersao(antes, versao, 'apontamento');
-      // Fatia 3: o estorno do estoque das linhas de PRODUTO deste apontamento entra AQUI, antes do UPDATE e na
-      // mesma transação (o mesmo caminho de `cancelarApontamentosDaAtividade`). Nesta fatia não há linha de produto.
+      const linhas = await cancelarLinhasDosApontamentos(tx, {
+        clienteId: cli, empresaId, atividadeId, apontamentoIds: [apontamentoId], usuarioId: auth.usuarioId ?? null, motivo, agora, hoje, contexto,
+        origem: ORIGEM_CANCELAMENTO_LINHA.APONTAMENTO,
+      });
       const alvo = { clienteId: cli, empresaId, id: apontamentoId, versao, statusEsperado: STATUS_APONTAMENTO.CONFIRMADO, onde: { atividade_id: atividadeId } };
       const alterados = await atualizarComVersao(tx.atividadeApontamento, {
         ...alvo,
@@ -683,7 +885,7 @@ export const cancelarApontamento = async (contexto, atividadeId, apontamentoId, 
           entidade: ENTIDADE_APONTAMENTO,
           entidadeId: apontamentoId,
           dadosAnteriores: paraAuditoria(antes),
-          dadosNovos: { ...paraAuditoria(depois), totais_da_atividade: totais },
+          dadosNovos: { ...paraAuditoria(depois), linhas_canceladas: linhas, totais_da_atividade: totais },
         },
         tx
       );

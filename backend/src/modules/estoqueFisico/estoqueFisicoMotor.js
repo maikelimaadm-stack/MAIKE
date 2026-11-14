@@ -62,9 +62,11 @@ export const ORIGEM_DEPOSITO = 'deposito';
  */
 export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
 /**
- * D-PROD-193 (Fatia D do apontamento) — origem da SAÍDA por item PRODUTO de
- * apontamento de atividade (e do estorno dela). 21 chars (VarChar(32)). Nunca a
- * do abastecimento nem a do financeiro (proveniência falsa).
+ * D-PROD-193 (Fatia D do apontamento), re-ancorada na D-PROD-201 (Fatia 3 do
+ * Lançamento de Atividades) — origem da SAÍDA pela linha de PRODUTO do
+ * apontamento da atividade (`AtividadeApontamentoProduto`) e do estorno dela.
+ * 21 chars (VarChar(32)). Nunca a do abastecimento nem a do financeiro
+ * (proveniência falsa).
  */
 export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
 const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO]);
@@ -573,7 +575,8 @@ export const estoqueAtualInsuficiente = (details) =>
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
  * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
  * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`;
- * D-PROD-193, `ApontamentoAtividadeItemConsumoLote` com `origem.sistema = ORIGEM_APONTAMENTO`).
+ * D-PROD-201, `AtividadeApontamentoProdutoConsumoLote` — a linha de produto do apontamento da atividade — com
+ * `origem.sistema = ORIGEM_APONTAMENTO`).
  * `quantidadeKg`: na unidade de estoque do Produto (kg, ou L para Produto em L — D-PROD-162).
  * D-PROD-161: também é a baixa da suplementação (`origem.sistema = ORIGEM_SUPLEMENTACAO`),
  * com os opcionais aditivos `instante` (data_movimentacao; padrão meio-dia UTC

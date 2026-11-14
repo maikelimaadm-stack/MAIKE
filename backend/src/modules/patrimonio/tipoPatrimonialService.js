@@ -25,7 +25,10 @@
  *    `{ bens }`. A trava do catálogo + `FOR UPDATE` do tipo serializam com o
  *    cadastro do bem (que lê o tipo `FOR SHARE`): nunca sobra bem órfão;
  *  - `familia_id`, `codigo` e `natureza` IMUTÁVEIS (fora do schema do PATCH);
- *  - D-PROD-162: os perfis de medição sugeridos saíram (`perfis` no corpo → 400).
+ *  - D-PROD-162: os perfis de medição sugeridos saíram (`perfis` no corpo → 400);
+ *  - D-PROD-201: `salto_maximo_medidor` (texto decimal ≥ 0, null limpa) é o teto
+ *    do salto do medidor por lançamento: acima dele, a linha de máquina do
+ *    Lançamento de Atividades pede justificativa.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -33,7 +36,9 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { texto } from '../financeiro/decimalFinanceiro.js';
 import { invalido, iso, textoDoCorpo } from '../gestao/gestaoComum.js';
+import { PADRAO_MEDIDA, decimalDoCorpo } from './bemPatrimonialRegras.js';
 import { familiaPadraoDaNatureza, garantirCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
 import {
   atualizarComVersao, camposAlterados, codigoDisponivel, codigoDoCorpo, codigoDuplicado, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset,
@@ -44,7 +49,7 @@ import { NATUREZAS } from './patrimonioDominio.js';
 export const ENTIDADE = 'TipoPatrimonial';
 
 const SELECAO = Object.freeze({
-  id: true, familia_id: true, codigo: true, nome: true, descricao: true, vida_util_meses_sugerida: true,
+  id: true, familia_id: true, codigo: true, nome: true, descricao: true, vida_util_meses_sugerida: true, salto_maximo_medidor: true,
   ativo: true, versao: true, createdAt: true, updatedAt: true,
   familia: { select: { id: true, codigo: true, nome: true, natureza: true, ativo: true } },
   _count: { select: { bens: true } },
@@ -82,6 +87,7 @@ export const comoTipoPublico = (r) => ({
   nome: r.nome,
   descricao: r.descricao ?? null,
   vida_util_meses_sugerida: r.vida_util_meses_sugerida ?? null,
+  salto_maximo_medidor: texto(r.salto_maximo_medidor, 4),
   ativo: r.ativo,
   versao: r.versao,
   bens_em_uso: r._count?.bens ?? 0,
@@ -97,7 +103,14 @@ export const paraAuditoria = (r) => ({
   ativo: r.ativo,
   versao: r.versao,
 });
-const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'ativo']);
+const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'ativo']);
+
+/**
+ * D-PROD-201 — teto do salto do medidor: texto decimal (≥ 0, até 10 dígitos e
+ * 4 casas) → texto com 4 casas; null limpa; ausente → undefined.
+ * @param {unknown} v @returns {string|null|undefined}
+ */
+const saltoDoCorpo = (v) => (v === undefined ? undefined : decimalDoCorpo(v, 'salto_maximo_medidor', PADRAO_MEDIDA, 4));
 
 const buscar = (db, clienteId, id) => db.tipoPatrimonial.findFirst({ where: { cliente_id: clienteId, id }, select: SELECAO });
 
@@ -180,6 +193,7 @@ export const criar = async (contexto, entrada) => {
   const codigoInformado = entrada.codigo === undefined ? null : codigoDoCorpo(entrada.codigo);
   const nome = /** @type {string} */ (textoDoCorpo(entrada.nome, 'nome', { obrigatorio: true }));
   const descricao = textoDoCorpo(entrada.descricao, 'descricao') ?? null;
+  const salto = saltoDoCorpo(entrada.salto_maximo_medidor) ?? null;
   if (entrada.familia_id === undefined && entrada.natureza === undefined) {
     throw invalido('informe o tipo de bem (natureza) do tipo', { field: 'natureza', reason: 'obrigatorio' });
   }
@@ -190,7 +204,7 @@ export const criar = async (contexto, entrada) => {
     await exigirLivre(tx, cli, { ...(codigoInformado ? { codigo: codigoInformado } : {}), nome, natureza: familia.natureza });
     const codigo = codigoInformado ?? (await codigoDisponivel(tx, cli, 'tipoPatrimonial', nome));
     const criado = await tx.tipoPatrimonial.create({
-      data: { cliente_id: cli, familia_id: familia.id, codigo, nome, descricao, vida_util_meses_sugerida: entrada.vida_util_meses_sugerida ?? null },
+      data: { cliente_id: cli, familia_id: familia.id, codigo, nome, descricao, vida_util_meses_sugerida: entrada.vida_util_meses_sugerida ?? null, salto_maximo_medidor: salto },
       select: { id: true },
     });
     const r = await buscar(tx, cli, criado.id);
@@ -224,6 +238,8 @@ export const atualizar = async (contexto, id, entrada) => {
     if (entrada.vida_util_meses_sugerida !== undefined && (entrada.vida_util_meses_sugerida ?? null) !== (antes.vida_util_meses_sugerida ?? null)) {
       dados.vida_util_meses_sugerida = entrada.vida_util_meses_sugerida ?? null;
     }
+    const salto = saltoDoCorpo(entrada.salto_maximo_medidor);
+    if (salto !== undefined && salto !== texto(antes.salto_maximo_medidor, 4)) dados.salto_maximo_medidor = salto;
     if (entrada.ativo !== undefined && entrada.ativo !== antes.ativo) dados.ativo = entrada.ativo;
     if (!Object.keys(dados).length) return comoTipoPublico(antes);
     await atualizarComVersao(tx.tipoPatrimonial, { clienteId: cli, id, versao: entrada.versao, data: dados });

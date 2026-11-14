@@ -37,6 +37,12 @@ const COLUNAS_OK = [
   // D-PROD-200: a atividade (cabeçalho) e o apontamento do dia.
   { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
   { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
+  // D-PROD-201: as linhas de produto e de máquina, o custo de uso do bem e o teto do salto do medidor.
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'movimentacao_estoque_id' },
+  { table_name: 'AtividadeApontamentoProdutoConsumoLote', column_name: 'estoque_lote_nota_id' },
+  { table_name: 'AtividadeApontamentoMaquina', column_name: 'quantidade_uso' },
+  { table_name: 'BemPatrimonial', column_name: 'custo_uso_unitario' },
+  { table_name: 'TipoPatrimonial', column_name: 'salto_maximo_medidor' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -67,6 +73,9 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /CADCATEGORIA\.peso_objetivo_kg/);
   assert.match(r.falhas.join('\n'), /Atividade\.unidade_producao_sigla/);
   assert.match(r.falhas.join('\n'), /AtividadeApontamento\.sequencia/);
+  for (const k of ['AtividadeApontamentoProduto.movimentacao_estoque_id', 'AtividadeApontamentoProdutoConsumoLote.estoque_lote_nota_id', 'AtividadeApontamentoMaquina.quantidade_uso', 'BemPatrimonial.custo_uso_unitario', 'TipoPatrimonial.salto_maximo_medidor']) {
+    assert.ok(r.falhas.join('\n').includes(k), k);
+  }
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
 });
 

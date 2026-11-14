@@ -140,6 +140,14 @@ export const API_ERROR_CODES = Object.freeze({
   ATIVIDADE_MOTIVO_INVALIDO: 'ATIVIDADE_MOTIVO_INVALIDO',
   // Exclusão de cadastro (tipo, grupo, área, setor, unidade, tarefa, bem, centro…) barrada por uma atividade.
   ATIVIDADE_VINCULADA: 'ATIVIDADE_VINCULADA',
+  // D-PROD-201 (Fatia 3) — linhas de produto e de máquina do apontamento: linha não encontrada (relê), recusada
+  // (`details.field`/`reason`), salto do medidor que pede justificativa, estorno exato bloqueado (explicação do motor)
+  // e data do apontamento travada com linha confirmada.
+  ATIVIDADE_LINHA_NOT_FOUND: 'ATIVIDADE_LINHA_NOT_FOUND',
+  ATIVIDADE_LINHA_INVALIDA: 'ATIVIDADE_LINHA_INVALIDA',
+  ATIVIDADE_SALTO_MEDIDOR: 'ATIVIDADE_SALTO_MEDIDOR',
+  ATIVIDADE_ESTORNO_BLOQUEADO: 'ATIVIDADE_ESTORNO_BLOQUEADO',
+  ATIVIDADE_DATA_COM_LINHAS: 'ATIVIDADE_DATA_COM_LINHAS',
   // D-PROD-188 — Estações da fazenda.
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
@@ -264,6 +272,16 @@ const MENSAGENS = Object.freeze({
     'Informe o motivo com pelo menos 3 e no máximo 500 caracteres. Nada foi alterado.',
   [API_ERROR_CODES.ATIVIDADE_VINCULADA]:
     'Não é possível excluir: há atividades ou apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.',
+  [API_ERROR_CODES.ATIVIDADE_LINHA_NOT_FOUND]:
+    'Esta linha não foi encontrada neste apontamento. Os apontamentos serão relidos. Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_LINHA_INVALIDA]:
+    'A linha de produto ou de máquina foi recusada: confira o produto, o local, a quantidade, a máquina, o implemento e as leituras. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_SALTO_MEDIDOR]:
+    'O uso da máquina passa do teto de salto do medidor: informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.',
+  [API_ERROR_CODES.ATIVIDADE_ESTORNO_BLOQUEADO]:
+    'O estorno exato do produto não é seguro agora (o lote de origem já foi consumido, transferido ou mudou). Nada foi alterado.',
+  [API_ERROR_CODES.ATIVIDADE_DATA_COM_LINHAS]:
+    'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.',
   [API_ERROR_CODES.ESTACAO_NOT_FOUND]: 'Esta estação não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:

@@ -19,7 +19,7 @@
  * (`20261114400000_cadcategoria_peso_objetivo`, CADCATEGORIA.peso_objetivo_kg)
  * fica FORA da partida (FORA_DA_PARTIDA): no dia desta CONTRACT ela ainda não
  * existia; sobe no GREEN, depois desta, pelo runner (EXPAND: não pede
- * autorização); 84 tabelas; e, para 2 clientes, 4 fazendas: três com
+ * autorização); 87 tabelas (com a D-PROD-201, abaixo); e, para 2 clientes, 4 fazendas: três com
  * categorias e com a 'CURVA PADRÃO' (uma delas inativa: a ligação não olha o
  * ativo), uma delas também com outra curva (que a ligação não pode usar), e uma
  * fazenda SEM categoria e SEM a CURVA PADRÃO (permitido: a guarda só olha as
@@ -40,11 +40,16 @@
  * curva_ganho_id VARCHAR(64) NOT NULL (e, no fim, peso_objetivo_kg vazio), a mesma
  * tabela (OID) com as mesmas linhas nas colunas de antes, o índice e a FK
  * composta (ON DELETE RESTRICT) com os nomes do Prisma, o UNIQUE (cliente_id,
- * empresa_id, id) em CADCURVAGANHO, as mesmas 84 tabelas e `migrate diff` vazio.
+ * empresa_id, id) em CADCURVAGANHO, as mesmas 87 tabelas e `migrate diff` vazio.
  * Depois, a FK recusa curva de outra fazenda (e de outro cliente), a troca de
  * fazenda sem trocar a curva e a exclusão de uma curva em uso.
  *
  * As funções seguem as do teste da D-PROD-194 (`cadCurvaGanhoMensalMigration.test.mjs`).
+ *
+ * D-PROD-201: a EXPAND `20261114600000_atividade_linhas_produto_maquina` (as 3 tabelas das linhas de produto e de
+ * máquina do apontamento e 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial), de nome POSTERIOR, também sobe
+ * na partida, fora de ordem, depois da D-PROD-200 (as linhas referenciam AtividadeApontamento); ela não toca
+ * CADCATEGORIA nem CADCURVAGANHO e é EXPAND (não pede autorização): 87 tabelas na partida e no fim.
  */
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,8 +84,10 @@ const TOTAL_MIGRATIONS = PASTAS.length;
  */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO]);
+/** D-PROD-201: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
+const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-197/D-PROD-200: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
-const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n)));
+const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n) && n !== NOME_LINHAS));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n)).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
 const TETO_TRAVA_MS = 20_000;
@@ -343,20 +350,20 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-200, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, e a EXPAND posterior da D-PROD-201), 87 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
     assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-200 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
-    // D-PROD-198: a EXPAND do peso objetivo fica fora da partida (53 pastas; partida 51).
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho']);
-    assert.equal(MIGRATIONS_PARTIDA, 51);
-    assert.equal(TOTAL_MIGRATIONS, 53);
+    // D-PROD-198: a EXPAND do peso objetivo fica fora da partida; a EXPAND da D-PROD-201 entra (54 pastas; partida 52).
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS]);
+    assert.equal(MIGRATIONS_PARTIDA, 52);
+    assert.equal(TOTAL_MIGRATIONS, 54);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.peso_concluida, 0, 'a D-PROD-198 ainda não existia no dia desta CONTRACT');
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
+    assert.equal(partida.tabelas, 87, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade; a D-PROD-201 (na partida) acrescenta as 3 das linhas');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);
@@ -463,7 +470,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(depois.oids, partida.oids, 'as mesmas tabelas (ALTER, não cópia)');
     assert.deepEqual(depois.categorias, partida.categorias, 'as linhas nas colunas de antes não mudaram');
     assert.deepEqual(depois.curvas, partida.curvas, 'nenhuma curva mudou');
-    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (84)');
+    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (87)');
 
     // Cada categoria ficou na CURVA PADRÃO da própria fazenda (a inativa inclusive; nunca na CURVA ENGORDA).
     const ligadas = await db.$queryRawUnsafe(`SELECT id, curva_ganho_id AS curva FROM public."CADCATEGORIA" ORDER BY id COLLATE "C"`);

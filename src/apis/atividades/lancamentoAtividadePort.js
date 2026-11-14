@@ -27,8 +27,12 @@ const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
 const CAMINHO = '/atividades';
 const CAMINHO_OPCOES = '/atividades-opcoes';
 
-/** Seletores próprios da tela (guardados por "ver" da tela). */
-export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze(['bens', 'operadores']);
+/**
+ * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-201 (Fatia 3): produtos (os já usados na
+ * atividade primeiro), locais com saldo de um produto, implementos e o medidor de um bem (tipo, unidade, leitura
+ * vigente e teto do salto).
+ */
+export const RECURSOS_OPCOES_ATIVIDADE = Object.freeze(['bens', 'operadores', 'produtos', 'locais', 'implementos', 'medidor']);
 
 // ─── Atividade (cabeçalho) ───────────────────────────────────────────────
 
@@ -74,8 +78,43 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
   'origem',
 ]);
 
-/** POST /atividades/:id/apontamentos. */
-export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO]);
+// ─── Linhas de produto e de máquina do apontamento (D-PROD-201, Fatia 3) ─
+
+/**
+ * Linha de PRODUTO: produto, local de onde sai e a quantidade na unidade do estoque do produto. A unidade, o custo
+ * (FIFO) e a dose/ha são do servidor e nunca vão.
+ */
+export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
+/**
+ * Linha de MÁQUINA: o bem, o implemento (se o tipo permitir), as leituras inicial e final — ou `sem_medidor` com o
+ * uso direto (`quantidade_uso`) — e a justificativa do salto. Tipo e unidade do medidor e custo são do bem (snapshot no
+ * servidor) e nunca vão.
+ */
+export const CAMPOS_DA_LINHA_MAQUINA = Object.freeze([
+  'bem_id',
+  'implemento_bem_id',
+  'leitura_inicial',
+  'leitura_final',
+  'sem_medidor',
+  'quantidade_uso',
+  'justificativa_salto',
+  'observacao',
+]);
+/** Toda escrita de linha leva a empresa, a `versao` do APONTAMENTO (CAS) e o `operation_id` (idempotência). */
+const ENVELOPE_DA_LINHA = Object.freeze(['empresa_id', 'versao', 'operation_id']);
+/** POST …/apontamentos/:apId/produtos. */
+export const CAMPOS_DE_CRIACAO_LINHA_PRODUTO = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_PRODUTO]);
+/** PATCH …/produtos/:linhaId (estorno exato + nova saída, no servidor). */
+export const CAMPOS_DE_EDICAO_LINHA_PRODUTO = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_PRODUTO]);
+/** POST …/apontamentos/:apId/maquinas. */
+export const CAMPOS_DE_CRIACAO_LINHA_MAQUINA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAQUINA]);
+/** PATCH …/maquinas/:linhaId (cancela a linha e cria outra, no servidor). */
+export const CAMPOS_DE_EDICAO_LINHA_MAQUINA = Object.freeze([...ENVELOPE_DA_LINHA, ...CAMPOS_DA_LINHA_MAQUINA]);
+/** POST …/produtos/:linhaId/cancelar · …/maquinas/:linhaId/cancelar. */
+export const CAMPOS_DE_CANCELAMENTO_LINHA = Object.freeze([...ENVELOPE_DA_LINHA, 'motivo']);
+
+/** POST /atividades/:id/apontamentos: o dia e, desde a Fatia 3, as linhas (`produtos[]`, `maquinas[]`) com um `operation_id`. */
+export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO, 'operation_id', 'produtos', 'maquinas']);
 /**
  * PATCH /atividades/:id/apontamentos/:apontamentoId (§10): os mesmos campos de dado, mais a `versao`. A origem é
  * gravada no lançamento e não muda na edição: o schema fechado do servidor a recusa (400), então ela não vai.
@@ -86,11 +125,45 @@ export const CAMPOS_DE_CANCELAMENTO_APONTAMENTO = Object.freeze(['empresa_id', '
 /** POST …/:apontamentoId/duplicar ("Repetir"): só o dia, padrão hoje no servidor. */
 export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional']);
 
+/**
+ * Linhas embutidas no corpo da criação do apontamento: cada item só com as chaves da linha (sem envelope: o
+ * `operation_id` e a empresa são os do apontamento), sem as vazias. Lista vazia ou ausente fica fora do corpo.
+ * @param {unknown} linhas @param {readonly string[]} permitidos
+ */
+const linhasDeEnvio = (linhas, permitidos) => {
+  if (!Array.isArray(linhas)) return undefined;
+  const itens = linhas
+    .filter((l) => l && typeof l === 'object' && !Array.isArray(l))
+    .map((l) => corpoSemVazios(/** @type {Record<string, unknown>} */ (l), permitidos));
+  return itens.length ? itens : undefined;
+};
+
+/**
+ * Corpo da criação do apontamento: os campos do dia sem os vazios e, quando houver, as linhas por allowlist.
+ * @param {Record<string, unknown>} dados
+ */
+export const corpoDaCriacaoDoApontamento = (dados) => {
+  const { produtos, maquinas, ...doDia } = dados ?? {};
+  const corpo = corpoSemVazios(doDia, CAMPOS_DE_CRIACAO_APONTAMENTO.filter((c) => c !== 'produtos' && c !== 'maquinas'));
+  const p = linhasDeEnvio(produtos, CAMPOS_DA_LINHA_PRODUTO);
+  const m = linhasDeEnvio(maquinas, CAMPOS_DA_LINHA_MAQUINA);
+  return { ...corpo, ...(p ? { produtos: p } : {}), ...(m ? { maquinas: m } : {}) };
+};
+
 // ─── Leitura ─────────────────────────────────────────────────────────────
 
 /** Filtros da lista (query FECHADA no servidor: nada além disso vai). Datas sobre `data_inicio`. */
 const FILTROS_LISTA = Object.freeze(['empresa_id', 'status', 'tipo_atividade_id', 'area_id', 'data_de', 'data_ate', 'limit', 'cursor']);
 const FILTROS_OPCOES = Object.freeze(['empresa_id', 'q', 'limit', 'cursor']);
+/** Query de cada seletor da Fatia 3 (fechada no servidor). */
+const FILTROS_POR_RECURSO = Object.freeze(
+  /** @type {Record<string, readonly string[]>} */ ({
+    produtos: Object.freeze(['empresa_id', 'atividade_id', 'q', 'limit', 'cursor']),
+    locais: Object.freeze(['empresa_id', 'produto_id']),
+    implementos: FILTROS_OPCOES,
+    medidor: Object.freeze(['empresa_id', 'bem_id', 'data']),
+  }),
+);
 
 /** @param {string} operation @param {Record<string, unknown>} [details] @param {string} [resource] */
 const ctx = (operation, details, resource = RESOURCE) => ({ operation, resource, ...(details ? { details } : {}) });
@@ -154,7 +227,7 @@ export const montarCaminhoListagem = (filtros = {}) => comFiltros(CAMINHO, FILTR
 
 /** @param {string} recurso @param {Record<string, unknown>} [filtros] */
 export const montarCaminhoOpcoes = (recurso, filtros = {}) => {
-  const caminho = comFiltros(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_OPCOES, filtros);
+  const caminho = comFiltros(`${CAMINHO_OPCOES}/${encodeURIComponent(recurso)}`, FILTROS_POR_RECURSO[recurso] ?? FILTROS_OPCOES, filtros);
   if (recurso !== 'bens') return caminho;
   // Máquina da atividade: só MAQUINA, VEICULO e EQUIPAMENTO (como a tela antiga); nunca benfeitoria ou implemento.
   const params = new URLSearchParams();
@@ -170,6 +243,9 @@ const daAtividade = (id) => `${CAMINHO}/${encodeURIComponent(id)}`;
 /** @param {string} atividadeId @param {string} [apontamentoId] */
 const doApontamento = (atividadeId, apontamentoId) =>
   `${daAtividade(atividadeId)}/apontamentos${apontamentoId ? `/${encodeURIComponent(apontamentoId)}` : ''}`;
+/** @param {string} atividadeId @param {string} apontamentoId @param {'produtos'|'maquinas'} tipo @param {string} [linhaId] */
+const daLinha = (atividadeId, apontamentoId, tipo, linhaId) =>
+  `${doApontamento(atividadeId, apontamentoId)}/${tipo}${linhaId ? `/${encodeURIComponent(linhaId)}` : ''}`;
 /** @param {string} caminho @param {string} empresaId */
 const comEmpresa = (caminho, empresaId) => `${caminho}?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`;
 
@@ -242,7 +318,7 @@ export const operacoesNativas = Object.freeze({
   createApontamento: (atividadeId, dados) =>
     nativeRequest(
       doApontamento(atividadeId),
-      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_CRIACAO_APONTAMENTO), autenticado: true },
+      { method: 'POST', body: corpoDaCriacaoDoApontamento(dados), autenticado: true },
       ctx('createAtividadeApontamento', { atividadeId }, RESOURCE_APONTAMENTO),
     ),
 
@@ -268,6 +344,43 @@ export const operacoesNativas = Object.freeze({
       `${doApontamento(atividadeId, apontamentoId)}/duplicar`,
       { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_DUPLICACAO_APONTAMENTO), autenticado: true },
       ctx('duplicateAtividadeApontamento', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
+    ),
+
+  // ── Totais da atividade (Fatia 3) ──
+  /** Área executada / planejada, total por produto e por máquina, custo e custo/ha. @param {string} id @param {string} empresaId */
+  totais: (id, empresaId) => nativeRequest(comEmpresa(`${daAtividade(id)}/totais`, empresaId), { autenticado: true }, ctx('getAtividadeTotais', { id })),
+
+  // ── Linhas de produto e de máquina (Fatia 3) ──
+  /**
+   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {Record<string, unknown>} dados
+   */
+  criarLinha: (tipo, atividadeId, apontamentoId, dados) =>
+    nativeRequest(
+      daLinha(atividadeId, apontamentoId, tipo),
+      { method: 'POST', body: corpoSemVazios(dados, tipo === 'produtos' ? CAMPOS_DE_CRIACAO_LINHA_PRODUTO : CAMPOS_DE_CRIACAO_LINHA_MAQUINA), autenticado: true },
+      ctx(tipo === 'produtos' ? 'createAtividadeLinhaProduto' : 'createAtividadeLinhaMaquina', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
+    ),
+
+  /**
+   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+   * @param {Record<string, unknown>} dados
+   */
+  editarLinha: (tipo, atividadeId, apontamentoId, linhaId, dados) =>
+    nativeRequest(
+      daLinha(atividadeId, apontamentoId, tipo, linhaId),
+      { method: 'PATCH', body: corpoDeEnvio(dados, tipo === 'produtos' ? CAMPOS_DE_EDICAO_LINHA_PRODUTO : CAMPOS_DE_EDICAO_LINHA_MAQUINA), autenticado: true },
+      ctx(tipo === 'produtos' ? 'updateAtividadeLinhaProduto' : 'updateAtividadeLinhaMaquina', { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
+    ),
+
+  /**
+   * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {string} apontamentoId @param {string} linhaId
+   * @param {Record<string, unknown>} dados
+   */
+  cancelarLinha: (tipo, atividadeId, apontamentoId, linhaId, dados) =>
+    nativeRequest(
+      `${daLinha(atividadeId, apontamentoId, tipo, linhaId)}/cancelar`,
+      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_CANCELAMENTO_LINHA), autenticado: true },
+      ctx(tipo === 'produtos' ? 'cancelAtividadeLinhaProduto' : 'cancelAtividadeLinhaMaquina', { atividadeId, apontamentoId, linhaId }, RESOURCE_APONTAMENTO),
     ),
 
   // ── Opções da tela ──

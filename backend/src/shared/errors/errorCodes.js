@@ -285,7 +285,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
-    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao); nada foi gravado',
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-201, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento); nada foi gravado',
   },
   ATIVIDADE_DATA_INVALIDA: {
     http: 422,
@@ -293,7 +293,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   ATIVIDADE_STATUS_INVALIDO: {
     http: 409,
-    meaning: 'a ação não é permitida no status atual da atividade ou do apontamento (details.status, details.acao, details.entidade: atividade | apontamento); nada foi alterado',
+    meaning: 'a ação não é permitida no status atual da atividade, do apontamento ou da linha (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina); nada foi alterado',
   },
   ATIVIDADE_VERSAO_CONFLITO: {
     http: 409,
@@ -306,6 +306,27 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ATIVIDADE_VINCULADA: {
     http: 409,
     meaning: 'exclusão barrada pela FK RESTRICT de uma atividade ou de um apontamento de atividade, reconhecida pelo nome da FK (details.vinculo = coluna; details.entidade: atividade | apontamento); inative o cadastro; nada foi apagado',
+  },
+  // D-PROD-201 — Lançamento de Atividades (Fatia 3): as linhas de produto e de máquina do apontamento.
+  ATIVIDADE_LINHA_NOT_FOUND: {
+    http: 404,
+    meaning: 'linhaId não identifica linha (details.entidade: linha_produto | linha_maquina) deste apontamento, desta atividade, desta empresa e deste tenant',
+  },
+  ATIVIDADE_LINHA_INVALIDA: {
+    http: 422,
+    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto); nada foi gravado',
+  },
+  ATIVIDADE_SALTO_MEDIDOR: {
+    http: 422,
+    meaning: 'o uso da linha de máquina passa do teto de salto do medidor do tipo patrimonial: informe justificativa_salto (3..500); details.quantidade_uso/salto_maximo/medidor_unidade; nada foi gravado',
+  },
+  ATIVIDADE_ESTORNO_BLOQUEADO: {
+    http: 409,
+    meaning: 'o estorno exato da linha de produto não é seguro agora (details.reason: produto_mudou_de_fazenda | unidade_mudou | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | vinculo_divergente | camada_divergente; details.linha_id/linha_ordem/lote_id; details.motor = a explicação do motor); nada foi alterado',
+  },
+  ATIVIDADE_DATA_COM_LINHAS: {
+    http: 409,
+    meaning: 'a data do apontamento não muda com linha de produto ou de máquina confirmada (details.linhas_produto/linhas_maquina); cancele e lance de novo; nada foi gravado',
   },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {

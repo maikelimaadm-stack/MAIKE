@@ -1,6 +1,7 @@
 /**
  * Superfície pública do módulo Atividades (D-PROD-182; padrões e flags do tipo,
- * D-PROD-197; Lançamento de Atividades — cabeçalho e apontamentos, D-PROD-200).
+ * D-PROD-197; Lançamento de Atividades — cabeçalho e apontamentos, D-PROD-200; linhas de produto e
+ * de máquina e totais, D-PROD-201).
  */
 
 export {
@@ -28,4 +29,10 @@ export {
   cancelAtividadeApontamento,
   duplicateAtividadeApontamento,
   listOpcoesAtividade,
+  TIPOS_LINHA_ATIVIDADE,
+  getAtividadeTotais,
+  createAtividadeLinha,
+  updateAtividadeLinha,
+  cancelAtividadeLinha,
+  getMedidorAtividade,
 } from './atividadesApi.js';

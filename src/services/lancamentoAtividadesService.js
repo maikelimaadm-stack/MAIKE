@@ -38,10 +38,17 @@ import {
   cancelAtividadeApontamento,
   duplicateAtividadeApontamento,
   listOpcoesAtividade,
+  getAtividadeTotais,
+  createAtividadeLinha,
+  updateAtividadeLinha,
+  cancelAtividadeLinha,
+  getMedidorAtividade,
 } from '@/apis/atividades';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { lerMotivo } from '@/lib/lancamentoAtividadesRegras';
+import { confirmar } from '@/lib/maikeConfirmar';
 import { exigirEmpresa, paginaVazia } from './gestaoCadastroComum.js';
+import { enviarComPendencia, lerPendenciaLancamento, limparPendenciaLancamento } from './operacaoFinanceiraService.js';
 import { listarAreasAtivas } from './mapaService.js';
 
 export { listarTiposAtividade } from './tipoAtividadeCadastroService.js';
@@ -208,10 +215,35 @@ export const obterApontamento = async (atividadeId, apontamentoId) =>
  * operador_usuario_id?, area_executada_dia?, quantidade_produzida_dia?,
  * observacao?, origem? }`. Área, setor, safra, centros, unidade e máquina são do
  * cabeçalho (não vão). Devolve `{ apontamento, atividade, alertas }`.
- * @param {string} atividadeId @param {Record<string, any>} dados
+ * Fatia 3: com `produtos[]`/`maquinas[]` ("Repetir último lançamento"), vai com
+ * o `operation_id` persistente (`opcoes`: escopo e retentativa).
+ * @param {string} atividadeId @param {Record<string, any>} dados @param {OpcoesDeEnvio|null} [opcoes]
  */
-export const criarApontamento = async (atividadeId, dados) =>
-  createAtividadeApontamento(String(atividadeId ?? ''), { ...comoObjeto(dados), empresa_id: fazenda('criarApontamento', RESOURCE_APONTAMENTO) });
+export const criarApontamento = async (atividadeId, dados, opcoes = null) => {
+  const d = comoObjeto(dados);
+  const empresaId = fazenda('criarApontamento', RESOURCE_APONTAMENTO);
+  const id = String(atividadeId ?? '');
+  const comLinhas = (Array.isArray(d.produtos) && d.produtos.length > 0) || (Array.isArray(d.maquinas) && d.maquinas.length > 0);
+  if (!comLinhas) {
+    const { produtos: _p, maquinas: _m, ...doDia } = d;
+    return createAtividadeApontamento(id, { ...doDia, empresa_id: empresaId });
+  }
+  // Com linhas (Fatia 3): tudo numa transação no servidor, com UM `operation_id` persistente até a resposta definitiva.
+  const corpo = { ...d, empresa_id: empresaId };
+  const o = comoObjeto(opcoes);
+  return enviarComPendencia({
+    escopo: escopoDaPendencia(o.escopo),
+    acao: ACAO_LANCAR_LINHA,
+    empresaId,
+    alvo: alvoDosApontamentos(id),
+    conteudo: corpo,
+    enviar: (operationId) => createAtividadeApontamento(id, { ...corpo, operation_id: operationId }),
+    storage: storageDaPendencia(o.storage),
+    retentativa: o.retentativa === true,
+    confirmarDescarte: o.confirmarDescarte ?? perguntarDescarte,
+    confirmarNovoEnvio: o.confirmarNovoEnvio ?? perguntarNovoEnvio,
+  });
+};
 
 /**
  * Editar o apontamento CONFIRMADO: os mesmos campos de dado e a `versao` lida.
@@ -251,13 +283,216 @@ export const duplicarApontamento = async (atividadeId, apontamentoId, dados = {}
     ...soOsInformados(comoObjeto(dados), ['data_operacional']),
   });
 
+// ─── Linhas de produto e de máquina (D-PROD-201, Fatia 3) ───────────────
+
+/**
+ * Pendência de `operation_id` das linhas (precedente D-PROD-193): adicionar, editar e cancelar linha — e o lançamento
+ * com linhas — levam um `operation_id` guardado por (escopo, ação, empresa, alvo) até a resposta DEFINITIVA, pelo
+ * MESMO mecanismo da Central e do abastecimento (`enviarComPendencia`), com escopo próprio
+ * `atividade:<cliente>:<login>`. Sem resposta (rede, prazo, 5xx) = resultado incerto: repetir reaproveita a chave e o
+ * servidor devolve o gravado, nunca baixa nem estorna o estoque duas vezes.
+ */
+export const ACAO_LANCAR_LINHA = 'criar';
+export const ACAO_EDITAR_LINHA = 'editar';
+export const ACAO_CANCELAR_LINHA = 'cancelar';
+/** Alvo das linhas NOVAS de um apontamento (por tipo). @param {'produtos'|'maquinas'} tipo @param {string} apontamentoId */
+export const alvoDasLinhas = (tipo, apontamentoId) => `${tipo}:${apontamentoId}`;
+/** Alvo de UMA linha gravada. @param {'produtos'|'maquinas'} tipo @param {string} linhaId */
+export const alvoDaLinha = (tipo, linhaId) => `${tipo}:linha:${linhaId}`;
+/** Alvo do lançamento NOVO com linhas de uma atividade. @param {string} atividadeId */
+export const alvoDosApontamentos = (atividadeId) => `apontamentos:${atividadeId}`;
+
+/** @param {unknown} escopo */
+const escopoDaPendencia = (escopo) => `atividade:${typeof escopo === 'string' && escopo ? escopo : 'sem-tenant:sem-login'}`;
+
+/**
+ * A chave pendente mora no storage do navegador e, quando ele não grava (cota, bloqueio, ausente), em memória nesta
+ * página — a salvaguarda do abastecimento: "Repetir o mesmo envio" usa a MESMA chave.
+ * @type {Map<string, string>}
+ */
+const pendenciasEmMemoria = new Map();
+const storageDoNavegador = () => {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+};
+const armazenamentoDaPendencia = /** @type {Storage} */ (
+  /** @type {unknown} */ ({
+    /** @param {string} k */
+    getItem: (k) => {
+      if (pendenciasEmMemoria.has(k)) return pendenciasEmMemoria.get(k) ?? null;
+      try {
+        return storageDoNavegador()?.getItem(k) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    /** @param {string} k @param {string} v */
+    setItem: (k, v) => {
+      try {
+        const st = storageDoNavegador();
+        if (!st) throw new Error('sem storage');
+        st.setItem(k, v);
+        pendenciasEmMemoria.delete(k);
+      } catch {
+        pendenciasEmMemoria.set(k, v);
+      }
+    },
+    /** @param {string} k */
+    removeItem: (k) => {
+      pendenciasEmMemoria.delete(k);
+      try {
+        storageDoNavegador()?.removeItem(k);
+      } catch {
+        /* sem storage: só a memória tinha a chave */
+      }
+    },
+  })
+);
+/** @param {Storage|null|undefined} storage */
+const storageDaPendencia = (storage) => (storage === undefined ? armazenamentoDaPendencia : storage);
+
+const MENSAGEM_DESCARTE =
+  'Há um envio anterior desta ação no apontamento sem resposta do servidor — ele pode ter sido gravado. Consulte as linhas do apontamento antes.\n\n' +
+  'Descartar e enviar: abandona o envio anterior e envia este conteúdo.\nManter: nada é enviado agora; repita aquele envio para concluí-lo sem duplicar.';
+const MENSAGEM_NOVO_ENVIO =
+  'Há uma linha IGUAL a esta sem resposta do servidor — ela pode ter sido gravada. Consulte as linhas do apontamento antes.\n\n' +
+  'Enviar como novo: grava OUTRA linha (para produto, outra baixa de estoque).\n' +
+  'Manter: nada é enviado agora; repita aquele envio ("Repetir o mesmo envio") para concluí-lo sem duplicar.';
+const perguntarDescarte = () =>
+  confirmar({ titulo: 'Envio anterior sem resposta', descricao: MENSAGEM_DESCARTE, textoConfirmar: 'Descartar e enviar', textoCancelar: 'Manter', perigo: true });
+const perguntarNovoEnvio = () =>
+  confirmar({ titulo: 'Linha igual sem resposta', descricao: MENSAGEM_NOVO_ENVIO, textoConfirmar: 'Enviar como novo', textoCancelar: 'Manter', perigo: true });
+
+/**
+ * @typedef {{ escopo: string, storage?: Storage|null, retentativa?: boolean,
+ *   confirmarDescarte?: (m: string) => boolean | Promise<boolean>,
+ *   confirmarNovoEnvio?: (m: string) => boolean | Promise<boolean> }} OpcoesDeEnvio
+ */
+
+/**
+ * @param {{ acao: string, alvo: string, empresaId: string, corpo: Record<string, any>, opcoes: OpcoesDeEnvio,
+ *   enviar: (operationId: string) => Promise<any> }} p
+ */
+const enviarLinha = (p) =>
+  enviarComPendencia({
+    escopo: escopoDaPendencia(p.opcoes?.escopo),
+    acao: p.acao,
+    empresaId: p.empresaId,
+    alvo: p.alvo,
+    conteudo: p.corpo,
+    enviar: p.enviar,
+    storage: storageDaPendencia(p.opcoes?.storage),
+    retentativa: p.opcoes?.retentativa === true,
+    confirmarDescarte: p.opcoes?.confirmarDescarte ?? perguntarDescarte,
+    confirmarNovoEnvio: p.opcoes?.confirmarNovoEnvio ?? perguntarNovoEnvio,
+  });
+
+/**
+ * Adiciona UMA linha (produto ou máquina) ao apontamento CONFIRMADO: o corpo da janela (`corpoDaLinhaProduto` /
+ * `corpoDaLinhaMaquina`), a `versao` do apontamento lida e o `operation_id` persistente. Devolve
+ * `{ apontamento, atividade, alertas }` (o apontamento com as linhas).
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {Record<string, any>} corpoLinha @param {OpcoesDeEnvio} opcoes
+ */
+export const adicionarLinha = async (tipo, atividadeId, apontamento, corpoLinha, opcoes) => {
+  const empresaId = fazenda('adicionarLinha', RESOURCE_APONTAMENTO);
+  const atv = String(atividadeId ?? '');
+  const apId = String(apontamento?.id ?? '');
+  const corpo = { ...comoObjeto(corpoLinha), empresa_id: empresaId, versao: apontamento?.versao };
+  return enviarLinha({
+    acao: ACAO_LANCAR_LINHA,
+    alvo: alvoDasLinhas(tipo, apId),
+    empresaId,
+    corpo,
+    opcoes,
+    enviar: (operationId) => createAtividadeLinha(tipo, atv, apId, { ...corpo, operation_id: operationId }),
+  });
+};
+
+/**
+ * Edita UMA linha CONFIRMADA (produto: estorno exato + nova saída; máquina: cancela e cria outra): só o que mudou, a
+ * `versao` do apontamento e o `operation_id` persistente.
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {{ id: string }} linha @param {Record<string, any>} mudancas @param {OpcoesDeEnvio} opcoes
+ */
+export const editarLinha = async (tipo, atividadeId, apontamento, linha, mudancas, opcoes) => {
+  const empresaId = fazenda('editarLinha', RESOURCE_APONTAMENTO);
+  const atv = String(atividadeId ?? '');
+  const apId = String(apontamento?.id ?? '');
+  const linhaId = String(linha?.id ?? '');
+  const corpo = { ...comoObjeto(mudancas), empresa_id: empresaId, versao: apontamento?.versao };
+  return enviarLinha({
+    acao: ACAO_EDITAR_LINHA,
+    alvo: alvoDaLinha(tipo, linhaId),
+    empresaId,
+    corpo,
+    opcoes,
+    enviar: (operationId) => updateAtividadeLinha(tipo, atv, apId, linhaId, { ...corpo, operation_id: operationId }),
+  });
+};
+
+/**
+ * Cancela UMA linha CONFIRMADA (produto: estorno exato aos lotes de origem): motivo de 3 a 500 caracteres (conferido
+ * ANTES da rede), a `versao` do apontamento e o `operation_id` persistente.
+ * @param {'produtos'|'maquinas'} tipo @param {string} atividadeId @param {{ id: string, versao: number }} apontamento
+ * @param {{ id: string }} linha @param {string} motivo @param {OpcoesDeEnvio} opcoes
+ */
+export const cancelarLinha = async (tipo, atividadeId, apontamento, linha, motivo, opcoes) => {
+  const empresaId = fazenda('cancelarLinha', RESOURCE_APONTAMENTO);
+  const limpo = motivoValido(motivo, 'cancelarLinha', RESOURCE_APONTAMENTO);
+  const atv = String(atividadeId ?? '');
+  const apId = String(apontamento?.id ?? '');
+  const linhaId = String(linha?.id ?? '');
+  const corpo = { empresa_id: empresaId, versao: apontamento?.versao, motivo: limpo };
+  return enviarLinha({
+    acao: ACAO_CANCELAR_LINHA,
+    alvo: alvoDaLinha(tipo, linhaId),
+    empresaId,
+    corpo,
+    opcoes,
+    enviar: (operationId) => cancelAtividadeLinha(tipo, atv, apId, linhaId, { ...corpo, operation_id: operationId }),
+  });
+};
+
+/**
+ * Pendência (envio sem resposta) desta ação: `{ operation_id, conteudo }` ou null.
+ * @param {string} escopo @param {string} acao @param {string} alvo @param {Storage|null} [storage]
+ */
+export const pendenciaDaLinha = (escopo, acao, alvo, storage) =>
+  fazendaDaTela ? lerPendenciaLancamento(escopoDaPendencia(escopo), acao, fazendaDaTela, alvo, storageDaPendencia(storage)) : null;
+
+/** O envio pendente apareceu gravado ("Consultar"): a pendência sai. @param {string} escopo @param {string} acao @param {string} alvo @param {Storage|null} [storage] */
+export const limparPendenciaDaLinha = (escopo, acao, alvo, storage) => {
+  if (fazendaDaTela) limparPendenciaLancamento(escopoDaPendencia(escopo), acao, fazendaDaTela, alvo, storageDaPendencia(storage));
+};
+
+/**
+ * Totais da atividade (totalizador do cabeçalho): área executada / planejada, total por produto, uso por máquina,
+ * custo acumulado e custo/ha. Só linhas confirmadas de apontamentos confirmados.
+ * @param {string} atividadeId
+ */
+export const obterTotaisAtividade = async (atividadeId) => getAtividadeTotais(String(atividadeId ?? ''), fazenda('obterTotaisAtividade'));
+
+/**
+ * Leitura do medidor de UM bem na data do apontamento (tipo e unidade do medidor, leitura vigente, teto do salto).
+ * Sem fazenda ou sem bem: `null`, nada é lido.
+ * @param {string|null} bemId @param {string|null} [dia]
+ */
+export const obterMedidorDoBem = async (bemId, dia = null) => {
+  if (!fazendaDaTela || !textoOuIndefinido(bemId)) return null;
+  return getMedidorAtividade({ empresa_id: fazendaDaTela, bem_id: String(bemId).trim(), data: textoOuIndefinido(dia) });
+};
+
 // ─── Opções da tela ──────────────────────────────────────────────────────
 
 const SEM_OPCOES = Object.freeze({ itens: [], has_more: false, next_cursor: null });
 
 /**
- * @param {'bens'|'operadores'} recurso
- * @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ * @param {'bens'|'operadores'|'produtos'|'implementos'|'locais'} recurso
+ * @param {{ q?: string, cursor?: string|null, limit?: number, atividade_id?: string|null, produto_id?: string|null }} [opts]
  */
 const opcoes = async (recurso, opts = {}) => {
   if (!fazendaDaTela) return { ...SEM_OPCOES, itens: [] };
@@ -267,8 +502,30 @@ const opcoes = async (recurso, opts = {}) => {
     q: textoOuIndefinido(o.q),
     cursor: textoOuIndefinido(o.cursor),
     limit: Number.isInteger(o.limit) && o.limit > 0 ? o.limit : undefined,
+    ...(textoOuIndefinido(o.atividade_id) ? { atividade_id: textoOuIndefinido(o.atividade_id) } : {}),
+    ...(textoOuIndefinido(o.produto_id) ? { produto_id: textoOuIndefinido(o.produto_id) } : {}),
   });
 };
+
+/**
+ * Produtos ATIVOS da fazenda para a linha de produto: os já usados NESTA atividade primeiro (favoritos, ordem do
+ * servidor), cada um com a unidade do estoque (`unidade_principal_estoque`).
+ * @param {string|null} atividadeId @param {{ q?: string, cursor?: string|null, limit?: number }} [opts]
+ */
+export const listarOpcoesProdutos = (atividadeId, opts = {}) => opcoes('produtos', { ...comoObjeto(opts), atividade_id: atividadeId });
+
+/**
+ * Locais com saldo de UM produto nesta fazenda (`{ itens: [{ local_estoque_id, local_nome, disponivel, unidade }] }`).
+ * Sem produto: vazio, nada é lido.
+ * @param {string|null} produtoId
+ */
+export const listarLocaisDoProduto = async (produtoId) => {
+  if (!textoOuIndefinido(produtoId)) return { ...SEM_OPCOES, itens: [] };
+  return opcoes('locais', { produto_id: produtoId });
+};
+
+/** Implementos ATIVOS da fazenda (natureza IMPLEMENTO) para a linha de máquina. @param {{ q?: string, cursor?: string|null, limit?: number }} [opts] */
+export const listarOpcoesImplementos = (opts = {}) => opcoes('implementos', opts);
 
 /**
  * Máquinas ATIVAS da fazenda para o cabeçalho (rota própria da tela; formato

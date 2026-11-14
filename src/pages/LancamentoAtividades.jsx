@@ -13,6 +13,7 @@ import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import ListaApontamentos from "@/components/lancamento-atividades/ListaApontamentos";
+import TotalizadorAtividade from "@/components/lancamento-atividades/TotalizadorAtividade";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
@@ -161,7 +162,9 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
  * duplicar.
  *
- * Atividade aberta: o cabeçalho no topo, SÓ LEITURA, com os campos herdados
+ * Atividade aberta: o totalizador FIXO no topo (D-PROD-201: área executada /
+ * planejada, total por produto, horas ou km por máquina, custo acumulado e
+ * custo/ha, relido depois de toda escrita), o cabeçalho, SÓ LEITURA, com os campos herdados
  * (setor da área; centros e unidade do tipo — nunca digitados) e, logo abaixo,
  * os apontamentos (ListaApontamentos). "Editar" abre o FormularioAtividade só
  * enquanto a atividade está ABERTA; concluída ou cancelada fica toda só
@@ -270,6 +273,8 @@ export default function LancamentoAtividades() {
   const daEmpresaAtual = (emp) => Boolean(emp) && emp === empresaAtual.current;
 
   const invalidarLista = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
+  /** O totalizador (área, produtos, máquinas, custo) se relê depois de toda escrita (D-PROD-201). */
+  const invalidarTotais = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "totais"] });
   /** @param {string|null|undefined} emp @param {string} id */
   const chaveDetalhe = (emp, id) => [QUERY_RAIZ, "detalhe", emp ?? null, id];
 
@@ -327,6 +332,7 @@ export default function LancamentoAtividades() {
    */
   const aplicarAtividade = (atividade, emp) => {
     invalidarLista();
+    invalidarTotais();
     if (!daEmpresaAtual(emp)) {
       if (atividade?.id) queryClient.setQueryData(chaveDetalhe(emp, String(atividade.id)), atividade);
       return;
@@ -360,6 +366,7 @@ export default function LancamentoAtividades() {
   const aoAtualizarAtividade = (atividade) => {
     if (!atividade?.id) return;
     invalidarLista();
+    invalidarTotais();
     queryClient.setQueryData(chaveDetalhe(empresaId, String(atividade.id)), atividade);
   };
 
@@ -681,6 +688,7 @@ export default function LancamentoAtividades() {
     } else if (registroAberto) {
       conteudoRegistro = (
         <CadastroFormShell embedded>
+          <TotalizadorAtividade atividade={registroAberto} empresaId={empresaId} habilitado={acoes.ver && !trocandoEmpresa} />
           {cabecalhoDaAtividade(registroAberto)}
           <ListaApontamentos
             key={String(registroAberto.id)}

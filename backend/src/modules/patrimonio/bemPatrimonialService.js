@@ -118,9 +118,13 @@ const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
  * aceitos ATIVOS (`produto_ativo` = situação atual do Produto), por nome e id.
  * D-PROD-159: `medidor_operacional` = maior leitura registrada por abastecimento
  * CONFIRMADO (`{leitura, data, abastecimento_id}`) ou null — o abastecimento
- * nunca grava as colunas do medidor do bem.
+ * nunca grava as colunas do medidor do bem. D-PROD-201: ou pela linha de
+ * máquina confirmada do Lançamento de Atividades, a que for maior (`{leitura,
+ * data, abastecimento_id: null, origem: 'ATIVIDADE', linha_maquina_id}`): a
+ * leitura atual do bem reflete as linhas sem gravar o bem. `custo_uso_unitario`
+ * = custo por hora ou km de uso (snapshot na linha de máquina).
  * @param {any} r  bem lido com `INCLUIR`
- * @param {{ leitura: string, data: string, abastecimento_id: string|null }|null} [operacional]
+ * @param {{ leitura: string, data: string, abastecimento_id: string|null, origem?: string, linha_maquina_id?: string }|null} [operacional]
  */
 export const comoBemPublico = (r, operacional = null) => {
   const e = estadoDoRegistro(r);
@@ -159,7 +163,15 @@ export const comoBemPublico = (r, operacional = null) => {
     especificacoes: e.especificacoes,
     observacoes: e.observacoes,
     medidor: medidorDoEstado(e),
-    medidor_operacional: operacional ? { leitura: operacional.leitura, data: operacional.data, abastecimento_id: operacional.abastecimento_id } : null,
+    medidor_operacional: operacional
+      ? {
+          leitura: operacional.leitura,
+          data: operacional.data,
+          abastecimento_id: operacional.abastecimento_id,
+          ...(operacional.linha_maquina_id ? { origem: operacional.origem, linha_maquina_id: operacional.linha_maquina_id } : {}),
+        }
+      : null,
+    custo_uso_unitario: texto(r.custo_uso_unitario, CASAS_MEDIDA),
     tanques: r.tanques.map((t) => ({
       id: t.id,
       identificador: t.identificador,
@@ -248,6 +260,7 @@ const paraAuditoria = (r) => {
     ativo: r.ativo,
     versao: r.versao,
     medidor: medidorDoEstado(e),
+    custo_uso_unitario: texto(r.custo_uso_unitario, CASAS_MEDIDA),
     depreciavel: r.depreciavel,
     vida_util_meses: e.vida_util_meses,
     residual_modo: e.residual_modo,

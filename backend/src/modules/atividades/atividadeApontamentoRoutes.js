@@ -27,11 +27,29 @@
  * Decimais chegam como TEXTO: o `preValidation` deste plugin (encapsulado)
  * recusa número antes da coerção do AJV. O plugin é registrado em `app.js`
  * pelo módulo do cabeçalho.
+ *
+ * D-PROD-201 (Fatia 3): lançar e repetir aceitam `produtos[]` (item:
+ * `ESQUEMA_ITEM_PRODUTO`) e `maquinas[]` (item: `ITEM_LINHA_MAQUINA`), até
+ * `LINHAS_NO_LANCAMENTO_MAXIMO` de cada, com `operation_id` (obrigatório quando
+ * há linha; até 120). Reenvio igual → 200 com `replay: true`; novo → 201.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
-import { DECIMAIS_DO_APONTAMENTO, ORIGENS, PADRAO_DECIMAL, TURNOS, recusarCoercao } from './atividadeComum.js';
+import {
+  DECIMAIS_DA_LINHA_PRODUTO,
+  DECIMAIS_DO_APONTAMENTO,
+  LINHAS_NO_LANCAMENTO_MAXIMO,
+  OPERATION_ID_DO_LANCAMENTO_MAXIMO,
+  ORIGENS,
+  PADRAO_DECIMAL,
+  PADRAO_OPERATION_ID,
+  TURNOS,
+  recusarCoercao,
+  recusarCoercaoNasListas,
+} from './atividadeComum.js';
+import { ITEM_LINHA_MAQUINA, recusarCoercaoDasMaquinas } from './atividadeApontamentoMaquinaRoutes.js';
+import { ESQUEMA_ITEM_PRODUTO } from './atividadeApontamentoProdutoRoutes.js';
 import {
   cancelarApontamento,
   duplicarApontamento,
@@ -66,6 +84,13 @@ const PARAMS_APONTAMENTO = {
 };
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
 
+/** D-PROD-201 — as linhas do lançamento e da repetição, com a chave única de tudo. */
+const LINHAS_DO_LANCAMENTO = Object.freeze({
+  operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
+  produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },
+  maquinas: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ITEM_LINHA_MAQUINA },
+});
+
 /** Campos de DADO do dia (o formulário do §6), os mesmos no lançamento e na edição. */
 const CAMPOS_DO_DIA = Object.freeze({
   data_operacional: DIA,
@@ -85,7 +110,7 @@ const LANCAR = {
     required: ['empresa_id', 'data_operacional'],
     additionalProperties: false,
     // A origem é gravada no lançamento (WEB padrão, ou APP) e não muda na edição.
-    properties: { empresa_id: ID, ...CAMPOS_DO_DIA, origem: ORIGEM },
+    properties: { empresa_id: ID, ...CAMPOS_DO_DIA, origem: ORIGEM, ...LINHAS_DO_LANCAMENTO },
   },
 };
 const EDITAR = {
@@ -115,7 +140,7 @@ const DUPLICAR = {
     type: 'object',
     required: ['empresa_id'],
     additionalProperties: false,
-    properties: { empresa_id: ID, data_operacional: DIA },
+    properties: { empresa_id: ID, data_operacional: DIA, ...LINHAS_DO_LANCAMENTO },
   },
 };
 
@@ -139,19 +164,27 @@ export const registrarAtividadeApontamentoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   app.addHook('preValidation', async (request) => {
     recusarCoercao(request.body, DECIMAIS_DO_APONTAMENTO);
+    recusarCoercaoNasListas(request.body, { produtos: DECIMAIS_DA_LINHA_PRODUTO });
+    recusarCoercaoDasMaquinas(request.body);
   });
+  /** 201 no lançamento novo; 200 no reenvio igual da mesma chave (`replay: true`). */
+  const statusDe = (/** @type {Record<string, unknown>} */ r) => (r.replay === true ? 200 : 201);
 
   app.get('/atividades/:id/apontamentos', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) =>
     listarApontamentos(ctx(request), atividadeIdDe(request), consulta(request)));
   app.get('/atividades/:id/apontamentos/:apontamentoId', { ...autenticado, preHandler: [g.ver], schema: DETALHE }, async (request) =>
     obterApontamento(ctx(request), atividadeIdDe(request), apontamentoIdDe(request), consulta(request)));
-  app.post('/atividades/:id/apontamentos', { ...autenticado, preHandler: [g.criar], schema: LANCAR }, async (request, reply) =>
-    reply.status(201).send(await lancarApontamento(ctx(request), atividadeIdDe(request), corpo(request))));
+  app.post('/atividades/:id/apontamentos', { ...autenticado, preHandler: [g.criar], schema: LANCAR }, async (request, reply) => {
+    const r = await lancarApontamento(ctx(request), atividadeIdDe(request), corpo(request));
+    return reply.status(statusDe(r)).send(r);
+  });
   app.patch('/atividades/:id/apontamentos/:apontamentoId', { ...autenticado, preHandler: [g.editar], schema: EDITAR }, async (request) =>
     editarApontamento(ctx(request), atividadeIdDe(request), apontamentoIdDe(request), corpo(request)));
   app.post('/atividades/:id/apontamentos/:apontamentoId/cancelar', { ...autenticado, preHandler: [g.cancelar], schema: CANCELAR }, async (request) =>
     cancelarApontamento(ctx(request), atividadeIdDe(request), apontamentoIdDe(request), corpo(request)));
   // "Repetir último lançamento": é um lançamento novo, com a guarda de lançar.
-  app.post('/atividades/:id/apontamentos/:apontamentoId/duplicar', { ...autenticado, preHandler: [g.criar], schema: DUPLICAR }, async (request, reply) =>
-    reply.status(201).send(await duplicarApontamento(ctx(request), atividadeIdDe(request), apontamentoIdDe(request), corpo(request))));
+  app.post('/atividades/:id/apontamentos/:apontamentoId/duplicar', { ...autenticado, preHandler: [g.criar], schema: DUPLICAR }, async (request, reply) => {
+    const r = await duplicarApontamento(ctx(request), atividadeIdDe(request), apontamentoIdDe(request), corpo(request));
+    return reply.status(statusDe(r)).send(r);
+  });
 };

@@ -35,6 +35,7 @@ const CASAS_DAS_COLUNAS = Object.freeze({
   medidor_leitura_atual: 4,
   valor_aquisicao: 4,
   custo_incorporacao: 4,
+  custo_uso_unitario: 4,
   valor_residual: 4,
   residual_percentual: 6,
 });
@@ -47,6 +48,7 @@ export const COLUNAS_ESTADO = Object.freeze([
   'renavam', 'potencia_cv', 'material', 'ano_conclusao', 'compatibilidade', 'especificacoes', 'observacoes',
   'medidor_tipo', 'medidor_unidade', 'medidor_leitura_inicial', 'medidor_leitura_atual', 'medidor_data_leitura', 'medidor_origem',
   'data_aquisicao', 'data_disponibilidade', 'valor_aquisicao', 'custo_incorporacao', 'fornecedor_parceiro_id', 'documento_referencia', 'garantia_ate',
+  'custo_uso_unitario',
   'depreciavel', 'depreciacao_metodo', 'vida_util_meses', 'residual_modo', 'valor_residual', 'residual_percentual', 'data_inicio_depreciacao',
   'ativo',
 ]);
@@ -257,6 +259,8 @@ export const escalaresDoCorpo = (entrada) => {
   if (tem('renavam')) saida.renavam = renavamDoCorpo(entrada.renavam);
   if (tem('chassi')) saida.chassi = chassiDoCorpo(entrada.chassi);
   if (tem('potencia_cv')) saida.potencia_cv = potenciaDoCorpo(entrada.potencia_cv);
+  // D-PROD-201: custo por hora ou km de uso (≥ 0; null limpa), snapshot na linha de máquina da atividade.
+  if (tem('custo_uso_unitario')) saida.custo_uso_unitario = decimalDoCorpo(entrada.custo_uso_unitario, 'custo_uso_unitario', PADRAO_MEDIDA, CASAS_DAS_COLUNAS.custo_uso_unitario);
   return saida;
 };
 
@@ -476,12 +480,14 @@ const contador = (tipo, inicial, atual, data, origem) => ({
  * chamado quando uma data de leitura precisa ser conferida.
  *
  * D-PROD-159 (X2): `piso` = maior leitura de abastecimento CONFIRMADO do bem
- * (`{leitura, data, abastecimento_id}`) ou null. Com piso o medidor deixa de ser
+ * (`{leitura, data, abastecimento_id}`) ou null. D-PROD-201: ou da linha de
+ * máquina confirmada do Lançamento de Atividades (`origem: 'ATIVIDADE'`,
+ * `linha_maquina_id`), a que for maior. Com piso o medidor deixa de ser
  * corrigível (tipo e leitura inicial imutáveis) e o ajuste não pode ficar abaixo
  * da leitura nem antes da data do piso. Sem `piso`: idêntico ao comportamento P1-01.
  *
  * @param {{ natureza: string, estado: Record<string, any>, pedido: Record<string, any>|null|undefined, criacao: boolean,
- *   hoje: () => Promise<string>, piso?: { leitura: string, data: string, abastecimento_id: string|null }|null }} entrada
+ *   hoje: () => Promise<string>, piso?: { leitura: string, data: string, abastecimento_id: string|null, origem?: string, linha_maquina_id?: string }|null }} entrada
  * @returns {Promise<{ colunas: Record<string, any>|null, correcao: boolean }>}
  */
 export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje, piso = null }) => {
@@ -594,14 +600,20 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje, 
       details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: estado.medidor_data_leitura },
     });
   }
+  // D-PROD-201: o piso pode vir de uma linha de máquina do Lançamento de Atividades.
+  const daAtividade = piso?.origem === 'ATIVIDADE';
+  const registradaPor = daAtividade ? 'por lançamento de atividade' : 'por abastecimento';
+  const referencia = piso
+    ? { origem_referencia: daAtividade ? 'ATIVIDADE' : 'ABASTECIMENTO', abastecimento_id: piso.abastecimento_id ?? null, ...(daAtividade ? { linha_maquina_id: piso.linha_maquina_id ?? null } : {}) }
+    : {};
   if (piso && dec(novaAtual).lt(dec(piso.leitura))) {
-    throw new AppError('MEDIDOR_LEITURA_REGRESSIVA', `a leitura informada é menor que a registrada por abastecimento (${piso.leitura}); nada foi gravado`, {
-      details: { field: 'medidor.leitura_atual', reason: 'leitura_regressiva', leitura_atual: piso.leitura, origem_referencia: 'ABASTECIMENTO', abastecimento_id: piso.abastecimento_id },
+    throw new AppError('MEDIDOR_LEITURA_REGRESSIVA', `a leitura informada é menor que a registrada ${registradaPor} (${piso.leitura}); nada foi gravado`, {
+      details: { field: 'medidor.leitura_atual', reason: 'leitura_regressiva', leitura_atual: piso.leitura, ...referencia },
     });
   }
   if (piso && data < piso.data) {
-    throw new AppError('MEDIDOR_DATA_REGRESSIVA', `a data da leitura é anterior à leitura registrada por abastecimento (${piso.data}); nada foi gravado`, {
-      details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: piso.data, origem_referencia: 'ABASTECIMENTO', abastecimento_id: piso.abastecimento_id },
+    throw new AppError('MEDIDOR_DATA_REGRESSIVA', `a data da leitura é anterior à leitura registrada ${registradaPor} (${piso.data}); nada foi gravado`, {
+      details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: piso.data, ...referencia },
     });
   }
   await naoFutura(data);
