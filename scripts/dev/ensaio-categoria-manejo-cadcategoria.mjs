@@ -54,7 +54,7 @@
  *  7. aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a impressão na
  *     URL), esta e depois a D-PROD-195, e confere: todas concluídas (CONCLUIDAS_DEPOIS; esta
  *     depois da CADCURVAGANHO, do ApontamentoAtividade, dos itens do apontamento e da
- *     CONTRACT da D-PROD-194, e a D-PROD-195 por último), 85 tabelas,
+ *     CONTRACT da D-PROD-194, e a D-PROD-195 por último), 84 tabelas,
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
  *     categoria na CURVA PADRÃO da fazenda), linhas idênticas nessas 12, os 4
@@ -119,13 +119,15 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
  * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT e as NOMES_DEPOIS_DO_CONTRACT),
  * contadas pela pasta para não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46
  * pastas; D-PROD-190, 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49; a curva na categoria,
- * D-PROD-195, 49 → 50, fora da partida); e tabelas em public (85: 83 com a do ApontamentoAtividade, D-PROD-190, + as 2
- * dos itens do apontamento, D-PROD-193; a D-PROD-194 e a D-PROD-195 não criam nem apagam tabela; iguais antes e
- * depois: só rename).
+ * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, e a Atividade cabeçalho,
+ * D-PROD-198, 51 → 52, as duas na partida); e tabelas em public (84: 83 com a do ApontamentoAtividade, D-PROD-190, + as
+ * 2 dos itens do apontamento, D-PROD-193, − essas 3 + as 2 da atividade, D-PROD-198, que sobe na partida pela ordem dos
+ * nomes: a guarda dela só olha as 3 tabelas do apontamento antigo, vazias aqui, e ela não toca CategoriaManejo; a
+ * D-PROD-194, a D-PROD-195 e a D-PROD-197 não criam nem apagam tabela; iguais antes e depois: só rename).
  */
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
-export const TABELAS_PUBLIC = 85;
+export const TABELAS_PUBLIC = 84;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 /** Parâmetro de sessão que leva a impressão aprovada no GO até a guarda. */

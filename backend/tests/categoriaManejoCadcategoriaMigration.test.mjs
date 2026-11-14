@@ -32,7 +32,7 @@
  * muda); no alvo local, com a impressão na URL, aplica esta e depois a D-PROD-195:
  * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada depois da CADCURVAGANHO e do ApontamentoAtividade,
  * fora da ordem dos nomes, como aconteceu em produção, e dos itens do apontamento e da CONTRACT da D-PROD-194, que
- * subiram na partida; a D-PROD-195 por último), 85 tabelas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
+ * subiram na partida, como a D-PROD-197 e a D-PROD-198; a D-PROD-195 por último), 84 tabelas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
  * políticas, as 12 colunas que ficam (mais a curva_ganho_id da D-PROD-195, cada categoria na CURVA PADRÃO da
  * fazenda), linhas idênticas nelas, os 4 nomes novos,
  * FK válida, demais tabelas iguais, `migrate diff` vazio, o Prisma Client lê
@@ -107,13 +107,14 @@ after(async () => {
 });
 
 describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem as 16 colunas (PostgreSQL real)', () => {
-  test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, o ApontamentoAtividade e os itens do apontamento, de nome posterior, já concluídos, e a CONTRACT da D-PROD-194, também de nome posterior), 85 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
+  test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, o ApontamentoAtividade e os itens do apontamento, de nome posterior, já concluídos, e as CONTRACT da D-PROD-194, da D-PROD-197 e da D-PROD-198, também de nome posterior), 84 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_ANTES);
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA]);
     assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 2, 'todas as pastas menos esta CONTRACT e a D-PROD-195');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
-    assert.equal(TABELAS_PUBLIC, 85, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193); a curva mensal (D-PROD-194) não muda a contagem');
+    assert.equal(TABELAS_PUBLIC, 84, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-198, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
+    assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114400000_atividade_cabecalho'), 'a CONTRACT da D-PROD-198 sobe na partida');
     // O estado de produção: duas migrations de nome POSTERIOR a esta CONTRACT já concluídas, por último e nesta ordem, e esta pendente.
     assert.deepEqual(NOMES_POSTERIORES_JA_APLICADAS, ['20261113600000_cadcurvaganho_cadastro', '20261113700000_apontamento_atividade']);
     // D-PROD-193: a partida sobe pela ordem dos nomes; as de nome posterior que vieram depois das duas (os itens do

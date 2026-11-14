@@ -7,12 +7,15 @@
  *
  * Partida: todas as pastas MENOS esta CONTRACT, pelo Prisma a partir de uma
  * cópia temporária: as 49 de nome anterior (inclui as CONTRACT da D-PROD-162, da
- * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e a
+ * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e as
  * CONTRACT da D-PROD-197 (`20261114300000_tipo_atividade_defaults`, padrões e
- * flags do TipoAtividade), de nome POSTERIOR, que sobe fora de ordem: a guarda
- * dela só olha TipoAtividade e os alvos das FKs, não toca CADCATEGORIA nem
- * CADCURVAGANHO, e assim só a D-PROD-195 pende no runner (em produção a ordem é a
- * inversa: esta já está aplicada e a D-PROD-197 entra depois); 85 tabelas; e, para 2 clientes, 4 fazendas: três com
+ * flags do TipoAtividade) e da D-PROD-198 (`20261114400000_atividade_cabecalho`,
+ * Atividade cabeçalho), de nome POSTERIOR, que sobem fora de ordem: a guarda da
+ * D-PROD-197 só olha TipoAtividade e os alvos das FKs, a da D-PROD-198 só as 3
+ * tabelas do apontamento antigo (vazias aqui: ela não converte nada, apaga as 3 e
+ * cria as 2 novas), nenhuma toca CADCATEGORIA nem CADCURVAGANHO, e assim só a
+ * D-PROD-195 pende no runner (em produção a ordem é a inversa: esta já está
+ * aplicada e as duas entram depois); 84 tabelas; e, para 2 clientes, 4 fazendas: três com
  * categorias e com a 'CURVA PADRÃO' (uma delas inativa: a ligação não olha o
  * ativo), uma delas também com outra curva (que a ligação não pode usar), e uma
  * fazenda SEM categoria e SEM a CURVA PADRÃO (permitido: a guarda só olha as
@@ -32,7 +35,7 @@
  * CURVA PADRÃO da própria fazenda, curva_ganho_id VARCHAR(64) NOT NULL, a mesma
  * tabela (OID) com as mesmas linhas nas colunas de antes, o índice e a FK
  * composta (ON DELETE RESTRICT) com os nomes do Prisma, o UNIQUE (cliente_id,
- * empresa_id, id) em CADCURVAGANHO, as mesmas 85 tabelas e `migrate diff` vazio.
+ * empresa_id, id) em CADCURVAGANHO, as mesmas 84 tabelas e `migrate diff` vazio.
  * Depois, a FK recusa curva de outra fazenda (e de outro cliente), a troca de
  * fazenda sem trocar a curva e a exclusão de uma curva em uso.
  *
@@ -65,7 +68,7 @@ const BANCO = 'maike_ccc_curva_teste';
 /** Pastas do repositório: a partida são as de nome anterior ao desta CONTRACT; o total, depois do GREEN. */
 const PASTAS = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const TOTAL_MIGRATIONS = PASTAS.length;
-/** D-PROD-197: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
+/** D-PROD-197/D-PROD-198: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT));
 const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
@@ -322,17 +325,17 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197, posterior), 85 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults'], 'só a CONTRACT da D-PROD-197 tem nome posterior a esta');
+  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197 e a D-PROD-198, posteriores), 84 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114400000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-198 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
-    assert.equal(MIGRATIONS_PARTIDA, 50);
-    assert.equal(TOTAL_MIGRATIONS, 51);
+    assert.equal(MIGRATIONS_PARTIDA, 51);
+    assert.equal(TOTAL_MIGRATIONS, 52);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 85);
+    assert.equal(partida.tabelas, 84, '85 até a D-PROD-197; a D-PROD-198 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);
@@ -434,7 +437,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(depois.oids, partida.oids, 'as mesmas tabelas (ALTER, não cópia)');
     assert.deepEqual(depois.categorias, partida.categorias, 'as linhas nas colunas de antes não mudaram');
     assert.deepEqual(depois.curvas, partida.curvas, 'nenhuma curva mudou');
-    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (85)');
+    assert.equal(depois.tabelas, partida.tabelas, 'nenhuma tabela a mais nem a menos (84)');
 
     // Cada categoria ficou na CURVA PADRÃO da própria fazenda (a inativa inclusive; nunca na CURVA ENGORDA).
     const ligadas = await db.$queryRawUnsafe(`SELECT id, curva_ganho_id AS curva FROM public."CADCATEGORIA" ORDER BY id COLLATE "C"`);
