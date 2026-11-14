@@ -213,3 +213,35 @@
 .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
   width: 40px;
 }
+
+/* Cor solicitada para os quadros; contraste branco dos ícones. */
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao),
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):is(:hover, :active) {
+  border: 0;
+  background: #65d1ec;
+  box-shadow: none;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__img:not(.mk-al__img--mover) {
+  color: #fff !important;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__quadro .mk-al__img g {
+  color: inherit;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+  width: 48px;
+  height: 32px;
+  flex-basis: 32px;
+}
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone .mk-al__img--mover:not(#mk-padrao) {
+  height: 32px;
+}
+@media (max-width: 1023px) {
+  .mk-al-dock.mk-al-menu:not(#mk-padrao) {
+    background: #f1f3f5;
+  }
+}
+@media (min-width: 1024px) {
+  .mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+    flex-basis: 48px;
+  }
+}
