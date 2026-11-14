@@ -54,11 +54,39 @@ unidade de produção de `UnidadeMedida` e coeficiente) e as **8 flags** de como
 
 ## 5. Validação (local; o GitHub Actions da conta não roda)
 
-(preencher no fechamento)
+| Etapa | Resultado |
+|---|---|
+| Backend completo, antes do merge com a `main` | 1944 testes: **1938 ok**, 5 `todo`, **1 falha intermitente anterior à fatia** — IT-06 do `inicializar-tenant-maike` (`LOCK … NOWAIT` colide com o autovacuum em `TituloFinanceiro`, 6 autovacuums na rodada); o arquivo sozinho dá 11/11 duas vezes e o script não está no diff |
+| `verify:all` sem `test:backend`, antes do merge | todas as etapas PASS depois da correção do QP-G1 (`test:gates` 879/879; tipos 614 ≤ 625; lint; smoke; build; build:admin) |
+| Depois do merge com a `main` (D-PROD-195) | 51 migrations num banco vazio, `migrate diff` vazio; testes de deploy 168/168; `gate:deploy-migrations` PASS; curva mensal 10/10; migration desta fatia 25/25; demais: ver §5.1 |
+| Navegador (componentes reais, backend falso) | 1366 e 390 px sem rolagem lateral nem erro de console; 3 seções na ordem, 17 rótulos do contrato, 8 caixas de marcar com rótulos inteiros (2 por linha) |
+
+### 5.1 Rodada final, sobre o estado mesclado
+
+(preencher)
 
 ## 6. Revisão independente
 
-(preencher no fechamento)
+Três revisões (backend, tela, migration/portão), cada achado conferido por 2 céticos que tentam refutá-lo; uma
+conferência no navegador.
+
+| Achado | Veredito | Resolução |
+|---|---|---|
+| A5-1/A6-1 — dois PATCH simultâneos, cada um mudando um centro, gravavam centros de fazendas diferentes | confirmado e reproduzido (4/4) | **corrigido**: `SELECT … FOR UPDATE` antes de ler o anterior; teste de corrida que falha sem a trava |
+| A6-2 — `GET /tipos-atividade` (só login) mostra número e nome dos centros padrão | refutado (2/2): o contrato pede | ponto para o proprietário (§4.4) |
+| F1-1 — cancelar a edição não descartava o rascunho (defeito antigo do motor, agora com padrões e flags) | confirmado (2/2) | **corrigido**: a chave do formulário leva o modo, como no Apontamento; teste TA-PAGE-4 |
+| F2-1 — trocar de fazenda com o PATCH em voo deixava a leitura fora do gravado | confirmado (2/2) | **corrigido** pela mesma chave (depois de salvar, o formulário remonta do gravado) |
+| F2-3 — unidade criada sem rede (id `offline_…`) era oferecida como unidade de produção | confirmado (2/2) | **corrigido**: fica fora das opções |
+| F1-3 — duplicar tipo cujo padrão ficou inativo dá 422 | dividido (1/2) | sem mudança: o servidor recusa padrão inativo por regra |
+| M1-01/M2-01 — a `main` já tinha dado a D-PROD-195 e o prefixo `20261114200000` à curva na Categoria de Manejo (aplicada em produção) | confirmado e reproduzido (4/4) | **corrigido**: D-PROD-196, migration `20261114300000_…` (mesmo SHA), merge da `main`, teste de decisão única por CONTRACT |
+| M1-02/M2-02 — runbook contando 49 → 50 com produção já em 50 | real; a guarda falharia fechada | **corrigido**: 50 → 51 em runbook, testes e documentos |
+| M2-03 — o descritor mais estreito mudava a saída da CONTRACT da `main` | falha fechada | ajustado no merge (a D-PROD-195 também lista colunas/constraints adicionadas) |
+| M1-04 — os 3 índices novos aparecem como "unused_index" nos advisors | confirmado (2/2) | **corrigido** no runbook (esperado, não é motivo para parar) |
+| M2-04 — o gate lê só o 1º `ADD COLUMN` de cada `ALTER` e ignora `@map` | confirmado | pendente (melhoria do gate; não afeta esta release) |
+| M2-05 — o classificador corta `--`/`/* */` também dentro de literal (anterior) | — | pendente, fora do escopo |
+| M1-03 — o GO precisa da resposta sobre `permite_maquina` e da nota do `07` | refutado (2/2) | incluído no pedido de GO |
+| Navegador — rótulos das flags cortados entre 768 e 1200 px | — | **corrigido**: 2 por linha |
+| Navegador — só a caixa (14 px) clica, o rótulo não | — | pendente: mudar isso é trabalho visual no componente |
 
 ## 7. Release
 

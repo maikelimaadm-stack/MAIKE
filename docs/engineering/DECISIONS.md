@@ -7193,7 +7193,12 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 7. **Tela Tipos de Atividade:** formulário em 3 seções (Identificação; Apropriação; Como funciona), só com componentes que já existem; lista com a coluna Categoria.
 8. **Gate `gate:tarefa-cadastro-native`:** no TipoAtividade proíbe só os nomes aposentados `pode_ter_*` e exige as 8 flags; no TipoTarefa proíbe as 4 antigas e as 8 novas.
 
-**Testes.** (preencher no fechamento)
+**Testes.**
+- `backend/tests/tipoAtividadeNativo.test.mjs` (41): defaults, flags sem coerção, categoria, coeficiente, regras 422 (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`), corrida de PATCH (revisão A5-1/A6-1), opções de centros (ordem numérica, teto de 1000, guarda), isolamento por tenant; `tipoAtividadePadroes.test.mjs` (12); `unidadeMedidaNativo.test.mjs` (+3: exclusão barrada com 409); `permissoesR2Rotas.test.mjs` (+1).
+- `backend/tests/tipoAtividadeDefaultsMigration.test.mjs` (25, PostgreSQL real): recusas da guarda, runner oficial com e sem a decisão, envelope do caminho B com os blocos do runbook, FKs/CHECKs/RESTRICT, `migrate diff` vazio.
+- Portão e runner (`scripts/tests/deploy/*`, 168): entrada CONTRACT pinada, adulterações recusadas, release isolada, decisão única por CONTRACT; gate `tarefa-cadastro-native` (17).
+- Smoke `tests/smoke/tiposAtividade.test.jsx` (27): 3 seções, caixas de marcar, coeficiente pt-BR, centros da fazenda, chave de colunas `_v2`, transporte dos códigos, cancelar descarta (revisão F1-1).
+- Revisão independente em três frentes, 2 céticos por achado, e conferência no navegador: ver o relatório §6.
 
 **Pontos levados ao proprietário.**
 1. A Fatia 3 fala em "tipo que permite máquina", mas a lista de flags tem `exige_maquina` e não `permite_maquina` (máquina opcional). Acrescentar antes de aplicar a migration custa só re-pinar.
