@@ -33,4 +33,9 @@ Etapa 1 de 4 da suplementação de cocho: corrigir a base do lançamento.
 
 ## 4. Verificação completa
 
-_(preenchido ao fim da missão.)_
+**GitHub Actions** (perfil `full`, head `cdfba0ad`): os 10 jobs passaram, com conclusão `success`.
+- `classify`;
+- `verify:full`: estático, backend 1 a 4 (PostgreSQL efêmero) e smoke 1 e 2;
+- o agregador `verify:all`.
+
+Não houve falha, nem do DC-1 do cocho, já corrigido na `main`.
