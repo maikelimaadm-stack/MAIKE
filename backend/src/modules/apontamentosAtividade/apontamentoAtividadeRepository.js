@@ -165,6 +165,16 @@ export const contarItensProdutoConfirmados = (tx, clienteId, empresaId, apontame
     where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId, tipo: 'PRODUTO', status: 'CONFIRMADO' },
   });
 
+/**
+ * D-PROD-191 (§3.3) — o item que JÁ usou esta `operation_id` no tenant (unique
+ * `(cliente_id, operation_id)`), ou `null`. O A1 lê isto antes de tudo: a
+ * chave de um item gravado é conflito mesmo sem o recibo.
+ * @param {any} tx @param {string} clienteId @param {string} operationId
+ * @returns {Promise<{ id: string } | null>}
+ */
+export const buscarItemPorOperacao = (tx, clienteId, operationId) =>
+  tx.apontamentoAtividadeItem.findUnique({ where: { cliente_id_operation_id: { cliente_id: clienteId, operation_id: operationId } }, select: { id: true } });
+
 /** @param {any} tx @param {Record<string, unknown>} dados */
 export const inserirItem = (tx, dados) => tx.apontamentoAtividadeItem.create({ data: dados, select: { id: true } });
 

@@ -8,8 +8,9 @@
  *    do item é o custo FIFO do motor (nunca preço digitado nem custo médio); as
  *    fatias vão para `ApontamentoAtividadeItemConsumoLote` na ordem do motor.
  *    Movimento com a origem PRÓPRIA `apontamento_atividade` (documento = o
- *    apontamento: número e data operacional). Produto de COMBUSTÍVEL (aceito
- *    por algum tanque) é recusado (D-8): combustível se lança no abastecimento;
+ *    apontamento: número e data operacional). Produto de COMBUSTÍVEL (com
+ *    aceite que VALE: ativo, em tanque ativo de bem ativo, de qualquer fazenda
+ *    do tenant) é recusado (D-8): combustível se lança no abastecimento;
  *  - SERVICO / OUTRO: descrição livre + quantidade + valor unitário; total =
  *    ROUND_HALF_UP(quantidade × valor unitário, 4) em Decimal no servidor; sem
  *    cadastro de serviço, sem fornecedor, sem efeito de estoque nem financeiro.
@@ -17,7 +18,8 @@
  *  - imutável: sem PATCH/DELETE; corrigir = cancelar (estorno exato) e lançar de
  *    novo. O item não tem centro próprio: vale o centro (snapshot) do cabeçalho;
  *  - limite de `LIMITE_ITENS` itens por apontamento, CONFIRMADO + CANCELADO (D-9);
- *  - idempotente por `operation_id` (recibo + unique da tabela); CAS = a
+ *  - idempotente por `operation_id` (recibo; sem ele, a chave já gravada num
+ *    item, conferida antes de tudo; a unique da tabela é a última rede); CAS = a
  *    `versao` do APONTAMENTO (A1 e A2 a incrementam uma vez); toda escrita trava
  *    a linha do apontamento ANTES de ler itens, locais ou produtos (I-c), na
  *    ordem canônica do motor: recibo → empresa → Apontamento FOR UPDATE →
@@ -70,6 +72,7 @@ import {
 import {
   atualizarComVersao,
   buscarApontamentoComItens,
+  buscarItemPorOperacao,
   inserirFatias,
   inserirItem,
   lerApontamentoBase,
@@ -97,6 +100,24 @@ const CAMPOS_DE_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id']);
 const CAMPOS_DE_SERVICO = Object.freeze(['descricao', 'valor_unitario']);
 
 const tem = (obj, chave) => Object.prototype.hasOwnProperty.call(obj, chave) && obj[chave] !== undefined;
+
+/**
+ * D-8 — o aceite de tanque que faz do Produto COMBUSTÍVEL é o aceite que VALE:
+ * ativo, num tanque ativo de um bem ativo. É o MESMO critério de `aceiteQueVale`
+ * (`produtos/produtoService.js`, D-PROD-162 achado D1); manter os dois iguais.
+ * Aceite desligado, ou em tanque/bem inativo, não conta: contá-lo deixaria o
+ * Produto sem saída nenhuma (o item o recusaria como combustível e o
+ * abastecimento também o recusa nesse tanque/bem). Sem filtro de empresa: o
+ * aceite que vale em tanque de outro bem ou de outra fazenda do tenant
+ * continua contando.
+ * @param {string} clienteId @param {string} produtoId
+ */
+const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
+  cliente_id: clienteId,
+  produto_id: produtoId,
+  ativo: true,
+  tanque: { ativo: true, bem: { ativo: true } },
+});
 
 // ─── recusas (422) ──────────────────────────────────────────────────────────
 
@@ -273,10 +294,12 @@ const baixarProduto = async (tx, contexto, { cli, empresaId, ap, entrada }) => {
   if (!produto.ativo) throw itemInvalido('produto_id', 'inativo');
   const unidade = unidadeEfetivaDoEstoque(produto.unidade_principal_estoque);
   if (!unidade) throw itemInvalido('produto_id', 'unidade_nao_aceita', { unidade: produto.unidade_principal_estoque });
-  // D-8: combustível (aceito por algum tanque, `TanqueBemProduto` ativo) se lança no abastecimento. O único
-  // escritor do aceite (PATCH do bem) segura o Produto (FOR KEY SHARE), que já está travado aqui.
-  const aceitesEmTanque = await tx.tanqueBemProduto.count({ where: { cliente_id: cli, produto_id: produto.id, ativo: true } });
-  if (aceitesEmTanque > 0) throw itemInvalido('produto_id', 'combustivel_no_abastecimento');
+  // D-8: combustível (aceite que VALE: ativo, em tanque ativo de bem ativo) se lança no abastecimento. Todo
+  // escritor que faz um aceite passar a valer (aceite novo ou religado, tanque ou bem reativado: criação/PATCH do
+  // bem, achado D1) segura o Produto FOR KEY SHARE, e aqui ele já está FOR UPDATE: a contagem é estável. Desligar
+  // não trava o Produto; nessa corrida a recusa é a resposta segura (falha fechada).
+  const aceitesQueValem = await tx.tanqueBemProduto.count({ where: aceiteDeCombustivelQueVale(cli, produto.id) });
+  if (aceitesQueValem > 0) throw itemInvalido('produto_id', 'combustivel_no_abastecimento');
   const quantidade = dec(entrada.quantidade);
   const dia = /** @type {string} */ (diaDe(ap.data_operacional));
   const saida = await aplicarSaidaFifo(tx, contexto, {
@@ -332,6 +355,12 @@ export const adicionarItem = async (contexto, apontamentoId, corpo) => {
           tipoOperacao: TIPO_ADICIONAR_ITEM,
           fingerprint,
           executar: async () => {
+            // §3.3 — a chave de um item JÁ gravado é conflito mesmo sem o recibo (apagado ou expurgado), conferida
+            // ANTES de tudo, como o recibo: mesma resposta e mesma auditoria do reenvio conflitante. Em produção o
+            // runtime não é dono das tabelas e elas têm RLS: o PostgreSQL omite o DETAIL da unique e o P2002 chega
+            // com `meta.target` nulo, que o mapa `unicos` abaixo não reconhece (viraria CONCURRENCY_CONFLICT, e o
+            // cliente repetiria a mesma chave para sempre). A unique (cliente_id, operation_id) fica como última rede.
+            if (await buscarItemPorOperacao(tx, cli, entrada.operation_id)) throw conflitoDeChave(entrada.operation_id)();
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const ap = await apontamentoTravado(tx, cli, empresaId, apontamentoId, entrada.versao); // I-c, I-b
             const { total: existentes, maiorOrdem } = await resumoDosItens(tx, cli, empresaId, apontamentoId);
@@ -384,6 +413,7 @@ export const adicionarItem = async (contexto, apontamentoId, corpo) => {
           },
         }),
       {
+        // Última rede (o alvo do P2002 só existe quando o runtime é dono da tabela; ver a conferência acima).
         operation_id: conflitoDeChave(entrada.operation_id),
         // I-n: a unique (cliente_id, apontamento_id, ordem) é a rede da trava do apontamento.
         ordem: () => concurrencyConflict('outro item entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),

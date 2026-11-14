@@ -176,6 +176,23 @@ export const fatiasDe = async (itemId) =>
   (await prisma().apontamentoAtividadeItemConsumoLote.findMany({ where: { item_id: itemId }, orderBy: { ordem: 'asc' } }))
     .map((f) => [f.ordem, f.estoque_lote_nota_id, p4(f.quantidade), p4(f.custo_unitario)]);
 export const movimentoDe = (id) => prisma().movimentacaoEstoque.findUnique({ where: { id } });
+/**
+ * Item PRODUTO cancelado amarrado ao SEU estorno: a Entrada apontada pelo item é
+ * filha da saída DELE (pai → filho e filho → pai), do mesmo Produto, com a mesma
+ * quantidade e o mesmo valor do item. Pega estorno trocado entre itens.
+ * @param {any} item item público CANCELADO (do detalhe) @param {string} rotulo
+ */
+export const conferirEstornoDoItem = async (item, rotulo) => {
+  assert.ok(item.movimento?.id && item.movimento_estorno?.id, `${rotulo}: item PRODUTO cancelado tem saída e estorno`);
+  const original = await movimentoDe(item.movimento.id);
+  const estorno = await movimentoDe(item.movimento_estorno.id);
+  assert.deepEqual(
+    [estorno.movimento_pai_id, original.movimento_filho_id, estorno.produto_id, p4(estorno.quantidade), p4(estorno.valor_total)],
+    [original.id, estorno.id, item.produto.id, item.quantidade, item.valor_total],
+    `${rotulo}: o estorno é o do PRÓPRIO item (pai/filho, Produto, quantidade e valor)`
+  );
+  return { original, estorno };
+};
 export const versaoDe = async (apontamentoId) => (await prisma().apontamentoAtividade.findUnique({ where: { id: apontamentoId } })).versao;
 /** Σ lotes Disponivel do produto = `estoque_atual` (nenhum saldo fantasma, nenhum negativo). */
 export const coerente = async (s, produto, rotulo) => {

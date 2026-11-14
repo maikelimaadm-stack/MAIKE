@@ -25,8 +25,14 @@
  *      combustível DEPOIS do item: a D-8 barra item NOVO de combustível, não o
  *      cancelamento) → serializados pela trava do Produto; o abastecimento vê a
  *      devolução; totais exatos
+ *  C6  ordem de travas I-d: o A1 PRODUTO trava o APONTAMENTO antes do
+ *      Produto — com a linha do Produto segura por fora, o A1 espera nela já
+ *      segurando o apontamento (NOWAIT de outra conexão → 55P03); e, ponta a
+ *      ponta, o cancelamento do mesmo apontamento (que também trava o Produto)
+ *      espera o A1 e perde o CAS, sem deadlock (na ordem invertida, o A1 e o A3
+ *      formariam um ciclo produto ↔ apontamento)
  *  R5  cancelar o apontamento com 50 itens PRODUTO cabe com folga na
- *      transação curta (9 s)
+ *      transação curta (9 s), cada item com o SEU estorno
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -36,8 +42,8 @@ import { PrismaClient } from '@prisma/client';
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { acoesAbastecimento, corpoAbastecimento } from './patrimonioP1AbastecimentoCenario.mjs';
 import {
-  acoesItens, coerente, corpoCancelar, corpoProduto, corpoServico, estoqueAtual, itensConfirmadosEmCancelado, montarItens, numeracaoLimpa, prisma, saldoLote,
-  TIPO_ESTORNO, versaoDe,
+  acoesItens, coerente, conferirEstornoDoItem, corpoCancelar, corpoProduto, corpoServico, estoqueAtual, itensConfirmadosEmCancelado, montarItens, numeracaoLimpa, prisma,
+  saldoLote, TIPO_ESTORNO, versaoDe,
 } from './apontamentoAtividadeItensCenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -144,6 +150,24 @@ const corrida = async (s, condicao, primeiro, segundo) => {
   }
   for (const r of [a.r, b.r]) assert.ok(r.statusCode < 500, `nenhum 500: ${r.statusCode} ${r.body}`);
   return { r1: a.r, r2: b.r };
+};
+
+/**
+ * Segura a LINHA do Produto (`FOR UPDATE`, sem o advisory do motor) numa
+ * transação do TESTE enquanto `fn(pidDoTeste)` roda; solta ao sair.
+ * @template T @param {{ id: string }} produto @param {(pid: number) => Promise<T>} fn @returns {Promise<T>}
+ */
+const segurandoProduto = (produto, fn) =>
+  aux.$transaction(async (tx) => {
+    const [{ pid }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT pg_backend_pid() AS pid`);
+    await tx.$queryRaw`SELECT id FROM "Produto" WHERE id = ${produto.id} FOR UPDATE`;
+    return fn(pid);
+  }, { maxWait: 10000, timeout: 60000 });
+/** Os pids que `pid` bloqueia, ou null (para `esperar`); `[null]` se o pedido acompanhado já terminou. */
+const bloqueadosOuFim = async (pid, acompanhado) => {
+  if (acompanhado.feito) return [null];
+  const b = await bloqueadosPor(pid);
+  return b.length ? b : null;
 };
 
 const NA_SAIDA_DO_ITEM = `NEW.origem_sistema = 'apontamento_atividade' AND NEW.tipo_movimentacao = 'Saída'`;
@@ -258,6 +282,60 @@ describe('D-PROD-191 — itens × concorrência (T10)', () => {
     await reconciliacaoLimpa(s, s.herbicida, 'C5');
   });
 
+  test('C6a: ordem de travas I-d no A1 PRODUTO — com a linha do Produto segura por fora, o A1 espera NELA já segurando a linha do APONTAMENTO (outra conexão: FOR UPDATE NOWAIT → 55P03); solto o Produto, o A1 entra', async () => {
+    const s = await montarItens(app);
+    await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '20.0000', preco: '5.00', dia: '2027-06-01' });
+    const ap = await s.apontamento();
+    /** @type {any} */ let a1;
+    try {
+      await segurandoProduto(s.herbicida, async (pidTeste) => {
+        a1 = acompanhar(A.adicionar(s.lancador.token, ap.id, corpoProduto(ap, s.herbicida, s.local2, '3')));
+        await esperar(() => bloqueadosOuFim(pidTeste, a1), 'A1 esperando a linha do Produto');
+        assert.equal(a1.feito, false, `o A1 tinha de esperar o Produto: ${a1.r?.statusCode} ${a1.r?.body}`);
+        // Outra conexão (o pool do teste, fora da transação que segura o Produto): o apontamento já está travado.
+        const nowait = await aux.$queryRaw`SELECT id FROM "ApontamentoAtividade" WHERE id = ${ap.id} FOR UPDATE NOWAIT`
+          .then(() => 'livre', (/** @type {any} */ e) => String(e?.meta?.code ?? e?.code));
+        assert.equal(nowait, '55P03', 'o A1 segura o apontamento ANTES de pedir o Produto (apontamento → produto)');
+      });
+    } finally {
+      await Promise.allSettled([a1?.p]);
+    }
+    const r = a1.r;
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(await versaoDe(ap.id), 2);
+    await coerente(s, s.herbicida, 'C6a');
+  });
+
+  test('C6b: ponta a ponta — com o Produto seguro por fora, o A1 PRODUTO espera nele e o cancelamento do MESMO apontamento (que já tem item do Produto, então também trava o Produto) espera o A1 no apontamento; solto o Produto: A1 201, A3 409 VERSAO_CONFLITO e nenhum deadlock', async () => {
+    const s = await montarItens(app);
+    await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '20.0000', preco: '5.00', dia: '2027-06-01' });
+    let ap = await s.apontamento();
+    ap = await A.ok(A.adicionar(s.lancador.token, ap.id, corpoProduto(ap, s.herbicida, s.local2, '2')), 201);
+    const deadlocksDoTeste = await deadlocks();
+    /** @type {any} */ let a1;
+    /** @type {any} */ let a3;
+    try {
+      await segurandoProduto(s.herbicida, async (pidTeste) => {
+        a1 = acompanhar(A.adicionar(s.lancador.token, ap.id, corpoProduto(ap, s.herbicida, s.local2, '3')));
+        const [pidA1] = await esperar(() => bloqueadosOuFim(pidTeste, a1), 'A1 esperando a linha do Produto');
+        assert.equal(a1.feito, false, `o A1 tinha de esperar o Produto: ${a1.r?.statusCode} ${a1.r?.body}`);
+        a3 = acompanhar(A.cancelarApontamento(s.cancelador.token, ap.id, corpoCancelar(ap, 'cancelar na fila do Produto')));
+        await esperar(async () => a3.feito || (await bloqueadosPor(pidA1)).length > 0, 'A3 esperando o A1');
+        assert.equal(a3.feito, false, `o A3 tinha de esperar o A1: ${a3.r?.statusCode} ${a3.r?.body}`);
+      });
+    } finally {
+      await Promise.allSettled([a1?.p, a3?.p]);
+    }
+    const [r1, r3] = [a1.r, a3.r];
+    assert.equal(r1.statusCode, 201, r1.body);
+    assert.deepEqual([r3.statusCode, codigo(r3)], [409, 'APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO'], r3.body);
+    assert.equal(await deadlocks(), deadlocksDoTeste, 'nenhum deadlock (40P01) entre o A1 e o A3');
+    assert.deepEqual([(await prisma().apontamentoAtividade.findUnique({ where: { id: ap.id } })).status, await versaoDe(ap.id)], ['CONFIRMADO', 3]);
+    assert.equal(await itensConfirmadosEmCancelado(), 0);
+    await coerente(s, s.herbicida, 'C6b');
+    await numeracaoLimpa(s);
+  });
+
   test('sem deadlock (40P01) em nenhuma corrida deste arquivo', async () => {
     assert.equal(await deadlocks(), deadlocksAntes, 'nenhum deadlock registrado no banco durante as corridas');
   });
@@ -280,6 +358,10 @@ describe('D-PROD-191 — tempo do cancelamento com muitos itens (R5)', () => {
     assert.ok(ms < 9000, `cancelamento de 50 itens em ${ms} ms (TRANSACAO_CURTA = 9 s)`);
     console.log(`# R5: cancelar o apontamento com 50 itens PRODUTO levou ${ms} ms`);
     assert.equal(await prisma().movimentacaoEstoque.count({ where: { cliente_id: s.c, tipo_detalhado: TIPO_ESTORNO } }), 50);
+    // Cada um dos 50 itens com o SEU estorno (filho da saída dele, mesmo Produto, quantidade e valor): nenhum trocado.
+    const det = r.json();
+    assert.equal(det.itens.length, 50);
+    for (const it of det.itens) await conferirEstornoDoItem(it, `R5 item ${it.ordem}`);
     assert.deepEqual([await estoqueAtual(s.herbicida), await estoqueAtual(s.adubo)], ['1000.0000', '1000.0000']);
     assert.equal(await itensConfirmadosEmCancelado(), 0);
     await numeracaoLimpa(s);

@@ -14,13 +14,19 @@
  *  - IT4 recusas: Produto (inexistente, de outro tenant sem oráculo, de outra
  *    fazenda, inativo, unidade, COMBUSTÍVEL — D-8), local, saldo do lote e
  *    `estoque_atual`, forma do corpo (400), chave reaproveitada e o limite de
- *    200 itens (D-9) — sempre com NADA gravado (I-f, I-g, I-i, I-l, I-m);
+ *    200 itens (D-9) — sempre com NADA gravado (I-f, I-g, I-i, I-l, I-m); a D-8
+ *    só com o aceite que vale (IT4e); a chave de um item sem o recibo dele,
+ *    conferida antes de tudo (IT4f), também como em produção: papel não dono
+ *    das tabelas, com RLS, onde o P2002 chega sem alvo (IT4g);
  *  - IT5 situação, CAS e imutabilidade: apontamento CANCELADO, versão velha,
  *    PATCH do cabeçalho depois do item, sem PATCH/DELETE de item, e a data com
  *    item PRODUTO confirmado (D-1) (I-b, I-c, I-o, I-r);
  *  - IT6/IT7/IT8 cancelar item: estorno EXATO (cada fatia ao SEU lote) no "hoje"
- *    da fazenda, idempotência e os bloqueios do estorno (I-p);
- *  - IT9 cancelar o APONTAMENTO: todos os itens juntos, tudo ou nada; D-2 (I-q);
+ *    da fazenda, idempotência e os bloqueios do estorno (I-p); o "hoje" da
+ *    fazenda perto da meia-noite UTC (IT6b), a fazenda sem fuso (IT6c) e o
+ *    fingerprint de A1, A2 e A3 campo a campo (IT7b);
+ *  - IT9 cancelar o APONTAMENTO: todos os itens juntos, tudo ou nada, cada item
+ *    PRODUTO com o SEU estorno; D-2 (I-q);
  *  - IT11 isolamento por tenant e por fazenda (I-t);
  *  - IT12 reconciliação reconhece a origem nova e as fatias FK (I-y);
  *  - IT13 X1 do lote, exclusões e proveniência da compra (I-x, R7);
@@ -39,9 +45,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { Prisma } from '@prisma/client';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
+import { comRelogioDeTeste } from '../src/modules/rebanhoLedger/rebanhoLedgerTempo.js';
+import { itemTanque } from './patrimonioP1AbastecimentoCenario.mjs';
+import { corpoGerador } from './patrimonioP1Cenario.mjs';
 import {
-  CHAVES_ITEM, CUSTO_ZERO, DIA, INSTANTE_ESTORNO, INSTANTE_SAIDA, ORIGEM, TIPO_ESTORNO, acoesItens, coerente, corpoCancelar, corpoErro, corpoProduto, corpoServico,
-  erro, estoqueAtual, fatiasDe, foto, itemDe, montarItens, movimentoDe, numeracaoLimpa, opId, p4, prisma, saldoLote, versaoDe,
+  CHAVES_ITEM, CUSTO_ZERO, DIA, INSTANTE_ESTORNO, INSTANTE_SAIDA, ORIGEM, TIPO_ESTORNO, acoesItens, coerente, conferirEstornoDoItem, corpoCancelar, corpoErro, corpoProduto,
+  corpoServico, erro, estoqueAtual, fatiasDe, foto, itemDe, montarItens, movimentoDe, numeracaoLimpa, opId, p4, prisma, saldoLote, versaoDe,
 } from './apontamentoAtividadeItensCenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -120,6 +129,52 @@ const doisLotes = async (s, produto = s.herbicida) => {
   const a = await s.compraP3(s.e1, produto, s.local2, { quantidade: '10.0000', preco: '5.00', dia: '2027-06-01' });
   const b = await s.compraP3(s.e1, produto, s.local2, { quantidade: '20.0000', preco: '7.00', dia: '2027-06-03' });
   return { A: a.lote_id, B: b.lote_id, compraA: a, compraB: b };
+};
+
+const TIPO_ADICIONAR = 'adicionar_item_apontamento_atividade_v1';
+/** Fotografia do tenant SEM a auditoria (o reenvio conflitante é auditado à parte, best-effort). @param {{ c: string }} s */
+const semAuditoria = async (s) => JSON.stringify({ ...JSON.parse(await foto(s.c)), auditLog: null });
+/** `[acao, entidade, entidade_id, usuario_id, dados_novos]` das auditorias de reenvio conflitante do tenant, em ordem. @param {{ c: string }} s */
+const reenviosAuditados = async (s) =>
+  (await prisma().auditLog.findMany({ where: { cliente_id: s.c, acao: 'apontamento_atividade.reenvio_conflitante' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }))
+    .map((x) => [x.acao, x.entidade, x.entidade_id, x.usuario_id, x.dados_novos]);
+
+/**
+ * Roda `fn` com TODA transação interativa do app (`getPrismaClient().$transaction`)
+ * como em PRODUÇÃO: um papel que NÃO é dono das tabelas, sem BYPASSRLS, com o
+ * RLS que as migrations ligam em todas elas e uma política permissiva
+ * `FOR ALL … USING (true) WITH CHECK (true)` (a `maike_backend_all` do
+ * `maike_vercel`). O primeiro comando de cada transação vira `SET LOCAL ROLE`
+ * (vale só até o fim dela). Papel com nome único, criado e apagado aqui
+ * (`DROP OWNED BY` leva as políticas e os grants deste banco).
+ * @template T @param {(papel: string) => Promise<T>} fn @returns {Promise<T>}
+ */
+const comPapelNaoDono = async (fn) => {
+  const p = /** @type {any} */ (prisma());
+  const papel = `maike_teste_rls_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+  const original = p.$transaction;
+  await p.$executeRawUnsafe(`CREATE ROLE ${papel} NOLOGIN NOSUPERUSER NOBYPASSRLS`);
+  try {
+    await p.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO ${papel}`);
+    await p.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${papel}`);
+    await p.$executeRawUnsafe(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${papel}`);
+    const comRls = /** @type {Array<{ tabela: string }>} */ (await p.$queryRaw`SELECT c.relname AS tabela FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity AND NOT c.relforcerowsecurity ORDER BY 1`);
+    assert.ok(comRls.some((t) => t.tabela === 'ApontamentoAtividadeItem'), 'a tabela de itens tem RLS ligado (sem FORCE), como em produção');
+    for (const { tabela } of comRls) await p.$executeRawUnsafe(`CREATE POLICY teste_backend_all ON public."${tabela}" FOR ALL TO ${papel} USING (true) WITH CHECK (true)`);
+    p.$transaction = (/** @type {any} */ arg, /** @type {any} */ opcoes) =>
+      typeof arg === 'function'
+        ? original.call(p, async (/** @type {any} */ tx) => {
+            await tx.$executeRawUnsafe(`SET LOCAL ROLE ${papel}`);
+            return arg(tx);
+          }, opcoes)
+        : original.call(p, arg, opcoes);
+    return await fn(papel);
+  } finally {
+    p.$transaction = original;
+    await p.$executeRawUnsafe(`DROP OWNED BY ${papel}`);
+    await p.$executeRawUnsafe(`DROP ROLE ${papel}`);
+  }
 };
 
 // ═══ Item PRODUTO: baixa pelo motor único ═══════════════════════════════════
@@ -262,7 +317,7 @@ describe('D-PROD-191 — item PRODUTO: baixa física pelo motor único (I-e…I-
 // ═══ SERVICO / OUTRO ════════════════════════════════════════════════════════
 
 describe('D-PROD-191 — itens SERVICO e OUTRO: descrição + quantidade + valor, sem estoque (I-k, D-6, D-7)', () => {
-  test('IT3: total = ROUND_HALF_UP(q × v, 4) em Decimal (1 × 1,00005 = 1,0001; 0,1 × 3 = 0,3000; 3 × 0,33335 = 1,0001 e 2 × 1,000025 = 2,0001, onde Number daria 1,0000 e 2,0000; produto de 16 dígitos exato); total zero e acima do limite recusados; nenhum movimento, lote ou estoque_atual', async () => {
+  test('IT3: total = ROUND_HALF_UP(q × v, 4) em Decimal, arredondado UMA vez (1 × 1,00005 = 1,0001; 0,1 × 3 = 0,3000; 3 × 0,33335 = 1,0001 e 2 × 1,000025 = 2,0001, onde Number daria 1,0000 e 2,0000; produto de 16 dígitos exato; 123450004,9455 × 123,456789 = 15240741212,6055, onde 6→4 casas, precisão 20 e Number dariam …6056); total zero e acima do limite recusados; nenhum movimento, lote ou estoque_atual', async () => {
     const s = await montarItens(app);
     await doisLotes(s);
     let ap = await s.apontamento();
@@ -280,7 +335,11 @@ describe('D-PROD-191 — itens SERVICO e OUTRO: descrição + quantidade + valor
       ['SERVICO', 'Hora-máquina terceirizada', '3', '0.33335', '1.0001', '0.333350'],
       ['OUTRO', 'Pedágio', '2', '1.000025', '2.0001', '1.000025'],
       ['SERVICO', 'Empreitada grande', '1234567.8901', '98765.432109', exato, '98765.432109'],
+      // Exato: 15240741212,6055499995. UM arredondamento (4 casas) dá …6055; arredondar antes a 6 casas (…605550 → …6056),
+      // contar com a precisão padrão de 20 dígitos (…6055500000 → …6056) ou em Number (…6056) erra.
+      ['SERVICO', 'Empreitada de onze dígitos', '123450004.9455', '123.456789', '15240741212.6055', '123.456789'],
     ];
+    assert.equal(new D('123450004.9455').times('123.456789').toFixed(), '15240741212.6055499995', 'o vetor: produto exato');
     for (const [tipo, descricao, q, v, total, vu] of VETORES) {
       ap = await adicionarOk(s.lancador.token, ap.id, corpoServico(ap, /** @type {any} */ (tipo), descricao, q, v));
       const item = itemNa(ap, ap.item_id);
@@ -294,7 +353,7 @@ describe('D-PROD-191 — itens SERVICO e OUTRO: descrição + quantidade + valor
     }
     const soma = (tipo) => VETORES.filter((x) => tipo === null || x[0] === tipo).reduce((acc, x) => acc.plus(x[4]), new D(0)).toFixed(4);
     assert.deepEqual(ap.custo_itens, { total: soma(null), produto: '0.0000', servico: soma('SERVICO'), outro: soma('OUTRO'), itens_confirmados: VETORES.length });
-    assert.deepEqual(ap.itens.map((/** @type {any} */ i) => i.ordem), [1, 2, 3, 4, 5]);
+    assert.deepEqual(ap.itens.map((/** @type {any} */ i) => i.ordem), VETORES.map((_, i) => i + 1));
 
     // Total zero (0,0001 × 0,4 = 0,00004 → 0,0000; e valor 0) e total acima do limite das colunas: 422, nada gravado.
     for (const [q, v, reason] of [['0.0001', '0.4', 'total_zero'], ['5', '0', 'total_zero'], ['9999999999.9999', '999999999999.999999', 'valor_excede_limite']]) {
@@ -439,6 +498,124 @@ describe('D-PROD-191 — recusas do item: nada gravado (I-e, I-f, I-i, I-l, I-m,
     const r = await recusa(s, () => A.adicionar(s.lancador.token, d.id, corpoServico(d, 'OUTRO', 'Excedente', '1', '1')), [422, 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS', undefined, undefined]);
     assert.equal(r.json().details.limite, 200);
     await recusa(s, () => A.adicionar(s.lancador.token, d.id, corpoProduto(d, s.herbicida, s.local2, '1')), [422, 'APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS', undefined, undefined]);
+  });
+
+  test('IT4e: D-8 conta só o aceite que VALE (ativo, em tanque ativo de bem ativo, de qualquer fazenda do tenant) — tanque inativo, bem inativo e aceite desligado não barram; reativar o tanque ou o bem volta a barrar; tanque ativo de bem ativo da OUTRA fazenda barra; a recusa não grava nada', async () => {
+    const s = await montarItens(app);
+    // Produto em L que só o tanque do gerador vai aceitar (o diesel do cenário é aceito também pelo trator).
+    const bio = await prisma().produto.create({
+      data: { cliente_id: s.c, empresa_id: s.e1.id, numero_produto: `BIO-${randomUUID().slice(0, 8)}`, nome_produto: 'Biodiesel B100 (L)', unidade_principal_estoque: 'L' },
+    });
+    await s.compraP3(s.e1, bio, s.local2, { quantidade: '100.0000', preco: '6.00', dia: '2027-06-01' });
+    let ap = await s.apontamento();
+    /** PATCH do gerador pela API do cadastro de Bens (na versão atual); `corpo(atual)` monta o resto. */
+    const patchGerador = async (corpo) => {
+      const atual = await A.ok(A.req('GET', `/bens-patrimoniais/${s.gerador.id}?empresa_id=${s.e1.id}`, s.token));
+      return A.ok(A.req('PATCH', `/bens-patrimoniais/${s.gerador.id}`, s.token, { empresa_id: s.e1.id, versao: atual.versao, ...corpo(atual) }));
+    };
+    /** O tanque (único) do gerador, com os aceites ativos de hoje, ativo ou não. */
+    const tanqueDoGerador = (atual, ativo) => [itemTanque(atual.tanques[0], atual.tanques[0].produtos.map((x) => x.produto_id), { ativo })];
+    /** O item do Produto: barrado (422 combustível, nada gravado) ou aceito (201). */
+    const conferir = async (rotulo, barra) => {
+      const antes = await foto(s.c);
+      const r = await A.adicionar(s.lancador.token, ap.id, corpoProduto(ap, bio, s.local2, '1'));
+      if (!barra) {
+        assert.equal(r.statusCode, 201, `${rotulo}: ${r.body}`);
+        ap = r.json();
+        return;
+      }
+      assert.deepEqual(erro(r), [422, IVAL, 'produto_id', 'combustivel_no_abastecimento'], `${rotulo}: ${r.body}`);
+      assert.equal(await foto(s.c), antes, `${rotulo}: nada gravado`);
+    };
+
+    await conferir('nenhum tanque aceita o Produto', false);
+    await A.ok(s.patchAceites(s.gerador, [[s.diesel.id, bio.id]])); // o aceite entra pelo cadastro de Bens
+    await conferir('aceite ativo em tanque ativo de bem ativo', true);
+    await patchGerador((atual) => ({ tanques: tanqueDoGerador(atual, false) }));
+    await conferir('tanque inativo', false);
+    await patchGerador((atual) => ({ tanques: tanqueDoGerador(atual, true) }));
+    await conferir('tanque reativado', true);
+    await patchGerador(() => ({ ativo: false }));
+    await conferir('bem inativo', false);
+    await patchGerador(() => ({ ativo: true }));
+    await conferir('bem reativado', true);
+    // Aceite desligado: o cadastro só desliga (em vez de apagar) o aceite que tem abastecimento; aqui, direto no banco.
+    assert.equal((await prisma().tanqueBemProduto.updateMany({ where: { cliente_id: s.c, produto_id: bio.id }, data: { ativo: false } })).count, 1);
+    await conferir('aceite desligado', false);
+    // Tanque ativo de bem ativo da FAZENDA 2 aceitando o Produto da fazenda 1 (o cadastro recusa; dado legado, direto no
+    // banco): conta igual, o critério não filtra empresa.
+    const geradorF2 = await A.ok(A.req('POST', '/bens-patrimoniais', s.token, corpoGerador(s, {
+      empresa_id: s.e2.id, nome: 'Gerador da fazenda 2', tanques: [{ identificador: 'Tanque F2', capacidade_litros: '60', produto_ids: [s.diesel2.id] }],
+    })), 201);
+    await prisma().tanqueBemProduto.create({ data: { cliente_id: s.c, tanque_id: geradorF2.tanques[0].id, produto_id: bio.id } });
+    await conferir('tanque ativo de bem ativo da outra fazenda do tenant', true);
+    assert.deepEqual(ap.itens.map((/** @type {any} */ i) => [i.ordem, i.produto.id, i.status]), [1, 2, 3, 4].map((o) => [o, bio.id, 'CONFIRMADO']), 'só os 4 que valiam entraram');
+  });
+
+  test('IT4f: recibo do A1 apagado (o item e a chave ficam) — a mesma operation_id com outro corpo ou com o MESMO corpo → 409 IDEMPOTENCY_CONFLICT pela tabela de itens, conferida ANTES de tudo como o recibo (versão velha e falta de saldo não passam na frente); o reenvio auditado; nenhum efeito novo', async () => {
+    const s = await montarItens(app);
+    await doisLotes(s);
+    const ap = await s.apontamento();
+    const corpo = corpoProduto(ap, s.herbicida, s.local2, '12');
+    const d = await adicionarOk(s.lancador.token, ap.id, corpo);
+    const apagados = await prisma().operacaoIdempotente.deleteMany({ where: { cliente_id: s.c, operation_key: corpo.operation_id, tipo_operacao: TIPO_ADICIONAR } });
+    assert.equal(apagados.count, 1, 'o recibo do A1 some (o item e a operation_id dele ficam)');
+    const auditoria = ['apontamento_atividade.reenvio_conflitante', 'ApontamentoAtividadeItem', null, s.lancador.id, { operation_id: corpo.operation_id, tipo_operacao: TIPO_ADICIONAR }];
+    const VARIANTES = [
+      ['outra quantidade, na versão atual', { ...corpo, versao: d.versao, quantidade: '1' }],
+      ['SERVICO, na versão atual', corpoServico(d, 'SERVICO', 'Outro conteúdo', '1', '10', { operation_id: corpo.operation_id })],
+      ['o MESMO corpo: sem recibo não há replay', corpo],
+      ['versão velha: a chave vem antes da versão, como no recibo', { ...corpo, quantidade: '1' }],
+      ['acima do saldo: a chave vem antes do motor', { ...corpo, versao: d.versao, quantidade: '999' }],
+    ];
+    for (const [i, [rotulo, outro]] of VARIANTES.entries()) {
+      const antes = await semAuditoria(s);
+      const r = await A.adicionar(s.lancador.token, ap.id, outro);
+      assert.deepEqual([r.statusCode, r.json().code, r.json().details?.operation_id], [409, 'IDEMPOTENCY_CONFLICT', corpo.operation_id], `${rotulo}: ${r.body}`);
+      assert.equal(await semAuditoria(s), antes, `${rotulo}: nada gravado (item, fatia, movimento, lote, recibo, versão)`);
+      assert.deepEqual(await reenviosAuditados(s), Array.from({ length: i + 1 }, () => auditoria), `${rotulo}: auditado como o reenvio do recibo`);
+    }
+    const det = await A.ok(A.detalhe(s.lancador.token, ap.id, s.e1.id));
+    assert.deepEqual([det.versao, det.itens.length, itemNa(det, d.item_id).quantidade], [2, 1, '12.0000'], 'o item gravado não mudou');
+    await coerente(s, s.herbicida, 'IT4f');
+  });
+
+  test('IT4g: como em PRODUÇÃO (papel NÃO dono das tabelas, RLS ligado e política permissiva) o P2002 da unique chega SEM alvo; mesmo assim a chave sem recibo dá 409 IDEMPOTENCY_CONFLICT (nunca CONCURRENCY_CONFLICT), auditado e sem efeito; o A1 PRODUTO inteiro roda sob o papel (controle)', async () => {
+    const s = await montarItens(app);
+    await doisLotes(s);
+    const ap = await s.apontamento();
+    const quem = async () => /** @type {any[]} */ (await prisma().$transaction((tx) => tx.$queryRaw`SELECT current_user AS u`))[0].u;
+    const dono = await quem();
+    await comPapelNaoDono(async (papel) => {
+      assert.equal(await quem(), papel, 'as transações do app rodam como o papel');
+      // Controle: recibo, travas, motor, item, fatias, versão, numeração e auditoria, tudo sob o papel.
+      const corpo = corpoProduto(ap, s.herbicida, s.local2, '12');
+      const d = await adicionarOk(s.lancador.token, ap.id, corpo);
+      assert.deepEqual([d.versao, itemNa(d, d.item_id).valor_total], [2, '64.0000']);
+      // Pré-condição (o defeito de produção): violada sob o papel, a unique (cliente_id, operation_id) não diz o alvo.
+      const duplicada = await prisma().$transaction((tx) => tx.apontamentoAtividadeItem.create({
+        data: {
+          cliente_id: s.c, empresa_id: s.e1.id, apontamento_id: ap.id, ordem: 99, tipo: 'SERVICO', status: 'CONFIRMADO', descricao: 'mesma chave',
+          quantidade: '1', valor_unitario: '1', valor_total: '1', operation_id: corpo.operation_id,
+        },
+      })).then(() => null, (e) => e);
+      assert.equal(duplicada?.code, 'P2002', String(duplicada));
+      assert.equal(duplicada.meta?.target ?? null, null, 'sob RLS o PostgreSQL omite o DETAIL: o Prisma não sabe qual unique foi violada');
+      // O caso: o recibo some e a mesma chave volta.
+      assert.equal((await prisma().operacaoIdempotente.deleteMany({ where: { cliente_id: s.c, operation_key: corpo.operation_id, tipo_operacao: TIPO_ADICIONAR } })).count, 1);
+      for (const [i, [rotulo, outro]] of [
+        ['outra quantidade, na versão atual', { ...corpo, versao: d.versao, quantidade: '1' }],
+        ['o MESMO corpo', corpo],
+      ].entries()) {
+        const antes = await semAuditoria(s);
+        const r = await A.adicionar(s.lancador.token, ap.id, outro);
+        assert.deepEqual([r.statusCode, r.json().code], [409, 'IDEMPOTENCY_CONFLICT'], `${rotulo}: ${r.body}`);
+        assert.equal(await semAuditoria(s), antes, `${rotulo}: nada gravado`);
+        assert.equal((await reenviosAuditados(s)).length, i + 1, `${rotulo}: o reenvio é auditado`);
+      }
+    });
+    assert.equal(await quem(), dono, 'fora do teste, o app volta ao dono');
+    assert.deepEqual(await prisma().$queryRaw`SELECT policyname FROM pg_policies WHERE policyname = 'teste_backend_all'`, [], 'as políticas do teste saíram');
   });
 });
 
@@ -670,6 +847,119 @@ describe('D-PROD-191 — cancelar item: estorno exato (I-p)', () => {
     assert.equal(itemNa(c2, d2.item_id).status, 'CANCELADO');
     assert.deepEqual(await saldoLote(adubo.lote_id), ['10.0000', 'Disponivel']);
   });
+
+  test('IT6b: o estorno fica no dia da FAZENDA, não no dia UTC — às 02:00Z de 16/06 (23:00 de 15/06 em São Paulo) o A2 e o A3 estornam em 15/06 (meio-dia UTC); a saída segue na data operacional', async () => {
+    const s = await montarItens(app);
+    const c = await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '20.0000', preco: '5.00', dia: '2027-06-01' });
+    const NOITE = '2027-06-16T02:00:00.000Z';
+    let ap1 = await s.apontamento();
+    let ap2 = await s.apontamento();
+    await comRelogioDeTeste(NOITE, async () => {
+      ap1 = await adicionarOk(s.lancador.token, ap1.id, corpoProduto(ap1, s.herbicida, s.local2, '3'));
+      ap2 = await adicionarOk(s.lancador.token, ap2.id, corpoProduto(ap2, s.herbicida, s.local2, '4'));
+      const doA2 = itemNa(await cancelarItemOk(s.cancelador.token, ap1.id, ap1.item_id, corpoCancelar(ap1, 'estorno do item à noite')), ap1.item_id);
+      const doA3 = itemNa(await cancelarApontamentoOk(s.cancelador.token, ap2.id, corpoCancelar(ap2, 'estorno do apontamento à noite')), ap2.item_id);
+      for (const [rotulo, it] of [['A2', doA2], ['A3', doA3]]) {
+        const { original, estorno } = await conferirEstornoDoItem(it, rotulo);
+        assert.equal(original.data_movimentacao.toISOString(), INSTANTE_SAIDA, `${rotulo}: a saída na data operacional`);
+        assert.equal(estorno.data_movimentacao.toISOString(), INSTANTE_ESTORNO, `${rotulo}: o estorno em 15/06 (hoje da fazenda), nunca em 16/06 (o dia UTC de ${NOITE})`);
+      }
+    });
+    assert.deepEqual(await saldoLote(c.lote_id), ['20.0000', 'Disponivel']);
+    await coerente(s, s.herbicida, 'IT6b');
+  });
+
+  test('IT6c: fazenda sem fuso — o A2 (item PRODUTO e item SERVICO) e o A3 recusam com 409 EMPRESA_FUSO_NAO_CONFIGURADO (falha fechada: sem o "hoje" da fazenda não há estorno, e não existe fuso padrão); nada alterado; com o fuso de volta, cancelam', async () => {
+    const s = await montarItens(app);
+    const c = await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '20.0000', preco: '5.00', dia: '2027-06-01' });
+    let ap = await s.apontamento();
+    ap = await adicionarOk(s.lancador.token, ap.id, corpoProduto(ap, s.herbicida, s.local2, '5'));
+    const produtoId = ap.item_id;
+    ap = await adicionarOk(s.lancador.token, ap.id, corpoServico(ap, 'SERVICO', 'Diária', '1', '100'));
+    const servicoId = ap.item_id;
+    const { fuso_horario: fuso } = await prisma().empresa.findUnique({ where: { id: s.e1.id } });
+    assert.ok(fuso, 'a fazenda do cenário tem fuso');
+    await prisma().empresa.update({ where: { id: s.e1.id }, data: { fuso_horario: null } });
+    for (const [rotulo, pedir] of [
+      ['A2 do item PRODUTO', () => A.cancelarItem(s.cancelador.token, ap.id, produtoId, corpoCancelar(ap, 'cancelar sem fuso'))],
+      ['A2 do item SERVICO', () => A.cancelarItem(s.cancelador.token, ap.id, servicoId, corpoCancelar(ap, 'cancelar sem fuso'))],
+      ['A3', () => A.cancelarApontamento(s.cancelador.token, ap.id, corpoCancelar(ap, 'cancelar sem fuso'))],
+    ]) {
+      const antes = await foto(s.c);
+      const r = await pedir();
+      assert.deepEqual([r.statusCode, r.json().code], [409, 'EMPRESA_FUSO_NAO_CONFIGURADO'], `${rotulo}: ${r.body}`);
+      assert.equal(await foto(s.c), antes, `${rotulo}: nada alterado (estorno, item, versão, recibo, auditoria)`);
+    }
+    assert.deepEqual([await saldoLote(c.lote_id), await estoqueAtual(s.herbicida)], [['15.0000', 'Disponivel'], '15.0000']);
+    await prisma().empresa.update({ where: { id: s.e1.id }, data: { fuso_horario: fuso } });
+    const d = await cancelarItemOk(s.cancelador.token, ap.id, produtoId, corpoCancelar(ap, 'cancelar com fuso'));
+    assert.equal(itemNa(d, produtoId).status, 'CANCELADO', 'com o fuso de volta, o mesmo cancelamento passa');
+    assert.deepEqual(await saldoLote(c.lote_id), ['20.0000', 'Disponivel']);
+  });
+
+  test('IT7b: o fingerprint cobre CADA campo — a mesma operation_id com UM campo diferente → 409 IDEMPOTENCY_CONFLICT (nada gravado; o reenvio auditado): A1 (apontamento, empresa, versão, tipo, produto, local, quantidade, descrição, valor unitário), A2 (apontamento, item, empresa, versão, motivo), A3 (apontamento, empresa, versão, motivo); o mesmo valor em outra grafia é o mesmo pedido (replay)', async () => {
+    const s = await montarItens(app);
+    await doisLotes(s);
+    let ap = await s.apontamento();
+    const apId = ap.id;
+    const outroAp = await s.apontamento();
+    const prod = corpoProduto(ap, s.herbicida, s.local2, '2');
+    ap = await adicionarOk(s.lancador.token, apId, prod);
+    const produtoId = ap.item_id;
+    const serv = corpoServico(ap, 'SERVICO', 'Diária de tratorista', '2', '150');
+    ap = await adicionarOk(s.lancador.token, apId, serv);
+    const servicoId = ap.item_id;
+
+    /** A mesma chave com UM campo diferente → 409, nada gravado além de UMA auditoria do reenvio. */
+    const conflito = async (rotulo, pedir) => {
+      const antes = await semAuditoria(s);
+      const n = (await reenviosAuditados(s)).length;
+      const r = await pedir();
+      assert.deepEqual([r.statusCode, r.json().code], [409, 'IDEMPOTENCY_CONFLICT'], `${rotulo}: ${r.body}`);
+      assert.equal(await semAuditoria(s), antes, `${rotulo}: nada gravado`);
+      assert.equal((await reenviosAuditados(s)).length, n + 1, `${rotulo}: o reenvio é auditado`);
+    };
+    /** O mesmo pedido noutra grafia (o fingerprint usa os valores normalizados) → 200 replay, nada novo. */
+    const replay = async (rotulo, pedir) => {
+      const antes = await foto(s.c);
+      const r = await pedir();
+      assert.deepEqual([r.statusCode, r.json().replay], [200, true], `${rotulo}: ${r.body}`);
+      assert.equal(await foto(s.c), antes, `${rotulo}: replay sem efeito`);
+    };
+    const a1 = (id, corpo) => A.adicionar(s.lancador.token, id, corpo);
+    await conflito('A1: outro apontamento', () => a1(outroAp.id, prod));
+    await conflito('A1: outra empresa', () => a1(apId, { ...prod, empresa_id: s.e2.id }));
+    await conflito('A1: outra versão', () => a1(apId, { ...prod, versao: prod.versao + 1 }));
+    await conflito('A1: outro produto', () => a1(apId, { ...prod, produto_id: s.adubo.id }));
+    await conflito('A1: outro local', () => a1(apId, { ...prod, local_estoque_id: s.local.id }));
+    await conflito('A1: outra quantidade', () => a1(apId, { ...prod, quantidade: '3' }));
+    await replay('A1: a mesma quantidade com zeros', () => a1(apId, { ...prod, quantidade: '2.0000' }));
+    await conflito('A1: outro tipo (OUTRO)', () => a1(apId, { ...serv, tipo: 'OUTRO' }));
+    await conflito('A1: outra descrição', () => a1(apId, { ...serv, descricao: 'Diária de operador' }));
+    await conflito('A1: outro valor unitário', () => a1(apId, { ...serv, valor_unitario: '150.000001' }));
+    await replay('A1: a mesma descrição com espaços e o mesmo valor com zeros', () => a1(apId, { ...serv, descricao: `  ${serv.descricao}  `, valor_unitario: '150.000000' }));
+
+    const canc = corpoCancelar(ap, 'lançado em dobro');
+    ap = await cancelarItemOk(s.cancelador.token, apId, produtoId, canc);
+    const a2 = (id, itemId, corpo) => A.cancelarItem(s.cancelador.token, id, itemId, corpo);
+    await conflito('A2: outro apontamento', () => a2(outroAp.id, produtoId, canc));
+    await conflito('A2: outro item', () => a2(apId, servicoId, canc));
+    await conflito('A2: outra empresa', () => a2(apId, produtoId, { ...canc, empresa_id: s.e2.id }));
+    await conflito('A2: outra versão', () => a2(apId, produtoId, { ...canc, versao: canc.versao + 1 }));
+    await conflito('A2: outro motivo', () => a2(apId, produtoId, { ...canc, motivo: 'outro motivo qualquer' }));
+    await replay('A2: o mesmo motivo com espaços', () => a2(apId, produtoId, { ...canc, motivo: `  ${canc.motivo}  ` }));
+
+    const cancAp = corpoCancelar(ap, 'atividade não aconteceu');
+    await cancelarApontamentoOk(s.cancelador.token, apId, cancAp);
+    const a3 = (id, corpo) => A.cancelarApontamento(s.cancelador.token, id, corpo);
+    await conflito('A3: outro apontamento', () => a3(outroAp.id, cancAp));
+    await conflito('A3: outra empresa', () => a3(apId, { ...cancAp, empresa_id: s.e2.id }));
+    await conflito('A3: outra versão', () => a3(apId, { ...cancAp, versao: cancAp.versao + 1 }));
+    await conflito('A3: outro motivo', () => a3(apId, { ...cancAp, motivo: 'outro motivo qualquer' }));
+    await replay('A3: o mesmo motivo com espaços', () => a3(apId, { ...cancAp, motivo: `  ${cancAp.motivo}  ` }));
+    const outro = await A.ok(A.detalhe(s.token, outroAp.id, s.e1.id));
+    assert.deepEqual([outro.status, outro.versao, outro.itens.length], ['CONFIRMADO', 1, 0], 'o outro apontamento ficou intocado');
+  });
 });
 
 // ═══ Cancelar o APONTAMENTO ═════════════════════════════════════════════════
@@ -717,7 +1007,8 @@ describe('D-PROD-191 — cancelar o apontamento cancela e estorna todos os itens
     assert.deepEqual([await saldoLote(herb.lote_id), await saldoLote(adub.lote_id)], [['50.0000', 'Disponivel'], ['40.0000', 'Disponivel']]);
     assert.deepEqual([await estoqueAtual(s.herbicida), await estoqueAtual(s.adubo)], ['50.0000', '40.0000']);
     for (const id of [i1, i2]) {
-      const e = await movimentoDe(itemNa(c, id).movimento_estorno.id);
+      // Cada item com o SEU estorno (filho da saída dele, mesmo Produto, quantidade e valor): nunca trocado entre itens.
+      const { estorno: e } = await conferirEstornoDoItem(itemNa(c, id), `IT9 item ${itemNa(c, id).ordem}`);
       assert.deepEqual([e.data_movimentacao.toISOString(), e.origem_sistema, e.tipo_detalhado], [INSTANTE_ESTORNO, ORIGEM, TIPO_ESTORNO]);
     }
     const doApontamento = await prisma().auditLog.findMany({ where: { cliente_id: s.c, acao: 'apontamento_atividade.cancelar', entidade_id: ap.id } });
