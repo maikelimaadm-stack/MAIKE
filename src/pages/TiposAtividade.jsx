@@ -13,6 +13,7 @@ import FormularioTipoAtividade, {
 } from "@/components/tipos-atividade/FormularioTipoAtividade";
 import TabelaTiposAtividade, {
   TIPOS_ATIVIDADE_COLUNAS,
+  TIPOS_ATIVIDADE_STORAGE_KEY,
   getTipoAtividadeFieldValue,
 } from "@/components/tipos-atividade/TabelaTiposAtividade";
 import {
@@ -23,12 +24,19 @@ import {
   excluirTiposAtividade,
 } from "@/services/tipoAtividadeCadastroService";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 
 const QUERY_KEY = ["tipos-atividade"];
 
-/** Cadastro de tipos de atividade (D-PROD-182). */
+/**
+ * Cadastro de tipos de atividade (D-PROD-182; padrões e flags, D-PROD-197).
+ *
+ * O tipo é do cliente; os centros padrão são da fazenda: o formulário oferece
+ * os da fazenda SELECIONADA (a mesma empresa real do Apontamento de Atividade).
+ */
 export default function TiposAtividade() {
   const queryClient = useQueryClient();
+  const empresaId = useEmpresaRealSelecionadaId();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
   const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
 
@@ -41,7 +49,7 @@ export default function TiposAtividade() {
   const fetchAll = useCallback(() => listarTiposAtividade(), []);
 
   const controller = useCadastroBase1FullListController({
-    storageKey: "colunas_largura_tipos_atividade",
+    storageKey: TIPOS_ATIVIDADE_STORAGE_KEY,
     columnIds: TIPOS_ATIVIDADE_COLUNAS.map((c) => c.id),
     queryKey: QUERY_KEY,
     fetchAll,
@@ -183,13 +191,16 @@ export default function TiposAtividade() {
       }}
       recordForm={
         <FormularioTipoAtividade
-          key={`${controller.editingItem?.id ?? "tipo-atividade-novo"}-${controller.formEpoch}`}
+          // Entrar ou sair da edição (✕ ou depois de salvar) remonta o formulário a partir do GRAVADO, como no
+          // Apontamento: cancelar descarta o rascunho (revisão F1-1) e o salvo vira a base da leitura (revisão F2-1).
+          key={`${controller.editingItem?.id ?? "tipo-atividade-novo"}-${controller.formEpoch}-${controller.isEditing ? "e" : "l"}`}
           variant="embedded"
           toolbarActions
           readOnly={!controller.isEditing}
           isSubmitting={saving}
           initialData={controller.editingItem}
           grupos={grupos}
+          empresaId={empresaId}
           isEditing={!!controller.editingItem?.id}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}

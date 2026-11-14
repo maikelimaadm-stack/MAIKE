@@ -14,6 +14,8 @@ esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
 -- 70 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- D-PROD-197: TipoAtividade passou a referenciar CentroCusto, CentroResultado e UnidadeMedida (padrões, FKs RESTRICT) e
+-- sai logo depois do apontamento, antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (
@@ -24,6 +26,9 @@ tenant(nome, ord) AS (
     -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
     -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
     'ApontamentoAtividade',
+    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
+    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
+    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -44,7 +49,7 @@ tenant(nome, ord) AS (
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor','Cliente'
+    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor','Cliente'
   ]::text[]) WITH ORDINALITY
 ),
 -- Preservadas: catálogo global + identidade do proprietário (nunca tocadas).

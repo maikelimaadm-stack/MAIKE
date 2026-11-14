@@ -284,6 +284,37 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     for (const metodo of ['PATCH', 'DELETE']) assert.equal((await req(metodo, `/apontamentos-atividade/${ID}/itens/${ID}`, c.tokAdm)).statusCode, 404, metodo);
   });
 
+  test('D-PROD-197 — opções de centro padrão do Tipo de Atividade: criar OU editar (novo|salvar|editar) de sup-tipos-atividade; visualizar, excluir e as telas de centros não', async () => {
+    const c = await cenario();
+    const urls = ['centros-custo', 'centros-resultado'].map((lado) => `/tipos-atividade/opcoes/${lado}?empresa_id=${c.empresa.id}`);
+    /** `[centros de custo, centros de resultado]`: true = passou da guarda. */
+    const passa = async () => {
+      const out = [];
+      for (const url of urls) {
+        const r = await req('GET', url, c.tokOp);
+        if (r.statusCode === 403) assert.equal(r.json().code, 'ACAO_NAO_PERMITIDA', `${url}: ${r.body}`);
+        else assert.equal(r.statusCode, 200, `${url}: ${r.body}`);
+        out.push(r.statusCode !== 403);
+      }
+      return out;
+    };
+    const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
+    assert.deepEqual(await passa(), [false, false], 'sem linha');
+    // As telas de centros, com tudo ligado, não liberam (as opções não dependem delas).
+    await c.permitir({ modulos_permitidos: ['gestao-rural'], permissoes_telas: [linha('gestao-rural', 'ges-centros-custo', todas), linha('gestao-rural', 'ges-centros-resultado', todas)] });
+    assert.deepEqual(await passa(), [false, false], 'telas de centros');
+    const comAcao = (acoesDaTela) => c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'sup-tipos-atividade', { visualizar: true, ...acoesDaTela })] });
+    await comAcao({});
+    assert.deepEqual(await passa(), [false, false], 'só visualizar');
+    await comAcao({ excluir: true });
+    assert.deepEqual(await passa(), [false, false], 'excluir não cria nem edita');
+    for (const acao of ['novo', 'salvar', 'editar']) {
+      await comAcao({ [acao]: true });
+      assert.deepEqual(await passa(), [true, true], acao);
+    }
+    for (const url of urls) assert.equal((await req('GET', url, c.tokAdm)).statusCode, 200, `administrador real: ${url}`);
+  });
+
   test('D-PROD-195 — opções de curva da Categoria de Manejo: quem cria OU edita categoria (inclui o cadastro rápido do Cadastro de Lotes); a tela de curvas sozinha não lê', async () => {
     const c = await cenario();
     const url = `/categorias-manejo-opcoes/curvas-ganho?empresa_id=${c.empresa.id}`;

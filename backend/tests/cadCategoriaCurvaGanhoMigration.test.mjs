@@ -5,10 +5,14 @@
  * PostgreSQL real, num banco PRÓPRIO criado e apagado por este teste (o banco da
  * suíte não é tocado).
  *
- * Partida: as 49 migrations anteriores (todas as pastas de nome anterior ao
- * desta CONTRACT; inclui as CONTRACT da D-PROD-162, da D-PROD-183, da D-PROD-187
- * e da D-PROD-194, já concluídas como em produção), pelo Prisma a partir de uma
- * cópia temporária; 85 tabelas; e, para 2 clientes, 4 fazendas: três com
+ * Partida: todas as pastas MENOS esta CONTRACT, pelo Prisma a partir de uma
+ * cópia temporária: as 49 de nome anterior (inclui as CONTRACT da D-PROD-162, da
+ * D-PROD-183, da D-PROD-187 e da D-PROD-194, já concluídas como em produção) e a
+ * CONTRACT da D-PROD-197 (`20261114300000_tipo_atividade_defaults`, padrões e
+ * flags do TipoAtividade), de nome POSTERIOR, que sobe fora de ordem: a guarda
+ * dela só olha TipoAtividade e os alvos das FKs, não toca CADCATEGORIA nem
+ * CADCURVAGANHO, e assim só a D-PROD-195 pende no runner (em produção a ordem é a
+ * inversa: esta já está aplicada e a D-PROD-197 entra depois); 85 tabelas; e, para 2 clientes, 4 fazendas: três com
  * categorias e com a 'CURVA PADRÃO' (uma delas inativa: a ligação não olha o
  * ativo), uma delas também com outra curva (que a ligação não pode usar), e uma
  * fazenda SEM categoria e SEM a CURVA PADRÃO (permitido: a guarda só olha as
@@ -24,7 +28,7 @@
  * de qualquer DDL citando a D-PROD-195.
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`) com a conferência de alvo
- * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195: 50/0, cada categoria na
+ * exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195: todas/0, cada categoria na
  * CURVA PADRÃO da própria fazenda, curva_ganho_id VARCHAR(64) NOT NULL, a mesma
  * tabela (OID) com as mesmas linhas nas colunas de antes, o índice e a FK
  * composta (ON DELETE RESTRICT) com os nomes do Prisma, o UNIQUE (cliente_id,
@@ -61,7 +65,9 @@ const BANCO = 'maike_ccc_curva_teste';
 /** Pastas do repositório: a partida são as de nome anterior ao desta CONTRACT; o total, depois do GREEN. */
 const PASTAS = Object.freeze(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort());
 const TOTAL_MIGRATIONS = PASTAS.length;
-const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n < NOME_CONTRACT).length;
+/** D-PROD-197: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
+const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT));
+const MIGRATIONS_PARTIDA = PASTAS.filter((n) => n !== NOME_CONTRACT).length;
 /** O lock_timeout da guarda é 5 s; o teto cobre a partida do Prisma CLI em máquina lenta de CI. */
 const TETO_TRAVA_MS = 20_000;
 
@@ -154,12 +160,12 @@ const ambienteBase = () => {
 };
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** As 49 migrations anteriores (as pastas de nome anterior ao desta CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** Todas as pastas menos esta CONTRACT (as 49 anteriores e a D-PROD-197, posterior), aplicadas pelo Prisma a partir de uma cópia temporária. */
 const aplicarMigrationsAnteriores = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-ccc-curva-main-'));
   try {
     mkdirSync(join(dir, 'migrations'));
-    for (const d of PASTAS) if (d < NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    for (const d of PASTAS) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
     if (r.status !== 0) throw new Error(`teste D-PROD-195: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
@@ -316,10 +322,11 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: 49 migrations (as quatro CONTRACT anteriores concluídas), 85 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
-    assert.equal(PASTAS.at(-1), NOME_CONTRACT, 'esta CONTRACT é a migration de nome mais recente');
-    assert.equal(MIGRATIONS_PARTIDA, 49);
-    assert.equal(TOTAL_MIGRATIONS, 50);
+  test('CC-01 partida: todas menos esta (as quatro CONTRACT anteriores concluídas e a D-PROD-197, posterior), 85 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+    assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults'], 'só a CONTRACT da D-PROD-197 tem nome posterior a esta');
+    assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
+    assert.equal(MIGRATIONS_PARTIDA, 50);
+    assert.equal(TOTAL_MIGRATIONS, 51);
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     assert.equal(h.abertas, 0);
@@ -347,7 +354,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
   });
 
   for (const cenario of CENARIOS_RED) {
-    test(`CC-02 ${cenario.id}: a guarda recusa (cadcategoria_curva_ganho:) e NADA muda (sem a coluna, mesmas tabelas, linhas e índices, histórico 49, migration aberta → resolvida)`, async () => {
+    test(`CC-02 ${cenario.id}: a guarda recusa (cadcategoria_curva_ganho:) e NADA muda (sem a coluna, mesmas tabelas, linhas e índices, histórico da partida, migration aberta → resolvida)`, async () => {
       if (cenario.preparar) await cenario.preparar(db);
       let r;
       let antes;
@@ -395,7 +402,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
       assert.match(r.saida, /alvo conferido nas duas conexões/);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
-      for (const anterior of CONTRACTS_ANTERIORES) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-195 pende`);
+      for (const anterior of [...CONTRACTS_ANTERIORES, ...CONTRACTS_POSTERIORES]) assert.ok(!r.saida.includes(anterior), `${anterior} já está concluída: só a D-PROD-195 pende`);
       assert.match(r.saida, /Nenhuma migration foi executada/);
       assert.ok(!vazou(r.saida, URL_T));
     }
@@ -405,7 +412,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
   });
 
-  test('CC-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195): 50/0, cada categoria na CURVA PADRÃO da fazenda, NOT NULL, índice e FK composta com os nomes do Prisma, UNIQUE por fazenda em CADCURVAGANHO, mesmas tabelas e linhas e migrate diff vazio', async () => {
+  test('CC-04 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195): todas/0, cada categoria na CURVA PADRÃO da fazenda, NOT NULL, índice e FK composta com os nomes do Prisma, UNIQUE por fazenda em CADCURVAGANHO, mesmas tabelas e linhas e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const r = await aplicarPeloRunner(URL_T, { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
     assert.equal(r.status, 0, r.saida);
