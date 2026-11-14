@@ -145,17 +145,23 @@ describe("V — visualização das áreas cadastradas", () => {
     expect(fontesRotuloPorZoom(17).nome).toBeGreaterThan(fontesRotuloPorZoom(14).nome);
   });
 
-  it("lotes: âncora no centroide (ícone deslocado em px); ícone por categoria/misto preservado", () => {
+  it("lotes: âncora no centroide (ícone deslocado em px); ícone do lote vem do código (D-PROD-191)", () => {
     const c = centroideArea(area("a"));
     expect(c.lat).toBeCloseTo(-0.005, 9);
     expect(c.lng).toBeCloseTo(0.005, 9);
     expect(readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8")).toMatch(/offset: OFFSET_LOTE_PX/);
-    const icones = [
-      { tipo_entidade: "Lote", categoria: "BOI", icone_url: "u://boi" },
-      { tipo_entidade: "Lote", categoria: "MISTO", categorias_misto: ["BOI", "VACA"], icone_url: "u://misto" },
-    ];
-    expect(resolverIconeLote([{ categoria: "boi" }], icones).iconUrl).toBe("u://boi");
-    expect(resolverIconeLote([{ categoria: "boi" }, { categoria: "VACA" }], icones).iconUrl).toBe("u://misto");
+    // Sem ConfiguracaoIcone: sempre há figura, a data URL do SVG montado no código.
+    const dataSvg = /^data:image\/svg\+xml;base64,/;
+    const semCategoria = resolverIconeLote([{ categoria: "boi" }]);
+    expect(semCategoria.iconUrl).toMatch(dataSvg);
+    expect(resolverIconeLote([]).iconUrl).toMatch(dataSvg);
+    // macho e fêmea adultos no mesmo pasto: um misto, desenho diferente
+    const misto = resolverIconeLote([
+      { sexo: "Macho", categoria: "Touro + 36 meses", quantidade_cabecas: 3 },
+      { sexo: "Fêmea", categoria: "Vaca + 36 meses", quantidade_cabecas: 2 },
+    ]);
+    expect(misto.iconUrl).toMatch(dataSvg);
+    expect(misto.chave).not.toBe(semCategoria.chave);
     expect(resolverIconeSuplementacao({ categoria_ponto: "DEPOSITO" }, [{ tipo_entidade: "Ponto", categoria: "cocho", icone_url: "u://c" }]).iconUrl).toMatch(/^data:image\/svg\+xml/);
   });
 
@@ -536,8 +542,10 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
       { id: "l1", area_atual_id: "a1", quantidade_cabecas: 30, categoria: "BOI", identificador_cor: "#f00", identificador_sigla: "AB" },
       { id: "l2", area_atual_id: "a1", quantidade_cabecas: 12, categoria: "BOI" },
     ];
+    // 4º argumento: as Categorias de Manejo (D-PROD-191); vazio, o ícone sai mesmo assim.
     r.syncLotes(lotes, [area("a1")], true, [], onLotes, onDrag, true, false);
     const loteMarker = marcadores.find((m) => m.el.querySelector(".mg-lote-count"));
+    expect(loteMarker.el.querySelector("img").getAttribute("src")).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(loteMarker.el.querySelector(".mg-lote-count").textContent).toBe("42");
     expect(loteMarker.el.querySelector(".mg-lote-ident").textContent).toBe("AB");
     expect(loteMarker.opts.draggable).toBe(true);
