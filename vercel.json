@@ -286,6 +286,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/formulacoes/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Formulacoes/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -331,6 +339,14 @@
     },
     {
       "source": "/CurvasGanho",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/formulacoes",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Formulacoes",
       "destination": "/index.html"
     },
     {

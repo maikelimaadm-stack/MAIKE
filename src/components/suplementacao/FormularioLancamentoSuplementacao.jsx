@@ -14,6 +14,7 @@ import {
   listarAreasDaEmpresa,
   listarRebanhoParaSuplementacao,
   listarProdutosDaEmpresa,
+  listarFormulacoesParaLancamento,
   listarLotesNotaDaEmpresa,
   listarMovimentacoesPecuariasDaEmpresa,
   listarEventosDoPonto,
@@ -34,11 +35,13 @@ import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
 import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
-import { consumoEsperadoPorCabecaDia, pesoDeConsumoDoLote, resumoPesoDosLotes } from "./consumoPVUtils";
+import { consumoEsperadoPorFormulacao, resumoPesoDosLotes } from "./consumoPVUtils";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
 import { confirmar } from "@/lib/maikeConfirmar";
 import { listEmpresas } from "@/services/empresaService";
 import { hojeNoFuso } from "@/lib/diaCivil";
+import { createPageUrl } from "@/utils";
+import { QUERY_FORMULACOES_LANCAMENTO, rotuloDoTipo } from "@/services/formulacaoCadastroService";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -85,7 +88,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const [formData, setFormData] = useState({
     data_lancamento: hojeNoFuso(null),
     data_fim_consumo_anterior: "",
-    produto: ponto?.produto_padrao || "",
+    // D-PROD-202: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
+    formulacao_id: "",
     quantidade_total_kg: "",
     sobra_kg: "0",
     unidade_lancamento: "KG",
@@ -166,17 +170,17 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
-  const { data: produtosSuplementacao = [] } = useQuery({
-    queryKey: ["produtos-suplementacao-lancamento", empresaSelecionadaId, ponto?.produto_padrao],
-    queryFn: async () => {
-      const all = await listarProdutosDaEmpresa(empresaSelecionadaId);
-      return all.filter((produto) => {
-        const tipoUso = normalizeText(produto.tipo_uso || "");
-        const ehNutricaoAnimal = tipoUso === normalizeText("Nutrição Animal");
-        const produtoMarcadoNoPonto = ponto?.produto_padrao && normalizeText(produto.nome_produto) === normalizeText(ponto.produto_padrao);
-        return ehNutricaoAnimal || produtoMarcadoNoPonto;
-      });
-    },
+  // D-PROD-202: as formulações ATIVAS da fazenda (rota própria, liberada a quem lança suplementação).
+  const { data: formulacoes = [], isLoading: loadingFormulacoes } = useQuery({
+    queryKey: [QUERY_FORMULACOES_LANCAMENTO, empresaSelecionadaId],
+    queryFn: () => listarFormulacoesParaLancamento(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // O produto de cada formulação (saldo no depósito, sacos e a baixa) vem do cadastro de Produtos.
+  const { data: produtosDaEmpresa = [] } = useQuery({
+    queryKey: ["produtos-suplementacao-lancamento", empresaSelecionadaId],
+    queryFn: () => listarProdutosDaEmpresa(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
   });
 
@@ -262,9 +266,15 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const closingDateForPreviousPeriod = formData.data_fim_consumo_anterior || formData.data_lancamento;
   const diasPeriodo = ultimoEvento ? calcularDiasPeriodo(ultimoEvento.data_lancamento, closingDateForPreviousPeriod) : null;
 
-  const produtoSelecionado = useMemo(() => {
-    return produtosSuplementacao.find((produto) => normalizeText(produto.nome_produto) === normalizeText(formData.produto)) || null;
-  }, [produtosSuplementacao, formData.produto]);
+  const formulacaoSelecionada = useMemo(
+    () => formulacoes.find((f) => String(f.id) === String(formData.formulacao_id)) || null,
+    [formulacoes, formData.formulacao_id],
+  );
+  /** Produto da formulação: o do cadastro; sem ele (lista ainda carregando), o resumo da formulação. */
+  const produtoDaFormulacao = (/** @type {any} */ f) =>
+    !f ? null : produtosDaEmpresa.find((p) => String(p.id) === String(f.produto_id)) || { id: f.produto_id, nome_produto: f.produto_nome };
+  const produtoSelecionado = useMemo(() => produtoDaFormulacao(formulacaoSelecionada), [formulacaoSelecionada, produtosDaEmpresa]);
+  const nomeProduto = produtoSelecionado?.nome_produto || formulacaoSelecionada?.produto_nome || "";
 
   const suportaSacos = produtoSuportaSacos(produtoSelecionado);
   const pesoPorSaco = Number(produtoSelecionado?.peso_por_saco_kg || 0);
@@ -281,12 +291,16 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const sobraInformada = parseNumber(formData.sobra_kg || 0);
 
 
-  // %PV consumo esperado
-  const pctPV = Number(produtoSelecionado?.percentual_consumo_pv || 0);
-  const consumoEsperadoCabDiaPV = pctPV > 0 && pesoMedioGeral > 0
-    ? consumoEsperadoPorCabecaDia(pesoMedioGeral, pctPV)
-    : 0;
-  const consumoEsperadoGrupoDiaPV = consumoEsperadoCabDiaPV * totalCabecas;
+  // D-PROD-202: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
+  // categoria que não consome entra com 0; lote sem peso usa a média ponderada dos lotes com peso).
+  const pctPV = Number(formulacaoSelecionada?.percentual_pv_padrao || 0);
+  const consumoPV = useMemo(
+    () => consumoEsperadoPorFormulacao({ lotes, formulacao: formulacaoSelecionada }),
+    [lotes, formulacaoSelecionada],
+  );
+  const consumoEsperadoGrupoDiaPV = consumoPV.totalKgDia;
+  const consumoEsperadoCabDiaPV = consumoPV.cabecasConsomem > 0 ? safeDivide(consumoEsperadoGrupoDiaPV, consumoPV.cabecasConsomem) : 0;
+  const consumoDoLote = useMemo(() => new Map(consumoPV.porLote.map((l) => [l.id, l])), [consumoPV]);
 
   // Consumo estimado do novo lançamento
   const frequenciaMinima = Math.max(0, Number(ponto?.frequencia_esperada_dias_minimo || 0));
@@ -348,36 +362,34 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     });
   }, [ultimoEvento, diasPeriodo, lotes, movimentacoesPecuaria, areaIdsVinculados, closingDateForPreviousPeriod, sobraInformada]);
 
-  // Produtos disponíveis - filtrar apenas os que têm saldo no depósito vinculado
-  const produtosDisponiveis = useMemo(() => {
-    if (!depositoVinculado?.local_estoque_id) return produtosSuplementacao;
-    // Only show products that have saldo in the linked deposit
-    return produtosSuplementacao
-      .filter((p) => {
-        const saldo = obterSaldoProdutoLocal(lotesNota, p.id, depositoVinculado.local_estoque_id);
-        const ehProdutoPadrao = normalizeText(p.nome_produto) === normalizeText(ponto?.produto_padrao || "");
-        return saldo > 0 || ehProdutoPadrao;
-      })
+  // Formulações disponíveis: com depósito vinculado, só as cujo produto tem saldo nele (ou é o
+  // produto padrão do cocho), com saldo primeiro — o mesmo filtro que valia para os produtos.
+  const formulacoesDisponiveis = useMemo(() => {
+    if (!depositoVinculado?.local_estoque_id) return formulacoes;
+    const saldo = (/** @type {any} */ f) => obterSaldoProdutoLocal(lotesNota, f.produto_id, depositoVinculado.local_estoque_id);
+    const nomeDoProduto = (/** @type {any} */ f) => produtoDaFormulacao(f)?.nome_produto || f.produto_nome || "";
+    return formulacoes
+      .filter((f) => saldo(f) > 0 || normalizeText(nomeDoProduto(f)) === normalizeText(ponto?.produto_padrao || ""))
       .sort((a, b) => {
-        const saldoA = obterSaldoProdutoLocal(lotesNota, a.id, depositoVinculado.local_estoque_id);
-        const saldoB = obterSaldoProdutoLocal(lotesNota, b.id, depositoVinculado.local_estoque_id);
+        const saldoA = saldo(a);
+        const saldoB = saldo(b);
         if (saldoA > 0 && saldoB <= 0) return -1;
         if (saldoB > 0 && saldoA <= 0) return 1;
-        return a.nome_produto.localeCompare(b.nome_produto);
+        return String(a.nome || "").localeCompare(String(b.nome || ""));
       });
-  }, [depositoVinculado, produtosSuplementacao, lotesNota, ponto]);
+  }, [depositoVinculado, formulacoes, produtosDaEmpresa, lotesNota, ponto]);
 
   const saldoNoDeposito = useMemo(() => {
     if (!depositoVinculado?.local_estoque_id || !produtoSelecionado) return 0;
     return obterSaldoProdutoLocal(lotesNota, produtoSelecionado.id, depositoVinculado.local_estoque_id);
   }, [depositoVinculado, produtoSelecionado, lotesNota]);
 
-  // Auto-selecionar produto único
+  // Auto-selecionar a formulação única
   useEffect(() => {
-    if (!formData.produto && produtosDisponiveis.length === 1) {
-      setFormData((prev) => ({ ...prev, produto: produtosDisponiveis[0].nome_produto }));
+    if (!formData.formulacao_id && formulacoesDisponiveis.length === 1) {
+      setFormData((prev) => ({ ...prev, formulacao_id: String(formulacoesDisponiveis[0].id) }));
     }
-  }, [formData.produto, produtosDisponiveis]);
+  }, [formData.formulacao_id, formulacoesDisponiveis]);
 
   // Ajustar unidade ao trocar produto
   useEffect(() => {
@@ -412,11 +424,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const handleSalvar = async () => {
     if (progresso.show) return;
 
-    if (!formData.produto) return toast.error("Selecione um produto.");
+    if (!formulacoes.length) return toast.error("Não há formulação ativa nesta fazenda. Cadastre uma em Formulações antes de lançar.");
+    if (!formulacaoSelecionada) return toast.error("Selecione a formulação.");
     if (quantidadeKg <= 0 && sobraInformada <= 0) return toast.error("Informe a quantidade fornecida ou aproveite uma sobra anterior.");
     if (sobraInformada < 0) return toast.error("A sobra informada não pode ser negativa.");
     if (totalCabecas <= 0) return toast.error("Não há cabeças ativas nas áreas vinculadas.");
-    if (depositoVinculado?.local_estoque_id && !produtoSelecionado) return toast.error("O produto selecionado não foi encontrado no cadastro.");
+    if (depositoVinculado?.local_estoque_id && !produtosDaEmpresa.some((p) => String(p.id) === String(formulacaoSelecionada.produto_id))) {
+      return toast.error("O produto da formulação não foi encontrado no cadastro de Produtos.");
+    }
     // Com a baixa desta operação já feita (salvar de novo após falha), o saldo lido pode já estar sem ela.
     if (!operacaoRef.current?.saida && depositoVinculado?.local_estoque_id && quantidadeKg > 0 && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
 
@@ -506,7 +521,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         movimentoEstoque = saidaRegistrada.movimentacao;
         operacao.saida = {
           movimentacao: saidaRegistrada.movimentacao,
-          resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${produtoSelecionado?.nome_produto || formData.produto} em ${formatDateBR(formData.data_lancamento)}`,
+          resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${nomeProduto} em ${formatDateBR(formData.data_lancamento)}`,
         };
         operacao.chaveSaida = chaveSaidaAtual;
         baixaFeitaNestaTentativa = true;
@@ -524,8 +539,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         area_ids: areaIdsVinculados,
         area_nomes: areaNomesResolvidos,
         data_lancamento: formData.data_lancamento,
-        produto: formData.produto,
-        produto_id: produtoSelecionado?.id || null,
+        produto: nomeProduto,
+        produto_id: formulacaoSelecionada?.produto_id || null,
+        // D-PROD-202: a formulação usada (obrigatória desde esta decisão; os lançamentos antigos ficam sem).
+        formulacao_id: formulacaoSelecionada?.id || null,
+        formulacao_nome: formulacaoSelecionada?.nome || null,
+        formulacao_tipo: formulacaoSelecionada?.tipo || null,
         tipo_consumo: tipoConsumo || null,
         quantidade_total_kg: quantidadeKg,
         quantidade_sacos: sacosLancamento,
@@ -540,16 +559,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         cabecas_sem_peso: resumoPeso.cabecasSemPeso,
         peso_total_consumo: totalCabecas,
         consumo_esperado_pv_kg: consumoEsperadoGrupoDiaPV > 0 ? consumoEsperadoGrupoDiaPV : null,
+        // %PV padrão da formulação; as exceções por categoria ficam em cada lote (percentual_pv_lote).
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
+        // Cabeças cuja categoria NÃO consome a formulação (fora do consumo esperado; contam em total_cabecas_afetadas).
+        cabecas_nao_consomem: consumoPV.cabecasNaoConsomem,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
         observacoes: formData.observacoes || null,
       };
 
       const lotesPayload = lotes.map((lote) => {
-        const pesoMedioLote = pesoDeConsumoDoLote(lote).peso;
-        const consumoEsperadoLotePV = pctPV > 0 && pesoMedioLote > 0
-          ? consumoEsperadoPorCabecaDia(pesoMedioLote, pctPV) * (lote.quantidade_cabecas || 0)
-          : null;
+        const doLote = consumoDoLote.get(lote.id);
+        // Peso do próprio lote (null sem peso); o esperado do lote sem peso usa a média dos com peso.
+        const pesoMedioLote = doLote && !doLote.pesoExtrapolado ? doLote.peso : 0;
+        const consumoEsperadoLotePV = doLote ? doLote.esperadoKgDia : null;
         const percentualLote = totalCabecas > 0 ? (lote.quantidade_cabecas || 0) / totalCabecas : 0;
 
         return {
@@ -559,9 +581,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           categoria: lote.categoria,
           fator_consumo: 1,
           peso_medio_lote_kg: pesoMedioLote || null,
+          // D-PROD-202: %PV deste lote (regra da categoria ou o padrão; 0 = não consome) e o esperado dele.
+          percentual_pv_lote: doLote ? doLote.percentualPV : null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,
-          produto: formData.produto,
+          produto: nomeProduto,
           cabecas_na_area: lote.quantidade_cabecas,
           peso_consumo_lote: lote.quantidade_cabecas || 0,
           percentual_consumo_lote: percentualLote,
@@ -630,7 +654,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
   };
 
-  const botaoHabilitado = totalCabecas > 0 && formData.produto && totalDisponivelNovo > 0 && !loadingUltimoEvento;
+  const botaoHabilitado = totalCabecas > 0 && Boolean(formulacaoSelecionada) && totalDisponivelNovo > 0 && !loadingUltimoEvento;
+  const semFormulacao = !!empresaSelecionadaId && !loadingFormulacoes && formulacoes.length === 0;
 
   return (
     <>
@@ -660,6 +685,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             </div>
 
             {!depositoVinculado?.local_estoque_id && <div className="rounded border border-slate-200 bg-[#FAFCFE] px-2 py-1 text-[10px] text-slate-600">Este cocho ainda não tem depósito vinculado. Lançamento sem baixa automática.</div>}
+            {semFormulacao && (
+              <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800" role="alert" data-testid="suplementacao-sem-formulacao">
+                Não há formulação ativa nesta fazenda: o lançamento precisa de uma. Cadastre em{" "}
+                <a href={createPageUrl("Formulacoes")} className="font-semibold underline">Formulações</a> (menu Manejo) o produto pronto ou a batelada e o % PV.
+              </div>
+            )}
 
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
@@ -673,19 +704,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_fim_consumo_anterior} onChange={(e) => setFormData((prev) => ({ ...prev, data_fim_consumo_anterior: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
               </div>
               <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Produto <span className="text-red-500">*</span></label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.produto} onValueChange={(value) => setFormData((prev) => ({ ...prev, produto: value }))}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Formulação <span className="text-red-500">*</span></label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Select value={formData.formulacao_id} onValueChange={(value) => setFormData((prev) => ({ ...prev, formulacao_id: value }))} disabled={semFormulacao}>
+                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione a formulação" /></SelectTrigger>
                   <SelectContent>
-                    {produtosDisponiveis.map((produto) => (
-                      <SelectItem key={produto.id} value={produto.nome_produto} className="text-xs">
-                        {produto.nome_produto}
-                        {produto.percentual_consumo_pv ? ` (${produto.percentual_consumo_pv}% PV)` : ""}
-                        {produto.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}
-                      </SelectItem>
-                    ))}
+                    {formulacoesDisponiveis.map((f) => {
+                      const produto = produtoDaFormulacao(f);
+                      return (
+                        <SelectItem key={f.id} value={f.id} className="text-xs">
+                          {f.nome}
+                          {` • ${rotuloDoTipo(f.tipo)}`}
+                          {` (${formatDecimal(Number(f.percentual_pv_padrao || 0), 3)}% PV)`}
+                          {produto?.unidade_principal_estoque === "SACO" ? ` • Saco ${produto.peso_por_saco_kg}kg` : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select></div>
+                {formulacaoSelecionada && (
+                  <div className="text-[10px] text-slate-500 pl-1" data-testid="suplementacao-produto-da-formulacao">Produto no cocho: {nomeProduto}</div>
+                )}
               </div>
             </div>
 
@@ -744,7 +782,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                 <div className="rounded border border-slate-200 bg-white px-1.5 py-1 text-slate-600">Baixa automática: <span className="font-semibold text-emerald-700">Ativa</span></div>
               </div>
             )}
-            {depositoVinculado?.local_estoque_id && formData.produto && produtoSelecionado && saldoNoDeposito <= 0 && (
+            {depositoVinculado?.local_estoque_id && formulacaoSelecionada && produtoSelecionado && saldoNoDeposito <= 0 && (
               <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-700">
                 Produto sem saldo disponível neste depósito/local de estoque.
               </div>
@@ -778,14 +816,22 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
             {/* Painel %PV - quando disponível */}
             {pctPV > 0 && pesoMedioGeral > 0 && totalCabecas > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
-                <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV do produto</div>
+              <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1" data-testid="suplementacao-painel-pv">
+                <div className="text-xs font-semibold text-slate-900">Consumo esperado por %PV da formulação</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">%PV</div><div className="font-bold text-slate-900">{formatDecimal(pctPV, 3)}%</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Peso médio</div><div className="font-bold text-slate-900">{pesoMedioGeral.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
                   <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado/cab/dia</div><div className="font-bold text-slate-900">{consumoEsperadoCabDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg</div></div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
+                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">Esperado grupo/dia</div><div className="font-bold text-slate-900" data-testid="suplementacao-esperado-grupo">{consumoEsperadoGrupoDiaPV.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</div></div>
                 </div>
+                {consumoPV.cabecasNaoConsomem > 0 && (
+                  <div className="text-[10px] text-slate-600" data-testid="suplementacao-nao-consomem">
+                    {formatDecimal(consumoPV.cabecasNaoConsomem, 0, true)} cabeça(s) não consomem esta formulação (regra da categoria): ficam fora do esperado.
+                  </div>
+                )}
+                {consumoPV.porLote.some((l) => l.origem === "regra") && (
+                  <div className="text-[10px] text-slate-600">Categorias com % PV próprio na formulação entram com o % delas.</div>
+                )}
               </div>
             )}
 
@@ -804,8 +850,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
                       const percentualConsumo = totalCabecas > 0 ? ((lote.quantidade_cabecas || 0) / totalCabecas) * 100 : 0;
                       const pesoMedioLote = Number(lote.peso_medio_kg || 0);
                       const quantidadeLoteKg = totalDisponivelNovo * (percentualConsumo / 100);
-                      const duracaoLoteDias = lote.quantidade_cabecas > 0 && consumoEsperadoCabDiaPV > 0
-                        ? Math.max(0, Math.round(safeDivide(quantidadeLoteKg, consumoEsperadoCabDiaPV * (lote.quantidade_cabecas || 0))))
+                      const esperadoLote = consumoDoLote.get(lote.id)?.esperadoKgDia || 0;
+                      const duracaoLoteDias = lote.quantidade_cabecas > 0 && esperadoLote > 0
+                        ? Math.max(0, Math.round(safeDivide(quantidadeLoteKg, esperadoLote)))
                         : duracaoDiasInteira;
                       const dataReposicaoLote = (() => {
                         const dataBase = parseDateLocal(formData.data_lancamento);

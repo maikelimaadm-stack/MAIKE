@@ -31,6 +31,7 @@ import {
 } from '@/components/utils/consumoUtils';
 import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
 import { listarPosicoesRebanhoServidor } from '@/apis/lotes';
+import { listFormulacoesOpcoesLancamento } from '@/apis/formulacoes';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const novaOperationId = () =>
@@ -80,6 +81,13 @@ export const listarRebanhoParaSuplementacao = async (empresaId) => {
   return (await listarLotesDaEmpresa(empresaId)).filter((l) => l?.status === 'Ativo');
 };
 export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await listProdutos(), empresaId);
+/**
+ * D-PROD-202 — formulações ATIVAS da fazenda para o lançamento (obrigatório
+ * escolher uma): produto que vai ao cocho, %PV padrão e regras por Categoria de
+ * Manejo. Rota própria, também liberada a quem só lança suplementação no mapa.
+ * @param {string} empresaId
+ */
+export const listarFormulacoesParaLancamento = async (empresaId) => listFormulacoesOpcoesLancamento(empresaId);
 export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await listLotesNota(), empresaId);
 export const listarMovimentacoesPecuariasDaEmpresa = async (empresaId) =>
   daEmpresa(await listMovimentacoesPecuarias(), empresaId);

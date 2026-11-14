@@ -9,6 +9,7 @@ import {
   Coins,
   Droplet,
   Droplets,
+  FlaskConical,
   Folder,
   Layers,
   LayoutGrid,
@@ -46,6 +47,7 @@ export const ICONE_TELA = {
   CategoriasManejo: Tag,
   Estacoes: CloudSun, // D-PROD-188
   CurvasGanho: TrendingUp, // D-PROD-189
+  Formulacoes: FlaskConical, // D-PROD-202
   Bebedouros: Droplet,
   Produtos: Package,
   Categorias: Tag,
