@@ -66,7 +66,7 @@ const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, '
 /**
  * D-PROD-197 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
  * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
- * não depende das telas de centros, como as opções do apontamento.
+ * não depende das telas de centros, como os seletores próprios da atividade.
  */
 const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
 
@@ -306,24 +306,13 @@ export const GUARDAS = Object.freeze({
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
   curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
-  // D-PROD-190 — Apontamento de Atividade: o esquema do cadastro (criar =
-  // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
-  // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
-  // operacional da fazenda; não dependem das telas de bens nem de centros).
-  // D-PROD-193 (D-3), sem ação nova: adicionar item = `editar` (editar|salvar);
-  // cancelar item = `cancelar` (excluir); produtos = `ver`; locais com saldo =
-  // `editar` (saldo é de quem lança). Nenhum perfil recebe acesso por padrão.
-  apontamentoAtividade: {
-    ver: porTela(T.APONTAMENTOS_ATIVIDADE, 'visualizar'),
-    criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
-    editar: cadastro(T.APONTAMENTOS_ATIVIDADE).editar,
-    cancelar: cadastro(T.APONTAMENTOS_ATIVIDADE).excluir,
-  },
-  // D-PROD-198 — Lançamento de Atividades, tela `op-atividades` (contrato §5).
-  // Cabeçalho pelas ações PADRÃO da tela, no esquema do cadastro: ver =
-  // visualizar (lista, detalhe, apontamentos e os seletores próprios); criar ou
-  // duplicar = novo|salvar; editar ou concluir = editar|salvar; cancelar =
-  // excluir (sem DELETE físico). Reabrir é a ação EXTRA `reabrir`, separada.
+  // D-PROD-198 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
+  // substitui `apontamentoAtividade`, da D-PROD-190/193). Cabeçalho pelas ações
+  // PADRÃO da tela, no esquema do cadastro: ver = visualizar (lista, detalhe,
+  // apontamentos e os seletores próprios, que não dependem das telas de bens nem
+  // de usuários); criar ou duplicar = novo|salvar; editar ou concluir =
+  // editar|salvar; cancelar = excluir (sem DELETE físico). Reabrir é a ação
+  // EXTRA `reabrir`, separada.
   atividades: {
     ver: porTela(T.ATIVIDADES, 'visualizar'),
     criar: CADASTRO_ATIVIDADES.criar,
