@@ -209,3 +209,8 @@ A migration **apaga a tabela que o código em produção usa** e cria as que o c
 O runbook prevê aplicar e fazer o merge em seguida, fora de pico. A janela é a do deploy da Vercel: a tela antiga
 quebra até o código novo subir. **Só com autorização explícita do proprietário**, pelo caminho A
 (`--contract D-PROD-198`) ou pelo caminho B com GO escrito para esta migration.
+
+**GO do proprietário (2026-11-14):** "autorizo pode enviar", em resposta a "A migration da Fatia 2 apaga a tabela que
+a versão no ar usa. Então ela só entra com nova autorização sua, logo antes do merge." Vale para aplicar esta
+migration logo antes do merge da PR da Fatia 2 e fazer o merge, depois de toda a validação local verde e de um
+preflight `PRONTO PARA APLICAR`. Não vale para a Fatia 3.
