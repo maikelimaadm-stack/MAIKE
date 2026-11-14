@@ -52,8 +52,22 @@ reprovam**; com a correção, os 6 passam.
 | Verificação | Resultado |
 |---|---|
 | `offlineMapaDeIdsEntrePassadas` + `offlineRuntime` + `estoqueP0FilaOfflineLegada` + `loteDeleteOfflineBloqueado` + `loteExclusaoCacheOffline` + `categoriaManejoCriacaoOnline` | 69/69 |
-| `npm run verify:all` | ver §4 |
+| `npm run verify:all` | todas as etapas passaram (ver §4) |
 
 ## 4. `verify:all`
 
-Resultado registrado no commit de fechamento desta missão.
+Rodado localmente no commit `f8d6e4ca`, com um PostgreSQL 16 local e o banco dedicado `maike_verify`. A CI do GitHub não rodou: os jobs `classify` e `verify:all` terminam em 2 s sem runner, e o mesmo acontece na base (PR #279), porque o GitHub Actions do proprietário está pausado.
+
+| Etapa | Resultado |
+|---|---|
+| gates (`test:gates` e os `gate:*`) | PASS (863/863 no `test:gates`) |
+| `prisma:generate`, `gate:types`, `typecheck:backend`, `lint` | PASS |
+| `test:smoke` | PASS: 230 arquivos, 2.835/2.835 |
+| `build`, `build:admin`, `admin-isolation:bundles` | PASS |
+| `test:backend` | PASS: 1.900 testes, 1.895 passaram, 0 falhas, 5 `todo` |
+
+Na primeira rodada do `verify:all`, o `test:backend` teve 4 falhas, todas do ambiente local e não desta mudança, que é só de frontend:
+- `transporteNativo` (P4B, CORS): faltava `FRONTEND_ORIGINS=http://localhost:5173` (o valor de `.env.example`), que o backend lê ao carregar o módulo;
+- `usuariosBenchEscopo` (BE-04, "credencial no log"): a senha do banco local era a palavra `postgres`, que aparece dentro de `postgresql://` no log.
+
+Com `FRONTEND_ORIGINS` definido e uma senha aleatória, o `test:backend` passou inteiro (0 falhas). As demais etapas não dependem dessas duas variáveis e já tinham passado na primeira rodada.
