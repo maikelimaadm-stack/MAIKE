@@ -132,6 +132,10 @@ model Cliente {
   // D-PROD-200 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
   atividades                   Atividade[]
   atividadeApontamentos        AtividadeApontamento[]
+  // D-PROD-201 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
+  atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
+  atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
+  atividadeApontamentoMaquinas      AtividadeApontamentoMaquina[]
 
   @@index([nome])
   @@index([ativo])
@@ -199,6 +203,11 @@ model Usuario {
   atividadeApontamentosOperados   AtividadeApontamento[]        @relation("AtividadeApontamentoOperador")
   atividadeApontamentosCriados    AtividadeApontamento[]        @relation("AtividadeApontamentoCriadoPor")
   atividadeApontamentosCancelados AtividadeApontamento[]        @relation("AtividadeApontamentoCanceladoPor")
+  // D-PROD-201 — autores das linhas do apontamento.
+  atividadeProdutosCriados    AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCriadoPor")
+  atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
+  atividadeMaquinasCriadas    AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCriadoPor")
+  atividadeMaquinasCanceladas AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCanceladoPor")
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -978,6 +987,8 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
+  // D-PROD-201 — linhas de produto que baixaram estoque deste local.
+  atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_local])
   @@unique([cliente_id, id])
@@ -1023,6 +1034,8 @@ model Produto {
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
+  // D-PROD-201 — linhas de produto do lançamento de atividades.
+  atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_produto])
   @@unique([cliente_id, id])
@@ -1383,6 +1396,8 @@ model EstoqueLoteNota {
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
+  // D-PROD-201 — fatias FIFO consumidas por linha de produto de atividade.
+  consumosAtividadeProduto AtividadeApontamentoProdutoConsumoLote[] @relation("AtividadeApontamentoProdutoConsumoDoLote")
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -1461,6 +1476,9 @@ model MovimentacaoEstoque {
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
   abastecimentoBemEstorno AbastecimentoBem? @relation("AbastecimentoBemEstorno")
+  // D-PROD-201 — linha de produto de atividade que gerou / estornou este movimento.
+  atividadeApontamentoProduto        AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoMovimento")
+  atividadeApontamentoProdutoEstorno AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoEstorno")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_movimentacao])
@@ -2596,6 +2614,8 @@ model TipoPatrimonial {
   nome                     String   @db.VarChar(120)
   descricao                String?  @db.VarChar(500)
   vida_util_meses_sugerida Int?
+  /// D-PROD-201 — teto do salto do medidor por lançamento (acima dele a linha de máquina pede justificativa).
+  salto_maximo_medidor     Decimal?  @db.Decimal(14, 4)
   ativo                    Boolean  @default(true)
   versao                   Int      @default(1)
   createdAt                DateTime @default(now())
@@ -2661,6 +2681,8 @@ model BemPatrimonial {
   data_disponibilidade     DateTime? @db.Date
   valor_aquisicao          Decimal?  @db.Decimal(18, 4)
   custo_incorporacao       Decimal?  @db.Decimal(18, 4)
+  /// D-PROD-201 — custo por hora ou km de uso (snapshot na linha de máquina da atividade).
+  custo_uso_unitario       Decimal?  @db.Decimal(14, 4)
   fornecedor_parceiro_id   String?   @db.VarChar(64)
   documento_referencia     String?   @db.VarChar(80)
   garantia_ate             DateTime? @db.Date
@@ -2690,6 +2712,9 @@ model BemPatrimonial {
   abastecimentos AbastecimentoBem[]
   // D-PROD-200 — atividades (cabeçalho) que têm este bem como máquina.
   atividades     Atividade[]    @relation("AtividadeBem")
+  // D-PROD-201 — linhas de máquina (como máquina e como implemento).
+  atividadeMaquinas           AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaBem")
+  atividadeMaquinasImplemento AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaImplemento")
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
@@ -2992,10 +3017,142 @@ model AtividadeApontamento {
   operador     Usuario?  @relation("AtividadeApontamentoOperador", fields: [cliente_id, operador_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_operador_fkey")
   criadoPor    Usuario?  @relation("AtividadeApontamentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_criado_por_fkey")
   canceladoPor Usuario?  @relation("AtividadeApontamentoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_cancelado_por_fkey")
+  // D-PROD-201 — linhas de produto e de máquina (inclui as canceladas: histórico).
+  produtos     AtividadeApontamentoProduto[]
+  maquinas     AtividadeApontamentoMaquina[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, atividade_id, data_operacional, turno, sequencia], map: "AtividadeApontamento_atividade_dia_turno_sequencia_key")
   @@index([cliente_id, empresa_id, atividade_id])
   @@index([cliente_id, operador_usuario_id])
+}
+
+/// D-PROD-201 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,
+/// custo FIFO, estorno exato), como o abastecimento. Imutável: editar = estornar a linha (cancelamento_origem EDICAO) e
+/// lançar outra na mesma transação; cancelar = estorno exato. `unidade` é a unidade EFETIVA do estoque do produto
+/// (L | KG; SACO guarda kg), sem conversão. `dose_ha` = quantidade / área do dia (só leitura).
+model AtividadeApontamentoProduto {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  apontamento_id           String    @db.VarChar(64)
+  /// 1..n dentro do apontamento (máx+1 sob a trava; nunca reaproveitado).
+  ordem                    Int
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @db.VarChar(16)
+  produto_id               String    @db.VarChar(64)
+  local_estoque_id         String    @db.VarChar(64)
+  quantidade               Decimal   @db.Decimal(14, 4)
+  /// L | KG (CHECK): snapshot da unidade efetiva do produto.
+  unidade                  String    @db.VarChar(8)
+  dose_ha                  Decimal?  @db.Decimal(14, 4)
+  custo_unitario           Decimal   @db.Decimal(14, 4)
+  custo_total              Decimal   @db.Decimal(14, 4)
+  operation_id             String    @db.VarChar(128)
+  movimentacao_estoque_id  String    @db.VarChar(64)
+  movimentacao_estorno_id  String?   @db.VarChar(64)
+  observacao               String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  cancelado_em             DateTime?
+  motivo_cancelamento      String?   @db.VarChar(500)
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
+  cancelamento_origem      String?   @db.VarChar(12)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente             Cliente                                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento         AtividadeApontamento                     @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_apontamento_fkey")
+  produto             Produto                                  @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict)
+  localEstoque        LocalEstoque                             @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict)
+  movimentacao        MovimentacaoEstoque                      @relation("AtividadeApontamentoProdutoMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_movimentacao_fkey")
+  movimentacaoEstorno MovimentacaoEstoque?                     @relation("AtividadeApontamentoProdutoEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_estorno_fkey")
+  criadoPor           Usuario?                                 @relation("AtividadeApontamentoProdutoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_criado_por_fkey")
+  canceladoPor        Usuario?                                 @relation("AtividadeApontamentoProdutoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProduto_cancelado_por_fkey")
+  consumos            AtividadeApontamentoProdutoConsumoLote[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoProduto_apontamento_ordem_key")
+  @@unique([cliente_id, movimentacao_estoque_id], map: "AtividadeApontamentoProduto_movimentacao_key")
+  @@unique([cliente_id, movimentacao_estorno_id], map: "AtividadeApontamentoProduto_estorno_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, local_estoque_id])
+}
+
+/// D-PROD-201 — fatia FIFO consumida pela linha de produto (de qual lote, quanto, a que custo). O estorno devolve cada
+/// fatia ao SEU lote. O histórico fica.
+model AtividadeApontamentoProdutoConsumoLote {
+  id                   String   @id @default(cuid())
+  cliente_id           String   @db.VarChar(64)
+  empresa_id           String   @db.VarChar(64)
+  linha_id             String   @db.VarChar(64)
+  estoque_lote_nota_id String   @db.VarChar(64)
+  ordem                Int
+  quantidade           Decimal  @db.Decimal(14, 4)
+  custo_unitario       Decimal  @db.Decimal(14, 4)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente Cliente                     @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  linha   AtividadeApontamentoProduto @relation(fields: [cliente_id, empresa_id, linha_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoProdutoConsumoLote_linha_fkey")
+  lote    EstoqueLoteNota             @relation("AtividadeApontamentoProdutoConsumoDoLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoProdutoConsumoLote_lote_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, linha_id, estoque_lote_nota_id], map: "AtividadeApontamentoProdutoConsumoLote_linha_lote_key")
+  @@unique([cliente_id, linha_id, ordem], map: "AtividadeApontamentoProdutoConsumoLote_linha_ordem_key")
+  @@index([cliente_id, estoque_lote_nota_id], map: "AtividadeApontamentoProdutoConsumoLote_lote_idx")
+}
+
+/// D-PROD-201 — LINHA DE MÁQUINA do apontamento. `medidor_tipo`/`medidor_unidade` são snapshot do bem (nunca do
+/// usuário). A leitura vive AQUI (como no abastecimento): a leitura vigente do bem passa a considerar as linhas
+/// confirmadas; nada é gravado em BemPatrimonial. `sem_medidor`: horas/km informados direto, sem leitura.
+model AtividadeApontamentoMaquina {
+  id                       String    @id @default(cuid())
+  cliente_id               String    @db.VarChar(64)
+  empresa_id               String    @db.VarChar(64)
+  apontamento_id           String    @db.VarChar(64)
+  ordem                    Int
+  /// CONFIRMADO | CANCELADO (CHECK).
+  status                   String    @db.VarChar(16)
+  bem_id                   String    @db.VarChar(64)
+  implemento_bem_id        String?   @db.VarChar(64)
+  medidor_tipo             String    @db.VarChar(16)
+  medidor_unidade          String?   @db.VarChar(8)
+  leitura_inicial          Decimal?  @db.Decimal(14, 4)
+  leitura_final            Decimal?  @db.Decimal(14, 4)
+  quantidade_uso           Decimal   @db.Decimal(14, 4)
+  sem_medidor              Boolean   @default(false)
+  /// Obrigatória quando o salto passa do teto do tipo do bem (não bloqueia).
+  justificativa_salto      String?   @db.VarChar(500)
+  custo_unitario_uso       Decimal?  @db.Decimal(14, 4)
+  custo_total              Decimal?  @db.Decimal(14, 4)
+  operation_id             String    @db.VarChar(128)
+  observacao               String?   @db.VarChar(500)
+  criado_por_usuario_id    String?   @db.VarChar(64)
+  cancelado_por_usuario_id String?   @db.VarChar(64)
+  cancelado_em             DateTime?
+  motivo_cancelamento      String?   @db.VarChar(500)
+  /// LINHA | EDICAO | APONTAMENTO | ATIVIDADE (CHECK).
+  cancelamento_origem      String?   @db.VarChar(12)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  cliente      Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  apontamento  AtividadeApontamento @relation(fields: [cliente_id, empresa_id, apontamento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_apontamento_fkey")
+  bem          BemPatrimonial       @relation("AtividadeApontamentoMaquinaBem", fields: [cliente_id, empresa_id, bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_bem_fkey")
+  implemento   BemPatrimonial?      @relation("AtividadeApontamentoMaquinaImplemento", fields: [cliente_id, empresa_id, implemento_bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_implemento_fkey")
+  criadoPor    Usuario?             @relation("AtividadeApontamentoMaquinaCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_criado_por_fkey")
+  canceladoPor Usuario?             @relation("AtividadeApontamentoMaquinaCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamentoMaquina_cancelado_por_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, apontamento_id, ordem], map: "AtividadeApontamentoMaquina_apontamento_ordem_key")
+  @@index([cliente_id, empresa_id, apontamento_id])
+  @@index([cliente_id, empresa_id, bem_id])
+  @@index([cliente_id, empresa_id, implemento_bem_id])
 }

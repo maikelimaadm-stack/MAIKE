@@ -7314,4 +7314,16 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Aplicação em produção.** **Aplicada em produção em 2026-11-14 às 20:25:14 UTC** (`finished_at`), pelo caminho B do runbook, com o GO escrito do proprietário ("autorizo pode enviar"; depois "pode aplicar"). Preflight `PRONTO PARA APLICAR` (52 / 0, 85 tabelas, 2 apontamentos confirmados, 0 itens, 0 fatias, contador tenant / 3, 0 travas). Conferência depois: 53 / 0; checksum `c288cf47…`; 84 tabelas; as 3 antigas saíram; 2 atividades (nº 1 e 2, ABERTA, com máquina, centros, setor do nº 1, unidade KM/HA e produção 1/150) e 2 apontamentos (sequência 1, sem turno, CONFIRMADO); contador `Atividade` / tenant / 3; RLS ligado sem FORCE e política `maike_backend_all` nas 2 novas; nenhum privilégio para `anon`/`authenticated`; unique `NULLS NOT DISTINCT` presente.
 
-<!-- Próxima decisão: D-PROD-201 -->
+## D-PROD-201 — Linhas de produto e de máquina no apontamento do Lançamento de Atividades (Fatia 3)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina. É o coração."), liberada com "pode começar" · **Branch:** `feat/atividade-itens-produto-maquina`
+
+**Decisão.**
+1. **Linha de produto:** baixa no estoque pelo motor único (FIFO, custo FIFO, estorno exato), com origem `apontamento_atividade`. Editar é estorno exato + nova saída. Cancelar o apontamento ou a atividade estorna tudo. Idempotência por `operation_id`. A conciliação do estoque lê as tabelas novas.
+2. **Linha de máquina:** o medidor vem do bem; a leitura fica na linha, como no abastecimento, e a leitura vigente do bem passa a considerar as linhas (nada é gravado em `BemPatrimonial.medidor_*`). Final obrigatória, nunca para trás; salto acima do teto do tipo do bem pede justificativa; "sem medidor" aceita horas ou km direto. O custo de uso é snapshot de `BemPatrimonial.custo_uso_unitario` (coluna nova).
+3. **Migration EXPAND `20261114600000_atividade_linhas_produto_maquina`:** 3 tabelas novas e 2 colunas anuláveis (`BemPatrimonial.custo_uso_unitario`, `TipoPatrimonial.salto_maximo_medidor`). Produção: 53 → 54 migrations, 84 → 87 tabelas.
+4. **Constituição:** nota nova re-ancorando a exceção de estoque da D-PROD-193 na linha de produto, com edição por estorno exato e custo de uso como snapshot, sem financeiro. Vale só com a aprovação do proprietário no merge.
+
+**Contrato:** [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md).
+
+<!-- Próxima decisão: D-PROD-202 -->
