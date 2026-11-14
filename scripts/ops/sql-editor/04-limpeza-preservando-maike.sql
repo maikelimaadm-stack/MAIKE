@@ -48,6 +48,9 @@ DECLARE
     -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
     -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
     'ApontamentoAtividade',
+    -- D-PROD-197: o tipo de atividade sai logo depois do apontamento (a única tabela que o referencia) e ANTES dos centros
+    -- de custo e de resultado e da UnidadeMedida, que ele passa a referenciar como padrão (FKs RESTRICT).
+    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -60,16 +63,15 @@ DECLARE
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
-    -- D-PROD-189: CADCURVAGANHO (curvas de ganho) antes de Empresa, que ela referencia.
-    'CADCURVAGANHO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     -- D-PROD-187: CategoriaManejo passou a se chamar CADCATEGORIA (nome físico; o model Prisma não mudou).
-    'Categoria','CADCATEGORIA','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
+    -- D-PROD-189/D-PROD-195: CADCURVAGANHO (curvas de ganho) depois de CADCATEGORIA, que a referencia, e antes de Empresa.
+    'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'];
+    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'];
   c_preservadas constant text[] := ARRAY[
     'AdminPrincipalMaike','AuditoriaCatalogoGlobal','CatalogoAsset','CatalogoCategoriaVisual','CatalogoIcone',
     'CatalogoMeta','CatalogoRegraMisto','CatalogoRegraMistoCategoria','CatalogoTipoEntidade',
@@ -111,15 +113,15 @@ BEGIN
   -- As conferências 1–6 rodam DUAS vezes: antes e depois da trava (rodada 2).
   FOR v_rodada IN 1..2 LOOP
     IF v_rodada = 2 THEN
-      LOCK TABLE "ApontamentoAtividadeItemConsumoLote","ApontamentoAtividadeItem","ApontamentoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
-        "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADCURVAGANHO",
+      LOCK TABLE "ApontamentoAtividadeItemConsumoLote","ApontamentoAtividadeItem","ApontamentoAtividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+        "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
-        "Categoria","CADCATEGORIA","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
+        "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
         "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",
         "ManejoTecnicoRebanho","Marca","MovimentacaoEstoque","MovimentacaoMapa","MovimentacaoPecuaria",
         "OperacaoIdempotente","Permissao","PontoReferencia","PontoSuplementacao","Produto","RegistroAnexo",
         "SuplementacaoEvento","SuplementacaoLote","UnidadeMedida","Usuario","Lote",
-        "TipoTarefa","TipoAtividade","AreaPastagem","GrupoAtividade","Setor","Cliente","OperadorProdutoMaike" IN EXCLUSIVE MODE;
+        "TipoTarefa","AreaPastagem","GrupoAtividade","Setor","Cliente","OperadorProdutoMaike" IN EXCLUSIVE MODE;
     END IF;
 
     -- 1. Alvo.

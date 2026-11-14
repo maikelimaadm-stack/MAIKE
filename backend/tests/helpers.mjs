@@ -144,6 +144,12 @@ export const limparBanco = async () => {
   await prisma.bemPatrimonial.deleteMany({});
   await prisma.tipoPatrimonial.deleteMany({});
   await prisma.familiaPatrimonial.deleteMany({});
+  // D-PROD-197: os padrões do Tipo de Atividade apontam para centros e unidade
+  // (RESTRICT), que saem antes do tipo; soltá-los primeiro deixa a limpeza na ordem de sempre.
+  await prisma.tipoAtividade.updateMany({
+    where: { OR: [{ centro_custo_padrao_id: { not: null } }, { centro_resultado_padrao_id: { not: null } }, { unidade_producao_id: { not: null } }] },
+    data: { centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null },
+  });
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});
@@ -200,6 +206,36 @@ export const criarTenant = async (opcoes = {}) => {
   }
 
   return { cliente, usuario, credenciais: { login, senha } };
+};
+
+/**
+ * D-PROD-195 — toda Categoria de Manejo exige uma Curva de Ganho da MESMA
+ * fazenda (FK composta para CADCURVAGANHO, que por sua vez exige a Empresa).
+ * Cria a Empresa quando `empresaId` ainda não existe no tenant (testes antigos
+ * usam ids falsos como 'emp-1') e a curva, com os 12 GMD.
+ * @param {import('@prisma/client').PrismaClient | import('@prisma/client').Prisma.TransactionClient} prisma
+ * @param {{ clienteId: string, empresaId: string, nome?: string, ativo?: boolean, gmd?: string }} opcoes
+ * @returns {Promise<{ id: string, empresa_id: string, nome: string, ativo: boolean }>}
+ */
+export const criarCurvaGanhoDeTeste = async (prisma, { clienteId, empresaId, nome, ativo = true, gmd = '0.500' }) => {
+  const empresa = await prisma.empresa.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: empresaId } }, select: { id: true } });
+  if (!empresa) {
+    const { _max } = await prisma.empresa.aggregate({ where: { cliente_id: clienteId }, _max: { numero_empresa: true } });
+    await prisma.empresa.create({
+      data: { id: empresaId, cliente_id: clienteId, numero_empresa: (_max.numero_empresa ?? 0) + 1, apelido: `E-${empresaId}`.slice(0, 40), nome: `Fazenda ${empresaId} ${clienteId}` },
+    });
+  }
+  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return prisma.cadCurvaGanho.create({
+    data: {
+      cliente_id: clienteId,
+      empresa_id: empresaId,
+      nome: nome ?? `CURVA ${randomUUID().slice(0, 8).toUpperCase()}`,
+      ativo,
+      ...Object.fromEntries(meses.map((m) => [`gmd_${m}`, gmd])),
+    },
+    select: { id: true, empresa_id: true, nome: true, ativo: true },
+  });
 };
 
 /** Monta o app sem abrir porta. */

@@ -3,7 +3,9 @@
  *
  * CategoriaManejo ficou só com nome, sigla, espécie, sexo e faixa de idade (o
  * vínculo com o ícone oficial saiu na Fatia D, D-PROD-187, emenda do
- * proprietário). Nome, Sexo e Faixa de idade são obrigatórios; a
+ * proprietário); a D-PROD-195 acrescentou a Curva de ganho da fazenda,
+ * obrigatória (provas próprias em `categoriaManejoCurvaGanho.test.jsx`).
+ * Nome, Sexo, Faixa de idade e Curva de ganho são obrigatórios; a
  * faixa é UM select com as cinco faixas fixas (decisão do proprietário,
  * 2026-11-13) — sem campos livres "De"/"a".
  * Raça, categoria oficial (texto), ganho de peso anual, os doze GMDs e o
@@ -50,6 +52,14 @@ const CHAVES_REMOVIDAS = Object.freeze([
 ]);
 
 const REMOVIDO_RE = /\braca\b|categoria_oficial|ganho_peso|gmd_|catalogo_categoria_visual/;
+/**
+ * Texto dos campos removidos. "Ganho" sozinho deixou de ser proibido na
+ * D-PROD-195 ("Curva de ganho" é o campo novo; a dica cita "Curvas de Ganho"),
+ * mas o ganho de peso anual e os GMDs continuam fora.
+ */
+const TEXTO_REMOVIDO_RE = /Raça|Categoria oficial|(?<!Curvas? de )Ganho|GMD|Janeiro|Dezembro/i;
+/** Curvas da fazenda passadas ao formulário (o seletor lista as ativas). */
+const CURVAS = [{ id: "cg-1", nome: "CURVA PADRÃO", ativo: true }];
 
 const legado = () =>
   Object.fromEntries(CHAVES_REMOVIDAS.map((chave) => [chave, chave === "raca" ? "NELORE" : "1"]));
@@ -119,12 +129,15 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
       "Espécie",
       "Sexo",
       "Faixa de idade",
+      "Curva de ganho",
+      // D-PROD-198: peso objetivo, opcional.
+      "Peso objetivo (kg)",
     ]);
-    // Obrigatórios marcados: Nome, Sexo e Faixa de idade.
+    // Obrigatórios marcados: Nome, Sexo, Faixa de idade e (D-PROD-195) Curva de ganho.
     const obrigatorios = [...form.querySelectorAll("label.mg-field__label")]
       .filter((l) => l.querySelector(".req"))
       .map((l) => l.textContent.replace(/\s*\*\s*$/, "").trim());
-    expect(obrigatorios).toEqual(["Nome da Categoria", "Sexo", "Faixa de idade"]);
+    expect(obrigatorios).toEqual(["Nome da Categoria", "Sexo", "Faixa de idade", "Curva de ganho"]);
     // D-PROD-187: o seletor do ícone oficial saiu (nem rótulo, nem controle).
     expect(screen.queryByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeNull();
     expect(screen.queryByTestId("categoria-oficial-catalogo")).toBeNull();
@@ -133,7 +146,8 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     expect(form.querySelectorAll('input[type="number"]')).toHaveLength(0);
     expect(screen.queryByLabelText("De")).toBeNull();
     expect(screen.queryByLabelText("a")).toBeNull();
-    expect(form.textContent).not.toMatch(/Raça|Categoria oficial|Ganho|GMD|Janeiro|Dezembro/i);
+    expect(form.textContent).not.toMatch(TEXTO_REMOVIDO_RE);
+    expect(form.textContent).not.toMatch(/ganho de peso|ganho anual/i);
     for (const el of form.querySelectorAll("[name]")) {
       expect(el.getAttribute("name")).not.toMatch(REMOVIDO_RE);
     }
@@ -150,14 +164,16 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     expect(opcoes.every((o) => !o.disabled)).toBe(true);
   });
 
-  it("Nome, Sexo e Faixa de idade obrigatórios: sem eles não envia; escolhendo, envia o par da faixa", async () => {
+  it("Nome, Sexo, Faixa de idade e Curva de ganho obrigatórios: sem eles não envia; escolhendo, envia o par da faixa", async () => {
     const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
     const onSubmit = vi.fn();
-    wrap(<Form onSubmit={onSubmit} onCancel={() => {}} />);
+    wrap(<Form onSubmit={onSubmit} onCancel={() => {}} curvasGanho={CURVAS} />);
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(notifyWarning).toHaveBeenCalledWith("Atenção", "Preencha os campos obrigatórios.");
-    expect(screen.getAllByRole("alert")).toHaveLength(3);
+    expect(screen.getAllByRole("alert")).toHaveLength(4);
+    expect(invalido(/^Curva de ganho/)).toBe(true);
+    await escolher(/^Curva de ganho/, "CURVA PADRÃO");
     expect(invalido(/^Faixa de idade/)).toBe(true);
     expect(invalido(/^Sexo/)).toBe(true);
     expect(invalido(/Nome da Categoria/)).toBe(true);
@@ -195,7 +211,7 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BEZERRO", sexo: "MACHO", idade_minima_meses: 9, idade_maxima_meses: 12 })}
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BEZERRO", sexo: "MACHO", idade_minima_meses: 9, idade_maxima_meses: 12, curva_ganho_id: "cg-1" })}
         isEditing
         onSubmit={onSubmit}
         onCancel={() => {}}
@@ -220,7 +236,7 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 10, idade_maxima_meses: 20 })}
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 10, idade_maxima_meses: 20, curva_ganho_id: "cg-1" })}
         isEditing
         onSubmit={onSubmit}
         onCancel={() => {}}
@@ -268,7 +284,7 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
     const onSubmit = vi.fn();
     wrap(
       <Form
-        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 37, ...legado() })}
+        initialData={buildFormInitialFromRecord({ id: "cm1", nome: "BOI", sexo: "Macho", idade_minima_meses: 37, curva_ganho_id: "cg-1", ...legado() })}
         isEditing
         onSubmit={onSubmit}
         onCancel={() => {}}
@@ -297,6 +313,8 @@ describe("(b) porta nativa descarta chaves legadas do corpo", () => {
       sexo: "Macho",
       idade_minima_meses: 37,
       idade_maxima_meses: null,
+      curva_ganho_id: "cg-1",
+      curva_ganho_nome: "CURVA PADRÃO",
       ativo: true,
       ...legado(),
       chave_desconhecida: "x",
@@ -309,6 +327,7 @@ describe("(b) porta nativa descarta chaves legadas do corpo", () => {
       sexo: "Macho",
       idade_minima_meses: 37,
       idade_maxima_meses: null,
+      curva_ganho_id: "cg-1",
       ativo: true,
     };
     expect(corpoDeEnvio(dados)).toEqual(esperado);
@@ -351,7 +370,8 @@ describe("(b2) PATCH vindo da fila offline da versão anterior não trava a sinc
 });
 
 describe("(c) preferências de coluna salvas com ids removidos", () => {
-  const STORAGE_KEY = "colunas_largura_categorias_manejo";
+  // D-PROD-195: a chave passou a `_v2`; a leitura com ids removidos continua igual.
+  const STORAGE_KEY = "colunas_largura_categorias_manejo_v3";
 
   it("formato unificado: ids raca/categoria_oficial/gmd_* são descartados sem quebrar", async () => {
     const { loadCadastroBase1ColumnPrefs, CADASTRO_B1_COLUMN_PREFS_VERSION } = await import(
@@ -412,13 +432,22 @@ describe("(d) colunas exportáveis (CSV) de Categorias de Manejo", () => {
     );
     const { exportCadastroCsv } = await import("@/components/cadastro/base1/cadastroExportCsv");
 
-    expect(CATEGORIAS_MANEJO_COLUNAS.map((c) => c.id)).toEqual(["nome", "sigla", "sexo", "idade", "especie"]);
+    expect(CATEGORIAS_MANEJO_COLUNAS.map((c) => c.id)).toEqual(["nome", "sigla", "sexo", "idade", "curva_ganho", "peso_objetivo", "especie"]);
     for (const coluna of CATEGORIAS_MANEJO_COLUNAS) {
       expect(coluna.id).not.toMatch(REMOVIDO_RE);
-      expect(coluna.label).not.toMatch(/Raça|Categoria oficial|Ganho|GMD/i);
+      expect(coluna.label).not.toMatch(TEXTO_REMOVIDO_RE);
     }
     // Pedir um campo removido ao extrator devolve vazio.
-    const registro = { nome: "BOI", sigla: "B", sexo: "Macho", especie: "Bovinos", idade_minima_meses: 37, ...legado() };
+    const registro = {
+      nome: "BOI",
+      sigla: "B",
+      sexo: "Macho",
+      especie: "Bovinos",
+      idade_minima_meses: 37,
+      curva_ganho_id: "cg-1",
+      curva_ganho_nome: "CURVA PADRÃO",
+      ...legado(),
+    };
     for (const chave of CHAVES_REMOVIDAS) expect(getCategoriaManejoFieldValue(registro, chave)).toBe("");
 
     // O CSV gerado de verdade: cabeçalho e linha só com as colunas enxutas.
@@ -439,9 +468,10 @@ describe("(d) colunas exportáveis (CSV) de Categorias de Manejo", () => {
       leitor.readAsText(blob);
     });
     const [cabecalho, linha] = texto.replace(/^﻿/, "").split("\n");
-    expect(cabecalho).toBe('"Nome";"Sigla";"Sexo";"Faixa Idade";"Espécie"');
-    expect(linha).toBe('"BOI";"B";"Macho";"Maior que 36 meses";"Bovinos"');
-    expect(texto).not.toMatch(/NELORE|Raça|GMD|ganho/i);
+    expect(cabecalho).toBe('"Nome";"Sigla";"Sexo";"Faixa Idade";"Curva de ganho";"Peso objetivo (kg)";"Espécie"');
+    expect(linha).toBe('"BOI";"B";"Macho";"Maior que 36 meses";"CURVA PADRÃO";"";"Bovinos"');
+    expect(texto).not.toMatch(/NELORE|Raça|GMD|ganho de peso|ganho anual/i);
+    expect(texto).not.toMatch(TEXTO_REMOVIDO_RE);
   });
 
   it("coluna Faixa Idade (grade e CSV): rótulo da faixa; par fora da lista → \"X a Y meses\"; sem idade → vazio", async () => {

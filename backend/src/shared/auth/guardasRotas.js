@@ -63,6 +63,13 @@ const patrimonio = (alvo) => ({
  */
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
 
+/**
+ * D-PROD-197 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
+ * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
+ * não depende das telas de centros, como as opções do apontamento.
+ */
+const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
+
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -213,7 +220,14 @@ export const GUARDAS = Object.freeze({
   tarefa: porAcessoTotal(),
   // ── Cadastros do menu (tela + cadastro rápido) ──
   setor: cadastro(T.SETORES, { criar: LOTES_GRAVAR }),
-  categoriaManejo: cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+  categoriaManejo: {
+    ...cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
+    // D-PROD-195 — seletor de curva de ganho: quem cria OU edita categoria (o
+    // cadastro rápido do lote incluído) lê as curvas da fazenda, sem a tela de curvas.
+    opcoesCurvas: porQualquer(
+      [T.CATEGORIAS_MANEJO, 'novo'], [T.CATEGORIAS_MANEJO, 'salvar'], [T.CATEGORIAS_MANEJO, 'editar'], ...LOTES_GRAVAR,
+    ),
+  },
   // F6 (D-PROD-137): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
   // o local de um depósito; desativar/capacidade/excluir só na tela Locais.
   localEstoque: { ...cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR }), editar: localEstoqueEditar },
@@ -283,7 +297,8 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
+  // D-PROD-182. D-PROD-197: opções de centro padrão do formulário = criar OU editar tipo.
+  tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).

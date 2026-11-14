@@ -10,6 +10,12 @@ import {
 
 const RESOURCE = 'CategoriaManejo';
 const CAMINHO = '/categorias-manejo';
+/**
+ * Seletores próprios do cadastro (D-PROD-195), como `/apontamentos-atividade-opcoes`:
+ * quem cria ou edita categoria (inclusive pelo cadastro rápido do lote) lista as
+ * curvas da fazenda sem precisar da tela de Curvas de Ganho.
+ */
+const CAMINHO_OPCOES = '/categorias-manejo-opcoes';
 export const ENTIDADE_OFFLINE = 'CategoriaManejo';
 
 const ctx = (operation) => ({ operation, resource: RESOURCE });
@@ -29,6 +35,10 @@ export const CAMPOS_GRAVAVEIS = Object.freeze([
   'sexo',
   'idade_minima_meses',
   'idade_maxima_meses',
+  // D-PROD-195: a curva de ganho da MESMA fazenda é obrigatória (o servidor recusa ausente ou vazia no POST).
+  'curva_ganho_id',
+  // D-PROD-198: peso objetivo (kg/cabeça), opcional.
+  'peso_objetivo_kg',
   'ativo',
 ]);
 
@@ -94,10 +104,39 @@ const operacoesNativas = Object.freeze({
     ),
 });
 
+/**
+ * Curvas de ganho da fazenda para o seletor da categoria (D-PROD-195): só
+ * online, fora da fila offline (é leitura). Devolve `[{ id, nome, ativo }]` em
+ * ordem de nome, ativas e inativas (a gravada pode ter sido inativada).
+ * @param {string} empresaId
+ */
+export const listarOpcoesCurvasGanho = (empresaId) =>
+  nativeRequest(
+    `${CAMINHO_OPCOES}/curvas-ganho?${new URLSearchParams({ empresa_id: String(empresaId) }).toString()}`,
+    { autenticado: true },
+    ctx('listOpcoesCurvasGanhoCategoriaManejo'),
+  );
+
+/**
+ * Criar categoria é SÓ ONLINE desde a D-PROD-195: a curva de ganho é obrigatória
+ * e as opções de curva vêm do servidor (`listarOpcoesCurvasGanho`, fora da fila).
+ * Por isso o adaptador offline usa `criacao: 'somente_online'` (D-PROD-195 R2):
+ *  - a criação vai direto ao servidor (sem conexão, falha na hora) e o registro
+ *    confirmado entra no cache offline;
+ *  - um POST gravado na fila pela versão anterior (sem `curva_ganho_id`, que o
+ *    servidor recusa com `curva_obrigatoria`) fica RETIDO no replay
+ *    (`OFFLINE_ENTITY_UNSUPPORTED`), sem ser enviado nem apagado, e não aparece
+ *    nas listas; um lote criado offline que aponte para essa categoria fica
+ *    retido junto (em qualquer ordem da fila), e a edição de um lote real que
+ *    a cite vai sem esse campo — nada vai ao servidor com o id offline; o resto
+ *    da fila segue.
+ * Listar, editar e excluir seguem com o comportamento offline de sempre.
+ */
 export const categoriaManejoPort = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,
       operations: operacoesNativas,
       enabled: true,
+      criacao: 'somente_online',
     })
   : operacoesNativas;

@@ -21,7 +21,10 @@ const estoque = { listProdutos: vi.fn(), listLocais: vi.fn() };
 // existe mais.
 const setores = { listSetores: vi.fn(), createSetor: vi.fn(), updateSetor: vi.fn(), sincronizarReferenciasSetor: vi.fn() };
 const categorias = { listCategorias: vi.fn(), createCategoria: vi.fn(), updateCategoria: vi.fn(), deleteCategoria: vi.fn() };
-const categoriasManejo = { listCategoriasManejo: vi.fn(), createCategoriaManejo: vi.fn(), updateCategoriaManejo: vi.fn(), deleteCategoriaManejo: vi.fn() };
+const categoriasManejo = {
+  listCategoriasManejo: vi.fn(), createCategoriaManejo: vi.fn(), updateCategoriaManejo: vi.fn(), deleteCategoriaManejo: vi.fn(),
+  listOpcoesCurvasGanhoCategoriaManejo: vi.fn(),
+};
 const bebedouros = {
   listBebedouros: vi.fn(), createBebedouro: vi.fn(), updateBebedouro: vi.fn(),
   listHistorico: vi.fn(), createHistorico: vi.fn(), deleteHistorico: vi.fn(),
@@ -360,11 +363,13 @@ describe('CM — categorias de manejo', () => {
    *
    * D-PROD-186 (Fatia C): o cadastro ficou só com nome, sigla, espécie, sexo e
    * faixa de idade; o vínculo com o ícone oficial saiu na Fatia D (D-PROD-187).
-   * O FORM abaixo é o que o formulário enxuto envia hoje.
+   * O FORM abaixo é o que o formulário enxuto envia hoje (com a curva de
+   * ganho obrigatória, D-PROD-195).
    */
   const FORM = Object.freeze({
     nome: 'boi gordo', sigla: 'bg', especie: 'Bovino', sexo: '',
     idade_minima_meses: 13, idade_maxima_meses: 24,
+    curva_ganho_id: 'cg-1', curva_ganho_nome: 'CURVA PADRÃO',
   });
 
   /** As 16 chaves que saíram do contrato (15 na D-PROD-186 + o vínculo do ícone na D-PROD-187). */
@@ -393,11 +398,35 @@ describe('CM — categorias de manejo', () => {
       sigla: 'BG',
       especie: 'Bovino',
       sexo: null,
+      curva_ganho_id: 'cg-1',
+      // D-PROD-198: peso objetivo opcional; vazio vai como null (limpa).
+      peso_objetivo_kg: null,
       idade_minima_meses: 13,
       idade_maxima_meses: 24,
       ativo: true,
     });
     for (const chave of CHAVES_REMOVIDAS) expect(p).not.toHaveProperty(chave);
+    // O nome da curva é só de exibição (vem da relação): não vai no corpo.
+    expect(p).not.toHaveProperty('curva_ganho_nome');
+  });
+
+  it('CM3d — D-PROD-195: curva_ganho_id vai SEMPRE, na criação e na edição (inclusive sem mexer na faixa); vazio vira null', () => {
+    const p = (extra, opcoes = {}) => categoriaManejoSvc.normalizarCategoriaManejo({ ...FORM, ...extra }, { empresaId: EMPRESA, ...opcoes });
+    expect(p({})).toMatchObject({ curva_ganho_id: 'cg-1' });
+    expect(p({}, { edicao: true })).toMatchObject({ curva_ganho_id: 'cg-1' });
+    expect(p({ faixa_idade_alterada: true }, { edicao: true })).toMatchObject({ curva_ganho_id: 'cg-1' });
+    expect(p({ curva_ganho_id: ' cg-2 ' }, { edicao: true })).toMatchObject({ curva_ganho_id: 'cg-2' });
+    for (const vazio of ['', '   ', null, undefined]) {
+      expect(p({ curva_ganho_id: vazio })).toHaveProperty('curva_ganho_id', null);
+      expect(p({ curva_ganho_id: vazio }, { edicao: true })).toHaveProperty('curva_ganho_id', null);
+    }
+  });
+
+  it('CM3e — D-PROD-195: as curvas do seletor vêm da rota de opções do cadastro, com a fazenda', async () => {
+    const curvas = [{ id: 'cg-1', nome: 'CURVA PADRÃO', ativo: true }];
+    categoriasManejo.listOpcoesCurvasGanhoCategoriaManejo.mockResolvedValue(curvas);
+    expect(await categoriaManejoSvc.listarCurvasGanhoParaCategoria(EMPRESA)).toEqual(curvas);
+    expect(categoriasManejo.listOpcoesCurvasGanhoCategoriaManejo).toHaveBeenCalledWith(EMPRESA);
   });
 
   it('CM3b — registro legado com raça, categoria oficial, ganho, 12 GMDs e vínculo do ícone: nenhuma das 16 chaves sai no payload', () => {

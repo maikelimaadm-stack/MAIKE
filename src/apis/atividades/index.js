@@ -1,4 +1,7 @@
-/** Superfície pública do módulo Atividades (D-PROD-182; apontamentos, D-PROD-190; itens do apontamento, D-PROD-193). */
+/**
+ * Superfície pública do módulo Atividades (D-PROD-182; padrões e flags do tipo,
+ * D-PROD-197; apontamentos, D-PROD-190; itens do apontamento, D-PROD-193).
+ */
 
 export {
   listTiposAtividade,
@@ -6,6 +9,9 @@ export {
   createTipoAtividade,
   updateTipoAtividade,
   deleteTipoAtividade,
+  FLAGS_TIPO_ATIVIDADE,
+  RECURSOS_OPCOES_TIPO_ATIVIDADE,
+  listOpcoesTipoAtividade,
   RECURSOS_OPCOES_APONTAMENTO,
   listApontamentosAtividadePage,
   getApontamentoAtividade,

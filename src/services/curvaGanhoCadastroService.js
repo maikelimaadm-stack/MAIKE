@@ -118,21 +118,56 @@ export const criarCurvaGanho = (dados, { empresaId }) => createCurvaGanho({ ...d
 export const atualizarCurvaGanho = ({ id, dados, empresaId }) => updateCurvaGanho(id, { ...dados, empresa_id: empresaId });
 
 /**
+ * D-PROD-195: frase do 409 `CURVA_GANHO_EM_USO`, com quantas categorias de
+ * manejo usam a curva (`details.categorias`); sem a contagem, a do catálogo.
+ * @param {unknown} categorias
+ */
+export const mensagemCurvaEmUso = (categorias) => {
+  const n = Number(categorias);
+  return Number.isInteger(n) && n > 0
+    ? `Esta curva está ligada a ${n} categoria(s) de manejo e não pode ser excluída.`
+    : 'Esta curva está ligada a categoria(s) de manejo e não pode ser excluída.';
+};
+
+/**
+ * Aviso das curvas não excluídas: uma só, em uso → a frase com a contagem;
+ * várias → quantas falharam e quantas estão ligadas a categorias.
+ * @param {{ id: string, code: string, categorias?: number }[]} bloqueados
+ */
+export const mensagemExclusaoBloqueada = (bloqueados) => {
+  const emUso = bloqueados.filter((b) => b.code === API_ERROR_CODES.CURVA_GANHO_EM_USO);
+  if (bloqueados.length === 1) {
+    return emUso.length ? mensagemCurvaEmUso(emUso[0].categorias) : '1 curva de ganho não pôde ser excluída.';
+  }
+  const total = `${bloqueados.length} curvas de ganho não puderam ser excluídas.`;
+  if (!emUso.length) return total;
+  return `${total} ${emUso.length === 1 ? '1 está ligada' : `${emUso.length} estão ligadas`} a categorias de manejo.`;
+};
+
+/**
  * @param {string | string[]} ids
  * @param {{ empresaId: string }} escopo
- * @returns {Promise<{ excluidos: string[], bloqueados: { id: string, code: string }[] }>}
+ * @returns {Promise<{ excluidos: string[], bloqueados: { id: string, code: string, categorias?: number }[] }>}
  */
 export const excluirCurvasGanho = async (ids, { empresaId }) => {
   /** @type {string[]} */
   const excluidos = [];
-  /** @type {{ id: string, code: string }[]} */
+  /** @type {{ id: string, code: string, categorias?: number }[]} */
   const bloqueados = [];
   for (const id of Array.isArray(ids) ? ids : [ids]) {
     try {
       await deleteCurvaGanho(id, empresaId);
       excluidos.push(id);
     } catch (erro) {
-      bloqueados.push({ id, code: /** @type {{ code?: string }} */ (erro)?.code ?? API_ERROR_CODES.OPERATION_FAILED });
+      const e = /** @type {{ code?: string, details?: { categorias?: unknown } }} */ (erro);
+      const code = e?.code ?? API_ERROR_CODES.OPERATION_FAILED;
+      const categorias = Number(e?.details?.categorias);
+      // D-PROD-195: a curva em uso diz quantas categorias a usam.
+      bloqueados.push(
+        code === API_ERROR_CODES.CURVA_GANHO_EM_USO && Number.isInteger(categorias) && categorias > 0
+          ? { id, code, categorias }
+          : { id, code },
+      );
     }
   }
   return { excluidos, bloqueados };

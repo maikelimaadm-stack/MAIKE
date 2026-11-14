@@ -16,6 +16,7 @@ import {
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaCategoriasManejo, {
   CATEGORIAS_MANEJO_COLUNAS,
+  CATEGORIAS_MANEJO_STORAGE_KEY,
   getCategoriaManejoFieldValue,
 } from "@/components/categorias-manejo/TabelaCategoriasManejo";
 import FormularioCategoriaManejo, {
@@ -24,6 +25,7 @@ import FormularioCategoriaManejo, {
   buildFormInitialFromRecord,
 } from "@/components/categorias-manejo/FormularioCategoriaManejo";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+import { useOpcoesCurvaGanhoCategoria } from "@/hooks/useOpcoesCurvaGanhoCategoria";
 
 
 export default function CategoriasManejo() {
@@ -32,6 +34,8 @@ export default function CategoriasManejo() {
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
   const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
   const prevEmpresaRef = useRef(empresaSelecionadaId);
+  // D-PROD-195: curvas da fazenda para o campo obrigatório "Curva de ganho".
+  const opcoesCurva = useOpcoesCurvaGanhoCategoria();
 
   const fetchAll = useCallback(
     () => listarCategoriasManejoDaEmpresa(empresaSelecionadaId),
@@ -39,7 +43,7 @@ export default function CategoriasManejo() {
   );
 
   const controller = useCadastroBase1FullListController({
-    storageKey: "colunas_largura_categorias_manejo",
+    storageKey: CATEGORIAS_MANEJO_STORAGE_KEY,
     columnIds: CATEGORIAS_MANEJO_COLUNAS.map((c) => c.id),
     listEnabled: Boolean(empresaSelecionadaId),
     queryKey: ["categorias-manejo", empresaSelecionadaId],
@@ -52,7 +56,7 @@ export default function CategoriasManejo() {
       item?.id ? item.nome || "Categoria" : "Nova categoria de manejo",
     getRecordCode: (/** @type {any} */ item) => (item?.sigla ? String(item.sigla) : undefined),
     getSearchHaystack: (/** @type {any} */ c) =>
-      [c.nome, c.sigla, c.especie, c.sexo].filter(Boolean).join(" "),
+      [c.nome, c.sigla, c.especie, c.sexo, c.curva_ganho_nome].filter(Boolean).join(" "),
     mapSearchSuggestion: (/** @type {any} */ c) => ({
       id: String(c.id),
       label: c.nome || "Categoria",
@@ -211,6 +215,10 @@ export default function CategoriasManejo() {
           isEditing={!!controller.editingItem?.id}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
+          curvasGanho={opcoesCurva.curvas}
+          carregandoCurvas={opcoesCurva.carregando}
+          erroCurvas={opcoesCurva.erro}
+          semFazenda={!opcoesCurva.empresaId}
         />
       }
       listSlot={

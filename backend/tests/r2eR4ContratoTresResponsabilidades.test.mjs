@@ -207,12 +207,13 @@ describe('R4 C — contrato das três responsabilidades (empresa no ledger)', ()
     await verificar(c);
   });
 
-  test('C2: posição pública traz os atributos atuais E a proveniência da entrada (raça, sistema, data de entrada); cadastro não muda', async () => {
+  test('C2: posição pública traz os atributos atuais E a proveniência da entrada (sistema, data de entrada); cadastro não muda', async () => {
     const c = await cenario();
     const r = await req('POST', '/lotes', c.tok, { empresa_id: c.empresa.id, nome: 'NELORE', quantidade_cabecas: 30, categoria: BOI, sexo: 'Macho', setor_id: c.setor.id, area_entrada_id: c.A.id, area_atual_id: c.A.id, data_entrada: '2026-10-25', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: 400, raca_predominante: 'Nelore', sistema_produtivo: 'Recria' });
     assert.equal(r.statusCode, 201, r.body);
     await ativar(c);
     const p = await pos(c, daEntrada(r.json(), c.A));
-    assert.deepEqual([p.area_atual_id, p.quantidade_cabecas, p.categoria, p.sexo, Number(p.peso_medio_kg), p.nome, p.raca_predominante, p.sistema_produtivo, p.data_entrada], [c.A.id, 30, BOI, 'Macho', 400, 'NELORE', 'Nelore', 'Recria', '2026-10-25']);
+    assert.deepEqual([p.area_atual_id, p.quantidade_cabecas, p.categoria, p.sexo, Number(p.peso_medio_kg), p.nome, p.sistema_produtivo, p.data_entrada], [c.A.id, 30, BOI, 'Macho', 400, 'NELORE', 'Recria', '2026-10-25']);
+    assert.equal('raca_predominante' in p, false, 'D-PROD-196: raça saiu da posição');
   });
 });

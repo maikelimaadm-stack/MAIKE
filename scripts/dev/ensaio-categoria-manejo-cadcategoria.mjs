@@ -31,12 +31,19 @@
  *     portanto sem a barreira de MIGRATION_CONTRACT_AUTORIZADO (as guardas delas
  *     passam porque o banco está vazio nessa hora). Em produção a D-PROD-194
  *     entra depois desta; aqui ela sobe antes, na partida, e não muda o que esta
- *     CONTRACT toca;
+ *     CONTRACT toca. A CONTRACT da D-PROD-195 (`20261114200000_cadcategoria_curva_ganho`,
+ *     curva de ganho obrigatória em CADCATEGORIA) fica FORA da partida
+ *     (`NOMES_DEPOIS_DO_CONTRACT`): ela exige a tabela já renomeada e sobe pelo runner
+ *     no GREEN, logo depois desta; e a EXPAND da D-PROD-198
+ *     (`20261114400000_cadcategoria_peso_objetivo`, CADCATEGORIA.peso_objetivo_kg), que
+ *     no dia desta CONTRACT ainda não existia e também exige o nome novo, fica fora da
+ *     partida do mesmo jeito e sobe no GREEN por último (EXPAND: sem autorização);
  *  2. semeia, por cliente, 4 categorias de manejo: uma com o legado de
  *     produção (raca, categoria_oficial e os 12 GMDs 0.0000, ganho nulo), uma
  *     com ganho e GMDs variados, uma só com o vínculo do ícone e uma sem nada
  *     nas 16 colunas; e uma categoria visual GLOBAL do tipo `lote` para o
- *     vínculo;
+ *     vínculo; e, para a D-PROD-195, a Empresa de cada cliente com a 'CURVA PADRÃO'
+ *     (a que a guarda dela exige) e uma outra curva;
  *  3. tira o preflight do runbook (SQL_IMPRESSAO e SQL_CONTAGENS);
  *  4. roda os cenários RED (sem impressão, impressão errada, índice extra,
  *     visão, política e função citando as colunas, função com o nome físico da
@@ -45,12 +52,17 @@
  *     não mudar nada; a falha aberta é resolvida com `migrate resolve --rolled-back`;
  *  5. o runner oficial com a conferência de alvo exigida e SEM
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
- *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
- *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 e a impressão na URL) e confere:
- *     todas concluídas (CONCLUIDAS_DEPOIS; esta por último, depois da CADCURVAGANHO, do
- *     ApontamentoAtividade, dos itens do apontamento e da CONTRACT da D-PROD-194), 85 tabelas,
+ *  6. o runner oficial com a conferência exigida e MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187
+ *     também recusa: a D-PROD-195 pende junto (nunca duas CONTRACT de uma vez);
+ *  7. aplica pelo runner oficial (`npm run deploy:migrate`, alvo local, com a impressão na
+ *     URL), esta, depois a D-PROD-195 e por último a EXPAND da D-PROD-198, e confere: todas
+ *     concluídas (CONCLUIDAS_DEPOIS; esta depois da CADCURVAGANHO, do ApontamentoAtividade,
+ *     dos itens do apontamento e das CONTRACT da D-PROD-194 e da D-PROD-197, e a D-PROD-195
+ *     e a D-PROD-198 por último), 85 tabelas,
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
- *     RLS e políticas, as 12 colunas que ficam, linhas idênticas nessas 12, os 4
+ *     RLS e políticas, as 12 colunas que ficam mais a curva_ganho_id da D-PROD-195 (cada
+ *     categoria na CURVA PADRÃO da fazenda) e a peso_objetivo_kg da D-PROD-198 (vazia),
+ *     linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
  *     PrismaClient lendo `categoriaManejo.findMany()` e 2ª execução sem pendência.
  *
@@ -85,13 +97,28 @@ export const NOMES_POSTERIORES_JA_APLICADAS = Object.freeze(['20261113600000_cad
  * D-PROD-193 — todas as pastas de nome POSTERIOR a esta CONTRACT, em ordem de nome, contadas pela pasta. A partida
  * sobe pelo Prisma direto, que aplica pela ordem dos nomes: as duas acima vêm primeiro e as que vieram DEPOIS delas
  * (os itens do apontamento, `20261113800000_apontamento_atividade_item`, e a CONTRACT da D-PROD-194,
- * `20261114100000_cadcurvaganho_mensal`) também ficam concluídas antes desta CONTRACT.
+ * `20261114100000_cadcurvaganho_mensal`, e a da D-PROD-197, `20261114300000_tipo_atividade_defaults`, que só toca
+ * TipoAtividade) também ficam concluídas antes desta CONTRACT, menos as NOMES_DEPOIS_DO_CONTRACT.
  * Em produção essas entram depois desta CONTRACT (já aplicada); não dependem do formato desta tabela e ela não as
  * toca, então a ordem entre elas não muda o que o ensaio prova (como a P1-03, D-PROD-185, que produção aplicou depois
  * desta e aqui sobe antes).
  */
+/**
+ * D-PROD-195: a CONTRACT da curva de ganho na Categoria de Manejo, de nome posterior, depende do nome NOVO
+ * (CADCATEGORIA): a guarda dela recusa sem a tabela. Fica fora da partida e sobe pelo runner no GREEN, logo depois
+ * desta (em produção esta já está concluída e ela entra depois da D-PROD-194).
+ */
+export const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho';
+/**
+ * D-PROD-198: a EXPAND do peso objetivo (`ALTER TABLE "CADCATEGORIA" ADD COLUMN "peso_objetivo_kg"`), de nome
+ * posterior, também exige o nome NOVO e no dia desta CONTRACT ainda não existia. Fica fora da partida, como a
+ * D-PROD-195, e sobe no GREEN depois dela, pela ordem dos nomes (EXPAND: o runner não pede autorização para ela).
+ */
+export const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
-  readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name > NOME_CONTRACT).map((d) => d.name).sort()
+  readdirSync(MIGRATIONS, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
 );
 /**
  * D-PROD-194: a CONTRACT da Curva de Ganho mensal, também de nome POSTERIOR a esta e ainda PENDENTE em produção (lá
@@ -101,14 +128,16 @@ export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
  */
 export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
 /**
- * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT), contadas pela pasta para
- * não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46 pastas; D-PROD-190,
- * 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49); e tabelas em public (85: 83 com a do
- * ApontamentoAtividade, D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193; a D-PROD-194 não cria nem apaga
- * tabela; iguais antes e depois: só rename).
+ * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT e as NOMES_DEPOIS_DO_CONTRACT),
+ * contadas pela pasta para não quebrar quando outra release entra na main (D-PROD-185 entrou depois desta: 45 → 46
+ * pastas; D-PROD-190, 46 → 47; D-PROD-193, 47 → 48; a curva mensal, D-PROD-194, 48 → 49; a curva na categoria,
+ * D-PROD-195, 49 → 50, fora da partida; os padrões do TipoAtividade, D-PROD-197, 50 → 51, na partida; o peso
+ * objetivo, D-PROD-198, 51 → 52, fora da partida); e tabelas em public (85: 83 com a do ApontamentoAtividade,
+ * D-PROD-190, + as 2 dos itens do apontamento, D-PROD-193; a D-PROD-194, a D-PROD-195, a D-PROD-197 e a D-PROD-198 não
+ * criam nem apagam tabela; iguais antes e depois: só rename).
  */
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
-export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1;
+export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
 export const TABELAS_PUBLIC = 85;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
@@ -128,6 +157,8 @@ export const COLUNAS = Object.freeze([
 export const COLUNAS_QUE_FICAM = Object.freeze([
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'idade_minima_meses', 'idade_maxima_meses', 'ativo', 'createdAt', 'updatedAt',
 ]);
+/** Depois de TODAS as migrations: as 12 e, no fim (attnum), a curva_ganho_id da D-PROD-195 e a peso_objetivo_kg da D-PROD-198. */
+export const COLUNAS_DEPOIS = Object.freeze([...COLUNAS_QUE_FICAM, 'curva_ganho_id', 'peso_objetivo_kg']);
 /** As 28 colunas de CategoriaManejo antes da CONTRACT, na ordem física (o vínculo do ícone veio depois, em 20261029200000). */
 export const COLUNAS_ANTES = Object.freeze([
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'raca', 'idade_minima_meses', 'idade_maxima_meses',
@@ -137,10 +168,14 @@ export const COLUNAS_ANTES = Object.freeze([
 export const INDICES_ANTES = Object.freeze([
   'CategoriaManejo_cliente_id_catalogo_categoria_visual_id_idx', 'CategoriaManejo_cliente_id_empresa_id_idx', 'CategoriaManejo_cliente_id_id_key', 'CategoriaManejo_pkey',
 ]);
-export const INDICES_DEPOIS = Object.freeze(['CADCATEGORIA_cliente_id_empresa_id_idx', 'CADCATEGORIA_cliente_id_id_key', 'CADCATEGORIA_pkey']);
+/** Depois de TODAS as migrations (com o índice da curva, D-PROD-195). */
+export const INDICES_DEPOIS = Object.freeze([
+  'CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_idx', 'CADCATEGORIA_cliente_id_empresa_id_idx', 'CADCATEGORIA_cliente_id_id_key', 'CADCATEGORIA_pkey',
+]);
 /** Constraints (fora NOT NULL) antes e depois, em ordem COLLATE "C". */
 export const CONSTRAINTS_ANTES = Object.freeze(['CategoriaManejo_catalogo_categoria_visual_id_fkey', 'CategoriaManejo_cliente_id_fkey', 'CategoriaManejo_pkey']);
-export const CONSTRAINTS_DEPOIS = Object.freeze(['CADCATEGORIA_cliente_id_fkey', 'CADCATEGORIA_pkey']);
+/** Depois de TODAS as migrations (com a FK composta para a curva da mesma fazenda, D-PROD-195). */
+export const CONSTRAINTS_DEPOIS = Object.freeze(['CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey', 'CADCATEGORIA_cliente_id_fkey', 'CADCATEGORIA_pkey']);
 /** Impressão de um conjunto vazio (nenhum valor): left(md5(''), 12). */
 export const IMPRESSAO_VAZIA = 'd41d8cd98f00';
 export const IMPRESSAO_ERRADA = 'abcdef123456';
@@ -246,7 +281,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * Todas as migrations do repositório menos esta CONTRACT (CONCLUIDAS_ANTES), aplicadas pelo Prisma a partir de uma cópia
+ * Todas as migrations do repositório menos esta CONTRACT e as NOMES_DEPOIS_DO_CONTRACT (CONCLUIDAS_ANTES), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-194, sem o runner: as guardas delas passam
  * com o banco vazio. Inclui também as EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e
  * `20261113700000_apontamento_atividade` (D-PROD-190), de nome posterior a esta CONTRACT:
@@ -258,7 +293,9 @@ export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-cadcategoria-main-'));
   try {
     mkdirSync(join(dir, 'migrations'));
-    for (const d of readdirSync(MIGRATIONS)) if (d !== NOME_CONTRACT) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    for (const d of readdirSync(MIGRATIONS)) {
+      if (d !== NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d)) cpSync(join(MIGRATIONS, d), join(dir, 'migrations', d), { recursive: true });
+    }
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
     if (r.status !== 0) throw new Error(`ensaio D-PROD-187: as migrations da main não subiram (exit ${r.status})`);
@@ -274,7 +311,7 @@ export const aplicarPeloRunner = (urlMigracao, { runtime, extras = {} } = {}) =>
     env: { ...ambienteBase(), MIGRATION_DATABASE_URL: urlMigracao, DATABASE_URL: runtime ?? urlMigracao, ...extras },
   });
 
-/** `prisma migrate deploy` direto, com o schema e as migrations do repositório (inclui a CONTRACT). */
+/** `prisma migrate deploy` direto, com o schema e as migrations do repositório (inclui a CONTRACT e as NOMES_DEPOIS_DO_CONTRACT). */
 export const migrateDeploy = (url) => prisma(['migrate', 'deploy', '--schema', SCHEMA], url);
 export const resolverRevertida = (url) => prisma(['migrate', 'resolve', '--rolled-back', NOME_CONTRACT, '--schema', SCHEMA], url);
 export const migrateDiff = (url) => prisma(['migrate', 'diff', '--from-url', url, '--to-schema-datamodel', SCHEMA, '--exit-code'], url);
@@ -352,10 +389,18 @@ export const CATEGORIAS_SEMENTE = Object.freeze([
   { sufixo: 'd', nome: 'VACA', sexo: 'Fêmea', idade: [37, null], legado: {}, ativo: false },
 ]);
 
+/** D-PROD-195: os 12 GMD mensais de CADCURVAGANHO (a curva mensal da D-PROD-194 já está na partida). */
+const GMD_MENSAIS = Object.freeze(['gmd_jan', 'gmd_fev', 'gmd_mar', 'gmd_abr', 'gmd_mai', 'gmd_jun', 'gmd_jul', 'gmd_ago', 'gmd_set', 'gmd_out', 'gmd_nov', 'gmd_dez']);
+/** Nome da curva a que a migration da D-PROD-195 liga as categorias que já existem. */
+export const NOME_CURVA_PADRAO = 'CURVA PADRÃO';
+/** Id da CURVA PADRÃO semeada na fazenda de cada cliente (a que cada categoria recebe na D-PROD-195). */
+export const curvaPadraoDe = (cliente) => `${cliente}-curva-padrao`;
+
 /**
  * Sementes no schema ANTIGO (todas as migrations menos esta CONTRACT): o tipo `lote` e uma categoria visual GLOBAL e, por cliente, o Cliente e
  * as CATEGORIAS_SEMENTE (com as 16 colunas gravadas). `apenasVazias` semeia só as categorias sem nenhum valor nelas
- * (o banco "sem nada a perder").
+ * (o banco "sem nada a perder"). D-PROD-195: por cliente, também a Empresa (a fazenda das categorias), a CURVA PADRÃO
+ * dela, que a guarda da D-PROD-195 exige para ligar as categorias, e uma outra curva, que a ligação não pode usar.
  * @param {import('@prisma/client').PrismaClient} db
  * @param {{clientes?: number, apenasVazias?: boolean}} [opcoes]
  */
@@ -368,6 +413,10 @@ export const semear = async (db, { clientes = 2, apenasVazias = false } = {}) =>
     const c = `cad-c${k}`;
     ids.push({ cliente: c, categorias: categorias.map((x) => `${c}-cat-${x.sufixo}`) });
     await inserir(db, 'Cliente', { id: c, codigo: c, nome: `Cliente de ensaio ${k}` });
+    await inserir(db, 'Empresa', { id: `${c}-emp-1`, cliente_id: c, numero_empresa: 1, apelido: 'Fazenda 1', nome: `Fazenda de ensaio ${k}` });
+    for (const [id, nome] of [[curvaPadraoDe(c), NOME_CURVA_PADRAO], [`${c}-curva-outra`, 'CURVA ENGORDA']]) {
+      await inserir(db, 'CADCURVAGANHO', { id, cliente_id: c, empresa_id: `${c}-emp-1`, nome, ...Object.fromEntries(GMD_MENSAIS.map((g) => [g, 0.5])) });
+    }
     for (const x of categorias) {
       await inserir(db, TABELA_ANTIGA, {
         id: `${c}-cat-${x.sufixo}`, cliente_id: c, empresa_id: `${c}-emp-1`, nome: x.nome, sigla: x.nome.slice(0, 3), especie: 'Bovinos', sexo: x.sexo,
@@ -549,7 +598,7 @@ export const divergenciasGreen = (partida, depois) => {
   if (!igual(depois.estrutura.indices, INDICES_DEPOIS)) d.push(`índices ${depois.estrutura.indices}`);
   if (!igual(depois.estrutura.constraints, CONSTRAINTS_DEPOIS)) d.push(`constraints ${depois.estrutura.constraints}`);
   if (depois.estrutura.fks_validas !== true) d.push('FK não validada');
-  if (depois.colunas !== COLUNAS_QUE_FICAM.length) d.push(`${depois.colunas} colunas`);
+  if (depois.colunas !== COLUNAS_DEPOIS.length) d.push(`${depois.colunas} colunas`);
   if (depois.legado !== null) d.push('legado ainda existe');
   if (!igual(depois.linhas, partida.linhas)) d.push('linhas nas 12 colunas mudaram');
   if (depois.tabelas !== partida.tabelas) d.push('número de tabelas mudou');
@@ -572,7 +621,7 @@ if (ehEntradaDireta()) {
   const { PrismaClient } = await import('@prisma/client');
   const admin = new PrismaClient({ datasourceUrl: base });
   const url = comBanco(base, banco);
-  const relatorio = { banco, preflight: null, red: [], runner_sem_autorizacao: null, green: null, ok: true };
+  const relatorio = { banco, preflight: null, red: [], runner_sem_autorizacao: null, runner_com_d195_pendente: null, green: null, ok: true };
   try {
     await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${banco} WITH (FORCE)`);
     await admin.$executeRawUnsafe(`CREATE DATABASE ${banco}`);
@@ -613,27 +662,39 @@ if (ehEntradaDireta()) {
           && !semAutorizacao.saida.includes(NOME_CURVA_MENSAL),
         nada_mudou: JSON.stringify(await retrato(db)) === JSON.stringify(partida),
       };
-      const green = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { ...conferido, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      // D-PROD-195: com a decisão exata desta e a D-PROD-195 também pendente, o runner conferido recusa (nunca duas CONTRACT).
+      const comAs2 = await aplicarPeloRunner(comImpressao(url, imp.impressao), { runtime: url, extras: { ...conferido, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
+      relatorio.runner_com_d195_pendente = {
+        status: comAs2.status,
+        recusou: /DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED/.test(comAs2.saida) && comAs2.saida.includes(`${NOME_CURVA_NA_CATEGORIA} (D-PROD-195)`),
+        nada_mudou: JSON.stringify(await retrato(db)) === JSON.stringify(partida),
+      };
+      // GREEN no alvo local (sem a conferência), com a impressão na URL: esta, depois a D-PROD-195 e a D-PROD-198 (EXPAND).
+      const green = await aplicarPeloRunner(comImpressao(url, imp.impressao));
       const depois = await retrato(db);
+      const curvas = await db.$queryRawUnsafe(`SELECT c.cliente_id::text AS cliente, c.curva_ganho_id AS curva FROM public."${TABELA_NOVA}" c ORDER BY c.id COLLATE "C"`);
       relatorio.green = {
         status: green.status,
-        autorizado: green.saida.includes(`CONTRACT autorizado: ${NOME_CONTRACT} (${DECISAO})`),
         historico: await historico(db),
-        // A CONTRACT foi a última aplicada, DEPOIS da CADCURVAGANHO e do ApontamentoAtividade, de nome posterior (a ordem de
-        // produção), e dos itens do apontamento (D-PROD-193) e da CONTRACT da D-PROD-194, que aqui sobem antes dela.
-        ultimas_aplicadas: (await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1)),
+        // A CONTRACT foi aplicada DEPOIS da CADCURVAGANHO e do ApontamentoAtividade, de nome posterior (a ordem de
+        // produção), e dos itens do apontamento (D-PROD-193) e das CONTRACT da D-PROD-194 e da D-PROD-197, que aqui sobem
+        // antes dela; a D-PROD-195 e a D-PROD-198 por último.
+        ultimas_aplicadas: (await ordemDeAplicacao(db)).slice(-(NOMES_POSTERIORES_NA_PARTIDA.length + 1 + NOMES_DEPOIS_DO_CONTRACT.length)),
         tabelas: depois.tabelas,
         colunas: await colunasDaTabela(db),
         estrutura: depois.estrutura,
         divergencias: divergenciasGreen(partida, depois),
+        curvas_na_padrao: curvas.length === partida.linhas.n && curvas.every((x) => x.curva === curvaPadraoDe(x.cliente)),
         migrate_diff: (await migrateDiff(url)).status,
         prisma_client: (await db.categoriaManejo.findMany({ orderBy: { id: 'asc' } })).length,
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== CONCLUIDAS_DEPOIS || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
-        || JSON.stringify(g.ultimas_aplicadas) !== JSON.stringify([...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT]) || g.tabelas !== TABELAS_PUBLIC
-        || g.divergencias.length || g.migrate_diff !== 0 || g.prisma_client !== partida.linhas.n || !g.segunda
+      const c195 = relatorio.runner_com_d195_pendente;
+      if (g.status !== 0 || g.historico.concluidas !== CONCLUIDAS_DEPOIS || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_DEPOIS)
+        || JSON.stringify(g.ultimas_aplicadas) !== JSON.stringify([...NOMES_POSTERIORES_NA_PARTIDA, NOME_CONTRACT, ...NOMES_DEPOIS_DO_CONTRACT]) || g.tabelas !== TABELAS_PUBLIC
+        || g.divergencias.length || !g.curvas_na_padrao || g.migrate_diff !== 0 || g.prisma_client !== partida.linhas.n || !g.segunda
+        || c195.status === 0 || !c195.recusou || !c195.nada_mudou
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
     } finally {
       await db.$disconnect();

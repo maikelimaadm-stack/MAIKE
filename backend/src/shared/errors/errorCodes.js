@@ -221,6 +221,13 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe unidade de medida com esta sigla',
   },
+  // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada
+  // como unidade de produção padrão (reconhecida pela FK; o módulo da unidade
+  // nunca consulta TipoAtividade). O front já conhece o código (P1.4).
+  UNIDADE_MEDIDA_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade (details.vinculo); inative em vez de excluir; nada foi apagado',
+  },
   GRUPO_ATIVIDADE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica grupo de atividade deste tenant',
@@ -254,6 +261,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
+  },
+  // D-PROD-197 — padrões do Tipo de Atividade, conferidos só quando o padrão muda.
+  TIPO_ATIVIDADE_PADRAO_INVALIDO: {
+    http: 422,
+    meaning: 'padrão do tipo de atividade recusado (details.field: centro_custo_padrao_id | centro_resultado_padrao_id | unidade_producao_id | coeficiente_padrao; details.reason: nao_encontrado — também de outro tenant, sem oráculo — | inativo | empresas_diferentes | nao_positivo); nada foi gravado',
   },
   // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
   APONTAMENTO_ATIVIDADE_NOT_FOUND: {
@@ -338,6 +350,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   CURVA_GANHO_NAME_CONFLICT: {
     http: 409,
     meaning: 'já existe curva de ganho com este nome nesta fazenda',
+  },
+  // D-PROD-195 — a curva ligada a categoria de manejo (FK Restrict) não é excluída.
+  CURVA_GANHO_EM_USO: {
+    http: 409,
+    meaning: 'a curva de ganho está ligada a categoria(s) de manejo (details.categorias): troque a curva dessas categorias antes de excluir; nada foi apagado',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },

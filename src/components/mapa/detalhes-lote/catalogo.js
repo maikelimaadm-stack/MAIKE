@@ -75,7 +75,7 @@ const DIA_MS = 86400000;
  */
 
 /**
- * @typedef {{ raca: string, sexo: string, sistema: string, identificador: string, identificadorCor: string|null,
+ * @typedef {{ sexo: string, sistema: string, identificador: string, identificadorCor: string|null,
  *   sigla: string, entrada: string|null, catManejo: string }} IdentVm
  */
 
@@ -89,6 +89,7 @@ const DIA_MS = 86400000;
  *   cab: number, peso: number|null, pesoTotal: number|null, ua: number|null, uaHa: number|null, kgPvHa: number|null,
  *   partCab: number|null, partUA: number|null, diasPastejo: number|null,
  *   pesagem: PesagemVm,
+ *   projecao: any,
  *   ident: IdentVm,
  *   alertas: Alerta[], alertasVisiveis: Alerta[],
  *   gravidade: number, situacao: Situacao,
@@ -290,10 +291,16 @@ const SUPERLOTACAO = Object.keys(CORES_UA_HA)[5];
 
 // ─── Larguras da Lista (px; LARG_CEL / LARG do mockup) ──────────────────────
 
+/** Rótulo curto do fato que gravou a base da projeção. */
+const ROTULO_BASE = Object.freeze({
+  ENTRADA: 'ENTRADA', PESAGEM: 'PESAGEM', SALDO_ABERTURA: 'ABERTURA', TRANSFERENCIA: 'TRANSF.',
+  MUDANCA_CATEGORIA: 'MUD. CAT.', JUNCAO: 'JUNÇÃO', NASCIMENTO: 'NASCIMENTO',
+});
+
 /** @type {Record<string, number>} */
-const LARG_CEL = { alNivel: 96, alTipo: 150, alValor: 130, peso: 76, kgpvha: 70, manejo: 112, raca: 100, ident: 92, dias: 64, pesoTotal: 84, origem: 74, prox: 72, entrada: 72, cab: 40, partCab: 66, ua: 50, partUA: 70, uaha: 54, ult: 72, intervalo: 60, nPes: 58, sexo: 56, sist: 60, sigla: 44 };
+const LARG_CEL = { projetado: 76, projArroba: 60, gmdMes: 60, baseProj: 92, objetivo: 64, atinge: 96, pesPrev: 70, projMeses: 160, alNivel: 96, alTipo: 150, alValor: 130, peso: 76, kgpvha: 70, manejo: 112, ident: 92, dias: 64, pesoTotal: 84, origem: 74, prox: 72, entrada: 72, cab: 40, partCab: 66, ua: 50, partUA: 70, uaha: 54, ult: 72, intervalo: 60, nPes: 58, sexo: 56, sist: 60, sigla: 44 };
 /** @type {Record<string, number>} */
-const LARG = { alNivel: 118, alTipo: 190, alValor: 170, manejo: 140, raca: 120, ident: 116, dias: 88, pesoTotal: 100, origem: 90, prox: 88, entrada: 88 };
+const LARG = { projetado: 96, baseProj: 110, atinge: 120, pesPrev: 96, projMeses: 220, alNivel: 118, alTipo: 190, alValor: 170, manejo: 140, ident: 116, dias: 88, pesoTotal: 100, origem: 90, prox: 88, entrada: 88 };
 
 // ─── Catálogo de campos do lote ─────────────────────────────────────────────
 
@@ -398,7 +405,44 @@ export const CAMPOS_LOTE = [
       return v === null ? '' : fmtInt(v);
     }),
 
-  // Pesagem
+  // Pesagem — D-PROD-198: peso projetado pela curva de ganho da Categoria de Manejo (servidor).
+  campo('projetado', 'Pesagem', 'Peso projetado (kg)', 'último peso + ganho diário da curva da categoria, até hoje', (l) => {
+    const p = l.projecao;
+    return cel(p ? fmtNum(p.peso_kg, 1) : VAZIO, ordemNum(p?.peso_kg ?? null), p?.sem_curva ? { cor: COR_ATENCAO } : {});
+  }, (m) => fmtNum(mediaPorCab(m.lotes, (l) => (l.projecao ? num(l.projecao.peso_kg) : null)), 1)),
+  campo('projArroba', 'Pesagem', '@ projetadas', 'peso projetado ÷ 30 (arroba de peso vivo, por cabeça)', (l) => cel(l.projecao ? fmtNum(l.projecao.arroba, 2) : VAZIO, ordemNum(l.projecao?.arroba ?? null))),
+  campo('gmdMes', 'Pesagem', 'GMD do mês (kg/dia)', 'ganho diário deste mês na curva da categoria', (l) => {
+    const p = l.projecao;
+    if (!p) return cel(VAZIO, '');
+    if (p.sem_curva) return cel('SEM CURVA', -1, { cor: COR_ATENCAO });
+    return cel(fmtNum(p.gmd_hoje_kg, 3), ordemNum(p.gmd_hoje_kg));
+  }),
+  campo('baseProj', 'Pesagem', 'Base da projeção', 'de onde parte a projeção: último peso gravado e a data dele', (l) => {
+    const b = l.projecao?.base;
+    if (!b) return cel(VAZIO, '');
+    return cel(`${ROTULO_BASE[b.tipo] ?? 'PESO'} ${fmtDataCurta(b.dia)}`, ordemData(b.dia));
+  }),
+  campo('objetivo', 'Pesagem', 'Peso objetivo (kg)', 'peso objetivo da categoria de manejo', (l) => cel(l.projecao?.peso_objetivo_kg != null ? fmtNum(l.projecao.peso_objetivo_kg, 0) : VAZIO, ordemNum(l.projecao?.peso_objetivo_kg ?? null))),
+  campo('atinge', 'Pesagem', 'Atinge o objetivo', 'data em que o peso projetado chega ao objetivo da categoria', (l) => {
+    const p = l.projecao;
+    if (!p || p.peso_objetivo_kg == null) return cel(VAZIO, '');
+    // Chaves numéricas, como as datas: ATINGIDO antes de qualquer data, SEM PREVISÃO depois.
+    if (p.atingiu_objetivo) return cel('ATINGIDO', -1);
+    if (!p.data_prevista_objetivo) return cel('SEM PREVISÃO', Number.MAX_SAFE_INTEGER, { cor: COR_ATENCAO });
+    return cel(`${fmtData(p.data_prevista_objetivo)} (${fmtInt(p.dias_para_objetivo)} d)`, ordemData(p.data_prevista_objetivo));
+  }),
+  campo('pesPrev', 'Pesagem', 'Pesado × previsto', 'última pesagem ÷ peso que a curva previa para aquele dia', (l) => {
+    const u = l.projecao?.ultima_pesagem;
+    if (!u || u.percentual_do_previsto == null) return cel(VAZIO, '');
+    const pct = u.percentual_do_previsto;
+    // "97,7% do previsto": o percentual é do peso previsto, não a diferença.
+    return cel(`${fmtNum(pct, 1)}% do previsto`, ordemNum(pct), { cor: pct < 100 ? COR_ATENCAO : COR_TEXTO });
+  }),
+  campo('projMeses', 'Pesagem', 'Projeção (fim do mês)', 'peso projetado no último dia dos próximos meses', (l) => {
+    const meses = l.projecao?.projecao_mensal ?? [];
+    if (!meses.length) return cel(VAZIO, '');
+    return cel(meses.slice(0, 3).map((m) => `${fmtDataCurta(m.dia)}: ${fmtNum(m.peso_kg, 0)}`).join(' · '), '', { quebra: true });
+  }),
   campo('ult', 'Pesagem', 'Última', 'data da última pesagem', (l) => cel(fmtData(l.pesagem.ultima), ordemData(l.pesagem.ultima))),
   campo('origem', 'Pesagem', 'Origem', 'MEDIDO: peso atual = peso da última pesagem; DERIVADO: peso atual veio de outro manejo', (l) => {
     const m = l.pesagem.medido;
@@ -419,7 +463,6 @@ export const CAMPOS_LOTE = [
   campo('semPesar', 'Pesagem', 'Dias sem pesar', 'desde a última pesagem (ou da entrada, sem pesagem)', (l) => cel(fmtInt(l.pesagem.diasSemPesar), ordemNum(l.pesagem.diasSemPesar))),
 
   // Identificação
-  campo('raca', 'Identificação', 'Raça', '', (l) => cel(l.ident.raca, ordemTxt(l.ident.raca))),
   campo('sexo', 'Identificação', 'Sexo', '', (l) => cel(l.ident.sexo, ordemTxt(l.ident.sexo))),
   campo('sist', 'Identificação', 'Sist. Rep.', '', (l) => cel(l.ident.sistema, ordemTxt(l.ident.sistema))),
   campo('ident', 'Identificação', 'Identificador', '', (l) => cel(l.ident.identificador, ordemTxt(l.ident.identificador), l.ident.identificadorCor ? { dot: l.ident.identificadorCor } : {})),
@@ -809,8 +852,9 @@ const montarLote = (raw, ctx) => {
     partUA: ua !== null && ctx.uaTotal > 0 ? (ua / ctx.uaTotal) * 100 : null,
     diasPastejo: entrada ? Math.max(0, diasEntre(entrada, ctx.hoje)) : null,
     pesagem,
+    // D-PROD-198: projeção do servidor (lista de posições); indisponível → null.
+    projecao: raw?.projecao_peso && raw.projecao_peso.disponivel ? raw.projecao_peso : null,
     ident: {
-      raca: texto(raw?.raca_predominante),
       sexo,
       sistema: texto(raw?.sistema_produtivo),
       identificador: texto(raw?.identificador_nome),
@@ -890,7 +934,7 @@ export function camposCartaoTudo(lote) {
   return [
     { rotulo: 'Qtd. Cabeças', texto: lote.textos.cab },
     { rotulo: 'Peso médio (kg)', texto: fmtNum(lote.peso) },
-    { rotulo: 'Raça Predom.', texto: lote.ident.raca },
+    { rotulo: 'Peso projetado (kg)', texto: lote.projecao ? fmtNum(lote.projecao.peso_kg, 1) : VAZIO },
     { rotulo: 'Sexo', texto: lote.ident.sexo },
     { rotulo: 'Sist. Rep.', texto: lote.ident.sistema },
     { rotulo: 'Dias de pastejo', texto: fmtInt(lote.diasPastejo) },

@@ -110,6 +110,21 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * banco LOCAL com curvas de rodadas antigas em CADCURVAGANHO (estrutura por
  * estação) faz a guarda recusar. As mensagens dessa guarda começam com
  * `cadcurvaganho_mensal:`. O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-195: a migration CONTRACT da curva na Categoria de Manejo cria
+ * CADCATEGORIA.curva_ganho_id NOT NULL e liga cada categoria que já existe à
+ * curva chamada 'CURVA PADRÃO' da própria fazenda. A guarda recusa se alguma
+ * fazenda com categoria não tiver exatamente uma CURVA PADRÃO. A CI nasce vazia
+ * e não é afetada; um banco LOCAL com categorias de rodadas antigas e sem a
+ * CURVA PADRÃO na fazenda delas é. As mensagens começam com
+ * `cadcategoria_curva_ganho:`. O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-197: a migration CONTRACT do Tipo de Atividade só ACRESCENTA (5
+ * padrões, 8 flags, 3 FKs, 2 CHECKs e 3 índices em TipoAtividade) e recusa se
+ * qualquer coluna, constraint ou índice novo já existir. A CI nasce vazia; um
+ * banco LOCAL que já recebeu as colunas por fora (`prisma db push` com o schema
+ * novo, rodada interrompida) faz a guarda recusar. As mensagens começam com
+ * `tipo_atividade_defaults:`. Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -125,7 +140,14 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Recriar o banco local também resolve. ' +
   'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-194), o mais provável é o banco local ter curvas de ganho ' +
   'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
-  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
+  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita cadcategoria_curva_ganho (a CONTRACT da D-PROD-195), o banco local tem categorias de manejo de rodadas ' +
+  'antigas em CADCATEGORIA numa fazenda sem a curva chamada CURVA PADRÃO (ou a coluna curva_ganho_id já existe), e a ' +
+  'guarda exige exatamente uma CURVA PADRÃO em cada fazenda com categoria; a mensagem da guarda diz o motivo exato. ' +
+  'Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita tipo_atividade_defaults (a CONTRACT da D-PROD-197), o banco local já tem alguma coluna, constraint ou índice ' +
+  'novo de TipoAtividade (por exemplo, de um prisma db push com o schema novo) e a guarda recusa reaplicar; a mensagem ' +
+  'da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

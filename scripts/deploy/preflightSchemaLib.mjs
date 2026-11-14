@@ -37,6 +37,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-187: CategoriaManejo é a tabela física CADCATEGORIA (@@map) e o vínculo com o ícone saiu do banco.
   // O runtime desta PR lê CADCATEGORIA; sem ela (ou com o nome antigo) a Categoria de Manejo responde 500.
   ['CADCATEGORIA', 'idade_minima_meses'],
+  // D-PROD-195: a Categoria de Manejo lê e grava a curva de ganho obrigatória; sem a coluna, a categoria responde 500.
+  ['CADCATEGORIA', 'curva_ganho_id'],
+  // D-PROD-198: a categoria lê e grava o peso objetivo; a lista de posições projeta o peso com ele.
+  ['CADCATEGORIA', 'peso_objetivo_kg'],
   // MAIKE-LOTES-R1: a listagem de lotes filtra `excluido_em IS NULL`.
   ['Lote', 'excluido_em'],
   ['Lote', 'excluido_por_usuario_id'],

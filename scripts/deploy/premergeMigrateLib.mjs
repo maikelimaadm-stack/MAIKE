@@ -33,7 +33,12 @@
  *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
  *     índices/constraints — todos pinados letra por letra: RENAME continua
  *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada;
- *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria).
+ *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria; na D-PROD-195,
+ *     coluna nova NOT NULL com a ligação dos registros existentes, UNIQUE em tabela
+ *     antiga e FK composta entre duas tabelas antigas, todos pinados letra por letra; na
+ *     D-PROD-197, sem DROP nenhum, as 18 instruções ADITIVAS em TipoAtividade que a
+ *     allowlist EXPAND recusa em tabela antiga — 13 ADD COLUMN, 8 delas NOT NULL
+ *     DEFAULT false, 3 FKs para tabelas antigas e 2 CHECKs).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -91,6 +96,13 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
   // D-PROD-194: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
   '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
+  // D-PROD-195: CONTRACT aprovado pelo proprietário — curva de ganho obrigatória na Categoria de Manejo, da mesma fazenda.
+  '20261114200000_cadcategoria_curva_ganho': 'b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb',
+  // D-PROD-197: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
+  // DEFAULT false, 3 FKs (centros e unidade) e 2 CHECKs; mudança aditiva, sem DROP.
+  '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
+  // D-PROD-198: EXPAND — peso objetivo (kg) opcional na Categoria de Manejo (uma coluna anulável em CADCATEGORIA).
+  '20261114400000_cadcategoria_peso_objetivo': 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -126,7 +138,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão (D-PROD-183 e D-PROD-187 são as seguintes).
+ * exige decisão. São seis, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-197.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -207,6 +219,61 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
     literais_guarda: Object.freeze([]),
     alter_antigas: Object.freeze([]),
   }),
+  // D-PROD-195: a Categoria de Manejo ganha a curva de ganho OBRIGATÓRIA, da mesma fazenda. A guarda exige
+  // exatamente uma 'CURVA PADRÃO' em cada fazenda com categoria; depois dela, EXATAMENTE as 5 instruções abaixo
+  // (texto pinado: a coluna, a ligação das categorias existentes à CURVA PADRÃO da fazenda, o NOT NULL, o UNIQUE
+  // (cliente_id, empresa_id, id) que a FK composta exige em CADCURVAGANHO e a FK). No resto, só o índice não-único.
+  '20261114200000_cadcategoria_curva_ganho': Object.freeze({
+    decisao: 'D-PROD-195',
+    guarda_sha256: '292d2446635c3178f10af0d24c33df0d92513f3725efb1ed2059ccc713cb63a8',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CADCATEGORIA', 'CADCURVAGANHO']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CADCATEGORIA" ADD COLUMN "curva_ganho_id" VARCHAR(64)',
+      'UPDATE "CADCATEGORIA" AS c SET "curva_ganho_id" = k."id" FROM "CADCURVAGANHO" AS k WHERE k."cliente_id" = c."cliente_id" AND k."empresa_id" = c."empresa_id" AND k."nome" = \'CURVA PADRÃO\'',
+      'ALTER TABLE "CADCATEGORIA" ALTER COLUMN "curva_ganho_id" SET NOT NULL',
+      'CREATE UNIQUE INDEX "CADCURVAGANHO_cliente_id_empresa_id_id_key" ON "CADCURVAGANHO"("cliente_id", "empresa_id", "id")',
+      'ALTER TABLE "CADCATEGORIA" ADD CONSTRAINT "CADCATEGORIA_cliente_id_empresa_id_curva_ganho_id_fkey" FOREIGN KEY ("cliente_id", "empresa_id", "curva_ganho_id") REFERENCES "CADCURVAGANHO"("cliente_id", "empresa_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+    ]),
+  }),
+  // D-PROD-197: o Tipo de Atividade ganha os padrões e as flags. A mudança é ADITIVA: nenhuma linha muda de valor,
+  // nenhuma coluna existente é tocada, nenhuma tabela é criada ou apagada, nenhum DROP. Só é CONTRACT porque a allowlist
+  // EXPAND recusa, em tabela antiga, coluna NOT NULL DEFAULT (as 8 flags), FK para tabela ANTIGA (CentroCusto,
+  // CentroResultado e UnidadeMedida) e CHECK — o mesmo caminho dos alargamentos de CHECK da D-PROD-162. Depois da
+  // guarda, EXATAMENTE as 18 instruções abaixo, nesta ordem: 13 ADD COLUMN (5 anuláveis sem DEFAULT e as 8 flags), 3 FKs
+  // compostas pelo tenant com RESTRICT e 2 CHECKs (texto pinado: outro tipo, NULL/DEFAULT trocado, outra coluna, outra
+  // tabela ou alvo, SET NULL/CASCADE, NOT VALID, CHECK diferente, uma a mais na sequência, faltando ou fora de ordem →
+  // CONTRACT_ALTER_FORA_DO_CONTRATO). O resto são os 3 CREATE INDEX não-únicos pela allowlist EXPAND, que continua
+  // recusando UNIQUE, ALTER COLUMN, DML e qualquer outra coisa em TipoAtividade. A guarda só cita TipoAtividade e os
+  // três alvos das FKs. As 13 colunas aparecem em `contract[].colunas_adicionadas` e as 5 constraints em
+  // `constraints_adicionadas` (não em `colunas_novas_em_tabelas_antigas`, que é do caminho EXPAND e libera FK para
+  // tabela nova, nem em `constraints_alargadas`: nada aqui alarga constraint existente).
+  '20261114300000_tipo_atividade_defaults': Object.freeze({
+    decisao: 'D-PROD-197',
+    guarda_sha256: 'e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['TipoAtividade', 'CentroCusto', 'CentroResultado', 'UnidadeMedida']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "categoria" VARCHAR(24)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "centro_custo_padrao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "centro_resultado_padrao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "unidade_producao_id" VARCHAR(64)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "coeficiente_padrao" DECIMAL(14,4)',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_area" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_safra" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_maquina" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_implemento" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_produto" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_servico" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "permite_mao_obra" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD COLUMN "exige_producao" BOOLEAN NOT NULL DEFAULT false',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_centro_custo_padrao_id_fkey" FOREIGN KEY ("cliente_id", "centro_custo_padrao_id") REFERENCES "CentroCusto"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_centro_resultado_padrao_id_fkey" FOREIGN KEY ("cliente_id", "centro_resultado_padrao_id") REFERENCES "CentroResultado"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_cliente_id_unidade_producao_id_fkey" FOREIGN KEY ("cliente_id", "unidade_producao_id") REFERENCES "UnidadeMedida"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_categoria_check" CHECK ("categoria" IN (\'PREPARO_SOLO\', \'PLANTIO\', \'TRATO_CULTURAL\', \'APLICACAO\', \'COLHEITA\', \'PASTAGEM\', \'BENFEITORIA\', \'MANEJO_ANIMAL\', \'OUTROS\'))',
+      'ALTER TABLE "TipoAtividade" ADD CONSTRAINT "TipoAtividade_coeficiente_padrao_check" CHECK ("coeficiente_padrao" > 0)',
+    ]),
+  }),
 });
 
 /**
@@ -276,9 +343,34 @@ const classificarExpand = (nome, sqlBruto, { novas, colunasNovasEmAntigas, doApr
   }
 };
 
-/** Alvo das constraints alargadas, a partir do texto pinado (`ALTER TABLE "T" ADD CONSTRAINT "C" …`). */
-const constraintsAlargadas = (alterAntigas) =>
-  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
+/**
+ * `ADD CONSTRAINT` do texto pinado, separados pelo que fazem (`ALTER TABLE "T" ADD CONSTRAINT "C" …` → "T.C"):
+ * ALARGADA é a recriada — o `DROP CONSTRAINT` do mesmo nome, na mesma tabela, vem ANTES dela (D-PROD-162: apaga o CHECK
+ * e o cria mais largo); ADICIONADA é a que não existia (D-PROD-197: FKs e CHECKs novos). Até a D-PROD-194 todo `ADD
+ * CONSTRAINT` pinado era alargamento; o `premerge-migrate` rotula `constraints_alargadas` como "CHECKs alargados".
+ */
+const constraintsPorEfeito = (alterAntigas) => {
+  const apagadas = new Set();
+  const alargadas = [];
+  const adicionadas = [];
+  for (const a of alterAntigas) {
+    const apaga = a.match(new RegExp(`^ALTER TABLE (${ID}) DROP CONSTRAINT (${ID})$`));
+    if (apaga) {
+      apagadas.add(`${q(apaga[1])}.${q(apaga[2])}`);
+      continue;
+    }
+    const cria = a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `));
+    if (cria) {
+      const c = `${q(cria[1])}.${q(cria[2])}`;
+      (apagadas.has(c) ? alargadas : adicionadas).push(c);
+    }
+  }
+  return { alargadas, adicionadas };
+};
+
+/** D-PROD-197 — colunas acrescentadas a tabela antiga, a partir do texto pinado (`ALTER TABLE "T" ADD COLUMN "c" …`). */
+const colunasAdicionadas = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD COLUMN (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 
 /** D-PROD-183 — colunas removidas, a partir do texto pinado (`ALTER TABLE "T" DROP COLUMN "c"`). */
 const colunasRemovidas = (alterAntigas) =>
@@ -371,11 +463,13 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
       classificarExpand(m.nome, m.sql, { novas, colunasNovasEmAntigas, doAprovados, v });
       continue;
     }
+    const constraints = constraintsPorEfeito(k.alter_antigas);
     contract.push({
       migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop],
-      constraints_alargadas: constraintsAlargadas(k.alter_antigas), colunas_removidas: colunasRemovidas(k.alter_antigas),
+      constraints_alargadas: constraints.alargadas, colunas_removidas: colunasRemovidas(k.alter_antigas),
       constraints_removidas: constraintsRemovidas(k.alter_antigas), indices_removidos: indicesRemovidos(k.alter_antigas),
       tabelas_renomeadas: tabelasRenomeadas(k.alter_antigas), nomes_renomeados: nomesRenomeados(k.alter_antigas),
+      colunas_adicionadas: colunasAdicionadas(k.alter_antigas), constraints_adicionadas: constraints.adicionadas,
     });
     const resto = recortarContract(m, k, v);
     if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });

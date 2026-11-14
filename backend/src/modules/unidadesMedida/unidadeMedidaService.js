@@ -1,12 +1,19 @@
 /**
  * Serviço de UnidadeMedida (P4.5, D-PROD-44).
+ *
+ * D-PROD-197 — a unidade usada como unidade de produção padrão de um Tipo de
+ * Atividade não é excluída: quem barra é a FK RESTRICT do tipo (este módulo
+ * NUNCA consulta `TipoAtividade`, lição do hotfix #259), reconhecida no erro e
+ * traduzida aqui em 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (antes, o P2003 caía no
+ * 403 enganoso do `errorHandler`).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { unidadeMedidaNotFound, unidadeMedidaSiglaConflito } from '../../shared/errors/AppError.js';
+import { unidadeMedidaDeleteBlocked, unidadeMedidaNotFound, unidadeMedidaSiglaConflito } from '../../shared/errors/AppError.js';
+import { vinculoComTipoAtividadePadrao } from '../../shared/errors/vinculoTipoAtividadePadrao.js';
 import {
   listarUnidades,
   listarUnidadesPagina,
@@ -211,7 +218,15 @@ export const excluir = async (contexto, id) => {
     const anterior = await buscarUnidade(auth.clienteId, id, tx);
     if (!anterior) throw unidadeMedidaNotFound();
 
-    await excluirUnidadePorId(tx, auth.clienteId, id);
+    try {
+      await excluirUnidadePorId(tx, auth.clienteId, id);
+    } catch (erro) {
+      // D-PROD-197: só a FK do padrão do tipo é traduzida; qualquer outro erro segue como antes.
+      if (vinculoComTipoAtividadePadrao(erro)?.campo === 'unidade_producao_id') {
+        throw unidadeMedidaDeleteBlocked(undefined, { cause: erro });
+      }
+      throw erro;
+    }
 
     await registrarEvento(
       contexto,
