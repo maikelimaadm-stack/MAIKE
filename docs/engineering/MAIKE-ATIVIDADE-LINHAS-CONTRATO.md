@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-LINHAS — contrato da Fatia 3 do Lançamento de Atividades
 
-> **fatia 3 · `feat/atividade-itens-produto-maquina` · PR (a abrir)**
+> **fatia 3 · `feat/atividade-itens-produto-maquina` · PR #289**
 >
 > Decisão **D-PROD-201**. Pedido do proprietário: "FATIA 3 — As linhas que geram custo: produto e máquina. É o
 > coração." Base: Fatias 1 e 2 (D-PROD-197 e D-PROD-200), em produção.

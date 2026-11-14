@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-LINHAS — relatório da Fatia 3 do Lançamento de Atividades
 
-> **fatia 3 · `feat/atividade-itens-produto-maquina` · PR #(a preencher)**
+> **fatia 3 · `feat/atividade-itens-produto-maquina` · PR #289**
 >
 > Decisão **D-PROD-201** · contrato [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md)
