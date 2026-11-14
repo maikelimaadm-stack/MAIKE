@@ -23,6 +23,18 @@ rollout pausado **D-PROD-41**)
 
 ## Missão ativa (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
 
+## Missão ativa (2026-11-14) — MAIKE-MUDANCA-CATEGORIA-MANEJO: a Mudança de Categoria mostra e pede a categoria de manejo de destino (D-PROD-199)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-199** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `2b211d7b` (merge da PR #283) e avançada até a `main` `02ea10b5` (PR #284) |
+| Escopo | Mudança de Categoria: mostra a categoria de manejo de destino; escolha obrigatória quando há mais de uma; aviso quando não há nenhuma. Cadastro de Categoria de Manejo: aviso de categoria ativa com o mesmo sexo e a mesma faixa |
+| Migration | Nenhuma; servidor inalterado |
+| Relatório | [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-198** |

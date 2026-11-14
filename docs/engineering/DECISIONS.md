@@ -7259,6 +7259,43 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md).
 
+## D-PROD-199 — Mudança de Categoria mostra e pede a categoria de manejo de destino; cadastro avisa categoria repetida
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário. Ele explicou que a mudança de categoria é a evolução por idade ("eu tenho animais de 13 a 24 meses, exemplo garrote, vamos supor que a nova categoria do garrote vai ser o boi de 25 a 36 meses") e aprovou a proposta ("sim vamos fazer isso") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.**
+- A Mudança de Categoria (garrote 13 a 24 → boi 25 a 36) já funciona. O servidor liga a posição nova à categoria de manejo que deriva a oficial nova.
+- O peso projetado (D-PROD-198) parte do projetado da origem no dia da troca e segue a curva e o objetivo da categoria nova.
+- O formulário, porém, escolhia a categoria de manejo **sozinho e sem mostrar qual**, quando duas ativas derivam a mesma oficial: pela faixa mais avançada e, empatando, pelo id.
+- Em produção há categorias repetidas, com o mesmo sexo e a mesma faixa:
+  - "TESTE" e "BEZERRO MAMANDO", Macho 0 a 8;
+  - "VACA LEITERA" e uma "GARROTE 13 A 24 MESES" Fêmea gravada com faixa 37+.
+- Com elas, a escolha automática pode ligar o lote à categoria errada, com outra curva e outro objetivo. No Nascimento o servidor recusa com `MANEJO_CATEGORIA_AMBIGUA`.
+
+**Decisão** (só tela; sem migration, sem mudança no servidor):
+1. **Mudança de Categoria** (`FormularioMudancaCategoria.jsx`), depois de escolher a categoria nova:
+   - **uma** categoria de manejo possível: a tela mostra qual é e o sexo, e envia o id dela;
+   - **mais de uma**: um select **obrigatório** "Categoria de Manejo", sem pré-escolha. Sem escolher, não envia (aviso "Escolha a categoria de manejo…"). Trocar a categoria nova limpa a escolha;
+   - **nenhuma**: aviso de que o lote fica sem curva de ganho e sem peso objetivo. Envia sem categoria de manejo, como antes.
+   - O id, o nome e o sexo da categoria de manejo são resolvidos **no envio**, a partir das ativas lidas do servidor. Antes eram gravados na hora da escolha e ficavam vazios se a lista chegasse depois.
+   - O servidor não muda: com id, valida (`MANEJO_CATEGORIA_INVALIDA`); sem id e com mais de uma, recusa (`MANEJO_CATEGORIA_AMBIGUA`).
+2. **Cadastro de Categoria de Manejo:**
+   - quando outra categoria **ativa** da fazenda tem o **mesmo sexo e a mesma faixa**, a Faixa de idade mostra "Já existe X com o mesmo sexo e faixa…";
+   - o aviso não bloqueia o salvamento;
+   - faixas diferentes da mesma oficial (0 a 8 e 9 a 12) **não** contam: são etapas, não repetição;
+   - a lista vem da mesma consulta da grade (mesma chave do react-query).
+3. **Funções puras** em `src/domain/lotes/categoriaOficialDerivada.js`:
+   - `categoriasManejoParaMudanca`: todas as candidatas, por nome;
+   - `categoriasManejoDuplicadas`: mesmo sexo e faixa, outra ativa.
+   - A antiga `categoriaManejoParaMudanca`, com a escolha automática, fica só para compatibilidade e não é mais usada pela tela.
+
+**Correção de dados (feita pelo proprietário no cadastro, sem código).**
+- Corrigir a faixa ou o sexo da "GARROTE 13 A 24 MESES" Fêmea (hoje 37+).
+- Inativar "TESTE".
+- Cadastrar as fêmeas de 13 a 24 e de 25 a 36 meses (novilhas), que faltam.
+
+**Relatório:** [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md).
+
 ## D-PROD-200 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
 
 > **Numeração:** nasceu como D-PROD-198, com a migration `20261114400000_atividade_cabecalho`. A `main` deu a D-PROD-198 e o prefixo `20261114400000` ao peso objetivo na Categoria de Manejo (PR #283, aplicada em produção às 19:00 UTC) antes do merge desta. Passou a D-PROD-199, e a `main` deu a D-PROD-199 à Mudança de Categoria (PR #287, sem migration). Esta é a **D-PROD-200** e a migration passou a `20261114500000_atividade_cabecalho`. O número não está no `migration.sql`, então o checksum não muda. O GO do proprietário ("autorizo pode enviar") foi dado para esta migration, com o número antigo.
