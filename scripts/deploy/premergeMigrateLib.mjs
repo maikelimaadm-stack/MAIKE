@@ -32,7 +32,8 @@
  *     na D-PROD-187, DROP CONSTRAINT e DROP INDEX do vínculo com o ícone, DROP
  *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
  *     índices/constraints — todos pinados letra por letra: RENAME continua
- *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada).
+ *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada;
+ *     na D-PROD-194, só o DROP TABLE da tabela VAZIA que o resto recria).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -88,6 +89,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113700000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
   // D-PROD-193 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.
   '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
+  // D-PROD-194: CONTRACT aprovado pelo proprietário — CADCURVAGANHO VAZIA sai e volta com os 12 GMD mensais.
+  '20261114100000_cadcurvaganho_mensal': 'a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -192,6 +195,17 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER INDEX "CategoriaManejo_cliente_id_empresa_id_idx" RENAME TO "CADCATEGORIA_cliente_id_empresa_id_idx"',
       'ALTER TABLE "CADCATEGORIA" RENAME CONSTRAINT "CategoriaManejo_cliente_id_fkey" TO "CADCATEGORIA_cliente_id_fkey"',
     ]),
+  }),
+  // D-PROD-194: a Curva de Ganho passa de 3 GMD por estação para 12 GMD mensais. A guarda só
+  // aceita CADCURVAGANHO VAZIA, com as 3 colunas por estação; depois dela, EXATAMENTE o
+  // DROP TABLE "CADCURVAGANHO" e, no resto, a mesma tabela recriada (allowlist EXPAND),
+  // com o RLS de corpo já aprovado na D-PROD-189. Nenhuma outra tabela é tocada.
+  '20261114100000_cadcurvaganho_mensal': Object.freeze({
+    decisao: 'D-PROD-194',
+    guarda_sha256: '3cd5adc49d6e0cab0e155b190d7c095a419b7ddbb0ef617bc5000bc9bdfb0b6d',
+    drop: Object.freeze(['CADCURVAGANHO']),
+    literais_guarda: Object.freeze([]),
+    alter_antigas: Object.freeze([]),
   }),
 });
 

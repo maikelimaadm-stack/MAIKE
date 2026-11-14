@@ -16,10 +16,13 @@
  *     (`20261113600000_cadcurvaganho_cadastro`), da D-PROD-190
  *     (`20261113700000_apontamento_atividade`) e da D-PROD-193
  *     (`20261113800000_apontamento_atividade_item`), que só criam tabelas novas
- *     e não tocam TipoTarefa, e a CONTRACT da D-PROD-187
- *     (`20261113500000_categoria_manejo_cadcategoria`), posterior a esta e
- *     aplicada aqui fora de ordem, pelo Prisma direto (sem a barreira do
- *     runner); a guarda dela passa porque CategoriaManejo está vazia;
+ *     e não tocam TipoTarefa, e as CONTRACT da D-PROD-187
+ *     (`20261113500000_categoria_manejo_cadcategoria`) e da D-PROD-194
+ *     (`20261114100000_cadcurvaganho_mensal`), posteriores a esta e aplicadas
+ *     aqui fora de ordem, pelo Prisma direto (sem a barreira do runner); as
+ *     guardas delas passam porque CategoriaManejo e CADCURVAGANHO estão vazias.
+ *     A D-PROD-194 troca a estrutura de CADCURVAGANHO e não cria nem apaga
+ *     tabela (+1 migration, 0 tabela);
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das
  *     4 flags (inclusive um todo false e um inativo) e um LancamentoTarefa;
  *  3. tira o preflight do runbook (SQL_IMPRESSAO e SQL_CONTAGENS);
@@ -159,7 +162,11 @@ const ambienteBase = () => {
 
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** Todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/**
+ * Todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia temporária.
+ * Inclui as CONTRACT da D-PROD-187 e da D-PROD-194, sem o runner: as guardas delas passam com CategoriaManejo e
+ * CADCURVAGANHO vazias.
+ */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-tt-drop-main-'));
   try {

@@ -1,27 +1,87 @@
 /**
- * Service do cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189),
- * tabela CADCURVAGANHO.
+ * Service do cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189;
+ * mensal desde a D-PROD-194), tabela CADCURVAGANHO.
  *
- * GMD (ganho médio diário) em kg/dia por tipo de estação: ÁGUAS, TRANSIÇÃO e
- * SECA. Toda operação leva a fazenda (`empresa_id`) selecionada no topo. A
- * exclusão devolve **resultado parcial explícito**, como nos demais cadastros.
+ * GMD (ganho médio diário) em kg/dia para cada mês do calendário, de janeiro a
+ * dezembro. A curva não depende das Estações: o mês já diz o GMD. Toda operação
+ * leva a fazenda (`empresa_id`) selecionada no topo. A exclusão devolve
+ * **resultado parcial explícito**, como nos demais cadastros.
  */
 
 import { listCurvasGanho, createCurvaGanho, updateCurvaGanho, deleteCurvaGanho } from '@/apis/curvas-ganho';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 
-/** Mesma faixa e precisão do servidor (D-PROD-189). */
+/** Mesma faixa e precisão do servidor (D-PROD-189/190). */
 export const GMD_MINIMO = -2;
 export const GMD_MAXIMO = 3;
-/** Dias usados para mostrar o ganho por mês (como referência, não como cálculo). */
-export const DIAS_POR_MES = 30;
+/** Dias de um ano comum (fevereiro com 28), base do ganho no ano e da média. */
+export const DIAS_NO_ANO = 365;
 
-/** Os três GMD, na ordem das estações, com o rótulo exibido. */
-export const CAMPOS_GMD = Object.freeze([
-  Object.freeze({ campo: 'gmd_aguas', label: 'GMD nas Águas' }),
-  Object.freeze({ campo: 'gmd_transicao', label: 'GMD na Transição' }),
-  Object.freeze({ campo: 'gmd_seca', label: 'GMD na Seca' }),
-]);
+/**
+ * Os 12 meses, na ordem do calendário: campo da API, rótulo curto, nome e
+ * dias do mês (fevereiro com 28, ano comum). O ganho do mês usa os dias reais,
+ * não 30 fixos.
+ */
+export const MESES = Object.freeze(
+  /** @type {Array<[string, string, string, number]>} */ ([
+    ['jan', 'Jan', 'Janeiro', 31],
+    ['fev', 'Fev', 'Fevereiro', 28],
+    ['mar', 'Mar', 'Março', 31],
+    ['abr', 'Abr', 'Abril', 30],
+    ['mai', 'Mai', 'Maio', 31],
+    ['jun', 'Jun', 'Junho', 30],
+    ['jul', 'Jul', 'Julho', 31],
+    ['ago', 'Ago', 'Agosto', 31],
+    ['set', 'Set', 'Setembro', 30],
+    ['out', 'Out', 'Outubro', 31],
+    ['nov', 'Nov', 'Novembro', 30],
+    ['dez', 'Dez', 'Dezembro', 31],
+  ]).map(([mes, curto, nome, dias]) => Object.freeze({ campo: /** @type {string} */ (`gmd_${mes}`), curto, nome, dias })),
+);
+
+/** Os 12 campos `gmd_<mes>`, na ordem. */
+export const CAMPOS_GMD = Object.freeze(MESES.map((m) => m.campo));
+
+/**
+ * Divisão inteira arredondada, com meio arredondado para longe do zero
+ * (-1,55 → -1,6, como 1,55 → 1,6). Os GMD têm no máximo 3 casas, então as
+ * contas correm em gramas inteiros, sem ruído de ponto flutuante.
+ * @param {number} inteiro @param {number} divisor
+ */
+const dividirArredondado = (inteiro, divisor) => Math.sign(inteiro) * Math.round(Math.abs(inteiro) / divisor);
+/** GMD (kg/dia, até 3 casas) → gramas por dia, inteiro. @param {number} gmd */
+const gramas = (gmd) => Math.round(gmd * 1000);
+
+/**
+ * Ganho do mês em kg: GMD × dias do mês, arredondado a 1 casa.
+ * @param {number} gmd @param {number} dias
+ */
+export const ganhoNoMes = (gmd, dias) => dividirArredondado(gramas(gmd) * dias, 100) / 10;
+
+/**
+ * Resumo da curva: ganho no ano (kg, soma de GMD × dias de cada mês) e a média
+ * diária ponderada pelos dias (ganho no ano ÷ 365). `null` se algum mês falta.
+ * @param {Array<number|null|undefined>} valores os 12 GMD, de janeiro a dezembro
+ * @returns {{ ganhoAno: number, mediaDia: number } | null}
+ */
+export const resumoDaCurva = (valores) => {
+  if (!Array.isArray(valores) || valores.length !== MESES.length) return null;
+  if (valores.some((v) => typeof v !== 'number' || !Number.isFinite(v))) return null;
+  const g = valores.reduce((soma, v, i) => soma + gramas(/** @type {number} */ (v)) * MESES[i].dias, 0);
+  return { ganhoAno: dividirArredondado(g, 100) / 10, mediaDia: dividirArredondado(g, DIAS_NO_ANO) / 1000 };
+};
+
+/** Os 12 GMD de uma curva da API, na ordem dos meses. @param {Record<string, unknown> | null | undefined} curva */
+export const gmdsDaCurva = (curva) => CAMPOS_GMD.map((c) => /** @type {number|undefined} */ (curva?.[c]));
+
+/**
+ * Peso em kg com vírgula e 1 casa ("21,7"; "-1,6").
+ * @param {unknown} valor
+ */
+export const formatarKg = (valor) => {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) return '';
+  return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+};
 
 /**
  * Texto digitado (vírgula ou ponto, sinal opcional, até 3 casas) → número.
@@ -44,7 +104,8 @@ export const lerGmd = (texto) => {
  */
 export const formatarGmd = (valor, opcoes = {}) => {
   if (typeof valor !== 'number' || !Number.isFinite(valor)) return '';
-  return valor.toLocaleString('pt-BR', { minimumFractionDigits: opcoes.casasMin ?? 0, maximumFractionDigits: 3 });
+  // `|| 0` troca o -0 (de um arredondamento negativo até zero) por 0: nunca "-0".
+  return (valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: opcoes.casasMin ?? 0, maximumFractionDigits: 3 });
 };
 
 /** @param {string} empresaId */

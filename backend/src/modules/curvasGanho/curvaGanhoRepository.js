@@ -1,5 +1,6 @@
 /**
- * Repositório de Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela física
+ * Repositório de Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD
+ * mensais desde a D-PROD-194), tabela física
  * "CADCURVAGANHO" (model Prisma `CadCurvaGanho`, delegate `cadCurvaGanho`).
  *
  * Toda leitura é pela chave do tenant E da fazenda: uma curva de outra fazenda
@@ -8,15 +9,14 @@
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { CAMPOS_GMD } from './curvaGanhoCampos.js';
 
 const SELECAO = Object.freeze({
   id: true,
   cliente_id: true,
   empresa_id: true,
   nome: true,
-  gmd_aguas: true,
-  gmd_transicao: true,
-  gmd_seca: true,
+  ...Object.fromEntries(CAMPOS_GMD.map((campo) => [campo, true])),
   observacoes: true,
   ativo: true,
   createdAt: true,

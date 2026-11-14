@@ -1,10 +1,11 @@
 /**
- * Curvas de Ganho de Peso da fazenda (D-PROD-189), tabela física
- * "CADCURVAGANHO" — PostgreSQL real.
+ * Curvas de Ganho de Peso da fazenda (D-PROD-189; 12 GMD mensais desde a
+ * D-PROD-194), tabela física "CADCURVAGANHO" — PostgreSQL real.
  *
- * Cadastro novo, sem vínculo com nenhum outro: nome em MAIÚSCULAS e único por
- * fazenda (tamanho conferido depois das maiúsculas), três GMD obrigatórios de
- * -2 a 3 kg/dia com no máximo 3 casas, gravados como decimal exato, isolamento
+ * Cadastro sem vínculo com nenhum outro (nem com as Estações): nome em
+ * MAIÚSCULAS e único por fazenda (tamanho conferido depois das maiúsculas), os
+ * 12 GMD mensais (gmd_jan … gmd_dez) obrigatórios de -2 a 3 kg/dia com no
+ * máximo 3 casas, gravados como decimal exato, isolamento
  * por tenant e por fazenda, exclusão física com auditoria, permissão pela
  * própria tela `pec-curvas-ganho` (leitura incluída), CHECK e RLS no banco e a
  * fazenda com curva não sai (409 `EMPRESA_COM_VINCULOS` + FK Restrict).
@@ -35,9 +36,14 @@ beforeEach(async () => {
   await limparBanco();
 });
 
-const CAMPOS_PUBLICOS = [
-  'ativo', 'created_date', 'empresa_id', 'gmd_aguas', 'gmd_seca', 'gmd_transicao', 'id', 'nome', 'observacoes', 'updated_date',
-];
+/** Os 12 meses, escritos à mão (não importados do serviço) para o teste pegar um campo trocado. */
+const MESES = ['gmd_jan', 'gmd_fev', 'gmd_mar', 'gmd_abr', 'gmd_mai', 'gmd_jun', 'gmd_jul', 'gmd_ago', 'gmd_set', 'gmd_out', 'gmd_nov', 'gmd_dez'];
+/** Curva típica do Brasil Central: águas boas, transição, seca com perda em agosto. */
+const CURVA = [0.7, 0.75, 0.7, 0.55, 0.35, 0.2, 0.1, -0.05, 0.05, 0.3, 0.55, 0.65];
+const mesesDe = (valores) => Object.fromEntries(MESES.map((m, i) => [m, valores[i]]));
+const doCorpo = (corpo) => MESES.map((m) => corpo[m]);
+
+const CAMPOS_PUBLICOS = ['ativo', 'created_date', 'empresa_id', ...MESES, 'id', 'nome', 'observacoes', 'updated_date'].sort();
 
 const req = (metodo, url, token, payload) =>
   app.inject({ method: metodo, url, headers: token ? { authorization: `Bearer ${token}` } : {}, ...(payload !== undefined ? { payload } : {}) });
@@ -71,37 +77,36 @@ const contaCom = async (cen, permissoes_telas) => {
 const base = (empresaId, extra = {}) => ({
   empresa_id: empresaId,
   nome: 'recria pasto',
-  gmd_aguas: 0.65,
-  gmd_transicao: 0.4,
-  gmd_seca: 0.2,
+  ...mesesDe(CURVA),
   ...extra,
 });
 
 const criar = (token, payload) => req('POST', '/curvas-ganho', token, payload);
 const comEmpresa = (url, empresaId) => `${url}?empresa_id=${encodeURIComponent(empresaId)}`;
 
-describe('D-PROD-189 — Curvas de Ganho: criação, leitura e formato público', () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: criação, leitura e formato público', () => {
   test('GET /curvas-ganho sem token → 401', async () => {
     assert.equal((await req('GET', '/curvas-ganho?empresa_id=x')).statusCode, 401);
   });
 
-  test('POST cria (201): nome e observações em MAIÚSCULAS, GMD como número, decimal exato no banco, chaves exatas; GET lista e detalha', async () => {
+  test('POST cria (201): nome e observações em MAIÚSCULAS, os 12 GMD como número e cada um no seu mês, decimal exato no banco, chaves exatas; GET lista e detalha', async () => {
     const { token, clienteId, e1 } = await cenario();
-    const r = await criar(token, base(e1.id, { observacoes: 'proteinado na seca', gmd_seca: -0.15 }));
+    const r = await criar(token, base(e1.id, { observacoes: 'proteinado na seca' }));
     assert.equal(r.statusCode, 201, r.body);
     const c = r.json();
     assert.deepEqual(Object.keys(c).sort(), CAMPOS_PUBLICOS);
     assert.equal(c.nome, 'RECRIA PASTO');
     assert.equal(c.observacoes, 'PROTEINADO NA SECA');
-    assert.equal(c.gmd_aguas, 0.65);
-    assert.equal(c.gmd_transicao, 0.4);
-    assert.equal(c.gmd_seca, -0.15, 'perda de peso na seca é aceita');
+    assert.deepEqual(doCorpo(c), CURVA, 'cada mês com o seu GMD, na ordem de janeiro a dezembro');
+    assert.equal(c.gmd_ago, -0.05, 'perda de peso é aceita');
     assert.equal(c.ativo, true);
     assert.equal(c.empresa_id, e1.id);
+    for (const antigo of ['gmd_aguas', 'gmd_transicao', 'gmd_seca']) assert.ok(!(antigo in c), `${antigo} saiu com a D-PROD-194`);
 
     const banco = await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } });
     assert.equal(banco.cliente_id, clienteId, 'tenant gravado a partir da sessão');
-    assert.equal(banco.gmd_aguas.toString(), '0.65', 'decimal exato, sem ruído de ponto flutuante');
+    assert.equal(banco.gmd_mai.toString(), '0.35', 'decimal exato, sem ruído de ponto flutuante');
+    assert.deepEqual(MESES.map((m) => banco[m].toString()), CURVA.map(String));
 
     const lista = await req('GET', comEmpresa('/curvas-ganho', e1.id), token);
     assert.equal(lista.statusCode, 200, lista.body);
@@ -109,7 +114,7 @@ describe('D-PROD-189 — Curvas de Ganho: criação, leitura e formato público'
     assert.deepEqual(Object.keys(lista.json()[0]).sort(), CAMPOS_PUBLICOS);
     const um = await req('GET', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token);
     assert.equal(um.statusCode, 200, um.body);
-    assert.equal(um.json().gmd_seca, -0.15);
+    assert.deepEqual(doCorpo(um.json()), CURVA);
   });
 
   test('lista por fazenda, em ordem de nome; outra fazenda não enxerga; mesmo nome em outra fazenda é aceito e na mesma → 409', async () => {
@@ -125,15 +130,15 @@ describe('D-PROD-189 — Curvas de Ganho: criação, leitura e formato público'
   });
 });
 
-describe('D-PROD-189 — Curvas de Ganho: validação do corpo', () => {
-  test('obrigatórios na criação: empresa_id, nome e os três GMD → 400; chave fora do schema (cliente_id, categoria) → 400', async () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: validação do corpo', () => {
+  test('obrigatórios na criação: empresa_id, nome e cada um dos 12 GMD → 400; chave fora do schema (cliente_id, categoria, GMD por estação) → 400', async () => {
     const { token, clienteId, e1 } = await cenario();
-    for (const campo of ['empresa_id', 'nome', 'gmd_aguas', 'gmd_transicao', 'gmd_seca']) {
+    for (const campo of ['empresa_id', 'nome', ...MESES]) {
       const corpo = base(e1.id);
       delete corpo[campo];
       assert.equal((await criar(token, corpo)).statusCode, 400, campo);
     }
-    for (const extra of [{ cliente_id: clienteId }, { categoria_manejo_id: 'x' }, { gmd_janeiro: 0.5 }]) {
+    for (const extra of [{ cliente_id: clienteId }, { categoria_manejo_id: 'x' }, { gmd_janeiro: 0.5 }, { gmd_aguas: 0.5 }, { gmd_seca: 0.1 }, { gmd_13: 0.5 }]) {
       assert.equal((await criar(token, base(e1.id, extra))).statusCode, 400, JSON.stringify(extra));
     }
     assert.equal(await prisma().cadCurvaGanho.count(), 0);
@@ -143,13 +148,13 @@ describe('D-PROD-189 — Curvas de Ganho: validação do corpo', () => {
     const { token, e1 } = await cenario();
     const ruins = [
       // Faixa: recusada pelo schema da rota (AJV), antes do serviço.
-      [{ gmd_aguas: 3.001 }, 'range'],
-      [{ gmd_seca: -2.5 }, 'range'],
-      [{ gmd_transicao: 0.4567 }, 'gmd_casas_decimais'],
-      [{ gmd_aguas: 'muito' }, 'gmd_invalido'],
-      [{ gmd_aguas: null }, 'gmd_invalido'],
-      [{ gmd_aguas: '0.5' }, 'gmd_invalido'],
-      [{ gmd_seca: true }, 'gmd_invalido'],
+      [{ gmd_jan: 3.001 }, 'range'],
+      [{ gmd_ago: -2.5 }, 'range'],
+      [{ gmd_dez: 0.4567 }, 'gmd_casas_decimais'],
+      [{ gmd_fev: 'muito' }, 'gmd_invalido'],
+      [{ gmd_jul: null }, 'gmd_invalido'],
+      [{ gmd_mar: '0.5' }, 'gmd_invalido'],
+      [{ gmd_set: true }, 'gmd_invalido'],
     ];
     for (const [extra, motivo] of ruins) {
       const r = await criar(token, base(e1.id, extra));
@@ -157,9 +162,9 @@ describe('D-PROD-189 — Curvas de Ganho: validação do corpo', () => {
       if (motivo) assert.equal(r.json().reason, motivo);
     }
     assert.equal(await prisma().cadCurvaGanho.count(), 0);
-    const ok = await criar(token, base(e1.id, { gmd_aguas: 3, gmd_transicao: 0.125, gmd_seca: -2 }));
+    const ok = await criar(token, base(e1.id, { gmd_jan: 3, gmd_jun: 0.125, gmd_dez: -2 }));
     assert.equal(ok.statusCode, 201, ok.body);
-    assert.deepEqual([ok.json().gmd_aguas, ok.json().gmd_transicao, ok.json().gmd_seca], [3, 0.125, -2]);
+    assert.deepEqual([ok.json().gmd_jan, ok.json().gmd_jun, ok.json().gmd_dez], [3, 0.125, -2]);
   });
 
   test('texto que cresce ao virar maiúsculo (ß → SS) e passa da coluna → 400 tamanho_excedido, nunca 500', async () => {
@@ -177,21 +182,23 @@ describe('D-PROD-189 — Curvas de Ganho: validação do corpo', () => {
   });
 });
 
-describe('D-PROD-189 — Curvas de Ganho: edição, exclusão e escopo', () => {
-  test('PATCH altera só o enviado (um GMD, nome, ativo, observações null); sem empresa_id ou só empresa_id → 400', async () => {
+describe('D-PROD-194 — Curvas de Ganho mensais: edição, exclusão e escopo', () => {
+  test('PATCH altera só o enviado (um mês, nome, ativo, observações null); os outros 11 meses ficam; sem empresa_id ou só empresa_id → 400', async () => {
     const { token, e1 } = await cenario();
     const c = (await criar(token, base(e1.id, { observacoes: 'x' }))).json();
-    const r = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_seca: 0.05, nome: 'recria 2', ativo: false, observacoes: null });
+    const r = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_ago: 0.05, nome: 'recria 2', ativo: false, observacoes: null });
     assert.equal(r.statusCode, 200, r.body);
-    assert.deepEqual([r.json().gmd_aguas, r.json().gmd_transicao, r.json().gmd_seca], [0.65, 0.4, 0.05]);
+    assert.deepEqual(doCorpo(r.json()), CURVA.map((v, i) => (MESES[i] === 'gmd_ago' ? 0.05 : v)));
     assert.equal(r.json().nome, 'RECRIA 2');
     assert.equal(r.json().ativo, false);
     assert.equal(r.json().observacoes, null);
     // A coerção padrão do AJV transformaria null em 0: a rota recusa antes.
-    const nulo = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_seca: null });
+    const nulo = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_ago: null });
     assert.equal(nulo.statusCode, 400, nulo.body);
     assert.equal(nulo.json().reason, 'gmd_invalido');
-    assert.equal((await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } })).gmd_seca.toString(), '0.05', 'nada mudou');
+    assert.equal((await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } })).gmd_ago.toString(), '0.05', 'nada mudou');
+    const antigo = await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_seca: 0.1 });
+    assert.equal(antigo.statusCode, 400, `GMD por estação não existe mais: ${antigo.body}`);
     assert.equal((await req('PATCH', `/curvas-ganho/${c.id}`, token, { nome: 'Z' })).statusCode, 400, 'sem empresa_id');
     assert.equal((await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id })).statusCode, 400, 'nada para alterar');
   });
@@ -201,7 +208,7 @@ describe('D-PROD-189 — Curvas de Ganho: edição, exclusão e escopo', () => {
     const c = (await criar(token, base(e1.id))).json();
     assert.equal((await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e2.id, nome: 'movida' })).statusCode, 404);
     assert.equal((await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e2.id), token)).statusCode, 404);
-    await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_aguas: 0.7 });
+    await req('PATCH', `/curvas-ganho/${c.id}`, token, { empresa_id: e1.id, gmd_jan: 0.8 });
     assert.equal((await prisma().cadCurvaGanho.findUnique({ where: { id: c.id } })).empresa_id, e1.id);
     const r = await req('DELETE', comEmpresa(`/curvas-ganho/${c.id}`, e1.id), token);
     assert.equal(r.statusCode, 204, r.body);
@@ -258,15 +265,26 @@ describe('D-PROD-189 — Curvas de Ganho: permissão da tela pec-curvas-ganho', 
   });
 });
 
-describe('D-PROD-189 — CADCURVAGANHO no banco: nome físico, CHECK e RLS', () => {
-  test('a tabela física chama "CADCURVAGANHO", tem RLS ligado e o CHECK da faixa do GMD barra escrita direta', async () => {
+describe('D-PROD-194 — CADCURVAGANHO no banco: nome físico, colunas mensais, CHECK e RLS', () => {
+  test('a tabela física chama "CADCURVAGANHO", tem RLS ligado, as 12 colunas gmd_* mensais (e nenhuma por estação) e o CHECK da faixa barra escrita direta em QUALQUER mês', async () => {
     const { clienteId, e1 } = await cenario();
     const [tabela] = await prisma().$queryRaw`SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'CADCURVAGANHO' AND relkind = 'r'`;
     assert.ok(tabela, 'tabela "CADCURVAGANHO" existe');
     assert.equal(tabela.relrowsecurity, true, 'RLS ligado');
-    const dados = { cliente_id: clienteId, empresa_id: e1.id, nome: 'X', gmd_aguas: '0.5', gmd_transicao: '0.5', gmd_seca: '0.5' };
-    await assert.rejects(prisma().cadCurvaGanho.create({ data: { ...dados, gmd_seca: '3.5' } }), /CADCURVAGANHO_gmd_check|check constraint/i);
-    await assert.rejects(prisma().cadCurvaGanho.create({ data: { ...dados, gmd_aguas: '-2.001' } }), /CADCURVAGANHO_gmd_check|check constraint/i);
+    const colunas = await prisma().$queryRaw`
+      SELECT column_name, data_type, numeric_precision, numeric_scale, is_nullable
+        FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'CADCURVAGANHO' AND column_name LIKE 'gmd%'
+       ORDER BY ordinal_position`;
+    assert.deepEqual(colunas.map((x) => x.column_name), MESES, 'os 12 meses, na ordem, e nada mais');
+    for (const x of colunas) {
+      assert.deepEqual([x.data_type, Number(x.numeric_precision), Number(x.numeric_scale), x.is_nullable], ['numeric', 6, 3, 'NO'], x.column_name);
+    }
+    const dados = { cliente_id: clienteId, empresa_id: e1.id, nome: 'X', ...mesesDe(MESES.map(() => '0.5')) };
+    for (const mes of MESES) {
+      await assert.rejects(prisma().cadCurvaGanho.create({ data: { ...dados, [mes]: '3.5' } }), /CADCURVAGANHO_gmd_check|check constraint/i, mes);
+      await assert.rejects(prisma().cadCurvaGanho.create({ data: { ...dados, [mes]: '-2.001' } }), /CADCURVAGANHO_gmd_check|check constraint/i, mes);
+    }
     assert.equal(await prisma().cadCurvaGanho.count(), 0);
   });
 });

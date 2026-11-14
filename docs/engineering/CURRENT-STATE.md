@@ -13,8 +13,8 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-195** (a D-PROD-194 é da PR #273, aberta; a #229 é a D-PROD-154) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274). PR exclusiva desta correção |
+| Decisão | **D-PROD-195** (a D-PROD-194 é da PR #273, mergeada na `main` `a65ea46`; a #229 é a D-PROD-154) |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento; conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
@@ -76,6 +76,17 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
+## Missão ativa (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-194** (revê o "GMD por estação" da D-PROD-189; nasceu como D-PROD-190 e depois D-PROD-191, números que a `main` deu às PRs #269 e #271) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270) e integrada por merge com a `main` `810a312a` (PR #268, Fatia D) `565e4a95` (PRs #269, #271 e #263) e `cfa3e7e9` (PR #274). PR #273, exclusiva desta missão |
+| Escopo | `"CADCURVAGANHO"` passa de 3 GMD por estação para 12 GMD mensais (`gmd_jan` … `gmd_dez`, kg/dia, -2 a 3). API `/curvas-ganho` com os 12 campos. Tela: 12 meses com o ganho do mês pelos dias reais, atalho "repetir →", ganho no ano, média por dia e gráfico. Estações seguem como cadastro próprio, fora da curva. **Sem vínculo** com categoria ou lote |
+| Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório e produção: 48 → **49** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 13:29:18 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 49/0, 12 colunas mensais, RLS, advisors sem alerta |
+| Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
+| Relatório | [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md) |
+
 ## Missão ativa (2026-11-14) — MAIKE-ICONES-CATEGORIA-DIGITADA: a categoria digitada no cadastro de ícone não é mais apagada (D-PROD-192)
 
 | Campo | Valor |
@@ -119,7 +130,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `776befe9` (merge da PR #265). PR #270, exclusiva desta missão, **mergeada** (`cf07309`) |
 | Escopo | Model `CadCurvaGanho` → tabela física `"CADCURVAGANHO"` (`@@map`), por fazenda; GMD (kg/dia) nas Águas, na Transição e na Seca, de -2 a 3; API `/curvas-ganho`; tela `CurvasGanho` (menu Manejo, tela `pec-curvas-ganho`). **Sem vínculo** com categoria, lote ou estação |
 | Migration | `20261113600000_cadcurvaganho_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Repositório: 43 → **44** migrations, 81 → **82** tabelas. **Aplicada em produção em 2026-11-13 23:18:10 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 44/0, 82 tabelas, RLS, advisors sem alerta |
-| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 mergeada (`cf07309`). Falta: conferir `/health` e `/api/native/curvas-ganho` → 401 |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 mergeada pelo proprietário em `cf07309c` (2026-11-13 23:26 UTC), depois da CI verde; produção conferida: `/health` com `release` = `cf07309c`, `/api/native/curvas-ganho` → 401. GMD por estação revisto pela D-PROD-190 |
 | Relatório | [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md) |
 
 ## Missão concluída (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)

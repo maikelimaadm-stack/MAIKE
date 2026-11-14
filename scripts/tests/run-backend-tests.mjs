@@ -103,6 +103,13 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * com um objeto de fora (índice, visão, função) na tabela, recusa. A CI nasce
  * vazia; um banco LOCAL com CategoriaManejo de rodadas antigas pode não estar.
  * As mensagens começam com `categoria_manejo_cadcategoria:`. Mesmo remédio.
+ *
+ * D-PROD-194: a migration CONTRACT da Curva de Ganho apaga e recria a tabela
+ * CADCURVAGANHO (12 GMD mensais no lugar dos 3 por estação) e só a aceita
+ * VAZIA, com a estrutura por estação. A CI nasce vazia e não é afetada; um
+ * banco LOCAL com curvas de rodadas antigas em CADCURVAGANHO (estrutura por
+ * estação) faz a guarda recusar. As mensagens dessa guarda começam com
+ * `cadcurvaganho_mensal:`. O remédio é o mesmo: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -115,7 +122,10 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita categoria_manejo_cadcategoria (a CONTRACT da D-PROD-187), o banco local tem CategoriaManejo de rodadas ' +
   'antigas com valor em alguma das 16 colunas apagadas (raca, categoria_oficial, ganho_peso_anual_kg, gmd_*, ' +
   'catalogo_categoria_visual_id) ou algum objeto de fora na tabela; a mensagem da guarda diz o motivo exato. ' +
-  'Recriar o banco local também resolve.';
+  'Recriar o banco local também resolve. ' +
+  'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-194), o mais provável é o banco local ter curvas de ganho ' +
+  'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
+  'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

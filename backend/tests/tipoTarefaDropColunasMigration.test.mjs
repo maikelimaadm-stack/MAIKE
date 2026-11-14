@@ -26,6 +26,13 @@
  * INFORMADA errada recusa mesmo assim, e a impressão do vazio informada aplica
  * (TD-06, o caminho do runbook).
  *
+ * A D-PROD-194 (CONTRACT `20261114100000_cadcurvaganho_mensal`, troca a estrutura
+ * de CADCURVAGANHO: 12 GMD mensais no lugar dos 3 por estação) sobe na partida
+ * pelo Prisma direto e fora de ordem, sem o runner, como a da D-PROD-187: a
+ * guarda dela passa porque CADCURVAGANHO está vazia. Soma +1 migration e 0
+ * tabela; como já está concluída na partida, não pende no runner e a comparação
+ * de tabelas antes×depois não muda.
+ *
  * As funções são as do ensaio local (`scripts/dev/ensaio-tipo-tarefa-drop-colunas.mjs`).
  */
 import { describe, test, before, after } from 'node:test';
@@ -166,6 +173,7 @@ describe('D-PROD-183 — migration CONTRACT que remove as 4 colunas dormentes de
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.ok(r.saida.includes(`${NOME_CONTRACT} (${DECISAO})`), r.saida);
       assert.ok(!r.saida.includes('20261110300000_patrimonio_simplifica'), 'a D-PROD-162 já está concluída: só a D-PROD-183 pende');
+      assert.ok(!r.saida.includes('20261114100000_cadcurvaganho_mensal'), 'a D-PROD-194 já está concluída na partida: só a D-PROD-183 pende');
       assert.match(r.saida, /Nenhuma migration foi executada/);
       assert.ok(!vazou(r.saida, URL_T));
     }

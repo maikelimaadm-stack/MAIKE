@@ -1,6 +1,6 @@
 # MAIKE-P2002-SEM-ALVO — Relatório
 
-**`claude/relaxed-cori-51av1f`** · Decisão: [D-PROD-195](./DECISIONS.md) · Origem: o achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9)
+**`claude/relaxed-cori-51av1f`** · PR #275 (rascunho) · Decisão: [D-PROD-195](./DECISIONS.md) · Origem: o achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9)
 
 ## 1. Entrega
 
@@ -136,7 +136,7 @@ Nenhuma. A tradução continua na camada de serviço (API → service → reposi
 | R3 | A conferência roda depois do rollback: se a linha que ocupou a chave sumir nesse intervalo, não há conferência | o resultado é o caminho de antes (409 genérico), e o reenvio cai na pré-conferência. As chaves conferidas (`operation_id`, estorno da liquidação) não são apagadas; nome e número da empresa raramente mudam no mesmo instante |
 | R4 | Custo da conferência | só no caminho de falha (P2002 sem alvo), uma leitura por unique do mapa, numa transação curta (2 s/5 s). O caminho feliz não muda; a pré-conferência do abastecimento é uma leitura pelo índice da unique |
 | R5 | Uma entrada nova no mapa sem conferência | o tipo reprova (`typecheck:backend`); `soPeloAlvo` novo reprova o S1 até ser inventariado |
-| R6 | A PR #273 também acrescenta ao fim do `DECISIONS.md` | conflito trivial no merge da segunda: as duas decisões entram, D-PROD-194 antes da D-PROD-195 |
+| R6 | A PR #273 foi mergeada na `main` (`a65ea46`) enquanto esta corria | integrada por merge, sem rebase: o único conflito foi o fim do `DECISIONS.md` (as duas decisões entraram, D-PROD-194 antes da D-PROD-195). A #273 não toca em nenhum tradutor de P2002 |
 
 ## 9. Fora do escopo
 

@@ -15,6 +15,10 @@
  * D-PROD-187 não criam nem apagam tabela (a D-PROD-187 só renomeia CategoriaManejo para CADCATEGORIA): as contagens de
  * tabelas (88/89 na partida; 82 no formato novo, 83 com a D-PROD-190, 85 com a D-PROD-193) não mudam com elas.
  * A D-PROD-188 (CADESTACOES) e a D-PROD-189 (CADCURVAGANHO) criam 1 tabela nova cada e somam +1 migration e +1 tabela, cada uma, em todas as contagens.
+ * A D-PROD-194 (CONTRACT `20261114100000_cadcurvaganho_mensal`) troca a estrutura de CADCURVAGANHO (12 GMD mensais no
+ * lugar dos 3 por estação) e sobe na partida pelo Prisma direto, como a D-PROD-183 e a D-PROD-187: a guarda dela passa
+ * porque CADCURVAGANHO está vazia (`semear` não cria curva). Soma +1 migration e 0 tabela: as contagens de tabelas não
+ * mudam, e a impressão digital antes×depois compara a mesma estrutura (as duas pontas já têm a D-PROD-194).
  * A D-PROD-190 referencia BemPatrimonial(cliente_id, empresa_id, id), que só existe no formato novo: fica fora da
  * partida (MIGRATIONS_DEPOIS_DO_CONTRACT) e sobe pelo runner no GREEN, depois desta CONTRACT (em produção a
  * D-PROD-162 já está concluída). A D-PROD-193 (itens do apontamento) referencia o ApontamentoAtividade e sobe logo
@@ -137,6 +141,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       assert.match(r.saida, /alvo conferido nas duas conexões/);
       assert.match(r.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
       assert.match(r.saida, new RegExp(`${NOME_CONTRACT} \\(${DECISAO}\\)`));
+      assert.ok(!r.saida.includes('20261114100000_cadcurvaganho_mensal'), 'a D-PROD-194 já está concluída na partida: só a D-PROD-162 pende');
       assert.match(r.saida, /Nenhuma migration foi executada/);
       assert.ok(!r.saida.includes(URL_T));
     }
