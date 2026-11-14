@@ -50,6 +50,8 @@ const CAMPOS_APONTAMENTO = [
   'area_executada_dia', 'quantidade_produzida_dia', 'observacao', 'origem', 'status', 'versao',
   'cancelado_em', 'cancelado_por', 'motivo_cancelamento',
   'criado_por', 'createdAt', 'updatedAt',
+  // D-PROD-201 (Fatia 3): as linhas de produto e de máquina, inclusive as canceladas.
+  'produtos', 'maquinas',
 ];
 
 const MODULO = 'suporte-mapa';
