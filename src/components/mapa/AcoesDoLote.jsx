@@ -9,7 +9,7 @@ import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/Lancamen
  * Manejos e Históricos do Detalhes do Lote (D-PROD-119), em quadros (ícone em
  * cima, nome embaixo — como o "Adicionar contexto" do app do Claude), em
  * grupos separados; cada quadro abre a ação com um clique.
- * - celular/tablet: um botão só, "Manejos e históricos", abre a folha de baixo (✕ e título);
+ * - celular/tablet: um botão só, "Manejos e históricos", abre a tela fixa de ações (✕ e título);
  *   dentro do diálogo ele fica no alto, à direita (espelho do ✕) (D-PROD-120);
  * - desktop: os quadros ficam à vista, menores, embaixo do Detalhes do Lote.
  *
@@ -61,7 +61,7 @@ export default function AcoesDoLote({ grupos }) {
     const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
     return <>
       {slot ? createPortal(botao, slot) : botao}
-      <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura folhaMobile>
+      <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura>
         <div className="mk-map-action-choices mk-dl8-folha mk-al-dock mk-al-menu">{conteudo}</div>
       </LancLoteDialogo>
     </>;
