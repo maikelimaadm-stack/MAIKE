@@ -28,7 +28,14 @@ Precedente executado: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-
 **Janela entre a aplicação e o deploy.** O runtime antigo não conhece
 `curva_ganho_id`: ler, editar e excluir categoria seguem normais, mas **criar
 categoria** (tela de categorias e cadastro rápido do lote) falha pelo `NOT NULL`
-até a `main` nova ficar READY. Por isso o merge vem **logo depois** do §4.
+até a `main` nova ficar READY. Também **excluir uma curva ligada a categoria**
+(na tela Curvas de Ganho) é barrado pela FK nova, mas o runtime antigo responde
+403 `TENANT_SCOPE_VIOLATION` ("vínculo inválido para este tenant") em vez do 409
+`CURVA_GANHO_EM_USO`; nenhum dado se perde. Por isso o merge vem **logo depois** do §4.
+
+**Fila offline.** Depois do deploy, criar categoria é só online. Uma criação de
+categoria gravada offline pela versão anterior fica retida na fila
+(`OFFLINE_ENTITY_UNSUPPORTED`), sem ser enviada, e não trava o resto da fila.
 
 **Por que antes do merge (D-PROD-72 item 1):** o código novo sem a coluna daria
 500 em todas as rotas `/categorias-manejo` (o `select` lê `curva_ganho_id`).

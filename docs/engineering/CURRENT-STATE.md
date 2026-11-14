@@ -72,7 +72,7 @@ rollout pausado **D-PROD-41**)
 | Escopo | `CADCATEGORIA.curva_ganho_id` obrigatório, da mesma fazenda (FK composta, `RESTRICT`); API e tela da categoria com o campo "Curva de ganho"; opções `GET /categorias-manejo-opcoes/curvas-ganho`; excluir curva em uso → 409 `CURVA_GANHO_EM_USO` |
 | Dado prévio | `'CURVA PADRÃO'` (0,100 kg/dia nos 12 meses) cadastrada pelo banco em 2026-11-14 13:40:36 UTC na única fazenda com categorias, a pedido do proprietário ([runbook](./MAIKE-CADCATEGORIA-CURVA-GANHO-RUNBOOK-RELEASE.md) §7) |
 | Migration | `20261114200000_cadcategoria_curva_ganho`, **CONTRACT** (liga as 10 categorias à CURVA PADRÃO da fazenda e torna o campo obrigatório). SHA-256 `b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb`; guarda `292d2446…63a8`. Repositório e produção: 49 → **50** migrations; tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
-| Release | Aplicação **antes do merge** pelo runbook; merge logo depois da conferência (na janela, só criar categoria falha) |
+| Release | Aplicação **antes do merge** pelo runbook; merge logo depois da conferência (na janela, criar categoria falha e excluir curva em uso dá 403 em vez de 409; nada se perde) |
 | Relatório | [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)

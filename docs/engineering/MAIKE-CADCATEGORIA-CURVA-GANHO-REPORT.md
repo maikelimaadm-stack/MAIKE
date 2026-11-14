@@ -15,7 +15,7 @@ curva usar, e várias categorias podem usar a mesma.
 | Dado prévio | `'CURVA PADRÃO'` (0,100 kg/dia nos 12 meses) cadastrada pelo banco na única fazenda com categorias, a pedido do proprietário (runbook §7) |
 | Release | manifesto e contrato fechado `D-PROD-195` (5 instruções pinadas); runbook com caminhos A e B; testes do ferramental e de migration |
 | Backend | formato público com `curva_ganho_id` e `curva_ganho_nome`; curva obrigatória, da mesma fazenda e ativa quando informada; opções `GET /categorias-manejo-opcoes/curvas-ganho`; excluir curva em uso → 409 `CURVA_GANHO_EM_USO` |
-| Frontend | campo "Curva de ganho" no formulário (e no cadastro rápido do lote), coluna na lista (chave `_v2`), aviso ao excluir curva em uso |
+| Frontend | campo "Curva de ganho" no formulário (e no cadastro rápido do lote), coluna na lista (chave `_v2`), aviso ao excluir curva em uso; criar categoria só online (criação antiga na fila offline fica retida) |
 | Docs | D-PROD-195, este relatório, runbook, `CURRENT-STATE` |
 
 ## 2. Por que assim
@@ -49,8 +49,12 @@ curva usar, e várias categorias podem usar a mesma.
    proprietário → preflight → aplicação (caminho A com `--contract D-PROD-195`, ou
    B só com GO escrito e específico) → conferência → **merge imediato** → deploy →
    smoke. Ver o runbook.
-3. Entre o `COMMIT` e o deploy, só **criar** categoria falha (o runtime antigo não
-   grava a coluna obrigatória).
+3. Entre o `COMMIT` e o deploy, **criar** categoria falha (o runtime antigo não
+   grava a coluna obrigatória) e excluir uma curva ligada a categoria é barrado
+   pela FK com um 403 `TENANT_SCOPE_VIOLATION` enganoso no lugar do 409. Nada se
+   perde.
+4. Criar categoria passa a ser **só online**; uma criação antiga na fila offline
+   fica retida, sem travar o resto da fila.
 
 ## 5. Verificação completa e revisão
 

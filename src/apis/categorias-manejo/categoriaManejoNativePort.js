@@ -115,10 +115,27 @@ export const listarOpcoesCurvasGanho = (empresaId) =>
     ctx('listOpcoesCurvasGanhoCategoriaManejo'),
   );
 
+/**
+ * Criar categoria é SÓ ONLINE desde a D-PROD-195: a curva de ganho é obrigatória
+ * e as opções de curva vêm do servidor (`listarOpcoesCurvasGanho`, fora da fila).
+ * Por isso o adaptador offline é montado SEM `create`:
+ *  - um POST gravado na fila pela versão anterior (sem `curva_ganho_id`, que o
+ *    servidor recusa com `curva_obrigatoria`) fica RETIDO no replay
+ *    (`OFFLINE_ENTITY_UNSUPPORTED`), sem ser enviado nem apagado, e o resto da
+ *    fila segue — antes, um item recusado travava a fila inteira;
+ *  - a criação nova vai direto ao servidor; sem conexão, falha na hora, em vez
+ *    de prometer uma gravação que o servidor recusaria.
+ * Listar, editar e excluir seguem com o comportamento offline de sempre.
+ */
+const { create: criarOnline, ...operacoesDaFila } = operacoesNativas;
+
 export const categoriaManejoPort = offlineStorageDisponivel()
-  ? createOfflineEntityAdapter({
-      entityName: ENTIDADE_OFFLINE,
-      operations: operacoesNativas,
-      enabled: true,
+  ? Object.freeze({
+      ...createOfflineEntityAdapter({
+        entityName: ENTIDADE_OFFLINE,
+        operations: Object.freeze(operacoesDaFila),
+        enabled: true,
+      }),
+      create: criarOnline,
     })
   : operacoesNativas;
