@@ -71,8 +71,7 @@ O serviço desse cadastro é `src/services/configuracaoIconeService.js`.
 Há também um catálogo oficial, separado dos desenhos embutidos e do gerenciador de configurações.
 
 - Administração das imagens oficiais: `apps/admin/src/telas/Icones.jsx`.
-- Leitura no aplicativo: `src/services/catalogoGlobalService.js` (hoje só o seletor do vínculo no cadastro de Categoria de Manejo; a Fatia D, D-PROD-187, remove o vínculo e esse service).
-- O vínculo da categoria de manejo usa `catalogo_categoria_visual_id`.
+- O aplicativo não lê mais o catálogo: a Fatia D (D-PROD-187) apagou o vínculo `catalogo_categoria_visual_id` da Categoria de Manejo, o seletor do cadastro e o leitor do catálogo no aplicativo.
 - O backend desse catálogo fica em `backend/src/modules/catalogoGlobal/`.
 
 As imagens publicadas são assets com URLs versionadas. Para trocar a imagem oficial, use a administração do catálogo e seu fluxo de publicação. Não edite migrations antigas ou URLs históricas para trocar uma imagem.

@@ -1,12 +1,13 @@
 /**
  * MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C, D-PROD-186) — cadastro enxuto.
  *
- * CategoriaManejo ficou só com nome, sigla, espécie, sexo, faixa de idade e o
- * vínculo com o ícone oficial. Nome, Sexo e Faixa de idade são obrigatórios; a
+ * CategoriaManejo ficou só com nome, sigla, espécie, sexo e faixa de idade (o
+ * vínculo com o ícone oficial saiu na Fatia D, D-PROD-187, emenda do
+ * proprietário). Nome, Sexo e Faixa de idade são obrigatórios; a
  * faixa é UM select com as cinco faixas fixas (decisão do proprietário,
  * 2026-11-13) — sem campos livres "De"/"a".
- * Raça, categoria oficial (texto), ganho de peso anual e os doze GMDs saíram
- * do contrato. Este arquivo prova, no front:
+ * Raça, categoria oficial (texto), ganho de peso anual, os doze GMDs e o
+ * vínculo com o ícone saíram do contrato. Este arquivo prova, no front:
  *  (a) o formulário mostra só esses campos; o select de faixa tem as cinco
  *      opções, é obrigatório e preserva o par legado quando não é tocado;
  *  (b) a porta nativa não envia chaves legadas no POST/PATCH;
@@ -25,18 +26,10 @@ vi.mock("@/lib/maikeNotify", () => ({
   notifySuccess: vi.fn(),
 }));
 
-vi.mock("@/apis/catalogoGlobal", () => ({
-  listTiposCatalogoPublicados: vi.fn(async () => [{ id: "t-lote", codigo: "lote", nome: "Lote" }]),
-  listCategoriasCatalogoPublicadas: vi.fn(async () => [
-    { id: "cv-bez", tipo_id: "t-lote", codigo: "bezerro", nome: "Bezerro" },
-  ]),
-  listIconesCatalogoPublicados: vi.fn(async () => []),
-}));
-
 const nativeRequest = vi.fn(async () => ({ id: "cm1" }));
 vi.mock("@/apis/_core/nativeHttpClient.js", () => ({ nativeRequest: (...a) => nativeRequest(...a) }));
 
-/** As 15 chaves que saíram do contrato de CategoriaManejo. */
+/** As 16 chaves que saíram do contrato de CategoriaManejo (15 na Fatia C + o vínculo do ícone, D-PROD-187). */
 const CHAVES_REMOVIDAS = Object.freeze([
   "raca",
   "categoria_oficial",
@@ -53,9 +46,10 @@ const CHAVES_REMOVIDAS = Object.freeze([
   "gmd_outubro",
   "gmd_novembro",
   "gmd_dezembro",
+  "catalogo_categoria_visual_id",
 ]);
 
-const REMOVIDO_RE = /\braca\b|categoria_oficial|ganho_peso|gmd_/;
+const REMOVIDO_RE = /\braca\b|categoria_oficial|ganho_peso|gmd_|catalogo_categoria_visual/;
 
 const legado = () =>
   Object.fromEntries(CHAVES_REMOVIDAS.map((chave) => [chave, chave === "raca" ? "NELORE" : "1"]));
@@ -111,7 +105,7 @@ const escolher = async (rotulo, nome) => {
 };
 
 describe("(a) formulário enxuto de Categoria de Manejo", () => {
-  it("mostra só Nome, Sigla, Espécie, Sexo, Ícone oficial e UM select de faixa de idade (sem número livre)", async () => {
+  it("mostra só Nome, Sigla, Espécie, Sexo e UM select de faixa de idade (sem número livre nem Ícone oficial)", async () => {
     const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
     wrap(<Form onSubmit={vi.fn()} onCancel={() => {}} />);
     const form = screen.getByTestId("b1-form-categoria-manejo");
@@ -124,7 +118,6 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
       "Sigla",
       "Espécie",
       "Sexo",
-      "Ícone oficial (catálogo MAK Gestão)",
       "Faixa de idade",
     ]);
     // Obrigatórios marcados: Nome, Sexo e Faixa de idade.
@@ -132,7 +125,10 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
       .filter((l) => l.querySelector(".req"))
       .map((l) => l.textContent.replace(/\s*\*\s*$/, "").trim());
     expect(obrigatorios).toEqual(["Nome da Categoria", "Sexo", "Faixa de idade"]);
-    expect(await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeTruthy();
+    // D-PROD-187: o seletor do ícone oficial saiu (nem rótulo, nem controle).
+    expect(screen.queryByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeNull();
+    expect(screen.queryByTestId("categoria-oficial-catalogo")).toBeNull();
+    expect(form.textContent).not.toMatch(/ícone oficial|SEM VÍNCULO/i);
 
     expect(form.querySelectorAll('input[type="number"]')).toHaveLength(0);
     expect(screen.queryByLabelText("De")).toBeNull();
@@ -301,7 +297,6 @@ describe("(b) porta nativa descarta chaves legadas do corpo", () => {
       sexo: "Macho",
       idade_minima_meses: 37,
       idade_maxima_meses: null,
-      catalogo_categoria_visual_id: "cv-bez",
       ativo: true,
       ...legado(),
       chave_desconhecida: "x",
@@ -314,7 +309,6 @@ describe("(b) porta nativa descarta chaves legadas do corpo", () => {
       sexo: "Macho",
       idade_minima_meses: 37,
       idade_maxima_meses: null,
-      catalogo_categoria_visual_id: "cv-bez",
       ativo: true,
     };
     expect(corpoDeEnvio(dados)).toEqual(esperado);

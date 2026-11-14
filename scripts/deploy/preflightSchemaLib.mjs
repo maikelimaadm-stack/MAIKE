@@ -34,7 +34,9 @@ export const TABELAS_PROTEGIDAS = Object.freeze([
 /** Colunas sem as quais o backend desta PR responde 500. */
 export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Usuario', 'papel_tenant'],
-  ['CategoriaManejo', 'catalogo_categoria_visual_id'],
+  // D-PROD-187: CategoriaManejo é a tabela física CADCATEGORIA (@@map) e o vínculo com o ícone saiu do banco.
+  // O runtime desta PR lê CADCATEGORIA; sem ela (ou com o nome antigo) a Categoria de Manejo responde 500.
+  ['CADCATEGORIA', 'idade_minima_meses'],
   // MAIKE-LOTES-R1: a listagem de lotes filtra `excluido_em IS NULL`.
   ['Lote', 'excluido_em'],
   ['Lote', 'excluido_por_usuario_id'],

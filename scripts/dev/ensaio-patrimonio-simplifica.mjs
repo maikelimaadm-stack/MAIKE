@@ -8,13 +8,17 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 43 migrations da main (todas menos esta CONTRACT), pelo Prisma,
- *     a partir de uma cópia temporária das pastas; entre elas está a CONTRACT
- *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
- *     pelo Prisma direto, sem o runner e portanto sem a barreira de
- *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
- *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
- *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam;
+ *  1. aplica todas as migrations do repositório menos esta CONTRACT, pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e
+ *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
+ *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183) e
+ *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
+ *     aqui pelo Prisma direto, sem o runner e portanto sem a barreira de
+ *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa
+ *     e CategoriaManejo estão vazias nessa hora (as sementes vêm depois e não
+ *     criam nenhuma das duas). As CONTRACT não criam nem apagam tabela (a
+ *     D-PROD-187 só renomeia): as contagens de tabelas não mudam com elas;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
  *     perfis, combustíveis, vínculos, fatores, bens, tanques, medições,
  *     abastecimentos CANCELADOS com saída + estorno + fatias), um lote e uma
@@ -26,7 +30,7 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 44 concluídas, 82 tabelas, as 7 vazias, dono e ACL,
+ *     na URL) e confere: todas concluídas, 82 tabelas, as 7 vazias, dono e ACL,
  *     RLS, contagens de constraints, impressão digital das 75 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
@@ -56,6 +60,13 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261110300000_patrimonio_simplifica';
 export const DECISAO = 'D-PROD-162';
+/**
+ * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e o
+ * GREEN é TODAS: as contagens saem da pasta, não de número fixo — uma migration posterior
+ * (ex.: a EXPAND de índices da P1-03, D-PROD-185) não muda o que este ensaio prova.
+ */
+export const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+export const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1;
 /** As 13 tabelas apagadas, na ordem da guarda e dos DROP. */
 export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
 /** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
@@ -153,8 +164,9 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 43 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
- * temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o TipoTarefa vazio.
+ * Todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA), aplicadas pelo Prisma a partir de uma cópia
+ * temporária. Inclui as CONTRACT da D-PROD-183 e da D-PROD-187, sem o runner: as guardas delas passam com
+ * TipoTarefa e CategoriaManejo vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
@@ -267,7 +279,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (43 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (todas as migrations menos esta CONTRACT): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.

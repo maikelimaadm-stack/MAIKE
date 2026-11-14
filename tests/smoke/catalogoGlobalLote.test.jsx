@@ -1,29 +1,23 @@
 /**
- * PR145-R2 (D-PROD-69) — catálogo global só leitura + ícone oficial no lote.
+ * PR145-R2 (D-PROD-69) — catálogo global só leitura.
  *
- * Sem painel de gerenciamento no MAIKE. O vínculo é
+ * Sem painel de gerenciamento no MAIKE. O vínculo
  * CategoriaManejo.catalogo_categoria_visual_id → categoria visual do tipo
- * `lote`; o FormularioLote deriva a prévia da categoria de manejo escolhida.
- * Só as chamadas HTTP são substituídas; URLs de imagem são fictícias.
+ * `lote` SAIU na Fatia D (D-PROD-187, emenda do proprietário): a coluna foi
+ * apagada, o seletor "Ícone oficial (catálogo MAK Gestão)" saiu do cadastro de
+ * Categoria de Manejo e a prévia do ícone saiu do Formulário de Lote (ela só
+ * dependia desse vínculo). Este arquivo prova que nada disso voltou e que o
+ * lote não consulta o catálogo. Só as chamadas HTTP são substituídas.
  */
 import React from "react";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const api = {
-  tipos: vi.fn(),
-  categorias: vi.fn(),
-  icones: vi.fn(),
   categoriasManejo: vi.fn(),
 };
-
-vi.mock("@/apis/catalogoGlobal", () => ({
-  listTiposCatalogoPublicados: (...a) => api.tipos(...a),
-  listCategoriasCatalogoPublicadas: (...a) => api.categorias(...a),
-  listIconesCatalogoPublicados: (...a) => api.icones(...a),
-}));
 
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("@/hooks/useSetorAreas", () => ({
@@ -39,23 +33,10 @@ vi.mock("@/services/loteCadastroService", async (importOriginal) => ({
   listarFornecedores: vi.fn(async () => []),
 }));
 
-const TIPOS = [
-  { id: "t-lote", codigo: "lote", nome: "Lote" },
-  { id: "t-area", codigo: "area", nome: "Área" },
-];
-const CATEGORIAS = [
-  { id: "cv-bez", tipo_id: "t-lote", codigo: "bezerro", nome: "Bezerro" },
-  { id: "cv-gar", tipo_id: "t-lote", codigo: "garrote", nome: "Garrote" },
-  { id: "cv-pasto", tipo_id: "t-area", codigo: "pasto", nome: "Pasto" },
-];
-const ICONES = [
-  { id: "i-bez", tipo_id: "t-lote", categoria_id: "cv-bez", revisao: 2, asset_principal_url: "https://cdn.exemplo/v2/bez.png" },
-  { id: "i-gar", tipo_id: "t-lote", categoria_id: "cv-gar", revisao: 1, asset_principal_url: "https://cdn.exemplo/v1/gar.png" },
-];
+/** Uma categoria ainda traz o vínculo antigo (cache de antes da D-PROD-187): nada pode usá-lo. */
 const CATEGORIAS_MANEJO = [
   { id: "cm-bez", empresa_id: "emp-1", nome: "BEZERRO DESMAMA", catalogo_categoria_visual_id: "cv-bez" },
-  { id: "cm-gar", empresa_id: "emp-1", nome: "GARROTE", catalogo_categoria_visual_id: "cv-gar" },
-  { id: "cm-sem", empresa_id: "emp-1", nome: "SEM VINCULO", catalogo_categoria_visual_id: null },
+  { id: "cm-gar", empresa_id: "emp-1", nome: "GARROTE" },
 ];
 
 const wrap = (ui) => {
@@ -67,9 +48,6 @@ const wrap = (ui) => {
 beforeEach(() => {
   cleanup();
   Object.values(api).forEach((f) => f.mockReset());
-  api.tipos.mockResolvedValue(TIPOS);
-  api.categorias.mockResolvedValue(CATEGORIAS);
-  api.icones.mockResolvedValue(ICONES);
   api.categoriasManejo.mockResolvedValue(CATEGORIAS_MANEJO);
   localStorage.removeItem("cadastro_lotes_form_layout_config");
 });
@@ -84,82 +62,29 @@ describe("Sem painel de gerenciamento do catálogo no MAIKE", () => {
     expect(readFileSync("vercel.json", "utf8")).not.toMatch(/catalogoglobalmaike/i);
   });
 
-  it("a API do catálogo no frontend é só leitura (sem upload/publicar/desativar)", async () => {
-    const mod = await vi.importActual("@/apis/catalogoGlobal");
-    expect(Object.keys(mod).sort()).toEqual([
-      "listCategoriasCatalogoPublicadas",
-      "listIconesCatalogoPublicados",
-      "listTiposCatalogoPublicados",
-    ]);
-    const porta = readFileSync("src/apis/catalogoGlobal/catalogoGlobalNativePort.js", "utf8");
-    expect(porta).not.toMatch(/\/admin\/|method:\s*'(POST|PATCH|PUT|DELETE)'/);
+  it("o frontend não tem mais cliente do catálogo global (D-PROD-187: o único consumidor era o vínculo do ícone)", () => {
+    expect(existsSync("src/apis/catalogoGlobal")).toBe(false);
+    expect(existsSync("src/services/catalogoGlobalService.js")).toBe(false);
   });
 });
 
-describe("Resolver do ícone oficial do lote", () => {
-  it("sem vínculo → pendente; outro tipo ou outra categoria nunca casam", async () => {
-    const { resolverIconeOficialDoLote: r } = await vi.importActual("@/services/catalogoGlobalService");
-    expect(r({ categoriaVisualId: null, tipoLoteId: "t-lote", icones: ICONES })).toEqual({ status: "mapeamento_pendente" });
-    const deOutroTipo = [{ id: "x", tipo_id: "t-area", categoria_id: "cv-bez", revisao: 9 }];
-    expect(r({ categoriaVisualId: "cv-bez", tipoLoteId: "t-lote", icones: deOutroTipo }).status).toBe("sem_icone_publicado");
-    expect(r({ categoriaVisualId: "cv-zzz", tipoLoteId: "t-lote", icones: ICONES }).status).toBe("sem_icone_publicado");
-    expect(r({ categoriaVisualId: "cv-bez", tipoLoteId: null, icones: ICONES }).status).toBe("sem_icone_publicado");
-    expect(r({ categoriaVisualId: "cv-bez", tipoLoteId: "t-lote", icones: ICONES }).icone.id).toBe("i-bez");
-  });
-
-  it("vários publicados para a mesma categoria: maior revisão vence, empate → menor id, independente da ordem", async () => {
-    const { resolverIconeOficialDoLote: r } = await vi.importActual("@/services/catalogoGlobalService");
-    const c = [
-      { id: "b", tipo_id: "t-lote", categoria_id: "cv-bez", revisao: 3 },
-      { id: "a", tipo_id: "t-lote", categoria_id: "cv-bez", revisao: 3 },
-      { id: "c", tipo_id: "t-lote", categoria_id: "cv-bez", revisao: 5 },
-    ];
-    for (const ordem of [c, [...c].reverse(), [c[1], c[2], c[0]]]) {
-      const res = r({ categoriaVisualId: "cv-bez", tipoLoteId: "t-lote", icones: ordem });
-      expect(res.icone.id).toBe("c");
-      expect(res.candidatos).toBe(3);
+describe("D-PROD-187: o ícone oficial saiu do cadastro de Categoria de Manejo e do Formulário de Lote", () => {
+  it("os componentes e o service do vínculo não existem mais", () => {
+    for (const arquivo of [
+      "src/components/catalogoGlobal/CategoriaOficialCatalogoSelect.jsx",
+      "src/components/catalogoGlobal/IconeOficialLotePreview.jsx",
+      "src/services/catalogoGlobalService.js",
+    ]) {
+      expect(existsSync(arquivo), arquivo).toBe(false);
     }
-    expect(r({ categoriaVisualId: "cv-bez", tipoLoteId: "t-lote", icones: c.slice(0, 2) }).icone.id).toBe("a");
-  });
-});
-
-describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", () => {
-  it("lista só categorias publicadas do tipo lote e o id real segue no payload", async () => {
-    const { default: Form } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
-    const { normalizarCategoriaManejo } = await vi.importActual("@/services/categoriaManejoService");
-    const onSubmit = vi.fn();
-    wrap(
-      <Form
-        initialData={{ nome: "BEZERRO", sigla: "BZ", especie: "Bovinos", sexo: "Macho", idade_minima_meses: 0, idade_maxima_meses: 8 }}
-        onSubmit={onSubmit}
-        onCancel={() => {}}
-      />,
-    );
-    const select = await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)");
-    await waitFor(() => expect(select.getAttribute("data-status")).toBe("ok"));
-    // Desktop (D-PROD-106): o campo abre o painel de seleção abaixo dele.
-    await act(async () => {
-      fireEvent.click(select);
-    });
-    const opcoes = screen.getAllByRole("option").map((o) => o.textContent.trim());
-    expect(opcoes).toEqual(["SEM VÍNCULO", "Bezerro", "Garrote"]);
-    expect(screen.queryByText(/upload|enviar imagem|publicar/i)).toBeNull();
-    expect(document.querySelector('input[type="file"]')).toBeNull();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: "Garrote" }));
-    });
-    fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    const dados = onSubmit.mock.calls[0][0];
-    expect(dados.catalogo_categoria_visual_id).toBe("cv-gar");
-    expect(normalizarCategoriaManejo(dados, { empresaId: "emp-1" }).catalogo_categoria_visual_id).toBe("cv-gar");
-    expect(normalizarCategoriaManejo({ ...dados, catalogo_categoria_visual_id: "" }).catalogo_categoria_visual_id).toBeNull();
+    for (const arquivo of ["src/components/lotes/FormularioLote.jsx", "src/components/categorias-manejo/FormularioCategoriaManejo.jsx"]) {
+      expect(readFileSync(arquivo, "utf8"), arquivo).not.toMatch(/IconeOficialLotePreview|CategoriaOficialCatalogoSelect|catalogo_categoria_visual_id/);
+    }
   });
 
-  it("ao editar, vínculo gravado aparece; catálogo fora do ar não bloqueia salvar", async () => {
-    api.tipos.mockRejectedValue(new Error("rede"));
+  it("o formulário de Categoria de Manejo não tem o campo; registro antigo com vínculo salva sem enviá-lo", async () => {
     const { default: Form, buildFormInitialFromRecord } = await import("@/components/categorias-manejo/FormularioCategoriaManejo");
+    const { normalizarCategoriaManejo } = await vi.importActual("@/services/categoriaManejoService");
     const onSubmit = vi.fn();
     wrap(
       <Form
@@ -173,17 +98,18 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
         onCancel={() => {}}
       />,
     );
-    const select = await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)");
-    await waitFor(() => expect(select.getAttribute("data-status")).toBe("erro"));
-    expect(select.value).toBe("cv-bez");
+    expect(screen.queryByLabelText("Ícone oficial (catálogo MAK Gestão)")).toBeNull();
+    expect(screen.queryByTestId("categoria-oficial-catalogo")).toBeNull();
+    expect(screen.queryByText(/SEM VÍNCULO|upload|enviar imagem|publicar/i)).toBeNull();
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
-    expect(onSubmit.mock.calls[0][0].catalogo_categoria_visual_id).toBe("cv-bez");
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const payload = normalizarCategoriaManejo(onSubmit.mock.calls[0][0], { empresaId: "emp-1", edicao: true });
+    expect(Object.keys(payload).filter((k) => /icone|catalogo/i.test(k))).toEqual([]);
+    for (const f of Object.values(api)) expect(f).not.toHaveBeenCalled();
   });
 });
 
-// D-PROD-191: a prévia do ícone oficial saiu do Formulário de Lote; o ícone do lote vem do
-// código (tests/smoke/iconeLoteFormulario.test.jsx prova a prévia nova, offline).
-describe("FormularioLote sem prévia do ícone oficial (D-PROD-191)", () => {
+describe("FormularioLote sem prévia do ícone oficial (D-PROD-187)", () => {
   const LOTE = {
     id: "lote-1", nome: "LOTE 1", quantidade_cabecas: 10, area_entrada_id: "a1", setor_id: "s1",
     motivo_entrada: "COMPRA", categoria_manejo_id: "cm-bez", data_entrada: "2026-10-01",
@@ -202,16 +128,16 @@ describe("FormularioLote sem prévia do ícone oficial (D-PROD-191)", () => {
     expect(screen.queryByAltText("Ícone oficial do lote")).toBeNull();
   };
 
-  it("novo lote sem categoria: sem dica sob o campo (D-PROD-164)", async () => {
+  it("novo lote: sem dica de ícone sob a Categoria de Manejo e sem consulta ao catálogo", async () => {
     await renderLote({ initialData: null, isEditing: false });
-    expect(screen.queryByTestId("icone-oficial-lote")).toBeNull();
+    await waitFor(() => expect(api.categoriasManejo).toHaveBeenCalled());
+    semCatalogo();
   });
 
-  it("editar lote cuja categoria ainda está vinculada ao catálogo: nada da prévia oficial, nem consulta ao catálogo", async () => {
+  it("editar lote cuja categoria ainda traz o vínculo antigo (cache): nada de ícone, nada de catálogo", async () => {
     await renderLote({ initialData: LOTE, isEditing: true });
     await waitFor(() => expect(api.categoriasManejo).toHaveBeenCalled());
     semCatalogo();
-    for (const f of [api.tipos, api.categorias, api.icones]) expect(f).not.toHaveBeenCalled();
   });
 
   it("duplicar lote: idem", async () => {

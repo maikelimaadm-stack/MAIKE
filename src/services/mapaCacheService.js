@@ -131,7 +131,7 @@ export const CACHE_KEYS = Object.keys(CAPACIDADES);
  * Antes eram "globais": `mapa_icones::__GLOBAL__`, sem dono, e o logout não as
  * apagava. Mas `ConfiguracaoIcone` e `Permissao` têm `cliente_id` no servidor:
  * no mesmo aparelho, a fazenda B abria o mapa com os ícones da fazenda A. O
- * catálogo global PUBLICADO (`catalogoGlobalService`) não passa por aqui.
+ * catálogo global PUBLICADO (`@/apis/catalogoGlobal`) não passa por aqui.
  */
 const CHAVES_DO_TENANT = new Set(['icones', 'permissoes']);
 

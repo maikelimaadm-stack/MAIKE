@@ -6690,6 +6690,64 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
+## D-PROD-185 — Estoque P1-03: índices M7 EXPAND-ONLY (LC-2 e keyset); R2-2 adiado por falta de consumidor
+
+**Contexto.** O contrato do Estoque P1 (§2 M7, §6.5, §7) põe na P1-03 os índices LC-2 (recibos), R2-2 (AuditLog por produto) e o keyset de movimentos, só com DDL EXPAND e com runbook e GO antes do merge.
+
+**Decisões.**
+1. **Migration nova** `20261113300000_estoque_p1_03_indices`, EXPAND, só `CREATE INDEX` comum, não-único, em tabelas existentes, sem `CONCURRENTLY`. Fica pinada em `MIGRATIONS_APROVADAS`. O número desta decisão fica **fora** do `.sql`.
+   - Numa transação só, as escritas nas duas tabelas esperam até o COMMIT.
+   - A ordem recibos → movimentos é a dos comandos, sem ciclo de espera (runbook §0).
+   - `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`: LC-2. O consumidor é `recibosNosIntervalos`, com `tipo_operacao = ANY(...)` e intervalo de `createdAt`.
+   - `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`, com nome `MovimentacaoEstoque_keyset_empresa_idx`: keyset da central de movimentos da P1-04 (§6.3).
+2. **R2-2 não é criado.**
+   - A busca de evidência de exclusão filtra o produto depois do `LIMIT`, sobre colunas derivadas por `objeto()`. Nenhum índice de expressão sobre `dados_anteriores`/`dados_novos` casa com ela.
+   - Medido: o candidato não é usado.
+   - O índice fecha **junto** com a reescrita dessa busca, que é mudança de consulta, em slice próprio. Até lá, o M7 está incompleto nesse item.
+3. **`(cliente_id, empresa_id)` de `MovimentacaoEstoque` fica**, embora seja prefixo do keyset. Remoção é CONTRACT e pede decisão própria.
+4. **Ensaios das CONTRACT D-PROD-162/183** contam as migrations pela pasta (`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), em vez de números fixos.
+5. **Release:** GO-1 (preflight só leitura, `estoque-p1-03-preflight-indices-somente-leitura.sql`, mais `--verificar-alvo`) → GO-2 (`premerge-migrate --aplicar`, sem `--contract`) → postcheck → merge manual.
+   - Nenhum GO foi concedido.
+   - A D-PROD-183 já está aplicada. Se o preflight disser o contrário, PARAR.
+
+**Nota posterior (R1 da PR #263).**
+- **Provado com `prisma migrate deploy` 6.19.3 real** (ensaio `scripts/dev/ensaio-p1-03-transacao-migration.mjs` e teste `estoqueP1M7TransacaoMigration`):
+  - o `migration.sql` vai numa só mensagem e roda como uma transação implícita;
+  - falha no 2º índice não deixa o 1º;
+  - as duas travas `SHARE` ficam até o COMMIT;
+  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito. Isso foi provado em conexão **direta**; via pooler não está provado, e o GO-2 exige conexão direta ou `SHOW lock_timeout` pela mesma URL;
+  - o retry com migration falhada pendente recusa com P3009.
+- **Preflight:** ganha `veredito.estado` (fail-closed) e separa falhadas pendentes de revertidas no histórico.
+  - Nome ocupado por qualquer relação → `PARAR`.
+  - `JA_APLICADA` só com as definições exatas, válidas e na tabela certa.
+- **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
+- **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
+
+**Nota posterior (R2 da PR #263, 2026-11-13).**
+- **GO-1 #1 encerrado sem passar.** O preflight em produção deu `SEGUIR`, mas havia 43 concluídas com a `20261113400000_cadestacoes_cadastro` fora do repositório; a parada foi manual. Defeito reproduzido localmente: o veredito antigo dava `SEGUIR` com a base incompleta ou com migration desconhecida.
+- **Preflight:** confere o histórico, por nome, contra a lista fixa `base_release` (44 migrations da main `cf07309c`, com a CADESTACOES e a CADCURVAGANHO).
+  - `SEGUIR` exige exatamente a base; `JA_APLICADA`, a base + a P1-03.
+  - Base incompleta, migration desconhecida, nome duplicado ou falhada → `PARAR`.
+  - Checksum continua com o `premerge-migrate --verificar-alvo`.
+- **Ordem:** a P1-03 tem carimbo anterior às duas, mas entra por último em produção. As duas ordens foram provadas equivalentes em PostgreSQL real:
+  - mesmo schema e sem drift;
+  - o runner aceita a P1-03 pendente depois delas;
+  - o nome e o SHA-256 da P1-03 ficam.
+- **R2-2:** o proprietário **aprovou o adiamento** até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** foi criado; o M7 segue parcial, com LC-2 e keyset prontos.
+- **I2** da P1-02 segue pendente, fora daqui.
+
+**Nota posterior (R3 da PR #263, 2026-11-14).**
+- O GO-1 #2 parou corretamente: o preflight deu `PARAR` porque a produção tinha a migration do Apontamento (PR #269, D-PROD-190) fora da base.
+- Com a main `b46bb184` integrada, a base da release passa a 46: as 45 pastas da main sem a P1-03, mais a do Apontamento, aplicada antes do merge da PR dela.
+- A aplicação, se autorizada, vai pelo caminho B (exceção à D-PROD-74, só com GO escrito do proprietário). O envelope tem guarda de conjunto exato e foi ensaiado localmente (runbook §4.5).
+- **Aplicada em produção em 2026-11-14** pelo caminho B, com o GO do proprietário:
+  - preflight `SEGUIR` com 46;
+  - envelope sha256 `7d3eddd8…a4ea1a`;
+  - postcheck `JA_APLICADA` com 47, checksum pinado e os 2 índices válidos.
+  - Desvio da D-PROD-74 registrado aqui, como nas releases anteriores (runbook §7).
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
+
 ## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a PR #263 (Estoque P1-03, em rascunho) já usa a D-PROD-185. Para não duplicar, esta decisão é a **D-PROD-186**, e a **D-PROD-187** fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).
@@ -6721,6 +6779,64 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 **Nota posterior (hotfix, 2026-11-13 — PR própria).** O item das regras de exclusão foi revisto: a categoria oficial **derivada** deixou de bloquear a exclusão. Em produção, a categoria "TESTE" (Macho, 0 a 8 meses) não pôde ser excluída porque 22 lotes de **outras** categorias têm "Bezerro 0 a 12 meses" gravado em `Lote.categoria`: a oficial derivada é compartilhada por toda categoria da mesma faixa oficial e por lotes antigos, e travava qualquer exclusão nessa faixa. As regras de `CategoriaManejo` ficam: o id em `Lote` (`categoria_manejo_id`, `categoria_manejo_entrada_id`) e o `nome` nos campos de texto. O campo calculado `categoria_oficial_derivada` e `COMPUTED_SOURCE_FIELDS` saíram de `src/domain/deleteRules.js`. Teste de regressão com o caso de produção em `tests/smoke/manejoServices.test.js` (CM-D5).
 
 **Relatório:** [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md).
+
+## D-PROD-187 — Categoria de Manejo: DROP das 15 colunas dormentes e do vínculo com o ícone oficial, e nome físico `CADCATEGORIA` (Fatia D, migration CONTRACT)
+
+**Data:** 2026-11-13 · **Origem:** GO do proprietário para a Fatia D (2026-11-13), com a **emenda do proprietário** do mesmo dia (o Ícone oficial também sai) · **Branch:** `feat/categoria-manejo-cadcategoria`
+
+**Contexto.** A D-PROD-186 (Fatia C, PR #264, merge `dba4a8c`) tirou `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro` … `gmd_dezembro` do contrato de Categoria de Manejo e deixou as 15 colunas dormentes no banco, com `@ignore`, à espera desta fatia (item 6). O proprietário deu GO para apagá-las e para o nome físico `CADCATEGORIA`. Na emenda, decidiu que o campo **"Ícone oficial (catálogo MAK Gestão)"** (`catalogo_categoria_visual_id`, vínculo da D-PROD-69) também sai do cadastro, e a coluna é apagada nesta mesma migration. Em produção nenhuma categoria tem esse vínculo, e o catálogo global não tem categoria visual do tipo `lote`.
+
+**Decisão.**
+1. **Migration nova e datada:** `20261113500000_categoria_manejo_cadcategoria`. O timestamp `20261113300000` fica livre de propósito: a PR #263 (aberta) usa `20261113300000_estoque_p1_03_indices`. Nenhuma migration existente foi editada.
+2. **O que ela faz,** numa transação:
+   - remove a FK `CategoriaManejo_catalogo_categoria_visual_id_fkey` e o índice `CategoriaManejo_cliente_id_catalogo_categoria_visual_id_idx`, explicitamente;
+   - apaga as **16** colunas: as 15 dormentes e `catalogo_categoria_visual_id`;
+   - renomeia a tabela `CategoriaManejo` → `CADCATEGORIA`;
+   - renomeia o que fica para os nomes que o Prisma espera com `@@map("CADCATEGORIA")`: `CADCATEGORIA_pkey` (`RENAME CONSTRAINT`), `CADCATEGORIA_cliente_id_id_key` e `CADCATEGORIA_cliente_id_empresa_id_idx` (`ALTER INDEX … RENAME TO`), `CADCATEGORIA_cliente_id_fkey` (`RENAME CONSTRAINT`).
+
+   Ficam 12 colunas: `id`, `cliente_id`, `empresa_id`, `nome`, `sigla`, `especie`, `sexo`, `idade_minima_meses`, `idade_maxima_meses`, `ativo`, `createdAt`, `updatedAt`. O OID, as linhas, a RLS, as políticas e os grants são os mesmos (é `RENAME`, não cópia). `CatalogoCategoriaVisual` não muda; só deixa de ser referenciada. Nenhuma outra tabela tem FK para a Categoria de Manejo.
+3. **Prisma.** O model continua **`CategoriaManejo`**, agora com `@@map("CADCATEGORIA")`. As 15 linhas `@ignore`, o campo do ícone, a relação `catalogoCategoriaVisual`, o `@@index([cliente_id, catalogo_categoria_visual_id])` e a relação inversa em `CatalogoCategoriaVisual` saem do `schema.prisma`. Não mudam: o delegate `prisma.categoriaManejo`, as rotas `/categorias-manejo`, as telas, as permissões, `entidade: 'CategoriaManejo'` no AuditLog e a entidade offline. SQL bruto usa `"CADCATEGORIA"`, com aspas. `prisma migrate diff --exit-code` fica vazio depois da migration.
+4. **CONTRACT, terceira exceção fechada** à D-PROD-72 item 3 e à D-PROD-107 R7, no molde da D-PROD-183:
+   - entrada própria em `MIGRATIONS_CONTRACT_APROVADAS` com a guarda pinada por hash, `drop: []`, `literais_guarda: ['CategoriaManejo', 'CADCATEGORIA']` e as **23** instruções pinadas em `alter_antigas`, nesta ordem: 1 `DROP CONSTRAINT`, 1 `DROP INDEX`, 16 `DROP COLUMN`, 1 `RENAME TO` e 4 renames de constraint/índice. O plano inicial previa 22 (15 colunas, 1 `RENAME TO` e 6 renames); a emenda mudou para 23;
+   - o recorte compara texto pinado, então `DROP INDEX` e `RENAME` só passam como instrução pinada desta entrada. No caminho EXPAND, `RENAME` continua proibido (`ALTER_EM_TABELA_ANTIGA` ou `SQL_NAO_RECONHECIDO`);
+   - `CASCADE`, `IF EXISTS`, `CONCURRENTLY`, outra ordem, outro nome, `RENAME COLUMN`, outra tabela ou uma instrução a menos → `CONTRACT_ALTER_FORA_DO_CONTRATO`. Instrução a mais cai no EXPAND e é recusada;
+   - o classificador ganha quatro campos descritivos: `constraints_removidas`, `indices_removidos`, `tabelas_renomeadas` e `nomes_renomeados`. Eles ficam vazios nas CONTRACT anteriores, porque o alargamento da D-PROD-162 recria as constraints. O rótulo do premerge cita só o que a migration faz.
+5. **Trava própria (guarda, 1ª instrução, falha fechada):**
+   - `lock_timeout` 5 s, `statement_timeout` 120 s, `pg_advisory_xact_lock(72707369)`;
+   - `CategoriaManejo` existe; o nome `CADCATEGORIA` está livre (relação ou tipo); travada em `ACCESS EXCLUSIVE`;
+   - as 16 colunas existem com o tipo esperado (2 × `varchar(128)`, 13 × `numeric(14,4)`, 1 × `varchar(64)`), anuláveis, sem `DEFAULT`, sem identidade, não geradas;
+   - os índices são exatamente os 4 de hoje, e as constraints (fora `NOT NULL`) exatamente as 3 de hoje. Os 3 nomes novos de índice estão livres;
+   - nada em `pg_depend` aponta para as 16 colunas, a não ser o índice e a FK do ícone, que a migration remove antes. Isso cobre visão, política, gatilho, estatística e publicação;
+   - nenhuma função ou procedure fora dos schemas do sistema cita, sem distinguir maiúsculas e com fronteira de palavra (`\m…\M`), o nome físico antigo da tabela ou as 16 colunas, no corpo ou nos parâmetros de saída;
+   - **impressão:** com algum valor nas 16 colunas (ou com o parâmetro informado), exige `maike.categoria_manejo_legado_impressao` igual à aprovada no GO. É `left(md5(…), 12)` das linhas `cliente_id|id|quote_nullable(16 colunas)`, com `num_nonnulls(…) > 0`, na ordem `cliente_id, id` (`COLLATE "C"`). Vazio = `d41d8cd98f00`.
+6. **Aplicação isolada:** a release tem esta migration e mais nenhuma (`CONTRACT_NAO_ISOLADO`). O premerge exige `--contract D-PROD-187`. O `deploy:migrate` remoto recusa sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187`, e o `release-migrate.yml` não define a variável. Em produção a D-PROD-162 e a D-PROD-183 já estão concluídas, e só esta fica pendente.
+7. **Sem janela compatível.** Diferente da D-PROD-183, o rename quebra o código anterior: o Prisma Client da `main` de hoje consulta `"CategoriaManejo"` e dá `P2021` até o deploy novo, e o código novo consulta `"CADCATEGORIA"`. A release exige **acesso bloqueado** pelo proprietário durante a janela (runbook §0). Pelo histórico da D-PROD-183, o caminho esperado é o **B** (conector, uma transação). Depois da aplicação, fica **proibido** o *Instant Rollback* da Vercel para qualquer deploy anterior ao merge desta PR.
+8. **Código (sai junto, mesma release):**
+   - **Backend:** `categoriaManejoService.js` perde a validação do vínculo, e `catalogo_categoria_visual_id` entra em `CHAVES_LEGADAS_IGNORADAS`: cliente antigo que ainda manda a chave recebe 201/200, e nada é validado nem gravado. A chave sai de `comoPublico` e da `SELECAO` do repository. `exigirCategoriaVisualLoteVinculavel` e `CODIGO_TIPO_LOTE` saem de `catalogoValidacao.js`, sem outro uso.
+   - **Frontend:** o seletor "Ícone oficial (catálogo MAK Gestão)" sai de `FormularioCategoriaManejo.jsx`. O campo sai de `normalizarCategoriaManejo` e de `CAMPOS_GRAVAVEIS` da porta nativa (fila offline antiga não o envia). `listarIconesDeLoteDaEmpresa`, que já não tinha uso, sai do service.
+   - **Prévia no Formulário de Lote:** a prévia do ícone oficial (`IconeOficialLotePreview`, a dica sob "Categoria de Manejo" no Base1 e o bloco no visual antigo) **sai**, porque dependia só desse vínculo. Saem também `IconeOficialLotePreview.jsx`, `CategoriaOficialCatalogoSelect.jsx` e `src/services/catalogoGlobalService.js`, que ficaram sem uso. A porta `@/apis/catalogoGlobal`, só leitura, fica. Nada de visual novo: só remoção.
+   - **Preflight de schema:** passa a exigir `CADCATEGORIA.idade_minima_meses` no lugar de `CategoriaManejo.catalogo_categoria_visual_id`.
+   - **SQL Editor:** os scripts 01–04 trocam o nome físico na lista de tabelas de tenant.
+   - **Base44:** `base44/entities/CategoriaManejo.jsonc` já não tinha o campo.
+9. **Número da decisão fora do `migration.sql`** (como na D-PROD-183). As mensagens da guarda começam com `categoria_manejo_cadcategoria:`.
+10. **Autorização:** a migration **não foi aplicada** em nenhum ambiente remoto, e nada foi lido de produção nesta fatia. Os fatos de produção do runbook vêm do plano: 43 migrations concluídas (as 42 do plano mais a `20261113400000_cadestacoes_cadastro`, D-PROD-188, aplicada em 2026-11-13), 0 em aberto; categorias com o legado; nenhuma com vínculo; nenhuma categoria visual `lote` no catálogo. Eles têm de ser reconferidos no preflight (GO-1). Preflight e aplicação dependem de GO explícito, um para cada: [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md).
+11. **Fora do escopo:** "Categoria de evolução" (Fatia E), Cadastro de Lotes, Estoque, `ConfiguracaoIcone` (ícones do mapa por tenant, que continuam), remover a tolerância HTTP às chaves legadas (contrato HTTP, decisão própria) e trabalho visual.
+
+**Testes.**
+- `backend/tests/categoriaManejoCadcategoriaMigration.test.mjs` (PostgreSQL real, bancos próprios), com as funções de `scripts/dev/ensaio-categoria-manejo-cadcategoria.mjs`:
+  - RED, 14 cenários, tudo recusado e nada muda: sem impressão; impressão errada; índice numa coluna apagada; índice a mais; visão numa coluna apagada e na do ícone; política; função citando coluna; função com o nome físico; gatilho em caixa mista; `RETURNS TABLE`; `CADCATEGORIA` já existente; nome novo de índice ocupado; trava concorrente (`55P03` em ~5 s);
+  - runner com a conferência de alvo e sem a decisão: recusa antes de qualquer DDL;
+  - GREEN pelo runner oficial: 44/0, mesmo OID/ACL/RLS/políticas, 12 colunas, linhas idênticas, nomes novos, FK válida, `migrate diff` vazio e o Prisma Client lendo;
+  - 2ª execução sem pendências;
+  - banco sem legado: aplica sem impressão e com a do vazio; uma impressão errada informada é recusada.
+- `scripts/tests/deploy/premerge-migrate.test.mjs` B15a–B15j, `scripts/tests/deploy/migrations.test.mjs` B16 (e B11/B14 com a terceira CONTRACT concluída), `alvo-banco.test.mjs` AB-05, `preflight-schema.test.mjs`.
+- `backend/tests/categoriaManejoEnxuto.test.mjs`: estrutura de `CADCATEGORIA`; a chave do ícone aceita e ignorada. `backend/tests/categoriaManejoVinculoCatalogo.test.mjs` foi **apagado**: só testava o vínculo que deixou de existir.
+- Smokes: `catalogoGlobalLote`, `categoriaManejoEnxuto`, `manejoServices` e `motorbase1Batch01`.
+- `tipoTarefaDropColunasMigration` e `patrimonioSimplificaMigration` partem de 43 migrations (com a CADESTACOES da D-PROD-188). A D-PROD-187 entra no "todas menos a CONTRACT dele", com `CategoriaManejo` vazia.
+
+**Nota (merge da `main` com a PR #265, `776befe`).** A D-PROD-188 (CADESTACOES, EXPAND `20261113400000_cadestacoes_cadastro`, já aplicada em produção) entrou na `main` antes desta fatia. Com ela, o repositório tem **44** migrations: produção fica com 43 concluídas antes desta release e 44 depois; 81 tabelas antes e depois (esta só renomeia). A entrada da CADESTACOES em `MIGRATIONS_APROVADAS` vem antes da desta fatia, na ordem dos timestamps; `MIGRATIONS_CONTRACT_APROVADAS` não muda.
+
+**Relatório:** [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md).
 
 ## D-PROD-188 — Cadastro de Estações da fazenda, tabela física `CADESTACOES` (primeira fatia, sem vínculos)
 
@@ -6841,6 +6957,8 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md).
 
+**Nota (merge da `main` com as PRs #268, #267 e #263, 2026-11-14).** A PR #268 (D-PROD-187) entrou na `main` antes desta e já apagou `catalogoGlobalService.js`, `CategoriaOficialCatalogoSelect.jsx`, `src/apis/catalogoGlobal/` e `listarIconesDeLoteDaEmpresa`: o que o item 7 deixava "de propósito" saiu com ela. No merge, os conflitos foram os previstos: no `FormularioLote.jsx` ficou a linha desta fatia (a dica com a prévia local, o resto da linha igual ao da #268); no `catalogoGlobalLote.test.jsx` ficou a versão da #268, que só exige que o componente, o `data-testid` e o alt antigos tenham sumido; e os docs comuns. A D-PROD-192 (PR #272) entrou nesta branch antes do merge.
+
 ## D-PROD-192 — Cadastro de ícone: a categoria digitada não é apagada pelo Select (MAIKE-ICONES-CATEGORIA-DIGITADA)
 
 > **Numeração:** a branch da PR #271 (D-PROD-191) indica `Próxima decisão: D-PROD-192`, que é esta. O contrato da branch `feat/apontamento-itens` (ainda sem PR) previa a D-PROD-191, que a PR #271 já usa; a Fatia D do apontamento vai precisar de número próprio (D-PROD-193 ou seguinte).
@@ -6862,4 +6980,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-193 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-190 com a PR #269; D-PROD-191 com a PR #271) -->
+<!-- Próxima decisão: D-PROD-193 (D-PROD-190 com a PR #269) -->

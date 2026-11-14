@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { API_FAKE, instalarBackendFake } from './fixtures/gestaoBackendFake.js';
+import { API_FAKE, escolherOpcao, instalarBackendFake } from './fixtures/gestaoBackendFake.js';
 import { criarEstadoLancamentos, rotearLancamentos, semearDocumento } from './fixtures/lancamentosFakeCore.js';
 
 const sessao = vi.hoisted(() => ({ permissao: /** @type {any} */ (null), clienteId: 'cli-1' }));
@@ -66,11 +66,14 @@ const montar = async () => {
 };
 
 /**
- * A lista pedida chega DEPOIS do pedido (o backend falso registra a chamada e responde em seguida; o
- * react-query entrega na tela num setTimeout 0): espera a resposta e a atualização da tela dentro do act,
- * senão ela cai depois do teste e o React acusa "not wrapped in act" (visto na CI carregada).
+ * Nenhuma consulta em voo e as respostas já entregues à tela DENTRO do act.
+ *
+ * O backend falso registra a chamada e responde depois, e o react-query entrega na tela num setTimeout 0.
+ * Resposta que cai fora de act/waitFor (num `await` qualquer do teste ou depois do fim) faz o React acusar
+ * "not wrapped in act" (visto na CI carregada). Vale para a lista filtrada E para o perfil financeiro, que
+ * corre em paralelo com a lista: a linha pode aparecer antes do perfil chegar.
  */
-const listaAplicada = async (queryClient) => {
+const consultasAssentadas = async (queryClient) => {
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0));
@@ -138,18 +141,19 @@ describe('LANC-1 — lista, filtros, perfil e fuso', () => {
   it('lista mostra nº, situação, parceiro e total formatado no locale do perfil; filtros vão ao servidor', async () => {
     const doc = semearDocumento(estado, corpoBase(), { confirmar: true });
     const queryClient = await montar();
-    const celula = await screen.findByTestId(`lancamento-numero-${doc.id}`);
-    const linha = within(celula.closest('tr'));
+    await screen.findByTestId(`lancamento-numero-${doc.id}`);
+    // A linha pode aparecer antes do perfil (consultas paralelas): o perfil entra na tela aqui, dentro do act.
+    await consultasAssentadas(queryClient);
+    const linha = within(screen.getByTestId(`lancamento-numero-${doc.id}`).closest('tr'));
     expect(linha.getByText('AGROPECUÁRIA BOA VISTA')).toBeTruthy();
     expect(linha.getByText('Confirmado')).toBeTruthy();
     expect(linha.getAllByText(/R\$\s1\.000,00/).length).toBeGreaterThan(0);
-    const { escolherOpcao } = await import('./fixtures/gestaoBackendFake.js');
     await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por direção' }), 'A receber');
     await waitFor(() => expect(chamadas('GET', '/operacoes-financeiras').some((c) => c.query.direcao === 'RECEBER')).toBe(true));
     await escolherOpcao(screen.getByRole('combobox', { name: 'Filtrar por situação' }), 'Rascunhos');
     await waitFor(() => expect(chamadas('GET', '/operacoes-financeiras').some((c) => c.query.status === 'RASCUNHO' && c.query.direcao === 'RECEBER')).toBe(true));
     expect(chamadas('GET', '/operacoes-financeiras').every((c) => c.query.empresa_id === 'emp-1' && Number(c.query.limit) <= 100)).toBe(true);
-    await listaAplicada(queryClient);
+    await consultasAssentadas(queryClient);
   });
 
   it('onboarding: sem perfil, o administrador vê os padrões EXPLICADOS e "Confirmar perfil" grava BR/BRL/pt-BR', async () => {
@@ -304,7 +308,6 @@ describe('LANC-2 — as quatro combinações geram o DOC canônico (string, sem 
     const item = within(screen.getByTestId('item-0'));
     await escolher('seletor-produto-0', /SAL MINERAL 80/);
     await escolher('seletor-local-0', /DEPÓSITO SEDE/);
-    const { escolherOpcao } = await import('./fixtures/gestaoBackendFake.js');
     await escolherOpcao(item.getByRole('combobox', { name: 'Unidade do item 1' }), 'SACO');
     digitar('item-0-quantidade', '4');
     digitar('item-0-valor-unitario', '250');

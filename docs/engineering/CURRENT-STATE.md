@@ -9,6 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-13) — MAIKE-ESTOQUE-P1-03: índices M7 EXPAND-ONLY (D-PROD-185)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-185** |
+| Branch / PR | `claude/maike-estoque-p1-03-indices`, PR #263. Main integrada: `b46bb184` (R3) |
+| Escopo | Migration `20261113300000_estoque_p1_03_indices` (EXPAND; SHA-256 `5d91e751…28565`): LC-2 `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)` e keyset `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`. R2-2 **não** criado: não há consulta que o use (D-PROD-185 item 2). Repositório: 42 → **43** migrations |
+| Release | **Aplicada em produção em 2026-11-14** (caminho B, GO do proprietário): preflight `SEGUIR` com 46, envelope com guardas, postcheck `JA_APLICADA` com 47 e os 2 índices válidos. Merge depois da CI verde. Runbook §7: [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md) |
+| R2-2 | Adiamento **aprovado** pelo proprietário até o slice da consulta de auditoria por produto. M7 parcial: LC-2 e keyset prontos |
+| Pendência herdada | I2 da P1-02 (D-PROD-184), decisão do proprietário |
+| Relatório | [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md) |
+
 ## Proposta em revisão (2026-11-11) — MAIKE-ESTOQUE-P1-01-GOVERNANCA: contrato do Estoque P1 e emenda proposta (D-PROD-177, PROPOSTA)
 
 | Campo | Valor |
@@ -40,48 +52,60 @@ rollout pausado **D-PROD-41**)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-191** (D-PROD-190 com a PR #269; D-PROD-185 com a PR #263; D-PROD-187 com a PR #268) |
-| Branch / PR | `feat/icones-lote-codigo`, criada de `origin/main` `776befe9` e com a `main` `cf07309c` (PR #270) integrada por merge. PR **#271** em rascunho, exclusiva desta fatia |
+| Decisão | **D-PROD-191** (D-PROD-190 com a PR #269) |
+| Branch / PR | `feat/icones-lote-codigo`, criada de `origin/main` `776befe9`, com a `main` integrada por merge duas vezes: `cf07309c` (PR #270) e `00a06096` (PRs #268, #267 e #263). PR **#271**, exclusiva desta fatia; a PR #272 (D-PROD-192) entrou nesta branch antes |
 | Escopo | O ícone do Lote sai do upload (`ConfiguracaoIcone` tipo `Lote`) e vem do código, em `src/assets/icones/lotes/`, pela chave sexo + faixa de idade da Categoria de Manejo. Marcador do mapa pela cascata de 5 níveis (sempre sai figura); subícone dos detalhes e dos formulários de manejo na cor do sexo, nunca misto; prévia local no Formulário de Lote; Configurações sem cadastro de ícone de Lote |
 | Banco | **Sem migration.** `ConfiguracaoIcone` intocada; as linhas `tipo_entidade = 'Lote'` ficam órfãs (limpeza CONTRACT com GO próprio, fora desta fatia) |
-| Convivência | A PR #268 apaga `IconeOficialLotePreview.jsx` (esta também: sem conflito) e `catalogoGlobalService.js` (esta não toca). Conflito esperado só numa linha do `FormularioLote.jsx` e nos docs comuns |
+| Convivência | A PR #268 (D-PROD-187) entrou antes desta e já apagou `IconeOficialLotePreview.jsx`, `catalogoGlobalService.js` e a porta do catálogo. No merge, os conflitos foram os previstos: a linha do campo no `FormularioLote.jsx` (ficou a dica com a prévia local), o `catalogoGlobalLote.test.jsx` (ficou a versão da #268) e os docs comuns |
 | Relatório | [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md) |
 
-## Missão anterior (2026-11-13) — MAIKE-CADCURVAGANHO-CADASTRO: Curvas de Ganho de Peso por estação, tabela `CADCURVAGANHO` (D-PROD-189)
+## Missão anterior (2026-11-13) — MAIKE-CATEGORIA-MANEJO-CADCATEGORIA (Fatia D): DROP das 15 colunas dormentes e do Ícone oficial, tabela física `CADCATEGORIA` (D-PROD-187)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-187** (inclui a emenda do proprietário de 2026-11-13: o Ícone oficial também sai) |
+| Branch / PR | `feat/categoria-manejo-cadcategoria`, base `origin/main` `dba4a8c` (merge da PR #264), integrada por merge com a `main` `776befe` (merge da PR #265, CADESTACOES) e com a `main` `cf07309` (merge da PR #270, CADCURVAGANHO). PR **#268**, exclusiva desta fatia |
+| Escopo | Migration CONTRACT que apaga as 15 colunas dormentes e `catalogo_categoria_visual_id` (com a FK e o índice) e renomeia a tabela física `CategoriaManejo` → `CADCATEGORIA` (model Prisma continua `CategoriaManejo`, com `@@map`). O campo "Ícone oficial (catálogo MAK Gestão)" sai do formulário, do service, da porta, do backend (a chave passa a ser aceita e ignorada) e a prévia do ícone sai do Formulário de Lote |
+| Migration | `20261113500000_categoria_manejo_cadcategoria`, **CONTRACT** (terceira exceção fechada). SHA-256 `83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c`; guarda `0efa2ef32dd4faf3d2419896521a6a62552f89c1af8d151b6cf1eb2495c3e384`; 23 instruções pinadas. Repositório: 44 → **45** migrations. Produção já tem 44 concluídas (a 43ª aplicada é a CADESTACOES da PR #265 e a 44ª a CADCURVAGANHO da PR #270); esta CONTRACT entra como 45ª, depois da `…600000`, fora da ordem dos nomes; 82 tabelas antes e depois (rename); a tabela de 28 → **12** colunas. `20261113300000` fica livre para a PR #263 |
+| Release | **NÃO EXECUTADA.** Sem janela compatível: o código anterior dá `P2021` contra `CADCATEGORIA`, então a release exige **acesso bloqueado** pelo proprietário; caminho B (conector, uma transação) esperado. Depois da aplicação, proibido o *Instant Rollback* para antes do merge desta PR. Runbook com preflight, envelope do caminho B e postcheck |
+| Produção | Intocada nesta fatia (nada lido nem escrito) |
+| Documentos | [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-REPORT.md) · [`MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md`](./MAIKE-CATEGORIA-MANEJO-CADCATEGORIA-RUNBOOK-RELEASE.md) |
+
+## Missão concluída (2026-11-13) — MAIKE-CADCURVAGANHO-CADASTRO: Curvas de Ganho de Peso por estação, tabela `CADCURVAGANHO` (D-PROD-189)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-189** |
-| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `776befe9` (merge da PR #265). PR nova, exclusiva desta missão |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `776befe9` (merge da PR #265). PR #270, exclusiva desta missão, **mergeada** (`cf07309`) |
 | Escopo | Model `CadCurvaGanho` → tabela física `"CADCURVAGANHO"` (`@@map`), por fazenda; GMD (kg/dia) nas Águas, na Transição e na Seca, de -2 a 3; API `/curvas-ganho`; tela `CurvasGanho` (menu Manejo, tela `pec-curvas-ganho`). **Sem vínculo** com categoria, lote ou estação |
 | Migration | `20261113600000_cadcurvaganho_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6`. Repositório: 43 → **44** migrations, 81 → **82** tabelas. **Aplicada em produção em 2026-11-13 23:18:10 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 44/0, 82 tabelas, RLS, advisors sem alerta |
-| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 em rascunho: o merge depende da autorização do proprietário; depois, conferir `/health` e `/api/native/curvas-ganho` → 401 |
+| Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md) §7). PR #270 mergeada (`cf07309`). Falta: conferir `/health` e `/api/native/curvas-ganho` → 401 |
 | Relatório | [`MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md`](./MAIKE-CADCURVAGANHO-CADASTRO-REPORT.md) |
 
-## Missão anterior (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)
+## Missão concluída (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-188** (D-PROD-185 com a PR #263; D-PROD-186 é a Fatia C; D-PROD-187 reservada à Fatia D) |
-| Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR #265 em rascunho, exclusiva desta missão |
+| Branch / PR | `claude/kind-knuth-tztu1v`, base `origin/main` `af47797`. PR #265, exclusiva desta missão, **mergeada** (`776befe`) |
 | Escopo | Model `CadEstacao` → tabela física `"CADESTACOES"` (`@@map`), por fazenda; API `/estacoes`; tela `Estacoes` (menu Manejo, tela `pec-estacoes`); estações ativas da mesma fazenda sem sobreposição. **Sem vínculo** com lote, categoria, curva ou outro cadastro |
 | Migration | `20261113400000_cadestacoes_cadastro`, **EXPAND** (só a tabela nova). SHA-256 `5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7`. Repositório: 42 → **43** migrations, 80 → **81** tabelas. **Aplicada em produção em 2026-11-13 19:48:14 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 43/0, 81 tabelas, RLS, advisors sem alerta |
 | Release | Migration aplicada antes do merge ([runbook](./MAIKE-CADESTACOES-RUNBOOK-RELEASE.md) §7). PR #265 mergeada em `776befe9` (2026-11-13, merge autorizado pelo proprietário); produção conferida: `/health` com `release` = `776befe9`, `/api/native/estacoes` → 401 |
 | Relatório | [`MAIKE-CADESTACOES-CADASTRO-REPORT.md`](./MAIKE-CADESTACOES-CADASTRO-REPORT.md) |
 
-## Missão anterior (2026-11-13) — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): Categoria de Manejo enxuta (D-PROD-186)
+## Missão concluída (2026-11-13) — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): Categoria de Manejo enxuta (D-PROD-186)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-186** |
-| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR **#264** em rascunho, exclusiva desta fatia |
-| Escopo | Cadastro com Nome, Sigla, Espécie, Sexo e Faixa de idade (+ Ícone oficial). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e os 12 `gmd_*` saem do formulário, da grade, do CSV, da porta, do service e da API (aceitos e ignorados no corpo). Categoria oficial do rebanho derivada de sexo + faixa de idade |
-| Banco | **Sem migration.** As 15 colunas ficam dormentes (`@ignore`); `migrate diff` vazio |
-| Próxima fatia | **Fatia D** (D-PROD-187): migration CONTRACT isolada com o DROP das 15 colunas e o nome físico `CADCATEGORIA`, depois desta fatia no ar (a migration da D-PROD-183 já está aplicada), com o acesso bloqueado pelo proprietário |
+| Branch / PR | `feat/categoria-manejo-enxugar`, base `origin/main` `73aca4f` (merge da PR #261). PR **#264** **mergeada** (`dba4a8c`) |
+| Escopo | Cadastro com Nome, Sigla, Espécie, Sexo e Faixa de idade (+ Ícone oficial, que sai na Fatia D). `raca`, `categoria_oficial`, `ganho_peso_anual_kg` e os 12 `gmd_*` saem do formulário, da grade, do CSV, da porta, do service e da API (aceitos e ignorados no corpo). Categoria oficial do rebanho derivada de sexo + faixa de idade |
+| Banco | **Sem migration.** As 15 colunas ficaram dormentes (`@ignore`); `migrate diff` vazio |
+| Dados de produção | Em 2026-11-13 as **4** categorias de produção receberam a faixa de idade como dado, com a lista do proprietário: **9-12**, **13-24**, **25-36** e **37+** |
+| Próxima fatia | **Fatia D** (D-PROD-187), a missão ativa acima |
 | Documentos | [`MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md`](./MAIKE-CATEGORIA-MANEJO-ENXUGAR-REPORT.md) |
 
-
-## Missão concluída (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
+## Missão anterior (2026-11-13) — MAIKE-TIPO-TAREFA-DROP-COLUNAS (Fatia LIMPEZA): DROP das 4 colunas dormentes do TipoTarefa (D-PROD-183)
 
 | Campo | Valor |
 |---|---|
