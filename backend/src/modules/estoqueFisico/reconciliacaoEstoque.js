@@ -448,8 +448,9 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
  * tabelas novas: sem elas (`comItens` falso, lido do catálogo por `to_regclass`
  * na 2ª instrução fixa da leitura), o CTE e o ramo do `fk` viram consultas
  * VAZIAS do mesmo formato — nunca 500, nem 25P02 no resto da transação.
+ *
+ * Consumo por lote dos itens CONFIRMADO (item cancelado devolveu a fatia: não conta).
  */
-/** Consumo por lote dos itens CONFIRMADO (item cancelado devolveu a fatia: não conta). */
 const consumoDosItensDoApontamento = (cli, comItens) => (comItens
   ? Prisma.sql`SELECT f.estoque_lote_nota_id AS lote_id, SUM(f.quantidade) AS consumido
       FROM "ApontamentoAtividadeItemConsumoLote" f

@@ -9,6 +9,11 @@
  * Nenhum módulo ANTIGO importa daqui para consultar a tabela nova (lição do
  * hotfix #259): a exclusão de um cadastro apontado é barrada pela FK RESTRICT,
  * traduzida em `shared/errors/vinculoApontamentoAtividade.js`.
+ *
+ * D-PROD-191 (Fatia D) — itens do apontamento: a trava da linha do apontamento
+ * (serializa todo comando de item e o cancelamento), a leitura dos itens e das
+ * fatias FIFO, o INSERT do item e das fatias e o cancelamento dos itens com CAS.
+ * Este módulo pode assumir as tabelas novas (a migration sobe ANTES do código).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -31,6 +36,30 @@ export const INCLUIR = Object.freeze({
   canceladoPor: USUARIO_RESUMO,
 });
 
+/** Fatias FIFO do item PRODUTO, na ordem gravada. */
+const FATIAS = Object.freeze({
+  orderBy: { ordem: /** @type {const} */ ('asc') },
+  select: { ordem: true, estoque_lote_nota_id: true, quantidade: true, custo_unitario: true },
+});
+const MOVIMENTO_RESUMO = Object.freeze({ select: { id: true, numero_movimentacao: true } });
+
+/** D-PROD-191 — itens do DETALHE (A1–A4), em ordem, inclusive os cancelados (histórico). */
+export const INCLUIR_DETALHE = Object.freeze({
+  ...INCLUIR,
+  itens: {
+    orderBy: { ordem: /** @type {const} */ ('asc') },
+    include: {
+      produto: { select: { id: true, nome_produto: true, unidade_principal_estoque: true } },
+      localEstoque: { select: { id: true, nome: true } },
+      movimentacao: MOVIMENTO_RESUMO,
+      movimentacaoEstorno: MOVIMENTO_RESUMO,
+      consumos: FATIAS,
+      criadoPor: USUARIO_RESUMO,
+      canceladoPor: USUARIO_RESUMO,
+    },
+  },
+});
+
 /**
  * Apontamento da EMPRESA com os resumos. Outra empresa e outro tenant dão o
  * mesmo `null` (sem oráculo).
@@ -39,6 +68,28 @@ export const INCLUIR = Object.freeze({
  */
 export const buscarApontamento = (db, clienteId, empresaId, id) =>
   db.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, include: INCLUIR });
+
+/**
+ * D-PROD-191 — apontamento da EMPRESA com os resumos e os itens (detalhe).
+ * @param {any} db  cliente Prisma ou transação
+ * @param {string} clienteId @param {string} empresaId @param {string} id
+ */
+export const buscarApontamentoComItens = (db, clienteId, empresaId, id) =>
+  db.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, include: INCLUIR_DETALHE });
+
+/**
+ * D-PROD-191 (I-c) — trava a linha do apontamento (`FOR UPDATE`) ANTES de ler
+ * itens, locais ou produtos: serializa os comandos de item e o cancelamento.
+ * Outra empresa e outro tenant = inexistente (`false`).
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} id
+ * @returns {Promise<boolean>}
+ */
+export const travarApontamento = async (tx, clienteId, empresaId, id) => {
+  const linhas = /** @type {any[]} */ (
+    await tx.$queryRaw`SELECT id FROM "ApontamentoAtividade" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ${id} FOR UPDATE`
+  );
+  return linhas.length === 1;
+};
 
 /**
  * Lista keyset (createdAt desc, id desc) — índice (cliente_id, empresa_id, createdAt, id).
@@ -63,9 +114,81 @@ export const atualizarComVersao = async (tx, { clienteId, empresaId, id, versao,
   return r.count;
 };
 
+/**
+ * D-PROD-191 — o essencial do apontamento para os comandos de item (lido DEPOIS
+ * de `travarApontamento`): número e data (documento do movimento), status e versão.
+ */
+export const lerApontamentoBase = (tx, clienteId, empresaId, id) =>
+  tx.apontamentoAtividade.findFirst({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id },
+    select: { id: true, empresa_id: true, numero: true, status: true, versao: true, data_operacional: true },
+  });
+
 /** Estado atual (versão e status) depois de um CAS perdido. */
 export const lerVersaoEStatus = (tx, clienteId, empresaId, id) =>
   tx.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, select: { versao: true, status: true } });
+
+// ─── itens (D-PROD-191) ─────────────────────────────────────────────────────
+
+/**
+ * Quantos itens o apontamento tem (CONFIRMADO + CANCELADO) e a maior `ordem`
+ * (nunca reaproveitada). Lido SOB a trava do apontamento.
+ * @returns {Promise<{ total: number, maiorOrdem: number }>}
+ */
+export const resumoDosItens = async (tx, clienteId, empresaId, apontamentoId) => {
+  const r = await tx.apontamentoAtividadeItem.aggregate({
+    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId },
+    _count: { _all: true },
+    _max: { ordem: true },
+  });
+  return { total: r._count._all, maiorOrdem: r._max.ordem ?? 0 };
+};
+
+/**
+ * Itens do apontamento com as fatias FIFO (para o estorno), em ordem. `filtro`
+ * restringe (ex.: `{ status: 'CONFIRMADO' }` ou `{ id }`).
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} apontamentoId @param {Record<string, unknown>} [filtro]
+ */
+export const lerItensComFatias = (tx, clienteId, empresaId, apontamentoId, filtro = {}) =>
+  tx.apontamentoAtividadeItem.findMany({
+    where: { ...filtro, cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId },
+    orderBy: { ordem: 'asc' },
+    include: { consumos: FATIAS },
+  });
+
+/**
+ * D-1 (D-PROD-191): itens PRODUTO CONFIRMADO do apontamento (o PATCH lê sem
+ * trava; o CAS por `versao` o protege de um item que entre depois).
+ */
+export const contarItensProdutoConfirmados = (tx, clienteId, empresaId, apontamentoId) =>
+  tx.apontamentoAtividadeItem.count({
+    where: { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: apontamentoId, tipo: 'PRODUTO', status: 'CONFIRMADO' },
+  });
+
+/** @param {any} tx @param {Record<string, unknown>} dados */
+export const inserirItem = (tx, dados) => tx.apontamentoAtividadeItem.create({ data: dados, select: { id: true } });
+
+/** @param {any} tx @param {Array<Record<string, unknown>>} fatias */
+export const inserirFatias = (tx, fatias) => (fatias.length ? tx.apontamentoAtividadeItemConsumoLote.createMany({ data: fatias }) : Promise.resolve({ count: 0 }));
+
+/**
+ * CONFIRMADO → CANCELADO numa instrução, com CAS (`status = 'CONFIRMADO'`):
+ * cada item leva o SEU estorno (null em SERVICO/OUTRO). Devolve a contagem
+ * (quem chama confere = nº de itens). `agora` em UTC na coluna TIMESTAMP(3).
+ * @param {any} tx
+ * @param {{ clienteId: string, empresaId: string, apontamentoId: string, itens: Array<{ id: string, estorno: string|null }>,
+ *   motivo: string, origem: 'ITEM'|'APONTAMENTO', usuarioId: string|null, agora: Date }} pedido
+ * @returns {Promise<number>}
+ */
+export const cancelarItensConfirmados = async (tx, { clienteId, empresaId, apontamentoId, itens, motivo, origem, usuarioId, agora }) => {
+  if (!itens.length) return 0;
+  const instante = agora.toISOString();
+  return tx.$executeRaw`UPDATE "ApontamentoAtividadeItem" AS i
+    SET status = 'CANCELADO', movimentacao_estorno_id = v.estorno, cancelado_em = ${instante}::timestamp, cancelado_por_usuario_id = ${usuarioId},
+        motivo_cancelamento = ${motivo}, cancelamento_origem = ${origem}, "updatedAt" = ${instante}::timestamp
+    FROM unnest(${itens.map((x) => x.id)}::text[], ${itens.map((x) => x.estorno)}::text[]) AS v(id, estorno)
+    WHERE i.cliente_id = ${clienteId} AND i.empresa_id = ${empresaId} AND i.apontamento_id = ${apontamentoId} AND i.id = v.id AND i.status = 'CONFIRMADO'`;
+};
 
 // ─── cadastros apontados (leituras curtas, no tenant da sessão) ─────────────
 

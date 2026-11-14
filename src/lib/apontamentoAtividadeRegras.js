@@ -442,8 +442,13 @@ export const CASAS_TOTAL_ITEM = 4;
 /** Teto do total (Decimal(18, 4), o LIMITE_DINHEIRO do servidor). */
 export const LIMITE_TOTAL_ITEM = '99999999999999.9999';
 
-/** Caractere de controle ou marcação HTML (o servidor recusa com `caractere_invalido`). */
-const RE_TEXTO_INVALIDO = /[\u0000-\u001F\u007F<>]/;
+/** Caractere de controle (quebra de linha, tabulação…) ou marcação HTML: o servidor recusa com `caractere_invalido`. @param {string} t */
+const temCaractereInvalido = (t) =>
+  /[<>]/.test(t) ||
+  [...t].some((c) => {
+    const n = c.codePointAt(0) ?? 0;
+    return n < 0x20 || n === 0x7f;
+  });
 
 /**
  * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null }} ProdutoDoItem
@@ -504,15 +509,20 @@ export const formatarQuantidadeItem = (v, unidade) => {
 /** Valor em reais com até `casasMax` casas ("66.4063" → "R$ 66,4063"; "10.0000" → "R$ 10,00"). @param {unknown} v @param {number} [casasMax] */
 export const formatarValorItem = (v, casasMax = CASAS_TOTAL_ITEM) => formatarMoeda(v, { locale: LOCALE_APONTAMENTO, moeda: 'BRL', casas: 2, casasMax });
 
-/** @param {string} motivo @param {string} oque */
-const mensagemDoDecimal = (motivo, oque) =>
-  motivo === 'vazio'
-    ? `Informe ${oque}.`
-    : motivo === 'casas'
-      ? `Use no máximo ${oque === 'o valor unitário' ? LIMITES_VALOR_UNITARIO_ITEM.casas : LIMITES_QUANTIDADE_ITEM.casas} casas decimais.`
-      : motivo === 'limite'
-        ? `${oque === 'o valor unitário' ? 'Valor unitário' : 'Quantidade'} acima do limite permitido.`
-        : `${oque === 'o valor unitário' ? 'Valor unitário' : 'Quantidade'} inválido(a): use o formato 1.234,5.`;
+/** Como cada decimal do item é chamado nas mensagens, e os limites dele. */
+const DECIMAIS_DO_ITEM = Object.freeze({
+  quantidade: { oque: 'a quantidade', nome: 'Quantidade', limites: LIMITES_QUANTIDADE_ITEM },
+  valor_unitario: { oque: 'o valor unitário', nome: 'Valor unitário', limites: LIMITES_VALOR_UNITARIO_ITEM },
+});
+
+/** Texto da leitura recusada de um decimal do item. @param {string} motivo @param {'quantidade'|'valor_unitario'} campo */
+const mensagemDoDecimal = (motivo, campo) => {
+  const d = DECIMAIS_DO_ITEM[campo];
+  if (motivo === 'vazio') return `Informe ${d.oque}.`;
+  if (motivo === 'casas') return `Use no máximo ${d.limites.casas} casas decimais.`;
+  if (motivo === 'limite') return `${d.nome} acima do limite permitido.`;
+  return `${d.nome} em formato inválido: use 1.234,5.`;
+};
 
 /**
  * Total do item de SERVIÇO/OUTRO = quantidade × valor unitário, arredondado
@@ -556,7 +566,7 @@ export const validarItem = (item, { unidade = null, disponivel = null } = {}) =>
     return { erros, aviso };
   }
   const q = lerNumeroLocal(texto(item.quantidade), LOCALE_APONTAMENTO, LIMITES_QUANTIDADE_ITEM);
-  if (!q.ok) erros.quantidade = mensagemDoDecimal(String(q.motivo), 'a quantidade');
+  if (!q.ok) erros.quantidade = mensagemDoDecimal(String(q.motivo), 'quantidade');
   else if (!ehPositivo(/** @type {string} */ (q.valor))) erros.quantidade = 'Informe uma quantidade maior que zero.';
   if (tipo === ITEM_PRODUTO) {
     const efetiva = unidadeDoItem(unidade ?? item.produto?.unidade_principal_estoque ?? null);
@@ -571,9 +581,9 @@ export const validarItem = (item, { unidade = null, disponivel = null } = {}) =>
   const descricao = texto(item.descricao);
   if (!descricao) erros.descricao = 'Descreva o item.';
   else if ([...descricao].length > MAX_DESCRICAO_ITEM) erros.descricao = `No máximo ${MAX_DESCRICAO_ITEM} caracteres.`;
-  else if (RE_TEXTO_INVALIDO.test(String(item.descricao))) erros.descricao = 'A descrição não aceita os caracteres < e > nem quebra de linha.';
+  else if (temCaractereInvalido(String(item.descricao))) erros.descricao = 'A descrição não aceita os caracteres < e > nem quebra de linha.';
   const vu = lerNumeroLocal(texto(item.valor_unitario), LOCALE_APONTAMENTO, LIMITES_VALOR_UNITARIO_ITEM);
-  if (!vu.ok) erros.valor_unitario = mensagemDoDecimal(String(vu.motivo), 'o valor unitário');
+  if (!vu.ok) erros.valor_unitario = mensagemDoDecimal(String(vu.motivo), 'valor_unitario');
   if (!erros.quantidade && !erros.valor_unitario && q.ok && vu.ok) {
     const total = totalDoItem(q.valor, vu.valor);
     if (!total || !ehPositivo(total)) erros.valor_unitario = 'O total do item (quantidade × valor unitário) deu zero: informe um valor maior.';
