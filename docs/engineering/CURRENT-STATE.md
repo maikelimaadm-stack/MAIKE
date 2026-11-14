@@ -14,9 +14,9 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-185** |
-| Branch / PR | `claude/maike-estoque-p1-03-indices`, PR #263 em DRAFT. Main integrada: `cf07309c` (R2) |
+| Branch / PR | `claude/maike-estoque-p1-03-indices`, PR #263. Main integrada: `b46bb184` (R3) |
 | Escopo | Migration `20261113300000_estoque_p1_03_indices` (EXPAND; SHA-256 `5d91e751…28565`): LC-2 `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)` e keyset `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`. R2-2 **não** criado: não há consulta que o use (D-PROD-185 item 2). Repositório: 42 → **43** migrations |
-| Release | **Não aplicada.** GO-1 #1 (2026-11-13) encerrado: produção estava com a CADESTACOES fora do repositório. A R2 corrigiu o preflight, que agora confere a base da release: 44 migrations, `SEGUIR` com 44, `JA_APLICADA` com 45. **Novo GO-1 e GO-2 pendentes**; merge só depois do postcheck. Runbook: [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md) |
+| Release | **Não aplicada.** GO-1 #1 e #2 pararam no preflight: havia migrations de outras PRs aplicadas antes do merge. Base da release agora: 46 (main `b46bb184` + Apontamento, PR #269). Caminho B com envelope de guardas ensaiado localmente (runbook §4.5); a aplicação espera o GO do proprietário e o merge vem depois do postcheck. Runbook: [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md) |
 | R2-2 | Adiamento **aprovado** pelo proprietário até o slice da consulta de auditoria por produto. M7 parcial: LC-2 e keyset prontos |
 | Pendência herdada | I2 da P1-02 (D-PROD-184), decisão do proprietário |
 | Relatório | [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md) |

@@ -59,6 +59,19 @@ const BASE_RELEASE = (() => {
  */
 const soCom = (nomes) => pastaReal(readdirSync(join(RAIZ, 'backend', 'prisma', 'migrations'), { withFileTypes: true })
   .filter((d) => d.isDirectory() && !nomes.includes(d.name)).map((d) => d.name));
+/**
+ * Migrations da base que produção já tem e que ainda NÃO estão na pasta do repositório (aplicadas antes do merge da
+ * PR delas). Hoje: a do Apontamento (PR #269, D-PROD-190). Quando a PR entrar na main, o nome passa a ter pasta e
+ * deixa de ser registrado à mão (registrarForaDoRepo só registra o que não tem pasta).
+ */
+const FORA_DO_REPO = ['20261113700000_apontamento_atividade'];
+const registrarForaDoRepo = async (db) => {
+  const pasta = new Set(readdirSync(join(RAIZ, 'backend', 'prisma', 'migrations')));
+  for (const n of FORA_DO_REPO.filter((x) => BASE_RELEASE.includes(x) && !pasta.has(x))) {
+    await db.$executeRawUnsafe(
+      `INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, started_at, applied_steps_count) VALUES (gen_random_uuid()::text, 'x', now(), '${n}', now(), 1)`);
+  }
+};
 let base;
 /** @type {PrismaClient} */
 let admin;
@@ -137,6 +150,7 @@ describe('Preflight fail-closed com as migrations reais', () => {
     const db = new PrismaClient({ datasourceUrl: url, log: [] });
     try {
       assert.equal((await deploy(semP103, url)).status, 0, 'a main antes da P1-03 sobe');
+      await registrarForaDoRepo(db);
       let v = await preflight(db);
       assert.equal(v['veredito.estado'], 'SEGUIR', JSON.stringify(v));
       assert.deepEqual([v['indice.novos_ja_existem'], v['migration.falhadas_pendentes'], v['migration.contract_d_prod_183_aplicada']], ['0', '0', 'SIM']);
@@ -280,13 +294,16 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
   test('PB a lista base_release do preflight é a base desta release: nomes reais da pasta, sem repetição, sem a P1-03, com as aplicadas antes dela', () => {
     assert.ok(BASE_RELEASE.length > 0, 'o preflight declara a CTE base_release(nome)');
     const pasta = new Set(readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name));
-    for (const n of BASE_RELEASE) assert.ok(pasta.has(n), `nome da lista sem pasta: ${n}`);
+    for (const n of BASE_RELEASE) assert.ok(pasta.has(n) || FORA_DO_REPO.includes(n), `nome da lista sem pasta e fora de FORA_DO_REPO: ${n}`);
     assert.equal(new Set(BASE_RELEASE).size, BASE_RELEASE.length, 'sem nome repetido');
     assert.ok(!BASE_RELEASE.includes(NOME_P103), 'a P1-03 não é base');
-    for (const n of ['20261113200000_tipo_tarefa_drop_colunas', NOME_CAD, NOME_CURVA]) assert.ok(BASE_RELEASE.includes(n), n);
-    // Base congelada da main cf07309c: 44. Migration de outra release não entra; em produção, ela dá PARAR (PH).
+    for (const n of ['20261113200000_tipo_tarefa_drop_colunas', NOME_CAD, NOME_CURVA, '20261113500000_categoria_manejo_cadcategoria', ...FORA_DO_REPO]) {
+      assert.ok(BASE_RELEASE.includes(n), n);
+    }
+    // Base congelada: as 45 da main b46bb184 + a do Apontamento (PR #269) = 46. Migration de outra release não entra;
+    // em produção, ela dá PARAR (PH).
     // A lista não é comparada com a pasta inteira de propósito: a main vai ganhar migrations depois desta PR.
-    assert.equal(BASE_RELEASE.length, 44);
+    assert.equal(BASE_RELEASE.length, 46);
   });
 
   test('PH antes → SEGUIR (a base); CADESTACOES ausente, migration extra, nome duplicado, falhada → PARAR; depois → JA_APLICADA (base + 1, P1-03 última); extra depois → PARAR', async () => {
@@ -306,6 +323,7 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
     try {
       // estado de produção antes do GO-2: a base inteira concluída (a CADCURVAGANHO por último)
       assert.equal((await deploy(semP103, url)).status, 0);
+      await registrarForaDoRepo(db);
       let v = await preflight(db);
       assert.deepEqual(
         [v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['migration.desconhecidas'], v['migration.ultima'], v['veredito.estado']],
@@ -313,6 +331,7 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
 
       // base sem a CADESTACOES: N-1 concluídas → PARAR (contagem sozinha não basta: falta um nome da base)
       assert.equal((await deploy(semP103SemCad, urlSemCad)).status, 0);
+      await registrarForaDoRepo(dbSemCad);
       v = await preflight(dbSemCad);
       assert.deepEqual([v['migration.concluidas'], v['migration.cadestacoes_aplicada'], v['migration.base_ausentes'], v['veredito.estado']], [`${N - 1}`, 'NAO', '1', 'PARAR'], 'CADESTACOES ausente');
 
@@ -368,6 +387,7 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
     const N2 = 'MovimentacaoEstoque_keyset_empresa_idx';
     try {
       assert.equal((await deploy(baseEP103, urlDepois)).status, 0);
+      await registrarForaDoRepo(dbD);
       assert.equal((await preflight(dbD))['veredito.estado'], 'JA_APLICADA');
       // cópia homônima do LC-2 em outro schema (sobra de restore): o estado legítimo continua JA_APLICADA
       await dbD.$executeRawUnsafe('CREATE SCHEMA bkp');
@@ -383,6 +403,7 @@ describe('Preflight: histórico conferido contra a base da release (R2)', () => 
 
       // antes do GO-2: índice INVÁLIDO numa tabela homônima de outro schema não é das 2 tabelas → SEGUIR
       assert.equal((await deploy(soBase, urlAntes)).status, 0);
+      await registrarForaDoRepo(dbA);
       await dbA.$executeRawUnsafe('CREATE SCHEMA bkp');
       await dbA.$executeRawUnsafe('CREATE TABLE bkp."MovimentacaoEstoque" (a int)');
       await dbA.$executeRawUnsafe('INSERT INTO bkp."MovimentacaoEstoque" VALUES (1), (1)');

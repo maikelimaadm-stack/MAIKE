@@ -258,6 +258,15 @@ O revisor também confirmou localmente que a recuperação do §6 vale no Prisma
 
 **I2:** pendente, fora desta PR.
 
+## 11. R3 — main b46bb184, base de 46 e caminho B ensaiado
+
+- **GO-1 #2 (2026-11-14):** o preflight R2 deu `PARAR` com 45 concluídas. A desconhecida era a `20261113700000_apontamento_atividade` (PR #269), aplicada em produção antes do merge. O GO-1 foi interrompido sem `--verificar-alvo`; foi 1 leitura e 0 escrita.
+- **Main integrada:** `b46bb184`, com a PR #268 (CONTRACT D-PROD-187, `…500000`) e a PR #267.
+  - Conflitos só nas contagens dos ensaios das CONTRACT.
+  - O ensaio novo da #268 passou a contar pela pasta (antes tinha 44/45 fixos).
+- **Base da release:** 46 nomes, que são as 45 pastas da main sem a P1-03 mais a do Apontamento, ainda sem pasta (`FORA_DO_REPO` nos testes, registrada no ledger do banco de teste). O X5 espera `PARAR` enquanto a base não estiver completa no banco da suíte.
+- **Caminho B:** envelope gerado das peças versionadas e ensaiado num banco local idêntico ao estado de produção (runbook §4.5). Nada foi aplicado em produção sem o GO do proprietário.
+
 ## 8. Bandeiras
 
 ```

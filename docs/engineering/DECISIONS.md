@@ -6736,6 +6736,11 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - **R2-2:** o proprietário **aprovou o adiamento** até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** foi criado; o M7 segue parcial, com LC-2 e keyset prontos.
 - **I2** da P1-02 segue pendente, fora daqui.
 
+**Nota posterior (R3 da PR #263, 2026-11-14).**
+- O GO-1 #2 parou corretamente: o preflight deu `PARAR` porque a produção tinha a migration do Apontamento (PR #269, D-PROD-190) fora da base.
+- Com a main `b46bb184` integrada, a base da release passa a 46: as 45 pastas da main sem a P1-03, mais a do Apontamento, aplicada antes do merge da PR dela.
+- A aplicação, se autorizada, vai pelo caminho B (exceção à D-PROD-74, só com GO escrito do proprietário). O envelope tem guarda de conjunto exato e foi ensaiado localmente (runbook §4.5).
+
 **Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
 
 ## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)

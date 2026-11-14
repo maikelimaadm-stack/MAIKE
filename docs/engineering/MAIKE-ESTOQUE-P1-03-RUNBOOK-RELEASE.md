@@ -105,7 +105,7 @@ Arquivo: `scripts/ops/sql-editor/estoque-p1-03-preflight-indices-somente-leitura
 | `indice.nomes_ocupados_qualquer_tipo` | `0` | PARAR: outra relação (tabela, view, sequência…) com um dos 2 nomes faria o `CREATE INDEX` falhar (42P07) |
 | `indice.definicoes_exatas_validas` | `0` (postcheck: `2`) | No postcheck, qualquer valor ≠ 2 é PARAR |
 | `indice.invalidos_nas_2_tabelas` | `0` | PARAR |
-| `migration.concluidas` | `44` (postcheck: `45`) | PARAR e conferir com `--verificar-alvo` |
+| `migration.concluidas` | `46` (postcheck: `47`) | PARAR e conferir com `--verificar-alvo` |
 | `migration.base_ausentes` | `0` | PARAR: falta migration da base da release em produção |
 | `migration.desconhecidas` / `desconhecidas_nomes` | `0` / `-` | PARAR: migration fora da base desta release (outra release aplicada antes). A PR precisa integrar a main e refazer a lista |
 | `migration.duplicadas` | `0` | PARAR: mesmo nome concluído mais de uma vez |
@@ -172,6 +172,145 @@ A P1-03 (`20261113300000`) tem carimbo **anterior** ao da CADESTACOES (`20261113
    - Não repetir `--aplicar`: com migration `failed` pendente, todo deploy seguinte recusa com **P3009**. O deploy que falhou terá saído com P3018.
    - Não rodar `migrate resolve`, `DROP INDEX` nem SQL de correção.
    - Rodar o preflight (só leitura) e levar a saída ao proprietário (§6).
+
+### 4.5 Caminho B — conector Supabase, uma transação (R3)
+
+O runner protegido não está configurado no ambiente desta sessão (`MIGRATION_DATABASE_URL` ausente). Como nas releases da CADESTACOES, da CADCURVAGANHO, do Apontamento e da CADCATEGORIA, a alternativa é o caminho B. Ele é **exceção à D-PROD-74** e só roda com o GO escrito do proprietário para esta migration.
+
+**Base de produção (R3):** 46 concluídas.
+- São as 45 pastas da main `b46bb184` sem a P1-03, mais a `20261113700000_apontamento_atividade` (D-PROD-190, PR #269).
+- A do Apontamento foi aplicada em produção antes do merge da PR dela; checksum `a9735833…5e`, igual ao do manifesto da branch dela.
+- A `base_release` do preflight lista as 46. Os testes registram a do Apontamento no ledger enquanto ela não tiver pasta.
+
+**Envelope:**
+- É gerado só das peças versionadas: a lista `base_release` do preflight, o `migration.sql` íntegro (sha256 `5d91e751…28565`) e o checksum pinado no manifesto. Ninguém o digita.
+- sha256 do envelope de produção: `7d3eddd83a34c3665e01f74f88257f0d6bce63f25fe904361bcf1ecd27a4ea1a`.
+- Guardas:
+  - `system_identifier` de produção;
+  - P1-03 ainda não registrada;
+  - **conjunto exato** das 46 concluídas, sem falhada nem revertida e sem nenhuma a mais;
+  - nenhum dos 2 nomes ocupado.
+- Proteções: `lock_timeout` 5s e `statement_timeout` 60s, ambos `SET LOCAL`, e a trava consultiva 72707369, a mesma do `prisma migrate`.
+
+**Ensaio local** (PG17; banco com as 45 pastas sem a P1-03 + o `migration.sql` real do Apontamento; envelope enviado como uma única mensagem, como faz o conector):
+- preflight `SEGUIR` com 46 → envelope aplica → preflight `JA_APLICADA` com 47, a P1-03 por último, 2 definições exatas;
+- 2ª execução: `RELEASE_BLOCKED: migration já registrada`;
+- envelope com o `system_identifier` de produção num banco local: `RELEASE_BLOCKED: alvo divergente`, nada mudou;
+- com uma migration a mais no histórico (por exemplo a CONTRACT da PR #273): `RELEASE_BLOCKED: histórico fora da base (… sobram 20261114100000_cadcurvaganho_mensal)`, nada mudou.
+
+**Ordem no GO:** preflight (só leitura) = `SEGUIR` → envelope → preflight = `JA_APLICADA` e §5 → merge.
+
+```sql
+-- MAIKE · P1-03 (D-PROD-185) · CAMINHO B — uma transação, com guardas. Gerado de: preflight (base_release, 46),
+-- backend/prisma/migrations/20261113300000_estoque_p1_03_indices/migration.sql (sha256 5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565) e manifesto.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+SELECT pg_advisory_xact_lock(72707369);  -- a mesma trava do prisma migrate (D-PROD-75)
+CREATE TEMP TABLE p103_base_release (nome text PRIMARY KEY) ON COMMIT DROP;
+INSERT INTO p103_base_release (nome) VALUES
+    ('20260908174141_p3_foundation'),
+    ('20260909112833_p4_1_setor_native'),
+    ('20260909201703_p4_1_r2_setor_tipo_default'),
+    ('20260910190000_p4_2_area_pastagem_native'),
+    ('20261023180000_p4_3_map_geography_native'),
+    ('20261023210000_p6_1_login_global_hygiene'),
+    ('20261027140000_p4_marcas_native'),
+    ('20261027180000_p4_5_unidade_medida_native'),
+    ('20261027190000_p5_grupo_tipo_tarefa_native'),
+    ('20261027200000_p51_lote_native'),
+    ('20261027210000_p52_categoria_local_produto_native'),
+    ('20261027220000_p53_lancamento_tarefa_native'),
+    ('20261027230000_p54_base44_exit_movimentacao'),
+    ('20261028120000_p55_base44_exit_final'),
+    ('20261028200000_p54_marca_list_keyset_indexes'),
+    ('20261028210000_empresa_numero_empresa'),
+    ('20261028230000_operacao_idempotente'),
+    ('20261028240000_p8_supabase_public_revoke_rls'),
+    ('20261028250000_catalogo_global_slice1'),
+    ('20261028250100_catalogo_global_slice1_schema_fix'),
+    ('20261028250200_catalogo_global_slice1_r1_assets'),
+    ('20261029100000_scale01_usuario_keyset_index'),
+    ('20261029200000_categoria_manejo_vinculo_catalogo'),
+    ('20261029300000_admin_principal_maike'),
+    ('20261029400000_usuario_papel_tenant'),
+    ('20261030100000_icone_url_text'),
+    ('20261101100000_lote_exclusao_logica'),
+    ('20261102200000_rebanho_ledger_posicoes'),
+    ('20261103100000_rebanho_ledger_r1_manejos'),
+    ('20261104200000_empresa_fuso_horario'),
+    ('20261106200000_s04_p1_sessao_epoca'),
+    ('20261107200000_s04_p2_troca_senha_inicial'),
+    ('20261107300000_gestao_p1_centros_custo_resultado'),
+    ('20261108100000_gestao_p2_naturezas_financeiras'),
+    ('20261109100000_gestao_p3_01_central_lancamentos'),
+    ('20261109200000_gestao_p3_02_rateio_por_item'),
+    ('20261109300000_gestao_p3_03_editar_excluir'),
+    ('20261110100000_patrimonio_p1_01_cadastros'),
+    ('20261110200000_patrimonio_p1_02_abastecimentos'),
+    ('20261110300000_patrimonio_simplifica'),
+    ('20261113100000_tipo_atividade_cadastro'),
+    ('20261113200000_tipo_tarefa_drop_colunas'),
+    ('20261113400000_cadestacoes_cadastro'),
+    ('20261113500000_categoria_manejo_cadcategoria'),
+    ('20261113600000_cadcurvaganho_cadastro'),
+    ('20261113700000_apontamento_atividade');
+DO $guarda$
+DECLARE n_ok int; n_ruim int; faltam text; sobram text;
+BEGIN
+  IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
+  END IF;
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261113300000_estoque_p1_03_indices') THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
+  END IF;
+  SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
+         count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
+    INTO n_ok, n_ruim FROM _prisma_migrations;
+  SELECT string_agg(b.nome, ', ') INTO faltam FROM p103_base_release b WHERE NOT EXISTS (
+    SELECT 1 FROM _prisma_migrations m WHERE m.migration_name = b.nome AND m.finished_at IS NOT NULL AND m.rolled_back_at IS NULL);
+  SELECT string_agg(DISTINCT m.migration_name, ', ') INTO sobram FROM _prisma_migrations m
+   WHERE m.rolled_back_at IS NULL AND m.migration_name NOT IN (SELECT nome FROM p103_base_release);
+  IF n_ok <> 46 OR n_ruim <> 0 OR faltam IS NOT NULL OR sobram IS NOT NULL THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: histórico fora da base (concluídas %, falha/revertida %, faltam %, sobram %)', n_ok, n_ruim, faltam, sobram;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'
+       AND c.relname IN ('OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx', 'MovimentacaoEstoque_keyset_empresa_idx')) THEN
+    RAISE EXCEPTION 'RELEASE_BLOCKED: nome de índice já ocupado';
+  END IF;
+END $guarda$;
+
+-- >>> migration.sql integral (sem edição) >>>
+-- MAIKE-ESTOQUE-P1-03 (contrato do Estoque P1, M7) — índices EXPAND-ONLY.
+--
+-- Só CREATE INDEX não-único em tabelas existentes, tenant primeiro (R10).
+-- Nenhuma tabela, coluna, constraint, dado, função, gatilho, RLS ou GRANT muda.
+-- Sem CONCURRENTLY (o classificador da release não aceita). O Prisma aplica o
+-- arquivo numa transação só: o 1º CREATE INDEX toma SHARE LOCK em
+-- "OperacaoIdempotente", o 2º em "MovimentacaoEstoque", e os dois só saem no
+-- COMMIT. Leituras seguem; ESCRITAS nas DUAS tabelas esperam até o fim da
+-- migration inteira (os dois builds somados, mais qualquer espera pela trava da
+-- 2ª tabela). Ordem recibos → movimentos: a mesma dos comandos (o recibo é a
+-- 1ª escrita), para não formar ciclo de espera. Janela e tempo: runbook
+-- MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md.
+--
+-- 1. LC-2: recibos de comando de estoque por tipo dentro de intervalos de
+--    `createdAt` (reconciliação: tipo_operacao = ANY(...) AND createdAt entre
+--    ini e fim). Antes só havia (cliente_id, createdAt): o intervalo inteiro,
+--    de qualquer tipo, era lido e filtrado.
+CREATE INDEX "OperacaoIdempotente_cliente_id_tipo_operacao_createdAt_idx" ON "OperacaoIdempotente"("cliente_id", "tipo_operacao", "createdAt");
+
+-- 2. Keyset da futura central de movimentos (P1-04): empresa obrigatória,
+--    cursor (data_movimentacao, id), ordem DESC/DESC.
+CREATE INDEX "MovimentacaoEstoque_keyset_empresa_idx" ON "MovimentacaoEstoque"("cliente_id", "empresa_id", "data_movimentacao" DESC, "id" DESC);
+-- <<< fim do migration.sql <<<
+
+INSERT INTO _prisma_migrations
+  (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+VALUES (gen_random_uuid()::text, '5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565', now(),
+        '20261113300000_estoque_p1_03_indices', NULL, NULL, now(), 1);
+COMMIT;
+```
 
 ## 5. Postcheck (só leitura, antes do merge)
 
