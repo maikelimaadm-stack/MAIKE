@@ -1,4 +1,5 @@
 import React from "react";
+import "@/styles/acoes-lote-modulos.css";
 import { createPortal } from "react-dom";
 import { ChevronDown, LayoutGrid } from "lucide-react";
 import { useMediaQuery } from "@/components/common/MobileSheet";
@@ -27,14 +28,14 @@ export default function AcoesDoLote({ grupos }) {
   };
 
   const conteudo = (
-    <div className="mk-al__grupos">
+    <div className="mk-al__grupos mk-acoes-modulos">
       {visiveis.map((g) => (
         <section key={g.titulo} className="mk-al__grupo" aria-label={g.titulo}>
           <h3 className="mk-al__grupo-titulo">{g.titulo}</h3>
           <div className="mk-al__quadros">
             {g.itens.map(({ nome, rotulo, Icone, onClick, disabled = false, motivoBloqueio }) => (
               <button key={nome} type="button" className="mk-al__quadro" disabled={disabled} onClick={() => { if (!disabled) escolher(onClick); }} aria-label={rotulo || nome} title={disabled && motivoBloqueio ? motivoBloqueio : rotulo || nome}>
-                <Icone aria-hidden />
+                <span className="mk-al__icone" aria-hidden="true"><Icone /></span>
                 <span>{nome}</span>
               </button>
             ))}

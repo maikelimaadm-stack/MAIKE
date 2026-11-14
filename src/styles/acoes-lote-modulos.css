@@ -1,0 +1,91 @@
+/* Ações de lote: mesma hierarquia dos módulos, sem mudar a navegação.
+   Escopo próprio vence as antigas regras horizontais do mapa e dos detalhes. */
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(104px, 100%), 1fr));
+  gap: 8px;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 100px;
+  padding: 12px 8px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+  color: #334155;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:not(#mk-padrao) {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e7eef2;
+  border-radius: 11px;
+  background: #f5f9fb;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone :is(svg, img):not(#mk-padrao) {
+  display: block;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  margin: 0;
+  object-fit: contain;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+@media (hover: hover) {
+  .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):focus-visible {
+  outline: 2px solid #15803d !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):active:not(:disabled) {
+  background: #f0f7f4;
+  transform: none;
+}
+.mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao):disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}
+@media (max-width: 639px) {
+  .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 359px) {
+  .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+    font-size: 11px;
+  }
+}
