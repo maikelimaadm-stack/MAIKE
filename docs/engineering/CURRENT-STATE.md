@@ -74,7 +74,7 @@ rollout pausado **D-PROD-41**)
 | Migration | `20261114200000_cadcategoria_curva_ganho`, **CONTRACT** (liga as 10 categorias à CURVA PADRÃO da fazenda e torna o campo obrigatório). SHA-256 `b509ee754722f5e9f70938f2c17ddbe253734c7c86e0aecb55498a37d44e68fb`; guarda `292d2446…63a8`. Repositório e produção: 49 → **50** migrations; tabelas iguais. **Aplicada em produção em 2026-11-14 14:51:56 UTC** (caminho B, GO escrito do proprietário, desvio da D-PROD-74), conferida: 50/0, coluna `NOT NULL`, 10 categorias na CURVA PADRÃO, FK e índices, advisors sem alerta |
 | Release | Aplicação **antes do merge** pelo runbook; merge logo depois da conferência (na janela, criar categoria falha e excluir curva em uso dá 403 em vez de 409; nada se perde) |
 | Merge | PR #278 em 2026-11-14 (`890eaff6`); produção com o `release` novo, smoke 401 nas duas rotas |
-| Emenda R2 | Fila offline: nenhum item vai ao servidor com id `offline_…` sem mapeamento; criação retida some das listas; `criacao: 'somente_online'` no runtime. Só frontend, PR própria |
+| Emenda R2 | Fila offline: nenhum item vai ao servidor citando uma criação retida pela política (lote criado offline fica retido junto; edição de registro real vai sem o campo); os demais ids offline seguem como antes; a criação retida some das listas; `criacao: 'somente_online'` no runtime. Só frontend, PR própria |
 | Relatório | [`MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md`](./MAIKE-CADCATEGORIA-CURVA-GANHO-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-CADCURVAGANHO-MENSAL: Curva de Ganho com 12 GMD mensais, sem ligação com as Estações (D-PROD-194)

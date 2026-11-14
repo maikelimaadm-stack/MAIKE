@@ -2,7 +2,7 @@
  * D-PROD-195 — criar Categoria de Manejo é SÓ ONLINE.
  *
  * A curva de ganho é obrigatória e as opções vêm do servidor. Por isso a porta
- * monta o adaptador offline SEM `create`:
+ * monta o adaptador offline com `criacao: 'somente_online'` (D-PROD-195 R2):
  *  (a) a criação vai direto ao servidor, mesmo sem conexão (nada entra na fila
  *      prometendo uma gravação que o servidor recusaria);
  *  (b) um POST gravado na fila pela versão anterior (sem `curva_ganho_id`) fica

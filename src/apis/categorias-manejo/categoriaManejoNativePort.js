@@ -124,9 +124,10 @@ export const listarOpcoesCurvasGanho = (empresaId) =>
  *  - um POST gravado na fila pela versão anterior (sem `curva_ganho_id`, que o
  *    servidor recusa com `curva_obrigatoria`) fica RETIDO no replay
  *    (`OFFLINE_ENTITY_UNSUPPORTED`), sem ser enviado nem apagado, e não aparece
- *    nas listas; um lote (ou edição) da fila que aponte para essa categoria
- *    também fica retido, em vez de ir ao servidor com o id offline; o resto da
- *    fila segue.
+ *    nas listas; um lote criado offline que aponte para essa categoria fica
+ *    retido junto (em qualquer ordem da fila), e a edição de um lote real que
+ *    a cite vai sem esse campo — nada vai ao servidor com o id offline; o resto
+ *    da fila segue.
  * Listar, editar e excluir seguem com o comportamento offline de sempre.
  */
 export const categoriaManejoPort = offlineStorageDisponivel()

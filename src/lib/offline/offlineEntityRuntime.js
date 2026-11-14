@@ -457,8 +457,9 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
  *        "fila" (padrão): offline cria com id `offline_` e enfileira.
  *        "somente_online": a criação NUNCA passa pela fila — vai direto a
  *        `operations.create` (que falha sem conexão) e, com sucesso, entra no
- *        cache; `create` legado na fila fica RETIDO no replay, some das listas, e
- *        todo item posterior que dependa dele também fica retido.
+ *        cache; `create` legado na fila fica RETIDO no replay e some das listas;
+ *        um `create` que o cite fica retido junto (em qualquer ordem), e a
+ *        edição de um registro real que o cite vai sem esses campos.
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
