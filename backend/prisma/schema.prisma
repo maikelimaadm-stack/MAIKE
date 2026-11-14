@@ -464,6 +464,8 @@ model UnidadeMedida {
   updatedAt      DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  // D-PROD-197 — unidade de produção padrão dos tipos de atividade (RESTRICT).
+  tiposAtividadeProducao TipoAtividade[]
 
   @@unique([cliente_id, numero_unidade])
   @@unique([cliente_id, id])
@@ -534,8 +536,14 @@ model TipoTarefa {
 // TipoAtividade — cadastro de tipos de atividade (D-PROD-182).
 //
 // Mesmo molde do TipoTarefa (FK composta para GrupoAtividade, cache
-// `grupo_atividade_nome` derivado do grupo na escrita), SEM flags
-// exige_area/pode_ter_* e sem dependentes.
+// `grupo_atividade_nome` derivado do grupo na escrita).
+//
+// D-PROD-197 (Fatia 1 do Lançamento de Atividades): o tipo ganha os PADRÕES
+// (categoria, centro de custo, centro de resultado, unidade de produção de
+// UnidadeMedida e coeficiente) e as 8 flags de como a atividade funciona. As
+// flags são do TIPO DE ATIVIDADE, nunca do TipoTarefa (D-PROD-181/183). Os
+// centros são por empresa e o tipo é por cliente: a FK composta (cliente_id, …)
+// prende o tenant; o padrão só vale numa atividade da MESMA empresa do centro.
 // ---------------------------------------------------------------------------
 model TipoAtividade {
   id                   String   @id @default(cuid())
@@ -545,11 +553,30 @@ model TipoAtividade {
   grupo_atividade_nome String   @db.VarChar(255)
   ativo                Boolean  @default(true)
   descricao            String?  @db.VarChar(2000)
+  // D-PROD-197 — padrões do tipo (snapshot na atividade, nunca relidos depois).
+  categoria                  String?  @db.VarChar(24)
+  centro_custo_padrao_id     String?  @db.VarChar(64)
+  centro_resultado_padrao_id String?  @db.VarChar(64)
+  unidade_producao_id        String?  @db.VarChar(64)
+  coeficiente_padrao         Decimal? @db.Decimal(14, 4)
+  // D-PROD-197 — como a atividade deste tipo funciona.
+  exige_area                 Boolean  @default(false)
+  exige_safra                Boolean  @default(false)
+  exige_maquina              Boolean  @default(false)
+  permite_implemento         Boolean  @default(false)
+  permite_produto            Boolean  @default(false)
+  permite_servico            Boolean  @default(false)
+  permite_mao_obra           Boolean  @default(false)
+  exige_producao             Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   cliente      Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   grupo        GrupoAtividade         @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  // D-PROD-197 — FKs compostas pelo tenant; RESTRICT barra apagar o cadastro usado como padrão.
+  centroCustoPadrao     CentroCusto?     @relation(fields: [cliente_id, centro_custo_padrao_id], references: [cliente_id, id], onDelete: Restrict)
+  centroResultadoPadrao CentroResultado? @relation(fields: [cliente_id, centro_resultado_padrao_id], references: [cliente_id, id], onDelete: Restrict)
+  unidadeProducao       UnidadeMedida?   @relation(fields: [cliente_id, unidade_producao_id], references: [cliente_id, id], onDelete: Restrict)
   // D-PROD-190 — execuções deste tipo (a FK RESTRICT barra a exclusão do tipo usado).
   apontamentos ApontamentoAtividade[]
 
@@ -557,6 +584,9 @@ model TipoAtividade {
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])
   @@index([cliente_id, grupo_atividade_id])
   @@index([cliente_id, ativo])
+  @@index([cliente_id, centro_custo_padrao_id])
+  @@index([cliente_id, centro_resultado_padrao_id])
+  @@index([cliente_id, unidade_producao_id])
 }
 
 // ---------------------------------------------------------------------------
@@ -2022,6 +2052,8 @@ model CentroCusto {
   bensPatrimoniais BemPatrimonial[]
   // D-PROD-190 — snapshot do centro de custo no apontamento de atividade.
   apontamentosAtividade ApontamentoAtividade[]
+  // D-PROD-197 — centro de custo padrão dos tipos de atividade.
+  tiposAtividadePadrao  TipoAtividade[]
 
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
@@ -2056,6 +2088,8 @@ model CentroResultado {
   rateiosItensFinanceiros OperacaoFinanceiraItemRateio[]
   // D-PROD-190 — centro de resultado informado no apontamento de atividade.
   apontamentosAtividade ApontamentoAtividade[]
+  // D-PROD-197 — centro de resultado padrão dos tipos de atividade.
+  tiposAtividadePadrao  TipoAtividade[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])

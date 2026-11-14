@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 /**
  * Gate: GrupoAtividade + TipoTarefa nativos (P5.0, D-PROD-45) e TipoAtividade
- * nativo (D-PROD-182: model, migration, porta e rotas; SEM flags exige_area/pode_ter_*).
+ * nativo (D-PROD-182: model, migration, porta e rotas).
+ *
+ * D-PROD-197 revê a D-PROD-182 só no ponto "TipoAtividade sem flags": o
+ * TipoAtividade passa a TER as 8 flags de como a atividade funciona (`Boolean
+ * @default(false)` no model, `BOOLEAN NOT NULL DEFAULT false` na migration, nas
+ * rotas e na porta) e continua SEM os nomes que o TipoTarefa aposentou
+ * (`pode_ter_produto`, `pode_ter_maquina`, `pode_ter_implemento`): nem no model,
+ * nem em migration, nem no código da porta ou das rotas (lá eles caem no
+ * `additionalProperties: false`, 400). O TipoTarefa não ganha flag nenhuma: nem
+ * as 4 que saíram (D-PROD-181/183) nem as 8 do TipoAtividade.
  */
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -18,8 +27,17 @@ const PORTA_GRUPO = 'src/apis/tarefas/grupoAtividadeNativePort.js';
 const PORTA_TIPO = 'src/apis/tarefas/tipoTarefaNativePort.js';
 const PORTA_TIPO_ATIVIDADE = 'src/apis/atividades/tipoAtividadePort.js';
 const ROTAS_TIPO_ATIVIDADE = 'backend/src/modules/tiposAtividade/tipoAtividadeRoutes.js';
-/** D-PROD-182: TipoAtividade nasce sem as flags que o TipoTarefa aposentou (D-PROD-181). */
-const FLAGS_PROIBIDAS = ['exige_area', 'pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento'];
+/** D-PROD-197 (contrato §3.5): o módulo puro com FLAGS_TIPO_ATIVIDADE, de onde as rotas tiram as 8 flags. */
+const PADROES_TIPO_ATIVIDADE = 'backend/src/modules/tiposAtividade/tipoAtividadePadroes.js';
+/** D-PROD-181: nomes aposentados no TipoTarefa; no TipoAtividade continuam proibidos (D-PROD-197). */
+const FLAGS_APOSENTADAS = Object.freeze(['pode_ter_produto', 'pode_ter_maquina', 'pode_ter_implemento']);
+/** D-PROD-197: as 8 flags do TipoAtividade, nesta ordem. */
+const FLAGS_TIPO_ATIVIDADE = Object.freeze([
+  'exige_area', 'exige_safra', 'exige_maquina', 'permite_implemento',
+  'permite_produto', 'permite_servico', 'permite_mao_obra', 'exige_producao',
+]);
+/** D-PROD-181/183 + D-PROD-197: nada volta ao TipoTarefa — as 4 antigas e as 8 do TipoAtividade (11 nomes). */
+const FLAGS_PROIBIDAS_TIPO_TAREFA = Object.freeze([...new Set(['exige_area', ...FLAGS_APOSENTADAS, ...FLAGS_TIPO_ATIVIDADE])]);
 const MIGRATIONS = 'backend/prisma/migrations';
 
 const falhas = [];
@@ -30,6 +48,8 @@ const existe = (rel) => existsSync(caminho(rel));
 const ler = (rel) => readFileSync(caminho(rel), 'utf8');
 const semComentarios = (fonte) =>
   fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+/** Nome citado como identificador ou string (`campo`, 'campo', "campo", `campo:`), fora de comentário. */
+const cita = (codigo, nome) => new RegExp(`(^|[^A-Za-z0-9_])${nome}([^A-Za-z0-9_]|$)`).test(codigo);
 
 const verificarModel = (nome, uniqueExtra) => {
   const models = lerModels(ler(SCHEMA));
@@ -69,37 +89,106 @@ const verificarMigration = () => {
   }
 };
 
-/** D-PROD-182: TipoAtividade — CREATE TABLE versionado, FK composta para GrupoAtividade e nenhuma flag. */
-const verificarMigrationTipoAtividade = () => {
+/** Todas as migrations versionadas: nome da pasta e instruções (sem comentários, espaços normalizados). */
+const lerMigrations = () => {
   const dir = caminho(MIGRATIONS);
-  const sqls = existsSync(dir)
-    ? readdirSync(dir)
-        .map((nome) => join(dir, nome, 'migration.sql'))
-        .filter((sql) => existsSync(sql))
-        .map((sql) => readFileSync(sql, 'utf8'))
-        .filter((sql) => /CREATE TABLE "TipoAtividade"/.test(sql))
-    : [];
-  if (sqls.length !== 1) {
-    registrar('P50-TAREFA-CADASTRO-MODEL', `esperada exatamente 1 migration versionada com CREATE TABLE "TipoAtividade" (achadas ${sqls.length})`);
-    return;
-  }
-  const sql = sqls[0];
-  if (!/FOREIGN KEY \("cliente_id", "grupo_atividade_id"\) REFERENCES "GrupoAtividade"\("cliente_id", "id"\)/.test(sql)) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((nome) => existsSync(join(dir, nome, 'migration.sql')))
+    .sort()
+    .map((nome) => {
+      const sql = readFileSync(join(dir, nome, 'migration.sql'), 'utf8');
+      const instrucoes = sql.replace(/--[^\n]*/g, '').split(';').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      return { nome, sql, instrucoes };
+    });
+};
+
+/**
+ * TipoAtividade nas migrations: exatamente 1 CREATE TABLE versionado (D-PROD-182), com a FK composta para
+ * GrupoAtividade; nenhuma instrução que crie ou altere TipoAtividade cita um nome aposentado; e as 8 flags entram
+ * como `BOOLEAN NOT NULL DEFAULT false` (D-PROD-197: as linhas que já existiam leem false). Nenhuma migration
+ * acrescenta flag ao TipoTarefa.
+ */
+const verificarMigrationsTipoAtividade = () => {
+  const migrations = lerMigrations();
+  const criacoes = migrations.filter((m) => /CREATE TABLE "TipoAtividade"/.test(m.sql));
+  if (criacoes.length !== 1) {
+    registrar('P50-TAREFA-CADASTRO-MODEL', `esperada exatamente 1 migration versionada com CREATE TABLE "TipoAtividade" (achadas ${criacoes.length})`);
+  } else if (!/FOREIGN KEY \("cliente_id", "grupo_atividade_id"\) REFERENCES "GrupoAtividade"\("cliente_id", "id"\)/.test(criacoes[0].sql)) {
     registrar('P50-TAREFA-CADASTRO-MODEL', 'migration de TipoAtividade sem FK composta (cliente_id, grupo_atividade_id) → GrupoAtividade');
   }
-  for (const flag of FLAGS_PROIBIDAS) {
-    if (sql.includes(`"${flag}"`)) {
-      registrar('P50-TAREFA-CADASTRO-MODEL', `migration de TipoAtividade cria a flag proibida ${flag} (D-PROD-182)`);
+  for (const m of migrations) {
+    for (const st of m.instrucoes) {
+      if (/^(CREATE|ALTER) TABLE "TipoAtividade"/.test(st)) {
+        for (const flag of FLAGS_APOSENTADAS) {
+          if (st.includes(`"${flag}"`)) {
+            registrar('P50-TAREFA-CADASTRO-MODEL', `${m.nome} cria em TipoAtividade o nome aposentado ${flag} (D-PROD-181/D-PROD-197)`);
+          }
+        }
+      }
+      const noTipoTarefa = st.match(/^ALTER TABLE "TipoTarefa" ADD COLUMN "([A-Za-z0-9_]+)"/);
+      if (noTipoTarefa && FLAGS_PROIBIDAS_TIPO_TAREFA.includes(noTipoTarefa[1])) {
+        registrar('P50-TAREFA-CADASTRO-MODEL', `${m.nome} devolve ao TipoTarefa a flag ${noTipoTarefa[1]} (D-PROD-181/D-PROD-183/D-PROD-197)`);
+      }
+    }
+  }
+  for (const flag of FLAGS_TIPO_ATIVIDADE) {
+    const esperado = `ALTER TABLE "TipoAtividade" ADD COLUMN "${flag}" BOOLEAN NOT NULL DEFAULT false`;
+    const achadas = migrations.filter((m) => m.instrucoes.includes(esperado));
+    if (achadas.length !== 1) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `esperada exatamente 1 migration com ${esperado} (achadas ${achadas.length}; D-PROD-197)`);
     }
   }
 };
 
-const verificarModelTipoAtividadeSemFlags = () => {
+/** D-PROD-197: no model, TipoAtividade tem as 8 flags `Boolean @default(false)` e nenhum nome aposentado. */
+const verificarModelTipoAtividadeFlags = () => {
   const model = lerModels(ler(SCHEMA)).find((m) => m.nome === 'TipoAtividade');
   if (!model) return; // verificarModel já registrou a ausência
-  for (const flag of FLAGS_PROIBIDAS) {
+  for (const flag of FLAGS_APOSENTADAS) {
     if (campo(model, flag)) {
-      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade não pode ter a flag ${flag} (D-PROD-182)`);
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade não pode ter o nome aposentado ${flag} (D-PROD-181/D-PROD-197)`);
+    }
+  }
+  for (const flag of FLAGS_TIPO_ATIVIDADE) {
+    const c = campo(model, flag);
+    if (!c) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade sem a flag ${flag} (D-PROD-197)`);
+    } else if (c.tipo !== 'Boolean' || c.opcional || c.lista || !/@default\(\s*false\s*\)/.test(c.atributos)) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoAtividade.${flag} tem de ser Boolean @default(false), obrigatório (D-PROD-197)`);
+    }
+  }
+};
+
+/** D-PROD-181/183 + D-PROD-197: o TipoTarefa não tem flag nenhuma (as 4 antigas nem as 8 do TipoAtividade). */
+const verificarModelTipoTarefaSemFlags = () => {
+  const model = lerModels(ler(SCHEMA)).find((m) => m.nome === 'TipoTarefa');
+  if (!model) return; // verificarModel já registrou a ausência
+  for (const flag of FLAGS_PROIBIDAS_TIPO_TAREFA) {
+    if (campo(model, flag)) {
+      registrar('P50-TAREFA-CADASTRO-MODEL', `TipoTarefa não pode ter a flag ${flag} (D-PROD-181/D-PROD-183/D-PROD-197: as flags são do TipoAtividade)`);
+    }
+  }
+};
+
+/**
+ * D-PROD-197: a porta e as rotas do TipoAtividade levam as 8 flags e não citam nome aposentado no código (comentário
+ * não conta). As rotas podem tirar as 8 de FLAGS_TIPO_ATIVIDADE do módulo puro (contrato §3.5); a porta as lista.
+ */
+const verificarFlagsNaPortaENasRotas = () => {
+  const padroes = existe(PADROES_TIPO_ATIVIDADE) ? semComentarios(ler(PADROES_TIPO_ATIVIDADE)) : '';
+  for (const [rel, codigoFalha] of [[PORTA_TIPO_ATIVIDADE, 'P50-TAREFA-CADASTRO-PORT'], [ROTAS_TIPO_ATIVIDADE, 'P50-TAREFA-CADASTRO-ROUTE']]) {
+    if (!existe(rel)) continue; // verificarPortas/verificarRotas já registraram
+    const codigo = semComentarios(ler(rel));
+    for (const flag of FLAGS_APOSENTADAS) {
+      if (cita(codigo, flag)) {
+        registrar(codigoFalha, `${rel} cita o nome aposentado ${flag}: no TipoAtividade ele é recusado pelo schema (400), nunca aceito nem traduzido (D-PROD-197)`);
+      }
+    }
+    const fonte = rel === ROTAS_TIPO_ATIVIDADE && cita(codigo, 'FLAGS_TIPO_ATIVIDADE') ? `${codigo}\n${padroes}` : codigo;
+    const faltando = FLAGS_TIPO_ATIVIDADE.filter((flag) => !cita(fonte, flag));
+    if (faltando.length) {
+      registrar(codigoFalha, `${rel} sem as flags do TipoAtividade ${faltando.join(', ')} (D-PROD-197)`);
     }
   }
 };
@@ -169,14 +258,16 @@ if (!existe(SCHEMA)) {
 } else {
   verificarModel('GrupoAtividade', ['cliente_id', 'nome_grupo']);
   verificarModel('TipoTarefa', ['cliente_id', 'grupo_atividade_id', 'nome_tipo']);
+  verificarModelTipoTarefaSemFlags();
   verificarMigration();
   verificarModel('TipoAtividade', ['cliente_id', 'grupo_atividade_id', 'nome_tipo']);
-  verificarModelTipoAtividadeSemFlags();
-  verificarMigrationTipoAtividade();
+  verificarModelTipoAtividadeFlags();
+  verificarMigrationsTipoAtividade();
 }
 verificarSemBase44();
 verificarPortas();
 verificarRotas();
+verificarFlagsNaPortaENasRotas();
 
 if (falhas.length) {
   console.error('gate:tarefa-cadastro-native — FALHOU\n');

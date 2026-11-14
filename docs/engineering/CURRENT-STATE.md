@@ -14,11 +14,24 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-198** |
-| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) e atualizada por merge com a `main` `1dd44f0c` (PR #276, D-PROD-197) |
 | Escopo | Peso objetivo opcional na categoria; motor do peso projetado pela curva (base derivada pelo projetado das origens); `projecao_peso` em `GET /rebanho/posicoes`; Detalhes do Lote com projetado, @, GMD, base, objetivo, quando atinge, pesado × previsto e próximos meses |
-| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 50 → **51**; tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
+| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 51 → **52** (depois da `20261114300000_tipo_atividade_defaults`, já aplicada); tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
 | Próxima fatia | Mudança de Categoria entre Categorias de Manejo com a mesma categoria oficial (pasto → confinamento) |
 | Relatório | [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-TIPO-ATIVIDADE-DEFAULTS (Fatia 1 do Lançamento de Atividades): padrões e flags do Tipo de Atividade (D-PROD-197)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-197** (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"), com o pedido do proprietário literal ("TipoAtividade ganha os defaults e as flags. É a base de tudo."; "estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa") |
+| Branch / PR | `feat/tipo-atividade-defaults`, a partir da `main` `a65ea468` e atualizada por merge (sem rebase) com a `main` `29052ea7` (PRs #278 e #279, D-PROD-195) e depois com a `main` `ab63ee26` (PRs #281 e #282, D-PROD-196, que levou esta para D-PROD-197). PR **#276**, exclusiva desta fatia |
+| Escopo | `TipoAtividade` ganha categoria, centro de custo padrão, centro de resultado padrão, unidade de produção (`UnidadeMedida`), coeficiente padrão e 8 flags; API `/tipos-atividade` com os campos, regras 422 e opções de centros da fazenda; tela em 3 seções; helper puro para a Fatia 2. Apontamento de Atividade de hoje inalterado |
+| Migration | `20261114300000_tipo_atividade_defaults`, **CONTRACT** aditiva (sexta entrada fechada). SHA-256 `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; guarda `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`. Repositório 50 → **51** (a D-PROD-195 da `main` já está aplicada em produção); tabelas não mudam |
+| Release | **Aplicada em produção** em 2026-11-14 às 17:05:05 UTC, caminho B do [runbook](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("Sim: aplique e faça o merge (Recomendado)"); postcheck `APLICADA E CONFERIDA` (51 / 0). Merge da PR #276 depois da aplicação |
+| Constituição | Nota D-PROD-197 no `07`, redigida pelo agente e **aprovada pelo proprietário** junto com o merge (mesma resposta) |
+| Próxima fatia | Fatia 2 (`feat/atividade-cabecalho`: Atividade + apontamento como filho), liberada pelo proprietário ("Sim, comece a Fatia 2 (Recomendado)") |
+| Documentos | [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md) |
 
 ## Missão ativa (2026-11-14) — MAIKE-LOTE-SEM-RACA-IDADE: cadastro de lotes sem raça predominante e idade média (D-PROD-196)
 
@@ -30,7 +43,7 @@ rollout pausado **D-PROD-41**)
 | Banco | **Sem migration**: colunas ficam no banco com os valores antigos (84 lotes); a API não lê, não grava e não devolve, e aceita e ignora se um cliente antigo enviar |
 | Relatório | [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
+## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |
 |---|---|

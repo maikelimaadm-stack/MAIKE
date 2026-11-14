@@ -1,11 +1,18 @@
 /**
- * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182),
- * apontamentos de atividade, a EXECUÇÃO de um tipo (D-PROD-190), e os itens de
- * custo do apontamento (D-PROD-193: produto, serviço e outro custo).
+ * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182; padrões
+ * e flags, D-PROD-197), apontamentos de atividade, a EXECUÇÃO de um tipo
+ * (D-PROD-190), e os itens de custo do apontamento (D-PROD-193: produto, serviço
+ * e outro custo).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { tipoAtividadePort } from './tipoAtividadePort.js';
+import {
+  FLAGS_TIPO_ATIVIDADE,
+  RECURSOS_OPCOES_TIPO_ATIVIDADE,
+  opcoesNativas as opcoesDoTipoNativas,
+  tipoAtividadeDeResposta,
+  tipoAtividadePort,
+} from './tipoAtividadePort.js';
 import { RECURSOS_OPCOES_APONTAMENTO, operacoesNativas as apontamentoNativo } from './apontamentoAtividadePort.js';
 import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
@@ -19,21 +26,25 @@ const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 /** @param {string} operation */
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
+export { FLAGS_TIPO_ATIVIDADE, RECURSOS_OPCOES_TIPO_ATIVIDADE };
+
+// A resposta passa por `tipoAtividadeDeResposta` DEPOIS do adapter offline: o
+// registro do cache (inclusive o criado sem conexão) chega à tela na mesma forma.
 export const listTiposAtividade = async (_opcoes = {}) =>
-  comoLista(await runProviderCall(() => tipoAtividadePort.list(), ctx('listTiposAtividade')));
+  comoLista(await runProviderCall(() => tipoAtividadePort.list(), ctx('listTiposAtividade'))).map(tipoAtividadeDeResposta);
 
 /** @param {string} id */
 export const getTipoAtividade = async (id) => {
   const contexto = ctx('getTipoAtividade');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => tipoAtividadePort.get(id), { ...contexto, details: { id } });
+  return tipoAtividadeDeResposta(await runProviderCall(() => tipoAtividadePort.get(id), { ...contexto, details: { id } }));
 };
 
 /** @param {Record<string, unknown>} dados */
 export const createTipoAtividade = async (dados) => {
   const contexto = ctx('createTipoAtividade');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tipoAtividadePort.create(dados), contexto);
+  return tipoAtividadeDeResposta(await runProviderCall(() => tipoAtividadePort.create(dados), contexto));
 };
 
 /** @param {string} id @param {Record<string, unknown>} dados */
@@ -41,7 +52,26 @@ export const updateTipoAtividade = async (id, dados) => {
   const contexto = ctx('updateTipoAtividade');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tipoAtividadePort.update(id, dados), { ...contexto, details: { id } });
+  return tipoAtividadeDeResposta(await runProviderCall(() => tipoAtividadePort.update(id, dados), { ...contexto, details: { id } }));
+};
+
+/**
+ * Centros ATIVOS de uma fazenda para os padrões do tipo (D-PROD-197, contrato
+ * §3.4): `{ itens: [{ id, numero, nome }] }`, por `numero`, até 1000, sem
+ * página. Recurso e empresa são obrigatórios (falha ANTES da rede); a empresa
+ * de outro cliente volta 404 do servidor.
+ * @param {string} recurso 'centros-custo' | 'centros-resultado'
+ * @param {string} empresaId
+ * @returns {Promise<{ itens: any[] }>}
+ */
+export const listOpcoesTipoAtividade = async (recurso, empresaId) => {
+  const contexto = ctx('listOpcoesTipoAtividade');
+  assertArgument(RECURSOS_OPCOES_TIPO_ATIVIDADE.includes(recurso), 'recurso', contexto);
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => opcoesDoTipoNativas.listar(recurso, empresaId), { ...contexto, details: { recurso } });
+  const o = isObjeto(bruto) ? /** @type {Record<string, unknown>} */ (bruto) : {};
+  const itens = Array.isArray(o.itens) ? o.itens.filter((item) => isObjeto(item) && isId(item.id)) : [];
+  return { itens };
 };
 
 /** @param {string} id */
