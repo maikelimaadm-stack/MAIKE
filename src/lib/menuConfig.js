@@ -24,6 +24,8 @@ export const DEFAULT_MENU = [
       { id: "pec-categorias-manejo", title: "Categorias de Manejo", url: "CategoriasManejo" },
       // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
       { id: "pec-estacoes", title: "Estações", url: "Estacoes" },
+      // D-PROD-189 — Curvas de Ganho de Peso (tabela CADCURVAGANHO).
+      { id: "pec-curvas-ganho", title: "Curvas de Ganho", url: "CurvasGanho" },
       { id: "pec-bebedouros", title: "Bebedouros", url: "Bebedouros" },
     ],
   },
