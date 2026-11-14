@@ -34,6 +34,8 @@
  *   … --verificar-alvo --contract D-PROD-162 / … --aplicar --contract D-PROD-162   (release CONTRACT)
  *   … --verificar-alvo --contract D-PROD-183 / … --aplicar --contract D-PROD-183   (DROP COLUMN de TipoTarefa)
  *   … --verificar-alvo --contract D-PROD-187 / … --aplicar --contract D-PROD-187   (CategoriaManejo → CADCATEGORIA)
+ *   … --verificar-alvo --contract D-PROD-194 / … --aplicar --contract D-PROD-194   (CADCURVAGANHO mensal)
+ *   … --verificar-alvo --contract D-PROD-195 / … --aplicar --contract D-PROD-195   (padrões e flags de TipoAtividade, aditiva)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -100,6 +102,9 @@ const partesContract = k ? [
   k.colunas_removidas.length && `${k.colunas_removidas.length} colunas removidas (${k.colunas_removidas.join(', ')})`,
   k.tabelas_renomeadas.length && `tabela renomeada (${k.tabelas_renomeadas.join(', ')})`,
   k.nomes_renomeados.length && `${k.nomes_renomeados.length} nomes renomeados (${k.nomes_renomeados.join(', ')})`,
+  // D-PROD-195: CONTRACT aditiva — colunas e constraints NOVAS em tabela antiga (nada removido nem alargado).
+  k.colunas_adicionadas?.length && `${k.colunas_adicionadas.length} colunas adicionadas (${k.colunas_adicionadas.join(', ')})`,
+  k.constraints_adicionadas?.length && `${k.constraints_adicionadas.length} constraints adicionadas (${k.constraints_adicionadas.join(', ')})`,
 ].filter(Boolean) : [];
 const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${partesContract.join(', ')})` : '';
 if (!verificarAlvo) {

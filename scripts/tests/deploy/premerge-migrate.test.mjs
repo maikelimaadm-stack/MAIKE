@@ -1696,6 +1696,10 @@ test('B18j (D-PROD-195): runner real sobre a release dos padrões do TipoAtivida
     const rotulo = analise.stdout.split('\n').find((l) => l.includes('ANÁLISE LOCAL OK'));
     assert.match(rotulo, /^premerge-migrate: ANÁLISE LOCAL OK \(CONTRACT D-PROD-195: .*\) — alvo remoto NÃO verificado/);
     assert.doesNotMatch(rotulo, /alargad|removid|renomead/, rotulo);
+    // O rótulo declara o que a CONTRACT aditiva faz: as 13 colunas e as 5 constraints novas, nunca um rótulo vazio.
+    assert.match(rotulo, /13 colunas adicionadas \(TipoAtividade\.categoria, /, rotulo);
+    assert.match(rotulo, /5 constraints adicionadas \(/, rotulo);
+    assert.doesNotMatch(rotulo, /CONTRACT D-PROD-195: \)/, rotulo);
     const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
     assert.equal(json.modo, 'CONTRACT');
     assert.equal(json.expand, false);
