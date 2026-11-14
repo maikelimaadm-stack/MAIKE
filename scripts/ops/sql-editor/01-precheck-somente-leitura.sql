@@ -14,6 +14,8 @@ esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
 -- 70 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- D-PROD-195: TipoAtividade passou a referenciar CentroCusto, CentroResultado e UnidadeMedida (padrões, FKs RESTRICT) e
+-- sai logo depois do apontamento, antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
 -- (histórico/tarefa → pesos → partidas → eventos → posições → ativação), antes de Lote/Área/Empresa.
 tenant(nome, ord) AS (

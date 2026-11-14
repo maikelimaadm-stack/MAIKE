@@ -18,9 +18,11 @@
  *    inexistente ou de outro cliente (`nao_encontrado`, sem oráculo), inativo
  *    (`inativo`), centros de empresas diferentes (`empresas_diferentes`, também
  *    mudando só um deles); conferido só quando o campo muda — padrão que ficou
- *    inativo depois de gravado continua no tipo;
+ *    inativo depois de gravado continua no tipo; o cadastro que some na corrida
+ *    (P2003 da FK nova, forçado por gatilho temporário) dá o mesmo `nao_encontrado`;
  *  - unicidade (cliente, grupo, nome) mantida; `pode_ter_*` → 400 (nomes
- *    aposentados); `exige_area` passa a ser campo válido;
+ *    aposentados); `exige_area` passa a ser campo válido; o TipoTarefa continua
+ *    sem flag nenhuma (D-PROD-181/183);
  *  - opções de centros do formulário (§3.4): só ATIVOS da empresa, por número,
  *    no máximo 1000; 404 da empresa alheia; 403 sem criar/editar tipo.
  * Toda recusa prova "nada gravado" pelas linhas completas do tipo e da
