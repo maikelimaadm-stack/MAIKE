@@ -226,7 +226,8 @@ describe('D-PROD-202 — Formulações: validação', () => {
       [{ percentual_pv_padrao: '5,01' }, 'percentual_pv_fora_da_faixa'],
       [{ percentual_pv_padrao: '0,12345' }, 'percentual_pv_casas_decimais'],
       [{ percentual_pv_padrao: 'muito' }, 'percentual_pv_invalido'],
-      [{ percentual_pv_padrao: '1.000,5' }, 'percentual_pv_invalido'],
+      // milhar pt-BR: "1.000,5" é 1000,5 (não 1,0005) → fora da faixa de %PV
+      [{ percentual_pv_padrao: '1.000,5' }, 'percentual_pv_fora_da_faixa'],
       [{ percentual_pv_padrao: null }, 'percentual_pv_invalido'],
       [{ percentual_pv_padrao: true }, 'percentual_pv_invalido'],
       [{ consumo_objetivo_g_cab_dia: 0 }, 'consumo_objetivo_fora_da_faixa'],
@@ -247,6 +248,10 @@ describe('D-PROD-202 — Formulações: validação', () => {
     assert.equal(ok.statusCode, 201, ok.body);
     const ok2 = await criar(cen.token, pronto(cen, { nome: 'b', percentual_pv_padrao: '0,0001' }));
     assert.equal(ok2.json().percentual_pv_padrao, 0.0001);
+    // milhar pt-BR no kg da batida: "1.000" são mil quilos (não 1 kg)
+    const mil = await criar(cen.token, batelada(cen, { nome: 'mil', ingredientes: [{ produto_id: cen.p.milho.id, quantidade_kg: '1.000' }] }));
+    assert.equal(mil.statusCode, 201, mil.body);
+    assert.equal(mil.json().ingredientes[0].quantidade_kg, 1000);
   });
 
   test('forma: PRONTO com ingrediente, BATELADA sem ingrediente, ingrediente repetido e o produto misturado como ingrediente → 400', async () => {

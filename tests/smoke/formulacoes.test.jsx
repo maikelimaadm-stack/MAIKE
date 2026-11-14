@@ -122,6 +122,8 @@ describe("FO-SV — leitura, batida e validação", () => {
     expect([lerPercentualPV("0"), lerPercentualPV("5,01"), lerPercentualPV("0,12345"), lerPercentualPV("abc"), lerPercentualPV("-1")]).toEqual([null, null, null, null, null]);
     expect(lerPercentualPV("")).toBeUndefined();
     expect([lerKg("600"), lerKg("100,5"), lerKg("0,001"), lerKg("1,0001"), lerKg("0")]).toEqual([600, 100.5, 0.001, null, null]);
+    // milhar pt-BR: "1.000" na batida são mil quilos, não 1 kg
+    expect([lerKg("1.000"), lerKg("1.250,5"), lerKg("12.500")]).toEqual([1000, 1250.5, 12500]);
     expect([lerGramas("800"), lerGramas("1,234"), lerGramas(" ")]).toEqual([800, null, undefined]);
   });
 

@@ -125,7 +125,7 @@ const caberNaColuna = (valor, campo) => {
 
 /**
  * Decimal do corpo: número finito ou texto com vírgula ou ponto decimal
- * ("0,15", "0.15", "600"). Sem separador de milhar. Devolve o texto decimal
+ * ("0,15", "0.15", "600"); "1.000" e "1.250,5" são milhar pt-BR. Devolve o texto decimal
  * exato com `casas` casas, que o Prisma grava sem erro de ponto flutuante.
  * @param {unknown} valor
  * @param {string} campo
@@ -135,6 +135,9 @@ const decimalDoCorpo = (valor, campo, { casas, maximo, motivo, rotulo }) => {
   let numero;
   if (typeof valor === 'number') {
     numero = valor;
+  } else if (typeof valor === 'string' && /^\s*\d{1,3}(\.\d{3})+(,\d+)?\s*$/.test(valor)) {
+    // Milhar pt-BR: "1.000" é mil, não 1 ("1.250,5" → 1250,5).
+    numero = Number(valor.trim().replace(/\./g, '').replace(',', '.'));
   } else if (typeof valor === 'string' && /^\s*\d+([.,]\d+)?\s*$/.test(valor)) {
     numero = Number(valor.trim().replace(',', '.'));
   } else {

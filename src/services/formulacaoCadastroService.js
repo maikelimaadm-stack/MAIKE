@@ -28,7 +28,7 @@ export const PV_MAXIMO = 5;
 export const rotuloDoTipo = (tipo) => TIPOS_FORMULACAO.find((t) => t.valor === tipo)?.rotulo ?? '';
 
 /**
- * Texto digitado (vírgula ou ponto decimal, sem milhar) → número com até
+ * Texto digitado (vírgula ou ponto decimal; "1.000" e "1.250,5" são milhar) → número com até
  * `casas` casas, maior que zero e até `maximo`. `null` quando não é válido;
  * `undefined` quando vazio.
  * @param {unknown} texto
@@ -39,7 +39,8 @@ export const lerDecimal = (texto, { casas, maximo }) => {
   if (typeof texto === 'number') return lerDecimal(String(texto), { casas, maximo });
   const t = String(texto ?? '').trim();
   if (!t) return undefined;
-  const normal = t.replace(',', '.');
+  // Milhar pt-BR ("1.000", "1.250,5") é milhar, não decimal: "1.000" kg na batida é mil quilos.
+  const normal = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(',', '.');
   if (!new RegExp(`^\\d+(\\.\\d{1,${casas}})?$`).test(normal)) return null;
   const n = Number(normal);
   if (!Number.isFinite(n) || n <= 0 || (maximo !== undefined && n > maximo)) return null;
