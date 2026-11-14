@@ -34,6 +34,8 @@ import {
   sexoOficial,
 } from "@/domain/lotes/categoriaOficialDerivada";
 import {
+  BORDA_MOLDURA_PCT,
+  COR_BORDA_MOLDURA,
   CARD_FRAC,
   FAIXA_CONTAGEM,
   FOLGA_LATERAL,
@@ -533,7 +535,11 @@ const ATRIBUTOS_TRACO = 'stroke="#ffffff" stroke-linejoin="round" stroke-linecap
  */
 export function svgMarcadorLote(icone) {
   const desenhos = desenhosDoMarcador(icone).map(grupoDoDesenho).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MOLDURA.largura} ${MOLDURA.altura}" width="${MOLDURA.largura}" height="${MOLDURA.altura}" data-icone-lote="${icone.chave}">${MOLDURA.interno}<g fill="${icone.cor}" ${ATRIBUTOS_TRACO}>${desenhos}</g></svg>`;
+  const moldura = MOLDURA.interno
+    .replace(/stroke="[^"]*"/g, `stroke="${COR_BORDA_MOLDURA}"`)
+    .replace(/stroke-width="[^"]*"/g, `stroke-width="${n(MOLDURA.largura * BORDA_MOLDURA_PCT / 100 * 2)}"`);
+  // Traço interno para manter a espessura uniforme e o enquadramento original.
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MOLDURA.largura} ${MOLDURA.altura}" width="${MOLDURA.largura}" height="${MOLDURA.altura}" data-icone-lote="${icone.chave}"><defs><clipPath id="borda-card-lote">${MOLDURA.interno}</clipPath></defs><g data-moldura-lote="" clip-path="url(#borda-card-lote)">${moldura}</g><g fill="${icone.cor}" ${ATRIBUTOS_TRACO}>${desenhos}</g></svg>`;
 }
 
 /** @param {string} svg */
