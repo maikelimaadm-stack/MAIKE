@@ -627,6 +627,11 @@ export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
     case 'ATIVIDADE_SALTO_MEDIDOR': {
       const uso = details.quantidade_uso != null ? ` (${comUnidade(details.quantidade_uso, um)})` : '';
       const teto = details.salto_maximo != null ? ` (${comUnidade(details.salto_maximo, um)})` : '';
+      // O salto conta da leitura vigente: com a inicial digitada acima dela, o medidor anda mais que o uso.
+      if (ehCanonico(details.salto) && ehCanonico(details.quantidade_uso) && comparar(details.salto, details.quantidade_uso) !== 0) {
+        const desde = ehCanonico(details.leitura_vigente) ? ` desde a última leitura (${formatarDecimalLinha(details.leitura_vigente)})` : '';
+        return `O medidor anda ${comUnidade(details.salto, um)}${desde} neste lançamento e passa do teto de salto${teto}. Confira a leitura inicial ou informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.`;
+      }
       return `O uso da máquina${uso} passa do teto de salto do medidor${teto}. Informe a justificativa (3 a 500 caracteres) e envie de novo. Nada foi gravado.`;
     }
     case 'ATIVIDADE_LINHA_INVALIDA': {

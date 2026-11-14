@@ -19,9 +19,12 @@
  *    para trás) e `quantidade_uso = final − inicial`. Com `sem_medidor: true`
  *    (sempre, para bem sem contador) as leituras ficam nulas e o uso é
  *    digitado (> 0);
- *  - salto: `quantidade_uso` acima de `TipoPatrimonial.salto_maximo_medidor`
- *    (do tipo do bem) → 422 `ATIVIDADE_SALTO_MEDIDOR`, a não ser que venha
- *    `justificativa_salto` (3..500): com ela, aceita;
+ *  - salto: o quanto o medidor anda no lançamento — da leitura vigente na data
+ *    até a final (= `quantidade_uso` com a inicial sugerida; sem leitura
+ *    anterior ou sem medidor, o uso) — acima de
+ *    `TipoPatrimonial.salto_maximo_medidor` (do tipo do bem) → 422
+ *    `ATIVIDADE_SALTO_MEDIDOR`, a não ser que venha `justificativa_salto`
+ *    (3..500): com ela, aceita;
  *  - custo: `custo_unitario_uso` = snapshot de `BemPatrimonial.custo_uso_unitario`;
  *    `custo_total = quantidade_uso × custo_unitario_uso` (4 casas), ou nulo;
  *  - "atualiza a leitura atual do bem": a leitura vive na LINHA; a série do
@@ -309,6 +312,8 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, dia, estad
   let final = null;
   /** @type {import('@prisma/client').Prisma.Decimal} */
   let uso;
+  /** Leitura vigente na data (o ponto anterior da série), base do salto. @type {any} */
+  let vigente = null;
   if (semMedidor) {
     if (estado.leitura_inicial !== null) throw recusa('leitura_inicial', 'nao_aceita', extra);
     if (estado.leitura_final !== null) throw recusa('leitura_final', 'nao_aceita', extra);
@@ -319,6 +324,7 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, dia, estad
     if (estado.quantidade_uso !== null) throw recusa('quantidade_uso', 'nao_aceita', extra);
     const vizinhos = await pontosVizinhos(tx, clienteId, bem.id, tipo, dia);
     const { anterior, posterior } = avaliarLeitura({ tipo, leitura: null, dia, cadastro: pontoDoCadastro(bem), ...vizinhos });
+    vigente = anterior ?? null;
     inicial = estado.leitura_inicial ?? anterior?.leitura ?? null;
     if (inicial === null) throw recusa('leitura_inicial', 'obrigatoria', extra);
     if (anterior && dec(inicial).lt(dec(anterior.leitura))) {
@@ -341,10 +347,17 @@ const planejarLinha = async (tx, { clienteId, empresaId, atividadeId, dia, estad
     if (tamanho < JUSTIFICATIVA_MINIMA) throw recusa('justificativa_salto', 'curta', { ...extra, ...limites });
     if (tamanho > JUSTIFICATIVA_MAXIMA) throw recusa('justificativa_salto', 'longa', { ...extra, ...limites });
   }
+  // O salto é o quanto o MEDIDOR anda neste lançamento: da leitura vigente na data até a final. Com a inicial
+  // sugerida (= vigente) é o próprio uso; uma inicial digitada acima da vigente (o "vão", ex.: erro de digitação)
+  // também conta, senão um 9000 no lugar de 1520,5 passaria sem justificativa e envenenaria a série do bem.
+  // Sem leitura anterior, ou sem medidor, o salto é o uso.
+  const salto = !semMedidor && vigente && final !== null ? dec(final).minus(dec(vigente.leitura)) : uso;
   const teto = bem.tipo?.salto_maximo_medidor ?? null;
-  if (teto !== null && uso.gt(dec(teto)) && justificativa === null) {
-    const salto = uso.toFixed(CASAS);
-    throw atividadeSaltoMedidor({ ...extra, quantidade_uso: salto, salto_maximo: t4(teto), medidor_unidade: unidade, teto: t4(teto), salto });
+  if (teto !== null && salto.gt(dec(teto)) && justificativa === null) {
+    throw atividadeSaltoMedidor({
+      ...extra, quantidade_uso: uso.toFixed(CASAS), salto_maximo: t4(teto), medidor_unidade: unidade, teto: t4(teto), salto: salto.toFixed(CASAS),
+      ...(vigente ? { leitura_vigente: vigente.leitura } : {}),
+    });
   }
 
   // custo (snapshot do cadastro do bem)

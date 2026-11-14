@@ -83,8 +83,11 @@ Toda FK é composta pelo tenant e `RESTRICT`. O apontamento e o bem entram por `
     medidor não anda para trás);
   - `quantidade_uso = final − inicial`.
 - **Sem leitura:** com `sem_medidor: true` o usuário informa as horas ou o km direto, e a linha fica marcada.
-- **Salto:** se `quantidade_uso` passar de `TipoPatrimonial.salto_maximo_medidor` → 422 `ATIVIDADE_SALTO_MEDIDOR`,
-  que pede `justificativa_salto` (3 a 500 caracteres). Com a justificativa, aceita; não bloqueia.
+- **Salto:** o quanto o medidor anda no lançamento — da leitura vigente na data até a `leitura_final` (com a inicial
+  sugerida, é a própria `quantidade_uso`; uma inicial digitada acima da vigente também conta; sem leitura anterior ou
+  "sem medidor", é o uso) — acima de `TipoPatrimonial.salto_maximo_medidor` → 422 `ATIVIDADE_SALTO_MEDIDOR`
+  (`details.salto`, `quantidade_uso`, `leitura_vigente`), que pede `justificativa_salto` (3 a 500 caracteres). Com a
+  justificativa, aceita; não bloqueia.
 - **"Atualiza a leitura atual do bem":** a leitura vive na linha, como no abastecimento. A leitura vigente do bem
   (`leituraVigente` / `pisoOperacional` / `pontosVizinhos` em `abastecimentoMedidor.js`) passa a considerar também as
   linhas de máquina confirmadas. Nada é gravado em `BemPatrimonial.medidor_*` (o CHECK de `medidor_origem` e a nota

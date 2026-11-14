@@ -342,6 +342,24 @@ describe('salto do medidor', () => {
     assert.deepEqual(erro(await s.L.lancar(ap, { bem_id: s.trator.id, sem_medidor: true, quantidade_uso: '10.5' })).slice(0, 2), [422, 'ATIVIDADE_SALTO_MEDIDOR']);
     assert.equal((await A.ok(s.medidor(s.trator.id))).salto_maximo_medidor, '10.0000');
   });
+
+  test('o salto conta da leitura vigente: inicial digitada acima dela (o "vão") também pede justificativa', async () => {
+    const s = await montar();
+    assert.equal((await s.patchTipo(s.trator.tipo.id, { salto_maximo_medidor: '10' })).statusCode, 200);
+    const ap = await s.apontar('2027-06-10');
+    const f = await foto(s.c);
+    // Vigente 1520,5 (cadastro); a inicial 9000 (erro de digitação) com uso de só 5 h: o medidor saltaria 7484,5 h.
+    const r = await s.L.lancar(ap, { bem_id: s.trator.id, leitura_inicial: '9000', leitura_final: '9005' });
+    assert.deepEqual(erro(r), [422, 'ATIVIDADE_SALTO_MEDIDOR', 'justificativa_salto', 'salto_acima_do_teto']);
+    assert.deepEqual([r.json().details.quantidade_uso, r.json().details.salto, r.json().details.teto, r.json().details.leitura_vigente], ['5.0000', '7484.5000', '10.0000', '1520.5000']);
+    assert.equal(await foto(s.c), f, 'nada gravado: a série do bem não muda');
+    // Vão pequeno (vigente 1520,5 → inicial 1524 → final 1530 = 9,5 h de salto) passa sem justificativa.
+    const ok = await s.lancarOk(ap, { bem_id: s.trator.id, leitura_inicial: '1524', leitura_final: '1530' });
+    assert.deepEqual([ok.maquina.quantidade_uso, ok.maquina.justificativa_salto], ['6.0000', null]);
+    // Com a justificativa, o vão grande é aceito.
+    const j = await s.lancarOk(ap, { bem_id: s.trator.id, leitura_inicial: '9000', leitura_final: '9005', justificativa_salto: 'horímetro trocado' });
+    assert.deepEqual([j.maquina.quantidade_uso, j.maquina.justificativa_salto], ['5.0000', 'horímetro trocado']);
+  });
 });
 
 describe('sem medidor', () => {
