@@ -45,11 +45,14 @@ hectare. "Repetir último lançamento" traz as linhas do apontamento anterior.
    não pode ser corrigida para baixo, porque a regra de data herdada do abastecimento recusa. Nada se corrompe.
    Corrigir pede refazer a série dentro do dia, nas duas pontas; fica para uma fatia futura, se você quiser.
 5. **Constituição:** a nota D-PROD-202 no `00` e no `07` (expansão para as linhas, edição por estorno, custo de uso
-   como snapshot) foi redigida pelo agente e **vale só com a sua aprovação no merge**.
+   como snapshot) foi redigida pelo agente e **aprovada por você** em 2026-11-14 ("autorizo vocÇe").
 
 ## 5. Validação (local; o GitHub Actions roda no push)
 
-(preenchida no fim da validação)
+- `verify-all` (sem o backend): todas as etapas passaram; `test:gates` 921/921; typecheck 0.
+- Backend completo em PostgreSQL 16 local: **2049 testes, 0 falhas** (inclui `atividadeLinhaProduto` 20, `atividadeLinhaMaquina` 20,
+  `atividadeLinhasMigration` 11 e `atividadeIntegracaoTela` 8).
+- GitHub Actions na PR #289 (`3753d222`): verde.
 
 ## 6. Revisão independente
 
@@ -68,7 +71,14 @@ hectare. "Repetir último lançamento" traz as linhas do apontamento anterior.
 
 ## 7. Release
 
-Ainda não aplicada; aguarda o GO do proprietário. A ordem é aplicar antes do merge, pelo runbook.
+**Aplicada em produção em 2026-11-14, antes do merge**, com o GO "autorizo vocÇe" (resposta a "aplica e aprova"), pelo
+caminho B do runbook. O primeiro envio expirou sem resposta à confirmação do Supabase e não executou; o reenvio foi
+pedido com "mande de novo a autorização".
+
+- Preflight: PRONTO PARA APLICAR (53 / 0, anterior com checksum certo, 0 novas, 7 chaves, 84 tabelas, 0 travas).
+- Postcheck: **APLICADA E CONFERIDA** (54 / 0, 3 / 0, 87 tabelas, 2 colunas, 9 CHECKs, 17 / 17 FKs, 20 / 20 / 13
+  índices, RLS sem FORCE com `maike_backend_all` nas três, 0 grants).
+- Merge da PR #289 depois do postcheck; a Vercel publica a `main`.
 
 ## 8. Fora do escopo
 

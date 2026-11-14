@@ -174,5 +174,5 @@ Violação exige **rollback**, não flexibilização da regra.
 > - criar `OperacaoFinanceira`, título ou rateio a partir da linha;
 > - conceder as ações de linha a perfis existentes por padrão.
 >
-> Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no merge manual
-> (`00-CONSTITUICAO.md` §4).
+> Texto redigido pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a
+> "aplica e aprova"), no merge da PR #289 (`00-CONSTITUICAO.md` §4).

@@ -517,14 +517,14 @@ migration.
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<texto e data do GO do proprietário>` |
-| Caminho | `<A ou B>` |
-| `<SHA_APROVADO>` | `<sha>` |
-| Verificação do SHA | `<CI da PR e validação local>` |
-| Ensaio local (§4.2) | `<atividadeLinhasMigration.test.mjs n/n>` |
-| Preflight (§4) | `<hora UTC; 53 / 0; 1; 0 / 0; 7; 84; travas; transações longas; veredito>` |
-| Backup / PITR anterior | `<horário>` |
-| Aplicação | `<data e hora UTC; checksum; applied_steps_count>` |
-| Postcheck (§6) | `<54 / 0; 3 / 0; 87; 2; 9; 17 / 17; 20 / 20 / 13; RLS; grants; veredito>` |
-| Alertas do Supabase | `<segurança / performance>` |
-| Merge e deploy | `<PR e horário>` |
+| GO-1 e GO-2 | "autorizo vocÇe" (2026-11-14), resposta a "aplica e aprova"; reenvio com "mande de novo a autorização" |
+| Caminho | B (conector, uma transação) |
+| `<SHA_APROVADO>` | `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489` |
+| Verificação do SHA | `sha256sum` local igual; CI da PR #289 verde em `3753d222` |
+| Ensaio local (§4.2) | `atividadeLinhasMigration.test.mjs` 11/11 |
+| Preflight (§4) | 2026-11-14; 53 / 0; 1; 0 / 0; 7; 84; 0 travas; 0 longas; PRONTO PARA APLICAR |
+| Backup / PITR anterior | PITR do Supabase (sem backup manual) |
+| Aplicação | 2026-11-14; `e374c81d…`; 1 |
+| Postcheck (§6) | 54 / 0; 3 / 0; 87; 2; 9; 17 / 17; 20 / 20 / 13; RLS true / false / `maike_backend_all`; 0; APLICADA E CONFERIDA |
+| Alertas do Supabase | não consultados |
+| Merge e deploy | PR #289, 2026-11-14 |

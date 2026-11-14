@@ -17,8 +17,8 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `feat/atividade-itens-produto-maquina`, a partir da `main` `74bd3ee1` |
 | Escopo | Linha de produto (baixa e estorno FIFO pelo motor único), linha de máquina (medidor do bem, leitura na linha), totalizador, repetir com linhas, custo de uso e teto de salto nos cadastros |
 | Migration | `20261114600000_atividade_linhas_produto_maquina`, **EXPAND**, SHA `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489`. Produção 53 → 54; tabelas 84 → 87 |
-| Release | **Não aplicada.** Antes do merge, só com GO do proprietário, pelo [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md) |
-| Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente; **vale só com a aprovação explícita do proprietário no merge** |
+| Release | **Aplicada em produção** em 2026-11-14, antes do merge, com o GO "autorizo vocÇe", pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md). Postcheck: 54 / 0, 87 tabelas, APLICADA E CONFERIDA |
+| Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
 | Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
 
 ## Missão ativa (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)

@@ -139,7 +139,8 @@ do cadastro do bem, copiado na linha como snapshot para o custo da atividade, se
 sobra ao estoque, manutenção, peças, relatórios de custo além do totalizador da atividade, e qualquer mudança no
 abastecimento além de respeitar as leituras das linhas. Nesta parte, esta expansão supera a D-PROD-193 e o trecho
 "custo/hora" da lista "fora" da D-PROD-157, só para o custo de uso como snapshot na linha de máquina. Texto redigido
-pelo agente; vale só com a aprovação explícita do proprietário no merge manual (§4).
+pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a "aplica e aprova"), no merge
+da PR #289 (§4).
 
 ## 2. Princípios fundadores
 
