@@ -34,7 +34,7 @@ import {
   sexoOficial,
 } from "@/domain/lotes/categoriaOficialDerivada";
 import {
-  BORDA_MOLDURA_PCT,
+  RESERVA_MOLDURA_PCT,
   CARD_FRAC,
   FAIXA_CONTAGEM,
   FOLGA_LATERAL,
@@ -420,9 +420,9 @@ const bordaNoCard = (borda) => (borda / 100) * MOLDURA.largura;
 const meiaBorda = (borda) => bordaNoCard(borda) / 2;
 /** Linha de chão: os pés ficam aqui, e nem a borda branca entra na faixa da contagem. */
 export const LINHA_DE_CHAO = LIMITE_ANIMAIS - meiaBorda(Math.max(BORDA_PADRAO, BORDA_VACA_MISTO));
-// Reserve a borda colorida, o halo branco e uma folga adicional: o cálculo
+// Reserve a margem da moldura, o halo branco e uma folga adicional: o cálculo
 // considera o contorno do desenho, não só o seu caminho central.
-const RESERVA_DA_BORDA = bordaNoCard(BORDA_MOLDURA_PCT) + meiaBorda(Math.max(BORDA_PADRAO, BORDA_VACA_MISTO)) + bordaNoCard(1.5);
+const RESERVA_DA_BORDA = bordaNoCard(RESERVA_MOLDURA_PCT) + meiaBorda(Math.max(BORDA_PADRAO, BORDA_VACA_MISTO)) + bordaNoCard(1.5);
 const ESQUERDA_LIVRE = MOLDURA.largura * FOLGA_LATERAL + RESERVA_DA_BORDA;
 const LARGURA_LIVRE = MOLDURA.largura - 2 * ESQUERDA_LIVRE;
 const TOPO_LIVRE = ALTURA_CARD * FOLGA_TOPO + RESERVA_DA_BORDA;
@@ -537,13 +537,7 @@ const ATRIBUTOS_TRACO = 'stroke="#ffffff" stroke-linejoin="round" stroke-linecap
  */
 export function svgMarcadorLote(icone) {
   const desenhos = desenhosDoMarcador(icone).map(grupoDoDesenho).join("");
-  // O recorte mantém todo o traço para dentro da moldura, sem cortar os cantos
-  // nem alterar o espaço dos animais, da contagem ou da ponteira.
-  const larguraBorda = Math.max(0, BORDA_MOLDURA_PCT) / 100 * MOLDURA.largura;
-  const moldura = MOLDURA.interno
-    .replace(/stroke="[^"]*"/g, `stroke="${icone.cor}"`)
-    .replace(/stroke-width="[^"]*"/g, `stroke-width="${n(larguraBorda * 2)}"`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MOLDURA.largura} ${MOLDURA.altura}" width="${MOLDURA.largura}" height="${MOLDURA.altura}" data-icone-lote="${icone.chave}"><defs><clipPath id="borda-card-lote">${MOLDURA.interno}</clipPath></defs><g data-moldura-lote="" clip-path="url(#borda-card-lote)">${moldura}</g><g fill="${icone.cor}" ${ATRIBUTOS_TRACO}>${desenhos}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MOLDURA.largura} ${MOLDURA.altura}" width="${MOLDURA.largura}" height="${MOLDURA.altura}" data-icone-lote="${icone.chave}">${MOLDURA.interno}<g fill="${icone.cor}" ${ATRIBUTOS_TRACO}>${desenhos}</g></svg>`;
 }
 
 /** @param {string} svg */

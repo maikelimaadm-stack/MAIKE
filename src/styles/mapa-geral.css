@@ -467,3 +467,9 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-mapa-camadas__menu, .mk-mapa-aviso { animation: none; }
 }
+
+/* PRÉVIA — sombra do fundo branco dos marcadores de gado; não altera a
+   contagem, os avisos nem o tamanho do SVG. A moldura não tem borda colorida. */
+.mg-marker[data-icone-lote] .mg-marker-corpo {
+  filter: drop-shadow(0 2px 2px rgba(25, 40, 48, 0.28));
+}
