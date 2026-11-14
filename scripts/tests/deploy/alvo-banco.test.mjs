@@ -86,9 +86,9 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
     env: { MIGRATION_DATABASE_URL: REMOTO, MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: SID },
     conferir: async () => ({ ok: true, falhas: [], resumo: 'banco=postgres' }),
     resolverRuntime: async () => REMOTO,
-    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195 e D-PROD-197: alvo já com as seis CONTRACT concluídas (a
-    // barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17 e B18). Sem alguma das linhas, a
-    // CONTRACT pendente recusaria por conta própria.
+    // D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197 e D-PROD-198: alvo já com as sete CONTRACT
+    // concluídas (a barreira delas tem prova própria em migrations.test.mjs, B11, B14, B16, B15, B17, B18 e B19). Sem alguma
+    // das linhas, a CONTRACT pendente recusaria por conta própria.
     lerHistorico: async () => [
       { migration_name: '20261110300000_patrimonio_simplifica', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261113200000_tipo_tarefa_drop_colunas', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
@@ -96,6 +96,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261114100000_cadcurvaganho_mensal', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261114200000_cadcategoria_curva_ganho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       { migration_name: '20261114300000_tipo_atividade_defaults', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      { migration_name: '20261114400000_atividade_cabecalho', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},
