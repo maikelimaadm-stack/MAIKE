@@ -17,7 +17,7 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `claude/kind-knuth-tztu1v`, a partir da `main` `10a966e7` (merge da PR #288, D-PROD-201) |
 | Escopo | Etapa 2a de 4 da suplementação: cadastro de Formulações (tela `Formulacoes`, menu Manejo, tela de permissão `pec-formulacoes`), API `/formulacoes` com `opcoes-lancamento` (só ativas; também pela chave do mapa `lancar_suplementacao`), e o lançamento do cocho com a Formulação obrigatória no lugar do Produto e o consumo esperado lote a lote (regra da categoria ou %PV padrão) |
 | Migration | `20261114700000_cadformulacao`, **EXPAND** (3 tabelas novas: `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE`, `CADFORMULACAOREGRA`). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`. Repositório 53 → **54**; tabelas 84 → **87** |
-| Release | **Não aplicada.** Antes do merge, pelo runbook [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO do proprietário |
+| Release | **Aplicada em produção** em 2026-11-14 às 23:41:42 UTC, caminho B do [runbook](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 55 / 0, 3 tabelas com RLS, 90 tabelas, advisors sem achados. O merge espera a PR #289 (migration `20261114600000`, já aplicada) entrar na `main` |
 | Próximas etapas | 2b Produção da batelada (baixa dos ingredientes e entrada do misturado pelo motor de estoque) · 3 Leitura de cocho e farol · 4 Fechamento de consumo em %PV com faixa configurável |
 | Relatório | [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md) |
 

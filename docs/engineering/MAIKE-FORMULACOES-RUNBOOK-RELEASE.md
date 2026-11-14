@@ -166,9 +166,10 @@ código novo no ar, reverter o código primeiro (o lançamento exige formulaçã
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | |
-| Caminho | |
-| GO | |
-| Preflight (§2) | |
-| Postcheck (§4) | |
-| Resultado | |
+| Data/hora (UTC) | 2026-11-14 23:41:42 (`finished_at` da linha em `_prisma_migrations`) |
+| Caminho | **B**: SQL numa transação única pelo `execute_sql` do Supabase, projeto `uuemcasqcdjucflulkne`. A guarda passou a exigir **54** concluídas, porque a migration `20261114600000_atividade_linhas_produto_maquina` (PR #289) foi aplicada antes |
+| GO | Escrito pelo proprietário no chat: "go", em resposta ao pedido específico desta migration. Duas tentativas anteriores expiraram sem aprovação e não aplicaram nada (conferido: 54 / 0, tabelas ausentes) |
+| Preflight (§2) | `system_identifier` 7692130048193495360; 54 concluídas / 0 com falha; última `20261114600000_atividade_linhas_produto_maquina`; tabelas `CADFORMULACAO*` ausentes |
+| Ensaio | Banco local com as 54 migrations (as da PR #289 incluídas): aplicou (55 / 0, 90 tabelas, `migrate status` em dia); reexecução recusada (`migration já registrada`); alvo divergente recusado |
+| Postcheck (§4) | 55 / 0; checksum `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`; as 3 tabelas com RLS ligado e sem FORCE; 14 FK/CHECK; 90 tabelas em `public`; `get_advisors(security)` sem achados |
+| Resultado | **APLICADA E CONFERIDA**. O merge desta PR espera a PR #289 entrar na `main` |
