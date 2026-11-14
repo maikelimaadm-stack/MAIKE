@@ -81,15 +81,15 @@ const trocar = (sql, de, para) => {
   return sql.replace(de, () => para);
 };
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122), as épocas de sessão (D-PROD-143) e a troca obrigatória (D-PROD-144) anuláveis; Gestão P1 (D-PROD-146), P2 (D-PROD-153) e P3-01 (D-PROD-155) só com tabelas novas; P3-02 (D-PROD-156) e P3-03 (D-PROD-158) com tabela nova; Patrimônio P1-01 (D-PROD-157) e P1-02 (D-PROD-159) só com tabelas novas; Patrimônio SIMPLIFICA-01 (D-PROD-162) pelo modo CONTRACT fechado; TipoAtividade (D-PROD-182) só com tabela nova; Tipo de Tarefa sem colunas (D-PROD-183) pelo modo CONTRACT fechado; CADESTACOES (D-PROD-188) e CADCURVAGANHO (D-PROD-189) só com tabela nova; CategoriaManejo → CADCATEGORIA (D-PROD-187) pelo modo CONTRACT fechado; ApontamentoAtividade (D-PROD-190) só com tabela nova; itens do apontamento (D-PROD-193) só com as 2 tabelas novas', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
   assert.equal(c.expand, false, 'com o CONTRACT no lote, a release não é EXPAND puro');
   assert.equal(c.modo, 'CONTRACT');
   assert.deepEqual(c.tabelas_novas, [
-    'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'ApontamentoAtividade', 'BemPatrimonial', 'CADCURVAGANHO', 'CADESTACOES', 'CentroCusto',
-    'CentroCustoResultado', 'CentroResultado',
+    'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote',
+    'BemPatrimonial', 'CADCURVAGANHO', 'CADESTACOES', 'CentroCusto', 'CentroCustoResultado', 'CentroResultado',
     'ConversaoCombustivelProduto', 'EventoRebanho', 'FamiliaPatrimonial',
     'LiquidacaoFinanceira', 'LiquidacaoFinanceiraEstorno', 'MedicaoBem', 'NaturezaFinanceira', 'OperacaoFinanceira', 'OperacaoFinanceiraConsumoLote',
     'OperacaoFinanceiraEvento', 'OperacaoFinanceiraItem', 'OperacaoFinanceiraItemRateio', 'OperacaoFinanceiraRateio', 'PartidaRebanho', 'PerfilFinanceiroEmpresa', 'PerfilMedicao',
@@ -1021,7 +1021,9 @@ test('B15k (D-PROD-187/D-PROD-189/D-PROD-190): ordem de produção — alvo com 
   // (D-PROD-189, 23:18 UTC de 2026-11-13) e depois o ApontamentoAtividade (D-PROD-190, 23:23 UTC).
   const POSTERIORES = ['20261113600000_cadcurvaganho_cadastro', '20261113700000_apontamento_atividade'];
   const raiz = 'backend/prisma/migrations';
-  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
+  // Produção no dia desta CONTRACT: as pastas até a última POSTERIOR. As de releases seguintes, com nome depois dela
+  // (ex.: os itens do apontamento, D-PROD-193, `20261113800000_apontamento_atividade_item`), ainda não existiam.
+  const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name <= POSTERIORES.at(-1))
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   // Contagem pela pasta: outra release EXPAND na main (ex.: D-PROD-185, 45 → 46 pastas) não muda o que este teste prova.
   assert.ok(locais.length >= 45);
@@ -1041,6 +1043,101 @@ test('B15k (D-PROD-187/D-PROD-189/D-PROD-190): ordem de produção — alvo com 
   const depois = [...linhas, { migration_name: NOME_K, checksum: MIGRATIONS_APROVADAS[NOME_K], finished_at: new Date(t0 + 99_000), rolled_back_at: null }];
   assert.deepEqual(conferirHistoricoRemoto({ locais, linhas: depois }), { ok: true, codigo: null, pendentes: [], falhas: [] });
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
+});
+
+/** D-PROD-193 (Fatia D) — itens do apontamento: EXPAND puro, só as 2 tabelas novas (ApontamentoAtividade agora é ANTIGA). */
+const NOME_D = '20261113800000_apontamento_atividade_item';
+const NOVAS_D = ['ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote'];
+const DO_D = '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710';
+
+test('B17a (D-PROD-193): itens do apontamento classificados SOZINHOS, como na release (a D-PROD-190 já está em produção): EXPAND puro, só as 2 tabelas novas, nenhuma coluna nem constraint em tabela antiga, DO de RLS pinado citando só as tabelas novas; --contract é inesperado', () => {
+  const m = ler(NOME_D);
+  const c = classificarMigrations([m]);
+  assert.deepEqual(c.violacoes, []);
+  assert.equal(c.ok, true);
+  assert.equal(c.expand, true);
+  assert.equal(c.modo, 'EXPAND');
+  assert.deepEqual(c.contract, []);
+  assert.deepEqual(c.tabelas_novas, NOVAS_D);
+  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, []);
+  // Junto com a Fatia C (um banco que ainda não tem nenhuma das duas) continua EXPAND, sem violação.
+  const cd = classificarMigrations([ler(NOME_A), m]);
+  assert.deepEqual(cd.violacoes, []);
+  assert.equal(cd.modo, 'EXPAND');
+  assert.deepEqual(cd.tabelas_novas, ['ApontamentoAtividade', ...NOVAS_D]);
+  // Release EXPAND: sem --contract passa; qualquer --contract (inclusive o número desta decisão) é inesperado.
+  assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_D], classificacao: c, autorizacao: undefined }), { ok: true, codigo: null });
+  for (const autorizacao of ['D-PROD-193', 'D-PROD-190', 'D-PROD-183', '']) {
+    assert.deepEqual(conferirReleaseContract({ nomesNovas: [NOME_D], classificacao: c, autorizacao }), { ok: false, codigo: 'CONTRACT_INESPERADO' }, autorizacao);
+  }
+  assert.equal(envDoDeployMigrate({ env: { PATH: '/bin' }, classificacao: c, autorizacao: 'D-PROD-193' }).MIGRATION_CONTRACT_AUTORIZADO, undefined);
+  // ApontamentoAtividade é ANTIGA nesta release: o total de custo, a chave de idempotência e qualquer CHECK/UNIQUE
+  // novo ficariam nela fora do EXPAND (recusado). Por isso tudo o que é novo mora nas 2 tabelas novas.
+  const casos = {
+    'CREATE UNIQUE INDEX "ApontamentoAtividade_cliente_id_operation_id_key" ON "ApontamentoAtividade"("cliente_id", "operation_id");': 'UNIQUE_EM_TABELA_ANTIGA',
+    'ALTER TABLE "ApontamentoAtividade" ADD CONSTRAINT "ApontamentoAtividade_status_check" CHECK ("status" IN (\'CONFIRMADO\', \'CANCELADO\'));': 'ALTER_EM_TABELA_ANTIGA',
+    'ALTER TABLE "ApontamentoAtividade" ADD COLUMN "custo_itens_total" DECIMAL(18,4) NOT NULL;': 'ALTER_EM_TABELA_ANTIGA',
+    'ALTER TABLE "MovimentacaoEstoque" ADD CONSTRAINT "MovimentacaoEstoque_origem_check" CHECK ("origem_sistema" IS NOT NULL);': 'ALTER_EM_TABELA_ANTIGA',
+    'DELETE FROM "ApontamentoAtividade";': 'SQL_NAO_RECONHECIDO',
+  };
+  for (const [ddl, codigo] of Object.entries(casos)) {
+    const r = classificar(`${m.sql}\n${ddl}\n`);
+    assert.equal(r.expand, false, ddl);
+    assert.deepEqual(r.violacoes.map((v) => v.codigo), [codigo], ddl);
+  }
+  // Nas tabelas novas, um CHECK a mais continua aceito (endurecer o domínio depois exige novo pin).
+  assert.deepEqual(classificar(`${m.sql}\nALTER TABLE "ApontamentoAtividadeItem" ADD CONSTRAINT "ApontamentoAtividadeItem_ordem_check" CHECK ("ordem" <= 200);\n`).violacoes, []);
+  // O bloco DO pinado não pode citar tabela antiga: incluir 'ApontamentoAtividade' na lista muda o hash e cita tabela antiga.
+  const doComAntiga = trocar(m.sql, "ARRAY['ApontamentoAtividadeItem','ApontamentoAtividadeItemConsumoLote']", "ARRAY['ApontamentoAtividade','ApontamentoAtividadeItem','ApontamentoAtividadeItemConsumoLote']");
+  assert.deepEqual(codigos(classificar(doComAntiga)), ['DO_EM_TABELA_ANTIGA', 'DO_NAO_RECONHECIDO']);
+  // 1 byte a mais no arquivo pinado → checksum divergente; sem a entrada no manifesto → não aprovada.
+  assert.deepEqual(classificarMigrations([{ ...m, sql: `${m.sql}\n` }]).violacoes.map((v) => v.codigo), ['MIGRATION_CHECKSUM_DIVERGENTE']);
+  const semEntrada = Object.fromEntries(Object.entries(MIGRATIONS_APROVADAS).filter(([n]) => n !== NOME_D));
+  assert.deepEqual(classificarMigrations([m], { manifesto: semEntrada }).violacoes.map((v) => v.codigo), ['MIGRATION_NAO_APROVADA']);
+  // Sem o hash do DO na allowlist, o mesmo arquivo é recusado (o pin do DO é desta decisão, não herdado da Fatia C).
+  const semDo = DO_RLS_APROVADOS.filter((h) => h !== DO_D);
+  assert.equal(semDo.length, DO_RLS_APROVADOS.length - 1);
+  assert.deepEqual(codigos(classificarMigrations([m], { doAprovados: semDo })), ['DO_NAO_RECONHECIDO']);
+  // Nenhum ponto e vírgula dentro de CHECK (o classificador corta por ';'): 7 CHECKs, cada um inteiro numa instrução própria.
+  const comCheck = m.sql.replace(/--[^\n]*/g, '').split(';').filter((st) => / ADD CONSTRAINT "[^"]+" CHECK \(/.test(st));
+  assert.equal(comCheck.length, 7);
+  for (const st of comCheck) assert.match(st.trim(), /^ALTER TABLE "ApontamentoAtividadeItem(ConsumoLote)?" ADD CONSTRAINT "[A-Za-z_]+_check" CHECK \(.*\)$/s);
+});
+
+test('B17b (D-PROD-193): runner real sobre a release dos itens do apontamento — análise local EXPAND sem rótulo CONTRACT; --contract é CONTRACT_INESPERADO; verificar o alvo não pede --contract e segue para a conexão; nunca imprime URL', () => {
+  // main = pasta sem NOME_D (já com a Fatia C), HEAD = main + NOME_D.
+  const repo = repoDaReleaseContract(NOME_D);
+  const run = runnerDaRelease(repo);
+  try {
+    const analise = run(SEM_ALVO);
+    assert.equal(analise.status, 0, analise.stderr);
+    assert.ok(analise.stdout.includes('premerge-migrate: ANÁLISE LOCAL OK — alvo remoto NÃO verificado'), analise.stdout);
+    assert.doesNotMatch(analise.stdout, /CONTRACT D-PROD/);
+    const json = JSON.parse(analise.stdout.slice(0, analise.stdout.lastIndexOf('}') + 1));
+    assert.equal(json.modo, 'EXPAND');
+    assert.equal(json.expand, true);
+    assert.deepEqual(json.migrations_novas, [NOME_D]);
+    assert.deepEqual(json.contract, []);
+    assert.deepEqual(json.tabelas_novas, NOVAS_D);
+    assert.deepEqual(json.colunas_novas_em_tabelas_antigas, []);
+    assert.deepEqual(json.violacoes, []);
+    for (const r of [run(SEM_ALVO, '--contract', 'D-PROD-193'), run(COM_ALVO, '--verificar-alvo', '--contract', 'D-PROD-190')]) {
+      assert.equal(r.status, 3, r.stderr);
+      assert.match(r.stderr, /RECUSADO CONTRACT_INESPERADO/);
+      semSegredo(r);
+    }
+    const semConfig = run(SEM_ALVO, '--aplicar');
+    assert.equal(semConfig.status, 3);
+    assert.match(semConfig.stderr, /ALVO_SEM_CONFIGURACAO/);
+    // Sem CONTRACT a barreira de autorização não existe: o runner segue para a conexão (aqui inalcançável: recusa fechada, sem URL).
+    const verificar = run(COM_ALVO, '--verificar-alvo');
+    assert.equal(verificar.status, 3);
+    assert.doesNotMatch(verificar.stderr, /CONTRACT_/);
+    assert.match(verificar.stderr, /PREMERGE_MIGRATIONS_NAO_COMPROVADAS/);
+    semSegredo(verificar);
+  } finally {
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
 });
 
 const SHA = 'a'.repeat(40);

@@ -100,10 +100,35 @@ const semear = async ({ clientes = 1 } = {}) => {
     // D-PROD-190: um apontamento de atividade (FK RESTRICT para tarefa, tipo, grupo, área, usuário, empresa e cliente):
     // o 02 só o apaga se ele vier ANTES de todas as mães na ordem de exclusão.
     const ta = await p.tipoAtividade.create({ data: { cliente_id: c, nome_tipo: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
-    await p.apontamentoAtividade.create({ data: {
+    const apontamento = await p.apontamentoAtividade.create({ data: {
       cliente_id: c, empresa_id: emp.id, numero: '1', tipo_atividade_id: ta.id, tipo_atividade_nome: 'TA', grupo_atividade_id: g.id, grupo_atividade_nome: 'G',
       data_operacional: new Date('2026-11-01T00:00:00Z'), area_id: area.id, lancamento_tarefa_id: tarefa.id,
       operador_usuario_id: t.usuario.id, criado_por_usuario_id: t.usuario.id,
+    } });
+    // D-PROD-193: um item SERVICO e um item PRODUTO com a sua fatia FIFO (FK RESTRICT do item para o apontamento, o
+    // produto, o local, o movimento e o usuário; da fatia para o item e o lote). Lote e movimento entram direto aqui,
+    // só como semente: o 02 só apaga tudo se a fatia e o item vierem ANTES de todas essas mães na ordem de exclusão.
+    const produto = await p.produto.create({ data: { cliente_id: c, empresa_id: emp.id, numero_produto: '1', nome_produto: 'HERBICIDA', unidade_principal_estoque: 'L', estoque_atual: '8' } });
+    const local = await p.localEstoque.create({ data: { cliente_id: c, numero_local: '1', nome: 'GALPÃO' } });
+    const loteEstoque = await p.estoqueLoteNota.create({ data: {
+      cliente_id: c, empresa_id: emp.id, produto_id: produto.id, local_estoque_id: local.id, custo_unitario: '5', quantidade_entrada: '10', quantidade_disponivel: '8',
+    } });
+    const saida = await p.movimentacaoEstoque.create({ data: {
+      cliente_id: c, empresa_id: emp.id, numero_movimentacao: '1', tipo_movimentacao: 'Saída', data_movimentacao: new Date('2026-11-01T12:00:00Z'),
+      produto_id: produto.id, quantidade: '2', unidade_medida: 'L', valor_unitario: '5', valor_total: '10',
+      origem_sistema: 'apontamento_atividade', exclusao_somente_em: 'apontamento_atividade', lancamento_origem_id: apontamento.id,
+    } });
+    await p.apontamentoAtividadeItem.create({ data: {
+      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 1, tipo: 'SERVICO', status: 'CONFIRMADO', descricao: 'MÃO DE OBRA',
+      quantidade: '1', valor_unitario: '100', valor_total: '100', operation_id: `sqled-servico-${i}`, criado_por_usuario_id: t.usuario.id,
+    } });
+    const itemProduto = await p.apontamentoAtividadeItem.create({ data: {
+      cliente_id: c, empresa_id: emp.id, apontamento_id: apontamento.id, ordem: 2, tipo: 'PRODUTO', status: 'CONFIRMADO', produto_id: produto.id,
+      local_estoque_id: local.id, quantidade: '2', unidade: 'L', valor_unitario: '5', valor_total: '10', operation_id: `sqled-produto-${i}`,
+      movimentacao_estoque_id: saida.id, criado_por_usuario_id: t.usuario.id,
+    } });
+    await p.apontamentoAtividadeItemConsumoLote.create({ data: {
+      cliente_id: c, empresa_id: emp.id, item_id: itemProduto.id, estoque_lote_nota_id: loteEstoque.id, ordem: 1, quantidade: '2', custo_unitario: '5',
     } });
     for (let k = 0; k < 3; k += 1) await p.movimentacaoMapa.create({ data: { cliente_id: c, empresa_id: emp.id } });
     for (let k = 0; k < 5; k += 1) await p.auditLog.create({ data: { cliente_id: c, usuario_id: t.usuario.id, acao: 'criar', entidade: 'Lote', entidade_id: lote.id, request_id: 'req-teste' } });
@@ -142,7 +167,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '83', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190)');
+    assert.equal(l['tabelas em public'].valor, '85', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -289,6 +314,11 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(await bcrypt.compare(res.senha, conta.senha_hash), true, 'hash do pgcrypto compatível com bcryptjs');
     const depois = await contar();
     assert.deepEqual(depois, { c: 1, u: 1, l: 0, a: 2, cat: 0, mm: 0, glob: antes.glob, mig: antes.mig });
+    // D-PROD-193: a semente tinha 2 itens e 1 fatia; o 02 apagou na ordem certa (fatia → item → apontamento → lote/movimento/produto/local).
+    assert.deepEqual(
+      [await p.apontamentoAtividadeItemConsumoLote.count(), await p.apontamentoAtividadeItem.count(), await p.apontamentoAtividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
+      [0, 0, 0, 0, 0, 0, 0]
+    );
     const auditoria = await p.auditLog.findMany({ orderBy: { acao: 'asc' } });
     assert.deepEqual(auditoria.map((a) => a.acao), ['ops_inicializacao', 'papel_tenant']);
     const texto = JSON.stringify(auditoria);
