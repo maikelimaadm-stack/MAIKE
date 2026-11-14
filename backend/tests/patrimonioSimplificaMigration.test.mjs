@@ -4,16 +4,19 @@
  * real, num banco PRÓPRIO criado e apagado por este teste (o banco da suíte não
  * é tocado).
  *
- * Partida: as 42 migrations da main (todas menos esta CONTRACT e a `20261113700000_apontamento_atividade`,
- * D-PROD-190, que depende dela; inclui a TipoAtividade, D-PROD-182, a CADESTACOES, D-PROD-188, e a CONTRACT
- * `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, aplicada pelo Prisma direto, sem o runner e portanto sem
- * a barreira de MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa está vazio nessa hora e
- * `semear` não cria TipoTarefa) e sementes nas 13 tabelas do Patrimônio antigo para 2 clientes, com um
- * abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 não cria nem
- * apaga tabela: as contagens de tabelas (87/88) da partida não mudam com ela. A D-PROD-188 (CADESTACOES) cria
- * 1 tabela nova e soma +1 migration e +1 tabela em todas as contagens. A D-PROD-190 referencia
- * BemPatrimonial(cliente_id, empresa_id, id), que só existe no formato novo: fica fora da partida e sobe pelo
- * runner no GREEN, depois desta CONTRACT (em produção a D-PROD-162 já está concluída).
+ * Partida: todas as migrations do repositório menos esta CONTRACT e a `20261113700000_apontamento_atividade`,
+ * D-PROD-190, que depende dela (MIGRATIONS_PARTIDA; inclui a TipoAtividade, D-PROD-182, a CADESTACOES,
+ * D-PROD-188, a CADCURVAGANHO, D-PROD-189, e as CONTRACT `20261113200000_tipo_tarefa_drop_colunas`, D-PROD-183, e
+ * `20261113500000_categoria_manejo_cadcategoria`, D-PROD-187, aplicadas pelo Prisma direto, sem o runner e portanto
+ * sem a barreira de MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa e CategoriaManejo estão
+ * vazias nessa hora e `semear` não cria nenhuma das duas) e sementes nas 13 tabelas do Patrimônio antigo para 2
+ * clientes, com um abastecimento CANCELADO (saída + estorno + fatia) e uma compra P3 em KG com lote. A D-PROD-183 e a
+ * D-PROD-187 não criam nem apagam tabela (a D-PROD-187 só renomeia CategoriaManejo para CADCATEGORIA): as contagens de
+ * tabelas (88/89 na partida; 82 no formato novo, 83 com a D-PROD-190) não mudam com elas.
+ * A D-PROD-188 (CADESTACOES) e a D-PROD-189 (CADCURVAGANHO) criam 1 tabela nova cada e somam +1 migration e +1 tabela, cada uma, em todas as contagens.
+ * A D-PROD-190 referencia BemPatrimonial(cliente_id, empresa_id, id), que só existe no formato novo: fica fora da
+ * partida (MIGRATIONS_DEPOIS_DO_CONTRACT) e sobe pelo runner no GREEN, depois desta CONTRACT (em produção a
+ * D-PROD-162 já está concluída).
  *
  * RED (nada muda; a falha aberta é resolvida com `migrate resolve --rolled-back`):
  * CONFIRMADO, FK e visão de fora, trava concorrente em Produto, sem impressão,
@@ -22,10 +25,10 @@
  * MIGRATION_CONTRACT_AUTORIZADO (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 44 concluídas (esta CONTRACT e a D-PROD-190), 82 tabelas (+ ApontamentoAtividade vazia, com RLS), as 7 novas
- * vazias com o mesmo dono/ACL das antigas,
+ * todas concluídas (TOTAL_MIGRATIONS: esta CONTRACT e a D-PROD-190), 83 tabelas (+ ApontamentoAtividade vazia, com
+ * RLS), as 7 novas vazias com o mesmo dono/ACL das antigas,
  * RLS e políticas no padrão, 7/31/32/55 constraints e índices, impressão digital
- * das 74 que ficam idêntica, os 2 CHECKs de OperacaoFinanceiraItem com 'L',
+ * das 75 que ficam idêntica, os 2 CHECKs de OperacaoFinanceiraItem com 'L',
  * estoque intacto, `migrate diff` vazio e 2ª execução sem pendências.
  *
  * As funções são as do ensaio local (`scripts/dev/ensaio-patrimonio-simplifica.mjs`).
@@ -37,8 +40,8 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, NOME_CONTRACT, PAPEL_OUTRO, TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT,
-  TABELAS_ESTOQUE, TABELAS_NOVAS,
+  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_CONTRACT, PAPEL_OUTRO, TOTAL_MIGRATIONS,
+  TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT, TABELAS_ESTOQUE, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
   retrato, rodarCenarioRed, segurancaDe, semear, sistema,
@@ -80,11 +83,12 @@ after(async () => {
 });
 
 describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (PostgreSQL real)', () => {
-  test('SM-01 partida: 42 migrations da main, 87 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
+  test('SM-01 partida: todas as migrations menos a CONTRACT e a D-PROD-190, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
-    assert.equal(h.concluidas, 42);
+    assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 2, 'todas as pastas menos esta CONTRACT e a D-PROD-190');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 87);
+    assert.equal(partida.tabelas, 88);
     // D-PROD-190: a migration que depende do formato novo não está na partida (nem a tabela dela).
     assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade']);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
@@ -103,18 +107,18 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
   });
 
   for (const cenario of CENARIOS_RED) {
-    test(`SM-RED ${cenario.id}: recusado com a mensagem própria e NADA muda (87 tabelas, linhas idênticas, migration aberta → resolvida)`, async (t) => {
+    test(`SM-RED ${cenario.id}: recusado com a mensagem própria e NADA muda (88 tabelas, linhas idênticas, migration aberta → resolvida)`, async (t) => {
       if (cenario.papel && !superusuario) return t.skip('o papel do banco de teste não cria superusuário');
       const r = await rodarCenarioRed(cenario, { db, url: URL_T });
       assert.notEqual(r.status, 0, r.saida);
       assert.match(r.saida, cenario.esperado);
       assert.deepEqual(r.depois, r.antes, 'nenhuma linha nem tabela mudou');
-      assert.equal(r.antes.tabelas, cenario.id === 'fk_de_fora' ? 88 : 87);
+      assert.equal(r.antes.tabelas, cenario.id === 'fk_de_fora' ? 89 : 88);
       assert.equal(r.historico.contract_concluida, 0);
       assert.equal(r.historico.contract_aberta, 1, 'a linha da migration fica com finished_at NULL');
       assert.equal(r.resolvida?.status, 0, r.resolvida?.saida);
       if (cenario.trava) assert.ok(r.ms < TETO_TRAVA_MS, `o runner saiu em ${r.ms} ms (lock_timeout de 5 s; não espera a trava)`);
-      assert.equal(await contarTabelas(db), 87);
+      assert.equal(await contarTabelas(db), 88);
       assert.equal((await historico(db)).contract_aberta, 0);
       assert.deepEqual(await retrato(db), partida, 'o cenário foi desfeito por inteiro');
       assert.ok(!r.saida.includes(URL_T), 'a URL nunca aparece na saída');
@@ -138,7 +142,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await retrato(db), partida);
   });
 
-  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): 44/0 (com a D-PROD-190 depois da CONTRACT), 82 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 74 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
+  test('SM-03 GREEN pelo runner oficial (alvo conferido + MIGRATION_CONTRACT_AUTORIZADO + impressão na URL): todas/0 (com a D-PROD-190 depois da CONTRACT), 83 tabelas, 7 novas vazias com o mesmo dono/ACL, RLS, estrutura, impressão digital das 75 idêntica, CHECKs com L, estoque intacto e migrate diff vazio', async () => {
     const sid = await sistema(db);
     const imp = (await impressao(db)).impressao;
     const r = await aplicarPeloRunner(comImpressao(URL_T, imp), { runtime: URL_T, extras: { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: sid, MIGRATION_CONTRACT_AUTORIZADO: DECISAO } });
@@ -146,10 +150,10 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.match(r.saida, new RegExp(`CONTRACT autorizado: ${NOME_CONTRACT} \\(${DECISAO}\\)`));
 
     const h = await historico(db);
-    assert.equal(h.concluidas, 44);
+    assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 82, 'as 81 do formato novo (com a CADESTACOES, D-PROD-188) + ApontamentoAtividade (D-PROD-190)');
+    assert.equal(await contarTabelas(db), 83, 'as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + ApontamentoAtividade (D-PROD-190)');
     // D-PROD-190: subiu DEPOIS da CONTRACT (o runner aplica em ordem de nome), vazia, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -187,7 +191,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31, check: 32, indices: 55 });
     assert.deepEqual(e.colunas, { AbastecimentoBem: 31, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 54, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 11 });
 
-    assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 74 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
+    assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);
     assert.match(k.OperacaoFinanceiraItem_unidade_check, /'KG'.*'SACO'.*'UN'.*'L'/);
     assert.match(k.OperacaoFinanceiraItem_forma_check, /'MERCADORIA'.*'KG'.*'SACO'.*'L'.*'SERVICO'.*'UN'/);
@@ -203,6 +207,6 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(r.status, 0, r.saida);
     assert.match(r.saida, /No pending migrations to apply/);
     assert.deepEqual(await retrato(db), antes);
-    assert.equal((await historico(db)).concluidas, 44);
+    assert.equal((await historico(db)).concluidas, TOTAL_MIGRATIONS);
   });
 });

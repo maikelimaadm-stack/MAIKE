@@ -3,7 +3,6 @@ import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastr
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
-import CategoriaOficialCatalogoSelect from "@/components/catalogoGlobal/CategoriaOficialCatalogoSelect";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import {
   FAIXAS_IDADE_CATEGORIA_MANEJO,
@@ -57,19 +56,20 @@ export const getInitialFormData = () => ({
   sexo: "",
   idade_minima_meses: "",
   idade_maxima_meses: "",
-  catalogo_categoria_visual_id: "",
 });
 
 /**
  * Registro → formulário. `faixa_idade_alterada` começa falso: salvar sem mexer
  * no select NÃO reenvia as idades (o par gravado, mesmo legado, fica intocado).
+ * O vínculo com o ícone oficial saiu do cadastro (D-PROD-187): mesmo que um
+ * registro antigo em cache ainda o traga, o formulário não o mostra e o
+ * service não o envia.
  */
 export function buildFormInitialFromRecord(editando) {
   return {
     ...getInitialFormData(),
     ...editando,
     sexo: sexoDoRegistro(editando.sexo),
-    catalogo_categoria_visual_id: editando.catalogo_categoria_visual_id ?? "",
     idade_minima_meses: editando.idade_minima_meses ?? "",
     idade_maxima_meses: editando.idade_maxima_meses ?? "",
     faixa_idade_alterada: false,
@@ -226,22 +226,6 @@ export default function FormularioCategoriaManejo({
             <option value="Fêmea">Fêmea</option>
           </B1Select>
         )}
-      </B1Field>
-
-      <B1Field
-        label="Ícone oficial (catálogo MAK Gestão)"
-        span={4}
-        // Sempre mostra um texto ("SEM VÍNCULO" ou o nome): o rótulo fica no alto.
-        hasValue
-        locked={readOnly}
-        disabled={locked}
-      >
-        <CategoriaOficialCatalogoSelect
-          value={formData.catalogo_categoria_visual_id || ""}
-          onChange={(id) => handleChange("catalogo_categoria_visual_id", id)}
-          className={B1_FIELD_CTL_CLS}
-          readOnly={readOnly}
-        />
       </B1Field>
 
       <B1Field

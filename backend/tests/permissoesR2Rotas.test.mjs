@@ -118,6 +118,10 @@ const ESCRITAS = (c) => {
     ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
     ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['estação (DELETE)', 'DELETE', `/estacoes/${ID}?empresa_id=${E}`],
+    // D-PROD-189 — Curvas de Ganho de Peso: escrita guardada pela tela pec-curvas-ganho.
+    ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', gmd_aguas: 0.5, gmd_transicao: 0.3, gmd_seca: 0.1 }],
+    ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
     // D-PROD-190 — Apontamento de Atividade: escrita guardada pela tela
     // op-apontamentos-atividade (cancelar = ação "excluir"; não há DELETE físico).

@@ -140,6 +140,9 @@ export const API_ERROR_CODES = Object.freeze({
   ESTACAO_NOT_FOUND: 'ESTACAO_NOT_FOUND',
   ESTACAO_NAME_CONFLICT: 'ESTACAO_NAME_CONFLICT',
   ESTACAO_PERIODO_SOBREPOSTO: 'ESTACAO_PERIODO_SOBREPOSTO',
+  // D-PROD-189 — Curvas de Ganho de Peso.
+  CURVA_GANHO_NOT_FOUND: 'CURVA_GANHO_NOT_FOUND',
+  CURVA_GANHO_NAME_CONFLICT: 'CURVA_GANHO_NAME_CONFLICT',
 
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
@@ -257,6 +260,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.ESTACAO_NAME_CONFLICT]: 'Já existe uma estação com este nome nesta fazenda.',
   [API_ERROR_CODES.ESTACAO_PERIODO_SOBREPOSTO]:
     'O período se sobrepõe a outra estação ativa desta fazenda. Ajuste as datas ou inative a outra estação.',
+  [API_ERROR_CODES.CURVA_GANHO_NOT_FOUND]: 'Esta curva de ganho não foi encontrada. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.CURVA_GANHO_NAME_CONFLICT]: 'Já existe uma curva de ganho com este nome nesta fazenda.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

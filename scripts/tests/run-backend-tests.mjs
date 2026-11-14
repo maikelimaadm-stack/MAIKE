@@ -95,6 +95,14 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * afetada; um banco LOCAL com TipoTarefa de rodadas antigas com flags true é.
  * As mensagens dessa guarda começam com `tipo_tarefa_drop_colunas:` (o número
  * da decisão fica fora do migration.sql). O remédio é o mesmo: recriar o banco local.
+ *
+ * D-PROD-187: a migration CONTRACT da Categoria de Manejo apaga as 15 colunas
+ * dormentes e o vínculo com o ícone oficial (catalogo_categoria_visual_id) e
+ * renomeia a tabela para CADCATEGORIA. Com algum valor nessas 16 colunas, ela
+ * exige a impressão aprovada no GO (maike.categoria_manejo_legado_impressao);
+ * com um objeto de fora (índice, visão, função) na tabela, recusa. A CI nasce
+ * vazia; um banco LOCAL com CategoriaManejo de rodadas antigas pode não estar.
+ * As mensagens começam com `categoria_manejo_cadcategoria:`. Mesmo remédio.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -103,7 +111,11 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita tipo_tarefa_drop_colunas (a CONTRACT da D-PROD-183), o mais provável é o banco local ter TipoTarefa ' +
   'de rodadas antigas com alguma das 4 flags (exige_area, pode_ter_produto, pode_ter_maquina, pode_ter_implemento) ' +
   'em true, e a guarda exigir a impressão aprovada no GO; a mensagem da guarda diz o motivo exato. ' +
-  'Recriar o banco local, do mesmo jeito, resolve.';
+  'Recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita categoria_manejo_cadcategoria (a CONTRACT da D-PROD-187), o banco local tem CategoriaManejo de rodadas ' +
+  'antigas com valor em alguma das 16 colunas apagadas (raca, categoria_oficial, ganho_peso_anual_kg, gmd_*, ' +
+  'catalogo_categoria_visual_id) ou algum objeto de fora na tabela; a mensagem da guarda diz o motivo exato. ' +
+  'Recriar o banco local também resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

@@ -263,6 +263,13 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     options
   );
 
+// D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
+export const curvaGanhoNotFound = (message, options) =>
+  new AppError('CURVA_GANHO_NOT_FOUND', message || 'curva de ganho não encontrada', options);
+
+export const curvaGanhoNomeConflito = (message, options) =>
+  new AppError('CURVA_GANHO_NAME_CONFLICT', message || 'já existe curva de ganho com este nome nesta fazenda', options);
+
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 

@@ -13,7 +13,6 @@ const serviceMock = {
   listarTipos: vi.fn(),
   listarGruposSimples: vi.fn(),
   listarCategoriasManejoDaEmpresa: vi.fn(),
-  listarIconesDeLoteDaEmpresa: vi.fn(),
 };
 
 vi.mock("@/services/produtoService", async (importOriginal) => {
@@ -56,7 +55,6 @@ vi.mock("@/services/categoriaProdutoService", () => ({
 
 vi.mock("@/services/categoriaManejoService", () => ({
   listarCategoriasManejoDaEmpresa: (...a) => serviceMock.listarCategoriasManejoDaEmpresa(...a),
-  listarIconesDeLoteDaEmpresa: (...a) => serviceMock.listarIconesDeLoteDaEmpresa(...a),
   criarCategoriaManejo: vi.fn(),
   atualizarCategoriaManejo: vi.fn(),
   excluirCategoriaManejo: vi.fn(),
@@ -96,7 +94,6 @@ describe("MOTORBASE1-BATCH-01", () => {
     serviceMock.listarTipos.mockResolvedValue([]);
     serviceMock.listarGruposSimples.mockResolvedValue([]);
     serviceMock.listarCategoriasManejoDaEmpresa.mockResolvedValue([]);
-    serviceMock.listarIconesDeLoteDaEmpresa.mockResolvedValue([]);
   });
 
   afterEach(() => {

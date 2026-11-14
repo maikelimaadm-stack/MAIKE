@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   Tag,
   Tractor,
+  TrendingUp,
   Truck,
   Users,
   Warehouse,
@@ -44,6 +45,7 @@ export const ICONE_TELA = {
   CadastroSetores: Layers,
   CategoriasManejo: Tag,
   Estacoes: CloudSun, // D-PROD-188
+  CurvasGanho: TrendingUp, // D-PROD-189
   Bebedouros: Droplet,
   Produtos: Package,
   Categorias: Tag,

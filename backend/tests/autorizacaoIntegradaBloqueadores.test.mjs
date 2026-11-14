@@ -102,7 +102,11 @@ describe('F2 — catálogo global não é gravável por tenant', () => {
     const depois = await prisma().catalogoCategoriaVisual.findUnique({ where: { id: cat.id } });
     assert.equal(depois.nome, 'Boi');
     assert.equal(depois.ativo, true);
-    assert.equal((await prisma().categoriaManejo.findUnique({ where: { id: cm.id } })).catalogo_categoria_visual_id, null);
+    // D-PROD-187: o vínculo com o ícone saiu do banco; a linha continua igual e sem nenhuma chave do catálogo.
+    const linhaDepois = await prisma().categoriaManejo.findUnique({ where: { id: cm.id } });
+    assert.equal(linhaDepois.nome, 'Garrote');
+    assert.equal(linhaDepois.updatedAt.getTime(), cm.updatedAt.getTime(), 'linha intocada');
+    assert.equal(Object.keys(linhaDepois).some((k) => /catalogo/i.test(k)), false);
   });
 
   test('POST com relação aninhada → 400 (não 500); nada criado', async () => {

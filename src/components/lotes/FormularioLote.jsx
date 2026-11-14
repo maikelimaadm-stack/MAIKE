@@ -21,7 +21,6 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import B1MultiSelecao from "@/components/cadastro/base1/B1MultiSelecao.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
-import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import { fornecedoresSelecionaveis } from "@/domain/lotes/fornecedoresDoLote";
 import { categoriaOficialDaCategoriaManejo } from "@/domain/lotes/categoriaOficialDerivada";
@@ -234,13 +233,6 @@ export default function FormularioLote({
     queryFn: () => listarCategoriasManejoAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
-
-  // Vínculo explícito categoria de manejo → categoria visual global; o lote não guarda ícone.
-  const categoriaVisualIdDoLote = useMemo(
-    () =>
-      categoriasManejo.find((item) => item.id === formData.categoria_manejo_id)?.catalogo_categoria_visual_id ?? null,
-    [categoriasManejo, formData.categoria_manejo_id]
-  );
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ["fornecedores", empresaSelecionadaId],
@@ -525,7 +517,7 @@ export default function FormularioLote({
     // R3: texto com teclado numérico — o que foi digitado fica no campo e é
     // validado (inteiro positivo), nunca truncado nem trocado por vazio.
     : { id: "quantidade_cabecas", name: "quantidade_cabecas", span: 4, spanLg: 3, label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", dica: useBase1Visual ? <IconeOficialLotePreview variante="dica" categoriaVisualId={categoriaVisualIdDoLote} categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)} /> : undefined, span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "sigla", "sexo", "especie"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "sigla", "sexo", "especie"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()}</div>} /> },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "sigla", "sexo", "especie"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "sigla", "sexo", "especie"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()}</div>} /> },
   { id: "sexo", name: "sexo", span: 6, spanLg: 3, label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", span: 6, spanLg: 3, label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
   { id: "peso_medio_kg", name: "peso_medio_kg", span: 4, spanLg: 3, label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
@@ -547,7 +539,7 @@ export default function FormularioLote({
   { id: "identificador_sigla", name: "identificador_sigla", span: 6, spanLg: 3, label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", span: 6, spanLg: 3, label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", span: 12, spanLg: 12, label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData, useBase1Visual, categoriaVisualIdDoLote]);
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedoresOpcoes, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData, useBase1Visual]);
 
   const defaultLayout = {
     // Ordem e larguras do design (D-PROD-164): Descrição · Código · Data · Ativo numa linha só.
@@ -613,14 +605,6 @@ export default function FormularioLote({
         visualVariant={useBase1Visual ? "base1" : "legacy"}
         grupos={GRUPOS_DO_FORMULARIO}
         />
-      {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69).
-          No visual Base1 ele é a dica sob o campo Categoria de Manejo (D-PROD-164). */}
-      {useBase1Visual ? null : (
-        <IconeOficialLotePreview
-          categoriaVisualId={categoriaVisualIdDoLote}
-          categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
-        />
-      )}
     </>
   );
 
