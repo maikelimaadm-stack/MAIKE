@@ -902,16 +902,34 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       continue;
     }
 
+    // D-PROD-195 R2: nenhum item vai ao servidor citando um registro cuja
+    // criação ficou RETIDA (o servidor gravaria a referência solta).
+    //  - create que cita: fica retido junto (é um registro que ainda não
+    //    existe no servidor) e passa a segurar quem o citar;
+    //  - update de registro REAL que cita: segue SEM os campos que citam o id
+    //    retido (o resto da edição é aplicado; sem resto, sai da fila). Reter a
+    //    edição de um registro real a deixaria por cima do servidor nas listas
+    //    e travaria a exclusão por pendência offline.
+    let dadosDoUpdate = item.data || {};
     if (item.operation === "create" || item.operation === "update") {
-      // D-PROD-195 R2: um item que cita um registro cuja criação ficou RETIDA
-      // nunca vai ao servidor com esse id offline (o servidor gravaria a
-      // referência solta): fica retido junto, e o resto da fila segue. Ele
-      // mesmo passa a segurar quem o citar (lote → movimento, por exemplo).
       const citado = [...idsOfflineNoCorpo(item.data || {})].find((id) => criacoesRetidas.has(id));
-      if (citado) {
+      if (citado && item.operation === "create") {
         await reter(storage, item, { depende_de: citado });
-        if (item.operation === "create") criacoesRetidas.add(item.record_id);
+        criacoesRetidas.add(item.record_id);
         continue;
+      }
+      if (citado) {
+        dadosDoUpdate = Object.fromEntries(
+          Object.entries(item.data || {}).filter(
+            ([, valor]) => ![...idsOfflineNoCorpo(valor)].some((id) => criacoesRetidas.has(id))
+          )
+        );
+        if (Object.keys(dadosDoUpdate).length === 0) {
+          await storage.removerDaFila(item.id);
+          descartados += 1;
+          emitirMudancaDeFila();
+          continue;
+        }
       }
     }
 
@@ -934,7 +952,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       if (item.operation === "update") {
         const alvo = mapaDeIds[item.record_id] || item.record_id;
         if (!isOfflineId(alvo)) {
-          const atualizado = await operations.update(alvo, substituirIdsMapeados(item.data || {}, mapaDeIds));
+          const atualizado = await operations.update(alvo, substituirIdsMapeados(dadosDoUpdate, mapaDeIds));
           await atualizarCache(
             storage,
             item.entity_name,

@@ -10,8 +10,10 @@
  *      e o resto da fila (outra entidade, depois dele) é sincronizado — antes, o
  *      400 `curva_obrigatoria` travava a fila inteira;
  *  (c) editar e excluir seguem passando pelo adaptador offline;
- *  (d) D-PROD-195 R2: um lote (ou edição) da fila que aponte para a categoria
- *      retida também fica retido — nunca vai ao servidor com o id offline;
+ *  (d) D-PROD-195 R2: nada vai ao servidor citando a categoria retida — um
+ *      lote criado offline que aponte para ela fica retido junto; a edição de
+ *      um lote REAL segue sem esse campo (sem resto, sai da fila), para não
+ *      ficar presa por cima do servidor nem travar a exclusão;
  *  (e) a categoria criada offline pela versão anterior não aparece nas listas
  *      (online ou offline), nem pela fila nem pela cópia `offline_` do cache,
  *      mesmo antes de qualquer sincronização;
@@ -128,7 +130,7 @@ describe('D-PROD-195 — criar categoria é só online', () => {
     data: { id: 'offline_cm_1', nome: 'NOVILHA', sexo: 'FEMEA' }, created_at: '2026-11-01T00:00:00Z',
   });
 
-  it('(d) lote e edição que apontam para a categoria retida ficam retidos; o independente sincroniza', async () => {
+  it('(d) lote criado offline que aponta para a categoria retida fica retido; edição de lote real segue sem o campo', async () => {
     const opsLote = { list: vi.fn(async () => []), create: vi.fn(async (d) => ({ id: 'lote-srv', ...d })), update: vi.fn(async (id, d) => ({ id, ...d })) };
     createOfflineEntityAdapter({ entityName: 'LoteDependente', operations: opsLote, storage });
     await storage.adicionarNaFila(categoriaLegada());
@@ -145,6 +147,10 @@ describe('D-PROD-195 — criar categoria é só online', () => {
       data: { categoria_manejo_id: 'offline_cm_1' }, created_at: '2026-11-01T00:00:03Z',
     });
     await storage.adicionarNaFila({
+      entity_name: 'LoteDependente', empresa_id: 'emp-1', operation: 'update', record_id: 'lote-real-2',
+      data: { nome: 'RENOMEADO', categoria_manejo_id: 'offline_cm_1' }, created_at: '2026-11-01T00:00:03.500Z',
+    });
+    await storage.adicionarNaFila({
       entity_name: 'LoteDependente', empresa_id: 'emp-1', operation: 'create', record_id: 'offline_lote_2',
       data: { id: 'offline_lote_2', nome: 'L2', categoria_manejo_id: 'cm-real' }, created_at: '2026-11-01T00:00:04Z',
     });
@@ -152,25 +158,28 @@ describe('D-PROD-195 — criar categoria é só online', () => {
     const r = await syncOfflineEntityQueue();
 
     expect(nativeRequest).not.toHaveBeenCalled();
-    expect(opsLote.update).not.toHaveBeenCalled();
+    // lote real: só o resto da edição vai; a edição que só trocava a categoria sai da fila
+    expect(opsLote.update).toHaveBeenCalledTimes(1);
+    expect(opsLote.update).toHaveBeenCalledWith('lote-real-2', { nome: 'RENOMEADO' });
     expect(opsLote.create).toHaveBeenCalledTimes(1);
     expect(opsLote.create).toHaveBeenCalledWith({ nome: 'L2', categoria_manejo_id: 'cm-real' });
     expect(r.code).toBe(API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED);
-    expect(r.retidos).toBe(4);
+    expect(r.retidos).toBe(3);
+    expect(r.descartados).toBe(1);
     const restante = [...storage.fila.values()];
     expect(restante.map((f) => [f.entity_name, f.operation, f.record_id, f.quarentena?.depende_de ?? null])).toEqual([
       [ENTIDADE_OFFLINE, 'create', 'offline_cm_1', null],
       [ENTIDADE_OFFLINE, 'update', 'offline_cm_1', 'offline_cm_1'],
       ['LoteDependente', 'create', 'offline_lote_1', 'offline_cm_1'],
-      ['LoteDependente', 'update', 'lote-real', 'offline_cm_1'],
     ]);
     for (const f of restante) expect(f.quarentena?.codigo).toBe(API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED);
 
-    // de novo: idempotente — nada enviado, nada perdido
+    // de novo: idempotente — nada mais enviado, nada perdido
     const r2 = await syncOfflineEntityQueue();
-    expect(r2.retidos).toBe(4);
+    expect(r2.retidos).toBe(3);
     expect(opsLote.create).toHaveBeenCalledTimes(1);
-    expect(storage.fila.size).toBe(4);
+    expect(opsLote.update).toHaveBeenCalledTimes(1);
+    expect(storage.fila.size).toBe(3);
   });
 
   it('(e) a categoria da versão anterior não aparece na lista, nem pela fila nem pelo cache, sem sincronizar antes', async () => {

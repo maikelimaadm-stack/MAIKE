@@ -76,7 +76,7 @@ anterior e ainda não sincronizada:
 
 | Achado | Correção (D-PROD-195, emenda R2) |
 |---|---|
-| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, item que cita uma criação retida pela política fica retido junto (`quarentena.depende_de`), em qualquer ordem; edição ou exclusão do registro retido também. Outros ids offline seguem como antes |
+| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, um `create` que cita uma criação retida pela política fica retido junto (`quarentena.depende_de`), em qualquer ordem; a edição de um registro real que a cita vai sem esses campos (sem resto, sai da fila); edição ou exclusão do registro retido fica junto dele. Outros ids offline seguem como antes |
 | A categoria retida aparecia em todas as listas, inclusive online | Para entidade com criação só online, nem o `create` da fila nem a cópia `offline_…` do cache entram nas listas, sem depender de sincronizar antes |
 | Criar categoria online deixou de pôr o registro no cache offline | Política `criacao: 'somente_online'` no runtime, que grava o registro confirmado no cache |
 
@@ -86,11 +86,13 @@ cadastros legítimos de outras entidades. Um exemplo é o lote cuja área foi cr
 numa sincronização anterior, porque o mapa de ids vale só para uma passada. A regra
 ficou restrita às criações retidas pela política e conhecidas antes do laço. A lista
 também passou a esconder a cópia `offline_…` do cache e decide pela política, sem
-esperar um replay.
+esperar um replay. A quarta revisão mostrou que reter a **edição de um lote real**
+que citava a categoria retida a deixava por cima do servidor nas listas e travava a
+exclusão do lote; agora essa edição vai sem o campo que cita a categoria.
 
 Sem migration. Testes: `categoriaManejoCriacaoOnline` (8, entre eles lote dependente
 nas duas ordens, lista sem a retida pela fila e pelo cache, cache depois de criar
 online e outro id offline que não é retido), `offlineRuntime`,
 `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado` e
-`loteExclusaoCacheOffline`: 62/62. Com o runtime anterior, 5 dos 8 falham.
+`loteExclusaoCacheOffline`: 63/63. Com o runtime anterior, 5 dos 8 falham.
 
