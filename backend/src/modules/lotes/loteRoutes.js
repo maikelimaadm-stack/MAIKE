@@ -23,11 +23,9 @@ const CAMPOS_CRIACAO = Object.freeze({
   categoria_manejo_nome: { type: ['string', 'null'], maxLength: 255 },
   sexo: { type: ['string', 'null'], enum: [...SEXOS, null] },
   peso_medio_kg: { type: ['number', 'null'], minimum: 0, maximum: 99999999.9999 },
-  idade_media_meses: { type: ['integer', 'null'], minimum: 0, maximum: 2147483647 },
   setor_id: { type: ['string', 'null'], maxLength: 64 },
   area_entrada_id: { type: ['string', 'null'], maxLength: 64 },
   area_atual_id: { type: ['string', 'null'], maxLength: 64 },
-  raca_predominante: { type: ['string', 'null'], maxLength: 128 },
   sistema_produtivo: { type: ['string', 'null'], maxLength: 128 },
   data_entrada: { type: ['string', 'null'], maxLength: 32 },
   motivo_entrada: { type: 'string', enum: MOTIVOS },
@@ -47,6 +45,10 @@ const CAMPOS_CRIACAO = Object.freeze({
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   status: { type: 'string', enum: STATUS },
   campos_personalizados: { type: 'object' },
+  // D-PROD-196: saíram do cadastro. Aceitos no corpo só para não recusar um
+  // cliente antigo ou um item da fila offline; o serviço os ignora.
+  idade_media_meses: { type: ['integer', 'null'] },
+  raca_predominante: { type: ['string', 'null'] },
 });
 
 const CAMPOS_ATUALIZACAO = Object.freeze(

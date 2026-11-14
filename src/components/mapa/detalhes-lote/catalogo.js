@@ -75,7 +75,7 @@ const DIA_MS = 86400000;
  */
 
 /**
- * @typedef {{ raca: string, sexo: string, sistema: string, identificador: string, identificadorCor: string|null,
+ * @typedef {{ sexo: string, sistema: string, identificador: string, identificadorCor: string|null,
  *   sigla: string, entrada: string|null, catManejo: string }} IdentVm
  */
 
@@ -291,9 +291,9 @@ const SUPERLOTACAO = Object.keys(CORES_UA_HA)[5];
 // ─── Larguras da Lista (px; LARG_CEL / LARG do mockup) ──────────────────────
 
 /** @type {Record<string, number>} */
-const LARG_CEL = { alNivel: 96, alTipo: 150, alValor: 130, peso: 76, kgpvha: 70, manejo: 112, raca: 100, ident: 92, dias: 64, pesoTotal: 84, origem: 74, prox: 72, entrada: 72, cab: 40, partCab: 66, ua: 50, partUA: 70, uaha: 54, ult: 72, intervalo: 60, nPes: 58, sexo: 56, sist: 60, sigla: 44 };
+const LARG_CEL = { alNivel: 96, alTipo: 150, alValor: 130, peso: 76, kgpvha: 70, manejo: 112, ident: 92, dias: 64, pesoTotal: 84, origem: 74, prox: 72, entrada: 72, cab: 40, partCab: 66, ua: 50, partUA: 70, uaha: 54, ult: 72, intervalo: 60, nPes: 58, sexo: 56, sist: 60, sigla: 44 };
 /** @type {Record<string, number>} */
-const LARG = { alNivel: 118, alTipo: 190, alValor: 170, manejo: 140, raca: 120, ident: 116, dias: 88, pesoTotal: 100, origem: 90, prox: 88, entrada: 88 };
+const LARG = { alNivel: 118, alTipo: 190, alValor: 170, manejo: 140, ident: 116, dias: 88, pesoTotal: 100, origem: 90, prox: 88, entrada: 88 };
 
 // ─── Catálogo de campos do lote ─────────────────────────────────────────────
 
@@ -419,7 +419,6 @@ export const CAMPOS_LOTE = [
   campo('semPesar', 'Pesagem', 'Dias sem pesar', 'desde a última pesagem (ou da entrada, sem pesagem)', (l) => cel(fmtInt(l.pesagem.diasSemPesar), ordemNum(l.pesagem.diasSemPesar))),
 
   // Identificação
-  campo('raca', 'Identificação', 'Raça', '', (l) => cel(l.ident.raca, ordemTxt(l.ident.raca))),
   campo('sexo', 'Identificação', 'Sexo', '', (l) => cel(l.ident.sexo, ordemTxt(l.ident.sexo))),
   campo('sist', 'Identificação', 'Sist. Rep.', '', (l) => cel(l.ident.sistema, ordemTxt(l.ident.sistema))),
   campo('ident', 'Identificação', 'Identificador', '', (l) => cel(l.ident.identificador, ordemTxt(l.ident.identificador), l.ident.identificadorCor ? { dot: l.ident.identificadorCor } : {})),
@@ -810,7 +809,6 @@ const montarLote = (raw, ctx) => {
     diasPastejo: entrada ? Math.max(0, diasEntre(entrada, ctx.hoje)) : null,
     pesagem,
     ident: {
-      raca: texto(raw?.raca_predominante),
       sexo,
       sistema: texto(raw?.sistema_produtivo),
       identificador: texto(raw?.identificador_nome),
@@ -890,7 +888,6 @@ export function camposCartaoTudo(lote) {
   return [
     { rotulo: 'Qtd. Cabeças', texto: lote.textos.cab },
     { rotulo: 'Peso médio (kg)', texto: fmtNum(lote.peso) },
-    { rotulo: 'Raça Predom.', texto: lote.ident.raca },
     { rotulo: 'Sexo', texto: lote.ident.sexo },
     { rotulo: 'Sist. Rep.', texto: lote.ident.sistema },
     { rotulo: 'Dias de pastejo', texto: fmtInt(lote.diasPastejo) },

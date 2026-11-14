@@ -158,8 +158,8 @@ describe('PATCH /lotes — classe da origem e entrada histórica imutáveis', ()
 
 describe('Editar/excluir o lançamento só sem nada depois da entrada (D-PROD-87)', () => {
   const CAMPOS_CADASTRO = [
-    { observacoes: 'NOTA' }, { raca_predominante: 'NELORE' }, { origem: 'COMPRA' }, { motivo_entrada: 'Compra' },
-    { data_entrada: '2026-10-01T12:00:00' }, { numero_gta: '123' }, { idade_media_meses: 12 }, { sistema_produtivo: 'Cria' },
+    { observacoes: 'NOTA' }, { cidade_origem: 'UBERABA' }, { origem: 'COMPRA' }, { motivo_entrada: 'Compra' },
+    { data_entrada: '2026-10-01T12:00:00' }, { numero_gta: '123' }, { chave_nfe: '999' }, { sistema_produtivo: 'Cria' },
   ];
 
   test('lote 1 (com movimentação): PATCH de campo do cadastro → 409 LOTE_UPDATE_BLOCKED, nada muda', async () => {

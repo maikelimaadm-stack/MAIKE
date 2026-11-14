@@ -52,8 +52,8 @@ export const CAMPOS_OPERACIONAIS_DA_ENTRADA = Object.freeze([
  * Nunca: saldo/posição calculados, status, área atual, tenant, usuário, número.
  */
 export const CAMPOS_ADMINISTRATIVOS_DA_ENTRADA = Object.freeze([
-  'nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor', 'raca_predominante', 'sistema_produtivo',
-  'idade_media_meses', 'observacoes', 'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id',
+  'nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor', 'sistema_produtivo',
+  'observacoes', 'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id',
   'fornecedor_nome', 'nota_fiscal', 'chave_nfe', 'numero_gta', 'cidade_origem', 'estado_origem', 'valor_total_compra',
   'valor_por_cabeca', 'valor_frete', 'campos_personalizados',
 ]);

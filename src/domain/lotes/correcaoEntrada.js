@@ -168,7 +168,7 @@ export const somenteCamposAlterados = (anterior, dados) => {
  */
 export const CAMPOS_ADMINISTRATIVOS_DA_ENTRADA = Object.freeze({
   nome: 'texto', identificador_nome: 'texto', identificador_sigla: 'texto', identificador_cor: 'texto',
-  raca_predominante: 'texto', sistema_produtivo: 'texto', idade_media_meses: 'inteiro', observacoes: 'texto',
+  sistema_produtivo: 'texto', observacoes: 'texto',
   motivo_entrada: 'texto', motivo_ajuste: 'texto', motivo_outros: 'texto', origem: 'texto', fornecedor_id: 'texto',
   fornecedor_nome: 'texto', nota_fiscal: 'texto', chave_nfe: 'texto', numero_gta: 'texto', cidade_origem: 'texto',
   estado_origem: 'texto', valor_total_compra: 'numero', valor_por_cabeca: 'numero', valor_frete: 'numero',

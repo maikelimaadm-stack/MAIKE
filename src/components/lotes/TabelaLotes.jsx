@@ -39,7 +39,6 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "valor", label: "Valor Total", default: true, sortable: true, align: "right", width: 140 },
   { id: "fornecedor", label: "Fornecedor", default: true, sortable: true, align: "left", width: 160 },
   { id: "origem", label: "Origem", default: true, sortable: true, align: "left", width: 140 },
-  { id: "raca", label: "Raça Predominante", default: true, sortable: true, align: "left", width: 160 },
   { id: "nota_fiscal", label: "Nota Fiscal", default: true, sortable: true, align: "left", width: 130 },
   { id: "numero_gta", label: "GTA", default: true, sortable: true, align: "left", width: 120 },
   { id: "cidade_origem", label: "Cidade Origem", default: true, sortable: true, align: "left", width: 150 },
@@ -84,7 +83,7 @@ const ORDENS_DA_FAIXA = Object.freeze([
 /** Ordem dos campos em "+ Filtro" (D-PROD-164): primeiro os de escolha, depois o resto. */
 const CAMPOS_DA_FAIXA = Object.freeze([
   "status", "categoria_manejo", "categoria", "sexo", "setor", "area", "cabecas", "peso", "data", "sistema_produtivo", "motivo",
-  "raca", "fornecedor", "identificador", "sigla", "cor", "valor", "valor_por_cabeca", "valor_frete", "cidade_origem",
+  "fornecedor", "identificador", "sigla", "cor", "valor", "valor_por_cabeca", "valor_frete", "cidade_origem",
   "estado_origem", "origem", "nota_fiscal", "numero_gta", "codigo", "nome", "observacoes",
 ]);
 
