@@ -5,7 +5,7 @@
  * do motor físico. Ele só nasce de uma ENTRADA (compra confirmada) ou de uma
  * TRANSFERÊNCIA, e saldo, custo e situação só mudam pelos comandos do motor
  * (venda, suplementação, transferência, abastecimento, item de apontamento de
- * atividade — D-PROD-191 — e seus cancelamentos).
+ * atividade — D-PROD-193 — e seus cancelamentos).
  * Por esta API sobram a leitura e a renomeação benigna do local
  * (`local_estoque_nome`, FormularioPonto). POST, PATCH de coluna operacional e
  * DELETE de lote LIVRE → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA; nada é gravado.
@@ -113,7 +113,7 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
 };
 
 /**
- * D-PROD-191 (I-z, lição do hotfix #259) — o código pode subir antes da
+ * D-PROD-193 (I-z, lição do hotfix #259) — o código pode subir antes da
  * migration dos itens do apontamento de atividade: contar numa tabela que ainda
  * não existe daria 500 (e 25P02 no resto da transação). A consulta ao catálogo
  * (`to_regclass`) nunca falha; sem a tabela, nenhuma fatia de item existe.
@@ -129,7 +129,7 @@ const temFatiasDeItemDeApontamento = async (tx) => {
 /**
  * D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409.
  * D-PROD-159 (X1): idem para fatia FIFO de abastecimento de bem (confirmado ou
- * cancelado: o histórico fica). D-PROD-191 (I-x): idem para fatia FIFO de item
+ * cancelado: o histórico fica). D-PROD-193 (I-x): idem para fatia FIFO de item
  * de apontamento de atividade (confirmado ou cancelado). Chamar sob `travarLote`.
  */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {

@@ -1,8 +1,8 @@
 # MAIKE-APONTAMENTO-ITENS — Relatório (Fatia D do apontamento)
 
-**fatia D · `feat/apontamento-itens` · PR #__PR__ (rascunho)** · Decisão: [D-PROD-191](./DECISIONS.md)
+**fatia D · `feat/apontamento-itens` · PR #__PR__ (rascunho)** · Decisão: [D-PROD-193](./DECISIONS.md)
 
-Contrato do arquiteto: [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md). Branch empilhada sobre `feat/apontamento-atividade` (PR #269, D-PROD-190, migration `20261113700000_apontamento_atividade` já aplicada em produção).
+Contrato do arquiteto: [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md). Branch empilhada sobre `feat/apontamento-atividade` (PR #269, D-PROD-190, migration `20261113700000_apontamento_atividade` já aplicada em produção) e atualizada por merge com ela em `be322ab8`, que já traz a `main` `00a06096` (PRs #263, #267, #268 e #270).
 
 ## 1. Entrega
 
@@ -11,11 +11,11 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 | Camada | O que entrou |
 |---|---|
 | Banco | models `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote` (fatias FIFO por lote), FKs compostas por `cliente_id` todas `RESTRICT`, uniques e índices começando por `cliente_id`, 7 CHECKs; relações inversas só no Prisma. Migration EXPAND `20261113800000_apontamento_atividade_item` com RLS/REVOKE. **Não aplicada** |
-| Release | manifesto (sha256 `866dc994…533c`) e hash do DO (`7aaa176c…f710`) pinados no `premergeMigrateLib.mjs`; B15a/B15b no `premerge-migrate`; SQL editor 01–04 (69 tabelas de tenant, 84 no total, as 2 novas antes do `ApontamentoAtividade` na ordem de exclusão e no `LOCK TABLE`); contagens das duas migrations CONTRACT, do S8 e dos ensaios |
+| Release | manifesto (sha256 `866dc994…533c`) e hash do DO (`7aaa176c…f710`) pinados no `premergeMigrateLib.mjs`; B17a/B17b no `premerge-migrate`; SQL editor 01–04 (70 tabelas de tenant, 85 no total, as 2 novas antes do `ApontamentoAtividade` na ordem de exclusão e no `LOCK TABLE`); testes e ensaios das três CONTRACT (D-PROD-162, D-PROD-183 e D-PROD-187) contando as migrations pela pasta; S8 |
 | Backend | A1 adicionar item, A2 cancelar item, A3 cancelar apontamento com itens (`operation_id` obrigatório), A4 detalhe com `itens` e `custo_itens`, A6 opções de produto, A7 locais com saldo; origem nova `apontamento_atividade` no motor; reconciliação e guarda do lote (X1) conhecendo as fatias; 6 erros novos |
 | Frontend | seção "Itens" no formulário existente (4 estados), rascunho de um item por vez, cancelar item, detalhe no lugar da linha da lista, idempotência no cliente com pendência por escopo, mensagens dos códigos novos. Só componentes existentes; nenhum `.jsx` nem CSS novo |
-| Testes | `apontamentoAtividadeItensNativo` (21) e `apontamentoAtividadeItensConcorrencia` (7) em Postgres real; `apontamentoAtividadeNativo` e `permissoesR2Rotas` ajustados; `premerge-migrate` B1/B15a/B15b; `sqlEditorBootstrap` com itens na semente; S8 e testes de contagem; smoke `apontamentosAtividade.test.jsx` (41) |
-| Documentos | D-PROD-191 com as palavras do proprietário; este relatório; `CURRENT-STATE`; texto constitucional proposto no `00 §1` e no `07` (vale com a aprovação do proprietário no merge manual) |
+| Testes | `apontamentoAtividadeItensNativo` (21) e `apontamentoAtividadeItensConcorrencia` (7) em Postgres real; `apontamentoAtividadeNativo` e `permissoesR2Rotas` ajustados; `premerge-migrate` B1/B17a/B17b (e o B15k da D-PROD-187 com as pastas do dia da CONTRACT); `sqlEditorBootstrap` com itens na semente; S8 e testes de contagem; smoke `apontamentosAtividade.test.jsx` (41) |
+| Documentos | D-PROD-193 com as palavras do proprietário; este relatório; `CURRENT-STATE`; texto constitucional proposto no `00 §1` e no `07` (vale só com a aprovação do proprietário no merge manual) |
 
 ## 2. Como foi feito
 
@@ -26,7 +26,16 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
    - **D4 testes de backend:** escritos contra o contrato, não contra a implementação; ajuste dos testes que mudaram por D-2 e pelo detalhe com itens;
    - **D5 (por último):** portão de migrations, SQL editor, contagens, ensaios e documentos.
 3. **Mutações** (D4): cada mutação do contrato aplicada numa cópia espelhada do backend, fora do repositório, e desfeita; o código das outras frentes conferido por sha256 antes e depois.
-4. **Contagens recalculadas do estado real**: `ls` das migrations (45 pastas) e um banco recém-migrado (`maike_d5`): 84 tabelas em `public` (contando `_prisma_migrations`), `cliente_id` em 70 (as 69 de tenant + `OperadorProdutoMaike`), 45 migrations concluídas.
+4. **Contagens recalculadas do estado real**, depois do merge da base nova: 48 pastas de migration e um banco recém-migrado (`maike_dm`, limpo): 48 concluídas e 0 com falha, **85** tabelas em `public` (contando `_prisma_migrations`), `cliente_id` em 71 (as **70** de tenant + `OperadorProdutoMaike`), `prisma validate` ok e `migrate diff` vazio nos dois sentidos.
+5. **Merge da base nova (2026-11-14).** `git merge origin/feat/apontamento-atividade` (`be322ab8`), sem rebase. A `main` ainda não tinha a PR #269. Conflitos só em testes, scripts e documentos; nenhum nos arquivos de código da Fatia D. Como cada um foi resolvido:
+   - testes e ensaios das CONTRACT (`patrimonioSimplificaMigration`, `tipoTarefaDropColunasMigration` e os ensaios deles): ficou a contagem pela pasta da base (`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), com a migration desta fatia em `MIGRATIONS_DEPOIS_DO_CONTRACT` no ensaio da D-PROD-162 (a partida passa a `TOTAL_MIGRATIONS - 3`) e o GREEN com **85** tabelas;
+   - SQL editor 01, 02 e 04 e `sqlEditorBootstrap`: as listas da base (com `CADCATEGORIA` e `CADCURVAGANHO`) com as 2 tabelas novas antes do `ApontamentoAtividade`, inclusive no `LOCK TABLE`; contagens 85 e 70;
+   - `premerge-migrate.test.mjs`: o B1 com as listas das duas; os testes desta fatia, que se chamavam B15a/B15b, viraram **B17a/B17b** (a base já usa B15a–B15k na D-PROD-187 e B16 em `migrations.test.mjs`);
+   - `DECISIONS.md` e `CURRENT-STATE.md`: as entradas da base mantidas e as desta fatia acrescentadas, com a numeração nova.
+
+   Testes da base que passaram a falhar só por causa da migration nova (de nome posterior às da base), ajustados sem mudar o que provam:
+   - `B15k` (D-PROD-187): o retrato de produção no dia da CONTRACT usa só as pastas até a última de nome posterior que já existia (o ApontamentoAtividade);
+   - `categoriaManejoCadcategoriaMigration` e o ensaio dele: tabelas 83 → 85, e as de nome posterior à CONTRACT na partida passam a vir da pasta (`NOMES_POSTERIORES_NA_PARTIDA`). Os itens do apontamento sobem nela antes da CONTRACT, pela ordem dos nomes (em produção entram depois; não se tocam, como a P1-03).
 
 ## 3. Regras implementadas
 
@@ -36,7 +45,7 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 | Só em CONFIRMADO | apontamento CANCELADO recusa item: 409 `APONTAMENTO_ATIVIDADE_STATUS_INVALIDO`. Conferência: existe → status → `versao` |
 | Serialização | adicionar item, cancelar item e cancelar apontamento travam a linha do apontamento (`FOR UPDATE`) antes de ler itens, locais e produtos; o PATCH continua sem trava e perde o CAS se um item entrou |
 | CAS | `versao` do apontamento; adicionar e cancelar item incrementam a `versao` uma vez |
-| Idempotência | recibo por `operation_id` + fingerprint; replay = 200 com `replay: true` e nenhum efeito novo; mesma chave com conteúdo diferente = 409 `IDEMPOTENCY_CONFLICT` |
+| Idempotência | recibo por `operation_id` + fingerprint; replay = 200 com `replay: true` e nenhum efeito novo; mesma chave com conteúdo diferente = 409 `IDEMPOTENCY_CONFLICT`. Antes do INSERT, o lançamento confere se a chave já tem item (mesmo 409): em produção, com RLS, o P2002 do unique chega sem `target` e viraria `CONCURRENCY_CONFLICT`; o unique fica como última rede |
 | PRODUTO — cadastro | produto do tenant, da mesma empresa, ativo, unidade efetiva `L` ou `KG` (SACO guarda kg); local existe e está ativo; senão 422 `_ITEM_INVALIDO` por `field`/`reason` |
 | PRODUTO — baixa | só `aplicarSaidaFifo`, origem `apontamento_atividade`, na `data_operacional`; quantidade na unidade efetiva, sem conversão; custo FIFO do motor (um arredondamento, 4 casas); fatias gravadas na ordem FIFO; saldo insuficiente = 422 `ESTOQUE_SALDO_INSUFICIENTE`, nada gravado |
 | PRODUTO — estorno | `estornarEmLote`: cada fatia volta ao SEU lote, Entrada `estorno_apontamento_atividade` com o mesmo valor, original `Estornada`, `estoque_atual` restaurado, data = hoje da fazenda; conferências antes do motor; recusa = 409 `_ESTORNO_BLOQUEADO`, nada muda |
@@ -53,7 +62,7 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 | Código antes da migration | a guarda do lote e a reconciliação conferem `to_regclass` antes de citar as tabelas novas (lição do hotfix #259); o módulo do apontamento assume as tabelas (por isso a migration vai antes do deploy) |
 | Sem financeiro | nenhum `OperacaoFinanceira`, título, conta a pagar, natureza ou rateio |
 
-## 4. Decisões D-1 a D-9 (interpretação registrada na D-PROD-191; o proprietário revisa na PR)
+## 4. Decisões D-1 a D-9 (interpretação registrada na D-PROD-193; o proprietário revisa na PR)
 
 | # | Ponto | Como ficou |
 |---|---|---|
@@ -64,14 +73,17 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 | D-5 | Prévia de custo | não há; o custo FIFO aparece depois de lançar; a tela mostra o saldo por local |
 | D-6 | SERVIÇO × OUTRO | mesmos campos e regras; só o rótulo muda; sem unidade |
 | D-7 | Arredondamento | total de SERVIÇO/OUTRO em 4 casas, `ROUND_HALF_UP`; a tela exibe em R$ |
-| D-8 | Combustível como item | recusado: produto aceito por algum tanque (`TanqueBemProduto` ativo) → 422 `_ITEM_INVALIDO`, `reason: 'combustivel_no_abastecimento'`. Evita dupla contagem com a Fatia E |
+| D-8 | Combustível como item | recusado: produto com aceite de tanque que vale (`TanqueBemProduto` ativo, em tanque ativo de bem ativo: o mesmo critério do `aceiteQueVale`) → 422 `_ITEM_INVALIDO`, `reason: 'combustivel_no_abastecimento'`. Evita dupla contagem com a Fatia E |
 | D-9 | Limite | 200 itens por apontamento, contando os cancelados → 422 `APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS` |
 
-**Divergência do contrato corrigida no registro:** o resumo do §10 diz "409 ao exceder" na D-9, mas a tabela de erros do próprio contrato (§3.5) diz 422, e o código, os testes e a tela seguem o 422. A D-PROD-191 registra 422.
+**Divergência do contrato corrigida no registro:** o resumo do §10 dizia "409 ao exceder" na D-9, mas a tabela de erros do próprio contrato (§3.5) diz 422, e o código, os testes e a tela seguem o 422. A D-PROD-193 registra 422, e o §10 do contrato ganhou uma errata.
 
-## 5. Validação local
+## 5. Validação
 
-__VALIDACAO__
+> **A preencher pelo orquestrador.** A verificação de registro desta fatia é o **CI da PR #__PR__** (`verify:all` completo nos jobs da PR), no commit final, depois de juntar as correções das frentes de backend e de frontend. O que roda localmente é só apoio.
+
+- **CI da PR #__PR__ (verificação de registro):** _a preencher_ — commit, execução e resultado.
+- **Checagens locais de apoio:** _a preencher_.
 
 ### Provas por mutação (D4, todas pegas)
 
@@ -104,28 +116,50 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
 
 1. A migration é **EXPAND** pura: só cria as 2 tabelas novas. **Não foi aplicada.** Aplicar em produção exige um **GO separado e específico** do proprietário, como nas D-PROD-188 e D-PROD-190.
 2. **Ordem obrigatória: migration → merge → deploy.** O detalhe do apontamento lê a tabela nova; com o código no ar antes da migration, a tela de apontamentos dá 500 (risco R3). Os módulos antigos (guarda do lote e reconciliação) ficam protegidos por `to_regclass`.
-3. **Caminho:** A (`premerge-migrate --aplicar`, o oficial) se a sessão tiver a URL direta do banco; senão B (conector Supabase, uma transação com guardas, `migration.sql` íntegro e `INSERT` em `_prisma_migrations` com o checksum pinado), **registrado como desvio da D-PROD-74**, como nas Estações e na Fatia C. `apply_migration` nunca.
-4. **Preflight esperado em produção** (recontar no dia): `system_identifier` 7692130048193495360; 45 concluídas e 0 com falha (a `…600000` da PR #270 já está lá); 83 tabelas em `public`; `to_regclass` nulo para as 2 tabelas novas; as tabelas referenciadas existem (`Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `Usuario`, `EstoqueLoteNota`). Depois de aplicar: **46 concluídas e 85 tabelas**, RLS ligado sem FORCE nas 2, política `maike_backend_all` só para `maike_vercel`, `anon`/`authenticated` sem acesso, 11 FKs `RESTRICT`, 7 CHECKs, `get_advisors` sem alerta.
+3. **Caminho A** (`premerge-migrate --aplicar`, o oficial), se a sessão tiver a URL direta do banco. Ele **só funciona a partir desta branch já com a base nova** (o merge de `be322ab8`): antes dele, produção tinha migrations que a branch não conhecia (a `…300000` da PR #263, a CONTRACT `…500000` da PR #268 e a `…600000` da PR #270), e a conferência do histórico recusava. Senão, **caminho B** (conector Supabase, uma transação com guardas, `migration.sql` íntegro e `INSERT` em `_prisma_migrations` com o checksum pinado), **registrado como desvio da D-PROD-74**, como nas Estações e na Fatia C. No caminho B, a guarda do envelope usa **`n_ok = 47`** e 0 com falha. `apply_migration` nunca.
+4. **Preflight esperado em produção** (recontar no dia): `system_identifier` 7692130048193495360; **47** concluídas e 0 com falha (as 47 da base); **83** tabelas em `public`; `to_regclass` nulo para as 2 tabelas novas; as tabelas referenciadas existem (`Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `Usuario`, `EstoqueLoteNota`). Depois de aplicar: **48 concluídas e 85 tabelas**, RLS ligado sem FORCE nas 2, política `maike_backend_all` só para `maike_vercel`, `anon`/`authenticated` sem acesso, 11 FKs `RESTRICT`, 7 CHECKs, `get_advisors` sem alerta.
 5. **D-2 no deploy:** depois do deploy, uma aba com a versão antiga recebe 400 ao cancelar um apontamento até recarregar a página.
 6. **Permissões:** nenhuma ação nova. Quem já tem `editar` na tela `op-apontamentos-atividade` passa a lançar item; quem tem `excluir` passa a cancelar item.
 7. **Smoke depois do merge e do deploy (proprietário):** num apontamento CONFIRMADO de teste, lançar um item de Produto (conferir o custo e o saldo do local), um de Serviço e um de Outro custo; cancelar o item de Produto e conferir o saldo de volta; cancelar o apontamento e conferir que os itens ficaram cancelados; tentar lançar um combustível como item e ver a recusa.
 8. **Rollback:** as 2 tabelas são novas e nada as referencia. Antes de qualquer item real, reverter é `DROP TABLE "ApontamentoAtividadeItemConsumoLote", "ApontamentoAtividadeItem";` mais a remoção da linha em `_prisma_migrations`, **só com GO próprio** (é CONTRACT). Com itens PRODUTO gravados, o rollback do schema apagaria fatias de movimentos reais: não fazer sem decisão. Se o código já estiver no ar, reverter o código primeiro.
-9. **Fila (R4):** a CONTRACT da PR #268 (`20261113500000`) ainda não foi aplicada e tem data anterior a migrations já aplicadas; `20261113800000` não colide, mas quem renomear a #268 não pode usar `…800000`. As contagens fixas (45 migrations, 84 tabelas, 69 de tenant) mudam se #263, #268 ou #270 entrarem antes: recontar no merge (com a #270 antes: 46 / 85 / 70).
+9. **Fila (R4):** a CONTRACT da PR #268 (`20261113500000`) **já está aplicada** em produção, como todas as 47 da base. `20261113800000` não colide com nenhuma. A CONTRACT da PR #273 (`20261114100000_cadcurvaganho_mensal`) exige release isolada: **nunca na mesma release desta**. As contagens (48 migrations, 85 tabelas, 70 de tenant) mudam se outra migration entrar antes: recontar no merge.
 
-## 7. Riscos
+## 7. Registro da aplicação em produção
+
+**PENDENTE — aguarda o GO separado do proprietário.** Nada foi lido nem escrito em produção nesta fatia. Preencher no dia da aplicação, no molde do relatório da Fatia C (`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md` §7).
+
+- **GO:** _pendente_. Registrar as palavras do proprietário, a que se aplicam e o caminho autorizado (A, ou B como desvio da D-PROD-74).
+- **Preflight, só leitura** (esperado; recontar no dia):
+  - `system_identifier` 7692130048193495360, banco `postgres`;
+  - `_prisma_migrations` com **47** concluídas e 0 com falha (as 47 da base);
+  - `to_regclass('public."ApontamentoAtividadeItem"')` e `to_regclass('public."ApontamentoAtividadeItemConsumoLote"')` nulos; **83** tabelas em `public`;
+  - as tabelas referenciadas existem (`Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `Usuario`, `EstoqueLoteNota`);
+  - nenhuma sessão ativa e nenhuma trava forte nelas.
+- **Ensaio local do envelope** (só no caminho B): _a preencher_ — num banco novo com as 47 migrations da base, trocando só o `system_identifier`; 1ª execução aplica (48 no histórico, 85 tabelas), 2ª para na guarda, `migrate status` em dia e `migrate diff` vazio.
+- **Envelope** (caminho B):
+  1. `BEGIN`; `SET LOCAL lock_timeout = '5s'`; `pg_advisory_xact_lock(72707369)`;
+  2. guarda `DO`: alvo 7692130048193495360, migration ainda não registrada, `n_ok = 47` e 0 com falha, as 2 tabelas inexistentes;
+  3. o `migration.sql` íntegro (sha256 `866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c`);
+  4. `INSERT` em `_prisma_migrations` com esse checksum e `applied_steps_count` 1;
+  5. `COMMIT`.
+- **Conferência, só leitura** (esperado): linha `20261113800000_apontamento_atividade_item` com o checksum pinado e 1 passo; **48** concluídas e 0 com falha; RLS ligado sem FORCE nas 2; política `maike_backend_all` só para `maike_vercel`; `anon` e `authenticated` sem acesso; 11 FKs, todas `RESTRICT`; 7 CHECKs; 0 linhas; **85** tabelas em `public`; `get_advisors` (segurança) sem alerta.
+- **Resultado:** _a preencher_ — data e hora (UTC), caminho, quem executou e o que a conferência mostrou.
+- **Depois:** merge da PR #__PR__, deploy e o smoke da seção 6; rollback como na seção 6.
+
+## 8. Riscos
 
 | # | Risco | Tratamento |
 |---|---|---|
 | R1 | Cancelamento travado: lote de origem estornado (compra cancelada) ou unidade do Produto mudada impedem o estorno exato | 409 fail-closed, como o abastecimento. O usuário fica sem saída até existir comando de ajuste (fora do escopo) |
 | R2 | Baixa retroativa: a saída fica na data operacional (pode ser antiga) e consome os lotes de hoje (FIFO atual) | Como o abastecimento; só data futura é recusada. A razão por data pode mostrar consumo antes da entrada do lote |
 | R3 | Ordem de deploy (#259): código antes da migration = 500 na tela | Migration ANTES do merge/deploy, com GO; módulos antigos protegidos por `to_regclass` (teste T14) |
-| R4 | Fila de migrations em produção (#268 CONTRACT pendente, contagens dependentes de #263/#268/#270) | Nome `…800000` sem colisão; recontar no merge |
-| R5 | Transação curta (9 s): cancelar apontamento com muitos itens PRODUTO | `estornarEmLote` com nº fixo de idas ao banco; 50 itens PRODUTO cancelados em ~80 ms no teste; limite de 200 itens |
+| R4 | Fila de migrations em produção | A CONTRACT da #268 já está aplicada (produção tem as 47 da base); `…800000` não colide. A CONTRACT da PR #273 (`20261114100000_cadcurvaganho_mensal`) vai em release isolada, nunca junto desta; recontar no merge |
+| R5 | Transação curta (9 s): cancelar apontamento com muitos itens PRODUTO | O `estornarEmLote` faz um número fixo de idas ao banco; o `travarProdutosEstoque` faz um advisory lock por produto distinto (mais um `FOR UPDATE` de todos). Cancelar 200 itens mediu cerca de 0,2 s localmente; limite de 200 itens |
 | R6 | Motor compartilhado: a origem nova e a reconciliação tocam abastecimento, Central e suplementação | Só as 3 linhas do motor; suítes `estoqueP0*`, `estoqueP1*`, `patrimonioP1Abastecimentos*` e Gestão P3 inteiras passaram |
 | R7 | Proveniência da compra (Gestão P3): consumo por item bloqueia retificar/excluir a compra do lote, mesmo depois do estorno | Regra existente, agora com teste (T13). Avisar o usuário: uma compra cujo lote foi usado num item não se retifica |
 | R8 | A `versao` do apontamento muda com itens: quem edita o cabeçalho enquanto outro lança item leva 409 | Comportamento esperado do CAS; a tela relê o detalhe |
 
-## 8. Fora do escopo
+## 9. Fora do escopo
 
 - abastecimento ligado ao apontamento (Fatia E): `AbastecimentoBem*` não foi tocado;
 - flags `exige_area`/`pode_ter_*`: não voltaram em lugar nenhum;

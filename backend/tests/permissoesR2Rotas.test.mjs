@@ -118,14 +118,18 @@ const ESCRITAS = (c) => {
     ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
     ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['estação (DELETE)', 'DELETE', `/estacoes/${ID}?empresa_id=${E}`],
+    // D-PROD-189 — Curvas de Ganho de Peso: escrita guardada pela tela pec-curvas-ganho.
+    ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', gmd_aguas: 0.5, gmd_transicao: 0.3, gmd_seca: 0.1 }],
+    ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
+    ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
     // D-PROD-190 — Apontamento de Atividade: escrita guardada pela tela
     // op-apontamentos-atividade (cancelar = ação "excluir"; não há DELETE físico).
     ['apontamento de atividade (POST)', 'POST', '/apontamentos-atividade', { empresa_id: E, tipo_atividade_id: 'ta-1', data_operacional: '2026-10-27' }],
     ['apontamento de atividade (PATCH)', 'PATCH', `/apontamentos-atividade/${ID}`, { empresa_id: E, versao: 1, observacao: 'HACK' }],
-    // D-PROD-191 (D-2): o cancelamento exige operation_id (sem ele seria 400, não 403).
+    // D-PROD-193 (D-2): o cancelamento exige operation_id (sem ele seria 400, não 403).
     ['apontamento de atividade (cancelar)', 'POST', `/apontamentos-atividade/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK', operation_id: opId() }],
-    // D-PROD-191 (D-3) — itens do apontamento: adicionar = editar|salvar; cancelar item = excluir.
+    // D-PROD-193 (D-3) — itens do apontamento: adicionar = editar|salvar; cancelar item = excluir.
     ['apontamento de atividade: item (POST)', 'POST', `/apontamentos-atividade/${ID}/itens`, {
       empresa_id: E, versao: 1, operation_id: opId(), tipo: 'SERVICO', quantidade: '1', descricao: 'HACK', valor_unitario: '1',
     }],
@@ -209,7 +213,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     const [, , urlC, corpoC] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (POST)');
     const [, , urlE, corpoE] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (PATCH)');
     const [, , urlX, corpoX] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (cancelar)');
-    // D-PROD-191: as opções de produto (visualizar) entram nas leituras da tela.
+    // D-PROD-193: as opções de produto (visualizar) entram nas leituras da tela.
     const leituras = ['/apontamentos-atividade', `/apontamentos-atividade/${ID}`, '/apontamentos-atividade-opcoes/bens', '/apontamentos-atividade-opcoes/operadores',
       '/apontamentos-atividade-opcoes/centros-custo', '/apontamentos-atividade-opcoes/centros-resultado', '/apontamentos-atividade-opcoes/produtos'].map((u) => `${u}?empresa_id=${E}`);
     const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
@@ -242,7 +246,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.equal((await req('DELETE', `/apontamentos-atividade/${ID}`, c.tokAdm)).statusCode, 404);
   });
 
-  test('D-PROD-191 — itens do apontamento (D-3, sem ação nova): adicionar item e ver o saldo por local = editar|salvar; cancelar item = excluir; produtos = visualizar; "novo" não lança item', async () => {
+  test('D-PROD-193 — itens do apontamento (D-3, sem ação nova): adicionar item e ver o saldo por local = editar|salvar; cancelar item = excluir; produtos = visualizar; "novo" não lança item', async () => {
     const c = await cenario();
     const E = c.empresa.id;
     const [, , urlI, corpoI] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade: item (POST)');

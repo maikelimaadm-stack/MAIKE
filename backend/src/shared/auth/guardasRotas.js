@@ -286,11 +286,13 @@ export const GUARDAS = Object.freeze({
   tipoAtividade: cadastro(T.TIPOS_ATIVIDADE), // D-PROD-182
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
+  // D-PROD-189 — Curvas de Ganho de Peso: leitura também pela tela (dado por fazenda).
+  curvaGanho: { ...cadastro(T.CURVAS_GANHO), ver: porTela(T.CURVAS_GANHO, 'visualizar') },
   // D-PROD-190 — Apontamento de Atividade: o esquema do cadastro (criar =
   // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
   // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
   // operacional da fazenda; não dependem das telas de bens nem de centros).
-  // D-PROD-191 (D-3), sem ação nova: adicionar item = `editar` (editar|salvar);
+  // D-PROD-193 (D-3), sem ação nova: adicionar item = `editar` (editar|salvar);
   // cancelar item = `cancelar` (excluir); produtos = `ver`; locais com saldo =
   // `editar` (saldo é de quem lança). Nenhum perfil recebe acesso por padrão.
   apontamentoAtividade: {

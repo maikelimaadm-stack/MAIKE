@@ -28,7 +28,11 @@
  *     com hash pinado (e só cita as tabelas removidas, as criadas no resto e os
  *     literais listados); depois EXATAMENTE os DROP TABLE da lista, na ordem;
  *     depois EXATAMENTE as instruções `alter_antigas` (texto pinado), na ordem
- *     (alargamento de CHECK na D-PROD-162; DROP COLUMN na D-PROD-183, sem DROP TABLE).
+ *     (alargamento de CHECK na D-PROD-162; DROP COLUMN na D-PROD-183, sem DROP TABLE;
+ *     na D-PROD-187, DROP CONSTRAINT e DROP INDEX do vínculo com o ícone, DROP
+ *     COLUMN e os RENAME da tabela CategoriaManejo → CADCATEGORIA e dos seus
+ *     índices/constraints — todos pinados letra por letra: RENAME continua
+ *     PROIBIDO no caminho EXPAND, só existe como texto pinado de uma entrada).
  *     O RESTO do arquivo passa pela allowlist EXPAND acima, tratando como novas
  *     só as tabelas criadas no próprio resto. A allowlist EXPAND não afrouxa:
  *     o mesmo SQL com outro nome é recusado. A release com CONTRACT tem de ser
@@ -71,11 +75,18 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): EXPAND só de índices não-únicos em tabelas antigas (LC-2 e keyset de movimentos).
+  '20261113300000_estoque_p1_03_indices': '5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565',
   // D-PROD-188: CADESTACOES (cadastro de Estações da fazenda) — só tabela nova.
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
+  // D-PROD-187: CONTRACT aprovado pelo proprietário — DROP COLUMN das 15 colunas dormentes de CategoriaManejo (D-PROD-186)
+  // e do vínculo com o ícone oficial (FK e índice), e tabela física renomeada para CADCATEGORIA.
+  '20261113500000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
+  // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
+  '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
   // D-PROD-190 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
   '20261113700000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
-  // D-PROD-191 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.
+  // D-PROD-193 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.
   '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
@@ -102,13 +113,18 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '4c0ed7d900541fbd626b844308762e316a793c07dfe3fcad65118facef8f94e5',
   // D-PROD-188: RLS/REVOKE de CADESTACOES (mesmo corpo, lista nova).
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
+  // D-PROD-189: RLS/REVOKE de CADCURVAGANHO (mesmo corpo, lista nova).
+  'eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7',
   // D-PROD-190 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
-  // D-PROD-191: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
+  // D-PROD-193: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
   '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
 ]);
 
-/** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */
+/**
+ * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
+ * exige decisão (D-PROD-183 e D-PROD-187 são as seguintes).
+ */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
     decisao: 'D-PROD-162',
@@ -139,6 +155,42 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_produto"',
       'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_maquina"',
       'ALTER TABLE "TipoTarefa" DROP COLUMN "pode_ter_implemento"',
+    ]),
+  }),
+  // D-PROD-187: remoção física das 15 colunas dormentes de CategoriaManejo (saíram do cadastro na D-PROD-186) e do
+  // vínculo com o ícone oficial (emenda do proprietário), e o nome físico novo da tabela, CADCATEGORIA (o model Prisma
+  // continua CategoriaManejo, com @@map). Sem DROP TABLE e sem tabela nova: depois da guarda, EXATAMENTE as 23
+  // instruções abaixo, nesta ordem (texto pinado; CASCADE, IF EXISTS, RENAME para outro nome, RENAME COLUMN, outra
+  // coluna ou outra tabela → CONTRACT_ALTER_FORA_DO_CONTRATO). A guarda só cita CategoriaManejo e CADCATEGORIA.
+  '20261113500000_categoria_manejo_cadcategoria': Object.freeze({
+    decisao: 'D-PROD-187',
+    guarda_sha256: '0efa2ef32dd4faf3d2419896521a6a62552f89c1af8d151b6cf1eb2495c3e384',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['CategoriaManejo', 'CADCATEGORIA']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "CategoriaManejo" DROP CONSTRAINT "CategoriaManejo_catalogo_categoria_visual_id_fkey"',
+      'DROP INDEX "CategoriaManejo_cliente_id_catalogo_categoria_visual_id_idx"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "raca"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "categoria_oficial"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "ganho_peso_anual_kg"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_janeiro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_fevereiro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_marco"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_abril"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_maio"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_junho"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_julho"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_agosto"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_setembro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_outubro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_novembro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "gmd_dezembro"',
+      'ALTER TABLE "CategoriaManejo" DROP COLUMN "catalogo_categoria_visual_id"',
+      'ALTER TABLE "CategoriaManejo" RENAME TO "CADCATEGORIA"',
+      'ALTER TABLE "CADCATEGORIA" RENAME CONSTRAINT "CategoriaManejo_pkey" TO "CADCATEGORIA_pkey"',
+      'ALTER INDEX "CategoriaManejo_cliente_id_id_key" RENAME TO "CADCATEGORIA_cliente_id_id_key"',
+      'ALTER INDEX "CategoriaManejo_cliente_id_empresa_id_idx" RENAME TO "CADCATEGORIA_cliente_id_empresa_id_idx"',
+      'ALTER TABLE "CADCATEGORIA" RENAME CONSTRAINT "CategoriaManejo_cliente_id_fkey" TO "CADCATEGORIA_cliente_id_fkey"',
     ]),
   }),
 });
@@ -219,6 +271,33 @@ const colunasRemovidas = (alterAntigas) =>
   alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) DROP COLUMN (${ID})$`))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`);
 
 /**
+ * D-PROD-187 — constraints removidas de vez: `DROP CONSTRAINT` sem um `ADD CONSTRAINT` do mesmo nome na mesma
+ * tabela depois (o alargamento da D-PROD-162 apaga e recria; não é remoção).
+ */
+const constraintsRemovidas = (alterAntigas) => {
+  const recriadas = new Set(alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) ADD CONSTRAINT (${ID}) `))).filter(Boolean).map((x) => `${q(x[1])}.${q(x[2])}`));
+  return alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) DROP CONSTRAINT (${ID})$`))).filter(Boolean)
+    .map((x) => `${q(x[1])}.${q(x[2])}`).filter((c) => !recriadas.has(c));
+};
+
+/** D-PROD-187 — índices removidos, a partir do texto pinado (`DROP INDEX "i"`). */
+const indicesRemovidos = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^DROP INDEX (${ID})$`))).filter(Boolean).map((x) => q(x[1]));
+
+/** D-PROD-187 — tabelas renomeadas, a partir do texto pinado (`ALTER TABLE "A" RENAME TO "B"` → "A→B"). */
+const tabelasRenomeadas = (alterAntigas) =>
+  alterAntigas.map((a) => a.match(new RegExp(`^ALTER TABLE (${ID}) RENAME TO (${ID})$`))).filter(Boolean).map((x) => `${q(x[1])}→${q(x[2])}`);
+
+/**
+ * D-PROD-187 — índices e constraints renomeados, a partir do texto pinado (`ALTER TABLE "T" RENAME CONSTRAINT "a" TO
+ * "b"` e `ALTER INDEX "a" RENAME TO "b"` → "a→b").
+ */
+const nomesRenomeados = (alterAntigas) =>
+  alterAntigas
+    .map((a) => a.match(new RegExp(`^ALTER TABLE ${ID} RENAME CONSTRAINT (${ID}) TO (${ID})$`)) ?? a.match(new RegExp(`^ALTER INDEX (${ID}) RENAME TO (${ID})$`)))
+    .filter(Boolean).map((x) => `${q(x[1])}→${q(x[2])}`);
+
+/**
  * D-PROD-162 — recorte CONTRACT de UMA migration (nome em `contratos`). Confere
  * a guarda pinada, os DROP e os alargamentos na ordem; devolve o RESTO para a
  * allowlist EXPAND, ou `null` se o recorte já falhou (não há como alinhar o resto).
@@ -281,6 +360,8 @@ export const classificarMigrations = (migrations, { manifesto = MIGRATIONS_APROV
     contract.push({
       migration: m.nome, decisao: k.decisao, tabelas_removidas: [...k.drop],
       constraints_alargadas: constraintsAlargadas(k.alter_antigas), colunas_removidas: colunasRemovidas(k.alter_antigas),
+      constraints_removidas: constraintsRemovidas(k.alter_antigas), indices_removidos: indicesRemovidos(k.alter_antigas),
+      tabelas_renomeadas: tabelasRenomeadas(k.alter_antigas), nomes_renomeados: nomesRenomeados(k.alter_antigas),
     });
     const resto = recortarContract(m, k, v);
     if (resto !== null) classificarExpand(m.nome, resto, { novas: new Set(tabelasCriadas(resto)), colunasNovasEmAntigas, doAprovados, v });

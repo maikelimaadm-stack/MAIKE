@@ -71,6 +71,8 @@ const ORDEM_DE_LIMPEZA = [
   'permissao',
   // D-PROD-188 — CADESTACOES referencia Empresa (FK composta, Restrict).
   'cadEstacao',
+  // D-PROD-189 — CADCURVAGANHO referencia Empresa (FK composta, Restrict).
+  'cadCurvaGanho',
   'empresa',
   'produto',
   'localEstoque',
@@ -100,12 +102,6 @@ export const limparBanco = async () => {
     });
     if (removidas.count === 0) break;
   }
-  // CategoriaManejo (tenant) referencia CatalogoCategoriaVisual (global), que é
-  // limpo antes dela na ordem abaixo: solta o vínculo opcional primeiro.
-  await prisma.categoriaManejo.updateMany({
-    where: { catalogo_categoria_visual_id: { not: null } },
-    data: { catalogo_categoria_visual_id: null },
-  });
   // D-PROD-155: lançamentos financeiros (filhas antes das mães; sem
   // autorreferência). Saem ANTES do bloco de Gestão porque o rateio referencia
   // naturezas e centros, e antes do laço porque referenciam Fornecedor,
@@ -124,7 +120,7 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
-  // D-PROD-191: as fatias FIFO do item referenciam o item e o lote; o item
+  // D-PROD-193: as fatias FIFO do item referenciam o item e o lote; o item
   // referencia o apontamento, os movimentos (saída e estorno), Produto, local e
   // usuários (RESTRICT em tudo): fatias → itens, antes do apontamento e antes
   // do laço (que limpa movimentos, lotes, Produto, local e usuário).

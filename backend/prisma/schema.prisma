@@ -68,6 +68,8 @@ model Cliente {
   tiposAtividade     TipoAtividade[]
   // D-PROD-188 — estações (águas/transição/seca) por fazenda; tabela CADESTACOES.
   estacoes           CadEstacao[]
+  // D-PROD-189 — curvas de ganho de peso (GMD por estação) por fazenda; tabela CADCURVAGANHO.
+  curvasGanho        CadCurvaGanho[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -129,7 +131,7 @@ model Cliente {
   abastecimentosBemConsumos    AbastecimentoBemConsumoLote[]
   // D-PROD-190 — apontamentos de atividade (execução).
   apontamentosAtividade        ApontamentoAtividade[]
-  // D-PROD-191 — itens de custo do apontamento e fatias FIFO dos itens PRODUTO.
+  // D-PROD-193 — itens de custo do apontamento e fatias FIFO dos itens PRODUTO.
   apontamentoAtividadeItens    ApontamentoAtividadeItem[]
   apontamentoAtividadeItemConsumos ApontamentoAtividadeItemConsumoLote[]
 
@@ -195,7 +197,7 @@ model Usuario {
   apontamentosAtividadeOperados   ApontamentoAtividade[]        @relation("ApontamentoAtividadeOperador")
   apontamentosAtividadeCriados    ApontamentoAtividade[]        @relation("ApontamentoAtividadeCriadoPor")
   apontamentosAtividadeCancelados ApontamentoAtividade[]        @relation("ApontamentoAtividadeCanceladoPor")
-  // D-PROD-191 — autores dos itens do apontamento de atividade (FK composta por tenant).
+  // D-PROD-193 — autores dos itens do apontamento de atividade (FK composta por tenant).
   apontamentoItensCriados         ApontamentoAtividadeItem[]    @relation("ApontamentoAtividadeItemCriadoPor")
   apontamentoItensCancelados      ApontamentoAtividadeItem[]    @relation("ApontamentoAtividadeItemCanceladoPor")
 
@@ -315,6 +317,9 @@ model OperacaoIdempotente {
 
   @@unique([cliente_id, operation_key, tipo_operacao])
   @@index([cliente_id, createdAt])
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7, LC-2): recibos de comando de estoque por tipo dentro de
+  // intervalos de `createdAt` (reconciliação, `recibosNosIntervalos`: tipo_operacao = ANY(...)).
+  @@index([cliente_id, tipo_operacao, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -585,6 +590,36 @@ model CadEstacao {
   @@index([cliente_id, empresa_id, ativo])
   @@index([cliente_id, empresa_id, data_inicio])
   @@map("CADESTACOES")
+}
+
+// ---------------------------------------------------------------------------
+// CadCurvaGanho — cadastro de Curvas de Ganho de Peso da fazenda (D-PROD-189).
+// Ganho médio diário (GMD, kg/dia) previsto em cada tipo de estação: ÁGUAS,
+// TRANSIÇÃO e SECA (os mesmos tipos de CADESTACOES). Nome físico da tabela
+// fixado pelo proprietário: "CADCURVAGANHO". Primeira fatia SEM vínculo com
+// categoria, lote ou estação: as únicas FKs são o escopo (Cliente e Empresa).
+// GMD de -2 a 3 kg/dia (negativo = perda na seca), 3 casas, por CHECK.
+// ---------------------------------------------------------------------------
+model CadCurvaGanho {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  empresa_id    String   @db.VarChar(64)
+  nome          String   @db.VarChar(120)
+  gmd_aguas     Decimal  @db.Decimal(6, 3)
+  gmd_transicao Decimal  @db.Decimal(6, 3)
+  gmd_seca      Decimal  @db.Decimal(6, 3)
+  observacoes   String?  @db.VarChar(2000)
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, nome])
+  @@index([cliente_id, empresa_id, ativo])
+  @@map("CADCURVAGANHO")
 }
 
 // ---------------------------------------------------------------------------
@@ -897,7 +932,7 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-191 — itens PRODUTO de apontamento de atividade que baixaram estoque deste local.
+  // D-PROD-193 — itens PRODUTO de apontamento de atividade que baixaram estoque deste local.
   apontamentoAtividadeItens ApontamentoAtividadeItem[]
 
   @@unique([cliente_id, numero_local])
@@ -944,7 +979,7 @@ model Produto {
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-191 — itens PRODUTO de apontamento de atividade deste produto.
+  // D-PROD-193 — itens PRODUTO de apontamento de atividade deste produto.
   apontamentoAtividadeItens ApontamentoAtividadeItem[]
 
   @@unique([cliente_id, numero_produto])
@@ -1094,6 +1129,8 @@ model Empresa {
   abastecimentosBem      AbastecimentoBem[]
   // D-PROD-188 — estações (águas/transição/seca) da fazenda.
   estacoes               CadEstacao[]
+  // D-PROD-189 — curvas de ganho de peso da fazenda.
+  curvasGanho            CadCurvaGanho[]
   // D-PROD-190 — apontamentos de atividade da fazenda.
   apontamentosAtividade  ApontamentoAtividade[]
   @@unique([cliente_id, id])
@@ -1163,12 +1200,15 @@ model Fornecedor {
 
 // D-PROD-186 — MAIKE-CATEGORIA-MANEJO-ENXUGAR (Fatia C): `raca`,
 // `categoria_oficial`, `ganho_peso_anual_kg` e `gmd_janeiro`…`gmd_dezembro`
-// SAÍRAM do contrato (API, services, auditoria, UI). Mesmo desenho da
-// D-PROD-181: as 15 colunas ficam DORMENTES com `@ignore` — fora do Prisma
-// Client (nenhum código as lê nem as grava), mas ainda no schema para ele
-// seguir igual ao banco migrado (SM-03: `prisma migrate diff --exit-code`).
-// Serão DROPADAS na Fatia D, migration CONTRACT isolada (GO do proprietário
-// dado em 2026-11-13); as linhas `@ignore` saem daqui junto com ela.
+// SAÍRAM do contrato (API, services, auditoria, UI).
+// D-PROD-187 — MAIKE-CATEGORIA-MANEJO-CADCATEGORIA (Fatia D): essas 15 colunas
+// e o vínculo com o ícone oficial (`catalogo_categoria_visual_id`, com a FK e o
+// índice; emenda do proprietário) foram APAGADOS do banco, e a tabela física
+// passou a se chamar `CADCATEGORIA` (migration CONTRACT
+// `20261113500000_categoria_manejo_cadcategoria`). O model continua
+// `CategoriaManejo` (delegate `prisma.categoriaManejo`, rotas, permissões e
+// AuditLog `entidade: 'CategoriaManejo'` não mudam); SQL bruto usa
+// "CADCATEGORIA", com aspas.
 model CategoriaManejo {
   id                    String   @id @default(cuid())
   cliente_id            String   @db.VarChar(64)
@@ -1177,36 +1217,17 @@ model CategoriaManejo {
   sigla                 String?  @db.VarChar(32)
   especie               String?  @db.VarChar(128)
   sexo                  String?  @db.VarChar(32)
-  raca                  String?  @db.VarChar(128) @ignore
   idade_minima_meses    Int?
   idade_maxima_meses    Int?
-  categoria_oficial     String?  @db.VarChar(128) @ignore
-  /// Vínculo explícito com a categoria visual GLOBAL do tipo `lote` (D-PROD-69).
-  /// Opcional: categorias antigas continuam válidas sem vínculo.
-  catalogo_categoria_visual_id String? @db.VarChar(64)
-  ganho_peso_anual_kg   Decimal? @db.Decimal(14, 4) @ignore
-  gmd_janeiro           Decimal? @db.Decimal(14, 4) @ignore
-  gmd_fevereiro         Decimal? @db.Decimal(14, 4) @ignore
-  gmd_marco             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_abril             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_maio              Decimal? @db.Decimal(14, 4) @ignore
-  gmd_junho             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_julho             Decimal? @db.Decimal(14, 4) @ignore
-  gmd_agosto            Decimal? @db.Decimal(14, 4) @ignore
-  gmd_setembro          Decimal? @db.Decimal(14, 4) @ignore
-  gmd_outubro           Decimal? @db.Decimal(14, 4) @ignore
-  gmd_novembro          Decimal? @db.Decimal(14, 4) @ignore
-  gmd_dezembro          Decimal? @db.Decimal(14, 4) @ignore
   ativo                 Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  catalogoCategoriaVisual CatalogoCategoriaVisual? @relation(fields: [catalogo_categoria_visual_id], references: [id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
-  @@index([cliente_id, catalogo_categoria_visual_id])
+  @@map("CADCATEGORIA")
 }
 
 model Bebedouro {
@@ -1312,7 +1333,7 @@ model EstoqueLoteNota {
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
-  // D-PROD-191 — fatias FIFO consumidas por item PRODUTO de apontamento de atividade.
+  // D-PROD-193 — fatias FIFO consumidas por item PRODUTO de apontamento de atividade.
   consumosApontamentoItem ApontamentoAtividadeItemConsumoLote[] @relation("ApontamentoAtividadeItemConsumoDoLote")
 
   @@unique([cliente_id, id])
@@ -1392,7 +1413,7 @@ model MovimentacaoEstoque {
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
   abastecimentoBemEstorno AbastecimentoBem? @relation("AbastecimentoBemEstorno")
-  // D-PROD-191 — item de apontamento de atividade que gerou / estornou este movimento.
+  // D-PROD-193 — item de apontamento de atividade que gerou / estornou este movimento.
   apontamentoAtividadeItem        ApontamentoAtividadeItem? @relation("ApontamentoAtividadeItemMovimento")
   apontamentoAtividadeItemEstorno ApontamentoAtividadeItem? @relation("ApontamentoAtividadeItemEstorno")
 
@@ -1401,6 +1422,10 @@ model MovimentacaoEstoque {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, data_movimentacao])
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): keyset da futura central de movimentos
+  // (P1-04, contrato §6.3): `WHERE cliente_id AND empresa_id AND (data_movimentacao, id) < cursor
+  // ORDER BY data_movimentacao DESC, id DESC`. Tenant primeiro (R10), empresa obrigatória.
+  @@index([cliente_id, empresa_id, data_movimentacao(sort: Desc), id(sort: Desc)], map: "MovimentacaoEstoque_keyset_empresa_idx")
 }
 
 // ---------------------------------------------------------------------------
@@ -1590,7 +1615,6 @@ model CatalogoCategoriaVisual {
   tipo              CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
   icones            CatalogoIcone[]
   regrasMistoCategorias CatalogoRegraMistoCategoria[]
-  categoriasManejo  CategoriaManejo[]
 
   @@unique([tipo_id, codigo])
   @@index([tipo_id, ativo, ordem])
@@ -2786,7 +2810,7 @@ model AbastecimentoBemConsumoLote {
 // A TAREFA (`LancamentoTarefa`) é a demanda; a ATIVIDADE é a operação
 // executada, que consome máquina, combustível e insumo. Cabeçalho enxuto: os
 // itens de custo (PRODUTO, SERVICO, OUTRO) vivem em `ApontamentoAtividadeItem`
-// (D-PROD-191, Fatia D), sem centro próprio — vale o `centro_custo_id` (snapshot)
+// (D-PROD-193, Fatia D), sem centro próprio — vale o `centro_custo_id` (snapshot)
 // deste cabeçalho; o abastecimento se pendura aqui na Fatia E.
 //
 // Escopo garantido pelo banco: toda FK é composta e tenant-aware, RESTRICT.
@@ -2858,7 +2882,7 @@ model ApontamentoAtividade {
   lancamentoTarefa LancamentoTarefa?          @relation(fields: [cliente_id, lancamento_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
   criadoPor        Usuario?                   @relation("ApontamentoAtividadeCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividade_criado_por_fkey")
   canceladoPor     Usuario?                   @relation("ApontamentoAtividadeCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "ApontamentoAtividade_cancelado_por_fkey")
-  // D-PROD-191 — itens de custo do apontamento (inclui os cancelados: histórico).
+  // D-PROD-193 — itens de custo do apontamento (inclui os cancelados: histórico).
   itens            ApontamentoAtividadeItem[]
 
   @@unique([cliente_id, id])
@@ -2871,7 +2895,7 @@ model ApontamentoAtividade {
   @@index([cliente_id, lancamento_tarefa_id])
 }
 
-/// D-PROD-191 (Fatia D do apontamento) — ITEM de custo de um apontamento CONFIRMADO.
+/// D-PROD-193 (Fatia D do apontamento) — ITEM de custo de um apontamento CONFIRMADO.
 /// PRODUTO: baixa FÍSICA real pelo motor único (FIFO por lote; custo = Σ fatia × custo do lote; estorno exato).
 /// SERVICO / OUTRO: descrição livre + quantidade + valor unitário; total calculado no servidor (Decimal, 4 casas);
 /// sem cadastro de serviço, sem fornecedor, sem efeito de estoque nem financeiro.
@@ -2932,7 +2956,7 @@ model ApontamentoAtividadeItem {
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-191 — fatia FIFO consumida pelo item PRODUTO: de qual lote, quanto (na unidade do item, L ou KG) e a
+/// D-PROD-193 — fatia FIFO consumida pelo item PRODUTO: de qual lote, quanto (na unidade do item, L ou KG) e a
 /// que custo, na ordem FIFO. O cancelamento devolve cada fatia ao SEU lote (Σ quantidade = `quantidade` do item,
 /// conferido no serviço). O histórico fica (item cancelado mantém as fatias).
 model ApontamentoAtividadeItemConsumoLote {

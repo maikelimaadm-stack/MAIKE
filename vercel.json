@@ -278,6 +278,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/curvasganho/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CurvasGanho/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -315,6 +323,14 @@
     },
     {
       "source": "/Categorias/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/curvasganho",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CurvasGanho",
       "destination": "/index.html"
     },
     {

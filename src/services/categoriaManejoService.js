@@ -1,9 +1,5 @@
 /**
  * Service de Categorias de Manejo (P1.3, D-PROD-18).
- *
- * Os ícones de lote vêm da superfície pública do módulo de mapa, que já expõe
- * `ConfiguracaoIcone` por tipo de entidade. Reler a entidade aqui criaria duas
- * fontes para o mesmo dado (QLT-P13-04).
  */
 
 import {
@@ -15,7 +11,6 @@ import {
 import { listLotes, listMovimentacoesPecuarias, listSuplementacaoLotes } from '@/apis/lotes';
 import { listManejosTecnicos } from '@/apis/rebanho';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
-import { listarIconesPorTipoEntidade } from './mapaService';
 import { assertExclusaoPermitida } from './deleteGuardService';
 
 /** @param {any[]} items @param {string} empresaId @returns {any[]} */
@@ -24,15 +19,6 @@ const daEmpresa = (items, empresaId) => items.filter((item) => item.empresa_id =
 /** @returns {Promise<any[]>} */
 export const listarCategoriasManejoDaEmpresa = async (empresaId) =>
   daEmpresa(await listCategoriasManejo(), empresaId);
-
-/**
- * Ícones ativos de Lote da empresa. Reusa a capacidade do módulo de mapa em vez
- * de reler `ConfiguracaoIcone` por conta própria.
- */
-export const listarIconesDeLoteDaEmpresa = async (empresaId) => {
-  const icones = await listarIconesPorTipoEntidade('Lote');
-  return icones.filter((icone) => icone.empresa_id === empresaId && icone.ativo !== false);
-};
 
 /** Vazio vira `null`; caso contrário converte. Preservado da página. */
 const inteiroOuNulo = (valor) => {
@@ -51,10 +37,11 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
  * slice afirmou, por engano, que a tela não normalizava. Ela normalizava; a
  * leitura parou no `mutationFn`, que só repassava o objeto já pronto.
  *
- * O cadastro tem só nome, sigla, espécie, sexo, faixa de idade e o vínculo
- * com o ícone oficial. Raça, categoria oficial (texto), ganho de peso anual e
- * os doze GMDs mensais saíram do cadastro e **não** são enviados, mesmo que o
- * `formData` ainda os traga (registro antigo aberto para edição).
+ * O cadastro tem só nome, sigla, espécie, sexo e faixa de idade. Raça,
+ * categoria oficial (texto), ganho de peso anual, os doze GMDs mensais e o
+ * vínculo com o ícone oficial (D-PROD-187) saíram do cadastro e **não** são
+ * enviados, mesmo que o `formData` ainda os traga (registro antigo aberto
+ * para edição).
  *
  * Faixa de idade (decisão do proprietário, 2026-11-13): o formulário só
  * oferece as cinco faixas fixas. Na **edição**, as idades só vão no corpo
@@ -73,8 +60,6 @@ export const normalizarCategoriaManejo = (formData, { empresaId, edicao = false 
     sigla: maiusculoOuNulo(formData.sigla),
     especie: formData.especie || null,
     sexo: formData.sexo || null,
-    // Vínculo com a categoria visual global do tipo `lote` (D-PROD-69).
-    catalogo_categoria_visual_id: formData.catalogo_categoria_visual_id || null,
     ativo: true,
   };
   if (edicao && formData.faixa_idade_alterada !== true) return payload;

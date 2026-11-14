@@ -8,19 +8,23 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_simplifica):
- *  1. aplica as 42 migrations da main (todas menos esta CONTRACT e as que
- *     DEPENDEM dela, `MIGRATIONS_DEPOIS_DO_CONTRACT`), pelo Prisma, a partir de
- *     uma cópia temporária das pastas; entre elas está a CONTRACT
- *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183), que sobe aqui
- *     pelo Prisma direto, sem o runner e portanto sem a barreira de
- *     MIGRATION_CONTRACT_AUTORIZADO; a guarda dela passa porque o TipoTarefa
- *     está vazio nessa hora (as sementes vêm depois e não criam TipoTarefa).
- *     Ela não cria nem apaga tabela: as contagens de tabelas não mudam.
+ *  1. aplica todas as migrations do repositório menos esta CONTRACT e as que
+ *     DEPENDEM dela (`MIGRATIONS_DEPOIS_DO_CONTRACT`), pelo Prisma,
+ *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
+ *     `20261113400000_cadestacoes_cadastro` (D-PROD-188) e
+ *     `20261113600000_cadcurvaganho_cadastro` (D-PROD-189) e as CONTRACT
+ *     `20261113200000_tipo_tarefa_drop_colunas` (D-PROD-183) e
+ *     `20261113500000_categoria_manejo_cadcategoria` (D-PROD-187), que sobem
+ *     aqui pelo Prisma direto, sem o runner e portanto sem a barreira de
+ *     MIGRATION_CONTRACT_AUTORIZADO; as guardas delas passam porque TipoTarefa
+ *     e CategoriaManejo estão vazias nessa hora (as sementes vêm depois e não
+ *     criam nenhuma das duas). As CONTRACT não criam nem apagam tabela (a
+ *     D-PROD-187 só renomeia): as contagens de tabelas não mudam com elas.
  *     A `20261113700000_apontamento_atividade` (D-PROD-190) fica de fora da
  *     partida: a FK dela para BemPatrimonial(cliente_id, empresa_id, id) só
  *     existe no formato NOVO, criado por esta CONTRACT; ela sobe junto, pelo
  *     runner, no passo 4 (em produção a D-PROD-162 já está concluída). A
- *     `20261113800000_apontamento_atividade_item` (D-PROD-191) também fica de
+ *     `20261113800000_apontamento_atividade_item` (D-PROD-193) também fica de
  *     fora: os itens referenciam o ApontamentoAtividade por FK RESTRICT; sobe
  *     no passo 4, depois dele;
  *  2. semeia as 13 tabelas do Patrimônio antigo por cliente (famílias, tipos,
@@ -34,10 +38,10 @@
  *     aberta é resolvida com `migrate resolve --rolled-back`;
  *  4. aplica pelo runner oficial (`npm run deploy:migrate`, com a conferência
  *     de alvo exigida, MIGRATION_CONTRACT_AUTORIZADO=D-PROD-162 e a impressão
- *     na URL) e confere: 45 concluídas (esta CONTRACT, a D-PROD-190 e a
- *     D-PROD-191), 84 tabelas (as 81 de antes + ApontamentoAtividade + os 2 de
- *     itens do apontamento), as 7 vazias, dono e ACL,
- *     RLS, contagens de constraints, impressão digital das 74 que ficam,
+ *     na URL) e confere: todas concluídas (esta CONTRACT, a D-PROD-190 e a
+ *     D-PROD-193), 85 tabelas (as 82 do formato novo + ApontamentoAtividade +
+ *     os 2 de itens do apontamento), as 7 vazias, dono e ACL,
+ *     RLS, contagens de constraints, impressão digital das 75 que ficam,
  *     CHECKs alargados, estoque intacto, `migrate diff` vazio e 2ª execução.
  *
  * As funções são exportadas e reaproveitadas por
@@ -66,19 +70,26 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 
 export const NOME_CONTRACT = '20261110300000_patrimonio_simplifica';
 export const DECISAO = 'D-PROD-162';
-/** As 13 tabelas apagadas, na ordem da guarda e dos DROP. */
-export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
-/** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
-export const TABELAS_NOVAS = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial']);
 /**
  * D-PROD-190 — migrations POSTERIORES a esta CONTRACT que dependem do formato novo (a FK composta do apontamento
  * para BemPatrimonial(cliente_id, empresa_id, id), unique que só a CONTRACT cria). Não existiam antes dela em
  * produção: ficam fora da partida e sobem pelo runner no GREEN, depois dela. As tabelas que elas criam ficam fora
  * da impressão digital das que FICAM (são novas, como as 7 do formato novo).
- * D-PROD-191 — os itens do apontamento dependem do ApontamentoAtividade (FK RESTRICT): vêm logo depois dele.
+ * D-PROD-193 — os itens do apontamento dependem do ApontamentoAtividade (FK RESTRICT): vêm logo depois dele.
  */
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item']);
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote']);
+/**
+ * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
+ * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
+ * uma migration posterior (ex.: a EXPAND de índices da P1-03, D-PROD-185) não muda o que este ensaio prova.
+ */
+export const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+export const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1 - MIGRATIONS_DEPOIS_DO_CONTRACT.length;
+/** As 13 tabelas apagadas, na ordem da guarda e dos DROP. */
+export const TABELAS_APAGADAS = Object.freeze(['AbastecimentoBemConsumoLote', 'AbastecimentoBem', 'ConversaoCombustivelProduto', 'TipoCombustivelProduto', 'TanqueBemCombustivel', 'TanqueBem', 'MedicaoBem', 'BemPatrimonial', 'TipoPatrimonialPerfil', 'TipoPatrimonial', 'FamiliaPatrimonial', 'PerfilMedicao', 'TipoCombustivel']);
+/** As 7 tabelas do formato novo (ordem alfabética, como no DO de RLS). */
+export const TABELAS_NOVAS = Object.freeze(['AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'BemPatrimonial', 'FamiliaPatrimonial', 'TanqueBem', 'TanqueBemProduto', 'TipoPatrimonial']);
 /** Tabelas antigas cujas LINHAS a migration não pode mudar. */
 export const TABELAS_ESTOQUE = Object.freeze(['MovimentacaoEstoque', 'EstoqueLoteNota', 'Produto', 'OperacaoFinanceira', 'OperacaoFinanceiraItem']);
 
@@ -172,9 +183,9 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 42 migrations da main (todas as pastas menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT`), aplicadas pelo
- * Prisma a partir de uma cópia temporária. Inclui a CONTRACT da D-PROD-183, sem o runner: a guarda dela passa com o
- * TipoTarefa vazio.
+ * Todas as migrations do repositório menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT` (MIGRATIONS_PARTIDA),
+ * aplicadas pelo Prisma a partir de uma cópia temporária. Inclui as CONTRACT da D-PROD-183 e da D-PROD-187, sem o
+ * runner: as guardas delas passam com TipoTarefa e CategoriaManejo vazias.
  */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-simplifica-main-'));
@@ -289,7 +300,7 @@ const inserir = (db, tabela, linha) => {
 const sql = (s) => ({ sql: s });
 
 /**
- * Sementes no schema ANTIGO (42 migrations): por cliente, empresa, usuário, local, Produto diesel em KG com lote
+ * Sementes no schema ANTIGO (todas as migrations menos esta CONTRACT e as `MIGRATIONS_DEPOIS_DO_CONTRACT`): por cliente, empresa, usuário, local, Produto diesel em KG com lote
  * (entrada de 1.000 kg), catálogos do Patrimônio antigo e `bens` bens com tanque, medição e combustível; o 1º
  * cliente recebe `cancelados` abastecimentos CANCELADOS (saída + estorno + fatia, lote devolvido) e uma compra P3
  * CONFIRMADA em KG ligada à entrada e ao lote.
@@ -506,8 +517,8 @@ if (ehEntradaDireta()) {
             continue;
           }
           const r = await rodarCenarioRed(c, { db, url });
-          // Nada mudou: as mesmas tabelas (87, ou 88 com a "Intruso" do cenário da FK) e as mesmas linhas.
-          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 87 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
+          // Nada mudou: as mesmas tabelas (88, ou 89 com a "Intruso" do cenário da FK) e as mesmas linhas.
+          const ok = r.status !== 0 && c.esperado.test(r.saida) && r.antes.tabelas >= 88 && JSON.stringify(r.depois) === JSON.stringify(r.antes) && r.historico.contract_concluida === 0;
           relatorio.red.push({ id: c.id, ok, status: r.status, ms: r.ms });
           if (!ok) relatorio.ok = false;
         }
@@ -536,8 +547,9 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      // D-PROD-190/191: 84 = as 81 de antes + ApontamentoAtividade + os 2 de itens, que sobem juntos pelo runner, depois desta CONTRACT.
-      if (g.status !== 0 || g.tabelas !== 84 || g.historico.concluidas !== 45 || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
+      // D-PROD-190/191: 85 = as 82 do formato novo (com a CADCURVAGANHO, D-PROD-189) + ApontamentoAtividade + os 2 de
+      // itens do apontamento, que sobem juntos pelo runner, depois desta CONTRACT.
+      if (g.status !== 0 || g.tabelas !== 85 || g.historico.concluidas !== TOTAL_MIGRATIONS || g.historico.contract_concluida !== 1 || !g.fingerprint_v2_identica || !g.estoque_identico || g.migrate_diff !== 0 || !g.segunda || !g.item_l_depois.aceito || relatorio.item_l_antes.aceito || !relatorio.runner_sem_autorizacao.recusou) relatorio.ok = false;
     } finally {
       await db.$disconnect();
     }

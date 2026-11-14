@@ -62,7 +62,7 @@ export const ORIGEM_DEPOSITO = 'deposito';
  */
 export const ORIGEM_ENTRADA_ESTOQUE = 'entrada_estoque';
 /**
- * D-PROD-191 (Fatia D do apontamento) — origem da SAÍDA por item PRODUTO de
+ * D-PROD-193 (Fatia D do apontamento) — origem da SAÍDA por item PRODUTO de
  * apontamento de atividade (e do estorno dela). 21 chars (VarChar(32)). Nunca a
  * do abastecimento nem a do financeiro (proveniência falsa).
  */
@@ -573,7 +573,7 @@ export const estoqueAtualInsuficiente = (details) =>
  * empresa, cria UM movimento 'Saída' a CUSTO FIFO (nunca o preço de venda) e
  * `estoque_atual -= kg`. Devolve as fatias para `OperacaoFinanceiraConsumoLote`
  * (ou, D-PROD-159, `AbastecimentoBemConsumoLote` com `origem.sistema = ORIGEM_ABASTECIMENTO`;
- * D-PROD-191, `ApontamentoAtividadeItemConsumoLote` com `origem.sistema = ORIGEM_APONTAMENTO`).
+ * D-PROD-193, `ApontamentoAtividadeItemConsumoLote` com `origem.sistema = ORIGEM_APONTAMENTO`).
  * `quantidadeKg`: na unidade de estoque do Produto (kg, ou L para Produto em L — D-PROD-162).
  * D-PROD-161: também é a baixa da suplementação (`origem.sistema = ORIGEM_SUPLEMENTACAO`),
  * com os opcionais aditivos `instante` (data_movimentacao; padrão meio-dia UTC

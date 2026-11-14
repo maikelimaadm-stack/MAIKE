@@ -105,7 +105,7 @@ const semear = async ({ clientes = 1 } = {}) => {
       data_operacional: new Date('2026-11-01T00:00:00Z'), area_id: area.id, lancamento_tarefa_id: tarefa.id,
       operador_usuario_id: t.usuario.id, criado_por_usuario_id: t.usuario.id,
     } });
-    // D-PROD-191: um item SERVICO e um item PRODUTO com a sua fatia FIFO (FK RESTRICT do item para o apontamento, o
+    // D-PROD-193: um item SERVICO e um item PRODUTO com a sua fatia FIFO (FK RESTRICT do item para o apontamento, o
     // produto, o local, o movimento e o usuário; da fatia para o item e o lote). Lote e movimento entram direto aqui,
     // só como semente: o 02 só apaga tudo se a fatia e o item vierem ANTES de todas essas mães na ordem de exclusão.
     const produto = await p.produto.create({ data: { cliente_id: c, empresa_id: emp.id, numero_produto: '1', nome_produto: 'HERBICIDA', unidade_principal_estoque: 'L', estoque_atual: '8' } });
@@ -167,7 +167,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '84', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-191)');
+    assert.equal(l['tabelas em public'].valor, '85', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107) + 3 de Gestão P1 (D-PROD-146) + 1 de Gestão P2 (D-PROD-153) + 8 de Gestão P3-01 (D-PROD-155) + 1 de Gestão P3-02 (D-PROD-156) + 1 de Gestão P3-03 (D-PROD-158) + 10 de Patrimônio P1-01 (D-PROD-157) + 3 de Patrimônio P1-02 (D-PROD-159) − 13 + 7 do Patrimônio simplificado (D-PROD-162) + 1 TipoAtividade (D-PROD-182) + 1 CADESTACOES (D-PROD-188) + 1 CADCURVAGANHO (D-PROD-189) + 1 ApontamentoAtividade (D-PROD-190) + 2 de itens do apontamento (D-PROD-193)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
@@ -314,7 +314,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(await bcrypt.compare(res.senha, conta.senha_hash), true, 'hash do pgcrypto compatível com bcryptjs');
     const depois = await contar();
     assert.deepEqual(depois, { c: 1, u: 1, l: 0, a: 2, cat: 0, mm: 0, glob: antes.glob, mig: antes.mig });
-    // D-PROD-191: a semente tinha 2 itens e 1 fatia; o 02 apagou na ordem certa (fatia → item → apontamento → lote/movimento/produto/local).
+    // D-PROD-193: a semente tinha 2 itens e 1 fatia; o 02 apagou na ordem certa (fatia → item → apontamento → lote/movimento/produto/local).
     assert.deepEqual(
       [await p.apontamentoAtividadeItemConsumoLote.count(), await p.apontamentoAtividadeItem.count(), await p.apontamentoAtividade.count(), await p.estoqueLoteNota.count(), await p.movimentacaoEstoque.count(), await p.produto.count(), await p.localEstoque.count()],
       [0, 0, 0, 0, 0, 0, 0]

@@ -36,6 +36,7 @@ import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAt
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 import { registrarTipoAtividadeRoutes } from './modules/tiposAtividade/tipoAtividadeRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
+import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarApontamentoAtividadeRoutes } from './modules/apontamentosAtividade/apontamentoAtividadeRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
@@ -207,6 +208,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarTipoAtividadeRoutes);
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   await app.register(registrarEstacaoRoutes);
+  // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
+  await app.register(registrarCurvaGanhoRoutes);
   // D-PROD-190 — Apontamento de Atividade: a EXECUÇÃO de um Tipo de Atividade
   // (sem itens de custo; sem DELETE físico, só cancelamento).
   await app.register(registrarApontamentoAtividadeRoutes);

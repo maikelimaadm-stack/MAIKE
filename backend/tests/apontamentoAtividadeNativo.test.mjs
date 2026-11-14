@@ -3,7 +3,7 @@
  * autenticado (`app.inject`).
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
- * Tipo de Atividade (D-PROD-182). Os itens de custo (D-PROD-191, Fatia D) estão
+ * Tipo de Atividade (D-PROD-182). Os itens de custo (D-PROD-193, Fatia D) estão
  * em `apontamentoAtividadeItensNativo.test.mjs`; aqui fica o cabeçalho, com o que
  * a Fatia D mudou nele: o detalhe traz `itens` e `custo_itens` (a lista não) e o
  * cancelamento exige `operation_id` (D-2), é idempotente e trava a linha. Prova,
@@ -30,7 +30,7 @@
  *  - R-i bem, implemento, área, tarefa e centros da MESMA fazenda;
  *  - R-j/R-g cancelar (sem DELETE físico) grava quem, quando e motivo e
  *    incrementa a versão; cancelado não edita nem cancela de novo; o CAS do
- *    repositório (versão + status no WHERE) provado sem corrida; D-PROD-191:
+ *    repositório (versão + status no WHERE) provado sem corrida; D-PROD-193:
  *    `operation_id` obrigatório (D-2), replay e chave reaproveitada;
  *  - R-l exclusão de tipo, grupo, tarefa, empresa, área, bem e centros com
  *    apontamento barrada pela FK RESTRICT (409 próprio pela API, P2003 no
@@ -91,11 +91,11 @@ const CAMPOS_PUBLICOS = Object.freeze([
   'implemento', 'implemento_bem_id', 'lancamento_tarefa', 'lancamento_tarefa_id', 'numero', 'observacao', 'operador', 'operador_usuario_id',
   'quantidade_produzida', 'safra_ciclo', 'status', 'tipo_atividade_id', 'tipo_atividade_nome', 'unidade_producao', 'updated_date', 'versao',
 ]);
-/** D-PROD-191: o DETALHE (e a resposta do cancelamento) acrescenta os itens e o custo deles; a lista não. */
+/** D-PROD-193: o DETALHE (e a resposta do cancelamento) acrescenta os itens e o custo deles; a lista não. */
 const CAMPOS_DETALHE = Object.freeze([...CAMPOS_PUBLICOS, 'custo_itens', 'itens'].sort());
-/** Custo dos itens de um apontamento sem item (D-PROD-191 §3.4). */
+/** Custo dos itens de um apontamento sem item (D-PROD-193 §3.4). */
 const SEM_ITENS = Object.freeze({ itens: [], custo_itens: { total: '0.0000', produto: '0.0000', servico: '0.0000', outro: '0.0000', itens_confirmados: 0 } });
-/** Chave de idempotência nova (D-PROD-191, D-2: o cancelamento exige `operation_id`). */
+/** Chave de idempotência nova (D-PROD-193, D-2: o cancelamento exige `operation_id`). */
 const opId = () => `cancelar-${randomUUID()}`;
 /** Resposta do comando sem `replay` (a forma do detalhe). */
 const semReplay = (r) => {
@@ -131,7 +131,7 @@ const acoes = (aplicacao) => {
     ok,
     criar: (tok, corpo) => req('POST', '/apontamentos-atividade', tok, corpo),
     editar: (tok, id, corpo) => req('PATCH', `/apontamentos-atividade/${id}`, tok, corpo),
-    // D-PROD-191 (D-2): o cancelamento leva `operation_id`; sem a chave no corpo, uma nova a cada envio.
+    // D-PROD-193 (D-2): o cancelamento leva `operation_id`; sem a chave no corpo, uma nova a cada envio.
     cancelar: (tok, id, corpo) => req('POST', `/apontamentos-atividade/${id}/cancelar`, tok, { operation_id: opId(), ...corpo }),
     cancelarCru: (tok, id, corpo) => req('POST', `/apontamentos-atividade/${id}/cancelar`, tok, corpo),
     detalhe: (tok, id, empresaId) => req('GET', `/apontamentos-atividade/${id}?empresa_id=${empresaId}`, tok),
@@ -261,7 +261,7 @@ describe('D-PROD-190 — criação e número (R-k)', () => {
 
     const det = await A.detalhe(s.token, a1.id, s.e1.id);
     assert.equal(det.statusCode, 200, det.body);
-    assert.deepEqual(det.json(), { ...a1, ...SEM_ITENS }, 'o detalhe = a forma pública + itens e custo (D-PROD-191)');
+    assert.deepEqual(det.json(), { ...a1, ...SEM_ITENS }, 'o detalhe = a forma pública + itens e custo (D-PROD-193)');
 
     const a2 = await criarOk(s.token, corpo(s));
     const a3 = await criarOk(s.token, corpo(s, { tipo_atividade_id: s.tipo2.id }));
@@ -679,7 +679,7 @@ describe('D-PROD-190 — cancelamento sem DELETE físico (R-j) e cancelado imut�
     const c = await A.cancelar(quem.token, a.id, { empresa_id: s.e1.id, versao: 2, motivo: '  lançado em dobro  ' });
     assert.equal(c.statusCode, 200, c.body);
     const cancelado = c.json();
-    assert.deepEqual(Object.keys(cancelado).sort(), [...CAMPOS_DETALHE, 'replay'].sort(), 'D-PROD-191: o cancelamento responde o detalhe + replay');
+    assert.deepEqual(Object.keys(cancelado).sort(), [...CAMPOS_DETALHE, 'replay'].sort(), 'D-PROD-193: o cancelamento responde o detalhe + replay');
     assert.deepEqual([cancelado.status, cancelado.versao, cancelado.replay], ['CANCELADO', 3, false]);
     assert.deepEqual([cancelado.itens, cancelado.custo_itens], [SEM_ITENS.itens, SEM_ITENS.custo_itens]);
     assert.deepEqual(cancelado.cancelamento.cancelado_por, { id: quem.id, nome: quem.nome });
@@ -713,7 +713,7 @@ describe('D-PROD-190 — cancelamento sem DELETE físico (R-j) e cancelado imut�
     assert.deepEqual(acoesAuditadas, ['apontamento_atividade.criar', 'apontamento_atividade.editar', 'apontamento_atividade.cancelar']);
   });
 
-  test('AJ2: dois cancelamentos simultâneos da mesma versão (chaves diferentes) → exatamente um 200, o outro 409 STATUS_INVALIDO (D-PROD-191: o cancelamento trava a linha); versão 2', async () => {
+  test('AJ2: dois cancelamentos simultâneos da mesma versão (chaves diferentes) → exatamente um 200, o outro 409 STATUS_INVALIDO (D-PROD-193: o cancelamento trava a linha); versão 2', async () => {
     const s = await montar(app);
     const a = await criarOk(s.token, corpo(s));
     const rs = await Promise.all([1, 2].map((i) => A.cancelar(s.token, a.id, { empresa_id: s.e1.id, versao: 1, motivo: `corrida ${i}` })));
@@ -727,7 +727,7 @@ describe('D-PROD-190 — cancelamento sem DELETE físico (R-j) e cancelado imut�
     assert.equal((await prisma().auditLog.count({ where: { cliente_id: s.c, acao: 'apontamento_atividade.cancelar' } })), 1);
   });
 
-  test('AJ4 (D-PROD-191, D-2): sem operation_id → 400 e nada gravado; mesma chave e corpo → 200 replay sem efeito novo; mesma chave com outro motivo → 409 IDEMPOTENCY_CONFLICT', async () => {
+  test('AJ4 (D-PROD-193, D-2): sem operation_id → 400 e nada gravado; mesma chave e corpo → 200 replay sem efeito novo; mesma chave com outro motivo → 409 IDEMPOTENCY_CONFLICT', async () => {
     const s = await montar(app);
     const a = await criarOk(s.token, corpo(s));
     for (const chave of [undefined, 'curta', '']) {

@@ -5,22 +5,25 @@
 > aplicada em produção). Todos os caminhos são relativos a `/home/user/MAIKE`. Onde está "(VERIFICADO)", o
 > arquiteto leu o código nesta branch (commit `93a26fa`).
 >
-> Número da decisão: **D-PROD-191** é a próxima livre (`docs/engineering/DECISIONS.md:6817`); a D-PROD-190 já
-> diz que a Fatia D "terá número próprio" (`DECISIONS.md:6773`). O `migration.sql` **não** cita o número da
-> decisão (precedente da Fatia C: `20261113700000_apontamento_atividade/migration.sql:1-5`).
+> Número da decisão: **D-PROD-193**. Este contrato nasceu com a D-PROD-191, que era a próxima livre
+> (`docs/engineering/DECISIONS.md:6817`, naquele commit); a D-PROD-190 já dizia que a Fatia D "terá número
+> próprio" (`DECISIONS.md:6773`). A D-PROD-191 e a D-PROD-192 ficaram com a PR #271 (a #272 foi mergeada dentro
+> dela), e a numeração final é a D-PROD-193 (nota "Numeração" da decisão). O `migration.sql` **não** cita o número
+> da decisão (precedente da Fatia C: `20261113700000_apontamento_atividade/migration.sql:1-5`), então renumerar não
+> muda o checksum.
 
 ---
 
 ## 0. Pré-condições de governança (bloqueiam o MERGE, não a construção)
 
-1. **D-PROD-191 registrada** em `docs/engineering/DECISIONS.md` com as palavras do proprietário **literais**
+1. **D-PROD-193 registrada** em `docs/engineering/DECISIONS.md` com as palavras do proprietário **literais**
    (o chat não é autoritativo: `CLAUDE.md:38`; `docs/constitution/08-REGRAS-DE-IA.md:22`). As duas decisões
    que o orquestrador repassou ("PRODUTO baixa o estoque igual ao abastecimento…"; "SERVIÇO/OUTRO: descrição
    livre + quantidade + valor unitário…") precisam ser coladas como o proprietário as escreveu.
 2. **Texto constitucional**: hoje o abastecimento é "a **única** exceção" à lista "fora" da D-PROD-157, "só no
    trecho abastecimento/baixa de estoque de combustível" (`docs/constitution/00-CONSTITUICAO.md:56-57`); a
    lista "fora" inclui "baixa de estoque" e "qualquer efeito financeiro ou de estoque" (`00-CONSTITUICAO.md:43-46`).
-   A Fatia D precisa de um parágrafo "Expansão autorizada pelo proprietário (D-PROD-191)" no `00 §1` e de uma
+   A Fatia D precisa de um parágrafo "Expansão autorizada pelo proprietário (D-PROD-193)" no `00 §1` e de uma
    nota no `07`, redigidos pelo agente e aprovados pelo proprietário no merge manual (rito de
    `00-CONSTITUICAO.md:34-35`, `:46-47`, `:59-60`; só o proprietário emenda: `00-CONSTITUICAO.md:161-165`;
    agente só propõe: `08-REGRAS-DE-IA.md:64`). Rascunho no Apêndice A.
@@ -37,7 +40,7 @@ Molde: `AbastecimentoBem` (`backend/prisma/schema.prisma:2680-2738`) e `Apontame
 (`schema.prisma:2793-2854`). Inserir logo **depois** do model `ApontamentoAtividade`.
 
 ```prisma
-/// D-PROD-191 (Fatia D do apontamento) — ITEM de custo de um apontamento CONFIRMADO.
+/// D-PROD-193 (Fatia D do apontamento) — ITEM de custo de um apontamento CONFIRMADO.
 /// PRODUTO: baixa FÍSICA real pelo motor único (FIFO por lote; custo = Σ fatia × custo do lote; estorno exato).
 /// SERVICO / OUTRO: descrição livre + quantidade + valor unitário; total calculado no servidor (Decimal, 4 casas);
 /// sem cadastro de serviço, sem fornecedor, sem efeito de estoque nem financeiro.
@@ -124,7 +127,7 @@ Molde exato: `AbastecimentoBemConsumoLote` (`schema.prisma:2745-2766`; DDL
 `20261110300000_patrimonio_simplifica/migration.sql:291-304`, `:394-400`, `:458-462`, `:496`).
 
 ```prisma
-/// D-PROD-191 — fatia FIFO consumida pelo item PRODUTO: de qual lote, quanto (na unidade do item, L ou KG) e a
+/// D-PROD-193 — fatia FIFO consumida pelo item PRODUTO: de qual lote, quanto (na unidade do item, L ou KG) e a
 /// que custo, na ordem FIFO. O cancelamento devolve cada fatia ao SEU lote (Σ quantidade = `quantidade` do item,
 /// conferido no serviço). O histórico fica (item cancelado mantém as fatias).
 model ApontamentoAtividadeItemConsumoLote {
@@ -164,7 +167,7 @@ model ApontamentoAtividadeItemConsumoLote {
 | `Usuario` | `apontamentoItensCriados ApontamentoAtividadeItem[] @relation("ApontamentoAtividadeItemCriadoPor")` e `apontamentoItensCancelados ApontamentoAtividadeItem[] @relation("ApontamentoAtividadeItemCanceladoPor")` |
 
 `AbastecimentoBem` **não** muda (é a Fatia E). Atualizar o comentário do bloco `ApontamentoAtividade`
-(`schema.prisma:2768-2792`, "Base enxuta, SEM itens de custo") para citar os itens da D-PROD-191.
+(`schema.prisma:2768-2792`, "Base enxuta, SEM itens de custo") para citar os itens da D-PROD-193.
 
 ### 1.4 Migration `backend/prisma/migrations/20261113800000_apontamento_atividade_item/migration.sql`
 
@@ -775,14 +778,15 @@ botão de item sem `acoes.editar`/`acoes.cancelar`.
 
 **Manifesto** (`scripts/deploy/premergeMigrateLib.mjs`):
 - `MIGRATIONS_APROVADAS` (`:44-77`): `'20261113800000_apontamento_atividade_item': '<sha256 do migration.sql final>'`
-  com o comentário `// D-PROD-191 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.`
+  com o comentário `// D-PROD-193 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.`
 - `DO_RLS_APROVADOS` (`:80-105`): `sha256(norm(corpo))` do DO (comentários fora, espaços colapsados:
-  `:157`, `:161`, `:170-172`), comentário `// D-PROD-191: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).`
+  `:157`, `:161`, `:170-172`), comentário `// D-PROD-193: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).`
 - Nada em `MIGRATIONS_CONTRACT_APROVADAS` (`:108-`).
-- `scripts/tests/deploy/premerge-migrate.test.mjs`: B1 (`:51-58`) com as 2 tabelas novas na lista; **B15a/B15b** no
+- `scripts/tests/deploy/premerge-migrate.test.mjs`: B1 (`:51-58`) com as 2 tabelas novas na lista; **B17a/B17b** no
   molde de B14a/B14b (`:687-774`): classificada sozinha = EXPAND, `tabelas_novas` = as 2; violações provadas para
   CHECK/UNIQUE em `ApontamentoAtividade` (agora antiga), `ADD COLUMN … NOT NULL` em antiga e DO citando tabela antiga;
-  `--contract` inesperado.
+  `--contract` inesperado. (Este contrato os chamava B15a/B15b; a base já usa B15a–B15k na D-PROD-187 e B16 em
+  `migrations.test.mjs`, então viraram B17a/B17b no merge da base nova.)
 
 **SQL editor** (`scripts/ops/sql-editor/`): as 2 tabelas entram ANTES de `'ApontamentoAtividade'`, nesta ordem:
 `'ApontamentoAtividadeItemConsumoLote','ApontamentoAtividadeItem'` (a fatia referencia o item e o lote; o item
@@ -792,7 +796,7 @@ referencia apontamento, movimento, produto, local e usuário; nenhuma tabela ref
 - `02-reset-e-bootstrap-maike-POS-25-MIGRATIONS.sql`: lista `:56-59`; `LOCK TABLE` `:200`; textos `:23` (84), `:27` e `:145` (69);
 - `03-postcheck-somente-leitura.sql`: lista `:12-15`;
 - `04-limpeza-preservando-maike.sql`: lista `:44-47`; `LOCK TABLE` `:108`; textos `:16` (84), `:20` e `:156` (69).
-- `backend/tests/sqlEditorBootstrap.test.mjs:145`: `'84'` e o texto da soma ("+ 2 de itens do apontamento (D-PROD-191)");
+- `backend/tests/sqlEditorBootstrap.test.mjs:145`: `'84'` e o texto da soma ("+ 2 de itens do apontamento (D-PROD-193)");
   semente (`:100-107`) ganha 1 item SERVICO e 1 item PRODUTO com fatia (lote e movimento inseridos direto na
   semente) para PROVAR a ordem de DELETE do 02/04.
 
@@ -801,6 +805,10 @@ referencia apontamento, movimento, produto, local e usuário; nenhuma tabela ref
 Se a PR #270 (`20261113600000_cadcurvaganho_cadastro`, já aplicada em produção) entrar antes: 46 / 85 / 70.
 Em produção, depois de aplicar: 46 concluídas e 85 tabelas (a #270 já está lá: relatório da Fatia C, §7,
 `docs/engineering/MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md:125`, `:142-145`). Recontar no merge.
+**Recontado no merge da base nova (2026-11-14,** PR #269 em `be322ab8`, com a `main` `00a06096`: PRs #263, #267, #268 e
+#270), num banco limpo migrado: **48 migrations, 85 tabelas em `public`, 70 de tenant**. Em produção: 47 concluídas e
+83 tabelas hoje; 48 e 85 depois de aplicar. Os ensaios e testes das CONTRACT contam as migrations pela pasta
+(`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), como a base já fazia.
 
 **Testes de contagem/ensaios das migrations CONTRACT:**
 - `scripts/dev/ensaio-patrimonio-simplifica.mjs:75-76`: `MIGRATIONS_DEPOIS_DO_CONTRACT` + `'20261113800000_apontamento_atividade_item'`
@@ -820,9 +828,9 @@ Em produção, depois de aplicar: 46 concluídas e 85 tabelas (a #270 já está 
 `gate:base44` (não pode subir), `gate:types` (ratchet), `gate:governance-paths`, `test:gates`, `test:backend`,
 `test:smoke`. Nada novo em `config/mapa-manejo-scope.json` (rotas de API não são listadas; página já existe).
 
-**Documentos (D5):** D-PROD-191 em `DECISIONS.md` (antes do comentário `:6817`, que passa a "Próxima decisão:
-D-PROD-192"); `docs/engineering/CURRENT-STATE.md`; relatório `docs/engineering/MAIKE-APONTAMENTO-ITENS-REPORT.md`
-(R8) com §7 de aplicação; parágrafo no `00 §1` e nota no `07` (Apêndice A) marcados "vale com a aprovação
+**Documentos (D5):** D-PROD-193 em `DECISIONS.md` (antes do comentário `:6817`, que passa a "Próxima decisão:
+D-PROD-194"); `docs/engineering/CURRENT-STATE.md`; relatório `docs/engineering/MAIKE-APONTAMENTO-ITENS-REPORT.md`
+(R8) com §7 de aplicação; parágrafo no `00 §1` e nota no `07` (Apêndice A) marcados "vale só com a aprovação
 explícita do proprietário no merge manual"; atualizar `MAIKE-ESTOQUE-P1-CONTRATO.md` não é necessário.
 
 ---
@@ -849,7 +857,7 @@ Proibido a todas as frentes: `AbastecimentoBem*` (Fatia E), flags `exige_area`/`
 ## 9. Riscos e pontos que dependem do PROPRIETÁRIO (não decididos aqui)
 
 **Decisões do proprietário:**
-- **D-0 (bloqueia o merge).** Registrar a D-PROD-191 com as palavras literais e aprovar o texto do `00 §1` e do `07`
+- **D-0 (bloqueia o merge).** Registrar a D-PROD-193 com as palavras literais e aprovar o texto do `00 §1` e do `07`
   (Apêndice A): hoje o abastecimento é a "única exceção" de baixa de estoque ligada a bens (`00-CONSTITUICAO.md:56-57`).
 - **D-1 PATCH da data com itens.** Se o apontamento tem item PRODUTO CONFIRMADO, mudar `data_operacional`:
   (a) **recusar** com 409 `APONTAMENTO_ATIVIDADE_DATA_COM_ITENS` (recomendado: o movimento ficaria em outra data);
@@ -885,6 +893,9 @@ Proibido a todas as frentes: `AbastecimentoBem*` (Fatia E), flags `exige_area`/`
 - **R4 Fila de migrations em produção.** A CONTRACT da #268 (`20261113500000`) ainda não foi aplicada e tem data
   anterior a migrations já aplicadas (`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md:147`); `20261113800000` não colide,
   mas quem renomear a #268 não pode usar `…800000`. Contagens dependem da ordem de merge de #263/#268/#270.
+  **Atualização (2026-11-14):** a CONTRACT da #268 já está aplicada em produção (as PRs #263, #267, #268 e #270 foram
+  mergeadas; produção tem as 47 migrations da base). A fila agora é a CONTRACT da PR #273
+  (`20261114100000_cadcurvaganho_mensal`), que exige release isolada: nunca na mesma release desta.
 - **R5 Transação curta.** `TRANSACAO_CURTA` (9 s, lock 8 s). O cancelamento com muitos itens PRODUTO depende do
   `estornarEmLote` em lote; o teste com ~50 itens deve ficar bem abaixo de 9 s. Se não, decidir TRANSACAO_LONGA
   (`transacaoConcorrente.js:31`) — a tela usa 20 s de timeout do navegador.
@@ -902,7 +913,7 @@ Proibido a todas as frentes: `AbastecimentoBem*` (Fatia E), flags `exige_area`/`
 
 **`00-CONSTITUICAO.md` §1, depois do parágrafo da D-PROD-177:**
 
-> **Expansão autorizada pelo proprietário (D-PROD-191):** **Apontamento de Atividade — itens** (página
+> **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 > `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 > **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de
 > estoque existente (FIFO por lote, custo FIFO final, estorno exato ao cancelar o item ou o apontamento), como o
@@ -911,28 +922,31 @@ Proibido a todas as frentes: `AbastecimentoBem*` (Fatia E), flags `exige_area`/`
 > "fora" da D-PROD-157, só no trecho "baixa de estoque" por item de apontamento. Continua **fora**: lançamento
 > financeiro, título ou conta a pagar a partir do item, rateio por item, cadastro de serviços, fornecedor no item,
 > devolução de sobra ao estoque, edição de item, custo/hora, manutenção, peças, relatórios de custo e qualquer
-> mudança no abastecimento. Texto redigido pelo agente; vale com a aprovação explícita do proprietário no merge
-> manual (§4).
+> mudança no abastecimento. Nesta parte, esta expansão supera apenas o "única" do trecho "Esta é a única
+> exceção…" da D-PROD-159; o resto dela continua valendo. Texto redigido pelo agente; vale só com a aprovação
+> explícita do proprietário no merge manual (§4).
 
 **`07-DO-NOT-DO.md`, depois da nota D-PROD-177:**
 
-> **Nota (D-PROD-191):** os itens do Apontamento de Atividade são a única exceção de baixa de insumo fora do
-> abastecimento, nos limites da decisão. Continua proibido: baixar o item fora do motor de estoque ou por
-> `Produto.estoque_atual -= …`; gravar o movimento com a origem do abastecimento ou do financeiro; converter
-> unidade; apagar ou editar item (só cancelar com estorno exato); tratar devolução de sobra como estorno; criar
-> `OperacaoFinanceira`, título ou rateio a partir do item; cadastro de serviços ou fornecedor no item; reintroduzir
-> as flags `exige_area`/`pode_ter_*`; conceder a tela ou as ações a perfis existentes por padrão.
+> **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
+> lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
+> item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do
+> abastecimento ou do financeiro; converter unidade; apagar ou editar item (só cancelar com estorno exato); tratar
+> devolução de sobra como estorno; criar `OperacaoFinanceira`, título ou rateio a partir do item; cadastro de
+> serviços ou fornecedor no item; reintroduzir as flags `exige_area`/`pode_ter_*`; conceder a tela ou as ações a
+> perfis existentes por padrão. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no
+> merge manual (`00-CONSTITUICAO.md` §4).
 
 ---
 
 ## 10. Pontos do §9 resolvidos pelo orquestrador (padrões recomendados; o proprietário revisa na PR)
 
-Decisões do proprietário já tomadas no chat (perguntas e opções escolhidas, transcritas literalmente na D-PROD-191):
+Decisões do proprietário já tomadas no chat (perguntas e opções escolhidas, transcritas literalmente na D-PROD-193):
 - "Fatia D, item do tipo PRODUTO no apontamento (ex.: herbicida aplicado numa roçada): ele baixa o estoque?" → **"Baixa o estoque (Recomendado)"** — "Igual ao abastecimento: o item escolhe produto e local de estoque, sai do estoque pelo motor único (FIFO), o custo vem do lote real e cancelar o apontamento estorna."
 - "Fatia D, itens de SERVIÇO e OUTROS CUSTOS (ex.: mão de obra terceirizada, frete): como registrar?" → **"Descrição + valor (Recomendado)"** — "Descrição livre, quantidade, valor unitário e total calculado. Não existe cadastro de serviços hoje, e não crio um."
 
-Pontos abertos do §9, resolvidos assim (todos registrados na D-PROD-191 como interpretação, reversíveis):
-- **D-0:** a D-PROD-191 registra as palavras acima. O texto do Apêndice A entra em `00 §1` e `07` **nesta PR**, marcado como "vale com a aprovação explícita do proprietário no merge manual". O agente não o aprova.
+Pontos abertos do §9, resolvidos assim (todos registrados na D-PROD-193 como interpretação, reversíveis):
+- **D-0:** a D-PROD-193 registra as palavras acima. O texto do Apêndice A entra em `00 §1` e `07` **nesta PR**, marcado como "vale só com a aprovação explícita do proprietário no merge manual". O agente não o aprova.
 - **D-1:** opção (a). `PATCH` de `data_operacional` com item PRODUTO CONFIRMADO → 409 `APONTAMENTO_ATIVIDADE_DATA_COM_ITENS`.
 - **D-2:** `operation_id` **obrigatório** em `POST /apontamentos-atividade/:id/cancelar` (efeito de estoque = recibo). O frontend da Fatia D passa a enviar; aba antiga recebe 400 até recarregar.
 - **D-3:** adicionar item = `editar|salvar`; cancelar item = `excluir`; opções de produto/local = `ver` (visualizar), saldo por local = `editar|salvar`. Nenhuma ação nova; nenhum perfil recebe acesso por padrão.
@@ -941,4 +955,4 @@ Pontos abertos do §9, resolvidos assim (todos registrados na D-PROD-191 como in
 - **D-6:** SERVICO e OUTRO com os mesmos campos e regras; só o rótulo muda; sem unidade.
 - **D-7:** total de SERVICO/OUTRO em 4 casas, `ROUND_HALF_UP`; a tela exibe em R$.
 - **D-8:** **recusar** como item PRODUTO um produto de combustível, isto é, um produto aceito por algum tanque (`TanqueBemProduto`). Recusa: 422 `APONTAMENTO_ATIVIDADE_ITEM_INVALIDO` com `reason: 'combustivel_no_abastecimento'` ("combustível se lança no abastecimento"). Assim se evita dupla contagem com a Fatia E; a regra é reversível.
-- **D-9:** limite de 200 itens por apontamento (contando cancelados), 409 ao exceder.
+- **D-9:** limite de 200 itens por apontamento (contando cancelados), **422** ao exceder (`APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS`). **Errata (2026-11-14):** este item dizia "409 ao exceder"; o certo é 422, como na tabela de erros (§3.5), no código, nos testes, na tela e na D-PROD-193.

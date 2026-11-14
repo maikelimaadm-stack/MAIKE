@@ -249,7 +249,7 @@ export const apontamentoAtividadeVinculado = (vinculo, options) =>
     { ...options, details: { ...(options?.details ?? {}), vinculo } }
   );
 
-// D-PROD-191 — itens do apontamento de atividade.
+// D-PROD-193 — itens do apontamento de atividade.
 /** Item de outro apontamento, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
 export const apontamentoAtividadeItemNotFound = (message, options) =>
   new AppError('APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND', message || 'item não encontrado neste apontamento de atividade', options);
@@ -306,7 +306,7 @@ export const apontamentoAtividadeEstornoBloqueado = (reason, extra = {}, options
     details: { ...(options?.details ?? {}), ...extra, field: 'item', reason },
   });
 
-/** D-1 (D-PROD-191): a data não muda com item PRODUTO confirmado (a saída está na data atual). @param {number} itens */
+/** D-1 (D-PROD-193): a data não muda com item PRODUTO confirmado (a saída está na data atual). @param {number} itens */
 export const apontamentoAtividadeDataComItens = (itens, options) =>
   new AppError(
     'APONTAMENTO_ATIVIDADE_DATA_COM_ITENS',
@@ -327,6 +327,13 @@ export const estacaoPeriodoSobreposto = (message, options) =>
     message || 'o período se sobrepõe a outra estação ativa desta fazenda',
     options
   );
+
+// D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
+export const curvaGanhoNotFound = (message, options) =>
+  new AppError('CURVA_GANHO_NOT_FOUND', message || 'curva de ganho não encontrada', options);
+
+export const curvaGanhoNomeConflito = (message, options) =>
+  new AppError('CURVA_GANHO_NAME_CONFLICT', message || 'já existe curva de ganho com este nome nesta fazenda', options);
 
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);

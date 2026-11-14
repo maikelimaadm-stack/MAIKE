@@ -13,7 +13,7 @@
  *              todos os status: o estorno compensa) e nunca negativo;
  *  I3 lote     0 ≤ disponível ≤ entrada; situação coerente com o saldo; consumo
  *              observado (entrada − disponível) = consumo explicado pelas
- *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-191,
+ *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-193,
  *              item de apontamento de atividade CONFIRMADO), pelo
  *              `lotes_consumidos` das Saídas de suplementação/transferência,
  *              pelo `rateio` do recibo legado (só quando o movimento NÃO tem
@@ -138,7 +138,7 @@ export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIM
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /**
  * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
- * D-PROD-191, `ApontamentoAtividadeItemConsumoLote`).
+ * D-PROD-193, `ApontamentoAtividadeItemConsumoLote`).
  */
 const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO]);
 /** Escritores genéricos antigos (POST de movimento, reversão pelo navegador). */
@@ -443,7 +443,7 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
     ORDER BY 2, 1, 3`;
 
 /**
- * D-PROD-191 (I-y, I-z; lição do hotfix #259) — fatias FK dos itens PRODUTO do
+ * D-PROD-193 (I-y, I-z; lição do hotfix #259) — fatias FK dos itens PRODUTO do
  * apontamento de atividade. O código pode subir antes da migration das duas
  * tabelas novas: sem elas (`comItens` falso, lido do catálogo por `to_regclass`
  * na 2ª instrução fixa da leitura), o CTE e o ramo do `fk` viram consultas
@@ -1111,7 +1111,7 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
   const o = normalizarOrcamento(orcamento);
   // `statement_timeout` (< 20 s da transação): uma consulta nunca sobrevive à transação que o Prisma já
   // abandonou (medido no código anterior: plano genérico rodando 8 min 50 s depois do timeout de 20 s).
-  // D-PROD-191 (I-z): a MESMA 2ª instrução lê do catálogo se as tabelas dos itens do apontamento já existem
+  // D-PROD-193 (I-z): a MESMA 2ª instrução lê do catálogo se as tabelas dos itens do apontamento já existem
   // (`to_regclass` nunca falha): nenhuma ida a mais ao banco.
   const [config] = /** @type {Array<{ com_itens_apontamento: boolean }>} */ (await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
     set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true),
