@@ -5,7 +5,12 @@
 -- nunca muda o checksum aplicado.
 --
 -- CONTRACT (entrada fechada em MIGRATIONS_CONTRACT_APROVADAS), nesta ordem:
---   1. guarda (falha fechada antes de tocar em qualquer coisa);
+--   1. guarda (falha fechada antes de tocar em qualquer coisa): lock_timeout 5s e
+--      statement_timeout 120s locais à transação, a trava consultiva do prisma
+--      migrate (72707369) e as 3 tabelas antigas travadas em ACCESS EXCLUSIVE
+--      ANTES de conferir, para que nada seja gravado nelas entre a conferência e
+--      o DROP (sem a trava, um item gravado por uma transação concorrente depois
+--      da conferência seria apagado com a tabela);
 --   2. as tabelas NOVAS "Atividade" e "AtividadeApontamento" (allowlist EXPAND:
 --      CREATE TABLE / INDEX / CHECK / FK nas novas e RLS das novas);
 --   3. a CONVERSÃO pinada: cada linha de "ApontamentoAtividade" vira uma
@@ -30,6 +35,9 @@
 -- Guarda: falha fechada se o banco não estiver no estado que a conversão conhece.
 DO $$
 BEGIN
+  PERFORM set_config('lock_timeout', '5s', true);
+  PERFORM set_config('statement_timeout', '120s', true);
+  PERFORM pg_advisory_xact_lock(72707369);
   IF to_regclass('public."ApontamentoAtividade"') IS NULL
      OR to_regclass('public."ApontamentoAtividadeItem"') IS NULL
      OR to_regclass('public."ApontamentoAtividadeItemConsumoLote"') IS NULL THEN
@@ -38,6 +46,8 @@ BEGIN
   IF to_regclass('public."Atividade"') IS NOT NULL OR to_regclass('public."AtividadeApontamento"') IS NOT NULL THEN
     RAISE EXCEPTION 'guarda: as tabelas novas da atividade já existem';
   END IF;
+  -- Trava ANTES de conferir: até o COMMIT ninguém grava nas 3 antigas (o que a guarda conferiu é o que a conversão lê e o DROP apaga).
+  LOCK TABLE public."ApontamentoAtividade", public."ApontamentoAtividadeItem", public."ApontamentoAtividadeItemConsumoLote" IN ACCESS EXCLUSIVE MODE;
   IF EXISTS (SELECT 1 FROM public."ApontamentoAtividadeItem") OR EXISTS (SELECT 1 FROM public."ApontamentoAtividadeItemConsumoLote") THEN
     RAISE EXCEPTION 'guarda: há itens de custo ou fatias FIFO no apontamento antigo; a conversão não os carrega';
   END IF;
