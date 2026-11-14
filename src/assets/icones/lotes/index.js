@@ -459,7 +459,11 @@ export function larguraUtilDoCard() {
 
 /** @param {SvgLido} svg @param {string} nome @param {number} tamanho @param {boolean} comVaca @returns {Desenho[]} */
 const umDesenho = (svg, nome, tamanho, comVaca) => {
-  const largura = tamanho * larguraUtilDoCard();
+  // Os mistos já têm os animais compostos no próprio SVG. Use a área livre
+  // deles, sem herdar a redução necessária aos animais individuais mais altos.
+  const largura = comVaca
+    ? Math.min(1, tamanho) * Math.min(LARGURA_LIVRE, ALTURA_LIVRE * svg.largura / svg.altura)
+    : tamanho * larguraUtilDoCard();
   const escala = largura / svg.largura;
   return [{ svg, nome, escala, x: (MOLDURA.largura - largura) / 2, y: LINHA_DE_CHAO - svg.altura * escala, comVaca }];
 };
