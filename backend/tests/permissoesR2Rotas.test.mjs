@@ -123,6 +123,11 @@ const ESCRITAS = (c) => {
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
+    // D-PROD-190 — Apontamento de Atividade: escrita guardada pela tela
+    // op-apontamentos-atividade (cancelar = ação "excluir"; não há DELETE físico).
+    ['apontamento de atividade (POST)', 'POST', '/apontamentos-atividade', { empresa_id: E, tipo_atividade_id: 'ta-1', data_operacional: '2026-10-27' }],
+    ['apontamento de atividade (PATCH)', 'PATCH', `/apontamentos-atividade/${ID}`, { empresa_id: E, versao: 1, observacao: 'HACK' }],
+    ['apontamento de atividade (cancelar)', 'POST', `/apontamentos-atividade/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK' }],
     ['fornecedor (DELETE)', 'DELETE', `/fornecedores/${ID}`],
     ['medicamento (POST)', 'POST', '/aplicacoes-medicamento', { empresa_id: E, observacoes: 'x' }],
     ['evento sanitário (POST)', 'POST', '/eventos-sanitarios', { empresa_id: E, observacoes: 'x' }],
@@ -194,6 +199,44 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.equal((await req('POST', '/lancamentos-tarefa', c.tokOp, tarefa)).statusCode, 403);
     await c.permitir({ is_admin: true });
     assert.notEqual((await req('POST', '/lancamentos-tarefa', c.tokOp, tarefa)).statusCode, 403);
+  });
+
+  test('D-PROD-190 — apontamento de atividade: só a tela op-apontamentos-atividade libera, ação por ação; a leitura também exige a tela', async () => {
+    const c = await cenario();
+    const E = c.empresa.id;
+    const [, , urlC, corpoC] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (POST)');
+    const [, , urlE, corpoE] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (PATCH)');
+    const [, , urlX, corpoX] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (cancelar)');
+    const leituras = ['/apontamentos-atividade', `/apontamentos-atividade/${ID}`, '/apontamentos-atividade-opcoes/bens', '/apontamentos-atividade-opcoes/operadores',
+      '/apontamentos-atividade-opcoes/centros-custo', '/apontamentos-atividade-opcoes/centros-resultado'].map((u) => `${u}?empresa_id=${E}`);
+    const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
+
+    // A tela vizinha (Tipos de Atividade), com tudo ligado, não libera nada aqui.
+    await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'sup-tipos-atividade', todas)] });
+    for (const url of leituras) assert.equal((await req('GET', url, c.tokOp)).statusCode, 403, url);
+    assert.equal((await req('POST', urlC, c.tokOp, corpoC)).statusCode, 403);
+
+    // Só visualizar: lê (404 do id inexistente não é 403), não grava.
+    await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'op-apontamentos-atividade', { visualizar: true })] });
+    for (const url of leituras) assert.notEqual((await req('GET', url, c.tokOp)).statusCode, 403, url);
+    for (const [url, corpo] of [[urlC, corpoC], [urlE, corpoE], [urlX, corpoX]]) {
+      const r = await req(url === urlE ? 'PATCH' : 'POST', url, c.tokOp, corpo);
+      assert.deepEqual([r.statusCode, r.json().code], [403, 'ACAO_NAO_PERMITIDA'], `${url}: ${r.body}`);
+    }
+
+    // "novo" cria; "editar" edita; "excluir" cancela — cada uma só a sua.
+    const comAcao = (a) => c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'op-apontamentos-atividade', { visualizar: true, [a]: true })] });
+    await comAcao('novo');
+    assert.notEqual((await req('POST', urlC, c.tokOp, corpoC)).statusCode, 403);
+    assert.equal((await req('PATCH', urlE, c.tokOp, corpoE)).statusCode, 403);
+    await comAcao('editar');
+    assert.notEqual((await req('PATCH', urlE, c.tokOp, corpoE)).statusCode, 403);
+    assert.equal((await req('POST', urlX, c.tokOp, corpoX)).statusCode, 403);
+    await comAcao('excluir');
+    assert.notEqual((await req('POST', urlX, c.tokOp, corpoX)).statusCode, 403);
+    assert.equal((await req('POST', urlC, c.tokOp, corpoC)).statusCode, 403);
+    // Sem DELETE físico: a rota não existe para ninguém.
+    assert.equal((await req('DELETE', `/apontamentos-atividade/${ID}`, c.tokAdm)).statusCode, 404);
   });
 
   test('sem tela no produto (medicamento, sanitário…): nem a concessão is_admin grava — só o administrador real', async () => {

@@ -84,6 +84,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113500000_categoria_manejo_cadcategoria': '83ca58a07439a1cf4e12671fd5f6b89bf62be2aef7ff64112cca6f1418d37e1c',
   // D-PROD-189: CADCURVAGANHO (cadastro de Curvas de Ganho de Peso) — só tabela nova.
   '20261113600000_cadcurvaganho_cadastro': '137f93f26f2f5edd3feeaeae21ff363d2746fbdb93b729efe75935c631e96ac6',
+  // D-PROD-190 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
+  '20261113700000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -111,6 +113,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
   // D-PROD-189: RLS/REVOKE de CADCURVAGANHO (mesmo corpo, lista nova).
   'eaafebfa75191f2e77bd59d6a6ecf6af2c33ee86c536c39fe2b0e881cf1680a7',
+  // D-PROD-190 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
+  '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
 ]);
 
 /**

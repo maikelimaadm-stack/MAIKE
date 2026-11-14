@@ -250,6 +250,48 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
+  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  TIPO_ATIVIDADE_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
+  },
+  // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
+  APONTAMENTO_ATIVIDADE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica apontamento de atividade desta empresa neste tenant',
+  },
+  APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA: {
+    http: 422,
+    meaning: 'tipo, bem, implemento, operador, área, centro ou tarefa recusado (details.field/reason: inexistente | outra_empresa | inativo); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: {
+    http: 422,
+    meaning: 'horário recusado (details.field: hora_inicio | hora_fim; details.reason: fim_antes_do_inicio | hora_futura | hora_fora_do_dia); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_DATA_FUTURA: {
+    http: 422,
+    meaning: 'data operacional posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO: {
+    http: 422,
+    meaning: 'implemento sem bem ou igual ao bem (details.reason: implemento_sem_bem | implemento_igual_ao_bem); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA: {
+    http: 422,
+    meaning: 'produção ou horas recusadas (details.reason: quantidade_sem_unidade | unidade_sem_quantidade | quantidade_nao_positiva | horas_nao_positivas); nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_STATUS_INVALIDO: {
+    http: 409,
+    meaning: 'apontamento CANCELADO não aceita edição nem novo cancelamento (details.status); nada foi alterado',
+  },
+  APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: {
+    http: 409,
+    meaning: 'o apontamento mudou desde a leitura (details.versao_atual/versao_informada); recarregue; nada foi gravado',
+  },
+  APONTAMENTO_ATIVIDADE_VINCULADO: {
+    http: 409,
+    meaning: 'exclusão barrada pela FK RESTRICT de um apontamento de atividade (details.vinculo); inative o cadastro; nada foi apagado',
+  },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {
     http: 404,

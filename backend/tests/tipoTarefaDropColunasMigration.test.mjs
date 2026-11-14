@@ -6,7 +6,8 @@
  * tocado).
  *
  * Partida: todas as migrations do repositório menos a CONTRACT (MIGRATIONS_PARTIDA; inclui a CADESTACOES,
- * D-PROD-188, a CADCURVAGANHO, D-PROD-189, e a CONTRACT da D-PROD-187, aplicada
+ * D-PROD-188, a CADCURVAGANHO, D-PROD-189, a `20261113700000_apontamento_atividade`, D-PROD-190, que só cria
+ * tabela nova e não toca TipoTarefa, e a CONTRACT da D-PROD-187, aplicada
  * pelo Prisma direto e fora de ordem, com CategoriaManejo vazia) e, para 2
  * clientes, um GrupoAtividade, 5 tipos de tarefa com combinações das 4 flags
  * (um todo false, um inativo) e um LancamentoTarefa.

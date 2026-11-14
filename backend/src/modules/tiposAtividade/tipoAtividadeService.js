@@ -2,9 +2,14 @@
  * Serviço de TipoAtividade (D-PROD-182).
  *
  * Espelho do serviço de TipoTarefa (D-PROD-45), sem o que é específico de
- * LancamentoTarefa: Tipo de Atividade não tem dependentes, então não há
- * propagação de nome nem bloqueio de exclusão. O nome do grupo fica em cache
- * em `grupo_atividade_nome` e é renovado quando o grupo do tipo muda.
+ * LancamentoTarefa: não há propagação de nome (o apontamento guarda o nome do
+ * tipo como snapshot, D-PROD-190). O nome do grupo fica em cache em
+ * `grupo_atividade_nome` e é renovado quando o grupo do tipo muda.
+ *
+ * D-PROD-190 — o tipo usado num apontamento de atividade não é excluído: quem
+ * barra é a FK RESTRICT da tabela nova (este módulo NUNCA consulta
+ * `ApontamentoAtividade`, lição do hotfix #259), traduzida aqui em 409
+ * `TIPO_ATIVIDADE_DELETE_BLOCKED`.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -14,8 +19,10 @@ import { buscarGrupo } from '../gruposAtividade/grupoAtividadeRepository.js';
 import {
   tipoAtividadeNotFound,
   tipoAtividadeNomeConflito,
+  tipoAtividadeDeleteBlocked,
   grupoAtividadeNotFound,
 } from '../../shared/errors/AppError.js';
+import { vinculoComApontamentoAtividade } from '../../shared/errors/vinculoApontamentoAtividade.js';
 import {
   listarTipos,
   buscarTipo,
@@ -192,8 +199,8 @@ export const atualizar = async (contexto, id, entrada) => {
 };
 
 /**
- * Exclusão física, mesma política do Tipo de Tarefa. Tipo de Atividade não tem
- * dependentes (D-PROD-182), então não há bloqueio além do 404.
+ * Exclusão física, mesma política do Tipo de Tarefa. D-PROD-190: o tipo com
+ * apontamento de atividade é barrado pela FK RESTRICT (409, inative-o).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
  */
 export const excluir = async (contexto, id) => {
@@ -204,7 +211,12 @@ export const excluir = async (contexto, id) => {
     const anterior = await buscarTipo(auth.clienteId, id, tx);
     if (!anterior) throw tipoAtividadeNotFound();
 
-    await excluirTipoPorId(tx, auth.clienteId, id);
+    try {
+      await excluirTipoPorId(tx, auth.clienteId, id);
+    } catch (erro) {
+      if (vinculoComApontamentoAtividade(erro)) throw tipoAtividadeDeleteBlocked(undefined, { cause: erro });
+      throw erro;
+    }
 
     await registrarEvento(
       contexto,
