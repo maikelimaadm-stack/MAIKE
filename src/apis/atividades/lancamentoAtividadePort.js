@@ -76,8 +76,11 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
 
 /** POST /atividades/:id/apontamentos. */
 export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO]);
-/** PATCH /atividades/:id/apontamentos/:apontamentoId (§10): os mesmos campos de dado, mais a `versao`. */
-export const CAMPOS_DE_EDICAO_APONTAMENTO = Object.freeze(['versao', ...CAMPOS_DO_APONTAMENTO]);
+/**
+ * PATCH /atividades/:id/apontamentos/:apontamentoId (§10): os mesmos campos de dado, mais a `versao`. A origem é
+ * gravada no lançamento e não muda na edição: o schema fechado do servidor a recusa (400), então ela não vai.
+ */
+export const CAMPOS_DE_EDICAO_APONTAMENTO = Object.freeze(['versao', ...CAMPOS_DO_APONTAMENTO.filter((c) => c !== 'origem')]);
 /** POST …/:apontamentoId/cancelar. */
 export const CAMPOS_DE_CANCELAMENTO_APONTAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo']);
 /** POST …/:apontamentoId/duplicar ("Repetir"): só o dia, padrão hoje no servidor. */

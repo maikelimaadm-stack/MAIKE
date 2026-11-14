@@ -12,7 +12,10 @@
  *    filtros de status, tipo, área e período sobre o início, todos na query com
  *    o `empresa_id`; período invertido avisa e não lê;
  *  - ações por permissão × status: sem permissão o botão não aparece; concluída
- *    e cancelada não mostram editar nem lançar; reabrir só com a ação extra;
+ *    e cancelada não mostram editar nem lançar (na página e nos próprios
+ *    componentes); reabrir só com a ação extra; sem o fuso, nada grava;
+ *  - trocar de fazenda fecha a atividade e o diálogo, e nada da atividade
+ *    anterior é pedido com a fazenda nova;
  *  - atividade aberta: cabeçalho só leitura com os herdados (centro de custo,
  *    centro de resultado, unidade de produção, setor da área) e os apontamentos
  *    por dia (duas passadas no mesmo dia = 1ª e 2ª);
@@ -25,7 +28,8 @@
  *    preenche; cancelar pede motivo; decimais em texto;
  *  - recusas ATIVIDADE_* atravessam o transporte (CODIGOS_PRESERVADOS) e chegam
  *    com a mensagem certa; paridade dos códigos com o servidor;
- *  - porta por allowlist e service sem fazenda (nada sai);
+ *  - porta por allowlist, igual ao corpo fechado de cada rota do servidor
+ *    (lido da fonte), e service sem fazenda (nada sai);
  *  - rota, menu, ícone, manifesto e a paridade módulo × tela × ações (padrão e
  *    extras) com o servidor; tela Permissões com as quatro ações extras;
  *  - a tela de Tipos de Atividade continua usando `rotuloDoCentro` (movido para
@@ -1270,6 +1274,7 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
       turno: "MANHA",
       area_executada_dia: "2.5",
       quantidade_produzida_dia: "1",
+      origem: "WEB",
       versao: 4,
       motivo: "motivo",
       data_conclusao: HOJE,
@@ -1306,9 +1311,11 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
       "area_executada_dia",
       "data_operacional",
       "empresa_id",
+      "origem",
       "quantidade_produzida_dia",
       "turno",
     ]);
+    // Na edição a origem não vai: ela é do lançamento e o schema do PATCH a recusa.
     expect(await chaves(() => operacoesNativas.updateApontamento("a1", "ap1", sujo))).toEqual([
       "area_executada_dia",
       "data_operacional",
@@ -1326,6 +1333,56 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
       "/atividades?empresa_id=emp-1&status=ABERTA&data_de=2026-11-01&limit=100",
     );
     expect(montarCaminhoOpcoes("operadores", { empresa_id: "emp-1", q: "jo", natureza: "MAQUINA" })).toBe("/atividades-opcoes/operadores?empresa_id=emp-1&q=jo");
+  });
+
+  it("LA-PORTA-3 — paridade: cada allowlist da porta é exatamente o corpo fechado da rota do servidor (o PATCH sem a empresa, que lá é opcional)", async () => {
+    const porta = await import("@/apis/atividades/lancamentoAtividadePort.js");
+    /** Chaves de um `Object.freeze({ chave: SCHEMA, … })` da fonte. @param {string} fonte @param {string} nome */
+    const chavesDoBloco = (fonte, nome) => {
+      const ini = fonte.indexOf(`const ${nome} = Object.freeze({`);
+      expect(ini, `${nome} ausente`).toBeGreaterThan(-1);
+      return [...fonte.slice(ini, fonte.indexOf("});", ini)).matchAll(/^\s+([a-z_]+):/gm)].map((m) => m[1]);
+    };
+    /** Chaves do `properties` do corpo de uma rota, com os blocos espalhados (`...CAMPOS`) expandidos. */
+    const chavesDoCorpo = (/** @type {string} */ fonte, /** @type {string} */ nome, /** @type {Record<string, string[]>} */ blocos) => {
+      const ini = fonte.indexOf(`const ${nome} = {`);
+      expect(ini, `${nome} ausente`).toBeGreaterThan(-1);
+      const props = fonte.slice(ini, fonte.indexOf("\n};", ini)).match(/properties: \{([^}]*)\}/);
+      expect(props, `${nome} sem properties`).toBeTruthy();
+      return /** @type {RegExpMatchArray} */ (props)[1]
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .flatMap((p) => (p.startsWith("...") ? blocos[p.slice(3)] : [p.split(":")[0].trim()]))
+        .sort();
+    };
+    const ordenado = (/** @type {readonly string[]} */ l) => [...l].sort();
+    const semEmpresa = (/** @type {string[]} */ l) => l.filter((c) => c !== "empresa_id");
+
+    const cabecalho = readFileSync("backend/src/modules/atividades/atividadeRoutes.js", "utf8");
+    const campos = { CAMPOS: chavesDoBloco(cabecalho, "CAMPOS") };
+    expect(ordenado(campos.CAMPOS)).toEqual(ordenado(porta.CAMPOS_DA_ATIVIDADE));
+    expect(chavesDoCorpo(cabecalho, "CRIAR", campos)).toEqual(ordenado(porta.CAMPOS_DE_ABERTURA));
+    expect(semEmpresa(chavesDoCorpo(cabecalho, "ATUALIZAR", campos))).toEqual(ordenado(porta.CAMPOS_DE_EDICAO));
+    expect(chavesDoCorpo(cabecalho, "CONCLUIR", campos)).toEqual(ordenado(porta.CAMPOS_DE_CONCLUSAO));
+    expect(chavesDoCorpo(cabecalho, "COM_MOTIVO", campos)).toEqual(ordenado(porta.CAMPOS_DE_REABERTURA));
+    expect(chavesDoCorpo(cabecalho, "COM_MOTIVO", campos)).toEqual(ordenado(porta.CAMPOS_DE_CANCELAMENTO));
+    expect(chavesDoCorpo(cabecalho, "DUPLICAR", campos)).toEqual(ordenado(porta.CAMPOS_DE_DUPLICACAO));
+
+    const apontamentos = readFileSync("backend/src/modules/atividades/atividadeApontamentoRoutes.js", "utf8");
+    const doDia = { CAMPOS_DO_DIA: chavesDoBloco(apontamentos, "CAMPOS_DO_DIA") };
+    expect(chavesDoCorpo(apontamentos, "LANCAR", doDia)).toEqual(ordenado(porta.CAMPOS_DE_CRIACAO_APONTAMENTO));
+    expect(semEmpresa(chavesDoCorpo(apontamentos, "EDITAR", doDia))).toEqual(ordenado(porta.CAMPOS_DE_EDICAO_APONTAMENTO));
+    expect(chavesDoCorpo(apontamentos, "CANCELAR", doDia)).toEqual(ordenado(porta.CAMPOS_DE_CANCELAMENTO_APONTAMENTO));
+    expect(chavesDoCorpo(apontamentos, "DUPLICAR", doDia)).toEqual(ordenado(porta.CAMPOS_DE_DUPLICACAO_APONTAMENTO));
+
+    // A query da lista que a porta monta só usa chaves que a rota aceita.
+    const listar = cabecalho.slice(cabecalho.indexOf("const LISTAR = {"), cabecalho.indexOf("const DETALHE"));
+    const aceitas = [...listar.matchAll(/^ {6}([a-z_]+):/gm)].map((m) => m[1]);
+    const todas = { empresa_id: "e", status: "ABERTA", tipo_atividade_id: "t", area_id: "a", data_de: HOJE, data_ate: HOJE, limit: 100, cursor: "c" };
+    const usadas = [...new URLSearchParams(porta.montarCaminhoListagem(todas).split("?")[1]).keys()];
+    expect(usadas.length).toBe(Object.keys(todas).length);
+    for (const chave of usadas) expect(aceitas, chave).toContain(chave);
   });
 
   it("LA-PORTA-2 — service sem fazenda: as gravações falham ANTES da rede e as listas voltam vazias", async () => {
