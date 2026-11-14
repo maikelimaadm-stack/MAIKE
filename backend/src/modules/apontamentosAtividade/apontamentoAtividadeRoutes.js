@@ -6,7 +6,7 @@
  *  - `POST  /apontamentos-atividade` (criar) — 201
  *  - `PATCH /apontamentos-atividade/:id` (editar) — CAS por `versao`
  *  - `POST  /apontamentos-atividade/:id/cancelar` (cancelar = ação `excluir`
- *    da tela) — sem DELETE físico; D-PROD-191 (D-2): `operation_id`
+ *    da tela) — sem DELETE físico; D-PROD-193 (D-2): `operation_id`
  *    obrigatório (idempotente) e cancela/estorna todos os itens junto
  *  - `GET   /apontamentos-atividade-opcoes/{bens,operadores,centros-custo,centros-resultado}`
  *    (ver) — seletores PRÓPRIOS da tela: quem só tem esta tela não leva 403
@@ -14,7 +14,7 @@
  *    áreas (`/areas-pastagem`) e tarefas (`/lancamentos-tarefa`) já são lidos
  *    só com autenticação e são reaproveitados.
  *
- * D-PROD-191 (Fatia D) — itens do apontamento CONFIRMADO, imutáveis (sem
+ * D-PROD-193 (Fatia D) — itens do apontamento CONFIRMADO, imutáveis (sem
  * PATCH/DELETE de item: o Fastify responde 404 de rota):
  *  - `POST  /apontamentos-atividade/:id/itens` (editar|salvar) — 201 novo /
  *    200 replay, com o detalhe + `item_id` + `replay`
@@ -68,7 +68,7 @@ const DECIMAL_NULO = { type: ['string', 'null'], pattern: PADRAO_DECIMAL.source 
 const TEXTO_NULO = (max) => ({ type: ['string', 'null'], maxLength: max });
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
-// D-PROD-191 — itens (decimais como TEXTO; nenhum aceita null).
+// D-PROD-193 — itens (decimais como TEXTO; nenhum aceita null).
 const OPERATION_ID = { type: 'string', pattern: PADRAO_OPERATION_ID.source };
 const QUANTIDADE = { type: 'string', pattern: PADRAO_DECIMAL.source };
 const VALOR_UNIT = { type: 'string', pattern: PADRAO_VALOR_UNITARIO.source };
@@ -141,7 +141,7 @@ const CANCELAR = {
   params: PARAMS,
   body: {
     type: 'object',
-    // D-2 (D-PROD-191): `operation_id` obrigatório (o cancelamento estorna estoque: efeito = recibo).
+    // D-2 (D-PROD-193): `operation_id` obrigatório (o cancelamento estorna estoque: efeito = recibo).
     required: ['empresa_id', 'versao', 'motivo', 'operation_id'],
     additionalProperties: false,
     properties: { empresa_id: ID, versao: VERSAO, motivo: MOTIVO, operation_id: OPERATION_ID },
@@ -221,7 +221,7 @@ export const registrarApontamentoAtividadeRoutes = async (app) => {
     atualizar(ctx(request), idDe(request), corpo(request)));
   app.post('/apontamentos-atividade/:id/cancelar', { ...autenticado, preHandler: [g.cancelar], schema: CANCELAR }, async (request) =>
     cancelar(ctx(request), idDe(request), corpo(request)));
-  // D-PROD-191 — itens: adicionar = editar|salvar; cancelar item = excluir (a mesma ação de cancelar o apontamento).
+  // D-PROD-193 — itens: adicionar = editar|salvar; cancelar item = excluir (a mesma ação de cancelar o apontamento).
   app.post('/apontamentos-atividade/:id/itens', { ...autenticado, preHandler: [g.editar], schema: ADICIONAR_ITEM }, async (request, reply) => {
     const r = await adicionarItem(ctx(request), idDe(request), corpo(request));
     return reply.status(r.status).send(r.body);
@@ -238,7 +238,7 @@ export const registrarApontamentoAtividadeRoutes = async (app) => {
     opcoesCentros('custo')(ctx(request), consulta(request)));
   app.get('/apontamentos-atividade-opcoes/centros-resultado', { ...autenticado, preHandler: [g.ver], schema: OPCOES() }, async (request) =>
     opcoesCentros('resultado')(ctx(request), consulta(request)));
-  // D-PROD-191 — produtos ATIVOS da empresa (o seletor da Central) e locais com saldo do produto (o do abastecimento).
+  // D-PROD-193 — produtos ATIVOS da empresa (o seletor da Central) e locais com saldo do produto (o do abastecimento).
   app.get('/apontamentos-atividade-opcoes/produtos', { ...autenticado, preHandler: [g.ver], schema: OPCOES() }, async (request) =>
     opcoesProdutos(ctx(request), consulta(request)));
   app.get('/apontamentos-atividade-opcoes/locais', { ...autenticado, preHandler: [g.editar], schema: OPCOES_LOCAIS }, async (request) =>

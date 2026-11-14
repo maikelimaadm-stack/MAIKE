@@ -23,7 +23,7 @@
  *    vem do bem, ele só muda se o usuário escolher outro.
  *  - Centro de RESULTADO: sempre escolhido pelo usuário numa lista normal de
  *    centros ativos; nunca vem do bem.
- *  - ITENS (D-PROD-191, Fatia D): só no apontamento CONFIRMADO e já gravado.
+ *  - ITENS (D-PROD-193, Fatia D): só no apontamento CONFIRMADO e já gravado.
  *    PRODUTO baixa do estoque EXATAMENTE a quantidade digitada, na unidade
  *    EFETIVA do estoque do Produto (L; kg para KG e SACO), sem conversão; o
  *    custo é o FIFO dos lotes, que só o servidor conhece (sem prévia, D-5).
@@ -422,7 +422,7 @@ export const camposAlteradosDoApontamento = (original, corpo) => {
   return saida;
 };
 
-// ─── Itens do apontamento (D-PROD-191) ───────────────────────────────────
+// ─── Itens do apontamento (D-PROD-193) ───────────────────────────────────
 
 export const ITEM_PRODUTO = 'PRODUTO';
 export const ITEM_SERVICO = 'SERVICO';
@@ -719,7 +719,7 @@ export const CAMPO_DO_FORMULARIO = Object.freeze(
 
 /**
  * Códigos que significam "o apontamento (ou um item dele) não existe mais /
- * mudou": a tela relê a lista e o DETALHE (D-PROD-191: os itens vêm do detalhe).
+ * mudou": a tela relê a lista e o DETALHE (D-PROD-193: os itens vêm do detalhe).
  */
 export const CODIGOS_RELER_APONTAMENTO = Object.freeze([
   'APONTAMENTO_ATIVIDADE_NOT_FOUND',
@@ -734,7 +734,7 @@ export const CODIGOS_RELER_APONTAMENTO = Object.freeze([
 /** @param {unknown} erro */
 export const codigoDoErroApontamento = (erro) => lerErroGestao(erro).code;
 
-/** Frase de cada recusa do item (`details.field` × `details.reason`), D-PROD-191. */
+/** Frase de cada recusa do item (`details.field` × `details.reason`), D-PROD-193. */
 const ITEM_RECUSADO = Object.freeze(
   /** @type {Record<string, Record<string, string>>} */ ({
     produto_id: {

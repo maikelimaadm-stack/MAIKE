@@ -1,5 +1,5 @@
 /**
- * Itens do Apontamento de Atividade (D-PROD-191, Fatia D) × concorrência
+ * Itens do Apontamento de Atividade (D-PROD-193, Fatia D) × concorrência
  * (contrato §6.1 T10, C1–C5) e o tempo do cancelamento com muitos itens
  * PRODUTO (risco R5). PostgreSQL real, HTTP autenticado, prova por linhas
  * gravadas; nenhum 500 em nenhum caso.
@@ -180,7 +180,7 @@ const reconciliacaoLimpa = async (s, produto, rotulo) => {
   assert.equal(rel.resumo.situacao, 'CONSISTENTE', rotulo);
 };
 
-describe('D-PROD-191 — itens × concorrência (T10)', () => {
+describe('D-PROD-193 — itens × concorrência (T10)', () => {
   test('C1: duas baixas no MESMO lote por apontamentos diferentes (8 + 5 > 10) → a 2ª espera a trava do Produto e recebe 422 ESTOQUE_SALDO_INSUFICIENTE (nunca 409/lost update); lote, estoque_atual e reconciliação coerentes', async () => {
     const s = await montarItens(app);
     const c = await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '10.0000', preco: '5.00', dia: '2027-06-01' });
@@ -341,7 +341,7 @@ describe('D-PROD-191 — itens × concorrência (T10)', () => {
   });
 });
 
-describe('D-PROD-191 — tempo do cancelamento com muitos itens (R5)', () => {
+describe('D-PROD-193 — tempo do cancelamento com muitos itens (R5)', () => {
   test('R5: apontamento com 50 itens PRODUTO (2 produtos) cancela em uma transação curta, bem abaixo de 9 s; 50 Entradas; estoque restaurado', async () => {
     const s = await montarItens(app);
     await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '1000.0000', preco: '5.00', dia: '2027-06-01' });

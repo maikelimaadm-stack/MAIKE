@@ -10,7 +10,7 @@
  * hotfix #259): a exclusão de um cadastro apontado é barrada pela FK RESTRICT,
  * traduzida em `shared/errors/vinculoApontamentoAtividade.js`.
  *
- * D-PROD-191 (Fatia D) — itens do apontamento: a trava da linha do apontamento
+ * D-PROD-193 (Fatia D) — itens do apontamento: a trava da linha do apontamento
  * (serializa todo comando de item e o cancelamento), a leitura dos itens e das
  * fatias FIFO, o INSERT do item e das fatias e o cancelamento dos itens com CAS.
  * Este módulo pode assumir as tabelas novas (a migration sobe ANTES do código).
@@ -43,7 +43,7 @@ const FATIAS = Object.freeze({
 });
 const MOVIMENTO_RESUMO = Object.freeze({ select: { id: true, numero_movimentacao: true } });
 
-/** D-PROD-191 — itens do DETALHE (A1–A4), em ordem, inclusive os cancelados (histórico). */
+/** D-PROD-193 — itens do DETALHE (A1–A4), em ordem, inclusive os cancelados (histórico). */
 export const INCLUIR_DETALHE = Object.freeze({
   ...INCLUIR,
   itens: {
@@ -70,7 +70,7 @@ export const buscarApontamento = (db, clienteId, empresaId, id) =>
   db.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, include: INCLUIR });
 
 /**
- * D-PROD-191 — apontamento da EMPRESA com os resumos e os itens (detalhe).
+ * D-PROD-193 — apontamento da EMPRESA com os resumos e os itens (detalhe).
  * @param {any} db  cliente Prisma ou transação
  * @param {string} clienteId @param {string} empresaId @param {string} id
  */
@@ -78,7 +78,7 @@ export const buscarApontamentoComItens = (db, clienteId, empresaId, id) =>
   db.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, include: INCLUIR_DETALHE });
 
 /**
- * D-PROD-191 (I-c) — trava a linha do apontamento (`FOR UPDATE`) ANTES de ler
+ * D-PROD-193 (I-c) — trava a linha do apontamento (`FOR UPDATE`) ANTES de ler
  * itens, locais ou produtos: serializa os comandos de item e o cancelamento.
  * Outra empresa e outro tenant = inexistente (`false`).
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} id
@@ -115,7 +115,7 @@ export const atualizarComVersao = async (tx, { clienteId, empresaId, id, versao,
 };
 
 /**
- * D-PROD-191 — o essencial do apontamento para os comandos de item (lido DEPOIS
+ * D-PROD-193 — o essencial do apontamento para os comandos de item (lido DEPOIS
  * de `travarApontamento`): número e data (documento do movimento), status e versão.
  */
 export const lerApontamentoBase = (tx, clienteId, empresaId, id) =>
@@ -128,7 +128,7 @@ export const lerApontamentoBase = (tx, clienteId, empresaId, id) =>
 export const lerVersaoEStatus = (tx, clienteId, empresaId, id) =>
   tx.apontamentoAtividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, select: { versao: true, status: true } });
 
-// ─── itens (D-PROD-191) ─────────────────────────────────────────────────────
+// ─── itens (D-PROD-193) ─────────────────────────────────────────────────────
 
 /**
  * Quantos itens o apontamento tem (CONFIRMADO + CANCELADO) e a maior `ordem`
@@ -157,7 +157,7 @@ export const lerItensComFatias = (tx, clienteId, empresaId, apontamentoId, filtr
   });
 
 /**
- * D-1 (D-PROD-191): itens PRODUTO CONFIRMADO do apontamento (o PATCH lê sem
+ * D-1 (D-PROD-193): itens PRODUTO CONFIRMADO do apontamento (o PATCH lê sem
  * trava; o CAS por `versao` o protege de um item que entre depois).
  */
 export const contarItensProdutoConfirmados = (tx, clienteId, empresaId, apontamentoId) =>
@@ -166,7 +166,7 @@ export const contarItensProdutoConfirmados = (tx, clienteId, empresaId, apontame
   });
 
 /**
- * D-PROD-191 (§3.3) — o item que JÁ usou esta `operation_id` no tenant (unique
+ * D-PROD-193 (§3.3) — o item que JÁ usou esta `operation_id` no tenant (unique
  * `(cliente_id, operation_id)`), ou `null`. O A1 lê isto antes de tudo: a
  * chave de um item gravado é conflito mesmo sem o recibo.
  * @param {any} tx @param {string} clienteId @param {string} operationId

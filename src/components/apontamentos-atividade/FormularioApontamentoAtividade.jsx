@@ -75,7 +75,7 @@ const detalheDoBem = (o) => /** @type {Record<string, string>} */ (ROTULO_NATURE
 /** @param {any} o */
 const detalheDoCentro = (o) => (o?.numero != null ? `nº ${o.numero}` : null);
 
-// ─── Itens do apontamento (D-PROD-191) ───────────────────────────────────
+// ─── Itens do apontamento (D-PROD-193) ───────────────────────────────────
 
 /** Chave da leitura dos locais com saldo de um Produto (a tela relê depois de baixa, estorno ou recusa de saldo). */
 export const chaveLocaisDoItem = (/** @type {string|null} */ empresaId, /** @type {string|null} */ produtoId) => [
@@ -532,7 +532,7 @@ function CardItem({ item, fuso, podeCancelar, onCancelar }) {
 }
 
 /**
- * Seção "Itens" (D-PROD-191). Novo: só o aviso (os itens entram depois de
+ * Seção "Itens" (D-PROD-193). Novo: só o aviso (os itens entram depois de
  * salvar). Editando o cabeçalho: itens só leitura (não mistura PATCH com
  * comando de estoque). Consulta do CONFIRMADO: itens gravados, "+ Produto",
  * "+ Serviço" e "+ Outro custo" (com a ação editar), um card de rascunho por
@@ -681,7 +681,7 @@ function SecaoItens({ registro, modo, empresaId, fuso, podeLancar, podeCancelar,
  * sempre escolha do usuário, nunca vem do bem. Apontamento CANCELADO abre só
  * leitura, com o motivo; o confirmado oferece "Cancelar apontamento".
  *
- * D-PROD-191 (Fatia D): depois dos centros, a seção "Itens" (produto, serviço,
+ * D-PROD-193 (Fatia D): depois dos centros, a seção "Itens" (produto, serviço,
  * outro custo) — ver `SecaoItens`. Os itens vêm do DETALHE do apontamento; só a
  * CONSULTA do confirmado lança e cancela item (cada comando com `operation_id`
  * e a `versao` do apontamento). Com item de Produto confirmado, a data não muda

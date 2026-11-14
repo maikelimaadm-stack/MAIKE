@@ -3,7 +3,7 @@
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
  * Tipo de Atividade (D-PROD-182): a operação feita, que consome máquina,
- * combustível e insumo. D-PROD-191 (Fatia D): o apontamento CONFIRMADO recebe
+ * combustível e insumo. D-PROD-193 (Fatia D): o apontamento CONFIRMADO recebe
  * ITENS de custo (`apontamentoAtividadeItemService.js`: adicionar e cancelar
  * item); aqui ficam o DETALHE com os itens e o custo, o estorno exato dos itens
  * PRODUTO (um caminho só, para o cancelamento do item e o do apontamento) e o
@@ -50,11 +50,11 @@
  *  - R-i bem, implemento, área e lançamento de tarefa são da MESMA empresa do
  *    apontamento (centros também; a FK composta já garante);
  *  - R-j sem DELETE físico: cancelar grava status, quem, quando e motivo, e
- *    incrementa `versao` (CAS, como o abastecimento). D-PROD-191: o
+ *    incrementa `versao` (CAS, como o abastecimento). D-PROD-193: o
  *    cancelamento é idempotente por `operation_id` (obrigatório, D-2), trava a
  *    linha do apontamento e cancela/estorna todos os itens CONFIRMADO junto;
  *    qualquer estorno recusado → 409 e nada muda;
- *  - D-1 (D-PROD-191): o PATCH não muda `data_operacional` se houver item
+ *  - D-1 (D-PROD-193): o PATCH não muda `data_operacional` se houver item
  *    PRODUTO CONFIRMADO (a saída de estoque está na data gravada) → 409
  *    `APONTAMENTO_ATIVIDADE_DATA_COM_ITENS`; lê os itens sem trava (o CAS por
  *    `versao` o protege: um item que entre depois muda a versão);
@@ -129,10 +129,10 @@ export const PADRAO_INSTANTE = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)(?
 export const MOTIVO_MINIMO = 3;
 /** Chave de idempotência (= `PADRAO_OPERATION_ID` do abastecimento e o CHECK da tabela de itens). */
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
-/** D-PROD-191 — entidade e situações do item (CHECK da tabela). */
+/** D-PROD-193 — entidade e situações do item (CHECK da tabela). */
 export const ENTIDADE_ITEM = 'ApontamentoAtividadeItem';
 export const TIPO_PRODUTO = 'PRODUTO';
-/** D-2 (D-PROD-191) — recibo do cancelamento do apontamento (efeito de estoque = recibo). */
+/** D-2 (D-PROD-193) — recibo do cancelamento do apontamento (efeito de estoque = recibo). */
 export const TIPO_CANCELAR_APONTAMENTO = 'cancelar_apontamento_atividade_v1';
 /** Rótulos do estorno de item PRODUTO no movimento (I-p). */
 const TIPO_DETALHADO_ESTORNO = 'estorno_apontamento_atividade';
@@ -145,7 +145,7 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /*
 const ehObjeto = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 const tem = (obj, chave) => Object.prototype.hasOwnProperty.call(obj, chave);
 
-/** Decimais do corpo (anti-coerção antes do AJV, no plugin das rotas). D-PROD-191: e os do item. */
+/** Decimais do corpo (anti-coerção antes do AJV, no plugin das rotas). D-PROD-193: e os do item. */
 export const DECIMAIS_DO_CORPO = Object.freeze(['quantidade_produzida', 'horas_trabalhadas', 'quantidade', 'valor_unitario']);
 
 /**
@@ -531,7 +531,7 @@ export const erroDoCasPerdido = async (tx, cli, empresaId, id, versao) => {
   return apontamentoAtividadeVersaoConflito(atual.versao, versao);
 };
 
-// ─── itens (D-PROD-191): forma pública, custo, normalização comum ──────────
+// ─── itens (D-PROD-193): forma pública, custo, normalização comum ──────────
 
 const t6 = (v) => (v === null || v === undefined ? null : dec(v).toFixed(CASAS_PRECO));
 const custo4 = (v) => (v === null || v === undefined ? null : dec(v).toFixed(CASAS_CUSTO));
@@ -888,7 +888,7 @@ export const atualizar = async (contexto, id, corpo) => {
       if (anterior.status !== STATUS_CONFIRMADO) throw apontamentoAtividadeStatusInvalido(anterior.status); // R-g
       if (anterior.versao !== versao) throw apontamentoAtividadeVersaoConflito(anterior.versao, versao);
       const gravado = estadoGravado(anterior);
-      // D-1 (D-PROD-191): a saída de estoque do item PRODUTO está na data gravada; mudar a data com item
+      // D-1 (D-PROD-193): a saída de estoque do item PRODUTO está na data gravada; mudar a data com item
       // PRODUTO CONFIRMADO é recusado (lido sem trava: um item que entre depois muda a versão e o CAS perde).
       if (tem(campos, 'data_operacional') && campos.data_operacional !== gravado.data_operacional) {
         const itensProduto = await contarItensProdutoConfirmados(tx, cli, empresaId, id);
@@ -924,13 +924,13 @@ export const atualizar = async (contexto, id, corpo) => {
   );
 };
 
-// ─── cancelamento (R-j; D-PROD-191 I-q) ─────────────────────────────────────
+// ─── cancelamento (R-j; D-PROD-193 I-q) ─────────────────────────────────────
 
 /**
  * Sem DELETE físico: CONFIRMADO → CANCELADO com quem, quando e motivo; CAS por
  * `versao`. Cancelado não cancela de novo (R-g).
  *
- * D-PROD-191 (I-q, D-2): idempotente por `operation_id` (obrigatório; recibo
+ * D-PROD-193 (I-q, D-2): idempotente por `operation_id` (obrigatório; recibo
  * `cancelar_apontamento_atividade_v1`; mesma chave e mesmo conteúdo → o corpo
  * gravado com `replay: true`; conteúdo diferente → 409 `IDEMPOTENCY_CONFLICT`).
  * Na MESMA transação, TODOS os itens CONFIRMADO são cancelados

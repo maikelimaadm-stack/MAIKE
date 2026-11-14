@@ -95,7 +95,7 @@ const CONTEXTO_MENSAGENS = Object.freeze({ locale: "pt-BR", moeda: "BRL", casas:
  * o apontamento CONFIRMADO se cancela com motivo (ação Excluir da tela) e o
  * CANCELADO abre só leitura. Edição e cancelamento levam a `versao` lida.
  *
- * Itens (D-PROD-191, Fatia D): o registro aberto é o DETALHE do servidor (com
+ * Itens (D-PROD-193, Fatia D): o registro aberto é o DETALHE do servidor (com
  * `itens` e `custo_itens`), não a linha da lista. Lançar item, cancelar item e
  * cancelar o apontamento levam `operation_id` persistente (sem resposta =
  * resultado incerto, nunca sucesso; repetir não duplica) e a resposta, que é o
@@ -127,7 +127,7 @@ export default function ApontamentosAtividade() {
   const [dataAte, setDataAte] = useState("");
   const periodoInvertido = Boolean(dataDe && dataAte && dataDe > dataAte);
   const [cancelando, setCancelando] = useState(/** @type {any} */ (null));
-  // Item a cancelar (D-PROD-191): o detalhe aberto e o item, lidos no clique.
+  // Item a cancelar (D-PROD-193): o detalhe aberto e o item, lidos no clique.
   const [cancelandoItem, setCancelandoItem] = useState(/** @type {{ registro: any, item: any } | null} */ (null));
   // Recusa do servidor que aponta um campo, presa ao registro em que aconteceu ('novo' ou o id).
   const [erroDoServidor, setErroDoServidor] = useState(/** @type {{ campo: string, mensagem: string, alvo: string } | null} */ (null));
@@ -232,7 +232,7 @@ export default function ApontamentosAtividade() {
   const chaveDetalhe = (emp, id) => [QUERY_RAIZ, "detalhe", emp ?? null, id];
   const relerDetalhes = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "detalhe"] });
 
-  // Registro aberto (D-PROD-191): a lista traz o RESUMO; os itens vêm do DETALHE.
+  // Registro aberto (D-PROD-193): a lista traz o RESUMO; os itens vêm do DETALHE.
   const registroLista = /** @type {any} */ (controller.editingItem);
   const idAberto = controller.showForm && registroLista?.id ? String(registroLista.id) : null;
   const detalheQuery = useQuery({
@@ -455,7 +455,7 @@ export default function ApontamentosAtividade() {
     }
   };
 
-  // ─── Itens (D-PROD-191) ─────────────────────────────────────────────
+  // ─── Itens (D-PROD-193) ─────────────────────────────────────────────
   /** Recusa de comando de item: relê o que mudou; quando a releitura remonta o formulário, o aviso fica. @param {unknown} erro @param {string} emp */
   const reagirAoErroDoItem = (erro, emp) => {
     const code = codigoDoErroApontamento(erro);

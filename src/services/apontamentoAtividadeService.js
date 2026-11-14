@@ -3,7 +3,7 @@
  *
  * A TAREFA (`LancamentoTarefa`) é a demanda; o APONTAMENTO é a EXECUÇÃO de um
  * Tipo de Atividade (D-PROD-182): a operação feita, com máquina, implemento,
- * operador, área, horário e produção, e os itens de custo (D-PROD-191).
+ * operador, área, horário e produção, e os itens de custo (D-PROD-193).
  *
  * Da EMPRESA real: sem empresa nada é lido nem gravado. Edição por PATCH
  * MÍNIMO com a `versao` lida (CAS no servidor); sem DELETE físico — cancelar
@@ -11,7 +11,7 @@
  * da tela; tipos (só os ativos são oferecidos) e áreas reaproveitam as leituras
  * já abertas a quem está autenticado.
  *
- * Itens (D-PROD-191, Fatia D): adicionar item, cancelar item e cancelar o
+ * Itens (D-PROD-193, Fatia D): adicionar item, cancelar item e cancelar o
  * apontamento (que estorna os itens de Produto) levam um `operation_id`
  * guardado por (escopo, ação, empresa, alvo) até a resposta DEFINITIVA, pelo
  * MESMO mecanismo da Central e do abastecimento (`enviarComPendencia`), com
@@ -78,7 +78,7 @@ export const detalharApontamento = async (empresaId, id) =>
 
 /**
  * Opções de um seletor da tela (bens, operadores, centros de custo e de
- * resultado ATIVOS; D-PROD-191: Produtos ATIVOS da fazenda, para o item). Sem
+ * resultado ATIVOS; D-PROD-193: Produtos ATIVOS da fazenda, para o item). Sem
  * empresa: vazio, nada é lido.
  * @param {'bens'|'operadores'|'centros-custo'|'centros-resultado'|'produtos'} recurso
  * @param {string|null} empresaId
@@ -121,7 +121,7 @@ export const atualizarApontamento = async (empresaId, original, dados) => {
   return { alterado: true, registro };
 };
 
-// ─── Pendência de `operation_id` (D-PROD-191) ───────────────────────────
+// ─── Pendência de `operation_id` (D-PROD-193) ───────────────────────────
 
 /** Ações com pendência de `operation_id`. Adicionar item é REPETÍVEL (dois itens iguais são legítimos). */
 export const ACAO_ADICIONAR_ITEM = 'criar';
@@ -216,7 +216,7 @@ const motivoValido = (motivo, operation) => {
 
 /**
  * Cancelamento (sem DELETE): motivo de pelo menos 3 caracteres, a `versao`
- * lida e (D-PROD-191, D-2) o `operation_id` persistente — o cancelamento
+ * lida e (D-PROD-193, D-2) o `operation_id` persistente — o cancelamento
  * estorna os itens de Produto aos lotes de origem e cancela os demais. Motivo
  * curto falha ANTES da rede.
  * @param {string|null} empresaId @param {{ id: string, versao: number }} registro @param {string} motivo
@@ -241,7 +241,7 @@ export const cancelarApontamento = async (empresaId, registro, motivo, c = { esc
   });
 };
 
-// ─── Itens (D-PROD-191) ─────────────────────────────────────────────────
+// ─── Itens (D-PROD-193) ─────────────────────────────────────────────────
 
 /**
  * Locais com saldo do Produto NESTA fazenda (`{itens:[{local_estoque_id,

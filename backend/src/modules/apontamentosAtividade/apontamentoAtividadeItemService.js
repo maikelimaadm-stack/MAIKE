@@ -1,5 +1,5 @@
 /**
- * Itens do Apontamento de Atividade (D-PROD-191, Fatia D) — A1 adicionar item
+ * Itens do Apontamento de Atividade (D-PROD-193, Fatia D) — A1 adicionar item
  * e A2 cancelar item, no apontamento CONFIRMADO.
  *
  *  - PRODUTO: baixa FÍSICA real pelo MOTOR ÚNICO de estoque (`aplicarSaidaFifo`,

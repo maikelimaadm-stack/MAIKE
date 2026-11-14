@@ -1,5 +1,5 @@
 /**
- * Itens do Apontamento de Atividade (D-PROD-191, Fatia D) — PostgreSQL real +
+ * Itens do Apontamento de Atividade (D-PROD-193, Fatia D) — PostgreSQL real +
  * HTTP autenticado (`app.inject`). Escrito pelo CONTRATO
  * (`docs/engineering/MAIKE-APONTAMENTO-ITENS-CONTRATO.md` §3, §4, §6.1 e §10),
  * não pela implementação. Prova, regra a regra:
@@ -179,7 +179,7 @@ const comPapelNaoDono = async (fn) => {
 
 // ═══ Item PRODUTO: baixa pelo motor único ═══════════════════════════════════
 
-describe('D-PROD-191 — item PRODUTO: baixa física pelo motor único (I-e…I-j)', () => {
+describe('D-PROD-193 — item PRODUTO: baixa física pelo motor único (I-e…I-j)', () => {
   test('IT1: FIFO em 2 lotes (5,00 e 7,00) — 12 L = 10 do mais antigo + 2 do outro; custo 64,0000 exato; movimento da origem própria; versão +1; auditoria; replay; detalhe', async () => {
     const s = await montarItens(app);
     const { A: loteA, B: loteB } = await doisLotes(s);
@@ -316,7 +316,7 @@ describe('D-PROD-191 — item PRODUTO: baixa física pelo motor único (I-e…I-
 
 // ═══ SERVICO / OUTRO ════════════════════════════════════════════════════════
 
-describe('D-PROD-191 — itens SERVICO e OUTRO: descrição + quantidade + valor, sem estoque (I-k, D-6, D-7)', () => {
+describe('D-PROD-193 — itens SERVICO e OUTRO: descrição + quantidade + valor, sem estoque (I-k, D-6, D-7)', () => {
   test('IT3: total = ROUND_HALF_UP(q × v, 4) em Decimal, arredondado UMA vez (1 × 1,00005 = 1,0001; 0,1 × 3 = 0,3000; 3 × 0,33335 = 1,0001 e 2 × 1,000025 = 2,0001, onde Number daria 1,0000 e 2,0000; produto de 16 dígitos exato; 123450004,9455 × 123,456789 = 15240741212,6055, onde 6→4 casas, precisão 20 e Number dariam …6056); total zero e acima do limite recusados; nenhum movimento, lote ou estoque_atual', async () => {
     const s = await montarItens(app);
     await doisLotes(s);
@@ -375,7 +375,7 @@ describe('D-PROD-191 — itens SERVICO e OUTRO: descrição + quantidade + valor
 
 // ═══ Recusas ════════════════════════════════════════════════════════════════
 
-describe('D-PROD-191 — recusas do item: nada gravado (I-e, I-f, I-i, I-l, I-m, D-8, D-9)', () => {
+describe('D-PROD-193 — recusas do item: nada gravado (I-e, I-f, I-i, I-l, I-m, D-8, D-9)', () => {
   test('IT4a: Produto inexistente / de outro tenant (mesmo corpo) / de outra fazenda / inativo / unidade fora de L-KG-SACO / COMBUSTÍVEL; local inexistente / de outro tenant / inativo → 422', async () => {
     const s = await montarItens(app);
     const B = await montarItens(app);
@@ -621,7 +621,7 @@ describe('D-PROD-191 — recusas do item: nada gravado (I-e, I-f, I-i, I-l, I-m,
 
 // ═══ Situação, CAS e imutabilidade ══════════════════════════════════════════
 
-describe('D-PROD-191 — situação, CAS e imutabilidade (I-b, I-c, I-o, I-r, D-1)', () => {
+describe('D-PROD-193 — situação, CAS e imutabilidade (I-b, I-c, I-o, I-r, D-1)', () => {
   test('IT5: versão velha → 409; PATCH do cabeçalho com a versão de antes do item → 409; sem PATCH/DELETE de item (404 de rota); data com item PRODUTO confirmado → 409 DATA_COM_ITENS; apontamento CANCELADO não recebe nem cancela item', async () => {
     const s = await montarItens(app);
     await doisLotes(s);
@@ -675,7 +675,7 @@ describe('D-PROD-191 — situação, CAS e imutabilidade (I-b, I-c, I-o, I-r, D-
 
 // ═══ Cancelar item ══════════════════════════════════════════════════════════
 
-describe('D-PROD-191 — cancelar item: estorno exato (I-p)', () => {
+describe('D-PROD-193 — cancelar item: estorno exato (I-p)', () => {
   test('IT6: cada fatia volta ao SEU lote (mesmo com o resto do lote mais novo consumido por outro apontamento); Entrada de estorno com o mesmo valor e o par pai/filho; no HOJE da fazenda; item CANCELADO origem ITEM; apontamento CONFIRMADO versão +1', async () => {
     const s = await montarItens(app);
     const { A: loteA, B: loteB } = await doisLotes(s);
@@ -964,7 +964,7 @@ describe('D-PROD-191 — cancelar item: estorno exato (I-p)', () => {
 
 // ═══ Cancelar o APONTAMENTO ═════════════════════════════════════════════════
 
-describe('D-PROD-191 — cancelar o apontamento cancela e estorna todos os itens, tudo ou nada (I-q, D-2)', () => {
+describe('D-PROD-193 — cancelar o apontamento cancela e estorna todos os itens, tudo ou nada (I-q, D-2)', () => {
   test('IT9: 2 PRODUTO (produtos diferentes) + 1 SERVICO + 1 já cancelado → tudo CANCELADO (origem APONTAMENTO, o motivo do apontamento), 2 Entradas, estoque restaurado, auditoria 1 + 3; replay; sem operation_id → 400', async () => {
     const s = await montarItens(app);
     const herb = await s.compraP3(s.e1, s.herbicida, s.local2, { quantidade: '50.0000', preco: '5.00', dia: '2027-06-01' });
@@ -1059,7 +1059,7 @@ describe('D-PROD-191 — cancelar o apontamento cancela e estorna todos os itens
 
 // ═══ Isolamento ═════════════════════════════════════════════════════════════
 
-describe('D-PROD-191 — isolamento por tenant e por fazenda (I-t)', () => {
+describe('D-PROD-193 — isolamento por tenant e por fazenda (I-t)', () => {
   test('IT11: outro tenant não lê, não adiciona e não cancela item de A (404 com o corpo do id inexistente); opções de B só com B; a fazenda 2 não alcança o apontamento da 1; item de OUTRO apontamento = inexistente', async () => {
     const s = await montarItens(app);
     const B = await montarItens(app);
@@ -1129,7 +1129,7 @@ describe('D-PROD-191 — isolamento por tenant e por fazenda (I-t)', () => {
 const reconciliar = async (s, produto) => A.ok(A.reconciliacao(s.token, `empresa_id=${s.e1.id}&produto_id=${produto.id}`));
 const regras = (rel) => rel.achados.map((a) => [a.nivel, a.classe, a.regra]);
 
-describe('D-PROD-191 — reconciliação reconhece a origem nova e as fatias FK (I-y)', () => {
+describe('D-PROD-193 — reconciliação reconhece a origem nova e as fatias FK (I-y)', () => {
   test('IT12: depois da baixa e do estorno a reconciliação fecha (sem DIVERGENCIA_REAL, sem origem fora do protocolo; Σ fatias FK = movimento); fatia adulterada é DIVERGÊNCIA no movimento e no lote; item cancelado não conta consumo', async () => {
     const s = await montarItens(app);
     const { B: loteB } = await doisLotes(s);
@@ -1162,7 +1162,7 @@ describe('D-PROD-191 — reconciliação reconhece a origem nova e as fatias FK 
 
 // ═══ X1, exclusões e proveniência ═══════════════════════════════════════════
 
-describe('D-PROD-191 — lote imutável (X1), exclusões e proveniência da compra (I-x, R7)', () => {
+describe('D-PROD-193 — lote imutável (X1), exclusões e proveniência da compra (I-x, R7)', () => {
   test('IT13: PATCH/DELETE do lote consumido pelo item → 409 REGISTRO_OPERACIONAL_IMUTAVEL (vinculo apontamento_atividade), também depois do estorno; DELETE do Produto e do Local → 409 (nunca 403); a compra cujo lote o item consumiu não retifica nem exclui, mesmo depois do estorno', async () => {
     const s = await montarItens(app);
     // Lote sem vínculo financeiro (legado), para o vínculo do item ser o único.
@@ -1235,7 +1235,7 @@ const semTabelasDosItens = async (fn) => {
   }
 };
 
-describe('D-PROD-191 — runtime novo com schema antigo (I-z, lição do hotfix #259)', () => {
+describe('D-PROD-193 — runtime novo com schema antigo (I-z, lição do hotfix #259)', () => {
   test('IT14: sem as 2 tabelas novas, a guarda do lote (PATCH/DELETE) e a reconciliação respondem sem 500; fora do módulo, só elas citam as tabelas novas, e com to_regclass', async () => {
     const s = await montarItens(app);
     const consumido = await s.lote(s.e1, s.adubo, s.local, { quantidade: '10.0000', custo: '3.0000', dia: '2027-06-01' });
@@ -1274,7 +1274,7 @@ describe('D-PROD-191 — runtime novo com schema antigo (I-z, lição do hotfix 
 
 // ═══ O banco é a última rede ════════════════════════════════════════════════
 
-describe('D-PROD-191 — o banco: CHECKs, FKs RESTRICT, RLS sem FORCE (T15)', () => {
+describe('D-PROD-193 — o banco: CHECKs, FKs RESTRICT, RLS sem FORCE (T15)', () => {
   test('IT15a: 7 CHECKs e 11 FKs RESTRICT nas 2 tabelas; inserção direta inválida recusada (PRODUTO sem movimento, SERVICO com produto, CANCELADO sem motivo, origem fora do domínio, tipo fora, estorno = movimento, fatia zero)', async () => {
     const s = await montarItens(app);
     await doisLotes(s);
@@ -1386,7 +1386,7 @@ describe('D-PROD-191 — o banco: CHECKs, FKs RESTRICT, RLS sem FORCE (T15)', ()
 
 // ═══ Permissões ═════════════════════════════════════════════════════════════
 
-describe('D-PROD-191 — permissões da tela op-apontamentos-atividade, sem ação nova (D-3)', () => {
+describe('D-PROD-193 — permissões da tela op-apontamentos-atividade, sem ação nova (D-3)', () => {
   test('IT16: visualizar lê o detalhe e os produtos; "editar" e "salvar" lançam item e veem os locais com saldo; "excluir" cancela item; "novo" não lança item; sem a linha, 403 em tudo; nada gravado no 403', async () => {
     const s = await montarItens(app);
     await doisLotes(s);

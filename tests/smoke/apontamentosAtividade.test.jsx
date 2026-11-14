@@ -20,7 +20,7 @@
  *    da fazenda;
  *  - tela: rota, menu logo abaixo de Tipos de Atividade, ícone, manifesto e a
  *    paridade módulo × tela com o servidor;
- *  - D-PROD-191 (Fatia D, itens): a seção Itens nos 4 estados (novo, edição,
+ *  - D-PROD-193 (Fatia D, itens): a seção Itens nos 4 estados (novo, edição,
  *    consulta do confirmado, cancelado); nenhum botão de item sem as ações
  *    editar/cancelar; corpo do item só com as chaves da allowlist do TIPO; o
  *    mesmo `operation_id` na retentativa (e no cancelamento do apontamento,
@@ -60,7 +60,7 @@ const servico = vi.hoisted(() => ({
   cancelarApontamento: vi.fn(),
   listarAreasDoApontamento: vi.fn(),
   listarTiposAtividade: vi.fn(),
-  // D-PROD-191 — itens.
+  // D-PROD-193 — itens.
   listarLocaisDoProduto: vi.fn(),
   adicionarItemApontamento: vi.fn(),
   cancelarItemApontamento: vi.fn(),
@@ -185,7 +185,7 @@ const CANCELADO = {
   cancelamento: { cancelado_em: "2026-11-11T12:00:00.000Z", cancelado_por: { id: "u9", nome: "Gerente" }, motivo: "Lançado em duplicidade" },
 };
 
-// ─── Itens (D-PROD-191) ──────────────────────────────────────────────────
+// ─── Itens (D-PROD-193) ──────────────────────────────────────────────────
 const ITEM_PRODUTO_GRAVADO = {
   id: "it1",
   ordem: 1,
@@ -760,7 +760,7 @@ describe("AP-PORTA — corpo pela allowlist da porta nativa", () => {
     await operacoesNativas.cancelar("ap1", sujo);
     expect(http.nativeRequest.mock.calls.at(-1)[0]).toBe("/apontamentos-atividade/ap1/cancelar");
     expect(http.nativeRequest.mock.calls.at(-1)[1].body).toEqual({ empresa_id: "emp-1", versao: 4, motivo: "x" });
-    // D-PROD-191 (D-2): o cancelamento leva o `operation_id` do recibo.
+    // D-PROD-193 (D-2): o cancelamento leva o `operation_id` do recibo.
     await operacoesNativas.cancelar("ap1", { ...sujo, operation_id: "op-cancelar-1" });
     expect(http.nativeRequest.mock.calls.at(-1)[1].body).toEqual({ empresa_id: "emp-1", versao: 4, motivo: "x", operation_id: "op-cancelar-1" });
     // Sem DELETE físico.
@@ -779,7 +779,7 @@ describe("AP-PAGE — tela de apontamentos de atividade", () => {
     servico.listarTiposAtividade.mockResolvedValue(TIPOS);
     servico.listarAreasDoApontamento.mockResolvedValue(AREAS);
     servico.listarApontamentosPagina.mockResolvedValue({ items: [REGISTRO, CANCELADO], next_cursor: null, has_more: false, total: 2, limit: 100 });
-    // D-PROD-191: o registro aberto é o DETALHE (com itens), não a linha da lista.
+    // D-PROD-193: o registro aberto é o DETALHE (com itens), não a linha da lista.
     servico.detalharApontamento.mockImplementation(async (_emp, id) => (id === "ap1" ? REGISTRO_COM_ITENS : CANCELADO_COM_ITENS));
     const { default: ApontamentosAtividade } = await import("@/pages/ApontamentosAtividade");
     render(
@@ -821,7 +821,7 @@ describe("AP-PAGE — tela de apontamentos de atividade", () => {
     fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "Erro de digitação" } });
     await act(async () => fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")));
     await waitFor(() => expect(servico.cancelarApontamento).toHaveBeenCalledTimes(1));
-    // D-PROD-191 (D-2): o envio leva o escopo da pendência de `operation_id` (cliente:login) e diz se é retentativa.
+    // D-PROD-193 (D-2): o envio leva o escopo da pendência de `operation_id` (cliente:login) e diz se é retentativa.
     expect(servico.cancelarApontamento).toHaveBeenCalledWith(
       "emp-1",
       expect.objectContaining({ id: "ap1", versao: 2 }),
@@ -887,7 +887,7 @@ describe("AP-PAGE — tela de apontamentos de atividade", () => {
   });
 });
 
-describe("AP-ITENS — itens do apontamento (D-PROD-191)", () => {
+describe("AP-ITENS — itens do apontamento (D-PROD-193)", () => {
   const cards = (form) => [...form.querySelectorAll('[data-testid^="apontamento-item-"][data-status]')].map((el) => el.getAttribute("data-testid"));
   const rascunho = () => screen.getByTestId("apontamento-item-rascunho");
 

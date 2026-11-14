@@ -9,13 +9,13 @@
  * O corpo vai por ALLOWLIST (o servidor recusa qualquer outra chave com 400):
  * nada de `cliente_id`, número, snapshots do tipo, status, autoria, nem as
  * flags de exigência do antigo Tipo de Tarefa. Sem DELETE: o apontamento só se
- * CANCELA (`POST /:id/cancelar` com motivo, `versao` e — D-PROD-191 — o
+ * CANCELA (`POST /:id/cancelar` com motivo, `versao` e — D-PROD-193 — o
  * `operation_id` do recibo, porque o cancelamento estorna os itens de Produto).
  * Os seletores do formulário têm rotas PRÓPRIAS da tela
  * (`/apontamentos-atividade-opcoes/…`): quem só tem esta tela não leva 403 das
  * telas de bens, de centros ou de estoque.
  *
- * Itens (D-PROD-191, Fatia D): só ADICIONAR (`POST /:id/itens`) e CANCELAR
+ * Itens (D-PROD-193, Fatia D): só ADICIONAR (`POST /:id/itens`) e CANCELAR
  * (`POST /:id/itens/:itemId/cancelar`), cada um com `operation_id` e a `versao`
  * do apontamento; não há PATCH nem DELETE de item. O corpo do item vai por
  * allowlist e SEM `null` (o servidor não aceita nulo em nenhuma chave do item).
@@ -55,11 +55,11 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
 
 export const CAMPOS_DE_CRIACAO = Object.freeze(['empresa_id', ...CAMPOS_DO_APONTAMENTO]);
 export const CAMPOS_DE_ATUALIZACAO = Object.freeze(['empresa_id', 'versao', ...CAMPOS_DO_APONTAMENTO]);
-/** D-PROD-191 (D-2): o cancelamento estorna os itens de Produto, então leva o `operation_id` do recibo. */
+/** D-PROD-193 (D-2): o cancelamento estorna os itens de Produto, então leva o `operation_id` do recibo. */
 export const CAMPOS_DE_CANCELAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo', 'operation_id']);
 
 /**
- * Item do apontamento (D-PROD-191): PRODUTO leva `produto_id` e
+ * Item do apontamento (D-PROD-193): PRODUTO leva `produto_id` e
  * `local_estoque_id`; SERVICO e OUTRO, `descricao` e `valor_unitario`. O
  * servidor recusa a chave do outro tipo (`campo_nao_permitido`).
  */
@@ -203,7 +203,7 @@ export const operacoesNativas = Object.freeze({
       ctx('cancelarApontamentoAtividade', { id }),
     ),
 
-  /** D-PROD-191: adiciona UM item ao apontamento CONFIRMADO. @param {string} id @param {Record<string, unknown>} dados */
+  /** D-PROD-193: adiciona UM item ao apontamento CONFIRMADO. @param {string} id @param {Record<string, unknown>} dados */
   adicionarItem: (id, dados) =>
     nativeRequest(
       `${doApontamento(id)}/itens`,
@@ -211,7 +211,7 @@ export const operacoesNativas = Object.freeze({
       ctx('adicionarItemApontamentoAtividade', { id }),
     ),
 
-  /** D-PROD-191: cancela UM item (o de Produto volta ao estoque). @param {string} id @param {string} itemId @param {Record<string, unknown>} dados */
+  /** D-PROD-193: cancela UM item (o de Produto volta ao estoque). @param {string} id @param {string} itemId @param {Record<string, unknown>} dados */
   cancelarItem: (id, itemId, dados) =>
     nativeRequest(
       `${doApontamento(id)}/itens/${encodeURIComponent(itemId)}/cancelar`,
