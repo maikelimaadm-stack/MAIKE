@@ -1,6 +1,6 @@
 # MAIKE-ATIVIDADE-CABECALHO — contrato da Fatia 2 do Lançamento de Atividades
 
-> **fatia 2 · `feat/atividade-cabecalho` · PR (a abrir)**
+> **fatia 2 · `feat/atividade-cabecalho` · PR #285**
 >
 > Decisão **D-PROD-198**. Pedido do proprietário: "FATIA 2 — O cabeçalho + transformar o apontamento atual em filho
 > dele." Base: a Fatia 1 (D-PROD-197), já em produção, com os padrões e as flags do Tipo de Atividade.
