@@ -6,12 +6,27 @@
  *  - `POST  /apontamentos-atividade` (criar) — 201
  *  - `PATCH /apontamentos-atividade/:id` (editar) — CAS por `versao`
  *  - `POST  /apontamentos-atividade/:id/cancelar` (cancelar = ação `excluir`
- *    da tela) — sem DELETE físico
+ *    da tela) — sem DELETE físico; D-PROD-193 (D-2): `operation_id`
+ *    obrigatório (idempotente) e cancela/estorna todos os itens junto
  *  - `GET   /apontamentos-atividade-opcoes/{bens,operadores,centros-custo,centros-resultado}`
  *    (ver) — seletores PRÓPRIOS da tela: quem só tem esta tela não leva 403
  *    das telas de bens ou de centros. Tipos de atividade (`/tipos-atividade`),
  *    áreas (`/areas-pastagem`) e tarefas (`/lancamentos-tarefa`) já são lidos
  *    só com autenticação e são reaproveitados.
+ *
+ * D-PROD-193 (Fatia D) — itens do apontamento CONFIRMADO, imutáveis (sem
+ * PATCH/DELETE de item: o Fastify responde 404 de rota):
+ *  - `POST  /apontamentos-atividade/:id/itens` (editar|salvar) — 201 novo /
+ *    200 replay, com o detalhe + `item_id` + `replay`
+ *  - `POST  /apontamentos-atividade/:id/itens/:itemId/cancelar` (excluir, a
+ *    mesma ação de cancelar o apontamento) — estorno exato do PRODUTO
+ *  - `GET   /apontamentos-atividade/:id` passa a trazer `itens` e `custo_itens`
+ *    (a lista não traz itens)
+ *  - `GET   /apontamentos-atividade-opcoes/produtos` (ver) — produtos ATIVOS
+ *    da empresa (o seletor da Central)
+ *  - `GET   /apontamentos-atividade-opcoes/locais` (editar|salvar: saldo é de
+ *    quem lança, molde do abastecimento) — locais ATIVOS com saldo do produto
+ *    na empresa
  *
  * Corpo e query FECHADOS (`additionalProperties: false`; `cliente_id` → 400;
  * as flags de exigência do antigo Tipo de Tarefa → 400, nunca voltam); tenant
@@ -23,13 +38,16 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
-import { opcoesCentros } from '../financeiro/operacaoFinanceiraOpcoesService.js';
+import { opcoesCentros, opcoesProdutos } from '../financeiro/operacaoFinanceiraOpcoesService.js';
+import { opcoesLocais } from '../patrimonio/abastecimentoOpcoesService.js';
 import { opcoesResponsaveis } from '../patrimonio/bemPatrimonialOpcoesService.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrimonioComum.js';
 import { NATUREZAS } from '../patrimonio/patrimonioDominio.js';
+import { PADRAO_VALOR_UNITARIO, TIPOS_ITEM, adicionarItem, cancelarItem } from './apontamentoAtividadeItemService.js';
 import {
   PADRAO_DECIMAL,
   PADRAO_INSTANTE,
+  PADRAO_OPERATION_ID,
   STATUS,
   UNIDADES_PRODUCAO,
   atualizar,
@@ -50,6 +68,13 @@ const DECIMAL_NULO = { type: ['string', 'null'], pattern: PADRAO_DECIMAL.source 
 const TEXTO_NULO = (max) => ({ type: ['string', 'null'], maxLength: max });
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
+// D-PROD-193 — itens (decimais como TEXTO; nenhum aceita null).
+const OPERATION_ID = { type: 'string', pattern: PADRAO_OPERATION_ID.source };
+const QUANTIDADE = { type: 'string', pattern: PADRAO_DECIMAL.source };
+const VALOR_UNIT = { type: 'string', pattern: PADRAO_VALOR_UNITARIO.source };
+const TIPO_ITEM = { type: 'string', enum: [...TIPOS_ITEM] };
+const MOTIVO = { type: 'string', minLength: 1, maxLength: 500 };
+const PARAMS_ITEM = { type: 'object', required: ['id', 'itemId'], additionalProperties: false, properties: { id: ID, itemId: ID } };
 
 /** Colunas que o formulário grava (o servidor deriva o resto: número, snapshots, status, autoria, versão). */
 const CAMPOS = Object.freeze({
@@ -116,11 +141,43 @@ const CANCELAR = {
   params: PARAMS,
   body: {
     type: 'object',
-    required: ['empresa_id', 'versao', 'motivo'],
+    // D-2 (D-PROD-193): `operation_id` obrigatório (o cancelamento estorna estoque: efeito = recibo).
+    required: ['empresa_id', 'versao', 'motivo', 'operation_id'],
     additionalProperties: false,
-    properties: { empresa_id: ID, versao: VERSAO, motivo: { type: 'string', minLength: 1, maxLength: 500 } },
+    properties: { empresa_id: ID, versao: VERSAO, motivo: MOTIVO, operation_id: OPERATION_ID },
   },
 };
+/** A1 — a forma por tipo (produto+local × descrição+valor) é conferida no serviço (400 antes da transação). */
+const ADICIONAR_ITEM = {
+  params: PARAMS,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'versao', 'operation_id', 'tipo', 'quantidade'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: ID,
+      versao: VERSAO,
+      operation_id: OPERATION_ID,
+      tipo: TIPO_ITEM,
+      quantidade: QUANTIDADE,
+      produto_id: ID,
+      local_estoque_id: ID,
+      descricao: { type: 'string', minLength: 1, maxLength: 255 },
+      valor_unitario: VALOR_UNIT,
+    },
+  },
+};
+const CANCELAR_ITEM = {
+  params: PARAMS_ITEM,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'versao', 'operation_id', 'motivo'],
+    additionalProperties: false,
+    properties: { empresa_id: ID, versao: VERSAO, operation_id: OPERATION_ID, motivo: MOTIVO },
+  },
+};
+/** A7 — molde `OPCOES_LOCAIS` do abastecimento. */
+const OPCOES_LOCAIS = { querystring: { type: 'object', required: ['empresa_id', 'produto_id'], additionalProperties: false, properties: { empresa_id: ID, produto_id: ID } } };
 /** @param {Record<string, unknown>} [extra] */
 const OPCOES = (extra = {}) => ({
   querystring: {
@@ -143,6 +200,7 @@ const ctx = (request) => {
   return request.contexto;
 };
 const idDe = (request) => /** @type {{id: string}} */ (request.params).id;
+const itemIdDe = (request) => /** @type {{itemId: string}} */ (request.params).itemId;
 const corpo = (request) => /** @type {Record<string, any>} */ (request.body);
 const consulta = (request) => /** @type {Record<string, any>} */ (request.query);
 
@@ -163,6 +221,13 @@ export const registrarApontamentoAtividadeRoutes = async (app) => {
     atualizar(ctx(request), idDe(request), corpo(request)));
   app.post('/apontamentos-atividade/:id/cancelar', { ...autenticado, preHandler: [g.cancelar], schema: CANCELAR }, async (request) =>
     cancelar(ctx(request), idDe(request), corpo(request)));
+  // D-PROD-193 — itens: adicionar = editar|salvar; cancelar item = excluir (a mesma ação de cancelar o apontamento).
+  app.post('/apontamentos-atividade/:id/itens', { ...autenticado, preHandler: [g.editar], schema: ADICIONAR_ITEM }, async (request, reply) => {
+    const r = await adicionarItem(ctx(request), idDe(request), corpo(request));
+    return reply.status(r.status).send(r.body);
+  });
+  app.post('/apontamentos-atividade/:id/itens/:itemId/cancelar', { ...autenticado, preHandler: [g.cancelar], schema: CANCELAR_ITEM }, async (request) =>
+    cancelarItem(ctx(request), idDe(request), itemIdDe(request), corpo(request)));
 
   app.get('/apontamentos-atividade-opcoes/bens', { ...autenticado, preHandler: [g.ver], schema: OPCOES_BENS }, async (request) =>
     opcoesBens(ctx(request), consulta(request)));
@@ -173,4 +238,9 @@ export const registrarApontamentoAtividadeRoutes = async (app) => {
     opcoesCentros('custo')(ctx(request), consulta(request)));
   app.get('/apontamentos-atividade-opcoes/centros-resultado', { ...autenticado, preHandler: [g.ver], schema: OPCOES() }, async (request) =>
     opcoesCentros('resultado')(ctx(request), consulta(request)));
+  // D-PROD-193 — produtos ATIVOS da empresa (o seletor da Central) e locais com saldo do produto (o do abastecimento).
+  app.get('/apontamentos-atividade-opcoes/produtos', { ...autenticado, preHandler: [g.ver], schema: OPCOES() }, async (request) =>
+    opcoesProdutos(ctx(request), consulta(request)));
+  app.get('/apontamentos-atividade-opcoes/locais', { ...autenticado, preHandler: [g.editar], schema: OPCOES_LOCAIS }, async (request) =>
+    opcoesLocais(ctx(request), consulta(request)));
 };

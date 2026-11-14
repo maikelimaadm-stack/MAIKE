@@ -9,7 +9,20 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-13) — MAIKE-APONTAMENTO-ATIVIDADE (Fatia C do apontamento): execução da atividade (D-PROD-190)
+## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-193**, com as palavras do proprietário literais ("Baixa o estoque (Recomendado)"; "Descrição + valor (Recomendado)") e os pontos D-1…D-9 do contrato registrados como interpretação, reversíveis. Numeração: D-PROD-190 é a PR #269; D-PROD-191 e D-PROD-192 são a PR #271 (a #272 foi mergeada dentro dela); a PR #273 cita a D-PROD-190 e precisa renumerar |
+| Branch / PR | `feat/apontamento-itens`, empilhada sobre `feat/apontamento-atividade` (PR #269) e atualizada por merge (sem rebase) com ela em `be322ab8`, que já traz a `main` `00a06096` (PRs #263, #267, #268 e #270). PR **#274** em rascunho, exclusiva desta fatia |
+| Escopo | Itens do apontamento CONFIRMADO: **PRODUTO** baixa o estoque pelo motor único (FIFO por lote, custo do lote, estorno exato ao cancelar o item ou o apontamento, origem nova `apontamento_atividade`); **SERVIÇO** e **OUTRO** com descrição livre, quantidade, valor unitário e total calculado, sem estoque nem financeiro. Itens imutáveis (só cancelar); cancelar o apontamento passa a exigir `operation_id` (D-2) e cancela os itens junto; combustível não entra como item (D-8); até 200 itens (D-9). Seção "Itens" no formulário existente, sem componente novo |
+| Migration | `20261113800000_apontamento_atividade_item`, **EXPAND** (só as 2 tabelas novas: `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote`). SHA-256 `866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c`; DO `7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710`. Repositório (com a base nova): 47 → **48** migrations, 83 → **85** tabelas em `public` (68 → **70** de tenant), conferidos num banco limpo migrado. **Aplicada em produção em 2026-11-14 12:51:06 UTC** (caminho B, GO do proprietário, desvio da D-PROD-74), conferida: 48/0, 85 tabelas, RLS, 11 FKs `RESTRICT`, advisors sem alerta |
+| Release | **Migration aplicada em produção em 2026-11-14 12:51:06 UTC, antes do merge** ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §7): 47 → **48** concluídas, 83 → **85** tabelas. Merge da PR #274 pedido pelo proprietário, que também aprova o texto constitucional da D-PROD-193. A CONTRACT da PR #273 (`20261114100000_cadcurvaganho_mensal`) exige release isolada. Falta: deploy e smoke ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §6) |
+| Constituição | Parágrafo D-PROD-193 no `00 §1` e nota D-PROD-193 no `07`, redigidos pelo agente; **valem só com a aprovação explícita do proprietário no merge manual** |
+| Próxima fatia | Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
+| Documentos | [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md) · [`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-APONTAMENTO-ATIVIDADE (Fatia C do apontamento): execução da atividade (D-PROD-190)
 
 | Campo | Valor |
 |---|---|
@@ -17,8 +30,8 @@ rollout pausado **D-PROD-41**)
 | Branch / PR | `feat/apontamento-atividade`, atualizada por merge (sem rebase) com a `main` `776befe` (PR #265, Estações) e depois com a `main` `00a06096`, que já traz as PRs #270 (Curvas de Ganho), #268 (Categoria de Manejo, Fatia D), #267 (só testes) e #263 (Estoque P1-03), todas mergeadas depois da aplicação desta migration. PR **#269**, exclusiva desta fatia |
 | Escopo | Model `ApontamentoAtividade`, API `/apontamentos-atividade` (lista, detalhe, criar, editar com `versao`, cancelar; sem DELETE), opções do formulário, tela `op-apontamentos-atividade` abaixo de "Tipos de Atividade", regras R-a…R-l. Centro de resultado escolhido pelo usuário; centro de custo copiado do bem na criação e trocável (snapshot) |
 | Migration | `20261113700000_apontamento_atividade`, **EXPAND** (só a tabela nova). SHA-256 `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`. Nome com data depois da `20261113400000_cadestacoes_cadastro`, da `20261113500000_categoria_manejo_cadcategoria` (PR #268) e da `20261113600000_cadcurvaganho_cadastro`; `migration.sql` intacto. Repositório (com a `main` `00a06096`): 46 → **47** migrations, 82 → **83** tabelas em `public` (68 de tenant), 27 → **28** páginas e 110 → **114** rewrites, conferidos num banco limpo migrado. **Aplicada em produção em 2026-11-13 23:23:18 UTC** (caminho B, GO do proprietário, desvio da D-PROD-74), conferida: 45/0 (produção já tinha a `…600000` da PR #270), 83 tabelas, RLS, 13 FKs `RESTRICT`, advisors sem alerta |
-| Release | Migration aplicada antes do merge ([relatório](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md) §7). Depois dela, produção recebeu a CONTRACT `…500000` da PR #268 e a `…300000` da PR #263: hoje tem as 47 do repositório. Falta: merge da PR #269, deploy e smoke (proprietário) |
-| Próximas fatias | Fatia D do apontamento (itens) e Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
+| Release | Migration aplicada antes do merge ([relatório](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md) §7). Depois dela, produção recebeu a CONTRACT `…500000` da PR #268 e a `…300000` da PR #263: hoje tem as 47 do repositório. PR #269 **mergeada** em 2026-11-14 (`f4802558`, merge pedido pelo proprietário). Falta: smoke (proprietário) |
+| Próximas fatias | Fatia D do apontamento (itens, D-PROD-193, missão ativa acima) e Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
 | Documentos | [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md) |
 
 ## Missão concluída (2026-11-14) — MAIKE-ESTOQUE-P1-03: índices M7 EXPAND-ONLY (D-PROD-185)
@@ -55,9 +68,9 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-194** (revê o "GMD por estação" da D-PROD-189; nasceu como D-PROD-190 e depois D-PROD-191, números que a `main` deu às PRs #269 e #271) |
-| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270) e integrada por merge com a `main` `810a312a` (PR #268, Fatia D) e `565e4a95` (PRs #269, #271 e #263). PR #273, exclusiva desta missão |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `cf07309c` (merge da PR #270) e integrada por merge com a `main` `810a312a` (PR #268, Fatia D) `565e4a95` (PRs #269, #271 e #263) e `cfa3e7e9` (PR #274). PR #273, exclusiva desta missão |
 | Escopo | `"CADCURVAGANHO"` passa de 3 GMD por estação para 12 GMD mensais (`gmd_jan` … `gmd_dez`, kg/dia, -2 a 3). API `/curvas-ganho` com os 12 campos. Tela: 12 meses com o ganho do mês pelos dias reais, atalho "repetir →", ganho no ano, média por dia e gráfico. Estações seguem como cadastro próprio, fora da curva. **Sem vínculo** com categoria ou lote |
-| Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório e produção (iguais em 2026-11-14 01:30 UTC): 47 → **48** migrations; tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
+| Migration | `20261114100000_cadcurvaganho_mensal`, **CONTRACT** isolada (tabela vazia sai e volta mensal; guarda recusa se houver curva). SHA-256 `a18b2845815a637398ccd8d1e0f9cbcbad1bab8e8b628e988d26cf09c302953c`; guarda `3cd5adc4…0b6d`. Repositório e produção (iguais em 2026-11-14 13:02 UTC): 48 → **49** migrations; tabelas iguais. **Não aplicada em nenhum ambiente remoto** |
 | Release | Aplicação **antes do merge** pelo [runbook](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md) (caminho A com `--contract D-PROD-194`; caminho B só com GO escrito e específico desta migration). Aplicar **fora de pico** (o `DROP TABLE` trava `Cliente` e `Empresa` em `ACCESS EXCLUSIVE` por menos de 1 s). Merge logo depois da conferência: na janela até o deploy, só `/curvas-ganho` dá 500 |
 | Relatório | [`MAIKE-CADCURVAGANHO-MENSAL-REPORT.md`](./MAIKE-CADCURVAGANHO-MENSAL-REPORT.md) |
 

@@ -13,9 +13,10 @@
  *  1. aplica todas as migrations do repositório menos a CONTRACT, pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
  *     da D-PROD-188 (`20261113400000_cadestacoes_cadastro`), da D-PROD-189
- *     (`20261113600000_cadcurvaganho_cadastro`) e da D-PROD-190
- *     (`20261113700000_apontamento_atividade`: só cria tabela nova e não toca
- *     TipoTarefa) e as CONTRACT da D-PROD-187
+ *     (`20261113600000_cadcurvaganho_cadastro`), da D-PROD-190
+ *     (`20261113700000_apontamento_atividade`) e da D-PROD-193
+ *     (`20261113800000_apontamento_atividade_item`), que só criam tabelas novas
+ *     e não tocam TipoTarefa, e as CONTRACT da D-PROD-187
  *     (`20261113500000_categoria_manejo_cadcategoria`) e da D-PROD-194
  *     (`20261114100000_cadcurvaganho_mensal`), posteriores a esta e aplicadas
  *     aqui fora de ordem, pelo Prisma direto (sem a barreira do runner); as

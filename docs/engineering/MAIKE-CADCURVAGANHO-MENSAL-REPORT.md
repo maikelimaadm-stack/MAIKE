@@ -53,7 +53,7 @@ cadastro próprio. Mesma tabela física, `"CADCURVAGANHO"`, vazia em produção.
 
 1. A migration é **CONTRACT** e **não foi aplicada em nenhum banco remoto**.
 2. Ordem obrigatória: CI verde → GO do proprietário → preflight (tabela vazia,
-   47/0 em 2026-11-14 01:30 UTC) → aplicação (caminho A com `--contract D-PROD-194`, ou B só com GO
+   48/0 em 2026-11-14 13:02 UTC) → aplicação (caminho A com `--contract D-PROD-194`, ou B só com GO
    escrito e específico desta migration) → conferência → **merge imediato** →
    deploy → smoke. Ver o runbook.
 3. Entre o `COMMIT` e o deploy, só as rotas `/curvas-ganho` respondem 500 (o
@@ -62,8 +62,8 @@ cadastro próprio. Mesma tabela física, `"CADCURVAGANHO"`, vazia em produção.
    `Empresa` em `ACCESS EXCLUSIVE`, que bloqueia leitura: aplicar **fora de pico**.
 4. A Fatia D (PR #268) também é CONTRACT: foi aplicada antes (2026-11-14
    00:37 UTC) e já está na `main`, mesclada nesta branch. O Apontamento (PR #269)
-   e o Estoque P1-03 também já estão aplicados em produção e na `main`. Por isso
-   a guarda do caminho B conta 47.
+   o Estoque P1-03 e os itens do apontamento (PR #274) também já estão
+   aplicados em produção e na `main`. Por isso a guarda do caminho B conta 48.
 5. **Numeração:** a decisão nasceu como D-PROD-190 e depois foi D-PROD-191;
    a `main` deu esses números às PRs #269 e #271 e pediu a renumeração. Esta é a
    **D-PROD-194**. O número não está no `migration.sql`, então o checksum não mudou.

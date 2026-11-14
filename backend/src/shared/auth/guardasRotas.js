@@ -292,6 +292,9 @@ export const GUARDAS = Object.freeze({
   // novo|salvar; editar = editar|salvar). Sem DELETE físico: cancelar é a
   // ação `excluir` da tela. Leitura e seletores = visualizar DESTA tela (dado
   // operacional da fazenda; não dependem das telas de bens nem de centros).
+  // D-PROD-193 (D-3), sem ação nova: adicionar item = `editar` (editar|salvar);
+  // cancelar item = `cancelar` (excluir); produtos = `ver`; locais com saldo =
+  // `editar` (saldo é de quem lança). Nenhum perfil recebe acesso por padrão.
   apontamentoAtividade: {
     ver: porTela(T.APONTAMENTOS_ATIVIDADE, 'visualizar'),
     criar: cadastro(T.APONTAMENTOS_ATIVIDADE).criar,
