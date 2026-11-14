@@ -1,0 +1,1462 @@
+/**
+ * Lançamento de Atividades (D-PROD-198, Fatia 2) — a tela montada de verdade:
+ * página, motor Base1, FormularioAtividade, ListaApontamentos,
+ * FormularioApontamento, service, API, porta e `nativeHttpClient` reais. Mocks
+ * só da borda: `fetch` (um backend falso que responde no formato do §10 do
+ * contrato), a sessão (usuário e permissão efetiva), o fuso das empresas e as
+ * listas de cadastros vizinhos (tipos, áreas e tarefas, que não são desta
+ * missão). Contrato: docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md.
+ *
+ * Cobre:
+ *  - lista com Nº, nome, tipo, área, status (selo) e área executada / planejada;
+ *    filtros de status, tipo, área e período sobre o início, todos na query com
+ *    o `empresa_id`; período invertido avisa e não lê;
+ *  - ações por permissão × status: sem permissão o botão não aparece; concluída
+ *    e cancelada não mostram editar nem lançar; reabrir só com a ação extra;
+ *  - atividade aberta: cabeçalho só leitura com os herdados (centro de custo,
+ *    centro de resultado, unidade de produção, setor da área) e os apontamentos
+ *    por dia (duas passadas no mesmo dia = 1ª e 2ª);
+ *  - abrir atividade: os herdados travados, o exigido pelo tipo marcado e
+ *    avisado antes de enviar, corpo com `empresa_id`, decimal em texto e sem
+ *    centros, unidade nem setor; editar com PATCH mínimo e a `versao`;
+ *  - concluir (data), reabrir e cancelar (motivo) e duplicar, com os corpos do §10;
+ *  - formulário do apontamento SEM centro, área, setor, safra, unidade e
+ *    máquina; alerta fora do intervalo aparece e não bloqueia; "Repetir"
+ *    preenche; cancelar pede motivo; decimais em texto;
+ *  - recusas ATIVIDADE_* atravessam o transporte (CODIGOS_PRESERVADOS) e chegam
+ *    com a mensagem certa; paridade dos códigos com o servidor;
+ *  - porta por allowlist e service sem fazenda (nada sai);
+ *  - rota, menu, ícone, manifesto e a paridade módulo × tela × ações (padrão e
+ *    extras) com o servidor; tela Permissões com as quatro ações extras;
+ *  - a tela de Tipos de Atividade continua usando `rotuloDoCentro` (movido para
+ *    `lancamentoAtividadesRegras.js`) e diz quando há atividades vinculadas.
+ */
+import React from "react";
+import { readFileSync } from "node:fs";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
+import * as lucide from "lucide-react";
+import { API_FAKE, envelope, erroServidor, escolherOpcao, instalarBackendFake } from "./fixtures/gestaoBackendFake.js";
+
+const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
+vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
+
+const sessao = vi.hoisted(() => ({
+  permissao: /** @type {any} */ (null),
+  clienteId: "cli-1",
+  /** Fuso da emp-1 (o "hoje" da fazenda); um teste o tira. */
+  fuso: /** @type {string|null} */ ("America/Cuiaba"),
+}));
+vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: sessao.clienteId, user: { id: "u1" } }) }));
+vi.mock("@/services/sessionService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCurrentUser: vi.fn(async () => ({ login: "operador", cliente_id: sessao.clienteId })),
+  carregarPermissaoEfetiva: vi.fn(async () => sessao.permissao),
+}));
+vi.mock("@/services/empresaService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  listEmpresas: vi.fn(async () => [
+    { id: "emp-1", nome: "FAZENDA BOA VISTA", fuso_horario: sessao.fuso },
+    { id: "emp-2", nome: "FAZENDA SANTA RITA", fuso_horario: "America/Cuiaba" },
+  ]),
+}));
+
+// Cadastros vizinhos (fora desta missão): tipos (com flags e padrões), áreas e tarefas.
+const tiposSrv = vi.hoisted(() => ({
+  listarGruposSimples: vi.fn(async () => []),
+  listarTiposAtividade: vi.fn(async () => []),
+  criarTipoAtividade: vi.fn(),
+  atualizarTipoAtividade: vi.fn(),
+  excluirTiposAtividade: vi.fn(),
+  listarCentrosDaFazenda: vi.fn(async () => []),
+  listarUnidadesDeMedida: vi.fn(async () => []),
+}));
+vi.mock("@/services/tipoAtividadeCadastroService", () => tiposSrv);
+const mapaSrv = vi.hoisted(() => ({ listarAreasAtivas: vi.fn(async () => []) }));
+vi.mock("@/services/mapaService", async (importOriginal) => ({ ...(await importOriginal()), ...mapaSrv }));
+const tarefasSrv = vi.hoisted(() => ({ listarTarefasDaEmpresa: vi.fn(async () => []) }));
+vi.mock("@/services/tarefasMapaService", async (importOriginal) => ({ ...(await importOriginal()), ...tarefasSrv }));
+
+const { default: LancamentoAtividades } = await import("@/pages/LancamentoAtividades");
+const { API_ERROR_CODES, ApiError } = await import("@/apis/_core/ApiError.js");
+
+const HOJE = "2026-11-14";
+/** 11h em Cuiabá (UTC−4): o "hoje" da fazenda é 14/11/2026. */
+const AGORA = new Date("2026-11-14T15:00:00.000Z");
+const MODULO = "suporte-mapa";
+const TELA = "op-atividades";
+
+// ─── Permissões ─────────────────────────────────────────────────────────
+const ACOES_PADRAO = { novo: true, salvar: false, editar: true, excluir: true };
+const EXTRAS = { reabrir: true, lancar_apontamento: true, editar_apontamento: true, cancelar_apontamento: true };
+/** @param {Record<string, boolean>} acoes */
+const linhaDaTela = (acoes = {}) => ({
+  modulo_id: MODULO,
+  tela_id: TELA,
+  visualizar: true,
+  novo: false,
+  salvar: false,
+  editar: false,
+  excluir: false,
+  importar: false,
+  exportar: false,
+  ...acoes,
+});
+/** @param {Record<string, boolean>} acoes */
+const permissaoCom = (acoes) => ({ user_email: "operador", is_admin: false, modulos_permitidos: [MODULO], permissoes_telas: [linhaDaTela(acoes)] });
+
+// ─── Dados como o servidor devolve (§10) ────────────────────────────────
+const usuario = (/** @type {string} */ id, /** @type {string} */ nome) => ({ id, nome });
+
+/** A atividade ABERTA a1 ("Cigarrinha Pasto 01"), com os herdados gravados (snapshot). */
+const ATV_A1 = Object.freeze({
+  id: "a1",
+  empresa_id: "emp-1",
+  numero: "3",
+  nome: "Cigarrinha Pasto 01",
+  status: "ABERTA",
+  versao: 4,
+  tipo_atividade_id: "t1",
+  tipo_atividade_nome: "APLICAÇÃO",
+  grupo_atividade_id: "g1",
+  grupo_atividade_nome: "PASTAGEM",
+  area_id: "ar1",
+  area: { id: "ar1", numero_area: "01", nome: "Pasto 01" },
+  setor_id: "s1",
+  setor_nome: "SETOR NORTE",
+  bem_id: "b1",
+  bem: { id: "b1", numero: "2", codigo_frota: "TP-02", nome: "Trator", natureza: "MAQUINA" },
+  safra_ciclo: "2026/27",
+  centro_custo_id: "cc1",
+  centro_custo: { id: "cc1", numero: "1", nome: "Pecuária de corte" },
+  centro_resultado_id: "cr1",
+  centro_resultado: { id: "cr1", numero: "7", nome: "Recria 2026" },
+  unidade_producao_id: "u-sc",
+  unidade_producao_sigla: "SC",
+  unidade_producao: { id: "u-sc", sigla: "SC", descricao: "Saco" },
+  data_inicio: "2026-11-01",
+  data_prevista_fim: "2026-11-10",
+  data_conclusao: null,
+  area_planejada: "40.0000",
+  area_executada: "12.5000",
+  quantidade_produzida: "30.0000",
+  lancamento_tarefa_id: null,
+  lancamento_tarefa: null,
+  observacao: null,
+  concluida_em: null,
+  concluida_por: null,
+  cancelada_em: null,
+  cancelado_por: null,
+  motivo_cancelamento: null,
+  reaberta_em: null,
+  reaberta_por: null,
+  motivo_reabertura: null,
+  criado_por: usuario("u1", "Gerente"),
+  createdAt: "2026-11-01T12:00:00.000Z",
+  updatedAt: "2026-11-12T15:00:00.000Z",
+});
+const ATV_A2 = Object.freeze({
+  ...ATV_A1,
+  id: "a2",
+  numero: "2",
+  nome: "Roçada Pasto 02",
+  status: "CONCLUIDA",
+  versao: 7,
+  tipo_atividade_id: "t2",
+  tipo_atividade_nome: "ROÇADA",
+  area_id: "ar2",
+  area: { id: "ar2", numero_area: "02", nome: "Pasto 02" },
+  setor_nome: "SETOR SUL",
+  data_inicio: "2026-11-03",
+  data_prevista_fim: null,
+  data_conclusao: "2026-11-12",
+  concluida_em: "2026-11-12T20:00:00.000Z",
+  concluida_por: usuario("u1", "Gerente"),
+  area_planejada: null,
+  area_executada: "8.0000",
+  quantidade_produzida: null,
+  createdAt: "2026-10-30T12:00:00.000Z",
+});
+const ATV_A3 = Object.freeze({
+  ...ATV_A1,
+  id: "a3",
+  numero: "1",
+  nome: "Cerca do curral",
+  status: "CANCELADA",
+  versao: 5,
+  area_id: null,
+  area: null,
+  setor_id: null,
+  setor_nome: null,
+  data_inicio: "2026-10-20",
+  data_prevista_fim: null,
+  area_planejada: null,
+  area_executada: null,
+  quantidade_produzida: null,
+  cancelada_em: "2026-10-25T13:00:00.000Z",
+  cancelado_por: usuario("u1", "Gerente"),
+  motivo_cancelamento: "aberta em duplicidade",
+  createdAt: "2026-10-20T12:00:00.000Z",
+});
+
+/** Apontamento como o servidor devolve (§10). */
+const apontamento = (/** @type {Record<string, any>} */ extra) => ({
+  id: "ap",
+  empresa_id: "emp-1",
+  atividade_id: "a1",
+  data_operacional: "2026-11-12",
+  turno: "MANHA",
+  sequencia: 1,
+  operador_usuario_id: "u9",
+  operador: usuario("u9", "João Vaqueiro"),
+  area_executada_dia: "10.0000",
+  quantidade_produzida_dia: "5.0000",
+  observacao: "ok",
+  origem: "WEB",
+  status: "CONFIRMADO",
+  versao: 1,
+  cancelado_em: null,
+  cancelado_por: null,
+  motivo_cancelamento: null,
+  criado_por: usuario("u1", "Gerente"),
+  createdAt: "2026-11-12T10:00:00.000Z",
+  updatedAt: "2026-11-12T10:00:00.000Z",
+  ...extra,
+});
+/** Duas passadas no mesmo dia e turno (sequência 1 e 2) e um cancelado no dia seguinte. */
+const APONTAMENTOS_A1 = () => [
+  apontamento({ id: "ap1" }),
+  apontamento({ id: "ap2", sequencia: 2, area_executada_dia: "2.5000", quantidade_produzida_dia: "25.0000", observacao: null, createdAt: "2026-11-12T15:00:00.000Z" }),
+  apontamento({
+    id: "ap3",
+    data_operacional: "2026-11-13",
+    turno: null,
+    status: "CANCELADO",
+    versao: 2,
+    cancelado_em: "2026-11-13T12:00:00.000Z",
+    cancelado_por: usuario("u2", "Maria"),
+    motivo_cancelamento: "lançado em dobro",
+    createdAt: "2026-11-13T11:00:00.000Z",
+  }),
+];
+
+/** Tipos de atividade como `/tipos-atividade` devolve (com as flags e os padrões incluídos). */
+const TIPOS = [
+  {
+    id: "t1",
+    nome_tipo: "APLICAÇÃO",
+    grupo_atividade_id: "g1",
+    grupo_atividade_nome: "PASTAGEM",
+    ativo: true,
+    exige_area: true,
+    exige_safra: false,
+    exige_maquina: true,
+    exige_producao: true,
+    centro_custo_padrao_id: "cc1",
+    centro_custo_padrao: { id: "cc1", numero: "1", nome: "Pecuária de corte", empresa_id: "emp-1", ativo: true },
+    // Padrão de OUTRA fazenda: a atividade da emp-1 abre sem centro de resultado.
+    centro_resultado_padrao_id: "cr9",
+    centro_resultado_padrao: { id: "cr9", numero: "9", nome: "Cria", empresa_id: "emp-2", ativo: true },
+    unidade_producao_id: "u-sc",
+    unidade_producao: { id: "u-sc", sigla: "SC", descricao: "Saco", ativo: true },
+  },
+  { id: "t2", nome_tipo: "ROÇADA", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true },
+  { id: "t3", nome_tipo: "GRADAGEM", grupo_atividade_id: "g2", grupo_atividade_nome: "LAVOURA", ativo: false },
+];
+const AREAS = [
+  { id: "ar1", nome: "Pasto 01", numero_area: "01", setor_id: "s1", setor_nome: "SETOR NORTE", empresa_id: "emp-1", ativo: true },
+  { id: "ar2", nome: "Pasto 02", numero_area: "02", setor_id: "s2", setor_nome: "SETOR SUL", empresa_id: "emp-1", ativo: true },
+];
+const BENS = [{ id: "b1", numero: "2", codigo_frota: "TP-02", nome: "Trator", natureza: "MAQUINA" }];
+const OPERADORES = [usuario("u9", "João Vaqueiro"), usuario("u8", "Pedro")];
+
+// ─── Backend falso (só a borda de rede) ─────────────────────────────────
+/** @type {{ chamadas: Array<{ method: string, path: string, query: Record<string, string>, body: any }> }} */
+let backend;
+/** @type {Map<string, any>} */
+let atividades;
+/** @type {Map<string, any[]>} */
+let apontamentosPorAtividade;
+/** Resposta injetada na PRÓXIMA escrita (não-GET). @type {{ status: number, body?: unknown } | null} */
+let proxima;
+
+const t4 = (/** @type {number} */ n) => n.toFixed(4);
+/** Totais do cabeçalho: soma dos apontamentos CONFIRMADO (nenhum com valor → null). @param {any[]} lista @param {string} campo */
+const soma = (lista, campo) => {
+  const valores = lista.filter((a) => a.status === "CONFIRMADO" && a[campo] != null).map((a) => Number(a[campo]));
+  return valores.length ? t4(valores.reduce((x, y) => x + y, 0)) : null;
+};
+const recalcular = (/** @type {string} */ id) => {
+  const lista = apontamentosPorAtividade.get(id) ?? [];
+  const atual = atividades.get(id);
+  const nova = {
+    ...atual,
+    versao: atual.versao + 1,
+    area_executada: soma(lista, "area_executada_dia"),
+    quantidade_produzida: soma(lista, "quantidade_produzida_dia"),
+  };
+  atividades.set(id, nova);
+  return nova;
+};
+/** Alerta do §10: o dia fora de [data_inicio, data_prevista_fim] é aceito, com aviso. */
+const alertasDe = (/** @type {any} */ atv, /** @type {string} */ dia) =>
+  dia < atv.data_inicio || (atv.data_prevista_fim && dia > atv.data_prevista_fim)
+    ? [{ codigo: "FORA_DO_INTERVALO", mensagem: "texto do servidor", data_inicio: atv.data_inicio, data_prevista_fim: atv.data_prevista_fim }]
+    : [];
+/** A sequência é do servidor: máx + 1 por (dia, turno), turno nulo conta como valor. */
+const proximaSequencia = (/** @type {any[]} */ lista, /** @type {string} */ dia, /** @type {string|null} */ turno) =>
+  Math.max(0, ...lista.filter((a) => a.data_operacional === dia && (a.turno ?? null) === (turno ?? null)).map((a) => a.sequencia)) + 1;
+const doCorpo = (/** @type {any} */ v) => (v === undefined ? null : v);
+/** O `apontamento` novo a partir do corpo (o servidor guarda os decimais com 4 casas). */
+const novoApontamento = (/** @type {string} */ atividadeId, /** @type {any} */ dados, /** @type {number} */ sequencia, /** @type {string} */ id) =>
+  apontamento({
+    id,
+    atividade_id: atividadeId,
+    data_operacional: dados.data_operacional ?? HOJE,
+    turno: doCorpo(dados.turno),
+    sequencia,
+    operador_usuario_id: doCorpo(dados.operador_usuario_id),
+    operador: OPERADORES.find((o) => o.id === dados.operador_usuario_id) ?? null,
+    area_executada_dia: dados.area_executada_dia != null ? t4(Number(dados.area_executada_dia)) : null,
+    quantidade_produzida_dia: dados.quantidade_produzida_dia != null ? t4(Number(dados.quantidade_produzida_dia)) : null,
+    observacao: doCorpo(dados.observacao),
+    createdAt: AGORA.toISOString(),
+  });
+let proximoId = 0;
+
+const rotear = async (/** @type {{ method: string, path: string, query: URLSearchParams, body: any }} */ { method, path, query, body }) => {
+  if (proxima && method !== "GET") {
+    const r = proxima;
+    proxima = null;
+    return r;
+  }
+  const partes = path.split("/").filter(Boolean);
+  if (partes[0] === "atividades-opcoes" && method === "GET") {
+    const itens = partes[1] === "bens" ? BENS : partes[1] === "operadores" ? OPERADORES : [];
+    return { status: 200, body: { itens, has_more: false, next_cursor: null } };
+  }
+  if (partes[0] !== "atividades") return undefined;
+  if (partes.length === 1 && method === "GET") {
+    const f = (/** @type {string} */ k) => query.get(k);
+    const itens = [...atividades.values()]
+      .filter((a) => a.empresa_id === f("empresa_id"))
+      .filter((a) => !f("status") || a.status === f("status"))
+      .filter((a) => !f("tipo_atividade_id") || a.tipo_atividade_id === f("tipo_atividade_id"))
+      .filter((a) => !f("area_id") || a.area_id === f("area_id"))
+      .filter((a) => !f("data_de") || a.data_inicio >= /** @type {string} */ (f("data_de")))
+      .filter((a) => !f("data_ate") || a.data_inicio <= /** @type {string} */ (f("data_ate")))
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return { status: 200, body: envelope(itens) };
+  }
+  if (partes.length === 1 && method === "POST") {
+    proximoId += 1;
+    const tipo = TIPOS.find((t) => t.id === body.tipo_atividade_id);
+    const area = AREAS.find((a) => a.id === body.area_id) ?? null;
+    const nova = {
+      ...ATV_A1,
+      id: `n${proximoId}`,
+      numero: String(8 + proximoId),
+      nome: body.nome,
+      versao: 1,
+      tipo_atividade_id: tipo.id,
+      tipo_atividade_nome: tipo.nome_tipo,
+      area_id: area?.id ?? null,
+      area: area ? { id: area.id, numero_area: area.numero_area, nome: area.nome } : null,
+      setor_id: area?.setor_id ?? null,
+      setor_nome: area?.setor_nome ?? null,
+      bem_id: body.bem_id ?? null,
+      bem: BENS.find((b) => b.id === body.bem_id) ?? null,
+      safra_ciclo: body.safra_ciclo ?? null,
+      centro_resultado_id: null,
+      centro_resultado: null,
+      data_inicio: body.data_inicio ?? HOJE,
+      data_prevista_fim: body.data_prevista_fim ?? null,
+      area_planejada: body.area_planejada != null ? t4(Number(body.area_planejada)) : null,
+      area_executada: null,
+      quantidade_produzida: null,
+      createdAt: AGORA.toISOString(),
+      totais: { apontamentos_confirmados: 0, apontamentos_cancelados: 0, dias_com_apontamento: 0 },
+    };
+    atividades.set(nova.id, nova);
+    apontamentosPorAtividade.set(nova.id, []);
+    return { status: 201, body: nova };
+  }
+  const id = partes[1];
+  const atv = atividades.get(id);
+  if (!atv) return erroServidor(404, "ATIVIDADE_NOT_FOUND");
+  if (partes.length === 2 && method === "GET") return { status: 200, body: atv };
+  if (partes.length === 2 && method === "PATCH") {
+    const { versao: _versao, ...dados } = body;
+    const nova = { ...atv, ...dados, versao: atv.versao + 1 };
+    atividades.set(id, nova);
+    return { status: 200, body: nova };
+  }
+  if (partes.length === 3 && method === "POST" && partes[2] !== "apontamentos") {
+    const acao = partes[2];
+    /** @type {Record<string, any>} */
+    let mudanca = {};
+    if (acao === "concluir") mudanca = { status: "CONCLUIDA", data_conclusao: body.data_conclusao ?? HOJE, concluida_em: AGORA.toISOString(), concluida_por: usuario("u1", "Gerente") };
+    if (acao === "reabrir") {
+      mudanca = { status: "ABERTA", data_conclusao: null, concluida_em: null, concluida_por: null, reaberta_em: AGORA.toISOString(), reaberta_por: usuario("u1", "Gerente"), motivo_reabertura: body.motivo };
+    }
+    if (acao === "cancelar") {
+      mudanca = { status: "CANCELADA", cancelada_em: AGORA.toISOString(), cancelado_por: usuario("u1", "Gerente"), motivo_cancelamento: body.motivo };
+      // O cancelamento propaga para os apontamentos confirmados (mesmo motivo, dia e usuário).
+      apontamentosPorAtividade.set(
+        id,
+        (apontamentosPorAtividade.get(id) ?? []).map((a) =>
+          a.status === "CONFIRMADO" ? { ...a, status: "CANCELADO", versao: a.versao + 1, cancelado_em: AGORA.toISOString(), cancelado_por: usuario("u1", "Gerente"), motivo_cancelamento: body.motivo } : a,
+        ),
+      );
+    }
+    if (acao === "duplicar") {
+      proximoId += 1;
+      const copia = { ...atv, id: `n${proximoId}`, numero: String(8 + proximoId), status: "ABERTA", versao: 1, data_inicio: HOJE, area_executada: null, quantidade_produzida: null, createdAt: AGORA.toISOString() };
+      atividades.set(copia.id, copia);
+      apontamentosPorAtividade.set(copia.id, []);
+      return { status: 201, body: copia };
+    }
+    const nova = { ...atv, ...mudanca, versao: atv.versao + 1 };
+    atividades.set(id, nova);
+    return { status: 200, body: nova };
+  }
+  if (partes[2] !== "apontamentos") return undefined;
+  const lista = apontamentosPorAtividade.get(id) ?? [];
+  if (partes.length === 3 && method === "GET") return { status: 200, body: { items: lista } };
+  if (partes.length === 3 && method === "POST") {
+    const dia = body.data_operacional;
+    proximoId += 1;
+    const ap = novoApontamento(id, body, proximaSequencia(lista, dia, body.turno ?? null), `apn${proximoId}`);
+    apontamentosPorAtividade.set(id, [...lista, ap]);
+    return { status: 201, body: { apontamento: ap, atividade: recalcular(id), alertas: alertasDe(atv, dia) } };
+  }
+  const apId = partes[3];
+  const ap = lista.find((a) => a.id === apId);
+  if (!ap) return erroServidor(404, "ATIVIDADE_APONTAMENTO_NOT_FOUND");
+  if (partes.length === 4 && method === "PATCH") {
+    const { versao: _versao, ...dados } = body;
+    const novo = { ...ap, ...dados, versao: ap.versao + 1 };
+    apontamentosPorAtividade.set(id, lista.map((a) => (a.id === apId ? novo : a)));
+    return { status: 200, body: { apontamento: novo, atividade: recalcular(id), alertas: [] } };
+  }
+  if (partes.length === 5 && method === "POST" && partes[4] === "cancelar") {
+    const novo = { ...ap, status: "CANCELADO", versao: ap.versao + 1, cancelado_em: AGORA.toISOString(), cancelado_por: usuario("u1", "Gerente"), motivo_cancelamento: body.motivo };
+    apontamentosPorAtividade.set(id, lista.map((a) => (a.id === apId ? novo : a)));
+    return { status: 200, body: { apontamento: novo, atividade: recalcular(id), alertas: [] } };
+  }
+  if (partes.length === 5 && method === "POST" && partes[4] === "duplicar") {
+    const dia = body.data_operacional ?? HOJE;
+    proximoId += 1;
+    const copia = { ...ap, id: `apn${proximoId}`, data_operacional: dia, sequencia: proximaSequencia(lista, dia, ap.turno), versao: 1, createdAt: AGORA.toISOString() };
+    apontamentosPorAtividade.set(id, [...lista, copia]);
+    return { status: 201, body: { apontamento: copia, atividade: recalcular(id), alertas: alertasDe(atv, dia) } };
+  }
+  return undefined;
+};
+
+beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(AGORA);
+  vi.stubEnv("VITE_MAIKE_API_URL", API_FAKE);
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  window.localStorage.setItem("empresa_selecionada_id", "emp-1");
+  window.localStorage.setItem("empresa_selecionada_cliente_id", "cli-1");
+  const { setNativeToken } = await import("@/lib/auth/nativeTokenStorage");
+  setNativeToken("jwt.teste");
+  sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+  sessao.fuso = "America/Cuiaba";
+  proxima = null;
+  proximoId = 0;
+  atividades = new Map([ATV_A1, ATV_A2, ATV_A3].map((a) => [a.id, { ...a }]));
+  apontamentosPorAtividade = new Map([
+    ["a1", APONTAMENTOS_A1()],
+    ["a2", [apontamento({ id: "ap7", atividade_id: "a2", area_executada_dia: "8.0000", quantidade_produzida_dia: null })]],
+    ["a3", []],
+  ]);
+  tiposSrv.listarTiposAtividade.mockResolvedValue(TIPOS);
+  mapaSrv.listarAreasAtivas.mockImplementation(async (empresaId) => AREAS.filter((a) => a.empresa_id === empresaId));
+  tarefasSrv.listarTarefasDaEmpresa.mockResolvedValue([]);
+  backend = instalarBackendFake(rotear);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+});
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+const novoCliente = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+const montar = async () => {
+  render(
+    <QueryClientProvider client={novoCliente()}>
+      <LancamentoAtividades />
+    </QueryClientProvider>,
+  );
+};
+/** Monta a tela e espera a lista da fazenda. */
+const montarComLista = async () => {
+  await montar();
+  await screen.findByTestId("atividade-numero-a1");
+};
+const listagens = () => backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades");
+const escritas = () => backend.chamadas.filter((c) => c.method !== "GET");
+const ultimaEscrita = () => escritas().at(-1);
+/** Deixa as consultas responderem dentro do `act`. */
+const assentar = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+/** Rótulos dos campos, na ordem do DOM (sem o asterisco do obrigatório). @param {HTMLElement} raiz */
+const rotulos = (raiz) => [...raiz.querySelectorAll(".mg-field__label")].map((el) => el.textContent.replace(/\s*\*\s*$/, "").trim());
+/** O campo está marcado como obrigatório (o " *" do rótulo)? @param {HTMLElement} raiz @param {string} rotulo */
+const marcadoObrigatorio = (raiz, rotulo) => {
+  const label = [...raiz.querySelectorAll(".mg-field__label")].find((el) => el.textContent.replace(/\s*\*\s*$/, "").trim() === rotulo);
+  expect(label, `campo ${rotulo} ausente`).toBeTruthy();
+  return Boolean(/** @type {HTMLElement} */ (label).querySelector(".req"));
+};
+const escolherNoCombo = async (/** @type {HTMLElement} */ raiz, /** @type {string} */ rotulo, /** @type {RegExp|string} */ opcao) => {
+  fireEvent.click(within(raiz).getByRole("combobox", { name: rotulo }));
+  fireEvent.click(await screen.findByRole("option", { name: opcao }));
+  await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+};
+const escolherNoSeletor = async (/** @type {HTMLElement} */ raiz, /** @type {string} */ testId, /** @type {RegExp|string} */ nome) => {
+  await waitFor(() => expect(within(raiz).getByTestId(testId)).not.toBeDisabled());
+  fireEvent.click(within(raiz).getByTestId(testId));
+  fireEvent.click(await screen.findByRole("option", { name: nome }));
+  await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
+};
+/** Seleciona a linha (um clique; o duplo abre). @param {string} id */
+const selecionar = (id) => fireEvent.click(/** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest('[data-testid="b1-row"]')));
+/** Abre a atividade (duplo clique na linha) e espera o cabeçalho e os lançamentos. @param {string} id */
+const abrir = async (id) => {
+  fireEvent.doubleClick(screen.getByTestId(`atividade-numero-${id}`));
+  const cabecalho = await screen.findByTestId("atividade-cabecalho");
+  await waitFor(() => expect(screen.queryByTestId("apontamentos-carregando")).toBeNull());
+  return cabecalho;
+};
+/** Os itens do menu Mais opções (abre, lê e fecha). */
+const itensDoMenu = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+  const nomes = (await screen.findAllByRole("menuitem")).map((i) => i.textContent.trim());
+  fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+  await waitFor(() => expect(screen.queryAllByRole("menuitem")).toHaveLength(0));
+  return nomes;
+};
+const ACOES_DA_ATIVIDADE = ["Concluir atividade", "Reabrir atividade", "Cancelar atividade", "Duplicar atividade"];
+/** Só as ações da atividade que o menu oferece. */
+const acoesDoMenu = async () => (await itensDoMenu()).filter((n) => ACOES_DA_ATIVIDADE.includes(n));
+const escolherNoMenu = async (/** @type {string} */ nome) => {
+  fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: nome }));
+};
+/** Botão Editar da barra (o das linhas de lançamento não tem `title`). */
+const botaoEditarDaBarra = () => screen.queryByTitle("Editar");
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-LISTA — lista, filtros e ações por permissão e status", () => {
+  it("LA-LISTA-1 — lista da fazenda: Nº, nome, tipo, área, status (selo) e área executada / planejada; empresa_id na query", async () => {
+    await montarComLista();
+    const { ATIVIDADES_COLUNAS } = await import("@/pages/LancamentoAtividades");
+    expect(ATIVIDADES_COLUNAS.filter((c) => c.default).map((c) => c.label)).toEqual([
+      "Nº",
+      "Nome",
+      "Tipo de atividade",
+      "Área",
+      "Status",
+      "Área executada / planejada",
+      "Início",
+    ]);
+    // Só a empresa e a página vão na query (nenhum filtro ligado).
+    expect(listagens()[0].query.empresa_id).toBe("emp-1");
+    expect(Object.keys(listagens()[0].query).sort()).toEqual(["empresa_id", "limit"]);
+    const linha = (/** @type {string} */ id) => /** @type {HTMLElement} */ (screen.getByTestId(`atividade-numero-${id}`).closest("tr"));
+    expect(screen.getByTestId("atividade-status-a1")).toHaveTextContent("Aberta");
+    expect(screen.getByTestId("atividade-status-a2")).toHaveTextContent("Concluída");
+    expect(screen.getByTestId("atividade-status-a3")).toHaveTextContent("Cancelada");
+    expect(within(linha("a1")).getByText("Cigarrinha Pasto 01")).toBeTruthy();
+    expect(within(linha("a1")).getByText("APLICAÇÃO")).toBeTruthy();
+    expect(within(linha("a1")).getByText("01 — Pasto 01")).toBeTruthy();
+    // Executada / planejada (decimais do servidor em texto, formatados em pt-BR; "—" no lado sem valor).
+    expect(within(linha("a1")).getByText("12,5 / 40")).toBeTruthy();
+    expect(within(linha("a2")).getByText("8 / —")).toBeTruthy();
+    expect(within(linha("a1")).getByText("01/11/2026")).toBeTruthy();
+  });
+
+  it("LA-LISTA-2 — filtros de status (pílula), tipo, área e período vão na query; período invertido avisa e não lê", async () => {
+    await montarComLista();
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Concluída");
+    await waitFor(() => expect(listagens().at(-1).query.status).toBe("CONCLUIDA"));
+    await waitFor(() => expect(screen.queryByTestId("atividade-numero-a1")).toBeNull());
+    expect(screen.getByTestId("atividade-numero-a2")).toBeTruthy();
+    // Volta para todos e filtra pelo tipo e pela área (os cadastros da fazenda).
+    await escolherOpcao(screen.getByRole("combobox", { name: "Filtrar por status" }), "Todos os status");
+    const filtros = screen.getByTestId("atividades-filtros");
+    await escolherNoCombo(filtros, "Tipo de atividade", /^ROÇADA$/i);
+    await waitFor(() => expect(listagens().at(-1).query).toEqual({ empresa_id: "emp-1", tipo_atividade_id: "t2", limit: expect.any(String) }));
+    await escolherNoCombo(filtros, "Área", /02 — Pasto 02/i);
+    await waitFor(() => expect(listagens().at(-1).query).toMatchObject({ tipo_atividade_id: "t2", area_id: "ar2" }));
+    expect(await screen.findByTestId("atividade-numero-a2")).toBeTruthy();
+    // O filtro de tipo oferece também o inativo (marcado), para achar as atividades antigas dele.
+    fireEvent.click(within(filtros).getByRole("combobox", { name: "Tipo de atividade" }));
+    expect(await screen.findByRole("option", { name: /GRADAGEM \(INATIVO\)/i })).toBeTruthy();
+    fireEvent.click(within(filtros).getByRole("combobox", { name: "Tipo de atividade" }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+
+    // Período invertido: avisa e não lê.
+    const antes = listagens().length;
+    fireEvent.change(screen.getByTestId("atividades-filtro-de"), { target: { value: "2026-11-10" } });
+    fireEvent.change(screen.getByTestId("atividades-filtro-ate"), { target: { value: "2026-11-01" } });
+    expect(await screen.findByTestId("atividades-periodo-invertido")).toHaveTextContent("A data final do período é anterior à inicial.");
+    await assentar();
+    expect(listagens().filter((c) => c.query.data_ate === "2026-11-01")).toEqual([]);
+    expect(listagens().length).toBeLessThanOrEqual(antes + 1);
+    fireEvent.change(screen.getByTestId("atividades-filtro-ate"), { target: { value: "2026-11-30" } });
+    await waitFor(() => expect(listagens().at(-1).query).toMatchObject({ empresa_id: "emp-1", data_de: "2026-11-10", data_ate: "2026-11-30" }));
+    expect(screen.queryByTestId("atividades-periodo-invertido")).toBeNull();
+  });
+
+  it("LA-LISTA-3 — sem fazenda real ou sem permissão de ver: aviso, nada lido e nenhum botão de gravar", async () => {
+    // O `clienteId` do JWT não é fazenda (o Layout chega a gravá-lo como fallback).
+    window.localStorage.setItem("empresa_selecionada_id", "cli-1");
+    await montar();
+    expect(await screen.findByTestId("atividades-sem-empresa")).toHaveTextContent("Selecione uma fazenda");
+    await assentar();
+    expect(listagens()).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    cleanup();
+
+    window.localStorage.setItem("empresa_selecionada_id", "emp-1");
+    sessao.permissao = { user_email: "operador", is_admin: false, modulos_permitidos: [MODULO], permissoes_telas: [] };
+    await montar();
+    expect(await screen.findByTestId("atividades-sem-permissao")).toBeTruthy();
+    await assentar();
+    expect(listagens()).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+  });
+
+  it("LA-LISTA-4 — só ver: nenhuma ação de gravar (sem Abrir atividade, Editar, concluir, reabrir, cancelar nem duplicar)", async () => {
+    sessao.permissao = permissaoCom({});
+    await montarComLista();
+    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    selecionar("a1");
+    expect(botaoEditarDaBarra()).toBeNull();
+    expect(await acoesDoMenu()).toEqual([]);
+  });
+
+  it("LA-LISTA-5 — ações padrão sem as extras: aberta = concluir, cancelar e duplicar; concluída e cancelada = só duplicar (reabrir pede a extra)", async () => {
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    await montarComLista();
+    expect(screen.getByRole("button", { name: "Abrir atividade" })).toBeTruthy();
+    selecionar("a1");
+    await waitFor(() => expect(botaoEditarDaBarra()).toBeTruthy());
+    expect(await acoesDoMenu()).toEqual(["Concluir atividade", "Cancelar atividade", "Duplicar atividade"]);
+    selecionar("a2");
+    await waitFor(() => expect(botaoEditarDaBarra()).toBeNull());
+    expect(await acoesDoMenu()).toEqual(["Duplicar atividade"]);
+    selecionar("a3");
+    expect(botaoEditarDaBarra()).toBeNull();
+    expect(await acoesDoMenu()).toEqual(["Duplicar atividade"]);
+  });
+
+  it("LA-LISTA-6 — com a extra reabrir, a concluída oferece Reabrir; sem editar/excluir, a aberta não oferece concluir nem cancelar", async () => {
+    sessao.permissao = permissaoCom({ reabrir: true });
+    await montarComLista();
+    selecionar("a2");
+    expect(await acoesDoMenu()).toEqual(["Reabrir atividade"]);
+    selecionar("a1");
+    expect(await acoesDoMenu()).toEqual([]);
+    expect(botaoEditarDaBarra()).toBeNull();
+  });
+
+  it("LA-LISTA-7 — sem o fuso da fazenda: aviso e nenhuma gravação (o servidor recusaria sem o \"hoje\")", async () => {
+    sessao.fuso = null;
+    await montarComLista();
+    expect(await screen.findByTestId("atividades-sem-fuso")).toHaveTextContent("Configure o fuso horário da fazenda");
+    expect(screen.queryByRole("button", { name: "Abrir atividade" })).toBeNull();
+    selecionar("a1");
+    expect(botaoEditarDaBarra()).toBeNull();
+    expect(await acoesDoMenu()).toEqual([]);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-ABERTA — atividade aberta: cabeçalho travado e lançamentos por dia", () => {
+  it("LA-ABERTA-1 — cabeçalho só leitura com os herdados (centros e unidade do tipo, setor da área); leituras com empresa_id na query", async () => {
+    await montarComLista();
+    const cabecalho = await abrir("a1");
+    const valor = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText(rotulo)).value;
+    expect(valor("Nome")).toBe("Cigarrinha Pasto 01");
+    expect(valor("Tipo de atividade")).toBe("APLICAÇÃO");
+    expect(valor("Grupo de atividade")).toBe("PASTAGEM");
+    expect(valor("Área")).toBe("01 — Pasto 01");
+    expect(valor("Setor (da área)")).toBe("SETOR NORTE");
+    expect(valor("Máquina")).toBe("TP-02 — Trator");
+    expect(valor("Safra")).toBe("2026/27");
+    expect(valor("Centro de custo")).toBe("1 — Pecuária de corte");
+    expect(valor("Centro de resultado")).toBe("7 — Recria 2026");
+    expect(valor("Unidade de produção")).toBe("SC — Saco");
+    // Tudo travado: nenhum campo editável, nenhum seletor.
+    for (const campo of cabecalho.querySelectorAll("input, textarea")) expect(campo, campo.outerHTML).toHaveAttribute("readonly");
+    expect(within(cabecalho).queryAllByRole("combobox")).toEqual([]);
+    expect(cabecalho).toHaveAttribute("data-somente-leitura");
+    expect(screen.getByTestId("atividade-status")).toHaveTextContent("Aberta");
+    expect(screen.getByTestId("atividade-area-executada-planejada")).toHaveTextContent("12,5 / 40");
+    expect(screen.getByTestId("atividade-producao")).toHaveTextContent("30 SC");
+    expect(screen.getByTestId("atividade-data-inicio")).toHaveValue("2026-11-01");
+    // Detalhe e lançamentos pedidos com a fazenda na query.
+    expect(backend.chamadas.find((c) => c.path === "/atividades/a1")?.query).toEqual({ empresa_id: "emp-1" });
+    expect(backend.chamadas.find((c) => c.path === "/atividades/a1/apontamentos")?.query).toEqual({ empresa_id: "emp-1" });
+    // Editar e lançar disponíveis na aberta (com a permissão).
+    expect(botaoEditarDaBarra()).toBeTruthy();
+    expect(screen.getByTestId("apontamento-novo")).toBeTruthy();
+  });
+
+  it("LA-ABERTA-2 — duas passadas no mesmo dia aparecem como 1ª e 2ª; o cancelado continua visível; o dia mais recente primeiro", async () => {
+    await montarComLista();
+    await abrir("a1");
+    const dia13 = await screen.findByTestId("apontamentos-dia-2026-11-13");
+    const dia12 = screen.getByTestId("apontamentos-dia-2026-11-12");
+    expect(dia13.compareDocumentPosition(dia12) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(dia12).toHaveTextContent("12/11/2026 · 2 lançamentos");
+    expect(screen.getByTestId("apontamento-ap1-passada")).toHaveTextContent("Manhã · 1ª passada");
+    expect(screen.getByTestId("apontamento-ap2-passada")).toHaveTextContent("Manhã · 2ª passada");
+    expect(screen.getByTestId("apontamento-ap1-operador")).toHaveTextContent("João Vaqueiro");
+    expect(screen.getByTestId("apontamento-ap1-area")).toHaveTextContent("10 ha");
+    expect(screen.getByTestId("apontamento-ap2-producao")).toHaveTextContent("25 SC");
+    expect(screen.getByTestId("apontamento-ap3-passada")).toHaveTextContent("Sem turno · 1ª passada");
+    expect(screen.getByTestId("apontamento-ap3")).toHaveAttribute("data-status", "CANCELADO");
+    expect(screen.getByTestId("apontamento-ap3-status")).toHaveTextContent("Cancelado");
+    expect(screen.getByTestId("apontamento-ap3-cancelamento")).toHaveTextContent("por Maria · motivo: lançado em dobro");
+    // Só o confirmado tem botões.
+    expect(screen.queryByTestId("apontamento-ap3-editar")).toBeNull();
+    expect(screen.getByTestId("apontamento-ap1-editar")).toBeTruthy();
+  });
+
+  it("LA-ABERTA-3 — concluída: sem Editar, sem lançar/editar/cancelar lançamento, só leitura com aviso; reabrir não aparece sem a extra", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, lancar_apontamento: true, editar_apontamento: true, cancelar_apontamento: true });
+    await montarComLista();
+    await abrir("a2");
+    expect(screen.getByTestId("atividade-concluida")).toHaveTextContent("Atividade concluída em 12/11/2026 por Gerente");
+    expect(screen.getByTestId("apontamentos-aviso")).toHaveTextContent("Atividade concluída");
+    await screen.findByTestId("apontamento-ap7");
+    expect(botaoEditarDaBarra()).toBeNull();
+    for (const id of ["apontamento-novo", "apontamento-repetir-ultimo", "apontamento-ap7-editar", "apontamento-ap7-cancelar", "apontamento-ap7-repetir"]) {
+      expect(screen.queryByTestId(id), id).toBeNull();
+    }
+    expect(await acoesDoMenu()).toEqual(["Duplicar atividade"]);
+  });
+
+  it("LA-ABERTA-4 — cancelada: só leitura com o motivo; nenhum botão de lançamento; só duplicar", async () => {
+    await montarComLista();
+    await abrir("a3");
+    expect(screen.getByTestId("atividade-cancelada")).toHaveTextContent("Motivo: aberta em duplicidade");
+    expect(screen.getByTestId("apontamentos-aviso")).toHaveTextContent("Atividade cancelada");
+    expect(botaoEditarDaBarra()).toBeNull();
+    expect(screen.queryByTestId("apontamento-novo")).toBeNull();
+    expect(await acoesDoMenu()).toEqual(["Duplicar atividade"]);
+  });
+
+  it("LA-ABERTA-5 — sem as ações extras do lançamento, a atividade aberta não mostra Novo, Repetir, Editar nem Cancelar", async () => {
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    await montarComLista();
+    await abrir("a1");
+    await screen.findByTestId("apontamento-ap1");
+    expect(botaoEditarDaBarra()).toBeTruthy();
+    for (const id of ["apontamento-novo", "apontamento-repetir-ultimo", "apontamento-ap1-editar", "apontamento-ap1-cancelar", "apontamento-ap1-repetir"]) {
+      expect(screen.queryByTestId(id), id).toBeNull();
+    }
+    cleanup();
+    // Só a de lançar: Novo e Repetir, sem Editar nem Cancelar.
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, lancar_apontamento: true });
+    await montarComLista();
+    await abrir("a1");
+    await screen.findByTestId("apontamento-ap1-repetir");
+    expect(screen.getByTestId("apontamento-novo")).toBeTruthy();
+    expect(screen.queryByTestId("apontamento-ap1-editar")).toBeNull();
+    expect(screen.queryByTestId("apontamento-ap1-cancelar")).toBeNull();
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-ACOES — concluir, reabrir, cancelar e duplicar (corpos do §10)", () => {
+  it("LA-ACOES-1 — concluir pede a data (padrão hoje; futura não sai) e manda {empresa_id, versao, data_conclusao}", async () => {
+    await montarComLista();
+    await abrir("a1");
+    await escolherNoMenu("Concluir atividade");
+    const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
+    const data = within(dialogo).getByTestId("dialogo-concluir-atividade-data");
+    expect(data).toHaveValue(HOJE);
+    expect(data).toHaveAttribute("max", HOJE);
+    expect(data).toHaveAttribute("min", "2026-11-01");
+    fireEvent.change(data, { target: { value: "2026-11-15" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-atividade-enviar"));
+    expect(await within(dialogo).findByText("A data de conclusão não pode ser futura.")).toBeTruthy();
+    expect(escritas()).toEqual([]);
+    fireEvent.change(data, { target: { value: "2026-11-12" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-atividade-enviar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/concluir", query: {}, body: { empresa_id: "emp-1", versao: 4, data_conclusao: "2026-11-12" } });
+    await waitFor(() => expect(screen.queryByTestId("dialogo-concluir-atividade")).toBeNull());
+    expect(await screen.findByTestId("atividade-concluida")).toHaveTextContent("Atividade concluída em 12/11/2026");
+    expect(screen.getByTestId("atividade-status")).toHaveTextContent("Concluída");
+    // Concluída: o cabeçalho sai da edição e os lançamentos ficam só leitura.
+    expect(botaoEditarDaBarra()).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("apontamento-novo")).toBeNull());
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade nº 3 concluída.");
+  });
+
+  it("LA-ACOES-2 — reabrir (com a extra) pede motivo e manda {empresa_id, versao, motivo}; a reaberta volta a aceitar edição", async () => {
+    await montarComLista();
+    await abrir("a2");
+    await escolherNoMenu("Reabrir atividade");
+    const dialogo = await screen.findByTestId("dialogo-reabrir-atividade");
+    expect(within(dialogo).getByTestId("dialogo-reabrir-atividade-enviar")).toBeDisabled();
+    fireEvent.change(within(dialogo).getByTestId("dialogo-reabrir-atividade-motivo"), { target: { value: "  faltou um talhão  " } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-reabrir-atividade-enviar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toMatchObject({ method: "POST", path: "/atividades/a2/reabrir", body: { empresa_id: "emp-1", versao: 7, motivo: "faltou um talhão" } });
+    expect(Object.keys(ultimaEscrita().body).sort()).toEqual(["empresa_id", "motivo", "versao"]);
+    expect(await screen.findByTestId("atividade-reaberta")).toHaveTextContent("Motivo: faltou um talhão");
+    await waitFor(() => expect(botaoEditarDaBarra()).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("apontamento-novo")).toBeTruthy());
+  });
+
+  it("LA-ACOES-3 — cancelar pede motivo (curto não sai) e manda {empresa_id, versao, motivo}; os lançamentos confirmados aparecem cancelados", async () => {
+    await montarComLista();
+    await abrir("a1");
+    await escolherNoMenu("Cancelar atividade");
+    const dialogo = await screen.findByTestId("dialogo-cancelar-atividade");
+    expect(within(dialogo).getByTestId("dialogo-cancelar-atividade-enviar")).toBeDisabled();
+    // Motivo com menos de 3 caracteres úteis: o service recusa ANTES da rede.
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-atividade-motivo"), { target: { value: " ab " } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-atividade-enviar"));
+    expect(await within(dialogo).findByTestId("erro-envio")).toHaveTextContent("Informe o motivo com pelo menos 3 e no máximo 500 caracteres. Nada foi alterado.");
+    expect(escritas()).toEqual([]);
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-atividade-motivo"), { target: { value: "aberta por engano" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-atividade-enviar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/cancelar", query: {}, body: { empresa_id: "emp-1", versao: 4, motivo: "aberta por engano" } });
+    expect(await screen.findByTestId("atividade-cancelada")).toHaveTextContent("Motivo: aberta por engano");
+    // O cabeçalho mudou (status e versão): a lista de lançamentos é relida e mostra o cancelamento junto.
+    await waitFor(() => expect(screen.getByTestId("apontamento-ap1")).toHaveAttribute("data-status", "CANCELADO"));
+    expect(screen.getByTestId("apontamento-ap2")).toHaveAttribute("data-status", "CANCELADO");
+    expect(screen.queryByTestId("apontamento-novo")).toBeNull();
+  });
+
+  it("LA-ACOES-4 — duplicar confirma e manda só {empresa_id}; a cópia aberta aparece", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await montarComLista();
+    selecionar("a1");
+    await escolherNoMenu("Duplicar atividade");
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/duplicar", query: {}, body: { empresa_id: "emp-1" } });
+    const cabecalho = await screen.findByTestId("atividade-cabecalho");
+    expect(within(cabecalho).getByTestId("atividade-numero")).toHaveTextContent("9");
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade nº 9 aberta (cópia da nº 3).");
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-CABECALHO — abrir e editar a atividade (FormularioAtividade)", () => {
+  it("LA-CABECALHO-1 — abrir: herdados travados, exigido pelo tipo marcado e avisado antes de enviar; corpo com empresa_id, decimal em texto e sem centros, unidade nem setor", async () => {
+    await montarComLista();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir atividade" }));
+    const form = await screen.findByTestId("b1-form-atividade");
+    await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
+    // Só os tipos ativos.
+    fireEvent.click(within(form).getByRole("combobox", { name: "Tipo de atividade" }));
+    await screen.findAllByRole("option");
+    expect(screen.queryByRole("option", { name: /GRADAGEM/i })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /^APLICAÇÃO$/i }));
+    await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
+
+    // Herdados do tipo e da área: travados (só leitura), nunca digitados.
+    const campo = (/** @type {string} */ rotulo) => /** @type {HTMLInputElement} */ (within(form).getByLabelText(rotulo));
+    for (const rotulo of ["Grupo de atividade", "Centro de custo", "Centro de resultado", "Unidade de produção", "Setor (da área)"]) {
+      expect(campo(rotulo), rotulo).toHaveAttribute("readonly");
+    }
+    expect(campo("Grupo de atividade").value).toBe("PASTAGEM");
+    expect(campo("Centro de custo").value).toBe("1 — Pecuária de corte");
+    expect(campo("Centro de resultado").value).toBe("Sem centro de resultado");
+    expect(campo("Unidade de produção").value).toBe("SC — Saco");
+    expect(screen.getByTestId("atividade-heranca")).toHaveTextContent("O centro de resultado padrão do tipo é de outra fazenda");
+    // O exigido pelo tipo (exige_area, exige_maquina) fica marcado; safra não.
+    expect(marcadoObrigatorio(form, "Área")).toBe(true);
+    expect(marcadoObrigatorio(form, "Máquina")).toBe(true);
+    expect(marcadoObrigatorio(form, "Safra")).toBe(false);
+
+    fireEvent.change(within(form).getByLabelText(/^Nome da atividade/), { target: { value: "Cigarrinha Pasto 09" } });
+    fireEvent.submit(form);
+    expect(await within(form).findByText("O tipo APLICAÇÃO exige a área.")).toBeTruthy();
+    expect(within(form).getByText("O tipo APLICAÇÃO exige a máquina.")).toBeTruthy();
+    expect(escritas()).toEqual([]);
+
+    await escolherNoCombo(form, "Área", /01 — Pasto 01/i);
+    expect(campo("Setor (da área)").value).toBe("SETOR NORTE");
+    await escolherNoSeletor(form, "atividade-maquina", /TP-02 — Trator/);
+    expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/bens")?.query).toMatchObject({ empresa_id: "emp-1" });
+    fireEvent.change(within(form).getByTestId("atividade-area-planejada"), { target: { value: "12,5" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    const { method, path, body } = ultimaEscrita();
+    expect({ method, path }).toEqual({ method: "POST", path: "/atividades" });
+    // O opcional não informado fica AUSENTE (o servidor aplica o padrão); nada herdado vai no corpo.
+    expect(body).toEqual({
+      empresa_id: "emp-1",
+      tipo_atividade_id: "t1",
+      nome: "Cigarrinha Pasto 09",
+      area_id: "ar1",
+      bem_id: "b1",
+      data_inicio: HOJE,
+      area_planejada: "12.5",
+    });
+    expect(typeof body.area_planejada).toBe("string");
+    // A atividade aberta aparece só leitura, com o que o servidor herdou.
+    const cabecalho = await screen.findByTestId("atividade-cabecalho");
+    expect(within(cabecalho).getByTestId("atividade-numero")).toHaveTextContent("9");
+    expect(/** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText("Setor (da área)")).value).toBe("SETOR NORTE");
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade nº 9 aberta.");
+  });
+
+  it("LA-CABECALHO-2 — editar (só a aberta): tipo só leitura, PATCH mínimo com a versão; limpar um opcional manda null", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(/** @type {HTMLElement} */ (botaoEditarDaBarra()));
+    const form = await screen.findByTestId("b1-form-atividade");
+    expect(within(form).queryByRole("combobox", { name: "Tipo de atividade" })).toBeNull();
+    expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText("Tipo de atividade")).value).toBe("APLICAÇÃO");
+    expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText("Centro de custo")).value).toBe("1 — Pecuária de corte");
+    expect(within(form).getByLabelText("Centro de custo")).toHaveAttribute("readonly");
+    expect(within(form).getByTestId("atividade-area-planejada")).toHaveValue("40");
+    fireEvent.change(within(form).getByLabelText(/^Nome da atividade/), { target: { value: "Cigarrinha Pasto 01 (norte)" } });
+    fireEvent.change(within(form).getByTestId("atividade-area-planejada"), { target: { value: "" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    // §10: o PATCH leva os dados que mudaram e a `versao` (sem empresa_id e sem tipo).
+    expect(ultimaEscrita()).toEqual({
+      method: "PATCH",
+      path: "/atividades/a1",
+      query: {},
+      body: { versao: 4, nome: "Cigarrinha Pasto 01 (norte)", area_planejada: null },
+    });
+    const cabecalho = await screen.findByTestId("atividade-cabecalho");
+    expect(/** @type {HTMLInputElement} */ (within(cabecalho).getByLabelText("Nome")).value).toBe("Cigarrinha Pasto 01 (norte)");
+  });
+
+  it("LA-CABECALHO-3 — recusa ATIVIDADE_REFERENCIA_INVALIDA vai para o campo com a frase do motivo", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(/** @type {HTMLElement} */ (botaoEditarDaBarra()));
+    const form = await screen.findByTestId("b1-form-atividade");
+    await escolherNoCombo(form, "Área", /02 — Pasto 02/i);
+    proxima = erroServidor(422, "ATIVIDADE_REFERENCIA_INVALIDA", { field: "area_id", reason: "inativo" });
+    fireEvent.submit(form);
+    expect(await within(form).findByTestId("atividade-erro")).toHaveTextContent("A área está inativa. Nada foi gravado.");
+    expect(within(form).getAllByText("A área está inativa. Nada foi gravado.").length).toBeGreaterThanOrEqual(2);
+    expect(ultimaEscrita()).toMatchObject({ method: "PATCH", path: "/atividades/a1", body: { versao: 4, area_id: "ar2" } });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-LANCAMENTO — formulário do apontamento e as escritas", () => {
+  it("LA-LANCAMENTO-1 — novo: só os campos do dia (sem centro, área, setor, safra, unidade nem máquina); decimais em texto e empresa_id no corpo; alerta fora do intervalo não bloqueia", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("apontamento-novo"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(rotulos(form)).toEqual(["Data", "Turno", "Operador", "Área do dia (ha)", "Produção do dia (SC)", "Observação"]);
+    expect(form.textContent).not.toMatch(/Centro|Setor|Safra|Máquina|Unidade/);
+    expect(rotulos(form)).not.toContain("Área");
+    // Hoje (14/11) fica fora do período da atividade (01/11 a 10/11): avisa, não bloqueia.
+    expect(screen.getByTestId("apontamento-data")).toHaveValue(HOJE);
+    expect(screen.getByTestId("apontamento-data")).toHaveAttribute("max", HOJE);
+    expect(screen.getByTestId("apontamento-fora-do-periodo")).toHaveTextContent("de 01/11/2026 a 10/11/2026");
+    await escolherNoCombo(form, "Turno", /^Manhã$/i);
+    await escolherNoSeletor(form, "apontamento-operador", /João Vaqueiro/);
+    expect(backend.chamadas.find((c) => c.path === "/atividades-opcoes/operadores")?.query).toMatchObject({ empresa_id: "emp-1" });
+    fireEvent.change(screen.getByTestId("apontamento-area-dia"), { target: { value: "2,5" } });
+    fireEvent.change(screen.getByTestId("apontamento-producao-dia"), { target: { value: "1.234,5" } });
+    fireEvent.change(within(form).getByLabelText(/^Observação/), { target: { value: "talhão norte" } });
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    const { method, path, body } = ultimaEscrita();
+    expect({ method, path }).toEqual({ method: "POST", path: "/atividades/a1/apontamentos" });
+    expect(body).toEqual({
+      empresa_id: "emp-1",
+      data_operacional: HOJE,
+      turno: "MANHA",
+      operador_usuario_id: "u9",
+      area_executada_dia: "2.5",
+      quantidade_produzida_dia: "1234.5",
+      observacao: "talhão norte",
+    });
+    expect(typeof body.area_executada_dia).toBe("string");
+    expect(typeof body.quantidade_produzida_dia).toBe("string");
+    // Gravou: a janela fecha, o alerta aparece e o cabeçalho recebe os totais recalculados.
+    await waitFor(() => expect(screen.queryByTestId("janela-apontamento")).toBeNull());
+    expect(await screen.findByTestId("apontamento-alerta")).toHaveTextContent(
+      "14/11/2026: A data do apontamento está fora do período previsto da atividade (de 01/11/2026 a 10/11/2026). O apontamento foi gravado.",
+    );
+    await waitFor(() => expect(screen.getByTestId("atividade-area-executada-planejada")).toHaveTextContent("15 / 40"));
+    expect(await screen.findByTestId("apontamento-apn1-passada")).toHaveTextContent("Manhã · 1ª passada");
+    expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Lançamento de 14/11/2026 gravado (1ª passada).");
+
+    // A segunda passada no mesmo dia e turno: a sequência 2 vem do servidor.
+    fireEvent.click(screen.getByTestId("apontamento-novo"));
+    const form2 = await screen.findByTestId("b1-form-apontamento");
+    await escolherNoCombo(form2, "Turno", /^Manhã$/i);
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(2));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", data_operacional: HOJE, turno: "MANHA" });
+    expect(await screen.findByTestId("apontamento-apn2-passada")).toHaveTextContent("Manhã · 2ª passada");
+    expect(screen.getByTestId("apontamentos-dia-2026-11-14")).toHaveTextContent("14/11/2026 · 2 lançamentos");
+  });
+
+  it("LA-LANCAMENTO-2 — \"Repetir\" preenche com o lançamento base e a data de hoje; sem ajuste vai o duplicar {empresa_id, data_operacional}; com ajuste, lançamento novo", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("apontamento-ap1-repetir"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(form).toHaveAttribute("data-modo", "repetir");
+    expect(screen.getByTestId("janela-apontamento")).toHaveTextContent("Os dados vêm do lançamento de 12/11/2026 (1ª passada)");
+    expect(screen.getByTestId("apontamento-data")).toHaveValue(HOJE);
+    expect(within(form).getByRole("combobox", { name: "Turno" })).toHaveTextContent(/Manhã/i);
+    expect(within(form).getByTestId("apontamento-operador").getAttribute("aria-label")).toMatch(/João Vaqueiro/);
+    expect(screen.getByTestId("apontamento-area-dia")).toHaveValue("10");
+    expect(screen.getByTestId("apontamento-producao-dia")).toHaveValue("5");
+    expect(/** @type {HTMLTextAreaElement} */ (within(form).getByLabelText(/^Observação/)).value).toBe("ok");
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/apontamentos/ap1/duplicar", query: {}, body: { empresa_id: "emp-1", data_operacional: HOJE } });
+    await waitFor(() => expect(screen.queryByTestId("janela-apontamento")).toBeNull());
+
+    // "Repetir último" com um ajuste: vai um lançamento novo com os dados ajustados.
+    fireEvent.click(await screen.findByTestId("apontamento-repetir-ultimo"));
+    const form2 = await screen.findByTestId("b1-form-apontamento");
+    fireEvent.change(screen.getByTestId("apontamento-producao-dia"), { target: { value: "6" } });
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(2));
+    expect(ultimaEscrita().path).toBe("/atividades/a1/apontamentos");
+    expect(ultimaEscrita().body).toEqual({
+      empresa_id: "emp-1",
+      data_operacional: HOJE,
+      turno: "MANHA",
+      operador_usuario_id: "u9",
+      area_executada_dia: "10",
+      quantidade_produzida_dia: "6",
+      observacao: "ok",
+    });
+    expect(form2).toBeTruthy();
+  });
+
+  it("LA-LANCAMENTO-3 — editar o lançamento: PATCH mínimo com a versão e o decimal em texto", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("apontamento-ap1-editar"));
+    const form = await screen.findByTestId("b1-form-apontamento");
+    expect(form).toHaveAttribute("data-modo", "edicao");
+    expect(rotulos(form)).toEqual(["Data", "Turno", "Operador", "Área do dia (ha)", "Produção do dia (SC)", "Observação"]);
+    fireEvent.change(screen.getByTestId("apontamento-producao-dia"), { target: { value: "7,5" } });
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({ method: "PATCH", path: "/atividades/a1/apontamentos/ap1", query: {}, body: { versao: 1, quantidade_produzida_dia: "7.5" } });
+    await waitFor(() => expect(screen.getByTestId("apontamento-ap1-producao")).toHaveTextContent("7,5 SC"));
+  });
+
+  it("LA-LANCAMENTO-4 — cancelar o lançamento pede motivo e manda {empresa_id, versao, motivo}; ele continua na lista, cancelado", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("apontamento-ap2-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-apontamento");
+    expect(dialogo).toHaveTextContent("Cancelar lançamento de 12/11/2026 (2ª passada)");
+    expect(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar")).toBeDisabled();
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "erro de digitação" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita()).toEqual({
+      method: "POST",
+      path: "/atividades/a1/apontamentos/ap2/cancelar",
+      query: {},
+      body: { empresa_id: "emp-1", versao: 1, motivo: "erro de digitação" },
+    });
+    await waitFor(() => expect(screen.queryByTestId("dialogo-cancelar-apontamento")).toBeNull());
+    await waitFor(() => expect(screen.getByTestId("apontamento-ap2")).toHaveAttribute("data-status", "CANCELADO"));
+    // Os totais do cabeçalho deixam de contar o cancelado (10 de 12,5).
+    await waitFor(() => expect(screen.getByTestId("atividade-area-executada-planejada")).toHaveTextContent("10 / 40"));
+  });
+
+  it("LA-LANCAMENTO-5 — data futura não sai; recusa ATIVIDADE_DATA_INVALIDA do servidor vai para o campo com a frase do motivo", async () => {
+    await montarComLista();
+    await abrir("a1");
+    fireEvent.click(screen.getByTestId("apontamento-novo"));
+    await screen.findByTestId("b1-form-apontamento");
+    fireEvent.change(screen.getByTestId("apontamento-data"), { target: { value: "2026-11-15" } });
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    expect(await screen.findByText(/não pode ser posterior a hoje na fazenda/)).toBeTruthy();
+    expect(escritas()).toEqual([]);
+    proxima = erroServidor(422, "ATIVIDADE_DATA_INVALIDA", { field: "data_operacional", reason: "futura", details: { hoje: HOJE } });
+    fireEvent.change(screen.getByTestId("apontamento-data"), { target: { value: "2026-11-12" } });
+    fireEvent.click(screen.getByTestId("apontamento-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    const frase = "A data do apontamento não pode ser futura (hoje na fazenda: 14/11/2026). Nada foi gravado.";
+    expect(await screen.findByTestId("apontamento-erro")).toHaveTextContent(frase);
+    expect(screen.getAllByText(frase).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId("janela-apontamento")).toBeTruthy();
+    expect(notify.notifyWarning).toHaveBeenCalledWith("Atenção", frase);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVADOS)", () => {
+  /** Os códigos ATIVIDADE_* do servidor (errorCodes.js), lidos da fonte. */
+  const codigosDoServidor = () =>
+    [...readFileSync("backend/src/shared/errors/errorCodes.js", "utf8").matchAll(/^\s+(ATIVIDADE_[A-Z_]+):\s*\{\s*\n\s*http:\s*(\d{3})/gm)].map((m) => ({
+      code: m[1],
+      http: Number(m[2]),
+    }));
+
+  it("LA-ERRO-1 — paridade: os 9 ATIVIDADE_* do servidor estão no catálogo do cliente e no transporte, com mensagem própria", () => {
+    const servidor = codigosDoServidor();
+    expect(servidor.map((c) => c.code).sort()).toEqual(
+      [
+        "ATIVIDADE_APONTAMENTO_NOT_FOUND",
+        "ATIVIDADE_DATA_INVALIDA",
+        "ATIVIDADE_EXIGIDA_PELO_TIPO",
+        "ATIVIDADE_MOTIVO_INVALIDO",
+        "ATIVIDADE_NOT_FOUND",
+        "ATIVIDADE_REFERENCIA_INVALIDA",
+        "ATIVIDADE_STATUS_INVALIDO",
+        "ATIVIDADE_VERSAO_CONFLITO",
+        "ATIVIDADE_VINCULADA",
+      ].sort(),
+    );
+    const cliente = Object.keys(API_ERROR_CODES).filter((c) => c.startsWith("ATIVIDADE_"));
+    expect(cliente.sort()).toEqual(servidor.map((c) => c.code).sort());
+    const transporte = readFileSync("src/apis/_core/nativeHttpClient.js", "utf8");
+    const preservados = transporte.slice(transporte.indexOf("const CODIGOS_PRESERVADOS"), transporte.indexOf("const TRADUCAO_BACKEND_ONLY"));
+    for (const { code } of servidor) {
+      expect(preservados, `${code} fora de CODIGOS_PRESERVADOS`).toMatch(new RegExp(`\\b${code}: API_ERROR_CODES\\.${code},`));
+      expect(new ApiError(code).message, code).not.toBe("Não foi possível concluir a operação.");
+    }
+    // O apontamento antigo saiu do catálogo e do transporte.
+    expect(Object.keys(API_ERROR_CODES).filter((c) => c.startsWith("APONTAMENTO_ATIVIDADE_"))).toEqual([]);
+    expect(transporte).not.toMatch(/APONTAMENTO_ATIVIDADE_/);
+  });
+
+  it("LA-ERRO-2 — o transporte real preserva cada ATIVIDADE_* (code, field/reason em details) e descarta a mensagem do servidor", async () => {
+    const { nativeRequest } = await import("@/apis/_core/nativeHttpClient.js");
+    for (const { code, http } of codigosDoServidor()) {
+      proxima = erroServidor(http, code, { field: "area_id", reason: "inativo" });
+      const erro = await nativeRequest("/atividades/a1/concluir", { method: "POST", body: { empresa_id: "emp-1", versao: 4 }, autenticado: true }, { operation: "completeAtividade", resource: "Atividade" }).catch((e) => e);
+      expect(erro.code, code).toBe(code);
+      expect(erro.message, code).toBe(new ApiError(code).message);
+      expect(erro.message, code).not.toMatch(/texto do servidor/);
+      expect(erro.details, code).toMatchObject({ field: "area_id", reason: "inativo", requestId: "req_1" });
+    }
+  });
+
+  it("LA-ERRO-3 — no diálogo de concluir, ATIVIDADE_EXIGIDA_PELO_TIPO aparece com a mensagem do catálogo (não a genérica) e nada muda", async () => {
+    await montarComLista();
+    await abrir("a1");
+    await escolherNoMenu("Concluir atividade");
+    const dialogo = await screen.findByTestId("dialogo-concluir-atividade");
+    proxima = erroServidor(422, "ATIVIDADE_EXIGIDA_PELO_TIPO", { field: "quantidade_produzida", reason: "exige_producao" });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-atividade-enviar"));
+    expect(await within(dialogo).findByTestId("erro-envio")).toHaveTextContent(new ApiError("ATIVIDADE_EXIGIDA_PELO_TIPO").message);
+    expect(within(dialogo).getByTestId("erro-envio")).not.toHaveTextContent("Não foi possível concluir a operação.");
+    expect(ultimaEscrita()).toMatchObject({ path: "/atividades/a1/concluir", body: { empresa_id: "emp-1", versao: 4, data_conclusao: HOJE } });
+    expect(screen.getByTestId("atividade-status")).toHaveTextContent("Aberta");
+  });
+
+  it("LA-ERRO-4 — ATIVIDADE_VERSAO_CONFLITO no cancelamento do lançamento: aviso do apontamento e a lista e o cabeçalho relidos", async () => {
+    await montarComLista();
+    await abrir("a1");
+    const leiturasAntes = backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades/a1").length;
+    fireEvent.click(screen.getByTestId("apontamento-ap1-cancelar"));
+    const dialogo = await screen.findByTestId("dialogo-cancelar-apontamento");
+    fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-apontamento-motivo"), { target: { value: "lançado errado" } });
+    proxima = erroServidor(409, "ATIVIDADE_VERSAO_CONFLITO", { details: { versao_atual: 2, versao_informada: 1, entidade: "apontamento" } });
+    fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-apontamento-enviar"));
+    await waitFor(() =>
+      expect(notify.notifyWarning).toHaveBeenCalledWith(
+        "Atenção",
+        "Este apontamento foi alterado por outra pessoa desde que você o abriu. Ele será relido: confira e tente de novo. Nada foi gravado.",
+      ),
+    );
+    await waitFor(() => expect(backend.chamadas.filter((c) => c.method === "GET" && c.path === "/atividades/a1").length).toBeGreaterThan(leiturasAntes));
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
+  it("LA-PORTA-1 — os corpos levam só as chaves do contrato: nada de cliente_id, setor, centros, unidade, sequência, status ou totais", async () => {
+    const { operacoesNativas, montarCaminhoListagem, montarCaminhoOpcoes } = await import("@/apis/atividades/lancamentoAtividadePort.js");
+    const sujo = {
+      empresa_id: "emp-1",
+      tipo_atividade_id: "t1",
+      nome: "X",
+      area_id: "ar1",
+      bem_id: "",
+      observacao: "  ",
+      area_planejada: "12.5",
+      data_operacional: HOJE,
+      turno: "MANHA",
+      area_executada_dia: "2.5",
+      quantidade_produzida_dia: "1",
+      versao: 4,
+      motivo: "motivo",
+      data_conclusao: HOJE,
+      // Fora do contrato (o servidor recusaria com 400):
+      cliente_id: "outro-tenant",
+      numero: "99",
+      status: "CANCELADA",
+      sequencia: 7,
+      setor_id: "s1",
+      setor_nome: "SETOR",
+      centro_custo_id: "cc1",
+      centro_resultado_id: "cr1",
+      unidade_producao_id: "u-sc",
+      unidade_producao_sigla: "SC",
+      grupo_atividade_id: "g1",
+      area_executada: "1",
+      quantidade_produzida: "1",
+      safra_ciclo_extra: "x",
+    };
+    const chaves = async (/** @type {() => Promise<unknown>} */ chamar) => {
+      await chamar();
+      return Object.keys(ultimaEscrita().body).sort();
+    };
+    expect(await chaves(() => operacoesNativas.create(sujo))).toEqual(["area_id", "area_planejada", "empresa_id", "nome", "tipo_atividade_id"]);
+    // Edição: o vazio vira null (limpa o campo); sem empresa nem tipo.
+    await operacoesNativas.update("a1", sujo);
+    expect(ultimaEscrita().body).toEqual({ versao: 4, nome: "X", area_id: "ar1", bem_id: null, area_planejada: "12.5", observacao: null });
+    expect(await chaves(() => operacoesNativas.concluir("a1", sujo))).toEqual(["data_conclusao", "empresa_id", "versao"]);
+    expect(await chaves(() => operacoesNativas.reabrir("a1", sujo))).toEqual(["empresa_id", "motivo", "versao"]);
+    expect(await chaves(() => operacoesNativas.cancelar("a1", sujo))).toEqual(["empresa_id", "motivo", "versao"]);
+    expect(await chaves(() => operacoesNativas.duplicar("a1", sujo))).toEqual(["empresa_id", "nome"]);
+    // Apontamento: só os campos do dia (área, safra, centros, unidade e máquina são do cabeçalho).
+    expect(await chaves(() => operacoesNativas.createApontamento("a1", sujo))).toEqual([
+      "area_executada_dia",
+      "data_operacional",
+      "empresa_id",
+      "quantidade_produzida_dia",
+      "turno",
+    ]);
+    expect(await chaves(() => operacoesNativas.updateApontamento("a1", "ap1", sujo))).toEqual([
+      "area_executada_dia",
+      "data_operacional",
+      "observacao",
+      "quantidade_produzida_dia",
+      "turno",
+      "versao",
+    ]);
+    expect(await chaves(() => operacoesNativas.cancelarApontamento("a1", "ap1", sujo))).toEqual(["empresa_id", "motivo", "versao"]);
+    expect(await chaves(() => operacoesNativas.duplicarApontamento("a1", "ap1", sujo))).toEqual(["data_operacional", "empresa_id"]);
+    // Sem DELETE físico.
+    expect(operacoesNativas).not.toHaveProperty("delete");
+    // Query fechada da lista e das opções.
+    expect(montarCaminhoListagem({ empresa_id: "emp-1", status: "ABERTA", data_de: "2026-11-01", q: "x", cliente_id: "y", limit: 100 })).toBe(
+      "/atividades?empresa_id=emp-1&status=ABERTA&data_de=2026-11-01&limit=100",
+    );
+    expect(montarCaminhoOpcoes("operadores", { empresa_id: "emp-1", q: "jo", natureza: "MAQUINA" })).toBe("/atividades-opcoes/operadores?empresa_id=emp-1&q=jo");
+  });
+
+  it("LA-PORTA-2 — service sem fazenda: as gravações falham ANTES da rede e as listas voltam vazias", async () => {
+    const servico = await import("@/services/lancamentoAtividadesService");
+    servico.definirFazendaDaTela(null);
+    expect(await servico.listarAtividades()).toMatchObject({ items: [], has_more: false });
+    expect(await servico.listarApontamentos("a1")).toEqual({ items: [] });
+    expect(await servico.listarOpcoesBens()).toMatchObject({ itens: [] });
+    expect(await servico.listarAreasDaFazenda()).toEqual([]);
+    await expect(servico.criarAtividade({ nome: "X", tipo_atividade_id: "t1" })).rejects.toBeInstanceOf(ApiError);
+    await expect(servico.concluirAtividade("a1", { versao: 4 })).rejects.toBeInstanceOf(ApiError);
+    await expect(servico.criarApontamento("a1", { data_operacional: HOJE })).rejects.toBeInstanceOf(ApiError);
+    expect(backend.chamadas).toEqual([]);
+    // Com a fazenda: o motivo curto também falha antes da rede, com o código do servidor.
+    servico.definirFazendaDaTela("emp-1");
+    await expect(servico.cancelarAtividade("a1", { versao: 4, motivo: "ab" })).rejects.toMatchObject({
+      code: API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO,
+      details: { field: "motivo", reason: "curto" },
+    });
+    expect(backend.chamadas).toEqual([]);
+    servico.definirFazendaDaTela(null);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-MENU — rota, menu, ícone, manifesto e paridade com o servidor", () => {
+  it("LA-MENU-1 — página registrada, no manifesto e no menu logo abaixo de Tipos de Atividade; a antiga saiu", async () => {
+    const { PAGES } = await import("@/pages.config.js");
+    const { DEFAULT_MENU, findMenuItemByUrl, getMenuModules } = await import("@/lib/menuConfig");
+    const { ICONE_TELA } = await import("@/components/navigation/MobileModulesView");
+    expect(PAGES.LancamentoAtividades).toBe(LancamentoAtividades);
+    expect(PAGES).not.toHaveProperty("ApontamentosAtividade");
+    const scope = JSON.parse(readFileSync("config/mapa-manejo-scope.json", "utf8"));
+    expect(scope.allowedPages).toContain("LancamentoAtividades");
+    expect(scope.allowedPages).not.toContain("ApontamentosAtividade");
+    const item = findMenuItemByUrl(DEFAULT_MENU, "LancamentoAtividades");
+    expect(item).toMatchObject({ id: "op-atividades", title: "Lançamento de Atividades", moduleId: MODULO });
+    const grupo = DEFAULT_MENU.find((m) => m.id === item.moduleId);
+    const ids = grupo.submenu.map((/** @type {any} */ s) => s.id);
+    expect(ids.indexOf("op-atividades")).toBe(ids.indexOf("sup-tipos-atividade") + 1);
+    expect(getMenuModules(DEFAULT_MENU).flatMap((m) => m.pages.map((p) => p.id))).not.toContain("op-apontamentos-atividade");
+    expect(ICONE_TELA.LancamentoAtividades).toBe(lucide.ClipboardCheck);
+    expect(ICONE_TELA.LancamentoAtividades).not.toBe(ICONE_TELA.TiposAtividade);
+    expect(ICONE_TELA).not.toHaveProperty("ApontamentosAtividade");
+  });
+
+  it("LA-MENU-2 — o par módulo × tela do menu é o mesmo que o servidor confere (TELAS.ATIVIDADES em autorizacaoTela.js)", async () => {
+    const { MODULO_ATIVIDADES, TELA_ATIVIDADES, PAGINA_LANCAMENTO_ATIVIDADES } = await import("@/lib/lancamentoAtividadesPermissions");
+    expect({ MODULO_ATIVIDADES, TELA_ATIVIDADES, PAGINA_LANCAMENTO_ATIVIDADES }).toEqual({
+      MODULO_ATIVIDADES: MODULO,
+      TELA_ATIVIDADES: TELA,
+      PAGINA_LANCAMENTO_ATIVIDADES: "LancamentoAtividades",
+    });
+    const servidor = readFileSync("backend/src/shared/auth/autorizacaoTela.js", "utf8");
+    expect(servidor).toMatch(new RegExp(`ATIVIDADES:\\s*Object\\.freeze\\(\\{\\s*modulo:\\s*'${MODULO_ATIVIDADES}',\\s*tela:\\s*'${TELA_ATIVIDADES}'\\s*\\}\\)`));
+    // A tela antiga não é mais pedida por nenhuma guarda.
+    expect(servidor).not.toMatch(/tela:\s*'op-apontamentos-atividade'/);
+  });
+
+  it("LA-MENU-3 — ações da tela espelham os guardas do servidor (criar = novo|salvar, editar = editar|salvar, cancelar = excluir; extras só pela própria chave)", async () => {
+    const { acoesDaTelaAtividades } = await import("@/lib/lancamentoAtividadesPermissions");
+    const NADA = { ver: false, criar: false, editar: false, cancelar: false, reabrir: false, lancarApontamento: false, editarApontamento: false, cancelarApontamento: false };
+    expect(acoesDaTelaAtividades(null)).toEqual(NADA);
+    expect(acoesDaTelaAtividades({ ...permissaoCom({}), modulos_permitidos: [] })).toEqual(NADA);
+    expect(acoesDaTelaAtividades(permissaoCom({}))).toEqual({ ...NADA, ver: true });
+    expect(acoesDaTelaAtividades(permissaoCom({ salvar: true }))).toEqual({ ...NADA, ver: true, criar: true, editar: true });
+    expect(acoesDaTelaAtividades(permissaoCom({ novo: true }))).toEqual({ ...NADA, ver: true, criar: true });
+    expect(acoesDaTelaAtividades(permissaoCom({ excluir: true }))).toEqual({ ...NADA, ver: true, cancelar: true });
+    // As extras não vêm de salvar/editar/excluir: cada uma pela SUA chave.
+    expect(acoesDaTelaAtividades(permissaoCom({ salvar: true, editar: true, excluir: true }))).toMatchObject({ reabrir: false, lancarApontamento: false, editarApontamento: false, cancelarApontamento: false });
+    expect(acoesDaTelaAtividades(permissaoCom({ reabrir: true }))).toEqual({ ...NADA, ver: true, reabrir: true });
+    expect(acoesDaTelaAtividades(permissaoCom({ lancar_apontamento: true }))).toEqual({ ...NADA, ver: true, lancarApontamento: true });
+    // Sem visualizar, nenhuma ação vale (fail-closed).
+    expect(acoesDaTelaAtividades({ ...permissaoCom(EXTRAS), permissoes_telas: [linhaDaTela({ ...EXTRAS, visualizar: false })] })).toEqual(NADA);
+    expect(acoesDaTelaAtividades({ user_email: "x", is_admin: true })).toEqual({
+      ver: true, criar: true, editar: true, cancelar: true, reabrir: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true,
+    });
+    const guardas = readFileSync("backend/src/shared/auth/guardasRotas.js", "utf8");
+    expect(guardas).toMatch(/const CADASTRO_ATIVIDADES = cadastro\(T\.ATIVIDADES\);/);
+    const bloco = guardas.slice(guardas.indexOf("  atividades: {"), guardas.indexOf("  grupoAtividade:"));
+    expect(bloco).toMatch(/ver: porTela\(T\.ATIVIDADES, 'visualizar'\)/);
+    expect(bloco).toMatch(/criar: CADASTRO_ATIVIDADES\.criar/);
+    expect(bloco).toMatch(/editar: CADASTRO_ATIVIDADES\.editar/);
+    expect(bloco).toMatch(/cancelar: CADASTRO_ATIVIDADES\.excluir/);
+    expect(bloco).toMatch(/reabrir: porTela\(T\.ATIVIDADES, 'reabrir'\)/);
+    expect(bloco).toMatch(/atividadeApontamentos: \{[\s\S]*criar: porTela\(T\.ATIVIDADES, 'lancar_apontamento'\)[\s\S]*editar: porTela\(T\.ATIVIDADES, 'editar_apontamento'\)[\s\S]*cancelar: porTela\(T\.ATIVIDADES, 'cancelar_apontamento'\)/);
+  });
+
+  it("LA-MENU-4 — paridade das ações extras: EXTRA_ACTION_KEYS_BY_PAGE = ACOES_ATIVIDADES_EXTRAS do servidor = as chaves pedidas pelas guardas", async () => {
+    const { EXTRA_ACTION_KEYS_BY_PAGE, ACTION_LABELS, createRestrictedPagePermission } = await import("@/lib/permissions");
+    const { ACOES_EXTRAS_ATIVIDADES } = await import("@/lib/lancamentoAtividadesPermissions");
+    const { DEFAULT_MENU, getMenuModules } = await import("@/lib/menuConfig");
+    const telas = readFileSync("backend/src/shared/auth/autorizacaoTela.js", "utf8");
+    const lista = telas.match(/ACOES_ATIVIDADES_EXTRAS\s*=\s*Object\.freeze\(\[([^\]]*)\]/);
+    expect(lista, "ACOES_ATIVIDADES_EXTRAS ausente em autorizacaoTela.js").toBeTruthy();
+    const doServidor = [.../** @type {RegExpMatchArray} */ (lista)[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    const doCliente = EXTRA_ACTION_KEYS_BY_PAGE[TELA];
+    expect([...doCliente].sort()).toEqual([...doServidor].sort());
+    expect(Object.values(ACOES_EXTRAS_ATIVIDADES).sort()).toEqual([...doServidor].sort());
+    // As guardas pedem exatamente essas chaves (além das ações padrão).
+    const guardas = readFileSync("backend/src/shared/auth/guardasRotas.js", "utf8");
+    const pedidas = [...guardas.matchAll(/porTela\(\s*T\.ATIVIDADES\s*,\s*'([a-z_]+)'\s*\)/g)].map((m) => m[1]);
+    const extrasPedidas = [...new Set(pedidas.filter((a) => !["visualizar", "novo", "salvar", "editar", "excluir", "importar", "exportar"].includes(a)))];
+    expect(extrasPedidas.sort()).toEqual([...doServidor].sort());
+    for (const acao of doServidor) expect(typeof ACTION_LABELS[acao], acao).toBe("string");
+    // A linha nova (restrita) nasce com as extras desligadas; nenhuma outra tela ganha essas chaves.
+    const mod = getMenuModules(DEFAULT_MENU).find((m) => m.id === MODULO);
+    const pagina = mod.pages.find((p) => p.id === TELA);
+    const restrita = createRestrictedPagePermission(mod.id, mod.title, pagina);
+    expect(doServidor.every((a) => restrita[a] === false)).toBe(true);
+    for (const outra of mod.pages.filter((p) => p.id !== TELA)) {
+      const linha = createRestrictedPagePermission(mod.id, mod.title, outra);
+      expect(doServidor.some((a) => a in linha), outra.id).toBe(false);
+    }
+  });
+
+  it("LA-MENU-5 — tela Permissões: Lançamento de Atividades com as 7 ações padrão e as 4 extras, todas desligadas", async () => {
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    const { default: FormularioUsuario } = await import("@/components/usuarios/FormularioUsuario");
+    const { DEFAULT_MENU } = await import("@/lib/menuConfig");
+    render(<FormularioUsuario onSubmit={() => {}} onCancel={() => {}} initialData={null} usuarios={[]} />);
+    const titulo = DEFAULT_MENU.find((m) => m.id === MODULO).title;
+    const rotuloModulo = screen.getByText(titulo, { selector: "span" });
+    await act(async () => {
+      within(/** @type {HTMLElement} */ (rotuloModulo.closest("label"))).getByRole("checkbox").click();
+    });
+    const cartao = /** @type {HTMLElement} */ (screen.getByText("Lançamento de Atividades", { selector: "p.font-semibold" }).closest(".rounded-lg"));
+    const caixas = within(cartao).getAllByRole("checkbox");
+    expect(caixas).toHaveLength(11);
+    expect(caixas.every((c) => c.getAttribute("aria-checked") === "false")).toBe(true);
+    for (const r of ["REABRIR ATIVIDADE", "LANÇAR APONTAMENTO", "EDITAR APONTAMENTO", "CANCELAR APONTAMENTO"]) expect(within(cartao).getByText(r)).toBeTruthy();
+    expect(screen.queryByText("Apontamentos de Atividade")).toBeNull();
+    // As extras são só desta tela.
+    const tipos = /** @type {HTMLElement} */ (screen.getByText("Tipos de Atividade", { selector: "p.font-semibold" }).closest(".rounded-lg"));
+    expect(within(tipos).queryByText("REABRIR ATIVIDADE")).toBeNull();
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+describe("LA-TIPOS — a tela de Tipos de Atividade continua funcionando (rotuloDoCentro movido)", () => {
+  it("LA-TIPOS-1 — o formulário do tipo mostra os centros padrão pelo rotuloDoCentro da lib nova (e marca o de outra fazenda)", async () => {
+    const { rotuloDoCentro } = await import("@/lib/lancamentoAtividadesRegras");
+    expect(rotuloDoCentro({ numero: "12", nome: " Pecuária de corte " })).toBe("12 — Pecuária de corte");
+    expect(rotuloDoCentro({ nome: "Sem número" })).toBe("Sem número");
+    expect(rotuloDoCentro(null)).toBe("");
+    expect(readFileSync("src/components/tipos-atividade/FormularioTipoAtividade.jsx", "utf8")).toMatch(
+      /import \{ rotuloDoCentro \} from "@\/lib\/lancamentoAtividadesRegras";/,
+    );
+    tiposSrv.listarCentrosDaFazenda.mockImplementation(async (recurso) =>
+      recurso === "centros-custo" ? [{ id: "cc1", numero: "1", nome: "Pecuária de corte" }, { id: "cc2", numero: "2", nome: "Lavoura" }] : [],
+    );
+    const { default: FormularioTipoAtividade } = await import("@/components/tipos-atividade/FormularioTipoAtividade");
+    render(
+      <QueryClientProvider client={novoCliente()}>
+        <FormularioTipoAtividade
+          grupos={[{ id: "g1", nome_grupo: "Pastagem", ativo: true }]}
+          empresaId="emp-1"
+          onSubmit={() => {}}
+          toolbarActions
+          isEditing
+          initialData={{ ...TIPOS[0], descricao: null, categoria: null }}
+        />
+      </QueryClientProvider>,
+    );
+    await assentar();
+    const form = screen.getByTestId("b1-form-tipo-atividade");
+    expect(within(form).getByRole("combobox", { name: "Centro de custo padrão" })).toHaveTextContent("1 — Pecuária de corte");
+    expect(within(form).getByRole("combobox", { name: "Centro de resultado padrão" })).toHaveTextContent("9 — Cria (OUTRA FAZENDA)");
+  });
+
+  it("LA-TIPOS-2 — excluir tipo usado por atividade: a tela diz que há atividades vinculadas", async () => {
+    tiposSrv.listarGruposSimples.mockResolvedValue([{ id: "g1", nome_grupo: "Pastagem", ativo: true }]);
+    tiposSrv.listarTiposAtividade.mockResolvedValue([{ id: "t1", nome_tipo: "APLICAÇÃO", grupo_atividade_id: "g1", grupo_atividade_nome: "PASTAGEM", ativo: true }]);
+    tiposSrv.excluirTiposAtividade.mockResolvedValue({ excluidos: [], bloqueados: [{ id: "t1", code: API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED }] });
+    const { default: TiposAtividade } = await import("@/pages/TiposAtividade");
+    render(
+      <QueryClientProvider client={novoCliente()}>
+        <TiposAtividade />
+      </QueryClientProvider>,
+    );
+    const celula = await screen.findByText("APLICAÇÃO");
+    fireEvent.click(/** @type {HTMLElement} */ (celula.closest('[data-testid="b1-row"]')));
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir" }));
+    const confirmar = await screen.findByRole("alertdialog");
+    fireEvent.click(within(confirmar).getByRole("button", { name: "Excluir" }));
+    await waitFor(() => expect(tiposSrv.excluirTiposAtividade).toHaveBeenCalledWith(["t1"]));
+    await waitFor(() =>
+      expect(notify.notifyError).toHaveBeenCalledWith("Atenção", "1 tipo de atividade não pôde ser excluído. Há atividades vinculadas: inative o tipo em vez de excluir."),
+    );
+    // O código novo do vínculo (ATIVIDADE_VINCULADA) também é entendido como vínculo com atividade.
+    const { getApiErrorMessage } = await import("@/apis/_core/ApiError.js");
+    expect(getApiErrorMessage(new ApiError(API_ERROR_CODES.TIPO_ATIVIDADE_DELETE_BLOCKED))).toBe(
+      "Não é possível excluir o tipo de atividade: há atividades vinculadas. Inative o tipo em vez de excluir.",
+    );
+  });
+});
