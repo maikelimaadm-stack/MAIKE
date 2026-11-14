@@ -157,17 +157,59 @@ TABLE`, `CADCATEGORIA` existente, nome novo ocupado, trava concorrente). O runne
 recusa antes de DDL. GREEN: mesmo OID, as 12 colunas, 3 índices e 2 constraints novos, FKs
 válidas, `migrate diff` 0, Prisma Client lendo a tabela, 2ª execução sem pendências.
 
-### 6.3 Ensaio do envelope do caminho B (43 → 44)
+### 6.2b Depois do merge da `main` com a PR #270 (CADCURVAGANHO, `cf07309`)
 
-O envelope do §5 do runbook, com o conteúdo integral do `migration.sql` (`83ca58a0…7e1c`), rodou com
-`psql` contra um PG 16 local no estado de produção: as 43 migrations da `main` (D-PROD-183 e
-CADESTACOES incluídas) e categorias com legado semeado.
+A `main` trouxe a EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189), **já aplicada em
+produção** às 23:18 UTC de 2026-11-13. O repositório passa a ter **45** migrations: esta CONTRACT parte
+de **44** concluídas e termina com **45**; **82** tabelas antes e depois. Conflitos resolvidos mantendo
+os dois lados: `MIGRATIONS_APROVADAS` em ordem de timestamp (`…500000` desta fatia, depois `…600000`),
+B1 do `premerge-migrate`, D-PROD-189 em `DECISIONS.md` (marcador final: próxima decisão
+**D-PROD-191**, com a D-PROD-185 na PR #263 e a D-PROD-190 na PR #269), os blocos de missão em
+`CURRENT-STATE.md` e as contagens de `patrimonioSimplificaMigration` (44 → 45 migrations; 88/89/82
+tabelas; 75 que ficam) e `tipoTarefaDropColunasMigration` (44 → 45), com os ensaios irmãos.
+
+**Ordem fora dos nomes.** Em produção esta CONTRACT (`…500000`) entra **depois** da `…600000`. Nada
+recusa nem aceita errado por isso: o `premerge-migrate` só olha as novas contra a `main`
+(`origin/main...HEAD` = só esta), e `conferirHistoricoRemoto`, `contractsPendentes`,
+`exigirContractAutorizado` (runner oficial), o `preflight-schema` e o `prisma migrate deploy` conferem por
+conjunto. Sem correção de código; só a prova: B15k (pura, alvo com as 44 e a CADCURVAGANHO por último),
+B15j (main sintética com migration de nome posterior), e o teste/ensaio desta fatia, que partem com a
+CADCURVAGANHO concluída e conferem que as duas últimas aplicadas são `[…600000, …500000]`.
+
+Rodada de `npm run verify:all` em 2026-11-13/14, banco PostgreSQL 16 local recém-criado:
+
+| Etapa | Resultado |
+|---|---|
+| `test:gates` | 825/825 |
+| `test:backend` (141 arquivos) | 1.779 testes: 1.774 passam, 0 falham, 5 todo (1.286 s) |
+| `test:smoke` | 219 arquivos, 2.661/2.661 |
+| `source-closure` | 598/598 alcançáveis |
+| `types` | 625 / teto 625 |
+| Demais gates, `prisma:generate`, `typecheck:backend`, `lint`, `build`, `build:admin`, `admin-isolation:bundles` | passam — **TODAS AS ETAPAS PASSARAM** (1.609 s) |
+| Ensaio local | `ok: true`; partida 44/0, 82 tabelas, 28 colunas, impressão de 6 linhas; 14/14 RED recusados; runner sem autorização recusou sem mudar nada; GREEN 45/0 (14 revertidas dos RED), últimas aplicadas `[…600000_cadcurvaganho_cadastro, …500000_categoria_manejo_cadcategoria]`, 82 tabelas, 12 colunas, nenhuma divergência, `migrate diff` 0, Prisma Client lê 8 linhas, 2ª execução sem pendência |
+
+### 6.3 Ensaio do envelope do caminho B (44 → 45, depois da CADCURVAGANHO)
+
+Refeito em 2026-11-13 depois do merge da `main` com a PR #270. O envelope do §5 do runbook (o bloco
+do caminho B copiado do runbook, com `n_ok <> 44`), com a linha do marcador trocada pelo conteúdo
+integral do `migration.sql` (`83ca58a0…7e1c`, conferido com `sha256sum`) e o marcador da impressão
+trocado pela impressão calculada, rodou com `psql -c` (uma chamada, como a `execute_sql`) contra um
+PG 16 local no estado de produção:
+
+- partida: as **44** migrations da `main` (cópia de `backend/prisma/migrations` sem esta pasta, com
+  o `schema.prisma` da `origin/main`, por `prisma migrate deploy`), CADESTACOES e CADCURVAGANHO
+  incluídas; 44/0, **82** tabelas, `CategoriaManejo` com 28 colunas;
+- sementes: 1 `Cliente` e 4 categorias de manejo, 3 com o legado da Fatia C (`raca` `COMPOSTO`,
+  `categoria_oficial`, 12 GMDs 0) e 1 sem nada nas 16 colunas;
+- impressão pelo bloco B do runbook: 3 linhas, `b73c266a9b92`; `md5_12_colunas` do bloco A: 4
+  linhas, `d527d6b403bf38d16754c4b0d416b9bd`;
+- `PGOPTIONS="-c maike.categoria_manejo_ensaio_alvo=<system_identifier local>"`.
 
 | Cenário | Resultado |
 |---|---|
-| Sem `maike.categoria_manejo_legado_impressao` | recusado pela guarda ("ausente"); 43/0, `CategoriaManejo` intacta |
-| Sem `maike.categoria_manejo_ensaio_alvo` (system_identifier local) | `RELEASE_BLOCKED: alvo divergente` |
-| Com a impressão do preflight local | aplicado: 44/0, `CategoriaManejo` ausente, `CADCATEGORIA` com 12 colunas e as linhas preservadas; `prisma migrate diff --exit-code` vazio contra o schema da branch |
+| (a) sem a linha `SET LOCAL maike.categoria_manejo_legado_impressao`, com `PGOPTIONS` | recusado pela guarda: "os valores das colunas apagadas (3 categorias de manejo) não são os aprovados no GO (… = ausente) … nada foi alterado". Depois: 44/0, `CategoriaManejo` com 28 colunas, 82 tabelas, `md5_12_colunas` igual |
+| (b) com a impressão, sem `PGOPTIONS` | `RELEASE_BLOCKED: alvo divergente`. Depois: 44/0, nada mudou |
+| (c) com a impressão e `PGOPTIONS` | `COMMIT`. **45/0**; as duas últimas aplicadas são a `…600000_cadcurvaganho_cadastro` e esta CONTRACT (checksum `83ca58a0…7e1c`, `applied_steps_count` 1), ou seja, fora da ordem dos nomes, como em produção; `CategoriaManejo` ausente, `CADCATEGORIA` com o mesmo OID e as 12 colunas; 82 tabelas; `md5_12_colunas` igual ao de antes (4 linhas preservadas); `prisma migrate diff --from-url <banco> --to-schema-datamodel backend/prisma/schema.prisma --exit-code`: **No difference detected** (exit 0). Em seguida, `npm run deploy:migrate` no mesmo banco: "No pending migrations to apply"; `prisma migrate status`: 45 migrations, "Database schema is up to date!" |
 
 ## 7. Testes alterados ou apagados
 
@@ -181,7 +223,7 @@ CADESTACOES incluídas) e categorias com legado semeado.
 - `autorizacaoIntegradaBloqueadores.test.mjs` F2: não lê mais a coluna do ícone; confere que a
   linha fica intocada.
 - `tipoTarefaDropColunasMigration`, `patrimonioSimplificaMigration` e os dois ensaios irmãos:
-  41 → 42 e 42 → 43.
+  41 → 42 e 42 → 43 (e, nos merges das PRs #265 e #270, 43 → 44 e 44 → 45).
 - `premerge-migrate`, `migrations` (B11/B14 com a terceira CONTRACT concluída) e `alvo-banco`
   AB-05: três CONTRACT.
 - `preflight-schema`: a coluna exigida nova.
@@ -194,8 +236,9 @@ CADESTACOES incluídas) e categorias com legado semeado.
 
 ## 8. Riscos e limites conhecidos
 
-- **Fatos de produção não reconferidos.** As contagens vêm do plano: 42/0, categorias com o
-  legado e nenhuma com vínculo. O plano fala em 4 linhas com legado; a emenda, em 5 categorias.
+- **Fatos de produção não reconferidos.** As contagens vêm do plano e dos registros das PRs #265 e
+  #270: 44/0 (a última, `…600000_cadcurvaganho_cadastro`, aplicada às 23:18 UTC de 2026-11-13), 82
+  tabelas, categorias com o legado e nenhuma com vínculo. O plano fala em 4 linhas com legado; a emenda, em 5 categorias.
   O bloco B do preflight dá o número real; a impressão se calcula lá.
 - **Janela com acesso bloqueado** (§4). Se a release for abortada depois de bloquear e antes de
   aplicar, basta não mergear e liberar o acesso.
