@@ -28,6 +28,7 @@ Runbook: [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RE
 | ensaios das CONTRACT com a migration nova fora da partida e aplicada por último: `categoriaManejoCadcategoriaMigration` (20/20), `patrimonioSimplificaMigration` + `cadCurvaGanhoMensalMigration` (24/24), `cadCategoriaCurvaGanhoMigration` + `atividadeCabecalhoMigration` (38/38), `tipoAtividadeDefaultsMigration` (25/25) | todos verdes |
 | `node --test scripts/tests/deploy/*.test.mjs` (premerge 108, preflight 10, migrations 56, alvo 6, bench 13) | 193/193 |
 | `npx vitest run` dos smoke novos e alterados (`formulacoes` 14, `suplementacaoLancamentoBase` 10, `scope`/`vercelSpaRoutes` 25) e dos vizinhos (menu, permissões, suplementação, cocho: 17 arquivos, 280) | todos verdes |
+| `npm run test:smoke` (suíte inteira) | 237 arquivos, 2.891/2.891 |
 | `npm run test:gates` | 921/921 |
 | `gate:tenancy`, `gate:indices`, `gate:modelobase1-pecuario`, `gate:supabase-public-grants`, `gate:deploy-migrations`, `gate:native-api`, `gate:product-scope`, `gate:import-integrity`, `gate:base44`, `gate:source-closure`, `gate:api-boundary`, `gate:no-secrets`, `gate:types`, `typecheck:backend`, `lint` | PASSOU (lint: 0 erros; 2 avisos anteriores a esta missão) |
 | ensaio do caminho B (§3 do runbook) em banco local com as 53 migrations | recusa com o sid de produção; aplica com o local (54 / 0, 87 tabelas, `migrate status` em dia, `migrate diff` vazio); 2ª execução recusada |
