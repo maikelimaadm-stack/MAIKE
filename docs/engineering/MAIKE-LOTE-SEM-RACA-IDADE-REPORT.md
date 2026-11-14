@@ -51,3 +51,15 @@ cheias.
   merge foi feito antes do fim, por pedido explícito: a release não tem migration, e o
   smoke completo já tinha passado em `aeef10c0` (230 arquivos, 2.833 testes). O
   resultado final é conferido depois do merge.
+
+## 5. Depois do merge
+
+O `verify:all` de `22ece107` terminou depois do merge. Passaram backend (1.901
+testes, 0 falhas), smoke (230 arquivos, 2.835 testes), lint, build e os demais
+gates. Só o **`gate:types` falhou**, com um diagnóstico novo (TS2367) em
+`src/domain/lotes/correcaoEntrada.js`. Sem `idade_media_meses`, nenhum campo
+administrativo é mais do tipo `'inteiro'`, e o ramo que tratava esse tipo virou
+comparação impossível. A correção, numa PR própria, remove o ramo morto sem mudar
+o comportamento: `gate:types` volta a passar (614 ≤ 625), e
+`r1CorrecaoEntradaLote` e `loteSemRacaIdade` passam (28/28).
+
