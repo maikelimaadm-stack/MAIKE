@@ -43,14 +43,14 @@ unidade de produção de `UnidadeMedida` e coeficiente) e as **8 flags** de como
    precisam estar ativos quando escolhidos. Na Fatia 2, o padrão só será herdado por atividade da mesma fazenda do
    centro. Com mais de uma fazenda, padrão por fazenda seria uma tabela filha — decidir na Fatia 2.
 2. **`permite_maquina` não está na lista de flags.** A Fatia 3 fala em "tipo que permite máquina"; hoje só existe
-   `exige_maquina`. Acrescentar antes de aplicar a migration custa só re-pinar.
+   `exige_maquina`. **Decidido pelo proprietário:** "Não, segue só com Exige máquina (Recomendado)".
 3. **Caixas de marcar.** As 8 flags usam a caixa de marcar existente (`MgCheck`) dentro do campo do Base1, como foi
    pedido; "Ativo" continua como estava.
 4. **Leitura do tipo.** `GET /tipos-atividade` só exige login (como antes) e agora devolve o número e o nome dos centros
    padrão. Quem usa o tipo vê os centros que ele carrega; listar os centros da fazenda continua exigindo a permissão
    do formulário de tipo (criar ou editar).
-5. **Constituição.** A nota D-PROD-196 no `07-DO-NOT-DO.md` foi redigida pelo agente; vale só com a aprovação
-   explícita do proprietário no merge (§4 da constituição).
+5. **Constituição.** A nota D-PROD-196 no `07-DO-NOT-DO.md` foi redigida pelo agente; o proprietário a aprovou junto
+   com o merge (§4 da constituição), na resposta citada no §7.
 
 ## 5. Validação (local; o GitHub Actions da conta não roda)
 
@@ -95,10 +95,22 @@ conferência no navegador.
 
 ## 7. Release
 
-**A migration NÃO foi aplicada em nenhum banco remoto.** Ela precisa de autorização explícita do proprietário e entra
-**antes do merge** (o código novo lê as colunas; o código antigo convive com elas), fora de pico (trava a tabela de
-tipos por menos de 1 s), pelo runbook: caminho A com `--contract D-PROD-196`, ou caminho B (conector) com GO escrito e
-específico desta migration. Produção hoje: 50 migrations concluídas (a última é a `20261114200000_cadcategoria_curva_ganho`, D-PROD-195, aplicada às 14:51:56 UTC), 85 tabelas; depois desta, 51.
+**Aplicada em produção em 2026-11-14 às 17:05:05 UTC** (`finished_at`), com GO escrito do proprietário para esta
+migration (resposta: "Sim: aplique e faça o merge (Recomendado)" à pergunta que citava `20261114300000_tipo_atividade_defaults`, D-PROD-196),
+pelo **caminho B** do runbook (uma `execute_sql`, transação única: `lock_timeout` 5 s, trava consultiva 72707369,
+guarda `$alvo$` com o `system_identifier` e 50/0, o `migration.sql` literal e o registro em `_prisma_migrations` com o
+checksum do arquivo `b65d4f08…5dbf` e `applied_steps_count` 1).
+
+| Etapa | Resultado |
+|---|---|
+| Preflight (§4, 17:04 UTC) | `PRONTO PARA APLICAR`: alvo certo, 50 / 0, esta não registrada, D-PROD-182 e D-PROD-194 com o checksum do repositório, nenhuma coluna, constraint ou índice novo já presente, os 3 alvos das FKs com único em `(cliente_id, id)`, 85 tabelas, RLS `true` / FORCE `false` / política `maike_backend_all`, 2 linhas em `TipoAtividade`, 0 travas, 0 transações longas |
+| Aplicação (17:05:05 UTC) | transação concluída; `_prisma_migrations` com checksum `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf` |
+| Postcheck (§6, 17:05 UTC) | `APLICADA E CONFERIDA`: 51 / 0; 13 colunas; 5 constraints; 4 índices; 85 tabelas; RLS, FORCE e política iguais ao preflight; nenhum privilégio novo; 2 linhas, nenhum padrão preenchido |
+| Alertas do Supabase (17:06 UTC) | segurança: nenhum. Performance: só `unused_index` (INFO) para os 3 índices novos, esperado; nenhuma FK nova sem índice |
+
+O merge da PR #276 vem depois desta aplicação, como o runbook manda. A mesma resposta do proprietário aprova a nota
+D-PROD-196 do `07-DO-NOT-DO.md`. Sobre `permite_maquina`, o proprietário respondeu "Não, segue só com Exige máquina
+(Recomendado)": a lista de flags fica como está.
 
 ## 8. Fora do escopo
 

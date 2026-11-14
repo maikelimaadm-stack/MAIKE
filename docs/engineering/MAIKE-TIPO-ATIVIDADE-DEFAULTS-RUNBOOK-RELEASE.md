@@ -553,13 +553,13 @@ padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
 
 | Campo | Valor |
 |---|---|
-| GO-1 e GO-2 | `<palavras literais do proprietário>` |
-| Caminho | `<A ou B>` |
-| `<SHA_APROVADO>` | `<40 hex>` |
-| Verificação do SHA | `<CI ou análise local: comandos e contagens>` |
-| Ensaio local (§4.2) | `<n/n>` |
-| Preflight (§4) | `<hora UTC>`; `<50 / 0>`; linhas de `TipoAtividade` `<N_TIPOS>`; RLS/políticas `<…>`; travas `<0>`; transações longas `<0>` |
-| Aplicação | `<hora UTC do finished_at>` |
-| Postcheck (§6) | `<VEREDITO>`; `<51 / 0>`; linhas `<N_TIPOS>` |
-| Alertas do Supabase | `<segurança / performance>` |
-| Merge e deploy | `<PR, commit, hora>` |
+| GO-1 e GO-2 | "Sim: aplique e faça o merge (Recomendado)" (pergunta que citava `20261114300000_tipo_atividade_defaults`, D-PROD-196, e o merge da PR #276) |
+| Caminho | B (conector, uma `execute_sql`) |
+| `<SHA_APROVADO>` | `e3dc5af1` (HEAD da `feat/tipo-atividade-defaults` na aplicação) |
+| Verificação do SHA | análise local (o GitHub Actions da conta não roda): `verify-all` sem `test:backend` todo PASS (smoke 2848/2848); backend focado 22 arquivos; portão e runner 168/168; 51 migrations em banco vazio e `migrate diff` vazio |
+| Ensaio local (§4.2) | `tipoAtividadeDefaultsMigration.test.mjs` 25/25 (envelope do caminho B com os blocos deste runbook) |
+| Preflight (§4) | 17:04 UTC; 50 / 0; linhas de `TipoAtividade` 2; RLS `true` / FORCE `false` / `maike_backend_all`; travas 0; transações longas 0; `PRONTO PARA APLICAR` |
+| Aplicação | 2026-11-14 17:05:05 UTC (`finished_at`); checksum `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; `applied_steps_count` 1 |
+| Postcheck (§6) | `APLICADA E CONFERIDA`; 51 / 0; linhas 2; 13 colunas, 5 constraints, 4 índices, 85 tabelas; nenhum privilégio novo |
+| Alertas do Supabase | segurança: nenhum / performance: só `unused_index` (INFO) para os 3 índices novos, esperado |
+| Merge e deploy | PR #276, depois da aplicação (o commit do merge fica no histórico da `main`) |

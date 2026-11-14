@@ -7201,8 +7201,10 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 - Revisão independente em três frentes, 2 céticos por achado, e conferência no navegador: ver o relatório §6.
 
 **Pontos levados ao proprietário.**
-1. A Fatia 3 fala em "tipo que permite máquina", mas a lista de flags tem `exige_maquina` e não `permite_maquina` (máquina opcional). Acrescentar antes de aplicar a migration custa só re-pinar.
+1. A Fatia 3 fala em "tipo que permite máquina", mas a lista de flags tem `exige_maquina` e não `permite_maquina` (máquina opcional). **Resposta do proprietário:** "Não, segue só com Exige máquina (Recomendado)".
 2. Com mais de uma fazenda no cliente, o centro padrão vale só para a fazenda dele; padrão por fazenda seria uma tabela filha (decidir na Fatia 2).
+
+**Aplicação em produção.** 2026-11-14 às 17:05:05 UTC (`finished_at`), caminho B do runbook, com o GO escrito do proprietário para esta migration ("Sim: aplique e faça o merge (Recomendado)"). Preflight `PRONTO PARA APLICAR` (50 / 0, 85 tabelas, 2 tipos, 0 travas); postcheck `APLICADA E CONFERIDA` (51 / 0, 13 colunas, 5 constraints, 4 índices, RLS e política inalterados, nenhum privilégio novo, nenhum padrão preenchido); alertas do Supabase sem nada novo além de `unused_index` para os 3 índices novos. A mesma resposta aprova a nota D-PROD-196 do `07-DO-NOT-DO.md` no merge da PR #276.
 
 **Relatório:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
 
