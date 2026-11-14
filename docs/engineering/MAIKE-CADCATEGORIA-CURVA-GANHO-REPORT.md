@@ -66,3 +66,22 @@ Com o GitHub Actions do proprietário pausado, a análise foi local.
 | smoke da correção (`categoriaManejoCriacaoOnline`, `categoriaManejoEnxuto`, `categoriaManejoCurvaGanho`, `offlineRuntime`) | 56/56 |
 | `verify:all` no commit `a2de2c56` (banco dedicado `maike_verify`) | em andamento no momento do merge (etapas até `lint` passaram; `test:backend` sem nenhuma falha até então); o merge não esperou o fim porque, com a migration aplicada, criar categoria em produção fica quebrado até o deploy. O resultado final é registrado no fechamento |
 | aplicação em produção e conferência | ver runbook §7 |
+
+## 6. Emenda R2 — fila offline (depois do merge)
+
+A segunda revisão independente, do commit `3295a12b`, confirmou três problemas
+na retenção da criação antiga de categoria. Estavam no ar desde o merge da PR
+#278, mas só afetam quem tem uma categoria criada sem conexão pela versão
+anterior e ainda não sincronizada:
+
+| Achado | Correção (D-PROD-195, emenda R2) |
+|---|---|
+| Um lote criado offline apontando para a categoria retida ia ao servidor com `categoria_manejo_id = 'offline_…'` e era gravado com referência solta | No replay, nenhum item vai ao servidor com um id `offline_…` sem mapeamento: fica retido (`quarentena.depende_de`); edição ou exclusão do registro retido fica junto dele |
+| A categoria retida aparecia em todas as listas, inclusive online | `create` retido não entra mais nas listas |
+| Criar categoria online deixou de pôr o registro no cache offline | Política `criacao: 'somente_online'` no runtime, que grava o registro confirmado no cache |
+
+Sem migration. Testes: `categoriaManejoCriacaoOnline` (6, com lote dependente,
+lista sem a retida e cache), `offlineRuntime`, `estoqueP0FilaOfflineLegada`,
+`loteDeleteOfflineBloqueado` e `loteExclusaoCacheOffline`: 61/61. Os quatro testes
+novos falham com o runtime anterior.
+
