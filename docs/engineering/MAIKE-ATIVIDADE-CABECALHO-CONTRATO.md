@@ -214,3 +214,94 @@ quebra até o código novo subir. **Só com autorização explícita do propriet
 a versão no ar usa. Então ela só entra com nova autorização sua, logo antes do merge." Vale para aplicar esta
 migration logo antes do merge da PR da Fatia 2 e fazer o merge, depois de toda a validação local verde e de um
 preflight `PRONTO PARA APLICAR`. Não vale para a Fatia 3.
+
+## 10. Formato da API (backend e tela seguem este texto)
+
+Convenções do módulo antigo, mantidas:
+- decimais como string com 4 casas (`t4`);
+- datas `AAAA-MM-DD` (`diaDe`) e instantes ISO (`iso`);
+- resumos ao lado de cada id: `usuarioPublico {id, nome}`; `bemPublico {id, numero, codigo_frota, nome, natureza}`;
+  `centroPublico {id, numero, nome}`; área `{id, numero_area, nome}`;
+- `empresa_id` vem na query (GET) ou no corpo (escrita) e é conferido contra o tenant (`exigirEmpresaDoTenant`);
+- "hoje" é o dia no fuso da fazenda (`tempoDaFazenda`; sem fuso, falha fechado `EMPRESA_FUSO_NAO_CONFIGURADO`);
+- decimais do corpo só como string, sem coerção do AJV, como no módulo antigo;
+- motivo com no mínimo 3 caracteres úteis e no máximo 500;
+- conflito de versão: 409 com `versao_atual` e `versao_informada`.
+
+**Atividade (lista e detalhe):**
+
+```
+{ id, empresa_id, numero, nome, status, versao,
+  tipo_atividade_id, tipo_atividade_nome, grupo_atividade_id, grupo_atividade_nome,
+  area_id, area {id, numero_area, nome} | null, setor_id, setor_nome,
+  bem_id, bem {…bemPublico} | null, safra_ciclo,
+  centro_custo_id, centro_custo {…centroPublico} | null,
+  centro_resultado_id, centro_resultado {…centroPublico} | null,
+  unidade_producao_id, unidade_producao_sigla, unidade_producao {id, sigla, descricao} | null,
+  data_inicio, data_prevista_fim, data_conclusao,
+  area_planejada, area_executada, quantidade_produzida,
+  lancamento_tarefa_id, lancamento_tarefa {id, numero, nome?} | null, observacao,
+  concluida_em, concluida_por {…usuarioPublico} | null,
+  cancelada_em, cancelado_por {…usuarioPublico} | null, motivo_cancelamento,
+  reaberta_em, reaberta_por {…usuarioPublico} | null, motivo_reabertura,
+  criado_por {…usuarioPublico} | null, createdAt, updatedAt }
+```
+
+O detalhe (`GET /atividades/:id`) acrescenta `totais: { apontamentos_confirmados, apontamentos_cancelados,
+dias_com_apontamento }`. A lista devolve a mesma forma de lista paginada do módulo antigo (`listarApontamentos` →
+helper keyset; mesmo envelope).
+
+**Corpo de criar:**
+- `{ empresa_id, nome, tipo_atividade_id, area_id?, bem_id?, safra_ciclo?, data_inicio?, data_prevista_fim?,
+  area_planejada?, lancamento_tarefa_id?, observacao? }`;
+- `PATCH`: os mesmos menos `empresa_id` e `tipo_atividade_id`, mais `versao` obrigatória.
+
+**Corpos das ações:**
+- `concluir {empresa_id, versao, data_conclusao?}`;
+- `reabrir {empresa_id, versao, motivo}`;
+- `cancelar {empresa_id, versao, motivo}`;
+- `duplicar {empresa_id, nome?, data_inicio?, data_prevista_fim?}`.
+
+Toda escrita devolve a atividade no formato do detalhe.
+
+**Apontamento:**
+
+```
+{ id, empresa_id, atividade_id, data_operacional, turno, sequencia,
+  operador_usuario_id, operador {…usuarioPublico} | null,
+  area_executada_dia, quantidade_produzida_dia, observacao, origem, status, versao,
+  cancelado_em, cancelado_por {…usuarioPublico} | null, motivo_cancelamento,
+  criado_por {…usuarioPublico} | null, createdAt, updatedAt }
+```
+
+- **Lista:** `GET /atividades/:id/apontamentos` devolve `{ itens: [...] }` (sem paginação; ordem
+  `data_operacional desc, turno, sequencia`).
+- **Escritas:** criar, editar, cancelar e duplicar devolvem `{ apontamento, atividade, alertas }`.
+  - `atividade` é o cabeçalho com os totais recalculados.
+  - `alertas` é `[]` ou `[{ codigo: 'FORA_DO_INTERVALO', mensagem, data_inicio, data_prevista_fim }]`.
+- **Corpo de criar:** `{ empresa_id, data_operacional, turno?, operador_usuario_id?, area_executada_dia?,
+  quantidade_produzida_dia?, observacao?, origem? }`.
+- **Corpo de editar:** os mesmos campos de dado mais `versao`.
+- **Corpo de cancelar:** `{ empresa_id, versao, motivo }`.
+- **Corpo de duplicar:** `{ empresa_id, data_operacional? }`.
+
+**Opções** (`GET /atividades-opcoes/<x>?empresa_id=&q=&cursor=&limit=`, no formato de opções do módulo antigo):
+- `tipos`: tipos ativos com as flags e os padrões, para a tela avisar o que é exigido;
+- `areas`: ativas da fazenda, com o setor;
+- `bens`: ativos da fazenda;
+- `operadores`: usuários ativos do cliente;
+- `tarefas`: lançamentos de tarefa da fazenda.
+
+**Erros novos** (`errorCodes.js`, prefixo `ATIVIDADE_`):
+
+| Código | HTTP | Quando |
+|---|---|---|
+| `ATIVIDADE_NOT_FOUND` | 404 | atividade não encontrada |
+| `ATIVIDADE_APONTAMENTO_NOT_FOUND` | 404 | apontamento não encontrado |
+| `ATIVIDADE_REFERENCIA_INVALIDA` | 422 | `field`; `reason` `inexistente` \| `inativo` \| `outra_empresa` \| `grupo_inativo` |
+| `ATIVIDADE_EXIGIDA_PELO_TIPO` | 422 | `field` `area_id` \| `safra_ciclo` \| `bem_id` \| `quantidade_produzida` |
+| `ATIVIDADE_DATA_INVALIDA` | 422 | `field`; `reason` `futura` \| `antes_do_inicio` \| `periodo_invertido` \| `data_inexistente` |
+| `ATIVIDADE_STATUS_INVALIDO` | 409 | ação não permitida no status atual; `details.status`, `details.acao` |
+| `ATIVIDADE_VERSAO_CONFLITO` | 409 | conflito de versão |
+| `ATIVIDADE_MOTIVO_INVALIDO` | 422 | motivo ausente, curto ou longo |
+| `ATIVIDADE_VINCULADA` | 409 | P2003 ao excluir cadastro usado por atividade, se algum DELETE de cadastro precisar traduzir |
