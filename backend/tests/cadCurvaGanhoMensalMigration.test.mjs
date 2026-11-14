@@ -6,7 +6,7 @@
  * banco da suíte não é tocado).
  *
  * Partida: todas as migrations do repositório menos esta CONTRACT (MIGRATIONS_PARTIDA,
- * contadas pela pasta: 48 na época desta CONTRACT, 49 com a D-PROD-195; inclui as
+ * contadas pela pasta: 48 na época desta CONTRACT, 49 com a D-PROD-196; inclui as
  * CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187, já concluídas como em
  * produção; a da D-PROD-187 renomeia CategoriaManejo para CADCATEGORIA e não
  * cria nem apaga tabela; e as EXPAND `20261113300000_estoque_p1_03_indices`,
@@ -15,7 +15,7 @@
  * D-PROD-193, que cria ApontamentoAtividadeItem e
  * ApontamentoAtividadeItemConsumoLote), pelo Prisma a partir de uma cópia
  * temporária; 85 tabelas; CADCURVAGANHO VAZIA com a estrutura por estação; um Cliente e uma
- * Empresa reais. A CONTRACT da D-PROD-195 (`20261114200000_tipo_atividade_defaults`,
+ * Empresa reais. A CONTRACT da D-PROD-196 (`20261114300000_tipo_atividade_defaults`,
  * padrões e flags do TipoAtividade, de nome POSTERIOR e que em produção entra DEPOIS desta)
  * sobe na partida pelo Prisma direto e fora de ordem, sem o runner: a guarda dela só exige
  * TipoAtividade e os alvos das FKs, ela não toca CADCURVAGANHO e soma +1 migration e 0
@@ -58,11 +58,11 @@ const MIGRATIONS = join(RAIZ, 'backend', 'prisma', 'migrations');
 const NOME_CONTRACT = '20261114100000_cadcurvaganho_mensal';
 const DECISAO = 'D-PROD-194';
 const CONTRACTS_ANTERIORES = Object.freeze(['20261110300000_patrimonio_simplifica', '20261113200000_tipo_tarefa_drop_colunas', '20261113500000_categoria_manejo_cadcategoria']);
-/** D-PROD-195: CONTRACT de nome posterior, concluída na partida pelo Prisma direto (em produção entra depois desta). */
-const CONTRACTS_POSTERIORES = Object.freeze(['20261114200000_tipo_atividade_defaults']);
+/** D-PROD-196: CONTRACT de nome posterior, concluída na partida pelo Prisma direto (em produção entra depois desta). */
+const CONTRACTS_POSTERIORES = Object.freeze(['20261114300000_tipo_atividade_defaults']);
 /**
  * Contadas pela pasta, não por número fixo: a partida é TODAS menos esta CONTRACT e o GREEN é TODAS (48 → 49 na época;
- * 49 → 50 com a D-PROD-195). Uma migration que entre na main depois não muda o que este teste prova.
+ * 49 → 50 com a D-PROD-196). Uma migration que entre na main depois não muda o que este teste prova.
  */
 const TOTAL_MIGRATIONS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 const MIGRATIONS_PARTIDA = TOTAL_MIGRATIONS - 1;
@@ -298,10 +298,10 @@ after(async () => {
 });
 
 describe('D-PROD-194 — migration CONTRACT que troca CADCURVAGANHO para 12 GMD mensais (PostgreSQL real)', () => {
-  test('CM-01 partida: todas as migrations menos esta (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas, e a da D-PROD-195, de nome posterior), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
+  test('CM-01 partida: todas as migrations menos esta (as CONTRACT da D-PROD-162, da D-PROD-183 e da D-PROD-187 concluídas, e a da D-PROD-196, de nome posterior), 85 tabelas, CADCURVAGANHO vazia com gmd_aguas/gmd_transicao/gmd_seca', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(h.contracts_posteriores, CONTRACTS_POSTERIORES.length, 'a D-PROD-195 sobe na partida');
+    assert.equal(h.contracts_posteriores, CONTRACTS_POSTERIORES.length, 'a D-PROD-196 sobe na partida');
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 3);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);

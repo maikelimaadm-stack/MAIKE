@@ -122,7 +122,7 @@ export const API_ERROR_CODES = Object.freeze({
   TIPO_ATIVIDADE_NAME_CONFLICT: 'TIPO_ATIVIDADE_NAME_CONFLICT',
   // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
   TIPO_ATIVIDADE_DELETE_BLOCKED: 'TIPO_ATIVIDADE_DELETE_BLOCKED',
-  // D-PROD-195 — padrão recusado (centro, unidade de produção ou coeficiente):
+  // D-PROD-196 — padrão recusado (centro, unidade de produção ou coeficiente):
   // `details.field` diz qual e `details.reason`, por quê (texto por motivo).
   TIPO_ATIVIDADE_PADRAO_INVALIDO: 'TIPO_ATIVIDADE_PADRAO_INVALIDO',
 
@@ -307,7 +307,7 @@ const MENSAGENS = Object.freeze({
 });
 
 /**
- * D-PROD-195 — texto de `TIPO_ATIVIDADE_PADRAO_INVALIDO` por campo (`details.field`)
+ * D-PROD-196 — texto de `TIPO_ATIVIDADE_PADRAO_INVALIDO` por campo (`details.field`)
  * e motivo (`details.reason`). Vocabulário fechado: nada do servidor é ecoado.
  * @type {Readonly<Record<string, Readonly<Record<string, string>>>>}
  */

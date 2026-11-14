@@ -111,7 +111,7 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * estação) faz a guarda recusar. As mensagens dessa guarda começam com
  * `cadcurvaganho_mensal:`. O remédio é o mesmo: recriar o banco local.
  *
- * D-PROD-195: a migration CONTRACT do Tipo de Atividade só ACRESCENTA (5
+ * D-PROD-196: a migration CONTRACT do Tipo de Atividade só ACRESCENTA (5
  * padrões, 8 flags, 3 FKs, 2 CHECKs e 3 índices em TipoAtividade) e recusa se
  * qualquer coluna, constraint ou índice novo já existir. A CI nasce vazia; um
  * banco LOCAL que já recebeu as colunas por fora (`prisma db push` com o schema
@@ -133,7 +133,7 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se cita cadcurvaganho_mensal (a CONTRACT da D-PROD-194), o mais provável é o banco local ter curvas de ganho ' +
   'de rodadas antigas em CADCURVAGANHO (estrutura por estação: gmd_aguas, gmd_transicao, gmd_seca), e a guarda só ' +
   'aceitar a tabela vazia; a mensagem da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve. ' +
-  'Se cita tipo_atividade_defaults (a CONTRACT da D-PROD-195), o banco local já tem alguma coluna, constraint ou índice ' +
+  'Se cita tipo_atividade_defaults (a CONTRACT da D-PROD-196), o banco local já tem alguma coluna, constraint ou índice ' +
   'novo de TipoAtividade (por exemplo, de um prisma db push com o schema novo) e a guarda recusa reaplicar; a mensagem ' +
   'da guarda diz o motivo exato. Recriar o banco local, do mesmo jeito, resolve.';
 

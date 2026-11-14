@@ -152,9 +152,9 @@ Violação exige **rollback**, não flexibilização da regra.
 > perfis existentes por padrão. Texto redigido pelo agente; vale só com a aprovação explícita do proprietário no
 > merge manual (`00-CONSTITUICAO.md` §4).
 
-> **Nota (D-PROD-195):** a proibição de reintroduzir as flags `exige_area`/`pode_ter_*` da nota acima vale para o
+> **Nota (D-PROD-196):** a proibição de reintroduzir as flags `exige_area`/`pode_ter_*` da nota acima vale para o
 > **TipoTarefa** (D-PROD-181/183) e para o **item do apontamento**. O **Tipo de Atividade** tem, por pedido expresso
-> do proprietário, as 8 flags da D-PROD-195 (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`,
+> do proprietário, as 8 flags da D-PROD-196 (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`,
 > `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`), sem os nomes aposentados
 > `pode_ter_*`. Continua proibido: qualquer flag no TipoTarefa; flag digitada no lançamento no lugar da do tipo;
 > lista fixa ou cadastro novo de unidade (a unidade de produção é `UnidadeMedida`). Texto redigido pelo agente; vale

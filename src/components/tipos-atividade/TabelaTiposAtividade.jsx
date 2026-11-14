@@ -5,7 +5,7 @@ import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { rotuloDaCategoriaTipoAtividade } from "@/components/tipos-atividade/FormularioTipoAtividade";
 
 /**
- * Prefixo das preferências da grade e dos cards. D-PROD-195: a coluna Categoria
+ * Prefixo das preferências da grade e dos cards. D-PROD-196: a coluna Categoria
  * entrou visível por padrão, e a preferência salva na chave antiga a esconderia
  * (a lista de visíveis gravada não a tem) — por isso a chave passou a `_v2`.
  */

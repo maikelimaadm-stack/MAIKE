@@ -1,4 +1,4 @@
-# MAIKE — Tipo de Atividade com padrões e flags: runbook de release CONTRACT (D-PROD-195)
+# MAIKE — Tipo de Atividade com padrões e flags: runbook de release CONTRACT (D-PROD-196)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
 > na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-195](./DECISIONS.md) · Contrato:
+Decisão: [D-PROD-196](./DECISIONS.md) · Contrato:
 [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · Relatório:
 [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
 Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md)
@@ -19,7 +19,7 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIK
 
 | Item | Valor |
 |---|---|
-| Migration | `20261114200000_tipo_atividade_defaults` |
+| Migration | `20261114300000_tipo_atividade_defaults` |
 | Natureza | **CONTRACT** (quinta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, da D-PROD-183, da D-PROD-187 e da D-PROD-194), numa transação, e **aditiva**: em `"TipoAtividade"`, 5 colunas anuláveis (`categoria` `VARCHAR(24)`, `centro_custo_padrao_id`, `centro_resultado_padrao_id`, `unidade_producao_id` `VARCHAR(64)` e `coeficiente_padrao` `DECIMAL(14,4)`), 8 flags `BOOLEAN NOT NULL DEFAULT false` (`exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`, `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`), 3 FKs compostas pelo tenant `ON DELETE RESTRICT ON UPDATE CASCADE` (→ `CentroCusto`, `CentroResultado`, `UnidadeMedida` em (`cliente_id`, `id`)), 2 CHECKs (categoria na lista fechada de 9; coeficiente > 0) e 3 índices não-únicos começando por `cliente_id` |
 | Por que CONTRACT, sendo aditiva | a allowlist EXPAND recusa, em tabela antiga, coluna `NOT NULL DEFAULT`, FK para tabela antiga e CHECK. O caminho é o dos alargamentos de CHECK da D-PROD-162: guarda pinada como 1ª instrução, depois exatamente as 18 instruções pinadas (13 `ADD COLUMN`, 3 FKs, 2 CHECKs, nesta ordem) e, no resto, os 3 `CREATE INDEX` pela allowlist EXPAND |
 | O que se perde | **nada**: nenhum `DROP`, `DELETE`, `UPDATE` ou `TRUNCATE`. As linhas que existem leem `false` nas flags e `NULL` nos padrões (DEFAULT constante: o PostgreSQL 11+ não reescreve a tabela) |
@@ -27,12 +27,12 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-MENSAL-RUNBOOK-RELEASE.md`](./MAIK
 | Guarda da própria migration | recusa (e desfaz tudo) se `TipoAtividade` não existir; se qualquer das 13 colunas, das 5 constraints ou dos 3 índices novos já existir; ou se `CentroCusto`, `CentroResultado` ou `UnidadeMedida` não existir ou não tiver índice único exatamente em (`cliente_id`, `id`). Toda mensagem começa com `tipo_atividade_defaults:` |
 | SHA-256 do arquivo (`MIGRATIONS_APROVADAS`) | `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf` |
 | Guarda pinada (`MIGRATIONS_CONTRACT_APROVADAS`) | `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`; `drop: []`; `literais_guarda`: `TipoAtividade`, `CentroCusto`, `CentroResultado`, `UnidadeMedida`; 18 `alter_antigas` |
-| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: []` (as 13 colunas ficam no descritor da CONTRACT); `contract[0]`: `decisao: "D-PROD-195"`, `colunas_adicionadas` (13), `constraints_adicionadas` (5), `constraints_alargadas: []`, `tabelas_removidas: []`, `colunas_removidas: []` |
+| Classificador (`classificarMigrations`) | `modo: CONTRACT`, `violacoes: []`, `tabelas_novas: []`, `colunas_novas_em_tabelas_antigas: []` (as 13 colunas ficam no descritor da CONTRACT); `contract[0]`: `decisao: "D-PROD-196"`, `colunas_adicionadas` (13), `constraints_adicionadas` (5), `constraints_alargadas: []`, `tabelas_removidas: []`, `colunas_removidas: []` |
 | `_prisma_migrations` | antes **49** concluídas, 0 em aberto (a última, a curva mensal da D-PROD-194, concluída em 2026-11-14 às 13:29:18 UTC); depois **50**. Recontar no §4 se algo mais for aplicado antes |
 | Tabelas em `public` | **85** antes e depois |
 
 **Sem janela de erro para o código de hoje.** A produção roda o código anterior à
-D-PROD-195. O Prisma Client dele lista só as 9 colunas antigas de `TipoAtividade`:
+D-PROD-196. O Prisma Client dele lista só as 9 colunas antigas de `TipoAtividade`:
 coluna a mais, anulável ou com DEFAULT, não quebra `SELECT`, `INSERT` nem
 `UPDATE`. Conferido localmente: o Prisma Client gerado do schema da `main`
 (`a65ea468`) rodou `create`, `findMany` com `include`, `findUnique`, `update` e
@@ -46,7 +46,7 @@ aplicação.
 500 (`P2022`, coluna inexistente) em tudo o que lê `TipoAtividade`: a tela Tipos
 de Atividade, `/tipos-atividade` e os fluxos do Apontamento de Atividade que leem
 o tipo. E o `premerge-migrate` só enxerga a migration como "nova" enquanto ela
-não está na `main`: depois do merge o `--contract D-PROD-195` vira
+não está na `main`: depois do merge o `--contract D-PROD-196` vira
 `CONTRACT_INESPERADO` e o caminho A fecha (aconteceu na D-PROD-183). A ordem é:
 aplicar (§5) → postcheck (§6) → merge (§7).
 
@@ -73,9 +73,9 @@ conferir no preflight as travas e as transações longas.
   **isolada** (esta é a única migration nova; senão `CONTRACT_NAO_ISOLADO`) e exige
   a decisão exata:
   ```bash
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-195: …)
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-195
-  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-195   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO>                                  # ANÁLISE LOCAL OK (CONTRACT D-PROD-196: …)
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --verificar-alvo --contract D-PROD-196
+  node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --aplicar --contract D-PROD-196   # repassa MIGRATION_CONTRACT_AUTORIZADO=D-PROD-196
   ```
   A guarda põe o próprio `lock_timeout` (5 s); não é preciso parâmetro na URL.
 - **B — conector Supabase, uma única `execute_sql` (§5):** só com autorização
@@ -84,7 +84,7 @@ conferir no preflight as travas e as transações longas.
   D-PROD-194) nem de autorização genérica.
 - O `npm run deploy:migrate` à mão e o `release-migrate.yml` **recusam** esta
   migration (`DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED`) enquanto ela estiver
-  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-195`
+  pendente no alvo: só o `premerge-migrate --aplicar --contract D-PROD-196`
   passa `MIGRATION_CONTRACT_AUTORIZADO`. A mensagem do runner diz "ela apaga
   dados" para toda CONTRACT; esta não apaga, mas a barreira vale igual.
 
@@ -121,13 +121,13 @@ Cole TUDO e rode. Só `SELECT`. Qualquer `PARAR` → `RELEASE_BLOCKED`.
 
 <!-- sql:preflight -->
 ```sql
--- MAIKE · D-PROD-195 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
+-- MAIKE · D-PROD-196 · PREFLIGHT (somente leitura). Cole TUDO e rode. Qualquer PARAR = não aplicar.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114200000_tipo_atividade_defaults' AND rolled_back_at IS NULL) AS esta,
+         count(*) FILTER (WHERE migration_name = '20261114300000_tipo_atividade_defaults' AND rolled_back_at IS NULL) AS esta,
          count(*) FILTER (WHERE migration_name = '20261113100000_tipo_atividade_cadastro'
                             AND checksum = '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS cadastro,
@@ -188,7 +188,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '49 / 0',
          CASE WHEN (SELECT concluidas = 49 AND abertas = 0 FROM mig) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, '20261114200000_tipo_atividade_defaults já registrada', (SELECT esta::text FROM mig), '0',
+  SELECT 3, '20261114300000_tipo_atividade_defaults já registrada', (SELECT esta::text FROM mig), '0',
          CASE WHEN (SELECT esta FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'TipoAtividade (D-PROD-182) e curva mensal (D-PROD-194) concluídas com o checksum do repositório',
@@ -248,9 +248,9 @@ SELECT item, valor, esperado, status FROM (
 | travas de outras sessões e transações longas | `0` e `0` (senão `ATENÇÃO`: esperar e repetir fora de pico) |
 
 E, localmente, no `<SHA_APROVADO>`:
-`sha256sum backend/prisma/migrations/20261114200000_tipo_atividade_defaults/migration.sql`
+`sha256sum backend/prisma/migrations/20261114300000_tipo_atividade_defaults/migration.sql`
 igual ao pinado, e a análise local do `premerge-migrate` (§1) com `modo: CONTRACT`,
-`contract[0].decisao = "D-PROD-195"`, `colunas_adicionadas` com as 13 colunas,
+`contract[0].decisao = "D-PROD-196"`, `colunas_adicionadas` com as 13 colunas,
 `constraints_adicionadas` com as 5 constraints e `violacoes: []`.
 
 ### 4.2 Ensaio local (com o arquivo exato do `<SHA_APROVADO>`)
@@ -267,7 +267,7 @@ produção pelo local:
   índice novo já existente, alvo ausente, alvo sem índice único em
   (`cliente_id`, `id`) (sem índice, invertido, parcial, não-único), trava
   concorrente (`55P03` em ~5 s); e o `deploy:migrate` com a conferência de alvo
-  exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-195` →
+  exigida e sem `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-196` →
   `DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED` antes de qualquer DDL;
 - GREEN pelo runner oficial (conferência exigida, decisão exata) e GREEN pelo
   envelope do caminho B: 50/0, as 13 colunas, as 5 constraints, os 3 índices,
@@ -299,7 +299,7 @@ BEGIN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
   IF EXISTS (SELECT 1 FROM _prisma_migrations
-              WHERE migration_name = '20261114200000_tipo_atividade_defaults' AND rolled_back_at IS NULL) THEN
+              WHERE migration_name = '20261114300000_tipo_atividade_defaults' AND rolled_back_at IS NULL) THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -321,7 +321,7 @@ END $alvo$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf', now(),
-        '20261114200000_tipo_atividade_defaults', NULL, NULL, now(), 1);
+        '20261114300000_tipo_atividade_defaults', NULL, NULL, now(), 1);
 COMMIT;
 ```
 <!-- /sql:caminho-b -->
@@ -338,7 +338,7 @@ COMMIT;
 1. Nada do DDL fica; a linha da migration fica com `finished_at` NULL.
 2. Conferir pelo preflight que as colunas novas não existem.
 3. Com a conexão de **produção** explícita (o schema lê `DATABASE_URL`):
-   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261114200000_tipo_atividade_defaults --schema backend/prisma/schema.prisma`.
+   `DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate resolve --rolled-back 20261114300000_tipo_atividade_defaults --schema backend/prisma/schema.prisma`.
 4. Eliminar a causa (a mensagem da guarda diz qual) e pedir novo GO.
 5. Uma tentativa resolvida (`rolled_back_at` preenchido) não bloqueia o envelope
    do caminho B; uma linha ainda aberta bloqueia (resolver primeiro). No §6,
@@ -355,13 +355,13 @@ Qualquer `PARAR`: **não mergear** e chamar o proprietário.
 
 <!-- sql:postcheck -->
 ```sql
--- MAIKE · D-PROD-195 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
+-- MAIKE · D-PROD-196 · POSTCHECK (somente leitura). Cole TUDO e rode. Esperado: tudo OK/CONFIRA e VEREDITO APLICADA.
 WITH
 esperado AS (SELECT '7692130048193495360'::text AS sid),
 mig AS (
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS concluidas,
          count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS abertas,
-         count(*) FILTER (WHERE migration_name = '20261114200000_tipo_atividade_defaults'
+         count(*) FILTER (WHERE migration_name = '20261114300000_tipo_atividade_defaults'
                             AND checksum = 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf'
                             AND finished_at IS NOT NULL AND rolled_back_at IS NULL AND applied_steps_count = 1) AS esta
     FROM public._prisma_migrations
@@ -460,7 +460,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 2, '20261114200000_tipo_atividade_defaults concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
+  SELECT 2, '20261114300000_tipo_atividade_defaults concluída (checksum pinado, applied_steps_count 1)', (SELECT esta::text FROM mig), '1',
          CASE WHEN (SELECT esta FROM mig) = 1 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 3, 'migrations concluídas / em aberto', (SELECT concluidas || ' / ' || abertas FROM mig), '50 / 0',
@@ -533,13 +533,13 @@ código novo gravar nos padrões e nas flags só existem nessas colunas.
 Rollback de código, sim: o código anterior convive com as colunas (§0). Com
 padrões gravados, a FK `RESTRICT` continua barrando apagar a unidade usada como
 padrão; o código anterior traduz esse erro como o 403 genérico de hoje (o 409
-`UNIDADE_MEDIDA_DELETE_BLOCKED` vem com a D-PROD-195).
+`UNIDADE_MEDIDA_DELETE_BLOCKED` vem com a D-PROD-196).
 
 ## 10. `RELEASE_BLOCKED`
 
 - sem GO-1 ou GO-2 (no caminho B, sem o desvio da D-PROD-74 escrito para esta migration);
 - alvo com `system_identifier` diferente;
-- histórico diferente de 49/0 antes, ou a D-PROD-195 já registrada (linha não revertida);
+- histórico diferente de 49/0 antes, ou a D-PROD-196 já registrada (linha não revertida);
 - qualquer `PARAR` no preflight;
 - outra migration nova na mesma release (`CONTRACT_NAO_ISOLADO`);
 - SHA-256 do arquivo diferente do pinado, ou classificador fora do esperado;

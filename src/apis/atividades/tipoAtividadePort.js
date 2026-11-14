@@ -1,5 +1,5 @@
 /**
- * Porta nativa de TipoAtividade (D-PROD-182; padrões e flags, D-PROD-195).
+ * Porta nativa de TipoAtividade (D-PROD-182; padrões e flags, D-PROD-196).
  *
  * O corpo vai por ALLOWLIST (o servidor recusa qualquer outra chave com 400):
  * os campos do cadastro, os PADRÕES que a atividade herda (categoria, centro de
@@ -31,7 +31,7 @@ export const ENTIDADE_OFFLINE = 'TipoAtividade';
 /** @param {string} operation */
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
-/** As 8 flags de como a atividade funciona (D-PROD-195), na ordem do contrato. */
+/** As 8 flags de como a atividade funciona (D-PROD-196), na ordem do contrato. */
 export const FLAGS_TIPO_ATIVIDADE = Object.freeze([
   'exige_area',
   'exige_safra',
@@ -43,7 +43,7 @@ export const FLAGS_TIPO_ATIVIDADE = Object.freeze([
   'exige_producao',
 ]);
 
-/** Padrões que a atividade herda do tipo (D-PROD-195); `null` = sem padrão. */
+/** Padrões que a atividade herda do tipo (D-PROD-196); `null` = sem padrão. */
 export const CAMPOS_PADRAO_TIPO_ATIVIDADE = Object.freeze([
   'categoria',
   'centro_custo_padrao_id',
@@ -63,7 +63,7 @@ export const CAMPOS_DE_CRIACAO = Object.freeze([
 
 export const CAMPOS_DE_ATUALIZACAO = Object.freeze([...CAMPOS_DE_CRIACAO]);
 
-/** Seletores do formulário com rota própria do tipo (D-PROD-195, contrato §3.4). */
+/** Seletores do formulário com rota própria do tipo (D-PROD-196, contrato §3.4). */
 export const RECURSOS_OPCOES_TIPO_ATIVIDADE = Object.freeze(['centros-custo', 'centros-resultado']);
 
 /** @param {string} campo @param {unknown} valor */
@@ -97,7 +97,7 @@ const textoOuNulo = (v) => (typeof v === 'string' && v.trim() ? v : null);
 const objetoOuNulo = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 
 /**
- * Registro como a tela lê (D-PROD-195): as 8 flags sempre booleanas (registro
+ * Registro como a tela lê (D-PROD-196): as 8 flags sempre booleanas (registro
  * do cache offline anterior às colunas lê `false`, como o banco); padrão
  * ausente = `null`; os objetos que o servidor inclui (`centro_custo_padrao`,
  * `centro_resultado_padrao`, `unidade_producao`) ou `null`. O resto passa

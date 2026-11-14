@@ -23,7 +23,7 @@ const LOCALE_COEFICIENTE = "pt-BR";
 /** O `PADRAO_DECIMAL` da API: até 10 inteiros e 4 casas. */
 const LIMITES_COEFICIENTE = LIMITES.QUANTIDADE;
 
-/** As 9 categorias do tipo (D-PROD-195), com o rótulo da tela. */
+/** As 9 categorias do tipo (D-PROD-196), com o rótulo da tela. */
 export const CATEGORIAS_TIPO_ATIVIDADE = Object.freeze([
   { value: "PREPARO_SOLO", label: "Preparo de solo" },
   { value: "PLANTIO", label: "Plantio" },
@@ -50,7 +50,7 @@ export const rotuloDaCategoriaTipoAtividade = (valor) => {
  */
 
 /**
- * As 8 flags de como a atividade funciona (D-PROD-195), nesta ordem.
+ * As 8 flags de como a atividade funciona (D-PROD-196), nesta ordem.
  * @type {ReadonlyArray<{ campo: FlagTipoAtividade, rotulo: string }>}
  */
 export const FLAGS_DO_FORMULARIO = Object.freeze([
@@ -174,7 +174,7 @@ const objetoDoGravado = (objeto, id) =>
 
 /**
  * Formulário do cadastro de tipos de atividade (D-PROD-182; padrões e flags,
- * D-PROD-195), em três seções, nesta ordem:
+ * D-PROD-196), em três seções, nesta ordem:
  *
  *  1. **Identificação**: Grupo de atividade, Nome do tipo de atividade,
  *     Categoria (as 9), Descrição e Ativo. O seletor de grupo oferece só grupos

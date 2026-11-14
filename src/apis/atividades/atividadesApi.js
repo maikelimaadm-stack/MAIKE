@@ -1,6 +1,6 @@
 /**
  * API do módulo Atividades — cadastro de tipos de atividade (D-PROD-182; padrões
- * e flags, D-PROD-195), apontamentos de atividade, a EXECUÇÃO de um tipo
+ * e flags, D-PROD-196), apontamentos de atividade, a EXECUÇÃO de um tipo
  * (D-PROD-190), e os itens de custo do apontamento (D-PROD-193: produto, serviço
  * e outro custo).
  */
@@ -56,7 +56,7 @@ export const updateTipoAtividade = async (id, dados) => {
 };
 
 /**
- * Centros ATIVOS de uma fazenda para os padrões do tipo (D-PROD-195, contrato
+ * Centros ATIVOS de uma fazenda para os padrões do tipo (D-PROD-196, contrato
  * §3.4): `{ itens: [{ id, numero, nome }] }`, por `numero`, até 1000, sem
  * página. Recurso e empresa são obrigatórios (falha ANTES da rede); a empresa
  * de outro cliente volta 404 do servidor.

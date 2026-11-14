@@ -1,7 +1,7 @@
 /**
  * Serviço de UnidadeMedida (P4.5, D-PROD-44).
  *
- * D-PROD-195 — a unidade usada como unidade de produção padrão de um Tipo de
+ * D-PROD-196 — a unidade usada como unidade de produção padrão de um Tipo de
  * Atividade não é excluída: quem barra é a FK RESTRICT do tipo (este módulo
  * NUNCA consulta `TipoAtividade`, lição do hotfix #259), reconhecida no erro e
  * traduzida aqui em 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (antes, o P2003 caía no
@@ -221,7 +221,7 @@ export const excluir = async (contexto, id) => {
     try {
       await excluirUnidadePorId(tx, auth.clienteId, id);
     } catch (erro) {
-      // D-PROD-195: só a FK do padrão do tipo é traduzida; qualquer outro erro segue como antes.
+      // D-PROD-196: só a FK do padrão do tipo é traduzida; qualquer outro erro segue como antes.
       if (vinculoComTipoAtividadePadrao(erro)?.campo === 'unidade_producao_id') {
         throw unidadeMedidaDeleteBlocked(undefined, { cause: erro });
       }
