@@ -36,10 +36,11 @@ O SVG precisa ter uma área interna que possa ser preenchida. Em um SVG com vár
 
 ## Bolinha branca, ponteira e tamanho
 
-- Na função `envolverMarcadorSvg`, no fim de `cocho-descoberto.js`, o primeiro `path` tem `fill="#fff"` (fundo branco), `stroke="#bbb7b7"` (borda) e `stroke-width="1"` (grossura da borda).
-- O caminho `d` desse `path` desenha a bolinha e a ponteira. A moldura é compartilhada com o depósito.
-- Os argumentos padrão `x`, `y`, `width`, `height` dessa função controlam a posição e o tamanho do desenho dentro da bolinha.
-- Em `src/components/mapa/useMapRenderer.jsx`, procure `const baseSize =`: cochos e depósitos usam **36 px**. O lote usa **44 px**, definido em `LARGURA_MARCADOR_PX` (`src/assets/icones/lotes/quadradinho.js`).
+A moldura agora está separada em `src/assets/icones/pontos/redondo.js`, usando o arquivo `REDONDO ORIGINAL.svg` do proprietário. `REDONDO_ORIGINAL_SVG` guarda a forma branca, a ponteira e a sombra. `ENCAIXE_FIGURA` controla a posição e o tamanho interno da figura.
+
+A função `envolverMarcadorSvg` em `cocho-descoberto.js` apenas chama essa composição compartilhada com o depósito. Para trocar a bolinha, não precisa alterar os desenhos do cocho e do depósito. Veja [o guia da moldura](pontos/README.md).
+
+- Em `src/components/mapa/useMapRenderer.jsx`, procure `const baseSize =`: o tamanho externo dos pontos é configurado ali.
 - Em `src/components/mapa/CochoNivel.jsx`, a classe `w-[156px]` controla a largura do subícone nos detalhes.
 
 ## Depósito
