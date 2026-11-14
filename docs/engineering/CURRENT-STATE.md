@@ -63,6 +63,28 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
+## Missão ativa (2026-11-14) — MAIKE-ICONES-CATEGORIA-DIGITADA: a categoria digitada no cadastro de ícone não é mais apagada (D-PROD-192)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-192** (D-PROD-191 com a PR #271; D-PROD-190 com as PRs #269 e #273; D-PROD-193 com a PR #274; D-PROD-187 com a PR #268; D-PROD-185 com a PR #263) |
+| Branch / PR | `claude/fervent-knuth-txff6q`, empilhada sobre `feat/icones-lote-codigo` (`950907fc`), porque as duas alteram `GerenciadorIcones.jsx`. PR **#272**, exclusiva desta correção, mergeada pelo proprietário na `feat/icones-lote-codigo` (`b4b5040e`); chega à `main` com a PR #271 |
+| Escopo | No diálogo "Cadastrar Novo Ícone" (Configurações), o Select de categoria só recebe valor que é uma das sugestões, sem diferença de maiúsculas; o texto digitado em "OU DIGITE UMA NOVA CATEGORIA" fica e é salvo em maiúsculas. Causa: o `<select>` nativo oculto do Radix Select 2.3.7 respondia `""` para valor fora das opções, e o `onValueChange` gravava `categoria: ""` |
+| Banco | **Sem migration.** Backend e banco intocados |
+| Testes | `tests/smoke/gerenciadorIconesCategoriaDigitada.test.jsx` (5 casos): falham antes da correção, passam depois |
+| Relatório | [`MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md`](./MAIKE-ICONES-CATEGORIA-DIGITADA-REPORT.md) |
+
+## Missão ativa (2026-11-13) — MAIKE-ICONES-LOTE-CODIGO: ícone do lote pelo código, sexo + faixa de idade (D-PROD-191)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-191** (D-PROD-190 com as PRs #269 e #273; D-PROD-193 com a PR #274) |
+| Branch / PR | `feat/icones-lote-codigo`, criada de `origin/main` `776befe9`, com a `main` integrada por merge duas vezes: `cf07309c` (PR #270) e `00a06096` (PRs #268, #267 e #263). PR **#271**, exclusiva desta fatia; a PR #272 (D-PROD-192) entrou nesta branch antes |
+| Escopo | O ícone do Lote sai do upload (`ConfiguracaoIcone` tipo `Lote`) e vem do código, em `src/assets/icones/lotes/`, pela chave sexo + faixa de idade da Categoria de Manejo. Marcador do mapa pela cascata de 5 níveis (sempre sai figura); subícone dos detalhes e dos formulários de manejo na cor do sexo, nunca misto; prévia local no Formulário de Lote; Configurações sem cadastro de ícone de Lote |
+| Banco | **Sem migration.** `ConfiguracaoIcone` intocada; as linhas `tipo_entidade = 'Lote'` ficam órfãs (limpeza CONTRACT com GO próprio, fora desta fatia) |
+| Convivência | A PR #268 (D-PROD-187) entrou antes desta e já apagou `IconeOficialLotePreview.jsx`, `catalogoGlobalService.js` e a porta do catálogo. No merge, os conflitos foram os previstos: a linha do campo no `FormularioLote.jsx` (ficou a dica com a prévia local), o `catalogoGlobalLote.test.jsx` (ficou a versão da #268) e os docs comuns |
+| Relatório | [`MAIKE-ICONES-LOTE-CODIGO-REPORT.md`](./MAIKE-ICONES-LOTE-CODIGO-REPORT.md) |
+
 ## Missão concluída (2026-11-14) — MAIKE-CATEGORIA-MANEJO-CADCATEGORIA (Fatia D): DROP das 15 colunas dormentes e do Ícone oficial, tabela física `CADCATEGORIA` (D-PROD-187)
 
 | Campo | Valor |

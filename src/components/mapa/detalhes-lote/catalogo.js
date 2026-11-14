@@ -2,7 +2,8 @@
  * Catálogo de dados do diálogo "Detalhes do Lote" (v8).
  *
  * Puro: sem React, sem rede, sem cache. Recebe o que o mapa já tem (área,
- * posições/lotes, movimentações, ícones) e devolve o modelo pronto para a tela.
+ * posições/lotes, movimentações, categorias de manejo) e devolve o modelo pronto
+ * para a tela.
  *
  * Regras fixas desta fatia:
  * - Só os dados da lista fechada do dono (item 3 do prompt). GMD, arroba, preço,
@@ -10,10 +11,16 @@
  * - Número na tela NUNCA leva unidade depois ("449,5", não "449,5 kg"): a
  *   unidade vai no rótulo. Vazio = "—". As frases de alerta são a exceção.
  * - Um formatador único (fmtNum/fmtInt/fmtPct/fmtData) para todos os agentes.
+ * - Subícone (D-PROD-191): vem do CÓDIGO pela chave sexo + faixa de idade da
+ *   Categoria de Manejo (`@/assets/icones/lotes`), nunca de upload. O modelo leva
+ *   só a FIGURA ('femea-13-24'); a tela monta o desenho no tamanho em que o mostra.
+ *   Nunca misto: cada lote e cada categoria aparece com o animal dele, na cor do
+ *   sexo dele, mesmo quando o pasto mistura sexos.
  */
 import { CORES_UA_HA, CORES_CATEGORIA_GADO } from '@/components/mapa/MapaFiltrosAvancados';
 import { PESAGEM } from '@/domain/lotes/manejoRebanho';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
+import { figuraDaPosicao, figuraDoGrupo, mapaDeCategorias } from '@/assets/icones/lotes';
 
 export const VAZIO = '—';
 /** 1 UA = 450 kg de peso vivo — o mesmo de MapaInsights.jsx ("UA do animal = peso médio / 450"). */
@@ -73,9 +80,12 @@ const DIA_MS = 86400000;
  */
 
 /**
+ * subicone = figura do animal da posição ('femea-13-24'), pela Categoria de Manejo dela
+ * (reserva: sexo e categoria oficial gravados); null = sem sexo ou sem faixa conhecidos
+ * (a tela mostra o quadrado tracejado). Nunca misto.
  * @typedef {{
  *   id: string, nome: string, categoria: string, sexo: string, sub: string,
- *   iconeUrl: string|null,
+ *   subicone: string|null,
  *   cab: number, peso: number|null, pesoTotal: number|null, ua: number|null, uaHa: number|null, kgPvHa: number|null,
  *   partCab: number|null, partUA: number|null, diasPastejo: number|null,
  *   pesagem: PesagemVm,
@@ -99,7 +109,9 @@ const DIA_MS = 86400000;
 /** @typedef {{ id: string, rotulo: string, cor: string, qtd: number }} OpcaoAlerta */
 
 /**
- * @typedef {{ nome: string, cab: number, pct: number, pctTexto: string, resumo: string, cor: string, iconeUrl: string|null }} CategoriaVm
+ * subicone = figura do grupo: a combinação sexo+faixa com mais cabeças entre as posições
+ * da categoria (empate: a faixa mais velha), na cor do sexo dela; null = nenhuma conhecida.
+ * @typedef {{ nome: string, cab: number, pct: number, pctTexto: string, resumo: string, cor: string, subicone: string|null }} CategoriaVm
  */
 
 /**
@@ -608,16 +620,6 @@ const alertasDe = (p) => {
 
 // ─── Montagem do modelo ─────────────────────────────────────────────────────
 
-/**
- * Ícone da categoria (Configuração de ícones, entidade Lote).
- * @param {any[]} iconesConfig @param {string} categoria (já em caixa alta)
- */
-const iconeDe = (iconesConfig, categoria) => {
-  if (!categoria || categoria === VAZIO) return null;
-  const ic = (iconesConfig || []).find((i) => i?.tipo_entidade === 'Lote' && String(i?.categoria || '').toUpperCase() === categoria);
-  return ic?.sub_icone_url || ic?.icone_url || null;
-};
-
 /** Totais crus de um conjunto de lotes/posições. @param {any[]} lista @param {Date} hoje */
 const agregados = (lista, hoje) => {
   let cab = 0;
@@ -645,10 +647,11 @@ const agregados = (lista, hoje) => {
 
 /**
  * Modelo da aba Área / card Informações da Área.
- * @param {any} area @param {any[]} lista lotes ativos na área @param {Date} hoje @param {any[]} iconesConfig
+ * @param {any} area @param {any[]} lista lotes ativos na área @param {Date} hoje
+ * @param {Map<string, any>} categoriasPorId Categorias de Manejo por id (subícone)
  * @returns {AreaVm}
  */
-const montarArea = (area, lista, hoje, iconesConfig) => {
+const montarArea = (area, lista, hoje, categoriasPorId) => {
   const hectares = positivo(area?.tamanho_hectares);
   const haPastejada = positivo(area?.area_pastejada);
   const ha = haPastejada ?? hectares; // efetiva, igual MapaInsights
@@ -666,19 +669,20 @@ const montarArea = (area, lista, hoje, iconesConfig) => {
     : capUAha !== null && uaHa !== null && uaHa > capUAha ? COR_ATENCAO : COR_TEXTO;
 
   // Composição por categoria (ordem alfabética → cor de CORES_CATEGORIA_GADO)
-  /** @type {Map<string, { cab: number, peso: number, cabPeso: number }>} */
+  /** @type {Map<string, { cab: number, peso: number, cabPeso: number, posicoes: any[] }>} */
   const porCat = new Map();
   for (const l of lista) {
     const nome = texto(l?.categoria);
     const c = num(l?.quantidade_cabecas) ?? 0;
     const p = positivo(l?.peso_medio_kg);
-    const g = porCat.get(nome) || { cab: 0, peso: 0, cabPeso: 0 };
+    const g = porCat.get(nome) || { cab: 0, peso: 0, cabPeso: 0, posicoes: [] };
     g.cab += c;
     if (p !== null) { g.peso += p * c; g.cabPeso += c; }
+    g.posicoes.push(l);
     porCat.set(nome, g);
   }
   const categorias = [...porCat.keys()].sort(porNome).map((nome, i) => {
-    const g = /** @type {{ cab: number, peso: number, cabPeso: number }} */ (porCat.get(nome));
+    const g = /** @type {{ cab: number, peso: number, cabPeso: number, posicoes: any[] }} */ (porCat.get(nome));
     const pct = ag.cab > 0 ? (g.cab / ag.cab) * 100 : 0;
     return {
       nome,
@@ -687,7 +691,8 @@ const montarArea = (area, lista, hoje, iconesConfig) => {
       pctTexto: fmtPct(pct),
       resumo: `${fmtInt(g.cab)} cab · peso ${fmtNum(g.cabPeso > 0 ? g.peso / g.cabPeso : null, 0)}`,
       cor: CORES_CATEGORIA_GADO[i % CORES_CATEGORIA_GADO.length],
-      iconeUrl: iconeDe(iconesConfig, nome),
+      // D-PROD-191: o animal do grupo (mais cabeças; empate → faixa mais velha), nunca misto.
+      subicone: figuraDoGrupo(g.posicoes, categoriasPorId)?.figura ?? null,
     };
   });
 
@@ -765,7 +770,7 @@ const montarArea = (area, lista, hoje, iconesConfig) => {
 /**
  * Modelo de um lote/posição.
  * @param {any} raw
- * @param {{ hoje: Date, ha: number|null, totalCab: number, uaTotal: number, movimentacoes: any[], iconesConfig: any[] }} ctx
+ * @param {{ hoje: Date, ha: number|null, totalCab: number, uaTotal: number, movimentacoes: any[], categoriasPorId: Map<string, any> }} ctx
  * @returns {LoteVm}
  */
 const montarLote = (raw, ctx) => {
@@ -792,7 +797,8 @@ const montarLote = (raw, ctx) => {
     categoria,
     sexo,
     sub: [categoria, sexo].filter((t) => t !== VAZIO).join(' · ') || VAZIO,
-    iconeUrl: iconeDe(ctx.iconesConfig, categoria),
+    // D-PROD-191: o animal desta posição, na cor do sexo dela (nunca misto).
+    subicone: figuraDaPosicao(raw, ctx.categoriasPorId)?.figura ?? null,
     cab,
     peso,
     pesoTotal,
@@ -836,21 +842,24 @@ const montarLote = (raw, ctx) => {
  * - `lotes`: os do diálogo (prop `lotes` do DetalhesLote) → LoteVm, % e totais da aba Lotes.
  * - `lotesDaArea`: todos os ativos na área → métricas da aba Área (vazio → usa `lotes`).
  * - `movimentacoes`: cache 'movimentacoes' do mapa → pesagens (canceladas são ignoradas).
- * @param {{ area: any, lotes?: any[], lotesDaArea?: any[], movimentacoes?: any[], iconesConfig?: any[], hoje?: Date }} p
+ * - `categoriasManejo`: cache 'categoriasManejo' do mapa (lista ou Map por id) → subícone de
+ *   cada lote e de cada categoria da área (D-PROD-191). Ícone por upload (ConfiguracaoIcone)
+ *   não entra aqui.
+ * @param {{ area: any, lotes?: any[], lotesDaArea?: any[], movimentacoes?: any[], categoriasManejo?: any[]|Map<string, any>|null, hoje?: Date }} p
  * @returns {ModeloDetalhes}
  */
-export function montarModeloDetalhes({ area, lotes = [], lotesDaArea = [], movimentacoes = [], iconesConfig = [], hoje }) {
+export function montarModeloDetalhes({ area, lotes = [], lotesDaArea = [], movimentacoes = [], categoriasManejo = [], hoje }) {
   const h = hoje instanceof Date && !Number.isNaN(hoje.getTime()) ? new Date(hoje) : new Date();
   h.setHours(0, 0, 0, 0);
   const lista = Array.isArray(lotes) ? lotes : [];
   const naArea = Array.isArray(lotesDaArea) && lotesDaArea.length ? lotesDaArea : lista;
   const movs = Array.isArray(movimentacoes) ? movimentacoes : [];
-  const icones = Array.isArray(iconesConfig) ? iconesConfig : [];
+  const categoriasPorId = mapaDeCategorias(categoriasManejo);
 
-  const areaVm = montarArea(area, naArea, h, icones);
+  const areaVm = montarArea(area, naArea, h, categoriasPorId);
   const ha = areaVm.ha;
   const ag = agregados(lista, h);
-  const lotesVm = lista.map((raw) => montarLote(raw, { hoje: h, ha, totalCab: ag.cab, uaTotal: ag.ua, movimentacoes: movs, iconesConfig: icones }));
+  const lotesVm = lista.map((raw) => montarLote(raw, { hoje: h, ha, totalCab: ag.cab, uaTotal: ag.ua, movimentacoes: movs, categoriasPorId }));
   const uaHa = ag.temPeso && ha !== null ? ag.ua / ha : null;
 
   /** @type {ModeloDetalhes} */

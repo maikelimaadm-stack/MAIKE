@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useQuery } from "@tanstack/react-query";
-import { listarIconesDaEmpresa } from "@/services/mapaService";
+import { figuraDaPosicao, figuraDoGrupo, urlSubiconeLote } from "@/assets/icones/lotes";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
@@ -12,22 +11,18 @@ import { notifyWarning } from "@/lib/maikeNotify";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
+/** Largura do ícone no cabeçalho do item (`.mk-ll__item-ic`): o subícone é montado nela. */
+const SUBICONE_PX = 22;
+
 /**
  * R2D-P1 (D-PROD-105): UMA confirmação = UM envio com todas as categorias
  * (`linhas`); o servidor escolhe os lotes e baixa tudo numa transação.
+ *
+ * `categoriasManejo` (cache do mapa): o subícone de cada linha vem do código pela
+ * Categoria de Manejo das posições (D-PROD-191).
  */
-export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = false }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = false, categoriasManejo = [] }) {
   const lotesArray = Array.isArray(lote) ? lote : [lote];
-  
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
-    queryFn: async () => {
-      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
-      return icones.filter((i) => i.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
 
   const lotesPorCategoria = lotesArray.reduce((acc, l) => {
     const cat = l.categoria || 'SEM CATEGORIA';
@@ -102,11 +97,10 @@ export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = f
       <LancLoteItens>
         {formData.mortes.map((morte, index) => {
           const infoCategoria = lotesPorCategoria[morte.categoria];
-          const configIcone = iconesConfig.find(ic =>
-            ic.tipo_entidade === 'Lote' &&
-            ic.categoria?.toUpperCase() === morte.categoria?.toUpperCase()
-          );
-          const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+          // D-PROD-191: o animal das posições desta categoria (sexo + faixa da Categoria de
+          // Manejo; reserva: o texto da categoria oficial), na cor do sexo. Nunca misto.
+          const figura = figuraDoGrupo(infoCategoria?.lotes, categoriasManejo) ?? figuraDaPosicao({ categoria: morte.categoria }, categoriasManejo);
+          const iconeUrl = urlSubiconeLote(figura?.figura, SUBICONE_PX);
 
           return (
             <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">

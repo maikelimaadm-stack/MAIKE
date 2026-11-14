@@ -44,7 +44,7 @@ export default function LinhaLote({ lote, onClick, expandido, primeira = false }
       style={estiloBotao}
     >
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", width: 22, height: 22 }}>
-        <IconeCategoria url={lote.iconeUrl} tamanho={22} alt={lote.categoria} />
+        <IconeCategoria figura={lote.subicone} tamanho={22} alt={lote.categoria} />
       </span>
       <span style={{ minWidth: 0 }}>
         <span style={{ ...umaLinha, fontSize: 11, fontWeight: 700, lineHeight: 1.25, color: COR.titulo }}>{lote.nome}</span>

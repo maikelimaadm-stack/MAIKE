@@ -26,7 +26,10 @@ describe('CNT — quantidade de cabeças no marcador', () => {
     const fonte = readFileSync('src/components/mapa/useMapRenderer.jsx', 'utf8');
     expect(FONTE_CONTAGEM_PX).toBe(9.5);
     expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
-    expect(fonte).toMatch(/top:69%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
+    // D-PROD-191: a altura é o centro da faixa do card reservada à contagem (motor do ícone).
+    expect(fonte).toMatch(/import \{[^}]*\bCONTAGEM_TOPO_PCT\b[^}]*\} from "@\/assets\/icones\/lotes"/);
+    expect(fonte).toMatch(/top:\$\{CONTAGEM_TOPO_PCT\}%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
+    expect(fonte).not.toMatch(/top:69%/);
     expect(fonte).not.toMatch(/badge\.style\.fontSize/);
   });
 
