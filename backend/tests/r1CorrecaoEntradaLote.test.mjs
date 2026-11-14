@@ -568,6 +568,13 @@ describe('D-PROD-196 — raça predominante e idade média saíram do cadastro d
     const depois = await prisma().lote.findFirst({ where: { id: criado.id } });
     assert.deepEqual([depois.nome, depois.raca_predominante, depois.idade_media_meses], ['LOTE NOVO', null, null]);
 
+    // Corpo só com chaves ignoradas: 200, nada muda, nenhuma auditoria nova.
+    const auditsAntes = await prisma().auditLog.count({ where: { cliente_id: c.cliente.id, entidade: 'Lote', entidade_id: criado.id } });
+    const so = await req('PATCH', `/lotes/${criado.id}`, c.tok, { raca_predominante: 'ANGUS', idade_media_meses: 24 });
+    assert.equal(so.statusCode, 200, so.body);
+    assert.equal(so.json().nome, 'LOTE NOVO');
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: c.cliente.id, entidade: 'Lote', entidade_id: criado.id } }), auditsAntes);
+
     const lido = (await req('GET', `/lotes/${criado.id}`, c.tok)).json();
     assert.equal('raca_predominante' in lido, false);
     assert.equal('idade_media_meses' in lido, false);

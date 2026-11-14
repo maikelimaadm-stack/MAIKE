@@ -480,6 +480,9 @@ export const atualizar = async (contexto, id, entrada) => {
     }
 
     const publico = comoLotePublico(registro);
+    // D-PROD-196: corpo só com chaves ignoradas (ex.: raça de um cliente
+    // antigo) não muda nada — sem auditoria de uma alteração que não houve.
+    if (!Object.keys(patch).length) return publico;
 
     await registrarEvento(
       contexto,

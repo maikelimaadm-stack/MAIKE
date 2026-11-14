@@ -59,6 +59,8 @@ const GRUPOS_DO_FORMULARIO = Object.freeze({
     ["valor_total_compra", "valor_por_cabeca", "valor_frete"],
   ],
 });
+/** D-PROD-196: ids que saíram do cadastro do lote (layout salvo pode ainda citá-los). */
+const CAMPOS_REMOVIDOS_DO_LOTE = Object.freeze(["raca_predominante", "idade_media_meses"]);
 const MOTIVOS_ENTRADA = ["Compra", "Ajuste", "Inventário", "Outros"];
 const UPPERCASE_FIELDS = [
 "nome",
@@ -518,7 +520,7 @@ export default function FormularioLote({
   { id: "categoria_manejo_id", name: "categoria_manejo_id", dica: useBase1Visual ? <IconeLotePreview categoria={categoriasManejo.find((item) => item.id === formData.categoria_manejo_id) ?? null} /> : undefined, span: 12, spanLg: 6, label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "sigla", "sexo", "especie"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "sigla", "sexo", "especie"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()}</div>} /> },
   { id: "sexo", name: "sexo", span: 6, spanLg: 3, label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "peso_medio_kg", name: "peso_medio_kg", span: 8, spanLg: 6, label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
-  { id: "sistema_produtivo", name: "sistema_produtivo", span: 12, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" placeholder="SELECIONE..." opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
+  { id: "sistema_produtivo", name: "sistema_produtivo", span: 6, spanLg: 3, label: "Sistema Produtivo", type: "multiselect", required: true, errorKey: "sistema_produtivo", render: () => <B1MultiSelecao rotulo="Sistema Produtivo" placeholder="SELECIONE..." opcoes={SISTEMAS} valor={parseSistemasProdutivos(formData.sistema_produtivo)} onChange={(proximos) => handleChange("sistema_produtivo", proximos)} disabled={isReadOnly} /> },
   { id: "motivo_entrada", name: "motivo_entrada", span: 6, spanLg: 4, label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
   { id: "fornecedor_id", name: "fornecedor_id", span: 6, spanLg: 8, label: "Fornecedor", type: "autocomplete", required: isMotivoEntrada("COMPRA"), errorKey: "fornecedor_id", options: fornecedoresOpcoes, placeholder: "BUSCAR FORNECEDOR...", displayField: "nome", searchFields: ["nome", "cpf", "cnpj", "cidade", "estado"], defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
   { id: "cidade_origem", name: "cidade_origem", span: 8, spanLg: 4, label: "Cidade Origem", type: "text", required: isMotivoEntrada("COMPRA"), errorKey: "cidade_origem", uppercase: true, defaultVisibilityRule: { sourceFieldId: "motivo_entrada", sourceFieldName: "motivo_entrada", value: "COMPRA" }, showWhen: (values) => String(values.motivo_entrada || "").trim().toUpperCase() === "COMPRA" },
@@ -552,10 +554,21 @@ export default function FormularioLote({
     // Configuração salva sem painel principal herda o padrão — menos o que ela já pôs em outro painel.
     const emOutrosPaineis = new Set(Object.entries(source.layout || {}).flatMap(([painel, ids]) => (painel === "principal" ? [] : ids || [])));
     const principalFields = source.layout?.principal?.length ? source.layout.principal : defaultLayout.principal.filter((id) => !emOutrosPaineis.has(id));
+    // D-PROD-196: ordem da aba Geral salva antes da remoção de raça e idade
+    // deixaria buracos na grade. Se ela ainda cita um id removido, vale a ordem
+    // padrão (sem o que a configuração pôs em outro painel), mais os campos
+    // extras que ela tinha, no fim.
+    const geralSalvo = source.layout?.geral;
+    const geral = Array.isArray(geralSalvo) && geralSalvo.some((id) => CAMPOS_REMOVIDOS_DO_LOTE.includes(id))
+      ? [
+          ...defaultLayout.geral.filter((id) => geralSalvo.includes(id) || !Object.values(source.layout || {}).flat().includes(id)),
+          ...geralSalvo.filter((id) => !CAMPOS_REMOVIDOS_DO_LOTE.includes(id) && !defaultLayout.geral.includes(id)),
+        ]
+      : geralSalvo;
     return {
       ...source,
       panels,
-      layout: { ...source.layout, principal: principalFields },
+      layout: { ...source.layout, principal: principalFields, ...(geral ? { geral } : {}) },
       hiddenFieldIds: (source.hiddenFieldIds || []).filter((id) => !["status", "numero_lote"].includes(id))
     };
   })();

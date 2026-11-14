@@ -309,3 +309,38 @@ describe("R3 — formulário de CRIAÇÃO usa a mesma validação estrita", () =
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe("D-PROD-196 — formulário do lote sem raça predominante e idade média", () => {
+  beforeEach(() => {
+    serviceMock.consultarCorrecaoEntrada.mockResolvedValue({ lote_id: "l9", elegivel: true, motivo: null, updated_date: ENTRADA.updated_date });
+  });
+  const rotulos = () => [...document.querySelectorAll("#formulario-lote-base1 .mg-field")].map((el) => el.textContent || "");
+  const posicao = (lista, re) => lista.findIndex((t) => re.test(t));
+
+  it("o formulário não mostra os dois campos; a aba Geral segue Categoria · Sexo · Sistema · Cabeças · Peso", async () => {
+    await renderPagina();
+    await abrirEdicao();
+    await waitFor(() => expect(screen.getByText("Categoria de Manejo")).toBeTruthy());
+    const lista = rotulos();
+    expect(lista.join(" | ")).not.toMatch(/Raça Predominante|Idade Média/);
+    const ordem = [/^Categoria de Manejo/, /^Sexo/, /^Sistema Produtivo/, /Cabeças/, /^Peso Médio/].map((re) => posicao(lista, re));
+    expect(ordem.every((i) => i >= 0)).toBe(true);
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+  });
+
+  it("layout salvo antes (ordem antiga com raça e idade) dá lugar à ordem padrão da aba Geral", async () => {
+    localStorage.setItem("cadastro_lotes_form_layout_config", JSON.stringify({
+      layout: {
+        geral: ["setor_id", "area_entrada_id", "categoria_manejo_id", "sexo", "raca_predominante", "quantidade_cabecas", "peso_medio_kg", "idade_media_meses", "sistema_produtivo"],
+        compra: ["motivo_entrada", "fornecedor_id"],
+      },
+      hiddenFieldIds: [], requiredFieldIds: ["raca_predominante"],
+    }));
+    await renderPagina();
+    await abrirEdicao();
+    await waitFor(() => expect(screen.getByText("Categoria de Manejo")).toBeTruthy());
+    const lista = rotulos();
+    expect(lista.join(" | ")).not.toMatch(/Raça Predominante|Idade Média/);
+    expect(posicao(lista, /^Sistema Produtivo/)).toBeLessThan(posicao(lista, /Cabeças/));
+  });
+});
