@@ -9,6 +9,6 @@ A composição segue o padrão dos ícones de lote da PR #271:
 
 Para trocar só o ponto, altere `REDONDO_ORIGINAL_SVG`. Para reposicionar o conteúdo, altere `ENCAIXE_FIGURA` (`x`, `y`, `width`, `height`) na coordenada do SVG original, que tem origem negativa em Y. O encaixe preserva a proporção do desenho.
 
-A cor branca e a sombra são do SVG enviado. A sombra é o filtro referenciado no `path`; o arquivo contém também um filtro não utilizado e grupos vazios, preservados como vieram. Não confunda esses dados da moldura com o desenho do cocho/depósito.
+O fundo branco e a sombra são do SVG enviado. A borda fina é personalizada por `COR_BORDA_REDONDO` na montagem; a constante do SVG original permanece intacta. A sombra é o filtro referenciado no `path`; o arquivo contém também um filtro não utilizado e grupos vazios, preservados como vieram. Não confunda esses dados da moldura com o desenho do cocho/depósito.
 
 Não altera o cálculo do nível, o tamanho externo do marcador ou os subícones.

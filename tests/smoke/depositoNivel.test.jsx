@@ -36,7 +36,7 @@ describe('Depósito com nível pelo limite operacional', () => {
     const mapa = xml(decodeURIComponent(iconUrl.split(',')[1]));
     expect(mapa.querySelector('parsererror')).toBeNull();
     expect(mapa.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
-    expect(mapa.querySelector('[data-fundo-ponto] path').getAttribute('stroke')).toBe('#ffffff');
+    expect(mapa.querySelector('[data-fundo-ponto] path').getAttribute('stroke')).toBe('#bbb7b7');
     // 500 kg de um limite de 1000 kg: 50% no medidor e no subícone.
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 1000, minimo: 1000 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');

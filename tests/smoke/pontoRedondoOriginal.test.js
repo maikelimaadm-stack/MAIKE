@@ -11,7 +11,10 @@ describe('Moldura redonda independente para cocho e depósito', () => {
       const doc = xml(gerar(.5, true));
       expect(doc.querySelector('parsererror')).toBeNull();
       expect(doc.documentElement.getAttribute('viewBox')).toBe(original.documentElement.getAttribute('viewBox'));
-      expect(doc.querySelector('[data-fundo-ponto] path').outerHTML).toBe(original.querySelector('path').outerHTML);
+      const path = doc.querySelector('[data-fundo-ponto] path');
+      for (const a of ['d', 'transform', 'filter', 'fill', 'stroke-width']) expect(path.getAttribute(a)).toBe(original.querySelector('path').getAttribute(a));
+      expect(path.getAttribute('stroke')).toBe('#bbb7b7');
+      expect(path.style.stroke).toBe('#bbb7b7');
       expect(doc.querySelector('[data-fundo-ponto] defs').outerHTML).toBe(original.querySelector('defs').outerHTML);
       expect(doc.querySelector('[data-figura-ponto]').getAttribute('width')).toBe(String(ENCAIXE_FIGURA.width));
     }

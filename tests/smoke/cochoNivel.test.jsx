@@ -42,7 +42,7 @@ describe('Cocho no marcador do mapa', () => {
     const vazio = svg(0);
     expect(cheio.querySelector('parsererror')).toBeNull();
     expect(cheio.querySelector('[data-fundo-ponto] path').getAttribute('fill')).toBe('#ffffff');
-    expect(cheio.querySelector('[data-fundo-ponto] path').getAttribute('stroke')).toBe('#ffffff');
+    expect(cheio.querySelector('[data-fundo-ponto] path').getAttribute('stroke')).toBe('#bbb7b7');
     expect(cheio.querySelector('[data-fundo-ponto] path').getAttribute('stroke-width')).toBe('15');
     expect(cheio.querySelector('[clip-path]').getAttribute('d')).not.toBe(metade.querySelector('[clip-path]').getAttribute('d'));
     expect(vazio.querySelector('[clip-path]')).toBeNull();
