@@ -6690,6 +6690,64 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-ESTOQUE-P1-02-REPORT.md`](./MAIKE-ESTOQUE-P1-02-REPORT.md).
 
+## D-PROD-185 — Estoque P1-03: índices M7 EXPAND-ONLY (LC-2 e keyset); R2-2 adiado por falta de consumidor
+
+**Contexto.** O contrato do Estoque P1 (§2 M7, §6.5, §7) põe na P1-03 os índices LC-2 (recibos), R2-2 (AuditLog por produto) e o keyset de movimentos, só com DDL EXPAND e com runbook e GO antes do merge.
+
+**Decisões.**
+1. **Migration nova** `20261113300000_estoque_p1_03_indices`, EXPAND, só `CREATE INDEX` comum, não-único, em tabelas existentes, sem `CONCURRENTLY`. Fica pinada em `MIGRATIONS_APROVADAS`. O número desta decisão fica **fora** do `.sql`.
+   - Numa transação só, as escritas nas duas tabelas esperam até o COMMIT.
+   - A ordem recibos → movimentos é a dos comandos, sem ciclo de espera (runbook §0).
+   - `OperacaoIdempotente(cliente_id, tipo_operacao, createdAt)`: LC-2. O consumidor é `recibosNosIntervalos`, com `tipo_operacao = ANY(...)` e intervalo de `createdAt`.
+   - `MovimentacaoEstoque(cliente_id, empresa_id, data_movimentacao DESC, id DESC)`, com nome `MovimentacaoEstoque_keyset_empresa_idx`: keyset da central de movimentos da P1-04 (§6.3).
+2. **R2-2 não é criado.**
+   - A busca de evidência de exclusão filtra o produto depois do `LIMIT`, sobre colunas derivadas por `objeto()`. Nenhum índice de expressão sobre `dados_anteriores`/`dados_novos` casa com ela.
+   - Medido: o candidato não é usado.
+   - O índice fecha **junto** com a reescrita dessa busca, que é mudança de consulta, em slice próprio. Até lá, o M7 está incompleto nesse item.
+3. **`(cliente_id, empresa_id)` de `MovimentacaoEstoque` fica**, embora seja prefixo do keyset. Remoção é CONTRACT e pede decisão própria.
+4. **Ensaios das CONTRACT D-PROD-162/183** contam as migrations pela pasta (`TOTAL_MIGRATIONS`, `MIGRATIONS_PARTIDA`), em vez de números fixos.
+5. **Release:** GO-1 (preflight só leitura, `estoque-p1-03-preflight-indices-somente-leitura.sql`, mais `--verificar-alvo`) → GO-2 (`premerge-migrate --aplicar`, sem `--contract`) → postcheck → merge manual.
+   - Nenhum GO foi concedido.
+   - A D-PROD-183 já está aplicada. Se o preflight disser o contrário, PARAR.
+
+**Nota posterior (R1 da PR #263).**
+- **Provado com `prisma migrate deploy` 6.19.3 real** (ensaio `scripts/dev/ensaio-p1-03-transacao-migration.mjs` e teste `estoqueP1M7TransacaoMigration`):
+  - o `migration.sql` vai numa só mensagem e roda como uma transação implícita;
+  - falha no 2º índice não deixa o 1º;
+  - as duas travas `SHARE` ficam até o COMMIT;
+  - `lock_timeout` nas `options` da URL de migration faz o deploy desistir sem efeito. Isso foi provado em conexão **direta**; via pooler não está provado, e o GO-2 exige conexão direta ou `SHOW lock_timeout` pela mesma URL;
+  - o retry com migration falhada pendente recusa com P3009.
+- **Preflight:** ganha `veredito.estado` (fail-closed) e separa falhadas pendentes de revertidas no histórico.
+  - Nome ocupado por qualquer relação → `PARAR`.
+  - `JA_APLICADA` só com as definições exatas, válidas e na tabela certa.
+- **Recuperação:** sempre PARAR; `migrate resolve` e reaplicação só com GO próprio.
+- **R2-2:** o adiamento continua sinalizado para decisão do proprietário.
+
+**Nota posterior (R2 da PR #263, 2026-11-13).**
+- **GO-1 #1 encerrado sem passar.** O preflight em produção deu `SEGUIR`, mas havia 43 concluídas com a `20261113400000_cadestacoes_cadastro` fora do repositório; a parada foi manual. Defeito reproduzido localmente: o veredito antigo dava `SEGUIR` com a base incompleta ou com migration desconhecida.
+- **Preflight:** confere o histórico, por nome, contra a lista fixa `base_release` (44 migrations da main `cf07309c`, com a CADESTACOES e a CADCURVAGANHO).
+  - `SEGUIR` exige exatamente a base; `JA_APLICADA`, a base + a P1-03.
+  - Base incompleta, migration desconhecida, nome duplicado ou falhada → `PARAR`.
+  - Checksum continua com o `premerge-migrate --verificar-alvo`.
+- **Ordem:** a P1-03 tem carimbo anterior às duas, mas entra por último em produção. As duas ordens foram provadas equivalentes em PostgreSQL real:
+  - mesmo schema e sem drift;
+  - o runner aceita a P1-03 pendente depois delas;
+  - o nome e o SHA-256 da P1-03 ficam.
+- **R2-2:** o proprietário **aprovou o adiamento** até um slice que reescreva a consulta de auditoria por produto e demonstre o uso efetivo do índice. O índice **não** foi criado; o M7 segue parcial, com LC-2 e keyset prontos.
+- **I2** da P1-02 segue pendente, fora daqui.
+
+**Nota posterior (R3 da PR #263, 2026-11-14).**
+- O GO-1 #2 parou corretamente: o preflight deu `PARAR` porque a produção tinha a migration do Apontamento (PR #269, D-PROD-190) fora da base.
+- Com a main `b46bb184` integrada, a base da release passa a 46: as 45 pastas da main sem a P1-03, mais a do Apontamento, aplicada antes do merge da PR dela.
+- A aplicação, se autorizada, vai pelo caminho B (exceção à D-PROD-74, só com GO escrito do proprietário). O envelope tem guarda de conjunto exato e foi ensaiado localmente (runbook §4.5).
+- **Aplicada em produção em 2026-11-14** pelo caminho B, com o GO do proprietário:
+  - preflight `SEGUIR` com 46;
+  - envelope sha256 `7d3eddd8…a4ea1a`;
+  - postcheck `JA_APLICADA` com 47, checksum pinado e os 2 índices válidos.
+  - Desvio da D-PROD-74 registrado aqui, como nas releases anteriores (runbook §7).
+
+**Relatório:** [`MAIKE-ESTOQUE-P1-03-REPORT.md`](./MAIKE-ESTOQUE-P1-03-REPORT.md). **Runbook:** [`MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-P1-03-RUNBOOK-RELEASE.md).
+
 ## D-PROD-186 — Categoria de Manejo enxuta (Fatia C: contrato no código, colunas dormentes no banco; categoria oficial derivada de sexo + faixa de idade)
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-185`, mas a PR #263 (Estoque P1-03, em rascunho) já usa a D-PROD-185. Para não duplicar, esta decisão é a **D-PROD-186**, e a **D-PROD-187** fica reservada para a Fatia D (DROP + nome físico `CADCATEGORIA`).

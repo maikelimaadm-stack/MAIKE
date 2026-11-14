@@ -13,7 +13,7 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_cadcategoria):
- *  1. aplica as 44 migrations da main (todas menos esta CONTRACT), pelo Prisma,
+ *  1. aplica todas as migrations do repositório menos esta CONTRACT (CONCLUIDAS_ANTES), pelo Prisma,
  *     a partir de uma cópia temporária das pastas; entre elas estão as EXPAND
  *     da CADESTACOES (D-PROD-188, `20261113400000_cadestacoes_cadastro`) e da
  *     CADCURVAGANHO (D-PROD-189, `20261113600000_cadcurvaganho_cadastro`), esta
@@ -37,7 +37,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-187 e a impressão na URL) e confere:
- *     45 concluídas (esta por último, depois da CADCURVAGANHO), 82 tabelas,
+ *     todas concluídas (CONCLUIDAS_DEPOIS; esta por último, depois da CADCURVAGANHO), 82 tabelas,
  *     CategoriaManejo some, CADCATEGORIA com o MESMO OID, ACL,
  *     RLS e políticas, as 12 colunas que ficam, linhas idênticas nessas 12, os 4
  *     nomes novos, FKs válidas, demais tabelas iguais, `migrate diff` vazio,
@@ -69,9 +69,13 @@ export const DECISAO = 'D-PROD-187';
  * 2026-11-13). Em produção esta CONTRACT entra DEPOIS dela, fora da ordem dos nomes; o ensaio reproduz isso.
  */
 export const NOME_POSTERIOR_JA_APLICADA = '20261113600000_cadcurvaganho_cadastro';
-/** Concluídas antes (as 44 da main) e depois (45), e tabelas em public (82, iguais antes e depois: só rename). */
-export const CONCLUIDAS_ANTES = 44;
-export const CONCLUIDAS_DEPOIS = 45;
+/**
+ * Concluídas depois (todas as pastas do repositório) e antes (todas menos esta CONTRACT), contadas pela pasta para
+ * não quebrar quando outra release EXPAND entra na main (D-PROD-185 entrou depois desta: 45 → 46 pastas); e tabelas
+ * em public (82, iguais antes e depois: só rename).
+ */
+export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1;
 export const TABELAS_PUBLIC = 82;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
@@ -209,7 +213,7 @@ const ambienteBase = () => {
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
 /**
- * As 44 migrations da main (todas as pastas menos esta CONTRACT), aplicadas pelo Prisma a partir de uma cópia
+ * Todas as migrations do repositório menos esta CONTRACT (CONCLUIDAS_ANTES), aplicadas pelo Prisma a partir de uma cópia
  * temporária. Inclui as CONTRACT da D-PROD-162 e da D-PROD-183, sem o runner: as guardas delas passam com o banco vazio.
  * Inclui também a EXPAND `20261113600000_cadcurvaganho_cadastro` (D-PROD-189), de nome posterior a esta CONTRACT:
  * depois daqui o banco fica como produção, com uma migration de nome posterior já concluída e esta pendente.
@@ -313,7 +317,7 @@ export const CATEGORIAS_SEMENTE = Object.freeze([
 ]);
 
 /**
- * Sementes no schema ANTIGO (44 migrations): o tipo `lote` e uma categoria visual GLOBAL e, por cliente, o Cliente e
+ * Sementes no schema ANTIGO (todas as migrations menos esta CONTRACT): o tipo `lote` e uma categoria visual GLOBAL e, por cliente, o Cliente e
  * as CATEGORIAS_SEMENTE (com as 16 colunas gravadas). `apenasVazias` semeia só as categorias sem nenhum valor nelas
  * (o banco "sem nada a perder").
  * @param {import('@prisma/client').PrismaClient} db
@@ -543,7 +547,7 @@ if (ehEntradaDireta()) {
       const partida = await retrato(db);
       const imp = await impressao(db);
       relatorio.preflight = { impressao: imp, contagens: await contagens(db), colunas: partida.colunas, tabelas: partida.tabelas, historico: await historico(db) };
-      // Estado de produção: as 44 concluídas, a CADCURVAGANHO (nome posterior) entre elas, esta CONTRACT ausente.
+      // Estado de produção: todas menos esta concluídas, a CADCURVAGANHO (nome posterior) entre elas, esta CONTRACT ausente.
       const ordemAntes = await ordemDeAplicacao(db);
       if (relatorio.preflight.historico.concluidas !== CONCLUIDAS_ANTES || partida.tabelas !== TABELAS_PUBLIC
         || !ordemAntes.includes(NOME_POSTERIOR_JA_APLICADA) || ordemAntes.includes(NOME_CONTRACT)) relatorio.ok = false;

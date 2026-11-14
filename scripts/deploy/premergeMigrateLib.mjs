@@ -75,6 +75,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113100000_tipo_atividade_cadastro': '5a0ded9c62f108c818c5796c2fe9d116faaceaf62bc4da6312562ec74d3a724e',
   // D-PROD-183: CONTRACT aprovado pelo proprietário — DROP COLUMN das 4 colunas dormentes de TipoTarefa (D-PROD-181).
   '20261113200000_tipo_tarefa_drop_colunas': '47409bb1a7d371efe89fffba753ae292aec6f95e1ba7845d35dff74371136c17',
+  // D-PROD-185 (MAIKE-ESTOQUE-P1-03, M7): EXPAND só de índices não-únicos em tabelas antigas (LC-2 e keyset de movimentos).
+  '20261113300000_estoque_p1_03_indices': '5d91e751e4e924f94154ddaad603203e0d21ebc0e84fd242c6a2108ea6d28565',
   // D-PROD-188: CADESTACOES (cadastro de Estações da fazenda) — só tabela nova.
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
   // D-PROD-187: CONTRACT aprovado pelo proprietário — DROP COLUMN das 15 colunas dormentes de CategoriaManejo (D-PROD-186)

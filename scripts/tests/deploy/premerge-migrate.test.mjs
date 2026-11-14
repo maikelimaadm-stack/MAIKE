@@ -936,13 +936,14 @@ test('B15k (D-PROD-187/D-PROD-189): ordem de produção — alvo com as 44 da ma
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  assert.equal(locais.length, 45);
+  // Contagem pela pasta: outra release EXPAND na main (ex.: D-PROD-185, 45 → 46 pastas) não muda o que este teste prova.
+  assert.ok(locais.length >= 45);
   assert.ok(POSTERIOR > NOME_K && locais.some((l) => l.nome === POSTERIOR));
   const t0 = Date.parse('2026-01-01T00:00:00Z');
-  // Produção: as 44 sem a D-PROD-187, a CADCURVAGANHO por último (23:18 UTC de 2026-11-13).
+  // Produção: todas menos a D-PROD-187, a CADCURVAGANHO por último (23:18 UTC de 2026-11-13).
   const linhas = locais.filter((l) => l.nome !== NOME_K)
     .map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
-  assert.equal(linhas.length, 44);
+  assert.equal(linhas.length, locais.length - 1);
   assert.equal(linhas.at(-1).migration_name, POSTERIOR);
   const h = conferirHistoricoRemoto({ locais, linhas });
   assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_K], falhas: [] });

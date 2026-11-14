@@ -5,7 +5,7 @@
  * CADCATEGORIA) de ponta a ponta, contra PostgreSQL real, em bancos PRÓPRIOS
  * criados e apagados por este teste (o banco da suíte não é tocado).
  *
- * Partida: as 44 migrations da main (todas menos esta CONTRACT; inclui as EXPAND da CADESTACOES, D-PROD-188, e da
+ * Partida: todas as migrations do repositório menos esta CONTRACT (CONCLUIDAS_ANTES; inclui as EXPAND da CADESTACOES, D-PROD-188, e da
  * CADCURVAGANHO, D-PROD-189, esta de nome POSTERIOR ao desta CONTRACT e já concluída, como em produção) e, para 2
  * clientes, 4 categorias de manejo: uma no formato das 4 de produção (raça,
  * categoria oficial, 12 GMDs 0.0000), uma com ganho e GMDs variados (e um
@@ -21,7 +21,7 @@
  * MIGRATION_CONTRACT_AUTORIZADO = D-PROD-187 (recusa antes de qualquer DDL).
  *
  * GREEN pelo runner oficial (`npm run deploy:migrate`), com a impressão na URL:
- * 45 concluídas (esta CONTRACT aplicada por último, depois da CADCURVAGANHO, fora da
+ * todas concluídas (CONCLUIDAS_DEPOIS; esta CONTRACT aplicada por último, depois da CADCURVAGANHO, fora da
  * ordem dos nomes, como vai acontecer em produção), 82 tabelas, CategoriaManejo some, CADCATEGORIA com o mesmo OID, ACL, RLS e
  * políticas, as 12 colunas que ficam, linhas idênticas nelas, os 4 nomes novos,
  * FK válida, demais tabelas iguais, `migrate diff` vazio, o Prisma Client lê
@@ -35,7 +35,7 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { PrismaClient } from '@prisma/client';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
@@ -95,10 +95,10 @@ after(async () => {
 });
 
 describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem as 16 colunas (PostgreSQL real)', () => {
-  test('CD-01 partida: 44 migrations da main (a CADCURVAGANHO, de nome posterior, já concluída), 82 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
+  test('CD-01 partida: todas as migrations menos esta CONTRACT (a CADCURVAGANHO, de nome posterior, já concluída), 82 tabelas, CategoriaManejo com 28 colunas, 4 índices e 3 constraints; impressão de 12 hex igual à conta independente e à expressão da guarda', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_ANTES);
-    assert.equal(CONCLUIDAS_ANTES, 44);
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 1, 'todas as pastas menos esta CONTRACT');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 82);
     // O estado de produção: uma migration de nome POSTERIOR a esta CONTRACT já concluída, e esta pendente.
@@ -201,7 +201,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
 
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_DEPOIS);
-    assert.equal(CONCLUIDAS_DEPOIS, 45);
+    assert.equal(CONCLUIDAS_DEPOIS, readdirSync(new URL('../prisma/migrations/', import.meta.url), { withFileTypes: true }).filter((d) => d.isDirectory()).length, 'todas as pastas');
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
     // Ordem real de aplicação: a CONTRACT por último, DEPOIS da EXPAND de nome posterior (o runner e o
