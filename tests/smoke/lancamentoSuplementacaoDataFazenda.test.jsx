@@ -52,7 +52,7 @@ const montar = async () => {
     render(<QueryClientProvider client={client}><FormularioLancamentoSuplementacao ponto={PONTO} onSubmit={() => {}} onCancel={() => {}} /></QueryClientProvider>);
   });
   await assentar();
-  await screen.findByText('Data do lançamento');
+  await screen.findByText('Data do abastecimento');
 };
 
 beforeEach(() => {

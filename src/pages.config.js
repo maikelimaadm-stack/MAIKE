@@ -20,7 +20,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import TiposAtividade from './pages/TiposAtividade';
 import Estacoes from './pages/Estacoes';
 import CurvasGanho from './pages/CurvasGanho';
-import ApontamentosAtividade from './pages/ApontamentosAtividade';
+import LancamentoAtividades from './pages/LancamentoAtividades';
 import GruposAtividades from './pages/GruposAtividades';
 import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
@@ -51,7 +51,7 @@ export const PAGES = {
     "TiposAtividade": TiposAtividade,
     "Estacoes": Estacoes,
     "CurvasGanho": CurvasGanho,
-    "ApontamentosAtividade": ApontamentosAtividade,
+    "LancamentoAtividades": LancamentoAtividades,
     "GruposAtividades": GruposAtividades,
     "Empresa": Empresa,
     "Usuarios": Usuarios,

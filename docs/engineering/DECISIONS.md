@@ -7168,13 +7168,220 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - nova política **`criacao: 'somente_online'`** do adaptador, como a `exclusao: 'somente_online'` da PR167-R2: a criação vai direto ao servidor e o registro confirmado entra no cache; `create` legado na fila fica retido (`OFFLINE_ENTITY_UNSUPPORTED`). A porta da categoria passa a usá-la (no lugar de montar o adaptador sem `create`);
    - no replay, os `create` que a **política** retém (entidade com criação só online, ou porta sem `create`) são conhecidos **antes** do laço; um `create` que **cite** um desses ids offline fica retido junto (`quarentena.depende_de`), em qualquer ordem da fila, e passa a segurar quem o citar; a **edição de um registro real** que cite um deles vai ao servidor **sem os campos** que o citam (sem resto, sai da fila) — reter a edição de um registro real a deixaria para sempre por cima do servidor nas listas e travaria a exclusão do lote por pendência offline (achado da quarta revisão). Edição ou exclusão do próprio registro retido fica retida junto dele. **Só** esses ids seguram outro item: qualquer outro id `offline_…` segue o caminho de sempre (a terceira revisão mostrou que reter todo id sem mapeamento esconderia para sempre cadastros legítimos, como um lote cuja área foi criada numa sincronização anterior);
    - para entidade com criação só online, o `create` da fila **e a cópia `offline_…` do cache** não aparecem nas listas, online nem offline, decidido pela política (sem depender de um replay antes), como a exclusão retida. O item continua na fila, sem envio e sem apagar nada; descartá-lo pela tela fica para uma fatia própria (hoje só a exclusão retida tem liberação manual). Um lote retido por depender da categoria continua visível;
-   - fora do escopo, registrado como pendência: o mapa `offline_ → id do servidor` vale só para uma passada do replay. Se a passada para entre criar A e enviar B que cita A, B vai depois com o id offline. É um comportamento anterior à D-PROD-195, que a R2 não altera. **Resolvida pela D-PROD-198.**
+   - fora do escopo, registrado como pendência: o mapa `offline_ → id do servidor` vale só para uma passada do replay. Se a passada para entre criar A e enviar B que cita A, B vai depois com o id offline. É um comportamento anterior à D-PROD-195, que a R2 não altera. **Resolvida pela D-PROD-204.**
 
-## D-PROD-198 — Fila offline: o id que o servidor deu a uma criação offline é gravado na fila antes de a criação sair dela
+## D-PROD-196 — Cadastro de lotes sem raça predominante e sem idade média (meses)
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-196`, mas as PRs #275 (P2002) e #276 (Tipo de Atividade), em rascunho, usam a D-PROD-195, que já é da PR #278, e vão precisar renumerar. Para não colidir com elas, a D-PROD-196 e a D-PROD-197 ficam livres para essas duas, e esta decisão é a **D-PROD-198**.
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos organizar o cadastro de lotes, e preciso remover, idade média meses, raça predominante, e ajuste tudo") · **Branch:** `claude/kind-knuth-tztu1v`
 
-**Data:** 2026-11-14 · **Origem:** pendência registrada na emenda R2 da D-PROD-195 ("fora do escopo, registrado como pendência"); pedido do proprietário · **Branch:** `claude/relaxed-bardeen-jlgbp7`, empilhada sobre `claude/kind-knuth-tztu1v` (PR #279, emenda R2, que traz `criacoesRetidas`)
+**Contexto.** O cadastro do lote ainda tinha dois campos herdados do ERP antigo: **Raça Predominante** (texto) e **Idade Média (meses)** (inteiro), os dois marcados com asterisco no formulário. A faixa etária agora vem da Categoria de Manejo (D-PROD-186), e o ganho de peso vem da curva da categoria (D-PROD-195). Os dois campos ficaram redundantes. Em produção, os 84 lotes têm os dois preenchidos (raças NELORE e COMPOSTO).
+
+**Decisão.**
+1. **Saem do sistema:** formulário do lote, incluindo o layout padrão da aba Geral e a lista de campos em maiúsculas; porta nativa do lote (`CAMPOS_DE_CRIACAO`/`ATUALIZACAO`); grade do cadastro (coluna "Raça Predominante"); motor de campos (`campoEngine`); correção da entrada, nos dois lados (`CAMPOS_ADMINISTRATIVOS_DA_ENTRADA`); detalhes do lote no mapa (coluna "Raça" e linha "Raça Predom." no card); informação da posição no controle por posições (`raca_predominante` sai da posição pública do ledger e do formulário "Editar informação").
+2. **API:** `comoLotePublico` não devolve mais os dois campos, e o repositório não os lê. O serviço não os grava: `camposDe` só considera `CAMPOS_EDITAVEIS`. O schema de `POST`/`PATCH /lotes` **continua aceitando** as duas chaves, ignoradas, para não recusar com 400 um bundle antigo nem um item da fila offline gravado pela versão anterior. O comando de correção da entrada passa a recusá-las (400), como qualquer campo não corrigível. Nesse caso não há fila, porque o comando é só online.
+3. **Banco: sem migration.** As colunas `Lote.raca_predominante` e `Lote.idade_media_meses` continuam no banco, com os valores antigos dos 84 lotes intactos. Nada se perde, e a release não exige GO de banco. Lote novo fica com as duas colunas nulas. Apagar as colunas fica para uma migration CONTRACT própria, se o proprietário quiser, junto de outras colunas legadas.
+4. **Layout da aba Geral:** sem os dois campos, a aba fica com duas linhas cheias: **Categoria de Manejo · Sexo · Sistema Produtivo** e **Qtd. Cabeças · Peso Médio**. Uma configuração de layout salva no navegador que ainda cite os ids removidos não quebra: o renderizador descarta ids sem campo, e a ordem salva da aba Geral que cite um deles dá lugar à ordem padrão (com os campos extras da configuração no fim), para não deixar buracos. Abaixo de 1024 px, Sexo e Sistema Produtivo dividem a linha.
+5. **`PATCH` só com chaves ignoradas** (ex.: raça de um cliente antigo) responde 200 com o lote sem mudança e **sem** registro de auditoria.
+
+**Relatório:** [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md).
+
+## D-PROD-197 — Tipo de Atividade com padrões e flags: a base do Lançamento de Atividades (Fatia 1; revê a D-PROD-182 no ponto "sem flags")
+
+> **Numeração:** nasceu como D-PROD-195, que a `main` deu à curva obrigatória na Categoria de Manejo (PR #278, aplicada em produção); passou a D-PROD-196, e a `main` deu a D-PROD-196 ao cadastro de lotes sem raça predominante e sem idade média (PRs #281 e #282, sem migration) antes do merge desta; a `main` indica `Próxima decisão: D-PROD-197`, que é esta. A migration passou de `20261114200000_…` para `20261114300000_tipo_atividade_defaults` para vir depois da `20261114200000_cadcategoria_curva_ganho`. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então renumerar não muda o checksum — nem o registro já aplicado em produção, que guarda só o nome e o checksum. A autorização do proprietário (aplicar, fazer o merge e aprovar a nota da Constituição) foi dada com o número D-PROD-196; é a mesma decisão.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 1: "TipoAtividade ganha os defaults e as flags. É a base de tudo."; "ATENÇÃO: estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa. Elas foram removidas do TipoTarefa de propósito e é aqui que elas fazem sentido: é o tipo de atividade que sabe se gradeação exige máquina e se aplicação de veneno permite produto."; "O que dá para configurar no CADASTRO do tipo de atividade não se digita no lançamento. Centro de custo, centro de resultado e unidade de produção vêm prontos."; "Unidade de produção vem de UnidadeMedida (cadastro geral). NÃO crie lista fixa, NÃO crie cadastro novo de unidade.") · **Branch:** `feat/tipo-atividade-defaults` · **Contrato:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md)
+
+**Contexto.** O Apontamento de Atividade de hoje (D-PROD-190/193) é uma linha só. O proprietário redesenhou o lançamento em dois níveis (Atividade aberta → apontamentos por dia/turno → linhas de produto, máquina, mão de obra e serviço), em 4 fatias. A base é o tipo de atividade saber o que a atividade herda (centros, unidade de produção, coeficiente) e como ela funciona (o que exige e o que permite). A D-PROD-182 tinha deixado o tipo **sem** flags ("elas voltam depois como opções do apontamento, nunca do cadastro"); o proprietário decidiu o contrário para o Tipo de Atividade. O TipoTarefa continua sem flags (D-PROD-181/183).
+
+**Decisão.**
+1. **`TipoAtividade` ganha 5 padrões opcionais:** `categoria` (lista fechada de 9: `PREPARO_SOLO`, `PLANTIO`, `TRATO_CULTURAL`, `APLICACAO`, `COLHEITA`, `PASTAGEM`, `BENFEITORIA`, `MANEJO_ANIMAL`, `OUTROS`), `centro_custo_padrao_id`, `centro_resultado_padrao_id`, `unidade_producao_id` (de `UnidadeMedida`) e `coeficiente_padrao` (`DECIMAL(14,4)`, > 0, ex.: h/ha). As FKs são compostas pelo tenant, (`cliente_id`, padrão) → (`cliente_id`, `id`), `ON DELETE RESTRICT`, com um índice por FK começando por `cliente_id`.
+2. **E 8 flags `BOOLEAN NOT NULL DEFAULT false`:** `exige_area`, `exige_safra`, `exige_maquina`, `permite_implemento`, `permite_produto`, `permite_servico`, `permite_mao_obra`, `exige_producao`. Os nomes aposentados `pode_ter_produto`, `pode_ter_maquina` e `pode_ter_implemento` continuam recusados (400). **Este item revê a D-PROD-182** no ponto "o cadastro não tem flags de exigência"; o resto dela vale. No TipoTarefa nada volta.
+3. **Tipo é do cliente; centro é da fazenda.** A FK prende o tenant. Os dois centros padrão, quando preenchidos, são da **mesma empresa**; o centro tem de estar **ativo** quando é escolhido. Na criação da atividade (Fatia 2), o padrão só é herdado por uma atividade da **mesma empresa** do centro e enquanto ele estiver ativo; senão a atividade nasce sem aquele centro. Padrão que fica inativo depois de gravado continua no tipo.
+4. **Migration CONTRACT `20261114300000_tipo_atividade_defaults`** (sexta exceção fechada à D-PROD-72 item 3 e à D-PROD-107 R7, depois da D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194 e D-PROD-195). A mudança é **aditiva**, mas a allowlist EXPAND não aceita em tabela antiga coluna `NOT NULL DEFAULT`, FK para tabela antiga nem CHECK; o caminho é o dos alargamentos de CHECK da D-PROD-162:
+   - guarda DO como primeira instrução, hash pinado `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`: falha fechada se `TipoAtividade` não existir, se qualquer das 13 colunas, 5 constraints ou 3 índices novos já existir, ou se algum alvo das FKs não tiver índice único exatamente em (`cliente_id`, `id`);
+   - depois, exatamente 18 instruções pinadas (13 `ADD COLUMN`, 3 FKs, 2 CHECKs, nessa ordem) e, no resto, os 3 `CREATE INDEX` pela allowlist EXPAND;
+   - SHA-256 do arquivo `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; entrada em `MIGRATIONS_CONTRACT_APROVADAS` com `decisao: 'D-PROD-197'`, `drop: []`;
+   - repositório: 50 → **51** migrations (a `main` já tem a D-PROD-195, aplicada em produção às 14:51:56 UTC); tabelas não mudam;
+   - release **isolada**, aplicada **antes do merge** (o código novo lê as colunas; o código antigo convive com elas) pelo runbook [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md): caminho A com `--contract D-PROD-197`, ou caminho B só com GO escrito e específico desta migration.
+5. **API `/tipos-atividade`:** os 13 campos novos no corpo (opcionais; flags só booleanos de verdade e coeficiente só string, sem coerção do AJV); resposta com os padrões e os objetos do centro de custo, do centro de resultado e da unidade; recusas 422 `TIPO_ATIVIDADE_PADRAO_INVALIDO` (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`). Rotas novas `GET /tipos-atividade/opcoes/centros-custo` e `/centros-resultado` (`?empresa_id=`, só ativos, para quem cria ou edita tipo, sem depender das telas de centros). Apagar unidade de medida usada como padrão → 409 `UNIDADE_MEDIDA_DELETE_BLOCKED` (reconhecido pela FK, sem consultar `TipoAtividade`).
+6. **"Preparar o terreno":** `tipoAtividadePadroes.js` (puro) entrega `padroesParaAtividade(tipo, { empresaId })` e `regrasDoTipo(tipo)` para o "Abrir atividade" da Fatia 2. Nenhum fluxo de produção usa nesta fatia; o Apontamento de Atividade de hoje não muda.
+7. **Tela Tipos de Atividade:** formulário em 3 seções (Identificação; Apropriação; Como funciona), só com componentes que já existem; lista com a coluna Categoria.
+8. **Gate `gate:tarefa-cadastro-native`:** no TipoAtividade proíbe só os nomes aposentados `pode_ter_*` e exige as 8 flags; no TipoTarefa proíbe as 4 antigas e as 8 novas.
+
+**Testes.**
+- `backend/tests/tipoAtividadeNativo.test.mjs` (41): defaults, flags sem coerção, categoria, coeficiente, regras 422 (`nao_encontrado`, `inativo`, `empresas_diferentes`, `nao_positivo`), corrida de PATCH (revisão A5-1/A6-1), opções de centros (ordem numérica, teto de 1000, guarda), isolamento por tenant; `tipoAtividadePadroes.test.mjs` (12); `unidadeMedidaNativo.test.mjs` (+3: exclusão barrada com 409); `permissoesR2Rotas.test.mjs` (+1).
+- `backend/tests/tipoAtividadeDefaultsMigration.test.mjs` (25, PostgreSQL real): recusas da guarda, runner oficial com e sem a decisão, envelope do caminho B com os blocos do runbook, FKs/CHECKs/RESTRICT, `migrate diff` vazio.
+- Portão e runner (`scripts/tests/deploy/*`, 168): entrada CONTRACT pinada, adulterações recusadas, release isolada, decisão única por CONTRACT; gate `tarefa-cadastro-native` (17).
+- Smoke `tests/smoke/tiposAtividade.test.jsx` (27): 3 seções, caixas de marcar, coeficiente pt-BR, centros da fazenda, chave de colunas `_v2`, transporte dos códigos, cancelar descarta (revisão F1-1).
+- Revisão independente em três frentes, 2 céticos por achado, e conferência no navegador: ver o relatório §6.
+
+**Pontos levados ao proprietário.**
+1. A Fatia 3 fala em "tipo que permite máquina", mas a lista de flags tem `exige_maquina` e não `permite_maquina` (máquina opcional). **Resposta do proprietário:** "Não, segue só com Exige máquina (Recomendado)".
+2. Com mais de uma fazenda no cliente, o centro padrão vale só para a fazenda dele; padrão por fazenda seria uma tabela filha (decidir na Fatia 2).
+
+**Aplicação em produção.** 2026-11-14 às 17:05:05 UTC (`finished_at`), caminho B do runbook, com o GO escrito do proprietário para esta migration ("Sim: aplique e faça o merge (Recomendado)", à pergunta que a chamava de D-PROD-196). Preflight `PRONTO PARA APLICAR` (50 / 0, 85 tabelas, 2 tipos, 0 travas); postcheck `APLICADA E CONFERIDA` (51 / 0, 13 colunas, 5 constraints, 4 índices, RLS e política inalterados, nenhum privilégio novo, nenhum padrão preenchido); alertas do Supabase sem nada novo além de `unused_index` para os 3 índices novos. A mesma resposta aprova a nota D-PROD-197 do `07-DO-NOT-DO.md` no merge da PR #276.
+
+**Relatório:** [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md).
+
+## D-PROD-198 — Peso projetado do lote pela curva de ganho e peso objetivo na Categoria de Manejo
+
+> **Numeração:** nasceu como D-PROD-197, que a `main` deu ao Tipo de Atividade com padrões (PR #276), com a migration `20261114300000_…`; a migration passou a `20261114400000_cadcategoria_peso_objetivo`, depois da `20261114300000_tipo_atividade_defaults`. O número e o nome da pasta não entram no `migration.sql`: o checksum não muda.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("vamos começar com o peso projetado lote"; "inves de criar peso objetivo a gente colocaria no cadastro de categoria, muito mas simples e outra não precisa ser obrigatório"; "também ja ajuste essas contas de curvas objetivos") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.** A curva de ganho mensal (D-PROD-194) está ligada a cada Categoria de Manejo (D-PROD-195). Na Prodap, o peso projetado do lote é o último peso mais o GMD do mês da curva da categoria, dia a dia. O lote mostra também o "pesado × previsto" e quando atinge o peso objetivo. O proprietário decidiu:
+- **não** criar um cadastro de "objetivo do lote". Na Prodap ele é só um rótulo de destino, sem efeito no cálculo, e confundiria com a categoria;
+- o **peso objetivo** fica **na Categoria de Manejo**, opcional;
+- a **base** da projeção é o último peso do lote, de qualquer origem: entrada, pesagem estimada ("no olho") ou de balança;
+- a **arroba** é a de peso vivo (kg ÷ 30).
+
+**Decisão.**
+1. **`CADCATEGORIA.peso_objetivo_kg DECIMAL(10,2)`**, opcional. Migration **EXPAND** pura `20261114400000_cadcategoria_peso_objetivo` (uma coluna anulável, sem DEFAULT), SHA-256 `d44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9`. Repositório 51 → **52** migrations (depois da `20261114300000_tipo_atividade_defaults`); tabelas iguais (85). Release **antes do merge** pelo runbook [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md). Não há janela: o runtime antigo ignora a coluna. **Aplicada em produção em 2026-11-14 às 19:00:00 UTC** (caminho B, GO escrito "go"), conferida: 52 / 0, advisors sem achados.
+2. **API da categoria:** `peso_objetivo_kg` no formato público.
+   - **Validação:** vazio ou `null` limpa; o valor precisa ser número finito > 0 e até 3.000 kg (o teto por cabeça do manejo). Aceita vírgula e milhar pt-BR ("1.200" é 1.200 kg, não 1,2) e grava com 2 casas.
+   - **Erro:** fora disso, 400 `REQUEST_VALIDATION_FAILED` com reason `peso_objetivo_invalido`.
+   - **Tela:** campo "Peso objetivo (kg)" no formulário e coluna na lista, ordenada pelo número. A chave de preferências passa a `_v3` para a coluna nova aparecer.
+3. **Motor do peso projetado** (`backend/src/modules/rebanhoLedger/pesoProjetado.js`, só leitura, nada gravado):
+   - **Cálculo:** projetado = valor da base + Σ GMD(dia) para cada dia depois da base, com o GMD do mês de cada dia na curva da categoria da posição.
+   - **Base:** o último `PesoRebanho` ativo da posição.
+   - **Base derivada:** transferência, mudança de categoria e junção gravam no destino a média do peso registrado das origens. Por isso a base derivada é recalculada com o peso **projetado** de cada origem (e do saldo que já estava no destino) no instante do evento, pelo descritor `dados.pesos_derivados` do evento. Assim o ganho do pasto não se perde quando o lote muda de categoria. O cálculo percorre os pesos da empresa **uma vez, em ordem cronológica** (data operacional, registro, criação, id), sem recursão nem limite de profundidade; um nascimento ou entrada medida no mesmo destino também soma o saldo projetado que já estava lá. Peso desconhecido cai para o valor gravado (nunca inventa).
+   - **Saídas por posição:**
+     - peso e @ de hoje;
+     - GMD do mês;
+     - base (tipo do fato, data, peso gravado e peso usado);
+     - objetivo, quanto falta e data prevista para atingir (busca até 1.095 dias);
+     - **pesado × previsto** da última pesagem, comparada com o projetado logo antes dela ("97,7% do previsto"). Só olha pesagens da **própria posição**: logo depois de uma transferência ou mudança de categoria, a base é derivada e o campo fica vazio até a próxima pesagem;
+     - projeção no último dia dos próximos 12 meses.
+4. **Onde aparece:**
+   - **API:** `GET /rebanho/posicoes` devolve `projecao_peso` em cada item. A projeção carrega posições, categorias, pesos, partidas e eventos da empresa, com uma consulta por tabela filtrada por `cliente_id` e `empresa_id` (sem lista de ids, sem limite de parâmetros); dos eventos lê só `dados -> 'pesos_derivados'`. "Hoje" é o dia no fuso da fazenda, lido **sem trava**; empresa sem fuso responde 200 com `motivo: 'sem_fuso'` (a lista não quebra). **Escala:** o custo cresce com o histórico de pesos da fazenda; se ficar pesado, a próxima fatia guarda um instantâneo projetado por posição.
+   - **Mapa:** nos Detalhes do Lote, na seção **Pesagem**, que já é visível, entram as colunas peso projetado, @ projetadas, GMD do mês, base da projeção, peso objetivo, quando atinge, pesado × previsto e os próximos fins de mês. O card mostra "Peso projetado (kg)".
+5. **Limite registrado (próxima fatia):** hoje o manejo **Mudança de Categoria** escolhe as fontes pela categoria **oficial** e recusa "categoria nova igual à atual". Por isso ainda não dá para trocar BOI PASTO por BOI CONFINAMENTO quando as duas são "Boi 25 a 36 meses" Macho. Liberar a troca entre Categorias de Manejo com a mesma oficial fica para a próxima missão. O motor já trata a base derivada dessa troca.
+
+**Relatório:** [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md).
+
+## D-PROD-199 — Mudança de Categoria mostra e pede a categoria de manejo de destino; cadastro avisa categoria repetida
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário. Ele explicou que a mudança de categoria é a evolução por idade ("eu tenho animais de 13 a 24 meses, exemplo garrote, vamos supor que a nova categoria do garrote vai ser o boi de 25 a 36 meses") e aprovou a proposta ("sim vamos fazer isso") · **Branch:** `claude/kind-knuth-tztu1v`
+
+**Contexto.**
+- A Mudança de Categoria (garrote 13 a 24 → boi 25 a 36) já funciona. O servidor liga a posição nova à categoria de manejo que deriva a oficial nova.
+- O peso projetado (D-PROD-198) parte do projetado da origem no dia da troca e segue a curva e o objetivo da categoria nova.
+- O formulário, porém, escolhia a categoria de manejo **sozinho e sem mostrar qual**, quando duas ativas derivam a mesma oficial: pela faixa mais avançada e, empatando, pelo id.
+- Em produção há categorias repetidas, com o mesmo sexo e a mesma faixa:
+  - "TESTE" e "BEZERRO MAMANDO", Macho 0 a 8;
+  - "VACA LEITERA" e uma "GARROTE 13 A 24 MESES" Fêmea gravada com faixa 37+.
+- Com elas, a escolha automática pode ligar o lote à categoria errada, com outra curva e outro objetivo. No Nascimento o servidor recusa com `MANEJO_CATEGORIA_AMBIGUA`.
+
+**Decisão** (só tela; sem migration, sem mudança no servidor):
+1. **Mudança de Categoria** (`FormularioMudancaCategoria.jsx`), depois de escolher a categoria nova:
+   - **uma** categoria de manejo possível: a tela mostra qual é e o sexo, e envia o id dela;
+   - **mais de uma**: um select **obrigatório** "Categoria de Manejo", sem pré-escolha. Sem escolher, não envia (aviso "Escolha a categoria de manejo…"). Trocar a categoria nova limpa a escolha;
+   - **nenhuma**: aviso de que o lote fica sem curva de ganho e sem peso objetivo. Envia sem categoria de manejo, como antes.
+   - O id, o nome e o sexo da categoria de manejo são resolvidos **no envio**, a partir das ativas lidas do servidor. Antes eram gravados na hora da escolha e ficavam vazios se a lista chegasse depois.
+   - O servidor não muda: com id, valida (`MANEJO_CATEGORIA_INVALIDA`); sem id e com mais de uma, recusa (`MANEJO_CATEGORIA_AMBIGUA`).
+2. **Cadastro de Categoria de Manejo:**
+   - quando outra categoria **ativa** da fazenda tem o **mesmo sexo e a mesma faixa**, a Faixa de idade mostra "Já existe X com o mesmo sexo e faixa…";
+   - o aviso não bloqueia o salvamento;
+   - faixas diferentes da mesma oficial (0 a 8 e 9 a 12) **não** contam: são etapas, não repetição;
+   - a lista vem da mesma consulta da grade (mesma chave do react-query).
+3. **Funções puras** em `src/domain/lotes/categoriaOficialDerivada.js`:
+   - `categoriasManejoParaMudanca`: todas as candidatas, por nome;
+   - `categoriasManejoDuplicadas`: mesmo sexo e faixa, outra ativa.
+   - A antiga `categoriaManejoParaMudanca`, com a escolha automática, fica só para compatibilidade e não é mais usada pela tela.
+
+**Correção de dados (feita pelo proprietário no cadastro, sem código).**
+- Corrigir a faixa ou o sexo da "GARROTE 13 A 24 MESES" Fêmea (hoje 37+).
+- Inativar "TESTE".
+- Cadastrar as fêmeas de 13 a 24 e de 25 a 36 meses (novilhas), que faltam.
+
+**Relatório:** [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md).
+
+## D-PROD-200 — Lançamento de Atividades em dois níveis: a Atividade (cabeçalho) e o apontamento do dia como filho (Fatia 2)
+
+> **Numeração:** nasceu como D-PROD-198, com a migration `20261114400000_atividade_cabecalho`. A `main` deu a D-PROD-198 e o prefixo `20261114400000` ao peso objetivo na Categoria de Manejo (PR #283, aplicada em produção às 19:00 UTC) antes do merge desta. Passou a D-PROD-199, e a `main` deu a D-PROD-199 à Mudança de Categoria (PR #287, sem migration). Esta é a **D-PROD-200** e a migration passou a `20261114500000_atividade_cabecalho`. O número não está no `migration.sql`, então o checksum não muda. O GO do proprietário ("autorizo pode enviar") foi dado para esta migration, com o número antigo.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("LANÇAMENTO DE ATIVIDADES — REDESENHO EM 4 FATIAS", Fatia 2: "O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" · **Branch:** `feat/atividade-cabecalho`
+
+**Contexto.** O Apontamento de Atividade de hoje (D-PROD-190, com os itens da D-PROD-193) é uma linha só: não há onde pendurar 15 dias de lançamentos sob a mesma operação, nem duas passadas no mesmo dia. A Fatia 1 (D-PROD-197) deu ao Tipo de Atividade os padrões e as flags que a abertura da atividade herda.
+
+**Decisão.**
+1. **Dois models novos:** `Atividade` (cabeçalho aberto: nome, tipo e grupo com snapshot, área com o setor herdado, máquina, safra, snapshots do tipo — centro de custo, centro de resultado e unidade de produção —, datas, área planejada e executada, produção, tarefa de origem, status `ABERTA | CONCLUIDA | CANCELADA` com conclusão, cancelamento e reabertura) e `AtividadeApontamento` (dia, turno `MANHA | TARDE | NOITE | nulo`, sequência das passadas, operador, área e produção do dia, observação, origem `WEB | APP`, status `CONFIRMADO | CANCELADO`). Campos fora da lista do pedido: `Atividade.bem_id` (a flag `exige_maquina` é conferida na abertura e é onde fica a máquina dos registros convertidos) e `Atividade.unidade_producao_sigla` (snapshot da sigla; guarda a unidade de texto `KM`/`HA` dos convertidos, que não existe no cadastro do cliente). O unique do apontamento por (atividade, dia, turno, sequência) é `NULLS NOT DISTINCT` no banco.
+2. **Migration CONTRACT `20261114500000_atividade_cabecalho`** (sétima entrada fechada), num formato novo do portão, **conversão**: guarda → tabelas novas pela allowlist EXPAND → conversão pinada → DROP pinados no fim. Os 2 apontamentos de teste viram 2 atividades (mesmo número, id `atv_<id antigo>`) com um apontamento filho cada (mesmo id antigo); nada é descartado (a guarda recusa se houver dado sem lugar no modelo novo, item de custo ou fatia FIFO). As 3 tabelas antigas saem. Produção: 51 → 52 migrations, 85 → 84 tabelas.
+3. **Regras:** tipo inativo recusa; herança do tipo e da área (snapshot, nunca relida); flags `exige_area`, `exige_safra` e `exige_maquina` na abertura e `exige_producao` na conclusão; apontamento no futuro recusa, fora do intervalo da atividade só alerta; concluída não aceita apontamento nem edição; reabrir com permissão própria, motivo e auditoria; cancelar a atividade cancela os apontamentos na mesma transação (o estorno de estoque entra na Fatia 3, quando houver linha de produto); área executada e produção do cabeçalho = soma dos apontamentos confirmados.
+4. **O apontamento antigo sai inteiro** (módulo, tela, itens da D-PROD-193, testes); produto e máquina voltam na Fatia 3 como linhas do apontamento.
+
+**Contrato:** [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md).
+
+**Aplicação em produção.** **Aplicada em produção em 2026-11-14 às 20:25:14 UTC** (`finished_at`), pelo caminho B do runbook, com o GO escrito do proprietário ("autorizo pode enviar"; depois "pode aplicar"). Preflight `PRONTO PARA APLICAR` (52 / 0, 85 tabelas, 2 apontamentos confirmados, 0 itens, 0 fatias, contador tenant / 3, 0 travas). Conferência depois: 53 / 0; checksum `c288cf47…`; 84 tabelas; as 3 antigas saíram; 2 atividades (nº 1 e 2, ABERTA, com máquina, centros, setor do nº 1, unidade KM/HA e produção 1/150) e 2 apontamentos (sequência 1, sem turno, CONFIRMADO); contador `Atividade` / tenant / 3; RLS ligado sem FORCE e política `maike_backend_all` nas 2 novas; nenhum privilégio para `anon`/`authenticated`; unique `NULLS NOT DISTINCT` presente.
+
+## D-PROD-201 — Suplementação de cocho, etapa 1: rebanho e peso certos no lançamento, salvar de novo sem baixar duas vezes, datas em ordem
+
+**Data:** 2026-11-14 · **Origem:** análise da suplementação de cocho pedida pelo proprietário ("você vai analisar toda a parte de suplementação de cocho… cálculos etc resultados"). Ele aprovou a ordem proposta ("vamos começar") e definiu a regra do peso: "a gente tem que fazer com o peso projetado, se não tiver peso projetado vai com base da pesagem atual" · **Branch:** `claude/kind-knuth-tztu1v`
+
+> **Numeração:** a `main` deu a D-PROD-200 ao Lançamento de Atividades (PR #285); esta é a **D-PROD-201**.
+
+**Contexto.** A análise encontrou cinco problemas no lançamento de suplementação (`FormularioLancamentoSuplementacao.jsx`):
+1. **Rebanho errado.** O formulário lia o **cadastro de Lote**, mas numa empresa no ledger o rebanho atual são as **posições** (D-PROD-107).
+   - Em produção os Lotes ativos somavam 5.358 cabeças e as posições, 4.425.
+   - O consumo esperado, a duração e a reposição saíam errados.
+2. **Lote sem peso.** O lote sem peso entrava na média como **0 kg**. Por exemplo, 30 cabeças com 400 kg e 20 sem peso davam média de 240 kg, o que subestimava o consumo e atrasava a reposição.
+3. **Baixa dupla.** Cada clique gerava um `operation_id` novo. Se o evento falhasse depois da baixa de estoque, salvar de novo **baixava outra vez**, e não existe estorno de suplementação.
+4. **Erro falso.** `toast.warn` não existe no sonner. Quando o fechamento do período anterior falhava, o `TypeError` virava "Não foi possível registrar", com o lançamento e a baixa já gravados, o que empurrava para a baixa dupla.
+5. **Data fora de ordem.** O lançamento com data anterior ao último fechava o **período mais novo** com 1 dia, porque `calcularDiasPeriodo` devolve no mínimo 1.
+
+**Decisão** (só tela; sem migration e sem mudança no servidor):
+1. **Rebanho do mapa.** O formulário usa `listarRebanhoParaSuplementacao`, a mesma fonte do mapa:
+   - **empresa no ledger:** as posições ativas da área, com `projecao_peso`;
+   - **legado:** os Lotes ativos.
+   - Um erro na consulta propaga; o sistema nunca cai para o Lote como saldo.
+   - As linhas por lote levam o id da **posição**. O servidor já resolve posição → lote de entrada (`exigirLotesDosDocumentos`).
+2. **Peso do consumo por %PV** (`pesoDeConsumoDoLote`):
+   - o **peso projetado de hoje** (D-PROD-198; sem curva, ele já é o último peso);
+   - senão, o último peso gravado.
+   - Sem peso nenhum, o lote **fica fora da média** (`resumoPesoDosLotes`). A média dos lotes com peso vale para todas as cabeças, e a tela avisa "N cabeça(s) sem peso (LOTE…)".
+   - Se nenhum lote tem peso, não há taxa, e o mapa explica "os lotes do pasto não tinham peso no lançamento", com a orientação de registrar uma pesagem, em vez de "Cadastre o %PV".
+   - O evento grava `cabecas_sem_peso`.
+   - **Limite:** o peso projetado é o de **hoje**, também num lançamento retroativo.
+3. **Uma operação por lançamento.** O `operation_id` nasce no primeiro clique e vale até o sucesso.
+   - Depois de uma falha, salvar de novo **reaproveita a baixa já feita**: não chama a saída de estoque outra vez, e o evento vai com o mesmo `operation_id`, que é idempotente no servidor.
+   - A mensagem de erro diz que a baixa foi registrada e que basta salvar de novo.
+   - Se a quantidade, o produto, a data ou o local mudaram depois da baixa (`chaveDaSaida`), o sistema recusa e pede para voltar aos valores da baixa.
+   - A checagem "saldo insuficiente" é pulada quando a baixa da operação já existe.
+4. **Avisos.** `toast.warning` no lugar de `toast.warn`. A falha ao fechar o período anterior é só um aviso: o lançamento conta como salvo.
+5. **Datas** (`erroDeDataDoLancamento`):
+   - o abastecimento **não pode ser anterior** ao último deste cocho (o mesmo dia é aceito);
+   - o "fim do consumo anterior", quando informado, fica entre o último abastecimento e o novo;
+   - enquanto o último lançamento carrega, não salva.
+
+**Fica para as próximas etapas** (análise de 2026-11-14):
+- **Atomicidade.** A baixa e o evento continuam em duas transações; a defesa desta etapa é a idempotência.
+- **Validação no servidor.** O servidor ainda não confere ponto, produto, kg nem a ligação baixa ↔ evento.
+- **Contas iguais.** A duração e a reposição do formulário (arredondamento e fallback por consumo ideal) ainda diferem das do mapa.
+- **Formulação** (pronto × batelada, %PV por categoria), **leitura de cocho** (escore, acesso, estrutura) com o farol, e **fechamento de consumo** em %PV com faixa configurável.
+
+**Relatório:** [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md).
+
+## D-PROD-202 — Linhas de produto e de máquina no apontamento do Lançamento de Atividades (Fatia 3)
+
+> **Numeração:** nasceu como D-PROD-201; a `main` deu a D-PROD-201 à suplementação de cocho, etapa 1 (PR #288, sem migration), antes do merge desta. Esta é a **D-PROD-202**. O número não está no `migration.sql`.
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina. É o coração."), liberada com "pode começar" · **Branch:** `feat/atividade-itens-produto-maquina`
+
+**Decisão.**
+1. **Linha de produto:** baixa no estoque pelo motor único (FIFO, custo FIFO, estorno exato), com origem `apontamento_atividade`. Editar é estorno exato + nova saída. Cancelar o apontamento ou a atividade estorna tudo. Idempotência por `operation_id`. A conciliação do estoque lê as tabelas novas.
+2. **Linha de máquina:** o medidor vem do bem; a leitura fica na linha, como no abastecimento, e a leitura vigente do bem passa a considerar as linhas (nada é gravado em `BemPatrimonial.medidor_*`). Final obrigatória, nunca para trás; salto acima do teto do tipo do bem pede justificativa; "sem medidor" aceita horas ou km direto. O custo de uso é snapshot de `BemPatrimonial.custo_uso_unitario` (coluna nova).
+3. **Migration EXPAND `20261114600000_atividade_linhas_produto_maquina`:** 3 tabelas novas e 2 colunas anuláveis (`BemPatrimonial.custo_uso_unitario`, `TipoPatrimonial.salto_maximo_medidor`). Produção: 53 → 54 migrations, 84 → 87 tabelas.
+4. **Constituição:** nota nova re-ancorando a exceção de estoque da D-PROD-193 na linha de produto, com edição por estorno exato e custo de uso como snapshot, sem financeiro. **Aprovada pelo proprietário** em 2026-11-14.
+
+**Autorização e release.** O proprietário respondeu "autorizo vocÇe" ao pedido "aplica e aprova" (aplicar a migration antes do merge e aprovar a nota da Constituição) e, depois de o primeiro envio expirar sem resposta à confirmação do Supabase, "mande de novo a autorização". Aplicada em produção em 2026-11-14 pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md): preflight PRONTO (53 / 0, 84 tabelas, sem travas); postcheck APLICADA E CONFERIDA (54 / 0, 87 tabelas, 3 / 0, 9 CHECKs, 17 / 17 FKs, 20 / 20 / 13 índices, RLS sem FORCE com `maike_backend_all`, 0 grants). Merge da PR #289 em seguida.
+
+**Contrato:** [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md).
+
+## D-PROD-204 — Fila offline: o id que o servidor deu a uma criação offline é gravado na fila antes de a criação sair dela
+
+> **Numeração:** nasceu como D-PROD-198, com a D-PROD-196 e a D-PROD-197 deixadas para as PRs #275 e #276. Antes do merge, a `main` deu a D-PROD-198 ao peso projetado do lote e chegou a `Próxima decisão: D-PROD-203`, e a PR #290 (Formulações, em rascunho) já usa a D-PROD-203. Esta decisão é a **D-PROD-204**. A PR #275 ainda cita a D-PROD-195 e vai precisar de número próprio (D-PROD-205 ou seguinte).
+
+**Data:** 2026-11-14 · **Origem:** pendência registrada na emenda R2 da D-PROD-195 ("fora do escopo, registrado como pendência"); pedido do proprietário · **Branch:** `claude/relaxed-bardeen-jlgbp7` (PR #280). Nasceu empilhada sobre a PR #279 (emenda R2, que traz `criacoesRetidas`); depois do merge da #279 foi atualizada por merge com a `main` e passou a mirar a `main`
 
 **Contexto.** Em `syncOfflineEntityQueue`, o mapa `mapaDeIds` (`offline_… → id do servidor`) vivia só numa passada do replay. O laço para no primeiro erro. Se uma passada criava a área A, que saía da fila, e depois parava antes de enviar o lote B que cita A, a passada seguinte começava com o mapa vazio. A parada podia vir de uma falha transitória (503, timeout) em B ou em qualquer item entre os dois. Então B ia ao servidor com o id `offline_…` de A. Com FK, o servidor recusava e a fila travava para sempre. Sem FK (`Lote.area_atual_id`, `Lote.categoria_manejo_id`), a referência era gravada solta. Pela mesma razão, a edição ou a exclusão do próprio A, quando ficava para a passada seguinte, seguia com `record_id = offline_…`: o replay pulava o envio, porque o alvo ainda era um id offline, e tirava o item da fila. A edição se perdia, e a exclusão não chegava ao servidor.
 
@@ -7191,4 +7398,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-199 (D-PROD-196 e D-PROD-197 livres para as PRs #275 e #276) -->
+<!-- Próxima decisão: D-PROD-205 -->

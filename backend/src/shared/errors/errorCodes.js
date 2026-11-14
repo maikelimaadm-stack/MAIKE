@@ -221,6 +221,14 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe unidade de medida com esta sigla',
   },
+  // D-PROD-197 — a FK RESTRICT do Tipo de Atividade barra apagar a unidade usada
+  // como unidade de produção padrão (reconhecida pela FK; o módulo da unidade
+  // nunca consulta TipoAtividade). O front já conhece o código (P1.4).
+  // D-PROD-200 — também a FK da Atividade (unidade de produção herdada do tipo).
+  UNIDADE_MEDIDA_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'unidade de medida usada como unidade de produção padrão de um tipo de atividade ou como unidade de produção de uma atividade (details.vinculo: tipo_atividade | atividade); inative em vez de excluir; nada foi apagado',
+  },
   GRUPO_ATIVIDADE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica grupo de atividade deste tenant',
@@ -231,7 +239,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   GRUPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'grupo possui tipos de tarefa ou de atividade vinculados',
+    meaning: 'grupo possui tipos de tarefa ou de atividade, lançamentos de tarefa ou atividades (D-PROD-200) vinculados',
   },
   TIPO_TAREFA_NOT_FOUND: {
     http: 404,
@@ -250,72 +258,75 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de atividade com este nome no grupo',
   },
-  // D-PROD-190 — a FK RESTRICT do apontamento barra a exclusão do tipo usado.
+  // D-PROD-190 — a FK RESTRICT do apontamento barrava a exclusão do tipo usado.
+  // D-PROD-200 — agora é a FK da atividade (o apontamento é filho dela).
   TIPO_ATIVIDADE_DELETE_BLOCKED: {
     http: 409,
-    meaning: 'tipo de atividade com apontamentos vinculados; inative em vez de excluir',
+    meaning: 'tipo de atividade usado por atividade; inative em vez de excluir',
   },
-  // D-PROD-190 — Apontamento de Atividade (a EXECUÇÃO de um Tipo de Atividade).
-  APONTAMENTO_ATIVIDADE_NOT_FOUND: {
+  // D-PROD-197 — padrões do Tipo de Atividade, conferidos só quando o padrão muda.
+  TIPO_ATIVIDADE_PADRAO_INVALIDO: {
+    http: 422,
+    meaning: 'padrão do tipo de atividade recusado (details.field: centro_custo_padrao_id | centro_resultado_padrao_id | unidade_producao_id | coeficiente_padrao; details.reason: nao_encontrado — também de outro tenant, sem oráculo — | inativo | empresas_diferentes | nao_positivo); nada foi gravado',
+  },
+  // D-PROD-200 — Lançamento de Atividades (Fatia 2): o CABEÇALHO (Atividade) e o
+  // APONTAMENTO do dia/turno (AtividadeApontamento), contrato §10.
+  ATIVIDADE_NOT_FOUND: {
     http: 404,
-    meaning: 'id não identifica apontamento de atividade desta empresa neste tenant',
+    meaning: 'id não identifica atividade desta empresa neste tenant',
   },
-  APONTAMENTO_ATIVIDADE_REFERENCIA_INVALIDA: {
-    http: 422,
-    meaning: 'tipo, bem, implemento, operador, área, centro ou tarefa recusado (details.field/reason: inexistente | outra_empresa | inativo); nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_HORARIO_INVALIDO: {
-    http: 422,
-    meaning: 'horário recusado (details.field: hora_inicio | hora_fim; details.reason: fim_antes_do_inicio | hora_futura | hora_fora_do_dia); nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_DATA_FUTURA: {
-    http: 422,
-    meaning: 'data operacional posterior a hoje no fuso da fazenda (details.hoje/fuso); nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_IMPLEMENTO_INVALIDO: {
-    http: 422,
-    meaning: 'implemento sem bem ou igual ao bem (details.reason: implemento_sem_bem | implemento_igual_ao_bem); nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_PRODUCAO_INVALIDA: {
-    http: 422,
-    meaning: 'produção ou horas recusadas (details.reason: quantidade_sem_unidade | unidade_sem_quantidade | quantidade_nao_positiva | horas_nao_positivas); nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_STATUS_INVALIDO: {
-    http: 409,
-    meaning: 'apontamento CANCELADO não aceita edição nem novo cancelamento (details.status); nada foi alterado',
-  },
-  APONTAMENTO_ATIVIDADE_VERSAO_CONFLITO: {
-    http: 409,
-    meaning: 'o apontamento mudou desde a leitura (details.versao_atual/versao_informada); recarregue; nada foi gravado',
-  },
-  APONTAMENTO_ATIVIDADE_VINCULADO: {
-    http: 409,
-    meaning: 'exclusão barrada pela FK RESTRICT de um apontamento de atividade (details.vinculo); inative o cadastro; nada foi apagado',
-  },
-  // D-PROD-193 — itens do apontamento (PRODUTO baixa estoque pelo motor; SERVICO/OUTRO só custo).
-  APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND: {
+  ATIVIDADE_APONTAMENTO_NOT_FOUND: {
     http: 404,
-    meaning: 'itemId não identifica item deste apontamento, desta empresa e deste tenant',
+    meaning: 'apontamentoId não identifica apontamento desta atividade, desta empresa e deste tenant',
   },
-  APONTAMENTO_ATIVIDADE_ITEM_INVALIDO: {
+  ATIVIDADE_REFERENCIA_INVALIDA: {
     http: 422,
-    meaning: 'item recusado (details.field/reason: produto_id — inexistente, também de outro tenant, sem oráculo | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento; local_estoque_id — inexistente | inativo; quantidade — quantidade_nao_positiva; valor_unitario — total_zero | valor_excede_limite); nada foi gravado',
+    meaning: 'tipo, grupo, área, setor, máquina, centro, unidade, tarefa ou operador recusado (details.field; details.reason: inexistente — também de outro tenant, sem oráculo — | inativo | outra_empresa | grupo_inativo | natureza — a máquina, bem_id, só MAQUINA, VEICULO ou EQUIPAMENTO); nada foi gravado',
   },
-  APONTAMENTO_ATIVIDADE_ITEM_STATUS_INVALIDO: {
-    http: 409,
-    meaning: 'o item não está CONFIRMADO (details.status): já foi cancelado; nada foi alterado',
-  },
-  APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS: {
+  ATIVIDADE_EXIGIDA_PELO_TIPO: {
     http: 422,
-    meaning: 'o apontamento já tem o máximo de itens, confirmados e cancelados (details.limite); nada foi gravado',
+    meaning: 'o tipo de atividade exige o campo (details.field: area_id | safra_ciclo | bem_id | quantidade_produzida; details.reason: a flag do tipo — exige_area | exige_safra | exige_maquina | exige_producao) ou, D-PROD-202, não permite a linha (details.field: produto_id | implemento_bem_id; details.reason: permite_produto | permite_implemento); nada foi gravado',
   },
-  APONTAMENTO_ATIVIDADE_ESTORNO_BLOQUEADO: {
-    http: 409,
-    meaning: 'o estorno exato de um item PRODUTO não é seguro agora (details.reason: produto_mudou_de_fazenda | unidade_mudou | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | vinculo_divergente | camada_divergente; details.item_id/item_ordem/lote_id); nada foi alterado',
+  ATIVIDADE_DATA_INVALIDA: {
+    http: 422,
+    meaning: 'data recusada (details.field; details.reason: futura — posterior a hoje no fuso da fazenda, com details.data/hoje/fuso — | antes_do_inicio | periodo_invertido | data_inexistente); nada foi gravado',
   },
-  APONTAMENTO_ATIVIDADE_DATA_COM_ITENS: {
+  ATIVIDADE_STATUS_INVALIDO: {
     http: 409,
-    meaning: 'a data operacional não muda com item PRODUTO confirmado (a saída de estoque está na data atual); cancele os itens antes; nada foi gravado',
+    meaning: 'a ação não é permitida no status atual da atividade, do apontamento ou da linha (details.status, details.acao, details.entidade: atividade | apontamento | linha_produto | linha_maquina); nada foi alterado',
+  },
+  ATIVIDADE_VERSAO_CONFLITO: {
+    http: 409,
+    meaning: 'a atividade ou o apontamento mudou desde a leitura (details.versao_atual/versao_informada/entidade); recarregue; nada foi gravado',
+  },
+  ATIVIDADE_MOTIVO_INVALIDO: {
+    http: 422,
+    meaning: 'motivo ausente, curto ou longo, em caracteres úteis (details.reason: obrigatorio | curto | longo; details.minimo/maximo); nada foi gravado',
+  },
+  ATIVIDADE_VINCULADA: {
+    http: 409,
+    meaning: 'exclusão barrada pela FK RESTRICT de uma atividade ou de um apontamento de atividade, reconhecida pelo nome da FK (details.vinculo = coluna; details.entidade: atividade | apontamento); inative o cadastro; nada foi apagado',
+  },
+  // D-PROD-202 — Lançamento de Atividades (Fatia 3): as linhas de produto e de máquina do apontamento.
+  ATIVIDADE_LINHA_NOT_FOUND: {
+    http: 404,
+    meaning: 'linhaId não identifica linha (details.entidade: linha_produto | linha_maquina) deste apontamento, desta atividade, desta empresa e deste tenant',
+  },
+  ATIVIDADE_LINHA_INVALIDA: {
+    http: 422,
+    meaning: 'linha de produto ou de máquina recusada (details.entidade; details.field/reason — produto: produto_id inexistente | outra_empresa | inativo | unidade_nao_aceita | combustivel_no_abastecimento, local_estoque_id inexistente | inativo, quantidade quantidade_nao_positiva; máquina: bem_id, implemento_bem_id (igual_a_maquina), leituras, quantidade_uso, sem_medidor, justificativa_salto); nada foi gravado',
+  },
+  ATIVIDADE_SALTO_MEDIDOR: {
+    http: 422,
+    meaning: 'o uso da linha de máquina passa do teto de salto do medidor do tipo patrimonial: informe justificativa_salto (3..500); details.quantidade_uso/salto_maximo/medidor_unidade; nada foi gravado',
+  },
+  ATIVIDADE_ESTORNO_BLOQUEADO: {
+    http: 409,
+    meaning: 'o estorno exato da linha de produto não é seguro agora (details.reason: produto_mudou_de_fazenda | unidade_mudou | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | vinculo_divergente | camada_divergente; details.linha_id/linha_ordem/lote_id; details.motor = a explicação do motor); nada foi alterado',
+  },
+  ATIVIDADE_DATA_COM_LINHAS: {
+    http: 409,
+    meaning: 'a data do apontamento não muda com linha de produto ou de máquina confirmada (details.linhas_produto/linhas_maquina); cancele e lance de novo; nada foi gravado',
   },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {

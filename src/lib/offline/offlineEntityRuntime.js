@@ -200,7 +200,7 @@ const aplicarPendentes = (items, operacoes) => {
 /**
  * Troca, em qualquer profundidade, cada id offline mapeado pelo id do servidor.
  *
- * D-PROD-198: só id offline (`offline_…`) é trocado, e só por chave própria do
+ * D-PROD-204: só id offline (`offline_…`) é trocado, e só por chave própria do
  * mapa — antes, um texto como "constructor" casava com o protótipo do objeto e
  * o campo virava função. Id offline dentro de lista (ex.: `["offline_…"]`)
  * também é trocado; antes ficava com o id offline.
@@ -221,7 +221,7 @@ const substituirIdsMapeados = (valor, mapaDeIds) => {
 };
 
 /**
- * D-PROD-198 — grava na FILA o id que o servidor deu a uma criação offline.
+ * D-PROD-204 — grava na FILA o id que o servidor deu a uma criação offline.
  *
  * O mapa `offline_… → id do servidor` do replay vive só durante uma passada.
  * Se a passada criava A (o item saía da fila) e parava antes de enviar B, que
@@ -851,7 +851,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   const qualquerPorta = [...CATALOGO.values()][0].storage;
   const fila = await qualquerPorta.listarFila();
   const emOrdem = [...fila].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  /** Ids desta passada; o que sobrevive entre passadas vai para a fila (D-PROD-198). */
+  /** Ids desta passada; o que sobrevive entre passadas vai para a fila (D-PROD-204). */
   const mapaDeIds = Object.create(null);
   const tenantAtual = getOfflineTenant();
   let pulados = 0;
@@ -991,7 +991,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
         const { id: _idOffline, _isOffline, ...bruto } = item.data || {};
         const criado = await operations.create(substituirIdsMapeados(bruto, mapaDeIds));
         mapaDeIds[item.record_id] = criado.id;
-        // D-PROD-198: antes de sair da fila, quem cita o id offline passa a citar o do servidor.
+        // D-PROD-204: antes de sair da fila, quem cita o id offline passa a citar o do servidor.
         await gravarIdDoServidorNaFila(storage, item, criado.id);
         await atualizarCache(
           storage,

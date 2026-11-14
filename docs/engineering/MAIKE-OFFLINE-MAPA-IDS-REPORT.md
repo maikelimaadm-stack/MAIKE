@@ -1,6 +1,8 @@
-# MAIKE-OFFLINE-MAPA-IDS — relatório (D-PROD-198)
+# MAIKE-OFFLINE-MAPA-IDS — relatório (D-PROD-204)
 
-**Data:** 2026-11-14 · **Decisão:** [D-PROD-198](./DECISIONS.md) · **Branch:** `claude/relaxed-bardeen-jlgbp7`, empilhada sobre `claude/kind-knuth-tztu1v` (PR #279, emenda R2 da D-PROD-195)
+**Data:** 2026-11-14 · **Decisão:** [D-PROD-204](./DECISIONS.md) · **Branch:** `claude/relaxed-bardeen-jlgbp7` (PR #280), base `main`
+
+> **Numeração:** nasceu D-PROD-198. Antes do merge, a `main` deu a D-PROD-198 ao peso projetado do lote, e a PR #290 já usa a D-PROD-203; esta decisão é a **D-PROD-204**. A branch nasceu empilhada sobre a PR #279 (emenda R2 da D-PROD-195); depois do merge da #279 foi atualizada por merge com a `main` (sem rebase) e passou a mirar a `main`.
 
 ## 1. Problema
 
@@ -46,7 +48,7 @@ sempre coerente sozinha.
 
 Novo `tests/smoke/offlineMapaDeIdsEntrePassadas.test.js`, no molde de
 `categoriaManejoCriacaoOnline` (porta em memória), com 6 testes, de (a) a (f), descritos na
-D-PROD-198. Com o runtime anterior (`git stash` só do runtime), **os 6
+D-PROD-204. Com o runtime anterior (`git stash` só do runtime), **os 6
 reprovam**; com a correção, os 6 passam.
 
 | Verificação | Resultado |

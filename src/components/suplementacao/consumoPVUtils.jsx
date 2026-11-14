@@ -96,11 +96,61 @@ export function avaliarConsumoPV(consumoRealKgCabDia, pesoMedioKg, produto) {
 }
 
 /**
- * Calcula o peso médio ponderado dos lotes pela quantidade de cabeças.
+ * D-PROD-201 — peso de um lote para a conta de consumo por %PV: o PESO
+ * PROJETADO de hoje (D-PROD-198; sem curva ele já é o último peso), senão o
+ * último peso gravado (pesagem ou entrada). Sem peso: 0 e origem 'sem_peso' —
+ * o lote NÃO entra na média como peso zero.
+ * @param {{ projecao_peso?: { disponivel?: boolean, peso_kg?: number } | null, peso_medio_kg?: unknown } | null | undefined} lote
+ * @returns {{ peso: number, origem: 'projetado' | 'ultimo_peso' | 'sem_peso' }}
+ */
+export function pesoDeConsumoDoLote(lote) {
+  const projecao = lote?.projecao_peso;
+  const projetado = Number(projecao?.peso_kg);
+  if (projecao?.disponivel && Number.isFinite(projetado) && projetado > 0) return { peso: projetado, origem: "projetado" };
+  const ultimo = Number(lote?.peso_medio_kg);
+  if (Number.isFinite(ultimo) && ultimo > 0) return { peso: ultimo, origem: "ultimo_peso" };
+  return { peso: 0, origem: "sem_peso" };
+}
+
+/**
+ * D-PROD-201 — peso médio dos lotes, ponderado pelas cabeças, SÓ entre os lotes
+ * com peso (projetado ou último). Antes, lote sem peso entrava como 0 kg e
+ * puxava a média para baixo (30 cab × 400 kg + 20 cab sem peso → 240 kg).
+ * `cabecasSemPeso`/`lotesSemPeso` permitem avisar na tela.
+ * @param {Array<any>} lotes
+ */
+export function resumoPesoDosLotes(lotes) {
+  let cabecasComPeso = 0;
+  let somaPesos = 0;
+  let cabecasSemPeso = 0;
+  let cabecasProjetado = 0;
+  const lotesSemPeso = [];
+  for (const lote of lotes || []) {
+    const cab = Number(lote?.quantidade_cabecas || 0);
+    if (!(cab > 0)) continue;
+    const { peso, origem } = pesoDeConsumoDoLote(lote);
+    if (origem === "sem_peso") {
+      cabecasSemPeso += cab;
+      lotesSemPeso.push(lote);
+      continue;
+    }
+    cabecasComPeso += cab;
+    somaPesos += peso * cab;
+    if (origem === "projetado") cabecasProjetado += cab;
+  }
+  return {
+    pesoMedio: cabecasComPeso > 0 ? safeDivide(somaPesos, cabecasComPeso) : 0,
+    cabecasComPeso,
+    cabecasSemPeso,
+    cabecasProjetado,
+    lotesSemPeso,
+  };
+}
+
+/**
+ * Peso médio ponderado pelas cabeças, só entre os lotes com peso (D-PROD-201).
+ * @param {Array<any>} lotes
  */
 export function pesoMedioPonderadoLotes(lotes) {
-  const totalCabecas = lotes.reduce((sum, l) => sum + Number(l.quantidade_cabecas || 0), 0);
-  if (totalCabecas <= 0) return 0;
-  const somaPesos = lotes.reduce((sum, l) => sum + (Number(l.peso_medio_kg || 0) * Number(l.quantidade_cabecas || 0)), 0);
-  return safeDivide(somaPesos, totalCabecas);
+  return resumoPesoDosLotes(lotes).pesoMedio;
 }

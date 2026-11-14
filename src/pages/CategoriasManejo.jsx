@@ -7,7 +7,7 @@ import {
   excluirCategoriaManejo,
 } from "@/services/categoriaManejoService";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   notifyError,
   notifySuccess,
@@ -41,6 +41,14 @@ export default function CategoriasManejo() {
     () => listarCategoriasManejoDaEmpresa(empresaSelecionadaId),
     [empresaSelecionadaId],
   );
+
+  // D-PROD-199: a mesma lista da grade (mesma chave: o react-query não busca de novo),
+  // para o formulário avisar de categoria com sexo e faixa repetidos.
+  const { data: categoriasDaFazenda = [] } = useQuery({
+    queryKey: ["categorias-manejo", empresaSelecionadaId],
+    queryFn: fetchAll,
+    enabled: Boolean(empresaSelecionadaId),
+  });
 
   const controller = useCadastroBase1FullListController({
     storageKey: CATEGORIAS_MANEJO_STORAGE_KEY,
@@ -219,6 +227,7 @@ export default function CategoriasManejo() {
           carregandoCurvas={opcoesCurva.carregando}
           erroCurvas={opcoesCurva.erro}
           semFazenda={!opcoesCurva.empresaId}
+          categoriasDaFazenda={categoriasDaFazenda}
         />
       }
       listSlot={

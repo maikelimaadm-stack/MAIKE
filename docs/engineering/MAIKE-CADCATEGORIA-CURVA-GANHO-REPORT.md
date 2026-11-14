@@ -96,3 +96,11 @@ online e outro id offline que não é retido), `offlineRuntime`,
 `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado` e
 `loteExclusaoCacheOffline`: 63/63. Com o runtime anterior, 5 dos 8 falham.
 
+Verificação final da emenda: `verify:all` em `027cdab2` (banco `maike_verify`),
+**TODAS AS ETAPAS PASSARAM**. Backend: 1.900 testes, 0 falhas. Smoke: 229 arquivos
+e 2.829 testes. O commit seguinte, `036b5da5`, só alinha textos (CURRENT-STATE e
+comentários). Nele passaram `eslint`, `categoriaManejoCriacaoOnline` (8/8) e os gates
+`governance-paths`, `product-scope`, `no-secrets`, `import-integrity` e `base44`.
+Revisão: quatro rodadas independentes sobre a emenda, até a última não achar
+defeito de comportamento.
+

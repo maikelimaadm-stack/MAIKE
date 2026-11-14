@@ -46,14 +46,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/apontamentosatividade/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/ApontamentosAtividade/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/lancamentosfinanceiros",
       "destination": "/index.html"
     },
@@ -62,11 +54,11 @@
       "destination": "/index.html"
     },
     {
-      "source": "/apontamentosatividade",
+      "source": "/lancamentoatividades/",
       "destination": "/index.html"
     },
     {
-      "source": "/ApontamentosAtividade",
+      "source": "/LancamentoAtividades/",
       "destination": "/index.html"
     },
     {
@@ -83,6 +75,14 @@
     },
     {
       "source": "/ConfiguracoesGerais/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lancamentoatividades",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/LancamentoAtividades",
       "destination": "/index.html"
     },
     {

@@ -399,6 +399,8 @@ describe('CM — categorias de manejo', () => {
       especie: 'Bovino',
       sexo: null,
       curva_ganho_id: 'cg-1',
+      // D-PROD-198: peso objetivo opcional; vazio vai como null (limpa).
+      peso_objetivo_kg: null,
       idade_minima_meses: 13,
       idade_maxima_meses: 24,
       ativo: true,

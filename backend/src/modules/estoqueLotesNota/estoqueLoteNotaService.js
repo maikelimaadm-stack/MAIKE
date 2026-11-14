@@ -4,8 +4,8 @@
  * D-PROD-161 (MAIKE-ESTOQUE-P0-01, F3): o lote é a camada de quantidade e custo
  * do motor físico. Ele só nasce de uma ENTRADA (compra confirmada) ou de uma
  * TRANSFERÊNCIA, e saldo, custo e situação só mudam pelos comandos do motor
- * (venda, suplementação, transferência, abastecimento, item de apontamento de
- * atividade — D-PROD-193 — e seus cancelamentos).
+ * (venda, suplementação, transferência, abastecimento e seus cancelamentos; o
+ * item de apontamento de atividade da D-PROD-193 saiu na D-PROD-200).
  * Por esta API sobram a leitura e a renomeação benigna do local
  * (`local_estoque_nome`, FormularioPonto). POST, PATCH de coluna operacional e
  * DELETE de lote LIVRE → 409 ESTOQUE_ESCRITA_DIRETA_RECUSADA; nada é gravado.
@@ -113,34 +113,23 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
 };
 
 /**
- * D-PROD-193 (I-z, lição do hotfix #259) — o código pode subir antes da
- * migration dos itens do apontamento de atividade: contar numa tabela que ainda
- * não existe daria 500 (e 25P02 no resto da transação). A consulta ao catálogo
- * (`to_regclass`) nunca falha; sem a tabela, nenhuma fatia de item existe.
- * @param {any} tx
- */
-const temFatiasDeItemDeApontamento = async (tx) => {
-  const [r] = /** @type {Array<{ existe: boolean }>} */ (
-    await tx.$queryRaw`SELECT to_regclass('public."ApontamentoAtividadeItemConsumoLote"') IS NOT NULL AS existe`
-  );
-  return Boolean(r?.existe);
-};
-
-/**
  * D-PROD-155 (§8.5): lote ligado a item ou fatia FIFO de lançamento financeiro → 409.
  * D-PROD-159 (X1): idem para fatia FIFO de abastecimento de bem (confirmado ou
- * cancelado: o histórico fica). D-PROD-193 (I-x): idem para fatia FIFO de item
- * de apontamento de atividade (confirmado ou cancelado). Chamar sob `travarLote`.
+ * cancelado: o histórico fica). Chamar sob `travarLote`.
+ * D-PROD-200: o ramo das fatias FIFO de item de apontamento de atividade
+ * (D-PROD-193) saiu com as tabelas dos itens, que a migration da Fatia 2 só
+ * apaga vazias (o delegate do Prisma deixou de existir).
+ * D-PROD-202 (Fatia 3): volta para as fatias FIFO da LINHA DE PRODUTO do
+ * apontamento da atividade (`AtividadeApontamentoProdutoConsumoLote`,
+ * confirmada ou cancelada: o histórico fica) → 409.
  */
 const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
-  const [itens, consumos, abastecimentos] = await Promise.all([
+  const [itens, consumos, abastecimentos, atividades] = await Promise.all([
     tx.operacaoFinanceiraItem.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
     tx.operacaoFinanceiraConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
     tx.abastecimentoBemConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
+    tx.atividadeApontamentoProdutoConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } }),
   ]);
-  const apontamentos = (await temFatiasDeItemDeApontamento(tx))
-    ? await tx.apontamentoAtividadeItemConsumoLote.count({ where: { cliente_id: clienteId, estoque_lote_nota_id: id } })
-    : 0;
   if (itens + consumos > 0) {
     throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque vinculado a lançamento financeiro só muda pelo próprio lançamento (cancelamento); nada foi alterado', {
       details: { id, vinculo: 'lancamento_financeiro', itens, consumos },
@@ -151,9 +140,9 @@ const recusarSeVinculadoALancamento = async (tx, clienteId, id) => {
       details: { id, vinculo: 'abastecimento_bem', consumos_abastecimento: abastecimentos },
     });
   }
-  if (apontamentos > 0) {
-    throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque consumido por item de apontamento de atividade só muda pelo próprio item (cancelamento); nada foi alterado', {
-      details: { id, vinculo: 'apontamento_atividade', consumos_apontamento: apontamentos },
+  if (atividades > 0) {
+    throw new AppError('REGISTRO_OPERACIONAL_IMUTAVEL', 'lote de estoque consumido por linha de produto de atividade só muda pela própria atividade (editar ou cancelar a linha); nada foi alterado', {
+      details: { id, vinculo: 'atividade_apontamento_produto', consumos_atividade: atividades },
     });
   }
 };

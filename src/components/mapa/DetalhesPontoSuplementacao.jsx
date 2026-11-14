@@ -299,7 +299,11 @@ function PainelRestanteCiclo({ nivel }) {
   const baseSemEstimativa = !estimado && nivel.estado === "ciclo_aberto" && nivel.baseCicloKg != null && nivel.baseCicloKg > 0;
   const orientacao = nivel.confiabilidade === "compartilhada" ?
   MENSAGENS_NIVEL.orientacaoCompartilhada :
-  nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPv ? MENSAGENS_NIVEL.orientacaoSemPv : null;
+  nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPv
+    ? MENSAGENS_NIVEL.orientacaoSemPv
+    : nivel.confiabilidade === "indisponivel" && nivel.motivo === MENSAGENS_NIVEL.motivoSemPeso
+      ? MENSAGENS_NIVEL.orientacaoSemPeso
+      : null;
 
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2">
@@ -310,8 +314,9 @@ function PainelRestanteCiclo({ nivel }) {
           <div className="font-semibold text-slate-900">{`${formatarKgNivel(nivel.saldoKg)} de ${formatarKgNivel(nivel.baseCicloKg)}`}</div>
           <div>{`Consumo estimado: ${formatarTaxaNivel(nivel.taxaConsumoKgDia)} (%PV no lançamento)`}</div>
           {nivel.diasDecorridos != null && nivel.diasRestantesEstimados != null &&
-        <div>{`Dias desde o lançamento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)`}</div>
+        <div>{`Dias desde o abastecimento: ${nivel.diasDecorridos} · Restam ${formatarDias(nivel.diasRestantesEstimados)} dia(s)`}</div>
         }
+          <p className="max-w-[320px] text-[10px] text-slate-500">No dia do abastecimento, mantém o total disponível. O desconto diário começa no dia seguinte, sem considerar o horário do registro.</p>
         </div> :
       <div className="space-y-0.5 text-center text-[11px] leading-snug text-slate-600">
           <p className="max-w-[320px] break-words">{mensagem}</p>

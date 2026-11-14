@@ -1,5 +1,5 @@
 /**
- * D-PROD-198 — o id que o servidor deu a uma criação offline sobrevive entre
+ * D-PROD-204 — o id que o servidor deu a uma criação offline sobrevive entre
  * passadas do replay.
  *
  * O mapa `offline_… → id do servidor` de `syncOfflineEntityQueue` vivia só numa
@@ -99,7 +99,7 @@ beforeEach(() => {
   registrar();
 });
 
-describe('D-PROD-198 — mapa de ids offline entre passadas do replay', () => {
+describe('D-PROD-204 — mapa de ids offline entre passadas do replay', () => {
   it('(a) área criada na passada 1 + lote com 503 → na passada 2 o lote vai com o id do servidor da área', async () => {
     await storage.adicionarNaFila(criacaoDaArea());
     await storage.adicionarNaFila(criacaoDoLote());

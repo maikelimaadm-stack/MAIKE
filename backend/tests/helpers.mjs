@@ -120,16 +120,19 @@ export const limparBanco = async () => {
   await prisma.operacaoFinanceiraRateio.deleteMany({});
   await prisma.operacaoFinanceira.deleteMany({});
   await prisma.perfilFinanceiroEmpresa.deleteMany({});
-  // D-PROD-193: as fatias FIFO do item referenciam o item e o lote; o item
-  // referencia o apontamento, os movimentos (saída e estorno), Produto, local e
-  // usuários (RESTRICT em tudo): fatias → itens, antes do apontamento e antes
-  // do laço (que limpa movimentos, lotes, Produto, local e usuário).
-  await prisma.apontamentoAtividadeItemConsumoLote.deleteMany({});
-  await prisma.apontamentoAtividadeItem.deleteMany({});
-  // D-PROD-190: o apontamento de atividade referencia bem (máquina e
-  // implemento), centros de custo e de resultado, área, tarefa, tipo e grupo de
-  // atividade, usuários e empresa (RESTRICT em tudo): sai antes de todos eles.
-  await prisma.apontamentoAtividade.deleteMany({});
+  // D-PROD-200: o apontamento referencia a atividade, o operador e os
+  // usuários de autoria; a atividade referencia bem (máquina), centros de custo
+  // e de resultado, unidade, área, setor, tarefa, tipo e grupo de atividade,
+  // usuários e empresa (RESTRICT em tudo): apontamentos → atividades, antes de
+  // todos eles.
+  // D-PROD-202: as linhas do apontamento (fatias FIFO → linha de produto; linha
+  // de máquina) referenciam o apontamento, lotes, movimentos, produtos, locais,
+  // bens e usuários (RESTRICT): saem antes do apontamento.
+  await prisma.atividadeApontamentoProdutoConsumoLote.deleteMany({});
+  await prisma.atividadeApontamentoProduto.deleteMany({});
+  await prisma.atividadeApontamentoMaquina.deleteMany({});
+  await prisma.atividadeApontamento.deleteMany({});
+  await prisma.atividade.deleteMany({});
   // D-PROD-157/161: Patrimônio e Frota simplificado (filhas antes das mães; sem
   // autorreferência). Antes do bloco de Gestão porque o bem referencia o centro
   // de custo, e antes do laço porque referencia Empresa, Fornecedor, Usuario e
@@ -144,6 +147,12 @@ export const limparBanco = async () => {
   await prisma.bemPatrimonial.deleteMany({});
   await prisma.tipoPatrimonial.deleteMany({});
   await prisma.familiaPatrimonial.deleteMany({});
+  // D-PROD-197: os padrões do Tipo de Atividade apontam para centros e unidade
+  // (RESTRICT), que saem antes do tipo; soltá-los primeiro deixa a limpeza na ordem de sempre.
+  await prisma.tipoAtividade.updateMany({
+    where: { OR: [{ centro_custo_padrao_id: { not: null } }, { centro_resultado_padrao_id: { not: null } }, { unidade_producao_id: { not: null } }] },
+    data: { centro_custo_padrao_id: null, centro_resultado_padrao_id: null, unidade_producao_id: null },
+  });
   // D-PROD-146: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
   // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
   await prisma.centroCustoResultado.deleteMany({});

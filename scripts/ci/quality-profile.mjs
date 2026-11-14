@@ -56,6 +56,12 @@ export const DOCS_RAIZ = Object.freeze(['README.md', 'README_AI.md', 'CLAUDE.md'
 export const DOCS_ACOPLADOS = Object.freeze([
   // tests/smoke/maplibreR6StyleRetry.test.js (Vitest, etapa test:smoke)
   'docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md',
+  // backend/tests/tipoAtividadeDefaultsMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-197)
+  'docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md',
+  // backend/tests/atividadeCabecalhoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-200)
+  'docs/engineering/MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md',
+  // backend/tests/atividadeLinhasMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-202)
+  'docs/engineering/MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md',
 ]);
 
 /** Estados do GitHub aceitos no `docs_fast`. Removido e renomeado vão para o `full`. */

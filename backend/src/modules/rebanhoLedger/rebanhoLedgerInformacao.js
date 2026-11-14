@@ -98,7 +98,7 @@ export const editarInformacaoPosicao = async (contexto, posicaoId, entrada) => {
       throw recusa('POSICAO_REBANHO_VAZIA', 'a posição não tem cabeças; edite o grupo que está na área', { posicao_id: posicaoId });
     }
     const mudancas = Object.fromEntries(Object.entries(patch).filter(([campo, valor]) => (antes[campo] ?? null) !== valor));
-    const incluir = { area: { select: { nome: true } }, loteEntrada: { select: { raca_predominante: true, sistema_produtivo: true, data_entrada: true } } };
+    const incluir = { area: { select: { nome: true } }, loteEntrada: { select: { sistema_produtivo: true, data_entrada: true } } };
     // Snapshot "antes" com as mesmas relações do "depois" (já sob o FOR UPDATE):
     // sem isso o AuditLog registraria área e entrada mudando de null para valor.
     const atual = await tx.posicaoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: posicaoId } }, include: incluir });

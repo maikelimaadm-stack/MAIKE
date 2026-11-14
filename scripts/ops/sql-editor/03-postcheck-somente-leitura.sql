@@ -10,12 +10,19 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-193 (Fatia D): os itens do apontamento saem PRIMEIRO — a fatia FIFO referencia o item e o lote; o item
-    -- referencia o apontamento, o movimento, o produto, o local e os usuários; nenhuma outra tabela referencia os dois.
-    'ApontamentoAtividadeItemConsumoLote','ApontamentoAtividadeItem',
-    -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
-    -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
-    'ApontamentoAtividade',
+    -- D-PROD-202 (Fatia 3): as linhas do apontamento saem PRIMEIRO — a fatia FIFO do produto referencia a linha de
+    -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
+    -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
+    'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
+    -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
+    -- empresa; só as linhas (acima, D-PROD-202) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    'AtividadeApontamento',
+    -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
+    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia (acima) a referencia.
+    'Atividade',
+    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
+    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
+    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -36,7 +43,7 @@ tenant(nome) AS (
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
-    'TipoTarefa','TipoAtividade','AreaPastagem','GrupoAtividade','Setor'
+    'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'
   ]::text[])
 ),
 contagem AS (

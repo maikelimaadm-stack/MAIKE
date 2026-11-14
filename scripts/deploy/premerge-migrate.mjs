@@ -34,6 +34,9 @@
  *   … --verificar-alvo --contract D-PROD-162 / … --aplicar --contract D-PROD-162   (release CONTRACT)
  *   … --verificar-alvo --contract D-PROD-183 / … --aplicar --contract D-PROD-183   (DROP COLUMN de TipoTarefa)
  *   … --verificar-alvo --contract D-PROD-187 / … --aplicar --contract D-PROD-187   (CategoriaManejo → CADCATEGORIA)
+ *   … --verificar-alvo --contract D-PROD-194 / … --aplicar --contract D-PROD-194   (CADCURVAGANHO mensal)
+ *   … --verificar-alvo --contract D-PROD-197 / … --aplicar --contract D-PROD-197   (padrões e flags de TipoAtividade, aditiva)
+ *   … --verificar-alvo --contract D-PROD-200 / … --aplicar --contract D-PROD-200   (Atividade cabeçalho: conversão e DROP das 3 tabelas antigas)
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -93,6 +96,8 @@ const [k] = c.contract;
 // D-PROD-183/D-PROD-187: o rótulo cita só o que a migration CONTRACT faz (a D-PROD-162 segue "13 tabelas removidas,
 // 2 CHECKs alargados"; a D-PROD-183, "4 colunas removidas (…)").
 const partesContract = k ? [
+  // D-PROD-200: formato CONVERSÃO — a conversão pinada vem ANTES do DROP no arquivo, e o rótulo diz na mesma ordem.
+  k.conversoes?.length && `${k.conversoes.length} ${k.conversoes.length === 1 ? 'conversão' : 'conversões'} (${k.conversoes.join(', ')})`,
   k.tabelas_removidas.length && `${k.tabelas_removidas.length} tabelas removidas`,
   k.constraints_alargadas.length && `${k.constraints_alargadas.length} CHECKs alargados`,
   k.constraints_removidas.length && `${k.constraints_removidas.length} constraints removidas (${k.constraints_removidas.join(', ')})`,
@@ -100,6 +105,9 @@ const partesContract = k ? [
   k.colunas_removidas.length && `${k.colunas_removidas.length} colunas removidas (${k.colunas_removidas.join(', ')})`,
   k.tabelas_renomeadas.length && `tabela renomeada (${k.tabelas_renomeadas.join(', ')})`,
   k.nomes_renomeados.length && `${k.nomes_renomeados.length} nomes renomeados (${k.nomes_renomeados.join(', ')})`,
+  // D-PROD-197: CONTRACT aditiva — colunas e constraints NOVAS em tabela antiga (nada removido nem alargado).
+  k.colunas_adicionadas?.length && `${k.colunas_adicionadas.length} ${k.colunas_adicionadas.length === 1 ? 'coluna adicionada' : 'colunas adicionadas'} (${k.colunas_adicionadas.join(', ')})`,
+  k.constraints_adicionadas?.length && `${k.constraints_adicionadas.length} ${k.constraints_adicionadas.length === 1 ? 'constraint adicionada' : 'constraints adicionadas'} (${k.constraints_adicionadas.join(', ')})`,
 ].filter(Boolean) : [];
 const rotuloContract = k ? ` (CONTRACT ${k.decisao}: ${partesContract.join(', ')})` : '';
 if (!verificarAlvo) {

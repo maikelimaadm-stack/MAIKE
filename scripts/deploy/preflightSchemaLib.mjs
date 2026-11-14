@@ -39,6 +39,8 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CADCATEGORIA', 'idade_minima_meses'],
   // D-PROD-195: a Categoria de Manejo lê e grava a curva de ganho obrigatória; sem a coluna, a categoria responde 500.
   ['CADCATEGORIA', 'curva_ganho_id'],
+  // D-PROD-198: a categoria lê e grava o peso objetivo; a lista de posições projeta o peso com ele.
+  ['CADCATEGORIA', 'peso_objetivo_kg'],
   // MAIKE-LOTES-R1: a listagem de lotes filtra `excluido_em IS NULL`.
   ['Lote', 'excluido_em'],
   ['Lote', 'excluido_por_usuario_id'],
@@ -51,6 +53,17 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AbastecimentoBem', 'quantidade'],
   ['AbastecimentoBem', 'unidade'],
   ['TanqueBemProduto', 'produto_id'],
+  // D-PROD-200: o Lançamento de Atividades lê e grava a atividade (cabeçalho) e o apontamento do dia; sem as 2 tabelas
+  // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
+  ['Atividade', 'unidade_producao_sigla'],
+  ['AtividadeApontamento', 'sequencia'],
+  // D-PROD-202 (Fatia 3): as linhas de produto e de máquina do apontamento, o custo de uso do bem e o teto do salto do
+  // medidor; sem a migration EXPAND das linhas, o apontamento novo responde 500.
+  ['AtividadeApontamentoProduto', 'movimentacao_estoque_id'],
+  ['AtividadeApontamentoProdutoConsumoLote', 'estoque_lote_nota_id'],
+  ['AtividadeApontamentoMaquina', 'quantidade_uso'],
+  ['BemPatrimonial', 'custo_uso_unitario'],
+  ['TipoPatrimonial', 'salto_maximo_medidor'],
 ]);
 
 /**

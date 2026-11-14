@@ -10,6 +10,10 @@
  * leem daqui o MESMO número. Ninguém mais calcula saldo, taxa ou percentual.
  *
  * ── Cocho ────────────────────────────────────────────────────────────────
+ *  - Consumo por DIAS CIVIS: a data do abastecimento é a base, não o horário
+ *    em que o registro foi digitado. No próprio dia, dias decorridos = 0;
+ *    o primeiro consumo diário é descontado no dia seguinte. Um registro
+ *    retroativo usa a data informada para estimar o saldo de hoje.
  *  - Ciclo = último evento do ponto. Aberto quando `dias_periodo == null`.
  *  - Base do ciclo aberto = `quantidade_total_kg` (fornecido) + `sobra_kg`
  *    (sobra anterior, saldo inicial legítimo do ciclo).
@@ -154,6 +158,8 @@ export const MENSAGENS_NIVEL = Object.freeze({
   dataInvalida: 'Data do último lançamento inválida; não é possível estimar.',
   estimativaIndisponivel: 'Estimativa de consumo indisponível',
   motivoSemPv: 'o produto não tinha %PV no lançamento',
+  // D-PROD-201: o produto tinha %PV, mas nenhum lote do pasto tinha peso.
+  motivoSemPeso: 'os lotes do pasto não tinham peso no lançamento',
   motivoSemHoje: 'o dia de referência não foi informado',
   motivoCompartilhada: 'o consumo não é rateado entre cochos que atendem os mesmos animais',
   cicloSemQuantidade: 'Ciclo sem quantidade fornecida.',
@@ -164,8 +170,20 @@ export const MENSAGENS_NIVEL = Object.freeze({
   // Próximo passo nos estados neutros (detalhes do cocho e do depósito).
   orientacaoLimite: 'Configure o limite operacional no cadastro do ponto.',
   orientacaoSemPv: 'Cadastre o %PV do produto; a estimativa volta no próximo lançamento.',
+  orientacaoSemPeso: 'Registre uma pesagem dos lotes; a estimativa volta no próximo lançamento.',
   orientacaoCompartilhada: 'A estimativa volta quando só um cocho com este produto atender estes animais.',
 });
+
+/**
+ * D-PROD-201 — por que o lançamento ficou sem taxa: com %PV gravado (> 0) e sem
+ * peso dos lotes, o motivo é o PESO (antes a tela dizia "Cadastre o %PV").
+ * @param {any} evento
+ */
+const motivoSemTaxa = (evento) => {
+  const pv = Number(evento?.percentual_consumo_pv_usado);
+  const peso = Number(evento?.peso_medio_lotes_kg);
+  return Number.isFinite(pv) && pv > 0 && !(Number.isFinite(peso) && peso > 0) ? MENSAGENS_NIVEL.motivoSemPeso : MENSAGENS_NIVEL.motivoSemPv;
+};
 
 /**
  * Textos do medidor de uso do limite operacional (cocho e depósito), no mesmo
@@ -847,7 +865,7 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
     n.confiabilidade = 'indisponivel';
     n.rotuloCurto = 'Sem estimativa';
     n.mensagem = MENSAGENS_NIVEL.estimativaIndisponivel;
-    n.motivo = taxa == null ? MENSAGENS_NIVEL.motivoSemPv : MENSAGENS_NIVEL.motivoSemHoje;
+    n.motivo = taxa == null ? motivoSemTaxa(ultimo) : MENSAGENS_NIVEL.motivoSemHoje;
   } else if (compartilhamento.compartilhadoCom.length) {
     n.confiabilidade = 'compartilhada';
     n.compartilhadoCom = compartilhamento.compartilhadoCom;
@@ -888,10 +906,12 @@ export function calcularNivelCocho({ ponto, eventos = [], hoje, pontos = [] }) {
 
   /** @type {AlertaNivel[]} */
   const alertas = [];
+  const avisoConfigurado = numeroOuNulo(ponto?.dias_alerta_reposicao);
+  const diasAviso = avisoConfigurado != null && avisoConfigurado >= 0 ? Math.floor(avisoConfigurado) : 1;
   if (n.confiabilidade === 'estimada' && n.saldoKg != null && n.diasRestantesEstimados != null) {
     if (n.saldoKg <= 0) {
       alertas.push({ tipo: 'cocho_sem_produto', severidade: 'critico', titulo: 'Cocho sem produto', descricao: 'A cobertura estimada do cocho foi esgotada.' });
-    } else if (n.diasRestantesEstimados <= 1) {
+    } else if (n.diasRestantesEstimados <= diasAviso) {
       alertas.push({ tipo: 'cocho_baixo', severidade: 'alerta', titulo: 'Reposição próxima', descricao: `Cobertura estimada restante: ${numeroPtBR(n.diasRestantesEstimados, 1)} dia(s).` });
     }
   }

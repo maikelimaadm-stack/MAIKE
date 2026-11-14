@@ -113,7 +113,7 @@ describe('DC-1 — ciclo aberto no dia 1', () => {
     // O percentual do ciclo aparece uma vez só (sob o ícone).
     expect(within(medidorCiclo().parentElement).getAllByText(/75%/)).toHaveLength(1);
     expect(within(secao).getByText('Consumo estimado: 50 kg/dia (%PV no lançamento)')).toBeTruthy();
-    expect(within(secao).getByText('Dias desde o lançamento: 1 · Restam 3 dia(s)')).toBeTruthy();
+    expect(within(secao).getByText('Dias desde o abastecimento: 1 · Restam 3 dia(s)')).toBeTruthy();
     expect(valorDe(secao, 'Saldo estimado')).toBe('150 kg');
     expect(valorDe(secao, 'Duração estimada')).toBe('4 dia(s)');
     expect(valorDe(secao, 'Próxima reposição')).toBe('14/11/2026');

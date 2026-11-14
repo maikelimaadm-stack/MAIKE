@@ -9,17 +9,99 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-198)
+## Missão ativa (2026-11-14) — MAIKE-OFFLINE-MAPA-IDS: o id do servidor de uma criação offline sobrevive entre passadas do replay (D-PROD-204)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-198** (a D-PROD-196 e a D-PROD-197 ficam livres para as PRs #275 e #276, que usam a D-PROD-195 e vão renumerar) |
-| Branch / PR | `claude/relaxed-bardeen-jlgbp7`, empilhada sobre `claude/kind-knuth-tztu1v` (PR #279, emenda R2 da D-PROD-195). PR própria, em rascunho, exclusiva desta missão |
+| Decisão | **D-PROD-204** (nasceu D-PROD-198, que a `main` deu ao peso projetado do lote; a D-PROD-203 é da PR #290) |
+| Branch / PR | `claude/relaxed-bardeen-jlgbp7`, PR #280, exclusiva desta missão. Nasceu sobre a PR #279 (emenda R2 da D-PROD-195); depois do merge dela, atualizada por merge com a `main` e com a `main` como base |
 | Escopo | `syncOfflineEntityQueue`: depois de um `create` confirmado e antes de tirá-lo da fila, todo item da fila que cita o id offline passa a citar o do servidor (`record_id` e `data`). `substituirIdsMapeados` troca só id `offline_…`, por chave própria do mapa, inclusive dentro de listas. Sem retenção nova. Só frontend, sem migration |
 | Provas | `offlineMapaDeIdsEntrePassadas` (6, todos reprovam com o runtime anterior) + `offlineRuntime`, `estoqueP0FilaOfflineLegada`, `loteDeleteOfflineBloqueado`, `loteExclusaoCacheOffline`, `categoriaManejoCriacaoOnline` |
 | Relatório | [`MAIKE-OFFLINE-MAPA-IDS-REPORT.md`](./MAIKE-OFFLINE-MAPA-IDS-REPORT.md) |
 
-## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
+## Missão ativa (2026-11-14) — MAIKE-ATIVIDADE-LINHAS (Fatia 3 do Lançamento de Atividades): linhas de produto e de máquina (D-PROD-202)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-202**, pedido do proprietário ("FATIA 3 — As linhas que geram custo: produto e máquina."), liberada com "pode começar" |
+| Branch / PR | `feat/atividade-itens-produto-maquina`, a partir da `main` `74bd3ee1` |
+| Escopo | Linha de produto (baixa e estorno FIFO pelo motor único), linha de máquina (medidor do bem, leitura na linha), totalizador, repetir com linhas, custo de uso e teto de salto nos cadastros |
+| Migration | `20261114600000_atividade_linhas_produto_maquina`, **EXPAND**, SHA `e374c81d448711894a19825e319ed0d760128c9b77a02953647e4cf7a09a5489`. Produção 53 → 54; tabelas 84 → 87 |
+| Release | **Aplicada em produção** em 2026-11-14, antes do merge, com o GO "autorizo vocÇe", pelo caminho B do [runbook](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md). Postcheck: 54 / 0, 87 tabelas, APLICADA E CONFERIDA |
+| Constituição | Nota D-PROD-202 no `00` e no `07`, redigida pelo agente e **aprovada pelo proprietário** em 2026-11-14 |
+| Documentos | [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) · [`MAIKE-ATIVIDADE-LINHAS-REPORT.md`](./MAIKE-ATIVIDADE-LINHAS-REPORT.md) |
+
+## Missão ativa (2026-11-14) — MAIKE-SUPLEMENTACAO-BASE: rebanho e peso certos no lançamento de suplementação, sem baixa dupla, datas em ordem (D-PROD-201)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-201** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `74bd3ee1` (merge da PR #285) |
+| Escopo | Etapa 1 de 4 da suplementação: o lançamento usa o rebanho do mapa (posições) e o peso projetado (ou o último peso); lote sem peso não entra como zero; um `operation_id` por lançamento (salvar de novo não baixa duas vezes); `toast.warning`; recusa de data anterior ao último abastecimento; motivo "sem peso" no mapa |
+| Migration | Nenhuma; servidor inalterado |
+| Próximas etapas | 2 Formulação (pronto × batelada, %PV padrão e por categoria, produção com custo do estoque) · 3 Leitura de cocho (escore, acesso, estrutura) e farol de cocho · 4 Fechamento de consumo em %PV com faixa configurável e custo/cab/dia |
+| Relatório | [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-ATIVIDADE-CABECALHO (Fatia 2 do Lançamento de Atividades): Atividade como cabeçalho e o apontamento do dia como filho (D-PROD-200)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-200**, pedido do proprietário ("FATIA 2 — O cabeçalho + transformar o apontamento atual em filho dele."), liberada com "Sim, comece a Fatia 2 (Recomendado)" |
+| Branch / PR | `feat/atividade-cabecalho`, a partir da `main` `1dd44f0c` (merge da PR #276) |
+| Escopo | `Atividade` e `AtividadeApontamento` no lugar do apontamento de linha única e dos itens da D-PROD-193; API `/atividades`; tela "Lançamento de Atividades"; permissões `op-atividades` com as extras de apontamento e de reabrir |
+| Migration | `20261114500000_atividade_cabecalho`, **CONTRACT** com conversão (sétima entrada; formato novo do portão). SHA-256 `c288cf47c1bbb1de1b25295ffc57c37185c2ce1060e092eec7088d9d501f1feb`. Repositório 51 → **52**; tabelas 85 → **84** |
+| Release | **Aplicada em produção** em 2026-11-14 às 20:25:14 UTC, caminho B, com GO do proprietário; conferência 53 / 0, 84 tabelas |
+| Próxima fatia | Fatia 3 (`feat/atividade-itens-produto-maquina`), só quando o proprietário liberar |
+| Documentos | [`MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md`](./MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md) · [`MAIKE-ATIVIDADE-CABECALHO-REPORT.md`](./MAIKE-ATIVIDADE-CABECALHO-REPORT.md) |
+
+## Missão ativa (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
+## Missão ativa (2026-11-14) — MAIKE-MUDANCA-CATEGORIA-MANEJO: a Mudança de Categoria mostra e pede a categoria de manejo de destino (D-PROD-199)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-199** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `2b211d7b` (merge da PR #283) e avançada até a `main` `02ea10b5` (PR #284) |
+| Escopo | Mudança de Categoria: mostra a categoria de manejo de destino; escolha obrigatória quando há mais de uma; aviso quando não há nenhuma. Cadastro de Categoria de Manejo: aviso de categoria ativa com o mesmo sexo e a mesma faixa |
+| Migration | Nenhuma; servidor inalterado |
+| Relatório | [`MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md`](./MAIKE-MUDANCA-CATEGORIA-MANEJO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-PESO-PROJETADO: peso projetado do lote e peso objetivo na Categoria de Manejo (D-PROD-198)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-198** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `ab63ee26` (merge da PR #282) e atualizada por merge com a `main` `1dd44f0c` (PR #276, D-PROD-197) |
+| Escopo | Peso objetivo opcional na categoria; motor do peso projetado pela curva (base derivada pelo projetado das origens); `projecao_peso` em `GET /rebanho/posicoes`; Detalhes do Lote com projetado, @, GMD, base, objetivo, quando atinge, pesado × previsto e próximos meses |
+| Migration | `20261114400000_cadcategoria_peso_objetivo`, **EXPAND** (uma coluna anulável). SHA-256 `d44f8070…3fb1a9`. Repositório e produção: 51 → **52** (depois da `20261114300000_tipo_atividade_defaults`, já aplicada); tabelas iguais |
+| Release | **Aplicada em produção** em 2026-11-14 às 19:00:00 UTC, caminho B do [runbook](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("go"); postcheck 52 / 0, coluna `numeric(10,2)` anulável sem default, 10 categorias com o campo vazio, 85 tabelas, advisors de segurança sem achados. Merge da PR #283 depois da aplicação |
+| Próxima fatia | Mudança de Categoria entre Categorias de Manejo com a mesma categoria oficial (pasto → confinamento) |
+| Relatório | [`MAIKE-PESO-PROJETADO-REPORT.md`](./MAIKE-PESO-PROJETADO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-TIPO-ATIVIDADE-DEFAULTS (Fatia 1 do Lançamento de Atividades): padrões e flags do Tipo de Atividade (D-PROD-197)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-197** (revê a D-PROD-182 só no ponto "TipoAtividade sem flags"), com o pedido do proprietário literal ("TipoAtividade ganha os defaults e as flags. É a base de tudo."; "estas flags são do TIPO DE ATIVIDADE, não do TipoTarefa") |
+| Branch / PR | `feat/tipo-atividade-defaults`, a partir da `main` `a65ea468` e atualizada por merge (sem rebase) com a `main` `29052ea7` (PRs #278 e #279, D-PROD-195) e depois com a `main` `ab63ee26` (PRs #281 e #282, D-PROD-196, que levou esta para D-PROD-197). PR **#276**, exclusiva desta fatia |
+| Escopo | `TipoAtividade` ganha categoria, centro de custo padrão, centro de resultado padrão, unidade de produção (`UnidadeMedida`), coeficiente padrão e 8 flags; API `/tipos-atividade` com os campos, regras 422 e opções de centros da fazenda; tela em 3 seções; helper puro para a Fatia 2. Apontamento de Atividade de hoje inalterado |
+| Migration | `20261114300000_tipo_atividade_defaults`, **CONTRACT** aditiva (sexta entrada fechada). SHA-256 `b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf`; guarda `e15780190baf9494f20535c2e3ced21eb20ea6b8f362eeac0b2477dcf6dab3b0`. Repositório 50 → **51** (a D-PROD-195 da `main` já está aplicada em produção); tabelas não mudam |
+| Release | **Aplicada em produção** em 2026-11-14 às 17:05:05 UTC, caminho B do [runbook](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md), com GO escrito do proprietário ("Sim: aplique e faça o merge (Recomendado)"); postcheck `APLICADA E CONFERIDA` (51 / 0). Merge da PR #276 depois da aplicação |
+| Constituição | Nota D-PROD-197 no `07`, redigida pelo agente e **aprovada pelo proprietário** junto com o merge (mesma resposta) |
+| Próxima fatia | Fatia 2 (`feat/atividade-cabecalho`: Atividade + apontamento como filho), liberada pelo proprietário ("Sim, comece a Fatia 2 (Recomendado)") |
+| Documentos | [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-CONTRATO.md) · [`MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md`](./MAIKE-TIPO-ATIVIDADE-DEFAULTS-REPORT.md) |
+
+## Missão ativa (2026-11-14) — MAIKE-LOTE-SEM-RACA-IDADE: cadastro de lotes sem raça predominante e idade média (D-PROD-196)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-196** |
+| Branch / PR | `claude/kind-knuth-tztu1v`, recomeçada da `main` `29052ea7` (merge da PR #279) |
+| Escopo | Raça Predominante e Idade Média (meses) saem do formulário, da grade, da porta, da correção da entrada, do mapa e da posição; a aba Geral fica com duas linhas cheias |
+| Banco | **Sem migration**: colunas ficam no banco com os valores antigos (84 lotes); a API não lê, não grava e não devolve, e aceita e ignora se um cliente antigo enviar |
+| Relatório | [`MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md`](./MAIKE-LOTE-SEM-RACA-IDADE-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |
 |---|---|

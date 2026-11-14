@@ -2,7 +2,7 @@
 /** D-PROD-131 — "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" (antigo Renomear Lote) usam as imagens do proprietário. */
 import React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
 import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplementacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
@@ -53,7 +53,8 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
         { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
       ] }]} />,
     );
-    expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" }));
+    expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 120 64");
     expect(screen.getByRole("button", { name: "Pesar" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
     expect(screen.getByRole("button", { name: "Nascimento" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
     expect(screen.getByRole("button", { name: "Saída" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
@@ -78,12 +79,13 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
       { nome: "Juntar Lotes", Icone: IconeJuntarLotes, onClick: juntar, disabled: true, motivoBloqueio: "Dois lotes da mesma categoria são necessários." },
       { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
     ] }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" }));
     expect([...document.querySelectorAll(".mk-al__quadro")].map(b => b.textContent)).toEqual(["Editar Informação", "Juntar Lotes", "Pesar"]);
     const button = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(button.disabled).toBe(true);
-    button.click();
+    fireEvent.click(button);
     expect(juntar).not.toHaveBeenCalled();
-    screen.getByRole("button", { name: "Pesar" }).click();
+    fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
     expect(pesar).toHaveBeenCalledTimes(1);
   });
 

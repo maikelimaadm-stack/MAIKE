@@ -240,7 +240,9 @@ const menorLeitura = (pontos) =>
 /**
  * Série monotônica por data (D4): a leitura `r` na data `d` vale sse
  * r >= toda leitura de ponto com data <= d E r <= toda leitura com data > d.
- * Pontos = cadastro do bem + abastecimentos CONFIRMADOS (vizinhos já lidos).
+ * Pontos = cadastro do bem + abastecimentos CONFIRMADOS e, desde a D-PROD-202,
+ * linhas de máquina confirmadas do Lançamento de Atividades (vizinhos já lidos;
+ * o ponto de uma linha leva `linha_maquina_id` para os detalhes).
  * @param {{ tipo: string|null, leitura: string|null, dia: string, cadastro: any, anterior: any, posterior: any }} a
  * @returns {{ bloqueio: any, anterior: any, posterior: any }}
  */
@@ -256,6 +258,7 @@ export const avaliarLeitura = ({ tipo, leitura, dia, cadastro, anterior, posteri
     return {
       bloqueio: bloqueio('MEDIDOR_LEITURA_REGRESSIVA', 'medidor_leitura', 'leitura_regressiva', {
         leitura_referencia: ant.leitura, data_referencia: ant.data, origem_referencia: ant.origem, abastecimento_id: ant.abastecimento_id ?? null,
+        ...(ant.linha_maquina_id ? { linha_maquina_id: ant.linha_maquina_id } : {}),
       }),
       anterior: ant,
       posterior: post,
@@ -265,6 +268,7 @@ export const avaliarLeitura = ({ tipo, leitura, dia, cadastro, anterior, posteri
     return {
       bloqueio: bloqueio('MEDIDOR_LEITURA_ACIMA_POSTERIOR', 'medidor_leitura', 'leitura_acima_posterior', {
         leitura_posterior: post.leitura, data_posterior: post.data, origem_posterior: post.origem, abastecimento_id: post.abastecimento_id ?? null,
+        ...(post.linha_maquina_id ? { linha_maquina_id: post.linha_maquina_id } : {}),
       }),
       anterior: ant,
       posterior: post,

@@ -94,7 +94,7 @@ const contagem = async (c) => {
   const p = prisma();
   const where = { cliente_id: c.cliente.id };
   return JSON.stringify({
-    lotes: (await p.lote.findMany({ where, orderBy: { id: 'asc' } })).map((l) => [l.id, l.quantidade_cabecas, l.quantidade_entrada, String(l.peso_entrada_kg), l.data_entrada?.toISOString(), l.area_entrada_id, l.categoria, l.sexo, l.nome, l.raca_predominante, l.identificador_nome, l.observacoes, l.nota_fiscal, l.updatedAt.toISOString()]),
+    lotes: (await p.lote.findMany({ where, orderBy: { id: 'asc' } })).map((l) => [l.id, l.quantidade_cabecas, l.quantidade_entrada, String(l.peso_entrada_kg), l.data_entrada?.toISOString(), l.area_entrada_id, l.categoria, l.sexo, l.nome, l.sistema_produtivo, l.identificador_nome, l.observacoes, l.nota_fiscal, l.updatedAt.toISOString()]),
     posicoes: (await p.posicaoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.area_id, x.quantidade_cabecas, String(x.peso_medio_kg), x.chave_identidade, x.nome, x.identificador_nome, x.updatedAt.toISOString()]),
     partidas: (await p.partidaRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.delta, x.data_operacional.toISOString(), x.ativa]),
     pesos: (await p.pesoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, String(x.peso_medio_kg), x.ativa]),
@@ -226,10 +226,10 @@ describe('R1 — correção elegível: o MESMO fato em todas as superfícies', (
     await nadaGravado(c, () => corrigir(c, lote, { categoria_manejo_id: cmX.id }), 400);
   });
 
-  test('(f) metadados (PATCH de nome/raça) seguem pelo PATCH e não tiram a elegibilidade', async () => {
+  test('(f) metadados (PATCH de nome/sigla) seguem pelo PATCH e não tiram a elegibilidade', async () => {
     const c = await cenario();
     const lote = await novoLote(c);
-    const p = await req('PATCH', `/lotes/${lote.id}`, c.tok, { nome: 'LOTE RENOMEADO', raca_predominante: 'Nelore' });
+    const p = await req('PATCH', `/lotes/${lote.id}`, c.tok, { nome: 'LOTE RENOMEADO', identificador_sigla: 'LR' });
     assert.equal(p.statusCode, 200, p.body);
     assert.equal((await elegibilidade(c, lote)).elegivel, true);
     assert.equal((await corrigir(c, lote, { quantidade: 90 })).statusCode, 200);
@@ -403,7 +403,7 @@ describe('R1 — modos de ativação e efeitos colaterais', () => {
 });
 
 describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativos)', () => {
-  const COMBINADO = { quantidade: 120, raca_predominante: 'NELORE', identificador_nome: 'GRUPO A', observacoes: 'COMPRA DO VIZINHO', nota_fiscal: 'NF-123' };
+  const COMBINADO = { quantidade: 120, sistema_produtivo: 'NELORE', identificador_nome: 'GRUPO A', observacoes: 'COMPRA DO VIZINHO', nota_fiscal: 'NF-123' };
 
   test('100→120 + raça + identificador + observações + NF num único comando: todas as superfícies, uma entrada, ledger congruente', async () => {
     const c = await cenario();
@@ -413,7 +413,7 @@ describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativ
     assert.equal(r.statusCode, 200, r.body);
     const d = await fato(c, lote.id);
     assert.deepEqual(
-      [d.lote.quantidade_entrada, d.lote.quantidade_cabecas, d.lote.raca_predominante, d.lote.identificador_nome, d.lote.observacoes, d.lote.nota_fiscal, d.lote.numero_lote, d.lote.empresa_id],
+      [d.lote.quantidade_entrada, d.lote.quantidade_cabecas, d.lote.sistema_produtivo, d.lote.identificador_nome, d.lote.observacoes, d.lote.nota_fiscal, d.lote.numero_lote, d.lote.empresa_id],
       [120, 120, 'NELORE', 'GRUPO A', 'COMPRA DO VIZINHO', 'NF-123', antes.lote.numero_lote, c.empresa.id]
     );
     assert.equal(d.partidas[0].id, antes.partidas[0].id);
@@ -423,21 +423,21 @@ describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativ
     assert.equal(await prisma().eventoRebanho.count({ where: { cliente_id: c.cliente.id } }), 1);
     const audits = await prisma().auditLog.findMany({ where: { cliente_id: c.cliente.id, acao: 'correcao_entrada', entidade: 'Lote' } });
     assert.equal(audits.length, 1, 'uma auditoria do lote por salvamento');
-    assert.equal(audits[0].dados_novos.raca_predominante, 'NELORE');
+    assert.equal(audits[0].dados_novos.sistema_produtivo, 'NELORE');
     assert.equal(audits[0].dados_anteriores.quantidade_entrada, 100);
     // Leitura posterior pela API
     const lido = (await req('GET', `/lotes/${lote.id}`, c.tok)).json();
-    assert.deepEqual([lido.quantidade_entrada, lido.raca_predominante, lido.identificador_nome, lido.observacoes], [120, 'NELORE', 'GRUPO A', 'COMPRA DO VIZINHO']);
+    assert.deepEqual([lido.quantidade_entrada, lido.sistema_produtivo, lido.identificador_nome, lido.observacoes], [120, 'NELORE', 'GRUPO A', 'COMPRA DO VIZINHO']);
   });
 
   test('só administrativos pelo comando: Lote atualizado na transação, ledger intocado', async () => {
     const c = await cenario();
     const lote = await novoLote(c);
     const antes = await fato(c, lote.id);
-    const r = await corrigir(c, lote, { raca_predominante: 'ANGUS', valor_total_compra: 1000, idade_media_meses: 12 });
+    const r = await corrigir(c, lote, { sistema_produtivo: 'ANGUS', valor_total_compra: 1000 });
     assert.equal(r.statusCode, 200, r.body);
     const d = await fato(c, lote.id);
-    assert.deepEqual([d.lote.raca_predominante, Number(d.lote.valor_total_compra), d.lote.idade_media_meses], ['ANGUS', 1000, 12]);
+    assert.deepEqual([d.lote.sistema_produtivo, Number(d.lote.valor_total_compra)], ['ANGUS', 1000]);
     assert.deepEqual(d.eventos.map((e) => [e.id, e.updatedAt.toISOString(), e.dados.correcoes]), antes.eventos.map((e) => [e.id, e.updatedAt.toISOString(), undefined]));
     assert.deepEqual(d.partidas.map((x) => x.updatedAt.toISOString()), antes.partidas.map((x) => x.updatedAt.toISOString()));
   });
@@ -451,7 +451,7 @@ describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativ
     }
     definirFalhaInjetadaLedger(null);
     const d = await fato(c, lote.id);
-    assert.deepEqual([d.lote.quantidade_entrada, d.lote.raca_predominante, d.partidas[0].delta], [100, null, 100], 'quantidade não mudou sozinha');
+    assert.deepEqual([d.lote.quantidade_entrada, d.lote.sistema_produtivo, d.partidas[0].delta], [100, null, 100], 'quantidade não mudou sozinha');
   });
 
   test('resposta perdida após commit: a MESMA operation_id devolve o resultado guardado mesmo com updated_date já avançado', async () => {
@@ -486,13 +486,13 @@ describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativ
     const c = await cenario();
     const lote = await novoLote(c);
     await prisma().suplementacaoLote.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: lote.id } } });
-    await nadaGravado(c, () => corrigir(c, lote, { raca_predominante: 'ANGUS' }), 409, 'LOTE_CORRECAO_ENTRADA_BLOQUEADA');
+    await nadaGravado(c, () => corrigir(c, lote, { sistema_produtivo: 'ANGUS' }), 409, 'LOTE_CORRECAO_ENTRADA_BLOQUEADA');
   });
 
   test('H2: o histórico lê a data corrigida da entrada (sem movimento novo)', async () => {
     const c = await cenario();
     const lote = await novoLote(c);
-    assert.equal((await corrigir(c, lote, { data_entrada: '2026-10-05', raca_predominante: 'NELORE' })).statusCode, 200);
+    assert.equal((await corrigir(c, lote, { data_entrada: '2026-10-05', sistema_produtivo: 'NELORE' })).statusCode, 200);
     const h = (await req('GET', `/movimentacoes-mapa/historico?empresa_id=${c.empresa.id}&lote_ids=${lote.id}`, c.tok)).json();
     assert.equal(h.total, 0, 'a correção não cria movimentação');
     const ev = (await fato(c, lote.id)).eventos[0];
@@ -545,5 +545,41 @@ describe('R3 — predicado "no estado de entrada" sem falso positivo de categori
       assert.equal((await elegibilidade(c, lote)).elegivel, true);
       assert.equal((await corrigir(c, lote, { quantidade: 101 })).statusCode, 200);
     }
+  });
+});
+
+describe('D-PROD-196 — raça predominante e idade média saíram do cadastro do lote', () => {
+  test('cliente antigo envia os dois: POST e PATCH aceitos e ignorados; a API não devolve; a correção recusa', async () => {
+    const c = await cenario();
+    const r = await req('POST', '/lotes', c.tok, {
+      empresa_id: c.empresa.id, nome: 'LOTE ANTIGO', quantidade_cabecas: 10, categoria: BOI, sexo: 'Macho', setor_id: c.setor.id,
+      area_entrada_id: c.A.id, area_atual_id: c.A.id, data_entrada: '2026-10-25', motivo_entrada: 'Compra', status: 'Ativo',
+      peso_medio_kg: 300, raca_predominante: 'NELORE', idade_media_meses: 12,
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    const criado = r.json();
+    assert.equal('raca_predominante' in criado, false);
+    assert.equal('idade_media_meses' in criado, false);
+    const gravado = await prisma().lote.findFirst({ where: { id: criado.id } });
+    assert.deepEqual([gravado.raca_predominante, gravado.idade_media_meses], [null, null], 'nada gravado nas colunas antigas');
+
+    const p = await req('PATCH', `/lotes/${criado.id}`, c.tok, { nome: 'LOTE NOVO', raca_predominante: 'ANGUS', idade_media_meses: 24 });
+    assert.equal(p.statusCode, 200, p.body);
+    const depois = await prisma().lote.findFirst({ where: { id: criado.id } });
+    assert.deepEqual([depois.nome, depois.raca_predominante, depois.idade_media_meses], ['LOTE NOVO', null, null]);
+
+    // Corpo só com chaves ignoradas: 200, nada muda, nenhuma auditoria nova.
+    const auditsAntes = await prisma().auditLog.count({ where: { cliente_id: c.cliente.id, entidade: 'Lote', entidade_id: criado.id } });
+    const so = await req('PATCH', `/lotes/${criado.id}`, c.tok, { raca_predominante: 'ANGUS', idade_media_meses: 24 });
+    assert.equal(so.statusCode, 200, so.body);
+    assert.equal(so.json().nome, 'LOTE NOVO');
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: c.cliente.id, entidade: 'Lote', entidade_id: criado.id } }), auditsAntes);
+
+    const lido = (await req('GET', `/lotes/${criado.id}`, c.tok)).json();
+    assert.equal('raca_predominante' in lido, false);
+    assert.equal('idade_media_meses' in lido, false);
+
+    const corr = await corrigir(c, criado, { raca_predominante: 'ANGUS' });
+    assert.equal(corr.statusCode, 400, corr.body);
   });
 });
