@@ -609,8 +609,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             {/* Formulário principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <div>
-                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do lançamento <span className="text-red-500">*</span></label>
-                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" value={formData.data_lancamento} onChange={(e) => { dataLancamentoEditada.current = true; setFormData((prev) => ({ ...prev, data_lancamento: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+                <label className="text-[12px] text-slate-500 pl-1 leading-none">Data do abastecimento <span className="text-red-500">*</span></label>
+                <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Input type="date" aria-label="Data em que o sal foi colocado no cocho" aria-describedby="regra-data-abastecimento" value={formData.data_lancamento} onChange={(e) => { dataLancamentoEditada.current = true; setFormData((prev) => ({ ...prev, data_lancamento: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></div>
+                <p id="regra-data-abastecimento" className="mt-1 text-[10px] leading-snug text-slate-500">Informe o dia em que o sal foi colocado, mesmo que esteja registrando depois. A estimativa desconta o consumo por dia, a partir do dia seguinte ao abastecimento.</p>
               </div>
               <div>
                 <label className="text-[12px] text-slate-500 pl-1 leading-none">Data fim consumo anterior</label>
