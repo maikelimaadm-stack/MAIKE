@@ -340,18 +340,14 @@ const MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO = Object.freeze({
 
 /**
  * Texto da recusa de padrão do tipo de atividade, ou `null` se o erro não é ela.
- *
- * O código chega preservado ou, enquanto o transporte não o catalogar, só no
- * corpo do servidor guardado em `cause` — de lá só o `code` é comparado. Campo e
- * motivo vêm de `details` (o transporte já os separa) e escolhem a frase do
- * catálogo acima.
+ * Campo e motivo vêm de `details` (o transporte nativo os separa do corpo) e
+ * escolhem a frase do catálogo acima; motivo desconhecido fica com a frase geral.
  * @param {ApiError} erro
  * @returns {string|null}
  */
 const mensagemDoPadraoTipoAtividade = (erro) => {
   const codigo = API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO;
-  const causa = /** @type {{ code?: unknown } | null} */ (erro.cause && typeof erro.cause === 'object' ? erro.cause : null);
-  if (erro.code !== codigo && causa?.code !== codigo) return null;
+  if (erro.code !== codigo) return null;
   const detalhes = /** @type {{ field?: unknown, reason?: unknown }} */ (erro.details ?? {});
   const field = typeof detalhes.field === 'string' ? detalhes.field : '';
   const reason = typeof detalhes.reason === 'string' ? detalhes.reason : '';

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
-import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import { B1ChaveRow, MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import B1Select from "@/components/cadastro/base1/B1Select";
@@ -187,7 +187,8 @@ const objetoDoGravado = (objeto, id) =>
  *     visível, marcado, e pode ser limpo. Trocar a fazenda com o formulário
  *     aberto devolve os dois ao gravado (a lista é outra).
  *  3. **Como funciona**: Unidade de produção (unidades ativas + a gravada),
- *     Coeficiente padrão (formato local → string canônica) e as 8 flags.
+ *     Coeficiente padrão (formato local → string canônica) e as 8 flags como
+ *     caixas de marcar. As listas (centros e unidades) só são pedidas na edição.
  *
  * @param {{
  *   initialData?: TipoAtividadeInicial | null,
@@ -519,17 +520,16 @@ export default function FormularioTipoAtividade({
           error={erros.coeficiente_padrao}
           testId="tipo-atividade-coeficiente"
         />
+        {/* Caixas de marcar: a caixa Sim/Não do campo Base1 (`variant="switch"`) com o check da grade (`MgCheck`). */}
         {FLAGS_DO_FORMULARIO.map(({ campo, rotulo }) => (
-          <div key={campo} className="contents" data-testid={`tipo-atividade-flag-${campo}`}>
-            <B1ChaveRow
-              label={rotulo}
-              span={3}
+          <B1Field key={campo} label={rotulo} variant="switch" span={3} disabled={readOnly || isSubmitting}>
+            <MgCheck
               checked={formData[campo]}
-              onChange={readOnly ? undefined : (/** @type {boolean} */ v) => handleChange(campo, v)}
+              onChange={(/** @type {boolean} */ v) => handleChange(campo, v)}
               disabled={readOnly || isSubmitting}
-              ariaLabel={rotulo}
+              data-testid={`tipo-atividade-flag-${campo}`}
             />
-          </div>
+          </B1Field>
         ))}
       </div>
 

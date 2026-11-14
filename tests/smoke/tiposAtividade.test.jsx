@@ -4,9 +4,10 @@
  * O formulário tem três seções, nesta ordem: Identificação (Grupo de atividade,
  * Nome do tipo de atividade, Categoria, Descrição, Ativo), Apropriação (Centro
  * de custo padrão e Centro de resultado padrão, da fazenda SELECIONADA) e Como
- * funciona (Unidade de produção, Coeficiente padrão e as 8 flags). O seletor de
- * grupo oferece só grupos ativos; nada das flags legadas de TipoTarefa
- * (`pode_ter_*`).
+ * funciona (Unidade de produção, Coeficiente padrão e as 8 flags, caixas de
+ * marcar). O seletor de grupo oferece só grupos ativos; nada das flags legadas
+ * de TipoTarefa (`pode_ter_*`). A porta, a API, o service e o transporte nativo
+ * rodam de verdade sobre o `fetch`/`nativeRequest` falso (TA-PORTA, TA-ERRO).
  */
 import React from "react";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
@@ -183,7 +184,8 @@ const limpar = async (form, campo) => {
   await waitFor(() => expect(combobox(form, campo).hasAttribute("data-placeholder")).toBe(true));
 };
 
-const flag = (nome) => within(screen.getByTestId(`tipo-atividade-flag-${nome}`)).getByRole("switch");
+/** A caixa de marcar da flag (o `data-testid` fica no próprio `<input type="checkbox">`). */
+const flag = (nome) => screen.getByTestId(`tipo-atividade-flag-${nome}`);
 
 const preencherObrigatorios = async (form) => {
   await abrirGrupo(form);
@@ -290,7 +292,7 @@ describe("TA-FORM — formulário de tipo de atividade", () => {
     expect(valorDe(form, "Centro de resultado padrão")).toBe("7 — Recria 2026");
     expect(valorDe(form, "Unidade de produção")).toBe("HA - Hectare");
     expect(within(form).getByTestId("tipo-atividade-coeficiente")).toHaveValue("1,5");
-    for (const f of FLAGS) expect(flag(f)).toHaveAttribute("aria-checked", String(SALVO[f]));
+    for (const f of FLAGS) expect(flag(f).checked, f).toBe(SALVO[f]);
     enviar();
     expect(onSubmit).toHaveBeenCalledWith({
       grupo_atividade_id: "g1",
@@ -343,17 +345,23 @@ describe("TA-FORM — formulário de tipo de atividade", () => {
     expect(onSubmit.mock.calls.at(-1)[0].categoria).toBeNull();
   });
 
-  it("TA-FORM-8 — as 8 flags (caixas Sim/Não), na ordem do contrato, nascem desmarcadas e vão como booleanos", async () => {
+  it("TA-FORM-8 — as 8 flags são caixas de marcar, na ordem do contrato, nascem desmarcadas e vão como booleanos", async () => {
     const { form, onSubmit } = await montar();
     const secao = within(form).getByTestId("tipo-atividade-secao-como-funciona");
     const ids = [...secao.querySelectorAll('[data-testid^="tipo-atividade-flag-"]')].map((el) => el.getAttribute("data-testid"));
     expect(ids).toEqual(FLAGS.map((f) => `tipo-atividade-flag-${f}`));
-    expect(FLAGS.map((f) => flag(f).getAttribute("aria-label"))).toEqual(ROTULOS_FLAGS);
-    for (const f of FLAGS) expect(flag(f)).toHaveAttribute("aria-checked", "false");
+    // Cada caixa tem o rótulo fixo como nome acessível (o rótulo do campo aponta para ela).
+    FLAGS.forEach((f, i) => {
+      expect(flag(f)).toHaveAttribute("type", "checkbox");
+      expect(within(secao).getByRole("checkbox", { name: ROTULOS_FLAGS[i] })).toBe(flag(f));
+    });
+    for (const f of FLAGS) expect(flag(f)).not.toBeChecked();
     await preencherObrigatorios(form);
     fireEvent.click(flag("exige_maquina"));
-    fireEvent.click(flag("permite_produto"));
-    expect(flag("exige_maquina")).toHaveAttribute("aria-checked", "true");
+    // Clicar no rótulo também marca.
+    fireEvent.click(within(secao).getByText("Permite produto"));
+    expect(flag("exige_maquina")).toBeChecked();
+    expect(flag("permite_produto")).toBeChecked();
     enviar();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const payload = onSubmit.mock.calls[0][0];
@@ -481,9 +489,9 @@ describe("TA-FORM — formulário de tipo de atividade", () => {
     expect(valorDe(form, "Centro de resultado padrão")).toBe("4 — Engorda (INATIVO, OUTRA FAZENDA)");
     expect(valorDe(form, "Unidade de produção")).toBe("HA - Hectare");
     expect(within(form).getByTestId("tipo-atividade-coeficiente")).toHaveValue("1,5");
-    expect(flag("exige_maquina")).toHaveAttribute("aria-checked", "true");
-    expect(flag("exige_safra")).toHaveAttribute("aria-checked", "false");
-    expect(flag("exige_maquina")).toBeDisabled();
+    expect(flag("exige_maquina")).toBeChecked();
+    expect(flag("exige_safra")).not.toBeChecked();
+    for (const f of FLAGS) expect(flag(f)).toBeDisabled();
     expect(servico.listarCentrosDaFazenda).not.toHaveBeenCalled();
     expect(servico.listarUnidadesDeMedida).not.toHaveBeenCalled();
     expect(screen.queryByTestId("tipo-atividade-sem-fazenda")).toBeNull();
@@ -536,11 +544,38 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
     expect(servico.criarTipoAtividade).not.toHaveBeenCalled();
   });
 
+  it("TA-GRADE-1 — a chave das preferências mudou (_v2) e Categoria entra visível por padrão, depois do tipo", async () => {
+    const { TIPOS_ATIVIDADE_STORAGE_KEY, TIPOS_ATIVIDADE_COLUNAS, getTipoAtividadeFieldValue } = await import(
+      "@/components/tipos-atividade/TabelaTiposAtividade"
+    );
+    expect(TIPOS_ATIVIDADE_STORAGE_KEY).toBe("colunas_largura_tipos_atividade_v2");
+    expect(TIPOS_ATIVIDADE_COLUNAS.filter((c) => c.default).map((c) => c.id)).toEqual([
+      "grupo_atividade_nome",
+      "nome_tipo",
+      "categoria",
+      "descricao",
+      "ativo",
+      "updated_date",
+    ]);
+    expect(TIPOS_ATIVIDADE_COLUNAS.find((c) => c.id === "categoria")?.label).toBe("Categoria");
+    expect(getTipoAtividadeFieldValue({ categoria: "MANEJO_ANIMAL" }, "categoria")).toBe("Manejo animal");
+    expect(getTipoAtividadeFieldValue({ categoria: null }, "categoria")).toBe("");
+  });
+
   it("TA-PAGE-2 — a tabela mostra a coluna Categoria com o rótulo legível, mesmo com preferência de colunas salva na chave antiga", async () => {
-    // Preferência gravada pela tela anterior (sem Categoria): na chave `_v2` ela não esconde a coluna nova.
+    // Formato real gravado pela grade (persistCadastroBase1ColumnPrefs) na tela da D-PROD-182, sem Categoria.
     localStorage.setItem(
       "colunas_largura_tipos_atividade_prefs",
-      JSON.stringify({ version: 1, columns: { visible: ["grupo_atividade_nome", "nome_tipo", "descricao", "ativo"] } }),
+      JSON.stringify({
+        version: 1,
+        columns: {
+          widths: { grupo_atividade_nome: 220, nome_tipo: 240, descricao: 260, ativo: 100 },
+          order: ["grupo_atividade_nome", "nome_tipo", "descricao", "ativo", "created_date", "updated_date"],
+          visible: ["grupo_atividade_nome", "nome_tipo", "descricao", "ativo"],
+          frozen: 0,
+          autoFit: [],
+        },
+      }),
     );
     servico.listarGruposSimples.mockResolvedValue(GRUPOS);
     servico.listarTiposAtividade.mockResolvedValue([
@@ -560,11 +595,10 @@ describe("TA-PAGE — tela de tipos de atividade", () => {
     const { ApiError, API_ERROR_CODES } = await import("@/apis/_core/ApiError.js");
     servico.listarGruposSimples.mockResolvedValue(GRUPOS);
     servico.listarTiposAtividade.mockResolvedValue([]);
-    // Como o cliente nativo entrega o 422: o código no corpo do servidor (`cause`), campo e motivo em `details`.
+    // Como o cliente nativo entrega o 422: o código preservado, campo e motivo em `details`.
     servico.criarTipoAtividade.mockRejectedValue(
-      new ApiError(API_ERROR_CODES.OPERATION_FAILED, {
-        details: { field: "centro_custo_padrao_id", reason: "inativo" },
-        cause: { code: "TIPO_ATIVIDADE_PADRAO_INVALIDO", field: "centro_custo_padrao_id", reason: "inativo" },
+      new ApiError(API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO, {
+        details: { field: "centro_custo_padrao_id", reason: "inativo", requestId: "req-9" },
       }),
     );
     await montarTela();
@@ -721,17 +755,11 @@ describe("TA-PORTA — porta, API e service do tipo (D-PROD-195)", () => {
 });
 
 describe("TA-ERRO — mensagem de TIPO_ATIVIDADE_PADRAO_INVALIDO por motivo", () => {
-  it("TA-ERRO-1 — cada campo e motivo tem texto próprio, com o código preservado ou só no corpo do servidor", async () => {
+  it("TA-ERRO-1 — cada campo e motivo tem texto próprio; motivo desconhecido fica com a frase geral", async () => {
     const { ApiError, API_ERROR_CODES, getApiErrorMessage } = await import("@/apis/_core/ApiError.js");
     const CODE = "TIPO_ATIVIDADE_PADRAO_INVALIDO";
     expect(API_ERROR_CODES[CODE]).toBe(CODE);
-    // Hoje o transporte só preserva códigos catalogados nele: o 422 chega como falha genérica, com o corpo em `cause`.
-    const doCorpo = (field, reason) =>
-      new ApiError(API_ERROR_CODES.OPERATION_FAILED, {
-        details: { field, reason, requestId: "req-1" },
-        cause: { code: CODE, field, reason, details: { field, reason } },
-      });
-    const preservado = (field, reason) => new ApiError(API_ERROR_CODES[CODE], { details: { field, reason } });
+    const recusa = (field, reason) => new ApiError(API_ERROR_CODES[CODE], { details: { field, reason, requestId: "req-1" } });
     const casos = [
       ["centro_custo_padrao_id", "nao_encontrado", /^O centro de custo padrão não foi encontrado\./],
       ["centro_custo_padrao_id", "inativo", /^O centro de custo padrão está inativo\./],
@@ -743,21 +771,53 @@ describe("TA-ERRO — mensagem de TIPO_ATIVIDADE_PADRAO_INVALIDO por motivo", ()
       ["coeficiente_padrao", "nao_positivo", /^O coeficiente padrão precisa ser maior que zero\./],
     ];
     for (const [field, reason, frase] of casos) {
-      for (const erro of [doCorpo(field, reason), preservado(field, reason)]) {
-        const texto = getApiErrorMessage(erro, "fallback");
-        expect(texto).toMatch(frase);
-        expect(texto).toMatch(/Nada foi gravado\.$/);
-      }
+      const texto = getApiErrorMessage(recusa(field, reason), "fallback");
+      expect(texto).toMatch(frase);
+      expect(texto).toMatch(/Nada foi gravado\.$/);
     }
-    // Motivo desconhecido: a frase genérica do catálogo, que não afirma motivo nenhum.
-    const generica = new ApiError(API_ERROR_CODES[CODE]).message;
-    expect(generica).toMatch(/padrões do tipo de atividade/);
-    expect(getApiErrorMessage(preservado("centro_custo_padrao_id", "outro"), "fallback")).toBe(generica);
-    // Outro código no corpo não vira recusa de padrão.
-    const outro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, {
-      details: { field: "coeficiente_padrao", reason: "nao_positivo" },
-      cause: { code: "OUTRO_CODIGO" },
-    });
+    // Motivo desconhecido: a frase geral do catálogo, que não afirma motivo nenhum.
+    const geral = new ApiError(API_ERROR_CODES[CODE]).message;
+    expect(geral).toMatch(/padrões do tipo de atividade/);
+    expect(getApiErrorMessage(recusa("centro_custo_padrao_id", "outro"), "fallback")).toBe(geral);
+    // O mesmo `details` em outro código não vira recusa de padrão.
+    const outro = new ApiError(API_ERROR_CODES.OPERATION_FAILED, { details: { field: "coeficiente_padrao", reason: "nao_positivo" } });
     expect(getApiErrorMessage(outro, "fallback")).toBe("Não foi possível concluir a operação.");
+  });
+
+  it("TA-ERRO-2 — o transporte nativo preserva TIPO_ATIVIDADE_PADRAO_INVALIDO e UNIDADE_MEDIDA_DELETE_BLOCKED, com field/reason em details", async () => {
+    const { nativeRequest } = await vi.importActual("@/apis/_core/nativeHttpClient.js");
+    const { API_ERROR_CODES, getApiErrorMessage } = await import("@/apis/_core/ApiError.js");
+    vi.stubEnv("VITE_MAIKE_API_URL", "https://backend.exemplo.invalido");
+    /** O corpo como o errorHandler do servidor monta: field/reason no topo, o resto em `details`. */
+    const responder = (status, corpo) => vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status, text: async () => JSON.stringify(corpo) })));
+    const CTX = { operation: "createTipoAtividade", resource: "TipoAtividade" };
+
+    responder(422, {
+      code: "TIPO_ATIVIDADE_PADRAO_INVALIDO",
+      message: "texto do servidor que nunca vai para a tela",
+      request_id: "req-7",
+      field: "unidade_producao_id",
+      reason: "inativo",
+    });
+    const recusa = await nativeRequest("/tipos-atividade", { method: "POST", body: { nome_tipo: "X" } }, CTX).catch((e) => e);
+    expect(recusa.code).toBe(API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO);
+    expect(recusa.details).toMatchObject({ field: "unidade_producao_id", reason: "inativo", requestId: "req-7" });
+    expect(getApiErrorMessage(recusa, "fallback")).toBe(
+      "A unidade de produção está inativa. Escolha uma unidade ativa ou deixe o campo vazio. Nada foi gravado.",
+    );
+
+    // Unidade usada como unidade de produção padrão (FK RESTRICT): 409 com o vínculo.
+    responder(409, {
+      code: "UNIDADE_MEDIDA_DELETE_BLOCKED",
+      message: "texto do servidor",
+      request_id: "req-8",
+      details: { vinculo: "tipo_atividade" },
+    });
+    const bloqueio = await nativeRequest("/unidades-medida/u-ha", { method: "DELETE" }, { operation: "deleteUnidade", resource: "UnidadeMedida" }).catch(
+      (e) => e,
+    );
+    expect(bloqueio.code).toBe(API_ERROR_CODES.UNIDADE_MEDIDA_DELETE_BLOCKED);
+    expect(bloqueio.details).toMatchObject({ vinculo: "tipo_atividade", requestId: "req-8" });
+    expect(getApiErrorMessage(bloqueio, "fallback")).toBe("Não é possível excluir a unidade de medida: existem registros vinculados.");
   });
 });
