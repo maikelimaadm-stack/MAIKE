@@ -10,7 +10,7 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 
 | Camada | O que entrou |
 |---|---|
-| Banco | models `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote` (fatias FIFO por lote), FKs compostas por `cliente_id` todas `RESTRICT`, uniques e índices começando por `cliente_id`, 7 CHECKs; relações inversas só no Prisma. Migration EXPAND `20261113800000_apontamento_atividade_item` com RLS/REVOKE. **Não aplicada** |
+| Banco | models `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote` (fatias FIFO por lote), FKs compostas por `cliente_id` todas `RESTRICT`, uniques e índices começando por `cliente_id`, 7 CHECKs; relações inversas só no Prisma. Migration EXPAND `20261113800000_apontamento_atividade_item` com RLS/REVOKE. **Aplicada em produção em 2026-11-14 12:51:06 UTC, antes do merge** (§7) |
 | Release | manifesto (sha256 `866dc994…533c`) e hash do DO (`7aaa176c…f710`) pinados no `premergeMigrateLib.mjs`; B17a/B17b no `premerge-migrate`; SQL editor 01–04 (70 tabelas de tenant, 85 no total, as 2 novas antes do `ApontamentoAtividade` na ordem de exclusão e no `LOCK TABLE`); testes e ensaios das três CONTRACT (D-PROD-162, D-PROD-183 e D-PROD-187) contando as migrations pela pasta; S8 |
 | Backend | A1 adicionar item, A2 cancelar item, A3 cancelar apontamento com itens (`operation_id` obrigatório), A4 detalhe com `itens` e `custo_itens`, A6 opções de produto, A7 locais com saldo; origem nova `apontamento_atividade` no motor; reconciliação e guarda do lote (X1) conhecendo as fatias; 6 erros novos |
 | Frontend | seção "Itens" no formulário existente (4 estados), rascunho de um item por vez, cancelar item, detalhe no lugar da linha da lista, idempotência no cliente com pendência por escopo, mensagens dos códigos novos. Só componentes existentes; nenhum `.jsx` nem CSS novo |
@@ -133,7 +133,7 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
 
 ## 6. Release (GO separado; migration ANTES do merge)
 
-1. A migration é **EXPAND** pura: só cria as 2 tabelas novas. **Não foi aplicada.** Aplicar em produção exige um **GO separado e específico** do proprietário, como nas D-PROD-188 e D-PROD-190.
+1. A migration é **EXPAND** pura: só cria as 2 tabelas novas. **Aplicada em produção em 2026-11-14 às 12:51:06 UTC, antes do merge**, com GO separado e específico do proprietário (§7).
 2. **Ordem obrigatória: migration → merge → deploy.** O detalhe do apontamento lê a tabela nova; com o código no ar antes da migration, a tela de apontamentos dá 500 (risco R3). Os módulos antigos (guarda do lote e reconciliação) ficam protegidos por `to_regclass`.
 3. **Caminho A** (`premerge-migrate --aplicar`, o oficial), se a sessão tiver a URL direta do banco. Ele **só funciona a partir desta branch já com a base nova** (o merge de `be322ab8`): antes dele, produção tinha migrations que a branch não conhecia (a `…300000` da PR #263, a CONTRACT `…500000` da PR #268 e a `…600000` da PR #270), e a conferência do histórico recusava. Senão, **caminho B** (conector Supabase, uma transação com guardas, `migration.sql` íntegro e `INSERT` em `_prisma_migrations` com o checksum pinado), **registrado como desvio da D-PROD-74**, como nas Estações e na Fatia C. No caminho B, a guarda do envelope usa **`n_ok = 47`** e 0 com falha. `apply_migration` nunca.
 4. **Preflight esperado em produção** (recontar no dia): `system_identifier` 7692130048193495360; **47** concluídas e 0 com falha (as 47 da base); **83** tabelas em `public`; `to_regclass` nulo para as 2 tabelas novas; as tabelas referenciadas existem (`Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `Usuario`, `EstoqueLoteNota`). Depois de aplicar: **48 concluídas e 85 tabelas**, RLS ligado sem FORCE nas 2, política `maike_backend_all` só para `maike_vercel`, `anon`/`authenticated` sem acesso, 11 FKs `RESTRICT`, 7 CHECKs, `get_advisors` sem alerta.
@@ -145,25 +145,36 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
 
 ## 7. Registro da aplicação em produção
 
-**PENDENTE — aguarda o GO separado do proprietário.** Nada foi lido nem escrito em produção nesta fatia. Preencher no dia da aplicação, no molde do relatório da Fatia C (`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md` §7).
+**2026-11-14, caminho B (conector Supabase, uma `execute_sql`, uma transação).**
 
-- **GO:** _pendente_. Registrar as palavras do proprietário, a que se aplicam e o caminho autorizado (A, ou B como desvio da D-PROD-74).
-- **Preflight, só leitura** (esperado; recontar no dia):
+- **GO:** o proprietário pediu para encerrar as PRs ("A gente precisa encerrar essas prs"). Na pergunta de como seguir, escolheu **"Mergeie a #269 e aplique (Recomendado)"**: "Eu faço o merge da #269 agora e aplico a migration da #274 em produção (caminho B, uma transação, com ensaio antes). Depois ajusto a #274 sobre a main e te chamo só para o merge final dela, que também aprova o texto da constituição." Em seguida escreveu **"Faça a migração e já faça o merge da pr 274"** e, para a confirmação do conector, **"me envie por favor a solicitação"**.
+  - Esta sessão não tem a URL direta do banco que o caminho A exige. Por isso a aplicação foi pelo caminho B, **registrado como desvio da D-PROD-74**, como nas Estações e na Fatia C.
+  - A primeira tentativa expirou na confirmação do conector, que ficou sem resposta em 60 s. Nada foi aplicado. O preflight foi refeito antes do reenvio.
+- **Preflight, só leitura, projeto `uuemcasqcdjucflulkne`:**
   - `system_identifier` 7692130048193495360, banco `postgres`;
-  - `_prisma_migrations` com **47** concluídas e 0 com falha (as 47 da base);
-  - `to_regclass('public."ApontamentoAtividadeItem"')` e `to_regclass('public."ApontamentoAtividadeItemConsumoLote"')` nulos; **83** tabelas em `public`;
-  - as tabelas referenciadas existem (`Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `Usuario`, `EstoqueLoteNota`);
+  - `_prisma_migrations` com **47** concluídas e 0 com falha; a última é `20261113700000_apontamento_atividade`;
+  - `to_regclass` nulo para `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote`; **83** tabelas em `public`;
+  - as tabelas referenciadas existem: `Cliente`, `ApontamentoAtividade`, `Produto`, `LocalEstoque`, `MovimentacaoEstoque`, `EstoqueLoteNota` e `Usuario`;
   - nenhuma sessão ativa e nenhuma trava forte nelas.
-- **Ensaio local do envelope** (só no caminho B): _a preencher_ — num banco novo com as 47 migrations da base, trocando só o `system_identifier`; 1ª execução aplica (48 no histórico, 85 tabelas), 2ª para na guarda, `migrate status` em dia e `migrate diff` vazio.
-- **Envelope** (caminho B):
+- **Ensaio local** do mesmo envelope, num banco novo com as 47 migrations da `main` `f4802558`, trocando só o `system_identifier`:
+  - a 1ª execução aplicou: 48 no histórico, RLS ligado sem FORCE nas 2 tabelas, 85 tabelas;
+  - a 2ª execução parou na guarda (`RELEASE_BLOCKED: migration já registrada`);
+  - `prisma migrate status` deu "Database schema is up to date!" e o `migrate diff` contra o `schema.prisma` ficou vazio.
+- **Envelope aplicado:**
   1. `BEGIN`; `SET LOCAL lock_timeout = '5s'`; `pg_advisory_xact_lock(72707369)`;
-  2. guarda `DO`: alvo 7692130048193495360, migration ainda não registrada, `n_ok = 47` e 0 com falha, as 2 tabelas inexistentes;
+  2. guarda `DO`: alvo 7692130048193495360, migration ainda não registrada, `n_ok = 47` e 0 com falha, as 2 tabelas inexistentes, `ApontamentoAtividade` presente;
   3. o `migration.sql` íntegro (sha256 `866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c`);
   4. `INSERT` em `_prisma_migrations` com esse checksum e `applied_steps_count` 1;
   5. `COMMIT`.
-- **Conferência, só leitura** (esperado): linha `20261113800000_apontamento_atividade_item` com o checksum pinado e 1 passo; **48** concluídas e 0 com falha; RLS ligado sem FORCE nas 2; política `maike_backend_all` só para `maike_vercel`; `anon` e `authenticated` sem acesso; 11 FKs, todas `RESTRICT`; 7 CHECKs; 0 linhas; **85** tabelas em `public`; `get_advisors` (segurança) sem alerta.
-- **Resultado:** _a preencher_ — data e hora (UTC), caminho, quem executou e o que a conferência mostrou.
-- **Depois:** merge da PR #274, deploy e o smoke da seção 6; rollback como na seção 6.
+- **Conferência, só leitura:**
+  - linha `20261113800000_apontamento_atividade_item` com o checksum pinado, 1 passo, `finished_at` **2026-11-14 12:51:06 UTC**;
+  - **48** concluídas e 0 com falha;
+  - RLS ligado sem FORCE nas 2 tabelas;
+  - política `maike_backend_all` só para `maike_vercel` nas 2; `anon` e `authenticated` sem SELECT;
+  - 11 FKs, todas `RESTRICT`; 7 CHECKs; 14 índices (12 + 2 pkeys);
+  - 0 linhas; **85** tabelas em `public`;
+  - `get_advisors` (segurança): nenhum alerta.
+- **Depois:** merge da PR #274 (pedido explícito do proprietário, que também aprova o texto constitucional da D-PROD-193), deploy e o smoke da seção 6; rollback como na seção 6.
 
 ## 8. Riscos
 
