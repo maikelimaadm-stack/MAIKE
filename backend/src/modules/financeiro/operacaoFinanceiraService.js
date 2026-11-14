@@ -45,7 +45,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { STATUS_EXCLUIDO, executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 import { registrarEvento, registrarEventosEmLote } from '../auditoria/auditService.js';
 import { lerPapeis } from '../fornecedores/fornecedorDominio.js';
@@ -105,6 +105,20 @@ const documentoDuplicado = (extra = {}) =>
     details: { field: 'documento_referencia', reason: 'documento_duplicado', ...extra },
   });
 const jaEstornada = (liquidacaoId) => new AppError('LIQUIDACAO_JA_ESTORNADA', 'esta liquidação já foi estornada; nada foi gravado', { details: { liquidacao_id: liquidacaoId } });
+/**
+ * D-PROD-195: a unique `(cliente_id, empresa_id, direcao, parceiro_id,
+ * documento_chave_ativa)` só pelo alvo. A chave nasce dentro da transação
+ * (do rascunho travado ou do documento normalizado) e a MESMA transação a
+ * confere sob a trava `chaveDocumento` antes de gravar (confirmar e
+ * retificar): sem o alvo, o reenvio cai nessa pré-conferência.
+ */
+const DOCUMENTO_DUPLICADO_PELO_ALVO = soPeloAlvo(
+  () => documentoDuplicado(),
+  'pré-conferência do documento sob a trava financeiro:documento (chaveDocumento), em confirmar e retificar'
+);
+/** O estorno da liquidação (unique `(cliente_id, liquidacao_id)`): pré-conferência e conferência sem o alvo (D-PROD-195). */
+const estornoDaLiquidacao = (tx, cli, liquidacaoId) =>
+  tx.liquidacaoFinanceiraEstorno.findUnique({ where: { cliente_id_liquidacao_id: { cliente_id: cli, liquidacao_id: liquidacaoId } }, select: { id: true } });
 const dataFutura = ({ hoje, fuso }, dia, field) =>
   new AppError('FINANCEIRO_DATA_FUTURA', `a data ${dia} é posterior a hoje (${hoje}) na fazenda; só fato já ocorrido entra; nada foi gravado`, {
     details: { field, reason: 'data_futura', data: dia, hoje, fuso },
@@ -1503,7 +1517,7 @@ export const confirmar = async (contexto, id, corpo) => {
           return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
         },
       }),
-    { documento_chave_ativa: () => documentoDuplicado(), direcao_parceiro: () => documentoDuplicado() }
+    { documento_chave_ativa: DOCUMENTO_DUPLICADO_PELO_ALVO, direcao_parceiro: DOCUMENTO_DUPLICADO_PELO_ALVO }
   );
   return { ...r.body, replay: r.replay };
 };
@@ -1721,8 +1735,7 @@ export const estornarLiquidacao = async (contexto, liquidacaoId, corpo) => {
           const op = await travarCabecalho(tx, cli, empresaId, lido.operacao_id, 'SHARE');
           if (op.status !== 'CONFIRMADO') throw statusInvalido(op.status, 'CONFIRMADO');
           const titulo = await travarTitulo(tx, cli, liq.titulo_id);
-          const ja = await tx.liquidacaoFinanceiraEstorno.findUnique({ where: { cliente_id_liquidacao_id: { cliente_id: cli, liquidacao_id: liquidacaoId } }, select: { id: true } });
-          if (ja) throw jaEstornada(liquidacaoId);
+          if (await estornoDaLiquidacao(tx, cli, liquidacaoId)) throw jaEstornada(liquidacaoId);
           const tempo = await hojeDaEmpresa(tx, cli, empresaId);
           const estorno = await tx.liquidacaoFinanceiraEstorno.create({
             data: {
@@ -1744,7 +1757,7 @@ export const estornarLiquidacao = async (contexto, liquidacaoId, corpo) => {
           return { httpStatus: 201, body: await carregarDetalhe(tx, cli, op.id) };
         },
       }),
-    { liquidacao_id: () => jaEstornada(liquidacaoId) }
+    { liquidacao_id: { erro: () => jaEstornada(liquidacaoId), conferir: (tx) => estornoDaLiquidacao(tx, cli, liquidacaoId) } }
   );
   return { status: r.httpStatus, body: { ...r.body, replay: r.replay } };
 };
@@ -2430,7 +2443,7 @@ export const retificar = async (contexto, id, corpo) => {
           return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, novo.id)), retificacao } };
         },
       }),
-    { documento_chave_ativa: () => documentoDuplicado(), direcao_parceiro: () => documentoDuplicado() }
+    { documento_chave_ativa: DOCUMENTO_DUPLICADO_PELO_ALVO, direcao_parceiro: DOCUMENTO_DUPLICADO_PELO_ALVO }
   );
   return { ...r.body, replay: r.replay };
 };

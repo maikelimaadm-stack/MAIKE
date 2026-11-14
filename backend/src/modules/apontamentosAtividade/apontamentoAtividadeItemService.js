@@ -45,7 +45,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { TRANSACAO_CURTA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
   ORIGEM_APONTAMENTO, aplicarSaidaFifo, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
@@ -252,6 +252,24 @@ const conflitoDeChave = (operationId) => () =>
   new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: operationId } });
 
 /**
+ * D-PROD-195: a unique `(cliente_id, operation_id)` do item, conferível sem o
+ * alvo do P2002 — a mesma conferência que o A1 faz antes de tudo (§3.3).
+ * @param {string} cli @param {string} operationId
+ * @returns {import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio}
+ */
+const chaveDoItem = (cli, operationId) => ({ erro: conflitoDeChave(operationId), conferir: (tx) => buscarItemPorOperacao(tx, cli, operationId) });
+
+/**
+ * I-n: a unique (cliente_id, apontamento_id, ordem) é a rede da trava do
+ * apontamento (a ordem nasce sob o FOR UPDATE dele). Só pelo alvo: sem ele, o
+ * caminho genérico responde o mesmo 409 CONCURRENCY_CONFLICT (D-PROD-195).
+ */
+const ORDEM_DO_ITEM = soPeloAlvo(
+  () => concurrencyConflict('outro item entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),
+  'a ordem nasce sob a trava do apontamento (FOR UPDATE) e o erro é o mesmo 409 transitório do caminho genérico'
+);
+
+/**
  * Apontamento travado (I-c) e conferido (I-b): existe → CONFIRMADO → `versao`.
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string} id @param {number} versao
  */
@@ -345,6 +363,7 @@ export const adicionarItem = async (contexto, apontamentoId, corpo) => {
   const entrada = normalizarItem(apontamentoId, corpo);
   const total = totalDoItem(entrada);
   const fingerprint = fingerprintDePayload(fingerprintDoItem(entrada));
+  const chave = chaveDoItem(cli, entrada.operation_id);
   try {
     const r = await emTransacao(
       TRANSACAO_CURTA,
@@ -358,9 +377,10 @@ export const adicionarItem = async (contexto, apontamentoId, corpo) => {
             // §3.3 — a chave de um item JÁ gravado é conflito mesmo sem o recibo (apagado ou expurgado), conferida
             // ANTES de tudo, como o recibo: mesma resposta e mesma auditoria do reenvio conflitante. Em produção o
             // runtime não é dono das tabelas e elas têm RLS: o PostgreSQL omite o DETAIL da unique e o P2002 chega
-            // com `meta.target` nulo, que o mapa `unicos` abaixo não reconhece (viraria CONCURRENCY_CONFLICT, e o
-            // cliente repetiria a mesma chave para sempre). A unique (cliente_id, operation_id) fica como última rede.
-            if (await buscarItemPorOperacao(tx, cli, entrada.operation_id)) throw conflitoDeChave(entrada.operation_id)();
+            // sem alvo (viraria CONCURRENCY_CONFLICT, e o cliente repetiria a mesma chave para sempre). A unique
+            // (cliente_id, operation_id) fica como última rede, e o mapa abaixo confere a mesma chave depois do
+            // rollback (D-PROD-195).
+            if (await chave.conferir(tx)) throw chave.erro();
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const ap = await apontamentoTravado(tx, cli, empresaId, apontamentoId, entrada.versao); // I-c, I-b
             const { total: existentes, maiorOrdem } = await resumoDosItens(tx, cli, empresaId, apontamentoId);
@@ -412,12 +432,8 @@ export const adicionarItem = async (contexto, apontamentoId, corpo) => {
             return { httpStatus: 201, body: { ...comoDetalhePublico(depois), item_id: itemId } };
           },
         }),
-      {
-        // Última rede (o alvo do P2002 só existe quando o runtime é dono da tabela; ver a conferência acima).
-        operation_id: conflitoDeChave(entrada.operation_id),
-        // I-n: a unique (cliente_id, apontamento_id, ordem) é a rede da trava do apontamento.
-        ordem: () => concurrencyConflict('outro item entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),
-      }
+      // Última rede: pelo alvo quando o runtime é dono da tabela; sem ele, a conferência da chave (D-PROD-195).
+      { operation_id: chave, ordem: ORDEM_DO_ITEM }
     );
     return { status: r.replay ? 200 : 201, body: { ...r.body, replay: r.replay } };
   } catch (e) {

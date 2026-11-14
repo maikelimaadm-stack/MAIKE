@@ -45,6 +45,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { Prisma } from '@prisma/client';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
+import { comPapelNaoDono } from './papelNaoDono.mjs';
 import { comRelogioDeTeste } from '../src/modules/rebanhoLedger/rebanhoLedgerTempo.js';
 import { itemTanque } from './patrimonioP1AbastecimentoCenario.mjs';
 import { corpoGerador } from './patrimonioP1Cenario.mjs';
@@ -138,44 +139,6 @@ const semAuditoria = async (s) => JSON.stringify({ ...JSON.parse(await foto(s.c)
 const reenviosAuditados = async (s) =>
   (await prisma().auditLog.findMany({ where: { cliente_id: s.c, acao: 'apontamento_atividade.reenvio_conflitante' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }))
     .map((x) => [x.acao, x.entidade, x.entidade_id, x.usuario_id, x.dados_novos]);
-
-/**
- * Roda `fn` com TODA transação interativa do app (`getPrismaClient().$transaction`)
- * como em PRODUÇÃO: um papel que NÃO é dono das tabelas, sem BYPASSRLS, com o
- * RLS que as migrations ligam em todas elas e uma política permissiva
- * `FOR ALL … USING (true) WITH CHECK (true)` (a `maike_backend_all` do
- * `maike_vercel`). O primeiro comando de cada transação vira `SET LOCAL ROLE`
- * (vale só até o fim dela). Papel com nome único, criado e apagado aqui
- * (`DROP OWNED BY` leva as políticas e os grants deste banco).
- * @template T @param {(papel: string) => Promise<T>} fn @returns {Promise<T>}
- */
-const comPapelNaoDono = async (fn) => {
-  const p = /** @type {any} */ (prisma());
-  const papel = `maike_teste_rls_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
-  const original = p.$transaction;
-  await p.$executeRawUnsafe(`CREATE ROLE ${papel} NOLOGIN NOSUPERUSER NOBYPASSRLS`);
-  try {
-    await p.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO ${papel}`);
-    await p.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${papel}`);
-    await p.$executeRawUnsafe(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${papel}`);
-    const comRls = /** @type {Array<{ tabela: string }>} */ (await p.$queryRaw`SELECT c.relname AS tabela FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity AND NOT c.relforcerowsecurity ORDER BY 1`);
-    assert.ok(comRls.some((t) => t.tabela === 'ApontamentoAtividadeItem'), 'a tabela de itens tem RLS ligado (sem FORCE), como em produção');
-    for (const { tabela } of comRls) await p.$executeRawUnsafe(`CREATE POLICY teste_backend_all ON public."${tabela}" FOR ALL TO ${papel} USING (true) WITH CHECK (true)`);
-    p.$transaction = (/** @type {any} */ arg, /** @type {any} */ opcoes) =>
-      typeof arg === 'function'
-        ? original.call(p, async (/** @type {any} */ tx) => {
-            await tx.$executeRawUnsafe(`SET LOCAL ROLE ${papel}`);
-            return arg(tx);
-          }, opcoes)
-        : original.call(p, arg, opcoes);
-    return await fn(papel);
-  } finally {
-    p.$transaction = original;
-    await p.$executeRawUnsafe(`DROP OWNED BY ${papel}`);
-    await p.$executeRawUnsafe(`DROP ROLE ${papel}`);
-  }
-};
 
 // ═══ Item PRODUTO: baixa pelo motor único ═══════════════════════════════════
 
@@ -613,7 +576,7 @@ describe('D-PROD-193 — recusas do item: nada gravado (I-e, I-f, I-i, I-l, I-m,
         assert.equal(await semAuditoria(s), antes, `${rotulo}: nada gravado`);
         assert.equal((await reenviosAuditados(s)).length, i + 1, `${rotulo}: o reenvio é auditado`);
       }
-    });
+    }, { exigirRls: ['ApontamentoAtividadeItem'] });
     assert.equal(await quem(), dono, 'fora do teste, o app volta ao dono');
     assert.deepEqual(await prisma().$queryRaw`SELECT policyname FROM pg_policies WHERE policyname = 'teste_backend_all'`, [], 'as políticas do teste saíram');
   });

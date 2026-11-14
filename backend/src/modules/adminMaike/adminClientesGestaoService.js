@@ -30,6 +30,7 @@ import { createHash, randomInt } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
+import { alvoDaUnique } from '../../shared/prisma/transacaoConcorrente.js';
 import { gerarSenhaHash } from '../auth/authService.js';
 import { PAPEL_ADMIN_TENANT } from '../../shared/auth/exigirAdminTenant.js';
 import { registrarEventoSeguranca } from './adminService.js';
@@ -100,13 +101,25 @@ const loginDe = (v) => {
   return l;
 };
 
-/** Unique do banco: `Cliente.codigo` ou o índice parcial global de login ativo. */
-const traduzirUnique = (erro) => {
+/**
+ * Unique do banco: `Cliente.codigo` ou o índice parcial global de login ativo.
+ *
+ * D-PROD-195: em produção o runtime não é dono das tabelas e elas têm RLS; o
+ * P2002 chega sem alvo, e o código duplicado em corrida virava "login já
+ * usado". Sem o alvo, o model que falhou (`meta.modelName`, que o Prisma 6.19
+ * ainda entrega) diz a unique: nestas escritas o `Cliente` só tem a do código
+ * e o `Usuario` só as de login. Outro model segue o caminho genérico (409
+ * `CONCURRENCY_CONFLICT`), nunca "login" por palpite. Com o alvo, nada muda.
+ */
+export const traduzirUnique = (erro) => {
   // P2034: conflito de escrita/deadlock apontado pelo banco = corrida perdida.
   if (erro?.code === 'P2034') return edicaoConcorrente();
   if (erro?.code !== 'P2002') return erro;
-  const alvo = JSON.stringify(erro.meta?.target ?? '');
-  return /codigo/.test(alvo) ? codigoDuplicado() : loginDuplicado();
+  const alvo = alvoDaUnique(erro);
+  if (alvo !== null) return /codigo/.test(JSON.stringify(alvo)) ? codigoDuplicado() : loginDuplicado();
+  if (erro.meta?.modelName === 'Cliente') return codigoDuplicado();
+  if (erro.meta?.modelName === 'Usuario') return loginDuplicado();
+  return erro;
 };
 
 /** Login ativo em QUALQUER cliente (ativo ou suspenso), sem diferenciar maiúsculas. */

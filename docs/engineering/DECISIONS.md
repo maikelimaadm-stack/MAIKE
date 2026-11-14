@@ -7101,4 +7101,47 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-194 (a PR #273 cita a D-PROD-190, que é a da PR #269, e precisa renumerar) -->
+## D-PROD-195 — P2002 sem alvo em produção: nenhuma tradução de unique depende só do `meta.target` (MAIKE-P2002-SEM-ALVO)
+
+**Data:** 2026-11-14 · **Origem:** achado fora do escopo da Fatia D do apontamento ([`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9, D-PROD-193), pedido do proprietário · **Branch:** `claude/relaxed-cori-51av1f`
+
+> **Numeração:** a D-PROD-194 é da PR #273 (curva de ganho mensal, aberta), que já marca a D-PROD-195 como a próxima; a PR #229 é a D-PROD-154. Nenhuma outra PR aberta cita número depois da D-PROD-194. Esta decisão é a **D-PROD-195**.
+
+**Contexto.**
+- Em produção o runtime roda como `maike_vercel`: não é dono das tabelas (o dono é `postgres`), não tem BYPASSRLS, e as 85 tabelas de `public` têm RLS ligado (sem FORCE) com política só para ele ([`P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`](./P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md)). Nesse arranjo o PostgreSQL omite o DETAIL da violação de unique, e o Prisma 6.19.3 devolve o P2002 com `meta.target` nulo ("Unique constraint failed on the (not available)").
+- Medido no banco de teste, com o papel não dono do IT4g (teste U0): sob o papel, `meta = { modelName, target: null }`; como dono, `target = ['codigo']`. **O nome da constraint não chega por nenhum caminho do Prisma**, nem pelo SQL bruto (P2010 com `meta.code = '23505'` e a mensagem "Unique constraint failed: " vazia), embora o PostgreSQL ainda o mande no campo da constraint (conferido no `psql`): o conector só lê o DETAIL. Só o `meta.modelName` sobra.
+- Todo tradutor que casava o alvo com o nome da coluna falhava em produção: o P2002 caía no 409 `CONCURRENCY_CONFLICT` genérico (`backend/src/shared/errors/errorHandler.js`), que o frontend trata como transitório e manda repetir. No abastecimento, a `operation_id` reaproveitada sem recibo repetia para sempre; no MAIKE Admin, o código duplicado em corrida respondia "login duplicado". Evidência do "antes", sob o papel não dono, no relatório §3.
+
+**Inventário (todos os usos do alvo e dos mapas `unicos` no backend).**
+
+| Ponto | Sem o alvo, antes | Caminho sem o alvo, agora |
+|---|---|---|
+| `shared/prisma/transacaoConcorrente.js`: o mapa `unicos` do `emTransacao` | nenhum trecho casava: P2002 cru → 409 `CONCURRENCY_CONFLICT` | `UniqueDeNegocio { erro, conferir }`: a chave é conferida depois do rollback (item 2) |
+| `patrimonio/abastecimentoService.js`: confirmar (`operation_id`) | chave sem recibo → 409 `CONCURRENCY_CONFLICT`, para sempre | pré-conferência na transação, antes de tudo (o molde da D-PROD-193) + a mesma conferência no mapa (item 3) |
+| `apontamentosAtividade/apontamentoAtividadeItemService.js`: `operation_id` | já tinha a pré-conferência (D-PROD-193) | a mesma função vira a conferência do mapa |
+| `apontamentosAtividade/apontamentoAtividadeItemService.js`: `ordem` | erro transitório (o mesmo 409) | `soPeloAlvo`: a ordem nasce sob o FOR UPDATE do apontamento, e o caminho genérico responde o mesmo código |
+| `financeiro/operacaoFinanceiraService.js`: confirmar e retificar (`documento_chave_ativa`, `direcao_parceiro`) | sem efeito: a mesma transação confere o documento sob a trava `chaveDocumento` antes de gravar | `soPeloAlvo`, sem mudança de comportamento (a chave nasce dentro da transação) |
+| `financeiro/operacaoFinanceiraService.js`: estornar liquidação (`liquidacao_id`) | sem efeito: pré-conferência sob o FOR UPDATE do título | a pré-conferência (`estornoDaLiquidacao`) vira também a conferência do mapa |
+| `patrimonio/patrimonioComum.js`: `comUnicosEstaveis` | sem efeito: código de frota e código/nome do tipo são conferidos sob `travarEscopo('patrimonio:frota:…')` e `travarCatalogo`, por todos os escritores | sem mudança de comportamento; o alvo é lido por `alvoDaUnique` |
+| `empresas/empresaUniqueViolation.js` | nome em corrida → 409 `CONCURRENCY_CONFLICT` | conferência depois do rollback: nome ocupado → `EMPRESA_NAME_CONFLICT`; número reservado ocupado → `SEQUENCE_CONFLICT` (item 4) |
+| `adminMaike/adminClientesGestaoService.js` | código em corrida → 409 `ADMIN_LOGIN_DUPLICADO` (errado) | `meta.modelName`: `Cliente` → código; `Usuario` → login; outro → o caminho genérico (item 5) |
+
+Não dependem do alvo (traduzem pelo comando que falhou, e assim continuam): `usuarios/usuarioService.js` (login), `adminMaike/adminService.js` (proprietário e login do admin), `catalogoGlobal/catalogoRevisao.js`, `catalogoGlobal/catalogoGlobalService.js` (relê o vencedor), `estoquePecuarioLedger/ledgerPecuarioComandoService.js` (tenta de novo) e o próprio `errorHandler.js` (genérico).
+
+**Decisão.**
+1. **Um só leitor do alvo.** `alvoDaUnique(erro)` (`transacaoConcorrente.js`) devolve o alvo do P2002 ou `null`. Nenhum outro arquivo de `backend/src` lê `meta.target`; os tradutores que usam `alvoDaUnique` são uma lista fechada (patrimônio, empresa, admin), cada um com o caminho para o `null` provado por teste (item 7).
+2. **Mapa do `emTransacao` = `UniqueDeNegocio`.** Cada entrada de `unicos` é `{ erro, conferir }`, obrigatória pelo tipo: o `typecheck:backend` (tolerância zero) reprova a fábrica solta de antes (`TS2322: Type '() => AppError' is not assignable to type 'UniqueDeNegocio'`, conferido por mutação).
+   - Com o alvo: o trecho do alvo decide, exatamente como antes, e a conferência nem roda.
+   - Sem o alvo: as entradas, na ordem e sem repetir, têm a chave conferida (`chaveOcupada`) numa transação de leitura nova, **depois do rollback** (a do P2002 está abortada). Quem ocupou a chave já commitou, porque o PostgreSQL só acusa a unique contra linha commitada (contra linha em voo ele espera o desfecho). A primeira chave ocupada dá o erro. Nenhuma → o caminho genérico de antes (P2002 cru → 409 `CONCURRENCY_CONFLICT`). Conferência que falha conta como "não": o erro original nunca é mascarado.
+   - `soPeloAlvo(erro, porque)`: entrada reconhecida só pelo alvo, para unique cuja chave nasce dentro da transação e que a mesma transação confere sob trava antes de escrever (sem o alvo, o reenvio cai nessa pré-conferência). Lista fechada, conferida por teste: o documento do financeiro (sob `chaveDocumento`) e a ordem do item do apontamento (sob o FOR UPDATE do apontamento).
+3. **Abastecimento.** `confirmar` confere, dentro da transação e antes de tudo (logo depois do recibo, como o item do apontamento), se `(cliente_id, operation_id)` já tem abastecimento; se tiver, responde o 409 `IDEMPOTENCY_CONFLICT` do reenvio conflitante, com a mesma auditoria (`abastecimento_bem.reenvio_conflitante`). A mesma função é a conferência do mapa, que cobre a corrida em que a chave é ocupada depois da pré-conferência. A unique continua como última rede.
+4. **Empresa.** `lancarSeP2002Empresa` fica assíncrono e recebe as conferências da tentativa: o nome (a mesma `existeNome`, sem diferenciar maiúsculas) e, no criar, o número reservado. Sem o alvo: nome ocupado → `EMPRESA_NAME_CONFLICT`; número ocupado → `SEQUENCE_CONFLICT`; nada ocupado → o 409 `CONCURRENCY_CONFLICT` de antes. Com o alvo, nada muda.
+5. **MAIKE Admin.** Sem o alvo, `traduzirUnique` usa o model que falhou: nas escritas do admin o `Cliente` só tem a unique do código e o `Usuario` só as de login. Outro model segue o caminho genérico, nunca "login" por palpite. Com o alvo, nada muda.
+6. **Por que não `ON CONFLICT … DO NOTHING RETURNING` nem o nome da constraint.** O nome da constraint não chega (item do contexto). O `ON CONFLICT` exigiria reescrever o INSERT de cada chamador (o do abastecimento grava 25 colunas e passa pela FK do aceite do tanque) e não resolve o mapa genérico. A conferência depois do rollback é genérica e resolve a corrida; a pré-conferência continua sendo o primeiro caminho onde a chave chega sem recibo.
+7. **Testes** (PostgreSQL real, sob o papel não dono do IT4g, extraído para `backend/tests/papelNaoDono.mjs`): `backend/tests/p2002SemAlvo.test.mjs` — U0 a pré-condição; U1–U3 o mapa genérico (conferência depois do rollback e como o papel, nada gravado; com o alvo a conferência não roda; chave livre, conferência que falha, `soPeloAlvo` e mapa vazio seguem o caminho de antes); A1 o abastecimento (controle sob o papel; chave sem recibo → 409 `IDEMPOTENCY_CONFLICT` com outro corpo, com o mesmo corpo e acima do saldo, nada gravado, auditado); A2 a corrida, com portão no movimento, em que a chave é ocupada depois da pré-conferência; E1 a empresa em corrida; M1 o admin em corrida (criar e editar o mesmo código, criar o mesmo login); M2 o tradutor do admin; S1 o inventário fechado. `backend/tests/empresaUniqueViolation.test.mjs` passa a cobrir o caminho sem alvo. Mutações (pré-conferência, conferência, empresa e admin, uma por vez) deixam o teste certo vermelho pelo motivo certo.
+8. **Sem migration, sem rota, sem contrato HTTP novo.** Os códigos de erro são os de antes; o que muda é que, em produção, chega o código certo. Nada no frontend.
+9. **O P2003 (FK) não é afetado** (medido na sonda da missão, relatório §2): sob o papel não dono o P2003 continua com `meta.constraint` (o nome da FK), e o SQL bruto (P2010 com `23503`) traz o nome na mensagem. As traduções por FK — `criarAbastecimento` (aceite do tanque) e `vinculoComApontamentoAtividade` no `errorHandler.js` (D-PROD-190) — continuam certas em produção e ficaram como estão.
+
+**Relatório:** [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-196 (a D-PROD-194 é da PR #273, aberta) -->

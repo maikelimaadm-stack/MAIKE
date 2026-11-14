@@ -9,7 +9,20 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
+## Missão ativa (2026-11-14) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-195)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-195** (a D-PROD-194 é da PR #273, aberta; a #229 é a D-PROD-154) |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274). PR exclusiva desta correção |
+| Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
+| Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento; conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
+| Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
+| Testes | `backend/tests/p2002SemAlvo.test.mjs` (10, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
+| Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão |
+| Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
+
+## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)
 
 | Campo | Valor |
 |---|---|

@@ -10,7 +10,8 @@
  *    abastecimento é a EFETIVA do estoque (SACO guarda kg → `KG`);
  *  - prévia: mesma função de plano da confirmação, sem trava, sem escrita e
  *    sem recibo (RepeatableRead só de leitura);
- *  - confirmação: idempotente por `operation_id` (recibo v2 + unique), travas
+ *  - confirmação: idempotente por `operation_id` (recibo v2 + pré-conferência
+ *    da chave + unique, D-PROD-195), travas
  *    na ordem empresa → bem → local → produto → lotes → movimento → sequências,
  *    estado RELIDO sob as travas (TOCTOU) e o MESMO plano. O único escritor de
  *    `TanqueBemProduto` é o PATCH do bem, que também trava o Bem `FOR UPDATE`;
@@ -330,6 +331,17 @@ const conflitoDeChave = (operationId) => () =>
   new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: operationId } });
 
 /**
+ * D-PROD-195: a unique `(cliente_id, operation_id)` do abastecimento, conferível
+ * sem o alvo do P2002 (o mesmo que a D-PROD-193 faz no item do apontamento).
+ * @param {string} cli @param {string} operationId
+ * @returns {import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio}
+ */
+const chaveDoAbastecimento = (cli, operationId) => ({
+  erro: conflitoDeChave(operationId),
+  conferir: (tx) => tx.abastecimentoBem.findFirst({ where: { cliente_id: cli, operation_id: operationId }, select: { id: true } }),
+});
+
+/**
  * @param {any} contexto @param {Record<string, any>} corpo
  * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
  */
@@ -338,6 +350,7 @@ export const confirmar = async (contexto, corpo) => {
   const cli = auth.clienteId;
   const entrada = normalizarConfirmacao(corpo);
   const fingerprint = fingerprintDePayload(fingerprintDaConfirmacao(entrada));
+  const chave = chaveDoAbastecimento(cli, entrada.operation_id);
   try {
     const r = await emTransacao(
       TRANSACAO_CURTA,
@@ -348,6 +361,12 @@ export const confirmar = async (contexto, corpo) => {
           tipoOperacao: TIPO_CONFIRMAR,
           fingerprint,
           executar: async () => {
+            // D-PROD-195: a chave de um abastecimento JÁ gravado é conflito mesmo sem o recibo dele (apagado,
+            // expurgado ou de outro tipo), conferida ANTES de tudo, como o recibo: mesma resposta e mesma auditoria
+            // do reenvio conflitante. Em produção o P2002 da unique chega sem alvo (papel não dono + RLS) e, sem
+            // esta conferência, virava CONCURRENCY_CONFLICT, que o cliente repete com a mesma chave para sempre.
+            // A unique fica como última rede, e o mapa abaixo confere a mesma chave depois do rollback.
+            if (await chave.conferir(tx)) throw chave.erro();
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const tempo = await hojeDaEmpresa(tx, cli, empresaId); // R2 Empresa FOR SHARE
             const bemTravado = /** @type {any[]} */ (
@@ -424,7 +443,7 @@ export const confirmar = async (contexto, corpo) => {
             return { httpStatus: 201, body: await carregarDetalhe(tx, cli, empresaId, id) };
           },
         }),
-      { operation_id: conflitoDeChave(entrada.operation_id) }
+      { operation_id: chave }
     );
     return { status: r.replay ? 200 : 201, body: { ...r.body, replay: r.replay } };
   } catch (e) {

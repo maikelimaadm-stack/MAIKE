@@ -617,6 +617,9 @@ teste, e a mensagem diz que foi a migration.
 | BE-P41-20 | `DELETE /setores/:id` responde 404 do roteador: a rota não existe. Não é handler que reprova |
 | BE-P41-22/23 | id de outro tenant e id inexistente dão status, código e mensagem **idênticos**: a rota não é oráculo de existência |
 | BE-P41-30 | falha de auditoria desfaz a criação — a linha do setor não sobrevive ao rollback |
+| D-PROD-195 U0 | sob um papel **não dono** das tabelas, com RLS (como o `maike_vercel` em produção), o P2002 vem com `meta.target` nulo e nem o SQL bruto diz a constraint: como dono, o alvo existe e o defeito não aparece |
+| D-PROD-195 U1/A2 | sem o alvo, o mapa do `emTransacao` confere a chave **depois do rollback** e responde o erro de negócio, com nada gravado, inclusive na corrida em que a chave é ocupada depois da pré-conferência |
+| D-PROD-195 S1 | inventário fechado: o alvo do P2002 só é lido em `alvoDaUnique`, e `soPeloAlvo` só nas entradas conferidas sob trava. A entrada do mapa sem conferência não compila no `typecheck:backend` (`UniqueDeNegocio`) |
 
 ## `gate:setor-native` — a primeira capacidade migrada (P4.1, D-PROD-25)
 
