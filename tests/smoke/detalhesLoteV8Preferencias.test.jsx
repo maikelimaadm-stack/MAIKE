@@ -20,7 +20,7 @@ const lote = (id, extra = {}) => ({
 });
 const modelo = montarModeloDetalhes({
   area: { id: "a1", nome: "PASTO A", tamanho_hectares: 50, tipo_pastagem: "Brachiaria", tipo_cultura: "Pastagem" },
-  lotes: [lote("p1"), lote("p2")], lotesDaArea: [], movimentacoes: [], iconesConfig: [], hoje: new Date(2026, 10, 9),
+  lotes: [lote("p1"), lote("p2")], lotesDaArea: [], movimentacoes: [], categoriasManejo: [], hoje: new Date(2026, 10, 9),
 });
 const ANA = { clienteId: "c-1", login: "ana", empresaId: "emp-1" };
 const BRUNO = { clienteId: "c-1", login: "bruno", empresaId: "emp-1" };

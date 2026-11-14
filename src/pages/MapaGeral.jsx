@@ -376,9 +376,14 @@ export default function MapaGeral() {
   const { data: linhas = [] } = useQuery(createMapaQuery('linhas'));
   const { data: lotesBase = [], refetch: refetchLotes } = useQuery(createMapaQuery('lotes', { staleTime: 60 * 1000 }));
   const { data: iconesConfig = [] } = useQuery(createMapaQuery('icones', { enabled: true, staleTime: 10 * 60 * 1000 }));
+  // D-PROD-191: o ícone do lote vem do código, pela faixa de idade da Categoria de
+  // Manejo de cada posição; a lista fica no cache do mapa e o ícone sai offline.
+  const { data: categoriasManejo = [], refetch: refetchCategoriasManejo } = useQuery(createMapaQuery('categoriasManejo'));
 
   useEffect(() => {
     iconesConfig.forEach((icone) => {
+      // Ícone de Lote por upload não é mais usado no mapa (D-PROD-191): não baixa.
+      if (icone.tipo_entidade === 'Lote') return;
       [icone.icone_url, icone.sub_icone_url].filter(Boolean).forEach((url) => {
         const image = new Image();
         image.src = url;
@@ -882,7 +887,7 @@ export default function MapaGeral() {
     await queryClient.invalidateQueries({ queryKey: ['mapa-cache'] });
 
     const refreshOptions = force ? { force: true } : {};
-    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'pontosSuplementacao', 'pontos', 'estoqueLotes'];
+    const keysToRefresh = cacheKeys?.length ? cacheKeys : ['lotes', 'areas', 'eventosSuplementacao', 'pontosSuplementacao', 'pontos', 'estoqueLotes', 'categoriasManejo'];
     const refreshTasks = keysToRefresh.map((key) => refreshMapaCacheEntry(key, empresaSelecionadaId, refreshOptions));
 
     if (modoColoracao === 'situacao_pasto' && !keysToRefresh.includes('movimentacoes')) refreshTasks.push(refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, refreshOptions));
@@ -896,11 +901,13 @@ export default function MapaGeral() {
     if (keysToRefresh.includes('pontosSuplementacao')) refetchTasks.push(refetchPontosSupl());
     if (keysToRefresh.includes('pontos')) refetchTasks.push(refetchPontosRef());
     if (keysToRefresh.includes('estoqueLotes')) refetchTasks.push(refetchEstoqueLotes());
+    // D-PROD-191: a faixa da Categoria de Manejo muda o desenho do lote.
+    if (keysToRefresh.includes('categoriasManejo')) refetchTasks.push(refetchCategoriasManejo());
     await Promise.all(refetchTasks);
     if (modoColoracao === 'situacao_pasto') await refetchMovimentacoes();
     if (podeUsarTarefasMapa && (!cacheKeys?.length || keysToRefresh.includes('tarefas'))) await refetchTarefas();
     if (showToast) toast.success('Mapa atualizado');
-  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
+  }, [empresaSelecionadaId, modoColoracao, podeUsarTarefasMapa, queryClient, refetchAreas, refetchCategoriasManejo, refetchEstoqueLotes, refetchEventosSupl, refetchLotes, refetchMovimentacoes, refetchPontosRef, refetchPontosSupl, refetchTarefas]);
 
   const handleRefresh = useCallback(async () => {
     await executarRefreshMapa(true, true);
@@ -1108,7 +1115,7 @@ export default function MapaGeral() {
 
     renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos), iconesConfig, handleClickPontoSupl);
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, handleClickPontoSupl]);
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, iconesConfig, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, iconesConfig, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
+  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, handleClickTarefa]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 

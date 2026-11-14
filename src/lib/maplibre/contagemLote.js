@@ -1,5 +1,5 @@
 /*
- * GUIA DE EDIÇÃO — LETRA DO NÚMERO DE BOIS: altere FONTE_CONTAGEM_PX. Cor e posição ficam em syncLotes, em useMapRenderer.jsx.
+ * GUIA DE EDIÇÃO — LETRA DO NÚMERO DE BOIS: altere FONTE_CONTAGEM_PX. Cor e centro na horizontal ficam em syncLotes, em useMapRenderer.jsx; a altura é CONTAGEM_TOPO_PCT, do ícone do lote (src/assets/icones/lotes, D-PROD-191).
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 /**

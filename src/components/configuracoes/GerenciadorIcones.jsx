@@ -1,5 +1,8 @@
 /*
  * GUIA DE EDIÇÃO — CADASTRO DE ÍCONES: uploads e URLs salvos, por tipo/categoria. Não é a geometria dinâmica do cocho/depósito.
+ * O LOTE não é cadastrado aqui (D-PROD-191): o desenho dele vem do código, pela chave sexo + faixa de idade
+ * da Categoria de Manejo (src/assets/icones/lotes). Cadastros antigos do tipo "Lote" ficam no banco, sem uso,
+ * e a lista não os mostra.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 import React, { useState } from "react";
@@ -20,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Image, Upload, Edit2, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -35,7 +37,6 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 const TIPOS_ENTIDADE = [
   { value: "Ponto", label: "Ponto de Referência" },
   { value: "Area", label: "Área/Polígono" },
-  { value: "Lote", label: "Lote de Gado" },
   { value: "Linha", label: "Linha/Estrada" },
   { value: "Prioridade Tarefa", label: "Prioridade de Tarefa" },
   { value: "Icone Menu Mobile", label: "Ícone Menu Mobile" }
@@ -44,10 +45,31 @@ const TIPOS_ENTIDADE = [
 const CATEGORIAS_SUGERIDAS = {
   "Ponto": ["Cocho", "Bebedouro", "Aguada", "Balança", "Curral", "Tronco", "Armazém", "Depósito", "Casa Sede", "Retiro", "Saleiro"],
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
-  "Lote": ["Bezerro 0 a 12 meses", "Bezerra 0 a 12 meses", "Garrote 13 a 24 meses", "Novilha 13 a 24 meses", "Boi 25 a 36 meses", "Vaca 25 a 36 meses", "Touro + 36 meses", "Vaca + 36 meses", "MISTO"],
   "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"],
   "Prioridade Tarefa": ["Baixa", "Média", "Alta"],
   "Icone Menu Mobile": ["Dashboard", "Mapa Geral Manejo", "Lançamentos Tarefas", "Lançamento Pesagens"]
+};
+
+/** Só os tipos oferecidos entram na lista (D-PROD-191: linha antiga de "Lote" fica de fora). */
+const TIPOS_OFERECIDOS = new Set(TIPOS_ENTIDADE.map((tipo) => tipo.value));
+
+/**
+ * Valor do Select de categoria: só uma das opções dele, nunca o texto livre (D-PROD-192).
+ *
+ * O Select do Radix 2.x mantém um select nativo oculto (`SelectBubbleInput`) e, a cada troca de
+ * valor, grava o valor nele e dispara `change`. Texto que não é opção ("MEU PONTO", ou "COCHO" no
+ * lugar de "Cocho") não existe nesse select oculto, que responde "" — e o `onValueChange` apagava a
+ * categoria digitada no campo "OU DIGITE UMA NOVA CATEGORIA". Por isso o Select recebe a
+ * sugestão igual ao texto sem diferença de maiúsculas (a categoria é salva em maiúsculas), ou
+ * "" quando o texto é novo. O campo de texto continua com o que foi digitado.
+ *
+ * @param {string} tipo
+ * @param {string} categoria
+ * @returns {string}
+ */
+const sugestaoDaCategoria = (tipo, categoria) => {
+  const texto = (categoria || "").toUpperCase();
+  return CATEGORIAS_SUGERIDAS[tipo]?.find((sugestao) => sugestao.toUpperCase() === texto) ?? "";
 };
 
 const CORES_PADRAO = [
@@ -64,9 +86,9 @@ export default function GerenciadorIcones() {
     tipo_entidade: "",
     categoria: "",
     icone_url: "",
+    sub_icone_url: "",
     cor_padrao: CORES_PADRAO[0],
-    descricao: "",
-    categorias_misto: []
+    descricao: ""
   });
 
   const queryClient = useQueryClient();
@@ -78,6 +100,7 @@ export default function GerenciadorIcones() {
   });
 
   const createIconeMutation = useMutation({
+    /** @param {Record<string, any>} data */
     mutationFn: (data) => criarIcone(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
@@ -89,6 +112,7 @@ export default function GerenciadorIcones() {
   });
 
   const updateIconeMutation = useMutation({
+    /** @param {{ id: string, data: Record<string, any> }} v */
     mutationFn: ({ id, data }) => atualizarIcone(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
@@ -118,8 +142,7 @@ export default function GerenciadorIcones() {
       icone_url: "",
       sub_icone_url: "",
       cor_padrao: CORES_PADRAO[0],
-      descricao: "",
-      categorias_misto: []
+      descricao: ""
     });
   };
 
@@ -181,13 +204,13 @@ export default function GerenciadorIcones() {
       icone_url: icone.icone_url || "",
       sub_icone_url: icone.sub_icone_url || "",
       cor_padrao: icone.cor_padrao || CORES_PADRAO[0],
-      descricao: icone.descricao || "",
-      categorias_misto: icone.categorias_misto || []
+      descricao: icone.descricao || ""
     });
     setShowDialog(true);
   };
 
-  const iconesPorTipo = icones.reduce((acc, icone) => {
+  const iconesOferecidos = icones.filter((icone) => TIPOS_OFERECIDOS.has(icone.tipo_entidade));
+  const iconesPorTipo = iconesOferecidos.reduce((acc, icone) => {
     if (!acc[icone.tipo_entidade]) acc[icone.tipo_entidade] = [];
     acc[icone.tipo_entidade].push(icone);
     return acc;
@@ -279,7 +302,7 @@ export default function GerenciadorIcones() {
             );
           })}
 
-          {icones.length === 0 && (
+          {iconesOferecidos.length === 0 && (
             <div className="text-center py-12 text-slate-500">
               <Image className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p className="text-sm">Nenhum ícone cadastrado</p>
@@ -320,7 +343,7 @@ export default function GerenciadorIcones() {
               <div className="space-y-1">
                 <Label className="text-xs">Categoria *</Label>
                 <Select
-                  value={formData.categoria}
+                  value={sugestaoDaCategoria(formData.tipo_entidade, formData.categoria)}
                   onValueChange={(v) => setFormData({ ...formData, categoria: v })}
                 >
                   <SelectTrigger className="h-8 text-xs">
@@ -452,44 +475,6 @@ export default function GerenciadorIcones() {
                 </div>
               </div>
             </div>
-
-            {formData.categoria?.toUpperCase() === 'MISTO' && formData.tipo_entidade === 'Lote' && (
-              <div className="space-y-1">
-                <Label className="text-xs">Categorias que formam o MISTO *</Label>
-                <div className="border rounded p-2 space-y-2 bg-[#FAFCFE]">
-                  <div className="text-[10px] text-slate-600 mb-2">
-                    Selecione as categorias que, quando estiverem juntas na mesma área, devem usar este ícone:
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {CATEGORIAS_SUGERIDAS.Lote.filter(cat => cat !== 'MISTO').map(cat => {
-                      const isSelected = formData.categorias_misto?.includes(cat);
-                      return (
-                        <Badge
-                          key={cat}
-                          variant={isSelected ? 'default' : 'outline'}
-                          className={`cursor-pointer text-[10px] ${isSelected ? 'bg-emerald-600' : ''}`}
-                          onClick={() => {
-                            const current = formData.categorias_misto || [];
-                            if (isSelected) {
-                              setFormData({ ...formData, categorias_misto: current.filter(c => c !== cat) });
-                            } else {
-                              setFormData({ ...formData, categorias_misto: [...current, cat] });
-                            }
-                          }}
-                        >
-                          {cat}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  {formData.categorias_misto?.length > 0 && (
-                    <div className="text-[10px] text-emerald-600 font-semibold mt-2">
-                      ✓ {formData.categorias_misto.length} categoria(s) selecionada(s)
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             <div className="space-y-1">
               <Label className="text-xs">Descrição</Label>

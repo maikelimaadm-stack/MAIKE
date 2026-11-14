@@ -230,7 +230,7 @@ export default function AbaArea({ modelo, secoes: secoesPref, aoMudarSecoes }) {
                   borderTop: `1px solid ${i < legendaCols ? "transparent" : COR.divisor}`,
                 }}
               >
-                <IconeCategoria url={cat.iconeUrl} tamanho={22} alt={cat.nome} />
+                <IconeCategoria figura={cat.subicone} tamanho={22} alt={cat.nome} />
                 <span
                   style={{
                     flex: "1 1 auto",

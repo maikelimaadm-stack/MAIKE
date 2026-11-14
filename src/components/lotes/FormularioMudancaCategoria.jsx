@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { listarCategoriasManejoDaEmpresa } from "@/services/categoriaManejoService";
+import { figuraDaPosicao, figuraDoGrupo, urlSubiconeLote } from "@/assets/icones/lotes";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
@@ -16,10 +16,18 @@ const FL = LancField;
 /** As 8 categorias oficiais (mesma ordem do servidor) — fonte única em `categoriaOficialDerivada`. */
 const CATEGORIAS = CATEGORIAS_OFICIAIS;
 
-export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel }) {
+/** Largura do ícone no cabeçalho do item (`.mk-ll__item-ic`): o subícone é montado nela. */
+const SUBICONE_PX = 22;
+
+/**
+ * `categoriasManejo` (cache do mapa, ativas e inativas): o subícone de cada linha vem do
+ * código pela Categoria de Manejo das posições (D-PROD-191). A categoria de manejo NOVA
+ * sai das ativas lidas do servidor (`categoriasManejoAtivas`), como antes.
+ */
+export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel, categoriasManejo = [] }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
 
-  const { data: categoriasManejo = [] } = useQuery({
+  const { data: categoriasManejoAtivas = [] } = useQuery({
     queryKey: ['categorias-manejo-mudanca', empresaSelecionadaId],
     queryFn: async () => {
       const categorias = await listarCategoriasManejoDaEmpresa(empresaSelecionadaId);
@@ -29,16 +37,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   });
   
   const lotesArray = Array.isArray(lote) ? lote : [lote];
-  
-  const { data: iconesConfig = [] } = useQuery({
-    queryKey: ['configuracao-icones', empresaSelecionadaId],
-    queryFn: async () => {
-      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
-      return icones.filter((i) => i.ativo !== false);
-    },
-    enabled: !!empresaSelecionadaId,
-  });
-  
+
   const lotesPorCategoria = lotesArray.reduce((acc, l) => {
     const cat = l.categoria || 'SEM CATEGORIA';
     if (!acc[cat]) {
@@ -120,7 +119,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
       // R2B-P1: a categoria de manejo acompanha a escolhida (sem herdar a da categoria antiga).
       // MAIKE-CATEGORIA-MANEJO-ENXUGAR: casa pela oficial DERIVADA de sexo + faixa de idade (mesma regra do
       // servidor); o nome é livre e não é a chave. Escolha determinística (ver categoriaManejoParaMudanca).
-      const catManejo = categoriaManejoParaMudanca(categoriasManejo, value);
+      const catManejo = categoriaManejoParaMudanca(categoriasManejoAtivas, value);
       novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
       novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
       novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;
@@ -137,11 +136,10 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
           <LancLoteItens>
             {formData.mudancas.map((mudanca, index) => {
               const infoCategoria = lotesPorCategoria[mudanca.categoria_atual];
-              const configIcone = iconesConfig.find(ic => 
-                ic.tipo_entidade === 'Lote' && 
-                ic.categoria?.toUpperCase() === mudanca.categoria_atual?.toUpperCase()
-              );
-              const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
+              // D-PROD-191: o animal das posições da categoria atual (sexo + faixa da Categoria de
+              // Manejo; reserva: o texto da categoria oficial), na cor do sexo. Nunca misto.
+              const figura = figuraDoGrupo(infoCategoria?.lotes, categoriasManejo) ?? figuraDaPosicao({ categoria: mudanca.categoria_atual }, categoriasManejo);
+              const iconeUrl = urlSubiconeLote(figura?.figura, SUBICONE_PX);
 
               return (
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">

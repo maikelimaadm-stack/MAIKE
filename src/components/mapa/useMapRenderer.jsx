@@ -1,8 +1,10 @@
 /*
- * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize), posição (OFFSET_LOTE_PX), contagem e avisos em syncLotes; rótulos em syncLabels.
+ * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize) de pontos, cochos e tarefas; posição do lote (OFFSET_LOTE_PX), cor da contagem e avisos em syncLotes; rótulos em syncLabels.
+ * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 import { useRef, useCallback } from "react";
+import { CONTAGEM_TOPO_PCT, LARGURA_MARCADOR_PX } from "@/assets/icones/lotes";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
 import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";
 import { buildAccuracyCircleCollection } from "@/lib/maplibre/gpsCapture.js";
@@ -38,11 +40,15 @@ import { FONTE_CONTAGEM_PX, formatarContagem } from "@/lib/maplibre/contagemLote
  * filtros, permissões, painéis e ações. Áreas/linhas viram GeoJSON (estilo SSOT
  * com o editor); marcadores continuam DOM (ícones/URLs/contagem preservados),
  * sempre com `textContent` e cleanup explícito.
+ *
+ * O ícone do lote vem do código (D-PROD-191): `resolverIconeLote` monta o
+ * marcador pela Categoria de Manejo de cada posição do pasto e sempre devolve
+ * figura. A `chave` do desenho entra no diff e fica em `data-icone-lote`.
  */
 
 const blinkIntervals = new Map();
 /** Ícone de lotes acima do centroide (px, independe do zoom). */
-// Ícone do lote 44 px (D-PROD-89): deslocamento proporcional, a ponta fica no mesmo lugar.
+// Ícone do lote de LARGURA_MARCADOR_PX = 44 px (D-PROD-89): deslocamento proporcional, a ponta fica no mesmo lugar.
 const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -26]);
 /**
  * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com
@@ -721,7 +727,9 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) ───
-  const syncLotes = useCallback((lotesFiltrados, areas, show, iconesConfig, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false) => {
+  // `categoriasManejo`: Categorias de Manejo da empresa (cache do mapa). O ícone
+  // do lote sai delas, pelo código (D-PROD-191); não há mais ícone de Lote por upload.
+  const syncLotes = useCallback((lotesFiltrados, areas, show, categoriasManejo, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false) => {
     const prefix = "lote_area_";
     const porArea = {};
     if (show) {
@@ -737,28 +745,34 @@ export default function useMapRenderer(mapInstanceRef) {
       if (!centro) continue;
       const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
       const totalAlertas = lotesNaArea.reduce((s, l) => s + (l.alertas?.length || 0), 0);
-      const { iconUrl, categorias } = resolverIconeLote(lotesNaArea, iconesConfig);
+      // Sempre há figura (D-PROD-191): `iconUrl` é a data URL do SVG do marcador.
+      const { iconUrl, chave } = resolverIconeLote(lotesNaArea, categoriasManejo);
       const identificadores = identificadoresDoLote(lotesNaArea);
       const key = prefix + areaId;
       const ref = { lotesNaArea, areas };
-      const estado = JSON.stringify([centro.lat, centro.lng, totalCabecas, totalAlertas, area.nome, !!canDragLotes, iconUrl, categorias, identificadores, blinkAlerts]);
+      // No diff vai a `chave` do desenho, não a URL (dezenas de kB): mesma chave = mesma figura.
+      const estado = JSON.stringify([centro.lat, centro.lng, totalCabecas, totalAlertas, area.nome, !!canDragLotes, chave, identificadores, blinkAlerts]);
       itens.push({
         key,
         lngLat: [centro.lng, centro.lat],
         estado,
         ref,
         criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 44, cor: "#10b981", titulo: area.nome, raio: 19 }, () => {
+          const entry = criarMarcadorClicavel({ iconUrl, baseSize: LARGURA_MARCADOR_PX, cor: "#10b981", titulo: area.nome, raio: 19 }, () => {
             if (entry.arrastou) return;
             onClickLotes?.(markersRef.current.get(key)?.ultimo?.ref?.lotesNaArea || lotesNaArea);
           }, { draggable: !!canDragLotes, offset: OFFSET_LOTE_PX });
+          // Desenho no marcador, para teste e diagnóstico (o mesmo `data-icone-lote` do SVG).
+          entry.el.dataset.iconeLote = chave;
+          entry.corpoChave = chave;
           const badge = document.createElement("div");
           badge.className = "mg-lote-count";
           badge.style.cssText =
             // Quantidade de cabeças: cinza, abaixo da figura, com halo claro para
             // ler sobre o ícone (D-PROD-82). Tamanho fixo e milhar com ponto,
-            // texto em `preencherLote` (D-PROD-111).
-            `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
+            // texto em `preencherLote` (D-PROD-111). Altura: o centro da faixa do
+            // card reservada à contagem, onde nenhum animal entra (D-PROD-191).
+            `position:absolute;left:50%;top:${CONTAGEM_TOPO_PCT}%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           // Identificador no canto de cima à direita, só uma bordinha dentro da figura (D-PROD-125).
@@ -785,7 +799,13 @@ export default function useMapRenderer(mapInstanceRef) {
         },
         atualizar: (entry) => {
           entry.el.title = String(area.nome || "");
-          aplicarCorpo(entry.el, { iconUrl, baseSize: 44, cor: "#10b981", raio: 19 });
+          // Só troca o <img> quando o DESENHO muda (mesma guarda dos cochos): a URL
+          // tem dezenas de kB, e contagem, alerta ou nome não mudam a figura.
+          if (entry.corpoChave !== chave) {
+            aplicarCorpo(entry.el, { iconUrl, baseSize: LARGURA_MARCADOR_PX, cor: "#10b981", raio: 19 });
+            entry.el.dataset.iconeLote = chave;
+            entry.corpoChave = chave;
+          }
           preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes });
         },
       });
