@@ -67,6 +67,8 @@ export const CAMPOS_ESCALARES_BEM = Object.freeze([
   'placa_uf',
   'renavam',
   'potencia_cv',
+  // D-PROD-201: custo por hora ou km de uso (snapshot na linha de máquina da atividade).
+  'custo_uso_unitario',
   'material',
   'ano_conclusao',
   'compatibilidade',
@@ -83,6 +85,7 @@ export const LISTAS_BEM = Object.freeze(['tanques']);
 /** Chaves com decimal em string (comparação ignora zeros à direita: "180.0000" = "180"). */
 const CHAVES_DECIMAIS = new Set([
   'potencia_cv',
+  'custo_uso_unitario',
   'leitura_inicial',
   'leitura_atual',
   'capacidade_litros',

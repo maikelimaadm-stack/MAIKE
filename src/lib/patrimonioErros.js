@@ -55,6 +55,8 @@ const ROTULO_CAMPO = /** @type {Record<string, string>} */ ({
   placa_uf: 'UF da placa',
   renavam: 'Renavam',
   potencia_cv: 'Potência (cv)',
+  custo_uso_unitario: 'Custo por hora/km',
+  salto_maximo_medidor: 'Teto de salto do medidor',
   material: 'Material',
   ano_conclusao: 'Ano de conclusão',
   compatibilidade: 'Compatibilidade',

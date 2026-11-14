@@ -10,7 +10,9 @@ import { ehConflitoDeVersaoPatrimonio, ehNaoEncontradoPatrimonio, mensagemErroPa
 import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA, ehNatureza } from "@/lib/patrimonioDominio";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
 import FormularioTipo from "@/components/patrimonio/FormularioTipo";
-import { CHAVE_OPCOES_PATRIMONIO } from "@/components/patrimonio/bemFormulario";
+import { CHAVE_OPCOES_PATRIMONIO, LIMITES_BEM, LOCALE_BEM, lerDecimal, textoDecimal, usaCustoDeUso } from "@/components/patrimonio/bemFormulario";
+import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
+import { comparar, formatarNumero } from "@/lib/dinheiroDecimal";
 import {
   RECURSOS_CATALOGO,
   alterarSituacaoCatalogo,
@@ -100,7 +102,8 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   const q = useValorAtrasado(busca.trim(), ESPERA_BUSCA_MS);
   const [natureza, setNatureza] = useState("TODAS");
   const [novo, setNovo] = useState(false);
-  const [renomeando, setRenomeando] = useState(/** @type {{ id: string, nome: string } | null} */ (null));
+  // D-PROD-201: a edição na linha também troca o teto de salto do medidor (tipos de máquina, veículo e equipamento).
+  const [renomeando, setRenomeando] = useState(/** @type {{ id: string, nome: string, salto: string } | null} */ (null));
   const [erroRenomear, setErroRenomear] = useState(/** @type {string|null} */ (null));
   const [emUso, setEmUso] = useState(/** @type {Record<string, string>} */ ({}));
   const [salvando, setSalvando] = useState(false);
@@ -197,11 +200,18 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
       setErroRenomear("Informe o nome.");
       return;
     }
+    const salto = lerDecimal(renomeando.salto, LIMITES_BEM.MEDIDA);
+    if (!salto.ok) {
+      setErroRenomear("Teto de salto: zero ou mais, até 4 casas decimais.");
+      return;
+    }
+    const saltoGravado = typeof registro.salto_maximo_medidor === "string" ? registro.salto_maximo_medidor : null;
+    const saltoMudou = (salto.valor === null) !== (saltoGravado === null) || (salto.valor !== null && saltoGravado !== null && comparar(salto.valor, saltoGravado) !== 0);
     setSalvando(true);
     try {
-      const { alterado } = await atualizarCatalogo(RECURSO, registro, { nome });
+      const { alterado } = await atualizarCatalogo(RECURSO, registro, saltoMudou ? { nome, salto_maximo_medidor: salto.valor } : { nome });
       if (!alterado) notifySuccess("Sem alterações", "Nada foi alterado.");
-      else notifySuccess("Sucesso", "Tipo renomeado");
+      else notifySuccess("Sucesso", nome !== String(registro.nome ?? "") ? "Tipo renomeado" : "Tipo atualizado");
       invalidar();
       setRenomeando(null);
       setErroRenomear(null);
@@ -354,6 +364,8 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                 const bens = textoDosBens(r);
                 const inativo = r.ativo === false;
                 const editandoEste = renomeando?.id === id;
+                const comTeto = usaCustoDeUso(n);
+                const teto = typeof r.salto_maximo_medidor === "string" && r.salto_maximo_medidor ? r.salto_maximo_medidor : null;
                 const comVersao = Number.isInteger(r.versao);
                 return (
                   <li key={id} className="b1-gerenciar__item" data-testid={`gerenciar-tipos-${id}`}>
@@ -371,13 +383,28 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                           aria-label={`Novo nome do tipo ${nome}`}
                           value={renomeando.nome}
                           onChange={(e) => {
-                            setRenomeando({ id, nome: e.target.value });
+                            const valor = e.target.value;
+                            setRenomeando((atual) => ({ id, nome: valor, salto: atual?.salto ?? "" }));
                             setErroRenomear(null);
                           }}
                           maxLength={120}
                           autoFocus
                           className="b1-gerenciar__campo"
                         />
+                        {comTeto ? (
+                          <CampoNumero
+                            label="Teto de salto do medidor"
+                            value={renomeando.salto}
+                            onChange={(v) => {
+                              setRenomeando((atual) => ({ id, nome: atual?.nome ?? nome, salto: v }));
+                              setErroRenomear(null);
+                            }}
+                            locale={LOCALE_BEM}
+                            limites={LIMITES_BEM.MEDIDA}
+                            span={12}
+                            testId={`gerenciar-tipos-${id}-salto`}
+                          />
+                        ) : null}
                         <span className="b1-gerenciar__acoes">
                           <button type="submit" className="tb-btn tb-btn-green" disabled={salvando}>
                             {salvando ? "Salvando…" : "Salvar"}
@@ -396,7 +423,14 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                       <div className="b1-gerenciar__txt">
                         <p className="b1-gerenciar__nome">{nome || "–"}</p>
                         <p className="b1-gerenciar__dados" data-testid={`gerenciar-tipos-${id}-dados`}>
-                          {[n ? ROTULO_NATUREZA[n] : "Tipo de bem não informado", bens, inativo ? "Inativo" : null].filter(Boolean).join(" · ")}
+                          {[
+                            n ? ROTULO_NATUREZA[n] : "Tipo de bem não informado",
+                            bens,
+                            teto ? `Teto de salto: ${formatarNumero(teto, { locale: LOCALE_BEM, casasMin: 0, casasMax: 4 })}` : null,
+                            inativo ? "Inativo" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       </div>
                     )}
@@ -407,7 +441,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             type="button"
                             className="tb-btn"
                             onClick={() => {
-                              setRenomeando({ id, nome });
+                              setRenomeando({ id, nome, salto: textoDecimal(teto) });
                               setErroRenomear(null);
                             }}
                             disabled={salvando}

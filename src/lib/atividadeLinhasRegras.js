@@ -220,6 +220,8 @@ export const medidorDaResposta = (r) => {
   let vigente = null;
   if (ehObjeto(bruto) && ehCanonico(bruto.leitura)) {
     vigente = { leitura: bruto.leitura, data: texto(bruto.data) || null, origem: texto(bruto.origem) || null, numero: bruto.numero ?? null };
+  } else if (ehCanonico(m.leitura_sugerida)) {
+    vigente = { leitura: m.leitura_sugerida, data: texto(m.data) || null, origem: null, numero: null };
   } else if (ehCanonico(bruto)) {
     vigente = { leitura: /** @type {string} */ (bruto), data: texto(m.leitura_vigente_data) || null, origem: texto(m.leitura_vigente_origem) || null, numero: null };
   }
@@ -504,7 +506,7 @@ export const totaisParaExibir = (totais, atividade) => {
     custo: formatarCustoLinha(p.custo_total),
   }));
   const maquinas = (Array.isArray(t.maquinas) ? t.maquinas : []).filter(ehObjeto).map((m) => ({
-    chave: String(m.bem_id ?? m.nome ?? ''),
+    chave: `${String(m.bem_id ?? m.nome ?? '')}${m.medidor_unidade ? `-${m.medidor_unidade}` : ''}`,
     nome: texto(m.nome) || rotuloDoBem(m.bem) || 'Máquina',
     uso: formatarUso(m.quantidade_uso, m.medidor_tipo, m.medidor_unidade) || '—',
     custo: formatarCustoLinha(m.custo_total),
@@ -559,17 +561,47 @@ const LINHA_INVALIDA = Object.freeze(
       igual_a_maquina: 'O implemento não pode ser a própria máquina',
       natureza: 'O bem escolhido como implemento não é um implemento',
       inexistente: 'O implemento não foi encontrado nesta fazenda',
+      outra_empresa: 'O implemento é de outra fazenda',
       inativo: 'O implemento está inativo',
       nao_permitido: 'O tipo desta atividade não permite implemento',
     },
-    leitura_final: {
-      menor_que_inicial: 'A leitura final é menor que a inicial: o medidor não anda para trás',
-      obrigatoria: 'Informe a leitura final',
+    leitura_inicial: {
+      obrigatoria: 'Informe a leitura inicial do medidor',
+      abaixo_da_vigente: 'A leitura inicial está abaixo da leitura vigente do medidor nesta data: o medidor não anda para trás',
+      nao_aceita: 'A linha sem medidor não leva leitura',
     },
-    leitura_inicial: { obrigatoria: 'Informe a leitura inicial' },
-    quantidade_uso: { quantidade_nao_positiva: 'Informe um uso maior que zero', obrigatoria: 'Informe o uso' },
-    sem_medidor: { sem_medidor: 'Este bem não tem medidor: informe o uso direto' },
+    leitura_final: {
+      obrigatoria: 'Informe a leitura final do medidor',
+      menor_que_inicial: 'A leitura final é menor que a inicial: o medidor não anda para trás',
+      abaixo_da_vigente: 'A leitura final está abaixo da leitura vigente do medidor nesta data: o medidor não anda para trás',
+      acima_de_posterior: 'A leitura final passa de uma leitura posterior já registrada para este medidor',
+      nao_aceita: 'A linha sem medidor não leva leitura',
+    },
+    quantidade_uso: {
+      obrigatoria: 'Informe as horas ou o km de uso',
+      nao_aceita: 'Com medidor, o uso é calculado pelas leituras (final − inicial): não informe o uso',
+      nao_positiva: 'O uso deve ser maior que zero',
+      quantidade_nao_positiva: 'O uso deve ser maior que zero',
+    },
+    sem_medidor: { medidor_obrigatorio: 'A máquina não tem medidor: lance com "sem medidor", informando as horas ou o km' },
     justificativa_salto: { curta: 'A justificativa do salto precisa de pelo menos 3 caracteres', longa: 'A justificativa do salto pode ter no máximo 500 caracteres' },
+  }),
+);
+
+/** Por que o estorno exato foi recusado (`ATIVIDADE_ESTORNO_BLOQUEADO`, `details.reason`). */
+const ESTORNO_BLOQUEADO = Object.freeze(
+  /** @type {Record<string, string>} */ ({
+    produto_mudou_de_fazenda: 'o produto desta linha mudou de fazenda',
+    unidade_mudou: 'a unidade de estoque do produto mudou desde o lançamento',
+    movimento_inexistente: 'o movimento de saída desta linha não existe mais',
+    movimento_estornado: 'o movimento de saída desta linha já foi estornado',
+    fatias_inconsistentes: 'os lotes gravados não somam a quantidade da linha',
+    lote_indisponivel_para_devolucao: 'um lote de onde o produto saiu não pode receber a devolução (estornado, transferido ou removido)',
+    devolucao_excede_entrada: 'a devolução passaria da entrada de um lote de onde o produto saiu (ele já foi consumido)',
+    estoque_excede_limite: 'a devolução passaria do limite do estoque',
+    vinculo_divergente: 'o movimento de saída desta linha é de outro produto ou outra fazenda',
+    camada_divergente: 'um lote de onde o produto saiu é de outro produto, outra fazenda ou outro local',
+    lote_indisponivel: 'um lote de onde o produto saiu já foi consumido ou transferido',
   }),
 );
 
@@ -605,9 +637,7 @@ export const mensagemDeErroLinha = (erro, fallback, ctx = {}) => {
       return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
     case 'ATIVIDADE_ESTORNO_BLOQUEADO':
     case 'ESTOQUE_JA_CONSUMIDO':
-      return `O estorno exato do produto não é seguro agora: o lote de onde ele saiu já foi consumido, transferido ou mudou${
-        typeof details.motor === 'string' && details.motor.trim() ? ` (${details.motor.trim()})` : ''
-      }. Nada foi alterado.`;
+      return `O estorno exato do produto não é seguro agora: ${ESTORNO_BLOQUEADO[reason ?? ''] ?? 'o lote de onde ele saiu já foi consumido, transferido ou mudou'}. Nada foi alterado.`;
     case 'ATIVIDADE_DATA_COM_LINHAS':
       return 'A data do apontamento não muda com linha de produto ou de máquina confirmada: cancele o apontamento e lance de novo. Nada foi gravado.';
     case 'ATIVIDADE_EXIGIDA_PELO_TIPO':
@@ -645,11 +675,13 @@ export const campoDaLinhaRecusada = (erro) => {
 
 /**
  * Qual linha embutida (no corpo da criação do apontamento) a recusa aponta: `{ colecao: 'produtos'|'maquinas', indice }`
- * (`details.colecao` + `details.indice`, 0-based), ou null.
+ * (0-based), ou null.
  * @param {unknown} erro
  */
 export const linhaEmbutidaRecusada = (erro) => {
   const { details } = lerErroGestao(erro);
+  // Máquina: `details.linha_indice`; produto: `details.colecao = 'produtos'` + `details.indice`.
+  if (Number.isInteger(details.linha_indice)) return { colecao: LINHA_MAQUINA, indice: /** @type {number} */ (details.linha_indice) };
   const colecao = details.colecao === LINHA_PRODUTO || details.colecao === LINHA_MAQUINA ? details.colecao : null;
   return colecao && Number.isInteger(details.indice) ? { colecao, indice: /** @type {number} */ (details.indice) } : null;
 };

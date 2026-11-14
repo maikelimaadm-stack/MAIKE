@@ -28,6 +28,14 @@ export const LIMITES_BEM = Object.freeze({
 });
 
 export const LIMITE_TANQUES_ATIVOS = 10;
+
+/**
+ * D-PROD-201: tipos de bem que entram como máquina no Lançamento de Atividades
+ * e por isso têm "Custo por hora/km" (snapshot na linha de máquina).
+ */
+export const NATUREZAS_COM_CUSTO_DE_USO = Object.freeze(['MAQUINA', 'VEICULO', 'EQUIPAMENTO']);
+/** @param {unknown} natureza */
+export const usaCustoDeUso = (natureza) => typeof natureza === 'string' && NATUREZAS_COM_CUSTO_DE_USO.includes(natureza);
 /** Produtos aceitos ativos por tanque (P-02). */
 export const LIMITE_PRODUTOS_POR_TANQUE = MAX_PRODUTOS_POR_TANQUE;
 
@@ -57,11 +65,11 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
  *   natureza: string, tipo: Referencia|null,
  *   propriedade: string, proprietario: Referencia|null, responsavel: Referencia|null, centro_custo: Referencia|null,
  *   marca: string, modelo: string, ano_fabricacao: string, ano_modelo: string,
- *   numero_serie: string, chassi: string, placa: string, placa_uf: string, renavam: string, potencia_cv: string,
+ *   numero_serie: string, chassi: string, placa: string, placa_uf: string, renavam: string, potencia_cv: string, custo_uso_unitario: string,
  *   material: string, ano_conclusao: string, compatibilidade: string, especificacoes: string, observacoes: string,
  *   medidor: MedidorForm, tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
  * }} EstadoBem
- * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string, medidorOperacional?: { leitura: string, data: string, abastecimento_id?: string|null } | null }} ContextoBem
+ * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string, medidorOperacional?: { leitura: string, data: string, abastecimento_id?: string|null, origem?: string, linha_maquina_id?: string } | null }} ContextoBem
  */
 
 let sequencia = 0;
@@ -157,6 +165,7 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
     placa_uf: duplicar ? '' : texto(d.placa_uf),
     renavam: identidade('renavam'),
     potencia_cv: textoDecimal(d.potencia_cv),
+    custo_uso_unitario: textoDecimal(d.custo_uso_unitario),
     material: texto(d.material),
     ano_conclusao: textoDoInteiro(d.ano_conclusao),
     compatibilidade: texto(d.compatibilidade),
@@ -240,7 +249,7 @@ export const vidaEmMeses = (dp) => {
 
 /** Aba onde fica o campo de uma chave de erro. @param {string} chave */
 export const abaDoCampo = (chave) => {
-  if (chave.startsWith('medidor') || chave.startsWith('tanques')) return ABAS_BEM.OPERACAO;
+  if (chave.startsWith('medidor') || chave.startsWith('tanques') || chave === 'custo_uso_unitario') return ABAS_BEM.OPERACAO;
   if (chave.startsWith('aquisicao') || chave.startsWith('depreciacao')) return ABAS_BEM.AQUISICAO;
   return ABAS_BEM.IDENTIFICACAO;
 };
@@ -326,6 +335,7 @@ export const validarBem = (e, ctx) => {
     const pot = lerDecimal(e.potencia_cv, LIMITES_BEM.MEDIDA);
     if (!pot.ok || (pot.valor !== null && comparar(pot.valor, '0') <= 0)) erros.potencia_cv = 'Número maior que zero, até 4 casas decimais';
   }
+  if (usaCustoDeUso(natureza) && !lerDecimal(e.custo_uso_unitario, LIMITES_BEM.MEDIDA).ok) erros.custo_uso_unitario = 'Zero ou mais, até 4 casas decimais';
 
   if (cap && cap.medidor !== 'PROIBIDO') {
     const tipo = e.medidor.tipo;
@@ -478,6 +488,7 @@ export const formaDoEstado = (e, ctx) => {
     placa_uf: seAplica('placa_uf', e.placa_uf || null),
     renavam: seAplica('renavam', ouNulo(e.renavam)),
     potencia_cv: seAplica('potencia_cv', decimal(e.potencia_cv, LIMITES_BEM.MEDIDA)),
+    custo_uso_unitario: usaCustoDeUso(natureza) ? decimal(e.custo_uso_unitario, LIMITES_BEM.MEDIDA) : null,
     material: seAplica('material', ouNulo(e.material)),
     ano_conclusao: seAplica('ano_conclusao', inteiro(e.ano_conclusao)),
     compatibilidade: seAplica('compatibilidade', ouNulo(e.compatibilidade)),

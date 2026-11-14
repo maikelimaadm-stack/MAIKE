@@ -81,7 +81,7 @@ const recusa400 = async (s, pedido, rotulo) => {
 /** Chaves FIXAS do detalhe (A13). */
 const CHAVES_DETALHE = [
   'ano_conclusao', 'ano_fabricacao', 'ano_modelo', 'aquisicao', 'area', 'ativo', 'centro_custo', 'chassi', 'codigo_frota', 'compatibilidade', 'consumo',
-  'created_date', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medidor',
+  'created_date', 'custo_uso_unitario', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medidor',
   'medidor_operacional', 'modelo', 'natureza', 'nome', 'numero', 'numero_serie', 'observacoes', 'placa', 'placa_uf', 'potencia_cv', 'propriedade', 'proprietario', 'renavam',
   'responsavel', 'tanques', 'tipo', 'updated_date', 'versao',
 ];

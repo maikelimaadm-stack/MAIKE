@@ -122,8 +122,11 @@ export const CAMPOS_DE_CRIACAO_APONTAMENTO = Object.freeze(['empresa_id', ...CAM
 export const CAMPOS_DE_EDICAO_APONTAMENTO = Object.freeze(['versao', ...CAMPOS_DO_APONTAMENTO.filter((c) => c !== 'origem')]);
 /** POST …/:apontamentoId/cancelar. */
 export const CAMPOS_DE_CANCELAMENTO_APONTAMENTO = Object.freeze(['empresa_id', 'versao', 'motivo']);
-/** POST …/:apontamentoId/duplicar ("Repetir"): só o dia, padrão hoje no servidor. */
-export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional']);
+/**
+ * POST …/:apontamentoId/duplicar ("Repetir"): o dia (padrão hoje no servidor) e, desde a Fatia 3, as linhas com um
+ * `operation_id` (a tela manda o "Repetir" com linhas pela criação; a rota aceita o mesmo corpo).
+ */
+export const CAMPOS_DE_DUPLICACAO_APONTAMENTO = Object.freeze(['empresa_id', 'data_operacional', 'operation_id', 'produtos', 'maquinas']);
 
 /**
  * Linhas embutidas no corpo da criação do apontamento: cada item só com as chaves da linha (sem envelope: o
@@ -139,12 +142,13 @@ const linhasDeEnvio = (linhas, permitidos) => {
 };
 
 /**
- * Corpo da criação do apontamento: os campos do dia sem os vazios e, quando houver, as linhas por allowlist.
- * @param {Record<string, unknown>} dados
+ * Corpo da criação (e do duplicar) do apontamento: os campos do dia sem os vazios e, quando houver, as linhas por
+ * allowlist.
+ * @param {Record<string, unknown>} dados @param {readonly string[]} [permitidos]
  */
-export const corpoDaCriacaoDoApontamento = (dados) => {
+export const corpoDaCriacaoDoApontamento = (dados, permitidos = CAMPOS_DE_CRIACAO_APONTAMENTO) => {
   const { produtos, maquinas, ...doDia } = dados ?? {};
-  const corpo = corpoSemVazios(doDia, CAMPOS_DE_CRIACAO_APONTAMENTO.filter((c) => c !== 'produtos' && c !== 'maquinas'));
+  const corpo = corpoSemVazios(doDia, permitidos.filter((c) => c !== 'produtos' && c !== 'maquinas'));
   const p = linhasDeEnvio(produtos, CAMPOS_DA_LINHA_PRODUTO);
   const m = linhasDeEnvio(maquinas, CAMPOS_DA_LINHA_MAQUINA);
   return { ...corpo, ...(p ? { produtos: p } : {}), ...(m ? { maquinas: m } : {}) };
@@ -342,7 +346,7 @@ export const operacoesNativas = Object.freeze({
   duplicarApontamento: (atividadeId, apontamentoId, dados) =>
     nativeRequest(
       `${doApontamento(atividadeId, apontamentoId)}/duplicar`,
-      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DE_DUPLICACAO_APONTAMENTO), autenticado: true },
+      { method: 'POST', body: corpoDaCriacaoDoApontamento(dados, CAMPOS_DE_DUPLICACAO_APONTAMENTO), autenticado: true },
       ctx('duplicateAtividadeApontamento', { atividadeId, apontamentoId }, RESOURCE_APONTAMENTO),
     ),
 
