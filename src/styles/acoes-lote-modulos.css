@@ -208,3 +208,8 @@
     text-align: left;
   }
 }
+
+/* O desenho enviado de Mover é mais largo: mantém a proporção sem esmagar. */
+.mk-al-dock .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro .mk-al__icone:has(.mk-al__img--mover):not(#mk-padrao) {
+  width: 40px;
+}

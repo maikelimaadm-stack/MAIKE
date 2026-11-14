@@ -53,7 +53,7 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
         { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
       ] }]} />,
     );
-    expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 120 64");
     expect(screen.getByRole("button", { name: "Pesar" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
     expect(screen.getByRole("button", { name: "Nascimento" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
     expect(screen.getByRole("button", { name: "Saída" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
