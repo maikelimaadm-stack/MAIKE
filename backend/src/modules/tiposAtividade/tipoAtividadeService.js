@@ -345,6 +345,11 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    // D-PROD-195 (revisão A5-1/A6-1): trava a linha ANTES de ler `anterior`. Sem a trava, dois PATCH
+    // concorrentes que mudam um centro cada leem o par antigo e burlam a regra "mesma empresa" (§3.3);
+    // com ela, o segundo espera, relê o par já gravado (READ COMMITTED) e recebe 422 `empresas_diferentes`.
+    // Tipo inexistente (ou de outro cliente) não trava nada e segue para o 404 de sempre.
+    await tx.$queryRaw`SELECT id FROM "TipoAtividade" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarTipo(auth.clienteId, id, tx);
     if (!anterior) throw tipoAtividadeNotFound();
 

@@ -790,6 +790,22 @@ describe('D-PROD-195 — TipoAtividade: regras dos padrões (422 TIPO_ATIVIDADE_
     assert.equal(soResultadoNovo.centro_resultado_padrao.empresa_id, s.e2.id);
   });
 
+  test('corrida (revisão A5-1/A6-1): dois PATCH simultâneos, cada um mudando UM centro para fazendas diferentes, nunca gravam o par cruzado — um grava e o outro recebe 422 empresas_diferentes', async () => {
+    const s = await montar();
+    for (let i = 0; i < 6; i += 1) {
+      const t = await criarTipoOk(s.token, base(s, `Corrida ${i}`));
+      const [ra, rb] = await Promise.all([
+        patchTipo(s.token, t.id, { centro_custo_padrao_id: s.cc1.id }),
+        patchTipo(s.token, t.id, { centro_resultado_padrao_id: s.cr2.id }),
+      ]);
+      assert.deepEqual([ra.statusCode, rb.statusCode].sort(), [200, 422], `iteração ${i}: um grava, o outro é recusado (${ra.body} | ${rb.body})`);
+      const recusado = ra.statusCode === 422 ? ra : rb;
+      assert.deepEqual(erro(recusado), [422, PADRAO_INVALIDO, 'centro_resultado_padrao_id', 'empresas_diferentes'], `iteração ${i}`);
+      const linha = await linhaDoTipo(t.id);
+      assert.ok(!(linha.centro_custo_padrao_id && linha.centro_resultado_padrao_id), `iteração ${i}: o par de fazendas diferentes nunca fica gravado`);
+    }
+  });
+
   test('null limpa os padrões (centros, unidade, coeficiente e categoria): resposta, detalhe e linha nulos; flags intactas', async () => {
     const s = await montar();
     const t = await criarTipoOk(s.token, base(s, 'Base', {
