@@ -177,7 +177,6 @@ export const CAMPOS_ADMINISTRATIVOS_DA_ENTRADA = Object.freeze({
 
 const canonico = (tipo, v) => {
   if (tipo === 'json') return v && typeof v === 'object' ? JSON.stringify(v) : '{}';
-  if (tipo === 'inteiro') { const n = numero(v); return n === null ? null : Math.trunc(n); }
   if (tipo === 'numero') return numero(v);
   return texto(v);
 };
@@ -194,7 +193,7 @@ export const camposAdministrativosAlterados = (lote, dados, form = {}) => {
   for (const [campo, tipo] of Object.entries(CAMPOS_ADMINISTRATIVOS_DA_ENTRADA)) {
     if (!Object.prototype.hasOwnProperty.call(dados ?? {}, campo)) continue;
     // Numérico: sempre o valor CRU do formulário (ausente/vazio = sem valor), nunca o 0 de preenchimento.
-    const bruto = tipo === 'numero' || tipo === 'inteiro' ? form?.[campo] : dados[campo];
+    const bruto = tipo === 'numero' ? form?.[campo] : dados[campo];
     const novo = canonico(tipo, bruto);
     if (JSON.stringify(novo) !== JSON.stringify(canonico(tipo, lote?.[campo]))) {
       saida[campo] = tipo === 'json' ? (bruto && typeof bruto === 'object' ? bruto : {}) : novo;
