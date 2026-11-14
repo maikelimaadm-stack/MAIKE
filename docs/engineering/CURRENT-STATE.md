@@ -20,6 +20,7 @@ rollout pausado **D-PROD-41**)
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
 | Testes | `backend/tests/p2002SemAlvo.test.mjs` (10, sob papel não dono com RLS: U0–U3, A1–A2, E1, M1–M2, S1) e `empresaUniqueViolation.test.mjs`; o helper do IT4g extraído para `backend/tests/papelNaoDono.mjs` |
 | Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão |
+| Validação | `npm run verify:all` local **verde** no `7213c90` (39 etapas; backend 1882/1887 com 5 `todo` antigos, smoke 2805/2805, gates 846/846), com banco recriado. O GitHub Actions do proprietário está pausado: a CI da PR morre em ~2 s sem log, como na `main` ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
 ## Missão anterior (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-193)

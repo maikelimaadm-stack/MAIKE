@@ -121,7 +121,59 @@ Rodadas localmente (PostgreSQL 16.15, Node 22) as suítes que tocam os arquivos 
 
 ### `npm run verify:all`
 
-RESULTADO_VERIFY
+Rodado localmente no head `7213c90` (esta branch já integrada com a `main` `a65ea46`), com o banco de teste **recriado do zero** (as 49 migrations aplicadas pelo runner de deploy, como na CI), PostgreSQL 16.15 e Node 22; sem `NODE_ENV` no ambiente (o `verify:all` fixa `production` no build). O GitHub Actions do proprietário está pausado (§8, R7), então esta é a verificação de registro desta PR, como na PR #273.
+
+- `test:gates`: 846/846;
+- `test:backend`: 148 arquivos, 1887 testes, 1882 passaram, 0 falharam, 5 `todo` (do roteiro do ledger pecuário, anteriores a esta missão);
+- `test:smoke`: 226 arquivos, 2805/2805.
+
+```
+  test:gates           PASS           0      73.7s  npm run test:gates
+  governance-paths     PASS           0      181ms  npm run gate:governance-paths
+  package-sync         PASS           0      150ms  npm run gate:package-sync
+  product-scope        PASS           0      604ms  npm run gate:product-scope
+  api-boundary         PASS           0       2.1s  npm run gate:api-boundary
+  native-api           PASS           0      228ms  npm run gate:native-api
+  setor-native         PASS           0      237ms  npm run gate:setor-native
+  marca-native         PASS           0      196ms  npm run gate:marca-native
+  unidade-medida-native PASS           0      208ms  npm run gate:unidade-medida-native
+  tarefa-cadastro-native PASS           0      176ms  npm run gate:tarefa-cadastro-native
+  lote-native          PASS           0      217ms  npm run gate:lote-native
+  lancamento-tarefa-native PASS           0      234ms  npm run gate:lancamento-tarefa-native
+  p52-cadastros-estoque-native PASS           0      258ms  npm run gate:p52-cadastros-estoque-native
+  p54-base44-exit      PASS           0      156ms  npm run gate:p54-base44-exit
+  p55-base44-exit-final PASS           0      167ms  npm run gate:p55-base44-exit-final
+  area-pastagem-native PASS           0      222ms  npm run gate:area-pastagem-native
+  map-geography-native PASS           0      209ms  npm run gate:map-geography-native
+  usuario-admin        PASS           0      169ms  npm run gate:usuario-admin
+  source-closure       PASS           0      238ms  npm run gate:source-closure
+  import-integrity     PASS           0      217ms  npm run gate:import-integrity
+  admin-isolation      PASS           0      194ms  npm run gate:admin-isolation
+  no-secrets           PASS           0       1.9s  npm run gate:no-secrets
+  base44               PASS           0      210ms  npm run gate:base44
+  modelobase1-pecuario PASS           0      143ms  npm run gate:modelobase1-pecuario
+  motorbase1-independence PASS           0      746ms  npm run gate:motorbase1-independence
+  tenancy              PASS           0      232ms  npm run gate:tenancy
+  rebanho-ssot         PASS           0      178ms  npm run gate:rebanho-ssot
+  indices              PASS           0      154ms  npm run gate:indices
+  deploy-migrations    PASS           0      201ms  npm run gate:deploy-migrations
+  supabase-public-grants PASS           0      144ms  npm run gate:supabase-public-grants
+  prisma:generate      PASS           0       2.6s  npm run prisma:generate
+  types                PASS           0      14.5s  npm run gate:types
+  typecheck:backend    PASS           0      11.2s  npm run typecheck:backend
+  lint                 PASS           0      13.8s  npm run lint
+  test:backend         PASS           0    1561.1s  npm run test:backend
+  test:smoke           PASS           0     203.4s  npm run test:smoke
+  build                PASS           0      19.7s  npm run build
+  build:admin          PASS           0       1.6s  npm run build:admin
+  admin-isolation:bundles PASS           0      246ms  npm run gate:admin-isolation
+
+  Total: 1912.1s
+
+TODAS AS ETAPAS PASSARAM
+
+verify:all exit=0
+```
 
 ## 7. Divergências em relação ao molde do PROJETOMG
 
@@ -137,6 +189,7 @@ Nenhuma. A tradução continua na camada de serviço (API → service → reposi
 | R4 | Custo da conferência | só no caminho de falha (P2002 sem alvo), uma leitura por unique do mapa, numa transação curta (2 s/5 s). O caminho feliz não muda; a pré-conferência do abastecimento é uma leitura pelo índice da unique |
 | R5 | Uma entrada nova no mapa sem conferência | o tipo reprova (`typecheck:backend`); `soPeloAlvo` novo reprova o S1 até ser inventariado |
 | R6 | A PR #273 foi mergeada na `main` (`a65ea46`) enquanto esta corria | integrada por merge, sem rebase: o único conflito foi o fim do `DECISIONS.md` (as duas decisões entraram, D-PROD-194 antes da D-PROD-195). A #273 não toca em nenhum tradutor de P2002 |
+| R7 | O GitHub Actions está pausado na conta do proprietário: a CI `quality` da PR morre em ~2 s, sem executar passos e sem log (o mesmo na `main` `a65ea46` e na #273) | a verificação de registro é o `verify:all` local acima; dito uma vez na PR. Quando o Actions voltar, a CI da PR roda a mesma cadeia |
 
 ## 9. Fora do escopo
 
