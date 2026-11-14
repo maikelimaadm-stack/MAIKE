@@ -119,3 +119,46 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* Celular/tablet: abertura em grade como Módulos, sem lista de linhas. */
+.mk-al-dock.mk-al-menu:not(#mk-padrao) {
+  border-top: 0;
+  padding: 8px 12px 16px;
+  overflow-x: hidden;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos:not(#mk-padrao) {
+  flex-direction: column;
+  width: 100%;
+  gap: 16px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo:not(#mk-padrao) {
+  width: 100%;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo + .mk-al__grupo:not(#mk-padrao) {
+  border-left: 0;
+  padding-left: 0;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro:not(#mk-padrao) {
+  min-height: 88px;
+  padding: 12px 6px;
+  gap: 8px;
+}
+.mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadro > span:last-child:not(#mk-padrao) {
+  font-size: 11px;
+}
+@media (min-width: 640px) {
+  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 359px) {
+  .mk-al-menu .mk-acoes-modulos.mk-al__grupos .mk-al__grupo .mk-al__quadros:not(#mk-padrao) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
