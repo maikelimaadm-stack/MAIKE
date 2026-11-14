@@ -522,7 +522,7 @@ export default function FormularioTipoAtividade({
         />
         {/* Caixas de marcar: a caixa Sim/Não do campo Base1 (`variant="switch"`) com o check da grade (`MgCheck`). */}
         {FLAGS_DO_FORMULARIO.map(({ campo, rotulo }) => (
-          <B1Field key={campo} label={rotulo} variant="switch" span={3} disabled={readOnly || isSubmitting}>
+          <B1Field key={campo} label={rotulo} variant="switch" span={6} disabled={readOnly || isSubmitting}>
             <MgCheck
               checked={formData[campo]}
               onChange={(/** @type {boolean} */ v) => handleChange(campo, v)}

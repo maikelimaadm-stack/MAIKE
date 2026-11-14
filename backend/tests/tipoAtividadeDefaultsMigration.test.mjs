@@ -59,7 +59,7 @@ const ANTERIORES = Object.freeze(PASTAS.filter((n) => n < NOME_CONTRACT));
 const TOTAL_MIGRATIONS = PASTAS.length;
 
 /** O runbook desta release: os blocos SQL rodam como estão, com o system_identifier local no lugar do de produção. */
-const RUNBOOK = readFileSync(join(RAIZ, 'docs', 'engineering', 'MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md'), 'utf8');
+const RUNBOOK = readFileSync(join(RAIZ, 'docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md'), 'utf8');
 const SID_PRODUCAO = '7692130048193495360';
 const MARCA_MIGRATION = '-- <<< aqui entra o conteúdo INTEGRAL de migration.sql do <SHA_APROVADO>, sem edição >>>';
 const blocoDoRunbook = (nome) => {
