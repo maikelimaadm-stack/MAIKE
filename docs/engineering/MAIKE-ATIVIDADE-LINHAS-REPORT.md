@@ -41,9 +41,12 @@ hectare. "Repetir último lançamento" traz as linhas do apontamento anterior.
 2. **Máquina em qualquer tipo de atividade.** Só existe "Exige máquina", que é conferida na abertura.
 3. **Salto do medidor** = leitura final − leitura vigente na data, e não só o uso da linha. A revisão achou que uma
    inicial digitada alta pulava o teto.
-4. **Limitação conhecida:** no mesmo dia, depois de uma segunda passada (ou de um abastecimento), a primeira passada
-   não pode ser corrigida para baixo, porque a regra de data herdada do abastecimento recusa. Nada se corrompe.
-   Corrigir pede refazer a série dentro do dia, nas duas pontas; fica para uma fatia futura, se você quiser.
+4. **Limitação conhecida (confirmada também pela revisão do Codex na PR):** no mesmo dia, depois de uma segunda
+   passada da mesma máquina (ou de um abastecimento), a **primeira linha de máquina não pode ser editada**, nem só a
+   observação: a edição revalida a leitura inicial contra a última leitura do dia e recusa com `abaixo_da_vigente`.
+   Cancelar continua funcionando e nada se corrompe. Contorno hoje: cancelar a linha posterior, editar e lançar de
+   novo. Corrigir pede ordenar as leituras dentro do dia (linhas e abastecimento); fica para uma fatia futura, se
+   você quiser.
 5. **Constituição:** a nota D-PROD-202 no `00` e no `07` (expansão para as linhas, edição por estorno, custo de uso
    como snapshot) foi redigida pelo agente e **aprovada por você** em 2026-11-14 ("autorizo vocÇe").
 
@@ -66,6 +69,7 @@ hectare. "Repetir último lançamento" traz as linhas do apontamento anterior.
   - cascatas;
   - salto com justificativa.
 - **Abertos (baixos):**
+  - a primeira linha de máquina do dia não é editável depois de uma segunda leitura no mesmo dia (§4, item 4);
   - o replay da linha de máquina responde 201 sem `replay: true`;
   - as FKs novas não estão no tradutor de vínculo (o caso não ocorre hoje).
 
