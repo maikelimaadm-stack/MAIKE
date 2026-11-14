@@ -1,6 +1,6 @@
 # MAIKE-APONTAMENTO-ITENS — Relatório (Fatia D do apontamento)
 
-**fatia D · `feat/apontamento-itens` · PR #__PR__ (rascunho)** · Decisão: [D-PROD-193](./DECISIONS.md)
+**fatia D · `feat/apontamento-itens` · PR #274 (rascunho)** · Decisão: [D-PROD-193](./DECISIONS.md)
 
 Contrato do arquiteto: [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md). Branch empilhada sobre `feat/apontamento-atividade` (PR #269, D-PROD-190, migration `20261113700000_apontamento_atividade` já aplicada em produção) e atualizada por merge com ela em `be322ab8`, que já traz a `main` `00a06096` (PRs #263, #267, #268 e #270).
 
@@ -80,9 +80,9 @@ O apontamento de atividade confirmado passa a receber **itens de custo**. O item
 
 ## 5. Validação
 
-> **A preencher pelo orquestrador.** A verificação de registro desta fatia é o **CI da PR #__PR__** (`verify:all` completo nos jobs da PR), no commit final, depois de juntar as correções das frentes de backend e de frontend. O que roda localmente é só apoio.
+> **A preencher pelo orquestrador.** A verificação de registro desta fatia é o **CI da PR #274** (`verify:all` completo nos jobs da PR), no commit final, depois de juntar as correções das frentes de backend e de frontend. O que roda localmente é só apoio.
 
-- **CI da PR #__PR__ (verificação de registro):** _a preencher_ — commit, execução e resultado.
+- **CI da PR #274 (verificação de registro):** _a preencher_ — commit, execução e resultado.
 - **Checagens locais de apoio:** _a preencher_.
 
 ### Provas por mutação (D4, todas pegas)
@@ -144,7 +144,7 @@ Também nesta frente (D5): trocar a ordem das 2 tabelas novas no `c_tenant` do 0
   5. `COMMIT`.
 - **Conferência, só leitura** (esperado): linha `20261113800000_apontamento_atividade_item` com o checksum pinado e 1 passo; **48** concluídas e 0 com falha; RLS ligado sem FORCE nas 2; política `maike_backend_all` só para `maike_vercel`; `anon` e `authenticated` sem acesso; 11 FKs, todas `RESTRICT`; 7 CHECKs; 0 linhas; **85** tabelas em `public`; `get_advisors` (segurança) sem alerta.
 - **Resultado:** _a preencher_ — data e hora (UTC), caminho, quem executou e o que a conferência mostrou.
-- **Depois:** merge da PR #__PR__, deploy e o smoke da seção 6; rollback como na seção 6.
+- **Depois:** merge da PR #274, deploy e o smoke da seção 6; rollback como na seção 6.
 
 ## 8. Riscos
 
