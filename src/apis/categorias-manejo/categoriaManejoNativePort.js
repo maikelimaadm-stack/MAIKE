@@ -37,6 +37,8 @@ export const CAMPOS_GRAVAVEIS = Object.freeze([
   'idade_maxima_meses',
   // D-PROD-195: a curva de ganho da MESMA fazenda é obrigatória (o servidor recusa ausente ou vazia no POST).
   'curva_ganho_id',
+  // D-PROD-198: peso objetivo (kg/cabeça), opcional.
+  'peso_objetivo_kg',
   'ativo',
 ]);
 

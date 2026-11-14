@@ -101,6 +101,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-197: CONTRACT aprovado pelo proprietário — TipoAtividade ganha 5 padrões anuláveis, 8 flags NOT NULL
   // DEFAULT false, 3 FKs (centros e unidade) e 2 CHECKs; mudança aditiva, sem DROP.
   '20261114300000_tipo_atividade_defaults': 'b65d4f08de5f587cd69b893bcb2626df5cc775e1f4ca5b68fdaac863aab55dbf',
+  // D-PROD-198: EXPAND — peso objetivo (kg) opcional na Categoria de Manejo (uma coluna anulável em CADCATEGORIA).
+  '20261114400000_cadcategoria_peso_objetivo': 'd44f80701c8936b62a8213f68fecb912a846c2a646f6cae79133964b653fb1a9',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

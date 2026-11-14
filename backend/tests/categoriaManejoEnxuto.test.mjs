@@ -72,6 +72,8 @@ const CAMPOS_PUBLICOS = [
   'idade_maxima_meses',
   'idade_minima_meses',
   'nome',
+  // D-PROD-198: peso objetivo (kg), opcional.
+  'peso_objetivo_kg',
   'sexo',
   'sigla',
   'updated_date',
@@ -122,10 +124,10 @@ const listar = (token) => app.inject({ method: 'GET', url: '/categorias-manejo',
 /** Linha pelo Prisma Client. */
 const linha = (id) => prisma().categoriaManejo.findUnique({ where: { id } });
 
-/** As 13 colunas físicas de CADCATEGORIA, na ordem (D-PROD-187; `curva_ganho_id` no fim desde a D-PROD-195). */
+/** As 14 colunas físicas de CADCATEGORIA, na ordem (D-PROD-187; `curva_ganho_id` desde a D-PROD-195 e `peso_objetivo_kg` desde a D-PROD-198, no fim). */
 const COLUNAS_FISICAS = [
   'id', 'cliente_id', 'empresa_id', 'nome', 'sigla', 'especie', 'sexo', 'idade_minima_meses', 'idade_maxima_meses', 'ativo', 'createdAt', 'updatedAt',
-  'curva_ganho_id',
+  'curva_ganho_id', 'peso_objetivo_kg',
 ];
 
 /** Colunas físicas da tabela, lidas do catálogo do banco (não do Prisma Client). */
@@ -157,11 +159,11 @@ describe('CategoriaManejo enxuta (D-PROD-186) e sem o ícone, em CADCATEGORIA (D
     for (const chave of CHAVES_LEGADAS_IGNORADAS) assert.equal(gravaveis.has(chave), false, chave);
     assert.deepEqual(
       [...gravaveis].sort(),
-      ['ativo', 'curva_ganho_id', 'empresa_id', 'especie', 'idade_maxima_meses', 'idade_minima_meses', 'nome', 'sexo', 'sigla']
+      ['ativo', 'curva_ganho_id', 'empresa_id', 'especie', 'idade_maxima_meses', 'idade_minima_meses', 'nome', 'peso_objetivo_kg', 'sexo', 'sigla']
     );
   });
 
-  test('E-00b estrutura (D-PROD-187/D-PROD-195): a tabela física é CADCATEGORIA com as 13 colunas; CategoriaManejo não existe mais; nenhuma das 16 colunas sobrou', async () => {
+  test('E-00b estrutura (D-PROD-187/D-PROD-195): a tabela física é CADCATEGORIA com as 14 colunas; CategoriaManejo não existe mais; nenhuma das 16 colunas sobrou', async () => {
     assert.deepEqual(await colunasFisicas('CADCATEGORIA'), COLUNAS_FISICAS);
     assert.deepEqual(await colunasFisicas('CategoriaManejo'), []);
     const [{ antiga, nova }] = await prisma().$queryRawUnsafe(

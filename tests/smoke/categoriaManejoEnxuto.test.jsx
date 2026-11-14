@@ -130,6 +130,8 @@ describe("(a) formulário enxuto de Categoria de Manejo", () => {
       "Sexo",
       "Faixa de idade",
       "Curva de ganho",
+      // D-PROD-198: peso objetivo, opcional.
+      "Peso objetivo (kg)",
     ]);
     // Obrigatórios marcados: Nome, Sexo, Faixa de idade e (D-PROD-195) Curva de ganho.
     const obrigatorios = [...form.querySelectorAll("label.mg-field__label")]
@@ -369,7 +371,7 @@ describe("(b2) PATCH vindo da fila offline da versão anterior não trava a sinc
 
 describe("(c) preferências de coluna salvas com ids removidos", () => {
   // D-PROD-195: a chave passou a `_v2`; a leitura com ids removidos continua igual.
-  const STORAGE_KEY = "colunas_largura_categorias_manejo_v2";
+  const STORAGE_KEY = "colunas_largura_categorias_manejo_v3";
 
   it("formato unificado: ids raca/categoria_oficial/gmd_* são descartados sem quebrar", async () => {
     const { loadCadastroBase1ColumnPrefs, CADASTRO_B1_COLUMN_PREFS_VERSION } = await import(
@@ -430,7 +432,7 @@ describe("(d) colunas exportáveis (CSV) de Categorias de Manejo", () => {
     );
     const { exportCadastroCsv } = await import("@/components/cadastro/base1/cadastroExportCsv");
 
-    expect(CATEGORIAS_MANEJO_COLUNAS.map((c) => c.id)).toEqual(["nome", "sigla", "sexo", "idade", "curva_ganho", "especie"]);
+    expect(CATEGORIAS_MANEJO_COLUNAS.map((c) => c.id)).toEqual(["nome", "sigla", "sexo", "idade", "curva_ganho", "peso_objetivo", "especie"]);
     for (const coluna of CATEGORIAS_MANEJO_COLUNAS) {
       expect(coluna.id).not.toMatch(REMOVIDO_RE);
       expect(coluna.label).not.toMatch(TEXTO_REMOVIDO_RE);
@@ -466,8 +468,8 @@ describe("(d) colunas exportáveis (CSV) de Categorias de Manejo", () => {
       leitor.readAsText(blob);
     });
     const [cabecalho, linha] = texto.replace(/^﻿/, "").split("\n");
-    expect(cabecalho).toBe('"Nome";"Sigla";"Sexo";"Faixa Idade";"Curva de ganho";"Espécie"');
-    expect(linha).toBe('"BOI";"B";"Macho";"Maior que 36 meses";"CURVA PADRÃO";"Bovinos"');
+    expect(cabecalho).toBe('"Nome";"Sigla";"Sexo";"Faixa Idade";"Curva de ganho";"Peso objetivo (kg)";"Espécie"');
+    expect(linha).toBe('"BOI";"B";"Macho";"Maior que 36 meses";"CURVA PADRÃO";"";"Bovinos"');
     expect(texto).not.toMatch(/NELORE|Raça|GMD|ganho de peso|ganho anual/i);
     expect(texto).not.toMatch(TEXTO_REMOVIDO_RE);
   });
