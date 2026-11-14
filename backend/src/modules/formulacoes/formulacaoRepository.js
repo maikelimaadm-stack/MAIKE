@@ -1,5 +1,5 @@
 /**
- * Repositório de Formulações de suplemento da fazenda (D-PROD-202), tabelas
+ * Repositório de Formulações de suplemento da fazenda (D-PROD-203), tabelas
  * físicas "CADFORMULACAO" (model `Formulacao`), "CADFORMULACAOINGREDIENTE"
  * (`FormulacaoIngrediente`) e "CADFORMULACAOREGRA" (`FormulacaoRegraCategoria`).
  *

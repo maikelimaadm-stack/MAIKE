@@ -117,11 +117,11 @@ export const NOME_CURVA_NA_CATEGORIA = '20261114200000_cadcategoria_curva_ganho'
  */
 export const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 /**
- * D-PROD-202: a EXPAND das Formulações (3 tabelas novas; a regra por categoria tem FK para "CADCATEGORIA"), de nome
+ * D-PROD-203: a EXPAND das Formulações (3 tabelas novas; a regra por categoria tem FK para "CADCATEGORIA"), de nome
  * posterior, também exige o nome NOVO e no dia desta CONTRACT ainda não existia. Fica fora da partida e sobe no GREEN
  * por último, pela ordem dos nomes (EXPAND). É a única que cria tabela depois desta CONTRACT: +3 no GREEN.
  */
-export const NOME_FORMULACOES = '20261114600000_cadformulacao';
+export const NOME_FORMULACOES = '20261114700000_cadformulacao';
 export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
@@ -149,7 +149,7 @@ export const NOME_CURVA_MENSAL = '20261114100000_cadcurvaganho_mensal';
 export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((d) => d.isDirectory()).length;
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
 export const TABELAS_PUBLIC = 84;
-/** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-202), aplicadas por último. */
+/** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-203), aplicadas por último. */
 export const TABELAS_DEPOIS = TABELAS_PUBLIC + TABELAS_DA_FORMULACAO.length;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
@@ -613,7 +613,7 @@ export const divergenciasGreen = (partida, depois) => {
   if (depois.colunas !== COLUNAS_DEPOIS.length) d.push(`${depois.colunas} colunas`);
   if (depois.legado !== null) d.push('legado ainda existe');
   if (!igual(depois.linhas, partida.linhas)) d.push('linhas nas 12 colunas mudaram');
-  if (depois.tabelas !== partida.tabelas + TABELAS_DA_FORMULACAO.length) d.push('número de tabelas mudou (além das 3 das Formulações, D-PROD-202)');
+  if (depois.tabelas !== partida.tabelas + TABELAS_DA_FORMULACAO.length) d.push('número de tabelas mudou (além das 3 das Formulações, D-PROD-203)');
   if (!igual(depois.Cliente, partida.Cliente) || !igual(depois.CatalogoCategoriaVisual, partida.CatalogoCategoriaVisual)) d.push('outras tabelas mudaram');
   return d;
 };

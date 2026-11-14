@@ -57,8 +57,8 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
   ['Atividade', 'unidade_producao_sigla'],
   ['AtividadeApontamento', 'sequencia'],
-  // D-PROD-202: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
-  // novas; sem a migration `20261114600000_cadformulacao`, a tela e as opções do lançamento respondem 500.
+  // D-PROD-203: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
+  // novas; sem a migration `20261114700000_cadformulacao`, a tela e as opções do lançamento respondem 500.
   ['CADFORMULACAO', 'percentual_pv_padrao'],
   ['CADFORMULACAOINGREDIENTE', 'quantidade_kg'],
   ['CADFORMULACAOREGRA', 'consome'],

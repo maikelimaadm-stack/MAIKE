@@ -334,7 +334,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a curva de ganho está ligada a categoria(s) de manejo (details.categorias): troque a curva dessas categorias antes de excluir; nada foi apagado',
   },
-  // D-PROD-202 — Formulações de suplemento da fazenda (tabela CADFORMULACAO).
+  // D-PROD-203 — Formulações de suplemento da fazenda (tabela CADFORMULACAO).
   FORMULACAO_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica formulação desta fazenda neste tenant',

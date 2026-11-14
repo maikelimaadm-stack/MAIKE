@@ -1,5 +1,5 @@
 /**
- * Cadastro de Formulações de suplemento da fazenda (D-PROD-202), tabelas
+ * Cadastro de Formulações de suplemento da fazenda (D-PROD-203), tabelas
  * CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA.
  *
  *  FO-SV. leitura de decimal pt-BR, total da batida e % de cada ingrediente,

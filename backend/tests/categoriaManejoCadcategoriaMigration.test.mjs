@@ -117,9 +117,9 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     const h = await historico(db);
     assert.equal(h.concluidas, CONCLUIDAS_ANTES);
     // D-PROD-198: a EXPAND do peso objetivo (ALTER TABLE "CADCATEGORIA") também fica fora da partida: era 2, agora 3.
-    // D-PROD-202: a EXPAND das Formulações (FK para "CADCATEGORIA") também: agora 4.
+    // D-PROD-203: a EXPAND das Formulações (FK para "CADCATEGORIA") também: agora 4.
     assert.deepEqual(NOMES_DEPOIS_DO_CONTRACT, [NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES]);
-    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 4, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198 e a D-PROD-202');
+    assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 4, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198 e a D-PROD-203');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 84, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114500000_atividade_cabecalho'), 'a CONTRACT da D-PROD-200 sobe na partida');
@@ -134,7 +134,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     for (const n of NOMES_POSTERIORES_NA_PARTIDA) assert.ok(n > NOME_CONTRACT, `${n} tem nome posterior`);
     assert.ok(!NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_CURVA_NA_CATEGORIA), 'a D-PROD-195 (exige CADCATEGORIA) fica fora da partida');
     assert.ok(!NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_PESO_OBJETIVO), 'a D-PROD-198 (exige CADCATEGORIA) fica fora da partida');
-    assert.ok(!NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_FORMULACOES), 'a D-PROD-202 (exige CADCATEGORIA) fica fora da partida');
+    assert.ok(!NOMES_POSTERIORES_NA_PARTIDA.includes(NOME_FORMULACOES), 'a D-PROD-203 (exige CADCATEGORIA) fica fora da partida');
     assert.ok(NOMES_POSTERIORES_NA_PARTIDA.includes('20261114300000_tipo_atividade_defaults'), 'a CONTRACT da D-PROD-197 (só TipoAtividade) sobe na partida');
     assert.ok(NOME_CURVA_MENSAL > NOME_CONTRACT, 'a CONTRACT da D-PROD-194 tem nome posterior');
     const ordem = await ordemDeAplicacao(db);
@@ -276,10 +276,10 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     assert.deepEqual(depois.estrutura.constraints, [...CONSTRAINTS_DEPOIS]);
     assert.equal(depois.legado, null, 'as 16 colunas sumiram');
     assert.deepEqual(depois.linhas, partida.linhas, 'as linhas nas 12 colunas que ficam não mudaram');
-    assert.equal(depois.tabelas, partida.tabelas + TABELAS_DA_FORMULACAO.length, 'nenhuma tabela criada nem apagada além das 3 das Formulações (D-PROD-202, por último)');
+    assert.equal(depois.tabelas, partida.tabelas + TABELAS_DA_FORMULACAO.length, 'nenhuma tabela criada nem apagada além das 3 das Formulações (D-PROD-203, por último)');
     assert.deepEqual(depois.CatalogoCategoriaVisual, partida.CatalogoCategoriaVisual, 'o catálogo global só perdeu a FK que apontava para ele');
     // Nenhuma FK de outra tabela aponta para CADCATEGORIA nem sobrou FK para o catálogo (a da D-PROD-195 sai de CADCATEGORIA).
-    // A única que entra é a da regra por categoria das Formulações (D-PROD-202, aplicada depois desta), contada à parte.
+    // A única que entra é a da regra por categoria das Formulações (D-PROD-203, aplicada depois desta), contada à parte.
     const [{ fks_entrando, fks_catalogo, fks_formulacao }] = await db.$queryRawUnsafe(`SELECT
         (SELECT count(*)::int FROM pg_constraint WHERE confrelid = 'public."${TABELA_NOVA}"'::regclass AND conrelid <> 'public."CADFORMULACAOREGRA"'::regclass) AS fks_entrando,
         (SELECT count(*)::int FROM pg_constraint WHERE confrelid = 'public."${TABELA_NOVA}"'::regclass AND conrelid = 'public."CADFORMULACAOREGRA"'::regclass) AS fks_formulacao,

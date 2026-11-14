@@ -1,5 +1,5 @@
 /**
- * Formulações de suplemento da fazenda (D-PROD-202, etapa 2a da suplementação),
+ * Formulações de suplemento da fazenda (D-PROD-203, etapa 2a da suplementação),
  * tabelas físicas "CADFORMULACAO", "CADFORMULACAOINGREDIENTE" e
  * "CADFORMULACAOREGRA" — PostgreSQL real.
  *
@@ -130,7 +130,7 @@ const batelada = (cen, extra = {}) => ({
 });
 const criar = (token, payload) => req('POST', '/formulacoes', token, payload);
 
-describe('D-PROD-202 — Formulações: criação, leitura e formato público', () => {
+describe('D-PROD-203 — Formulações: criação, leitura e formato público', () => {
   test('GET /formulacoes sem token → 401', async () => {
     assert.equal((await req('GET', '/formulacoes?empresa_id=x')).statusCode, 401);
     assert.equal((await req('GET', '/formulacoes/opcoes-lancamento?empresa_id=x')).statusCode, 401);
@@ -205,7 +205,7 @@ describe('D-PROD-202 — Formulações: criação, leitura e formato público', 
   });
 });
 
-describe('D-PROD-202 — Formulações: validação', () => {
+describe('D-PROD-203 — Formulações: validação', () => {
   test('obrigatórios e chaves fora do schema → 400; nada gravado', async () => {
     const cen = await cenario();
     for (const campo of ['empresa_id', 'nome', 'tipo', 'produto_id', 'percentual_pv_padrao']) {
@@ -311,7 +311,7 @@ describe('D-PROD-202 — Formulações: validação', () => {
   });
 });
 
-describe('D-PROD-202 — Formulações: edição, exclusão e escopo', () => {
+describe('D-PROD-203 — Formulações: edição, exclusão e escopo', () => {
   test('PATCH substitui as listas enviadas e mantém as não enviadas; troca para PRONTO exige ingredientes: []; referência que ficou inativa continua aceita', async () => {
     const cen = await cenario();
     const f = (await criar(cen.token, batelada(cen))).json();
@@ -410,7 +410,7 @@ describe('D-PROD-202 — Formulações: edição, exclusão e escopo', () => {
   });
 });
 
-describe('D-PROD-202 — Formulações: permissão da tela pec-formulacoes', () => {
+describe('D-PROD-203 — Formulações: permissão da tela pec-formulacoes', () => {
   test('sem a tela → 403 na leitura e na escrita; só "visualizar" lê e não cria; "novo" cria e não exclui; "excluir" exclui', async () => {
     const cen = await cenario();
     const outra = await contaCom(cen, [linha('pec-curvas-ganho', acoes(true))]);
@@ -444,7 +444,7 @@ describe('D-PROD-202 — Formulações: permissão da tela pec-formulacoes', () 
   });
 });
 
-describe('D-PROD-202 — Formulações no banco: nomes físicos, CHECK e RLS', () => {
+describe('D-PROD-203 — Formulações no banco: nomes físicos, CHECK e RLS', () => {
   test('as 3 tabelas físicas existem com RLS ligado; os CHECKs barram escrita direta fora da forma', async () => {
     const cen = await cenario();
     const tabelas = await prisma().$queryRaw`SELECT relname::text AS t, relrowsecurity AS rls FROM pg_class WHERE relname IN ('CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA') AND relkind = 'r' ORDER BY relname`;

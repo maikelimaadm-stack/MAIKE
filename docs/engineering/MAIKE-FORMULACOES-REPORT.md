@@ -1,17 +1,17 @@
 # MAIKE-FORMULACOES — Relatório
 
-**Branch `claude/kind-knuth-tztu1v`** · Decisão: [D-PROD-202](./DECISIONS.md) ·
+**Branch `claude/kind-knuth-tztu1v`** · Decisão: [D-PROD-203](./DECISIONS.md) ·
 Runbook: [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md)
 
 ## 1. Entrega
 
 | Camada | O que entrou |
 |---|---|
-| Banco | `CADFORMULACAO` (`Formulacao`), `CADFORMULACAOINGREDIENTE` (`FormulacaoIngrediente`) e `CADFORMULACAOREGRA` (`FormulacaoRegraCategoria`), por fazenda; migration **EXPAND** `20261114600000_cadformulacao` (SHA-256 `96f3f364…`), 5 CHECKs, FKs compostas pelo tenant, filhas da mesma fazenda com `CASCADE`, RLS/REVOKE |
+| Banco | `CADFORMULACAO` (`Formulacao`), `CADFORMULACAOINGREDIENTE` (`FormulacaoIngrediente`) e `CADFORMULACAOREGRA` (`FormulacaoRegraCategoria`), por fazenda; migration **EXPAND** `20261114700000_cadformulacao` (SHA-256 `96f3f364…`), 5 CHECKs, FKs compostas pelo tenant, filhas da mesma fazenda com `CASCADE`, RLS/REVOKE |
 | Release | manifesto e bloco RLS pinados; preflight de schema exige as 3 tabelas; runbook com caminhos A e B, ensaiado em banco local; testes do ferramental (B22a/b/k) e contagens 53 → 54 migrations e 84 → 87 tabelas (premerge, SQL Editor 01–04 e os ensaios das CONTRACT anteriores) |
 | Backend | módulo `backend/src/modules/formulacoes/` (rotas, serviço, repositório): CRUD por fazenda, PATCH com troca das listas, DELETE recusado com 409 `FORMULACAO_EM_USO` quando um lançamento cita a formulação, `GET /formulacoes/opcoes-lancamento` (ativas) também pela chave do mapa `lancar_suplementacao`; códigos `FORMULACAO_NOT_FOUND`, `FORMULACAO_NAME_CONFLICT`, `FORMULACAO_EM_USO`; tela de permissão `pec-formulacoes` |
 | Frontend | tela `Formulacoes` (menu Manejo; grade e formulário Base1 com regras por categoria e ingredientes em kg por batida, total e %); porta/API/service; lançamento do cocho com a **Formulação obrigatória** e o consumo esperado lote a lote (`consumoEsperadoPorFormulacao`) |
-| Docs | D-PROD-202, este relatório, runbook, `CURRENT-STATE`, cobertura de endpoints da R2 |
+| Docs | D-PROD-203, este relatório, runbook, `CURRENT-STATE`, cobertura de endpoints da R2 |
 
 ## 2. Como a conta do lançamento funciona
 

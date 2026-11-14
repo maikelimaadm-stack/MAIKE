@@ -88,7 +88,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const [formData, setFormData] = useState({
     data_lancamento: hojeNoFuso(null),
     data_fim_consumo_anterior: "",
-    // D-PROD-202: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
+    // D-PROD-203: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
     formulacao_id: "",
     quantidade_total_kg: "",
     sobra_kg: "0",
@@ -170,7 +170,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
-  // D-PROD-202: as formulações ATIVAS da fazenda (rota própria, liberada a quem lança suplementação).
+  // D-PROD-203: as formulações ATIVAS da fazenda (rota própria, liberada a quem lança suplementação).
   const { data: formulacoes = [], isLoading: loadingFormulacoes } = useQuery({
     queryKey: [QUERY_FORMULACOES_LANCAMENTO, empresaSelecionadaId],
     queryFn: () => listarFormulacoesParaLancamento(empresaSelecionadaId),
@@ -291,7 +291,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const sobraInformada = parseNumber(formData.sobra_kg || 0);
 
 
-  // D-PROD-202: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
+  // D-PROD-203: consumo esperado por %PV da FORMULAÇÃO, lote a lote (regra da categoria ou o padrão;
   // categoria que não consome entra com 0; lote sem peso usa a média ponderada dos lotes com peso).
   const pctPV = Number(formulacaoSelecionada?.percentual_pv_padrao || 0);
   const consumoPV = useMemo(
@@ -541,7 +541,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         data_lancamento: formData.data_lancamento,
         produto: nomeProduto,
         produto_id: formulacaoSelecionada?.produto_id || null,
-        // D-PROD-202: a formulação usada (obrigatória desde esta decisão; os lançamentos antigos ficam sem).
+        // D-PROD-203: a formulação usada (obrigatória desde esta decisão; os lançamentos antigos ficam sem).
         formulacao_id: formulacaoSelecionada?.id || null,
         formulacao_nome: formulacaoSelecionada?.nome || null,
         formulacao_tipo: formulacaoSelecionada?.tipo || null,
@@ -581,7 +581,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           categoria: lote.categoria,
           fator_consumo: 1,
           peso_medio_lote_kg: pesoMedioLote || null,
-          // D-PROD-202: %PV deste lote (regra da categoria ou o padrão; 0 = não consome) e o esperado dele.
+          // D-PROD-203: %PV deste lote (regra da categoria ou o padrão; 0 = não consome) e o esperado dele.
           percentual_pv_lote: doLote ? doLote.percentualPV : null,
           consumo_esperado_pv_lote_kg: consumoEsperadoLotePV,
           data_lancamento: formData.data_lancamento,

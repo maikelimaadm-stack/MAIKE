@@ -13,7 +13,7 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 72 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193; − essas 3 e + Atividade e AtividadeApontamento, D-PROD-200; + CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA, D-PROD-202) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 72 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193; − essas 3 e + Atividade e AtividadeApontamento, D-PROD-200; + CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA, D-PROD-203) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- D-PROD-197: TipoAtividade passou a referenciar CentroCusto, CentroResultado e UnidadeMedida (padrões, FKs RESTRICT) e
 -- sai logo depois da atividade (D-PROD-200), antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
@@ -41,7 +41,7 @@ tenant(nome, ord) AS (
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
-    -- D-PROD-202: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
+    -- D-PROD-203: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
     -- de CADCATEGORIA, Produto e Empresa, que elas referenciam (FKs RESTRICT).
     'CADFORMULACAOREGRA','CADFORMULACAOINGREDIENTE','CADFORMULACAO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
@@ -148,7 +148,7 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 87 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das Formulações, D-PROD-202)',
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 87 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das Formulações, D-PROD-203)',
          CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 87 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',

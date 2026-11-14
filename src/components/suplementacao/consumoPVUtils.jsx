@@ -156,7 +156,7 @@ export function pesoMedioPonderadoLotes(lotes) {
 }
 
 /**
- * D-PROD-202 — %PV de um lote para a formulação: a regra da Categoria de Manejo
+ * D-PROD-203 — %PV de um lote para a formulação: a regra da Categoria de Manejo
  * do lote, quando houver (não consome → 0; consome → o %PV da regra), senão o
  * %PV padrão da formulação.
  * @param {{ categoria_manejo_id?: string | null } | null | undefined} lote
@@ -176,7 +176,7 @@ export function percentualPVDoLote(lote, formulacao) {
 }
 
 /**
- * D-PROD-202 — consumo esperado (kg/dia) por FORMULAÇÃO, lote a lote:
+ * D-PROD-203 — consumo esperado (kg/dia) por FORMULAÇÃO, lote a lote:
  * `peso do lote × %PV do lote / 100 × cabeças`, com o %PV da regra da categoria
  * (ou o padrão). Lote sem peso usa o peso médio ponderado dos lotes COM peso
  * (a mesma extrapolação da D-PROD-201), com o %PV da própria categoria. Lote

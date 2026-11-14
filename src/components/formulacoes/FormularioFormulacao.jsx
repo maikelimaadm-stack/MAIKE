@@ -59,7 +59,7 @@ const opcoesDe = (lista, nomeDe, gravados) =>
     .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
 
 /**
- * Formulário do cadastro de Formulações de suplemento (D-PROD-202).
+ * Formulário do cadastro de Formulações de suplemento (D-PROD-203).
  *
  * Campos: Nome, Tipo (Produto pronto / Batelada), Produto (o que vai ao cocho:
  * o produto pronto, ou o produto misturado cadastrado antes em Produtos), %PV

@@ -7361,7 +7361,9 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-SUPLEMENTACAO-BASE-REPORT.md`](./MAIKE-SUPLEMENTACAO-BASE-REPORT.md).
 
-## D-PROD-202 — Formulações de suplemento (etapa 2a da suplementação): produto pronto ou batelada, %PV por categoria, obrigatória no lançamento do cocho
+## D-PROD-203 — Formulações de suplemento (etapa 2a da suplementação): produto pronto ou batelada, %PV por categoria, obrigatória no lançamento do cocho
+
+> **Numeração:** nasceu como D-PROD-202, com a migration `20261114600000_cadformulacao`. A PR #289 (Fatia 3 do Lançamento de Atividades) usa a D-PROD-202 e a migration `20261114600000_atividade_linhas_produto_maquina`, já aplicada em produção; esta passou a **D-PROD-203** e a `20261114700000_cadformulacao`. O nome da pasta não está no `migration.sql`: o checksum não muda.
 
 **Data:** 2026-11-14 · **Origem:** decisões do proprietário para a etapa 2 da suplementação (D-PROD-201, "Fica para as próximas etapas"): a formulação é um **produto pronto** (ex.: sal mineral comprado pronto) **ou uma batelada** (mistura feita na fazenda com produtos do estoque); o consumo alvo é **%PV** com exceção opcional **por categoria** (ex.: "BEZERRO MAMANDO não consome", "VACA LEITEIRA 0,15%"); os ingredientes da batelada são lançados em **kg por batida** (ex.: milho 600, farelo 300, núcleo 100 numa batida de 1.000 kg); o produto misturado é cadastrado **antes** em Produtos e a formulação aponta para ele; a formulação passa a ser **obrigatória** no lançamento do cocho (os lançamentos antigos ficam como estão) · **Branch:** `claude/kind-knuth-tztu1v`
 
@@ -7373,7 +7375,7 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
    - `CADFORMULACAOINGREDIENTE` / `FormulacaoIngrediente`: produto e `quantidade_kg DECIMAL(12,3)` > 0 por batida, na ordem digitada; único por (formulação, produto);
    - `CADFORMULACAOREGRA` / `FormulacaoRegraCategoria`: Categoria de Manejo, `consome` e `percentual_pv` — não consome **sem** %PV, consome **com** %PV de (0, 5] (CHECK); única por (formulação, categoria).
    - As duas filhas têm `empresa_id` e apontam para a formulação por `(cliente_id, empresa_id, formulacao_id)` → `CADFORMULACAO(cliente_id, empresa_id, id)`: são da **mesma fazenda por construção**, e saem com ela (`ON DELETE CASCADE`). Ingrediente → Produto e regra → `CADCATEGORIA` pelo tenant, `RESTRICT`: excluir produto, categoria ou fazenda em uso é barrado no banco (e a fazenda responde 409 `EMPRESA_COM_VINCULOS`, que conta os models sozinha).
-2. **Migration EXPAND `20261114600000_cadformulacao`**: só `CREATE TABLE`/`INDEX`/FK/CHECK nas 3 novas e o bloco RLS/REVOKE delas (corpo de sempre, lista nova, hash `b04af24e…` em `DO_RLS_APROVADOS`). Nenhuma tabela antiga muda (as relações inversas em Produto, CADCATEGORIA, Empresa e Cliente são só do Prisma). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`, pinado no premerge; o preflight de schema passa a exigir as 3 tabelas. Repositório 53 → **54** migrations; tabelas em `public` 84 → **87** (72 de tenant). Release **antes do merge** pelo runbook [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md); não há janela: o runtime antigo não conhece as tabelas. Os ensaios das CONTRACT anteriores (D-PROD-162, 187, 194, 195, 197 e 200) passam a tratar esta como release posterior: fora da partida e aplicada por último no GREEN (+3 tabelas).
+2. **Migration EXPAND `20261114700000_cadformulacao`**: só `CREATE TABLE`/`INDEX`/FK/CHECK nas 3 novas e o bloco RLS/REVOKE delas (corpo de sempre, lista nova, hash `b04af24e…` em `DO_RLS_APROVADOS`). Nenhuma tabela antiga muda (as relações inversas em Produto, CADCATEGORIA, Empresa e Cliente são só do Prisma). SHA-256 `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524`, pinado no premerge; o preflight de schema passa a exigir as 3 tabelas. Repositório 53 → **54** migrations; tabelas em `public` 84 → **87** (72 de tenant). Release **antes do merge** pelo runbook [`MAIKE-FORMULACOES-RUNBOOK-RELEASE.md`](./MAIKE-FORMULACOES-RUNBOOK-RELEASE.md); não há janela: o runtime antigo não conhece as tabelas. Os ensaios das CONTRACT anteriores (D-PROD-162, 187, 194, 195, 197 e 200) passam a tratar esta como release posterior: fora da partida e aplicada por último no GREEN (+3 tabelas).
 3. **API `/formulacoes`** (tenant só do `auth_context`, fazenda conferida em toda rota):
    - `GET /formulacoes?empresa_id=` lista ativas e inativas, com os ingredientes na ordem, as regras, os nomes do produto e das categorias, o `total_batida_kg` (Σ ingredientes, em gramas inteiras) e o `percentual` de cada ingrediente; `GET /formulacoes/:id`;
    - `POST` e `PATCH` (o PATCH **substitui por inteiro** as listas enviadas, na mesma transação; a forma final é conferida — trocar para PRONTO exige `ingredientes: []`);
@@ -7391,4 +7393,4 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-203 -->
+<!-- Próxima decisão: D-PROD-204 -->

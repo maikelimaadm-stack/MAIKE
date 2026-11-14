@@ -4,7 +4,7 @@ import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBa
 import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 import { formatarNumero, rotuloDoTipo } from "@/services/formulacaoCadastroService";
 
-/** Chave das preferências de colunas da grade de Formulações (D-PROD-202). */
+/** Chave das preferências de colunas da grade de Formulações (D-PROD-203). */
 export const FORMULACOES_STORAGE_KEY = "colunas_largura_formulacoes_v1";
 
 export const FORMULACOES_COLUNAS = [

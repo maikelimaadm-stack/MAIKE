@@ -82,7 +82,7 @@ export const listarRebanhoParaSuplementacao = async (empresaId) => {
 };
 export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await listProdutos(), empresaId);
 /**
- * D-PROD-202 — formulações ATIVAS da fazenda para o lançamento (obrigatório
+ * D-PROD-203 — formulações ATIVAS da fazenda para o lançamento (obrigatório
  * escolher uma): produto que vai ao cocho, %PV padrão e regras por Categoria de
  * Manejo. Rota própria, também liberada a quem só lança suplementação no mapa.
  * @param {string} empresaId

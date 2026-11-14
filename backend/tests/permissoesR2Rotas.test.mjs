@@ -122,7 +122,7 @@ const ESCRITAS = (c) => {
     ['curva de ganho (POST)', 'POST', '/curvas-ganho', { empresa_id: E, nome: 'HACK', ...Object.fromEntries(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map((m) => [`gmd_${m}`, 0.5])) }],
     ['curva de ganho (PATCH)', 'PATCH', `/curvas-ganho/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['curva de ganho (DELETE)', 'DELETE', `/curvas-ganho/${ID}?empresa_id=${E}`],
-    // D-PROD-202 — Formulações de suplemento: escrita guardada pela tela pec-formulacoes.
+    // D-PROD-203 — Formulações de suplemento: escrita guardada pela tela pec-formulacoes.
     ['formulação (POST)', 'POST', '/formulacoes', { empresa_id: E, nome: 'HACK', tipo: 'PRONTO', produto_id: 'p-1', percentual_pv_padrao: 0.1 }],
     ['formulação (PATCH)', 'PATCH', `/formulacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
     ['formulação (DELETE)', 'DELETE', `/formulacoes/${ID}?empresa_id=${E}`],
@@ -350,7 +350,7 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.equal((await req('GET', url, c.tokAdm)).statusCode, 200, 'administrador real');
   });
 
-  test('D-PROD-202 — opções de formulação do lançamento de suplementação: a chave do mapa lancar_suplementacao OU ver a tela pec-formulacoes; o cadastro (lista completa) só pela tela', async () => {
+  test('D-PROD-203 — opções de formulação do lançamento de suplementação: a chave do mapa lancar_suplementacao OU ver a tela pec-formulacoes; o cadastro (lista completa) só pela tela', async () => {
     const c = await cenario();
     const opcoes = `/formulacoes/opcoes-lancamento?empresa_id=${c.empresa.id}`;
     const cadastro = `/formulacoes?empresa_id=${c.empresa.id}`;

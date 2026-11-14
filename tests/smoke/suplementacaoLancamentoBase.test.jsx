@@ -11,7 +11,7 @@
  *        conta como salvo — antes `toast.warn` (inexistente) virava "Não foi possível registrar";
  *  SB-6. funções puras (peso de consumo, datas, chave da baixa) e o motivo "sem peso" no mapa.
  *
- * D-PROD-202 — a FORMULAÇÃO é obrigatória no lançamento (o %PV não vem mais do produto):
+ * D-PROD-203 — a FORMULAÇÃO é obrigatória no lançamento (o %PV não vem mais do produto):
  *  SF-1. sem formulação ativa: aviso com o caminho para Formulações e nada é gravado;
  *  SF-2. regra por categoria: quem não consome sai do esperado (e é contado à parte), quem
  *        tem %PV próprio entra com ele; lote sem peso usa a média dos com peso com o %PV
@@ -40,7 +40,7 @@ const saida = vi.hoisted(() => vi.fn());
 const lancar = vi.hoisted(() => vi.fn());
 const fechar = vi.hoisted(() => vi.fn());
 
-// D-PROD-202: o %PV do PRODUTO (0,3) não é mais lido no lançamento — o esperado usa o da formulação (0,1).
+// D-PROD-203: o %PV do PRODUTO (0,3) não é mais lido no lançamento — o esperado usa o da formulação (0,1).
 const PRODUTO = { id: "prod-1", empresa_id: "emp-1", nome_produto: "SAL MINERAL", tipo_uso: "Nutrição Animal", percentual_consumo_pv: 0.3, unidade_principal_estoque: "KG" };
 const FORMULACAO = { id: "f-1", nome: "SAL MINERAL 80", tipo: "PRONTO", produto_id: "prod-1", produto_nome: "SAL MINERAL", produto_ativo: true, percentual_pv_padrao: 0.1, consumo_objetivo_g_cab_dia: null, regras: [] };
 const DEPOSITO = { id: "dep-1", empresa_id: "emp-1", nome_ponto: "DEPÓSITO", categoria_ponto: "DEPOSITO", local_estoque_id: "loc-1", local_estoque_nome: "ARMAZÉM" };
@@ -131,7 +131,7 @@ describe("D-PROD-201 — rebanho e peso do lançamento", () => {
     // 400 kg × 0,1% × 50 cab = 20 kg/dia (a média dos com peso vale para todas as cabeças).
     expect(evento.consumo_esperado_pv_kg).toBeCloseTo(20, 6);
     expect(lotes.map((l) => [l.lote_id, l.peso_medio_lote_kg])).toEqual([["pa", 400], ["pb", null]]);
-    // D-PROD-202: o %PV é o da formulação (0,1), não o do produto (0,3); a média vale também para o lote sem peso.
+    // D-PROD-203: o %PV é o da formulação (0,1), não o do produto (0,3); a média vale também para o lote sem peso.
     expect(evento.percentual_consumo_pv_usado).toBe(0.1);
     expect([evento.formulacao_id, evento.formulacao_nome, evento.formulacao_tipo, evento.produto, evento.produto_id]).toEqual(["f-1", "SAL MINERAL 80", "PRONTO", "SAL MINERAL", "prod-1"]);
     expect(evento.cabecas_nao_consomem).toBe(0);
@@ -234,7 +234,7 @@ describe("D-PROD-201 — funções puras", () => {
   });
 });
 
-describe("D-PROD-202 — formulação obrigatória no lançamento", () => {
+describe("D-PROD-203 — formulação obrigatória no lançamento", () => {
   it("SF-1 — sem formulação ativa: aviso com o caminho para Formulações, botão travado e nada gravado", async () => {
     estado.formulacoes = [];
     await montar();

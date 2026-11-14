@@ -149,7 +149,7 @@ export const API_ERROR_CODES = Object.freeze({
   CURVA_GANHO_NAME_CONFLICT: 'CURVA_GANHO_NAME_CONFLICT',
   // D-PROD-195 — curva ligada a categoria de manejo não se exclui (details.categorias = quantas).
   CURVA_GANHO_EM_USO: 'CURVA_GANHO_EM_USO',
-  // D-PROD-202 — Formulações de suplemento (details.lancamentos no EM_USO).
+  // D-PROD-203 — Formulações de suplemento (details.lancamentos no EM_USO).
   FORMULACAO_NOT_FOUND: 'FORMULACAO_NOT_FOUND',
   FORMULACAO_NAME_CONFLICT: 'FORMULACAO_NAME_CONFLICT',
   FORMULACAO_EM_USO: 'FORMULACAO_EM_USO',

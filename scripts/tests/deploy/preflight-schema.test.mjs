@@ -37,7 +37,7 @@ const COLUNAS_OK = [
   // D-PROD-200: a atividade (cabeçalho) e o apontamento do dia.
   { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
   { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
-  // D-PROD-202: as 3 tabelas das Formulações.
+  // D-PROD-203: as 3 tabelas das Formulações.
   { table_name: 'CADFORMULACAO', column_name: 'percentual_pv_padrao' },
   { table_name: 'CADFORMULACAOINGREDIENTE', column_name: 'quantidade_kg' },
   { table_name: 'CADFORMULACAOREGRA', column_name: 'consome' },

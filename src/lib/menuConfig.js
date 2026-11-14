@@ -26,7 +26,7 @@ export const DEFAULT_MENU = [
       { id: "pec-estacoes", title: "Estações", url: "Estacoes" },
       // D-PROD-189 — Curvas de Ganho de Peso (tabela CADCURVAGANHO).
       { id: "pec-curvas-ganho", title: "Curvas de Ganho", url: "CurvasGanho" },
-      // D-PROD-202 — Formulações de suplemento (produto pronto ou batelada; tabela CADFORMULACAO).
+      // D-PROD-203 — Formulações de suplemento (produto pronto ou batelada; tabela CADFORMULACAO).
       { id: "pec-formulacoes", title: "Formulações", url: "Formulacoes" },
       { id: "pec-bebedouros", title: "Bebedouros", url: "Bebedouros" },
     ],

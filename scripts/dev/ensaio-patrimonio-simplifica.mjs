@@ -92,11 +92,11 @@ export const DECISAO = 'D-PROD-162';
  */
 export const NOME_ATIVIDADE_CABECALHO = '20261114500000_atividade_cabecalho';
 /**
- * D-PROD-202 — a EXPAND das Formulações (3 tabelas novas) é de uma release muito posterior a esta CONTRACT: no dia
+ * D-PROD-203 — a EXPAND das Formulações (3 tabelas novas) é de uma release muito posterior a esta CONTRACT: no dia
  * dela não existia. Fica fora da partida e sobe por último no GREEN, pela ordem dos nomes; as 3 tabelas ficam fora
  * da impressão digital das que FICAM, como as da D-PROD-200.
  */
-export const NOME_FORMULACOES = '20261114600000_cadformulacao';
+export const NOME_FORMULACOES = '20261114700000_cadformulacao';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_FORMULACOES]);
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFORMULACAOREGRA']);

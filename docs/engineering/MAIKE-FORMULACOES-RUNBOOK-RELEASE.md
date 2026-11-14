@@ -1,4 +1,4 @@
-# MAIKE — Formulações de suplemento: runbook de release expand-only (D-PROD-202)
+# MAIKE — Formulações de suplemento: runbook de release expand-only (D-PROD-203)
 
 > **Estado: NÃO EXECUTADO. `SCHEMA_APPLIED_PROD: NÃO`.**
 >
@@ -6,7 +6,7 @@
 > primeiro desvio com **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos
 > na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-202](./DECISIONS.md) · Relatório:
+Decisão: [D-PROD-203](./DECISIONS.md) · Relatório:
 [`MAIKE-FORMULACOES-REPORT.md`](./MAIKE-FORMULACOES-REPORT.md).
 Precedentes executados: [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md)
 (EXPAND só com tabela nova) e [`MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md`](./MAIKE-PESO-PROJETADO-RUNBOOK-RELEASE.md) §7
@@ -17,7 +17,7 @@ Precedentes executados: [`MAIKE-CADCURVAGANHO-RUNBOOK-RELEASE.md`](./MAIKE-CADCU
 
 | Item | Valor |
 |---|---|
-| Migration | `20261114600000_cadformulacao` |
+| Migration | `20261114700000_cadformulacao` |
 | Natureza | **expand-only**: 3 tabelas NOVAS — `CADFORMULACAO`, `CADFORMULACAOINGREDIENTE` e `CADFORMULACAOREGRA` — com índices, FKs compostas pelo tenant (para Cliente, Empresa, Produto, `CADCATEGORIA` e entre elas), 5 CHECKs e o bloco RLS/REVOKE delas. Nenhuma tabela existente é alterada, nenhum dado migrado, nenhum `UPDATE` |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `b04af24e7e13859c210fa6d93193be060fac3ea2f2fa90cc99f41d0ed028bfd6` (mesmo corpo de sempre, lista nova) |
@@ -84,7 +84,7 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261114600000_cadformulacao') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261114700000_cadformulacao') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
@@ -105,7 +105,7 @@ END $guarda$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, '96f3f3641815960335ddd5321896258a4114a42f62f46448ae53a35907784524', now(),
-        '20261114600000_cadformulacao', NULL, NULL, now(), 1);
+        '20261114700000_cadformulacao', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -125,7 +125,7 @@ disse "Database schema is up to date!", o `migrate diff` contra o
 
 ```sql
 SELECT migration_name, checksum, rolled_back_at, applied_steps_count FROM _prisma_migrations
- WHERE migration_name = '20261114600000_cadformulacao';  -- 1 linha, checksum pinado, null, 1
+ WHERE migration_name = '20261114700000_cadformulacao';  -- 1 linha, checksum pinado, null, 1
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL) FROM _prisma_migrations;  -- 54, 0
 SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class

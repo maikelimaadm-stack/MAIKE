@@ -20,7 +20,7 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 87 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das Formulações, D-PROD-202), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 87 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das Formulações, D-PROD-203), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
@@ -75,7 +75,7 @@ DECLARE
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
-    -- D-PROD-202: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
+    -- D-PROD-203: as formulações de suplemento — regras e ingredientes (filhas) antes da formulação, e as três antes
     -- de CADCATEGORIA, Produto e Empresa, que elas referenciam (FKs RESTRICT).
     'CADFORMULACAOREGRA','CADFORMULACAOINGREDIENTE','CADFORMULACAO',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',

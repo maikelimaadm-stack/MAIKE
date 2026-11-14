@@ -469,7 +469,7 @@ export const curvaGanhoEmUso = (categorias, options) =>
     { ...options, details: { ...(options?.details ?? {}), categorias } }
   );
 
-// D-PROD-202 — Formulações de suplemento da fazenda (tabela CADFORMULACAO).
+// D-PROD-203 — Formulações de suplemento da fazenda (tabela CADFORMULACAO).
 export const formulacaoNotFound = (message, options) =>
   new AppError('FORMULACAO_NOT_FOUND', message || 'formulação não encontrada', options);
 
@@ -477,7 +477,7 @@ export const formulacaoNomeConflito = (message, options) =>
   new AppError('FORMULACAO_NAME_CONFLICT', message || 'já existe formulação com este nome nesta fazenda', options);
 
 /**
- * D-PROD-202 — excluir formulação já usada em lançamento de suplementação: 409
+ * D-PROD-203 — excluir formulação já usada em lançamento de suplementação: 409
  * com a contagem; a saída é inativar (o histórico continua apontando para ela).
  * @param {number} lancamentos
  */

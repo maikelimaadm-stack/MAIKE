@@ -32,7 +32,7 @@ import { useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 const QUERY_RAIZ = "formulacoes";
 
 /**
- * Cadastro de Formulações de suplemento da fazenda (D-PROD-202, etapa 2a da
+ * Cadastro de Formulações de suplemento da fazenda (D-PROD-203, etapa 2a da
  * suplementação), tabelas CADFORMULACAO, CADFORMULACAOINGREDIENTE e
  * CADFORMULACAOREGRA.
  *
