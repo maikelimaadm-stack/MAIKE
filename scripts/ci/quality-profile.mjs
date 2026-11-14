@@ -60,7 +60,7 @@ export const DOCS_ACOPLADOS = Object.freeze([
   'docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md',
   // backend/tests/atividadeCabecalhoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-200)
   'docs/engineering/MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeLinhasMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-201)
+  // backend/tests/atividadeLinhasMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-202)
   'docs/engineering/MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md',
 ]);
 

@@ -102,7 +102,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   const q = useValorAtrasado(busca.trim(), ESPERA_BUSCA_MS);
   const [natureza, setNatureza] = useState("TODAS");
   const [novo, setNovo] = useState(false);
-  // D-PROD-201: a edição na linha também troca o teto de salto do medidor (tipos de máquina, veículo e equipamento).
+  // D-PROD-202: a edição na linha também troca o teto de salto do medidor (tipos de máquina, veículo e equipamento).
   const [renomeando, setRenomeando] = useState(/** @type {{ id: string, nome: string, salto: string } | null} */ (null));
   const [erroRenomear, setErroRenomear] = useState(/** @type {string|null} */ (null));
   const [emUso, setEmUso] = useState(/** @type {Record<string, string>} */ ({}));

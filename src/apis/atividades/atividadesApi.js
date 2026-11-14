@@ -320,7 +320,7 @@ export const listOpcoesAtividade = async (recurso, filtros) => {
   return { itens, has_more: Boolean(o.has_more === true && proximo), next_cursor: proximo };
 };
 
-// ─── Linhas de produto e de máquina e totais (D-PROD-201, Fatia 3) ──────
+// ─── Linhas de produto e de máquina e totais (D-PROD-202, Fatia 3) ──────
 
 /** Tipos de linha do apontamento (o segmento da rota). */
 export const TIPOS_LINHA_ATIVIDADE = Object.freeze(['produtos', 'maquinas']);

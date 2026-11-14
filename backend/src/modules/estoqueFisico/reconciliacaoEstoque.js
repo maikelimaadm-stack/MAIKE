@@ -13,7 +13,7 @@
  *              todos os status: o estorno compensa) e nunca negativo;
  *  I3 lote     0 ≤ disponível ≤ entrada; situação coerente com o saldo; consumo
  *              observado (entrada − disponível) = consumo explicado pelas
- *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-201,
+ *              fatias FK (financeiro ativo, abastecimento CONFIRMADO e, D-PROD-202,
  *              linha de produto CONFIRMADO do apontamento da atividade), pelo
  *              `lotes_consumidos` das Saídas de suplementação/transferência,
  *              pelo `rateio` do recibo legado (só quando o movimento NÃO tem
@@ -138,7 +138,7 @@ export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIM
 const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /**
  * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
- * D-PROD-201, `AtividadeApontamentoProdutoConsumoLote`, a linha de produto do apontamento da atividade).
+ * D-PROD-202, `AtividadeApontamentoProdutoConsumoLote`, a linha de produto do apontamento da atividade).
  */
 const ORIGENS_COM_FK = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO]);
 /** Escritores genéricos antigos (POST de movimento, reversão pelo navegador). */
@@ -443,7 +443,7 @@ const lerLocais = (tx, cli, f, faixa) => tx.$queryRaw`WITH lot AS (
     ORDER BY 2, 1, 3`;
 
 /**
- * D-PROD-201 (Fatia 3 do Lançamento de Atividades; antes D-PROD-193, I-y, I-z; lição do hotfix #259) — fatias FK
+ * D-PROD-202 (Fatia 3 do Lançamento de Atividades; antes D-PROD-193, I-y, I-z; lição do hotfix #259) — fatias FK
  * das linhas de PRODUTO do apontamento da atividade (`AtividadeApontamentoProduto` e
  * `AtividadeApontamentoProdutoConsumoLote`). O código pode subir antes da migration das duas tabelas
  * (`20261114600000_atividade_linhas_produto_maquina`, EXPAND): sem elas (`comItens` falso, lido do catálogo por
@@ -1113,7 +1113,7 @@ export const lerReconciliacao = async (tx, cli, filtro = {}, orcamento = undefin
   const o = normalizarOrcamento(orcamento);
   // `statement_timeout` (< 20 s da transação): uma consulta nunca sobrevive à transação que o Prisma já
   // abandonou (medido no código anterior: plano genérico rodando 8 min 50 s depois do timeout de 20 s).
-  // D-PROD-201 (antes D-PROD-193, I-z): a MESMA 2ª instrução lê do catálogo se as tabelas das linhas de produto do
+  // D-PROD-202 (antes D-PROD-193, I-z): a MESMA 2ª instrução lê do catálogo se as tabelas das linhas de produto do
   // apontamento da atividade já existem (`to_regclass` nunca falha): nenhuma ida a mais ao banco.
   const [config] = /** @type {Array<{ com_itens_apontamento: boolean }>} */ (await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true), set_config('jit', 'off', true),
     set_config('statement_timeout', ${`${o.instrucaoMs}ms`}, true),

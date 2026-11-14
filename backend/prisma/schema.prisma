@@ -132,7 +132,7 @@ model Cliente {
   // D-PROD-200 — Lançamento de Atividades: a atividade (cabeçalho) e os apontamentos (dia/turno).
   atividades                   Atividade[]
   atividadeApontamentos        AtividadeApontamento[]
-  // D-PROD-201 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
+  // D-PROD-202 — linhas de produto (com fatias FIFO) e de máquina do apontamento.
   atividadeApontamentoProdutos      AtividadeApontamentoProduto[]
   atividadeApontamentoProdutoLotes  AtividadeApontamentoProdutoConsumoLote[]
   atividadeApontamentoMaquinas      AtividadeApontamentoMaquina[]
@@ -203,7 +203,7 @@ model Usuario {
   atividadeApontamentosOperados   AtividadeApontamento[]        @relation("AtividadeApontamentoOperador")
   atividadeApontamentosCriados    AtividadeApontamento[]        @relation("AtividadeApontamentoCriadoPor")
   atividadeApontamentosCancelados AtividadeApontamento[]        @relation("AtividadeApontamentoCanceladoPor")
-  // D-PROD-201 — autores das linhas do apontamento.
+  // D-PROD-202 — autores das linhas do apontamento.
   atividadeProdutosCriados    AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCriadoPor")
   atividadeProdutosCancelados AtividadeApontamentoProduto[] @relation("AtividadeApontamentoProdutoCanceladoPor")
   atividadeMaquinasCriadas    AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaCriadoPor")
@@ -987,7 +987,7 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-201 — linhas de produto que baixaram estoque deste local.
+  // D-PROD-202 — linhas de produto que baixaram estoque deste local.
   atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_local])
@@ -1034,7 +1034,7 @@ model Produto {
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
-  // D-PROD-201 — linhas de produto do lançamento de atividades.
+  // D-PROD-202 — linhas de produto do lançamento de atividades.
   atividadeApontamentoProdutos AtividadeApontamentoProduto[]
 
   @@unique([cliente_id, numero_produto])
@@ -1396,7 +1396,7 @@ model EstoqueLoteNota {
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
-  // D-PROD-201 — fatias FIFO consumidas por linha de produto de atividade.
+  // D-PROD-202 — fatias FIFO consumidas por linha de produto de atividade.
   consumosAtividadeProduto AtividadeApontamentoProdutoConsumoLote[] @relation("AtividadeApontamentoProdutoConsumoDoLote")
 
   @@unique([cliente_id, id])
@@ -1476,7 +1476,7 @@ model MovimentacaoEstoque {
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
   abastecimentoBemEstorno AbastecimentoBem? @relation("AbastecimentoBemEstorno")
-  // D-PROD-201 — linha de produto de atividade que gerou / estornou este movimento.
+  // D-PROD-202 — linha de produto de atividade que gerou / estornou este movimento.
   atividadeApontamentoProduto        AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoMovimento")
   atividadeApontamentoProdutoEstorno AtividadeApontamentoProduto? @relation("AtividadeApontamentoProdutoEstorno")
 
@@ -2614,7 +2614,7 @@ model TipoPatrimonial {
   nome                     String   @db.VarChar(120)
   descricao                String?  @db.VarChar(500)
   vida_util_meses_sugerida Int?
-  /// D-PROD-201 — teto do salto do medidor por lançamento (acima dele a linha de máquina pede justificativa).
+  /// D-PROD-202 — teto do salto do medidor por lançamento (acima dele a linha de máquina pede justificativa).
   salto_maximo_medidor     Decimal?  @db.Decimal(14, 4)
   ativo                    Boolean  @default(true)
   versao                   Int      @default(1)
@@ -2681,7 +2681,7 @@ model BemPatrimonial {
   data_disponibilidade     DateTime? @db.Date
   valor_aquisicao          Decimal?  @db.Decimal(18, 4)
   custo_incorporacao       Decimal?  @db.Decimal(18, 4)
-  /// D-PROD-201 — custo por hora ou km de uso (snapshot na linha de máquina da atividade).
+  /// D-PROD-202 — custo por hora ou km de uso (snapshot na linha de máquina da atividade).
   custo_uso_unitario       Decimal?  @db.Decimal(14, 4)
   fornecedor_parceiro_id   String?   @db.VarChar(64)
   documento_referencia     String?   @db.VarChar(80)
@@ -2712,7 +2712,7 @@ model BemPatrimonial {
   abastecimentos AbastecimentoBem[]
   // D-PROD-200 — atividades (cabeçalho) que têm este bem como máquina.
   atividades     Atividade[]    @relation("AtividadeBem")
-  // D-PROD-201 — linhas de máquina (como máquina e como implemento).
+  // D-PROD-202 — linhas de máquina (como máquina e como implemento).
   atividadeMaquinas           AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaBem")
   atividadeMaquinasImplemento AtividadeApontamentoMaquina[] @relation("AtividadeApontamentoMaquinaImplemento")
 
@@ -3017,7 +3017,7 @@ model AtividadeApontamento {
   operador     Usuario?  @relation("AtividadeApontamentoOperador", fields: [cliente_id, operador_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_operador_fkey")
   criadoPor    Usuario?  @relation("AtividadeApontamentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_criado_por_fkey")
   canceladoPor Usuario?  @relation("AtividadeApontamentoCanceladoPor", fields: [cliente_id, cancelado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeApontamento_cancelado_por_fkey")
-  // D-PROD-201 — linhas de produto e de máquina (inclui as canceladas: histórico).
+  // D-PROD-202 — linhas de produto e de máquina (inclui as canceladas: histórico).
   produtos     AtividadeApontamentoProduto[]
   maquinas     AtividadeApontamentoMaquina[]
 
@@ -3028,7 +3028,7 @@ model AtividadeApontamento {
   @@index([cliente_id, operador_usuario_id])
 }
 
-/// D-PROD-201 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,
+/// D-PROD-202 (Fatia 3) — LINHA DE PRODUTO do apontamento: baixa FÍSICA pelo motor único de estoque (FIFO por lote,
 /// custo FIFO, estorno exato), como o abastecimento. Imutável: editar = estornar a linha (cancelamento_origem EDICAO) e
 /// lançar outra na mesma transação; cancelar = estorno exato. `unidade` é a unidade EFETIVA do estoque do produto
 /// (L | KG; SACO guarda kg), sem conversão. `dose_ha` = quantidade / área do dia (só leitura).
@@ -3083,7 +3083,7 @@ model AtividadeApontamentoProduto {
   @@index([cliente_id, local_estoque_id])
 }
 
-/// D-PROD-201 — fatia FIFO consumida pela linha de produto (de qual lote, quanto, a que custo). O estorno devolve cada
+/// D-PROD-202 — fatia FIFO consumida pela linha de produto (de qual lote, quanto, a que custo). O estorno devolve cada
 /// fatia ao SEU lote. O histórico fica.
 model AtividadeApontamentoProdutoConsumoLote {
   id                   String   @id @default(cuid())
@@ -3107,7 +3107,7 @@ model AtividadeApontamentoProdutoConsumoLote {
   @@index([cliente_id, estoque_lote_nota_id], map: "AtividadeApontamentoProdutoConsumoLote_lote_idx")
 }
 
-/// D-PROD-201 — LINHA DE MÁQUINA do apontamento. `medidor_tipo`/`medidor_unidade` são snapshot do bem (nunca do
+/// D-PROD-202 — LINHA DE MÁQUINA do apontamento. `medidor_tipo`/`medidor_unidade` são snapshot do bem (nunca do
 /// usuário). A leitura vive AQUI (como no abastecimento): a leitura vigente do bem passa a considerar as linhas
 /// confirmadas; nada é gravado em BemPatrimonial. `sem_medidor`: horas/km informados direto, sem leitura.
 model AtividadeApontamentoMaquina {

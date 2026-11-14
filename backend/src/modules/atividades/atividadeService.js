@@ -441,7 +441,7 @@ export const obter = async (contexto, id, query = {}) => {
 };
 
 /**
- * D-PROD-201 — `GET /atividades/:id/totais` (contrato das linhas §4): o
+ * D-PROD-202 — `GET /atividades/:id/totais` (contrato das linhas §4): o
  * totalizador do cabeçalho, numa leitura consistente (RepeatableRead, sem
  * trava). Soma só as linhas CONFIRMADO de apontamentos CONFIRMADO:
  * `{ area_executada, area_planejada, unidade_area: 'ha',
@@ -787,7 +787,7 @@ export const reabrir = async (contexto, id, corpo) => {
  * CANCELAR (`POST /atividades/:id/cancelar`): ABERTA → CANCELADA com motivo,
  * quem e quando. Na MESMA transação, sob a trava da atividade, os apontamentos
  * CONFIRMADO são cancelados com o mesmo motivo, instante e usuário e os totais
- * recalculados (`atividadeApontamentoService.js`). D-PROD-201: ali também as
+ * recalculados (`atividadeApontamentoService.js`). D-PROD-202: ali também as
  * linhas de máquina são canceladas e as de produto estornadas (estoque e lotes
  * voltam exatos, no "hoje" da fazenda). O cabeçalho é gravado por último (CAS).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo
@@ -806,7 +806,7 @@ export const cancelar = async (contexto, id, corpo) => {
       const anterior = await travarELer(tx, cli, empresaId, id, 'cancelar', versao);
       const usuarioId = auth.usuarioId ?? null;
       // Os filhos antes do cabeçalho: o serviço do apontamento cancela com a atividade ainda ABERTA (e travada).
-      // D-PROD-201: as linhas dos apontamentos caem junto (máquina cancelada; produto estornado exatamente, num
+      // D-PROD-202: as linhas dos apontamentos caem junto (máquina cancelada; produto estornado exatamente, num
       // `estornarEmLote` só, no dia de hoje da fazenda), com o mesmo motivo e a origem ATIVIDADE.
       const apontamentosCancelados = await cancelarApontamentosDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: id, usuarioId, motivo, agora, hoje, contexto });
       // Idempotente: "totais = soma dos CONFIRMADO" vale mesmo sem nenhum apontamento cancelado aqui,

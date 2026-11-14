@@ -67,7 +67,7 @@ export const CAMPOS_ESCALARES_BEM = Object.freeze([
   'placa_uf',
   'renavam',
   'potencia_cv',
-  // D-PROD-201: custo por hora ou km de uso (snapshot na linha de máquina da atividade).
+  // D-PROD-202: custo por hora ou km de uso (snapshot na linha de máquina da atividade).
   'custo_uso_unitario',
   'material',
   'ano_conclusao',

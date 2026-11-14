@@ -283,7 +283,7 @@ export const duplicarApontamento = async (atividadeId, apontamentoId, dados = {}
     ...soOsInformados(comoObjeto(dados), ['data_operacional']),
   });
 
-// ─── Linhas de produto e de máquina (D-PROD-201, Fatia 3) ───────────────
+// ─── Linhas de produto e de máquina (D-PROD-202, Fatia 3) ───────────────
 
 /**
  * Pendência de `operation_id` das linhas (precedente D-PROD-193): adicionar, editar e cancelar linha — e o lançamento

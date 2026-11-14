@@ -21,7 +21,7 @@ export const OPCOES_TIPO_DE_BEM = NATUREZAS_PATRIMONIO.map((n) => ({ value: n, l
  *  - sem ela, o Tipo de bem é escolhido aqui (o "+ Novo tipo" do "Gerenciar
  *    tipos"), começando por `naturezaInicial`.
  * Renomear é na própria lista do "Gerenciar tipos" (PATCH com `versao`).
- * D-PROD-201: tipo de máquina, veículo ou equipamento leva o "Teto de salto do
+ * D-PROD-202: tipo de máquina, veículo ou equipamento leva o "Teto de salto do
  * medidor" (opcional): acima dele, a linha de máquina do Lançamento de
  * Atividades pede justificativa. Vai como texto decimal canônico, ou `null`.
  *

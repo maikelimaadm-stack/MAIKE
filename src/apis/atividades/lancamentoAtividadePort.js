@@ -28,7 +28,7 @@ const CAMINHO = '/atividades';
 const CAMINHO_OPCOES = '/atividades-opcoes';
 
 /**
- * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-201 (Fatia 3): produtos (os já usados na
+ * Seletores próprios da tela (guardados por "ver" da tela). D-PROD-202 (Fatia 3): produtos (os já usados na
  * atividade primeiro), locais com saldo de um produto, implementos e o medidor de um bem (tipo, unidade, leitura
  * vigente e teto do salto).
  */
@@ -78,7 +78,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
   'origem',
 ]);
 
-// ─── Linhas de produto e de máquina do apontamento (D-PROD-201, Fatia 3) ─
+// ─── Linhas de produto e de máquina do apontamento (D-PROD-202, Fatia 3) ─
 
 /**
  * Linha de PRODUTO: produto, local de onde sai e a quantidade na unidade do estoque do produto. A unidade, o custo

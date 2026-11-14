@@ -1,6 +1,6 @@
 /**
  * Regras puras das LINHAS do apontamento — produto e máquina — e do
- * totalizador da atividade (D-PROD-201, Fatia 3). Contrato:
+ * totalizador da atividade (D-PROD-202, Fatia 3). Contrato:
  * docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md (§2 a §5).
  *
  * Quem decide é o servidor; aqui ficam o estado das janelas, a validação

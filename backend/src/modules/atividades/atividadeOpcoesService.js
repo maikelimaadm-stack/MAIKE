@@ -14,7 +14,7 @@
  * Tipos, áreas e tarefas reusam as rotas que já existem e só pedem login
  * (`/tipos-atividade`, `/areas-pastagem`, `/lancamentos-tarefa`).
  *
- * D-PROD-201 (Fatia 3): os seletores da LINHA DE PRODUTO — produtos (os já
+ * D-PROD-202 (Fatia 3): os seletores da LINHA DE PRODUTO — produtos (os já
  * usados na atividade primeiro) e locais com saldo —, com a lógica dos
  * seletores do financeiro e do abastecimento, mas com a guarda "ver" desta tela.
  */
@@ -50,7 +50,7 @@ export const opcoesBens = async (contexto, query = {}) => {
  */
 export const opcoesOperadores = opcoesResponsaveis;
 
-// ─── D-PROD-201: seletores da linha de produto ──────────────────────────────
+// ─── D-PROD-202: seletores da linha de produto ──────────────────────────────
 
 /** Ordem estável por texto (o mesmo comparador dos seletores do abastecimento). */
 const comparar = (/** @type {string} */ a, /** @type {string} */ b) => (a < b ? -1 : a > b ? 1 : 0);

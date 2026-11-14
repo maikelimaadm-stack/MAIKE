@@ -44,7 +44,7 @@ const INTEIRO_NULO = (minimo, maximo) => ({ type: ['integer', 'null'], minimum: 
 const ENUM = (lista) => ({ type: 'string', enum: [...lista] });
 const VERSAO = { type: 'integer', minimum: 1 };
 const VIDA_UTIL = INTEIRO_NULO(1, 1200);
-/** D-PROD-201: teto do salto do medidor, texto decimal ≥ 0 (até 10 dígitos e 4 casas), ou null. */
+/** D-PROD-202: teto do salto do medidor, texto decimal ≥ 0 (até 10 dígitos e 4 casas), ou null. */
 const SALTO_MAXIMO = { type: ['string', 'null'], pattern: PADRAO_MEDIDA.source };
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 
@@ -106,7 +106,7 @@ const consulta = (request) => /** @type {any} */ (request.query);
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
-  // D-PROD-201: o teto do salto é decimal em TEXTO; número → 400 antes da coerção do AJV (o float corromperia o valor).
+  // D-PROD-202: o teto do salto é decimal em TEXTO; número → 400 antes da coerção do AJV (o float corromperia o valor).
   app.addHook('preValidation', async (request) => {
     const c = /** @type {any} */ (request.body);
     if (!c || typeof c !== 'object' || Array.isArray(c) || !Object.prototype.hasOwnProperty.call(c, 'salto_maximo_medidor')) return;

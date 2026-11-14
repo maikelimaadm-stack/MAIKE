@@ -36,7 +36,7 @@ export const PADRAO_CODIGO_CATALOGO = /^[A-Z0-9_]{2,32}$/;
 /** Campos aceitos na criação e na edição do tipo (D-PROD-169: `natureza` no lugar de `familia_id`). */
 const CAMPOS = Object.freeze({
   tipos: Object.freeze({
-    // D-PROD-201: `salto_maximo_medidor` = teto do salto do medidor por lançamento (texto decimal; null limpa).
+    // D-PROD-202: `salto_maximo_medidor` = teto do salto do medidor por lançamento (texto decimal; null limpa).
     criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor']),
     edicao: Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor']),
   }),

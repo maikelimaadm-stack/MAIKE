@@ -6,7 +6,7 @@
  *    filtros `status`, `tipo_atividade_id`, `area_id`, `data_de`/`data_ate`
  *    (sobre `data_inicio`) e `q` (número e nome)
  *  - `GET   /atividades/:id` (ver) — detalhe com os resumos e os `totais`
- *  - `GET   /atividades/:id/totais` (ver) — D-PROD-201: o totalizador das linhas
+ *  - `GET   /atividades/:id/totais` (ver) — D-PROD-202: o totalizador das linhas
  *    (produtos, máquinas, custo e custo/ha)
  *  - `POST  /atividades` (criar) — abrir; 201
  *  - `POST  /atividades/:id/duplicar` (criar) — abertura nova a partir desta; 201
@@ -175,7 +175,7 @@ export const registrarAtividadeRoutes = async (app) => {
 
   app.get('/atividades', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), consulta(request)));
   app.get('/atividades/:id', { ...autenticado, preHandler: [g.ver], schema: DETALHE }, async (request) => obter(ctx(request), idDe(request), consulta(request)));
-  // D-PROD-201: o totalizador (área executada/planejada, produtos, máquinas, custo e custo/ha).
+  // D-PROD-202: o totalizador (área executada/planejada, produtos, máquinas, custo e custo/ha).
   app.get('/atividades/:id/totais', { ...autenticado, preHandler: [g.ver], schema: DETALHE }, async (request) =>
     obterTotais(ctx(request), idDe(request), consulta(request)));
   app.post('/atividades', { ...autenticado, preHandler: [g.criar], schema: CRIAR }, async (request, reply) =>

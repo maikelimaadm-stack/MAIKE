@@ -1,5 +1,5 @@
 /**
- * D-PROD-201 (Fatia 3 do Lançamento de Atividades) — a LINHA DE PRODUTO do
+ * D-PROD-202 (Fatia 3 do Lançamento de Atividades) — a LINHA DE PRODUTO do
  * apontamento, contra PostgreSQL real e HTTP autenticado (`app.inject`).
  * Contrato: docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md (§2, §4, §7).
  *

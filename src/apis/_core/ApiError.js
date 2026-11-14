@@ -140,7 +140,7 @@ export const API_ERROR_CODES = Object.freeze({
   ATIVIDADE_MOTIVO_INVALIDO: 'ATIVIDADE_MOTIVO_INVALIDO',
   // Exclusão de cadastro (tipo, grupo, área, setor, unidade, tarefa, bem, centro…) barrada por uma atividade.
   ATIVIDADE_VINCULADA: 'ATIVIDADE_VINCULADA',
-  // D-PROD-201 (Fatia 3) — linhas de produto e de máquina do apontamento: linha não encontrada (relê), recusada
+  // D-PROD-202 (Fatia 3) — linhas de produto e de máquina do apontamento: linha não encontrada (relê), recusada
   // (`details.field`/`reason`), salto do medidor que pede justificativa, estorno exato bloqueado (explicação do motor)
   // e data do apontamento travada com linha confirmada.
   ATIVIDADE_LINHA_NOT_FOUND: 'ATIVIDADE_LINHA_NOT_FOUND',

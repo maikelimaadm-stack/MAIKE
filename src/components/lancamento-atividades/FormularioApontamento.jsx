@@ -78,7 +78,7 @@ export const FORMULARIO_APONTAMENTO_ID = "formulario-apontamento-atividade";
  *    ajustar. Nada é gravado antes de salvar: sem ajuste (só a data, ou nem
  *    ela), vai o DUPLICAR do servidor (a cópia fiel da base, sequência nova);
  *    com ajuste, vai um lançamento novo com os dados ajustados. Fatia 3
- *    (D-PROD-201): a base com linhas de produto e de máquina CONFIRMADAS traz
+ *    (D-PROD-202): a base com linhas de produto e de máquina CONFIRMADAS traz
  *    as linhas preenchidas (as leituras sugeridas de novo) e vai UM lançamento
  *    novo com `produtos[]` e `maquinas[]` — tudo numa transação, com o
  *    `operation_id` persistente (sem resposta, "Repetir o mesmo envio" não

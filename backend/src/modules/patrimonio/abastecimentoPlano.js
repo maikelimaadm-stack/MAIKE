@@ -240,7 +240,7 @@ const menorLeitura = (pontos) =>
 /**
  * Série monotônica por data (D4): a leitura `r` na data `d` vale sse
  * r >= toda leitura de ponto com data <= d E r <= toda leitura com data > d.
- * Pontos = cadastro do bem + abastecimentos CONFIRMADOS e, desde a D-PROD-201,
+ * Pontos = cadastro do bem + abastecimentos CONFIRMADOS e, desde a D-PROD-202,
  * linhas de máquina confirmadas do Lançamento de Atividades (vizinhos já lidos;
  * o ponto de uma linha leva `linha_maquina_id` para os detalhes).
  * @param {{ tipo: string|null, leitura: string|null, dia: string, cadastro: any, anterior: any, posterior: any }} a

@@ -119,7 +119,7 @@ const travarLote = async (tx, clienteId, lido, outrosProdutos = []) => {
  * D-PROD-200: o ramo das fatias FIFO de item de apontamento de atividade
  * (D-PROD-193) saiu com as tabelas dos itens, que a migration da Fatia 2 só
  * apaga vazias (o delegate do Prisma deixou de existir).
- * D-PROD-201 (Fatia 3): volta para as fatias FIFO da LINHA DE PRODUTO do
+ * D-PROD-202 (Fatia 3): volta para as fatias FIFO da LINHA DE PRODUTO do
  * apontamento da atividade (`AtividadeApontamentoProdutoConsumoLote`,
  * confirmada ou cancelada: o histórico fica) → 409.
  */

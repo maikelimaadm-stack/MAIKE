@@ -576,7 +576,7 @@ export const recalcularTotaisDaAtividade = async (tx, clienteId, empresaId, ativ
   return somas;
 };
 
-// ─── D-PROD-201 (Fatia 3): linhas de PRODUTO e de MÁQUINA do apontamento ────
+// ─── D-PROD-202 (Fatia 3): linhas de PRODUTO e de MÁQUINA do apontamento ────
 //
 // Contrato `docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`. Peças comuns
 // às duas linhas (`atividadeApontamentoProduto*.js` e

@@ -6,7 +6,7 @@ import { chaveTotais, totaisParaExibir } from "@/lib/atividadeLinhasRegras";
 import { obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
 
 /**
- * Totalizador FIXO no topo da atividade aberta (D-PROD-201, §5): área executada / planejada, o total de cada produto
+ * Totalizador FIXO no topo da atividade aberta (D-PROD-202, §5): área executada / planejada, o total de cada produto
  * (quantidade e custo), as horas ou km de cada máquina (e o custo), o custo acumulado e o custo por hectare. Lê
  * `GET /atividades/:id/totais` (só linhas confirmadas de apontamentos confirmados); toda escrita invalida a chave
  * (`chaveTotais`) e ele se relê. Sem resposta, mostra a área do cabeçalho.

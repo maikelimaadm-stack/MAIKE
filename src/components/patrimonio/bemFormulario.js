@@ -30,7 +30,7 @@ export const LIMITES_BEM = Object.freeze({
 export const LIMITE_TANQUES_ATIVOS = 10;
 
 /**
- * D-PROD-201: tipos de bem que entram como máquina no Lançamento de Atividades
+ * D-PROD-202: tipos de bem que entram como máquina no Lançamento de Atividades
  * e por isso têm "Custo por hora/km" (snapshot na linha de máquina).
  */
 export const NATUREZAS_COM_CUSTO_DE_USO = Object.freeze(['MAQUINA', 'VEICULO', 'EQUIPAMENTO']);

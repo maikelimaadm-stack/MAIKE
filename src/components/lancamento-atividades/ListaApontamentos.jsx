@@ -81,7 +81,7 @@ const textoDoCancelamento = (ap, fuso) => {
  *  - "Editar" com `editarApontamento` e "Cancelar" (motivo obrigatório, no
  *    `DialogoAcao`) com `cancelarApontamento`, só no lançamento CONFIRMADO.
  *
- * Fatia 3 (D-PROD-201): dentro de cada lançamento, os blocos "Produtos" e
+ * Fatia 3 (D-PROD-202): dentro de cada lançamento, os blocos "Produtos" e
  * "Máquinas" (`LinhasDoApontamento`), com as linhas e as janelas de adicionar,
  * editar e cancelar; o bloco Produtos só aparece com `permite_produto` no tipo.
  * "Repetir último lançamento" traz também as linhas do lançamento base.

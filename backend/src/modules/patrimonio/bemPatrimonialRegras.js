@@ -259,7 +259,7 @@ export const escalaresDoCorpo = (entrada) => {
   if (tem('renavam')) saida.renavam = renavamDoCorpo(entrada.renavam);
   if (tem('chassi')) saida.chassi = chassiDoCorpo(entrada.chassi);
   if (tem('potencia_cv')) saida.potencia_cv = potenciaDoCorpo(entrada.potencia_cv);
-  // D-PROD-201: custo por hora ou km de uso (≥ 0; null limpa), snapshot na linha de máquina da atividade.
+  // D-PROD-202: custo por hora ou km de uso (≥ 0; null limpa), snapshot na linha de máquina da atividade.
   if (tem('custo_uso_unitario')) saida.custo_uso_unitario = decimalDoCorpo(entrada.custo_uso_unitario, 'custo_uso_unitario', PADRAO_MEDIDA, CASAS_DAS_COLUNAS.custo_uso_unitario);
   return saida;
 };
@@ -480,7 +480,7 @@ const contador = (tipo, inicial, atual, data, origem) => ({
  * chamado quando uma data de leitura precisa ser conferida.
  *
  * D-PROD-159 (X2): `piso` = maior leitura de abastecimento CONFIRMADO do bem
- * (`{leitura, data, abastecimento_id}`) ou null. D-PROD-201: ou da linha de
+ * (`{leitura, data, abastecimento_id}`) ou null. D-PROD-202: ou da linha de
  * máquina confirmada do Lançamento de Atividades (`origem: 'ATIVIDADE'`,
  * `linha_maquina_id`), a que for maior. Com piso o medidor deixa de ser
  * corrigível (tipo e leitura inicial imutáveis) e o ajuste não pode ficar abaixo
@@ -600,7 +600,7 @@ export const decidirMedidor = async ({ natureza, estado, pedido, criacao, hoje, 
       details: { field: 'medidor.data_leitura', reason: 'data_regressiva', data_leitura: estado.medidor_data_leitura },
     });
   }
-  // D-PROD-201: o piso pode vir de uma linha de máquina do Lançamento de Atividades.
+  // D-PROD-202: o piso pode vir de uma linha de máquina do Lançamento de Atividades.
   const daAtividade = piso?.origem === 'ATIVIDADE';
   const registradaPor = daAtividade ? 'por lançamento de atividade' : 'por abastecimento';
   const referencia = piso

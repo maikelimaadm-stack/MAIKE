@@ -363,7 +363,7 @@ export const mensagemDeErroAtividade = (erro, fallback = 'Não foi possível con
         : `Informe o motivo com pelo menos ${MOTIVO_MINIMO} caracteres. Nada foi alterado.`;
     case 'ATIVIDADE_VINCULADA':
       return 'Não é possível excluir: há atividades ou apontamentos de atividade vinculados a este cadastro. Inative-o em vez de excluir. Nada foi apagado.';
-    // D-PROD-201 (Fatia 3) — linhas de produto e de máquina (a janela da linha detalha em `mensagemDeErroLinha`).
+    // D-PROD-202 (Fatia 3) — linhas de produto e de máquina (a janela da linha detalha em `mensagemDeErroLinha`).
     case 'ATIVIDADE_LINHA_NOT_FOUND':
       return 'Esta linha não foi encontrada neste apontamento. Os lançamentos serão relidos. Nada foi alterado.';
     case 'ATIVIDADE_LINHA_INVALIDA':

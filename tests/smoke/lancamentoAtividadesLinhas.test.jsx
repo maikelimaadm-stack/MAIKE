@@ -1,5 +1,5 @@
 /**
- * Lançamento de Atividades — Fatia 3 (D-PROD-201): as linhas que geram custo,
+ * Lançamento de Atividades — Fatia 3 (D-PROD-202): as linhas que geram custo,
  * produto e máquina, dentro de cada apontamento, o totalizador da atividade e
  * o "Repetir último lançamento" com as linhas. A tela montada de verdade
  * (página, ListaApontamentos, LinhasDoApontamento, janelas, service, API,

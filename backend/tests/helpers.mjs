@@ -125,7 +125,7 @@ export const limparBanco = async () => {
   // e de resultado, unidade, área, setor, tarefa, tipo e grupo de atividade,
   // usuários e empresa (RESTRICT em tudo): apontamentos → atividades, antes de
   // todos eles.
-  // D-PROD-201: as linhas do apontamento (fatias FIFO → linha de produto; linha
+  // D-PROD-202: as linhas do apontamento (fatias FIFO → linha de produto; linha
   // de máquina) referenciam o apontamento, lotes, movimentos, produtos, locais,
   // bens e usuários (RESTRICT): saem antes do apontamento.
   await prisma.atividadeApontamentoProdutoConsumoLote.deleteMany({});

@@ -57,7 +57,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
   ['Atividade', 'unidade_producao_sigla'],
   ['AtividadeApontamento', 'sequencia'],
-  // D-PROD-201 (Fatia 3): as linhas de produto e de máquina do apontamento, o custo de uso do bem e o teto do salto do
+  // D-PROD-202 (Fatia 3): as linhas de produto e de máquina do apontamento, o custo de uso do bem e o teto do salto do
   // medidor; sem a migration EXPAND das linhas, o apontamento novo responde 500.
   ['AtividadeApontamentoProduto', 'movimentacao_estoque_id'],
   ['AtividadeApontamentoProdutoConsumoLote', 'estoque_lote_nota_id'],

@@ -2,7 +2,7 @@
 
 > **fatia 3 · `feat/atividade-itens-produto-maquina` · PR #289**
 >
-> Decisão **D-PROD-201** · contrato [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) ·
+> Decisão **D-PROD-202** · contrato [`MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`](./MAIKE-ATIVIDADE-LINHAS-CONTRATO.md) ·
 > runbook [`MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md`](./MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md)
 
 ## 1. O que é
@@ -44,7 +44,7 @@ hectare. "Repetir último lançamento" traz as linhas do apontamento anterior.
 4. **Limitação conhecida:** no mesmo dia, depois de uma segunda passada (ou de um abastecimento), a primeira passada
    não pode ser corrigida para baixo, porque a regra de data herdada do abastecimento recusa. Nada se corrompe.
    Corrigir pede refazer a série dentro do dia, nas duas pontas; fica para uma fatia futura, se você quiser.
-5. **Constituição:** a nota D-PROD-201 no `00` e no `07` (expansão para as linhas, edição por estorno, custo de uso
+5. **Constituição:** a nota D-PROD-202 no `00` e no `07` (expansão para as linhas, edição por estorno, custo de uso
    como snapshot) foi redigida pelo agente e **vale só com a sua aprovação no merge**.
 
 ## 5. Validação (local; o GitHub Actions roda no push)

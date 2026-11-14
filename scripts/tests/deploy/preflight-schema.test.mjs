@@ -37,7 +37,7 @@ const COLUNAS_OK = [
   // D-PROD-200: a atividade (cabeçalho) e o apontamento do dia.
   { table_name: 'Atividade', column_name: 'unidade_producao_sigla' },
   { table_name: 'AtividadeApontamento', column_name: 'sequencia' },
-  // D-PROD-201: as linhas de produto e de máquina, o custo de uso do bem e o teto do salto do medidor.
+  // D-PROD-202: as linhas de produto e de máquina, o custo de uso do bem e o teto do salto do medidor.
   { table_name: 'AtividadeApontamentoProduto', column_name: 'movimentacao_estoque_id' },
   { table_name: 'AtividadeApontamentoProdutoConsumoLote', column_name: 'estoque_lote_nota_id' },
   { table_name: 'AtividadeApontamentoMaquina', column_name: 'quantidade_uso' },

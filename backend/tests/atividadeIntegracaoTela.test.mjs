@@ -367,7 +367,7 @@ test('recusas do servidor chegam à tela com o código, o campo e a frase certos
   assert.equal((await recusa(S.listarApontamentos(a.id))).code, 'ATIVIDADE_NOT_FOUND');
 });
 
-// ─── D-PROD-201 (Fatia 3): linhas de produto e de máquina pelo caminho da tela ────────────────
+// ─── D-PROD-202 (Fatia 3): linhas de produto e de máquina pelo caminho da tela ────────────────
 
 /**
  * Cenário das linhas: o da Fatia 2 e, na fazenda 1, um tipo que PERMITE produto e implemento, o herbicida em L com

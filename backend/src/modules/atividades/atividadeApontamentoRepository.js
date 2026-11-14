@@ -18,7 +18,7 @@ import { INCLUIR_LINHA_MAQUINA } from './atividadeApontamentoMaquinaRepository.j
 
 /**
  * `include` do apontamento: o resumo ao lado de cada id de usuário da forma
- * pública e, D-PROD-201 (Fatia 3), as linhas de PRODUTO e de MÁQUINA
+ * pública e, D-PROD-202 (Fatia 3), as linhas de PRODUTO e de MÁQUINA
  * (inclusive as canceladas), em ordem de lançamento.
  */
 export const INCLUIR_APONTAMENTO = Object.freeze({
@@ -41,7 +41,7 @@ export const INCLUIR_APONTAMENTO = Object.freeze({
 export const lerAtividadeBase = (db, clienteId, empresaId, id) =>
   db.atividade.findFirst({
     where: { cliente_id: clienteId, empresa_id: empresaId, id },
-    // D-PROD-201: número (documento do movimento de estoque), tipo (as flags das linhas), máquina e fazenda.
+    // D-PROD-202: número (documento do movimento de estoque), tipo (as flags das linhas), máquina e fazenda.
     select: { id: true, empresa_id: true, numero: true, status: true, tipo_atividade_id: true, bem_id: true, data_inicio: true, data_prevista_fim: true },
   });
 
@@ -131,7 +131,7 @@ export const cancelarConfirmadosDaAtividade = async (tx, { clienteId, empresaId,
 };
 
 /**
- * D-PROD-201: ids dos apontamentos CONFIRMADO da atividade (os que o
+ * D-PROD-202: ids dos apontamentos CONFIRMADO da atividade (os que o
  * cancelamento da atividade vai cancelar: as linhas deles são estornadas antes).
  * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} atividadeId
  * @returns {Promise<string[]>}

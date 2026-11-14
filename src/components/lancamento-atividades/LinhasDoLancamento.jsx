@@ -100,7 +100,7 @@ function RascunhoMaquina({ rascunho, ordem, atualizar, onRetirar, onContexto, er
 }
 
 /**
- * As linhas do "Repetir último lançamento" (D-PROD-201, §5): as de produto e de máquina do lançamento base, prontas
+ * As linhas do "Repetir último lançamento" (D-PROD-202, §5): as de produto e de máquina do lançamento base, prontas
  * para o operador só ajustar as quantidades — tudo vai num envio só (o lançamento com `produtos[]` e `maquinas[]`,
  * numa transação no servidor). "Retirar" tira a linha deste envio (a base não muda).
  * @param {{

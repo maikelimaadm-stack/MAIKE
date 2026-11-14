@@ -1200,7 +1200,7 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
       http: Number(m[2]),
     }));
 
-  it("LA-ERRO-1 — paridade: os 14 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-201) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
+  it("LA-ERRO-1 — paridade: os 14 ATIVIDADE_* do servidor (9 da Fatia 2 + 5 das linhas, D-PROD-202) estão no catálogo do cliente e no transporte, com mensagem própria", () => {
     const servidor = codigosDoServidor();
     expect(servidor.map((c) => c.code).sort()).toEqual(
       [
@@ -1213,7 +1213,7 @@ describe("LA-ERRO — recusas ATIVIDADE_* com a mensagem certa (CODIGOS_PRESERVA
         "ATIVIDADE_STATUS_INVALIDO",
         "ATIVIDADE_VERSAO_CONFLITO",
         "ATIVIDADE_VINCULADA",
-        // D-PROD-201 — linhas de produto e de máquina.
+        // D-PROD-202 — linhas de produto e de máquina.
         "ATIVIDADE_LINHA_NOT_FOUND",
         "ATIVIDADE_LINHA_INVALIDA",
         "ATIVIDADE_SALTO_MEDIDOR",
@@ -1390,7 +1390,7 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
     expect(chavesDoCorpo(cabecalho, "DUPLICAR", campos)).toEqual(ordenado(porta.CAMPOS_DE_DUPLICACAO));
 
     const apontamentos = readFileSync("backend/src/modules/atividades/atividadeApontamentoRoutes.js", "utf8");
-    // D-PROD-201: o lançamento e o duplicar aceitam as linhas (`operation_id`, `produtos[]`, `maquinas[]`).
+    // D-PROD-202: o lançamento e o duplicar aceitam as linhas (`operation_id`, `produtos[]`, `maquinas[]`).
     const doDia = { CAMPOS_DO_DIA: chavesDoBloco(apontamentos, "CAMPOS_DO_DIA"), LINHAS_DO_LANCAMENTO: chavesDoBloco(apontamentos, "LINHAS_DO_LANCAMENTO") };
     expect(chavesDoCorpo(apontamentos, "LANCAR", doDia)).toEqual(ordenado(porta.CAMPOS_DE_CRIACAO_APONTAMENTO));
     expect(semEmpresa(chavesDoCorpo(apontamentos, "EDITAR", doDia))).toEqual(ordenado(porta.CAMPOS_DE_EDICAO_APONTAMENTO));

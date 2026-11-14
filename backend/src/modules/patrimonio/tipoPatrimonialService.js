@@ -26,7 +26,7 @@
  *    cadastro do bem (que lê o tipo `FOR SHARE`): nunca sobra bem órfão;
  *  - `familia_id`, `codigo` e `natureza` IMUTÁVEIS (fora do schema do PATCH);
  *  - D-PROD-162: os perfis de medição sugeridos saíram (`perfis` no corpo → 400);
- *  - D-PROD-201: `salto_maximo_medidor` (texto decimal ≥ 0, null limpa) é o teto
+ *  - D-PROD-202: `salto_maximo_medidor` (texto decimal ≥ 0, null limpa) é o teto
  *    do salto do medidor por lançamento: acima dele, a linha de máquina do
  *    Lançamento de Atividades pede justificativa.
  */
@@ -106,7 +106,7 @@ export const paraAuditoria = (r) => ({
 const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'ativo']);
 
 /**
- * D-PROD-201 — teto do salto do medidor: texto decimal (≥ 0, até 10 dígitos e
+ * D-PROD-202 — teto do salto do medidor: texto decimal (≥ 0, até 10 dígitos e
  * 4 casas) → texto com 4 casas; null limpa; ausente → undefined.
  * @param {unknown} v @returns {string|null|undefined}
  */

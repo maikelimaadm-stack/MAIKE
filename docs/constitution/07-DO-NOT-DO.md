@@ -160,7 +160,7 @@ Violação exige **rollback**, não flexibilização da regra.
 > lista fixa ou cadastro novo de unidade (a unidade de produção é `UnidadeMedida`). Texto redigido pelo agente; vale
 > só com a aprovação explícita do proprietário no merge manual (`00-CONSTITUICAO.md` §4).
 
-> **Nota (D-PROD-201):** as linhas de produto do Lançamento de Atividades substituem os itens da D-PROD-193. Continua
+> **Nota (D-PROD-202):** as linhas de produto do Lançamento de Atividades substituem os itens da D-PROD-193. Continua
 > proibido:
 > - baixar fora do motor de estoque, ou por `Produto.estoque_atual -= …`;
 > - gravar o movimento com a origem do abastecimento ou do financeiro;

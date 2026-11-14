@@ -1,5 +1,5 @@
 /**
- * D-PROD-201 (Fatia 3 do Lançamento de Atividades) — repositório da LINHA DE
+ * D-PROD-202 (Fatia 3 do Lançamento de Atividades) — repositório da LINHA DE
  * PRODUTO do apontamento (`AtividadeApontamentoProduto`) e das fatias FIFO que
  * ela consumiu (`AtividadeApontamentoProdutoConsumoLote`). Contrato
  * `docs/engineering/MAIKE-ATIVIDADE-LINHAS-CONTRATO.md` §2.

@@ -118,7 +118,7 @@ const ref = (r) => (r ? { id: r.id, nome: r.nome } : null);
  * aceitos ATIVOS (`produto_ativo` = situação atual do Produto), por nome e id.
  * D-PROD-159: `medidor_operacional` = maior leitura registrada por abastecimento
  * CONFIRMADO (`{leitura, data, abastecimento_id}`) ou null — o abastecimento
- * nunca grava as colunas do medidor do bem. D-PROD-201: ou pela linha de
+ * nunca grava as colunas do medidor do bem. D-PROD-202: ou pela linha de
  * máquina confirmada do Lançamento de Atividades, a que for maior (`{leitura,
  * data, abastecimento_id: null, origem: 'ATIVIDADE', linha_maquina_id}`): a
  * leitura atual do bem reflete as linhas sem gravar o bem. `custo_uso_unitario`

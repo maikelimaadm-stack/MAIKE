@@ -47,7 +47,7 @@
  * Para o serviço do cabeçalho, este módulo exporta `recalcularTotaisDaAtividade`
  * e `cancelarApontamentosDaAtividade` (cancelar a atividade propaga).
  *
- * D-PROD-201 (Fatia 3, contrato `MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`):
+ * D-PROD-202 (Fatia 3, contrato `MAIKE-ATIVIDADE-LINHAS-CONTRATO.md`):
  *  - o apontamento (lista, detalhe e escritas) traz `produtos[]` e `maquinas[]`,
  *    inclusive as linhas canceladas;
  *  - lançar e repetir aceitam `produtos[]` e `maquinas[]`, tudo numa transação
@@ -152,7 +152,7 @@ export const ACOES_AUDITORIA_APONTAMENTO = Object.freeze({
   duplicar: 'atividade_apontamento.duplicar',
 });
 
-/** D-PROD-201 — recibos de idempotência do lançamento e da repetição COM chave (≤ 64). */
+/** D-PROD-202 — recibos de idempotência do lançamento e da repetição COM chave (≤ 64). */
 export const TIPOS_OPERACAO_APONTAMENTO = Object.freeze({
   lancar: 'atividade_apontamento_lancar_v1',
   duplicar: 'atividade_apontamento_duplicar_v1',
@@ -324,7 +324,7 @@ const carregarApontamento = async (db, clienteId, empresaId, atividadeId, id) =>
 
 /**
  * Forma pública do APONTAMENTO (§10 do contrato, nesta ordem): as colunas e,
- * ao lado de cada id de usuário, o resumo `{ id, nome }`; D-PROD-201: no fim,
+ * ao lado de cada id de usuário, o resumo `{ id, nome }`; D-PROD-202: no fim,
  * `produtos[]` e `maquinas[]` (inclusive as canceladas).
  * @param {any} r  registro lido com `INCLUIR_APONTAMENTO`
  */
@@ -349,7 +349,7 @@ export const comoApontamentoPublico = (r) => ({
   criado_por: usuarioPublico(r.criadoPor),
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
-  // D-PROD-201: as linhas que geram custo, inclusive as canceladas, em ordem de lançamento.
+  // D-PROD-202: as linhas que geram custo, inclusive as canceladas, em ordem de lançamento.
   produtos: [...(r.produtos ?? [])].sort(porOrdem).map(comoLinhaProdutoPublica),
   maquinas: [...(r.maquinas ?? [])].sort(porOrdem).map(comoLinhaMaquinaPublica),
 });
@@ -452,7 +452,7 @@ export const recalcularTotaisDaAtividade = (tx, { clienteId, empresaId, atividad
  * motivo (`motivoDoCorpo`) e tirou `agora` (e `hoje`) de `tempoDaFazenda` e
  * `usuarioId` do auth_context.
  *
- * D-PROD-201 (Fatia 3): ANTES do UPDATE, na mesma transação, as linhas dos
+ * D-PROD-202 (Fatia 3): ANTES do UPDATE, na mesma transação, as linhas dos
  * apontamentos cancelados também caem, com o mesmo motivo e a origem
  * `ATIVIDADE` — as de máquina (as leituras saem da série do medidor) e as de
  * produto, estornadas num `estornarEmLote` só (o estoque volta exato, no dia
@@ -480,7 +480,7 @@ export const cancelarApontamentosDaAtividade = async (tx, { clienteId, empresaId
 };
 
 /**
- * D-PROD-201 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
+ * D-PROD-202 — a cascada das LINHAS (cancelar o apontamento ou a atividade):
  * primeiro as de máquina (trava bem → produto, a ordem do abastecimento),
  * depois o estorno exato das de produto. Devolve as contagens.
  * @param {any} tx
@@ -550,7 +550,7 @@ const canonico = (v) => {
 };
 
 /**
- * D-PROD-201 — as linhas do corpo do lançamento/repetição: `produtos[]`
+ * D-PROD-202 — as linhas do corpo do lançamento/repetição: `produtos[]`
  * normalizados (400/422 antes da transação), `maquinas[]` como vieram (o
  * serviço da máquina normaliza) e a chave. Com linha, `operation_id` é
  * obrigatório (até 120: cada linha grava `<operation_id>:p<n>`).
@@ -673,7 +673,7 @@ const gravarNovo = async (tx, contexto, { clienteId, empresaId, atividade, estad
 
 /**
  * `POST /atividades/:id/apontamentos`: lança o apontamento do dia (201), com
- * `produtos[]` e `maquinas[]` opcionais (D-PROD-201: tudo numa transação, com
+ * `produtos[]` e `maquinas[]` opcionais (D-PROD-202: tudo numa transação, com
  * `operation_id`; reenvio igual → 200 com `replay: true`).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {Record<string, any>} corpo
@@ -707,7 +707,7 @@ export const lancarApontamento = async (contexto, atividadeId, corpo) => {
  * lançamento NOVO com turno, operador, área do dia, produção e observação da
  * base, no dia do corpo (padrão hoje na fazenda), com sequência nova e as
  * mesmas validações do lançamento. A origem é a padrão (o corpo não a traz).
- * D-PROD-201: as linhas vêm no corpo (`produtos[]`, `maquinas[]`, a tela as
+ * D-PROD-202: as linhas vêm no corpo (`produtos[]`, `maquinas[]`, a tela as
  * traz preenchidas da base para o operador ajustar), com `operation_id`.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} atividadeId @param {string} apontamentoId @param {Record<string, any>} corpo
@@ -767,7 +767,7 @@ const empresaDaEdicao = async (tx, clienteId, empresaDoCorpo, atividadeId) => {
  * ABERTA. Trocar a data ou o turno refaz a sequência (máx + 1 no grupo novo);
  * a data nova também não pode ser futura; operador trocado tem de estar ativo.
  * `empresa_id` no corpo é opcional (ausente, vale a fazenda da atividade).
- * D-PROD-201: a data não muda com linha de produto ou de máquina CONFIRMADA
+ * D-PROD-202: a data não muda com linha de produto ou de máquina CONFIRMADA
  * (409 `ATIVIDADE_DATA_COM_LINHAS`); trocar a área do dia refaz a `dose_ha`
  * das linhas de produto confirmadas.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
@@ -844,7 +844,7 @@ export const editarApontamento = async (contexto, atividadeId, apontamentoId, co
  * com quem, quando (o "agora" do relógio da fazenda) e motivo; CAS pela
  * `versao`. Só apontamento CONFIRMADO de atividade ABERTA. Os totais do
  * cabeçalho são recalculados (o cancelado sai da soma). `alertas` é sempre `[]`.
- * D-PROD-201: antes do UPDATE, na mesma transação, as linhas confirmadas caem
+ * D-PROD-202: antes do UPDATE, na mesma transação, as linhas confirmadas caem
  * com o mesmo motivo (origem `APONTAMENTO`): as de máquina e as de produto,
  * estornadas exatamente num `estornarEmLote` (o estoque volta, no dia de hoje).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto

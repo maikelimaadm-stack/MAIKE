@@ -162,7 +162,7 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  * status deixam: concluir (com a data), reabrir e cancelar (com motivo) e
  * duplicar.
  *
- * Atividade aberta: o totalizador FIXO no topo (D-PROD-201: área executada /
+ * Atividade aberta: o totalizador FIXO no topo (D-PROD-202: área executada /
  * planejada, total por produto, horas ou km por máquina, custo acumulado e
  * custo/ha, relido depois de toda escrita), o cabeçalho, SÓ LEITURA, com os campos herdados
  * (setor da área; centros e unidade do tipo — nunca digitados) e, logo abaixo,
@@ -273,7 +273,7 @@ export default function LancamentoAtividades() {
   const daEmpresaAtual = (emp) => Boolean(emp) && emp === empresaAtual.current;
 
   const invalidarLista = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
-  /** O totalizador (área, produtos, máquinas, custo) se relê depois de toda escrita (D-PROD-201). */
+  /** O totalizador (área, produtos, máquinas, custo) se relê depois de toda escrita (D-PROD-202). */
   const invalidarTotais = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "totais"] });
   /** @param {string|null|undefined} emp @param {string} id */
   const chaveDetalhe = (emp, id) => [QUERY_RAIZ, "detalhe", emp ?? null, id];

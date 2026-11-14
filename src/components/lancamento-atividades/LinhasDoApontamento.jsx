@@ -57,7 +57,7 @@ const textoDoCancelamento = (l, fuso) => {
  */
 
 /**
- * Linhas que geram custo de UM apontamento (D-PROD-201, Fatia 3): os blocos "Produtos" e "Máquinas", cada um com as
+ * Linhas que geram custo de UM apontamento (D-PROD-202, Fatia 3): os blocos "Produtos" e "Máquinas", cada um com as
  * linhas (as canceladas continuam visíveis, marcadas) e o botão de adicionar. Adicionar, editar e cancelar seguem as
  * ações da tela (`podeLancar`, `podeEditar`, `podeCancelar` — já com a atividade ABERTA e o fuso) e só valem no
  * apontamento CONFIRMADO e na linha CONFIRMADA. Sem `permite_produto` no tipo, o bloco Produtos some (o servidor também

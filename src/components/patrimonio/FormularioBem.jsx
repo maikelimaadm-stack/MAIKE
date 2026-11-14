@@ -38,7 +38,7 @@ import {
 export const FORMULARIO_BEM_ID = "formulario-bem-patrimonial-base1";
 const FORMULARIO_TIPO_RAPIDO_ID = "formulario-tipo-rapido-bem";
 
-/** D-PROD-201: unidade do "Custo por hora/km" pelo medidor do bem (snapshot na linha de máquina da atividade). */
+/** D-PROD-202: unidade do "Custo por hora/km" pelo medidor do bem (snapshot na linha de máquina da atividade). */
 const SUFIXO_DO_CUSTO = /** @type {Record<string, string>} */ ({ HORIMETRO: "R$/h", ODOMETRO: "R$/km", CICLOS: "R$/ciclo" });
 
 /** @typedef {import('./bemFormulario').EstadoBem} EstadoBem */

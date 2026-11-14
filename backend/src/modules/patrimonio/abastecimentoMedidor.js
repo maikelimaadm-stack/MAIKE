@@ -9,7 +9,7 @@
  * (sem importar serviços): é usado pelo bem (piso do ajuste, X2) e pelo
  * abastecimento (vizinhos da leitura nova, leitura vigente).
  *
- * D-PROD-201 (Fatia 3 do Lançamento de Atividades): a série passa a ter
+ * D-PROD-202 (Fatia 3 do Lançamento de Atividades): a série passa a ter
  * também as linhas de MÁQUINA (`AtividadeApontamentoMaquina`) CONFIRMADAS, com
  * leitura (`sem_medidor = false`), de apontamentos CONFIRMADOS, do MESMO tipo
  * de medidor. A linha é um trecho do medidor num dia (`data_operacional` do
@@ -28,7 +28,7 @@ import { dec } from '../financeiro/decimalFinanceiro.js';
 import { comoData, diaDe } from './patrimonioComum.js';
 
 export const ORIGEM_LEITURA_ABASTECIMENTO = 'ABASTECIMENTO';
-/** D-PROD-201 — ponto vindo de uma linha de máquina do Lançamento de Atividades. */
+/** D-PROD-202 — ponto vindo de uma linha de máquina do Lançamento de Atividades. */
 export const ORIGEM_LEITURA_ATIVIDADE = 'ATIVIDADE';
 export const MEDIDORES_CONTADOR = Object.freeze(['HORIMETRO', 'ODOMETRO', 'CICLOS']);
 const CASAS_LEITURA = 4;
@@ -76,7 +76,7 @@ const ondeConfirmadosComLeitura = (clienteId, bemId, medidorTipo, excetoId) => (
   ...(excetoId ? { NOT: { id: excetoId } } : {}),
 });
 
-// ─── D-PROD-201: linhas de máquina do Lançamento de Atividades ─────────────
+// ─── D-PROD-202: linhas de máquina do Lançamento de Atividades ─────────────
 
 /**
  * Ponto de uma linha de máquina: `campo` = `leitura_final` (anterior, piso) ou
@@ -154,7 +154,7 @@ const menorPonto = (a, b) => {
 /**
  * Maior leitura OPERACIONAL do bem, do MESMO tipo de medidor: a maior entre a
  * de abastecimento CONFIRMADO (desempate: data desc, createdAt desc, id desc)
- * e a `leitura_final` de linha de máquina confirmada (D-PROD-201). Sem
+ * e a `leitura_final` de linha de máquina confirmada (D-PROD-202). Sem
  * contador → null. `excetoId` tira um abastecimento; `excetoLinhaMaquinaId`,
  * uma linha.
  * @param {any} db cliente Prisma ou transação
@@ -180,7 +180,7 @@ export const pisoOperacional = async (db, clienteId, bemId, medidorTipo, { excet
 
 /**
  * Vizinhos de `dia` entre os CONFIRMADOS com leitura (abastecimentos e, desde
- * a D-PROD-201, linhas de máquina): anterior = maior leitura com data <= dia
+ * a D-PROD-202, linhas de máquina): anterior = maior leitura com data <= dia
  * (da linha, a final); posterior = menor leitura com data > dia (da linha, a
  * inicial). `excetoLinhaMaquinaId` tira uma linha da conta.
  * @param {any} db @param {string} clienteId @param {string} bemId @param {string} medidorTipo @param {string} dia AAAA-MM-DD

@@ -28,7 +28,7 @@
  * recusa número antes da coerção do AJV. O plugin é registrado em `app.js`
  * pelo módulo do cabeçalho.
  *
- * D-PROD-201 (Fatia 3): lançar e repetir aceitam `produtos[]` (item:
+ * D-PROD-202 (Fatia 3): lançar e repetir aceitam `produtos[]` (item:
  * `ESQUEMA_ITEM_PRODUTO`) e `maquinas[]` (item: `ITEM_LINHA_MAQUINA`), até
  * `LINHAS_NO_LANCAMENTO_MAXIMO` de cada, com `operation_id` (obrigatório quando
  * há linha; até 120). Reenvio igual → 200 com `replay: true`; novo → 201.
@@ -84,7 +84,7 @@ const PARAMS_APONTAMENTO = {
 };
 const SO_EMPRESA = { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } };
 
-/** D-PROD-201 — as linhas do lançamento e da repetição, com a chave única de tudo. */
+/** D-PROD-202 — as linhas do lançamento e da repetição, com a chave única de tudo. */
 const LINHAS_DO_LANCAMENTO = Object.freeze({
   operation_id: { type: 'string', minLength: 8, maxLength: OPERATION_ID_DO_LANCAMENTO_MAXIMO, pattern: PADRAO_OPERATION_ID.source },
   produtos: { type: 'array', maxItems: LINHAS_NO_LANCAMENTO_MAXIMO, items: ESQUEMA_ITEM_PRODUTO },

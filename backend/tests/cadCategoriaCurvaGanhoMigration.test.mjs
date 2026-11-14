@@ -19,7 +19,7 @@
  * (`20261114400000_cadcategoria_peso_objetivo`, CADCATEGORIA.peso_objetivo_kg)
  * fica FORA da partida (FORA_DA_PARTIDA): no dia desta CONTRACT ela ainda não
  * existia; sobe no GREEN, depois desta, pelo runner (EXPAND: não pede
- * autorização); 87 tabelas (com a D-PROD-201, abaixo); e, para 2 clientes, 4 fazendas: três com
+ * autorização); 87 tabelas (com a D-PROD-202, abaixo); e, para 2 clientes, 4 fazendas: três com
  * categorias e com a 'CURVA PADRÃO' (uma delas inativa: a ligação não olha o
  * ativo), uma delas também com outra curva (que a ligação não pode usar), e uma
  * fazenda SEM categoria e SEM a CURVA PADRÃO (permitido: a guarda só olha as
@@ -46,7 +46,7 @@
  *
  * As funções seguem as do teste da D-PROD-194 (`cadCurvaGanhoMensalMigration.test.mjs`).
  *
- * D-PROD-201: a EXPAND `20261114600000_atividade_linhas_produto_maquina` (as 3 tabelas das linhas de produto e de
+ * D-PROD-202: a EXPAND `20261114600000_atividade_linhas_produto_maquina` (as 3 tabelas das linhas de produto e de
  * máquina do apontamento e 2 colunas anuláveis em BemPatrimonial e TipoPatrimonial), de nome POSTERIOR, também sobe
  * na partida, fora de ordem, depois da D-PROD-200 (as linhas referenciam AtividadeApontamento); ela não toca
  * CADCATEGORIA nem CADCURVAGANHO e é EXPAND (não pede autorização): 87 tabelas na partida e no fim.
@@ -84,7 +84,7 @@ const TOTAL_MIGRATIONS = PASTAS.length;
  */
 const NOME_PESO_OBJETIVO = '20261114400000_cadcategoria_peso_objetivo';
 const FORA_DA_PARTIDA = Object.freeze([NOME_PESO_OBJETIVO]);
-/** D-PROD-201: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
+/** D-PROD-202: a EXPAND das linhas de produto e de máquina, de nome posterior, sobe na partida (ver o cabeçalho). */
 const NOME_LINHAS = '20261114600000_atividade_linhas_produto_maquina';
 /** D-PROD-197/D-PROD-200: as CONTRACT de nome POSTERIOR a esta sobem na partida (ver o cabeçalho). */
 const CONTRACTS_POSTERIORES = Object.freeze(PASTAS.filter((n) => n > NOME_CONTRACT && !FORA_DA_PARTIDA.includes(n) && n !== NOME_LINHAS));
@@ -350,10 +350,10 @@ after(async () => {
 });
 
 describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigatória, e da mesma fazenda, na Categoria de Manejo (PostgreSQL real)', () => {
-  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, e a EXPAND posterior da D-PROD-201), 87 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
+  test('CC-01 partida: todas menos esta e a EXPAND da D-PROD-198 (as quatro CONTRACT anteriores concluídas, a D-PROD-197 e a D-PROD-200, posteriores, e a EXPAND posterior da D-PROD-202), 87 tabelas, CADCATEGORIA sem curva_ganho_id, CADCURVAGANHO sem o UNIQUE por fazenda, 5 categorias em 3 fazendas com a CURVA PADRÃO', async () => {
     assert.deepEqual(CONTRACTS_POSTERIORES, ['20261114300000_tipo_atividade_defaults', '20261114500000_atividade_cabecalho'], 'só as CONTRACT da D-PROD-197 e da D-PROD-200 têm nome posterior a esta');
     assert.equal(PASTAS.filter((n) => n < NOME_CONTRACT).length, 49);
-    // D-PROD-198: a EXPAND do peso objetivo fica fora da partida; a EXPAND da D-PROD-201 entra (54 pastas; partida 52).
+    // D-PROD-198: a EXPAND do peso objetivo fica fora da partida; a EXPAND da D-PROD-202 entra (54 pastas; partida 52).
     assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), ['20261114300000_tipo_atividade_defaults', NOME_PESO_OBJETIVO, '20261114500000_atividade_cabecalho', NOME_LINHAS]);
     assert.equal(MIGRATIONS_PARTIDA, 52);
     assert.equal(TOTAL_MIGRATIONS, 54);
@@ -363,7 +363,7 @@ describe('D-PROD-195 — migration CONTRACT que torna a curva de ganho obrigató
     assert.equal(h.abertas, 0);
     assert.equal(h.contracts_anteriores, 4);
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
-    assert.equal(partida.tabelas, 87, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade; a D-PROD-201 (na partida) acrescenta as 3 das linhas');
+    assert.equal(partida.tabelas, 87, '85 até a D-PROD-197; a D-PROD-200 (na partida) troca as 3 do apontamento antigo pelas 2 da atividade; a D-PROD-202 (na partida) acrescenta as 3 das linhas');
     assert.deepEqual(partida.colunas, [...COLUNAS_ANTES]);
     assert.deepEqual(partida.indices_categoria, [...INDICES_CATEGORIA_ANTES]);
     assert.deepEqual(partida.constraints_categoria, [...CONSTRAINTS_CATEGORIA_ANTES]);

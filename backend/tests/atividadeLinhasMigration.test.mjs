@@ -1,5 +1,5 @@
 /**
- * D-PROD-201 — a migration EXPAND `20261114600000_atividade_linhas_produto_maquina` (as linhas que geram custo no
+ * D-PROD-202 — a migration EXPAND `20261114600000_atividade_linhas_produto_maquina` (as linhas que geram custo no
  * apontamento do dia: AtividadeApontamentoProduto, AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina,
  * e duas colunas anuláveis, sem DEFAULT, em BemPatrimonial e TipoPatrimonial) de ponta a ponta, contra PostgreSQL real,
  * em bancos PRÓPRIOS criados e apagados por este teste (o banco da suíte não é tocado; os nomes começam pelo nome do
@@ -84,7 +84,7 @@ const AP = `${C1}-ap1`;
 /** Recusa (lança) qualquer URL que não seja desta máquina. Nunca devolve nem imprime a URL. */
 const exigirUrlLocal = (url) => {
   const motivo = motivoAlvoProtegido({}, url);
-  if (!url || motivo) throw new Error(`teste D-PROD-201: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
+  if (!url || motivo) throw new Error(`teste D-PROD-202: só banco LOCAL e descartável (${motivo ?? 'URL ausente'}); nada foi feito`);
   return url;
 };
 /** Mesma URL, outro banco lógico. */
@@ -152,7 +152,7 @@ const aplicarAnteriores = async (url) => {
     if (existsSync(join(MIGRATIONS, 'migration_lock.toml'))) cpSync(join(MIGRATIONS, 'migration_lock.toml'), join(dir, 'migrations', 'migration_lock.toml'));
     writeFileSync(join(dir, 'schema.prisma'), 'datasource db {\n  provider = "postgresql"\n  url      = env("DATABASE_URL")\n}\n');
     const r = await prisma(['migrate', 'deploy', '--schema', join(dir, 'schema.prisma')], url);
-    if (r.status !== 0) throw new Error(`teste D-PROD-201: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
+    if (r.status !== 0) throw new Error(`teste D-PROD-202: as migrations anteriores não subiram (exit ${r.status})\n${r.saida}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -276,7 +276,7 @@ after(async () => {
   await closePrismaClient();
 });
 
-describe('D-PROD-201 — migration EXPAND das linhas de produto e de máquina do apontamento (PostgreSQL real)', () => {
+describe('D-PROD-202 — migration EXPAND das linhas de produto e de máquina do apontamento (PostgreSQL real)', () => {
   test('LM-01 partida: as 53 migrations de nome anterior a esta (a última a D-PROD-200), 84 tabelas, as 3 novas e as 2 colunas ausentes; o preflight do runbook diz PRONTO e, com o system_identifier de produção, PARAR', async () => {
     assert.equal(ANTERIORES.length, 53, 'produção hoje: 53 migrations');
     assert.equal(ANTERIORES.at(-1), NOME_ANTERIOR);
@@ -518,7 +518,7 @@ describe('D-PROD-201 — migration EXPAND das linhas de produto e de máquina do
   });
 });
 
-describe('D-PROD-201 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
+describe('D-PROD-202 — caminho B do runbook (uma transação pelo conector), num banco à parte com a mesma partida', () => {
   let dbB;
   let partidaB;
   before(async () => {

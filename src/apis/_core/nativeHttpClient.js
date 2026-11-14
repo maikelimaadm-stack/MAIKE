@@ -86,7 +86,7 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   ATIVIDADE_MOTIVO_INVALIDO: API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO,
   // Exclusão de cadastro barrada por atividade ou apontamento (FK reconhecida pelo nome).
   ATIVIDADE_VINCULADA: API_ERROR_CODES.ATIVIDADE_VINCULADA,
-  // D-PROD-201 — linhas de produto e de máquina: a tela relê (linha sumiu), pede a justificativa do salto e resende,
+  // D-PROD-202 — linhas de produto e de máquina: a tela relê (linha sumiu), pede a justificativa do salto e resende,
   // ou diz por que o estorno exato e a troca de data foram recusados.
   ATIVIDADE_LINHA_NOT_FOUND: API_ERROR_CODES.ATIVIDADE_LINHA_NOT_FOUND,
   ATIVIDADE_LINHA_INVALIDA: API_ERROR_CODES.ATIVIDADE_LINHA_INVALIDA,

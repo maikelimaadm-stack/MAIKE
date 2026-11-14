@@ -127,7 +127,7 @@ mudança no abastecimento. Nesta parte, esta expansão supera apenas o "única" 
 exceção…" da D-PROD-159; o resto dela continua valendo. Texto redigido pelo agente; vale só com a aprovação
 explícita do proprietário no merge manual (§4).
 
-**Expansão autorizada pelo proprietário (D-PROD-201):** **Lançamento de Atividades — linhas de produto e de máquina**
+**Expansão autorizada pelo proprietário (D-PROD-202):** **Lançamento de Atividades — linhas de produto e de máquina**
 (página `LancamentoAtividades`, Fatia 3). Substitui a expansão D-PROD-193 acima, cuja página e itens saíram na
 D-PROD-200. A **linha de produto** do apontamento baixa do estoque **exatamente** a quantidade digitada, na unidade de
 estoque do Produto, pelo motor de estoque existente (FIFO por lote, custo FIFO, origem `apontamento_atividade`). Ela
