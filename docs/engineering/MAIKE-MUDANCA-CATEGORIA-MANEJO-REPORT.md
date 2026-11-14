@@ -34,4 +34,14 @@ Também faltam as fêmeas de 13 a 24 e de 25 a 36 meses. A correção fica com o
 
 ## 4. Verificação completa e revisão
 
-_(preenchido ao fim da missão.)_
+**`npm run verify:all` local** (Postgres 16, `maike_verify`), primeira rodada: 3 etapas vermelhas.
+- `gate:types`: 2 diagnósticos novos (TS2339) no JSDoc de `categoriaManejoDaLinha`. Corrigido; o `gate:types` passa (549 de dívida, teto 625).
+- `test:backend`: o Postgres local parou no meio da rodada (`P1001`). Rodou de novo e passou: 899 + 1.978 testes, 0 falhas.
+- `test:smoke`: 2.874 de 2.875 passam. A falha é `detalhesCochoNiveis.test.jsx` DC-1, que **não é desta missão**.
+  - A falha é igual na `main` limpa (`02ea10b5`); no `2b211d7b` o arquivo passa 9/9.
+  - O PR #284 trocou "Dias desde o lançamento" por "Dias desde o abastecimento" em `DetalhesPontoSuplementacao.jsx` e não atualizou o teste.
+  - A correção, uma linha no teste, fica numa missão própria (R7).
+
+**GitHub Actions** (voltaram a rodar) no head `b34b9606`: 8 de 10 jobs verdes, incluindo o backend com PostgreSQL efêmero. O vermelho é o mesmo DC-1, no `verify:full (smoke 1/2)`, e o agregador `verify:all`, que reprova por causa dele.
+
+**Testes da missão:** os 7 de `mudancaCategoriaManejoDestino.test.jsx` passam; os 3 da Mudança falham com o formulário antigo.
