@@ -10,8 +10,11 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-190 (Fatia C): o apontamento de atividade sai PRIMEIRO — referencia a tarefa, o tipo e o grupo de atividade,
-    -- o bem e o implemento, a área, os centros, os usuários e a empresa; nenhuma tabela o referencia.
+    -- D-PROD-191 (Fatia D): os itens do apontamento saem PRIMEIRO — a fatia FIFO referencia o item e o lote; o item
+    -- referencia o apontamento, o movimento, o produto, o local e os usuários; nenhuma outra tabela referencia os dois.
+    'ApontamentoAtividadeItemConsumoLote','ApontamentoAtividadeItem',
+    -- D-PROD-190 (Fatia C): o apontamento de atividade sai logo depois — referencia a tarefa, o tipo e o grupo de atividade,
+    -- o bem e o implemento, a área, os centros, os usuários e a empresa; só os itens (acima) o referenciam.
     'ApontamentoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.

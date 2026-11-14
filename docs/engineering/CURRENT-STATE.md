@@ -25,7 +25,20 @@ rollout pausado **D-PROD-41**)
 | Merge ≠ ratificação | O merge desta PR **não** aprova a D-PROD-177 nem emenda a constituição. A ratificação exige o texto incorporado em 00/07 e uma nota datada na D-PROD-177 |
 | Documentos | [`MAIKE-ESTOQUE-P1-CONTRATO.md`](./MAIKE-ESTOQUE-P1-CONTRATO.md) · [`MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md`](./MAIKE-ESTOQUE-P1-01-PROPOSTA-EMENDA.md) · [`MAIKE-ESTOQUE-P1-01-REPORT.md`](./MAIKE-ESTOQUE-P1-01-REPORT.md) |
 
-## Missão ativa (2026-11-13) — MAIKE-APONTAMENTO-ATIVIDADE (Fatia C do apontamento): execução da atividade (D-PROD-190)
+## Missão ativa (2026-11-14) — MAIKE-APONTAMENTO-ITENS (Fatia D do apontamento): itens de custo (D-PROD-191)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-191**, com as palavras do proprietário literais ("Baixa o estoque (Recomendado)"; "Descrição + valor (Recomendado)") e os pontos D-1…D-9 do contrato registrados como interpretação, reversíveis |
+| Branch / PR | `feat/apontamento-itens`, empilhada sobre `feat/apontamento-atividade` (PR #269). PR em rascunho, exclusiva desta fatia |
+| Escopo | Itens do apontamento CONFIRMADO: **PRODUTO** baixa o estoque pelo motor único (FIFO por lote, custo do lote, estorno exato ao cancelar o item ou o apontamento, origem nova `apontamento_atividade`); **SERVIÇO** e **OUTRO** com descrição livre, quantidade, valor unitário e total calculado, sem estoque nem financeiro. Itens imutáveis (só cancelar); cancelar o apontamento passa a exigir `operation_id` (D-2) e cancela os itens junto; combustível não entra como item (D-8); até 200 itens (D-9). Seção "Itens" no formulário existente, sem componente novo |
+| Migration | `20261113800000_apontamento_atividade_item`, **EXPAND** (só as 2 tabelas novas: `ApontamentoAtividadeItem` e `ApontamentoAtividadeItemConsumoLote`). SHA-256 `866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c`; DO `7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710`. Repositório: 44 → **45** migrations, 82 → **84** tabelas (69 de tenant). **NÃO aplicada** |
+| Release | Exige **GO separado** do proprietário para aplicar a migration em produção, **antes do merge e do deploy** (o detalhe do apontamento lê a tabela nova). Esperado em produção depois de aplicar: 46 concluídas, 85 tabelas. Depois: merge, deploy e smoke ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §6) |
+| Constituição | Parágrafo D-PROD-191 no `00 §1` e nota D-PROD-191 no `07`, redigidos pelo agente; **valem com a aprovação explícita do proprietário no merge manual** |
+| Próxima fatia | Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
+| Documentos | [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md) · [`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md) |
+
+## Missão anterior (2026-11-13) — MAIKE-APONTAMENTO-ATIVIDADE (Fatia C do apontamento): execução da atividade (D-PROD-190)
 
 | Campo | Valor |
 |---|---|
@@ -34,7 +47,7 @@ rollout pausado **D-PROD-41**)
 | Escopo | Model `ApontamentoAtividade`, API `/apontamentos-atividade` (lista, detalhe, criar, editar com `versao`, cancelar; sem DELETE), opções do formulário, tela `op-apontamentos-atividade` abaixo de "Tipos de Atividade", regras R-a…R-l. Centro de resultado escolhido pelo usuário; centro de custo copiado do bem na criação e trocável (snapshot) |
 | Migration | `20261113700000_apontamento_atividade`, **EXPAND** (só a tabela nova). SHA-256 `a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e`; DO `5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867`. Nome com data depois da `20261113400000_cadestacoes_cadastro` (já aplicada em produção) e das migrations das PRs #268 e #270; `migration.sql` intacto. Repositório: 43 → **44** migrations, 81 → **82** tabelas (67 de tenant). **Aplicada em produção em 2026-11-13 23:23:18 UTC** (caminho B, GO do proprietário, desvio da D-PROD-74), conferida: 45/0 (produção já tinha a `…600000` da PR #270), 83 tabelas, RLS, 13 FKs `RESTRICT`, advisors sem alerta |
 | Release | Migration aplicada antes do merge ([relatório](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md) §7). Falta: merge da PR #269, deploy e smoke (proprietário) |
-| Próximas fatias | Fatia D do apontamento (itens) e Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
+| Próximas fatias | Fatia D do apontamento (itens, D-PROD-191, missão ativa acima) e Fatia E (abastecimento ligado à atividade), só quando o proprietário liberar |
 | Documentos | [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md) |
 
 ## Missão anterior (2026-11-13) — MAIKE-CADESTACOES-CADASTRO: cadastro de Estações da fazenda, tabela `CADESTACOES` (D-PROD-188)

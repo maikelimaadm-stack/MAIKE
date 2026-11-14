@@ -10,9 +10,10 @@
  * conectar. Nunca imprime URL. Nada aqui toca produção.
  *
  * O que faz, num banco próprio (`--banco`, padrão maike_ensaio_tt_drop):
- *  1. aplica as 43 migrations da main (todas menos a CONTRACT; inclui a
- *     CADESTACOES, D-PROD-188, e a `20261113700000_apontamento_atividade`,
- *     D-PROD-190, posteriores a ela, que sobem aqui antes da CONTRACT: só criam
+ *  1. aplica as 44 migrations da main (todas menos a CONTRACT; inclui a
+ *     CADESTACOES, D-PROD-188, a `20261113700000_apontamento_atividade`,
+ *     D-PROD-190, e a `20261113800000_apontamento_atividade_item`, D-PROD-191,
+ *     posteriores a ela, que sobem aqui antes da CONTRACT: só criam
  *     tabelas novas e não tocam TipoTarefa), pelo Prisma, a partir de uma cópia
  *     temporária das pastas;
  *  2. semeia, por cliente, um GrupoAtividade, 5 TipoTarefa com combinações das
@@ -26,7 +27,7 @@
  *     MIGRATION_CONTRACT_AUTORIZADO tem de recusar antes de qualquer DDL;
  *  6. aplica pelo runner oficial (`npm run deploy:migrate`, conferência exigida,
  *     MIGRATION_CONTRACT_AUTORIZADO=D-PROD-183 e a impressão na URL) e confere:
- *     44 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas
+ *     45 concluídas, TipoTarefa com as 9 colunas que ficam, linhas idênticas
  *     nessas 9, mesmas tabelas, `migrate diff` vazio e 2ª execução sem pendência.
  *
  * As funções são exportadas e reaproveitadas por
@@ -147,7 +148,7 @@ const ambienteBase = () => {
 
 const prisma = (args, url) => rodar(process.execPath, [PRISMA_CLI, ...args], { env: { ...ambienteBase(), DATABASE_URL: url } });
 
-/** As 43 migrations da main (todas as pastas menos a CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
+/** As 44 migrations da main (todas as pastas menos a CONTRACT), aplicadas pelo Prisma a partir de uma cópia temporária. */
 export const aplicarMigrationsDaMain = async (url) => {
   const dir = mkdtempSync(join(tmpdir(), 'maike-tt-drop-main-'));
   try {
@@ -227,7 +228,7 @@ export const TIPOS_SEMENTE = Object.freeze([
 ]);
 
 /**
- * Sementes no schema ANTIGO (43 migrations): por cliente, o Cliente, um GrupoAtividade, os TIPOS_SEMENTE (com as 4
+ * Sementes no schema ANTIGO (44 migrations): por cliente, o Cliente, um GrupoAtividade, os TIPOS_SEMENTE (com as 4
  * flags gravadas) e um LancamentoTarefa apontando para o tipo com as 4 flags true. `apenasFalse` semeia só os tipos
  * sem nenhum true (o banco "sem nada a perder").
  * @param {import('@prisma/client').PrismaClient} db
@@ -428,7 +429,7 @@ if (ehEntradaDireta()) {
         segunda: /No pending migrations/.test((await aplicarPeloRunner(url)).saida),
       };
       const g = relatorio.green;
-      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 44 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
+      if (g.status !== 0 || !g.autorizado || g.historico.concluidas !== 45 || g.historico.abertas !== 0 || JSON.stringify(g.colunas) !== JSON.stringify(COLUNAS_QUE_FICAM)
         || !g.linhas_que_ficam_identicas || !g.demais_identicas || g.migrate_diff !== 0 || !g.segunda
         || relatorio.runner_sem_autorizacao.status === 0 || !relatorio.runner_sem_autorizacao.recusou || !relatorio.runner_sem_autorizacao.nada_mudou) relatorio.ok = false;
     } finally {

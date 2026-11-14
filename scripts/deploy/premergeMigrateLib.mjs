@@ -75,6 +75,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261113400000_cadestacoes_cadastro': '5d295863216619103ac9e645229edb9d3ffa25a06774097df3429b5358dc90f7',
   // D-PROD-190 (Fatia C): ApontamentoAtividade (execução de uma atividade) — só tabela nova.
   '20261113700000_apontamento_atividade': 'a9735833d64b5ebd50d35b12e6eaaa20e1d70bbad6defc131db1dd50e5fab75e',
+  // D-PROD-191 (Fatia D do apontamento): ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote — só tabelas novas.
+  '20261113800000_apontamento_atividade_item': '866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -102,6 +104,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '10d6c749779b4a22ea4d7fbbdf7455da1c618b7a4981bbcf10c14391b4056f5f',
   // D-PROD-190 (Fatia C): RLS/REVOKE de ApontamentoAtividade (mesmo corpo, lista nova).
   '5da2c547f176a4c49841f52ce19922b9f7c3150d3b1851cdc8e0554e408f1867',
+  // D-PROD-191: RLS/REVOKE das 2 tabelas de itens do apontamento (mesmo corpo, lista nova).
+  '7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710',
 ]);
 
 /** D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada exige decisão. */

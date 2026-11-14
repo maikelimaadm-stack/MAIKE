@@ -114,6 +114,18 @@ esta expansão supera apenas o trecho "não há tela avulsa de entrada" da expan
 D-PROD-155; o resto da D-PROD-155 continua valendo. Texto proposto pelo agente; vale só
 com a aprovação explícita do proprietário (§4), registrada como ratificação na D-PROD-177.
 
+**Expansão autorizada pelo proprietário (D-PROD-191):** **Apontamento de Atividade — itens** (página
+`ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
+**PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de
+estoque existente (FIFO por lote, custo FIFO final, estorno exato ao cancelar o item ou o apontamento), como o
+abastecimento. Os itens **SERVIÇO** e **OUTRO** têm descrição livre, quantidade e valor unitário, com total
+calculado, sem cadastro de serviço, sem fornecedor e sem efeito de estoque. Esta é a segunda exceção à lista
+"fora" da D-PROD-157, só no trecho "baixa de estoque" por item de apontamento. Continua **fora**: lançamento
+financeiro, título ou conta a pagar a partir do item, rateio por item, cadastro de serviços, fornecedor no item,
+devolução de sobra ao estoque, edição de item, custo/hora, manutenção, peças, relatórios de custo e qualquer
+mudança no abastecimento. Texto redigido pelo agente; vale com a aprovação explícita do proprietário no merge
+manual (§4).
+
 ## 2. Princípios fundadores
 
 ### P1 — Memória é o repositório

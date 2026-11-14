@@ -123,7 +123,13 @@ const ESCRITAS = (c) => {
     // op-apontamentos-atividade (cancelar = ação "excluir"; não há DELETE físico).
     ['apontamento de atividade (POST)', 'POST', '/apontamentos-atividade', { empresa_id: E, tipo_atividade_id: 'ta-1', data_operacional: '2026-10-27' }],
     ['apontamento de atividade (PATCH)', 'PATCH', `/apontamentos-atividade/${ID}`, { empresa_id: E, versao: 1, observacao: 'HACK' }],
-    ['apontamento de atividade (cancelar)', 'POST', `/apontamentos-atividade/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK' }],
+    // D-PROD-191 (D-2): o cancelamento exige operation_id (sem ele seria 400, não 403).
+    ['apontamento de atividade (cancelar)', 'POST', `/apontamentos-atividade/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK', operation_id: opId() }],
+    // D-PROD-191 (D-3) — itens do apontamento: adicionar = editar|salvar; cancelar item = excluir.
+    ['apontamento de atividade: item (POST)', 'POST', `/apontamentos-atividade/${ID}/itens`, {
+      empresa_id: E, versao: 1, operation_id: opId(), tipo: 'SERVICO', quantidade: '1', descricao: 'HACK', valor_unitario: '1',
+    }],
+    ['apontamento de atividade: item (cancelar)', 'POST', `/apontamentos-atividade/${ID}/itens/${ID}/cancelar`, { empresa_id: E, versao: 1, operation_id: opId(), motivo: 'HACK' }],
     ['fornecedor (DELETE)', 'DELETE', `/fornecedores/${ID}`],
     ['medicamento (POST)', 'POST', '/aplicacoes-medicamento', { empresa_id: E, observacoes: 'x' }],
     ['evento sanitário (POST)', 'POST', '/eventos-sanitarios', { empresa_id: E, observacoes: 'x' }],
@@ -203,8 +209,9 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     const [, , urlC, corpoC] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (POST)');
     const [, , urlE, corpoE] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (PATCH)');
     const [, , urlX, corpoX] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade (cancelar)');
+    // D-PROD-191: as opções de produto (visualizar) entram nas leituras da tela.
     const leituras = ['/apontamentos-atividade', `/apontamentos-atividade/${ID}`, '/apontamentos-atividade-opcoes/bens', '/apontamentos-atividade-opcoes/operadores',
-      '/apontamentos-atividade-opcoes/centros-custo', '/apontamentos-atividade-opcoes/centros-resultado'].map((u) => `${u}?empresa_id=${E}`);
+      '/apontamentos-atividade-opcoes/centros-custo', '/apontamentos-atividade-opcoes/centros-resultado', '/apontamentos-atividade-opcoes/produtos'].map((u) => `${u}?empresa_id=${E}`);
     const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
 
     // A tela vizinha (Tipos de Atividade), com tudo ligado, não libera nada aqui.
@@ -233,6 +240,44 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.equal((await req('POST', urlC, c.tokOp, corpoC)).statusCode, 403);
     // Sem DELETE físico: a rota não existe para ninguém.
     assert.equal((await req('DELETE', `/apontamentos-atividade/${ID}`, c.tokAdm)).statusCode, 404);
+  });
+
+  test('D-PROD-191 — itens do apontamento (D-3, sem ação nova): adicionar item e ver o saldo por local = editar|salvar; cancelar item = excluir; produtos = visualizar; "novo" não lança item', async () => {
+    const c = await cenario();
+    const E = c.empresa.id;
+    const [, , urlI, corpoI] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade: item (POST)');
+    const [, , urlXI, corpoXI] = ESCRITAS(c).find(([n]) => n === 'apontamento de atividade: item (cancelar)');
+    const urlProdutos = `/apontamentos-atividade-opcoes/produtos?empresa_id=${E}`;
+    const urlLocais = `/apontamentos-atividade-opcoes/locais?empresa_id=${E}&produto_id=${ID}`;
+    const linhaCom = (acoes) => c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'op-apontamentos-atividade', { visualizar: true, ...acoes })] });
+    /** `[produtos, locais, adicionar, cancelar item]`: true = passou da guarda (404/422 do id inexistente não é 403). */
+    const passa = async () => {
+      const out = [];
+      for (const [metodo, url, corpo] of [['GET', urlProdutos], ['GET', urlLocais], ['POST', urlI, corpoI], ['POST', urlXI, corpoXI]]) {
+        const antes = await fotografia(c.cliente.id);
+        const r = await req(metodo, url, c.tokOp, corpo);
+        if (r.statusCode === 403) assert.equal(r.json().code, 'ACAO_NAO_PERMITIDA', `${url}: ${r.body}`);
+        assert.equal(await fotografia(c.cliente.id), antes, `${url}: nada gravado`);
+        out.push(r.statusCode !== 403);
+      }
+      return out;
+    };
+    // A tela vizinha (Tipos de Atividade), com tudo ligado, não libera nada aqui.
+    const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
+    await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'sup-tipos-atividade', todas)] });
+    assert.deepEqual(await passa(), [false, false, false, false], 'tela vizinha');
+    await linhaCom({});
+    assert.deepEqual(await passa(), [true, false, false, false], 'só visualizar: lê os produtos');
+    await linhaCom({ novo: true });
+    assert.deepEqual(await passa(), [true, false, false, false], '"novo" cria apontamento, não lança item');
+    await linhaCom({ editar: true });
+    assert.deepEqual(await passa(), [true, true, true, false], '"editar" lança item e vê o saldo por local');
+    await linhaCom({ salvar: true });
+    assert.deepEqual(await passa(), [true, true, true, false], '"salvar" lança item e vê o saldo por local');
+    await linhaCom({ excluir: true });
+    assert.deepEqual(await passa(), [true, false, false, true], '"excluir" cancela item (a mesma ação de cancelar o apontamento)');
+    // Sem PATCH/DELETE de item para ninguém.
+    for (const metodo of ['PATCH', 'DELETE']) assert.equal((await req(metodo, `/apontamentos-atividade/${ID}/itens/${ID}`, c.tokAdm)).statusCode, 404, metodo);
   });
 
   test('sem tela no produto (medicamento, sanitário…): nem a concessão is_admin grava — só o administrador real', async () => {

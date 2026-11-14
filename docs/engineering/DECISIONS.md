@@ -6814,4 +6814,71 @@ Os dois penduram no mesmo `GrupoAtividade`. As "flags de exigência" saem do CAD
 
 **Relatório:** [`MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md`](./MAIKE-APONTAMENTO-ATIVIDADE-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-191 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-189 com a PR #270) -->
+## D-PROD-191 — Apontamento de Atividade: itens de custo (Fatia D do apontamento)
+
+**Data:** 2026-11-14 · **Origem:** pedido do proprietário (Fatia D do apontamento, itens), depois da Fatia C aplicada em produção (D-PROD-190) · **Branch:** `feat/apontamento-itens`, empilhada sobre `feat/apontamento-atividade` (PR #269)
+
+> **Numeração:** a D-PROD-190 já dizia que a Fatia D do apontamento "terá número próprio". A D-PROD-191 era a próxima livre; continuam reservadas a D-PROD-185 (PR #263), a D-PROD-187 (PR #268) e a D-PROD-189 (PR #270). O `migration.sql` não cita número de decisão (precedente da D-PROD-190).
+
+**Palavras do proprietário** (perguntas e opções escolhidas no chat, transcritas literalmente; o chat não é autoritativo, por isso ficam aqui):
+- Pergunta: "Fatia D, item do tipo PRODUTO no apontamento (ex.: herbicida aplicado numa roçada): ele baixa o estoque?" → escolhida: **"Baixa o estoque (Recomendado)"** — "Igual ao abastecimento: o item escolhe produto e local de estoque, sai do estoque pelo motor único (FIFO), o custo vem do lote real e cancelar o apontamento estorna."
+- Pergunta: "Fatia D, itens de SERVIÇO e OUTROS CUSTOS (ex.: mão de obra terceirizada, frete): como registrar?" → escolhida: **"Descrição + valor (Recomendado)"** — "Descrição livre, quantidade, valor unitário e total calculado. Não existe cadastro de serviços hoje, e não crio um."
+
+**Contexto.**
+- O apontamento (D-PROD-190) é a execução da atividade e nasceu **sem itens de custo**. Esta fatia acrescenta os itens; o abastecimento pendurado no apontamento continua sendo a Fatia E.
+- Hoje o abastecimento é a única exceção de baixa de estoque ligada a bens (`00-CONSTITUICAO.md` §1, D-PROD-159). O item PRODUTO é uma segunda exceção, por isso esta decisão traz texto constitucional (item 9).
+- Contrato do arquiteto: [`MAIKE-APONTAMENTO-ITENS-CONTRATO.md`](./MAIKE-APONTAMENTO-ITENS-CONTRATO.md).
+
+**Decisão.**
+1. **Dois models novos** (só tabelas novas; nenhuma tabela antiga muda):
+   - **`ApontamentoAtividadeItem`**: `tipo` (`PRODUTO` | `SERVICO` | `OUTRO`), `status` (`CONFIRMADO` | `CANCELADO`), `ordem` (1..n, nunca reaproveitada), `descricao` (só SERVICO/OUTRO), produto e local (só PRODUTO), `quantidade` (14,4), `unidade` (`L` | `KG`, só PRODUTO), `valor_unitario` (18,6), `valor_total` (18,4), `operation_id`, movimentos de saída e de estorno, quem criou, quem cancelou, quando, motivo e `cancelamento_origem` (`ITEM` | `APONTAMENTO`).
+   - **`ApontamentoAtividadeItemConsumoLote`**: a fatia FIFO que o item PRODUTO consumiu (lote, ordem, quantidade, custo unitário). O estorno devolve cada fatia ao SEU lote; o item cancelado mantém as fatias como histórico.
+   - FKs compostas por `cliente_id`, todas `ON DELETE RESTRICT`. O item aponta para `ApontamentoAtividade(cliente_id, empresa_id, id)`: mesmo tenant e mesma empresa por construção, sem FK direta para Empresa. Únicos e índices começando por `cliente_id` (R10). 7 CHECKs (domínios e invariantes, sem ponto e vírgula dentro). Relações inversas só no Prisma.
+2. **Migration EXPAND `20261113800000_apontamento_atividade_item`.** Só as 2 tabelas novas, índices, 11 FKs, 7 CHECKs e o bloco RLS/REVOKE da D-PROD-190 com a lista `['ApontamentoAtividadeItem','ApontamentoAtividadeItemConsumoLote']`.
+   - Hashes pinados em `premergeMigrateLib.mjs`: arquivo `866dc9944772afb08ee851dd653d62db73dccfa5e152f611f2205c3eb594533c`; corpo do DO `7aaa176ccec3645fe0730b5aaedee8882b1a276e3912f3360c8d0d2c1b67f710`. Classificada sozinha: `EXPAND`, `tabelas_novas = ["ApontamentoAtividadeItem", "ApontamentoAtividadeItemConsumoLote"]`, sem violação, sem `--contract`.
+   - A origem nova do movimento é só código: nenhuma tabela antiga tem CHECK ou enum de origem. A chave de idempotência e todo dado novo ficam nas tabelas novas (nada em `ApontamentoAtividade`, que já é antiga; o total de custo é derivado na leitura).
+   - Repositório: 44 → **45** migrations; tabelas 82 → **84** (67 → **69** de tenant). SQL editor 01–04, testes de contagem e ensaios atualizados.
+   - **Não aplicada.** A aplicação em produção exige **GO separado** do proprietário e acontece **antes do merge/deploy** (o detalhe do apontamento lê a tabela nova; código antes da migration = 500 na tela).
+3. **API** (no plugin existente; tenant só do `auth_context`; empresa no corpo/query conferida no tenant; corpos e queries com `additionalProperties: false`; decimais só como texto):
+   - `POST /apontamentos-atividade/:id/itens` — 201 novo, 200 replay; resposta = detalhe do apontamento + `item_id` + `replay`;
+   - `POST /apontamentos-atividade/:id/itens/:itemId/cancelar` — 200 com o detalhe + `replay`;
+   - `POST /apontamentos-atividade/:id/cancelar` **muda**: `operation_id` obrigatório (D-2) e cancela/estorna todos os itens junto;
+   - `GET /apontamentos-atividade/:id` **muda**: traz `itens` (inclusive cancelados) e `custo_itens` (soma só dos CONFIRMADO). A lista não traz itens;
+   - `GET /apontamentos-atividade-opcoes/produtos` e `GET /apontamentos-atividade-opcoes/locais?produto_id=` (locais ativos com saldo da empresa).
+   - **Sem PATCH e sem DELETE de item** (o Fastify responde 404 de rota).
+   - Idempotência por recibo (`adicionar_item_apontamento_atividade_v1`, `cancelar_item_apontamento_atividade_v1`, `cancelar_apontamento_atividade_v1`), fingerprint de ordem fixa e o unique `(cliente_id, operation_id)` do item como rede. CAS = `versao` do APONTAMENTO: adicionar e cancelar item incrementam a `versao` uma vez.
+   - Erros novos: `APONTAMENTO_ATIVIDADE_ITEM_NOT_FOUND` (404), `_ITEM_INVALIDO` (422, por `field`/`reason`), `_ITEM_STATUS_INVALIDO` (409), `_ITENS_EXCEDIDOS` (422), `_ESTORNO_BLOQUEADO` (409, com `reason`, `item_id`, `item_ordem`, `lote_id`) e `_DATA_COM_ITENS` (409).
+4. **PRODUTO.**
+   - Produto do tenant, da mesma empresa, ativo, com unidade de estoque efetiva `L` ou `KG` (SACO guarda kg); o local existe e está ativo. Quantidade na unidade efetiva, **sem nenhuma conversão**.
+   - Baixa só por `aplicarSaidaFifo` do motor único, com a origem nova **`apontamento_atividade`** (`ORIGEM_APONTAMENTO`, em `ORIGENS_SISTEMA` e `EXCLUSAO_SOMENTE_EM`), na `data_operacional` do apontamento. Custo = custo FIFO do motor (Σ fatia × custo do lote, arredondado uma vez, 4 casas); nunca preço digitado, nunca custo médio. O movimento não leva centro, máquina nem tipo de documento.
+   - Trava na ordem canônica: recibo → empresa → apontamento `FOR UPDATE` → conferências → local `FOR KEY SHARE` → `travarProdutosEstoque` → leitura do Produto sob a trava → motor.
+   - Saldo insuficiente → 422 `ESTOQUE_SALDO_INSUFICIENTE`, nada gravado.
+   - Cancelar (o item ou o apontamento) estorna pelo `estornarEmLote`: cada fatia volta ao SEU lote, Entrada `estorno_apontamento_atividade` com o mesmo valor, original `Estornada`, `estoque_atual` restaurado, data do estorno = **hoje da fazenda**. Antes do motor, confere produto ainda da fazenda, mesma unidade, movimento existente e ativo, fatias somando a quantidade; qualquer recusa → 409 `_ESTORNO_BLOQUEADO`, nada muda.
+   - Nada de saldo direto: o serviço não escreve `Produto`, `EstoqueLoteNota` nem `MovimentacaoEstoque`; não altera `preco_custo`.
+5. **SERVICO e OUTRO.** Descrição livre (1..255), quantidade > 0 e valor unitário ≥ 0; `valor_total = ROUND_HALF_UP(quantidade × valor_unitario, 4)` em Decimal no servidor, > 0 e dentro do limite de dinheiro. Sem produto, local, unidade, movimento, cadastro de serviço ou fornecedor; nenhum efeito de estoque nem financeiro.
+6. **Regras gerais.**
+   - Item só em apontamento CONFIRMADO; CANCELADO → 409 `APONTAMENTO_ATIVIDADE_STATUS_INVALIDO`.
+   - Item imutável: corrigir = cancelar (com estorno) e lançar de novo. Apagar item é proibido.
+   - Cancelar o apontamento cancela, na MESMA transação, todos os itens CONFIRMADO (`cancelamento_origem = 'APONTAMENTO'`, motivo do apontamento); uma recusa em qualquer item desfaz tudo.
+   - Auditoria na mesma transação (`apontamento_atividade.item_adicionar` / `item_cancelar`, entidade `ApontamentoAtividadeItem`); nunca AuditLog de `EstoqueLoteNota` ou `Produto`.
+   - Lote consumido por item fica imutável (X1): PATCH/DELETE do lote → 409 `REGISTRO_OPERACIONAL_IMUTAVEL`, `vinculo = 'apontamento_atividade'`. A reconciliação de estoque conhece a origem nova (`ORIGENS_PROTOCOLO`, `ORIGENS_COM_FK`, CTE das fatias só dos itens CONFIRMADO). Os dois módulos antigos conferem `to_regclass` antes de citar as tabelas novas (lição do hotfix #259).
+   - Sem efeito financeiro: nenhum `OperacaoFinanceira`, título, conta a pagar, natureza ou rateio.
+7. **Pontos do §9 do contrato, resolvidos como interpretação** (padrões recomendados pelo orquestrador; o proprietário revisa na PR; todos reversíveis):
+   - **D-1 PATCH da data com itens:** opção (a). `PATCH` que muda `data_operacional` com item PRODUTO CONFIRMADO → 409 `APONTAMENTO_ATIVIDADE_DATA_COM_ITENS` (o movimento ficaria em outra data).
+   - **D-2 Cancelar apontamento:** `operation_id` **obrigatório** em `POST /apontamentos-atividade/:id/cancelar` (efeito de estoque = recibo). O frontend desta fatia passa a enviar; uma aba aberta com a versão antiga recebe 400 até recarregar.
+   - **D-3 Permissões:** adicionar item = `editar|salvar`; cancelar item = `excluir` (a mesma ação de cancelar o apontamento); opções de produto = `visualizar`; locais com saldo = `editar|salvar`. Nenhuma ação nova; nenhum perfil recebe acesso por padrão.
+   - **D-4 Centro de custo:** o item não tem centro próprio; vale o centro de custo (snapshot) do cabeçalho do apontamento. Trocar o centro do cabeçalho leva o custo dos itens junto.
+   - **D-5 Prévia de custo:** não há prévia nesta fatia; o custo FIFO aparece depois de lançar, e a tela mostra o saldo por local.
+   - **D-6 SERVIÇO × OUTRO:** mesmos campos e regras; só o rótulo muda; sem unidade.
+   - **D-7 Arredondamento:** total de SERVIÇO/OUTRO em 4 casas, `ROUND_HALF_UP`; a tela exibe em R$.
+   - **D-8 Combustível como item:** **recusado**. Produto aceito por algum tanque (`TanqueBemProduto` ativo) não entra como item PRODUTO: 422 `APONTAMENTO_ATIVIDADE_ITEM_INVALIDO` com `reason: 'combustivel_no_abastecimento'` ("combustível se lança no abastecimento"). Evita dupla contagem com a Fatia E.
+   - **D-9 Limite:** 200 itens por apontamento, contando os cancelados. Ao exceder: 422 `APONTAMENTO_ATIVIDADE_ITENS_EXCEDIDOS` (a tabela de erros do contrato, §3.5, e o código dizem 422; o resumo do §10 dizia 409 por engano).
+8. **Tela.** Seção "Itens" no formulário existente do apontamento (`FormularioApontamentoAtividade.jsx`), entre "Centros" e "Cancelar apontamento": novo = só aviso; editando o cabeçalho = itens só leitura; consulta de CONFIRMADO = itens + "+ Produto", "+ Serviço", "+ Outro custo" (com `editar`) e "Cancelar item" (com `cancelar`); CANCELADO = só leitura. O registro aberto passa a ser o detalhe; a resposta dos comandos vai para o cache. Idempotência no cliente com pendência por escopo `apontamento:<cliente>:<login>`. Só componentes existentes; nenhum `.jsx` ou CSS novo.
+9. **Texto constitucional.** Parágrafo "Expansão autorizada pelo proprietário (D-PROD-191)" no `00-CONSTITUICAO.md` §1, depois do parágrafo da D-PROD-177, e "Nota (D-PROD-191)" no `07-DO-NOT-DO.md`, depois da nota D-PROD-177, com o texto do Apêndice A do contrato. **Redigido pelo agente; vale com a aprovação explícita do proprietário no merge manual** (`00` §4). O agente não o aprova.
+10. **Fora do escopo:** abastecimento ligado ao apontamento (Fatia E; `AbastecimentoBem*` não foi tocado); flags `exige_area`/`pode_ter_*` (não voltam); edição e exclusão de item; devolução de sobra ao estoque; cadastro de serviços e fornecedor no item; lançamento financeiro, título, conta a pagar, rateio ou natureza a partir do item; prévia de custo; custo/hora, manutenção, peças e relatórios de custo; trabalho visual.
+
+**Testes.** `backend/tests/apontamentoAtividadeItensNativo.test.mjs` e `apontamentoAtividadeItensConcorrencia.test.mjs` (Postgres real: FIFO em 2 lotes, um arredondamento, SACO/KG/L sem conversão, SERVICO/OUTRO em Decimal, recusas sem efeito, CAS, D-1, estorno exato no "hoje" da fazenda, idempotência, bloqueios do estorno, cancelamento tudo-ou-nada, isolamento, reconciliação, X1, proveniência P3, código antes da migration, CHECKs/FKs/RLS, permissões, corridas com portão em `pg_locks`, 50 itens PRODUTO cancelados em ~80 ms); `apontamentoAtividadeNativo` e `permissoesR2Rotas` ajustados (D-2, detalhe com itens, rotas novas); `premerge-migrate` (B1, B15a/B15b); `sqlEditorBootstrap` (semente com item SERVICO e item PRODUTO com fatia, provando a ordem de exclusão); `patrimonioP1Seguranca` (S8), `patrimonioSimplificaMigration`, `tipoTarefaDropColunasMigration` e os 2 ensaios com as contagens novas; smoke `tests/smoke/apontamentosAtividade.test.jsx`. Mutações do contrato (M1–M17) pegas.
+
+**Relatório:** [`MAIKE-APONTAMENTO-ITENS-REPORT.md`](./MAIKE-APONTAMENTO-ITENS-REPORT.md).
+
+<!-- Próxima decisão: D-PROD-192 (D-PROD-185 com a PR #263; D-PROD-187 com a PR #268; D-PROD-189 com a PR #270) -->
